@@ -28,7 +28,7 @@ namespace fly {
 
         CodeGenVar *CodeGen = nullptr;
 
-        explicit SemaMemberVar(ASTMember &AST, SemaResult &Parent);
+        explicit SemaMemberVar(ASTVar &AST, SemaResult &Parent);
 
     public:
 

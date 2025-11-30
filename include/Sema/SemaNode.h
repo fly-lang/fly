@@ -45,7 +45,7 @@ namespace fly {
 
 		SemaKind getKind() const;
 
-		// virtual void accept(SemaVisitor& Visitor) = 0;
+		// virtual void accept(SemaVisitor& Visitor) = 0; // FIXME To manage errors
 	};
 
 }

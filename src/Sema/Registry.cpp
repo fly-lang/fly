@@ -137,7 +137,8 @@ SemaType* Registry::LookupNamedType(llvm::StringRef Name, SemaNameSpace *NameSpa
 	return nullptr; // not found
 }
 
-SemaType * Registry::LookupNamedType(llvm::SmallVector<ASTName *, 4> &Names, SemaNameSpace *NameSpace) {
+SemaType * Registry::LookupNamedType(ASTNamedType &NamedType, SemaNameSpace *NameSpace) {
+	const SmallVector<ASTName *, 4> &Names = NamedType.getNames();
 	SemaNameSpace * CurrentNameSpace = NameSpace;
 	auto &Children = NameSpaces;
 	for (int i = 0; i < Names.size(); i++) {
@@ -160,9 +161,15 @@ SemaType * Registry::LookupNamedType(llvm::SmallVector<ASTName *, 4> &Names, Sem
 	return nullptr;
 }
 
-SemaNameSpace* Registry::LookupNameSpace(llvm::StringRef Name) {
-	auto It = NameSpaces.find(Name);
-	if (It != NameSpaces.end()) {
+SemaNameSpace* Registry::LookupNameSpace(llvm::StringRef Name, SemaNameSpace *NameSpace) {
+	llvm::StringMap<SemaNameSpace *> Search;
+	if (NameSpace)
+		Search = NameSpace->getChildren();
+	else
+		Search = NameSpaces;
+
+	auto It = Search.find(Name);
+	if (It != Search.end()) {
 		return It->second;
 	}
 	return nullptr; // not found

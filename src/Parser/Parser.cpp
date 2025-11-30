@@ -40,6 +40,7 @@
 
 #include <AST/ASTExprStmt.h>
 #include <AST/ASTFailStmt.h>
+#include <AST/ASTLocalVar.h>
 #include <AST/ASTModifier.h>
 #include <AST/ASTReturnStmt.h>
 
@@ -299,7 +300,7 @@ ASTFunction *Parser::ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers) {
 	const SourceLocation &Loc = ConsumeToken();
 
 	// Parse Params
-	SmallVector<ASTVar *, 8> Params = ParserFunction::ParseParams(this);
+	SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(this);
 
 	// Create Function
 	ASTFunction *Function = Builder.CreateFunction(Module, Loc, T, Name, Modifiers, Params, nullptr);
@@ -437,7 +438,7 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
     	// Create a Local Var
     	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
     	const SourceLocation &Loc = ConsumeToken();
-    	ASTVar *LocalVar = Builder.CreateLocalVar(Parent, Loc, T, Name, Modifiers);
+    	ASTLocalVar *LocalVar = Builder.CreateLocalVar(Parent, Loc, T, Name, Modifiers);
     	Identifier = Builder.CreateIdentifier(LocalVar);
     }
 

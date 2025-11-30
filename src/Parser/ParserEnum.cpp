@@ -88,6 +88,6 @@ ASTEnum *ParserEnum::Parse(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) 
 
 bool ParserEnum::ParseEntry(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> Modifiers) {
 	FLY_DEBUG_START("EnumParser", "ParserEntry");
-    ASTVar *EnumEntry = P->Builder.CreateEnumEntry(Loc, Enum, Name, Modifiers);
+    ASTEnumEntry *EnumEntry = P->Builder.CreateEnumEntry(Loc, Enum, Name, Modifiers);
     return true;
 }

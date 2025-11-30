@@ -20,15 +20,6 @@ SemaFunction::SemaFunction(ASTFunction &AST, SymbolTable *Symbols) : SemaFunctio
 
 }
 
-// Function to mangle a type reference
-std::string SemaFunction::MangleFunction(ASTFunction &AST) {
-	llvm::SmallVector<SemaType *, 8> Params;
-	for (auto Param : AST.getParams()) {
-		Params.push_back(Param->getType()->getSema());
-	}
-	return SemaFunctionBase::MangleFunction(AST.getName(), Params);
-}
-
 SemaModule *SemaFunction::getModule() const {
 	return Module;
 }

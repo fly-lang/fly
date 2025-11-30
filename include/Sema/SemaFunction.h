@@ -42,8 +42,6 @@ namespace fly {
 
         explicit SemaFunction(ASTFunction &AST, SymbolTable *Symbols);
 
-        std::string MangleFunction(ASTFunction &AST);
-
     public:
 
         SemaModule *getModule() const;

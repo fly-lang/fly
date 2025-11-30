@@ -15,6 +15,7 @@
 
 namespace fly {
 
+    class ASTParam;
 	class CodeGenVar;
 
     class SemaParam : public SemaVar {
@@ -25,7 +26,7 @@ namespace fly {
 
 		CodeGenVar *CodeGen;
 
-        explicit SemaParam(ASTVar &AST);
+        explicit SemaParam(ASTParam &AST);
 
     public:
 

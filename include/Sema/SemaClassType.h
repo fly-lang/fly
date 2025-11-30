@@ -53,7 +53,7 @@ namespace fly {
         llvm::SmallVector<SemaNode *, 8> Nodes;
 
         // Class Visibility
-        SemaVisibilityKind Visibility = SemaVisibilityKind::DEFAULT;
+        SemaVisibilityKind Visibility;
 
         // Class is Constant (cannot be redefined)
         bool Constant;
@@ -94,6 +94,8 @@ namespace fly {
 
         SymbolTable *getSymbols() const;
 
+        SemaComment *getComment() const;
+
         llvm::SmallVector<SemaNode *, 8> &getNodes();
 
         SemaVisibilityKind getVisibility() const;
@@ -106,13 +108,23 @@ namespace fly {
 
         const llvm::SmallVector<SemaClassType *, 4> &getBaseClasses() const;
 
+        SemaClassAttribute *LookupAttribute(llvm::StringRef Name) const;
+
+        SemaClassMethod *LookupMethod(llvm::StringRef Name) const;
+
+        SemaClassMethod *LookupConstructor(llvm::StringRef Name) const;
+
         const llvm::StringMap<SemaClassAttribute *> &getAttributes() const;
 
         const llvm::StringMap<SemaClassMethod *> &getMethods() const;
 
         const llvm::StringMap<SemaClassMethod *> &getConstructors() const;
 
-        SemaComment *getComment() const;
+        void addAttribute(SemaClassAttribute *Attribute);
+
+        void addMethod(SemaClassMethod *Method);
+
+        void addConstructor(SemaClassMethod *Constructor);
 
         bool isDerivedOrEquals(SemaClassType *BaseClassType) const;
 

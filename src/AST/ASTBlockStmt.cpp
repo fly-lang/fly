@@ -50,7 +50,7 @@ void ASTBlockStmt::Clear() {
  * Get LocalVars
  * @return the Block's declared vars
  */
-const llvm::StringMap<ASTVar *> &ASTBlockStmt::getLocalVars() const {
+const llvm::StringMap<ASTLocalVar *> &ASTBlockStmt::getLocalVars() const {
     return LocalVars;
 }
 

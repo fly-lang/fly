@@ -6,6 +6,7 @@ add_library(flyLib
 
         # AST
         AST/ASTArg.cpp
+        AST/ASTAttribute.cpp
         AST/ASTBase.cpp
         AST/ASTBuilder.cpp
         AST/ASTBuilderStmt.cpp
@@ -22,6 +23,7 @@ add_library(flyLib
         AST/ASTContinueStmt.cpp
         AST/ASTDeleteStmt.cpp
         AST/ASTEnum.cpp
+        AST/ASTEnumEntry.cpp
         AST/ASTExpr.cpp
         AST/ASTExprStmt.cpp
         AST/ASTFailStmt.cpp
@@ -31,13 +33,16 @@ add_library(flyLib
         AST/ASTType.cpp
         AST/ASTIfStmt.cpp
         AST/ASTImport.cpp
+        AST/ASTLocalVar.cpp
         AST/ASTLoopStmt.cpp
         AST/ASTLoopInStmt.cpp
+        AST/ASTMethod.cpp
         AST/ASTName.cpp
         AST/ASTNameSpace.cpp
         AST/ASTModule.cpp
         AST/ASTMember.cpp
         AST/ASTOpExpr.cpp
+        AST/ASTParam.cpp
         AST/ASTReturnStmt.cpp
         AST/ASTRuleStmt.cpp
         AST/ASTModifier.cpp

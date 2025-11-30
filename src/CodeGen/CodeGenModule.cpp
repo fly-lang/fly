@@ -1271,15 +1271,15 @@ void CodeGenModule::GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop) {
 
 void CodeGenModule::GenReturn(ASTFunction *F, ASTExpr *Expr) {
     // Create the Value for return // FIXME
-    if (F->getReturnTypeRef()->getSema()->isVoid()) {
+    if (F->getReturnType()->getSema()->isVoid()) {
         Builder->CreateRetVoid();
     } else {
         llvm::Value *Ret;
         if (Expr) {
             llvm::Value *V = GenExpr(Expr);
-            Ret = Convert(V, Expr->getType(), F->getReturnTypeRef()->getSema());
+            Ret = Convert(V, Expr->getType(), F->getReturnType()->getSema());
         } else {
-            Ret = GenDefaultValue(F->getReturnTypeRef()->getSema());
+            Ret = GenDefaultValue(F->getReturnType()->getSema());
         }
         Builder->CreateRet(Ret);
     }

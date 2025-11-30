@@ -31,9 +31,13 @@
 #include "Sema/SemaCall.h"
 #include "llvm/Support/Regex.h"
 
+#include <AST/ASTAttribute.h>
 #include <AST/ASTBuilder.h>
 #include <AST/ASTBuilderStmt.h>
+#include <AST/ASTLocalVar.h>
+#include <AST/ASTMethod.h>
 #include <AST/ASTNameSpace.h>
+#include <AST/ASTParam.h>
 #include <AST/ASTValue.h>
 #include <Sema/Helper.h>
 #include <Sema/SemaBuilderModifiers.h>
@@ -106,7 +110,7 @@ SemaClassInstance *SemaBuilder::CreateThisInstance(SemaClassType &Class) {
 	return new SemaClassInstance(&Class);
 }
 
-SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType &Class, ASTVar &AST, SemaComment &Comment) {
+SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType &Class, ASTAttribute &AST, SemaComment &Comment) {
 	FLY_DEBUG_START("SemaBuilder", "CreateClassAttribute");
 
 	SemaClassAttribute *Attribute = new SemaClassAttribute(AST, Class);
@@ -121,11 +125,24 @@ SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType &Class, AST
 
 	Attribute->Comment = &Comment;
 
+	AST.setSema(Attribute);
+
 	FLY_DEBUG_END("SemaBuilder", "CreateClassAttribute");
 	return Attribute;
 }
 
-SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTFunction &AST, SemaComment &Comment) {
+SemaClassMethod * SemaBuilder::CreateDefaultConstructor(SemaClassType *Class) {
+	// Create AST
+	ASTMethod *AST = ASTBuilder::CreateDefaultConstructor(&Class->getAST());
+
+	// Create Sema
+	SemaClassMethod *Method = new SemaClassMethod(*AST, Class, Class->getThis(), SemaClassMethodKind::METHOD_CONSTRUCTOR);
+	Method->ReturnType = SemaBuiltin::getVoidType();
+
+	return Method;
+}
+
+SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTMethod &AST, SemaComment &Comment) {
 	FLY_DEBUG_START("SemaBuilder", "CreateClassFunction");
 
 	SemaClassMethod *Method;
@@ -136,10 +153,10 @@ SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTFuncti
 	} else {
 		SemaClassMethodKind MethodKind = Class->getClassKind() == SemaClassKind::INTERFACE ?
 			                 SemaClassMethodKind::METHOD_ABSTRACT : SemaClassMethodKind::METHOD;
-		Method = new SemaClassMethod(AST, Class, Class->getThis(), MethodKind);
+		Method = new SemaClassMethod(		AST, Class, Class->getThis(), MethodKind);
 
 		// ClassDefinition Return Type
-		Method->ReturnType = AST.getReturnTypeRef()->getSema();
+		Method->ReturnType = AST.getReturnType()->getSema();
 	}
 
 	// Set Modifiers
@@ -194,7 +211,7 @@ SemaComment * SemaBuilder::CreateComment(ASTComment &AST) {
 	return Comment;
 }
 
-SemaLocalVar * SemaBuilder::CreateLocalVar(ASTVar &AST) {
+SemaLocalVar * SemaBuilder::CreateLocalVar(ASTLocalVar &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateLocalVar");
 
 	// Create LocalVar Symbol
@@ -209,7 +226,7 @@ SemaLocalVar * SemaBuilder::CreateLocalVar(ASTVar &AST) {
 	return Sema;
 }
 
-SemaParam *SemaBuilder::CreateParam(ASTVar &AST) {
+SemaParam *SemaBuilder::CreateParam(ASTParam &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateParam");
 
 	// Create LocalVar Symbol
@@ -222,7 +239,7 @@ SemaParam *SemaBuilder::CreateParam(ASTVar &AST) {
 	return Sema;
 }
 
-SemaMemberVar * SemaBuilder::CreateMemberVar(ASTMember &AST, SemaResult &Parent) {
+SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar &AST, SemaResult &Parent) {
 	SemaMemberVar *Sema = new SemaMemberVar(AST, Parent);
 
 	return Sema;

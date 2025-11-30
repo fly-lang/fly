@@ -14,9 +14,13 @@
 
 using namespace fly;
 
-ASTType::ASTType(const SourceLocation &Loc) :
-        ASTNode(Loc, ASTKind::AST_TYPE) {
+ASTType::ASTType(const SourceLocation &Loc, ASTTypeKind TypeKind) :
+        ASTNode(Loc, ASTKind::AST_TYPE), TypeKind(TypeKind) {
 
+}
+
+ASTTypeKind ASTType::getTypeKind() const {
+	return TypeKind;
 }
 
 SemaType * ASTType::getSema() const {
@@ -28,7 +32,7 @@ void ASTType::setSema(SemaType *Sema) {
 }
 
 ASTArrayType::ASTArrayType(const SourceLocation &Loc, ASTType *ElementType, ASTExpr *Size) :
-	ASTType(Loc), ElementType(ElementType), Size(Size) {
+	ASTType(Loc, ASTTypeKind::TYPE_ARRAY), ElementType(ElementType), Size(Size) {
 }
 
 void ASTArrayType::accept(ASTVisitor &Visitor) {
@@ -50,7 +54,8 @@ std::string ASTArrayType::str() const {
 		End();
 }
 
-ASTBuiltinType::ASTBuiltinType(const SourceLocation &Loc, ASTBuiltinTypeKind Kind) : ASTType(Loc), BuiltinKind(Kind) {
+ASTBuiltinType::ASTBuiltinType(const SourceLocation &Loc, ASTBuiltinTypeKind Kind) :
+	ASTType(Loc,ASTTypeKind::TYPE_BUILTIN), BuiltinKind(Kind) {
 }
 
 ASTBuiltinTypeKind ASTBuiltinType::getBuiltinKind() const {
@@ -65,11 +70,16 @@ std::string ASTBuiltinType::str() const {
 	return ASTType::str();
 }
 
-ASTNamedType::ASTNamedType(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names) : ASTType(Loc), Names(Names) {
+ASTNamedType::ASTNamedType(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names) :
+	ASTType(Loc, ASTTypeKind::TYPE_NAMED), Names(Names) {
 }
 
 void ASTNamedType::accept(ASTVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+const llvm::SmallVector<ASTName *, 4> &ASTNamedType::getNames() const {
+	return Names;
 }
 
 std::string ASTNamedType::str() const {

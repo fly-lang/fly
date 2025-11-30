@@ -24,6 +24,8 @@ namespace fly {
         friend class SemaBuilder;
         friend class SemaValidator;
 
+        std::string Name = "this";
+
         SemaClassType *Class;
 
         uint64_t Index;
@@ -39,6 +41,8 @@ namespace fly {
     public:
 
         SemaClassInstance *getParent() const override;
+
+        llvm::StringRef getName() const override;
 
         const llvm::DenseMap<size_t, SemaClassInstance *> &getBaseInstances() const;
 

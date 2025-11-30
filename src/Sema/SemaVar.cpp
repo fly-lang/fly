@@ -9,13 +9,19 @@
 
 #include "Sema/SemaVar.h"
 
+#include <AST/ASTVar.h>
+
 using namespace fly;
 
-SemaVar::SemaVar(ASTNode *AST, SemaVarKind Kind) : SemaResult(SemaKind::VAR), AST(AST), VarKind(Kind) {
+SemaVar::SemaVar(ASTVar *AST, SemaVarKind Kind) : SemaResult(SemaKind::VAR), AST(AST), VarKind(Kind) {
 }
 
-ASTNode *SemaVar::getAST() const {
+ASTVar *SemaVar::getAST() const {
 	return AST;
+}
+
+llvm::StringRef SemaVar::getName() const {
+	return AST->getName();
 }
 
 SemaVarKind SemaVar::getVarKind() const {

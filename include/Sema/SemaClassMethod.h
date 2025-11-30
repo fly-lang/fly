@@ -17,7 +17,7 @@
 namespace fly {
 
     class SemaClassType;
-    class ASTFunction;
+    class ASTMethod;
     class SemaComment;
 	class SemaClassInstance;
 	class CodeGenClassMethod;
@@ -52,9 +52,7 @@ namespace fly {
 
     	SemaComment *Comment = nullptr;
 
-    	explicit SemaClassMethod(ASTFunction &AST, SemaClassType *Class,  SemaClassInstance *This, SemaClassMethodKind MethodKind);
-
-    	std::string MangleFunction(ASTFunction &AST);
+    	explicit SemaClassMethod(ASTMethod &AST, SemaClassType *Class,  SemaClassInstance *This, SemaClassMethodKind MethodKind);
 
     public:
 

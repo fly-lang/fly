@@ -39,10 +39,10 @@ namespace fly {
 
         ASTClassKind ClassKind;
 
-        llvm::SmallVector<ASTType *, 4> BaseClasses;
+        llvm::SmallVector<ASTType *, 4> Bases;
 
         ASTClass(ASTClassKind ClassKind, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
-                 const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTType *, 4> &SuperClasses);
+                 const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTType *, 4> &Bases);
 
     public:
 
@@ -52,7 +52,7 @@ namespace fly {
 
         ASTClassKind getClassKind() const;
 
-        llvm::SmallVector<ASTType *, 4> getBaseClasses() const;
+        const llvm::SmallVector<ASTType *, 4> &getBases() const;
 
         llvm::SmallVector<ASTModifier *, 8> getModifiers() const;
 

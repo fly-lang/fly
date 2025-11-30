@@ -10,6 +10,9 @@
 #include "Sema/SemaClassType.h"
 #include "llvm/ADT/StringMap.h"
 
+#include <Sema/SemaClassAttribute.h>
+#include <Sema/SemaClassMethod.h>
+
 using namespace fly;
 
 SemaClassType::SemaClassType(ASTClass &AST, SymbolTable *Symbols) : SemaType(SemaKind::CLASS, SemaTypeKind::TYPE_CLASS, AST.getName().data()),
@@ -22,8 +25,10 @@ SemaClassKind SemaClassType::toClassKind(ASTClassKind Kind) {
 
 		case ASTClassKind::CLASS:
 			return SemaClassKind::CLASS;
+
 		case ASTClassKind::INTERFACE:
 			return SemaClassKind::INTERFACE;
+
 		case ASTClassKind::STRUCT:
 			return SemaClassKind::STRUCT;
 	}
@@ -41,6 +46,10 @@ SemaModule * SemaClassType::getModule() const {
 
 SymbolTable *SemaClassType::getSymbols() const {
 	return Symbols;
+}
+
+SemaComment * SemaClassType::getComment() const {
+	return Comment;
 }
 
 llvm::SmallVector<SemaNode *, 8> & SemaClassType::getNodes() {
@@ -67,6 +76,45 @@ const llvm::SmallVector<SemaClassType *, 4> &SemaClassType::getBaseClasses() con
 	return BaseClasses;
 }
 
+SemaClassAttribute * SemaClassType::LookupAttribute(llvm::StringRef Name) const {
+	// 1. Search in current class
+	auto It = Attributes.find(Name);
+	if (It != Attributes.end())
+		return It->second;
+
+	// 2. Search in base classes
+	for (auto *Base : BaseClasses) {
+		if (auto *A = Base->LookupAttribute(Name))
+			return A;
+	}
+
+	return nullptr;
+}
+
+SemaClassMethod * SemaClassType::LookupMethod(llvm::StringRef Name) const {
+	// 1. Search in current class
+	auto It = Methods.find(Name);
+	if (It != Methods.end())
+		return It->second;
+
+	// 2. Search in base classes
+	for (auto *Base : BaseClasses) {
+		if (auto *M = Base->LookupMethod(Name))
+			return M;
+	}
+
+	return nullptr;
+}
+
+SemaClassMethod * SemaClassType::LookupConstructor(llvm::StringRef Name) const {
+	// 1. Search in current class
+	auto It = Constructors.find(Name);
+	if (It != Constructors.end())
+		return It->second;
+
+	return nullptr;
+}
+
 const llvm::StringMap<SemaClassAttribute *> &SemaClassType::getAttributes() const {
     return Attributes;
 }
@@ -79,8 +127,23 @@ const llvm::StringMap<SemaClassMethod *> &SemaClassType::getConstructors() const
 	return Constructors;
 }
 
-SemaComment * SemaClassType::getComment() const {
-	return Comment;
+void SemaClassType::addAttribute(SemaClassAttribute *Attribute) {
+	Nodes.emplace_back(Attribute);
+	auto Pair = std::make_pair(Attribute->getName(), Attribute);
+	Attributes.insert(Pair);
+}
+
+void SemaClassType::addMethod(SemaClassMethod *Method) {
+	Nodes.emplace_back(Method);
+	auto Pair = std::make_pair(Method->getMangledName(), Method);
+	Methods.insert(Pair);
+}
+
+void SemaClassType::addConstructor(SemaClassMethod *Constructor) {
+	Nodes.emplace_back(Constructor);
+	auto Pair = std::make_pair(Constructor->getMangledName(), Constructor);
+	Methods.insert(Pair);
+	Constructors.insert(Pair);
 }
 
 bool SemaClassType::isDerivedOrEquals(SemaClassType *BaseClassType) const {

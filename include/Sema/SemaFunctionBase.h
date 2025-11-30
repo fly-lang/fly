@@ -46,6 +46,8 @@ namespace fly {
 
         explicit SemaFunctionBase(ASTFunction &AST, SemaKind Kind, std::string MangledName);
 
+        std::string MangleFunction(ASTFunction &AST);
+
     public:
 
         std::string getMangledName() const;
@@ -65,8 +67,6 @@ namespace fly {
         void addLocalVar(SemaVar *LocalVar);
 
         SemaErrorHandler *getErrorHandler() const;
-
-        static std::string MangleFunction(llvm::StringRef Name, const llvm::SmallVector<SemaType *, 8> &Params);
 
         virtual CodeGenFunctionBase *getCodeGen() const = 0;
 

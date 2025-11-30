@@ -8,10 +8,11 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaParam.h"
+#include "AST/ASTParam.h"
 
 using namespace fly;
 
-SemaParam::SemaParam(ASTVar &AST) : SemaVar(&AST, SemaVarKind::PARAM_VAR) {
+SemaParam::SemaParam(ASTParam &AST) : SemaVar(&AST, SemaVarKind::PARAM_VAR) {
 
 }
 

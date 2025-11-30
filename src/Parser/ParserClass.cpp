@@ -14,6 +14,8 @@
 #include "AST/ASTBuilder.h"
 #include "Basic/Debug.h"
 
+#include <AST/ASTMethod.h>
+
 using namespace fly;
 
 /**
@@ -108,7 +110,7 @@ ASTClass *ParserClass::Parse(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers
     return Class;
 }
 
-ASTVar *ParserClass::ParseAttribute(SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef, const SourceLocation &Loc, llvm::StringRef Name) {
+ASTAttribute *ParserClass::ParseAttribute(SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef, const SourceLocation &Loc, llvm::StringRef Name) {
 	FLY_DEBUG_START("ClassParser", "ParseAttribute");
 
     if (!TypeRef) {
@@ -126,12 +128,12 @@ ASTVar *ParserClass::ParseAttribute(SmallVector<ASTModifier *, 8> &Modifiers, AS
     return P->Builder.CreateClassAttribute(Loc, Class, TypeRef, Name, Modifiers, Expr);
 }
 
-ASTFunction *ParserClass::ParseMethod(SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef,
+ASTMethod *ParserClass::ParseMethod(SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef,
 	const SourceLocation &Loc, llvm::StringRef Name) {
 	FLY_DEBUG_START("ClassParser", "ParseMethod");
 
-	SmallVector<ASTVar *, 8> Params = ParserFunction::ParseParams(P);
-	ASTFunction *Function = P->Builder.CreateClassMethod(Loc, Class, TypeRef, Name, Modifiers, Params);
+	SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(P);
+	ASTMethod *Function = P->Builder.CreateClassMethod(Loc, Class, TypeRef, Name, Modifiers, Params);
 	ASTBlockStmt *Body = P->isBlockStart() ? ParserFunction::ParseBody(P, Function) : nullptr;
 	return Function;
 }

@@ -12,6 +12,7 @@
 #include "llvm/ADT/StringMap.h"
 
 #include <AST/ASTEnum.h>
+#include <Sema/SemaEnumEntry.h>
 
 using namespace fly;
 
@@ -50,6 +51,16 @@ bool SemaEnumType::isConstant() const {
 
 const llvm::StringMap<SemaEnumEntry *> &SemaEnumType::getEntries() const {
     return Entries;
+}
+
+SemaEnumEntry * SemaEnumType::LookupEntry(llvm::StringRef Name) const {
+	return Entries.lookup(Name);
+}
+
+void SemaEnumType::addEntry(SemaEnumEntry *Entry) {
+	Nodes.push_back(Entry);
+	auto Pair = std::make_pair(Entry->getName(), Entry);
+	Entries.insert(Pair);
 }
 
 SemaComment * SemaEnumType::getComment() const {

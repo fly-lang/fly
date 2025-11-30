@@ -8,15 +8,21 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTFunction.h"
-#include "AST/ASTVar.h"
+#include "AST/ASTParam.h"
 #include "Basic/Logger.h"
+
+#include <AST/ASTVisitor.h>
 
 using namespace fly;
 
 ASTFunction::ASTFunction(const SourceLocation &Loc, ASTType *ReturnType,
-                                 llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::StringRef Name, llvm::SmallVector<ASTVar *, 8> &Params) :
-        ASTNode(Loc, ASTKind::AST_FUNCTION), ReturnTypeRef(ReturnType), Modifiers(Modifiers), Name(Name), Params(Params) {
+                                 llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::StringRef Name, llvm::SmallVector<ASTParam *, 8> &Params) :
+        ASTNode(Loc, ASTKind::AST_FUNCTION), ReturnType(ReturnType), Modifiers(Modifiers), Name(Name), Params(Params) {
 
+}
+
+void ASTFunction::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 llvm::StringRef ASTFunction::getName() const {
@@ -31,7 +37,7 @@ llvm::SmallVector<ASTModifier *, 8> ASTFunction::getModifiers() const {
     return Modifiers;
 }
 
-llvm::SmallVector<ASTVar *, 8> ASTFunction::getParams() const {
+llvm::SmallVector<ASTParam *, 8> ASTFunction::getParams() const {
     return Params;
 }
 
@@ -39,15 +45,15 @@ ASTBlockStmt *ASTFunction::getBody() const {
     return Body;
 }
 
-ASTType *ASTFunction::getReturnTypeRef() const {
-    return ReturnTypeRef;
+ASTType *ASTFunction::getReturnType() const {
+    return ReturnType;
 }
 
 std::string ASTFunction::str() const {
     return Logger("ASTFunctionBase").
 	Attr("Location", getLocation()).
  Attr("Kind", static_cast<size_t>(getKind())).
-           Attr("Params", ASTNode::str(Params)).
-           Attr("ReturnType", ReturnTypeRef).
+           Attr("Params", ASTBase::str(Params)).
+           Attr("ReturnType", ReturnType).
            End();
 }

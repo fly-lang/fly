@@ -24,12 +24,6 @@ namespace fly {
     class ASTType;
 	class ASTExpr;
 
-    /**
-     * Base Var used in:
-     *  - LocalVar
-     *  - GlobalVar
-     *  - ClassAttribute
-     */
     class ASTVar : public ASTNode {
 
         friend class ASTBuilder;
@@ -45,15 +39,14 @@ namespace fly {
         ASTExpr* Expr;
 
     protected:
-        ASTVar(const SourceLocation& Loc, ASTType* Type, llvm::StringRef Name, SmallVector<ASTModifier*, 8>& Modifiers);
+        ASTVar(const SourceLocation& Loc, ASTType* Type, llvm::StringRef Name, ASTKind Kind,
+            SmallVector<ASTModifier*, 8>& Modifiers);
 
     public:
 
         void accept(ASTVisitor& Visitor) override;
 
-        SemaVar* getSema() const;
-
-        void setSema(SemaVar* Sema);
+        virtual SemaVar* getSema() const = 0;
 
         ASTType* getType() const;
 
@@ -64,6 +57,8 @@ namespace fly {
         ASTExpr* getExpr() const;
 
         void setExpr(ASTExpr* Expr);
+
+        virtual SemaVar *getSema() = 0;
 
         std::string str() const override;
     };

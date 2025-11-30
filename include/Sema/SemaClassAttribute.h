@@ -16,7 +16,7 @@
 
 namespace fly {
 
-    class ASTVar;
+    class ASTAttribute;
     class SemaComment;
     class SemaClassType;
 
@@ -26,7 +26,7 @@ namespace fly {
 
         SemaClassType &Class;
 
-        SemaVisibilityKind Visibility = SemaVisibilityKind::DEFAULT;
+        SemaVisibilityKind Visibility;
 
         bool Static = false;
 
@@ -38,7 +38,7 @@ namespace fly {
 
     protected:
 
-        explicit SemaClassAttribute(ASTVar &AST, SemaClassType &Class);
+        explicit SemaClassAttribute(ASTAttribute &AST, SemaClassType &Class);
 
     public:
 

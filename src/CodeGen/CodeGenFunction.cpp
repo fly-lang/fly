@@ -113,5 +113,5 @@ void CodeGenFunction::GenBody() {
 }
 
 bool CodeGenFunction::isMainFunction(SemaFunction *Sema) {
-    return Sema->getAST().getName() == StringRef("main") && Sema->getAST().getReturnTypeRef()->getSema()->isVoid();
+    return Sema->getAST().getName() == StringRef("main") && Sema->getAST().getReturnType()->getSema()->isVoid();
 }

@@ -21,6 +21,10 @@ SemaClassInstance *SemaClassInstance::getParent() const {
     return static_cast<SemaClassInstance *>(Parent);
 }
 
+llvm::StringRef SemaClassInstance::getName() const {
+	return Name;
+}
+
 const llvm::DenseMap<size_t, SemaClassInstance *> &SemaClassInstance::getBaseInstances() const {
 	return BaseInstances;
 }

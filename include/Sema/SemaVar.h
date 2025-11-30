@@ -10,6 +10,8 @@
 #ifndef FLY_SEMA_VAR_H
 #define FLY_SEMA_VAR_H
 
+#include <llvm/ADT/StringRef.h>
+
 #include "Sema/SemaResult.h"
 
 namespace fly {
@@ -32,7 +34,7 @@ namespace fly {
 
         friend class SemaBuilder;
 
-    	ASTNode *AST;
+    	ASTVar *AST;
 
     	SemaVarKind VarKind;
 
@@ -40,12 +42,14 @@ namespace fly {
 
     protected:
 
-        explicit SemaVar(ASTNode *AST, SemaVarKind Kind);
+        explicit SemaVar(ASTVar *AST, SemaVarKind Kind);
 
     public:
         virtual ~SemaVar() = default;
 
-        ASTNode *getAST() const;
+        ASTVar *getAST() const;
+
+    	virtual llvm::StringRef getName() const;
 
     	SemaVarKind getVarKind() const;
 

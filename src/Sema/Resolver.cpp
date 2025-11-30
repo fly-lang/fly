@@ -13,7 +13,6 @@
 #include "AST/ASTBuilder.h"
 #include "Sema/SemaBuilder.h"
 #include "Sema/SemaValidator.h"
-#include "Basic/Logger.h"
 #include "Sema/SymbolTable.h"
 #include "Sema/SemaNameSpace.h"
 #include "Sema/SemaModule.h"
@@ -24,7 +23,10 @@
 #include "Sema/SemaMemberVar.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTClass.h"
+#include "AST/ASTAttribute.h"
+#include "AST/ASTMethod.h"
 #include "AST/ASTEnum.h"
+#include "AST/ASTEnumEntry.h"
 #include "AST/ASTType.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTArg.h"
@@ -33,7 +35,7 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTIdentifier.h"
-#include "AST/ASTVar.h"
+#include "AST/ASTLocalVar.h"
 #include "AST/ASTSwitchStmt.h"
 #include "AST/ASTLoopStmt.h"
 #include "AST/ASTLoopInStmt.h"
@@ -52,6 +54,7 @@
 #include "llvm/ADT/StringMap.h"
 
 #include <AST/ASTCast.h>
+#include <AST/ASTParam.h>
 #include <Sema/Helper.h>
 #include <llvm/Transforms/IPO/FunctionImport.h>
 #include <Sema/SemaCall.h>
@@ -177,23 +180,13 @@ void Resolver::visit(ASTImport &AST) {
 }
 
 void Resolver::visit(ASTFunction &AST) {
+	ResetCurrent();
+
 	// Enter Function Scope
 	EnterScope();
 
-	// Create Sema Function or Method
-	if (AST.getKind() == ASTKind::AST_FUNCTION) {
-
-		// Create Sema Function
-		CurrentFunction = SemaBuilder::CreateFunction(*CurrentModule, CurrentScope, AST);
-	} else if (AST.getKind() == ASTKind::AST_METHOD) {
-
-		// Methods must be defined inside a Class
-		CurrentFunction = SemaBuilder::CreateClassMethod(CurrentClass, AST, *CurrentComment);
-	} else {
-
-		Diag(AST.getLocation(), diag::err_invalid_behavior);
-		return;
-	}
+	// Create Sema Function
+	CurrentFunction = SemaBuilder::CreateFunction(*CurrentModule, CurrentScope, AST);
 
 	// // Add to Symbol Table of Parent Scope (Module or Class)
 	Symbol *Sym = new Symbol(AST.getName(), CurrentFunction->getKind(), CurrentFunction);
@@ -203,6 +196,8 @@ void Resolver::visit(ASTFunction &AST) {
 }
 
 void Resolver::visit(ASTClass &AST) {
+	ResetCurrent();
+
 	// Enter Class Scope
 	EnterScope();
 
@@ -213,18 +208,93 @@ void Resolver::visit(ASTClass &AST) {
 	Symbol *Sym = new Symbol(AST.getName(), SemaKind::CLASS, CurrentClass);
 	CurrentScope->getParent()->insert(Sym);
 
-	// Add attributes or methods
-	for (auto Def : AST.getNodes()) {
-		if (Def->getKind() == ASTKind::AST_LOCALVAR)
-			Def->setKind(ASTKind::AST_ATTRIBUTE);
-		else if (Def->getKind() == ASTKind::AST_FUNCTION)
-			Def->setKind(ASTKind::AST_METHOD);
-		Def->accept(*this);
+	// Add Nodes in the next Resolve Steps
+
+	// Exit Class Scope
+	ExitScope();
+}
+
+void Resolver::visit(ASTAttribute &AST) {
+	// Do not resolve again
+	if (AST.isVisited()) {
+		return;
 	}
+	AST.setVisited(true);
+
+	// Find Var duplication
+	SemaClassAttribute *ExistingAttr = CurrentClass->LookupAttribute(AST.getName());
+	if (ExistingAttr) {
+		Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
+		return;
+	}
+
+	// Resolve Type
+	AST.getType()->accept(*this);
+
+	// Create Class Attribute
+	SemaClassAttribute *Sema = SemaBuilder::CreateClassAttribute(*CurrentClass, AST, *CurrentComment);
+	CurrentClass->addAttribute(Sema); // Function Local var to be allocated
+
+	// Set Sema Type
+	SemaType * Type = AST.getType()->getSema();
+	Sema->setType(Type);
+
+	// Set Expr or Default Value
+	if (AST.getExpr()) {
+		AST.getExpr()->accept(*this);
+	} else {
+		// Create default Sema Value
+		SemaValue *Sema = SemaBuilder::CreateDefaultValue(*Type);
+		ASTValue *Value = ASTBuilder::CreateDefaultValue();
+		Value->setSema(Sema);
+		AST.setExpr(Value);
+	}
+
+	// Add to Symbol Table
+	Symbol *Sym = new Symbol(AST.getName(), Sema->getKind(), Sema);
+	CurrentScope->insert(Sym);
+}
+
+void Resolver::visit(ASTMethod &AST) {
+	// Do not resolve again
+	if (AST.isVisited()) {
+		return;
+	}
+	AST.setVisited(true);
+
+	// Resolve Return Type add Params Type
+	AST.getReturnType()->accept(*this);
+	llvm::SmallVector<SemaType *, 8> Types = ResolveParams(AST);
+
+	// Create Mangled Name
+	std::string Mangled = Helper::MangleFunction(AST.getName(), Types);
+
+	// Find Method duplication
+	SemaClassMethod *ExistingMethod = CurrentClass->LookupMethod(Mangled);
+	if (ExistingMethod) {
+		Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
+		return;
+	}
+
+	// Create Class Method
+	SemaClassMethod *Sema = SemaBuilder::CreateClassMethod(CurrentClass, AST, *CurrentComment);
+	CurrentClass->addMethod(Sema); // Function Local var to be allocated
+	CurrentFunction = Sema;
+
+	// Add to Symbol Table
+	Symbol *Sym = new Symbol(AST.getName(), Sema->getKind(), Sema);
+	CurrentScope->insert(Sym);
+
+	// Add to Body list for resolve in the next step
+	// Enter Function Scope
+	EnterScope();
+	Reg.addBody(CurrentScope, AST.getBody());
 	ExitScope();
 }
 
 void Resolver::visit(ASTEnum &AST) {
+	ResetCurrent();
+
 	// Enter Enum Scope
 	EnterScope();
 
@@ -240,29 +310,37 @@ void Resolver::visit(ASTEnum &AST) {
 		Def->setKind(ASTKind::AST_ENUM_ENTRY);
 		Def->accept(*this);
 	}
+
+	// Exit Class Scope
 	ExitScope();
 }
 
-
-void Resolver::visit(ASTVar &AST) {
+void Resolver::visit(ASTEnumEntry &AST) {
 	// Do not resolve again
 	if (AST.isVisited()) {
 		return;
 	}
 	AST.setVisited(true);
 
-	SemaVar *Sema = nullptr;
-	if (AST.getKind() == ASTKind::AST_LOCALVAR) {
-		Sema = SemaBuilder::CreateLocalVar(AST);
-		CurrentFunction->getLocalVars().push_back(Sema); // Function Local var to be allocated
-	} else if (AST.getKind() == ASTKind::AST_ATTRIBUTE) {
-		Sema = SemaBuilder::CreateClassAttribute(*CurrentClass, AST, *CurrentComment);
-	} else if (AST.getKind() == ASTKind::AST_ENUM_ENTRY) {
-		Sema = SemaBuilder::CreateEnumEntry(*CurrentEnum, AST, CurrentComment);
-	} else {
-		Diag(AST.getLocation(), diag::err_invalid_behavior);
+	// Find Var duplication in the current scope
+	SemaEnumEntry *ExistingEnum = CurrentEnum->LookupEntry(AST.getName());
+	if (ExistingEnum) {
+		Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
+	}
+
+	SemaEnumEntry *Sema = SemaBuilder::CreateEnumEntry(*CurrentEnum, AST, CurrentComment);
+	CurrentEnum->addEntry(Sema);
+}
+
+void Resolver::visit(ASTLocalVar &AST) {
+	// Do not resolve again
+	if (AST.isVisited()) {
 		return;
 	}
+	AST.setVisited(true);
+
+	SemaVar *Sema = SemaBuilder::CreateLocalVar(AST);
+	CurrentFunction->getLocalVars().push_back(Sema); // Function Local var to be allocated
 
 	// Find Var duplication in the current scope
 	// TODO: check also in parent scopes for shadowing?
@@ -274,6 +352,18 @@ void Resolver::visit(ASTVar &AST) {
 	// Add to Symbol Table
 	Symbol *Sym = new Symbol(AST.getName(), Sema->getKind(), Sema);
 	CurrentScope->insert(Sym);
+}
+
+void Resolver::visit(ASTParam &AST) {
+	// Create Sema Param
+	SemaParam * Sema = SemaBuilder::CreateParam(AST);
+
+	// Set Sema Type
+	ASTType *ParamType = AST.getType();
+	ParamType->accept(*this);
+	Sema->setType(ParamType->getSema());
+
+	AST.setSema(Sema);
 }
 
 void Resolver::visit(ASTComment &AST) {
@@ -332,7 +422,7 @@ void Resolver::visit(ASTBuiltinType &AST) {
 
 void Resolver::visit(ASTNamedType &AST) {
 	if (!AST.isVisited()) {
-		SemaType * Sema = Reg.LookupNamedType(AST.getNames(), CurrentNameSpace);
+		SemaType * Sema = Reg.LookupNamedType(AST, CurrentNameSpace);
 		AST.setSema(Sema);
 	}
 }
@@ -482,7 +572,7 @@ void Resolver::visit(ASTVarStmt &AST) {
 void Resolver::visit(ASTBlockStmt &AST) {
 	// Resolve LocalVar Type
 	for (auto &VarEntry : AST.getLocalVars()) {
-		ASTVar *LocalVar = VarEntry.getValue();
+		ASTLocalVar *LocalVar = VarEntry.getValue();
 
 		// Resolve LocalVar Type
 		LocalVar->getType()->accept(*this);
@@ -654,6 +744,14 @@ void Resolver::Resolver::ExitScope() {
 	CurrentScope = CurrentScope->getParent();
 }
 
+void Resolver::ResetCurrent() {
+	CurrentClass = nullptr;
+	CurrentEnum = nullptr;
+	CurrentFunction = nullptr;
+	CurrentComment =nullptr;
+	CurrentStmt = nullptr;
+}
+
 Resolver::~Resolver() {
 }
 
@@ -674,9 +772,9 @@ void Resolver::Resolve() {
 				case SemaKind::CLASS:
 					ResolveClassType(static_cast<SemaClassType *>(Node));
 					break;
-				case SemaKind::ENUM:
+				case SemaKind::ENUM: {
 					ResolveEnumType(static_cast<SemaEnumType *>(Node));
-					break;
+				} break;
 			}
 		}
 	}
@@ -710,10 +808,11 @@ void Resolver::ResolveImports(SemaModule *Module) {
  */
 void Resolver::ResolveFunction(SemaFunction *Func) {
 	ASTFunction &AST = Func->getAST();
+	CurrentFunction = Func;
 	CurrentScope = Func->getSymbols();
 
 	// Resolve Return Type
-	ASTType *ReturnType = AST.getReturnTypeRef();
+	ASTType *ReturnType = AST.getReturnType();
 	ReturnType->accept(*this);
 	Func->setReturnType(ReturnType->getSema());
 
@@ -721,13 +820,8 @@ void Resolver::ResolveFunction(SemaFunction *Func) {
 	for (auto Param : AST.getParams()) {
 
 		// resolve parameter type
-		ASTType *ParamType = Param->getType();
-		ParamType->accept(*this);
-
-		// Create Sema Param
-		SemaParam * P = SemaBuilder::CreateParam(*Param);
-		P->setType(ParamType->getSema());
-		Func->addParam(P);
+		Param->accept(*this);
+		Func->addParam(Param->getSema());
 	}
 
 	// Add to Body list for resolve in the next step
@@ -738,179 +832,128 @@ void Resolver::ResolveFunction(SemaFunction *Func) {
 }
 
 void Resolver::ResolveClassType(SemaClassType *ClassType) {
-	// Create Class Default Constructor
-	// Create the default constructor if no constructors are defined
+	CurrentClass = ClassType;
+
+	// Create the Default Constructor if no constructors are defined
 	if (ClassType->getClassKind() != SemaClassKind::INTERFACE && ClassType->getConstructors().empty())
 		this->CreateDefaultConstructor();
 
 	// Resolve Base Classes
-	this->ResolveBaseClasses(ClassType);
+	// this->ResolveBaseClasses(ClassType);
 
-	// ClassDefinition Class Attributes
-	this->SetDefaultValueInAttributes();
+	// Resolve Nodes: Attributes, Methods and Constructors
+	for (auto &Node: ClassType->getAST()) {
+		Node->accept(*this);
+	}
 
-	for (auto &Node: ClassType->getNodes()) {
-		switch (Node->getKind()) {
-			case SemaKind::ATTRIBUTE:
-				ResolveClassAttribute(static_cast<SemaClassAttribute *>(Node));
-				break;
-			case SemaKind::METHOD:
-				ResolveClassMethod(static_cast<SemaClassMethod *>(Node));
-				break;
-			default:
-				Diag(diag::err_invalid_behavior);
-		}
+	// Create a Default Constructor if not exists
+	if (CurrentClass->getConstructors().empty() && CurrentClass->getClassKind() != SemaClassKind::INTERFACE) {
+		CreateDefaultConstructor();
 	}
 }
-
 
 void Resolver::ResolveBaseClasses(SemaClassType *DerivedClass) {
 	// ClassDefinition Base Classes on first pass
-	for (auto &BaseTypeRef : DerivedClass->getAST().getBaseClasses()) {
+	for (auto AST : DerivedClass->getAST().getBases()) {
 
-		// TODO: Recursively add definition from base classes
-		// ResolveBaseClasses(BaseClassType);
-
-		// Search for the SuperClass in the Module, CurrentNameSpace or Imports
-		if (ResolveTypeRef(BaseTypeRef)) {
-			SemaType *BaseType = BaseTypeRef->getSema();
-
-			if (BaseType->getTypeKind() != SemaTypeKind::TYPE_CLASS) {
-				// Error: invalid superclass type
-				Diag(BaseTypeRef->getLocation(), diag::err_syntax_error);
-				break;
-			}
-
-			SemaClassType *BaseClassType= static_cast<SemaClassType *>(BaseType);
-
-			// Create the Class Instance to be added to Base Instance Children
-			for (auto AST : BaseClassType->getAST().getNodes()) {
-				switch (AST->getKind()) {
-
-					// ClassDefinition Class Var: Attribute
-					case ASTKind::AST_LOCALVAR: {
-						ASTVar * Var = static_cast<ASTVar *>(AST);
-
-						// Define an Attribute
-						SemaClassAttribute *Attribute = DefineAttribute(Var, nullptr);
-
-						// Inherit only protected or public Attributes (not Static)
-						if (CanInheritAttribute(Attribute)) {
-							Var->Sema->Type = Attribute->getType();
-							Class->Attributes.insert(std::make_pair(Var->getName(), Attribute));
-						}
-					}
-					break;
-
-					// ClassDefinition Class Function: Method or Constructor
-					case ASTKind::AST_FUNCTION: {
-						ASTFunction *Function = static_cast<ASTFunction *>(AST);
-
-						// Define a Method
-						//SemaClassMethod *Method = DefineMethod(AST, Function, nullptr);
-
-						// Inherit only Methods (not Constructors)
-						// if (!Method->isConstructor() && CanInheritMethod(Method)) {
-						// 	Class->Methods.insert(std::make_pair(Method->getMangledName(), Method));
-						// }
-
-						// Set Overridden Methods
-						// if (!Method->isConstructor()) {
-                        // 	auto It = Class->getMethods().find(Method->getMangledName());
-					}
-					break;
-
-					// ClassDefinition Class Comment
-					case ASTKind::AST_COMMENT:
-						// No action needed
-							break;
-
-					default:
-						// Error: invalid declaration in class
-							Diag(AST->getLocation(), diag::err_syntax_error);
-					break;
-				}
-			}
-
-			// Add Base Class to the list
-			DerivedClass->BaseClasses.push_back(BaseClassType);
+		if (AST->getTypeKind() != ASTTypeKind::TYPE_NAMED) {
+			// Error: cannot extend a type which differ from Class
+			Diag(diag::err_syntax_error);
+			return;
 		}
+
+		// Resolve the Base Sema
+		SemaType *NamedType = Reg.LookupNamedType(*static_cast<ASTNamedType *>(AST), CurrentNameSpace);
+		if (!NamedType->isClass()) {
+			// Error: cannot extend a type which differ from Class
+			Diag(diag::err_syntax_error);
+			return;
+		}
+
+		// Resolve the Base Class Type
+		SemaClassType *BaseClass = static_cast<SemaClassType *>(NamedType);
+		ResolveClassType(BaseClass);
+
+		// FIXME insert attribute in Derived Class?
+
+		// Add Base Class to the list
+		DerivedClass->BaseClasses.push_back(BaseClass);
 	}
 }
 
-bool Resolver::CanInheritMethod(SemaClassMethod *BaseMethod) {
-	// Add Methods from Super SuperClassType
-	// Check if Method Visibility is not private and not static
-	if (BaseMethod->getVisibility() > SemaVisibilityKind::PRIVATE && !BaseMethod->isStatic()) {
-
-		// Check Methods already exists and type conflicts in Super Methods
-		auto It = CurrentClass->getMethods().find(BaseMethod->getMangledName());
-		if (It == CurrentClass->getMethods().end()) { // Not Found, add new Method
-			return true;
-		} else { // Duplicate Found, check conflicts
-
-			// Check Return Type conflicts
-			if (It->second->getReturnType() != BaseMethod->getReturnType()) {
-				Diag(It->second->getAST().getLocation(), diag::err_syntax_error);
-			}
-
-			// Check Visibility conflicts
-			if (It->second->getVisibility() < BaseMethod->getVisibility()) {
-				Diag(It->second->getAST().getLocation(), diag::err_syntax_error);
-			}
-
-			// Check Static conflicts
-			if (It->second->isStatic()) {
-				Diag(It->second->getAST().getLocation(), diag::err_syntax_error);
-			}
-
-			// If the inherited method appear in more than one super class: need to be re-defined
-			// Check if class methods contains the same inherited method without redefine it
-			if (CurrentClass->getName() != It->getValue()->getClass()->getName()) {
-
-                // Error: method already exists in super class
-                Diag(BaseMethod->getAST().getLocation(), diag::err_syntax_error);
-            }
-
-			return false;
-		}
-	}
-}
-
-bool Resolver::CanInheritAttribute(SemaClassAttribute *BaseAttribute) {
-	// Check if Attribute Visibility is not private and not static
-	if (BaseAttribute->getVisibility() > SemaVisibilityKind::PRIVATE && !BaseAttribute->isStatic()) {
-
-		// Check Attribute already exists and type conflicts in Super Vars
-		auto It = CurrentClass->Attributes.find(BaseAttribute->getAST().getName());
-		if (It == CurrentClass->Attributes.end()) { // Not Found
-			return true;
-		} else { // Duplicate Found
-
-			// Check Type conflicts
-			if (!It->second->getType()->isEquals(BaseAttribute->getType())) {
-				Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
-			}
-
-			// Check Visibility conflicts
-			if (It->second->getVisibility() < BaseAttribute->getVisibility()) {
-				Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
-			}
-
-			// Check Constant conflicts
-			if (!It->second->isConstant() && BaseAttribute->isConstant()) {
-				Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
-			}
-
-			// Check Static conflicts
-			if (It->second->isStatic()) {
-				Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
-			}
-
-			return false;
-		}
-	}
-}
+// bool Resolver::CanInheritMethod(SemaClassMethod *BaseMethod) {
+// 	// Add Methods from Super SuperClassType
+// 	// Check if Method Visibility is not private and not static
+// 	if (BaseMethod->getVisibility() > SemaVisibilityKind::PRIVATE && !BaseMethod->isStatic()) {
+//
+// 		// Check Methods already exists and type conflicts in Super Methods
+// 		auto It = CurrentClass->getMethods().find(BaseMethod->getMangledName());
+// 		if (It == CurrentClass->getMethods().end()) { // Not Found, add new Method
+// 			return true;
+// 		} else { // Duplicate Found, check conflicts
+//
+// 			// Check Return Type conflicts
+// 			if (It->second->getReturnType() != BaseMethod->getReturnType()) {
+// 				Diag(It->second->getAST().getLocation(), diag::err_syntax_error);
+// 			}
+//
+// 			// Check Visibility conflicts
+// 			if (It->second->getVisibility() < BaseMethod->getVisibility()) {
+// 				Diag(It->second->getAST().getLocation(), diag::err_syntax_error);
+// 			}
+//
+// 			// Check Static conflicts
+// 			if (It->second->isStatic()) {
+// 				Diag(It->second->getAST().getLocation(), diag::err_syntax_error);
+// 			}
+//
+// 			// If the inherited method appear in more than one super class: need to be re-defined
+// 			// Check if class methods contains the same inherited method without redefine it
+// 			if (CurrentClass->getName() != It->getValue()->getClass()->getName()) {
+//
+//                 // Error: method already exists in super class
+//                 Diag(BaseMethod->getAST().getLocation(), diag::err_syntax_error);
+//             }
+//
+// 			return false;
+// 		}
+// 	}
+// }
+//
+// bool Resolver::CanInheritAttribute(SemaClassAttribute *BaseAttribute) {
+// 	// Check if Attribute Visibility is not private and not static
+// 	if (BaseAttribute->getVisibility() > SemaVisibilityKind::PRIVATE && !BaseAttribute->isStatic()) {
+//
+// 		// Check Attribute already exists and type conflicts in Super Vars
+// 		auto It = CurrentClass->Attributes.find(BaseAttribute);
+// 		if (It == CurrentClass->Attributes.end()) { // Not Found
+// 			return true;
+// 		} else { // Duplicate Found
+//
+// 			// Check Type conflicts
+// 			if (!It->second->getType()->isEquals(BaseAttribute->getType())) {
+// 				Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
+// 			}
+//
+// 			// Check Visibility conflicts
+// 			if (It->second->getVisibility() < BaseAttribute->getVisibility()) {
+// 				Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
+// 			}
+//
+// 			// Check Constant conflicts
+// 			if (!It->second->isConstant() && BaseAttribute->isConstant()) {
+// 				Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
+// 			}
+//
+// 			// Check Static conflicts
+// 			if (It->second->isStatic()) {
+// 				Diag(It->second->getAST()->getLocation(), diag::err_syntax_error);
+// 			}
+//
+// 			return false;
+// 		}
+// 	}
+// }
 
 void Resolver::CreateDefaultConstructor() {
 
@@ -918,113 +961,17 @@ void Resolver::CreateDefaultConstructor() {
 	llvm::SmallVector<ASTModifier *, 8> Modifiers;
 	Modifiers.push_back(ASTBuilder::CreateModifier(SourceLocation(), ASTModifierKind::MOD_DEFAULT));
 
-	llvm::SmallVector<ASTVar *, 8> Params;
-	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLocation());
-	ASTFunction * AST = ASTBuilder::CreateClassMethod(CurrentClass->getAST().getLocation(), CurrentClass->getAST(),
-											   nullptr, CurrentClass->getAST().getName(), Modifiers, Params, Body);
-
-	// Call default constructor of the super classes (if exists)
-	// if (!Class->getBaseClasses().empty()) {
-	// 	for (auto &BaseClass : Class->getBaseClasses()) {
- //
-	// 		// Create Call to Base Constructor
-	// 		if (BaseClass->DefaultConstructor) {
-	// 			SemaClassMethod * DefaultConstructor = BaseClass->DefaultConstructor;
-	// 			llvm::SmallVector<ASTExpr *, 8> Args;
-	// 			SourceLocation Loc = SourceLocation();
- //
-	// 			// TODO: Create Call to Base Constructor
-	// 			// ASTCall *BaseCall = S.getASTBuilder().CreateCall(DefaultConstructor->getAST()->getName(), Args);
-	// 			// SemaBuilderStmt * ExprStmt = S.getASTBuilder().CreateExprStmt(Body, Loc);
-	// 			// ExprStmt->setExpr(S.getASTBuilder().CreateExpr(BaseCall));
-	// 		} else {
- //                // Error: Base Class has no default constructor
- //                S.Diag(BaseClass->getAST()->getLocation(), diag::err_syntax_error);
- //            }
-	// 	}
-	// }
-
-	// Create the default constructor
-	SemaClassMethod *Constructor = SemaBuilder::CreateClassMethod(CurrentClass, CurrentClass->This, AST, nullptr);
-
-	CurrentClass->Constructors.insert(std::make_pair(Constructor->getMangledName(), Constructor));
-}
-
-void Resolver::SetDefaultValueInAttributes() {
-	// Set default values in attributes
-	for (auto &AttributeEntry : CurrentClass->getAttributes()) {
-		SemaClassAttribute *Attribute = AttributeEntry.getValue();
-
-		// Generate default values
-		if (Attribute->getAST()->getExpr() == nullptr) {
-			ResolveTypeRef(Attribute->getAST()->getType());
-
-			// Create default Sema Value
-			SemaValue *Sema = SemaBuilder::CreateDefaultValue(*Attribute->getType());
-			ASTValue *Value = ASTBuilder::CreateDefaultValue();
-			Value->setSema(Sema);
-
-			// Set AST Attribute with Expr
-			ASTExpr *Expr = ASTBuilder::CreateExpr(Value);
-			Expr->setType(Attribute->getType());
-			Attribute->getAST()->setExpr(Expr);
-		} else {
-
-			// Check Value is default value expression
-			SemaValidator::CheckIsValueExpr(Attribute->getAST()->getExpr());
-		}
-	}
-}
-
-void Resolver::ResolveClassAttribute(SemaClassAttribute *Attribute) {
-	ASTType *AST = Attribute->getAST().getType();
-	AST->accept(*this);
-	Attribute->setType(AST->getSema());
-}
-
-void Resolver::ResolveClassMethod(SemaClassMethod *Method) {
-	ASTFunction &AST = Method->getAST();
-
-	// Resolve Return Type
-	ASTType *ReturnType = AST.getReturnTypeRef();
-	ReturnType->accept(*this);
-	Method->setReturnType(ReturnType->getSema());
-
-	// Resolve Parameters Types
-	for (auto Param : AST.getParams()) {
-
-		// resolve parameter type
-		ASTType *ParamType = Param->getType();
-		ParamType->accept(*this);
-
-		// Create Sema Param
-		SemaParam * P = SemaBuilder::CreateParam(*Param);
-		P->setType(ParamType->getSema());
-		Method->addParam(P);
-	}
-
-	// Add to Body list for resolve in the next step
-	// Enter Function Scope
-	EnterScope();
-	Reg.addBody(CurrentScope, AST.getBody());
-	ExitScope();
+	// Create Class Method
+	SemaClassMethod *Sema = SemaBuilder::CreateDefaultConstructor(CurrentClass);
+	CurrentClass->addMethod(Sema); // Function Local var to be allocated
+	CurrentFunction = Sema;
+	CurrentClass->addConstructor(Sema);
 }
 
 void Resolver::ResolveEnumType(SemaEnumType *Enum) {
-	for (auto &Node: Enum->getNodes()) {
-		switch (Node->getKind()) {
-
-			case SemaKind::ENUM_ENTRY:
-				ResolveEnumEntry(static_cast<SemaEnumEntry *>(Node));
-				break;
-			default:
-				Diag(diag::err_invalid_behavior);
-		}
+	for (auto &AST: Enum->getAST().getNodes()) {
+		AST->accept(*this);
 	}
-}
-
-void Resolver::ResolveEnumEntry(SemaEnumEntry *Node) {
-
 }
 
 void Resolver::ResolveBody(LocalScope &Scope) {
@@ -1097,6 +1044,11 @@ void Resolver::ResolveParent(ASTIdentifier *AST) {
 		}
 	}
 
+	// Store Sema into AST
+	if (Sema && Sema->getKind() == SemaKind::VAR) {
+		AST->setSema(static_cast<SemaVar *>(Sema));
+	}
+
 	// ---------------------------------------
 	// 3. Try Named Types
 	// ---------------------------------------
@@ -1121,9 +1073,6 @@ void Resolver::ResolveParent(ASTIdentifier *AST) {
 		return;
 	}
 
-	// Store result
-	AST->setSema(static_cast<SemaVar *>(Sema));
-
 	// ---------------------------------------
 	// 5. Continue with children
 	// ---------------------------------------
@@ -1139,7 +1088,7 @@ void Resolver::ResolveParent(ASTCall *AST) {
 
     // if Arguments are not resolved is not possible go ahead with call reference resolution
     // cannot resolve with the function parameters types
-    std::string Mangled = SemaFunctionBase::MangleFunction(AST->getName(), ArgTypes);
+    std::string Mangled = Helper::MangleFunction(AST->getName(), ArgTypes);
 
 	// Set as Resolved: TODO check if Resolve == false at start
 	SemaCall *Sema = SemaBuilder::CreateCall(*AST);
@@ -1251,6 +1200,11 @@ void Resolver::ResolveParent(ASTCall *AST) {
 
 void Resolver::ResolveChild(SemaNode *Parent, ASTExpr *AST) {
 
+	if (!Parent) {
+		Diag(diag::err_invalid_behavior);
+		return;
+	}
+
 	// Resolve if parent is a Namespace
 	if (Parent->getKind() == SemaKind::NAMESPACE) {
 		SemaNameSpace *NameSpace = static_cast<SemaNameSpace *>(Parent);
@@ -1300,7 +1254,7 @@ void Resolver::ResolveChild(SemaNameSpace *NameSpace, ASTExpr *AST) {
 	if (AST->getExprKind() == ASTExprKind::EXPR_CALL) {
 		ASTCall *Call = static_cast<ASTCall *>(AST);
 		SmallVector<SemaType *, 8> CallTypes = ResolveCallArgs(Call);
-		std::string Mangled = SemaFunctionBase::MangleFunction(Call->getName(), CallTypes);
+		std::string Mangled = Helper::MangleFunction(Call->getName(), CallTypes);
 		SemaCall *Sema = SemaBuilder::CreateCall(*Call);
 
 		// Lookup FUnction
@@ -1316,6 +1270,24 @@ void Resolver::ResolveChild(SemaNameSpace *NameSpace, ASTExpr *AST) {
 
 		if (AST->getChild())
 			ResolveChild(Sema, AST->getChild());
+
+		return;
+	}
+
+	// Resolve as NameSpace or Type
+	if (AST->getExprKind() == ASTExprKind::EXPR_MEMBER) {
+		ASTMember *Member = static_cast<ASTMember *>(AST);
+
+		SemaNode *Sema = nullptr;
+		if (auto* NS = Reg.LookupNameSpace(Member->getName(), NameSpace))
+			Sema = NS;
+
+		if (auto* T = Reg.LookupNamedType(Member->getName(), NameSpace))
+			Sema = T;
+
+		if (AST->getChild())
+			ResolveChild(Sema, AST->getChild());
+
 		return;
 	}
 
@@ -1330,7 +1302,7 @@ void Resolver::ResolveChild(SemaClassType *ClassType, ASTExpr *AST) {
 
 		// Resolve Call as Class Method
 		SmallVector<SemaType *, 8> CallTypes = ResolveCallArgs(Call);
-		std::string Mangled = SemaFunctionBase::MangleFunction(Call->getName(), CallTypes);
+		std::string Mangled = Helper::MangleFunction(Call->getName(), CallTypes);
 
 		// Create a call to class method
 		SemaClassMethod* Method = ClassType->getMethods().lookup(Mangled);
@@ -1469,7 +1441,7 @@ SemaCall *Resolver::ResolveChildCall(SemaResult *Parent, ASTCall *AST) {
 
 	// set Mangled Identifier
 	SmallVector<SemaType *, 8> CallTypes = ResolveCallArgs(AST);
-	std::string MangledIdentifier = SemaFunctionBase::MangleFunction(AST->getName(), CallTypes);
+	std::string MangledIdentifier = Helper::MangleFunction(AST->getName(), CallTypes);
 
 	// Build Sema
 	SemaCall *Sema = SemaBuilder::CreateCall(*AST);
@@ -1525,9 +1497,6 @@ SemaVar * Resolver::ResolveChildMember(SemaResult *Parent, ASTMember *AST) {
 	SemaType *ParentType = Parent->getType();
 	if (ParentType->isClass()) {
 
-		// Build Sema
-		SemaMemberVar *Member = SemaBuilder::CreateMemberVar(*AST, *Parent);
-
 		// Check Parent Type is a Class
 		SemaClassType * ClassType = static_cast<SemaClassType *>(ParentType);
 		Symbol * Sym = ClassType->getSymbols()->lookup(AST->getName());
@@ -1540,6 +1509,7 @@ SemaVar * Resolver::ResolveChildMember(SemaResult *Parent, ASTMember *AST) {
 
 		// Set Class Attribute
 		SemaClassAttribute *Attribute = static_cast<SemaClassAttribute *>(Sym->getRef());
+		SemaMemberVar *Member = SemaBuilder::CreateMemberVar(*Attribute->getAST(), *Parent);
 		Member->setClassAttribute(Attribute);
 
 		// Set the Sema
@@ -1579,11 +1549,22 @@ llvm::SmallVector<SemaType *, 8> Resolver::ResolveCallArgs(ASTCall *AST) {
 	llvm::SmallVector<SemaType *, 8> Types;
 	for (auto Arg : AST->getArgs()) {
 		Arg->getExpr()->accept(*this);
-		Types.push_back(Arg->getExpr()->getType());
+		SemaType *Type = Arg->getExpr()->getType();
+		if (Type)
+			Types.push_back(Type);
 	}
 	return Types;
 }
 
+llvm::SmallVector<SemaType *, 8> Resolver::ResolveParams(ASTFunction &AST) {
+	llvm::SmallVector<SemaType *, 8> Types;
+	for (auto Param : AST.getParams()) {
+		Param->accept(*this);
+		SemaType *Type = Param->getType()->getSema();
+		if (Type)
+			Types.push_back(Type);
+	}
+}
 
 void Resolver::ResolveErrorHandler(SemaCall *Sema) {
 	// Search until parent is null or parent is a Handle Stmt

@@ -10,7 +10,6 @@
 #ifndef FLY_SEMA_RESOLVER_H
 #define FLY_SEMA_RESOLVER_H
 
-#include <unordered_map>
 #include <AST/ASTMember.h>
 
 #include "SemaClassAttribute.h"
@@ -57,7 +56,7 @@ namespace fly {
     class ASTComment;
     class ASTImport;
     class ASTType;
-    class ASTVar;
+    class ASTParam;
     class ASTLoopInStmt;
     class ASTEnum;
     class ASTVarStmt;
@@ -120,8 +119,12 @@ namespace fly {
         void visit(ASTImport& AST) override;
         void visit(ASTFunction &AST) override;
         void visit(ASTClass &AST) override;
+        void visit(ASTAttribute &AST) override;
+        void visit(ASTMethod &AST) override;
         void visit(ASTEnum &AST) override;
-        void visit(ASTVar &AST) override;
+        void visit(ASTEnumEntry &AST) override;
+        void visit(ASTLocalVar &AST) override;
+        void visit(ASTParam &AST) override;
         void visit(ASTComment &AST) override;
 
         // Visit Types
@@ -168,6 +171,7 @@ namespace fly {
         // Scope Management
         void EnterScope();
         void ExitScope();
+        void ResetCurrent();
 
         // Semantic Resolution Phases
         void ResolveImports(SemaModule *Module);
@@ -184,15 +188,7 @@ namespace fly {
 
         void CreateDefaultConstructor();
 
-        void SetDefaultValueInAttributes();
-
-        void ResolveClassAttribute(SemaClassAttribute* Attribute);
-
-        void ResolveClassMethod(SemaClassMethod * Method);
-
         void ResolveEnumType(SemaEnumType *Enum);
-
-        void ResolveEnumEntry(SemaEnumEntry* Node);
 
         void ResolveBody(LocalScope &Scope);
 
@@ -221,6 +217,8 @@ namespace fly {
         SemaVar *ResolveChildMember(SemaResult *Parent, ASTMember *AST);
 
         llvm::SmallVector<SemaType *, 8> ResolveCallArgs(ASTCall *AST);
+
+        llvm::SmallVector<SemaType *, 8> ResolveParams(ASTFunction &AST);
 
         void ResolveErrorHandler(SemaCall *Sema);
 

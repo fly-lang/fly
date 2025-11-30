@@ -300,7 +300,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         testNewStmt->setExpr(NewExpr);
 
         // int x = test.getA()
-        ASTType *xType = getAMethod->getReturnTypeRef();
+        ASTType *xType = getAMethod->getReturnType();
         ASTVar *xVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, xType, "x", EmptyModifiers);
         ASTCallExpr *xCallExpr = getASTBuilder().CreateExpr(CreateCall(getAMethod, Args, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateIdentifier(TestVar)));
         ASTBuilderStmt *xStmt = getASTBuilder().CreateAssignmentStmt(Body, xVar);
@@ -565,7 +565,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         testNewStmt->setExpr(NewExpr);
 
         // int a = test.a()
-        ASTType *aType = aFunc->getReturnTypeRef();
+        ASTType *aType = aFunc->getReturnType();
         ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, aType, "a", EmptyModifiers);
         ASTCallExpr *aCallExpr = getASTBuilder().CreateExpr(CreateCall(aFunc, Args, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateIdentifier(TestVar)));
         ASTBuilderStmt *aStmt = getASTBuilder().CreateAssignmentStmt(Body, aVar);

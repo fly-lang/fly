@@ -73,6 +73,10 @@ namespace fly {
 
         const llvm::StringMap<SemaEnumEntry *> &getEntries() const;
 
+        SemaEnumEntry *LookupEntry(llvm::StringRef Name) const;
+
+        void addEntry(SemaEnumEntry *Entry);
+
         SemaComment *getComment() const;
 
         bool isDerivedOrEquals(const SemaEnumType *BaseEnumType) const;

@@ -35,12 +35,12 @@ ASTBlockStmt *ParserFunction::ParseBody(Parser *P, ASTFunction *F) {
  * ParseModule Parameters
  * @return true on Success or false on Error
  */
-llvm::SmallVector<ASTVar *, 8> ParserFunction::ParseParams(Parser *P) {
+llvm::SmallVector<ASTParam *, 8> ParserFunction::ParseParams(Parser *P) {
     FLY_DEBUG_START("ParserFunction", "ParseParams");
     assert(P->Tok.is(tok::l_paren) && "Tok must be an Identifier");
     P->ConsumeParen(); // consume l_paren
 
-    llvm::SmallVector<ASTVar *, 8> Params;
+    llvm::SmallVector<ASTParam *, 8> Params;
 
     while (true) {
         // Check for closing parenthesis (end of parameter list)
@@ -50,7 +50,7 @@ llvm::SmallVector<ASTVar *, 8> ParserFunction::ParseParams(Parser *P) {
         }
 
         // Parse a parameter
-        ASTVar *Param = ParseParam(P);
+        ASTParam *Param = ParseParam(P);
         if (Param == nullptr) {
             // Handle error: Invalid parameter syntax
             P->Diag(P->Tok.getLocation(), diag::err_parser_invalid_param);
@@ -79,7 +79,7 @@ llvm::SmallVector<ASTVar *, 8> ParserFunction::ParseParams(Parser *P) {
  * ParseModule a single Function Param
  * @return true on Success or false on Error
  */
-ASTVar *ParserFunction::ParseParam(Parser *P) {
+ASTParam *ParserFunction::ParseParam(Parser *P) {
     FLY_DEBUG_START("ParserFunction", "ParseParam");
 
     // Parse Modifiers
@@ -108,6 +108,6 @@ ASTVar *ParserFunction::ParseParam(Parser *P) {
         }
     }
 
-    ASTVar *Param = P->Builder.CreateParam(Loc, Type, Name, Modifiers, Value);
+    ASTParam *Param = P->Builder.CreateParam(Loc, Type, Name, Modifiers, Value);
     return Param;
 }

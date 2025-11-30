@@ -69,9 +69,11 @@ namespace fly {
 
     	static SemaClassInstance *CreateThisInstance(SemaClassType &Class);
 
-    	static SemaClassAttribute *CreateClassAttribute(SemaClassType &Class, ASTVar &AST, SemaComment &Comment);
+    	static SemaClassAttribute *CreateClassAttribute(SemaClassType &Class, ASTAttribute &AST, SemaComment &Comment);
 
-    	static SemaClassMethod *CreateClassMethod(SemaClassType *Class, ASTFunction &AST, SemaComment &Comment);
+    	static SemaClassMethod *CreateDefaultConstructor(SemaClassType *Class);
+
+    	static SemaClassMethod *CreateClassMethod(SemaClassType *Class, ASTMethod &AST, SemaComment &Comment);
 
     	static SemaEnumType *CreateEnum(SemaModule &Module, SymbolTable *Symbols, ASTEnum &AST);
 
@@ -79,11 +81,11 @@ namespace fly {
 
 	    static SemaComment* CreateComment(ASTComment &AST);
 
-    	static SemaLocalVar *CreateLocalVar(ASTVar &AST);
+    	static SemaLocalVar *CreateLocalVar(ASTLocalVar &AST);
 
-    	static SemaParam *CreateParam(ASTVar &Param);
+    	static SemaParam *CreateParam(ASTParam &Param);
 
-    	static SemaMemberVar *CreateMemberVar(ASTMember &AST, SemaResult &Parent);
+    	static SemaMemberVar *CreateMemberVar(ASTVar &AST, SemaResult &Parent);
 
     	static SemaCall *CreateCall(ASTCall &Call);
 

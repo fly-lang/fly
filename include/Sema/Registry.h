@@ -68,9 +68,9 @@ namespace fly {
 
 		SemaType* LookupNamedType(llvm::StringRef Name, SemaNameSpace *NameSpace);
 
-		SemaType* LookupNamedType(llvm::SmallVector<ASTName *, 4>& Names, SemaNameSpace *NameSpace);
+		SemaType* LookupNamedType(ASTNamedType &NamedType, SemaNameSpace *NameSpace);
 
-		SemaNameSpace* LookupNameSpace(llvm::StringRef Name);
+		SemaNameSpace* LookupNameSpace(llvm::StringRef Name, SemaNameSpace *NameSpace = nullptr);
 
 		SemaFunction* LookupFunction(llvm::StringRef MangledName, SemaNameSpace* NameSpace);
 

@@ -9,10 +9,13 @@
 
 #include "Sema/SemaClassAttribute.h"
 
+#include <AST/ASTAttribute.h>
+
+
 using namespace fly;
 
-SemaClassAttribute::SemaClassAttribute(ASTVar &AST, SemaClassType &Class) :
-	SemaVar(&AST, SemaVarKind::CLASS_ATTRIBUTE), Class(Class) {
+SemaClassAttribute::SemaClassAttribute(ASTAttribute &AST, SemaClassType &Class) :
+	SemaVar(&AST, SemaVarKind::CLASS_ATTRIBUTE), Class(Class), Visibility(SemaVisibilityKind::DEFAULT) {
 
 }
 

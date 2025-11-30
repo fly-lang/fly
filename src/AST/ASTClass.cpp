@@ -11,11 +11,13 @@
 #include "AST/ASTModifier.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTIdentifier.h>
+
 using namespace fly;
 
 ASTClass::ASTClass(ASTClassKind ClassKind, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
 	const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTType *, 4> &SuperClasses) :
-	ASTNode(Loc, ASTKind::AST_CLASS), ClassKind(ClassKind), Modifiers(Modifiers), Name(Name), BaseClasses(SuperClasses) {
+	ASTNode(Loc, ASTKind::AST_CLASS), ClassKind(ClassKind), Modifiers(Modifiers), Name(Name), Bases(SuperClasses) {
 
 }
 
@@ -35,8 +37,8 @@ llvm::StringRef ASTClass::getName() const {
 	return Name;
 }
 
-llvm::SmallVector<ASTType *, 4> ASTClass::getBaseClasses() const {
-	return BaseClasses;
+const llvm::SmallVector<ASTType *, 4> &ASTClass::getBases() const {
+	return Bases;
 }
 
 std::string ASTClass::str() const {

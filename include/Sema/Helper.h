@@ -17,6 +17,7 @@
 namespace fly {
 
 	class ASTName;
+	class SemaType;
 
 	class Helper {
 
@@ -24,6 +25,8 @@ namespace fly {
 
 		// Utility Functions
 		static std::string Flatten(llvm::SmallVector<ASTName *, 4>);
+
+		static std::string MangleFunction(llvm::StringRef Name, const llvm::SmallVector<SemaType *, 8> &Type);
 	};
 }
 

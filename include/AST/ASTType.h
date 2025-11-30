@@ -18,6 +18,12 @@ namespace fly {
     class ASTName;
     class ASTExpr;
 
+    enum class ASTTypeKind {
+        TYPE_NAMED,
+        TYPE_BUILTIN,
+        TYPE_ARRAY
+    };
+
     enum class ASTBuiltinTypeKind {
 		TYPE_VOID,
 		TYPE_BOOL,
@@ -41,13 +47,17 @@ namespace fly {
 
         friend class ASTBuilder;
 
+        ASTTypeKind TypeKind;
+
         SemaType *Sema;
 
     protected:
 
-        explicit ASTType(const SourceLocation &Loc);
+        explicit ASTType(const SourceLocation &Loc, ASTTypeKind TypeKind);
 
     public:
+
+        ASTTypeKind getTypeKind() const;
 
         SemaType *getSema() const;
 
@@ -84,7 +94,7 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        llvm::SmallVector<ASTName*, 4>& getNames() const;
+        const llvm::SmallVector<ASTName*, 4>& getNames() const;
 
         std::string str() const override;
     };

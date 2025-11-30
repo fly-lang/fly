@@ -7,15 +7,15 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_FUNCTIONBASE_H
-#define FLY_AST_FUNCTIONBASE_H
+#ifndef FLY_AST_FUNCTION_H
+#define FLY_AST_FUNCTION_H
 
 #include "ASTNode.h"
 
 namespace fly {
 
     class ASTModifier;
-    class ASTVar;
+    class ASTParam;
     class ASTComment;
     class ASTType;
     class ASTBlockStmt;
@@ -27,11 +27,11 @@ namespace fly {
         llvm::StringRef Name;
 
         // Function return type
-        ASTType *ReturnTypeRef = nullptr;
+        ASTType *ReturnType = nullptr;
 
         llvm::SmallVector<ASTModifier *, 8> Modifiers;
 
-        llvm::SmallVector<ASTVar *, 8> Params;
+        llvm::SmallVector<ASTParam *, 8> Params;
 
         // Body is the main BlockStmt
         ASTBlockStmt *Body = nullptr;
@@ -39,7 +39,7 @@ namespace fly {
     protected:
 
         ASTFunction(const SourceLocation &Loc, ASTType *ReturnType,llvm::SmallVector<ASTModifier *, 8> &Modifiers,
-            llvm::StringRef Name, llvm::SmallVector<ASTVar *, 8> &Params);
+            llvm::StringRef Name, llvm::SmallVector<ASTParam *, 8> &Params);
 
     public:
 
@@ -47,13 +47,11 @@ namespace fly {
 
         llvm::StringRef getName() const;
 
-        ASTType *getReturnTypeRef() const;
+        ASTType *getReturnType() const;
 
         llvm::SmallVector<ASTModifier *, 8> getModifiers() const;
 
-        llvm::SmallVector<ASTVar *, 8> getParams() const;
-
-        llvm::SmallVector<ASTVar *, 8> getLocalVars() const;
+        llvm::SmallVector<ASTParam *, 8> getParams() const;
 
         ASTBlockStmt *getBody() const;
 
@@ -63,4 +61,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_AST_FUNCTIONBASE_H
+#endif //FLY_AST_FUNCTION_H

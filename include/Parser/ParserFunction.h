@@ -19,7 +19,7 @@ namespace fly {
     class Parser;
     class ASTFunction;
     class ASTFunction;
-    class ASTVar;
+    class ASTParam;
     class ASTType;
     class ASTBlockStmt;
     class ASTModifier;
@@ -34,13 +34,13 @@ namespace fly {
 
     public:
 
-        static llvm::SmallVector<ASTVar *, 8> ParseParams(Parser *P);
+        static llvm::SmallVector<ASTParam *, 8> ParseParams(Parser *P);
 
         static ASTBlockStmt *ParseBody(Parser *P, ASTFunction *F);
 
     private:
 
-        static ASTVar *ParseParam(Parser *P);
+        static ASTParam *ParseParam(Parser *P);
 
     };
 }

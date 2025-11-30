@@ -15,68 +15,74 @@
 #include "llvm/ADT/SmallVector.h"
 
 namespace fly {
+    class SourceLocation;
 
-	class SourceLocation;
+    enum class ASTKind
+    {
+        AST_MODULE,
+        AST_NAMESPACE,
+        AST_IMPORT,
+        AST_NAME,
+        AST_PARAM,
+        AST_LOCALVAR,
+        AST_ARG,
+        AST_STMT,
+        AST_TYPE,
+        AST_EXPR,
+        AST_COMMENT,
+        AST_FUNCTION,
+        AST_MODIFIER,
+        AST_STRUCT,
+        AST_CLASS,
+        AST_METHOD,
+        AST_ATTRIBUTE,
+        AST_INTERFACE,
+        AST_ENUM,
+        AST_ENUM_ENTRY,
+    };
 
-	enum class ASTKind {
-		AST_MODULE,
-		AST_NAMESPACE,
-		AST_IMPORT,
-		AST_NAME,
-		AST_LOCALVAR,
-		AST_ARG,
-		AST_STMT,
-		AST_TYPE,
-		AST_EXPR,
-		AST_COMMENT,
-		AST_FUNCTION,
-		AST_MODIFIER,
-		AST_STRUCT,
-		AST_CLASS,
-		AST_METHOD,
-		AST_ATTRIBUTE,
-		AST_INTERFACE,
-		AST_ENUM,
-		AST_ENUM_ENTRY,
-	};
+    class ASTBase
+    {
+        SourceLocation Loc;
 
-	class ASTBase {
+        ASTKind Kind;
 
-		SourceLocation Loc;
+    protected:
+        ASTBase(const SourceLocation& Loc, ASTKind Kind);
 
-		ASTKind Kind;
+    public:
+        virtual ~ASTBase() = default;
 
-	protected:
-		ASTBase(const SourceLocation &Loc, ASTKind Kind);
+        virtual const SourceLocation& getLocation() const;
 
-	public:
+        virtual ASTKind getKind() const;
 
-		virtual ~ASTBase() = default;
+        virtual void setKind(ASTKind Kind);
 
-		virtual const SourceLocation &getLocation() const;
+        virtual std::string str() const;
 
-		virtual ASTKind getKind() const;
+        template <typename T>
+        static std::string str(const llvm::SmallVector<T*, 8>& Vect)
+        {
+            std::string S;
+            S.reserve(128);
+            S += Logger::OPEN_LIST;
 
-		virtual void setKind(ASTKind Kind);
+            if (!Vect.empty())
+            {
+                for (auto* V : Vect)
+                {
+                    S += (V ? V->str() : "null");
+                    S += Logger::SEP;
+                }
+                // Remove the last separator
+                S.resize(S.size() - std::string(Logger::SEP).size());
+            }
 
-		virtual std::string str() const;
-
-		template <typename T>
-		static const std::string &str(llvm::SmallVector<T *, 8> Vect) {
-			std::string Str = Logger::OPEN_LIST;
-			if(!Vect.empty()) {
-				for (auto *V : Vect) {
-					Str += (V ? V->str() : "") + Logger::SEP;
-				}
-				unsigned long end = Str.length()-std::string(Logger::SEP).length()-1;
-				Str = Str.substr(0, end);
-			}
-			Str += Logger::CLOSE_LIST;
-			return Str;
-		}
-
-	};
-
+            S += Logger::CLOSE_LIST;
+            return S;
+        }
+    };
 }
 
 #endif //FLY_ASTBASE_H
