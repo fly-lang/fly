@@ -81,14 +81,14 @@ void Registry::addBody(SymbolTable* Symbols, ASTBlockStmt *Body) {
 
 SemaNameSpace *Registry::getNameSpace(const llvm::SmallVector<ASTName *, 4> &Names) {
 	SemaNameSpace *Current = nullptr;
-	llvm::StringMap<SemaNameSpace*> *Children = &NameSpaces;
+	auto Children = NameSpaces;
 
 	for (int i = 0; i < Names.size(); i++) {
 		llvm::StringRef Name = Names[i]->getName();
-		auto It = Children->find(Name);
-		if (It != Children->end()) {
+		auto It = Children.find(Name);
+		if (It != Children.end()) {
 			Current = It->second;
-			Children = &Current->getChildren();
+			Children = Current->getChildren();
 		} else {
 			return nullptr; // not found
 		}
@@ -101,25 +101,25 @@ SemaNameSpace* Registry::getOrCreateNameSpace(const llvm::SmallVector<ASTName *,
 	if (Names.empty())
 		return DefaultNameSpace;
 
-	llvm::StringMap<SemaNameSpace*> *Children = &NameSpaces;
+	auto Children = NameSpaces;
 	SemaNameSpace *Current = nullptr;
 	SemaNameSpace * Parent = nullptr;
 
 	for (auto *N : Names) {
 		llvm::StringRef Name = N->getName();
 
-		auto It = Children->find(Name);
-		if (It == Children->end()) {
+		auto It = Children.find(Name);
+		if (It == Children.end()) {
 			// Create namespace
 			Current = new SemaNameSpace(Name, Parent);
-			(*Children)[Name] = Current;
+			Children[Name] = Current;
 		} else {
 			// Namespace already exists
 			Current = It->second;
 		}
 		// Advance deeper
 		Parent   = Current;
-		Children = &Current->getChildren();
+		Children = Current->getChildren();
 	}
 
 	return Current;

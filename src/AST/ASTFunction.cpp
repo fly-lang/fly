@@ -16,8 +16,11 @@
 using namespace fly;
 
 ASTFunction::ASTFunction(const SourceLocation &Loc, ASTType *ReturnType,
-                                 llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::StringRef Name, llvm::SmallVector<ASTParam *, 8> &Params) :
-        ASTNode(Loc, ASTKind::AST_FUNCTION), ReturnType(ReturnType), Modifiers(Modifiers), Name(Name), Params(Params) {
+                                 llvm::SmallVector<ASTModifier *, 8> &Modifiers,
+                                 llvm::StringRef Name, llvm::SmallVector<ASTParam *, 8> &Params,
+                                 ASTFunctionKind FunctionKind) :
+        ASTNode(Loc, ASTKind::AST_FUNCTION), ReturnType(ReturnType), Modifiers(Modifiers), Name(Name),
+		Params(Params), FunctionKind(FunctionKind) {
 
 }
 

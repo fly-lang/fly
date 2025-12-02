@@ -29,6 +29,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/TargetSelect.h"
 
+#include <AST/ASTIdentifier.h>
 #include <CodeGen/CodeGenModule.h>
 #include <Sema/SymbolTable.h>
 #include <gtest/gtest.h>
@@ -63,7 +64,7 @@ public:
     llvm::SmallVector<ASTModifier *, 8> TopModifiers;
     llvm::SmallVector<ASTModifier *, 8> EmptyModifiers;
     llvm::SmallVector<ASTExpr *, 8> Args;
-    llvm::SmallVector<ASTVar *, 8> Params;
+    llvm::SmallVector<ASTParam *, 8> Params;
 
     CodeGenTest() : CI(*TestUtils::CreateCompilerInstance()),
                     CG(TestUtils::CreateCodeGen(CI)),
@@ -106,22 +107,14 @@ public:
 	    return *Builder;
     }
 
-	ASTCall *CreateCall(llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind Kind, ASTIdentifier *Parent = nullptr) {
-    	ASTCall *Call = getASTBuilder().CreateCall(SourceLocation(), Name, Args, Kind, Parent);
-    	return Call;
-    }
-
-    ASTCall *CreateCall(ASTFunction *Function, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind Kind, ASTIdentifier *Parent = nullptr) {
-        ASTCall *Call = getASTBuilder().CreateCall(SourceLocation(), Function->getName(), Args, Kind, Parent);
-        return Call;
-    }
-
-	Module *Generate() {
-    	CodeGenModule *CGM = CG->GenerateModule(S->getSymTable().getDefaultNameSpace());
-    	CGM->GenAll();
-    	Module * M = CGM->getModule();
+	std::vector<llvm::Module *> &Generate() {
+    	// validate and resolve
+    	SmallVector<SemaModule *, 8> SemaModules = S->Resolve();
     	EXPECT_FALSE(Diags.hasErrorOccurred());
-    	return M;
+    	EXPECT_FALSE(SemaModules.empty());
+    	std::vector<llvm::Module *> CGModules = CG->GenerateModules(SemaModules);
+    	EXPECT_FALSE(Diags.hasErrorOccurred());
+    	return CGModules;
     }
 
 	std::string getOutput(llvm::Module *M) {

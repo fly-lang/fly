@@ -16,7 +16,7 @@ using namespace fly;
 
 ASTAttribute::ASTAttribute(
 	const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, SmallVector<ASTModifier *, 8> &Modifiers) :
-	ASTVar(Loc, Type, Name, ASTKind::AST_ATTRIBUTE, Modifiers) {
+	ASTVar(Loc, Type, Name, ASTVarKind::VAR_ATTRIBUTE, Modifiers) {
 }
 
 void ASTAttribute::accept(ASTVisitor &Visitor) {

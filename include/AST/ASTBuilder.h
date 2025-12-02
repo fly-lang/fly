@@ -11,7 +11,7 @@
 #define FLY_AST_BUILDER_H
 
 #include <AST/ASTModifier.h>
-#include <AST/ASTVarStmt.h>
+#include <AST/ASTAssignStmt.h>
 #include "llvm/ADT/StringMap.h"
 
 namespace fly {
@@ -64,7 +64,7 @@ namespace fly {
 
     class ASTExprStmt;
 
-    class ASTVarStmt;
+    class ASTAssignStmt;
 
     class ASTParam;
 
@@ -137,8 +137,6 @@ namespace fly {
     enum class ASTUnaryOpExprKind;
 
     enum class ASTBinaryOpExprKind;
-
-    enum class ASTTernaryOpExprKind;
 
     enum class ASTCallKind;
 
@@ -225,6 +223,10 @@ namespace fly {
 
         ASTType *CreateType(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names);
 
+        ASTType *CreateType(ASTClass *Class);
+
+        ASTType *CreateType(ASTEnum *Class);
+
         // Create Values
 
         static ASTDefaultValue *CreateDefaultValue();
@@ -276,7 +278,7 @@ namespace fly {
 
         // Create Statements
 
-        ASTVarStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTIdentifier *VarRef,
+        ASTAssignStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTExpr *Source,
                                               ASTAssignOperatorKind Kind = ASTAssignOperatorKind::EQUAL);
 
         ASTReturnStmt *CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);

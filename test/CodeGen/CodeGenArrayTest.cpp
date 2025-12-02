@@ -13,10 +13,6 @@
 #include "CodeGen/CodeGenFunction.h"
 #include "CodeGen/CodeGenClass.h"
 #include "Sema/SemaBuilderModifiers.h"
-#include "Sema/SemaBuilderStmt.h"
-#include "Sema/SemaBuilderIfStmt.h"
-#include "Sema/SemaBuilderSwitchStmt.h"
-#include "Sema/SemaBuilderLoopStmt.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTVar.h"
@@ -56,9 +52,6 @@ namespace {
     	SemaBuilderStmt *VarStmt_k = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_k);
     	VarStmt_k->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ArrayIntType->getSema())));
 
-        // validate and resolve
-        EXPECT_TRUE(S->Resolve());
-
     	// Generate Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
@@ -84,9 +77,6 @@ namespace {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
         // func(int[] k) {
         // }
-        
-    	// validate and resolve
-    	EXPECT_TRUE(S->Resolve());
 
     	// Generate Code
     	llvm::Module * M = Generate();
@@ -142,9 +132,6 @@ namespace {
         SemaBuilderStmt *Return = getASTBuilder().CreateReturnStmt(Body, SourceLoc);
         Return->setExpr(getASTBuilder().CreateExpr(CreateVarRef(LocalVar_g)));
 
-    	// validate and resolve
-    	EXPECT_TRUE(S->Resolve());
-
     	// Generate Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M);
@@ -173,9 +160,6 @@ namespace {
         SemaBuilderStmt *VarStmt = getASTBuilder().CreateAssignmentStmt(Body, LocalVar);
         ASTValueExpr *ValueExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
         VarStmt->setExpr(ValueExpr);
-
-        // validate and resolve
-    	EXPECT_TRUE(S->Resolve());
 
     	// Generate Code
     	llvm::Module * M = Generate();

@@ -81,9 +81,6 @@ namespace {
         ASTVarRefExpr *aRefExpr = getASTBuilder().CreateExpr(CreateVarRef(aVar));
         bVarStmt->setExpr(aRefExpr);
 
-		// validate and resolve
-		EXPECT_TRUE(S->Resolve());
-
 		// Generate Code
 		llvm::Module * M = Generate();
 		std::string output = getOutput(M);

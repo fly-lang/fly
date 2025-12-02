@@ -9,13 +9,15 @@
 
 #ifndef FLY_SEMA_BUILDER_H
 #define FLY_SEMA_BUILDER_H
+
 #include <AST/ASTValue.h>
-#include <AST/ASTVarStmt.h>
+#include <AST/ASTAssignStmt.h>
 
 namespace fly {
 
     class SymbolTable;
 	class SemaNameSpace;
+	class SemaImport;
 	class SemaModule;
 	class SemaGlobalVar;
 	class SemaFunction;

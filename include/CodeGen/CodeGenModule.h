@@ -34,7 +34,6 @@ namespace llvm {
 
 namespace fly {
 
-    class SemaNameSpace;
     class SymbolTable;
     class CodeGen;
     class CodeGenGlobalVar;
@@ -57,6 +56,7 @@ namespace fly {
     class ASTStmt;
     class ASTBlockStmt;
     class ASTIfStmt;
+    class SemaModule;
     class SemaGlobalVar;
     class SemaFunction;
     class SemaClassType;
@@ -87,7 +87,7 @@ namespace fly {
         // CodeGen Options
         CodeGenOptions &CGOpts;
 
-        SemaNameSpace *NameSpace;
+        SemaModule *Sema;
 
         // Target Info
         TargetInfo &Target;
@@ -169,29 +169,20 @@ namespace fly {
 
         llvm::ConstantInt *Zero;
 
-        llvm::SmallVector<CodeGenClass *, 8> CGClasses;
+        llvm::SmallVector<CodeGenFunctionBase *, 8> CGFunctions;
 
-        std::vector<CodeGenFunction *> CGFunctions;
+        SemaFunctionBase *CurrentFunction;
 
-        CodeGenModule(DiagnosticsEngine &Diags, SemaNameSpace *NameSpace, llvm::LLVMContext &LLVMCtx, TargetInfo &Target,
+        CodeGenModule(DiagnosticsEngine &Diags, SemaModule *Sema, llvm::LLVMContext &LLVMCtx, TargetInfo &Target,
                       CodeGenOptions &CGOpts);
 
         virtual ~CodeGenModule();
-
-        SemaNameSpace *getNameSpace() const;
 
         DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID);
 
         llvm::Module *getModule() const;
 
-        void GenAll();
-
-        void GenHeaders();
-
-        // TODO: remove GlobalVar
-        // CodeGenGlobalVar *GenGlobalVar(SymGlobalVar *GlobalVar, bool isExternal = false);
-
-        CodeGenFunction *GenFunction(SemaFunction *Function, bool isExternal = false);
+        CodeGenFunction *GenFunction(SemaFunction *Sema, bool isExternal = false);
 
         CodeGenClass *GenClass(SemaClassType *Class, bool isExternal = false);
 
@@ -213,7 +204,7 @@ namespace fly {
 
         llvm::Value *GenExpr(ASTExpr *Expr);
 
-        llvm::Value *GenCast(SemaType*FromType, SemaType *ToType, llvm::Value *Val);
+        llvm::Value *GenCast(ASTExpr *Expr, SemaType *ToType);
 
         llvm::Value* GenResult(SemaResult *Sema);
 

@@ -457,7 +457,7 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 		if (Tok.is(tok::equal) && NexTok.getValue().is(tok::kw_handle)) {
 			ParseHandleStmt(Parent, Identifier);
 		} else {
-			ASTVarStmt *Stmt = Builder.CreateAssignmentStmt(Parent, Identifier);
+			ASTAssignStmt *Stmt = Builder.CreateAssignmentStmt(Parent, Identifier);
 
 			// Consume Assign Operator
 			if (Tok.is(tok::equal)) {
@@ -1009,13 +1009,13 @@ ASTType *Parser::ParseType() {
 
 ASTExpr *Parser::ParseExpr() {
     FLY_DEBUG_START("Parser", "ParseExpr");
-	ParseExpr *PE = new ParserExpr(this);
+	ParserExpr *PE = new ParserExpr(this);
     return PE->Parse();
 }
 
 ASTExpr *Parser::ParseIdentifier() {
 	FLY_DEBUG_START("Parser", "ParseIdentifier");
-	ParseExpr *PE = new ParserExpr(this);
+	ParserExpr *PE = new ParserExpr(this);
 	return PE->ParseIdentifierOrCall();
 }
 

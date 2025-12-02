@@ -9,10 +9,6 @@
 
 #include "Sema/SemaFunction.h"
 
-#include <AST/ASTFunction.h>
-#include <AST/ASTType.h>
-#include <AST/ASTVar.h>
-
 using namespace fly;
 
 SemaFunction::SemaFunction(ASTFunction &AST, SymbolTable *Symbols) : SemaFunctionBase(AST, SemaKind::FUNCTION, MangleFunction(AST)),

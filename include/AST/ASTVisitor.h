@@ -29,6 +29,7 @@ namespace fly {
 	class ASTArrayValue;
 	class ASTStructValue;
 	class ASTNullValue;
+	class ASTDefaultValue;
 	class ASTLocalVar;
 	class ASTIdentifier;
 	class ASTBuiltinType;
@@ -46,7 +47,7 @@ namespace fly {
 	class ASTSwitchStmt;
 	class ASTLoopStmt;
 	class ASTLoopInStmt;
-	class ASTVarStmt;
+	class ASTAssignStmt;
 	class ASTBlockStmt;
 	class ASTUnaryOpExpr;
 	class ASTBinaryOpExpr;
@@ -91,7 +92,7 @@ namespace fly {
 		virtual void visit(ASTSwitchStmt &AST) = 0;
 		virtual void visit(ASTLoopStmt &AST) = 0;
 		virtual void visit(ASTLoopInStmt &AST) = 0;
-		virtual void visit(ASTVarStmt &AST) = 0;
+		virtual void visit(ASTAssignStmt &AST) = 0;
 		virtual void visit(ASTBlockStmt &AST) = 0;
 
 		// Expressions
@@ -108,6 +109,7 @@ namespace fly {
 		virtual void visit(ASTArrayValue &AST) = 0;
 		virtual void visit(ASTStructValue &AST) = 0;
 		virtual void visit(ASTNullValue &AST) = 0;
+		virtual void visit(ASTDefaultValue &AST) = 0;
 	};
 
 }

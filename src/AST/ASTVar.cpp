@@ -13,14 +13,14 @@
 
 using namespace fly;
 
-ASTVar::ASTVar(const SourceLocation &Loc, ASTType *TypeRef, llvm::StringRef Name, ASTKind Kind,
+ASTVar::ASTVar(const SourceLocation &Loc, ASTType *TypeRef, llvm::StringRef Name, ASTVarKind VarKind,
                SmallVector<ASTModifier *, 8> &Modifiers) :
-        ASTNode(Loc, Kind), TypeRef(TypeRef), Name(Name), Modifiers(Modifiers), Sema(nullptr) {
+        ASTNode(Loc, ASTKind::AST_VAR), VarKind(VarKind), Type(TypeRef), Name(Name), Modifiers(Modifiers), Sema(nullptr) {
 
 }
 
 ASTType *ASTVar::getType() const {
-    return TypeRef;
+    return Type;
 }
 
 llvm::StringRef ASTVar::getName() const {
@@ -43,7 +43,7 @@ std::string ASTVar::str() const {
     return Logger("ASTVar").
 		Attr("Location", getLocation()).
 		Attr("Kind", static_cast<size_t>(getKind())).
-        Attr("TypeRef", TypeRef).
+        Attr("TypeRef", Type).
         Attr("Name", Name).
         Attr("Expr", Expr).
         Attr("Modifiers", ASTNode::str(Modifiers)).

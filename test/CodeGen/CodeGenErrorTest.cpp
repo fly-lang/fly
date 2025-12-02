@@ -14,7 +14,9 @@
 #include "AST/ASTEnum.h"
 
 #include <AST/ASTBuilderStmt.h>
+#include <AST/ASTExprStmt.h>
 #include <AST/ASTFailStmt.h>
+#include <AST/ASTLocalVar.h>
 
 namespace {
 
@@ -30,18 +32,15 @@ namespace {
         // }
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
-        ASTVar *ErrorA = getASTBuilder().CreateLocalVar(Body, SourceLoc, ErrorTypeRef, "A", EmptyModifiers);
+        ASTLocalVar *ErrorA = getASTBuilder().CreateLocalVar(Body, SourceLoc, ErrorTypeRef, "A", EmptyModifiers);
         ASTIdentifier *ErrorVarRef = getASTBuilder().CreateIdentifier(ErrorA);
         ASTBlockStmt *HandleBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         getASTBuilder().CreateHandleStmt(Body, SourceLoc, HandleBlock, ErrorVarRef);
 
-        ASTBuilderStmt *Fail0Stmt = getASTBuilder().CreateFailStmt(HandleBlock, SourceLoc);
-
-		// validate and resolve
-		EXPECT_TRUE(S->Resolve());
+        ASTFailStmt * Fail0Stmt = getASTBuilder().CreateFailStmt(HandleBlock, SourceLoc);
 
 		// Generate Code
-		llvm::Module * M = Generate();
+		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
@@ -72,7 +71,7 @@ namespace {
         // }
         ASTBlockStmt *Body0 = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *TestFail = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body0);
-        ASTBuilderStmt *Fail0Stmt = getASTBuilder().CreateFailStmt(Body0, SourceLoc);
+        ASTFailStmt * Fail0Stmt = getASTBuilder().CreateFailStmt(Body0, SourceLoc);
 
 		// main() {
 		//   testFail()
@@ -81,15 +80,12 @@ namespace {
 		ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
 		// call testFail0()
-		ASTBuilderStmt *CallTestFail0 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-		ASTCallExpr *CallExpr0 = getASTBuilder().CreateExpr(CreateCall(TestFail, Args, ASTCallKind::CALL_DIRECT));
+		ASTExprStmt * CallTestFail0 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+		ASTCall *CallExpr0 = getASTBuilder().CreateCall(SourceLoc, TestFail->getName(), Args, ASTCallKind::CALL_DIRECT);
 		CallTestFail0->setExpr(CallExpr0);
 
-		// validate and resolve
-		EXPECT_TRUE(S->Resolve());
-
 		// Generate Code
-		llvm::Module * M = Generate();
+		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
@@ -135,8 +131,8 @@ namespace {
         ASTBlockStmt *Body1 = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *TestFail = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body1);
         ASTBoolValue *BoolVal = getASTBuilder().CreateBoolValue(SourceLoc, true);
-        ASTBuilderStmt *Fail1Stmt = getASTBuilder().CreateFailStmt(Body1, SourceLoc);
-        Fail1Stmt->setExpr(getASTBuilder().CreateExpr(BoolVal));
+        ASTFailStmt * Fail1Stmt = getASTBuilder().CreateFailStmt(Body1, SourceLoc);
+        Fail1Stmt->setExpr(BoolVal);
 
 		// main() {
 		//   testFail()
@@ -145,15 +141,12 @@ namespace {
 		ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
 		// call testFail1()
-		ASTBuilderStmt *CallTestFail1 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-		ASTCallExpr *CallExpr1 = getASTBuilder().CreateExpr(CreateCall(TestFail, Args, ASTCallKind::CALL_DIRECT));
+		ASTExprStmt * CallTestFail1 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+		ASTCall *CallExpr1 = getASTBuilder().CreateCall(SourceLoc, TestFail->getName(), Args, ASTCallKind::CALL_DIRECT);
 		CallTestFail1->setExpr(CallExpr1);
 
-		// validate and resolve
-		EXPECT_TRUE(S->Resolve());
-
 		// Generate Code
-		llvm::Module * M = Generate();
+		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
@@ -199,8 +192,8 @@ namespace {
         ASTBlockStmt *Body2 = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *TestFail2 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body2);
         ASTNumberValue *IntVal = getASTBuilder().CreateNumberValue(SourceLoc, "10");
-        ASTBuilderStmt *Fail2Stmt = getASTBuilder().CreateFailStmt(Body2, SourceLoc);
-        Fail2Stmt->setExpr(getASTBuilder().CreateExpr(IntVal));
+        ASTFailStmt * Fail2Stmt = getASTBuilder().CreateFailStmt(Body2, SourceLoc);
+        Fail2Stmt->setExpr(IntVal);
 
         // main() {
         //   testFail()
@@ -209,15 +202,12 @@ namespace {
         ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
         // call testFail()
-        ASTBuilderStmt *CallTestFail2 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-        ASTCallExpr *CallExpr2 = getASTBuilder().CreateExpr(CreateCall(TestFail2, Args, ASTCallKind::CALL_DIRECT));
+        ASTExprStmt * CallTestFail2 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+        ASTCall *CallExpr2 = getASTBuilder().CreateCall(SourceLoc, TestFail2->getName(), Args, ASTCallKind::CALL_DIRECT);
         CallTestFail2->setExpr(CallExpr2);
 
-		// validate and resolve
-		EXPECT_TRUE(S->Resolve());
-
 		// Generate Code
-		llvm::Module * M = Generate();
+		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M);
 
 		EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
@@ -263,8 +253,8 @@ namespace {
         ASTBlockStmt *Body3 = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *TestFail3 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body3);
         ASTStringValue *StrVal = getASTBuilder().CreateStringValue(SourceLoc, "Error");
-        ASTBuilderStmt *Fail3Stmt = getASTBuilder().CreateFailStmt(Body3, SourceLoc);
-        Fail3Stmt->setExpr(getASTBuilder().CreateExpr(StrVal));
+        ASTFailStmt * Fail3Stmt = getASTBuilder().CreateFailStmt(Body3, SourceLoc);
+        Fail3Stmt->setExpr(StrVal);
 
         // main() {
         //   testFail()
@@ -273,15 +263,12 @@ namespace {
         ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
         // call testFail()
-        ASTBuilderStmt *CallTestFail3 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-        ASTCallExpr *CallExpr3 = getASTBuilder().CreateExpr(CreateCall(TestFail3, Args, ASTCallKind::CALL_DIRECT));
+        ASTExprStmt * CallTestFail3 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+        ASTCall *CallExpr3 = getASTBuilder().CreateCall(SourceLoc, TestFail3->getName(), Args, ASTCallKind::CALL_DIRECT);
         CallTestFail3->setExpr(CallExpr3);
 
-		// validate and resolve
-		EXPECT_TRUE(S->Resolve());
-
 		// Generate Code
-		llvm::Module * M = Generate();
+		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M);
 
 		EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
@@ -327,7 +314,7 @@ namespace {
     	// }
         llvm::SmallVector<ASTType *, 4> SuperClasses;
         ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopModifiers, SuperClasses);
-        ASTVar *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
+        ASTAttribute *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
 
     	// int testFail() {
     	//  fail new TestStruct()
@@ -335,10 +322,10 @@ namespace {
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *TestFail4 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body);
         // TestStruct test = new TestStruct()
-        ASTCall *ConstructorCall = CreateCall(TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
+        ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
         // fail new TestStruct()
-        ASTBuilderStmt *Fail4Stmt = getASTBuilder().CreateFailStmt(Body, SourceLoc);
-        Fail4Stmt->setExpr(getASTBuilder().CreateExpr(ConstructorCall));
+        ASTFailStmt * Fail4Stmt = getASTBuilder().CreateFailStmt(Body, SourceLoc);
+        Fail4Stmt->setExpr(ConstructorCall);
 
         // main() {
         //   testFail()
@@ -347,15 +334,12 @@ namespace {
         ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
         // call testFail()
-        ASTBuilderStmt *CallTestFail4 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-        ASTCallExpr *CallExpr4 = getASTBuilder().CreateExpr(CreateCall(TestFail4, Args, ASTCallKind::CALL_DIRECT));
+        ASTExprStmt * CallTestFail4 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+        ASTCall *CallExpr4 = getASTBuilder().CreateCall(SourceLoc, TestFail4->getName(), Args, ASTCallKind::CALL_DIRECT);
         CallTestFail4->setExpr(CallExpr4);
 
-		// validate and resolve
-		EXPECT_TRUE(S->Resolve());
-
 		// Generate Code
-		llvm::Module * M = Generate();
+		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"

@@ -59,7 +59,7 @@ namespace fly {
     class ASTParam;
     class ASTLoopInStmt;
     class ASTEnum;
-    class ASTVarStmt;
+    class ASTAssignStmt;
     class SemaGlobalVar;
     class SemaFunction;
     class SemaVar;
@@ -145,7 +145,7 @@ namespace fly {
         void visit(ASTSwitchStmt &AST) override;
         void visit(ASTLoopStmt &AST) override;
         void visit(ASTLoopInStmt &AST) override;
-        void visit(ASTVarStmt &AST) override;
+        void visit(ASTAssignStmt &AST) override;
         void visit(ASTBlockStmt &AST) override;
 
         // Visit Expressions
@@ -162,6 +162,7 @@ namespace fly {
         void visit(ASTArrayValue &AST) override;
         void visit(ASTStructValue &AST) override;
         void visit(ASTNullValue &AST) override;
+        void visit(ASTDefaultValue &AST) override;
 
         // Main Resolve Function
         void Resolve();

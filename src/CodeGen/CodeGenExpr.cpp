@@ -18,6 +18,8 @@
 #include "llvm/IR/Value.h"
 
 #include <AST/ASTCall.h>
+#include <AST/ASTCast.h>
+#include <AST/ASTType.h>
 #include <AST/ASTValue.h>
 #include <CodeGen/CodeGenVarBase.h>
 #include <Sema/SemaType.h>
@@ -42,34 +44,38 @@ llvm::Value *CodeGenExpr::GenExpr(ASTExpr *Expr) {
 
         case ASTExprKind::EXPR_VALUE: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VALUE");
-        	ASTValue *Value = static_cast<ASTValueExpr *>(Expr)->getValue();
+        	ASTValue *Value = static_cast<ASTValue *>(Expr);
         	assert(Value && "Missing Value");
             return GenValue(Expr->getType(), Value->getSema());
         }
 
         case ASTExprKind::EXPR_IDENTIFIER: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VAR_REF");
-            ASTIdentifier *VarRef = static_cast<ASTVarRefExpr *>(Expr)->getVarRef();
-            assert(VarRef && "Missing Ref");
-        	return CGM->GenVar(static_cast<SemaVar *>(VarRef->getSema()))->getValue();
+            ASTIdentifier *Identifier = static_cast<ASTIdentifier *>(Expr);
+            assert(Identifier && "Missing Ref");
+        	return CGM->GenVar(Identifier->getSema())->getValue();
         }
 
         case ASTExprKind::EXPR_CALL: {
             FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_CALL");
-            ASTCall *Call = static_cast<ASTCallExpr *>(Expr)->getCall();
+            ASTCall *Call = static_cast<ASTCall *>(Expr);
         	assert(Call && "Missing Call");
             return CGM->GenCall(Call->getSema());
         }
 
     	case ASTExprKind::EXPR_CAST: {
-        	ASTCastExpr * CastExpr = static_cast<ASTCastExpr *>(Expr);
-        	return CGM->GenCast(CastExpr->getExpr()->getType(), CastExpr->getType(), GenExpr(CastExpr->getExpr()));
+        	ASTCast * CastExpr = static_cast<ASTCast *>(Expr);
+        	return CGM->GenCast(CastExpr->getExpr(), CastExpr->getType()->getSema());
     	}
 
-        case ASTExprKind::EXPR_OP: {
-	        FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_OP");
-        	return GenOp(static_cast<ASTOpExpr *>(Expr));
-        }
+    	case ASTExprKind::EXPR_UNARY:
+    		return GenUnary(static_cast<ASTUnaryOpExpr *>(Expr));
+
+    	case ASTExprKind::EXPR_BINARY:
+    		return GenBinary(static_cast<ASTBinaryOpExpr *>(Expr));
+
+    	case ASTExprKind::EXPR_TERNARY:
+    		return GenTernary(static_cast<ASTTernaryOpExpr *>(Expr));
     }
 
     assert("Unknown Expr Kind");
@@ -93,7 +99,7 @@ llvm::Value *CodeGenExpr::GenValue(SemaType *Type, SemaValue *Val) {
 
 		// Boolean Value
 		case SemaTypeKind::TYPE_BOOL:
-			return static_cast<SemaBoolValue *>(Val)->getValue() ?
+			return static_cast<SemaBoolValue *>(Val) ?
 					llvm::ConstantInt::getTrue(CGM->LLVMCtx) : llvm::ConstantInt::getFalse(CGM->LLVMCtx);
 
 		// Integer Value
@@ -212,66 +218,36 @@ llvm::Value *CodeGenExpr::GenValue(SemaType *Type, SemaValue *Val) {
 	return nullptr;
 }
 
-/**
- * Generate the Value by generating expression recursively
- * @param Expr
- * @return
- */
-llvm::Value *CodeGenExpr::GenOp(ASTOpExpr *Expr) {
-    FLY_DEBUG_MESSAGE("CodeGenExpr", "GenOp", "GroupKind=" + std::to_string((int) Expr->getOpExprKind()));
-
-    llvm::Value *V = nullptr;
-    switch (Expr->getOpExprKind()) {
-        case ASTOpExprKind::OP_UNARY:
-            V = GenUnary(static_cast<ASTUnaryOpExpr *>(Expr));
-            break;
-        case ASTOpExprKind::OP_BINARY:
-            V = GenBinary(static_cast<ASTBinaryOpExpr *>(Expr));
-            break;
-        case ASTOpExprKind::OP_TERNARY:
-            V = GenTernary(static_cast<ASTTernaryOpExpr *>(Expr));
-            break;
-    }
-
-    return V;
-}
-
-
-
-llvm::Value *CodeGenExpr::GenUnary(ASTUnaryOpExpr *Expr) {
+llvm::Value *CodeGenExpr::GenUnary(ASTUnaryOpExpr *Unary) {
     FLY_DEBUG_START("CodeGenExpr", "GenUnary");
-    assert(Expr->getOpExprKind() == ASTOpExprKind::OP_UNARY && "Expected Unary Group Expr");
-    assert(Expr->getExpr() && "Unary Expr empty");
+    assert(Unary->getExprKind() == ASTExprKind::EXPR_UNARY && "Expected Unary Group Expr");
+    assert(Unary->getExpr() && "Unary Expr empty");
 
-    // FIXME check ASTVarRefExpr
-    CodeGenVarBase *CGVar = static_cast<SemaVar *>(((ASTVarRefExpr *) Expr->getExpr())->getVarRef()->getSema())->getCodeGen();
-    llvm::Value *OldVal = CGVar->getValue();
+    llvm::Value *OldVal = GenExpr(Unary->getExpr());
+	llvm::Value *NewVal = nullptr;
+	llvm::Value *Result = nullptr;
 
-    switch (Expr->getOpKind()) {
+    switch (Unary->getOpKind()) {
 
         case ASTUnaryOpExprKind::OP_UNARY_PRE_INCR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
-            llvm::Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
-            CGVar->Store(NewVal);
-            return NewVal;
+            NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
+            Result = NewVal;
         }
         case ASTUnaryOpExprKind::OP_UNARY_POST_INCR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
-            llvm::Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
-            CGVar->Store(NewVal);
-            return OldVal;
+            NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
+            Result = OldVal;
         }
         case ASTUnaryOpExprKind::OP_UNARY_PRE_DECR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
-            llvm::Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
-            CGVar->Store(NewVal);
-            return NewVal;
+            NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
+        	Result = NewVal;
         }
         case ASTUnaryOpExprKind::OP_UNARY_POST_DECR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
-            llvm::Value *NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
-            CGVar->Store(NewVal);
-            return OldVal;
+            NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
+        	Result = NewVal;
         }
         case ASTUnaryOpExprKind::OP_UNARY_NOT_LOG:
             OldVal = CGM->Builder->CreateTrunc(OldVal, CGM->BoolTy);
@@ -279,23 +255,29 @@ llvm::Value *CodeGenExpr::GenUnary(ASTUnaryOpExpr *Expr) {
             return CGM->Builder->CreateZExt(OldVal, CGM->Int8Ty);
     }
 
-    assert(0 && "Invalid Unary Operation");
+	// Set Var with NewVal
+	if (Unary->getExpr()->getExprKind() == ASTExprKind::EXPR_IDENTIFIER) {
+		ASTIdentifier *Identifier = static_cast<ASTIdentifier *>(Unary->getExpr());
+		Identifier->getSema()->getCodeGen()->Store(NewVal);
+	}
+
+    return Result;
 }
 
-llvm::Value *CodeGenExpr::GenBinary(ASTBinaryOpExpr *Expr) {
+llvm::Value *CodeGenExpr::GenBinary(ASTBinaryOpExpr *Binary) {
     FLY_DEBUG_START("CodeGenExpr", "GenBinary");
-    assert(Expr->getOpExprKind() == ASTOpExprKind::OP_BINARY && "Expected Binary Group Expr");
-    assert(Expr->getLeftExpr() && "First Expr is empty");
-    assert(Expr->getRightExpr() && "Second Expr is empty");
+    assert(Binary->getExprKind() == ASTExprKind::EXPR_BINARY && "Expected Binary Group Expr");
+    assert(Binary->getLeftExpr() && "First Expr is empty");
+    assert(Binary->getRightExpr() && "Second Expr is empty");
 
-    switch (Expr->getTypeKind()) {
+    switch (Binary->getTypeKind()) {
 
         case ASTBinaryOpTypeExprKind::OP_BINARY_ARITH:
-            return GenBinaryArith(Expr->getLeftExpr(), Expr->getOpKind(), Expr->getRightExpr());
+            return GenBinaryArith(Binary->getLeftExpr(), Binary->getOpKind(), Binary->getRightExpr());
         case ASTBinaryOpTypeExprKind::OP_BINARY_COMPARISON:
-            return GenBinaryComparison(Expr->getLeftExpr(), Expr->getOpKind(), Expr->getRightExpr());
+            return GenBinaryComparison(Binary->getLeftExpr(), Binary->getOpKind(), Binary->getRightExpr());
         case ASTBinaryOpTypeExprKind::OP_BINARY_LOGIC:
-            return GenBinaryLogic(Expr->getLeftExpr(), Expr->getOpKind(), Expr->getRightExpr());
+            return GenBinaryLogic(Binary->getLeftExpr(), Binary->getOpKind(), Binary->getRightExpr());
     }
 
     assert(0 && "Unknown Operation");
@@ -450,13 +432,13 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(ASTExpr *E1, ASTBinaryOpExprKind Operat
     assert(0 && "Invalid Logic Operator");
 }
 
-llvm::Value *CodeGenExpr::GenTernary(ASTTernaryOpExpr *Expr) {
-    assert(Expr->getConditionExpr() && "First Expr is empty");
-    assert(Expr->getTrueExpr() && "Second Expr is empty");
-    assert(Expr->getFalseExpr() && "Third Expr is empty");
+llvm::Value *CodeGenExpr::GenTernary(ASTTernaryOpExpr *Ternary) {
+    assert(Ternary->getConditionExpr() && "First Expr is empty");
+    assert(Ternary->getTrueExpr() && "Second Expr is empty");
+    assert(Ternary->getFalseExpr() && "Third Expr is empty");
 
     llvm::BasicBlock *FromBB = CGM->Builder->GetInsertBlock();
-    llvm::Value *Cond = GenExpr(Expr->getConditionExpr());
+    llvm::Value *Cond = GenExpr(Ternary->getConditionExpr());
 
     // Create Blocks
     llvm::BasicBlock *TrueBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "terntrue", FromBB->getParent());
@@ -468,13 +450,13 @@ llvm::Value *CodeGenExpr::GenTernary(ASTTernaryOpExpr *Expr) {
 
     // True Label
     CGM->Builder->SetInsertPoint(TrueBB);
-    llvm::Value *True = GenExpr(Expr->getTrueExpr());
+    llvm::Value *True = GenExpr(Ternary->getTrueExpr());
     llvm::Value *BoolTrue = CGM->ConvertToBool(True);
     CGM->Builder->CreateBr(EndBB);
 
     // False Label
     CGM->Builder->SetInsertPoint(FalseBB);
-    llvm::Value *False = GenExpr(Expr->getFalseExpr());
+    llvm::Value *False = GenExpr(Ternary->getFalseExpr());
     llvm::Value *BoolFalse = CGM->ConvertToBool(False);
     CGM->Builder->CreateBr(EndBB);
 

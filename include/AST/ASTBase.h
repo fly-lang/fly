@@ -23,8 +23,7 @@ namespace fly {
         AST_NAMESPACE,
         AST_IMPORT,
         AST_NAME,
-        AST_PARAM,
-        AST_LOCALVAR,
+        AST_VAR,
         AST_ARG,
         AST_STMT,
         AST_TYPE,
@@ -32,13 +31,10 @@ namespace fly {
         AST_COMMENT,
         AST_FUNCTION,
         AST_MODIFIER,
-        AST_STRUCT,
         AST_CLASS,
         AST_METHOD,
-        AST_ATTRIBUTE,
-        AST_INTERFACE,
         AST_ENUM,
-        AST_ENUM_ENTRY,
+        AST_VALUE
     };
 
     class ASTBase

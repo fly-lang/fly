@@ -16,7 +16,7 @@ using namespace fly;
 
 ASTParam::ASTParam(
 	const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, SmallVector<ASTModifier *, 8> &Modifiers) :
-	ASTVar(Loc, Type, Name, ASTKind::AST_PARAM, Modifiers) {
+	ASTVar(Loc, Type, Name, ASTVarKind::VAR_PARAM, Modifiers) {
 }
 
 void ASTParam::accept(ASTVisitor &Visitor) {

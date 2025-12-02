@@ -11,6 +11,7 @@
 #include "Sema/SemaClassType.h"
 #include "Sema/SemaEnumType.h"
 
+#include <AST/ASTModule.h>
 #include <llvm/IR/Module.h>
 
 using namespace fly;
@@ -24,6 +25,10 @@ SemaModule::SemaModule(ASTModule &AST) : AST(AST) {
 
 ASTModule &SemaModule::getAST() const {
 	return AST;
+}
+
+llvm::StringRef SemaModule::getName() const {
+	return AST.getName();
 }
 
 SemaNameSpace *SemaModule::getNameSpace() const {

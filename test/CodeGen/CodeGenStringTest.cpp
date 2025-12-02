@@ -60,9 +60,6 @@ namespace {
     	SemaBuilderStmt *VarStmt_l = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_l);
     	VarStmt_l->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(DoubleTypeRef->getSym())));
 
-        // validate and resolve
-        EXPECT_TRUE(S->Resolve());
-
     	// Generate Code
     	llvm::Module * M = Generate();
     	std::string output = getOutput(M->getFunctionList());
@@ -90,9 +87,6 @@ namespace {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
         // func(string k, char l) {
         // }
-        
-    	// validate and resolve
-    	EXPECT_TRUE(S->Resolve());
 
     	// Generate Code
     	llvm::Module * M = Generate();
@@ -136,9 +130,6 @@ namespace {
         // return g
         SemaBuilderStmt *Return = getASTBuilder().CreateReturnStmt(Body, SourceLoc);
         Return->setExpr(getASTBuilder().CreateExpr(CreateVarRef(LocalVar_g)));
-
-    	// validate and resolve
-    	EXPECT_TRUE(S->Resolve());
 
     	// Generate Code
     	llvm::Module * M = Generate();

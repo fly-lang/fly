@@ -17,7 +17,7 @@ using namespace fly;
 
 ASTMethod::ASTMethod(const SourceLocation &Loc, ASTType *ReturnType,
 	llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::StringRef Name, llvm::SmallVector<ASTParam *, 8> &Params) :
-	ASTFunction(Loc, ReturnType, Modifiers, Name, Params) {
+	ASTFunction(Loc, ReturnType, Modifiers, Name, Params, ASTFunctionKind::F_METHOD) {
 }
 
 void ASTMethod::accept(ASTVisitor &Visitor) {

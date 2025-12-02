@@ -41,11 +41,11 @@ namespace fly {
         
         llvm::Value *GenOp(ASTOpExpr *Expr);
 
-        llvm::Value *GenUnary(ASTUnaryOpExpr *Expr);
+        llvm::Value *GenUnary(ASTUnaryOpExpr *Unary);
 
-        llvm::Value *GenBinary(ASTBinaryOpExpr *Expr);
+        llvm::Value *GenBinary(ASTBinaryOpExpr *Binary);
 
-        llvm::Value *GenTernary(ASTTernaryOpExpr *Expr);
+        llvm::Value *GenTernary(ASTTernaryOpExpr *Ternary);
 
         llvm::Value *GenBinaryArith(ASTExpr *E1, ASTBinaryOpExprKind OperatorKind, ASTExpr *E2);
 

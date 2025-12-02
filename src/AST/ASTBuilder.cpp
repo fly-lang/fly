@@ -22,7 +22,7 @@
 #include "AST/ASTVar.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTHandleStmt.h"
-#include "AST/ASTVarStmt.h"
+#include "AST/ASTAssignStmt.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTClass.h"
@@ -770,13 +770,13 @@ ASTTernaryOpExpr *ASTBuilder::CreateTernary(
 /**
  * Creates a ASTVarStmt
  * @param Parent
- * @param VarRef
+ * @param Source
  * @return
  */
-ASTVarStmt *ASTBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTIdentifier *VarRef, ASTAssignOperatorKind Kind) {
+ASTAssignStmt *ASTBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTExpr *Source, ASTAssignOperatorKind Kind) {
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateAssignmentStmt", "Kind=" << static_cast<uint8_t>(Kind));
 
-	ASTVarStmt *Stmt = new ASTVarStmt(VarRef->getLocation(), VarRef, Kind);
+	ASTAssignStmt *Stmt = new ASTAssignStmt(Source->getLocation(), Source, Kind);
 	Stmt->Parent = Parent;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateAssignmentStmt");

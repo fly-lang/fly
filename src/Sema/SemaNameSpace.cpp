@@ -32,7 +32,7 @@ SemaNameSpace * SemaNameSpace::getParent() const {
 	return Parent;
 }
 
-llvm::StringMap<SemaNameSpace *> SemaNameSpace::getChildren() const {
+const llvm::StringMap<SemaNameSpace *> &SemaNameSpace::getChildren() const {
 	return Children;
 }
 

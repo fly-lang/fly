@@ -44,6 +44,8 @@ namespace fly {
 
         ASTModule &getAST() const;
 
+        llvm::StringRef getName() const;
+
 		SemaNameSpace *getNameSpace() const;
 
         void setNameSpace(SemaNameSpace *NameSpace);

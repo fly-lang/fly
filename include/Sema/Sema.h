@@ -33,7 +33,10 @@ namespace fly {
 
         ~Sema() = default;
 
-        llvm::SmallVector<SemaModule *, 8> Resolve(llvm::SmallVector<ASTModule *, 8> &ASTModules);
+        template <typename... Mods>
+        llvm::SmallVector<SemaModule *, 8> Resolve(Mods... Modules);
+
+        llvm::SmallVector<SemaModule *, 8> Resolve(llvm::SmallVector<ASTModule *, 8> &Modules);
 
     };
 

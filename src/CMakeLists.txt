@@ -5,6 +5,7 @@ add_executable(fly
 add_library(flyLib
 
         # AST
+        AST/ASTAssignStmt.cpp
         AST/ASTArg.cpp
         AST/ASTAttribute.cpp
         AST/ASTBase.cpp
@@ -50,7 +51,6 @@ add_library(flyLib
         AST/ASTSwitchStmt.cpp
         AST/ASTValue.cpp
         AST/ASTVar.cpp
-        AST/ASTVarStmt.cpp
 
         # Basic
         Basic/Archiver.cpp

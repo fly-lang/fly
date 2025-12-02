@@ -20,9 +20,16 @@ namespace fly {
     class ASTType;
     class ASTBlockStmt;
 
+    enum class ASTFunctionKind {
+        F_FUNCTION,
+        F_METHOD,
+    };
+
     class ASTFunction : public ASTNode {
 
         friend class ASTBuilder;
+
+        ASTFunctionKind FunctionKind;
 
         llvm::StringRef Name;
 
@@ -39,7 +46,8 @@ namespace fly {
     protected:
 
         ASTFunction(const SourceLocation &Loc, ASTType *ReturnType,llvm::SmallVector<ASTModifier *, 8> &Modifiers,
-            llvm::StringRef Name, llvm::SmallVector<ASTParam *, 8> &Params);
+            llvm::StringRef Name, llvm::SmallVector<ASTParam *, 8> &Params,
+            ASTFunctionKind FunctionKind = ASTFunctionKind::F_FUNCTION);
 
     public:
 

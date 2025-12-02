@@ -19,13 +19,25 @@ Sema::Sema(DiagnosticsEngine &Diags) : Diags(Diags) {
 
 }
 
-llvm::SmallVector<SemaModule *, 8> Sema::Resolve(llvm::SmallVector<ASTModule *, 8> &ASTModules) {
+template <typename... Mods>
+llvm::SmallVector<SemaModule *, 8> Sema::Resolve(Mods... Modules) {
+	llvm::SmallVector<ASTModule *, 8> ASTs;
+	ASTs.reserve(sizeof...(Modules));
+
+	// Expand variadic pack into the vector
+	(ASTs.push_back(Modules), ...);
+
+	return Resolve(ASTs);
+}
+
+
+llvm::SmallVector<SemaModule *, 8> Sema::Resolve(llvm::SmallVector<ASTModule *, 8> &Modules) {
 	// Initialize the Registry
 	Registry *Reg = new Registry();
 
 	// Create the Resolver with AST Modules
 	Resolver R(Diags, *Reg);
-	for (auto &Module : ASTModules) {
+	for (auto &Module : Modules) {
 		Module->accept(R);
 	}
 

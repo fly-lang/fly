@@ -69,6 +69,7 @@ bool Frontend::Execute() {
     // Resolve AST references
 	SmallVector<SemaModule *, 8> SemaModules = S->Resolve(ASTModules);
     if (!SemaModules.empty()) {
+
         // Generate Backend Code
         CodeGen CG(Diags, CI.getCodeGenOptions(), CI.getTargetOptions(),
                    CI.getFrontendOptions().BackendAction,

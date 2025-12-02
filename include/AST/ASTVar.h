@@ -16,11 +16,17 @@
 
 namespace fly {
 
+    enum class ASTVarKind {
+        VAR_LOCALVAR,
+        VAR_PARAM,
+        VAR_ATTRIBUTE,
+        VAR_ENUM_ENTRY,
+    };
+
     class SourceLocation;
     class CodeGenVarBase;
-    class ASTVarStmt;
+    class ASTAssignStmt;
     class ASTModifier;
-    class SemaVar;
     class ASTType;
 	class ASTExpr;
 
@@ -28,9 +34,11 @@ namespace fly {
 
         friend class ASTBuilder;
 
+        ASTVarKind VarKind;
+
         SemaVar* Sema;
 
-        ASTType* TypeRef;
+        ASTType* Type;
 
         llvm::StringRef Name;
 
@@ -39,14 +47,12 @@ namespace fly {
         ASTExpr* Expr;
 
     protected:
-        ASTVar(const SourceLocation& Loc, ASTType* Type, llvm::StringRef Name, ASTKind Kind,
+        ASTVar(const SourceLocation& Loc, ASTType* Type, llvm::StringRef Name, ASTVarKind VarKind,
             SmallVector<ASTModifier*, 8>& Modifiers);
 
     public:
 
         void accept(ASTVisitor& Visitor) override;
-
-        virtual SemaVar* getSema() const = 0;
 
         ASTType* getType() const;
 
@@ -58,7 +64,7 @@ namespace fly {
 
         void setExpr(ASTExpr* Expr);
 
-        virtual SemaVar *getSema() = 0;
+        virtual SemaVar *getSema() const = 0;
 
         std::string str() const override;
     };

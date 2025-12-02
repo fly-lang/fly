@@ -109,6 +109,7 @@ void CodeGenClass::CreateVTable() {
 
 				// Add to Class Constructors
 				Methods.push_back(CG);
+				CGM->CGFunctions.push_back(CG);
 
 				// Add to VTable Struct Type
 				llvm::PointerType *FnPtrType = CG->getFunctionType()->getPointerTo(
@@ -133,6 +134,7 @@ void CodeGenClass::CreateVTable() {
 
 					// Add to Class Methods
 					Methods.push_back(CG);
+					CGM->CGFunctions.push_back(CG);
 				} else {
 					// CodeGen generated from super class
 					CG = Method->getCodeGen();
@@ -271,7 +273,7 @@ void CodeGenClass::GenInitConstructorBody() {
 		SemaClassAttribute *Attr = AttrEntry.getValue();
 
 		// Set Value for all Attributes
-		llvm::Value *V = CGM->GenExpr(Attr->getAST().getExpr());
+		llvm::Value *V = CGM->GenExpr(Attr->getAST()->getExpr());
 
 		llvm::ArrayRef<llvm::Value *> IdxList = {
 			CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, Attr->getCodeGen()->getIndex())};

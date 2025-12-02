@@ -7,37 +7,37 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "AST/ASTVarStmt.h"
+#include "AST/ASTAssignStmt.h"
 #include "Basic/Logger.h"
 
 using namespace fly;
 
-ASTVarStmt::ASTVarStmt(const SourceLocation &Loc, ASTIdentifier *VarRef, ASTAssignOperatorKind AssignOperatorKind) :
-        ASTStmt(Loc, ASTStmtKind::STMT_VAR), VarRef(VarRef), Kind(AssignOperatorKind) {
+ASTAssignStmt::ASTAssignStmt(const SourceLocation &Loc, ASTExpr *Source, ASTAssignOperatorKind AssignOperatorKind) :
+        ASTStmt(Loc, ASTStmtKind::STMT_ASSIGN), Source(Source), Kind(AssignOperatorKind) {
 
 }
 
-ASTIdentifier *ASTVarStmt::getVarRef() const {
-    return VarRef;
+ASTExpr *ASTAssignStmt::getSource() const {
+    return Source;
 }
 
-ASTAssignOperatorKind ASTVarStmt::getKind1() const {
+ASTAssignOperatorKind ASTAssignStmt::getOpKind() const {
     return Kind;
 }
 
-ASTExpr *ASTVarStmt::getExpr() const {
-    return Expr;
+ASTExpr *ASTAssignStmt::getTarget() const {
+    return Target;
 }
 
-void ASTVarStmt::setExpr(fly::ASTExpr *E) {
-    Expr = E;
+void ASTAssignStmt::setExpr(fly::ASTExpr *E) {
+    Target = E;
 }
 
-std::string ASTVarStmt::str() const {
+std::string ASTAssignStmt::str() const {
     return Logger("ASTVarAssign").
 	Attr("Location", getLocation()).
 Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("VarRef", VarRef).
+            Attr("VarRef", Source).
             Attr("Kind", (uint64_t) Kind).
             Attr("ExprStmt", ASTStmt::str()).
             End();

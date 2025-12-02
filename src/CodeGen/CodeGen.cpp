@@ -105,21 +105,19 @@ llvm::LLVMContext &CodeGen::getLLVMCtx() {
 std::vector<llvm::Module *> CodeGen::GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules) {
     FLY_DEBUG_START("CodeGen", "GenerateModules");
     std::vector<llvm::Module *> Modules;
-    for (auto &NameSpace : SemaModules) {
+    for (auto &SemaModule : SemaModules) {
         Diags.getClient()->BeginSourceFile();
-        CodeGenModule *CGM = GenerateModule(NameSpace.getValue());
-        CGM->GenAll();
-        Modules.push_back(CGM->getModule());
+        llvm::Module *M = GenerateModule(SemaModule);
+        Modules.push_back(M);
         Diags.getClient()->EndSourceFile();
     }
     return Modules;
 }
 
-CodeGenModule *CodeGen::GenerateModule(SemaModule *Module) {
+llvm::Module *CodeGen::GenerateModule(SemaModule *Module) {
     FLY_DEBUG_START("CodeGen", "GenerateModule");
     CodeGenModule *CGM = new CodeGenModule(Diags, Module, LLVMCtx, *Target, CodeGenOpts);
-    Module->setCodeGen(CGM);
-    return CGM;
+    return CGM->getModule();
 }
 
 // void CodeGen::GenerateHeaders(SemaTable &SymbolTable) {

@@ -12,7 +12,12 @@
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTIdentifier.h"
 
+#include <AST/ASTAttribute.h>
 #include <AST/ASTExprStmt.h>
+#include <AST/ASTLocalVar.h>
+#include <AST/ASTMethod.h>
+#include <AST/ASTParam.h>
+#include <AST/ASTReturnStmt.h>
 
 namespace {
 
@@ -26,23 +31,19 @@ namespace {
     	// }
         llvm::SmallVector<ASTType *, 4> SuperClasses;
         ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopModifiers, SuperClasses);
-        ASTVar *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
+        ASTAttribute *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
 
         // func() {
         //    new TestStruct()
         // }
         ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTCall *ConstructorCall = CreateCall(TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
-    	ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
-    	ASTBuilderStmt *testNewStmt = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-    	testNewStmt->setExpr(NewExpr);
+    	ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
+    	ASTExprStmt *testNewStmt = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+    	testNewStmt->setExpr(ConstructorCall);
     	getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
 
-		// validate and resolve
-		EXPECT_TRUE(S->Resolve());
-
 		// Generate Code
-		llvm::Module * M = Generate();
+		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n"
@@ -86,7 +87,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         llvm::SmallVector<ASTType *, 4> SuperClasses;
         ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
                                                    TopModifiers, SuperClasses);
-        ASTVar *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
+        ASTAttribute *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
         // ASTVar *bField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "b", TopModifiers);
         // ASTVar *cField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "c", TopModifiers);
 
@@ -100,26 +101,23 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // TestStruct test = new TestStruct()
-        ASTType *TestClassType = getASTBuilder().CreateTypeRef(TestStruct);
-        ASTVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
-        ASTCall *ConstructorCall = CreateCall(TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
-        ASTBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
-        testNewStmt->setExpr(NewExpr);
+        ASTType *TestClassType = getASTBuilder().CreateType(TestStruct);
+        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
+    	ASTIdentifier *Instance = getASTBuilder().CreateIdentifier(TestVar);
+        ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
+        ASTAssignStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, Instance);
+        testNewStmt->setExpr(ConstructorCall);
 
         // int x = test.a
-        ASTVar *xVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "x", EmptyModifiers);
-        ASTIdentifier *Instance = getASTBuilder().CreateIdentifier(TestVar);
-        ASTIdentifier *test_aVarRef = getASTBuilder().CreateIdentifier(aField, Instance);
-        ASTVarRefExpr *test_aRefExpr = getASTBuilder().CreateExpr(test_aVarRef);
-        ASTBuilderStmt *xVarStmt = getASTBuilder().CreateAssignmentStmt(Body, xVar);
-        xVarStmt->setExpr(test_aRefExpr);
-
-		// validate and resolve
-		EXPECT_TRUE(S->Resolve());
+        ASTLocalVar *xVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "x", EmptyModifiers);
+    	ASTIdentifier *xVar_Id = getASTBuilder().CreateIdentifier(TestVar);
+        
+        ASTMember *test_aVarRef = getASTBuilder().CreateMember(aField, Instance);
+        ASTAssignStmt * xVarStmt = getASTBuilder().CreateAssignmentStmt(Body, xVar_Id);
+        xVarStmt->setExpr(test_aVarRef);
 
 		// Generate Code
-		llvm::Module * M = Generate();
+		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M);
 
     	EXPECT_EQ(output, "\n"
@@ -181,27 +179,23 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // TestClass test = new TestClass()
-        ASTType *TestClassType = getASTBuilder().CreateTypeRef(TestClass);
-        ASTVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
-        ASTCall *ConstructorCall = CreateCall(TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
-        ASTBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
-        testNewStmt->setExpr(NewExpr);
+        ASTType *TestClassType = getASTBuilder().CreateType(TestClass);
+        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
+        ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+        ASTAssignStmt * testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(TestVar));
+        testNewStmt->setExpr(ConstructorCall);
 
         //  test.a = 2
-    	ASTIdentifier *test_a = getASTBuilder().CreateIdentifier(aAttribute, getASTBuilder().CreateIdentifier(TestVar));
-        ASTBuilderStmt *attrStmt = getASTBuilder().CreateAssignmentStmt(Body, test_a);
-        ASTValueExpr *value2Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLocation(), "2"));
-        attrStmt->setExpr(value2Expr);
+    	ASTMember *test_a = getASTBuilder().CreateMember(aAttribute, getASTBuilder().CreateIdentifier(TestVar));
+        ASTAssignStmt * attrStmt = getASTBuilder().CreateAssignmentStmt(Body, test_a);
+        ASTValue *value2 = getASTBuilder().CreateNumberValue(SourceLocation(), "2");
+        attrStmt->setExpr(value2);
 
         // delete test
         getASTBuilder().CreateDeleteStmt(Body, SourceLoc, getASTBuilder().CreateIdentifier(TestVar));
 
-		// validate and resolve
-		EXPECT_TRUE(S->Resolve());
-
 		// Generate Code
-		llvm::Module * M = Generate();
+		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n"
@@ -277,11 +271,11 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
         // int getA() { return a }
         ASTBlockStmt *MethodBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *getAMethod = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
+        ASTMethod *getAMethod = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
                                                                "getA", TopModifiers, Params, MethodBody);
 
-        ASTBuilderStmt *MethodReturn = getASTBuilder().CreateReturnStmt(MethodBody, SourceLoc);
-        MethodReturn->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateIdentifier(aAttribute)));
+        ASTReturnStmt * MethodReturn = getASTBuilder().CreateReturnStmt(MethodBody, SourceLoc);
+        MethodReturn->setExpr(getASTBuilder().CreateIdentifier(aAttribute));
 
         // int main() {
         //  TestClass test = new TestClass()
@@ -292,28 +286,24 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // TestClass test = new TestClass()
-        ASTType *TestClassType = getASTBuilder().CreateTypeRef(TestClass);
+        ASTType *TestClassType = getASTBuilder().CreateType(TestClass);
         ASTVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
-        ASTCall *ConstructorCall = CreateCall(TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
-        ASTBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
-        testNewStmt->setExpr(NewExpr);
+        ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+        ASTAssignStmt * testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(TestVar));
+        testNewStmt->setExpr(ConstructorCall);
 
         // int x = test.getA()
         ASTType *xType = getAMethod->getReturnType();
-        ASTVar *xVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, xType, "x", EmptyModifiers);
-        ASTCallExpr *xCallExpr = getASTBuilder().CreateExpr(CreateCall(getAMethod, Args, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateIdentifier(TestVar)));
-        ASTBuilderStmt *xStmt = getASTBuilder().CreateAssignmentStmt(Body, xVar);
+        ASTLocalVar *xVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, xType, "x", EmptyModifiers);
+        ASTCall *xCallExpr = getASTBuilder().CreateCall(SourceLoc, getAMethod->getName(), Args, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateIdentifier(TestVar));
+        ASTAssignStmt * xStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(xVar));
         xStmt->setExpr(xCallExpr);
 
         // delete test
         getASTBuilder().CreateDeleteStmt(Body, SourceLoc, getASTBuilder().CreateIdentifier(TestVar));
 
-		// validate and resolve
-		EXPECT_TRUE(S->Resolve());
-
 		// Generate Code
-		llvm::Module * M = Generate();
+		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n"
@@ -406,14 +396,14 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", TopModifiers);
 
         // int setA(int a) { this.a = a }
-    	llvm::SmallVector<ASTVar *, 8> setAParams;
-    	ASTVar * aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
+    	llvm::SmallVector<ASTParam *, 8> setAParams;
+    	ASTParam * aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
     	setAParams.push_back(aParam);
     	ASTBlockStmt *MethodBody = getASTBuilder().CreateBlockStmt(SourceLoc);
     	const SourceLocation &Loc = SourceLoc;
-    	ASTIdentifier * this_a = getASTBuilder().CreateIdentifier(aAttribute, getASTBuilder().CreateIdentifier(Loc, "this"));
-    	ASTBuilderStmt *setAttributeAStmt = getASTBuilder().CreateAssignmentStmt(MethodBody, this_a);
-    	setAttributeAStmt->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateIdentifier(aParam)));
+    	ASTMember * this_a = getASTBuilder().CreateMember(aAttribute, getASTBuilder().CreateIdentifier(Loc, "this"));
+    	ASTAssignStmt * setAttributeAStmt = getASTBuilder().CreateAssignmentStmt(MethodBody, this_a);
+    	setAttributeAStmt->setExpr(getASTBuilder().CreateIdentifier(aParam));
         ASTFunction *setAMethod = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef,
                                                                "setA", TopModifiers, setAParams, MethodBody);
 
@@ -426,29 +416,25 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // TestClass test = new TestClass()
-        ASTType *TestClassType = getASTBuilder().CreateTypeRef(TestClass);
-        ASTVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
-        ASTCall *ConstructorCall = CreateCall(TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
-        ASTBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
-        testNewStmt->setExpr(NewExpr);
+        ASTType *TestClassType = getASTBuilder().CreateType(TestClass);
+        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
+        ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+        ASTAssignStmt * testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
+        testNewStmt->setExpr(ConstructorCall);
 
         // test.setA(1)
     	ASTNumberValue * IntValue = getASTBuilder().CreateNumberValue(SourceLocation(), "1");
     	llvm::SmallVector<ASTExpr *, 8> setAArgs;
-    	setAArgs.push_back(getASTBuilder().CreateExpr(IntValue));
-    	ASTCall *Call = CreateCall(setAMethod, setAArgs, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateIdentifier(TestVar));
-    	ASTBuilderStmt * ExprStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
-    	ExprStmt->setExpr(getASTBuilder().CreateExpr(Call));
+    	setAArgs.push_back(IntValue);
+    	ASTCall *Call = getASTBuilder().CreateCall(SourceLoc, setAMethod->getName(), setAArgs, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateIdentifier(TestVar));
+    	ASTExprStmt * ExprStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ExprStmt->setExpr(Call);
 
         // delete test
         getASTBuilder().CreateDeleteStmt(Body, SourceLoc, getASTBuilder().CreateIdentifier(TestVar));
 
-		// validate and resolve
-		EXPECT_TRUE(S->Resolve());
-
 		// Generate Code
-		llvm::Module * M = Generate();
+		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
@@ -544,8 +530,8 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTBlockStmt *aFuncBody = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *aFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
                                                           "a", TopModifiers, Params, aFuncBody);
-        ASTBuilderStmt *aFuncReturn = getASTBuilder().CreateReturnStmt(aFuncBody, SourceLoc);
-        ASTValueExpr *aFuncExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLocation(), "1"));
+        ASTReturnStmt * aFuncReturn = getASTBuilder().CreateReturnStmt(aFuncBody, SourceLoc);
+        ASTValue *aFuncExpr = getASTBuilder().CreateNumberValue(SourceLocation(), "1");
         aFuncReturn->setExpr(aFuncExpr);
 
         // int main() {
@@ -557,28 +543,24 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // TestClass test = new TestClass()
-        ASTType *TestClassType = getASTBuilder().CreateTypeRef(TestClass);
-        ASTVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
-        ASTCall *ConstructorCall = CreateCall(TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
-        ASTBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, TestVar);
-        testNewStmt->setExpr(NewExpr);
+        ASTType *TestClassType = getASTBuilder().CreateType(TestClass);
+        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
+        ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+        ASTAssignStmt * testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(TestVar));
+        testNewStmt->setExpr(ConstructorCall);
 
         // int a = test.a()
         ASTType *aType = aFunc->getReturnType();
-        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, aType, "a", EmptyModifiers);
-        ASTCallExpr *aCallExpr = getASTBuilder().CreateExpr(CreateCall(aFunc, Args, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateIdentifier(TestVar)));
-        ASTBuilderStmt *aStmt = getASTBuilder().CreateAssignmentStmt(Body, aVar);
+        ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, aType, "a", EmptyModifiers);
+        ASTCall *aCallExpr = getASTBuilder().CreateCall(SourceLoc, aFunc->getName(), Args, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateIdentifier(TestVar));
+        ASTAssignStmt * aStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(aVar));
         aStmt->setExpr(aCallExpr);
 
         // delete test
         ASTDeleteStmt *DeleteStmt = getASTBuilder().CreateDeleteStmt(Body, SourceLoc, getASTBuilder().CreateIdentifier(TestVar));
 
-    	// validate and resolve
-    	EXPECT_TRUE(S->Resolve());
-
     	// Generate Code
-    	llvm::Module * M = Generate();
+    	llvm::Module * M = Generate()[0];
     	std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
@@ -660,7 +642,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         // int a
     	llvm::SmallVector<ASTModifier *, 8> Modifiers;
     	Modifiers.push_back(getASTBuilder().CreateModifier(SourceLoc, ASTModifierKind::MOD_STATIC));
-        ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", Modifiers);
+        ASTAttribute *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", Modifiers);
 
         // int func() {
         //  TestClass.a = 2
@@ -669,17 +651,13 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         //  TestClass.a = 2
-    	ASTType *TestClassType = getASTBuilder().CreateTypeRef(TestClass);
-    	ASTIdentifier *test_a = getASTBuilder().CreateIdentifier(aAttribute, TestClassType);
-        ASTBuilderStmt *attrStmt = getASTBuilder().CreateAssignmentStmt(Body, test_a);
-        ASTValueExpr *value2Expr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLocation(), "2"));
+    	ASTType *TestClassType = getASTBuilder().CreateType(TestClass);
+        ASTAssignStmt * attrStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(aAttribute));
+        ASTValue *value2Expr = getASTBuilder().CreateNumberValue(SourceLocation(), "2");
         attrStmt->setExpr(value2Expr);
 
-		// validate and resolve
-		EXPECT_TRUE(S->Resolve());
-
 		// Generate Code
-		llvm::Module * M = Generate();
+		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
@@ -734,12 +712,12 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTBlockStmt *aFuncBody = getASTBuilder().CreateBlockStmt(SourceLoc);
     	llvm::SmallVector<ASTModifier *, 8> Modifiers;
     	Modifiers.push_back(getASTBuilder().CreateModifier(SourceLoc, ASTModifierKind::MOD_STATIC));
-        llvm::SmallVector<ASTVar *, 8> Params;
+        llvm::SmallVector<ASTParam *, 8> Params;
         ASTFunction *aFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
                                                           "do", Modifiers, Params, aFuncBody);
 
-        ASTBuilderStmt *aFuncReturn = getASTBuilder().CreateReturnStmt(aFuncBody, SourceLoc);
-        ASTValueExpr *aFuncExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLocation(), "1"));
+        ASTReturnStmt * aFuncReturn = getASTBuilder().CreateReturnStmt(aFuncBody, SourceLoc);
+        ASTValue *aFuncExpr = getASTBuilder().CreateNumberValue(SourceLocation(), "1");
         aFuncReturn->setExpr(aFuncExpr);
 
         // int main() {
@@ -749,17 +727,14 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // int a = TestClass.do()
-        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
-    	ASTType *TestClassType = getASTBuilder().CreateTypeRef(TestClass);
-        ASTCallExpr *aCallExpr = getASTBuilder().CreateExpr(CreateCall(aFunc, Args, ASTCallKind::CALL_DIRECT, TestClassType));
-        ASTBuilderStmt *aStmt = getASTBuilder().CreateAssignmentStmt(Body, aVar);
+        ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
+    	ASTIdentifier *TestClassType = getASTBuilder().CreateIdentifier(SourceLoc, TestClass->getName());
+        ASTCall *aCallExpr = getASTBuilder().CreateCall(SourceLoc, aFunc->getName(), Args, ASTCallKind::CALL_DIRECT, TestClassType);
+        ASTAssignStmt * aStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(aVar));
         aStmt->setExpr(aCallExpr);
 
-    	// validate and resolve
-    	EXPECT_TRUE(S->Resolve());
-
     	// Generate Code
-    	llvm::Module * M = Generate();
+    	llvm::Module * M = Generate()[0];
     	std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
@@ -825,16 +800,13 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
 
     	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
-    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseStruct));
+    	TestSuperClasses.push_back(getASTBuilder().CreateType(BaseStruct));
     	ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
 			TopModifiers, TestSuperClasses);
     	getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
 
-    	// validate and resolve
-    	EXPECT_TRUE(S->Resolve());
-
     	// Generate Code
-    	llvm::Module * M = Generate();
+    	llvm::Module * M = Generate()[0];
     	std::string output = getOutput(M);
 
     	EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
@@ -894,16 +866,13 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
     	// TestStruct
     	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
-    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseStruct));
-    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseStruct2));
+    	TestSuperClasses.push_back(getASTBuilder().CreateType(BaseStruct));
+    	TestSuperClasses.push_back(getASTBuilder().CreateType(BaseStruct2));
     	ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
 			TopModifiers, TestSuperClasses);
 
-    	// validate and resolve
-    	EXPECT_TRUE(S->Resolve());
-
     	// Generate Code
-    	llvm::Module * M = Generate();
+    	llvm::Module * M = Generate()[0];
     	std::string output = getOutput(M);
 
     	EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
@@ -969,11 +938,11 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	ASTClass *BaseStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
 			TopModifiers, BaseSuperClasses);
     	// int a
-    	ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
+    	ASTAttribute *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
 
     	// class TestClass
     	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
-    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseStruct));
+    	TestSuperClasses.push_back(getASTBuilder().CreateType(BaseStruct));
     	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
 			TopModifiers, TestSuperClasses);
 
@@ -982,8 +951,8 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	//   }
     	ASTBlockStmt *ConstructorBody = getASTBuilder().CreateBlockStmt(SourceLoc);
     	ASTIdentifier * this_a = getASTBuilder().CreateIdentifier(aAttribute, getASTBuilder().CreateIdentifier(SourceLoc, "this"));
-    	ASTBuilderStmt *assignThis_a = getASTBuilder().CreateAssignmentStmt(ConstructorBody, this_a);
-    	assignThis_a->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1")));
+    	ASTAssignStmt * assignThis_a = getASTBuilder().CreateAssignmentStmt(ConstructorBody, this_a);
+    	assignThis_a->setExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
     	ASTFunction *ConstructorMethod = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef,
 															   "TestClass", TopModifiers, Params, ConstructorBody);
 
@@ -991,17 +960,13 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
     	// func() { new TestClass() }
     	ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTCall *ConstructorCall = CreateCall(TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-    	ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
-    	ASTBuilderStmt *testNewStmt = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-    	testNewStmt->setExpr(NewExpr);
+    	ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+    	ASTExprStmt * testNewStmt = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+    	testNewStmt->setExpr(ConstructorCall);
     	getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
 
-    	// validate and resolve
-    	EXPECT_TRUE(S->Resolve());
-
     	// Generate Code
-    	llvm::Module * M = Generate();
+    	llvm::Module * M = Generate()[0];
     	std::string output = getOutput(M);
 
     	EXPECT_EQ(output, "\n"
@@ -1092,18 +1057,15 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
     	// class TestClass
     	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
-    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseStruct));
-    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseStruct2));
+    	TestSuperClasses.push_back(getASTBuilder().CreateType(BaseStruct));
+    	TestSuperClasses.push_back(getASTBuilder().CreateType(BaseStruct2));
     	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
 			TopModifiers, TestSuperClasses);
     	// int a
     	ASTVar *aAttribute3 = getASTBuilder().CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", TopModifiers);
 
-    	// validate and resolve
-    	EXPECT_TRUE(S->Resolve());
-
     	// Generate Code
-    	llvm::Module * M = Generate();
+    	llvm::Module * M = Generate()[0];
     	std::string output = getOutput(M);
 
     	EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
@@ -1189,7 +1151,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
     	// TestClass
     	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
-    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseClass));
+    	TestSuperClasses.push_back(getASTBuilder().CreateType(BaseClass));
     	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
 			TopModifiers, TestSuperClasses);
     	// void undo()
@@ -1198,19 +1160,15 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
     	// func() { BaseClass a = new TestClass() }
     	ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTCall *ConstructorCall = CreateCall(TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-    	ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
-    	ASTType *Base = getASTBuilder().CreateTypeRef(BaseClass);
-    	ASTVar *aVar = getASTBuilder().CreateLocalVar(MainBody, SourceLoc, Base, "a", EmptyModifiers);
-    	ASTBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(MainBody, aVar);
-    	testNewStmt->setExpr(NewExpr);
+    	ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+    	ASTType *Base = getASTBuilder().CreateType(BaseClass);
+    	ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(MainBody, SourceLoc, Base, "a", EmptyModifiers);
+    	ASTAssignStmt * testNewStmt = getASTBuilder().CreateAssignmentStmt(MainBody, getASTBuilder().CreateIdentifier(aVar));
+    	testNewStmt->setExpr(ConstructorCall);
     	getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
 
-    	// validate and resolve
-    	EXPECT_TRUE(S->Resolve());
-
     	// Generate Code
-    	llvm::Module * M = Generate();
+    	llvm::Module * M = Generate()[0];
     	std::string output = getOutput(M);
 
     	// TODO:
@@ -1353,8 +1311,8 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
     	// TestClass
     	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
-    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseClass));
-    	TestSuperClasses.push_back(getASTBuilder().CreateTypeRef(BaseClass2));
+    	TestSuperClasses.push_back(getASTBuilder().CreateType(BaseClass));
+    	TestSuperClasses.push_back(getASTBuilder().CreateType(BaseClass2));
     	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
 			TopModifiers, TestSuperClasses);
 
@@ -1362,17 +1320,14 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	//    BaseClass.do()
     	// }
     	ASTBlockStmt *DoBody3 = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTCallExpr *aCallExpr = getASTBuilder().CreateExpr(CreateCall(BaseClass_do, Args, ASTCallKind::CALL_DIRECT,
-    		getASTBuilder().CreateTypeRef(BaseClass)));
-    	ASTBuilderStmt *aStmt = getASTBuilder().CreateExprStmt(DoBody3, SourceLoc);
+    	ASTCall *aCallExpr = getASTBuilder().CreateCall(SourceLoc, BaseClass_do->getName(), Args, ASTCallKind::CALL_DIRECT,
+    		getASTBuilder().CreateType(BaseClass));
+    	ASTExprStmt * aStmt = getASTBuilder().CreateExprStmt(DoBody3, SourceLoc);
     	aStmt->setExpr(aCallExpr);
     	ASTFunction *TestClass_do = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "foo", TopModifiers, Params, DoBody3);
 
-    	// validate and resolve
-    	EXPECT_TRUE(S->Resolve());
-
     	// Generate Code
-    	llvm::Module * M = Generate();
+    	llvm::Module * M = Generate()[0];
     	std::string output = getOutput(M);
 
     	EXPECT_EQ(output, "\n"
@@ -1539,41 +1494,37 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	getASTBuilder().CreateClassMethod(SourceLoc, BaseInterface2, VoidTypeRef, "undo", TopModifiers, Params);
 
     	llvm::SmallVector<ASTType *, 4> TestBaseInterfaces;
-    	TestBaseInterfaces.push_back(getASTBuilder().CreateTypeRef(BaseInterface));
-    	TestBaseInterfaces.push_back(getASTBuilder().CreateTypeRef(BaseInterface2));
+    	TestBaseInterfaces.push_back(getASTBuilder().CreateType(BaseInterface));
+    	TestBaseInterfaces.push_back(getASTBuilder().CreateType(BaseInterface2));
     	ASTClass *TestInterface = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE,
     		"TestInterface", TopModifiers, TestBaseInterfaces);
 
     	// class TestClass
     	llvm::SmallVector<ASTType *, 4> TestBaseClasses;
-    	TestBaseClasses.push_back(getASTBuilder().CreateTypeRef(TestInterface));
+    	TestBaseClasses.push_back(getASTBuilder().CreateType(TestInterface));
     	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
 			TopModifiers, TestBaseClasses);
 
     	// void do()
     	ASTBlockStmt *DoBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTFunction *TestClass_do = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "do", TopModifiers, Params, DoBody);
+    	ASTMethod *TestClass_do = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "do", TopModifiers, Params, DoBody);
 
     	// void undo()
     	ASTBlockStmt *UndoBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTFunction *TestClass_undo = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "undo", TopModifiers, Params, UndoBody);
+    	ASTMethod *TestClass_undo = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "undo", TopModifiers, Params, UndoBody);
 
     	// main() { new TestClass() }
     	ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTCall *ConstructorCall = CreateCall(TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-    	ASTCallExpr *NewExpr = getASTBuilder().CreateExpr(ConstructorCall);
+    	ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
 
-    	ASTType *TestInterfaceTypeeRef = getASTBuilder().CreateTypeRef(TestInterface);
-    	ASTVar *aVar = getASTBuilder().CreateLocalVar(MainBody, SourceLoc, TestInterfaceTypeeRef, "a", EmptyModifiers);
-    	ASTBuilderStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(MainBody, aVar);
-    	testNewStmt->setExpr(NewExpr);
+    	ASTType *TestInterfaceTypeeRef = getASTBuilder().CreateType(TestInterface);
+    	ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(MainBody, SourceLoc, TestInterfaceTypeeRef, "a", EmptyModifiers);
+    	ASTAssignStmt * testNewStmt = getASTBuilder().CreateAssignmentStmt(MainBody, getASTBuilder().CreateIdentifier(aVar));
+    	testNewStmt->setExpr(ConstructorCall);
     	getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
 
-    	// validate and resolve
-    	EXPECT_TRUE(S->Resolve());
-
     	// Generate Code
-    	llvm::Module * M = Generate();
+    	llvm::Module * M = Generate()[0];
     	std::string output = getOutput(M);
 
     	EXPECT_EQ(output, "\n");

@@ -307,7 +307,6 @@ void Resolver::visit(ASTEnum &AST) {
 
 	// Add enum entries
 	for (auto Def : AST.getNodes()) {
-		Def->setKind(ASTKind::AST_ENUM_ENTRY);
 		Def->accept(*this);
 	}
 
@@ -459,13 +458,13 @@ void Resolver::visit(ASTDeleteStmt &AST) {
 }
 
 void Resolver::visit(ASTExprStmt &AST) {
-	ASTExpr * Expr = AST.getExpr();
+	ASTExpr *Expr = AST.getExpr();
 
 	Expr->accept(*this);
 }
 
 void Resolver::visit(ASTFailStmt &AST) {
-	ASTExpr *Expr= AST.getExpr();
+	ASTExpr *Expr = AST.getExpr();
 
 	if (Expr != nullptr) {
 		Expr->accept(*this);
@@ -564,9 +563,9 @@ void Resolver::visit(ASTLoopInStmt &AST) {
     AST.getBlock()->accept(*this);
 }
 
-void Resolver::visit(ASTVarStmt &AST) {
-	AST.getVarRef()->accept(*this);
-	AST.getExpr()->accept(*this);
+void Resolver::visit(ASTAssignStmt &AST) {
+	AST.getSource()->accept(*this);
+	AST.getTarget()->accept(*this);
 }
 
 void Resolver::visit(ASTBlockStmt &AST) {
@@ -723,7 +722,7 @@ void Resolver::visit(ASTArrayValue &AST) {
 
 void Resolver::visit(ASTStructValue &AST) {
 	SemaStructValue *Sema = SemaBuilder::CreateStructValue(AST);
-	for (auto Entry : AST.getValues()) {
+	for (auto &Entry : AST.getValues()) {
 		// FIXME: resolve type of value
 		Sema->Values.insert(std::make_pair(Entry.getKey(), Entry.second->getSema()));
 	}
@@ -733,6 +732,23 @@ void Resolver::visit(ASTStructValue &AST) {
 void Resolver::visit(ASTNullValue &AST) {
 	SemaValue *Sema = SemaBuilder::CreateNullValue(AST);
 	AST.setSema(Sema);
+}
+
+void Resolver::visit(ASTDefaultValue &AST) {
+	if (CurrentStmt) {
+		if (CurrentStmt->getStmtKind() == ASTStmtKind::STMT_ASSIGN) {
+			ASTAssignStmt *Stmt = static_cast<ASTAssignStmt *>(CurrentStmt);
+
+			// This AST Default Value is the only Expr in the Stmt
+			if (Stmt->getTarget()->getExprKind() == ASTExprKind::EXPR_VALUE) {
+				SemaType *T = Stmt->getSource()->getType();
+
+				// Create the default value
+				SemaValue *Sema = SemaBuilder::CreateDefaultValue(*T);
+				AST.setSema(Sema);
+			}
+		}
+	}
 }
 
 void Resolver::Resolver::EnterScope() {
@@ -842,7 +858,7 @@ void Resolver::ResolveClassType(SemaClassType *ClassType) {
 	// this->ResolveBaseClasses(ClassType);
 
 	// Resolve Nodes: Attributes, Methods and Constructors
-	for (auto &Node: ClassType->getAST()) {
+	for (auto &Node: ClassType->getAST().getNodes()) {
 		Node->accept(*this);
 	}
 

@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTVarStmt.h - AST Variable statement
+// include/AST/ASTAssignStmt.h - AST Variable statement
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -35,28 +35,28 @@ namespace fly {
      * Ex.
      *  a = 1
      */
-    class ASTVarStmt : public ASTStmt {
+    class ASTAssignStmt : public ASTStmt {
 
         friend class ASTBuilder;
         friend class ASTBuilderStmt;
 
-        ASTIdentifier *VarRef;
+        ASTExpr *Source;
 
         ASTAssignOperatorKind Kind;
 
-        ASTExpr *Expr = nullptr;
+        ASTExpr *Target = nullptr;
 
-        ASTVarStmt(const SourceLocation &Loc, ASTIdentifier *VarRef, ASTAssignOperatorKind AssignOperatorKind);
+        ASTAssignStmt(const SourceLocation &Loc, ASTExpr *Source, ASTAssignOperatorKind AssignOperatorKind);
 
     public:
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTIdentifier *getVarRef() const;
+        ASTExpr *getSource() const;
 
-        ASTAssignOperatorKind getKind1() const;
+        ASTAssignOperatorKind getOpKind() const;
 
-        ASTExpr *getExpr() const;
+        ASTExpr *getTarget() const;
 
         void setExpr(ASTExpr *);
 

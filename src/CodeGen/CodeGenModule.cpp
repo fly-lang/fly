@@ -36,7 +36,7 @@
 #include "AST/ASTSwitchStmt.h"
 #include "AST/ASTLoopStmt.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTVarStmt.h"
+#include "AST/ASTAssignStmt.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTReturnStmt.h"
 #include "AST/ASTClass.h"
@@ -57,8 +57,10 @@
 #include <Sema/SemaClassMethod.h>
 #include <Sema/SemaEnumType.h>
 #include <Sema/SemaEnumEntry.h>
+#include <Sema/SemaErrorHandler.h>
 #include <Sema/SemaFunction.h>
 #include <Sema/SemaMemberVar.h>
+#include <Sema/SemaModule.h>
 #include <Sema/SemaValue.h>
 #include <llvm/IR/Instructions.h>
 
@@ -69,12 +71,12 @@ CharUnits toCharUnitsFromBits(int64_t BitSize) {
     return CharUnits::fromQuantity(BitSize / 8);
 }
 
-CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, SemaNameSpace *NameSpace, llvm::LLVMContext &LLVMCtx,
+CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, SemaModule *Sema, llvm::LLVMContext &LLVMCtx,
                              TargetInfo &Target, CodeGenOptions &CGOpts) :
         Diags(Diags),
-        NameSpace(NameSpace),
+        Sema(Sema),
         Target(Target),
-        Module(new llvm::Module(NameSpace->getName(), LLVMCtx)),
+        Module(new llvm::Module(Sema->getName(), LLVMCtx)),
         LLVMCtx(LLVMCtx),
         Builder(new llvm::IRBuilder<>(LLVMCtx)),
         CGOpts(CGOpts) {
@@ -122,7 +124,30 @@ CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, SemaNameSpace *NameSpace,
     const auto &SDKVersion = Target.getSDKVersion();
     if (!SDKVersion.empty())
         Module->setSDKVersion(SDKVersion);
-    
+
+	for (auto &Node : Sema->getNodes()) {
+		switch (Node->getKind()) {
+
+			case SemaKind::FUNCTION: {
+				SemaFunction *Function = static_cast<SemaFunction *>(Node);
+				GenFunction(Function);
+			}
+			break;
+			case SemaKind::CLASS:
+				GenClass(static_cast<SemaClassType *>(Node));
+			break;
+			case SemaKind::ENUM:
+				GenEnum(static_cast<SemaEnumType *>(Node));
+			break;
+		}
+	}
+
+	// Generate Function Bodies
+	for (auto &CGF : CGFunctions) {
+		CurrentFunction = CGF->getSema();
+		CGF->GenBody();
+	}
+
     // TODO Add dependencies, Linker Options
 }
 
@@ -138,108 +163,12 @@ llvm::Module *CodeGenModule::getModule() const {
     return Module;
 }
 
-SemaNameSpace *CodeGenModule::getNameSpace() const {
-    return NameSpace;
-}
-
-void CodeGenModule::GenHeaders() {
-    GenAll();
-}
-
-void CodeGenModule::GenAll() {
-
-    // TODO
-    // Generate External GlobalVars
-//    for (const auto &Entry : AST.getExternalGlobalVars()) {
-//        ASTGlobalVar *GlobalVar = Entry.getValue();
-//        FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
-//                          "ExternalGlobalVar=" << GlobalVar->str());
-//        GenGlobalVar(GlobalVar, true);
-//    }
-//
-//    // Generate External Function
-//    for (auto &StrMapEntry : AST.getExternalFunctions()) {
-//        for (auto &IntMap : StrMapEntry.getValue()) {
-//            for (auto &Function : IntMap.second) {
-//                FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
-//                                  "ExternalFunction=" << Function->str());
-//                GenFunction(Function, true);
-//            }
-//        }
-//    }
-
-    // Generate GlobalVars
-	// TODO: remove GlobalVar
-//     std::vector<CodeGenGlobalVar *> CGGlobalVars;
-//     for (auto &Entry : NameSpace->getGlobalVars()) {
-//         CodeGenGlobalVar *CGV = GenGlobalVar(Entry.getValue());
-//         CGGlobalVars.push_back(CGV);
-// //        if (FrontendOpts.CreateHeader) {
-// //            CGH->AddGlobalVar(GlobalVar);
-// //        }
-//     }
-
-    // Instantiates all Function CodeGen in order to be set in all Call references
-    for (auto &Entry : NameSpace->getFunctions()) {
-        CodeGenFunction *CGF = GenFunction(Entry.getValue());
-        CGFunctions.push_back(CGF);
-//                if (FrontendOpts.CreateHeader) {
-//                    CGH->AddFunction(Func);
-//                }
-    }
-
-	// Generate Classes
-	for (auto &Entry : NameSpace->getTypes()) {
-		SemaType * Type = Entry.getValue();
-		if (Type->isClass()) {
-			SemaClassType *ClassType = static_cast<SemaClassType *>(Type);
-			if (ClassType->getCodeGen() == nullptr) {
-				GenClass(ClassType);
-			}
-		} else if (Type->isEnum()) {
-			GenEnum(static_cast<SemaEnumType *>(Type));
-		}
-	}
-
-    // Body must be generated after all CodeGen has been set for each Definitions
-	// Functions and Types may be not defined yet
-    for (auto CGF : CGFunctions) {
-        FLY_DEBUG_MESSAGE("FrontendAction", "GenerateCode",
-                          "FunctionBody=" << CGF->getName());
-        CGF->GenBody();
-    }
-
-    // Generate Class Body
-    for (auto CGClass : CGClasses) {
-        for (auto CGCF: CGClass->getMethods()) {
-            CGCF->GenBody();
-        }
-    }
-}
-
-/**
- * GenStmt from VarDecl
- * @param GlobalVar
- * @param isExternal
- */
-// TODO: remove GlobalVar
-// CodeGenGlobalVar *CodeGenModule::GenGlobalVar(SemaGlobalVar* GlobalVar, bool isExternal) {
-//     // FLY_DEBUG_MESSAGE("CodeGenModule", "GenGlobalVar",
-//     //                   "GlobalVar=" << GlobalVar->str() << ", isExternal=" << isExternal);
-//     // Check Value
-//     CodeGenGlobalVar *CGGV = new CodeGenGlobalVar(this, GlobalVar, isExternal);
-//     if (CGGV->getPointer()) { // Pointer is the GlobalVar, if is nullptr CodeGenGlobalVar is nullptr
-//         GlobalVar->setCodeGen(CGGV);
-//         return CGGV;
-//     }
-//     return nullptr; // Error occurs
-// }
-
-CodeGenFunction *CodeGenModule::GenFunction(SemaFunction *Function, bool isExternal) {
+CodeGenFunction *CodeGenModule::GenFunction(SemaFunction *Sema, bool isExternal) {
     // FLY_DEBUG_MESSAGE("CodeGenModule", "GenFunction",
     //                   "Function=" << Function->str() << ", isExternal=" << isExternal);
-    CodeGenFunction *CGF = new CodeGenFunction(this, Function, isExternal);
-    Function->setCodeGen(CGF);
+    CodeGenFunction *CGF = new CodeGenFunction(this, Sema, isExternal);
+    Sema->setCodeGen(CGF);
+	CGFunctions.push_back(CGF);
     return CGF;
 }
 
@@ -248,7 +177,6 @@ CodeGenClass *CodeGenModule::GenClass(SemaClassType *Class, bool isExternal) {
     //                   "Class=" << Class->str() << ", isExternal=" << isExternal);
     CodeGenClass *CGC = new CodeGenClass(this, Class, isExternal);
     Class->setCodeGen(CGC);
-	CGClasses.push_back(CGC);
     return CGC;
 }
 
@@ -658,8 +586,9 @@ llvm::Value *CodeGenModule::GenExpr(ASTExpr *Expr) {
     return CodeGenExpr::Generate(this, Expr);
 }
 
-llvm::Value * CodeGenModule::GenCast(SemaType *FromType, SemaType *ToType, llvm::Value *Val) {
-	switch (FromType->getTypeKind()) {
+llvm::Value * CodeGenModule::GenCast(ASTExpr *Expr, SemaType *ToType) {
+	llvm::Value *V = GenExpr(Expr);
+	switch (Expr->getType()->getTypeKind()) {
 
 		case SemaTypeKind::TYPE_VOID:
 		case SemaTypeKind::TYPE_ERROR:
@@ -686,7 +615,7 @@ llvm::Value * CodeGenModule::GenCast(SemaType *FromType, SemaType *ToType, llvm:
 				break;
 	}
 
-	return Val;
+	return V;
 }
 
 llvm::Value * CodeGenModule::GenResult(SemaResult *Sema) {
@@ -727,7 +656,7 @@ CodeGenVarBase *CodeGenModule::GenVar(SemaVar *Sema) {
 
 		// Check if the ClassAttribute is a static attribute
 		if (!ClassAttribute->isStatic()) {
-			llvm::Value *ParentPointer = ClassAttribute->getClass()->getThis()->getCodeGen()->getValue();
+			llvm::Value *ParentPointer = ClassAttribute->getClass().getThis()->getCodeGen()->getValue();
 			ClassAttribute->getCodeGen()->setPointer(ParentPointer);
 		}
 	}
@@ -759,7 +688,7 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
 	llvm::Value *InstancePtr = nullptr;
 
     // Add error as first parameter
-    if (Sema->getFunction()->getKind() == SemaFunctionKind::CLASS_METHOD &&
+    if (Sema->getFunction()->getKind() == SemaKind::METHOD &&
     	!static_cast<SemaClassMethod *>(Sema->getFunction())->isStatic()) {
 
     	// Check is Constructor
@@ -876,11 +805,11 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
     switch (Stmt->getStmtKind()) {
 
         // Var Assignment
-        case ASTStmtKind::STMT_VAR: {
-            ASTVarStmt *VarStmt = static_cast<ASTVarStmt *>(Stmt);
+        case ASTStmtKind::STMT_ASSIGN: {
+            ASTAssignStmt *VarStmt = static_cast<ASTAssignStmt *>(Stmt);
 
         	// Get the VarRef
-            ASTIdentifier *VarRef = VarStmt->getVarRef();
+            ASTIdentifier *VarRef = VarStmt->getSource();
         	SemaVar *Var = static_cast<SemaVar *>(VarRef->getSema());
         	GenVar(Var);
 
@@ -926,9 +855,9 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             // Delete Stmt
         case ASTStmtKind::STMT_DELETE: {
             ASTDeleteStmt *Delete = static_cast<ASTDeleteStmt *>(Stmt);
-            SemaVar * Var = static_cast<SemaVar *>(Delete->getExpr()->getSema());
-            if (Var->getAST().getType()->getSema()->isClass()) {
-                llvm::Instruction *I = llvm::CallInst::CreateFree(Var->getCodeGen()->Load(), Builder->GetInsertBlock());
+        	llvm::Value *V = GenExpr(Delete->getExpr());
+            if (Delete->getExpr()->getType()->isClass()) {
+                llvm::Instruction *I = llvm::CallInst::CreateFree(V, Builder->GetInsertBlock());
                 Builder->Insert(I);
             }
             break;
@@ -980,8 +909,9 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         	while (true) {
         		Parent = Parent->getParent();
         		if (Parent == nullptr) {
+
         			// Set Function ErrorHandler with Fail
-        			CodeGenError *CGE = FailStmt->getFunction()->getSema()->getErrorHandler()->getCodeGen();
+        			CodeGenError *CGE = CurrentFunction->getErrorHandler()->getCodeGen();
         			GenFailStmt(FailStmt, CGE);
 
         			// Generate Return with default value for stop execution flow
@@ -1167,7 +1097,7 @@ void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Swit
     llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endswitch", Fn);
 
     // Create Expression evaluator for Switch
-    llvm::Value *SwitchVal = static_cast<SemaVar *>(Switch->getVar()->getSema())->getCodeGen()->getValue();
+    llvm::Value *SwitchVal = GenExpr(Switch->getVar());
     llvm::SwitchInst *Inst = Builder->CreateSwitch(SwitchVal, EndBB);
 
     // Create Cases

@@ -15,7 +15,6 @@
 
 namespace fly {
 
-    class ASTValueExpr;
     class ASTIdentifier;
 
     class ASTSwitchStmt : public ASTStmt {

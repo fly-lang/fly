@@ -61,7 +61,7 @@ namespace fly {
 
         SemaNameSpace *getParent() const;
 
-        llvm::StringMap<SemaNameSpace *> getChildren() const;
+        const llvm::StringMap<SemaNameSpace *> &getChildren() const;
 
         const llvm::SmallVector<ASTModule *, 8> &getModules() const;
 
