@@ -13,7 +13,7 @@
 
 using namespace fly;
 
-SemaCall::SemaCall(ASTCall &AST) : SemaResult(SemaKind::CALL), AST(AST) {
+SemaCall::SemaCall(ASTCall &AST) : SemaExpr(SemaKind::CALL), AST(AST) {
 }
 
 ASTCall &SemaCall::getAST() const {

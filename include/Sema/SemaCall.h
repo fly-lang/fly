@@ -10,7 +10,7 @@
 #ifndef FLY_SEMA_CALL_H
 #define FLY_SEMA_CALL_H
 
-#include "Sema/SemaResult.h"
+#include "Sema/SemaExpr.h"
 
 namespace fly {
 
@@ -20,7 +20,7 @@ namespace fly {
     class SemaFunctionBase;
 	class SemaErrorHandler;
 
-    class SemaCall :  public SemaResult {
+    class SemaCall :  public SemaExpr {
 
         friend class SemaBuilder;
         friend class Resolver;

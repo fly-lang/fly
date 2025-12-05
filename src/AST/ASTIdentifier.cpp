@@ -33,7 +33,7 @@ void ASTIdentifier::setSema(SemaVar *Sema) {
 }
 
 SemaVar *ASTIdentifier::getSema() const {
-	return Sema;
+	return static_cast<SemaVar *>(Sema);
 }
 
 std::string ASTIdentifier::str() const {

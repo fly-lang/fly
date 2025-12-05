@@ -48,6 +48,8 @@ namespace fly {
 
         llvm::BasicBlock *Entry = nullptr;
 
+        llvm::BasicBlock *SafeBB = nullptr;
+
     public:
         CodeGenFunctionBase(CodeGenModule *CGM, SemaFunctionBase *Sema);
 
@@ -76,6 +78,10 @@ namespace fly {
         void StoreParams(size_t Idx);
 
         void CheckReturnVoid();
+
+        llvm::BasicBlock *getSafeBB();
+
+        void setSafeBB(llvm::BasicBlock *BB);
 
         virtual void GenBody() = 0;
     };

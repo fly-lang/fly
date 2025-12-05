@@ -49,9 +49,9 @@ namespace fly {
 	class ASTLoopInStmt;
 	class ASTAssignStmt;
 	class ASTBlockStmt;
-	class ASTUnaryOpExpr;
-	class ASTBinaryOpExpr;
-	class ASTTernaryOpExpr;
+	class ASTUnaryOp;
+	class ASTBinaryOp;
+	class ASTTernaryOp;
 	class ASTCast;
 	class ASTMember;
 	class ASTParam;
@@ -99,9 +99,9 @@ namespace fly {
 		virtual void visit(ASTIdentifier &AST) = 0;
 		virtual void visit(ASTMember &AST) = 0;
 		virtual void visit(ASTCall &AST) = 0;
-		virtual void visit(ASTUnaryOpExpr &AST) = 0;
-		virtual void visit(ASTBinaryOpExpr &AST) = 0;
-		virtual void visit(ASTTernaryOpExpr &AST) = 0;
+		virtual void visit(ASTUnaryOp &AST) = 0;
+		virtual void visit(ASTBinaryOp &AST) = 0;
+		virtual void visit(ASTTernaryOp &AST) = 0;
 		virtual void visit(ASTCast &AST) = 0;
 		virtual void visit(ASTBoolValue &AST) = 0;
 		virtual void visit(ASTNumberValue &AST) = 0;

@@ -70,7 +70,7 @@ namespace fly {
     class ASTModifier;
     class ASTBoolValue;
     class LocalScope;
-    class SemaResult;
+    class SemaExpr;
     class DiagnosticsEngine;
     class DiagnosticBuilder;
     class ASTNameSpace;
@@ -152,9 +152,9 @@ namespace fly {
         void visit(ASTIdentifier &AST) override;
         void visit(ASTMember& AST) override;
         void visit(ASTCall &AST) override;
-        void visit(ASTUnaryOpExpr &AST) override;
-        void visit(ASTBinaryOpExpr &AST) override;
-        void visit(ASTTernaryOpExpr &AST) override;
+        void visit(ASTUnaryOp &AST) override;
+        void visit(ASTBinaryOp &AST) override;
+        void visit(ASTTernaryOp &AST) override;
         void visit(ASTCast &AST) override;
         void visit(ASTBoolValue &AST) override;
         void visit(ASTNumberValue &AST) override;
@@ -213,9 +213,9 @@ namespace fly {
 
         void ResolveChild(SemaVar *Parent, ASTExpr *AST);
 
-        SemaCall *ResolveChildCall(SemaResult *Parent, ASTCall *AST);
+        SemaCall *ResolveChildCall(SemaExpr *Parent, ASTCall *AST);
 
-        SemaVar *ResolveChildMember(SemaResult *Parent, ASTMember *AST);
+        SemaVar *ResolveChildMember(SemaExpr *Parent, ASTMember *AST);
 
         llvm::SmallVector<SemaType *, 8> ResolveCallArgs(ASTCall *AST);
 

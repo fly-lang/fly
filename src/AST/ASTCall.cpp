@@ -38,7 +38,7 @@ ASTCallKind ASTCall::getCallKind() const {
 }
 
 SemaCall *ASTCall::getSema() const {
-	return Sema;
+	return static_cast<SemaCall *>(Sema);
 }
 
 void ASTCall::setSema(SemaCall *Sema) {

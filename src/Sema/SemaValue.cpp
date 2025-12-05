@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-SemaValue::SemaValue(ASTValue &AST) : AST(AST), SemaNode(SemaKind::VALUE) {
+SemaValue::SemaValue(ASTValue &AST) : AST(AST), SemaExpr(SemaKind::VALUE) {
 }
 
 SemaType *SemaValue::getType() const {

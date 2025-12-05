@@ -12,7 +12,7 @@
 
 #include <llvm/ADT/StringRef.h>
 
-#include "Sema/SemaResult.h"
+#include "Sema/SemaExpr.h"
 
 namespace fly {
 
@@ -30,7 +30,7 @@ namespace fly {
 		ENUM_ENTRY
 	};
 
-    class SemaVar : public SemaResult {
+    class SemaVar : public SemaExpr {
 
         friend class SemaBuilder;
 

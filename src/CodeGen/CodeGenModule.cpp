@@ -618,8 +618,8 @@ llvm::Value * CodeGenModule::GenCast(ASTExpr *Expr, SemaType *ToType) {
 	return V;
 }
 
-llvm::Value * CodeGenModule::GenResult(SemaResult *Sema) {
-	if (Sema->isCall()) {
+llvm::Value * CodeGenModule::GenExpr(SemaExpr *Sema) {
+	if (Sema->getKind() == SemaKind::CALL) {
 		return GenCall(static_cast<SemaCall *>(Sema));
 	}
 
@@ -642,7 +642,7 @@ CodeGenVarBase *CodeGenModule::GenVar(SemaVar *Sema) {
 	else if (Sema->getVarKind() == SemaVarKind::MEMBER_VAR) {
 		SemaMemberVar *MemberVar = static_cast<SemaMemberVar *>(Sema);
 
-		llvm::Value *Pointer = GenResult(MemberVar->getParent());
+		llvm::Value *Pointer = GenExpr(MemberVar->getParent());
 		llvm::Type *Ty = GenType(MemberVar->getType());
 		size_t Index = MemberVar->getClassAttribute()->getCodeGen()->getIndex();
 		CodeGenVar *CGV = new CodeGenVar(this, Sema, Ty, Index);
@@ -733,13 +733,13 @@ llvm::Value *CodeGenModule::GenCall(SemaCall *Sema) {
     		SemaClassType * ParentClass = static_cast<SemaClassType *>(Sema->getParent()->getType());
     		if (Method->getClass()->isBase(ParentClass)) {
     			// Instance of base class method call
-    			InstancePtr = GenResult(Sema->getParent());
+    			InstancePtr = GenExpr(Sema->getParent());
 
     			// Get the base class instance pointer
     			InstancePtr = ParentClass->getCodeGen()->getBaseInstance(InstancePtr, Method->getClass());
     		} else {
     			// Instance of class method call
-    			InstancePtr = GenResult(Sema->getParent());
+    			InstancePtr = GenExpr(Sema->getParent());
     		}
 
     	} else {
@@ -809,13 +809,13 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             ASTAssignStmt *VarStmt = static_cast<ASTAssignStmt *>(Stmt);
 
         	// Get the VarRef
-            ASTIdentifier *VarRef = VarStmt->getSource();
-        	SemaVar *Var = static_cast<SemaVar *>(VarRef->getSema());
+            ASTExpr *Source = VarStmt->getSource();
+        	SemaVar *Var = static_cast<SemaVar *>(Source->getSema());
         	GenVar(Var);
 
         	// Generate the Expr
-            if (VarStmt->getExpr()) {
-                llvm::Value *Val = GenExpr(VarStmt->getExpr()); // The Value represents the Expr result
+            if (VarStmt->getTarget()) {
+                llvm::Value *Val = GenExpr(VarStmt->getTarget()); // The Value represents the Expr result
             	Var->getCodeGen()->Store(Val);
             }
             break;
@@ -831,20 +831,20 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             // Block of Stmt
         case ASTStmtKind::STMT_BLOCK: {
             ASTBlockStmt *Block = static_cast<ASTBlockStmt *>(Stmt);
-            GenBlock(CGF, Block);
+            GenBlockStmt(CGF, Block);
             break;
         }
 
         case ASTStmtKind::STMT_IF:
-            GenIfBlock(CGF, static_cast<ASTIfStmt *>(Stmt));
+            GenIfStmt(CGF, static_cast<ASTIfStmt *>(Stmt));
             break;
 
         case ASTStmtKind::STMT_SWITCH:
-            GenSwitchBlock(CGF, static_cast<ASTSwitchStmt *>(Stmt));
+            GenSwitchStmt(CGF, static_cast<ASTSwitchStmt *>(Stmt));
             break;
 
         case ASTStmtKind::STMT_LOOP: {
-            GenLoopBlock(CGF, static_cast<ASTLoopStmt *>(Stmt));
+            GenLoopStmt(CGF, static_cast<ASTLoopStmt *>(Stmt));
             break;
         }
 
@@ -883,12 +883,8 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         case ASTStmtKind::STMT_HANDLE: {
             ASTHandleStmt *HandleStmt = static_cast<ASTHandleStmt *>(Stmt);
 
-        	// New CodeGen Handle
-        	CodeGenHandle *CGH = new CodeGenHandle(this, CGF);
-        	HandleStmt->setCodeGen(CGH);
-
         	// Set Handle Block
-            llvm::BasicBlock *HandleBB = CGH->getHandleBlock();
+            llvm::BasicBlock *HandleBB = llvm::BasicBlock::Create(LLVMCtx, "handle", CGF->getFunction());
             Builder->CreateBr(HandleBB);
             Builder->SetInsertPoint(HandleBB);
 
@@ -896,7 +892,9 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             GenStmt(CGF, HandleStmt->getHandle());
 
         	// Generate in Safe Block
-        	Builder->SetInsertPoint(CGH->getSafeBlock());
+        	llvm::BasicBlock *SafeBB = llvm::BasicBlock::Create(LLVMCtx, "safe", CGF->getFunction());
+        	Builder->SetInsertPoint(SafeBB);
+        	CurrentFunction->getCodeGen()->setSafeBB(SafeBB);
             break;
         }
 
@@ -923,11 +921,10 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
 					ASTHandleStmt * HandleStmt = static_cast<ASTHandleStmt *>(Parent);
 
 					// Take the current ErrorHandler CodeGen (already resolved in ResolveStmtHandle())
-					CodeGenError *CGE = static_cast<CodeGenError *>(static_cast<SemaVar *>(HandleStmt->getErrorHandlerRef()->getSema())->getCodeGen());
+					CodeGenError *CGE = static_cast<CodeGenError *>(static_cast<SemaVar *>(HandleStmt->getErrorHandler()->getSema())->getCodeGen());
 					GenFailStmt(FailStmt, CGE);
 
-					CodeGenHandle *CGH = HandleStmt->getCodeGen();
-					Builder->CreateBr(CGH->getSafeBlock());
+					Builder->CreateBr(CurrentFunction->getCodeGen()->getSafeBB());
         			break;
 				}
         	}
@@ -957,14 +954,14 @@ void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGE) {
 	}
 }
 
-void CodeGenModule::GenBlock(CodeGenFunctionBase *CGF, ASTBlockStmt *BlockStmt) {
+void CodeGenModule::GenBlockStmt(CodeGenFunctionBase *CGF, ASTBlockStmt *BlockStmt) {
     FLY_DEBUG_START("CodeGenModule", "GenBlock");
     for (ASTStmt *Stmt : BlockStmt->getContent()) {
         GenStmt(CGF, Stmt);
     }
 }
 
-void CodeGenModule::GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
+void CodeGenModule::GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
     FLY_DEBUG_START("CodeGenModule", "GenIfBlock");
     llvm::Function *Fn = CGF->getFunction();
 
@@ -1067,7 +1064,7 @@ void CodeGenModule::GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
     Builder->SetInsertPoint(EndBB);
 }
 
-llvm::BasicBlock *CodeGenModule::GenElsifBlock(CodeGenFunctionBase *CGF,
+llvm::BasicBlock *CodeGenModule::GenElsifStmt(CodeGenFunctionBase *CGF,
                                                llvm::BasicBlock *ElsifBB,
                                                llvm::SmallVector<ASTRuleStmt *, 8>::iterator &It) {
     FLY_DEBUG_START("CodeGenModule", "GenElsifBlock");
@@ -1085,11 +1082,11 @@ llvm::BasicBlock *CodeGenModule::GenElsifBlock(CodeGenFunctionBase *CGF,
         llvm::BasicBlock *ElsifThenBB = llvm::BasicBlock::Create(LLVMCtx, "elsifthen", Fn);
         Builder->SetInsertPoint(ElsifThenBB);
         GenStmt(CGF, Elsif->getStmt());
-        return GenElsifBlock(CGF, ElsifThenBB, It);
+        return GenElsifStmt(CGF, ElsifThenBB, It);
     }
 }
 
-void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Switch) {
+void CodeGenModule::GenSwitchStmt(CodeGenFunctionBase *CGF, ASTSwitchStmt *Switch) {
     FLY_DEBUG_START("CodeGenModule", "GenSwitchBlock");
     llvm::Function *Fn = CGF->getFunction();
 
@@ -1136,7 +1133,7 @@ void CodeGenModule::GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Swit
     Builder->SetInsertPoint(EndBB);
 }
 
-void CodeGenModule::GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop) {
+void CodeGenModule::GenLoopStmt(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop) {
     FLY_DEBUG_START("CodeGenModule", "GenLoopBlock");
     llvm::Function *Fn = CGF->getFunction();
 

@@ -18,7 +18,7 @@
 #include "AST/ASTLoopStmt.h"
 #include "AST/ASTIfStmt.h"
 #include "AST/ASTSwitchStmt.h"
-#include "AST/ASTOpExpr.h"
+#include "AST/ASTOp.h"
 #include "AST/ASTExprStmt.h"
 
 namespace {

@@ -47,7 +47,7 @@
 #include "AST/ASTDeleteStmt.h"
 #include "AST/ASTFailStmt.h"
 #include "AST/ASTExprStmt.h"
-#include "AST/ASTOpExpr.h"
+#include "AST/ASTOp.h"
 #include "CodeGen/CodeGen.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/Debug.h"
@@ -473,7 +473,7 @@ void Resolver::visit(ASTFailStmt &AST) {
 
 void Resolver::visit(ASTHandleStmt &AST) {
 	AST.getHandle()->accept(*this);
-	ASTIdentifier *ErrorHandler = AST.getErrorHandlerRef();
+	ASTExpr *ErrorHandler = AST.getErrorHandler();
 
 	if (ErrorHandler != nullptr) {
 		ErrorHandler->accept(*this);
@@ -613,13 +613,13 @@ void Resolver::visit(ASTCall &AST) {
 	ResolveExpr(AST);
 }
 
-void Resolver::visit(ASTUnaryOpExpr &AST) {
+void Resolver::visit(ASTUnaryOp &AST) {
 	ASTExpr *Expr = AST.getExpr();
 	Expr->accept(*this);
     AST.setType(Expr->getType());
 }
 
-void Resolver::visit(ASTBinaryOpExpr &AST) {
+void Resolver::visit(ASTBinaryOp &AST) {
 	AST.getLeftExpr()->accept(*this);
     AST.getRightExpr()->accept(*this);
 
@@ -677,7 +677,7 @@ void Resolver::visit(ASTBinaryOpExpr &AST) {
 	}
 }
 
-void Resolver::visit(ASTTernaryOpExpr &AST) {
+void Resolver::visit(ASTTernaryOp &AST) {
 	// Resolve Condition Expr
 	AST.getConditionExpr()->accept(*this);
 	SemaValidator::CheckConvertibleTypes(AST.getConditionExpr()->getType(), SemaBuiltin::getBoolType());
@@ -691,7 +691,7 @@ void Resolver::visit(ASTTernaryOpExpr &AST) {
 }
 
 void Resolver::visit(ASTCast &AST) {
-	AST.getType()->accept(*this);
+	AST.getCast()->accept(*this);
     AST.getExpr()->accept(*this);
 	// TODO: Validate Cast
 }
@@ -1349,7 +1349,7 @@ void Resolver::ResolveChild(SemaClassType *ClassType, ASTExpr *AST) {
 
 		SemaClassAttribute *Sema = ClassType->getAttributes().lookup(Member->getName());
 		if (Sema) {
-			Member->setSema(Sema);
+			Member->setSema(SemaBuilder::CreateMemberVar(*Sema->getAST(), *Sema));
 
 			if (!Sema->isStatic()) {
 				// Error: cannot resolve a non-static attribute without a parent
@@ -1384,8 +1384,7 @@ void Resolver::ResolveChild(SemaEnumType *EnumType, ASTExpr *AST) {
     		return;
     	}
 
-    	Member->setType(EnumType);
-    	Member->setSema(Entry);
+    	Member->setSema(SemaBuilder::CreateMemberVar(*Entry->getAST(), *Entry));
     	return;
     }
 
@@ -1453,7 +1452,7 @@ void Resolver::ResolveChild(SemaVar *Parent, ASTExpr *AST) {
 	Diag(diag::err_invalid_behavior);
 }
 
-SemaCall *Resolver::ResolveChildCall(SemaResult *Parent, ASTCall *AST) {
+SemaCall *Resolver::ResolveChildCall(SemaExpr *Parent, ASTCall *AST) {
 
 	// set Mangled Identifier
 	SmallVector<SemaType *, 8> CallTypes = ResolveCallArgs(AST);
@@ -1506,7 +1505,7 @@ SemaCall *Resolver::ResolveChildCall(SemaResult *Parent, ASTCall *AST) {
 	return Sema;
 }
 
-SemaVar * Resolver::ResolveChildMember(SemaResult *Parent, ASTMember *AST) {
+SemaVar * Resolver::ResolveChildMember(SemaExpr *Parent, ASTMember *AST) {
 
 	// Build Sema
 	SemaVar *Sema = nullptr;
@@ -1565,7 +1564,7 @@ llvm::SmallVector<SemaType *, 8> Resolver::ResolveCallArgs(ASTCall *AST) {
 	llvm::SmallVector<SemaType *, 8> Types;
 	for (auto Arg : AST->getArgs()) {
 		Arg->getExpr()->accept(*this);
-		SemaType *Type = Arg->getExpr()->getType();
+		SemaType *Type = Arg->getExpr()->getSema()->getType();
 		if (Type)
 			Types.push_back(Type);
 	}
@@ -1592,8 +1591,8 @@ void Resolver::ResolveErrorHandler(SemaCall *Sema) {
 			Sema->ErrorHandler = CurrentFunction->getErrorHandler();
 		} else if (Parent->getStmtKind() == ASTStmtKind::STMT_HANDLE) {
 			ASTHandleStmt *HandleStmt = static_cast<ASTHandleStmt*>(Parent);
-			if (HandleStmt->getErrorHandlerRef() != nullptr) {
-				Sema->ErrorHandler = reinterpret_cast<SemaErrorHandler *>(HandleStmt->getErrorHandlerRef()->getSema());
+			if (HandleStmt->getErrorHandler() != nullptr) {
+				Sema->ErrorHandler = reinterpret_cast<SemaErrorHandler *>(HandleStmt->getErrorHandler()->getSema());
 			}
 		}
 	}

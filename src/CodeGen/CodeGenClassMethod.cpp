@@ -179,7 +179,7 @@ void CodeGenClassMethod::GenBody() {
     	}
     }
 
-	CGM->GenBlock(this, Sema->getAST().getBody());
+	CGM->GenBlockStmt(this, Sema->getAST().getBody());
 
 	// Add return Void
 	CheckReturnVoid();

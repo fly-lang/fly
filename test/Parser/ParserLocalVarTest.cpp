@@ -22,7 +22,7 @@
 #include "AST/ASTExpr.h"
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTArg.h"
-#include "AST/ASTVarStmt.h"
+#include "AST/ASTAssignStmt.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTBlockStmt.h"

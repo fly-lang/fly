@@ -8,7 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTBuilder.h"
-#include "CodeGen/CodeGen.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTImport.h"
@@ -28,7 +27,7 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTExpr.h"
-#include "AST/ASTOpExpr.h"
+#include "AST/ASTOp.h"
 #include "AST/ASTType.h"
 #include "Basic/SourceLocation.h"
 #include "Basic/Diagnostic.h"
@@ -660,32 +659,6 @@ ASTCall *ASTBuilder::CreateCall(
 	return Call;
 }
 
-/**
- * Creates an ASTFunctionCall with definition
- * @param Stmt
- * @param Function
- * @return
- */
-ASTCall *ASTBuilder::CreateCall(llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args) {
-	FLY_DEBUG_START("ASTBuilder", "CreateCall");
-
-	const SourceLocation &Loc = SourceLocation();
-	ASTCall *Call = CreateCall(Loc, Name, Args, ASTCallKind::CALL_DIRECT);
-
-	FLY_DEBUG_END("ASTBuilder", "CreateCall");
-	return Call;
-}
-
-ASTCall *ASTBuilder::CreateCall(ASTIdentifier *Instance, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args) {
-	FLY_DEBUG_START("ASTBuilder", "CreateCall");
-
-	ASTCall *Call = CreateCall(Instance->getLocation(), Name, Args, ASTCallKind::CALL_DIRECT);
-	Call->setParent(Instance);
-
-	FLY_DEBUG_END("ASTBuilder", "CreateCall");
-	return Call;
-}
-
 ASTIdentifier *ASTBuilder::CreateIdentifier(ASTVar *Var) {
 	FLY_DEBUG_START("ASTBuilder", "CreateVarRef");
 
@@ -725,31 +698,31 @@ ASTMember *ASTBuilder::CreateMember(const SourceLocation &Loc, llvm::StringRef N
 	return Member;
 }
 
-ASTUnaryOpExpr *ASTBuilder::CreateUnary(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr) {
+ASTUnaryOp *ASTBuilder::CreateUnary(const SourceLocation &Loc, ASTUnaryOpKind OpKind, ASTExpr *Expr) {
 	FLY_DEBUG_MESSAGE(
 		"ASTBuilder", "CreateUnaryOpExpr",
 		"Loc=" << Loc.getRawEncoding() << ", OpKind=" << static_cast<uint8_t>(OpKind));
 
-	ASTUnaryOpExpr *UnaryOpExpr = new ASTUnaryOpExpr(Loc, OpKind, Expr);
+	ASTUnaryOp *UnaryOpExpr = new ASTUnaryOp(Loc, OpKind, Expr);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateUnaryOpExpr");
 	return UnaryOpExpr;
 }
 
-ASTBinaryOpExpr *ASTBuilder::CreateBinary(
-	const SourceLocation &OpLocation, ASTBinaryOpExprKind OpKind,
+ASTBinaryOp *ASTBuilder::CreateBinary(
+	const SourceLocation &OpLocation, ASTBinaryOpKind OpKind,
 	ASTExpr *LeftExpr, ASTExpr *RightExpr) {
 	FLY_DEBUG_MESSAGE(
 		"ASTBuilder", "CreateBinaryOpExpr",
 		"OpLocation=" << OpLocation.getRawEncoding() << ", OpKind=" << static_cast<uint8_t>(OpKind));
 
-	ASTBinaryOpExpr *BinaryOpExpr = new ASTBinaryOpExpr(OpKind, OpLocation, LeftExpr, RightExpr);
+	ASTBinaryOp *BinaryOpExpr = new ASTBinaryOp(OpKind, OpLocation, LeftExpr, RightExpr);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateBinaryOpExpr");
 	return BinaryOpExpr;
 }
 
-ASTTernaryOpExpr *ASTBuilder::CreateTernary(
+ASTTernaryOp *ASTBuilder::CreateTernary(
 	ASTExpr *ConditionExpr,
 	const SourceLocation &TrueOpLocation, ASTExpr *TrueExpr,
 	const SourceLocation &FalseOpLocation, ASTExpr *FalseExpr) {
@@ -757,7 +730,7 @@ ASTTernaryOpExpr *ASTBuilder::CreateTernary(
 		"ASTBuilder", "CreateBinaryOpExpr",
 		"TrueOpLocation=" << TrueOpLocation.getRawEncoding() << "FalseOpLocation=" << FalseOpLocation.getRawEncoding());
 
-	ASTTernaryOpExpr *TernaryExpr = new ASTTernaryOpExpr(
+	ASTTernaryOp *TernaryExpr = new ASTTernaryOp(
 		ConditionExpr,
 		TrueOpLocation, TrueExpr,
 		FalseOpLocation, FalseExpr);
@@ -835,7 +808,7 @@ ASTHandleStmt *ASTBuilder::CreateHandleStmt(
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateHandleStmt", "Loc=" << Loc.getRawEncoding());
 
 	ASTHandleStmt *HandleStmt = new ASTHandleStmt(Loc);
-	HandleStmt->ErrorHandlerRef = ErrorRef;
+	HandleStmt->ErrorHandler = ErrorRef;
 	HandleStmt->Parent = Parent;
 	HandleStmt->Function = Parent->Function;
 	HandleStmt->Handle = BlockStmt;

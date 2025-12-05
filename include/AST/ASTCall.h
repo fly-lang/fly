@@ -11,11 +11,14 @@
 #define FLY_AST_CALL_H
 
 #include "ASTExpr.h"
+#include "Sema/SemaCall.h"
+
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/SmallVector.h"
 
 namespace fly {
 
     class ASTArg;
-    class ASTVar;
     class SemaCall;
 
     enum class ASTCallKind {
@@ -41,8 +44,6 @@ namespace fly {
 
         llvm::SmallVector<ASTArg *, 8> Args;
 
-        SemaCall *Sema = nullptr;
-
         ASTCall(const SourceLocation &Loc, llvm::StringRef Name, ASTCallKind CallKind);
 
     public:
@@ -53,7 +54,7 @@ namespace fly {
 
         llvm::SmallVector<ASTArg *, 8> getArgs() const;
 
-        SemaCall *getSema() const;
+        SemaCall *getSema() const override;
 
         void setSema(SemaCall *Sema);
 

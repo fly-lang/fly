@@ -14,7 +14,8 @@
 using namespace fly;
 
 ASTExpr::ASTExpr(const SourceLocation &Loc, ASTExprKind ExprKind, ASTExpr *Parent, ASTExpr *Child) :
-        ASTNode(Loc, ASTKind::AST_EXPR), ExprKind(ExprKind), Parent(nullptr), Child(nullptr) {
+        ASTNode(Loc, ASTKind::AST_EXPR), ExprKind(ExprKind), Parent(nullptr), Child(nullptr),
+			Sema(nullptr), Type(nullptr) {
 
 }
 
@@ -41,9 +42,16 @@ ASTExpr *ASTExpr::getChild() const {
 	return Child;
 }
 
+SemaExpr *ASTExpr::getSema() const {
+    return Sema;
+}
 
-SemaType *ASTExpr::getType() const {
-    return Type;
+void ASTExpr::setSema(SemaExpr *Sema) {
+	this->Sema = Sema;
+}
+
+SemaType * ASTExpr::getType() const {
+	return Type;
 }
 
 void ASTExpr::setType(SemaType *Type) {
@@ -54,6 +62,6 @@ std::string ASTExpr::str() const {
     return Logger("ASTExpr").
 		Attr("Location", getLocation()).
 		Attr("Kind", static_cast<size_t>(getKind())).
-           Attr("Type", Type).
+           Attr("Sema", Sema).
            End();
 }

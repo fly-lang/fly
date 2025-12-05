@@ -27,10 +27,6 @@ namespace fly {
 
         size_t Index;
 
-        ASTVar *Def = nullptr;
-
-        ASTCall *Call = nullptr;
-
         ASTArg(ASTExpr *Expr, size_t Index);
 
     public:
@@ -38,10 +34,6 @@ namespace fly {
         ASTExpr *getExpr() const;
 
         size_t getIndex() const;
-
-        ASTVar *getDef() const;
-
-        ASTCall *getCall() const;
 
         std::string str() const override;
 

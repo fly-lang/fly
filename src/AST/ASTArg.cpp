@@ -23,14 +23,6 @@ uint64_t ASTArg::getIndex() const {
     return Index;
 }
 
-ASTVar *ASTArg::getDef() const {
-    return Def;
-}
-
-ASTCall *ASTArg::getCall() const {
-    return Call;
-}
-
 ASTExpr *ASTArg::getExpr() const {
     return Expr;
 }

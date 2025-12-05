@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/Sym/SemaResult.h - Sybolic Table for ASTIdentifier
+// include/Sym/SemaExpr.h - Sema Expr
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -14,39 +14,38 @@
 
 namespace fly {
 
+	class ASTExpr;
     class ASTNode;
     class SemaType;
 
-    class SemaResult : public SemaNode {
+    class SemaExpr : public SemaNode {
 
     	friend class SemaBuilder;
 
     	SemaKind Kind;
 
-    	SemaResult *Child = nullptr;
+    	SemaExpr *Child = nullptr;
 
     protected:
 
-    	SemaResult *Parent = nullptr;
+    	SemaExpr *Parent = nullptr;
 
     	SemaType *Type = nullptr;
 
-        explicit SemaResult(SemaKind Kind);
+        explicit SemaExpr(SemaKind Kind);
 
     public:
-        virtual ~SemaResult() = default;
-
-    	void setType(SemaType *Type);
-    	
-    	bool isCall() const;
-
-    	virtual SemaResult *getParent() const;
-
-    	void setParent(SemaResult &Result);
-
-    	SemaResult *getChild() const;
+        virtual ~SemaExpr() = default;
 
     	SemaType *getType() const;
+
+    	void setType(SemaType *Type);
+
+    	virtual SemaExpr *getParent() const;
+
+    	void setParent(SemaExpr &Result);
+
+    	SemaExpr *getChild() const;
     };
 
 }

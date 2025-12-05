@@ -28,7 +28,7 @@
 #include "AST/ASTEnum.h"
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTFailStmt.h"
-#include "AST/ASTOpExpr.h"
+#include "AST/ASTOp.h"
 
 #include <Sema/SemaEnumType.h>
 #include <Sema/SemaFunction.h>

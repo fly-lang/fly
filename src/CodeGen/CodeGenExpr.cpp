@@ -13,7 +13,7 @@
 #include "CodeGen/CodeGenExpr.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTIdentifier.h"
-#include "AST/ASTOpExpr.h"
+#include "AST/ASTOp.h"
 #include "Basic/Debug.h"
 #include "llvm/IR/Value.h"
 
@@ -65,17 +65,17 @@ llvm::Value *CodeGenExpr::GenExpr(ASTExpr *Expr) {
 
     	case ASTExprKind::EXPR_CAST: {
         	ASTCast * CastExpr = static_cast<ASTCast *>(Expr);
-        	return CGM->GenCast(CastExpr->getExpr(), CastExpr->getType()->getSema());
+        	return CGM->GenCast(CastExpr->getExpr(), CastExpr->getCast()->getSema());
     	}
 
     	case ASTExprKind::EXPR_UNARY:
-    		return GenUnary(static_cast<ASTUnaryOpExpr *>(Expr));
+    		return GenUnary(static_cast<ASTUnaryOp *>(Expr));
 
     	case ASTExprKind::EXPR_BINARY:
-    		return GenBinary(static_cast<ASTBinaryOpExpr *>(Expr));
+    		return GenBinary(static_cast<ASTBinaryOp *>(Expr));
 
     	case ASTExprKind::EXPR_TERNARY:
-    		return GenTernary(static_cast<ASTTernaryOpExpr *>(Expr));
+    		return GenTernary(static_cast<ASTTernaryOp *>(Expr));
     }
 
     assert("Unknown Expr Kind");
@@ -218,7 +218,7 @@ llvm::Value *CodeGenExpr::GenValue(SemaType *Type, SemaValue *Val) {
 	return nullptr;
 }
 
-llvm::Value *CodeGenExpr::GenUnary(ASTUnaryOpExpr *Unary) {
+llvm::Value *CodeGenExpr::GenUnary(ASTUnaryOp *Unary) {
     FLY_DEBUG_START("CodeGenExpr", "GenUnary");
     assert(Unary->getExprKind() == ASTExprKind::EXPR_UNARY && "Expected Unary Group Expr");
     assert(Unary->getExpr() && "Unary Expr empty");
@@ -229,27 +229,27 @@ llvm::Value *CodeGenExpr::GenUnary(ASTUnaryOpExpr *Unary) {
 
     switch (Unary->getOpKind()) {
 
-        case ASTUnaryOpExprKind::OP_UNARY_PRE_INCR: {
+        case ASTUnaryOpKind::OP_UNARY_PRE_INCR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
             NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
             Result = NewVal;
         }
-        case ASTUnaryOpExprKind::OP_UNARY_POST_INCR: {
+        case ASTUnaryOpKind::OP_UNARY_POST_INCR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
             NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
             Result = OldVal;
         }
-        case ASTUnaryOpExprKind::OP_UNARY_PRE_DECR: {
+        case ASTUnaryOpKind::OP_UNARY_PRE_DECR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
             NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
         	Result = NewVal;
         }
-        case ASTUnaryOpExprKind::OP_UNARY_POST_DECR: {
+        case ASTUnaryOpKind::OP_UNARY_POST_DECR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
             NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
         	Result = NewVal;
         }
-        case ASTUnaryOpExprKind::OP_UNARY_NOT_LOG:
+        case ASTUnaryOpKind::OP_UNARY_NOT_LOG:
             OldVal = CGM->Builder->CreateTrunc(OldVal, CGM->BoolTy);
             OldVal = CGM->Builder->CreateXor(OldVal, true);
             return CGM->Builder->CreateZExt(OldVal, CGM->Int8Ty);
@@ -264,7 +264,7 @@ llvm::Value *CodeGenExpr::GenUnary(ASTUnaryOpExpr *Unary) {
     return Result;
 }
 
-llvm::Value *CodeGenExpr::GenBinary(ASTBinaryOpExpr *Binary) {
+llvm::Value *CodeGenExpr::GenBinary(ASTBinaryOp *Binary) {
     FLY_DEBUG_START("CodeGenExpr", "GenBinary");
     assert(Binary->getExprKind() == ASTExprKind::EXPR_BINARY && "Expected Binary Group Expr");
     assert(Binary->getLeftExpr() && "First Expr is empty");
@@ -283,7 +283,7 @@ llvm::Value *CodeGenExpr::GenBinary(ASTBinaryOpExpr *Binary) {
     assert(0 && "Unknown Operation");
 }
 
-llvm::Value *CodeGenExpr::GenBinaryArith(ASTExpr *E1, ASTBinaryOpExprKind OperatorKind, ASTExpr *E2) {
+llvm::Value *CodeGenExpr::GenBinaryArith(ASTExpr *E1, ASTBinaryOpKind OperatorKind, ASTExpr *E2) {
     FLY_DEBUG_START("CodeGenExpr", "GenBinaryArith");
     llvm::Value *V1 = GenExpr(E1);
     llvm::Value *V2 = GenExpr(E2);
@@ -293,31 +293,31 @@ llvm::Value *CodeGenExpr::GenBinaryArith(ASTExpr *E1, ASTBinaryOpExprKind Operat
 
     switch (OperatorKind) {
 
-        case ASTBinaryOpExprKind::OP_BINARY_ADD:
+        case ASTBinaryOpKind::OP_BINARY_ADD:
             return CGM->Builder->CreateAdd(V1, V2);
-        case ASTBinaryOpExprKind::OP_BINARY_SUB:
+        case ASTBinaryOpKind::OP_BINARY_SUB:
             return CGM->Builder->CreateSub(V1, V2);
-        case ASTBinaryOpExprKind::OP_BINARY_MUL:
+        case ASTBinaryOpKind::OP_BINARY_MUL:
             return CGM->Builder->CreateMul(V1, V2);
-        case ASTBinaryOpExprKind::OP_BINARY_DIV:
+        case ASTBinaryOpKind::OP_BINARY_DIV:
             return CGM->Builder->CreateSDiv(V1, V2);
-        case ASTBinaryOpExprKind::OP_BINARY_MOD:
+        case ASTBinaryOpKind::OP_BINARY_MOD:
             return CGM->Builder->CreateSRem(V1, V2);
-        case ASTBinaryOpExprKind::OP_BINARY_AND:
+        case ASTBinaryOpKind::OP_BINARY_AND:
             return CGM->Builder->CreateAnd(V1, V2);
-        case ASTBinaryOpExprKind::OP_BINARY_OR:
+        case ASTBinaryOpKind::OP_BINARY_OR:
             return CGM->Builder->CreateOr(V1, V2);
-        case ASTBinaryOpExprKind::OP_BINARY_XOR:
+        case ASTBinaryOpKind::OP_BINARY_XOR:
             return CGM->Builder->CreateXor(V1, V2);
-        case ASTBinaryOpExprKind::OP_BINARY_SHIFT_L:
+        case ASTBinaryOpKind::OP_BINARY_SHIFT_L:
             return CGM->Builder->CreateShl(V1, V2);
-        case ASTBinaryOpExprKind::OP_BINARY_SHIFT_R:
+        case ASTBinaryOpKind::OP_BINARY_SHIFT_R:
             return CGM->Builder->CreateAShr(V1, V2);
     }
     assert(0 && "Unknown Arith Operation");
 }
 
-llvm::Value *CodeGenExpr::GenBinaryComparison(ASTExpr *E1, ASTBinaryOpExprKind OperatorKind, ASTExpr *E2) {
+llvm::Value *CodeGenExpr::GenBinaryComparison(ASTExpr *E1, ASTBinaryOpKind OperatorKind, ASTExpr *E2) {
     FLY_DEBUG_START("CodeGenExpr", "GenBinaryComparison");
     llvm::Value *V1 = GenExpr(E1);
     llvm::Value *V2 = GenExpr(E2);
@@ -326,9 +326,9 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(ASTExpr *E1, ASTBinaryOpExprKind O
 
     if (E1->getType()->isBool() && E2->getType()->isBool()) {
         switch (OperatorKind) {
-            case ASTBinaryOpExprKind::OP_BINARY_EQ:
+            case ASTBinaryOpKind::OP_BINARY_EQ:
                 return CGM->Builder->CreateICmpEQ(V1, V2);
-            case ASTBinaryOpExprKind::OP_BINARY_NE:
+            case ASTBinaryOpKind::OP_BINARY_NE:
                 return CGM->Builder->CreateICmpNE(V1, V2);
         }
     } else if (E1->getType()->isInteger() && E2->getType()->isInteger()) {
@@ -336,17 +336,17 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(ASTExpr *E1, ASTBinaryOpExprKind O
         	static_cast<SemaIntType *>(E2->getType())->isSigned();
         switch (OperatorKind) {
 
-            case ASTBinaryOpExprKind::OP_BINARY_EQ:
+            case ASTBinaryOpKind::OP_BINARY_EQ:
                 return CGM->Builder->CreateICmpEQ(V1, V2);
-            case ASTBinaryOpExprKind::OP_BINARY_NE:
+            case ASTBinaryOpKind::OP_BINARY_NE:
                 return CGM->Builder->CreateICmpNE(V1, V2);
-            case ASTBinaryOpExprKind::OP_BINARY_GT:
+            case ASTBinaryOpKind::OP_BINARY_GT:
                 return Signed ? CGM->Builder->CreateICmpSGT(V1, V2) : CGM->Builder->CreateICmpUGT(V1, V2);
-            case ASTBinaryOpExprKind::OP_BINARY_GTE:
+            case ASTBinaryOpKind::OP_BINARY_GTE:
                 return Signed ? CGM->Builder->CreateICmpSGE(V1, V2) : CGM->Builder->CreateICmpUGE(V1, V2);
-            case ASTBinaryOpExprKind::OP_BINARY_LT:
+            case ASTBinaryOpKind::OP_BINARY_LT:
                 return Signed ? CGM->Builder->CreateICmpSLT(V1, V2) : CGM->Builder->CreateICmpULT(V1, V2);
-            case ASTBinaryOpExprKind::OP_BINARY_LTE:
+            case ASTBinaryOpKind::OP_BINARY_LTE:
                 return Signed ? CGM->Builder->CreateICmpSLE(V1, V2) : CGM->Builder->CreateICmpULE(V1, V2);
         }
     } else {
@@ -360,17 +360,17 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(ASTExpr *E1, ASTBinaryOpExprKind O
         }
         switch (OperatorKind) {
 
-            case ASTBinaryOpExprKind::OP_BINARY_EQ:
+            case ASTBinaryOpKind::OP_BINARY_EQ:
                 return CGM->Builder->CreateFCmpOEQ(V1, V2);
-            case ASTBinaryOpExprKind::OP_BINARY_NE:
+            case ASTBinaryOpKind::OP_BINARY_NE:
                 return CGM->Builder->CreateFCmpONE(V1, V2);
-            case ASTBinaryOpExprKind::OP_BINARY_GT:
+            case ASTBinaryOpKind::OP_BINARY_GT:
                 return CGM->Builder->CreateFCmpOGT(V1, V2);
-            case ASTBinaryOpExprKind::OP_BINARY_GTE:
+            case ASTBinaryOpKind::OP_BINARY_GTE:
                 return CGM->Builder->CreateFCmpOGE(V1, V2);
-            case ASTBinaryOpExprKind::OP_BINARY_LT:
+            case ASTBinaryOpKind::OP_BINARY_LT:
                 return CGM->Builder->CreateFCmpOLT(V1, V2);
-            case ASTBinaryOpExprKind::OP_BINARY_LTE:
+            case ASTBinaryOpKind::OP_BINARY_LTE:
                 return CGM->Builder->CreateFCmpOLE(V1, V2);
         }
     }
@@ -378,7 +378,7 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(ASTExpr *E1, ASTBinaryOpExprKind O
     assert(0 && "Invalid Comparator Operator");
 }
 
-llvm::Value *CodeGenExpr::GenBinaryLogic(ASTExpr *E1, ASTBinaryOpExprKind OperatorKind, ASTExpr *E2) {
+llvm::Value *CodeGenExpr::GenBinaryLogic(ASTExpr *E1, ASTBinaryOpKind OperatorKind, ASTExpr *E2) {
     FLY_DEBUG_START("CodeGenExpr", "GenBinaryLogic");
     llvm::Value *V1 = GenExpr(E1);
     V1 = CGM->ConvertToBool(V1);
@@ -387,7 +387,7 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(ASTExpr *E1, ASTBinaryOpExprKind Operat
 
     switch (OperatorKind) {
 
-        case ASTBinaryOpExprKind::OP_BINARY_LOGIC_AND: {
+        case ASTBinaryOpKind::OP_BINARY_LOGIC_AND: {
             llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", FromBB->getParent());
             llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", FromBB->getParent());
 
@@ -408,7 +408,7 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(ASTExpr *E1, ASTBinaryOpExprKind Operat
             Phi->addIncoming(V2Trunc, LeftBB);
             return Phi;
         }
-        case ASTBinaryOpExprKind::OP_BINARY_LOGIC_OR: {
+        case ASTBinaryOpKind::OP_BINARY_LOGIC_OR: {
             llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", FromBB->getParent());
             llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", FromBB->getParent());
 
@@ -432,7 +432,7 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(ASTExpr *E1, ASTBinaryOpExprKind Operat
     assert(0 && "Invalid Logic Operator");
 }
 
-llvm::Value *CodeGenExpr::GenTernary(ASTTernaryOpExpr *Ternary) {
+llvm::Value *CodeGenExpr::GenTernary(ASTTernaryOp *Ternary) {
     assert(Ternary->getConditionExpr() && "First Expr is empty");
     assert(Ternary->getTrueExpr() && "Second Expr is empty");
     assert(Ternary->getFalseExpr() && "Third Expr is empty");

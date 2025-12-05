@@ -23,6 +23,14 @@ const ASTValueKind &ASTValue::getValueKind() const {
     return ValueKind;
 }
 
+SemaValue *ASTValue::getSema() const {
+	return static_cast<SemaValue *>(Sema);
+}
+
+void ASTValue::setSema(SemaValue *Sema) {
+	this->Sema = Sema;
+}
+
 ASTDefaultValue::ASTDefaultValue() : ASTValue(ASTValueKind::VAL_DEFAULT, SourceLocation()) {
 }
 

@@ -239,7 +239,7 @@ SemaParam *SemaBuilder::CreateParam(ASTParam &AST) {
 	return Sema;
 }
 
-SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar &AST, SemaResult &Parent) {
+SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar &AST, SemaExpr &Parent) {
 	SemaMemberVar *Sema = new SemaMemberVar(AST, Parent);
 
 	return Sema;

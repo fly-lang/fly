@@ -157,3 +157,11 @@ void CodeGenFunctionBase::CheckReturnVoid() {
 
     FLY_DEBUG_END("CodeGenFunctionBase", "GenBody");
 }
+
+llvm::BasicBlock * CodeGenFunctionBase::getSafeBB() {
+	return SafeBB;
+}
+
+void CodeGenFunctionBase::setSafeBB(llvm::BasicBlock *BB) {
+	this->SafeBB = BB;
+}

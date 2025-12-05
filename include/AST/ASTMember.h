@@ -11,6 +11,7 @@
 #define FLY_AST_MEMBER_H
 
 #include "ASTExpr.h"
+#include "Sema/SemaMemberVar.h"
 
 namespace fly {
 
@@ -27,8 +28,6 @@ namespace fly {
 
 		ASTVar *Var;
 
-		SemaVar *Sema;
-
 		ASTMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent);
 
 		~ASTMember();
@@ -41,9 +40,9 @@ namespace fly {
 
 		ASTVar *getVar();
 
-		void setSema(SemaVar *Sema);
+		SemaMemberVar *getSema() const override;
 
-		SemaVar *getSema() const;
+		void setSema(SemaVar *Sema);
 
 		std::string str() const override;
 	};

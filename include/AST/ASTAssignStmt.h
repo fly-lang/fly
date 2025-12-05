@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_VARSTMT_H
-#define FLY_AST_VARSTMT_H
+#ifndef FLY_AST_ASSIGNSTMT
+#define FLY_AST_ASSIGNSTMT
 
 #include "ASTStmt.h"
 
@@ -64,4 +64,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_AST_VARSTMT_H
+#endif //FLY_AST_ASSIGNSTMT

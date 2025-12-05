@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_BASE_H
-#define FLY_AST_BASE_H
+#ifndef FLY_AST_NODE_H
+#define FLY_AST_NODE_H
 
 #include "ASTBase.h"
 
@@ -37,4 +37,4 @@ namespace fly {
 
 }
 
-#endif //FLY_AST_BASE_H
+#endif //FLY_AST_NODE_H

@@ -65,7 +65,7 @@ namespace fly {
     class SemaVar;
     class SemaCall;
     class SemaValue;
-    class SemaResult;
+    class SemaExpr;
 
     class CodeGenModule {
 
@@ -206,7 +206,7 @@ namespace fly {
 
         llvm::Value *GenCast(ASTExpr *Expr, SemaType *ToType);
 
-        llvm::Value* GenResult(SemaResult *Sema);
+        llvm::Value* GenExpr(SemaExpr *Sema);
 
         CodeGenVarBase *GenVar(SemaVar *Sema);
 
@@ -218,17 +218,17 @@ namespace fly {
 
         void GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGH);
 
-        void GenBlock(CodeGenFunctionBase *CGF, ASTBlockStmt *BlockStmt);
+        void GenBlockStmt(CodeGenFunctionBase *CGF, ASTBlockStmt *BlockStmt);
 
-        void GenIfBlock(CodeGenFunctionBase *CGF, ASTIfStmt *If);
+        void GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If);
 
-        llvm::BasicBlock *GenElsifBlock(CodeGenFunctionBase *CGF,
+        llvm::BasicBlock *GenElsifStmt(CodeGenFunctionBase *CGF,
                                         llvm::BasicBlock *ElsifBB,
                                         llvm::SmallVector<ASTRuleStmt *, 8>::iterator &It);
 
-        void GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchStmt *Switch);
+        void GenSwitchStmt(CodeGenFunctionBase *CGF, ASTSwitchStmt *Switch);
 
-        void GenLoopBlock(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop);
+        void GenLoopStmt(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop);
 
         void GenReturn(ASTFunction *CGF, ASTExpr *Expr = nullptr);
     };

@@ -11,6 +11,7 @@
 #define FLY_AST_IDENTIFIER_H
 
 #include "ASTExpr.h"
+#include "Sema/SemaVar.h"
 
 namespace fly {
 
@@ -27,8 +28,6 @@ namespace fly {
 
         ASTVar *Var;
 
-        SemaVar *Sema;
-
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
         ~ASTIdentifier();
@@ -43,7 +42,7 @@ namespace fly {
 
         void setSema(SemaVar *Sema);
 
-        SemaVar *getSema() const;
+        SemaVar *getSema() const override;
 
         std::string str() const override;
     };

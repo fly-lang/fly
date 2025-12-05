@@ -23,11 +23,11 @@ namespace fly {
 
         friend class ASTBuilder;
 
-        ASTExpr *Expr = nullptr;
+        ASTExpr *Expr;
 
-        ASTType *Type = nullptr;
+        ASTType *Cast = nullptr;
 
-        explicit ASTCast(ASTExpr *From, ASTType *Type);
+        explicit ASTCast(ASTExpr *Expr, ASTType *Cast);
 
     public:
 
@@ -35,7 +35,7 @@ namespace fly {
 
         ASTExpr *getExpr() const;
 
-        ASTType *getType() const;
+        ASTType *getCast() const;
 
         std::string str() const override;
     };

@@ -18,30 +18,22 @@ ASTHandleStmt::ASTHandleStmt(const SourceLocation &Loc) :
 
 }
 
-ASTIdentifier *ASTHandleStmt::getErrorHandlerRef() const {
-    return ErrorHandlerRef;
+ASTExpr *ASTHandleStmt::getErrorHandler() const {
+    return ErrorHandler;
 }
 
-void ASTHandleStmt::setErrorHandlerRef(ASTIdentifier *ErrorHandler) {
-    ErrorHandlerRef = ErrorHandler;
+void ASTHandleStmt::setErrorHandler(ASTExpr *ErrorHandler) {
+    this->ErrorHandler = ErrorHandler;
 }
 
 ASTBlockStmt* ASTHandleStmt::getHandle() const {
     return Handle;
 }
 
-CodeGenHandle *ASTHandleStmt::getCodeGen() const {
-    return CodeGen;
-}
-
-void ASTHandleStmt::setCodeGen(CodeGenHandle *codeGen) {
-    CodeGen = codeGen;
-}
-
 std::string ASTHandleStmt::str() const {
     return Logger("ASTHandleBlock").
 	Attr("Location", getLocation()).
 Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("ErrorHandler", ErrorHandlerRef).
+            Attr("ErrorHandler", ErrorHandler).
             End();
 }

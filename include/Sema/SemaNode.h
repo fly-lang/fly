@@ -24,6 +24,7 @@ namespace fly {
 		TYPE,
 		VAR,
 		CALL,
+		OP,
 		FUNCTION,
 		CLASS,
 		ATTRIBUTE,

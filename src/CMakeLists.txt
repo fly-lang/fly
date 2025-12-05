@@ -42,7 +42,7 @@ add_library(flyLib
         AST/ASTNameSpace.cpp
         AST/ASTModule.cpp
         AST/ASTMember.cpp
-        AST/ASTOpExpr.cpp
+        AST/ASTOp.cpp
         AST/ASTParam.cpp
         AST/ASTReturnStmt.cpp
         AST/ASTRuleStmt.cpp
@@ -170,7 +170,7 @@ add_library(flyLib
         Sema/SemaNameSpace.cpp
         Sema/SemaNode.cpp
         Sema/SemaParam.cpp
-        Sema/SemaResult.cpp
+        Sema/SemaExpr.cpp
         Sema/Symbol.cpp
         Sema/SymbolTable.cpp
         Sema/SemaType.cpp

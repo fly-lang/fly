@@ -12,16 +12,16 @@
 
 using namespace fly;
 
-ASTCast::ASTCast(ASTExpr *Expr, ASTType *Type) : ASTExpr(Type->getLocation(), ASTExprKind::EXPR_CAST),
-	Expr(Expr), Type(Type) {
+ASTCast::ASTCast(ASTExpr *Expr, ASTType *Cast) : ASTExpr(Cast->getLocation(), ASTExprKind::EXPR_CAST),
+	Expr(Expr), Cast(Cast) {
 }
 
 ASTExpr * ASTCast::getExpr() const {
 	return Expr;
 }
 
-ASTType * ASTCast::getType() const {
-	return Type;
+ASTType * ASTCast::getCast() const {
+	return Cast;
 }
 
 std::string ASTCast::str() const {

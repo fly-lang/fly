@@ -7,14 +7,14 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTBASE_H
-#define FLY_ASTBASE_H
+#ifndef FLY_AST_BASE_H
+#define FLY_AST_BASE_H
 
 #include "Basic/SourceLocation.h"
 #include <Basic/Logger.h>
-#include "llvm/ADT/SmallVector.h"
 
 namespace fly {
+
     class SourceLocation;
 
     enum class ASTKind
@@ -81,4 +81,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_ASTBASE_H
+#endif //FLY_AST_BASE_H

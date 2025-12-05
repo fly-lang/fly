@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTGroupExpr.h - AST Group Expression header
+// include/AST/ASTOp.h - AST Group Expression header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_GROUPEXPR_H
-#define FLY_AST_GROUPEXPR_H
+#ifndef FLY_AST_OP_H
+#define FLY_AST_OP_H
 
 #include "ASTExpr.h"
 
@@ -26,7 +26,7 @@ namespace fly {
         PRIMARY         // Literals, Identifiers, Calls
     };
 
-    enum class ASTUnaryOpExprKind {
+    enum class ASTUnaryOpKind {
         OP_UNARY_PRE_INCR,
         OP_UNARY_POST_INCR,
         OP_UNARY_PRE_DECR,
@@ -34,7 +34,7 @@ namespace fly {
         OP_UNARY_NOT_LOG
     };
 
-    enum class ASTBinaryOpExprKind {
+    enum class ASTBinaryOpKind {
 
         // Arithmetic
         OP_BINARY_ADD,
@@ -84,17 +84,17 @@ namespace fly {
     /**
      * Unary Operator Expression
      */
-    class ASTUnaryOpExpr : public ASTExpr {
+    class ASTUnaryOp : public ASTExpr {
 
         friend class ASTBuilder;
 
         SourceLocation OpLocation;
 
-        ASTUnaryOpExprKind OpKind;
+        ASTUnaryOpKind OpKind;
 
-        ASTExpr *Expr = nullptr;
+        ASTExpr *Expr;
 
-        ASTUnaryOpExpr(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr);
+        ASTUnaryOp(const SourceLocation &Loc, ASTUnaryOpKind OpKind, ASTExpr *Expr);
 
     public:
 
@@ -102,7 +102,7 @@ namespace fly {
 
         SourceLocation &getOpLocation();
 
-        ASTUnaryOpExprKind getOpKind() const;
+        ASTUnaryOpKind getOpKind() const;
 
         ASTExpr *getExpr() const;
 
@@ -112,13 +112,13 @@ namespace fly {
     /**
      * Binary Operator Expression
      */
-    class ASTBinaryOpExpr : public ASTExpr {
+    class ASTBinaryOp : public ASTExpr {
 
         friend class ASTBuilder;
 
         ASTBinaryOpTypeExprKind TypeKind;
 
-        ASTBinaryOpExprKind OpKind;
+        ASTBinaryOpKind OpKind;
 
         SourceLocation OpLocation;
 
@@ -126,18 +126,18 @@ namespace fly {
 
         ASTExpr *RightExpr = nullptr;
 
-        ASTBinaryOpExpr(ASTBinaryOpExprKind OpKind, const SourceLocation &OpLocation,
+        ASTBinaryOp(ASTBinaryOpKind OpKind, const SourceLocation &OpLocation,
                         ASTExpr *LeftExpr, ASTExpr *RightExpr);
 
     public:
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTBinaryOpTypeExprKind setTypeKind(ASTBinaryOpExprKind OpKind);
+        ASTBinaryOpTypeExprKind setTypeKind(ASTBinaryOpKind OpKind);
 
         ASTBinaryOpTypeExprKind getTypeKind() const;
 
-        ASTBinaryOpExprKind getOpKind() const;
+        ASTBinaryOpKind getOpKind() const;
 
         SourceLocation &getOpLocation();
 
@@ -151,7 +151,7 @@ namespace fly {
     /**
      * Ternary Operator Expression
      */
-    class ASTTernaryOpExpr : public ASTExpr {
+    class ASTTernaryOp : public ASTExpr {
 
         friend class ASTBuilder;
 
@@ -165,7 +165,7 @@ namespace fly {
 
         ASTExpr *FalseExpr;
 
-        ASTTernaryOpExpr(ASTExpr *ConditionExpr, const SourceLocation &TrueOpLocation,
+        ASTTernaryOp(ASTExpr *ConditionExpr, const SourceLocation &TrueOpLocation,
                          ASTExpr *TrueExpr, const SourceLocation &FalseOpLocation, ASTExpr *FalseExpr);
 
     public:
@@ -186,4 +186,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_AST_GROUPEXPR_H
+#endif //FLY_AST_OP_H

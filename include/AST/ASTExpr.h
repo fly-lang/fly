@@ -10,11 +10,13 @@
 #ifndef FLY_AST_EXPR_H
 #define FLY_AST_EXPR_H
 
+#include <Sema/SemaType.h>
+
 #include "ASTNode.h"
 
 namespace fly {
 
-    class SemaType;
+    class SemaExpr;
 
     enum class ASTExprKind : char {
         EXPR_VALUE,
@@ -38,11 +40,13 @@ namespace fly {
 
         const ASTExprKind ExprKind;
 
-        ASTExpr *Parent = nullptr;
+        ASTExpr *Parent;
 
-        ASTExpr *Child = nullptr;
+        ASTExpr *Child;
 
-        SemaType *Type = nullptr;
+        SemaExpr *Sema;
+
+        SemaType *Type;
 
         ASTExpr(const SourceLocation &Loc, ASTExprKind Kind, ASTExpr *Parent = nullptr, ASTExpr *Child = nullptr);
 
@@ -57,6 +61,10 @@ namespace fly {
         void setParent(ASTExpr *Parent);
 
         void setChild(ASTExpr *Child);
+
+        virtual SemaExpr *getSema() const;
+
+        void setSema(SemaExpr *ExpSemar);
 
         SemaType *getType() const;
 

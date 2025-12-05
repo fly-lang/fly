@@ -29,6 +29,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/TargetSelect.h"
 
+#include <AST/ASTEnum.h>
 #include <AST/ASTIdentifier.h>
 #include <CodeGen/CodeGenModule.h>
 #include <Sema/SymbolTable.h>
@@ -105,6 +106,18 @@ public:
 
 	ASTBuilder &getASTBuilder() {
 	    return *Builder;
+    }
+
+	ASTType *CreateType(ASTClass *Class) {
+    	llvm::SmallVector<ASTName *, 4> Names;
+    	Names.push_back(Builder->CreateName(Class->getName(), Class->getLocation()));
+    	Builder->CreateType(Class->getLocation(), Names);
+    }
+
+	ASTType *CreateType(ASTEnum *Enum) {
+    	llvm::SmallVector<ASTName *, 4> Names;
+    	Names.push_back(Builder->CreateName(Enum->getName(), Enum->getLocation()));
+    	Builder->CreateType(Enum->getLocation(), Names);
     }
 
 	std::vector<llvm::Module *> &Generate() {

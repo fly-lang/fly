@@ -11,13 +11,9 @@
 #define FLY_AST_VALUE_H
 
 #include "ASTExpr.h"
-
-#include "llvm/ADT/StringMap.h"
+#include "Sema/SemaValue.h"
 
 namespace fly {
-
-    class SourceLocation;
-    class SemaValue;
 
     enum class ASTValueKind {
         VAL_BOOL,
@@ -29,14 +25,11 @@ namespace fly {
         VAL_DEFAULT
     };
 
-
     class ASTValue : public ASTExpr {
 
         friend class ASTBuilder;
 
         const ASTValueKind ValueKind;
-
-        SemaValue *Sema;
 
     protected:
 
@@ -46,13 +39,9 @@ namespace fly {
 
         const ASTValueKind &getValueKind() const;
 
-        SemaValue *getSema() const {
-			return Sema;
-		}
+        SemaValue *getSema() const override;
 
-        void setSema(SemaValue *Sema) {
-            this->Sema = Sema;
-        }
+        void setSema(SemaValue *Sema);
 
     };
 

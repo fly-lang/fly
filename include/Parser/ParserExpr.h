@@ -13,7 +13,7 @@
 
 #include "Parser.h"
 #include "AST/ASTExpr.h"
-#include "AST/ASTOpExpr.h"
+#include "AST/ASTOp.h"
 
 namespace fly {
 
@@ -40,9 +40,9 @@ namespace fly {
     private:
         ASTExpr *ParsePrimary(bool Expected = false);
 
-        ASTBinaryOpExpr *ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Precedence Precedence);
+        ASTBinaryOp *ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Precedence Precedence);
 
-        ASTTernaryOpExpr *ParseTernaryExpr(ASTExpr *ConditionExpr);
+        ASTTernaryOp *ParseTernaryExpr(ASTExpr *ConditionExpr);
 
         ASTExpr *ParseNewExpr();
 

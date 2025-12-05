@@ -44,7 +44,7 @@ namespace fly {
 	class SemaLocalVar;
 	class SemaParam;
 	class SemaNode;
-	class SemaResult;
+	class SemaExpr;
 	class SemaValue;
 	class SemaIntType;
 	class SemaFloatType;
@@ -87,7 +87,7 @@ namespace fly {
 
     	static SemaParam *CreateParam(ASTParam &Param);
 
-    	static SemaMemberVar *CreateMemberVar(ASTVar &AST, SemaResult &Parent);
+    	static SemaMemberVar *CreateMemberVar(ASTVar &AST, SemaExpr &Parent);
 
     	static SemaCall *CreateCall(ASTCall &Call);
 

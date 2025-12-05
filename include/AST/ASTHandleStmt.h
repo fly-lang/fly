@@ -21,11 +21,9 @@ namespace fly {
 
         friend class ASTBuilder;
 
-        ASTIdentifier *ErrorHandlerRef = nullptr;
+        ASTExpr *ErrorHandler = nullptr;
 
         ASTBlockStmt *Handle = nullptr;
-
-        CodeGenHandle * CodeGen = nullptr;
 
         explicit ASTHandleStmt(const SourceLocation &Loc);
 
@@ -33,15 +31,11 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTIdentifier *getErrorHandlerRef() const;
+        ASTExpr *getErrorHandler() const;
 
-        void setErrorHandlerRef(ASTIdentifier *ErrorHandler);
+        void setErrorHandler(ASTExpr *ErrorHandler);
 
         ASTBlockStmt* getHandle() const;
-
-        CodeGenHandle *getCodeGen() const;
-
-        void setCodeGen(CodeGenHandle *codeGen);
 
         std::string str() const override;
     };

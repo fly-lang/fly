@@ -106,11 +106,11 @@ namespace fly {
 
     class ASTExpr;
 
-    class ASTUnaryOpExpr;
+    class ASTUnaryOp;
 
-    class ASTBinaryOpExpr;
+    class ASTBinaryOp;
 
-    class ASTTernaryOpExpr;
+    class ASTTernaryOp;
 
     class ASTEnum;
 
@@ -134,9 +134,9 @@ namespace fly {
 
     enum class ASTClassKind;
 
-    enum class ASTUnaryOpExprKind;
+    enum class ASTUnaryOpKind;
 
-    enum class ASTBinaryOpExprKind;
+    enum class ASTBinaryOpKind;
 
     enum class ASTCallKind;
 
@@ -223,10 +223,6 @@ namespace fly {
 
         ASTType *CreateType(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names);
 
-        ASTType *CreateType(ASTClass *Class);
-
-        ASTType *CreateType(ASTEnum *Class);
-
         // Create Values
 
         static ASTDefaultValue *CreateDefaultValue();
@@ -255,10 +251,6 @@ namespace fly {
 
          ASTCall *CreateCall(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind CallKind, ASTExpr *Parent = nullptr);
 
-         ASTCall *CreateCall(llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args);
-
-         ASTCall *CreateCall(ASTIdentifier *Instance, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args);
-
          ASTIdentifier *CreateIdentifier(ASTVar *Var);
 
          ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent = nullptr);
@@ -267,12 +259,12 @@ namespace fly {
 
          ASTMember *CreateMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent);
 
-         ASTUnaryOpExpr *CreateUnary(const SourceLocation &Loc, ASTUnaryOpExprKind OpKind, ASTExpr *Expr);
+         ASTUnaryOp *CreateUnary(const SourceLocation &Loc, ASTUnaryOpKind OpKind, ASTExpr *Expr);
 
-         ASTBinaryOpExpr *CreateBinary(const SourceLocation &OpLocation, ASTBinaryOpExprKind OpKind,
+         ASTBinaryOp *CreateBinary(const SourceLocation &OpLocation, ASTBinaryOpKind OpKind,
                                             ASTExpr *LeftExpr, ASTExpr *RightExpr);
 
-         ASTTernaryOpExpr *CreateTernary(ASTExpr *ConditionExpr,
+         ASTTernaryOp *CreateTernary(ASTExpr *ConditionExpr,
                                               const SourceLocation &TrueOpLocation, ASTExpr *TrueExpr,
                                               const SourceLocation &FalseOpLocation, ASTExpr *FalseExpr);
 

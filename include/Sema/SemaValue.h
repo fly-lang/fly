@@ -10,22 +10,23 @@
 #ifndef FLY_SEMA_VALUE_H
 #define FLY_SEMA_VALUE_H
 
-#include <AST/ASTValue.h>
-
-#include "Sema/SemaNode.h"
+#include "Sema/SemaExpr.h"
 #include <llvm/ADT/APFloat.h>
 #include <llvm/ADT/APInt.h>
 #include <llvm/ADT/StringMap.h>
 
 namespace fly {
 
-    class SemaType;
 	class ASTValue;
 	class ASTBoolValue;
-    class ASTNumberValue;
+	class ASTNumberValue;
 	class ASTStringValue;
+	class ASTArrayValue;
+	class ASTStructValue;
+	class ASTNullValue;
+    class SemaType;
 
-    class SemaValue : public SemaNode {
+    class SemaValue : public SemaExpr {
 
     	friend class SemaBuilder;
     	friend class Resolver;

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaResult.cpp - The Symbolic Table for Var or Call
+// src/Sema/SemaExpr.cpp - The Symbolic Table for Var or Call
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,33 +7,29 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Sema/SemaResult.h"
+#include "Sema/SemaExpr.h"
 
 using namespace fly;
 
-SemaResult::SemaResult(SemaKind Kind) : SemaNode(Kind) {
+SemaExpr::SemaExpr(SemaKind Kind) : SemaNode(Kind) {
 }
 
-void SemaResult::setType(SemaType *Type) {
+void SemaExpr::setType(SemaType *Type) {
 	this->Type = Type;
 }
 
-bool SemaResult::isCall() const {
-	return Kind == SemaKind::CALL;
-}
-
-SemaResult *SemaResult::getParent() const {
+SemaExpr *SemaExpr::getParent() const {
 	return Parent;
 }
 
-void SemaResult::setParent(SemaResult &Parent) {
+void SemaExpr::setParent(SemaExpr &Parent) {
 	Parent.Child = this;
 }
 
-SemaResult * SemaResult::getChild() const {
+SemaExpr * SemaExpr::getChild() const {
 	return Child;
 }
 
-SemaType *SemaResult::getType() const {
+SemaType *SemaExpr::getType() const {
 	return Type;
 }
