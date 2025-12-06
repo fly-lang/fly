@@ -10,6 +10,7 @@
 #include "AST/ASTComment.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
 #include <llvm/IR/Module.h>
 
 using namespace fly;
@@ -17,6 +18,10 @@ using namespace fly;
 ASTComment::ASTComment(const SourceLocation &Loc, llvm::StringRef Content) :
 	ASTNode(Loc, ASTKind::AST_COMMENT), Content(Content) {
 
+}
+
+void ASTComment::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 llvm::StringRef ASTComment::getContent() const {

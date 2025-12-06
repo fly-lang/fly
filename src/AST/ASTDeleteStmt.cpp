@@ -12,6 +12,8 @@
 #include "AST/ASTIdentifier.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 using namespace fly;
 
 /**
@@ -22,6 +24,10 @@ using namespace fly;
 ASTDeleteStmt::ASTDeleteStmt(const SourceLocation &Loc, ASTExpr *Expr) :
         ASTStmt(Loc, ASTStmtKind::STMT_DELETE), Expr(Expr) {
 
+}
+
+void ASTDeleteStmt::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 ASTExpr *ASTDeleteStmt::getExpr() {

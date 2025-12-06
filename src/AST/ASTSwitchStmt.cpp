@@ -10,11 +10,17 @@
 #include "AST/ASTSwitchStmt.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 using namespace fly;
 
 ASTSwitchStmt::ASTSwitchStmt(const SourceLocation &Loc) :
         ASTStmt(Loc, ASTStmtKind::STMT_SWITCH) {
 
+}
+
+void ASTSwitchStmt::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 ASTExpr *ASTSwitchStmt::getVar() const {

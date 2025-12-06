@@ -10,11 +10,17 @@
 #include "AST/ASTFailStmt.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 using namespace fly;
 
 ASTFailStmt::ASTFailStmt(const SourceLocation &Loc) :
         ASTStmt(Loc, ASTStmtKind::STMT_FAIL) {
 
+}
+
+void ASTFailStmt::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 ASTExpr *ASTFailStmt::getExpr() const {

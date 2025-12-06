@@ -12,6 +12,7 @@
 #include "Basic/Logger.h"
 
 #include <AST/ASTIdentifier.h>
+#include <AST/ASTVisitor.h>
 
 using namespace fly;
 
@@ -19,6 +20,10 @@ ASTClass::ASTClass(ASTClassKind ClassKind, llvm::SmallVector<ASTModifier *, 8> &
 	const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTType *, 4> &SuperClasses) :
 	ASTNode(Loc, ASTKind::AST_CLASS), ClassKind(ClassKind), Modifiers(Modifiers), Name(Name), Bases(SuperClasses) {
 
+}
+
+void ASTClass::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 llvm::SmallVector<ASTNode *, 8> ASTClass::getNodes() const {

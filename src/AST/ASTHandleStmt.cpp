@@ -11,11 +11,17 @@
 #include "AST/ASTIdentifier.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 using namespace fly;
 
 ASTHandleStmt::ASTHandleStmt(const SourceLocation &Loc) :
         ASTStmt(Loc, ASTStmtKind::STMT_HANDLE) {
 
+}
+
+void ASTHandleStmt::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 ASTExpr *ASTHandleStmt::getErrorHandler() const {

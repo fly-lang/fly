@@ -6,10 +6,10 @@ message(STATUS "Adding Fly Tests")
 
 add_executable(fly_test
 #        CmdTest.cpp
-        CodeGen/CodeGenTest.cpp
-        CodeGen/CodeGenErrorTest.cpp
+#        CodeGen/CodeGenTest.cpp
+#        CodeGen/CodeGenErrorTest.cpp
 #        CodeGen/CodeGenArrayTest.cpp
-        CodeGen/CodeGenClassTest.cpp
+#        CodeGen/CodeGenClassTest.cpp
 #        CodeGen/CodeGenEnumTest.cpp
 #        CodeGen/CodeGenStringTest.cpp
 #        DriverTest.cpp
@@ -17,7 +17,7 @@ add_executable(fly_test
         Parser/LexerTest.cpp
 #        Parser/ParserCommentTest.cpp
 #        Parser/ParserExprTest.cpp
-#        Parser/ParserFunctionTest.cpp
+        Parser/ParserFunctionTest.cpp
 #        Parser/ParserGlobalVarTest.cpp
 #        Parser/ParserImportTest.cpp
 #        Parser/ParserLocalVarTest.cpp

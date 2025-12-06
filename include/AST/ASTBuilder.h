@@ -190,7 +190,6 @@ namespace fly {
         // Create Modifiers
         static ASTModifier *CreateModifier(const SourceLocation &Loc, ASTModifierKind Kind);
 
-
         // Create Types
 
         static ASTType *CreateBoolType(const SourceLocation &Loc);
@@ -301,3 +300,4 @@ namespace fly {
 }  // end namespace fly
 
 #endif // FLY_AST_BUILDER_H
+

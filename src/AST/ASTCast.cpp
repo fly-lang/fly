@@ -9,11 +9,16 @@
 
 #include "AST/ASTCast.h"
 #include <AST/ASTType.h>
+#include <AST/ASTVisitor.h>
 
 using namespace fly;
 
 ASTCast::ASTCast(ASTExpr *Expr, ASTType *Cast) : ASTExpr(Cast->getLocation(), ASTExprKind::EXPR_CAST),
 	Expr(Expr), Cast(Cast) {
+}
+
+void ASTCast::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 ASTExpr * ASTCast::getExpr() const {

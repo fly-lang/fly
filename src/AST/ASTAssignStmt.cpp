@@ -10,11 +10,17 @@
 #include "AST/ASTAssignStmt.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 using namespace fly;
 
 ASTAssignStmt::ASTAssignStmt(const SourceLocation &Loc, ASTExpr *Source, ASTAssignOperatorKind AssignOperatorKind) :
         ASTStmt(Loc, ASTStmtKind::STMT_ASSIGN), Source(Source), Kind(AssignOperatorKind) {
 
+}
+
+void ASTAssignStmt::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 ASTExpr *ASTAssignStmt::getSource() const {

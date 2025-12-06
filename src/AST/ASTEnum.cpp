@@ -11,12 +11,18 @@
 #include "AST/ASTModifier.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 using namespace fly;
 
 ASTEnum::ASTEnum(const SourceLocation &Loc, llvm::StringRef Name,
                  llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::SmallVector<ASTType *, 4> &SuperClasses) :
         ASTNode(Loc, ASTKind::AST_ENUM), Name(Name), Modifiers(Modifiers), SuperClasses(SuperClasses) {
 
+}
+
+void ASTEnum::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 llvm::SmallVector<ASTNode *, 8> ASTEnum::getNodes() const {

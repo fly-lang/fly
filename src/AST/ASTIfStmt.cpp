@@ -10,11 +10,17 @@
 #include "AST/ASTIfStmt.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 using namespace fly;
 
 ASTIfStmt::ASTIfStmt(const SourceLocation &Loc) :
         ASTRuleStmt(Loc, ASTStmtKind::STMT_IF) {
 
+}
+
+void ASTIfStmt::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 llvm::SmallVector<ASTRuleStmt *, 8> ASTIfStmt::getElsif() {

@@ -34,7 +34,15 @@ namespace fly {
         ~Sema() = default;
 
         template <typename... Mods>
-        llvm::SmallVector<SemaModule *, 8> Resolve(Mods... Modules);
+        llvm::SmallVector<SemaModule *, 8> Resolve(Mods... Modules) {
+            llvm::SmallVector<ASTModule *, 8> ASTs;
+            ASTs.reserve(sizeof...(Modules));
+
+            // Expand variadic pack into the vector
+            (ASTs.push_back(Modules), ...);
+
+            return Resolve(ASTs);
+        }
 
         llvm::SmallVector<SemaModule *, 8> Resolve(llvm::SmallVector<ASTModule *, 8> &Modules);
 

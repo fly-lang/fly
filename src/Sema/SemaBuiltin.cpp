@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-
+SemaType *SemaBuiltin::BoolType = nullptr;
 SemaType * SemaBuiltin::getBoolType() {
 	if (BoolType == nullptr) {
 		BoolType = new SemaType(SemaKind::TYPE, SemaTypeKind::TYPE_BOOL, "bool");
@@ -20,6 +20,7 @@ SemaType * SemaBuiltin::getBoolType() {
 	return BoolType;
 }
 
+SemaIntType *SemaBuiltin::ByteType = nullptr;
 SemaIntType * SemaBuiltin::getByteType() {
 	if (ByteType == nullptr) {
 		ByteType = new SemaIntType(SemaIntTypeKind::TYPE_BYTE, "byte");
@@ -27,6 +28,7 @@ SemaIntType * SemaBuiltin::getByteType() {
 	return ByteType;
 }
 
+SemaIntType *SemaBuiltin::UShortType = nullptr;
 SemaIntType * SemaBuiltin::getUShortType() {
 	if (UShortType == nullptr) {
 		UShortType = new SemaIntType(SemaIntTypeKind::TYPE_USHORT, "ushort");
@@ -34,6 +36,7 @@ SemaIntType * SemaBuiltin::getUShortType() {
 	return UShortType;
 }
 
+SemaIntType *SemaBuiltin::ShortType = nullptr;
 SemaIntType * SemaBuiltin::getShortType() {
 	if (ShortType == nullptr) {
 		ShortType = new SemaIntType(SemaIntTypeKind::TYPE_SHORT, "short");
@@ -41,6 +44,7 @@ SemaIntType * SemaBuiltin::getShortType() {
 	return ShortType;
 }
 
+SemaIntType *SemaBuiltin::UIntType = nullptr;
 SemaIntType * SemaBuiltin::getUIntType() {
 	if (UIntType == nullptr) {
 		UIntType = new SemaIntType(SemaIntTypeKind::TYPE_UINT, "uint");
@@ -48,6 +52,7 @@ SemaIntType * SemaBuiltin::getUIntType() {
 	return UIntType;
 }
 
+SemaIntType *SemaBuiltin::IntType = nullptr;
 SemaIntType * SemaBuiltin::getIntType() {
 	if (IntType == nullptr) {
 		IntType = new SemaIntType(SemaIntTypeKind::TYPE_INT, "int");
@@ -55,6 +60,7 @@ SemaIntType * SemaBuiltin::getIntType() {
 	return IntType;
 }
 
+SemaIntType *SemaBuiltin::ULongType = nullptr;
 SemaIntType * SemaBuiltin::getULongType() {
 	if (ULongType == nullptr) {
 		ULongType = new SemaIntType(SemaIntTypeKind::TYPE_ULONG, "ulong");
@@ -62,6 +68,7 @@ SemaIntType * SemaBuiltin::getULongType() {
 	return ULongType;
 }
 
+SemaIntType *SemaBuiltin::LongType = nullptr;
 SemaIntType * SemaBuiltin::getLongType() {
 	if (LongType == nullptr) {
 		LongType = new SemaIntType(SemaIntTypeKind::TYPE_LONG, "long");
@@ -69,6 +76,7 @@ SemaIntType * SemaBuiltin::getLongType() {
 	return LongType;
 }
 
+SemaFloatType *SemaBuiltin::FloatType = nullptr;
 SemaFloatType * SemaBuiltin::getFloatType() {
 	if (FloatType == nullptr) {
 		FloatType = new SemaFloatType(SemaFloatTypeKind::TYPE_FLOAT, "float");
@@ -76,6 +84,7 @@ SemaFloatType * SemaBuiltin::getFloatType() {
 	return FloatType;
 }
 
+SemaFloatType *SemaBuiltin::DoubleType = nullptr;
 SemaFloatType * SemaBuiltin::getDoubleType() {
 	if (DoubleType == nullptr) {
 		DoubleType = new SemaFloatType(SemaFloatTypeKind::TYPE_DOUBLE, "double");
@@ -83,6 +92,7 @@ SemaFloatType * SemaBuiltin::getDoubleType() {
 	return DoubleType;
 }
 
+SemaType *SemaBuiltin::VoidType = nullptr;
 SemaType * SemaBuiltin::getVoidType() {
 	if (VoidType == nullptr) {
 		VoidType = new SemaType(SemaKind::TYPE, SemaTypeKind::TYPE_VOID, "void");
@@ -90,6 +100,7 @@ SemaType * SemaBuiltin::getVoidType() {
 	return VoidType;
 }
 
+SemaType *SemaBuiltin::StringType = nullptr;
 SemaType * SemaBuiltin::getStringType() {
 	if (StringType == nullptr) {
 		StringType = new SemaType(SemaKind::TYPE, SemaTypeKind::TYPE_STRING, "string");
@@ -97,6 +108,7 @@ SemaType * SemaBuiltin::getStringType() {
 	return StringType;
 }
 
+SemaErrorType *SemaBuiltin::ErrorType = nullptr;
 SemaErrorType * SemaBuiltin::getErrorType() {
 	if (ErrorType == nullptr) {
 		ErrorType = new SemaErrorType();

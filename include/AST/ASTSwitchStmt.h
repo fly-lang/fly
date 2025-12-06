@@ -7,8 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_SWITCHBLOCK_H
-#define FLY_AST_SWITCHBLOCK_H
+#ifndef FLY_AST_SWITCHSTMT_H
+#define FLY_AST_SWITCHSTMT_H
 
 #include "ASTRuleStmt.h"
 #include "ASTStmt.h"
@@ -47,4 +47,4 @@ namespace fly {
 }
 
 
-#endif //FLY_AST_SWITCHBLOCK_H
+#endif //FLY_AST_SWITCHSTMT_H

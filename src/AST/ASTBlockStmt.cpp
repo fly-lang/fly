@@ -11,6 +11,7 @@
 #include "AST/ASTStmt.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
 #include <llvm/ADT/StringMap.h>
 
 using namespace fly;
@@ -24,6 +25,10 @@ using namespace fly;
 ASTBlockStmt::ASTBlockStmt(const SourceLocation &Loc) :
         ASTStmt(Loc, ASTStmtKind::STMT_BLOCK) {
 
+}
+
+void ASTBlockStmt::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 /**

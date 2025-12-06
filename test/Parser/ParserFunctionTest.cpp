@@ -22,6 +22,8 @@
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTArg.h"
 
+#include <AST/ASTType.h>
+
 namespace {
 
     using namespace fly;
@@ -32,10 +34,11 @@ namespace {
 
         ASSERT_TRUE(Resolve());
 
-        EXPECT_TRUE(Module->getFunctions().size() == 1);
-        ASTFunction *Func = *Module->getFunctions().begin();
-        EXPECT_EQ(Func->getVisibility(), ASTModifierKind::V_DEFAULT);
-        EXPECT_EQ(Func->getReturnType()->getStmtKind(), ASTTypeKind::TYPE_VOID);
+        EXPECT_TRUE(Module->getNodes().size() == 1);
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
+        EXPECT_TRUE(HasModifier(Func->getModifiers(), ASTModifierKind::MOD_DEFAULT));
+        EXPECT_EQ(Func->getReturnType()->getTypeKind(), ASTTypeKind::TYPE_BUILTIN);
+    	EXPECT_EQ((Func->getReturnType()), ASTTypeKind::TYPE_BUILTIN);
     }
 
     TEST_F(ParserTest, FunctionVisibilityPrivate) {

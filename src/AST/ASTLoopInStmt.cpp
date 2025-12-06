@@ -10,11 +10,17 @@
 #include "AST/ASTLoopInStmt.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 using namespace fly;
 
 ASTLoopInStmt::ASTLoopInStmt(const SourceLocation &Loc) :
         ASTStmt(Loc, ASTStmtKind::STMT_LOOP_IN) {
 
+}
+
+void ASTLoopInStmt::accept(ASTVisitor& Visitor) {
+	Visitor.visit(*this);
 }
 
 ASTIdentifier *ASTLoopInStmt::getVarRef() const {
@@ -28,6 +34,6 @@ ASTBlockStmt *ASTLoopInStmt::getBlock() const {
 std::string ASTLoopInStmt::str() const {
     return Logger("ASTLoopInBlock").
 	Attr("Location", getLocation()).
-Attr("Kind", static_cast<size_t>(getKind())).
+	Attr("Kind", static_cast<size_t>(getKind())).
             End();
 }

@@ -10,6 +10,8 @@
 #include "AST/ASTBreakStmt.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 using namespace fly;
 
 /**
@@ -21,6 +23,11 @@ ASTBreakStmt::ASTBreakStmt(const SourceLocation &Loc) :
         ASTStmt(Loc, ASTStmtKind::STMT_BREAK) {
 
 }
+
+void ASTBreakStmt::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
 /**
  * Convert to String
  * @return string info for debugging

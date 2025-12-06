@@ -13,6 +13,7 @@
 #include "Sema/Sema.h"
 
 // third party
+#include <AST/ASTBuilder.h>
 #include <gtest/gtest.h>
 
 #ifndef FLY_PARSERTEST_H
@@ -24,33 +25,47 @@ class ParserTest : public ::testing::Test {
 
 public:
     const CompilerInstance CI;
-    SymTable *Context;
     Sema *S;
     DiagnosticsEngine &Diags;
+    ASTBuilder *Builder;
+    llvm::SmallVector<ASTModule *, 8> ASTModules;
+    llvm::SmallVector<SemaModule*, 8> SemaModules;
 
     ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
-                        Diags(CI.getDiagnostics()) {
-        S = Sema::CreateSema(CI.getDiagnostics());
+        Diags(CI.getDiagnostics()), Builder(new ASTBuilder(Diags)),
+        S(new Sema(CI.getDiagnostics())) {
+
     }
 
     virtual ~ParserTest() {
         delete S;
     }
 
-    ASTModule *Parse(std::string FileName, llvm::StringRef Source) {
+    ASTModule *Parse(std::string Name, llvm::StringRef Source) {
         Diags.getClient()->BeginSourceFile();
-        InputFile Input(Diags, CI.getSourceManager(), FileName);
-        Input.Load(Source);
-        Parser *P = new Parser(Input, CI.getSourceManager(), Diags, S->getASTBuilder());
-        ASTModule *M = P->ParseModule();
+        auto Buffer = llvm::MemoryBuffer::getMemBuffer("", Name);
+        auto FID = new InputFile(Diags, CI.getSourceManager(), Name);
+        Parser *P = new Parser(FID, CI.getSourceManager(), Diags, *Builder);
+        ASTModule *AST = P->ParseModule();
         Diags.getClient()->EndSourceFile();
-        return M;
+
+        return AST;
     }
 
     bool Resolve() {
         Diags.getClient()->BeginSourceFile();
-        return S->Resolve();
+        SemaModules = S->Resolve(ASTModules);
         Diags.getClient()->EndSourceFile();
+        return !Diags.hasErrorOccurred();
+    }
+
+    static bool HasModifier(const llvm::SmallVector<ASTModifier *, 8> &Modifiers, ASTModifierKind Kind) {;
+        for (auto &Mod : Modifiers) {
+            if (Mod->getModifierKind() == Kind) {
+                return true;
+            }
+        }
+        return false;
     }
 
 };

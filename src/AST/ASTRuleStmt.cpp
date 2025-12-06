@@ -10,11 +10,17 @@
 #include "AST/ASTRuleStmt.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 using namespace fly;
 
 ASTRuleStmt::ASTRuleStmt(const SourceLocation &Loc) :
         ASTStmt(Loc, ASTStmtKind::STMT_RULE) {
 
+}
+
+void ASTRuleStmt::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 ASTRuleStmt::ASTRuleStmt(const SourceLocation &Loc, ASTStmtKind Kind) :

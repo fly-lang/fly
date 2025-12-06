@@ -10,11 +10,17 @@
 #include "AST/ASTReturnStmt.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 using namespace fly;
 
 ASTReturnStmt::ASTReturnStmt(const SourceLocation &Loc) :
         ASTStmt(Loc, ASTStmtKind::STMT_RETURN) {
 
+}
+
+void ASTReturnStmt::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 ASTExpr *ASTReturnStmt::getExpr() const {

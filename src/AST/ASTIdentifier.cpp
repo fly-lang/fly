@@ -10,10 +10,16 @@
 #include "AST/ASTIdentifier.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 using namespace fly;
 
 ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) :
 		ASTExpr(Loc, ASTExprKind::EXPR_IDENTIFIER), Name(Name), Var(nullptr) {
+}
+
+void ASTIdentifier::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 ASTIdentifier::~ASTIdentifier() {

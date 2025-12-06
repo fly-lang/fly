@@ -17,6 +17,10 @@ ASTLoopStmt::ASTLoopStmt(const SourceLocation &Loc) :
 
 }
 
+void ASTLoopStmt::accept(ASTVisitor &Visitor) {
+	ASTRuleStmt::accept(Visitor);
+}
+
 bool ASTLoopStmt::hasVerifyConditionAtEnd() const {
     return VerifyConditionAtEnd;
 }

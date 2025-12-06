@@ -10,6 +10,8 @@
 #include "AST/ASTContinueStmt.h"
 #include "Basic/Logger.h"
 
+#include <AST/ASTVisitor.h>
+
 using namespace fly;
 
 /**
@@ -20,6 +22,10 @@ using namespace fly;
 ASTContinueStmt::ASTContinueStmt(const SourceLocation &Loc) :
         ASTStmt(Loc, ASTStmtKind::STMT_CONTINUE) {
 
+}
+
+void ASTContinueStmt::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 /**
