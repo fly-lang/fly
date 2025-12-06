@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// test/ParserTest.cpp - Parser tests
+// test/ParserLocalVarTest.cpp - Parser tests
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -10,6 +10,7 @@
 #include <AST/ASTFailStmt.h>
 #include <AST/ASTHandleStmt.h>
 #include <AST/ASTReturnStmt.h>
+#include <AST/ASTParam.h>
 
 #include "ParserTest.h"
 #include "AST/ASTNameSpace.h"
@@ -49,89 +50,135 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *F = *Module->getFunctions().begin();
-        EXPECT_EQ(F->getReturnType()->getStmtKind(), ASTTypeKind::TYPE_VOID);
-        const ASTBlockStmt *Body = F->getBody();
+        auto *F = static_cast<ASTFunction *>(Module->getNodes()[0]);
+        EXPECT_TRUE(HasBuiltinType(F->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
+        auto *Body = F->getBody();
 
         // Test: bool a
-        ASTAssignmentStmt *aStmt = (ASTAssignmentStmt *) Body->getContent()[0];
-        ASTVar *aVar = aStmt->getVarRef()->getDef();
-        EXPECT_EQ(aVar->getName(), "a");
-        EXPECT_EQ(aVar->getType()->getStmtKind(), ASTTypeKind::TYPE_BOOL);
-        ASTBoolValue* BoolValue = S->getASTBuilder().CreateBoolValue(SourceLocation(), false);
-        ASSERT_EQ(((ASTBoolValue *)((ASTValueExpr *) aStmt->getExpr())->getValue())->getValue(), BoolValue->getValue());
+        auto *aStmt = static_cast<ASTAssignStmt *>(Body->getContent()[0]);
+        auto *aIdent = static_cast<ASTIdentifier *>(aStmt->getSource());
+        EXPECT_EQ(aIdent->getName(), "a");
+        SemaVar *aSema = aIdent->getSema();
+        ASSERT_NE(aSema, nullptr);
+        EXPECT_TRUE(aSema->getType()->isBool());
 
         // Test: byte b
-        ASTAssignmentStmt *bStmt = (ASTAssignmentStmt *) Body->getContent()[1];
-        ASTVar *bVar = bStmt->getVarRef()->getDef();
-        EXPECT_EQ(bVar->getName(), "b");
-        EXPECT_EQ(((ASTIntegerType *) bVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
-        ASTIntegerValue* ZeroIntValue = S->getASTBuilder().CreateIntegerValue(SourceLocation(), "0");
-        ASSERT_EQ(((ASTIntegerValue *)((ASTValueExpr *) bStmt->getExpr())->getValue())->getValue(), ZeroIntValue->getValue());
+        auto *bStmt = static_cast<ASTAssignStmt *>(Body->getContent()[1]);
+        auto *bIdent = static_cast<ASTIdentifier *>(bStmt->getSource());
+        EXPECT_EQ(bIdent->getName(), "b");
+        SemaVar *bSema = bIdent->getSema();
+        ASSERT_NE(bSema, nullptr);
+        EXPECT_TRUE(bSema->getType()->isInteger());
+        // RHS Sema value
+        auto *bRhsSema = static_cast<SemaValue *>(bStmt->getTarget()->getSema());
+        ASSERT_NE(bRhsSema, nullptr);
+        EXPECT_TRUE(bSema->getType()->isEquals(bRhsSema->getType()));
+        ASTNumberValue* ZeroIntValue = Builder->CreateNumberValue(SourceLocation(), "0");
+        ASSERT_EQ(static_cast<ASTNumberValue *>(bStmt->getTarget())->getValue(), ZeroIntValue->getValue());
 
         // Test: short c
-        ASTAssignmentStmt *cStmt = (ASTAssignmentStmt *) Body->getContent()[2];
-        ASTVar *cVar = cStmt->getVarRef()->getDef();
-        EXPECT_EQ(cVar->getName(), "c");
-        EXPECT_EQ(((ASTIntegerType *) cVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_SHORT);
-        ASSERT_EQ(((ASTIntegerValue *)((ASTValueExpr *) cStmt->getExpr())->getValue())->getValue(), ZeroIntValue->getValue());
+        auto *cStmt = static_cast<ASTAssignStmt *>(Body->getContent()[2]);
+        auto *cIdent = static_cast<ASTIdentifier *>(cStmt->getSource());
+        EXPECT_EQ(cIdent->getName(), "c");
+        SemaVar *cSema = cIdent->getSema();
+        ASSERT_NE(cSema, nullptr);
+        EXPECT_TRUE(cSema->getType()->isInteger());
+        auto *cRhsSema = static_cast<SemaValue *>(cStmt->getTarget()->getSema());
+        ASSERT_NE(cRhsSema, nullptr);
+        EXPECT_TRUE(cSema->getType()->isEquals(cRhsSema->getType()));
+        ASSERT_EQ(static_cast<ASTNumberValue *>(cStmt->getTarget())->getValue(), ZeroIntValue->getValue());
 
         // Test: ushort d
-        ASTAssignmentStmt *dStmt = (ASTAssignmentStmt *) Body->getContent()[3];
-        ASTVar *dVar = dStmt->getVarRef()->getDef();
-        EXPECT_EQ(dVar->getName(), "d");
-        EXPECT_EQ(((ASTIntegerType *) dVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_USHORT);
-        ASSERT_EQ(((ASTIntegerValue *)((ASTValueExpr *) dStmt->getExpr())->getValue())->getValue(), ZeroIntValue->getValue());
+        auto *dStmt = static_cast<ASTAssignStmt *>(Body->getContent()[3]);
+        auto *dIdent = static_cast<ASTIdentifier *>(dStmt->getSource());
+        EXPECT_EQ(dIdent->getName(), "d");
+        SemaVar *dSema = dIdent->getSema();
+        ASSERT_NE(dSema, nullptr);
+        EXPECT_TRUE(dSema->getType()->isInteger());
+        auto *dRhsSema = static_cast<SemaValue *>(dStmt->getTarget()->getSema());
+        ASSERT_NE(dRhsSema, nullptr);
+        EXPECT_TRUE(dSema->getType()->isEquals(dRhsSema->getType()));
+        ASSERT_EQ(static_cast<ASTNumberValue *>(dStmt->getTarget())->getValue(), ZeroIntValue->getValue());
 
         // Test: int e
-        ASTAssignmentStmt *eStmt = (ASTAssignmentStmt *) Body->getContent()[4];
-        ASTVar *eVar = eStmt->getVarRef()->getDef();
-        EXPECT_EQ(eVar->getName(), "e");
-        EXPECT_EQ(((ASTIntegerType *) eVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_INT);
-        ASSERT_EQ(((ASTIntegerValue *)((ASTValueExpr *) eStmt->getExpr())->getValue())->getValue(), ZeroIntValue->getValue());
+        auto *eStmt = static_cast<ASTAssignStmt *>(Body->getContent()[4]);
+        auto *eIdent = static_cast<ASTIdentifier *>(eStmt->getSource());
+        EXPECT_EQ(eIdent->getName(), "e");
+        SemaVar *eSema = eIdent->getSema();
+        ASSERT_NE(eSema, nullptr);
+        EXPECT_TRUE(eSema->getType()->isInteger());
+        auto *eRhsSema = static_cast<SemaValue *>(eStmt->getTarget()->getSema());
+        ASSERT_NE(eRhsSema, nullptr);
+        EXPECT_TRUE(eSema->getType()->isEquals(eRhsSema->getType()));
+        ASSERT_EQ(static_cast<ASTNumberValue *>(eStmt->getTarget())->getValue(), ZeroIntValue->getValue());
 
         // Test: uint f
-        ASTAssignmentStmt *fStmt = (ASTAssignmentStmt *) Body->getContent()[5];
-        ASTVar *fVar = fStmt->getVarRef()->getDef();
-        EXPECT_EQ(fVar->getName(), "f");
-        EXPECT_EQ(((ASTIntegerType *) fVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_UINT);
-        ASSERT_EQ(((ASTIntegerValue *)((ASTValueExpr *) fStmt->getExpr())->getValue())->getValue(), ZeroIntValue->getValue());
+        auto *fStmt = static_cast<ASTAssignStmt *>(Body->getContent()[5]);
+        auto *fIdent = static_cast<ASTIdentifier *>(fStmt->getSource());
+        EXPECT_EQ(fIdent->getName(), "f");
+        SemaVar *fSema = fIdent->getSema();
+        ASSERT_NE(fSema, nullptr);
+        EXPECT_TRUE(fSema->getType()->isInteger());
+        auto *fRhsSema = static_cast<SemaValue *>(fStmt->getTarget()->getSema());
+        ASSERT_NE(fRhsSema, nullptr);
+        EXPECT_TRUE(fSema->getType()->isEquals(fRhsSema->getType()));
+        ASSERT_EQ(static_cast<ASTNumberValue *>(fStmt->getTarget())->getValue(), ZeroIntValue->getValue());
 
         // Test: long g
-        ASTAssignmentStmt *gStmt = (ASTAssignmentStmt *) Body->getContent()[6];
-        ASTVar *gVar = gStmt->getVarRef()->getDef();
-        EXPECT_EQ(gVar->getName(), "g");
-        EXPECT_EQ(((ASTIntegerType *) gVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_LONG);
-        ASSERT_EQ(((ASTIntegerValue *)((ASTValueExpr *) gStmt->getExpr())->getValue())->getValue(), ZeroIntValue->getValue());
+        auto *gStmt = static_cast<ASTAssignStmt *>(Body->getContent()[6]);
+        auto *gIdent = static_cast<ASTIdentifier *>(gStmt->getSource());
+        EXPECT_EQ(gIdent->getName(), "g");
+        SemaVar *gSema = gIdent->getSema();
+        ASSERT_NE(gSema, nullptr);
+        EXPECT_TRUE(gSema->getType()->isInteger());
+        auto *gRhsSema = static_cast<SemaValue *>(gStmt->getTarget()->getSema());
+        ASSERT_NE(gRhsSema, nullptr);
+        EXPECT_TRUE(gSema->getType()->isEquals(gRhsSema->getType()));
+        ASSERT_EQ(static_cast<ASTNumberValue *>(gStmt->getTarget())->getValue(), ZeroIntValue->getValue());
 
         // Test: ulong h
-        ASTAssignmentStmt *hStmt = (ASTAssignmentStmt *) Body->getContent()[7];
-        ASTVar *hVar = hStmt->getVarRef()->getDef();
-        EXPECT_EQ(hVar->getName(), "h");
-        EXPECT_EQ(((ASTIntegerType *) hVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_ULONG);
-        ASSERT_EQ(((ASTIntegerValue *)((ASTValueExpr *) hStmt->getExpr())->getValue())->getValue(), ZeroIntValue->getValue());
+        auto *hStmt = static_cast<ASTAssignStmt *>(Body->getContent()[7]);
+        auto *hIdent = static_cast<ASTIdentifier *>(hStmt->getSource());
+        EXPECT_EQ(hIdent->getName(), "h");
+        SemaVar *hSema = hIdent->getSema();
+        ASSERT_NE(hSema, nullptr);
+        EXPECT_TRUE(hSema->getType()->isInteger());
+        auto *hRhsSema = static_cast<SemaValue *>(hStmt->getTarget()->getSema());
+        ASSERT_NE(hRhsSema, nullptr);
+        EXPECT_TRUE(hSema->getType()->isEquals(hRhsSema->getType()));
+        ASSERT_EQ(static_cast<ASTNumberValue *>(hStmt->getTarget())->getValue(), ZeroIntValue->getValue());
 
         // Test: float i
-        ASTAssignmentStmt *iStmt = (ASTAssignmentStmt *) Body->getContent()[8];
-        ASTVar *iVar = iStmt->getVarRef()->getDef();
-        EXPECT_EQ(iVar->getName(), "i");
-        EXPECT_EQ(((ASTFloatingPointType *) iVar->getType())->getFloatingPointKind(), ASTFloatingPointTypeKind::TYPE_FLOAT);
-        ASTFloatingValue* ZeroFloatValue = S->getASTBuilder().CreateFloatingValue(SourceLocation(), "0.0");
-        ASSERT_EQ(((ASTFloatingValue *)((ASTValueExpr *) iStmt->getExpr())->getValue())->getValue(), ZeroFloatValue->getValue());
+        auto *iStmt = static_cast<ASTAssignStmt *>(Body->getContent()[8]);
+        auto *iIdent = static_cast<ASTIdentifier *>(iStmt->getSource());
+        EXPECT_EQ(iIdent->getName(), "i");
+        SemaVar *iSema = iIdent->getSema();
+        ASSERT_NE(iSema, nullptr);
+        EXPECT_TRUE(iSema->getType()->isFloatingPoint());
+        ASTNumberValue* ZeroFloatValue = Builder->CreateNumberValue(SourceLocation(), "0.0");
+        auto *iRhsSema = static_cast<SemaValue *>(iStmt->getTarget()->getSema());
+        ASSERT_NE(iRhsSema, nullptr);
+        EXPECT_TRUE(iSema->getType()->isEquals(iRhsSema->getType()));
+        ASSERT_EQ(static_cast<ASTNumberValue *>(iStmt->getTarget())->getValue(), ZeroFloatValue->getValue());
 
         // Test: double j
-        ASTAssignmentStmt *jStmt = (ASTAssignmentStmt *) Body->getContent()[9];
-        ASTVar *jVar = jStmt->getVarRef()->getDef();
-        EXPECT_EQ(jVar->getName(), "j");
-        EXPECT_EQ(((ASTFloatingPointType *) jVar->getType())->getFloatingPointKind(), ASTFloatingPointTypeKind::TYPE_DOUBLE);
-        ASSERT_EQ(((ASTFloatingValue *)((ASTValueExpr *) jStmt->getExpr())->getValue())->getValue(), ZeroFloatValue->getValue());
+        auto *jStmt = static_cast<ASTAssignStmt *>(Body->getContent()[9]);
+        auto *jIdent = static_cast<ASTIdentifier *>(jStmt->getSource());
+        EXPECT_EQ(jIdent->getName(), "j");
+        SemaVar *jSema = jIdent->getSema();
+        ASSERT_NE(jSema, nullptr);
+        EXPECT_TRUE(jSema->getType()->isFloatingPoint());
+        auto *jRhsSema = static_cast<SemaValue *>(jStmt->getTarget()->getSema());
+        ASSERT_NE(jRhsSema, nullptr);
+        EXPECT_TRUE(jSema->getType()->isEquals(jRhsSema->getType()));
+        ASSERT_EQ(static_cast<ASTNumberValue *>(jStmt->getTarget())->getValue(), ZeroFloatValue->getValue());
 
         // Test: Type t
-        // ASTAssignmentStmt *tStmt = (ASTAssignmentStmt *) Body->getContent()[10];
-        // ASTVar *tVar = tStmt->getVarRef()->getDef();
+        // ASTAssignStmt *tStmt = static_cast<ASTAssignStmt *>(Body->getContent()[10]);
+        // ASTVar *tVar = static_cast<ASTVar *>(tStmt->getSource());
         // EXPECT_EQ(tVar->getName(), "t");
-        // EXPECT_EQ(((ASTIdentityType *) tVar->getType())->getIdentityTypeKind(), ASTIdentityTypeKind::TYPE_NONE);
-        // ASSERT_EQ(((ASTIntegerValue *)((ASTValueExpr *) iStmt->getExpr())->getValue())->getValue(), ZeroFloatValue->getValue());
+        // EXPECT_EQ(static_cast<ASTIdentityType *>(tVar->getType())->getIdentityTypeKind(), ASTIdentityTypeKind::TYPE_NONE);
+        // ASSERT_EQ(static_cast<ASTNumberValue *>(iStmt->getTarget())->getValue(), ZeroFloatValue->getValue());
     }
 
     TEST_F(ParserTest, FunctionPrivateReturnParams) {
@@ -144,32 +191,30 @@ namespace {
         ASSERT_TRUE(Resolve());
 
 
-        EXPECT_TRUE(Module->getFunctions().size() == 1); // func() has PRIVATE Visibility
-        ASTFunction *Func = *Module->getFunctions().begin();
-        EXPECT_EQ(Func->getVisibility(), ASTModifierKind::V_PRIVATE);
+        EXPECT_TRUE(Module->getNodes().size() == 1); // func() has PRIVATE Visibility
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
+        EXPECT_TRUE(HasModifier(Func->getModifiers(), ASTModifierKind::MOD_PRIVATE));
 
-        ASTVar *Par0 = Func->getParams()[0];
-        ASTVar *Par1 = Func->getParams()[1];
-        ASTVar *Par2 = Func->getParams()[2];
+        ASTParam *Par0 = Func->getParams()[0];
+        ASTParam *Par1 = Func->getParams()[1];
+        ASTParam *Par2 = Func->getParams()[2];
 
         EXPECT_EQ(Par0->getName(), "a");
-        EXPECT_EQ(Par0->getType()->getStmtKind(), ASTTypeKind::TYPE_INTEGER);
-        EXPECT_EQ(Par0->isConstant(), false);
+        EXPECT_TRUE(HasBuiltinType(Par0->getType(), ASTBuiltinTypeKind::TYPE_INT));
+        EXPECT_FALSE(HasModifier(Par0->getModifiers(), ASTModifierKind::MOD_CONSTANT));
 
         EXPECT_EQ(Par1->getName(), "b");
-        EXPECT_EQ(Par1->getType()->getStmtKind(), ASTTypeKind::TYPE_FLOATING_POINT);
-        EXPECT_EQ(Par1->isConstant(), true);
+        EXPECT_TRUE(HasBuiltinType(Par1->getType(), ASTBuiltinTypeKind::TYPE_FLOAT));
+        EXPECT_TRUE(HasModifier(Par1->getModifiers(), ASTModifierKind::MOD_CONSTANT));
 
         EXPECT_EQ(Par2->getName(), "c");
-        EXPECT_EQ(Par2->getType()->getStmtKind(), ASTTypeKind::TYPE_BOOL);
-        EXPECT_EQ(Par2->isConstant(), false);
-        EXPECT_EQ(Par2->getDefaultValue()->getTypeKind(), ASTTypeKind::TYPE_BOOL);
-        EXPECT_EQ(((ASTBoolValue *) Par2->getDefaultValue())->getValue(), false);
+        EXPECT_TRUE(HasBuiltinType(Par2->getType(), ASTBuiltinTypeKind::TYPE_BOOL));
+        EXPECT_FALSE(HasModifier(Par2->getModifiers(), ASTModifierKind::MOD_CONSTANT));
 
         ASTReturnStmt *ReturnStmt = (ASTReturnStmt *) Func->getBody()->getContent()[0];
         EXPECT_EQ(ReturnStmt->getStmtKind(), ASTStmtKind::STMT_RETURN);
         EXPECT_EQ((ReturnStmt->getExpr())->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr*) ReturnStmt->getExpr())->getValue())->getValue(), "1");
+        EXPECT_EQ(static_cast<ASTNumberValue *>(ReturnStmt->getExpr())->getValue(), "1");
     }
 
     TEST_F(ParserTest, FunctionCall) {
@@ -188,44 +233,43 @@ namespace {
 
 
         // Get all functions
-        auto doSomeFunc = Module->getFunctions()[0];
-        auto doOtherFunc = Module->getFunctions()[1];
-        auto doNowFunc = Module->getFunctions()[2];
-        auto mainFunc = Module->getFunctions()[3];
+        ASTFunction *doSomeFunc = static_cast<ASTFunction *>(Module->getNodes()[0]);
+        ASTFunction *doOtherFunc = static_cast<ASTFunction *>(Module->getNodes()[1]);
+        ASTFunction *doNowFunc = static_cast<ASTFunction *>(Module->getNodes()[2]);
+        ASTFunction *mainFunc = static_cast<ASTFunction *>(Module->getNodes()[3]);
 
         ASSERT_TRUE(doSomeFunc != nullptr);
         ASSERT_TRUE(doOtherFunc != nullptr);
         ASSERT_TRUE(mainFunc != nullptr);
 
         // Get main() Body
-        const ASTBlockStmt *Body = mainFunc->getBody();
+        ASTBlockStmt *Body = mainFunc->getBody();
 
         // Test: doSome()
-        ASTAssignmentStmt *VarBDecl = ((ASTAssignmentStmt *) Body->getContent()[0]);
-        ASTCallExpr *doSomeCall = (ASTCallExpr *) VarBDecl->getExpr();
-        EXPECT_EQ(doSomeCall->getCall()->getName(), "doSome");
+        auto *VarBDecl = static_cast<ASTAssignStmt *>(Body->getContent()[0]);
+        auto *doSomeCall = static_cast<ASTCall *>(VarBDecl->getTarget());
+        EXPECT_EQ(doSomeCall->getName(), "doSome");
         EXPECT_EQ(doSomeCall->getExprKind(), ASTExprKind::EXPR_CALL);
 
         // Test: doNow()
-        ASTAssignmentStmt *VarBAssign = ((ASTAssignmentStmt *) Body->getContent()[1]);
-        ASTCallExpr *doNowCall = (ASTCallExpr *) VarBAssign->getExpr();
-        EXPECT_EQ(doNowCall->getCall()->getName(), "doNow");
+        auto *VarBAssign = static_cast<ASTAssignStmt *>(Body->getContent()[1]);
+        auto *doNowCall = static_cast<ASTCall *>(VarBAssign->getTarget());
+        EXPECT_EQ(doNowCall->getName(), "doNow");
         EXPECT_EQ(doNowCall->getExprKind(), ASTExprKind::EXPR_CALL);
 
         // Test: doOther(a, b)
-        ASTExprStmt *doOtherStmt = (ASTExprStmt *) Body->getContent()[2];
+        auto *doOtherStmt = static_cast<ASTExprStmt *>(Body->getContent()[2]);
         EXPECT_EQ(doOtherStmt->getStmtKind(), ASTStmtKind::STMT_EXPR);
-        ASTCallExpr *doOtherCall = (ASTCallExpr *) doOtherStmt->getExpr();
-        EXPECT_EQ(doOtherCall->getCall()->getName(), "doOther");
-        ASTArg *Arg0 = doOtherCall->getCall()->getArgs()[0];
-        EXPECT_EQ(((ASTVarRefExpr *) Arg0->getExpr())->getVarRef()->getName(), "a");
-        ASTArg *Arg1 = doOtherCall->getCall()->getArgs()[1];
-        EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *) Arg1->getExpr())->getValue())->getValue(), "1");
+        auto *doOtherCall = static_cast<ASTCall *>(doOtherStmt->getExpr());
+        EXPECT_EQ(doOtherCall->getName(), "doOther");
+        auto *Arg0 = doOtherCall->getArgs()[0];
+        EXPECT_EQ(static_cast<ASTIdentifier *>(Arg0->getExpr())->getName(), "a");
+        auto *Arg1 = doOtherCall->getArgs()[1];
+        EXPECT_EQ(static_cast<ASTNumberValue *>(Arg1->getExpr())->getValue(), "1");
 
         // return do()
-        ASTReturnStmt *RetStmt = (ASTReturnStmt *) Body->getContent()[3];
-        ASTVarRefExpr *RetExpr = (ASTVarRefExpr *) RetStmt->getExpr();
-        EXPECT_EQ(RetExpr->getVarRef()->getName(), "b");
+        auto *RetStmt = static_cast<ASTReturnStmt *>(Body->getContent()[3]);
+        EXPECT_EQ(static_cast<ASTIdentifier *>(RetStmt->getExpr())->getName(), "b");
     }
 
     TEST_F(ParserTest, FunctionHandleFail) {
@@ -253,10 +297,10 @@ namespace {
 
 
         // Get all functions
-        ASTFunction *err0 = Module->getFunctions()[0];
-        ASTFunction *err1 = Module->getFunctions()[1];
-        ASTFunction *err2 = Module->getFunctions()[2];
-        ASTFunction *main = Module->getFunctions()[3];
+        ASTFunction *err0 = static_cast<ASTFunction *>(Module->getNodes()[0]);
+        ASTFunction *err1 = static_cast<ASTFunction *>(Module->getNodes()[1]);
+        ASTFunction *err2 = static_cast<ASTFunction *>(Module->getNodes()[2]);
+        ASTFunction *main = static_cast<ASTFunction *>(Module->getNodes()[3]);
 
         ASSERT_TRUE(err0 != nullptr);
         ASSERT_TRUE(err1 != nullptr);
@@ -269,44 +313,47 @@ namespace {
 
         // err1()
         ASTFailStmt *Stmt1 = (ASTFailStmt *) err1->getBody()->getContent()[0];
-        ASTValue *Val2 = ((ASTValueExpr *) Stmt1->getExpr())->getValue();
-        ASSERT_EQ(Val2->getTypeKind(), ASTTypeKind::TYPE_INTEGER);
-        ASSERT_EQ(((ASTIntegerValue *) Val2)->getValue(), "404");
+        ASTNumberValue *Val2 = static_cast<ASTNumberValue *>(Stmt1->getExpr());
+    	ASSERT_TRUE(Val2->getType()->isInteger());
+        ASSERT_EQ(Val2->getValue(), "404");
 
         // err2()
         ASTFailStmt *Stmt2 = (ASTFailStmt *) err2->getBody()->getContent()[0];
-        ASTValue *Val3 = ((ASTValueExpr *) Stmt2->getExpr())->getValue();
-        ASSERT_EQ(Val3->getTypeKind(), ASTTypeKind::TYPE_STRING);
-        ASSERT_EQ(((ASTStringValue *) Val3)->getValue(), "Error");
+        ASTStringValue *Val3 = static_cast<ASTStringValue *>(Stmt2->getExpr());
+        ASSERT_TRUE(Val3->getType()->isString());
+        ASSERT_EQ(Val3->getValue(), "Error");
 
         // Get main() Body
 
         // handle err0()
         ASTHandleStmt *HandleStmt = (ASTHandleStmt *) main->getBody()->getContent()[0];
-        ASSERT_TRUE(((ASTCallExpr *) ((ASTExprStmt *) HandleStmt->getHandle()->getContent()[0])->getExpr())->getCall()->getArgs().empty());
+        ASSERT_TRUE(HandleStmt->getErrorHandler() == nullptr);
+    	ASTBlockStmt *Handle = HandleStmt->getHandle();
+    	ASTExprStmt *ExprStmt = static_cast<ASTExprStmt *>(Handle->getContent()[0]);
+        ASSERT_TRUE(static_cast<ASTCall *>(ExprStmt->getExpr())->getArgs().empty());
 
         // bool b = false
-        ASTAssignmentStmt *bool_err0 = (ASTAssignmentStmt *) main->getBody()->getContent()[1];
-        ASSERT_TRUE(bool_err0->getVarRef()->getDef()->getType()->isBool());
-        ASSERT_EQ(((ASTBoolValue *) ((ASTValueExpr *) bool_err0->getExpr())->getValue())->getValue(), false);
+        ASTAssignStmt *bool_err0 = (ASTAssignStmt *) main->getBody()->getContent()[1];
+        ASSERT_TRUE(bool_err0->getSource()->getType()->isBool());
+        ASSERT_EQ(static_cast<ASTBoolValue *>(bool_err0->getTarget())->getValue(), false);
 
         // error err0 = handle { b = err0() }
         ASTHandleStmt *error_err0 = (ASTHandleStmt *) main->getBody()->getContent()[2];
         ASSERT_TRUE(error_err0->getErrorHandlerRef()->getDef()->getType()->isError());
 
         // int i = 0
-        ASTAssignmentStmt *int_err1 = (ASTAssignmentStmt *) main->getBody()->getContent()[3];
+        ASTAssignStmt *int_err1 = (ASTAssignStmt *) main->getBody()->getContent()[3];
         ASSERT_TRUE(int_err1->getVarRef()->getDef()->getType()->isInteger());
-        ASSERT_EQ(((ASTIntegerValue *) ((ASTValueExpr *) int_err1->getExpr())->getValue())->getValue(), "0");
+        ASSERT_EQ(((int_err1->getExpr())->getValue())->getValue(), "0");
 
         // error err1 = handle { i = err1() }
         ASTHandleStmt *error_err1 = (ASTHandleStmt *) main->getBody()->getContent()[4];
         ASSERT_TRUE(error_err1->getErrorHandlerRef()->getDef()->getType()->isError());
 
         // string s = ""
-        ASTAssignmentStmt *string_err2 = (ASTAssignmentStmt *) main->getBody()->getContent()[5];
+        ASTAssignStmt *string_err2 = (ASTAssignStmt *) main->getBody()->getContent()[5];
         ASSERT_TRUE(string_err2->getVarRef()->getDef()->getType()->isString());
-        ASSERT_EQ(((ASTStringValue *) ((ASTValueExpr *) string_err2->getExpr())->getValue())->getValue(), "");
+        ASSERT_EQ(((ASTStringValue *) (string_err2->getExpr())->getValue())->getValue(), "");
 
         // error err2 = handle { s = err2() }
         ASTHandleStmt *error_err2 = (ASTHandleStmt *) main->getBody()->getContent()[6];

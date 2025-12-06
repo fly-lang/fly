@@ -10,7 +10,6 @@
 #include "ParserTest.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTImport.h"
-#include "AST/ASTGlobalVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTCall.h"
@@ -18,27 +17,13 @@
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
-#include "AST/ASTClassAttribute.h"
+#include "AST/ASTAttribute.h"
 #include "AST/ASTEnumEntry.h"
-#include "AST/ASTClassMethod.h"
+#include "AST/ASTMethod.h"
 
 namespace {
 
     using namespace fly;
-
-    TEST_F(ParserTest, GlobalVars) {
-        llvm::StringRef str = ("private Obj o");
-        ASTModule *Module = Parse("GlobalVars", str);
-
-        ASSERT_TRUE(Resolve());
-
-        ASTGlobalVar *VarO = Module->getGlobalVars().front();
-
-        EXPECT_EQ(VarO->getVisibility(), ASTModifierKind::V_PRIVATE);
-        EXPECT_FALSE(VarO->isConstant());
-        EXPECT_EQ(((ASTIntegerType *) VarO->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_INT);
-        EXPECT_EQ(VarO->getName(), "o");
-    }
 
     TEST_F(ParserTest, NullTypeVarReturn) {
         llvm::StringRef str = ("Type func() {\n"
@@ -51,7 +36,7 @@ namespace {
 
 
         // Get Body
-        ASTFunction *F = Module->getFunctions()[0];
+        ASTFunction *F = static_cast<ASTFunction *>(Module->getNodes()[0]);
         EXPECT_EQ(F->getReturnType()->getKind(), ASTTypeKind::TYPE_IDENTITY);
         const ASTBlockStmt *Body = F->getBody();
 
@@ -137,7 +122,7 @@ namespace {
         ASTModule *Module2 = Parse("func", str2);
         ASSERT_TRUE(isSuccess());
 
-        ASTFunction *main = *Module2->getFunctions().find("main")->getValue().begin()->second.begin();
+        ASTFunction *main = static_cast<ASTFunction *>(Module2->getNodes()[0]);
         const ASTBlock *Body = main->getBody();
         ASTVarStmt *aVar = ((ASTVarStmt *) Body->getContent()[0]);
         ASTVarRefExpr *aExpr = (ASTVarRefExpr *) aVar->getExpr();
@@ -172,7 +157,7 @@ namespace {
                 "  t.b = t.c"
                 "}\n");
         ASTModule *Module1 = Parse("func1", str2, false);
-        ASTFunction *func1 = *Module1->getFunctions().find("func1")->getValue().begin()->second.begin();
+        ASTFunction *func1 = static_cast<ASTFunction *>(Module1->getNodes()[0]);
         const ASTBlock *Body1 = func1->getBody();
         ASTVarStmt *tVar1 = ((ASTVarStmt *) Body1->getContent()[0]);
 
@@ -181,7 +166,7 @@ namespace {
                 "  Test t = { a = 3, b = 1}"
                 "}\n");
         ASTModule *Module2 = Parse("func2", str3);
-        ASTFunction *func2 = *Module2->getFunctions().find("func2")->getValue().begin()->second.begin();
+        ASTFunction *func2 = static_cast<ASTFunction *>(Module2->getNodes()[0]);
         const ASTBlock *Body2 = func2->getBody();
         ASTVarStmt *tVar2 = ((ASTVarStmt *) Body2->getContent()[0]);
 

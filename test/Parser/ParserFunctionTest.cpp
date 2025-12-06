@@ -15,13 +15,14 @@
 #include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTIdentifier.h"
-#include "AST/ASTClass.h"
+#include "AST/ASTArg.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTReturnStmt.h"
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTArg.h"
 
+#include <AST/ASTParam.h>
 #include <AST/ASTType.h>
 
 namespace {
@@ -35,35 +36,34 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         EXPECT_TRUE(Module->getNodes().size() == 1);
-        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
+        auto *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         EXPECT_TRUE(HasModifier(Func->getModifiers(), ASTModifierKind::MOD_DEFAULT));
-        EXPECT_EQ(Func->getReturnType()->getTypeKind(), ASTTypeKind::TYPE_BUILTIN);
-    	EXPECT_EQ((Func->getReturnType()), ASTTypeKind::TYPE_BUILTIN);
-    }
+        EXPECT_TRUE(HasBuiltinType(Func->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
+     }
 
-    TEST_F(ParserTest, FunctionVisibilityPrivate) {
+     TEST_F(ParserTest, FunctionVisibilityPrivate) {
         llvm::StringRef str = ("private void func() {}\n");
         ASTModule *Module = Parse("FunctionVisibilityPrivate", str);
 
         ASSERT_TRUE(Resolve());
 
-        EXPECT_TRUE(Module->getFunctions().size() == 1);
-        ASTFunction *Func = *Module->getFunctions().begin();
-        EXPECT_EQ(Func->getVisibility(), ASTModifierKind::V_PRIVATE);
-        EXPECT_EQ(Func->getReturnType()->getStmtKind(), ASTTypeKind::TYPE_VOID);
-    }
+        EXPECT_TRUE(Module->getNodes().size() == 1);
+        auto *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
+        EXPECT_TRUE(HasModifier(Func->getModifiers(), ASTModifierKind::MOD_PRIVATE));
+        EXPECT_TRUE(HasBuiltinType(Func->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
+     }
 
-    TEST_F(ParserTest, FunctionVisibilityPublic) {
+     TEST_F(ParserTest, FunctionVisibilityPublic) {
         llvm::StringRef str = ("public void func() {}\n");
         ASTModule *Module = Parse("FunctionVisibilityPublic", str);
 
         ASSERT_TRUE(Resolve());
 
-        EXPECT_TRUE(Module->getFunctions().size() == 1);
-        ASTFunction *Func = *Module->getFunctions().begin();
-        EXPECT_EQ(Func->getVisibility(), ASTModifierKind::V_PUBLIC);
-        EXPECT_EQ(Func->getReturnType()->getStmtKind(), ASTTypeKind::TYPE_VOID);
-    }
+        EXPECT_TRUE(Module->getNodes().size() == 1);
+        auto *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
+        EXPECT_TRUE(HasModifier(Func->getModifiers(), ASTModifierKind::MOD_PUBLIC));
+        EXPECT_TRUE(HasBuiltinType(Func->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
+     }
 
     TEST_F(ParserTest, FunctionType) {
         llvm::StringRef str = ("void func(bool a, "
@@ -74,75 +74,65 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = Module->getFunctions()[0];
-        EXPECT_EQ(Func->getReturnType()->getStmtKind(), ASTTypeKind::TYPE_VOID);
-        const ASTBlockStmt *Body = Func->getBody();
+        auto *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
+        EXPECT_TRUE(HasBuiltinType(Func->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
+         const ASTBlockStmt *Body = Func->getBody();
 
         // Test: bool a
-        ASTVar *aVar = Func->getParams()[0];
+        ASTParam *aVar = Func->getParams()[0];
         EXPECT_EQ(aVar->getName(), "a");
-        EXPECT_EQ(aVar->getType()->getStmtKind(), ASTTypeKind::TYPE_BOOL);
-        ASSERT_EQ(aVar->getDefaultValue(), nullptr);
+        EXPECT_TRUE(HasBuiltinType(aVar->getType(), ASTBuiltinTypeKind::TYPE_BOOL));
 
         // Test: byte b
-    	ASTVar *bVar = Func->getParams()[1];
+    	ASTParam *bVar = Func->getParams()[1];
         EXPECT_EQ(bVar->getName(), "b");
-        EXPECT_EQ(((ASTIntegerType *) bVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
-        ASSERT_EQ(bVar->getDefaultValue(), nullptr);
+        EXPECT_TRUE(HasBuiltinType(bVar->getType(), ASTBuiltinTypeKind::TYPE_BYTE));
 
         // Test: short c
-        ASTVar *cVar = Func->getParams()[2];
+        ASTParam *cVar = Func->getParams()[2];
         EXPECT_EQ(cVar->getName(), "c");
-        EXPECT_EQ(((ASTIntegerType *) cVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_SHORT);
-        ASSERT_EQ(cVar->getDefaultValue(), nullptr);
+        EXPECT_TRUE(HasBuiltinType(cVar->getType(), ASTBuiltinTypeKind::TYPE_SHORT));
 
         // Test: ushort d
-        ASTVar *dVar = Func->getParams()[3];
+        ASTParam *dVar = Func->getParams()[3];
         EXPECT_EQ(dVar->getName(), "d");
-        EXPECT_EQ(((ASTIntegerType *) dVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_USHORT);
-        ASSERT_EQ(dVar->getDefaultValue(), nullptr);
+        EXPECT_TRUE(HasBuiltinType(dVar->getType(), ASTBuiltinTypeKind::TYPE_USHORT));
 
         // Test: int e
-        ASTVar *eVar = Func->getParams()[4];
+        ASTParam *eVar = Func->getParams()[4];
         EXPECT_EQ(eVar->getName(), "e");
-        EXPECT_EQ(((ASTIntegerType *) eVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_INT);
-        ASSERT_EQ(eVar->getDefaultValue(), nullptr);
+        EXPECT_TRUE(HasBuiltinType(eVar->getType(), ASTBuiltinTypeKind::TYPE_INT));
 
         // Test: uint f
-        ASTVar *fVar = Func->getParams()[5];
+        ASTParam *fVar = Func->getParams()[5];
         EXPECT_EQ(fVar->getName(), "f");
-        EXPECT_EQ(((ASTIntegerType *) fVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_UINT);
-        ASSERT_EQ(fVar->getDefaultValue(), nullptr);
+        EXPECT_TRUE(HasBuiltinType(fVar->getType(), ASTBuiltinTypeKind::TYPE_UINT));
 
         // Test: long g
-        ASTVar *gVar = Func->getParams()[6];
+        ASTParam *gVar = Func->getParams()[6];
         EXPECT_EQ(gVar->getName(), "g");
-        EXPECT_EQ(((ASTIntegerType *) gVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_LONG);
-        ASSERT_EQ(gVar->getDefaultValue(), nullptr);
+        EXPECT_TRUE(HasBuiltinType(gVar->getType(), ASTBuiltinTypeKind::TYPE_LONG));
 
         // Test: ulong h
-        ASTVar *hVar = Func->getParams()[7];
+        ASTParam *hVar = Func->getParams()[7];
         EXPECT_EQ(hVar->getName(), "h");
-        EXPECT_EQ(((ASTIntegerType *) hVar->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_ULONG);
-        ASSERT_EQ(hVar->getDefaultValue(), nullptr);
+        EXPECT_TRUE(HasBuiltinType(hVar->getType(), ASTBuiltinTypeKind::TYPE_ULONG));
 
         // Test: float i
-        ASTVar *iVar = Func->getParams()[8];
+        ASTParam *iVar = Func->getParams()[8];
         EXPECT_EQ(iVar->getName(), "i");
-        EXPECT_EQ(((ASTFloatingPointType *) iVar->getType())->getFloatingPointKind(), ASTFloatingPointTypeKind::TYPE_FLOAT);
-        ASSERT_EQ(iVar->getDefaultValue(), nullptr);
+        EXPECT_TRUE(HasBuiltinType(iVar->getType(), ASTBuiltinTypeKind::TYPE_FLOAT));
 
         // Test: double j
-        ASTVar *jVar = Func->getParams()[9];
+        ASTParam *jVar = Func->getParams()[9];
         EXPECT_EQ(jVar->getName(), "j");
-        EXPECT_EQ(((ASTFloatingPointType *) jVar->getType())->getFloatingPointKind(), ASTFloatingPointTypeKind::TYPE_DOUBLE);
-        ASSERT_EQ(jVar->getDefaultValue(), nullptr);
+        EXPECT_TRUE(HasBuiltinType(jVar->getType(), ASTBuiltinTypeKind::TYPE_DOUBLE));
 
         // Test: Type t
-        // ASTAssignmentStmt *tStmt = (ASTAssignmentStmt *) Body->getContent()[10];
+        // ASTAssignStmt *tStmt = static_cast<ASTAssignStmt *>(Body->getContent()[10]);
         // ASTVar *tVar = tStmt->getVarRef()->getDef();
         // EXPECT_EQ(tVar->getName(), "t");
-        // EXPECT_EQ(((ASTIdentityType *) tVar->getType())->getIdentityTypeKind(), ASTIdentityTypeKind::TYPE_NONE);
+        // EXPECT_EQ(static_cast<ASTIdentityType *>(tVar->getType())->getIdentityTypeKind(), ASTIdentityTypeKind::TYPE_NONE);
         // ASSERT_EQ(tStmt->getExpr(), nullptr);
     }
 
@@ -156,32 +146,28 @@ namespace {
         ASSERT_TRUE(Resolve());
 
 
-        EXPECT_TRUE(Module->getFunctions().size() == 1); // func() has PRIVATE Visibility
-        ASTFunction *VerifyFunc = Module->getFunctions()[0];
-        EXPECT_EQ(VerifyFunc->getVisibility(), ASTModifierKind::V_PRIVATE);
+        EXPECT_TRUE(Module->getNodes().size() == 1); // func() has PRIVATE Visibility
+        auto *VerifyFunc = static_cast<ASTFunction *>(Module->getNodes()[0]);
 
-        ASTVar *Par0 = VerifyFunc->getParams()[0];
-        ASTVar *Par1 = VerifyFunc->getParams()[1];
-        ASTVar *Par2 = VerifyFunc->getParams()[2];
+        ASTParam *Par0 = VerifyFunc->getParams()[0];
+        ASTParam *Par1 = VerifyFunc->getParams()[1];
+        ASTParam *Par2 = VerifyFunc->getParams()[2];
 
         EXPECT_EQ(Par0->getName(), "a");
-        EXPECT_EQ(Par0->getType()->getStmtKind(), ASTTypeKind::TYPE_INTEGER);
-        EXPECT_EQ(Par0->isConstant(), false);
+        EXPECT_TRUE(HasBuiltinType(Par0->getType(), ASTBuiltinTypeKind::TYPE_INT));
+        EXPECT_FALSE(HasModifier(Par0->getModifiers(), ASTModifierKind::MOD_CONSTANT));
 
         EXPECT_EQ(Par1->getName(), "b");
-        EXPECT_EQ(Par1->getType()->getStmtKind(), ASTTypeKind::TYPE_FLOATING_POINT);
-        EXPECT_EQ(Par1->isConstant(), true);
+        EXPECT_TRUE(HasBuiltinType(Par1->getType(), ASTBuiltinTypeKind::TYPE_FLOAT));
+        EXPECT_TRUE(HasModifier(Par1->getModifiers(), ASTModifierKind::MOD_CONSTANT));
 
         EXPECT_EQ(Par2->getName(), "c");
-        EXPECT_EQ(Par2->getType()->getStmtKind(), ASTTypeKind::TYPE_BOOL);
-        EXPECT_EQ(Par2->isConstant(), false);
-        EXPECT_EQ(Par2->getDefaultValue()->getTypeKind(), ASTTypeKind::TYPE_BOOL);
-        EXPECT_EQ(((ASTBoolValue *) Par2->getDefaultValue())->getValue(), false);
-        EXPECT_EQ(((ASTBoolValue *) Par2->getDefaultValue())->getValue(), false);
+        EXPECT_TRUE(HasBuiltinType(Par2->getType(), ASTBuiltinTypeKind::TYPE_BOOL));
+        EXPECT_FALSE(HasModifier(Par2->getModifiers(), ASTModifierKind::MOD_CONSTANT));
 
-        ASTReturnStmt *Return = (ASTReturnStmt *) VerifyFunc->getBody()->getContent()[0];
-        EXPECT_EQ(((ASTValueExpr *) Return->getExpr())->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr*) Return->getExpr())->getValue())->getValue(), "1");
+        auto *Return = static_cast<ASTReturnStmt *>(VerifyFunc->getBody()->getContent()[0]);
+        EXPECT_EQ(Return->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(static_cast<ASTNumberValue *>(Return->getExpr())->getValue(), "1");
         EXPECT_EQ(Return->getStmtKind(), ASTStmtKind::STMT_RETURN);
     }
 
@@ -202,43 +188,42 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get all functions
-        ASTFunction *doSome = Module->getFunctions()[0];
-        ASTFunction *doOther = Module->getFunctions()[1];
-        ASTFunction *doNow = Module->getFunctions()[2];
-        ASTFunction *main = Module->getFunctions()[3];
+        auto *doSome = static_cast<ASTFunction *>(Module->getNodes()[0]);
+        auto *doOther = static_cast<ASTFunction *>(Module->getNodes()[1]);
+        auto *doNow = static_cast<ASTFunction *>(Module->getNodes()[2]);
+        auto *main = static_cast<ASTFunction *>(Module->getNodes()[3]);
 
         ASSERT_TRUE(doSome != nullptr);
         ASSERT_TRUE(doOther != nullptr);
         ASSERT_TRUE(main != nullptr);
 
         // Get main() Body
-        const ASTBlockStmt *Body = main->getBody();
+        auto *Body = main->getBody();
 
         // Test: doSome()
-        ASTAssignmentStmt *VarB = (ASTAssignmentStmt *) Body->getContent()[0];
-        ASTCallExpr *doSomeCall = (ASTCallExpr *) VarB->getExpr();
-        EXPECT_EQ(doSomeCall->getCall()->getName(), "doSome");
+        auto *VarB = static_cast<ASTAssignStmt *>(Body->getContent()[0]);
+        auto *doSomeCall = static_cast<ASTCall *>(VarB->getTarget());
+        EXPECT_EQ(doSomeCall->getName(), "doSome");
         EXPECT_EQ(doSomeCall->getExprKind(), ASTExprKind::EXPR_CALL);
 
         // Test: doNow()
-        ASTAssignmentStmt *B = (ASTAssignmentStmt *) Body->getContent()[1];
-        ASTCallExpr *doNowCall = (ASTCallExpr *) B->getExpr();
-        EXPECT_EQ(doNowCall->getCall()->getName(), "doNow");
+        auto *B = static_cast<ASTAssignStmt *>(Body->getContent()[1]);
+        auto *doNowCall = static_cast<ASTCall *>(B->getTarget());
+        EXPECT_EQ(doNowCall->getName(), "doNow");
         EXPECT_EQ(doNowCall->getExprKind(), ASTExprKind::EXPR_CALL);
 
         // Test: doOther(a, b)
-        ASTExprStmt *doOtherStmt = (ASTExprStmt *) Body->getContent()[2];
+        auto *doOtherStmt = static_cast<ASTExprStmt *>(Body->getContent()[2]);
         EXPECT_EQ(doOtherStmt->getStmtKind(), ASTStmtKind::STMT_EXPR);
-        ASTCallExpr *doOtherCall = (ASTCallExpr *) doOtherStmt->getExpr();
-        EXPECT_EQ(doOtherCall->getCall()->getName(), "doOther");
-        ASTArg *Arg0 = doOtherCall->getCall()->getArgs()[0];
-        EXPECT_EQ(((ASTVarRefExpr *) Arg0->getExpr())->getVarRef()->getName(), "a");
-        ASTArg *Arg1 = doOtherCall->getCall()->getArgs()[1];
-        EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *) Arg1->getExpr())->getValue())->getValue(), "1");
+        auto *doOtherCall = static_cast<ASTCall *>(doOtherStmt->getExpr());
+        EXPECT_EQ(doOtherCall->getName(), "doOther");
+        auto *Arg0 = doOtherCall->getArgs()[0];
+        EXPECT_EQ(static_cast<ASTIdentifier *>(Arg0->getExpr())->getName(), "a");
+        auto *Arg1 = doOtherCall->getArgs()[1];
+        EXPECT_EQ(static_cast<ASTNumberValue *>(Arg1->getExpr())->getValue(), "1");
 
-        // return do()
-        ASTReturnStmt *Ret = (ASTReturnStmt *) Body->getContent()[3];
-        ASTVarRefExpr *RetExpr = (ASTVarRefExpr *) Ret->getExpr();
-        EXPECT_EQ(RetExpr->getVarRef()->getName(), "b");
+        // return b
+        auto *RetStmt = static_cast<ASTReturnStmt *>(Body->getContent()[3]);
+        EXPECT_EQ(static_cast<ASTIdentifier *>(RetStmt->getExpr())->getName(), "b");
     }
 }

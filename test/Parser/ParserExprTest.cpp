@@ -36,7 +36,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // ++a
@@ -73,7 +73,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a++ + ++a
@@ -103,7 +103,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a += 1
@@ -130,7 +130,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a -= 1
@@ -157,7 +157,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a *= 1
@@ -184,7 +184,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a /= 1
@@ -211,7 +211,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a %= 1
@@ -238,7 +238,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a &= 1
@@ -265,7 +265,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a |= 1
@@ -292,7 +292,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a ^= 1
@@ -319,7 +319,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a <<= 1
@@ -346,7 +346,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a <<= 1
@@ -373,7 +373,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a + 1
@@ -400,7 +400,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a - 1
@@ -427,7 +427,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a * 1
@@ -454,7 +454,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a / 1
@@ -481,7 +481,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a % 1
@@ -508,7 +508,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a & 1
@@ -535,7 +535,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a | 1
@@ -562,7 +562,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a | 1
@@ -589,7 +589,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a << 1
@@ -616,7 +616,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a << 1
@@ -643,7 +643,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a && true
@@ -670,7 +670,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a || true
@@ -697,7 +697,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a == true
@@ -724,7 +724,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a != true
@@ -751,7 +751,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a > true
@@ -778,7 +778,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a >= true
@@ -805,7 +805,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a < true
@@ -832,7 +832,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a <= true
@@ -859,7 +859,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a + 2 * a
@@ -890,7 +890,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a - 2 / a
@@ -921,7 +921,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = (2 - a) % (a + 1)
@@ -955,7 +955,7 @@ namespace {
         ASSERT_TRUE(Resolve());
 
         // Get Body
-        ASTFunction *Func = *Module->getFunctions().begin();
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         const ASTBlockStmt *Body = Func->getBody();
 
         // a = a <= true

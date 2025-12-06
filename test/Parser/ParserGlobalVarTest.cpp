@@ -69,52 +69,60 @@ namespace {
 
         EXPECT_EQ(VarA->getVisibility(), ASTModifierKind::V_PRIVATE);
         EXPECT_FALSE(VarA->isConstant());
-        EXPECT_EQ(((ASTIntegerType *) VarA->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_INT);
+        EXPECT_TRUE(HasBuiltinType(VarA->getType(), ASTBuiltinTypeKind::TYPE_INT));
         EXPECT_EQ(VarA->getName(), "a");
 
         EXPECT_EQ(VarB->getVisibility(), ASTModifierKind::V_PUBLIC);
         EXPECT_FALSE(VarB->isConstant());
-        EXPECT_EQ(((ASTFloatingPointType *) VarB->getType())->getFloatingPointKind(), ASTFloatingPointTypeKind::TYPE_FLOAT);
+        EXPECT_TRUE(HasBuiltinType(VarB->getType(), ASTBuiltinTypeKind::TYPE_FLOAT));
         EXPECT_EQ(VarB->getName(), "b");
 
-        EXPECT_EQ(VarC->getVisibility(), ASTModifierKind::V_DEFAULT);
+        // VarC has default visibility -> check via modifiers below
+        EXPECT_TRUE(HasModifier(VarC->getModifiers(), ASTModifierKind::MOD_DEFAULT));
         ASSERT_FALSE(VarC->isConstant());
-        EXPECT_EQ(VarC->getType()->getStmtKind(), ASTTypeKind::TYPE_BOOL);
+        EXPECT_TRUE(HasBuiltinType(VarC->getType(), ASTBuiltinTypeKind::TYPE_BOOL));
         EXPECT_EQ(VarC->getName(), "c");
 
-        EXPECT_EQ(VarD->getVisibility(), ASTModifierKind::V_DEFAULT);
+        // VarD has default visibility -> check via modifiers below
+        EXPECT_TRUE(HasModifier(VarD->getModifiers(), ASTModifierKind::MOD_DEFAULT));
         ASSERT_TRUE(VarD->isConstant());
-        EXPECT_EQ(((ASTIntegerType *)VarD->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_LONG);
+        EXPECT_TRUE(HasBuiltinType(VarD->getType(), ASTBuiltinTypeKind::TYPE_LONG));
         EXPECT_EQ(VarD->getName(), "d");
 
-        EXPECT_EQ(VarE->getVisibility(), ASTModifierKind::V_DEFAULT);
+        // VarE has default visibility -> check via modifiers below
+        EXPECT_TRUE(HasModifier(VarE->getModifiers(), ASTModifierKind::MOD_DEFAULT));
         ASSERT_FALSE(VarE->isConstant());
-        EXPECT_EQ(((ASTFloatingPointType *) VarE->getType())->getFloatingPointKind(), ASTFloatingPointTypeKind::TYPE_DOUBLE);
+        EXPECT_TRUE(HasBuiltinType(VarE->getType(), ASTBuiltinTypeKind::TYPE_DOUBLE));
         EXPECT_EQ(VarE->getName(), "e");
 
-        EXPECT_EQ(VarF->getVisibility(), ASTModifierKind::V_DEFAULT);
+        // VarF has default visibility -> check via modifiers below
+        EXPECT_TRUE(HasModifier(VarF->getModifiers(), ASTModifierKind::MOD_DEFAULT));
         ASSERT_FALSE(VarF->isConstant());
-        EXPECT_EQ(((ASTIntegerType *)VarF->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
+        EXPECT_TRUE(HasBuiltinType(VarF->getType(), ASTBuiltinTypeKind::TYPE_BYTE));
         EXPECT_EQ(VarF->getName(), "f");
 
-        EXPECT_EQ(VarG->getVisibility(), ASTModifierKind::V_DEFAULT);
+        // VarG has default visibility -> check via modifiers below
+        EXPECT_TRUE(HasModifier(VarG->getModifiers(), ASTModifierKind::MOD_DEFAULT));
         ASSERT_FALSE(VarG->isConstant());
-        EXPECT_EQ(((ASTIntegerType *)VarG->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_USHORT);
+        EXPECT_TRUE(HasBuiltinType(VarG->getType(), ASTBuiltinTypeKind::TYPE_USHORT));
         EXPECT_EQ(VarG->getName(), "g");
 
-        EXPECT_EQ(VarH->getVisibility(), ASTModifierKind::V_DEFAULT);
+        // VarH has default visibility -> check via modifiers below
+        EXPECT_TRUE(HasModifier(VarH->getModifiers(), ASTModifierKind::MOD_DEFAULT));
         ASSERT_FALSE(VarH->isConstant());
-        EXPECT_EQ(((ASTIntegerType *)VarH->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_SHORT);
+        EXPECT_TRUE(HasBuiltinType(VarH->getType(), ASTBuiltinTypeKind::TYPE_SHORT));
         EXPECT_EQ(VarH->getName(), "h");
 
-        EXPECT_EQ(VarI->getVisibility(), ASTModifierKind::V_DEFAULT);
+        // VarI has default visibility -> check via modifiers below
+        EXPECT_TRUE(HasModifier(VarI->getModifiers(), ASTModifierKind::MOD_DEFAULT));
         ASSERT_FALSE(VarI->isConstant());
-        EXPECT_EQ(((ASTIntegerType *)VarI->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_UINT);
+        EXPECT_TRUE(HasBuiltinType(VarI->getType(), ASTBuiltinTypeKind::TYPE_UINT));
         EXPECT_EQ(VarI->getName(), "i");
 
-        EXPECT_EQ(VarJ->getVisibility(), ASTModifierKind::V_DEFAULT);
+        // VarJ has default visibility -> check via modifiers below
+        EXPECT_TRUE(HasModifier(VarJ->getModifiers(), ASTModifierKind::MOD_DEFAULT));
         ASSERT_FALSE(VarJ->isConstant());
-        EXPECT_EQ(((ASTIntegerType *)VarJ->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_ULONG);
+        EXPECT_TRUE(HasBuiltinType(VarJ->getType(), ASTBuiltinTypeKind::TYPE_ULONG));
         EXPECT_EQ(VarJ->getName(), "j");
     }
 
@@ -129,7 +137,7 @@ namespace {
 
         // a
         EXPECT_EQ(VarA->getType()->getStmtKind(), ASTTypeKind::TYPE_ARRAY);
-        EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) VarA->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
+        EXPECT_TRUE(HasBuiltinType(((ASTArrayType *) VarA->getType())->getType(), ASTBuiltinTypeKind::TYPE_BYTE));
         EXPECT_EQ((ASTValueExpr *)((ASTArrayType *) VarA->getType())->getSize(), nullptr);
         EXPECT_NE(((ASTNullValue *) ((ASTValueExpr *) VarA->getExpr())->getValue()), nullptr);
     }
@@ -145,7 +153,7 @@ namespace {
 
         // b
         EXPECT_EQ(VarB->getType()->getStmtKind(), ASTTypeKind::TYPE_ARRAY);
-        EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) VarB->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
+        EXPECT_TRUE(HasBuiltinType(((ASTArrayType *) VarB->getType())->getType(), ASTBuiltinTypeKind::TYPE_BYTE));
         EXPECT_EQ((ASTValueExpr *)((ASTArrayType *) VarB->getType())->getSize(), nullptr);
         EXPECT_NE(VarB->getExpr(), nullptr);
         ASTValueExpr *bExpr = (ASTValueExpr *) VarB->getExpr();
@@ -163,7 +171,7 @@ namespace {
 
         // c
         EXPECT_EQ(VarC->getType()->getStmtKind(), ASTTypeKind::TYPE_ARRAY);
-        EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) VarC->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
+        EXPECT_TRUE(HasBuiltinType(((ASTArrayType *) VarC->getType())->getType(), ASTBuiltinTypeKind::TYPE_BYTE));
         EXPECT_EQ((ASTValueExpr *)((ASTArrayType *) VarC->getType())->getSize(), nullptr);
         EXPECT_NE(VarC->getExpr(), nullptr);
         ASTValueExpr *cExpr = (ASTValueExpr *) VarC->getExpr();
@@ -185,7 +193,7 @@ namespace {
 
         // d
         EXPECT_EQ(VarD->getType()->getStmtKind(), ASTTypeKind::TYPE_ARRAY);
-        EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) VarD->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
+        EXPECT_TRUE(HasBuiltinType(((ASTArrayType *) VarD->getType())->getType(), ASTBuiltinTypeKind::TYPE_BYTE));
         EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *)((ASTArrayType *) VarD->getType())->getSize())->getValue())->getValue(), "3");
         EXPECT_EQ(VarD->getExpr(), nullptr);
     }
@@ -201,7 +209,7 @@ namespace {
 
         // e
         EXPECT_EQ(VarE->getType()->getStmtKind(), ASTTypeKind::TYPE_ARRAY);
-        EXPECT_EQ(((ASTIntegerType *) ((ASTArrayType *) VarE->getType())->getType())->getIntegerKind(), ASTIntegerTypeKind::TYPE_BYTE);
+        EXPECT_TRUE(HasBuiltinType(((ASTArrayType *) VarE->getType())->getType(), ASTBuiltinTypeKind::TYPE_BYTE));
         EXPECT_EQ(((ASTIntegerValue *) ((ASTValueExpr *)((ASTArrayType *) VarE->getType())->getSize())->getValue())->getValue(), "3");
         EXPECT_NE(VarE->getExpr(), nullptr);
         ASTValueExpr *eExpr = (ASTValueExpr *) VarE->getExpr();

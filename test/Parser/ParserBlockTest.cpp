@@ -40,7 +40,7 @@ TEST_F(ParserTest, IfElsifElseStmt) {
 	ASSERT_TRUE(Resolve());
 
 	// Get Body
-	ASTFunction *F = Module->getFunctions()[0];
+	ASTFunction *F = static_cast<ASTFunction *>(Module->getNodes()[0]);
 	const ASTBlockStmt *Body = F->getBody();
 
 	// If
@@ -82,7 +82,7 @@ TEST_F(ParserTest, IfElsifElseInlineStmt) {
 	ASSERT_TRUE(Resolve());
 
 	// Get Body
-	ASTFunction *F = Module->getFunctions()[0];
+	ASTFunction *F = static_cast<ASTFunction *>(Module->getNodes()[0]);
 	const ASTBlockStmt *Body = F->getBody();
 
 	// If
@@ -128,7 +128,7 @@ TEST_F(ParserTest, SwitchCaseDefaultStmt) {
 	ASSERT_TRUE(Resolve());
 
 	// Get Body
-	ASTFunction *F = Module->getFunctions()[0];
+	ASTFunction *F = static_cast<ASTFunction *>(Module->getNodes()[0]);
 	const ASTBlockStmt *Body = F->getBody();
 
 	ASTSwitchStmt *SwitchStmt = (ASTSwitchStmt *)Body->getContent()[0];
@@ -158,7 +158,7 @@ TEST_F(ParserTest, WhileStmt) {
 	ASSERT_TRUE(Resolve());
 
 	// Get Body
-	ASTFunction *F = Module->getFunctions()[0];
+	ASTFunction *F = static_cast<ASTFunction *>(Module->getNodes()[0]);
 	const ASTBlockStmt *Body = F->getBody();
 
 	ASTLoopStmt *WhileBlock = (ASTLoopStmt *)Body->getContent()[0];
@@ -181,7 +181,7 @@ TEST_F(ParserTest, WhileValueStmt) {
 	ASSERT_TRUE(Resolve());
 
 	// Get Body
-	ASTFunction *F = Module->getFunctions()[0];
+	ASTFunction *F = static_cast<ASTFunction *>(Module->getNodes()[0]);
 	const ASTBlockStmt *Body = F->getBody();
 
 	ASTLoopStmt *WhileBlock = (ASTLoopStmt *)Body->getContent()[0];
@@ -201,7 +201,7 @@ TEST_F(ParserTest, ForStmt) {
 	ASSERT_TRUE(Resolve());
 
 	// Get Body
-	ASTFunction *F = Module->getFunctions()[0];
+	ASTFunction *F = static_cast<ASTFunction *>(Module->getNodes()[0]);
 	const ASTBlockStmt *Body = F->getBody();
 
 	ASTLoopStmt *ForBlock = (ASTLoopStmt *)Body->getContent()[0];

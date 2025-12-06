@@ -16,7 +16,7 @@ add_executable(fly_test
 #        ImportTest.cpp
         Parser/LexerTest.cpp
 #        Parser/ParserCommentTest.cpp
-#        Parser/ParserExprTest.cpp
+        Parser/ParserExprTest.cpp
         Parser/ParserFunctionTest.cpp
 #        Parser/ParserGlobalVarTest.cpp
 #        Parser/ParserImportTest.cpp

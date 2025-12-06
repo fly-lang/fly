@@ -14,6 +14,7 @@
 
 // third party
 #include <AST/ASTBuilder.h>
+#include <AST/ASTType.h>
 #include <gtest/gtest.h>
 
 #ifndef FLY_PARSERTEST_H
@@ -67,6 +68,14 @@ public:
         }
         return false;
     }
+
+    static bool HasBuiltinType(ASTType *Type, ASTBuiltinTypeKind Kind) {
+		if (Type->getTypeKind() != ASTTypeKind::TYPE_BUILTIN) {
+			return false;
+		}
+		ASTBuiltinType *BuiltinType = static_cast<ASTBuiltinType *>(Type);
+		return BuiltinType->getBuiltinKind() == Kind;
+	}
 
 };
 

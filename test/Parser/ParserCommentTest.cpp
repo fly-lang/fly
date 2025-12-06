@@ -34,7 +34,7 @@ namespace {
 //        EXPECT_EQ(VarB->getName(), "b");
 //        EXPECT_EQ(VarB->getComment()->getContent(), "// Global var comment");
 //
-//        ASTFunction *Func = *Module->getFunctions().begin();
+//        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
 //        EXPECT_EQ(Func->getName(), "func");
 //        EXPECT_EQ(Func->getComment()->getContent(), "// Func comment");
 //    }
@@ -60,15 +60,15 @@ namespace {
         EXPECT_EQ(VarB->getName(), "b");
         EXPECT_EQ(VarB->getComment()->getContent(), "/* Global var block comment */");
 
-        ASTFunction *Func = Module->getFunctions().begin()[0];
+        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
         EXPECT_EQ(Func->getName(), "func");
         EXPECT_EQ(Func->getComment()->getContent(), "/*   Func block comment \n*/");
 
-        ASTFunction *Func1 = Module->getFunctions().begin()[1];
+        ASTFunction *Func1 = static_cast<ASTFunction *>(Module->getNodes()[1]);
         EXPECT_EQ(Func1->getName(), "func1");
         EXPECT_EQ(Func1->getComment(), nullptr);
 
-        ASTFunction *Func2 = Module->getFunctions().begin()[2];
+        ASTFunction *Func2 = static_cast<ASTFunction *>(Module->getNodes()[2]);
         EXPECT_EQ(Func2->getName(), "func2");
         EXPECT_EQ(Func2->getComment()->getContent(), "/*   Func2 block comment \n*/");
     }
