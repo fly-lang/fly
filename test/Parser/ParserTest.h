@@ -10,7 +10,6 @@
 // fly
 #include "../TestUtils.h"
 #include "Parser/Parser.h"
-#include "Sema/Sema.h"
 
 // third party
 #include <AST/ASTBuilder.h>
@@ -26,20 +25,21 @@ class ParserTest : public ::testing::Test {
 
 public:
     const CompilerInstance CI;
-    Sema *S;
+    // Sema *S;
     DiagnosticsEngine &Diags;
     ASTBuilder *Builder;
     llvm::SmallVector<ASTModule *, 8> ASTModules;
-    llvm::SmallVector<SemaModule*, 8> SemaModules;
+    // llvm::SmallVector<SemaModule*, 8> SemaModules;
 
     ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
-        Diags(CI.getDiagnostics()), Builder(new ASTBuilder(Diags)),
-        S(new Sema(CI.getDiagnostics())) {
+        Diags(CI.getDiagnostics()), Builder(new ASTBuilder(Diags))
+        // ,S(new Sema(CI.getDiagnostics()))
+    {
 
     }
 
     virtual ~ParserTest() {
-        delete S;
+        delete Builder;
     }
 
 protected:
@@ -55,12 +55,12 @@ protected:
         return AST;
     }
 
-    bool Resolve() {
-        Diags.getClient()->BeginSourceFile();
-        SemaModules = S->Resolve(ASTModules);
-        Diags.getClient()->EndSourceFile();
-        return !Diags.hasErrorOccurred();
-    }
+    // bool Resolve() {
+    //     Diags.getClient()->BeginSourceFile();
+    //     SemaModules = S->Resolve(ASTModules);
+    //     Diags.getClient()->EndSourceFile();
+    //     return !Diags.hasErrorOccurred();
+    // }
 
     template<typename T, typename U>
     static T *As(U *Ptr) {

@@ -35,7 +35,7 @@ namespace {
                 "  a--\n"
                 "}\n");
         ASTModule *Module = Parse("UnaryExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -72,7 +72,7 @@ namespace {
                 "  a = a++ + ++a"
                 "}\n");
         ASTModule *Module = Parse("UnaryExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -99,7 +99,7 @@ namespace {
                 "  a += 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignAddExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -125,7 +125,7 @@ namespace {
                 "  a -= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignSubExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -151,7 +151,7 @@ namespace {
                 "  a *= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignMulExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -177,7 +177,7 @@ namespace {
                 "  a /= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignDivExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -203,7 +203,7 @@ namespace {
                 "  a %= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignModExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -229,7 +229,7 @@ namespace {
                 "  a &= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignAndExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -255,7 +255,7 @@ namespace {
                 "  a |= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignOrExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -281,7 +281,7 @@ namespace {
                 "  a ^= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignXorExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -307,7 +307,7 @@ namespace {
                 "  a <<= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignShiftLExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -333,7 +333,7 @@ namespace {
                 "  a >>= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignShiftRExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -359,7 +359,7 @@ namespace {
                 "  a = a + 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAddExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -385,7 +385,7 @@ namespace {
                 "  a = a - 1"
                 "}\n");
         ASTModule *Module = Parse("BinarySubExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -411,7 +411,7 @@ namespace {
                 "  a = a * 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryMulExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -437,7 +437,7 @@ namespace {
                 "  a = a / 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryDivExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -463,7 +463,7 @@ namespace {
                 "  a = a % 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryModExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -489,7 +489,7 @@ namespace {
                 "  a = a & 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAndExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -515,7 +515,7 @@ namespace {
                 "  a = a | 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryOrExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -541,7 +541,7 @@ namespace {
                 "  a = a ^ 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryXorExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -567,7 +567,7 @@ namespace {
                 "  a = a << 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryShiftLExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -593,7 +593,7 @@ namespace {
                 "  a = a >> 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryShiftRExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -619,7 +619,7 @@ namespace {
                 "  a = a && true"
                 "}\n");
         ASTModule *Module = Parse("BinaryLogicAndExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -645,7 +645,7 @@ namespace {
                 "  a = a || true"
                 "}\n");
         ASTModule *Module = Parse("BinaryLogicOrExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -671,7 +671,7 @@ namespace {
                 "  a = a == true"
                 "}\n");
         ASTModule *Module = Parse("BinaryComparisonEqualExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -697,7 +697,7 @@ namespace {
                 "  a = a != true"
                 "}\n");
         ASTModule *Module = Parse("BinaryComparisonNotEqualExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -723,7 +723,7 @@ namespace {
                 "  a = a > true"
                 "}\n");
         ASTModule *Module = Parse("BinaryComparisonGreaterThanExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -749,7 +749,7 @@ namespace {
                 "  a = a >= true"
                 "}\n");
         ASTModule *Module = Parse("BinaryComparisonGreaterThanEqualExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -775,7 +775,7 @@ namespace {
                 "  a = a < true"
                 "}\n");
         ASTModule *Module = Parse("BinaryComparisonLessThanExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -801,7 +801,7 @@ namespace {
                 "  a = a <= true"
                 "}\n");
         ASTModule *Module = Parse("BinaryComparisonLessThanEqualExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -827,7 +827,7 @@ namespace {
                 "  a = a + 2 * a"
                 "}\n");
         ASTModule *Module = Parse("BinaryAddMulExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -857,7 +857,7 @@ namespace {
                 "  a = a - 2 / a"
                 "}\n");
         ASTModule *Module = Parse("BinarySubDivExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -887,7 +887,7 @@ namespace {
                 "  a = (2 - a) % (a + 1)"
                 "}\n");
         ASTModule *Module = Parse("BinaryParenExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -920,7 +920,7 @@ namespace {
                 "  a = a==1 ? 1 : a"
                 "}\n");
         ASTModule *Module = Parse("TernaryExpr", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);

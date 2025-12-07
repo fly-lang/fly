@@ -28,7 +28,7 @@ namespace {
 //        );
 //
 //        ASTModule *Module = Parse("LineComments", str);
-//        ASSERT_TRUE(Resolve());
+//
 //
 //        ASTGlobalVar *VarB = *Module->getGlobalVars().begin();
 //        EXPECT_EQ(VarB->getName(), "b");

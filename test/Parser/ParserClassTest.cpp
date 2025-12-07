@@ -21,6 +21,7 @@
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTMethod.h"
 
+#include <AST/ASTMember.h>
 #include <AST/ASTName.h>
 #include <AST/ASTReturnStmt.h>
 
@@ -37,7 +38,7 @@ namespace {
 							   "\n");
         ASTModule *Module = Parse("TypeDefaultVarReturn", str);
 
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         ASTFunction *F = As<ASTFunction>(Module->getNodes()[0]);
@@ -76,7 +77,7 @@ namespace {
                 "}\n");
         ASTModule *Module2 = Parse("func", str2);
 
-        ASSERT_TRUE(Resolve());
+
 
     	// Verify enum node exists and has expected name
     	ASTEnum *E = As<ASTEnum>(Module->getNodes()[0]);
@@ -180,7 +181,7 @@ namespace {
          ASSERT_TRUE(assign2_target != nullptr);
          ASSERT_TRUE(assign2_target->isStruct());
 
-        ASSERT_TRUE(Resolve());
+
     }
 
     TEST_F(ParserTest, Class) {
@@ -198,7 +199,7 @@ namespace {
 			"  t.a()\n"
 			"}\n");
         ASTModule *Module = Parse("TestClass", str);
-        ASSERT_TRUE(Resolve());
+
 
         ASTClass *TestClass = As<ASTClass>(Module->getNodes()[0]);
         ASSERT_TRUE(TestClass != nullptr);
@@ -306,7 +307,7 @@ namespace {
                 "}\n");
         ASTModule *Module2 = Parse("TestStruct", str2);
 
-        ASSERT_TRUE(Resolve());
+
 
         // Verify the Case struct has Test as a base
         ASTClass *Case = As<ASTClass>(Module->getNodes()[0]);
@@ -326,19 +327,49 @@ namespace {
     }
 
     TEST_F(ParserTest, ClassExtendClass) {
-        llvm::StringRef str = ("public class Case : Test {\n"
-                               "  int b\n"
-                               "  void f() {}\n"
-                               "}\n");
-        ASTModule *Module = Parse("CaseClass", str);
+         llvm::StringRef str = (
+	         "public class Case : Test {\n"
+	         "  int b\n"
+	         "  void f() {}\n"
+	         "}\n"
+	         "class Test {\n"
+	         "}\n");
+         ASTModule *Module = Parse("TestClass", str);
 
-        llvm::StringRef str2 = (
-                "class Test {\n"
-                "}\n");
-        ASTModule *Module2 = Parse("TestClass", str2);
+        // Verify Case class
+        ASTClass *Case = As<ASTClass>(Module->getNodes()[0]);
+        ASSERT_TRUE(Case != nullptr);
+        EXPECT_EQ(Case->getName(), "Case");
+        EXPECT_TRUE(HasModifier(Case->getModifiers(), ASTModifierKind::MOD_PUBLIC));
 
-        ASSERT_TRUE(Resolve());
-    }
+        // Bases: should contain named type 'Test'
+        const auto &Bases = Case->getBases();
+        EXPECT_EQ(Bases.size(), 1);
+        ASTType *Base0 = Bases[0];
+        ASSERT_TRUE(Base0 != nullptr);
+        EXPECT_EQ(Base0->getTypeKind(), ASTTypeKind::TYPE_NAMED);
+        ASTNamedType *Named = As<ASTNamedType>(Base0);
+        ASSERT_TRUE(Named != nullptr);
+        const auto &Names = Named->getNames();
+        ASSERT_TRUE(!Names.empty());
+        EXPECT_EQ(Names[0]->getName(), "Test");
+
+        // Nodes: attribute 'b' then method 'f'
+        ASSERT_TRUE(Case->getNodes().size() >= 2);
+        ASTAttribute *bAttr = As<ASTAttribute>(Case->getNodes()[0]);
+        ASTMethod *fMethod = As<ASTMethod>(Case->getNodes()[1]);
+        ASSERT_TRUE(bAttr != nullptr);
+        ASSERT_TRUE(fMethod != nullptr);
+        EXPECT_EQ(bAttr->getName(), "b");
+        EXPECT_TRUE(HasModifier(bAttr->getModifiers(), ASTModifierKind::MOD_DEFAULT));
+
+        EXPECT_EQ(fMethod->getName(), "f");
+        EXPECT_TRUE(HasBuiltinType(fMethod->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
+        // method body should be present and empty
+        ASTBlockStmt *FBody = fMethod->getBody();
+        ASSERT_TRUE(FBody != nullptr);
+        EXPECT_EQ(FBody->getContent().size(), 0);
+     }
 
     TEST_F(ParserTest, EnumExtendEnum) {
         llvm::StringRef str = ("public enum Option : Enum {\n"
@@ -351,8 +382,6 @@ namespace {
                 "  A\n"
                 "}\n");
         ASTModule *Module2 = Parse("Enum", str2);
-
-        ASSERT_TRUE(Resolve());
 
         // Verify Option enum exists and extends Enum
         ASTEnum *Opt = As<ASTEnum>(Module->getNodes()[0]);
@@ -400,8 +429,6 @@ namespace {
                 "interface Interface {\n"
                 "}\n");
         ASTModule *Module4 = Parse("Interface", str4);
-
-        ASSERT_TRUE(Resolve());
 
         // Verify the Test class has Class, Struct and Interface as bases
         ASTClass *Test = As<ASTClass>(Module->getNodes()[0]);

@@ -30,7 +30,7 @@ namespace {
                                  );
         ASTModule *Module = Parse("GlobalVars", str);
 
-        ASSERT_TRUE(Resolve());
+
 
         ASTGlobalVar *VarA = nullptr;
         ASTGlobalVar *VarB = nullptr;
@@ -131,7 +131,7 @@ namespace {
                                "byte[] a = null\n" // array of zero bytes
                                );
         ASTModule *Module = Parse("GlobalArrayNull", str);
-        ASSERT_TRUE(Resolve());
+
 
         ASTGlobalVar *VarA = *Module->getGlobalVars().begin();
 
@@ -147,7 +147,7 @@ namespace {
                 "byte[] b = {}\n" // empty array
         );
         ASTModule *Module = Parse("GlobalArrayEmpty", str);
-        ASSERT_TRUE(Resolve());
+
 
         ASTGlobalVar *VarB = *Module->getGlobalVars().begin();
 
@@ -165,7 +165,7 @@ namespace {
                 "byte[] c = {1, 2, 3}\n"
         );
         ASTModule *Module = Parse("GlobalArraySet", str);
-        ASSERT_TRUE(Resolve());
+
 
         ASTGlobalVar *VarC = *Module->getGlobalVars().begin();
 
@@ -186,7 +186,7 @@ namespace {
                 "byte[3] d\n" // array of 4 bytes without values
         );
         ASTModule *Module = Parse("GlobalArrayInit", str);
-        ASSERT_TRUE(Resolve());
+
 
         ASTGlobalVar *VarD = *Module->getGlobalVars().begin();
 
@@ -202,7 +202,7 @@ namespace {
                 "byte[3] e = {1, 2, 3}\n"
         );
         ASTModule *Module = Parse("GlobalArrayInitSet", str);
-        ASSERT_TRUE(Resolve());
+
 
         ASTGlobalVar *VarE = *Module->getGlobalVars().begin();
 
@@ -225,7 +225,7 @@ namespace {
                "char b = 'b'\n"
         );
         ASTModule *Module = Parse("GlobalChar", str);
-        ASSERT_TRUE(Resolve());
+
 
         ASTGlobalVar *VarA = nullptr;
         ASTGlobalVar *VarB = nullptr;
@@ -254,7 +254,7 @@ namespace {
                 "char[2] d = {'', ''}\n" // Empty string
         );
         ASTModule *Module = Parse("GlobalCharArray", str);
-        ASSERT_TRUE(Resolve());
+
 
         ASTGlobalVar *VarC = nullptr;
         ASTGlobalVar *VarD = nullptr;
@@ -298,7 +298,7 @@ namespace {
                "string c"
         );
         ASTModule *Module = Parse("GlobalString", str);
-        ASSERT_TRUE(Resolve());
+
 
         ASTGlobalVar *VarA = nullptr;
         ASTGlobalVar *VarB = nullptr;

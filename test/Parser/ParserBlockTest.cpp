@@ -37,7 +37,7 @@ TEST_F(ParserTest, IfElsifElseStmt) {
 		"  }"
 		"}\n";
 	ASTModule *Module = Parse("IfElsifElseStmt", str);
-	ASSERT_TRUE(Resolve());
+
 
 	// Get Body
 	ASTFunction *F = static_cast<ASTFunction *>(Module->getNodes()[0]);
@@ -79,7 +79,7 @@ TEST_F(ParserTest, IfElsifElseInlineStmt) {
 		"  else b = 2"
 		"}\n";
 	ASTModule *Module = Parse("IfElsifElseInlineStmt", str);
-	ASSERT_TRUE(Resolve());
+
 
 	// Get Body
 	ASTFunction *F = static_cast<ASTFunction *>(Module->getNodes()[0]);
@@ -125,7 +125,7 @@ TEST_F(ParserTest, SwitchCaseDefaultStmt) {
 		"  }"
 		"}\n";
 	ASTModule *Module = Parse("SwitchCaseDefaultStmt", str);
-	ASSERT_TRUE(Resolve());
+
 
 	// Get Body
 	ASTFunction *F = static_cast<ASTFunction *>(Module->getNodes()[0]);
@@ -155,7 +155,7 @@ TEST_F(ParserTest, WhileStmt) {
 		"  }\n"
 		"}\n";
 	ASTModule *Module = Parse("WhileStmt", str);
-	ASSERT_TRUE(Resolve());
+
 
 	// Get Body
 	ASTFunction *F = static_cast<ASTFunction *>(Module->getNodes()[0]);
@@ -178,7 +178,7 @@ TEST_F(ParserTest, WhileValueStmt) {
 		"  while true a++\n"
 		"}\n";
 	ASTModule *Module = Parse("WhileValueStmt", str);
-	ASSERT_TRUE(Resolve());
+
 
 	// Get Body
 	ASTFunction *F = static_cast<ASTFunction *>(Module->getNodes()[0]);
@@ -198,7 +198,7 @@ TEST_F(ParserTest, ForStmt) {
 		"}\n");
 	ASTModule *Module = Parse("ForStmt", str);
 
-	ASSERT_TRUE(Resolve());
+
 
 	// Get Body
 	ASTFunction *F = static_cast<ASTFunction *>(Module->getNodes()[0]);

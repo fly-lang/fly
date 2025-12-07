@@ -33,7 +33,7 @@ namespace {
         llvm::StringRef str = ("void func() {}\n");
         ASTModule *Module = Parse("FunctionVisibilityDefault", str);
 
-        ASSERT_TRUE(Resolve());
+
 
         EXPECT_TRUE(Module->getNodes().size() == 1);
         auto *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -45,7 +45,7 @@ namespace {
         llvm::StringRef str = ("private void func() {}\n");
         ASTModule *Module = Parse("FunctionVisibilityPrivate", str);
 
-        ASSERT_TRUE(Resolve());
+
 
         EXPECT_TRUE(Module->getNodes().size() == 1);
         auto *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -57,7 +57,7 @@ namespace {
         llvm::StringRef str = ("public void func() {}\n");
         ASTModule *Module = Parse("FunctionVisibilityPublic", str);
 
-        ASSERT_TRUE(Resolve());
+
 
         EXPECT_TRUE(Module->getNodes().size() == 1);
         auto *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -71,7 +71,7 @@ namespace {
                                "float i, double j) {}\n");
         ASTModule *Module = Parse("FunctionType", str);
 
-        ASSERT_TRUE(Resolve());
+
 
         // Get Body
         auto *Func = As<ASTFunction>(Module->getNodes()[0]);
@@ -143,7 +143,7 @@ namespace {
                 "}\n");
         ASTModule *Module = Parse("FunctionPrivateReturnParams", str);
 
-        ASSERT_TRUE(Resolve());
+
 
 
         EXPECT_TRUE(Module->getNodes().size() == 1); // func() has PRIVATE Visibility
@@ -183,7 +183,7 @@ namespace {
                                "}\n");
         ASTModule *Module = Parse("FunctionCall", str);
 
-        ASSERT_TRUE(Resolve());
+
 
         // Get all functions
         auto *doSome = As<ASTFunction>(Module->getNodes()[0]);

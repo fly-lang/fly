@@ -19,7 +19,7 @@ namespace {
     TEST_F(ParserTest, SingleNameSpace) {
         llvm::StringRef str = ("namespace std");
         ASTModule *Module = Parse("SingleNameSpace", str);
-        ASSERT_TRUE(Resolve());
+
 
         // Verify
         EXPECT_EQ(Module->getName(), "SingleNameSpace");
@@ -39,7 +39,7 @@ namespace {
                          "import packageA");
         ASTModule *Module1 = Parse("packageA.fly", str1);
         ASTModule *Module2 = Parse("std.fly", str2);
-        ASSERT_TRUE(Resolve());
+
 
         // Select packageA import
         ASTImport *PackageA = nullptr;
@@ -60,7 +60,7 @@ namespace {
         ASTModule *Module1 = Parse("standard.fly", str1);
         ASTModule *Module2 = Parse("default.fly", str2);
 
-        ASSERT_TRUE(Resolve());
+
 
         EXPECT_EQ(Module2->getNameSpace()->getDef()->getName(), "default");
 

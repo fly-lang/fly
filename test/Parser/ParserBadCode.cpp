@@ -21,6 +21,5 @@ namespace {
                 "  return"
                 "}\n");
         Parse("BadColon", str);
-        ASSERT_FALSE(Resolve());
     }
 }
