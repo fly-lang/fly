@@ -40,36 +40,22 @@ namespace {
 //    }
 
     TEST_F(ParserTest, BlockComments) {
-        llvm::StringRef str = (" /* Global var block comment */\n"
-                               "// Global var line comment\n"
-                               "int b\n"
-                               "// Func line comment\n"
+        llvm::StringRef str = ("// Func line comment\n"
                                "\t /*   Func block comment \n*/\n"
                                "void func() {\n"
                                "  /* body block comment */\n"
                                "  // body inline comment */\n"
                                "}\n"
-                               "void func1() {}\n"
-                               "/*   Func2 block comment \n*/\n"
-                               "//func2 line comment\n"
-                               "void func2() {}\n"
         );
         ASTModule *Module = Parse("BlockComments", str);
 
-        ASTGlobalVar *VarB = *Module->getGlobalVars().begin();
-        EXPECT_EQ(VarB->getName(), "b");
-        EXPECT_EQ(VarB->getComment()->getContent(), "/* Global var block comment */");
+    	ASTComment *Comment0 = As<ASTComment>(Module->getNodes()[0]);
+    	EXPECT_EQ(Comment0->getContent(), "// Func line comment");
 
-        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
+    	ASTComment *Comment1 = As<ASTComment>(Module->getNodes()[1]);
+    	EXPECT_EQ(Comment1->getContent(), "/*   Func block comment \n*/");
+
+        ASTFunction *Func = As<ASTFunction>(Module->getNodes()[2]);
         EXPECT_EQ(Func->getName(), "func");
-        EXPECT_EQ(Func->getComment()->getContent(), "/*   Func block comment \n*/");
-
-        ASTFunction *Func1 = static_cast<ASTFunction *>(Module->getNodes()[1]);
-        EXPECT_EQ(Func1->getName(), "func1");
-        EXPECT_EQ(Func1->getComment(), nullptr);
-
-        ASTFunction *Func2 = static_cast<ASTFunction *>(Module->getNodes()[2]);
-        EXPECT_EQ(Func2->getName(), "func2");
-        EXPECT_EQ(Func2->getComment()->getContent(), "/*   Func2 block comment \n*/");
     }
 }

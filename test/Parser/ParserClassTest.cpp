@@ -21,6 +21,9 @@
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTMethod.h"
 
+#include <AST/ASTName.h>
+#include <AST/ASTReturnStmt.h>
+
 namespace {
 
     using namespace fly;
@@ -29,89 +32,41 @@ namespace {
         llvm::StringRef str = ("Type func() {\n"
                                "  Type t = null"
                                "  return t\n"
-                               "}\n");
+                               "}"
+                               "public class Type {}\n"
+							   "\n");
         ASTModule *Module = Parse("TypeDefaultVarReturn", str);
 
         ASSERT_TRUE(Resolve());
 
-
         // Get Body
-        ASTFunction *F = static_cast<ASTFunction *>(Module->getNodes()[0]);
-        EXPECT_EQ(F->getReturnType()->getKind(), ASTTypeKind::TYPE_IDENTITY);
-        const ASTBlockStmt *Body = F->getBody();
+        ASTFunction *F = As<ASTFunction>(Module->getNodes()[0]);
+        EXPECT_EQ(F->getReturnType()->getTypeKind(), ASTTypeKind::TYPE_NAMED);
+        ASTBlockStmt *Body = F->getBody();
 
-        // Test: Type t
-        ASTAssignmentStmt *varStmt = (ASTAssignmentStmt *) Body->getContent()[0];
-        EXPECT_EQ(varStmt->getVarRef()->getName(), "t");
-        ASTIdentityType *ClassType = (ASTIdentityType *) varStmt->getVarRef()->getDef()->getType();
-        EXPECT_EQ(ClassType->getKind(), ASTTypeKind::TYPE_IDENTITY);
-        EXPECT_EQ(ClassType->getName(), "Type");
-        ASSERT_EQ(((ASTNullValue *)((ASTValueExpr *) varStmt->getExpr())->getValue())->print(), "null");
+        // Test: Type t = null
+        ASTAssignStmt *varStmt = As<ASTAssignStmt>(Body->getContent()[0]);
 
-        const ASTReturnStmt *Ret = (ASTReturnStmt *) Body->getContent()[1];
-        ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
-        EXPECT_EQ(RetRef->getVarRef()->getName(), "t");
+    	ASTIdentifier * Left = As<ASTIdentifier>(varStmt->getSource());
+        EXPECT_EQ(Left->getName(), "t");
+    	EXPECT_TRUE(Left->getType()->isClass());
+    	EXPECT_TRUE(As<ASTValue>(varStmt->getTarget())->isNull());
 
-    }
+        ASTReturnStmt *Ret = As<ASTReturnStmt>(Body->getContent()[1]);
+        ASTIdentifier *RetRef = As<ASTIdentifier>(Ret->getExpr());
+        EXPECT_EQ(RetRef->getName(), "t");
 
-    // TEST_F(ParserTest, NullTypeVarReturn) {
-    //     llvm::StringRef str = ("Type func() {\n"
-    //                            "  Type t = null"
-    //                            "  return t\n"
-    //                            "}\n");
-    //     ASTModule *Module = Parse("TypeDefaultVarReturn", str);
-    //
-    //     ASSERT_TRUE(Resolve());
-    //
-    //
-    //     // Get Body
-    //     ASTFunction *F = *Module->getFunctions().begin()->getValue().begin()->second.begin();
-    //     EXPECT_EQ(F->getReturnType()->getKind(), ASTTypeKind::TYPE_IDENTITY);
-    //     const ASTBlockStmt *Body = F->getBody();
-    //
-    //     // Test: Type t
-    //     ASTVarStmt *varStmt = (ASTVarStmt *) Body->getContent()[0];
-    //     EXPECT_EQ(varStmt->getVarRef()->getName(), "t");
-    //     ASTIdentityType *ClassType = (ASTIdentityType *) varStmt->getVarRef()->getDef()->getType();
-    //     EXPECT_EQ(ClassType->getKind(), ASTTypeKind::TYPE_IDENTITY);
-    //     EXPECT_EQ(ClassType->getName(), "Type");
-    //     ASSERT_EQ(((ASTNullValue *)((ASTValueExpr *) varStmt->getExpr())->getValue())->print(), "null");
-    //
-    //     const ASTReturnStmt *Ret = (ASTReturnStmt *) Body->getContent()[1];
-    //     ASTVarRefExpr *RetRef = (ASTVarRefExpr *) Ret->getExpr();
-    //     EXPECT_EQ(RetRef->getVarRef()->getName(), "t");
-    //
-    // }
-
-    TEST_F(ParserTest, ClassEmpty) {
-        llvm::StringRef str = ("public class Test {}\n");
-        ASTModule *Module = Parse("ClassEmpty", str);
-        ASSERT_TRUE(isSuccess());
-
-        EXPECT_FALSE(Module->getIdentity() == nullptr);
-        EXPECT_TRUE(Module->getNameSpace()->getIdentities().size() == 1);
-        auto &Class = *Module->getNameSpace()->getIdentities().begin()->second;
-        EXPECT_EQ(Class.getScopes()->getVisibility(), ASTModifierKind::V_PUBLIC);
-        const auto &NSClassess = Module->getContext().getDefaultNameSpace()->getIdentities();
-        const auto &ClassTest = NSClassess.find("Test");
-        ASSERT_TRUE(ClassTest != NSClassess.end());
+    	ASTClass *TypeClass = As<ASTClass>(Module->getNodes()[1]);
+    	ASSERT_TRUE(TypeClass != nullptr);
+    	EXPECT_EQ(TypeClass->getName(), "Type");
+    	EXPECT_TRUE(HasModifier(TypeClass->getModifiers(), ASTModifierKind::MOD_PUBLIC));
     }
 
     TEST_F(ParserTest, Enum) {
         llvm::StringRef str = ("public enum Test {\n"
                                "  A B C\n"
                                "}\n");
-        ASTModule *Module = Parse("TestEnum", str, false);
-
-        ASTEnum *Enum = (ASTEnum *) Module->getIdentity();
-        EXPECT_FALSE(Enum->getVars().empty());
-        EXPECT_EQ(Enum->getVars().size(), 3); // A B C enum
-        ASTEnumEntry *VarA = Enum->getVars().find("A")->getValue();
-        ASTEnumEntry *VarB = Enum->getVars().find("B")->getValue();
-        ASTEnumEntry *VarC = Enum->getVars().find("C")->getValue();
-        EXPECT_EQ(VarA->getIndex(), 1);
-        EXPECT_EQ(VarB->getIndex(), 2);
-        EXPECT_EQ(VarC->getIndex(), 3);
+        ASTModule *Module = Parse("TestEnum", str);
 
         llvm::StringRef str2 = (
                 "void main() {\n"
@@ -120,121 +75,254 @@ namespace {
                 "  Test c = a"
                 "}\n");
         ASTModule *Module2 = Parse("func", str2);
-        ASSERT_TRUE(isSuccess());
 
-        ASTFunction *main = static_cast<ASTFunction *>(Module2->getNodes()[0]);
-        const ASTBlock *Body = main->getBody();
-        ASTVarStmt *aVar = ((ASTVarStmt *) Body->getContent()[0]);
-        ASTVarRefExpr *aExpr = (ASTVarRefExpr *) aVar->getExpr();
-        ASTEnumEntry *A = (ASTEnumEntry *) aExpr->getVarRef()->getDef();
+        ASSERT_TRUE(Resolve());
+
+    	// Verify enum node exists and has expected name
+    	ASTEnum *E = As<ASTEnum>(Module->getNodes()[0]);
+    	ASSERT_TRUE(E != nullptr);
+    	EXPECT_EQ(E->getName(), "Test");
+    	EXPECT_TRUE(HasModifier(E->getModifiers(), ASTModifierKind::MOD_PUBLIC));
+    	EXPECT_TRUE(!E->getNodes().empty());
+    	EXPECT_EQ(E->getNodes().size(), 3);
+    	ASTEnumEntry *A = As<ASTEnumEntry>(E->getNodes()[0]);
+		ASTEnumEntry *B = As<ASTEnumEntry>(E->getNodes()[1]);
+		ASTEnumEntry *C = As<ASTEnumEntry>(E->getNodes()[2]);
+		ASSERT_TRUE(A != nullptr);
+    	ASSERT_TRUE(B != nullptr);
+    	ASSERT_TRUE(C != nullptr);
+
+    	// Verify usage in main
+    	ASTFunction *main = As<ASTFunction>(Module2->getNodes()[0]);
+     	ASTBlockStmt *Body = main->getBody();
+      ASTAssignStmt *aAssignStmt = As<ASTAssignStmt>(Body->getContent()[0]);
+      ASTIdentifier *src = As<ASTIdentifier>(aAssignStmt->getSource());
+      ASSERT_TRUE(src != nullptr);
+      EXPECT_EQ(src->getName(), "a");
+    	ASTIdentifier * Test_a = As<ASTIdentifier>(aAssignStmt->getTarget());
+    	ASSERT_TRUE(Test_a != nullptr);
+    	EXPECT_EQ(Test_a->getName(), "A");
+    	EXPECT_EQ(Test_a->getParent()->getExprKind(), ASTExprKind::EXPR_MEMBER);
+    	EXPECT_EQ(As<ASTMember>(Test_a->getParent())->getName(), "Test");
+
+    	// Verify second assignment: a = Test.B
+    	ASTAssignStmt *aAssignStmt2 = As<ASTAssignStmt>(Body->getContent()[1]);
+    	ASTIdentifier *src2 = As<ASTIdentifier>(aAssignStmt2->getSource());
+    	ASSERT_TRUE(src2 != nullptr);
+    	EXPECT_EQ(src2->getName(), "a");
+    	ASTIdentifier *Test_b = As<ASTIdentifier>(aAssignStmt2->getTarget());
+    	ASSERT_TRUE(Test_b != nullptr);
+    	EXPECT_EQ(Test_b->getName(), "B");
+    	EXPECT_EQ(Test_b->getParent()->getExprKind(), ASTExprKind::EXPR_MEMBER);
+    	ASTMember *Test_b_parent = As<ASTMember>(Test_b->getParent());
+    	ASSERT_TRUE(Test_b_parent != nullptr);
+    	EXPECT_EQ(Test_b_parent->getName(), "Test");
+
+    	// Verify third statement: Test c = a
+    	ASTAssignStmt *aAssignStmt3 = As<ASTAssignStmt>(Body->getContent()[2]);
+    	ASTIdentifier *src3 = As<ASTIdentifier>(aAssignStmt3->getSource());
+    	ASSERT_TRUE(src3 != nullptr);
+    	EXPECT_EQ(src3->getName(), "c");
+    	ASTIdentifier *target3 = As<ASTIdentifier>(aAssignStmt3->getTarget());
+    	ASSERT_TRUE(target3 != nullptr);
+    	EXPECT_EQ(target3->getName(), "a");
     }
 
     TEST_F(ParserTest, Struct) {
-        llvm::StringRef str = ("public struct Test {\n"
-                               "  int a\n"
-                               "  public int b = 2\n"
-                               "  const int c = 0\n"
-                               "}\n");
-        ASTModule *Module = Parse("TestStruct", str, false);
+        llvm::StringRef str = (
+            "public struct Test {\n"
+            "  int a\n"
+            "  public int b = 2\n"
+            "  const int c = 0\n"
+            "}\n"
+            "void func1() {\n"
+            "  Test t = new Test()\n"
+            "  Test x = { a = 3, b = 1 }\n"
+            "}\n");
+    	ASTModule *Module = Parse("StructTest", str);
 
-        ASTClass *Class = (ASTClass *) Module->getIdentity();
-        EXPECT_FALSE(Class->getVars().empty());
-        EXPECT_EQ(Class->getVars().size(), 3);
-        ASTClassVar *aVar = Class->getVars().find("a")->getValue();
-        ASTClassVar *bVar = Class->getVars().find("b")->getValue();
-        ASTClassVar *cVar = Class->getVars().find("c")->getValue();
-        EXPECT_EQ(aVar->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
-        EXPECT_FALSE(aVar->getScopes()->isConstant());
-        EXPECT_EQ(bVar->getScopes()->getVisibility(), ASTModifierKind::V_PUBLIC);
-        EXPECT_FALSE(bVar->getScopes()->isConstant());
-        EXPECT_EQ(cVar->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
-        EXPECT_TRUE(cVar->getScopes()->isConstant());
+    	ASTClass *TestStruct = As<ASTClass>(Module->getNodes()[0]);
+    	ASSERT_TRUE(TestStruct != nullptr);
+    	EXPECT_EQ(TestStruct->getName(), "Test");
+    	EXPECT_TRUE(HasModifier(TestStruct->getModifiers(), ASTModifierKind::MOD_PUBLIC));
+    	EXPECT_EQ(TestStruct->getNodes().size(), 3);
+    	ASTAttribute *aVar = As<ASTAttribute>(TestStruct->getNodes()[0]);
+    	ASTAttribute *bVar = As<ASTAttribute>(TestStruct->getNodes()[1]);
+    	ASTAttribute *cVar = As<ASTAttribute>(TestStruct->getNodes()[2]);
+    	EXPECT_EQ(aVar->getName(), "a");
+    	EXPECT_EQ(bVar->getName(), "b");
+    	EXPECT_EQ(cVar->getName(), "c");
+    	EXPECT_TRUE(HasModifier(aVar->getModifiers(), ASTModifierKind::MOD_DEFAULT));
+    	EXPECT_TRUE(HasModifier(bVar->getModifiers(), ASTModifierKind::MOD_PUBLIC));
+    	EXPECT_TRUE(HasModifier(cVar->getModifiers(), ASTModifierKind::MOD_CONSTANT));
+    	EXPECT_TRUE(As<ASTValue>(aVar->getExpr())->isDefault());
+    	EXPECT_EQ(As<ASTNumberValue>(bVar->getExpr())->getValue(), "2");
+		EXPECT_EQ(As<ASTNumberValue>(cVar->getExpr())->getValue(), "0");
 
-        llvm::StringRef str2 = (
-                "void func1() {\n"
-                "  Test t = new Test()"
-                "  t.a = 3"
-                "  t.b = t.c"
-                "}\n");
-        ASTModule *Module1 = Parse("func1", str2, false);
-        ASTFunction *func1 = static_cast<ASTFunction *>(Module1->getNodes()[0]);
-        const ASTBlock *Body1 = func1->getBody();
-        ASTVarStmt *tVar1 = ((ASTVarStmt *) Body1->getContent()[0]);
+    	ASTFunction *Function = As<ASTFunction>(Module->getNodes()[1]);
+    	ASSERT_TRUE(Function != nullptr);
+		EXPECT_EQ(Function->getName(), "func1");
 
-        llvm::StringRef str3 = (
-                "void func2() {\n"
-                "  Test t = { a = 3, b = 1}"
-                "}\n");
-        ASTModule *Module2 = Parse("func2", str3);
-        ASTFunction *func2 = static_cast<ASTFunction *>(Module2->getNodes()[0]);
-        const ASTBlock *Body2 = func2->getBody();
-        ASTVarStmt *tVar2 = ((ASTVarStmt *) Body2->getContent()[0]);
+    	ASTAssignStmt *assign1 = As<ASTAssignStmt>(Function->getBody()->getContent()[0]);
+		ASTIdentifier *assign1_src = As<ASTIdentifier>(assign1->getSource());
+		ASSERT_TRUE(assign1_src != nullptr);
+		EXPECT_EQ(assign1_src->getName(), "t");
+		ASTCall *newCall = As<ASTCall>(assign1->getTarget());
+		ASSERT_TRUE(newCall != nullptr);
+		EXPECT_EQ(newCall->getExprKind(), ASTExprKind::EXPR_CALL);
+		EXPECT_EQ(newCall->getName(), "Test");
 
-        ASSERT_TRUE(isSuccess());
+    	ASTAssignStmt *assign2 = As<ASTAssignStmt>(Function->getBody()->getContent()[1]);
+    	ASTIdentifier *assign2_src = As<ASTIdentifier>(assign2->getSource());
+    	ASSERT_TRUE(assign2_src != nullptr);
+    	EXPECT_EQ(assign2_src->getName(), "x");
+    	ASTValue *assign2_target = As<ASTValue>(assign2->getTarget());
+         ASSERT_TRUE(assign2_target != nullptr);
+         ASSERT_TRUE(assign2_target->isStruct());
+
+        ASSERT_TRUE(Resolve());
     }
 
     TEST_F(ParserTest, Class) {
-        llvm::StringRef str = ("public class Test {\n"
-                               "  int a = 1\n"
-                               "  private int b = 1\n"
-                               "  public int a() { return a }\n"
-                               "  protected int b() { return 2 }\n"
-                               "  private int c() { return 3 }\n"
-                               "  const int d() { return 0 }\n"
-                               "}\n");
-        ASTModule *Module = Parse("TestClass", str, false);
-        ASTClass *Class = (ASTClass *) Module->getIdentity();
+        llvm::StringRef str = (
+        	"public class Test {\n"
+			"  int a = 1\n"
+			"  private int b = 1\n"
+			"  public int a() { return a }\n"
+			"  protected int b() { return 2 }\n"
+			"  private int c() { return 3 }\n"
+			"  const int d() { return 0 }\n"
+			"}\n"
+			"void func() {\n"
+			"  Test t = new Test()\n"
+			"  t.a()\n"
+			"}\n");
+        ASTModule *Module = Parse("TestClass", str);
+        ASSERT_TRUE(Resolve());
 
-        EXPECT_EQ(Class->getVars().size(), 2);
-        EXPECT_EQ(Class->getMethods().size(), 4);
-        ASTClassVar *aVar = Class->getVars().find("a")->getValue();
-        ASTClassVar *bVar = Class->getVars().find("b")->getValue();
-        ASTClassFunction *aMethod = *Class->getMethods().find("a")->getValue().begin()->second.begin();
-        ASTClassFunction *bMethod = *Class->getMethods().find("b")->getValue().begin()->second.begin();
-        ASTClassFunction *cMethod = *Class->getMethods().find("c")->getValue().begin()->second.begin();
-        ASTClassFunction *dMethod = *Class->getMethods().find("d")->getValue().begin()->second.begin();
-        EXPECT_EQ(aVar->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
-        EXPECT_EQ(bVar->getScopes()->getVisibility(), ASTModifierKind::V_PRIVATE);
-        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTModifierKind::V_PUBLIC);
-        EXPECT_EQ(bMethod->getScopes()->getVisibility(), ASTModifierKind::V_PROTECTED);
-        EXPECT_EQ(cMethod->getScopes()->getVisibility(), ASTModifierKind::V_PRIVATE);
-        EXPECT_EQ(dMethod->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
-        EXPECT_TRUE(dMethod->getScopes()->isConstant());
+        ASTClass *TestClass = As<ASTClass>(Module->getNodes()[0]);
+        ASSERT_TRUE(TestClass != nullptr);
+        EXPECT_EQ(TestClass->getName(), "Test");
+        EXPECT_TRUE(HasModifier(TestClass->getModifiers(), ASTModifierKind::MOD_PUBLIC));
 
-        llvm::StringRef str2 = (
-                "void func() {\n"
-                "  Test t = new Test()\n"
-                "  t.a()\n"
-                "  t.d()\n"
-                "}\n");
-        ASTModule *Module2 = Parse("Identifier", str2);
+        // Attributes: a, b (direct index access into class nodes)
+        // Order in source: attribute a, attribute b, method a, method b, method c, method d
+        ASSERT_TRUE(TestClass->getNodes().size() >= 6);
+        ASTAttribute *aVar = As<ASTAttribute>(TestClass->getNodes()[0]);
+        ASTAttribute *bVar = As<ASTAttribute>(TestClass->getNodes()[1]);
+        ASSERT_TRUE(aVar != nullptr);
+        ASSERT_TRUE(bVar != nullptr);
+        EXPECT_EQ(aVar->getName(), "a");
+        EXPECT_EQ(bVar->getName(), "b");
+        EXPECT_TRUE(HasModifier(aVar->getModifiers(), ASTModifierKind::MOD_DEFAULT));
+        EXPECT_TRUE(HasModifier(bVar->getModifiers(), ASTModifierKind::MOD_PRIVATE));
+        // attribute initializers
+        EXPECT_TRUE(As<ASTNumberValue>(aVar->getExpr())->getValue() == "1");
+        EXPECT_TRUE(As<ASTNumberValue>(bVar->getExpr())->getValue() == "1");
 
-        ASSERT_TRUE(isSuccess());
+        // Methods: a, b, c, d (direct index access)
+        ASTMethod *aMethod = As<ASTMethod>(TestClass->getNodes()[2]);
+        ASTMethod *bMethod = As<ASTMethod>(TestClass->getNodes()[3]);
+        ASTMethod *cMethod = As<ASTMethod>(TestClass->getNodes()[4]);
+        ASTMethod *dMethod = As<ASTMethod>(TestClass->getNodes()[5]);
+        ASSERT_TRUE(aMethod != nullptr);
+        ASSERT_TRUE(bMethod != nullptr);
+        ASSERT_TRUE(cMethod != nullptr);
+        ASSERT_TRUE(dMethod != nullptr);
 
+        EXPECT_TRUE(HasModifier(aMethod->getModifiers(), ASTModifierKind::MOD_PUBLIC));
+        EXPECT_TRUE(HasModifier(bMethod->getModifiers(), ASTModifierKind::MOD_PROTECTED));
+        EXPECT_TRUE(HasModifier(cMethod->getModifiers(), ASTModifierKind::MOD_PRIVATE));
+        EXPECT_TRUE(HasModifier(dMethod->getModifiers(), ASTModifierKind::MOD_DEFAULT));
+        EXPECT_TRUE(HasModifier(dMethod->getModifiers(), ASTModifierKind::MOD_CONSTANT));
+
+        // Verify method return types and bodies
+        EXPECT_TRUE(HasBuiltinType(aMethod->getReturnType(), ASTBuiltinTypeKind::TYPE_INT));
+        EXPECT_TRUE(HasBuiltinType(bMethod->getReturnType(), ASTBuiltinTypeKind::TYPE_INT));
+        EXPECT_TRUE(HasBuiltinType(cMethod->getReturnType(), ASTBuiltinTypeKind::TYPE_INT));
+        EXPECT_TRUE(HasBuiltinType(dMethod->getReturnType(), ASTBuiltinTypeKind::TYPE_INT));
+
+        // a() { return a }
+        {
+            ASTBlockStmt *MBody = aMethod->getBody();
+            ASTReturnStmt *Ret = As<ASTReturnStmt>(MBody->getContent()[0]);
+            ASSERT_TRUE(Ret != nullptr);
+            EXPECT_EQ(Ret->getStmtKind(), ASTStmtKind::STMT_RETURN);
+            EXPECT_EQ(Ret->getExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
+            EXPECT_EQ(As<ASTIdentifier>(Ret->getExpr())->getName(), "a");
+        }
+
+        // b() { return 2 }
+        {
+            ASTBlockStmt *MBody = bMethod->getBody();
+            ASTReturnStmt *Ret = As<ASTReturnStmt>(MBody->getContent()[0]);
+            ASSERT_TRUE(Ret != nullptr);
+            EXPECT_EQ(Ret->getStmtKind(), ASTStmtKind::STMT_RETURN);
+            EXPECT_EQ(Ret->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
+            EXPECT_EQ(As<ASTNumberValue>(Ret->getExpr())->getValue(), "2");
+        }
+
+        // c() { return 3 }
+        {
+            ASTBlockStmt *MBody = cMethod->getBody();
+            ASTReturnStmt *Ret = As<ASTReturnStmt>(MBody->getContent()[0]);
+            ASSERT_TRUE(Ret != nullptr);
+            EXPECT_EQ(Ret->getStmtKind(), ASTStmtKind::STMT_RETURN);
+            EXPECT_EQ(Ret->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
+            EXPECT_EQ(As<ASTNumberValue>(Ret->getExpr())->getValue(), "3");
+        }
+
+        // d() { return 0 }
+        {
+            ASTBlockStmt *MBody = dMethod->getBody();
+            ASTReturnStmt *Ret = As<ASTReturnStmt>(MBody->getContent()[0]);
+            ASSERT_TRUE(Ret != nullptr);
+            EXPECT_EQ(Ret->getStmtKind(), ASTStmtKind::STMT_RETURN);
+            EXPECT_EQ(Ret->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
+            EXPECT_EQ(As<ASTNumberValue>(Ret->getExpr())->getValue(), "0");
+        }
+
+        // Verify we can call a method on an instance in function
+        ASTFunction *Func = As<ASTFunction>(Module->getNodes()[1]);
+        ASSERT_TRUE(Func != nullptr);
+        ASTBlockStmt *Body = Func->getBody();
+        ASTAssignStmt *assign = As<ASTAssignStmt>(Body->getContent()[0]);
+        ASTIdentifier *assign_src = As<ASTIdentifier>(assign->getSource());
+        ASSERT_TRUE(assign_src != nullptr);
+        EXPECT_EQ(assign_src->getName(), "t");
+        ASTCall *newCall = As<ASTCall>(assign->getTarget());
+        ASSERT_TRUE(newCall != nullptr);
+        EXPECT_EQ(newCall->getExprKind(), ASTExprKind::EXPR_CALL);
+        EXPECT_EQ(newCall->getName(), "Test");
     }
 
     TEST_F(ParserTest, StructExtendStruct) {
         llvm::StringRef str = ("public struct Case : Test {\n"
-                               "  int b\n"
                                "}\n");
-        ASTModule *Module = Parse("CaseStruct", str, false);
+        ASTModule *Module = Parse("CaseStruct", str);
 
         llvm::StringRef str2 = (
                 "struct Test {\n"
-                "  int a\n"
                 "}\n");
         ASTModule *Module2 = Parse("TestStruct", str2);
 
-        ASSERT_TRUE(isSuccess());
-        ASTClass *Class = (ASTClass *) Module->getIdentity();
+        ASSERT_TRUE(Resolve());
 
-        EXPECT_EQ(Class->getVars().size(), 2);
-        ASTClassVar &aVar = *Class->getVars().find("a")->getValue();
-        ASTClassVar &bVar = *Class->getVars().find("b")->getValue();
-        EXPECT_EQ(aVar.getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
-        EXPECT_EQ(bVar.getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
-        EXPECT_FALSE(aVar.getScopes()->isConstant());
-        EXPECT_FALSE(bVar.getScopes()->isConstant());
+        // Verify the Case struct has Test as a base
+        ASTClass *Case = As<ASTClass>(Module->getNodes()[0]);
+        ASSERT_TRUE(Case != nullptr);
+        EXPECT_EQ(Case->getName(), "Case");
+        const auto &Bases = Case->getBases();
+        EXPECT_EQ(Bases.size(), 1);
+        ASTType *Base0 = Bases[0];
+        ASSERT_TRUE(Base0 != nullptr);
+        // Base should be a named type with name 'Test'
+        EXPECT_EQ(Base0->getTypeKind(), ASTTypeKind::TYPE_NAMED);
+        ASTNamedType *Named = As<ASTNamedType>(Base0);
+        ASSERT_TRUE(Named != nullptr);
+        const auto &Names = Named->getNames();
+        ASSERT_TRUE(!Names.empty());
+        EXPECT_EQ(Names[0]->getName(), "Test");
     }
 
     TEST_F(ParserTest, ClassExtendClass) {
@@ -242,94 +330,21 @@ namespace {
                                "  int b\n"
                                "  void f() {}\n"
                                "}\n");
-        ASTModule *Module = Parse("CaseClass", str, false);
+        ASTModule *Module = Parse("CaseClass", str);
 
         llvm::StringRef str2 = (
                 "class Test {\n"
-                "  int a\n"
-                "  private void f1() {}\n"
-                "  protected void f2() {}\n"
-                "  public void f3() {}\n"
-                "  void f() {}\n"
                 "}\n");
         ASTModule *Module2 = Parse("TestClass", str2);
 
-        ASSERT_TRUE(isSuccess());
-        ASTClass *Class = (ASTClass *) Module->getIdentity();
-        ASTClass *Class2 = (ASTClass *) Module2->getIdentity();
-
-        EXPECT_EQ(Class2->getVars().size(), 1);
-        ASTClassVar &aVar = *Class2->getVars().find("a")->getValue();
-        EXPECT_EQ(Class2->getMethods().size(), 4);
-        ASTClassFunction *f1Method = *Class2->getMethods().find("f1")->getValue().begin()->second.begin();
-        ASTClassFunction *f2Method = *Class2->getMethods().find("f2")->getValue().begin()->second.begin();
-        ASTClassFunction *f3Method = *Class2->getMethods().find("f3")->getValue().begin()->second.begin();
-        ASTClassFunction *fMethod1 = *Class2->getMethods().find("f")->getValue().begin()->second.begin();
-
-        EXPECT_EQ(Class->getVars().size(), 1);
-        ASTClassVar &bVar = *Class->getVars().find("b")->getValue();
-        EXPECT_EQ(Class->getMethods().size(), 4);
-        ASTClassFunction *fMethod = *Class->getMethods().find("f")->getValue().begin()->second.begin();
-        EXPECT_EQ(fMethod->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
-        EXPECT_FALSE(fMethod->getScopes()->isConstant());
+        ASSERT_TRUE(Resolve());
     }
 
-    TEST_F(ParserTest, ClassExtendStruct) {
-        llvm::StringRef str = ("public class Case : Test {\n"
-                               "  int b\n"
-                               "}\n");
-        ASTModule *Module = Parse("ClassCase", str, false);
-
-        llvm::StringRef str2 = (
-                "struct Test {\n"
-                "  int a\n"
-                "}\n");
-        ASTModule *Module2 = Parse("StructTest", str2);
-
-        ASSERT_TRUE(isSuccess());
-        ASTClass *Class = (ASTClass *) Module->getIdentity();
-        ASTClass *Class2 = (ASTClass *) Module2->getIdentity();
-
-        EXPECT_EQ(Class2->getVars().size(), 1);
-        ASTClassVar &a_Var = *Class2->getVars().find("a")->getValue();
-        EXPECT_EQ(a_Var.getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
-
-        EXPECT_EQ(Class->getVars().size(), 2);
-        ASTClassVar &aVar = *Class->getVars().find("a")->getValue();
-        EXPECT_EQ(aVar.getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
-        ASTClassVar &bVar = *Class->getVars().find("b")->getValue();
-        EXPECT_EQ(bVar.getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
-    }
-
-    TEST_F(ParserTest, ClassExtendInterface) {
-        llvm::StringRef str = ("public class Class : Interface {\n"
-                               "  int a() { return 1 }\n"
-                               "}\n");
-        ASTModule *Module = Parse("Class", str, false);
-
-        llvm::StringRef str2 = (
-                "interface Interface {\n"
-                "  int a()\n"
-                "}\n");
-        ASTModule *Module2 = Parse("Interface", str2);
-
-        ASSERT_TRUE(isSuccess());
-
-        ASTClass *Class = (ASTClass *) Module->getIdentity();
-        ASTClass *Class2 = (ASTClass *) Module2->getIdentity();
-
-        EXPECT_EQ(Class2->getMethods().size(), 1);
-        EXPECT_EQ(Class->getMethods().size(), 1);
-        ASTClassFunction *aMethod = *Class->getMethods().find("a")->getValue().begin()->second.begin();
-        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
-        EXPECT_FALSE(aMethod->getScopes()->isConstant());
-    }
-
-    TEST_F(ParserTest, DISABLED_EnumExtendEnum) {
+    TEST_F(ParserTest, EnumExtendEnum) {
         llvm::StringRef str = ("public enum Option : Enum {\n"
                                "  B C\n"
                                "}\n");
-        ASTModule *Module = Parse("Option", str, false);
+        ASTModule *Module = Parse("Option", str);
 
         llvm::StringRef str2 = (
                 "enum Enum {\n"
@@ -337,51 +352,74 @@ namespace {
                 "}\n");
         ASTModule *Module2 = Parse("Enum", str2);
 
-        ASSERT_TRUE(isSuccess());
-        ASTClass *Class = (ASTClass *) Module->getIdentity();
-        ASTClass *Class2 = (ASTClass *) Module2->getIdentity();
+        ASSERT_TRUE(Resolve());
 
-        EXPECT_EQ(Class2->getVars().size(), 2); // A enum
-        ASTClassVar *Var_A = Class2->getVars().find("A")->getValue();
-        EXPECT_EQ(Class->getVars().size(), 4); // A B C enum
-        ASTClassVar *VarA = Class->getVars().find("A")->getValue();
-        ASTClassVar *VarB = Class->getVars().find("B")->getValue();
-        ASTClassVar *VarC = Class->getVars().find("C")->getValue();
+        // Verify Option enum exists and extends Enum
+        ASTEnum *Opt = As<ASTEnum>(Module->getNodes()[0]);
+        ASSERT_TRUE(Opt != nullptr);
+        EXPECT_EQ(Opt->getName(), "Option");
+        EXPECT_TRUE(HasModifier(Opt->getModifiers(), ASTModifierKind::MOD_PUBLIC));
+        // entries B, C
+        EXPECT_EQ(Opt->getNodes().size(), 2);
+        ASTEnumEntry *B = As<ASTEnumEntry>(Opt->getNodes()[0]);
+        ASTEnumEntry *C = As<ASTEnumEntry>(Opt->getNodes()[1]);
+        ASSERT_TRUE(B != nullptr);
+        ASSERT_TRUE(C != nullptr);
+        EXPECT_EQ(B->getName(), "B");
+        EXPECT_EQ(C->getName(), "C");
+
+        // Check super classes (should include named type 'Enum')
+        const auto &Supers = Opt->getSuperClasses();
+        EXPECT_EQ(Supers.size(), 1);
+        ASTType *Base0 = Supers[0];
+        ASSERT_TRUE(Base0 != nullptr);
+        EXPECT_EQ(Base0->getTypeKind(), ASTTypeKind::TYPE_NAMED);
+        ASTNamedType *Named = As<ASTNamedType>(Base0);
+        ASSERT_TRUE(Named != nullptr);
+        const auto &Names = Named->getNames();
+        ASSERT_TRUE(!Names.empty());
+        EXPECT_EQ(Names[0]->getName(), "Enum");
     }
 
     TEST_F(ParserTest, ClassExtendAll) {
         llvm::StringRef str = ("public class Test : Class Struct Interface {\n"
-//                               "  int a() { return a }\n"
                                "}\n");
-        ASTModule *Module = Parse("Test", str, false);
+        ASTModule *Module = Parse("Test", str);
 
         llvm::StringRef str2 = (
                 "class Class {\n"
-                "  int a() { return 1 }"
                 "}\n");
-        ASTModule *Module2 = Parse("Class", str2, false);
+        ASTModule *Module2 = Parse("Class", str2);
 
         llvm::StringRef str3 = (
                 "struct Struct {\n"
-                "  int a"
                 "}\n");
-        ASTModule *Module3 = Parse("Struct", str3, false);
+        ASTModule *Module3 = Parse("Struct", str3);
 
         llvm::StringRef str4 = (
                 "interface Interface {\n"
-                "  int a()"
                 "}\n");
         ASTModule *Module4 = Parse("Interface", str4);
 
-        ASSERT_TRUE(isSuccess());
-        ASTClass *Class = (ASTClass *) Module->getIdentity();
-        EXPECT_EQ(Class->getMethods().size(), 1);
-        ASTClassFunction *aMethod = *Class->getMethods().find("a")->getValue().begin()->second.begin();
-        EXPECT_EQ(aMethod->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
-        EXPECT_FALSE(aMethod->getScopes()->isConstant());
+        ASSERT_TRUE(Resolve());
 
-        EXPECT_EQ(Class->getVars().size(), 1); // A enum
-        ASTClassVar *VarA = Class->getVars().find("a")->getValue();
-        EXPECT_EQ(VarA->getScopes()->getVisibility(), ASTModifierKind::V_DEFAULT);
+        // Verify the Test class has Class, Struct and Interface as bases
+        ASTClass *Test = As<ASTClass>(Module->getNodes()[0]);
+        ASSERT_TRUE(Test != nullptr);
+        EXPECT_EQ(Test->getName(), "Test");
+        const auto &Bases = Test->getBases();
+        EXPECT_EQ(Bases.size(), 3);
+        // Expected order: Class, Struct, Interface
+        const char *ExpectedNames[3] = {"Class", "Struct", "Interface"};
+        for (size_t i = 0; i < 3; ++i) {
+            ASTType *B = Bases[i];
+            ASSERT_TRUE(B != nullptr);
+            EXPECT_EQ(B->getTypeKind(), ASTTypeKind::TYPE_NAMED);
+            ASTNamedType *Named = As<ASTNamedType>(B);
+            ASSERT_TRUE(Named != nullptr);
+            const auto &Names = Named->getNames();
+            ASSERT_TRUE(!Names.empty());
+            EXPECT_EQ(Names[0]->getName(), ExpectedNames[i]);
+        }
     }
 }

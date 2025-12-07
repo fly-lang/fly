@@ -42,6 +42,8 @@ public:
         delete S;
     }
 
+protected:
+
     ASTModule *Parse(std::string Name, llvm::StringRef Source) {
         Diags.getClient()->BeginSourceFile();
         auto Buffer = llvm::MemoryBuffer::getMemBuffer("", Name);
@@ -49,7 +51,7 @@ public:
         Parser *P = new Parser(FID, CI.getSourceManager(), Diags, *Builder);
         ASTModule *AST = P->ParseModule();
         Diags.getClient()->EndSourceFile();
-
+        ASTModules.push_back(AST);
         return AST;
     }
 
@@ -59,6 +61,13 @@ public:
         Diags.getClient()->EndSourceFile();
         return !Diags.hasErrorOccurred();
     }
+
+    template<typename T, typename U>
+    static T *As(U *Ptr) {
+        return static_cast<T *>(Ptr);
+    }
+
+    // Use As<T>(...) for casting ASTNode* entries from class getNodes()
 
     static bool HasModifier(const llvm::SmallVector<ASTModifier *, 8> &Modifiers, ASTModifierKind Kind) {;
         for (auto &Mod : Modifiers) {

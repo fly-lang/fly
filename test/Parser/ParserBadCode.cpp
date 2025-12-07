@@ -8,22 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "ParserTest.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTImport.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTCall.h"
-#include "AST/ASTValue.h"
-#include "AST/ASTAssignmentStmt.h"
-#include "AST/ASTIdentifier.h"
-#include "AST/ASTVar.h"
-#include "AST/ASTLoopStmt.h"
-#include "AST/ASTIfStmt.h"
-#include "AST/ASTSwitchStmt.h"
-#include "AST/ASTLoopStmt.h"
-#include "AST/ASTClass.h"
-
-#include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace {
 

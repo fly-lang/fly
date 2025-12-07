@@ -43,6 +43,16 @@ namespace fly {
 
         void setSema(SemaValue *Sema);
 
+
+        // Predicate helpers
+        bool isBool() const;
+        bool isNumber() const;
+        bool isString() const;
+        bool isArray() const;
+        bool isStruct() const;
+        bool isNull() const;
+        bool isDefault() const;
+
     };
 
     class ASTDefaultValue : public ASTValue {

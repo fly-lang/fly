@@ -31,6 +31,15 @@ void ASTValue::setSema(SemaValue *Sema) {
 	this->Sema = Sema;
 }
 
+// Predicate helpers moved from header
+bool ASTValue::isBool() const { return ValueKind == ASTValueKind::VAL_BOOL; }
+bool ASTValue::isNumber() const { return ValueKind == ASTValueKind::VAL_NUMBER; }
+bool ASTValue::isString() const { return ValueKind == ASTValueKind::VAL_STRING; }
+bool ASTValue::isArray() const { return ValueKind == ASTValueKind::VAL_ARRAY; }
+bool ASTValue::isStruct() const { return ValueKind == ASTValueKind::VAL_STRUCT; }
+bool ASTValue::isNull() const { return ValueKind == ASTValueKind::VAL_NULL; }
+bool ASTValue::isDefault() const { return ValueKind == ASTValueKind::VAL_DEFAULT; }
+
 ASTDefaultValue::ASTDefaultValue() : ASTValue(ASTValueKind::VAL_DEFAULT, SourceLocation()) {
 }
 
