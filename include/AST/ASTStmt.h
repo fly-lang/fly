@@ -47,7 +47,7 @@ namespace fly {
 
         ASTStmt *Parent = nullptr;
 
-        ASTFunction *Function = nullptr;
+        ASTFunction *Function = nullptr; // TODO: remove
 
         ASTStmt(const SourceLocation &Loc, ASTStmtKind Kind);
 
@@ -56,6 +56,10 @@ namespace fly {
         virtual ASTStmt *getParent() const;
 
         ASTFunction *getFunction() const;
+
+        // Setters for parent/function (used by ASTBlockStmt when adding content)
+        void setParent(ASTStmt *P);
+        void setFunction(ASTFunction *F);
 
         ASTStmtKind getStmtKind() const;
 

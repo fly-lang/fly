@@ -145,6 +145,8 @@ namespace fly {
 
     public:
 
+        ~ASTArrayValue() override;
+
         void accept(ASTVisitor& Visitor) override;
 
         const llvm::SmallVector<ASTValue *, 8> &getValues() const;
@@ -169,6 +171,8 @@ namespace fly {
         explicit ASTStructValue(const SourceLocation &Loc);
 
     public:
+
+        ~ASTStructValue() override;
 
         void accept(ASTVisitor& Visitor) override;
 

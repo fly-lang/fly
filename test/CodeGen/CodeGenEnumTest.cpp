@@ -10,34 +10,15 @@
 // fly
 #include "CodeGenTest.h"
 #include "CodeGen/CodeGenModule.h"
-#include "CodeGen/CodeGenFunction.h"
-#include "CodeGen/CodeGenClass.h"
 #include "Sema/SemaBuilderModifiers.h"
-#include "Sema/SemaBuilderStmt.h"
-#include "Sema/SemaBuilderIfStmt.h"
-#include "Sema/SemaBuilderSwitchStmt.h"
-#include "Sema/SemaBuilderLoopStmt.h"
 #include "AST/ASTModule.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTVar.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTDeleteStmt.h"
-#include "AST/ASTIdentifier.h"
-#include "AST/ASTVar.h"
-#include "AST/ASTIfStmt.h"
-#include "AST/ASTSwitchStmt.h"
-#include "AST/ASTLoopStmt.h"
-#include "AST/ASTHandleStmt.h"
-#include "AST/ASTClass.h"
-#include "AST/ASTEnum.h"
-#include "AST/ASTExprStmt.h"
-#include "AST/ASTFailStmt.h"
-#include "AST/ASTOp.h"
-
-#include <Sema/SemaEnumType.h>
-#include <Sema/SemaFunction.h>
-#include <Sema/SemaModule.h>
 #include <Sema/SemaNameSpace.h>
+#include "AST/ASTName.h"
+#include "AST/ASTEnumEntry.h"
+#include "AST/ASTAssignStmt.h"
+#include "AST/ASTLocalVar.h"
+#include "AST/ASTIdentifier.h"
+#include "AST/ASTType.h"
 
 
 namespace {
@@ -54,9 +35,9 @@ namespace {
         // }
         llvm::SmallVector<ASTType *, 4> SuperEnums;
         ASTEnum *TestEnum = getASTBuilder().CreateEnum(Module, SourceLoc, "TestEnum", TopModifiers, SuperEnums);
-        ASTVar *A = getASTBuilder().CreateEnumEntry(SourceLoc, TestEnum, "A", EmptyModifiers);
-        ASTVar *B = getASTBuilder().CreateEnumEntry(SourceLoc, TestEnum, "B", EmptyModifiers);
-        ASTVar *C = getASTBuilder().CreateEnumEntry(SourceLoc, TestEnum, "C", EmptyModifiers);
+        ASTEnumEntry *A = getASTBuilder().CreateEnumEntry(SourceLoc, TestEnum, "A", EmptyModifiers);
+        ASTEnumEntry *B = getASTBuilder().CreateEnumEntry(SourceLoc, TestEnum, "B", EmptyModifiers);
+        ASTEnumEntry *C = getASTBuilder().CreateEnumEntry(SourceLoc, TestEnum, "C", EmptyModifiers);
 
         // int main() {
         //  TestEnum a = TestEnum.A;
@@ -66,23 +47,26 @@ namespace {
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
-        ASTType *TestEnumType = getASTBuilder().CreateTypeRef(TestEnum);
+        // Build a type reference to the enum by creating an ASTName and then an ASTType
+        llvm::SmallVector<ASTName *, 4> EnumNames;
+        EnumNames.push_back(getASTBuilder().CreateName(TestEnum->getName(), SourceLoc));
+        ASTType *TestEnumType = getASTBuilder().CreateType(SourceLoc, EnumNames);
 
         //  TestEnum a = TestEnum.A;
-        ASTVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestEnumType, "a", EmptyModifiers);
-        ASTVarRef *Enum_AVarRef = CreateVarRef(A, getASTBuilder().CreateRef(SourceLoc, TestEnumType->getName()));
-        ASTVarRefExpr *Enum_ARefExpr = getASTBuilder().CreateExpr(Enum_AVarRef);
-        SemaBuilderStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, aVar);
-        aVarStmt->setExpr(Enum_ARefExpr);
+        ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestEnumType, "a", EmptyModifiers);
+        // Use identifier/ref for enum entry instead of legacy VarRef
+        ASTIdentifier *Enum_AIdent = getASTBuilder().CreateIdentifier(A);
+        ASTAssignStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(aVar));
+        aVarStmt->setExpr(Enum_AIdent);
 
         //  TestEnum b = a
-        ASTVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestEnumType, "b", EmptyModifiers);
-        SemaBuilderStmt *bVarStmt = getASTBuilder().CreateAssignmentStmt(Body, bVar);
-        ASTVarRefExpr *aRefExpr = getASTBuilder().CreateExpr(CreateVarRef(aVar));
-        bVarStmt->setExpr(aRefExpr);
+        ASTLocalVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestEnumType, "b", EmptyModifiers);
+        ASTAssignStmt *bVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(bVar));
+        ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(aVar);
+        bVarStmt->setExpr(aIdent);
 
 		// Generate Code
-		llvm::Module * M = Generate();
+		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"

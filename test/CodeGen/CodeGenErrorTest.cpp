@@ -11,9 +11,6 @@
 #include "CodeGenTest.h"
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTClass.h"
-#include "AST/ASTEnum.h"
-
-#include <AST/ASTBuilderStmt.h>
 #include <AST/ASTExprStmt.h>
 #include <AST/ASTFailStmt.h>
 #include <AST/ASTLocalVar.h>

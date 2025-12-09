@@ -46,6 +46,8 @@ namespace fly {
 
     public:
 
+        ~ASTClass() override;
+
         void accept(ASTVisitor& Visitor) override;
 
         llvm::SmallVector<ASTNode *, 8> getNodes() const;

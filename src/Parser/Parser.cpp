@@ -54,7 +54,7 @@ using namespace fly;
  */
 Parser::Parser(InputFile *Input, SourceManager &SourceMgr, DiagnosticsEngine &Diags, ASTBuilder &Builder) :
     Input(Input), Diags(Diags), SourceMgr(SourceMgr), Builder(Builder),
-    Lex(Input->getFileID(), Input->getBuffer(), SourceMgr) {
+    Lex(Input->getFileID(), Input->getBuffer(), SourceMgr), Tok(), Module(nullptr) {
 }
 
 /**
@@ -188,19 +188,19 @@ ASTComment *Parser::ParseComment() {
 }
 
 void Parser::ParseNode() {
-	FLY_DEBUG_START("Parser", "ParseDefinition");
+	FLY_DEBUG_START("Parser", "ParseNode");
 
 	ASTNode *Node = nullptr;
 
 	// Parse an Import
 	if (Tok.is(tok::kw_import)) {
-		addNode(ParseImport());
+		ParseImport();
 		return;
 	}
 
 	// Parse a Comment
 	if (isTokenComment()) {
-		addNode(ParseComment());
+		ParseComment();
 		return;
 	}
 
@@ -209,23 +209,18 @@ void Parser::ParseNode() {
 
 	// Parse a Class
 	if (Tok.isOneOf(tok::kw_struct, tok::kw_class, tok::kw_interface)) {
-		addNode(ParseClass(Modifiers));
+		ParseClass(Modifiers);
 	}
 
 	// Parse an Enum
 	else if (Tok.is(tok::kw_enum)) {
-		addNode(ParseEnum(Modifiers));
+		ParseEnum(Modifiers);
 	}
 
     // Parse Identifier
 	else {
-		addNode(ParseFunction(Modifiers));
+		ParseFunction(Modifiers);
 	}
-}
-
-void Parser::addNode(ASTNode *Node) {
-	if (Node)
-		Module->addNode(Node);
 }
 
 SmallVector<ASTModifier *, 8> Parser::ParseModifiers() {
@@ -369,32 +364,38 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 
     // Parse if stmt
     if (Tok.is(tok::kw_if)) {
-        return ParseIfStmt(Parent);
+        ParseIfStmt(Parent);
+    	return;
     }
 
     // Parse switch stmt
     if (Tok.is(tok::kw_switch)) {
-        return ParseSwitchStmt(Parent);
+        ParseSwitchStmt(Parent);
+    	return;
     }
 
     // Parse for stmt
     if (Tok.is(tok::kw_for)) {
-        return ParseForStmt(Parent);
+        ParseForStmt(Parent);
+    	return;
     }
 
     // Parse while stmt
     if (Tok.is(tok::kw_while)) {
-        return ParseWhileStmt(Parent);
+        ParseWhileStmt(Parent);
+    	return;
     }
 
     // Parse handle stmt
     if (Tok.is(tok::kw_handle)) {
-        return ParseHandleStmt(Parent, nullptr);
+        ParseHandleStmt(Parent, nullptr);
+    	return;
     }
 
     // Parse fail stmt
     if (Tok.is(tok::kw_fail)) {
-        return ParseFailStmt(Parent);
+        ParseFailStmt(Parent);
+    	return;
     }
 
     // Parse return stmt
@@ -421,9 +422,10 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
     // Parse Modifiers
     SmallVector<ASTModifier *, 8> Modifiers = ParseModifiers();
 
+	ASTIdentifier * Identifier = nullptr;
+
 	// Parse a Local Var
 	Optional<Token> NexTok = Tok;
-	ASTIdentifier * Identifier = nullptr;
 
 	// Check if is a Var Decl
     if (isVarDecl(NexTok)) {
@@ -440,18 +442,15 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
     	const SourceLocation &Loc = ConsumeToken();
     	ASTLocalVar *LocalVar = Builder.CreateLocalVar(Parent, Loc, T, Name, Modifiers);
     	Identifier = Builder.CreateIdentifier(LocalVar);
-    }
 
-	// Check if is an assignment
-	NexTok = Tok;
-	if (isVar(NexTok) && isAssignOperator(*NexTok)) {
+    } else if (((NexTok = Tok)) && isVarAssign(NexTok)) {
     	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
     	const SourceLocation &Loc = ConsumeToken();
     	Identifier = Builder.CreateIdentifier(Loc, Name);
+    }
 
-    	// Get next token
-    	NexTok = Tok;
-    	NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
+	// Check if is an assignment
+	if (Identifier && isAssignOperator(Tok)) {
 
 		// Check for handle assignment
 		if (Tok.is(tok::equal) && NexTok.getValue().is(tok::kw_handle)) {
@@ -468,79 +467,106 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 			ASTExpr *Expr = ParseExpr();
 			Stmt->setExpr(Expr);
 		}
-		return;;
+    } else {
+	    // a()
+    	// a++
+    	// ++a
+    	// new A()
+    	ASTExpr *Expr = ParseExpr();
+    	if (Expr) {
+    		ASTExprStmt *Stmt = Builder.CreateExprStmt(Parent, Expr->getLocation());
+    		Stmt->setExpr(Expr);
+    	}
     }
-
-    // a()
-    // a++
-    // ++a
-    // new A()
-    ASTExpr *Expr = ParseExpr();
-    ASTExprStmt *Stmt = Builder.CreateExprStmt(Parent, Expr->getLocation());
-    Stmt->setExpr(Expr);
 }
 
 bool Parser::isType(Optional<Token> &NexTok) {
-	// is Builtin Type
-	if (NexTok.getValue().isOneOf(tok::kw_bool, tok::kw_byte, tok::kw_ushort, tok::kw_short, tok::kw_uint, tok::kw_int,
-					   tok::kw_ulong, tok::kw_long, tok::kw_float, tok::kw_double, tok::kw_void, tok::kw_string,
-					   tok::kw_char, tok::kw_error)) {
-		return true;
-	}
+    FLY_DEBUG_START("Parser", "isType");
+    if (!NexTok) return false;
 
-	if (!NexTok || !NexTok->isAnyIdentifier())
-		return false;
+    // If the current token is a builtin keyword, treat it as a type and
+    // advance NexTok to the next token so callers always receive the token
+    // immediately after the type.
+    if (NexTok->isKeyword()) {
+        auto K = NexTok->getKind();
+        switch (K) {
+            case tok::kw_bool:
+            case tok::kw_byte:
+            case tok::kw_ushort:
+            case tok::kw_short:
+            case tok::kw_uint:
+            case tok::kw_int:
+            case tok::kw_ulong:
+            case tok::kw_long:
+            case tok::kw_float:
+            case tok::kw_double:
+            case tok::kw_void:
+            case tok::kw_string:
+            case tok::kw_char:
+            case tok::kw_error: {
+                // Advance to the next token after the builtin type
+                NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
+                // Now fall through to array suffix parsing / rejection checks below
+                break;
+            }
+            default:
+                return false;
+        }
+    }
 
-	// --- Parse A or A.B.C ---
-	while (true) {
-		// Expect identifier
-		if (!NexTok->isAnyIdentifier())
-			return false;
+    // If not a builtin keyword, expect an identifier-based type (A or A.B.C)
+    else {
+        if (!NexTok || !NexTok->isAnyIdentifier())
+            return false;
 
-		// Advance
-		NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
-		if (!NexTok)
-			break;
+        // --- Parse A or A.B.C ---
+        while (true) {
+            // Expect identifier
+            if (!NexTok->isAnyIdentifier())
+                return false;
 
-		// If we see a dot, consume it and require another identifier
-		if (NexTok->is(tok::period)) {
-			// Consume '.'
-			NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
-			if (!NexTok || !NexTok->isAnyIdentifier())
-				return false;
-			continue;
-		}
+            // Advance to next token after identifier
+            NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
+            if (!NexTok)
+                break;
 
-		break;
-	}
+            // If we see a dot, consume it and require another identifier
+            if (NexTok->is(tok::period)) {
+                NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
+                if (!NexTok || !NexTok->isAnyIdentifier())
+                    return false;
+                continue;
+            }
 
-	// --- Parse [] suffixes ---
-	while (NexTok && NexTok->is(tok::l_square)) {
-		// Must be []
-		NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
-		if (!NexTok || !NexTok->is(tok::r_square))
-			return false;
+            break;
+        }
+    }
 
-		// Consume ']'
-		NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
-	}
+    // --- Parse [] suffixes ---
+    while (NexTok && NexTok->is(tok::l_square)) {
+        // Must be []
+        NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
+        if (!NexTok || !NexTok->is(tok::r_square))
+            return false;
 
-	// --- Reject things that are NOT allowed for types ---
+        // Advance past ']'
+        NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
+    }
 
-	// Function call → NOT a type
-	if (NexTok && NexTok->is(tok::l_paren))
-		return false;
+    // --- Reject things that are NOT allowed for types ---
+    // Function call → NOT a type
+    if (NexTok && NexTok->is(tok::l_paren))
+        return false;
 
-	// Postfix ops → NOT a type
-	if (NexTok && NexTok->isOneOf(tok::plusplus, tok::minusminus))
-		return false;
+    // Postfix ops → NOT a type
+    if (NexTok && NexTok->isOneOf(tok::plusplus, tok::minusminus))
+        return false;
 
-	// If the next token is or starts an expression piece, it's not a pure type
-	// (e.g. A.B + C, A.B * 2)
-	if (NexTok && isAnyOperator(NexTok.getValue()))
-		return false;
+    // If the next token is or starts an expression piece, it's not a pure type
+    if (NexTok && isAnyOperator(NexTok.getValue()))
+        return false;
 
-	return true;
+    return true;
 }
 
 bool Parser::isVarDecl(Optional<Token> &NexTok) {
@@ -549,13 +575,23 @@ bool Parser::isVarDecl(Optional<Token> &NexTok) {
 		return false;
 	}
 
-	NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
-
-	// Var Decl must have an Identifier after Type
+	// After isType returns, NexTok points to the token after the type (either
+	// advanced by isType for builtin types or left advanced for named types).
+	// Check that the next token is an identifier (the variable name).
 	if (!NexTok || !NexTok->isAnyIdentifier())
 		return false;
 
 	return true;
+}
+
+bool Parser::isVarAssign(Optional<Token> &NexTok) const {
+	FLY_DEBUG_START("Parser", "isVarAssign");
+
+	if (NexTok->isAnyIdentifier()) {
+		NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
+
+		return isAssignOperator(*NexTok);
+	}
 }
 
 bool Parser::isVar(Optional<Token> &NexTok) {
@@ -981,7 +1017,7 @@ ASTType *Parser::ParseType() {
 	// Parse Class or Enum Type
 	else if (Tok.isAnyIdentifier()) {
 		llvm::SmallVector<ASTName *, 4> Names = ParseNames();
-		T = Builder.CreateType(ConsumeToken(), Names);
+		T = Builder.CreateType(Tok.getLocation(), Names);
 	}
 
 	// Parse Array Type
@@ -1009,14 +1045,14 @@ ASTType *Parser::ParseType() {
 
 ASTExpr *Parser::ParseExpr() {
     FLY_DEBUG_START("Parser", "ParseExpr");
-	ParserExpr *PE = new ParserExpr(this);
-    return PE->Parse();
+    ParserExpr PE(this);
+    return PE.Parse();
 }
 
 ASTExpr *Parser::ParseIdentifier() {
 	FLY_DEBUG_START("Parser", "ParseIdentifier");
-	ParserExpr *PE = new ParserExpr(this);
-	return PE->ParseIdentifierOrCall();
+	ParserExpr PE(this);
+	return PE.ParseIdentifierOrCall();
 }
 
 bool Parser::isBuiltinType(Token &Tok) {
@@ -1141,7 +1177,6 @@ bool Parser::isAnyOperator(const Token &Tok) const {
                    tok::lessless, tok::greatergreater,
                    tok::plusplus, tok::minusminus);
 }
-
 
 bool Parser::isAssignOperator(Token &Tok) const {
 	FLY_DEBUG_START("Parser", "isAssignOperator");

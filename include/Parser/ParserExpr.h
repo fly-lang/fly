@@ -38,7 +38,7 @@ namespace fly {
         ASTValue *ParseValue();
 
     private:
-        ASTExpr *ParsePrimary(bool Expected = false);
+        ASTExpr *ParsePrimary();
 
         ASTBinaryOp *ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Precedence Precedence);
 

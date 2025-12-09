@@ -113,8 +113,6 @@ private:
     /// Parse a definition.
     void ParseNode();
 
-    void addNode(ASTNode* Node);
-
     /// Parse multiple Modifiers.
     SmallVector<ASTModifier *, 8> ParseModifiers();
 
@@ -139,6 +137,9 @@ private:
     bool isType(Optional<Token> &NexTok);
 
     bool isVarDecl(Optional<Token> &NexTok);
+
+    /// Check if is an assignment.
+    bool isVarAssign(Optional<Token> &NexTok) const;
 
     bool isVar(Optional<Token> &NexTok);
 

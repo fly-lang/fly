@@ -37,9 +37,14 @@ namespace fly {
 
     public:
 
+        ~ASTBlockStmt() override;
+
         void accept(ASTVisitor& Visitor) override;
 
         llvm::SmallVector<ASTStmt *, 8> &getContent();
+
+        // Add a statement to the block and set its parent/function
+        void addContent(ASTStmt *Stmt);
 
         bool isEmpty() const;
 

@@ -51,6 +51,8 @@ namespace fly {
 
     public:
 
+        ~ASTFunction() override;
+
         void accept(ASTVisitor& Visitor) override;
 
         llvm::StringRef getName() const;

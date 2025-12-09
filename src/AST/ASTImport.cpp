@@ -12,6 +12,7 @@
 
 #include <AST/ASTIdentifier.h>
 #include <AST/ASTVisitor.h>
+#include <AST/ASTName.h>
 #include <llvm/ADT/StringExtras.h>
 
 using namespace fly;
@@ -22,7 +23,10 @@ ASTImport::ASTImport(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> 
 }
 
 ASTImport::~ASTImport() {
-
+    for (auto *N : Names) delete N;
+    Names.clear();
+    for (auto *A : Alias) delete A;
+    Alias.clear();
 }
 
 void ASTImport::accept(ASTVisitor &Visitor) {

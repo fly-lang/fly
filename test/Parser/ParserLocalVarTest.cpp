@@ -7,32 +7,23 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include <AST/ASTFailStmt.h>
-#include <AST/ASTHandleStmt.h>
-#include <AST/ASTReturnStmt.h>
-#include <AST/ASTParam.h>
-
 #include "ParserTest.h"
-#include "AST/ASTNameSpace.h"
 #include "AST/ASTModule.h"
-#include "AST/ASTImport.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTExpr.h"
-#include "AST/ASTExprStmt.h"
-#include "AST/ASTArg.h"
+#include "AST/ASTType.h"
 #include "AST/ASTAssignStmt.h"
 #include "AST/ASTIdentifier.h"
-#include "AST/ASTClass.h"
 #include "AST/ASTBlockStmt.h"
+#include "AST/ASTLocalVar.h"
 
 namespace {
 
     using namespace fly;
 
-    TEST_F(ParserTest, LocalVarType) {
+    TEST_F(ParserTest, LocalVarBuiltinType) {
         llvm::StringRef str = ("void func() {\n"
                                    "bool a = false\n"
                                    "byte b = 0\n"
@@ -44,15 +35,15 @@ namespace {
                                    "ulong h = 0\n"
                                    "float i = 0.0\n" // TODO need to accept also 0
                                    "double j = 0.0\n"
+                                   "Type t = null\n"
                                "}\n");
-        ASTModule *Module = Parse("FunctionType", str);
-
-
+        ASTModule *Module = Parse("LocalVarBuiltinType", str);
 
         // Get Body
         auto *F = As<ASTFunction>(Module->getNodes()[0]);
         EXPECT_TRUE(HasBuiltinType(F->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
         auto *Body = F->getBody();
+        ASSERT_FALSE(Body->getContent().empty());
 
         // Test: bool a
         auto *aStmt = As<ASTAssignStmt>(Body->getContent()[0]);
@@ -117,180 +108,242 @@ namespace {
         ASSERT_EQ(As<ASTNumberValue>(jStmt->getTarget())->getValue(), ZeroFloatValue->getValue());
 
         // Test: Type t
-        // ASTAssignStmt *tStmt = As<ASTAssignStmt>(Body->getContent()[10]);
-        // ASTVar *tVar = As<ASTVar>(tStmt->getSource());
-        // EXPECT_EQ(tVar->getName(), "t");
-        // EXPECT_EQ(As<ASTIdentityType>(tVar->getType())->getIdentityTypeKind(), ASTIdentityTypeKind::TYPE_NONE);
-        // ASSERT_EQ(As<ASTNumberValue>(iStmt->getTarget())->getValue(), ZeroFloatValue->getValue());
+        ASTAssignStmt *tStmt = As<ASTAssignStmt>(Body->getContent()[10]);
+        ASTIdentifier *tIdent = As<ASTIdentifier>(tStmt->getSource());
+        EXPECT_EQ(tIdent->getName(), "t");
+        EXPECT_EQ(As<ASTNamedType>(tIdent->getVar()->getType())->getTypeKind(), ASTTypeKind::TYPE_NAMED);
     }
 
-    TEST_F(ParserTest, FunctionPrivateReturnParams) {
-        llvm::StringRef str = (
-                "private int func(int a, const float b, bool c=false) {\n"
-                "  return 1"
-                "}\n");
-        ASTModule *Module = Parse("FunctionPrivateReturnParams", str);
+	TEST_F(ParserTest, LocalVarArray) {
+    	llvm::StringRef str = ("void func() {\n"
+		                       "byte[] a\n"
+		                       "byte[] b = {}\n"// array of zero bytes
+		                       "byte[] c = {1, 2, 3}\n"
+		                       "byte[3] d\n"
+		                       "byte[3] e = {1, 2, 3}\n"
+		               "}\n");
+    	ASTModule *Module = Parse("LocalVarArrayNull", str);
 
+    	// Get Body
+    	auto *F = As<ASTFunction>(Module->getNodes()[0]);
+    	EXPECT_TRUE(HasBuiltinType(F->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
+    	auto *Body = F->getBody();
+    	ASSERT_FALSE(Body->getContent().empty());
 
+    	// a: declared byte[] a
+    	auto *aStmt = As<ASTAssignStmt>(Body->getContent()[0]);
+    	auto *aIdent = As<ASTIdentifier>(aStmt->getSource());
+    	EXPECT_EQ(aIdent->getName(), "a");
 
+    	ASTLocalVar *aVar = As<ASTLocalVar>(aIdent->getVar());
+    	ASSERT_TRUE(aVar != nullptr);
+    	ASTType *aType = aVar->getType();
+    	ASSERT_TRUE(aType != nullptr);
+    	EXPECT_EQ(aType->getTypeKind(), ASTTypeKind::TYPE_ARRAY);
+    	auto *ArrTypeA = As<ASTArrayType>(aType);
+    	ASSERT_TRUE(ArrTypeA != nullptr);
+    	EXPECT_TRUE(HasBuiltinType(ArrTypeA->getElementType(), ASTBuiltinTypeKind::TYPE_BYTE));
+    	EXPECT_EQ(ArrTypeA->getSizeExpr(), nullptr);
 
-        EXPECT_TRUE(Module->getNodes().size() == 1); // func() has PRIVATE Visibility
-        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
-        EXPECT_TRUE(HasModifier(Func->getModifiers(), ASTModifierKind::MOD_PRIVATE));
+    	// Depending on parser representation, a declaration without initializer may produce
+    	// either a statement with null target or an expr-stmt. Accept both.
+    	if (aStmt->getTarget()) {
+    		auto *ValA = As<ASTValue>(aStmt->getTarget());
+    		ASSERT_TRUE(ValA != nullptr);
+    		EXPECT_TRUE(ValA->isNull());
+    	}
 
-        ASTParam *Par0 = Func->getParams()[0];
-        ASTParam *Par1 = Func->getParams()[1];
-        ASTParam *Par2 = Func->getParams()[2];
+    	// b: empty initializer {}
+    	auto *bStmt = As<ASTAssignStmt>(Body->getContent()[1]);
+    	auto *bIdent = As<ASTIdentifier>(bStmt->getSource());
+    	EXPECT_EQ(bIdent->getName(), "b");
+    	ASTLocalVar *bVar = As<ASTLocalVar>(bIdent->getVar());
+    	ASSERT_TRUE(bVar != nullptr);
+    	auto *bType = As<ASTArrayType>(bVar->getType());
+    	ASSERT_TRUE(bType != nullptr);
+    	EXPECT_TRUE(HasBuiltinType(bType->getElementType(), ASTBuiltinTypeKind::TYPE_BYTE));
+    	EXPECT_EQ(bType->getSizeExpr(), nullptr);
 
-        EXPECT_EQ(Par0->getName(), "a");
-        EXPECT_TRUE(HasBuiltinType(Par0->getType(), ASTBuiltinTypeKind::TYPE_INT));
-        EXPECT_FALSE(HasModifier(Par0->getModifiers(), ASTModifierKind::MOD_CONSTANT));
+    	// b value must be ASTArrayValue with size 0
+    	auto *bVal = As<ASTArrayValue>(bStmt->getTarget());
+    	ASSERT_TRUE(bVal != nullptr);
+    	EXPECT_EQ(bVal->size(), 0u);
 
-        EXPECT_EQ(Par1->getName(), "b");
-        EXPECT_TRUE(HasBuiltinType(Par1->getType(), ASTBuiltinTypeKind::TYPE_FLOAT));
-        EXPECT_TRUE(HasModifier(Par1->getModifiers(), ASTModifierKind::MOD_CONSTANT));
+    	// c: initialized {1,2,3}
+    	auto *cStmt = As<ASTAssignStmt>(Body->getContent()[2]);
+    	auto *cIdent = As<ASTIdentifier>(cStmt->getSource());
+    	EXPECT_EQ(cIdent->getName(), "c");
+    	ASTLocalVar *cVar = As<ASTLocalVar>(cIdent->getVar());
+    	ASSERT_TRUE(cVar != nullptr);
+    	auto *cType = As<ASTArrayType>(cVar->getType());
+    	ASSERT_TRUE(cType != nullptr);
+    	EXPECT_TRUE(HasBuiltinType(cType->getElementType(), ASTBuiltinTypeKind::TYPE_BYTE));
+    	EXPECT_EQ(cType->getSizeExpr(), nullptr);
 
-        EXPECT_EQ(Par2->getName(), "c");
-        EXPECT_TRUE(HasBuiltinType(Par2->getType(), ASTBuiltinTypeKind::TYPE_BOOL));
-        EXPECT_FALSE(HasModifier(Par2->getModifiers(), ASTModifierKind::MOD_CONSTANT));
+    	auto *cVal = As<ASTArrayValue>(cStmt->getTarget());
+    	ASSERT_TRUE(cVal != nullptr);
+    	EXPECT_EQ(cVal->size(), 3u);
+    	EXPECT_EQ(As<ASTNumberValue>(cVal->getValues()[0])->getValue(), "1");
+    	EXPECT_EQ(As<ASTNumberValue>(cVal->getValues()[1])->getValue(), "2");
+    	EXPECT_EQ(As<ASTNumberValue>(cVal->getValues()[2])->getValue(), "3");
 
-        ASTReturnStmt *ReturnStmt = As<ASTReturnStmt>(Func->getBody()->getContent()[0]);
-        EXPECT_EQ(ReturnStmt->getStmtKind(), ASTStmtKind::STMT_RETURN);
-        EXPECT_EQ((ReturnStmt->getExpr())->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(As<ASTNumberValue>(ReturnStmt->getExpr())->getValue(), "1");
+    	// d: byte[3] d (sized, no initializer)
+    	auto *dStmt = As<ASTAssignStmt>(Body->getContent()[3]);
+    	auto *dIdent = As<ASTIdentifier>(dStmt->getSource());
+    	EXPECT_EQ(dIdent->getName(), "d");
+    	ASTLocalVar *dVar = As<ASTLocalVar>(dIdent->getVar());
+    	ASSERT_TRUE(dVar != nullptr);
+    	auto *dType = As<ASTArrayType>(dVar->getType());
+    	ASSERT_TRUE(dType != nullptr);
+    	EXPECT_TRUE(HasBuiltinType(dType->getElementType(), ASTBuiltinTypeKind::TYPE_BYTE));
+    	// size expr should be a number value "3"
+    	ASSERT_TRUE(dType->getSizeExpr() != nullptr);
+    	EXPECT_EQ(As<ASTNumberValue>(dType->getSizeExpr())->getValue(), "3");
+
+    	// e: byte[3] e = {1,2,3}
+    	auto *eStmt = As<ASTAssignStmt>(Body->getContent()[4]);
+    	auto *eIdent = As<ASTIdentifier>(eStmt->getSource());
+    	EXPECT_EQ(eIdent->getName(), "e");
+    	ASTLocalVar *eVar = As<ASTLocalVar>(eIdent->getVar());
+    	ASSERT_TRUE(eVar != nullptr);
+    	auto *eType = As<ASTArrayType>(eVar->getType());
+    	ASSERT_TRUE(eType != nullptr);
+    	EXPECT_TRUE(HasBuiltinType(eType->getElementType(), ASTBuiltinTypeKind::TYPE_BYTE));
+    	ASSERT_TRUE(eType->getSizeExpr() != nullptr);
+    	EXPECT_EQ(As<ASTNumberValue>(eType->getSizeExpr())->getValue(), "3");
+
+    	auto *eVal = As<ASTArrayValue>(eStmt->getTarget());
+    	ASSERT_TRUE(eVal != nullptr);
+    	EXPECT_EQ(eVal->size(), 3u);
+    	EXPECT_EQ(As<ASTNumberValue>(eVal->getValues()[0])->getValue(), "1");
+    	EXPECT_EQ(As<ASTNumberValue>(eVal->getValues()[1])->getValue(), "2");
+    	EXPECT_EQ(As<ASTNumberValue>(eVal->getValues()[2])->getValue(), "3");
     }
 
-    TEST_F(ParserTest, FunctionCall) {
-        llvm::StringRef str = ("private int doSome() {return 1}\n"
-                               "public void doOther(int a, int b) {}\n"
-                               "int doNow() {return 0}"
-                               "int main(int a) {\n"
-                               "  int b = doSome()\n"
-                               "  b = doNow()\n"
-                               "  doOther(a, 1)\n"
-                               "  return b\n"
-                               "}\n");
-        ASTModule *Module = Parse("FunctionCall", str);
+    TEST_F(ParserTest, LocalVarChar) {
+    	llvm::StringRef str = ("void func() {\n"
+						"byte a = ''\n"
+						"byte b = 'b'\n"
+						"byte[] c = {'a', 'b', 'c', ''}\n"
+						"byte[2] d = {'', ''}\n" // Empty string
+					"}\n");
+        ASTModule *Module = Parse("LocalVarChar", str);
 
+        // Get Body
+        auto *F = As<ASTFunction>(Module->getNodes()[0]);
+        EXPECT_TRUE(HasBuiltinType(F->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
+        auto *Body = F->getBody();
+        ASSERT_FALSE(Body->getContent().empty());
 
+        // a: byte a = ''
+        auto *aStmt = As<ASTAssignStmt>(Body->getContent()[0]);
+        auto *aIdent = As<ASTIdentifier>(aStmt->getSource());
+        EXPECT_EQ(aIdent->getName(), "a");
+        auto *aVar = As<ASTLocalVar>(aIdent->getVar());
+        ASSERT_TRUE(aVar != nullptr);
+        EXPECT_TRUE(HasBuiltinType(aVar->getType(), ASTBuiltinTypeKind::TYPE_BYTE));
+        {
+            auto *aVal = As<ASTStringValue>(aStmt->getTarget());
+            ASSERT_TRUE(aVal != nullptr);
+            EXPECT_EQ(aVal->getValue(), "");
+        }
 
+        // b: byte b = 'b'
+        auto *bStmt = As<ASTAssignStmt>(Body->getContent()[1]);
+        auto *bIdent = As<ASTIdentifier>(bStmt->getSource());
+        EXPECT_EQ(bIdent->getName(), "b");
+        auto *bVar = As<ASTLocalVar>(bIdent->getVar());
+        ASSERT_TRUE(bVar != nullptr);
+        EXPECT_TRUE(HasBuiltinType(bVar->getType(), ASTBuiltinTypeKind::TYPE_BYTE));
+        {
+            auto *bVal = As<ASTStringValue>(bStmt->getTarget());
+            ASSERT_TRUE(bVal != nullptr);
+            EXPECT_EQ(bVal->getValue(), "b");
+        }
 
-        // Get all functions
-        ASTFunction *doSomeFunc = As<ASTFunction>(Module->getNodes()[0]);
-        ASTFunction *doOtherFunc = As<ASTFunction>(Module->getNodes()[1]);
-        ASTFunction *doNowFunc = As<ASTFunction>(Module->getNodes()[2]);
-        ASTFunction *mainFunc = As<ASTFunction>(Module->getNodes()[3]);
+        // c: byte[] c = {'a', 'b', 'c', ''}
+        auto *cStmt = As<ASTAssignStmt>(Body->getContent()[2]);
+        auto *cIdent = As<ASTIdentifier>(cStmt->getSource());
+        EXPECT_EQ(cIdent->getName(), "c");
+        auto *cVar = As<ASTLocalVar>(cIdent->getVar());
+        ASSERT_TRUE(cVar != nullptr);
+        auto *cType = As<ASTArrayType>(cVar->getType());
+        ASSERT_TRUE(cType != nullptr);
+        EXPECT_TRUE(HasBuiltinType(cType->getElementType(), ASTBuiltinTypeKind::TYPE_BYTE));
+        EXPECT_EQ(cType->getSizeExpr(), nullptr);
+        auto *cVal = As<ASTArrayValue>(cStmt->getTarget());
+        ASSERT_TRUE(cVal != nullptr);
+        EXPECT_EQ(cVal->size(), 4u);
+        EXPECT_EQ(As<ASTStringValue>(cVal->getValues()[0])->getValue(), "a");
+        EXPECT_EQ(As<ASTStringValue>(cVal->getValues()[1])->getValue(), "b");
+        EXPECT_EQ(As<ASTStringValue>(cVal->getValues()[2])->getValue(), "c");
+        EXPECT_EQ(As<ASTStringValue>(cVal->getValues()[3])->getValue(), "");
 
-        ASSERT_TRUE(doSomeFunc != nullptr);
-        ASSERT_TRUE(doOtherFunc != nullptr);
-        ASSERT_TRUE(mainFunc != nullptr);
-
-        // Get main() Body
-        ASTBlockStmt *Body = mainFunc->getBody();
-
-        // Test: doSome()
-        auto *VarBDecl = As<ASTAssignStmt>(Body->getContent()[0]);
-        auto *doSomeCall = As<ASTCall>(VarBDecl->getTarget());
-        EXPECT_EQ(doSomeCall->getName(), "doSome");
-        EXPECT_EQ(doSomeCall->getExprKind(), ASTExprKind::EXPR_CALL);
-
-        // Test: doNow()
-        auto *VarBAssign = As<ASTAssignStmt>(Body->getContent()[1]);
-        auto *doNowCall = As<ASTCall>(VarBAssign->getTarget());
-        EXPECT_EQ(doNowCall->getName(), "doNow");
-        EXPECT_EQ(doNowCall->getExprKind(), ASTExprKind::EXPR_CALL);
-
-        // Test: doOther(a, b)
-        auto *doOtherStmt = As<ASTExprStmt>(Body->getContent()[2]);
-        EXPECT_EQ(doOtherStmt->getStmtKind(), ASTStmtKind::STMT_EXPR);
-        auto *doOtherCall = As<ASTCall>(doOtherStmt->getExpr());
-        EXPECT_EQ(doOtherCall->getName(), "doOther");
-        auto *Arg0 = doOtherCall->getArgs()[0];
-        EXPECT_EQ(As<ASTIdentifier>(Arg0->getExpr())->getName(), "a");
-        auto *Arg1 = doOtherCall->getArgs()[1];
-        EXPECT_EQ(As<ASTNumberValue>(Arg1->getExpr())->getValue(), "1");
-
-        // return do()
-        auto *RetStmt = As<ASTReturnStmt>(Body->getContent()[3]);
-        EXPECT_EQ(As<ASTIdentifier>(RetStmt->getExpr())->getName(), "b");
+        // d: byte[2] d = {'', ''}
+        auto *dStmt = As<ASTAssignStmt>(Body->getContent()[3]);
+        auto *dIdent = As<ASTIdentifier>(dStmt->getSource());
+        EXPECT_EQ(dIdent->getName(), "d");
+        auto *dVar = As<ASTLocalVar>(dIdent->getVar());
+        ASSERT_TRUE(dVar != nullptr);
+        auto *dType = As<ASTArrayType>(dVar->getType());
+        ASSERT_TRUE(dType != nullptr);
+        EXPECT_TRUE(HasBuiltinType(dType->getElementType(), ASTBuiltinTypeKind::TYPE_BYTE));
+        ASSERT_TRUE(dType->getSizeExpr() != nullptr);
+        EXPECT_EQ(As<ASTNumberValue>(dType->getSizeExpr())->getValue(), "2");
+        auto *dVal = As<ASTArrayValue>(dStmt->getTarget());
+        ASSERT_TRUE(dVal != nullptr);
+        EXPECT_EQ(dVal->size(), 2u);
+        EXPECT_EQ(As<ASTStringValue>(dVal->getValues()[0])->getValue(), "");
+        EXPECT_EQ(As<ASTStringValue>(dVal->getValues()[1])->getValue(), "");
     }
 
-    TEST_F(ParserTest, FunctionHandleFail) {
-        llvm::StringRef str = (
-                               "void err0() {\n"
-                               "  fail\n"
-                               "}\n"
-                               "int err1() {\n"
-                               "  fail 404\n"
-                               "}\n"
-                               "string err2() {\n"
-                               "  fail \"Error\"\n"
-                               "}\n"
-                               "void main() {\n"
-                               "  handle err0()\n"
-                               "  bool b = false\n"
-                               "  error err0 = handle { b = err0() }\n"
-                               "  int i = 0\n"
-                               "  error err1 = handle { i = err1() }\n"
-                               "  string s = \"\"\n"
-                               "  error err2 = handle { s = err2() }\n"
-                               "}\n");
-        ASTModule *Module = Parse("FunctionFail", str);
+    TEST_F(ParserTest, LocalVarString) {
+    	llvm::StringRef str = ("void func() {\n"
+						"string c\n"
+						"string a = \"\"\n" // array of zero bytes
+						"string b = \"abc\"\n" // string abc
+					"}\n");
+        ASTModule *Module = Parse("LocalVarString", str);
 
+        // Get Body
+        auto *F = As<ASTFunction>(Module->getNodes()[0]);
+        EXPECT_TRUE(HasBuiltinType(F->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
+        auto *Body = F->getBody();
+        ASSERT_FALSE(Body->getContent().empty());
 
+        // c: declaration without initializer
+        auto *cStmt = As<ASTAssignStmt>(Body->getContent()[0]);
+        auto *cIdent = As<ASTIdentifier>(cStmt->getSource());
+        EXPECT_EQ(cIdent->getName(), "c");
+        auto *cVar = As<ASTLocalVar>(cIdent->getVar());
+        ASSERT_TRUE(cVar != nullptr);
+        EXPECT_TRUE(HasBuiltinType(cVar->getType(), ASTBuiltinTypeKind::TYPE_STRING));
+        // Declaration may have no target or a null value
+        if (cStmt->getTarget()) {
+            auto *cVal = As<ASTValue>(cStmt->getTarget());
+            ASSERT_TRUE(cVal != nullptr);
+        }
 
-        // Get all functions
-        ASTFunction *err0 = As<ASTFunction>(Module->getNodes()[0]);
-        ASTFunction *err1 = As<ASTFunction>(Module->getNodes()[1]);
-        ASTFunction *err2 = As<ASTFunction>(Module->getNodes()[2]);
-        ASTFunction *main = As<ASTFunction>(Module->getNodes()[3]);
+        // a: empty string literal
+        auto *aStmt = As<ASTAssignStmt>(Body->getContent()[1]);
+        auto *aIdent = As<ASTIdentifier>(aStmt->getSource());
+        EXPECT_EQ(aIdent->getName(), "a");
+        auto *aVar = As<ASTLocalVar>(aIdent->getVar());
+        ASSERT_TRUE(aVar != nullptr);
+        EXPECT_TRUE(HasBuiltinType(aVar->getType(), ASTBuiltinTypeKind::TYPE_STRING));
+        auto *aVal = As<ASTStringValue>(aStmt->getTarget());
+        ASSERT_TRUE(aVal != nullptr);
+        EXPECT_EQ(aVal->getValue(), "");
 
-        ASSERT_TRUE(err0 != nullptr);
-        ASSERT_TRUE(err1 != nullptr);
-        ASSERT_TRUE(err2 != nullptr);
-        ASSERT_TRUE(main != nullptr);
-
-        // err0()
-        ASTFailStmt *Stmt0 = As<ASTFailStmt>(err0->getBody()->getContent()[0]);
-        ASSERT_TRUE(Stmt0->getExpr() == nullptr);
-
-        // err1()
-        ASTFailStmt *Stmt1 = As<ASTFailStmt>(err1->getBody()->getContent()[0]);
-        ASTNumberValue *Val2 = As<ASTNumberValue>(Stmt1->getExpr());
-        ASSERT_EQ(Val2->getValue(), "404");
-
-        // err2()
-        ASTFailStmt *Stmt2 = As<ASTFailStmt>(err2->getBody()->getContent()[0]);
-        ASTStringValue *Val3 = As<ASTStringValue>(Stmt2->getExpr());
-        ASSERT_EQ(Val3->getValue(), "Error");
-
-        // Get main() Body
-
-        // handle err0()
-        ASTHandleStmt *HandleStmt = As<ASTHandleStmt>(main->getBody()->getContent()[0]);
-        ASSERT_TRUE(HandleStmt->getErrorHandler() == nullptr);
-    	ASTBlockStmt *Handle = HandleStmt->getHandle();
-    	ASTExprStmt *ExprStmt = As<ASTExprStmt>(Handle->getContent()[0]);
-        ASSERT_TRUE(As<ASTCall>(ExprStmt->getExpr())->getArgs().empty());
-
-        // bool b = false
-        ASTAssignStmt *bool_err0 = As<ASTAssignStmt>(main->getBody()->getContent()[1]);
-        ASSERT_EQ(As<ASTBoolValue>(bool_err0->getTarget())->getValue(), false);
-
-
-    	// error err0 = handle { b = err0() }
-    	ASTHandleStmt *error_err0 = As<ASTHandleStmt>(main->getBody()->getContent()[2]);
-    	// int i = 0
-    	ASTAssignStmt *int_err1 = As<ASTAssignStmt>(main->getBody()->getContent()[3]);
-    	ASSERT_EQ(As<ASTNumberValue>(int_err1->getTarget())->getValue(), "0");
-
-    	// error err1 = handle { i = err1() }
-    	ASTHandleStmt *error_err1 = As<ASTHandleStmt>(main->getBody()->getContent()[4]);
-    	// string s = ""
-    	ASTAssignStmt *string_err2 = As<ASTAssignStmt>(main->getBody()->getContent()[5]);
-    	ASSERT_EQ(As<ASTStringValue>(string_err2->getTarget())->getValue(), "");
-
-    	// error err2 = handle { s = err2() }
-    	ASTHandleStmt *error_err2 = As<ASTHandleStmt>(main->getBody()->getContent()[6]);
+        // b: "abc"
+        auto *bStmt = As<ASTAssignStmt>(Body->getContent()[2]);
+        auto *bIdent = As<ASTIdentifier>(bStmt->getSource());
+        EXPECT_EQ(bIdent->getName(), "b");
+        auto *bVar = As<ASTLocalVar>(bIdent->getVar());
+        ASSERT_TRUE(bVar != nullptr);
+        EXPECT_TRUE(HasBuiltinType(bVar->getType(), ASTBuiltinTypeKind::TYPE_STRING));
+        auto *bVal = As<ASTStringValue>(bStmt->getTarget());
+        ASSERT_TRUE(bVal != nullptr);
+        EXPECT_EQ(bVal->getValue(), "abc");
     }
 }

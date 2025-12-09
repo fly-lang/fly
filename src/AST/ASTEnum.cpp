@@ -21,6 +21,13 @@ ASTEnum::ASTEnum(const SourceLocation &Loc, llvm::StringRef Name,
 
 }
 
+ASTEnum::~ASTEnum() {
+    for (auto *N : Nodes) delete N;
+    Nodes.clear();
+    for (auto *M : Modifiers) delete M;
+    Modifiers.clear();
+}
+
 void ASTEnum::accept(ASTVisitor &Visitor) {
 	Visitor.visit(*this);
 }

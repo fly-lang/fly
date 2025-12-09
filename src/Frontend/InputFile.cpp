@@ -12,22 +12,30 @@
 
 using namespace fly;
 
-FileExt TakeExt(std::string FileName) {
+FileExt TakeExt(const std::string &FileName) {
     if (FileName.size() > 4 && FileName.substr(FileName.size() - 4, FileName.size()) == ".fly") {
         return FLY;
-    } else if (FileName.size() > 4 && FileName.substr(FileName.size() - 4, FileName.size()) == ".lib") {
+    }
+
+	if (FileName.size() > 4 && FileName.substr(FileName.size() - 4, FileName.size()) == ".lib") {
         return LIB;
-    } else if (FileName.size() > 2 && FileName.substr(FileName.size() - 2, FileName.size()) == ".o") {
+    }
+
+	if (FileName.size() > 2 && FileName.substr(FileName.size() - 2, FileName.size()) == ".o") {
         return OBJ;
     }
+
     return UNKNOWN;
 }
 
-std::string TakeName(std::string FileName) {
-    return FileName.substr(0, FileName.size()-4);
+std::string TakeName(const std::string &FileName) {
+	if (FileName.size() > 4)
+		return FileName.substr(0, FileName.size() - 4);
+	return FileName; // fallback if no extension or too short
+
 }
 
-InputFile::InputFile(DiagnosticsEngine &Diags, SourceManager &SourceMgr, std::string FileName) :
+InputFile::InputFile(DiagnosticsEngine &Diags, SourceManager &SourceMgr, const std::string &FileName) :
     Diags(Diags), SourceMgr(SourceMgr), FileName(FileName),
     Name(TakeName(FileName)), Ext(TakeExt(FileName)) {
 
@@ -38,8 +46,9 @@ bool InputFile::Load(llvm::StringRef Source) {
     // Set Source Manager file id
     std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer(Source, Name);
 
-    Buffer = Buf.get();
     FID = SourceMgr.createFileID(std::move(Buf));
+    // Retrieve buffer owned by SourceManager to keep a stable pointer
+    Buffer = SourceMgr.getBuffer(FID);
 //    SourceMgr.setMainFileID(FID);
     return true;
 }
@@ -63,7 +72,7 @@ bool InputFile::Load() {
 }
 
 bool InputFile::isEmpty() const {
-    return !FileName.empty();
+    return FileName.empty();
 }
 
 bool InputFile::isBuffer() const {
@@ -71,17 +80,17 @@ bool InputFile::isBuffer() const {
 }
 
 const std::string &InputFile::getFileName() const {
-    assert(isEmpty());
+    assert(!isEmpty());
     return FileName;
 }
 
 const std::string &InputFile::getName() const {
-    assert(isEmpty());
+    assert(!isEmpty());
     return Name;
 }
 
 const FileExt &InputFile::getExt() const {
-    assert(isEmpty());
+    assert(!isEmpty());
     return Ext;
 }
 

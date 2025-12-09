@@ -13,6 +13,7 @@
 
 #include <AST/ASTVisitor.h>
 #include <llvm/ADT/StringMap.h>
+#include <AST/ASTLocalVar.h>
 
 using namespace fly;
 
@@ -35,7 +36,7 @@ void ASTBlockStmt::accept(ASTVisitor &Visitor) {
  * Get Content
  * @return the Block's content
  */
-llvm::SmallVector<ASTStmt *, 8>  &ASTBlockStmt::getContent() {
+llvm::SmallVector<ASTStmt *, 8> &ASTBlockStmt::getContent() {
     return Content;
 }
 
@@ -49,6 +50,17 @@ bool ASTBlockStmt::isEmpty() const {
 
 void ASTBlockStmt::Clear() {
     return Content.clear();
+}
+
+/**
+ * Add a statement to the block and set its parent/function
+ */
+void ASTBlockStmt::addContent(ASTStmt *Stmt) {
+    if (!Stmt)
+        return;
+    Content.push_back(Stmt);
+    Stmt->setParent(this);
+    Stmt->setFunction(this->Function);
 }
 
 /**
@@ -68,4 +80,13 @@ std::string ASTBlockStmt::str() const {
 		Attr("Location", getLocation()).
 		Attr("Kind", static_cast<size_t>(getKind())).
 		End();
+}
+
+ASTBlockStmt::~ASTBlockStmt() {
+    for (auto *S : Content) delete S;
+    Content.clear();
+    for (auto &KV : LocalVars) {
+        delete KV.second;
+    }
+    LocalVars.clear();
 }

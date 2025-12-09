@@ -12,6 +12,8 @@
 #include "Basic/Logger.h"
 
 #include <AST/ASTVisitor.h>
+#include <AST/ASTBlockStmt.h>
+#include <AST/ASTModifier.h>
 
 using namespace fly;
 
@@ -22,6 +24,17 @@ ASTFunction::ASTFunction(const SourceLocation &Loc, ASTType *ReturnType,
         ASTNode(Loc, ASTKind::AST_FUNCTION), ReturnType(ReturnType), Modifiers(Modifiers), Name(Name),
 		Params(Params), FunctionKind(FunctionKind) {
 
+}
+
+ASTFunction::~ASTFunction() {
+    for (auto *P : Params) delete P;
+    Params.clear();
+    if (Body) {
+        delete Body;
+        Body = nullptr;
+    }
+    for (auto *M : Modifiers) delete M;
+    Modifiers.clear();
 }
 
 void ASTFunction::accept(ASTVisitor &Visitor) {

@@ -103,8 +103,8 @@ ASTParam *ParserFunction::ParseParam(Parser *P) {
 
         // Start Parsing
         if (P->isValue()) {
-        	ParserExpr *PE = new ParserExpr(P);
-            Value = PE->ParseValue();
+            ParserExpr PE(P);
+            Value = PE.ParseValue();
         }
     }
 

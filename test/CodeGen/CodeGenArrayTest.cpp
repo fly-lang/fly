@@ -8,31 +8,18 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 // fly
+#include "AST/ASTType.h"
+#include "AST/ASTAssignStmt.h"
+#include "AST/ASTValue.h"
+#include "AST/ASTLocalVar.h"
+#include "AST/ASTIdentifier.h"
+#include "AST/ASTReturnStmt.h"
+
 #include "CodeGenTest.h"
 #include "CodeGen/CodeGenModule.h"
-#include "CodeGen/CodeGenFunction.h"
-#include "CodeGen/CodeGenClass.h"
 #include "Sema/SemaBuilderModifiers.h"
 #include "AST/ASTModule.h"
-#include "AST/ASTNameSpace.h"
 #include "AST/ASTVar.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTDeleteStmt.h"
-#include "AST/ASTIdentifier.h"
-#include "AST/ASTVar.h"
-#include "AST/ASTIfStmt.h"
-#include "AST/ASTSwitchStmt.h"
-#include "AST/ASTLoopStmt.h"
-#include "AST/ASTHandleStmt.h"
-#include "AST/ASTClass.h"
-#include "AST/ASTEnum.h"
-#include "AST/ASTExprStmt.h"
-#include "AST/ASTFailStmt.h"
-#include "AST/ASTOp.h"
-
-#include <Sema/SemaEnumType.h>
-#include <Sema/SemaFunction.h>
-#include <Sema/SemaModule.h>
 #include <Sema/SemaNameSpace.h>
 
 
@@ -43,44 +30,45 @@ namespace {
     TEST_F(CodeGenTest, CGArrayLocalVar) {
         ASTModule *Module = CreateModule();
 
-    	ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // default int[] k = {}
-    	ASTType * ArrayIntType = CreateArrayTypeRef(S->getSymTable().getIntType());
-    	ASTVar *LocalVar_k = getASTBuilder().CreateLocalVar(Body, SourceLoc, ArrayIntType, "k", EmptyModifiers);
-    	SemaBuilderStmt *VarStmt_k = getASTBuilder().CreateAssignmentStmt(Body, LocalVar_k);
-    	VarStmt_k->setExpr(getASTBuilder().CreateExpr(getASTBuilder().CreateDefaultValue(ArrayIntType->getSema())));
+        ASTArrayType *ArrayIntType = getASTBuilder().CreateArrayType(SourceLoc, IntTypeRef, nullptr);
+        ASTLocalVar *LocalVar_k = getASTBuilder().CreateLocalVar(Body, SourceLoc, ArrayIntType, "k", EmptyModifiers);
+        ASTAssignStmt *VarStmt_k = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(LocalVar_k));
+        llvm::SmallVector<ASTValue *, 8> EmptyVals;
+        ASTArrayValue *EmptyArr = getASTBuilder().CreateArrayValue(SourceLoc, EmptyVals);
+        VarStmt_k->setExpr(EmptyArr);
 
-    	// Generate Code
-    	llvm::Module * M = Generate();
-    	std::string output = getOutput(M->getFunctionList());
+        // Generate Code
+        llvm::Module *M = Generate()[0];
+        std::string output = getOutput(M->getFunctionList());
 
-    	EXPECT_EQ(output, "define void @_F0(%error* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %error*, align 8\n"
-						  "  %12 = alloca i64*, align 8\n"
-						  "  store %error* %0, %error** %1, align 8\n"
-						  "  store i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), [0 x i8]* %13, align 8\n"
-						  "  store i8 48, i8* %14, align 1\n"
-						  "}\n");
+        EXPECT_EQ(output, "define void @_F0(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %12 = alloca i64*, align 8\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  store i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), [0 x i8]* %13, align 8\n"
+                          "  store i8 48, i8* %14, align 1\n"
+                          "}\n");
     }
 
     TEST_F(CodeGenTest, CGFuncArrayParam) {
         ASTModule *Module = CreateModule();
 
-        llvm::SmallVector<ASTVar *, 8> Params;
-    	ASTType * ArrayIntTypeRef = CreateArrayTypeRef(S->getSymTable().getIntType());
-        Params.push_back(getASTBuilder().CreateParam(SourceLoc, ArrayIntTypeRef, "k", EmptyModifiers));
+        // Build function with an array parameter: void func(int[] k) {}
+        llvm::SmallVector<ASTParam *, 8> LocalParams;
+        ASTType *ArrayIntTypeRef = getASTBuilder().CreateArrayType(SourceLoc, IntTypeRef, nullptr);
+        LocalParams.push_back(getASTBuilder().CreateParam(SourceLoc, ArrayIntTypeRef, "k", EmptyModifiers));
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
 
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
-        // func(int[] k) {
-        // }
+        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, LocalParams, Body);
 
-    	// Generate Code
-    	llvm::Module * M = Generate();
-    	std::string output = getOutput(M->getFunctionList());
+        // Generate Code
+        llvm::Module *M = Generate()[0];
+        std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F0_ia(%error* %0, i32 %1, float %2, i1 %3, i64 %4, double %5, i8 %6, i16 %7, i16 %8, i32 %9, i64 %10) {\n"
                           "entry:\n"
@@ -118,23 +106,23 @@ namespace {
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
-    	// int[] g
-    	ASTType * ArrayIntTypeRef = CreateArrayTypeRef(S->getSymTable().getIntType());
-    	ASTVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, ArrayIntTypeRef, "g", EmptyModifiers);
+        // int[] g
+        ASTType *ArrayIntTypeRef = getASTBuilder().CreateArrayType(SourceLoc, IntTypeRef, nullptr);
+        ASTLocalVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, ArrayIntTypeRef, "g", EmptyModifiers);
 
-        // g = {}
-        ASTVarRef *VarRef_g = CreateVarRef(LocalVar_g);
-        SemaBuilderStmt * GVarStmt = getASTBuilder().CreateAssignmentStmt(Body, VarRef_g);
-        ASTExpr *ExprG = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1.0"));
+        // g = 1.0
+        ASTIdentifier *VarRef_g = getASTBuilder().CreateIdentifier(LocalVar_g);
+        ASTAssignStmt *GVarStmt = getASTBuilder().CreateAssignmentStmt(Body, VarRef_g);
+        ASTNumberValue *ExprG = getASTBuilder().CreateNumberValue(SourceLoc, "1.0");
         GVarStmt->setExpr(ExprG);
 
         // return g
-        SemaBuilderStmt *Return = getASTBuilder().CreateReturnStmt(Body, SourceLoc);
-        Return->setExpr(getASTBuilder().CreateExpr(CreateVarRef(LocalVar_g)));
+        ASTReturnStmt *Return = getASTBuilder().CreateReturnStmt(Body, SourceLoc);
+        Return->setExpr(getASTBuilder().CreateIdentifier(LocalVar_g));
 
-    	// Generate Code
-    	llvm::Module * M = Generate();
-    	std::string output = getOutput(M);
+        // Generate Code
+        llvm::Module *M = Generate()[0];
+        std::string output = getOutput(M);
 
         EXPECT_EQ(output, "define i32 @F_0(%error* %0) {\n"
                           "entry:\n"
@@ -154,16 +142,16 @@ namespace {
         // func()
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
-        
+
         // int[] a = {1,2,3}
-        ASTVar *LocalVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
-        SemaBuilderStmt *VarStmt = getASTBuilder().CreateAssignmentStmt(Body, LocalVar);
-        ASTValueExpr *ValueExpr = getASTBuilder().CreateExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
+        ASTLocalVar *LocalVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
+        ASTAssignStmt *VarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(LocalVar));
+        ASTNumberValue *ValueExpr = getASTBuilder().CreateNumberValue(SourceLoc, "1");
         VarStmt->setExpr(ValueExpr);
 
-    	// Generate Code
-    	llvm::Module * M = Generate();
-    	std::string output = getOutput(M);
+        // Generate Code
+        llvm::Module *M = Generate()[0];
+        std::string output = getOutput(M);
 
         EXPECT_EQ(output, "define void @_F0(%error* %0) {\n"
                           "entry:\n"

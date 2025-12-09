@@ -22,6 +22,13 @@ ASTClass::ASTClass(ASTClassKind ClassKind, llvm::SmallVector<ASTModifier *, 8> &
 
 }
 
+ASTClass::~ASTClass() {
+    for (auto *N : Nodes) delete N;
+    Nodes.clear();
+    for (auto *M : Modifiers) delete M;
+    Modifiers.clear();
+}
+
 void ASTClass::accept(ASTVisitor &Visitor) {
 	Visitor.visit(*this);
 }

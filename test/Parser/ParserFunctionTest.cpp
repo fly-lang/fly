@@ -57,8 +57,6 @@ namespace {
         llvm::StringRef str = ("public void func() {}\n");
         ASTModule *Module = Parse("FunctionVisibilityPublic", str);
 
-
-
         EXPECT_TRUE(Module->getNodes().size() == 1);
         auto *Func = As<ASTFunction>(Module->getNodes()[0]);
         EXPECT_TRUE(HasModifier(Func->getModifiers(), ASTModifierKind::MOD_PUBLIC));
@@ -70,13 +68,13 @@ namespace {
                                "byte b, short c, ushort d, int e, uint f, long g, ulong h, "
                                "float i, double j) {}\n");
         ASTModule *Module = Parse("FunctionType", str);
-
-
+    	ASSERT_FALSE(HasErrorOccurred());
 
         // Get Body
         auto *Func = As<ASTFunction>(Module->getNodes()[0]);
         EXPECT_TRUE(HasBuiltinType(Func->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
-         const ASTBlockStmt *Body = Func->getBody();
+    	ASTBlockStmt *Body = Func->getBody();
+        ASSERT_TRUE(Body->getContent().empty());
 
         // Test: bool a
         ASTParam *aVar = Func->getParams()[0];
@@ -143,15 +141,12 @@ namespace {
                 "}\n");
         ASTModule *Module = Parse("FunctionPrivateReturnParams", str);
 
-
-
-
         EXPECT_TRUE(Module->getNodes().size() == 1); // func() has PRIVATE Visibility
-        auto *VerifyFunc = As<ASTFunction>(Module->getNodes()[0]);
+        auto *Func = As<ASTFunction>(Module->getNodes()[0]);
 
-        ASTParam *Par0 = VerifyFunc->getParams()[0];
-        ASTParam *Par1 = VerifyFunc->getParams()[1];
-        ASTParam *Par2 = VerifyFunc->getParams()[2];
+        ASTParam *Par0 = Func->getParams()[0];
+        ASTParam *Par1 = Func->getParams()[1];
+        ASTParam *Par2 = Func->getParams()[2];
 
         EXPECT_EQ(Par0->getName(), "a");
         EXPECT_TRUE(HasBuiltinType(Par0->getType(), ASTBuiltinTypeKind::TYPE_INT));
@@ -165,10 +160,11 @@ namespace {
         EXPECT_TRUE(HasBuiltinType(Par2->getType(), ASTBuiltinTypeKind::TYPE_BOOL));
         EXPECT_FALSE(HasModifier(Par2->getModifiers(), ASTModifierKind::MOD_CONSTANT));
 
-        auto *Return = As<ASTReturnStmt>(VerifyFunc->getBody()->getContent()[0]);
-        EXPECT_EQ(Return->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
-        EXPECT_EQ(As<ASTNumberValue>(Return->getExpr())->getValue(), "1");
-        EXPECT_EQ(Return->getStmtKind(), ASTStmtKind::STMT_RETURN);
+        auto *Return = As<ASTReturnStmt>(Func->getBody()->getContent()[0]);
+        ASSERT_FALSE(Func->getBody()->getContent().empty());
+         EXPECT_EQ(Return->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
+         EXPECT_EQ(As<ASTNumberValue>(Return->getExpr())->getValue(), "1");
+         EXPECT_EQ(Return->getStmtKind(), ASTStmtKind::STMT_RETURN);
      }
 
      TEST_F(ParserTest, FunctionCall) {
@@ -197,6 +193,7 @@ namespace {
 
         // Get main() Body
         auto *Body = main->getBody();
+        ASSERT_FALSE(Body->getContent().empty());
 
         // Test: doSome()
         auto *VarB = As<ASTAssignStmt>(Body->getContent()[0]);
@@ -224,4 +221,5 @@ namespace {
         auto *RetStmt = As<ASTReturnStmt>(Body->getContent()[3]);
         EXPECT_EQ(As<ASTIdentifier>(RetStmt->getExpr())->getName(), "b");
     }
+
 }

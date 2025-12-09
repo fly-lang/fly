@@ -19,7 +19,13 @@ ASTModule::ASTModule(InputFile *F) : ASTNode(SourceLocation(), ASTKind::AST_MODU
         File(F), Name(F->getName()), Header(F->getExt() == FileExt::FLY_H) {
 }
 
-ASTModule::~ASTModule() = default;
+ASTModule::~ASTModule() {
+    // delete owned top-level nodes
+    for (auto *N : Nodes) {
+        delete N;
+    }
+    Nodes.clear();
+}
 
 void ASTModule::accept(ASTVisitor& Visitor) {
 	Visitor.visit(*this);

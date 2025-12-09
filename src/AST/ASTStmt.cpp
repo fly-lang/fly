@@ -24,6 +24,15 @@ ASTFunction *ASTStmt::getFunction() const {
     return Function;
 }
 
+// Setters
+void ASTStmt::setParent(ASTStmt *P) {
+    Parent = P;
+}
+
+void ASTStmt::setFunction(ASTFunction *F) {
+    Function = F;
+}
+
 ASTStmtKind ASTStmt::getStmtKind() const {
     return StmtKind;
 }
@@ -35,5 +44,3 @@ Attr("Kind", static_cast<size_t>(getKind())).
             Attr("Kind", static_cast<uint64_t>(StmtKind)).
             End();
 }
-
-

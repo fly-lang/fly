@@ -48,7 +48,7 @@ namespace fly {
         const llvm::MemoryBuffer *Buffer = nullptr;
 
     public:
-        explicit InputFile(DiagnosticsEngine &Diags, SourceManager &SourceMgr, std::string FileName);
+        explicit InputFile(DiagnosticsEngine &Diags, SourceManager &SourceMgr, const std::string &FileName);
 
         bool Load(llvm::StringRef Source);
 

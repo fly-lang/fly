@@ -14,9 +14,9 @@
 using namespace fly;
 
 ASTExpr::ASTExpr(const SourceLocation &Loc, ASTExprKind ExprKind, ASTExpr *Parent, ASTExpr *Child) :
-        ASTNode(Loc, ASTKind::AST_EXPR), ExprKind(ExprKind), Parent(nullptr), Child(nullptr),
-			Sema(nullptr), Type(nullptr) {
-
+        ASTNode(Loc, ASTKind::AST_EXPR), ExprKind(ExprKind), Sema(nullptr), Type(nullptr) {
+	setParent(Parent);
+	setChild(Child);
 }
 
 ASTExprKind ASTExpr::getExprKind() const {
@@ -25,13 +25,15 @@ ASTExprKind ASTExpr::getExprKind() const {
 
 void ASTExpr::setParent(ASTExpr *Parent) {
 	this->Parent = Parent;
-	Parent->Child = this;
+	if (Parent != nullptr)
+		Parent->Child = this;
 }
 
 
-void ASTExpr::setChild(ASTExpr *Identifier) {
-	this->Child = Identifier;
-	Child->Parent = this;
+void ASTExpr::setChild(ASTExpr *Child) {
+	this->Child = Child;
+	if (Child)
+		Child->Parent = this;
 }
 
 ASTExpr *ASTExpr::getParent() const {

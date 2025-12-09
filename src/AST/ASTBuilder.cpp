@@ -92,7 +92,7 @@ ASTComment *ASTBuilder::CreateComment(ASTModule *Module, const SourceLocation &L
 	ASTComment *Comment = new ASTComment(Loc, Content);
 
 	// Add Comment to Module
-	Module->Nodes.push_back(Comment);
+	Module->addNode(Comment);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateHeaderModule");
 	return Comment;
@@ -125,7 +125,7 @@ ASTImport *ASTBuilder::CreateImport(
 	ASTImport *Import = new ASTImport(Loc, Names, Alias);
 
 	// Add Import to Module
-	Module->Nodes.push_back(Import);
+	Module->addNode(Import);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateImport");
 	return Import;
@@ -153,7 +153,7 @@ ASTFunction *ASTBuilder::CreateFunction(
 		CreateBody(Function, Body);
 
 	// Add Function to Module
-	Module->Nodes.push_back(Function);
+	Module->addNode(Function);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateFunction");
 	return Function;
@@ -176,7 +176,7 @@ ASTClass *ASTBuilder::CreateClass(
 	ASTClass *Class = new ASTClass(ClassKind, Modifiers, Loc, Name, SuperClasses);
 
 	// Add Class to Module
-	Module->Nodes.push_back(Class);
+	Module->addNode(Class);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateClass");
 	return Class;
@@ -256,7 +256,7 @@ ASTEnum *ASTBuilder::CreateEnum(
 	ASTEnum *Enum = new ASTEnum(Loc, Name, Modifiers, EnumTypes);
 
 	// Add Enum to Module
-	Module->Nodes.push_back(Enum);
+	Module->addNode(Enum);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateEnum");
 	return Enum;
@@ -397,7 +397,7 @@ ASTType *ASTBuilder::CreateULongType(const SourceLocation &Loc) {
 ASTType *ASTBuilder::CreateLongType(const SourceLocation &Loc) {
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateLongTypeRef", "Loc=" << Loc.getRawEncoding());
 
-	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_ULONG);
+	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_LONG);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateLongTypeRef");
 	return TypeRef;
@@ -646,7 +646,6 @@ ASTCall *ASTBuilder::CreateCall(
 	ASTCall *Call = new ASTCall(Loc, Name, CallKind);
 	if (Parent) {
 		// Take Parent
-		Parent->setChild(Call);
 		Call->setParent(Parent);
 	}
 	uint64_t i = 0;
@@ -750,7 +749,7 @@ ASTAssignStmt *ASTBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTExpr *S
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateAssignmentStmt", "Kind=" << static_cast<uint8_t>(Kind));
 
 	ASTAssignStmt *Stmt = new ASTAssignStmt(Source->getLocation(), Source, Kind);
-	Stmt->Parent = Parent;
+	Parent->addContent(Stmt);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateAssignmentStmt");
 	return Stmt;
@@ -766,7 +765,7 @@ ASTReturnStmt *ASTBuilder::CreateReturnStmt(ASTBlockStmt *Parent, const SourceLo
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateReturnStmt", "Loc=" << Loc.getRawEncoding());
 
 	ASTReturnStmt *Stmt = new ASTReturnStmt(Loc);
-	Stmt->Parent = Parent;
+	Parent->addContent(Stmt);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateReturnStmt");
 	return Stmt;
@@ -781,6 +780,7 @@ ASTExprStmt *ASTBuilder::CreateExprStmt(ASTBlockStmt *Parent, const SourceLocati
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateExprStmt", "Loc=" << Loc.getRawEncoding());
 
 	ASTExprStmt *Stmt = new ASTExprStmt(Loc);
+	Parent->addContent(Stmt);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateExprStmt");
 	return Stmt;
@@ -796,7 +796,7 @@ ASTFailStmt *ASTBuilder::CreateFailStmt(ASTBlockStmt *Parent, const SourceLocati
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateFailStmt", "Loc=" << Loc.getRawEncoding());
 
 	ASTFailStmt *Stmt = new ASTFailStmt(Loc);
-	Stmt->Parent = Parent;
+	Parent->addContent(Stmt);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateFailStmt");
 	return Stmt;
@@ -808,11 +808,9 @@ ASTHandleStmt *ASTBuilder::CreateHandleStmt(
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateHandleStmt", "Loc=" << Loc.getRawEncoding());
 
 	ASTHandleStmt *HandleStmt = new ASTHandleStmt(Loc);
+	Parent->addContent(HandleStmt);
 	HandleStmt->ErrorHandler = ErrorRef;
-	HandleStmt->Parent = Parent;
-	HandleStmt->Function = Parent->Function;
 	HandleStmt->Handle = BlockStmt;
-	Parent->Content.push_back(HandleStmt);
 
 	// set Handle Block
 	BlockStmt->Parent = HandleStmt;

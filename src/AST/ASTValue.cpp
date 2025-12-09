@@ -194,3 +194,15 @@ std::string ASTNullValue::str() const {
 Attr("Kind", static_cast<size_t>(getKind())).
             End();
 }
+
+ASTArrayValue::~ASTArrayValue() {
+    for (auto *V : Values) delete V;
+    Values.clear();
+}
+
+ASTStructValue::~ASTStructValue() {
+    for (auto &KV : Values) {
+        delete KV.second;
+    }
+    Values.clear();
+}
