@@ -28,7 +28,6 @@
 #include <Sema/SemaClassMethod.h>
 #include <Sema/SemaClassType.h>
 #include <Sema/SemaEnumType.h>
-#include <Sema/SemaGlobalVar.h>
 #include <Sema/SemaModule.h>
 #include <Sema/SemaType.h>
 
@@ -45,15 +44,6 @@ using namespace fly;
 // 	}
 // 	return true;
 // }
-
-bool SemaValidator::CheckDuplicateVars(const llvm::StringMap<SemaGlobalVar *> &Vars, ASTVar *Var) {
-	SemaGlobalVar *DuplicateVar = Vars.lookup(Var->getName());
-	if (DuplicateVar) { // This CurrentNameSpace already contains this GlobalVar
-		// S.Diag(DuplicateVar->getAST()->getLocation(), diag::err_duplicate_gvar) << DuplicateVar->getAST()->getName();
-		return false;
-	}
-	return true;
-}
 
 // bool SemaValidator::CheckDuplicateIdentities(const llvm::StringMap<SymIdentity *> &Identities, ASTIdentity * Identity) {
 // 	SymIdentity *DuplicateIdentity = Identities.lookup(Identity->getName());

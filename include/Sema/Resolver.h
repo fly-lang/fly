@@ -60,7 +60,6 @@ namespace fly {
     class ASTLoopInStmt;
     class ASTEnum;
     class ASTAssignStmt;
-    class SemaGlobalVar;
     class SemaFunction;
     class SemaVar;
     class SemaCall;

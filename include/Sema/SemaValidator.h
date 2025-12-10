@@ -31,7 +31,6 @@ namespace fly {
     class ASTCall;
     class SourceLocation;
     class SemaModule;
-    class SemaGlobalVar;
     class SemaFunction;
     class SemaClassType;
     class SemaEnumType;
@@ -48,8 +47,6 @@ namespace fly {
     public:
 
         // static bool CheckDuplicateModules(ASTModule * Module, const llvm::DenseMap<uint64_t, SemaModule *> &Modules);
-
-        static bool CheckDuplicateVars(const llvm::StringMap<SemaGlobalVar *> &Vars, ASTVar * Var);
 
         static bool CheckDuplicateParams(llvm::SmallVector<ASTVar *, 8> Params, ASTVar *Param);
 

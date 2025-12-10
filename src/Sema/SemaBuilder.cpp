@@ -16,7 +16,6 @@
 #include "Sema/SemaClassType.h"
 #include "Sema/SemaEnumType.h"
 #include "Sema/SemaFunction.h"
-#include "Sema/SemaGlobalVar.h"
 #include "Sema/SemaType.h"
 #include "Sema/SemaMemberVar.h"
 #include "AST/ASTClass.h"

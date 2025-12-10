@@ -40,10 +40,6 @@ const llvm::SmallVector<ASTModule *, 8> &SemaNameSpace::getModules() const {
 	return Modules;
 }
 
-const llvm::StringMap<SemaGlobalVar *> &SemaNameSpace::getGlobalVars() const {
-	return GlobalVars;
-}
-
 const llvm::StringMap<SemaFunction *> &SemaNameSpace::getFunctions() const {
 	return Functions;
 }

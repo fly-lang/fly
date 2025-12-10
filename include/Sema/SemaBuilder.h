@@ -19,7 +19,6 @@ namespace fly {
 	class SemaNameSpace;
 	class SemaImport;
 	class SemaModule;
-	class SemaGlobalVar;
 	class SemaFunction;
     class SemaClassType;
 	class SemaClassAttribute;

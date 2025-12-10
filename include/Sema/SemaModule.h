@@ -18,7 +18,6 @@ namespace fly {
 
     class ASTModule;
 	class SemaNameSpace;
-    class SemaGlobalVar;
     class SemaFunction;
     class SemaType;
     class SemaNode;

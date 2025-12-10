@@ -20,7 +20,6 @@ namespace fly {
 
     class ASTModule;
     class ASTNameSpace;
-    class SemaGlobalVar;
     class SemaFunction;
     class SemaClassType;
     class SemaEnumType;
@@ -39,9 +38,6 @@ namespace fly {
         llvm::StringMap<SemaNameSpace *> Children;
 
         llvm::SmallVector<ASTModule *, 8> Modules;
-
-        // Global Vars
-        llvm::StringMap<SemaGlobalVar *> GlobalVars;
 
         // Functions
         llvm::StringMap<SemaFunction *> Functions;
@@ -64,8 +60,6 @@ namespace fly {
         const llvm::StringMap<SemaNameSpace *> &getChildren() const;
 
         const llvm::SmallVector<ASTModule *, 8> &getModules() const;
-
-        const llvm::StringMap<SemaGlobalVar *> &getGlobalVars() const;
 
         const llvm::StringMap<SemaFunction *> &getFunctions() const;
 
