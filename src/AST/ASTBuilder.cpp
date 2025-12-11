@@ -170,10 +170,10 @@ ASTFunction *ASTBuilder::CreateFunction(
 ASTClass *ASTBuilder::CreateClass(
 	ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind,
 	const llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
-	llvm::SmallVector<ASTType *, 4> &SuperClasses) {
+	llvm::SmallVector<ASTType *, 4> &Bases) {
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateClass", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
-	ASTClass *Class = new ASTClass(ClassKind, Modifiers, Loc, Name, SuperClasses);
+	ASTClass *Class = new ASTClass(ClassKind, Modifiers, Loc, Name, Bases);
 
 	// Add Class to Module
 	Module->addNode(Class);
@@ -211,7 +211,7 @@ ASTMethod *ASTBuilder::CreateDefaultConstructor(ASTClass *Class) {
 
 	// Create Modifiers
 	llvm::SmallVector<ASTModifier *, 8> Modifiers;
-	Modifiers.push_back(CreateModifier(Loc, ASTModifierKind::MOD_DEFAULT));
+	Modifiers.push_back(CreateModifier(Loc, ASTModifierKind::MOD_PUBLIC));
 
 	// Empty Params
 	llvm::SmallVector<ASTParam *, 8> Params;

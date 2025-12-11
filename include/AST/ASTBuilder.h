@@ -169,7 +169,7 @@ namespace fly {
                                     ASTBlockStmt *Body = nullptr);
 
         ASTClass *CreateClass(ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind, llvm::StringRef Name,
-                              llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::SmallVector<ASTType *, 4> &SuperClasses);
+                              llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::SmallVector<ASTType *, 4> &Bases);
 
         ASTAttribute *CreateClassAttribute(const SourceLocation &Loc, ASTClass *Class, ASTType *TypeRef,
                                                 llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,

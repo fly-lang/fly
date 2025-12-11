@@ -85,7 +85,6 @@ public:
                     DoubleTypeRef(Builder->CreateDoubleType(SourceLoc)),
                     ErrorTypeRef(Builder->CreateErrorType(SourceLoc)),
 					StringTypeRef(Builder->CreateStringType(SourceLoc)) {
-    	TopModifiers.push_back(getASTBuilder().CreateModifier(SourceLoc, ASTModifierKind::MOD_DEFAULT));
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
         llvm::InitializeAllAsmPrinters();

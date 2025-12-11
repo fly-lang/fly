@@ -17,8 +17,8 @@
 using namespace fly;
 
 ASTClass::ASTClass(ASTClassKind ClassKind, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
-	const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTType *, 4> &SuperClasses) :
-	ASTNode(Loc, ASTKind::AST_CLASS), ClassKind(ClassKind), Modifiers(Modifiers), Name(Name), Bases(SuperClasses) {
+	const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTType *, 4> &Bases) :
+	ASTNode(Loc, ASTKind::AST_CLASS), ClassKind(ClassKind), Modifiers(Modifiers), Name(Name), Bases(Bases) {
 
 }
 

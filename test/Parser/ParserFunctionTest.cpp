@@ -33,11 +33,9 @@ namespace {
         llvm::StringRef str = ("void func() {}\n");
         ASTModule *Module = Parse("FunctionVisibilityDefault", str);
 
-
-
         EXPECT_TRUE(Module->getNodes().size() == 1);
         auto *Func = As<ASTFunction>(Module->getNodes()[0]);
-        EXPECT_TRUE(HasModifier(Func->getModifiers(), ASTModifierKind::MOD_DEFAULT));
+        EXPECT_TRUE(Func->getModifiers().empty());
         EXPECT_TRUE(HasBuiltinType(Func->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
      }
 

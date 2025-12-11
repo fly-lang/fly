@@ -102,24 +102,26 @@ namespace {
       ASTIdentifier *src = As<ASTIdentifier>(aAssignStmt->getSource());
       ASSERT_TRUE(src != nullptr);
       EXPECT_EQ(src->getName(), "a");
-    	ASTIdentifier * Test_a = As<ASTIdentifier>(aAssignStmt->getTarget());
+    	ASTMember * Test_a = As<ASTMember>(aAssignStmt->getTarget());
     	ASSERT_TRUE(Test_a != nullptr);
     	EXPECT_EQ(Test_a->getName(), "A");
-    	EXPECT_EQ(Test_a->getParent()->getExprKind(), ASTExprKind::EXPR_MEMBER);
-    	EXPECT_EQ(As<ASTMember>(Test_a->getParent())->getName(), "Test");
+    	EXPECT_EQ(Test_a->getExprKind(), ASTExprKind::EXPR_MEMBER);
+    	EXPECT_EQ(As<ASTIdentifier>(Test_a->getParent())->getName(), "Test");
+    	EXPECT_EQ(Test_a->getParent()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
 
     	// Verify second assignment: a = Test.B
+
     	ASTAssignStmt *aAssignStmt2 = As<ASTAssignStmt>(Body->getContent()[1]);
     	ASTIdentifier *src2 = As<ASTIdentifier>(aAssignStmt2->getSource());
     	ASSERT_TRUE(src2 != nullptr);
     	EXPECT_EQ(src2->getName(), "a");
-    	ASTIdentifier *Test_b = As<ASTIdentifier>(aAssignStmt2->getTarget());
+    	// The RHS is a member expression Test.B. Check the member (last part) first.
+    	ASTMember *Test_b = As<ASTMember>(aAssignStmt2->getTarget());
     	ASSERT_TRUE(Test_b != nullptr);
     	EXPECT_EQ(Test_b->getName(), "B");
-    	EXPECT_EQ(Test_b->getParent()->getExprKind(), ASTExprKind::EXPR_MEMBER);
-    	ASTMember *Test_b_parent = As<ASTMember>(Test_b->getParent());
-    	ASSERT_TRUE(Test_b_parent != nullptr);
-    	EXPECT_EQ(Test_b_parent->getName(), "Test");
+    	EXPECT_EQ(Test_b->getExprKind(), ASTExprKind::EXPR_MEMBER);
+    	EXPECT_EQ(As<ASTIdentifier>(Test_b->getParent())->getName(), "Test");
+    	EXPECT_EQ(Test_b->getParent()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
 
     	// Verify third statement: Test c = a
     	ASTAssignStmt *aAssignStmt3 = As<ASTAssignStmt>(Body->getContent()[2]);
@@ -155,7 +157,7 @@ namespace {
     	EXPECT_EQ(aVar->getName(), "a");
     	EXPECT_EQ(bVar->getName(), "b");
     	EXPECT_EQ(cVar->getName(), "c");
-    	EXPECT_TRUE(HasModifier(aVar->getModifiers(), ASTModifierKind::MOD_DEFAULT));
+    	EXPECT_TRUE(aVar->getModifiers().empty());
     	EXPECT_TRUE(HasModifier(bVar->getModifiers(), ASTModifierKind::MOD_PUBLIC));
     	EXPECT_TRUE(HasModifier(cVar->getModifiers(), ASTModifierKind::MOD_CONSTANT));
     	EXPECT_TRUE(As<ASTValue>(aVar->getExpr())->isDefault());
@@ -217,7 +219,7 @@ namespace {
         ASSERT_TRUE(bVar != nullptr);
         EXPECT_EQ(aVar->getName(), "a");
         EXPECT_EQ(bVar->getName(), "b");
-        EXPECT_TRUE(HasModifier(aVar->getModifiers(), ASTModifierKind::MOD_DEFAULT));
+        EXPECT_TRUE(aVar->getModifiers().empty());
         EXPECT_TRUE(HasModifier(bVar->getModifiers(), ASTModifierKind::MOD_PRIVATE));
         // attribute initializers
         EXPECT_TRUE(As<ASTNumberValue>(aVar->getExpr())->getValue() == "1");
@@ -236,7 +238,7 @@ namespace {
         EXPECT_TRUE(HasModifier(aMethod->getModifiers(), ASTModifierKind::MOD_PUBLIC));
         EXPECT_TRUE(HasModifier(bMethod->getModifiers(), ASTModifierKind::MOD_PROTECTED));
         EXPECT_TRUE(HasModifier(cMethod->getModifiers(), ASTModifierKind::MOD_PRIVATE));
-        EXPECT_TRUE(HasModifier(dMethod->getModifiers(), ASTModifierKind::MOD_DEFAULT));
+        EXPECT_TRUE(dMethod->getModifiers().empty());
         EXPECT_TRUE(HasModifier(dMethod->getModifiers(), ASTModifierKind::MOD_CONSTANT));
 
         // Verify method return types and bodies
@@ -368,7 +370,7 @@ namespace {
         ASSERT_TRUE(bAttr != nullptr);
         ASSERT_TRUE(fMethod != nullptr);
         EXPECT_EQ(bAttr->getName(), "b");
-        EXPECT_TRUE(HasModifier(bAttr->getModifiers(), ASTModifierKind::MOD_DEFAULT));
+        EXPECT_TRUE(bAttr->getModifiers().empty());
 
         EXPECT_EQ(fMethod->getName(), "f");
         EXPECT_TRUE(HasBuiltinType(fMethod->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
@@ -405,7 +407,7 @@ namespace {
         EXPECT_EQ(C->getName(), "C");
 
         // Check super classes (should include named type 'Enum')
-        const auto &Supers = Opt->getSuperClasses();
+        const auto &Supers = Opt->getBases();
         EXPECT_EQ(Supers.size(), 1);
         ASTType *Base0 = Supers[0];
         ASSERT_TRUE(Base0 != nullptr);

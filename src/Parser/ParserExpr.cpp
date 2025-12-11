@@ -229,6 +229,14 @@ ASTExpr * ParserExpr::ParseIdentifierOrCall(ASTExpr *Parent) {
 ASTValue *ParserExpr::ParseValue() {
     FLY_DEBUG_START("ParserExpr", "ParseValue");
 
+    if (P->Tok.isLiteral()) {
+        StringRef Literal = StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
+        if (Literal == "''") {
+            const SourceLocation &Loc = P->ConsumeToken();
+            return P->Builder.CreateStringValue(Loc, "");
+        }
+    }
+
     if (P->Tok.is(tok::kw_null)) {
         const SourceLocation &Loc = P->ConsumeToken();
         return P->Builder.CreateNullValue(Loc);
@@ -242,6 +250,7 @@ ASTValue *ParserExpr::ParseValue() {
     }
 
     if (P->Tok.isCharLiteral()) {
+        assert(P->Tok.isLiteral() && "char literal must report literal data");
         llvm::StringRef Val = llvm::StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
         return P->Builder.CreateStringValue(P->ConsumeToken(), Val);
     }

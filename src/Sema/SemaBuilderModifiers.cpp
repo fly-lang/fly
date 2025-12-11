@@ -31,9 +31,6 @@ SemaBuilderModifiers * SemaBuilderModifiers::Build(llvm::SmallVector<ASTModifier
 			case ASTModifierKind::MOD_PROTECTED:
 				Instance->Visibility = SemaVisibilityKind::PROTECTED;
 				break;
-			case ASTModifierKind::MOD_DEFAULT:
-				Instance->Visibility = SemaVisibilityKind::DEFAULT;
-				break;
 		}
 	}
 	return Instance;

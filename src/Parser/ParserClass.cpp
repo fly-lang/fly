@@ -46,12 +46,12 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) : 
 
     // Parse classes after colon
     // class Example : SuperClass Interface Struct { ... }
-    llvm::SmallVector<ASTType *, 4> SuperClasses;
+    llvm::SmallVector<ASTType *, 4> Bases;
     if (P->Tok.is(tok::colon)) {
         P->ConsumeToken();
         while (P->Tok.isAnyIdentifier()) {
             ASTType *ClassTypeRef = P->ParseType();
-            SuperClasses.push_back(ClassTypeRef);
+            Bases.push_back(ClassTypeRef);
         }
     }
 
@@ -59,7 +59,7 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) : 
     if (P->isBlockStart()) {
         P->ConsumeBrace(BraceCount);
 
-        Class = P->Builder.CreateClass(P->Module, ClassLoc, ClassKind, ClassName, Modifiers, SuperClasses);
+        Class = P->Builder.CreateClass(P->Module, ClassLoc, ClassKind, ClassName, Modifiers, Bases);
         bool Continue;
         do {
 

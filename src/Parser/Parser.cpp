@@ -156,8 +156,9 @@ llvm::SmallVector<ASTName *, 4> Parser::ParseNames() {
 		}
 
 		// Parse Name
-		ASTName *Name = Builder.CreateName(Tok.getIdentifierInfo()->getName(), ConsumeToken());
+		ASTName *Name = Builder.CreateName(Tok.getIdentifierInfo()->getName(), Tok.getLocation());
 		Names.push_back(Name);
+		ConsumeToken();
 
 		// Check for comma
 		if (Tok.is(tok::period)) {
@@ -467,8 +468,13 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 			ASTExpr *Expr = ParseExpr();
 			Stmt->setExpr(Expr);
 		}
-    } else {
-	    // a()
+		return;
+    } else if (Identifier) {
+    	// Declaration without initializer: emit an assignment stmt with null expr
+    	Builder.CreateAssignmentStmt(Parent, Identifier);
+		return;
+    } else if (!Tok.is(tok::r_brace) && Tok.isNot(tok::eof)) {
+    	// a()
     	// a++
     	// ++a
     	// new A()
@@ -544,8 +550,21 @@ bool Parser::isType(Optional<Token> &NexTok) {
 
     // --- Parse [] suffixes ---
     while (NexTok && NexTok->is(tok::l_square)) {
-        // Must be []
+        // Skip '['
         NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
+        if (!NexTok)
+            return false;
+
+        // Skip optional size expression until matching ']'
+        int ParenDepth = 0;
+        while (NexTok && (ParenDepth > 0 || !NexTok->is(tok::r_square))) {
+            if (NexTok->is(tok::l_paren)) {
+                ++ParenDepth;
+            } else if (NexTok->is(tok::r_paren) && ParenDepth > 0) {
+                --ParenDepth;
+            }
+            NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
+        }
         if (!NexTok || !NexTok->is(tok::r_square))
             return false;
 
@@ -587,11 +606,15 @@ bool Parser::isVarDecl(Optional<Token> &NexTok) {
 bool Parser::isVarAssign(Optional<Token> &NexTok) const {
 	FLY_DEBUG_START("Parser", "isVarAssign");
 
-	if (NexTok->isAnyIdentifier()) {
+	if (NexTok && NexTok->isAnyIdentifier()) {
 		NexTok = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
+		if (!NexTok)
+			return false;
 
 		return isAssignOperator(*NexTok);
 	}
+
+	return false;
 }
 
 bool Parser::isVar(Optional<Token> &NexTok) {
@@ -1022,7 +1045,7 @@ ASTType *Parser::ParseType() {
 
 	// Parse Array Type
 	while (Tok.is(tok::l_square)) {
-		SourceLocation Loc = ConsumeToken();
+		SourceLocation Loc = ConsumeBracket();
 
 		// Parse Size Expression
 		ASTExpr *Size = nullptr;
@@ -1033,7 +1056,7 @@ ASTType *Parser::ParseType() {
 		T = Builder.CreateArrayType(Loc, T, Size);
 
 		if (Tok.is(tok::r_square)) {
-			ConsumeToken();
+			ConsumeBracket();
 		} else {
 			Diag(Tok, diag::err_parser_unclosed_bracket);
 			return T;

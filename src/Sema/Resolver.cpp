@@ -975,7 +975,7 @@ void Resolver::CreateDefaultConstructor() {
 
 	// Create Default Modifier
 	llvm::SmallVector<ASTModifier *, 8> Modifiers;
-	Modifiers.push_back(ASTBuilder::CreateModifier(SourceLocation(), ASTModifierKind::MOD_DEFAULT));
+	Modifiers.push_back(ASTBuilder::CreateModifier(SourceLocation(), ASTModifierKind::MOD_PUBLIC));
 
 	// Create Class Method
 	SemaClassMethod *Sema = SemaBuilder::CreateDefaultConstructor(CurrentClass);
