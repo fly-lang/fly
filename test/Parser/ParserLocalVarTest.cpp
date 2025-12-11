@@ -18,6 +18,7 @@
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTLocalVar.h"
+#include "AST/ASTOp.h"
 
 namespace {
 
@@ -49,68 +50,95 @@ namespace {
         auto *aStmt = As<ASTAssignStmt>(Body->getContent()[0]);
         auto *aIdent = As<ASTIdentifier>(aStmt->getSource());
         EXPECT_EQ(aIdent->getName(), "a");
-        // type checks moved out: we don't assert directly on getType() here
+        // Target is binary assignment: a = false
+        auto *aAssignExpr = As<ASTBinaryOp>(aStmt->getTarget());
+        ASSERT_TRUE(aAssignExpr != nullptr);
+        EXPECT_EQ(aAssignExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+        EXPECT_EQ(As<ASTBoolValue>(aAssignExpr->getRightExpr())->getValue(), false);
 
         // Test: byte b
         auto *bStmt = As<ASTAssignStmt>(Body->getContent()[1]);
         auto *bIdent = As<ASTIdentifier>(bStmt->getSource());
         EXPECT_EQ(bIdent->getName(), "b");
+        auto *bAssignExpr = As<ASTBinaryOp>(bStmt->getTarget());
+        ASSERT_TRUE(bAssignExpr != nullptr);
         ASTNumberValue* ZeroIntValue = Builder->CreateNumberValue(SourceLocation(), "0");
-        ASSERT_EQ(As<ASTNumberValue>(bStmt->getTarget())->getValue(), ZeroIntValue->getValue());
+        ASSERT_EQ(As<ASTNumberValue>(bAssignExpr->getRightExpr())->getValue(), ZeroIntValue->getValue());
 
         // Test: short c
         auto *cStmt = As<ASTAssignStmt>(Body->getContent()[2]);
         auto *cIdent = As<ASTIdentifier>(cStmt->getSource());
         EXPECT_EQ(cIdent->getName(), "c");
-        ASSERT_EQ(As<ASTNumberValue>(cStmt->getTarget())->getValue(), ZeroIntValue->getValue());
+        auto *cAssignExpr = As<ASTBinaryOp>(cStmt->getTarget());
+        ASSERT_TRUE(cAssignExpr != nullptr);
+        ASSERT_EQ(As<ASTNumberValue>(cAssignExpr->getRightExpr())->getValue(), ZeroIntValue->getValue());
 
         // Test: ushort d
         auto *dStmt = As<ASTAssignStmt>(Body->getContent()[3]);
         auto *dIdent = As<ASTIdentifier>(dStmt->getSource());
         EXPECT_EQ(dIdent->getName(), "d");
-        ASSERT_EQ(As<ASTNumberValue>(dStmt->getTarget())->getValue(), ZeroIntValue->getValue());
+        auto *dAssignExpr = As<ASTBinaryOp>(dStmt->getTarget());
+        ASSERT_TRUE(dAssignExpr != nullptr);
+        ASSERT_EQ(As<ASTNumberValue>(dAssignExpr->getRightExpr())->getValue(), ZeroIntValue->getValue());
 
         // Test: int e
         auto *eStmt = As<ASTAssignStmt>(Body->getContent()[4]);
         auto *eIdent = As<ASTIdentifier>(eStmt->getSource());
         EXPECT_EQ(eIdent->getName(), "e");
-        ASSERT_EQ(As<ASTNumberValue>(eStmt->getTarget())->getValue(), ZeroIntValue->getValue());
+        auto *eAssignExpr = As<ASTBinaryOp>(eStmt->getTarget());
+        ASSERT_TRUE(eAssignExpr != nullptr);
+        ASSERT_EQ(As<ASTNumberValue>(eAssignExpr->getRightExpr())->getValue(), ZeroIntValue->getValue());
 
         // Test: uint f
         auto *fStmt = As<ASTAssignStmt>(Body->getContent()[5]);
         auto *fIdent = As<ASTIdentifier>(fStmt->getSource());
         EXPECT_EQ(fIdent->getName(), "f");
-        ASSERT_EQ(As<ASTNumberValue>(fStmt->getTarget())->getValue(), ZeroIntValue->getValue());
+        auto *fAssignExpr = As<ASTBinaryOp>(fStmt->getTarget());
+        ASSERT_TRUE(fAssignExpr != nullptr);
+        ASSERT_EQ(As<ASTNumberValue>(fAssignExpr->getRightExpr())->getValue(), ZeroIntValue->getValue());
 
         // Test: long g
         auto *gStmt = As<ASTAssignStmt>(Body->getContent()[6]);
         auto *gIdent = As<ASTIdentifier>(gStmt->getSource());
         EXPECT_EQ(gIdent->getName(), "g");
-        ASSERT_EQ(As<ASTNumberValue>(gStmt->getTarget())->getValue(), ZeroIntValue->getValue());
+        auto *gAssignExpr = As<ASTBinaryOp>(gStmt->getTarget());
+        ASSERT_TRUE(gAssignExpr != nullptr);
+        ASSERT_EQ(As<ASTNumberValue>(gAssignExpr->getRightExpr())->getValue(), ZeroIntValue->getValue());
 
         // Test: ulong h
         auto *hStmt = As<ASTAssignStmt>(Body->getContent()[7]);
         auto *hIdent = As<ASTIdentifier>(hStmt->getSource());
         EXPECT_EQ(hIdent->getName(), "h");
-        ASSERT_EQ(As<ASTNumberValue>(hStmt->getTarget())->getValue(), ZeroIntValue->getValue());
+        auto *hAssignExpr = As<ASTBinaryOp>(hStmt->getTarget());
+        ASSERT_TRUE(hAssignExpr != nullptr);
+        ASSERT_EQ(As<ASTNumberValue>(hAssignExpr->getRightExpr())->getValue(), ZeroIntValue->getValue());
 
         // Test: float i
         auto *iStmt = As<ASTAssignStmt>(Body->getContent()[8]);
         auto *iIdent = As<ASTIdentifier>(iStmt->getSource());
         EXPECT_EQ(iIdent->getName(), "i");
+        auto *iAssignExpr = As<ASTBinaryOp>(iStmt->getTarget());
+        ASSERT_TRUE(iAssignExpr != nullptr);
         ASTNumberValue* ZeroFloatValue = Builder->CreateNumberValue(SourceLocation(), "0.0");
-        ASSERT_EQ(As<ASTNumberValue>(iStmt->getTarget())->getValue(), ZeroFloatValue->getValue());
+        ASSERT_EQ(As<ASTNumberValue>(iAssignExpr->getRightExpr())->getValue(), ZeroFloatValue->getValue());
 
         // Test: double j
         auto *jStmt = As<ASTAssignStmt>(Body->getContent()[9]);
         auto *jIdent = As<ASTIdentifier>(jStmt->getSource());
         EXPECT_EQ(jIdent->getName(), "j");
-        ASSERT_EQ(As<ASTNumberValue>(jStmt->getTarget())->getValue(), ZeroFloatValue->getValue());
+        auto *jAssignExpr = As<ASTBinaryOp>(jStmt->getTarget());
+        ASSERT_TRUE(jAssignExpr != nullptr);
+        ASSERT_EQ(As<ASTNumberValue>(jAssignExpr->getRightExpr())->getValue(), ZeroFloatValue->getValue());
 
         // Test: Type t
         ASTAssignStmt *tStmt = As<ASTAssignStmt>(Body->getContent()[10]);
         ASTIdentifier *tIdent = As<ASTIdentifier>(tStmt->getSource());
         EXPECT_EQ(tIdent->getName(), "t");
+        auto *tAssignExpr = As<ASTBinaryOp>(tStmt->getTarget());
+        ASSERT_TRUE(tAssignExpr != nullptr);
+        EXPECT_EQ(tAssignExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+        // The right side should be a null value
+        EXPECT_EQ(tAssignExpr->getRightExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
         EXPECT_EQ(As<ASTNamedType>(tIdent->getVar()->getType())->getTypeKind(), ASTTypeKind::TYPE_NAMED);
     }
 
@@ -148,9 +176,13 @@ namespace {
     	// Depending on parser representation, a declaration without initializer may produce
     	// either a statement with null target or an expr-stmt. Accept both.
     	if (aStmt->getTarget()) {
-    		auto *ValA = As<ASTValue>(aStmt->getTarget());
-    		ASSERT_TRUE(ValA != nullptr);
-    		EXPECT_TRUE(ValA->isNull());
+    		auto *aAssignExpr = As<ASTBinaryOp>(aStmt->getTarget());
+    		if (aAssignExpr) {
+    			EXPECT_EQ(aAssignExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+    			auto *ValA = As<ASTValue>(aAssignExpr->getRightExpr());
+    			ASSERT_TRUE(ValA != nullptr);
+    			EXPECT_TRUE(ValA->isNull());
+    		}
     	}
 
     	// b: empty initializer {}
@@ -164,8 +196,11 @@ namespace {
     	EXPECT_TRUE(HasBuiltinType(bType->getElementType(), ASTBuiltinTypeKind::TYPE_BYTE));
     	EXPECT_EQ(bType->getSizeExpr(), nullptr);
 
-    	// b value must be ASTArrayValue with size 0
-    	auto *bVal = As<ASTArrayValue>(bStmt->getTarget());
+    	// b value must be ASTArrayValue with size 0 (extract from binary assignment)
+    	auto *bAssignExpr = As<ASTBinaryOp>(bStmt->getTarget());
+    	ASSERT_TRUE(bAssignExpr != nullptr);
+    	EXPECT_EQ(bAssignExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+    	auto *bVal = As<ASTArrayValue>(bAssignExpr->getRightExpr());
     	ASSERT_TRUE(bVal != nullptr);
     	EXPECT_EQ(bVal->size(), 0u);
 
@@ -180,7 +215,10 @@ namespace {
     	EXPECT_TRUE(HasBuiltinType(cType->getElementType(), ASTBuiltinTypeKind::TYPE_BYTE));
     	EXPECT_EQ(cType->getSizeExpr(), nullptr);
 
-    	auto *cVal = As<ASTArrayValue>(cStmt->getTarget());
+    	auto *cAssignExpr = As<ASTBinaryOp>(cStmt->getTarget());
+    	ASSERT_TRUE(cAssignExpr != nullptr);
+    	EXPECT_EQ(cAssignExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+    	auto *cVal = As<ASTArrayValue>(cAssignExpr->getRightExpr());
     	ASSERT_TRUE(cVal != nullptr);
     	EXPECT_EQ(cVal->size(), 3u);
     	EXPECT_EQ(As<ASTNumberValue>(cVal->getValues()[0])->getValue(), "1");
@@ -212,7 +250,10 @@ namespace {
     	ASSERT_TRUE(eType->getSizeExpr() != nullptr);
     	EXPECT_EQ(As<ASTNumberValue>(eType->getSizeExpr())->getValue(), "3");
 
-    	auto *eVal = As<ASTArrayValue>(eStmt->getTarget());
+    	auto *eAssignExpr = As<ASTBinaryOp>(eStmt->getTarget());
+    	ASSERT_TRUE(eAssignExpr != nullptr);
+    	EXPECT_EQ(eAssignExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+    	auto *eVal = As<ASTArrayValue>(eAssignExpr->getRightExpr());
     	ASSERT_TRUE(eVal != nullptr);
     	EXPECT_EQ(eVal->size(), 3u);
     	EXPECT_EQ(As<ASTNumberValue>(eVal->getValues()[0])->getValue(), "1");
@@ -243,7 +284,10 @@ namespace {
         ASSERT_TRUE(aVar != nullptr);
         EXPECT_TRUE(HasBuiltinType(aVar->getType(), ASTBuiltinTypeKind::TYPE_BYTE));
         {
-            auto *aVal = As<ASTStringValue>(aStmt->getTarget());
+            auto *aAssignExpr = As<ASTBinaryOp>(aStmt->getTarget());
+            ASSERT_TRUE(aAssignExpr != nullptr);
+            EXPECT_EQ(aAssignExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+            auto *aVal = As<ASTStringValue>(aAssignExpr->getRightExpr());
             ASSERT_TRUE(aVal != nullptr);
             EXPECT_EQ(aVal->getValue(), "");
         }
@@ -256,7 +300,10 @@ namespace {
         ASSERT_TRUE(bVar != nullptr);
         EXPECT_TRUE(HasBuiltinType(bVar->getType(), ASTBuiltinTypeKind::TYPE_BYTE));
         {
-            auto *bVal = As<ASTStringValue>(bStmt->getTarget());
+            auto *bAssignExpr = As<ASTBinaryOp>(bStmt->getTarget());
+            ASSERT_TRUE(bAssignExpr != nullptr);
+            EXPECT_EQ(bAssignExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+            auto *bVal = As<ASTStringValue>(bAssignExpr->getRightExpr());
             ASSERT_TRUE(bVal != nullptr);
             EXPECT_EQ(bVal->getValue(), "b");
         }
@@ -271,7 +318,10 @@ namespace {
         ASSERT_TRUE(cType != nullptr);
         EXPECT_TRUE(HasBuiltinType(cType->getElementType(), ASTBuiltinTypeKind::TYPE_BYTE));
         EXPECT_EQ(cType->getSizeExpr(), nullptr);
-        auto *cVal = As<ASTArrayValue>(cStmt->getTarget());
+        auto *cAssignExpr = As<ASTBinaryOp>(cStmt->getTarget());
+        ASSERT_TRUE(cAssignExpr != nullptr);
+        EXPECT_EQ(cAssignExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+        auto *cVal = As<ASTArrayValue>(cAssignExpr->getRightExpr());
         ASSERT_TRUE(cVal != nullptr);
         EXPECT_EQ(cVal->size(), 4u);
         EXPECT_EQ(As<ASTStringValue>(cVal->getValues()[0])->getValue(), "a");
@@ -290,7 +340,10 @@ namespace {
         EXPECT_TRUE(HasBuiltinType(dType->getElementType(), ASTBuiltinTypeKind::TYPE_BYTE));
         ASSERT_TRUE(dType->getSizeExpr() != nullptr);
         EXPECT_EQ(As<ASTNumberValue>(dType->getSizeExpr())->getValue(), "2");
-        auto *dVal = As<ASTArrayValue>(dStmt->getTarget());
+        auto *dAssignExpr = As<ASTBinaryOp>(dStmt->getTarget());
+        ASSERT_TRUE(dAssignExpr != nullptr);
+        EXPECT_EQ(dAssignExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+        auto *dVal = As<ASTArrayValue>(dAssignExpr->getRightExpr());
         ASSERT_TRUE(dVal != nullptr);
         EXPECT_EQ(dVal->size(), 2u);
         EXPECT_EQ(As<ASTStringValue>(dVal->getValues()[0])->getValue(), "");
@@ -318,9 +371,11 @@ namespace {
         auto *cVar = As<ASTLocalVar>(cIdent->getVar());
         ASSERT_TRUE(cVar != nullptr);
         EXPECT_TRUE(HasBuiltinType(cVar->getType(), ASTBuiltinTypeKind::TYPE_STRING));
-        // Declaration may have no target or a null value
-        if (cStmt->getTarget()) {
-            auto *cVal = As<ASTValue>(cStmt->getTarget());
+        // Declaration may have no target or a null value in binary expression
+        auto *cAssignExpr = As<ASTBinaryOp>(cStmt->getTarget());
+        if (cAssignExpr) {
+            EXPECT_EQ(cAssignExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+            auto *cVal = As<ASTValue>(cAssignExpr->getRightExpr());
             ASSERT_TRUE(cVal != nullptr);
         }
 
@@ -331,7 +386,10 @@ namespace {
         auto *aVar = As<ASTLocalVar>(aIdent->getVar());
         ASSERT_TRUE(aVar != nullptr);
         EXPECT_TRUE(HasBuiltinType(aVar->getType(), ASTBuiltinTypeKind::TYPE_STRING));
-        auto *aVal = As<ASTStringValue>(aStmt->getTarget());
+        auto *aAssignExpr = As<ASTBinaryOp>(aStmt->getTarget());
+        ASSERT_TRUE(aAssignExpr != nullptr);
+        EXPECT_EQ(aAssignExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+        auto *aVal = As<ASTStringValue>(aAssignExpr->getRightExpr());
         ASSERT_TRUE(aVal != nullptr);
         EXPECT_EQ(aVal->getValue(), "");
 
@@ -342,7 +400,10 @@ namespace {
         auto *bVar = As<ASTLocalVar>(bIdent->getVar());
         ASSERT_TRUE(bVar != nullptr);
         EXPECT_TRUE(HasBuiltinType(bVar->getType(), ASTBuiltinTypeKind::TYPE_STRING));
-        auto *bVal = As<ASTStringValue>(bStmt->getTarget());
+        auto *bAssignExpr = As<ASTBinaryOp>(bStmt->getTarget());
+        ASSERT_TRUE(bAssignExpr != nullptr);
+        EXPECT_EQ(bAssignExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+        auto *bVal = As<ASTStringValue>(bAssignExpr->getRightExpr());
         ASSERT_TRUE(bVal != nullptr);
         EXPECT_EQ(bVal->getValue(), "abc");
     }

@@ -403,8 +403,14 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
     if (Tok.is(tok::kw_return)) { // Parse return
         SourceLocation Loc = ConsumeToken();
         ASTReturnStmt *Stmt = Builder.CreateReturnStmt(Parent, Loc);
-        ASTExpr *Expr = ParseExpr();
-        Stmt->setExpr(Expr);
+        // Only parse expression if there's actually an expression (not end of statement/block)
+        // Check for tokens that would end a statement: closing braces, keywords that start new statements, EOF
+        if (!Tok.isOneOf(tok::r_brace, tok::eof, tok::kw_case, tok::kw_default, tok::kw_break,
+                         tok::kw_continue, tok::kw_return, tok::kw_if, tok::kw_switch,
+                         tok::kw_while, tok::kw_for)) {
+            ASTExpr *Expr = ParseExpr();
+            Stmt->setExpr(Expr);
+        }
         return;
     }
 
@@ -800,16 +806,19 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
     			// for a default
     			ASTExpr *Expr = ParseExpr();
 
-    			// Parse Switch
-    			ASTBlockStmt *CaseBlock = Builder.CreateBlockStmt(Tok.getLocation());
-    			if (Tok.is(tok::colon)) { // Parse a Block of Stmt
-    				ConsumeToken();
-    				SwitchBuilder->Case(Loc, Expr, CaseBlock);
-    				if (Tok.isOneOf(tok::kw_case, tok::kw_default)) {
-    					continue;
-    				}
-    				ParseBlockOrStmt(CaseBlock);
-    			}
+			// Parse Switch
+			ASTBlockStmt *CaseBlock = Builder.CreateBlockStmt(Tok.getLocation());
+			if (Tok.is(tok::colon)) { // Parse a Block of Stmt
+				ConsumeToken();
+				SwitchBuilder->Case(Loc, Expr, CaseBlock);
+				if (Tok.isOneOf(tok::kw_case, tok::kw_default)) {
+					continue;
+				}
+				// Only parse statement if we're not at the end of the switch block
+				if (!Tok.is(tok::r_brace)) {
+					ParseBlockOrStmt(CaseBlock);
+				}
+			}
     		} else if (Tok.is(tok::kw_default)) {
     			ConsumeToken();
 
@@ -818,16 +827,19 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
     				return;
     			}
 
-    			// Parse Default
-    			ASTBlockStmt *DefaultBlock = Builder.CreateBlockStmt(Tok.getLocation());
-    			if (Tok.is(tok::colon)) { // Parse a Block of Stmt
-    				ConsumeToken();
-    				SwitchBuilder->Default(Loc, DefaultBlock);
-    				if (Tok.is(tok::kw_case)) {
-    					continue;
-    				}
-    				ParseBlockOrStmt(DefaultBlock);
-    			}
+			// Parse Default
+			ASTBlockStmt *DefaultBlock = Builder.CreateBlockStmt(Tok.getLocation());
+			if (Tok.is(tok::colon)) { // Parse a Block of Stmt
+				ConsumeToken();
+				SwitchBuilder->Default(Loc, DefaultBlock);
+				if (Tok.is(tok::kw_case)) {
+					continue;
+				}
+				// Only parse statement if we're not at the end of the switch block
+				if (!Tok.is(tok::r_brace)) {
+					ParseBlockOrStmt(DefaultBlock);
+				}
+			}
     		} else {
     			break;
     		}

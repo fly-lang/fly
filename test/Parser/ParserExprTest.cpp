@@ -69,7 +69,7 @@ namespace {
     TEST_F(ParserTest, UnarySideExpr) {
         llvm::StringRef str = (
                 "void func(int a) {\n"
-                "  a = a++ + ++a"
+                "  a = a++ + ++a\n"
                 "}\n");
         ASTModule *Module = Parse("UnaryExpr", str);
 
@@ -80,17 +80,34 @@ namespace {
 
         // a = a++ + ++a
         auto *AssignStmt = As<ASTAssignStmt>(Body->getContent()[0]);
+        EXPECT_EQ(As<ASTIdentifier>(AssignStmt->getSource())->getName(), "a");
+
+        // Target is the binary assignment expression: a = (a++ + ++a)
         EXPECT_EQ(AssignStmt->getTarget()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(AssignStmt->getTarget())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ADD);
-        auto *BinaryExpr = As<ASTBinaryOp>(AssignStmt->getTarget());
+        auto *AssignBinaryExpr = As<ASTBinaryOp>(AssignStmt->getTarget());
+        EXPECT_EQ(AssignBinaryExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
 
-        ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
-        EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_UNARY);
-        EXPECT_EQ(As<ASTUnaryOp>(LeftExpr)->getOpKind(), ASTUnaryOpKind::OP_UNARY_POST_INCR);
+        // Left side of assignment is 'a'
+        EXPECT_EQ(AssignBinaryExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
+        EXPECT_EQ(As<ASTIdentifier>(AssignBinaryExpr->getLeftExpr())->getName(), "a");
 
-        ASTExpr *RightExpr = BinaryExpr->getRightExpr();
-        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_UNARY);
-        EXPECT_EQ(As<ASTUnaryOp>(RightExpr)->getOpKind(), ASTUnaryOpKind::OP_UNARY_PRE_INCR);
+        // Right side of assignment is the ADD expression: a++ + ++a
+        ASTExpr *RightExpr = AssignBinaryExpr->getRightExpr();
+        EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
+        auto *AddExpr = As<ASTBinaryOp>(RightExpr);
+        EXPECT_EQ(AddExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ADD);
+
+        // Left side of ADD is a++ (post-increment)
+        ASTExpr *AddLeftExpr = AddExpr->getLeftExpr();
+        EXPECT_EQ(AddLeftExpr->getExprKind(), ASTExprKind::EXPR_UNARY);
+        EXPECT_EQ(As<ASTUnaryOp>(AddLeftExpr)->getOpKind(), ASTUnaryOpKind::OP_UNARY_POST_INCR);
+        EXPECT_EQ(As<ASTIdentifier>(As<ASTUnaryOp>(AddLeftExpr)->getExpr())->getName(), "a");
+
+        // Right side of ADD is ++a (pre-increment)
+        ASTExpr *AddRightExpr = AddExpr->getRightExpr();
+        EXPECT_EQ(AddRightExpr->getExprKind(), ASTExprKind::EXPR_UNARY);
+        EXPECT_EQ(As<ASTUnaryOp>(AddRightExpr)->getOpKind(), ASTUnaryOpKind::OP_UNARY_PRE_INCR);
+        EXPECT_EQ(As<ASTIdentifier>(As<ASTUnaryOp>(AddRightExpr)->getExpr())->getName(), "a");
     }
 
     TEST_F(ParserTest, BinaryAssignAddExpr) {

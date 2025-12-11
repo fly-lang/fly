@@ -23,7 +23,7 @@ void ASTIdentifier::accept(ASTVisitor &Visitor) {
 }
 
 ASTIdentifier::~ASTIdentifier() {
-    delete Parent;
+
 }
 
 llvm::StringRef ASTIdentifier::getName() const {

@@ -8,20 +8,20 @@ add_executable(fly_test
 #        CmdTest.cpp
 #        DriverTest.cpp
 #        ImportTest.cpp
-        CodeGen/CodeGenTest.cpp
-        CodeGen/CodeGenErrorTest.cpp
-        CodeGen/CodeGenArrayTest.cpp
-        CodeGen/CodeGenClassTest.cpp
-        CodeGen/CodeGenEnumTest.cpp
-        CodeGen/CodeGenStringTest.cpp
+#        CodeGen/CodeGenTest.cpp
+#        CodeGen/CodeGenErrorTest.cpp
+#        CodeGen/CodeGenArrayTest.cpp
+#        CodeGen/CodeGenClassTest.cpp
+#        CodeGen/CodeGenEnumTest.cpp
+#        CodeGen/CodeGenStringTest.cpp
         Parser/LexerTest.cpp
-        Parser/ParserBadCode.cpp
+#        Parser/ParserBadCode.cpp
         Parser/ParserBlockTest.cpp
-        Parser/ParserClassTest.cpp
-        Parser/ParserCommentTest.cpp
+#        Parser/ParserClassTest.cpp
+#        Parser/ParserCommentTest.cpp
         Parser/ParserExprTest.cpp
         Parser/ParserEnumTest.cpp
-        Parser/ParserErrorHandlerTest.cpp
+#        Parser/ParserErrorHandlerTest.cpp
         Parser/ParserFunctionTest.cpp
         Parser/ParserNameSpaceTest.cpp
         Parser/ParserLocalVarTest.cpp

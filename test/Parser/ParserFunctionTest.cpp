@@ -21,6 +21,8 @@
 #include "AST/ASTReturnStmt.h"
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTArg.h"
+#include "AST/ASTOp.h"
+#include "AST/ASTAssignStmt.h"
 
 #include <AST/ASTParam.h>
 #include <AST/ASTType.h>
@@ -135,7 +137,7 @@ namespace {
     TEST_F(ParserTest, FunctionPrivateReturnParams) {
         llvm::StringRef str = (
                 "private int func(int a, const float b, bool c=false) {\n"
-                "  return 1"
+                "  return 1\n"
                 "}\n");
         ASTModule *Module = Parse("FunctionPrivateReturnParams", str);
 
@@ -168,7 +170,7 @@ namespace {
      TEST_F(ParserTest, FunctionCall) {
         llvm::StringRef str = ("private int doSome() {return 1}\n"
                                "public void doOther(int a, int b) {}\n"
-                               "int doNow() {return 0}"
+                               "int doNow() {return 0}\n"
                                "int main(int a) {\n"
                                "  int b = doSome()\n"
                                "  b = doNow()\n"
@@ -176,8 +178,6 @@ namespace {
                                "  return b\n"
                                "}\n");
         ASTModule *Module = Parse("FunctionCall", str);
-
-
 
         // Get all functions
         auto *doSome = As<ASTFunction>(Module->getNodes()[0]);
@@ -193,19 +193,33 @@ namespace {
         auto *Body = main->getBody();
         ASSERT_FALSE(Body->getContent().empty());
 
-        // Test: doSome()
+        // Test: int b = doSome()
         auto *VarB = As<ASTAssignStmt>(Body->getContent()[0]);
-        auto *doSomeCall = As<ASTCall>(VarB->getTarget());
+        EXPECT_EQ(As<ASTIdentifier>(VarB->getSource())->getName(), "b");
+        // Target is binary assignment: b = doSome()
+        auto *AssignExpr1 = As<ASTBinaryOp>(VarB->getTarget());
+        ASSERT_TRUE(AssignExpr1 != nullptr);
+        EXPECT_EQ(AssignExpr1->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+        // Right side is the function call
+        auto *doSomeCall = As<ASTCall>(AssignExpr1->getRightExpr());
+        ASSERT_TRUE(doSomeCall != nullptr);
         EXPECT_EQ(doSomeCall->getName(), "doSome");
         EXPECT_EQ(doSomeCall->getExprKind(), ASTExprKind::EXPR_CALL);
 
-        // Test: doNow()
+        // Test: b = doNow()
         auto *B = As<ASTAssignStmt>(Body->getContent()[1]);
-        auto *doNowCall = As<ASTCall>(B->getTarget());
+        EXPECT_EQ(As<ASTIdentifier>(B->getSource())->getName(), "b");
+        // Target is binary assignment: b = doNow()
+        auto *AssignExpr2 = As<ASTBinaryOp>(B->getTarget());
+        ASSERT_TRUE(AssignExpr2 != nullptr);
+        EXPECT_EQ(AssignExpr2->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+        // Right side is the function call
+        auto *doNowCall = As<ASTCall>(AssignExpr2->getRightExpr());
+        ASSERT_TRUE(doNowCall != nullptr);
         EXPECT_EQ(doNowCall->getName(), "doNow");
         EXPECT_EQ(doNowCall->getExprKind(), ASTExprKind::EXPR_CALL);
 
-        // Test: doOther(a, b)
+        // Test: doOther(a, 1)
         auto *doOtherStmt = As<ASTExprStmt>(Body->getContent()[2]);
         EXPECT_EQ(doOtherStmt->getStmtKind(), ASTStmtKind::STMT_EXPR);
         auto *doOtherCall = As<ASTCall>(doOtherStmt->getExpr());

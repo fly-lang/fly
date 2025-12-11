@@ -28,16 +28,15 @@ using namespace fly;
 TEST_F(ParserTest, IfElsifElseStmt) {
 	llvm::StringRef str =
 		"void func(int a, int b) {\n"
-		"  if (a == 1) {"
-		"    b = 0"
-		"  } elsif (a == 2) {"
-		"    b = 1"
-		"  } else {"
-		"    b = 2"
-		"  }"
+		"  if (a == 1) {\n"
+		"    b = 0\n"
+		"  } elsif (a == 2) {\n"
+		"    b = 1\n"
+		"  } else {\n"
+		"    b = 2\n"
+		"  }\n"
 		"}\n";
 	ASTModule *Module = Parse("IfElsifElseStmt", str);
-
 
 	// Get Body
 	ASTFunction *F = As<ASTFunction >(Module->getNodes()[0]);
@@ -51,10 +50,12 @@ TEST_F(ParserTest, IfElsifElseStmt) {
 	EXPECT_EQ(As<ASTIdentifier>(IfCond->getLeftExpr())->getName(), "a");
 	EXPECT_EQ(IfCond->getOpKind(), ASTBinaryOpKind::OP_BINARY_EQ);
 	EXPECT_EQ(As<ASTNumberValue>(IfCond->getRightExpr())->getValue(), "1");
-	ASTAssignStmt *b_assign_0 = As<ASTAssignStmt>(As<ASTBlockStmt>(IfStmt->getStmt())->getContent()[0]);
 	ASSERT_FALSE(As<ASTBlockStmt>(IfStmt->getStmt())->getContent().empty());
+	ASTAssignStmt *b_assign_0 = As<ASTAssignStmt>(As<ASTBlockStmt>(IfStmt->getStmt())->getContent()[0]);
 	EXPECT_EQ(As<ASTIdentifier>(b_assign_0->getSource())->getName(), "b");
-	EXPECT_EQ(As<ASTNumberValue>(b_assign_0->getTarget())->getValue(), "0");
+	ASTBinaryOp *assign_0 = As<ASTBinaryOp>(b_assign_0->getTarget());
+	EXPECT_EQ(assign_0->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(As<ASTNumberValue>(assign_0->getRightExpr())->getValue(), "0");
 
 	// Elsif
 	ASTRuleStmt *ElsifStmt = IfStmt->getElsif()[0];
@@ -65,22 +66,26 @@ TEST_F(ParserTest, IfElsifElseStmt) {
 	ASSERT_FALSE(As<ASTBlockStmt>(ElsifStmt->getStmt())->getContent().empty());
 	ASTAssignStmt *b_assign_1 = As<ASTAssignStmt>(As<ASTBlockStmt>(ElsifStmt->getStmt())->getContent()[0]);
 	EXPECT_EQ(As<ASTIdentifier>(b_assign_1->getSource())->getName(), "b");
-	EXPECT_EQ(As<ASTNumberValue>(b_assign_1->getTarget())->getValue(), "1");
+	ASTBinaryOp *assign_1 = As<ASTBinaryOp>(b_assign_1->getTarget());
+	EXPECT_EQ(assign_1->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(As<ASTNumberValue>(assign_1->getRightExpr())->getValue(), "1");
 
 	// Else
 	ASTStmt *ElseStmt = IfStmt->getElse();
 	ASSERT_FALSE(As<ASTBlockStmt>(ElseStmt)->getContent().empty());
 	ASTAssignStmt *b_assign_2 = As<ASTAssignStmt>(As<ASTBlockStmt>(ElseStmt)->getContent()[0]);
 	EXPECT_EQ(As<ASTIdentifier>(b_assign_2->getSource())->getName(), "b");
-	EXPECT_EQ(As<ASTNumberValue>(b_assign_2->getTarget())->getValue(), "2");
+	ASTBinaryOp *assign_2 = As<ASTBinaryOp>(b_assign_2->getTarget());
+	EXPECT_EQ(assign_2->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(As<ASTNumberValue>(assign_2->getRightExpr())->getValue(), "2");
 }
 
 TEST_F(ParserTest, IfElsifElseInlineStmt) {
 	llvm::StringRef str =
 		"void func(int a, int b) {\n"
-		"  if (a == 1) b = 0"
-		"  elsif a == 2 b = 1"
-		"  else b = 2"
+		"  if (a == 1) b = 0\n"
+		"  elsif a == 2 b = 1\n"
+		"  else b = 2\n"
 		"}\n";
 	ASTModule *Module = Parse("IfElsifElseInlineStmt", str);
 
@@ -95,33 +100,39 @@ TEST_F(ParserTest, IfElsifElseInlineStmt) {
 	ASSERT_FALSE(As<ASTBlockStmt>(IfStmt->getStmt())->getContent().empty());
 	ASTAssignStmt *b_assign_0 = As<ASTAssignStmt>(As<ASTBlockStmt>(IfStmt->getStmt())->getContent()[0]);
 	EXPECT_EQ(As<ASTIdentifier>(b_assign_0->getSource())->getName(), "b");
-	EXPECT_EQ(As<ASTNumberValue>(b_assign_0->getTarget())->getValue(), "0");
+	ASTBinaryOp *assign_0 = As<ASTBinaryOp>(b_assign_0->getTarget());
+	EXPECT_EQ(assign_0->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(As<ASTNumberValue>(assign_0->getRightExpr())->getValue(), "0");
 
 	// Elsif
 	ASTRuleStmt *ElsifStmt = IfStmt->getElsif()[0];
 	ASSERT_FALSE(As<ASTBlockStmt>(ElsifStmt->getStmt())->getContent().empty());
 	ASTAssignStmt *b_assign_1 = As<ASTAssignStmt>(As<ASTBlockStmt>(ElsifStmt->getStmt())->getContent()[0]);
 	EXPECT_EQ(As<ASTIdentifier>(b_assign_1->getSource())->getName(), "b");
-	EXPECT_EQ(As<ASTNumberValue>(b_assign_1->getTarget())->getValue(), "1");
+	ASTBinaryOp *assign_1 = As<ASTBinaryOp>(b_assign_1->getTarget());
+	EXPECT_EQ(assign_1->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(As<ASTNumberValue>(assign_1->getRightExpr())->getValue(), "1");
 
 	// Else
 	ASTStmt *ElseStmt = IfStmt->getElse();
 	ASSERT_FALSE(As<ASTBlockStmt>(ElseStmt)->getContent().empty());
 	ASTAssignStmt *b_assign_2 = As<ASTAssignStmt>(As<ASTBlockStmt>(ElseStmt)->getContent()[0]);
 	EXPECT_EQ(As<ASTIdentifier>(b_assign_2->getSource())->getName(), "b");
-	EXPECT_EQ(As<ASTNumberValue>(b_assign_2->getTarget())->getValue(), "2");
+	ASTBinaryOp *assign_2 = As<ASTBinaryOp>(b_assign_2->getTarget());
+	EXPECT_EQ(assign_2->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(As<ASTNumberValue>(assign_2->getRightExpr())->getValue(), "2");
 }
 
 TEST_F(ParserTest, SwitchCaseDefaultStmt) {
 	llvm::StringRef str =
 		"void func(int a) {\n"
-		"  switch (a) {"
-		"    case 1:"
-		"      break"
-		"    case 2:"
-		"    default:"
-		"      return"
-		"  }"
+		"  switch (a) {\n"
+		"    case 1:\n"
+		"      break\n"
+		"    case 2:\n"
+		"    default:\n"
+		"      return\n"
+		"  }\n"
 		"}\n";
 	ASTModule *Module = Parse("SwitchCaseDefaultStmt", str);
 
@@ -152,8 +163,8 @@ TEST_F(ParserTest, SwitchCaseDefaultStmt) {
 TEST_F(ParserTest, WhileStmt) {
 	llvm::StringRef str =
 		"void func(int a) {\n"
-		"  while (a==1) {"
-		"    a++"
+		"  while (a==1) {\n"
+		"    a++\n"
 		"  }\n"
 		"}\n";
 	ASTModule *Module = Parse("WhileStmt", str);
@@ -197,12 +208,10 @@ TEST_F(ParserTest, WhileValueStmt) {
 TEST_F(ParserTest, ForStmt) {
 	llvm::StringRef str = (
 		"private void func(int a) {\n"
-		"  for int b = 1, int c = 2; a < 10; b++, --c {"
-		"  }"
+		"  for int b = 1, int c = 2; a < 10; b++, --c {\n"
+		"  }\n"
 		"}\n");
 	ASTModule *Module = Parse("ForStmt", str);
-
-
 
 	// Get Body
 	ASTFunction *F = As<ASTFunction>(Module->getNodes()[0]);
@@ -216,18 +225,30 @@ TEST_F(ParserTest, ForStmt) {
 	ASTBlockStmt *LoopStmt = As<ASTBlockStmt>(ForBlock->getLoop());
 	ASTBlockStmt *PostStmt = As<ASTBlockStmt>(ForBlock->getPost());
 
-	// int b = 1
 	ASSERT_FALSE(InitStmt->getContent().empty());
-	EXPECT_EQ(As<ASTIdentifier>(As<ASTAssignStmt>(InitStmt->getContent()[0])->getSource())->getName(), "b");
+	ASSERT_TRUE(InitStmt->getContent().size() == 2);
+
+	// int b = 1
+	ASTAssignStmt *b_assign = As<ASTAssignStmt>(InitStmt->getContent()[0]);
+	EXPECT_EQ(As<ASTIdentifier>(b_assign->getSource())->getName(), "b");
+	ASTBinaryOp *b_expr = As<ASTBinaryOp>(b_assign->getTarget());
+	EXPECT_EQ(b_expr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(As<ASTNumberValue>(b_expr->getRightExpr())->getValue(), "1");
+
 	// int c = 2
-	ASSERT_FALSE(InitStmt->getContent().size() > 1);
-	EXPECT_EQ(As<ASTIdentifier>(As<ASTAssignStmt>(InitStmt->getContent()[1])->getSource())->getName(), "c");
+	ASTAssignStmt *c_assign = As<ASTAssignStmt>(InitStmt->getContent()[1]);
+	EXPECT_EQ(As<ASTIdentifier>(c_assign->getSource())->getName(), "c");
+	ASTBinaryOp *c_expr = As<ASTBinaryOp>(c_assign->getTarget());
+	EXPECT_EQ(c_expr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(As<ASTNumberValue>(c_expr->getRightExpr())->getValue(), "2");
 
 	// a < 10
 	ASTBinaryOp *Cond = As<ASTBinaryOp>(ForBlock->getRule());
 	EXPECT_EQ(As<ASTIdentifier>(Cond->getLeftExpr())->getName(), "a");
 	EXPECT_EQ(Cond->getOpKind(), ASTBinaryOpKind::OP_BINARY_LT);
 	EXPECT_EQ(As<ASTNumberValue>(Cond->getRightExpr())->getValue(), "10");
+
+	ASSERT_TRUE(PostStmt->getContent().size() == 2);
 
 	// b++
 	ASSERT_FALSE(PostStmt->getContent().empty());
@@ -237,7 +258,6 @@ TEST_F(ParserTest, ForStmt) {
 	EXPECT_EQ(bIncrExpr->getOpKind(), ASTUnaryOpKind::OP_UNARY_POST_INCR);
 
 	// --c
-	ASSERT_FALSE(PostStmt->getContent().size() > 1);
 	ASTExprStmt *ExprStmt2 = As<ASTExprStmt>(PostStmt->getContent()[1]);
 	ASTUnaryOp * cIncrExpr = As<ASTUnaryOp>(ExprStmt2->getExpr());
 	EXPECT_EQ(As<ASTIdentifier>(cIncrExpr->getExpr())->getName(), "c");
