@@ -24,6 +24,7 @@ Precedence getPrecedence(Token Tok) {
     switch (Tok.getKind()) {
         case fly::tok::question:
             return Precedence::TERNARY;
+        case tok::equal:
         case tok::plusequal:
         case tok::minusequal:
         case tok::starequal:
@@ -65,7 +66,7 @@ Precedence getPrecedence(Token Tok) {
 bool isRightAssociative(Token Tok) {
 	FLY_DEBUG_START("ParserExpr", "isRightAssociative");
     // Only assignment operators are right-associative
-    return Tok.isOneOf(tok::plusequal, tok::minusequal, tok::starequal, tok::slashequal, tok::percentequal,
+    return Tok.isOneOf(tok::equal, tok::plusequal, tok::minusequal, tok::starequal, tok::slashequal, tok::percentequal,
                        tok::ampequal, tok::pipeequal, tok::caretequal, tok::lesslessequal, tok::greatergreaterequal);
 }
 
@@ -435,6 +436,7 @@ bool ParserExpr::isBinaryOperator() {
             tok::greatergreater, // >> shift right
 
             // Assignment
+            tok::equal,
             tok::plusequal,
             tok::minusequal,
             tok::starequal,

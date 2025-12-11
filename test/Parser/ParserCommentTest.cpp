@@ -20,24 +20,15 @@ namespace {
 
     using namespace fly;
 
-//    TEST_F(ParserTest,  LineComments) {
-//        llvm::StringRef str = ("// Global var comment\n"
-//                               "int b\n"
-//                               "// Func comment\n"
-//                               "void func() {}\n"
-//        );
-//
-//        ASTModule *Module = Parse("LineComments", str);
-//
-//
-//        ASTGlobalVar *VarB = *Module->getGlobalVars().begin();
-//        EXPECT_EQ(VarB->getName(), "b");
-//        EXPECT_EQ(VarB->getComment()->getContent(), "// Global var comment");
-//
-//        ASTFunction *Func = static_cast<ASTFunction *>(Module->getNodes()[0]);
-//        EXPECT_EQ(Func->getName(), "func");
-//        EXPECT_EQ(Func->getComment()->getContent(), "// Func comment");
-//    }
+    TEST_F(ParserTest,  LineComments) {
+        llvm::StringRef str = (
+                               "// Func comment\n"
+                               "void func() {}\n"
+        );
+
+        ASTModule *Module = Parse("LineComments", str);
+
+    }
 
     TEST_F(ParserTest, BlockComments) {
         llvm::StringRef str = ("// Func line comment\n"

@@ -667,24 +667,34 @@ person.initialize("John", 30)
 
 **Syntax:**
 ```
-Enum ::= [ Modifiers ] 'enum' Identifier '{' EnumEntry* '}'
+Enum ::= [ Modifiers ] 'enum' Identifier [ ':' BaseType ] '{' EnumEntryList '}'
+EnumEntryList ::= EnumEntry ( ',' EnumEntry )*
+EnumEntry ::= Identifier
 ```
 
 **Examples:**
 ```fly
-// Simple enum
+// Simple enum with comma-separated entries
 enum Color {
-    RED GREEN BLUE
+    RED, GREEN, BLUE
 }
 
 // Public enum
 public enum Status {
-    IDLE RUNNING STOPPED FAILED
+    IDLE, RUNNING, STOPPED, FAILED
 }
 
-// Enum with multiple entries per line
+// Enum extending a base type
+public enum Option : Enum {
+    A, B, C
+}
+
+// Multi-line enum for readability
 enum Direction {
-    NORTH SOUTH EAST WEST
+    NORTH,
+    SOUTH,
+    EAST,
+    WEST
 }
 ```
 
@@ -710,6 +720,12 @@ void processColor() {
 
 void setColor(Color c) {
     // use color
+}
+
+// Example with enum extending base type
+void testOption() {
+    Option opt = Option.A
+    opt = Option.B
 }
 ```
 
@@ -840,6 +856,52 @@ g |= flag       // g = g | flag
 h ^= toggle     // h = h ^ toggle
 i <<= 2         // i = i << 2
 j >>= 1         // j = j >> 1
+```
+
+#### 8.4.1 Assignment vs Equality: Important Distinction
+
+Fly clearly distinguishes between the **assignment operator** `=` and the **equality comparison operator** `==`:
+
+- **`=` (Assignment)**: Stores a value into a variable. This is a statement-level operation.
+- **`==` (Equality)**: Compares two values for equality. This is an expression that evaluates to a boolean.
+
+**Examples:**
+```fly
+// Assignment: stores the value 5 into variable x
+x = 5
+
+// Equality comparison: compares x with 5, evaluates to boolean
+if (x == 5) {
+    // x is equal to 5
+}
+
+// Assignment with equality comparison on right side
+result = x == 5    // result gets true or false
+
+// Complex example
+a = a + 1          // a = (a + 1) - addition then assignment
+b = a == 10        // b = (a == 10) - comparison then assignment
+```
+
+**Parser Representation:**
+Under the hood, the parser creates different AST structures:
+- Assignment `a = expr` creates `ASTBinaryOp(OP_BINARY_ASSIGN)` with left=`a` and right=`expr`
+- Equality `a == b` creates `ASTBinaryOp(OP_BINARY_EQ)` with left=`a` and right=`b`
+- Assignment with equality `a = (b == c)` creates nested structure:
+  - Outer: `ASTBinaryOp(OP_BINARY_ASSIGN)` with left=`a`
+  - Right child: `ASTBinaryOp(OP_BINARY_EQ)` with left=`b` and right=`c`
+
+**Common Mistake:**
+```fly
+// WRONG: Using = instead of == in condition
+if (x = 5) {        // This assigns 5 to x, then evaluates the result
+    // ...
+}
+
+// CORRECT: Using == for comparison
+if (x == 5) {       // This compares x with 5
+    // ...
+}
 ```
 
 ### 8.5 Ternary Conditional Expression
@@ -1674,7 +1736,11 @@ ArrayType       ::= Type '[' [ Expression ] ']'
 ClassDecl       ::= Modifiers ( 'class' | 'struct' | 'interface' ) 
                     Identifier [ ':' BaseList ] '{' ClassMember* '}'
 
-EnumDecl        ::= Modifiers 'enum' Identifier '{' EnumEntry* '}'
+EnumDecl        ::= Modifiers 'enum' Identifier [ ':' BaseType ] '{' EnumEntryList '}'
+
+EnumEntryList   ::= EnumEntry ( ',' EnumEntry )*
+
+EnumEntry       ::= Identifier
 
 FunctionDecl    ::= Modifiers Type Identifier '(' [ ParamList ] ')' ( Block | ';' )
 
@@ -1789,7 +1855,7 @@ import data.models as models
 
 // Enum declaration
 public enum Status {
-    IDLE RUNNING PAUSED STOPPED
+    IDLE, RUNNING, PAUSED, STOPPED
 }
 
 // Class declaration

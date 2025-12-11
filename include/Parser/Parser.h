@@ -171,7 +171,7 @@ private:
     ASTType *ParseType();
 
     /// Parse an expression.
-    ASTExpr *ParseExpr();
+    ASTExpr *ParseExpr(ASTExpr *Left = nullptr);
 
     /// Parse  an identifier.
     ASTExpr *ParseIdentifier();

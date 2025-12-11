@@ -459,13 +459,8 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 		} else {
 			ASTAssignStmt *Stmt = Builder.CreateAssignmentStmt(Parent, Identifier);
 
-			// Consume Assign Operator
-			if (Tok.is(tok::equal)) {
-				ConsumeToken();
-			} // else will be Parsed & Consumed in ParseExpr
-
-			// Parse Expr
-			ASTExpr *Expr = ParseExpr();
+			// Parse Expr (pass Identifier as left side so assignment operators like += can build binary expression)
+			ASTExpr *Expr = ParseExpr(Identifier);
 			Stmt->setExpr(Expr);
 		}
 		return;
@@ -1066,10 +1061,10 @@ ASTType *Parser::ParseType() {
     return T;
 }
 
-ASTExpr *Parser::ParseExpr() {
+ASTExpr *Parser::ParseExpr(ASTExpr *Left) {
     FLY_DEBUG_START("Parser", "ParseExpr");
     ParserExpr PE(this);
-    return PE.Parse();
+    return PE.Parse(Left);
 }
 
 ASTExpr *Parser::ParseIdentifier() {

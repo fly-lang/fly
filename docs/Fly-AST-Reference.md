@@ -46,13 +46,62 @@ All AST nodes own child pointers directly (no arena). Most nodes expose getters/
 - Casts (`ASTCast`).
 - Literal expressions via `ASTValue` derivatives.
 
+#### Binary Operators: Assignment vs Equality
+The parser distinguishes between the assignment operator `=` and the equality comparison operator `==` using different `ASTBinaryOpKind` values:
+
+- **`OP_BINARY_ASSIGN`**: Represents the assignment operator `=`. Used in assignment expressions where a value is being stored.
+- **`OP_BINARY_EQ`**: Represents the equality comparison operator `==`. Used in logical expressions that evaluate to boolean results.
+
+**Example 1: Simple Assignment**
+```fly
+a = a + 1
+```
+**AST Structure:**
+```
+ASTAssignStmt
+  ├─ source: ASTIdentifier("a")
+  └─ target: ASTBinaryOp(OP_BINARY_ASSIGN)
+       ├─ left: ASTIdentifier("a")
+       └─ right: ASTBinaryOp(OP_BINARY_ADD)
+            ├─ left: ASTIdentifier("a")
+            └─ right: ASTNumberValue("1")
+```
+
+**Example 2: Assignment with Equality Comparison**
+```fly
+a = a == true
+```
+**AST Structure:**
+```
+ASTAssignStmt
+  ├─ source: ASTIdentifier("a")
+  └─ target: ASTBinaryOp(OP_BINARY_ASSIGN)
+       ├─ left: ASTIdentifier("a")
+       └─ right: ASTBinaryOp(OP_BINARY_EQ)
+            ├─ left: ASTIdentifier("a")
+            └─ right: ASTBoolValue(true)
+```
+
+**Key Points:**
+- The `=` in an assignment creates an `OP_BINARY_ASSIGN` binary operation where the left operand is the l-value (identifier, member, etc.) and the right operand is the expression to evaluate.
+- The `==` in a comparison creates an `OP_BINARY_EQ` binary operation that evaluates to a boolean type.
+- `ASTAssignStmt` wraps the entire assignment, storing both the `source` (variable name being assigned) and the `target` (the full assignment expression tree).
+- Compound assignment operators (`+=`, `-=`, etc.) also use `OP_BINARY_ASSIGN` in their target expression, with the right side containing the appropriate arithmetic/bitwise operation.
+
 ### 3.6 Statements & Blocks
 `ASTStmt` and `ASTStmtKind` cover control-flow and simple statements: blocks, expression statements, assignments, delete, fail, handle, return, rule, break/continue, switch, loop, loop-in. `ASTBlockStmt` provides statement sequencing plus a `StringMap` of in-scope locals.
+
+#### Assignment Statements
+`ASTAssignStmt` represents variable assignments and compound assignments. It contains:
+- **`source`**: An `ASTIdentifier` or `ASTMember` representing the variable being assigned to.
+- **`target`**: An `ASTExpr*` representing the complete assignment expression tree, always rooted at an `ASTBinaryOp` with `OP_BINARY_ASSIGN`.
+
+The parser transforms simple assignments like `a = expr` into a structured tree where the assignment operator itself becomes a binary expression node, allowing uniform handling of l-values and r-values during semantic analysis and code generation.
 
 ### 3.7 Functions, Methods, Classes, Enums
 - `ASTFunction` / `ASTFunctionKind`: functions capture signature, modifiers, body, and comments. Methods (`ASTMethod`) inherit and represent class-scoped functions.
 - `ASTClass`: aggregates modifiers, name, bases, and nested nodes (attributes, methods, constructors).
-- `ASTEnum`: similar container for enum entries and optional bases.
+- `ASTEnum`: container for enum entries (comma-separated in source) and optional base types. Syntax: `[Modifiers] 'enum' Identifier [':' BaseType] '{' Entry (',' Entry)* '}'`.
 
 ## 4. Sema Fundamentals
 | Component | Location | Notes |
@@ -105,13 +154,79 @@ All AST nodes own child pointers directly (no arena). Most nodes expose getters/
 
 The resolver inserts matching `Symbol`s for each declaration so that future identifier/member lookups retrieve the `SemaVar` instead of raw AST nodes.
 
-## 8. Member Access Resolution
+## 8. Assignment Statement Resolution
+Assignment statements in Fly follow a specific AST structure that distinguishes between the assignment operator `=` and other operators like equality `==`.
+
+### Worked Example: Simple Assignment
+**Source Code:**
+```fly
+void func(int a) {
+    a = a + 1
+}
+```
+
+**AST Structure:**
+1. Parser creates `ASTAssignStmt`:
+   - `source`: `ASTIdentifier("a")` - the variable being assigned
+   - `target`: `ASTBinaryOp(OP_BINARY_ASSIGN)` - the complete assignment expression
+     - `left`: `ASTIdentifier("a")` - l-value
+     - `right`: `ASTBinaryOp(OP_BINARY_ADD)` - r-value expression
+       - `left`: `ASTIdentifier("a")`
+       - `right`: `ASTNumberValue("1")`
+
+**Resolution Steps:**
+1. Resolver visits `ASTAssignStmt` and extracts the `source` identifier to verify it's a valid l-value.
+2. Resolver visits the `target` binary operation (`OP_BINARY_ASSIGN`):
+   - Left operand resolves to `SemaLocalVar` for parameter `a` (type: `SemaIntType`)
+   - Right operand resolves recursively:
+     - `OP_BINARY_ADD` creates a `SemaBinaryOp`
+     - Left: `SemaLocalVar` (a)
+     - Right: `SemaIntValue(1)`
+     - Result type: `SemaIntType`
+3. Assignment operation validates that left-side type matches right-side type.
+4. The entire `ASTAssignStmt` becomes associated with the assignment's `SemaBinaryOp(OP_BINARY_ASSIGN)`.
+
+### Worked Example: Assignment with Equality Comparison
+**Source Code:**
+```fly
+void func(bool result, int a) {
+    result = a == 5
+}
+```
+
+**AST Structure:**
+1. Parser creates `ASTAssignStmt`:
+   - `source`: `ASTIdentifier("result")`
+   - `target`: `ASTBinaryOp(OP_BINARY_ASSIGN)`
+     - `left`: `ASTIdentifier("result")`
+     - `right`: `ASTBinaryOp(OP_BINARY_EQ)` - **equality comparison**
+       - `left`: `ASTIdentifier("a")`
+       - `right`: `ASTNumberValue("5")`
+
+**Key Points:**
+- The outer `OP_BINARY_ASSIGN` handles the assignment operation
+- The inner `OP_BINARY_EQ` handles the equality comparison, which evaluates to boolean
+- Type checking ensures `result` (bool) can receive the result of `a == 5` (bool)
+- **Never confuse** `OP_BINARY_ASSIGN` (assignment `=`) with `OP_BINARY_EQ` (equality `==`)
+
+### Assignment Operator Kinds
+| Operator | AST Kind | Semantic Meaning |
+|----------|----------|------------------|
+| `=` | `OP_BINARY_ASSIGN` | Assignment: stores right value into left l-value |
+| `==` | `OP_BINARY_EQ` | Equality comparison: returns boolean |
+| `!=` | `OP_BINARY_NE` | Inequality comparison: returns boolean |
+| `+=` | `OP_BINARY_ADD_ASSIGN` | Compound assignment: `a += b` → `a = a + b` |
+| `-=` | `OP_BINARY_SUB_ASSIGN` | Compound assignment: `a -= b` → `a = a - b` |
+
+(Similar compound patterns for `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`)
+
+## 9. Member Access Resolution
 1. Parser produces `ASTMember` nodes (holding name, parent expression pointer, `ASTVar*` for the definition).
 2. Resolver evaluates the parent expression to obtain a `SemaExpr*`. If the parent is a namespace, class, enum, or call, it delegates to the correct `ResolveChild` overload.
 3. `ResolveChildMember` locates the target attribute via `SemaClassType::LookupAttribute`. It instantiates a `SemaMemberVar` via `SemaBuilder::CreateMemberVar`, linking the AST member, parent expression, and referenced `SemaClassAttribute`.
-4. The resulting `SemaMemberVar` inherits the attribute’s type, visibility, constant flag, and inserted symbol table entry (typically within the class scope when the attribute is declared, and within the current expression scope for temporary references).
+4. The resulting `SemaMemberVar` inherits the attribute's type, visibility, constant flag, and inserted symbol table entry (typically within the class scope when the attribute is declared, and within the current expression scope for temporary references).
 
-## 9. Calls & Function Binding
+## 10. Calls & Function Binding
 `SemaCall` (`include/Sema/SemaCall.h`) represents invocation expressions and stores:
 - Reference to the originating `ASTCall` (`getAST`).
 - Target `SemaFunctionBase*` (free function or class method) once resolved (`setFunction`).
@@ -131,7 +246,12 @@ Every expression node (`ASTExpr`) holds a pointer to its semantic counterpart (`
 - **Functions**: `SemaFunction` couples an `ASTFunction` with its module, symbol table, comment, visibility, and `CodeGenFunction*`. Parameters and locals are added through `addParam`/`addLocalVar` as the resolver visits declarations.
 - **Class Methods**: `SemaClassMethod` extends `SemaFunctionBase` with owning class, `this` instance, visibility, static flag, overridden method, comment, and `CodeGenClassMethod*`.
 - **Classes**: `SemaClassType` (see §5), plus `SemaClassAttribute` for fields and `SemaClassInstance` for `this`.
-- **Enums**: `SemaEnumType` with entry nodes (`SemaEnumEntry`).
+- **Enums**: `SemaEnumType` with entry nodes (`SemaEnumEntry`). 
+  - **Syntax**: `[Modifiers] 'enum' Identifier [':' BaseType] '{' Entry (',' Entry)* '}'`
+  - **Example**: `public enum Status { IDLE, RUNNING, STOPPED }` creates an `ASTEnum` with three `ASTEnumEntry` children.
+  - **Resolution**: Parser produces comma-separated `ASTEnumEntry` nodes. Resolver creates `SemaEnumType`, inserts it into the parent scope, then adds each `SemaEnumEntry` (with index, name, and `CodeGenEnumEntry*` slot) to the enum's symbol table.
+  - **Member Access**: `Status.IDLE` is parsed as `ASTMember(parent=ASTIdentifier("Status"), name="IDLE")`. Resolver looks up `Status` → `SemaEnumType`, then finds `IDLE` in the enum's entry map, returning a `SemaEnumEntry`.
+  - **Base Types**: Optional `: BaseType` allows enums to extend other enums or interfaces. Resolver validates the base chain and populates `SemaEnumType::getBases()`.
 
 ## 12. Scope & Symbol Resolution Flow
 1. **Module Entry**: Resolver creates a new `SemaModule`, registers it, sets namespace and scope, and visits top-level nodes in order. Namespaces must appear first.
@@ -163,7 +283,7 @@ The table below lists every header in `include/AST/` and the primary constructs 
 | `ASTComment.h` | `ASTComment` | Doc-block/lint comment capture feeding into `SemaComment`. |
 | `ASTContinueStmt.h` | `ASTContinueStmt` | `continue` statement AST. |
 | `ASTDeleteStmt.h` | `ASTDeleteStmt` | `delete` statement AST for memory/resource cleanup. |
-| `ASTEnum.h` | `ASTEnum` | Enum declarations including modifiers and base types. |
+| `ASTEnum.h` | `ASTEnum` | Enum declarations with comma-separated entries, modifiers, and optional base types. |
 | `ASTEnumEntry.h` | `ASTEnumEntry` | Individual enum entries tied to `SemaEnumEntry`. |
 | `ASTExpr.h` | `ASTExpr`, `ASTExprKind` | Base for all expressions, tracks semantic attachments. |
 | `ASTExprStmt.h` | `ASTExprStmt` | Statement wrapper holding a standalone expression. |
