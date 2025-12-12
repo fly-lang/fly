@@ -503,7 +503,7 @@ void riskyOperation() {
 }
 
 void main() {
-    error err = handle {
+    error err handle {
         riskyOperation()
     }
     
@@ -1253,7 +1253,7 @@ The `handle` keyword catches exceptions thrown by `fail`. It executes a block of
 
 **Syntax:**
 ```
-HandleStmt ::= [ 'error' Identifier '=' ] 'handle' ( Statement | Block )
+HandleStmt ::= [ 'error' Identifier ] 'handle' ( Statement | Block )
 ```
 
 **Forms of Handle:**
@@ -1272,48 +1272,45 @@ void main() {
 }
 ```
 
-**2. Handle with Error Capture:**
+**2. Handle with Error Variable Declaration:**
 ```fly
 void main() {
-    // Capture error in variable of type 'error'
-    bool b = false
-    error err0 = handle { 
-        b = err0() 
+    // Declare error variable and handle in one statement
+    error err0 handle { 
+        riskyOperation() 
     }
     
-    // The error variable contains exception information
+    // The error variable 'err0' is accessible after the handle block
+    // and contains exception information if an error occurred
     if (err0) {
         // Handle the error
     }
 }
 ```
 
-**3. Handle with Return Value:**
+**3. Handle with Statement Block:**
 ```fly
-int processData() {
-    int i = 0
-    error err1 = handle { 
-        i = err1()      // err1() may fail with integer
+void processData() {
+    error err1 handle { 
+        dangerousOperation()
+        anotherRiskyCall()
     }
     
     if (err1) {
-        // Error occurred, err1 contains the error
+        // Error occurred, err1 contains the error information
         return -1
     }
     return i
 }
 ```
 
-**4. Handle String Errors:**
+**4. Handle with Single Statement:**
 ```fly
-void processText() {
-    string s = ""
-    error err2 = handle { 
-        s = err2()      // err2() may fail with string
-    }
+void quickCheck() {
+    error err2 handle checkData()  // Handle single statement
     
     if (err2) {
-        // err2 contains the string error message
+        // err2 contains error information if checkData() failed
     }
 }
 ```
@@ -1368,7 +1365,7 @@ string loadFile(string path) {
 
 void processFile() {
     string content = ""
-    error fileErr = handle {
+    error fileErr handle {
         content = loadFile("")
     }
     
@@ -1385,7 +1382,7 @@ void complexOperation() {
     int value = 0
     string data = ""
     
-    error err = handle {
+    error err handle {
         success = operation1()  // May fail
         value = operation2()    // May fail
         data = operation3()     // May fail

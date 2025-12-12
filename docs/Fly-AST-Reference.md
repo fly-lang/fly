@@ -253,6 +253,51 @@ Every expression node (`ASTExpr`) holds a pointer to its semantic counterpart (`
   - **Member Access**: `Status.IDLE` is parsed as `ASTMember(parent=ASTIdentifier("Status"), name="IDLE")`. Resolver looks up `Status` → `SemaEnumType`, then finds `IDLE` in the enum's entry map, returning a `SemaEnumEntry`.
   - **Base Types**: Optional `: BaseType` allows enums to extend other enums or interfaces. Resolver validates the base chain and populates `SemaEnumType::getBases()`.
 
+## 11.1 Error Handling with fail/handle
+
+Fly implements error handling through `fail` and `handle` keywords, distinct from traditional exception mechanisms.
+
+### ASTFailStmt
+`ASTFailStmt` represents the `fail` keyword, which terminates function execution and propagates an error. It contains:
+- **`Expr`**: Optional `ASTExpr*` representing the error payload (can be void, integer, string, or object).
+
+**Syntax**: `fail [Expression]`
+
+**Examples**:
+- `fail` - Void failure (no payload)
+- `fail 404` - Integer error code
+- `fail "Error message"` - String error message
+
+The parser makes the expression optional by checking if the next token is a statement terminator (closing brace, EOF, or another statement keyword) before calling `ParseExpr()`.
+
+### ASTHandleStmt
+`ASTHandleStmt` represents the `handle` keyword, which catches errors from enclosed statements. It contains:
+- **`ErrorHandler`**: Optional `ASTExpr*` (typically `ASTIdentifier`) referencing the error variable declaration.
+- **`Handle`**: `ASTBlockStmt*` containing the code to execute that may throw errors.
+
+**Syntax**: `['error' Identifier] 'handle' (Statement | Block)`
+
+**Forms**:
+1. **Simple handle** (no error capture): `handle riskyOperation()`
+2. **Handle with block**: `handle { operation1(); operation2(); }`
+3. **Handle with error variable**: `error err handle { riskyOperation() }`
+
+**Key Changes from Previous Design**:
+- The assignment operator (`=`) has been removed from the handle syntax.
+- Error variables are declared directly before `handle` without assignment.
+- The `error` keyword creates a variable of type `error` that captures exception information.
+
+**Parsing Flow**:
+1. Parser detects `error` keyword in `ParseStmt` → recognizes it as a type via `isVarDecl`.
+2. Creates `ASTLocalVar` with type `error` and the specified identifier.
+3. Checks if next token is `handle` keyword → calls `ParseHandleStmt` with the identifier.
+4. `ParseHandleStmt` consumes `handle`, parses the statement/block, and creates `ASTHandleStmt` with the identifier as `ErrorHandler`.
+
+**Resolution**:
+- The error variable becomes a `SemaLocalVar` with type `SemaErrorType`.
+- `SemaErrorHandler` tracks the relationship between the call and the error variable.
+- The handle block's statements are resolved within a nested scope.
+
 ## 12. Scope & Symbol Resolution Flow
 1. **Module Entry**: Resolver creates a new `SemaModule`, registers it, sets namespace and scope, and visits top-level nodes in order. Namespaces must appear first.
 2. **Imports**: `SemaImport` nodes are created. Symbols for imported namespaces are not immediately inserted; instead, resolver stores symbol tables for deferred lookup.

@@ -450,6 +450,12 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
     	ASTLocalVar *LocalVar = Builder.CreateLocalVar(Parent, Loc, T, Name, Modifiers);
     	Identifier = Builder.CreateIdentifier(LocalVar);
 
+        // Check for handle statement
+        if (Tok.is(tok::kw_handle)) {
+            ParseHandleStmt(Parent, Identifier);
+            return;
+        }
+
     } else if (((NexTok = Tok)) && isVarAssign(NexTok)) {
     	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
     	const SourceLocation &Loc = ConsumeToken();
@@ -458,17 +464,11 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 
 	// Check if is an assignment
 	if (Identifier && isAssignOperator(Tok)) {
+        ASTAssignStmt *Stmt = Builder.CreateAssignmentStmt(Parent, Identifier);
 
-		// Check for handle assignment
-		if (Tok.is(tok::equal) && NexTok.getValue().is(tok::kw_handle)) {
-			ParseHandleStmt(Parent, Identifier);
-		} else {
-			ASTAssignStmt *Stmt = Builder.CreateAssignmentStmt(Parent, Identifier);
-
-			// Parse Expr (pass Identifier as left side so assignment operators like += can build binary expression)
-			ASTExpr *Expr = ParseExpr(Identifier);
-			Stmt->setExpr(Expr);
-		}
+        // Parse Expr (pass Identifier as left side so assignment operators like += can build binary expression)
+        ASTExpr *Expr = ParseExpr(Identifier);
+        Stmt->setExpr(Expr);
 		return;
     } else if (Identifier) {
     	// Declaration without initializer: emit an assignment stmt with null expr
@@ -975,9 +975,8 @@ void Parser::ParseHandleStmt(ASTBlockStmt *Parent, ASTIdentifier *Error) {
 
     // Parse statement between braces
     ASTBlockStmt *HandleBlock = Builder.CreateBlockStmt(Loc);
-    Builder.CreateHandleStmt(Parent, Loc, HandleBlock, Error);
-
     ParseBlockOrStmt(HandleBlock);
+    Builder.CreateHandleStmt(Parent, Loc, HandleBlock, Error);
 }
 
 void Parser::ParseFailStmt(ASTBlockStmt *Parent) {
@@ -986,8 +985,14 @@ void Parser::ParseFailStmt(ASTBlockStmt *Parent) {
 
     const SourceLocation &Loc = ConsumeToken();
     ASTFailStmt *Stmt = Builder.CreateFailStmt(Parent, Loc);
-    ASTExpr *Expr = ParseExpr();
-    Stmt->setExpr(Expr);
+
+    // Parse optional expression (fail can be used without an expression)
+    if (!Tok.isOneOf(tok::r_brace, tok::eof, tok::kw_case, tok::kw_default,
+                     tok::kw_break, tok::kw_continue, tok::kw_return,
+                     tok::kw_if, tok::kw_switch, tok::kw_while, tok::kw_for)) {
+        ASTExpr *Expr = ParseExpr();
+        Stmt->setExpr(Expr);
+    }
 }
 
 /**
