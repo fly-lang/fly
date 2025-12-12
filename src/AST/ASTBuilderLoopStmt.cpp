@@ -10,6 +10,7 @@
 #include "AST/ASTBuilderLoopStmt.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTLoopStmt.h"
+#include "AST/ASTLoopInStmt.h"
 
 using namespace fly;
 
@@ -17,7 +18,7 @@ ASTBuilderLoopStmt::ASTBuilderLoopStmt(ASTBlockStmt *Parent) : Parent(Parent) {
 
 }
 
-ASTBuilderLoopStmt *ASTBuilderLoopStmt::Create(ASTBlockStmt *Parent, const SourceLocation &Loc) {
+ASTBuilderLoopStmt *ASTBuilderLoopStmt::CreateLoop(ASTBlockStmt *Parent, const SourceLocation &Loc) {
     ASTBuilderLoopStmt *Builder = new ASTBuilderLoopStmt(Parent);
     Builder->LoopStmt = new ASTLoopStmt(Loc);
 
@@ -26,6 +27,23 @@ ASTBuilderLoopStmt *ASTBuilderLoopStmt::Create(ASTBlockStmt *Parent, const Sourc
     Builder->LoopStmt->Parent = Parent;
     Builder->LoopStmt->Function = Parent->getFunction();
     return Builder;
+}
+
+ASTLoopInStmt *ASTBuilderLoopStmt::CreateLoopIn(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTExpr *Item, ASTExpr *List, ASTBlockStmt *Stmt) {
+    ASTLoopInStmt *LoopIn = new ASTLoopInStmt(Loc, Item, List, Stmt);
+
+    // Add to Parent block content
+    Parent->getContent().push_back(LoopIn);
+    LoopIn->setParent(Parent);
+    LoopIn->setFunction(Parent->getFunction());
+
+    // Set Stmt parent and function
+    if (Stmt) {
+        Stmt->setParent(LoopIn);
+        Stmt->setFunction(Parent->getFunction());
+    }
+
+    return LoopIn;
 }
 
 ASTBuilderLoopStmt *ASTBuilderLoopStmt::Loop(ASTExpr *Expr, ASTBlockStmt *Stmt) {

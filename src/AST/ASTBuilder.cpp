@@ -21,7 +21,6 @@
 #include "AST/ASTVar.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTHandleStmt.h"
-#include "AST/ASTAssignStmt.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTClass.h"
@@ -744,16 +743,6 @@ ASTTernaryOp *ASTBuilder::CreateTernary(
  * @param Parent
  * @param Source
  * @return
- */
-ASTAssignStmt *ASTBuilder::CreateAssignmentStmt(ASTBlockStmt *Parent, ASTExpr *Source, ASTAssignOperatorKind Kind) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateAssignmentStmt", "Kind=" << static_cast<uint8_t>(Kind));
-
-	ASTAssignStmt *Stmt = new ASTAssignStmt(Source->getLocation(), Source, Kind);
-	Parent->addContent(Stmt);
-
-	FLY_DEBUG_END("ASTBuilder", "CreateAssignmentStmt");
-	return Stmt;
-}
 
 /**
  * Creates a ASTReturnStmt
@@ -777,14 +766,13 @@ ASTReturnStmt *ASTBuilder::CreateReturnStmt(ASTBlockStmt *Parent, const SourceLo
  * @return
  */
 ASTExprStmt *ASTBuilder::CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateExprStmt", "Loc=" << Loc.getRawEncoding());
-
-	ASTExprStmt *Stmt = new ASTExprStmt(Loc);
+	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateExprStmt", Logger()
+                      .Attr("Parent", Parent)
+                      .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
+     ASTExprStmt *Stmt = new ASTExprStmt(Loc);
 	Parent->addContent(Stmt);
-
-	FLY_DEBUG_END("ASTBuilder", "CreateExprStmt");
-	return Stmt;
-}
+     return Stmt;
+ }
 
 /**
  * Creates an ASTFailStmt
@@ -804,12 +792,12 @@ ASTFailStmt *ASTBuilder::CreateFailStmt(ASTBlockStmt *Parent, const SourceLocati
 
 ASTHandleStmt *ASTBuilder::CreateHandleStmt(
 	ASTBlockStmt *Parent, const SourceLocation &Loc,
-	ASTBlockStmt *BlockStmt, ASTIdentifier *ErrorRef) {
+	ASTBlockStmt *BlockStmt, ASTExpr *ErrorHandler) {
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateHandleStmt", "Loc=" << Loc.getRawEncoding());
 
 	ASTHandleStmt *HandleStmt = new ASTHandleStmt(Loc);
 	Parent->addContent(HandleStmt);
-	HandleStmt->ErrorHandler = ErrorRef;
+	HandleStmt->ErrorHandler = ErrorHandler;
 	HandleStmt->Handle = BlockStmt;
 
 	// set Handle Block
@@ -889,3 +877,4 @@ ASTBlockStmt *ASTBuilder::CreateBlockStmt(ASTStmt *Parent, const SourceLocation 
 	FLY_DEBUG_END("ASTBuilder", "CreateBlockStmt");
 	return Block;
 }
+

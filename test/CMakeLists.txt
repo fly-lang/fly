@@ -17,7 +17,7 @@ add_executable(fly_test
         Parser/LexerTest.cpp
 #        Parser/ParserBadCode.cpp
         Parser/ParserBlockTest.cpp
-#        Parser/ParserClassTest.cpp
+        Parser/ParserClassTest.cpp
         Parser/ParserCommentTest.cpp
         Parser/ParserExprTest.cpp
         Parser/ParserEnumTest.cpp

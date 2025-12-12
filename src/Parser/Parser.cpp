@@ -464,15 +464,17 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 
 	// Check if is an assignment
 	if (Identifier && isAssignOperator(Tok)) {
-        ASTAssignStmt *Stmt = Builder.CreateAssignmentStmt(Parent, Identifier);
+        // Create an expression statement to hold the assignment expression
+        ASTExprStmt *Stmt = Builder.CreateExprStmt(Parent, Identifier->getLocation());
 
         // Parse Expr (pass Identifier as left side so assignment operators like += can build binary expression)
         ASTExpr *Expr = ParseExpr(Identifier);
         Stmt->setExpr(Expr);
 		return;
     } else if (Identifier) {
-    	// Declaration without initializer: emit an assignment stmt with null expr
-    	Builder.CreateAssignmentStmt(Parent, Identifier);
+    	// Declaration without initializer: create an expression statement with just the identifier
+    	ASTExprStmt *Stmt = Builder.CreateExprStmt(Parent, Identifier->getLocation());
+        Stmt->setExpr(Identifier);
 		return;
     } else if (!Tok.is(tok::r_brace) && Tok.isNot(tok::eof)) {
     	// a()
@@ -889,7 +891,7 @@ void Parser::ParseWhileStmt(ASTBlockStmt *Parent) {
 	}
 
     ASTBlockStmt *BlockStmt = Builder.CreateBlockStmt(Tok.getLocation());
-    ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::Create(Parent, Loc);
+    ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::CreateLoop(Parent, Loc);
     LoopBuilder->Loop(Condition, BlockStmt);
 
     // Parse statement between braces
@@ -921,8 +923,54 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
     // Consume Left Parenthesis ( if exists
     bool hasParen = ParseStartParen();
 
+    // Check if this is a for-in loop: for <identifier> in <expr>
+    // We need to look ahead to see if we have: identifier 'in'
+    if (Tok.isAnyIdentifier()) {
+        // Peek ahead to see if next token is 'in'
+        Optional<Token> NextTok = Lexer::findNextToken(Tok.getLocation(), SourceMgr);
+        bool isForIn = false;
+
+        if (NextTok) {
+            // Check if it's the keyword 'in' or identifier "in"
+            if (NextTok->is(tok::kw_in)) {
+                isForIn = true;
+            }
+        }
+
+        if (isForIn) {
+            // Parse for-in loop: for item in list { }
+
+            // Parse item identifier (the loop variable)
+            llvm::StringRef ItemName = Tok.getIdentifierInfo()->getName();
+            const SourceLocation &ItemLoc = ConsumeToken();
+            ASTExpr *Item = Builder.CreateIdentifier(ItemLoc, ItemName);
+
+            // Consume 'in'
+            ConsumeToken();
+
+            // Parse list expression
+            ASTExpr *List = ParseExpr();
+
+            if (hasParen) {
+                ParseEndParen(hasParen);
+            }
+
+            // Prepare loop body
+            ASTBlockStmt *LoopBlock = Builder.CreateBlockStmt(Tok.getLocation());
+
+            // Create LoopIn AST node
+            ASTLoopInStmt *LoopIn = ASTBuilderLoopStmt::CreateLoopIn(Parent, Loc, Item, List, LoopBlock);
+
+            // Parse the loop body
+            ParseBlockOrStmt(LoopBlock);
+            return;
+        }
+    }
+
+    // Traditional for loop: for init; condition; post { }
+
     // Create For Statement
-	ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::Create(Parent, Loc);
+	ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::CreateLoop(Parent, Loc);
     ASTBlockStmt *InitBlock = Builder.CreateBlockStmt(Tok.getLocation());
 	LoopBuilder->Init(InitBlock);
     ASTExpr *Condition = nullptr;
@@ -960,7 +1008,6 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
 	// Create Loop Stmt
     ASTBlockStmt *LoopBlock = Builder.CreateBlockStmt(Tok.getLocation());
     LoopBuilder->Loop(Condition, LoopBlock);
-
 
     // Parse statement between braces
     ParseBlockOrStmt(LoopBlock);

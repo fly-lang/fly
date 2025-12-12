@@ -14,6 +14,7 @@ namespace fly {
 
     class Sema;
     class ASTLoopStmt;
+    class ASTLoopInStmt;
     class SourceLocation;
     class ASTStmt;
     class ASTBlockStmt;
@@ -27,11 +28,15 @@ namespace fly {
 
         ASTLoopStmt *LoopStmt;
 
+        ASTLoopInStmt *LoopInStmt;
+
         explicit ASTBuilderLoopStmt(ASTBlockStmt *Parent);
 
     public:
 
-        static ASTBuilderLoopStmt *Create(ASTBlockStmt *Parent, const SourceLocation &Loc);
+        static ASTBuilderLoopStmt *CreateLoop(ASTBlockStmt *Parent, const SourceLocation &Loc);
+
+        static ASTLoopInStmt *CreateLoopIn(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTExpr *Item, ASTExpr *List, ASTBlockStmt *Stmt);
 
         ASTBuilderLoopStmt *Loop(ASTExpr *Expr, ASTBlockStmt *Stmt);
 

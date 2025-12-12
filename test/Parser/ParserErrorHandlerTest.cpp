@@ -16,7 +16,6 @@
 #include <AST/ASTFailStmt.h>
 #include <AST/ASTHandleStmt.h>
 #include <AST/ASTCall.h>
-#include <AST/ASTAssignStmt.h>
 #include <AST/ASTIdentifier.h>
 
 namespace {

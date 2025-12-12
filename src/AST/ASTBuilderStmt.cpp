@@ -21,15 +21,6 @@ ASTBuilderStmt::ASTBuilderStmt() {
 
 }
 
-ASTBuilderStmt *ASTBuilderStmt::CreateAssignment(ASTBlockStmt *Parent, ASTIdentifier *VarRef,
-                                                   ASTAssignOperatorKind AssignOperatorKind) {
-    ASTBuilderStmt *BuilderStmt = new ASTBuilderStmt();
-    BuilderStmt->Stmt = new ASTAssignStmt(VarRef->getLocation(), VarRef, AssignOperatorKind);
-
-    // Inner Stmt
-    Parent->getContent().push_back(BuilderStmt->Stmt);
-    return BuilderStmt;
-}
 
 ASTBuilderStmt *ASTBuilderStmt::CreateReturn(ASTBlockStmt *Parent, const SourceLocation &Loc) {
     ASTBuilderStmt *BuilderStmt = new ASTBuilderStmt();
@@ -58,9 +49,6 @@ ASTBuilderStmt *ASTBuilderStmt::CreateExpr(ASTBlockStmt *Parent, const SourceLoc
 void ASTBuilderStmt::setExpr(ASTExpr *Expr) {
     // TODO use a super class with expr
     switch (Stmt->getStmtKind()) {
-        case ASTStmtKind::STMT_ASSIGN:
-            ((ASTAssignStmt *) Stmt)->setExpr(Expr);
-            return;
         case ASTStmtKind::STMT_RETURN:
             ((ASTReturnStmt *) Stmt)->setExpr(Expr);
             return;

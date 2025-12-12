@@ -14,26 +14,32 @@
 
 using namespace fly;
 
-ASTLoopInStmt::ASTLoopInStmt(const SourceLocation &Loc) :
-        ASTStmt(Loc, ASTStmtKind::STMT_LOOP_IN) {
+ASTLoopInStmt::ASTLoopInStmt(const SourceLocation &Loc, ASTExpr *Item, ASTExpr *List, ASTStmt *Stmt) :
+        ASTStmt(Loc, ASTStmtKind::STMT_LOOP_IN), Item(Item), List(List), Stmt(Stmt) {
 
 }
 
-void ASTLoopInStmt::accept(ASTVisitor& Visitor) {
-	Visitor.visit(*this);
+void ASTLoopInStmt::accept(ASTVisitor &Visitor) {
+    Visitor.visit(*this);
 }
 
-ASTIdentifier *ASTLoopInStmt::getVarRef() const {
-    return VarRef;
+ASTExpr *ASTLoopInStmt::getItem() const {
+    return Item;
 }
 
-ASTBlockStmt *ASTLoopInStmt::getBlock() const {
-    return Block;
+ASTExpr *ASTLoopInStmt::getList() const {
+    return List;
+}
+
+ASTStmt *ASTLoopInStmt::getStmt() const {
+    return Stmt;
 }
 
 std::string ASTLoopInStmt::str() const {
-    return Logger("ASTLoopInBlock").
-	Attr("Location", getLocation()).
-	Attr("Kind", static_cast<size_t>(getKind())).
+    return Logger("ASTLoopInStmt").
+            Attr("Location", getLocation()).
+            Attr("Item", Item).
+            Attr("List", List).
+            Attr("Stmt", Stmt).
             End();
 }

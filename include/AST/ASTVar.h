@@ -25,7 +25,6 @@ namespace fly {
 
     class SourceLocation;
     class CodeGenVarBase;
-    class ASTAssignStmt;
     class ASTModifier;
     class ASTType;
 	class ASTExpr;

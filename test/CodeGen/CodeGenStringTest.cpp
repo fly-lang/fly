@@ -13,10 +13,11 @@
 #include "Sema/SemaBuilderModifiers.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTIdentifier.h"
-#include "AST/ASTAssignStmt.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTReturnStmt.h"
+#include "AST/ASTOp.h"
+#include "AST/ASTExprStmt.h"
 
 #include <Sema/SemaNameSpace.h>
 
@@ -33,13 +34,17 @@ namespace {
 
     	// default string k = ""
     	ASTLocalVar *LocalVar_k = getASTBuilder().CreateLocalVar(Body, SourceLoc, StringTypeRef, "k", EmptyModifiers);
-    	ASTAssignStmt *VarStmt_k = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(LocalVar_k));
-    	VarStmt_k->setExpr(getASTBuilder().CreateDefaultValue());
+    	ASTIdentifier *Ident_k = getASTBuilder().CreateIdentifier(LocalVar_k);
+    	ASTExprStmt *VarStmt_k = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTBinaryOp *Assign_k = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Ident_k, getASTBuilder().CreateDefaultValue());
+    	VarStmt_k->setExpr(Assign_k);
 
     	// default char l = '\0'
     	ASTLocalVar *LocalVar_l = getASTBuilder().CreateLocalVar(Body, SourceLoc, CharTypeRef, "l", EmptyModifiers);
-    	ASTAssignStmt *VarStmt_l = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(LocalVar_l));
-    	VarStmt_l->setExpr(getASTBuilder().CreateDefaultValue());
+    	ASTIdentifier *Ident_l = getASTBuilder().CreateIdentifier(LocalVar_l);
+    	ASTExprStmt *VarStmt_l = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTBinaryOp *Assign_l = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Ident_l, getASTBuilder().CreateDefaultValue());
+    	VarStmt_l->setExpr(Assign_l);
 
     	// Generate Code
     	llvm::Module * M = Generate()[0];
@@ -104,9 +109,10 @@ namespace {
 
         // g = 1.0
         ASTIdentifier *VarRef_g = getASTBuilder().CreateIdentifier(LocalVar_g);
-        ASTAssignStmt *GVarStmt = getASTBuilder().CreateAssignmentStmt(Body, VarRef_g);
         ASTNumberValue *ExprG = getASTBuilder().CreateNumberValue(SourceLoc, "1.0");
-        GVarStmt->setExpr(ExprG);
+        ASTExprStmt *GVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTBinaryOp *GAssign = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, VarRef_g, ExprG);
+        GVarStmt->setExpr(GAssign);
 
         // return g
         ASTReturnStmt *Return = getASTBuilder().CreateReturnStmt(Body, SourceLoc);

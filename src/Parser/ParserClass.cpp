@@ -45,13 +45,21 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) : 
     P->ConsumeToken();
 
     // Parse classes after colon
-    // class Example : SuperClass Interface Struct { ... }
+    // class Example : SuperClass, Interface, Struct { ... }
     llvm::SmallVector<ASTType *, 4> Bases;
     if (P->Tok.is(tok::colon)) {
         P->ConsumeToken();
         while (P->Tok.isAnyIdentifier()) {
             ASTType *ClassTypeRef = P->ParseType();
             Bases.push_back(ClassTypeRef);
+
+            // Consume comma if present
+            if (P->Tok.is(tok::comma)) {
+                P->ConsumeToken();
+            } else {
+                // No comma, we're done with base classes
+                break;
+            }
         }
     }
 

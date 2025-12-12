@@ -22,7 +22,6 @@
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTArg.h"
 #include "AST/ASTOp.h"
-#include "AST/ASTAssignStmt.h"
 
 #include <AST/ASTParam.h>
 #include <AST/ASTType.h>
@@ -194,12 +193,11 @@ namespace {
         ASSERT_FALSE(Body->getContent().empty());
 
         // Test: int b = doSome()
-        auto *VarB = As<ASTAssignStmt>(Body->getContent()[0]);
-        EXPECT_EQ(As<ASTIdentifier>(VarB->getSource())->getName(), "b");
-        // Target is binary assignment: b = doSome()
-        auto *AssignExpr1 = As<ASTBinaryOp>(VarB->getTarget());
+        auto *VarBStmt = As<ASTExprStmt>(Body->getContent()[0]);
+        auto *AssignExpr1 = As<ASTBinaryOp>(VarBStmt->getExpr());
         ASSERT_TRUE(AssignExpr1 != nullptr);
         EXPECT_EQ(AssignExpr1->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+        EXPECT_EQ(As<ASTIdentifier>(AssignExpr1->getLeftExpr())->getName(), "b");
         // Right side is the function call
         auto *doSomeCall = As<ASTCall>(AssignExpr1->getRightExpr());
         ASSERT_TRUE(doSomeCall != nullptr);
@@ -207,12 +205,11 @@ namespace {
         EXPECT_EQ(doSomeCall->getExprKind(), ASTExprKind::EXPR_CALL);
 
         // Test: b = doNow()
-        auto *B = As<ASTAssignStmt>(Body->getContent()[1]);
-        EXPECT_EQ(As<ASTIdentifier>(B->getSource())->getName(), "b");
-        // Target is binary assignment: b = doNow()
-        auto *AssignExpr2 = As<ASTBinaryOp>(B->getTarget());
+        auto *BStmt = As<ASTExprStmt>(Body->getContent()[1]);
+        auto *AssignExpr2 = As<ASTBinaryOp>(BStmt->getExpr());
         ASSERT_TRUE(AssignExpr2 != nullptr);
         EXPECT_EQ(AssignExpr2->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+        EXPECT_EQ(As<ASTIdentifier>(AssignExpr2->getLeftExpr())->getName(), "b");
         // Right side is the function call
         auto *doNowCall = As<ASTCall>(AssignExpr2->getRightExpr());
         ASSERT_TRUE(doNowCall != nullptr);

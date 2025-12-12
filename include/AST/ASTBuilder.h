@@ -11,7 +11,9 @@
 #define FLY_AST_BUILDER_H
 
 #include <AST/ASTModifier.h>
-#include <AST/ASTAssignStmt.h>
+
+#include "ASTLoopInStmt.h"
+#include "ASTVar.h"
 #include "llvm/ADT/StringMap.h"
 
 namespace fly {
@@ -63,8 +65,6 @@ namespace fly {
     class ASTLoopStmt;
 
     class ASTExprStmt;
-
-    class ASTAssignStmt;
 
     class ASTParam;
 
@@ -269,8 +269,6 @@ namespace fly {
 
         // Create Statements
 
-        ASTAssignStmt *CreateAssignmentStmt(ASTBlockStmt *Parent, ASTExpr *Source,
-                                              ASTAssignOperatorKind Kind = ASTAssignOperatorKind::EQUAL);
 
         ASTReturnStmt *CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
@@ -278,16 +276,13 @@ namespace fly {
 
         ASTFailStmt *CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-         ASTHandleStmt *CreateHandleStmt(ASTBlockStmt *Parent, const SourceLocation &Loc,
-            ASTBlockStmt *BlockStmt, ASTIdentifier *ErrorRef = nullptr);
+         ASTHandleStmt *CreateHandleStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTBlockStmt *BlockStmt, ASTExpr *ErrorHandler= nullptr);
 
          ASTBreakStmt *CreateBreakStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
          ASTContinueStmt *CreateContinueStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
          ASTDeleteStmt *CreateDeleteStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTIdentifier *VarRef);
-
-        // Create Blocks structures
 
          static ASTBlockStmt *CreateBody(ASTFunction *Function, ASTBlockStmt *Body);
 
@@ -300,4 +295,3 @@ namespace fly {
 }  // end namespace fly
 
 #endif // FLY_AST_BUILDER_H
-

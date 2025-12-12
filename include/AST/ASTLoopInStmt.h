@@ -11,28 +11,32 @@
 #define FLY_AST_LOOPINSTMT_H
 
 #include "ASTStmt.h"
+#include "AST/ASTExpr.h"
 
 namespace fly {
-
-    class ASTIdentifier;
 
     class ASTLoopInStmt : public ASTStmt {
 
         friend class ASTBuilder;
+        friend class ASTBuilderLoopStmt;
 
-        ASTIdentifier *VarRef = nullptr;
+        ASTExpr *Item = nullptr;
 
-        ASTBlockStmt *Block = nullptr;
+        ASTExpr *List = nullptr;
 
-        explicit ASTLoopInStmt(const SourceLocation &Loc);
+        ASTStmt *Stmt = nullptr;
+
+        explicit ASTLoopInStmt(const SourceLocation &Loc, ASTExpr *Item, ASTExpr *List, ASTStmt *Stmt);
 
     public:
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTIdentifier *getVarRef() const;
+        ASTExpr *getItem() const;
 
-        ASTBlockStmt *getBlock() const;
+        ASTExpr *getList() const;
+
+        ASTStmt *getStmt() const;
 
         std::string str() const override;
 

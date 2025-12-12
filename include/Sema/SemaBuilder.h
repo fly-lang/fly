@@ -11,7 +11,6 @@
 #define FLY_SEMA_BUILDER_H
 
 #include <AST/ASTValue.h>
-#include <AST/ASTAssignStmt.h>
 
 namespace fly {
 

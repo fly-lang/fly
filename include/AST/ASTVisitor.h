@@ -47,7 +47,6 @@ namespace fly {
 	class ASTSwitchStmt;
 	class ASTLoopStmt;
 	class ASTLoopInStmt;
-	class ASTAssignStmt;
 	class ASTBlockStmt;
 	class ASTUnaryOp;
 	class ASTBinaryOp;
@@ -92,7 +91,6 @@ namespace fly {
 		virtual void visit(ASTSwitchStmt &AST) = 0;
 		virtual void visit(ASTLoopStmt &AST) = 0;
 		virtual void visit(ASTLoopInStmt &AST) = 0;
-		virtual void visit(ASTAssignStmt &AST) = 0;
 		virtual void visit(ASTBlockStmt &AST) = 0;
 
 		// Expressions

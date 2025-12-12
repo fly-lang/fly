@@ -14,17 +14,13 @@
 #include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTIdentifier.h"
-#include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTAttribute.h"
 #include "AST/ASTEnumEntry.h"
-#include "AST/ASTMethod.h"
 #include "AST/ASTOp.h"
-#include "AST/ASTAssignStmt.h"
-
+#include <AST/ASTExprStmt.h>
 #include <AST/ASTMember.h>
 #include <AST/ASTName.h>
-#include <AST/ASTReturnStmt.h>
 
 namespace {
 
@@ -64,22 +60,18 @@ namespace {
 		ASSERT_FALSE(Body->getContent().empty());
 
 		// First assignment: Test a = Test.A
-		ASTAssignStmt *aAssignStmt = As<ASTAssignStmt>(Body->getContent()[0]);
-		ASTIdentifier *src = As<ASTIdentifier>(aAssignStmt->getSource());
-		ASSERT_TRUE(src != nullptr);
-		EXPECT_EQ(src->getName(), "a");
-
-		// The target is a binary assignment expression: a = Test.A
-		EXPECT_EQ(aAssignStmt->getTarget()->getExprKind(), ASTExprKind::EXPR_BINARY);
-		auto *AssignBinaryExpr = As<ASTBinaryOp>(aAssignStmt->getTarget());
+		auto *aExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
+		auto *AssignBinaryExpr = As<ASTBinaryOp>(aExprStmt->getExpr());
 		EXPECT_EQ(AssignBinaryExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
 
 		// Left side is 'a'
+		auto *src = As<ASTIdentifier>(AssignBinaryExpr->getLeftExpr());
+		ASSERT_TRUE(src != nullptr);
+		EXPECT_EQ(src->getName(), "a");
 		EXPECT_EQ(AssignBinaryExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
-		EXPECT_EQ(As<ASTIdentifier>(AssignBinaryExpr->getLeftExpr())->getName(), "a");
 
 		// Right side is Test.A (member expression)
-		ASTMember *Test_a = As<ASTMember>(AssignBinaryExpr->getRightExpr());
+		auto *Test_a = As<ASTMember>(AssignBinaryExpr->getRightExpr());
 		ASSERT_TRUE(Test_a != nullptr);
 		EXPECT_EQ(Test_a->getName(), "A");
 		EXPECT_EQ(Test_a->getExprKind(), ASTExprKind::EXPR_MEMBER);
@@ -87,22 +79,18 @@ namespace {
 		EXPECT_EQ(Test_a->getParent()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
 
      // Verify second assignment: a = Test.B
-    	ASTAssignStmt *aAssignStmt2 = As<ASTAssignStmt>(Body->getContent()[1]);
-    	ASTIdentifier *src2 = As<ASTIdentifier>(aAssignStmt2->getSource());
-    	ASSERT_TRUE(src2 != nullptr);
-    	EXPECT_EQ(src2->getName(), "a");
-
-    	// The target is a binary assignment expression: a = Test.B
-    	EXPECT_EQ(aAssignStmt2->getTarget()->getExprKind(), ASTExprKind::EXPR_BINARY);
-    	auto *AssignBinaryExpr2 = As<ASTBinaryOp>(aAssignStmt2->getTarget());
+    	auto *aExprStmt2 = As<ASTExprStmt>(Body->getContent()[1]);
+    	auto *AssignBinaryExpr2 = As<ASTBinaryOp>(aExprStmt2->getExpr());
     	EXPECT_EQ(AssignBinaryExpr2->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
 
     	// Left side is 'a'
+    	auto *src2 = As<ASTIdentifier>(AssignBinaryExpr2->getLeftExpr());
+    	ASSERT_TRUE(src2 != nullptr);
+    	EXPECT_EQ(src2->getName(), "a");
     	EXPECT_EQ(AssignBinaryExpr2->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
-    	EXPECT_EQ(As<ASTIdentifier>(AssignBinaryExpr2->getLeftExpr())->getName(), "a");
 
     	// Right side is Test.B (member expression)
-    	ASTMember *Test_b = As<ASTMember>(AssignBinaryExpr2->getRightExpr());
+    	auto *Test_b = As<ASTMember>(AssignBinaryExpr2->getRightExpr());
     	ASSERT_TRUE(Test_b != nullptr);
     	EXPECT_EQ(Test_b->getName(), "B");
     	EXPECT_EQ(Test_b->getExprKind(), ASTExprKind::EXPR_MEMBER);
@@ -110,22 +98,18 @@ namespace {
     	EXPECT_EQ(Test_b->getParent()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
 
     	// Verify third statement: Test c = a
-    	ASTAssignStmt *aAssignStmt3 = As<ASTAssignStmt>(Body->getContent()[2]);
-    	ASTIdentifier *src3 = As<ASTIdentifier>(aAssignStmt3->getSource());
-    	ASSERT_TRUE(src3 != nullptr);
-    	EXPECT_EQ(src3->getName(), "c");
-
-    	// The target is a binary assignment expression: c = a
-    	EXPECT_EQ(aAssignStmt3->getTarget()->getExprKind(), ASTExprKind::EXPR_BINARY);
-    	auto *AssignBinaryExpr3 = As<ASTBinaryOp>(aAssignStmt3->getTarget());
+    	auto *aExprStmt3 = As<ASTExprStmt>(Body->getContent()[2]);
+    	auto *AssignBinaryExpr3 = As<ASTBinaryOp>(aExprStmt3->getExpr());
     	EXPECT_EQ(AssignBinaryExpr3->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
 
     	// Left side is 'c'
+    	auto *src3 = As<ASTIdentifier>(AssignBinaryExpr3->getLeftExpr());
+    	ASSERT_TRUE(src3 != nullptr);
+    	EXPECT_EQ(src3->getName(), "c");
     	EXPECT_EQ(AssignBinaryExpr3->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
-    	EXPECT_EQ(As<ASTIdentifier>(AssignBinaryExpr3->getLeftExpr())->getName(), "c");
 
     	// Right side is 'a' (identifier)
-    	ASTIdentifier *target3 = As<ASTIdentifier>(AssignBinaryExpr3->getRightExpr());
+    	auto *target3 = As<ASTIdentifier>(AssignBinaryExpr3->getRightExpr());
     	ASSERT_TRUE(target3 != nullptr);
     	EXPECT_EQ(target3->getName(), "a");
     }

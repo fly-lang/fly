@@ -15,10 +15,11 @@
 #include <Sema/SemaNameSpace.h>
 #include "AST/ASTName.h"
 #include "AST/ASTEnumEntry.h"
-#include "AST/ASTAssignStmt.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTType.h"
+#include "AST/ASTOp.h"
+#include "AST/ASTExprStmt.h"
 
 
 namespace {
@@ -54,16 +55,19 @@ namespace {
 
         //  TestEnum a = TestEnum.A;
         ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestEnumType, "a", EmptyModifiers);
-        // Use identifier/ref for enum entry instead of legacy VarRef
+        ASTIdentifier *aVarIdent = getASTBuilder().CreateIdentifier(aVar);
         ASTIdentifier *Enum_AIdent = getASTBuilder().CreateIdentifier(A);
-        ASTAssignStmt *aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(aVar));
-        aVarStmt->setExpr(Enum_AIdent);
+        ASTExprStmt *aVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTBinaryOp *aAssign = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aVarIdent, Enum_AIdent);
+        aVarStmt->setExpr(aAssign);
 
         //  TestEnum b = a
         ASTLocalVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestEnumType, "b", EmptyModifiers);
-        ASTAssignStmt *bVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(bVar));
+        ASTIdentifier *bVarIdent = getASTBuilder().CreateIdentifier(bVar);
         ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(aVar);
-        bVarStmt->setExpr(aIdent);
+        ASTExprStmt *bVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTBinaryOp *bAssign = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, bVarIdent, aIdent);
+        bVarStmt->setExpr(bAssign);
 
 		// Generate Code
 		llvm::Module * M = Generate()[0];

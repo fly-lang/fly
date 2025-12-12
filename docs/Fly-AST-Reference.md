@@ -1,6 +1,6 @@
 # Fly AST & Sema Reference
 
-This document describes every Abstract Syntax Tree (AST) construct produced by the Fly parser and how those nodes are translated into Semantic Analysis (Sema) objects before the CodeGen pass. It concentrates on symbol table formation and on the `SemaType`, `SemaVar`, `SemaCall`, and `SemaMember*` families that participate in symbol resolution.
+This document describes every Abstract Syntax Tree (AST) construct produced by the Fly parser and how those nodes are translated into Semantic Analysis (Sema) objects before the CodeGen pass. It includes detailed examples from the test suite and concentrates on symbol table formation and on the `SemaType`, `SemaVar`, `SemaCall`, and `SemaMember*` families that participate in symbol resolution.
 
 ## 1. Pipeline Overview
 - **Parsing** builds tree nodes derived from `ASTBase`/`ASTNode`. Nodes retain source locations and syntactic kinds only.
@@ -20,90 +20,1464 @@ Only after these stages does CodeGen consult the Sema graph (`CodeGen*` pointers
 
 All AST nodes own child pointers directly (no arena). Most nodes expose getters/setters but never perform semantic analysis themselves.
 
-## 3. AST Inventory
-### 3.1 Modules, Namespaces, Imports
-- `ASTModule` (`include/AST/ASTModule.h`): Root per translation unit, records file, namespace, and ordered top-level nodes.
-- `ASTNameSpace`: Represents the namespace declaration header. A module may omit this, in which case the resolver uses the registry’s default namespace.
-- `ASTImport`: Stores a qualified name (`ASTName` segments) plus an optional alias.
+## 3. Detailed AST Class Reference
+
+### 3.1 Module, Namespace, and Import
+
+#### ASTModule
+**Purpose**: Root container for a single translation unit/source file.
+
+**Location**: `include/AST/ASTModule.h`, `src/AST/ASTModule.cpp`
+
+**Structure**:
+- **`FilePath`**: Full path to the source file
+- **`NameSpace`**: Optional `ASTNameSpace*` declaring the module's namespace
+- **`Nodes`**: `SmallVector<ASTNode*, 8>` of top-level declarations (imports, functions, classes, enums, global variables)
+- **`Sema`**: `SemaModule*` pointer (set during semantic analysis)
+
+**Key Methods**:
+- `getFilePath()`: Returns the source file path
+- `getNameSpace()`: Returns the namespace declaration (can be null for default namespace)
+- `getNodes()`: Returns vector of all top-level declarations
+- `getSema()` / `setSema()`: Accesses semantic representation
+
+**Parser Behavior**:
+1. Module creation begins when parsing starts
+2. First checks for optional `namespace` declaration
+3. Parses imports (must come before other declarations)
+4. Parses top-level nodes (classes, enums, functions, global vars) in order
+5. Maintains declaration order in the `Nodes` vector
+
+**Test Example** (`ParserNameSpaceTest.cpp`):
+```cpp
+// Source:
+namespace com.test
+import other.Module
+void main() {}
+
+// AST Structure:
+ASTModule
+  ├─ NameSpace: ASTNameSpace("com.test")
+  ├─ Nodes[0]: ASTImport("other.Module")
+  └─ Nodes[1]: ASTFunction("main")
+```
+
+#### ASTNameSpace
+**Purpose**: Represents a namespace declaration at the module level.
+
+**Location**: `include/AST/ASTNameSpace.h`, `src/AST/ASTNameSpace.cpp`
+
+**Structure**:
+- **`Name`**: `ASTName*` - qualified name segments (e.g., `com.example.project`)
+- **`Sema`**: `SemaNameSpace*` pointer
+
+**Syntax**: `namespace Identifier ['.' Identifier]*`
+
+**Key Points**:
+- Must be the first declaration in a module (if present)
+- Creates a hierarchical namespace structure
+- Each segment separated by `.` creates a nested namespace level
+
+**Test Example**:
+```cpp
+// Single-level namespace
+namespace myapp
+// → ASTName with 1 segment: "myapp"
+
+// Multi-level namespace  
+namespace com.example.app
+// → ASTName with 3 segments: "com", "example", "app"
+```
+
+#### ASTImport
+**Purpose**: Imports symbols from other modules/namespaces.
+
+**Location**: `include/AST/ASTImport.h`, `src/AST/ASTImport.cpp`
+
+**Structure**:
+- **`Name`**: `ASTName*` - qualified name of module/namespace to import
+- **`Alias`**: `llvm::StringRef` - optional alias name
+- **`Sema`**: `SemaImport*` pointer
+
+**Syntax**: `import QualifiedName ['as' Alias]`
+
+**Parser Behavior**:
+- Imports must appear after namespace declaration but before other top-level nodes
+- Multiple imports are allowed
+- Alias is optional
+
+**Test Example**:
+```cpp
+// Simple import
+import std.io
+// → ASTName: "std.io", Alias: empty
+
+// Import with alias
+import std.collections as col
+// → ASTName: "std.collections", Alias: "col"
+```
+
+**Resolution**:
+- Resolver looks up the imported namespace in the Registry
+- Creates `SemaImport` with reference to target namespace's symbol table
+- Symbols from imported namespace become available in current scope
+
+#### ASTName
+**Purpose**: Represents a qualified identifier (dotted name sequence).
+
+**Location**: `include/AST/ASTName.h`, `src/AST/ASTName.cpp`
+
+**Structure**:
+- **`Names`**: `SmallVector<llvm::StringRef, 4>` - sequence of identifier segments
+
+**Usage**: Used by namespaces, imports, and qualified type references.
+
+**Example**:
+```cpp
+com.example.MyClass
+// → Names: ["com", "example", "MyClass"]
+```
 
 ### 3.2 Types
-- `ASTType` + `ASTTypeKind`: abstract identity types (`TYPE_NAMED`, `TYPE_BUILTIN`, `TYPE_ARRAY`). Each holds an eventual `SemaType*` once resolved.
-- `ASTBuiltinType`: enumerates keywords such as `int`, `double`, `string`, `void`, `error`.
-- `ASTNamedType`: a chain of names referencing namespace-qualified types.
-- `ASTArrayType`: wraps an element type and an optional size expression.
+
+#### ASTType Hierarchy
+**Base Class**: `ASTType` (`include/AST/ASTType.h`)
+
+**Type Kinds** (`ASTTypeKind` enum):
+- `TYPE_BUILTIN` - Built-in primitive types
+- `TYPE_NAMED` - User-defined types (classes, enums)
+- `TYPE_ARRAY` - Array types with optional size
+
+**Common Fields**:
+- **`TypeKind`**: Identifies the concrete type subclass
+- **`Sema`**: `SemaType*` pointer (resolved type)
+
+#### ASTBuiltinType
+**Purpose**: Represents primitive/built-in types.
+
+**Location**: `include/AST/ASTType.h`, `src/AST/ASTType.cpp`
+
+**Type Keywords** (`ASTBuiltinTypeKind`):
+- **`TYPE_BOOL`**: Boolean type (`bool`)
+- **`TYPE_BYTE`**: 8-bit unsigned integer (`byte`)
+- **`TYPE_USHORT`**: 16-bit unsigned integer (`ushort`)
+- **`TYPE_SHORT`**: 16-bit signed integer (`short`)
+- **`TYPE_UINT`**: 32-bit unsigned integer (`uint`)
+- **`TYPE_INT`**: 32-bit signed integer (`int`)
+- **`TYPE_ULONG`**: 64-bit unsigned integer (`ulong`)
+- **`TYPE_LONG`**: 64-bit signed integer (`long`)
+- **`TYPE_FLOAT`**: 32-bit floating point (`float`)
+- **`TYPE_DOUBLE`**: 64-bit floating point (`double`)
+- **`TYPE_STRING`**: String type (`string`)
+- **`TYPE_VOID`**: Void type (`void`) - used for functions with no return value
+- **`TYPE_ERROR`**: Error type (`error`) - used in error handling
+
+**Test Example** (`ParserLocalVarTest.cpp`):
+```cpp
+void func() {
+    bool a = false      // ASTBuiltinType(TYPE_BOOL)
+    int e = 0          // ASTBuiltinType(TYPE_INT)
+    float i = 0.0      // ASTBuiltinType(TYPE_FLOAT)
+    double j = 0.0     // ASTBuiltinType(TYPE_DOUBLE)
+    string s = "hello" // ASTBuiltinType(TYPE_STRING)
+}
+```
+
+#### ASTNamedType
+**Purpose**: References user-defined types (classes, enums, structs, interfaces).
+
+**Structure**:
+- **`Name`**: `ASTName*` - qualified type name (can include namespace path)
+
+**Examples**:
+```cpp
+MyClass obj           // ASTName: ["MyClass"]
+com.example.Type t    // ASTName: ["com", "example", "Type"]
+```
+
+**Resolution**: Resolver looks up the name in the current scope and imported namespaces to find the corresponding `SemaClassType` or `SemaEnumType`.
+
+#### ASTArrayType
+**Purpose**: Represents array types with optional compile-time size.
+
+**Structure**:
+- **`Type`**: `ASTType*` - element type
+- **`Size`**: `ASTExpr*` - optional size expression (null for dynamic arrays)
+
+**Syntax Variations**:
+```cpp
+int[] arr           // Dynamic array: Size = null
+int[10] arr         // Fixed size: Size = ASTNumberValue("10")
+MyClass[] objects   // Array of user-defined type
+```
+
+**Test Example** (`ParserLocalVarTest.cpp`):
+```cpp
+void func() {
+    byte[] a                    // ASTArrayType(Type=byte, Size=null)
+    byte[] b = {}              // Empty array initializer
+    byte[] c = {1, 2, 3}       // Array with values
+    byte[3] d                  // ASTArrayType(Type=byte, Size=3)
+    byte[3] e = {1, 2, 3}      // Fixed-size with initializer
+}
+```
 
 ### 3.3 Values & Literals
-`ASTValue` specializes into `ASTBoolValue`, `ASTNumberValue`, `ASTStringValue`, `ASTArrayValue`, `ASTStructValue`, `ASTNullValue`, and `ASTDefaultValue`. Each literal stores raw textual payload and later maps to `SemaValue` subclasses.
 
-### 3.4 Variables & Parameters
-- `ASTVar`: common base with `ASTVarKind` (local, param, attribute, enum entry). Holds declared type, modifiers, initializer expression, and future `SemaVar*`.
-- Subclasses: `ASTLocalVar`, `ASTParam`, `ASTAttribute`, `ASTEnumEntry`.
+#### ASTValue Hierarchy
+**Base Class**: `ASTValue` extends `ASTExpr` (`include/AST/ASTValue.h`)
 
-### 3.5 Expressions
-`ASTExpr` defines the expression tree skeleton with parent/child links and `SemaExpr*`/`SemaType*` slots. Concrete forms:
-- Identifiers (`ASTIdentifier`), members (`ASTMember`), calls (`ASTCall`).
-- Operators (`ASTUnaryOp`, `ASTBinaryOp`, `ASTTernaryOp`).
-- Casts (`ASTCast`).
-- Literal expressions via `ASTValue` derivatives.
+**Value Kinds** (`ASTValueKind`):
+- `VAL_BOOL` - Boolean literals
+- `VAL_NUMBER` - Numeric literals (integers and floats)
+- `VAL_STRING` - String literals  
+- `VAL_ARRAY` - Array literals
+- `VAL_STRUCT` - Struct initialization literals
+- `VAL_NULL` - Null literal
+- `VAL_DEFAULT` - Default value placeholder
 
-#### Binary Operators: Assignment vs Equality
-The parser distinguishes between the assignment operator `=` and the equality comparison operator `==` using different `ASTBinaryOpKind` values:
+**Common Fields**:
+- **`ValueKind`**: Identifies concrete value type
+- **`Sema`**: `SemaValue*` pointer
 
-- **`OP_BINARY_ASSIGN`**: Represents the assignment operator `=`. Used in assignment expressions where a value is being stored.
-- **`OP_BINARY_EQ`**: Represents the equality comparison operator `==`. Used in logical expressions that evaluate to boolean results.
+**Predicates**:
+- `isBool()`, `isNumber()`, `isString()`, `isArray()`, `isStruct()`, `isNull()`, `isDefault()`
 
-**Example 1: Simple Assignment**
-```fly
-a = a + 1
-```
-**AST Structure:**
-```
-ASTAssignStmt
-  ├─ source: ASTIdentifier("a")
-  └─ target: ASTBinaryOp(OP_BINARY_ASSIGN)
-       ├─ left: ASTIdentifier("a")
-       └─ right: ASTBinaryOp(OP_BINARY_ADD)
-            ├─ left: ASTIdentifier("a")
-            └─ right: ASTNumberValue("1")
+#### ASTBoolValue
+**Purpose**: Boolean literal values.
+
+**Structure**:
+- **`Value`**: `bool` - true or false
+
+**Examples**:
+```cpp
+bool a = true
+bool b = false
 ```
 
-**Example 2: Assignment with Equality Comparison**
-```fly
-a = a == true
+#### ASTNumberValue  
+**Purpose**: Numeric literals (integers and floating-point).
+
+**Structure**:
+- **`Value`**: `llvm::StringRef` - raw textual representation
+
+**Key Points**:
+- Stores number as string to preserve precision
+- Parser doesn't distinguish int vs float at AST level
+- Semantic analysis determines actual numeric type based on context
+
+**Examples**:
+```cpp
+int i = 42        // Value = "42"
+float f = 3.14    // Value = "3.14"
+long l = 1000000  // Value = "1000000"
 ```
-**AST Structure:**
+
+#### ASTStringValue
+**Purpose**: String literal values.
+
+**Structure**:
+- **`Value`**: `llvm::StringRef` - string content (without quotes)
+
+**Special Cases**:
+```cpp
+string empty = ""    // Value = "" (empty string)
+string text = "hello" // Value = "hello"
 ```
-ASTAssignStmt
-  ├─ source: ASTIdentifier("a")
-  └─ target: ASTBinaryOp(OP_BINARY_ASSIGN)
-       ├─ left: ASTIdentifier("a")
-       └─ right: ASTBinaryOp(OP_BINARY_EQ)
-            ├─ left: ASTIdentifier("a")
-            └─ right: ASTBoolValue(true)
+
+**Test Example** (`ParserLocalVarTest.cpp`):
+```cpp
+void func() {
+    string a = ""        // Empty string
+    string b = "test"    // Regular string
+}
 ```
 
-**Key Points:**
-- The `=` in an assignment creates an `OP_BINARY_ASSIGN` binary operation where the left operand is the l-value (identifier, member, etc.) and the right operand is the expression to evaluate.
-- The `==` in a comparison creates an `OP_BINARY_EQ` binary operation that evaluates to a boolean type.
-- `ASTAssignStmt` wraps the entire assignment, storing both the `source` (variable name being assigned) and the `target` (the full assignment expression tree).
-- Compound assignment operators (`+=`, `-=`, etc.) also use `OP_BINARY_ASSIGN` in their target expression, with the right side containing the appropriate arithmetic/bitwise operation.
+#### ASTArrayValue
+**Purpose**: Array literal initialization.
 
-### 3.6 Statements & Blocks
-`ASTStmt` and `ASTStmtKind` cover control-flow and simple statements: blocks, expression statements, assignments, delete, fail, handle, return, rule, break/continue, switch, loop, loop-in. `ASTBlockStmt` provides statement sequencing plus a `StringMap` of in-scope locals.
+**Structure**:
+- **`Values`**: `SmallVector<ASTValue*, 8>` - element values
 
-#### Assignment Statements
-`ASTAssignStmt` represents variable assignments and compound assignments. It contains:
-- **`source`**: An `ASTIdentifier` or `ASTMember` representing the variable being assigned to.
-- **`target`**: An `ASTExpr*` representing the complete assignment expression tree, always rooted at an `ASTBinaryOp` with `OP_BINARY_ASSIGN`.
+**Syntax**: `'{' [Value (',' Value)*] '}'`
 
-The parser transforms simple assignments like `a = expr` into a structured tree where the assignment operator itself becomes a binary expression node, allowing uniform handling of l-values and r-values during semantic analysis and code generation.
+**Examples**:
+```cpp
+int[] arr = {}              // Empty: Values.size() == 0
+int[] nums = {1, 2, 3}      // Three elements
+byte[] chars = {'a', 'b'}   // Character array
+```
 
-### 3.7 Functions, Methods, Classes, Enums
-- `ASTFunction` / `ASTFunctionKind`: functions capture signature, modifiers, body, and comments. Methods (`ASTMethod`) inherit and represent class-scoped functions.
-- `ASTClass`: aggregates modifiers, name, bases, and nested nodes (attributes, methods, constructors).
-- `ASTEnum`: container for enum entries (comma-separated in source) and optional base types. Syntax: `[Modifiers] 'enum' Identifier [':' BaseType] '{' Entry (',' Entry)* '}'`.
+**Test Example**:
+```cpp
+void func() {
+    byte[] a = {}                    // Empty array
+    byte[] b = {1, 2, 3}            // Values: [1, 2, 3]
+    byte[] c = {'a', 'b', 'c'}      // Character values
+}
+```
 
-## 4. Sema Fundamentals
+#### ASTStructValue
+**Purpose**: Struct/object initialization with named fields.
+
+**Structure**:
+- **`Values`**: `llvm::StringMap<ASTValue*>` - field name → value mapping
+
+**Syntax**: `'{' [Field '=' Value (',' Field '=' Value)*] '}'`
+
+**Example** (`ParserClassTest.cpp`):
+```cpp
+Test x = { a = 3, b = 1 }
+// ASTStructValue:
+//   Values["a"] = ASTNumberValue("3")
+//   Values["b"] = ASTNumberValue("1")
+```
+
+**Access**:
+- `getValues()`: Returns the StringMap
+- `size()`: Number of fields
+- `empty()`: True if no fields specified
+
+#### ASTNullValue
+**Purpose**: Null literal for reference types.
+
+**Example**:
+```cpp
+MyClass obj = null
+string str = null
+```
+
+#### ASTDefaultValue
+**Purpose**: Implicit default value (used when no initializer provided).
+
+**Example**:
+```cpp
+int x    // Implicitly: x = default (0 for int)
+```
+
+### 3.4 Expressions
+
+#### ASTExpr Base
+**Purpose**: Base class for all expressions.
+
+**Location**: `include/AST/ASTExpr.h`
+
+**Expression Kinds** (`ASTExprKind`):
+- `EXPR_VALUE` - Literal values
+- `EXPR_IDENTIFIER` - Variable/parameter references
+- `EXPR_MEMBER` - Member access (`.` operator)
+- `EXPR_CALL` - Function/method calls
+- `EXPR_UNARY` - Unary operators
+- `EXPR_BINARY` - Binary operators
+- `EXPR_TERNARY` - Ternary conditional operator
+- `EXPR_CAST` - Type casting
+
+**Common Fields**:
+- **`ExprKind`**: Identifies concrete expression type
+- **`Parent`**: `ASTExpr*` - parent expression in tree
+- **`Sema`**: `SemaExpr*` - semantic representation
+- **`Type`**: `SemaType*` - resolved type (set during Sema)
+
+#### ASTIdentifier
+**Purpose**: References to variables, parameters, or named entities.
+
+**Structure**:
+- **`Name`**: `llvm::StringRef` - identifier name
+- **`Var`**: `ASTVar*` - referenced variable declaration (set by parser for locals)
+- **`Sema`**: Resolves to `SemaVar*` subclass
+
+**Examples**:
+```cpp
+int a = 5
+int b = a    // ASTIdentifier("a") → references the variable 'a'
+
+void func(int param) {
+    int x = param  // ASTIdentifier("param")
+}
+```
+
+**Important**: When an identifier appears on the left side of an assignment within an `ASTExprStmt`, it represents the l-value (storage location). The same identifier on the right side is an r-value (reads the value).
+
+#### ASTMember
+**Purpose**: Member access expressions using the dot (`.`) operator.
+
+**Structure**:
+- **`Name`**: `llvm::StringRef` - member field/method name
+- **`Parent`**: `ASTExpr*` - expression before the dot
+- **`Var`**: `ASTVar*` - for field access
+- **`Sema`**: Resolves to `SemaMemberVar*` or `SemaEnumEntry*`
+
+**Syntax**: `Expression '.' Identifier`
+
+**Key Rule**: The last part of a member access chain is always the `ASTMember`, and the parent is the preceding expression.
+
+**Examples**:
+```cpp
+obj.field           // ASTMember(Name="field", Parent=ASTIdentifier("obj"))
+Test.A              // ASTMember(Name="A", Parent=ASTIdentifier("Test"))
+a.b.c              // ASTMember(Name="c", Parent=ASTMember(Name="b", Parent=ASTIdentifier("a")))
+```
+
+**Test Example** (`ParserClassTest.cpp - Enum test`):
+```cpp
+Test a = Test.A
+// ASTMember:
+//   Name = "A"
+//   Parent = ASTIdentifier("Test")
+//   Resolves to enum entry 'A' of enum 'Test'
+```
+
+**Resolution**:
+1. Parser creates `ASTMember` with name and parent expression
+2. Resolver evaluates parent to get its type
+3. Looks up member in parent's symbol table (class attributes, enum entries, etc.)
+4. Creates `SemaMemberVar` linking to the attribute definition
+
+#### ASTCall
+**Purpose**: Function calls, method invocations, and constructor calls.
+
+**Structure**:
+- **`Name`**: `llvm::StringRef` - function/method name
+- **`Parent`**: `ASTExpr*` - for method calls (object instance)
+- **`Args`**: `SmallVector<ASTArg*, 8>` - call arguments
+- **`CallKind`**: `ASTCallKind` enum
+  - `CALL_FUNCTION` - Regular function call
+  - `CALL_NEW` - Constructor with `new` keyword
+  - `CALL_NEW_SHARED` - Shared pointer constructor
+- **`Sema`**: `SemaCall*`
+
+**Syntax Variations**:
+```cpp
+func()              // Function call: Parent = null
+obj.method()        // Method call: Parent = ASTIdentifier("obj")
+new Class()         // Constructor: CallKind = CALL_NEW
+new_shared Class()  // Shared constructor: CallKind = CALL_NEW_SHARED
+```
+
+**Test Example**:
+```cpp
+void func1() {
+    Test t = new Test()
+}
+// ASTCall:
+//   Name = "Test"
+//   CallKind = CALL_NEW
+//   Args = []
+```
+
+#### ASTArg
+**Purpose**: Represents a single argument in a function call.
+
+**Structure**:
+- **`Index`**: Position in argument list
+- **`Expr`**: `ASTExpr*` - argument expression
+
+**Example**:
+```cpp
+func(a, b + 1, "hello")
+// Args:
+//   [0]: ASTIdentifier("a")
+//   [1]: ASTBinaryOp(OP_BINARY_ADD, left=b, right=1)
+//   [2]: ASTStringValue("hello")
+```
+
+#### ASTUnaryOp
+**Purpose**: Unary operator expressions.
+
+**Structure**:
+- **`OpKind`**: `ASTUnaryOpKind`
+  - `OP_UNARY_PRE_INCR` - Prefix increment `++a`
+  - `OP_UNARY_POST_INCR` - Postfix increment `a++`
+  - `OP_UNARY_PRE_DECR` - Prefix decrement `--a`
+  - `OP_UNARY_POST_DECR` - Postfix decrement `a--`
+  - `OP_UNARY_NOT_LOG` - Logical not `!a`
+- **`Expr`**: `ASTExpr*` - operand expression
+- **`OpLocation`**: Source location of operator
+
+**Test Example** (`ParserExprTest.cpp`):
+```cpp
+void func(int a) {
+    ++a     // OP_UNARY_PRE_INCR
+    a++     // OP_UNARY_POST_INCR
+    --a     // OP_UNARY_PRE_DECR
+    a--     // OP_UNARY_POST_DECR
+}
+```
+
+**Complex Example**:
+```cpp
+a = a++ + ++a
+// ASTBinaryOp(OP_BINARY_ASSIGN)
+//   left: ASTIdentifier("a")
+//   right: ASTBinaryOp(OP_BINARY_ADD)
+//     left: ASTUnaryOp(OP_UNARY_POST_INCR, ASTIdentifier("a"))
+//     right: ASTUnaryOp(OP_UNARY_PRE_INCR, ASTIdentifier("a"))
+```
+
+#### ASTBinaryOp
+**Purpose**: Binary operator expressions (arithmetic, logical, comparison, assignment).
+
+**Structure**:
+- **`OpKind`**: `ASTBinaryOpKind` (see detailed list below)
+- **`LeftExpr`**: `ASTExpr*` - left operand
+- **`RightExpr`**: `ASTExpr*` - right operand
+- **`OpLocation`**: Source location of operator
+
+**Operator Categories**:
+
+**Arithmetic Operators**:
+- `OP_BINARY_ADD` (`+`), `OP_BINARY_SUB` (`-`), `OP_BINARY_MUL` (`*`), `OP_BINARY_DIV` (`/`), `OP_BINARY_MOD` (`%`)
+
+**Bitwise Operators**:
+- `OP_BINARY_AND` (`&`), `OP_BINARY_OR` (`|`), `OP_BINARY_XOR` (`^`)
+- `OP_BINARY_SHIFT_L` (`<<`), `OP_BINARY_SHIFT_R` (`>>`)
+
+**Logical Operators**:
+- `OP_BINARY_LOGIC_AND` (`&&`), `OP_BINARY_LOGIC_OR` (`||`)
+
+**Comparison Operators**:
+- `OP_BINARY_EQ` (`==`) - Equality comparison
+- `OP_BINARY_NE` (`!=`) - Not equal
+- `OP_BINARY_GT` (`>`), `OP_BINARY_GTE` (`>=`)
+- `OP_BINARY_LT` (`<`), `OP_BINARY_LTE` (`<=`)
+
+**Assignment Operators**:
+- `OP_BINARY_ASSIGN` (`=`) - **CRITICAL**: Simple assignment, NOT equality
+- `OP_BINARY_ASSIGN_ADD` (`+=`), `OP_BINARY_ASSIGN_SUB` (`-=`)
+- `OP_BINARY_ASSIGN_MUL` (`*=`), `OP_BINARY_ASSIGN_DIV` (`/=`), `OP_BINARY_ASSIGN_MOD` (`%=`)
+- `OP_BINARY_ASSIGN_AND` (`&=`), `OP_BINARY_ASSIGN_OR` (`|=`), `OP_BINARY_ASSIGN_XOR` (`^=`)
+- `OP_BINARY_ASSIGN_SHIFT_L` (`<<=`), `OP_BINARY_ASSIGN_SHIFT_R` (`>>=`)
+
+**CRITICAL DISTINCTION: Assignment (`=`) vs Equality (`==`)**
+
+The parser creates different `ASTBinaryOpKind` values for these two operators:
+- **`OP_BINARY_ASSIGN`**: The assignment operator `=` (stores value)
+- **`OP_BINARY_EQ`**: The equality comparison `==` (returns boolean)
+
+**Assignment Example** (`ParserExprTest.cpp`):
+```cpp
+void func(int a) {
+    a = a + 1
+}
+// AST Structure:
+// ASTExprStmt
+//   └─ expr: ASTBinaryOp(OP_BINARY_ASSIGN)  ← Assignment operator
+//       ├─ left: ASTIdentifier("a")         ← L-value
+//       └─ right: ASTBinaryOp(OP_BINARY_ADD) ← R-value expression
+//            ├─ left: ASTIdentifier("a")
+//            └─ right: ASTNumberValue("1")
+```
+
+**Equality Comparison Example**:
+```cpp
+void func(bool result, int a) {
+    result = a == 5
+}
+// ASTExprStmt
+//   └─ expr: ASTBinaryOp(OP_BINARY_ASSIGN)
+//       ├─ left: ASTIdentifier("result")
+//       └─ right: ASTBinaryOp(OP_BINARY_EQ)  ← Equality comparison
+//            ├─ left: ASTIdentifier("a")
+//            └─ right: ASTNumberValue("5")
+```
+
+**Compound Assignment Example**:
+```cpp
+a += 1   // ASTBinaryOp(OP_BINARY_ASSIGN_ADD, left=a, right=1)
+a -= 1   // ASTBinaryOp(OP_BINARY_ASSIGN_SUB, left=a, right=1)
+```
+
+**Precedence**: The `Precedence` enum defines operator precedence:
+- `LOWEST` - No operators
+- `ASSIGNMENT` - `=`, `+=`, `-=`, etc.
+- `TERNARY` - `? :`
+- `LOGICAL` - `||`, `&&`
+- `RELATIONAL` - `==`, `!=`, `<`, `>`, `<=`, `>=`
+- `ADDITIVE` - `+`, `-`
+- `MULTIPLICATIVE` - `*`, `/`, `%`
+- `UNARY` - Unary operators
+- `PRIMARY` - Literals, identifiers, calls
+
+#### ASTTernaryOp
+**Purpose**: Conditional ternary operator.
+
+**Structure**:
+- **`ConditionExpr`**: `ASTExpr*` - condition to evaluate
+- **`TrueExpr`**: `ASTExpr*` - result if condition is true
+- **`FalseExpr`**: `ASTExpr*` - result if condition is false
+
+**Syntax**: `Condition '?' TrueExpr ':' FalseExpr`
+
+**Test Example** (`ParserExprTest.cpp`):
+```cpp
+void func(int a) {
+    a = a==1 ? 1 : a
+}
+// ASTTernaryOp:
+//   ConditionExpr: ASTBinaryOp(OP_BINARY_EQ, left=a, right=1)
+//   TrueExpr: ASTNumberValue("1")
+//   FalseExpr: ASTIdentifier("a")
+```
+
+**Note**: The entire ternary expression can be embedded in an assignment:
+```cpp
+result = condition ? value1 : value2
+// The ternary is the right-hand side of the assignment
+```
+
+#### ASTCast
+**Purpose**: Explicit type conversion.
+
+**Structure**:
+- **`Type`**: `ASTType*` - target type
+- **`Expr`**: `ASTExpr*` - expression to cast
+
+**Syntax**: `'(' Type ')' Expression`
+
+**Example**:
+```cpp
+float f = (float)intValue
+```
+
+### 3.5 Statements
+
+#### ASTStmt Base
+**Purpose**: Base class for all statements.
+
+**Location**: `include/AST/ASTStmt.h`
+
+**Statement Kinds** (`ASTStmtKind`):
+- `STMT_BLOCK` - Block of statements
+- `STMT_EXPR` - Expression statement
+- `STMT_IF` - If/elsif/else conditionals
+- `STMT_SWITCH` - Switch/case statement
+- `STMT_LOOP` - While/for loops
+- `STMT_LOOP_IN` - For-in loops
+- `STMT_RETURN` - Return statement
+- `STMT_BREAK` - Break statement
+- `STMT_CONTINUE` - Continue statement
+- `STMT_DELETE` - Delete/cleanup statement
+- `STMT_FAIL` - Error propagation
+- `STMT_HANDLE` - Error handling block
+- `STMT_RULE` - Rule-based statement
+
+**Common Fields**:
+- **`StmtKind`**: Identifies concrete statement type
+- **`Parent`**: `ASTStmt*` - containing statement
+- **`Function`**: `ASTFunction*` - containing function
+
+#### ASTBlockStmt
+**Purpose**: Sequence of statements with local scope.
+
+**Structure**:
+- **`Content`**: `SmallVector<ASTStmt*, 16>` - ordered statements
+- **`LocalVars`**: `llvm::StringMap<ASTLocalVar*>` - local variables declared in this block
+- **`Parent`**: `ASTStmt*` - parent block or null for function body
+
+**Special Blocks**:
+- **Function Body**: Created by `ASTBuilder::CreateBody()`, marked with `BLOCK_BODY`
+- **Regular Block**: Created by `ASTBuilder::CreateBlockStmt()`
+
+**Example**:
+```cpp
+void func() {           // Function body block
+    int a = 1;          // Content[0]
+    {                   // Nested block
+        int b = 2;      // Content[0] of nested block
+    }
+    int c = 3;          // Content[1] of function body
+}
+```
+
+**Test Example** (`ParserBlockTest.cpp`):
+```cpp
+void func(int a, int b) {
+    if (a == 1) {
+        b = 0
+    }
+}
+// ASTFunction
+//   └─ Body: ASTBlockStmt
+//       └─ Content[0]: ASTIfStmt
+//           └─ Stmt: ASTBlockStmt
+//               └─ Content[0]: ASTExprStmt
+```
+
+#### ASTExprStmt
+**Purpose**: Wraps an expression as a statement.
+
+**Structure**:
+- **`Expr`**: `ASTExpr*` - the expression
+
+**Usage**: Used for:
+- Assignments (via `OP_BINARY_ASSIGN`)
+- Function calls
+- Increment/decrement operations
+- Any expression executed for side effects
+
+**IMPORTANT**: Assignments are now represented using `ASTExprStmt` containing an `ASTBinaryOp` with `OP_BINARY_ASSIGN`, not a separate `ASTAssignStmt` class.
+
+**Example**:
+```cpp
+a = 5              // ASTExprStmt(Expr=ASTBinaryOp(OP_BINARY_ASSIGN, ...))
+func()             // ASTExprStmt(Expr=ASTCall("func"))
+a++                // ASTExprStmt(Expr=ASTUnaryOp(OP_UNARY_POST_INCR, ...))
+```
+
+#### ASTIfStmt
+**Purpose**: Conditional branching with if/elsif/else.
+
+**Structure**:
+- **`Rule`**: `ASTExpr*` - condition expression for main `if`
+- **`Stmt`**: `ASTStmt*` - statement/block to execute if condition true
+- **`Elsif`**: `SmallVector<ASTRuleStmt*, 4>` - optional elsif clauses
+- **`Else`**: `ASTStmt*` - optional else clause
+
+**Syntax**:
+```
+'if' ['('] Condition [')'] Statement
+['elsif' ['('] Condition [')'] Statement]*
+['else' Statement]
+```
+
+**Test Example** (`ParserBlockTest.cpp`):
+```cpp
+void func(int a, int b) {
+    if (a == 1) {
+        b = 0
+    } elsif (a == 2) {
+        b = 1
+    } else {
+        b = 2
+    }
+}
+// ASTIfStmt:
+//   Rule: ASTBinaryOp(OP_BINARY_EQ, left=a, right=1)
+//   Stmt: ASTBlockStmt containing assignment b=0
+//   Elsif[0]: ASTRuleStmt
+//     Rule: ASTBinaryOp(OP_BINARY_EQ, left=a, right=2)
+//     Stmt: ASTBlockStmt containing assignment b=1
+//   Else: ASTBlockStmt containing assignment b=2
+```
+
+**Inline Form** (without braces):
+```cpp
+if (a == 1) b = 0
+elsif a == 2 b = 1  // Parentheses optional
+else b = 2
+```
+
+#### ASTRuleStmt
+**Purpose**: Represents a condition-statement pair (used in elsif, switch cases).
+
+**Structure**:
+- **`Rule`**: `ASTExpr*` - condition/case expression
+- **`Stmt`**: `ASTStmt*` - statement to execute
+
+**Usage**: Used by:
+- `elsif` clauses in if statements
+- `case` clauses in switch statements
+
+#### ASTSwitchStmt
+**Purpose**: Multi-way branch based on value.
+
+**Structure**:
+- **`Expr`**: `ASTExpr*` - expression to evaluate
+- **`Cases`**: `SmallVector<ASTRuleStmt*, 8>` - case clauses
+- **`Default`**: `ASTStmt*` - optional default clause
+
+**Syntax**:
+```
+'switch' ['('] Expression [')'] '{'
+  ('case' Value ':' Statement)*
+  ['default' ':' Statement]
+'}'
+```
+
+**Test Example** (`ParserBlockTest.cpp`):
+```cpp
+void func(int a) {
+    switch (a) {
+        case 1:
+            break
+        case 2:
+        default:
+            return
+    }
+}
+// ASTSwitchStmt:
+//   Expr: ASTIdentifier("a")
+//   Cases[0]: ASTRuleStmt
+//     Rule: ASTNumberValue("1")
+//     Stmt: ASTBlockStmt with break
+//   Cases[1]: ASTRuleStmt
+//     Rule: ASTNumberValue("2")
+//     Stmt: empty (falls through to default)
+//   Default: ASTBlockStmt with return
+```
+
+**Fall-Through**: Case without statement falls through to next case or default.
+
+#### ASTLoopStmt
+**Purpose**: Traditional loops (while, for).
+
+**Structure**:
+- **`Init`**: `ASTStmt*` - initialization (for-loops)
+- **`Rule`**: `ASTExpr*` - loop condition
+- **`Update`**: `ASTExpr*` - update expression (for-loops)
+- **`Stmt`**: `ASTStmt*` - loop body
+
+**Syntax Variations**:
+```cpp
+// While loop
+while (condition) statement
+
+// For loop
+for (init; condition; update) statement
+```
+
+**Example**:
+```cpp
+for (int i = 0; i < 10; i++) {
+    // body
+}
+// ASTLoopStmt:
+//   Init: local var declaration for 'i'
+//   Rule: ASTBinaryOp(OP_BINARY_LT, i, 10)
+//   Update: ASTUnaryOp(OP_UNARY_POST_INCR, i)
+//   Stmt: ASTBlockStmt(body)
+```
+
+#### ASTLoopInStmt  
+**Purpose**: For-in style iteration over collections.
+
+**Structure**:
+- **`Var`**: `ASTLocalVar*` - loop variable
+- **`Expr`**: `ASTExpr*` - collection expression
+- **`Stmt`**: `ASTStmt*` - loop body
+
+**Syntax**: `'for' Variable 'in' Expression Statement`
+
+**Example**:
+```cpp
+for (item in collection) {
+    // process item
+}
+```
+
+#### ASTReturnStmt
+**Purpose**: Return from function with optional value.
+
+**Structure**:
+- **`Expr`**: `ASTExpr*` - return value (null for void functions)
+
+**Examples**:
+```cpp
+return           // Expr = null (void return)
+return value     // Expr = ASTIdentifier("value")
+return a + 1     // Expr = ASTBinaryOp(...)
+```
+
+#### ASTBreakStmt
+**Purpose**: Exit from loop or switch.
+
+**Structure**: No additional fields (marker statement)
+
+**Usage**: Must appear inside loop or switch statement.
+
+#### ASTContinueStmt
+**Purpose**: Skip to next iteration of loop.
+
+**Structure**: No additional fields (marker statement)
+
+**Usage**: Must appear inside loop statement.
+
+#### ASTDeleteStmt
+**Purpose**: Explicit resource cleanup/deallocation.
+
+**Structure**:
+- **`Expr`**: `ASTExpr*` - expression to delete
+
+**Example**:
+```cpp
+delete obj
+```
+
+#### ASTFailStmt
+**Purpose**: Error propagation (fail/throw semantics).
+
+**Structure**:
+- **`Expr`**: `ASTExpr*` - optional error payload
+
+**Syntax**: `'fail' [Expression]`
+
+**Examples**:
+```cpp
+fail                  // Expr = null (void failure)
+fail 404              // Expr = ASTNumberValue("404")
+fail "Error message"  // Expr = ASTStringValue("Error message")
+```
+
+**Test Example** (`ParserErrorHandlerTest.cpp`):
+```cpp
+void func() {
+    fail
+}
+// ASTFailStmt with Expr = null
+```
+
+#### ASTHandleStmt
+**Purpose**: Error handling block (catch/handle semantics).
+
+**Structure**:
+- **`ErrorHandler`**: `ASTExpr*` - typically `ASTIdentifier` for error variable
+- **`Handle`**: `ASTBlockStmt*` - statements that may fail
+
+**Syntax**: `['error' Identifier] 'handle' (Statement | Block)`
+
+**Forms**:
+1. **Simple handle**: `handle riskyOperation()`
+2. **With block**: `handle { operations }`
+3. **With error variable**: `error err handle { riskyOperation() }`
+
+**Test Example** (`ParserErrorHandlerTest.cpp`):
+```cpp
+void func() {
+    error err0 handle {
+        fail
+    }
+}
+// ASTHandleStmt:
+//   ErrorHandler: ASTIdentifier("err0")
+//   Handle: ASTBlockStmt containing fail statement
+```
+
+**Key Points**:
+- Error variable is declared directly before `handle` keyword
+- No assignment operator in handle syntax
+- Error variable has type `error` (ASTBuiltinType::TYPE_ERROR)
+
+### 3.6 Variables and Parameters
+
+#### ASTVar Base
+**Purpose**: Base class for all variable declarations.
+
+**Location**: `include/AST/ASTVar.h`
+
+**Variable Kinds** (`ASTVarKind`):
+- `VAR_LOCAL` - Local variables
+- `VAR_PARAM` - Function parameters
+- `VAR_CLASS_ATTR` - Class attributes/fields
+- `VAR_ENUM_ENTRY` - Enum constants
+
+**Common Fields**:
+- **`VarKind`**: Identifies concrete variable type
+- **`Name`**: `llvm::StringRef` - variable name
+- **`Type`**: `ASTType*` - declared type
+- **`Modifiers`**: `SmallVector<ASTModifier*, 4>` - visibility, const, static
+- **`Expr`**: `ASTExpr*` - initializer expression (can be null)
+- **`Sema`**: `SemaVar*` - semantic representation
+
+#### ASTLocalVar
+**Purpose**: Local variable declarations within functions/blocks.
+
+**Structure**: Inherits all fields from `ASTVar`
+
+**Syntax**: `Type Identifier ['=' Expression]`
+
+**Parser Behavior**:
+1. Parser identifies local var when it sees a type followed by identifier (not in parameter list or class body)
+2. Creates `ASTLocalVar` with type and name
+3. Parses optional initializer after `=`
+4. In newer design: wraps as `ASTExprStmt` containing assignment binary op
+
+**Test Examples** (`ParserLocalVarTest.cpp`):
+```cpp
+void func() {
+    bool a = false    // Type=bool, Name="a", Expr=ASTBoolValue(false)
+    int e = 0         // Type=int, Name="e", Expr=ASTNumberValue("0")
+    string s = "hi"   // Type=string, Name="s", Expr=ASTStringValue("hi")
+    Type t = null     // Type=Type, Name="t", Expr=ASTNullValue
+}
+```
+
+**Array Variables**:
+```cpp
+byte[] a              // Type=ASTArrayType(byte, null), Name="a"
+byte[] b = {}         // With empty initializer
+byte[] c = {1, 2, 3}  // With array literal
+byte[3] d             // Fixed-size array
+```
+
+**Character Arrays**:
+```cpp
+byte[] c = {'a', 'b', 'c', ''}
+// Expr = ASTArrayValue with 4 character values
+```
+
+**String Variables**:
+```cpp
+string a = ""         // Empty string
+string b = "test"     // Regular string
+```
+
+#### ASTParam
+**Purpose**: Function and method parameters.
+
+**Structure**: Inherits from `ASTVar`
+
+**Additional Fields**:
+- **`Index`**: Parameter position (0-based)
+
+**Syntax**: `Type Identifier`
+
+**Example**:
+```cpp
+void func(int a, string b, bool c) { }
+// Parameters:
+//   [0]: Type=int, Name="a"
+//   [1]: Type=string, Name="b"
+//   [2]: Type=bool, Name="c"
+```
+
+**Key Point**: Parameters cannot have initializers in Fly.
+
+#### ASTAttribute
+**Purpose**: Class/struct field declarations.
+
+**Structure**: Inherits from `ASTVar`
+
+**Modifiers**:
+- `public`, `private`, `protected` - visibility
+- `const` - immutable field
+- `static` - class-level field
+
+**Test Example** (`ParserClassTest.cpp - Struct test`):
+```cpp
+public struct Test {
+    int a                // No modifiers, no initializer
+    public int b = 2     // Public with initializer
+    const int c = 0      // Constant with initializer
+}
+// Attributes:
+//   [0]: Name="a", Type=int, Modifiers=[], Expr=null
+//   [1]: Name="b", Type=int, Modifiers=[public], Expr=2
+//   [2]: Name="c", Type=int, Modifiers=[const], Expr=0
+```
+
+#### ASTEnumEntry
+**Purpose**: Enum constant declarations.
+
+**Structure**: Inherits from `ASTVar`
+
+**Syntax**: Identifier in comma-separated list
+
+**Example**:
+```cpp
+public enum Status { IDLE, RUNNING, STOPPED }
+// Entries:
+//   [0]: Name="IDLE"
+//   [1]: Name="RUNNING"
+//   [2]: Name="STOPPED"
+```
+
+**Test Example** (`ParserClassTest.cpp - Enum test`):
+```cpp
+public enum Test { A, B, C }
+// Enum with 3 entries, comma-separated
+```
+
+### 3.7 Functions and Methods
+
+#### ASTFunction
+**Purpose**: Free function (top-level) declarations.
+
+**Location**: `include/AST/ASTFunction.h`
+
+**Structure**:
+- **`Name`**: `llvm::StringRef` - function name
+- **`ReturnType`**: `ASTType*` - return type
+- **`Modifiers`**: Visibility and other modifiers
+- **`Params`**: `SmallVector<ASTParam*, 8>` - parameter list
+- **`Body`**: `ASTBlockStmt*` - function body (null for declarations)
+- **`Comment`**: `ASTComment*` - documentation comment
+- **`Sema`**: `SemaFunction*`
+
+**Function Kinds** (`ASTFunctionKind`):
+- `FUNCTION_FREE` - Free function (not in a class)
+- `FUNCTION_GLOBAL` - Global function
+
+**Syntax**:
+```
+[Modifiers] ReturnType Identifier '(' [Parameters] ')' [Body]
+```
+
+**Test Example** (`ParserFunctionTest.cpp`):
+```cpp
+void func() {
+    // body
+}
+// ASTFunction:
+//   Name = "func"
+//   ReturnType = ASTBuiltinType(TYPE_VOID)
+//   Params = []
+//   Body = ASTBlockStmt(...)
+```
+
+**With Parameters**:
+```cpp
+int add(int a, int b) {
+    return a + b
+}
+// ASTFunction:
+//   Name = "add"
+//   ReturnType = ASTBuiltinType(TYPE_INT)
+//   Params = [ASTParam("a", int), ASTParam("b", int)]
+//   Body = ASTBlockStmt with return statement
+```
+
+#### ASTMethod
+**Purpose**: Class/struct member functions.
+
+**Location**: `include/AST/ASTMethod.h`
+
+**Structure**: Extends `ASTFunction` with class-specific features
+
+**Additional Fields**:
+- **`Class`**: `ASTClass*` - owning class
+
+**Method Modifiers**:
+- `public`, `private`, `protected` - visibility
+- `const` - method doesn't modify instance
+- `static` - class method (no `this`)
+
+**Test Example** (`ParserClassTest.cpp - Class test`):
+```cpp
+public class Test {
+    public int a() { return a }
+    protected int b() { return 2 }
+    private int c() { return 3 }
+    const int d() { return 0 }
+}
+// Methods:
+//   [0]: Name="a", Modifiers=[public], ReturnType=int
+//   [1]: Name="b", Modifiers=[protected], ReturnType=int
+//   [2]: Name="c", Modifiers=[private], ReturnType=int
+//   [3]: Name="d", Modifiers=[const], ReturnType=int
+```
+
+### 3.8 Classes and Structs
+
+#### ASTClass
+**Purpose**: Class, struct, and interface declarations.
+
+**Location**: `include/AST/ASTClass.h`
+
+**Structure**:
+- **`Name`**: `llvm::StringRef` - class name
+- **`ClassKind`**: `ASTClassKind`
+  - `CLASS` - Reference type with methods
+  - `STRUCT` - Value type
+  - `INTERFACE` - Abstract interface
+- **`Modifiers`**: Visibility and other modifiers
+- **`Bases`**: `SmallVector<ASTType*, 4>` - base classes/interfaces (**comma-separated**)
+- **`Nodes`**: `SmallVector<ASTNode*, 16>` - members (attributes, methods, constructors)
+- **`Comment`**: `ASTComment*` - documentation
+- **`Sema`**: `SemaClassType*`
+
+**Syntax**:
+```
+[Modifiers] ('class'|'struct'|'interface') Identifier [':' Base (',' Base)*] '{' [Members] '}'
+```
+
+**Base Class Syntax**: **CRITICAL - Comma-separated**
+```cpp
+public class Test : Class, Struct, Interface { }
+// Bases:
+//   [0]: ASTNamedType("Class")
+//   [1]: ASTNamedType("Struct")
+//   [2]: ASTNamedType("Interface")
+```
+
+**Test Example** (`ParserClassTest.cpp - ClassExtendAll`):
+```cpp
+public class Test : Class, Struct, Interface {}
+// Parser consumes commas between base types
+```
+
+**Struct Example** (`ParserClassTest.cpp - Struct test`):
+```cpp
+public struct Test {
+    int a
+    public int b = 2
+    const int c = 0
+}
+// ASTClass:
+//   Name = "Test"
+//   ClassKind = STRUCT
+//   Modifiers = [public]
+//   Nodes[0] = ASTAttribute("a", int)
+//   Nodes[1] = ASTAttribute("b", int, public, init=2)
+//   Nodes[2] = ASTAttribute("c", int, const, init=0)
+```
+
+**Class with Methods**:
+```cpp
+public class Test {
+    int a = 1
+    private int b = 1
+    public int a() { return a }
+    protected int b() { return 2 }
+}
+// ASTClass:
+//   Name = "Test"
+//   ClassKind = CLASS
+//   Nodes[0] = ASTAttribute("a")
+//   Nodes[1] = ASTAttribute("b", private)
+//   Nodes[2] = ASTMethod("a", public)
+//   Nodes[3] = ASTMethod("b", protected)
+```
+
+**Usage Example** (`ParserClassTest.cpp`):
+```cpp
+void func() {
+    Test t = new Test()  // Constructor call
+}
+// ASTCall with CallKind = CALL_NEW
+```
+
+### 3.9 Enums
+
+#### ASTEnum
+**Purpose**: Enumeration type declarations.
+
+**Location**: `include/AST/ASTEnum.h`
+
+**Structure**:
+- **`Name`**: `llvm::StringRef` - enum name
+- **`Modifiers`**: Visibility modifiers
+- **`Bases`**: `SmallVector<ASTType*, 4>` - optional base types/interfaces (**comma-separated**)
+- **`Nodes`**: `SmallVector<ASTNode*, 16>` - enum entries (`ASTEnumEntry`)
+- **`Comment`**: `ASTComment*`
+- **`Sema`**: `SemaEnumType*`
+
+**Syntax**:
+```
+[Modifiers] 'enum' Identifier [':' Base (',' Base)*] '{' Entry (',' Entry)* '}'
+```
+
+**CRITICAL**: Enum entries are **comma-separated**, not space-separated.
+
+**Test Example** (`ParserClassTest.cpp - Enum test`):
+```cpp
+public enum Test { A, B, C }
+// ASTEnum:
+//   Name = "Test"
+//   Modifiers = [public]
+//   Nodes[0] = ASTEnumEntry("A")
+//   Nodes[1] = ASTEnumEntry("B")
+//   Nodes[2] = ASTEnumEntry("C")
+```
+
+**Usage Example**:
+```cpp
+void main() {
+    Test a = Test.A   // Member access to enum entry
+    a = Test.B        // Assignment of enum value
+    Test c = a        // Variable-to-variable assignment
+}
+// Accessing enum entries uses ASTMember:
+//   Test.A → ASTMember(Name="A", Parent=ASTIdentifier("Test"))
+```
+
+**With Base Types** (theoretical):
+```cpp
+public enum Status : BaseEnum, Interface {
+    IDLE, RUNNING, STOPPED
+}
+// Bases parsed comma-separated like classes
+```
+
+**Resolution**:
+1. Parser creates `ASTEnum` with name and modifiers
+2. Parses comma-separated entry list
+3. Each entry becomes `ASTEnumEntry` in `Nodes` vector
+4. Resolver creates `SemaEnumType` and `SemaEnumEntry` for each entry
+5. Entries are added to enum's symbol table with indices
+
+### 3.10 Modifiers
+
+#### ASTModifier
+**Purpose**: Encodes visibility, mutability, and other declaration modifiers.
+
+**Location**: `include/AST/ASTModifier.h`
+
+**Modifier Kinds** (`ASTModifierKind`):
+- **`MOD_PUBLIC`** - Public visibility
+- **`MOD_PRIVATE`** - Private visibility
+- **`MOD_PROTECTED`** - Protected visibility
+- **`MOD_CONSTANT`** - Immutable (const)
+- **`MOD_STATIC`** - Static/class-level
+
+**Structure**:
+- **`Kind`**: `ASTModifierKind`
+- **`Location`**: Source location
+
+**Usage**: Stored in `SmallVector<ASTModifier*, 4>` on:
+- Functions
+- Classes/Enums
+- Attributes
+- Methods
+
+**Test Example**:
+```cpp
+public class Test {
+    private int field
+    public static void method() {}
+}
+// Class Modifiers: [MOD_PUBLIC]
+// field Modifiers: [MOD_PRIVATE]
+// method Modifiers: [MOD_PUBLIC, MOD_STATIC]
+```
+
+### 3.11 Comments
+
+#### ASTComment
+**Purpose**: Captures documentation comments for code generation and tools.
+
+**Location**: `include/AST/ASTComment.h`
+
+**Structure**:
+- **`Content`**: `llvm::StringRef` - comment text
+- **`IsBlock`**: `bool` - true for `/* */`, false for `//`
+
+**Usage**: Attached to:
+- Functions
+- Classes
+- Methods
+- Attributes
+
+**Syntax**:
+```cpp
+// Line comment
+/* Block comment */
+```
+
+## 4. AST Construction Examples
+
+### Example 1: Complete Function with Local Variables
+**Source**:
+```cpp
+void calculate(int a, int b) {
+    int sum = a + b
+    int product = a * b
+    return sum
+}
+```
+
+**AST Structure**:
+```
+ASTFunction
+  ├─ Name: "calculate"
+  ├─ ReturnType: ASTBuiltinType(TYPE_VOID)
+  ├─ Params:
+  │   ├─ [0]: ASTParam(Name="a", Type=int, Index=0)
+  │   └─ [1]: ASTParam(Name="b", Type=int, Index=1)
+  └─ Body: ASTBlockStmt
+      ├─ Content[0]: ASTExprStmt
+      │   └─ Expr: ASTBinaryOp(OP_BINARY_ASSIGN)
+      │       ├─ Left: ASTIdentifier("sum")
+      │       └─ Right: ASTBinaryOp(OP_BINARY_ADD)
+      │           ├─ Left: ASTIdentifier("a")
+      │           └─ Right: ASTIdentifier("b")
+      ├─ Content[1]: ASTExprStmt
+      │   └─ Expr: ASTBinaryOp(OP_BINARY_ASSIGN)
+      │       ├─ Left: ASTIdentifier("product")
+      │       └─ Right: ASTBinaryOp(OP_BINARY_MUL)
+      │           ├─ Left: ASTIdentifier("a")
+      │           └─ Right: ASTIdentifier("b")
+      └─ Content[2]: ASTReturnStmt
+          └─ Expr: ASTIdentifier("sum")
+```
+
+### Example 2: Class with Inheritance and Methods
+**Source**:
+```cpp
+public class MyClass : BaseClass, Interface {
+    int value = 0
+    public void setValue(int v) {
+        value = v
+    }
+}
+```
+
+**AST Structure**:
+```
+ASTClass
+  ├─ Name: "MyClass"
+  ├─ ClassKind: CLASS
+  ├─ Modifiers: [MOD_PUBLIC]
+  ├─ Bases:
+  │   ├─ [0]: ASTNamedType("BaseClass")
+  │   └─ [1]: ASTNamedType("Interface")
+  └─ Nodes:
+      ├─ [0]: ASTAttribute
+      │   ├─ Name: "value"
+      │   ├─ Type: ASTBuiltinType(TYPE_INT)
+      │   └─ Expr: ASTNumberValue("0")
+      └─ [1]: ASTMethod
+          ├─ Name: "setValue"
+          ├─ Modifiers: [MOD_PUBLIC]
+          ├─ ReturnType: ASTBuiltinType(TYPE_VOID)
+          ├─ Params: [ASTParam("v", int)]
+          └─ Body: ASTBlockStmt
+              └─ Content[0]: ASTExprStmt
+                  └─ Expr: ASTBinaryOp(OP_BINARY_ASSIGN)
+                      ├─ Left: ASTIdentifier("value")
+                      └─ Right: ASTIdentifier("v")
+```
+
+### Example 3: Control Flow
+**Source**:
+```cpp
+void process(int value) {
+    if (value > 10) {
+        return
+    } elsif (value > 5) {
+        value = value * 2
+    } else {
+        value = 0
+    }
+}
+```
+
+**AST Structure**:
+```
+ASTFunction("process")
+  └─ Body: ASTBlockStmt
+      └─ Content[0]: ASTIfStmt
+          ├─ Rule: ASTBinaryOp(OP_BINARY_GT)
+          │   ├─ Left: ASTIdentifier("value")
+          │   └─ Right: ASTNumberValue("10")
+          ├─ Stmt: ASTBlockStmt
+          │   └─ Content[0]: ASTReturnStmt(Expr=null)
+          ├─ Elsif[0]: ASTRuleStmt
+          │   ├─ Rule: ASTBinaryOp(OP_BINARY_GT)
+          │   │   ├─ Left: ASTIdentifier("value")
+          │   │   └─ Right: ASTNumberValue("5")
+          │   └─ Stmt: ASTBlockStmt
+          │       └─ Content[0]: ASTExprStmt
+          │           └─ Expr: ASTBinaryOp(OP_BINARY_ASSIGN)
+          │               ├─ Left: ASTIdentifier("value")
+          │               └─ Right: ASTBinaryOp(OP_BINARY_MUL)
+          └─ Else: ASTBlockStmt
+              └─ Content[0]: ASTExprStmt
+                  └─ Expr: ASTBinaryOp(OP_BINARY_ASSIGN)
+                      ├─ Left: ASTIdentifier("value")
+                      └─ Right: ASTNumberValue("0")
+```
+
+## 5. Sema Fundamentals
 | Component | Location | Notes |
 |-----------|----------|-------|
 | `SemaNode` | `include/Sema/SemaNode.h` | Base class with `SemaKind` enumeration (module, namespace, import, type, var, call, op, function, class, attribute, method, enum, enum entry, value).
@@ -113,7 +1487,7 @@ The parser transforms simple assignments like `a = expr` into a structured tree 
 | `Resolver` | `include/Sema/Resolver.h`, `src/Sema/Resolver.cpp` | Main visitor bridging AST to Sema. Manages scopes, modules, name spaces, classes/enums, and expressions.
 | `Registry` | `include/Sema/Registry.h` | Tracks modules, namespaces, and built-in scopes used by the resolver.
 
-## 5. Sema Types (Detailed)
+## 6. Sema Types (Detailed)
 `SemaType` encapsulates semantic type identity and default value behavior.
 - **Core fields**: immutable `Id`, `SemaTypeKind`, `Name`, optional `SemaValue* DefaultValue`. Predicates (`isBool`, `isInteger`, `isArray`, etc.) drive type checking.
 - **Equality**: pointer equality wrappers plus `isEquals` for structural checks (arrays compare element types/size expressions).
@@ -131,13 +1505,13 @@ The parser transforms simple assignments like `a = expr` into a structured tree 
 ### Builtins
 `SemaBuiltin` exposes singleton getters for primitive types and creates array types when needed. Resolver consults `Registry::LookupBuiltinType` before searching namespaces.
 
-## 6. Symbol Table & Scope Model
+## 7. Symbol Table & Scope Model
 - `SymbolTable` (`include/Sema/SymbolTable.h`) implements a scoped lookup chain backed by `llvm::StringMap<Symbol*>`. `pushScope()` creates a child table linked via `Parent`.
 - `Symbol` (`include/Sema/Symbol.h`) bundles a `Name`, `SemaKind`, and pointer to the referenced `SemaNode`.
 - Resolver maintains `CurrentScope` and manipulates scopes via `EnterScope`/`ExitScope`. Local scopes correspond to blocks/functions/classes; module and namespace scopes come from the registry or class/enum symbol tables.
 - Symbols are inserted immediately after SemaBuilder creates the corresponding semantic object (e.g., a function symbol inserted in the parent scope before resolving the body).
 
-## 7. Sema Variables (Detailed)
+## 8. Sema Variables (Detailed)
 `SemaVar` (`include/Sema/SemaVar.h`) is the semantic counterpart for any named storage.
 - **Core fields**: owning `ASTVar*`, `SemaVarKind` (param, local, member, error, class attribute, class instance, enum entry), `Constant` flag (derived from modifiers), `CodeGenVarBase*` placeholder.
 - **Naming**: `getName()` defers to the AST by default; some subclasses override for synthetic identifiers (`SemaClassInstance` uses "this").
@@ -154,7 +1528,7 @@ The parser transforms simple assignments like `a = expr` into a structured tree 
 
 The resolver inserts matching `Symbol`s for each declaration so that future identifier/member lookups retrieve the `SemaVar` instead of raw AST nodes.
 
-## 8. Assignment Statement Resolution
+## 9. Assignment Statement Resolution
 Assignment statements in Fly follow a specific AST structure that distinguishes between the assignment operator `=` and other operators like equality `==`.
 
 ### Worked Example: Simple Assignment
@@ -166,25 +1540,21 @@ void func(int a) {
 ```
 
 **AST Structure:**
-1. Parser creates `ASTAssignStmt`:
-   - `source`: `ASTIdentifier("a")` - the variable being assigned
-   - `target`: `ASTBinaryOp(OP_BINARY_ASSIGN)` - the complete assignment expression
-     - `left`: `ASTIdentifier("a")` - l-value
-     - `right`: `ASTBinaryOp(OP_BINARY_ADD)` - r-value expression
-       - `left`: `ASTIdentifier("a")`
-       - `right`: `ASTNumberValue("1")`
+1. Parser creates `ASTExprStmt` containing an `ASTBinaryOp(OP_BINARY_ASSIGN)`:
+   - `left`: `ASTIdentifier("a")` - l-value
+   - `right`: `ASTBinaryOp(OP_BINARY_ADD)` - r-value expression
+     - `left`: `ASTIdentifier("a")`
+     - `right`: `ASTNumberValue("1")`
 
 **Resolution Steps:**
-1. Resolver visits `ASTAssignStmt` and extracts the `source` identifier to verify it's a valid l-value.
-2. Resolver visits the `target` binary operation (`OP_BINARY_ASSIGN`):
-   - Left operand resolves to `SemaLocalVar` for parameter `a` (type: `SemaIntType`)
-   - Right operand resolves recursively:
-     - `OP_BINARY_ADD` creates a `SemaBinaryOp`
-     - Left: `SemaLocalVar` (a)
-     - Right: `SemaIntValue(1)`
-     - Result type: `SemaIntType`
-3. Assignment operation validates that left-side type matches right-side type.
-4. The entire `ASTAssignStmt` becomes associated with the assignment's `SemaBinaryOp(OP_BINARY_ASSIGN)`.
+1. Resolver visits `ASTExprStmt` and its `ASTBinaryOp(OP_BINARY_ASSIGN)`.
+2. Left operand resolves to `SemaLocalVar` for parameter `a` (type: `SemaIntType`).
+3. Right operand resolves recursively:
+   - `OP_BINARY_ADD` creates a `SemaBinaryOp`.
+   - Left: `SemaLocalVar` (a)
+   - Right: `SemaIntValue(1)`
+   - Result type: `SemaIntType`
+4. Assignment operation validates that left-side type matches right-side type.
 
 ### Worked Example: Assignment with Equality Comparison
 **Source Code:**
@@ -195,19 +1565,17 @@ void func(bool result, int a) {
 ```
 
 **AST Structure:**
-1. Parser creates `ASTAssignStmt`:
-   - `source`: `ASTIdentifier("result")`
-   - `target`: `ASTBinaryOp(OP_BINARY_ASSIGN)`
-     - `left`: `ASTIdentifier("result")`
-     - `right`: `ASTBinaryOp(OP_BINARY_EQ)` - **equality comparison**
-       - `left`: `ASTIdentifier("a")`
-       - `right`: `ASTNumberValue("5")`
+1. Parser creates `ASTExprStmt` containing an `ASTBinaryOp(OP_BINARY_ASSIGN)`:
+   - `left`: `ASTIdentifier("result")`
+   - `right`: `ASTBinaryOp(OP_BINARY_EQ)` - **equality comparison**
+     - `left`: `ASTIdentifier("a")`
+     - `right`: `ASTNumberValue("5")`
 
 **Key Points:**
-- The outer `OP_BINARY_ASSIGN` handles the assignment operation
-- The inner `OP_BINARY_EQ` handles the equality comparison, which evaluates to boolean
-- Type checking ensures `result` (bool) can receive the result of `a == 5` (bool)
-- **Never confuse** `OP_BINARY_ASSIGN` (assignment `=`) with `OP_BINARY_EQ` (equality `==`)
+- The outer `OP_BINARY_ASSIGN` handles the assignment operation.
+- The inner `OP_BINARY_EQ` handles the equality comparison, which evaluates to boolean.
+- Type checking ensures `result` (bool) can receive the result of `a == 5` (bool).
+- **Never confuse** `OP_BINARY_ASSIGN` (assignment `=`) with `OP_BINARY_EQ` (equality `==`).
 
 ### Assignment Operator Kinds
 | Operator | AST Kind | Semantic Meaning |
@@ -215,18 +1583,18 @@ void func(bool result, int a) {
 | `=` | `OP_BINARY_ASSIGN` | Assignment: stores right value into left l-value |
 | `==` | `OP_BINARY_EQ` | Equality comparison: returns boolean |
 | `!=` | `OP_BINARY_NE` | Inequality comparison: returns boolean |
-| `+=` | `OP_BINARY_ADD_ASSIGN` | Compound assignment: `a += b` → `a = a + b` |
-| `-=` | `OP_BINARY_SUB_ASSIGN` | Compound assignment: `a -= b` → `a = a - b` |
+| `+=` | `OP_BINARY_ASSIGN_ADD` | Compound assignment: `a += b` → `a = a + b` |
+| `-=` | `OP_BINARY_ASSIGN_SUB` | Compound assignment: `a -= b` → `a = a - b` |
 
 (Similar compound patterns for `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`)
 
-## 9. Member Access Resolution
+## 10. Member Access Resolution
 1. Parser produces `ASTMember` nodes (holding name, parent expression pointer, `ASTVar*` for the definition).
 2. Resolver evaluates the parent expression to obtain a `SemaExpr*`. If the parent is a namespace, class, enum, or call, it delegates to the correct `ResolveChild` overload.
 3. `ResolveChildMember` locates the target attribute via `SemaClassType::LookupAttribute`. It instantiates a `SemaMemberVar` via `SemaBuilder::CreateMemberVar`, linking the AST member, parent expression, and referenced `SemaClassAttribute`.
 4. The resulting `SemaMemberVar` inherits the attribute's type, visibility, constant flag, and inserted symbol table entry (typically within the class scope when the attribute is declared, and within the current expression scope for temporary references).
 
-## 10. Calls & Function Binding
+## 11. Calls & Function Binding
 `SemaCall` (`include/Sema/SemaCall.h`) represents invocation expressions and stores:
 - Reference to the originating `ASTCall` (`getAST`).
 - Target `SemaFunctionBase*` (free function or class method) once resolved (`setFunction`).
@@ -239,10 +1607,10 @@ Resolution steps:
 3. Lookup order: explicit parent namespace/class (`ResolveChild` overloads) → current scope function symbols (`Registry::LookupFunction`). Constructors are treated as methods with `MethodKind::METHOD_CONSTRUCTOR`.
 4. Once a matching `SemaFunctionBase` is found, the call’s `SemaType` becomes the target’s return type (or the class type for constructors). If resolution fails, the call receives `SemaBuiltin::getErrorType()` to keep validation running.
 
-## 10. Expressions & SemaExpr Chain
+## 12. Expressions & SemaExpr Chain
 Every expression node (`ASTExpr`) holds a pointer to its semantic counterpart (`SemaExpr` subclasses such as `SemaVar`, `SemaCall`, `SemaValue`). Resolver ensures parent/child relationships are mirrored in the semantic tree, enabling later rewrites and diagnostics.
 
-## 11. Functions, Classes, Enums in Sema
+## 13. Functions, Classes, Enums in Sema
 - **Functions**: `SemaFunction` couples an `ASTFunction` with its module, symbol table, comment, visibility, and `CodeGenFunction*`. Parameters and locals are added through `addParam`/`addLocalVar` as the resolver visits declarations.
 - **Class Methods**: `SemaClassMethod` extends `SemaFunctionBase` with owning class, `this` instance, visibility, static flag, overridden method, comment, and `CodeGenClassMethod*`.
 - **Classes**: `SemaClassType` (see §5), plus `SemaClassAttribute` for fields and `SemaClassInstance` for `this`.
@@ -253,7 +1621,7 @@ Every expression node (`ASTExpr`) holds a pointer to its semantic counterpart (`
   - **Member Access**: `Status.IDLE` is parsed as `ASTMember(parent=ASTIdentifier("Status"), name="IDLE")`. Resolver looks up `Status` → `SemaEnumType`, then finds `IDLE` in the enum's entry map, returning a `SemaEnumEntry`.
   - **Base Types**: Optional `: BaseType` allows enums to extend other enums or interfaces. Resolver validates the base chain and populates `SemaEnumType::getBases()`.
 
-## 11.1 Error Handling with fail/handle
+## 14. Error Handling with fail/handle
 
 Fly implements error handling through `fail` and `handle` keywords, distinct from traditional exception mechanisms.
 
@@ -298,25 +1666,24 @@ The parser makes the expression optional by checking if the next token is a stat
 - `SemaErrorHandler` tracks the relationship between the call and the error variable.
 - The handle block's statements are resolved within a nested scope.
 
-## 12. Scope & Symbol Resolution Flow
+## 15. Scope & Symbol Resolution Flow
 1. **Module Entry**: Resolver creates a new `SemaModule`, registers it, sets namespace and scope, and visits top-level nodes in order. Namespaces must appear first.
 2. **Imports**: `SemaImport` nodes are created. Symbols for imported namespaces are not immediately inserted; instead, resolver stores symbol tables for deferred lookup.
 3. **Global Vars / Functions / Classes / Enums**: For each declaration, resolver creates the Sema object, inserts a symbol in the parent scope, then resolves nested content (e.g., function body, class members) under a pushed scope.
 4. **Statements & Expressions**: Blocks call `EnterScope`/`ExitScope`. Locals are inserted into block-level symbol tables before resolving their initializers. Expressions delegate to `ResolveExpr`, `ResolveParent`, and `ResolveChild*` helpers.
 5. **Errors**: Diagnostics are emitted through `Diag`. When a binding fails, resolver attaches `SemaErrorType` or `SemaVarKind::ERROR_VAR` placeholders so the pass can continue.
 
-## 13. Worked Example: Local Variable Reference
+## 16. Worked Example: Local Variable Reference
 1. Parser builds `ASTLocalVar` for `let x: int = 1;` and later an `ASTIdentifier` for `x`.
 2. Resolver visits the declaration: creates `SemaLocalVar`, sets its `SemaType` to `SemaBuiltin::getIntType()`, inserts a `Symbol` `{ Name: "x", Kind: VAR, Ref: SemaLocalVar* }` into the block’s `SymbolTable`.
 3. When resolving the identifier, `ResolveParent(ASTIdentifier*)` walks `CurrentScope` chain to find `x`, returning the `SemaLocalVar`. The identifier’s `SemaExpr*` becomes that `SemaVar`, and its `Type` pointer now references the underlying `SemaType`.
 
-## 14. Complete AST Header Reference
+## 17. Complete AST Header Reference
 The table below lists every header in `include/AST/` and the primary constructs it defines.
 
 | Header | Key Types / Responsibilities | Notes |
 |--------|------------------------------|-------|
 | `ASTArg.h` | `ASTArg` | Represents positional call arguments with index bookkeeping. |
-| `ASTAssignStmt.h` | `ASTAssignStmt` hierarchy | Assignment statements for `=` and compound ops. |
 | `ASTAttribute.h` | `ASTAttribute` | Class/struct field declarations linked to `SemaClassAttribute`. |
 | `ASTBase.h` | `ASTBase`, `ASTKind` | Base mixed into every AST node for location/kind. |
 | `ASTBlockStmt.h` | `ASTBlockStmt` | Statement sequencing plus local variable registry. |
@@ -331,7 +1698,7 @@ The table below lists every header in `include/AST/` and the primary constructs 
 | `ASTEnum.h` | `ASTEnum` | Enum declarations with comma-separated entries, modifiers, and optional base types. |
 | `ASTEnumEntry.h` | `ASTEnumEntry` | Individual enum entries tied to `SemaEnumEntry`. |
 | `ASTExpr.h` | `ASTExpr`, `ASTExprKind` | Base for all expressions, tracks semantic attachments. |
-| `ASTExprStmt.h` | `ASTExprStmt` | Statement wrapper holding a standalone expression. |
+| `ASTExprStmt.h` | `ASTExprStmt` | Statement wrapper holding a standalone expression (including assignments via `OP_BINARY_ASSIGN`). |
 | `ASTFailStmt.h` | `ASTFailStmt` | `fail` control-flow statement (exception-like semantics). |
 | `ASTFunction.h` | `ASTFunction`, `ASTFunctionKind` | Free function definitions with signature and body nodes. |
 | `ASTHandleStmt.h` | `ASTHandleStmt` | `handle` blocks associated with `fail`/`error` handling. |
@@ -348,7 +1715,7 @@ The table below lists every header in `include/AST/` and the primary constructs 
 | `ASTName.h` | `ASTName` | Qualified identifier segment used by imports/types. |
 | `ASTNameSpace.h` | `ASTNameSpace` | Namespace declarations referencing `ASTName` chains. |
 | `ASTNode.h` | `ASTNode` | Base class for visitable nodes with `Visited` flag. |
-| `ASTOp.h` | `ASTUnaryOp`, `ASTBinaryOp`, `ASTTernaryOp`, `Precedence` and enum variants | All operator expressions and precedence utilities. |
+| `ASTOp.h` | `ASTUnaryOp`, `ASTBinaryOp`, `ASTTernaryOp`, `Precedence` and enum variants | All operator expressions and precedence utilities. Assignments use `OP_BINARY_ASSIGN`. |
 | `ASTParam.h` | `ASTParam` | Function/method parameter declaration nodes. |
 | `ASTReturnStmt.h` | `ASTReturnStmt` | `return` statement AST. |
 | `ASTRuleStmt.h` | `ASTRuleStmt` | Rule-based statement used by pattern/DSL features. |
@@ -359,7 +1726,7 @@ The table below lists every header in `include/AST/` and the primary constructs 
 | `ASTVar.h` | `ASTVar`, `ASTVarKind` | Base for all variable declarations. |
 | `ASTVisitor.h` | `ASTVisitor` | Visitor interface used by resolver and other passes. |
 
-## 15. Complete Sema Header Reference
+## 18. Complete Sema Header Reference
 All headers in `include/Sema/` are catalogued below with their primary exports.
 
 | Header | Key Types / Responsibilities | Notes |

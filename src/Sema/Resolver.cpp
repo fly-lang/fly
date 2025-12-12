@@ -559,14 +559,13 @@ void Resolver::visit(ASTLoopStmt &AST) {
 }
 
 void Resolver::visit(ASTLoopInStmt &AST) {
-	AST.getVarRef()->accept(*this);
-    AST.getBlock()->accept(*this);
+	AST.getItem()->accept(*this);
+    AST.getList()->accept(*this);
+
+	// Loop Statement
+	AST.getStmt()->accept(*this);
 }
 
-void Resolver::visit(ASTAssignStmt &AST) {
-	AST.getSource()->accept(*this);
-	AST.getTarget()->accept(*this);
-}
 
 void Resolver::visit(ASTBlockStmt &AST) {
 	// Resolve LocalVar Type
@@ -736,16 +735,25 @@ void Resolver::visit(ASTNullValue &AST) {
 
 void Resolver::visit(ASTDefaultValue &AST) {
 	if (CurrentStmt) {
-		if (CurrentStmt->getStmtKind() == ASTStmtKind::STMT_ASSIGN) {
-			ASTAssignStmt *Stmt = static_cast<ASTAssignStmt *>(CurrentStmt);
+		if (CurrentStmt->getStmtKind() == ASTStmtKind::STMT_EXPR) {
+			ASTExprStmt *Stmt = static_cast<ASTExprStmt *>(CurrentStmt);
+			ASTExpr *Expr = Stmt->getExpr();
 
-			// This AST Default Value is the only Expr in the Stmt
-			if (Stmt->getTarget()->getExprKind() == ASTExprKind::EXPR_VALUE) {
-				SemaType *T = Stmt->getSource()->getType();
+			// Check if the expression is a binary assignment operation
+			if (Expr && Expr->getExprKind() == ASTExprKind::EXPR_BINARY) {
+				ASTBinaryOp *BinOp = static_cast<ASTBinaryOp *>(Expr);
 
-				// Create the default value
-				SemaValue *Sema = SemaBuilder::CreateDefaultValue(*T);
-				AST.setSema(Sema);
+				// Check if it's an assignment operation
+				if (BinOp->getOpKind() == ASTBinaryOpKind::OP_BINARY_ASSIGN) {
+					// This AST Default Value is the only Expr in the assignment
+					if (BinOp->getRightExpr()->getExprKind() == ASTExprKind::EXPR_VALUE) {
+						SemaType *T = BinOp->getLeftExpr()->getType();
+
+						// Create the default value
+						SemaValue *Sema = SemaBuilder::CreateDefaultValue(*T);
+						AST.setSema(Sema);
+					}
+				}
 			}
 		}
 	}

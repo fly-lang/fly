@@ -36,7 +36,6 @@
 #include "AST/ASTSwitchStmt.h"
 #include "AST/ASTLoopStmt.h"
 #include "AST/ASTValue.h"
-#include "AST/ASTAssignStmt.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTReturnStmt.h"
 #include "AST/ASTClass.h"
@@ -804,31 +803,19 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
     FLY_DEBUG_START("CodeGenModule", "GenStmt");
     switch (Stmt->getStmtKind()) {
 
-        // Var Assignment
-        case ASTStmtKind::STMT_ASSIGN: {
-            ASTAssignStmt *VarStmt = static_cast<ASTAssignStmt *>(Stmt);
+        // Expression Statement (includes assignments, calls, etc.)
+        case ASTStmtKind::STMT_EXPR: {
+            ASTExprStmt *ExprStmt = static_cast<ASTExprStmt *>(Stmt);
+            ASTExpr *Expr = ExprStmt->getExpr();
 
-        	// Get the VarRef
-            ASTExpr *Source = VarStmt->getSource();
-        	SemaVar *Var = static_cast<SemaVar *>(Source->getSema());
-        	GenVar(Var);
-
-        	// Generate the Expr
-            if (VarStmt->getTarget()) {
-                llvm::Value *Val = GenExpr(VarStmt->getTarget()); // The Value represents the Expr result
-            	Var->getCodeGen()->Store(Val);
+            if (Expr) {
+                // Generate the expression (assignments will be handled in GenExpr)
+                GenExpr(Expr);
             }
             break;
         }
 
-            // Stmt with Expr
-        case ASTStmtKind::STMT_EXPR: {
-            ASTExprStmt *ExprStmt = static_cast<ASTExprStmt *>(Stmt);
-            GenExpr(ExprStmt->getExpr());
-            break;
-        }
-
-            // Block of Stmt
+        // Block of Stmt
         case ASTStmtKind::STMT_BLOCK: {
             ASTBlockStmt *Block = static_cast<ASTBlockStmt *>(Stmt);
             GenBlockStmt(CGF, Block);
