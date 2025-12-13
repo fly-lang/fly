@@ -185,9 +185,6 @@ private:
     /// Check if the token is a value.
     bool isValue();
 
-    /// Check if the token is a constant.
-    bool isConst();
-
     /// Check if the token is the start of a block.
     bool isBlockStart();
 

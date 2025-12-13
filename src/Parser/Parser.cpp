@@ -106,7 +106,8 @@ bool Parser::isSuccess() {
 
 ASTNameSpace *Parser::ParseNameSpace() {
 	FLY_DEBUG_START("Parser", "ParseNameSpace");
-	const SourceLocation &Loc = ConsumeToken();
+	const SourceLocation &Loc = Tok.getLocation();
+	ConsumeToken(); // consume 'namespace'
 
 	if (!Tok.isAnyIdentifier()) {
 		Diag(Tok, diag::err_parse_identifier_expected);
@@ -123,7 +124,8 @@ ASTNameSpace *Parser::ParseNameSpace() {
 ASTImport *Parser::ParseImport() {
 	FLY_DEBUG_START("Parser", "ParseImport");
 
-	const SourceLocation &Loc = ConsumeToken();
+	const SourceLocation &Loc = Tok.getLocation();
+	ConsumeToken(); // consume 'import'
 
 	if (!Tok.isAnyIdentifier()) {
 		Diag(Tok, diag::err_parse_identifier_expected);
@@ -133,8 +135,12 @@ ASTImport *Parser::ParseImport() {
 	// Parse the Names
 	llvm::SmallVector<ASTName *, 4> Names = ParseNames();
 
+	// Parse optional 'as' alias
 	llvm::SmallVector<ASTName *, 4> Alias;
 	if (Tok.is(tok::kw_as)) {
+
+		// Consume 'as'
+		SourceLocation AsLoc = Tok.getLocation();
 		ConsumeToken();
 
 		// Parse the Names
@@ -231,18 +237,19 @@ SmallVector<ASTModifier *, 8> Parser::ParseModifiers() {
 
     while (Tok.isNot(tok::eof)) {
         if (Tok.is(tok::kw_private)) {
-            Modifiers.push_back(ASTBuilder::CreateModifier(ConsumeToken(), ASTModifierKind::MOD_PRIVATE));
+            Modifiers.push_back(ASTBuilder::CreateModifier(Tok.getLocation(), ASTModifierKind::MOD_PRIVATE));
         } else if (Tok.is(tok::kw_protected)) {
-            Modifiers.push_back(ASTBuilder::CreateModifier(ConsumeToken(), ASTModifierKind::MOD_PROTECTED));
+            Modifiers.push_back(ASTBuilder::CreateModifier(Tok.getLocation(), ASTModifierKind::MOD_PROTECTED));
         } else if (Tok.is(tok::kw_public)) {
-            Modifiers.push_back(ASTBuilder::CreateModifier(ConsumeToken(), ASTModifierKind::MOD_PUBLIC));
+            Modifiers.push_back(ASTBuilder::CreateModifier(Tok.getLocation(), ASTModifierKind::MOD_PUBLIC));
         } else if (Tok.is(tok::kw_const)) {
-            Modifiers.push_back(ASTBuilder::CreateModifier(ConsumeToken(), ASTModifierKind::MOD_CONSTANT));
+            Modifiers.push_back(ASTBuilder::CreateModifier(Tok.getLocation(), ASTModifierKind::MOD_CONSTANT));
         } else if (Tok.is(tok::kw_static)) {
-            Modifiers.push_back(ASTBuilder::CreateModifier(ConsumeToken(), ASTModifierKind::MOD_STATIC));
+            Modifiers.push_back(ASTBuilder::CreateModifier(Tok.getLocation(), ASTModifierKind::MOD_STATIC));
         } else {
             break;
         }
+    	ConsumeToken();
     }
 
     return Modifiers;
@@ -293,7 +300,8 @@ ASTFunction *Parser::ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers) {
 
 	// Parse Function Name
 	StringRef Name = Tok.getIdentifierInfo()->getName();
-	const SourceLocation &Loc = ConsumeToken();
+	const SourceLocation &Loc = Tok.getLocation();
+	ConsumeToken();
 
 	// Parse Params
 	SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(this);
@@ -401,7 +409,8 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 
     // Parse return stmt
     if (Tok.is(tok::kw_return)) { // Parse return
-        SourceLocation Loc = ConsumeToken();
+        SourceLocation Loc = Tok.getLocation();
+    	ConsumeToken();
         ASTReturnStmt *Stmt = Builder.CreateReturnStmt(Parent, Loc);
         // Only parse expression if there's actually an expression (not end of statement/block)
         // Check for tokens that would end a statement: closing braces, keywords that start new statements, EOF
@@ -416,13 +425,15 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 
     // Parse break stmt
     if (Tok.is(tok::kw_break)) { // Parse break
-        ASTBreakStmt *Break = Builder.CreateBreakStmt(Parent, ConsumeToken());
+        ASTBreakStmt *Break = Builder.CreateBreakStmt(Parent, Tok.getLocation());
+    	ConsumeToken();
         return;
     }
 
     // Parse continue stmt
     if (Tok.is(tok::kw_continue)) { // Parse continue
-        ASTContinueStmt *Continue = Builder.CreateContinueStmt(Parent, ConsumeToken());
+        ASTContinueStmt *Continue = Builder.CreateContinueStmt(Parent, Tok.getLocation());
+    	ConsumeToken();
         return;
     }
 
@@ -446,7 +457,8 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 
     	// Create a Local Var
     	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
-    	const SourceLocation &Loc = ConsumeToken();
+    	const SourceLocation &Loc = Tok.getLocation();
+    	ConsumeToken();
     	ASTLocalVar *LocalVar = Builder.CreateLocalVar(Parent, Loc, T, Name, Modifiers);
     	Identifier = Builder.CreateIdentifier(LocalVar);
 
@@ -458,7 +470,8 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 
     } else if (((NexTok = Tok)) && isVarAssign(NexTok)) {
     	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
-    	const SourceLocation &Loc = ConsumeToken();
+    	const SourceLocation &Loc = Tok.getLocation();
+    	ConsumeToken();
     	Identifier = Builder.CreateIdentifier(Loc, Name);
     }
 
@@ -701,6 +714,7 @@ void Parser::ParseEndParen(bool HasParen) {
 void Parser::ParseIfStmt(ASTBlockStmt *Parent) {
 	FLY_DEBUG_START("Parser", "ParseIfStmt");
     assert(Tok.is(tok::kw_if) && "Token is if keyword");
+	SourceLocation IfLoc = Tok.getLocation();
     ConsumeToken();
 
     // Parse (
@@ -717,14 +731,15 @@ void Parser::ParseIfStmt(ASTBlockStmt *Parent) {
     // Create If
     ASTBuilderIfStmt *IfBuilder = ASTBuilderIfStmt::Create(Parent);
     ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(Tok.getLocation());
-    IfBuilder->If(Tok.getLocation(), IfCondition, IfBlock);
+    IfBuilder->If(IfLoc, IfCondition, IfBlock);
 
     // Parse statement between braces for If
     ParseBlockOrStmt(IfBlock);
 
     // Add Elsif
     while (Tok.is(tok::kw_elsif)) {
-        const SourceLocation &ElsifLoc = ConsumeToken();
+        const SourceLocation &ElsifLoc = Tok.getLocation();
+    	ConsumeToken();
 
         // Parse (
         bool hasElsifParen = ParseStartParen();
@@ -774,13 +789,15 @@ void Parser::ParseIfStmt(ASTBlockStmt *Parent) {
 void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
 	FLY_DEBUG_START("Parser", "ParseSwitchStmt");
     assert(Tok.is(tok::kw_switch) && "Token is switch keyword");
-	const SourceLocation &Loc = ConsumeToken();
-    
+
+	// Consume switch keyword
+	const SourceLocation &SwitchLoc = Tok.getLocation();
+	ConsumeToken();
+
     // Parse (
     bool hasParen = ParseStartParen();
-    
-    // Parse switch keyword
-    // Parse Var reference like (a)
+
+    // Parse the group of expressions
     ASTExpr *Expr = ParseExpr();
 
 	// Parse )
@@ -790,9 +807,7 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
 
 	// Create Switch
 	ASTBuilderSwitchStmt *SwitchBuilder = ASTBuilderSwitchStmt::Create(Parent);
-    SwitchBuilder->Switch(Loc, Expr);
-
-	// TODO implement duplicity check of 'default'
+    SwitchBuilder->Switch(SwitchLoc, Expr);
 
     // Init Switch Statement and start parse from brace
     if (isBlockStart()) {
@@ -800,28 +815,29 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
 
     	while (true) {
     		if (Tok.is(tok::kw_case)) {
+
+    			// Parse Case
+    			SourceLocation CaseLoc = Tok.getLocation();
     			ConsumeToken();
 
-    			// Parse Expression for different cases
-    			// for a Value  -> case 1:
-    			// for a Var -> case a:
-    			// for a default
+    			// Parse Case Expr
     			ASTExpr *Expr = ParseExpr();
 
-			// Parse Switch
-			ASTBlockStmt *CaseBlock = Builder.CreateBlockStmt(Tok.getLocation());
-			if (Tok.is(tok::colon)) { // Parse a Block of Stmt
-				ConsumeToken();
-				SwitchBuilder->Case(Loc, Expr, CaseBlock);
-				if (Tok.isOneOf(tok::kw_case, tok::kw_default)) {
-					continue;
+				// Parse Switch
+				ASTBlockStmt *CaseBlock = Builder.CreateBlockStmt(Tok.getLocation());
+				if (Tok.is(tok::colon)) { // Parse a Block of Stmt
+					ConsumeToken();
+					SwitchBuilder->Case(CaseLoc, Expr, CaseBlock);
+					if (Tok.isOneOf(tok::kw_case, tok::kw_default)) {
+						continue;
+					}
+					// Only parse statement if we're not at the end of the switch block
+					if (!Tok.is(tok::r_brace)) {
+						ParseBlockOrStmt(CaseBlock);
+					}
 				}
-				// Only parse statement if we're not at the end of the switch block
-				if (!Tok.is(tok::r_brace)) {
-					ParseBlockOrStmt(CaseBlock);
-				}
-			}
     		} else if (Tok.is(tok::kw_default)) {
+    			SourceLocation DefaultLoc = Tok.getLocation();
     			ConsumeToken();
 
     			if (SwitchBuilder->hasDefault()) {
@@ -829,19 +845,19 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
     				return;
     			}
 
-			// Parse Default
-			ASTBlockStmt *DefaultBlock = Builder.CreateBlockStmt(Tok.getLocation());
-			if (Tok.is(tok::colon)) { // Parse a Block of Stmt
-				ConsumeToken();
-				SwitchBuilder->Default(Loc, DefaultBlock);
-				if (Tok.is(tok::kw_case)) {
-					continue;
+				// Parse Default
+				ASTBlockStmt *DefaultBlock = Builder.CreateBlockStmt(DefaultLoc);
+				if (Tok.is(tok::colon)) { // Parse a Block of Stmt
+					ConsumeToken();
+					SwitchBuilder->Default(SwitchLoc, DefaultBlock);
+					if (Tok.is(tok::kw_case)) {
+						continue;
+					}
+					// Only parse statement if we're not at the end of the switch block
+					if (!Tok.is(tok::r_brace)) {
+						ParseBlockOrStmt(DefaultBlock);
+					}
 				}
-				// Only parse statement if we're not at the end of the switch block
-				if (!Tok.is(tok::r_brace)) {
-					ParseBlockOrStmt(DefaultBlock);
-				}
-			}
     		} else {
     			break;
     		}
@@ -877,7 +893,8 @@ void Parser::ParseWhileStmt(ASTBlockStmt *Parent) {
 	FLY_DEBUG_START("Parser", "ParseWhileParen");
     assert(Tok.is(tok::kw_while) && "Token is while keyword");
 
-    const SourceLocation &Loc = ConsumeToken();
+    const SourceLocation &WhileLoc = Tok.getLocation();
+	ConsumeToken();
 
     // Consume Left Parenthesis ( if exists
     bool hasParen = ParseStartParen();
@@ -891,7 +908,7 @@ void Parser::ParseWhileStmt(ASTBlockStmt *Parent) {
 	}
 
     ASTBlockStmt *BlockStmt = Builder.CreateBlockStmt(Tok.getLocation());
-    ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::CreateLoop(Parent, Loc);
+    ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::CreateLoop(Parent, WhileLoc);
     LoopBuilder->Loop(Condition, BlockStmt);
 
     // Parse statement between braces
@@ -918,7 +935,8 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
 	FLY_DEBUG_START("Parser", "ParseForStmt");
     assert(Tok.is(tok::kw_for) && "Token is for keyword");
 
-    const SourceLocation &Loc = ConsumeToken();
+    const SourceLocation &ForLoc = Tok.getLocation();
+	ConsumeToken();
 
     // Consume Left Parenthesis ( if exists
     bool hasParen = ParseStartParen();
@@ -942,10 +960,12 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
 
             // Parse item identifier (the loop variable)
             llvm::StringRef ItemName = Tok.getIdentifierInfo()->getName();
-            const SourceLocation &ItemLoc = ConsumeToken();
+            const SourceLocation &ItemLoc = Tok.getLocation();
+        	ConsumeToken();
             ASTExpr *Item = Builder.CreateIdentifier(ItemLoc, ItemName);
 
             // Consume 'in'
+        	SourceLocation InLoc = Tok.getLocation();
             ConsumeToken();
 
             // Parse list expression
@@ -959,7 +979,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
             ASTBlockStmt *LoopBlock = Builder.CreateBlockStmt(Tok.getLocation());
 
             // Create LoopIn AST node
-            ASTLoopInStmt *LoopIn = ASTBuilderLoopStmt::CreateLoopIn(Parent, Loc, Item, List, LoopBlock);
+            ASTLoopInStmt *LoopIn = ASTBuilderLoopStmt::CreateLoopIn(Parent, ForLoc, Item, List, LoopBlock);
 
             // Parse the loop body
             ParseBlockOrStmt(LoopBlock);
@@ -970,7 +990,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
     // Traditional for loop: for init; condition; post { }
 
     // Create For Statement
-	ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::CreateLoop(Parent, Loc);
+	ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::CreateLoop(Parent, ForLoc);
     ASTBlockStmt *InitBlock = Builder.CreateBlockStmt(Tok.getLocation());
 	LoopBuilder->Init(InitBlock);
     ASTExpr *Condition = nullptr;
@@ -990,9 +1010,12 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
         Condition = ParseExpr();
 
         if (Tok.is(tok::semi)) {
-        	ASTBlockStmt *PostBlock = Builder.CreateBlockStmt(ConsumeToken());
+        	ASTBlockStmt *PostBlock = Builder.CreateBlockStmt(Tok.getLocation());
         	LoopBuilder->Post(PostBlock);
+
+        	ConsumeToken();
             ParseStmt(PostBlock);
+
         	while (Tok.is(tok::comma)) {
         		ConsumeToken();
         		ParseStmt(PostBlock);
@@ -1018,20 +1041,22 @@ void Parser::ParseHandleStmt(ASTBlockStmt *Parent, ASTIdentifier *Error) {
     assert(Tok.is(tok::kw_handle) && "Token is handle keyword");
 
     // Consume handle keyword
-    const SourceLocation &Loc = ConsumeToken();
+    const SourceLocation &HandleLoc = Tok.getLocation();
+	ConsumeToken();
 
     // Parse statement between braces
-    ASTBlockStmt *HandleBlock = Builder.CreateBlockStmt(Loc);
+    ASTBlockStmt *HandleBlock = Builder.CreateBlockStmt(HandleLoc);
     ParseBlockOrStmt(HandleBlock);
-    Builder.CreateHandleStmt(Parent, Loc, HandleBlock, Error);
+    Builder.CreateHandleStmt(Parent, HandleLoc, HandleBlock, Error);
 }
 
 void Parser::ParseFailStmt(ASTBlockStmt *Parent) {
     FLY_DEBUG_START("Parser", "ParseFailStmt");
     assert(Tok.is(tok::kw_fail) && "Token is handle keyword");
 
-    const SourceLocation &Loc = ConsumeToken();
-    ASTFailStmt *Stmt = Builder.CreateFailStmt(Parent, Loc);
+    const SourceLocation &FailLoc = Tok.getLocation();
+	ConsumeToken();
+    ASTFailStmt *Stmt = Builder.CreateFailStmt(Parent, FailLoc);
 
     // Parse optional expression (fail can be used without an expression)
     if (!Tok.isOneOf(tok::r_brace, tok::eof, tok::kw_case, tok::kw_default,
@@ -1055,45 +1080,46 @@ ASTType *Parser::ParseType() {
 	if (Tok.isKeyword()) {
 		switch (Tok.getKind()) {
 			case tok::kw_bool:
-				T = Builder.CreateBoolType(ConsumeToken());
+				T = Builder.CreateBoolType(Tok.getLocation());
 				break;
 			case tok::kw_byte:
-				T = Builder.CreateByteType(ConsumeToken());
+				T = Builder.CreateByteType(Tok.getLocation());
 				break;
 			case tok::kw_ushort:
-				T = Builder.CreateUShortType(ConsumeToken());
+				T = Builder.CreateUShortType(Tok.getLocation());
 				break;
 			case tok::kw_short:
-				T = Builder.CreateShortType(ConsumeToken());
+				T = Builder.CreateShortType(Tok.getLocation());
 				break;
 			case tok::kw_uint:
-				T = Builder.CreateUIntType(ConsumeToken());
+				T = Builder.CreateUIntType(Tok.getLocation());
 				break;
 			case tok::kw_int:
-				T = Builder.CreateIntType(ConsumeToken());
+				T = Builder.CreateIntType(Tok.getLocation());
 				break;
 			case tok::kw_ulong:
-				T = Builder.CreateULongType(ConsumeToken());
+				T = Builder.CreateULongType(Tok.getLocation());
 				break;
 			case tok::kw_long:
-				T = Builder.CreateLongType(ConsumeToken());
+				T = Builder.CreateLongType(Tok.getLocation());
 				break;
 			case tok::kw_float:
-				T = Builder.CreateFloatType(ConsumeToken());
+				T = Builder.CreateFloatType(Tok.getLocation());
 				break;
 			case tok::kw_double:
-				T = Builder.CreateDoubleType(ConsumeToken());
+				T = Builder.CreateDoubleType(Tok.getLocation());
 				break;
 			case tok::kw_void:
-				T = Builder.CreateVoidType(ConsumeToken());
+				T = Builder.CreateVoidType(Tok.getLocation());
 				break;
 			case tok::kw_string:
-				T = Builder.CreateStringType(ConsumeToken());
+				T = Builder.CreateStringType(Tok.getLocation());
 				break;
 			case tok::kw_error:
-				T = Builder.CreateErrorType(ConsumeToken());
+				T = Builder.CreateErrorType(Tok.getLocation());
 				break;
 		}
+		ConsumeToken();
 	}
 
 	// Parse Class or Enum Type
@@ -1157,20 +1183,6 @@ bool Parser::isValue() {
     FLY_DEBUG_START("Parser", "isValue");
     return Tok.isOneOf(tok::numeric_constant, tok::kw_true, tok::kw_false, tok::kw_null, tok::l_brace,
                        tok::char_constant, tok::string_literal);
-}
-
-/**
- * ParseModule const scope of vars and class
- * @param Constant
- * @return true on Success or false on Error
- */
-bool Parser::isConst() {
-    FLY_DEBUG_START("Parser", "isConst");
-    if (Tok.is(tok::kw_const)) {
-        ConsumeToken();
-        return true;
-    }
-    return false;
 }
 
 bool Parser::isBlockStart() {

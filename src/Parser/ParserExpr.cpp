@@ -197,7 +197,8 @@ ASTExpr *ParserExpr::Parse(ASTExpr *Left) {
 
 ASTExpr * ParserExpr::ParseIdentifierOrCall(ASTExpr *Parent) {
 	llvm::StringRef Name = P->Tok.getIdentifierInfo()->getName();
-	const SourceLocation &Loc = P->ConsumeToken();
+	const SourceLocation &Loc =P->Tok.getLocation() ;
+	P->ConsumeToken();
 
 	ASTExpr *Expr;
 	if (P->Tok.is(tok::l_paren)) {
@@ -295,8 +296,9 @@ ASTExpr *ParserExpr::ParsePrimary() {
 		// parse function call, variable post increment/decrement or simple var
 		if (isUnaryPostOperator()) { // Ex. a++ or a--
 			ASTUnaryOpKind OpKind = toUnaryOpExprKind(Tok, true);
+			SourceLocation OpLoc = Tok.getLocation();
 			P->ConsumeToken();
-			return P->Builder.CreateUnary(Primary->getLocation(), OpKind, Primary);
+			return P->Builder.CreateUnary(OpLoc, OpKind, Primary);
 		}
 
 		return Primary;
@@ -304,9 +306,9 @@ ASTExpr *ParserExpr::ParsePrimary() {
 
 	if (isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
 		ASTUnaryOpKind OpKind = toUnaryOpExprKind(Tok, false);
-		const SourceLocation &Loc = P->ConsumeToken();
+		const SourceLocation &OpLoc = P->ConsumeToken();
 		ASTExpr* Primary = ParsePrimary();  // Parse the operand (recursively)
-		return P->Builder.CreateUnary(Loc, OpKind, Primary);
+		return P->Builder.CreateUnary(OpLoc, OpKind, Primary);
 	}
 
 	// Parse New Expression

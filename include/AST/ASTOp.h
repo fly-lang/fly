@@ -88,8 +88,6 @@ namespace fly {
 
         friend class ASTBuilder;
 
-        SourceLocation OpLocation;
-
         ASTUnaryOpKind OpKind;
 
         ASTExpr *Expr;
@@ -100,7 +98,7 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        SourceLocation &getOpLocation();
+        const SourceLocation &getOpLocation() const;
 
         ASTUnaryOpKind getOpKind() const;
 

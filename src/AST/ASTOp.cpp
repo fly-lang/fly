@@ -26,8 +26,8 @@ ASTUnaryOpKind ASTUnaryOp::getOpKind() const {
     return OpKind;
 }
 
-SourceLocation &ASTUnaryOp::getOpLocation() {
-    return OpLocation;
+const SourceLocation &ASTUnaryOp::getOpLocation() const {
+    return ASTBase::getLocation();
 }
 
 ASTExpr *ASTUnaryOp::getExpr() const {
@@ -40,7 +40,6 @@ std::string ASTUnaryOp::str() const {
 Attr("Kind", static_cast<size_t>(getKind())).
            Attr("Expr", (ASTNode *) Expr).
            Attr("Op", (uint64_t) OpKind).
-           Attr("OpLocation", (uint64_t) OpLocation.getRawEncoding()).
            End();
 }
 
