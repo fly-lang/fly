@@ -358,157 +358,147 @@ void Parser::ParseBlock(ASTBlockStmt *Block) {
 }
 
 /**
- * ParseModule a single statement like Variable declaration, assignment or Function invocation
+ * Parse a single statement like Variable declaration, assignment or Function invocation
  *
- * cont int a
- * a = ...
- * a()
- * a v1 = ...
- * int a = ...
+ * Examples:
+ *   const int a
+ *   a = ...
+ *   a()
+ *   int a = ...
  *
- * @param Parent
- * @return true on Success or false on Error
+ * @param Parent The parent block statement
  */
 void Parser::ParseStmt(ASTBlockStmt *Parent) {
 	FLY_DEBUG_START("Parser", "ParseStmt");
 
-    // Parse if stmt
-    if (Tok.is(tok::kw_if)) {
-        ParseIfStmt(Parent);
-    	return;
-    }
+	// ===== 1. CONTROL FLOW STATEMENTS =====
+	// These keywords start specific statement types that need dedicated parsing
 
-    // Parse switch stmt
-    if (Tok.is(tok::kw_switch)) {
-        ParseSwitchStmt(Parent);
-    	return;
-    }
-
-    // Parse for stmt
-    if (Tok.is(tok::kw_for)) {
-        ParseForStmt(Parent);
-    	return;
-    }
-
-    // Parse while stmt
-    if (Tok.is(tok::kw_while)) {
-        ParseWhileStmt(Parent);
-    	return;
-    }
-
-    // Parse handle stmt
-    if (Tok.is(tok::kw_handle)) {
-        ParseHandleStmt(Parent, nullptr);
-    	return;
-    }
-
-    // Parse fail stmt
-    if (Tok.is(tok::kw_fail)) {
-        ParseFailStmt(Parent);
-    	return;
-    }
-
-    // Parse return stmt
-    if (Tok.is(tok::kw_return)) { // Parse return
-        SourceLocation Loc = Tok.getLocation();
-    	ConsumeToken();
-        ASTReturnStmt *Stmt = Builder.CreateReturnStmt(Parent, Loc);
-        // Only parse expression if there's actually an expression (not end of statement/block)
-        // Check for tokens that would end a statement: closing braces, keywords that start new statements, EOF
-        if (!Tok.isOneOf(tok::r_brace, tok::eof, tok::kw_case, tok::kw_default, tok::kw_break,
-                         tok::kw_continue, tok::kw_return, tok::kw_if, tok::kw_switch,
-                         tok::kw_while, tok::kw_for)) {
-            ASTExpr *Expr = ParseExpr();
-            Stmt->setExpr(Expr);
-        }
-        return;
-    }
-
-    // Parse break stmt
-    if (Tok.is(tok::kw_break)) { // Parse break
-        ASTBreakStmt *Break = Builder.CreateBreakStmt(Parent, Tok.getLocation());
-    	ConsumeToken();
-        return;
-    }
-
-    // Parse continue stmt
-    if (Tok.is(tok::kw_continue)) { // Parse continue
-        ASTContinueStmt *Continue = Builder.CreateContinueStmt(Parent, Tok.getLocation());
-    	ConsumeToken();
-        return;
-    }
-
-    // Parse Modifiers
-    SmallVector<ASTModifier *, 8> Modifiers = ParseModifiers();
-
-	ASTIdentifier * Identifier = nullptr;
-
-	// Parse a Local Var
-	Optional<Token> NexTok = Tok;
-
-	// Check if is a Var Decl
-    if (isVarDecl(NexTok)) {
-	    // Int x;
-    	// NS.Type x;
-    	// Vector<Int> y;
-    	// MyClass[] arr;
-    	// MyNS.MyClass obj = foo();
-
-    	ASTType *T = ParseType();
-
-    	// Create a Local Var
-    	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
-    	const SourceLocation &Loc = Tok.getLocation();
-    	ConsumeToken();
-    	ASTLocalVar *LocalVar = Builder.CreateLocalVar(Parent, Loc, T, Name, Modifiers);
-    	Identifier = Builder.CreateIdentifier(LocalVar);
-
-    	// Check for assignment
-    	if ( isAssignOperator(Tok)) {
-    		ASTDeclStmt * DeclStmt = Builder.CreateDeclStmt(Parent, Tok.getLocation(), LocalVar);
-    		DeclStmt->setExpr(ParseExpr(Identifier));
-    		return;
-    	}
-
-        // Check for handle statement
-        if (Tok.is(tok::kw_handle)) {
-            ParseHandleStmt(Parent, Identifier);
-            return;
-        }
-
-    } else if (((NexTok = Tok)) && isVarAssign(NexTok)) {
-    	llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
-    	const SourceLocation &Loc = Tok.getLocation();
-    	ConsumeToken();
-    	Identifier = Builder.CreateIdentifier(Loc, Name);
-    }
-
-	// Check if is an assignment
-	if (Identifier && isAssignOperator(Tok)) {
-        // Create an expression statement to hold the assignment expression
-        ASTExprStmt *Stmt = Builder.CreateExprStmt(Parent, Identifier->getLocation());
-
-        // Parse Expr (pass Identifier as left side so assignment operators like += can build binary expression)
-        ASTExpr *Expr = ParseExpr(Identifier);
-        Stmt->setExpr(Expr);
+	if (Tok.is(tok::kw_if)) {
+		ParseIfStmt(Parent);
 		return;
-    } else if (Identifier && Identifier->getVar()) {
-    	// Declaration without initializer: create a declaration statement without an expression
-    	ASTLocalVar *LocalVar = static_cast<ASTLocalVar*>(Identifier->getVar());
-    	ASTDeclStmt *DeclStmt = Builder.CreateDeclStmt(Parent, Identifier->getLocation(), LocalVar);
-    	// No expression - DeclStmt->setExpr(nullptr) is implicit
+	}
+
+	if (Tok.is(tok::kw_switch)) {
+		ParseSwitchStmt(Parent);
 		return;
-    } else if (!Tok.is(tok::r_brace) && Tok.isNot(tok::eof)) {
-    	// a()
-    	// a++
-    	// ++a
-    	// new A()
-    	ASTExpr *Expr = ParseExpr();
-    	if (Expr) {
-    		ASTExprStmt *Stmt = Builder.CreateExprStmt(Parent, Expr->getLocation());
-    		Stmt->setExpr(Expr);
-    	}
-    }
+	}
+
+	if (Tok.is(tok::kw_for)) {
+		ParseForStmt(Parent);
+		return;
+	}
+
+	if (Tok.is(tok::kw_while)) {
+		ParseWhileStmt(Parent);
+		return;
+	}
+
+	if (Tok.is(tok::kw_handle)) {
+		ParseHandleStmt(Parent, nullptr);
+		return;
+	}
+
+	if (Tok.is(tok::kw_fail)) {
+		ParseFailStmt(Parent);
+		return;
+	}
+
+	// Parse return statement (with optional expression)
+	if (Tok.is(tok::kw_return)) {
+		SourceLocation Loc = Tok.getLocation();
+		ConsumeToken();
+		ASTReturnStmt *Stmt = Builder.CreateReturnStmt(Parent, Loc);
+
+		// Only parse expression if not followed by statement terminators
+		if (!Tok.isOneOf(tok::r_brace, tok::eof, tok::kw_case, tok::kw_default,
+		                 tok::kw_break, tok::kw_continue, tok::kw_return,
+		                 tok::kw_if, tok::kw_switch, tok::kw_while, tok::kw_for)) {
+			ASTExpr *Expr = ParseExpr();
+			Stmt->setExpr(Expr);
+		}
+		return;
+	}
+
+	if (Tok.is(tok::kw_break)) {
+		Builder.CreateBreakStmt(Parent, Tok.getLocation());
+		ConsumeToken();
+		return;
+	}
+
+	if (Tok.is(tok::kw_continue)) {
+		Builder.CreateContinueStmt(Parent, Tok.getLocation());
+		ConsumeToken();
+		return;
+	}
+
+	// ===== 2. VARIABLE DECLARATIONS AND ASSIGNMENTS =====
+	// Parse modifiers that may apply to local variables
+	SmallVector<ASTModifier *, 8> Modifiers = ParseModifiers();
+
+	ASTIdentifier *Identifier = nullptr;
+	Optional<Token> LookAhead = Tok;
+
+	// Try to parse a typed variable declaration: "Type name" or "Type name = expr"
+	if (isVarDecl(LookAhead)) {
+		// Parse: int x; | NS.Type x; | Vector<Int> y; | MyClass[] arr; | MyNS.MyClass obj = foo();
+		ASTType *T = ParseType();
+
+		// Extract variable name
+		llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
+		const SourceLocation &Loc = Tok.getLocation();
+		ConsumeToken();
+
+		// Create local variable and associated identifier
+		ASTLocalVar *LocalVar = Builder.CreateLocalVar(Parent, Loc, T, Name, Modifiers);
+		Identifier = Builder.CreateIdentifier(LocalVar);
+
+		// Check for initialization: "Type name = expr"
+		if (isAssignOperator(Tok)) {
+			ASTDeclStmt *DeclStmt = Builder.CreateDeclStmt(Parent, Tok.getLocation(), LocalVar);
+			DeclStmt->setExpr(ParseExpr(Identifier));
+			return;
+		}
+
+		// Check for error handling: "Type name handle { ... }"
+		if (Tok.is(tok::kw_handle)) {
+			ParseHandleStmt(Parent, Identifier);
+			return;
+		}
+
+		// Declaration without initializer
+		Builder.CreateDeclStmt(Parent, Identifier->getLocation(), LocalVar);
+		return;
+	}
+
+	// Try to parse an identifier assignment: "name = expr" or "name += expr"
+	LookAhead = Tok;
+	if (isVarAssign(LookAhead)) {
+		llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
+		const SourceLocation &Loc = Tok.getLocation();
+		ConsumeToken();
+		Identifier = Builder.CreateIdentifier(Loc, Name);
+
+		// Must have an assignment operator
+		if (isAssignOperator(Tok)) {
+			ASTExprStmt *Stmt = Builder.CreateExprStmt(Parent, Identifier->getLocation());
+			ASTExpr *Expr = ParseExpr(Identifier);
+			Stmt->setExpr(Expr);
+			return;
+		}
+	}
+
+	// ===== 3. EXPRESSION STATEMENTS =====
+	// Parse expressions like function calls, increment/decrement, new objects, etc.
+	// Examples: a(); a++; ++a; new A();
+
+	if (!Tok.is(tok::r_brace) && !Tok.is(tok::eof)) {
+		ASTExpr *Expr = ParseExpr();
+		if (Expr) {
+			ASTExprStmt *Stmt = Builder.CreateExprStmt(Parent, Expr->getLocation());
+			Stmt->setExpr(Expr);
+		}
+	}
 }
 
 bool Parser::isType(Optional<Token> &NexTok) {

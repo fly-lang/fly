@@ -16,6 +16,7 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTExprStmt.h"
+#include "AST/ASTDeclStmt.h"
 #include "AST/ASTOp.h"
 
 #include <AST/ASTBuilderIfStmt.h>
@@ -53,72 +54,72 @@ namespace {
         // default bool a = false
     	ASTLocalVar *LocalVar_a = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "a", EmptyModifiers);
     	ASTIdentifier * Identifier_a = getASTBuilder().CreateIdentifier(LocalVar_a);
-    	ASTExprStmt * VarStmt_a = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTDeclStmt * DeclStmt_a = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_a);
     	ASTBinaryOp *AssignExpr_a = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_a, getASTBuilder().CreateDefaultValue());
-    	VarStmt_a->setExpr(AssignExpr_a);
+    	DeclStmt_a->setExpr(AssignExpr_a);
 
         // default byte b = 0
     	ASTLocalVar *LocalVar_b = getASTBuilder().CreateLocalVar(Body, SourceLoc, ByteTypeRef, "b", EmptyModifiers);
     	ASTIdentifier * Identifier_b = getASTBuilder().CreateIdentifier(LocalVar_b);
-    	ASTExprStmt * VarStmt_b = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTDeclStmt * DeclStmt_b = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_b);
     	ASTBinaryOp *AssignExpr_b = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_b, getASTBuilder().CreateDefaultValue());
-    	VarStmt_b->setExpr(AssignExpr_b);
+    	DeclStmt_b->setExpr(AssignExpr_b);
 
         // default short c = 0
     	ASTLocalVar *LocalVar_c = getASTBuilder().CreateLocalVar(Body, SourceLoc, ShortTypeRef, "c", EmptyModifiers);
     	ASTIdentifier * Identifier_c = getASTBuilder().CreateIdentifier(LocalVar_c);
-    	ASTExprStmt * VarStmt_c = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTDeclStmt * DeclStmt_c = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_c);
     	ASTBinaryOp *AssignExpr_c = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_c, getASTBuilder().CreateDefaultValue());
-    	VarStmt_c->setExpr(AssignExpr_c);
+    	DeclStmt_c->setExpr(AssignExpr_c);
 
         // default ushort d = 0
     	ASTLocalVar *LocalVar_d = getASTBuilder().CreateLocalVar(Body, SourceLoc, UShortTypeRef, "d", EmptyModifiers);
     	ASTIdentifier * Identifier_d = getASTBuilder().CreateIdentifier(LocalVar_d);
-    	ASTExprStmt * VarStmt_d = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTDeclStmt * DeclStmt_d = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_d);
     	ASTBinaryOp *AssignExpr_d = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_d, getASTBuilder().CreateDefaultValue());
-    	VarStmt_d->setExpr(AssignExpr_d);
+    	DeclStmt_d->setExpr(AssignExpr_d);
 
         // default int e = 0
     	ASTLocalVar *LocalVar_e = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "e", EmptyModifiers);
     	ASTIdentifier * Identifier_e = getASTBuilder().CreateIdentifier(LocalVar_e);
-    	ASTExprStmt * VarStmt_e = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTDeclStmt * DeclStmt_e = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_e);
     	ASTBinaryOp *AssignExpr_e = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_e, getASTBuilder().CreateDefaultValue());
-    	VarStmt_e->setExpr(AssignExpr_e);
+    	DeclStmt_e->setExpr(AssignExpr_e);
 
         // default uint f = 0
     	ASTLocalVar *LocalVar_f = getASTBuilder().CreateLocalVar(Body, SourceLoc, UIntTypeRef, "f", EmptyModifiers);
     	ASTIdentifier * Identifier_f = getASTBuilder().CreateIdentifier(LocalVar_f);
-    	ASTExprStmt * VarStmt_f = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTDeclStmt * DeclStmt_f = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_f);
     	ASTBinaryOp *AssignExpr_f = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_f, getASTBuilder().CreateDefaultValue());
-    	VarStmt_f->setExpr(AssignExpr_f);
+    	DeclStmt_f->setExpr(AssignExpr_f);
 
         // default long g = 0
     	ASTLocalVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, LongTypeRef, "g", EmptyModifiers);
     	ASTIdentifier * Identifier_g = getASTBuilder().CreateIdentifier(LocalVar_g);
-    	ASTExprStmt * VarStmt_g = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTDeclStmt * DeclStmt_g = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_g);
     	ASTBinaryOp *AssignExpr_g = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_g, getASTBuilder().CreateDefaultValue());
-    	VarStmt_g->setExpr(AssignExpr_g);
+    	DeclStmt_g->setExpr(AssignExpr_g);
 
         // default ulong h = 0
     	ASTLocalVar *LocalVar_h = getASTBuilder().CreateLocalVar(Body, SourceLoc, ULongTypeRef, "h", EmptyModifiers);
     	ASTIdentifier * Identifier_h = getASTBuilder().CreateIdentifier(LocalVar_h);
-    	ASTExprStmt * VarStmt_h = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTDeclStmt * DeclStmt_h = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_h);
     	ASTBinaryOp *AssignExpr_h = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_h, getASTBuilder().CreateDefaultValue());
-    	VarStmt_h->setExpr(AssignExpr_h);
+    	DeclStmt_h->setExpr(AssignExpr_h);
 
         // default float i = 0.0
     	ASTLocalVar *LocalVar_i = getASTBuilder().CreateLocalVar(Body, SourceLoc, FloatTypeRef, "i", EmptyModifiers);
     	ASTIdentifier * Identifier_i = getASTBuilder().CreateIdentifier(LocalVar_i);
-    	ASTExprStmt * VarStmt_i = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTDeclStmt * DeclStmt_i = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_i);
     	ASTBinaryOp *AssignExpr_i = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_i, getASTBuilder().CreateDefaultValue());
-    	VarStmt_i->setExpr(AssignExpr_i);
+    	DeclStmt_i->setExpr(AssignExpr_i);
 
         // default double j = 0.0
     	ASTLocalVar *LocalVar_j = getASTBuilder().CreateLocalVar(Body, SourceLoc, DoubleTypeRef, "j", EmptyModifiers);
     	ASTIdentifier * Identifier_j = getASTBuilder().CreateIdentifier(LocalVar_j);
-    	ASTExprStmt * VarStmt_j = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTDeclStmt * DeclStmt_j = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_j);
     	ASTBinaryOp *AssignExpr_j = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_j, getASTBuilder().CreateDefaultValue());
-    	VarStmt_j->setExpr(AssignExpr_j);
+    	DeclStmt_j->setExpr(AssignExpr_j);
 
     	// CreateVTable Code
     	llvm::Module * M = Generate()[0];
@@ -227,6 +228,7 @@ namespace {
 
     	// float g
     	ASTLocalVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, FloatTypeRef, "g", EmptyModifiers);
+    	ASTDeclStmt *DeclStmt_g = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_g);
 
         // g = 1.0
         ASTIdentifier *VarRef_g = getASTBuilder().CreateIdentifier(LocalVar_g);
@@ -270,10 +272,10 @@ namespace {
         // int a = 1
         ASTLocalVar *LocalVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
 		ASTIdentifier * Identifier = getASTBuilder().CreateIdentifier(LocalVar);
-        ASTExprStmt * VarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTDeclStmt * DeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar);
         ASTExpr *ValueExpr = getASTBuilder().CreateNumberValue(SourceLoc, "1");
         ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier, ValueExpr);
-        VarStmt->setExpr(AssignExpr);
+        DeclStmt->setExpr(AssignExpr);
 
     	// CreateVTable Code
     	llvm::Module * M = Generate()[0];
@@ -633,8 +635,11 @@ namespace {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
+        ASTDeclStmt *aDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, aVar);
         ASTLocalVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "b", EmptyModifiers);
+        ASTDeclStmt *bDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, bVar);
         ASTLocalVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "c", EmptyModifiers);
+        ASTDeclStmt *cDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, cVar);
 
         // a = 0
         ASTExprStmt * aVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
@@ -750,8 +755,11 @@ namespace {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "a", EmptyModifiers);
+        ASTDeclStmt *aDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, aVar);
         ASTLocalVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "b", EmptyModifiers);
+        ASTDeclStmt *bDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, bVar);
         ASTLocalVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "c", EmptyModifiers);
+        ASTDeclStmt *cDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, cVar);
 
         // a = false
         ASTExprStmt * aVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
@@ -840,8 +848,11 @@ namespace {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "a", EmptyModifiers);
+        ASTDeclStmt *aDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, aVar);
         ASTLocalVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "b", EmptyModifiers);
+        ASTDeclStmt *bDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, bVar);
         ASTLocalVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "c", EmptyModifiers);
+        ASTDeclStmt *cDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, cVar);
 
         // a = false
         ASTExprStmt * aVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);

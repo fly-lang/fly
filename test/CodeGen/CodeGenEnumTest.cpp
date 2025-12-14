@@ -20,6 +20,7 @@
 #include "AST/ASTType.h"
 #include "AST/ASTOp.h"
 #include "AST/ASTExprStmt.h"
+#include "AST/ASTDeclStmt.h"
 
 
 namespace {
@@ -66,18 +67,18 @@ namespace {
         //  TestEnum a = TestEnum.A;
         ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestEnumType, "a", EmptyModifiers);
         ASTIdentifier *aVarIdent = getASTBuilder().CreateIdentifier(aVar);
+        ASTDeclStmt *aDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, aVar);
         ASTIdentifier *Enum_AIdent = getASTBuilder().CreateIdentifier(A);
-        ASTExprStmt *aVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTBinaryOp *aAssign = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aVarIdent, Enum_AIdent);
-        aVarStmt->setExpr(aAssign);
+        aDeclStmt->setExpr(aAssign);
 
         //  TestEnum b = a
         ASTLocalVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestEnumType, "b", EmptyModifiers);
         ASTIdentifier *bVarIdent = getASTBuilder().CreateIdentifier(bVar);
+        ASTDeclStmt *bDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, bVar);
         ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(aVar);
-        ASTExprStmt *bVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTBinaryOp *bAssign = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, bVarIdent, aIdent);
-        bVarStmt->setExpr(bAssign);
+        bDeclStmt->setExpr(bAssign);
 
 		// Generate Code
 		llvm::Module * M = Generate()[0];

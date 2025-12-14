@@ -12,6 +12,7 @@
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTClass.h"
 #include <AST/ASTExprStmt.h>
+#include <AST/ASTDeclStmt.h>
 #include <AST/ASTFailStmt.h>
 #include <AST/ASTLocalVar.h>
 
@@ -38,6 +39,7 @@ namespace {
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
         ASTLocalVar *ErrorA = getASTBuilder().CreateLocalVar(Body, SourceLoc, ErrorTypeRef, "A", EmptyModifiers);
+        ASTDeclStmt *DeclStmt_A = getASTBuilder().CreateDeclStmt(Body, SourceLoc, ErrorA);
         ASTIdentifier *ErrorVarRef = getASTBuilder().CreateIdentifier(ErrorA);
         ASTBlockStmt *HandleBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         getASTBuilder().CreateHandleStmt(Body, SourceLoc, HandleBlock, ErrorVarRef);
