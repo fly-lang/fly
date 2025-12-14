@@ -42,6 +42,8 @@ namespace fly {
 
     public:
 
+        ~SemaClassAttribute() override;
+
         SemaClassType &getClass() const;
 
     	CodeGenVar *getCodeGen() const override;

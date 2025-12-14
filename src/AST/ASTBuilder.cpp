@@ -34,6 +34,7 @@
 
 #include <utility>
 #include <AST/ASTAttribute.h>
+#include <AST/ASTDeclStmt.h>
 #include <AST/ASTEnumEntry.h>
 #include <AST/ASTExprStmt.h>
 #include <AST/ASTFailStmt.h>
@@ -619,12 +620,11 @@ ASTParam *ASTBuilder::CreateParam(
  * @return
  */
 ASTLocalVar *ASTBuilder::CreateLocalVar(
-	ASTBlockStmt *BlockStmt, const SourceLocation &Loc, ASTType *Type,
+	ASTBlockStmt *Parent, const SourceLocation &Loc, ASTType *Type,
 	llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers) {
 	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateLocalVar", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
 	ASTLocalVar *Var = new ASTLocalVar(Loc, Type, Name, Modifiers);
-	BlockStmt->LocalVars.insert(std::make_pair(Var->getName(), Var)); // Check duplicate in Block Stmt
 
 	FLY_DEBUG_END("ASTBuilder", "CreateLocalVar");
 	return Var;
@@ -737,12 +737,20 @@ ASTTernaryOp *ASTBuilder::CreateTernary(
 	return TernaryExpr;
 }
 
-
 /**
- * Creates a ASTVarStmt
+ * Creates a ASTDeclStmt
  * @param Parent
- * @param Source
+ * @param Loc
+ * @param Var
  * @return
+ */
+ASTDeclStmt *ASTBuilder::CreateDeclStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTLocalVar *Var) {
+	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateDeclStmt", "Loc=" << Loc.getRawEncoding());
+	ASTDeclStmt *Stmt = new ASTDeclStmt(Loc, Var);
+	Parent->addContent(Stmt);
+	FLY_DEBUG_END("ASTBuilder", "CreateDeclStmt");
+	return Stmt;
+}
 
 /**
  * Creates a ASTReturnStmt

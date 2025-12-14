@@ -27,11 +27,13 @@ namespace fly {
 
         SemaBuilder *Builder;
 
+        Registry *Reg;
+
     public:
 
         explicit Sema(DiagnosticsEngine& diags);
 
-        ~Sema() = default;
+        ~Sema();
 
         llvm::SmallVector<SemaModule *, 8> Resolve(llvm::SmallVector<ASTModule *, 8> &Modules);
 

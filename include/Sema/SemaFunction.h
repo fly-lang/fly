@@ -47,6 +47,8 @@ namespace fly {
 
     public:
 
+        ~SemaFunction() override;
+
         SemaModule *getModule() const;
 
         SymbolTable *getSymbols() const;

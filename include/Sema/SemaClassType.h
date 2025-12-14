@@ -88,6 +88,8 @@ namespace fly {
 
     public:
 
+        ~SemaClassType() override;
+
         ASTClass &getAST();
 
         SemaModule *getModule() const;

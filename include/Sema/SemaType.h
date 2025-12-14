@@ -83,6 +83,8 @@ namespace fly {
 
         explicit SemaType(SemaKind Kind, SemaTypeKind TypeKind, std::string Name);
 
+        ~SemaType() override;
+
         const size_t getId() const;
 
         const SemaTypeKind getTypeKind() const;
@@ -124,6 +126,8 @@ namespace fly {
 
         explicit SemaIntType(SemaIntTypeKind IntKind, std::string Name);
 
+        ~SemaIntType() override = default;
+
         const SemaIntTypeKind getIntKind() const;
 
         bool isSigned();
@@ -136,6 +140,8 @@ namespace fly {
     public:
 
         explicit SemaFloatType(SemaFloatTypeKind FPKind, std::string Name);
+
+        ~SemaFloatType() override = default;
 
         const SemaFloatTypeKind getFPKind() const;
     };
@@ -150,6 +156,8 @@ namespace fly {
 
         explicit SemaArrayType(SemaType *Type, ASTExpr *SizeExpr = nullptr);
 
+        ~SemaArrayType() override = default;
+
         SemaType *getType();
 
     };
@@ -158,6 +166,8 @@ namespace fly {
 
     public:
 		explicit SemaErrorType() : SemaType(SemaKind::TYPE, SemaTypeKind::TYPE_ERROR, "error") {}
+
+		~SemaErrorType() override = default;
 
 	};
 

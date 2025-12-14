@@ -18,6 +18,11 @@ SemaType::SemaType(SemaKind Kind, SemaTypeKind TypeKind, std::string Name) : Sem
 	Id(std::hash<std::string>{}(Name)) {
 }
 
+SemaType::~SemaType() {
+	// Delete default value if present
+	delete DefaultValue;
+}
+
 const size_t SemaType::getId() const {
 	return Id;
 }

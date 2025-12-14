@@ -42,6 +42,7 @@ namespace fly {
 	class ASTFailStmt;
 	class ASTHandleStmt;
 	class ASTReturnStmt;
+	class ASTDeclStmt;
 	class ASTRuleStmt;
 	class ASTIfStmt;
 	class ASTSwitchStmt;
@@ -83,6 +84,7 @@ namespace fly {
 		virtual void visit(ASTContinueStmt &AST) = 0;
 		virtual void visit(ASTDeleteStmt &AST) = 0;
 		virtual void visit(ASTExprStmt &AST) = 0;
+		virtual void visit(ASTDeclStmt &AST) = 0;
 		virtual void visit(ASTFailStmt &AST) = 0;
 		virtual void visit(ASTHandleStmt &AST) = 0;
 		virtual void visit(ASTReturnStmt &AST) = 0;

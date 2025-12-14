@@ -20,6 +20,22 @@ SemaClassType::SemaClassType(ASTClass &AST, SymbolTable *Symbols) : SemaType(Sem
 
 }
 
+SemaClassType::~SemaClassType() {
+	// Delete all owned Nodes (Attributes, Methods, Constructors)
+	for (auto *Node : Nodes) {
+		delete Node;
+	}
+
+	// Delete the 'this' instance
+	delete This;
+
+	// Delete Comment if present
+	delete Comment;
+
+	// Delete Symbols
+	delete Symbols;
+}
+
 SemaClassKind SemaClassType::toClassKind(ASTClassKind Kind) {
 	switch (Kind) {
 

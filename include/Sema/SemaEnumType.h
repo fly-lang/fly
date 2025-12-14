@@ -57,6 +57,8 @@ namespace fly {
 
     public:
 
+        ~SemaEnumType() override;
+
         ASTEnum &getAST();
 
         SemaModule *getModule() const;

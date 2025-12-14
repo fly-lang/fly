@@ -50,6 +50,8 @@ namespace fly {
 
     public:
 
+        ~SemaFunctionBase() override;
+
         std::string getMangledName() const;
 
         void setReturnType(SemaType *RetType);

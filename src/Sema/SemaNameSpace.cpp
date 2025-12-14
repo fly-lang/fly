@@ -22,7 +22,15 @@ SymbolTable * SemaNameSpace::getSymbols() const {
 	return Symbols;
 }
 
-SemaNameSpace::~SemaNameSpace() = default;
+SemaNameSpace::~SemaNameSpace() {
+	// Delete all child namespaces
+	for (auto &Pair : Children) {
+		delete Pair.second;
+	}
+
+	// Delete Symbols
+	delete Symbols;
+}
 
 llvm::StringRef SemaNameSpace::getName() const {
 	return Name;

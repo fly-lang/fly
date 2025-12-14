@@ -85,12 +85,12 @@ bool SemaValidator::CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarNa
     }
 
     ASTBlockStmt *Block = (ASTBlockStmt *) Stmt;
-    ASTLocalVar *DuplicateVar = Block->getLocalVars().lookup(VarName);
-    if (DuplicateVar != nullptr) {
+    // ASTLocalVar *DuplicateVar = Block->getLocalVars().lookup(VarName);
+    // if (DuplicateVar != nullptr) {
         // if (DiagEnabled)
         //     S.Diag(DuplicateVar->getLocation(), diag::err_conflict_vardecl) << DuplicateVar->getName();
-        return false;
-    }
+        // return false;
+    // }
 
     // Check with parents
     if (Block->getParent() != nullptr) {

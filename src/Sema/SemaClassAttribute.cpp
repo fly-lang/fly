@@ -19,6 +19,11 @@ SemaClassAttribute::SemaClassAttribute(ASTAttribute &AST, SemaClassType &Class) 
 
 }
 
+SemaClassAttribute::~SemaClassAttribute() {
+	// Delete Comment if present
+	delete Comment;
+}
+
 SemaClassType &SemaClassAttribute::getClass() const {
 	return Class;
 }

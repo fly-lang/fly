@@ -27,6 +27,21 @@ SemaFunctionBase::SemaFunctionBase(ASTFunction &AST, SemaKind Kind, std::string 
 
 }
 
+SemaFunctionBase::~SemaFunctionBase() {
+	// Delete all parameters
+	for (auto *Param : Params) {
+		delete Param;
+	}
+
+	// Delete all local variables
+	for (auto *LocalVar : LocalVars) {
+		delete LocalVar;
+	}
+
+	// Delete ErrorHandler
+	delete ErrorHandler;
+}
+
 // Function to mangle a type reference
 std::string SemaFunctionBase::MangleFunction(ASTFunction &AST) {
 	llvm::SmallVector<SemaType *, 8> Params;

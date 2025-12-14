@@ -24,6 +24,19 @@ Registry::Registry() : GlobalScope(CreateBuiltinScope()), DefaultNameSpace(new S
 	NameSpaces.insert(std::make_pair<>(DefaultNameSpace->getName(), DefaultNameSpace));
 }
 
+Registry::~Registry() {
+	// Delete Builtin Scope
+	delete BuiltinScope;
+
+	// Delete Global Scope
+	delete GlobalScope;
+
+	// Delete all Namespaces
+	for (auto &Pair : NameSpaces) {
+		delete Pair.second;
+	}
+}
+
 SymbolTable* Registry::CreateBuiltinScope() {
 	SymbolTable* Builtin = new SymbolTable(nullptr);
 

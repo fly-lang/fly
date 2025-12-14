@@ -13,6 +13,7 @@ add_library(flyLib
         AST/ASTBuilderIfStmt.cpp
         AST/ASTBuilderSwitchStmt.cpp
         AST/ASTBuilderLoopStmt.cpp
+        AST/ASTDeclStmt.cpp
         AST/ASTNode.cpp
         AST/ASTBlockStmt.cpp
         AST/ASTBreakStmt.cpp
@@ -111,9 +112,7 @@ add_library(flyLib
         CodeGen/CodeGenError.cpp
         CodeGen/CodeGenFunction.cpp
         CodeGen/CodeGenFunctionBase.cpp
-#        CodeGen/CodeGenGlobalVar.cpp
         CodeGen/CodeGenHandle.cpp
-        #CodeGen/CodeGenHeader.cpp
         CodeGen/CodeGenModule.cpp
         CodeGen/CodeGenVar.cpp
 
@@ -161,7 +160,6 @@ add_library(flyLib
         Sema/SemaErrorHandler.cpp
         Sema/SemaFunction.cpp
         Sema/SemaFunctionBase.cpp
-#        Sema/SemaGlobalVar.cpp
         Sema/SemaImport.cpp
         Sema/SemaLocalVar.cpp
         Sema/SemaMemberVar.cpp

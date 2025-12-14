@@ -22,6 +22,8 @@
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTLoopInStmt.h"
 
+#include <AST/ASTLocalVar.h>
+
 namespace {
 
 using namespace fly;
@@ -342,11 +344,13 @@ TEST_F(ParserTest, LoopStmt) {
 	ASTBlockStmt *PostStmt = As<ASTBlockStmt>(ForBlock->getPost());
 
 	ASSERT_FALSE(InitStmt->getContent().empty());
-	ASSERT_TRUE(InitStmt->getContent().size() == 2);
+	ASSERT_TRUE(InitStmt->getContent().size() == 2); // Each var decl+assignment is one ASTDeclStmt
 
-	// int b = 1
-	auto *b_expr_stmt = As<ASTExprStmt>(InitStmt->getContent()[0]);
-	auto *b_expr = As<ASTBinaryOp>(b_expr_stmt->getExpr());
+	// int b = 1 (declaration with assignment)
+	auto *b_decl_stmt = As<ASTDeclStmt>(InitStmt->getContent()[0]);
+	EXPECT_EQ(b_decl_stmt->getLocalVar()->getName(), "b");
+	EXPECT_NODE_LOC(b_decl_stmt->getLocalVar(), "b");
+	auto *b_expr = As<ASTBinaryOp>(b_decl_stmt->getExpr());
 	EXPECT_EQ(b_expr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
 	EXPECT_NODE_LOC(b_expr, "b");
 	EXPECT_EQ(As<ASTIdentifier>(b_expr->getLeftExpr())->getName(), "b");
@@ -354,9 +358,11 @@ TEST_F(ParserTest, LoopStmt) {
 	EXPECT_EQ(As<ASTNumberValue>(b_expr->getRightExpr())->getValue(), "1");
 	EXPECT_NODE_LOC(As<ASTNumberValue>(b_expr->getRightExpr()), "1");
 
-	// int c = 2
-	auto *c_expr_stmt = As<ASTExprStmt>(InitStmt->getContent()[1]);
-	auto *c_expr = As<ASTBinaryOp>(c_expr_stmt->getExpr());
+	// int c = 2 (declaration with assignment)
+	auto *c_decl_stmt = As<ASTDeclStmt>(InitStmt->getContent()[1]);
+	EXPECT_EQ(c_decl_stmt->getLocalVar()->getName(), "c");
+	EXPECT_NODE_LOC(c_decl_stmt->getLocalVar(), "c");
+	auto *c_expr = As<ASTBinaryOp>(c_decl_stmt->getExpr());
 	EXPECT_EQ(c_expr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
 	EXPECT_NODE_LOC(c_expr, "c");
 	EXPECT_EQ(As<ASTIdentifier>(c_expr->getLeftExpr())->getName(), "c");

@@ -30,6 +30,8 @@ namespace fly {
 
     public:
 
+        ~SemaParam() override = default;
+
     	CodeGenVar *getCodeGen() const override;
 
         void setCodeGen(CodeGenVarBase * CGC) override;

@@ -135,6 +135,7 @@ namespace fly {
         void visit(ASTContinueStmt &AST) override;
         void visit(ASTDeleteStmt &AST) override;
         void visit(ASTExprStmt &AST) override;
+        void visit(ASTDeclStmt &AST) override;
         void visit(ASTFailStmt &AST) override;
         void visit(ASTHandleStmt &AST) override;
         void visit(ASTReturnStmt &AST) override;

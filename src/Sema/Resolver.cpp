@@ -54,6 +54,7 @@
 #include "llvm/ADT/StringMap.h"
 
 #include <AST/ASTCast.h>
+#include <AST/ASTDeclStmt.h>
 #include <AST/ASTParam.h>
 #include <Sema/Helper.h>
 #include <llvm/Transforms/IPO/FunctionImport.h>
@@ -463,6 +464,24 @@ void Resolver::visit(ASTExprStmt &AST) {
 	Expr->accept(*this);
 }
 
+void Resolver::visit(ASTDeclStmt &AST) {
+	ASTLocalVar *LocalVar = AST.getLocalVar();
+
+	// Resolve LocalVar Type
+	LocalVar->getType()->accept(*this);
+
+	// Create LocalVar Sema
+	SemaLocalVar * Sema = SemaBuilder::CreateLocalVar(*LocalVar);
+
+	// Assign the Type Symbol to LocalVar
+	if (LocalVar->getType() != nullptr && LocalVar->getType()->isVisited()) {
+		Sema->Type = LocalVar->getType()->getSema();
+	}
+
+	// Add LocalVar to the Function Base LocalVars
+	CurrentFunction->addLocalVar(LocalVar->getSema());
+}
+
 void Resolver::visit(ASTFailStmt &AST) {
 	ASTExpr *Expr = AST.getExpr();
 
@@ -568,24 +587,6 @@ void Resolver::visit(ASTLoopInStmt &AST) {
 
 
 void Resolver::visit(ASTBlockStmt &AST) {
-	// Resolve LocalVar Type
-	for (auto &VarEntry : AST.getLocalVars()) {
-		ASTLocalVar *LocalVar = VarEntry.getValue();
-
-		// Resolve LocalVar Type
-		LocalVar->getType()->accept(*this);
-
-		// Create LocalVar Sema
-		SemaLocalVar * Sema = SemaBuilder::CreateLocalVar(*LocalVar);
-
-		// Assign the Type Symbol to LocalVar
-		if (LocalVar->getType() != nullptr && LocalVar->getType()->isVisited()) {
-			Sema->Type = LocalVar->getType()->getSema();
-		}
-
-		// Add LocalVar to the Function Base LocalVars
-		CurrentFunction->addLocalVar(LocalVar->getSema());
-	}
 
 	// Resolve Statements
 	for (ASTStmt *Stmt : AST.getContent()) {

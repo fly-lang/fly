@@ -21,6 +21,19 @@ SemaEnumType::SemaEnumType(ASTEnum &AST, SymbolTable *Symbols) : SemaType(SemaKi
 
 }
 
+SemaEnumType::~SemaEnumType() {
+	// Delete all owned Nodes (Enum Entries)
+	for (auto *Node : Nodes) {
+		delete Node;
+	}
+
+	// Delete Comment if present
+	delete Comment;
+
+	// Delete Symbols
+	delete Symbols;
+}
+
 ASTEnum &SemaEnumType::getAST() {
     return AST;
 }

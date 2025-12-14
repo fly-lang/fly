@@ -40,6 +40,8 @@ namespace fly {
 
     public:
 
+        ~SemaClassInstance() override;
+
         SemaClassInstance *getParent() const override;
 
         llvm::StringRef getName() const override;

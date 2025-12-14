@@ -16,6 +16,14 @@ SemaFunction::SemaFunction(ASTFunction &AST, SymbolTable *Symbols) : SemaFunctio
 
 }
 
+SemaFunction::~SemaFunction() {
+	// Delete Comment if present
+	delete Comment;
+
+	// Delete Symbols
+	delete Symbols;
+}
+
 SemaModule *SemaFunction::getModule() const {
 	return Module;
 }

@@ -36,6 +36,8 @@ namespace fly {
 
     public:
 
+        ~SemaEnumEntry() override;
+
         size_t getIndex() const;
 
         SemaComment *getComment() const;

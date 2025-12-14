@@ -15,13 +15,18 @@
 
 using namespace fly;
 
-Sema::Sema(DiagnosticsEngine &Diags) : Diags(Diags) {
+Sema::Sema(DiagnosticsEngine &Diags) : Diags(Diags), Reg(new Registry()) {
 
 }
 
+Sema::~Sema() {
+	// Delete Builder
+	delete Builder;
+	delete Reg;
+}
+
 llvm::SmallVector<SemaModule *, 8> Sema::Resolve(llvm::SmallVector<ASTModule *, 8> &Modules) {
-	// Initialize the Registry
-	Registry *Reg = new Registry();
+
 
 	// Create the Resolver with AST Modules
 	Resolver R(Diags, *Reg);

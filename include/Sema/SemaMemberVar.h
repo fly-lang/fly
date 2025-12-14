@@ -32,6 +32,8 @@ namespace fly {
 
     public:
 
+        ~SemaMemberVar() override = default;
+
         SemaClassAttribute *getClassAttribute() const;
 
         void setClassAttribute(SemaClassAttribute *ClassAttribute);

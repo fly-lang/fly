@@ -33,6 +33,8 @@ namespace fly {
 
         explicit SemaErrorHandler(ASTVar *AST);
 
+        ~SemaErrorHandler() override = default;
+
         CodeGenError *getCodeGen() const override;
 
         void setCodeGen(CodeGenVarBase *CodeGen) override;

@@ -15,6 +15,11 @@ SemaEnumEntry::SemaEnumEntry(ASTVar &AST) : SemaVar(&AST, SemaVarKind::ENUM_ENTR
 
 }
 
+SemaEnumEntry::~SemaEnumEntry() {
+	// Delete Comment if present
+	delete Comment;
+}
+
 size_t SemaEnumEntry::getIndex() const {
 	return Index;
 }

@@ -21,6 +21,8 @@
 #include <AST/ASTExprStmt.h>
 #include <AST/ASTMember.h>
 #include <AST/ASTName.h>
+#include <AST/ASTDeclStmt.h>
+#include <AST/ASTLocalVar.h>
 
 namespace {
 
@@ -59,8 +61,9 @@ namespace {
      	ASTBlockStmt *Body = main->getBody();
 		ASSERT_FALSE(Body->getContent().empty());
 
-		// First assignment: Test a = Test.A
-		auto *aExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
+		// First statement: Test a = Test.A
+		auto *aExprStmt = As<ASTDeclStmt>(Body->getContent()[0]);
+		EXPECT_EQ(aExprStmt->getLocalVar()->getName(), "a");
 		auto *AssignBinaryExpr = As<ASTBinaryOp>(aExprStmt->getExpr());
 		EXPECT_EQ(AssignBinaryExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
 
@@ -78,7 +81,7 @@ namespace {
 		EXPECT_EQ(As<ASTIdentifier>(Test_a->getParent())->getName(), "Test");
 		EXPECT_EQ(Test_a->getParent()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
 
-     // Verify second assignment: a = Test.B
+     // Verify second statement: a = Test.B
     	auto *aExprStmt2 = As<ASTExprStmt>(Body->getContent()[1]);
     	auto *AssignBinaryExpr2 = As<ASTBinaryOp>(aExprStmt2->getExpr());
     	EXPECT_EQ(AssignBinaryExpr2->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
@@ -98,7 +101,8 @@ namespace {
     	EXPECT_EQ(Test_b->getParent()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
 
     	// Verify third statement: Test c = a
-    	auto *aExprStmt3 = As<ASTExprStmt>(Body->getContent()[2]);
+    	auto *aExprStmt3 = As<ASTDeclStmt>(Body->getContent()[2]);
+    	EXPECT_EQ(aExprStmt3->getLocalVar()->getName(), "c");
     	auto *AssignBinaryExpr3 = As<ASTBinaryOp>(aExprStmt3->getExpr());
     	EXPECT_EQ(AssignBinaryExpr3->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
 

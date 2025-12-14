@@ -39,6 +39,7 @@
 #include "llvm/Support/Regex.h"
 
 #include <AST/ASTExprStmt.h>
+#include <AST/ASTDeclStmt.h>
 #include <AST/ASTFailStmt.h>
 #include <AST/ASTLocalVar.h>
 #include <AST/ASTModifier.h>
@@ -462,6 +463,13 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
     	ASTLocalVar *LocalVar = Builder.CreateLocalVar(Parent, Loc, T, Name, Modifiers);
     	Identifier = Builder.CreateIdentifier(LocalVar);
 
+    	// Check for assignment
+    	if ( isAssignOperator(Tok)) {
+    		ASTDeclStmt * DeclStmt = Builder.CreateDeclStmt(Parent, Tok.getLocation(), LocalVar);
+    		DeclStmt->setExpr(ParseExpr(Identifier));
+    		return;
+    	}
+
         // Check for handle statement
         if (Tok.is(tok::kw_handle)) {
             ParseHandleStmt(Parent, Identifier);
@@ -484,10 +492,11 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
         ASTExpr *Expr = ParseExpr(Identifier);
         Stmt->setExpr(Expr);
 		return;
-    } else if (Identifier) {
-    	// Declaration without initializer: create an expression statement with just the identifier
-    	ASTExprStmt *Stmt = Builder.CreateExprStmt(Parent, Identifier->getLocation());
-        Stmt->setExpr(Identifier);
+    } else if (Identifier && Identifier->getVar()) {
+    	// Declaration without initializer: create a declaration statement without an expression
+    	ASTLocalVar *LocalVar = static_cast<ASTLocalVar*>(Identifier->getVar());
+    	ASTDeclStmt *DeclStmt = Builder.CreateDeclStmt(Parent, Identifier->getLocation(), LocalVar);
+    	// No expression - DeclStmt->setExpr(nullptr) is implicit
 		return;
     } else if (!Tok.is(tok::r_brace) && Tok.isNot(tok::eof)) {
     	// a()

@@ -56,6 +56,8 @@ namespace fly {
 
     public:
 
+    	~SemaClassMethod() override;
+
     	SemaClassType *getClass() const;
     	
     	SemaClassInstance *getThis() const;

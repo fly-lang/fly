@@ -16,8 +16,20 @@
 
 using namespace fly;
 
-// TODO: implement destructor to free allocated Sema* objects
-SemaModule::~SemaModule() = default;
+SemaModule::~SemaModule() {
+	// Delete all owned Imports
+	for (auto *Import : Imports) {
+		delete Import;
+	}
+
+	// Delete all owned Nodes (Functions, Classes, Enums)
+	for (auto *Node : Nodes) {
+		delete Node;
+	}
+
+	// Delete NameSpace if owned
+	delete NameSpace;
+}
 
 SemaModule::SemaModule(ASTModule &AST) : AST(AST) {
 

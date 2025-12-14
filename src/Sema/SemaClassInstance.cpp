@@ -17,6 +17,13 @@ SemaClassInstance::SemaClassInstance(SemaClassType *Class) :
 		Type = Class;
 }
 
+SemaClassInstance::~SemaClassInstance() {
+	// Delete all base instances
+	for (auto &Pair : BaseInstances) {
+		delete Pair.second;
+	}
+}
+
 SemaClassInstance *SemaClassInstance::getParent() const {
     return static_cast<SemaClassInstance *>(Parent);
 }

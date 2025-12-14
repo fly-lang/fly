@@ -42,6 +42,8 @@ namespace fly {
 
     public:
 
+        ~SemaValue() override = default;
+
 		SemaType *getType() const;
 
     };
@@ -57,6 +59,8 @@ namespace fly {
 		explicit SemaBoolValue(ASTBoolValue &AST);
 
 	public:
+
+		~SemaBoolValue() override = default;
 
 		bool getValue() const;
 
@@ -74,6 +78,8 @@ namespace fly {
 
 	public:
 
+		~SemaIntValue() override = default;
+
 		llvm::APInt getValue() const;
 
 	};
@@ -89,6 +95,8 @@ namespace fly {
 		explicit SemaFloatValue(ASTNumberValue &AST);
 
 	public:
+
+		~SemaFloatValue() override = default;
 
 		llvm::APFloat getValue() const;
 
@@ -106,6 +114,8 @@ namespace fly {
 
 	public:
 
+		~SemaStringValue() override = default;
+
 		llvm::StringRef getValue() const;
 
 	};
@@ -121,6 +131,8 @@ namespace fly {
 		explicit SemaArrayValue(ASTArrayValue &AST);
 
 	public:
+
+		~SemaArrayValue() override = default;
 
 		const llvm::SmallVector<SemaValue *, 8> &getValues() const;
 
@@ -138,6 +150,8 @@ namespace fly {
 
 	public:
 
+		~SemaStructValue() override = default;
+
 		const llvm::StringMap<SemaValue *> &getValues() const;
 
 	};
@@ -147,6 +161,10 @@ namespace fly {
 		friend class SemaBuilder;
 
 		explicit SemaNullValue(ASTNullValue &AST);
+
+	public:
+
+		~SemaNullValue() override = default;
 	};
 
 }

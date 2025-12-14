@@ -32,6 +32,8 @@ namespace fly {
     public:
         SemaImport(ASTImport &AST);
 
+        ~SemaImport() override = default;
+
 		ASTImport* getAST() const;
 
         const llvm::SmallVector<ASTName *, 4> &getNames() const;

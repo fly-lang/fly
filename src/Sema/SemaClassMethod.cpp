@@ -18,6 +18,13 @@ SemaClassMethod::SemaClassMethod(ASTMethod &AST, SemaClassType *Class, SemaClass
 
 }
 
+SemaClassMethod::~SemaClassMethod() {
+	// Delete Comment if present
+	delete Comment;
+
+	// Note: Params and LocalVars are deleted by SemaFunctionBase destructor
+}
+
 SemaClassType *SemaClassMethod::getClass() const {
 	return Class;
 }

@@ -50,7 +50,7 @@ namespace fly {
 
 		Registry();
 
-		~Registry() = default;
+		~Registry();
 
 		SymbolTable * CreateBuiltinScope();
 

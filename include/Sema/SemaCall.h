@@ -36,6 +36,8 @@ namespace fly {
 
     public:
 
+    	~SemaCall() override = default;
+
     	ASTCall &getAST() const;
 
     	SemaFunctionBase *getFunction() const;

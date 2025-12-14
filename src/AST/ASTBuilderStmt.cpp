@@ -15,6 +15,8 @@
 #include "AST/ASTFailStmt.h"
 #include "AST/ASTExprStmt.h"
 
+#include <AST/ASTDeclStmt.h>
+
 using namespace fly;
 
 ASTBuilderStmt::ASTBuilderStmt() {
@@ -58,6 +60,9 @@ void ASTBuilderStmt::setExpr(ASTExpr *Expr) {
         case ASTStmtKind::STMT_EXPR:
             ((ASTExprStmt *) Stmt)->setExpr(Expr);
             return;
+    	case ASTStmtKind::STMT_DECL:
+    		((ASTDeclStmt *) Stmt)->setExpr(Expr);
+    		return;
     }
 
     assert(false && "Invalid Stmt Kind");

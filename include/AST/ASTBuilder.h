@@ -12,6 +12,7 @@
 
 #include <AST/ASTModifier.h>
 
+#include "ASTDeclStmt.h"
 #include "ASTLoopInStmt.h"
 #include "ASTVar.h"
 #include "llvm/ADT/StringMap.h"
@@ -243,7 +244,7 @@ namespace fly {
          ASTParam *CreateParam(const SourceLocation &Loc, ASTType *TypeRef, llvm::StringRef Name,
                               llvm::SmallVector<ASTModifier *, 8> &Modifiers, ASTValue *DefaultValue = nullptr);
 
-         ASTLocalVar *CreateLocalVar(ASTBlockStmt *BlockStmt, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+         ASTLocalVar *CreateLocalVar(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     llvm::SmallVector<ASTModifier *, 8> &Modifiers);
 
         // Create Call
@@ -269,6 +270,7 @@ namespace fly {
 
         // Create Statements
 
+        ASTDeclStmt *CreateDeclStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTLocalVar *Var);
 
         ASTReturnStmt *CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 

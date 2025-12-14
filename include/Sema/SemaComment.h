@@ -27,6 +27,8 @@ namespace fly {
 
     public:
 
+        ~SemaComment() = default;
+
     	ASTComment &getAST() const;
 
     };

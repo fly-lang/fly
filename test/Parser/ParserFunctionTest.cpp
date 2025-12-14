@@ -25,6 +25,8 @@
 
 #include <AST/ASTParam.h>
 #include <AST/ASTType.h>
+#include <AST/ASTDeclStmt.h>
+#include <AST/ASTLocalVar.h>
 
 namespace {
 
@@ -193,7 +195,8 @@ namespace {
         ASSERT_FALSE(Body->getContent().empty());
 
         // Test: int b = doSome()
-        auto *VarBStmt = As<ASTExprStmt>(Body->getContent()[0]);
+        auto *VarBStmt = As<ASTDeclStmt>(Body->getContent()[0]);
+        EXPECT_EQ(VarBStmt->getLocalVar()->getName(), "b");
         auto *AssignExpr1 = As<ASTBinaryOp>(VarBStmt->getExpr());
         ASSERT_TRUE(AssignExpr1 != nullptr);
         EXPECT_EQ(AssignExpr1->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
