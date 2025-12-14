@@ -27,6 +27,16 @@ namespace {
     using namespace fly;
 
     TEST_F(CodeGenTest, CGEnum) {
+        /**
+         * Fly code:
+         * enum TestEnum {
+         *   A, B, C
+         * }
+         * void func() {
+         *   TestEnum a = TestEnum.A
+         *   TestEnum b = a
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // enum TestEnum {

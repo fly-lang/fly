@@ -47,6 +47,7 @@ public:
     DiagnosticsEngine &Diags;
 	ASTBuilder *Builder;
     Sema *S;
+	llvm::SmallVector<ASTModule *, 8> ASTModules;
     SourceLocation SourceLoc;
     ASTType *VoidTypeRef;
     ASTType *BoolTypeRef;
@@ -96,11 +97,16 @@ public:
     	auto FID = new InputFile(Diags, CI.getSourceManager(), Name);
         auto AST = Builder->CreateModule(FID);
         Diags.getClient()->EndSourceFile();
+    	ASTModules.push_back(AST);
         return AST;
     }
 
     virtual ~CodeGenTest() {
         llvm::outs().flush();
+    	ASTModules.clear();
+    	delete Builder;
+    	delete S;
+    	delete CG;
     }
 
 	ASTBuilder &getASTBuilder() {
@@ -110,18 +116,18 @@ public:
 	ASTType *CreateType(ASTClass *Class) {
     	llvm::SmallVector<ASTName *, 4> Names;
     	Names.push_back(Builder->CreateName(Class->getName(), Class->getLocation()));
-    	Builder->CreateType(Class->getLocation(), Names);
+    	return Builder->CreateType(Class->getLocation(), Names);
     }
 
 	ASTType *CreateType(ASTEnum *Enum) {
     	llvm::SmallVector<ASTName *, 4> Names;
     	Names.push_back(Builder->CreateName(Enum->getName(), Enum->getLocation()));
-    	Builder->CreateType(Enum->getLocation(), Names);
+    	return Builder->CreateType(Enum->getLocation(), Names);
     }
 
 	std::vector<llvm::Module *> &Generate() {
     	// validate and resolve
-    	SmallVector<SemaModule *, 8> SemaModules = S->Resolve();
+    	SmallVector<SemaModule *, 8> SemaModules = S->Resolve(ASTModules);
     	EXPECT_FALSE(Diags.hasErrorOccurred());
     	EXPECT_FALSE(SemaModules.empty());
     	std::vector<llvm::Module *> CGModules = CG->GenerateModules(SemaModules);

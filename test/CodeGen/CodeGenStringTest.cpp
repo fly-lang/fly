@@ -27,6 +27,13 @@ namespace {
     using namespace fly;
 
     TEST_F(CodeGenTest, CGDefaultStringLocalVar) {
+        /**
+         * Fly code:
+         * void func() {
+         *   string k = default
+         *   char l = default
+         * }
+         */
         ASTModule *Module = CreateModule();
 
     	ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
@@ -63,6 +70,11 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGFuncStringParam) {
+        /**
+         * Fly code:
+         * void func(string k, char l) {
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         llvm::SmallVector<ASTParam *, 8> Params;
@@ -98,6 +110,14 @@ namespace {
      }
 
      TEST_F(CodeGenTest, GCStringLocalVarAssignAfter) {
+         /**
+          * Fly code:
+          * void func() {
+          *   float g
+          *   g = 1.0
+          *   return g
+          * }
+          */
          ASTModule *Module = CreateModule();
 
          // func()

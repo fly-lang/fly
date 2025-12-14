@@ -9,7 +9,8 @@
 
 // fly
 #include "AST/ASTType.h"
-#include "AST/ASTAssignStmt.h"
+#include "AST/ASTExprStmt.h"
+#include "AST/ASTOp.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTIdentifier.h"
@@ -28,6 +29,12 @@ namespace {
     using namespace fly;
 
     TEST_F(CodeGenTest, CGArrayLocalVar) {
+        /**
+         * Fly code:
+         * void func() {
+         *   int[] k = {}
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
@@ -36,10 +43,12 @@ namespace {
         // default int[] k = {}
         ASTArrayType *ArrayIntType = getASTBuilder().CreateArrayType(SourceLoc, IntTypeRef, nullptr);
         ASTLocalVar *LocalVar_k = getASTBuilder().CreateLocalVar(Body, SourceLoc, ArrayIntType, "k", EmptyModifiers);
-        ASTAssignStmt *VarStmt_k = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(LocalVar_k));
+        ASTExprStmt *VarStmt_k = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         llvm::SmallVector<ASTValue *, 8> EmptyVals;
         ASTArrayValue *EmptyArr = getASTBuilder().CreateArrayValue(SourceLoc, EmptyVals);
-        VarStmt_k->setExpr(EmptyArr);
+        ASTIdentifier *kIdent = getASTBuilder().CreateIdentifier(LocalVar_k);
+        ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, kIdent, EmptyArr);
+        VarStmt_k->setExpr(AssignExpr);
 
         // Generate Code
         llvm::Module *M = Generate()[0];
@@ -56,6 +65,11 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGFuncArrayParam) {
+        /**
+         * Fly code:
+         * void func(int[] k) {
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // Build function with an array parameter: void func(int[] k) {}
@@ -100,6 +114,14 @@ namespace {
     }
 
     TEST_F(CodeGenTest, GCArrayLocalVarAssignAfter) {
+        /**
+         * Fly code:
+         * void func() {
+         *   int[] g
+         *   g = 1.0
+         *   return g
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // func()
@@ -112,9 +134,10 @@ namespace {
 
         // g = 1.0
         ASTIdentifier *VarRef_g = getASTBuilder().CreateIdentifier(LocalVar_g);
-        ASTAssignStmt *GVarStmt = getASTBuilder().CreateAssignmentStmt(Body, VarRef_g);
+        ASTExprStmt *GVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTNumberValue *ExprG = getASTBuilder().CreateNumberValue(SourceLoc, "1.0");
-        GVarStmt->setExpr(ExprG);
+        ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, VarRef_g, ExprG);
+        GVarStmt->setExpr(AssignExpr);
 
         // return g
         ASTReturnStmt *Return = getASTBuilder().CreateReturnStmt(Body, SourceLoc);
@@ -137,6 +160,12 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGArrayValue) {
+        /**
+         * Fly code:
+         * void func() {
+         *   int[] a = {1, 2, 3}
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // func()
@@ -145,9 +174,11 @@ namespace {
 
         // int[] a = {1,2,3}
         ASTLocalVar *LocalVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
-        ASTAssignStmt *VarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(LocalVar));
+        ASTExprStmt *VarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTNumberValue *ValueExpr = getASTBuilder().CreateNumberValue(SourceLoc, "1");
-        VarStmt->setExpr(ValueExpr);
+        ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(LocalVar);
+        ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, ValueExpr);
+        VarStmt->setExpr(AssignExpr);
 
         // Generate Code
         llvm::Module *M = Generate()[0];

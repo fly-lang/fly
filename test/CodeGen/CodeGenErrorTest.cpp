@@ -22,6 +22,14 @@ namespace {
 
 
 	TEST_F(CodeGenTest, CGErrorHandler) {
+        /**
+         * Fly code:
+         * void func() {
+         *   error A = handle {
+         *     fail
+         *   }
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // func() {
@@ -61,6 +69,15 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGErrorFail0) {
+        /**
+         * Fly code:
+         * int testFail() {
+         *   fail
+         * }
+         * void main() {
+         *   testFail()
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // int testFail() {
@@ -120,6 +137,15 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGErrorFail1) {
+        /**
+         * Fly code:
+         * int testFail() {
+         *   fail true
+         * }
+         * void main() {
+         *   testFail()
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // int testFail() {
@@ -181,6 +207,15 @@ namespace {
     }
 
 	TEST_F(CodeGenTest, CGErrorFail2) {
+        /**
+         * Fly code:
+         * int testFail() {
+         *   fail 10
+         * }
+         * void main() {
+         *   testFail()
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // int testFail2() {
@@ -242,6 +277,15 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGErrorFail3) {
+        /**
+         * Fly code:
+         * int testFail() {
+         *   fail "Error"
+         * }
+         * void main() {
+         *   testFail()
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // int testFail() {
@@ -304,6 +348,18 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGErrorFail4) {
+        /**
+         * Fly code:
+         * struct TestStruct {
+         *   int a
+         * }
+         * int testFail() {
+         *   fail new TestStruct()
+         * }
+         * void main() {
+         *   testFail()
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // struct TestStruct {

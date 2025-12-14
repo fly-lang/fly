@@ -64,14 +64,6 @@ void ASTBlockStmt::addContent(ASTStmt *Stmt) {
 }
 
 /**
- * Get LocalVars
- * @return the Block's declared vars
- */
-const llvm::StringMap<ASTLocalVar *> &ASTBlockStmt::getLocalVars() const {
-    return LocalVars;
-}
-
-/**
  * Convert to String
  * @return string info for debugging
  */
@@ -85,8 +77,4 @@ std::string ASTBlockStmt::str() const {
 ASTBlockStmt::~ASTBlockStmt() {
     for (auto *S : Content) delete S;
     Content.clear();
-    for (auto &KV : LocalVars) {
-        delete KV.second;
-    }
-    LocalVars.clear();
 }

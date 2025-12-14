@@ -32,6 +32,10 @@ SemaVisibilityKind SemaFunction::getVisibility() const {
 	return Visibility;
 }
 
+const llvm::SmallVector<SemaLocalVar *, 4> &SemaFunction::getLocalVars() const {
+	return LocalVars;
+}
+
 CodeGenFunction *SemaFunction::getCodeGen() const {
 	return CodeGen;
 }

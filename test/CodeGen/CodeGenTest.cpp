@@ -7,27 +7,15 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-// fly
 #include "CodeGenTest.h"
 #include "CodeGen/CodeGenModule.h"
-#include "CodeGen/CodeGenFunction.h"
 #include "CodeGen/CodeGenClass.h"
 #include "Sema/SemaBuilderModifiers.h"
 #include "AST/ASTModule.h"
-#include "AST/ASTNameSpace.h"
 #include "AST/ASTVar.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTDeleteStmt.h"
 #include "AST/ASTIdentifier.h"
-#include "AST/ASTVar.h"
-#include "AST/ASTIfStmt.h"
-#include "AST/ASTSwitchStmt.h"
-#include "AST/ASTLoopStmt.h"
-#include "AST/ASTHandleStmt.h"
-#include "AST/ASTClass.h"
-#include "AST/ASTEnum.h"
 #include "AST/ASTExprStmt.h"
-#include "AST/ASTFailStmt.h"
 #include "AST/ASTOp.h"
 
 #include <AST/ASTBuilderIfStmt.h>
@@ -43,70 +31,94 @@ namespace {
     using namespace fly;
 
     TEST_F(CodeGenTest, CGDefaultValueLocalVar) {
+        /**
+         * Fly code:
+         * void func() {
+         *   bool a
+         *   byte b
+         *   short c
+         *   ushort d
+         *   int e
+         *   uint f
+         *   long g
+         *   ulong h
+         *   float i
+         *   double j
+         * }
+         */
         ASTModule *Module = CreateModule();
-
     	ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
     	ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // default bool a = false
     	ASTLocalVar *LocalVar_a = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "a", EmptyModifiers);
     	ASTIdentifier * Identifier_a = getASTBuilder().CreateIdentifier(LocalVar_a);
-    	ASTAssignStmt * VarStmt_a = getASTBuilder().CreateAssignmentStmt(Body, Identifier_a);
-    	VarStmt_a->setExpr(getASTBuilder().CreateDefaultValue());
+    	ASTExprStmt * VarStmt_a = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTBinaryOp *AssignExpr_a = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_a, getASTBuilder().CreateDefaultValue());
+    	VarStmt_a->setExpr(AssignExpr_a);
 
         // default byte b = 0
     	ASTLocalVar *LocalVar_b = getASTBuilder().CreateLocalVar(Body, SourceLoc, ByteTypeRef, "b", EmptyModifiers);
     	ASTIdentifier * Identifier_b = getASTBuilder().CreateIdentifier(LocalVar_b);
-    	ASTAssignStmt * VarStmt_b = getASTBuilder().CreateAssignmentStmt(Body, Identifier_b);
-    	VarStmt_b->setExpr(getASTBuilder().CreateDefaultValue());
+    	ASTExprStmt * VarStmt_b = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTBinaryOp *AssignExpr_b = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_b, getASTBuilder().CreateDefaultValue());
+    	VarStmt_b->setExpr(AssignExpr_b);
 
         // default short c = 0
     	ASTLocalVar *LocalVar_c = getASTBuilder().CreateLocalVar(Body, SourceLoc, ShortTypeRef, "c", EmptyModifiers);
     	ASTIdentifier * Identifier_c = getASTBuilder().CreateIdentifier(LocalVar_c);
-    	ASTAssignStmt * VarStmt_c = getASTBuilder().CreateAssignmentStmt(Body, Identifier_c);
-    	VarStmt_c->setExpr(getASTBuilder().CreateDefaultValue());
+    	ASTExprStmt * VarStmt_c = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTBinaryOp *AssignExpr_c = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_c, getASTBuilder().CreateDefaultValue());
+    	VarStmt_c->setExpr(AssignExpr_c);
 
         // default ushort d = 0
     	ASTLocalVar *LocalVar_d = getASTBuilder().CreateLocalVar(Body, SourceLoc, UShortTypeRef, "d", EmptyModifiers);
     	ASTIdentifier * Identifier_d = getASTBuilder().CreateIdentifier(LocalVar_d);
-    	ASTAssignStmt * VarStmt_d = getASTBuilder().CreateAssignmentStmt(Body, Identifier_d);
-    	VarStmt_d->setExpr(getASTBuilder().CreateDefaultValue());
+    	ASTExprStmt * VarStmt_d = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTBinaryOp *AssignExpr_d = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_d, getASTBuilder().CreateDefaultValue());
+    	VarStmt_d->setExpr(AssignExpr_d);
 
         // default int e = 0
     	ASTLocalVar *LocalVar_e = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "e", EmptyModifiers);
     	ASTIdentifier * Identifier_e = getASTBuilder().CreateIdentifier(LocalVar_e);
-    	ASTAssignStmt * VarStmt_e = getASTBuilder().CreateAssignmentStmt(Body, Identifier_e);
-    	VarStmt_e->setExpr(getASTBuilder().CreateDefaultValue());
+    	ASTExprStmt * VarStmt_e = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTBinaryOp *AssignExpr_e = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_e, getASTBuilder().CreateDefaultValue());
+    	VarStmt_e->setExpr(AssignExpr_e);
 
         // default uint f = 0
     	ASTLocalVar *LocalVar_f = getASTBuilder().CreateLocalVar(Body, SourceLoc, UIntTypeRef, "f", EmptyModifiers);
     	ASTIdentifier * Identifier_f = getASTBuilder().CreateIdentifier(LocalVar_f);
-    	ASTAssignStmt * VarStmt_f = getASTBuilder().CreateAssignmentStmt(Body, Identifier_f);
-    	VarStmt_f->setExpr(getASTBuilder().CreateDefaultValue());
+    	ASTExprStmt * VarStmt_f = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTBinaryOp *AssignExpr_f = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_f, getASTBuilder().CreateDefaultValue());
+    	VarStmt_f->setExpr(AssignExpr_f);
 
         // default long g = 0
     	ASTLocalVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, LongTypeRef, "g", EmptyModifiers);
     	ASTIdentifier * Identifier_g = getASTBuilder().CreateIdentifier(LocalVar_g);
-    	ASTAssignStmt * VarStmt_g = getASTBuilder().CreateAssignmentStmt(Body, Identifier_g);
-    	VarStmt_g->setExpr(getASTBuilder().CreateDefaultValue());
+    	ASTExprStmt * VarStmt_g = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTBinaryOp *AssignExpr_g = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_g, getASTBuilder().CreateDefaultValue());
+    	VarStmt_g->setExpr(AssignExpr_g);
 
         // default ulong h = 0
     	ASTLocalVar *LocalVar_h = getASTBuilder().CreateLocalVar(Body, SourceLoc, ULongTypeRef, "h", EmptyModifiers);
     	ASTIdentifier * Identifier_h = getASTBuilder().CreateIdentifier(LocalVar_h);
-    	ASTAssignStmt * VarStmt_h = getASTBuilder().CreateAssignmentStmt(Body, Identifier_h);
-    	VarStmt_h->setExpr(getASTBuilder().CreateDefaultValue());
+    	ASTExprStmt * VarStmt_h = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTBinaryOp *AssignExpr_h = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_h, getASTBuilder().CreateDefaultValue());
+    	VarStmt_h->setExpr(AssignExpr_h);
 
         // default float i = 0.0
     	ASTLocalVar *LocalVar_i = getASTBuilder().CreateLocalVar(Body, SourceLoc, FloatTypeRef, "i", EmptyModifiers);
     	ASTIdentifier * Identifier_i = getASTBuilder().CreateIdentifier(LocalVar_i);
-    	ASTAssignStmt * VarStmt_i = getASTBuilder().CreateAssignmentStmt(Body, Identifier_i);
-    	VarStmt_i->setExpr(getASTBuilder().CreateDefaultValue());
+    	ASTExprStmt * VarStmt_i = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTBinaryOp *AssignExpr_i = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_i, getASTBuilder().CreateDefaultValue());
+    	VarStmt_i->setExpr(AssignExpr_i);
 
         // default double j = 0.0
     	ASTLocalVar *LocalVar_j = getASTBuilder().CreateLocalVar(Body, SourceLoc, DoubleTypeRef, "j", EmptyModifiers);
     	ASTIdentifier * Identifier_j = getASTBuilder().CreateIdentifier(LocalVar_j);
-    	ASTAssignStmt * VarStmt_j = getASTBuilder().CreateAssignmentStmt(Body, Identifier_j);
-    	VarStmt_j->setExpr(getASTBuilder().CreateDefaultValue());
+    	ASTExprStmt * VarStmt_j = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTBinaryOp *AssignExpr_j = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier_j, getASTBuilder().CreateDefaultValue());
+    	VarStmt_j->setExpr(AssignExpr_j);
 
     	// CreateVTable Code
     	llvm::Module * M = Generate()[0];
@@ -141,6 +153,11 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGFuncParamTypes) {
+        /**
+         * Fly code:
+         * void func(int a, float b, bool c, long d, double e, byte f, short g, ushort h, uint i, ulong j) {
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         llvm::SmallVector<ASTParam *, 8> Params;
@@ -194,6 +211,14 @@ namespace {
     }
 
     TEST_F(CodeGenTest, GCLocalVarAssignAfter) {
+        /**
+         * Fly code:
+         * float func() {
+         *   float g
+         *   g = 1.0
+         *   return g
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // func()
@@ -205,9 +230,10 @@ namespace {
 
         // g = 1.0
         ASTIdentifier *VarRef_g = getASTBuilder().CreateIdentifier(LocalVar_g);
-         ASTAssignStmt * GVarStmt = getASTBuilder().CreateAssignmentStmt(Body, VarRef_g);
+         ASTExprStmt * GVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTExpr *ExprG = getASTBuilder().CreateNumberValue(SourceLoc, "1.0");
-        GVarStmt->setExpr(ExprG);
+        ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, VarRef_g, ExprG);
+        GVarStmt->setExpr(AssignExpr);
 
         // return g
         ASTReturnStmt * Return = getASTBuilder().CreateReturnStmt(Body, SourceLoc);
@@ -229,6 +255,12 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGValue) {
+        /**
+         * Fly code:
+         * void func() {
+         *   int a = 1
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // func()
@@ -238,9 +270,10 @@ namespace {
         // int a = 1
         ASTLocalVar *LocalVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
 		ASTIdentifier * Identifier = getASTBuilder().CreateIdentifier(LocalVar);
-        ASTAssignStmt * VarStmt = getASTBuilder().CreateAssignmentStmt(Body, Identifier);
-        ASTNumberValue *ValueExpr = getASTBuilder().CreateNumberValue(SourceLoc, "1");
-        VarStmt->setExpr(ValueExpr);
+        ASTExprStmt * VarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTExpr *ValueExpr = getASTBuilder().CreateNumberValue(SourceLoc, "1");
+        ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Identifier, ValueExpr);
+        VarStmt->setExpr(AssignExpr);
 
     	// CreateVTable Code
     	llvm::Module * M = Generate()[0];
@@ -257,6 +290,15 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGFuncCall) {
+        /**
+         * Fly code:
+         * int test() {
+         *   return 1
+         * }
+         * void func() {
+         *   int a = test()
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // test()
@@ -366,6 +408,27 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGArithOp) {
+        /**
+         * Fly code:
+         * void func(int a, int b, int c) {
+         *   a = 0
+         *   b = 0
+         *   c = a + b
+         *   c = a - b
+         *   c = a * b
+         *   c = a / b
+         *   c = a % b
+         *   c = a & b
+         *   c = a | b
+         *   c = a ^ b
+         *   c = a << b
+         *   c = a >> b
+         *   ++c
+         *   c++
+         *   --c
+         *   c--
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // func()
@@ -380,107 +443,119 @@ namespace {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // a = 0
-        ASTAssignStmt * aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(aParam));
-        ASTExpr *AssignExpr = getASTBuilder().CreateNumberValue(SourceLoc, "0");
-        aVarStmt->setExpr(AssignExpr);
+        ASTExprStmt * aVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTExpr *Assign0Expr = getASTBuilder().CreateNumberValue(SourceLoc, "0");
+        ASTBinaryOp *aAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aParam), Assign0Expr);
+        aVarStmt->setExpr(aAssignExpr);
         // b = 0
-        ASTAssignStmt *bVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(bParam));
-        AssignExpr = getASTBuilder().CreateNumberValue(SourceLoc, "0");
-        bVarStmt->setExpr(AssignExpr);
+        ASTExprStmt *bVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTExpr *Assign0Expr2 = getASTBuilder().CreateNumberValue(SourceLoc, "0");
+        ASTBinaryOp *bAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(bParam), Assign0Expr2);
+        bVarStmt->setExpr(bAssignExpr);
 
         // c = a + b
-         ASTAssignStmt * cAddVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cParam));
-        AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ADD,
+         ASTExprStmt * cAddVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTExpr *AddExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ADD,
                 getASTBuilder().CreateIdentifier(aParam),
                 getASTBuilder().CreateIdentifier(bParam));
-        cAddVarStmt->setExpr(AssignExpr);
+        ASTBinaryOp *cAddAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cParam), AddExpr);
+        cAddVarStmt->setExpr(cAddAssignExpr);
 
         // c = a - b
-         ASTAssignStmt * cSubVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cParam));
-        AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_SUB,
+         ASTExprStmt * cSubVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTExpr *SubExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_SUB,
                 getASTBuilder().CreateIdentifier(aParam),
                 getASTBuilder().CreateIdentifier(bParam));
-        cSubVarStmt->setExpr(AssignExpr);
+        ASTBinaryOp *cSubAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cParam), SubExpr);
+        cSubVarStmt->setExpr(cSubAssignExpr);
 
         // c = a * b
-         ASTAssignStmt * cMulVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cParam));
-        AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_MUL,
+         ASTExprStmt * cMulVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTExpr *MulExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_MUL,
                 getASTBuilder().CreateIdentifier(aParam),
                 getASTBuilder().CreateIdentifier(bParam));
-        cMulVarStmt->setExpr(AssignExpr);
+        ASTBinaryOp *cMulAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cParam), MulExpr);
+        cMulVarStmt->setExpr(cMulAssignExpr);
 
         // c = a / b
-         ASTAssignStmt * cDivVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cParam));
-        AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_DIV,
+         ASTExprStmt * cDivVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTExpr *DivExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_DIV,
                 getASTBuilder().CreateIdentifier(aParam),
                 getASTBuilder().CreateIdentifier(bParam));
-        cDivVarStmt->setExpr(AssignExpr);
+        ASTBinaryOp *cDivAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cParam), DivExpr);
+        cDivVarStmt->setExpr(cDivAssignExpr);
 
         // c = a % b
-         ASTAssignStmt * cModVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cParam));
-        AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_MOD,
+         ASTExprStmt * cModVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTExpr *ModExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_MOD,
                 getASTBuilder().CreateIdentifier(aParam),
                 getASTBuilder().CreateIdentifier(bParam));
-        cModVarStmt->setExpr(AssignExpr);
+        ASTBinaryOp *cModAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cParam), ModExpr);
+        cModVarStmt->setExpr(cModAssignExpr);
 
         // c = a & b
-         ASTAssignStmt * cAndVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cParam));
-        AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_AND,
+         ASTExprStmt * cAndVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTExpr *AndExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_AND,
                 getASTBuilder().CreateIdentifier(aParam),
                 getASTBuilder().CreateIdentifier(bParam));
-        cAndVarStmt->setExpr(AssignExpr);
+        ASTBinaryOp *cAndAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cParam), AndExpr);
+        cAndVarStmt->setExpr(cAndAssignExpr);
 
         // c = a | b
-         ASTAssignStmt * cOrVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cParam));
-        AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_OR,
+         ASTExprStmt * cOrVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTExpr *OrExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_OR,
                 getASTBuilder().CreateIdentifier(aParam),
                 getASTBuilder().CreateIdentifier(bParam));
-        cOrVarStmt->setExpr(AssignExpr);
+        ASTBinaryOp *cOrAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cParam), OrExpr);
+        cOrVarStmt->setExpr(cOrAssignExpr);
 
         // c = a xor b
-         ASTAssignStmt * cXorVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cParam));
-        AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_XOR,
+         ASTExprStmt * cXorVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTExpr *XorExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_XOR,
                 getASTBuilder().CreateIdentifier(aParam),
                 getASTBuilder().CreateIdentifier(bParam));
-        cXorVarStmt->setExpr(AssignExpr);
+        ASTBinaryOp *cXorAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cParam), XorExpr);
+        cXorVarStmt->setExpr(cXorAssignExpr);
 
         // c = a << b
-         ASTAssignStmt * cShlVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cParam));
-        AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_SHIFT_L,
+         ASTExprStmt * cShlVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTExpr *ShlExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_SHIFT_L,
                 getASTBuilder().CreateIdentifier(aParam),
                 getASTBuilder().CreateIdentifier(bParam));
-        cShlVarStmt->setExpr(AssignExpr);
+        ASTBinaryOp *cShlAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cParam), ShlExpr);
+        cShlVarStmt->setExpr(cShlAssignExpr);
 
         // c = a >> b
-         ASTAssignStmt * cShrVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cParam));
-        AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_SHIFT_R,
+         ASTExprStmt * cShrVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTExpr *ShrExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_SHIFT_R,
                 getASTBuilder().CreateIdentifier(aParam),
                 getASTBuilder().CreateIdentifier(bParam));
-        cShrVarStmt->setExpr(AssignExpr);
+        ASTBinaryOp *cShrAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cParam), ShrExpr);
+        cShrVarStmt->setExpr(cShrAssignExpr);
 
         // ++c
         ASTExprStmt * cPreIncVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
-        AssignExpr = getASTBuilder().CreateUnary(SourceLoc, ASTUnaryOpKind::OP_UNARY_PRE_INCR,
+        ASTUnaryOp *PreIncExpr = getASTBuilder().CreateUnary(SourceLoc, ASTUnaryOpKind::OP_UNARY_PRE_INCR,
                 getASTBuilder().CreateIdentifier(cParam));
-        cPreIncVarStmt->setExpr(AssignExpr);
+        cPreIncVarStmt->setExpr(PreIncExpr);
 
         // c++
         ASTExprStmt * cPostIncVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
-        AssignExpr = getASTBuilder().CreateUnary(SourceLoc, ASTUnaryOpKind::OP_UNARY_POST_INCR,
+        ASTUnaryOp *PostIncExpr = getASTBuilder().CreateUnary(SourceLoc, ASTUnaryOpKind::OP_UNARY_POST_INCR,
                 getASTBuilder().CreateIdentifier(cParam));
-        cPostIncVarStmt->setExpr(AssignExpr);
+        cPostIncVarStmt->setExpr(PostIncExpr);
 
         // --c
         ASTExprStmt * cPreDecVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
-        AssignExpr = getASTBuilder().CreateUnary(SourceLoc, ASTUnaryOpKind::OP_UNARY_PRE_DECR,
+        ASTUnaryOp *PreDecExpr = getASTBuilder().CreateUnary(SourceLoc, ASTUnaryOpKind::OP_UNARY_PRE_DECR,
                 getASTBuilder().CreateIdentifier(cParam));
-        cPreDecVarStmt->setExpr(AssignExpr);
+        cPreDecVarStmt->setExpr(PreDecExpr);
 
         // c--
         ASTExprStmt * cPostDecVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
-        AssignExpr = getASTBuilder().CreateUnary(SourceLoc, ASTUnaryOpKind::OP_UNARY_POST_DECR,
+        ASTUnaryOp *PostDecExpr = getASTBuilder().CreateUnary(SourceLoc, ASTUnaryOpKind::OP_UNARY_POST_DECR,
                 getASTBuilder().CreateIdentifier(cParam));
-        cPostDecVarStmt->setExpr(AssignExpr);
+        cPostDecVarStmt->setExpr(PostDecExpr);
 
     	// CreateVTable Code
     	llvm::Module * M = Generate()[0];
@@ -538,6 +613,19 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGComparatorOp) {
+        /**
+         * Fly code:
+         * void func(int a, int b, bool c) {
+         *   a = 0
+         *   b = 0
+         *   c = a == b
+         *   c = a != b
+         *   c = a > b
+         *   c = a >= b
+         *   c = a < b
+         *   c = a <= b
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // func()
@@ -549,56 +637,64 @@ namespace {
         ASTLocalVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "c", EmptyModifiers);
 
         // a = 0
-        ASTAssignStmt * aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(aVar));
+        ASTExprStmt * aVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTExpr *Expr1 = getASTBuilder().CreateNumberValue(SourceLoc, "0");
-        aVarStmt->setExpr(Expr1);
+        ASTBinaryOp *aAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aVar), Expr1);
+        aVarStmt->setExpr(aAssignExpr);
 
         // b = 0
-        ASTAssignStmt * bVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(bVar));
+        ASTExprStmt * bVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTExpr *Expr2 = getASTBuilder().CreateNumberValue(SourceLoc, "0");
-        bVarStmt->setExpr(Expr2);
+        ASTBinaryOp *bAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(bVar), Expr2);
+        bVarStmt->setExpr(bAssignExpr);
 
         // c = a == b
-         ASTAssignStmt * cEqVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cVar));
+         ASTExprStmt * cEqVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTExpr *Expr3 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_EQ,
                 getASTBuilder().CreateIdentifier(aVar),
                 getASTBuilder().CreateIdentifier(bVar));
-        cEqVarStmt->setExpr(Expr3);
+        ASTBinaryOp *cEqAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cVar), Expr3);
+        cEqVarStmt->setExpr(cEqAssignExpr);
 
         // c = a != b
-    	ASTAssignStmt * cNeqVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cVar));
+    	ASTExprStmt * cNeqVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTExpr *Expr4 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_NE,
                 getASTBuilder().CreateIdentifier(aVar),
                 getASTBuilder().CreateIdentifier(bVar));
-        cNeqVarStmt->setExpr(Expr4);
+        ASTBinaryOp *cNeqAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cVar), Expr4);
+        cNeqVarStmt->setExpr(cNeqAssignExpr);
 
         // c = a > b
-         ASTAssignStmt * cGtVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cVar));
+         ASTExprStmt * cGtVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTExpr *Expr5 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_GT,
                 getASTBuilder().CreateIdentifier(aVar),
                 getASTBuilder().CreateIdentifier(bVar));
-        cGtVarStmt->setExpr(Expr5);
+        ASTBinaryOp *cGtAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cVar), Expr5);
+        cGtVarStmt->setExpr(cGtAssignExpr);
 
         // c = a >= b
-         ASTAssignStmt * cGteVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cVar));
+         ASTExprStmt * cGteVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTExpr *Expr6 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_GTE,
                 getASTBuilder().CreateIdentifier(aVar),
                 getASTBuilder().CreateIdentifier(bVar));
-        cGteVarStmt->setExpr(Expr6);
+        ASTBinaryOp *cGteAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cVar), Expr6);
+        cGteVarStmt->setExpr(cGteAssignExpr);
 
         // c = a < b
-         ASTAssignStmt * cLtVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cVar));
+         ASTExprStmt * cLtVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTExpr *Expr7 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_LT,
                 getASTBuilder().CreateIdentifier(aVar),
                 getASTBuilder().CreateIdentifier(bVar));
-        cLtVarStmt->setExpr(Expr7);
+        ASTBinaryOp *cLtAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cVar), Expr7);
+        cLtVarStmt->setExpr(cLtAssignExpr);
 
         // c = a <= b
-         ASTAssignStmt * cLteVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cVar));
+         ASTExprStmt * cLteVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTExpr *Expr8 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_LTE,
                 getASTBuilder().CreateIdentifier(aVar),
                 getASTBuilder().CreateIdentifier(bVar));
-        cLteVarStmt->setExpr(Expr8);
+        ASTBinaryOp *cLteAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cVar), Expr8);
+        cLteVarStmt->setExpr(cLteAssignExpr);
 
     	// CreateVTable Code
     	llvm::Module * M = Generate()[0];
@@ -638,6 +734,15 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGLogicOp) {
+        /**
+         * Fly code:
+         * void func(bool a, bool b, bool c) {
+         *   a = false
+         *   b = false
+         *   c = a && b
+         *   c = a || b
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // func()
@@ -649,28 +754,32 @@ namespace {
         ASTLocalVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "c", EmptyModifiers);
 
         // a = false
-        ASTAssignStmt * aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(aVar));
+        ASTExprStmt * aVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTBoolValue *Expr1 = getASTBuilder().CreateBoolValue(SourceLoc, false);
-        aVarStmt->setExpr(Expr1);
+        ASTBinaryOp *aAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aVar), Expr1);
+        aVarStmt->setExpr(aAssignExpr);
 
         // b = false
-        ASTAssignStmt * bVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(bVar));
+        ASTExprStmt * bVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTBoolValue *Expr2 = getASTBuilder().CreateBoolValue(SourceLoc, false);
-        bVarStmt->setExpr(Expr2);
+        ASTBinaryOp *bAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(bVar), Expr2);
+        bVarStmt->setExpr(bAssignExpr);
 
         // c = a and b
-         ASTAssignStmt * cAndVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cVar));
+         ASTExprStmt * cAndVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTExpr *Expr3 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_LOGIC_AND,
                 getASTBuilder().CreateIdentifier(aVar),
                 getASTBuilder().CreateIdentifier(bVar));
-        cAndVarStmt->setExpr(Expr3);
+        ASTBinaryOp *cAndAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cVar), Expr3);
+        cAndVarStmt->setExpr(cAndAssignExpr);
 
         // c = a or b
-         ASTAssignStmt * cOrVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cVar));
+         ASTExprStmt * cOrVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTExpr *Expr4 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_LOGIC_OR,
                 getASTBuilder().CreateIdentifier(aVar),
                 getASTBuilder().CreateIdentifier(bVar));
-        cOrVarStmt->setExpr(Expr4);
+        ASTBinaryOp *cOrAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cVar), Expr4);
+        cOrVarStmt->setExpr(cOrAssignExpr);
 
     	// CreateVTable Code
     	llvm::Module * M = Generate()[0];
@@ -716,6 +825,14 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGTernaryOp) {
+        /**
+         * Fly code:
+         * void func(bool a, bool b, bool c) {
+         *   a = false
+         *   b = false
+         *   c = a == b ? a : b
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // func()
@@ -727,17 +844,19 @@ namespace {
         ASTLocalVar *cVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, BoolTypeRef, "c", EmptyModifiers);
 
         // a = false
-        ASTAssignStmt * aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(aVar));
+        ASTExprStmt * aVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTBoolValue *Expr1 = getASTBuilder().CreateBoolValue(SourceLoc, false);
-        aVarStmt->setExpr(Expr1);
+        ASTBinaryOp *aAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aVar), Expr1);
+        aVarStmt->setExpr(aAssignExpr);
 
         // b = false
-        ASTAssignStmt * bVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(bVar));
+        ASTExprStmt * bVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTBoolValue *Expr2 = getASTBuilder().CreateBoolValue(SourceLoc, false);
-        bVarStmt->setExpr(Expr2);
+        ASTBinaryOp *bAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(bVar), Expr2);
+        bVarStmt->setExpr(bAssignExpr);
 
         // c = a == b ? a : b
-         ASTAssignStmt * cVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(cVar));
+         ASTExprStmt * cVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTBinaryOp *Cond = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_EQ,
                 getASTBuilder().CreateIdentifier(aVar),
                 getASTBuilder().CreateIdentifier(bVar));
@@ -746,7 +865,8 @@ namespace {
                                                                     getASTBuilder().CreateIdentifier(aVar),
                                                                     SourceLoc,
                                                                     getASTBuilder().CreateIdentifier(bVar));
-        cVarStmt->setExpr(TernaryExpr);
+        ASTBinaryOp *cAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(cVar), TernaryExpr);
+        cVarStmt->setExpr(cAssignExpr);
 
     	// CreateVTable Code
     	llvm::Module * M = Generate()[0];
@@ -785,6 +905,15 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGIfBlock) {
+        /**
+         * Fly code:
+         * void func(int a) {
+         *   a = 0
+         *   if (a == 1) {
+         *     a = 2
+         *   }
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // func()
@@ -793,9 +922,10 @@ namespace {
 
         // int a = 0
         ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
-        ASTAssignStmt * aVarStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(aVar));
+        ASTExprStmt * aVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTNumberValue *Expr1 = getASTBuilder().CreateNumberValue(SourceLoc, "0");
-        aVarStmt->setExpr(Expr1);
+        ASTBinaryOp *aAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aVar), Expr1);
+        aVarStmt->setExpr(aAssignExpr);
 
         // if (a == 1)
         ASTIdentifier *aVarRef = getASTBuilder().CreateIdentifier(aVar);
@@ -808,9 +938,10 @@ namespace {
         IfBuilder->If(SourceLoc, IfCond, IfBlock);
 
         // { a = 2 }
-        ASTAssignStmt * a2VarStmt = getASTBuilder().CreateAssignmentStmt(IfBlock, getASTBuilder().CreateIdentifier(aVar));
+        ASTExprStmt * a2VarStmt = getASTBuilder().CreateExprStmt(IfBlock, SourceLoc);
         ASTNumberValue *Expr2 = getASTBuilder().CreateNumberValue(SourceLoc, "2");
-        a2VarStmt->setExpr(Expr2);
+        ASTBinaryOp *a2AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aVar), Expr2);
+        a2VarStmt->setExpr(a2AssignExpr);
 
     	// CreateVTable Code
     	llvm::Module * M = Generate()[0];
@@ -836,6 +967,16 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGIfElseBlock) {
+        /**
+         * Fly code:
+         * void func(int a) {
+         *   if (a == 1) {
+         *     a = 2
+         *   } else {
+         *     a = 3
+         *   }
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // func()
@@ -857,16 +998,18 @@ namespace {
         IfBuilder->If(SourceLoc, IfCond, IfBlock);
 
         // { a = 1 }
-        ASTAssignStmt * aVarStmt = getASTBuilder().CreateAssignmentStmt(IfBlock, getASTBuilder().CreateIdentifier(aParam));
+        ASTExprStmt * aVarStmt = getASTBuilder().CreateExprStmt(IfBlock, SourceLoc);
         ASTNumberValue *Expr1 = getASTBuilder().CreateNumberValue(SourceLoc, "1");
-        aVarStmt->setExpr(Expr1);
+        ASTBinaryOp *aAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aParam), Expr1);
+        aVarStmt->setExpr(aAssignExpr);
 
         // else {a = 2}
         ASTBlockStmt *ElseBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         IfBuilder->Else(SourceLoc, ElseBlock);
-        ASTAssignStmt *aVarStmt2 = getASTBuilder().CreateAssignmentStmt(ElseBlock, getASTBuilder().CreateIdentifier(aParam));
+        ASTExprStmt *aVarStmt2 = getASTBuilder().CreateExprStmt(ElseBlock, SourceLoc);
         ASTNumberValue *Expr2 = getASTBuilder().CreateNumberValue(SourceLoc, "2");
-        aVarStmt2->setExpr(Expr2);
+        ASTBinaryOp *a2AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aParam), Expr2);
+        aVarStmt2->setExpr(a2AssignExpr);
 
     	// CreateVTable Code
     	llvm::Module * M = Generate()[0];
@@ -896,6 +1039,20 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGIfElsifElseBlock) {
+        /**
+         * Fly code:
+         * void func(int a) {
+         *   if (a == 1) {
+         *     a = 2
+         *   } elsif (a == 2) {
+         *     a = 3
+         *   } elsif (a == 3) {
+         *     a = 4
+         *   } else {
+         *     a = 5
+         *   }
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // func()
@@ -917,9 +1074,10 @@ namespace {
 
 
         // { a = 11 }
-        ASTAssignStmt * aVarStmt = getASTBuilder().CreateAssignmentStmt(IfBlock, getASTBuilder().CreateIdentifier(aParam));
+        ASTExprStmt * aVarStmt = getASTBuilder().CreateExprStmt(IfBlock, SourceLoc);
         ASTNumberValue *Expr1 = getASTBuilder().CreateNumberValue(SourceLoc, "11");
-        aVarStmt->setExpr(Expr1);
+        ASTBinaryOp *aAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aParam), Expr1);
+        aVarStmt->setExpr(aAssignExpr);
 
         // elsif (a == 2)
         ASTBlockStmt *ElsifBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
@@ -928,9 +1086,10 @@ namespace {
                 aVarRef, Value2);
         IfBuilder->ElseIf(SourceLoc, ElsifCond, ElsifBlock);
         // { a = 22 }
-        ASTAssignStmt *aVarStmt2 = getASTBuilder().CreateAssignmentStmt(ElsifBlock, getASTBuilder().CreateIdentifier(aParam));
+        ASTExprStmt *aVarStmt2 = getASTBuilder().CreateExprStmt(ElsifBlock, SourceLoc);
         ASTNumberValue *Expr2 = getASTBuilder().CreateNumberValue(SourceLoc, "22");
-        aVarStmt2->setExpr(Expr2);
+        ASTBinaryOp *a2AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aParam), Expr2);
+        aVarStmt2->setExpr(a2AssignExpr);
 
         // elsif (a == 3) { a = 33 }
         ASTBlockStmt *ElsifBlock2 = getASTBuilder().CreateBlockStmt(SourceLoc);
@@ -938,16 +1097,18 @@ namespace {
         ASTBinaryOp *ElsifCond2 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_EQ,
                 aVarRef, Value3);
         IfBuilder->ElseIf(SourceLoc, ElsifCond2, ElsifBlock2);
-        ASTAssignStmt *aVarStmt3 = getASTBuilder().CreateAssignmentStmt(ElsifBlock2, getASTBuilder().CreateIdentifier(aParam));
+        ASTExprStmt *aVarStmt3 = getASTBuilder().CreateExprStmt(ElsifBlock2, SourceLoc);
         ASTNumberValue *Expr3 = getASTBuilder().CreateNumberValue(SourceLoc, "33");
-        aVarStmt3->setExpr(Expr3);
+        ASTBinaryOp *a3AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aParam), Expr3);
+        aVarStmt3->setExpr(a3AssignExpr);
 
         // else {a == 44}
         ASTBlockStmt *ElseBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         IfBuilder->Else(SourceLoc, ElseBlock);
-        ASTAssignStmt *aVarStmt4 = getASTBuilder().CreateAssignmentStmt(ElseBlock, getASTBuilder().CreateIdentifier(aParam));
+        ASTExprStmt *aVarStmt4 = getASTBuilder().CreateExprStmt(ElseBlock, SourceLoc);
         ASTNumberValue *Expr4 = getASTBuilder().CreateNumberValue(SourceLoc, "44");
-        aVarStmt4->setExpr(Expr4);
+        ASTBinaryOp *a4AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aParam), Expr4);
+        aVarStmt4->setExpr(a4AssignExpr);
 
     	// CreateVTable Code
     	llvm::Module * M = Generate()[0];
@@ -995,6 +1156,18 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGIfElsif) {
+        /**
+         * Fly code:
+         * void func(int a) {
+         *   if (a == 1) {
+         *     a = 2
+         *   } elsif (a == 2) {
+         *     a = 3
+         *   } elsif (a == 3) {
+         *     a = 4
+         *   }
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // main()
@@ -1013,9 +1186,10 @@ namespace {
 
         // { a = 11 }
         IfBuilder->If(SourceLoc, IfCond, IfBlock);
-        ASTAssignStmt * aVarStmt = getASTBuilder().CreateAssignmentStmt(IfBlock, getASTBuilder().CreateIdentifier(aParam));
+        ASTExprStmt * aVarStmt = getASTBuilder().CreateExprStmt(IfBlock, SourceLoc);
         ASTNumberValue *Expr1 = getASTBuilder().CreateNumberValue(SourceLoc, "11");
-        aVarStmt->setExpr(Expr1);
+        ASTBinaryOp *aAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aParam), Expr1);
+        aVarStmt->setExpr(aAssignExpr);
 
         // elsif (a == 2)
         ASTBlockStmt *ElsifBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
@@ -1024,9 +1198,10 @@ namespace {
                 aVarRef, Value2);
         IfBuilder->ElseIf(SourceLoc, ElsifCond, ElsifBlock);
         // { a = 22 }
-        ASTAssignStmt * aVarStmt2 = getASTBuilder().CreateAssignmentStmt(ElsifBlock, getASTBuilder().CreateIdentifier(aParam));
+        ASTExprStmt * aVarStmt2 = getASTBuilder().CreateExprStmt(ElsifBlock, SourceLoc);
         ASTNumberValue *Expr2 = getASTBuilder().CreateNumberValue(SourceLoc, "22");
-        aVarStmt2->setExpr(Expr2);
+        ASTBinaryOp *a2AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aParam), Expr2);
+        aVarStmt2->setExpr(a2AssignExpr);
 
         // elsif (a == 3) { a = 33 }
         ASTBlockStmt *ElsifBlock2 = getASTBuilder().CreateBlockStmt(SourceLoc);
@@ -1034,9 +1209,10 @@ namespace {
         ASTBinaryOp *ElsifCond2 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_EQ,
                 aVarRef, Value3);
         IfBuilder->ElseIf(SourceLoc, ElsifCond2, ElsifBlock2);
-        ASTAssignStmt *aVarStmt3 = getASTBuilder().CreateAssignmentStmt(ElsifBlock2, getASTBuilder().CreateIdentifier(aParam));
+        ASTExprStmt *aVarStmt3 = getASTBuilder().CreateExprStmt(ElsifBlock2, SourceLoc);
         ASTNumberValue *Expr3 = getASTBuilder().CreateNumberValue(SourceLoc, "33");
-        aVarStmt3->setExpr(Expr3);
+        ASTBinaryOp *a3AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aParam), Expr3);
+        aVarStmt3->setExpr(a3AssignExpr);
 
     	// CreateVTable Code
     	llvm::Module * M = Generate()[0];
@@ -1079,6 +1255,19 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGSwitch) {
+        /**
+         * Fly code:
+         * void func(int a) {
+         *   switch (a) {
+         *     case 1:
+         *       a = 2
+         *     case 2:
+         *       a = 3
+         *     default:
+         *       a = 4
+         *   }
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // main()
@@ -1097,24 +1286,27 @@ namespace {
         ASTBlockStmt *Case1Block = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTNumberValue *Case1Value = getASTBuilder().CreateNumberValue(SourceLoc, "1");
         SwitchBuilder->Case(SourceLoc, Case1Value, Case1Block);
-        ASTAssignStmt *aVarStmt1 = getASTBuilder().CreateAssignmentStmt(Case1Block, getASTBuilder().CreateIdentifier(aParam));
+        ASTExprStmt *aVarStmt1 = getASTBuilder().CreateExprStmt(Case1Block, SourceLoc);
         ASTNumberValue *Expr1 = getASTBuilder().CreateNumberValue(SourceLoc, "1");
-        aVarStmt1->setExpr(Expr1);
+        ASTBinaryOp *Assign1 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aParam), Expr1);
+        aVarStmt1->setExpr(Assign1);
 
         // case 2: a = 2 break
         ASTBlockStmt *Case2Block = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTNumberValue *Case2Value = getASTBuilder().CreateNumberValue(SourceLoc, "2");
         SwitchBuilder->Case(SourceLoc, Case2Value, Case2Block);
-        ASTAssignStmt *aVarStmt2 = getASTBuilder().CreateAssignmentStmt(Case2Block, getASTBuilder().CreateIdentifier(aParam));
+        ASTExprStmt *aVarStmt2 = getASTBuilder().CreateExprStmt(Case2Block, SourceLoc);
         ASTNumberValue *Expr2 = getASTBuilder().CreateNumberValue(SourceLoc, "2");
-        aVarStmt2->setExpr(Expr2);
+        ASTBinaryOp *Assign2 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aParam), Expr2);
+        aVarStmt2->setExpr(Assign2);
 
         // default: a = 3
         ASTBlockStmt *DefaultBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
         SwitchBuilder->Default(SourceLoc, DefaultBlock);
-        ASTAssignStmt *aVarStmt3 = getASTBuilder().CreateAssignmentStmt(DefaultBlock, getASTBuilder().CreateIdentifier(aParam));
+        ASTExprStmt *aVarStmt3 = getASTBuilder().CreateExprStmt(DefaultBlock, SourceLoc);
         ASTNumberValue *Expr3 = getASTBuilder().CreateNumberValue(SourceLoc, "3");
-        aVarStmt3->setExpr(Expr3);
+        ASTBinaryOp *Assign3 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aParam), Expr3);
+        aVarStmt3->setExpr(Assign3);
 
     	// CreateVTable Code
     	llvm::Module * M = Generate()[0];
@@ -1150,6 +1342,14 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGWhile) {
+        /**
+         * Fly code:
+         * void func(int a) {
+         *   while (a < 10) {
+         *     a = a + 1
+         *   }
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // main()
@@ -1161,7 +1361,7 @@ namespace {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // while a == 1
-        ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::Create(Body, SourceLoc);
+        ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::CreateLoop(Body, SourceLoc);
         ASTNumberValue *Value1 = getASTBuilder().CreateNumberValue(SourceLoc, "1");
         ASTIdentifier *aVarRef = getASTBuilder().CreateIdentifier(aParam);
         ASTBinaryOp *Cond = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_EQ, aVarRef, Value1);
@@ -1169,9 +1369,10 @@ namespace {
         LoopBuilder->Loop(Cond, BlockStmt);
 
         // { a = 1 }
-        ASTAssignStmt * aVarStmt = getASTBuilder().CreateAssignmentStmt(BlockStmt, getASTBuilder().CreateIdentifier(aParam));
+        ASTExprStmt * aVarStmt = getASTBuilder().CreateExprStmt(BlockStmt, SourceLoc);
         ASTNumberValue *Expr1 = getASTBuilder().CreateNumberValue(SourceLoc, "1");
-        aVarStmt->setExpr(Expr1);
+        ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aParam), Expr1);
+        aVarStmt->setExpr(AssignExpr);
 
     	// CreateVTable Code
     	llvm::Module * M = Generate()[0];
@@ -1200,6 +1401,14 @@ namespace {
     }
 
     TEST_F(CodeGenTest, CGFor) {
+        /**
+         * Fly code:
+         * void func(int a) {
+         *   for (int i = 0; i < 10; i++) {
+         *     a = a + 1
+         *   }
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // main()
@@ -1210,7 +1419,7 @@ namespace {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // for int i = 1; i < 1; ++i
-        ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::Create(Body, SourceLoc);
+        ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::CreateLoop(Body, SourceLoc);
 
         // Init
         // int i = 1
@@ -1218,9 +1427,10 @@ namespace {
         LoopBuilder->Init(InitBlock);
         ASTLocalVar *iVar = getASTBuilder().CreateLocalVar(InitBlock, SourceLoc, IntTypeRef, "i", EmptyModifiers);
         ASTIdentifier *iVarRef = getASTBuilder().CreateIdentifier(iVar);
-        ASTAssignStmt *iVarStmt = getASTBuilder().CreateAssignmentStmt(InitBlock, iVarRef);
+        ASTExprStmt *iVarStmt = getASTBuilder().CreateExprStmt(InitBlock, SourceLoc);
         ASTNumberValue *Value1Expr = getASTBuilder().CreateNumberValue(SourceLoc, "1");
-        iVarStmt->setExpr(Value1Expr);
+        ASTBinaryOp *iAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, iVarRef, Value1Expr);
+        iVarStmt->setExpr(iAssignExpr);
 
         // Condition
         // i < 1
@@ -1240,9 +1450,10 @@ namespace {
 
         // Loop Block
         // { a = 1 }
-        ASTAssignStmt * aVarStmt = getASTBuilder().CreateAssignmentStmt(LoopBlock, getASTBuilder().CreateIdentifier(aParam));
+        ASTExprStmt * aVarStmt = getASTBuilder().CreateExprStmt(LoopBlock, SourceLoc);
         ASTNumberValue *Expr1 = getASTBuilder().CreateNumberValue(SourceLoc, "1");
-        aVarStmt->setExpr(Expr1);
+        ASTBinaryOp *aAssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, getASTBuilder().CreateIdentifier(aParam), Expr1);
+        aVarStmt->setExpr(aAssignExpr);
 
     	// CreateVTable Code
     	llvm::Module * M = Generate()[0];
@@ -1279,6 +1490,11 @@ namespace {
     }
 
 	TEST_F(CodeGenTest, CGMain) {
+        /**
+         * Fly code:
+         * void main() {
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // main() {

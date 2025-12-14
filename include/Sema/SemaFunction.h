@@ -11,6 +11,7 @@
 #define FLY_SEMA_FUNCTION_H
 
 #include "SemaFunctionBase.h"
+#include "SemaLocalVar.h"
 #include "SemaVisibilityKind.h"
 #include "CodeGen/CodeGenFunction.h"
 
@@ -35,7 +36,9 @@ namespace fly {
 
         SemaComment *Comment = nullptr;
 
-        SemaVisibilityKind Visibility = SemaVisibilityKind::DEFAULT;
+        SemaVisibilityKind Visibility;
+
+        llvm::SmallVector<SemaLocalVar *, 4> LocalVars;
 
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;
@@ -51,6 +54,8 @@ namespace fly {
         SemaComment *getComment() const;
 
         SemaVisibilityKind getVisibility() const;
+
+        const llvm::SmallVector<SemaLocalVar *, 4> &getLocalVars() const;
 
         CodeGenFunction *getCodeGen() const override;
 

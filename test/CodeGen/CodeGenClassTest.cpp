@@ -16,6 +16,7 @@
 #include <AST/ASTExprStmt.h>
 #include <AST/ASTLocalVar.h>
 #include <AST/ASTMethod.h>
+#include <AST/ASTOp.h>
 #include <AST/ASTParam.h>
 #include <AST/ASTReturnStmt.h>
 
@@ -24,6 +25,15 @@ namespace {
     using namespace fly;
 
     TEST_F(CodeGenTest, CGStruct) {
+        /**
+         * Fly code:
+         * struct TestStruct {
+         *   int a
+         * }
+         * void func() {
+         *   new TestStruct()
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // struct TestStruct {
@@ -76,6 +86,17 @@ namespace {
     }
 
 TEST_F(CodeGenTest, CGStructAssignVar) {
+        /**
+         * Fly code:
+         * struct TestStruct {
+         *   int a
+         * }
+         * int func() {
+         *   TestStruct test = new TestStruct()
+         *   int x = test.a
+         *   return 1
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // struct TestStruct {
@@ -105,16 +126,19 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
     	ASTIdentifier *Instance = getASTBuilder().CreateIdentifier(TestVar);
         ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTAssignStmt *testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, Instance);
-        testNewStmt->setExpr(ConstructorCall);
+        ASTExprStmt *testNewStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTBinaryOp *AssignExpr1 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Instance, ConstructorCall);
+        testNewStmt->setExpr(AssignExpr1);
 
         // int x = test.a
         ASTLocalVar *xVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "x", EmptyModifiers);
     	ASTIdentifier *xVar_Id = getASTBuilder().CreateIdentifier(TestVar);
         
         ASTMember *test_aVarRef = getASTBuilder().CreateMember(aField, Instance);
-        ASTAssignStmt * xVarStmt = getASTBuilder().CreateAssignmentStmt(Body, xVar_Id);
-        xVarStmt->setExpr(test_aVarRef);
+        ASTExprStmt * xVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTIdentifier *xIdent = getASTBuilder().CreateIdentifier(xVar);
+        ASTBinaryOp *AssignExpr2 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, xIdent, test_aVarRef);
+        xVarStmt->setExpr(AssignExpr2);
 
 		// Generate Code
 		llvm::Module * M = Generate()[0];
@@ -158,6 +182,17 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
 	TEST_F(CodeGenTest, CGClassAttributes) {
+        /**
+         * Fly code:
+         * class TestClass {
+         *   int a
+         * }
+         * void func() {
+         *   TestClass test = new TestClass()
+         *   test.a = 2
+         *   delete test
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // TestClass {
@@ -182,14 +217,17 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTType *TestClassType = CreateType(TestClass);
         ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
         ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTAssignStmt * testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(TestVar));
-        testNewStmt->setExpr(ConstructorCall);
+        ASTExprStmt * testNewStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTIdentifier *testIdent = getASTBuilder().CreateIdentifier(TestVar);
+        ASTBinaryOp *AssignExpr1 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
+        testNewStmt->setExpr(AssignExpr1);
 
         //  test.a = 2
     	ASTMember *test_a = getASTBuilder().CreateMember(aAttribute, getASTBuilder().CreateIdentifier(TestVar));
-        ASTAssignStmt * attrStmt = getASTBuilder().CreateAssignmentStmt(Body, test_a);
+        ASTExprStmt * attrStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTValue *value2 = getASTBuilder().CreateNumberValue(SourceLocation(), "2");
-        attrStmt->setExpr(value2);
+        ASTBinaryOp *AssignExpr2 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, test_a, value2);
+        attrStmt->setExpr(AssignExpr2);
 
         // delete test
         getASTBuilder().CreateDeleteStmt(Body, SourceLoc, getASTBuilder().CreateIdentifier(TestVar));
@@ -256,6 +294,20 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
     TEST_F(CodeGenTest, CGClassGetterMethod) {
+        /**
+         * Fly code:
+         * class TestClass {
+         *   int a
+         *   int getA() {
+         *     return a
+         *   }
+         * }
+         * void func() {
+         *   TestClass test = new TestClass()
+         *   int x = test.getA()
+         *   delete test
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // TestClass {
@@ -289,15 +341,19 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTType *TestClassType = CreateType(TestClass);
         ASTVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
         ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTAssignStmt * testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(TestVar));
-        testNewStmt->setExpr(ConstructorCall);
+        ASTExprStmt * testNewStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTIdentifier *testIdent = getASTBuilder().CreateIdentifier(TestVar);
+        ASTBinaryOp *AssignExpr1 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
+        testNewStmt->setExpr(AssignExpr1);
 
         // int x = test.getA()
         ASTType *xType = getAMethod->getReturnType();
         ASTLocalVar *xVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, xType, "x", EmptyModifiers);
         ASTCall *xCallExpr = getASTBuilder().CreateCall(SourceLoc, getAMethod->getName(), Args, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateIdentifier(TestVar));
-        ASTAssignStmt * xStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(xVar));
-        xStmt->setExpr(xCallExpr);
+        ASTExprStmt * xStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTIdentifier *xIdent = getASTBuilder().CreateIdentifier(xVar);
+        ASTBinaryOp *AssignExpr2 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, xIdent, xCallExpr);
+        xStmt->setExpr(AssignExpr2);
 
         // delete test
         getASTBuilder().CreateDeleteStmt(Body, SourceLoc, getASTBuilder().CreateIdentifier(TestVar));
@@ -382,6 +438,20 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
 	TEST_F(CodeGenTest, CGClassSetterMethod) {
+        /**
+         * Fly code:
+         * class TestClass {
+         *   int a
+         *   void setA(int value) {
+         *     a = value
+         *   }
+         * }
+         * void func() {
+         *   TestClass test = new TestClass()
+         *   test.setA(2)
+         *   delete test
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // TestClass {
@@ -402,8 +472,10 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	ASTBlockStmt *MethodBody = getASTBuilder().CreateBlockStmt(SourceLoc);
     	const SourceLocation &Loc = SourceLoc;
     	ASTMember * this_a = getASTBuilder().CreateMember(aAttribute, getASTBuilder().CreateIdentifier(Loc, "this"));
-    	ASTAssignStmt * setAttributeAStmt = getASTBuilder().CreateAssignmentStmt(MethodBody, this_a);
-    	setAttributeAStmt->setExpr(getASTBuilder().CreateIdentifier(aParam));
+    	ASTExprStmt * setAttributeAStmt = getASTBuilder().CreateExprStmt(MethodBody, SourceLoc);
+    	ASTIdentifier *aParamIdent = getASTBuilder().CreateIdentifier(aParam);
+    	ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, this_a, aParamIdent);
+    	setAttributeAStmt->setExpr(AssignExpr);
         ASTFunction *setAMethod = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef,
                                                                "setA", TopModifiers, setAParams, MethodBody);
 
@@ -419,8 +491,10 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTType *TestClassType = CreateType(TestClass);
         ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
         ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTAssignStmt * testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(TestVar));
-        testNewStmt->setExpr(ConstructorCall);
+        ASTExprStmt * testNewStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTIdentifier *testIdent = getASTBuilder().CreateIdentifier(TestVar);
+        ASTBinaryOp *AssignExpr2 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
+        testNewStmt->setExpr(AssignExpr2);
 
         // test.setA(1)
     	ASTNumberValue * IntValue = getASTBuilder().CreateNumberValue(SourceLocation(), "1");
@@ -513,6 +587,20 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
 	TEST_F(CodeGenTest, CGClassConstructorCallMethod) {
+        /**
+         * Fly code:
+         * class TestClass {
+         *   int a
+         *   void setA(int value) {
+         *     a = value
+         *   }
+         * }
+         * void func() {
+         *   TestClass test = new TestClass()
+         *   test.setA(1)
+         *   delete test
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // TestClass {
@@ -546,15 +634,19 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTType *TestClassType = CreateType(TestClass);
         ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
         ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTAssignStmt * testNewStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(TestVar));
-        testNewStmt->setExpr(ConstructorCall);
+        ASTExprStmt * testNewStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTIdentifier *testIdent = getASTBuilder().CreateIdentifier(TestVar);
+        ASTBinaryOp *AssignExpr1 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
+        testNewStmt->setExpr(AssignExpr1);
 
         // int a = test.a()
         ASTType *aType = aFunc->getReturnType();
         ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, aType, "a", EmptyModifiers);
         ASTCall *aCallExpr = getASTBuilder().CreateCall(SourceLoc, aFunc->getName(), Args, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateIdentifier(TestVar));
-        ASTAssignStmt * aStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(aVar));
-        aStmt->setExpr(aCallExpr);
+        ASTExprStmt * aStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(aVar);
+        ASTBinaryOp *AssignExpr2 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, aCallExpr);
+        aStmt->setExpr(AssignExpr2);
 
         // delete test
         ASTDeleteStmt *DeleteStmt = getASTBuilder().CreateDeleteStmt(Body, SourceLoc, getASTBuilder().CreateIdentifier(TestVar));
@@ -630,6 +722,20 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
 	TEST_F(CodeGenTest, CGClassStaticAttributes) {
+        /**
+         * Fly code:
+         * class TestClass {
+         *   static int a
+         *   int getA() {
+         *     return a
+         *   }
+         * }
+         * void func() {
+         *   TestClass test = new TestClass()
+         *   int x = test.getA()
+         *   delete test
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // TestClass {
@@ -652,9 +758,11 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
         //  TestClass.a = 2
     	ASTType *TestClassType = CreateType(TestClass);
-        ASTAssignStmt * attrStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(aAttribute));
+        ASTExprStmt * attrStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
         ASTValue *value2Expr = getASTBuilder().CreateNumberValue(SourceLocation(), "2");
-        attrStmt->setExpr(value2Expr);
+        ASTIdentifier *attrIdent = getASTBuilder().CreateIdentifier(aAttribute);
+        ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, attrIdent, value2Expr);
+        attrStmt->setExpr(AssignExpr);
 
 		// Generate Code
 		llvm::Module * M = Generate()[0];
@@ -700,6 +808,17 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
 	TEST_F(CodeGenTest, CGClassStaticMethods) {
+        /**
+         * Fly code:
+         * class TestClass {
+         *   static int do() {
+         *     return 1
+         *   }
+         * }
+         * void func() {
+         *   int x = TestClass.do()
+         * }
+         */
         ASTModule *Module = CreateModule();
 
         // TestClass {
@@ -730,8 +849,10 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
     	ASTIdentifier *TestClassType = getASTBuilder().CreateIdentifier(SourceLoc, TestClass->getName());
         ASTCall *aCallExpr = getASTBuilder().CreateCall(SourceLoc, aFunc->getName(), Args, ASTCallKind::CALL_DIRECT, TestClassType);
-        ASTAssignStmt * aStmt = getASTBuilder().CreateAssignmentStmt(Body, getASTBuilder().CreateIdentifier(aVar));
-        aStmt->setExpr(aCallExpr);
+        ASTExprStmt * aStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+        ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(aVar);
+        ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, aCallExpr);
+        aStmt->setExpr(AssignExpr);
 
     	// Generate Code
     	llvm::Module * M = Generate()[0];
@@ -783,7 +904,19 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
 	TEST_F(CodeGenTest, CGStructExtendsStruct) {
-    	ASTModule *Module = CreateModule();
+        /**
+         * Fly code:
+         * struct ParentStruct {
+         *   int a
+         * }
+         * struct ChildStruct : ParentStruct {
+         *   int b
+         * }
+         * void func() {
+         *   ChildStruct child = new ChildStruct()
+         * }
+         */
+        ASTModule *Module = CreateModule();
 
     	// struct BaseStruct {
     	// int a
@@ -838,7 +971,22 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
 	TEST_F(CodeGenTest, CGStructExtendsStructs) {
-    	ASTModule *Module = CreateModule();
+        /**
+         * Fly code:
+         * struct BaseStruct {
+         *   int a
+         * }
+         * struct MiddleStruct : BaseStruct {
+         *   int b
+         * }
+         * struct ChildStruct : MiddleStruct {
+         *   int c
+         * }
+         * void func() {
+         *   ChildStruct child = new ChildStruct()
+         * }
+         */
+        ASTModule *Module = CreateModule();
 
     	// struct BaseStruct {
     	// int a
@@ -917,6 +1065,19 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
 	TEST_F(CodeGenTest, CGClassExtendsStruct) {
+        /**
+         * Fly code:
+         * struct BaseStruct {
+         *   int a
+         * }
+         * class TestClass : BaseStruct {
+         *   int b
+         * }
+         * void func() {
+         *   TestClass test = new TestClass()
+         *   delete test
+         * }
+         */
     	ASTModule *Module = CreateModule();
 
     	// struct BaseStruct {
@@ -951,8 +1112,10 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	//   }
     	ASTBlockStmt *ConstructorBody = getASTBuilder().CreateBlockStmt(SourceLoc);
     	ASTIdentifier * this_a = getASTBuilder().CreateIdentifier(aAttribute->getLocation(), aAttribute->getName(), getASTBuilder().CreateIdentifier(SourceLoc, "this"));
-    	ASTAssignStmt * assignThis_a = getASTBuilder().CreateAssignmentStmt(ConstructorBody, this_a);
-    	assignThis_a->setExpr(getASTBuilder().CreateNumberValue(SourceLoc, "1"));
+    	ASTExprStmt * assignThis_a = getASTBuilder().CreateExprStmt(ConstructorBody, SourceLoc);
+    	ASTNumberValue *value1 = getASTBuilder().CreateNumberValue(SourceLoc, "1");
+    	ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, this_a, value1);
+    	assignThis_a->setExpr(AssignExpr);
     	ASTFunction *ConstructorMethod = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef,
 															   "TestClass", TopModifiers, Params, ConstructorBody);
 
@@ -1028,7 +1191,23 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
 	TEST_F(CodeGenTest, CGClassExtendsStructs) {
-	    ASTModule *Module = CreateModule();
+        /**
+         * Fly code:
+         * struct BaseStruct {
+         *   int a
+         * }
+         * struct MiddleStruct : BaseStruct {
+         *   int b
+         * }
+         * class TestClass : MiddleStruct {
+         *   int c
+         * }
+         * void func() {
+         *   TestClass test = new TestClass()
+         *   delete test
+         * }
+         */
+        ASTModule *Module = CreateModule();
 
     	// struct BaseStruct {
     	// int a
@@ -1124,6 +1303,22 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
 	TEST_F(CodeGenTest, CGClassExtendsClass) {
+        /**
+         * Fly code:
+         * class BaseClass {
+         *   int a
+         *   void do() {
+         *   }
+         * }
+         * class TestClass : BaseClass {
+         *   void undo() {
+         *   }
+         * }
+         * void func() {
+         *   BaseClass a = new TestClass()
+         *   delete a
+         * }
+         */
     	ASTModule *Module = CreateModule();
 
     	// class BaseClass {
@@ -1163,8 +1358,10 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
     	ASTType *Base = CreateType(BaseClass);
     	ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(MainBody, SourceLoc, Base, "a", EmptyModifiers);
-    	ASTAssignStmt * testNewStmt = getASTBuilder().CreateAssignmentStmt(MainBody, getASTBuilder().CreateIdentifier(aVar));
-    	testNewStmt->setExpr(ConstructorCall);
+    	ASTExprStmt * testNewStmt = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+    	ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(aVar);
+    	ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, ConstructorCall);
+    	testNewStmt->setExpr(AssignExpr);
     	getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
 
     	// Generate Code
@@ -1267,7 +1464,30 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
     TEST_F(CodeGenTest, CGClassExtendsClasses) {
-	    ASTModule *Module = CreateModule();
+        /**
+         * Fly code:
+         * class BaseClass {
+         *   int a
+         *   void do() {
+         *   }
+         * }
+         * class BaseClass2 {
+         *   int b
+         *   void do() {
+         *   }
+         *   void undo() {
+         *   }
+         * }
+         * class TestClass : BaseClass, BaseClass2 {
+         *   void call() {
+         *   }
+         * }
+         * void func() {
+         *   TestClass test = new TestClass()
+         *   delete test
+         * }
+         */
+        ASTModule *Module = CreateModule();
 
     	// class BaseClass {
     	//   int a
@@ -1458,7 +1678,19 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
 	TEST_F(CodeGenTest, CGInterfaceExtendsInterfaces) {
-    	ASTModule *Module = CreateModule();
+        /**
+         * Fly code:
+         * interface BaseInterface {
+         *   void do()
+         * }
+         * interface BaseInterface2 {
+         *   void undo()
+         * }
+         * interface TestInterface : BaseInterface, BaseInterface2 {
+         *   void call()
+         * }
+         */
+        ASTModule *Module = CreateModule();
 
     	// interface BaseInterface {
     	//   void do()
@@ -1519,8 +1751,10 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
     	ASTType *TestInterfaceTypeeRef = CreateType(TestInterface);
     	ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(MainBody, SourceLoc, TestInterfaceTypeeRef, "a", EmptyModifiers);
-    	ASTAssignStmt * testNewStmt = getASTBuilder().CreateAssignmentStmt(MainBody, getASTBuilder().CreateIdentifier(aVar));
-    	testNewStmt->setExpr(ConstructorCall);
+    	ASTExprStmt * testNewStmt = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+    	ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(aVar);
+    	ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, ConstructorCall);
+    	testNewStmt->setExpr(AssignExpr);
     	getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
 
     	// Generate Code
@@ -1531,7 +1765,24 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
 	TEST_F(CodeGenTest, CGClassExtendsStructAndInterface) {
-    	ASTModule *Module = CreateModule();
+        /**
+         * Fly code:
+         * struct BaseStruct {
+         *   int a
+         * }
+         * interface BaseInterface {
+         *   void do()
+         * }
+         * class TestClass : BaseStruct, BaseInterface {
+         *   void do() {
+         *   }
+         * }
+         * void func() {
+         *   TestClass test = new TestClass()
+         *   delete test
+         * }
+         */
+        ASTModule *Module = CreateModule();
 
     	// struct BaseStruct {
     	// int a
