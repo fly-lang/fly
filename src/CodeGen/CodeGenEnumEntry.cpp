@@ -11,12 +11,17 @@
 #include "CodeGen/CodeGenModule.h"
 #include "Sema/SemaEnumEntry.h"
 
+#include <AST/ASTEnum.h>
+#include <Basic/Debug.h>
+#include <Sema/SemaEnumType.h>
+#include <Sema/SemaModule.h>
 #include <llvm/IR/Constants.h>
 
 using namespace fly;
 
-CodeGenEnumEntry::CodeGenEnumEntry(CodeGenModule *CGM, SemaEnumEntry *Sema) : T(CGM->Int32Ty),
+CodeGenEnumEntry::CodeGenEnumEntry(CodeGenModule *CGM, SemaEnumEntry *Sema) : CGM(CGM), T(CGM->Int32Ty),
         Value(llvm::ConstantInt::get(CGM->Int32Ty, Sema->getIndex())) {
+
 }
 
 llvm::Type *CodeGenEnumEntry::getType() {

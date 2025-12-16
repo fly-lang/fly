@@ -64,8 +64,6 @@ class CodeGen {
         std::vector<llvm::Module *> GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules);
 
         llvm::Module *GenerateModule(SemaModule *Module);
-
-        static std::string toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace);
     };
 }
 

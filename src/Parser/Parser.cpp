@@ -450,7 +450,7 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 		ConsumeToken();
 
 		// Create local variable and associated identifier
-		ASTLocalVar *LocalVar = Builder.CreateLocalVar(Parent, Loc, T, Name, Modifiers);
+		ASTLocalVar *LocalVar = Builder.CreateLocalVar(Loc, T, Name, Modifiers);
 		Identifier = Builder.CreateIdentifier(LocalVar);
 
 		// Check for initialization: "Type name = expr"
@@ -679,7 +679,7 @@ bool Parser::ParseStartParen() {
  * @return true on Success or false on Error
  */
 void Parser::ParseEndParen(bool HasParen) {
-    FLY_DEBUG_MESSAGE("Parser", "ParseStartParen", "HasParen=" << HasParen);
+    FLY_DEBUG_START_MSG("Parser", "ParseStartParen", "HasParen=" << HasParen);
 
     if (HasParen) {
         if (Tok.is(tok::r_paren)) {
@@ -1368,7 +1368,7 @@ llvm::StringRef Parser::getLiteralString() {
         ConsumeStringToken();
         return StrRefName;
     }
-    FLY_DEBUG_MESSAGE("Parser", "getLiteralString", "return " << Str);
+    FLY_DEBUG_START_MSG("Parser", "getLiteralString", "return " << Str);
     return Str;
 }
 

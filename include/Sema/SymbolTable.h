@@ -13,6 +13,7 @@
 #include "Symbol.h"
 #include <AST/ASTType.h>
 #include <llvm/ADT/StringMap.h>
+#include <vector>
 
 namespace fly {
 
@@ -21,13 +22,16 @@ namespace fly {
     class SemaType;
 
     /**
-     * AST Context
+     * Symbol Table
+     * Manages symbols in a hierarchical scope structure with parent-child relationships
      */
     class SymbolTable {
 
         llvm::StringMap<Symbol*> Table;
 
         SymbolTable* Parent;
+
+        std::vector<SymbolTable*> Children;
 
     public:
 
@@ -42,6 +46,13 @@ namespace fly {
         SymbolTable* pushScope();
 
         SymbolTable* getParent();
+
+        /**
+         * Delete all child scopes created via pushScope()
+         * This should be called before destroying a SymbolTable if you want
+         * to clean up all descendant scopes recursively
+         */
+        void deleteChildren();
 
     };
 }

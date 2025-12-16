@@ -14,8 +14,8 @@
 
 using namespace fly;
 
-SemaClassAttribute::SemaClassAttribute(ASTAttribute &AST, SemaClassType &Class) :
-	SemaVar(&AST, SemaVarKind::CLASS_ATTRIBUTE), Class(Class), Visibility(SemaVisibilityKind::DEFAULT) {
+SemaClassAttribute::SemaClassAttribute(ASTAttribute &AST, SemaClassType &Class, SemaType *Type) :
+	SemaVar(&AST, SemaVarKind::CLASS_ATTRIBUTE, Type), Class(Class), Visibility(SemaVisibilityKind::DEFAULT) {
 
 }
 

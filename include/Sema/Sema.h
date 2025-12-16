@@ -25,8 +25,6 @@ namespace fly {
 
         DiagnosticsEngine &Diags;
 
-        SemaBuilder *Builder;
-
         Registry *Reg;
 
     public:

@@ -8,27 +8,25 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenClass.h"
-#include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenVar.h"
 #include "CodeGen/CodeGenModule.h"
 #include "Sema/SemaClassType.h"
 #include "Sema/SemaModule.h"
-#include "Sema/SemaNameSpace.h"
 #include <Sema/SemaClassAttribute.h>
 #include <Sema/SemaClassMethod.h>
 #include "llvm/IR/DerivedTypes.h"
 
 #include <AST/ASTVar.h>
+#include <Basic/Debug.h>
 #include <llvm/Option/Arg.h>
 
 using namespace fly;
 
 CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExternal) : CGM(CGM), Sema(Sema) {
-	std::string TypeName = CodeGen::toIdentifier(
-		Sema->getAST().getName(), Sema->getModule()->getNameSpace()->getName());
+	Id = toIdentifier(Sema);
 
 	// Generate Class Type
-	Type = llvm::StructType::create(CGM->LLVMCtx, TypeName);
+	Type = llvm::StructType::create(CGM->LLVMCtx, Id);
 	TypePtr = Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 
 	// Create CodeGenVar for Class Instance
@@ -59,6 +57,13 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExter
 
 	// Generate Init Constructor Body
 	GenInitConstructorBody();
+}
+
+std::string CodeGenClass::toIdentifier(SemaClassType *ClassType) {
+	FLY_DEBUG_START("CodeGenClass", "toIdentifier");
+	llvm::StringRef Name = ClassType->getAST().getName();
+	SemaNameSpace *NameSpace = ClassType->getModule()->getNameSpace();
+	return CGM->toIdentifier(Name, NameSpace);
 }
 
 void CodeGenClass::CreateVTable() {
@@ -163,7 +168,7 @@ void CodeGenClass::CreateVTable() {
 		llvm::Constant *ArrayValue = llvm::ConstantArray::get(ArrayOfInt8Ptr, VTableArrayValues);
 
 		// Create the VTable Global Variable
-		std::string VTableName = CodeGen::toIdentifier(("vtable." + Sema->getAST().getName()).str(), Sema->getModule()->getNameSpace()->getName());
+		std::string VTableName = "vtable." + Id;
 		VTable = new llvm::GlobalVariable(
 			*CGM->Module, ArrayOfInt8Ptr, true,
 			llvm::GlobalValue::ExternalLinkage, ArrayValue, VTableName);
@@ -227,14 +232,13 @@ void CodeGenClass::CreateAttributes() {
 
 void CodeGenClass::CreateInitConstructor() {
 	// Create the Init Constructor Name
-	std::string FuncName = (Sema->getAST().getName() + ".init_ctor").str();
-	std::string Id = CodeGen::toIdentifier(FuncName, Sema->getModule()->getNameSpace()->getName());
+	std::string CtorId = Id + ".init_ctor";
 
 	// Create the Init Constructor Function
 	llvm::SmallVector<llvm::Type *, 8> ParamTypes;
 	ParamTypes.push_back(TypePtr);
 	llvm::FunctionType *FnType = llvm::FunctionType::get(TypePtr, ParamTypes, false);
-	InitConstructor = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
+	InitConstructor = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, CtorId, CGM->getModule());
 }
 
 void CodeGenClass::GenInitConstructorBody() {

@@ -63,7 +63,7 @@ ASTBuilder::ASTBuilder(DiagnosticsEngine &Diags) : Diags(Diags) {
  * @return the ASTModule
  */
 ASTModule *ASTBuilder::CreateModule(InputFile *F) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "GenerateModule", "Name=" << F->getName());
+	FLY_DEBUG_START_MSG("ASTBuilder", "GenerateModule", "Name=" << F->getName());
 
 	ASTModule *Module = new ASTModule(F);
 
@@ -79,7 +79,7 @@ ASTModule *ASTBuilder::CreateModule(InputFile *F) {
  * @return thee ASTHeaderModule
  */
 ASTModule *ASTBuilder::CreateHeader(InputFile *F) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateHeader", "Name=" << F->getName());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateHeader", "Name=" << F->getName());
 
 	ASTModule *Module = new ASTModule(F);
 
@@ -88,7 +88,7 @@ ASTModule *ASTBuilder::CreateHeader(InputFile *F) {
 }
 
 ASTComment *ASTBuilder::CreateComment(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Content) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateComment", "Loc" << Loc.getRawEncoding() << " Content=" << Content);
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateComment", "Loc" << Loc.getRawEncoding() << " Content=" << Content);
 	ASTComment *Comment = new ASTComment(Loc, Content);
 
 	// Add Comment to Module
@@ -99,7 +99,7 @@ ASTComment *ASTBuilder::CreateComment(ASTModule *Module, const SourceLocation &L
 }
 
 ASTName *ASTBuilder::CreateName(llvm::StringRef Name, const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateName", "Loc" << Loc.getRawEncoding() << " Name=" << Name);
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateName", "Loc" << Loc.getRawEncoding() << " Name=" << Name);
 	ASTName *AST = new ASTName(Loc, Name);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateName");
@@ -120,7 +120,7 @@ ASTNameSpace *ASTBuilder::CreateNameSpace(
 ASTImport *ASTBuilder::CreateImport(
 	ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names,
 	llvm::SmallVector<ASTName *, 4> Alias) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateImport", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateImport", "Loc=" << Loc.getRawEncoding());
 
 	ASTImport *Import = new ASTImport(Loc, Names, Alias);
 
@@ -144,7 +144,7 @@ ASTFunction *ASTBuilder::CreateFunction(
 	ASTModule *Module, const SourceLocation &Loc, ASTType *TypeRef,
 	llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
 	SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateFunction", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateFunction", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
 	ASTFunction *Function = new ASTFunction(Loc, TypeRef, Modifiers, Name, Params);
 
@@ -171,7 +171,7 @@ ASTClass *ASTBuilder::CreateClass(
 	ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind,
 	const llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
 	llvm::SmallVector<ASTType *, 4> &Bases) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateClass", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateClass", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
 	ASTClass *Class = new ASTClass(ClassKind, Modifiers, Loc, Name, Bases);
 
@@ -195,7 +195,7 @@ ASTAttribute *ASTBuilder::CreateClassAttribute(
 	const SourceLocation &Loc, ASTClass *Class, ASTType *TypeRef,
 	llvm::StringRef Name, SmallVector<ASTModifier *, 8> &Modifiers,
 	ASTExpr *Expr) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateClassAttribute", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateClassAttribute", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
 	ASTAttribute *Attribute = new ASTAttribute(Loc, TypeRef, Name, Modifiers);
 	Attribute->Expr = Expr;
@@ -233,7 +233,7 @@ ASTMethod *ASTBuilder::CreateClassMethod(
 	const SourceLocation &Loc, ASTClass *Class, ASTType *ReturnType,
 	llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
 	llvm::SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateClassMethod", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateClassMethod", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
 	ASTMethod *Method = new ASTMethod(Loc, ReturnType, Modifiers, Name, Params);
 
@@ -251,7 +251,7 @@ ASTEnum *ASTBuilder::CreateEnum(
 	ASTModule *Module, const SourceLocation &Loc, const llvm::StringRef Name,
 	llvm::SmallVector<ASTModifier *, 8> &Modifiers,
 	llvm::SmallVector<ASTType *, 4> EnumTypes) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateEnum", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateEnum", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
 	ASTEnum *Enum = new ASTEnum(Loc, Name, Modifiers, EnumTypes);
 
@@ -265,7 +265,7 @@ ASTEnum *ASTBuilder::CreateEnum(
 ASTEnumEntry *ASTBuilder::CreateEnumEntry(
 	const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name,
 	llvm::SmallVector<ASTModifier *, 8> &Modifiers) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateEnumEntry", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateEnumEntry", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
 	ASTType *TypeRef = CreateIntType(Loc);
 	ASTEnumEntry *EnumEntry = new ASTEnumEntry(Loc, TypeRef, Name, Modifiers);
@@ -282,7 +282,7 @@ ASTEnumEntry *ASTBuilder::CreateEnumEntry(
  * @return
  */
 ASTModifier *ASTBuilder::CreateModifier(const SourceLocation &Loc, ASTModifierKind Kind) {
-	FLY_DEBUG_MESSAGE(
+	FLY_DEBUG_START_MSG(
 		"ASTBuilder", "CreateModifier", "Loc=" << Loc.getRawEncoding() << ", Kind=" << static_cast<size_t>(Kind));
 
 	ASTModifier *Modifier = new ASTModifier(Loc, Kind);
@@ -297,7 +297,7 @@ ASTModifier *ASTBuilder::CreateModifier(const SourceLocation &Loc, ASTModifierKi
  * @return
  */
 ASTType *ASTBuilder::CreateBoolType(const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateBoolTypeRef", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateBoolTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_BOOL);
 
@@ -311,7 +311,7 @@ ASTType *ASTBuilder::CreateBoolType(const SourceLocation &Loc) {
  * @return
  */
 ASTType *ASTBuilder::CreateByteType(const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateByteTypeRef", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateByteTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_BYTE);
 
@@ -325,7 +325,7 @@ ASTType *ASTBuilder::CreateByteType(const SourceLocation &Loc) {
  * @return
  */
 ASTType *ASTBuilder::CreateUShortType(const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateUShortTypeRef", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateUShortTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_USHORT);
 
@@ -339,7 +339,7 @@ ASTType *ASTBuilder::CreateUShortType(const SourceLocation &Loc) {
  * @return
  */
 ASTType *ASTBuilder::CreateShortType(const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateShortTypeRef", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateShortTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_SHORT);
 
@@ -353,7 +353,7 @@ ASTType *ASTBuilder::CreateShortType(const SourceLocation &Loc) {
  * @return
  */
 ASTType *ASTBuilder::CreateUIntType(const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateUIntTypeRef", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateUIntTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_UINT);
 
@@ -367,7 +367,7 @@ ASTType *ASTBuilder::CreateUIntType(const SourceLocation &Loc) {
  * @return
  */
 ASTType *ASTBuilder::CreateIntType(const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateIntTypeRef", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateIntTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_INT);
 
@@ -381,7 +381,7 @@ ASTType *ASTBuilder::CreateIntType(const SourceLocation &Loc) {
  * @return
  */
 ASTType *ASTBuilder::CreateULongType(const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateULongTypeRef", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateULongTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_ULONG);
 
@@ -395,7 +395,7 @@ ASTType *ASTBuilder::CreateULongType(const SourceLocation &Loc) {
  * @return
  */
 ASTType *ASTBuilder::CreateLongType(const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateLongTypeRef", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateLongTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_LONG);
 
@@ -409,7 +409,7 @@ ASTType *ASTBuilder::CreateLongType(const SourceLocation &Loc) {
  * @return
  */
 ASTType *ASTBuilder::CreateFloatType(const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateFloatTypeRef", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateFloatTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_FLOAT);
 
@@ -423,7 +423,7 @@ ASTType *ASTBuilder::CreateFloatType(const SourceLocation &Loc) {
  * @return
  */
 ASTType *ASTBuilder::CreateDoubleType(const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateDoubleTypeRef", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateDoubleTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_DOUBLE);
 
@@ -437,7 +437,7 @@ ASTType *ASTBuilder::CreateDoubleType(const SourceLocation &Loc) {
  * @return
  */
 ASTType *ASTBuilder::CreateVoidType(const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateVoidTypeRef", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateVoidTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_VOID);
 
@@ -446,7 +446,7 @@ ASTType *ASTBuilder::CreateVoidType(const SourceLocation &Loc) {
 }
 
 ASTType *ASTBuilder::CreateStringType(const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateStringTypeRef", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateStringTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_STRING);
 
@@ -471,7 +471,7 @@ ASTType *ASTBuilder::CreateErrorType(const SourceLocation &Loc) {
  * @return
  */
 ASTArrayType *ASTBuilder::CreateArrayType(const SourceLocation &Loc, ASTType *ElementType, ASTExpr *SizeExpr) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateArrayTypeRef", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateArrayTypeRef", "Loc=" << Loc.getRawEncoding());
 
 	// TODO Size
 	ASTArrayType *ArrayTypeRef = new ASTArrayType(Loc, ElementType, SizeExpr);
@@ -487,7 +487,7 @@ ASTArrayType *ASTBuilder::CreateArrayType(const SourceLocation &Loc, ASTType *El
  * @return
  */
 ASTType *ASTBuilder::CreateType(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateType", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateType", "Loc=" << Loc.getRawEncoding());
 
 	ASTType *T = new ASTNamedType(Loc, Names);
 
@@ -514,7 +514,7 @@ ASTDefaultValue *ASTBuilder::CreateDefaultValue() {
  * @return
  */
 ASTNullValue *ASTBuilder::CreateNullValue(const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateNullValue", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateNullValue", "Loc=" << Loc.getRawEncoding());
 
 	ASTNullValue *Value = new ASTNullValue(Loc);
 
@@ -529,7 +529,7 @@ ASTNullValue *ASTBuilder::CreateNullValue(const SourceLocation &Loc) {
  * @return
  */
 ASTBoolValue *ASTBuilder::CreateBoolValue(const SourceLocation &Loc, bool Val) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateBoolValue", "Loc=" << Loc.getRawEncoding() << ", Val=" << Val);
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateBoolValue", "Loc=" << Loc.getRawEncoding() << ", Val=" << Val);
 
 	ASTBoolValue *Value = new ASTBoolValue(Loc, Val);
 
@@ -545,7 +545,7 @@ ASTBoolValue *ASTBuilder::CreateBoolValue(const SourceLocation &Loc, bool Val) {
  * @return
  */
 ASTNumberValue *ASTBuilder::CreateNumberValue(const SourceLocation &Loc, llvm::StringRef Val) {
-	FLY_DEBUG_MESSAGE(
+	FLY_DEBUG_START_MSG(
 		"ASTBuilder", "CreateIntegerValue",
 		"Loc=" << Loc.getRawEncoding() << ", Val=" << Val);
 
@@ -556,7 +556,7 @@ ASTNumberValue *ASTBuilder::CreateNumberValue(const SourceLocation &Loc, llvm::S
 }
 
 ASTStringValue *ASTBuilder::CreateStringValue(const SourceLocation &Loc, llvm::StringRef Val) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateStringValue", "Loc=" << Loc.getRawEncoding() << ", Val=" << Val);
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateStringValue", "Loc=" << Loc.getRawEncoding() << ", Val=" << Val);
 
 	ASTStringValue *Value = new ASTStringValue(Loc, Val);
 
@@ -570,7 +570,7 @@ ASTStringValue *ASTBuilder::CreateStringValue(const SourceLocation &Loc, llvm::S
  * @return
  */
 ASTArrayValue *ASTBuilder::CreateArrayValue(const SourceLocation &Loc, llvm::SmallVector<ASTValue *, 8> Values) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateArrayValue", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateArrayValue", "Loc=" << Loc.getRawEncoding());
 
 	ASTArrayValue *Array = new ASTArrayValue(Loc);
 	Array->Values = std::move(Values);
@@ -580,7 +580,7 @@ ASTArrayValue *ASTBuilder::CreateArrayValue(const SourceLocation &Loc, llvm::Sma
 }
 
 ASTStructValue *ASTBuilder::CreateStructValue(const SourceLocation &Loc, llvm::StringMap<ASTValue *> Values) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateArrayValue", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateArrayValue", "Loc=" << Loc.getRawEncoding());
 
 	ASTStructValue *Struct = new ASTStructValue(Loc);
 	Struct->Values = std::move(Values);
@@ -601,7 +601,7 @@ ASTStructValue *ASTBuilder::CreateStructValue(const SourceLocation &Loc, llvm::S
 ASTParam *ASTBuilder::CreateParam(
 	const SourceLocation &Loc, ASTType *TypeRef, llvm::StringRef Name,
 	llvm::SmallVector<ASTModifier *, 8> &Modifiers, ASTValue *DefaultValue) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateParam", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateParam", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
 	ASTParam *Param = new ASTParam(Loc, TypeRef, Name, Modifiers);
 	Param->setExpr(DefaultValue);
@@ -612,7 +612,6 @@ ASTParam *ASTBuilder::CreateParam(
 
 /**
  * Creates an ASTVar
- * @param Parent
  * @param Loc
  * @param Type
  * @param Name
@@ -620,9 +619,9 @@ ASTParam *ASTBuilder::CreateParam(
  * @return
  */
 ASTLocalVar *ASTBuilder::CreateLocalVar(
-	ASTBlockStmt *Parent, const SourceLocation &Loc, ASTType *Type,
+	const SourceLocation &Loc, ASTType *Type,
 	llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateLocalVar", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateLocalVar", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
 	ASTLocalVar *Var = new ASTLocalVar(Loc, Type, Name, Modifiers);
 
@@ -640,7 +639,7 @@ ASTLocalVar *ASTBuilder::CreateLocalVar(
 ASTCall *ASTBuilder::CreateCall(
 	const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args,
 	ASTCallKind CallKind, ASTExpr *Parent) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateCall", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateCall", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
 	ASTCall *Call = new ASTCall(Loc, Name, CallKind);
 	if (Parent) {
@@ -697,7 +696,7 @@ ASTMember *ASTBuilder::CreateMember(const SourceLocation &Loc, llvm::StringRef N
 }
 
 ASTUnaryOp *ASTBuilder::CreateUnary(const SourceLocation &Loc, ASTUnaryOpKind OpKind, ASTExpr *Expr) {
-	FLY_DEBUG_MESSAGE(
+	FLY_DEBUG_START_MSG(
 		"ASTBuilder", "CreateUnaryOpExpr",
 		"Loc=" << Loc.getRawEncoding() << ", OpKind=" << static_cast<uint8_t>(OpKind));
 
@@ -710,7 +709,7 @@ ASTUnaryOp *ASTBuilder::CreateUnary(const SourceLocation &Loc, ASTUnaryOpKind Op
 ASTBinaryOp *ASTBuilder::CreateBinary(
 	const SourceLocation &OpLocation, ASTBinaryOpKind OpKind,
 	ASTExpr *LeftExpr, ASTExpr *RightExpr) {
-	FLY_DEBUG_MESSAGE(
+	FLY_DEBUG_START_MSG(
 		"ASTBuilder", "CreateBinaryOpExpr",
 		"OpLocation=" << OpLocation.getRawEncoding() << ", OpKind=" << static_cast<uint8_t>(OpKind));
 
@@ -724,7 +723,7 @@ ASTTernaryOp *ASTBuilder::CreateTernary(
 	ASTExpr *ConditionExpr,
 	const SourceLocation &TrueOpLocation, ASTExpr *TrueExpr,
 	const SourceLocation &FalseOpLocation, ASTExpr *FalseExpr) {
-	FLY_DEBUG_MESSAGE(
+	FLY_DEBUG_START_MSG(
 		"ASTBuilder", "CreateBinaryOpExpr",
 		"TrueOpLocation=" << TrueOpLocation.getRawEncoding() << "FalseOpLocation=" << FalseOpLocation.getRawEncoding());
 
@@ -745,7 +744,7 @@ ASTTernaryOp *ASTBuilder::CreateTernary(
  * @return
  */
 ASTDeclStmt *ASTBuilder::CreateDeclStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTLocalVar *Var) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateDeclStmt", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateDeclStmt", "Loc=" << Loc.getRawEncoding());
 	ASTDeclStmt *Stmt = new ASTDeclStmt(Loc, Var);
 	Parent->addContent(Stmt);
 	FLY_DEBUG_END("ASTBuilder", "CreateDeclStmt");
@@ -759,7 +758,7 @@ ASTDeclStmt *ASTBuilder::CreateDeclStmt(ASTBlockStmt *Parent, const SourceLocati
  * @return
  */
 ASTReturnStmt *ASTBuilder::CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateReturnStmt", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateReturnStmt", "Loc=" << Loc.getRawEncoding());
 
 	ASTReturnStmt *Stmt = new ASTReturnStmt(Loc);
 	Parent->addContent(Stmt);
@@ -774,7 +773,7 @@ ASTReturnStmt *ASTBuilder::CreateReturnStmt(ASTBlockStmt *Parent, const SourceLo
  * @return
  */
 ASTExprStmt *ASTBuilder::CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateExprStmt", Logger()
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateExprStmt", Logger()
                       .Attr("Parent", Parent)
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
      ASTExprStmt *Stmt = new ASTExprStmt(Loc);
@@ -789,7 +788,7 @@ ASTExprStmt *ASTBuilder::CreateExprStmt(ASTBlockStmt *Parent, const SourceLocati
  * @return
  */
 ASTFailStmt *ASTBuilder::CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateFailStmt", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateFailStmt", "Loc=" << Loc.getRawEncoding());
 
 	ASTFailStmt *Stmt = new ASTFailStmt(Loc);
 	Parent->addContent(Stmt);
@@ -801,7 +800,7 @@ ASTFailStmt *ASTBuilder::CreateFailStmt(ASTBlockStmt *Parent, const SourceLocati
 ASTHandleStmt *ASTBuilder::CreateHandleStmt(
 	ASTBlockStmt *Parent, const SourceLocation &Loc,
 	ASTBlockStmt *BlockStmt, ASTExpr *ErrorHandler) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateHandleStmt", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateHandleStmt", "Loc=" << Loc.getRawEncoding());
 
 	ASTHandleStmt *HandleStmt = new ASTHandleStmt(Loc);
 	Parent->addContent(HandleStmt);
@@ -817,7 +816,7 @@ ASTHandleStmt *ASTBuilder::CreateHandleStmt(
 }
 
 ASTBreakStmt *ASTBuilder::CreateBreakStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateLocalVar", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateLocalVar", "Loc=" << Loc.getRawEncoding());
 
 	ASTBreakStmt *Break = new ASTBreakStmt(Loc);
 	// Inner Stmt
@@ -830,7 +829,7 @@ ASTBreakStmt *ASTBuilder::CreateBreakStmt(ASTBlockStmt *Parent, const SourceLoca
 }
 
 ASTContinueStmt *ASTBuilder::CreateContinueStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateContinueStmt", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateContinueStmt", "Loc=" << Loc.getRawEncoding());
 
 	ASTContinueStmt *Continue = new ASTContinueStmt(Loc);
 	// Inner Stmt
@@ -843,7 +842,7 @@ ASTContinueStmt *ASTBuilder::CreateContinueStmt(ASTBlockStmt *Parent, const Sour
 }
 
 ASTDeleteStmt *ASTBuilder::CreateDeleteStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTIdentifier *VarRef) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateDeleteStmt", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateDeleteStmt", "Loc=" << Loc.getRawEncoding());
 
 	ASTDeleteStmt *Delete = new ASTDeleteStmt(Loc, VarRef);
 	// Inner Stmt
@@ -868,7 +867,7 @@ ASTBuilder::CreateBody(ASTFunction *Function, ASTBlockStmt *Body) {
 }
 
 ASTBlockStmt *ASTBuilder::CreateBlockStmt(const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateBlockStmt", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateBlockStmt", "Loc=" << Loc.getRawEncoding());
 
 	ASTBlockStmt *Block = new ASTBlockStmt(Loc);
 
@@ -877,7 +876,7 @@ ASTBlockStmt *ASTBuilder::CreateBlockStmt(const SourceLocation &Loc) {
 }
 
 ASTBlockStmt *ASTBuilder::CreateBlockStmt(ASTStmt *Parent, const SourceLocation &Loc) {
-	FLY_DEBUG_MESSAGE("ASTBuilder", "CreateBlockStmt", "Loc=" << Loc.getRawEncoding());
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateBlockStmt", "Loc=" << Loc.getRawEncoding());
 
 	ASTBlockStmt *Block = new ASTBlockStmt(Loc);
 	Block->Parent = Parent;

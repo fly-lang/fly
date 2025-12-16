@@ -23,7 +23,7 @@ namespace fly {
     class SemaVar;
     class SemaErrorHandler;
     class SemaParam;
-    class ASTVar;
+    class SemaLocalVar;
     class CodeGenFunctionBase;
 
     class SemaFunctionBase : public SemaNode {
@@ -38,7 +38,7 @@ namespace fly {
 
         ASTFunction &AST;
 
-        llvm::SmallVector<SemaVar *, 8> LocalVars;
+        llvm::SmallVector<SemaLocalVar *, 8> LocalVars;
 
         SemaErrorHandler *ErrorHandler;
 
@@ -64,9 +64,9 @@ namespace fly {
 
         ASTFunction &getAST();
 
-        llvm::SmallVector<SemaVar *, 8> getLocalVars();
+        llvm::SmallVector<SemaLocalVar *, 8> getLocalVars();
 
-        void addLocalVar(SemaVar *LocalVar);
+        void addLocalVar(SemaLocalVar *LocalVar);
 
         SemaErrorHandler *getErrorHandler() const;
 

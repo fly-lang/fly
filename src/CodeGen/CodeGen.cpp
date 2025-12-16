@@ -38,19 +38,19 @@ std::string CodeGen::getOutputFileName(llvm::StringRef BaseInput) {
     std::string Name = FileName.str();//.substr(0,FileName.size()-4/* sizeof('.fly') = 4 */).str();
     switch (ActionKind) {
         case Backend_EmitNothing:
-            FLY_DEBUG_MESSAGE("CodeGen", "getOutputFileName","return ''");
+            FLY_DEBUG_START_MSG("CodeGen", "getOutputFileName","return ''");
             return "";
         case Backend_EmitLL:
-            FLY_DEBUG_MESSAGE("CodeGen", "getOutputFileName","return " << Name + ".ll");
+            FLY_DEBUG_START_MSG("CodeGen", "getOutputFileName","return " << Name + ".ll");
             return Name + ".ll";
         case Backend_EmitBC:
-            FLY_DEBUG_MESSAGE("CodeGen", "getOutputFileName","return " << Name + ".bc");
+            FLY_DEBUG_START_MSG("CodeGen", "getOutputFileName","return " << Name + ".bc");
             return Name + ".bc";
         case Backend_EmitAssembly:
-            FLY_DEBUG_MESSAGE("CodeGen", "getOutputFileName","return " << Name + ".s");
+            FLY_DEBUG_START_MSG("CodeGen", "getOutputFileName","return " << Name + ".s");
             return Name + ".s";
         case Backend_EmitObj:
-            FLY_DEBUG_MESSAGE("CodeGen", "getOutputFileName","return " << Name + ".o");
+            FLY_DEBUG_START_MSG("CodeGen", "getOutputFileName","return " << Name + ".o");
             return Name + ".o";
     }
 
@@ -65,7 +65,7 @@ std::string str(llvm::Module *M) {
 }
 
 void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
-    FLY_DEBUG_MESSAGE("CodeGen", "Emit",
+    FLY_DEBUG_START_MSG("CodeGen", "Emit",
                       "Module.Name=" << M->getName() << "\nModule.Output=" << str(M));
 
     std::string OutputFileName = OutName.empty() ? getOutputFileName(M->getName()) : OutName.str();
@@ -120,20 +120,3 @@ llvm::Module *CodeGen::GenerateModule(SemaModule *Module) {
     return CGM->getModule();
 }
 
-// void CodeGen::GenerateHeaders(SemaTable &SymbolTable) {
-//     for (auto &NameSpace : SymbolTable.getNameSpaces()) {
-//         Diags.getClient()->BeginSourceFile();
-//         GenerateHeader(*NameSpace.getValue());
-//         Diags.getClient()->EndSourceFile();
-//     }
-// }
-
-// void CodeGen::GenerateHeader(SemaNameSpace &NameSpace){
-//     FLY_DEBUG_START("CodeGen", "GenerateHeader");
-//     return CodeGenHeader::CreateFile(Diags, CodeGenOpts, NameSpace);
-// }
-
-std::string CodeGen::toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace) {
-    std::string Prefix = NameSpace == "default" ? "" : std::string(NameSpace).append("_");
-    return Prefix.append(std::string(Name));
-}

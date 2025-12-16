@@ -11,11 +11,12 @@
 #include "llvm/ADT/StringRef.h"
 
 #include <AST/ASTNameSpace.h>
+#include <Sema/SymbolTable.h>
 
 using namespace fly;
 
 SemaNameSpace::SemaNameSpace(llvm::StringRef Name, SemaNameSpace *Parent) : SemaNode(SemaKind::NAMESPACE),
-	Name(Name), Parent(Parent) {
+	Name(Name), Parent(Parent), Symbols(new SymbolTable(Parent ? Parent->getSymbols() : nullptr)) {
 }
 
 SymbolTable * SemaNameSpace::getSymbols() const {

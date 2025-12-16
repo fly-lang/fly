@@ -39,25 +39,25 @@ CodeGenExpr::CodeGenExpr(CodeGenModule *CGM) : CGM(CGM) {
 }
 
 llvm::Value *CodeGenExpr::GenExpr(ASTExpr *Expr) {
-    FLY_DEBUG_MESSAGE("CodeGenExpr", "GenExpr", "Expr=" << Expr->str());
+    FLY_DEBUG_START_MSG("CodeGenExpr", "GenExpr", "Expr=" << Expr->str());
     switch (Expr->getExprKind()) {
 
         case ASTExprKind::EXPR_VALUE: {
-            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VALUE");
+            FLY_DEBUG_START_MSG("CodeGenExpr", "GenValue", "EXPR_VALUE");
         	ASTValue *Value = static_cast<ASTValue *>(Expr);
         	assert(Value && "Missing Value");
             return GenValue(Expr->getType(), Value->getSema());
         }
 
         case ASTExprKind::EXPR_IDENTIFIER: {
-            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_VAR_REF");
+            FLY_DEBUG_START_MSG("CodeGenExpr", "GenValue", "EXPR_VAR_REF");
             ASTIdentifier *Identifier = static_cast<ASTIdentifier *>(Expr);
             assert(Identifier && "Missing Ref");
         	return CGM->GenVar(Identifier->getSema())->getValue();
         }
 
         case ASTExprKind::EXPR_CALL: {
-            FLY_DEBUG_MESSAGE("CodeGenExpr", "GenValue", "EXPR_CALL");
+            FLY_DEBUG_START_MSG("CodeGenExpr", "GenValue", "EXPR_CALL");
             ASTCall *Call = static_cast<ASTCall *>(Expr);
         	assert(Call && "Missing Call");
             return CGM->GenCall(Call->getSema());

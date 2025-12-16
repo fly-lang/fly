@@ -124,7 +124,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
         // TestStruct test = new TestStruct()
         ASTType *TestClassType = CreateType(TestStruct);
-        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
+        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
         ASTDeclStmt *TestDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, TestVar);
     	ASTIdentifier *Instance = getASTBuilder().CreateIdentifier(TestVar);
         ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
@@ -132,7 +132,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         TestDeclStmt->setExpr(AssignExpr1);
 
         // int x = test.a
-        ASTLocalVar *xVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "x", EmptyModifiers);
+        ASTLocalVar *xVar = getASTBuilder().CreateLocalVar(SourceLoc, IntTypeRef, "x", EmptyModifiers);
         ASTDeclStmt *xDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, xVar);
     	ASTIdentifier *xVar_Id = getASTBuilder().CreateIdentifier(TestVar);
         
@@ -216,7 +216,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = CreateType(TestClass);
-        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
+        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
         ASTDeclStmt *TestDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, TestVar);
         ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
         ASTIdentifier *testIdent = getASTBuilder().CreateIdentifier(TestVar);
@@ -340,7 +340,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = CreateType(TestClass);
-        ASTVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
+        ASTVar *TestVar = getASTBuilder().CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
         ASTDeclStmt *TestDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, (ASTLocalVar*)TestVar);
         ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
         ASTIdentifier *testIdent = getASTBuilder().CreateIdentifier(TestVar);
@@ -349,7 +349,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
         // int x = test.getA()
         ASTType *xType = getAMethod->getReturnType();
-        ASTLocalVar *xVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, xType, "x", EmptyModifiers);
+        ASTLocalVar *xVar = getASTBuilder().CreateLocalVar(SourceLoc, xType, "x", EmptyModifiers);
         ASTDeclStmt *xDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, xVar);
         ASTCall *xCallExpr = getASTBuilder().CreateCall(SourceLoc, getAMethod->getName(), Args, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateIdentifier(TestVar));
         ASTIdentifier *xIdent = getASTBuilder().CreateIdentifier(xVar);
@@ -490,7 +490,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = CreateType(TestClass);
-        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
+        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
         ASTDeclStmt *TestDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, TestVar);
         ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
         ASTIdentifier *testIdent = getASTBuilder().CreateIdentifier(TestVar);
@@ -633,7 +633,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = CreateType(TestClass);
-        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestClassType, "test", EmptyModifiers);
+        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
         ASTDeclStmt *TestDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, TestVar);
         ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
         ASTIdentifier *testIdent = getASTBuilder().CreateIdentifier(TestVar);
@@ -642,7 +642,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
         // int a = test.a()
         ASTType *aType = aFunc->getReturnType();
-        ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, aType, "a", EmptyModifiers);
+        ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(SourceLoc, aType, "a", EmptyModifiers);
         ASTDeclStmt *aDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, aVar);
         ASTCall *aCallExpr = getASTBuilder().CreateCall(SourceLoc, aFunc->getName(), Args, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateIdentifier(TestVar));
         ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(aVar);
@@ -847,7 +847,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // int a = TestClass.do()
-        ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
+        ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         ASTDeclStmt *aDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, aVar);
     	ASTIdentifier *TestClassType = getASTBuilder().CreateIdentifier(SourceLoc, TestClass->getName());
         ASTCall *aCallExpr = getASTBuilder().CreateCall(SourceLoc, aFunc->getName(), Args, ASTCallKind::CALL_DIRECT, TestClassType);

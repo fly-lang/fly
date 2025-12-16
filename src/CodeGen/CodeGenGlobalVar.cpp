@@ -10,7 +10,6 @@
 
 #include "CodeGen/CodeGenGlobalVar.h"
 #include "CodeGen/CodeGenModule.h"
-#include "CodeGen/CodeGen.h"
 #include "Sema/SemaModule.h"
 #include "Sema/SemaNameSpace.h"
 #include "AST/ASTVar.h"
@@ -23,7 +22,7 @@
 using namespace fly;
 
 CodeGenGlobalVar::CodeGenGlobalVar(CodeGenModule *CGM, SemaGlobalVar* Sym, bool isExternal) : CGM(CGM), Sym(Sym) {
-    std::string Id = CodeGen::toIdentifier(Sym->getAST().getName(), Sym->getModule()->getNameSpace()->getName());
+    std::string Id = CGM->toIdentifier(Sym->getAST().getName(), Sym->getModule()->getNameSpace());
 
 	// External Linkage
 	llvm::GlobalValue::LinkageTypes Linkage = llvm::GlobalValue::LinkageTypes::ExternalLinkage;

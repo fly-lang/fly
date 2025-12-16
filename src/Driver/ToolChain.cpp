@@ -69,7 +69,7 @@ bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, Fr
     const std::string OutFileName = FrontendOpts.getOutputFile();
 
     // Select right options format by platform (Win or others)
-    FLY_DEBUG_MESSAGE("ToolChain", "Link", "Output=" << OutFileName);
+    FLY_DEBUG_START_MSG("ToolChain", "Link", "Output=" << OutFileName);
     if (FrontendOpts.CreateLibrary) {
         Archiver Library(Diag, OutFileName + ".lib");
         return Library.CreateLib(InFiles);
@@ -93,7 +93,7 @@ void createLinkArgs(SmallVector<std::string, 16> &InArgs, SmallVector<const char
         ArgStr.append(A).append(" ");
         OutArgs.push_back(A.c_str());
     }
-    FLY_DEBUG_MESSAGE("ToolChain", "createLinkArgs", "Args: " + ArgStr);
+    FLY_DEBUG_START_MSG("ToolChain", "createLinkArgs", "Args: " + ArgStr);
 }
 
 // Check various environment variables to try and find a toolchain.
@@ -475,7 +475,7 @@ static const char *llvmArchToWindowsSDKArch(llvm::Triple::ArchType Arch) {
 }
 
 bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile) {
-    FLY_DEBUG_MESSAGE("ToolChain", "LinkWindows", "Out: " + OutFile);
+    FLY_DEBUG_START_MSG("ToolChain", "LinkWindows", "Out: " + OutFile);
     llvm::SmallVector<std::string, 16> CmdArgs;
     CmdArgs.push_back("lld-link");
 
@@ -517,7 +517,7 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
 
     // Add Inputs
     for (const std::string& ObjFile : InFiles) {
-        FLY_DEBUG_MESSAGE("ToolChain", "LinkWindows", "Input=" << ObjFile);
+        FLY_DEBUG_START_MSG("ToolChain", "LinkWindows", "Input=" << ObjFile);
         CmdArgs.push_back(ObjFile.c_str());
     }
 
@@ -679,7 +679,7 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
     CmdArgs.push_back(OutFile.c_str());
 
     for(const std::string &InFile : InFiles) {
-        FLY_DEBUG_MESSAGE("ToolChain", "LinkDarwin", "Input=" << InFile);
+        FLY_DEBUG_START_MSG("ToolChain", "LinkDarwin", "Input=" << InFile);
         CmdArgs.push_back(InFile.c_str());
     }
 
@@ -693,7 +693,7 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
 }
 
 bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile) {
-    FLY_DEBUG_MESSAGE("ToolChain", "LinkLinux", "Out: " + OutFile);
+    FLY_DEBUG_START_MSG("ToolChain", "LinkLinux", "Out: " + OutFile);
     llvm::SmallVector<std::string, 16> CmdArgs;
     CmdArgs.push_back("ld");
 
@@ -853,13 +853,13 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
 
     // Add Inputs
     for(const std::string &ObjFile : InFiles) {
-        FLY_DEBUG_MESSAGE("ToolChain", "Link", "Input=" << ObjFile);
+        FLY_DEBUG_START_MSG("ToolChain", "Link", "Input=" << ObjFile);
         CmdArgs.push_back(ObjFile);
     }
 
     // Add Library Paths
     for(const std::string &Path : PathList) {
-        FLY_DEBUG_MESSAGE("ToolChain", "Link", "LibPath=" << Path);
+        FLY_DEBUG_START_MSG("ToolChain", "Link", "LibPath=" << Path);
         CmdArgs.push_back(("-L" + Path));
     }
 
@@ -999,7 +999,7 @@ std::string ToolChain::GetFilePath(llvm::Twine Name, SmallVector<std::string, 16
             SmallString<128> Path(Dir);
             llvm::sys::path::append(Path, Name);
             if (llvm::sys::fs::exists(Twine(Path))) {
-                FLY_DEBUG_MESSAGE("ToolChain", "GetFilePath", "Path exists " << Path);
+                FLY_DEBUG_START_MSG("ToolChain", "GetFilePath", "Path exists " << Path);
                 return std::string(Path);
             }
         }

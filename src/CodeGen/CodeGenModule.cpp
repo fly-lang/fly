@@ -61,6 +61,7 @@
 #include <Sema/SemaMemberVar.h>
 #include <Sema/SemaModule.h>
 #include <Sema/SemaValue.h>
+#include <Sema/SemaNameSpace.h>
 #include <llvm/IR/Instructions.h>
 
 using namespace fly;
@@ -163,7 +164,7 @@ llvm::Module *CodeGenModule::getModule() const {
 }
 
 CodeGenFunction *CodeGenModule::GenFunction(SemaFunction *Sema, bool isExternal) {
-    // FLY_DEBUG_MESSAGE("CodeGenModule", "GenFunction",
+    // FLY_DEBUG_START("CodeGenModule", "GenFunction",
     //                   "Function=" << Function->str() << ", isExternal=" << isExternal);
     CodeGenFunction *CGF = new CodeGenFunction(this, Sema, isExternal);
     Sema->setCodeGen(CGF);
@@ -172,7 +173,7 @@ CodeGenFunction *CodeGenModule::GenFunction(SemaFunction *Sema, bool isExternal)
 }
 
 CodeGenClass *CodeGenModule::GenClass(SemaClassType *Class, bool isExternal) {
-    // FLY_DEBUG_MESSAGE("CodeGenModule", "GenClass",
+    // FLY_DEBUG_START("CodeGenModule", "GenClass",
     //                   "Class=" << Class->str() << ", isExternal=" << isExternal);
     CodeGenClass *CGC = new CodeGenClass(this, Class, isExternal);
     Class->setCodeGen(CGC);
@@ -331,7 +332,7 @@ llvm::Constant *CodeGenModule::GenDefaultValue(SemaType *Type, llvm::Type *Ty) {
 //}
 
 llvm::Value *CodeGenModule::ConvertToBool(llvm::Value *V) {
-    FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
+    FLY_DEBUG_START_MSG("CodeGenExpr", "Convert",
                       "FromVal=" << V << " to Bool Type=");
     if (V->getType()->isIntegerTy()) {
         if (V->getType()->getIntegerBitWidth() > 8) {
@@ -358,7 +359,7 @@ llvm::Value *CodeGenModule::ConvertToBool(llvm::Value *V) {
 }
 
 llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SemaType *FromType, SemaType *ToType) {
-    // FLY_DEBUG_MESSAGE("CodeGenExpr", "Convert",
+    // FLY_DEBUG_START("CodeGenExpr", "Convert",
     //                   "Value=" << FromVal << " to ASTType=" << ToType->str());
     assert(ToType && "Invalid conversion type");
 
@@ -797,6 +798,17 @@ void CodeGenModule::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> 
 		llvm::Value *V = CodeGenExpr::Generate(this, Arg->getExpr());
 		Args.push_back(V);
 	}
+}
+
+SemaNameSpace *CodeGenModule::getNameSpace() const {
+	FLY_DEBUG_START("CodeGenModule", "getNameSpace");
+	return Sema->getNameSpace();
+}
+
+std::string CodeGenModule::toIdentifier(llvm::StringRef Name, SemaNameSpace *NameSpace) {
+	FLY_DEBUG_START("CodeGenModule", "toIdentifier");
+	std::string Prefix = NameSpace ? std::string(NameSpace->getName()).append("_") : "";
+	return Prefix.append(std::string(Name));
 }
 
 void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {

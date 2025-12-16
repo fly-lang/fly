@@ -24,7 +24,9 @@ void ASTLocalVar::accept(ASTVisitor &Visitor) {
 }
 
 SemaLocalVar * ASTLocalVar::getSema() const {
+	return Sema;
 }
 
 void ASTLocalVar::setSema(SemaLocalVar *Sema) {
+	this->Sema = Sema;
 }

@@ -32,7 +32,7 @@ namespace fly {
 
         SemaComment *Comment = nullptr;
 
-        explicit SemaEnumEntry(ASTVar &AST);
+        explicit SemaEnumEntry(ASTVar &AST, SemaType *Type);
 
     public:
 

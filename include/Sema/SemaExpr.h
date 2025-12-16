@@ -30,16 +30,14 @@ namespace fly {
 
     	SemaExpr *Parent = nullptr;
 
-    	SemaType *Type = nullptr;
+    	SemaType *Type;
 
-        explicit SemaExpr(SemaKind Kind);
+        explicit SemaExpr(SemaKind Kind, SemaType *Type);
 
     public:
         virtual ~SemaExpr() = default;
 
     	SemaType *getType() const;
-
-    	void setType(SemaType *Type);
 
     	virtual SemaExpr *getParent() const;
 

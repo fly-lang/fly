@@ -38,7 +38,7 @@ namespace fly {
 
     protected:
 
-        explicit SemaValue(ASTValue &AST);
+        explicit SemaValue(ASTValue &AST, SemaType *Type);
 
     public:
 
@@ -128,7 +128,7 @@ namespace fly {
 
 		llvm::SmallVector<SemaValue *, 8> Values;
 
-		explicit SemaArrayValue(ASTArrayValue &AST);
+		explicit SemaArrayValue(ASTArrayValue &AST, SemaType *Type);
 
 	public:
 
@@ -146,7 +146,7 @@ namespace fly {
 
 		llvm::StringMap<SemaValue *> Values;
 
-		explicit SemaStructValue(ASTStructValue &AST);
+		explicit SemaStructValue(ASTStructValue &AST, SemaType *Type);
 
 	public:
 

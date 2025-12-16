@@ -66,6 +66,9 @@ namespace fly {
     class SemaCall;
     class SemaValue;
     class SemaExpr;
+    class SemaNameSpace;
+    class SemaClassMethod;
+    class SemaClassAttribute;
 
     class CodeGenModule {
 
@@ -231,6 +234,11 @@ namespace fly {
         void GenLoopStmt(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop);
 
         void GenReturn(ASTFunction *CGF, ASTExpr *Expr = nullptr);
+
+        SemaNameSpace *getNameSpace() const;
+
+        std::string toIdentifier(llvm::StringRef Name, SemaNameSpace *NameSpace);
+
     };
 }
 

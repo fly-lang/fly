@@ -38,7 +38,7 @@ namespace {
         // }
         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
-        ASTLocalVar *ErrorA = getASTBuilder().CreateLocalVar(Body, SourceLoc, ErrorTypeRef, "A", EmptyModifiers);
+        ASTLocalVar *ErrorA = getASTBuilder().CreateLocalVar(SourceLoc, ErrorTypeRef, "A", EmptyModifiers);
         ASTDeclStmt *DeclStmt_A = getASTBuilder().CreateDeclStmt(Body, SourceLoc, ErrorA);
         ASTIdentifier *ErrorVarRef = getASTBuilder().CreateIdentifier(ErrorA);
         ASTBlockStmt *HandleBlock = getASTBuilder().CreateBlockStmt(SourceLoc);

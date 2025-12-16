@@ -10,6 +10,7 @@
 // fly
 #include "../TestUtils.h"
 #include "Parser/Parser.h"
+#include <Basic/Debug.h>
 
 // third party
 #include <AST/ASTBuilder.h>
@@ -36,6 +37,16 @@ public:
 
     // Store the last parsed source text so tests can compute expected token positions
     std::string LastParseSource;
+
+    // Enable debug messages for all tests in this suite
+    static void SetUpTestCase() {
+        DebugEnabled = true;
+    }
+
+    // Disable debug messages after all tests complete
+    static void TearDownTestCase() {
+        DebugEnabled = false;
+    }
 
     ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
         Diags(CI.getDiagnostics()), Builder(new ASTBuilder(Diags))

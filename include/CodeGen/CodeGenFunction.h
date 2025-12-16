@@ -20,9 +20,13 @@ namespace fly {
 
     class CodeGenFunction : public CodeGenFunctionBase {
 
+        std::string Id;
+
         bool isExternal;
 
         bool isMain;
+
+        std::string toIdentifier(SemaFunction *Function);
 
     public:
         CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool isExternal = false);

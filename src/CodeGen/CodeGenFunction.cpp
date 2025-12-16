@@ -8,7 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenFunction.h"
-#include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenError.h"
 #include "AST/ASTModule.h"
@@ -19,14 +18,15 @@
 #include "llvm/IR/Function.h"
 #include "llvm/ADT/StringRef.h"
 #include <Sema/SemaErrorHandler.h>
-#include <Sema/SemaModule.h>
-#include <Sema/SemaNameSpace.h>
 #include <Sema/SemaType.h>
 
 using namespace fly;
 
 CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool isExternal) :
     CodeGenFunctionBase(CGM, Sema), isExternal(isExternal), isMain(isMainFunction(Sema)) {
+
+	// Set Id
+	Id = toIdentifier(Sema);
 
     // Generate Params Types
     if (isMain) {
@@ -43,13 +43,20 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
     // Set Name
-    std::string Id = CodeGen::toIdentifier(Sema->getMangledName(), Sema->getModule()->getNameSpace()->getName());
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
 
     // Set Linkage
     if (isExternal && Sema->getVisibility() == SemaVisibilityKind::PRIVATE) {
         Fn->setLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage);
     }
+}
+
+std::string CodeGenFunction::toIdentifier(SemaFunction *Function) {
+	FLY_DEBUG_START("CodeGenFunction", "toIdentifier");
+	// For functions, use the mangled name
+	llvm::StringRef MangledName = Function->getMangledName();
+	SemaNameSpace *NameSpace = CGM->getNameSpace();
+	return CGM->toIdentifier(MangledName, NameSpace);
 }
 
 /**

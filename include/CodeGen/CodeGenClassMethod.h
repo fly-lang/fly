@@ -50,6 +50,8 @@ namespace fly {
         bool isStatic() const;
 
         void GenBody() override;
+
+        std::string toIdentifier(SemaClassMethod *ClassMethod);
     };
 }
 

@@ -13,7 +13,7 @@
 using namespace fly;
 
 void FrontendOptions::addInputFile(const char * FileName) {
-    FLY_DEBUG_MESSAGE("FrontendOptions", "addInputFile", "FileName=" << FileName);
+    FLY_DEBUG_START_MSG("FrontendOptions", "addInputFile", "FileName=" << FileName);
     Inputs.emplace_back(FileName);
 }
 

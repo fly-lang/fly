@@ -42,7 +42,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 	FLY_DEBUG_START("CodeGenHeader", "GenerateFile");
 	llvm::Twine FileHeader = llvm::Twine(NameSpace.getName()).concat(".h");
 	llvm::StringRef FileName = llvm::sys::path::filename(FileHeader.str());
-	FLY_DEBUG_MESSAGE("CodeGenHeader", "GenerateFile", "FileName=" << FileName);
+	FLY_DEBUG_START_MSG("CodeGenHeader", "GenerateFile", "FileName=" << FileName);
 
 	// generate namespace
 	llvm::Twine Header = llvm::Twine("namespace ").concat(NameSpace.getName()).concat("\n\n");

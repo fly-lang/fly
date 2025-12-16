@@ -15,13 +15,10 @@
 #include "Parser/Parser.h"
 #include "Sema/Sema.h"
 #include "AST/ASTCall.h"
-#include "AST/ASTFunction.h"
 #include "AST/ASTExpr.h"
 #include <AST/ASTModifier.h>
-#include <AST/ASTVar.h>
 #include <AST/ASTBuilder.h>
-#include <Sema/SemaBuilder.h>
-#include "Sema/SemaType.h"
+#include <Basic/Debug.h>
 
 
 // third party
@@ -30,7 +27,6 @@
 #include "llvm/Support/TargetSelect.h"
 
 #include <AST/ASTEnum.h>
-#include <AST/ASTIdentifier.h>
 #include <CodeGen/CodeGenModule.h>
 #include <Sema/SymbolTable.h>
 #include <gtest/gtest.h>
@@ -48,6 +44,7 @@ public:
 	ASTBuilder *Builder;
     Sema *S;
 	llvm::SmallVector<ASTModule *, 8> ASTModules;
+	std::vector<llvm::Module *> Modules;
     SourceLocation SourceLoc;
     ASTType *VoidTypeRef;
     ASTType *BoolTypeRef;
@@ -68,24 +65,34 @@ public:
     llvm::SmallVector<ASTExpr *, 8> Args;
     llvm::SmallVector<ASTParam *, 8> Params;
 
+    // Enable debug messages for all tests in this suite
+    static void SetUpTestCase() {
+        DebugEnabled = false;
+    }
+
+    // Disable debug messages after all tests complete
+    static void TearDownTestCase() {
+        DebugEnabled = false;
+    }
+
     CodeGenTest() : CI(*TestUtils::CreateCompilerInstance()),
                     CG(TestUtils::CreateCodeGen(CI)),
                     Diags(CI.getDiagnostics()),
 					Builder(new ASTBuilder(Diags)),
                     S(new Sema(CI.getDiagnostics())),
-                    VoidTypeRef(Builder->CreateVoidType(SourceLoc)),
-                    BoolTypeRef(Builder->CreateBoolType(SourceLoc)),
-                    ByteTypeRef(Builder->CreateByteType(SourceLoc)),
-                    ShortTypeRef(Builder->CreateShortType(SourceLoc)),
-                    UShortTypeRef(Builder->CreateUShortType(SourceLoc)),
-                    IntTypeRef(Builder->CreateIntType(SourceLoc)),
-                    UIntTypeRef(Builder->CreateUIntType(SourceLoc)),
-                    LongTypeRef(Builder->CreateLongType(SourceLoc)),
-                    ULongTypeRef(Builder->CreateULongType(SourceLoc)),
-                    FloatTypeRef(Builder->CreateFloatType(SourceLoc)),
-                    DoubleTypeRef(Builder->CreateDoubleType(SourceLoc)),
-                    ErrorTypeRef(Builder->CreateErrorType(SourceLoc)),
-					StringTypeRef(Builder->CreateStringType(SourceLoc)) {
+                    VoidTypeRef(ASTBuilder::CreateVoidType(SourceLoc)),
+                    BoolTypeRef(ASTBuilder::CreateBoolType(SourceLoc)),
+                    ByteTypeRef(ASTBuilder::CreateByteType(SourceLoc)),
+                    ShortTypeRef(ASTBuilder::CreateShortType(SourceLoc)),
+                    UShortTypeRef(ASTBuilder::CreateUShortType(SourceLoc)),
+                    IntTypeRef(ASTBuilder::CreateIntType(SourceLoc)),
+                    UIntTypeRef(ASTBuilder::CreateUIntType(SourceLoc)),
+                    LongTypeRef(ASTBuilder::CreateLongType(SourceLoc)),
+                    ULongTypeRef(ASTBuilder::CreateULongType(SourceLoc)),
+                    FloatTypeRef(ASTBuilder::CreateFloatType(SourceLoc)),
+                    DoubleTypeRef(ASTBuilder::CreateDoubleType(SourceLoc)),
+                    ErrorTypeRef(ASTBuilder::CreateErrorType(SourceLoc)),
+					StringTypeRef(ASTBuilder::CreateStringType(SourceLoc)) {
         llvm::InitializeAllTargets();
         llvm::InitializeAllTargetMCs();
         llvm::InitializeAllAsmPrinters();
@@ -130,10 +137,14 @@ public:
     	SmallVector<SemaModule *, 8> SemaModules = S->Resolve(ASTModules);
     	EXPECT_FALSE(Diags.hasErrorOccurred());
     	EXPECT_FALSE(SemaModules.empty());
-    	std::vector<llvm::Module *> CGModules = CG->GenerateModules(SemaModules);
+    	Modules = CG->GenerateModules(SemaModules);
     	EXPECT_FALSE(Diags.hasErrorOccurred());
-    	return CGModules;
+    	return Modules;
     }
+
+	std::vector<llvm::Module *> &getModules() {
+		return Modules;
+	}
 
 	std::string getOutput(llvm::Module *M) {
     	testing::internal::CaptureStdout();
@@ -155,8 +166,6 @@ public:
 		}
     	return testing::internal::GetCapturedStdout();
 	}
-
-
 };
 
 #endif //FLY_CODEGENTEST_H

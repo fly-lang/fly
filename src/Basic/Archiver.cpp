@@ -45,12 +45,12 @@ using namespace llvm;
 using namespace fly;
 
 Archiver::Archiver(DiagnosticsEngine &Diag, const std::string &ArchiveName) : Diag(Diag), ArchiveName(ArchiveName) {
-    FLY_DEBUG_MESSAGE("Archiver", "Archiver", "ArchiveName=" + ArchiveName);
+    FLY_DEBUG_START_MSG("Archiver", "Archiver", "ArchiveName=" + ArchiveName);
 }
 
 bool Archiver::CreateLib(const llvm::SmallVector<std::string, 4> &Files) {
     for (auto &File : Files) {
-        FLY_DEBUG_MESSAGE("Archiver", "CreateLib", "File=" << File);
+        FLY_DEBUG_START_MSG("Archiver", "CreateLib", "File=" << File);
         // Everything on the command line at this point is a member.
         Members.emplace_back(File);
     }

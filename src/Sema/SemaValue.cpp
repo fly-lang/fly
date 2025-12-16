@@ -10,30 +10,32 @@
 #include "Sema/SemaValue.h"
 #include "AST/ASTValue.h"
 
+#include <Sema/SemaBuiltin.h>
+
 using namespace fly;
 
-SemaValue::SemaValue(ASTValue &AST) : AST(AST), SemaExpr(SemaKind::VALUE) {
+SemaValue::SemaValue(ASTValue &AST, SemaType *Type) : AST(AST), SemaExpr(SemaKind::VALUE, Type) {
 }
 
 SemaType *SemaValue::getType() const {
 	return Type;
 }
 
-SemaBoolValue::SemaBoolValue(ASTBoolValue &AST) : SemaValue(AST), Value(AST.getValue()) {
+SemaBoolValue::SemaBoolValue(ASTBoolValue &AST) : SemaValue(AST, SemaBuiltin::getBoolType()), Value(AST.getValue()) {
 }
 
 bool SemaBoolValue::getValue() const {
 	return Value;
 }
 
-SemaIntValue::SemaIntValue(ASTNumberValue &AST) : SemaValue(AST), Value(llvm::APInt(64, 0, true)) {
+SemaIntValue::SemaIntValue(ASTNumberValue &AST) : SemaValue(AST, SemaBuiltin::getLongType()), Value(llvm::APInt(64, 0, true)) {
 }
 
 llvm::APInt SemaIntValue::getValue() const {
 	return Value;
 }
 
-SemaFloatValue::SemaFloatValue(ASTNumberValue &AST) : SemaValue(AST),
+SemaFloatValue::SemaFloatValue(ASTNumberValue &AST) : SemaValue(AST, SemaBuiltin::getDoubleType()),
 	Value(llvm::APFloat(llvm::APFloat::IEEEdouble(), "0.0")) {
 }
 
@@ -41,27 +43,27 @@ llvm::APFloat SemaFloatValue::getValue() const {
 	return Value;
 }
 
-SemaStringValue::SemaStringValue(ASTStringValue &AST) : SemaValue(AST) {
+SemaStringValue::SemaStringValue(ASTStringValue &AST) : SemaValue(AST, SemaBuiltin::getStringType()) {
 }
 
 llvm::StringRef SemaStringValue::getValue() const {
 	return Value;
 }
 
-SemaArrayValue::SemaArrayValue(ASTArrayValue &AST) : SemaValue(AST) {
+SemaArrayValue::SemaArrayValue(ASTArrayValue &AST, SemaType *Type) : SemaValue(AST, Type) {
 }
 
 const llvm::SmallVector<SemaValue *, 8> &SemaArrayValue::getValues() const {
 	return Values;
 }
 
-SemaStructValue::SemaStructValue(ASTStructValue &AST) : SemaValue(AST) {
+SemaStructValue::SemaStructValue(ASTStructValue &AST, SemaType *Type) : SemaValue(AST, Type) {
 }
 
 const llvm::StringMap<SemaValue *> &SemaStructValue::getValues() const {
 	return Values;
 }
 
-SemaNullValue::SemaNullValue(ASTNullValue &AST) : SemaValue(AST) {
+SemaNullValue::SemaNullValue(ASTNullValue &AST) : SemaValue(AST, nullptr) {
 
 }

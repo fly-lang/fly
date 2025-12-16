@@ -42,7 +42,7 @@ namespace fly {
 
     protected:
 
-        explicit SemaVar(ASTVar *AST, SemaVarKind Kind);
+        explicit SemaVar(ASTVar *AST, SemaVarKind Kind, SemaType *Type);
 
     public:
         virtual ~SemaVar() = default;

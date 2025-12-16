@@ -62,7 +62,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
 
     if (ArgList.hasArg(options::OPT_DEBUG)) {
         DebugEnabled = true;
-        FLY_DEBUG_MESSAGE("Driver", "Driver", "Set OPT_DEBUG");
+        FLY_DEBUG_START_MSG("Driver", "Driver", "Set OPT_DEBUG");
     }
 }
 
@@ -160,7 +160,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
                             std::shared_ptr<TargetOptions> &TargetOpts,
                             FrontendOptions *FrontendOpts,
                             CodeGenOptions *CodeGenOpts) {
-    FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Parsing command line arguments");
+    FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Parsing command line arguments");
     llvm::PrettyStackTraceString CrashInfo("Command line argument parsing");
 
     // Error out on unknown options.
@@ -197,7 +197,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     // Parse Input args
     if (ArgList.hasArg(options::OPT_INPUT)) {
         for (const llvm::opt::Arg *A : ArgList.filtered(options::OPT_INPUT)) {
-            FLY_DEBUG_MESSAGE("Driver", "BuildOptions","Set OPT_INPUT=" << A->getValue());
+            FLY_DEBUG_START_MSG("Driver", "BuildOptions","Set OPT_INPUT=" << A->getValue());
             FrontendOpts->addInputFile(A->getValue());
         }
     } else {
@@ -208,7 +208,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
 
     // Enable Verbose Log
     if (ArgList.hasArg(options::OPT_VERBOSE)) {
-        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_VERBOSE");
+        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set OPT_VERBOSE");
         FrontendOpts->Verbose = true;
     }
 
@@ -226,55 +226,55 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         }
 
         llvm::StringRef Out = ArgList.getLastArgValue(options::OPT_OUTPUT);
-        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_OUTPUT=" << Out);
+        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set OPT_OUTPUT=" << Out);
         FrontendOpts->setOutputFile(Out);
     } else if (ArgList.hasArg(options::OPT_OUTPUT_LIB)) {
         StringRef Out = ArgList.getLastArgValue(options::OPT_OUTPUT_LIB);
-        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_OUTPUT_LIB=" << Out);
+        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set OPT_OUTPUT_LIB=" << Out);
         FrontendOpts->setOutputFile(Out, true);
     }
 
     // Set Working Directory
     if (const llvm::opt::Arg *A = ArgList.getLastArg(options::OPT_WORKING_DIR)) {
-        FLY_DEBUG_MESSAGE("Driver", "BuildOptions",
+        FLY_DEBUG_START_MSG("Driver", "BuildOptions",
                           "Set OPT_WORKING_DIR=" << A->getValue());
         FileSystemOpts.WorkingDir = A->getValue();
     }
 
     // Print Statistics
     if (ArgList.hasArg(options::OPT_PRINT_STATS)) {
-        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_PRINT_STATS");
+        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set OPT_PRINT_STATS");
         FrontendOpts->ShowStats = true;
     }
 
     // Show Timers
     if (ArgList.hasArg(options::OPT_FTIME_REPORT)) {
-        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_FTIME_REPORT");
+        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set OPT_FTIME_REPORT");
         FrontendOpts->ShowTimers = true;
     }
 
     // Output Statistics file
     if (ArgList.hasArg(options::OPT_STATS_FILE)) {
         FrontendOpts->StatsFile = std::string(ArgList.getLastArgValue(options::OPT_STATS_FILE));
-        FLY_DEBUG_MESSAGE("Driver", "BuildOptions",
+        FLY_DEBUG_START_MSG("Driver", "BuildOptions",
                           "Set OPT_STATS_FILE=" << FrontendOpts->StatsFile);
     }
 
     // Emit different kind of file
     if (ArgList.hasArg(options::OPT_EMIT_LL)) {
-        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_LL");
+        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set OPT_EMIT_LL");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitLL;
         FrontendOpts->setOutputFile("");
     } else if (ArgList.hasArg(options::OPT_EMIT_BC)) {
-        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_BC");
+        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set OPT_EMIT_BC");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitBC;
         FrontendOpts->setOutputFile("");
     } else if (ArgList.hasArg(options::OPT_EMIT_AS)) {
-        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_AS");
+        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set OPT_EMIT_AS");
         FrontendOpts->BackendAction =BackendActionKind::Backend_EmitAssembly;
         FrontendOpts->setOutputFile("");
     } else if (ArgList.hasArg(options::OPT_NO_OUTPUT)) {
-        FLY_DEBUG_MESSAGE("Driver", "BuildOptions", "Set OPT_EMIT_NOTHING");
+        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set OPT_EMIT_NOTHING");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitNothing;
         FrontendOpts->setOutputFile("");
     } else {
@@ -298,7 +298,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     // Target Triple
     if (const llvm::opt::Arg *A = ArgList.getLastArg(options::OPT_TARGET)) {
         TargetOpts->Triple = A->getValue();
-        FLY_DEBUG_MESSAGE("Driver", "BuildOptions",
+        FLY_DEBUG_START_MSG("Driver", "BuildOptions",
                           "Set OPT_TARGET=" << TargetOpts->Triple);
     } else {
         TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
@@ -307,7 +307,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     // Target Machine Code Model
     if (ArgList.hasArg(options::OPT_MC_MODEL)) {
         TargetOpts->CodeModel = std::string(ArgList.getLastArgValue(options::OPT_MC_MODEL));
-        FLY_DEBUG_MESSAGE("Driver", "BuildOptions",
+        FLY_DEBUG_START_MSG("Driver", "BuildOptions",
                           "Set OPT_MC_MODEL=" << TargetOpts->CodeModel);
     } else {
         TargetOpts->CodeModel = "default";
@@ -316,7 +316,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     // Target CPU
     if (ArgList.hasArg(options::OPT_TARGET_CPU)) {
         TargetOpts->CPU = std::string(ArgList.getLastArgValue(options::OPT_TARGET_CPU));
-        FLY_DEBUG_MESSAGE("Driver", "BuildOptions",
+        FLY_DEBUG_START_MSG("Driver", "BuildOptions",
                           "Set OPT_TARGET_CPU=" << TargetOpts->CPU);
     }
 
@@ -328,7 +328,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     // Thread Model
     if (ArgList.hasArg(options::OPT_MTHREAD_MODEL)) {
         CodeGenOpts->ThreadModel = std::string(ArgList.getLastArgValue(options::OPT_MTHREAD_MODEL));
-        FLY_DEBUG_MESSAGE("Driver", "BuildOptions",
+        FLY_DEBUG_START_MSG("Driver", "BuildOptions",
                           "Set OPT_MTHREAD_MODEL=" << CodeGenOpts->ThreadModel);
     } else {
         CodeGenOpts->ThreadModel = "posix";
@@ -364,7 +364,7 @@ bool Driver::Execute() {
             // Delete Output Files on Library generation
             if (CI->getFrontendOptions().CreateLibrary) {
                 for (auto &Output: Front.getOutputFiles()) {
-                    FLY_DEBUG_MESSAGE("Driver", "Execute",
+                    FLY_DEBUG_START_MSG("Driver", "Execute",
                                       "Delete Output File " << Output);
                     const std::error_code &EC = llvm::sys::fs::remove(Output, false);
                     if (EC) {
@@ -375,7 +375,7 @@ bool Driver::Execute() {
             }
         }
     }
-    FLY_DEBUG_MESSAGE("Driver", "Execute", "return " << Success);
+    FLY_DEBUG_END("Driver", "Execute");
 
     return Success;
 }

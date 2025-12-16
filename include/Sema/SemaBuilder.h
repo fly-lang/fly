@@ -69,25 +69,25 @@ namespace fly {
 
     	static SemaClassInstance *CreateThisInstance(SemaClassType &Class);
 
-    	static SemaClassAttribute *CreateClassAttribute(SemaClassType &Class, ASTAttribute &AST, SemaComment &Comment);
+    	static SemaClassAttribute *CreateClassAttribute(SemaClassType &Class, ASTAttribute &AST, SemaType *Type);
 
     	static SemaClassMethod *CreateDefaultConstructor(SemaClassType *Class);
 
-    	static SemaClassMethod *CreateClassMethod(SemaClassType *Class, ASTMethod &AST, SemaComment &Comment);
+    	static SemaClassMethod *CreateClassMethod(SemaClassType *Class, ASTMethod &AST);
 
     	static SemaEnumType *CreateEnum(SemaModule &Module, SymbolTable *Symbols, ASTEnum &AST);
 
-    	static SemaEnumEntry *CreateEnumEntry(SemaEnumType &Enum, ASTVar &AST, SemaComment *Comment);
+    	static SemaEnumEntry *CreateEnumEntry(SemaEnumType *Enum, ASTVar &AST);
 
 	    static SemaComment* CreateComment(ASTComment &AST);
 
-    	static SemaLocalVar *CreateLocalVar(ASTLocalVar &AST);
+    	static SemaLocalVar *CreateLocalVar(ASTLocalVar &AST, SemaType *Type);
 
-    	static SemaParam *CreateParam(ASTParam &Param);
+    	static SemaParam *CreateParam(ASTParam &Param, SemaType *Type);
 
-    	static SemaMemberVar *CreateMemberVar(ASTVar &AST, SemaExpr &Parent);
+    	static SemaMemberVar *CreateMemberVar(ASTVar &AST, SemaExpr &Parent, SemaClassAttribute *Attribute);
 
-    	static SemaCall *CreateCall(ASTCall &Call);
+    	static SemaCall *CreateCall(ASTCall &Call, SemaType *Type, SemaFunctionBase *Function);
 
     	static SemaValue *CreateDefaultValue(SemaType &Type);
 
@@ -97,9 +97,9 @@ namespace fly {
 
     	static SemaStringValue *CreateStringValue(ASTStringValue &Value);
 
-    	static SemaArrayValue *CreateArrayValue(ASTArrayValue &AST) ;
+    	static SemaArrayValue *CreateArrayValue(ASTArrayValue &AST, llvm::SmallVector<SemaValue *, 8> &Values) ;
 
-    	static SemaStructValue *CreateStructValue(ASTStructValue &AST);
+    	static SemaStructValue *CreateStructValue(ASTStructValue &AST, llvm::StringMap<SemaValue *> Values);
 
     	static SemaValue * CreateNullValue(ASTNullValue &AST);
     };

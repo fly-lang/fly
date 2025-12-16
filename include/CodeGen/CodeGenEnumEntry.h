@@ -11,7 +11,10 @@
 #ifndef FLY_CODEGEN_ENUMENTRY_H
 #define FLY_CODEGEN_ENUMENTRY_H
 
+#include <string>
+
 #include "CodeGenVarBase.h"
+
 
 namespace llvm {
     class Value;
@@ -21,8 +24,11 @@ namespace fly {
 
     class CodeGenModule;
     class SemaEnumEntry;
+    class SemaEnumType;
 
     class CodeGenEnumEntry : public CodeGenVarBase {
+
+        CodeGenModule *CGM;
 
         llvm::Value *Value;
 

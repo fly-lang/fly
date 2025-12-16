@@ -21,6 +21,7 @@
 
 #include <CodeGen/CodeGenVar.h>
 #include <Sema/SemaErrorHandler.h>
+#include <Sema/SemaLocalVar.h>
 #include <Sema/SemaParam.h>
 #include <llvm/IR/Instructions.h>
 

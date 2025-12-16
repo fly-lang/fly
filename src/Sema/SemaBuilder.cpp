@@ -109,10 +109,10 @@ SemaClassInstance *SemaBuilder::CreateThisInstance(SemaClassType &Class) {
 	return new SemaClassInstance(&Class);
 }
 
-SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType &Class, ASTAttribute &AST, SemaComment &Comment) {
+SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType &Class, ASTAttribute &AST, SemaType *Type) {
 	FLY_DEBUG_START("SemaBuilder", "CreateClassAttribute");
 
-	SemaClassAttribute *Attribute = new SemaClassAttribute(AST, Class);
+	SemaClassAttribute *Attribute = new SemaClassAttribute(AST, Class, Type);
 	Attribute->setParent(*Class.getThis());
 	// Attribute->Type = AST->TypeRef->getSema(); // TODO add resolved symbol in the scope
 
@@ -121,8 +121,6 @@ SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType &Class, AST
 	Attribute->Visibility = Builder->getVisibility();
 	Attribute->Static = Builder->isStatic();
 	Attribute->Constant = Builder->isConstant();
-
-	Attribute->Comment = &Comment;
 
 	AST.setSema(Attribute);
 
@@ -141,7 +139,7 @@ SemaClassMethod * SemaBuilder::CreateDefaultConstructor(SemaClassType *Class) {
 	return Method;
 }
 
-SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTMethod &AST, SemaComment &Comment) {
+SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTMethod &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateClassFunction");
 
 	SemaClassMethod *Method;
@@ -162,7 +160,6 @@ SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTMethod
 	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
 	Method->Visibility = Builder->getVisibility();
 	Method->Static = Builder->isStatic();
-	Method->Comment = &Comment;
 
 	FLY_DEBUG_END("SemaBuilder", "CreateClassFunction");
 	return Method;
@@ -189,13 +186,12 @@ SemaEnumType * SemaBuilder::CreateEnum(SemaModule &Module, SymbolTable *Symbols,
 	return Enum;
 }
 
-SemaEnumEntry * SemaBuilder::CreateEnumEntry(SemaEnumType &Enum, ASTVar &AST, SemaComment *Comment) {
+SemaEnumEntry * SemaBuilder::CreateEnumEntry(SemaEnumType *Enum, ASTVar &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateEnumEntry");
 
-	SemaEnumEntry *Entry = new SemaEnumEntry(AST);
+	SemaEnumEntry *Entry = new SemaEnumEntry(AST, Enum);
 	// EnumEntry->Index = Enum.Entries.size() + 1; TODO
-	Enum.Entries.insert(std::make_pair(AST.getName(), Entry));
-	Entry->Comment = Comment;
+	Enum->Entries.insert(std::make_pair(AST.getName(), Entry));
 
 	FLY_DEBUG_END("SemaBuilder", "CreateEnumEntry");
 	return Entry;
@@ -210,11 +206,11 @@ SemaComment * SemaBuilder::CreateComment(ASTComment &AST) {
 	return Comment;
 }
 
-SemaLocalVar * SemaBuilder::CreateLocalVar(ASTLocalVar &AST) {
+SemaLocalVar * SemaBuilder::CreateLocalVar(ASTLocalVar &AST, SemaType *Type) {
 	FLY_DEBUG_START("SemaBuilder", "CreateLocalVar");
 
 	// Create LocalVar Symbol
-	SemaLocalVar *Sema = new SemaLocalVar(AST);
+	SemaLocalVar *Sema = new SemaLocalVar(AST, Type);
 	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
 	Sema->Constant = Builder->isConstant();
 
@@ -225,11 +221,11 @@ SemaLocalVar * SemaBuilder::CreateLocalVar(ASTLocalVar &AST) {
 	return Sema;
 }
 
-SemaParam *SemaBuilder::CreateParam(ASTParam &AST) {
+SemaParam *SemaBuilder::CreateParam(ASTParam &AST, SemaType *Type) {
 	FLY_DEBUG_START("SemaBuilder", "CreateParam");
 
 	// Create LocalVar Symbol
-	SemaParam *Sema = new SemaParam(AST);
+	SemaParam *Sema = new SemaParam(AST, Type);
 
 	// Assign Symbol to AST
 	AST.setSema(Sema);
@@ -238,8 +234,8 @@ SemaParam *SemaBuilder::CreateParam(ASTParam &AST) {
 	return Sema;
 }
 
-SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar &AST, SemaExpr &Parent) {
-	SemaMemberVar *Sema = new SemaMemberVar(AST, Parent);
+SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar &AST, SemaExpr &Parent, SemaClassAttribute *Attribute) {
+	SemaMemberVar *Sema = new SemaMemberVar(AST, Parent, Attribute);
 
 	return Sema;
 }
@@ -268,9 +264,10 @@ SemaValue * SemaBuilder::CreateDefaultValue(SemaType &Type) {
 	}
 
 	if (Type.isArray()) {
-		llvm::SmallVector<ASTValue *, 8> Values;
-		ASTArrayValue *AST = ASTBuilder::CreateArrayValue(SourceLocation(), Values);
-		return CreateArrayValue(*AST);
+		llvm::SmallVector<ASTValue *, 8> ASTValues;
+		ASTArrayValue *AST = ASTBuilder::CreateArrayValue(SourceLocation(), ASTValues);
+		llvm::SmallVector<SemaValue *, 8> Values;
+		return CreateArrayValue(*AST, Values);
 	}
 
 	if (Type.isClass()) {
@@ -284,11 +281,12 @@ SemaValue * SemaBuilder::CreateDefaultValue(SemaType &Type) {
 	return nullptr;
 }
 
-SemaCall * SemaBuilder::CreateCall(ASTCall &AST) {
+SemaCall * SemaBuilder::CreateCall(ASTCall &AST, SemaType *Type, SemaFunctionBase *Function) {
 	FLY_DEBUG_START("SemaBuilder", "CreateParam");
 
 	// Create Call Symbol
-	SemaCall *Call = new SemaCall(AST);
+	SemaCall *Call = new SemaCall(AST, Type);
+	Call->Function = Function;
 
 	// Assign Symbol to AST
 	// AST->setSema(Call); // TODO add resolved symbol in the scope
@@ -301,7 +299,6 @@ SemaBoolValue * SemaBuilder::CreateBoolValue(ASTBoolValue &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateBoolValue");
 
 	SemaBoolValue * V = new SemaBoolValue(AST);
-	V->Type = SemaBuiltin::getBoolType();
 
 	FLY_DEBUG_END("SemaBuilder", "CreateBoolValue");
 	return V;
@@ -383,30 +380,27 @@ SemaStringValue * SemaBuilder::CreateStringValue(ASTStringValue &AST) {
 	return V;
 }
 
-SemaArrayValue * SemaBuilder::CreateArrayValue(ASTArrayValue &AST) {
+SemaArrayValue * SemaBuilder::CreateArrayValue(ASTArrayValue &AST, llvm::SmallVector<SemaValue *, 8> &Values) {
 	FLY_DEBUG_START("SemaBuilder", "CreateArrayValue");
 
-	SemaArrayValue * V = new SemaArrayValue(AST);
-	V->Type = AST.getValues().empty() ? nullptr : AST.getValues()[0]->getSema()->getType();
+	SemaType * Type = Values[0] ? Values[0]->getType() : nullptr;
+	SemaArrayValue * V = new SemaArrayValue(AST, Type);
+    V->Values = std::move(Values);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateArrayValue");
 	return V;
 }
 
-SemaStructValue * SemaBuilder::CreateStructValue(ASTStructValue &AST) {
+SemaStructValue * SemaBuilder::CreateStructValue(ASTStructValue &AST, llvm::StringMap<SemaValue *> Values) {
 	FLY_DEBUG_START("SemaBuilder", "CreateStructValue");
 
-	const llvm::StringMap<SemaValue *> Values;
-	SemaStructValue * V = new SemaStructValue(AST);
-	if (AST.getValues().empty()) {
-		V->Type = nullptr;
-	} else {
-		// TODO
-		for (auto &Entry : AST.getValues()) {
-
-		}
-		// V->Type = S.getSemaBuilder().CreateClass();
+	llvm::SmallVector<SemaType *, 8> Types;
+	for (auto &Entry : Values) {
+		Types.push_back(Entry.second->getType());
 	}
+
+	//TODO: Create Struct Type from Types
+	SemaStructValue * V = new SemaStructValue(AST, nullptr);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateStructValue");
 	return V;

@@ -13,7 +13,8 @@
 
 using namespace fly;
 
-SemaVar::SemaVar(ASTVar *AST, SemaVarKind Kind) : SemaExpr(SemaKind::VAR), AST(AST), VarKind(Kind) {
+SemaVar::SemaVar(ASTVar *AST, SemaVarKind Kind, SemaType *Type) :
+	SemaExpr(SemaKind::VAR, Type), AST(AST), VarKind(Kind) {
 }
 
 ASTVar *SemaVar::getAST() const {

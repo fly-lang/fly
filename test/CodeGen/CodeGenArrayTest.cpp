@@ -43,7 +43,7 @@ namespace {
 
         // default int[] k = {}
         ASTArrayType *ArrayIntType = getASTBuilder().CreateArrayType(SourceLoc, IntTypeRef, nullptr);
-        ASTLocalVar *LocalVar_k = getASTBuilder().CreateLocalVar(Body, SourceLoc, ArrayIntType, "k", EmptyModifiers);
+        ASTLocalVar *LocalVar_k = getASTBuilder().CreateLocalVar(SourceLoc, ArrayIntType, "k", EmptyModifiers);
         ASTDeclStmt *DeclStmt_k = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_k);
         llvm::SmallVector<ASTValue *, 8> EmptyVals;
         ASTArrayValue *EmptyArr = getASTBuilder().CreateArrayValue(SourceLoc, EmptyVals);
@@ -131,7 +131,7 @@ namespace {
 
         // int[] g
         ASTType *ArrayIntTypeRef = getASTBuilder().CreateArrayType(SourceLoc, IntTypeRef, nullptr);
-        ASTLocalVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, ArrayIntTypeRef, "g", EmptyModifiers);
+        ASTLocalVar *LocalVar_g = getASTBuilder().CreateLocalVar(SourceLoc, ArrayIntTypeRef, "g", EmptyModifiers);
         ASTDeclStmt *DeclStmt_g = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_g);
 
         // g = 1.0
@@ -175,7 +175,7 @@ namespace {
         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // int[] a = {1,2,3}
-        ASTLocalVar *LocalVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, IntTypeRef, "a", EmptyModifiers);
+        ASTLocalVar *LocalVar = getASTBuilder().CreateLocalVar(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         ASTDeclStmt *DeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar);
         ASTNumberValue *ValueExpr = getASTBuilder().CreateNumberValue(SourceLoc, "1");
         ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(LocalVar);

@@ -13,7 +13,7 @@
 using namespace fly;
 
 SemaClassInstance::SemaClassInstance(SemaClassType *Class) :
-	SemaVar(nullptr, SemaVarKind::CLASS_INSTANCE), Class(Class) {
+	SemaVar(nullptr, SemaVarKind::CLASS_INSTANCE, Class), Class(Class) {
 		Type = Class;
 }
 

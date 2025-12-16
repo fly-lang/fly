@@ -20,16 +20,15 @@ using namespace fly;
 
 std::string Registry::DEFAULT_NAMESPACE = "default";
 
-Registry::Registry() : GlobalScope(CreateBuiltinScope()), DefaultNameSpace(new SemaNameSpace(DEFAULT_NAMESPACE)) {
+Registry::Registry() : BuiltinScope(CreateBuiltinScope()), GlobalScope(new SymbolTable(BuiltinScope)), DefaultNameSpace(new SemaNameSpace(DEFAULT_NAMESPACE)) {
 	NameSpaces.insert(std::make_pair<>(DefaultNameSpace->getName(), DefaultNameSpace));
 }
 
 Registry::~Registry() {
-	// Delete Builtin Scope
-	delete BuiltinScope;
 
-	// Delete Global Scope
-	delete GlobalScope;
+	// Delete Builtin Scope
+	BuiltinScope->deleteChildren();
+	delete BuiltinScope;
 
 	// Delete all Namespaces
 	for (auto &Pair : NameSpaces) {

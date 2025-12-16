@@ -38,7 +38,7 @@ namespace fly {
 
     protected:
 
-        explicit SemaClassAttribute(ASTAttribute &AST, SemaClassType &Class);
+        explicit SemaClassAttribute(ASTAttribute &AST, SemaClassType &Class, SemaType *Type);
 
     public:
 

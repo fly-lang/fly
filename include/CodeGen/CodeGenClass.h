@@ -42,6 +42,8 @@ namespace fly {
 
         SemaClassType *Sema;
 
+        std::string Id;
+
         llvm::StructType *Type = nullptr;
 
         llvm::PointerType *TypePtr = nullptr;
@@ -57,6 +59,8 @@ namespace fly {
         llvm::SmallVector<CodeGenClassMethod *, 4> Methods;
 
         // llvm::SmallVector<BaseType *, 4> BaseTypes;
+
+        std::string toIdentifier(SemaClassType *ClassType);
 
         void CreateVTable();
 

@@ -11,11 +11,7 @@
 
 using namespace fly;
 
-SemaExpr::SemaExpr(SemaKind Kind) : SemaNode(Kind) {
-}
-
-void SemaExpr::setType(SemaType *Type) {
-	this->Type = Type;
+SemaExpr::SemaExpr(SemaKind Kind, SemaType *Type) : SemaNode(Kind), Type(Type) {
 }
 
 SemaExpr *SemaExpr::getParent() const {

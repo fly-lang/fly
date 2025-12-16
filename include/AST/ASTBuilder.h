@@ -217,11 +217,11 @@ namespace fly {
 
         static ASTType *CreateStringType(const SourceLocation &Loc);
 
-        ASTType *CreateErrorType(const SourceLocation &Loc);
+        static ASTType *CreateErrorType(const SourceLocation &Loc);
 
-        ASTArrayType *CreateArrayType(const SourceLocation &Loc, ASTType *ElementType, ASTExpr *SizeExpr);
+        static ASTArrayType *CreateArrayType(const SourceLocation &Loc, ASTType *ElementType, ASTExpr *SizeExpr);
 
-        ASTType *CreateType(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names);
+        static ASTType *CreateType(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names);
 
         // Create Values
 
@@ -244,7 +244,7 @@ namespace fly {
          ASTParam *CreateParam(const SourceLocation &Loc, ASTType *TypeRef, llvm::StringRef Name,
                               llvm::SmallVector<ASTModifier *, 8> &Modifiers, ASTValue *DefaultValue = nullptr);
 
-         ASTLocalVar *CreateLocalVar(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+         ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     llvm::SmallVector<ASTModifier *, 8> &Modifiers);
 
         // Create Call

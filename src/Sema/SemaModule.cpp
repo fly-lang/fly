@@ -26,9 +26,6 @@ SemaModule::~SemaModule() {
 	for (auto *Node : Nodes) {
 		delete Node;
 	}
-
-	// Delete NameSpace if owned
-	delete NameSpace;
 }
 
 SemaModule::SemaModule(ASTModule &AST) : AST(AST) {

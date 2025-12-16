@@ -8,10 +8,9 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenClassMethod.h"
-#include "CodeGen/CodeGenClass.h"
-#include "CodeGen/CodeGen.h"
+#include "CodeGen/CodeGenClassMethod.h"
 #include "CodeGen/CodeGenModule.h"
-#include "CodeGen/CodeGenError.h"
+#include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGenVar.h"
 #include "Sema/SemaModule.h"
 #include "Sema/SemaClassMethod.h"
@@ -33,6 +32,7 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
 	CodeGenFunctionBase(CGM, Sema), ClassType(Type), Index(Index), Static(Sema->isStatic()) {
 
 	SemaClassType *Class = Sema->getClass();
+	Id = toIdentifier(Sema);
 
     // Generate return type
 	if (Sema->isConstructor()) {
@@ -59,8 +59,6 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
 	if (Class->getClassKind() != SemaClassKind::INTERFACE) {
-		std::string FuncName = (Class->getAST().getName() + Sema->getMangledName()).str();
-		std::string Id = CodeGen::toIdentifier(FuncName, Class->getModule()->getNameSpace()->getName());
 		Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
 	}
 }
@@ -184,3 +182,12 @@ void CodeGenClassMethod::GenBody() {
 	// Add return Void
 	CheckReturnVoid();
 }
+
+std::string CodeGenClassMethod::toIdentifier(SemaClassMethod *ClassMethod) {
+	FLY_DEBUG_START("CodeGenClassMethod", "toIdentifier");
+	// For class methods, use the mangled name which includes the class name
+	llvm::StringRef MangledName = ClassMethod->getMangledName();
+	SemaNameSpace *NameSpace = ClassMethod->getClass()->getModule()->getNameSpace();
+	return CGM->toIdentifier(MangledName, NameSpace);
+}
+

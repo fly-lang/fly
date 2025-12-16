@@ -8,9 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "ParserTest.h"
-#include "AST/ASTNameSpace.h"
 #include "AST/ASTModule.h"
-#include "AST/ASTImport.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTValue.h"
@@ -20,7 +18,6 @@
 #include "AST/ASTExpr.h"
 #include "AST/ASTReturnStmt.h"
 #include "AST/ASTExprStmt.h"
-#include "AST/ASTArg.h"
 #include "AST/ASTOp.h"
 
 #include <AST/ASTParam.h>

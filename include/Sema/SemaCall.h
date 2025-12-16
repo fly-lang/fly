@@ -32,7 +32,7 @@ namespace fly {
 
     	SemaErrorHandler *ErrorHandler = nullptr;
 
-        explicit SemaCall(ASTCall &AST);
+        explicit SemaCall(ASTCall &AST, SemaType *Type);
 
     public:
 
@@ -41,8 +41,6 @@ namespace fly {
     	ASTCall &getAST() const;
 
     	SemaFunctionBase *getFunction() const;
-
-    	void setFunction(SemaFunctionBase *Function);
 
     	SemaErrorHandler *getErrorHandler() const;
 

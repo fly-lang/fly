@@ -41,14 +41,14 @@ namespace {
     	ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
     	// default string k = ""
-    	ASTLocalVar *LocalVar_k = getASTBuilder().CreateLocalVar(Body, SourceLoc, StringTypeRef, "k", EmptyModifiers);
+    	ASTLocalVar *LocalVar_k = getASTBuilder().CreateLocalVar(SourceLoc, StringTypeRef, "k", EmptyModifiers);
     	ASTIdentifier *Ident_k = getASTBuilder().CreateIdentifier(LocalVar_k);
     	ASTDeclStmt *DeclStmt_k = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_k);
     	ASTBinaryOp *Assign_k = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Ident_k, getASTBuilder().CreateDefaultValue());
     	DeclStmt_k->setExpr(Assign_k);
 
     	// default char l = '\0'
-    	ASTLocalVar *LocalVar_l = getASTBuilder().CreateLocalVar(Body, SourceLoc, CharTypeRef, "l", EmptyModifiers);
+    	ASTLocalVar *LocalVar_l = getASTBuilder().CreateLocalVar(SourceLoc, CharTypeRef, "l", EmptyModifiers);
     	ASTIdentifier *Ident_l = getASTBuilder().CreateIdentifier(LocalVar_l);
     	ASTDeclStmt *DeclStmt_l = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_l);
     	ASTBinaryOp *Assign_l = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Ident_l, getASTBuilder().CreateDefaultValue());
@@ -126,7 +126,7 @@ namespace {
          ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
     	// float g
-    	ASTLocalVar *LocalVar_g = getASTBuilder().CreateLocalVar(Body, SourceLoc, FloatTypeRef, "g", EmptyModifiers);
+    	ASTLocalVar *LocalVar_g = getASTBuilder().CreateLocalVar(SourceLoc, FloatTypeRef, "g", EmptyModifiers);
     	ASTDeclStmt *DeclStmt_g = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_g);
 
         // g = 1.0

@@ -10,7 +10,6 @@
 #include "Sema/SemaFunctionBase.h"
 #include "Sema/SemaParam.h"
 
-#include <unordered_map>
 #include <AST/ASTFunction.h>
 #include <AST/ASTParam.h>
 #include <AST/ASTType.h>
@@ -75,11 +74,11 @@ ASTFunction &SemaFunctionBase::getAST() {
 	return AST;
 }
 
-llvm::SmallVector<SemaVar *, 8> SemaFunctionBase::getLocalVars() {
+llvm::SmallVector<SemaLocalVar *, 8> SemaFunctionBase::getLocalVars() {
 	return LocalVars;
 }
 
-void SemaFunctionBase::addLocalVar(SemaVar *Var) {
+void SemaFunctionBase::addLocalVar(SemaLocalVar *Var) {
 	LocalVars.push_back(Var);
 }
 

@@ -13,7 +13,7 @@
 
 using namespace fly;
 
-SemaErrorHandler::SemaErrorHandler(ASTVar *AST) : SemaVar(AST, SemaVarKind::ERROR_VAR), Type(new SemaErrorType()) {
+SemaErrorHandler::SemaErrorHandler(ASTVar *AST) : SemaVar(AST, SemaVarKind::ERROR_VAR, new SemaErrorType()) {
 
 }
 

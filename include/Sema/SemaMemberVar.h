@@ -24,11 +24,11 @@ namespace fly {
         friend class Resolver;
         friend class SemaValidator;
 
-        SemaClassAttribute *ClassAttribute = nullptr;
+        SemaClassAttribute *ClassAttribute;
 
         CodeGenVar *CodeGen = nullptr;
 
-        explicit SemaMemberVar(ASTVar &AST, SemaExpr &Parent);
+        explicit SemaMemberVar(ASTVar &AST, SemaExpr &Parent, SemaClassAttribute *Attribute);
 
     public:
 

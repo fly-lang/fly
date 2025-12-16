@@ -65,7 +65,7 @@ namespace {
         ASTType *TestEnumType = getASTBuilder().CreateType(SourceLoc, EnumNames);
 
         //  TestEnum a = TestEnum.A;
-        ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestEnumType, "a", EmptyModifiers);
+        ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(SourceLoc, TestEnumType, "a", EmptyModifiers);
         ASTIdentifier *aVarIdent = getASTBuilder().CreateIdentifier(aVar);
         ASTDeclStmt *aDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, aVar);
         ASTIdentifier *Enum_AIdent = getASTBuilder().CreateIdentifier(A);
@@ -73,7 +73,7 @@ namespace {
         aDeclStmt->setExpr(aAssign);
 
         //  TestEnum b = a
-        ASTLocalVar *bVar = getASTBuilder().CreateLocalVar(Body, SourceLoc, TestEnumType, "b", EmptyModifiers);
+        ASTLocalVar *bVar = getASTBuilder().CreateLocalVar(SourceLoc, TestEnumType, "b", EmptyModifiers);
         ASTIdentifier *bVarIdent = getASTBuilder().CreateIdentifier(bVar);
         ASTDeclStmt *bDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, bVar);
         ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(aVar);

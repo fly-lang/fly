@@ -12,7 +12,7 @@
 
 using namespace fly;
 
-SemaParam::SemaParam(ASTParam &AST) : SemaVar(&AST, SemaVarKind::PARAM_VAR) {
+SemaParam::SemaParam(ASTParam &AST, SemaType *Type) : SemaVar(&AST, SemaVarKind::PARAM_VAR, Type) {
 
 }
 
