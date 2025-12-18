@@ -46,38 +46,38 @@ namespace {
         //   C
         // }
         llvm::SmallVector<ASTType *, 4> SuperEnums;
-        ASTEnum *TestEnum = getASTBuilder().CreateEnum(Module, SourceLoc, "TestEnum", TopModifiers, SuperEnums);
-        ASTEnumEntry *A = getASTBuilder().CreateEnumEntry(SourceLoc, TestEnum, "A", EmptyModifiers);
-        ASTEnumEntry *B = getASTBuilder().CreateEnumEntry(SourceLoc, TestEnum, "B", EmptyModifiers);
-        ASTEnumEntry *C = getASTBuilder().CreateEnumEntry(SourceLoc, TestEnum, "C", EmptyModifiers);
+        ASTEnum *TestEnum = ASTBuilder::CreateEnum(Module, SourceLoc, "TestEnum", TopModifiers, SuperEnums);
+        ASTEnumEntry *A = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "A", EmptyModifiers);
+        ASTEnumEntry *B = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "B", EmptyModifiers);
+        ASTEnumEntry *C = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "C", EmptyModifiers);
 
         // int main() {
         //  TestEnum a = TestEnum.A;
         //  TestEnum b = a
         //  return 1
         // }
-        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // Build a type reference to the enum by creating an ASTName and then an ASTType
         llvm::SmallVector<ASTName *, 4> EnumNames;
-        EnumNames.push_back(getASTBuilder().CreateName(TestEnum->getName(), SourceLoc));
-        ASTType *TestEnumType = getASTBuilder().CreateType(SourceLoc, EnumNames);
+        EnumNames.push_back(ASTBuilder::CreateName(TestEnum->getName(), SourceLoc));
+        ASTType *TestEnumType = ASTBuilder::CreateType(SourceLoc, EnumNames);
 
         //  TestEnum a = TestEnum.A;
-        ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(SourceLoc, TestEnumType, "a", EmptyModifiers);
-        ASTIdentifier *aVarIdent = getASTBuilder().CreateIdentifier(aVar);
-        ASTDeclStmt *aDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, aVar);
-        ASTIdentifier *Enum_AIdent = getASTBuilder().CreateIdentifier(A);
-        ASTBinaryOp *aAssign = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aVarIdent, Enum_AIdent);
+        ASTLocalVar *aVar = ASTBuilder::CreateLocalVar(SourceLoc, TestEnumType, "a", EmptyModifiers);
+        ASTIdentifier *aVarIdent = ASTBuilder::CreateIdentifier(aVar);
+        ASTDeclStmt *aDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, aVar);
+        ASTIdentifier *Enum_AIdent = ASTBuilder::CreateIdentifier(A);
+        ASTBinaryOp *aAssign = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aVarIdent, Enum_AIdent);
         aDeclStmt->setExpr(aAssign);
 
         //  TestEnum b = a
-        ASTLocalVar *bVar = getASTBuilder().CreateLocalVar(SourceLoc, TestEnumType, "b", EmptyModifiers);
-        ASTIdentifier *bVarIdent = getASTBuilder().CreateIdentifier(bVar);
-        ASTDeclStmt *bDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, bVar);
-        ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(aVar);
-        ASTBinaryOp *bAssign = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, bVarIdent, aIdent);
+        ASTLocalVar *bVar = ASTBuilder::CreateLocalVar(SourceLoc, TestEnumType, "b", EmptyModifiers);
+        ASTIdentifier *bVarIdent = ASTBuilder::CreateIdentifier(bVar);
+        ASTDeclStmt *bDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, bVar);
+        ASTIdentifier *aIdent = ASTBuilder::CreateIdentifier(aVar);
+        ASTBinaryOp *bAssign = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, bVarIdent, aIdent);
         bDeclStmt->setExpr(bAssign);
 
 		// Generate Code

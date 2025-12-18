@@ -150,42 +150,42 @@ namespace fly {
         explicit ASTBuilder(DiagnosticsEngine &Diags);
 
         // Create Module
-        ASTModule *CreateModule(InputFile *F);
+        static ASTModule *CreateModule(InputFile *F);
 
-        ASTModule *CreateHeader(InputFile *F);
+        static ASTModule *CreateHeader(InputFile *F);
 
-        ASTComment *CreateComment(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Content);
+        static ASTComment *CreateComment(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Content);
 
         // Create Name
-		ASTName *CreateName(llvm::StringRef Name, const SourceLocation &Loc);
+	static ASTName *CreateName(llvm::StringRef Name, const SourceLocation &Loc);
 
         // Create NameSpace
-        ASTNameSpace *CreateNameSpace(ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names);
+        static ASTNameSpace *CreateNameSpace(ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names);
 
         // Create Import
-        ASTImport *CreateImport(ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names, llvm::SmallVector<ASTName *, 4> Alias);
+        static ASTImport *CreateImport(ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names, llvm::SmallVector<ASTName *, 4> Alias);
 
-        ASTFunction *CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+        static ASTFunction *CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::SmallVector<ASTParam *, 8> &Params,
                                     ASTBlockStmt *Body = nullptr);
 
-        ASTClass *CreateClass(ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind, llvm::StringRef Name,
+        static ASTClass *CreateClass(ASTModule *Module, const SourceLocation &Loc, ASTClassKind ClassKind, llvm::StringRef Name,
                               llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::SmallVector<ASTType *, 4> &Bases);
 
-        ASTAttribute *CreateClassAttribute(const SourceLocation &Loc, ASTClass *Class, ASTType *TypeRef,
+        static ASTAttribute *CreateClassAttribute(const SourceLocation &Loc, ASTClass *Class, ASTType *TypeRef,
                                                 llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                                                 ASTExpr *Expr = nullptr);
 
         static ASTMethod *CreateDefaultConstructor(ASTClass *Class);
 
-        ASTMethod *CreateClassMethod(const SourceLocation &Loc, ASTClass *Class, ASTType *ReturnType,
+        static ASTMethod *CreateClassMethod(const SourceLocation &Loc, ASTClass *Class, ASTType *ReturnType,
                                           llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                                           llvm::SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body = nullptr);
 
-        ASTEnum *CreateEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
+        static ASTEnum *CreateEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                    llvm::SmallVector<ASTType *, 4> EnumTypes);
 
-        ASTEnumEntry *CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name,
+        static ASTEnumEntry *CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name,
                                       llvm::SmallVector<ASTModifier *, 8> &Modifiers);
 
         // Create Modifiers
@@ -241,50 +241,50 @@ namespace fly {
 
         // Create Var
 
-         ASTParam *CreateParam(const SourceLocation &Loc, ASTType *TypeRef, llvm::StringRef Name,
+         static ASTParam *CreateParam(const SourceLocation &Loc, ASTType *TypeRef, llvm::StringRef Name,
                               llvm::SmallVector<ASTModifier *, 8> &Modifiers, ASTValue *DefaultValue = nullptr);
 
-         ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+         static ASTLocalVar *CreateLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
                                     llvm::SmallVector<ASTModifier *, 8> &Modifiers);
 
         // Create Call
 
-         ASTCall *CreateCall(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind CallKind, ASTExpr *Parent = nullptr);
+         static ASTCall *CreateCall(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTExpr *, 8> &Args, ASTCallKind CallKind, ASTExpr *Parent = nullptr);
 
-         ASTIdentifier *CreateIdentifier(ASTVar *Var);
+         static ASTIdentifier *CreateIdentifier(ASTVar *Var);
 
-         ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent = nullptr);
+         static ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent = nullptr);
 
-        ASTMember *CreateMember(ASTVar *Var, ASTExpr *Parent);
+        static ASTMember *CreateMember(ASTVar *Var, ASTExpr *Parent);
 
-         ASTMember *CreateMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent);
+         static ASTMember *CreateMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent);
 
-         ASTUnaryOp *CreateUnary(const SourceLocation &Loc, ASTUnaryOpKind OpKind, ASTExpr *Expr);
+         static ASTUnaryOp *CreateUnary(const SourceLocation &Loc, ASTUnaryOpKind OpKind, ASTExpr *Expr);
 
-         ASTBinaryOp *CreateBinary(const SourceLocation &OpLocation, ASTBinaryOpKind OpKind,
+         static ASTBinaryOp *CreateBinary(const SourceLocation &OpLocation, ASTBinaryOpKind OpKind,
                                             ASTExpr *LeftExpr, ASTExpr *RightExpr);
 
-         ASTTernaryOp *CreateTernary(ASTExpr *ConditionExpr,
+         static ASTTernaryOp *CreateTernary(ASTExpr *ConditionExpr,
                                               const SourceLocation &TrueOpLocation, ASTExpr *TrueExpr,
                                               const SourceLocation &FalseOpLocation, ASTExpr *FalseExpr);
 
         // Create Statements
 
-        ASTDeclStmt *CreateDeclStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTLocalVar *Var);
+        static ASTDeclStmt *CreateDeclStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTLocalVar *Var);
 
-        ASTReturnStmt *CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
+        static ASTReturnStmt *CreateReturnStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        ASTExprStmt *CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
+        static ASTExprStmt *CreateExprStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-        ASTFailStmt *CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
+        static ASTFailStmt *CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-         ASTHandleStmt *CreateHandleStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTBlockStmt *BlockStmt, ASTExpr *ErrorHandler= nullptr);
+         static ASTHandleStmt *CreateHandleStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTBlockStmt *BlockStmt, ASTExpr *ErrorHandler= nullptr);
 
-         ASTBreakStmt *CreateBreakStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
+         static ASTBreakStmt *CreateBreakStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-         ASTContinueStmt *CreateContinueStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
+         static ASTContinueStmt *CreateContinueStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-         ASTDeleteStmt *CreateDeleteStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTIdentifier *VarRef);
+         static ASTDeleteStmt *CreateDeleteStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTIdentifier *VarRef);
 
          static ASTBlockStmt *CreateBody(ASTFunction *Function, ASTBlockStmt *Body);
 

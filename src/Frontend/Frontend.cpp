@@ -46,9 +46,6 @@ bool Frontend::Execute() {
     if (CI.getFrontendOptions().ShowStats)
         llvm::EnableStatistics(false);
 
-    // Parse files, create AST, build Semantics checker
-    Sema *S = new Sema(Diags);
-
     // Check if Input Files not empty
     if (CI.getFrontendOptions().getInputFiles().empty()) {
         Diags.Report(SourceLocation(), diag::note_no_input_process);
@@ -63,6 +60,9 @@ bool Frontend::Execute() {
         ParseFile(*Builder, FileName);
         Diags.getClient()->EndSourceFile();
     }
+
+	// Parse files, create AST, build Semantics checker
+	Sema *S = new Sema(Diags);
 
     Diags.getClient()->BeginSourceFile();
 

@@ -67,7 +67,7 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) : 
     if (P->isBlockStart()) {
         P->ConsumeBrace(BraceCount);
 
-        Class = P->Builder.CreateClass(P->Module, ClassLoc, ClassKind, ClassName, Modifiers, Bases);
+        Class = ASTBuilder::CreateClass(P->Module, ClassLoc, ClassKind, ClassName, Modifiers, Bases);
         bool Continue;
         do {
 
@@ -133,7 +133,7 @@ ASTAttribute *ParserClass::ParseAttribute(SmallVector<ASTModifier *, 8> &Modifie
         Expr = P->ParseExpr();
     }
 
-    return P->Builder.CreateClassAttribute(Loc, Class, TypeRef, Name, Modifiers, Expr);
+    return ASTBuilder::CreateClassAttribute(Loc, Class, TypeRef, Name, Modifiers, Expr);
 }
 
 ASTMethod *ParserClass::ParseMethod(SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef,
@@ -141,7 +141,7 @@ ASTMethod *ParserClass::ParseMethod(SmallVector<ASTModifier *, 8> &Modifiers, AS
 	FLY_DEBUG_START("ClassParser", "ParseMethod");
 
 	SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(P);
-	ASTMethod *Function = P->Builder.CreateClassMethod(Loc, Class, TypeRef, Name, Modifiers, Params);
+	ASTMethod *Function = ASTBuilder::CreateClassMethod(Loc, Class, TypeRef, Name, Modifiers, Params);
 	ASTBlockStmt *Body = P->isBlockStart() ? ParserFunction::ParseBody(P, Function) : nullptr;
 	return Function;
 }

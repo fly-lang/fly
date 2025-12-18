@@ -27,6 +27,8 @@ namespace fly {
 
         Registry *Reg;
 
+        ASTBuilder *Builder;
+
     public:
 
         explicit Sema(DiagnosticsEngine& diags);

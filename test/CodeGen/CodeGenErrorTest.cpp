@@ -36,15 +36,15 @@ namespace {
         // func() {
         //   error A = handle fail
         // }
-        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
-        ASTLocalVar *ErrorA = getASTBuilder().CreateLocalVar(SourceLoc, ErrorTypeRef, "A", EmptyModifiers);
-        ASTDeclStmt *DeclStmt_A = getASTBuilder().CreateDeclStmt(Body, SourceLoc, ErrorA);
-        ASTIdentifier *ErrorVarRef = getASTBuilder().CreateIdentifier(ErrorA);
-        ASTBlockStmt *HandleBlock = getASTBuilder().CreateBlockStmt(SourceLoc);
-        getASTBuilder().CreateHandleStmt(Body, SourceLoc, HandleBlock, ErrorVarRef);
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTLocalVar *ErrorA = ASTBuilder::CreateLocalVar(SourceLoc, ErrorTypeRef, "A", EmptyModifiers);
+        ASTDeclStmt *DeclStmt_A = ASTBuilder::CreateDeclStmt(Body, SourceLoc, ErrorA);
+        ASTIdentifier *ErrorVarRef = ASTBuilder::CreateIdentifier(ErrorA);
+        ASTBlockStmt *HandleBlock = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTBuilder::CreateHandleStmt(Body, SourceLoc, HandleBlock, ErrorVarRef);
 
-        ASTFailStmt * Fail0Stmt = getASTBuilder().CreateFailStmt(HandleBlock, SourceLoc);
+        ASTFailStmt * Fail0Stmt = ASTBuilder::CreateFailStmt(HandleBlock, SourceLoc);
 
 		// Generate Code
 		llvm::Module * M = Generate()[0];
@@ -85,19 +85,19 @@ namespace {
         // int testFail() {
         //   fail
         // }
-        ASTBlockStmt *Body0 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body0);
-        ASTFailStmt * Fail0Stmt = getASTBuilder().CreateFailStmt(Body0, SourceLoc);
+        ASTBlockStmt *Body0 = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *TestFail = ASTBuilder::CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body0);
+        ASTFailStmt * Fail0Stmt = ASTBuilder::CreateFailStmt(Body0, SourceLoc);
 
 		// main() {
 		//   testFail()
 		// }
-		ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-		ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
+		ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+		ASTFunction *Main = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
 		// call testFail0()
-		ASTExprStmt * CallTestFail0 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-		ASTCall *CallExpr0 = getASTBuilder().CreateCall(SourceLoc, TestFail->getName(), Args, ASTCallKind::CALL_DIRECT);
+		ASTExprStmt * CallTestFail0 = ASTBuilder::CreateExprStmt(MainBody, SourceLoc);
+		ASTCall *CallExpr0 = ASTBuilder::CreateCall(SourceLoc, TestFail->getName(), Args, ASTCallKind::CALL_DIRECT);
 		CallTestFail0->setExpr(CallExpr0);
 
 		// Generate Code
@@ -153,21 +153,21 @@ namespace {
         // int testFail() {
         //   fail true
         // }
-        ASTBlockStmt *Body1 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body1);
-        ASTBoolValue *BoolVal = getASTBuilder().CreateBoolValue(SourceLoc, true);
-        ASTFailStmt * Fail1Stmt = getASTBuilder().CreateFailStmt(Body1, SourceLoc);
+        ASTBlockStmt *Body1 = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *TestFail = ASTBuilder::CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body1);
+        ASTBoolValue *BoolVal = ASTBuilder::CreateBoolValue(SourceLoc, true);
+        ASTFailStmt * Fail1Stmt = ASTBuilder::CreateFailStmt(Body1, SourceLoc);
         Fail1Stmt->setExpr(BoolVal);
 
 		// main() {
 		//   testFail()
 		// }
-		ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-		ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
+		ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+		ASTFunction *Main = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
 		// call testFail1()
-		ASTExprStmt * CallTestFail1 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-		ASTCall *CallExpr1 = getASTBuilder().CreateCall(SourceLoc, TestFail->getName(), Args, ASTCallKind::CALL_DIRECT);
+		ASTExprStmt * CallTestFail1 = ASTBuilder::CreateExprStmt(MainBody, SourceLoc);
+		ASTCall *CallExpr1 = ASTBuilder::CreateCall(SourceLoc, TestFail->getName(), Args, ASTCallKind::CALL_DIRECT);
 		CallTestFail1->setExpr(CallExpr1);
 
 		// Generate Code
@@ -223,21 +223,21 @@ namespace {
         // int testFail2() {
         //   fail 10
         // }
-        ASTBlockStmt *Body2 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail2 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body2);
-        ASTNumberValue *IntVal = getASTBuilder().CreateNumberValue(SourceLoc, "10");
-        ASTFailStmt * Fail2Stmt = getASTBuilder().CreateFailStmt(Body2, SourceLoc);
+        ASTBlockStmt *Body2 = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *TestFail2 = ASTBuilder::CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body2);
+        ASTNumberValue *IntVal = ASTBuilder::CreateNumberValue(SourceLoc, "10");
+        ASTFailStmt * Fail2Stmt = ASTBuilder::CreateFailStmt(Body2, SourceLoc);
         Fail2Stmt->setExpr(IntVal);
 
         // main() {
         //   testFail()
         // }
-        ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
+        ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Main = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
         // call testFail()
-        ASTExprStmt * CallTestFail2 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-        ASTCall *CallExpr2 = getASTBuilder().CreateCall(SourceLoc, TestFail2->getName(), Args, ASTCallKind::CALL_DIRECT);
+        ASTExprStmt * CallTestFail2 = ASTBuilder::CreateExprStmt(MainBody, SourceLoc);
+        ASTCall *CallExpr2 = ASTBuilder::CreateCall(SourceLoc, TestFail2->getName(), Args, ASTCallKind::CALL_DIRECT);
         CallTestFail2->setExpr(CallExpr2);
 
 		// Generate Code
@@ -293,21 +293,21 @@ namespace {
         // int testFail() {
         //  fail "Error"
         // }
-        ASTBlockStmt *Body3 = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail3 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body3);
-        ASTStringValue *StrVal = getASTBuilder().CreateStringValue(SourceLoc, "Error");
-        ASTFailStmt * Fail3Stmt = getASTBuilder().CreateFailStmt(Body3, SourceLoc);
+        ASTBlockStmt *Body3 = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *TestFail3 = ASTBuilder::CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body3);
+        ASTStringValue *StrVal = ASTBuilder::CreateStringValue(SourceLoc, "Error");
+        ASTFailStmt * Fail3Stmt = ASTBuilder::CreateFailStmt(Body3, SourceLoc);
         Fail3Stmt->setExpr(StrVal);
 
         // main() {
         //   testFail()
         // }
-        ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
+        ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Main = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
         // call testFail()
-        ASTExprStmt * CallTestFail3 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-        ASTCall *CallExpr3 = getASTBuilder().CreateCall(SourceLoc, TestFail3->getName(), Args, ASTCallKind::CALL_DIRECT);
+        ASTExprStmt * CallTestFail3 = ASTBuilder::CreateExprStmt(MainBody, SourceLoc);
+        ASTCall *CallExpr3 = ASTBuilder::CreateCall(SourceLoc, TestFail3->getName(), Args, ASTCallKind::CALL_DIRECT);
         CallTestFail3->setExpr(CallExpr3);
 
 		// Generate Code
@@ -368,29 +368,29 @@ namespace {
     	//  int a
     	// }
         llvm::SmallVector<ASTType *, 4> SuperClasses;
-        ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopModifiers, SuperClasses);
-        ASTAttribute *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
+        ASTClass *TestStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopModifiers, SuperClasses);
+        ASTAttribute *aField = ASTBuilder::CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
 
     	// int testFail() {
     	//  fail new TestStruct()
     	// }
-        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail4 = getASTBuilder().CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body);
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *TestFail4 = ASTBuilder::CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body);
         // TestStruct test = new TestStruct()
-        ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
+        ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
         // fail new TestStruct()
-        ASTFailStmt * Fail4Stmt = getASTBuilder().CreateFailStmt(Body, SourceLoc);
+        ASTFailStmt * Fail4Stmt = ASTBuilder::CreateFailStmt(Body, SourceLoc);
         Fail4Stmt->setExpr(ConstructorCall);
 
         // main() {
         //   testFail()
         // }
-        ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Main = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
+        ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Main = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
 
         // call testFail()
-        ASTExprStmt * CallTestFail4 = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
-        ASTCall *CallExpr4 = getASTBuilder().CreateCall(SourceLoc, TestFail4->getName(), Args, ASTCallKind::CALL_DIRECT);
+        ASTExprStmt * CallTestFail4 = ASTBuilder::CreateExprStmt(MainBody, SourceLoc);
+        ASTCall *CallExpr4 = ASTBuilder::CreateCall(SourceLoc, TestFail4->getName(), Args, ASTCallKind::CALL_DIRECT);
         CallTestFail4->setExpr(CallExpr4);
 
 		// Generate Code

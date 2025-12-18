@@ -24,8 +24,8 @@ using namespace fly;
 ASTBlockStmt *ParserFunction::ParseBody(Parser *P, ASTFunction *F) {
     FLY_DEBUG_START("ParserFunction", "ParseBody");
     assert(P->isBlockStart() && "Block Start");
-    ASTBlockStmt *Block = P->Builder.CreateBlockStmt(P->Tok.getLocation());
-    ASTBlockStmt *Body = P->Builder.CreateBody(F, Block);
+    ASTBlockStmt *Block = ASTBuilder::CreateBlockStmt(P->Tok.getLocation());
+    ASTBlockStmt *Body = ASTBuilder::CreateBody(F, Block);
     P->ParseBlock(Body);
     return Body;
 }
@@ -108,6 +108,6 @@ ASTParam *ParserFunction::ParseParam(Parser *P) {
         }
     }
 
-    ASTParam *Param = P->Builder.CreateParam(Loc, Type, Name, Modifiers, Value);
+    ASTParam *Param = ASTBuilder::CreateParam(Loc, Type, Name, Modifiers, Value);
     return Param;
 }

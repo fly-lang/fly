@@ -47,7 +47,7 @@ ParserEnum::ParserEnum(Parser *P, llvm::SmallVector<ASTModifier *, 8> &Modifiers
     if (P->isBlockStart()) {
         P->ConsumeBrace(BraceCount);
 
-        Enum = P->Builder.CreateEnum(P->Module, ClassLoc, EnumName, Modifiers, Bases);
+        Enum = ASTBuilder::CreateEnum(P->Module, ClassLoc, EnumName, Modifiers, Bases);
         do {
 
             // End of the Class
@@ -89,7 +89,7 @@ ASTEnum *ParserEnum::Parse(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) 
 bool ParserEnum::ParseEntry(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> Modifiers) {
      FLY_DEBUG_START("EnumParser", "ParserEntry");
      // Create the first entry
-     ASTEnumEntry *EnumEntry = P->Builder.CreateEnumEntry(Loc, Enum, Name, Modifiers);
+     ASTEnumEntry *EnumEntry = ASTBuilder::CreateEnumEntry(Loc, Enum, Name, Modifiers);
 
      // Allow comma separated entries on the same line: A, B, C
     while (P->Tok.is(tok::comma)) {
@@ -111,7 +111,7 @@ bool ParserEnum::ParseEntry(const SourceLocation &Loc, llvm::StringRef Name, llv
         // Create the next enum entry
         Name = P->Tok.getIdentifierInfo()->getName();
         const SourceLocation NextLoc = P->ConsumeToken();
-        P->Builder.CreateEnumEntry(NextLoc, Enum, Name, Modifiers);
+        ASTBuilder::CreateEnumEntry(NextLoc, Enum, Name, Modifiers);
     }
 
      return true;

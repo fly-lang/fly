@@ -37,21 +37,21 @@ namespace {
          */
         ASTModule *Module = CreateModule();
 
-    	ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+    	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
     	// default string k = ""
-    	ASTLocalVar *LocalVar_k = getASTBuilder().CreateLocalVar(SourceLoc, StringTypeRef, "k", EmptyModifiers);
-    	ASTIdentifier *Ident_k = getASTBuilder().CreateIdentifier(LocalVar_k);
-    	ASTDeclStmt *DeclStmt_k = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_k);
-    	ASTBinaryOp *Assign_k = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Ident_k, getASTBuilder().CreateDefaultValue());
+    	ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, StringTypeRef, "k", EmptyModifiers);
+    	ASTIdentifier *Ident_k = ASTBuilder::CreateIdentifier(LocalVar_k);
+    	ASTDeclStmt *DeclStmt_k = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_k);
+    	ASTBinaryOp *Assign_k = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Ident_k, ASTBuilder::CreateDefaultValue());
     	DeclStmt_k->setExpr(Assign_k);
 
     	// default char l = '\0'
-    	ASTLocalVar *LocalVar_l = getASTBuilder().CreateLocalVar(SourceLoc, CharTypeRef, "l", EmptyModifiers);
-    	ASTIdentifier *Ident_l = getASTBuilder().CreateIdentifier(LocalVar_l);
-    	ASTDeclStmt *DeclStmt_l = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_l);
-    	ASTBinaryOp *Assign_l = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Ident_l, getASTBuilder().CreateDefaultValue());
+    	ASTLocalVar *LocalVar_l = ASTBuilder::CreateLocalVar(SourceLoc, CharTypeRef, "l", EmptyModifiers);
+    	ASTIdentifier *Ident_l = ASTBuilder::CreateIdentifier(LocalVar_l);
+    	ASTDeclStmt *DeclStmt_l = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_l);
+    	ASTBinaryOp *Assign_l = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Ident_l, ASTBuilder::CreateDefaultValue());
     	DeclStmt_l->setExpr(Assign_l);
 
     	// Generate Code
@@ -79,11 +79,11 @@ namespace {
         ASTModule *Module = CreateModule();
 
         llvm::SmallVector<ASTParam *, 8> Params;
-    	Params.push_back(getASTBuilder().CreateParam(SourceLoc, StringTypeRef, "k", EmptyModifiers));
-    	Params.push_back(getASTBuilder().CreateParam(SourceLoc, CharTypeRef, "l", EmptyModifiers));
-        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
+    	Params.push_back(ASTBuilder::CreateParam(SourceLoc, StringTypeRef, "k", EmptyModifiers));
+    	Params.push_back(ASTBuilder::CreateParam(SourceLoc, CharTypeRef, "l", EmptyModifiers));
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
 
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
         // func(string k, char l) {
         // }
 
@@ -122,23 +122,23 @@ namespace {
          ASTModule *Module = CreateModule();
 
          // func()
-         ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-         ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+         ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
     	// float g
-    	ASTLocalVar *LocalVar_g = getASTBuilder().CreateLocalVar(SourceLoc, FloatTypeRef, "g", EmptyModifiers);
-    	ASTDeclStmt *DeclStmt_g = getASTBuilder().CreateDeclStmt(Body, SourceLoc, LocalVar_g);
+    	ASTLocalVar *LocalVar_g = ASTBuilder::CreateLocalVar(SourceLoc, FloatTypeRef, "g", EmptyModifiers);
+    	ASTDeclStmt *DeclStmt_g = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_g);
 
         // g = 1.0
-        ASTIdentifier *VarRef_g = getASTBuilder().CreateIdentifier(LocalVar_g);
-        ASTNumberValue *ExprG = getASTBuilder().CreateNumberValue(SourceLoc, "1.0");
-        ASTExprStmt *GVarStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
-        ASTBinaryOp *GAssign = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, VarRef_g, ExprG);
+        ASTIdentifier *VarRef_g = ASTBuilder::CreateIdentifier(LocalVar_g);
+        ASTNumberValue *ExprG = ASTBuilder::CreateNumberValue(SourceLoc, "1.0");
+        ASTExprStmt *GVarStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
+        ASTBinaryOp *GAssign = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, VarRef_g, ExprG);
         GVarStmt->setExpr(GAssign);
 
         // return g
-        ASTReturnStmt *Return = getASTBuilder().CreateReturnStmt(Body, SourceLoc);
-        Return->setExpr(getASTBuilder().CreateIdentifier(LocalVar_g));
+        ASTReturnStmt *Return = ASTBuilder::CreateReturnStmt(Body, SourceLoc);
+        Return->setExpr(ASTBuilder::CreateIdentifier(LocalVar_g));
 
     	// Generate Code
     	llvm::Module * M = Generate()[0];

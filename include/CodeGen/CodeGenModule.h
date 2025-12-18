@@ -197,8 +197,6 @@ namespace fly {
 
         llvm::Constant *GenDefaultValue(SemaType *Type, llvm::Type *Ty = nullptr);
 
-//        llvm::Value *Convert(llvm::Value *V, llvm::Type *T);
-
         llvm::Value *ConvertToBool(llvm::Value *Val);
 
         llvm::Value *Convert(llvm::Value *FromVal, SemaType *FromType, SemaType *ToType);

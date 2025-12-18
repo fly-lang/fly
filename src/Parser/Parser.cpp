@@ -71,7 +71,7 @@ ASTModule *Parser::ParseModule() {
     // Prime the lexer look-ahead.
     ConsumeToken();
 
-    Module = Builder.CreateModule(Input);
+    Module = ASTBuilder::CreateModule(Input);
 
     // Start with Parse (recursively))
     while (ContinueParse && Tok.isNot(tok::eof)) {
@@ -119,7 +119,7 @@ ASTNameSpace *Parser::ParseNameSpace() {
 	llvm::SmallVector<ASTName *, 4> Names = ParseNames();
 
 	// Create NameSpace
-	return Builder.CreateNameSpace(Module, Loc, Names);
+	return ASTBuilder::CreateNameSpace(Module, Loc, Names);
 }
 
 ASTImport *Parser::ParseImport() {
@@ -149,7 +149,7 @@ ASTImport *Parser::ParseImport() {
 	}
 
 	// Create Import
-	return Builder.CreateImport(Module, Loc, Names, Alias);
+	return ASTBuilder::CreateImport(Module, Loc, Names, Alias);
 }
 
 llvm::SmallVector<ASTName *, 4> Parser::ParseNames() {
@@ -163,7 +163,7 @@ llvm::SmallVector<ASTName *, 4> Parser::ParseNames() {
 		}
 
 		// Parse Name
-		ASTName *Name = Builder.CreateName(Tok.getIdentifierInfo()->getName(), Tok.getLocation());
+		ASTName *Name = ASTBuilder::CreateName(Tok.getIdentifierInfo()->getName(), Tok.getLocation());
 		Names.push_back(Name);
 		ConsumeToken();
 
@@ -189,7 +189,7 @@ ASTComment *Parser::ParseComment() {
 	// Parse all as string
 	ASTComment *Comment = nullptr;
 	if (!Lex.BlockComment.empty()) {
-		Comment = Builder.CreateComment(Module, SourceLocation(), Lex.BlockComment);
+		Comment = ASTBuilder::CreateComment(Module, SourceLocation(), Lex.BlockComment);
 	}
 
 	return Comment;
@@ -308,7 +308,7 @@ ASTFunction *Parser::ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers) {
 	SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(this);
 
 	// Create Function
-	ASTFunction *Function = Builder.CreateFunction(Module, Loc, T, Name, Modifiers, Params, nullptr);
+	ASTFunction *Function = ASTBuilder::CreateFunction(Module, Loc, T, Name, Modifiers, Params, nullptr);
 	ASTBlockStmt *Body = isBlockStart() ? ParserFunction::ParseBody(this, Function) : nullptr;
 	return Function;
 }
@@ -408,7 +408,7 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 	if (Tok.is(tok::kw_return)) {
 		SourceLocation Loc = Tok.getLocation();
 		ConsumeToken();
-		ASTReturnStmt *Stmt = Builder.CreateReturnStmt(Parent, Loc);
+		ASTReturnStmt *Stmt = ASTBuilder::CreateReturnStmt(Parent, Loc);
 
 		// Only parse expression if not followed by statement terminators
 		if (!Tok.isOneOf(tok::r_brace, tok::eof, tok::kw_case, tok::kw_default,
@@ -421,13 +421,13 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 	}
 
 	if (Tok.is(tok::kw_break)) {
-		Builder.CreateBreakStmt(Parent, Tok.getLocation());
+		ASTBuilder::CreateBreakStmt(Parent, Tok.getLocation());
 		ConsumeToken();
 		return;
 	}
 
 	if (Tok.is(tok::kw_continue)) {
-		Builder.CreateContinueStmt(Parent, Tok.getLocation());
+		ASTBuilder::CreateContinueStmt(Parent, Tok.getLocation());
 		ConsumeToken();
 		return;
 	}
@@ -450,12 +450,12 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 		ConsumeToken();
 
 		// Create local variable and associated identifier
-		ASTLocalVar *LocalVar = Builder.CreateLocalVar(Loc, T, Name, Modifiers);
-		Identifier = Builder.CreateIdentifier(LocalVar);
+		ASTLocalVar *LocalVar = ASTBuilder::CreateLocalVar(Loc, T, Name, Modifiers);
+		Identifier = ASTBuilder::CreateIdentifier(LocalVar);
 
 		// Check for initialization: "Type name = expr"
 		if (isAssignOperator(Tok)) {
-			ASTDeclStmt *DeclStmt = Builder.CreateDeclStmt(Parent, Tok.getLocation(), LocalVar);
+			ASTDeclStmt *DeclStmt = ASTBuilder::CreateDeclStmt(Parent, Tok.getLocation(), LocalVar);
 			DeclStmt->setExpr(ParseExpr(Identifier));
 			return;
 		}
@@ -467,7 +467,7 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 		}
 
 		// Declaration without initializer
-		Builder.CreateDeclStmt(Parent, Identifier->getLocation(), LocalVar);
+		ASTBuilder::CreateDeclStmt(Parent, Identifier->getLocation(), LocalVar);
 		return;
 	}
 
@@ -477,11 +477,11 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 		llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
 		const SourceLocation &Loc = Tok.getLocation();
 		ConsumeToken();
-		Identifier = Builder.CreateIdentifier(Loc, Name);
+		Identifier = ASTBuilder::CreateIdentifier(Loc, Name);
 
 		// Must have an assignment operator
 		if (isAssignOperator(Tok)) {
-			ASTExprStmt *Stmt = Builder.CreateExprStmt(Parent, Identifier->getLocation());
+			ASTExprStmt *Stmt = ASTBuilder::CreateExprStmt(Parent, Identifier->getLocation());
 			ASTExpr *Expr = ParseExpr(Identifier);
 			Stmt->setExpr(Expr);
 			return;
@@ -495,7 +495,7 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 	if (!Tok.is(tok::r_brace) && !Tok.is(tok::eof)) {
 		ASTExpr *Expr = ParseExpr();
 		if (Expr) {
-			ASTExprStmt *Stmt = Builder.CreateExprStmt(Parent, Expr->getLocation());
+			ASTExprStmt *Stmt = ASTBuilder::CreateExprStmt(Parent, Expr->getLocation());
 			Stmt->setExpr(Expr);
 		}
 	}
@@ -729,7 +729,7 @@ void Parser::ParseIfStmt(ASTBlockStmt *Parent) {
 
     // Create If
     ASTBuilderIfStmt *IfBuilder = ASTBuilderIfStmt::Create(Parent);
-    ASTBlockStmt *IfBlock = Builder.CreateBlockStmt(Tok.getLocation());
+    ASTBlockStmt *IfBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
     IfBuilder->If(IfLoc, IfCondition, IfBlock);
 
     // Parse statement between braces for If
@@ -748,7 +748,7 @@ void Parser::ParseIfStmt(ASTBlockStmt *Parent) {
             ParseEndParen(hasElsifParen);
         }
 
-        ASTBlockStmt *ElsifBlock = Builder.CreateBlockStmt(Tok.getLocation());
+        ASTBlockStmt *ElsifBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
         ParseBlockOrStmt(ElsifBlock);
 
         IfBuilder->ElseIf(ElsifLoc, ElsifCondition, ElsifBlock);
@@ -757,7 +757,7 @@ void Parser::ParseIfStmt(ASTBlockStmt *Parent) {
     // Add Else
     if (Tok.is(tok::kw_else)) {
         const SourceLocation &ElseLoc = ConsumeToken();
-        ASTBlockStmt *ElseBlock = Builder.CreateBlockStmt(ElseLoc);
+        ASTBlockStmt *ElseBlock = ASTBuilder::CreateBlockStmt(ElseLoc);
         ParseBlockOrStmt(ElseBlock);
     	IfBuilder->Else(ElseLoc, ElseBlock);
     }
@@ -823,7 +823,7 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
     			ASTExpr *Expr = ParseExpr();
 
 				// Parse Switch
-				ASTBlockStmt *CaseBlock = Builder.CreateBlockStmt(Tok.getLocation());
+				ASTBlockStmt *CaseBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
 				if (Tok.is(tok::colon)) { // Parse a Block of Stmt
 					ConsumeToken();
 					SwitchBuilder->Case(CaseLoc, Expr, CaseBlock);
@@ -845,7 +845,7 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
     			}
 
 				// Parse Default
-				ASTBlockStmt *DefaultBlock = Builder.CreateBlockStmt(DefaultLoc);
+				ASTBlockStmt *DefaultBlock = ASTBuilder::CreateBlockStmt(DefaultLoc);
 				if (Tok.is(tok::colon)) { // Parse a Block of Stmt
 					ConsumeToken();
 					SwitchBuilder->Default(SwitchLoc, DefaultBlock);
@@ -906,7 +906,7 @@ void Parser::ParseWhileStmt(ASTBlockStmt *Parent) {
 		ParseEndParen(hasParen);
 	}
 
-    ASTBlockStmt *BlockStmt = Builder.CreateBlockStmt(Tok.getLocation());
+    ASTBlockStmt *BlockStmt = ASTBuilder::CreateBlockStmt(Tok.getLocation());
     ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::CreateLoop(Parent, WhileLoc);
     LoopBuilder->Loop(Condition, BlockStmt);
 
@@ -961,7 +961,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
             llvm::StringRef ItemName = Tok.getIdentifierInfo()->getName();
             const SourceLocation &ItemLoc = Tok.getLocation();
         	ConsumeToken();
-            ASTExpr *Item = Builder.CreateIdentifier(ItemLoc, ItemName);
+            ASTExpr *Item = ASTBuilder::CreateIdentifier(ItemLoc, ItemName);
 
             // Consume 'in'
         	SourceLocation InLoc = Tok.getLocation();
@@ -975,7 +975,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
             }
 
             // Prepare loop body
-            ASTBlockStmt *LoopBlock = Builder.CreateBlockStmt(Tok.getLocation());
+            ASTBlockStmt *LoopBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
 
             // Create LoopIn AST node
             ASTLoopInStmt *LoopIn = ASTBuilderLoopStmt::CreateLoopIn(Parent, ForLoc, Item, List, LoopBlock);
@@ -990,7 +990,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
 
     // Create For Statement
 	ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::CreateLoop(Parent, ForLoc);
-    ASTBlockStmt *InitBlock = Builder.CreateBlockStmt(Tok.getLocation());
+    ASTBlockStmt *InitBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
 	LoopBuilder->Init(InitBlock);
     ASTExpr *Condition = nullptr;
 
@@ -1009,7 +1009,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
         Condition = ParseExpr();
 
         if (Tok.is(tok::semi)) {
-        	ASTBlockStmt *PostBlock = Builder.CreateBlockStmt(Tok.getLocation());
+        	ASTBlockStmt *PostBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
         	LoopBuilder->Post(PostBlock);
 
         	ConsumeToken();
@@ -1028,7 +1028,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
 	}
 
 	// Create Loop Stmt
-    ASTBlockStmt *LoopBlock = Builder.CreateBlockStmt(Tok.getLocation());
+    ASTBlockStmt *LoopBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
     LoopBuilder->Loop(Condition, LoopBlock);
 
     // Parse statement between braces
@@ -1044,9 +1044,9 @@ void Parser::ParseHandleStmt(ASTBlockStmt *Parent, ASTIdentifier *Error) {
 	ConsumeToken();
 
     // Parse statement between braces
-    ASTBlockStmt *HandleBlock = Builder.CreateBlockStmt(HandleLoc);
+    ASTBlockStmt *HandleBlock = ASTBuilder::CreateBlockStmt(HandleLoc);
     ParseBlockOrStmt(HandleBlock);
-    Builder.CreateHandleStmt(Parent, HandleLoc, HandleBlock, Error);
+    ASTBuilder::CreateHandleStmt(Parent, HandleLoc, HandleBlock, Error);
 }
 
 void Parser::ParseFailStmt(ASTBlockStmt *Parent) {
@@ -1055,7 +1055,7 @@ void Parser::ParseFailStmt(ASTBlockStmt *Parent) {
 
     const SourceLocation &FailLoc = Tok.getLocation();
 	ConsumeToken();
-    ASTFailStmt *Stmt = Builder.CreateFailStmt(Parent, FailLoc);
+    ASTFailStmt *Stmt = ASTBuilder::CreateFailStmt(Parent, FailLoc);
 
     // Parse optional expression (fail can be used without an expression)
     if (!Tok.isOneOf(tok::r_brace, tok::eof, tok::kw_case, tok::kw_default,
@@ -1079,43 +1079,43 @@ ASTType *Parser::ParseType() {
 	if (Tok.isKeyword()) {
 		switch (Tok.getKind()) {
 			case tok::kw_bool:
-				T = Builder.CreateBoolType(Tok.getLocation());
+				T = ASTBuilder::CreateBoolType(Tok.getLocation());
 				break;
 			case tok::kw_byte:
-				T = Builder.CreateByteType(Tok.getLocation());
+				T = ASTBuilder::CreateByteType(Tok.getLocation());
 				break;
 			case tok::kw_ushort:
-				T = Builder.CreateUShortType(Tok.getLocation());
+				T = ASTBuilder::CreateUShortType(Tok.getLocation());
 				break;
 			case tok::kw_short:
-				T = Builder.CreateShortType(Tok.getLocation());
+				T = ASTBuilder::CreateShortType(Tok.getLocation());
 				break;
 			case tok::kw_uint:
-				T = Builder.CreateUIntType(Tok.getLocation());
+				T = ASTBuilder::CreateUIntType(Tok.getLocation());
 				break;
 			case tok::kw_int:
-				T = Builder.CreateIntType(Tok.getLocation());
+				T = ASTBuilder::CreateIntType(Tok.getLocation());
 				break;
 			case tok::kw_ulong:
-				T = Builder.CreateULongType(Tok.getLocation());
+				T = ASTBuilder::CreateULongType(Tok.getLocation());
 				break;
 			case tok::kw_long:
-				T = Builder.CreateLongType(Tok.getLocation());
+				T = ASTBuilder::CreateLongType(Tok.getLocation());
 				break;
 			case tok::kw_float:
-				T = Builder.CreateFloatType(Tok.getLocation());
+				T = ASTBuilder::CreateFloatType(Tok.getLocation());
 				break;
 			case tok::kw_double:
-				T = Builder.CreateDoubleType(Tok.getLocation());
+				T = ASTBuilder::CreateDoubleType(Tok.getLocation());
 				break;
 			case tok::kw_void:
-				T = Builder.CreateVoidType(Tok.getLocation());
+				T = ASTBuilder::CreateVoidType(Tok.getLocation());
 				break;
 			case tok::kw_string:
-				T = Builder.CreateStringType(Tok.getLocation());
+				T = ASTBuilder::CreateStringType(Tok.getLocation());
 				break;
 			case tok::kw_error:
-				T = Builder.CreateErrorType(Tok.getLocation());
+				T = ASTBuilder::CreateErrorType(Tok.getLocation());
 				break;
 		}
 		ConsumeToken();
@@ -1124,7 +1124,7 @@ ASTType *Parser::ParseType() {
 	// Parse Class or Enum Type
 	else if (Tok.isAnyIdentifier()) {
 		llvm::SmallVector<ASTName *, 4> Names = ParseNames();
-		T = Builder.CreateType(Tok.getLocation(), Names);
+		T = ASTBuilder::CreateType(Tok.getLocation(), Names);
 	}
 
 	// Parse Array Type
@@ -1137,7 +1137,7 @@ ASTType *Parser::ParseType() {
 			Size = ParseExpr();
 		}
 
-		T = Builder.CreateArrayType(Loc, T, Size);
+		T = ASTBuilder::CreateArrayType(Loc, T, Size);
 
 		if (Tok.is(tok::r_square)) {
 			ConsumeBracket();

@@ -204,9 +204,9 @@ ASTExpr * ParserExpr::ParseIdentifierOrCall(ASTExpr *Parent) {
 	if (P->Tok.is(tok::l_paren)) {
 		Expr = ParseCall(Loc, Name, Parent);
 	} else if (Parent) {
-		Expr = P->Builder.CreateMember(Loc, Name, Parent);
+		Expr = ASTBuilder::CreateMember(Loc, Name, Parent);
 	} else {
-		Expr = P->Builder.CreateIdentifier(Loc, Name);
+		Expr = ASTBuilder::CreateIdentifier(Loc, Name);
 	}
 
 	// Handle member access chaining
@@ -235,39 +235,39 @@ ASTValue *ParserExpr::ParseValue() {
         StringRef Literal = StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
         if (Literal == "''") {
             const SourceLocation &Loc = P->ConsumeToken();
-            return P->Builder.CreateStringValue(Loc, "");
+            return ASTBuilder::CreateStringValue(Loc, "");
         }
     }
 
     if (P->Tok.is(tok::kw_null)) {
         const SourceLocation &Loc = P->ConsumeToken();
-        return P->Builder.CreateNullValue(Loc);
+        return ASTBuilder::CreateNullValue(Loc);
     }
 
     // Parse Numeric Constants
     if (P->Tok.is(tok::numeric_constant)) {
         llvm::StringRef Val = llvm::StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
         const SourceLocation &Loc = P->ConsumeToken();
-        return P->Builder.CreateNumberValue(Loc, Val);
+        return ASTBuilder::CreateNumberValue(Loc, Val);
     }
 
     if (P->Tok.isCharLiteral()) {
         assert(P->Tok.isLiteral() && "char literal must report literal data");
         llvm::StringRef Val = llvm::StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
-        return P->Builder.CreateStringValue(P->ConsumeToken(), Val);
+        return ASTBuilder::CreateStringValue(P->ConsumeToken(), Val);
     }
 
     if (P->Tok.isStringLiteral()) {
         llvm::StringRef Val = llvm::StringRef(P->Tok.getLiteralData(), P->Tok.getLength());
-        return P->Builder.CreateStringValue(P->ConsumeStringToken(), Val);
+        return ASTBuilder::CreateStringValue(P->ConsumeStringToken(), Val);
     }
 
 	// Parse true or false boolean values
 	if (P->Tok.is(tok::kw_true)) {
-		return P->Builder.CreateBoolValue(P->ConsumeToken(), true);
+		return ASTBuilder::CreateBoolValue(P->ConsumeToken(), true);
 	}
 	if (P->Tok.is(tok::kw_false)) {
-		return P->Builder.CreateBoolValue(P->ConsumeToken(), false);
+		return ASTBuilder::CreateBoolValue(P->ConsumeToken(), false);
 	}
 
 	// Parse Array or Struct
@@ -298,7 +298,7 @@ ASTExpr *ParserExpr::ParsePrimary() {
 			ASTUnaryOpKind OpKind = toUnaryOpExprKind(Tok, true);
 			SourceLocation OpLoc = Tok.getLocation();
 			P->ConsumeToken();
-			return P->Builder.CreateUnary(OpLoc, OpKind, Primary);
+			return ASTBuilder::CreateUnary(OpLoc, OpKind, Primary);
 		}
 
 		return Primary;
@@ -308,7 +308,7 @@ ASTExpr *ParserExpr::ParsePrimary() {
 		ASTUnaryOpKind OpKind = toUnaryOpExprKind(Tok, false);
 		const SourceLocation &OpLoc = P->ConsumeToken();
 		ASTExpr* Primary = ParsePrimary();  // Parse the operand (recursively)
-		return P->Builder.CreateUnary(OpLoc, OpKind, Primary);
+		return ASTBuilder::CreateUnary(OpLoc, OpKind, Primary);
 	}
 
 	// Parse New Expression
@@ -356,7 +356,7 @@ ASTBinaryOp *ParserExpr::ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Prece
 
     // Combine the left and right into a binary operation node
 
-    return P->Builder.CreateBinary(OpToken.getLocation(), toBinaryOpExprKind(OpToken), LeftExpr, RightExpr);
+    return ASTBuilder::CreateBinary(OpToken.getLocation(), toBinaryOpExprKind(OpToken), LeftExpr, RightExpr);
 }
 
 ASTTernaryOp *ParserExpr::ParseTernaryExpr(ASTExpr *ConditionExpr) {
@@ -375,7 +375,7 @@ ASTTernaryOp *ParserExpr::ParseTernaryExpr(ASTExpr *ConditionExpr) {
 	ParserExpr PEF(P);
     ASTExpr* FalseExpr = PEF.Parse();  // Parse the false expression
 
-    return P->Builder.CreateTernary(ConditionExpr, TrueOpLoc, TrueExpr, FalseOpLoc, FalseExpr);
+    return ASTBuilder::CreateTernary(ConditionExpr, TrueOpLoc, TrueExpr, FalseOpLoc, FalseExpr);
 }
 
 /**
@@ -523,7 +523,7 @@ ASTCall *ParserExpr::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, 
 		}
 	}
 
-	return P->Builder.CreateCall(Loc, Name, Args, ASTCallKind::CALL_DIRECT, Parent);
+	return ASTBuilder::CreateCall(Loc, Name, Args, ASTCallKind::CALL_DIRECT, Parent);
 }
 
 /**
@@ -579,9 +579,9 @@ ASTValue *ParserExpr::ParseValues() {
     if (P->Tok.is(tok::r_brace)) {
         P->ConsumeBrace(P->BracketCount);
         if (isStruct) {
-            return P->Builder.CreateStructValue(StartLoc, StructValues);
+            return ASTBuilder::CreateStructValue(StartLoc, StructValues);
         } else {
-            return P->Builder.CreateArrayValue(StartLoc, ArrayValues);
+            return ASTBuilder::CreateArrayValue(StartLoc, ArrayValues);
         }
     }
 

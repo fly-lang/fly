@@ -41,17 +41,17 @@ namespace {
     	//  int a
     	// }
         llvm::SmallVector<ASTType *, 4> SuperClasses;
-        ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopModifiers, SuperClasses);
-        ASTAttribute *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
+        ASTClass *TestStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopModifiers, SuperClasses);
+        ASTAttribute *aField = ASTBuilder::CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
 
         // func() {
         //    new TestStruct()
         // }
-        ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
-    	ASTExprStmt *testNewStmt = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+        ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
+    	ASTExprStmt *testNewStmt = ASTBuilder::CreateExprStmt(MainBody, SourceLoc);
     	testNewStmt->setExpr(ConstructorCall);
-    	getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
+    	ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
 
 		// Generate Code
 		llvm::Module * M = Generate()[0];
@@ -107,11 +107,11 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         // }
 
         llvm::SmallVector<ASTType *, 4> SuperClasses;
-        ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
+        ASTClass *TestStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
                                                    TopModifiers, SuperClasses);
-        ASTAttribute *aField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
-        // ASTVar *bField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "b", TopModifiers);
-        // ASTVar *cField = getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "c", TopModifiers);
+        ASTAttribute *aField = ASTBuilder::CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
+        // ASTVar *bField = ASTBuilder::CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "b", TopModifiers);
+        // ASTVar *cField = ASTBuilder::CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "c", TopModifiers);
 
         // int func() {
         //  TestStruct test = new TestStruct();
@@ -119,26 +119,26 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //  test.b = 2
         //  return 1
         // }
-        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // TestStruct test = new TestStruct()
         ASTType *TestClassType = CreateType(TestStruct);
-        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
-        ASTDeclStmt *TestDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, TestVar);
-    	ASTIdentifier *Instance = getASTBuilder().CreateIdentifier(TestVar);
-        ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTBinaryOp *AssignExpr1 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Instance, ConstructorCall);
+        ASTLocalVar *TestVar = ASTBuilder::CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
+        ASTDeclStmt *TestDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, TestVar);
+    	ASTIdentifier *Instance = ASTBuilder::CreateIdentifier(TestVar);
+        ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
+        ASTBinaryOp *AssignExpr1 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, Instance, ConstructorCall);
         TestDeclStmt->setExpr(AssignExpr1);
 
         // int x = test.a
-        ASTLocalVar *xVar = getASTBuilder().CreateLocalVar(SourceLoc, IntTypeRef, "x", EmptyModifiers);
-        ASTDeclStmt *xDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, xVar);
-    	ASTIdentifier *xVar_Id = getASTBuilder().CreateIdentifier(TestVar);
+        ASTLocalVar *xVar = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "x", EmptyModifiers);
+        ASTDeclStmt *xDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, xVar);
+    	ASTIdentifier *xVar_Id = ASTBuilder::CreateIdentifier(TestVar);
         
-        ASTMember *test_aVarRef = getASTBuilder().CreateMember(aField, Instance);
-        ASTIdentifier *xIdent = getASTBuilder().CreateIdentifier(xVar);
-        ASTBinaryOp *AssignExpr2 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, xIdent, test_aVarRef);
+        ASTMember *test_aVarRef = ASTBuilder::CreateMember(aField, Instance);
+        ASTIdentifier *xIdent = ASTBuilder::CreateIdentifier(xVar);
+        ASTBinaryOp *AssignExpr2 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, xIdent, test_aVarRef);
         xDeclStmt->setExpr(AssignExpr2);
 
 		// Generate Code
@@ -200,38 +200,38 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //   int a
         // }
         llvm::SmallVector<ASTType *, 4> SuperClasses;
-        ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass", TopModifiers,
+        ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass", TopModifiers,
                                                   SuperClasses);
 
         // int a
-        ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", TopModifiers);
+        ASTVar *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", TopModifiers);
 
         // int main() {
         //  TestClass test = new TestClass()
         //  test.a = 2
         //  delete test
         // }
-        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = CreateType(TestClass);
-        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
-        ASTDeclStmt *TestDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, TestVar);
-        ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTIdentifier *testIdent = getASTBuilder().CreateIdentifier(TestVar);
-        ASTBinaryOp *AssignExpr1 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
+        ASTLocalVar *TestVar = ASTBuilder::CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
+        ASTDeclStmt *TestDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, TestVar);
+        ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+        ASTIdentifier *testIdent = ASTBuilder::CreateIdentifier(TestVar);
+        ASTBinaryOp *AssignExpr1 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
         TestDeclStmt->setExpr(AssignExpr1);
 
         //  test.a = 2
-    	ASTMember *test_a = getASTBuilder().CreateMember(aAttribute, getASTBuilder().CreateIdentifier(TestVar));
-        ASTExprStmt * attrStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
-        ASTValue *value2 = getASTBuilder().CreateNumberValue(SourceLocation(), "2");
-        ASTBinaryOp *AssignExpr2 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, test_a, value2);
+    	ASTMember *test_a = ASTBuilder::CreateMember(aAttribute, ASTBuilder::CreateIdentifier(TestVar));
+        ASTExprStmt * attrStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
+        ASTValue *value2 = ASTBuilder::CreateNumberValue(SourceLocation(), "2");
+        ASTBinaryOp *AssignExpr2 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, test_a, value2);
         attrStmt->setExpr(AssignExpr2);
 
         // delete test
-        getASTBuilder().CreateDeleteStmt(Body, SourceLoc, getASTBuilder().CreateIdentifier(TestVar));
+        ASTBuilder::CreateDeleteStmt(Body, SourceLoc, ASTBuilder::CreateIdentifier(TestVar));
 
 		// Generate Code
 		llvm::Module * M = Generate()[0];
@@ -316,48 +316,48 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //   int getA() { return a }
         // }
         llvm::SmallVector<ASTType *, 4> SuperClasses;
-        ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass", TopModifiers,
+        ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass", TopModifiers,
                                                   SuperClasses);
 
         // int a
-        ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", TopModifiers);
+        ASTVar *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", TopModifiers);
 
         // int getA() { return a }
-        ASTBlockStmt *MethodBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTMethod *getAMethod = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
+        ASTBlockStmt *MethodBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTMethod *getAMethod = ASTBuilder::CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
                                                                "getA", TopModifiers, Params, MethodBody);
 
-        ASTReturnStmt * MethodReturn = getASTBuilder().CreateReturnStmt(MethodBody, SourceLoc);
-        MethodReturn->setExpr(getASTBuilder().CreateIdentifier(aAttribute));
+        ASTReturnStmt * MethodReturn = ASTBuilder::CreateReturnStmt(MethodBody, SourceLoc);
+        MethodReturn->setExpr(ASTBuilder::CreateIdentifier(aAttribute));
 
         // int main() {
         //  TestClass test = new TestClass()
         //  int x = test.getA()
         //  delete test
         // }
-        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = CreateType(TestClass);
-        ASTVar *TestVar = getASTBuilder().CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
-        ASTDeclStmt *TestDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, (ASTLocalVar*)TestVar);
-        ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTIdentifier *testIdent = getASTBuilder().CreateIdentifier(TestVar);
-        ASTBinaryOp *AssignExpr1 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
+        ASTVar *TestVar = ASTBuilder::CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
+        ASTDeclStmt *TestDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, (ASTLocalVar*)TestVar);
+        ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+        ASTIdentifier *testIdent = ASTBuilder::CreateIdentifier(TestVar);
+        ASTBinaryOp *AssignExpr1 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
         TestDeclStmt->setExpr(AssignExpr1);
 
         // int x = test.getA()
         ASTType *xType = getAMethod->getReturnType();
-        ASTLocalVar *xVar = getASTBuilder().CreateLocalVar(SourceLoc, xType, "x", EmptyModifiers);
-        ASTDeclStmt *xDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, xVar);
-        ASTCall *xCallExpr = getASTBuilder().CreateCall(SourceLoc, getAMethod->getName(), Args, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateIdentifier(TestVar));
-        ASTIdentifier *xIdent = getASTBuilder().CreateIdentifier(xVar);
-        ASTBinaryOp *AssignExpr2 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, xIdent, xCallExpr);
+        ASTLocalVar *xVar = ASTBuilder::CreateLocalVar(SourceLoc, xType, "x", EmptyModifiers);
+        ASTDeclStmt *xDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, xVar);
+        ASTCall *xCallExpr = ASTBuilder::CreateCall(SourceLoc, getAMethod->getName(), Args, ASTCallKind::CALL_DIRECT, ASTBuilder::CreateIdentifier(TestVar));
+        ASTIdentifier *xIdent = ASTBuilder::CreateIdentifier(xVar);
+        ASTBinaryOp *AssignExpr2 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, xIdent, xCallExpr);
         xDeclStmt->setExpr(AssignExpr2);
 
         // delete test
-        getASTBuilder().CreateDeleteStmt(Body, SourceLoc, getASTBuilder().CreateIdentifier(TestVar));
+        ASTBuilder::CreateDeleteStmt(Body, SourceLoc, ASTBuilder::CreateIdentifier(TestVar));
 
 		// Generate Code
 		llvm::Module * M = Generate()[0];
@@ -460,24 +460,24 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //   int setA(int a) { this.a = a }
         // }
         llvm::SmallVector<ASTType *, 4> SuperClasses;
-        ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass", TopModifiers,
+        ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass", TopModifiers,
                                                   SuperClasses);
 
         // int a
-        ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", TopModifiers);
+        ASTVar *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", TopModifiers);
 
         // int setA(int a) { this.a = a }
     	llvm::SmallVector<ASTParam *, 8> setAParams;
-    	ASTParam * aParam = getASTBuilder().CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
+    	ASTParam * aParam = ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
     	setAParams.push_back(aParam);
-    	ASTBlockStmt *MethodBody = getASTBuilder().CreateBlockStmt(SourceLoc);
+    	ASTBlockStmt *MethodBody = ASTBuilder::CreateBlockStmt(SourceLoc);
     	const SourceLocation &Loc = SourceLoc;
-    	ASTMember * this_a = getASTBuilder().CreateMember(aAttribute, getASTBuilder().CreateIdentifier(Loc, "this"));
-    	ASTExprStmt * setAttributeAStmt = getASTBuilder().CreateExprStmt(MethodBody, SourceLoc);
-    	ASTIdentifier *aParamIdent = getASTBuilder().CreateIdentifier(aParam);
-    	ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, this_a, aParamIdent);
+    	ASTMember * this_a = ASTBuilder::CreateMember(aAttribute, ASTBuilder::CreateIdentifier(Loc, "this"));
+    	ASTExprStmt * setAttributeAStmt = ASTBuilder::CreateExprStmt(MethodBody, SourceLoc);
+    	ASTIdentifier *aParamIdent = ASTBuilder::CreateIdentifier(aParam);
+    	ASTBinaryOp *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, this_a, aParamIdent);
     	setAttributeAStmt->setExpr(AssignExpr);
-        ASTFunction *setAMethod = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef,
+        ASTFunction *setAMethod = ASTBuilder::CreateClassMethod(SourceLoc, TestClass, VoidTypeRef,
                                                                "setA", TopModifiers, setAParams, MethodBody);
 
         // int func() {
@@ -485,28 +485,28 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //  test.setA(1)
         //  delete test
         // }
-        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = CreateType(TestClass);
-        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
-        ASTDeclStmt *TestDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, TestVar);
-        ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTIdentifier *testIdent = getASTBuilder().CreateIdentifier(TestVar);
-        ASTBinaryOp *AssignExpr2 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
+        ASTLocalVar *TestVar = ASTBuilder::CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
+        ASTDeclStmt *TestDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, TestVar);
+        ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+        ASTIdentifier *testIdent = ASTBuilder::CreateIdentifier(TestVar);
+        ASTBinaryOp *AssignExpr2 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
         TestDeclStmt->setExpr(AssignExpr2);
 
         // test.setA(1)
-    	ASTNumberValue * IntValue = getASTBuilder().CreateNumberValue(SourceLocation(), "1");
+    	ASTNumberValue * IntValue = ASTBuilder::CreateNumberValue(SourceLocation(), "1");
     	llvm::SmallVector<ASTExpr *, 8> setAArgs;
     	setAArgs.push_back(IntValue);
-    	ASTCall *Call = getASTBuilder().CreateCall(SourceLoc, setAMethod->getName(), setAArgs, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateIdentifier(TestVar));
-    	ASTExprStmt * ExprStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
+    	ASTCall *Call = ASTBuilder::CreateCall(SourceLoc, setAMethod->getName(), setAArgs, ASTCallKind::CALL_DIRECT, ASTBuilder::CreateIdentifier(TestVar));
+    	ASTExprStmt * ExprStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
     	ExprStmt->setExpr(Call);
 
         // delete test
-        getASTBuilder().CreateDeleteStmt(Body, SourceLoc, getASTBuilder().CreateIdentifier(TestVar));
+        ASTBuilder::CreateDeleteStmt(Body, SourceLoc, ASTBuilder::CreateIdentifier(TestVar));
 
 		// Generate Code
 		llvm::Module * M = Generate()[0];
@@ -612,15 +612,15 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //   int a() { return 1 }
         // }
         llvm::SmallVector<ASTType *, 4> SuperClasses;
-        ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+        ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
                                                   TopModifiers, SuperClasses);
 
         // int a() { return 1 }
-        ASTBlockStmt *aFuncBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *aFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
+        ASTBlockStmt *aFuncBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *aFunc = ASTBuilder::CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
                                                           "a", TopModifiers, Params, aFuncBody);
-        ASTReturnStmt * aFuncReturn = getASTBuilder().CreateReturnStmt(aFuncBody, SourceLoc);
-        ASTValue *aFuncExpr = getASTBuilder().CreateNumberValue(SourceLocation(), "1");
+        ASTReturnStmt * aFuncReturn = ASTBuilder::CreateReturnStmt(aFuncBody, SourceLoc);
+        ASTValue *aFuncExpr = ASTBuilder::CreateNumberValue(SourceLocation(), "1");
         aFuncReturn->setExpr(aFuncExpr);
 
         // int main() {
@@ -628,29 +628,29 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //  int a = test.a()
         //  delete test
         // }
-        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = CreateType(TestClass);
-        ASTLocalVar *TestVar = getASTBuilder().CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
-        ASTDeclStmt *TestDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, TestVar);
-        ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTIdentifier *testIdent = getASTBuilder().CreateIdentifier(TestVar);
-        ASTBinaryOp *AssignExpr1 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
+        ASTLocalVar *TestVar = ASTBuilder::CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
+        ASTDeclStmt *TestDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, TestVar);
+        ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+        ASTIdentifier *testIdent = ASTBuilder::CreateIdentifier(TestVar);
+        ASTBinaryOp *AssignExpr1 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
         TestDeclStmt->setExpr(AssignExpr1);
 
         // int a = test.a()
         ASTType *aType = aFunc->getReturnType();
-        ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(SourceLoc, aType, "a", EmptyModifiers);
-        ASTDeclStmt *aDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, aVar);
-        ASTCall *aCallExpr = getASTBuilder().CreateCall(SourceLoc, aFunc->getName(), Args, ASTCallKind::CALL_DIRECT, getASTBuilder().CreateIdentifier(TestVar));
-        ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(aVar);
-        ASTBinaryOp *AssignExpr2 = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, aCallExpr);
+        ASTLocalVar *aVar = ASTBuilder::CreateLocalVar(SourceLoc, aType, "a", EmptyModifiers);
+        ASTDeclStmt *aDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, aVar);
+        ASTCall *aCallExpr = ASTBuilder::CreateCall(SourceLoc, aFunc->getName(), Args, ASTCallKind::CALL_DIRECT, ASTBuilder::CreateIdentifier(TestVar));
+        ASTIdentifier *aIdent = ASTBuilder::CreateIdentifier(aVar);
+        ASTBinaryOp *AssignExpr2 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, aCallExpr);
         aDeclStmt->setExpr(AssignExpr2);
 
         // delete test
-        ASTDeleteStmt *DeleteStmt = getASTBuilder().CreateDeleteStmt(Body, SourceLoc, getASTBuilder().CreateIdentifier(TestVar));
+        ASTDeleteStmt *DeleteStmt = ASTBuilder::CreateDeleteStmt(Body, SourceLoc, ASTBuilder::CreateIdentifier(TestVar));
 
     	// Generate Code
     	llvm::Module * M = Generate()[0];
@@ -743,26 +743,26 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //   static int a
         // }
         llvm::SmallVector<ASTType *, 4> SuperClasses;
-        ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass", TopModifiers,
+        ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass", TopModifiers,
                                                   SuperClasses);
 
         // int a
     	llvm::SmallVector<ASTModifier *, 8> Modifiers;
-    	Modifiers.push_back(getASTBuilder().CreateModifier(SourceLoc, ASTModifierKind::MOD_STATIC));
-        ASTAttribute *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", Modifiers);
+    	Modifiers.push_back(ASTBuilder::CreateModifier(SourceLoc, ASTModifierKind::MOD_STATIC));
+        ASTAttribute *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", Modifiers);
 
         // int func() {
         //  TestClass.a = 2
         // }
-        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         //  TestClass.a = 2
     	ASTType *TestClassType = CreateType(TestClass);
-        ASTExprStmt * attrStmt = getASTBuilder().CreateExprStmt(Body, SourceLoc);
-        ASTValue *value2Expr = getASTBuilder().CreateNumberValue(SourceLocation(), "2");
-        ASTIdentifier *attrIdent = getASTBuilder().CreateIdentifier(aAttribute);
-        ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, attrIdent, value2Expr);
+        ASTExprStmt * attrStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
+        ASTValue *value2Expr = ASTBuilder::CreateNumberValue(SourceLocation(), "2");
+        ASTIdentifier *attrIdent = ASTBuilder::CreateIdentifier(aAttribute);
+        ASTBinaryOp *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, attrIdent, value2Expr);
         attrStmt->setExpr(AssignExpr);
 
 		// Generate Code
@@ -826,33 +826,33 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //   static int do() { return 1 }
         // }
         llvm::SmallVector<ASTType *, 4> SuperClasses;
-        ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+        ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
                                                   TopModifiers, SuperClasses);
 
-        ASTBlockStmt *aFuncBody = getASTBuilder().CreateBlockStmt(SourceLoc);
+        ASTBlockStmt *aFuncBody = ASTBuilder::CreateBlockStmt(SourceLoc);
     	llvm::SmallVector<ASTModifier *, 8> Modifiers;
-    	Modifiers.push_back(getASTBuilder().CreateModifier(SourceLoc, ASTModifierKind::MOD_STATIC));
+    	Modifiers.push_back(ASTBuilder::CreateModifier(SourceLoc, ASTModifierKind::MOD_STATIC));
         llvm::SmallVector<ASTParam *, 8> Params;
-        ASTFunction *aFunc = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
+        ASTFunction *aFunc = ASTBuilder::CreateClassMethod(SourceLoc, TestClass, IntTypeRef,
                                                           "do", Modifiers, Params, aFuncBody);
 
-        ASTReturnStmt * aFuncReturn = getASTBuilder().CreateReturnStmt(aFuncBody, SourceLoc);
-        ASTValue *aFuncExpr = getASTBuilder().CreateNumberValue(SourceLocation(), "1");
+        ASTReturnStmt * aFuncReturn = ASTBuilder::CreateReturnStmt(aFuncBody, SourceLoc);
+        ASTValue *aFuncExpr = ASTBuilder::CreateNumberValue(SourceLocation(), "1");
         aFuncReturn->setExpr(aFuncExpr);
 
         // int main() {
         //  int a = TestClass.do()
         // }
-        ASTBlockStmt *Body = getASTBuilder().CreateBlockStmt(SourceLoc);
-        getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // int a = TestClass.do()
-        ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(SourceLoc, IntTypeRef, "a", EmptyModifiers);
-        ASTDeclStmt *aDeclStmt = getASTBuilder().CreateDeclStmt(Body, SourceLoc, aVar);
-    	ASTIdentifier *TestClassType = getASTBuilder().CreateIdentifier(SourceLoc, TestClass->getName());
-        ASTCall *aCallExpr = getASTBuilder().CreateCall(SourceLoc, aFunc->getName(), Args, ASTCallKind::CALL_DIRECT, TestClassType);
-        ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(aVar);
-        ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, aCallExpr);
+        ASTLocalVar *aVar = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "a", EmptyModifiers);
+        ASTDeclStmt *aDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, aVar);
+    	ASTIdentifier *TestClassType = ASTBuilder::CreateIdentifier(SourceLoc, TestClass->getName());
+        ASTCall *aCallExpr = ASTBuilder::CreateCall(SourceLoc, aFunc->getName(), Args, ASTCallKind::CALL_DIRECT, TestClassType);
+        ASTIdentifier *aIdent = ASTBuilder::CreateIdentifier(aVar);
+        ASTBinaryOp *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, aCallExpr);
         aDeclStmt->setExpr(AssignExpr);
 
     	// Generate Code
@@ -927,17 +927,17 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	// int a
     	// }
     	llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
-    	ASTClass *BaseStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
+    	ASTClass *BaseStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
 			TopModifiers, BaseSuperClasses);
 
     	// int a
-    	ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
+    	ASTVar *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
 
     	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
     	TestSuperClasses.push_back(CreateType(BaseStruct));
-    	ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
+    	ASTClass *TestStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
 			TopModifiers, TestSuperClasses);
-    	getASTBuilder().CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
+    	ASTBuilder::CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
 
     	// Generate Code
     	llvm::Module * M = Generate()[0];
@@ -1002,22 +1002,22 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
 
     	// BaseStruct
-    	ASTClass *BaseStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
+    	ASTClass *BaseStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
 			TopModifiers, BaseSuperClasses);
     	// int a
-    	ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
+    	ASTVar *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
 
     	// BaseStruct2
-    	ASTClass *BaseStruct2 = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct2",
+    	ASTClass *BaseStruct2 = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct2",
 			TopModifiers, BaseSuperClasses);
     	// int a
-    	ASTVar *bAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseStruct2, IntTypeRef, "b", TopModifiers);
+    	ASTVar *bAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct2, IntTypeRef, "b", TopModifiers);
 
     	// TestStruct
     	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
     	TestSuperClasses.push_back(CreateType(BaseStruct));
     	TestSuperClasses.push_back(CreateType(BaseStruct2));
-    	ASTClass *TestStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
+    	ASTClass *TestStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
 			TopModifiers, TestSuperClasses);
 
     	// Generate Code
@@ -1097,37 +1097,37 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
     	// struct BaseStruct
     	llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
-    	ASTClass *BaseStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
+    	ASTClass *BaseStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
 			TopModifiers, BaseSuperClasses);
     	// int a
-    	ASTAttribute *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
+    	ASTAttribute *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
 
     	// class TestClass
     	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
     	TestSuperClasses.push_back(CreateType(BaseStruct));
-    	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+    	ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
 			TopModifiers, TestSuperClasses);
 
     	//   TestClass() {
     	//     this.a = 1
     	//   }
-    	ASTBlockStmt *ConstructorBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTIdentifier * this_a = getASTBuilder().CreateIdentifier(aAttribute->getLocation(), aAttribute->getName(), getASTBuilder().CreateIdentifier(SourceLoc, "this"));
-    	ASTExprStmt * assignThis_a = getASTBuilder().CreateExprStmt(ConstructorBody, SourceLoc);
-    	ASTNumberValue *value1 = getASTBuilder().CreateNumberValue(SourceLoc, "1");
-    	ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, this_a, value1);
+    	ASTBlockStmt *ConstructorBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTIdentifier * this_a = ASTBuilder::CreateIdentifier(aAttribute->getLocation(), aAttribute->getName(), ASTBuilder::CreateIdentifier(SourceLoc, "this"));
+    	ASTExprStmt * assignThis_a = ASTBuilder::CreateExprStmt(ConstructorBody, SourceLoc);
+    	ASTNumberValue *value1 = ASTBuilder::CreateNumberValue(SourceLoc, "1");
+    	ASTBinaryOp *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, this_a, value1);
     	assignThis_a->setExpr(AssignExpr);
-    	ASTFunction *ConstructorMethod = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef,
+    	ASTFunction *ConstructorMethod = ASTBuilder::CreateClassMethod(SourceLoc, TestClass, VoidTypeRef,
 															   "TestClass", TopModifiers, Params, ConstructorBody);
 
 
 
     	// func() { new TestClass() }
-    	ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-    	ASTExprStmt * testNewStmt = getASTBuilder().CreateExprStmt(MainBody, SourceLoc);
+    	ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+    	ASTExprStmt * testNewStmt = ASTBuilder::CreateExprStmt(MainBody, SourceLoc);
     	testNewStmt->setExpr(ConstructorCall);
-    	getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
+    	ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
 
     	// Generate Code
     	llvm::Module * M = Generate()[0];
@@ -1223,26 +1223,26 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	// int a
     	// }
     	llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
-    	ASTClass *BaseStruct = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
+    	ASTClass *BaseStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
 			TopModifiers, BaseSuperClasses);
     	// int a
-    	ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
+    	ASTVar *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
 
-    	ASTClass *BaseStruct2 = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct2",
+    	ASTClass *BaseStruct2 = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct2",
 			TopModifiers, BaseSuperClasses);
     	// int a
-    	ASTVar *aAttribute2 = getASTBuilder().CreateClassAttribute(SourceLoc, BaseStruct2, IntTypeRef, "a", TopModifiers);
+    	ASTVar *aAttribute2 = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct2, IntTypeRef, "a", TopModifiers);
     	// int b
-    	ASTVar *bAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseStruct2, IntTypeRef, "b", TopModifiers);
+    	ASTVar *bAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct2, IntTypeRef, "b", TopModifiers);
 
     	// class TestClass
     	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
     	TestSuperClasses.push_back(CreateType(BaseStruct));
     	TestSuperClasses.push_back(CreateType(BaseStruct2));
-    	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+    	ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
 			TopModifiers, TestSuperClasses);
     	// int a
-    	ASTVar *aAttribute3 = getASTBuilder().CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", TopModifiers);
+    	ASTVar *aAttribute3 = ASTBuilder::CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", TopModifiers);
 
     	// Generate Code
     	llvm::Module * M = Generate()[0];
@@ -1337,33 +1337,33 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
     	// BaseClass
     	llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
-    	ASTClass *BaseClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "BaseClass",
+    	ASTClass *BaseClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "BaseClass",
 			TopModifiers, BaseSuperClasses);
     	// int a
-    	ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseClass, IntTypeRef, "a", TopModifiers);
+    	ASTVar *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseClass, IntTypeRef, "a", TopModifiers);
     	// void do()
-    	ASTBlockStmt *DoBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTFunction *Do = getASTBuilder().CreateClassMethod(SourceLoc, BaseClass, VoidTypeRef, "do", TopModifiers, Params, DoBody);
+    	ASTBlockStmt *DoBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTFunction *Do = ASTBuilder::CreateClassMethod(SourceLoc, BaseClass, VoidTypeRef, "do", TopModifiers, Params, DoBody);
 
     	// TestClass
     	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
     	TestSuperClasses.push_back(CreateType(BaseClass));
-    	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+    	ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
 			TopModifiers, TestSuperClasses);
     	// void undo()
-    	ASTBlockStmt *UndoBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTFunction *Undo = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "undo", TopModifiers, Params, UndoBody);
+    	ASTBlockStmt *UndoBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTFunction *Undo = ASTBuilder::CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "undo", TopModifiers, Params, UndoBody);
 
     	// func() { BaseClass a = new TestClass() }
-    	ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+    	ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
     	ASTType *Base = CreateType(BaseClass);
-    	ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(MainBody, SourceLoc, Base, "a", EmptyModifiers);
-    	ASTDeclStmt *aDeclStmt = getASTBuilder().CreateDeclStmt(MainBody, SourceLoc, aVar);
-    	ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(aVar);
-    	ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, ConstructorCall);
+    	ASTLocalVar *aVar = ASTBuilder::CreateLocalVar(MainBody, SourceLoc, Base, "a", EmptyModifiers);
+    	ASTDeclStmt *aDeclStmt = ASTBuilder::CreateDeclStmt(MainBody, SourceLoc, aVar);
+    	ASTIdentifier *aIdent = ASTBuilder::CreateIdentifier(aVar);
+    	ASTBinaryOp *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, ConstructorCall);
     	aDeclStmt->setExpr(AssignExpr);
-    	getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
+    	ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
 
     	// Generate Code
     	llvm::Module * M = Generate()[0];
@@ -1509,43 +1509,43 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
     	// BaseClass
     	llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
-    	ASTClass *BaseClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "BaseClass",
+    	ASTClass *BaseClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "BaseClass",
 			TopModifiers, BaseSuperClasses);
     	// int a
-    	ASTVar *aAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseClass, IntTypeRef, "a", TopModifiers);
+    	ASTVar *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseClass, IntTypeRef, "a", TopModifiers);
     	// void do()
-    	ASTBlockStmt *DoBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTFunction *BaseClass_do = getASTBuilder().CreateClassMethod(SourceLoc, BaseClass, VoidTypeRef, "do", TopModifiers, Params, DoBody);
+    	ASTBlockStmt *DoBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTFunction *BaseClass_do = ASTBuilder::CreateClassMethod(SourceLoc, BaseClass, VoidTypeRef, "do", TopModifiers, Params, DoBody);
 
     	// BaseClass2
     	llvm::SmallVector<ASTType *, 4> Base2SuperClasses;
-    	ASTClass *BaseClass2 = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "BaseClass2",
+    	ASTClass *BaseClass2 = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "BaseClass2",
 			TopModifiers, BaseSuperClasses);
     	// int a
-    	ASTVar *bAttribute = getASTBuilder().CreateClassAttribute(SourceLoc, BaseClass2, IntTypeRef, "b", TopModifiers);
+    	ASTVar *bAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseClass2, IntTypeRef, "b", TopModifiers);
     	// void do()
-    	ASTBlockStmt *DoBody2 = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTFunction *BaseClass2_do = getASTBuilder().CreateClassMethod(SourceLoc, BaseClass2, VoidTypeRef, "do", TopModifiers, Params, DoBody2);
+    	ASTBlockStmt *DoBody2 = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTFunction *BaseClass2_do = ASTBuilder::CreateClassMethod(SourceLoc, BaseClass2, VoidTypeRef, "do", TopModifiers, Params, DoBody2);
     	// void undo()
-    	ASTBlockStmt *UndoBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTFunction *BaseClass2_undo = getASTBuilder().CreateClassMethod(SourceLoc, BaseClass2, VoidTypeRef, "undo", TopModifiers, Params, UndoBody);
+    	ASTBlockStmt *UndoBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTFunction *BaseClass2_undo = ASTBuilder::CreateClassMethod(SourceLoc, BaseClass2, VoidTypeRef, "undo", TopModifiers, Params, UndoBody);
 
     	// TestClass
     	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
     	TestSuperClasses.push_back(CreateType(BaseClass));
     	TestSuperClasses.push_back(CreateType(BaseClass2));
-    	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+    	ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
 			TopModifiers, TestSuperClasses);
 
     	// void foo() {
     	//    BaseClass.do()
     	// }
-    	ASTBlockStmt *DoBody3 = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTCall *aCallExpr = getASTBuilder().CreateCall(SourceLoc, BaseClass_do->getName(), Args, ASTCallKind::CALL_DIRECT,
-    		getASTBuilder().CreateIdentifier(BaseClass->getLocation(), BaseClass->getName()));
-    	ASTExprStmt * aStmt = getASTBuilder().CreateExprStmt(DoBody3, SourceLoc);
+    	ASTBlockStmt *DoBody3 = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTCall *aCallExpr = ASTBuilder::CreateCall(SourceLoc, BaseClass_do->getName(), Args, ASTCallKind::CALL_DIRECT,
+    		ASTBuilder::CreateIdentifier(BaseClass->getLocation(), BaseClass->getName()));
+    	ASTExprStmt * aStmt = ASTBuilder::CreateExprStmt(DoBody3, SourceLoc);
     	aStmt->setExpr(aCallExpr);
-    	ASTFunction *TestClass_do = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "foo", TopModifiers, Params, DoBody3);
+    	ASTFunction *TestClass_do = ASTBuilder::CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "foo", TopModifiers, Params, DoBody3);
 
     	// Generate Code
     	llvm::Module * M = Generate()[0];
@@ -1715,48 +1715,48 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
     	// BaseInterface
     	llvm::SmallVector<ASTType *, 4> BaseInterfaces;
-    	ASTClass *BaseInterface = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE,
+    	ASTClass *BaseInterface = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE,
     		"BaseInterface", TopModifiers, BaseInterfaces);
-    	getASTBuilder().CreateClassMethod(SourceLoc, BaseInterface, VoidTypeRef, "do", TopModifiers, Params);
+    	ASTBuilder::CreateClassMethod(SourceLoc, BaseInterface, VoidTypeRef, "do", TopModifiers, Params);
 
 
     	// BaseInterface2
     	llvm::SmallVector<ASTType *, 4> Base2Interfaces;
-    	ASTClass *BaseInterface2 = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE,
+    	ASTClass *BaseInterface2 = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE,
     		"BaseInterface2", TopModifiers, Base2Interfaces);
-    	getASTBuilder().CreateClassMethod(SourceLoc, BaseInterface2, VoidTypeRef, "undo", TopModifiers, Params);
+    	ASTBuilder::CreateClassMethod(SourceLoc, BaseInterface2, VoidTypeRef, "undo", TopModifiers, Params);
 
     	llvm::SmallVector<ASTType *, 4> TestBaseInterfaces;
     	TestBaseInterfaces.push_back(CreateType(BaseInterface));
     	TestBaseInterfaces.push_back(CreateType(BaseInterface2));
-    	ASTClass *TestInterface = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE,
+    	ASTClass *TestInterface = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE,
     		"TestInterface", TopModifiers, TestBaseInterfaces);
 
     	// class TestClass
     	llvm::SmallVector<ASTType *, 4> TestBaseClasses;
     	TestBaseClasses.push_back(CreateType(TestInterface));
-    	ASTClass *TestClass = getASTBuilder().CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+    	ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
 			TopModifiers, TestBaseClasses);
 
     	// void do()
-    	ASTBlockStmt *DoBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTMethod *TestClass_do = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "do", TopModifiers, Params, DoBody);
+    	ASTBlockStmt *DoBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTMethod *TestClass_do = ASTBuilder::CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "do", TopModifiers, Params, DoBody);
 
     	// void undo()
-    	ASTBlockStmt *UndoBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTMethod *TestClass_undo = getASTBuilder().CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "undo", TopModifiers, Params, UndoBody);
+    	ASTBlockStmt *UndoBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTMethod *TestClass_undo = ASTBuilder::CreateClassMethod(SourceLoc, TestClass, VoidTypeRef, "undo", TopModifiers, Params, UndoBody);
 
     	// main() { new TestClass() }
-    	ASTBlockStmt *MainBody = getASTBuilder().CreateBlockStmt(SourceLoc);
-    	ASTCall *ConstructorCall = getASTBuilder().CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+    	ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
 
     	ASTType *TestInterfaceTypeeRef = CreateType(TestInterface);
-    	ASTLocalVar *aVar = getASTBuilder().CreateLocalVar(MainBody, SourceLoc, TestInterfaceTypeeRef, "a", EmptyModifiers);
-    	ASTDeclStmt *aDeclStmt = getASTBuilder().CreateDeclStmt(MainBody, SourceLoc, aVar);
-    	ASTIdentifier *aIdent = getASTBuilder().CreateIdentifier(aVar);
-    	ASTBinaryOp *AssignExpr = getASTBuilder().CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, ConstructorCall);
+    	ASTLocalVar *aVar = ASTBuilder::CreateLocalVar(MainBody, SourceLoc, TestInterfaceTypeeRef, "a", EmptyModifiers);
+    	ASTDeclStmt *aDeclStmt = ASTBuilder::CreateDeclStmt(MainBody, SourceLoc, aVar);
+    	ASTIdentifier *aIdent = ASTBuilder::CreateIdentifier(aVar);
+    	ASTBinaryOp *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, ConstructorCall);
     	aDeclStmt->setExpr(AssignExpr);
-    	getASTBuilder().CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
+    	ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
 
     	// Generate Code
     	llvm::Module * M = Generate()[0];

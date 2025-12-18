@@ -108,12 +108,9 @@ ASTName *ASTBuilder::CreateName(llvm::StringRef Name, const SourceLocation &Loc)
 
 ASTNameSpace *ASTBuilder::CreateNameSpace(
 	ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names) {
-	if (Names.empty()) {
-		Diags.Report(Loc, diag::err_sema_namespace_empty);
-	}
-
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateNameSpace", "Loc=" << Loc.getRawEncoding());
 	Module->NameSpace = new ASTNameSpace(Loc, Names);
-
+		FLY_DEBUG_END("ASTBuilder", "CreateNameSpace");
 	return Module->NameSpace;
 }
 

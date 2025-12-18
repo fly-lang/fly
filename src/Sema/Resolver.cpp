@@ -505,9 +505,21 @@ void Resolver::visit(ASTDeclStmt &AST) {
 	// Create LocalVar Sema
 	SemaLocalVar * Sema = SemaBuilder::CreateLocalVar(*LocalVar, Type);
 
-	// Assign the Type Symbol to LocalVar
-	if (LocalVar->getType() != nullptr && LocalVar->getType()->isVisited()) {
-		Sema->Type = LocalVar->getType()->getSema();
+	if (AST.getExpr() == nullptr) {
+		// Create default Sema Value
+        SemaValue *Sema = SemaBuilder::CreateDefaultValue(*Type);
+
+		// Create AST Default Value
+        ASTValue *Value = ASTBuilder::CreateDefaultValue();
+		Value->setSema(Sema);
+
+		// Create Assignment Expression
+		ASTBinaryOp *Expr = ASTBuilder::CreateBinary(LocalVar->getLocation(), ASTBinaryOpKind::OP_BINARY_ASSIGN, ASTBuilder::CreateIdentifier(LocalVar), Value);
+		Expr->setType(Type);
+        AST.setExpr(Expr);
+    } else {
+        // Resolve Initialization Expression
+        AST.getExpr()->accept(*this);
 	}
 
 	// Add LocalVar to the Function Base LocalVars

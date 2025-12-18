@@ -45,6 +45,7 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
 
+#include <AST/ASTDeclStmt.h>
 #include <AST/ASTExpr.h>
 #include <AST/ASTType.h>
 #include <AST/ASTVar.h>
@@ -814,6 +815,14 @@ std::string CodeGenModule::toIdentifier(llvm::StringRef Name, SemaNameSpace *Nam
 void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
     FLY_DEBUG_START("CodeGenModule", "GenStmt");
     switch (Stmt->getStmtKind()) {
+
+    	case ASTStmtKind::STMT_DECL: {
+    		ASTDeclStmt *DeclStmt = static_cast<ASTDeclStmt *>(Stmt);
+    		if (DeclStmt->getExpr()) {
+    			GenExpr(DeclStmt->getExpr());
+    		}
+    	}
+    	break;
 
         // Expression Statement (includes assignments, calls, etc.)
         case ASTStmtKind::STMT_EXPR: {
