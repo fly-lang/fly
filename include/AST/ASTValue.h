@@ -78,7 +78,7 @@ namespace fly {
 
         bool Value;
 
-        explicit ASTBoolValue(const SourceLocation &Loc, bool Value = false);
+        explicit ASTBoolValue(const SourceLocation &Loc, bool Value);
 
     public:
 

@@ -242,43 +242,50 @@ SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar &AST, SemaExpr &Parent, Sema
 
 SemaValue * SemaBuilder::CreateDefaultValue(SemaType &Type) {
 	FLY_DEBUG_START("ASTBuilder", "CreateDefaultValue");
+	SemaValue *Sema = nullptr;
 
 	if (Type.isBool()) {
 		ASTBoolValue * AST = ASTBuilder::CreateBoolValue(SourceLocation(), false);
-		return CreateBoolValue(*AST);
+		Sema = CreateBoolValue(*AST);
+		AST->setSema(Sema);
 	}
 
-	if (Type.isInteger()) {
+	else if (Type.isInteger()) {
+		SemaIntType *IntType = static_cast<SemaIntType *>(&Type);
 		ASTNumberValue *AST = ASTBuilder::CreateNumberValue(SourceLocation(), "0");
-		return CreateNumberValue(*AST);
+		Sema =  CreateIntValue(*AST, IntType);
+		AST->setSema(Sema);
 	}
 
-	if (Type.isFloatingPoint()) {
+	else if (Type.isFloatingPoint()) {
+		SemaFloatType *FloatType = static_cast<SemaFloatType *>(&Type);
 		ASTNumberValue *AST = ASTBuilder::CreateNumberValue(SourceLocation(), "0.0");
-		return CreateNumberValue(*AST);
+		Sema =  CreateFloatValue(*AST, FloatType);
+		AST->setSema(Sema);
 	}
 
-	if (Type.isString()) {
+	else if (Type.isString()) {
 		ASTStringValue *AST = ASTBuilder::CreateStringValue(SourceLocation(), "");
-		return CreateStringValue(*AST);
+		Sema =  CreateStringValue(*AST);
+		AST->setSema(Sema);
 	}
 
-	if (Type.isArray()) {
+	else if (Type.isArray()) {
 		llvm::SmallVector<ASTValue *, 8> ASTValues;
 		ASTArrayValue *AST = ASTBuilder::CreateArrayValue(SourceLocation(), ASTValues);
 		llvm::SmallVector<SemaValue *, 8> Values;
-		return CreateArrayValue(*AST, Values);
+		Sema =  CreateArrayValue(*AST, Values);
+		AST->setSema(Sema);
 	}
 
-	if (Type.isClass()) {
+	else if (Type.isClass()) {
 		ASTNullValue * AST = ASTBuilder::CreateNullValue(SourceLocation());
-		return CreateNullValue(*AST);
+		Sema =  CreateNullValue(*AST);
+		AST->setSema(Sema);
 	}
 
 	FLY_DEBUG_END("ASTBuilder", "CreateDefaultValue");
-
-	assert("Unknown type");
-	return nullptr;
+	return Sema;
 }
 
 SemaCall * SemaBuilder::CreateCall(ASTCall &AST, SemaType *Type, SemaFunctionBase *Function) {
@@ -313,59 +320,69 @@ SemaValue * SemaBuilder::CreateNumberValue(ASTNumberValue &AST) {
 	llvm::Regex FloatRegex(R"(^[-+]?[0-9]*\.[0-9]+([eE][-+]?[0-9]+)?$)");
 	if (FloatRegex.match(AST.getValue())) {
 		// Floating point
-		SemaFloatValue * SemaFloat = new SemaFloatValue(AST);
-		SemaFloat->Value = llvm::APFloat(llvm::APFloat::IEEEdouble(), AST.getValue());
-		SemaFloat->Type = SemaBuiltin::getDoubleType();
-
-		Sema = SemaFloat;
+		llvm::APFloat Value = llvm::APFloat(llvm::APFloat::IEEEdouble(), AST.getValue());
+		Sema = new SemaFloatValue(AST, SemaBuiltin::getDoubleType(), Value);
 	} else {
-
-		SemaIntValue *SemaInt = new SemaIntValue(AST);
-
-		llvm::StringRef ValStr = AST.getValue();
-		bool IsNegative = ValStr.startswith("-");
-		if (IsNegative)
-			ValStr = ValStr.drop_front(1);
-
-		// Detect radix
-		unsigned Radix = 10;
-		if (ValStr.startswith("0x") || ValStr.startswith("0X")) {
-			Radix = 16;
-			ValStr = ValStr.drop_front(2);
-		} else if (ValStr.startswith("0b") || ValStr.startswith("0B")) {
-			Radix = 2;
-			ValStr = ValStr.drop_front(2);
-		}
-
-		// Parse
-		llvm::APInt I(llvm::APInt::getBitsNeeded(ValStr, Radix), ValStr, Radix);
-		if (IsNegative)
-			I = -I;
+		llvm::APInt Value = CreateAPIntValue(AST.getValue());
 
 		// Compute MinBits
-		unsigned MinBits = IsNegative
-			? 1 + I.getBitWidth() - I.countLeadingOnes()
-			: 1 + I.getBitWidth() - I.countLeadingZeros();
+		unsigned MinBits = Value.isNegative()
+			? 1 + Value.getBitWidth() - Value.countLeadingOnes()
+			: 1 + Value.getBitWidth() - Value.countLeadingZeros();
 
 		// Infer Type
-		if (IsNegative) {
-			if (MinBits <= 16) SemaInt->Type = SemaBuiltin::getShortType();
-			else if (MinBits <= 32) SemaInt->Type = SemaBuiltin::getIntType();
-			else SemaInt->Type = SemaBuiltin::getLongType();
+		SemaIntType *Type = nullptr;
+		if (Value.isNegative()) {
+			if (MinBits <= 16) Type = SemaBuiltin::getShortType();
+			else if (MinBits <= 32) Type = SemaBuiltin::getIntType();
+			else Type = SemaBuiltin::getLongType();
+			Value = Value.sextOrTrunc(MinBits);
 		} else {
-			if (MinBits <= 8) SemaInt->Type = SemaBuiltin::getByteType();
-			else if (MinBits <= 16) SemaInt->Type = SemaBuiltin::getUShortType();
-			else if (MinBits <= 32) SemaInt->Type = SemaBuiltin::getUIntType();
-			else SemaInt->Type = SemaBuiltin::getULongType();
+			if (MinBits <= 8) Type = SemaBuiltin::getByteType();
+			else if (MinBits <= 16) Type = SemaBuiltin::getUShortType();
+			else if (MinBits <= 32) Type = SemaBuiltin::getUIntType();
+			else Type = SemaBuiltin::getULongType();
+			Value = Value.zextOrTrunc(MinBits);
 		}
 
 		// Final normalized value
-		SemaInt->Value = I.zextOrTrunc(MinBits);
-
-		Sema = SemaInt;
+		Sema = new SemaIntValue(AST, Type, Value);
 	}
 
 	FLY_DEBUG_END("SemaBuilder", "CreateNumberValue");
+	return Sema;
+}
+
+llvm::APInt SemaBuilder::CreateAPIntValue(StringRef ValStr) {
+	bool IsNegative = ValStr.startswith("-");
+	if (IsNegative)
+		ValStr = ValStr.drop_front(1);
+
+	// Detect radix
+	unsigned Radix = 10;
+	if (ValStr.startswith("0x") || ValStr.startswith("0X")) {
+		Radix = 16;
+		ValStr = ValStr.drop_front(2);
+	} else if (ValStr.startswith("0b") || ValStr.startswith("0B")) {
+		Radix = 2;
+		ValStr = ValStr.drop_front(2);
+	}
+
+	// Parse
+	unsigned SrcBits = llvm::APInt::getBitsNeeded(ValStr, Radix);
+	llvm::APInt Value(SrcBits, ValStr, Radix);
+	return IsNegative ? -Value : Value;
+}
+
+SemaIntValue * SemaBuilder::CreateIntValue(ASTNumberValue &AST, SemaIntType *IntType) {
+	llvm::APInt Value = CreateAPIntValue(AST.getValue());
+	SemaIntValue *Sema = new SemaIntValue(AST, IntType, Value);
+	return Sema;
+}
+
+SemaFloatValue * SemaBuilder::CreateFloatValue(ASTNumberValue &AST, SemaFloatType *FloatType) {
+	llvm::APFloat Value = llvm::APFloat(llvm::APFloat::IEEEdouble(), AST.getValue());
+	SemaFloatValue *Sema = new SemaFloatValue(AST, FloatType, Value);
 	return Sema;
 }
 

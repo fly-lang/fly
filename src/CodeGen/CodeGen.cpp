@@ -30,7 +30,6 @@ CodeGen::CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts,
         Diags(Diags), CodeGenOpts(CodeGenOpts), TargetOpts(*TargetOpts),
         Target(CreateTargetInfo(Diags, TargetOpts)), ActionKind(BackendAction),
         ShowTimers(ShowTimers) {
-
 }
 
 std::string CodeGen::getOutputFileName(llvm::StringRef BaseInput) {

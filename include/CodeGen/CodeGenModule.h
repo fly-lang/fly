@@ -205,16 +205,6 @@ namespace fly {
 
         llvm::Value *GenExpr(ASTExpr *Expr);
 
-        llvm::Value *GenCast(ASTExpr *Expr, SemaType *ToType);
-
-        llvm::Value* GenExpr(SemaExpr *Sema);
-
-        CodeGenVarBase *GenVar(SemaVar *Sema);
-
-        llvm::Value *GenCall(SemaCall *Sema);
-
-        void addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value*, 8>& Args);
-
         void GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt);
 
         void GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGH);
@@ -223,7 +213,7 @@ namespace fly {
 
         void GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If);
 
-        llvm::BasicBlock *GenElsifStmt(CodeGenFunctionBase *CGF,
+        void GenElsifStmt(CodeGenFunctionBase *CGF,
                                         llvm::BasicBlock *ElsifBB,
                                         llvm::SmallVector<ASTRuleStmt *, 8>::iterator &It);
 

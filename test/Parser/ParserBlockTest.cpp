@@ -53,7 +53,7 @@ TEST_F(ParserTest, IfElsifElseStmt) {
 
 	// If condition: a == 1
 	ASTBinaryOp *IfCond = As<ASTBinaryOp>(IfStmt->getRule());
-	EXPECT_EQ(IfCond->getOpKind(), ASTBinaryOpKind::OP_BINARY_EQ);
+	EXPECT_EQ(IfCond->getOpKind(), ASTBinaryOpKind::OP_BINARY_COMPARE_EQ);
 	EXPECT_NODE_LOC(IfCond, "a");
 
 	// Left side: identifier 'a'
@@ -89,7 +89,7 @@ TEST_F(ParserTest, IfElsifElseStmt) {
 
 	// Elsif condition: c == 2
 	ASTBinaryOp *ElsifCond = As<ASTBinaryOp>(ElsifStmt->getRule());
-	EXPECT_EQ(ElsifCond->getOpKind(), ASTBinaryOpKind::OP_BINARY_EQ);
+	EXPECT_EQ(ElsifCond->getOpKind(), ASTBinaryOpKind::OP_BINARY_COMPARE_EQ);
 	EXPECT_NODE_LOC(ElsifCond, "c");
 
 	// Left side: identifier 'c'
@@ -280,7 +280,7 @@ TEST_F(ParserTest, WhileStmt) {
 	EXPECT_NODE_LOC(Cond, "a");
 	EXPECT_EQ(As<ASTIdentifier>(Cond->getLeftExpr())->getName(), "a");
 	EXPECT_NODE_LOC(As<ASTIdentifier>(Cond->getLeftExpr()), "a");
-	EXPECT_EQ(Cond->getOpKind(), ASTBinaryOpKind::OP_BINARY_EQ);
+	EXPECT_EQ(Cond->getOpKind(), ASTBinaryOpKind::OP_BINARY_COMPARE_EQ);
 	EXPECT_EQ(As<ASTNumberValue>(Cond->getRightExpr())->getValue(), "1");
 	EXPECT_NODE_LOC(As<ASTNumberValue>(Cond->getRightExpr()), "1");
 
@@ -375,7 +375,7 @@ TEST_F(ParserTest, LoopStmt) {
 	EXPECT_NODE_LOC(Cond, "a");
 	EXPECT_EQ(As<ASTIdentifier>(Cond->getLeftExpr())->getName(), "a");
 	EXPECT_NODE_LOC(As<ASTIdentifier>(Cond->getLeftExpr()), "a");
-	EXPECT_EQ(Cond->getOpKind(), ASTBinaryOpKind::OP_BINARY_LT);
+	EXPECT_EQ(Cond->getOpKind(), ASTBinaryOpKind::OP_BINARY_COMPARE_LT);
 	EXPECT_EQ(As<ASTNumberValue>(Cond->getRightExpr())->getValue(), "10");
 	EXPECT_NODE_LOC(As<ASTNumberValue>(Cond->getRightExpr()), "10");
 

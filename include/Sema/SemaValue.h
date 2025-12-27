@@ -15,6 +15,8 @@
 #include <llvm/ADT/APInt.h>
 #include <llvm/ADT/StringMap.h>
 
+#include "SemaType.h"
+
 namespace fly {
 
 	class ASTValue;
@@ -34,8 +36,6 @@ namespace fly {
 
     	ASTValue &AST;
 
-		SemaType *Type;
-
     protected:
 
         explicit SemaValue(ASTValue &AST, SemaType *Type);
@@ -44,7 +44,7 @@ namespace fly {
 
         ~SemaValue() override = default;
 
-		SemaType *getType() const;
+    	ASTValue *getAST() const;
 
     };
 
@@ -74,7 +74,7 @@ namespace fly {
 
 		llvm::APInt Value;
 
-		explicit SemaIntValue(ASTNumberValue &AST);
+		explicit SemaIntValue(ASTNumberValue &AST, SemaIntType *Type, llvm::APInt &Value);
 
 	public:
 
@@ -92,7 +92,7 @@ namespace fly {
 
 		llvm::APFloat Value;
 
-		explicit SemaFloatValue(ASTNumberValue &AST);
+		explicit SemaFloatValue(ASTNumberValue &AST, SemaFloatType *Type, llvm::APFloat &Value);
 
 	public:
 

@@ -98,10 +98,10 @@ void Resolver::visit(ASTModule &AST) {
 		Reg.addModule(CurrentModule);
 
 		for (size_t i = 0; i < AST.getNodes().size(); ++i) {
-			auto Def = AST.getNodes()[i];
+			auto Node = AST.getNodes()[i];
 
 			if (i == 0) {
-				if (Def->getKind() != ASTKind::AST_NAMESPACE) {
+				if (Node->getKind() != ASTKind::AST_NAMESPACE) {
 					// Set the Module NameSpace
 					CurrentNameSpace = Reg.getDefaultNameSpace();
 				}
@@ -111,12 +111,12 @@ void Resolver::visit(ASTModule &AST) {
 				EnterScope();
 
 				// Visit Definition
-				Def->accept(*this);
+				Node->accept(*this);
 
 			} else {
 
 				// Visit Definition
-				Def->accept(*this);
+				Node->accept(*this);
 			}
 		}
 
@@ -344,7 +344,9 @@ void Resolver::visit(ASTLocalVar &AST) {
 
 		// Create Sema Local Var
 		SemaLocalVar *Sema = SemaBuilder::CreateLocalVar(AST, AST.getType()->getSema());
-		CurrentFunction->addLocalVar(Sema); // Function Local var to be allocated
+
+		// Add LocalVar to the Function Base LocalVars
+		CurrentFunction->addLocalVar(Sema);
 
 		// Find Var duplication in the current scope
 		// TODO: check also in parent scopes for shadowing?
@@ -499,31 +501,33 @@ void Resolver::visit(ASTDeclStmt &AST) {
 	ASTLocalVar *LocalVar = AST.getLocalVar();
 
 	// Resolve LocalVar Type
-	LocalVar->getType()->accept(*this);
+	LocalVar->accept(*this);
 	SemaType * Type = LocalVar->getType()->getSema();
 
-	// Create LocalVar Sema
-	SemaLocalVar * Sema = SemaBuilder::CreateLocalVar(*LocalVar, Type);
-
+	// Create Default Value if not initialized
 	if (AST.getExpr() == nullptr) {
+
 		// Create default Sema Value
         SemaValue *Sema = SemaBuilder::CreateDefaultValue(*Type);
 
-		// Create AST Default Value
-        ASTValue *Value = ASTBuilder::CreateDefaultValue();
-		Value->setSema(Sema);
+		// Set AST Sema Type
+		Sema->getAST()->setType(Type);
+
+		// Create Left Side Expression
+		ASTIdentifier *LeftExpr = ASTBuilder::CreateIdentifier(LocalVar);
+        LeftExpr->setSema(LocalVar->getSema());
+		LeftExpr->setType(Type);
 
 		// Create Assignment Expression
-		ASTBinaryOp *Expr = ASTBuilder::CreateBinary(LocalVar->getLocation(), ASTBinaryOpKind::OP_BINARY_ASSIGN, ASTBuilder::CreateIdentifier(LocalVar), Value);
-		Expr->setType(Type);
-        AST.setExpr(Expr);
+		ASTBinaryOp *BinaryExpr = ASTBuilder::CreateBinary(LocalVar->getLocation(), ASTBinaryOpKind::OP_BINARY_ASSIGN, LeftExpr, Sema->getAST());
+		BinaryExpr->setType(Type);
+        AST.setExpr(BinaryExpr);
     } else {
+
         // Resolve Initialization Expression
         AST.getExpr()->accept(*this);
 	}
 
-	// Add LocalVar to the Function Base LocalVars
-	CurrentFunction->addLocalVar(LocalVar->getSema());
 	FLY_DEBUG_END("Resolver", "visit(ASTDeclStmt)");
 }
 
@@ -699,8 +703,8 @@ void Resolver::visit(ASTBinaryOp &AST) {
 	SemaType * LeftType = AST.getLeftExpr()->getType();
 	SemaType * RightType = AST.getRightExpr()->getType();
 
-	if (AST.getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_ARITH ||
-			AST.getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_COMPARISON) {
+	if (AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_ARITH ||
+			AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_COMPARE) {
 
 		// Check Compatible Types Bool/Bool, Float/Float, Integer/Integer
 		if (SemaValidator::CheckArithTypes(LeftType, RightType)) {
@@ -731,14 +735,14 @@ void Resolver::visit(ASTBinaryOp &AST) {
 					AST.setType(RightType);
 			}
 
-			AST.setType(AST.getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_ARITH ?
+			AST.setType(AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_ARITH ?
 				LeftType : SemaBuiltin::getBoolType());
 		} else {
 			Diag(AST.getLocation(), diag::err_sema_types_operation)
 					  << LeftType->getName()
 					  << RightType->getName();
 		}
-	} else if (AST.getTypeKind() == ASTBinaryOpTypeExprKind::OP_BINARY_LOGIC) {
+	} else if (AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_LOGIC) {
 		if (SemaValidator::CheckLogicalTypes(LeftType, RightType)) {
 			AST.setType(SemaBuiltin::getBoolType());
 		} else {

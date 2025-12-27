@@ -37,28 +37,28 @@ namespace fly {
     enum class ASTBinaryOpKind {
 
         // Arithmetic
-        OP_BINARY_ADD,
-        OP_BINARY_SUB,
-        OP_BINARY_MUL,
-        OP_BINARY_DIV,
-        OP_BINARY_MOD,
-        OP_BINARY_AND,
-        OP_BINARY_OR ,
-        OP_BINARY_XOR,
-        OP_BINARY_SHIFT_L,
-        OP_BINARY_SHIFT_R,
+        OP_BINARY_ARITH_ADD,
+        OP_BINARY_ARITH_SUB,
+        OP_BINARY_ARITH_MUL,
+        OP_BINARY_ARITH_DIV,
+        OP_BINARY_ARITH_MOD,
+        OP_BINARY_ARITH_AND,
+        OP_BINARY_ARITH_OR ,
+        OP_BINARY_ARITH_XOR,
+        OP_BINARY_ARITH_SHIFT_L,
+        OP_BINARY_ARITH_SHIFT_R,
 
         // Logic
         OP_BINARY_LOGIC_AND,
         OP_BINARY_LOGIC_OR ,
 
         // Comparison
-        OP_BINARY_EQ ,
-        OP_BINARY_NE ,
-        OP_BINARY_GT ,
-        OP_BINARY_GTE,
-        OP_BINARY_LT ,
-        OP_BINARY_LTE,
+        OP_BINARY_COMPARE_EQ ,
+        OP_BINARY_COMPARE_NE ,
+        OP_BINARY_COMPARE_GT ,
+        OP_BINARY_COMPARE_GTE,
+        OP_BINARY_COMPARE_LT ,
+        OP_BINARY_COMPARE_LTE,
 
         // ASSIGN
         OP_BINARY_ASSIGN,
@@ -74,9 +74,9 @@ namespace fly {
         OP_BINARY_ASSIGN_OR
     };
 
-    enum class ASTBinaryOpTypeExprKind {
+    enum class ASTBinaryKind {
         OP_BINARY_ARITH,
-        OP_BINARY_COMPARISON,
+        OP_BINARY_COMPARE,
         OP_BINARY_ASSIGN,
         OP_BINARY_LOGIC,
     };
@@ -104,6 +104,8 @@ namespace fly {
 
         ASTExpr *getExpr() const;
 
+        SemaExpr *getSema() const override;
+
         std::string str() const override;
     };
 
@@ -114,7 +116,7 @@ namespace fly {
 
         friend class ASTBuilder;
 
-        ASTBinaryOpTypeExprKind TypeKind;
+        ASTBinaryKind BinaryKind;
 
         ASTBinaryOpKind OpKind;
 
@@ -127,13 +129,13 @@ namespace fly {
         ASTBinaryOp(ASTBinaryOpKind OpKind, const SourceLocation &OpLocation,
                         ASTExpr *LeftExpr, ASTExpr *RightExpr);
 
+        ASTBinaryKind setBinaryKind(ASTBinaryOpKind OpKind);
+
     public:
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTBinaryOpTypeExprKind setTypeKind(ASTBinaryOpKind OpKind);
-
-        ASTBinaryOpTypeExprKind getTypeKind() const;
+        ASTBinaryKind getBinaryKind() const;
 
         ASTBinaryOpKind getOpKind() const;
 
@@ -142,6 +144,8 @@ namespace fly {
         ASTExpr *getLeftExpr() const;
 
         ASTExpr *getRightExpr() const;
+
+        SemaExpr *getSema() const override;
 
         std::string str() const override;
     };
@@ -179,6 +183,8 @@ namespace fly {
         SourceLocation &getFalseOpLocation();
 
         ASTExpr *getFalseExpr() const;
+
+        SemaExpr *getSema() const override;
 
         std::string str() const override;
     };

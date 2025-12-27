@@ -13,8 +13,9 @@
 #include <Sema/SemaType.h>
 
 #include "ASTNode.h"
+#include "ASTType.h"
 
-namespace fly {
+    namespace fly {
 
     class SemaExpr;
 
@@ -62,9 +63,7 @@ namespace fly {
 
         void setChild(ASTExpr *Child);
 
-        virtual SemaExpr *getSema() const;
-
-        void setSema(SemaExpr *ExpSemar);
+        virtual SemaExpr *getSema() const = 0;
 
         SemaType *getType() const;
 

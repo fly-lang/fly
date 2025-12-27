@@ -44,14 +44,6 @@ ASTExpr *ASTExpr::getChild() const {
 	return Child;
 }
 
-SemaExpr *ASTExpr::getSema() const {
-    return Sema;
-}
-
-void ASTExpr::setSema(SemaExpr *Sema) {
-	this->Sema = Sema;
-}
-
 SemaType * ASTExpr::getType() const {
 	return Type;
 }

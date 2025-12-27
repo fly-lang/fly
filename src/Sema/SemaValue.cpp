@@ -17,8 +17,8 @@ using namespace fly;
 SemaValue::SemaValue(ASTValue &AST, SemaType *Type) : AST(AST), SemaExpr(SemaKind::VALUE, Type) {
 }
 
-SemaType *SemaValue::getType() const {
-	return Type;
+ASTValue *SemaValue::getAST() const {
+	return &AST;
 }
 
 SemaBoolValue::SemaBoolValue(ASTBoolValue &AST) : SemaValue(AST, SemaBuiltin::getBoolType()), Value(AST.getValue()) {
@@ -28,15 +28,17 @@ bool SemaBoolValue::getValue() const {
 	return Value;
 }
 
-SemaIntValue::SemaIntValue(ASTNumberValue &AST) : SemaValue(AST, SemaBuiltin::getLongType()), Value(llvm::APInt(64, 0, true)) {
+SemaIntValue::SemaIntValue(ASTNumberValue &AST, SemaIntType *Type, llvm::APInt &Value) :
+	SemaValue(AST, Type), Value(Value) {
 }
 
 llvm::APInt SemaIntValue::getValue() const {
 	return Value;
 }
 
-SemaFloatValue::SemaFloatValue(ASTNumberValue &AST) : SemaValue(AST, SemaBuiltin::getDoubleType()),
-	Value(llvm::APFloat(llvm::APFloat::IEEEdouble(), "0.0")) {
+SemaFloatValue::SemaFloatValue(ASTNumberValue &AST,  SemaFloatType *Type, llvm::APFloat &Value) :
+	SemaValue(AST,  Type),
+	Value(Value) {
 }
 
 llvm::APFloat SemaFloatValue::getValue() const {

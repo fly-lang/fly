@@ -96,55 +96,55 @@ ASTBinaryOpKind toBinaryOpExprKind(Token Tok) {
 	FLY_DEBUG_START("ParserExpr", "toBinaryOpExprKind");
     switch (Tok.getKind()) {
         case tok::amp:
-            return ASTBinaryOpKind::OP_BINARY_AND;
+            return ASTBinaryOpKind::OP_BINARY_ARITH_AND;
         case tok::ampamp:
             return ASTBinaryOpKind::OP_BINARY_LOGIC_AND;
         case tok::ampequal:
             return ASTBinaryOpKind::OP_BINARY_ASSIGN_AND;
         case tok::star:
-            return ASTBinaryOpKind::OP_BINARY_MUL;
+            return ASTBinaryOpKind::OP_BINARY_ARITH_MUL;
         case tok::starequal:
             return ASTBinaryOpKind::OP_BINARY_ASSIGN_MUL;
         case tok::plus:
-            return ASTBinaryOpKind::OP_BINARY_ADD;
+            return ASTBinaryOpKind::OP_BINARY_ARITH_ADD;
         case tok::plusequal:
             return ASTBinaryOpKind::OP_BINARY_ASSIGN_ADD;
         case tok::minus:
-            return ASTBinaryOpKind::OP_BINARY_SUB;
+            return ASTBinaryOpKind::OP_BINARY_ARITH_SUB;
         case tok::minusequal:
             return ASTBinaryOpKind::OP_BINARY_ASSIGN_SUB;
         case tok::exclaimequal:
-            return ASTBinaryOpKind::OP_BINARY_NE;
+            return ASTBinaryOpKind::OP_BINARY_COMPARE_NE;
         case tok::slash:
-            return ASTBinaryOpKind::OP_BINARY_DIV;
+            return ASTBinaryOpKind::OP_BINARY_ARITH_DIV;
         case tok::slashequal:
             return ASTBinaryOpKind::OP_BINARY_ASSIGN_DIV;
         case tok::percent:
-            return ASTBinaryOpKind::OP_BINARY_MOD;
+            return ASTBinaryOpKind::OP_BINARY_ARITH_MOD;
         case tok::percentequal:
             return ASTBinaryOpKind::OP_BINARY_ASSIGN_MOD;
         case tok::less:
-            return ASTBinaryOpKind::OP_BINARY_LT;
+            return ASTBinaryOpKind::OP_BINARY_COMPARE_LT;
         case tok::lessless:
-            return ASTBinaryOpKind::OP_BINARY_SHIFT_L;
+            return ASTBinaryOpKind::OP_BINARY_ARITH_SHIFT_L;
         case tok::lessequal:
-            return ASTBinaryOpKind::OP_BINARY_LTE;
+            return ASTBinaryOpKind::OP_BINARY_COMPARE_LTE;
         case tok::lesslessequal:
             return ASTBinaryOpKind::OP_BINARY_ASSIGN_SHIFT_L;
         case tok::greater:
-            return ASTBinaryOpKind::OP_BINARY_GT;
+            return ASTBinaryOpKind::OP_BINARY_COMPARE_GT;
         case tok::greatergreater:
-            return ASTBinaryOpKind::OP_BINARY_SHIFT_R;
+            return ASTBinaryOpKind::OP_BINARY_ARITH_SHIFT_R;
         case tok::greaterequal:
-            return ASTBinaryOpKind::OP_BINARY_GTE;
+            return ASTBinaryOpKind::OP_BINARY_COMPARE_GTE;
         case tok::greatergreaterequal:
             return ASTBinaryOpKind::OP_BINARY_ASSIGN_SHIFT_R;
         case tok::caret:
-            return ASTBinaryOpKind::OP_BINARY_XOR;
+            return ASTBinaryOpKind::OP_BINARY_ARITH_XOR;
         case tok::caretequal:
             return ASTBinaryOpKind::OP_BINARY_ASSIGN_XOR;
         case tok::pipe:
-            return ASTBinaryOpKind::OP_BINARY_OR;
+            return ASTBinaryOpKind::OP_BINARY_ARITH_OR;
         case tok::pipepipe:
             return ASTBinaryOpKind::OP_BINARY_LOGIC_OR;
         case tok::pipeequal:
@@ -152,7 +152,7 @@ ASTBinaryOpKind toBinaryOpExprKind(Token Tok) {
         case tok::equal:
             return ASTBinaryOpKind::OP_BINARY_ASSIGN;
         case tok::equalequal:
-            return ASTBinaryOpKind::OP_BINARY_EQ;
+            return ASTBinaryOpKind::OP_BINARY_COMPARE_EQ;
     }
     assert(false && "Invalid Binary Token details");
 }

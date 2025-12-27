@@ -91,11 +91,17 @@ namespace fly {
 
     	static SemaValue *CreateDefaultValue(SemaType &Type);
 
-    	static SemaBoolValue *CreateBoolValue(ASTBoolValue &Value);
+    	static SemaBoolValue *CreateBoolValue(ASTBoolValue &AST);
 
-    	static SemaValue *CreateNumberValue(ASTNumberValue &Value);
+    	static SemaValue *CreateNumberValue(ASTNumberValue &AST);
 
-    	static SemaStringValue *CreateStringValue(ASTStringValue &Value);
+    	static llvm::APInt CreateAPIntValue(StringRef ValStr);
+
+    	static SemaIntValue *CreateIntValue(ASTNumberValue &AST, SemaIntType *IntType);
+
+    	static SemaFloatValue *CreateFloatValue(ASTNumberValue &AST, SemaFloatType *FloatType);
+
+    	static SemaStringValue *CreateStringValue(ASTStringValue &AST);
 
     	static SemaArrayValue *CreateArrayValue(ASTArrayValue &AST, llvm::SmallVector<SemaValue *, 8> &Values) ;
 

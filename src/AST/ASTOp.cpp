@@ -34,6 +34,10 @@ ASTExpr *ASTUnaryOp::getExpr() const {
     return Expr;
 }
 
+SemaExpr * ASTUnaryOp::getSema() const {
+	return nullptr;
+}
+
 std::string ASTUnaryOp::str() const {
     return Logger("ASTOp").
 	Attr("Location", getLocation()).
@@ -43,53 +47,30 @@ Attr("Kind", static_cast<size_t>(getKind())).
            End();
 }
 
-ASTBinaryOpTypeExprKind ASTBinaryOp::setTypeKind(ASTBinaryOpKind OpKind) {
-    switch (OpKind) {
+ASTBinaryKind ASTBinaryOp::setBinaryKind(ASTBinaryOpKind OpKind) {
+    // Calculate binary kind based on enum value ranges:
+    // Arithmetic: 0-9 (OP_BINARY_ARITH_ADD to OP_BINARY_ARITH_SHIFT_R)
+    // Logic: 10-11 (OP_BINARY_LOGIC_AND to OP_BINARY_LOGIC_OR)
+    // Comparison: 12-17 (OP_BINARY_COMPARE_EQ to OP_BINARY_COMPARE_LTE)
+    // Assignment: 18+ (OP_BINARY_ASSIGN to OP_BINARY_ASSIGN_OR)
 
-        case ASTBinaryOpKind::OP_BINARY_ADD:
-        case ASTBinaryOpKind::OP_BINARY_SUB:
-        case ASTBinaryOpKind::OP_BINARY_MUL:
-        case ASTBinaryOpKind::OP_BINARY_DIV:
-        case ASTBinaryOpKind::OP_BINARY_MOD:
-        case ASTBinaryOpKind::OP_BINARY_AND:
-        case ASTBinaryOpKind::OP_BINARY_OR:
-        case ASTBinaryOpKind::OP_BINARY_XOR:
-        case ASTBinaryOpKind::OP_BINARY_SHIFT_L:
-        case ASTBinaryOpKind::OP_BINARY_SHIFT_R:
-            return ASTBinaryOpTypeExprKind::OP_BINARY_ARITH;
+    int OpValue = static_cast<int>(OpKind);
 
-        case ASTBinaryOpKind::OP_BINARY_LOGIC_AND:
-        case ASTBinaryOpKind::OP_BINARY_LOGIC_OR:
-            return ASTBinaryOpTypeExprKind::OP_BINARY_LOGIC;
-
-        case ASTBinaryOpKind::OP_BINARY_EQ:
-        case ASTBinaryOpKind::OP_BINARY_NE:
-        case ASTBinaryOpKind::OP_BINARY_GT:
-        case ASTBinaryOpKind::OP_BINARY_GTE:
-        case ASTBinaryOpKind::OP_BINARY_LT:
-        case ASTBinaryOpKind::OP_BINARY_LTE:
-            return ASTBinaryOpTypeExprKind::OP_BINARY_COMPARISON;
-
-        case ASTBinaryOpKind::OP_BINARY_ASSIGN:
-        case ASTBinaryOpKind::OP_BINARY_ASSIGN_AND:
-        case ASTBinaryOpKind::OP_BINARY_ASSIGN_MUL:
-        case ASTBinaryOpKind::OP_BINARY_ASSIGN_ADD:
-        case ASTBinaryOpKind::OP_BINARY_ASSIGN_SUB:
-        case ASTBinaryOpKind::OP_BINARY_ASSIGN_DIV:
-        case ASTBinaryOpKind::OP_BINARY_ASSIGN_MOD:
-        case ASTBinaryOpKind::OP_BINARY_ASSIGN_SHIFT_L:
-        case ASTBinaryOpKind::OP_BINARY_ASSIGN_SHIFT_R:
-        case ASTBinaryOpKind::OP_BINARY_ASSIGN_XOR:
-        case ASTBinaryOpKind::OP_BINARY_ASSIGN_OR:
-            return ASTBinaryOpTypeExprKind::OP_BINARY_ASSIGN;
+    if (OpValue < 10) {
+        return ASTBinaryKind::OP_BINARY_ARITH;
+    } else if (OpValue < 12) {
+        return ASTBinaryKind::OP_BINARY_LOGIC;
+    } else if (OpValue < 18) {
+        return ASTBinaryKind::OP_BINARY_COMPARE;
+    } else {
+        return ASTBinaryKind::OP_BINARY_ASSIGN;
     }
-    return ASTBinaryOpTypeExprKind::OP_BINARY_ASSIGN;
 }
 
 ASTBinaryOp::ASTBinaryOp(ASTBinaryOpKind OpKind, const SourceLocation &OpLocation,
                                  ASTExpr *LeftExpr, ASTExpr *RightExpr) :
         ASTExpr(LeftExpr->getLocation(), ASTExprKind::EXPR_BINARY),
-        TypeKind(setTypeKind(OpKind)), OpKind(OpKind), OpLocation(OpLocation),
+        BinaryKind(setBinaryKind(OpKind)), OpKind(OpKind), OpLocation(OpLocation),
         LeftExpr(LeftExpr), RightExpr(RightExpr) {
 
 }
@@ -98,8 +79,8 @@ void ASTBinaryOp::accept(ASTVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
-ASTBinaryOpTypeExprKind ASTBinaryOp::getTypeKind() const {
-    return TypeKind;
+ASTBinaryKind ASTBinaryOp::getBinaryKind() const {
+    return BinaryKind;
 }
 
 ASTBinaryOpKind ASTBinaryOp::getOpKind() const {
@@ -117,6 +98,10 @@ ASTExpr *ASTBinaryOp::getLeftExpr() const {
 
 ASTExpr *ASTBinaryOp::getRightExpr() const {
     return RightExpr;
+}
+
+SemaExpr * ASTBinaryOp::getSema() const {
+	return nullptr;
 }
 
 std::string ASTBinaryOp::str() const {
@@ -160,6 +145,10 @@ SourceLocation &ASTTernaryOp::getFalseOpLocation() {
 
 ASTExpr *ASTTernaryOp::getFalseExpr() const {
     return FalseExpr;
+}
+
+SemaExpr * ASTTernaryOp::getSema() const {
+	return nullptr;
 }
 
 std::string ASTTernaryOp::str() const {

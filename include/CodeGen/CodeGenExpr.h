@@ -29,17 +29,21 @@ namespace fly {
 
     public:
 
-        static llvm::Value* Generate(CodeGenModule* CGM, ASTExpr* Expr);
-
-    private:
-
         CodeGenExpr(CodeGenModule *CGM);
 
         llvm::Value *GenExpr(ASTExpr *Expr);
 
-        llvm::Value *GenValue(SemaType *Type, SemaValue *Val);
-        
-        llvm::Value *GenOp(ASTOp *Expr);
+    private:
+
+        llvm::Value* GenExpr(SemaExpr *Sema);
+
+        CodeGenVarBase *GenExpr(SemaVar *Sema);
+
+        llvm::Value *GenExpr(SemaCall *Sema);
+
+        llvm::Value *GenExpr(SemaValue *Val);
+
+        llvm::Value *GenCast(ASTExpr *Expr, SemaType *ToType);
 
         llvm::Value *GenUnary(ASTUnaryOp *Unary);
 
@@ -47,11 +51,15 @@ namespace fly {
 
         llvm::Value *GenTernary(ASTTernaryOp *Ternary);
 
-        llvm::Value *GenBinaryArith(ASTExpr *E1, ASTBinaryOpKind OperatorKind, ASTExpr *E2);
+        llvm::Value *GenBinaryArith(SemaExpr *E1, ASTBinaryOpKind OperatorKind, SemaExpr *E2);
 
-        llvm::Value *GenBinaryComparison(ASTExpr *E1, ASTBinaryOpKind OperatorKind, ASTExpr *E2);
+        llvm::Value *GenBinaryComparison(SemaExpr *E1, ASTBinaryOpKind OperatorKind, SemaExpr *E2);
 
-        llvm::Value *GenBinaryLogic(ASTExpr *E1, ASTBinaryOpKind OperatorKind, ASTExpr *E2);
+        llvm::Value *GenBinaryLogic(SemaExpr *E1, ASTBinaryOpKind OperatorKind, SemaExpr *E2);
+
+        llvm::Value* GenBinaryAssign(SemaExpr *E1, ASTBinaryOpKind OperatorKind, SemaExpr *E2);
+
+        void addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value*, 8>& Args);
     };
 }
 
