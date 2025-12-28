@@ -51,7 +51,11 @@ namespace fly {
 
         const llvm::SmallVector<SemaImport *, 8> &getImports() const;
 
+    	void addImport(SemaImport *Import);
+
         const llvm::SmallVector<SemaNode *, 8> &getNodes() const;
+
+    	void addNode(SemaNode *Node);
 
     };
 }

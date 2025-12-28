@@ -8,10 +8,11 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaFunction.h"
+#include "Sema/Helper.h"
 
 using namespace fly;
 
-SemaFunction::SemaFunction(ASTFunction &AST, SymbolTable *Symbols) : SemaFunctionBase(AST, SemaKind::FUNCTION, MangleFunction(AST)),
+SemaFunction::SemaFunction(ASTFunction &AST, SymbolTable *Symbols) : SemaFunctionBase(AST, SemaKind::FUNCTION),
 	Symbols(Symbols) {
 
 }

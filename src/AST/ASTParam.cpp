@@ -24,7 +24,9 @@ void ASTParam::accept(ASTVisitor &Visitor) {
 }
 
 SemaParam * ASTParam::getSema() const {
+	return Sema;
 }
 
 void ASTParam::setSema(SemaParam *Sema) {
+	this->Sema = Sema;
 }

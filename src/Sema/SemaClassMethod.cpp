@@ -9,12 +9,14 @@
 
 #include "Sema/SemaClassMethod.h"
 
+#include "Sema/Helper.h"
+
 #include <AST/ASTMethod.h>
 
 using namespace fly;
 
 SemaClassMethod::SemaClassMethod(ASTMethod &AST, SemaClassType *Class, SemaClassInstance *This, SemaClassMethodKind MethodKind) :
-	SemaFunctionBase(AST, SemaKind::METHOD, MangleFunction(AST)), Class(Class), This(This), MethodKind(MethodKind) {
+	SemaFunctionBase(AST, SemaKind::METHOD), Class(Class), This(This), MethodKind(MethodKind) {
 
 }
 

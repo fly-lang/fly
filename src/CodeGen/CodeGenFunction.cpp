@@ -54,7 +54,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
 std::string CodeGenFunction::toIdentifier(SemaFunction *Function) {
 	FLY_DEBUG_START("CodeGenFunction", "toIdentifier");
 	// For functions, use the mangled name
-	llvm::StringRef MangledName = Function->getMangledName();
+	std::string MangledName = Function->getMangledName();
 	SemaNameSpace *NameSpace = CGM->getNameSpace();
 	return CGM->toIdentifier(MangledName, NameSpace);
 }

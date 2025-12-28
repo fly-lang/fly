@@ -9,9 +9,14 @@
 
 #include "Sema/Helper.h"
 
-#include <unordered_map>
+#include "AST/ASTArg.h"
+#include "AST/ASTCall.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTParam.h"
+
 #include <AST/ASTName.h>
 #include <Sema/SemaType.h>
+#include <unordered_map>
 
 using namespace fly;
 
@@ -30,7 +35,7 @@ std::string Helper::Flatten(llvm::SmallVector<ASTName *, 4> Names) {
 }
 
 // Mapping Fly types to mangled representations
-std::unordered_map<std::string, std::string> typeMap = {
+std::unordered_map<std::string, std::string> MangleTypeMap = {
 	{"bool", "_b"},
 	{"byte", "_y"},
 	{"ushort", "_us"},
@@ -67,26 +72,38 @@ std::string MangleType(SemaType *Type) {
 			Mangled += "_E" + Type->getName();
 		}	break;
 		default:
-			Mangled += typeMap.at(Type->getName());
+			Mangled += MangleTypeMap.at(Type->getName());
 	}
 
 	return Mangled;
 }
 
-// Function to generate a unique mangled function name
-std::string Helper::MangleFunction(llvm::StringRef Name, const llvm::SmallVector<SemaType *, 8> &Type)
-{
-	std::string FuncName = std::string(Name); // Function name
+std::string Helper::Mangle(ASTCall *AST) {
+	std::string Name = std::string(AST->getName()); // Function name
 
 	// Mangling Function with _F prefix
 	// Encode function name with its length
-	std::string Mangled = "_F" + std::to_string(FuncName.size()) + FuncName;
+	std::string Mangled = "_F" + std::to_string(Name.size()) + Name;
 
 	// Encode parameters
-	for (const auto Param : Type) {
-		Mangled += MangleType(Param);
+	for (const auto Arg : AST->getArgs()) {
+		Mangled += MangleType(Arg->getExpr()->getType());
 	}
 
 	return Mangled;
 }
 
+std::string Helper::Mangle(ASTFunction *AST) {
+	std::string Name = std::string(AST->getName()); // Function name
+
+	// Mangling Function with _F prefix
+	// Encode function name with its length
+	std::string Mangled = "_F" + std::to_string(Name.size()) + Name;
+
+	// Encode parameters
+	for (const auto Param : AST->getParams()) {
+		Mangled += MangleType(Param->getSema()->getType());
+	}
+
+	return Mangled;
+}

@@ -219,7 +219,7 @@ void Resolver::visit(ASTClass &AST) {
 	Symbol *Sym = new Symbol(AST.getName(), SemaKind::CLASS, CurrentClass);
 	CurrentScope->getParent()->insert(Sym);
 
-	// Add Nodes in the next Resolve Steps
+	// Note: Nodes will be added in the next Resolve Steps
 
 	// Exit Class Scope
 	ExitScope();
@@ -267,13 +267,13 @@ void Resolver::visit(ASTMethod &AST) {
 
 	// Resolve Return Type add Params Type
 	AST.getReturnType()->accept(*this);
-	llvm::SmallVector<SemaType *, 8> Types = ResolveParams(AST);
+	ResolveParams(AST);
 
 	// Create Mangled Name
-	std::string Mangled = Helper::MangleFunction(AST.getName(), Types);
+	std::string MangledName = Helper::Mangle(&AST);
 
 	// Find Method duplication
-	SemaClassMethod *ExistingMethod = CurrentClass->LookupMethod(Mangled);
+	SemaClassMethod *ExistingMethod = CurrentClass->LookupMethod(MangledName);
 	if (ExistingMethod) {
 		Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
 		FLY_DEBUG_END("Resolver", "visit(ASTMethod)");
@@ -281,7 +281,7 @@ void Resolver::visit(ASTMethod &AST) {
 	}
 
 	// Create Class Method
-	SemaClassMethod *Sema = SemaBuilder::CreateClassMethod(CurrentClass, AST);
+	SemaClassMethod *Sema = SemaBuilder::CreateClassMethod(CurrentClass, AST, MangledName);
 	CurrentClass->addMethod(Sema); // Function Local var to be allocated
 	CurrentFunction = Sema;
 
@@ -945,6 +945,8 @@ void Resolver::ResolveImports(SemaModule *Module) {
 void Resolver::ResolveFunction(SemaFunction *Func) {
 	FLY_DEBUG_START("Resolver", "ResolveFunction");
 	ASTFunction &AST = Func->getAST();
+
+	// Set currents
 	CurrentFunction = Func;
 	CurrentScope = Func->getSymbols();
 
@@ -960,6 +962,10 @@ void Resolver::ResolveFunction(SemaFunction *Func) {
 		Param->accept(*this);
 		Func->addParam(Param->getSema());
 	}
+
+	// Set Function Mangled Name
+	std::string MangledName = Helper::Mangle(&AST);
+	Func->setMangledName(MangledName);
 
 	// Add to Body list for resolve in the next step
 	// Enter Function Scope
@@ -1108,9 +1114,14 @@ void Resolver::CreateDefaultConstructor() {
 
 	// Create Class Method
 	SemaClassMethod *Sema = SemaBuilder::CreateDefaultConstructor(CurrentClass);
+
+	// Add Method/Constructor
 	CurrentClass->addMethod(Sema); // Function Local var to be allocated
-	CurrentFunction = Sema;
 	CurrentClass->addConstructor(Sema);
+
+	// Set current function
+	CurrentFunction = Sema;
+
 	FLY_DEBUG_END("Resolver", "CreateDefaultConstructor");
 }
 
@@ -1132,11 +1143,10 @@ void Resolver::ResolveBody(LocalScope &Scope) {
 void Resolver::ResolveExpr(ASTExpr &Expr) {
 	FLY_DEBUG_START("Resolver", "ResolveExpr");
 	if (!Expr.isVisited()) {
-		Expr.setVisited(true);
 
 		// Move Expr to Root Parent
 		ASTExpr *Parent = &Expr;
-		while (Parent != nullptr) {
+		while (Parent->getParent() != nullptr) {
 			Parent = Parent->getParent();
 		}
 
@@ -1154,6 +1164,8 @@ void Resolver::ResolveExpr(ASTExpr &Expr) {
 			default:
 				Diag(Parent->getLocation(), diag::err_invalid_behavior);
 		}
+
+		Expr.setVisited(true);
 	}
 	FLY_DEBUG_END("Resolver", "ResolveExpr");
 }
@@ -1162,7 +1174,6 @@ void Resolver::ResolveParent(ASTIdentifier *AST) {
 	FLY_DEBUG_START("Resolver", "ResolveParent(ASTIdentifier)");
 	if (!AST->isVisited()) {
 		AST->setVisited(true);
-
 		SemaNode * Sema = nullptr;
 
 		// ---------------------------------------
@@ -1238,15 +1249,16 @@ void Resolver::ResolveParent(ASTIdentifier *AST) {
 }
 
 void Resolver::ResolveParent(ASTCall *AST) {
+	FLY_DEBUG_START("Resolver", "ResolveParent(ASTCall)");
 	if (!AST->isVisited()) {
 		AST->setVisited(true);
 
 		// Resolve Expression in Arguments
-		llvm::SmallVector<SemaType *, 8> ArgTypes = ResolveCallArgs(AST);
+		ResolveCallArgs(AST);
 
 		// if Arguments are not resolved is not possible go ahead with call reference resolution
 		// cannot resolve with the function parameters types
-		std::string Mangled = Helper::MangleFunction(AST->getName(), ArgTypes);
+		std::string MangledName = Helper::Mangle(AST);
 
 		SemaCall *Sema= nullptr;
 
@@ -1272,7 +1284,7 @@ void Resolver::ResolveParent(ASTCall *AST) {
 			}
 
 			SemaClassType *Class = static_cast<SemaClassType *>(Type);
-			SemaClassMethod *Constructor = Class->getConstructors().lookup(Mangled);
+			SemaClassMethod *Constructor = Class->getConstructors().lookup(MangledName);
 
 			if (Constructor == nullptr) {
 				// Error: func not found
@@ -1297,7 +1309,7 @@ void Resolver::ResolveParent(ASTCall *AST) {
 						// Call to Base Class Constructor Method
 						if (C->isBaseOrEquals(CurrentClass)) {
 							// Resolve Call with Class Constructor if is not private
-							SemaClassMethod *Constructor = C->getConstructors().lookup(Mangled);
+							SemaClassMethod *Constructor = C->getConstructors().lookup(MangledName);
 
 							// check if Constructor is private
 							if (Constructor->getVisibility() == SemaVisibilityKind::PRIVATE) {
@@ -1309,7 +1321,7 @@ void Resolver::ResolveParent(ASTCall *AST) {
 							Func = Constructor;
 						} else {
 							// Static Call to Class Method
-							SemaClassMethod *Method = C->getMethods().lookup(Mangled);
+							SemaClassMethod *Method = C->getMethods().lookup(MangledName);
 
 							// Check if Method is static
 							if (!Method->isStatic()) {
@@ -1331,7 +1343,7 @@ void Resolver::ResolveParent(ASTCall *AST) {
 
 				// Take the Function
 				if (Func == nullptr) {
-					Func = Reg.LookupFunction(Mangled, CurrentNameSpace);
+					Func = Reg.LookupFunction(MangledName, CurrentNameSpace);
 				}
 
 				if (Func == nullptr) {
@@ -1352,6 +1364,8 @@ void Resolver::ResolveParent(ASTCall *AST) {
 		ResolveErrorHandler(Sema);
 		AST->setSema(Sema);
 	}
+	FLY_DEBUG_END("Resolver", "ResolveParent(ASTCall)");
+
 }
 
 void Resolver::ResolveChild(SemaNode *Parent, ASTExpr *AST) {
@@ -1413,12 +1427,12 @@ void Resolver::ResolveChild(SemaNameSpace *NameSpace, ASTExpr *AST) {
 		// Resolve as NameSpace Function
 		if (AST->getExprKind() == ASTExprKind::EXPR_CALL) {
 			ASTCall *Call = static_cast<ASTCall *>(AST);
-			SmallVector<SemaType *, 8> CallTypes = ResolveCallArgs(Call);
-			std::string Mangled = Helper::MangleFunction(Call->getName(), CallTypes);
+			ResolveCallArgs(Call);
+			std::string MangledName = Helper::Mangle(Call);
 
 
 			// Lookup Function
-			Symbol * Sym = NameSpace->getSymbols()->lookup(Mangled);
+			Symbol * Sym = NameSpace->getSymbols()->lookup(MangledName);
 			SemaFunction * Function = static_cast<SemaFunction *>(Sym->getRef());
 
 			// Set Sema
@@ -1464,11 +1478,11 @@ void Resolver::ResolveChild(SemaClassType *ClassType, ASTExpr *AST) {
 			ASTCall *Call = static_cast<ASTCall *>(AST);
 
 			// Resolve Call as Class Method
-			SmallVector<SemaType *, 8> CallTypes = ResolveCallArgs(Call);
-			std::string Mangled = Helper::MangleFunction(Call->getName(), CallTypes);
+			ResolveCallArgs(Call);
+			std::string MangledName = Helper::Mangle(Call);
 
 			// Create a call to class method
-			SemaClassMethod* Method = ClassType->getMethods().lookup(Mangled);
+			SemaClassMethod* Method = ClassType->getMethods().lookup(MangledName);
 			if (Method) {
 
 				// Check if Method belongs to a super class or is static
@@ -1608,8 +1622,8 @@ SemaCall *Resolver::ResolveChildCall(SemaExpr *Parent, ASTCall *AST) {
 		AST->setVisited(true);
 
 		// set Mangled Identifier
-		SmallVector<SemaType *, 8> CallTypes = ResolveCallArgs(AST);
-		std::string MangledName = Helper::MangleFunction(AST->getName(), CallTypes);
+		ResolveCallArgs(AST);
+		std::string MangledName = Helper::Mangle(AST);
 
 		// Check Parent Type is a Class
 		SemaType *ParentType = Parent->getType();
@@ -1712,27 +1726,18 @@ SemaVar * Resolver::ResolveChildMember(SemaExpr *Parent, ASTMember *AST) {
 	return AST->getSema();
 }
 
-llvm::SmallVector<SemaType *, 8> Resolver::ResolveCallArgs(ASTCall *AST) {
+void Resolver::ResolveCallArgs(ASTCall *AST) {
 	FLY_DEBUG_START("Resolver", "ResolveCallArgs");
-	llvm::SmallVector<SemaType *, 8> Types;
 	for (auto Arg : AST->getArgs()) {
 		Arg->getExpr()->accept(*this);
-		SemaType *Type = Arg->getExpr()->getSema()->getType();
-		if (Type)
-			Types.push_back(Type);
 	}
 	FLY_DEBUG_END("Resolver", "ResolveCallArgs");
-	return Types;
 }
 
-llvm::SmallVector<SemaType *, 8> Resolver::ResolveParams(ASTFunction &AST) {
+void Resolver::ResolveParams(ASTFunction &AST) {
 	FLY_DEBUG_START("Resolver", "ResolveParams");
-	llvm::SmallVector<SemaType *, 8> Types;
 	for (auto Param : AST.getParams()) {
 		Param->accept(*this);
-		SemaType *Type = Param->getType()->getSema();
-		if (Type)
-			Types.push_back(Type);
 	}
 	FLY_DEBUG_END("Resolver", "ResolveParams");
 }

@@ -30,7 +30,7 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        const std::string MangledName;
+        std::string MangledName;
 
         llvm::SmallVector<SemaParam *, 8> Params;
 
@@ -44,9 +44,7 @@ namespace fly {
 
     protected:
 
-        explicit SemaFunctionBase(ASTFunction &AST, SemaKind Kind, std::string MangledName);
-
-        std::string MangleFunction(ASTFunction &AST);
+        explicit SemaFunctionBase(ASTFunction &AST, SemaKind Kind);
 
     public:
 
@@ -54,13 +52,15 @@ namespace fly {
 
         std::string getMangledName() const;
 
+    	void setMangledName(std::string MangledName);
+
+    	SemaType *getReturnType();
+
         void setReturnType(SemaType *RetType);
 
         llvm::SmallVector<SemaParam *, 8> &getParams();
 
         void addParam(SemaParam *Param);
-
-        SemaType *getReturnType();
 
         ASTFunction &getAST();
 

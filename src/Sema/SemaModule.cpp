@@ -52,6 +52,14 @@ const llvm::SmallVector<SemaImport *, 8> &SemaModule::getImports() const {
 	return Imports;
 }
 
+void SemaModule::addImport(SemaImport *Import) {
+	Imports.push_back(Import);
+}
+
 const llvm::SmallVector<SemaNode *, 8> &SemaModule::getNodes() const {
 	return Nodes;
+}
+
+void SemaModule::addNode(SemaNode *Node) {
+	Nodes.push_back(Node);
 }

@@ -55,7 +55,7 @@ SemaImport *SemaBuilder::CreateImport(SemaModule &Module, ASTImport &AST) {
 	SemaImport *Import = new SemaImport(AST);
 
 	// Add Import to the Module Imports for next symbols resolution
-	Module.Imports.push_back(Import);
+	Module.addImport(Import);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateImport");
 	return Import;
@@ -74,7 +74,7 @@ SemaFunction *SemaBuilder::CreateFunction(SemaModule &Module, SymbolTable *Symbo
 	Function->Visibility = BuilderModifiers->getVisibility();
 
 	// Add to Module
-	Module.Nodes.push_back(Function);
+	Module.addNode(Function);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateFunction");
 	return Function;
@@ -98,7 +98,7 @@ SemaClassType * SemaBuilder::CreateClass(SemaModule &Module, SymbolTable *Symbol
 	Class->Visibility = BuilderModifiers->getVisibility();
 
 	// Add to Module
-	Module.Nodes.push_back(Class);
+	Module.addNode(Class);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateClass");
 	return Class;
@@ -132,29 +132,37 @@ SemaClassMethod * SemaBuilder::CreateDefaultConstructor(SemaClassType *Class) {
 	// Create AST
 	ASTMethod *AST = ASTBuilder::CreateDefaultConstructor(&Class->getAST());
 
+	// Create Mangled Name
+	std::string MangledName = Helper::Mangle(AST);
+
 	// Create Sema
 	SemaClassMethod *Method = new SemaClassMethod(*AST, Class, Class->getThis(), SemaClassMethodKind::METHOD_CONSTRUCTOR);
-	Method->ReturnType = SemaBuiltin::getVoidType();
+	Method->setReturnType(SemaBuiltin::getVoidType());
+	Method->setMangledName(MangledName);
 
 	return Method;
 }
 
-SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTMethod &AST) {
+SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTMethod &AST, std::string MangledName) {
 	FLY_DEBUG_START("SemaBuilder", "CreateClassFunction");
-
 	SemaClassMethod *Method;
+
+	// Create Mangled Name
+	MangledName = MangledName.empty() ? Helper::Mangle(&AST) : MangledName;
+
 	// When the Class Name is Equals to the Function Name this is a Constructor
 	if (AST.getName() == Class->getName()) {
 		Method = new SemaClassMethod(AST, Class, Class->getThis(), SemaClassMethodKind::METHOD_CONSTRUCTOR);
-		Method->ReturnType = SemaBuiltin::getVoidType();
+		Method->setReturnType(SemaBuiltin::getVoidType());
 	} else {
 		SemaClassMethodKind MethodKind = Class->getClassKind() == SemaClassKind::INTERFACE ?
 			                 SemaClassMethodKind::METHOD_ABSTRACT : SemaClassMethodKind::METHOD;
-		Method = new SemaClassMethod(		AST, Class, Class->getThis(), MethodKind);
+		Method = new SemaClassMethod(AST, Class, Class->getThis(), MethodKind);
 
 		// ClassDefinition Return Type
-		Method->ReturnType = AST.getReturnType()->getSema();
+		Method->setReturnType(AST.getReturnType()->getSema());
 	}
+	Method->setMangledName(MangledName);
 
 	// Set Modifiers
 	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
@@ -180,7 +188,7 @@ SemaEnumType * SemaBuilder::CreateEnum(SemaModule &Module, SymbolTable *Symbols,
 	Enum->Comment = nullptr;
 
 	// Add to Module
-	Module.Nodes.push_back(Enum);
+	Module.addNode(Enum);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateEnum");
 	return Enum;

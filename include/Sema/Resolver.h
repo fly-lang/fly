@@ -215,9 +215,9 @@ namespace fly {
 
         SemaVar *ResolveChildMember(SemaExpr *Parent, ASTMember *AST);
 
-        llvm::SmallVector<SemaType *, 8> ResolveCallArgs(ASTCall *AST);
+        void ResolveCallArgs(ASTCall *AST);
 
-        llvm::SmallVector<SemaType *, 8> ResolveParams(ASTFunction &AST);
+        void ResolveParams(ASTFunction &AST);
 
         void ResolveErrorHandler(SemaCall *Sema);
 
