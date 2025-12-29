@@ -78,6 +78,24 @@ std::string MangleType(SemaType *Type) {
 	return Mangled;
 }
 
+SemaIntType *Helper::SelectIntType(SemaExpr *Expr1, SemaExpr *Expr2) {
+	// Promotes First or Second Expr Types in order to be equal
+	SemaIntType * Type1 = static_cast<SemaIntType *>(Expr1->getType());
+	SemaIntType * Type2 = static_cast<SemaIntType *>(Expr2->getType());
+	if (Type1->getIntKind() > Type2->getIntKind())
+		return Type1;
+	return Type2;
+}
+
+SemaFloatType *Helper::SelectFloatType(SemaExpr *Expr1, SemaExpr *Expr2) {
+	// Promotes First or Second Expr Types in order to be equal
+	SemaFloatType * Type1 = static_cast<SemaFloatType *>(Expr1->getType());
+	SemaFloatType * Type2 = static_cast<SemaFloatType *>(Expr2->getType());
+	if (Type1->getFPKind() > Type2->getFPKind())
+		return Type1;
+	return Type2;
+}
+
 std::string Helper::Mangle(ASTCall *AST) {
 	std::string Name = std::string(AST->getName()); // Function name
 

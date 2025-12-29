@@ -29,3 +29,7 @@ SemaExpr * SemaExpr::getChild() const {
 SemaType *SemaExpr::getType() const {
 	return Type;
 }
+
+void SemaExpr::setType(SemaType *Type) {
+	this->Type = Type;
+}

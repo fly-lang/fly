@@ -231,13 +231,14 @@ namespace {
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca float, align 4\n"
                           "  store %error* %0, %error** %1, align 8\n"
+                          "  store double 0.000000e+00, float* %2, align 8\n"
                           "  store double 1.000000e+00, float* %2, align 8\n"
                           "  %3 = load float, float* %2, align 4\n"
                           "  ret float %3\n"
                           "}\n");
     }
 
-    TEST_F(CodeGenTest, CGValue) {
+    TEST_F(CodeGenTest, CGLocalVarAssign) {
         /**
          * Fly code:
          * void func() {

@@ -20,6 +20,9 @@ namespace fly {
 	class SemaType;
 	class ASTCall;
 	class ASTFunction;
+	class SemaIntType;
+	class SemaFloatType;
+	class SemaExpr;
 
 	class Helper {
 
@@ -28,7 +31,9 @@ namespace fly {
 		// Utility Functions
 		static std::string Flatten(llvm::SmallVector<ASTName *, 4>);
 
-		// static std::string Mangle(llvm::StringRef Name, const llvm::SmallVector<SemaType *, 8> &Types);
+		static SemaIntType *SelectIntType(SemaExpr *Expr1, SemaExpr *Expr2);
+
+		static SemaFloatType *SelectFloatType(SemaExpr *Expr1, SemaExpr *Expr2);
 
 		static std::string Mangle(ASTCall *AST);
 

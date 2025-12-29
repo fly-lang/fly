@@ -149,7 +149,9 @@ add_library(flyLib
         Sema/SemaBuilderModifiers.cpp
         Sema/SemaBuiltin.cpp
         Sema/SemaValidator.cpp
+        Sema/SemaBinary.cpp
         Sema/SemaCall.cpp
+        Sema/SemaCast.cpp
         Sema/SemaClassType.cpp
         Sema/SemaComment.cpp
         Sema/SemaClassAttribute.cpp
@@ -170,7 +172,9 @@ add_library(flyLib
         Sema/SemaExpr.cpp
         Sema/Symbol.cpp
         Sema/SymbolTable.cpp
+        Sema/SemaTernary.cpp
         Sema/SemaType.cpp
+        Sema/SemaUnary.cpp
         Sema/SemaVar.cpp
         Sema/SemaValue.cpp
         Sema/Registry.cpp

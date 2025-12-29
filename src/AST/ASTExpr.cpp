@@ -8,13 +8,15 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTExpr.h"
-#include "Sema/SemaType.h"
+
 #include "Basic/Logger.h"
+#include "Sema/SemaExpr.h"
+#include "Sema/SemaType.h"
 
 using namespace fly;
 
 ASTExpr::ASTExpr(const SourceLocation &Loc, ASTExprKind ExprKind, ASTExpr *Parent, ASTExpr *Child) :
-        ASTNode(Loc, ASTKind::AST_EXPR), ExprKind(ExprKind), Sema(nullptr), Type(nullptr) {
+        ASTNode(Loc, ASTKind::AST_EXPR), ExprKind(ExprKind), Sema(nullptr) {
 	setParent(Parent);
 	setChild(Child);
 }
@@ -45,11 +47,7 @@ ASTExpr *ASTExpr::getChild() const {
 }
 
 SemaType * ASTExpr::getType() const {
-	return Type;
-}
-
-void ASTExpr::setType(SemaType *Type) {
-	this->Type = Type;
+	return Sema->getType();
 }
 
 std::string ASTExpr::str() const {

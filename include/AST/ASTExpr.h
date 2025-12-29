@@ -47,8 +47,6 @@
 
         SemaExpr *Sema;
 
-        SemaType *Type;
-
         ASTExpr(const SourceLocation &Loc, ASTExprKind Kind, ASTExpr *Parent = nullptr, ASTExpr *Child = nullptr);
 
     public:
@@ -66,8 +64,6 @@
         virtual SemaExpr *getSema() const = 0;
 
         SemaType *getType() const;
-
-        void setType(SemaType *Type);
 
         std::string str() const override;
     };

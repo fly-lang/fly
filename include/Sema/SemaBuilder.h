@@ -19,8 +19,10 @@ namespace fly {
 	class SemaImport;
 	class SemaModule;
 	class SemaFunction;
+	class SemaFunctionBase;
     class SemaClassType;
 	class SemaClassAttribute;
+	class SemaClassInstance;
 	class SemaClassMethod;
     class SemaEnumType;
     class SemaEnumEntry;
@@ -32,6 +34,10 @@ namespace fly {
     class ASTEnum;
     class ASTComment;
     class ASTVar;
+    class ASTAttribute;
+    class ASTMethod;
+    class ASTLocalVar;
+    class ASTParam;
     class ASTFunction;
 	class ASTBoolValue;
 	class ASTNumberValue;
@@ -39,17 +45,25 @@ namespace fly {
 	class ASTArrayValue;
 	class ASTStructValue;
 	class ASTCall;
+	class ASTUnaryOp;
+	class ASTBinaryOp;
+	class ASTTernaryOp;
 	class SemaLocalVar;
 	class SemaParam;
 	class SemaNode;
 	class SemaExpr;
 	class SemaValue;
+	class SemaCall;
+	class SemaComment;
+	class SemaUnary;
 	class SemaIntType;
 	class SemaFloatType;
 	class SemaBoolValue;
 	class SemaStringValue;
 	class SemaArrayValue;
 	class SemaStructValue;
+	class SemaBinary;
+	class SemaTernary;
 	class ASTBuilderIfStmt;
 	class ASTBuilderSwitchStmt;
 	class ASTBuilderLoopStmt;
@@ -88,6 +102,12 @@ namespace fly {
     	static SemaMemberVar *CreateMemberVar(ASTVar &AST, SemaExpr &Parent, SemaClassAttribute *Attribute);
 
     	static SemaCall *CreateCall(ASTCall &Call, SemaType *Type, SemaFunctionBase *Function);
+
+    	static SemaUnary *CreateUnary(ASTUnaryOp &AST);
+
+    	static SemaBinary *CreateBinary(ASTBinaryOp &AST);
+
+    	static SemaTernary *CreateTernary(ASTTernaryOp &AST);
 
     	static SemaValue *CreateDefaultValue(SemaType &Type);
 

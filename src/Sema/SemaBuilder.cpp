@@ -7,27 +7,33 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Sema/Sema.h"
-#include "Sema/SymbolTable.h"
-#include "Sema/SemaModule.h"
 #include "Sema/SemaBuilder.h"
-#include "Basic/Debug.h"
-#include "Basic/Diagnostic.h"
-#include "Sema/SemaClassType.h"
-#include "Sema/SemaEnumType.h"
-#include "Sema/SemaFunction.h"
-#include "Sema/SemaType.h"
-#include "Sema/SemaMemberVar.h"
+
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTFunction.h"
+#include "AST/ASTOp.h"
 #include "AST/ASTVar.h"
+#include "Basic/Debug.h"
+#include "Basic/Diagnostic.h"
+#include "Sema/Sema.h"
+#include "Sema/SemaBinary.h"
+#include "Sema/SemaCall.h"
 #include "Sema/SemaClassAttribute.h"
 #include "Sema/SemaClassMethod.h"
-#include "Sema/SemaEnumEntry.h"
+#include "Sema/SemaClassType.h"
 #include "Sema/SemaComment.h"
+#include "Sema/SemaEnumEntry.h"
+#include "Sema/SemaEnumType.h"
+#include "Sema/SemaFunction.h"
+#include "Sema/SemaMemberVar.h"
+#include "Sema/SemaModule.h"
+#include "Sema/SemaTernary.h"
+#include "Sema/SemaType.h"
+#include "Sema/SemaUnary.h"
 #include "Sema/SemaValue.h"
-#include "Sema/SemaCall.h"
+#include "Sema/SymbolTable.h"
+
 #include "llvm/Support/Regex.h"
 
 #include <AST/ASTAttribute.h>
@@ -36,6 +42,7 @@
 #include <AST/ASTLocalVar.h>
 #include <AST/ASTMethod.h>
 #include <AST/ASTNameSpace.h>
+#include <AST/ASTOp.h>
 #include <AST/ASTParam.h>
 #include <AST/ASTValue.h>
 #include <Sema/Helper.h>
@@ -245,6 +252,45 @@ SemaParam *SemaBuilder::CreateParam(ASTParam &AST, SemaType *Type) {
 SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar &AST, SemaExpr &Parent, SemaClassAttribute *Attribute) {
 	SemaMemberVar *Sema = new SemaMemberVar(AST, Parent, Attribute);
 
+	return Sema;
+}
+
+SemaUnary *SemaBuilder::CreateUnary(ASTUnaryOp &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateUnary");
+
+	// Create Unary Symbol
+	SemaUnary *Sema = new SemaUnary(AST);
+
+	// Assign Symbol to AST
+	AST.setSema(Sema);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateUnary");
+	return Sema;
+}
+
+SemaBinary *SemaBuilder::CreateBinary(ASTBinaryOp &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateBinary");
+
+	// Create Unary Symbol
+	SemaBinary *Sema = new SemaBinary(AST);
+
+	// Assign Symbol to AST
+	AST.setSema(Sema);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateBinary");
+	return Sema;
+}
+
+SemaTernary *SemaBuilder::CreateTernary(ASTTernaryOp &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateTernary");
+
+	// Create Unary Symbol
+	SemaTernary *Sema = new SemaTernary(AST);
+
+	// Assign Symbol to AST
+	AST.setSema(Sema);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateTernary");
 	return Sema;
 }
 

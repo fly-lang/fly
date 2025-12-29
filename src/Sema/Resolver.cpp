@@ -8,63 +8,67 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/Resolver.h"
-#include "Sema/SemaBuiltin.h"
-#include "Sema/SemaImport.h"
-#include "AST/ASTBuilder.h"
-#include "Sema/SemaBuilder.h"
-#include "Sema/SemaValidator.h"
-#include "Sema/SymbolTable.h"
-#include "Sema/SemaNameSpace.h"
-#include "Sema/SemaModule.h"
-#include "Sema/SemaClassType.h"
-#include "Sema/SemaClassMethod.h"
-#include "Sema/SemaClassAttribute.h"
-#include "Sema/SemaEnumType.h"
-#include "Sema/SemaMemberVar.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTClass.h"
+
+#include "AST/ASTArg.h"
 #include "AST/ASTAttribute.h"
-#include "AST/ASTMethod.h"
+#include "AST/ASTBlockStmt.h"
+#include "AST/ASTBreakStmt.h"
+#include "AST/ASTBuilder.h"
+#include "AST/ASTCall.h"
+#include "AST/ASTClass.h"
+#include "AST/ASTContinueStmt.h"
+#include "AST/ASTDeleteStmt.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTEnumEntry.h"
-#include "AST/ASTType.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTArg.h"
+#include "AST/ASTExpr.h"
+#include "AST/ASTExprStmt.h"
+#include "AST/ASTFailStmt.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTHandleStmt.h"
+#include "AST/ASTIdentifier.h"
 #include "AST/ASTIfStmt.h"
 #include "AST/ASTImport.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTCall.h"
-#include "AST/ASTIdentifier.h"
 #include "AST/ASTLocalVar.h"
-#include "AST/ASTSwitchStmt.h"
-#include "AST/ASTLoopStmt.h"
 #include "AST/ASTLoopInStmt.h"
-#include "AST/ASTBlockStmt.h"
-#include "AST/ASTValue.h"
-#include "AST/ASTExpr.h"
-#include "AST/ASTReturnStmt.h"
-#include "AST/ASTHandleStmt.h"
-#include "AST/ASTDeleteStmt.h"
-#include "AST/ASTFailStmt.h"
-#include "AST/ASTExprStmt.h"
+#include "AST/ASTLoopStmt.h"
+#include "AST/ASTMethod.h"
+#include "AST/ASTModule.h"
+#include "AST/ASTNameSpace.h"
 #include "AST/ASTOp.h"
-#include "CodeGen/CodeGen.h"
-#include "Basic/Diagnostic.h"
+#include "AST/ASTReturnStmt.h"
+#include "AST/ASTSwitchStmt.h"
+#include "AST/ASTType.h"
+#include "AST/ASTValue.h"
 #include "Basic/Debug.h"
+#include "Basic/Diagnostic.h"
+#include "CodeGen/CodeGen.h"
+#include "Sema/SemaBuilder.h"
+#include "Sema/SemaBuiltin.h"
+#include "Sema/SemaClassAttribute.h"
+#include "Sema/SemaClassMethod.h"
+#include "Sema/SemaClassType.h"
+#include "Sema/SemaEnumType.h"
+#include "Sema/SemaImport.h"
+#include "Sema/SemaMemberVar.h"
+#include "Sema/SemaModule.h"
+#include "Sema/SemaNameSpace.h"
+#include "Sema/SemaValidator.h"
+#include "Sema/SymbolTable.h"
+
 #include "llvm/ADT/StringMap.h"
 
 #include <AST/ASTCast.h>
 #include <AST/ASTDeclStmt.h>
 #include <AST/ASTParam.h>
 #include <Sema/Helper.h>
-#include <llvm/Transforms/IPO/FunctionImport.h>
+#include <Sema/Registry.h>
 #include <Sema/SemaCall.h>
 #include <Sema/SemaEnumEntry.h>
 #include <Sema/SemaFunction.h>
 #include <Sema/SemaLocalVar.h>
-#include <Sema/Registry.h>
 #include <Sema/SemaParam.h>
 #include <Sema/SemaValue.h>
+#include <llvm/Transforms/IPO/FunctionImport.h>
 
 using namespace fly;
 
@@ -468,28 +472,9 @@ void Resolver::visit(ASTArrayType &AST) {
 	FLY_DEBUG_END("Resolver", "visit(ASTArrayType)");
 }
 
-void Resolver::visit(ASTBreakStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTBreakStmt)");
-	// Do Nothing
-	FLY_DEBUG_END("Resolver", "visit(ASTBreakStmt)");
-}
-
-void Resolver::visit(ASTContinueStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTContinueStmt)");
-	// Do Nothing
-	FLY_DEBUG_END("Resolver", "visit(ASTContinueStmt)");
-}
-
-void Resolver::visit(ASTDeleteStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTDeleteStmt)");
-	ASTExpr * Expr = AST.getExpr();
-
-	Expr->accept(*this);
-	FLY_DEBUG_END("Resolver", "visit(ASTDeleteStmt)");
-}
-
 void Resolver::visit(ASTExprStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTExprStmt)");
+	CurrentStmt = &AST;
 	ASTExpr *Expr = AST.getExpr();
 
 	Expr->accept(*this);
@@ -498,6 +483,7 @@ void Resolver::visit(ASTExprStmt &AST) {
 
 void Resolver::visit(ASTDeclStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTDeclStmt)");
+	CurrentStmt = &AST;
 	ASTLocalVar *LocalVar = AST.getLocalVar();
 
 	// Resolve LocalVar Type
@@ -510,22 +496,23 @@ void Resolver::visit(ASTDeclStmt &AST) {
 		// Create default Sema Value
         SemaValue *Sema = SemaBuilder::CreateDefaultValue(*Type);
 
-		// Set AST Sema Type
-		Sema->getAST()->setType(Type);
-
 		// Create Left Side Expression
 		ASTIdentifier *LeftExpr = ASTBuilder::CreateIdentifier(LocalVar);
         LeftExpr->setSema(LocalVar->getSema());
-		LeftExpr->setType(Type);
 
 		// Create Assignment Expression
 		ASTBinaryOp *BinaryExpr = ASTBuilder::CreateBinary(LocalVar->getLocation(), ASTBinaryOpKind::OP_BINARY_ASSIGN, LeftExpr, Sema->getAST());
-		BinaryExpr->setType(Type);
         AST.setExpr(BinaryExpr);
+
     } else {
 
         // Resolve Initialization Expression
         AST.getExpr()->accept(*this);
+
+    	if (AST.getExpr()->getExprKind() == ASTExprKind::EXPR_BINARY &&
+    		static_cast<ASTBinaryOp *>(AST.getExpr())->getBinaryKind() == ASTBinaryKind::OP_BINARY_ASSIGN) {
+    		AST.getExpr()->getSema()->setType(Type);
+    	}
 	}
 
 	FLY_DEBUG_END("Resolver", "visit(ASTDeclStmt)");
@@ -533,6 +520,7 @@ void Resolver::visit(ASTDeclStmt &AST) {
 
 void Resolver::visit(ASTFailStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTFailStmt)");
+	CurrentStmt = &AST;
 	ASTExpr *Expr = AST.getExpr();
 
 	if (Expr != nullptr) {
@@ -543,6 +531,7 @@ void Resolver::visit(ASTFailStmt &AST) {
 
 void Resolver::visit(ASTHandleStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTHandleStmt)");
+	CurrentStmt = &AST;
 	AST.getHandle()->accept(*this);
 	ASTExpr *ErrorHandler = AST.getErrorHandler();
 
@@ -554,6 +543,7 @@ void Resolver::visit(ASTHandleStmt &AST) {
 
 void Resolver::visit(ASTReturnStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTReturnStmt)");
+	CurrentStmt = &AST;
 	SemaType *ReturnType = CurrentFunction->getReturnType(); // Force Return Expr to be of Return Type
 	ASTExpr *Expr= AST.getExpr();
 	if (Expr != nullptr) {
@@ -564,8 +554,51 @@ void Resolver::visit(ASTReturnStmt &AST) {
 	FLY_DEBUG_END("Resolver", "visit(ASTReturnStmt)");
 }
 
+void Resolver::visit(ASTDeleteStmt &AST) {
+	FLY_DEBUG_START("Resolver", "visit(ASTDeleteStmt)");
+	CurrentStmt = &AST;
+	ASTExpr * Expr = AST.getExpr();
+
+	Expr->accept(*this);
+	FLY_DEBUG_END("Resolver", "visit(ASTDeleteStmt)");
+}
+
+
+void Resolver::visit(ASTBreakStmt &AST) {
+	FLY_DEBUG_START("Resolver", "visit(ASTBreakStmt)");
+	CurrentStmt = &AST;
+	// Do Nothing
+	FLY_DEBUG_END("Resolver", "visit(ASTBreakStmt)");
+}
+
+void Resolver::visit(ASTContinueStmt &AST) {
+	FLY_DEBUG_START("Resolver", "visit(ASTContinueStmt)");
+	CurrentStmt = &AST;
+	// Do Nothing
+	FLY_DEBUG_END("Resolver", "visit(ASTContinueStmt)");
+}
+
+void Resolver::visit(ASTBlockStmt &AST) {
+	FLY_DEBUG_START("Resolver", "visit(ASTBlockStmt)");
+	CurrentStmt = &AST;
+
+	// Resolve Statements
+	for (ASTStmt *Stmt : AST.getContent()) {
+		Stmt->accept(*this);
+	}
+
+	// Check LocalVar initialization
+	// TODO
+	//    for (auto &LocalVar : Block->LocalVars) {
+	//        if (!LocalVar.second->isInitialized())
+	//            Diag(LocalVar.getValue()->getLocation(), diag::err_sema_uninit_var) << LocalVar.getValue()->getName();
+	//    }
+	FLY_DEBUG_END("Resolver", "visit(ASTBlockStmt)");
+}
+
 void Resolver::visit(ASTRuleStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTRuleStmt)");
+	CurrentStmt = &AST;
 	AST.getRule()->accept(*this);
 	AST.getStmt()->accept(*this);
 	FLY_DEBUG_END("Resolver", "visit(ASTRuleStmt)");
@@ -573,6 +606,7 @@ void Resolver::visit(ASTRuleStmt &AST) {
 
 void Resolver::visit(ASTIfStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTIfStmt)");
+	CurrentStmt = &AST;
 	AST.getRule()->accept(*this);
 
 	// Validate Rule Type
@@ -597,6 +631,8 @@ void Resolver::visit(ASTIfStmt &AST) {
 
 void Resolver::visit(ASTSwitchStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTSwitchStmt)");
+	CurrentStmt = &AST;
+
 	// Switch Variable
 	AST.getVar()->accept(*this);
 
@@ -618,6 +654,8 @@ void Resolver::visit(ASTSwitchStmt &AST) {
 
 void Resolver::visit(ASTLoopStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTLoopStmt)");
+	CurrentStmt = &AST;
+
 	if (AST.getRule()) { // Error: empty condition expr
 		AST.getRule()->accept(*this);
 	}
@@ -642,30 +680,14 @@ void Resolver::visit(ASTLoopStmt &AST) {
 
 void Resolver::visit(ASTLoopInStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTLoopInStmt)");
+	CurrentStmt = &AST;
+
 	AST.getItem()->accept(*this);
     AST.getList()->accept(*this);
 
 	// Loop Statement
 	AST.getStmt()->accept(*this);
 	FLY_DEBUG_END("Resolver", "visit(ASTLoopInStmt)");
-}
-
-
-void Resolver::visit(ASTBlockStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTBlockStmt)");
-
-	// Resolve Statements
-	for (ASTStmt *Stmt : AST.getContent()) {
-		Stmt->accept(*this);
-	}
-
-	// Check LocalVar initialization
-	// TODO
-	//    for (auto &LocalVar : Block->LocalVars) {
-	//        if (!LocalVar.second->isInitialized())
-	//            Diag(LocalVar.getValue()->getLocation(), diag::err_sema_uninit_var) << LocalVar.getValue()->getName();
-	//    }
-	FLY_DEBUG_END("Resolver", "visit(ASTBlockStmt)");
 }
 
 void Resolver::visit(ASTIdentifier &AST) {
@@ -690,12 +712,17 @@ void Resolver::visit(ASTUnaryOp &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTUnaryOp)");
 	ASTExpr *Expr = AST.getExpr();
 	Expr->accept(*this);
-    AST.setType(Expr->getType());
+
+	// Create Sema
+	SemaUnary *Sema = SemaBuilder::CreateUnary(AST);
+	AST.setSema(Sema);
+
 	FLY_DEBUG_END("Resolver", "visit(ASTUnaryOp)");
 }
 
 void Resolver::visit(ASTBinaryOp &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTBinaryOp)");
+
 	AST.getLeftExpr()->accept(*this);
     AST.getRightExpr()->accept(*this);
 
@@ -706,51 +733,27 @@ void Resolver::visit(ASTBinaryOp &AST) {
 	if (AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_ARITH ||
 			AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_COMPARE) {
 
+		// TODO
+		// SemaValidator::CheckBinary(AST.getLeftExpr(), AST.getRightExpr());
+
 		// Check Compatible Types Bool/Bool, Float/Float, Integer/Integer
-		if (SemaValidator::CheckArithTypes(LeftType, RightType)) {
-			// Set respectively the Left or Right Expr Type by chose the Expr which is not a Value Type
-			// Ex.
-			// int a = 0
-			// int b = a + 1
-			// 1 will have type int
-			if (AST.getLeftExpr()->getExprKind() == ASTExprKind::EXPR_VALUE &&
-				AST.getRightExpr()->getExprKind() != ASTExprKind::EXPR_VALUE) {
-				AST.getLeftExpr()->setType(RightType);
-			} else if (AST.getRightExpr()->getExprKind() == ASTExprKind::EXPR_VALUE &&
-				AST.getLeftExpr()->getExprKind() != ASTExprKind::EXPR_VALUE) {
-				AST.getRightExpr()->setType(LeftType);
-			}
-
-			// Promotes First or Second Expr Types in order to be equal
-			if (LeftType->isInteger()) {
-				if (static_cast<SemaIntType *>(LeftType)->getIntKind() > static_cast<SemaIntType*>(RightType)->getIntKind())
-					AST.setType(LeftType);
-				else
-					AST.setType(RightType);
-			} else if (LeftType->isFloatingPoint()) {
-				if (static_cast<SemaFloatType*>(LeftType)->getFPKind() >
-					static_cast<SemaFloatType*>(RightType)->getFPKind())
-					AST.setType(LeftType);
-				else
-					AST.setType(RightType);
-			}
-
-			AST.setType(AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_ARITH ?
-				LeftType : SemaBuiltin::getBoolType());
-		} else {
+		if (!SemaValidator::CheckArithTypes(LeftType, RightType)) {
 			Diag(AST.getLocation(), diag::err_sema_types_operation)
 					  << LeftType->getName()
 					  << RightType->getName();
 		}
 	} else if (AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_LOGIC) {
-		if (SemaValidator::CheckLogicalTypes(LeftType, RightType)) {
-			AST.setType(SemaBuiltin::getBoolType());
-		} else {
+		if (!SemaValidator::CheckLogicalTypes(LeftType, RightType)) {
 			Diag(AST.getLocation(), diag::err_sema_types_logical)
 				<< LeftType->getName()
 				<< RightType->getName();
 		}
 	}
+
+	// Create Sema
+	SemaBinary *Sema = SemaBuilder::CreateBinary(AST);
+	AST.setSema(Sema);
+
 	FLY_DEBUG_END("Resolver", "visit(ASTBinaryOp)");
 }
 
@@ -764,8 +767,10 @@ void Resolver::visit(ASTTernaryOp &AST) {
 	AST.getTrueExpr()->accept(*this);
 	AST.getFalseExpr()->accept(*this);
 
-	// Set Expr Type
-	AST.setType(AST.getTrueExpr()->getType());
+	// Create Sema
+	SemaTernary *Sema = SemaBuilder::CreateTernary(AST);
+	AST.setSema(Sema);
+
 	FLY_DEBUG_END("Resolver", "visit(ASTTernaryOp)");
 }
 
@@ -786,8 +791,40 @@ void Resolver::visit(ASTBoolValue &AST) {
 
 void Resolver::visit(ASTNumberValue &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTNumberValue)");
-	SemaValue *Sema = SemaBuilder::CreateNumberValue(AST);
+
+	ASTExpr *Expr = nullptr;
+	if (CurrentStmt->getStmtKind() == ASTStmtKind::STMT_DECL) {
+		Expr = static_cast<ASTDeclStmt *>(CurrentStmt)->getExpr();
+	} else if (CurrentStmt->getStmtKind() == ASTStmtKind::STMT_EXPR) {
+		Expr = static_cast<ASTExprStmt *>(CurrentStmt)->getExpr();
+	}
+
+	SemaValue *Sema = nullptr;
+	if (Expr->getExprKind() == ASTExprKind::EXPR_BINARY) {
+		ASTBinaryOp *Binary = static_cast<ASTBinaryOp *>(Expr);
+		if (Binary && Binary->getBinaryKind() == ASTBinaryKind::OP_BINARY_ASSIGN) {
+			SemaType *Type = Binary->getLeftExpr()->getType();
+
+			// Integer Value
+			if (Type->isInteger()) {
+				Sema = SemaBuilder::CreateIntValue(AST, static_cast<SemaIntType *>(Type));
+				AST.setSema(Sema);
+				return;
+			}
+
+			// Float Value
+			if (Type->isFloatingPoint()) {
+				Sema = SemaBuilder::CreateFloatValue(AST, static_cast<SemaFloatType *>(Type));
+				AST.setSema(Sema);
+				return;
+			}
+		}
+	}
+
+
+	Sema = SemaBuilder::CreateNumberValue(AST);
 	AST.setSema(Sema);
+
 	FLY_DEBUG_END("Resolver", "visit(ASTNumberValue)");
 }
 

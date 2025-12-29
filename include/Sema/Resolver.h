@@ -131,20 +131,20 @@ namespace fly {
         void visit(ASTArrayType &AST) override;
 
         // Visit Statements
-        void visit(ASTBreakStmt &AST) override;
-        void visit(ASTContinueStmt &AST) override;
-        void visit(ASTDeleteStmt &AST) override;
         void visit(ASTExprStmt &AST) override;
         void visit(ASTDeclStmt &AST) override;
         void visit(ASTFailStmt &AST) override;
         void visit(ASTHandleStmt &AST) override;
         void visit(ASTReturnStmt &AST) override;
+    	void visit(ASTDeleteStmt &AST) override;
+    	void visit(ASTBreakStmt &AST) override;
+    	void visit(ASTContinueStmt &AST) override;
+    	void visit(ASTBlockStmt &AST) override;
         void visit(ASTRuleStmt &AST) override;
         void visit(ASTIfStmt &AST) override;
         void visit(ASTSwitchStmt &AST) override;
         void visit(ASTLoopStmt &AST) override;
         void visit(ASTLoopInStmt &AST) override;
-        void visit(ASTBlockStmt &AST) override;
 
         // Visit Expressions
         void visit(ASTIdentifier &AST) override;

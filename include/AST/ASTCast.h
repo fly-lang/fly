@@ -15,6 +15,7 @@
 namespace fly {
 
 	class ASTType;
+	class SemaCast;
 
     /**
      * Value Expression
@@ -37,7 +38,11 @@ namespace fly {
 
         ASTType *getCast() const;
 
-        std::string str() const override;
+		SemaExpr *getSema() const override;
+
+    	void setSema(SemaCast *Sema);
+
+		std::string str() const override;
     };
 }
 

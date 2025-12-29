@@ -34,8 +34,12 @@ ASTExpr *ASTUnaryOp::getExpr() const {
     return Expr;
 }
 
-SemaExpr * ASTUnaryOp::getSema() const {
-	return nullptr;
+SemaUnary *ASTUnaryOp::getSema() const {
+	return static_cast<SemaUnary *>(Sema);
+}
+
+void ASTUnaryOp::setSema(SemaUnary *Sema) {
+	this->Sema = Sema;
 }
 
 std::string ASTUnaryOp::str() const {
@@ -100,8 +104,12 @@ ASTExpr *ASTBinaryOp::getRightExpr() const {
     return RightExpr;
 }
 
-SemaExpr * ASTBinaryOp::getSema() const {
-	return nullptr;
+SemaBinary * ASTBinaryOp::getSema() const {
+	return static_cast<SemaBinary *>(Sema);
+}
+
+void ASTBinaryOp::setSema(SemaBinary *Sema) {
+	this->Sema = Sema;
 }
 
 std::string ASTBinaryOp::str() const {
@@ -147,8 +155,12 @@ ASTExpr *ASTTernaryOp::getFalseExpr() const {
     return FalseExpr;
 }
 
-SemaExpr * ASTTernaryOp::getSema() const {
-	return nullptr;
+SemaTernary * ASTTernaryOp::getSema() const {
+	return static_cast<SemaTernary *>(Sema);
+}
+
+void ASTTernaryOp::setSema(SemaTernary *Sema) {
+	this->Sema = Sema;
 }
 
 std::string ASTTernaryOp::str() const {

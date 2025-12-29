@@ -39,6 +39,8 @@ namespace fly {
 
     	SemaType *getType() const;
 
+    	void setType(SemaType *Type);
+
     	virtual SemaExpr *getParent() const;
 
     	void setParent(SemaExpr &Result);

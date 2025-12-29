@@ -8,6 +8,9 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTCast.h"
+
+#include "Sema/SemaCast.h"
+
 #include <AST/ASTType.h>
 #include <AST/ASTVisitor.h>
 
@@ -27,6 +30,14 @@ ASTExpr * ASTCast::getExpr() const {
 
 ASTType * ASTCast::getCast() const {
 	return Cast;
+}
+
+SemaExpr *ASTCast::getSema() const {
+	return Sema;
+}
+
+void ASTCast::setSema(SemaCast *Sema) {
+	this->Sema = Sema;
 }
 
 std::string ASTCast::str() const {

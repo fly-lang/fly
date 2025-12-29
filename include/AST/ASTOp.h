@@ -11,6 +11,9 @@
 #define FLY_AST_OP_H
 
 #include "ASTExpr.h"
+#include "Sema/SemaBinary.h"
+#include "Sema/SemaTernary.h"
+#include "Sema/SemaUnary.h"
 
 namespace fly {
 
@@ -104,7 +107,9 @@ namespace fly {
 
         ASTExpr *getExpr() const;
 
-        SemaExpr *getSema() const override;
+        SemaUnary *getSema() const override;
+
+    	void setSema(SemaUnary *Sema);
 
         std::string str() const override;
     };
@@ -145,7 +150,9 @@ namespace fly {
 
         ASTExpr *getRightExpr() const;
 
-        SemaExpr *getSema() const override;
+        SemaBinary *getSema() const override;
+
+    	void setSema(SemaBinary *Sema);
 
         std::string str() const override;
     };
@@ -184,7 +191,9 @@ namespace fly {
 
         ASTExpr *getFalseExpr() const;
 
-        SemaExpr *getSema() const override;
+        SemaTernary *getSema() const override;
+
+    	void setSema(SemaTernary *Sema);
 
         std::string str() const override;
     };
