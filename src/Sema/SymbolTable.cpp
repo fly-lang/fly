@@ -41,6 +41,11 @@ void SymbolTable::insert(Symbol *Sym) {
 	Table[Sym->Name] = Sym;
 }
 
+size_t SymbolTable::size() const {
+	return Table.size();
+}
+
+
 Symbol * SymbolTable::lookup(llvm::StringRef Name) {
 	auto it = Table.find(Name);
 	if (it != Table.end()) return it->second;

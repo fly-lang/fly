@@ -41,6 +41,8 @@ namespace fly {
 
         void insert(Symbol* Sym);
 
+    	size_t size() const;
+
         Symbol* lookup(llvm::StringRef Name);
 
         SymbolTable* pushScope();

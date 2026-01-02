@@ -38,15 +38,28 @@ namespace fly {
     class ASTValue;
     class SemaClassMethod;
     class SemaFunctionBase;
+	class ASTBinaryOp;
+	class DiagnosticsEngine;
+	class DiagnosticBuilder;
     enum class SemaTypeKind;
 
     class SemaValidator {
 
         friend class Sema;
 
+    	DiagnosticsEngine &Diags;
+
     public:
 
-        // static bool CheckDuplicateModules(ASTModule * Module, const llvm::DenseMap<uint64_t, SemaModule *> &Modules);
+    	explicit SemaValidator(DiagnosticsEngine &Diags);
+
+    	// Diagnostics
+    	DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID) const;
+    	DiagnosticBuilder Diag(unsigned DiagID) const;
+
+    	void CheckImport(const ASTImport &AST);
+
+		// static bool CheckDuplicateModules(ASTModule * Module, const llvm::DenseMap<uint64_t, SemaModule *> &Modules);
 
         static bool CheckDuplicateParams(llvm::SmallVector<ASTVar *, 8> Params, ASTVar *Param);
 
@@ -62,17 +75,19 @@ namespace fly {
 
         static bool CheckEqualTypes(SemaType *Type1, SemaType *Type2);
 
-        static bool CheckConvertibleTypes(SemaType *FromType, SemaType *ToType);
+        bool CheckConvertibleTypes(SemaType *FromType, SemaType *ToType);
 
-        static bool CheckInheritance(SemaClassType *ClassType, SemaClassType *SuperClassType);
+        bool CheckInheritance(SemaClassType *ClassType, SemaClassType *SuperClassType);
 
-        static bool CheckInheritance(SemaEnumType *EnumType, SemaEnumType *SuperEnumType);
+        bool CheckInheritance(SemaEnumType *EnumType, SemaEnumType *SuperEnumType);
 
-        static bool CheckArithTypes(SemaType *Type1, SemaType *Type2);
+        bool CheckArithTypes(SemaType *Type1, SemaType *Type2);
 
-        static bool CheckLogicalTypes(SemaType *Type1, SemaType *Type2);
+        bool CheckLogicalTypes(SemaType *Type1, SemaType *Type2);
 
-        static bool CheckNameEmpty(const SourceLocation &Loc, llvm::StringRef Name);
+    	bool CheckBinary(ASTBinaryOp &AST);
+
+		static bool CheckNameEmpty(const SourceLocation &Loc, llvm::StringRef Name);
 
         static bool CheckIsValueExpr(ASTExpr *Expr);
 

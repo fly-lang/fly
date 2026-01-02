@@ -15,8 +15,6 @@
 #include "SemaClassAttribute.h"
 #include "SemaClassMethod.h"
 #include "SemaEnumEntry.h"
-#include "SemaErrorHandler.h"
-#include "llvm/ADT/SmallVector.h"
 #include "AST/ASTVisitor.h"
 
 namespace fly {
@@ -51,7 +49,6 @@ namespace fly {
     class ASTFailStmt;
     class ASTHandleStmt;
     class ASTFunction;
-    class ASTIdentifier;
     class ASTArrayType;
     class ASTComment;
     class ASTImport;
@@ -69,10 +66,10 @@ namespace fly {
     class ASTBoolValue;
     class LocalScope;
     class SemaExpr;
-    class DiagnosticsEngine;
-    class DiagnosticBuilder;
+    class SemaValidator;
     class ASTNameSpace;
     class Registry;
+    class Symbol;
 
 
     class Resolver : public ASTVisitor {
@@ -80,6 +77,8 @@ namespace fly {
         DiagnosticsEngine &Diags;
 
         Registry &Reg;
+
+    	SemaValidator *Validator;
 
         SymbolTable* CurrentScope;
 
@@ -171,6 +170,7 @@ namespace fly {
         void EnterScope();
         void ExitScope();
         void ResetCurrent();
+        void addSymbol(Symbol *Sym);
 
         // Semantic Resolution Phases
         void ResolveImports(SemaModule *Module);

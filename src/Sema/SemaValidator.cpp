@@ -7,21 +7,22 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Sema/Sema.h"
 #include "Sema/SemaValidator.h"
-#include "Sema/SymbolTable.h"
-#include "Sema/SemaNameSpace.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTModule.h"
+
+#include "AST/ASTBlockStmt.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTImport.h"
-#include "AST/ASTVar.h"
-#include "AST/ASTVar.h"
-#include "AST/ASTBlockStmt.h"
-#include "AST/ASTValue.h"
+#include "AST/ASTModule.h"
+#include "AST/ASTNameSpace.h"
+#include "AST/ASTOp.h"
 #include "AST/ASTType.h"
+#include "AST/ASTValue.h"
+#include "AST/ASTVar.h"
 #include "Basic/Diagnostic.h"
+#include "Sema/Sema.h"
+#include "Sema/SemaNameSpace.h"
+#include "Sema/SymbolTable.h"
 
 #include <AST/ASTExpr.h>
 #include <AST/ASTFunction.h>
@@ -32,6 +33,52 @@
 #include <Sema/SemaType.h>
 
 using namespace fly;
+
+SemaValidator::SemaValidator(DiagnosticsEngine &Diags) : Diags(Diags) {
+}
+
+DiagnosticBuilder SemaValidator::Diag(const SourceLocation &Loc, unsigned DiagID) const {
+	return Diags.Report(Loc, DiagID);
+}
+
+DiagnosticBuilder SemaValidator::Diag(unsigned DiagID) const {
+	return Diags.Report(DiagID);
+}
+
+void SemaValidator::CheckImport(const ASTImport &AST) {
+
+	// Error: Empty Import
+	if (AST.getNames().empty()) {
+		Diag(AST.getLocation(), diag::err_sema_import_undefined);
+	}
+
+	// TODO
+	// Error: name is equals to the current ASTModule namespace
+	// if (AST.getName() == Module->getNameSpace()->getName()) {
+	// 	Diag(AST.getLocation(), diag::err_import_conflict_namespace) << AST.getName();
+	// }
+
+	// Replace with alias name if exists
+	// llvm::StringRef Name = AST.getImport()->getName();
+
+	// Error: alias is equals to the current ASTModule namespace
+	// if (AST.getAlias()) {
+	//
+	// 	// Set Import Name
+	// 	Name = AST.getAlias()->getName();
+	//
+	// 	// Check Alias
+	// 	if (Module->getImports().lookup(Name) != nullptr) {
+	// 		Diag(AST.getLocation(), diag::err_conflict_import_alias) << Name;
+	// 		return;
+	// 	}
+	//
+	// 	if (AST.getAlias()->getName() == Module->getNameSpace()->getName()) {
+	// 		Diag(AST.getAlias()->getLocation(), diag::err_alias_conflict_namespace) << AST.getAlias()->getName();
+	// 		return;
+	// 	}
+	// }
+}
 
 // bool SemaValidator::CheckDuplicateModules(ASTModule *Module, const llvm::DenseMap<uint64_t, SemaModule *> &Modules) {
 // 	// Check Duplicate Module Names
@@ -255,6 +302,29 @@ bool SemaValidator::CheckLogicalTypes(SemaType *Type1, SemaType *Type2) {
     }
 
     return false;
+}
+
+bool SemaValidator::CheckBinary(ASTBinaryOp &AST) {
+	// Check if Left and Right Expr are resolved
+	SemaType * LeftType = AST.getLeftExpr()->getType();
+	SemaType * RightType = AST.getRightExpr()->getType();
+
+	if (AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_ARITH ||
+				AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_COMPARE) {
+
+		// Check Compatible Types Bool/Bool, Float/Float, Integer/Integer
+		if (!CheckArithTypes(LeftType, RightType)) {
+			Diag(AST.getLocation(), diag::err_sema_types_operation)
+					  << LeftType->getName()
+					  << RightType->getName();
+		}
+	} else if (AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_LOGIC) {
+		if (!CheckLogicalTypes(LeftType, RightType)) {
+			Diag(AST.getLocation(), diag::err_sema_types_logical)
+				<< LeftType->getName()
+				<< RightType->getName();
+		}
+	}
 }
 
 bool SemaValidator::CheckNameEmpty(const SourceLocation &Loc,llvm::StringRef Name) {

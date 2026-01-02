@@ -76,7 +76,8 @@ Resolver::Resolver(DiagnosticsEngine &Diags, Registry &Reg) : Diags(Diags),
 	CurrentModule(nullptr),
 	Reg(Reg),
 	CurrentNameSpace(Reg.getDefaultNameSpace()),
-    CurrentScope(Reg.getDefaultNameSpace()->getSymbols()) {
+    CurrentScope(Reg.getDefaultNameSpace()->getSymbols()),
+	Validator(new SemaValidator(Diags)){
 }
 
 /**
@@ -150,43 +151,10 @@ void Resolver::visit(ASTImport &AST) {
 	if (!AST.isVisited()) {
 		AST.setVisited(true);
 
-		// Error: Empty Import
-		if (AST.getNames().empty()) {
-			Diag(AST.getLocation(), diag::err_sema_import_undefined);
-		}
-
-		// TODO
-		// Error: name is equals to the current ASTModule namespace
-		// if (AST.getName() == Module->getNameSpace()->getName()) {
-		// 	Diag(AST.getLocation(), diag::err_import_conflict_namespace) << AST.getName();
-		// }
-
-		// Replace with alias name if exists
-		// llvm::StringRef Name = AST.getImport()->getName();
-
-		// Error: alias is equals to the current ASTModule namespace
-		// if (AST.getAlias()) {
-		//
-		// 	// Set Import Name
-		// 	Name = AST.getAlias()->getName();
-		//
-		// 	// Check Alias
-		// 	if (Module->getImports().lookup(Name) != nullptr) {
-		// 		Diag(AST.getLocation(), diag::err_conflict_import_alias) << Name;
-		// 		return;
-		// 	}
-		//
-		// 	if (AST.getAlias()->getName() == Module->getNameSpace()->getName()) {
-		// 		Diag(AST.getAlias()->getLocation(), diag::err_alias_conflict_namespace) << AST.getAlias()->getName();
-		// 		return;
-		// 	}
-		// }
+		Validator->CheckImport(AST);
 
 		// Add import in Module
-		SemaImport * Import = SemaBuilder::CreateImport(*CurrentModule, AST);
-
-		// Symbol *Sym = new Symbol(Import->getNames(), Import->getKind(), Import);
-		// CurrentScope->insert(Sym);
+		SemaBuilder::CreateImport(*CurrentModule, AST);
 	}
 	FLY_DEBUG_END("Resolver", "visit(ASTImport)");
 }
@@ -203,9 +171,13 @@ void Resolver::visit(ASTFunction &AST) {
 
 	// // Add to Symbol Table of Parent Scope (Module or Class)
 	Symbol *Sym = new Symbol(AST.getName(), CurrentFunction->getKind(), CurrentFunction);
-	CurrentScope->getParent()->insert(Sym);
 
+	// Exit Function Scope
 	ExitScope();
+
+	// Add Symbol to the current scope
+	addSymbol(Sym);
+
 	FLY_DEBUG_END("Resolver", "visit(ASTFunction)");
 }
 
@@ -219,14 +191,17 @@ void Resolver::visit(ASTClass &AST) {
 	// Create Sema Class
 	CurrentClass = SemaBuilder::CreateClass(*CurrentModule, CurrentScope, AST);
 
-	// Add to Symbol Table of Parent Scope (Module)
+	// Create Symbol
 	Symbol *Sym = new Symbol(AST.getName(), SemaKind::CLASS, CurrentClass);
-	CurrentScope->getParent()->insert(Sym);
 
 	// Note: Nodes will be added in the next Resolve Steps
 
 	// Exit Class Scope
 	ExitScope();
+
+	// Add Symbol to the current scope
+	addSymbol(Sym);
+
 	FLY_DEBUG_END("Resolver", "visit(ASTClass)");
 }
 
@@ -262,7 +237,10 @@ void Resolver::visit(ASTAttribute &AST) {
 
 	// Add to Symbol Table
 	Symbol *Sym = new Symbol(AST.getName(), Sema->getKind(), Sema);
-	CurrentScope->insert(Sym);
+
+	// Add Symbol to the current scope
+	addSymbol(Sym);
+
 	FLY_DEBUG_END("Resolver", "visit(ASTAttribute)");
 }
 
@@ -291,13 +269,22 @@ void Resolver::visit(ASTMethod &AST) {
 
 	// Add to Symbol Table
 	Symbol *Sym = new Symbol(AST.getName(), Sema->getKind(), Sema);
-	CurrentScope->insert(Sym);
+
+	// Enter Method Scope
+	EnterScope();
 
 	// Add to Body list for resolve in the next step
-	// Enter Function Scope
+	// Enter Body Scope
 	EnterScope();
 	Reg.addBody(CurrentScope, AST.getBody());
 	ExitScope();
+
+	// Exit Method Scope
+	ExitScope();
+
+	// Add Symbol to the current scope
+	addSymbol(Sym);
+
 	FLY_DEBUG_END("Resolver", "visit(ASTMethod)");
 }
 
@@ -311,9 +298,8 @@ void Resolver::visit(ASTEnum &AST) {
 	// Create Sema Enum
 	CurrentEnum = SemaBuilder::CreateEnum(*CurrentModule, CurrentScope, AST);
 
-	// Add to Symbol Table of Parent Scope (Module)
+	// Create Symbol
 	Symbol *Sym = new Symbol(AST.getName(), SemaKind::ENUM, CurrentEnum);
-	CurrentScope->getParent()->insert(Sym);
 
 	// Add enum entries
 	for (auto Def : AST.getNodes()) {
@@ -322,6 +308,10 @@ void Resolver::visit(ASTEnum &AST) {
 
 	// Exit Class Scope
 	ExitScope();
+
+	// Add Symbol to the current scope
+	addSymbol(Sym);
+
 	FLY_DEBUG_END("Resolver", "visit(ASTEnum)");
 }
 
@@ -336,6 +326,13 @@ void Resolver::visit(ASTEnumEntry &AST) {
 
 	SemaEnumEntry *Sema = SemaBuilder::CreateEnumEntry(CurrentEnum, AST);
 	CurrentEnum->addEntry(Sema);
+
+	// Create Symbol
+	Symbol *Sym = new Symbol(AST.getName(), SemaKind::ENUM_ENTRY, Sema);
+
+	// Add Symbol to the current scope
+	addSymbol(Sym);
+
 	FLY_DEBUG_END("Resolver", "visit(ASTEnumEntry)");
 }
 
@@ -361,7 +358,9 @@ void Resolver::visit(ASTLocalVar &AST) {
 
 		// Add to Symbol Table
 		Symbol *Sym = new Symbol(AST.getName(), Sema->getKind(), Sema);
-		CurrentScope->insert(Sym);
+
+		// Add Symbol to the current scope
+		addSymbol(Sym);
 	}
 	FLY_DEBUG_END("Resolver", "visit(ASTLocalVar)");
 }
@@ -666,7 +665,7 @@ void Resolver::visit(ASTLoopStmt &AST) {
 	}
 
 	// Validate Rule Type
-	// SemaValidator::CheckConvertibleTypes(LoopStmt->getRule()->getType(), SemaBuiltin::getBoolType());
+	// Validator->CheckConvertibleTypes(LoopStmt->getRule()->getType(), SemaBuiltin::getBoolType());
 
 	// Loop Statement
 	AST.getStmt()->accept(*this);
@@ -726,29 +725,7 @@ void Resolver::visit(ASTBinaryOp &AST) {
 	AST.getLeftExpr()->accept(*this);
     AST.getRightExpr()->accept(*this);
 
-	// Check if Left and Right Expr are resolved
-	SemaType * LeftType = AST.getLeftExpr()->getType();
-	SemaType * RightType = AST.getRightExpr()->getType();
-
-	if (AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_ARITH ||
-			AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_COMPARE) {
-
-		// TODO
-		// SemaValidator::CheckBinary(AST.getLeftExpr(), AST.getRightExpr());
-
-		// Check Compatible Types Bool/Bool, Float/Float, Integer/Integer
-		if (!SemaValidator::CheckArithTypes(LeftType, RightType)) {
-			Diag(AST.getLocation(), diag::err_sema_types_operation)
-					  << LeftType->getName()
-					  << RightType->getName();
-		}
-	} else if (AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_LOGIC) {
-		if (!SemaValidator::CheckLogicalTypes(LeftType, RightType)) {
-			Diag(AST.getLocation(), diag::err_sema_types_logical)
-				<< LeftType->getName()
-				<< RightType->getName();
-		}
-	}
+	Validator->CheckBinary(AST);
 
 	// Create Sema
 	SemaBinary *Sema = SemaBuilder::CreateBinary(AST);
@@ -761,7 +738,7 @@ void Resolver::visit(ASTTernaryOp &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTTernaryOp)");
 	// Resolve Condition Expr
 	AST.getConditionExpr()->accept(*this);
-	SemaValidator::CheckConvertibleTypes(AST.getConditionExpr()->getType(), SemaBuiltin::getBoolType());
+	Validator->CheckConvertibleTypes(AST.getConditionExpr()->getType(), SemaBuiltin::getBoolType());
 
 	// Resolve True and False Expr
 	AST.getTrueExpr()->accept(*this);
@@ -911,6 +888,12 @@ void Resolver::Resolver::ExitScope() {
 	FLY_DEBUG_END("Resolver", "ExitScope");
 }
 
+void Resolver::addSymbol(Symbol *Sym) {
+	FLY_DEBUG_START("Resolver", "addSymbol");
+	CurrentScope->insert(Sym);
+	FLY_DEBUG_END("Resolver", "addSymbol");
+}
+
 void Resolver::ResetCurrent() {
 	FLY_DEBUG_START("Resolver", "ResetCurrent");
 	CurrentClass = nullptr;
@@ -960,18 +943,26 @@ void Resolver::Resolve() {
 // void Resolver::ResolveComment(SemaComment *Comment, ASTNode* AST) {
 // 	if (AST->getKind() == ASTKind::AST_FUNCTION) {
 // 		ASTFunction * Function = (ASTFunction *) AST;
-// 		SemaValidator::CheckCommentParams(Comment, Function->getParams());
-// 		SemaValidator::CheckCommentReturn(Comment, Function->getReturnTypeRef());
-// 		SemaValidator::CheckCommentFail(Comment);
+// 		Validator->CheckCommentParams(Comment, Function->getParams());
+// 		Validator->CheckCommentReturn(Comment, Function->getReturnTypeRef());
+// 		Validator->CheckCommentFail(Comment);
 // 	}
 // }
 
 void Resolver::ResolveImports(SemaModule *Module) {
 	FLY_DEBUG_START("Resolver", "ResolveImports");
 	for (auto Import : Module->getImports()) {
+
 		// NameSpace, Class or Enum
 		SemaNameSpace * NS = Reg.getNameSpace(Import->getTarget());
 		Import->setSymbols(NS->getSymbols());
+
+		// Create Symbol of Import
+		std::string Name = Helper::Flatten(Import->getNames());
+		Symbol *Sym = new Symbol(Name, Import->getKind(), Import);
+
+		// Add Symbol to the module scope
+		addSymbol(Sym);
 	}
 	FLY_DEBUG_END("Resolver", "ResolveImports");
 }
@@ -1308,13 +1299,17 @@ void Resolver::ResolveParent(ASTCall *AST) {
 			// Take the Type from the CurrentNameSpace
 			SemaType *Type = Reg.LookupNamedType(AST->getName(), CurrentNameSpace);
 
-			// No type found, no constructor
+			// ---------------------------------------
+			// Class Not Found → Error
+			// ---------------------------------------
 			if (Type == nullptr) {
 				Diag(AST->getLocation(), diag::err_unref_type);
 				return;
 			}
 
-			// Call Constructor
+			// ---------------------------------------
+			// Type is not a Class → Error
+			// ---------------------------------------
 			if (!Type->isClass()) {
 				Diag(AST->getLocation(), diag::err_unref_type);
 				return;
@@ -1323,6 +1318,9 @@ void Resolver::ResolveParent(ASTCall *AST) {
 			SemaClassType *Class = static_cast<SemaClassType *>(Type);
 			SemaClassMethod *Constructor = Class->getConstructors().lookup(MangledName);
 
+			// ---------------------------------------
+			// Constructor Not Found → Error
+			// ---------------------------------------
 			if (Constructor == nullptr) {
 				// Error: func not found
 				Diag(AST->getLocation(), diag::err_syntax_error);
@@ -1334,6 +1332,8 @@ void Resolver::ResolveParent(ASTCall *AST) {
 
 				// Call a Function or a Class Method
 				SemaFunctionBase *Func = nullptr;
+
+				// Try with Method
 				if (CurrentFunction->getKind() == SemaKind::METHOD) {
 
 					// Check if the Call is a Base Class Constructor Method
@@ -1383,8 +1383,10 @@ void Resolver::ResolveParent(ASTCall *AST) {
 					Func = Reg.LookupFunction(MangledName, CurrentNameSpace);
 				}
 
+				// ---------------------------------------
+				// Function Not Found → Error
+				// ---------------------------------------
 				if (Func == nullptr) {
-					// Error: func not found
 					Diag(AST->getLocation(), diag::err_syntax_error);
 					return;
 				}

@@ -16,7 +16,6 @@
 #include "AST/ASTVar.h"
 #include "Basic/Debug.h"
 #include "Basic/Diagnostic.h"
-#include "Sema/Sema.h"
 #include "Sema/SemaBinary.h"
 #include "Sema/SemaCall.h"
 #include "Sema/SemaClassAttribute.h"
