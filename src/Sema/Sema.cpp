@@ -16,7 +16,7 @@
 
 using namespace fly;
 
-Sema::Sema(DiagnosticsEngine &Diags) : Diags(Diags), Reg(new Registry()) {
+Sema::Sema(DiagnosticsEngine &Diags) : Diags(Diags), Reg(new Registry(Diags)) {
 
 }
 

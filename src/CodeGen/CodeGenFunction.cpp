@@ -26,7 +26,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
     CodeGenFunctionBase(CGM, Sema), isExternal(isExternal), isMain(isMainFunction(Sema)) {
 
 	// Set Id
-	Id = toIdentifier(Sema);
+	// Id = toIdentifier(Sema);
 
     // Generate Params Types
     if (isMain) {
@@ -43,7 +43,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
     // Set Name
-    Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
+    Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, "", CGM->getModule());
 
     // Set Linkage
     if (isExternal && Sema->getVisibility() == SemaVisibilityKind::PRIVATE) {
@@ -54,9 +54,8 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
 std::string CodeGenFunction::toIdentifier(SemaFunction *Function) {
 	FLY_DEBUG_START("CodeGenFunction", "toIdentifier");
 	// For functions, use the mangled name
-	std::string MangledName = Function->getMangledName();
 	SemaNameSpace *NameSpace = CGM->getNameSpace();
-	return CGM->toIdentifier(MangledName, NameSpace);
+	return CGM->toIdentifier(Function->getAST().getName(), NameSpace);
 }
 
 /**

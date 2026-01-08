@@ -20,6 +20,7 @@ namespace fly {
 	class SemaType;
 	class ASTCall;
 	class ASTFunction;
+	class ASTType;
 	class SemaIntType;
 	class SemaFloatType;
 	class SemaExpr;
@@ -35,9 +36,13 @@ namespace fly {
 
 		static SemaFloatType *SelectFloatType(SemaExpr *Expr1, SemaExpr *Expr2);
 
-		static std::string Mangle(ASTCall *AST);
+		// static std::string MangleType(SemaType *Type);
 
-		static std::string Mangle(ASTFunction *AST);
+		// static std::string MangleType(ASTType *Type);
+		//
+		// static std::string Mangle(ASTCall *AST);
+		//
+		// static std::string Mangle(ASTFunction *AST);
 	};
 }
 

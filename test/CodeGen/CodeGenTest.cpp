@@ -103,7 +103,8 @@ namespace {
     	ASTDeclStmt * DeclStmt_j = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_j);
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
     	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
@@ -160,7 +161,8 @@ namespace {
         // }
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func_i_f_b_l_d_y_s_us_ui_ul(%error* %0, i32 %1, float %2, i1 %3, i64 %4, double %5, i8 %6, i16 %7, i16 %8, i32 %9, i64 %10) {\n"
@@ -223,7 +225,8 @@ namespace {
         Return->setExpr(ASTBuilder::CreateIdentifier(LocalVar_g));
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define float @_F4func(%error* %0) {\n"
@@ -260,7 +263,8 @@ namespace {
         DeclStmt->setExpr(AssignExpr);
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
@@ -304,28 +308,29 @@ namespace {
         Return->setExpr(TestCall);
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M);
 
     	EXPECT_EQ(output, "\n"
 						  "%error = type { i8, i32, i8* }\n"
 						  "\n"
 						  "@error = external constant %error\n"
-						  "\n"
-						  "define i32 @_F4func(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  %2 = load %error*, %error** %1, align 8\n"
-                          "  %3 = call i32 @_F4test(%error* %2)\n"
-                          "  %4 = call i32 @_F4test(%error* %2)\n"
-                          "  ret i32 %4\n"
-                          "}\n"
                           "\n"
 						  "define i32 @_F4test(%error* %0) {\n"
 						  "entry:\n"
 						  "  %1 = alloca %error*, align 8\n"
 						  "  store %error* %0, %error** %1, align 8\n"
+						  "}\n"
+						  "\n"
+						  "define i32 @_F4func(%error* %0) {\n"
+						  "entry:\n"
+						  "  %1 = alloca %error*, align 8\n"
+						  "  store %error* %0, %error** %1, align 8\n"
+						  "  %2 = load %error*, %error** %1, align 8\n"
+						  "  %3 = call i32 @_F4test(%error* %2)\n"
+						  "  %4 = call i32 @_F4test(%error* %2)\n"
+						  "  ret i32 %4\n"
 						  "}\n");
     }
 
@@ -367,7 +372,8 @@ namespace {
         Return->setExpr(Group);
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define i32 @_F4func_i_i_i(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
@@ -542,7 +548,8 @@ namespace {
         cPostDecVarStmt->setExpr(PostDecExpr);
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func_i_i_i(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
@@ -684,7 +691,8 @@ namespace {
         cLteVarStmt->setExpr(cLteAssignExpr);
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
@@ -772,7 +780,8 @@ namespace {
         cOrVarStmt->setExpr(cOrAssignExpr);
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
@@ -862,7 +871,8 @@ namespace {
         cVarStmt->setExpr(cAssignExpr);
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
@@ -937,7 +947,8 @@ namespace {
         a2VarStmt->setExpr(a2AssignExpr);
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
@@ -1005,7 +1016,8 @@ namespace {
         aVarStmt2->setExpr(a2AssignExpr);
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
@@ -1104,7 +1116,8 @@ namespace {
         aVarStmt4->setExpr(a4AssignExpr);
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
@@ -1208,7 +1221,8 @@ namespace {
         aVarStmt3->setExpr(a3AssignExpr);
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
@@ -1302,7 +1316,8 @@ namespace {
         aVarStmt3->setExpr(Assign3);
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
@@ -1368,7 +1383,8 @@ namespace {
         aVarStmt->setExpr(AssignExpr);
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
@@ -1449,7 +1465,8 @@ namespace {
         aVarStmt->setExpr(aAssignExpr);
 
     	// CreateVTable Code
-    	llvm::Module * M = Generate()[0];
+    	Generate();
+    	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
@@ -1497,7 +1514,8 @@ namespace {
         ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, Body);
 
 		// CreateVTable Code
-		llvm::Module * M = Generate()[0];
+		Generate();
+    	llvm::Module * M = getModules()[0];
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"

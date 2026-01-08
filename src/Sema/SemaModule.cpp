@@ -8,9 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaModule.h"
-#include "Sema/SemaClassType.h"
-#include "Sema/SemaEnumType.h"
-
 #include <AST/ASTModule.h>
 #include <llvm/IR/Module.h>
 
@@ -28,12 +25,16 @@ SemaModule::~SemaModule() {
 	}
 }
 
-SemaModule::SemaModule(ASTModule &AST) : AST(AST) {
+SemaModule::SemaModule(ASTModule &AST, SymbolTable *Symbols) : AST(AST), Symbols(Symbols) {
 
 }
 
 ASTModule &SemaModule::getAST() const {
 	return AST;
+}
+
+SymbolTable *SemaModule::getSymbols() const {
+	return Symbols;
 }
 
 llvm::StringRef SemaModule::getName() const {

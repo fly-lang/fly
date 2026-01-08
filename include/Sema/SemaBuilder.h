@@ -87,7 +87,7 @@ namespace fly {
 
     	static SemaClassMethod *CreateDefaultConstructor(SemaClassType *Class);
 
-    	static SemaClassMethod *CreateClassMethod(SemaClassType *Class, ASTMethod &AST, std::string MangledName = "");
+    	static SemaClassMethod *CreateClassMethod(SemaClassType *Class, ASTMethod &AST);
 
     	static SemaEnumType *CreateEnum(SemaModule &Module, SymbolTable *Symbols, ASTEnum &AST);
 

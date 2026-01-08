@@ -9,6 +9,7 @@
 
 #include "Sema/SemaBuilder.h"
 
+#include "AST/ASTCall.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTFunction.h"
@@ -73,11 +74,8 @@ SemaFunction *SemaBuilder::CreateFunction(SemaModule &Module, SymbolTable *Symbo
 	// Create the Function
 	SemaFunction *Function = new SemaFunction(AST, Symbols);
 
-	// Set Symbol Table
-	Function->Symbols = Symbols;
-
 	SemaBuilderModifiers *BuilderModifiers = SemaBuilderModifiers::Build(AST.getModifiers());
-	Function->Visibility = BuilderModifiers->getVisibility();
+	Function->setVisibility(BuilderModifiers->getVisibility());
 
 	// Add to Module
 	Module.addNode(Function);
@@ -138,23 +136,16 @@ SemaClassMethod * SemaBuilder::CreateDefaultConstructor(SemaClassType *Class) {
 	// Create AST
 	ASTMethod *AST = ASTBuilder::CreateDefaultConstructor(&Class->getAST());
 
-	// Create Mangled Name
-	std::string MangledName = Helper::Mangle(AST);
-
 	// Create Sema
 	SemaClassMethod *Method = new SemaClassMethod(*AST, Class, Class->getThis(), SemaClassMethodKind::METHOD_CONSTRUCTOR);
 	Method->setReturnType(SemaBuiltin::getVoidType());
-	Method->setMangledName(MangledName);
 
 	return Method;
 }
 
-SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTMethod &AST, std::string MangledName) {
+SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTMethod &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateClassFunction");
 	SemaClassMethod *Method;
-
-	// Create Mangled Name
-	MangledName = MangledName.empty() ? Helper::Mangle(&AST) : MangledName;
 
 	// When the Class Name is Equals to the Function Name this is a Constructor
 	if (AST.getName() == Class->getName()) {
@@ -168,7 +159,6 @@ SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTMethod
 		// ClassDefinition Return Type
 		Method->setReturnType(AST.getReturnType()->getSema());
 	}
-	Method->setMangledName(MangledName);
 
 	// Set Modifiers
 	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
@@ -349,7 +339,7 @@ SemaCall * SemaBuilder::CreateCall(ASTCall &AST, SemaType *Type, SemaFunctionBas
 	Call->Function = Function;
 
 	// Assign Symbol to AST
-	// AST->setSema(Call); // TODO add resolved symbol in the scope
+	// AST.setSema(Call); // TODO add resolved symbol in the scope
 
 	FLY_DEBUG_END("SemaBuilder", "CreateParam");
 	return Call;

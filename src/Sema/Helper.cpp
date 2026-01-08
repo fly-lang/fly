@@ -48,35 +48,27 @@ std::unordered_map<std::string, std::string> MangleTypeMap = {
 	{"double", "_d"},
 	{"void", "_v"},
 	{"string", "_Ss"},
-	{"char", "_c"},
+	// {"char", "_c"},
 	{"error", "_e"},
-	// Class _C
-	// Enum _E
-	// Function _F
-	// Array _A
 };
 
-// Function to process array type: "int[5]" -> "A5_i"
-std::string MangleType(SemaType *Type) {
-	std::string Mangled = "";
-
-	switch (Type->getTypeKind()) {
-		case SemaTypeKind::TYPE_ARRAY: {
-			SemaArrayType *Array = static_cast<SemaArrayType *>(Type);
-			Mangled += "_A" + MangleType(Array->getType());
-		}	break;
-		case SemaTypeKind::TYPE_CLASS:
-			Mangled += "_C" + Type->getName();
-		break;
-		case SemaTypeKind::TYPE_ENUM: {
-			Mangled += "_E" + Type->getName();
-		}	break;
-		default:
-			Mangled += MangleTypeMap.at(Type->getName());
-	}
-
-	return Mangled;
-}
+// Mapping Fly types to mangled representations
+std::unordered_map<ASTBuiltinTypeKind, std::string> BuiltinTypeMap = {
+	{ASTBuiltinTypeKind::TYPE_BOOL, "_b"},
+	{ASTBuiltinTypeKind::TYPE_BYTE, "_y"},
+	{ASTBuiltinTypeKind::TYPE_USHORT, "_us"},
+	{ASTBuiltinTypeKind::TYPE_SHORT, "_s"},
+	{ASTBuiltinTypeKind::TYPE_UINT, "_ui"},
+	{ASTBuiltinTypeKind::TYPE_INT, "_i"},
+	{ASTBuiltinTypeKind::TYPE_ULONG, "_ul"},
+	{ASTBuiltinTypeKind::TYPE_LONG, "_l"},
+	{ASTBuiltinTypeKind::TYPE_FLOAT, "_f"},
+	{ASTBuiltinTypeKind::TYPE_DOUBLE, "_d"},
+	{ASTBuiltinTypeKind::TYPE_VOID, "_v"},
+	{ASTBuiltinTypeKind::TYPE_STRING, "_Ss"},
+	// {ASTBuiltinTypeKind::TYPE_CHAR, "_c"},
+	{ASTBuiltinTypeKind::TYPE_ERROR, "_e"},
+};
 
 SemaIntType *Helper::SelectIntType(SemaExpr *Expr1, SemaExpr *Expr2) {
 	// Promotes First or Second Expr Types in order to be equal
@@ -96,32 +88,70 @@ SemaFloatType *Helper::SelectFloatType(SemaExpr *Expr1, SemaExpr *Expr2) {
 	return Type2;
 }
 
-std::string Helper::Mangle(ASTCall *AST) {
-	std::string Name = std::string(AST->getName()); // Function name
+// Function to process array type: "int[5]" -> "A5_i"
+// std::string Helper::MangleType(SemaType *Type) {
+// 	std::string Mangled = "";
+//
+// 	switch (Type->getTypeKind()) {
+// 		case SemaTypeKind::TYPE_ARRAY: {
+// 			SemaArrayType *Array = static_cast<SemaArrayType *>(Type);
+// 			Mangled += "_A" + MangleType(Array->getType());
+// 		}	break;
+// 		case SemaTypeKind::TYPE_ENUM:
+// 		case SemaTypeKind::TYPE_CLASS:
+// 			Mangled += "_O" + Type->getName();
+// 			break;
+// 		default:
+// 			Mangled += MangleTypeMap.at(Type->getName());
+// 	}
+//
+// 	return Mangled;
+// }
 
-	// Mangling Function with _F prefix
-	// Encode function name with its length
-	std::string Mangled = "_F" + std::to_string(Name.size()) + Name;
-
-	// Encode parameters
-	for (const auto Arg : AST->getArgs()) {
-		Mangled += MangleType(Arg->getExpr()->getType());
-	}
-
-	return Mangled;
-}
-
-std::string Helper::Mangle(ASTFunction *AST) {
-	std::string Name = std::string(AST->getName()); // Function name
-
-	// Mangling Function with _F prefix
-	// Encode function name with its length
-	std::string Mangled = "_F" + std::to_string(Name.size()) + Name;
-
-	// Encode parameters
-	for (const auto Param : AST->getParams()) {
-		Mangled += MangleType(Param->getSema()->getType());
-	}
-
-	return Mangled;
-}
+// std::string Helper::MangleType(ASTType *Type) {
+// 	std::string Mangled = "";
+//
+// 	switch (Type->getTypeKind()) {
+//
+// 		case ASTTypeKind::TYPE_NAMED:
+// 			Mangled += "_O" + Flatten(static_cast<ASTNamedType *>(Type)->getNames());
+// 			break;
+// 		case ASTTypeKind::TYPE_BUILTIN:
+// 			Mangled += BuiltinTypeMap.at(static_cast<ASTBuiltinType *>(Type)->getBuiltinKind());
+// 			break;
+// 		case ASTTypeKind::TYPE_ARRAY:
+// 			Mangled += "_A" + MangleType(static_cast<ASTArrayType *>(Type)->getElementType());
+// 			break;
+// 	}
+// 	return Mangled;
+// }
+//
+// std::string Helper::Mangle(ASTCall *AST) {
+// 	std::string Name = std::string(AST->getName()); // Function name
+//
+// 	// Mangling Function with _F prefix
+// 	// Encode function name with its length
+// 	std::string Mangled = "_F" + std::to_string(Name.size()) + Name;
+//
+// 	// Encode parameters
+// 	for (const auto Arg : AST->getArgs()) {
+// 		Mangled += MangleType(Arg->getExpr()->getType());
+// 	}
+//
+// 	return Mangled;
+// }
+//
+// std::string Helper::Mangle(ASTFunction *AST) {
+// 	std::string Name = std::string(AST->getName()); // Function name
+//
+// 	// Mangling Function with _F prefix
+// 	// Encode function name with its length
+// 	std::string Mangled = "_F" + std::to_string(Name.size()) + Name;
+//
+// 	// Encode parameters
+// 	for (const auto Param : AST->getParams()) {
+// 		Mangled += MangleType(Param->getType());
+// 	}
+//
+// 	return Mangled;
+// }

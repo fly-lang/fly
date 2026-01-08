@@ -169,7 +169,7 @@ namespace fly {
         // Scope Management
         void EnterScope();
         void ExitScope();
-        void ResetCurrent();
+        void ResetCurrents();
         void addSymbol(Symbol *Sym);
 
         // Semantic Resolution Phases
@@ -215,9 +215,9 @@ namespace fly {
 
         SemaVar *ResolveChildMember(SemaExpr *Parent, ASTMember *AST);
 
-        void ResolveCallArgs(ASTCall *AST);
+        SmallVector<SemaType *, 8> ResolveCallArgs(ASTCall *AST);
 
-        void ResolveParams(ASTFunction &AST);
+        SmallVector<SemaType *, 8> ResolveParams(ASTFunction &AST);
 
         void ResolveErrorHandler(SemaCall *Sema);
 

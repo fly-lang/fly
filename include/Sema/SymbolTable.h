@@ -13,7 +13,7 @@
 #include "Symbol.h"
 #include <AST/ASTType.h>
 #include <llvm/ADT/StringMap.h>
-#include <vector>
+#include <llvm/ADT/SmallVector.h>
 
 namespace fly {
 
@@ -27,11 +27,11 @@ namespace fly {
      */
     class SymbolTable {
 
-        llvm::StringMap<Symbol*> Table;
+        llvm::StringMap<llvm::SmallVector<Symbol *, 8>> Table;
 
         SymbolTable* Parent;
 
-        std::vector<SymbolTable*> Children;
+        llvm::SmallVector<SymbolTable*, 8> Children;
 
     public:
 
@@ -39,15 +39,23 @@ namespace fly {
 
         ~SymbolTable();
 
-        void insert(Symbol* Sym);
+        bool insert(Symbol *Sym);
+
+    	void addChild(SymbolTable *Child);
 
     	size_t size() const;
 
-        Symbol* lookup(llvm::StringRef Name);
+    	llvm::SmallVector<Symbol *, 8> *lookup(llvm::StringRef Name);
+
+        llvm::SmallVector<Symbol *, 8> *lookupInParents(llvm::StringRef Name);
+
+        llvm::SmallVector<Symbol *, 8> *lookupInChildren(llvm::StringRef Name);
 
         SymbolTable* pushScope();
 
         SymbolTable* getParent();
+
+    	llvm::SmallVector<SymbolTable*, 8> getChildren();
 
         /**
          * Delete all child scopes created via pushScope()

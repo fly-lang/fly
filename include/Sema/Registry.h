@@ -32,6 +32,8 @@ namespace fly {
 
 	class Registry {
 
+		DiagnosticsEngine &Diags;
+
 		SymbolTable *BuiltinScope;
 
 		SymbolTable* GlobalScope;
@@ -42,13 +44,15 @@ namespace fly {
 		
 		SemaNameSpace *DefaultNameSpace;
 
-		llvm::StringMap<SemaNameSpace *> NameSpaces;
-
 		llvm::SmallVector<LocalScope, 4> Bodies;
+
+		// Diagnostics
+		DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID) const;
+		DiagnosticBuilder Diag(unsigned DiagID) const;
 
 	public:
 
-		Registry();
+		Registry(DiagnosticsEngine &Diags);
 
 		~Registry();
 
@@ -60,19 +64,19 @@ namespace fly {
 
 		SemaNameSpace * getDefaultNameSpace();
 
-		SemaNameSpace *getNameSpace(const llvm::SmallVector<ASTName *, 4> &Names);
-
 		SemaNameSpace* getOrCreateNameSpace(const llvm::SmallVector<ASTName *, 4>& Names);
 
-		SemaType *LookupBuiltinType(llvm::StringRef Ref);
+		Symbol *LookupImport(const llvm::SmallVector<ASTName *, 4> &Names);
 
-		SemaType* LookupNamedType(llvm::StringRef Name, SemaNameSpace *NameSpace);
+		SemaType *LookupBuiltinType(llvm::StringRef TypeName);
 
-		SemaType* LookupNamedType(ASTNamedType &NamedType, SemaNameSpace *NameSpace);
+		SemaType* LookupNamedType(llvm::StringRef Name, SymbolTable *Scope);
 
-		SemaNameSpace* LookupNameSpace(llvm::StringRef Name, SemaNameSpace *NameSpace = nullptr);
+		SemaType* LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope);
 
-		SemaFunction* LookupFunction(llvm::StringRef MangledName, SemaNameSpace* NameSpace);
+		Symbol *LookupName(llvm::StringRef Name, SymbolTable *Scope = nullptr);
+
+		SemaFunctionBase* LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8> &Types, SymbolTable *Scope);
 
 		llvm::SmallVector<LocalScope, 4> getBodies() const;
 

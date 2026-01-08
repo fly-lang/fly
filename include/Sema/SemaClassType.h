@@ -76,6 +76,8 @@ namespace fly {
         // Class Constructors
         llvm::StringMap<SemaClassMethod *> Constructors;
 
+    	SemaClassMethod *DefaultConstructor = nullptr;
+
         // Class Comment
         SemaComment *Comment = nullptr;
 
@@ -110,6 +112,10 @@ namespace fly {
 
         const llvm::SmallVector<SemaClassType *, 4> &getBaseClasses() const;
 
+    	SemaClassMethod *getDefaultConstructor() const;
+
+    	void setDefaultConstructor(SemaClassMethod *Method);
+
         SemaClassAttribute *LookupAttribute(llvm::StringRef Name) const;
 
         SemaClassMethod *LookupMethod(llvm::StringRef Name) const;
@@ -125,8 +131,6 @@ namespace fly {
         void addAttribute(SemaClassAttribute *Attribute);
 
         void addMethod(SemaClassMethod *Method);
-
-        void addConstructor(SemaClassMethod *Constructor);
 
         bool isDerivedOrEquals(SemaClassType *BaseClassType) const;
 

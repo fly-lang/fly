@@ -132,14 +132,13 @@ public:
     	return Builder->CreateType(Enum->getLocation(), Names);
     }
 
-	std::vector<llvm::Module *> &Generate() {
+	void Generate() {
     	// validate and resolve
     	SmallVector<SemaModule *, 8> SemaModules = S->Resolve(ASTModules);
-    	EXPECT_FALSE(Diags.hasErrorOccurred());
-    	EXPECT_FALSE(SemaModules.empty());
+    	ASSERT_FALSE(Diags.hasErrorOccurred());
+    	ASSERT_FALSE(SemaModules.empty());
     	Modules = CG->GenerateModules(SemaModules);
     	EXPECT_FALSE(Diags.hasErrorOccurred());
-    	return Modules;
     }
 
 	std::vector<llvm::Module *> &getModules() {

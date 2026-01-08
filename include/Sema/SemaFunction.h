@@ -57,6 +57,8 @@ namespace fly {
 
         SemaVisibilityKind getVisibility() const;
 
+    	void setVisibility(SemaVisibilityKind Visibility);
+
         const llvm::SmallVector<SemaLocalVar *, 4> &getLocalVars() const;
 
         CodeGenFunction *getCodeGen() const override;

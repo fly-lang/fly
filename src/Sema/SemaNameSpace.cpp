@@ -15,44 +15,18 @@
 
 using namespace fly;
 
-SemaNameSpace::SemaNameSpace(llvm::StringRef Name, SemaNameSpace *Parent) : SemaNode(SemaKind::NAMESPACE),
-	Name(Name), Parent(Parent), Symbols(new SymbolTable(Parent ? Parent->getSymbols() : nullptr)) {
+SemaNameSpace::SemaNameSpace(llvm::StringRef Name, SymbolTable *Symbols) : SemaNode(SemaKind::NAMESPACE),
+	Name(Name), Symbols(Symbols) {
+}
+
+SemaNameSpace::~SemaNameSpace() {
+
 }
 
 SymbolTable * SemaNameSpace::getSymbols() const {
 	return Symbols;
 }
 
-SemaNameSpace::~SemaNameSpace() {
-	// Delete all child namespaces
-	for (auto &Pair : Children) {
-		delete Pair.second;
-	}
-
-	// Delete Symbols
-	delete Symbols;
-}
-
 llvm::StringRef SemaNameSpace::getName() const {
 	return Name;
-}
-
-SemaNameSpace * SemaNameSpace::getParent() const {
-	return Parent;
-}
-
-const llvm::StringMap<SemaNameSpace *> &SemaNameSpace::getChildren() const {
-	return Children;
-}
-
-const llvm::SmallVector<ASTModule *, 8> &SemaNameSpace::getModules() const {
-	return Modules;
-}
-
-const llvm::StringMap<SemaFunction *> &SemaNameSpace::getFunctions() const {
-	return Functions;
-}
-
-const llvm::StringMap<SemaType *> &SemaNameSpace::getTypes() const {
-	return Types;
 }

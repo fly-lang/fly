@@ -33,37 +33,15 @@ namespace fly {
 
         llvm::StringRef Name;
 
-        SemaNameSpace *Parent;
-
-        llvm::StringMap<SemaNameSpace *> Children;
-
-        llvm::SmallVector<ASTModule *, 8> Modules;
-
-        // Functions
-        llvm::StringMap<SemaFunction *> Functions;
-
-        // Types
-        llvm::StringMap<SemaType *> Types;
-
     public:
 
-        explicit SemaNameSpace(llvm::StringRef Name, SemaNameSpace *Parent = nullptr);
+        explicit SemaNameSpace(llvm::StringRef Name, SymbolTable *Symbols);
+
+    	~SemaNameSpace();
 
         SymbolTable *getSymbols() const;
 
-        ~SemaNameSpace();
-
         llvm::StringRef getName() const;
-
-        SemaNameSpace *getParent() const;
-
-        const llvm::StringMap<SemaNameSpace *> &getChildren() const;
-
-        const llvm::SmallVector<ASTModule *, 8> &getModules() const;
-
-        const llvm::StringMap<SemaFunction *> &getFunctions() const;
-
-        const llvm::StringMap<SemaType *> &getTypes() const;
 
     };
 }

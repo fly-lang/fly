@@ -8,6 +8,9 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaClassType.h"
+
+#include "Sema/SymbolTable.h"
+
 #include "llvm/ADT/StringMap.h"
 
 #include <Sema/SemaClassAttribute.h>
@@ -31,9 +34,6 @@ SemaClassType::~SemaClassType() {
 
 	// Delete Comment if present
 	delete Comment;
-
-	// Delete Symbols
-	delete Symbols;
 }
 
 SemaClassKind SemaClassType::toClassKind(ASTClassKind Kind) {
@@ -92,6 +92,14 @@ const llvm::SmallVector<SemaClassType *, 4> &SemaClassType::getBaseClasses() con
 	return BaseClasses;
 }
 
+SemaClassMethod *SemaClassType::getDefaultConstructor() const {
+	return DefaultConstructor;
+}
+
+void SemaClassType::setDefaultConstructor(SemaClassMethod *Constructor) {
+	DefaultConstructor = Constructor;
+}
+
 SemaClassAttribute * SemaClassType::LookupAttribute(llvm::StringRef Name) const {
 	// 1. Search in current class
 	auto It = Attributes.find(Name);
@@ -145,21 +153,10 @@ const llvm::StringMap<SemaClassMethod *> &SemaClassType::getConstructors() const
 
 void SemaClassType::addAttribute(SemaClassAttribute *Attribute) {
 	Nodes.emplace_back(Attribute);
-	auto Pair = std::make_pair(Attribute->getName(), Attribute);
-	Attributes.insert(Pair);
 }
 
 void SemaClassType::addMethod(SemaClassMethod *Method) {
 	Nodes.emplace_back(Method);
-	auto Pair = std::make_pair(Method->getMangledName(), Method);
-	Methods.insert(Pair);
-}
-
-void SemaClassType::addConstructor(SemaClassMethod *Constructor) {
-	Nodes.emplace_back(Constructor);
-	auto Pair = std::make_pair(Constructor->getMangledName(), Constructor);
-	Methods.insert(Pair);
-	Constructors.insert(Pair);
 }
 
 bool SemaClassType::isDerivedOrEquals(SemaClassType *BaseClassType) const {

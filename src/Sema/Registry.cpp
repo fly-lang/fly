@@ -7,21 +7,28 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
 #include "Sema/Registry.h"
+
+#include "AST/ASTCall.h"
+#include "AST/ASTFunction.h"
+#include "Basic/Diagnostic.h"
 #include "Sema/SemaNameSpace.h"
 
-#include <AST/ASTNameSpace.h>
 #include <Sema/SemaBuiltin.h>
+#include <Sema/SemaClassType.h>
 #include <Sema/SemaFunction.h>
+#include <Sema/SemaParam.h>
 #include <Sema/SymbolTable.h>
 
 using namespace fly;
 
 std::string Registry::DEFAULT_NAMESPACE = "default";
 
-Registry::Registry() : BuiltinScope(CreateBuiltinScope()), GlobalScope(new SymbolTable(BuiltinScope)), DefaultNameSpace(new SemaNameSpace(DEFAULT_NAMESPACE)) {
-	NameSpaces.insert(std::make_pair<>(DefaultNameSpace->getName(), DefaultNameSpace));
+Registry::Registry(DiagnosticsEngine &Diags) : Diags(Diags),
+	BuiltinScope(CreateBuiltinScope()),
+	GlobalScope(new SymbolTable(BuiltinScope)),
+	DefaultNameSpace(new SemaNameSpace(DEFAULT_NAMESPACE, new SymbolTable(GlobalScope))) {
+	GlobalScope->insert(new Symbol(DefaultNameSpace->getName(), SemaKind::NAMESPACE, DefaultNameSpace));
 }
 
 Registry::~Registry() {
@@ -29,11 +36,14 @@ Registry::~Registry() {
 	// Delete Builtin Scope
 	BuiltinScope->deleteChildren();
 	delete BuiltinScope;
+}
 
-	// Delete all Namespaces
-	for (auto &Pair : NameSpaces) {
-		delete Pair.second;
-	}
+DiagnosticBuilder Registry::Diag(const SourceLocation &Loc, unsigned DiagID) const {
+	return Diags.Report(Loc, DiagID);
+}
+
+DiagnosticBuilder Registry::Diag(unsigned DiagID) const {
+	return Diags.Report(DiagID);
 }
 
 SymbolTable* Registry::CreateBuiltinScope() {
@@ -91,106 +101,278 @@ void Registry::addBody(SymbolTable* Symbols, ASTBlockStmt *Body) {
 	Bodies.push_back(LocalScope{Symbols, Body});
 }
 
-SemaNameSpace *Registry::getNameSpace(const llvm::SmallVector<ASTName *, 4> &Names) {
-	SemaNameSpace *Current = nullptr;
-	auto Children = NameSpaces;
-
-	for (int i = 0; i < Names.size(); i++) {
-		llvm::StringRef Name = Names[i]->getName();
-		auto It = Children.find(Name);
-		if (It != Children.end()) {
-			Current = It->second;
-			Children = Current->getChildren();
-		} else {
-			return nullptr; // not found
-		}
-	}
-
-	return Current;
-}
-
 SemaNameSpace* Registry::getOrCreateNameSpace(const llvm::SmallVector<ASTName *, 4>& Names) {
 	if (Names.empty())
 		return DefaultNameSpace;
 
-	auto Children = NameSpaces;
-	SemaNameSpace *Current = nullptr;
-	SemaNameSpace * Parent = nullptr;
+	// Define working variables
+	SemaNameSpace *NameSpace = nullptr;
+	SymbolTable *CurrentScope = GlobalScope;
 
+	// Iterate through names
 	for (auto *N : Names) {
 		llvm::StringRef Name = N->getName();
 
-		auto It = Children.find(Name);
-		if (It == Children.end()) {
-			// Create namespace
-			Current = new SemaNameSpace(Name, Parent);
-			Children[Name] = Current;
-		} else {
-			// Namespace already exists
-			Current = It->second;
+		// Lookup in current scope
+		llvm::SmallVector<Symbol *, 8> *Symbols = CurrentScope->lookup(Name);
+
+		// Create namespace if not found
+		if (Symbols == nullptr) {
+			SymbolTable *Symbols = new SymbolTable(CurrentScope);
+			NameSpace = new SemaNameSpace(Name, Symbols);
+			CurrentScope->insert(new Symbol(NameSpace->getName(), SemaKind::NAMESPACE, NameSpace)); // add in Map
+			CurrentScope->addChild(Symbols); // add Child
+			continue;
 		}
-		// Advance deeper
-		Parent   = Current;
-		Children = Current->getChildren();
+
+		// Symbol Name conflict in NameSpace
+		if (Symbols->size() > 1) {
+			// Error:
+			Diag(diag::err_invalid_behavior);
+		}
+
+		// If symbol is a NameSpace the search may be deeper
+		Symbol *CurrentSymbol = (*Symbols)[0];
+		if (CurrentSymbol->getKind() != SemaKind::NAMESPACE) {
+			// Error:
+			Diag(diag::err_invalid_behavior);
+		}
+
+		// Take the NameSpace
+		NameSpace = static_cast<SemaNameSpace *>(CurrentSymbol->getRef());
+		CurrentScope = NameSpace->getSymbols();
 	}
 
-	return Current;
+	return NameSpace;
 }
 
-SemaType* Registry::LookupBuiltinType(llvm::StringRef Ref) {
-	return static_cast<SemaType *>(BuiltinScope->lookup(Ref)->getRef());
-}
+Symbol *Registry::LookupImport(const llvm::SmallVector<ASTName *, 4> &Names) {
+	Symbol *CurrentSymbol = nullptr;
+	SymbolTable *Scope = GlobalScope;
 
-SemaType* Registry::LookupNamedType(llvm::StringRef Name, SemaNameSpace *NameSpace) {
-	Symbol * Sym = NameSpace->getSymbols()->lookup(Name);
-	if (Sym && Sym->getKind() == SemaKind::TYPE) {
-		return static_cast<SemaType *>(Sym->getRef());
-	}
-	return nullptr; // not found
-}
-
-SemaType * Registry::LookupNamedType(ASTNamedType &NamedType, SemaNameSpace *NameSpace) {
-	const SmallVector<ASTName *, 4> &Names = NamedType.getNames();
-	SemaNameSpace * CurrentNameSpace = NameSpace;
-	auto &Children = NameSpaces;
 	for (int i = 0; i < Names.size(); i++) {
 		llvm::StringRef Name = Names[i]->getName();
 
-		// Look for Type
-		if (i == Names.size()-1) {
-			return LookupNamedType(Name, CurrentNameSpace);
+		// Lookup Name in current Scope
+		llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookup(Name);
+
+		if (!Symbols) {
+			// Error: Symbol not found
+			Diag(diag::err_invalid_behavior);
+			return nullptr;
 		}
 
-		// Look for Namespace
-		auto It = Children.find(Name);
-		if (It != Children.end()) {
-			CurrentNameSpace = It->second;
-			Children = CurrentNameSpace->getChildren();
-		} else {
-			return nullptr; // not found
+		if (Symbols->size() > 1) {
+			// Error: Symbol Name conflict
+			Diag(diag::err_invalid_behavior);
+			return nullptr;
+		}
+
+		// Take the unique Symbol
+		CurrentSymbol = (*Symbols)[0];
+
+		// Symbol may be: NameSpace, Type, Function ...
+		// If symbol is a NameSpace the search may be deeper
+		if (CurrentSymbol->getKind() == SemaKind::NAMESPACE) {
+			Scope = static_cast<SemaNameSpace *>(CurrentSymbol->getRef())->getSymbols();
 		}
 	}
+
+	return CurrentSymbol;
+}
+
+SemaType* Registry::LookupBuiltinType(llvm::StringRef TypeName) {
+	SmallVector<Symbol *, 8> * Symbols = BuiltinScope->lookup(TypeName);
+
+	// Take the unique Symbol
+	Symbol *CurrentSymbol = (*Symbols)[0];
+
+	return static_cast<SemaType *>(CurrentSymbol->getRef());
+}
+
+SemaType* Registry::LookupNamedType(llvm::StringRef Name, SymbolTable *Scope) {
+	// Lookup Name in current Scope
+	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookupInParents(Name);
+
+	if (!Symbols) {
+		// Error: Symbol not found
+		Diag(diag::err_invalid_behavior);
+		return nullptr;
+	}
+
+	if (Symbols->size() > 1) {
+		// Error: Symbol Name conflict
+		Diag(diag::err_invalid_behavior);
+		return nullptr;
+	}
+
+	// Take the unique Symbol
+	Symbol *CurrentSymbol = (*Symbols)[0];
+
+	if (CurrentSymbol->getKind() != SemaKind::TYPE) {
+		// Error: Symbol is not a Type
+		Diag(diag::err_invalid_behavior);
+	}
+
+	return static_cast<SemaType *>(CurrentSymbol->getRef());
+}
+
+SemaType *Registry::LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope) {
+	const SmallVector<ASTName *, 4> &Names = NamedType.getNames();
+	SymbolTable *CurrentScope = Scope;
+	Symbol *CurrentSymbol = nullptr;
+
+	for (int i = 0; i < Names.size(); i++) {
+		llvm::StringRef Name = Names[i]->getName();
+
+		// Lookup Name in current Scope
+		llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookupInParents(Name);
+
+		if (!Symbols) {
+			// Error: Symbol not found
+			Diag(diag::err_invalid_behavior);
+			return nullptr;
+		}
+
+		if (Symbols->size() > 1) {
+			// Error: Symbol Name conflict
+			Diag(diag::err_invalid_behavior);
+			return nullptr;
+		}
+
+		// Take the unique Symbol
+		CurrentSymbol = (*Symbols)[0];
+
+		// If symbol is a NameSpace the search may be deeper
+		if (CurrentSymbol->getKind() == SemaKind::NAMESPACE) {
+			CurrentScope = static_cast<SemaNameSpace *>(CurrentSymbol->getRef())->getSymbols();
+		}
+	}
+
+	if (CurrentSymbol->getKind() != SemaKind::TYPE) {
+		// Error: Symbol is not a Type or NameSpace
+		Diag(diag::err_invalid_behavior);
+		return nullptr;
+	}
+
+	if (CurrentSymbol->getKind() == SemaKind::TYPE) {
+		// Return Type
+		return static_cast<SemaType *>(CurrentSymbol->getRef());
+	}
+
 	return nullptr;
 }
+//
+// SemaNameSpace* Registry::LookupNameSpace(llvm::StringRef Name, SymbolTable *Scope) {
+// 	if (Scope == nullptr) Scope = GlobalScope;
+//
+// 	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookup(Name);
+//
+// 	if (!Symbols) {
+// 		// Error: Symbol not found
+// 		Diag(diag::err_invalid_behavior);
+// 		return nullptr;
+// 	}
+//
+// 	if (Symbols->size() > 1) {
+// 		// Error: Symbol Name conflict
+// 		Diag(diag::err_invalid_behavior);
+// 		return nullptr;
+// 	}
+//
+// 	// Take the unique Symbol
+// 	Symbol *Sym = (*Symbols)[0];
+//
+// 	if (Sym->getKind() != SemaKind::NAMESPACE) {
+// 		// Error: Symbol is not a NameSpace
+// 		Diag(diag::err_invalid_behavior);
+// 		return nullptr;
+// 	}
+//
+// 	return static_cast<SemaNameSpace *>(Sym->getRef());
+// }
 
-SemaNameSpace* Registry::LookupNameSpace(llvm::StringRef Name, SemaNameSpace *NameSpace) {
-	llvm::StringMap<SemaNameSpace *> Search;
-	if (NameSpace)
-		Search = NameSpace->getChildren();
-	else
-		Search = NameSpaces;
 
-	auto It = Search.find(Name);
-	if (It != Search.end()) {
-		return It->second;
+Symbol *Registry::LookupName(llvm::StringRef Name, SymbolTable *Scope) {
+	if (Scope == nullptr) Scope = GlobalScope;
+
+	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookup(Name);
+
+	if (!Symbols) {
+		// Error: Symbol not found
+		Diag(diag::err_invalid_behavior);
+		return nullptr;
 	}
-	return nullptr; // not found
+
+	if (Symbols->size() > 1) {
+		// Error: Symbol Name conflict
+		Diag(diag::err_invalid_behavior);
+		return nullptr;
+	}
+
+	// Take the unique Symbol
+	return (*Symbols)[0];
 }
 
-SemaFunction* Registry::LookupFunction(llvm::StringRef MangledName, SemaNameSpace* NameSpace) {
-    Symbol * Sym = NameSpace->getSymbols()->lookup(MangledName);
-    if (Sym && (Sym->getKind() == SemaKind::FUNCTION)) {
-        return static_cast<SemaFunction *>(Sym->getRef());
-    }
-    return nullptr; // not found
+SemaFunctionBase* Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8> &Types, SymbolTable *Scope) {
+	if (Scope == nullptr) Scope = GlobalScope;
+	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookup(Name);
+
+	if (!Symbols) {
+		// Error: Symbol not found in Scope
+		Diag(diag::err_invalid_behavior);
+		return nullptr;
+	}
+
+	// Iterate through all symbols with this name to find the right function
+	for (Symbol *Sym : *Symbols) {
+		// Check if symbol is a function
+		if (Sym->getKind() != SemaKind::FUNCTION  && Sym->getKind() != SemaKind::METHOD) {
+			continue;
+		}
+
+		SemaFunctionBase *Function = static_cast<SemaFunctionBase *>(Sym->getRef());
+		llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
+
+		// Check if the number of parameters matches
+		if (Params.size() != Types.size()) {
+			continue;
+		}
+
+		// Check if all parameter types match
+		bool AllTypesMatch = true;
+		for (size_t i = 0; i < Params.size(); i++) {
+			SemaType *ParamType = Params[i]->getType();
+			SemaType *ArgType = Types[i];
+
+			// Direct type match using isEquals method
+			if (ParamType->isEquals(ArgType)) {
+				continue;
+			}
+
+			// Check class inheritance: if both are class types, check if ArgType is derived from ParamType
+			if (ParamType->isClass() && ArgType->isClass()) {
+				SemaClassType *ParamClassType = static_cast<SemaClassType *>(ParamType);
+				SemaClassType *ArgClassType = static_cast<SemaClassType *>(ArgType);
+
+				// Check if ArgType is derived from or equals ParamType
+				if (ArgClassType->isDerivedOrEquals(ParamClassType)) {
+					continue;
+				}
+			}
+
+			// Types don't match
+			AllTypesMatch = false;
+			break;
+		}
+
+		// If all types match, return this function
+		if (AllTypesMatch) {
+			return Function;
+		}
+	}
+
+	// Error: No matching function found
+	Diag(diag::err_invalid_behavior);
+	return nullptr;
 }

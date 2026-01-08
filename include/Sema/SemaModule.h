@@ -29,6 +29,8 @@ namespace fly {
 
         ASTModule &AST;
 
+    	SymbolTable *Symbols;
+
     	SemaNameSpace *NameSpace;
 
     	llvm::SmallVector<SemaImport *, 8> Imports;
@@ -37,11 +39,13 @@ namespace fly {
 
     public:
 
-        SemaModule(ASTModule &Module);
+        SemaModule(ASTModule &Module, SymbolTable *Symbols);
 
         ~SemaModule();
 
         ASTModule &getAST() const;
+
+    	SymbolTable *getSymbols() const;
 
         llvm::StringRef getName() const;
 

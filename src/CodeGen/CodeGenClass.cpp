@@ -105,31 +105,10 @@ void CodeGenClass::CreateVTable() {
 			// VTableMethodTypes.push_back(InitCtorPtrType);
 
 			// Add Constructors
-			for (auto &Entry : Sema->getConstructors()) {
-				SemaClassMethod *Constructor = Entry.getValue();
-
-				// Create Constructor CodeGen for Constructor: index + offset-to-type
-				CodeGenClassMethod *CG = new CodeGenClassMethod(CGM, Constructor, Type, Methods.size());
-				Constructor->setCodeGen(CG);
-
-				// Add to Class Constructors
-				Methods.push_back(CG);
-				CGM->CGFunctions.push_back(CG);
-
-				// Add to VTable Struct Type
-				llvm::PointerType *FnPtrType = CG->getFunctionType()->getPointerTo(
-					CGM->Module->getDataLayout().getAllocaAddrSpace());
-				// TODO
-			}
-		}
-
-		// Set CodeGen Methods
-		if (Sema->getClassKind() == SemaClassKind::CLASS || Sema->getClassKind() == SemaClassKind::INTERFACE) {
-
-			for (auto &Entry : Sema->getMethods()) {
-				SemaClassMethod *Method = Entry.getValue();
-
+			for (auto &Node : Sema->getNodes()) {
+				SemaClassMethod *Method = static_cast<SemaClassMethod *>(Node);
 				CodeGenClassMethod *CG;
+
 				// CodeGen not yet generated
 				if (Method->getCodeGen() == nullptr) {
 
@@ -150,7 +129,6 @@ void CodeGenClass::CreateVTable() {
 					// Add to VTable only instance methods
 					llvm::PointerType *FnPtrType = CG->getFunctionType()->getPointerTo(
 						CGM->Module->getDataLayout().getAllocaAddrSpace());
-					// TODO
 				}
 			}
 		}

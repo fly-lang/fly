@@ -20,8 +20,6 @@ namespace fly {
 
     class CodeGenFunction : public CodeGenFunctionBase {
 
-        std::string Id;
-
         bool isExternal;
 
         bool isMain;

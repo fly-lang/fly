@@ -38,14 +38,6 @@ SemaFunctionBase::~SemaFunctionBase() {
 	delete ErrorHandler;
 }
 
-std::string SemaFunctionBase::getMangledName() const {
-	return MangledName;
-}
-
-void SemaFunctionBase::setMangledName(std::string MangledName) {
-	this->MangledName = MangledName;
-}
-
 SemaType *SemaFunctionBase::getReturnType() {
 	return ReturnType;
 }

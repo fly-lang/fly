@@ -32,7 +32,7 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
 	CodeGenFunctionBase(CGM, Sema), ClassType(Type), Index(Index), Static(Sema->isStatic()) {
 
 	SemaClassType *Class = Sema->getClass();
-	Id = toIdentifier(Sema);
+	//Id = toIdentifier(Sema);
 
     // Generate return type
 	if (Sema->isConstructor()) {
@@ -59,7 +59,7 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
 	if (Class->getClassKind() != SemaClassKind::INTERFACE) {
-		Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Id, CGM->getModule());
+		Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, "", CGM->getModule());
 	}
 }
 
@@ -186,8 +186,7 @@ void CodeGenClassMethod::GenBody() {
 std::string CodeGenClassMethod::toIdentifier(SemaClassMethod *ClassMethod) {
 	FLY_DEBUG_START("CodeGenClassMethod", "toIdentifier");
 	// For class methods, use the mangled name which includes the class name
-	llvm::StringRef MangledName = ClassMethod->getMangledName();
 	SemaNameSpace *NameSpace = ClassMethod->getClass()->getModule()->getNameSpace();
-	return CGM->toIdentifier(MangledName, NameSpace);
+	return CGM->toIdentifier(ClassMethod->getAST().getName(), NameSpace);
 }
 

@@ -38,8 +38,6 @@ namespace fly {
 
         CodeGenModule *CGM;
 
-        std::string Id;
-
         llvm::Function *Fn = nullptr;
 
         llvm::Type *RetType = nullptr;

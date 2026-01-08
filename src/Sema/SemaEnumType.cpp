@@ -29,9 +29,6 @@ SemaEnumType::~SemaEnumType() {
 
 	// Delete Comment if present
 	delete Comment;
-
-	// Delete Symbols
-	delete Symbols;
 }
 
 ASTEnum &SemaEnumType::getAST() {

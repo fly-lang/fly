@@ -20,9 +20,6 @@ SemaFunction::SemaFunction(ASTFunction &AST, SymbolTable *Symbols) : SemaFunctio
 SemaFunction::~SemaFunction() {
 	// Delete Comment if present
 	delete Comment;
-
-	// Delete Symbols
-	delete Symbols;
 }
 
 SemaModule *SemaFunction::getModule() const {
@@ -39,6 +36,10 @@ SemaComment * SemaFunction::getComment() const {
 
 SemaVisibilityKind SemaFunction::getVisibility() const {
 	return Visibility;
+}
+
+void SemaFunction::setVisibility(SemaVisibilityKind Visibility) {
+	this->Visibility = Visibility;
 }
 
 const llvm::SmallVector<SemaLocalVar *, 4> &SemaFunction::getLocalVars() const {

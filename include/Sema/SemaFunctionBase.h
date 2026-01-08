@@ -30,8 +30,6 @@ namespace fly {
 
         friend class SemaBuilder;
 
-        std::string MangledName;
-
         llvm::SmallVector<SemaParam *, 8> Params;
 
         SemaType *ReturnType;
@@ -49,10 +47,6 @@ namespace fly {
     public:
 
         ~SemaFunctionBase() override;
-
-        std::string getMangledName() const;
-
-    	void setMangledName(std::string MangledName);
 
     	SemaType *getReturnType();
 
