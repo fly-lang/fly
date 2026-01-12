@@ -304,7 +304,7 @@ bool SemaValidator::CheckLogicalTypes(SemaType *Type1, SemaType *Type2) {
     return false;
 }
 
-bool SemaValidator::CheckBinary(ASTBinaryOp &AST) {
+bool SemaValidator::CheckBinary(ASTBinary &AST) {
 	if (!AST.getLeftExpr()->getSema() || !AST.getRightExpr()->getSema()) {
 		return false;
 	}
@@ -313,8 +313,7 @@ bool SemaValidator::CheckBinary(ASTBinaryOp &AST) {
 	SemaType * LeftType = AST.getLeftExpr()->getType();
 	SemaType * RightType = AST.getRightExpr()->getType();
 
-	if (AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_ARITH ||
-				AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_COMPARE) {
+	if (AST.isArith() || AST.isCompare()) {
 
 		// Check Compatible Types Bool/Bool, Float/Float, Integer/Integer
 		if (!CheckArithTypes(LeftType, RightType)) {
@@ -323,14 +322,14 @@ bool SemaValidator::CheckBinary(ASTBinaryOp &AST) {
 					  << RightType->getName();
 			return false;
 		}
-	} else if (AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_LOGIC) {
+	} else if (AST.isLogic()) {
 		if (!CheckLogicalTypes(LeftType, RightType)) {
 			Diag(AST.getLocation(), diag::err_sema_types_logical)
 				<< LeftType->getName()
 				<< RightType->getName();
 			return false;
 		}
-	} else if (AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_ASSIGN) {
+	} else if (AST.isAssign()) {
 		// For assignment, check if types are compatible
 		if (!CheckArithTypes(LeftType, RightType)) {
 			Diag(AST.getLocation(), diag::err_sema_types_operation)

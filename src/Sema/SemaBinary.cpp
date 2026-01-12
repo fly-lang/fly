@@ -23,11 +23,11 @@ SemaType * SemaBinary::SelectType(SemaExpr * LeftExpr, SemaExpr * RightExpr) {
 	return LeftExpr->getType();
 }
 
-SemaBinary::SemaBinary(ASTBinaryOp &AST) :
+SemaBinary::SemaBinary(ASTBinary &AST) :
 	SemaExpr(SemaKind::BINARY, SelectType(AST.getLeftExpr()->getSema(), AST.getRightExpr()->getSema())),
 	AST(AST) {
 }
 
-ASTBinaryOp &SemaBinary::getAST() const {
+ASTBinary &SemaBinary::getAST() const {
 	return AST;
 }

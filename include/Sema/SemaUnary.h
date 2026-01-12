@@ -14,7 +14,7 @@
 
 namespace fly {
 
-	class ASTUnaryOp;
+	class ASTUnary;
 
 	class SemaUnary :  public SemaExpr {
 
@@ -22,15 +22,15 @@ namespace fly {
 		friend class Resolver;
 		friend class SemaValidator;
 
-		ASTUnaryOp &AST;
+		ASTUnary &AST;
 
-		explicit SemaUnary(ASTUnaryOp &AST);
+		explicit SemaUnary(ASTUnary &AST);
 
 	public:
 
 		~SemaUnary() override = default;
 
-		ASTUnaryOp &getAST() const;
+		ASTUnary &getAST() const;
 
 	};
 

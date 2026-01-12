@@ -367,7 +367,7 @@ llvm::Value * CodeGenExpr::GenExpr(SemaCast *Sema) {
 
 llvm::Value *CodeGenExpr::GenExpr(SemaUnary *Sema) {
     FLY_DEBUG_START("CodeGenExpr", "GenUnary");
-	ASTUnaryOp &Unary = Sema->getAST();
+	ASTUnary &Unary = Sema->getAST();
     assert(Unary.getExprKind() == ASTExprKind::EXPR_UNARY && "Expected Unary Group Expr");
     assert(Unary.getExpr() && "Unary Expr empty");
 
@@ -377,27 +377,27 @@ llvm::Value *CodeGenExpr::GenExpr(SemaUnary *Sema) {
 
     switch (Unary.getOpKind()) {
 
-        case ASTUnaryOpKind::OP_UNARY_PRE_INCR: {
+        case ASTUnaryKind::OP_UNARY_PRE_INCR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
             NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
             Result = NewVal;
         }
-        case ASTUnaryOpKind::OP_UNARY_POST_INCR: {
+        case ASTUnaryKind::OP_UNARY_POST_INCR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
             NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
             Result = OldVal;
         }
-        case ASTUnaryOpKind::OP_UNARY_PRE_DECR: {
+        case ASTUnaryKind::OP_UNARY_PRE_DECR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
             NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
         	Result = NewVal;
         }
-        case ASTUnaryOpKind::OP_UNARY_POST_DECR: {
+        case ASTUnaryKind::OP_UNARY_POST_DECR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
             NewVal = CGM->Builder->CreateNSWAdd(OldVal, RHS);
         	Result = NewVal;
         }
-        case ASTUnaryOpKind::OP_UNARY_NOT_LOG:
+        case ASTUnaryKind::OP_UNARY_NOT_LOG:
             OldVal = CGM->Builder->CreateTrunc(OldVal, CGM->BoolTy);
             OldVal = CGM->Builder->CreateXor(OldVal, true);
             return CGM->Builder->CreateZExt(OldVal, CGM->Int8Ty);
@@ -414,38 +414,30 @@ llvm::Value *CodeGenExpr::GenExpr(SemaUnary *Sema) {
 
 llvm::Value *CodeGenExpr::GenExpr(SemaBinary *Sema) {
     FLY_DEBUG_START("CodeGenExpr", "GenBinary");
-	ASTBinaryOp &Binary = Sema->getAST();
+	ASTBinary &Binary = Sema->getAST();
     assert(Binary.getExprKind() == ASTExprKind::EXPR_BINARY && "Expected Binary Group Expr");
     assert(Binary.getLeftExpr() && "First Expr is empty");
     assert(Binary.getRightExpr() && "Second Expr is empty");
 
     SemaExpr *Left = Binary.getLeftExpr()->getSema();
     SemaExpr *Right = Binary.getRightExpr()->getSema();
-    ASTBinaryOpKind OpKind = Binary.getOpKind();
+    ASTBinaryKind OpKind = Binary.getOpKind();
 
-    switch (Binary.getBinaryKind()) {
-        // Arithmetic operations
-        case ASTBinaryKind::OP_BINARY_ARITH:
-            return GenBinaryArith(Left, OpKind, Right);
-
-        // Comparison operations
-        case ASTBinaryKind::OP_BINARY_COMPARE:
-            return GenBinaryComparison(Left, OpKind, Right);
-
-        // Logical operations
-        case ASTBinaryKind::OP_BINARY_LOGIC:
-            return GenBinaryLogic(Left, OpKind, Right);
-
-        // Assignment operations - not yet implemented
-        case ASTBinaryKind::OP_BINARY_ASSIGN:
-            return GenBinaryAssign(Left, OpKind, Right);
+    if (Binary.isArith()) {
+        return GenBinaryArith(Left, OpKind, Right);
+    } else if (Binary.isCompare()) {
+        return GenBinaryComparison(Left, OpKind, Right);
+    } else if (Binary.isLogic()) {
+        return GenBinaryLogic(Left, OpKind, Right);
+    } else if (Binary.isAssign()) {
+        return GenBinaryAssign(Left, OpKind, Right);
     }
 
     assert(0 && "Unknown Binary Operation");
     return nullptr;
 }
 
-llvm::Value *CodeGenExpr::GenBinaryArith(SemaExpr *E1, ASTBinaryOpKind OperatorKind, SemaExpr *E2) {
+llvm::Value *CodeGenExpr::GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2) {
     FLY_DEBUG_START("CodeGenExpr", "GenBinaryArith");
     llvm::Value *V1 = GenExpr(E1);
     llvm::Value *V2 = GenExpr(E2);
@@ -455,31 +447,31 @@ llvm::Value *CodeGenExpr::GenBinaryArith(SemaExpr *E1, ASTBinaryOpKind OperatorK
 
     switch (OperatorKind) {
 
-        case ASTBinaryOpKind::OP_BINARY_ARITH_ADD:
+        case ASTBinaryKind::OP_BINARY_ARITH_ADD:
             return CGM->Builder->CreateAdd(V1, V2);
-        case ASTBinaryOpKind::OP_BINARY_ARITH_SUB:
+        case ASTBinaryKind::OP_BINARY_ARITH_SUB:
             return CGM->Builder->CreateSub(V1, V2);
-        case ASTBinaryOpKind::OP_BINARY_ARITH_MUL:
+        case ASTBinaryKind::OP_BINARY_ARITH_MUL:
             return CGM->Builder->CreateMul(V1, V2);
-        case ASTBinaryOpKind::OP_BINARY_ARITH_DIV:
+        case ASTBinaryKind::OP_BINARY_ARITH_DIV:
             return CGM->Builder->CreateSDiv(V1, V2);
-        case ASTBinaryOpKind::OP_BINARY_ARITH_MOD:
+        case ASTBinaryKind::OP_BINARY_ARITH_MOD:
             return CGM->Builder->CreateSRem(V1, V2);
-        case ASTBinaryOpKind::OP_BINARY_ARITH_AND:
+        case ASTBinaryKind::OP_BINARY_ARITH_AND:
             return CGM->Builder->CreateAnd(V1, V2);
-        case ASTBinaryOpKind::OP_BINARY_ARITH_OR:
+        case ASTBinaryKind::OP_BINARY_ARITH_OR:
             return CGM->Builder->CreateOr(V1, V2);
-        case ASTBinaryOpKind::OP_BINARY_ARITH_XOR:
+        case ASTBinaryKind::OP_BINARY_ARITH_XOR:
             return CGM->Builder->CreateXor(V1, V2);
-        case ASTBinaryOpKind::OP_BINARY_ARITH_SHIFT_L:
+        case ASTBinaryKind::OP_BINARY_ARITH_SHIFT_L:
             return CGM->Builder->CreateShl(V1, V2);
-        case ASTBinaryOpKind::OP_BINARY_ARITH_SHIFT_R:
+        case ASTBinaryKind::OP_BINARY_ARITH_SHIFT_R:
             return CGM->Builder->CreateAShr(V1, V2);
     }
     assert(0 && "Unknown Arith Operation");
 }
 
-llvm::Value *CodeGenExpr::GenBinaryComparison(SemaExpr *E1, ASTBinaryOpKind OperatorKind, SemaExpr *E2) {
+llvm::Value *CodeGenExpr::GenBinaryComparison(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2) {
     FLY_DEBUG_START("CodeGenExpr", "GenBinaryComparison");
     llvm::Value *V1 = GenExpr(E1);
     llvm::Value *V2 = GenExpr(E2);
@@ -488,9 +480,9 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(SemaExpr *E1, ASTBinaryOpKind Oper
 
     if (E1->getType()->isBool() && E2->getType()->isBool()) {
         switch (OperatorKind) {
-            case ASTBinaryOpKind::OP_BINARY_COMPARE_EQ:
+            case ASTBinaryKind::OP_BINARY_COMPARE_EQ:
                 return CGM->Builder->CreateICmpEQ(V1, V2);
-            case ASTBinaryOpKind::OP_BINARY_COMPARE_NE:
+            case ASTBinaryKind::OP_BINARY_COMPARE_NE:
                 return CGM->Builder->CreateICmpNE(V1, V2);
         }
     } else if (E1->getType()->isInteger() && E2->getType()->isInteger()) {
@@ -498,17 +490,17 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(SemaExpr *E1, ASTBinaryOpKind Oper
         	static_cast<SemaIntType *>(E2->getType())->isSigned();
         switch (OperatorKind) {
 
-            case ASTBinaryOpKind::OP_BINARY_COMPARE_EQ:
+            case ASTBinaryKind::OP_BINARY_COMPARE_EQ:
                 return CGM->Builder->CreateICmpEQ(V1, V2);
-            case ASTBinaryOpKind::OP_BINARY_COMPARE_NE:
+            case ASTBinaryKind::OP_BINARY_COMPARE_NE:
                 return CGM->Builder->CreateICmpNE(V1, V2);
-            case ASTBinaryOpKind::OP_BINARY_COMPARE_GT:
+            case ASTBinaryKind::OP_BINARY_COMPARE_GT:
                 return Signed ? CGM->Builder->CreateICmpSGT(V1, V2) : CGM->Builder->CreateICmpUGT(V1, V2);
-            case ASTBinaryOpKind::OP_BINARY_COMPARE_GTE:
+            case ASTBinaryKind::OP_BINARY_COMPARE_GTE:
                 return Signed ? CGM->Builder->CreateICmpSGE(V1, V2) : CGM->Builder->CreateICmpUGE(V1, V2);
-            case ASTBinaryOpKind::OP_BINARY_COMPARE_LT:
+            case ASTBinaryKind::OP_BINARY_COMPARE_LT:
                 return Signed ? CGM->Builder->CreateICmpSLT(V1, V2) : CGM->Builder->CreateICmpULT(V1, V2);
-            case ASTBinaryOpKind::OP_BINARY_COMPARE_LTE:
+            case ASTBinaryKind::OP_BINARY_COMPARE_LTE:
                 return Signed ? CGM->Builder->CreateICmpSLE(V1, V2) : CGM->Builder->CreateICmpULE(V1, V2);
         }
     } else {
@@ -522,17 +514,17 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(SemaExpr *E1, ASTBinaryOpKind Oper
         }
         switch (OperatorKind) {
 
-            case ASTBinaryOpKind::OP_BINARY_COMPARE_EQ:
+            case ASTBinaryKind::OP_BINARY_COMPARE_EQ:
                 return CGM->Builder->CreateFCmpOEQ(V1, V2);
-            case ASTBinaryOpKind::OP_BINARY_COMPARE_NE:
+            case ASTBinaryKind::OP_BINARY_COMPARE_NE:
                 return CGM->Builder->CreateFCmpONE(V1, V2);
-            case ASTBinaryOpKind::OP_BINARY_COMPARE_GT:
+            case ASTBinaryKind::OP_BINARY_COMPARE_GT:
                 return CGM->Builder->CreateFCmpOGT(V1, V2);
-            case ASTBinaryOpKind::OP_BINARY_COMPARE_GTE:
+            case ASTBinaryKind::OP_BINARY_COMPARE_GTE:
                 return CGM->Builder->CreateFCmpOGE(V1, V2);
-            case ASTBinaryOpKind::OP_BINARY_COMPARE_LT:
+            case ASTBinaryKind::OP_BINARY_COMPARE_LT:
                 return CGM->Builder->CreateFCmpOLT(V1, V2);
-            case ASTBinaryOpKind::OP_BINARY_COMPARE_LTE:
+            case ASTBinaryKind::OP_BINARY_COMPARE_LTE:
                 return CGM->Builder->CreateFCmpOLE(V1, V2);
         }
     }
@@ -540,7 +532,7 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(SemaExpr *E1, ASTBinaryOpKind Oper
     assert(0 && "Invalid Comparator Operator");
 }
 
-llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryOpKind OperatorKind, SemaExpr *E2) {
+llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2) {
     FLY_DEBUG_START("CodeGenExpr", "GenBinaryLogic");
     llvm::Value *V1 = GenExpr(E1);
     V1 = CGM->ConvertToBool(V1);
@@ -549,7 +541,7 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryOpKind OperatorK
 
     switch (OperatorKind) {
 
-        case ASTBinaryOpKind::OP_BINARY_LOGIC_AND: {
+        case ASTBinaryKind::OP_BINARY_LOGIC_AND: {
             llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", FromBB->getParent());
             llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", FromBB->getParent());
 
@@ -570,7 +562,7 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryOpKind OperatorK
             Phi->addIncoming(V2Trunc, LeftBB);
             return Phi;
         }
-        case ASTBinaryOpKind::OP_BINARY_LOGIC_OR: {
+        case ASTBinaryKind::OP_BINARY_LOGIC_OR: {
             llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", FromBB->getParent());
             llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", FromBB->getParent());
 
@@ -594,12 +586,12 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryOpKind OperatorK
     assert(0 && "Invalid Logic Operator");
 }
 
-llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, ASTBinaryOpKind OperatorKind, SemaExpr *E2) {
+llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2) {
 	return static_cast<SemaVar *>(E1)->getCodeGen()->Store(GenExpr(E2));
 }
 
 llvm::Value *CodeGenExpr::GenExpr(SemaTernary *Sema) {
-	ASTTernaryOp &Ternary = Sema->getAST();
+	ASTTernary &Ternary = Sema->getAST();
     assert(Ternary.getConditionExpr() && "First Expr is empty");
     assert(Ternary.getTrueExpr() && "Second Expr is empty");
     assert(Ternary.getFalseExpr() && "Third Expr is empty");

@@ -503,7 +503,7 @@ void Resolver::visit(ASTDeclStmt &AST) {
         LeftExpr->setSema(LocalVar->getSema());
 
 		// Create Assignment Expression
-		ASTBinaryOp *BinaryExpr = ASTBuilder::CreateBinary(LocalVar->getLocation(), ASTBinaryOpKind::OP_BINARY_ASSIGN, LeftExpr, Sema->getAST());
+		ASTBinary *BinaryExpr = ASTBuilder::CreateBinary(LocalVar->getLocation(), ASTBinaryKind::OP_BINARY_ASSIGN, LeftExpr, Sema->getAST());
         AST.setExpr(BinaryExpr);
     }
 
@@ -511,7 +511,7 @@ void Resolver::visit(ASTDeclStmt &AST) {
     AST.getExpr()->accept(*this);
 
     if (AST.getExpr()->getExprKind() == ASTExprKind::EXPR_BINARY &&
-    	static_cast<ASTBinaryOp *>(AST.getExpr())->getBinaryKind() == ASTBinaryKind::OP_BINARY_ASSIGN) {
+    	static_cast<ASTBinary *>(AST.getExpr())->isAssign()) {
     	AST.getExpr()->getSema()->setType(Type);
     }
 
@@ -708,7 +708,7 @@ void Resolver::visit(ASTCall &AST) {
 	FLY_DEBUG_END("Resolver", "visit(ASTCall)");
 }
 
-void Resolver::visit(ASTUnaryOp &AST) {
+void Resolver::visit(ASTUnary &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTUnaryOp)");
 	ASTExpr *Expr = AST.getExpr();
 	Expr->accept(*this);
@@ -720,7 +720,7 @@ void Resolver::visit(ASTUnaryOp &AST) {
 	FLY_DEBUG_END("Resolver", "visit(ASTUnaryOp)");
 }
 
-void Resolver::visit(ASTBinaryOp &AST) {
+void Resolver::visit(ASTBinary &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTBinaryOp)");
 
 	AST.getLeftExpr()->accept(*this);
@@ -736,7 +736,7 @@ void Resolver::visit(ASTBinaryOp &AST) {
 	FLY_DEBUG_END("Resolver", "visit(ASTBinaryOp)");
 }
 
-void Resolver::visit(ASTTernaryOp &AST) {
+void Resolver::visit(ASTTernary &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTTernaryOp)");
 	// Resolve Condition Expr
 	AST.getConditionExpr()->accept(*this);
@@ -779,9 +779,9 @@ void Resolver::visit(ASTNumberValue &AST) {
 	} else if (CurrentStmt->getStmtKind() == ASTStmtKind::STMT_EXPR) {
 		ASTExpr *Expr = static_cast<ASTExprStmt *>(CurrentStmt)->getExpr();
 		if (Expr && Expr->getExprKind() == ASTExprKind::EXPR_BINARY) {
-			ASTBinaryOp *Binary = static_cast<ASTBinaryOp *>(Expr);
+			ASTBinary *Binary = static_cast<ASTBinary *>(Expr);
 
-			if (Binary && Binary->getBinaryKind() == ASTBinaryKind::OP_BINARY_ASSIGN) {
+			if (Binary && Binary->isAssign()) {
 				Type = Binary->getLeftExpr()->getType();
 			}
 		}
@@ -862,10 +862,10 @@ void Resolver::visit(ASTDefaultValue &AST) {
 
 			// Check if the expression is a binary assignment operation
 			if (Expr && Expr->getExprKind() == ASTExprKind::EXPR_BINARY) {
-				ASTBinaryOp *BinOp = static_cast<ASTBinaryOp *>(Expr);
+				ASTBinary *BinOp = static_cast<ASTBinary *>(Expr);
 
 				// Check if it's an assignment operation
-				if (BinOp->getOpKind() == ASTBinaryOpKind::OP_BINARY_ASSIGN) {
+				if (BinOp->getOpKind() == ASTBinaryKind::OP_BINARY_ASSIGN) {
 					// This AST Default Value is the only Expr in the assignment
 					if (BinOp->getRightExpr()->getExprKind() == ASTExprKind::EXPR_VALUE) {
 						SemaType *T = BinOp->getLeftExpr()->getType();

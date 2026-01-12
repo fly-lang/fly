@@ -244,7 +244,7 @@ SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar &AST, SemaExpr &Parent, Sema
 	return Sema;
 }
 
-SemaUnary *SemaBuilder::CreateUnary(ASTUnaryOp &AST) {
+SemaUnary *SemaBuilder::CreateUnary(ASTUnary &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateUnary");
 
 	// Create Unary Symbol
@@ -257,7 +257,7 @@ SemaUnary *SemaBuilder::CreateUnary(ASTUnaryOp &AST) {
 	return Sema;
 }
 
-SemaBinary *SemaBuilder::CreateBinary(ASTBinaryOp &AST) {
+SemaBinary *SemaBuilder::CreateBinary(ASTBinary &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateBinary");
 
 	// Create Unary Symbol
@@ -270,7 +270,7 @@ SemaBinary *SemaBuilder::CreateBinary(ASTBinaryOp &AST) {
 	return Sema;
 }
 
-SemaTernary *SemaBuilder::CreateTernary(ASTTernaryOp &AST) {
+SemaTernary *SemaBuilder::CreateTernary(ASTTernary &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateTernary");
 
 	// Create Unary Symbol

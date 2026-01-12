@@ -16,8 +16,8 @@
 
 using namespace fly;
 
-ASTCast::ASTCast(ASTExpr *Expr, ASTType *Cast) : ASTExpr(Cast->getLocation(), ASTExprKind::EXPR_CAST),
-	Expr(Expr), Cast(Cast) {
+ASTCast::ASTCast(ASTExpr *Expr, ASTType *ToType) : ASTExpr(ToType->getLocation(), ASTExprKind::EXPR_CAST),
+	Expr(Expr), ToType(ToType) {
 }
 
 void ASTCast::accept(ASTVisitor &Visitor) {
@@ -29,7 +29,7 @@ ASTExpr * ASTCast::getExpr() const {
 }
 
 ASTType * ASTCast::getToType() const {
-	return Cast;
+	return ToType;
 }
 
 SemaExpr *ASTCast::getSema() const {

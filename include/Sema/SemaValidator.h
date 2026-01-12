@@ -38,7 +38,7 @@ namespace fly {
     class ASTValue;
     class SemaClassMethod;
     class SemaFunctionBase;
-	class ASTBinaryOp;
+	class ASTBinary;
 	class DiagnosticsEngine;
 	class DiagnosticBuilder;
     enum class SemaTypeKind;
@@ -85,7 +85,7 @@ namespace fly {
 
         bool CheckLogicalTypes(SemaType *Type1, SemaType *Type2);
 
-    	bool CheckBinary(ASTBinaryOp &AST);
+    	bool CheckBinary(ASTBinary &AST);
 
     	bool CheckSema(ASTExpr *Expr);
 

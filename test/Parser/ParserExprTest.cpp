@@ -42,26 +42,26 @@ namespace {
 
         // ++a
         auto *a1Stmt = As<ASTExprStmt>(Body->getContent()[0]);
-        auto *a1Unary = As<ASTUnaryOp>(a1Stmt->getExpr());
-        EXPECT_EQ(a1Unary->getOpKind(), ASTUnaryOpKind::OP_UNARY_PRE_INCR);
+        auto *a1Unary = As<ASTUnary>(a1Stmt->getExpr());
+        EXPECT_EQ(a1Unary->getOpKind(), ASTUnaryKind::OP_UNARY_PRE_INCR);
         EXPECT_EQ(As<ASTIdentifier>(a1Unary->getExpr())->getName(), "a");
 
         // a++
         auto *a2Stmt = As<ASTExprStmt>(Body->getContent()[1]);
-        auto *a2Unary = As<ASTUnaryOp>(a2Stmt->getExpr());
-        EXPECT_EQ(a2Unary->getOpKind(), ASTUnaryOpKind::OP_UNARY_POST_INCR);
+        auto *a2Unary = As<ASTUnary>(a2Stmt->getExpr());
+        EXPECT_EQ(a2Unary->getOpKind(), ASTUnaryKind::OP_UNARY_POST_INCR);
         EXPECT_EQ(As<ASTIdentifier>(a2Unary->getExpr())->getName(), "a");
 
         // --a
         auto *a3Stmt = As<ASTExprStmt>(Body->getContent()[2]);
-        auto *a3Unary = As<ASTUnaryOp>(a3Stmt->getExpr());
-        EXPECT_EQ(a3Unary->getOpKind(), ASTUnaryOpKind::OP_UNARY_PRE_DECR);
+        auto *a3Unary = As<ASTUnary>(a3Stmt->getExpr());
+        EXPECT_EQ(a3Unary->getOpKind(), ASTUnaryKind::OP_UNARY_PRE_DECR);
         EXPECT_EQ(As<ASTIdentifier>(a3Unary->getExpr())->getName(), "a");
 
         // a--
         auto *a4Stmt = As<ASTExprStmt>(Body->getContent()[3]);
-        auto *a4Unary = As<ASTUnaryOp>(a4Stmt->getExpr());
-        EXPECT_EQ(a4Unary->getOpKind(), ASTUnaryOpKind::OP_UNARY_POST_DECR);
+        auto *a4Unary = As<ASTUnary>(a4Stmt->getExpr());
+        EXPECT_EQ(a4Unary->getOpKind(), ASTUnaryKind::OP_UNARY_POST_DECR);
         EXPECT_EQ(As<ASTIdentifier>(a4Unary->getExpr())->getName(), "a");
     }
 
@@ -79,8 +79,8 @@ namespace {
 
         // a = a++ + ++a
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
-        auto *AssignBinaryExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
-        EXPECT_EQ(AssignBinaryExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+        auto *AssignBinaryExpr = As<ASTBinary>(ExprStmt->getExpr());
+        EXPECT_EQ(AssignBinaryExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
 
         // Left side of assignment is 'a'
         EXPECT_EQ(AssignBinaryExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -89,20 +89,20 @@ namespace {
         // Right side of assignment is the ADD expression: a++ + ++a
         ASTExpr *RightExpr = AssignBinaryExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        auto *AddExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(AddExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_ADD);
+        auto *AddExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(AddExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_ADD);
 
         // Left side of ADD is a++ (post-increment)
         ASTExpr *AddLeftExpr = AddExpr->getLeftExpr();
         EXPECT_EQ(AddLeftExpr->getExprKind(), ASTExprKind::EXPR_UNARY);
-        EXPECT_EQ(As<ASTUnaryOp>(AddLeftExpr)->getOpKind(), ASTUnaryOpKind::OP_UNARY_POST_INCR);
-        EXPECT_EQ(As<ASTIdentifier>(As<ASTUnaryOp>(AddLeftExpr)->getExpr())->getName(), "a");
+        EXPECT_EQ(As<ASTUnary>(AddLeftExpr)->getOpKind(), ASTUnaryKind::OP_UNARY_POST_INCR);
+        EXPECT_EQ(As<ASTIdentifier>(As<ASTUnary>(AddLeftExpr)->getExpr())->getName(), "a");
 
         // Right side of ADD is ++a (pre-increment)
         ASTExpr *AddRightExpr = AddExpr->getRightExpr();
         EXPECT_EQ(AddRightExpr->getExprKind(), ASTExprKind::EXPR_UNARY);
-        EXPECT_EQ(As<ASTUnaryOp>(AddRightExpr)->getOpKind(), ASTUnaryOpKind::OP_UNARY_PRE_INCR);
-        EXPECT_EQ(As<ASTIdentifier>(As<ASTUnaryOp>(AddRightExpr)->getExpr())->getName(), "a");
+        EXPECT_EQ(As<ASTUnary>(AddRightExpr)->getOpKind(), ASTUnaryKind::OP_UNARY_PRE_INCR);
+        EXPECT_EQ(As<ASTIdentifier>(As<ASTUnary>(AddRightExpr)->getExpr())->getName(), "a");
     }
 
     TEST_F(ParserTest, BinaryAssignAddExpr) {
@@ -120,8 +120,8 @@ namespace {
         // a += 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN_ADD);
-        auto *BinaryExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN_ADD);
+        auto *BinaryExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -147,8 +147,8 @@ namespace {
         // a -= 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN_SUB);
-        auto *BinaryExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN_SUB);
+        auto *BinaryExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -174,8 +174,8 @@ namespace {
         // a *= 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN_MUL);
-        auto *BinaryExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN_MUL);
+        auto *BinaryExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -201,8 +201,8 @@ namespace {
         // a /= 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN_DIV);
-        auto *BinaryExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN_DIV);
+        auto *BinaryExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -228,8 +228,8 @@ namespace {
         // a %= 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        auto *BinaryExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
-        EXPECT_EQ(BinaryExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN_MOD);
+        auto *BinaryExpr = As<ASTBinary>(ExprStmt->getExpr());
+        EXPECT_EQ(BinaryExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN_MOD);
 
         ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -255,8 +255,8 @@ namespace {
         // a &= 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        auto *BinaryExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
-        EXPECT_EQ(BinaryExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN_AND);
+        auto *BinaryExpr = As<ASTBinary>(ExprStmt->getExpr());
+        EXPECT_EQ(BinaryExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN_AND);
 
         ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -282,8 +282,8 @@ namespace {
         // a |= 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        auto *BinaryExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
-        EXPECT_EQ(BinaryExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN_OR);
+        auto *BinaryExpr = As<ASTBinary>(ExprStmt->getExpr());
+        EXPECT_EQ(BinaryExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN_OR);
 
         ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -309,8 +309,8 @@ namespace {
         // a ^= 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        auto *BinaryExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
-        EXPECT_EQ(BinaryExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN_XOR);
+        auto *BinaryExpr = As<ASTBinary>(ExprStmt->getExpr());
+        EXPECT_EQ(BinaryExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN_XOR);
 
         ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -336,8 +336,8 @@ namespace {
         // a <<= 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN_SHIFT_L);
-        auto *BinaryExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN_SHIFT_L);
+        auto *BinaryExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -363,8 +363,8 @@ namespace {
         // a <<= 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN_SHIFT_R);
-        auto *BinaryExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN_SHIFT_R);
+        auto *BinaryExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = BinaryExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -390,8 +390,8 @@ namespace {
         // Parser creates: target = BinaryOp(a = (a + 1))
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         // Left of '=' is identifier 'a'
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
@@ -401,8 +401,8 @@ namespace {
         // Right of '=' is the binary add expression (a + 1)
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *AddExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(AddExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_ADD);
+        ASTBinary *AddExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(AddExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_ADD);
 
         EXPECT_EQ(AddExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(AddExpr->getLeftExpr())->getName(), "a");
@@ -427,8 +427,8 @@ namespace {
         // Parser creates: target = BinaryOp(a = (a - 1))
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -436,8 +436,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *SubExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(SubExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_SUB);
+        ASTBinary *SubExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(SubExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_SUB);
 
         EXPECT_EQ(SubExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(SubExpr->getLeftExpr())->getName(), "a");
@@ -461,8 +461,8 @@ namespace {
         // a = a * 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -470,8 +470,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *MulExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(MulExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_MUL);
+        ASTBinary *MulExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(MulExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_MUL);
 
         EXPECT_EQ(MulExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(MulExpr->getLeftExpr())->getName(), "a");
@@ -495,8 +495,8 @@ namespace {
         // a = a / 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -504,8 +504,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *DivExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(DivExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_DIV);
+        ASTBinary *DivExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(DivExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_DIV);
 
         EXPECT_EQ(DivExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(DivExpr->getLeftExpr())->getName(), "a");
@@ -529,8 +529,8 @@ namespace {
         // a = a % 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -538,8 +538,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *ModExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(ModExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_MOD);
+        ASTBinary *ModExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(ModExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_MOD);
 
         EXPECT_EQ(ModExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(ModExpr->getLeftExpr())->getName(), "a");
@@ -563,8 +563,8 @@ namespace {
         // a = a & 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -572,8 +572,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *AndExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(AndExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_AND);
+        ASTBinary *AndExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(AndExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_AND);
 
         EXPECT_EQ(AndExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(AndExpr->getLeftExpr())->getName(), "a");
@@ -597,8 +597,8 @@ namespace {
         // a = a | 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -606,8 +606,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *OrExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(OrExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_OR);
+        ASTBinary *OrExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(OrExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_OR);
 
         EXPECT_EQ(OrExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(OrExpr->getLeftExpr())->getName(), "a");
@@ -631,8 +631,8 @@ namespace {
         // a = a ^ 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -640,8 +640,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *XorExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(XorExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_XOR);
+        ASTBinary *XorExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(XorExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_XOR);
 
         EXPECT_EQ(XorExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(XorExpr->getLeftExpr())->getName(), "a");
@@ -665,8 +665,8 @@ namespace {
         // a = a << 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -674,8 +674,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *ShiftLExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(ShiftLExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_SHIFT_L);
+        ASTBinary *ShiftLExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(ShiftLExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_SHIFT_L);
 
         EXPECT_EQ(ShiftLExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(ShiftLExpr->getLeftExpr())->getName(), "a");
@@ -699,8 +699,8 @@ namespace {
         // a = a >> 1
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -708,8 +708,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *ShiftRExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(ShiftRExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_SHIFT_R);
+        ASTBinary *ShiftRExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(ShiftRExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_SHIFT_R);
 
         EXPECT_EQ(ShiftRExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(ShiftRExpr->getLeftExpr())->getName(), "a");
@@ -733,8 +733,8 @@ namespace {
         // a = a && true
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -742,8 +742,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *LogicAndExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(LogicAndExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_LOGIC_AND);
+        ASTBinary *LogicAndExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(LogicAndExpr->getOpKind(), ASTBinaryKind::OP_BINARY_LOGIC_AND);
 
         EXPECT_EQ(LogicAndExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(LogicAndExpr->getLeftExpr())->getName(), "a");
@@ -767,8 +767,8 @@ namespace {
         // a = a || true
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -776,8 +776,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *LogicOrExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(LogicOrExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_LOGIC_OR);
+        ASTBinary *LogicOrExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(LogicOrExpr->getOpKind(), ASTBinaryKind::OP_BINARY_LOGIC_OR);
 
         EXPECT_EQ(LogicOrExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(LogicOrExpr->getLeftExpr())->getName(), "a");
@@ -801,8 +801,8 @@ namespace {
         // a = a == true
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -810,8 +810,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *CmpEqExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(CmpEqExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_COMPARE_EQ);
+        ASTBinary *CmpEqExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(CmpEqExpr->getOpKind(), ASTBinaryKind::OP_BINARY_COMPARE_EQ);
 
         EXPECT_EQ(CmpEqExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(CmpEqExpr->getLeftExpr())->getName(), "a");
@@ -835,8 +835,8 @@ namespace {
         // a = a != true
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -844,8 +844,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *CmpNeExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(CmpNeExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_COMPARE_NE);
+        ASTBinary *CmpNeExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(CmpNeExpr->getOpKind(), ASTBinaryKind::OP_BINARY_COMPARE_NE);
 
         EXPECT_EQ(CmpNeExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(CmpNeExpr->getLeftExpr())->getName(), "a");
@@ -869,8 +869,8 @@ namespace {
         // a = a > true
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -878,8 +878,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *CmpGtExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(CmpGtExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_COMPARE_GT);
+        ASTBinary *CmpGtExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(CmpGtExpr->getOpKind(), ASTBinaryKind::OP_BINARY_COMPARE_GT);
 
         EXPECT_EQ(CmpGtExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(CmpGtExpr->getLeftExpr())->getName(), "a");
@@ -903,8 +903,8 @@ namespace {
         // a = a >= true
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -912,8 +912,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *CmpGteExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(CmpGteExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_COMPARE_GTE);
+        ASTBinary *CmpGteExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(CmpGteExpr->getOpKind(), ASTBinaryKind::OP_BINARY_COMPARE_GTE);
 
         EXPECT_EQ(CmpGteExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(CmpGteExpr->getLeftExpr())->getName(), "a");
@@ -937,8 +937,8 @@ namespace {
         // a = a < true
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -946,8 +946,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *CmpLtExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(CmpLtExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_COMPARE_LT);
+        ASTBinary *CmpLtExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(CmpLtExpr->getOpKind(), ASTBinaryKind::OP_BINARY_COMPARE_LT);
 
         EXPECT_EQ(CmpLtExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(CmpLtExpr->getLeftExpr())->getName(), "a");
@@ -971,8 +971,8 @@ namespace {
         // a = a <= true
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -980,8 +980,8 @@ namespace {
 
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *CmpLteExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(CmpLteExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_COMPARE_LTE);
+        ASTBinary *CmpLteExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(CmpLteExpr->getOpKind(), ASTBinaryKind::OP_BINARY_COMPARE_LTE);
 
         EXPECT_EQ(CmpLteExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(CmpLteExpr->getLeftExpr())->getName(), "a");
@@ -1005,8 +1005,8 @@ namespace {
         // a = a + 2 * a
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         // Left of '=' is identifier 'a'
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
@@ -1016,16 +1016,16 @@ namespace {
         // Right of '=' is the addition expression (a + 2 * a)
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *BinaryAddExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(BinaryAddExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_ADD);
+        ASTBinary *BinaryAddExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(BinaryAddExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_ADD);
 
         EXPECT_EQ(BinaryAddExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(BinaryAddExpr->getLeftExpr())->getName(), "a");
 
         ASTExpr *AddRightExpr = BinaryAddExpr->getRightExpr();
         EXPECT_EQ(AddRightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *BinaryMulExpr = As<ASTBinaryOp>(AddRightExpr);
-        EXPECT_EQ(BinaryMulExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_MUL);
+        ASTBinary *BinaryMulExpr = As<ASTBinary>(AddRightExpr);
+        EXPECT_EQ(BinaryMulExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_MUL);
 
         EXPECT_EQ(As<ASTNumberValue>(BinaryMulExpr->getLeftExpr())->getValue(), "2");
         EXPECT_EQ(BinaryMulExpr->getRightExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -1047,8 +1047,8 @@ namespace {
         // a = a - 2 / a
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         // Left of '=' is identifier 'a'
         ASTExpr *LeftExpr = EqExpr->getLeftExpr();
@@ -1058,16 +1058,16 @@ namespace {
         // Right of '=' is the subtraction expression (a - 2 / a)
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *BinarySubExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(BinarySubExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_SUB);
+        ASTBinary *BinarySubExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(BinarySubExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_SUB);
 
         EXPECT_EQ(BinarySubExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
         EXPECT_EQ(As<ASTIdentifier>(BinarySubExpr->getLeftExpr())->getName(), "a");
 
         ASTExpr *SubRightExpr = BinarySubExpr->getRightExpr();
         EXPECT_EQ(SubRightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *BinaryDivExpr = As<ASTBinaryOp>(SubRightExpr);
-        EXPECT_EQ(BinaryDivExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_DIV);
+        ASTBinary *BinaryDivExpr = As<ASTBinary>(SubRightExpr);
+        EXPECT_EQ(BinaryDivExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_DIV);
 
         EXPECT_EQ(As<ASTNumberValue>(BinaryDivExpr->getLeftExpr())->getValue(), "2");
         EXPECT_EQ(BinaryDivExpr->getRightExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -1089,8 +1089,8 @@ namespace {
         // a = (2 - a) % (a + 1)
         auto *ExprStmt = As<ASTExprStmt>(Body->getContent()[0]);
         EXPECT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
-        EXPECT_EQ(As<ASTBinaryOp>(ExprStmt->getExpr())->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
-        ASTBinaryOp *EqExpr = As<ASTBinaryOp>(ExprStmt->getExpr());
+        EXPECT_EQ(As<ASTBinary>(ExprStmt->getExpr())->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASTBinary *EqExpr = As<ASTBinary>(ExprStmt->getExpr());
 
         // Left of '=' is identifier 'a'
         EXPECT_EQ(EqExpr->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
@@ -1099,20 +1099,20 @@ namespace {
         // Right of '=' is the modulo expression ((2 - a) % (a + 1))
         ASTExpr *RightExpr = EqExpr->getRightExpr();
         EXPECT_EQ(RightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *BinaryModExpr = As<ASTBinaryOp>(RightExpr);
-        EXPECT_EQ(BinaryModExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_MOD);
+        ASTBinary *BinaryModExpr = As<ASTBinary>(RightExpr);
+        EXPECT_EQ(BinaryModExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_MOD);
 
         ASTExpr *LeftExpr = BinaryModExpr->getLeftExpr();
         EXPECT_EQ(LeftExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *BinarySubExpr = As<ASTBinaryOp>(LeftExpr);
-        EXPECT_EQ(BinarySubExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_SUB);
+        ASTBinary *BinarySubExpr = As<ASTBinary>(LeftExpr);
+        EXPECT_EQ(BinarySubExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_SUB);
         EXPECT_EQ(As<ASTNumberValue>(BinarySubExpr->getLeftExpr())->getValue(), "2");
         EXPECT_EQ(As<ASTIdentifier>(BinarySubExpr->getRightExpr())->getName(), "a");
 
         ASTExpr *ModRightExpr = BinaryModExpr->getRightExpr();
         EXPECT_EQ(ModRightExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *BinaryAddExpr = As<ASTBinaryOp>(ModRightExpr);
-        EXPECT_EQ(BinaryAddExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ARITH_ADD);
+        ASTBinary *BinaryAddExpr = As<ASTBinary>(ModRightExpr);
+        EXPECT_EQ(BinaryAddExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ARITH_ADD);
         EXPECT_EQ(As<ASTIdentifier>(BinaryAddExpr->getLeftExpr())->getName(), "a");
         EXPECT_EQ(As<ASTNumberValue>(BinaryAddExpr->getRightExpr())->getValue(), "1");
     }
@@ -1137,16 +1137,16 @@ namespace {
         ASSERT_TRUE(ExprStmt->getExpr()->getExprKind() == ASTExprKind::EXPR_TERNARY);
         // The parser might be creating: ASTExprStmt(expr=TERNARY)
         // instead of: ASTExprStmt(expr=BINARY_ASSIGN(a, TERNARY))
-        ASTTernaryOp *TernaryExpr = As<ASTTernaryOp>(ExprStmt->getExpr());
+        ASTTernary *TernaryExpr = As<ASTTernary>(ExprStmt->getExpr());
         ASSERT_NE(TernaryExpr, nullptr);
 
         // Check ternary condition: a==1
         ASTExpr *ConditionExpr = TernaryExpr->getConditionExpr();
         ASSERT_NE(ConditionExpr, nullptr);
         EXPECT_EQ(ConditionExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
-        ASTBinaryOp *CmpExpr = As<ASTBinaryOp>(ConditionExpr);
+        ASTBinary *CmpExpr = As<ASTBinary>(ConditionExpr);
         ASSERT_NE(CmpExpr, nullptr);
-        EXPECT_EQ(CmpExpr->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+        EXPECT_EQ(CmpExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
 
         // Check true expression: 1
         ASTExpr *TrueExpr = TernaryExpr->getTrueExpr();

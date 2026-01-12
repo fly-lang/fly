@@ -70,89 +70,89 @@ bool isRightAssociative(Token Tok) {
                        tok::ampequal, tok::pipeequal, tok::caretequal, tok::lesslessequal, tok::greatergreaterequal);
 }
 
-ASTUnaryOpKind toUnaryOpExprKind(Token Tok, bool isPost) {
+ASTUnaryKind toUnaryOpExprKind(Token Tok, bool isPost) {
 	FLY_DEBUG_START("ParserExpr", "toUnaryOpExprKind");
     if (isPost) {
         switch (Tok.getKind()) {
             case tok::plusplus:
-                return ASTUnaryOpKind::OP_UNARY_POST_INCR;
+                return ASTUnaryKind::OP_UNARY_POST_INCR;
             case tok::minusminus:
-                return ASTUnaryOpKind::OP_UNARY_POST_DECR;
+                return ASTUnaryKind::OP_UNARY_POST_DECR;
         }
     } else {
         switch (Tok.getKind()) {
             case tok::plusplus:
-                return ASTUnaryOpKind::OP_UNARY_PRE_INCR;
+                return ASTUnaryKind::OP_UNARY_PRE_INCR;
             case tok::minusminus:
-                return ASTUnaryOpKind::OP_UNARY_PRE_DECR;
+                return ASTUnaryKind::OP_UNARY_PRE_DECR;
             case tok::exclaim:
-                return ASTUnaryOpKind::OP_UNARY_NOT_LOG;
+                return ASTUnaryKind::OP_UNARY_NOT_LOG;
         }
     }
     assert(false && "Invalid Unary Token details");
 }
 
-ASTBinaryOpKind toBinaryOpExprKind(Token Tok) {
+ASTBinaryKind toBinaryOpExprKind(Token Tok) {
 	FLY_DEBUG_START("ParserExpr", "toBinaryOpExprKind");
     switch (Tok.getKind()) {
         case tok::amp:
-            return ASTBinaryOpKind::OP_BINARY_ARITH_AND;
+            return ASTBinaryKind::OP_BINARY_ARITH_AND;
         case tok::ampamp:
-            return ASTBinaryOpKind::OP_BINARY_LOGIC_AND;
+            return ASTBinaryKind::OP_BINARY_LOGIC_AND;
         case tok::ampequal:
-            return ASTBinaryOpKind::OP_BINARY_ASSIGN_AND;
+            return ASTBinaryKind::OP_BINARY_ASSIGN_AND;
         case tok::star:
-            return ASTBinaryOpKind::OP_BINARY_ARITH_MUL;
+            return ASTBinaryKind::OP_BINARY_ARITH_MUL;
         case tok::starequal:
-            return ASTBinaryOpKind::OP_BINARY_ASSIGN_MUL;
+            return ASTBinaryKind::OP_BINARY_ASSIGN_MUL;
         case tok::plus:
-            return ASTBinaryOpKind::OP_BINARY_ARITH_ADD;
+            return ASTBinaryKind::OP_BINARY_ARITH_ADD;
         case tok::plusequal:
-            return ASTBinaryOpKind::OP_BINARY_ASSIGN_ADD;
+            return ASTBinaryKind::OP_BINARY_ASSIGN_ADD;
         case tok::minus:
-            return ASTBinaryOpKind::OP_BINARY_ARITH_SUB;
+            return ASTBinaryKind::OP_BINARY_ARITH_SUB;
         case tok::minusequal:
-            return ASTBinaryOpKind::OP_BINARY_ASSIGN_SUB;
+            return ASTBinaryKind::OP_BINARY_ASSIGN_SUB;
         case tok::exclaimequal:
-            return ASTBinaryOpKind::OP_BINARY_COMPARE_NE;
+            return ASTBinaryKind::OP_BINARY_COMPARE_NE;
         case tok::slash:
-            return ASTBinaryOpKind::OP_BINARY_ARITH_DIV;
+            return ASTBinaryKind::OP_BINARY_ARITH_DIV;
         case tok::slashequal:
-            return ASTBinaryOpKind::OP_BINARY_ASSIGN_DIV;
+            return ASTBinaryKind::OP_BINARY_ASSIGN_DIV;
         case tok::percent:
-            return ASTBinaryOpKind::OP_BINARY_ARITH_MOD;
+            return ASTBinaryKind::OP_BINARY_ARITH_MOD;
         case tok::percentequal:
-            return ASTBinaryOpKind::OP_BINARY_ASSIGN_MOD;
+            return ASTBinaryKind::OP_BINARY_ASSIGN_MOD;
         case tok::less:
-            return ASTBinaryOpKind::OP_BINARY_COMPARE_LT;
+            return ASTBinaryKind::OP_BINARY_COMPARE_LT;
         case tok::lessless:
-            return ASTBinaryOpKind::OP_BINARY_ARITH_SHIFT_L;
+            return ASTBinaryKind::OP_BINARY_ARITH_SHIFT_L;
         case tok::lessequal:
-            return ASTBinaryOpKind::OP_BINARY_COMPARE_LTE;
+            return ASTBinaryKind::OP_BINARY_COMPARE_LTE;
         case tok::lesslessequal:
-            return ASTBinaryOpKind::OP_BINARY_ASSIGN_SHIFT_L;
+            return ASTBinaryKind::OP_BINARY_ASSIGN_SHIFT_L;
         case tok::greater:
-            return ASTBinaryOpKind::OP_BINARY_COMPARE_GT;
+            return ASTBinaryKind::OP_BINARY_COMPARE_GT;
         case tok::greatergreater:
-            return ASTBinaryOpKind::OP_BINARY_ARITH_SHIFT_R;
+            return ASTBinaryKind::OP_BINARY_ARITH_SHIFT_R;
         case tok::greaterequal:
-            return ASTBinaryOpKind::OP_BINARY_COMPARE_GTE;
+            return ASTBinaryKind::OP_BINARY_COMPARE_GTE;
         case tok::greatergreaterequal:
-            return ASTBinaryOpKind::OP_BINARY_ASSIGN_SHIFT_R;
+            return ASTBinaryKind::OP_BINARY_ASSIGN_SHIFT_R;
         case tok::caret:
-            return ASTBinaryOpKind::OP_BINARY_ARITH_XOR;
+            return ASTBinaryKind::OP_BINARY_ARITH_XOR;
         case tok::caretequal:
-            return ASTBinaryOpKind::OP_BINARY_ASSIGN_XOR;
+            return ASTBinaryKind::OP_BINARY_ASSIGN_XOR;
         case tok::pipe:
-            return ASTBinaryOpKind::OP_BINARY_ARITH_OR;
+            return ASTBinaryKind::OP_BINARY_ARITH_OR;
         case tok::pipepipe:
-            return ASTBinaryOpKind::OP_BINARY_LOGIC_OR;
+            return ASTBinaryKind::OP_BINARY_LOGIC_OR;
         case tok::pipeequal:
-            return ASTBinaryOpKind::OP_BINARY_ASSIGN_OR;
+            return ASTBinaryKind::OP_BINARY_ASSIGN_OR;
         case tok::equal:
-            return ASTBinaryOpKind::OP_BINARY_ASSIGN;
+            return ASTBinaryKind::OP_BINARY_ASSIGN;
         case tok::equalequal:
-            return ASTBinaryOpKind::OP_BINARY_COMPARE_EQ;
+            return ASTBinaryKind::OP_BINARY_COMPARE_EQ;
     }
     assert(false && "Invalid Binary Token details");
 }
@@ -295,7 +295,7 @@ ASTExpr *ParserExpr::ParsePrimary() {
 
 		// parse function call, variable post increment/decrement or simple var
 		if (isUnaryPostOperator()) { // Ex. a++ or a--
-			ASTUnaryOpKind OpKind = toUnaryOpExprKind(Tok, true);
+			ASTUnaryKind OpKind = toUnaryOpExprKind(Tok, true);
 			SourceLocation OpLoc = Tok.getLocation();
 			P->ConsumeToken();
 			return ASTBuilder::CreateUnary(OpLoc, OpKind, Primary);
@@ -305,7 +305,7 @@ ASTExpr *ParserExpr::ParsePrimary() {
 	}
 
 	if (isUnaryPreOperator(P->Tok)) { // Ex. ++a or --a or !a
-		ASTUnaryOpKind OpKind = toUnaryOpExprKind(Tok, false);
+		ASTUnaryKind OpKind = toUnaryOpExprKind(Tok, false);
 		const SourceLocation &OpLoc = P->ConsumeToken();
 		ASTExpr* Primary = ParsePrimary();  // Parse the operand (recursively)
 		return ASTBuilder::CreateUnary(OpLoc, OpKind, Primary);
@@ -336,7 +336,7 @@ ASTExpr *ParserExpr::ParsePrimary() {
     return nullptr;
 }
 
-ASTBinaryOp *ParserExpr::ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Precedence precedence) {
+ASTBinary *ParserExpr::ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Precedence precedence) {
 	FLY_DEBUG_START("ParserExpr", "ParseBinaryExpr");
 
     // Consume the binary operator
@@ -359,7 +359,7 @@ ASTBinaryOp *ParserExpr::ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Prece
     return ASTBuilder::CreateBinary(OpToken.getLocation(), toBinaryOpExprKind(OpToken), LeftExpr, RightExpr);
 }
 
-ASTTernaryOp *ParserExpr::ParseTernaryExpr(ASTExpr *ConditionExpr) {
+ASTTernary *ParserExpr::ParseTernaryExpr(ASTExpr *ConditionExpr) {
 	FLY_DEBUG_START("ParserExpr", "ParseTernaryExpr");
     const SourceLocation &TrueOpLoc = P->ConsumeToken();  // Consume '?'
 

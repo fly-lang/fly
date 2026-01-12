@@ -23,12 +23,12 @@ SemaType *SemaTernary::SelectType(SemaExpr *LeftExpr, SemaExpr *RightExpr) {
 	return LeftExpr->getType();
 }
 
-SemaTernary::SemaTernary(ASTTernaryOp &AST) :
+SemaTernary::SemaTernary(ASTTernary &AST) :
 	SemaExpr(SemaKind::TERNARY, SelectType(AST.getTrueExpr()->getSema(), AST.getFalseExpr()->getSema())),
 	AST(AST) {
 }
 
-ASTTernaryOp &SemaTernary::getAST() const {
+ASTTernary &SemaTernary::getAST() const {
 	return AST;
 }
 

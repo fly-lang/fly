@@ -194,9 +194,9 @@ namespace {
         // Test: int b = doSome()
         auto *VarBStmt = As<ASTDeclStmt>(Body->getContent()[0]);
         EXPECT_EQ(VarBStmt->getLocalVar()->getName(), "b");
-        auto *AssignExpr1 = As<ASTBinaryOp>(VarBStmt->getExpr());
+        auto *AssignExpr1 = As<ASTBinary>(VarBStmt->getExpr());
         ASSERT_TRUE(AssignExpr1 != nullptr);
-        EXPECT_EQ(AssignExpr1->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+        EXPECT_EQ(AssignExpr1->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
         EXPECT_EQ(As<ASTIdentifier>(AssignExpr1->getLeftExpr())->getName(), "b");
         // Right side is the function call
         auto *doSomeCall = As<ASTCall>(AssignExpr1->getRightExpr());
@@ -206,9 +206,9 @@ namespace {
 
         // Test: b = doNow()
         auto *BStmt = As<ASTExprStmt>(Body->getContent()[1]);
-        auto *AssignExpr2 = As<ASTBinaryOp>(BStmt->getExpr());
+        auto *AssignExpr2 = As<ASTBinary>(BStmt->getExpr());
         ASSERT_TRUE(AssignExpr2 != nullptr);
-        EXPECT_EQ(AssignExpr2->getOpKind(), ASTBinaryOpKind::OP_BINARY_ASSIGN);
+        EXPECT_EQ(AssignExpr2->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
         EXPECT_EQ(As<ASTIdentifier>(AssignExpr2->getLeftExpr())->getName(), "b");
         // Right side is the function call
         auto *doNowCall = As<ASTCall>(AssignExpr2->getRightExpr());

@@ -42,7 +42,9 @@ add_library(flyLib
         AST/ASTNameSpace.cpp
         AST/ASTModule.cpp
         AST/ASTMember.cpp
-        AST/ASTOp.cpp
+        AST/ASTUnary.cpp
+        AST/ASTBinary.cpp
+        AST/ASTTernary.cpp
         AST/ASTParam.cpp
         AST/ASTReturnStmt.cpp
         AST/ASTRuleStmt.cpp

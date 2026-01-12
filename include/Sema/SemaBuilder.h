@@ -45,9 +45,9 @@ namespace fly {
 	class ASTArrayValue;
 	class ASTStructValue;
 	class ASTCall;
-	class ASTUnaryOp;
-	class ASTBinaryOp;
-	class ASTTernaryOp;
+	class ASTUnary;
+	class ASTBinary;
+	class ASTTernary;
 	class SemaLocalVar;
 	class SemaParam;
 	class SemaNode;
@@ -103,11 +103,11 @@ namespace fly {
 
     	static SemaCall *CreateCall(ASTCall &Call, SemaType *Type, SemaFunctionBase *Function);
 
-    	static SemaUnary *CreateUnary(ASTUnaryOp &AST);
+    	static SemaUnary *CreateUnary(ASTUnary &AST);
 
-    	static SemaBinary *CreateBinary(ASTBinaryOp &AST);
+    	static SemaBinary *CreateBinary(ASTBinary &AST);
 
-    	static SemaTernary *CreateTernary(ASTTernaryOp &AST);
+    	static SemaTernary *CreateTernary(ASTTernary &AST);
 
     	static SemaValue *CreateDefaultValue(SemaType &Type);
 

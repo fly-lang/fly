@@ -13,11 +13,11 @@
 
 using namespace fly;
 
-SemaUnary::SemaUnary(ASTUnaryOp &AST) :
+SemaUnary::SemaUnary(ASTUnary &AST) :
 	SemaExpr(SemaKind::UNARY, AST.getExpr()->getSema()->getType()), AST(AST) {
 }
 
-ASTUnaryOp &SemaUnary::getAST() const {
+ASTUnary &SemaUnary::getAST() const {
 	return AST;
 }
 

@@ -17,6 +17,18 @@
 
 namespace fly {
 
+	enum class Precedence {
+		LOWEST,         // No operators
+		ASSIGNMENT,     // =, +=, -=, etc.
+		TERNARY,        // ?
+		LOGICAL,        // ||, &&
+		RELATIONAL,     // ==, !=, <, >, <=, >=
+		ADDITIVE,       // +, -
+		MULTIPLICATIVE, // *, /
+		UNARY,          // -a, !a, ++a, --a, a++, a--
+		PRIMARY         // Literals, Identifiers, Calls
+	};
+
     class ParserExpr {
 
         friend class ASTExpr;
@@ -40,9 +52,9 @@ namespace fly {
     private:
         ASTExpr *ParsePrimary();
 
-        ASTBinaryOp *ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Precedence Precedence);
+        ASTBinary *ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Precedence Precedence);
 
-        ASTTernaryOp *ParseTernaryExpr(ASTExpr *ConditionExpr);
+        ASTTernary *ParseTernaryExpr(ASTExpr *ConditionExpr);
 
         ASTExpr *ParseNewExpr();
 

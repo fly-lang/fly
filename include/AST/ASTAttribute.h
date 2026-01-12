@@ -15,7 +15,6 @@
 
 namespace fly {
 
-    class SourceLocation;
     class ASTModifier;
     class ASTType;
 	class ASTExpr;

@@ -14,7 +14,7 @@
 
 namespace fly {
 
-	class ASTBinaryOp;
+	class ASTBinary;
 
 	class SemaBinary :  public SemaExpr {
 
@@ -22,17 +22,17 @@ namespace fly {
 		friend class Resolver;
 		friend class SemaValidator;
 
-		ASTBinaryOp &AST;
+		ASTBinary &AST;
 
 		SemaType *SelectType(SemaExpr * LeftExpr, SemaExpr * RightExpr);
 
-		explicit SemaBinary(ASTBinaryOp &AST);
+		explicit SemaBinary(ASTBinary &AST);
 
 	public:
 
 		~SemaBinary() override = default;
 
-		ASTBinaryOp &getAST() const;
+		ASTBinary &getAST() const;
 
 	};
 

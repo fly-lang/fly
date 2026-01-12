@@ -19,9 +19,9 @@ namespace llvm {
 namespace fly {
 
     class CodeGenModule;
-    class ASTUnaryOp;
-    class ASTBinaryOp;
-    class ASTTernaryOp;
+    class ASTUnary;
+    class ASTBinary;
+    class ASTTernary;
     class ASTOp;
     class ASTIdentifier;
     class SemaExpr;
@@ -34,7 +34,7 @@ namespace fly {
 	class SemaUnary;
 	class SemaBinary;
 	class SemaTernary;
-    enum class ASTBinaryOpKind;
+    enum class ASTBinaryKind;
 
     class CodeGenExpr {
 
@@ -62,13 +62,13 @@ namespace fly {
 
         llvm::Value *GenExpr(SemaTernary *Sema);
 
-        llvm::Value *GenBinaryArith(SemaExpr *E1, ASTBinaryOpKind OperatorKind, SemaExpr *E2);
+        llvm::Value *GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
-        llvm::Value *GenBinaryComparison(SemaExpr *E1, ASTBinaryOpKind OperatorKind, SemaExpr *E2);
+        llvm::Value *GenBinaryComparison(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
-        llvm::Value *GenBinaryLogic(SemaExpr *E1, ASTBinaryOpKind OperatorKind, SemaExpr *E2);
+        llvm::Value *GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
-        llvm::Value* GenBinaryAssign(SemaExpr *E1, ASTBinaryOpKind OperatorKind, SemaExpr *E2);
+        llvm::Value* GenBinaryAssign(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
         void addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &Args);
     };

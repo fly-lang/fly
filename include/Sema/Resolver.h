@@ -149,9 +149,9 @@ namespace fly {
         void visit(ASTIdentifier &AST) override;
         void visit(ASTMember& AST) override;
         void visit(ASTCall &AST) override;
-        void visit(ASTUnaryOp &AST) override;
-        void visit(ASTBinaryOp &AST) override;
-        void visit(ASTTernaryOp &AST) override;
+        void visit(ASTUnary &AST) override;
+        void visit(ASTBinary &AST) override;
+        void visit(ASTTernary &AST) override;
         void visit(ASTCast &AST) override;
         void visit(ASTBoolValue &AST) override;
         void visit(ASTNumberValue &AST) override;

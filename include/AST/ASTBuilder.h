@@ -107,11 +107,11 @@ namespace fly {
 
     class ASTExpr;
 
-    class ASTUnaryOp;
+    class ASTUnary;
 
-    class ASTBinaryOp;
+    class ASTBinary;
 
-    class ASTTernaryOp;
+    class ASTTernary;
 
     class ASTEnum;
 
@@ -135,9 +135,9 @@ namespace fly {
 
     enum class ASTClassKind;
 
-    enum class ASTUnaryOpKind;
+    enum class ASTUnaryKind;
 
-    enum class ASTBinaryOpKind;
+    enum class ASTBinaryKind;
 
     enum class ASTCallKind;
 
@@ -259,12 +259,12 @@ namespace fly {
 
          static ASTMember *CreateMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent);
 
-         static ASTUnaryOp *CreateUnary(const SourceLocation &Loc, ASTUnaryOpKind OpKind, ASTExpr *Expr);
+         static ASTUnary *CreateUnary(const SourceLocation &Loc, ASTUnaryKind OpKind, ASTExpr *Expr);
 
-         static ASTBinaryOp *CreateBinary(const SourceLocation &OpLocation, ASTBinaryOpKind OpKind,
+         static ASTBinary *CreateBinary(const SourceLocation &OpLocation, ASTBinaryKind OpKind,
                                             ASTExpr *LeftExpr, ASTExpr *RightExpr);
 
-         static ASTTernaryOp *CreateTernary(ASTExpr *ConditionExpr,
+         static ASTTernary *CreateTernary(ASTExpr *ConditionExpr,
                                               const SourceLocation &TrueOpLocation, ASTExpr *TrueExpr,
                                               const SourceLocation &FalseOpLocation, ASTExpr *FalseExpr);
 

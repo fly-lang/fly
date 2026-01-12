@@ -14,23 +14,23 @@
 
 namespace fly {
 
-	class ASTTernaryOp;
+	class ASTTernary;
 
 	class SemaTernary : public SemaExpr {
 
 		friend class SemaBuilder;
 
-		ASTTernaryOp &AST;
+		ASTTernary &AST;
 
 		SemaType *SelectType(SemaExpr * LeftExpr, SemaExpr * RightExpr);
 
-		explicit SemaTernary(ASTTernaryOp &AST);
+		explicit SemaTernary(ASTTernary &AST);
 
 	public:
 
 		~SemaTernary() override = default;
 
-		ASTTernaryOp &getAST() const;
+		ASTTernary &getAST() const;
 
 	};
 }

@@ -26,7 +26,7 @@ namespace fly {
 
         ASTExpr *Expr;
 
-        ASTType *Cast = nullptr;
+        ASTType *ToType;
 
         explicit ASTCast(ASTExpr *Expr, ASTType *Cast);
 

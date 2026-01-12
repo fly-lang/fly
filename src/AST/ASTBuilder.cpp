@@ -692,31 +692,31 @@ ASTMember *ASTBuilder::CreateMember(const SourceLocation &Loc, llvm::StringRef N
 	return Member;
 }
 
-ASTUnaryOp *ASTBuilder::CreateUnary(const SourceLocation &Loc, ASTUnaryOpKind OpKind, ASTExpr *Expr) {
+ASTUnary *ASTBuilder::CreateUnary(const SourceLocation &Loc, ASTUnaryKind OpKind, ASTExpr *Expr) {
 	FLY_DEBUG_START_MSG(
 		"ASTBuilder", "CreateUnaryOpExpr",
 		"Loc=" << Loc.getRawEncoding() << ", OpKind=" << static_cast<uint8_t>(OpKind));
 
-	ASTUnaryOp *UnaryOpExpr = new ASTUnaryOp(Loc, OpKind, Expr);
+	ASTUnary *UnaryOpExpr = new ASTUnary(Loc, OpKind, Expr);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateUnaryOpExpr");
 	return UnaryOpExpr;
 }
 
-ASTBinaryOp *ASTBuilder::CreateBinary(
-	const SourceLocation &OpLocation, ASTBinaryOpKind OpKind,
+ASTBinary *ASTBuilder::CreateBinary(
+	const SourceLocation &OpLocation, ASTBinaryKind OpKind,
 	ASTExpr *LeftExpr, ASTExpr *RightExpr) {
 	FLY_DEBUG_START_MSG(
 		"ASTBuilder", "CreateBinaryOpExpr",
 		"OpLocation=" << OpLocation.getRawEncoding() << ", OpKind=" << static_cast<uint8_t>(OpKind));
 
-	ASTBinaryOp *BinaryOpExpr = new ASTBinaryOp(OpKind, OpLocation, LeftExpr, RightExpr);
+	ASTBinary *BinaryOpExpr = new ASTBinary(OpKind, OpLocation, LeftExpr, RightExpr);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateBinaryOpExpr");
 	return BinaryOpExpr;
 }
 
-ASTTernaryOp *ASTBuilder::CreateTernary(
+ASTTernary *ASTBuilder::CreateTernary(
 	ASTExpr *ConditionExpr,
 	const SourceLocation &TrueOpLocation, ASTExpr *TrueExpr,
 	const SourceLocation &FalseOpLocation, ASTExpr *FalseExpr) {
@@ -724,7 +724,7 @@ ASTTernaryOp *ASTBuilder::CreateTernary(
 		"ASTBuilder", "CreateBinaryOpExpr",
 		"TrueOpLocation=" << TrueOpLocation.getRawEncoding() << "FalseOpLocation=" << FalseOpLocation.getRawEncoding());
 
-	ASTTernaryOp *TernaryExpr = new ASTTernaryOp(
+	ASTTernary *TernaryExpr = new ASTTernary(
 		ConditionExpr,
 		TrueOpLocation, TrueExpr,
 		FalseOpLocation, FalseExpr);
