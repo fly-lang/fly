@@ -7,15 +7,17 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "ParserTest.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTCall.h"
-#include "AST/ASTValue.h"
-#include "AST/ASTIdentifier.h"
-#include "AST/ASTOp.h"
+#include "AST/ASTBinary.h"
 #include "AST/ASTBlockStmt.h"
+#include "AST/ASTCall.h"
 #include "AST/ASTExprStmt.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTIdentifier.h"
+#include "AST/ASTModule.h"
+#include "AST/ASTTernary.h"
+#include "AST/ASTUnary.h"
+#include "AST/ASTValue.h"
+#include "ParserTest.h"
 
 #include "llvm/ADT/StringMap.h"
 

@@ -42,7 +42,7 @@ void ASTUnary::setSema(SemaUnary *Sema) {
 }
 
 std::string ASTUnary::str() const {
-    return Logger("ASTOp").
+    return Logger("ASTUnary").
 	Attr("Location", getLocation()).
 Attr("Kind", static_cast<size_t>(getKind())).
            Attr("Expr", (ASTNode *) Expr).

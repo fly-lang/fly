@@ -8,9 +8,12 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Parser/ParserExpr.h"
-#include "AST/ASTIdentifier.h"
-#include "AST/ASTOp.h"
+
+#include "AST/ASTBinary.h"
 #include "AST/ASTBuilder.h"
+#include "AST/ASTIdentifier.h"
+#include "AST/ASTTernary.h"
+#include "AST/ASTUnary.h"
 #include "Basic/Debug.h"
 
 #include <AST/ASTCall.h>

@@ -9,27 +9,20 @@
 
 #include "Sema/SemaValidator.h"
 
+#include "AST/ASTBinary.h"
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTModule.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTOp.h"
-#include "AST/ASTType.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVar.h"
 #include "Basic/Diagnostic.h"
-#include "Sema/Sema.h"
 #include "Sema/SemaNameSpace.h"
-#include "Sema/SymbolTable.h"
 
 #include <AST/ASTExpr.h>
-#include <AST/ASTFunction.h>
-#include <Sema/SemaClassMethod.h>
 #include <Sema/SemaClassType.h>
 #include <Sema/SemaEnumType.h>
-#include <Sema/SemaModule.h>
 #include <Sema/SemaType.h>
 
 using namespace fly;

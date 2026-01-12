@@ -8,31 +8,33 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTBuilder.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTImport.h"
+
 #include "AST/ASTArg.h"
-#include "AST/ASTComment.h"
-#include "AST/ASTBreakStmt.h"
-#include "AST/ASTContinueStmt.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTCall.h"
-#include "AST/ASTDeleteStmt.h"
-#include "AST/ASTVar.h"
+#include "AST/ASTBinary.h"
 #include "AST/ASTBlockStmt.h"
-#include "AST/ASTHandleStmt.h"
-#include "AST/ASTIdentifier.h"
-#include "AST/ASTValue.h"
+#include "AST/ASTBreakStmt.h"
+#include "AST/ASTCall.h"
 #include "AST/ASTClass.h"
+#include "AST/ASTComment.h"
+#include "AST/ASTContinueStmt.h"
+#include "AST/ASTDeleteStmt.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTExpr.h"
-#include "AST/ASTOp.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTHandleStmt.h"
+#include "AST/ASTIdentifier.h"
+#include "AST/ASTImport.h"
+#include "AST/ASTModule.h"
+#include "AST/ASTNameSpace.h"
+#include "AST/ASTTernary.h"
 #include "AST/ASTType.h"
-#include "Basic/SourceLocation.h"
-#include "Basic/Diagnostic.h"
+#include "AST/ASTUnary.h"
+#include "AST/ASTValue.h"
+#include "AST/ASTVar.h"
 #include "Basic/Debug.h"
+#include "Basic/Diagnostic.h"
+#include "Basic/SourceLocation.h"
 
-#include <utility>
 #include <AST/ASTAttribute.h>
 #include <AST/ASTDeclStmt.h>
 #include <AST/ASTEnumEntry.h>
@@ -45,6 +47,7 @@
 #include <AST/ASTParam.h>
 #include <AST/ASTReturnStmt.h>
 #include <Frontend/InputFile.h>
+#include <utility>
 
 using namespace fly;
 

@@ -8,8 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaUnary.h"
-
-#include "AST/ASTOp.h"
+#include "AST/ASTUnary.h"
 
 using namespace fly;
 

@@ -7,20 +7,21 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "ParserTest.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTVar.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTValue.h"
-#include "AST/ASTIdentifier.h"
+#include "AST/ASTBinary.h"
 #include "AST/ASTBlockStmt.h"
-#include "AST/ASTLoopStmt.h"
-#include "AST/ASTIfStmt.h"
-#include "AST/ASTSwitchStmt.h"
-#include "AST/ASTOp.h"
 #include "AST/ASTExprStmt.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTIdentifier.h"
+#include "AST/ASTIfStmt.h"
 #include "AST/ASTLoopInStmt.h"
+#include "AST/ASTLoopStmt.h"
+#include "AST/ASTModule.h"
+#include "AST/ASTNameSpace.h"
+#include "AST/ASTSwitchStmt.h"
+#include "AST/ASTUnary.h"
+#include "AST/ASTValue.h"
+#include "AST/ASTVar.h"
+#include "ParserTest.h"
 
 #include <AST/ASTLocalVar.h>
 

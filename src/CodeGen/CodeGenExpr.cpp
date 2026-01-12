@@ -9,15 +9,20 @@
 
 #include "CodeGen/CodeGenExpr.h"
 
+#include "AST/ASTBinary.h"
 #include "AST/ASTCast.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTIdentifier.h"
-#include "AST/ASTOp.h"
+#include "AST/ASTTernary.h"
+#include "AST/ASTUnary.h"
 #include "Basic/Debug.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
+#include "Sema/SemaBinary.h"
 #include "Sema/SemaBuiltin.h"
 #include "Sema/SemaCast.h"
+#include "Sema/SemaTernary.h"
+#include "Sema/SemaUnary.h"
 
 #include "llvm/ADT/SmallVector.h"
 

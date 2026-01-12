@@ -9,11 +9,13 @@
 
 #include "Sema/SemaBuilder.h"
 
+#include "AST/ASTBinary.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTFunction.h"
-#include "AST/ASTOp.h"
+#include "AST/ASTTernary.h"
+#include "AST/ASTUnary.h"
 #include "AST/ASTVar.h"
 #include "Basic/Debug.h"
 #include "Basic/Diagnostic.h"
@@ -38,14 +40,10 @@
 
 #include <AST/ASTAttribute.h>
 #include <AST/ASTBuilder.h>
-#include <AST/ASTBuilderStmt.h>
 #include <AST/ASTLocalVar.h>
 #include <AST/ASTMethod.h>
-#include <AST/ASTNameSpace.h>
-#include <AST/ASTOp.h>
 #include <AST/ASTParam.h>
 #include <AST/ASTValue.h>
-#include <Sema/Helper.h>
 #include <Sema/SemaBuilderModifiers.h>
 #include <Sema/SemaBuiltin.h>
 #include <Sema/SemaClassInstance.h>

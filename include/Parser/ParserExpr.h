@@ -13,9 +13,11 @@
 
 #include "Parser.h"
 #include "AST/ASTExpr.h"
-#include "AST/ASTOp.h"
 
 namespace fly {
+
+	class ASTBinary;
+	class ASTTernary;
 
 	enum class Precedence {
 		LOWEST,         // No operators

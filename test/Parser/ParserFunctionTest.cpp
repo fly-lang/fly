@@ -7,23 +7,23 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "ParserTest.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTCall.h"
-#include "AST/ASTValue.h"
-#include "AST/ASTIdentifier.h"
 #include "AST/ASTArg.h"
+#include "AST/ASTBinary.h"
 #include "AST/ASTBlockStmt.h"
+#include "AST/ASTCall.h"
 #include "AST/ASTExpr.h"
-#include "AST/ASTReturnStmt.h"
 #include "AST/ASTExprStmt.h"
-#include "AST/ASTOp.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTIdentifier.h"
+#include "AST/ASTModule.h"
+#include "AST/ASTReturnStmt.h"
+#include "AST/ASTValue.h"
+#include "ParserTest.h"
 
-#include <AST/ASTParam.h>
-#include <AST/ASTType.h>
 #include <AST/ASTDeclStmt.h>
 #include <AST/ASTLocalVar.h>
+#include <AST/ASTParam.h>
+#include <AST/ASTType.h>
 
 namespace {
 

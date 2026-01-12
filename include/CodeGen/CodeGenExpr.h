@@ -22,7 +22,6 @@ namespace fly {
     class ASTUnary;
     class ASTBinary;
     class ASTTernary;
-    class ASTOp;
     class ASTIdentifier;
     class SemaExpr;
     class ASTExpr;

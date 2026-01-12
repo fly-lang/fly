@@ -9,8 +9,9 @@
 
 #include "Sema/SemaTernary.h"
 
-#include "AST/ASTOp.h"
+#include "AST/ASTTernary.h"
 #include "Sema/Helper.h"
+#include "Sema/SemaType.h"
 
 using namespace fly;
 
