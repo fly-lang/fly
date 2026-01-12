@@ -87,6 +87,8 @@ namespace fly {
 
     	bool CheckBinary(ASTBinaryOp &AST);
 
+    	bool CheckSema(ASTExpr *Expr);
+
 		static bool CheckNameEmpty(const SourceLocation &Loc, llvm::StringRef Name);
 
         static bool CheckIsValueExpr(ASTExpr *Expr);

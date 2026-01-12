@@ -316,7 +316,7 @@ Symbol *Registry::LookupName(llvm::StringRef Name, SymbolTable *Scope) {
 
 SemaFunctionBase* Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8> &Types, SymbolTable *Scope) {
 	if (Scope == nullptr) Scope = GlobalScope;
-	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookup(Name);
+	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookupInParents(Name);
 
 	if (!Symbols) {
 		// Error: Symbol not found in Scope

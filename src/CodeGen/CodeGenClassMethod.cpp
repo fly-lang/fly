@@ -58,8 +58,9 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
     // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
+	std::string Name = Mangle(Sema);
 	if (Class->getClassKind() != SemaClassKind::INTERFACE) {
-		Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, "", CGM->getModule());
+		Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
 	}
 }
 

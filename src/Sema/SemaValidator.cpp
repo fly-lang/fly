@@ -305,6 +305,10 @@ bool SemaValidator::CheckLogicalTypes(SemaType *Type1, SemaType *Type2) {
 }
 
 bool SemaValidator::CheckBinary(ASTBinaryOp &AST) {
+	if (!AST.getLeftExpr()->getSema() || !AST.getRightExpr()->getSema()) {
+		return false;
+	}
+
 	// Check if Left and Right Expr are resolved
 	SemaType * LeftType = AST.getLeftExpr()->getType();
 	SemaType * RightType = AST.getRightExpr()->getType();
@@ -317,14 +321,26 @@ bool SemaValidator::CheckBinary(ASTBinaryOp &AST) {
 			Diag(AST.getLocation(), diag::err_sema_types_operation)
 					  << LeftType->getName()
 					  << RightType->getName();
+			return false;
 		}
 	} else if (AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_LOGIC) {
 		if (!CheckLogicalTypes(LeftType, RightType)) {
 			Diag(AST.getLocation(), diag::err_sema_types_logical)
 				<< LeftType->getName()
 				<< RightType->getName();
+			return false;
+		}
+	} else if (AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_ASSIGN) {
+		// For assignment, check if types are compatible
+		if (!CheckArithTypes(LeftType, RightType)) {
+			Diag(AST.getLocation(), diag::err_sema_types_operation)
+					  << LeftType->getName()
+					  << RightType->getName();
+			return false;
 		}
 	}
+
+	return true;
 }
 
 bool SemaValidator::CheckNameEmpty(const SourceLocation &Loc,llvm::StringRef Name) {

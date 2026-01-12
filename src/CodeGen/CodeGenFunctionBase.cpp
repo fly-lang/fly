@@ -8,22 +8,25 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenFunctionBase.h"
-#include "CodeGen/CodeGen.h"
-#include "CodeGen/CodeGenModule.h"
-#include "CodeGen/CodeGenError.h"
+
 #include "AST/ASTFunction.h"
-#include "Sema/SemaClassMethod.h"
-#include "Sema/SemaClassAttribute.h"
 #include "Basic/Debug.h"
+#include "CodeGen/CodeGen.h"
+#include "CodeGen/CodeGenError.h"
+#include "CodeGen/CodeGenModule.h"
+#include "Sema/SemaClassAttribute.h"
+#include "Sema/SemaClassMethod.h"
+
+#include "llvm/ADT/StringRef.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
-#include "llvm/ADT/StringRef.h"
 
 #include <CodeGen/CodeGenVar.h>
 #include <Sema/SemaErrorHandler.h>
 #include <Sema/SemaLocalVar.h>
 #include <Sema/SemaParam.h>
 #include <llvm/IR/Instructions.h>
+#include <unordered_map>
 
 using namespace fly;
 
@@ -165,4 +168,59 @@ llvm::BasicBlock * CodeGenFunctionBase::getSafeBB() {
 
 void CodeGenFunctionBase::setSafeBB(llvm::BasicBlock *BB) {
 	this->SafeBB = BB;
+}
+
+// Mapping Fly types to mangled representations
+std::unordered_map<std::string, std::string> MangleTypeMap = {
+	{"bool", "_b"},
+	{"byte", "_y"},
+	{"ushort", "_us"},
+	{"short", "_s"},
+	{"uint", "_ui"},
+	{"int", "_i"},
+	{"ulong", "_ul"},
+	{"long", "_l"},
+	{"float", "_f"},
+	{"double", "_d"},
+	{"void", "_v"},
+	{"string", "_Ss"},
+	// {"char", "_c"},
+	{"error", "_e"},
+};
+
+// Function to process array type: "int[5]" -> "A5_i"
+std::string CodeGenFunctionBase::Mangle(SemaType *Type) {
+	std::string Mangled = "";
+
+	switch (Type->getTypeKind()) {
+		case SemaTypeKind::TYPE_ARRAY: {
+			SemaArrayType *Array = static_cast<SemaArrayType *>(Type);
+			Mangled += "_A" + Mangle(Array->getType());
+		}	break;
+		case SemaTypeKind::TYPE_ENUM:
+			Mangled += "_E" + Type->getName();
+			break;
+		case SemaTypeKind::TYPE_CLASS:
+			Mangled += "_C" + Type->getName();
+			break;
+		default:
+			Mangled += MangleTypeMap.at(Type->getName());
+	}
+
+	return Mangled;
+}
+
+std::string CodeGenFunctionBase::Mangle(SemaFunctionBase *F) {
+	std::string Name = std::string(F->getName()); // Function name
+
+	// Mangling Function with _F prefix
+	// Encode function name with its length
+	std::string Mangled = "_F" + std::to_string(Name.size()) + Name;
+
+	// Encode parameters
+	for (const auto Param : F->getParams()) {
+		Mangled += Mangle(Param->getType());
+	}
+
+	return Mangled;
 }

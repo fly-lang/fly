@@ -28,7 +28,7 @@ ASTExpr * ASTCast::getExpr() const {
 	return Expr;
 }
 
-ASTType * ASTCast::getCast() const {
+ASTType * ASTCast::getToType() const {
 	return Cast;
 }
 

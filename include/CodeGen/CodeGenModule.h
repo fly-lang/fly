@@ -203,7 +203,7 @@ namespace fly {
 
         CodeGenError *GenErrorHandler(SemaVar* Sema);
 
-        llvm::Value *GenExpr(ASTExpr *Expr);
+        llvm::Value *GenExpr(SemaExpr *Sema);
 
         void GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt);
 

@@ -8,16 +8,19 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenClass.h"
-#include "CodeGen/CodeGenVar.h"
+
+#include "AST/ASTExpr.h"
 #include "CodeGen/CodeGenModule.h"
+#include "CodeGen/CodeGenVar.h"
 #include "Sema/SemaClassType.h"
 #include "Sema/SemaModule.h"
-#include <Sema/SemaClassAttribute.h>
-#include <Sema/SemaClassMethod.h>
+
 #include "llvm/IR/DerivedTypes.h"
 
 #include <AST/ASTVar.h>
 #include <Basic/Debug.h>
+#include <Sema/SemaClassAttribute.h>
+#include <Sema/SemaClassMethod.h>
 #include <llvm/Option/Arg.h>
 
 using namespace fly;
@@ -255,7 +258,7 @@ void CodeGenClass::GenInitConstructorBody() {
 		SemaClassAttribute *Attr = AttrEntry.getValue();
 
 		// Set Value for all Attributes
-		llvm::Value *V = CGM->GenExpr(Attr->getAST()->getExpr());
+		llvm::Value *V = CGM->GenExpr(Attr->getAST()->getExpr()->getSema());
 
 		llvm::ArrayRef<llvm::Value *> IdxList = {
 			CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, Attr->getCodeGen()->getIndex())};

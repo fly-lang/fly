@@ -267,16 +267,20 @@ void Resolver::visit(ASTMethod &AST) {
 	}
 	CurrentFunction = Sema;
 
-	// Enter Method Scope
-	EnterScope();
-
-	// Add to Body list for resolve in the next step
 	// Enter Body Scope
 	EnterScope();
-	Reg.addBody(CurrentScope, AST.getBody());
-	ExitScope();
 
-	// Exit Method Scope
+	// Resolve Parameters Types
+	for (auto Param : AST.getParams()) {
+
+		// resolve parameter type
+		Param->accept(*this);
+		Sema->addParam(Param->getSema());
+		addSymbol(new Symbol(Param->getName(), SemaKind::VAR, Param->getSema()));
+	}
+
+	// Add to Body list for resolve in the next step
+	Reg.addBody(CurrentScope, AST.getBody());
 	ExitScope();
 
 	// Create the Symbol and add to Symbol Table
@@ -501,17 +505,15 @@ void Resolver::visit(ASTDeclStmt &AST) {
 		// Create Assignment Expression
 		ASTBinaryOp *BinaryExpr = ASTBuilder::CreateBinary(LocalVar->getLocation(), ASTBinaryOpKind::OP_BINARY_ASSIGN, LeftExpr, Sema->getAST());
         AST.setExpr(BinaryExpr);
+    }
 
-    } else {
+    // Resolve Initialization Expression
+    AST.getExpr()->accept(*this);
 
-        // Resolve Initialization Expression
-        AST.getExpr()->accept(*this);
-
-    	if (AST.getExpr()->getExprKind() == ASTExprKind::EXPR_BINARY &&
-    		static_cast<ASTBinaryOp *>(AST.getExpr())->getBinaryKind() == ASTBinaryKind::OP_BINARY_ASSIGN) {
-    		AST.getExpr()->getSema()->setType(Type);
-    	}
-	}
+    if (AST.getExpr()->getExprKind() == ASTExprKind::EXPR_BINARY &&
+    	static_cast<ASTBinaryOp *>(AST.getExpr())->getBinaryKind() == ASTBinaryKind::OP_BINARY_ASSIGN) {
+    	AST.getExpr()->getSema()->setType(Type);
+    }
 
 	FLY_DEBUG_END("Resolver", "visit(ASTDeclStmt)");
 }
@@ -543,7 +545,7 @@ void Resolver::visit(ASTReturnStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTReturnStmt)");
 	CurrentStmt = &AST;
 	SemaType *ReturnType = CurrentFunction->getReturnType(); // Force Return Expr to be of Return Type
-	ASTExpr *Expr= AST.getExpr();
+	ASTExpr *Expr = AST.getExpr();
 	if (Expr != nullptr) {
 		Expr->accept(*this);
 	} else if (!ReturnType->isVoid()) {
@@ -724,11 +726,12 @@ void Resolver::visit(ASTBinaryOp &AST) {
 	AST.getLeftExpr()->accept(*this);
     AST.getRightExpr()->accept(*this);
 
-	Validator->CheckBinary(AST);
+	if (Validator->CheckBinary(AST)) {
 
-	// Create Sema
-	SemaBinary *Sema = SemaBuilder::CreateBinary(AST);
-	AST.setSema(Sema);
+		// Create Sema
+		SemaBinary *Sema = SemaBuilder::CreateBinary(AST);
+		AST.setSema(Sema);
+	}
 
 	FLY_DEBUG_END("Resolver", "visit(ASTBinaryOp)");
 }
@@ -752,7 +755,7 @@ void Resolver::visit(ASTTernaryOp &AST) {
 
 void Resolver::visit(ASTCast &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTCast)");
-	AST.getCast()->accept(*this);
+	AST.getToType()->accept(*this);
     AST.getExpr()->accept(*this);
 	// TODO: Validate Cast
 	FLY_DEBUG_END("Resolver", "visit(ASTCast)");
@@ -768,35 +771,38 @@ void Resolver::visit(ASTBoolValue &AST) {
 void Resolver::visit(ASTNumberValue &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTNumberValue)");
 
-	ASTExpr *Expr = nullptr;
+	SemaType *Type = nullptr;
 	if (CurrentStmt->getStmtKind() == ASTStmtKind::STMT_DECL) {
-		Expr = static_cast<ASTDeclStmt *>(CurrentStmt)->getExpr();
+		Type = static_cast<ASTDeclStmt *>(CurrentStmt)->getLocalVar()->getType()->getSema();
+	} else if (CurrentStmt->getStmtKind() == ASTStmtKind::STMT_RETURN) {
+		Type = CurrentFunction->getReturnType();
 	} else if (CurrentStmt->getStmtKind() == ASTStmtKind::STMT_EXPR) {
-		Expr = static_cast<ASTExprStmt *>(CurrentStmt)->getExpr();
-	}
+		ASTExpr *Expr = static_cast<ASTExprStmt *>(CurrentStmt)->getExpr();
+		if (Expr && Expr->getExprKind() == ASTExprKind::EXPR_BINARY) {
+			ASTBinaryOp *Binary = static_cast<ASTBinaryOp *>(Expr);
 
-	SemaValue *Sema = nullptr;
-	if (Expr->getExprKind() == ASTExprKind::EXPR_BINARY) {
-		ASTBinaryOp *Binary = static_cast<ASTBinaryOp *>(Expr);
-		if (Binary && Binary->getBinaryKind() == ASTBinaryKind::OP_BINARY_ASSIGN) {
-			SemaType *Type = Binary->getLeftExpr()->getType();
-
-			// Integer Value
-			if (Type->isInteger()) {
-				Sema = SemaBuilder::CreateIntValue(AST, static_cast<SemaIntType *>(Type));
-				AST.setSema(Sema);
-				return;
-			}
-
-			// Float Value
-			if (Type->isFloatingPoint()) {
-				Sema = SemaBuilder::CreateFloatValue(AST, static_cast<SemaFloatType *>(Type));
-				AST.setSema(Sema);
-				return;
+			if (Binary && Binary->getBinaryKind() == ASTBinaryKind::OP_BINARY_ASSIGN) {
+				Type = Binary->getLeftExpr()->getType();
 			}
 		}
 	}
 
+	// The result type of the number value depends on the left side of an assignment
+	SemaValue *Sema = nullptr;
+
+	// Integer Value
+	if (Type && Type->isInteger()) {
+		Sema = SemaBuilder::CreateIntValue(AST, static_cast<SemaIntType *>(Type));
+		AST.setSema(Sema);
+		return;
+	}
+
+	// Float Value
+	if (Type && Type->isFloatingPoint()) {
+		Sema = SemaBuilder::CreateFloatValue(AST, static_cast<SemaFloatType *>(Type));
+		AST.setSema(Sema);
+		return;
+	}
 
 	Sema = SemaBuilder::CreateNumberValue(AST);
 	AST.setSema(Sema);
@@ -978,17 +984,19 @@ void Resolver::ResolveFunction(SemaFunction *Func) {
 	ReturnType->accept(*this);
 	Func->setReturnType(ReturnType->getSema());
 
+	// Enter Function Scope
+	EnterScope();
+
 	// Resolve Parameters Types
 	for (auto Param : AST.getParams()) {
 
 		// resolve parameter type
 		Param->accept(*this);
 		Func->addParam(Param->getSema());
+		addSymbol(new Symbol(Param->getName(), SemaKind::VAR, Param->getSema()));
 	}
 
 	// Add to Body list for resolve in the next step
-	// Enter Function Scope
-	EnterScope();
 	Reg.addBody(CurrentScope, AST.getBody());
 	ExitScope();
 	FLY_DEBUG_END("Resolver", "ResolveFunction");
@@ -1237,7 +1245,8 @@ void Resolver::ResolveParent(ASTIdentifier *AST) {
 		// ---------------------------------------
 		if (!Sema) {
 			Symbol * Sym = Reg.LookupName(AST->getName(), CurrentScope);
-			Sema = Sym->getRef();
+			if (Sym)
+				Sema = Sym->getRef();
 		}
 
 		// ---------------------------------------

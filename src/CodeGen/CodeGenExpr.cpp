@@ -7,21 +7,22 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#include "CodeGen/CodeGenModule.h"
-#include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenExpr.h"
+
+#include "AST/ASTCast.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTOp.h"
 #include "Basic/Debug.h"
-#include "llvm/IR/Value.h"
+#include "CodeGen/CodeGen.h"
+#include "CodeGen/CodeGenModule.h"
+#include "Sema/SemaBuiltin.h"
+#include "Sema/SemaCast.h"
+
+#include "llvm/ADT/SmallVector.h"
 
 #include <AST/ASTArg.h>
 #include <AST/ASTCall.h>
-#include <AST/ASTCast.h>
-#include <AST/ASTType.h>
-#include <AST/ASTValue.h>
 #include <CodeGen/CodeGenClass.h>
 #include <CodeGen/CodeGenVarBase.h>
 #include <Sema/SemaClassAttribute.h>
@@ -31,8 +32,8 @@
 #include <Sema/SemaFunctionBase.h>
 #include <Sema/SemaMemberVar.h>
 #include <Sema/SemaType.h>
-#include <Sema/SemaVar.h>
 #include <Sema/SemaValue.h>
+#include <Sema/SemaVar.h>
 
 using namespace fly;
 
@@ -40,75 +41,59 @@ CodeGenExpr::CodeGenExpr(CodeGenModule *CGM) : CGM(CGM) {
     FLY_DEBUG_START("CodeGenExpr", "CodeGenExpr");
 }
 
+llvm::Value *CodeGenExpr::GenExpr(SemaExpr *Sema) {
+	switch (Sema->getKind()) {
 
-llvm::Value *CodeGenExpr::GenExpr(ASTExpr *Expr) {
-	FLY_DEBUG_START_MSG("CodeGenExpr", "GenExpr", "Expr=" << Expr->str());
+		case SemaKind::VAR:
+			return GenExpr(static_cast<SemaVar *>(Sema));
 
-	switch (Expr->getExprKind()) {
+		case SemaKind::CALL:
+			return GenExpr(static_cast<SemaCall *>(Sema));
 
-		case ASTExprKind::EXPR_VALUE: {
-			FLY_DEBUG_START_MSG("CodeGenExpr", "GenValue", "EXPR_VALUE");
-			ASTValue *Value = static_cast<ASTValue *>(Expr);
-			assert(Value && "Missing Value");
-			return GenExpr(Value->getSema());
-		}
+		case SemaKind::VALUE:
+			return GenExpr(static_cast<SemaValue *>(Sema));
 
-		case ASTExprKind::EXPR_IDENTIFIER: {
-			FLY_DEBUG_START_MSG("CodeGenExpr", "GenValue", "EXPR_VAR_REF");
-			ASTIdentifier *Identifier = static_cast<ASTIdentifier *>(Expr);
-			assert(Identifier && "Missing Ref");
-			return GenExpr(Identifier->getSema())->getValue();
-		}
+		case SemaKind::UNARY:
+			return GenExpr(static_cast<SemaUnary *>(Sema));
 
-		case ASTExprKind::EXPR_CALL: {
-			FLY_DEBUG_START_MSG("CodeGenExpr", "GenValue", "EXPR_CALL");
-			ASTCall *Call = static_cast<ASTCall *>(Expr);
-			assert(Call && "Missing Call");
-			return GenExpr(Call->getSema());
-		}
+		case SemaKind::BINARY:
+			return GenExpr(static_cast<SemaBinary *>(Sema));
 
-		case ASTExprKind::EXPR_CAST: {
-			ASTCast * CastExpr = static_cast<ASTCast *>(Expr);
-			return GenCast(CastExpr->getExpr(), CastExpr->getCast()->getSema());
-		}
+		case SemaKind::TERNARY:
+			return GenExpr(static_cast<SemaTernary *>(Sema));
 
-		case ASTExprKind::EXPR_UNARY:
-			return GenUnary(static_cast<ASTUnaryOp *>(Expr));
+		case SemaKind::CAST:
+			return GenExpr(static_cast<SemaCast *>(Sema));
 
-		case ASTExprKind::EXPR_BINARY:
-			return GenBinary(static_cast<ASTBinaryOp *>(Expr));
-
-		case ASTExprKind::EXPR_TERNARY:
-			return GenTernary(static_cast<ASTTernaryOp *>(Expr));
+		default:
+			assert("Unknown Sema Expr Kind");
+			return nullptr;
 	}
-
-	assert("Unknown Expr Kind");
-	return nullptr;
 }
 
 /**
  * Generate a LLVM Constant Value
  * @param Type is the parsed SemaType
- * @param Val need to be correctly configured or you need to call GenDefaultValue()
+ * @param Sema need to be correctly configured or you need to call GenDefaultValue()
  * @return
  */
-llvm::Value *CodeGenExpr::GenExpr(SemaValue *Val) {
+llvm::Value *CodeGenExpr::GenExpr(SemaValue *Sema) {
     FLY_DEBUG_START("CodeGenModule", "GenValue");
-    assert(Val && "Value has to be not empty");
-	assert(Val->getType() && "Type has to be not empty");
+    assert(Sema && "Value has to be not empty");
+	assert(Sema->getType() && "Type has to be not empty");
 
-	SemaType *Type = Val->getType();
+	SemaType *Type = Sema->getType();
 
 	switch (Type->getTypeKind()) {
 
 		// Boolean Value
 		case SemaTypeKind::TYPE_BOOL:
-			return static_cast<SemaBoolValue *>(Val)->getValue() ?
+			return static_cast<SemaBoolValue *>(Sema)->getValue() ?
 					llvm::ConstantInt::getTrue(CGM->LLVMCtx) : llvm::ConstantInt::getFalse(CGM->LLVMCtx);
 
 		// Integer Value
 		case SemaTypeKind::TYPE_INTEGER: {
-			SemaIntValue * IntValue = static_cast<SemaIntValue *>(Val);
+			SemaIntValue * IntValue = static_cast<SemaIntValue *>(Sema);
 			SemaIntTypeKind IntKind = static_cast<SemaIntType *>(Type)->getIntKind();
 			switch (IntKind) {
 				case SemaIntTypeKind::TYPE_BYTE:
@@ -127,7 +112,7 @@ llvm::Value *CodeGenExpr::GenExpr(SemaValue *Val) {
 
 		// Floating Point Value
 		case SemaTypeKind::TYPE_FLOATING_POINT: {
-			SemaFloatValue *FloatValue = static_cast<SemaFloatValue *>(Val);
+			SemaFloatValue *FloatValue = static_cast<SemaFloatValue *>(Sema);
 			SemaFloatTypeKind FPKind = static_cast<SemaFloatType *>(Type)->getFPKind();
 			switch (FPKind) {
 				case SemaFloatTypeKind::TYPE_FLOAT:
@@ -139,12 +124,12 @@ llvm::Value *CodeGenExpr::GenExpr(SemaValue *Val) {
 
 		// Strig Value
 		case SemaTypeKind::TYPE_STRING: {
-			return CGM->Builder->CreateGlobalStringPtr(static_cast<SemaStringValue *>(Val)->getValue());
+			return CGM->Builder->CreateGlobalStringPtr(static_cast<SemaStringValue *>(Sema)->getValue());
 		}
 
 		// Array Value
 		case SemaTypeKind::TYPE_ARRAY: {
-			SemaArrayValue *ArrayValue = static_cast<SemaArrayValue *>(Val);
+			SemaArrayValue *ArrayValue = static_cast<SemaArrayValue *>(Sema);
 
 			llvm::PointerType *AllocType = CGM->GenArrayType((SemaArrayType *) Type);
 			std::vector<llvm::Value *> Values;
@@ -171,7 +156,7 @@ llvm::Value *CodeGenExpr::GenExpr(SemaValue *Val) {
 		} break;
 
 		case SemaTypeKind::TYPE_CLASS:
-			SemaStructValue *StructValue = static_cast<SemaStructValue *>(Val);
+			SemaStructValue *StructValue = static_cast<SemaStructValue *>(Sema);
             break;
 	}
 
@@ -179,25 +164,7 @@ llvm::Value *CodeGenExpr::GenExpr(SemaValue *Val) {
 	return nullptr;
 }
 
-llvm::Value * CodeGenExpr::GenExpr(SemaExpr *Sema) {
-	switch (Sema->getKind()) {
-
-        case SemaKind::VAR:
-            return GenExpr(static_cast<SemaVar *>(Sema))->getValue();
-
-        case SemaKind::CALL:
-            return GenExpr(static_cast<SemaCall *>(Sema));
-
-		case SemaKind::VALUE:
-			return GenExpr(static_cast<SemaValue *>(Sema));
-
-        default:
-            assert("Unknown Sema Expr Kind");
-            return nullptr;
-    }
-}
-
-CodeGenVarBase *CodeGenExpr::GenExpr(SemaVar *Sema) {
+llvm::Value *CodeGenExpr::GenExpr(SemaVar *Sema) {
 
 	// Class Instance
 	if (Sema->getVarKind() == SemaVarKind::CLASS_INSTANCE) {
@@ -246,7 +213,7 @@ CodeGenVarBase *CodeGenExpr::GenExpr(SemaVar *Sema) {
 		}
 	}
 
-	return Sema->getCodeGen();
+	return Sema->getCodeGen()->getValue();
 }
 
 
@@ -364,9 +331,11 @@ llvm::Value *CodeGenExpr::GenExpr(SemaCall *Sema) {
 }
 
 
-llvm::Value * CodeGenExpr::GenCast(ASTExpr *Expr, SemaType *ToType) {
-	llvm::Value *V = GenExpr(Expr);
-	switch (Expr->getType()->getTypeKind()) {
+llvm::Value * CodeGenExpr::GenExpr(SemaCast *Sema) {
+	ASTCast &AST = Sema->getAST();
+	SemaType *ToType = AST.getToType()->getSema();
+	llvm::Value *V = GenExpr(Sema);
+	switch (AST.getType()->getTypeKind()) {
 
 		case SemaTypeKind::TYPE_VOID:
 		case SemaTypeKind::TYPE_ERROR:
@@ -396,16 +365,17 @@ llvm::Value * CodeGenExpr::GenCast(ASTExpr *Expr, SemaType *ToType) {
 	return V;
 }
 
-llvm::Value *CodeGenExpr::GenUnary(ASTUnaryOp *Unary) {
+llvm::Value *CodeGenExpr::GenExpr(SemaUnary *Sema) {
     FLY_DEBUG_START("CodeGenExpr", "GenUnary");
-    assert(Unary->getExprKind() == ASTExprKind::EXPR_UNARY && "Expected Unary Group Expr");
-    assert(Unary->getExpr() && "Unary Expr empty");
+	ASTUnaryOp &Unary = Sema->getAST();
+    assert(Unary.getExprKind() == ASTExprKind::EXPR_UNARY && "Expected Unary Group Expr");
+    assert(Unary.getExpr() && "Unary Expr empty");
 
-    llvm::Value *OldVal = GenExpr(Unary->getExpr());
+    llvm::Value *OldVal = GenExpr(Unary.getExpr()->getSema());
 	llvm::Value *NewVal = nullptr;
 	llvm::Value *Result = nullptr;
 
-    switch (Unary->getOpKind()) {
+    switch (Unary.getOpKind()) {
 
         case ASTUnaryOpKind::OP_UNARY_PRE_INCR: {
             llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
@@ -434,25 +404,26 @@ llvm::Value *CodeGenExpr::GenUnary(ASTUnaryOp *Unary) {
     }
 
 	// Set Var with NewVal
-	if (Unary->getExpr()->getExprKind() == ASTExprKind::EXPR_IDENTIFIER) {
-		ASTIdentifier *Identifier = static_cast<ASTIdentifier *>(Unary->getExpr());
+	if (Unary.getExpr()->getExprKind() == ASTExprKind::EXPR_IDENTIFIER) {
+		ASTIdentifier *Identifier = static_cast<ASTIdentifier *>(Unary.getExpr());
 		Identifier->getSema()->getCodeGen()->Store(NewVal);
 	}
 
     return Result;
 }
 
-llvm::Value *CodeGenExpr::GenBinary(ASTBinaryOp *Binary) {
+llvm::Value *CodeGenExpr::GenExpr(SemaBinary *Sema) {
     FLY_DEBUG_START("CodeGenExpr", "GenBinary");
-    assert(Binary->getExprKind() == ASTExprKind::EXPR_BINARY && "Expected Binary Group Expr");
-    assert(Binary->getLeftExpr() && "First Expr is empty");
-    assert(Binary->getRightExpr() && "Second Expr is empty");
+	ASTBinaryOp &Binary = Sema->getAST();
+    assert(Binary.getExprKind() == ASTExprKind::EXPR_BINARY && "Expected Binary Group Expr");
+    assert(Binary.getLeftExpr() && "First Expr is empty");
+    assert(Binary.getRightExpr() && "Second Expr is empty");
 
-    SemaExpr *Left = Binary->getLeftExpr()->getSema();
-    SemaExpr *Right = Binary->getRightExpr()->getSema();
-    ASTBinaryOpKind OpKind = Binary->getOpKind();
+    SemaExpr *Left = Binary.getLeftExpr()->getSema();
+    SemaExpr *Right = Binary.getRightExpr()->getSema();
+    ASTBinaryOpKind OpKind = Binary.getOpKind();
 
-    switch (Binary->getBinaryKind()) {
+    switch (Binary.getBinaryKind()) {
         // Arithmetic operations
         case ASTBinaryKind::OP_BINARY_ARITH:
             return GenBinaryArith(Left, OpKind, Right);
@@ -573,7 +544,7 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryOpKind OperatorK
     FLY_DEBUG_START("CodeGenExpr", "GenBinaryLogic");
     llvm::Value *V1 = GenExpr(E1);
     V1 = CGM->ConvertToBool(V1);
-//    V1 = Convert(V1, E1->getType(), BoolType); //FIXME
+    V1 = CGM->Convert(V1, E1->getType(), SemaBuiltin::getBoolType());
     llvm::BasicBlock *FromBB = CGM->Builder->GetInsertBlock();
 
     switch (OperatorKind) {
@@ -627,13 +598,14 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, ASTBinaryOpKind Operato
 	return static_cast<SemaVar *>(E1)->getCodeGen()->Store(GenExpr(E2));
 }
 
-llvm::Value *CodeGenExpr::GenTernary(ASTTernaryOp *Ternary) {
-    assert(Ternary->getConditionExpr() && "First Expr is empty");
-    assert(Ternary->getTrueExpr() && "Second Expr is empty");
-    assert(Ternary->getFalseExpr() && "Third Expr is empty");
+llvm::Value *CodeGenExpr::GenExpr(SemaTernary *Sema) {
+	ASTTernaryOp &Ternary = Sema->getAST();
+    assert(Ternary.getConditionExpr() && "First Expr is empty");
+    assert(Ternary.getTrueExpr() && "Second Expr is empty");
+    assert(Ternary.getFalseExpr() && "Third Expr is empty");
 
     llvm::BasicBlock *FromBB = CGM->Builder->GetInsertBlock();
-    llvm::Value *Cond = GenExpr(Ternary->getConditionExpr());
+    llvm::Value *Cond = GenExpr(Ternary.getConditionExpr()->getSema());
 
     // Create Blocks
     llvm::BasicBlock *TrueBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "terntrue", FromBB->getParent());
@@ -645,13 +617,13 @@ llvm::Value *CodeGenExpr::GenTernary(ASTTernaryOp *Ternary) {
 
     // True Label
     CGM->Builder->SetInsertPoint(TrueBB);
-    llvm::Value *True = GenExpr(Ternary->getTrueExpr());
+    llvm::Value *True = GenExpr(Ternary.getTrueExpr()->getSema());
     llvm::Value *BoolTrue = CGM->ConvertToBool(True);
     CGM->Builder->CreateBr(EndBB);
 
     // False Label
     CGM->Builder->SetInsertPoint(FalseBB);
-    llvm::Value *False = GenExpr(Ternary->getFalseExpr());
+    llvm::Value *False = GenExpr(Ternary.getFalseExpr()->getSema());
     llvm::Value *BoolFalse = CGM->ConvertToBool(False);
     CGM->Builder->CreateBr(EndBB);
 
@@ -666,7 +638,7 @@ llvm::Value *CodeGenExpr::GenTernary(ASTTernaryOp *Ternary) {
 void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &Args) {
 	// Add Call arguments to Function args
 	for (ASTArg *Arg : Sema->getAST().getArgs()) {
-		llvm::Value *V = GenExpr(Arg->getExpr());
+		llvm::Value *V = GenExpr(Arg->getExpr()->getSema());
 		Args.push_back(V);
 	}
 }

@@ -14,7 +14,7 @@
 using namespace fly;
 
 SemaCast::SemaCast(ASTCast &AST) :
-	SemaExpr(SemaKind::CAST, AST.getCast()->getSema()), AST(AST) {
+	SemaExpr(SemaKind::CAST, AST.getToType()->getSema()), AST(AST) {
 }
 
 ASTCast &SemaCast::getAST() const {

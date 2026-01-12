@@ -8,6 +8,9 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaFunctionBase.h"
+
+#include "AST/ASTFunction.h"
+#include "Sema/SemaLocalVar.h"
 #include "Sema/SemaParam.h"
 
 #include <AST/ASTVar.h>
@@ -36,6 +39,10 @@ SemaFunctionBase::~SemaFunctionBase() {
 
 	// Delete ErrorHandler
 	delete ErrorHandler;
+}
+
+llvm::StringRef SemaFunctionBase::getName() const {
+	return AST.getName();
 }
 
 SemaType *SemaFunctionBase::getReturnType() {

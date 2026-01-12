@@ -584,7 +584,7 @@ CodeGenError *CodeGenModule::GenErrorHandler(SemaVar *Sema) {
     return CGE;
 }
 
-llvm::Value *CodeGenModule::GenExpr(ASTExpr *Expr) {
+llvm::Value *CodeGenModule::GenExpr(SemaExpr *Expr) {
     FLY_DEBUG_START("CodeGenModule", "GenExpr");
 	CodeGenExpr CGE(this);
 	return CGE.GenExpr(Expr);
@@ -610,7 +610,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
 
     		// Declaration may be with initialization
     		if (DeclStmt->getExpr()) {
-    			GenExpr(DeclStmt->getExpr());
+    			GenExpr(DeclStmt->getExpr()->getSema());
     		}
     	}
     	break;
@@ -618,7 +618,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         // Expression Statement (includes assignments, calls, etc.)
         case ASTStmtKind::STMT_EXPR: {
             ASTExprStmt *ExprStmt = static_cast<ASTExprStmt *>(Stmt);
-            GenExpr(ExprStmt->getExpr());
+            GenExpr(ExprStmt->getExpr()->getSema());
             break;
         }
 
@@ -650,7 +650,7 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
             // Delete Stmt
         case ASTStmtKind::STMT_DELETE: {
             ASTDeleteStmt *Delete = static_cast<ASTDeleteStmt *>(Stmt);
-        	llvm::Value *V = GenExpr(Delete->getExpr());
+        	llvm::Value *V = GenExpr(Delete->getExpr()->getSema());
             if (Delete->getExpr()->getType()->isClass()) {
                 llvm::Instruction *I = llvm::CallInst::CreateFree(V, Builder->GetInsertBlock());
                 Builder->Insert(I);
@@ -733,18 +733,18 @@ void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGE) {
 	if (FailStmt->getExpr() == nullptr) {
 		CGE->StoreInt(llvm::ConstantInt::get(Int32Ty, 1));
 	} else if (FailStmt->getExpr()->getType()->isBool() || FailStmt->getExpr()->getType()->isInteger()) {
-		llvm::Value *V = GenExpr(FailStmt->getExpr());
+		llvm::Value *V = GenExpr(FailStmt->getExpr()->getSema());
 		CGE->StoreInt(V);
 	} else if (FailStmt->getExpr()->getType()->isString()) {
-		llvm::Value *V = GenExpr(FailStmt->getExpr());
+		llvm::Value *V = GenExpr(FailStmt->getExpr()->getSema());
 		CGE->StoreString(V);
 	} else if (FailStmt->getExpr()->getType()->isClass()) {
 		SemaType * IdentityType = FailStmt->getExpr()->getType();
-		llvm::Value *V = GenExpr(FailStmt->getExpr());
+		llvm::Value *V = GenExpr(FailStmt->getExpr()->getSema());
 		CGE->StoreObject(V);
 	} else if (FailStmt->getExpr()->getType()->isEnum()) {
 		SemaType * IdentityType = FailStmt->getExpr()->getType();
-		llvm::Value *V = GenExpr(FailStmt->getExpr());
+		llvm::Value *V = GenExpr(FailStmt->getExpr()->getSema());
 		CGE->StoreInt(V);
 	}
 }
@@ -761,7 +761,7 @@ void CodeGenModule::GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
     llvm::Function *Fn = CGF->getFunction();
 
     // If Block
-    llvm::Value *IfCond = GenExpr(If->getRule());
+    llvm::Value *IfCond = GenExpr(If->getRule()->getSema());
     llvm::BasicBlock *IfBB = llvm::BasicBlock::Create(LLVMCtx, "ifthen", Fn);
 
     // Create End block
@@ -796,7 +796,7 @@ void CodeGenModule::GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
                 }
                 ASTRuleStmt *Elsif = If->getElsif()[i];
                 Builder->SetInsertPoint(ElsifBB);
-                llvm::Value *ElsifCond = GenExpr(Elsif->getRule());
+                llvm::Value *ElsifCond = GenExpr(Elsif->getRule()->getSema());
                 Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
 
                 Builder->SetInsertPoint(ElsifThenBB);
@@ -839,7 +839,7 @@ void CodeGenModule::GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
                 }
                 ASTRuleStmt *Elsif = If->getElsif()[i];
                 Builder->SetInsertPoint(ElsifBB);
-                llvm::Value *ElsifCond = GenExpr(Elsif->getRule());
+                llvm::Value *ElsifCond = GenExpr(Elsif->getRule()->getSema());
                 Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
 
                 Builder->SetInsertPoint(ElsifThenBB);
@@ -868,7 +868,7 @@ void CodeGenModule::GenElsifStmt(CodeGenFunctionBase *CGF,
     It++;
     if (*It != nullptr) {
         Builder->SetInsertPoint(ElsifBB);
-        llvm::Value *Cond = GenExpr(Elsif->getRule());
+        llvm::Value *Cond = GenExpr(Elsif->getRule()->getSema());
         llvm::BasicBlock *NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn);
         Builder->CreateCondBr(Cond, ElsifBB, NextElsifBB);
 
@@ -887,7 +887,7 @@ void CodeGenModule::GenSwitchStmt(CodeGenFunctionBase *CGF, ASTSwitchStmt *Switc
     llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endswitch", Fn);
 
     // Create Expression evaluator for Switch
-    llvm::Value *SwitchVal = GenExpr(Switch->getVar());
+    llvm::Value *SwitchVal = GenExpr(Switch->getVar()->getSema());
     llvm::SwitchInst *Inst = Builder->CreateSwitch(SwitchVal, EndBB);
 
     // Create Cases
@@ -896,7 +896,7 @@ void CodeGenModule::GenSwitchStmt(CodeGenFunctionBase *CGF, ASTSwitchStmt *Switc
     llvm::BasicBlock *NextCaseBB = nullptr;
     for (unsigned long i=0; i < Size; i++) {
         ASTRuleStmt *Case = Switch->getCases()[i];
-        llvm::Value *CaseVal = GenExpr(Case->getRule());
+        llvm::Value *CaseVal = GenExpr(Case->getRule()->getSema());
         llvm::ConstantInt *CaseConst = llvm::cast<llvm::ConstantInt, llvm::Value>(CaseVal);
         llvm::BasicBlock *CaseBB = NextCaseBB == nullptr ?
                                    llvm::BasicBlock::Create(LLVMCtx, "case", Fn, EndBB) : NextCaseBB;
@@ -959,7 +959,7 @@ void CodeGenModule::GenLoopStmt(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop) {
 
         // Create Condition
         Builder->SetInsertPoint(CondBB);
-        llvm::Value *Cond = GenExpr(Loop->getRule());
+        llvm::Value *Cond = GenExpr(Loop->getRule()->getSema());
         Builder->CreateCondBr(Cond, LoopBB, EndBB);
     } else {
         Builder->CreateBr(LoopBB);
@@ -996,7 +996,7 @@ void CodeGenModule::GenReturn(ASTFunction *F, ASTExpr *Expr) {
     } else {
         llvm::Value *Ret;
         if (Expr) {
-            llvm::Value *V = GenExpr(Expr);
+            llvm::Value *V = GenExpr(Expr->getSema());
             Ret = Convert(V, Expr->getType(), F->getReturnType()->getSema());
         } else {
             Ret = GenDefaultValue(F->getReturnType()->getSema());

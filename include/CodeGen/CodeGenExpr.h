@@ -10,6 +10,11 @@
 
 #ifndef FLY_CODEGEN_EXPR_H
 #define FLY_CODEGEN_EXPR_H
+#include <llvm/ADT/SmallVector.h>
+
+namespace llvm {
+	class Value;
+}
 
 namespace fly {
 
@@ -21,6 +26,14 @@ namespace fly {
     class ASTIdentifier;
     class SemaExpr;
     class ASTExpr;
+	class SemaVar;
+	class SemaCall;
+	class SemaType;
+	class SemaValue;
+	class SemaCast;
+	class SemaUnary;
+	class SemaBinary;
+	class SemaTernary;
     enum class ASTBinaryOpKind;
 
     class CodeGenExpr {
@@ -31,25 +44,23 @@ namespace fly {
 
         CodeGenExpr(CodeGenModule *CGM);
 
-        llvm::Value *GenExpr(ASTExpr *Expr);
+    	llvm::Value *GenExpr(SemaExpr *Sema);
 
     private:
 
-        llvm::Value* GenExpr(SemaExpr *Sema);
-
-        CodeGenVarBase *GenExpr(SemaVar *Sema);
+        llvm::Value *GenExpr(SemaVar *Sema);
 
         llvm::Value *GenExpr(SemaCall *Sema);
 
-        llvm::Value *GenExpr(SemaValue *Val);
+        llvm::Value *GenExpr(SemaValue *Sema);
 
-        llvm::Value *GenCast(ASTExpr *Expr, SemaType *ToType);
+        llvm::Value *GenExpr(SemaCast *Sema);
 
-        llvm::Value *GenUnary(ASTUnaryOp *Unary);
+        llvm::Value *GenExpr(SemaUnary *Sema);
 
-        llvm::Value *GenBinary(ASTBinaryOp *Binary);
+        llvm::Value *GenExpr(SemaBinary *Sema);
 
-        llvm::Value *GenTernary(ASTTernaryOp *Ternary);
+        llvm::Value *GenExpr(SemaTernary *Sema);
 
         llvm::Value *GenBinaryArith(SemaExpr *E1, ASTBinaryOpKind OperatorKind, SemaExpr *E2);
 
@@ -59,7 +70,7 @@ namespace fly {
 
         llvm::Value* GenBinaryAssign(SemaExpr *E1, ASTBinaryOpKind OperatorKind, SemaExpr *E2);
 
-        void addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value*, 8>& Args);
+        void addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &Args);
     };
 }
 

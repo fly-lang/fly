@@ -36,7 +36,7 @@ namespace fly {
 
         ASTExpr *getExpr() const;
 
-        ASTType *getCast() const;
+        ASTType *getToType() const;
 
 		SemaExpr *getSema() const override;
 

@@ -26,6 +26,7 @@ namespace llvm {
 
 namespace fly {
 
+	class SemaType;
     class SemaFunctionBase;
     class ASTVar;
     class CodeGenModule;
@@ -84,6 +85,10 @@ namespace fly {
         void setSafeBB(llvm::BasicBlock *BB);
 
         virtual void GenBody() = 0;
+
+    	std::string Mangle(SemaType *Type);
+
+    	std::string Mangle(SemaFunctionBase *AST);
     };
 }
 

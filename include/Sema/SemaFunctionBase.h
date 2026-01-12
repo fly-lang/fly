@@ -48,6 +48,8 @@ namespace fly {
 
         ~SemaFunctionBase() override;
 
+    	llvm::StringRef getName() const;
+
     	SemaType *getReturnType();
 
         void setReturnType(SemaType *RetType);
