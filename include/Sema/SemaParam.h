@@ -35,6 +35,8 @@ namespace fly {
     	CodeGenVar *getCodeGen() const override;
 
         void setCodeGen(CodeGenVarBase * CGC) override;
+
+        void accept(SemaVisitor& Visitor) override;
     };
 
 }  // end namespace fly

@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaFunction.h"
+#include "Sema/SemaVisitor.h"
 #include "Sema/Helper.h"
 
 using namespace fly;
@@ -53,3 +54,8 @@ CodeGenFunction *SemaFunction::getCodeGen() const {
 void SemaFunction::setCodeGen(CodeGenFunction *CGF) {
 	CodeGen = CGF;
 }
+
+void SemaFunction::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

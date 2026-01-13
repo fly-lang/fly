@@ -43,6 +43,8 @@ namespace fly {
 
         llvm::StringRef getName() const;
 
+        void accept(SemaVisitor& Visitor) override;
+
     };
 }
 

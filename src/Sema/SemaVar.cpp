@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaVar.h"
+#include "Sema/SemaVisitor.h"
 
 #include <AST/ASTVar.h>
 
@@ -33,3 +34,6 @@ bool SemaVar::isConstant() const {
 	return Constant;
 }
 
+void SemaVar::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}

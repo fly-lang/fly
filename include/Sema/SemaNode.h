@@ -11,14 +11,11 @@
 #ifndef FLY_SEMA_NODE_H
 #define FLY_SEMA_NODE_H
 
-#include "Sema/SemaNode.h"
+#include "Sema/SemaVisitor.h"
 
 namespace fly {
 
-	class ASTNode;
-
 	enum class SemaKind {
-		MODULE,
 		NAMESPACE,
 		IMPORT,
 		TYPE,
@@ -30,10 +27,9 @@ namespace fly {
 		CAST,
 		FUNCTION,
 		CLASS,
-		ATTRIBUTE,
 		METHOD,
 		ENUM,
-		ENUM_ENTRY,
+		ENUM_VALUE,
 		VALUE
 	};
 
@@ -49,7 +45,7 @@ namespace fly {
 
 		SemaKind getKind() const;
 
-		// virtual void accept(SemaVisitor& Visitor) = 0; // FIXME To manage errors
+		virtual void accept(SemaVisitor& Visitor) = 0;
 	};
 
 }

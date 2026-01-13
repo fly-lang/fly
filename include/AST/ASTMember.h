@@ -16,7 +16,7 @@
 namespace fly {
 
 	class ASTVar;
-	class SemaVar;
+	class SemaExpr;
 
 	class ASTMember : public ASTExpr {
 
@@ -40,9 +40,9 @@ namespace fly {
 
 		ASTVar *getVar();
 
-		SemaMemberVar *getSema() const override;
+		SemaExpr *getSema() const override;
 
-		void setSema(SemaVar *Sema);
+		void setSema(SemaExpr *Sema);
 
 		std::string str() const override;
 	};

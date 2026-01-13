@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaImport.h"
+#include "Sema/SemaVisitor.h"
 
 #include <AST/ASTImport.h>
 #include <AST/ASTIdentifier.h>
@@ -40,3 +41,8 @@ void SemaImport::setSymbols(SymbolTable *Symbols) {
 void SemaImport::addSymbol(SymbolTable *Symbols) {
 	this->Symbols = Symbols;
 }
+
+void SemaImport::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

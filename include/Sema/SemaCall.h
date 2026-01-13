@@ -48,6 +48,8 @@ namespace fly {
 
     	bool isNew() const;
 
+    	void accept(SemaVisitor& Visitor) override;
+
     };
 
 }

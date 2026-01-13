@@ -13,35 +13,37 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenModule.h"
-#include "CodeGen/CodeGen.h"
-#include "CodeGen/CodeGenFunction.h"
-#include "CodeGen/CodeGenClass.h"
-#include "CodeGen/CodeGenEnumEntry.h"
-#include "CodeGen/CodeGenGlobalVar.h"
-#include "CodeGen/CodeGenVar.h"
-#include "CodeGen/CodeGenExpr.h"
-#include "CodeGen/CodeGenError.h"
-#include "CodeGen/CodeGenHandle.h"
-#include "Sema/SemaNameSpace.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTDeleteStmt.h"
+
 #include "AST/ASTArg.h"
-#include "AST/ASTCall.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTFailStmt.h"
-#include "AST/ASTHandleStmt.h"
 #include "AST/ASTBlockStmt.h"
-#include "AST/ASTIfStmt.h"
-#include "AST/ASTSwitchStmt.h"
-#include "AST/ASTLoopStmt.h"
-#include "AST/ASTValue.h"
-#include "AST/ASTIdentifier.h"
-#include "AST/ASTReturnStmt.h"
+#include "AST/ASTCall.h"
 #include "AST/ASTClass.h"
+#include "AST/ASTDeleteStmt.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTExprStmt.h"
+#include "AST/ASTFailStmt.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTHandleStmt.h"
+#include "AST/ASTIdentifier.h"
+#include "AST/ASTIfStmt.h"
+#include "AST/ASTLoopStmt.h"
+#include "AST/ASTModule.h"
+#include "AST/ASTNameSpace.h"
+#include "AST/ASTReturnStmt.h"
+#include "AST/ASTSwitchStmt.h"
+#include "AST/ASTValue.h"
 #include "Basic/Debug.h"
+#include "CodeGen/CodeGen.h"
+#include "CodeGen/CodeGenClass.h"
+#include "CodeGen/CodeGenEnumValue.h"
+#include "CodeGen/CodeGenError.h"
+#include "CodeGen/CodeGenExpr.h"
+#include "CodeGen/CodeGenFunction.h"
+#include "CodeGen/CodeGenGlobalVar.h"
+#include "CodeGen/CodeGenHandle.h"
+#include "CodeGen/CodeGenVar.h"
+#include "Sema/SemaNameSpace.h"
+
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
 
@@ -51,19 +53,18 @@
 #include <AST/ASTType.h>
 #include <AST/ASTVar.h>
 #include <CodeGen/CharUnits.h>
-#include <Sema/SemaValue.h>
 #include <Sema/SemaCall.h>
 #include <Sema/SemaClassAttribute.h>
-#include <Sema/SemaClassType.h>
 #include <Sema/SemaClassMethod.h>
+#include <Sema/SemaClassType.h>
 #include <Sema/SemaEnumType.h>
-#include <Sema/SemaEnumEntry.h>
+#include <Sema/SemaEnumValue.h>
 #include <Sema/SemaErrorHandler.h>
 #include <Sema/SemaFunction.h>
 #include <Sema/SemaMemberVar.h>
 #include <Sema/SemaModule.h>
-#include <Sema/SemaValue.h>
 #include <Sema/SemaNameSpace.h>
+#include <Sema/SemaValue.h>
 #include <llvm/IR/Instructions.h>
 
 using namespace fly;
@@ -185,8 +186,8 @@ CodeGenClass *CodeGenModule::GenClass(SemaClassType *Class, bool isExternal) {
 
 void CodeGenModule::GenEnum(SemaEnumType *Enum) {
     for (auto &EntryEntry : Enum->getEntries()) {
-    	SemaEnumEntry *Entry = EntryEntry.getValue();
-        Entry->setCodeGen(new CodeGenEnumEntry(this, Entry));
+    	SemaEnumValue *Entry = EntryEntry.getValue();
+        Entry->setCodeGen(new CodeGenEnumValue(this, Entry));
     }
 }
 

@@ -46,6 +46,8 @@ namespace fly {
     	void setParent(SemaExpr &Result);
 
     	SemaExpr *getChild() const;
+
+    	void accept(SemaVisitor& Visitor) override;
     };
 
 }

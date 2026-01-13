@@ -10,6 +10,7 @@
 #include "AST/ASTMember.h"
 
 #include <AST/ASTVisitor.h>
+#include <Sema/SemaExpr.h>
 
 using namespace fly;
 
@@ -32,11 +33,11 @@ ASTVar * ASTMember::getVar() {
 	return Var;
 }
 
-SemaMemberVar *ASTMember::getSema() const {
-	return static_cast<SemaMemberVar *>(Sema);
+SemaExpr *ASTMember::getSema() const {
+	return Sema;
 }
 
-void ASTMember::setSema(SemaVar *Sema) {
+void ASTMember::setSema(SemaExpr *Sema) {
 	this->Sema = Sema;
 }
 

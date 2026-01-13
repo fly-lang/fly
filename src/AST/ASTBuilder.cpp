@@ -37,7 +37,7 @@
 
 #include <AST/ASTAttribute.h>
 #include <AST/ASTDeclStmt.h>
-#include <AST/ASTEnumEntry.h>
+#include <AST/ASTEnumValue.h>
 #include <AST/ASTExprStmt.h>
 #include <AST/ASTFailStmt.h>
 #include <AST/ASTLocalVar.h>
@@ -262,17 +262,16 @@ ASTEnum *ASTBuilder::CreateEnum(
 	return Enum;
 }
 
-ASTEnumEntry *ASTBuilder::CreateEnumEntry(
+ASTEnumValue *ASTBuilder::CreateEnumValue(
 	const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name,
 	llvm::SmallVector<ASTModifier *, 8> &Modifiers) {
 	FLY_DEBUG_START_MSG("ASTBuilder", "CreateEnumEntry", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
-	ASTType *TypeRef = CreateIntType(Loc);
-	ASTEnumEntry *EnumEntry = new ASTEnumEntry(Loc, TypeRef, Name, Modifiers);
-	Enum->Nodes.push_back(EnumEntry);
+	ASTEnumValue *EnumValue = new ASTEnumValue(Loc, Enum, Name);
+	Enum->Nodes.push_back(EnumValue);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateEnumEntry");
-	return EnumEntry;
+	return EnumValue;
 }
 
 /**

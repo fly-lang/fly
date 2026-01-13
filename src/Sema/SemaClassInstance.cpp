@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaClassInstance.h"
+#include "Sema/SemaVisitor.h"
 #include "CodeGen/CodeGenVar.h"
 
 using namespace fly;
@@ -65,5 +66,11 @@ CodeGenVarBase * SemaClassInstance::getCodeGen() const {
 }
 
 void SemaClassInstance::setCodeGen(CodeGenVarBase *CodeGen) {
-	this->CodeGen = static_cast<CodeGenVar *>(CodeGen);
+        this->CodeGen = static_cast<CodeGenVar *>(CodeGen);
 }
+
+void SemaClassInstance::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
+

@@ -34,7 +34,7 @@ bool SymbolTable::insert(Symbol *Sym) {
 
 	if (ExistingSymbols) {
 		// For functions and methods, check for duplicates based on parameter types
-		if (Sym->getKind() == SemaKind::FUNCTION || Sym->getKind() == SemaKind::METHOD) {
+		if (Sym->getKind() == SymbolKind::FUNCTION) {
 			SemaFunctionBase *NewFunction = static_cast<SemaFunctionBase *>(Sym->getRef());
 			llvm::SmallVector<SemaParam *, 8> &NewParams = NewFunction->getParams();
 

@@ -9,8 +9,8 @@
 
 #include "Sema/SemaClassAttribute.h"
 
-#include <AST/ASTAttribute.h>
-
+#include "AST/ASTAttribute.h"
+#include "Sema/SemaVisitor.h"
 
 using namespace fly;
 
@@ -51,3 +51,8 @@ CodeGenVar * SemaClassAttribute::getCodeGen() const {
 void SemaClassAttribute::setCodeGen(CodeGenVarBase *CodeGen) {
 	this->CodeGen = static_cast<CodeGenVar *>(CodeGen);
 }
+
+void SemaClassAttribute::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

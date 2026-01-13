@@ -13,6 +13,7 @@
 #include "AST/ASTCall.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
+#include "AST/ASTEnumValue.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTTernary.h"
 #include "AST/ASTUnary.h"
@@ -25,8 +26,8 @@
 #include "Sema/SemaClassMethod.h"
 #include "Sema/SemaClassType.h"
 #include "Sema/SemaComment.h"
-#include "Sema/SemaEnumEntry.h"
 #include "Sema/SemaEnumType.h"
+#include "Sema/SemaEnumValue.h"
 #include "Sema/SemaFunction.h"
 #include "Sema/SemaMemberVar.h"
 #include "Sema/SemaModule.h"
@@ -188,10 +189,10 @@ SemaEnumType * SemaBuilder::CreateEnum(SemaModule &Module, SymbolTable *Symbols,
 	return Enum;
 }
 
-SemaEnumEntry * SemaBuilder::CreateEnumEntry(SemaEnumType *Enum, ASTVar &AST) {
+SemaEnumValue * SemaBuilder::CreateEnumValue(SemaEnumType *Enum, ASTEnumValue &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateEnumEntry");
 
-	SemaEnumEntry *Entry = new SemaEnumEntry(AST, Enum);
+	SemaEnumValue *Entry = new SemaEnumValue(AST, Enum);
 	// EnumEntry->Index = Enum.Entries.size() + 1; TODO
 	Enum->Entries.insert(std::make_pair(AST.getName(), Entry));
 

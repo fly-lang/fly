@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaFunctionBase.h"
+#include "Sema/SemaVisitor.h"
 
 #include "AST/ASTFunction.h"
 #include "Sema/SemaLocalVar.h"
@@ -15,7 +16,6 @@
 
 #include <AST/ASTVar.h>
 #include <CodeGen/CodeGenFunctionBase.h>
-#include <Sema/Helper.h>
 #include <Sema/SemaErrorHandler.h>
 #include <Sema/SemaType.h>
 
@@ -76,3 +76,8 @@ void SemaFunctionBase::addLocalVar(SemaLocalVar *Var) {
 SemaErrorHandler * SemaFunctionBase::getErrorHandler() const {
 	return ErrorHandler;
 }
+
+void SemaFunctionBase::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

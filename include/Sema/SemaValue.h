@@ -26,6 +26,7 @@ namespace fly {
 	class ASTArrayValue;
 	class ASTStructValue;
 	class ASTNullValue;
+	class ASTEnumValue;
     class SemaType;
 
     class SemaValue : public SemaExpr {
@@ -46,6 +47,8 @@ namespace fly {
 
     	ASTValue *getAST() const;
 
+    	void accept(SemaVisitor& Visitor) override;
+
     };
 
 	class SemaBoolValue : public SemaValue {
@@ -63,6 +66,8 @@ namespace fly {
 		~SemaBoolValue() override = default;
 
 		bool getValue() const;
+
+		void accept(SemaVisitor& Visitor) override;
 
 	};
 
@@ -82,6 +87,8 @@ namespace fly {
 
 		llvm::APInt getValue() const;
 
+		void accept(SemaVisitor& Visitor) override;
+
 	};
 
 	class SemaFloatValue : public SemaValue {
@@ -99,6 +106,8 @@ namespace fly {
 		~SemaFloatValue() override = default;
 
 		llvm::APFloat getValue() const;
+
+		void accept(SemaVisitor& Visitor) override;
 
 	};
 
@@ -118,6 +127,8 @@ namespace fly {
 
 		llvm::StringRef getValue() const;
 
+		void accept(SemaVisitor& Visitor) override;
+
 	};
 
 	class SemaArrayValue : public SemaValue {
@@ -135,6 +146,8 @@ namespace fly {
 		~SemaArrayValue() override = default;
 
 		const llvm::SmallVector<SemaValue *, 8> &getValues() const;
+
+		void accept(SemaVisitor& Visitor) override;
 
 	};
 
@@ -154,6 +167,8 @@ namespace fly {
 
 		const llvm::StringMap<SemaValue *> &getValues() const;
 
+		void accept(SemaVisitor& Visitor) override;
+
 	};
 
 	class SemaNullValue : public SemaValue {
@@ -165,6 +180,8 @@ namespace fly {
 	public:
 
 		~SemaNullValue() override = default;
+
+		void accept(SemaVisitor& Visitor) override;
 	};
 
 }

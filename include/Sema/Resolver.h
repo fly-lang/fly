@@ -10,12 +10,12 @@
 #ifndef FLY_SEMA_RESOLVER_H
 #define FLY_SEMA_RESOLVER_H
 
-#include <AST/ASTMember.h>
-
+#include "AST/ASTVisitor.h"
 #include "SemaClassAttribute.h"
 #include "SemaClassMethod.h"
-#include "SemaEnumEntry.h"
-#include "AST/ASTVisitor.h"
+#include "SemaEnumValue.h"
+
+#include <AST/ASTMember.h>
 
 namespace fly {
 
@@ -119,7 +119,6 @@ namespace fly {
         void visit(ASTAttribute &AST) override;
         void visit(ASTMethod &AST) override;
         void visit(ASTEnum &AST) override;
-        void visit(ASTEnumEntry &AST) override;
         void visit(ASTLocalVar &AST) override;
         void visit(ASTParam &AST) override;
         void visit(ASTComment &AST) override;
@@ -160,6 +159,7 @@ namespace fly {
         void visit(ASTStructValue &AST) override;
         void visit(ASTNullValue &AST) override;
         void visit(ASTDefaultValue &AST) override;
+    	void visit(ASTEnumValue &AST) override;
 
         // Main Resolve Function
         void Resolve();
@@ -213,7 +213,7 @@ namespace fly {
 
         SemaCall *ResolveChildCall(SemaExpr *Parent, ASTCall *AST);
 
-        SemaVar *ResolveChildMember(SemaExpr *Parent, ASTMember *AST);
+        SemaExpr *ResolveChildMember(SemaExpr *Parent, ASTMember *AST);
 
         SmallVector<SemaType *, 8> ResolveCallArgs(ASTCall *AST);
 
@@ -225,3 +225,4 @@ namespace fly {
 } // end namespace fly
 
 #endif
+

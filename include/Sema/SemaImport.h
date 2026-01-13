@@ -45,6 +45,8 @@ namespace fly {
         void setSymbols(SymbolTable *Symbols);
 
         void addSymbol(SymbolTable *Symbols);
+
+        void accept(SemaVisitor& Visitor) override;
     };
 }
 

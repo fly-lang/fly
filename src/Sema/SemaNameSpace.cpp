@@ -8,9 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaNameSpace.h"
+#include "Sema/SemaVisitor.h"
 #include "llvm/ADT/StringRef.h"
-
-#include <AST/ASTNameSpace.h>
 #include <Sema/SymbolTable.h>
 
 using namespace fly;
@@ -30,3 +29,8 @@ SymbolTable * SemaNameSpace::getSymbols() const {
 llvm::StringRef SemaNameSpace::getName() const {
 	return Name;
 }
+
+void SemaNameSpace::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaCast.h"
+#include "Sema/SemaVisitor.h"
 
 #include "AST/ASTCast.h"
 
@@ -21,4 +22,6 @@ ASTCast &SemaCast::getAST() const {
 	return AST;
 }
 
-
+void SemaCast::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}

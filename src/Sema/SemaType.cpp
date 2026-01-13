@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaType.h"
+#include "Sema/SemaVisitor.h"
 
 #include <Sema/SemaClassType.h>
 #include <Sema/SemaNameSpace.h>
@@ -30,6 +31,7 @@ const size_t SemaType::getId() const {
 const SemaTypeKind SemaType::getTypeKind() const {
 	return TypeKind;
 }
+
 
 const std::string SemaType::getName() const {
 	return Name;
@@ -87,6 +89,10 @@ bool SemaType::operator==(const SemaType *Type) const {
 	return isEquals(Type);
 }
 
+void SemaType::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
 SemaIntType::SemaIntType(SemaIntTypeKind IntKind, std::string Name) : SemaType(SemaKind::TYPE, SemaTypeKind::TYPE_INTEGER, Name),
                                                  IntKind(IntKind) {
 }
@@ -100,12 +106,20 @@ bool SemaIntType::isSigned() {
 		IntKind == SemaIntTypeKind::TYPE_LONG;
 }
 
+void SemaIntType::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
 SemaFloatType::SemaFloatType(SemaFloatTypeKind FPKind, std::string Name) : SemaType(SemaKind::TYPE, SemaTypeKind::TYPE_FLOATING_POINT, Name),
                                              FPKind(FPKind) {
 }
 
 const SemaFloatTypeKind SemaFloatType::getFPKind() const {
 	return FPKind;
+}
+
+void SemaFloatType::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 SemaArrayType::SemaArrayType(SemaType *Type, ASTExpr *SizeExpr) :
@@ -115,3 +129,12 @@ SemaArrayType::SemaArrayType(SemaType *Type, ASTExpr *SizeExpr) :
 SemaType *SemaArrayType::getType() {
 	return Type;
 }
+
+void SemaArrayType::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
+void SemaErrorType::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

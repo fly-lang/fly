@@ -61,6 +61,8 @@ namespace fly {
 
     	void addNode(SemaNode *Node);
 
+    	void accept(class SemaVisitor& Visitor);
+
     };
 }
 

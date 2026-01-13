@@ -24,7 +24,7 @@ add_library(flyLib
         AST/ASTContinueStmt.cpp
         AST/ASTDeleteStmt.cpp
         AST/ASTEnum.cpp
-        AST/ASTEnumEntry.cpp
+        AST/ASTEnumValue.cpp
         AST/ASTExpr.cpp
         AST/ASTExprStmt.cpp
         AST/ASTFailStmt.cpp
@@ -109,7 +109,7 @@ add_library(flyLib
         CodeGen/CodeGen.cpp
         CodeGen/CodeGenClass.cpp
         CodeGen/CodeGenClassMethod.cpp
-        CodeGen/CodeGenEnumEntry.cpp
+        CodeGen/CodeGenEnumValue.cpp
         CodeGen/CodeGenExpr.cpp
         CodeGen/CodeGenError.cpp
         CodeGen/CodeGenFunction.cpp
@@ -160,7 +160,7 @@ add_library(flyLib
         Sema/SemaClassInstance.cpp
         Sema/SemaClassMethod.cpp
         Sema/SemaEnumType.cpp
-        Sema/SemaEnumEntry.cpp
+        Sema/SemaEnumValue.cpp
         Sema/SemaErrorHandler.cpp
         Sema/SemaFunction.cpp
         Sema/SemaFunctionBase.cpp

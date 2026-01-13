@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaValue.h"
+#include "Sema/SemaVisitor.h"
 #include "AST/ASTValue.h"
 
 #include <Sema/SemaBuiltin.h>
@@ -21,11 +22,19 @@ ASTValue *SemaValue::getAST() const {
 	return &AST;
 }
 
+void SemaValue::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
 SemaBoolValue::SemaBoolValue(ASTBoolValue &AST) : SemaValue(AST, SemaBuiltin::getBoolType()), Value(AST.getValue()) {
 }
 
 bool SemaBoolValue::getValue() const {
 	return Value;
+}
+
+void SemaBoolValue::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 SemaIntValue::SemaIntValue(ASTNumberValue &AST, SemaIntType *Type, llvm::APInt &Value) :
@@ -34,6 +43,10 @@ SemaIntValue::SemaIntValue(ASTNumberValue &AST, SemaIntType *Type, llvm::APInt &
 
 llvm::APInt SemaIntValue::getValue() const {
 	return Value;
+}
+
+void SemaIntValue::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 SemaFloatValue::SemaFloatValue(ASTNumberValue &AST,  SemaFloatType *Type, llvm::APFloat &Value) :
@@ -45,11 +58,19 @@ llvm::APFloat SemaFloatValue::getValue() const {
 	return Value;
 }
 
+void SemaFloatValue::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
 SemaStringValue::SemaStringValue(ASTStringValue &AST) : SemaValue(AST, SemaBuiltin::getStringType()) {
 }
 
 llvm::StringRef SemaStringValue::getValue() const {
 	return Value;
+}
+
+void SemaStringValue::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 SemaArrayValue::SemaArrayValue(ASTArrayValue &AST, SemaType *Type) : SemaValue(AST, Type) {
@@ -59,6 +80,10 @@ const llvm::SmallVector<SemaValue *, 8> &SemaArrayValue::getValues() const {
 	return Values;
 }
 
+void SemaArrayValue::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
 SemaStructValue::SemaStructValue(ASTStructValue &AST, SemaType *Type) : SemaValue(AST, Type) {
 }
 
@@ -66,6 +91,15 @@ const llvm::StringMap<SemaValue *> &SemaStructValue::getValues() const {
 	return Values;
 }
 
+void SemaStructValue::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
 SemaNullValue::SemaNullValue(ASTNullValue &AST) : SemaValue(AST, nullptr) {
 
 }
+
+void SemaNullValue::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

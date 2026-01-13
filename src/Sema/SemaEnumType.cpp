@@ -9,10 +9,12 @@
 
 #include "Sema/SemaEnumType.h"
 
+#include "Sema/SemaVisitor.h"
+
 #include "llvm/ADT/StringMap.h"
 
 #include <AST/ASTEnum.h>
-#include <Sema/SemaEnumEntry.h>
+#include <Sema/SemaEnumValue.h>
 
 using namespace fly;
 
@@ -59,18 +61,16 @@ bool SemaEnumType::isConstant() const {
 	return Constant;
 }
 
-const llvm::StringMap<SemaEnumEntry *> &SemaEnumType::getEntries() const {
+const llvm::StringMap<SemaEnumValue *> &SemaEnumType::getEntries() const {
     return Entries;
 }
 
-SemaEnumEntry * SemaEnumType::LookupEntry(llvm::StringRef Name) const {
+SemaEnumValue * SemaEnumType::LookupEntry(llvm::StringRef Name) const {
 	return Entries.lookup(Name);
 }
 
-void SemaEnumType::addEntry(SemaEnumEntry *Entry) {
-	Nodes.push_back(Entry);
-	auto Pair = std::make_pair(Entry->getName(), Entry);
-	Entries.insert(Pair);
+void SemaEnumType::addEntry(SemaEnumValue *Value) {
+	Nodes.push_back(Value);
 }
 
 SemaComment * SemaEnumType::getComment() const {
@@ -128,3 +128,8 @@ bool SemaEnumType::isBase(const SemaEnumType *Derived) const {
 
 	return false;
 }
+
+void SemaEnumType::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

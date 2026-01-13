@@ -16,21 +16,31 @@
 
 namespace fly {
 
+	enum class SymbolKind {
+		NAMESPACE,
+		TYPE,
+		VAR,
+		VALUE,
+		FUNCTION,
+		CLASS,
+		ENUM,
+	};
+
 	struct Symbol {
 
 		std::string Name;
 
-		SemaKind Kind;
+		SymbolKind Kind;
 
 		SemaNode *Ref;  // riferimento all’oggetto semantico (Sema*)
 
-		Symbol(std::string Name, SemaKind Kind, SemaNode* Ref);
+		Symbol(std::string Name, SymbolKind Kind, SemaNode* Ref);
 
-		Symbol(llvm::StringRef Name, SemaKind Kind, SemaNode* Ref);
+		Symbol(llvm::StringRef Name, SymbolKind Kind, SemaNode* Ref);
 
 		std::string getName() const;
 
-		SemaKind getKind() const;
+		SymbolKind getKind() const;
 
 		SemaNode * getRef() const;
 	};

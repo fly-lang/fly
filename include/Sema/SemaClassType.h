@@ -143,6 +143,8 @@ namespace fly {
         CodeGenClass *getCodeGen() const;
 
         void setCodeGen(CodeGenClass *CGC);
+
+        void accept(SemaVisitor& Visitor) override;
     };
 
 }  // end namespace fly

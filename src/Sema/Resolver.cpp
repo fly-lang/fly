@@ -20,7 +20,7 @@
 #include "AST/ASTContinueStmt.h"
 #include "AST/ASTDeleteStmt.h"
 #include "AST/ASTEnum.h"
-#include "AST/ASTEnumEntry.h"
+#include "AST/ASTEnumValue.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTFailStmt.h"
@@ -64,7 +64,7 @@
 #include <Sema/Helper.h>
 #include <Sema/Registry.h>
 #include <Sema/SemaCall.h>
-#include <Sema/SemaEnumEntry.h>
+#include <Sema/SemaEnumValue.h>
 #include <Sema/SemaFunction.h>
 #include <Sema/SemaLocalVar.h>
 #include <Sema/SemaParam.h>
@@ -168,7 +168,7 @@ void Resolver::visit(ASTFunction &AST) {
 	CurrentFunction = SemaBuilder::CreateFunction(*CurrentModule, CurrentScope, AST);
 
 	// Add to Symbol Table of Parent Scope (Module or Class)
-	Symbol *Sym = new Symbol(AST.getName(), CurrentFunction->getKind(), CurrentFunction);
+	Symbol *Sym = new Symbol(AST.getName(), SymbolKind::FUNCTION, CurrentFunction);
 
 	// Exit Function Scope
 	ExitScope();
@@ -194,7 +194,7 @@ void Resolver::visit(ASTClass &AST) {
 		CurrentClass = SemaBuilder::CreateClass(*CurrentModule, CurrentScope, AST);
 
 		// Create Symbol
-		Symbol *Sym = new Symbol(AST.getName(), SemaKind::CLASS, CurrentClass);
+		Symbol *Sym = new Symbol(AST.getName(), SymbolKind::CLASS, CurrentClass);
 
 		// Note: Nodes will be added in the next Resolve Steps
 
@@ -239,7 +239,7 @@ void Resolver::visit(ASTAttribute &AST) {
 	}
 
 	// Create the Symbol and add to Symbol Table
-	Symbol *Sym = new Symbol(AST.getName(), Sema->getKind(), Sema);
+	Symbol *Sym = new Symbol(AST.getName(), SymbolKind::VAR, Sema);
 	addSymbol(Sym);
 
 	FLY_DEBUG_END("Resolver", "visit(ASTAttribute)");
@@ -277,7 +277,7 @@ void Resolver::visit(ASTMethod &AST) {
 		// resolve parameter type
 		Param->accept(*this);
 		Sema->addParam(Param->getSema());
-		addSymbol(new Symbol(Param->getName(), SemaKind::VAR, Param->getSema()));
+		addSymbol(new Symbol(Param->getName(), SymbolKind::VAR, Param->getSema()));
 	}
 
 	// Add to Body list for resolve in the next step
@@ -285,7 +285,7 @@ void Resolver::visit(ASTMethod &AST) {
 	ExitScope();
 
 	// Create the Symbol and add to Symbol Table
-	Symbol *Sym = new Symbol(AST.getName(), Sema->getKind(), Sema);
+	Symbol *Sym = new Symbol(AST.getName(), SymbolKind::FUNCTION, Sema);
 	addSymbol(Sym);
 
 	FLY_DEBUG_END("Resolver", "visit(ASTMethod)");
@@ -302,7 +302,7 @@ void Resolver::visit(ASTEnum &AST) {
 	CurrentEnum = SemaBuilder::CreateEnum(*CurrentModule, CurrentScope, AST);
 
 	// Create Symbol
-	Symbol *Sym = new Symbol(AST.getName(), SemaKind::ENUM, CurrentEnum);
+	Symbol *Sym = new Symbol(AST.getName(), SymbolKind::ENUM, CurrentEnum);
 
 	// Add enum entries
 	for (auto Def : AST.getNodes()) {
@@ -318,25 +318,25 @@ void Resolver::visit(ASTEnum &AST) {
 	FLY_DEBUG_END("Resolver", "visit(ASTEnum)");
 }
 
-void Resolver::visit(ASTEnumEntry &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTEnumEntry)");
+void Resolver::visit(ASTEnumValue &AST) {
+	FLY_DEBUG_START("Resolver", "visit(ASTEnumValue)");
 
 	// Find Var duplication in the current scope
-	SemaEnumEntry *ExistingEnum = CurrentEnum->LookupEntry(AST.getName());
+	SemaEnumValue *ExistingEnum = CurrentEnum->LookupEntry(AST.getName());
 	if (ExistingEnum) {
 		Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
 	}
 
-	SemaEnumEntry *Sema = SemaBuilder::CreateEnumEntry(CurrentEnum, AST);
+	SemaEnumValue *Sema = SemaBuilder::CreateEnumValue(CurrentEnum, AST);
 	CurrentEnum->addEntry(Sema);
 
 	// Create Symbol
-	Symbol *Sym = new Symbol(AST.getName(), SemaKind::ENUM_ENTRY, Sema);
+	Symbol *Sym = new Symbol(AST.getName(), SymbolKind::VALUE, Sema);
 
 	// Add Symbol to the current scope
 	addSymbol(Sym);
 
-	FLY_DEBUG_END("Resolver", "visit(ASTEnumEntry)");
+	FLY_DEBUG_END("Resolver", "visit(ASTEnumValue)");
 }
 
 void Resolver::visit(ASTLocalVar &AST) {
@@ -360,7 +360,7 @@ void Resolver::visit(ASTLocalVar &AST) {
 		}
 
 		// Add to Symbol Table
-		Symbol *Sym = new Symbol(AST.getName(), Sema->getKind(), Sema);
+		Symbol *Sym = new Symbol(AST.getName(), SymbolKind::VAR, Sema);
 
 		// Add Symbol to the current scope
 		addSymbol(Sym);
@@ -994,7 +994,7 @@ void Resolver::ResolveFunction(SemaFunction *Func) {
 		// resolve parameter type
 		Param->accept(*this);
 		Func->addParam(Param->getSema());
-		addSymbol(new Symbol(Param->getName(), SemaKind::VAR, Param->getSema()));
+		addSymbol(new Symbol(Param->getName(), SymbolKind::VAR, Param->getSema()));
 	}
 
 	// Add to Body list for resolve in the next step
@@ -1483,7 +1483,7 @@ void Resolver::ResolveChild(SemaNameSpace *NameSpace, ASTExpr *AST) {
 			ASTMember *Member = static_cast<ASTMember *>(AST);
 
 			Symbol *Sym = Reg.LookupName(Member->getName(), NameSpace->getSymbols());
-			if (Sym->getKind() == SemaKind::NAMESPACE || Sym->getKind() == SemaKind::TYPE) {
+			if (Sym->getKind() == SymbolKind::NAMESPACE || Sym->getKind() == SymbolKind::TYPE) {
 				if (AST->getChild())
 					ResolveChild(Sym->getRef(), AST->getChild());
 			} else {
@@ -1508,8 +1508,6 @@ void Resolver::ResolveChild(SemaClassType *ClassType, ASTExpr *AST) {
 
 			// Resolve Call as Class Method
 			SmallVector<SemaType *, 8> Types = ResolveCallArgs(Call);
-
-			// Create a call to class method
 			SemaClassMethod* Method = static_cast<SemaClassMethod *>(Reg.LookupFunction(Call->getName(), Types, ClassType->getSymbols()));
 			if (Method) {
 
@@ -1562,10 +1560,10 @@ void Resolver::ResolveChild(SemaEnumType *EnumType, ASTExpr *AST) {
 		// Resolve as Enum Entry
 		if (AST->getExprKind() == ASTExprKind::EXPR_MEMBER) {
 			ASTMember *Member = static_cast<ASTMember *>(AST);
-			SemaEnumEntry *Entry = EnumType->getEntries().lookup(Member->getName());
+			SemaEnumValue *Value = EnumType->getEntries().lookup(Member->getName());
 
 			// Check: If No Enum Entry found
-			if (Entry == nullptr) {
+			if (Value == nullptr) {
 				Diag(diag::err_invalid_behavior);
 				return;
 			}
@@ -1576,7 +1574,7 @@ void Resolver::ResolveChild(SemaEnumType *EnumType, ASTExpr *AST) {
 				return;
 			}
 
-			Member->setSema(Entry);
+			Member->setSema(Value);
 			return;
 		}
 	}
@@ -1602,6 +1600,8 @@ void Resolver::ResolveChild(SemaCall *Parent, ASTExpr *AST) {
 			if (AST->getChild())
 				ResolveChild(Sema, AST->getChild());
 		}
+
+		return;
 	}
 
 	// if AST is a Var
@@ -1609,13 +1609,21 @@ void Resolver::ResolveChild(SemaCall *Parent, ASTExpr *AST) {
 
 		// Resolve Member
 		ASTMember *Member = static_cast<ASTMember *>(AST);
-		SemaVar *Sema = ResolveChildMember(Parent, Member);
+		SemaExpr *Sema = ResolveChildMember(Parent, Member);
 		if (Sema) {
 
-			// Go with child
-			if (AST->getChild())
-				ResolveChild(Sema, AST->getChild());
+			// Go with child - need to check if it's a Var or EnumValue
+			if (AST->getChild()) {
+				if (Sema->getKind() == SemaKind::VAR) {
+					ResolveChild(Sema, AST->getChild());
+				} else if (Sema->getKind() == SemaKind::VALUE) {
+					// Value cannot have children
+					Diag(diag::err_invalid_behavior);
+				}
+			}
 		}
+
+		return;
 	}
 
 	// Invalid Child
@@ -1624,22 +1632,23 @@ void Resolver::ResolveChild(SemaCall *Parent, ASTExpr *AST) {
 
 void Resolver::ResolveChild(SemaVar *Parent, ASTExpr *AST) {
 
-	// Validate Type
-	SemaType *ParentType = Parent->getType();
-
 	// If AST is a Call
 	if (AST->getExprKind() == ASTExprKind::EXPR_CALL) {
 
 		// Resolve Call
 		ASTCall *Call = static_cast<ASTCall *>(AST);
-		SemaCall *Sema = ResolveChildCall(Parent, Call);
+		ResolveChildCall(Parent, Call);
+
+		return;
 	}
 
 	// If AST is a Member
 	if (AST->getExprKind() == ASTExprKind::EXPR_MEMBER) {
 
 		ASTMember *Member = static_cast<ASTMember *>(AST);
-		SemaVar *Sema = ResolveChildMember(Parent, Member);
+		ResolveChildMember(Parent, Member);
+
+		return;
 	}
 
 	Diag(diag::err_invalid_behavior);
@@ -1694,12 +1703,12 @@ SemaCall *Resolver::ResolveChildCall(SemaExpr *Parent, ASTCall *AST) {
 	return AST->getSema();
 }
 
-SemaVar * Resolver::ResolveChildMember(SemaExpr *Parent, ASTMember *AST) {
+SemaExpr * Resolver::ResolveChildMember(SemaExpr *Parent, ASTMember *AST) {
 	if (!AST->isVisited()) {
 		AST->setVisited(true);
 
 		// Build Sema
-		SemaVar *Sema = nullptr;
+		SemaExpr *Sema = nullptr;
 		SemaType *ParentType = Parent->getType();
 		if (ParentType->isClass()) {
 
@@ -1708,7 +1717,7 @@ SemaVar * Resolver::ResolveChildMember(SemaExpr *Parent, ASTMember *AST) {
 			Symbol * Sym = Reg.LookupName(AST->getName(), ClassType->getSymbols());
 
 			// Check Symbol is not an Attribute (Var
-			if (Sym->getKind() != SemaKind::VAR) {
+			if (Sym->getKind() != SymbolKind::VAR) {
 				Diag(diag::err_invalid_behavior);
 				return nullptr;
 			}
@@ -1725,17 +1734,17 @@ SemaVar * Resolver::ResolveChildMember(SemaExpr *Parent, ASTMember *AST) {
 			SemaEnumType *EnumType = static_cast<SemaEnumType *>(ParentType);
 			Symbol * Sym = Reg.LookupName(AST->getName(), EnumType->getSymbols());
 
-			// Check Symbol is not an Enum Entry
-			if (Sym->getKind() != SemaKind::ENUM_ENTRY) {
+			// Check Symbol is not a Value
+			if (Sym->getKind() != SymbolKind::VALUE) {
 				Diag(diag::err_invalid_behavior);
 				return nullptr;
 			}
 
 			// Set Enum Entry
-			SemaEnumEntry *EnumEntry = static_cast<SemaEnumEntry *>(Sym->getRef());
+			SemaEnumValue *EnumValue = static_cast<SemaEnumValue *>(Sym->getRef());
 
 			// Set the Sema
-			Sema = EnumEntry;
+			Sema = EnumValue;
 		} else {
 
 			// Parent is not an object type

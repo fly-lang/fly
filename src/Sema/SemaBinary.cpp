@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaBinary.h"
+#include "Sema/SemaVisitor.h"
 
 #include "AST/ASTBinary.h"
 #include "Sema/Helper.h"
@@ -32,3 +33,8 @@ SemaBinary::SemaBinary(ASTBinary &AST) :
 ASTBinary &SemaBinary::getAST() const {
 	return AST;
 }
+
+void SemaBinary::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

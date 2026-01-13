@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaClassType.h"
+#include "Sema/SemaVisitor.h"
 
 #include "Sema/SymbolTable.h"
 
@@ -223,3 +224,8 @@ CodeGenClass *SemaClassType::getCodeGen() const {
 void SemaClassType::setCodeGen(CodeGenClass *CGC) {
 	CodeGen = CGC;
 }
+
+void SemaClassType::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

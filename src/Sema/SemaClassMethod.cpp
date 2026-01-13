@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaClassMethod.h"
+#include "Sema/SemaVisitor.h"
 
 #include "Sema/Helper.h"
 
@@ -66,3 +67,8 @@ void SemaClassMethod::setCodeGen(CodeGenClassMethod *CodeGen) {
 SemaComment * SemaClassMethod::getComment() const {
 	return Comment;
 }
+
+void SemaClassMethod::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

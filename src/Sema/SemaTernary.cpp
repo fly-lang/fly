@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaTernary.h"
+#include "Sema/SemaVisitor.h"
 
 #include "AST/ASTTernary.h"
 #include "Sema/Helper.h"
@@ -33,3 +34,6 @@ ASTTernary &SemaTernary::getAST() const {
 	return AST;
 }
 
+void SemaTernary::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}

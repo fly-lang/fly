@@ -68,6 +68,8 @@ namespace fly {
 
         virtual CodeGenFunctionBase *getCodeGen() const = 0;
 
+        void accept(SemaVisitor& Visitor) override;
+
     };
 
 }  // end namespace fly

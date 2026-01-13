@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaParam.h"
+#include "Sema/SemaVisitor.h"
 #include "AST/ASTParam.h"
 
 using namespace fly;
@@ -23,3 +24,8 @@ CodeGenVar * SemaParam::getCodeGen() const {
 void SemaParam::setCodeGen(CodeGenVarBase *CGV) {
 	this->CodeGen = static_cast<CodeGenVar *>(CGV);
 }
+
+void SemaParam::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

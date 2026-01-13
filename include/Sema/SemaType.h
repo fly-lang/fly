@@ -116,6 +116,8 @@ namespace fly {
         bool operator!=(const SemaType *Type) const;
 
         bool operator==(const SemaType *Type) const;
+
+        void accept(SemaVisitor& Visitor) override;
     };
 
     class SemaIntType : public SemaType {
@@ -131,6 +133,8 @@ namespace fly {
         const SemaIntTypeKind getIntKind() const;
 
         bool isSigned();
+
+        void accept(SemaVisitor& Visitor) override;
     };
 
     class SemaFloatType : public SemaType {
@@ -144,6 +148,8 @@ namespace fly {
         ~SemaFloatType() override = default;
 
         const SemaFloatTypeKind getFPKind() const;
+
+        void accept(SemaVisitor& Visitor) override;
     };
 
     class SemaArrayType : public SemaType {
@@ -160,6 +166,8 @@ namespace fly {
 
         SemaType *getType();
 
+        void accept(SemaVisitor& Visitor) override;
+
     };
 
     class SemaErrorType : public SemaType {
@@ -168,6 +176,8 @@ namespace fly {
 		explicit SemaErrorType() : SemaType(SemaKind::TYPE, SemaTypeKind::TYPE_ERROR, "error") {}
 
 		~SemaErrorType() override = default;
+
+		void accept(SemaVisitor& Visitor) override;
 
 	};
 

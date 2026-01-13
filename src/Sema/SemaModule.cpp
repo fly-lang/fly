@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaModule.h"
+#include "Sema/SemaVisitor.h"
 #include <AST/ASTModule.h>
 #include <llvm/IR/Module.h>
 
@@ -64,3 +65,8 @@ const llvm::SmallVector<SemaNode *, 8> &SemaModule::getNodes() const {
 void SemaModule::addNode(SemaNode *Node) {
 	Nodes.push_back(Node);
 }
+
+void SemaModule::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

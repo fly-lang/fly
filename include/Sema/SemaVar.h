@@ -26,8 +26,7 @@ namespace fly {
 		MEMBER_VAR,
 		ERROR_VAR,
 		CLASS_ATTRIBUTE,
-		CLASS_INSTANCE,
-		ENUM_ENTRY
+		CLASS_INSTANCE
 	};
 
     class SemaVar : public SemaExpr {
@@ -58,6 +57,8 @@ namespace fly {
     	virtual CodeGenVarBase *getCodeGen() const = 0;
 
         virtual void setCodeGen(CodeGenVarBase * CGVar) = 0;
+
+        void accept(SemaVisitor& Visitor) override;
     };
 
 }

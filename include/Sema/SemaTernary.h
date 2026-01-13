@@ -32,6 +32,8 @@ namespace fly {
 
 		ASTTernary &getAST() const;
 
+		void accept(SemaVisitor& Visitor) override;
+
 	};
 }
 #endif //FLY_SEMA_TERNARY_H

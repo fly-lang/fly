@@ -58,6 +58,8 @@ namespace fly {
 
         SemaClassType *getInherited() const;
 
+        void accept(SemaVisitor& Visitor) override;
+
     };
 
 }  // end namespace fly

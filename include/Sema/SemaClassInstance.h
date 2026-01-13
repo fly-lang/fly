@@ -58,6 +58,8 @@ namespace fly {
 
         void setCodeGen(CodeGenVarBase *CodeGen) override;
 
+        void accept(SemaVisitor& Visitor) override;
+
     };
 
 }  // end namespace fly

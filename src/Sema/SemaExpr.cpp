@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaExpr.h"
+#include "Sema/SemaVisitor.h"
 
 using namespace fly;
 
@@ -33,3 +34,8 @@ SemaType *SemaExpr::getType() const {
 void SemaExpr::setType(SemaType *Type) {
 	this->Type = Type;
 }
+
+void SemaExpr::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

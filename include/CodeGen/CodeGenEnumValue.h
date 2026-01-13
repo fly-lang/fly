@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CODEGEN_ENUMENTRY_H
-#define FLY_CODEGEN_ENUMENTRY_H
+#ifndef FLY_CODEGEN_ENUMVALUE_H
+#define FLY_CODEGEN_ENUMVALUE_H
 
 #include <string>
 
@@ -23,10 +23,10 @@ namespace llvm {
 namespace fly {
 
     class CodeGenModule;
-    class SemaEnumEntry;
+    class SemaEnumValue;
     class SemaEnumType;
 
-    class CodeGenEnumEntry : public CodeGenVarBase {
+    class CodeGenEnumValue : public CodeGenVarBase {
 
         CodeGenModule *CGM;
 
@@ -39,7 +39,7 @@ namespace fly {
         size_t Index;
 
     public:
-        CodeGenEnumEntry(CodeGenModule *CGM, SemaEnumEntry *Sema);
+        CodeGenEnumValue(CodeGenModule *CGM, SemaEnumValue *Sema);
 
 //        llvm::AllocaInst *Alloca() override;
 
@@ -59,4 +59,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_CODEGEN_ENUMENTRY_H
+#endif //FLY_CODEGEN_ENUMVALUE_H

@@ -22,7 +22,8 @@ namespace fly {
         VAL_ARRAY,
         VAL_STRUCT,
         VAL_NULL,
-        VAL_DEFAULT
+        VAL_DEFAULT,
+        VAL_ENUM
     };
 
     class ASTValue : public ASTExpr {

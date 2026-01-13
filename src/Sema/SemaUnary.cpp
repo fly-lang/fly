@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaUnary.h"
+#include "Sema/SemaVisitor.h"
 #include "AST/ASTUnary.h"
 
 using namespace fly;
@@ -20,3 +21,6 @@ ASTUnary &SemaUnary::getAST() const {
 	return AST;
 }
 
+void SemaUnary::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}

@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaCall.h"
+#include "Sema/SemaVisitor.h"
 
 #include <AST/ASTCall.h>
 
@@ -35,3 +36,8 @@ void SemaCall::setErrorHandler(SemaErrorHandler *ErrorHandler) {
 bool SemaCall::isNew() const {
 	return AST.getCallKind() >= ASTCallKind::CALL_NEW;
 }
+
+void SemaCall::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

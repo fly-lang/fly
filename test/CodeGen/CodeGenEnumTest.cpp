@@ -14,7 +14,7 @@
 #include "AST/ASTModule.h"
 #include <Sema/SemaNameSpace.h>
 #include "AST/ASTName.h"
-#include "AST/ASTEnumEntry.h"
+#include "AST/ASTEnumValue.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTType.h"
@@ -45,9 +45,9 @@ namespace {
         // }
         llvm::SmallVector<ASTType *, 4> SuperEnums;
         ASTEnum *TestEnum = ASTBuilder::CreateEnum(Module, SourceLoc, "TestEnum", TopModifiers, SuperEnums);
-        ASTEnumEntry *A = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "A", EmptyModifiers);
-        ASTEnumEntry *B = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "B", EmptyModifiers);
-        ASTEnumEntry *C = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "C", EmptyModifiers);
+        ASTEnumValue *A = ASTBuilder::CreateEnumValue(SourceLoc, TestEnum, "A", EmptyModifiers);
+        ASTEnumValue *B = ASTBuilder::CreateEnumValue(SourceLoc, TestEnum, "B", EmptyModifiers);
+        ASTEnumValue *C = ASTBuilder::CreateEnumValue(SourceLoc, TestEnum, "C", EmptyModifiers);
 
         // int main() {
         //  TestEnum a = TestEnum.A;

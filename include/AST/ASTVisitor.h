@@ -20,7 +20,7 @@ namespace fly {
 	class ASTMethod;
 	class ASTFunction;
 	class ASTEnum;
-	class ASTEnumEntry;
+	class ASTEnumValue;
 	class ASTComment;
 	class ASTCall;
 	class ASTBoolValue;
@@ -69,7 +69,6 @@ namespace fly {
 		virtual void visit(ASTAttribute& AST) = 0;
 		virtual void visit(ASTMethod& AST) = 0;
 		virtual void visit(ASTEnum& AST) = 0;
-		virtual void visit(ASTEnumEntry &AST) = 0;
 		virtual void visit(ASTLocalVar &AST) = 0;
 		virtual void visit(ASTParam &AST) = 0;
 		virtual void visit(ASTComment &AST) = 0;
@@ -110,6 +109,7 @@ namespace fly {
 		virtual void visit(ASTStructValue &AST) = 0;
 		virtual void visit(ASTNullValue &AST) = 0;
 		virtual void visit(ASTDefaultValue &AST) = 0;
+		virtual void visit(ASTEnumValue &AST) = 0;
 	};
 
 }

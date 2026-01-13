@@ -14,13 +14,13 @@ using namespace fly;
 /**
  * Symbol constructor
  */
-Symbol::Symbol(std::string Name, SemaKind Kind, SemaNode* Ref) {
+Symbol::Symbol(std::string Name, SymbolKind Kind, SemaNode* Ref) {
 	this->Name = std::move(Name);
 	this->Kind = Kind;
 	this->Ref = Ref;
 }
 
-Symbol::Symbol(llvm::StringRef Name, SemaKind Kind, SemaNode* Ref) {
+Symbol::Symbol(llvm::StringRef Name, SymbolKind Kind, SemaNode* Ref) {
 	this->Name = std::string(Name);
 	this->Kind = Kind;
 	this->Ref = Ref;
@@ -31,7 +31,7 @@ std::string Symbol::getName() const {
 }
 
 
-SemaKind Symbol::getKind() const {
+SymbolKind Symbol::getKind() const {
 	return Kind;
 }
 

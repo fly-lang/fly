@@ -115,7 +115,7 @@ namespace fly {
 
     class ASTEnum;
 
-    class ASTEnumEntry;
+    class ASTEnumValue;
 
     class ASTModifier;
 
@@ -185,7 +185,7 @@ namespace fly {
         static ASTEnum *CreateEnum(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                    llvm::SmallVector<ASTType *, 4> EnumTypes);
 
-        static ASTEnumEntry *CreateEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name,
+        static ASTEnumValue *CreateEnumValue(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name,
                                       llvm::SmallVector<ASTModifier *, 8> &Modifiers);
 
         // Create Modifiers

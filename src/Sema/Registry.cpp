@@ -28,7 +28,7 @@ Registry::Registry(DiagnosticsEngine &Diags) : Diags(Diags),
 	BuiltinScope(CreateBuiltinScope()),
 	GlobalScope(new SymbolTable(BuiltinScope)),
 	DefaultNameSpace(new SemaNameSpace(DEFAULT_NAMESPACE, new SymbolTable(GlobalScope))) {
-	GlobalScope->insert(new Symbol(DefaultNameSpace->getName(), SemaKind::NAMESPACE, DefaultNameSpace));
+	GlobalScope->insert(new Symbol(DefaultNameSpace->getName(), SymbolKind::NAMESPACE, DefaultNameSpace));
 }
 
 Registry::~Registry() {
@@ -64,19 +64,19 @@ SymbolTable* Registry::CreateBuiltinScope() {
 	auto ErrorType = SemaBuiltin::getErrorType();
 
 	// Insert Builtin Types
-	Builtin->insert(new Symbol(BoolType->getName(), SemaKind::TYPE, BoolType));
-	Builtin->insert(new Symbol(ByteType->getName(), SemaKind::TYPE, ByteType));
-	Builtin->insert(new Symbol(UShortType->getName(), SemaKind::TYPE, UShortType));
-	Builtin->insert(new Symbol(ShortType->getName(), SemaKind::TYPE, ShortType));
-	Builtin->insert(new Symbol(UIntType->getName(), SemaKind::TYPE, UIntType));
-	Builtin->insert(new Symbol(IntType->getName(), SemaKind::TYPE, IntType));
-	Builtin->insert(new Symbol(ULongType->getName(), SemaKind::TYPE, ULongType));
-	Builtin->insert(new Symbol(LongType->getName(), SemaKind::TYPE, LongType));
-	Builtin->insert(new Symbol(FloatType->getName(), SemaKind::TYPE, FloatType));
-	Builtin->insert(new Symbol(DoubleType->getName(), SemaKind::TYPE, DoubleType));
-	Builtin->insert(new Symbol(StringType->getName(), SemaKind::TYPE, StringType));
-	Builtin->insert(new Symbol(VoidType->getName(), SemaKind::TYPE, VoidType));
-	Builtin->insert(new Symbol(ErrorType->getName(), SemaKind::TYPE, ErrorType));
+	Builtin->insert(new Symbol(BoolType->getName(), SymbolKind::TYPE, BoolType));
+	Builtin->insert(new Symbol(ByteType->getName(), SymbolKind::TYPE, ByteType));
+	Builtin->insert(new Symbol(UShortType->getName(), SymbolKind::TYPE, UShortType));
+	Builtin->insert(new Symbol(ShortType->getName(), SymbolKind::TYPE, ShortType));
+	Builtin->insert(new Symbol(UIntType->getName(), SymbolKind::TYPE, UIntType));
+	Builtin->insert(new Symbol(IntType->getName(), SymbolKind::TYPE, IntType));
+	Builtin->insert(new Symbol(ULongType->getName(), SymbolKind::TYPE, ULongType));
+	Builtin->insert(new Symbol(LongType->getName(), SymbolKind::TYPE, LongType));
+	Builtin->insert(new Symbol(FloatType->getName(), SymbolKind::TYPE, FloatType));
+	Builtin->insert(new Symbol(DoubleType->getName(), SymbolKind::TYPE, DoubleType));
+	Builtin->insert(new Symbol(StringType->getName(), SymbolKind::TYPE, StringType));
+	Builtin->insert(new Symbol(VoidType->getName(), SymbolKind::TYPE, VoidType));
+	Builtin->insert(new Symbol(ErrorType->getName(), SymbolKind::TYPE, ErrorType));
 
 	return Builtin;
 }
@@ -120,7 +120,7 @@ SemaNameSpace* Registry::getOrCreateNameSpace(const llvm::SmallVector<ASTName *,
 		if (Symbols == nullptr) {
 			SymbolTable *Symbols = new SymbolTable(CurrentScope);
 			NameSpace = new SemaNameSpace(Name, Symbols);
-			CurrentScope->insert(new Symbol(NameSpace->getName(), SemaKind::NAMESPACE, NameSpace)); // add in Map
+			CurrentScope->insert(new Symbol(NameSpace->getName(), SymbolKind::NAMESPACE, NameSpace)); // add in Map
 			CurrentScope->addChild(Symbols); // add Child
 			continue;
 		}
@@ -133,7 +133,7 @@ SemaNameSpace* Registry::getOrCreateNameSpace(const llvm::SmallVector<ASTName *,
 
 		// If symbol is a NameSpace the search may be deeper
 		Symbol *CurrentSymbol = (*Symbols)[0];
-		if (CurrentSymbol->getKind() != SemaKind::NAMESPACE) {
+		if (CurrentSymbol->getKind() != SymbolKind::NAMESPACE) {
 			// Error:
 			Diag(diag::err_invalid_behavior);
 		}
@@ -173,7 +173,7 @@ Symbol *Registry::LookupImport(const llvm::SmallVector<ASTName *, 4> &Names) {
 
 		// Symbol may be: NameSpace, Type, Function ...
 		// If symbol is a NameSpace the search may be deeper
-		if (CurrentSymbol->getKind() == SemaKind::NAMESPACE) {
+		if (CurrentSymbol->getKind() == SymbolKind::NAMESPACE) {
 			Scope = static_cast<SemaNameSpace *>(CurrentSymbol->getRef())->getSymbols();
 		}
 	}
@@ -209,7 +209,7 @@ SemaType* Registry::LookupNamedType(llvm::StringRef Name, SymbolTable *Scope) {
 	// Take the unique Symbol
 	Symbol *CurrentSymbol = (*Symbols)[0];
 
-	if (CurrentSymbol->getKind() != SemaKind::TYPE) {
+	if (CurrentSymbol->getKind() != SymbolKind::TYPE) {
 		// Error: Symbol is not a Type
 		Diag(diag::err_invalid_behavior);
 	}
@@ -244,18 +244,18 @@ SemaType *Registry::LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope)
 		CurrentSymbol = (*Symbols)[0];
 
 		// If symbol is a NameSpace the search may be deeper
-		if (CurrentSymbol->getKind() == SemaKind::NAMESPACE) {
+		if (CurrentSymbol->getKind() == SymbolKind::NAMESPACE) {
 			CurrentScope = static_cast<SemaNameSpace *>(CurrentSymbol->getRef())->getSymbols();
 		}
 	}
 
-	if (CurrentSymbol->getKind() != SemaKind::TYPE) {
+	if (CurrentSymbol->getKind() != SymbolKind::TYPE) {
 		// Error: Symbol is not a Type or NameSpace
 		Diag(diag::err_invalid_behavior);
 		return nullptr;
 	}
 
-	if (CurrentSymbol->getKind() == SemaKind::TYPE) {
+	if (CurrentSymbol->getKind() == SymbolKind::TYPE) {
 		// Return Type
 		return static_cast<SemaType *>(CurrentSymbol->getRef());
 	}
@@ -327,7 +327,7 @@ SemaFunctionBase* Registry::LookupFunction(llvm::StringRef Name, SmallVector<Sem
 	// Iterate through all symbols with this name to find the right function
 	for (Symbol *Sym : *Symbols) {
 		// Check if symbol is a function
-		if (Sym->getKind() != SemaKind::FUNCTION  && Sym->getKind() != SemaKind::METHOD) {
+		if (Sym->getKind() != SymbolKind::FUNCTION) {
 			continue;
 		}
 

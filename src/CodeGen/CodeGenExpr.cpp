@@ -204,11 +204,6 @@ llvm::Value *CodeGenExpr::GenExpr(SemaVar *Sema) {
 		}
 	}
 
-	// Enum Entry
-	else if (Sema->getVarKind() == SemaVarKind::ENUM_ENTRY) {
-		// TODO
-	}
-
 	// No Parent
 	else {
 		// Generate CodeGenVar if not already generated

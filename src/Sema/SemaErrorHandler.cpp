@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaErrorHandler.h"
+#include "Sema/SemaVisitor.h"
 
 #include <Sema/SemaType.h>
 
@@ -24,3 +25,8 @@ CodeGenError * SemaErrorHandler::getCodeGen() const {
 void SemaErrorHandler::setCodeGen(CodeGenVarBase *CodeGen) {
 	this->CodeGen = static_cast<CodeGenError *>(CodeGen);
 }
+
+void SemaErrorHandler::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

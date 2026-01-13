@@ -28,9 +28,11 @@ namespace fly {
 
 	public:
 
-		~SemaUnary() override = default;
+    	~SemaUnary() override = default;
 
-		ASTUnary &getAST() const;
+    	ASTUnary &getAST() const;
+
+    	void accept(SemaVisitor& Visitor) override;
 
 	};
 

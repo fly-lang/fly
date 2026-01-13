@@ -32,6 +32,8 @@ namespace fly {
 
 		ASTCast &getAST() const;
 
+		void accept(SemaVisitor& Visitor) override;
+
 	};
 
 }

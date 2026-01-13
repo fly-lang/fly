@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaLocalVar.h"
+#include "Sema/SemaVisitor.h"
 
 using namespace fly;
 
@@ -21,3 +22,8 @@ CodeGenVar * SemaLocalVar::getCodeGen() const {
 void SemaLocalVar::setCodeGen(CodeGenVarBase *CodeGen) {
 	this->CodeGen = static_cast<CodeGenVar *>(CodeGen);
 }
+
+void SemaLocalVar::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
