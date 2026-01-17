@@ -11,8 +11,6 @@
 #ifndef FLY_CODEGEN_VARBASE_H
 #define FLY_CODEGEN_VARBASE_H
 
-#include <cstddef>
-
 namespace llvm {
     class StoreInst;
     class LoadInst;

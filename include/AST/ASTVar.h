@@ -16,15 +16,7 @@
 
 namespace fly {
 
-    enum class ASTVarKind {
-        VAR_LOCALVAR,
-        VAR_PARAM,
-        VAR_ATTRIBUTE,
-        VAR_ENUM_ENTRY,
-    };
-
     class SourceLocation;
-    class CodeGenVarBase;
     class ASTModifier;
     class ASTType;
 	class ASTExpr;
@@ -32,8 +24,6 @@ namespace fly {
     class ASTVar : public ASTNode {
 
         friend class ASTBuilder;
-
-        ASTVarKind VarKind;
 
         SemaVar* Sema;
 
@@ -46,8 +36,7 @@ namespace fly {
         ASTExpr* Expr;
 
     protected:
-        ASTVar(const SourceLocation& Loc, ASTType* Type, llvm::StringRef Name, ASTVarKind VarKind,
-            SmallVector<ASTModifier*, 8>& Modifiers);
+        ASTVar(const SourceLocation& Loc, ASTType* Type, llvm::StringRef Name, SmallVector<ASTModifier*, 8>& Modifiers);
 
     public:
 

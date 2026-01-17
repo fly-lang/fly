@@ -27,7 +27,7 @@ namespace fly {
     class SemaEnumType;
     class SemaEnumValue;
     class SemaType;
-	class SemaMemberVar;
+	class SemaMember;
     class ASTClass;
     class ASTNameSpace;
     class ASTImport;
@@ -44,6 +44,7 @@ namespace fly {
 	class ASTStringValue;
 	class ASTArrayValue;
 	class ASTStructValue;
+	class ASTMember;
 	class ASTCall;
 	class ASTUnary;
 	class ASTBinary;
@@ -99,7 +100,7 @@ namespace fly {
 
     	static SemaParam *CreateParam(ASTParam &Param, SemaType *Type);
 
-    	static SemaMemberVar *CreateMemberVar(ASTVar &AST, SemaExpr &Parent, SemaClassAttribute *Attribute);
+    	static SemaMember *CreateMemberVar(ASTMember &AST, SemaExpr *Ref, SemaExpr *Parent = nullptr);
 
     	static SemaCall *CreateCall(ASTCall &Call, SemaType *Type, SemaFunctionBase *Function);
 

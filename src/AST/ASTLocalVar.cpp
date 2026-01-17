@@ -16,7 +16,7 @@ using namespace fly;
 
 ASTLocalVar::ASTLocalVar(
 	const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, SmallVector<ASTModifier *, 8> &Modifiers) :
-	ASTVar(Loc, Type, Name, ASTVarKind::VAR_LOCALVAR, Modifiers) {
+	ASTVar(Loc, Type, Name, Modifiers) {
 }
 
 void ASTLocalVar::accept(ASTVisitor &Visitor) {

@@ -314,7 +314,7 @@ Symbol *Registry::LookupName(llvm::StringRef Name, SymbolTable *Scope) {
 	return (*Symbols)[0];
 }
 
-SemaFunctionBase* Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8> &Types, SymbolTable *Scope) {
+Symbol *Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8> &Types, SymbolTable *Scope) {
 	if (Scope == nullptr) Scope = GlobalScope;
 	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookupInParents(Name);
 
@@ -326,6 +326,7 @@ SemaFunctionBase* Registry::LookupFunction(llvm::StringRef Name, SmallVector<Sem
 
 	// Iterate through all symbols with this name to find the right function
 	for (Symbol *Sym : *Symbols) {
+
 		// Check if symbol is a function
 		if (Sym->getKind() != SymbolKind::FUNCTION) {
 			continue;
@@ -368,7 +369,7 @@ SemaFunctionBase* Registry::LookupFunction(llvm::StringRef Name, SmallVector<Sem
 
 		// If all types match, return this function
 		if (AllTypesMatch) {
-			return Function;
+			return Sym;
 		}
 	}
 

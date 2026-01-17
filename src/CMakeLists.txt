@@ -166,7 +166,7 @@ add_library(flyLib
         Sema/SemaFunctionBase.cpp
         Sema/SemaImport.cpp
         Sema/SemaLocalVar.cpp
-        Sema/SemaMemberVar.cpp
+        Sema/SemaMember.cpp
         Sema/SemaModule.cpp
         Sema/SemaNameSpace.cpp
         Sema/SemaNode.cpp

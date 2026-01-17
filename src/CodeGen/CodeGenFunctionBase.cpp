@@ -192,15 +192,15 @@ std::unordered_map<std::string, std::string> MangleTypeMap = {
 std::string CodeGenFunctionBase::Mangle(SemaType *Type) {
 	std::string Mangled = "";
 
-	switch (Type->getTypeKind()) {
-		case SemaTypeKind::TYPE_ARRAY: {
+	switch (Type->getKind()) {
+		case SemaKind::TYPE_ARRAY: {
 			SemaArrayType *Array = static_cast<SemaArrayType *>(Type);
 			Mangled += "_A" + Mangle(Array->getType());
 		}	break;
-		case SemaTypeKind::TYPE_ENUM:
+		case SemaKind::TYPE_ENUM:
 			Mangled += "_E" + Type->getName();
 			break;
-		case SemaTypeKind::TYPE_CLASS:
+		case SemaKind::TYPE_CLASS:
 			Mangled += "_C" + Type->getName();
 			break;
 		default:

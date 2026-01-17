@@ -7,14 +7,14 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
 #include "CodeGen/CodeGenVar.h"
+
 #include "CodeGen/CodeGenModule.h"
 
 #include <Sema/SemaCall.h>
 #include <Sema/SemaClassAttribute.h>
 #include <Sema/SemaClassInstance.h>
-#include <Sema/SemaMemberVar.h>
+#include <Sema/SemaMember.h>
 #include <Sema/SemaVar.h>
 #include <llvm/IR/Instructions.h>
 
@@ -60,16 +60,14 @@ llvm::Value *CodeGenVar::getValue() {
 }
 
 llvm::Value *CodeGenVar::getPointer() {
-	if (Sema->getVarKind() == SemaVarKind::MEMBER_VAR) {
+	if (Sema->getKind() == SemaKind::MEMBER) { // FIXME
 		assert(this->Pointer && "Pointer must be set for MemberVar");
-		SemaMemberVar * MemberVar = static_cast<SemaMemberVar *>(Sema);
 
 		// If Pointer is not set, create it
-		CodeGenVarBase *CGV = MemberVar->getCodeGen();
 		llvm::PointerType *PtrType = llvm::cast<llvm::PointerType>(this->Pointer->getType());
 		llvm::ArrayRef<llvm::Value *> IdxList = {CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, Index)};
 		this->Pointer = CGM->Builder->CreateInBoundsGEP(PtrType->getElementType(), this->Pointer, IdxList);
-	} else if (Sema->getVarKind() == SemaVarKind::CLASS_ATTRIBUTE) {
+	} else if (Sema->getKind() == SemaKind::ATTRIBUTE) {
 		assert(this->Pointer && "Pointer must be set for ClassAttribute");
 		SemaClassAttribute * Attribute = static_cast<SemaClassAttribute *>(Sema);
 

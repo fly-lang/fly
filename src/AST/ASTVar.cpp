@@ -13,9 +13,9 @@
 
 using namespace fly;
 
-ASTVar::ASTVar(const SourceLocation &Loc, ASTType *TypeRef, llvm::StringRef Name, ASTVarKind VarKind,
+ASTVar::ASTVar(const SourceLocation &Loc, ASTType *TypeRef, llvm::StringRef Name,
                SmallVector<ASTModifier *, 8> &Modifiers) :
-        ASTNode(Loc, ASTKind::AST_VAR), VarKind(VarKind), Type(TypeRef), Name(Name), Modifiers(Modifiers), Sema(nullptr) {
+        ASTNode(Loc, ASTKind::AST_VAR), Type(TypeRef), Name(Name), Modifiers(Modifiers), Sema(nullptr) {
 
 }
 

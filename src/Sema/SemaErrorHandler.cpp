@@ -8,13 +8,15 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaErrorHandler.h"
+
+#include "AST/ASTVar.h"
 #include "Sema/SemaVisitor.h"
 
 #include <Sema/SemaType.h>
 
 using namespace fly;
 
-SemaErrorHandler::SemaErrorHandler(ASTVar *AST) : SemaVar(AST, SemaVarKind::ERROR_VAR, new SemaErrorType()) {
+SemaErrorHandler::SemaErrorHandler(ASTVar *AST) : SemaVar(AST, SemaKind::ERROR_VAR, new SemaErrorType()) {
 
 }
 

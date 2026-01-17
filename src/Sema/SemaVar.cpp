@@ -14,8 +14,8 @@
 
 using namespace fly;
 
-SemaVar::SemaVar(ASTVar *AST, SemaVarKind Kind, SemaType *Type) :
-	SemaExpr(SemaKind::VAR, Type), AST(AST), VarKind(Kind) {
+SemaVar::SemaVar(ASTVar *AST, SemaKind Kind, SemaType *Type) :
+	SemaExpr(Kind, Type), AST(AST) {
 }
 
 ASTVar *SemaVar::getAST() const {
@@ -24,10 +24,6 @@ ASTVar *SemaVar::getAST() const {
 
 llvm::StringRef SemaVar::getName() const {
 	return AST->getName();
-}
-
-SemaVarKind SemaVar::getVarKind() const {
-	return VarKind;
 }
 
 bool SemaVar::isConstant() const {

@@ -181,7 +181,7 @@ namespace fly {
 
         virtual ~CodeGenModule();
 
-        DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID);
+        DiagnosticBuilder Diag(unsigned DiagID);
 
         llvm::Module *getModule() const;
 

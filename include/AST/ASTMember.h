@@ -11,7 +11,9 @@
 #define FLY_AST_MEMBER_H
 
 #include "ASTExpr.h"
-#include "Sema/SemaMemberVar.h"
+#include "ASTName.h"
+#include "ASTVar.h"
+#include "Sema/SemaMember.h"
 
 namespace fly {
 
@@ -22,11 +24,9 @@ namespace fly {
 
 		friend class ASTBuilder;
 
+		llvm::StringRef Name;
+
 	protected:
-
-		const llvm::StringRef Name;
-
-		ASTVar *Var;
 
 		ASTMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent);
 
@@ -34,11 +34,9 @@ namespace fly {
 
 	public:
 
-		void accept(ASTVisitor &Visitor) override;
-
 		llvm::StringRef getName() const;
 
-		ASTVar *getVar();
+		void accept(ASTVisitor &Visitor) override;
 
 		SemaExpr *getSema() const override;
 

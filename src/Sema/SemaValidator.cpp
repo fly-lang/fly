@@ -165,7 +165,7 @@ bool SemaValidator::CheckExpr(ASTExpr *Expr) {
 }
 
 bool SemaValidator::CheckEqualTypes(SemaType *Type1, SemaType *Type2) {
-    if (Type1->getTypeKind() == Type2->getTypeKind()) {
+    if (Type1->getKind() == Type2->getKind()) {
         if (Type1->isArray()) {
         	SemaArrayType *ArrayType1 = static_cast<SemaArrayType *>(Type1);
         	SemaArrayType *ArrayType2 = static_cast<SemaArrayType *>(Type2);

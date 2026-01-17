@@ -15,7 +15,7 @@
 
 using namespace fly;
 
-SemaType::SemaType(SemaKind Kind, SemaTypeKind TypeKind, std::string Name) : SemaNode(Kind), TypeKind(TypeKind), Name(Name),
+SemaType::SemaType(SemaKind Kind, std::string Name) : SemaNode(Kind), Name(Name),
 	Id(std::hash<std::string>{}(Name)) {
 }
 
@@ -28,11 +28,6 @@ const size_t SemaType::getId() const {
 	return Id;
 }
 
-const SemaTypeKind SemaType::getTypeKind() const {
-	return TypeKind;
-}
-
-
 const std::string SemaType::getName() const {
 	return Name;
 }
@@ -42,39 +37,39 @@ SemaValue *SemaType::getDefaultValue() const {
 }
 
 bool SemaType::isBool() const {
-	return TypeKind == SemaTypeKind::TYPE_BOOL;
+	return Kind == SemaKind::TYPE_BOOL;
 }
 
 bool SemaType::isFloatingPoint() const {
-	return TypeKind == SemaTypeKind::TYPE_FLOATING_POINT;
+	return Kind == SemaKind::TYPE_FLOATING_POINT;
 }
 
 bool SemaType::isInteger() const {
-	return TypeKind == SemaTypeKind::TYPE_INTEGER;
+	return Kind == SemaKind::TYPE_INTEGER;
 }
 
 bool SemaType::isArray() const {
-	return TypeKind == SemaTypeKind::TYPE_ARRAY;
+	return Kind == SemaKind::TYPE_ARRAY;
 }
 
 bool SemaType::isString() const {
-	return TypeKind == SemaTypeKind::TYPE_STRING;
+	return Kind == SemaKind::TYPE_STRING;
 }
 
 bool SemaType::isClass() const {
-	return TypeKind == SemaTypeKind::TYPE_CLASS;
+	return Kind == SemaKind::TYPE_CLASS;
 }
 
 bool SemaType::isEnum() const {
-	return TypeKind == SemaTypeKind::TYPE_ENUM;
+	return Kind == SemaKind::TYPE_ENUM;
 }
 
 bool SemaType::isError() const {
-	return TypeKind == SemaTypeKind::TYPE_ERROR;
+	return Kind == SemaKind::TYPE_ERROR;
 }
 
 bool SemaType::isVoid() const {
-	return TypeKind == SemaTypeKind::TYPE_VOID;
+	return Kind == SemaKind::TYPE_VOID;
 }
 
 bool SemaType::isEquals(const SemaType *Type) const {
@@ -93,7 +88,7 @@ void SemaType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
-SemaIntType::SemaIntType(SemaIntTypeKind IntKind, std::string Name) : SemaType(SemaKind::TYPE, SemaTypeKind::TYPE_INTEGER, Name),
+SemaIntType::SemaIntType(SemaIntTypeKind IntKind, std::string Name) : SemaType(SemaKind::TYPE_INTEGER, Name),
                                                  IntKind(IntKind) {
 }
 
@@ -110,7 +105,7 @@ void SemaIntType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
-SemaFloatType::SemaFloatType(SemaFloatTypeKind FPKind, std::string Name) : SemaType(SemaKind::TYPE, SemaTypeKind::TYPE_FLOATING_POINT, Name),
+SemaFloatType::SemaFloatType(SemaFloatTypeKind FPKind, std::string Name) : SemaType(SemaKind::TYPE_FLOATING_POINT, Name),
                                              FPKind(FPKind) {
 }
 
@@ -123,7 +118,7 @@ void SemaFloatType::accept(SemaVisitor &Visitor) {
 }
 
 SemaArrayType::SemaArrayType(SemaType *Type, ASTExpr *SizeExpr) :
-	SemaType(SemaKind::TYPE, SemaTypeKind::TYPE_ARRAY, "array"), Type(Type), SizeExpr(SizeExpr) {
+	SemaType(SemaKind::TYPE_ARRAY, "array"), Type(Type), SizeExpr(SizeExpr) {
 }
 
 SemaType *SemaArrayType::getType() {

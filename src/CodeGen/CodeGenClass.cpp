@@ -10,6 +10,7 @@
 #include "CodeGen/CodeGenClass.h"
 
 #include "AST/ASTExpr.h"
+#include "AST/ASTName.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenVar.h"
 #include "Sema/SemaClassType.h"
@@ -258,12 +259,12 @@ void CodeGenClass::GenInitConstructorBody() {
 		SemaClassAttribute *Attr = AttrEntry.getValue();
 
 		// Set Value for all Attributes
-		llvm::Value *V = CGM->GenExpr(Attr->getAST()->getExpr()->getSema());
+		// llvm::Value *V = CGM->GenExpr(Attr->getExpr());
 
-		llvm::ArrayRef<llvm::Value *> IdxList = {
-			CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, Attr->getCodeGen()->getIndex())};
-		llvm::Value *Pointer = CGM->Builder->CreateInBoundsGEP(Type, Load, IdxList);
-		CGM->Builder->CreateStore(V, Pointer);
+		// llvm::ArrayRef<llvm::Value *> IdxList = {
+		// 	CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, Attr->getCodeGen()->getIndex())};
+		// llvm::Value *Pointer = CGM->Builder->CreateInBoundsGEP(Type, Load, IdxList);
+		// CGM->Builder->CreateStore(V, Pointer);
 	}
 
 	CGM->Builder->CreateRet(Load);

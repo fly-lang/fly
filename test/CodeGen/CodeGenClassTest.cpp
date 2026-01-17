@@ -135,7 +135,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTDeclStmt *xDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, xVar);
     	ASTIdentifier *xVar_Id = ASTBuilder::CreateIdentifier(TestVar);
         
-        ASTMember *test_aVarRef = ASTBuilder::CreateMember(aField, Instance);
+        ASTMember *test_aVarRef = ASTBuilder::CreateMember(SourceLoc(), aField->getName(), Instance);
         ASTIdentifier *xIdent = ASTBuilder::CreateIdentifier(xVar);
         ASTBinaryOp *AssignExpr2 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, xIdent, test_aVarRef);
         xDeclStmt->setExpr(AssignExpr2);
@@ -223,7 +223,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         TestDeclStmt->setExpr(AssignExpr1);
 
         //  test.a = 2
-    	ASTMember *test_a = ASTBuilder::CreateMember(aAttribute, ASTBuilder::CreateIdentifier(TestVar));
+    	ASTMember *test_a = ASTBuilder::CreateMember(SourceLoc(), aAttribute->getName(), ASTBuilder::CreateIdentifier(TestVar));
         ASTExprStmt * attrStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
         ASTValue *value2 = ASTBuilder::CreateNumberValue(SourceLocation(), "2");
         ASTBinaryOp *AssignExpr2 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, test_a, value2);
@@ -471,7 +471,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	setAParams.push_back(aParam);
     	ASTBlockStmt *MethodBody = ASTBuilder::CreateBlockStmt(SourceLoc);
     	const SourceLocation &Loc = SourceLoc;
-    	ASTMember * this_a = ASTBuilder::CreateMember(aAttribute, ASTBuilder::CreateIdentifier(Loc, "this"));
+    	ASTMember * this_a = ASTBuilder::CreateMember(SourceLoc(), aAttribute->getName(), ASTBuilder::CreateIdentifier(Loc, "this"));
     	ASTExprStmt * setAttributeAStmt = ASTBuilder::CreateExprStmt(MethodBody, SourceLoc);
     	ASTIdentifier *aParamIdent = ASTBuilder::CreateIdentifier(aParam);
     	ASTBinaryOp *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, this_a, aParamIdent);

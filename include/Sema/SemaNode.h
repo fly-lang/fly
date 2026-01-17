@@ -19,21 +19,47 @@ namespace fly {
 		NAMESPACE,
 		IMPORT,
 		TYPE,
-		VAR,
+
+		// Types
+		TYPE_VOID,
+		TYPE_BOOL,
+		TYPE_INTEGER,
+		TYPE_FLOATING_POINT,
+		TYPE_STRING,
+		TYPE_ERROR,
+		TYPE_ARRAY,
+		TYPE_CLASS,
+		TYPE_ENUM,
+
+		// Variables
+		PARAM_VAR,
+		LOCAL_VAR,
+		ERROR_VAR,
+		ATTRIBUTE,
+		INSTANCE_VAR,
+
+		// Expressions
+		MEMBER,
 		CALL,
 		UNARY,
 		BINARY,
 		TERNARY,
 		CAST,
+
+		// Top Level nodes
 		FUNCTION,
 		CLASS,
 		METHOD,
 		ENUM,
+
+		// Values
 		ENUM_VALUE,
 		VALUE
 	};
 
 	class SemaNode {
+
+	protected:
 
 		SemaKind Kind;
 

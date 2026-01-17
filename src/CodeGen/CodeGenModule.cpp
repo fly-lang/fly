@@ -31,7 +31,6 @@
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTReturnStmt.h"
 #include "AST/ASTSwitchStmt.h"
-#include "AST/ASTValue.h"
 #include "Basic/Debug.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenClass.h"
@@ -39,9 +38,6 @@
 #include "CodeGen/CodeGenError.h"
 #include "CodeGen/CodeGenExpr.h"
 #include "CodeGen/CodeGenFunction.h"
-#include "CodeGen/CodeGenGlobalVar.h"
-#include "CodeGen/CodeGenHandle.h"
-#include "CodeGen/CodeGenVar.h"
 #include "Sema/SemaNameSpace.h"
 
 #include "llvm/IR/GlobalVariable.h"
@@ -61,7 +57,7 @@
 #include <Sema/SemaEnumValue.h>
 #include <Sema/SemaErrorHandler.h>
 #include <Sema/SemaFunction.h>
-#include <Sema/SemaMemberVar.h>
+#include <Sema/SemaMember.h>
 #include <Sema/SemaModule.h>
 #include <Sema/SemaNameSpace.h>
 #include <Sema/SemaValue.h>
@@ -159,8 +155,8 @@ CodeGenModule::~CodeGenModule() {
     delete Module;
 }
 
-DiagnosticBuilder CodeGenModule::Diag(const SourceLocation &Loc, unsigned DiagID) {
-    return Diags.Report(Loc, DiagID);
+DiagnosticBuilder CodeGenModule::Diag(unsigned DiagID) {
+    return Diags.Report(DiagID);
 }
 
 llvm::Module *CodeGenModule::getModule() const {
@@ -194,15 +190,15 @@ void CodeGenModule::GenEnum(SemaEnumType *Enum) {
 llvm::Type *CodeGenModule::GenType(SemaType *Type) {
     FLY_DEBUG_START("CodeGenModule", "GenType");
     // Check Type
-    switch (Type->getTypeKind()) {
+    switch (Type->getKind()) {
 
-        case SemaTypeKind::TYPE_VOID:
+        case SemaKind::TYPE_VOID:
             return VoidTy;
 
-        case SemaTypeKind::TYPE_BOOL:
+        case SemaKind::TYPE_BOOL:
             return BoolTy;
 
-        case SemaTypeKind::TYPE_INTEGER: {
+        case SemaKind::TYPE_INTEGER: {
             SemaIntTypeKind IntKind = static_cast<SemaIntType *>(Type)->getIntKind();
             switch (IntKind) {
                 case SemaIntTypeKind::TYPE_BYTE:
@@ -219,7 +215,7 @@ llvm::Type *CodeGenModule::GenType(SemaType *Type) {
             }
         }
 
-        case SemaTypeKind::TYPE_FLOATING_POINT: {
+        case SemaKind::TYPE_FLOATING_POINT: {
             SemaFloatTypeKind FPKind = static_cast<SemaFloatType *>(Type)->getFPKind();
             switch (FPKind) {
                 case SemaFloatTypeKind::TYPE_FLOAT:
@@ -229,24 +225,24 @@ llvm::Type *CodeGenModule::GenType(SemaType *Type) {
             }
         }
 
-        case SemaTypeKind::TYPE_ARRAY: {
+        case SemaKind::TYPE_ARRAY: {
             return GenArrayType(static_cast<SemaArrayType *>(Type));
         }
 
-        case SemaTypeKind::TYPE_STRING: {
+        case SemaKind::TYPE_STRING: {
             return llvm::ArrayType::get(Int8Ty, 0);
         }
 
-    	case SemaTypeKind::TYPE_ERROR: {
+    	case SemaKind::TYPE_ERROR: {
         	return ErrorTy;
     	}
 
-        case SemaTypeKind::TYPE_CLASS: {
+        case SemaKind::TYPE_CLASS: {
             SemaClassType *Class = static_cast<SemaClassType *>(Type);
             return Class->getCodeGen()->getType();
         }
 
-		case SemaTypeKind::TYPE_ENUM:
+		case SemaKind::TYPE_ENUM:
 			return Int32Ty;
     }
     assert(0 && "Unknown Var Type Kind");
@@ -263,15 +259,15 @@ llvm::PointerType *CodeGenModule::GenArrayType(SemaArrayType *ArrayType) {
 
 llvm::Constant *CodeGenModule::GenDefaultValue(SemaType *Type, llvm::Type *Ty) {
     FLY_DEBUG_START("CodeGenModule", "GenDefaultValue");
-    assert(Type->getTypeKind() != SemaTypeKind::TYPE_VOID && "No default value for Void Type");
-    switch (Type->getTypeKind()) {
+    assert(Type->getKind() != SemaKind::TYPE_VOID && "No default value for Void Type");
+    switch (Type->getKind()) {
 
         // Bool
-        case SemaTypeKind::TYPE_BOOL:
+        case SemaKind::TYPE_BOOL:
             return llvm::ConstantInt::get(BoolTy, 0, false);
 
         // Integer
-        case SemaTypeKind::TYPE_INTEGER: {
+        case SemaKind::TYPE_INTEGER: {
             SemaIntType *IntegerType = static_cast<SemaIntType *>(Type);
             switch (IntegerType->getIntKind()) {
                 case SemaIntTypeKind::TYPE_BYTE:
@@ -292,7 +288,7 @@ llvm::Constant *CodeGenModule::GenDefaultValue(SemaType *Type, llvm::Type *Ty) {
         }
 
         // Floating Point
-        case SemaTypeKind::TYPE_FLOATING_POINT: {
+        case SemaKind::TYPE_FLOATING_POINT: {
             SemaFloatType *FloatingPointType = static_cast<SemaFloatType *>(Type);
             switch (FloatingPointType->getFPKind()) {
                 case SemaFloatTypeKind::TYPE_FLOAT:
@@ -302,10 +298,10 @@ llvm::Constant *CodeGenModule::GenDefaultValue(SemaType *Type, llvm::Type *Ty) {
             }
         }
 
-        case SemaTypeKind::TYPE_ARRAY:
+        case SemaKind::TYPE_ARRAY:
             return llvm::ConstantAggregateZero::get(Ty);
 
-        case SemaTypeKind::TYPE_CLASS:
+        case SemaKind::TYPE_CLASS:
             return nullptr; // TODO
     }
     assert(0 && "Unknown Type");
@@ -368,10 +364,10 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SemaType *FromType, Se
     assert(ToType && "Invalid conversion type");
 
     llvm::Type *FromLLVMType = FromVal->getType();
-    switch (ToType->getTypeKind()) {
+    switch (ToType->getKind()) {
 
         // to BOOL
-        case SemaTypeKind::TYPE_BOOL: {
+        case SemaKind::TYPE_BOOL: {
 
             // from BOOL
             if (FromType->isBool()) {
@@ -395,7 +391,7 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SemaType *FromType, Se
         }
 
             // to INTEGER
-        case SemaTypeKind::TYPE_INTEGER: {
+        case SemaKind::TYPE_INTEGER: {
             SemaIntType *IntegerType = (SemaIntType *) ToType;
             switch(IntegerType->getIntKind()) {
 
@@ -511,7 +507,7 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SemaType *FromType, Se
         }
 
             // to FLOATING POINT
-        case SemaTypeKind::TYPE_FLOATING_POINT: {
+        case SemaKind::TYPE_FLOATING_POINT: {
             switch(((SemaFloatType *) ToType)->getFPKind()) {
 
                 // to FLOAT 32
@@ -571,7 +567,7 @@ llvm::Value *CodeGenModule::Convert(llvm::Value *FromVal, SemaType *FromType, Se
         }
 
             // to Identity
-        case SemaTypeKind::TYPE_CLASS:
+        case SemaKind::TYPE_CLASS:
             return FromVal; // TODO implement class cast
     }
     assert(0 && "Conversion failed");

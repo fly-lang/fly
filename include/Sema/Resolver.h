@@ -100,6 +100,10 @@ namespace fly {
         // Current Statement being Resolved
         ASTStmt* CurrentStmt;
 
+    	SemaExpr *CurrentExpr;
+
+    	Symbol *CurrentSymbol;
+
     public:
 
         Resolver(DiagnosticsEngine &Diags, Registry &Reg);
@@ -191,35 +195,31 @@ namespace fly {
 
         void ResolveBody(LocalScope &Scope);
 
-        void ResolveExpr(ASTExpr &Expr);
+    	SmallVector<SemaType *, 8> ResolveCallArgs(ASTCall *AST);
+
+    	SmallVector<SemaType *, 8> ResolveParams(ASTFunction &AST);
 
         // ------------------------
 
-        void ResolveParent(ASTIdentifier *AST);
-
-        void ResolveParent(ASTCall *AST);
-
-        void ResolveChild(SemaNode *Parent, ASTExpr *AST);
-
-        void ResolveChild(SemaNameSpace *NameSpace, ASTExpr *AST);
-
-        void ResolveChild(SemaClassType *ClassType, ASTExpr *AST);
-
-        void ResolveChild(SemaEnumType *EnumType, ASTExpr *AST);
-
-        void ResolveChild(SemaCall *Parent, ASTExpr *AST);
-
-        void ResolveChild(SemaVar *Parent, ASTExpr *AST);
-
-        SemaCall *ResolveChildCall(SemaExpr *Parent, ASTCall *AST);
-
-        SemaExpr *ResolveChildMember(SemaExpr *Parent, ASTMember *AST);
-
-        SmallVector<SemaType *, 8> ResolveCallArgs(ASTCall *AST);
-
-        SmallVector<SemaType *, 8> ResolveParams(ASTFunction &AST);
-
-        void ResolveErrorHandler(SemaCall *Sema);
+  //       void ResolveParent(ASTCall *AST);
+  //
+		// void ResolveChild(Symbol *Parent, ASTExpr *AST);
+  //
+  //       void ResolveChild(SemaNameSpace *NameSpace, ASTExpr *AST);
+  //
+		// void ResolveChild(SemaType * Type, ASTExpr *AST);
+  //
+  //       void ResolveChild(SemaClassType *ClassType, ASTExpr *AST);
+  //
+  //       void ResolveChild(SemaEnumType *EnumType, ASTExpr *AST);
+  //
+  //       void ResolveChild(SemaCall *Parent, ASTExpr *AST);
+  //
+  //       void ResolveChild(SemaVar *Parent, ASTExpr *AST);
+  //
+  //       SemaCall *ResolveChildCall(SemaExpr *Parent, ASTCall *AST);
+  //
+  //       SemaExpr *ResolveChildMember(SemaExpr *Parent, ASTMember *AST);
 
     };
 } // end namespace fly

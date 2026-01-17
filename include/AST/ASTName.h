@@ -20,6 +20,8 @@ namespace fly {
 
 		llvm::StringRef Name;
 
+	protected:
+
 		explicit ASTName(const SourceLocation &Loc, llvm::StringRef Name);
 
 	public:

@@ -19,7 +19,7 @@
 
 using namespace fly;
 
-SemaClassType::SemaClassType(ASTClass &AST, SymbolTable *Symbols) : SemaType(SemaKind::CLASS, SemaTypeKind::TYPE_CLASS, AST.getName().data()),
+SemaClassType::SemaClassType(ASTClass &AST, SymbolTable *Symbols) : SemaType(SemaKind::TYPE_CLASS, AST.getName().data()),
 	AST(AST), Symbols(Symbols), ClassKind(toClassKind(AST.getClassKind())) {
 
 }

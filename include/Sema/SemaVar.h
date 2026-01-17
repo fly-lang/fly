@@ -20,28 +20,17 @@ namespace fly {
     class SemaType;
     class CodeGenVarBase;
 
-	enum class SemaVarKind {
-		PARAM_VAR,
-		LOCAL_VAR,
-		MEMBER_VAR,
-		ERROR_VAR,
-		CLASS_ATTRIBUTE,
-		CLASS_INSTANCE
-	};
-
     class SemaVar : public SemaExpr {
 
         friend class SemaBuilder;
 
-    	ASTVar *AST;
+    protected:
 
-    	SemaVarKind VarKind;
+    	ASTVar *AST;
 
     	bool Constant = false;
 
-    protected:
-
-        explicit SemaVar(ASTVar *AST, SemaVarKind Kind, SemaType *Type);
+        explicit SemaVar(ASTVar *AST, SemaKind Kind, SemaType *Type);
 
     public:
         virtual ~SemaVar() = default;
@@ -49,8 +38,6 @@ namespace fly {
         ASTVar *getAST() const;
 
     	virtual llvm::StringRef getName() const;
-
-    	SemaVarKind getVarKind() const;
 
     	bool isConstant() const;
 

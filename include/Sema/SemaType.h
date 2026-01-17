@@ -56,24 +56,9 @@ namespace fly {
         TYPE_DOUBLE = 64
     };
 
-    enum class SemaTypeKind
-    {
-        TYPE_VOID,
-        TYPE_BOOL,
-        TYPE_INTEGER,
-        TYPE_FLOATING_POINT,
-        TYPE_STRING,
-        TYPE_ERROR,
-        TYPE_ARRAY,
-        TYPE_CLASS,
-        TYPE_ENUM
-    };
-
     class SemaType : public SemaNode {
 
         const size_t Id;
-
-        const SemaTypeKind TypeKind;
 
         const std::string Name;
 
@@ -81,13 +66,11 @@ namespace fly {
 
     public:
 
-        explicit SemaType(SemaKind Kind, SemaTypeKind TypeKind, std::string Name);
+        explicit SemaType(SemaKind Kind, std::string Name);
 
         ~SemaType() override;
 
         const size_t getId() const;
-
-        const SemaTypeKind getTypeKind() const;
 
         const std::string getName() const;
 
@@ -173,7 +156,7 @@ namespace fly {
     class SemaErrorType : public SemaType {
 
     public:
-		explicit SemaErrorType() : SemaType(SemaKind::TYPE, SemaTypeKind::TYPE_ERROR, "error") {}
+		explicit SemaErrorType() : SemaType(SemaKind::TYPE_ERROR, "error") {}
 
 		~SemaErrorType() override = default;
 

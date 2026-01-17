@@ -76,7 +76,7 @@ namespace fly {
 
 		Symbol *LookupName(llvm::StringRef Name, SymbolTable *Scope = nullptr);
 
-		SemaFunctionBase* LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8> &Types, SymbolTable *Scope);
+		Symbol *LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8> &Types, SymbolTable *Scope);
 
 		llvm::SmallVector<LocalScope, 4> getBodies() const;
 

@@ -15,6 +15,7 @@
 #include "AST/ASTEnum.h"
 #include "AST/ASTEnumValue.h"
 #include "AST/ASTFunction.h"
+#include "AST/ASTMember.h"
 #include "AST/ASTTernary.h"
 #include "AST/ASTUnary.h"
 #include "AST/ASTVar.h"
@@ -29,7 +30,7 @@
 #include "Sema/SemaEnumType.h"
 #include "Sema/SemaEnumValue.h"
 #include "Sema/SemaFunction.h"
-#include "Sema/SemaMemberVar.h"
+#include "Sema/SemaMember.h"
 #include "Sema/SemaModule.h"
 #include "Sema/SemaTernary.h"
 #include "Sema/SemaType.h"
@@ -237,9 +238,12 @@ SemaParam *SemaBuilder::CreateParam(ASTParam &AST, SemaType *Type) {
 	return Sema;
 }
 
-SemaMemberVar * SemaBuilder::CreateMemberVar(ASTVar &AST, SemaExpr &Parent, SemaClassAttribute *Attribute) {
-	SemaMemberVar *Sema = new SemaMemberVar(AST, Parent, Attribute);
+SemaMember * SemaBuilder::CreateMemberVar(ASTMember &AST, SemaExpr *Ref, SemaExpr *Parent) {
+	FLY_DEBUG_START("SemaBuilder", "CreateMemberVar");
 
+	SemaMember *Sema = new SemaMember(AST, Ref, Parent);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateMemberVar");
 	return Sema;
 }
 

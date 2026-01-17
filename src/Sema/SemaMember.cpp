@@ -7,34 +7,36 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Sema/SemaMemberVar.h"
+#include "AST/ASTMember.h"
+#include "Sema/SemaMember.h"
 #include "Sema/SemaVisitor.h"
+
 #include <Sema/SemaClassAttribute.h>
 
 using namespace fly;
 
-SemaMemberVar::SemaMemberVar(ASTVar &AST, SemaExpr &Parent, SemaClassAttribute *Attribute) :
-	SemaVar(&AST, SemaVarKind::MEMBER_VAR, Attribute->getType()), ClassAttribute(Attribute) {
-	setParent(Parent);
+SemaMember::SemaMember(ASTMember &AST, SemaExpr *Ref, SemaExpr *Parent) :
+	SemaExpr(SemaKind::MEMBER, Ref->getType()), AST(AST), Ref(Ref) {
+	setParent(*Parent);
 }
 
-SemaClassAttribute * SemaMemberVar::getClassAttribute() const {
-	return ClassAttribute;
+ASTMember &SemaMember::getAST() const {
+	return AST;
 }
 
-void SemaMemberVar::setClassAttribute(SemaClassAttribute *ClassAttribute) {
-	this->ClassAttribute = ClassAttribute;
+SemaExpr * SemaMember::getRef() const {
+	return Ref;
 }
 
-CodeGenVar * SemaMemberVar::getCodeGen() const {
+CodeGenVar * SemaMember::getCodeGen() const {
 	return CodeGen;
 }
 
-void SemaMemberVar::setCodeGen(CodeGenVarBase *CodeGen) {
+void SemaMember::setCodeGen(CodeGenVarBase *CodeGen) {
 	this->CodeGen = static_cast<CodeGenVar *>(CodeGen);
 }
 
-void SemaMemberVar::accept(SemaVisitor &Visitor) {
+void SemaMember::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 

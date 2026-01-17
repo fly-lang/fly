@@ -18,29 +18,31 @@ namespace fly {
     class ASTMember;
     class CodeGenVar;
 
-    class SemaMemberVar : public SemaVar {
+    class SemaMember : public SemaExpr {
 
         friend class SemaBuilder;
         friend class Resolver;
         friend class SemaValidator;
 
-        SemaClassAttribute *ClassAttribute;
+    	ASTMember &AST;
+
+        SemaExpr *Ref;
 
         CodeGenVar *CodeGen = nullptr;
 
-        explicit SemaMemberVar(ASTVar &AST, SemaExpr &Parent, SemaClassAttribute *Attribute);
+        explicit SemaMember(ASTMember &AST, SemaExpr *Ref, SemaExpr *Parent);
 
     public:
 
-        ~SemaMemberVar() override = default;
+        ~SemaMember() override = default;
 
-        SemaClassAttribute *getClassAttribute() const;
+    	ASTMember &getAST() const;
 
-        void setClassAttribute(SemaClassAttribute *ClassAttribute);
+        SemaExpr *getRef() const;
 
-        CodeGenVar *getCodeGen() const override;
+        CodeGenVar *getCodeGen() const;
 
-        void setCodeGen(CodeGenVarBase *CodeGen) override;
+        void setCodeGen(CodeGenVarBase *CodeGen);
 
         void accept(SemaVisitor& Visitor) override;
 

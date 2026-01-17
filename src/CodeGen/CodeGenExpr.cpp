@@ -21,6 +21,7 @@
 #include "Sema/SemaBinary.h"
 #include "Sema/SemaBuiltin.h"
 #include "Sema/SemaCast.h"
+#include "Sema/SemaEnumValue.h"
 #include "Sema/SemaTernary.h"
 #include "Sema/SemaUnary.h"
 
@@ -35,7 +36,7 @@
 #include <Sema/SemaClassMethod.h>
 #include <Sema/SemaErrorHandler.h>
 #include <Sema/SemaFunctionBase.h>
-#include <Sema/SemaMemberVar.h>
+#include <Sema/SemaMember.h>
 #include <Sema/SemaType.h>
 #include <Sema/SemaValue.h>
 #include <Sema/SemaVar.h>
@@ -49,7 +50,11 @@ CodeGenExpr::CodeGenExpr(CodeGenModule *CGM) : CGM(CGM) {
 llvm::Value *CodeGenExpr::GenExpr(SemaExpr *Sema) {
 	switch (Sema->getKind()) {
 
-		case SemaKind::VAR:
+		case SemaKind::ATTRIBUTE:
+		case SemaKind::PARAM_VAR:
+		case SemaKind::LOCAL_VAR:
+		case SemaKind::INSTANCE_VAR:
+		case SemaKind::ERROR_VAR:
 			return GenExpr(static_cast<SemaVar *>(Sema));
 
 		case SemaKind::CALL:
@@ -89,15 +94,15 @@ llvm::Value *CodeGenExpr::GenExpr(SemaValue *Sema) {
 
 	SemaType *Type = Sema->getType();
 
-	switch (Type->getTypeKind()) {
+	switch (Type->getKind()) {
 
 		// Boolean Value
-		case SemaTypeKind::TYPE_BOOL:
+		case SemaKind::TYPE_BOOL:
 			return static_cast<SemaBoolValue *>(Sema)->getValue() ?
 					llvm::ConstantInt::getTrue(CGM->LLVMCtx) : llvm::ConstantInt::getFalse(CGM->LLVMCtx);
 
 		// Integer Value
-		case SemaTypeKind::TYPE_INTEGER: {
+		case SemaKind::TYPE_INTEGER: {
 			SemaIntValue * IntValue = static_cast<SemaIntValue *>(Sema);
 			SemaIntTypeKind IntKind = static_cast<SemaIntType *>(Type)->getIntKind();
 			switch (IntKind) {
@@ -116,7 +121,7 @@ llvm::Value *CodeGenExpr::GenExpr(SemaValue *Sema) {
 		} break;
 
 		// Floating Point Value
-		case SemaTypeKind::TYPE_FLOATING_POINT: {
+		case SemaKind::TYPE_FLOATING_POINT: {
 			SemaFloatValue *FloatValue = static_cast<SemaFloatValue *>(Sema);
 			SemaFloatTypeKind FPKind = static_cast<SemaFloatType *>(Type)->getFPKind();
 			switch (FPKind) {
@@ -128,12 +133,12 @@ llvm::Value *CodeGenExpr::GenExpr(SemaValue *Sema) {
 		} break;
 
 		// Strig Value
-		case SemaTypeKind::TYPE_STRING: {
+		case SemaKind::TYPE_STRING: {
 			return CGM->Builder->CreateGlobalStringPtr(static_cast<SemaStringValue *>(Sema)->getValue());
 		}
 
 		// Array Value
-		case SemaTypeKind::TYPE_ARRAY: {
+		case SemaKind::TYPE_ARRAY: {
 			SemaArrayValue *ArrayValue = static_cast<SemaArrayValue *>(Sema);
 
 			llvm::PointerType *AllocType = CGM->GenArrayType((SemaArrayType *) Type);
@@ -160,7 +165,7 @@ llvm::Value *CodeGenExpr::GenExpr(SemaValue *Sema) {
 			return Instance;
 		} break;
 
-		case SemaTypeKind::TYPE_CLASS:
+		case SemaKind::TYPE_CLASS:
 			SemaStructValue *StructValue = static_cast<SemaStructValue *>(Sema);
             break;
 	}
@@ -172,7 +177,7 @@ llvm::Value *CodeGenExpr::GenExpr(SemaValue *Sema) {
 llvm::Value *CodeGenExpr::GenExpr(SemaVar *Sema) {
 
 	// Class Instance
-	if (Sema->getVarKind() == SemaVarKind::CLASS_INSTANCE) {
+	if (Sema->getKind() == SemaKind::INSTANCE_VAR) {
 		SemaClassInstance *Instance = static_cast<SemaClassInstance *>(Sema);
 
 		// Check if the Instance belong to a base class, need to set the pointer to the main instance
@@ -181,20 +186,8 @@ llvm::Value *CodeGenExpr::GenExpr(SemaVar *Sema) {
 		}
 	}
 
-	// Member Variable
-	else if (Sema->getVarKind() == SemaVarKind::MEMBER_VAR) {
-		SemaMemberVar *MemberVar = static_cast<SemaMemberVar *>(Sema);
-
-		llvm::Value *Pointer = GenExpr(MemberVar->getParent());
-		llvm::Type *Ty = CGM->GenType(MemberVar->getType());
-		size_t Index = MemberVar->getClassAttribute()->getCodeGen()->getIndex();
-		CodeGenVar *CGV = new CodeGenVar(CGM, Sema, Ty, Index);
-		CGV->setPointer(Pointer);
-		MemberVar->setCodeGen(CGV);
-	}
-
 	// Class Attribute
-	else if (Sema->getVarKind() == SemaVarKind::CLASS_ATTRIBUTE) {
+	else if (Sema->getKind() == SemaKind::ATTRIBUTE) {
 		SemaClassAttribute * ClassAttribute = static_cast<SemaClassAttribute *>(Sema);
 
 		// Check if the ClassAttribute is a static attribute
@@ -330,34 +323,54 @@ llvm::Value *CodeGenExpr::GenExpr(SemaCall *Sema) {
     }
 }
 
+llvm::Value * CodeGenExpr::GenExpr(SemaMember *Sema) {
+
+	llvm::Value *Pointer = GenExpr(Sema->getParent());
+	llvm::Type *Ty = CGM->GenType(Sema->getType());
+	SemaExpr *Ref = Sema->getRef();
+	if (Ref->getKind() == SemaKind::ATTRIBUTE) {
+		SemaClassAttribute *Attr = static_cast<SemaClassAttribute *>(Ref);
+		size_t Index = Attr->getCodeGen()->getIndex();
+		CodeGenVar *CGV = new CodeGenVar(CGM, Attr, Ty, Index);
+		CGV->setPointer(Pointer);
+		Sema->setCodeGen(CGV);
+		return CGV->getValue();
+	} else if (Ref->getKind() == SemaKind::ENUM_VALUE) {
+		SemaEnumValue *EnumVal = static_cast<SemaEnumValue *>(Ref);
+		return GenExpr(Ref);
+	}
+
+	CGM->Diag(diag::err_invalid_behavior);
+	return nullptr;
+}
 
 llvm::Value * CodeGenExpr::GenExpr(SemaCast *Sema) {
 	ASTCast &AST = Sema->getAST();
 	SemaType *ToType = AST.getToType()->getSema();
 	llvm::Value *V = GenExpr(Sema);
-	switch (AST.getType()->getTypeKind()) {
+	switch (AST.getType()->getKind()) {
 
-		case SemaTypeKind::TYPE_VOID:
-		case SemaTypeKind::TYPE_ERROR:
-		case SemaTypeKind::TYPE_ENUM:
+		case SemaKind::TYPE_VOID:
+		case SemaKind::TYPE_ERROR:
+		case SemaKind::TYPE_ENUM:
 			// TODO: Void, Error, Enum cast is not supported
 			break;
-		case SemaTypeKind::TYPE_BOOL:
+		case SemaKind::TYPE_BOOL:
 			// TODO
 				break;
-		case SemaTypeKind::TYPE_INTEGER:
+		case SemaKind::TYPE_INTEGER:
 			// TODO
 				break;
-		case SemaTypeKind::TYPE_FLOATING_POINT:
+		case SemaKind::TYPE_FLOATING_POINT:
 			// TODO
 				break;
-		case SemaTypeKind::TYPE_STRING:
+		case SemaKind::TYPE_STRING:
 			// TODO
 				break;
-		case SemaTypeKind::TYPE_ARRAY:
+		case SemaKind::TYPE_ARRAY:
 			// TODO
 				break;
-		case SemaTypeKind::TYPE_CLASS:
+		case SemaKind::TYPE_CLASS:
 			// TODO
 				break;
 	}

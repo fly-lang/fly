@@ -255,8 +255,6 @@ namespace fly {
 
          static ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent = nullptr);
 
-        static ASTMember *CreateMember(ASTVar *Var, ASTExpr *Parent);
-
          static ASTMember *CreateMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent);
 
          static ASTUnary *CreateUnary(const SourceLocation &Loc, ASTUnaryKind OpKind, ASTExpr *Expr);

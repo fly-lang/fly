@@ -18,7 +18,7 @@
 
 using namespace fly;
 
-SemaEnumType::SemaEnumType(ASTEnum &AST, SymbolTable *Symbols) : SemaType(SemaKind::ENUM ,SemaTypeKind::TYPE_ENUM, AST.getName().data()),
+SemaEnumType::SemaEnumType(ASTEnum &AST, SymbolTable *Symbols) : SemaType(SemaKind::TYPE_ENUM, AST.getName().data()),
 	AST(AST), Symbols(Symbols) {
 
 }

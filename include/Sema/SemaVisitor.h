@@ -35,7 +35,8 @@ namespace fly {
 	class SemaVar;
 	class SemaLocalVar;
 	class SemaParam;
-	class SemaMemberVar;
+	class SemaMember;
+	class SemaMemberValue;
 	class SemaClassAttribute;
 	class SemaClassInstance;
 	class SemaEnumValue;
@@ -94,10 +95,10 @@ namespace fly {
 		virtual void visit(SemaVar &Sema) = 0;
 		virtual void visit(SemaLocalVar &Sema) = 0;
 		virtual void visit(SemaParam &Sema) = 0;
-		virtual void visit(SemaMemberVar &Sema) = 0;
+		virtual void visit(SemaMember &Sema) = 0;
+		virtual void visit(SemaMemberValue &Sema) = 0;
 		virtual void visit(SemaClassAttribute &Sema) = 0;
 		virtual void visit(SemaClassInstance &Sema) = 0;
-		virtual void visit(SemaEnumValue &Sema) = 0;
 		virtual void visit(SemaErrorHandler &Sema) = 0;
 
 		// Expressions
@@ -117,6 +118,7 @@ namespace fly {
 		virtual void visit(SemaArrayValue &Sema) = 0;
 		virtual void visit(SemaStructValue &Sema) = 0;
 		virtual void visit(SemaNullValue &Sema) = 0;
+		virtual void visit(SemaEnumValue &Sema) = 0;
 	};
 
 }

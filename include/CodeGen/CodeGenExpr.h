@@ -29,6 +29,7 @@ namespace fly {
 	class SemaCall;
 	class SemaType;
 	class SemaValue;
+	class SemaMember;
 	class SemaCast;
 	class SemaUnary;
 	class SemaBinary;
@@ -50,6 +51,8 @@ namespace fly {
         llvm::Value *GenExpr(SemaVar *Sema);
 
         llvm::Value *GenExpr(SemaCall *Sema);
+
+    	llvm::Value *GenExpr(SemaMember *Sema);
 
         llvm::Value *GenExpr(SemaValue *Sema);
 

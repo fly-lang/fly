@@ -21,16 +21,12 @@ ASTMember::ASTMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *P
 ASTMember::~ASTMember() {
 }
 
-void ASTMember::accept(ASTVisitor &Visitor) {
-	Visitor.visit(*this);
-}
-
 llvm::StringRef ASTMember::getName() const {
 	return Name;
 }
 
-ASTVar * ASTMember::getVar() {
-	return Var;
+void ASTMember::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
 }
 
 SemaExpr *ASTMember::getSema() const {
