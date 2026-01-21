@@ -22,10 +22,6 @@ ASTValue *SemaValue::getAST() const {
 	return &AST;
 }
 
-void SemaValue::accept(SemaVisitor &Visitor) {
-	Visitor.visit(*this);
-}
-
 SemaBoolValue::SemaBoolValue(ASTBoolValue &AST) : SemaValue(AST, SemaBuiltin::getBoolType()), Value(AST.getValue()) {
 }
 

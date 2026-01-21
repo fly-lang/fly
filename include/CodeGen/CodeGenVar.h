@@ -11,14 +11,13 @@
 #ifndef FLY_CODEGEN_VAR_H
 #define FLY_CODEGEN_VAR_H
 
-#include <Sema/SemaClassType.h>
+#include "CodeGenExpr.h"
 
-#include "CodeGenVarBase.h"
-#include "llvm/ADT/StringRef.h"
+#include <llvm/ADT/StringRef.h>
+#include <llvm/IR/Instructions.h>
 
 namespace llvm {
     class Type;
-    class StringRef;
     class ConstantInt;
 }
 
@@ -28,17 +27,15 @@ namespace fly {
     class ASTVar;
     class SemaVar;
 
-    class CodeGenVar : public CodeGenVarBase {
+    class CodeGenVar : public CodeGenExpr {
 
     protected:
-
-        CodeGenModule *CGM = nullptr;
 
         SemaVar *Sema = nullptr;
 
         llvm::Type *T = nullptr;
 
-       size_t Index;
+        size_t Index;
 
         llvm::Value *Pointer = nullptr;
 
@@ -52,19 +49,21 @@ namespace fly {
 
         CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T, size_t Index);
 
-        llvm::Type *getType() override;
+        llvm::Type *getType();
 
-        llvm::StoreInst *Store(llvm::Value *Val) override;
+    	llvm::AllocaInst *Alloca();
 
-        llvm::LoadInst *Load() override;
+        llvm::StoreInst *Store(llvm::Value *Val);
+
+        llvm::LoadInst *Load();
 
         llvm::Value *getValue() override;
 
-        size_t getIndex() override;
+        size_t getIndex();
 
-        llvm::Value *getPointer() override;
+        llvm::Value *getPointer();
 
-        void setPointer(llvm::Value *Pointer) override;
+        void setPointer(llvm::Value *Pointer);
 
     };
 }

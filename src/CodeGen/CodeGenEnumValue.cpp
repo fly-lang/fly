@@ -20,7 +20,7 @@
 
 using namespace fly;
 
-CodeGenEnumValue::CodeGenEnumValue(CodeGenModule *CGM, SemaEnumValue *Sema) : CGM(CGM), T(CGM->Int32Ty),
+CodeGenEnumValue::CodeGenEnumValue(CodeGenModule *CGM, SemaEnumValue *Sema) : CodeGenExpr(CGM), T(CGM->Int32Ty),
         Value(llvm::ConstantInt::get(CGM->Int32Ty, Sema->getIndex())) {
 
 }
@@ -29,25 +29,8 @@ llvm::Type *CodeGenEnumValue::getType() {
     return T;
 }
 
-llvm::StoreInst *CodeGenEnumValue::Store(llvm::Value *Val) {
-    // FIXME give error
-    return nullptr;
-}
-
-llvm::LoadInst *CodeGenEnumValue::Load() {
-    // FIXME give error
-    return nullptr;
-}
-
 llvm::Value *CodeGenEnumValue::getValue() {
     return Value;
-}
-
-llvm::Value * CodeGenEnumValue::getPointer() {
-	return nullptr;
-}
-
-void CodeGenEnumValue::setPointer(llvm::Value *Pointer) {
 }
 
 size_t CodeGenEnumValue::getIndex() {

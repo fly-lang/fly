@@ -21,11 +21,11 @@ SemaErrorHandler::SemaErrorHandler(ASTVar *AST) : SemaVar(AST, SemaKind::ERROR_V
 }
 
 CodeGenError * SemaErrorHandler::getCodeGen() const {
-	return CodeGen;
+	return static_cast<CodeGenError *>(CodeGen);
 }
 
-void SemaErrorHandler::setCodeGen(CodeGenVarBase *CodeGen) {
-	this->CodeGen = static_cast<CodeGenError *>(CodeGen);
+void SemaErrorHandler::setCodeGen(CodeGenError *CodeGen) {
+	this->CodeGen = CodeGen;
 }
 
 void SemaErrorHandler::accept(SemaVisitor &Visitor) {

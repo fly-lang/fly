@@ -20,8 +20,7 @@ SemaType::SemaType(SemaKind Kind, std::string Name) : SemaNode(Kind), Name(Name)
 }
 
 SemaType::~SemaType() {
-	// Delete default value if present
-	delete DefaultValue;
+
 }
 
 const size_t SemaType::getId() const {
@@ -30,10 +29,6 @@ const size_t SemaType::getId() const {
 
 const std::string SemaType::getName() const {
 	return Name;
-}
-
-SemaValue *SemaType::getDefaultValue() const {
-	return DefaultValue;
 }
 
 bool SemaType::isBool() const {
@@ -84,7 +79,15 @@ bool SemaType::operator==(const SemaType *Type) const {
 	return isEquals(Type);
 }
 
-void SemaType::accept(SemaVisitor &Visitor) {
+CodeGenType *SemaType::getCodeGen() const {
+	return CG;
+}
+
+void SemaType::setCodeGen(CodeGenType *CG) {
+	this->CG = CG;
+}
+
+void SemaBoolType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
@@ -133,3 +136,10 @@ void SemaErrorType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
+void SemaStringType::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
+void SemaVoidType::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}

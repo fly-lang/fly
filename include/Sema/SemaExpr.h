@@ -10,6 +10,7 @@
 #ifndef FLY_SEMA_RESULT_H
 #define FLY_SEMA_RESULT_H
 
+#include "CodeGen/CodeGenExpr.h"
 #include "Sema/SemaNode.h"
 
 namespace fly {
@@ -32,6 +33,8 @@ namespace fly {
 
     	SemaType *Type;
 
+    	CodeGenExpr *CodeGen;
+
         explicit SemaExpr(SemaKind Kind, SemaType *Type);
 
     public:
@@ -47,7 +50,10 @@ namespace fly {
 
     	SemaExpr *getChild() const;
 
-    	void accept(SemaVisitor& Visitor) override;
+    	virtual CodeGenExpr *getCodeGen() const;
+
+    	virtual void setCodeGen(CodeGenExpr *CodeGen);
+
     };
 
 }

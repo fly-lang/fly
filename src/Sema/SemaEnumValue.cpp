@@ -33,11 +33,11 @@ SemaComment * SemaEnumValue::getComment() const {
 }
 
 CodeGenEnumValue * SemaEnumValue::getCodeGen() const {
-	return CodeGen;
+	return static_cast<CodeGenEnumValue *>(CodeGen);
 }
 
-void SemaEnumValue::setCodeGen(CodeGenEnumValue *CGC) {
-	this->CodeGen = CGC;
+void SemaEnumValue::setCodeGen(CodeGenExpr *CGC) {
+	this->CodeGen = static_cast<CodeGenEnumValue *>(CGC);
 }
 
 void SemaEnumValue::accept(SemaVisitor &Visitor) {

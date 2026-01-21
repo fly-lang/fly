@@ -8,16 +8,18 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGen.h"
-#include "CodeGen/CodeGenModule.h"
-#include "CodeGen/CharUnits.h"
-#include "CodeGen/CodeGenHeader.h"
-#include "Sema/SemaNameSpace.h"
+
 #include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
-#include "Frontend/FrontendOptions.h"
+#include "Basic/Debug.h"
 #include "Basic/FileManager.h"
 #include "Basic/TargetInfo.h"
-#include "Basic/Debug.h"
+#include "CodeGen/CharUnits.h"
+#include "CodeGen/CodeGenHeader.h"
+#include "CodeGen/CodeGenModule.h"
+#include "Frontend/FrontendOptions.h"
+#include "Sema/SemaModule.h"
+#include "Sema/SemaNameSpace.h"
 
 #include <Sema/SymbolTable.h>
 #include <llvm/IR/LLVMContext.h>
@@ -101,21 +103,18 @@ llvm::LLVMContext &CodeGen::getLLVMCtx() {
     return LLVMCtx;
 }
 
-std::vector<llvm::Module *> CodeGen::GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules) {
+llvm::SmallVector<llvm::Module *, 8> CodeGen::GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules) {
     FLY_DEBUG_START("CodeGen", "GenerateModules");
-    std::vector<llvm::Module *> Modules;
-    for (auto &SemaModule : SemaModules) {
+
+	llvm::SmallVector<llvm::Module *, 8> Modules;
+    for (auto &Sema : SemaModules) {
         Diags.getClient()->BeginSourceFile();
-        llvm::Module *M = GenerateModule(SemaModule);
-        Modules.push_back(M);
+    	CodeGenModule *CGM = new CodeGenModule(Diags, Sema->getName(), LLVMCtx, *Target, CodeGenOpts);
+    	Sema->accept(*CGM);
         Diags.getClient()->EndSourceFile();
+    	Modules.push_back(CGM->getModule());
     }
+
+	FLY_DEBUG_END("CodeGen", "GenerateModules");
     return Modules;
 }
-
-llvm::Module *CodeGen::GenerateModule(SemaModule *Module) {
-    FLY_DEBUG_START("CodeGen", "GenerateModule");
-    CodeGenModule *CGM = new CodeGenModule(Diags, Module, LLVMCtx, *Target, CodeGenOpts);
-    return CGM->getModule();
-}
-

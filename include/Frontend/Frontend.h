@@ -25,7 +25,7 @@ namespace fly {
     class FrontendAction;
     class CompilerInstance;
     class ASTBuilder;
-    class Sema;
+    class SemaContext;
 
     class Frontend {
 

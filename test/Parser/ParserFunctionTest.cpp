@@ -123,13 +123,6 @@ namespace {
         ASTParam *jVar = Func->getParams()[9];
         EXPECT_EQ(jVar->getName(), "j");
         EXPECT_TRUE(HasBuiltinType(jVar->getType(), ASTBuiltinTypeKind::TYPE_DOUBLE));
-
-        // Test: Type t
-        // ASTAssignStmt *tStmt = static_cast<ASTAssignStmt *>(Body->getContent()[10]);
-        // ASTVar *tVar = tStmt->getVarRef()->getDef();
-        // EXPECT_EQ(tVar->getName(), "t");
-        // EXPECT_EQ(static_cast<ASTIdentityType *>(tVar->getType())->getIdentityTypeKind(), ASTIdentityTypeKind::TYPE_NONE);
-        // ASSERT_EQ(tStmt->getExpr(), nullptr);
     }
 
     TEST_F(ParserTest, FunctionPrivateReturnParams) {

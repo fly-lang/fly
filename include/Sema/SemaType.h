@@ -10,10 +10,11 @@
 #ifndef FLY_SEMA_TYPE_H
 #define FLY_SEMA_TYPE_H
 
+#include "CodeGen/CodeGenType.h"
 #include "Sema/SemaNode.h"
+
 #include <cstdint>
 #include <llvm/ADT/StringRef.h>
-
 
 namespace fly {
 
@@ -62,7 +63,7 @@ namespace fly {
 
         const std::string Name;
 
-        SemaValue *DefaultValue;
+    	CodeGenType *CG = nullptr;
 
     public:
 
@@ -73,8 +74,6 @@ namespace fly {
         const size_t getId() const;
 
         const std::string getName() const;
-
-        SemaValue *getDefaultValue() const;
 
         bool isBool() const;
 
@@ -100,8 +99,20 @@ namespace fly {
 
         bool operator==(const SemaType *Type) const;
 
-        void accept(SemaVisitor& Visitor) override;
+    	virtual CodeGenType *getCodeGen() const;
+
+    	void setCodeGen(CodeGenType *CG);
     };
+
+	class SemaBoolType : public SemaType {
+
+	public:
+		explicit SemaBoolType() : SemaType(SemaKind::TYPE_BOOL, "bool") {}
+
+		~SemaBoolType() override = default;
+
+		void accept(SemaVisitor& Visitor) override;
+	};
 
     class SemaIntType : public SemaType {
 
@@ -162,6 +173,26 @@ namespace fly {
 
 		void accept(SemaVisitor& Visitor) override;
 
+	};
+
+	class SemaStringType : public SemaType {
+
+	public:
+		explicit SemaStringType() : SemaType(SemaKind::TYPE_STRING, "string") {}
+
+		~SemaStringType() override = default;
+
+		void accept(SemaVisitor& Visitor) override;
+	};
+
+	class SemaVoidType : public SemaType {
+
+	public:
+		explicit SemaVoidType() : SemaType(SemaKind::TYPE_VOID, "void") {}
+
+		~SemaVoidType() override = default;
+
+		void accept(SemaVisitor& Visitor) override;
 	};
 
 }

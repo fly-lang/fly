@@ -11,10 +11,9 @@
 #ifndef FLY_CODEGEN_ENUMVALUE_H
 #define FLY_CODEGEN_ENUMVALUE_H
 
-#include <string>
+#include "CodeGenExpr.h"
 
-#include "CodeGenVarBase.h"
-
+#include <llvm/IR/Type.h>
 
 namespace llvm {
     class Value;
@@ -26,7 +25,7 @@ namespace fly {
     class SemaEnumValue;
     class SemaEnumType;
 
-    class CodeGenEnumValue : public CodeGenVarBase {
+    class CodeGenEnumValue : public CodeGenExpr {
 
         CodeGenModule *CGM;
 
@@ -43,19 +42,11 @@ namespace fly {
 
 //        llvm::AllocaInst *Alloca() override;
 
-        llvm::Type *getType() override;
-
-        llvm::StoreInst *Store(llvm::Value *Val) override;
-
-        llvm::LoadInst *Load() override;
+        llvm::Type *getType();
 
         llvm::Value *getValue() override;
 
-        llvm::Value *getPointer() override;
-
-        void setPointer(llvm::Value *Pointer) override;
-
-        size_t getIndex() override;
+        size_t getIndex();
     };
 }
 

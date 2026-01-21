@@ -34,6 +34,14 @@ ASTTernary &SemaTernary::getAST() const {
 	return AST;
 }
 
+CodeGenExpr * SemaTernary::getCodeGen() const {
+	return CodeGen;
+}
+
+void SemaTernary::setCodeGen(CodeGenExpr *CodeGen) {
+	this->CodeGen = CodeGen;
+}
+
 void SemaTernary::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }

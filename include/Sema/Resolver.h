@@ -19,7 +19,7 @@
 
 namespace fly {
 
-    class Sema;
+    class SemaContext;
     class SemaBuilder;
     class ASTBuilder;
     class DiagnosticsEngine;

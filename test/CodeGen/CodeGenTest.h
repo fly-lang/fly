@@ -12,18 +12,20 @@
 
 // fly
 #include "../TestUtils.h"
-#include "Parser/Parser.h"
-#include "Sema/Sema.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTExpr.h"
-#include <AST/ASTModifier.h>
+#include "Parser/Parser.h"
+#include "Sema/SemaContext.h"
+
 #include <AST/ASTBuilder.h>
+#include <AST/ASTModifier.h>
 #include <Basic/Debug.h>
 
-
 // third party
-#include "llvm/IR/Verifier.h"
+#include "AST/ASTClass.h"
+
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/Support/TargetSelect.h"
 
 #include <AST/ASTEnum.h>
@@ -42,9 +44,9 @@ public:
     CodeGen *CG;
     DiagnosticsEngine &Diags;
 	ASTBuilder *Builder;
-    Sema *S;
+    SemaContext *S;
 	llvm::SmallVector<ASTModule *, 8> ASTModules;
-	std::vector<llvm::Module *> Modules;
+	llvm::SmallVector<llvm::Module *, 8> Modules;
     SourceLocation SourceLoc;
     ASTType *VoidTypeRef;
     ASTType *BoolTypeRef;
@@ -79,7 +81,7 @@ public:
                     CG(TestUtils::CreateCodeGen(CI)),
                     Diags(CI.getDiagnostics()),
 					Builder(new ASTBuilder(Diags)),
-                    S(new Sema(CI.getDiagnostics())),
+                    S(new SemaContext(CI.getDiagnostics())),
                     VoidTypeRef(ASTBuilder::CreateVoidType(SourceLoc)),
                     BoolTypeRef(ASTBuilder::CreateBoolType(SourceLoc)),
                     ByteTypeRef(ASTBuilder::CreateByteType(SourceLoc)),
@@ -141,7 +143,7 @@ public:
     	EXPECT_FALSE(Diags.hasErrorOccurred());
     }
 
-	std::vector<llvm::Module *> &getModules() {
+	llvm::SmallVector<llvm::Module *, 8> &getModules() {
 		return Modules;
 	}
 

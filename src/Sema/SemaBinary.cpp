@@ -34,6 +34,14 @@ ASTBinary &SemaBinary::getAST() const {
 	return AST;
 }
 
+CodeGenExpr * SemaBinary::getCodeGen() const {
+	return CodeGen;
+}
+
+void SemaBinary::setCodeGen(CodeGenExpr *CodeGen) {
+	this->CodeGen = CodeGen;
+}
+
 void SemaBinary::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }

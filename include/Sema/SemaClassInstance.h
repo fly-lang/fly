@@ -54,10 +54,6 @@ namespace fly {
 
         uint64_t getIndex();
 
-    	CodeGenVarBase *getCodeGen() const override;
-
-        void setCodeGen(CodeGenVarBase *CodeGen) override;
-
         void accept(SemaVisitor& Visitor) override;
 
     };

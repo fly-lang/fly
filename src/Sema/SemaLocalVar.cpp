@@ -15,14 +15,6 @@ using namespace fly;
 SemaLocalVar::SemaLocalVar(ASTVar &AST, SemaType *Type) : SemaVar(&AST, SemaKind::LOCAL_VAR, Type) {
 }
 
-CodeGenVar * SemaLocalVar::getCodeGen() const {
-	return CodeGen;
-}
-
-void SemaLocalVar::setCodeGen(CodeGenVarBase *CodeGen) {
-	this->CodeGen = static_cast<CodeGenVar *>(CodeGen);
-}
-
 void SemaLocalVar::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }

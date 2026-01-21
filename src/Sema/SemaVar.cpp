@@ -8,8 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaVar.h"
-#include "Sema/SemaVisitor.h"
-
 #include <AST/ASTVar.h>
 
 using namespace fly;
@@ -30,6 +28,10 @@ bool SemaVar::isConstant() const {
 	return Constant;
 }
 
-void SemaVar::accept(SemaVisitor &Visitor) {
-	Visitor.visit(*this);
+CodeGenVar * SemaVar::getCodeGen() const {
+	return CodeGen;
+}
+
+void SemaVar::setCodeGen(CodeGenVar *CodeGen) {
+	this->CodeGen = CodeGen;
 }

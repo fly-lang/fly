@@ -24,17 +24,11 @@ namespace fly {
         friend class Resolver;
         friend class SemaValidator;
 
-        CodeGenVar *CodeGen;
-
         explicit SemaLocalVar(ASTVar &AST, SemaType *Type);
 
     public:
 
         ~SemaLocalVar() override = default;
-
-        CodeGenVar *getCodeGen() const override;
-
-        void setCodeGen(CodeGenVarBase *CodeGen) override;
 
         void accept(SemaVisitor& Visitor) override;
 

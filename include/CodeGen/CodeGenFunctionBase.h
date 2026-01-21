@@ -70,10 +70,6 @@ namespace fly {
 
         void setInsertPoint();
 
-        void AllocaErrorHandler();
-
-        llvm::AllocaInst *AllocaVar(llvm::Type *Ty);
-
         void AllocaLocalVars();
 
         void StoreParams(size_t Idx);

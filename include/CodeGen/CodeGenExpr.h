@@ -10,7 +10,11 @@
 
 #ifndef FLY_CODEGEN_EXPR_H
 #define FLY_CODEGEN_EXPR_H
+
+#include "CodeGenBase.h"
+
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/IR/IRBuilder.h>
 
 namespace llvm {
 	class Value;
@@ -19,16 +23,19 @@ namespace llvm {
 namespace fly {
 
     class CodeGenModule;
-    class ASTUnary;
-    class ASTBinary;
-    class ASTTernary;
-    class ASTIdentifier;
     class SemaExpr;
-    class ASTExpr;
 	class SemaVar;
 	class SemaCall;
 	class SemaType;
 	class SemaValue;
+	class SemaBoolValue;
+	class SemaIntValue;
+	class SemaFloatValue;
+	class SemaStringValue;
+	class SemaArrayValue;
+	class SemaStructValue;
+	class SemaNullValue;
+	class SemaEnumValue;
 	class SemaMember;
 	class SemaCast;
 	class SemaUnary;
@@ -36,33 +43,51 @@ namespace fly {
 	class SemaTernary;
     enum class ASTBinaryKind;
 
-    class CodeGenExpr {
+    class CodeGenExpr : public CodeGenBase {
+
+    protected:
 
         CodeGenModule * CGM;
 
-    public:
+    	llvm::Value *V;
+
+    	llvm::IRBuilder<> * Builder;
+
+	  public:
 
         CodeGenExpr(CodeGenModule *CGM);
 
-    	llvm::Value *GenExpr(SemaExpr *Sema);
+    	virtual llvm::Value *getValue();
 
-    private:
+        void GenExpr(SemaVar *Sema);
 
-        llvm::Value *GenExpr(SemaVar *Sema);
+        void GenExpr(SemaCall *Sema);
 
-        llvm::Value *GenExpr(SemaCall *Sema);
+    	void GenExpr(SemaMember *Sema);
 
-    	llvm::Value *GenExpr(SemaMember *Sema);
+    	void GenExpr(SemaBoolValue *Sema);
 
-        llvm::Value *GenExpr(SemaValue *Sema);
+    	void GenExpr(SemaIntValue *Sema);
 
-        llvm::Value *GenExpr(SemaCast *Sema);
+    	void GenExpr(SemaFloatValue *Sema);
 
-        llvm::Value *GenExpr(SemaUnary *Sema);
+    	void GenExpr(SemaStringValue *Sema);
 
-        llvm::Value *GenExpr(SemaBinary *Sema);
+    	void GenExpr(SemaArrayValue *Sema);
 
-        llvm::Value *GenExpr(SemaTernary *Sema);
+    	void GenExpr(SemaStructValue *Sema);
+
+    	void GenExpr(SemaNullValue *Sema);
+
+    	void GenExpr(SemaEnumValue *Sema);
+
+        void GenExpr(SemaCast *Sema);
+
+        void GenExpr(SemaUnary *Sema);
+
+        void GenExpr(SemaBinary *Sema);
+
+        void GenExpr(SemaTernary *Sema);
 
         llvm::Value *GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
@@ -73,6 +98,10 @@ namespace fly {
         llvm::Value* GenBinaryAssign(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
         void addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &Args);
+
+    	llvm::Value *ConvertToBool(llvm::Value *V);
+
+    	llvm::Value *Convert(llvm::Value *FromVal, SemaType *FromType, SemaType *ToType);
     };
 }
 

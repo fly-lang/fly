@@ -32,6 +32,8 @@ namespace fly {
 
     	SemaErrorHandler *ErrorHandler = nullptr;
 
+    	CodeGenExpr *CodeGen = nullptr;
+
         explicit SemaCall(ASTCall &AST, SemaType *Type);
 
     public:
@@ -47,6 +49,10 @@ namespace fly {
     	void setErrorHandler(SemaErrorHandler *ErrorHandler);
 
     	bool isNew() const;
+
+    	CodeGenExpr *getCodeGen() const;
+
+    	void setCodeGen(CodeGenExpr *CodeGen);
 
     	void accept(SemaVisitor& Visitor) override;
 

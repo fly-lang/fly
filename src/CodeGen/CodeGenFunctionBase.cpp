@@ -39,17 +39,15 @@ CodeGenModule *CodeGenFunctionBase::getCodeGenModule() {
 }
 
 void CodeGenFunctionBase::GenReturnType() {
-    RetType = CGM->GenType(Sema->getReturnType());
+	Sema->getReturnType()->accept(*CGM);
+    RetType = Sema->getReturnType()->getCodeGen()->getType();
 }
 
 void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, SemaFunctionBase * Sema) {
     // Populate Types by reference
-    if (Sema->getParams().empty()) {
-        return;
-    }
     for (auto Param : Sema->getParams()) {
-        llvm::Type *ParamTy = CGM->GenType(Param->getType());
-        Types.push_back(ParamTy);
+    	Param->getType()->accept(*CGM);
+        Types.push_back(Param->getType()->getCodeGen()->getType());
     }
 //    if (Params->getEllipsis() != nullptr) {
         // TODO
@@ -78,47 +76,17 @@ void CodeGenFunctionBase::setInsertPoint() {
     CGM->Builder->SetInsertPoint(Entry);
 }
 
-void CodeGenFunctionBase::AllocaErrorHandler() {
-	// Set Error Handler
-	if (Sema->getErrorHandler()) {
-		CodeGenError *CGE = CGM->GenErrorHandler(Sema->getErrorHandler());
-		Sema->getErrorHandler()->setCodeGen(CGE);
-	}
-}
-
-llvm::AllocaInst *CodeGenFunctionBase::AllocaVar(llvm::Type *Ty) {
-	if (Ty->isStructTy()) {
-		llvm::PointerType *PtrTy = Ty->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
-		return CGM->Builder->CreateAlloca(PtrTy);
-	} else {
-		// Alloca for non-struct types
-		// Check if the type is bool (i1) and convert it to i8
-		return  CGM->Builder->CreateAlloca(Ty->isIntegerTy(1) ? CGM->Int8Ty : Ty);
-	}
-}
-
 void CodeGenFunctionBase::AllocaLocalVars() {
     // Allocation of declared ASTVar
     for (auto Param : Sema->getParams()) {
-    	llvm::Type *Ty = CGM->GenType(Param->getType());
-    	llvm::AllocaInst * Alloca = AllocaVar(Ty);
-    	CodeGenVar *CGV = new CodeGenVar(CGM, Param, Ty);
-    	CGV->setPointer(Alloca);
-        Param->setCodeGen(CGV);
+    	Param->accept(*CGM);
+    	Param->getCodeGen()->Alloca();
     }
 
-    // Allocation of all declared ASTVar
+    // Allocation of all declared SemaLocalVar
     for (auto &LocalVar: Sema->getLocalVars()) {
-    	if (LocalVar->getType()->isError()) {
-    		CodeGenError *CGE = CGM->GenErrorHandler(LocalVar);
-    		LocalVar->setCodeGen(CGE);
-        } else {
-        	llvm::Type *Ty = CGM->GenType(LocalVar->getType());
-        	llvm::AllocaInst *Alloca = AllocaVar(Ty);
-        	CodeGenVar *CGV = new CodeGenVar(CGM, LocalVar, Ty);
-        	CGV->setPointer(Alloca);
-        	LocalVar->setCodeGen(CGV);
-        }
+    	LocalVar->accept(*CGM);
+    	LocalVar->getCodeGen()->Alloca();
     }
 }
 
@@ -127,7 +95,7 @@ void CodeGenFunctionBase::StoreParams(size_t Idx) {
     for (auto &Param: Sema->getParams()) {
 
         // Store Arg value into Param
-        CodeGenVarBase *CGV = Param->getCodeGen();
+        CodeGenVar *CGV = Param->getCodeGen();
         CGV->Store(Fn->getArg(Idx));
 
         ++Idx;

@@ -19,6 +19,7 @@ namespace fly {
     class ASTAttribute;
     class SemaComment;
     class SemaClassType;
+	enum class SemaVisibilityKind;
 
     class SemaClassAttribute  : public SemaVar {
 
@@ -45,10 +46,6 @@ namespace fly {
         ~SemaClassAttribute() override;
 
         SemaClassType &getClass() const;
-
-    	CodeGenVar *getCodeGen() const override;
-
-        void setCodeGen(CodeGenVarBase* CodeGen) override;
 
         SemaComment *getComment() const;
 

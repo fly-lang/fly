@@ -8,8 +8,10 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaClassInstance.h"
-#include "Sema/SemaVisitor.h"
+
 #include "CodeGen/CodeGenVar.h"
+#include "Sema/SemaClassType.h"
+#include "Sema/SemaVisitor.h"
 
 using namespace fly;
 
@@ -59,14 +61,6 @@ SemaClassType * SemaClassInstance::getClass() const {
 
 uint64_t SemaClassInstance::getIndex() {
 	return Index;
-}
-
-CodeGenVarBase * SemaClassInstance::getCodeGen() const {
-	return CodeGen;
-}
-
-void SemaClassInstance::setCodeGen(CodeGenVarBase *CodeGen) {
-        this->CodeGen = static_cast<CodeGenVar *>(CodeGen);
 }
 
 void SemaClassInstance::accept(SemaVisitor &Visitor) {

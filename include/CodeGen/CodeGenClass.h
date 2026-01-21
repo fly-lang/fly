@@ -11,6 +11,7 @@
 #ifndef FLY_CODEGEN_CLASS_H
 #define FLY_CODEGEN_CLASS_H
 
+#include "CodeGenType.h"
 #include "CodeGenClassMethod.h"
 #include "llvm/ADT/ArrayRef.h"
 
@@ -34,11 +35,9 @@ namespace fly {
         llvm::SmallVector<BaseType *, 4> Bases;
 	};
 
-    class CodeGenClass {
+    class CodeGenClass : public CodeGenType {
 
         friend class CodeGenClassMethod;
-
-        CodeGenModule * CGM;
 
         SemaClassType *Sema;
 

@@ -10,15 +10,17 @@
 #ifndef FLY_SEMA_CLASS_TYPE_H
 #define FLY_SEMA_CLASS_TYPE_H
 
-#include "SemaClassInstance.h"
-#include "Sema/SemaType.h"
 #include "AST/ASTClass.h"
-#include "llvm/ADT/StringMap.h"
+#include "CodeGen/CodeGenClass.h"
+#include "Sema/SemaType.h"
+#include "SemaClassInstance.h"
 #include "SemaVisibilityKind.h"
+
+#include "llvm/ADT/StringMap.h"
 
 namespace fly {
 
-    class Sema;
+    class SemaContext;
     class ASTClass;
     class SemaComment;
     class SemaClassMethod;
@@ -140,7 +142,7 @@ namespace fly {
 
         bool isBase(SemaClassType *Derived) const;
 
-        CodeGenClass *getCodeGen() const;
+        CodeGenClass *getCodeGen() const override;
 
         void setCodeGen(CodeGenClass *CGC);
 

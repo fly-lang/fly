@@ -8,19 +8,19 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenClassMethod.h"
-#include "CodeGen/CodeGenClassMethod.h"
-#include "CodeGen/CodeGenModule.h"
-#include "CodeGen/CodeGenClass.h"
-#include "CodeGen/CodeGenVar.h"
-#include "Sema/SemaModule.h"
-#include "Sema/SemaClassMethod.h"
-#include "Sema/SemaClassAttribute.h"
-#include "Sema/SemaNameSpace.h"
-#include "Sema/SemaClassType.h"
+
 #include "AST/ASTClass.h"
 #include "AST/ASTFunction.h"
 #include "Basic/Debug.h"
+#include "CodeGen/CodeGenClass.h"
+#include "CodeGen/CodeGenClassMethod.h"
+#include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenVar.h"
+#include "Sema/SemaClassAttribute.h"
+#include "Sema/SemaClassMethod.h"
+#include "Sema/SemaClassType.h"
+#include "Sema/SemaModule.h"
+#include "Sema/SemaNameSpace.h"
 
 #include <AST/ASTType.h>
 #include <AST/ASTVar.h>
@@ -87,7 +87,7 @@ void CodeGenClassMethod::GenBody() {
 
 	// Alloca Error Handler
     if (Class->getAST().getClassKind() != ASTClassKind::STRUCT) {
-    	AllocaErrorHandler();
+    	Sema->getErrorHandler()->accept(*CGM);
     }
 
     // Alloca Class Instance

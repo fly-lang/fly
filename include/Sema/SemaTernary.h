@@ -22,6 +22,8 @@ namespace fly {
 
 		ASTTernary &AST;
 
+		CodeGenExpr *CodeGen = nullptr;
+
 		SemaType *SelectType(SemaExpr * LeftExpr, SemaExpr * RightExpr);
 
 		explicit SemaTernary(ASTTernary &AST);
@@ -31,6 +33,10 @@ namespace fly {
 		~SemaTernary() override = default;
 
 		ASTTernary &getAST() const;
+
+		CodeGenExpr *getCodeGen() const;
+
+		void setCodeGen(CodeGenExpr *CodeGen);
 
 		void accept(SemaVisitor& Visitor) override;
 

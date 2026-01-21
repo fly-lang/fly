@@ -10,9 +10,9 @@
 #ifndef FLY_CODEGEN_ERROR_H
 #define FLY_CODEGEN_ERROR_H
 
-#include <llvm/ADT/StringRef.h>
+#include "CodeGenVar.h"
 
-#include "CodeGenVarBase.h"
+#include <llvm/ADT/StringRef.h>
 
 namespace llvm {
     class StructType;
@@ -25,13 +25,9 @@ namespace fly {
     class ASTExpr;
     class SemaVar;
 
-    class CodeGenError : public CodeGenVarBase {
-
-        CodeGenModule *CGM = nullptr;
+    class CodeGenError : public CodeGenVar {
 
         SemaVar *Sema = nullptr;
-
-        llvm::Type *T = nullptr;
 
         size_t Index;
 
@@ -49,7 +45,7 @@ namespace fly {
 
         static llvm::StructType *GenErrorType(llvm::LLVMContext &LLVMCtx);
 
-        llvm::Type *getType() override;
+        llvm::Type *getType();
 
         llvm::StoreInst *StoreErrorHandler(llvm::Value *Val);
 
@@ -61,17 +57,17 @@ namespace fly {
 
         llvm::StoreInst *StoreObject(llvm::Value *Val);
 
-        size_t getIndex() override;
+        size_t getIndex();
 
-        llvm::StoreInst *Store(llvm::Value *Val) override;
+        llvm::StoreInst *Store(llvm::Value *Val);
 
-        llvm::LoadInst *Load() override;
+        llvm::LoadInst *Load();
 
         llvm::Value *getValue() override;
 
-        llvm::Value *getPointer() override;
+        llvm::Value *getPointer();
 
-        void setPointer(llvm::Value *Pointer) override;
+        void setPointer(llvm::Value *Pointer);
 
     };
 }

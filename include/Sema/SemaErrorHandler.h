@@ -27,8 +27,6 @@ namespace fly {
 
     	SemaType *Type;
 
-        CodeGenError *CodeGen;
-
     public:
 
         explicit SemaErrorHandler(ASTVar *AST);
@@ -37,7 +35,7 @@ namespace fly {
 
         CodeGenError *getCodeGen() const override;
 
-        void setCodeGen(CodeGenVarBase *CodeGen) override;
+        void setCodeGen(CodeGenError *CodeGen);
 
         void accept(SemaVisitor& Visitor) override;
 

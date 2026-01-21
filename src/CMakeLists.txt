@@ -116,6 +116,7 @@ add_library(flyLib
         CodeGen/CodeGenFunctionBase.cpp
         CodeGen/CodeGenHandle.cpp
         CodeGen/CodeGenModule.cpp
+        CodeGen/CodeGenType.cpp
         CodeGen/CodeGenVar.cpp
 
         # Driver
@@ -146,7 +147,7 @@ add_library(flyLib
 
         # Sema
         Sema/Helper.cpp
-        Sema/Sema.cpp
+        Sema/SemaContext.cpp
         Sema/SemaBuilder.cpp
         Sema/SemaBuilderModifiers.cpp
         Sema/SemaBuiltin.cpp

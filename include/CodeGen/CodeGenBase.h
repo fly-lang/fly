@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaParam.cpp - The Symbolic Table for Param
+// include/CodeGen/CodeGenBase.h - Code Generator of Statements
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,17 +7,22 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Sema/SemaParam.h"
-#include "Sema/SemaVisitor.h"
-#include "AST/ASTParam.h"
 
-using namespace fly;
+#ifndef FLY_CODEGEN_BASE_H
+#define FLY_CODEGEN_BASE_H
 
-SemaParam::SemaParam(ASTParam &AST, SemaType *Type) : SemaVar(&AST, SemaKind::PARAM_VAR, Type) {
+namespace fly {
 
+    class CodeGenBase {
+
+    protected:
+
+    	explicit CodeGenBase() = default;
+
+    public:
+        virtual ~CodeGenBase() = default;
+
+    };
 }
 
-void SemaParam::accept(SemaVisitor &Visitor) {
-	Visitor.visit(*this);
-}
-
+#endif //FLY_CODEGEN_BASE_H

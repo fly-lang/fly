@@ -24,6 +24,8 @@ namespace fly {
 
 		ASTUnary &AST;
 
+		CodeGenExpr *CodeGen = nullptr;
+
 		explicit SemaUnary(ASTUnary &AST);
 
 	public:
@@ -31,6 +33,10 @@ namespace fly {
     	~SemaUnary() override = default;
 
     	ASTUnary &getAST() const;
+
+		CodeGenExpr *getCodeGen() const;
+
+		void setCodeGen(CodeGenExpr *CodeGen);
 
     	void accept(SemaVisitor& Visitor) override;
 

@@ -21,7 +21,7 @@ namespace fly {
 
     class DiagnosticsEngine;
 
-    class Sema {
+    class SemaContext {
 
         DiagnosticsEngine &Diags;
 
@@ -31,9 +31,9 @@ namespace fly {
 
     public:
 
-        explicit Sema(DiagnosticsEngine& diags);
+        explicit SemaContext(DiagnosticsEngine& diags);
 
-        ~Sema();
+        ~SemaContext();
 
         llvm::SmallVector<SemaModule *, 8> Resolve(llvm::SmallVector<ASTModule *, 8> &Modules);
 

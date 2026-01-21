@@ -8,8 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaFunctionBase.h"
-#include "Sema/SemaVisitor.h"
-
 #include "AST/ASTFunction.h"
 #include "Sema/SemaLocalVar.h"
 #include "Sema/SemaParam.h"
@@ -53,6 +51,14 @@ void SemaFunctionBase::setReturnType(SemaType *RetType) {
 	ReturnType = RetType;
 }
 
+SemaValue *SemaFunctionBase::getDefaultReturnValue() const {
+	return DefaultReturnValue;
+}
+
+void SemaFunctionBase::setDefaultReturnValue(SemaValue *Value) {
+	DefaultReturnValue = Value;
+}
+
 llvm::SmallVector<SemaParam *, 8> &SemaFunctionBase::getParams() {
     return Params;
 }
@@ -75,9 +81,5 @@ void SemaFunctionBase::addLocalVar(SemaLocalVar *Var) {
 
 SemaErrorHandler * SemaFunctionBase::getErrorHandler() const {
 	return ErrorHandler;
-}
-
-void SemaFunctionBase::accept(SemaVisitor &Visitor) {
-	Visitor.visit(*this);
 }
 

@@ -28,7 +28,7 @@ namespace fly {
 
         SemaExpr *Ref;
 
-        CodeGenVar *CodeGen = nullptr;
+    	CodeGenExpr *CodeGen = nullptr;
 
         explicit SemaMember(ASTMember &AST, SemaExpr *Ref, SemaExpr *Parent);
 
@@ -40,9 +40,9 @@ namespace fly {
 
         SemaExpr *getRef() const;
 
-        CodeGenVar *getCodeGen() const;
+        CodeGenExpr *getCodeGen() const;
 
-        void setCodeGen(CodeGenVarBase *CodeGen);
+        void setCodeGen(CodeGenExpr *CodeGen);
 
         void accept(SemaVisitor& Visitor) override;
 

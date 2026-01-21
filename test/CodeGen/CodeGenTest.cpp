@@ -8,25 +8,26 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGenTest.h"
-#include "CodeGen/CodeGenModule.h"
-#include "Sema/SemaBuilderModifiers.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTVar.h"
+
+#include "AST/ASTDeclStmt.h"
+#include "AST/ASTExprStmt.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTIdentifier.h"
-#include "AST/ASTExprStmt.h"
-#include "AST/ASTDeclStmt.h"
-#include <AST/ASTUnary.h>
+#include "AST/ASTModule.h"
+#include "AST/ASTVar.h"
+#include "CodeGen/CodeGenModule.h"
+#include "Sema/SemaBuilderModifiers.h"
+
 #include <AST/ASTBinary.h>
-#include <AST/ASTTernary.h>
 #include <AST/ASTBuilderIfStmt.h>
 #include <AST/ASTBuilderLoopStmt.h>
 #include <AST/ASTBuilderSwitchStmt.h>
 #include <AST/ASTLocalVar.h>
 #include <AST/ASTParam.h>
 #include <AST/ASTReturnStmt.h>
+#include <AST/ASTTernary.h>
+#include <AST/ASTUnary.h>
 #include <AST/ASTValue.h>
-
 
 namespace {
 

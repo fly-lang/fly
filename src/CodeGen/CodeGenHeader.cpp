@@ -27,7 +27,7 @@ using namespace fly;
 std::string getParameters(ASTFunction *Function) {
 	llvm::Twine Params;
 	for (auto Param : Function->getParams()) {
-		SemaTypeKind Kind = Param->getTypeRef()->getDef()->getKind();
+		//SemaTypeKind Kind = Param->getTypeRef()->getDef()->getKind();
 		//Params.concat(Kind).concat(" ").concat(Param->getName()).concat(", ");
 	}
 

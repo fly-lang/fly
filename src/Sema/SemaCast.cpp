@@ -22,6 +22,14 @@ ASTCast &SemaCast::getAST() const {
 	return AST;
 }
 
+CodeGenExpr * SemaCast::getCodeGen() const {
+	return CodeGen;
+}
+
+void SemaCast::setCodeGen(CodeGenExpr *CodeGen) {
+	this->CodeGen = CodeGen;
+}
+
 void SemaCast::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }

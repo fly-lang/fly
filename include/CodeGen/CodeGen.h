@@ -124,10 +124,8 @@ class CodeGen {
 
         llvm::LLVMContext &getLLVMCtx();
 
-        std::vector<llvm::Module *> GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules);
-
-        llvm::Module *GenerateModule(SemaModule *Module);
-    };
+        llvm::SmallVector<llvm::Module *, 8> GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules);
+};
 }
 
 #endif //FLY_CODEGEN_H

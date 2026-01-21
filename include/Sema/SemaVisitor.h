@@ -18,13 +18,15 @@ namespace fly {
 	class SemaImport;
 
 	// Types
-	class SemaType;
+	class SemaBoolType;
 	class SemaIntType;
 	class SemaFloatType;
 	class SemaArrayType;
 	class SemaClassType;
 	class SemaEnumType;
 	class SemaErrorType;
+	class SemaVoidType;
+	class SemaStringType;
 
 	// Functions
 	class SemaFunctionBase;
@@ -36,7 +38,6 @@ namespace fly {
 	class SemaLocalVar;
 	class SemaParam;
 	class SemaMember;
-	class SemaMemberValue;
 	class SemaClassAttribute;
 	class SemaClassInstance;
 	class SemaEnumValue;
@@ -78,31 +79,29 @@ namespace fly {
 		virtual void visit(SemaImport &Sema) = 0;
 
 		// Types
-		virtual void visit(SemaType &Sema) = 0;
+		virtual void visit(SemaBoolType &Sema) = 0;
 		virtual void visit(SemaIntType &Sema) = 0;
 		virtual void visit(SemaFloatType &Sema) = 0;
 		virtual void visit(SemaArrayType &Sema) = 0;
 		virtual void visit(SemaClassType &Sema) = 0;
 		virtual void visit(SemaEnumType &Sema) = 0;
 		virtual void visit(SemaErrorType &Sema) = 0;
+		virtual void visit(SemaVoidType &Sema) = 0;
+		virtual void visit(SemaStringType &Sema) = 0;
 
 		// Functions
-		virtual void visit(SemaFunctionBase &Sema) = 0;
 		virtual void visit(SemaFunction &Sema) = 0;
 		virtual void visit(SemaClassMethod &Sema) = 0;
 
 		// Variables
-		virtual void visit(SemaVar &Sema) = 0;
+		virtual void visit(SemaClassAttribute &Sema) = 0;
 		virtual void visit(SemaLocalVar &Sema) = 0;
 		virtual void visit(SemaParam &Sema) = 0;
-		virtual void visit(SemaMember &Sema) = 0;
-		virtual void visit(SemaMemberValue &Sema) = 0;
-		virtual void visit(SemaClassAttribute &Sema) = 0;
 		virtual void visit(SemaClassInstance &Sema) = 0;
 		virtual void visit(SemaErrorHandler &Sema) = 0;
 
 		// Expressions
-		virtual void visit(SemaExpr &Sema) = 0;
+		virtual void visit(SemaMember &Sema) = 0;
 		virtual void visit(SemaCall &Sema) = 0;
 		virtual void visit(SemaUnary &Sema) = 0;
 		virtual void visit(SemaBinary &Sema) = 0;
@@ -110,7 +109,6 @@ namespace fly {
 		virtual void visit(SemaCast &Sema) = 0;
 
 		// Values
-		virtual void visit(SemaValue &Sema) = 0;
 		virtual void visit(SemaBoolValue &Sema) = 0;
 		virtual void visit(SemaIntValue &Sema) = 0;
 		virtual void visit(SemaFloatValue &Sema) = 0;

@@ -37,6 +37,14 @@ bool SemaCall::isNew() const {
 	return AST.getCallKind() >= ASTCallKind::CALL_NEW;
 }
 
+CodeGenExpr * SemaCall::getCodeGen() const {
+	return CodeGen;
+}
+
+void SemaCall::setCodeGen(CodeGenExpr *CodeGen) {
+	this->CodeGen = CodeGen;
+}
+
 void SemaCall::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }

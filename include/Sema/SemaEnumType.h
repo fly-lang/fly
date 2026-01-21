@@ -17,7 +17,7 @@
 
 namespace fly {
 
-    class Sema;
+    class SemaContext;
     class ASTEnum;
     class SemaComment;
     class SemaEnumValue;

@@ -8,15 +8,18 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenFunction.h"
-#include "CodeGen/CodeGenModule.h"
-#include "CodeGen/CodeGenError.h"
-#include "AST/ASTModule.h"
+
 #include "AST/ASTFunction.h"
-#include "Sema/SemaFunction.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTType.h"
 #include "Basic/Debug.h"
-#include "llvm/IR/Function.h"
+#include "CodeGen/CodeGenError.h"
+#include "CodeGen/CodeGenModule.h"
+#include "Sema/SemaFunction.h"
+
 #include "llvm/ADT/StringRef.h"
+#include "llvm/IR/Function.h"
+
 #include <Sema/SemaErrorHandler.h>
 #include <Sema/SemaType.h>
 
@@ -70,7 +73,12 @@ void CodeGenFunction::GenBody() {
 		llvm::Constant *One = llvm::ConstantInt::get(CGM->Int32Ty, 1);
 		llvm::Constant *Two = llvm::ConstantInt::get(CGM->Int32Ty, 2);
 		llvm::Constant *NullPtr = llvm::ConstantPointerNull::get(CGM->Int8Ty->getPointerTo());
-		CodeGenVarBase *CGE = CGM->GenErrorHandler(Sema->getErrorHandler());
+
+		// Alloca Error Handler
+		Sema->getErrorHandler()->accept(*CGM);
+
+		// Store Default No Error in Error Handler
+		CodeGenError *CGE = Sema->getErrorHandler()->getCodeGen();
 		llvm::Value *ErrorVar = CGE->Load();
 		llvm::Value *PtrType = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, Zero});
 		CGM->Builder->CreateStore(llvm::ConstantInt::get(CGM->Int8Ty, 0), PtrType);
@@ -81,7 +89,7 @@ void CodeGenFunction::GenBody() {
 	} else {
 
 		// Alloca Function Error Handler
-		AllocaErrorHandler();
+		Sema->getErrorHandler()->accept(*CGM);
 
 		// Alloca Function Parameters and Local Vars
 		AllocaLocalVars();

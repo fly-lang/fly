@@ -28,12 +28,12 @@ SemaExpr * SemaMember::getRef() const {
 	return Ref;
 }
 
-CodeGenVar * SemaMember::getCodeGen() const {
+CodeGenExpr * SemaMember::getCodeGen() const {
 	return CodeGen;
 }
 
-void SemaMember::setCodeGen(CodeGenVarBase *CodeGen) {
-	this->CodeGen = static_cast<CodeGenVar *>(CodeGen);
+void SemaMember::setCodeGen(CodeGenExpr *CodeGen) {
+	this->CodeGen = CodeGen;
 }
 
 void SemaMember::accept(SemaVisitor &Visitor) {

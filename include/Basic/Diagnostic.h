@@ -989,7 +989,7 @@ protected:
   // of SFINAE requires it to use its own SemaDiagnosticBuilder, which needs to
   // access us directly to ensure we minimize the emitted code for the common
   // Sema::Diag() patterns.
-  friend class Sema;
+  friend class SemaContext;
 
   /// Emit the current diagnostic and clear the diagnostic state.
   ///

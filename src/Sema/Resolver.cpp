@@ -546,8 +546,14 @@ void Resolver::visit(ASTReturnStmt &AST) {
 	CurrentStmt = &AST;
 	SemaType *ReturnType = CurrentFunction->getReturnType(); // Force Return Expr to be of Return Type
 	ASTExpr *Expr = AST.getExpr();
+
 	if (Expr != nullptr) {
-		Expr->accept(*this);
+		// Check if function has void return type but return statement has an expression
+		if (ReturnType->isVoid()) {
+			Diag(AST.getLocation(), diag::err_invalid_return_type);
+		} else {
+			Expr->accept(*this);
+		}
 	} else if (!ReturnType->isVoid()) {
 		Diag(AST.getLocation(), diag::err_invalid_return_type);
 	}
@@ -1262,6 +1268,7 @@ void Resolver::ResolveFunction(SemaFunction *Func) {
 	ASTType *ReturnType = AST.getReturnType();
 	ReturnType->accept(*this);
 	Func->setReturnType(ReturnType->getSema());
+	Func->setDefaultReturnValue(SemaBuilder::CreateDefaultValue(*Func->getReturnType()));
 
 	// Enter Function Scope
 	EnterScope();

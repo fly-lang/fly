@@ -20,18 +20,30 @@
 
 using namespace fly;
 
-CodeGenVar::CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T) :
-	CGM(CGM), Sema(Sema), T(T) {
+CodeGenVar::CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T) : CodeGenExpr(CGM),
+	Sema(Sema), T(T) {
 
 }
 
-CodeGenVar::CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T, size_t Index) :
-	CGM(CGM), Sema(Sema), T(T), Index(Index) {
+CodeGenVar::CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T, size_t Index) : CodeGenExpr(CGM),
+	Sema(Sema), T(T), Index(Index) {
 
 }
 
 llvm::Type *CodeGenVar::getType() {
     return T;
+}
+
+llvm::AllocaInst *CodeGenVar::Alloca() {
+	if (T->isStructTy()) {
+		llvm::PointerType *PtrTy = T->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
+		this->Pointer = CGM->Builder->CreateAlloca(PtrTy);
+	} else {
+		// Alloca for non-struct types
+		// Check if the type is bool (i1) and convert it to i8
+		this->Pointer = CGM->Builder->CreateAlloca(T->isIntegerTy(1) ? CGM->Int8Ty : T);
+	}
+	return llvm::cast<llvm::AllocaInst>(this->Pointer);
 }
 
 llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
@@ -72,7 +84,7 @@ llvm::Value *CodeGenVar::getPointer() {
 		SemaClassAttribute * Attribute = static_cast<SemaClassAttribute *>(Sema);
 
 		if (!Attribute->isStatic()) {
-			CodeGenVarBase *CGV = static_cast<SemaClassInstance *>(Attribute->getParent())->getCodeGen();
+			CodeGenVar *CGV = static_cast<SemaClassInstance *>(Attribute->getParent())->getCodeGen();
 			llvm::ArrayRef<llvm::Value *> IdxList = {CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, Attribute->getCodeGen()->getIndex())};
 			this->Pointer = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(), IdxList);
 		}

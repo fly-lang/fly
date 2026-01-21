@@ -26,7 +26,7 @@
 
 using namespace fly;
 
-CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExternal) : CGM(CGM), Sema(Sema) {
+CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExternal) : CodeGenType(CGM), Sema(Sema) {
 	Id = toIdentifier(Sema);
 
 	// Generate Class Type
@@ -122,7 +122,7 @@ void CodeGenClass::CreateVTable() {
 
 					// Add to Class Methods
 					Methods.push_back(CG);
-					CGM->CGFunctions.push_back(CG);
+					CGM->Functions.push_back(Method);
 				} else {
 					// CodeGen generated from super class
 					CG = Method->getCodeGen();
@@ -171,11 +171,7 @@ void CodeGenClass::CreateBaseVTables(std::string VTableName, SemaClassType *Deri
 
 void CodeGenClass::CreateBaseInfo(llvm::SmallVector<SemaClassType *, 4> BaseClasses) {
 	for (auto &BaseClass : BaseClasses) {
-
-		// Need a CodeGen
-		if (BaseClass->getCodeGen() == nullptr) {
-			CGM->GenClass(BaseClass, false);
-		}
+		BaseClass->accept(*CGM);
 
 		// Add Base Class Type to the BodyType
 		BodyType.push_back(BaseClass->getCodeGen()->getType());
@@ -190,10 +186,11 @@ void CodeGenClass::CreateAttributes() {
 		// add var to the type
 		for (auto &AttributeEntry : Sema->getAttributes()) {
 			SemaClassAttribute *Attribute = AttributeEntry.getValue();
-			llvm::Type *AttrType = CGM->GenType(Attribute->getType());
+			Attribute->getType()->accept(*CGM);
+			llvm::Type *AttrType = Attribute->getType()->getCodeGen()->getType();
 
 			// Check if the ClassAttribute is a static attribute
-			CodeGenVarBase *CGV;
+			CodeGenVar *CGV;
 			if (Attribute->isStatic()) {
 				llvm::Value *ParentPointer = new llvm::GlobalVariable(
 					*CGM->Module, AttrType, Sema->isConstant(),

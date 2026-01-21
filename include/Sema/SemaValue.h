@@ -46,9 +46,6 @@ namespace fly {
         ~SemaValue() override = default;
 
     	ASTValue *getAST() const;
-
-    	void accept(SemaVisitor& Visitor) override;
-
     };
 
 	class SemaBoolValue : public SemaValue {

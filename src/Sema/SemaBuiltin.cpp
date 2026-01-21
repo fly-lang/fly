@@ -15,7 +15,7 @@ using namespace fly;
 SemaType *SemaBuiltin::BoolType = nullptr;
 SemaType * SemaBuiltin::getBoolType() {
 	if (BoolType == nullptr) {
-		BoolType = new SemaType(SemaKind::TYPE_BOOL, "bool");
+		BoolType = new SemaBoolType();
 	}
 	return BoolType;
 }
@@ -95,7 +95,7 @@ SemaFloatType * SemaBuiltin::getDoubleType() {
 SemaType *SemaBuiltin::VoidType = nullptr;
 SemaType * SemaBuiltin::getVoidType() {
 	if (VoidType == nullptr) {
-		VoidType = new SemaType(SemaKind::TYPE_VOID, "void");
+		VoidType = new SemaVoidType();
 	}
 	return VoidType;
 }
@@ -103,7 +103,7 @@ SemaType * SemaBuiltin::getVoidType() {
 SemaType *SemaBuiltin::StringType = nullptr;
 SemaType * SemaBuiltin::getStringType() {
 	if (StringType == nullptr) {
-		StringType = new SemaType(SemaKind::TYPE_STRING, "string");
+		StringType = new SemaStringType();
 	}
 	return StringType;
 }

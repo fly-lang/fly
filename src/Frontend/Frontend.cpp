@@ -8,19 +8,19 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Frontend/Frontend.h"
+
 #include "AST/ASTBuilder.h"
-#include "Sema/Sema.h"
-#include "Parser/Parser.h"
-#include "CodeGen/CodeGen.h"
-#include "CodeGen/CodeGenModule.h"
 #include "Basic/Archiver.h"
 #include "Basic/Debug.h"
 #include "Basic/Stack.h"
-
-#include <llvm/ADT/Statistic.h>
-#include <llvm/Support/Timer.h>
+#include "CodeGen/CodeGen.h"
+#include "CodeGen/CodeGenModule.h"
+#include "Parser/Parser.h"
+#include "Sema/SemaContext.h"
 
 #include <iostream>
+#include <llvm/ADT/Statistic.h>
+#include <llvm/Support/Timer.h>
 
 using namespace fly;
 
@@ -62,7 +62,7 @@ bool Frontend::Execute() {
     }
 
 	// Parse files, create AST, build Semantics checker
-	Sema *S = new Sema(Diags);
+	SemaContext *S = new SemaContext(Diags);
 
     Diags.getClient()->BeginSourceFile();
 
@@ -74,7 +74,7 @@ bool Frontend::Execute() {
         CodeGen CG(Diags, CI.getCodeGenOptions(), CI.getTargetOptions(),
                    CI.getFrontendOptions().BackendAction,
                    CI.getFrontendOptions().ShowTimers);
-        std::vector<llvm::Module *> Modules = CG.GenerateModules(SemaModules);
+        llvm::SmallVector<llvm::Module *, 8> Modules = CG.GenerateModules(SemaModules);
 
         // Emit code base on BackendActionKind
         for (auto M : Modules) {

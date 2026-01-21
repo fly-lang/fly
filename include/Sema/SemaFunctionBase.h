@@ -34,6 +34,8 @@ namespace fly {
 
         SemaType *ReturnType;
 
+    	SemaValue *DefaultReturnValue;
+
         ASTFunction &AST;
 
         llvm::SmallVector<SemaLocalVar *, 8> LocalVars;
@@ -54,6 +56,10 @@ namespace fly {
 
         void setReturnType(SemaType *RetType);
 
+    	SemaValue *getDefaultReturnValue() const;
+
+    	void setDefaultReturnValue(SemaValue *Value);
+
         llvm::SmallVector<SemaParam *, 8> &getParams();
 
         void addParam(SemaParam *Param);
@@ -67,8 +73,6 @@ namespace fly {
         SemaErrorHandler *getErrorHandler() const;
 
         virtual CodeGenFunctionBase *getCodeGen() const = 0;
-
-        void accept(SemaVisitor& Visitor) override;
 
     };
 

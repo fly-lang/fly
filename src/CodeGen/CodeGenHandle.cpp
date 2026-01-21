@@ -8,8 +8,10 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenHandle.h"
-#include "CodeGen/CodeGenModule.h"
+
 #include "CodeGen/CodeGenFunctionBase.h"
+#include "CodeGen/CodeGenModule.h"
+
 #include "llvm/IR/BasicBlock.h"
 
 using namespace fly;

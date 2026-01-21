@@ -12,7 +12,7 @@
 
 namespace fly {
 
-    class Sema;
+    class SemaContext;
     class ASTLoopStmt;
     class ASTLoopInStmt;
     class SourceLocation;

@@ -21,6 +21,14 @@ ASTUnary &SemaUnary::getAST() const {
 	return AST;
 }
 
+CodeGenExpr * SemaUnary::getCodeGen() const {
+	return CodeGen;
+}
+
+void SemaUnary::setCodeGen(CodeGenExpr *CodeGen) {
+	this->CodeGen = CodeGen;
+}
+
 void SemaUnary::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }

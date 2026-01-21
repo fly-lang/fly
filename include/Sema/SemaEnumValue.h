@@ -27,8 +27,6 @@ namespace fly {
 
         size_t Index;
 
-		CodeGenEnumValue *CodeGen;
-
         SemaComment *Comment = nullptr;
 
         explicit SemaEnumValue(ASTEnumValue &AST, SemaEnumType *Type);
@@ -41,9 +39,9 @@ namespace fly {
 
         SemaComment *getComment() const;
 
-    	CodeGenEnumValue *getCodeGen() const;
+    	CodeGenEnumValue *getCodeGen() const override;
 
-        void setCodeGen(CodeGenEnumValue *CGC);
+    	void setCodeGen(CodeGenExpr *CGC) override;
 
         void accept(SemaVisitor& Visitor) override;
     };

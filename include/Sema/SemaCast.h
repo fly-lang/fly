@@ -24,6 +24,8 @@ namespace fly {
 
 		ASTCast &AST;
 
+		CodeGenExpr *CodeGen = nullptr;
+
 		explicit SemaCast(ASTCast &AST);
 
 	public:
@@ -31,6 +33,10 @@ namespace fly {
 		~SemaCast() override = default;
 
 		ASTCast &getAST() const;
+
+		CodeGenExpr *getCodeGen() const;
+
+		void setCodeGen(CodeGenExpr *CodeGen);
 
 		void accept(SemaVisitor& Visitor) override;
 

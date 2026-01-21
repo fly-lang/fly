@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenError.h"
+
 #include "CodeGen/CodeGenModule.h"
 
 #include <llvm/IR/Constants.h>
@@ -19,7 +20,7 @@ using namespace fly;
 std::string CodeGenError::ERROR_NAME = "error";
 
 CodeGenError::CodeGenError(CodeGenModule *CGM, SemaVar *Sema, llvm::Value *ErrorHandler) :
-    CGM(CGM), Sema(Sema), ErrorHandler(ErrorHandler), T(CGM->ErrorTy) {
+    CodeGenVar(CGM, Sema, CGM->ErrorTy), ErrorHandler(ErrorHandler) {
 }
 
 llvm::StructType *CodeGenError::GenErrorType(llvm::LLVMContext &LLVMCtx) {

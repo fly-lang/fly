@@ -16,6 +16,7 @@
 
 #include "Basic/Diagnostic.h"
 #include "Basic/TargetInfo.h"
+#include "Sema/SemaVisitor.h"
 #include <Sema/SemaType.h>
 #include <llvm/IR/IRBuilder.h>
 
@@ -41,7 +42,7 @@ namespace fly {
     class CodeGenFunctionBase;
     class CodeGenClass;
     class CodeGenVar;
-    class CodeGenVarBase;
+    class CodeGenBase;
     class CodeGenError;
     class ASTCall;
     class ASTFailStmt;
@@ -69,28 +70,47 @@ namespace fly {
     class SemaNameSpace;
     class SemaClassMethod;
     class SemaClassAttribute;
+    class SemaImport;
+    class SemaType;
+    class SemaIntType;
+    class SemaFloatType;
+    class SemaArrayType;
+    class SemaErrorType;
+    class SemaLocalVar;
+    class SemaParam;
+    class SemaMember;
+    class SemaClassInstance;
+    class SemaErrorHandler;
+    class SemaUnary;
+    class SemaBinary;
+    class SemaTernary;
+    class SemaCast;
+    class SemaBoolValue;
+    class SemaIntValue;
+    class SemaFloatValue;
+    class SemaStringValue;
+    class SemaArrayValue;
+    class SemaStructValue;
+    class SemaNullValue;
+    class SemaEnumValue;
 
-    class CodeGenModule {
+    class CodeGenModule : public SemaVisitor {
 
         friend class CodeGen;
-        friend class CodeGenGlobalVar;
         friend class CodeGenFunction;
         friend class CodeGenFunctionBase;
         friend class CodeGenClass;
         friend class CodeGenClassMethod;
-        friend class CodeGenVarBase;
-        friend class CodeGenVar;
-        friend class CodeGenExpr;
-        friend class CodeGenError;
         friend class CodeGenHandle;
+    	friend class CodeGenVar;
+    	friend class CodeGenError;
+    	friend class CodeGenExpr;
 
         // Diagnostics
         DiagnosticsEngine &Diags;
 
         // CodeGen Options
         CodeGenOptions &CGOpts;
-
-        SemaModule *Sema;
 
         // Target Info
         TargetInfo &Target;
@@ -101,8 +121,7 @@ namespace fly {
         // LLVM Builder
         llvm::IRBuilder<> *Builder;
 
-        // LLVM Module
-        llvm::Module *Module;
+    	llvm::Module *Module;
 
         // CGDebugInfo *DebugInfo; // TODO
 
@@ -172,11 +191,11 @@ namespace fly {
 
         llvm::ConstantInt *Zero;
 
-        llvm::SmallVector<CodeGenFunctionBase *, 8> CGFunctions;
+    	llvm::SmallVector<SemaFunctionBase *, 8> Functions;
 
         SemaFunctionBase *CurrentFunction;
 
-        CodeGenModule(DiagnosticsEngine &Diags, SemaModule *Sema, llvm::LLVMContext &LLVMCtx, TargetInfo &Target,
+        CodeGenModule(DiagnosticsEngine &Diags, StringRef Name, llvm::LLVMContext &LLVMCtx, TargetInfo &Target,
                       CodeGenOptions &CGOpts);
 
         virtual ~CodeGenModule();
@@ -185,31 +204,13 @@ namespace fly {
 
         llvm::Module *getModule() const;
 
-        CodeGenFunction *GenFunction(SemaFunction *Sema, bool isExternal = false);
+    	llvm::LLVMContext &getLLVMCtx() const;
 
-        CodeGenClass *GenClass(SemaClassType *Class, bool isExternal = false);
-
-        void GenEnum(SemaEnumType *Enum);
-
-        llvm::Type *GenType(SemaType *Type);
-
-        llvm::PointerType *GenArrayType(SemaArrayType *Type);
-
-        llvm::Constant *GenDefaultValue(SemaType *Type, llvm::Type *Ty = nullptr);
-
-        llvm::Value *ConvertToBool(llvm::Value *Val);
-
-        llvm::Value *Convert(llvm::Value *FromVal, SemaType *FromType, SemaType *ToType);
-
-        CodeGenError *GenErrorHandler(SemaVar* Sema);
-
-        llvm::Value *GenExpr(SemaExpr *Sema);
+    	void GenBlockStmt(CodeGenFunctionBase *CGF, ASTBlockStmt *BlockStmt);
 
         void GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt);
 
         void GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGH);
-
-        void GenBlockStmt(CodeGenFunctionBase *CGF, ASTBlockStmt *BlockStmt);
 
         void GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If);
 
@@ -221,11 +222,52 @@ namespace fly {
 
         void GenLoopStmt(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop);
 
-        void GenReturn(ASTFunction *CGF, ASTExpr *Expr = nullptr);
-
-        SemaNameSpace *getNameSpace() const;
-
         std::string toIdentifier(llvm::StringRef Name, SemaNameSpace *NameSpace);
+
+        // SemaVisitor interface implementation
+        void visit(SemaModule &Sema) override;
+        void visit(SemaNameSpace &Sema) override;
+        void visit(SemaImport &Sema) override;
+
+        // Types
+        void visit(SemaBoolType &Sema) override;
+        void visit(SemaIntType &Sema) override;
+        void visit(SemaFloatType &Sema) override;
+        void visit(SemaArrayType &Sema) override;
+        void visit(SemaErrorType &Sema) override;
+    	void visit(SemaVoidType &Sema) override;
+    	void visit(SemaStringType &Sema) override;
+    	void visit(SemaEnumType &Sema) override;
+    	void visit(SemaClassType &Sema) override;
+
+        // Functions
+        void visit(SemaClassMethod &Sema) override;
+    	void visit(SemaFunction &Sema) override;
+
+        // Variables
+    	void visit(SemaClassAttribute &Sema) override;
+        void visit(SemaLocalVar &Sema) override;
+        void visit(SemaParam &Sema) override;
+        void visit(SemaClassInstance &Sema) override;
+        void visit(SemaErrorHandler &Sema) override;
+
+        // Expressions
+    	void visit(SemaMember &Sema) override;
+        void visit(SemaCall &Sema) override;
+        void visit(SemaUnary &Sema) override;
+        void visit(SemaBinary &Sema) override;
+        void visit(SemaTernary &Sema) override;
+        void visit(SemaCast &Sema) override;
+
+        // Values
+        void visit(SemaBoolValue &Sema) override;
+        void visit(SemaIntValue &Sema) override;
+        void visit(SemaFloatValue &Sema) override;
+        void visit(SemaStringValue &Sema) override;
+        void visit(SemaArrayValue &Sema) override;
+        void visit(SemaStructValue &Sema) override;
+        void visit(SemaNullValue &Sema) override;
+        void visit(SemaEnumValue &Sema) override;
 
     };
 }

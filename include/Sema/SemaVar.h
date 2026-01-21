@@ -10,15 +10,16 @@
 #ifndef FLY_SEMA_VAR_H
 #define FLY_SEMA_VAR_H
 
-#include <llvm/ADT/StringRef.h>
-
+#include "CodeGen/CodeGenVar.h"
 #include "Sema/SemaExpr.h"
+
+#include <llvm/ADT/StringRef.h>
 
 namespace fly {
 
     class ASTVar;
     class SemaType;
-    class CodeGenVarBase;
+    class CodeGenVar;
 
     class SemaVar : public SemaExpr {
 
@@ -29,6 +30,8 @@ namespace fly {
     	ASTVar *AST;
 
     	bool Constant = false;
+
+    	CodeGenVar *CodeGen;
 
         explicit SemaVar(ASTVar *AST, SemaKind Kind, SemaType *Type);
 
@@ -41,11 +44,9 @@ namespace fly {
 
     	bool isConstant() const;
 
-    	virtual CodeGenVarBase *getCodeGen() const = 0;
+    	CodeGenVar *getCodeGen() const override;
 
-        virtual void setCodeGen(CodeGenVarBase * CGVar) = 0;
-
-        void accept(SemaVisitor& Visitor) override;
+        void setCodeGen(CodeGenVar * CodeGen);
     };
 
 }

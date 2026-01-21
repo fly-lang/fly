@@ -10,6 +10,7 @@
 #include "Sema/SemaClassAttribute.h"
 
 #include "AST/ASTAttribute.h"
+#include "Sema/SemaVisibilityKind.h"
 #include "Sema/SemaVisitor.h"
 
 using namespace fly;
@@ -42,14 +43,6 @@ bool SemaClassAttribute::isStatic() const {
 
 SemaClassType * SemaClassAttribute::getInherited() const {
 	return Inherited;
-}
-
-CodeGenVar * SemaClassAttribute::getCodeGen() const {
-	return CodeGen;
-}
-
-void SemaClassAttribute::setCodeGen(CodeGenVarBase *CodeGen) {
-	this->CodeGen = static_cast<CodeGenVar *>(CodeGen);
 }
 
 void SemaClassAttribute::accept(SemaVisitor &Visitor) {

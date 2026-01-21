@@ -18,7 +18,7 @@
 
 namespace fly {
 
-    class Sema;
+    class SemaContext;
     class ASTBlockStmt;
     class ASTStmt;
     class ASTIdentifier;
@@ -45,7 +45,7 @@ namespace fly {
 
     class SemaValidator {
 
-        friend class Sema;
+        friend class SemaContext;
 
     	DiagnosticsEngine &Diags;
 
