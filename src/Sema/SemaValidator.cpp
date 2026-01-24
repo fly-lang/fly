@@ -191,10 +191,10 @@ bool SemaValidator::CheckConvertibleTypes(SemaType *FromType, SemaType *ToType) 
     }
 
 	// Check Floating Point Type
-    if (FromType->isFloatingPoint() && ToType->isFloatingPoint()) {
+    if (FromType->isFloat() && ToType->isFloat()) {
 	    SemaFloatType *FromFloatingType = static_cast<SemaFloatType *>(FromType);
 	    SemaFloatType *ToFloatingType = static_cast<SemaFloatType *>(ToType);
-	    return FromFloatingType->getFPKind() <= ToFloatingType->getFPKind();
+	    return FromFloatingType->getFloatKind() <= ToFloatingType->getFloatKind();
     }
 
 	// Check Array Type
@@ -277,7 +277,7 @@ bool SemaValidator::CheckArithTypes(SemaType *Type1, SemaType *Type2) {
     }
 
 	// Check if one of the types is a floating point
-	if (Type1->isFloatingPoint() && Type2->isFloatingPoint()) {
+	if (Type1->isFloat() && Type2->isFloat()) {
 		return true;
 	}
 
@@ -298,6 +298,7 @@ bool SemaValidator::CheckLogicalTypes(SemaType *Type1, SemaType *Type2) {
 }
 
 bool SemaValidator::CheckBinary(ASTBinary &AST) {
+	// Check if Left and Right Expr have Sema
 	if (!AST.getLeftExpr()->getSema() || !AST.getRightExpr()->getSema()) {
 		return false;
 	}
@@ -306,33 +307,122 @@ bool SemaValidator::CheckBinary(ASTBinary &AST) {
 	SemaType * LeftType = AST.getLeftExpr()->getType();
 	SemaType * RightType = AST.getRightExpr()->getType();
 
-	if (AST.isArith() || AST.isCompare()) {
+	// Arithmetic Operations: Integer/Float, Float/Float, Integer/Integer
+	if (AST.isArith()) {
 
-		// Check Compatible Types Bool/Bool, Float/Float, Integer/Integer
-		if (!CheckArithTypes(LeftType, RightType)) {
-			Diag(AST.getLocation(), diag::err_sema_types_operation)
-					  << LeftType->getName()
-					  << RightType->getName();
-			return false;
+		// Check between numbers
+		if (LeftType->isNumber() && RightType->isNumber()) {
+			return true;
 		}
-	} else if (AST.isLogic()) {
-		if (!CheckLogicalTypes(LeftType, RightType)) {
-			Diag(AST.getLocation(), diag::err_sema_types_logical)
-				<< LeftType->getName()
-				<< RightType->getName();
-			return false;
-		}
-	} else if (AST.isAssign()) {
-		// For assignment, check if types are compatible
-		if (!CheckArithTypes(LeftType, RightType)) {
-			Diag(AST.getLocation(), diag::err_sema_types_operation)
-					  << LeftType->getName()
-					  << RightType->getName();
-			return false;
-		}
+
+		// Error: Binary Arithmetic operation can be made only with numbers
+		Diag(AST.getLocation(), diag::err_sema_types_operation)
+				  << LeftType->getName()
+				  << RightType->getName();
+		return false;
 	}
 
-	return true;
+	// Comparison Operations: Bool/Bool, Integer/Integer, Float/Float, Class/Class, Enum/Enum
+	if (AST.isCompare()) {
+		if (LeftType->isBool() && RightType->isBool()) {
+			// OK: Boolean Comparison
+			return true;
+		}
+		if (LeftType->isNumber() && RightType->isNumber()) {
+			// OK: Numeric Comparison
+			return true;
+		}
+		if (LeftType->isClass() && RightType->isClass()) {
+			// OK: Class Comparison
+			return true;
+		}
+		if (LeftType->isEnum() && RightType->isEnum()) {
+			// OK: Enum Comparison
+			return true;
+		}
+		// Error: Binary Comparison operation can be made only with numbers, bools, classes or enums
+		Diag(AST.getLocation(), diag::err_sema_types_operation)
+				  << LeftType->getName()
+				  << RightType->getName();
+		return false;
+	}
+
+	// Logical Operations: Bool/Bool
+	if (AST.isLogic()) {
+		if (LeftType->isBool() && RightType->isBool()) {
+			// OK: Boolean Operation
+			return true;
+		}
+
+		// Error: Binary Comparison operation can be made only with numbers, bools, classes or enums
+		Diag(AST.getLocation(), diag::err_sema_types_operation)
+				  << LeftType->getName()
+				  << RightType->getName();
+		return false;
+	}
+
+	// Assignment Operations: Compatible Types
+	if (AST.isAssign()) {
+
+		// Right Type can be always converted to Boolean
+		if (LeftType->isBool()) {
+			return true;
+		}
+
+		if (LeftType->isNumber()) {
+			if (!RightType->isNumber()) {
+				// Cannot convert non-number to number
+				Diag(AST.getLocation(), diag::err_sema_types_operation)
+				  << LeftType->getName()
+				  << RightType->getName();
+				return false;
+			}
+			if (RightType->isNumber() && static_cast<SemaNumberType *>(LeftType)->getRank() < static_cast<SemaNumberType *>(RightType)->getRank()) {
+				// Cannot convert number with higher rank to lower rank
+				Diag(AST.getLocation(), diag::err_sema_types_operation)
+				  << LeftType->getName()
+				  << RightType->getName();
+				return false;
+			}
+		}
+
+		if (LeftType->isString()) {
+			if (!RightType->isString()) {
+				// Number rank not compatible, cannot be converted
+				Diag(AST.getLocation(), diag::err_sema_types_operation)
+				  << LeftType->getName()
+				  << RightType->getName();
+				return true;
+			}
+		}
+
+		if (LeftType->isArray()) {
+			if (!RightType->isArray()) {
+				// Array type not compatible, cannot be converted
+				Diag(AST.getLocation(), diag::err_sema_types_operation)
+				  << LeftType->getName()
+				  << RightType->getName();
+				return false;
+			}
+			return CheckEqualTypes(LeftType, RightType);
+		}
+
+		if (LeftType->isClass()) {
+			return CheckInheritance(static_cast<SemaClassType *>(RightType), static_cast<SemaClassType *>(LeftType));
+		}
+
+		if (LeftType->isEnum()) {
+			return CheckEqualTypes(LeftType, RightType);
+		}
+
+		return true;
+	}
+
+	// Error: Invalid Binary Operation
+	Diag(AST.getLocation(), diag::err_invalid_behavior)
+				  << LeftType->getName()
+				  << RightType->getName();
+	return false;
 }
 
 bool SemaValidator::CheckNameEmpty(const SourceLocation &Loc,llvm::StringRef Name) {

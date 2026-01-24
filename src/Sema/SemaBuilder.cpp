@@ -269,6 +269,8 @@ SemaBinary *SemaBuilder::CreateBinary(ASTBinary &AST) {
 	// Assign Symbol to AST
 	AST.setSema(Sema);
 
+	// Do Type1 or Type2 promotion if needed
+
 	FLY_DEBUG_END("SemaBuilder", "CreateBinary");
 	return Sema;
 }
@@ -303,7 +305,7 @@ SemaValue * SemaBuilder::CreateDefaultValue(SemaType &Type) {
 		AST->setSema(Sema);
 	}
 
-	else if (Type.isFloatingPoint()) {
+	else if (Type.isFloat()) {
 		SemaFloatType *FloatType = static_cast<SemaFloatType *>(&Type);
 		ASTNumberValue *AST = ASTBuilder::CreateNumberValue(SourceLocation(), "0.0");
 		Sema =  CreateFloatValue(*AST, FloatType);

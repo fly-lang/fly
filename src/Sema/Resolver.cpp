@@ -1008,6 +1008,7 @@ void Resolver::visit(ASTUnary &AST) {
 void Resolver::visit(ASTBinary &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTBinaryOp)");
 
+	// Resolve Left and Right Expr
 	AST.getLeftExpr()->accept(*this);
     AST.getRightExpr()->accept(*this);
 
@@ -1023,8 +1024,11 @@ void Resolver::visit(ASTBinary &AST) {
 
 void Resolver::visit(ASTTernary &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTTernaryOp)");
+
 	// Resolve Condition Expr
 	AST.getConditionExpr()->accept(*this);
+
+	// Validate Condition Type
 	Validator->CheckConvertibleTypes(AST.getConditionExpr()->getType(), SemaBuiltin::getBoolType());
 
 	// Resolve True and False Expr
@@ -1083,7 +1087,7 @@ void Resolver::visit(ASTNumberValue &AST) {
 	}
 
 	// Float Value
-	if (Type && Type->isFloatingPoint()) {
+	if (Type && Type->isFloat()) {
 		Sema = SemaBuilder::CreateFloatValue(AST, static_cast<SemaFloatType *>(Type));
 		AST.setSema(Sema);
 		return;
@@ -1150,7 +1154,7 @@ void Resolver::visit(ASTDefaultValue &AST) {
 				ASTBinary *BinOp = static_cast<ASTBinary *>(Expr);
 
 				// Check if it's an assignment operation
-				if (BinOp->getOpKind() == ASTBinaryKind::OP_BINARY_ASSIGN) {
+				if (BinOp->getBinaryKind() == ASTBinaryKind::OP_BINARY_ASSIGN) {
 					// This AST Default Value is the only Expr in the assignment
 					if (BinOp->getRightExpr()->getExprKind() == ASTExprKind::EXPR_VALUE) {
 						SemaType *T = BinOp->getLeftExpr()->getType();

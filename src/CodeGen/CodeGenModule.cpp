@@ -149,14 +149,18 @@ llvm::LLVMContext &CodeGenModule::getLLVMCtx() const {
 	return LLVMCtx;
 }
 
-void CodeGenModule::GenBlockStmt(CodeGenFunctionBase *CGF, ASTBlockStmt *BlockStmt) {
+llvm::IRBuilder<> *CodeGenModule::getBuilder() const {
+	return Builder;
+}
+
+void CodeGenModule::GenBlockStmt(ASTBlockStmt *BlockStmt) {
 	FLY_DEBUG_START("CodeGenModule", "GenBlock");
 	for (ASTStmt *Stmt : BlockStmt->getContent()) {
-		GenStmt(CGF, Stmt);
+		GenStmt(Stmt);
 	}
 }
 
-void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
+void CodeGenModule::GenStmt(ASTStmt * Stmt) {
     FLY_DEBUG_START("CodeGenModule", "GenStmt");
     switch (Stmt->getStmtKind()) {
 
@@ -180,20 +184,20 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
         // Block of Stmt
         case ASTStmtKind::STMT_BLOCK: {
             ASTBlockStmt *Block = static_cast<ASTBlockStmt *>(Stmt);
-            GenBlockStmt(CGF, Block);
+            GenBlockStmt(Block);
             break;
         }
 
         case ASTStmtKind::STMT_IF:
-            GenIfStmt(CGF, static_cast<ASTIfStmt *>(Stmt));
+            GenIfStmt(static_cast<ASTIfStmt *>(Stmt));
             break;
 
         case ASTStmtKind::STMT_SWITCH:
-            GenSwitchStmt(CGF, static_cast<ASTSwitchStmt *>(Stmt));
+            GenSwitchStmt(static_cast<ASTSwitchStmt *>(Stmt));
             break;
 
         case ASTStmtKind::STMT_LOOP: {
-            GenLoopStmt(CGF, static_cast<ASTLoopStmt *>(Stmt));
+            GenLoopStmt(static_cast<ASTLoopStmt *>(Stmt));
             break;
         }
 
@@ -241,17 +245,18 @@ void CodeGenModule::GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt) {
 
         case ASTStmtKind::STMT_HANDLE: {
             ASTHandleStmt *HandleStmt = static_cast<ASTHandleStmt *>(Stmt);
+        	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
         	// Set Handle Block
-            llvm::BasicBlock *HandleBB = llvm::BasicBlock::Create(LLVMCtx, "handle", CGF->getFunction());
+            llvm::BasicBlock *HandleBB = llvm::BasicBlock::Create(LLVMCtx, "handle", Fn);
             Builder->CreateBr(HandleBB);
             Builder->SetInsertPoint(HandleBB);
 
         	// Generate Handle Block
-            GenStmt(CGF, HandleStmt->getHandle());
+            GenStmt(HandleStmt->getHandle());
 
         	// Generate in Safe Block
-        	llvm::BasicBlock *SafeBB = llvm::BasicBlock::Create(LLVMCtx, "safe", CGF->getFunction());
+        	llvm::BasicBlock *SafeBB = llvm::BasicBlock::Create(LLVMCtx, "safe", Fn);
         	Builder->SetInsertPoint(SafeBB);
         	CurrentFunction->getCodeGen()->setSafeBB(SafeBB);
             break;
@@ -317,9 +322,9 @@ void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGE) {
 	}
 }
 
-void CodeGenModule::GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
+void CodeGenModule::GenIfStmt(ASTIfStmt *If) {
     FLY_DEBUG_START("CodeGenModule", "GenIfBlock");
-    llvm::Function *Fn = CGF->getFunction();
+    llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
     // If Block
 	If->getRule()->getSema()->accept(*this);
@@ -334,7 +339,7 @@ void CodeGenModule::GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
         if (If->getElsif().empty()) { // If ...
             Builder->CreateCondBr(IfCond, IfBB, EndBB);
             Builder->SetInsertPoint(IfBB);
-            GenStmt(CGF, If->getStmt());
+            GenStmt(If->getStmt());
             Builder->CreateBr(EndBB);
         } else { // If - elsif ...
             llvm::BasicBlock *ElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, EndBB);
@@ -342,7 +347,7 @@ void CodeGenModule::GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
 
             // Start if-then
             Builder->SetInsertPoint(IfBB);
-            GenStmt(CGF, If->getStmt());
+            GenStmt(If->getStmt());
             Builder->CreateBr(EndBB);
 
             // Create Elsif Blocks
@@ -363,7 +368,7 @@ void CodeGenModule::GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
                 Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
 
                 Builder->SetInsertPoint(ElsifThenBB);
-                GenStmt(CGF, Elsif->getStmt());
+                GenStmt(Elsif->getStmt());
                 Builder->CreateBr(EndBB);
 
                 ElsifBB = NextElsifBB;
@@ -378,7 +383,7 @@ void CodeGenModule::GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
         if (If->getElsif().empty()) { // If - Else
             Builder->CreateCondBr(IfCond, IfBB, ElseBB);
             Builder->SetInsertPoint(IfBB);
-            GenStmt(CGF, If->getStmt());
+            GenStmt(If->getStmt());
             Builder->CreateBr(EndBB);
         } else { // If - Elsif - Else
             llvm::BasicBlock *ElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, ElseBB);
@@ -386,7 +391,7 @@ void CodeGenModule::GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
 
             // Start if-then
             Builder->SetInsertPoint(IfBB);
-            GenStmt(CGF, If->getStmt());
+            GenStmt(If->getStmt());
             Builder->CreateBr(EndBB);
 
             // Create Elsif Blocks
@@ -407,7 +412,7 @@ void CodeGenModule::GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
                 Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
 
                 Builder->SetInsertPoint(ElsifThenBB);
-                GenStmt(CGF, Elsif->getStmt());
+                GenStmt(Elsif->getStmt());
                 Builder->CreateBr(EndBB);
 
                 ElsifBB = NextElsifBB;
@@ -415,7 +420,7 @@ void CodeGenModule::GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If) {
         }
 
         Builder->SetInsertPoint(ElseBB);
-        GenStmt(CGF, If->getElse());
+        GenStmt(If->getElse());
         Builder->CreateBr(EndBB);
     }
 
@@ -439,14 +444,14 @@ void CodeGenModule::GenElsifStmt(CodeGenFunctionBase *CGF,
 
         llvm::BasicBlock *ElsifThenBB = llvm::BasicBlock::Create(LLVMCtx, "elsifthen", Fn);
         Builder->SetInsertPoint(ElsifThenBB);
-        GenStmt(CGF, Elsif->getStmt());
+        GenStmt(Elsif->getStmt());
         GenElsifStmt(CGF, ElsifThenBB, It);
     }
 }
 
-void CodeGenModule::GenSwitchStmt(CodeGenFunctionBase *CGF, ASTSwitchStmt *Switch) {
+void CodeGenModule::GenSwitchStmt(ASTSwitchStmt *Switch) {
     FLY_DEBUG_START("CodeGenModule", "GenSwitchBlock");
-    llvm::Function *Fn = CGF->getFunction();
+	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
     // Create End Block
     llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endswitch", Fn);
@@ -469,7 +474,7 @@ void CodeGenModule::GenSwitchStmt(CodeGenFunctionBase *CGF, ASTSwitchStmt *Switc
                                    llvm::BasicBlock::Create(LLVMCtx, "case", Fn, EndBB) : NextCaseBB;
         Inst->addCase(CaseConst, CaseBB);
         Builder->SetInsertPoint(CaseBB);
-        GenStmt(CGF, Case->getStmt());
+        GenStmt(Case->getStmt());
 
         // If there is a Next
         if (i + 1 < Size) {
@@ -485,7 +490,7 @@ void CodeGenModule::GenSwitchStmt(CodeGenFunctionBase *CGF, ASTSwitchStmt *Switc
         llvm::BasicBlock *DefaultBB = llvm::BasicBlock::Create(LLVMCtx, "default", Fn, EndBB);
         Inst->setDefaultDest(DefaultBB);
         Builder->SetInsertPoint(DefaultBB);
-        GenStmt(CGF, Switch->getDefault());
+        GenStmt(Switch->getDefault());
         Builder->CreateBr(EndBB);
     }
 
@@ -493,13 +498,13 @@ void CodeGenModule::GenSwitchStmt(CodeGenFunctionBase *CGF, ASTSwitchStmt *Switc
     Builder->SetInsertPoint(EndBB);
 }
 
-void CodeGenModule::GenLoopStmt(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop) {
+void CodeGenModule::GenLoopStmt(ASTLoopStmt *Loop) {
     FLY_DEBUG_START("CodeGenModule", "GenLoopBlock");
-    llvm::Function *Fn = CGF->getFunction();
+	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
     // Generate Init Statements
     if (Loop->getInit()) {
-        GenStmt(CGF, Loop->getInit());
+        GenStmt(Loop->getInit());
     }
 
     // Create Condition Block
@@ -535,13 +540,13 @@ void CodeGenModule::GenLoopStmt(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop) {
 
     // Add to Loop
     Builder->SetInsertPoint(LoopBB);
-    GenStmt(CGF, Loop->getLoop());
+    GenStmt(Loop->getLoop());
     if (PostBB) {
         Builder->CreateBr(PostBB);
 
         // Add to Post
         Builder->SetInsertPoint(PostBB);
-        GenStmt(CGF, Loop->getPost());
+        GenStmt(Loop->getPost());
         if (CondBB) {
             Builder->CreateBr(CondBB);
         } else {

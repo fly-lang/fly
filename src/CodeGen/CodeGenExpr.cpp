@@ -43,7 +43,7 @@
 
 using namespace fly;
 
-CodeGenExpr::CodeGenExpr(CodeGenModule *CGM) : CodeGenBase(), CGM(CGM), Builder(Builder) {
+CodeGenExpr::CodeGenExpr(CodeGenModule *CGM) : CodeGenBase(), CGM(CGM), Builder(CGM->getBuilder()) {
 	FLY_DEBUG_START("CodeGenExpr", "CodeGenExpr");
 }
 
@@ -80,7 +80,7 @@ void CodeGenExpr::GenExpr(SemaIntValue *Sema) {
 
 void CodeGenExpr::GenExpr(SemaFloatValue *Sema) {
 	SemaType *Type = Sema->getType();
-	SemaFloatTypeKind FPKind = static_cast<SemaFloatType *>(Type)->getFPKind();
+	SemaFloatTypeKind FPKind = static_cast<SemaFloatType *>(Type)->getFloatKind();
 	switch (FPKind) {
 		case SemaFloatTypeKind::TYPE_FLOAT:
 			V = llvm::ConstantFP::get(CGM->FloatTy, Sema->getValue());
@@ -275,8 +275,8 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
         Args.push_back(Sema->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
     	addArgs(Sema, Args);
 
-    	CodeGenFunctionBase *CGF = Sema->getFunction()->getCodeGen();
-    	V = Builder->CreateCall(CGF->getFunction(), Args);
+    	llvm::Function *Fn = Sema->getFunction()->getCodeGen()->getFunction();
+    	V = Builder->CreateCall(Fn, Args);
     }
 }
 
@@ -321,7 +321,7 @@ void CodeGenExpr::GenExpr(SemaCast *Sema) {
 		case SemaKind::TYPE_INTEGER:
 			// TODO
 				break;
-		case SemaKind::TYPE_FLOATING_POINT:
+		case SemaKind::TYPE_FLOAT:
 			// TODO
 				break;
 		case SemaKind::TYPE_STRING:
@@ -391,12 +391,17 @@ void CodeGenExpr::GenExpr(SemaBinary *Sema) {
 
 	SemaExpr *Left = Binary.getLeftExpr()->getSema();
 	SemaExpr *Right = Binary.getRightExpr()->getSema();
-	ASTBinaryKind OpKind = Binary.getOpKind();
+	ASTBinaryKind OpKind = Binary.getBinaryKind();
 
+	// Generate Left and Right CodeGen Expressions
+	Left->accept(*CGM);
+	Right->accept(*CGM);
+
+	// Generate Binary Operation
 	if (Binary.isArith()) {
 		V = GenBinaryArith(Left, OpKind, Right);
 	} else if (Binary.isCompare()) {
-		V = GenBinaryComparison(Left, OpKind, Right);
+		V = GenBinaryCompare(Left, OpKind, Right);
 	} else if (Binary.isLogic()) {
 		V = GenBinaryLogic(Left, OpKind, Right);
 	} else if (Binary.isAssign()) {
@@ -449,13 +454,20 @@ void CodeGenExpr::GenExpr(SemaTernary *Sema) {
 
 llvm::Value *CodeGenExpr::GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2) {
     FLY_DEBUG_START("CodeGenExpr", "GenBinaryArith");
-	E1->accept(*CGM);
-	E2->accept(*CGM);
+	SemaNumberType *Type1 = static_cast<SemaNumberType *>(E1->getType());
+	SemaNumberType *Type2 = static_cast<SemaNumberType *>(E2->getType());
+
+	// Get Values
     llvm::Value *V1 = E1->getCodeGen()->getValue();
     llvm::Value *V2 = E2->getCodeGen()->getValue();
 
-    // Convert E2 to E1 Type
-    V2 = Convert(V2, E2->getType(), E1->getType()); // Implicit conversion
+	// Promotion rules: convert Type1 or Type2 to the max type
+	if (Type1->getRank() > Type2->getRank()) {
+		V2 = ConvertNumber(V2, Type1); // Implicit conversion
+	} else if (Type1->getRank() < Type2->getRank()) {
+		// Promote T1 to T2 Type
+		V1 = ConvertNumber(V1, Type2); // Implicit conversion
+	}
 
     switch (OperatorKind) {
 
@@ -480,26 +492,29 @@ llvm::Value *CodeGenExpr::GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKin
         case ASTBinaryKind::OP_BINARY_ARITH_SHIFT_R:
             return Builder->CreateAShr(V1, V2);
     }
-    assert(0 && "Unknown Arith Operation");
+
+	// Error
+	CGM->Diag(diag::err_invalid_behavior);
+	return nullptr;
 }
 
-llvm::Value *CodeGenExpr::GenBinaryComparison(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2) {
+llvm::Value *CodeGenExpr::GenBinaryCompare(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2) {
     FLY_DEBUG_START("CodeGenExpr", "GenBinaryComparison");
-	E1->accept(*CGM);
-	E2->accept(*CGM);
-    llvm::Value *V1 = E1->getCodeGen()->getValue();;
-    llvm::Value *V2 = E2->getCodeGen()->getValue();;
-	SemaType *V1Type = E1->getType();
-    SemaType *V2Type = E2->getType();
+	SemaType *Type1 = E1->getType();
+	SemaType *Type2 = E2->getType();
 
-    if (E1->getType()->isBool() && E2->getType()->isBool()) {
+	// Get Values
+    llvm::Value *V1 = E1->getCodeGen()->getValue();
+    llvm::Value *V2 = E2->getCodeGen()->getValue();
+
+    if (Type1->isBool() && Type2->isBool()) {
         switch (OperatorKind) {
             case ASTBinaryKind::OP_BINARY_COMPARE_EQ:
                 return Builder->CreateICmpEQ(V1, V2);
             case ASTBinaryKind::OP_BINARY_COMPARE_NE:
                 return Builder->CreateICmpNE(V1, V2);
         }
-    } else if (E1->getType()->isInteger() && E2->getType()->isInteger()) {
+    } else if (Type1->isInteger() && Type2->isInteger()) {
         bool Signed = static_cast<SemaIntType *>(E1->getType())->isSigned() ||
         	static_cast<SemaIntType *>(E2->getType())->isSigned();
         switch (OperatorKind) {
@@ -517,15 +532,7 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(SemaExpr *E1, ASTBinaryKind Operat
             case ASTBinaryKind::OP_BINARY_COMPARE_LTE:
                 return Signed ? Builder->CreateICmpSLE(V1, V2) : Builder->CreateICmpULE(V1, V2);
         }
-    } else {
-        // Convert values to Float if one of them is Float
-        if ( (V1->getType()->isFloatTy() || V1->getType()->isDoubleTy()) &&
-             (V2->getType()->isIntegerTy() || V2->getType()->isIntegerTy()) ) {
-            V2 = Convert(V2, V2Type, V1Type); // Explicit conversion
-        } else if ( (V1->getType()->isIntegerTy() || V1->getType()->isIntegerTy()) &&
-                    (V2->getType()->isFloatTy() || V2->getType()->isDoubleTy()) ) {
-            V1 = Convert(V1, V2Type, V1Type); // Explicit conversion
-        }
+    } else if (Type1->isFloat() && Type2->isFloat()) {
         switch (OperatorKind) {
 
             case ASTBinaryKind::OP_BINARY_COMPARE_EQ:
@@ -543,15 +550,18 @@ llvm::Value *CodeGenExpr::GenBinaryComparison(SemaExpr *E1, ASTBinaryKind Operat
         }
     }
 
-    assert(0 && "Invalid Comparator Operator");
+	// Error
+	CGM->Diag(diag::err_invalid_behavior);
+	return nullptr;
 }
 
 llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2) {
     FLY_DEBUG_START("CodeGenExpr", "GenBinaryLogic");
-	E1->accept(*CGM);
-    llvm::Value *V1 = E1->getCodeGen()->getValue();
+
+	// Get Values
+	llvm::Value *V1 = E1->getCodeGen()->getValue();
+
     V1 = ConvertToBool(V1);
-    V1 = Convert(V1, E1->getType(), SemaBuiltin::getBoolType());
     llvm::BasicBlock *FromBB = Builder->GetInsertBlock();
 
     switch (OperatorKind) {
@@ -565,17 +575,14 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKin
 
             // Left Branch
             Builder->SetInsertPoint(LeftBB);
-        	E2->accept(*CGM);
-            llvm::Value *V2 = E2->getCodeGen()->getValue();
-            V2 = ConvertToBool(V2);
-            llvm::Value *V2Trunc = Builder->CreateTrunc(V2, CGM->BoolTy);
+            llvm::Value *V2 = ConvertToBool(E2->getCodeGen()->getValue());
             Builder->CreateBr(RightBB);
 
             // Right Branch
             Builder->SetInsertPoint(RightBB);
             llvm::PHINode *Phi = Builder->CreatePHI(CGM->BoolTy, 2);
             Phi->addIncoming(llvm::ConstantInt::get(CGM->BoolTy, false, false), FromBB);
-            Phi->addIncoming(V2Trunc, LeftBB);
+            Phi->addIncoming(V2, LeftBB);
             return Phi;
         }
         case ASTBinaryKind::OP_BINARY_LOGIC_OR: {
@@ -587,16 +594,14 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKin
 
             // Left Branch
             Builder->SetInsertPoint(LeftBB);
-        	E2->accept(*CGM);
-            llvm::Value *V2 = E2->getCodeGen()->getValue();
-            llvm::Value *V2Trunc = Builder->CreateTrunc(V2, CGM->BoolTy);
+            llvm::Value *V2 = ConvertToBool(E2->getCodeGen()->getValue());
             Builder->CreateBr(RightBB);
 
             // Right Branch
             Builder->SetInsertPoint(RightBB);
             llvm::PHINode *Phi = Builder->CreatePHI(CGM->BoolTy, 2);
             Phi->addIncoming(llvm::ConstantInt::get(CGM->BoolTy, true, false), FromBB);
-            Phi->addIncoming(V2Trunc, LeftBB);
+            Phi->addIncoming(V2, LeftBB);
             return Phi;
         }
     }
@@ -619,15 +624,14 @@ void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &A
 }
 
 llvm::Value *CodeGenExpr::ConvertToBool(llvm::Value *V) {
-	FLY_DEBUG_START_MSG("CodeGenExpr", "Convert",
-					  "FromVal=" << V << " to Bool Type=");
+	FLY_DEBUG_START_MSG("CodeGenExpr", "Convert", "FromVal=" << V << " to Bool Type=");
+
 	if (V->getType()->isIntegerTy()) {
 		if (V->getType()->getIntegerBitWidth() > 8) {
 			llvm::Value *ZERO = llvm::ConstantInt::get(V->getType(), 0);
 			return Builder->CreateICmpNE(V, ZERO);
-		} else {
-			return Builder->CreateTrunc(V, CGM->BoolTy);
 		}
+		return Builder->CreateTrunc(V, CGM->BoolTy);
 	}
 	if (V->getType()->isFloatingPointTy()) {
 		llvm::Value *ZERO = llvm::ConstantFP::get(V->getType(), 0);
@@ -642,220 +646,90 @@ llvm::Value *CodeGenExpr::ConvertToBool(llvm::Value *V) {
 		return nullptr;
 	}
 
-	assert(false && "Unhandled Value Type");
+	// default 0
+	return llvm::ConstantInt::get(CGM->BoolTy, 0, false);
 }
 
-llvm::Value *CodeGenExpr::Convert(llvm::Value *FromVal, SemaType *FromType, SemaType *ToType) {
-    // FLY_DEBUG_START("CodeGenExpr", "Convert",
-    //                   "Value=" << FromVal << " to ASTType=" << ToType->str());
-    assert(ToType && "Invalid conversion type");
+llvm::Value *CodeGenExpr::ConvertNumber(llvm::Value *V, SemaNumberType *Ty) {
+	// Promote V to Type Ty
+	if (Ty->isInteger()) {
+		V  = ConvertToInteger(V, static_cast<SemaIntType *>(Ty)); // Implicit conversion
+	} else if (Ty->isFloat()) {
+		V = ConvertToFloat(V, static_cast<SemaFloatType *>(Ty)); // Implicit conversion
+	}
+	return V;
+}
 
-    llvm::Type *FromLLVMType = V->getType();
-    switch (ToType->getKind()) {
+llvm::Value *CodeGenExpr::ConvertToInteger(llvm::Value *V, SemaIntType *Ty) {
+	if (V->getType()->isIntegerTy()) {
+		switch (Ty->getIntKind()) {
 
-        // to BOOL
-        case SemaKind::TYPE_BOOL: {
+			case SemaIntTypeKind::TYPE_BYTE:
+				return Builder->CreateTrunc(V, CGM->Int8Ty);
 
-            // from BOOL
-            if (FromType->isBool()) {
-                return Builder->CreateTrunc(FromVal, CGM->BoolTy);
-            }
+			case SemaIntTypeKind::TYPE_USHORT:
+			case SemaIntTypeKind::TYPE_SHORT:
+				if (V->getType() == CGM->Int8Ty) {
+					return Builder->CreateZExt(V, CGM->Int16Ty);
+				}
+				return Builder->CreateTrunc(V, CGM->Int16Ty);
 
-            // from Integer
-            if (FromType->isInteger()) {
-                llvm::Value *ZERO = llvm::ConstantInt::get(FromLLVMType, 0, ((SemaIntType *) FromType)->isSigned());
-                return Builder->CreateICmpNE(FromVal, ZERO);
-            }
+			case SemaIntTypeKind::TYPE_UINT:
+			case SemaIntTypeKind::TYPE_INT:
+				if (V->getType() == CGM->Int8Ty || V->getType() == CGM->Int16Ty) {
+					return Ty->isSigned() ? Builder->CreateSExt(V, CGM->Int32Ty) :
+						   Builder->CreateZExt(V, CGM->Int32Ty);
+				}
+				return Builder->CreateTrunc(V, CGM->Int32Ty);
 
-            // from FLOATING POINT
-            if (FromLLVMType->isFloatTy()) {
-                llvm::Value *ZERO = llvm::ConstantFP::get(FromLLVMType, 0);
-                return Builder->CreateFCmpUNE(FromVal, ZERO);
-            }
+			case SemaIntTypeKind::TYPE_ULONG:
+			case SemaIntTypeKind::TYPE_LONG:
+				if (V->getType() == CGM->Int8Ty || V->getType() == CGM->Int16Ty || V->getType() == CGM->Int32Ty) {
+					return Ty->isSigned() ? Builder->CreateSExt(V, CGM->Int64Ty) :
+						   Builder->CreateZExt(V, CGM->Int64Ty);
+				}
+				break;
+		}
+	}
 
-            // default 0
-            return llvm::ConstantInt::get(CGM->BoolTy, 0, false);
-        }
+	if (V->getType()->isFloatingPointTy()) {
+		switch (Ty->getIntKind()) {
 
-            // to INTEGER
-        case SemaKind::TYPE_INTEGER: {
-            SemaIntType *IntegerType = (SemaIntType *) ToType;
-            switch(IntegerType->getIntKind()) {
+			case SemaIntTypeKind::TYPE_BYTE:
+				return Builder->CreateFPToUI(V, CGM->Int8Ty);
 
-                // to INT 8
-                case SemaIntTypeKind::TYPE_BYTE: {
+			case SemaIntTypeKind::TYPE_USHORT:
+			case SemaIntTypeKind::TYPE_SHORT:
+				return Ty->isSigned() ? Builder->CreateFPToSI(V, CGM->Int16Ty) :
+					   Builder->CreateFPToUI(V, CGM->Int16Ty);
 
-                    // from BOOL
-                    if (FromType->isBool()) {
-                        llvm::Value *ToVal = Builder->CreateTrunc(FromVal, CGM->BoolTy);
-                        return Builder->CreateZExt(ToVal, CGM->Int8Ty);
-                    }
+			case SemaIntTypeKind::TYPE_UINT:
+			case SemaIntTypeKind::TYPE_INT:
+				return Ty->isSigned() ? Builder->CreateFPToSI(V, CGM->Int32Ty) :
+					   Builder->CreateFPToUI(V, CGM->Int32Ty);
 
-                    // from INTEGER
-                    if (FromType->isInteger()) {
-                        if (FromLLVMType == CGM->Int8Ty) {
-                            return FromVal;
-                        } else {
-                            return Builder->CreateTrunc(FromVal, CGM->Int8Ty);
-                        }
-                    }
+			case SemaIntTypeKind::TYPE_ULONG:
+			case SemaIntTypeKind::TYPE_LONG:
+				return Ty->isSigned() ? Builder->CreateFPToSI(V, CGM->Int64Ty) :
+					   Builder->CreateFPToUI(V, CGM->Int64Ty);
+		}
+	}
+}
 
-                    // from FLOATING POINT
-                    if (FromLLVMType->isFloatingPointTy()) {
-                        return Builder->CreateFPToUI(FromVal, CGM->Int8Ty);
-                    }
-                }
+llvm::Value *CodeGenExpr::ConvertToFloat(llvm::Value *V, SemaFloatType *Ty) {
+	if (V->getType()->isFloatingPointTy()) {
+		switch (Ty->getFloatKind()) {
 
-                    // to INT 16
-                case SemaIntTypeKind::TYPE_SHORT:
-                case SemaIntTypeKind::TYPE_USHORT: {
+			case SemaFloatTypeKind::TYPE_FLOAT:
+				return Builder->CreateFPCast(V, CGM->FloatTy);
 
-                    // from BOOL
-                    if (FromType->isBool()) {
-                        llvm::Value *ToVal = Builder->CreateTrunc(FromVal, CGM->BoolTy);
-                        return Builder->CreateZExt(ToVal, CGM->Int16Ty);
-                    }
+			case SemaFloatTypeKind::TYPE_DOUBLE:
+				return Builder->CreateFPCast(V, CGM->DoubleTy);
+		}
+	}
+	if (V->getType()->isIntegerTy()) {
+		switch (Ty->getFloatKind()) {
 
-                    // from INTEGER
-                    if (FromType->isInteger()) {
-                        if (FromLLVMType == CGM->Int8Ty) {
-                            return Builder->CreateZExt(FromVal, CGM->Int16Ty);
-                        } else if (FromLLVMType == CGM->Int16Ty) {
-                            return FromVal;
-                        } else {
-                            return Builder->CreateTrunc(FromVal, CGM->Int16Ty);
-                        }
-                    }
-
-                    // from FLOATING POINT
-                    if (FromLLVMType->isFloatingPointTy()) {
-                        return IntegerType->isSigned() ? Builder->CreateFPToSI(FromVal, CGM->Int16Ty) :
-                               Builder->CreateFPToUI(FromVal, CGM->Int16Ty);
-                    }
-                }
-
-                    // to INT 32
-                case SemaIntTypeKind::TYPE_INT:
-                case SemaIntTypeKind::TYPE_UINT: {
-
-                    // from BOOL
-                    if (FromType->isBool()) {
-                        llvm::Value *ToVal = Builder->CreateTrunc(FromVal, CGM->BoolTy);
-                        return Builder->CreateZExt(ToVal, CGM->Int32Ty);
-                    }
-
-                    // from INTEGER
-                    if (FromType->isInteger()) {
-                        if (FromLLVMType == CGM->Int8Ty || FromLLVMType == CGM->Int16Ty) {
-                            return IntegerType->isSigned() ? Builder->CreateSExt(FromVal, CGM->Int32Ty) :
-                                   Builder->CreateZExt(FromVal, CGM->Int32Ty);
-                        } else if (FromLLVMType == CGM->Int32Ty) {
-                            return FromVal;
-                        } else {
-                            return Builder->CreateTrunc(FromVal, CGM->Int32Ty);
-                        }
-                    }
-
-                    // from FLOATING POINT
-                    if (FromLLVMType->isFloatingPointTy()) {
-                        return IntegerType->isSigned() ? Builder->CreateFPToSI(FromVal, CGM->Int32Ty) :
-                               Builder->CreateFPToUI(FromVal, CGM->Int32Ty);
-                    }
-                }
-
-                    // to INT 64
-                case SemaIntTypeKind::TYPE_LONG:
-                case SemaIntTypeKind::TYPE_ULONG: {
-
-                    // from BOOL
-                    if (FromType->isBool()) {
-                        llvm::Value *ToVal = Builder->CreateTrunc(FromVal, CGM->BoolTy);
-                        return Builder->CreateZExt(ToVal, CGM->Int64Ty);
-                    }
-
-                    // from INTEGER
-                    if (FromType->isInteger()) {
-                        if (FromLLVMType == CGM->Int8Ty || FromLLVMType == CGM->Int16Ty ||
-                            FromLLVMType == CGM->Int32Ty) {
-                            return IntegerType->isSigned() ? Builder->CreateSExt(FromVal, CGM->Int64Ty) :
-                                   Builder->CreateZExt(FromVal, CGM->Int64Ty);
-                        } else {
-                            return FromVal;
-                        }
-                    }
-
-                    // from FLOATING POINT
-                    if (FromType->isFloatingPoint()) {
-                        return IntegerType->isSigned() ? Builder->CreateFPToSI(FromVal, CGM->Int64Ty) :
-                               Builder->CreateFPToUI(FromVal, CGM->Int64Ty);
-                    }
-                }
-            }
-        }
-
-            // to FLOATING POINT
-        case SemaKind::TYPE_FLOATING_POINT: {
-            switch(((SemaFloatType *) ToType)->getFPKind()) {
-
-                // to FLOAT 32
-                case SemaFloatTypeKind::TYPE_FLOAT: {
-
-                    // from BOOL
-                    if (FromType->isBool()) {
-                        return Builder->CreateTrunc(FromVal, CGM->BoolTy);
-                    }
-
-                    // from INT
-                    if (FromType->isInteger()) {
-                        return ((SemaIntType *) FromType)->isSigned() ?
-                               Builder->CreateSIToFP(FromVal, CGM->FloatTy) :
-                               Builder->CreateUIToFP(FromVal, CGM->FloatTy);
-                    }
-
-                    // from FLOAT
-                    if (FromType->isFloatingPoint()) {
-                        switch (((SemaFloatType *) FromType)->getFPKind()) {
-
-                            case SemaFloatTypeKind::TYPE_FLOAT:
-                                return FromVal;
-                            case SemaFloatTypeKind::TYPE_DOUBLE:
-                                return Builder->CreateFPTrunc(FromVal, CGM->FloatTy);
-                        }
-                    }
-                }
-
-                    // to DOUBLE 64
-                case SemaFloatTypeKind::TYPE_DOUBLE: {
-
-                    // from BOOL
-                    if (FromType->isBool()) {
-                        return Builder->CreateTrunc(FromVal, CGM->BoolTy);
-                    }
-
-                    // from INT
-                    if (FromType->isInteger()) {
-                        return ((SemaIntType *) FromType)->isSigned() ?
-                               Builder->CreateSIToFP(FromVal, CGM->DoubleTy) :
-                               Builder->CreateUIToFP(FromVal, CGM->DoubleTy);
-                    }
-
-                    // from FLOAT
-                    if (FromType->isFloatingPoint()) {
-                        switch (((SemaFloatType *) FromType)->getFPKind()) {
-
-                            case SemaFloatTypeKind::TYPE_FLOAT:
-                                return Builder->CreateFPExt(FromVal, CGM->DoubleTy);
-                            case SemaFloatTypeKind::TYPE_DOUBLE:
-                                return FromVal;
-                        }
-                    }
-                }
-            }
-        }
-
-            // to Identity
-        case SemaKind::TYPE_CLASS:
-            return FromVal; // TODO implement class cast
-    }
-    assert(0 && "Conversion failed");
+		}
+	}
 }

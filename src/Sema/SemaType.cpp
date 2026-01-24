@@ -35,12 +35,16 @@ bool SemaType::isBool() const {
 	return Kind == SemaKind::TYPE_BOOL;
 }
 
-bool SemaType::isFloatingPoint() const {
-	return Kind == SemaKind::TYPE_FLOATING_POINT;
+bool SemaType::isFloat() const {
+	return Kind == SemaKind::TYPE_FLOAT;
 }
 
 bool SemaType::isInteger() const {
 	return Kind == SemaKind::TYPE_INTEGER;
+}
+
+bool SemaType::isNumber() const {
+	return isInteger() || isFloat();
 }
 
 bool SemaType::isArray() const {
@@ -91,29 +95,40 @@ void SemaBoolType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
-SemaIntType::SemaIntType(SemaIntTypeKind IntKind, std::string Name) : SemaType(SemaKind::TYPE_INTEGER, Name),
-                                                 IntKind(IntKind) {
+SemaNumberType::SemaNumberType(SemaKind Kind, std::string Name, unsigned Rank) :
+	SemaType(Kind, Name), Rank(Rank) {
+}
+
+unsigned SemaNumberType::getRank() {
+	return Rank;
+}
+
+SemaIntType::SemaIntType(SemaIntTypeKind IntKind, std::string Name) :
+	SemaNumberType(SemaKind::TYPE_INTEGER, Name, static_cast<unsigned>(IntKind)), IntKind(IntKind) {
 }
 
 const SemaIntTypeKind SemaIntType::getIntKind() const {
 	return IntKind;
 }
 
+bool SemaIntType::isUnsigned() {
+	return static_cast<int>(IntKind) % 2 == 0;
+}
+
 bool SemaIntType::isSigned() {
-	return IntKind == SemaIntTypeKind::TYPE_SHORT || IntKind == SemaIntTypeKind::TYPE_INT ||
-		IntKind == SemaIntTypeKind::TYPE_LONG;
+	return !isUnsigned();
 }
 
 void SemaIntType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
-SemaFloatType::SemaFloatType(SemaFloatTypeKind FPKind, std::string Name) : SemaType(SemaKind::TYPE_FLOATING_POINT, Name),
-                                             FPKind(FPKind) {
+SemaFloatType::SemaFloatType(SemaFloatTypeKind FPKind, std::string Name) :
+	SemaNumberType(SemaKind::TYPE_FLOAT, Name, static_cast<unsigned>(FPKind) * 10), FloatKind(FPKind) {
 }
 
-const SemaFloatTypeKind SemaFloatType::getFPKind() const {
-	return FPKind;
+const SemaFloatTypeKind SemaFloatType::getFloatKind() const {
+	return FloatKind;
 }
 
 void SemaFloatType::accept(SemaVisitor &Visitor) {

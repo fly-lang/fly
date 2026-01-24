@@ -51,7 +51,7 @@ void CodeGenType::GenType(SemaIntType &Sema) {
 
 void CodeGenType::GenType(SemaFloatType &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
-		SemaFloatTypeKind FPKind = Sema.getFPKind();
+		SemaFloatTypeKind FPKind = Sema.getFloatKind();
 		switch (FPKind) {
 			case SemaFloatTypeKind::TYPE_FLOAT:
 				T = CGM->FloatTy;

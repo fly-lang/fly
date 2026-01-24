@@ -14,7 +14,7 @@
 #include "Sema/SemaNode.h"
 
 #include <cstdint>
-#include <llvm/ADT/StringRef.h>
+#include <string>
 
 namespace fly {
 
@@ -77,9 +77,11 @@ namespace fly {
 
         bool isBool() const;
 
-        bool isFloatingPoint() const;
+        bool isFloat() const;
 
         bool isInteger() const;
+
+    	bool isNumber() const;
 
         bool isArray() const;
 
@@ -114,7 +116,19 @@ namespace fly {
 		void accept(SemaVisitor& Visitor) override;
 	};
 
-    class SemaIntType : public SemaType {
+	class SemaNumberType : public SemaType {
+
+		unsigned Rank;
+
+	public:
+		explicit SemaNumberType(SemaKind Kind, std::string Name, unsigned Rank);
+
+		~SemaNumberType() override = default;
+
+		unsigned getRank();
+	};
+
+    class SemaIntType : public SemaNumberType {
 
         const SemaIntTypeKind IntKind;
 
@@ -126,14 +140,16 @@ namespace fly {
 
         const SemaIntTypeKind getIntKind() const;
 
+    	bool isUnsigned();
+
         bool isSigned();
 
         void accept(SemaVisitor& Visitor) override;
     };
 
-    class SemaFloatType : public SemaType {
+    class SemaFloatType : public SemaNumberType {
 
-        const SemaFloatTypeKind FPKind;
+        const SemaFloatTypeKind FloatKind;
 
     public:
 
@@ -141,7 +157,7 @@ namespace fly {
 
         ~SemaFloatType() override = default;
 
-        const SemaFloatTypeKind getFPKind() const;
+        const SemaFloatTypeKind getFloatKind() const;
 
         void accept(SemaVisitor& Visitor) override;
     };

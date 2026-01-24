@@ -26,7 +26,7 @@ namespace fly {
 
 		CodeGenExpr *CodeGen = nullptr;
 
-		SemaType *SelectType(SemaExpr * LeftExpr, SemaExpr * RightExpr);
+		SemaType *SelectType(ASTBinary &AST);
 
 		explicit SemaBinary(ASTBinary &AST);
 

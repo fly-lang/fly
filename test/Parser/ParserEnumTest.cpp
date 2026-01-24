@@ -65,7 +65,7 @@ namespace {
 		auto *aExprStmt = As<ASTDeclStmt>(Body->getContent()[0]);
 		EXPECT_EQ(aExprStmt->getLocalVar()->getName(), "a");
 		auto *AssignBinaryExpr = As<ASTBinary>(aExprStmt->getExpr());
-		EXPECT_EQ(AssignBinaryExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+		EXPECT_EQ(AssignBinaryExpr->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
 
 		// Left side is 'a'
 		auto *src = As<ASTIdentifier>(AssignBinaryExpr->getLeftExpr());
@@ -84,7 +84,7 @@ namespace {
      // Verify second statement: a = Test.B
     	auto *aExprStmt2 = As<ASTExprStmt>(Body->getContent()[1]);
     	auto *AssignBinaryExpr2 = As<ASTBinary>(aExprStmt2->getExpr());
-    	EXPECT_EQ(AssignBinaryExpr2->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+    	EXPECT_EQ(AssignBinaryExpr2->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
 
     	// Left side is 'a'
     	auto *src2 = As<ASTIdentifier>(AssignBinaryExpr2->getLeftExpr());
@@ -104,7 +104,7 @@ namespace {
     	auto *aExprStmt3 = As<ASTDeclStmt>(Body->getContent()[2]);
     	EXPECT_EQ(aExprStmt3->getLocalVar()->getName(), "c");
     	auto *AssignBinaryExpr3 = As<ASTBinary>(aExprStmt3->getExpr());
-    	EXPECT_EQ(AssignBinaryExpr3->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+    	EXPECT_EQ(AssignBinaryExpr3->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
 
     	// Left side is 'c'
     	auto *src3 = As<ASTIdentifier>(AssignBinaryExpr3->getLeftExpr());

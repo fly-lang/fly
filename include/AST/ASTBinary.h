@@ -31,7 +31,7 @@ namespace fly {
 
         // Logic
         OP_BINARY_LOGIC_AND,
-        OP_BINARY_LOGIC_OR ,
+        OP_BINARY_LOGIC_OR,
 
         // Comparison
         OP_BINARY_COMPARE_EQ ,
@@ -62,7 +62,7 @@ namespace fly {
 
         friend class ASTBuilder;
 
-        ASTBinaryKind OpKind;
+        ASTBinaryKind BinaryKind;
 
         SourceLocation OpLocation;
 
@@ -85,7 +85,7 @@ namespace fly {
 
         bool isLogic() const;
 
-        ASTBinaryKind getOpKind() const;
+        ASTBinaryKind getBinaryKind() const;
 
         SourceLocation &getOpLocation();
 

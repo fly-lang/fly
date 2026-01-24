@@ -54,7 +54,7 @@ TEST_F(ParserTest, IfElsifElseStmt) {
 
 	// If condition: a == 1
 	ASTBinary *IfCond = As<ASTBinary>(IfStmt->getRule());
-	EXPECT_EQ(IfCond->getOpKind(), ASTBinaryKind::OP_BINARY_COMPARE_EQ);
+	EXPECT_EQ(IfCond->getBinaryKind(), ASTBinaryKind::OP_BINARY_COMPARE_EQ);
 	EXPECT_NODE_LOC(IfCond, "a");
 
 	// Left side: identifier 'a'
@@ -71,7 +71,7 @@ TEST_F(ParserTest, IfElsifElseStmt) {
 	ASSERT_FALSE(As<ASTBlockStmt>(IfStmt->getStmt())->getContent().empty());
 	auto *b_expr_0 = As<ASTExprStmt>(As<ASTBlockStmt>(IfStmt->getStmt())->getContent()[0]);
 	auto *assign_0 = As<ASTBinary>(b_expr_0->getExpr());
-	EXPECT_EQ(assign_0->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(assign_0->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
 	EXPECT_NODE_LOC(assign_0, "b");
 
 	// Left side: identifier 'b'
@@ -90,7 +90,7 @@ TEST_F(ParserTest, IfElsifElseStmt) {
 
 	// Elsif condition: c == 2
 	ASTBinary *ElsifCond = As<ASTBinary>(ElsifStmt->getRule());
-	EXPECT_EQ(ElsifCond->getOpKind(), ASTBinaryKind::OP_BINARY_COMPARE_EQ);
+	EXPECT_EQ(ElsifCond->getBinaryKind(), ASTBinaryKind::OP_BINARY_COMPARE_EQ);
 	EXPECT_NODE_LOC(ElsifCond, "c");
 
 	// Left side: identifier 'c'
@@ -107,7 +107,7 @@ TEST_F(ParserTest, IfElsifElseStmt) {
 	ASSERT_FALSE(As<ASTBlockStmt>(ElsifStmt->getStmt())->getContent().empty());
 	auto *d_expr_1 = As<ASTExprStmt>(As<ASTBlockStmt>(ElsifStmt->getStmt())->getContent()[0]);
 	auto *assign_1 = As<ASTBinary>(d_expr_1->getExpr());
-	EXPECT_EQ(assign_1->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(assign_1->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
 	EXPECT_NODE_LOC(assign_1, "d");
 
 	// Left side: identifier 'd'
@@ -128,7 +128,7 @@ TEST_F(ParserTest, IfElsifElseStmt) {
 	ASSERT_FALSE(As<ASTBlockStmt>(ElseStmt)->getContent().empty());
 	auto *e_expr_2 = As<ASTExprStmt>(As<ASTBlockStmt>(ElseStmt)->getContent()[0]);
 	auto *assign_2 = As<ASTBinary>(e_expr_2->getExpr());
-	EXPECT_EQ(assign_2->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(assign_2->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
 	EXPECT_NODE_LOC(assign_2, "e");
 
 	// Left side: identifier 'e'
@@ -163,7 +163,7 @@ TEST_F(ParserTest, IfElsifElseInlineStmt) {
 
 	auto *b_expr_0 = As<ASTExprStmt>(As<ASTBlockStmt>(IfStmt->getStmt())->getContent()[0]);
 	auto *assign_0 = As<ASTBinary>(b_expr_0->getExpr());
-	EXPECT_EQ(assign_0->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(assign_0->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
 	EXPECT_NODE_LOC(assign_0, "b");
 	EXPECT_EQ(As<ASTIdentifier>(assign_0->getLeftExpr())->getName(), "b");
 	EXPECT_NODE_LOC(As<ASTIdentifier>(assign_0->getLeftExpr()), "b");
@@ -177,7 +177,7 @@ TEST_F(ParserTest, IfElsifElseInlineStmt) {
 
 	auto *d_expr_1 = As<ASTExprStmt>(As<ASTBlockStmt>(ElsifStmt->getStmt())->getContent()[0]);
 	auto *assign_1 = As<ASTBinary>(d_expr_1->getExpr());
-	EXPECT_EQ(assign_1->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(assign_1->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
 	EXPECT_NODE_LOC(assign_1, "d");
 	EXPECT_EQ(As<ASTIdentifier>(assign_1->getLeftExpr())->getName(), "d");
 	EXPECT_NODE_LOC(As<ASTIdentifier>(assign_1->getLeftExpr()), "d");
@@ -191,7 +191,7 @@ TEST_F(ParserTest, IfElsifElseInlineStmt) {
 
 	auto *e_expr_2 = As<ASTExprStmt>(As<ASTBlockStmt>(ElseStmt)->getContent()[0]);
 	auto *assign_2 = As<ASTBinary>(e_expr_2->getExpr());
-	EXPECT_EQ(assign_2->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(assign_2->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
 	EXPECT_NODE_LOC(assign_2, "e");
 	EXPECT_EQ(As<ASTIdentifier>(assign_2->getLeftExpr())->getName(), "e");
 	EXPECT_NODE_LOC(As<ASTIdentifier>(assign_2->getLeftExpr()), "e");
@@ -281,7 +281,7 @@ TEST_F(ParserTest, WhileStmt) {
 	EXPECT_NODE_LOC(Cond, "a");
 	EXPECT_EQ(As<ASTIdentifier>(Cond->getLeftExpr())->getName(), "a");
 	EXPECT_NODE_LOC(As<ASTIdentifier>(Cond->getLeftExpr()), "a");
-	EXPECT_EQ(Cond->getOpKind(), ASTBinaryKind::OP_BINARY_COMPARE_EQ);
+	EXPECT_EQ(Cond->getBinaryKind(), ASTBinaryKind::OP_BINARY_COMPARE_EQ);
 	EXPECT_EQ(As<ASTNumberValue>(Cond->getRightExpr())->getValue(), "1");
 	EXPECT_NODE_LOC(As<ASTNumberValue>(Cond->getRightExpr()), "1");
 
@@ -352,7 +352,7 @@ TEST_F(ParserTest, LoopStmt) {
 	EXPECT_EQ(b_decl_stmt->getLocalVar()->getName(), "b");
 	EXPECT_NODE_LOC(b_decl_stmt->getLocalVar(), "b");
 	auto *b_expr = As<ASTBinary>(b_decl_stmt->getExpr());
-	EXPECT_EQ(b_expr->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(b_expr->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
 	EXPECT_NODE_LOC(b_expr, "b");
 	EXPECT_EQ(As<ASTIdentifier>(b_expr->getLeftExpr())->getName(), "b");
 	EXPECT_NODE_LOC(As<ASTIdentifier>(b_expr->getLeftExpr()), "b");
@@ -364,7 +364,7 @@ TEST_F(ParserTest, LoopStmt) {
 	EXPECT_EQ(c_decl_stmt->getLocalVar()->getName(), "c");
 	EXPECT_NODE_LOC(c_decl_stmt->getLocalVar(), "c");
 	auto *c_expr = As<ASTBinary>(c_decl_stmt->getExpr());
-	EXPECT_EQ(c_expr->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+	EXPECT_EQ(c_expr->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
 	EXPECT_NODE_LOC(c_expr, "c");
 	EXPECT_EQ(As<ASTIdentifier>(c_expr->getLeftExpr())->getName(), "c");
 	EXPECT_NODE_LOC(As<ASTIdentifier>(c_expr->getLeftExpr()), "c");
@@ -376,7 +376,7 @@ TEST_F(ParserTest, LoopStmt) {
 	EXPECT_NODE_LOC(Cond, "a");
 	EXPECT_EQ(As<ASTIdentifier>(Cond->getLeftExpr())->getName(), "a");
 	EXPECT_NODE_LOC(As<ASTIdentifier>(Cond->getLeftExpr()), "a");
-	EXPECT_EQ(Cond->getOpKind(), ASTBinaryKind::OP_BINARY_COMPARE_LT);
+	EXPECT_EQ(Cond->getBinaryKind(), ASTBinaryKind::OP_BINARY_COMPARE_LT);
 	EXPECT_EQ(As<ASTNumberValue>(Cond->getRightExpr())->getValue(), "10");
 	EXPECT_NODE_LOC(As<ASTNumberValue>(Cond->getRightExpr()), "10");
 

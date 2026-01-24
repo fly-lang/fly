@@ -17,12 +17,20 @@
 using namespace fly;
 
 SemaType *SemaTernary::SelectType(SemaExpr *LeftExpr, SemaExpr *RightExpr) {
+	// Select the resulting type based on the operand types
+	SemaType *Type1 = LeftExpr->getType();
+	SemaType *Type2 = RightExpr->getType();
+
 	// For now, we just return the type of the left expression
-	if (LeftExpr->getType()->isInteger() && RightExpr->getType()->isInteger())
-		return Helper::SelectIntType(LeftExpr, RightExpr);
-	if (LeftExpr->getType()->isFloatingPoint() && RightExpr->getType()->isFloatingPoint())
-		return Helper::SelectFloatType(LeftExpr, RightExpr);
-	return LeftExpr->getType();
+	if (Type1->isNumber() && Type2->isNumber()) {
+		return Helper::SelectNumberType(
+			static_cast<SemaNumberType *>(Type1),
+			static_cast<SemaNumberType *>(Type2)
+		);
+	}
+
+	// Default to Type1
+	return Type1;
 }
 
 SemaTernary::SemaTernary(ASTTernary &AST) :

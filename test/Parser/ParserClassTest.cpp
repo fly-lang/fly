@@ -53,7 +53,7 @@ namespace {
         auto *varStmt = As<ASTDeclStmt>(Body->getContent()[0]);
         EXPECT_EQ(varStmt->getLocalVar()->getName(), "t");
         auto *assignExpr = As<ASTBinary>(varStmt->getExpr());
-        EXPECT_EQ(assignExpr->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        EXPECT_EQ(assignExpr->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
 
     	auto *Left = As<ASTIdentifier>(assignExpr->getLeftExpr());
         EXPECT_EQ(Left->getName(), "t");
@@ -105,7 +105,7 @@ namespace {
     	auto *assignExpr1 = As<ASTDeclStmt>(Function->getBody()->getContent()[0]);
     	EXPECT_EQ(assignExpr1->getLocalVar()->getName(), "t");
     	auto *assign1 = As<ASTBinary>(assignExpr1->getExpr());
-    	EXPECT_EQ(assign1->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+    	EXPECT_EQ(assign1->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
 		auto *assign1_src = As<ASTIdentifier>(assign1->getLeftExpr());
 		ASSERT_TRUE(assign1_src != nullptr);
 		EXPECT_EQ(assign1_src->getName(), "t");
@@ -118,7 +118,7 @@ namespace {
     	auto *assignExpr2 = As<ASTDeclStmt>(Function->getBody()->getContent()[1]);
     	EXPECT_EQ(assignExpr2->getLocalVar()->getName(), "x");
     	auto *assign2 = As<ASTBinary>(assignExpr2->getExpr());
-    	EXPECT_EQ(assign2->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+    	EXPECT_EQ(assign2->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
     	auto *assign2_src = As<ASTIdentifier>(assign2->getLeftExpr());
     	ASSERT_TRUE(assign2_src != nullptr);
     	EXPECT_EQ(assign2_src->getName(), "x");
@@ -257,7 +257,7 @@ namespace {
         auto *assignExpr = As<ASTDeclStmt>(Body->getContent()[0]);
         EXPECT_EQ(assignExpr->getLocalVar()->getName(), "t");
         auto *assign = As<ASTBinary>(assignExpr->getExpr());
-        EXPECT_EQ(assign->getOpKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        EXPECT_EQ(assign->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
          auto *assign_src = As<ASTIdentifier>(assign->getLeftExpr());
          ASSERT_TRUE(assign_src != nullptr);
          EXPECT_EQ(assign_src->getName(), "t");

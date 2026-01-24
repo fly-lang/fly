@@ -27,6 +27,9 @@ namespace fly {
 	class SemaVar;
 	class SemaCall;
 	class SemaType;
+	class SemaIntType;
+	class SemaFloatType;
+	class SemaNumberType;
 	class SemaValue;
 	class SemaBoolValue;
 	class SemaIntValue;
@@ -89,9 +92,11 @@ namespace fly {
 
         void GenExpr(SemaTernary *Sema);
 
+    private:
+
         llvm::Value *GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
-        llvm::Value *GenBinaryComparison(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
+        llvm::Value *GenBinaryCompare(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
         llvm::Value *GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
@@ -101,7 +106,11 @@ namespace fly {
 
     	llvm::Value *ConvertToBool(llvm::Value *V);
 
-    	llvm::Value *Convert(llvm::Value *FromVal, SemaType *FromType, SemaType *ToType);
+    	llvm::Value *ConvertNumber(llvm::Value *V, SemaNumberType *Ty);
+
+    	llvm::Value *ConvertToInteger(llvm::Value *V, SemaIntType *Ty);
+
+    	llvm::Value *ConvertToFloat(llvm::Value *V, SemaFloatType *Ty);
     };
 }
 

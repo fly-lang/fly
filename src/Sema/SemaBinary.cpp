@@ -8,25 +8,39 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaBinary.h"
-#include "Sema/SemaVisitor.h"
 
 #include "AST/ASTBinary.h"
 #include "Sema/Helper.h"
+#include "Sema/SemaBuiltin.h"
 #include "Sema/SemaType.h"
+#include "Sema/SemaVisitor.h"
 
 using namespace fly;
 
-SemaType * SemaBinary::SelectType(SemaExpr * LeftExpr, SemaExpr * RightExpr) {
-	// For now, we just return the type of the left expression
-	if (LeftExpr->getType()->isInteger() && RightExpr->getType()->isInteger())
-		return Helper::SelectIntType(LeftExpr, RightExpr);
-	if (LeftExpr->getType()->isFloatingPoint() && RightExpr->getType()->isFloatingPoint())
-		return Helper::SelectFloatType(LeftExpr, RightExpr);
-	return LeftExpr->getType();
+SemaType *SemaBinary::SelectType(ASTBinary &AST) {
+	// Select the resulting type based on the operand types
+	SemaType *Type1 = AST.getLeftExpr()->getSema()->getType();
+	SemaType *Type2 = AST.getRightExpr()->getSema()->getType();
+
+	// Return Boolean type for logical and comparison operations
+	if (AST.isCompare() || AST.isLogic()) {
+		return SemaBuiltin::getBoolType();
+	}
+
+	// For arithmetic operations, determine the resulting type based on operand types
+	if (Type1->isNumber() && Type2->isNumber()) {
+		return Helper::SelectNumberType(
+			static_cast<SemaNumberType *>(Type1),
+			static_cast<SemaNumberType *>(Type2)
+		);
+	}
+
+	// Default return Type1
+	return Type1;
 }
 
 SemaBinary::SemaBinary(ASTBinary &AST) :
-	SemaExpr(SemaKind::BINARY, SelectType(AST.getLeftExpr()->getSema(), AST.getRightExpr()->getSema())),
+	SemaExpr(SemaKind::BINARY, SelectType(AST)),
 	AST(AST) {
 }
 

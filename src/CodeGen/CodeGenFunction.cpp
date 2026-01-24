@@ -102,7 +102,7 @@ void CodeGenFunction::GenBody() {
 	}
 
 	// Generate Function Body
-    CGM->GenBlockStmt(this, Sema->getAST().getBody());
+    CGM->GenBlockStmt(Sema->getAST().getBody());
 
     // if is Main check error and return right exit code
     if (isMain) {

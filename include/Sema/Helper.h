@@ -21,6 +21,7 @@ namespace fly {
 	class SemaFunctionBase;
 	class SemaIntType;
 	class SemaFloatType;
+	class SemaNumberType;
 	class SemaExpr;
 
 	class Helper {
@@ -30,9 +31,11 @@ namespace fly {
 		// Utility Functions
 		static std::string Flatten(llvm::SmallVector<ASTName *, 4>);
 
-		static SemaIntType *SelectIntType(SemaExpr *Expr1, SemaExpr *Expr2);
+		static SemaIntType *SelectIntType(SemaIntType *Type1, SemaIntType *Type2);
 
-		static SemaFloatType *SelectFloatType(SemaExpr *Expr1, SemaExpr *Expr2);
+		static SemaFloatType *SelectFloatType(SemaFloatType *Type1, SemaFloatType *Type2);
+
+		static SemaType * SelectNumberType(SemaNumberType *Type1, SemaNumberType *Type2);
 	};
 }
 

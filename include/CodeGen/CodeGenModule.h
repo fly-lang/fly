@@ -206,21 +206,23 @@ namespace fly {
 
     	llvm::LLVMContext &getLLVMCtx() const;
 
-    	void GenBlockStmt(CodeGenFunctionBase *CGF, ASTBlockStmt *BlockStmt);
+    	llvm::IRBuilder<> *getBuilder() const;
 
-        void GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt);
+    	void GenBlockStmt(ASTBlockStmt *BlockStmt);
+
+        void GenStmt(ASTStmt * Stmt);
 
         void GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGH);
 
-        void GenIfStmt(CodeGenFunctionBase *CGF, ASTIfStmt *If);
+        void GenIfStmt(ASTIfStmt *If);
 
         void GenElsifStmt(CodeGenFunctionBase *CGF,
                                         llvm::BasicBlock *ElsifBB,
                                         llvm::SmallVector<ASTRuleStmt *, 8>::iterator &It);
 
-        void GenSwitchStmt(CodeGenFunctionBase *CGF, ASTSwitchStmt *Switch);
+        void GenSwitchStmt(ASTSwitchStmt *Switch);
 
-        void GenLoopStmt(CodeGenFunctionBase *CGF, ASTLoopStmt *Loop);
+        void GenLoopStmt(ASTLoopStmt *Loop);
 
         std::string toIdentifier(llvm::StringRef Name, SemaNameSpace *NameSpace);
 

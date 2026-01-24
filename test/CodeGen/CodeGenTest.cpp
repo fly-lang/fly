@@ -285,7 +285,7 @@ namespace {
          *   return 1
          * }
          * void func() {
-         *   int a = test()
+         *   return test()
          * }
          */
         ASTModule *Module = CreateModule();
@@ -298,15 +298,10 @@ namespace {
         ASTBlockStmt *BodyFunc = ASTBuilder::CreateBlockStmt(SourceLoc);
         ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, IntTypeRef, "func", TopModifiers, Params, BodyFunc);
 
-        // call test()
-        ASTExprStmt * ExprStmt = ASTBuilder::CreateExprStmt(BodyFunc, SourceLoc);
-        ASTCall *TestCall = ASTBuilder::CreateCall(SourceLoc, Test->getName(), Args, ASTCallKind::CALL_DIRECT);
-        ExprStmt->setExpr(TestCall);
-
         //return test()
         ASTReturnStmt * Return = ASTBuilder::CreateReturnStmt(BodyFunc, SourceLoc);
-        ASTCall *ReturnExpr = TestCall;
-        Return->setExpr(TestCall);
+        ASTCall *ReturnExpr = ASTBuilder::CreateCall(SourceLoc, Test->getName(), Args, ASTCallKind::CALL_DIRECT);
+        Return->setExpr(ReturnExpr);
 
     	// CreateVTable Code
     	Generate();
@@ -330,8 +325,7 @@ namespace {
 						  "  store %error* %0, %error** %1, align 8\n"
 						  "  %2 = load %error*, %error** %1, align 8\n"
 						  "  %3 = call i32 @_F4test(%error* %2)\n"
-						  "  %4 = call i32 @_F4test(%error* %2)\n"
-						  "  ret i32 %4\n"
+						  "  ret i32 %3\n"
 						  "}\n");
     }
 
@@ -340,7 +334,7 @@ namespace {
      *  return 1 + a * b / (c - 2)
      * }
      */
-    TEST_F(CodeGenTest, CGGroupExpr) {
+    TEST_F(CodeGenTest, CGBinaryExpr) {
         ASTModule *Module = CreateModule();
 
         // func()
@@ -607,9 +601,12 @@ namespace {
     TEST_F(CodeGenTest, CGComparatorOp) {
         /**
          * Fly code:
-         * void func(int a, int b, bool c) {
-         *   a = 0
-         *   b = 0
+         * void func() {
+    	 *   int a
+		 *   int b
+		 *   int c
+		 *   a = 0
+		 *   b = 0
          *   c = a == b
          *   c = a != b
          *   c = a > b
@@ -703,6 +700,9 @@ namespace {
                           "  %3 = alloca i32, align 4\n"
                           "  %4 = alloca i8, align 1\n"
                           "  store %error* %0, %error** %1, align 8\n"
+                          "  store i32 0, i32* %2, align 4\n" // will be optimized by LLVM in later passes
+                          "  store i32 0, i32* %3, align 4\n"  // will be optimized by LLVM in later passes
+                          "  store i8 0, i8* %4, align 1\n"
                           "  store i32 0, i32* %2, align 4\n"
                           "  store i32 0, i32* %3, align 4\n"
                           "  %5 = load i32, i32* %2, align 4\n"
@@ -732,9 +732,12 @@ namespace {
     TEST_F(CodeGenTest, CGLogicOp) {
         /**
          * Fly code:
-         * void func(bool a, bool b, bool c) {
-         *   a = false
-         *   b = false
+         * void func() {
+         *   bool a
+         *   bool b
+         *   bool c
+         *   // a = false
+         *   // b = false
          *   c = a && b
          *   c = a || b
          * }
@@ -752,17 +755,17 @@ namespace {
         ASTLocalVar *cVar = ASTBuilder::CreateLocalVar(SourceLoc, BoolTypeRef, "c", EmptyModifiers);
         ASTDeclStmt *cDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, cVar);
 
-        // a = false
-        ASTExprStmt * aVarStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
-        ASTBoolValue *Expr1 = ASTBuilder::CreateBoolValue(SourceLoc, false);
-        ASTBinary *aAssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, ASTBuilder::CreateIdentifier(aVar), Expr1);
-        aVarStmt->setExpr(aAssignExpr);
-
-        // b = false
-        ASTExprStmt * bVarStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
-        ASTBoolValue *Expr2 = ASTBuilder::CreateBoolValue(SourceLoc, false);
-        ASTBinary *bAssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, ASTBuilder::CreateIdentifier(bVar), Expr2);
-        bVarStmt->setExpr(bAssignExpr);
+        // // a = false
+        // ASTExprStmt * aVarStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
+        // ASTBoolValue *Expr1 = ASTBuilder::CreateBoolValue(SourceLoc, false);
+        // ASTBinary *aAssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, ASTBuilder::CreateIdentifier(aVar), Expr1);
+        // aVarStmt->setExpr(aAssignExpr);
+        //
+        // // b = false
+        // ASTExprStmt * bVarStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
+        // ASTBoolValue *Expr2 = ASTBuilder::CreateBoolValue(SourceLoc, false);
+        // ASTBinary *bAssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, ASTBuilder::CreateIdentifier(bVar), Expr2);
+        // bVarStmt->setExpr(bAssignExpr);
 
         // c = a and b
          ASTExprStmt * cAndVarStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
@@ -794,6 +797,7 @@ namespace {
                           "  store %error* %0, %error** %1, align 8\n"
                           "  store i8 0, i8* %2, align 1\n"
                           "  store i8 0, i8* %3, align 1\n"
+                          "  store i8 0, i8* %4, align 1\n"
                           "  %5 = load i8, i8* %2, align 1\n"
                           "  %6 = trunc i8 %5 to i1\n"
                           "  br i1 %6, label %and, label %and1\n"
@@ -827,9 +831,10 @@ namespace {
     TEST_F(CodeGenTest, CGTernaryOp) {
         /**
          * Fly code:
-         * void func(bool a, bool b, bool c) {
-         *   a = false
-         *   b = false
+         * void func() {
+         *   bool a
+         *   bool b
+         *   bool c
          *   c = a == b ? a : b
          * }
          */
@@ -845,18 +850,6 @@ namespace {
         ASTDeclStmt *bDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, bVar);
         ASTLocalVar *cVar = ASTBuilder::CreateLocalVar(SourceLoc, BoolTypeRef, "c", EmptyModifiers);
         ASTDeclStmt *cDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, cVar);
-
-        // a = false
-        ASTExprStmt * aVarStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
-        ASTBoolValue *Expr1 = ASTBuilder::CreateBoolValue(SourceLoc, false);
-        ASTBinary *aAssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, ASTBuilder::CreateIdentifier(aVar), Expr1);
-        aVarStmt->setExpr(aAssignExpr);
-
-        // b = false
-        ASTExprStmt * bVarStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
-        ASTBoolValue *Expr2 = ASTBuilder::CreateBoolValue(SourceLoc, false);
-        ASTBinary *bAssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, ASTBuilder::CreateIdentifier(bVar), Expr2);
-        bVarStmt->setExpr(bAssignExpr);
 
         // c = a == b ? a : b
          ASTExprStmt * cVarStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
@@ -885,6 +878,7 @@ namespace {
                           "  store %error* %0, %error** %1, align 8\n"
                           "  store i8 0, i8* %2, align 1\n"
                           "  store i8 0, i8* %3, align 1\n"
+                          "  store i8 0, i8* %4, align 1\n"
                           "  %5 = load i8, i8* %2, align 1\n"
                           "  %6 = load i8, i8* %3, align 1\n"
                           "  %7 = icmp eq i8 %5, %6\n"
