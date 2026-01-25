@@ -24,8 +24,6 @@ namespace fly {
         friend class Resolver;
         friend class SemaValidator;
 
-		CodeGenVar *CodeGen;
-
         explicit SemaParam(ASTParam &AST, SemaType *Type);
 
     public:

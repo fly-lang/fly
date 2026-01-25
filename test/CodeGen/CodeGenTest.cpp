@@ -905,8 +905,8 @@ namespace {
     TEST_F(CodeGenTest, CGIfBlock) {
         /**
          * Fly code:
-         * void func(int a) {
-         *   a = 0
+         * void func() {
+         *   int a = 0
          *   if (a == 1) {
          *     a = 2
          *   }
@@ -920,7 +920,7 @@ namespace {
 
         // int a = 0
         ASTLocalVar *aVar = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "a", EmptyModifiers);
-        ASTExprStmt * aVarStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
+        ASTDeclStmt * aVarStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, aVar);
         ASTNumberValue *Expr1 = ASTBuilder::CreateNumberValue(SourceLoc, "0");
         ASTBinary *aAssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, ASTBuilder::CreateIdentifier(aVar), Expr1);
         aVarStmt->setExpr(aAssignExpr);
@@ -1043,13 +1043,13 @@ namespace {
          * Fly code:
          * void func(int a) {
          *   if (a == 1) {
-         *     a = 2
+         *     a = 11
          *   } elsif (a == 2) {
-         *     a = 3
+         *     a = 22
          *   } elsif (a == 3) {
-         *     a = 4
+         *     a = 33
          *   } else {
-         *     a = 5
+         *     a = 44
          *   }
          * }
          */
@@ -1066,9 +1066,9 @@ namespace {
         // if (a == 1)
         ASTBuilderIfStmt *IfBuilder = ASTBuilderIfStmt::Create(Body);
         ASTNumberValue *Value1 = ASTBuilder::CreateNumberValue(SourceLoc, "1");
-        ASTIdentifier *aVarRef = ASTBuilder::CreateIdentifier(aParam);
+        ASTIdentifier *aVarRef1 = ASTBuilder::CreateIdentifier(aParam);
         ASTBinary *IfCond = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_COMPARE_EQ,
-                aVarRef, Value1);
+                aVarRef1, Value1);
         ASTBlockStmt *IfBlock = ASTBuilder::CreateBlockStmt(SourceLoc);
         IfBuilder->If(SourceLoc, IfCond, IfBlock);
 
@@ -1082,8 +1082,9 @@ namespace {
         // elsif (a == 2)
         ASTBlockStmt *ElsifBlock = ASTBuilder::CreateBlockStmt(SourceLoc);
         ASTNumberValue *Value2 = ASTBuilder::CreateNumberValue(SourceLoc, "2");
+        ASTIdentifier *aVarRef2 = ASTBuilder::CreateIdentifier(aParam);
         ASTBinary *ElsifCond = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_COMPARE_EQ,
-                aVarRef, Value2);
+                aVarRef2, Value2);
         IfBuilder->ElseIf(SourceLoc, ElsifCond, ElsifBlock);
         // { a = 22 }
         ASTExprStmt *aVarStmt2 = ASTBuilder::CreateExprStmt(ElsifBlock, SourceLoc);
@@ -1091,12 +1092,14 @@ namespace {
         ASTBinary *a2AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, ASTBuilder::CreateIdentifier(aParam), Expr2);
         aVarStmt2->setExpr(a2AssignExpr);
 
-        // elsif (a == 3) { a = 33 }
+        // elsif (a == 3)
         ASTBlockStmt *ElsifBlock2 = ASTBuilder::CreateBlockStmt(SourceLoc);
         ASTNumberValue *Value3 = ASTBuilder::CreateNumberValue(SourceLoc, "3");
+        ASTIdentifier *aVarRef3 = ASTBuilder::CreateIdentifier(aParam);
         ASTBinary *ElsifCond2 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_COMPARE_EQ,
-                aVarRef, Value3);
+                aVarRef3, Value3);
         IfBuilder->ElseIf(SourceLoc, ElsifCond2, ElsifBlock2);
+    	// { a = 33 }
         ASTExprStmt *aVarStmt3 = ASTBuilder::CreateExprStmt(ElsifBlock2, SourceLoc);
         ASTNumberValue *Expr3 = ASTBuilder::CreateNumberValue(SourceLoc, "33");
         ASTBinary *a3AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, ASTBuilder::CreateIdentifier(aParam), Expr3);
@@ -1262,11 +1265,11 @@ namespace {
          * void func(int a) {
          *   switch (a) {
          *     case 1:
-         *       a = 2
+         *       a = 1
          *     case 2:
-         *       a = 3
+         *       a = 2
          *     default:
-         *       a = 4
+         *       a = 3
          *   }
          * }
          */

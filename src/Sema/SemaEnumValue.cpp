@@ -36,10 +36,6 @@ CodeGenEnumValue * SemaEnumValue::getCodeGen() const {
 	return static_cast<CodeGenEnumValue *>(CodeGen);
 }
 
-void SemaEnumValue::setCodeGen(CodeGenExpr *CGC) {
-	this->CodeGen = static_cast<CodeGenEnumValue *>(CGC);
-}
-
 void SemaEnumValue::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }

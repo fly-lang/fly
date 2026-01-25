@@ -405,7 +405,7 @@ void CodeGenExpr::GenExpr(SemaBinary *Sema) {
 	} else if (Binary.isLogic()) {
 		V = GenBinaryLogic(Left, OpKind, Right);
 	} else if (Binary.isAssign()) {
-		V = GenBinaryAssign(Left, OpKind, Right);
+		V = GenBinaryAssign(Left, Right);
 	} else {
 		assert(0 && "Unknown Binary Operation");
 	}
@@ -508,15 +508,26 @@ llvm::Value *CodeGenExpr::GenBinaryCompare(SemaExpr *E1, ASTBinaryKind OperatorK
     llvm::Value *V2 = E2->getCodeGen()->getValue();
 
     if (Type1->isBool() && Type2->isBool()) {
-        switch (OperatorKind) {
-            case ASTBinaryKind::OP_BINARY_COMPARE_EQ:
-                return Builder->CreateICmpEQ(V1, V2);
-            case ASTBinaryKind::OP_BINARY_COMPARE_NE:
-                return Builder->CreateICmpNE(V1, V2);
-        }
-    } else if (Type1->isInteger() && Type2->isInteger()) {
-        bool Signed = static_cast<SemaIntType *>(E1->getType())->isSigned() ||
-        	static_cast<SemaIntType *>(E2->getType())->isSigned();
+	    switch (OperatorKind) {
+	    	case ASTBinaryKind::OP_BINARY_COMPARE_EQ:
+	    		return Builder->CreateICmpEQ(V1, V2);
+	    	case ASTBinaryKind::OP_BINARY_COMPARE_NE:
+	    		return Builder->CreateICmpNE(V1, V2);
+	    }
+    }
+
+	if (Type1->isInteger() && Type2->isInteger()) {
+		SemaIntType *IntType1 = static_cast<SemaIntType *>(E1->getType());
+		SemaIntType *IntType2 = static_cast<SemaIntType *>(E2->getType());
+
+		// Check if we need to promote one of the integers
+		if (IntType1->getRank() > IntType2->getRank()) {
+			V2 = ConvertToInteger(V2, IntType1); // Promote V2
+		} else if (IntType1->getRank() < IntType2->getRank()) {
+			V1 = ConvertToInteger(V1, IntType2); // Promote V1
+		}
+
+        bool Signed = IntType1->isSigned() || IntType2->isSigned();
         switch (OperatorKind) {
 
             case ASTBinaryKind::OP_BINARY_COMPARE_EQ:
@@ -532,7 +543,19 @@ llvm::Value *CodeGenExpr::GenBinaryCompare(SemaExpr *E1, ASTBinaryKind OperatorK
             case ASTBinaryKind::OP_BINARY_COMPARE_LTE:
                 return Signed ? Builder->CreateICmpSLE(V1, V2) : Builder->CreateICmpULE(V1, V2);
         }
-    } else if (Type1->isFloat() && Type2->isFloat()) {
+    }
+
+	if (Type1->isFloat() && Type2->isFloat()) {
+		SemaFloatType *FloatType1 = static_cast<SemaFloatType *>(E1->getType());
+		SemaFloatType *FloatType2 = static_cast<SemaFloatType *>(E2->getType());
+
+		// Check if we need to promote one of the integers
+		if (FloatType1->getRank() > FloatType2->getRank()) {
+			V2 = ConvertToFloat(V2, FloatType1); // Promote V2
+		} else if (FloatType1->getRank() < FloatType2->getRank()) {
+			V1 = ConvertToFloat(V1, FloatType2); // Promote V1
+		}
+
         switch (OperatorKind) {
 
             case ASTBinaryKind::OP_BINARY_COMPARE_EQ:
@@ -605,12 +628,37 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKin
             return Phi;
         }
     }
-    assert(0 && "Invalid Logic Operator");
+
+	// Error
+	CGM->Diag(diag::err_invalid_behavior);
+	return nullptr;
 }
 
-llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2) {
-	E2->accept(*CGM);
-	llvm::Value *V2 = E2->getCodeGen()->getValue();
+llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
+	// Validate E1 and E2 are not null
+	assert(E1 && "E1 is null");
+	assert(E2 && "E2 is null");
+
+	// Get CodeGen objects
+	CodeGenExpr *E1CodeGen = E1->getCodeGen();
+	CodeGenExpr *E2CodeGen = E2->getCodeGen();
+
+	// Check if CodeGen was properly generated
+	assert(E1CodeGen && "E1 CodeGen is null");
+	assert(E2CodeGen && "E2 CodeGen is null");
+
+	// Get Values
+	llvm::Value *V2 = E2CodeGen->getValue();
+	if (E1->getType()->isNumber() && E2->getType()->isNumber()) {
+		SemaNumberType *Type1 = static_cast<SemaNumberType *>(E1->getType());
+		SemaNumberType *Type2 = static_cast<SemaNumberType *>(E2->getType());
+
+		// Promotion rules: convert Type1 or Type2 to the max type
+		if (Type1->getRank() > Type2->getRank()) {
+			V2 = ConvertNumber(V2, Type1); // Implicit conversion
+		}
+	}
+
 	return static_cast<SemaVar *>(E1)->getCodeGen()->Store(V2);
 }
 

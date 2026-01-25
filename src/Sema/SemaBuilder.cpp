@@ -373,27 +373,25 @@ SemaValue * SemaBuilder::CreateNumberValue(ASTNumberValue &AST) {
 	} else {
 		llvm::APInt Value = CreateAPIntValue(AST.getValue());
 
-		// Compute MinBits
+		// Compute MinBits for type inference
 		unsigned MinBits = Value.isNegative()
 			? 1 + Value.getBitWidth() - Value.countLeadingOnes()
 			: 1 + Value.getBitWidth() - Value.countLeadingZeros();
 
-		// Infer Type
+		// Infer Type based on MinBits, but keep the Value at its original bit width
 		SemaIntType *Type = nullptr;
 		if (Value.isNegative()) {
 			if (MinBits <= 16) Type = SemaBuiltin::getShortType();
 			else if (MinBits <= 32) Type = SemaBuiltin::getIntType();
 			else Type = SemaBuiltin::getLongType();
-			Value = Value.sextOrTrunc(MinBits);
 		} else {
 			if (MinBits <= 8) Type = SemaBuiltin::getByteType();
 			else if (MinBits <= 16) Type = SemaBuiltin::getUShortType();
 			else if (MinBits <= 32) Type = SemaBuiltin::getUIntType();
 			else Type = SemaBuiltin::getULongType();
-			Value = Value.zextOrTrunc(MinBits);
 		}
 
-		// Final normalized value
+		// Create SemaIntValue with the full-width Value (truncation will happen during codegen)
 		Sema = new SemaIntValue(AST, Type, Value);
 	}
 

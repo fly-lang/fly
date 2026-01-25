@@ -100,7 +100,9 @@ namespace fly {
         // Current Statement being Resolved
         ASTStmt* CurrentStmt;
 
-    	SemaExpr *CurrentExpr;
+    	SemaExpr *ParentExpr;
+
+    	ASTExpr *CurrentExpr;
 
     	Symbol *CurrentSymbol;
 

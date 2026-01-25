@@ -37,7 +37,3 @@ void SemaExpr::setType(SemaType *Type) {
 CodeGenExpr * SemaExpr::getCodeGen() const {
 	return CodeGen;
 }
-
-void SemaExpr::setCodeGen(CodeGenExpr *CodeGen) {
-	this->CodeGen = CodeGen;
-}

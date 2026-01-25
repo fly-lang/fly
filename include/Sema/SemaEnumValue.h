@@ -41,8 +41,6 @@ namespace fly {
 
     	CodeGenEnumValue *getCodeGen() const override;
 
-    	void setCodeGen(CodeGenExpr *CGC) override;
-
         void accept(SemaVisitor& Visitor) override;
     };
 

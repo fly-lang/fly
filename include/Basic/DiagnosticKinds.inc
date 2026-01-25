@@ -304,6 +304,7 @@ DIAG(warn_utf8_symbol_homoglyph, CLASS_WARNING, (unsigned)diag::Severity::Warnin
 DIAG(warn_utf8_symbol_zero_width, CLASS_WARNING, (unsigned)diag::Severity::Warning, "identifier contains Unicode character <U+%0> that is invisible in some environments", 756, SFINAE_Suppress, false, false, 1)
 
 // Parser Errors
+DIAG(err_parse_syntax_error, CLASS_ERROR, (unsigned)diag::Severity::Error, "syntax error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parse_identifier_expected, CLASS_ERROR, (unsigned)diag::Severity::Error, "an identifier is expected", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parse_identifier_invalid, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid identifier", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parse_ternary_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "expected ':' in ternary expression", 0, SFINAE_Suppress, false, true, 0)
@@ -339,7 +340,6 @@ DIAG(err_unary_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot p
 DIAG(err_multiple_unary_operator, CLASS_ERROR, (unsigned)diag::Severity::Error, "multiple unary operator '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_invalid_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid value '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_right_paren, CLASS_ERROR, (unsigned)diag::Severity::Error, "unclosed parenthesis", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_syntax_error, CLASS_ERROR, (unsigned)diag::Severity::Error, "syntax error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_syntax_default_error, CLASS_ERROR, (unsigned)diag::Severity::Error, "default keyword syntax error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parse_empty_while_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "while condition cannot be empty", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parse_number, CLASS_ERROR, (unsigned)diag::Severity::Error, "'%0' is not a number ", 0, SFINAE_Suppress, false, true, 0)
@@ -373,6 +373,7 @@ DIAG(err_expr_type_miss, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot r
 DIAG(err_var_assign_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "var assignment '%0' is empty", 0, SFINAE_Suppress, false, true, 0)
 
 // Sema
+DIAG(err_sema_syntax_error, CLASS_ERROR, (unsigned)diag::Severity::Error, "semantic error", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_import_undefined, CLASS_ERROR, (unsigned)diag::Severity::Error, "import undefined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_module_name_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid global var value", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_namespace_empty, CLASS_ERROR, (unsigned)diag::Severity::Error, "invalid global var value", 0, SFINAE_Suppress, false, true, 0)

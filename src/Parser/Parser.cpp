@@ -869,7 +869,7 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
         }
     }
 
-    Diag(diag::err_syntax_error);
+    Diag(diag::err_parse_syntax_error);
 }
 
 /**

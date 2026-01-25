@@ -46,6 +46,8 @@ namespace fly {
         ~SemaValue() override = default;
 
     	ASTValue *getAST() const;
+
+    	void setCodeGen(CodeGenExpr *CGC);
     };
 
 	class SemaBoolValue : public SemaValue {

@@ -33,7 +33,7 @@ namespace fly {
 
     	SemaType *Type;
 
-    	CodeGenExpr *CodeGen;
+    	CodeGenExpr *CodeGen = nullptr;
 
         explicit SemaExpr(SemaKind Kind, SemaType *Type);
 
@@ -51,9 +51,6 @@ namespace fly {
     	SemaExpr *getChild() const;
 
     	virtual CodeGenExpr *getCodeGen() const;
-
-    	virtual void setCodeGen(CodeGenExpr *CodeGen);
-
     };
 
 }

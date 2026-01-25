@@ -22,6 +22,10 @@ ASTValue *SemaValue::getAST() const {
 	return &AST;
 }
 
+void SemaValue::setCodeGen(CodeGenExpr *CGC) {
+	this->CodeGen = CGC;
+}
+
 SemaBoolValue::SemaBoolValue(ASTBoolValue &AST) : SemaValue(AST, SemaBuiltin::getBoolType()), Value(AST.getValue()) {
 }
 

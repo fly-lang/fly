@@ -31,8 +31,6 @@ namespace fly {
 
     	bool Constant = false;
 
-    	CodeGenVar *CodeGen;
-
         explicit SemaVar(ASTVar *AST, SemaKind Kind, SemaType *Type);
 
     public:

@@ -100,7 +100,7 @@ namespace fly {
 
         llvm::Value *GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
-        llvm::Value* GenBinaryAssign(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
+        llvm::Value* GenBinaryAssign(SemaExpr *E1, SemaExpr *E2);
 
         void addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &Args);
 

@@ -29,7 +29,7 @@ bool SemaVar::isConstant() const {
 }
 
 CodeGenVar * SemaVar::getCodeGen() const {
-	return CodeGen;
+	return static_cast<CodeGenVar *>(CodeGen);
 }
 
 void SemaVar::setCodeGen(CodeGenVar *CodeGen) {
