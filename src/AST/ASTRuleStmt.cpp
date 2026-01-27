@@ -28,8 +28,8 @@ ASTRuleStmt::ASTRuleStmt(const SourceLocation &Loc, ASTStmtKind Kind) :
 
 }
 
-ASTExpr *ASTRuleStmt::getRule() {
-    return Rule;
+ASTExpr *ASTRuleStmt::getExpr() {
+    return Expr;
 }
 
 ASTStmt *ASTRuleStmt::getStmt() const {
@@ -40,6 +40,6 @@ std::string ASTRuleStmt::str() const {
     return Logger("ASTRuleStmt").
 	Attr("Location", getLocation()).
 Attr("Kind", static_cast<size_t>(getKind())).
-		   Attr("Condition", Rule).
+		   Attr("Condition", Expr).
            End();
 }

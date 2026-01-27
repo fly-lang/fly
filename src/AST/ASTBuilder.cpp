@@ -798,7 +798,6 @@ ASTHandleStmt *ASTBuilder::CreateHandleStmt(
 
 	// set Handle Block
 	BlockStmt->Parent = HandleStmt;
-	BlockStmt->Function = HandleStmt->Function;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateHandleStmt");
 	return HandleStmt;
@@ -811,7 +810,6 @@ ASTBreakStmt *ASTBuilder::CreateBreakStmt(ASTBlockStmt *Parent, const SourceLoca
 	// Inner Stmt
 	Parent->Content.push_back(Break);
 	Break->Parent = Parent;
-	Break->Function = Parent->Function;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateBreakStmt");
 	return Break;
@@ -824,7 +822,6 @@ ASTContinueStmt *ASTBuilder::CreateContinueStmt(ASTBlockStmt *Parent, const Sour
 	// Inner Stmt
 	Parent->Content.push_back(Continue);
 	Continue->Parent = Parent;
-	Continue->Function = Parent->Function;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateContinueStmt");
 	return Continue;
@@ -837,7 +834,6 @@ ASTDeleteStmt *ASTBuilder::CreateDeleteStmt(ASTBlockStmt *Parent, const SourceLo
 	// Inner Stmt
 	Parent->Content.push_back(Delete);
 	Delete->Parent = Parent;
-	Delete->Function = Parent->Function;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateDeleteStmt");
 	return Delete;
@@ -849,7 +845,6 @@ ASTBuilder::CreateBody(ASTFunction *Function, ASTBlockStmt *Body) {
 
 	Body->Parent = nullptr; // body cannot have a parent stmt
 	Function->Body = Body;
-	Function->Body->Function = Function;
 
 	FLY_DEBUG_END("ASTBuilder", "CreateBody");
 	return Function->Body;

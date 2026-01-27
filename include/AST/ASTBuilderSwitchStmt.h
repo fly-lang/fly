@@ -22,21 +22,17 @@ namespace fly {
 
         friend class ASTSwitchStmt;
 
-        ASTBlockStmt *Parent;
-
         ASTSwitchStmt *SwitchStmt;
 
-        explicit ASTBuilderSwitchStmt(ASTBlockStmt *Parent);
+        explicit ASTBuilderSwitchStmt();
 
     public:
 
-        static ASTBuilderSwitchStmt *Create(ASTBlockStmt *Parent);
+        static ASTBuilderSwitchStmt *Create(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTExpr *Expr);
 
-        ASTBuilderSwitchStmt *Switch(const SourceLocation &Loc, ASTExpr *Expr);
+        ASTBuilderSwitchStmt *addCase(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt);
 
-        ASTBuilderSwitchStmt *Case(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt);
-
-        ASTBuilderSwitchStmt *Default(const SourceLocation &Loc, ASTBlockStmt *Stmt);
+        ASTBuilderSwitchStmt *setDefault(const SourceLocation &Loc, ASTBlockStmt *Stmt);
 
         bool hasDefault();
     };

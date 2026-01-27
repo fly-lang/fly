@@ -58,6 +58,31 @@ llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
 	return CGM->Builder->CreateStore(Val, getPointer());
 }
 
+llvm::StoreInst *CodeGenVar::StoreDefaultValue() {
+	llvm::Value *DefaultValue = nullptr;
+	switch (T->getTypeID()) {
+		case llvm::Type::IntegerTyID:
+			DefaultValue = llvm::ConstantInt::get(T, 0);
+			break;
+		case llvm::Type::FloatTyID:
+			DefaultValue = llvm::ConstantFP::get(T, 0.0);
+			break;
+		case llvm::Type::DoubleTyID:
+			DefaultValue = llvm::ConstantFP::get(T, 0.0);
+			break;
+		case llvm::Type::PointerTyID:
+			DefaultValue = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(T));
+			break;
+		case llvm::Type::ArrayTyID:
+		case llvm::Type::StructTyID:
+			DefaultValue = llvm::Constant::getNullValue(T);
+			break;
+		default:
+			break;
+	}
+	return Store(DefaultValue);
+}
+
 llvm::LoadInst *CodeGenVar::Load() {
     this->BlockID = CGM->Builder->GetInsertBlock()->getName();
     this->LoadI = CGM->Builder->CreateLoad(getPointer());

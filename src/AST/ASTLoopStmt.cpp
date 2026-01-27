@@ -8,32 +8,38 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTLoopStmt.h"
+
+#include "AST/ASTVisitor.h"
 #include "Basic/Logger.h"
 
 using namespace fly;
 
 ASTLoopStmt::ASTLoopStmt(const SourceLocation &Loc) :
-        ASTRuleStmt(Loc, ASTStmtKind::STMT_LOOP) {
+        ASTStmt(Loc, ASTStmtKind::STMT_LOOP) {
 
 }
 
 void ASTLoopStmt::accept(ASTVisitor &Visitor) {
-	ASTRuleStmt::accept(Visitor);
+	Visitor.visit(*this);
 }
 
 bool ASTLoopStmt::hasVerifyConditionAtEnd() const {
     return VerifyConditionAtEnd;
 }
 
-ASTStmt *ASTLoopStmt::getInit() const {
+ASTExpr *ASTLoopStmt::getExpr() const {
+	return Expr;
+}
+
+llvm::SmallVector<ASTStmt *, 4> &ASTLoopStmt::getInit() {
     return Init;
 }
 
 ASTStmt *ASTLoopStmt::getLoop() const {
-    return getStmt();
+    return Loop;
 }
 
-ASTStmt *ASTLoopStmt::getPost() const {
+llvm::SmallVector<ASTStmt *, 4> &ASTLoopStmt::getPost() {
     return Post;
 }
 

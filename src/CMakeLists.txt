@@ -13,6 +13,7 @@ add_library(flyLib
         AST/ASTBuilderIfStmt.cpp
         AST/ASTBuilderSwitchStmt.cpp
         AST/ASTBuilderLoopStmt.cpp
+        AST/ASTBuilderLoopInStmt.cpp
         AST/ASTDeclStmt.cpp
         AST/ASTNode.cpp
         AST/ASTBlockStmt.cpp

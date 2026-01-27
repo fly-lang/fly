@@ -60,7 +60,6 @@ void ASTBlockStmt::addContent(ASTStmt *Stmt) {
         return;
     Content.push_back(Stmt);
     Stmt->setParent(this);
-    Stmt->setFunction(this->Function);
 }
 
 /**

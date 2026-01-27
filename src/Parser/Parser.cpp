@@ -9,37 +9,39 @@
 
 #include "Parser/Parser.h"
 
-#include "Parser/ParserFunction.h"
-#include "Parser/ParserExpr.h"
-#include "Parser/ParserClass.h"
-#include "Parser/ParserEnum.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTClass.h"
-#include "AST/ASTEnum.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTComment.h"
-#include "AST/ASTCall.h"
-#include "AST/ASTExpr.h"
-#include "AST/ASTIdentifier.h"
 #include "AST/ASTBlockStmt.h"
-#include "AST/ASTContinueStmt.h"
 #include "AST/ASTBreakStmt.h"
-#include "AST/ASTValue.h"
+#include "AST/ASTBuilder.h"
+#include "AST/ASTBuilderIfStmt.h"
+#include "AST/ASTBuilderLoopInStmt.h"
+#include "AST/ASTBuilderLoopStmt.h"
+#include "AST/ASTBuilderStmt.h"
+#include "AST/ASTBuilderSwitchStmt.h"
+#include "AST/ASTCall.h"
+#include "AST/ASTClass.h"
+#include "AST/ASTComment.h"
+#include "AST/ASTContinueStmt.h"
+#include "AST/ASTEnum.h"
+#include "AST/ASTExpr.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTIdentifier.h"
 #include "AST/ASTImport.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTType.h"
+#include "AST/ASTValue.h"
 #include "AST/ASTVar.h"
-#include "AST/ASTBuilder.h"
-#include "AST/ASTBuilderStmt.h"
-#include "AST/ASTBuilderIfStmt.h"
-#include "AST/ASTBuilderSwitchStmt.h"
-#include "AST/ASTBuilderLoopStmt.h"
-#include "Frontend/InputFile.h"
 #include "Basic/Debug.h"
+#include "Frontend/InputFile.h"
+#include "Parser/ParserClass.h"
+#include "Parser/ParserEnum.h"
+#include "Parser/ParserExpr.h"
+#include "Parser/ParserFunction.h"
+
 #include "llvm/Support/Regex.h"
 
-#include <AST/ASTExprStmt.h>
 #include <AST/ASTDeclStmt.h>
+#include <AST/ASTExprStmt.h>
 #include <AST/ASTFailStmt.h>
 #include <AST/ASTLocalVar.h>
 #include <AST/ASTModifier.h>
@@ -805,8 +807,7 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
 	}
 
 	// Create Switch
-	ASTBuilderSwitchStmt *SwitchBuilder = ASTBuilderSwitchStmt::Create(Parent);
-    SwitchBuilder->Switch(SwitchLoc, Expr);
+	ASTBuilderSwitchStmt *SwitchBuilder = ASTBuilderSwitchStmt::Create(Parent, SwitchLoc, Expr);
 
     // Init Switch Statement and start parse from brace
     if (isBlockStart()) {
@@ -826,7 +827,7 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
 				ASTBlockStmt *CaseBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
 				if (Tok.is(tok::colon)) { // Parse a Block of Stmt
 					ConsumeToken();
-					SwitchBuilder->Case(CaseLoc, Expr, CaseBlock);
+					SwitchBuilder->addCase(CaseLoc, Expr, CaseBlock);
 					if (Tok.isOneOf(tok::kw_case, tok::kw_default)) {
 						continue;
 					}
@@ -848,7 +849,7 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
 				ASTBlockStmt *DefaultBlock = ASTBuilder::CreateBlockStmt(DefaultLoc);
 				if (Tok.is(tok::colon)) { // Parse a Block of Stmt
 					ConsumeToken();
-					SwitchBuilder->Default(SwitchLoc, DefaultBlock);
+					SwitchBuilder->setDefault(SwitchLoc, DefaultBlock);
 					if (Tok.is(tok::kw_case)) {
 						continue;
 					}
@@ -907,8 +908,8 @@ void Parser::ParseWhileStmt(ASTBlockStmt *Parent) {
 	}
 
     ASTBlockStmt *BlockStmt = ASTBuilder::CreateBlockStmt(Tok.getLocation());
-    ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::CreateLoop(Parent, WhileLoc);
-    LoopBuilder->Loop(Condition, BlockStmt);
+    ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::Create(Parent, WhileLoc);
+    LoopBuilder->setCycle(Condition, BlockStmt);
 
     // Parse statement between braces
     ParseBlockOrStmt(BlockStmt);
@@ -978,7 +979,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
             ASTBlockStmt *LoopBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
 
             // Create LoopIn AST node
-            ASTLoopInStmt *LoopIn = ASTBuilderLoopStmt::CreateLoopIn(Parent, ForLoc, Item, List, LoopBlock);
+            ASTBuilderLoopInStmt *Builder= ASTBuilderLoopInStmt::Create(Parent, ForLoc, Item, List, LoopBlock);
 
             // Parse the loop body
             ParseBlockOrStmt(LoopBlock);
@@ -989,9 +990,9 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
     // Traditional for loop: for init; condition; post { }
 
     // Create For Statement
-	ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::CreateLoop(Parent, ForLoc);
+	ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::Create(Parent, ForLoc);
     ASTBlockStmt *InitBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
-	LoopBuilder->Init(InitBlock);
+	LoopBuilder->setInit(InitBlock);
     ASTExpr *Condition = nullptr;
 
     // for int a = 1, b = 2; i < 0; i++
@@ -1010,7 +1011,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
 
         if (Tok.is(tok::semi)) {
         	ASTBlockStmt *PostBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
-        	LoopBuilder->Post(PostBlock);
+        	LoopBuilder->setPost(PostBlock);
 
         	ConsumeToken();
             ParseStmt(PostBlock);
@@ -1029,7 +1030,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
 
 	// Create Loop Stmt
     ASTBlockStmt *LoopBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
-    LoopBuilder->Loop(Condition, LoopBlock);
+    LoopBuilder->setCycle(Condition, LoopBlock);
 
     // Parse statement between braces
     ParseBlockOrStmt(LoopBlock);

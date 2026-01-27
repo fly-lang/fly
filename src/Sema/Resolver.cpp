@@ -490,30 +490,11 @@ void Resolver::visit(ASTDeclStmt &AST) {
 
 	// Resolve LocalVar Type
 	LocalVar->accept(*this);
-	SemaType * Type = LocalVar->getType()->getSema();
 
-	// Create Default Value if not initialized
-	if (AST.getExpr() == nullptr) {
-
-		// Create default Sema Value
-        SemaValue *Sema = SemaBuilder::CreateDefaultValue(*Type);
-
-		// Create Left Side Expression
-		ASTIdentifier *LeftExpr = ASTBuilder::CreateIdentifier(LocalVar);
-        LeftExpr->setSema(LocalVar->getSema());
-
-		// Create Assignment Expression
-		ASTBinary *BinaryExpr = ASTBuilder::CreateBinary(LocalVar->getLocation(), ASTBinaryKind::OP_BINARY_ASSIGN, LeftExpr, Sema->getAST());
-        AST.setExpr(BinaryExpr);
-    }
-
-    // Resolve Initialization Expression
-    AST.getExpr()->accept(*this);
-
-    if (AST.getExpr()->getExprKind() == ASTExprKind::EXPR_BINARY &&
-    	static_cast<ASTBinary *>(AST.getExpr())->isAssign()) {
-    	AST.getExpr()->getSema()->setType(Type);
-    }
+	// Resolve Initialization Expression
+	if (AST.getExpr()) {
+		AST.getExpr()->accept(*this);
+	}
 
 	FLY_DEBUG_END("Resolver", "visit(ASTDeclStmt)");
 }
@@ -588,10 +569,16 @@ void Resolver::visit(ASTBlockStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTBlockStmt)");
 	CurrentStmt = &AST;
 
+	// Enter Block Scope
+	EnterScope();
+
 	// Resolve Statements
 	for (ASTStmt *Stmt : AST.getContent()) {
 		Stmt->accept(*this);
 	}
+
+	// Exit Block Scope
+	ExitScope();
 
 	FLY_DEBUG_END("Resolver", "visit(ASTBlockStmt)");
 }
@@ -599,7 +586,7 @@ void Resolver::visit(ASTBlockStmt &AST) {
 void Resolver::visit(ASTRuleStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTRuleStmt)");
 	CurrentStmt = &AST;
-	AST.getRule()->accept(*this);
+	AST.getExpr()->accept(*this);
 	AST.getStmt()->accept(*this);
 	FLY_DEBUG_END("Resolver", "visit(ASTRuleStmt)");
 }
@@ -607,19 +594,12 @@ void Resolver::visit(ASTRuleStmt &AST) {
 void Resolver::visit(ASTIfStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTIfStmt)");
 	CurrentStmt = &AST;
-	AST.getRule()->accept(*this);
-
-	// Validate Rule Type
-	// AST->Rule->Type = SemaBuiltin::getBoolType();
-
+	AST.getExpr()->accept(*this);
 	AST.getStmt()->accept(*this);
 
 	// Elsif Blocks
 	for (ASTRuleStmt *Elsif : AST.getElsif()) {
 		Elsif->accept(*this);
-		// Validate Rule Type
-		// Elsif->Rule->Type = SemaBuiltin::getBoolType();
-		Elsif->getStmt()->accept(*this);
 	}
 
 	// Else Block
@@ -634,13 +614,13 @@ void Resolver::visit(ASTSwitchStmt &AST) {
 	CurrentStmt = &AST;
 
 	// Switch Variable
-	AST.getVar()->accept(*this);
-	SemaType * CaseType = AST.getVar()->getSema()->getType();
+	AST.getExpr()->accept(*this);
+	SemaType * CaseType = AST.getExpr()->getSema()->getType();
 
 	// Case Blocks
 	for (ASTRuleStmt *Case : AST.getCases()) {
-		Case->getRule()->accept(*this);
-		Case->getRule()->getSema()->setType(CaseType);
+		Case->getExpr()->accept(*this);
+		Case->getExpr()->getSema()->setType(CaseType);
         Case->getStmt()->accept(*this);
 
 		// Validate Case Type
@@ -658,25 +638,37 @@ void Resolver::visit(ASTLoopStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTLoopStmt)");
 	CurrentStmt = &AST;
 
-	if (AST.getRule()) { // Error: empty condition expr
-		AST.getRule()->accept(*this);
+	// Enter Loop Scope to keep init variables visible in condition, body, and post
+	// This matches C++ for loop semantics: for (int i = 0; i < 10; i++) { }
+	// where 'i' is visible in condition, body, and post, but not after the loop
+	EnterScope();
+
+	// Process Init statements
+	// Visit the block's contents directly without creating a nested scope
+	// This ensures variables declared in init are in the loop scope
+	for (ASTStmt *S : AST.getInit()) {
+		S->accept(*this);
 	}
 
-	// Check Init
-	if (AST.getInit()) {
-		AST.getInit()->accept(*this);
+	if (AST.getExpr()) { // Error: empty condition expr
+		AST.getExpr()->accept(*this);
 	}
 
 	// Validate Rule Type
 	// Validator->CheckConvertibleTypes(LoopStmt->getRule()->getType(), SemaBuiltin::getBoolType());
 
 	// Loop Statement
-	AST.getStmt()->accept(*this);
+	AST.getLoop()->accept(*this);
 
-	// Post Loop Statement
-	if (AST.getPost()) {
-		AST.getPost()->accept(*this);
+	// Post Loop Statements
+	// Visit the block's contents directly without creating a nested scope
+	for (ASTStmt *S : AST.getPost()) {
+		S->accept(*this);
 	}
+
+	// Exit Loop Scope
+	ExitScope();
+
 	FLY_DEBUG_END("Resolver", "visit(ASTLoopStmt)");
 }
 
@@ -701,6 +693,7 @@ void Resolver::visit(ASTIdentifier &AST) {
 		Diag(diag::err_invalid_behavior);
 		return;
 	}
+	ParentExpr = nullptr;
 
 	if (!AST.isVisited()) {
 		AST.setVisited(true);
@@ -770,20 +763,22 @@ void Resolver::visit(ASTMember &AST) {
 		// Try in current scopes (namespace, class, enum, current scopes)
 		// ---------------------------------------
 		SemaType *ParentType = nullptr;
-		if (CurrentSymbol->getKind() == SymbolKind::NAMESPACE) {
-			CurrentScope = static_cast<SemaNameSpace *>(CurrentSymbol->getRef())->getSymbols();
-		} else if (CurrentSymbol->getKind() == SymbolKind::CLASS) {
-			CurrentScope = static_cast<SemaClassType *>(CurrentSymbol->getRef())->getSymbols();
-		} else if (CurrentSymbol->getKind() == SymbolKind::ENUM) {
-			CurrentScope = static_cast<SemaEnumType *>(CurrentSymbol->getRef())->getSymbols();
-		} else if (CurrentSymbol->getKind() == SymbolKind::VAR) {
-			ParentType = static_cast<SemaVar *>(CurrentSymbol->getRef())->getType();
-		}  else if (CurrentSymbol->getKind() == SymbolKind::FUNCTION) {
-			ParentType = static_cast<SemaFunctionBase *>(CurrentSymbol->getRef())->getReturnType();
-		} else if (CurrentSymbol->getKind() == SymbolKind::VALUE) {
-			// Cannot exists Value after a Member access
-			Diag(diag::err_invalid_behavior);
-			return;
+		if (CurrentSymbol) {
+			if (CurrentSymbol->getKind() == SymbolKind::NAMESPACE) {
+				CurrentScope = static_cast<SemaNameSpace *>(CurrentSymbol->getRef())->getSymbols();
+			} else if (CurrentSymbol->getKind() == SymbolKind::CLASS) {
+				CurrentScope = static_cast<SemaClassType *>(CurrentSymbol->getRef())->getSymbols();
+			} else if (CurrentSymbol->getKind() == SymbolKind::ENUM) {
+				CurrentScope = static_cast<SemaEnumType *>(CurrentSymbol->getRef())->getSymbols();
+			} else if (CurrentSymbol->getKind() == SymbolKind::VAR) {
+				ParentType = static_cast<SemaVar *>(CurrentSymbol->getRef())->getType();
+			}  else if (CurrentSymbol->getKind() == SymbolKind::FUNCTION) {
+				ParentType = static_cast<SemaFunctionBase *>(CurrentSymbol->getRef())->getReturnType();
+			} else if (CurrentSymbol->getKind() == SymbolKind::VALUE) {
+				// Cannot exists Value after a Member access
+				Diag(diag::err_invalid_behavior);
+				return;
+			}
 		}
 
 		// Check ParentType where var type or function return type has its Symbol Table
@@ -852,18 +847,20 @@ void Resolver::visit(ASTCall &AST) {
 		// Try in current scopes (namespace, class, enum, current scopes)
 		// ---------------------------------------
 		SemaType *ParentType = nullptr;
-		if (CurrentSymbol->getKind() == SymbolKind::NAMESPACE) {
-			CurrentScope = static_cast<SemaNameSpace *>(CurrentSymbol->getRef())->getSymbols();
-		} else if (CurrentSymbol->getKind() == SymbolKind::CLASS) {
-			CurrentScope = static_cast<SemaClassType *>(CurrentSymbol->getRef())->getSymbols();
-		} else if (CurrentSymbol->getKind() == SymbolKind::VAR) {
-			ParentType = static_cast<SemaVar *>(CurrentSymbol->getRef())->getType();
-		}  else if (CurrentSymbol->getKind() == SymbolKind::FUNCTION) {
-			ParentType = static_cast<SemaFunctionBase *>(CurrentSymbol->getRef())->getReturnType();
-		} else if (CurrentSymbol->getKind() == SymbolKind::VALUE) {
-			// Cannot exists Value after a Member access
-			Diag(diag::err_invalid_behavior);
-			return;
+		if (CurrentSymbol) {
+			if (CurrentSymbol->getKind() == SymbolKind::NAMESPACE) {
+				CurrentScope = static_cast<SemaNameSpace *>(CurrentSymbol->getRef())->getSymbols();
+			} else if (CurrentSymbol->getKind() == SymbolKind::CLASS) {
+				CurrentScope = static_cast<SemaClassType *>(CurrentSymbol->getRef())->getSymbols();
+			} else if (CurrentSymbol->getKind() == SymbolKind::VAR) {
+				ParentType = static_cast<SemaVar *>(CurrentSymbol->getRef())->getType();
+			}  else if (CurrentSymbol->getKind() == SymbolKind::FUNCTION) {
+				ParentType = static_cast<SemaFunctionBase *>(CurrentSymbol->getRef())->getReturnType();
+			} else if (CurrentSymbol->getKind() == SymbolKind::VALUE) {
+				// Cannot exists Value after a Member access
+				Diag(diag::err_invalid_behavior);
+				return;
+			}
 		}
 
 		// Check ParentType where var type or function return type has its Symbol Table
@@ -1263,7 +1260,10 @@ void Resolver::ResolveFunction(SemaFunction *Func) {
 
 	// Add to Body list for resolve in the next step
 	Reg.addBody(CurrentScope, AST.getBody());
+
+	// Exit Function Scope
 	ExitScope();
+
 	FLY_DEBUG_END("Resolver", "ResolveFunction");
 }
 
@@ -1449,513 +1449,3 @@ SmallVector<SemaType *, 8> Resolver::ResolveParams(ASTFunction &AST) {
 	FLY_DEBUG_END("Resolver", "ResolveParams");
 	return std::move(Types);
 }
-
-
-// void Resolver::ResolveParent(ASTCall *AST) {
-// 	FLY_DEBUG_START("Resolver", "ResolveParent(ASTCall)");
-// 	if (!AST->isVisited()) {
-// 		AST->setVisited(true);
-//
-// 		// Resolve Expression in Arguments
-// 		SmallVector<SemaType *, 8> Types = ResolveCallArgs(AST);
-// 		SemaCall *Sema = nullptr;
-//
-// 		// Create a new instance using a Constructor
-// 		if (AST->getCallKind() == ASTCallKind::CALL_NEW ||
-// 			AST->getCallKind() == ASTCallKind::CALL_NEW_UNIQUE ||
-// 			AST->getCallKind() == ASTCallKind::CALL_NEW_SHARED ||
-// 			AST->getCallKind() == ASTCallKind::CALL_NEW_WEAK) {
-//
-// 			// Take the Type from the CurrentNameSpace
-// 			SemaType *Type = Reg.LookupNamedType(AST->getName(), CurrentScope);
-//
-// 			// ---------------------------------------
-// 			// Class Not Found → Error
-// 			// ---------------------------------------
-// 			if (Type == nullptr) {
-// 				Diag(AST->getLocation(), diag::err_unref_type);
-// 				return;
-// 			}
-//
-// 			// ---------------------------------------
-// 			// Type is not a Class → Error
-// 			// ---------------------------------------
-// 			if (!Type->isClass()) {
-// 				Diag(AST->getLocation(), diag::err_unref_type);
-// 				return;
-// 			}
-//
-// 			SemaClassType *Class = static_cast<SemaClassType *>(Type);
-// 			Symbol *Sym = Reg.LookupFunction(AST->getName(), Types, Class->getSymbols());
-//
-// 			// ---------------------------------------
-// 			// Constructor Not Found → Error
-// 			// ---------------------------------------
-// 			if (Sym == nullptr) {
-// 				// Error: func not found
-// 				Diag(AST->getLocation(), diag::err_syntax_error);
-// 				return;
-// 			}
-//
-// 			SemaClassMethod *Constructor = static_cast<SemaClassMethod *>(Sym->getRef());
-// 			Sema = SemaBuilder::CreateCall(*AST, Type, Constructor);
-// 		} else {
-//
-// 			// Call a Function or a Class Method
-// 			SemaFunctionBase *Func = nullptr;
-//
-// 			// Try with Method
-// 			if (CurrentFunction->getKind() == SemaKind::METHOD) {
-//
-// 				// Check if the Call is a Base Class Constructor Method
-// 				SemaClassType *CurrentClass = static_cast<SemaClassMethod *>(CurrentFunction)->getClass();
-// 				SemaType * T = Reg.LookupNamedType(AST->getName(), CurrentScope);
-//
-// 				if (T->isClass()) {
-// 					SemaClassType * C = static_cast<SemaClassType *>(T);
-//
-// 					// Call to Base Class Constructor Method
-// 					if (C->isBaseOrEquals(CurrentClass)) {
-//
-// 						// Resolve the Base Class Constructor
-// 						Symbol *Sym = Reg.LookupFunction(AST->getName(), Types, C->getSymbols());
-// 						if (!Sym) {
-// 							// Error: func not found
-// 							Diag(AST->getLocation(), diag::err_syntax_error);
-// 							return;
-// 						}
-//
-// 						// Resolve Call with Class Constructor if is not private
-// 						SemaClassMethod *Constructor = static_cast<SemaClassMethod *>(Sym->getRef());
-//
-// 						// check if Constructor is private
-// 						if (Constructor->getVisibility() == SemaVisibilityKind::PRIVATE) {
-// 							// Error: method is private, cannot be called from outside the class
-// 							Diag(AST->getLocation(), diag::err_syntax_error);
-// 							return;
-// 						}
-// 						// Take the Constructor
-// 						Func = Constructor;
-// 					} else {
-// 						// Resolve Static Call to Class Method
-// 						Symbol *Sym = Reg.LookupFunction(AST->getName(), Types, C->getSymbols());
-//
-// 						// Static Call to Class Method
-// 						SemaClassMethod *Method = static_cast<SemaClassMethod *>(Sym->getRef());
-//
-// 						// Check if Method is static
-// 						if (!Method->isStatic()) {
-// 							// Error: method is not static, cannot be called statically
-// 							Diag(AST->getLocation(), diag::err_syntax_error);
-// 						}
-//
-// 						// Check if Method is private
-// 						if (Method->getVisibility() == SemaVisibilityKind::PRIVATE) {
-// 							// Error: method is private, cannot be called from outside the class
-// 							Diag(AST->getLocation(), diag::err_syntax_error);
-// 						}
-//
-// 						// Take the Method
-// 						Func = Method;
-// 					}
-// 				}
-// 			}
-//
-// 			// Take the Function
-// 			if (Func == nullptr) {
-// 				Symbol *Sym = Reg.LookupFunction(AST->getName(), Types, CurrentScope);
-// 				if (Sym) {
-// 					Func = static_cast<SemaFunctionBase *>(Sym->getRef());
-// 				}
-// 			}
-//
-// 			// ---------------------------------------
-// 			// Function Not Found → Error
-// 			// ---------------------------------------
-// 			if (Func == nullptr) {
-// 				Diag(AST->getLocation(), diag::err_syntax_error);
-// 				return;
-// 			}
-//
-// 			Sema = SemaBuilder::CreateCall(*AST, Func->getReturnType(), Func);
-//
-// 			// Continue by Resolving Child
-// 			if (AST->getChild()) {
-// 				ResolveChild(Sema, AST->getChild());
-// 			}
-// 		}
-//
-// 		// Set the Call Sema ErrorHandler
-// 		ResolveErrorHandler(Sema);
-// 		AST->setSema(Sema);
-// 	}
-// 	FLY_DEBUG_END("Resolver", "ResolveParent(ASTCall)");
-// }
-//
-// void Resolver::ResolveChild(Symbol *Parent, ASTExpr *AST) {
-// 	if (!AST->isVisited()) {
-// 		AST->setVisited(true);
-//
-// 		if (!Parent) {
-// 			Diag(diag::err_invalid_behavior);
-// 			return;
-// 		}
-//
-// 		// Resolve if parent is a Namespace
-// 		if (Parent->getKind() == SymbolKind::NAMESPACE) {
-// 			SemaNameSpace *NameSpace = static_cast<SemaNameSpace *>(Parent->getRef());
-// 			ResolveChild(NameSpace, AST);
-// 			return;
-// 		}
-//
-// 		// Resolve if parent is a Type
-// 		if (Parent->getKind() == SymbolKind::TYPE) {
-// 			SemaType *Type = static_cast<SemaType *>(Parent->getRef());
-// 			ResolveChild(Type, AST);
-// 			return;
-// 		}
-//
-// 		// Resolve if parent is a Function
-// 		if (Parent->getKind() == SymbolKind::FUNCTION) {
-// 			SemaFunctionBase *Func = static_cast<SemaFunctionBase *>(Parent->getRef());
-// 			ResolveChild(Func->getReturnType(), AST);
-// 			return;
-// 		}
-//
-// 		// Resolve if parent is a Var
-// 		if (Parent->getKind() == SymbolKind::VAR) {
-// 			SemaVar *Var = static_cast<SemaVar *>(Parent->getRef());
-// 			ResolveChild(Var, AST);
-// 			return;
-// 		}
-// 	}
-// 	Diag(diag::err_invalid_behavior);
-// }
-//
-// void Resolver::ResolveChild(SemaNameSpace *NameSpace, ASTExpr *AST) {
-// 	if (!AST->isVisited()) {
-// 		AST->setVisited(true);
-//
-// 		// Resolve as NameSpace Function
-// 		if (AST->getExprKind() == ASTExprKind::EXPR_CALL) {
-// 			ASTCall *Call = static_cast<ASTCall *>(AST);
-// 			SmallVector<SemaType *, 8> Types = ResolveCallArgs(Call);
-//
-// 			// Lookup Function
-// 			Symbol *Sym = Reg.LookupFunction(Call->getName(), Types, NameSpace->getSymbols());
-// 			if (Sym == nullptr) {
-// 				// Error: func not found
-// 				Diag(Call->getLocation(), diag::err_syntax_error) << Call->getName();
-// 				return;
-// 			}
-// 			SemaFunction *Function = static_cast<SemaFunction *>(Sym->getRef());
-//
-// 			// Set Sema
-// 			SemaCall *Sema = SemaBuilder::CreateCall(*Call, Function->getReturnType(), Function);
-// 			Call->setSema(Sema);
-//
-// 			// Set the Call Sema ErrorHandler
-// 			ResolveErrorHandler(Sema);
-//
-// 			if (AST->getChild())
-// 				ResolveChild(Sema, AST->getChild());
-//
-// 			return;
-// 		}
-//
-// 		// Resolve as NameSpace or Named Type
-// 		if (AST->getExprKind() == ASTExprKind::EXPR_MEMBER) {
-// 			ASTMember *Member = static_cast<ASTMember *>(AST);
-//
-// 			Symbol *Sym = Reg.LookupName(Member->getName(), NameSpace->getSymbols());
-// 			if (Sym->getKind() == SymbolKind::NAMESPACE || Sym->getKind() == SymbolKind::TYPE) {
-// 				if (AST->getChild())
-// 					ResolveChild(Sym, AST->getChild());
-// 			} else {
-// 				// Only NameSpace or Type
-// 				Diag(diag::err_invalid_behavior);
-// 			}
-//
-// 			return;
-// 		}
-// 	}
-//
-// 	Diag(diag::err_invalid_behavior);
-// }
-//
-// void Resolver::ResolveChild(SemaType *Type, ASTExpr *AST) {
-// 	// Resolve if parent is a Class Type
-// 	if (Type->isClass()) {
-// 		SemaClassType *ClassType = static_cast<SemaClassType *>(Type);
-// 		ResolveChild(ClassType, AST);
-// 		return;
-// 	}
-//
-// 	// Resolve if parent is an Enum Type
-// 	if (Type->isEnum()) {
-// 		SemaEnumType *EnumType = static_cast<SemaEnumType *>(Type);
-// 		ResolveChild(EnumType, AST);
-// 		return;
-// 	}
-// }
-//
-// void Resolver::ResolveChild(SemaClassType *ClassType, ASTExpr *AST) {
-// 	if (!AST->isVisited()) {
-// 		AST->setVisited(true);
-//
-// 		// Resolve as Static Class Method
-// 		if (AST->getExprKind() == ASTExprKind::EXPR_CALL) {
-// 			ASTCall *Call = static_cast<ASTCall *>(AST);
-//
-// 			// Resolve Call as Class Method
-// 			SmallVector<SemaType *, 8> Types = ResolveCallArgs(Call);
-// 			SemaClassMethod* Method = static_cast<SemaClassMethod *>(Reg.LookupFunction(Call->getName(), Types, ClassType->getSymbols()));
-// 			if (Method) {
-//
-// 				// Check if Method belongs to a super class or is static
-// 				if (!ClassType->isDerivedOrEquals(Method->getClass()) && !Method->isStatic()) {
-// 					// Error: method cannot be called statically
-// 					Diag(Call->getLocation(), diag::err_syntax_error) << Call->getName();
-// 				}
-//
-// 				// Set Sema
-// 				SemaCall *Sema = SemaBuilder::CreateCall(*Call, Method->getReturnType(), Method);
-// 				Call->setSema(Sema);
-//
-// 				// Set the Call Sema ErrorHandler
-// 				ResolveErrorHandler(Sema);
-//
-// 				if (AST->getChild())
-// 					ResolveChild(Sema, AST->getChild());
-// 			}
-// 			return;
-// 		}
-//
-// 		// Resolve as Static Class Attribute
-// 		if (AST->getExprKind() == ASTExprKind::EXPR_MEMBER) {
-// 			ASTMember *Member = static_cast<ASTMember *>(AST);
-//
-// 			SemaClassAttribute *Sema = ClassType->getAttributes().lookup(Member->getName());
-// 			if (Sema) {
-// 				Member->setSema(Sema);
-//
-// 				if (!Sema->isStatic()) {
-// 					// Error: cannot resolve a non-static attribute without a parent
-// 					Diag(Member->getLocation(), diag::err_syntax_error) << Member->getName();
-// 				}
-//
-// 				if (AST->getChild())
-// 					ResolveChild(Sema, AST->getChild());
-// 			}
-// 			return;
-// 		}
-// 	}
-//
-// 	Diag(diag::err_invalid_behavior);
-// }
-//
-// void Resolver::ResolveChild(SemaEnumType *EnumType, ASTExpr *AST) {
-// 	if (!AST->isVisited()) {
-// 		AST->setVisited(true);
-//
-// 		// Resolve as Enum Entry
-// 		if (AST->getExprKind() == ASTExprKind::EXPR_MEMBER) {
-// 			ASTMember *Member = static_cast<ASTMember *>(AST);
-// 			SemaEnumValue *Value = EnumType->getEntries().lookup(Member->getName());
-//
-// 			// Check: If No Enum Entry found
-// 			if (Value == nullptr) {
-// 				Diag(diag::err_invalid_behavior);
-// 				return;
-// 			}
-//
-// 			// Check: Enum cannot have child expressions
-// 			if (AST->getChild()) {
-// 				Diag(diag::err_invalid_behavior);
-// 				return;
-// 			}
-//
-// 			Member->setSema(Value);
-// 			return;
-// 		}
-// 	}
-//
-// 	// Invalid Enum Reference
-// 	Diag(diag::err_invalid_behavior);
-// }
-//
-// void Resolver::ResolveChild(SemaCall *Parent, ASTExpr *AST) {
-//
-// 	// If AST is a Call
-// 	if (AST->getExprKind() == ASTExprKind::EXPR_CALL) {
-//
-// 		// Resolve Call
-// 		ASTCall *Call = static_cast<ASTCall *>(AST);
-// 		SemaCall *Sema = ResolveChildCall(Parent, Call);
-// 		if (Sema) {
-//
-// 			// Set the Call Sema ErrorHandler
-// 			ResolveErrorHandler(Sema);
-//
-// 			// Go with child
-// 			if (AST->getChild())
-// 				ResolveChild(Sema, AST->getChild());
-// 		}
-//
-// 		return;
-// 	}
-//
-// 	// if AST is a Var
-// 	if (AST->getExprKind() == ASTExprKind::EXPR_MEMBER) {
-//
-// 		// Resolve Member
-// 		ASTMember *Member = static_cast<ASTMember *>(AST);
-// 		SemaExpr *Sema = ResolveChildMember(Parent, Member);
-// 		if (Sema) {
-//
-// 			// Go with child - need to check if it's a Var or EnumValue
-// 			if (AST->getChild()) {
-// 				if (Sema->getKind() == SemaKind::VAR) {
-// 					ResolveChild(Sema, AST->getChild());
-// 				} else if (Sema->getKind() == SemaKind::VALUE) {
-// 					// Value cannot have children
-// 					Diag(diag::err_invalid_behavior);
-// 				}
-// 			}
-// 		}
-//
-// 		return;
-// 	}
-//
-// 	// Invalid Child
-// 	Diag(diag::err_invalid_behavior);
-// }
-//
-// void Resolver::ResolveChild(SemaVar *Parent, ASTExpr *AST) {
-//
-// 	// If AST is a Call
-// 	if (AST->getExprKind() == ASTExprKind::EXPR_CALL) {
-//
-// 		// Resolve Call
-// 		ASTCall *Call = static_cast<ASTCall *>(AST);
-// 		ResolveChildCall(Parent, Call);
-//
-// 		return;
-// 	}
-//
-// 	// If AST is a Member
-// 	if (AST->getExprKind() == ASTExprKind::EXPR_MEMBER) {
-//
-// 		ASTMember *Member = static_cast<ASTMember *>(AST);
-// 		ResolveChildMember(Parent, Member);
-//
-// 		return;
-// 	}
-//
-// 	Diag(diag::err_invalid_behavior);
-// }
-//
-// SemaCall *Resolver::ResolveChildCall(SemaExpr *Parent, ASTCall *AST) {
-// 	if (!AST->isVisited()) {
-// 		AST->setVisited(true);
-//
-// 		// set Mangled Identifier
-// 		SmallVector<SemaType *, 8> Types = ResolveCallArgs(AST);
-//
-// 		// Check Parent Type is a Class
-// 		SemaType *ParentType = Parent->getType();
-// 		if (!ParentType->isClass()) {
-// 			Diag(diag::err_invalid_behavior);
-// 			return nullptr;
-// 		}
-//
-// 		// Search Method into Class Scope
-// 		SemaClassType *ClassType = static_cast<SemaClassType *>(ParentType);
-//
-// 		// Set Call -> Method
-// 		SemaClassMethod *Method = static_cast<SemaClassMethod *>(Reg.LookupFunction(AST->getName(), Types, ClassType->getSymbols()));
-// 		if (!Method) {
-// 			Diag(diag::err_invalid_behavior);
-// 			return nullptr;
-// 		}
-//
-// 		// TODO check in base classes
-// 		// for (SemaClassType *BaseClass : ClassType->getBaseClasses()) {
-// 		// 	while (BaseClass && !CalledMethod) {
-// 		// 		CalledMethod = BaseClass->getMethods().lookup(Mangled);
-// 		// 		// If not found, go up the inheritance chain of this base class
-// 		// 		const auto &NextBases = BaseClass->getBaseClasses();
-// 		// 		BaseClass = !NextBases.empty() ? NextBases.front() : nullptr;
-// 		// 	}
-// 		// 	if (CalledMethod) break;
-// 		// }
-//
-// 		// Build Sema
-// 		SemaCall *Sema = SemaBuilder::CreateCall(*AST, Method->getReturnType(), Method);
-// 		AST->setSema(Sema);
-//
-// 		// Set the Call Sema ErrorHandler
-// 		ResolveErrorHandler(Sema);
-//
-// 		// Look for child
-// 		if (AST->getChild())
-// 			ResolveChild(Sema, AST->getChild());
-// 	}
-// 	return AST->getSema();
-// }
-//
-// SemaExpr * Resolver::ResolveChildMember(SemaExpr *Parent, ASTMember *AST) {
-// 	if (!AST->isVisited()) {
-// 		AST->setVisited(true);
-//
-// 		// Build Sema
-// 		SemaExpr *Sema = nullptr;
-// 		SemaType *ParentType = Parent->getType();
-// 		if (ParentType->isClass()) {
-//
-// 			// Check Parent Type is a Class
-// 			SemaClassType * ClassType = static_cast<SemaClassType *>(ParentType);
-// 			Symbol * Sym = Reg.LookupName(AST->getName(), ClassType->getSymbols());
-//
-// 			// Check Symbol is not an Attribute (Var
-// 			if (Sym->getKind() != SymbolKind::VAR) {
-// 				Diag(diag::err_invalid_behavior);
-// 				return nullptr;
-// 			}
-//
-// 			// Set Class Attribute
-// 			SemaClassAttribute *Attribute = static_cast<SemaClassAttribute *>(Sym->getRef());
-// 			SemaMemberVar *Member = SemaBuilder::CreateMemberVar(*Attribute->getAST(), *Parent, Attribute);
-//
-// 			// Set the Sema
-// 			Sema = Attribute;
-// 		} else if (ParentType->isEnum()) {
-//
-// 			// Check Parent Type is an Enum
-// 			SemaEnumType *EnumType = static_cast<SemaEnumType *>(ParentType);
-// 			Symbol * Sym = Reg.LookupName(AST->getName(), EnumType->getSymbols());
-//
-// 			// Check Symbol is not a Value
-// 			if (Sym->getKind() != SymbolKind::VALUE) {
-// 				Diag(diag::err_invalid_behavior);
-// 				return nullptr;
-// 			}
-//
-// 			// Set Enum Entry
-// 			SemaEnumValue *EnumValue = static_cast<SemaEnumValue *>(Sym->getRef());
-//
-// 			// Set the Sema
-// 			Sema = EnumValue;
-// 		} else {
-//
-// 			// Parent is not an object type
-// 			Diag(diag::err_invalid_behavior);
-// 			return nullptr;
-// 		}
-//
-// 		// Configure AST
-// 		AST->setSema(Sema);
-// 	}
-//
-// 	return AST->getSema();
-// }

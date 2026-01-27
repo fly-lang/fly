@@ -13,37 +13,35 @@
 
 using namespace fly;
 
-ASTBuilderSwitchStmt::ASTBuilderSwitchStmt(ASTBlockStmt *Parent) : Parent(Parent)  {
+ASTBuilderSwitchStmt::ASTBuilderSwitchStmt() {
 
 }
 
-ASTBuilderSwitchStmt *ASTBuilderSwitchStmt::Create(ASTBlockStmt *Parent) {
-	return new ASTBuilderSwitchStmt(Parent);
+ASTBuilderSwitchStmt *ASTBuilderSwitchStmt::Create(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTExpr *Expr) {
+	ASTBuilderSwitchStmt *Builder = new ASTBuilderSwitchStmt();
+
+	Builder->SwitchStmt = new ASTSwitchStmt(Loc);
+	Builder->SwitchStmt->setParent(Parent);
+
+	// Inner stmt
+	Parent->getContent().push_back(Builder->SwitchStmt);
+	Builder->SwitchStmt->Expr = Expr;
+
+	return Builder;
 }
 
-ASTBuilderSwitchStmt *ASTBuilderSwitchStmt::Switch(const SourceLocation &Loc, ASTExpr *Expr) {
-    SwitchStmt = new ASTSwitchStmt(Loc);
-
-    // Inner stmt
-    Parent->getContent().push_back(SwitchStmt);
-    SwitchStmt->Parent = Parent;
-    SwitchStmt->Var = Expr;
-    return this;
-}
-
-ASTBuilderSwitchStmt *ASTBuilderSwitchStmt::Case(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt) {
+ASTBuilderSwitchStmt *ASTBuilderSwitchStmt::addCase(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt) {
     ASTRuleStmt *Case = new ASTRuleStmt(Loc);
-    Case->Rule = Expr;
+    Case->Expr = Expr;
     Case->Stmt = Stmt;
-	Case->Parent = SwitchStmt;
-	Case->Function = SwitchStmt->Function;
+	Case->Parent = Stmt;
 
     // add to switch list
     SwitchStmt->Cases.push_back(Case);
     return this;
 }
 
-ASTBuilderSwitchStmt *ASTBuilderSwitchStmt::Default(const SourceLocation &Loc, ASTBlockStmt *Stmt) {
+ASTBuilderSwitchStmt *ASTBuilderSwitchStmt::setDefault(const SourceLocation &Loc, ASTBlockStmt *Stmt) {
     SwitchStmt->Default = Stmt;
     return this;
 }

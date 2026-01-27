@@ -22,7 +22,7 @@ namespace fly {
         friend class ASTBuilderLoopStmt;
 
         // The Rule expression can be used with different Modifiers
-        ASTExpr *Rule = nullptr;
+        ASTExpr *Expr = nullptr;
 
         // The If Block statement
         ASTStmt *Stmt = nullptr;
@@ -37,7 +37,7 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTExpr *getRule();
+        ASTExpr *getExpr();
 
         ASTStmt *getStmt() const;
 

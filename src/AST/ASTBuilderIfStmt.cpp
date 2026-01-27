@@ -23,7 +23,7 @@ ASTBuilderIfStmt *ASTBuilderIfStmt::Create(ASTBlockStmt *Parent) {
 
 ASTBuilderIfStmt *ASTBuilderIfStmt::If(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt) {
     IfStmt = new ASTIfStmt(Loc);
-    IfStmt->Rule = Expr;
+    IfStmt->Expr = Expr;
     IfStmt->Stmt = Stmt;
     // Inner Stmt
     Parent->getContent().push_back(IfStmt);
@@ -34,7 +34,7 @@ ASTBuilderIfStmt *ASTBuilderIfStmt::If(const SourceLocation &Loc, ASTExpr *Expr,
 
 ASTBuilderIfStmt *ASTBuilderIfStmt::ElseIf(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt) {
     ASTRuleStmt *Elsif = new ASTRuleStmt(Loc);
-    Elsif->Rule = Expr;
+    Elsif->Expr = Expr;
     Elsif->Stmt = Stmt;
     // add to elsif list
     IfStmt->Elsif.push_back(Elsif);

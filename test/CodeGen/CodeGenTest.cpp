@@ -130,7 +130,7 @@ namespace {
 						  "  store i32 0, i32* %7, align 4\n"
 						  "  store i64 0, i64* %8, align 8\n"
 						  "  store i64 0, i64* %9, align 8\n"
-						  "  store double 0.000000e+00, float* %10, align 8\n"
+						  "  store float 0.000000e+00, float* %10, align 4\n"
 						  "  store double 0.000000e+00, double* %11, align 8\n"
 						  "  ret void\n"
 						  "}\n");
@@ -235,7 +235,7 @@ namespace {
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca float, align 4\n"
                           "  store %error* %0, %error** %1, align 8\n"
-                          "  store double 0.000000e+00, float* %2, align 8\n"
+                          "  store float 0.000000e+00, float* %2, align 4\n"
                           "  store double 1.000000e+00, float* %2, align 8\n"
                           "  %3 = load float, float* %2, align 4\n"
                           "  ret float %3\n"
@@ -1283,14 +1283,13 @@ namespace {
         ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // switch a
-        ASTBuilderSwitchStmt *SwitchBuilder = ASTBuilderSwitchStmt::Create(Body);
-        ASTIdentifier *aVarRefExpr = ASTBuilder::CreateIdentifier(aParam);
-        SwitchBuilder->Switch(SourceLoc, aVarRefExpr);
+    	ASTIdentifier *aVarRefExpr = ASTBuilder::CreateIdentifier(aParam);
+        ASTBuilderSwitchStmt *SwitchBuilder = ASTBuilderSwitchStmt::Create(Body, SourceLoc, aVarRefExpr);
 
         // case 1: a = 1 break
         ASTBlockStmt *Case1Block = ASTBuilder::CreateBlockStmt(SourceLoc);
         ASTNumberValue *Case1Value = ASTBuilder::CreateNumberValue(SourceLoc, "1");
-        SwitchBuilder->Case(SourceLoc, Case1Value, Case1Block);
+        SwitchBuilder->addCase(SourceLoc, Case1Value, Case1Block);
         ASTExprStmt *aVarStmt1 = ASTBuilder::CreateExprStmt(Case1Block, SourceLoc);
         ASTNumberValue *Expr1 = ASTBuilder::CreateNumberValue(SourceLoc, "1");
         ASTBinary *Assign1 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, ASTBuilder::CreateIdentifier(aParam), Expr1);
@@ -1299,7 +1298,7 @@ namespace {
         // case 2: a = 2 break
         ASTBlockStmt *Case2Block = ASTBuilder::CreateBlockStmt(SourceLoc);
         ASTNumberValue *Case2Value = ASTBuilder::CreateNumberValue(SourceLoc, "2");
-        SwitchBuilder->Case(SourceLoc, Case2Value, Case2Block);
+        SwitchBuilder->addCase(SourceLoc, Case2Value, Case2Block);
         ASTExprStmt *aVarStmt2 = ASTBuilder::CreateExprStmt(Case2Block, SourceLoc);
         ASTNumberValue *Expr2 = ASTBuilder::CreateNumberValue(SourceLoc, "2");
         ASTBinary *Assign2 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, ASTBuilder::CreateIdentifier(aParam), Expr2);
@@ -1307,7 +1306,7 @@ namespace {
 
         // default: a = 3
         ASTBlockStmt *DefaultBlock = ASTBuilder::CreateBlockStmt(SourceLoc);
-        SwitchBuilder->Default(SourceLoc, DefaultBlock);
+        SwitchBuilder->setDefault(SourceLoc, DefaultBlock);
         ASTExprStmt *aVarStmt3 = ASTBuilder::CreateExprStmt(DefaultBlock, SourceLoc);
         ASTNumberValue *Expr3 = ASTBuilder::CreateNumberValue(SourceLoc, "3");
         ASTBinary *Assign3 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, ASTBuilder::CreateIdentifier(aParam), Expr3);
@@ -1367,12 +1366,12 @@ namespace {
         ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // while a == 1
-        ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::CreateLoop(Body, SourceLoc);
+        ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::Create(Body, SourceLoc);
         ASTNumberValue *Value1 = ASTBuilder::CreateNumberValue(SourceLoc, "1");
         ASTIdentifier *aVarRef = ASTBuilder::CreateIdentifier(aParam);
         ASTBinary *Cond = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_COMPARE_EQ, aVarRef, Value1);
         ASTBlockStmt *BlockStmt = ASTBuilder::CreateBlockStmt(SourceLoc);
-        LoopBuilder->Loop(Cond, BlockStmt);
+        LoopBuilder->setCycle(Cond, BlockStmt);
 
         // { a = 1 }
         ASTExprStmt * aVarStmt = ASTBuilder::CreateExprStmt(BlockStmt, SourceLoc);
@@ -1426,34 +1425,40 @@ namespace {
         ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // for int i = 1; i < 1; ++i
-        ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::CreateLoop(Body, SourceLoc);
+        ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::Create(Body, SourceLoc);
 
         // Init
         // int i = 1
         ASTBlockStmt *InitBlock = ASTBuilder::CreateBlockStmt(SourceLoc);
-        LoopBuilder->Init(InitBlock);
         ASTLocalVar *iVar = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "i", EmptyModifiers);
-        ASTIdentifier *iVarRef = ASTBuilder::CreateIdentifier(iVar);
-        ASTExprStmt *iVarStmt = ASTBuilder::CreateExprStmt(InitBlock, SourceLoc);
+        ASTDeclStmt *iVarDeclStmt = ASTBuilder::CreateDeclStmt(InitBlock, SourceLoc, iVar);
+    	LoopBuilder->setInit(InitBlock);
+
+        // Create initialization: i = 1
+        ASTIdentifier *iVarRefInit = ASTBuilder::CreateIdentifier(SourceLoc, "i", nullptr);
         ASTNumberValue *Value1Expr = ASTBuilder::CreateNumberValue(SourceLoc, "1");
-        ASTBinary *iAssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, iVarRef, Value1Expr);
-        iVarStmt->setExpr(iAssignExpr);
+        ASTBinary *iAssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, iVarRefInit, Value1Expr);
+        iVarDeclStmt->setExpr(iAssignExpr);
 
         // Condition
         // i < 1
+        ASTIdentifier *iVarRefCond = ASTBuilder::CreateIdentifier(SourceLoc, "i", nullptr);
+        ASTNumberValue *Value1ExprCond = ASTBuilder::CreateNumberValue(SourceLoc, "1");
         ASTBinary *Cond = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_COMPARE_LTE,
-                iVarRef, Value1Expr);
+                iVarRefCond, Value1ExprCond);
+
+    	// Create Loop
         ASTBlockStmt *LoopBlock = ASTBuilder::CreateBlockStmt(SourceLoc);
-        LoopBuilder->Loop(Cond, LoopBlock);
+        LoopBuilder->setCycle(Cond, LoopBlock);
 
         // Post
         // ++i
         ASTBlockStmt *PostBlock = ASTBuilder::CreateBlockStmt(SourceLoc);
-        LoopBuilder->Post(PostBlock);
-        ASTUnary *IncExpr = ASTBuilder::CreateUnary(SourceLoc, ASTUnaryKind::OP_UNARY_PRE_INCR,
-                ASTBuilder::CreateIdentifier(iVar));
+        ASTIdentifier *iVarRefPost = ASTBuilder::CreateIdentifier(SourceLoc, "i", nullptr);
+        ASTUnary *IncExpr = ASTBuilder::CreateUnary(SourceLoc, ASTUnaryKind::OP_UNARY_PRE_INCR, iVarRefPost);
         ASTExprStmt *iVarIncStmt = ASTBuilder::CreateExprStmt(PostBlock, SourceLoc);
         iVarIncStmt->setExpr(IncExpr);
+    	LoopBuilder->setPost(PostBlock);
 
         // Loop Block
         // { a = 1 }

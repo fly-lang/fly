@@ -14,50 +14,38 @@
 
 using namespace fly;
 
-ASTBuilderLoopStmt::ASTBuilderLoopStmt(ASTBlockStmt *Parent) : Parent(Parent) {
+ASTBuilderLoopStmt::ASTBuilderLoopStmt() {
 
 }
 
-ASTBuilderLoopStmt *ASTBuilderLoopStmt::CreateLoop(ASTBlockStmt *Parent, const SourceLocation &Loc) {
-    ASTBuilderLoopStmt *Builder = new ASTBuilderLoopStmt(Parent);
+ASTBuilderLoopStmt *ASTBuilderLoopStmt::Create(ASTBlockStmt *Parent, const SourceLocation &Loc) {
+    ASTBuilderLoopStmt *Builder = new ASTBuilderLoopStmt();
     Builder->LoopStmt = new ASTLoopStmt(Loc);
 
     // Inner Stmt
     Parent->getContent().push_back(Builder->LoopStmt);
     Builder->LoopStmt->Parent = Parent;
-    Builder->LoopStmt->Function = Parent->getFunction();
     return Builder;
 }
 
-ASTLoopInStmt *ASTBuilderLoopStmt::CreateLoopIn(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTExpr *Item, ASTExpr *List, ASTBlockStmt *Stmt) {
-    ASTLoopInStmt *LoopIn = new ASTLoopInStmt(Loc, Item, List, Stmt);
-
-    // Add to Parent block content
-    Parent->getContent().push_back(LoopIn);
-    LoopIn->setParent(Parent);
-    LoopIn->setFunction(Parent->getFunction());
-
-    // Set Stmt parent and function
-    if (Stmt) {
-        Stmt->setParent(LoopIn);
-        Stmt->setFunction(Parent->getFunction());
-    }
-
-    return LoopIn;
-}
-
-ASTBuilderLoopStmt *ASTBuilderLoopStmt::Loop(ASTExpr *Expr, ASTBlockStmt *Stmt) {
-    LoopStmt->Rule = Expr;
-    LoopStmt->Stmt = Stmt;
+ASTBuilderLoopStmt *ASTBuilderLoopStmt::setCycle(ASTExpr *Expr, ASTBlockStmt *Stmt) {
+    LoopStmt->Expr = Expr;
+    LoopStmt->Loop = Stmt;
     return this;
 }
 
-void ASTBuilderLoopStmt::Init(ASTBlockStmt *Stmt) {
-    LoopStmt->Init = Stmt;
+ASTBuilderLoopStmt *ASTBuilderLoopStmt::setInit(ASTBlockStmt *BlockStmt) {
+	for (auto &Stmt : BlockStmt->getContent()) {
+		LoopStmt->Init.push_back(Stmt);
+	}
+	return this;
 }
 
-void ASTBuilderLoopStmt::Post(ASTBlockStmt *Stmt) {
-    LoopStmt->Post = Stmt;
+ASTBuilderLoopStmt *ASTBuilderLoopStmt::setPost(ASTBlockStmt *BlockStmt) {
+	for (auto &Stmt : BlockStmt->getContent()) {
+		LoopStmt->Post.push_back(Stmt);
+	}
+	return this;
 }
 
 void ASTBuilderLoopStmt::VerifyConditionAtEnd() {

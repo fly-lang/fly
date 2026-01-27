@@ -7,39 +7,33 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_BUILDERLOOPSTMT_H
-#define FLY_AST_BUILDERLOOPSTMT_H
+#ifndef FLY_AST_BUILDERLOOPINSTMT_H
+#define FLY_AST_BUILDERLOOPINSTMT_H
 
 namespace fly {
 
     class SemaContext;
-    class ASTLoopStmt;
     class ASTLoopInStmt;
     class SourceLocation;
     class ASTStmt;
     class ASTBlockStmt;
     class ASTExpr;
 
-    class ASTBuilderLoopStmt {
+    class ASTBuilderLoopInStmt {
 
-    	friend class ASTLoopStmt;
+    	friend class ASTLoopInStmt;
 
-        ASTLoopStmt *LoopStmt;
+    	ASTLoopInStmt * LoopStmt;
 
-        explicit ASTBuilderLoopStmt();
+		explicit ASTBuilderLoopInStmt();
 
     public:
 
-        static ASTBuilderLoopStmt *Create(ASTBlockStmt *Parent, const SourceLocation &Loc);
+        static ASTBuilderLoopInStmt *Create(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTExpr *Item, ASTExpr *List, ASTBlockStmt *Stmt);
 
-        ASTBuilderLoopStmt *setCycle(ASTExpr *Expr, ASTBlockStmt *Stmt);
+        ASTBuilderLoopInStmt *setCycle(ASTBlockStmt *Stmt);
 
-        ASTBuilderLoopStmt *setInit(ASTBlockStmt *Stmt);
-
-        ASTBuilderLoopStmt *setPost(ASTBlockStmt *Stmt);
-
-        void VerifyConditionAtEnd();
     };
 }
 
-#endif //FLY_AST_BUILDERLOOPSTMT_H
+#endif //FLY_AST_BUILDERLOOPINSTMT_H

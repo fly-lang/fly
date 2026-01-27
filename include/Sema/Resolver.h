@@ -84,27 +84,27 @@ namespace fly {
 
         SemaModule* CurrentModule;
 
-        SemaClassType *CurrentClass;
+        SemaClassType *CurrentClass = nullptr;
 
-        SemaEnumType *CurrentEnum;
+        SemaEnumType *CurrentEnum =	nullptr;
 
         // Current Function or Method being Resolved
-        SemaFunctionBase *CurrentFunction;
+        SemaFunctionBase *CurrentFunction = nullptr;
 
         // This is the NameSpace being currently resolved
-        SemaNameSpace *CurrentNameSpace;
+        SemaNameSpace *CurrentNameSpace = nullptr;
 
         // Current Comment associated to the next Sema Node
-        SemaComment* CurrentComment;
+        SemaComment* CurrentComment = nullptr;
 
         // Current Statement being Resolved
-        ASTStmt* CurrentStmt;
+        ASTStmt* CurrentStmt = nullptr;
 
-    	SemaExpr *ParentExpr;
+    	SemaExpr *ParentExpr = nullptr;
 
-    	ASTExpr *CurrentExpr;
+    	ASTExpr *CurrentExpr = nullptr;
 
-    	Symbol *CurrentSymbol;
+    	Symbol *CurrentSymbol = nullptr;
 
     public:
 
@@ -200,28 +200,6 @@ namespace fly {
     	SmallVector<SemaType *, 8> ResolveCallArgs(ASTCall *AST);
 
     	SmallVector<SemaType *, 8> ResolveParams(ASTFunction &AST);
-
-        // ------------------------
-
-  //       void ResolveParent(ASTCall *AST);
-  //
-		// void ResolveChild(Symbol *Parent, ASTExpr *AST);
-  //
-  //       void ResolveChild(SemaNameSpace *NameSpace, ASTExpr *AST);
-  //
-		// void ResolveChild(SemaType * Type, ASTExpr *AST);
-  //
-  //       void ResolveChild(SemaClassType *ClassType, ASTExpr *AST);
-  //
-  //       void ResolveChild(SemaEnumType *EnumType, ASTExpr *AST);
-  //
-  //       void ResolveChild(SemaCall *Parent, ASTExpr *AST);
-  //
-  //       void ResolveChild(SemaVar *Parent, ASTExpr *AST);
-  //
-  //       SemaCall *ResolveChildCall(SemaExpr *Parent, ASTCall *AST);
-  //
-  //       SemaExpr *ResolveChildMember(SemaExpr *Parent, ASTMember *AST);
 
     };
 } // end namespace fly

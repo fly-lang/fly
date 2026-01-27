@@ -170,6 +170,9 @@ void CodeGenModule::GenStmt(ASTStmt * Stmt) {
     		// Declaration may be with initialization
     		if (DeclStmt->getExpr()) {
     			DeclStmt->getExpr()->getSema()->accept(*this);
+    		} else {
+    			CodeGenVar *CGV = DeclStmt->getLocalVar()->getSema()->getCodeGen();
+    			CGV->StoreDefaultValue();
     		}
     	}
     	break;
@@ -327,8 +330,8 @@ void CodeGenModule::GenIfStmt(ASTIfStmt *If) {
     llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
     // If Block
-	If->getRule()->getSema()->accept(*this);
-    llvm::Value *IfCond = If->getRule()->getSema()->getCodeGen()->getValue();
+	If->getExpr()->getSema()->accept(*this);
+    llvm::Value *IfCond = If->getExpr()->getSema()->getCodeGen()->getValue();
     llvm::BasicBlock *IfBB = llvm::BasicBlock::Create(LLVMCtx, "ifthen", Fn);
 
     // Create End block
@@ -363,8 +366,8 @@ void CodeGenModule::GenIfStmt(ASTIfStmt *If) {
                 }
                 ASTRuleStmt *Elsif = If->getElsif()[i];
                 Builder->SetInsertPoint(ElsifBB);
-            	Elsif->getRule()->getSema()->accept(*this);
-                llvm::Value *ElsifCond = Elsif->getRule()->getSema()->getCodeGen()->getValue();
+            	Elsif->getExpr()->getSema()->accept(*this);
+                llvm::Value *ElsifCond = Elsif->getExpr()->getSema()->getCodeGen()->getValue();
                 Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
 
                 Builder->SetInsertPoint(ElsifThenBB);
@@ -407,8 +410,8 @@ void CodeGenModule::GenIfStmt(ASTIfStmt *If) {
                 }
                 ASTRuleStmt *Elsif = If->getElsif()[i];
                 Builder->SetInsertPoint(ElsifBB);
-            	Elsif->getRule()->getSema()->accept(*this);
-                llvm::Value *ElsifCond = Elsif->getRule()->getSema()->getCodeGen()->getValue();
+            	Elsif->getExpr()->getSema()->accept(*this);
+                llvm::Value *ElsifCond = Elsif->getExpr()->getSema()->getCodeGen()->getValue();
                 Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
 
                 Builder->SetInsertPoint(ElsifThenBB);
@@ -437,8 +440,8 @@ void CodeGenModule::GenElsifStmt(CodeGenFunctionBase *CGF,
     It++;
     if (*It != nullptr) {
         Builder->SetInsertPoint(ElsifBB);
-    	Elsif->getRule()->getSema()->accept(*this);
-        llvm::Value *Cond = Elsif->getRule()->getSema()->getCodeGen()->getValue();
+    	Elsif->getExpr()->getSema()->accept(*this);
+        llvm::Value *Cond = Elsif->getExpr()->getSema()->getCodeGen()->getValue();
         llvm::BasicBlock *NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn);
         Builder->CreateCondBr(Cond, ElsifBB, NextElsifBB);
 
@@ -457,8 +460,8 @@ void CodeGenModule::GenSwitchStmt(ASTSwitchStmt *Switch) {
     llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endswitch", Fn);
 
     // Create Expression evaluator for Switch
-	Switch->getVar()->getSema()->accept(*this);
-    llvm::Value *SwitchVal = Switch->getVar()->getSema()->getCodeGen()->getValue();
+	Switch->getExpr()->getSema()->accept(*this);
+    llvm::Value *SwitchVal = Switch->getExpr()->getSema()->getCodeGen()->getValue();
     llvm::SwitchInst *Inst = Builder->CreateSwitch(SwitchVal, EndBB);
 
     // Create Cases
@@ -467,8 +470,8 @@ void CodeGenModule::GenSwitchStmt(ASTSwitchStmt *Switch) {
     llvm::BasicBlock *NextCaseBB = nullptr;
     for (unsigned long i=0; i < Size; i++) {
         ASTRuleStmt *Case = Switch->getCases()[i];
-    	Case->getRule()->getSema()->accept(*this);
-        llvm::Value *CaseVal = Case->getRule()->getSema()->getCodeGen()->getValue();
+    	Case->getExpr()->getSema()->accept(*this);
+        llvm::Value *CaseVal = Case->getExpr()->getSema()->getCodeGen()->getValue();
         llvm::ConstantInt *CaseConst = llvm::cast<llvm::ConstantInt, llvm::Value>(CaseVal);
         llvm::BasicBlock *CaseBB = NextCaseBB == nullptr ?
                                    llvm::BasicBlock::Create(LLVMCtx, "case", Fn, EndBB) : NextCaseBB;
@@ -503,13 +506,13 @@ void CodeGenModule::GenLoopStmt(ASTLoopStmt *Loop) {
 	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
     // Generate Init Statements
-    if (Loop->getInit()) {
-        GenStmt(Loop->getInit());
+    for (ASTStmt *S : Loop->getInit()) {
+    	GenStmt(S);
     }
 
     // Create Condition Block
     llvm::BasicBlock *CondBB = nullptr;
-    if (Loop->getRule()) {
+    if (Loop->getExpr()) {
         CondBB = llvm::BasicBlock::Create(LLVMCtx, "loopcond", Fn);
     }
 
@@ -518,7 +521,7 @@ void CodeGenModule::GenLoopStmt(ASTLoopStmt *Loop) {
 
     // Create Post Block
     llvm::BasicBlock *PostBB = nullptr;
-    if (Loop->getPost()) {
+    if (!Loop->getPost().empty()) {
         PostBB = llvm::BasicBlock::Create(LLVMCtx, "looppost", Fn);
     }
 
@@ -531,8 +534,8 @@ void CodeGenModule::GenLoopStmt(ASTLoopStmt *Loop) {
 
         // Create Condition
         Builder->SetInsertPoint(CondBB);
-    	Loop->getRule()->getSema()->accept(*this);
-        llvm::Value *Cond = Loop->getRule()->getSema()->getCodeGen()->getValue();
+    	Loop->getExpr()->getSema()->accept(*this);
+        llvm::Value *Cond = Loop->getExpr()->getSema()->getCodeGen()->getValue();
         Builder->CreateCondBr(Cond, LoopBB, EndBB);
     } else {
         Builder->CreateBr(LoopBB);
@@ -546,7 +549,9 @@ void CodeGenModule::GenLoopStmt(ASTLoopStmt *Loop) {
 
         // Add to Post
         Builder->SetInsertPoint(PostBB);
-        GenStmt(Loop->getPost());
+    	for (ASTStmt *S : Loop->getPost()) {
+    		GenStmt(S);
+    	}
         if (CondBB) {
             Builder->CreateBr(CondBB);
         } else {

@@ -377,7 +377,7 @@ bool SemaValidator::CheckBinary(ASTBinary &AST) {
 				  << RightType->getName();
 				return false;
 			}
-			if (RightType->isNumber() && static_cast<SemaNumberType *>(LeftType)->getRank() < static_cast<SemaNumberType *>(RightType)->getRank()) {
+			if (static_cast<SemaNumberType *>(LeftType)->getRank() < static_cast<SemaNumberType *>(RightType)->getRank()) {
 				// Cannot convert number with higher rank to lower rank
 				Diag(AST.getLocation(), diag::err_sema_types_operation)
 				  << LeftType->getName()

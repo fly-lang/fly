@@ -20,17 +20,9 @@ ASTStmt *ASTStmt::getParent() const {
     return Parent;
 }
 
-ASTFunction *ASTStmt::getFunction() const {
-    return Function;
-}
-
 // Setters
 void ASTStmt::setParent(ASTStmt *P) {
     Parent = P;
-}
-
-void ASTStmt::setFunction(ASTFunction *F) {
-    Function = F;
 }
 
 ASTStmtKind ASTStmt::getStmtKind() const {

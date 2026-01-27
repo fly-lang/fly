@@ -18,7 +18,7 @@ namespace fly {
     class ASTLoopInStmt : public ASTStmt {
 
         friend class ASTBuilder;
-        friend class ASTBuilderLoopStmt;
+        friend class ASTBuilderLoopInStmt;
 
         ASTExpr *Item = nullptr;
 

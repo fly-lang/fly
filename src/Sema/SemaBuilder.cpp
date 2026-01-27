@@ -369,7 +369,7 @@ SemaValue * SemaBuilder::CreateNumberValue(ASTNumberValue &AST) {
 	if (FloatRegex.match(AST.getValue())) {
 		// Floating point
 		llvm::APFloat Value = llvm::APFloat(llvm::APFloat::IEEEdouble(), AST.getValue());
-		Sema = new SemaFloatValue(AST, SemaBuiltin::getDoubleType(), Value);
+		Sema = new SemaFloatValue(AST, SemaBuiltin::getFloatType(), Value);
 	} else {
 		llvm::APInt Value = CreateAPIntValue(AST.getValue());
 
