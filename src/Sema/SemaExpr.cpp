@@ -14,6 +14,11 @@ using namespace fly;
 SemaExpr::SemaExpr(SemaKind Kind, SemaType *Type) : SemaNode(Kind), Type(Type) {
 }
 
+SemaExpr::~SemaExpr() {
+	// Delete CodeGen if present
+	delete CodeGen;
+}
+
 SemaExpr *SemaExpr::getParent() const {
 	return Parent;
 }

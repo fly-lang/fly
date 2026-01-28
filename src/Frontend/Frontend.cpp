@@ -70,8 +70,11 @@ bool Frontend::Execute() {
 	SmallVector<SemaModule *, 8> SemaModules = S->Resolve(ASTModules);
     if (!SemaModules.empty()) {
 
+        // Create LLVM Context (must outlive all modules)
+        llvm::LLVMContext LLVMCtx;
+
         // Generate Backend Code
-        CodeGen CG(Diags, CI.getCodeGenOptions(), CI.getTargetOptions(),
+        CodeGen CG(Diags, LLVMCtx, CI.getCodeGenOptions(), CI.getTargetOptions(),
                    CI.getFrontendOptions().BackendAction,
                    CI.getFrontendOptions().ShowTimers);
         llvm::SmallVector<llvm::Module *, 8> Modules = CG.GenerateModules(SemaModules);
@@ -80,6 +83,12 @@ bool Frontend::Execute() {
         for (auto M : Modules) {
             CG.Emit(M, M->getName());
         }
+
+    	// Delete generated modules (before LLVMCtx goes out of scope)
+    	for (auto M : Modules) {
+    		delete M;
+    	}
+    	Modules.clear();
 
     	// FIXME: Generate Headers
         // if (CI.getFrontendOptions().CreateHeader) {
@@ -130,6 +139,7 @@ bool Frontend::Execute() {
         }
     }
 
+    delete Builder;
     delete S;
 
     return !CI.getDiagnostics().getClient()->getNumErrors();
@@ -149,7 +159,9 @@ void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
             Parser *P = new Parser(Input, CI.getSourceManager(), Diags, Builder);
             ASTModule *M = P->ParseModule();
         	ASTModules.push_back(M);
+        	delete P;
         }
+        delete Input;
     } else if (Input->getExt() == FileExt::LIB) {
         // Read Header Files from library by extracting them
         const std::vector<StringRef> Files = ExtractFiles(FileName);
@@ -157,9 +169,11 @@ void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
             if (llvm::sys::path::extension(File) == ".fly.h") {
                 InputFile *InputHeader = new InputFile(Diags, CI.getSourceManager(), File.str());
                 if (InputHeader->Load()) {
-                    Parser *P = new Parser(Input, CI.getSourceManager(), Diags, Builder);
+                    Parser *P = new Parser(InputHeader, CI.getSourceManager(), Diags, Builder);
                     P->ParseHeader();
+                    delete P;
                 }
+                delete InputHeader;
 
                 // Remove Header File after extraction and parsing
                 const std::error_code EC = llvm::sys::fs::remove(File, false);
@@ -168,8 +182,10 @@ void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
                 }
             }
         }
+        delete Input;
     } else {
         CI.getDiagnostics().Report(diag::err_fe_input_file_ext) << FileName;
+        delete Input;
     }
 }
 

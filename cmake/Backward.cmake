@@ -1,12 +1,10 @@
 include(FetchContent)
 
+# Use a recent commit that supports CMake 3.5+
+# Alternatively, you can use GIT_TAG v1.6.1 or later if a new release is available
 FetchContent_Declare(backward
         GIT_REPOSITORY https://github.com/bombela/backward-cpp
-        GIT_TAG v1.6)
-FetchContent_GetProperties(backward)
-if(NOT backward_POPULATED)
-    FetchContent_Populate(backward)
-    add_subdirectory(${backward_SOURCE_DIR} ${backward_BINARY_DIR})
-endif()
+        GIT_TAG master)  # Use master branch for latest CMake compatibility
 
+# Modern approach - FetchContent_MakeAvailable handles everything
 FetchContent_MakeAvailable(backward)

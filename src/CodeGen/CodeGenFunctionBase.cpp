@@ -39,14 +39,30 @@ CodeGenModule *CodeGenFunctionBase::getCodeGenModule() {
 }
 
 void CodeGenFunctionBase::GenReturnType() {
+	if (!Sema->getReturnType()) {
+		CGM->Diag(diag::err_codegen_invalid_type);
+		return;
+	}
 	Sema->getReturnType()->accept(*CGM);
+	if (!Sema->getReturnType()->getCodeGen()) {
+		CGM->Diag(diag::err_codegen_invalid_type);
+		return;
+	}
     RetType = Sema->getReturnType()->getCodeGen()->getType();
 }
 
 void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, SemaFunctionBase * Sema) {
     // Populate Types by reference
     for (auto Param : Sema->getParams()) {
+    	if (!Param->getType()) {
+    		CGM->Diag(diag::err_codegen_invalid_type);
+    		continue;
+    	}
     	Param->getType()->accept(*CGM);
+    	if (!Param->getType()->getCodeGen()) {
+    		CGM->Diag(diag::err_codegen_invalid_type);
+    		continue;
+    	}
         Types.push_back(Param->getType()->getCodeGen()->getType());
     }
 //    if (Params->getEllipsis() != nullptr) {

@@ -991,8 +991,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
 
     // Create For Statement
 	ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::Create(Parent, ForLoc);
-    ASTBlockStmt *InitBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
-	LoopBuilder->setInit(InitBlock);
+    ASTBlockStmt *InitBlock = ASTBuilder::CreateBlockStmt(SourceLocation());
     ASTExpr *Condition = nullptr;
 
     // for int a = 1, b = 2; i < 0; i++
@@ -1004,14 +1003,13 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
 	}
 
     // This is an Expression, it could be a Condition
+	ASTBlockStmt *PostBlock = ASTBuilder::CreateBlockStmt(SourceLocation());
     if (Tok.is(tok::semi)) {
         ConsumeToken();
 
         Condition = ParseExpr();
 
         if (Tok.is(tok::semi)) {
-        	ASTBlockStmt *PostBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
-        	LoopBuilder->setPost(PostBlock);
 
         	ConsumeToken();
             ParseStmt(PostBlock);
@@ -1030,6 +1028,8 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
 
 	// Create Loop Stmt
     ASTBlockStmt *LoopBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
+	LoopBuilder->setInit(InitBlock);
+	LoopBuilder->setPost(PostBlock);
     LoopBuilder->setCycle(Condition, LoopBlock);
 
     // Parse statement between braces

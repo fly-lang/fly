@@ -39,6 +39,11 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
 		RetType = CGM->VoidTy;
 	} else {
 		GenReturnType();
+		// Validate return type
+		if (!RetType) {
+			CGM->Diag(diag::err_codegen_invalid_type);
+			RetType = CGM->VoidTy;
+		}
 	}
 
     // Add ErrorHandler to params, Struct doesn't use ErrorHandler
@@ -54,6 +59,14 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
 
     // Generate param types
     GenParamTypes(CGM, ParamTypes, Sema);
+
+    // Validate all types before creating function
+    for (auto &Ty : ParamTypes) {
+        if (!Ty) {
+            CGM->Diag(diag::err_codegen_invalid_type);
+            return; // Cannot create function with invalid parameter types
+        }
+    }
 
     // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);

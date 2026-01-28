@@ -24,6 +24,8 @@ SemaClassMethod::SemaClassMethod(ASTMethod &AST, SemaClassType *Class, SemaClass
 SemaClassMethod::~SemaClassMethod() {
 	// Delete Comment if present
 	delete Comment;
+	// Delete CodeGen if present
+	delete CodeGen;
 
 	// Note: Params and LocalVars are deleted by SemaFunctionBase destructor
 }

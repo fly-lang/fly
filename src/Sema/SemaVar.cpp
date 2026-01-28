@@ -16,6 +16,10 @@ SemaVar::SemaVar(ASTVar *AST, SemaKind Kind, SemaType *Type) :
 	SemaExpr(Kind, Type), AST(AST) {
 }
 
+SemaVar::~SemaVar() {
+	// CodeGen is deleted by parent SemaExpr destructor
+}
+
 ASTVar *SemaVar::getAST() const {
 	return AST;
 }

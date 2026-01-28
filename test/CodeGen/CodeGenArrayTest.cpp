@@ -8,27 +8,26 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 // fly
-#include "AST/ASTType.h"
-#include "AST/ASTExprStmt.h"
 #include "AST/ASTDeclStmt.h"
-#include "AST/ASTValue.h"
-#include "AST/ASTLocalVar.h"
+#include "AST/ASTExprStmt.h"
 #include "AST/ASTIdentifier.h"
-#include "AST/ASTReturnStmt.h"
-
-#include "CodeGenTest.h"
-#include "CodeGen/CodeGenModule.h"
-#include "Sema/SemaBuilderModifiers.h"
+#include "AST/ASTLocalVar.h"
 #include "AST/ASTModule.h"
+#include "AST/ASTReturnStmt.h"
+#include "AST/ASTType.h"
+#include "AST/ASTValue.h"
 #include "AST/ASTVar.h"
-#include <Sema/SemaNameSpace.h>
+#include "CodeGen/CodeGenModule.h"
+#include "CodeGenBaseTest.h"
+#include "Sema/SemaBuilderModifiers.h"
 
+#include <Sema/SemaNameSpace.h>
 
 namespace {
 
     using namespace fly;
 
-    TEST_F(CodeGenTest, CGArrayLocalVar) {
+    TEST_F(CodeGenBaseTest, CGArrayLocalVar) {
         /**
          * Fly code:
          * void func() {
@@ -64,7 +63,7 @@ namespace {
                           "}\n");
     }
 
-    TEST_F(CodeGenTest, CGFuncArrayParam) {
+    TEST_F(CodeGenBaseTest, CGFuncArrayParam) {
         /**
          * Fly code:
          * void func(int[] k) {
@@ -113,7 +112,7 @@ namespace {
                           "}\n");
     }
 
-    TEST_F(CodeGenTest, GCArrayLocalVarAssignAfter) {
+    TEST_F(CodeGenBaseTest, GCArrayLocalVarAssignAfter) {
         /**
          * Fly code:
          * void func() {
@@ -160,7 +159,7 @@ namespace {
                           "}\n");
     }
 
-    TEST_F(CodeGenTest, CGArrayValue) {
+    TEST_F(CodeGenBaseTest, CGArrayValue) {
         /**
          * Fly code:
          * void func() {

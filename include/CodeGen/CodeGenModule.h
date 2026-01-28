@@ -47,6 +47,7 @@ namespace fly {
     class ASTCall;
     class ASTFailStmt;
     class ASTLoopStmt;
+    class ASTLoopInStmt;
     class ASTSwitchStmt;
     class ASTValue;
     class ASTVar;
@@ -57,6 +58,13 @@ namespace fly {
     class ASTStmt;
     class ASTBlockStmt;
     class ASTIfStmt;
+    class ASTDeclStmt;
+    class ASTExprStmt;
+    class ASTDeleteStmt;
+    class ASTBreakStmt;
+    class ASTContinueStmt;
+    class ASTReturnStmt;
+    class ASTHandleStmt;
     class SemaModule;
     class SemaGlobalVar;
     class SemaFunction;
@@ -193,6 +201,10 @@ namespace fly {
 
     	llvm::SmallVector<SemaFunctionBase *, 8> Functions;
 
+        // Stack for tracking break/continue targets in loops and switches
+        llvm::SmallVector<llvm::BasicBlock *, 8> BreakTargetStack;
+        llvm::SmallVector<llvm::BasicBlock *, 8> ContinueTargetStack;
+
         SemaFunctionBase *CurrentFunction;
 
         CodeGenModule(DiagnosticsEngine &Diags, StringRef Name, llvm::LLVMContext &LLVMCtx, TargetInfo &Target,
@@ -207,24 +219,6 @@ namespace fly {
     	llvm::LLVMContext &getLLVMCtx() const;
 
     	llvm::IRBuilder<> *getBuilder() const;
-
-    	void GenBlockStmt(ASTBlockStmt *BlockStmt);
-
-        void GenStmt(ASTStmt * Stmt);
-
-        void GenFailStmt(ASTFailStmt *FailStmt, CodeGenError *CGH);
-
-        void GenIfStmt(ASTIfStmt *If);
-
-        void GenElsifStmt(CodeGenFunctionBase *CGF,
-                                        llvm::BasicBlock *ElsifBB,
-                                        llvm::SmallVector<ASTRuleStmt *, 8>::iterator &It);
-
-        void GenSwitchStmt(ASTSwitchStmt *Switch);
-
-        void GenLoopStmt(ASTLoopStmt *Loop);
-
-        std::string toIdentifier(llvm::StringRef Name, SemaNameSpace *NameSpace);
 
         // SemaVisitor interface implementation
         void visit(SemaModule &Sema) override;
@@ -270,6 +264,44 @@ namespace fly {
         void visit(SemaStructValue &Sema) override;
         void visit(SemaNullValue &Sema) override;
         void visit(SemaEnumValue &Sema) override;
+
+    private:
+
+    	void GenBlockStmt(ASTBlockStmt *BlockStmt);
+
+    	void GenStmt(ASTStmt * Stmt);
+
+    	void GenStmtDecl(ASTDeclStmt *DeclStmt);
+
+    	void GenStmtExpr(ASTExprStmt *ExprStmt);
+
+    	void GenStmtDelete(ASTDeleteStmt *DeleteStmt);
+
+    	void GenStmtBreak(ASTBreakStmt *BreakStmt);
+
+    	void GenStmtContinue(ASTContinueStmt *ContinueStmt);
+
+    	void GenStmtReturn(ASTReturnStmt *ReturnStmt);
+
+    	void GenStmtHandle(ASTHandleStmt *HandleStmt);
+
+    	void GenFailStmt(ASTFailStmt *FailStmt);
+
+    	void StoreFail(ASTExpr *Expr, CodeGenError * CGE);
+
+    	void GenIfStmt(ASTIfStmt *If);
+
+    	void GenElsifStmt(CodeGenFunctionBase *CGF,
+										llvm::BasicBlock *ElsifBB,
+										llvm::SmallVector<ASTRuleStmt *, 8>::iterator &It);
+
+    	void GenSwitchStmt(ASTSwitchStmt *Switch);
+
+    	void GenLoopStmt(ASTLoopStmt *Loop);
+
+    	void GenStmtLoopIn(ASTLoopInStmt *LoopIn);
+
+    	std::string toIdentifier(llvm::StringRef Name, SemaNameSpace *NameSpace);
 
     };
 }

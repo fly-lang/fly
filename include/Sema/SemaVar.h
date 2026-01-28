@@ -34,7 +34,7 @@ namespace fly {
         explicit SemaVar(ASTVar *AST, SemaKind Kind, SemaType *Type);
 
     public:
-        virtual ~SemaVar() = default;
+        virtual ~SemaVar();
 
         ASTVar *getAST() const;
 

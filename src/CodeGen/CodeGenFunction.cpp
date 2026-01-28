@@ -37,10 +37,28 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
     } else {
         GenReturnType();
 
+        // Check if RetType was successfully generated
+        if (!RetType) {
+            CGM->Diag(diag::err_codegen_invalid_type);
+            // Use void as fallback to prevent crash
+            RetType = CGM->VoidTy;
+        }
+
         // Add ErrorHandler as first param
         ParamTypes.push_back(CGM->ErrorPtrTy);
     }
     GenParamTypes(CGM, ParamTypes, Sema);
+
+    // Validate all types before creating function
+    if (!RetType) {
+        RetType = CGM->VoidTy;
+    }
+    for (auto &Ty : ParamTypes) {
+        if (!Ty) {
+            CGM->Diag(diag::err_codegen_invalid_type);
+            return; // Cannot create function with invalid parameter types
+        }
+    }
 
     // Create LLVM Function
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);

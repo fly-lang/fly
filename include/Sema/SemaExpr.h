@@ -38,7 +38,7 @@ namespace fly {
         explicit SemaExpr(SemaKind Kind, SemaType *Type);
 
     public:
-        virtual ~SemaExpr() = default;
+        virtual ~SemaExpr();
 
     	SemaType *getType() const;
 

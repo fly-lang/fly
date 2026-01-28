@@ -410,6 +410,7 @@ DIAG(err_sema_var_redefinition, CLASS_ERROR, (unsigned)diag::Severity::Error, "l
 
 
 // CodeGen
+DIAG(err_codegen_invalid_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "codegen: invalid or null type encountered", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_cg_unresolved_def, CLASS_ERROR, (unsigned)diag::Severity::Error, "unresolved definition '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_void_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assign void value", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_expr_operator_unexpected, CLASS_ERROR, (unsigned)diag::Severity::Error, "unexpected operator into expression", 0, SFINAE_Suppress, false, true, 0)

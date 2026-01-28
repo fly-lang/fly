@@ -35,6 +35,8 @@ SemaClassType::~SemaClassType() {
 
 	// Delete Comment if present
 	delete Comment;
+
+	// CodeGen is deleted by parent SemaType destructor
 }
 
 SemaClassKind SemaClassType::toClassKind(ASTClassKind Kind) {

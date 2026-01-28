@@ -20,7 +20,8 @@ SemaType::SemaType(SemaKind Kind, std::string Name) : SemaNode(Kind), Name(Name)
 }
 
 SemaType::~SemaType() {
-
+	// Delete CodeGen if present
+	delete CG;
 }
 
 const size_t SemaType::getId() const {

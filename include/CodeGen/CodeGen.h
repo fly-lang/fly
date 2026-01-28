@@ -39,7 +39,7 @@ class CodeGen {
     CodeGenOptions &CodeGenOpts;
     TargetOptions &TargetOpts;
     IntrusiveRefCntPtr<TargetInfo> Target;
-    llvm::LLVMContext LLVMCtx;
+    llvm::LLVMContext &LLVMCtx;  // Reference instead of owned member
     BackendActionKind ActionKind;
     bool ShowTimers;
 
@@ -108,7 +108,9 @@ class CodeGen {
     llvm::ConstantInt *Zero;
 
     public:
-        CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts,
+        CodeGen(DiagnosticsEngine &Diags,
+                llvm::LLVMContext &LLVMCtx,
+                CodeGenOptions &CodeGenOpts,
                 const std::shared_ptr<TargetOptions> &TargetOpts,
                 BackendActionKind BackendAction, bool ShowTimers = false);
 

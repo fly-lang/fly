@@ -20,10 +20,10 @@ class TestUtils {
 
 public:
 
-    static CodeGen *CreateCodeGen(const CompilerInstance &CI) {
+    static CodeGen *CreateCodeGen(const CompilerInstance &CI, llvm::LLVMContext &LLVMCtx) {
         CI.getTargetOptions()->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
         CI.getTargetOptions()->CodeModel = "default";
-        return new CodeGen(CI.getDiagnostics(), CI.getCodeGenOptions(), CI.getTargetOptions(),
+        return new CodeGen(CI.getDiagnostics(), LLVMCtx, CI.getCodeGenOptions(), CI.getTargetOptions(),
                            CI.getFrontendOptions().BackendAction);
     }
 

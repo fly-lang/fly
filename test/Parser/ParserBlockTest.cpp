@@ -344,7 +344,6 @@ TEST_F(ParserTest, LoopStmt) {
 	ASTBlockStmt *LoopStmt = As<ASTBlockStmt>(ForBlock->getLoop());
 	auto &PostStmts = ForBlock->getPost();
 
-	ASSERT_FALSE(InitStmts.empty());
 	ASSERT_TRUE(InitStmts.size() == 2); // Each var decl+assignment is one ASTDeclStmt
 
 	// int b = 1 (declaration with assignment)

@@ -26,11 +26,17 @@
 
 using namespace fly;
 
-CodeGen::CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts,
+CodeGen::CodeGen(DiagnosticsEngine &Diags,
+                 llvm::LLVMContext &LLVMCtx,
+                 CodeGenOptions &CodeGenOpts,
                  const std::shared_ptr<TargetOptions> &TargetOpts,
                  BackendActionKind BackendAction, bool ShowTimers) :
-        Diags(Diags), CodeGenOpts(CodeGenOpts), TargetOpts(*TargetOpts),
-        Target(CreateTargetInfo(Diags, TargetOpts)), ActionKind(BackendAction),
+        Diags(Diags),
+        LLVMCtx(LLVMCtx),  // Store reference
+        CodeGenOpts(CodeGenOpts),
+        TargetOpts(*TargetOpts),
+        Target(CreateTargetInfo(Diags, TargetOpts)),
+        ActionKind(BackendAction),
         ShowTimers(ShowTimers) {
 }
 
@@ -107,13 +113,21 @@ llvm::SmallVector<llvm::Module *, 8> CodeGen::GenerateModules(llvm::SmallVector<
     FLY_DEBUG_START("CodeGen", "GenerateModules");
 
 	llvm::SmallVector<llvm::Module *, 8> Modules;
+	llvm::SmallVector<CodeGenModule *, 8> CodeGenModules;
     for (auto &Sema : SemaModules) {
         Diags.getClient()->BeginSourceFile();
     	CodeGenModule *CGM = new CodeGenModule(Diags, Sema->getName(), LLVMCtx, *Target, CodeGenOpts);
     	Sema->accept(*CGM);
         Diags.getClient()->EndSourceFile();
-    	Modules.push_back(CGM->getModule());
+    	// Transfer ownership: get the Module pointer and null it out in CodeGenModule
+    	llvm::Module *M = CGM->getModule();
+    	CGM->Module = nullptr; // Now CodeGenModule no longer owns this Module
+    	Modules.push_back(M);
+    	CodeGenModules.push_back(CGM);
     }
+
+	// Clean up CodeGenModule objects (they no longer own the Modules)
+	CodeGenModules.clear();
 
 	FLY_DEBUG_END("CodeGen", "GenerateModules");
     return Modules;

@@ -21,6 +21,8 @@ SemaFunction::SemaFunction(ASTFunction &AST, SymbolTable *Symbols) : SemaFunctio
 SemaFunction::~SemaFunction() {
 	// Delete Comment if present
 	delete Comment;
+	// Delete CodeGen if present
+	delete CodeGen;
 }
 
 SemaModule *SemaFunction::getModule() const {
