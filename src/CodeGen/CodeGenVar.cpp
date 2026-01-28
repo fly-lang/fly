@@ -9,6 +9,7 @@
 
 #include "CodeGen/CodeGenVar.h"
 
+#include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 
 #include <Sema/SemaCall.h>
@@ -41,7 +42,7 @@ llvm::AllocaInst *CodeGenVar::Alloca() {
 	} else {
 		// Alloca for non-struct types
 		// Check if the type is bool (i1) and convert it to i8
-		this->Pointer = CGM->Builder->CreateAlloca(T->isIntegerTy(1) ? CGM->Int8Ty : T);
+		this->Pointer = CGM->Builder->CreateAlloca(T->isIntegerTy(1) ? CodeGen::Int8Ty : T);
 	}
 	return llvm::cast<llvm::AllocaInst>(this->Pointer);
 }
@@ -52,7 +53,7 @@ llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
 
     // Fix Architecture Compatibility of bool i1 to i8
     if (T->isIntegerTy(1)) {
-        Val = CGM->Builder->CreateZExt(Val, CGM->Int8Ty);
+        Val = CGM->Builder->CreateZExt(Val, CodeGen::Int8Ty);
     }
 
 	return CGM->Builder->CreateStore(Val, getPointer());
@@ -102,7 +103,7 @@ llvm::Value *CodeGenVar::getPointer() {
 
 		// If Pointer is not set, create it
 		llvm::PointerType *PtrType = llvm::cast<llvm::PointerType>(this->Pointer->getType());
-		llvm::ArrayRef<llvm::Value *> IdxList = {CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, Index)};
+		llvm::ArrayRef<llvm::Value *> IdxList = {CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Index)};
 		this->Pointer = CGM->Builder->CreateInBoundsGEP(PtrType->getElementType(), this->Pointer, IdxList);
 	} else if (Sema->getKind() == SemaKind::ATTRIBUTE) {
 		assert(this->Pointer && "Pointer must be set for ClassAttribute");
@@ -110,7 +111,7 @@ llvm::Value *CodeGenVar::getPointer() {
 
 		if (!Attribute->isStatic()) {
 			CodeGenVar *CGV = static_cast<SemaClassInstance *>(Attribute->getParent())->getCodeGen();
-			llvm::ArrayRef<llvm::Value *> IdxList = {CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, Attribute->getCodeGen()->getIndex())};
+			llvm::ArrayRef<llvm::Value *> IdxList = {CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Attribute->getCodeGen()->getIndex())};
 			this->Pointer = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(), IdxList);
 		}
 	}
@@ -120,7 +121,7 @@ llvm::Value *CodeGenVar::getPointer() {
 	//
 	// 	if (This->getParent()) {
 	// 		CodeGenVarBase *CGV = This->getParent()->getCodeGen();
-	// 		llvm::ArrayRef<llvm::Value *> IdxList = {CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, This->getCodeGen()->getIndex())};
+	// 		llvm::ArrayRef<llvm::Value *> IdxList = {CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, This->getCodeGen()->getIndex())};
 	// 		this->Pointer = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(), IdxList);
 	// 	}
 	// }

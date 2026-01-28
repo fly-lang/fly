@@ -114,6 +114,9 @@ namespace fly {
     	friend class CodeGenError;
     	friend class CodeGenExpr;
 
+        // Reference to CodeGen (contains all LLVM types)
+        CodeGen &CG;
+
         // Diagnostics
         DiagnosticsEngine &Diags;
 
@@ -135,70 +138,6 @@ namespace fly {
 
     public:
 
-        /// void
-        llvm::Type *VoidTy;
-
-        /// i8, i16, i32, and i64
-        llvm::IntegerType *BoolTy, *Int8Ty, *Int16Ty, *Int32Ty, *Int64Ty;
-        /// half, bfloat, float, double
-        llvm::Type *HalfTy, *BFloatTy, *FloatTy, *DoubleTy;
-
-        /// int
-        llvm::IntegerType *IntTy;
-
-        /// intptr_t, size_t, and ptrdiff_t, which we assume are the same size.
-        union {
-            llvm::IntegerType *IntPtrTy;
-            llvm::IntegerType *SizeTy;
-            llvm::IntegerType *PtrDiffTy;
-        };
-
-        /// void* in address space 0
-        union {
-            llvm::PointerType *VoidPtrTy;
-            llvm::PointerType *Int8PtrTy;
-        };
-
-        /// void** in address space 0
-        union {
-            llvm::PointerType *VoidPtrPtrTy;
-            llvm::PointerType *Int8PtrPtrTy;
-        };
-
-        /// void* in alloca address space
-        union {
-            llvm::PointerType *AllocaVoidPtrTy;
-            llvm::PointerType *AllocaInt8PtrTy;
-        };
-
-        /// The width of a pointer into the generic address space.
-        unsigned char PointerWidthInBits;
-
-        /// The size and alignment of a pointer into the generic address space.
-        union {
-            unsigned char PointerAlignInBytes;
-            unsigned char PointerSizeInBytes;
-        };
-
-        /// The size and alignment of size_t.
-        union {
-            unsigned char SizeSizeInBytes; // sizeof(size_t)
-            unsigned char SizeAlignInBytes;
-        };
-
-        /// The size and alignment of the builtin C type 'int'.  This comes
-        /// up enough in various ABI lowering tasks to be worth pre-computing.
-        union {
-            unsigned char IntSizeInBytes;
-            unsigned char IntAlignInBytes;
-        };
-
-        llvm::StructType *ErrorTy;
-
-        llvm::PointerType *ErrorPtrTy;
-
-        llvm::ConstantInt *Zero;
-
     	llvm::SmallVector<SemaFunctionBase *, 8> Functions;
 
         // Stack for tracking break/continue targets in loops and switches
@@ -207,8 +146,8 @@ namespace fly {
 
         SemaFunctionBase *CurrentFunction;
 
-        CodeGenModule(DiagnosticsEngine &Diags, StringRef Name, llvm::LLVMContext &LLVMCtx, TargetInfo &Target,
-                      CodeGenOptions &CGOpts);
+        CodeGenModule(CodeGen &CG, DiagnosticsEngine &Diags, StringRef Name, llvm::LLVMContext &LLVMCtx,
+                      TargetInfo &Target, CodeGenOptions &CGOpts);
 
         virtual ~CodeGenModule();
 

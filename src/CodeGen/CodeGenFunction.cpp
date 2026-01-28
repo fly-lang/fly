@@ -13,6 +13,7 @@
 #include "AST/ASTModule.h"
 #include "AST/ASTType.h"
 #include "Basic/Debug.h"
+#include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenError.h"
 #include "CodeGen/CodeGenModule.h"
 #include "Sema/SemaFunction.h"
@@ -33,7 +34,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
 
     // Generate Params Types
     if (isMain) {
-        RetType = CGM->Int32Ty;
+        RetType = CodeGen::Int32Ty;
     } else {
         GenReturnType();
 
@@ -41,17 +42,17 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
         if (!RetType) {
             CGM->Diag(diag::err_codegen_invalid_type);
             // Use void as fallback to prevent crash
-            RetType = CGM->VoidTy;
+            RetType = CodeGen::VoidTy;
         }
 
         // Add ErrorHandler as first param
-        ParamTypes.push_back(CGM->ErrorPtrTy);
+        ParamTypes.push_back(CodeGen::ErrorPtrTy);
     }
     GenParamTypes(CGM, ParamTypes, Sema);
 
     // Validate all types before creating function
     if (!RetType) {
-        RetType = CGM->VoidTy;
+        RetType = CodeGen::VoidTy;
     }
     for (auto &Ty : ParamTypes) {
         if (!Ty) {
@@ -87,10 +88,10 @@ void CodeGenFunction::GenBody() {
 		// Alloca Function Parameters and Local Vars
 		AllocaLocalVars();
 
-		llvm::Constant *Zero = llvm::ConstantInt::get(CGM->Int32Ty, 0);
-		llvm::Constant *One = llvm::ConstantInt::get(CGM->Int32Ty, 1);
-		llvm::Constant *Two = llvm::ConstantInt::get(CGM->Int32Ty, 2);
-		llvm::Constant *NullPtr = llvm::ConstantPointerNull::get(CGM->Int8Ty->getPointerTo());
+		llvm::Constant *Zero = llvm::ConstantInt::get(CodeGen::Int32Ty, 0);
+		llvm::Constant *One = llvm::ConstantInt::get(CodeGen::Int32Ty, 1);
+		llvm::Constant *Two = llvm::ConstantInt::get(CodeGen::Int32Ty, 2);
+		llvm::Constant *NullPtr = llvm::ConstantPointerNull::get(CodeGen::Int8Ty->getPointerTo());
 
 		// Alloca Error Handler
 		Sema->getErrorHandler()->accept(*CGM);
@@ -99,7 +100,7 @@ void CodeGenFunction::GenBody() {
 		CodeGenError *CGE = Sema->getErrorHandler()->getCodeGen();
 		llvm::Value *ErrorVar = CGE->Load();
 		llvm::Value *PtrType = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, Zero});
-		CGM->Builder->CreateStore(llvm::ConstantInt::get(CGM->Int8Ty, 0), PtrType);
+		CGM->Builder->CreateStore(llvm::ConstantInt::get(CodeGen::Int8Ty, 0), PtrType);
 		llvm::Value *PtrInt = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, One});
 		CGM->Builder->CreateStore(Zero, PtrInt);
 		llvm::Value *PtrPtr = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, Two});
@@ -124,8 +125,8 @@ void CodeGenFunction::GenBody() {
 
     // if is Main check error and return right exit code
     if (isMain) {
-        llvm::Value *Zero32 = llvm::ConstantInt::get(CGM->Int32Ty, 0);
-        llvm::Value *Zero8 = llvm::ConstantInt::get(CGM->Int8Ty, 0);
+        llvm::Value *Zero32 = llvm::ConstantInt::get(CodeGen::Int32Ty, 0);
+        llvm::Value *Zero8 = llvm::ConstantInt::get(CodeGen::Int8Ty, 0);
         // take return value from error struct
         CodeGenError *CGE = Sema->getErrorHandler()->getCodeGen();
         llvm::Value * ErrorHandler = CGE->getValue();

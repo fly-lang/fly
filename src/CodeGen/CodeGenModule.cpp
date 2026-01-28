@@ -67,57 +67,26 @@
 #include <Sema/SemaFunction.h>
 #include <Sema/SemaMember.h>
 #include <Sema/SemaModule.h>
-#include <Sema/SemaNameSpace.h>
 #include <Sema/SemaValue.h>
 #include <llvm/IR/Instructions.h>
 
 using namespace fly;
 
-/// toCharUnitsFromBits - Convert a size in bits to a size in characters.
-CharUnits toCharUnitsFromBits(int64_t BitSize) {
-    return CharUnits::fromQuantity(BitSize / 8);
-}
-
-CodeGenModule::CodeGenModule(DiagnosticsEngine &Diags, StringRef Name, llvm::LLVMContext &LLVMCtx,
+CodeGenModule::CodeGenModule(CodeGen &CG, DiagnosticsEngine &Diags, StringRef Name, llvm::LLVMContext &LLVMCtx,
                              TargetInfo &Target, CodeGenOptions &CGOpts) :
+        CG(CG),
         Diags(Diags),
         Target(Target),
-        Module(new llvm::Module(Name, LLVMCtx)),
         LLVMCtx(LLVMCtx),
+        Module(new llvm::Module(Name, LLVMCtx)),
         Builder(new llvm::IRBuilder<>(LLVMCtx)),
         CGOpts(CGOpts),
         CurrentFunction(nullptr) {
 
-    // Configure Types
-    VoidTy = llvm::Type::getVoidTy(LLVMCtx);
-    BoolTy = llvm::Type::getInt1Ty(LLVMCtx);
-    Int8Ty = llvm::Type::getInt8Ty(LLVMCtx);
-    Int16Ty = llvm::Type::getInt16Ty(LLVMCtx);
-    Int32Ty = llvm::Type::getInt32Ty(LLVMCtx);
-    Int64Ty = llvm::Type::getInt64Ty(LLVMCtx);
-    HalfTy = llvm::Type::getHalfTy(LLVMCtx);
-    BFloatTy = llvm::Type::getBFloatTy(LLVMCtx);
-    FloatTy = llvm::Type::getFloatTy(LLVMCtx);
-    DoubleTy = llvm::Type::getDoubleTy(LLVMCtx);
-
-    Int8PtrTy = Int8Ty->getPointerTo(0);
-    Int8PtrPtrTy = Int8PtrTy->getPointerTo(0);
-
-    PointerWidthInBits = Target.getPointerWidth(0);
-    PointerAlignInBytes = toCharUnitsFromBits(Target.getPointerAlign(0)).getQuantity();
-    SizeSizeInBytes = toCharUnitsFromBits(Target.getMaxPointerWidth()).getQuantity();
-    IntAlignInBytes = toCharUnitsFromBits(Target.getIntAlign()).getQuantity();
-    IntTy = llvm::IntegerType::get(LLVMCtx, Target.getIntWidth());
-    IntPtrTy = llvm::IntegerType::get(LLVMCtx, Target.getMaxPointerWidth());
-    AllocaInt8PtrTy = Int8Ty->getPointerTo(Module->getDataLayout().getAllocaAddrSpace());
-
-	Zero = llvm::ConstantInt::get(Int32Ty, 0);
-
-    ErrorTy = CodeGenError::GenErrorType(LLVMCtx);
-    ErrorPtrTy = llvm::PointerType::get(ErrorTy, 0);
+    // Types are now in CodeGen (CG), no need to initialize them here
 
 	// Add Dummy Global Variable which use the Error Type to be sure that the type is in top of the Module
-	new llvm::GlobalVariable(*Module, ErrorTy, true, llvm::GlobalValue::ExternalLinkage,
+	new llvm::GlobalVariable(*Module, CG.ErrorTy, true, llvm::GlobalValue::ExternalLinkage,
 		nullptr, "error");
 
     // If debug info or coverage generation is enabled, create the CGDebugInfo
@@ -315,7 +284,7 @@ void CodeGenModule::visit(SemaClassInstance &Sema) {
 void CodeGenModule::visit(SemaErrorHandler &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
 		Sema.getType()->accept(*this);
-		llvm::Value *ErrorHandler = Builder->CreateAlloca(ErrorPtrTy);
+		llvm::Value *ErrorHandler = Builder->CreateAlloca(CG.ErrorPtrTy);
 		CodeGenError *CGE = new CodeGenError(this, &Sema, ErrorHandler);
 		Sema.setCodeGen(CGE);
 	}
@@ -652,7 +621,7 @@ void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt) {
 void CodeGenModule::StoreFail(ASTExpr* Expr, CodeGenError *CGE) {
 	// Store Fail value in ErrorHandler
 	if (Expr == nullptr) {
-		CGE->StoreInt(llvm::ConstantInt::get(Int32Ty, 1));
+		CGE->StoreInt(llvm::ConstantInt::get(CG.Int32Ty, 1));
 	} else {
 		Expr->getSema()->accept(*this);
 		llvm::Value *V = Expr->getSema()->getCodeGen()->getValue();

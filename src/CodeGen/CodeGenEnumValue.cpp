@@ -9,6 +9,7 @@
 
 #include "CodeGen/CodeGenEnumValue.h"
 
+#include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "Sema/SemaEnumValue.h"
 
@@ -20,8 +21,8 @@
 
 using namespace fly;
 
-CodeGenEnumValue::CodeGenEnumValue(CodeGenModule *CGM, SemaEnumValue *Sema) : CodeGenExpr(CGM), T(CGM->Int32Ty),
-        Value(llvm::ConstantInt::get(CGM->Int32Ty, Sema->getIndex())) {
+CodeGenEnumValue::CodeGenEnumValue(CodeGenModule *CGM, SemaEnumValue *Sema) : CodeGenExpr(CGM), T(CodeGen::Int32Ty),
+        Value(llvm::ConstantInt::get(CodeGen::Int32Ty, Sema->getIndex())) {
 
 }
 

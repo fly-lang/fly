@@ -8,6 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenType.h"
+
+#include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 
 using namespace fly;
@@ -22,7 +24,7 @@ llvm::Type *CodeGenType::getType() {
 
 void CodeGenType::GenType(SemaBoolType &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
-		T = CGM->BoolTy;
+		T = CodeGen::BoolTy;
 	}
 }
 
@@ -31,19 +33,19 @@ void CodeGenType::GenType(SemaIntType &Sema) {
 		SemaIntTypeKind IntKind = Sema.getIntKind();
 		switch (IntKind) {
 			case SemaIntTypeKind::TYPE_BYTE:
-				T = CGM->Int8Ty;
+				T = CodeGen::Int8Ty;
 				break;
 			case SemaIntTypeKind::TYPE_USHORT:
 			case SemaIntTypeKind::TYPE_SHORT:
-				T = CGM->Int16Ty;
+				T = CodeGen::Int16Ty;
 				break;
 			case SemaIntTypeKind::TYPE_UINT:
 			case SemaIntTypeKind::TYPE_INT:
-				T = CGM->Int32Ty;
+				T = CodeGen::Int32Ty;
 				break;
 			case SemaIntTypeKind::TYPE_ULONG:
 			case SemaIntTypeKind::TYPE_LONG:
-				T = CGM->Int64Ty;
+				T = CodeGen::Int64Ty;
 				break;
 		}
 	}
@@ -54,10 +56,10 @@ void CodeGenType::GenType(SemaFloatType &Sema) {
 		SemaFloatTypeKind FPKind = Sema.getFloatKind();
 		switch (FPKind) {
 			case SemaFloatTypeKind::TYPE_FLOAT:
-				T = CGM->FloatTy;
+				T = CodeGen::FloatTy;
 				break;
 			case SemaFloatTypeKind::TYPE_DOUBLE:
-				T = CGM->DoubleTy;
+				T = CodeGen::DoubleTy;
 				break;
 		}
 	}
@@ -76,18 +78,18 @@ void CodeGenType::GenType(SemaArrayType &Sema) {
 
 void CodeGenType::GenType(SemaErrorType &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
-		T = CGM->ErrorTy;
+		T = CodeGen::ErrorTy;
 	}
 }
 
 void CodeGenType::GenType(SemaVoidType &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
-		T = CGM->VoidTy;
+		T = CodeGen::VoidTy;
 	}
 }
 
 void CodeGenType::GenType(SemaStringType &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
-		T = CGM->Int8PtrTy;
+		T = CodeGen::Int8PtrTy;
 	}
 }

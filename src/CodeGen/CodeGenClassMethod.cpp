@@ -12,6 +12,7 @@
 #include "AST/ASTClass.h"
 #include "AST/ASTFunction.h"
 #include "Basic/Debug.h"
+#include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGenClassMethod.h"
 #include "CodeGen/CodeGenModule.h"
@@ -36,19 +37,19 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
 
     // Generate return type
 	if (Sema->isConstructor()) {
-		RetType = CGM->VoidTy;
+		RetType = CodeGen::VoidTy;
 	} else {
 		GenReturnType();
 		// Validate return type
 		if (!RetType) {
 			CGM->Diag(diag::err_codegen_invalid_type);
-			RetType = CGM->VoidTy;
+			RetType = CodeGen::VoidTy;
 		}
 	}
 
     // Add ErrorHandler to params, Struct doesn't use ErrorHandler
     if (Class->getAST().getClassKind() != ASTClassKind::STRUCT) {
-        ParamTypes.push_back(CGM->ErrorPtrTy);
+        ParamTypes.push_back(CodeGen::ErrorPtrTy);
     }
 
     // Add the class type pointer to the params

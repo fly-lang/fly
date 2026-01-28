@@ -11,6 +11,7 @@
 
 #include "AST/ASTExpr.h"
 #include "AST/ASTName.h"
+#include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenVar.h"
 #include "Sema/SemaClassType.h"
@@ -78,7 +79,7 @@ void CodeGenClass::CreateVTable() {
 	    Sema->getClassKind() == SemaClassKind::INTERFACE) {
 
 		// VTable is the first element of the class type body
-		BodyType.push_back(CGM->Int8PtrPtrTy);
+		BodyType.push_back(CodeGen::Int8PtrPtrTy);
 
 		// --- Dynamic calculate offset-to-top per Class ---
 
@@ -86,13 +87,13 @@ void CodeGenClass::CreateVTable() {
 		// llvm::ConstantPointerNull *NullPtr = llvm::ConstantPointerNull::get(TypePtr);
 
 		// Calculate GEP on NullPtr
-		// llvm::Constant *GEP = llvm::ConstantExpr::getGetElementPtr(Type, NullPtr, CGM->Zero);
+		// llvm::Constant *GEP = llvm::ConstantExpr::getGetElementPtr(Type, NullPtr, CodeGen::Zero);
 
 		// Convert int to ptr
 		// i8* inttoptr (i64 0 to i8*), ; offset-to-top = 0
 		// FIXME
-		llvm::ConstantInt *OffsetInt = llvm::ConstantInt::get(CGM->Int64Ty, 0);
-		llvm::Constant *OffsetToTop = llvm::ConstantExpr::getIntToPtr(OffsetInt, CGM->Int8PtrTy);
+		llvm::ConstantInt *OffsetInt = llvm::ConstantInt::get(CodeGen::Int64Ty, 0);
+		llvm::Constant *OffsetToTop = llvm::ConstantExpr::getIntToPtr(OffsetInt, CodeGen::Int8PtrTy);
 
 		// Create the VTable Initializer
 		VTableArrayValues.push_back(OffsetToTop); // First is the OffsetType
@@ -139,12 +140,12 @@ void CodeGenClass::CreateVTable() {
 
 		// Add Null Function Pointer for each method in VTable
 		for (CodeGenClassMethod *Method : Methods) {
-			llvm::Constant * MethodIntPtr = llvm::ConstantExpr::getBitCast(Method->getFunction(), CGM->Int8PtrTy);
+			llvm::Constant * MethodIntPtr = llvm::ConstantExpr::getBitCast(Method->getFunction(), CodeGen::Int8PtrTy);
 			VTableArrayValues.push_back(MethodIntPtr);
 		}
 
 		// Create an array of i8**
-		llvm::ArrayType *ArrayOfInt8Ptr = llvm::ArrayType::get(CGM->Int8PtrTy, VTableArrayValues.size());
+		llvm::ArrayType *ArrayOfInt8Ptr = llvm::ArrayType::get(CodeGen::Int8PtrTy, VTableArrayValues.size());
 
 		// Create the VTable Constant Struct Value
 		llvm::Constant *ArrayValue = llvm::ConstantArray::get(ArrayOfInt8Ptr, VTableArrayValues);
@@ -235,16 +236,16 @@ void CodeGenClass::GenInitConstructorBody() {
 	if (Sema->getClassKind() == SemaClassKind::CLASS || Sema->getClassKind() == SemaClassKind::INTERFACE) {
 
 		// Store the VTable pointer into the instance
-		llvm::Value * VTablePtr = CGM->Builder->CreateInBoundsGEP(Type, Load,  {CGM->Zero, CGM->Zero});
-		llvm::Value * VTableBitCast = CGM->Builder->CreateBitCast(VTable, CGM->Int8PtrPtrTy);
+		llvm::Value * VTablePtr = CGM->Builder->CreateInBoundsGEP(Type, Load,  {CodeGen::Zero, CodeGen::Zero});
+		llvm::Value * VTableBitCast = CGM->Builder->CreateBitCast(VTable, CodeGen::Int8PtrPtrTy);
 		CGM->Builder->CreateStore(VTableBitCast, VTablePtr);
 
 		// Call InitConstructor of all base classes
 		size_t BaseIndex = 1; // Start at 1 because 0 is the vtable pointer
 		for (auto &Base : Sema->getBaseClasses()) {
 			if (Base->getClassKind() == SemaClassKind::CLASS) {
-				llvm::ConstantInt *Index = llvm::ConstantInt::get(CGM->Int32Ty, BaseIndex); // Get th index from GlobalVariable of Vtable
-				llvm::Value *BaseInstancePtr = CGM->Builder->CreateInBoundsGEP(Type, Load, {CGM->Zero, Index});
+				llvm::ConstantInt *Index = llvm::ConstantInt::get(CodeGen::Int32Ty, BaseIndex); // Get th index from GlobalVariable of Vtable
+				llvm::Value *BaseInstancePtr = CGM->Builder->CreateInBoundsGEP(Type, Load, {CodeGen::Zero, Index});
 				CGM->Builder->CreateCall(Base->getCodeGen()->getInitConstructor(), {BaseInstancePtr});
 			}
 			BaseIndex ++;
@@ -259,7 +260,7 @@ void CodeGenClass::GenInitConstructorBody() {
 		// llvm::Value *V = CGM->GenExpr(Attr->getExpr());
 
 		// llvm::ArrayRef<llvm::Value *> IdxList = {
-		// 	CGM->Zero, llvm::ConstantInt::get(CGM->Int32Ty, Attr->getCodeGen()->getIndex())};
+		// 	CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Attr->getCodeGen()->getIndex())};
 		// llvm::Value *Pointer = CGM->Builder->CreateInBoundsGEP(Type, Load, IdxList);
 		// CGM->Builder->CreateStore(V, Pointer);
 	}
@@ -296,9 +297,9 @@ llvm::Value *CodeGenClass::getBaseInstance(llvm::Value *InstancePtr, SemaClassTy
 	size_t BaseIndex = 1; // Start at 1 because 0 is the vtable pointer
 	for (auto &B : Sema->getBaseClasses()) {
 		if (Base->isEquals(B)) {
-			llvm::ConstantInt *Index = llvm::ConstantInt::get(CGM->Int32Ty, BaseIndex);
+			llvm::ConstantInt *Index = llvm::ConstantInt::get(CodeGen::Int32Ty, BaseIndex);
 			// TODO search into base classes of base classes
-			return CGM->Builder->CreateInBoundsGEP(Type, InstancePtr, {CGM->Zero, Index});
+			return CGM->Builder->CreateInBoundsGEP(Type, InstancePtr, {CodeGen::Zero, Index});
 
 			// return llvm::ConstantExpr::getGetElementPtr(Type, InstancePtr, B->Index);
 

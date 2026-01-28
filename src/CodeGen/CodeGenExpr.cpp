@@ -83,10 +83,10 @@ void CodeGenExpr::GenExpr(SemaFloatValue *Sema) {
 	SemaFloatTypeKind FPKind = static_cast<SemaFloatType *>(Type)->getFloatKind();
 	switch (FPKind) {
 		case SemaFloatTypeKind::TYPE_FLOAT:
-			V = llvm::ConstantFP::get(CGM->FloatTy, Sema->getValue());
+			V = llvm::ConstantFP::get(CodeGen::FloatTy, Sema->getValue());
 			break;
 		case SemaFloatTypeKind::TYPE_DOUBLE:
-			V = llvm::ConstantFP::get(CGM->DoubleTy, Sema->getValue());
+			V = llvm::ConstantFP::get(CodeGen::DoubleTy, Sema->getValue());
 			break;
 	}
 }
@@ -106,16 +106,16 @@ void CodeGenExpr::GenExpr(SemaArrayValue *Sema) {
 	}
 
 	// Calculate Space
-	llvm::Value* AllocSize = llvm::ConstantInt::get(CGM->IntPtrTy, 0);
+	llvm::Value* AllocSize = llvm::ConstantInt::get(CodeGen::IntPtrTy, 0);
 	if (Values.size() > 0) {
-		llvm::Value* NumElements = llvm::ConstantInt::get(CGM->IntPtrTy, Values.size());
+		llvm::Value* NumElements = llvm::ConstantInt::get(CodeGen::IntPtrTy, Values.size());
 		llvm::TypeSize SizeInBytes = CGM->Target.getDataLayout().getTypeAllocSize(Values[0]->getType());
-		llvm::Value* ElementSize = llvm::ConstantInt::get(CGM->IntPtrTy, SizeInBytes); // sizeof(int32)
+		llvm::Value* ElementSize = llvm::ConstantInt::get(CodeGen::IntPtrTy, SizeInBytes); // sizeof(int32)
 		AllocSize = Builder->CreateMul(NumElements, ElementSize);
 	}
 
 	// @malloc data type struct
-	llvm::Instruction *I = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), CGM->IntPtrTy,
+	llvm::Instruction *I = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), CodeGen::IntPtrTy,
 												  ElementType, AllocSize, nullptr, nullptr);
 	V = Builder->Insert(I);
 }
@@ -258,7 +258,7 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     		// %fn1_ptr = getelementptr i8*, i8** %vptr1, i64 1
     		// %fn1_i8 = load i8*, i8** %fn1_ptr
     		// %fn1 = bitcast i8* %fn1_i8 to void (%class.Base1*)*
-    		llvm::Value * FuncPtrPtr = Builder->CreateGEP(CGM->Int8PtrTy, VTablePtr, llvm::ConstantInt::get(CGM->Int64Ty, Method->getCodeGen()->getIndex()));
+    		llvm::Value * FuncPtrPtr = Builder->CreateGEP(CodeGen::Int8PtrTy, VTablePtr, llvm::ConstantInt::get(CodeGen::Int64Ty, Method->getCodeGen()->getIndex()));
     		FuncPtr = Builder->CreateLoad(FuncPtrPtr);
 			FuncPtr = Builder->CreateBitCast(FuncPtr, Method->getCodeGen()->getFunction()->getType());
 
@@ -349,29 +349,29 @@ void CodeGenExpr::GenExpr(SemaUnary *Sema) {
     switch (Unary.getOpKind()) {
 
         case ASTUnaryKind::OP_UNARY_PRE_INCR: {
-            llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
+            llvm::Value *RHS = llvm::ConstantInt::get(CodeGen::Int32Ty, 1);
             NewVal = Builder->CreateNSWAdd(OldVal, RHS);
             V = NewVal;
         } break;
         case ASTUnaryKind::OP_UNARY_POST_INCR: {
-            llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, 1);
+            llvm::Value *RHS = llvm::ConstantInt::get(CodeGen::Int32Ty, 1);
             NewVal = Builder->CreateNSWAdd(OldVal, RHS);
             V = OldVal;
         } break;
         case ASTUnaryKind::OP_UNARY_PRE_DECR: {
-            llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
+            llvm::Value *RHS = llvm::ConstantInt::get(CodeGen::Int32Ty, -1, true);
             NewVal = Builder->CreateNSWAdd(OldVal, RHS);
         	V = NewVal;
         } break;
         case ASTUnaryKind::OP_UNARY_POST_DECR: {
-            llvm::Value *RHS = llvm::ConstantInt::get(CGM->Int32Ty, -1, true);
+            llvm::Value *RHS = llvm::ConstantInt::get(CodeGen::Int32Ty, -1, true);
             NewVal = Builder->CreateNSWAdd(OldVal, RHS);
         	V = NewVal;
         } break;
         case ASTUnaryKind::OP_UNARY_NOT_LOG: {
-	        OldVal = Builder->CreateTrunc(OldVal, CGM->BoolTy);
+	        OldVal = Builder->CreateTrunc(OldVal, CodeGen::BoolTy);
         	OldVal = Builder->CreateXor(OldVal, true);
-        	V = Builder->CreateZExt(OldVal, CGM->Int8Ty);
+        	V = Builder->CreateZExt(OldVal, CodeGen::Int8Ty);
         } break;
     }
 
@@ -446,7 +446,7 @@ void CodeGenExpr::GenExpr(SemaTernary *Sema) {
 
 	// End Label
 	Builder->SetInsertPoint(EndBB);
-	llvm::PHINode *Phi = Builder->CreatePHI(CGM->BoolTy, 2);
+	llvm::PHINode *Phi = Builder->CreatePHI(CodeGen::BoolTy, 2);
 	Phi->addIncoming(BoolTrue, TrueBB);
 	Phi->addIncoming(BoolFalse, FalseBB);
 	V = Phi;
@@ -603,8 +603,8 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKin
 
             // Right Branch
             Builder->SetInsertPoint(RightBB);
-            llvm::PHINode *Phi = Builder->CreatePHI(CGM->BoolTy, 2);
-            Phi->addIncoming(llvm::ConstantInt::get(CGM->BoolTy, false, false), FromBB);
+            llvm::PHINode *Phi = Builder->CreatePHI(CodeGen::BoolTy, 2);
+            Phi->addIncoming(llvm::ConstantInt::get(CodeGen::BoolTy, false, false), FromBB);
             Phi->addIncoming(V2, LeftBB);
             return Phi;
         }
@@ -622,8 +622,8 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKin
 
             // Right Branch
             Builder->SetInsertPoint(RightBB);
-            llvm::PHINode *Phi = Builder->CreatePHI(CGM->BoolTy, 2);
-            Phi->addIncoming(llvm::ConstantInt::get(CGM->BoolTy, true, false), FromBB);
+            llvm::PHINode *Phi = Builder->CreatePHI(CodeGen::BoolTy, 2);
+            Phi->addIncoming(llvm::ConstantInt::get(CodeGen::BoolTy, true, false), FromBB);
             Phi->addIncoming(V2, LeftBB);
             return Phi;
         }
@@ -679,7 +679,7 @@ llvm::Value *CodeGenExpr::ConvertToBool(llvm::Value *V) {
 			llvm::Value *ZERO = llvm::ConstantInt::get(V->getType(), 0);
 			return Builder->CreateICmpNE(V, ZERO);
 		}
-		return Builder->CreateTrunc(V, CGM->BoolTy);
+		return Builder->CreateTrunc(V, CodeGen::BoolTy);
 	}
 	if (V->getType()->isFloatingPointTy()) {
 		llvm::Value *ZERO = llvm::ConstantFP::get(V->getType(), 0);
@@ -695,7 +695,7 @@ llvm::Value *CodeGenExpr::ConvertToBool(llvm::Value *V) {
 	}
 
 	// default 0
-	return llvm::ConstantInt::get(CGM->BoolTy, 0, false);
+	return llvm::ConstantInt::get(CodeGen::BoolTy, 0, false);
 }
 
 llvm::Value *CodeGenExpr::ConvertNumber(llvm::Value *V, SemaNumberType *Ty) {
@@ -713,28 +713,28 @@ llvm::Value *CodeGenExpr::ConvertToInteger(llvm::Value *V, SemaIntType *Ty) {
 		switch (Ty->getIntKind()) {
 
 			case SemaIntTypeKind::TYPE_BYTE:
-				return Builder->CreateTrunc(V, CGM->Int8Ty);
+				return Builder->CreateTrunc(V, CodeGen::Int8Ty);
 
 			case SemaIntTypeKind::TYPE_USHORT:
 			case SemaIntTypeKind::TYPE_SHORT:
-				if (V->getType() == CGM->Int8Ty) {
-					return Builder->CreateZExt(V, CGM->Int16Ty);
+				if (V->getType() == CodeGen::Int8Ty) {
+					return Builder->CreateZExt(V, CodeGen::Int16Ty);
 				}
-				return Builder->CreateTrunc(V, CGM->Int16Ty);
+				return Builder->CreateTrunc(V, CodeGen::Int16Ty);
 
 			case SemaIntTypeKind::TYPE_UINT:
 			case SemaIntTypeKind::TYPE_INT:
-				if (V->getType() == CGM->Int8Ty || V->getType() == CGM->Int16Ty) {
-					return Ty->isSigned() ? Builder->CreateSExt(V, CGM->Int32Ty) :
-						   Builder->CreateZExt(V, CGM->Int32Ty);
+				if (V->getType() == CodeGen::Int8Ty || V->getType() == CodeGen::Int16Ty) {
+					return Ty->isSigned() ? Builder->CreateSExt(V, CodeGen::Int32Ty) :
+						   Builder->CreateZExt(V, CodeGen::Int32Ty);
 				}
-				return Builder->CreateTrunc(V, CGM->Int32Ty);
+				return Builder->CreateTrunc(V, CodeGen::Int32Ty);
 
 			case SemaIntTypeKind::TYPE_ULONG:
 			case SemaIntTypeKind::TYPE_LONG:
-				if (V->getType() == CGM->Int8Ty || V->getType() == CGM->Int16Ty || V->getType() == CGM->Int32Ty) {
-					return Ty->isSigned() ? Builder->CreateSExt(V, CGM->Int64Ty) :
-						   Builder->CreateZExt(V, CGM->Int64Ty);
+				if (V->getType() == CodeGen::Int8Ty || V->getType() == CodeGen::Int16Ty || V->getType() == CodeGen::Int32Ty) {
+					return Ty->isSigned() ? Builder->CreateSExt(V, CodeGen::Int64Ty) :
+						   Builder->CreateZExt(V, CodeGen::Int64Ty);
 				}
 				break;
 		}
@@ -744,22 +744,22 @@ llvm::Value *CodeGenExpr::ConvertToInteger(llvm::Value *V, SemaIntType *Ty) {
 		switch (Ty->getIntKind()) {
 
 			case SemaIntTypeKind::TYPE_BYTE:
-				return Builder->CreateFPToUI(V, CGM->Int8Ty);
+				return Builder->CreateFPToUI(V, CodeGen::Int8Ty);
 
 			case SemaIntTypeKind::TYPE_USHORT:
 			case SemaIntTypeKind::TYPE_SHORT:
-				return Ty->isSigned() ? Builder->CreateFPToSI(V, CGM->Int16Ty) :
-					   Builder->CreateFPToUI(V, CGM->Int16Ty);
+				return Ty->isSigned() ? Builder->CreateFPToSI(V, CodeGen::Int16Ty) :
+					   Builder->CreateFPToUI(V, CodeGen::Int16Ty);
 
 			case SemaIntTypeKind::TYPE_UINT:
 			case SemaIntTypeKind::TYPE_INT:
-				return Ty->isSigned() ? Builder->CreateFPToSI(V, CGM->Int32Ty) :
-					   Builder->CreateFPToUI(V, CGM->Int32Ty);
+				return Ty->isSigned() ? Builder->CreateFPToSI(V, CodeGen::Int32Ty) :
+					   Builder->CreateFPToUI(V, CodeGen::Int32Ty);
 
 			case SemaIntTypeKind::TYPE_ULONG:
 			case SemaIntTypeKind::TYPE_LONG:
-				return Ty->isSigned() ? Builder->CreateFPToSI(V, CGM->Int64Ty) :
-					   Builder->CreateFPToUI(V, CGM->Int64Ty);
+				return Ty->isSigned() ? Builder->CreateFPToSI(V, CodeGen::Int64Ty) :
+					   Builder->CreateFPToUI(V, CodeGen::Int64Ty);
 		}
 	}
 }
@@ -769,10 +769,10 @@ llvm::Value *CodeGenExpr::ConvertToFloat(llvm::Value *V, SemaFloatType *Ty) {
 		switch (Ty->getFloatKind()) {
 
 			case SemaFloatTypeKind::TYPE_FLOAT:
-				return Builder->CreateFPCast(V, CGM->FloatTy);
+				return Builder->CreateFPCast(V, CodeGen::FloatTy);
 
 			case SemaFloatTypeKind::TYPE_DOUBLE:
-				return Builder->CreateFPCast(V, CGM->DoubleTy);
+				return Builder->CreateFPCast(V, CodeGen::DoubleTy);
 		}
 	}
 	if (V->getType()->isIntegerTy()) {

@@ -17,6 +17,7 @@
 #include "CodeGen/CharUnits.h"
 #include "CodeGen/CodeGenHeader.h"
 #include "CodeGen/CodeGenModule.h"
+#include "CodeGen/CodeGenError.h"
 #include "Frontend/FrontendOptions.h"
 #include "Sema/SemaModule.h"
 #include "Sema/SemaNameSpace.h"
@@ -24,7 +25,44 @@
 #include <Sema/SymbolTable.h>
 #include <llvm/IR/LLVMContext.h>
 
+
 using namespace fly;
+
+/// toCharUnitsFromBits - Convert a size in bits to a size in characters.
+CharUnits toCharUnitsFromBits(int64_t BitSize) {
+    return CharUnits::fromQuantity(BitSize / 8);
+}
+// Define static members
+llvm::Type *CodeGen::VoidTy = nullptr;
+llvm::IntegerType *CodeGen::BoolTy = nullptr;
+llvm::IntegerType *CodeGen::Int8Ty = nullptr;
+llvm::IntegerType *CodeGen::Int16Ty = nullptr;
+llvm::IntegerType *CodeGen::Int32Ty = nullptr;
+llvm::IntegerType *CodeGen::Int64Ty = nullptr;
+llvm::Type *CodeGen::HalfTy = nullptr;
+llvm::Type *CodeGen::BFloatTy = nullptr;
+llvm::Type *CodeGen::FloatTy = nullptr;
+llvm::Type *CodeGen::DoubleTy = nullptr;
+llvm::IntegerType *CodeGen::IntTy = nullptr;
+llvm::IntegerType *CodeGen::IntPtrTy = nullptr;
+llvm::IntegerType *CodeGen::SizeTy = nullptr;
+llvm::IntegerType *CodeGen::PtrDiffTy = nullptr;
+llvm::PointerType *CodeGen::VoidPtrTy = nullptr;
+llvm::PointerType *CodeGen::Int8PtrTy = nullptr;
+llvm::PointerType *CodeGen::VoidPtrPtrTy = nullptr;
+llvm::PointerType *CodeGen::Int8PtrPtrTy = nullptr;
+llvm::PointerType *CodeGen::AllocaVoidPtrTy = nullptr;
+llvm::PointerType *CodeGen::AllocaInt8PtrTy = nullptr;
+unsigned char CodeGen::PointerWidthInBits = 0;
+unsigned char CodeGen::PointerAlignInBytes = 0;
+unsigned char CodeGen::PointerSizeInBytes = 0;
+unsigned char CodeGen::SizeSizeInBytes = 0;
+unsigned char CodeGen::SizeAlignInBytes = 0;
+unsigned char CodeGen::IntSizeInBytes = 0;
+unsigned char CodeGen::IntAlignInBytes = 0;
+llvm::StructType *CodeGen::ErrorTy = nullptr;
+llvm::PointerType *CodeGen::ErrorPtrTy = nullptr;
+llvm::ConstantInt *CodeGen::Zero = nullptr;
 
 CodeGen::CodeGen(DiagnosticsEngine &Diags,
                  llvm::LLVMContext &LLVMCtx,
@@ -38,6 +76,47 @@ CodeGen::CodeGen(DiagnosticsEngine &Diags,
         Target(CreateTargetInfo(Diags, TargetOpts)),
         ActionKind(BackendAction),
         ShowTimers(ShowTimers) {
+
+    // Always (re)initialize static types with the current LLVMContext
+    // This is important for testing where context may be recreated per test
+    InitializeTypes(LLVMCtx, *Target);
+}
+
+void CodeGen::InitializeTypes(llvm::LLVMContext &LLVMCtx, TargetInfo &Target) {
+    // Configure Types
+    VoidTy = llvm::Type::getVoidTy(LLVMCtx);
+    BoolTy = llvm::Type::getInt1Ty(LLVMCtx);
+    Int8Ty = llvm::Type::getInt8Ty(LLVMCtx);
+    Int16Ty = llvm::Type::getInt16Ty(LLVMCtx);
+    Int32Ty = llvm::Type::getInt32Ty(LLVMCtx);
+    Int64Ty = llvm::Type::getInt64Ty(LLVMCtx);
+    HalfTy = llvm::Type::getHalfTy(LLVMCtx);
+    BFloatTy = llvm::Type::getBFloatTy(LLVMCtx);
+    FloatTy = llvm::Type::getFloatTy(LLVMCtx);
+    DoubleTy = llvm::Type::getDoubleTy(LLVMCtx);
+
+    Int8PtrTy = Int8Ty->getPointerTo(0);
+    VoidPtrTy = Int8PtrTy;  // void* is same as i8*
+    Int8PtrPtrTy = Int8PtrTy->getPointerTo(0);
+    VoidPtrPtrTy = Int8PtrPtrTy;  // void** is same as i8**
+
+    // Configure platform-specific types
+    PointerWidthInBits = Target.getPointerWidth(0);
+    PointerAlignInBytes = toCharUnitsFromBits(Target.getPointerAlign(0)).getQuantity();
+    PointerSizeInBytes = PointerAlignInBytes;
+    SizeSizeInBytes = toCharUnitsFromBits(Target.getMaxPointerWidth()).getQuantity();
+    SizeAlignInBytes = SizeSizeInBytes;
+    IntAlignInBytes = toCharUnitsFromBits(Target.getIntAlign()).getQuantity();
+    IntSizeInBytes = IntAlignInBytes;
+    IntTy = llvm::IntegerType::get(LLVMCtx, Target.getIntWidth());
+    IntPtrTy = llvm::IntegerType::get(LLVMCtx, Target.getMaxPointerWidth());
+    SizeTy = IntPtrTy;  // size_t is same as intptr_t
+    PtrDiffTy = IntPtrTy;  // ptrdiff_t is same as intptr_t
+
+    Zero = llvm::ConstantInt::get(Int32Ty, 0);
+
+    ErrorTy = CodeGenError::GenErrorType(LLVMCtx);
+    ErrorPtrTy = llvm::PointerType::get(ErrorTy, 0);
 }
 
 std::string CodeGen::getOutputFileName(llvm::StringRef BaseInput) {
@@ -116,7 +195,7 @@ llvm::SmallVector<llvm::Module *, 8> CodeGen::GenerateModules(llvm::SmallVector<
 	llvm::SmallVector<CodeGenModule *, 8> CodeGenModules;
     for (auto &Sema : SemaModules) {
         Diags.getClient()->BeginSourceFile();
-    	CodeGenModule *CGM = new CodeGenModule(Diags, Sema->getName(), LLVMCtx, *Target, CodeGenOpts);
+    	CodeGenModule *CGM = new CodeGenModule(*this, Diags, Sema->getName(), LLVMCtx, *Target, CodeGenOpts);
     	Sema->accept(*CGM);
         Diags.getClient()->EndSourceFile();
     	// Transfer ownership: get the Module pointer and null it out in CodeGenModule
@@ -127,7 +206,9 @@ llvm::SmallVector<llvm::Module *, 8> CodeGen::GenerateModules(llvm::SmallVector<
     }
 
 	// Clean up CodeGenModule objects (they no longer own the Modules)
-	CodeGenModules.clear();
+	for (auto *CGM : CodeGenModules) {
+		delete CGM;
+	}
 
 	FLY_DEBUG_END("CodeGen", "GenerateModules");
     return Modules;
