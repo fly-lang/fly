@@ -84,10 +84,7 @@ bool Frontend::Execute() {
             CG.Emit(M, M->getName());
         }
 
-    	// Delete generated modules (before LLVMCtx goes out of scope)
-    	for (auto M : Modules) {
-    		delete M;
-    	}
+    	// Clean up generated modules
     	Modules.clear();
 
     	// FIXME: Generate Headers

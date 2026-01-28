@@ -20,11 +20,11 @@ class TestUtils {
 
 public:
 
-    static CodeGen *CreateCodeGen(const CompilerInstance &CI, llvm::LLVMContext &LLVMCtx) {
+    static CodeGen CreateCodeGen(const CompilerInstance &CI, llvm::LLVMContext &LLVMCtx) {
         CI.getTargetOptions()->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
         CI.getTargetOptions()->CodeModel = "default";
-        return new CodeGen(CI.getDiagnostics(), LLVMCtx, CI.getCodeGenOptions(), CI.getTargetOptions(),
-                           CI.getFrontendOptions().BackendAction);
+        return std::move(CodeGen(CI.getDiagnostics(), LLVMCtx, CI.getCodeGenOptions(), CI.getTargetOptions(),
+                           CI.getFrontendOptions().BackendAction));
     }
 
     static std::shared_ptr<CompilerInstance> CreateCompilerInstance() {

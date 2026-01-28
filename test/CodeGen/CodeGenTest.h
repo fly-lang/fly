@@ -42,7 +42,7 @@ class CodeGenTest : public ::testing::Test {
 public:
     static std::shared_ptr<CompilerInstance> CI;
     llvm::LLVMContext LLVMCtx;  // Static context outlives all tests
-    CodeGen *CG;
+    CodeGen CG;
     DiagnosticsEngine &Diags;
 	ASTBuilder *Builder;
     SemaContext *S;

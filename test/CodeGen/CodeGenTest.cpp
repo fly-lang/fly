@@ -72,7 +72,6 @@ CodeGenTest::~CodeGenTest() {
     ASTModules.clear();
     delete Builder;
     delete S;
-    delete CG;
 }
 
 // Create a new AST module for testing
@@ -111,7 +110,7 @@ void CodeGenTest::Generate() {
     SmallVector<SemaModule *, 8> SemaModules = S->Resolve(ASTModules);
     ASSERT_FALSE(Diags.hasErrorOccurred());
     ASSERT_FALSE(SemaModules.empty());
-    Modules = CG->GenerateModules(SemaModules);
+    Modules = CG.GenerateModules(SemaModules);
     EXPECT_FALSE(Diags.hasErrorOccurred());
 }
 
