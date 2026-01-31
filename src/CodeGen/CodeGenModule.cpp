@@ -477,11 +477,15 @@ void CodeGenModule::GenStmt(ASTStmt * Stmt) {
 void CodeGenModule::GenStmtDecl(ASTDeclStmt *DeclStmt) {
 	FLY_DEBUG_START("CodeGenModule", "GenStmtDecl");
 
+	// Get the CodeGenVar for the Local Variable
+	CodeGenVar *CGV = DeclStmt->getLocalVar()->getSema()->getCodeGen();
+
 	// Declaration may be with initialization
 	if (DeclStmt->getExpr()) {
 		DeclStmt->getExpr()->getSema()->accept(*this);
+		// llvm::Value *V = DeclStmt->getExpr()->getSema()->getCodeGen()->getValue();
+		// CGV->Store(V);
 	} else {
-		CodeGenVar *CGV = DeclStmt->getLocalVar()->getSema()->getCodeGen();
 		CGV->StoreDefaultValue();
 	}
 

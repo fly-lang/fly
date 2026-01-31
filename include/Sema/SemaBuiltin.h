@@ -10,6 +10,8 @@
 #ifndef FLY_SEMA_BUILTIN_H
 #define FLY_SEMA_BUILTIN_H
 
+#include <cstdint>
+
 namespace fly {
 
     class SemaType;
@@ -17,7 +19,7 @@ namespace fly {
     class SemaFloatType;
     class SemaErrorType;
     class SemaArrayType;
-    class ASTExpr;
+    class SemaExpr;
 
     /**
      * AST Context
@@ -79,7 +81,9 @@ namespace fly {
 
         static SemaErrorType * getErrorType();
 
-        static SemaArrayType * CreateArrayType(SemaType *Type, ASTExpr *SizeExpr = nullptr);
+        static SemaArrayType * CreateArrayType(SemaType *Type, SemaExpr *SizeExpr);
+
+    	static SemaArrayType * CreateArrayType(SemaType *Type, std::uint64_t Size);
 
     };
 }

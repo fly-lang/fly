@@ -169,7 +169,7 @@ bool SemaValidator::CheckEqualTypes(SemaType *Type1, SemaType *Type2) {
         if (Type1->isArray()) {
         	SemaArrayType *ArrayType1 = static_cast<SemaArrayType *>(Type1);
         	SemaArrayType *ArrayType2 = static_cast<SemaArrayType *>(Type2);
-            return CheckEqualTypes(ArrayType1->getType(), ArrayType2->getType());
+            return CheckEqualTypes(ArrayType1->getElementType(), ArrayType2->getElementType());
         }
 
         return Type1->getId() == Type2->getId();
@@ -201,7 +201,7 @@ bool SemaValidator::CheckConvertibleTypes(SemaType *FromType, SemaType *ToType) 
     if (FromType->isArray() && ToType->isArray()) {
     	SemaArrayType *FromArrayType = static_cast<SemaArrayType *>(FromType);
     	SemaArrayType *ToArrayType = static_cast<SemaArrayType *>(ToType);
-    	return CheckConvertibleTypes(FromArrayType->getType(), ToArrayType->getType());
+    	return CheckConvertibleTypes(FromArrayType->getElementType(), ToArrayType->getElementType());
     }
 
     // Check Enum name is equals
@@ -404,7 +404,11 @@ bool SemaValidator::CheckBinary(ASTBinary &AST) {
 				  << RightType->getName();
 				return false;
 			}
-			return CheckEqualTypes(LeftType, RightType);
+
+			// Check Element Types
+			SemaArrayType *LeftArrayType = static_cast<SemaArrayType *>(LeftType);
+			SemaArrayType *RightArrayType = static_cast<SemaArrayType *>(RightType);
+			return CheckEqualTypes(LeftArrayType->getElementType(), RightArrayType->getElementType());
 		}
 
 		if (LeftType->isClass()) {

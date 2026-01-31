@@ -66,16 +66,27 @@ llvm::StoreInst *CodeGenVar::StoreDefaultValue() {
 			DefaultValue = llvm::ConstantInt::get(T, 0);
 			break;
 		case llvm::Type::FloatTyID:
-			DefaultValue = llvm::ConstantFP::get(T, 0.0);
-			break;
 		case llvm::Type::DoubleTyID:
 			DefaultValue = llvm::ConstantFP::get(T, 0.0);
 			break;
 		case llvm::Type::PointerTyID:
+			// Strings and dynamic arrays default to nullptr
 			DefaultValue = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(T));
 			break;
-		case llvm::Type::ArrayTyID:
+		case llvm::Type::ArrayTyID: {
+			// Fixed-size arrays: initialize with zeros
+			llvm::ArrayType *ArrayTy = llvm::cast<llvm::ArrayType>(T);
+			if (ArrayTy->getNumElements() > 0) {
+				// Initialize all elements to zero/null
+				DefaultValue = llvm::Constant::getNullValue(ArrayTy);
+			} else {
+				// Zero-sized arrays should not be initialized
+				return nullptr;
+			}
+			break;
+		}
 		case llvm::Type::StructTyID:
+			// Structs default to null value (all fields initialized to zero)
 			DefaultValue = llvm::Constant::getNullValue(T);
 			break;
 		default:

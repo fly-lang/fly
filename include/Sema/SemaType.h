@@ -164,17 +164,27 @@ namespace fly {
 
     class SemaArrayType : public SemaType {
 
-        SemaType *Type;
+        SemaType *ElementType;
 
-        ASTExpr *SizeExpr;
+    	uint64_t Size;
+
+        SemaExpr *SizeExpr;
 
     public:
 
-        explicit SemaArrayType(SemaType *Type, ASTExpr *SizeExpr = nullptr);
+        explicit SemaArrayType(SemaType *ElementType, SemaExpr *SizeExpr);
+
+		explicit SemaArrayType(SemaType *Type, uint64_t Size);
 
         ~SemaArrayType() override = default;
 
-        SemaType *getType();
+        SemaType *getElementType();
+
+    	void setElementType(SemaType *ElementType);
+
+		SemaExpr *getSizeExpr();
+
+    	uint64_t getSize() const;
 
         void accept(SemaVisitor& Visitor) override;
 

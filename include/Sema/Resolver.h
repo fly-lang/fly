@@ -106,6 +106,8 @@ namespace fly {
 
     	Symbol *CurrentSymbol = nullptr;
 
+    	// llvm::SmallVector<ASTNumberValue *, 8> UntypedNumValues;
+
     public:
 
         Resolver(DiagnosticsEngine &Diags, Registry &Reg);
@@ -155,7 +157,7 @@ namespace fly {
         void visit(ASTMember& AST) override;
         void visit(ASTCall &AST) override;
         void visit(ASTUnary &AST) override;
-        void visit(ASTBinary &AST) override;
+		void visit(ASTBinary &AST) override;
         void visit(ASTTernary &AST) override;
         void visit(ASTCast &AST) override;
         void visit(ASTBoolValue &AST) override;
@@ -164,7 +166,6 @@ namespace fly {
         void visit(ASTArrayValue &AST) override;
         void visit(ASTStructValue &AST) override;
         void visit(ASTNullValue &AST) override;
-        void visit(ASTDefaultValue &AST) override;
     	void visit(ASTEnumValue &AST) override;
 
         // Main Resolve Function
@@ -200,6 +201,10 @@ namespace fly {
     	SmallVector<SemaType *, 8> ResolveCallArgs(ASTCall *AST);
 
     	SmallVector<SemaType *, 8> ResolveParams(ASTFunction &AST);
+
+    	SemaType * PromoteNumberTypes(SemaType * Type1, SemaType * Type2);
+
+    	void PromoteTypes(ASTBinary &AST);
 
     };
 } // end namespace fly

@@ -8,162 +8,169 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 // fly
+#include "AST/ASTBinary.h"
 #include "AST/ASTDeclStmt.h"
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTModule.h"
-#include "AST/ASTReturnStmt.h"
 #include "AST/ASTType.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVar.h"
 #include "CodeGen/CodeGenModule.h"
-#include "CodeGenBaseTest.h"
-#include "Sema/SemaBuilderModifiers.h"
-
-#include <Sema/SemaNameSpace.h>
+#include "CodeGenTest.h"
 
 namespace {
 
     using namespace fly;
 
-    TEST_F(CodeGenBaseTest, CGArrayLocalVar) {
+    TEST_F(CodeGenTest, CGArrayLocalVar) {
         /**
          * Fly code:
          * void func() {
-         *   int[] k = {}
-         * }
-         */
-        ASTModule *Module = CreateModule();
-
-        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
-
-        // default int[] k = {}
-        ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, nullptr);
-        ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, ArrayIntType, "k", EmptyModifiers);
-        ASTDeclStmt *DeclStmt_k = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_k);
-        llvm::SmallVector<ASTValue *, 8> EmptyVals;
-        ASTArrayValue *EmptyArr = ASTBuilder::CreateArrayValue(SourceLoc, EmptyVals);
-        ASTIdentifier *kIdent = ASTBuilder::CreateIdentifier(LocalVar_k);
-        ASTBinaryOp *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, kIdent, EmptyArr);
-        DeclStmt_k->setExpr(AssignExpr);
-
-        // Generate Code
-        llvm::Module *M = Generate()[0];
-        std::string output = getOutput(M->getFunctionList());
-
-        EXPECT_EQ(output, "define void @_F0(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  %12 = alloca i64*, align 8\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  store i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), [0 x i8]* %13, align 8\n"
-                          "  store i8 48, i8* %14, align 1\n"
-                          "}\n");
-    }
-
-    TEST_F(CodeGenBaseTest, CGFuncArrayParam) {
-        /**
-         * Fly code:
-         * void func(int[] k) {
+         *   int[] k // Zero size array
          * }
          */
         ASTModule *Module = CreateModule();
 
         // Build function with an array parameter: void func(int[] k) {}
         llvm::SmallVector<ASTParam *, 8> LocalParams;
-        ASTType *ArrayIntTypeRef = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, nullptr);
-        LocalParams.push_back(ASTBuilder::CreateParam(SourceLoc, ArrayIntTypeRef, "k", EmptyModifiers));
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-
         ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, LocalParams, Body);
 
+    	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, nullptr);
+    	ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, ArrayIntType, "k", EmptyModifiers);
+    	ASTDeclStmt *DeclStmt_k = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_k);
+
         // Generate Code
-        llvm::Module *M = Generate()[0];
+    	Generate();
+        llvm::Module *M = getModules()[0];
         std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @_F0_ia(%error* %0, i32 %1, float %2, i1 %3, i64 %4, double %5, i8 %6, i16 %7, i16 %8, i32 %9, i64 %10) {\n"
+        EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
                           "entry:\n"
-                          "  %11 = alloca %error*, align 8\n"
-                          "  %12 = alloca i32, align 4\n"
-                          "  %13 = alloca float, align 4\n"
-                          "  %14 = alloca i8, align 1\n"
-                          "  %15 = alloca i64, align 8\n"
-                          "  %16 = alloca double, align 8\n"
-                          "  %17 = alloca i8, align 1\n"
-                          "  %18 = alloca i16, align 2\n"
-                          "  %19 = alloca i16, align 2\n"
-                          "  %20 = alloca i32, align 4\n"
-                          "  %21 = alloca i64, align 8\n"
-                          "  store %error* %0, %error** %11, align 8\n"
-                          "  store i32 %1, i32* %12, align 4\n"
-                          "  store float %2, float* %13, align 4\n"
-                          "  %22 = zext i1 %3 to i8\n"
-                          "  store i8 %22, i8* %14, align 1\n"
-                          "  store i64 %4, i64* %15, align 8\n"
-                          "  store double %5, double* %16, align 8\n"
-                          "  store i8 %6, i8* %17, align 1\n"
-                          "  store i16 %7, i16* %18, align 2\n"
-                          "  store i16 %8, i16* %19, align 2\n"
-                          "  store i32 %9, i32* %20, align 4\n"
-                          "  store i64 %10, i64* %21, align 8\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %2 = alloca i32*, align 8\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  store i32* null, i32** %2, align 8\n"
                           "  ret void\n"
                           "}\n");
     }
 
-    TEST_F(CodeGenBaseTest, GCArrayLocalVarAssignAfter) {
-        /**
-         * Fly code:
-         * void func() {
-         *   int[] g
-         *   g = 1.0
-         *   return g
-         * }
-         */
-        ASTModule *Module = CreateModule();
+	TEST_F(CodeGenTest, CGArrayLocalVaZero) {
+    	/**
+		 * Fly code:
+		 * void func() {
+		 *   int[0] k // Zero size array like int[0]
+		 * }
+		 */
+    	ASTModule *Module = CreateModule();
 
-        // func()
-        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+    	// Build function with an array parameter: void func(int[] k) {}
+    	llvm::SmallVector<ASTParam *, 8> LocalParams;
+    	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, LocalParams, Body);
 
-        // int[] g
-        ASTType *ArrayIntTypeRef = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, nullptr);
-        ASTLocalVar *LocalVar_g = ASTBuilder::CreateLocalVar(SourceLoc, ArrayIntTypeRef, "g", EmptyModifiers);
-        ASTDeclStmt *DeclStmt_g = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_g);
+    	ASTNumberValue *ZeroValue = ASTBuilder::CreateNumberValue(SourceLoc, "0");
+    	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, ZeroValue);
+    	ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, ArrayIntType, "k", EmptyModifiers);
+    	ASTDeclStmt *DeclStmt_k = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_k);
 
-        // g = 1.0
-        ASTIdentifier *VarRef_g = ASTBuilder::CreateIdentifier(LocalVar_g);
-        ASTExprStmt *GVarStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
-        ASTNumberValue *ExprG = ASTBuilder::CreateNumberValue(SourceLoc, "1.0");
-        ASTBinaryOp *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, VarRef_g, ExprG);
-        GVarStmt->setExpr(AssignExpr);
+    	// Generate Code
+    	Generate();
+    	llvm::Module *M = getModules()[0];
+    	std::string output = getOutput(M->getFunctionList());
 
-        // return g
-        ASTReturnStmt *Return = ASTBuilder::CreateReturnStmt(Body, SourceLoc);
-        Return->setExpr(ASTBuilder::CreateIdentifier(LocalVar_g));
-
-        // Generate Code
-        llvm::Module *M = Generate()[0];
-        std::string output = getOutput(M);
-
-        EXPECT_EQ(output, "define i32 @F_0(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  %2 = alloca i32, align 4\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  store i32 1, i32* %2, align 4\n"
-                          "  store float 1.000000e+00, float* @G, align 4\n"
-                          "  %3 = load i32, i32* %2, align 4\n"
-                          "  ret i32 %3\n"
-                          "}\n");
+    	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
+						  "entry:\n"
+						  "  %1 = alloca %error*, align 8\n"
+						  "  %2 = alloca i32*, align 8\n"
+						  "  store %error* %0, %error** %1, align 8\n"
+						  "  store i32* null, i32** %2, align 8\n"
+						  "  ret void\n"
+						  "}\n");
     }
 
-    TEST_F(CodeGenBaseTest, CGArrayValue) {
+	TEST_F(CodeGenTest, CGArrayLocalVarAssignEmpty) {
+    	/**
+		 * Fly code:
+		 * void func() {
+		 *   int[] k = {} // zero size array like int[0]
+		 * }
+		 */
+    	ASTModule *Module = CreateModule();
+
+    	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+
+    	// int[] k = {}
+    	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, nullptr);
+    	ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, ArrayIntType, "k", EmptyModifiers);
+    	ASTDeclStmt *DeclStmt_k = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_k);
+    	llvm::SmallVector<ASTValue *, 8> EmptyVals;
+    	ASTArrayValue *EmptyArr = ASTBuilder::CreateArrayValue(SourceLoc, EmptyVals);
+    	ASTIdentifier *kIdent = ASTBuilder::CreateIdentifier(LocalVar_k);
+    	ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, kIdent, EmptyArr);
+    	DeclStmt_k->setExpr(AssignExpr);
+
+    	// Generate Code
+    	Generate();
+    	llvm::Module *M = getModules()[0];
+    	std::string output = getOutput(M->getFunctionList());
+
+    	EXPECT_EQ(output, "define void @_F0(%error* %0) {\n"
+						  "entry:\n"
+						  "  %1 = alloca %error*, align 8\n"
+						  "  %12 = alloca i64*, align 8\n"
+						  "  store %error* %0, %error** %1, align 8\n"
+						  "  store i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), [0 x i8]* %13, align 8\n"
+						  "  store i8 48, i8* %14, align 1\n"
+						  "}\n");
+    }
+
+	TEST_F(CodeGenTest, CGArrayLocalVarAssignZero) {
+    	/**
+		 * Fly code:
+		 * void func() {
+		 *   int[0] k = {} // zero size array like int[0]
+		 * }
+		 */
+    	ASTModule *Module = CreateModule();
+
+    	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+
+    	// int[0] k = {}
+    	ASTNumberValue *Value_0 = ASTBuilder::CreateNumberValue(SourceLoc, "0");
+    	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, Value_0);
+    	ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, ArrayIntType, "k", EmptyModifiers);
+    	ASTDeclStmt *DeclStmt_k = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_k);
+    	llvm::SmallVector<ASTValue *, 8> EmptyVals;
+    	ASTArrayValue *EmptyArr = ASTBuilder::CreateArrayValue(SourceLoc, EmptyVals);
+    	ASTIdentifier *kIdent = ASTBuilder::CreateIdentifier(LocalVar_k);
+    	ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, kIdent, EmptyArr);
+    	DeclStmt_k->setExpr(AssignExpr);
+
+    	// Generate Code
+    	Generate();
+    	llvm::Module *M = getModules()[0];
+    	std::string output = getOutput(M->getFunctionList());
+
+    	EXPECT_EQ(output, "define void @_F0(%error* %0) {\n"
+						  "entry:\n"
+						  "  %1 = alloca %error*, align 8\n"
+						  "  %12 = alloca i64*, align 8\n"
+						  "  store %error* %0, %error** %1, align 8\n"
+						  "  store i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), [0 x i8]* %13, align 8\n"
+						  "  store i8 48, i8* %14, align 1\n"
+						  "}\n");
+    }
+
+    TEST_F(CodeGenTest, CGArrayLocalVarAssignValues) {
         /**
          * Fly code:
          * void func() {
-         *   int[] a = {1, 2, 3}
+         *   int[] a = {1, 2, 3} // array with values
          * }
          */
         ASTModule *Module = CreateModule();
@@ -173,18 +180,24 @@ namespace {
         ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
 
         // int[] a = {1,2,3}
-        ASTLocalVar *LocalVar = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "a", EmptyModifiers);
+    	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, nullptr);
+        ASTLocalVar *LocalVar = ASTBuilder::CreateLocalVar(SourceLoc, ArrayIntType, "a", EmptyModifiers);
         ASTDeclStmt *DeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar);
-        ASTNumberValue *ValueExpr = ASTBuilder::CreateNumberValue(SourceLoc, "1");
+    	llvm::SmallVector<ASTValue *, 8> Vals;
+        Vals.push_back(ASTBuilder::CreateNumberValue(SourceLoc, "1"));
+    	Vals.push_back(ASTBuilder::CreateNumberValue(SourceLoc, "2"));
+    	Vals.push_back(ASTBuilder::CreateNumberValue(SourceLoc, "3"));
+    	ASTArrayValue *ArrValues = ASTBuilder::CreateArrayValue(SourceLoc, Vals);
         ASTIdentifier *aIdent = ASTBuilder::CreateIdentifier(LocalVar);
-        ASTBinaryOp *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, ValueExpr);
+        ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, aIdent, ArrValues);
         DeclStmt->setExpr(AssignExpr);
 
         // Generate Code
-        llvm::Module *M = Generate()[0];
+    	Generate();
+        llvm::Module *M = getModules()[0];
         std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "define void @_F0(%error* %0) {\n"
+        EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca i32, align 4\n"
@@ -192,5 +205,47 @@ namespace {
                           "  store i32 1, i32* %2, align 4\n"
                           "  ret void\n"
                           "}\n");
+    }
+
+	TEST_F(CodeGenTest, CGArrayLocalVarAssignSizeValues) {
+    	/**
+		 * Fly code:
+		 * void func() {
+		 *   int[3] a = {1, 2, 3} // array with values
+		 * }
+		 */
+    	ASTModule *Module = CreateModule();
+
+    	// func()
+    	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+
+    	// int[3] a = {1,2,3}
+    	ASTNumberValue *Value_3 = ASTBuilder::CreateNumberValue(SourceLoc, "3");
+    	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, Value_3);
+    	ASTLocalVar *LocalVar = ASTBuilder::CreateLocalVar(SourceLoc, ArrayIntType, "a", EmptyModifiers);
+    	ASTDeclStmt *DeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar);
+    	llvm::SmallVector<ASTValue *, 8> Vals;
+    	Vals.push_back(ASTBuilder::CreateNumberValue(SourceLoc, "1"));
+    	Vals.push_back(ASTBuilder::CreateNumberValue(SourceLoc, "2"));
+    	Vals.push_back(ASTBuilder::CreateNumberValue(SourceLoc, "3"));
+    	ASTArrayValue *ArrValues = ASTBuilder::CreateArrayValue(SourceLoc, Vals);
+    	ASTIdentifier *aIdent = ASTBuilder::CreateIdentifier(LocalVar);
+    	ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, aIdent, ArrValues);
+    	DeclStmt->setExpr(AssignExpr);
+
+    	// Generate Code
+    	Generate();
+    	llvm::Module *M = getModules()[0];
+    	std::string output = getOutput(M);
+
+    	EXPECT_EQ(output, "define void @_F0(%error* %0) {\n"
+						  "entry:\n"
+						  "  %1 = alloca %error*, align 8\n"
+						  "  %2 = alloca i32, align 4\n"
+						  "  store %error* %0, %error** %1, align 8\n"
+						  "  store i32 1, i32* %2, align 4\n"
+						  "  ret void\n"
+						  "}\n");
     }
 } // anonymous namespace

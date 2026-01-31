@@ -179,7 +179,7 @@ std::string CodeGenFunctionBase::Mangle(SemaType *Type) {
 	switch (Type->getKind()) {
 		case SemaKind::TYPE_ARRAY: {
 			SemaArrayType *Array = static_cast<SemaArrayType *>(Type);
-			Mangled += "_A" + Mangle(Array->getType());
+			Mangled += "_A" + Mangle(Array->getElementType());
 		}	break;
 		case SemaKind::TYPE_ENUM:
 			Mangled += "_E" + Type->getName();

@@ -318,15 +318,15 @@ SemaValue * SemaBuilder::CreateDefaultValue(SemaType &Type) {
 		AST->setSema(Sema);
 	}
 
-	else if (Type.isArray()) {
-		llvm::SmallVector<ASTValue *, 8> ASTValues;
-		ASTArrayValue *AST = ASTBuilder::CreateArrayValue(SourceLocation(), ASTValues);
-		llvm::SmallVector<SemaValue *, 8> Values;
-		Sema =  CreateArrayValue(*AST, Values);
-		AST->setSema(Sema);
-	}
+	// else if (Type.isArray()) {
+	// 	llvm::SmallVector<ASTValue *, 8> ASTValues;
+	// 	ASTArrayValue *AST = ASTBuilder::CreateArrayValue(SourceLocation(), ASTValues);
+	// 	llvm::SmallVector<SemaValue *, 8> Values;
+	// 	Sema =  CreateArrayValue(*AST, Values);
+	// 	AST->setSema(Sema);
+	// }
 
-	else if (Type.isClass()) {
+	else if (Type.isArray() || Type.isClass()) {
 		ASTNullValue * AST = ASTBuilder::CreateNullValue(SourceLocation());
 		Sema =  CreateNullValue(*AST);
 		AST->setSema(Sema);
@@ -443,12 +443,13 @@ SemaStringValue * SemaBuilder::CreateStringValue(ASTStringValue &AST) {
 	return V;
 }
 
-SemaArrayValue * SemaBuilder::CreateArrayValue(ASTArrayValue &AST, llvm::SmallVector<SemaValue *, 8> &Values) {
+SemaArrayValue * SemaBuilder::CreateArrayValue(ASTArrayValue &AST, SemaType *Type, llvm::SmallVector<SemaValue *, 8> &Values) {
 	FLY_DEBUG_START("SemaBuilder", "CreateArrayValue");
 
-	SemaType * Type = Values[0] ? Values[0]->getType() : nullptr;
-	SemaArrayValue * V = new SemaArrayValue(AST, Type);
-    V->Values = std::move(Values);
+	uint64_t Size = Values.size();
+	SemaArrayType *ArrayType = SemaBuiltin::CreateArrayType(Type, Size);
+	SemaArrayValue * V = new SemaArrayValue(AST, ArrayType);
+	V->Values = std::move(Values);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateArrayValue");
 	return V;

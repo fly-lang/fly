@@ -136,12 +136,27 @@ void SemaFloatType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
-SemaArrayType::SemaArrayType(SemaType *Type, ASTExpr *SizeExpr) :
-	SemaType(SemaKind::TYPE_ARRAY, "array"), Type(Type), SizeExpr(SizeExpr) {
+SemaArrayType::SemaArrayType(SemaType *ElementType, SemaExpr *SizeExpr) :
+	SemaType(SemaKind::TYPE_ARRAY, "array"), ElementType(ElementType), SizeExpr(SizeExpr), Size(0) {
 }
 
-SemaType *SemaArrayType::getType() {
-	return Type;
+SemaArrayType::SemaArrayType(SemaType *ElementType, uint64_t Size) :
+	SemaType(SemaKind::TYPE_ARRAY, "array"), ElementType(ElementType), Size(Size) {
+}
+
+SemaType *SemaArrayType::getElementType() {
+	return ElementType;
+}
+void SemaArrayType::setElementType(SemaType *ElementType) {
+	this->ElementType = ElementType;
+}
+
+SemaExpr *SemaArrayType::getSizeExpr() {
+	return SizeExpr;
+}
+
+uint64_t SemaArrayType::getSize() const {
+	return Size;
 }
 
 void SemaArrayType::accept(SemaVisitor &Visitor) {

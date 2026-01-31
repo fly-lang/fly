@@ -495,19 +495,6 @@ ASTType *ASTBuilder::CreateType(const SourceLocation &Loc, llvm::SmallVector<AST
 }
 
 /**
- * Create a Default Value
- * @return the default value
- */
-ASTDefaultValue *ASTBuilder::CreateDefaultValue() {
-	FLY_DEBUG_END("ASTBuilder", "CreateDefaultValue");
-
-	ASTDefaultValue *Value = new ASTDefaultValue();
-
-	FLY_DEBUG_END("ASTBuilder", "CreateDefaultValue");
-	return Value;
-}
-
-/**
  * Creates a null value
  * @param Loc
  * @return

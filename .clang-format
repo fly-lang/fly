@@ -35,9 +35,11 @@ AlignTrailingComments:
 
 # Empty lines
 AllowShortBlocksOnASingleLine: Never # Do not allow blocks to fit on a single line
-AllowShortFunctionsOnASingleLine: Inline # Inline short functions, but only in declarations
-AllowShortLambdasOnASingleLine: All # Allow lambdas to fit on a single line
+AllowShortFunctionsOnASingleLine: None # Inline short functions, but only in declarations
+AllowShortLambdasOnASingleLine: None # Allow lambdas to fit on a single line
 AllowShortIfStatementsOnASingleLine: Never # Require multi-line `if` statements even if short
+AllowShortLoopsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
 
 # Namespace indentation
 NamespaceIndentation: All        # indent within namespaces

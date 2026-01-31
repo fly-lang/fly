@@ -87,8 +87,6 @@ namespace fly {
 
     class ASTNumberValue;
 
-    class ASTDefaultValue;
-
     class ASTNullValue;
 
     class ASTBoolValue;
@@ -224,8 +222,6 @@ namespace fly {
         static ASTType *CreateType(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names);
 
         // Create Values
-
-        static ASTDefaultValue *CreateDefaultValue();
 
         static ASTNullValue *CreateNullValue(const SourceLocation &Loc);
 

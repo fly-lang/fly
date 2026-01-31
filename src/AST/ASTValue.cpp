@@ -40,18 +40,6 @@ bool ASTValue::isStruct() const { return ValueKind == ASTValueKind::VAL_STRUCT; 
 bool ASTValue::isNull() const { return ValueKind == ASTValueKind::VAL_NULL; }
 bool ASTValue::isDefault() const { return ValueKind == ASTValueKind::VAL_DEFAULT; }
 
-ASTDefaultValue::ASTDefaultValue() : ASTValue(ASTValueKind::VAL_DEFAULT, SourceLocation()) {
-}
-
-void ASTDefaultValue::accept(ASTVisitor &Visitor) {
-}
-
-std::string ASTDefaultValue::str() const {
-	return Logger("ASTDefaultValue").
-		Attr("Kind", static_cast<size_t>(getKind())).
-		End();
-}
-
 ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTValue(ASTValueKind::VAL_BOOL, Loc), Value(Value) {
 
 }

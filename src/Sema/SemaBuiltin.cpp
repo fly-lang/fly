@@ -116,6 +116,10 @@ SemaErrorType * SemaBuiltin::getErrorType() {
 	return ErrorType;
 }
 
-SemaArrayType * SemaBuiltin::CreateArrayType(SemaType *Type, ASTExpr *SizeExpr) {
+SemaArrayType * SemaBuiltin::CreateArrayType(SemaType *Type, SemaExpr *SizeExpr) {
 	return new SemaArrayType(Type, SizeExpr);
+}
+
+SemaArrayType * SemaBuiltin::CreateArrayType(SemaType *Type, uint64_t Size) {
+	return new SemaArrayType(Type, Size);
 }

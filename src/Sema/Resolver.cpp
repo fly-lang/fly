@@ -230,12 +230,6 @@ void Resolver::visit(ASTAttribute &AST) {
 	// Set Expr or Default Value
 	if (AST.getExpr()) {
 		AST.getExpr()->accept(*this);
-	} else {
-		// Create default Sema Value
-		SemaValue *Sema = SemaBuilder::CreateDefaultValue(*Type);
-		ASTValue *Value = ASTBuilder::CreateDefaultValue();
-		Value->setSema(Sema);
-		AST.setExpr(Value);
 	}
 
 	// Create the Symbol and add to Symbol Table
@@ -464,11 +458,26 @@ void Resolver::visit(ASTArrayType &AST) {
 		ElementType->accept(*this);
 
 		// Resolve Size Expression
-		ASTExpr * SizeExpr = AST.getSizeExpr();
-		SizeExpr->accept(*this);
+		SemaArrayType *Sema = nullptr;
+		if (AST.getSizeExpr()) {
+			AST.getSizeExpr()->accept(*this);
+			SemaExpr *SizeExpr = AST.getSizeExpr()->getSema();
+
+			// Validate Size Expression Type
+			if (SizeExpr->getType()->isInteger() == false) {
+				Diag(AST.getSizeExpr()->getLocation(), diag::err_sema_array_size_not_integer);
+				return;
+			}
+
+			Sema = SemaBuiltin::CreateArrayType(ElementType->getSema(), SizeExpr);
+		} else {
+			// Fixed-size array
+			uint64_t Size = 0;
+			Sema = SemaBuiltin::CreateArrayType(ElementType->getSema(), Size);
+		}
 
 		// Create Sema Array Type
-		SemaType *Sema = SemaBuiltin::CreateArrayType(ElementType->getSema(), SizeExpr);
+
 		AST.setSema(Sema);
 	}
 	FLY_DEBUG_END("Resolver", "visit(ASTArrayType)");
@@ -1012,6 +1021,9 @@ void Resolver::visit(ASTBinary &AST) {
 	AST.getLeftExpr()->accept(*this);
     AST.getRightExpr()->accept(*this);
 
+	// Promote Types if needed
+	PromoteTypes(AST);
+
 	if (Validator->CheckBinary(AST)) {
 
 		// Create Sema
@@ -1035,6 +1047,17 @@ void Resolver::visit(ASTTernary &AST) {
 	// Resolve True and False Expr
 	AST.getTrueExpr()->accept(*this);
 	AST.getFalseExpr()->accept(*this);
+
+	// Promote Number Types if needed
+	if (AST.getTrueExpr()->getSema()->getType()->isNumber() &&
+		AST.getFalseExpr()->getSema()->getType()->isNumber()) {
+		SemaType *PromotedType = PromoteNumberTypes(
+			AST.getTrueExpr()->getSema()->getType(),
+			AST.getFalseExpr()->getSema()->getType()
+		);
+		AST.getTrueExpr()->getSema()->setType(PromotedType);
+		AST.getFalseExpr()->getSema()->setType(PromotedType);
+	}
 
 	// Create Sema
 	SemaTernary *Sema = SemaBuilder::CreateTernary(AST);
@@ -1081,13 +1104,42 @@ void Resolver::visit(ASTStringValue &AST) {
 void Resolver::visit(ASTArrayValue &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTArrayValue)");
 
+	// Resolve Values
+	SemaType *ElementType = nullptr;
 	llvm::SmallVector<SemaValue *, 8> Values;
 	for (auto Value : AST.getValues()) {
 		Value->accept(*this);
+		SemaType *CurrentType = Value->getSema()->getType();
+
+		// First Value
+		if (ElementType == nullptr) {
+			ElementType = CurrentType;
+		} else if (CurrentType->isNumber()) { // Promote Number Types
+			ElementType = (ElementType == nullptr || (ElementType->isNumber() &&
+				static_cast<SemaNumberType *>(CurrentType)->getRank() >
+				static_cast<SemaNumberType *>(ElementType)->getRank())) ?
+				CurrentType :
+				ElementType;
+		} else if (!Validator->CheckEqualTypes(ElementType, CurrentType)) {
+			Diag(Value->getLocation(), diag::err_sema_array_value_type_mismatch);
+		}
+
 		Values.push_back(Value->getSema());
 	}
 
-	SemaArrayValue *Sema = SemaBuilder::CreateArrayValue(AST, Values);
+	// Determine Array Type
+
+	if (CurrentExpr && CurrentExpr->getExprKind() == ASTExprKind::EXPR_BINARY &&
+	           static_cast<ASTBinary *>(CurrentExpr)->isAssign()) {
+		SemaExpr *LeftSema = static_cast<ASTBinary *>(CurrentExpr)->getLeftExpr()->getSema();
+		if (LeftSema && LeftSema->getType() && LeftSema->getType()->isArray()) {
+			SemaArrayType *ArrayType = static_cast<SemaArrayType *>(LeftSema->getType());
+			ElementType = ArrayType->getElementType();
+		}
+	}
+
+	// Create Sema
+	SemaArrayValue *Sema = SemaBuilder::CreateArrayValue(AST, ElementType, Values);
 	AST.setSema(Sema);
 
 	FLY_DEBUG_END("Resolver", "visit(ASTArrayValue)");
@@ -1112,34 +1164,6 @@ void Resolver::visit(ASTNullValue &AST) {
 	SemaValue *Sema = SemaBuilder::CreateNullValue(AST);
 	AST.setSema(Sema);
 	FLY_DEBUG_END("Resolver", "visit(ASTNullValue)");
-}
-
-void Resolver::visit(ASTDefaultValue &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTDefaultValue)");
-	if (CurrentStmt) {
-		if (CurrentStmt->getStmtKind() == ASTStmtKind::STMT_EXPR) {
-			ASTExprStmt *Stmt = static_cast<ASTExprStmt *>(CurrentStmt);
-			ASTExpr *Expr = Stmt->getExpr();
-
-			// Check if the expression is a binary assignment operation
-			if (Expr && Expr->getExprKind() == ASTExprKind::EXPR_BINARY) {
-				ASTBinary *BinOp = static_cast<ASTBinary *>(Expr);
-
-				// Check if it's an assignment operation
-				if (BinOp->getBinaryKind() == ASTBinaryKind::OP_BINARY_ASSIGN) {
-					// This AST Default Value is the only Expr in the assignment
-					if (BinOp->getRightExpr()->getExprKind() == ASTExprKind::EXPR_VALUE) {
-						SemaType *T = BinOp->getLeftExpr()->getType();
-
-						// Create the default value
-						SemaValue *Sema = SemaBuilder::CreateDefaultValue(*T);
-						AST.setSema(Sema);
-					}
-				}
-			}
-		}
-	}
-	FLY_DEBUG_END("Resolver", "visit(ASTDefaultValue)");
 }
 
 void Resolver::Resolver::EnterScope() {
@@ -1449,3 +1473,46 @@ SmallVector<SemaType *, 8> Resolver::ResolveParams(ASTFunction &AST) {
 	FLY_DEBUG_END("Resolver", "ResolveParams");
 	return std::move(Types);
 }
+
+SemaType * Resolver::PromoteNumberTypes(SemaType *Left, SemaType *Right) {
+	FLY_DEBUG_START("Resolver", "PromoteNumberTypes");
+	SemaNumberType *LeftNum = static_cast<SemaNumberType *>(Left);
+	SemaNumberType *RightNum = static_cast<SemaNumberType *>(Right);
+	if (LeftNum->getRank() >= RightNum->getRank()) {
+		FLY_DEBUG_END("Resolver", "PromoteNumberTypes");
+		return Left;
+	}
+	FLY_DEBUG_END("Resolver", "PromoteNumberTypes");
+	return Right;
+}
+
+void Resolver::PromoteTypes(ASTBinary &AST) {
+	FLY_DEBUG_START("Resolver", "PromoteTypes");
+
+	// Promote Number Types if both operands are numbers
+	if (AST.getLeftExpr()->getSema()->getType()->isNumber() &&
+	    AST.getRightExpr()->getSema()->getType()->isNumber()) {
+		SemaType *PromotedType = PromoteNumberTypes(
+			AST.getLeftExpr()->getSema()->getType(),
+			AST.getRightExpr()->getSema()->getType()
+		);
+		AST.getLeftExpr()->getSema()->setType(PromotedType);
+		AST.getRightExpr()->getSema()->setType(PromotedType);
+	}
+
+	// Promote Array Types if both operands are arrays
+	if (AST.isAssign() && AST.getLeftExpr()->getSema()->getType()->isArray() &&
+		AST.getRightExpr()->getSema()->getType()->isArray() && AST.getRightExpr()->getSema()->getKind() == SemaKind::VALUE) {
+		SemaArrayValue *ArrayValue = static_cast<SemaArrayValue *>(AST.getRightExpr()->getSema());
+		SemaType *ElementType = static_cast<SemaArrayType *>(AST.getLeftExpr()->getSema()->getType())->getElementType();
+		for (auto &Val : ArrayValue->getValues()) {
+			Val->setType(ElementType);
+		}
+		static_cast<SemaArrayType *>(ArrayValue->getType())->setElementType(ElementType);
+	}
+
+	FLY_DEBUG_END("Resolver", "PromoteTypes");
+}
+
+
+

@@ -406,6 +406,8 @@ DIAG(err_sema_enum_ext, CLASS_ERROR, (unsigned)diag::Severity::Error, "enum can 
 DIAG(err_sema_struct_notext_struct, CLASS_ERROR, (unsigned)diag::Severity::Error, "interface cannot extend a struct", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_interface_notext_interface, CLASS_ERROR, (unsigned)diag::Severity::Error, "interface cannot extend a class", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_array_type_conflict, CLASS_ERROR, (unsigned)diag::Severity::Error, "array type conflict '%0' with '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_array_size_not_integer, CLASS_ERROR, (unsigned)diag::Severity::Error, "array size expression must have an integer type", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_array_value_type_mismatch, CLASS_ERROR, (unsigned)diag::Severity::Error, "array element type mismatch: expected '%0', got '%1'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_var_redefinition, CLASS_ERROR, (unsigned)diag::Severity::Error, "local var '%0' is laready defined", 0, SFINAE_Suppress, false, true, 0)
 
 

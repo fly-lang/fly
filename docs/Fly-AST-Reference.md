@@ -354,14 +354,6 @@ MyClass obj = null
 string str = null
 ```
 
-#### ASTDefaultValue
-**Purpose**: Implicit default value (used when no initializer provided).
-
-**Example**:
-```cpp
-int x    // Implicitly: x = default (0 for int)
-```
-
 ### 3.4 Expressions
 
 #### ASTExpr Base

@@ -56,19 +56,6 @@ namespace fly {
 
     };
 
-    class ASTDefaultValue : public ASTValue {
-
-        friend class ASTBuilder;
-
-        explicit ASTDefaultValue();
-
-    public:
-
-        void accept(ASTVisitor& Visitor) override;
-
-        std::string str() const override;
-    };
-
     /**
      * Used for Integer Numbers
      */
