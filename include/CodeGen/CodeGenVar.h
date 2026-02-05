@@ -55,7 +55,11 @@ namespace fly {
 
         llvm::StoreInst *Store(llvm::Value *Val);
 
-    	llvm::StoreInst *StoreDefaultValue();
+    	llvm::StoreInst *StoreArrayValue(llvm::Value *ArrayPtr, const std::vector<llvm::Value *> &Values, llvm::Type *ElementType);
+
+		llvm::Value *getDefaultValue(llvm::Type *T);
+
+		llvm::StoreInst *StoreDefaultValue();
 
         llvm::LoadInst *Load();
 

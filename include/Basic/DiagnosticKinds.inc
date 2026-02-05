@@ -408,6 +408,7 @@ DIAG(err_sema_interface_notext_interface, CLASS_ERROR, (unsigned)diag::Severity:
 DIAG(err_array_type_conflict, CLASS_ERROR, (unsigned)diag::Severity::Error, "array type conflict '%0' with '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_array_size_not_integer, CLASS_ERROR, (unsigned)diag::Severity::Error, "array size expression must have an integer type", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_array_value_type_mismatch, CLASS_ERROR, (unsigned)diag::Severity::Error, "array element type mismatch: expected '%0', got '%1'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_array_size_missing, CLASS_ERROR, (unsigned)diag::Severity::Error, "array declaration must specify either size or initializer", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_var_redefinition, CLASS_ERROR, (unsigned)diag::Severity::Error, "local var '%0' is laready defined", 0, SFINAE_Suppress, false, true, 0)
 
 

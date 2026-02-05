@@ -458,26 +458,20 @@ void Resolver::visit(ASTArrayType &AST) {
 		ElementType->accept(*this);
 
 		// Resolve Size Expression
-		SemaArrayType *Sema = nullptr;
+		SemaExpr *SizeExpr = nullptr;
 		if (AST.getSizeExpr()) {
 			AST.getSizeExpr()->accept(*this);
-			SemaExpr *SizeExpr = AST.getSizeExpr()->getSema();
+			SizeExpr = AST.getSizeExpr()->getSema();
 
 			// Validate Size Expression Type
 			if (SizeExpr->getType()->isInteger() == false) {
 				Diag(AST.getSizeExpr()->getLocation(), diag::err_sema_array_size_not_integer);
 				return;
 			}
-
-			Sema = SemaBuiltin::CreateArrayType(ElementType->getSema(), SizeExpr);
-		} else {
-			// Fixed-size array
-			uint64_t Size = 0;
-			Sema = SemaBuiltin::CreateArrayType(ElementType->getSema(), Size);
 		}
 
 		// Create Sema Array Type
-
+		SemaArrayType *Sema = SemaBuiltin::CreateArrayType(ElementType->getSema(), SizeExpr);
 		AST.setSema(Sema);
 	}
 	FLY_DEBUG_END("Resolver", "visit(ASTArrayType)");
@@ -503,6 +497,13 @@ void Resolver::visit(ASTDeclStmt &AST) {
 	// Resolve Initialization Expression
 	if (AST.getExpr()) {
 		AST.getExpr()->accept(*this);
+	}
+
+	// Check for array without size expression or initialization expression
+	if (LocalVar->getSema() && LocalVar->getSema()->getType() && LocalVar->getSema()->getType()->isArray() &&
+		static_cast<SemaArrayType *>(LocalVar->getSema()->getType())->getSizeExpr() == nullptr && AST.getExpr() == nullptr) {
+		// Array must have either size expression or initialization expression
+		Diag(LocalVar->getLocation(), diag::err_sema_array_size_missing);
 	}
 
 	FLY_DEBUG_END("Resolver", "visit(ASTDeclStmt)");

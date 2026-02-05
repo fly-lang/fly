@@ -92,6 +92,11 @@ class CodeGen {
 
         static llvm::PointerType *ErrorPtrTy;
 
+        /// Array structure: { i8* data, size_t* dims, size_t rank }
+        static llvm::StructType *ArrayTy;
+
+        static llvm::PointerType *ArrayPtrTy;
+
         static llvm::ConstantInt *Zero;
 
         CodeGen(DiagnosticsEngine &Diags,

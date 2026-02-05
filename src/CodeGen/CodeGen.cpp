@@ -62,6 +62,8 @@ unsigned char CodeGen::IntSizeInBytes = 0;
 unsigned char CodeGen::IntAlignInBytes = 0;
 llvm::StructType *CodeGen::ErrorTy = nullptr;
 llvm::PointerType *CodeGen::ErrorPtrTy = nullptr;
+llvm::StructType *CodeGen::ArrayTy = nullptr;
+llvm::PointerType *CodeGen::ArrayPtrTy = nullptr;
 llvm::ConstantInt *CodeGen::Zero = nullptr;
 
 CodeGen::CodeGen(DiagnosticsEngine &Diags,
@@ -117,6 +119,14 @@ void CodeGen::InitializeTypes(llvm::LLVMContext &LLVMCtx, TargetInfo &Target) {
 
     ErrorTy = CodeGenError::GenErrorType(LLVMCtx);
     ErrorPtrTy = llvm::PointerType::get(ErrorTy, 0);
+
+    // Create Array structure type: { i8* data, size_t* dims }
+    // Uses SizeTy which adapts to the target's pointer/size width
+    llvm::SmallVector<llvm::Type *, 3> ArrayFields;
+    ArrayFields.push_back(Int8PtrTy);     // i8* data
+    ArrayFields.push_back(IntTy);     // size_t dims (pointer to dimensions array)
+    ArrayTy = llvm::StructType::create(LLVMCtx, ArrayFields, "array");
+    ArrayPtrTy = llvm::PointerType::get(ArrayTy, 0);
 }
 
 std::string CodeGen::getOutputFileName(llvm::StringRef BaseInput) {

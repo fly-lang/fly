@@ -56,6 +56,10 @@ namespace fly {
 
     	llvm::IRBuilder<> * Builder;
 
+    	// Array value information (for storing array elements)
+    	std::vector<llvm::Value *> ArrayValues;
+    	llvm::Type *ArrayElementType = nullptr;
+
 	  public:
 
         CodeGenExpr(CodeGenModule *CGM);

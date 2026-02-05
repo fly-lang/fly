@@ -70,25 +70,13 @@ void CodeGenType::GenType(SemaFloatType &Sema) {
 
 void CodeGenType::GenType(SemaArrayType &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
+
 		// Get the element type of the array
 		Sema.getElementType()->accept(*CGM);
-		llvm::Type *ElementType = Sema.getElementType()->getCodeGen()->getType();
-
-		// Check if the array has a size (fixed-size array vs dynamic array)
-		SemaExpr *SizeExpr = Sema.getSizeExpr();
-		if (SizeExpr) {
-			SizeExpr->accept(*CGM);
-			llvm::Value *SizeValue = SizeExpr->getCodeGen()->getValue();
-
-			// Cast to ConstantInt to extract the uint64_t value
-			if (llvm::ConstantInt *CI = llvm::dyn_cast<llvm::ConstantInt>(SizeValue)) {
-				uint64_t ArraySize = CI->getZExtValue();
-				T = llvm::ArrayType::get(ElementType, ArraySize);
-			}
+		if (Sema.getSizeExpr()) {
+			Sema.getSizeExpr()->accept(*CGM);
 		}
-
-		// If no SizeExpr, use the Size stored in SemaArrayType (fixed-size array)
-		T = llvm::ArrayType::get(ElementType, Sema.getSize());
+		T = CodeGen::ArrayTy;
 	}
 }
 

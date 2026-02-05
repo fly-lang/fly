@@ -84,6 +84,7 @@ public:
 	ASTBuilder &getASTBuilder();
 	ASTType *CreateType(ASTClass *Class);
 	ASTType *CreateType(ASTEnum *Enum);
+	bool Resolve();
 	void Generate();
 	llvm::SmallVector<llvm::Module *, 8> &getModules();
 	std::string getOutput(llvm::Module *M);

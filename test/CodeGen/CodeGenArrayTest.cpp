@@ -28,7 +28,7 @@ namespace {
         /**
          * Fly code:
          * void func() {
-         *   int[] k // Zero size array
+         *   int[] k // Error: incomplete type
          * }
          */
         ASTModule *Module = CreateModule();
@@ -43,18 +43,7 @@ namespace {
     	ASTDeclStmt *DeclStmt_k = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_k);
 
         // Generate Code
-    	Generate();
-        llvm::Module *M = getModules()[0];
-        std::string output = getOutput(M->getFunctionList());
-
-        EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  %2 = alloca i32*, align 8\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  store i32* null, i32** %2, align 8\n"
-                          "  ret void\n"
-                          "}\n");
+    	ASSERT_FALSE(Resolve());
     }
 
 	TEST_F(CodeGenTest, CGArrayLocalVaZero) {
@@ -84,9 +73,9 @@ namespace {
     	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
 						  "entry:\n"
 						  "  %1 = alloca %error*, align 8\n"
-						  "  %2 = alloca i32*, align 8\n"
+						  "  %2 = alloca %array*, align 8\n"
 						  "  store %error* %0, %error** %1, align 8\n"
-						  "  store i32* null, i32** %2, align 8\n"
+						  "  store %array* null, %array** %2, align 8\n"
 						  "  ret void\n"
 						  "}\n");
     }
@@ -118,13 +107,13 @@ namespace {
     	llvm::Module *M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-    	EXPECT_EQ(output, "define void @_F0(%error* %0) {\n"
+    	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
 						  "entry:\n"
 						  "  %1 = alloca %error*, align 8\n"
-						  "  %12 = alloca i64*, align 8\n"
+						  "  %2 = alloca %array*, align 8\n"
 						  "  store %error* %0, %error** %1, align 8\n"
-						  "  store i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), [0 x i8]* %13, align 8\n"
-						  "  store i8 48, i8* %14, align 1\n"
+						  "  store %array* null, %array** %2, align 8\n"
+						  "  ret void\n"
 						  "}\n");
     }
 
@@ -156,14 +145,54 @@ namespace {
     	llvm::Module *M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-    	EXPECT_EQ(output, "define void @_F0(%error* %0) {\n"
+    	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
 						  "entry:\n"
 						  "  %1 = alloca %error*, align 8\n"
-						  "  %12 = alloca i64*, align 8\n"
+						  "  %2 = alloca %array*, align 8\n"
 						  "  store %error* %0, %error** %1, align 8\n"
-						  "  store i8* getelementptr inbounds ([4 x i8], [4 x i8]* @0, i32 0, i32 0), [0 x i8]* %13, align 8\n"
-						  "  store i8 48, i8* %14, align 1\n"
+						  "  store %array* null, %array** %2, align 8\n"
+						  "  ret void\n"
 						  "}\n");
+    }
+
+	TEST_F(CodeGenTest, CGArrayLocalVar3) {
+    	/**
+		 * Fly code:
+		 * void func() {
+		 *   int[3] k // array of size 3
+		 * }
+		 */
+    	ASTModule *Module = CreateModule();
+
+    	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+
+    	// int[3] k
+    	ASTNumberValue *Value_3 = ASTBuilder::CreateNumberValue(SourceLoc, "3");
+    	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, Value_3);
+    	ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, ArrayIntType, "k", EmptyModifiers);
+    	ASTDeclStmt *DeclStmt_k = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_k);
+    	ASTIdentifier *kIdent = ASTBuilder::CreateIdentifier(LocalVar_k);
+
+    	// Generate Code
+    	Generate();
+    	llvm::Module *M = getModules()[0];
+    	std::string output = getOutput(M->getFunctionList());
+
+    	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
+						  "entry:\n"
+						  "  %1 = alloca %error*, align 8\n"
+						  "  %2 = alloca %array*, align 8\n"
+						  "  store %error* %0, %error** %1, align 8\n"
+						  "  %malloccall = tail call i8* @malloc(i16 3)\n"
+						  "  %3 = bitcast i8* %malloccall to i32*\n"
+						  "  %4 = bitcast i32* %3 to i8*\n"
+						  "  call void @llvm.memset.p0i8.i16(i8* %4, i8 0, i16 3, i1 false)\n"
+						  "  ret void\n"
+						  "}\n"
+						  "declare noalias i8* @malloc(i64)\n"
+						  "; Function Attrs: argmemonly nounwind willreturn writeonly\n"
+						  "declare void @llvm.memset.p0i8.i16(i8* nocapture writeonly, i8, i16, i1 immarg) #0\n");
     }
 
     TEST_F(CodeGenTest, CGArrayLocalVarAssignValues) {
@@ -195,16 +224,31 @@ namespace {
         // Generate Code
     	Generate();
         llvm::Module *M = getModules()[0];
-        std::string output = getOutput(M);
+        std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
-                          "  %2 = alloca i32, align 4\n"
+                          "  %2 = alloca %array*, align 8\n"
                           "  store %error* %0, %error** %1, align 8\n"
-                          "  store i32 1, i32* %2, align 4\n"
+                          "  %malloccall = tail call i8* @malloc(i64 12)\n"
+                          "  %3 = bitcast i8* %malloccall to i32*\n"
+                          "  %4 = getelementptr i32, i32* %3, i64 0\n"
+                          "  store i32 1, i32* %4, align 4\n"
+                          "  %5 = getelementptr i32, i32* %3, i64 1\n"
+                          "  store i32 2, i32* %5, align 4\n"
+                          "  %6 = getelementptr i32, i32* %3, i64 2\n"
+                          "  store i32 3, i32* %6, align 4\n"
+                          "  %7 = bitcast i32* %3 to i8*\n"
+                          "  %8 = alloca i64, align 8\n"
+                          "  store i64 3, i64* %8, align 8\n"
+                          "  %9 = insertvalue %array undef, i8* %7, 0\n"
+                          "  %10 = insertvalue %array %9, i64* %8, 1\n"
+                          "  %11 = insertvalue %array %10, i64 1, 2\n"
+                          "  store i32* %3, %array** %2, align 8\n"
                           "  ret void\n"
-                          "}\n");
+                          "}\n"
+                          "declare noalias i8* @malloc(i64)\n");
     }
 
 	TEST_F(CodeGenTest, CGArrayLocalVarAssignSizeValues) {
@@ -237,15 +281,30 @@ namespace {
     	// Generate Code
     	Generate();
     	llvm::Module *M = getModules()[0];
-    	std::string output = getOutput(M);
+    	std::string output = getOutput(M->getFunctionList());
 
-    	EXPECT_EQ(output, "define void @_F0(%error* %0) {\n"
+    	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
 						  "entry:\n"
 						  "  %1 = alloca %error*, align 8\n"
-						  "  %2 = alloca i32, align 4\n"
+						  "  %2 = alloca %array*, align 8\n"
 						  "  store %error* %0, %error** %1, align 8\n"
-						  "  store i32 1, i32* %2, align 4\n"
+						  "  %malloccall = tail call i8* @malloc(i64 12)\n"
+						  "  %3 = bitcast i8* %malloccall to i32*\n"
+						  "  %4 = getelementptr i32, i32* %3, i64 0\n"
+						  "  store i32 1, i32* %4, align 4\n"
+						  "  %5 = getelementptr i32, i32* %3, i64 1\n"
+						  "  store i32 2, i32* %5, align 4\n"
+						  "  %6 = getelementptr i32, i32* %3, i64 2\n"
+						  "  store i32 3, i32* %6, align 4\n"
+						  "  %7 = bitcast i32* %3 to i8*\n"
+						  "  %8 = alloca i64, align 8\n"
+						  "  store i64 3, i64* %8, align 8\n"
+						  "  %9 = insertvalue %array undef, i8* %7, 0\n"
+						  "  %10 = insertvalue %array %9, i64* %8, 1\n"
+						  "  %11 = insertvalue %array %10, i64 1, 2\n"
+						  "  store i32* %3, %array** %2, align 8\n"
 						  "  ret void\n"
-						  "}\n");
+						  "}\n"
+						  "declare noalias i8* @malloc(i64)\n");
     }
 } // anonymous namespace

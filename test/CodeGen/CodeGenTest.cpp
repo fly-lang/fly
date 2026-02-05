@@ -105,6 +105,13 @@ ASTType *CodeGenTest::CreateType(ASTEnum *Enum) {
 }
 
 // Generate code from AST modules
+bool CodeGenTest::Resolve() {
+	// validate and resolve
+	SmallVector<SemaModule *, 8> SemaModules = S->Resolve(ASTModules);
+	return !Diags.hasErrorOccurred();
+}
+
+// Generate code from AST modules
 void CodeGenTest::Generate() {
     // validate and resolve
     SmallVector<SemaModule *, 8> SemaModules = S->Resolve(ASTModules);
