@@ -76,7 +76,9 @@ namespace {
     	ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, StringTypeRef, "k", EmptyModifiers);
     	ASTIdentifier *Ident_k = ASTBuilder::CreateIdentifier(LocalVar_k);
     	ASTDeclStmt *DeclStmt_k = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_k);
-    	DeclStmt_k->setExpr(ASTBuilder::CreateStringValue(SourceLoc, ""));
+    	ASTStringValue * EmptyString = ASTBuilder::CreateStringValue(SourceLoc, "");
+    	ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, Ident_k, EmptyString);
+    	DeclStmt_k->setExpr(AssignExpr);
 
     	// Generate Code
     	Generate();
@@ -97,7 +99,7 @@ namespace {
     	/**
 		 * Fly code:
 		 * void func() {
-		 *   string k = ""
+		 *   string k = "hello!"
 		 * }
 		 */
     	ASTModule *Module = CreateModule();
@@ -110,7 +112,9 @@ namespace {
     	ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, StringTypeRef, "k", EmptyModifiers);
     	ASTIdentifier *Ident_k = ASTBuilder::CreateIdentifier(LocalVar_k);
     	ASTDeclStmt *DeclStmt_k = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_k);
-    	DeclStmt_k->setExpr(ASTBuilder::CreateStringValue(SourceLoc, "hello!"));
+    	ASTExpr *HelloStr = ASTBuilder::CreateStringValue(SourceLoc, "hello!");
+    	ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, Ident_k, HelloStr);
+    	DeclStmt_k->setExpr(AssignExpr);
 
     	// Generate Code
     	Generate();

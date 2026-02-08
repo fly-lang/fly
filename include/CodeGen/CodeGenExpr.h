@@ -56,10 +56,6 @@ namespace fly {
 
     	llvm::IRBuilder<> * Builder;
 
-    	// Array value information (for storing array elements)
-    	std::vector<llvm::Value *> ArrayValues;
-    	llvm::Type *ArrayElementType = nullptr;
-
 	  public:
 
         CodeGenExpr(CodeGenModule *CGM);
@@ -79,8 +75,6 @@ namespace fly {
     	void GenExpr(SemaFloatValue *Sema);
 
     	void GenExpr(SemaStringValue *Sema);
-
-    	void GenExpr(SemaArrayValue *Sema);
 
     	void GenExpr(SemaStructValue *Sema);
 

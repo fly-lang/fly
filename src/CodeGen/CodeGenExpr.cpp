@@ -95,41 +95,6 @@ void CodeGenExpr::GenExpr(SemaStringValue *Sema) {
 	V = Builder->CreateGlobalStringPtr(Sema->getValue());
 }
 
-void CodeGenExpr::GenExpr(SemaArrayValue *Sema) {
-	SemaArrayType *ArrayType = static_cast<SemaArrayType *>(Sema->getType());
-	ArrayType->accept(*CGM);
-
-	// Get the element type from the array type
-	ArrayType->getElementType()->accept(*CGM);
-	ArrayElementType = ArrayType->getElementType()->getCodeGen()->getType();
-
-	// Generate values and store them for later use
-	ArrayValues.clear();
-	for (SemaValue *Value : Sema->getValues()) {
-		Value->accept(*CGM);
-		llvm::Value *Val = Value->getCodeGen()->getValue();
-		ArrayValues.push_back(Val);
-	}
-
-	// Calculate Space
-	llvm::Value* AllocSize = llvm::ConstantInt::get(CodeGen::IntPtrTy, 0);
-	if (ArrayValues.size() > 0) {
-		llvm::Value* NumElements = llvm::ConstantInt::get(CodeGen::IntPtrTy, ArrayValues.size());
-		llvm::TypeSize SizeInBytes = CGM->Target.getDataLayout().getTypeAllocSize(ArrayValues[0]->getType());
-		llvm::Value* ElementSize = llvm::ConstantInt::get(CodeGen::IntPtrTy, SizeInBytes);
-		AllocSize = Builder->CreateMul(NumElements, ElementSize);
-
-		// @malloc data type - CreateMalloc returns ElementType* (already bitcasted)
-		llvm::Instruction *I = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), CodeGen::IntPtrTy,
-													  ArrayElementType, AllocSize, nullptr, nullptr);
-		V = Builder->Insert(I);  // Already ElementType*, no need for additional bitcast
-	} else {
-		V = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ArrayElementType->getPointerTo()));
-	}
-
-	// Note: Element stores will be done in CodeGenVar::StoreArrayValue
-}
-
 void CodeGenExpr::GenExpr(SemaStructValue *Sema) {
 	
 }
@@ -657,22 +622,21 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
 	assert(E1CodeGen && "E1 CodeGen is null");
 	assert(E2CodeGen && "E2 CodeGen is null");
 
-	// Get Values
-	llvm::Value *V2 = E2CodeGen->getValue();
-
 	// Check if E2 is an array value - if so, use specialized store
 	if (E1->getType()->isArray() && E2->getType()->isArray()) {
+		CodeGenArrayValue *E2CGArray = static_cast<CodeGenArrayValue *>(E2CodeGen);
 		// Use StoreArrayValue to store both the pointer and the elements
-		return static_cast<SemaVar *>(E1)->getCodeGen()->StoreArrayValue(
-			V2, E2CodeGen->ArrayValues, E2CodeGen->ArrayElementType);
+		return static_cast<SemaVar *>(E1)->getCodeGen()->StoreArrayValue(E2CGArray);
 	}
 
+	llvm::Value *V2 = E2CodeGen->getValue();
 	if (E1->getType()->isNumber() && E2->getType()->isNumber()) {
 		SemaNumberType *Type1 = static_cast<SemaNumberType *>(E1->getType());
 		SemaNumberType *Type2 = static_cast<SemaNumberType *>(E2->getType());
 
 		// Promotion rules: convert Type1 or Type2 to the max type
 		if (Type1->getRank() > Type2->getRank()) {
+
 			V2 = ConvertNumber(V2, Type1); // Implicit conversion
 		}
 	}

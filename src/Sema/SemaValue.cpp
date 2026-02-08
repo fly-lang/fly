@@ -84,6 +84,10 @@ void SemaArrayValue::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
+CodeGenArrayValue *SemaArrayValue::getCodeGen() const {
+	return static_cast<CodeGenArrayValue *>(SemaValue::getCodeGen());
+}
+
 SemaStructValue::SemaStructValue(ASTStructValue &AST, SemaType *Type) : SemaValue(AST, Type) {
 }
 

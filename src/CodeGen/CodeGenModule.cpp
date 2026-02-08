@@ -28,14 +28,15 @@
 #include "AST/ASTHandleStmt.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTIfStmt.h"
-#include "AST/ASTLoopStmt.h"
 #include "AST/ASTLoopInStmt.h"
+#include "AST/ASTLoopStmt.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTReturnStmt.h"
 #include "AST/ASTSwitchStmt.h"
 #include "Basic/Debug.h"
 #include "CodeGen/CodeGen.h"
+#include "CodeGen/CodeGenArrayValue.h"
 #include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGenEnumValue.h"
 #include "CodeGen/CodeGenError.h"
@@ -120,6 +121,10 @@ DiagnosticBuilder CodeGenModule::Diag(unsigned DiagID) {
 
 llvm::Module *CodeGenModule::getModule() const {
     return Module;
+}
+
+TargetInfo &CodeGenModule::getTarget() {
+	return Target;
 }
 
 llvm::LLVMContext &CodeGenModule::getLLVMCtx() const {
@@ -372,7 +377,7 @@ void CodeGenModule::visit(SemaStringValue &Sema) {
 
 void CodeGenModule::visit(SemaArrayValue &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
-		CodeGenExpr *CGE = new CodeGenExpr(this);
+		CodeGenArrayValue *CGE = new CodeGenArrayValue(this);
 		CGE->GenExpr(&Sema);
 		Sema.setCodeGen(CGE);
 	}
@@ -483,8 +488,6 @@ void CodeGenModule::GenStmtDecl(ASTDeclStmt *DeclStmt) {
 	// Declaration may be with initialization
 	if (DeclStmt->getExpr()) {
 		DeclStmt->getExpr()->getSema()->accept(*this);
-		// llvm::Value *V = DeclStmt->getExpr()->getSema()->getCodeGen()->getValue();
-		// CGV->Store(V);
 	} else {
 		CGV->StoreDefaultValue();
 	}

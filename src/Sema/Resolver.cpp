@@ -500,10 +500,14 @@ void Resolver::visit(ASTDeclStmt &AST) {
 	}
 
 	// Check for array without size expression or initialization expression
-	if (LocalVar->getSema() && LocalVar->getSema()->getType() && LocalVar->getSema()->getType()->isArray() &&
-		static_cast<SemaArrayType *>(LocalVar->getSema()->getType())->getSizeExpr() == nullptr && AST.getExpr() == nullptr) {
-		// Array must have either size expression or initialization expression
-		Diag(LocalVar->getLocation(), diag::err_sema_array_size_missing);
+	if (LocalVar->getSema() && LocalVar->getSema()->getType() && LocalVar->getSema()->getType()->isArray()) {
+		SemaArrayType *ArrayType = static_cast<SemaArrayType *>(LocalVar->getSema()->getType());
+		// Array must have either size expression (runtime/constant) or initialization expression
+		// Note: getSizeExpr() is set for both runtime expressions and compile-time constants
+		// It's only nullptr when no size was specified at all (but parser creates 0 for empty brackets)
+		if (ArrayType->getSizeExpr() == nullptr && AST.getExpr() == nullptr) {
+			Diag(LocalVar->getLocation(), diag::err_sema_array_size_missing);
+		}
 	}
 
 	FLY_DEBUG_END("Resolver", "visit(ASTDeclStmt)");

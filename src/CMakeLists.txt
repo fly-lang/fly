@@ -108,6 +108,7 @@ add_library(flyLib
         #CodeGen
         CodeGen/BackendUtil.cpp
         CodeGen/CodeGen.cpp
+        CodeGen/CodeGenArrayValue.cpp
         CodeGen/CodeGenClass.cpp
         CodeGen/CodeGenClassMethod.cpp
         CodeGen/CodeGenEnumValue.cpp

@@ -32,7 +32,8 @@ void CodeGenTest::TearDownTestCase() {
 }
 
 void CodeGenTest::SetUp() {
-
+    // Reset diagnostic state to prevent errors from previous tests from affecting this test
+    Diags.Reset();
 }
 void CodeGenTest::TearDown() {
 	Test::TearDown();

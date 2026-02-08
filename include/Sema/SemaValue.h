@@ -10,12 +10,13 @@
 #ifndef FLY_SEMA_VALUE_H
 #define FLY_SEMA_VALUE_H
 
+#include "CodeGen/CodeGenArrayValue.h"
 #include "Sema/SemaExpr.h"
+#include "SemaType.h"
+
 #include <llvm/ADT/APFloat.h>
 #include <llvm/ADT/APInt.h>
 #include <llvm/ADT/StringMap.h>
-
-#include "SemaType.h"
 
 namespace fly {
 
@@ -27,6 +28,7 @@ namespace fly {
 	class ASTStructValue;
 	class ASTNullValue;
 	class ASTEnumValue;
+	class CodeGenArrayValue;
     class SemaType;
 
     class SemaValue : public SemaExpr {
@@ -147,6 +149,8 @@ namespace fly {
 		const llvm::SmallVector<SemaValue *, 8> &getValues() const;
 
 		void accept(SemaVisitor& Visitor) override;
+
+		CodeGenArrayValue *getCodeGen() const override;
 
 	};
 

@@ -155,6 +155,8 @@ namespace fly {
 
         llvm::Module *getModule() const;
 
+    	TargetInfo &getTarget();
+
     	llvm::LLVMContext &getLLVMCtx() const;
 
     	llvm::IRBuilder<> *getBuilder() const;

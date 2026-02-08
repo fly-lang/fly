@@ -10,7 +10,9 @@
 #include "CodeGen/CodeGenVar.h"
 
 #include "CodeGen/CodeGen.h"
+#include "CodeGen/CodeGenArrayValue.h"
 #include "CodeGen/CodeGenModule.h"
+#include "Sema/SemaValue.h"
 
 #include <Sema/SemaCall.h>
 #include <Sema/SemaClassAttribute.h>
@@ -36,9 +38,13 @@ llvm::Type *CodeGenVar::getType() {
 }
 
 llvm::AllocaInst *CodeGenVar::Alloca() {
-	// Array, Class, Struct
-	if (T->isStructTy()) {
-		// Alloca pointer to struct types (except CodeGen::ArrayTy)
+
+	if (T == CodeGen::ArrayTy) {
+		// Alloca pointer to array struct type (CodeGen::ArrayTy)
+		// This creates an alloca for the array struct, which contains a pointer to the data and the size
+		this->Pointer = CGM->Builder->CreateAlloca(CodeGen::ArrayTy);
+	} else if (T->isStructTy()) {
+		// Array and other struct types: allocate pointer to the structure
 		llvm::PointerType *PtrTy = T->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 		this->Pointer = CGM->Builder->CreateAlloca(PtrTy);
 	} else {
@@ -61,41 +67,22 @@ llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
 	return CGM->Builder->CreateStore(Val, getPointer());
 }
 
-llvm::StoreInst *CodeGenVar::StoreArrayValue(llvm::Value *ArrayPtr, const std::vector<llvm::Value *> &Values, llvm::Type *ElementType) {
+llvm::Value *CodeGenVar::StoreArrayValue(CodeGenArrayValue *ArrayValue) {
+	llvm::Value *ArrayPtr = ArrayValue->getValue();
+	const std::vector<llvm::Value *> &Values = ArrayValue->getValues();
 	if (!Values.empty()) {
 		// Store each value into the allocated array data
 		for (size_t i = 0; i < Values.size(); i++) {
 			llvm::Value *Index = llvm::ConstantInt::get(CodeGen::IntPtrTy, i);
-			llvm::Value *ElemPtr = CGM->Builder->CreateGEP(ElementType, ArrayPtr, Index);
+			llvm::Value *ElemPtr = CGM->Builder->CreateGEP(ArrayValue->getElementType(), ArrayPtr, Index);
 			CGM->Builder->CreateStore(Values[i], ElemPtr);
 		}
-
-		// Cast the data pointer to i8* once (required by CodeGen::ArrayTy)
-		llvm::Value *DataPtr = CGM->Builder->CreateBitCast(ArrayPtr, CodeGen::Int8PtrTy);
-
-		// Allocate and populate dimensions array (1D array with single dimension)
-		llvm::Value *DimSize = llvm::ConstantInt::get(CodeGen::SizeTy, Values.size());
-		llvm::AllocaInst *DimsArray = CGM->Builder->CreateAlloca(CodeGen::SizeTy, llvm::ConstantInt::get(CodeGen::Int32Ty, 1));
-		CGM->Builder->CreateStore(DimSize, DimsArray);
-
-		// Create the array structure: { i8* data, size_t* dims, size_t rank }
-		llvm::Value *ArrayStruct = llvm::UndefValue::get(CodeGen::ArrayTy);
-
-		// Set field 0: data pointer (i8*)
-		ArrayStruct = CGM->Builder->CreateInsertValue(ArrayStruct, DataPtr, 0);
-
-		// Set field 1: dims pointer (size_t*)
-		ArrayStruct = CGM->Builder->CreateInsertValue(ArrayStruct, DimsArray, 1);
-
-		// Set field 2: rank (size_t) - 1 for 1D array
-		llvm::Value *Rank = llvm::ConstantInt::get(CodeGen::SizeTy, 1);
-		ArrayStruct = CGM->Builder->CreateInsertValue(ArrayStruct, Rank, 2);
-
-		return Store(ArrayPtr);
+		return ArrayPtr; // No need to return a store instruction for the array struct itself
 	}
 
-	// Store Null
-	return CGM->Builder->CreateStore(llvm::Constant::getNullValue(T->getPointerTo()), getPointer());
+	// Store Null pointer
+	llvm::Value *NullPtr = llvm::Constant::getNullValue(CodeGen::ArrayTy->getPointerTo());
+	return CGM->Builder->CreateStore(NullPtr, getPointer());
 }
 
 llvm::Value *CodeGenVar::getDefaultValue(llvm::Type *T) {
@@ -131,40 +118,90 @@ llvm::StoreInst *CodeGenVar::StoreDefaultValue() {
 		SemaArrayType *ArrayTy = static_cast<SemaArrayType *>(Ty);
 		llvm::Type *ElementType = ArrayTy->getElementType()->getCodeGen()->getType();
 
-		// Dynamic array: zero-initialize with memset
-		if (ElementType->isIntegerTy() || ElementType->isFloatingPointTy()) {
-			llvm::Value *Size = nullptr;
+		// Get the size from expression or constant
+		llvm::Value *Size = nullptr;
+		bool RuntimeCheck = false;
 
-			// Get the size from expression or constant
-			if (ArrayTy->getSizeExpr()) {
-				Size = ArrayTy->getSizeExpr()->getCodeGen()->getValue();
-			} else if (ArrayTy->getSize() > 0) {
-				Size = llvm::ConstantInt::get(CodeGen::Int64Ty, ArrayTy->getSize());
+		// Check if size expression exists and is a constant value
+		if (ArrayTy->getSizeExpr()) {
+			if (ArrayTy->getSizeExpr()->getKind() == SemaKind::VALUE) {
+
+				// Check if size is zero
+				llvm::APInt Int = static_cast<SemaIntValue *>(ArrayTy->getSizeExpr())->getValue();
+				if (Int == 0) {
+					// Size is zero, store null pointer
+					llvm::Value *NullPtr = llvm::Constant::getNullValue(CodeGen::ArrayTy->getPointerTo());
+					return CGM->Builder->CreateStore(NullPtr, getPointer());
+				}
+			} else {
+				// Size is not a constant, need runtime check
+				RuntimeCheck = true;
 			}
+			Size = ArrayTy->getSizeExpr()->getCodeGen()->getValue();
+		} else if (ArrayTy->getSize() > 0) {
 
-			if (Size) {
-				// Use i8 0 for memset value
-				llvm::ConstantInt *ZeroInt8 = llvm::ConstantInt::get(CodeGen::Int8Ty, 0);
+			// Size is a positive constant, can be used directly
+			Size = llvm::ConstantInt::get(CodeGen::Int64Ty, ArrayTy->getSize());
+		} else {
 
-				// @malloc data type - create the array pointer (returns i8*)
-				llvm::Instruction *I = llvm::CallInst::CreateMalloc(
-					CGM->Builder->GetInsertBlock(),
-					CodeGen::IntPtrTy,
-					ElementType,
-					Size,
-					nullptr,
-					nullptr
-				);
-				llvm::Value *MallocPtr = CGM->Builder->Insert(I);
-
-				// Use malloc result directly for memset (already i8*)
-				CGM->Builder->CreateMemSet(MallocPtr, ZeroInt8, Size, llvm::MaybeAlign());
-
-				// Store the pointer
-				setPointer(MallocPtr);
-				return nullptr; // memset already writes to memory, no Store needed
-			}
+			// Size is zero or unspecified, store null pointer
+			llvm::Value *NullPtr = llvm::Constant::getNullValue(CodeGen::ArrayTy->getPointerTo());
+			return CGM->Builder->CreateStore(NullPtr, getPointer());
 		}
+
+		llvm::BasicBlock *MallocBB = nullptr;
+		llvm::BasicBlock *ContBB = nullptr;
+
+		if (RuntimeCheck) {
+			// Create basic blocks for conditional execution
+			MallocBB = llvm::BasicBlock::Create(CGM->getLLVMCtx(), "array.malloc", CGM->Builder->GetInsertBlock()->getParent());
+			ContBB = llvm::BasicBlock::Create(CGM->getLLVMCtx(), "array.default", CGM->Builder->GetInsertBlock()->getParent());
+
+			// Runtime check: Size > 0
+			llvm::Value *IsPositive = CGM->Builder->CreateICmpSGT(Size, llvm::ConstantInt::get(Size->getType(), 0));
+			CGM->Builder->CreateCondBr(IsPositive, MallocBB, ContBB);
+
+			CGM->Builder->SetInsertPoint(MallocBB);
+		}
+
+		// Use i8 0 for memset value
+		llvm::ConstantInt *ZeroInt8 = llvm::ConstantInt::get(CodeGen::Int8Ty, 0);
+
+		// Allocate array data in heap
+		// Note: CreateMalloc already multiplies Size by ElementType size
+		llvm::Instruction *DataMalloc = llvm::CallInst::CreateMalloc(
+			CGM->Builder->GetInsertBlock(),
+			CodeGen::IntPtrTy,
+			ElementType,
+			Size,
+			nullptr,
+			nullptr
+		);
+		llvm::Value *DataPtr = CGM->Builder->Insert(DataMalloc);
+
+		// Calculate total size in bytes for memset: Size * sizeof(ElementType)
+		llvm::TypeSize ElemSize = CGM->Module->getDataLayout().getTypeAllocSize(ElementType);
+		llvm::Value *ElemSizeVal = llvm::ConstantInt::get(Size->getType(), ElemSize.getFixedSize());
+		llvm::Value *TotalSize = CGM->Builder->CreateMul(Size, ElemSizeVal);
+
+		// Zero-initialize the data array
+		CGM->Builder->CreateMemSet(DataPtr, ZeroInt8, TotalSize, llvm::MaybeAlign());
+
+		// Get pointer to field 0 (data pointer)
+		llvm::Value *Field0Ptr = CGM->Builder->CreateStructGEP(CodeGen::ArrayTy, this->Pointer, 0);
+		CGM->Builder->CreateStore(DataPtr, Field0Ptr);
+
+		// Get pointer to field 1 (dims)
+		llvm::Value *Field1Ptr = CGM->Builder->CreateStructGEP(CodeGen::ArrayTy, this->Pointer, 1);
+		llvm::Value *DimsValue = CGM->Builder->CreateIntCast(Size, CodeGen::IntPtrTy, false);
+		CGM->Builder->CreateStore(DimsValue, Field1Ptr);
+
+		if (RuntimeCheck) {
+			CGM->Builder->CreateBr(ContBB);
+			CGM->Builder->SetInsertPoint(ContBB);
+		}
+
+		return nullptr; // Array structure already stored
 	}
 
 	// Non-array types

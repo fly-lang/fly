@@ -26,6 +26,7 @@ namespace fly {
     class CodeGenModule;
     class ASTVar;
     class SemaVar;
+	class CodeGenArrayValue;
 
     class CodeGenVar : public CodeGenExpr {
 
@@ -55,7 +56,7 @@ namespace fly {
 
         llvm::StoreInst *Store(llvm::Value *Val);
 
-    	llvm::StoreInst *StoreArrayValue(llvm::Value *ArrayPtr, const std::vector<llvm::Value *> &Values, llvm::Type *ElementType);
+    	llvm::Value *StoreArrayValue(CodeGenArrayValue *ArrayValue);
 
 		llvm::Value *getDefaultValue(llvm::Type *T);
 
