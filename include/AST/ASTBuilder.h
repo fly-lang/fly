@@ -272,7 +272,7 @@ namespace fly {
 
         static ASTFailStmt *CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-         static ASTHandleStmt *CreateHandleStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTBlockStmt *BlockStmt, ASTExpr *ErrorHandler= nullptr);
+         static ASTHandleStmt *CreateHandleStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTBlockStmt *BlockStmt, ASTIdentifier *ErrorHandler = nullptr);
 
          static ASTBreakStmt *CreateBreakStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 

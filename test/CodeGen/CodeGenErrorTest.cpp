@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// test/FrontendTest.cpp - Frontend tests
+// test/CodeGenErrorTest.cpp - Error tests
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,11 +8,14 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 // fly
-#include "CodeGenTest.h"
-#include "CodeGen/CodeGenModule.h"
 #include "AST/ASTClass.h"
-#include <AST/ASTExprStmt.h>
+#include "AST/ASTFunction.h"
+#include "AST/ASTValue.h"
+#include "CodeGen/CodeGenModule.h"
+#include "CodeGenTest.h"
+
 #include <AST/ASTDeclStmt.h>
+#include <AST/ASTExprStmt.h>
 #include <AST/ASTFailStmt.h>
 #include <AST/ASTLocalVar.h>
 
@@ -26,7 +29,7 @@ namespace {
         /**
          * Fly code:
          * void func() {
-         *   error A = handle {
+         *   error A handle {
          *     fail
          *   }
          * }
@@ -34,20 +37,20 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func() {
-        //   error A = handle fail
+        //   error A handle fail
         // }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
         ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
         ASTLocalVar *ErrorA = ASTBuilder::CreateLocalVar(SourceLoc, ErrorTypeRef, "A", EmptyModifiers);
-        ASTDeclStmt *DeclStmt_A = ASTBuilder::CreateDeclStmt(Body, SourceLoc, ErrorA);
-        ASTIdentifier *ErrorVarRef = ASTBuilder::CreateIdentifier(ErrorA);
+        ASTIdentifier *ErrorIdentifier = ASTBuilder::CreateIdentifier(ErrorA);
         ASTBlockStmt *HandleBlock = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTBuilder::CreateHandleStmt(Body, SourceLoc, HandleBlock, ErrorVarRef);
+        ASTBuilder::CreateHandleStmt(Body, SourceLoc, HandleBlock, ErrorIdentifier);
 
         ASTFailStmt * Fail0Stmt = ASTBuilder::CreateFailStmt(HandleBlock, SourceLoc);
 
 		// Generate Code
-		llvm::Module * M = Generate()[0];
+		Generate();
+		llvm::Module * M = getModules()[0];
 		std::string output = getOutput(M->getFunctionList());
 
         EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
@@ -101,7 +104,8 @@ namespace {
 		CallTestFail0->setExpr(CallExpr0);
 
 		// Generate Code
-		llvm::Module * M = Generate()[0];
+		Generate();
+		llvm::Module * M = getModules()[0];
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
@@ -171,7 +175,8 @@ namespace {
 		CallTestFail1->setExpr(CallExpr1);
 
 		// Generate Code
-		llvm::Module * M = Generate()[0];
+		Generate();
+		llvm::Module * M = getModules()[0];
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
@@ -241,7 +246,8 @@ namespace {
         CallTestFail2->setExpr(CallExpr2);
 
 		// Generate Code
-		llvm::Module * M = Generate()[0];
+		Generate();
+		llvm::Module * M = getModules()[0];
 		std::string output = getOutput(M);
 
 		EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
@@ -311,7 +317,8 @@ namespace {
         CallTestFail3->setExpr(CallExpr3);
 
 		// Generate Code
-		llvm::Module * M = Generate()[0];
+		Generate();
+		llvm::Module * M = getModules()[0];
 		std::string output = getOutput(M);
 
 		EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
@@ -394,7 +401,8 @@ namespace {
         CallTestFail4->setExpr(CallExpr4);
 
 		// Generate Code
-		llvm::Module * M = Generate()[0];
+		Generate();
+		llvm::Module * M = getModules()[0];
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"

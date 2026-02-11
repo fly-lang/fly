@@ -752,9 +752,9 @@ ASTExprStmt *ASTBuilder::CreateExprStmt(ASTBlockStmt *Parent, const SourceLocati
 	FLY_DEBUG_START_MSG("ASTBuilder", "CreateExprStmt", Logger()
                       .Attr("Parent", Parent)
                       .Attr("Loc", (uint64_t) Loc.getRawEncoding()).End());
-     ASTExprStmt *Stmt = new ASTExprStmt(Loc);
+	ASTExprStmt *Stmt = new ASTExprStmt(Loc);
 	Parent->addContent(Stmt);
-     return Stmt;
+	return Stmt;
  }
 
 /**
@@ -775,7 +775,7 @@ ASTFailStmt *ASTBuilder::CreateFailStmt(ASTBlockStmt *Parent, const SourceLocati
 
 ASTHandleStmt *ASTBuilder::CreateHandleStmt(
 	ASTBlockStmt *Parent, const SourceLocation &Loc,
-	ASTBlockStmt *BlockStmt, ASTExpr *ErrorHandler) {
+	ASTBlockStmt *BlockStmt, ASTIdentifier *ErrorHandler) {
 	FLY_DEBUG_START_MSG("ASTBuilder", "CreateHandleStmt", "Loc=" << Loc.getRawEncoding());
 
 	ASTHandleStmt *HandleStmt = new ASTHandleStmt(Loc);
