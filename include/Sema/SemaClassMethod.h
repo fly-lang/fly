@@ -53,7 +53,7 @@ namespace fly {
     	SemaComment *Comment = nullptr;
 
     	explicit SemaClassMethod(ASTMethod &AST, SemaClassType *Class,  SemaClassInstance *This,
-    		SemaClassMethodKind MethodKind);
+    		SemaClassMethodKind MethodKind, SymbolTable *Scope);
 
     public:
 

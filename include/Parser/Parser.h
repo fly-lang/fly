@@ -162,7 +162,7 @@ private:
     void ParseForStmt(ASTBlockStmt *Parent);
 
     /// Parse a handle statement.
-    void ParseHandleStmt(ASTBlockStmt *Parent, ASTIdentifier *Error = nullptr);
+    void ParseHandleStmt(ASTBlockStmt *Parent);
 
     /// Parse a fail statement.
     void ParseFailStmt(ASTBlockStmt *Parent);

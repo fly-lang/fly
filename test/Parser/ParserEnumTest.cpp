@@ -35,7 +35,7 @@ namespace {
         ASTModule *Module = Parse("TestEnum", str);
 
         llvm::StringRef str2 = (
-                "void main() {\n"
+                "main() {\n"
                 "  Test a = Test.A\n"
                 "  a = Test.B\n"
                 "  Test c = a\n"

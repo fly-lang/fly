@@ -106,7 +106,9 @@ namespace fly {
 
     	Symbol *CurrentSymbol = nullptr;
 
-    	// llvm::SmallVector<ASTNumberValue *, 8> UntypedNumValues;
+    	SemaError *CurrentErrorHandler = nullptr;
+
+    	ASTHandleStmt *CurrentHandleStmt = nullptr;
 
     public:
 
@@ -182,7 +184,7 @@ namespace fly {
         // Semantic Resolution Phases
         void ResolveImports(SemaModule *Module);
 
-        void ResolveFunction(SemaFunction *Func);
+        void ResolveFunction(SemaFunction *Sema);
 
         void ResolveClassType(SemaClassType *ClassType);
 
@@ -195,8 +197,6 @@ namespace fly {
         void CreateDefaultConstructor();
 
         void ResolveEnumType(SemaEnumType *Enum);
-
-        void ResolveBody(LocalScope &Scope);
 
     	SmallVector<SemaType *, 8> ResolveCallArgs(ASTCall *AST);
 

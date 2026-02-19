@@ -38,7 +38,7 @@ namespace fly {
 
         ASTAttribute *ParseAttribute(llvm::SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef, const SourceLocation &Loc, llvm::StringRef Name);
 
-        ASTMethod *ParseMethod(llvm::SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef, const SourceLocation &Loc, llvm::StringRef Name);
+        ASTMethod *ParseMethod(llvm::SmallVector<ASTModifier *, 8> &Modifiers, const SourceLocation &Loc, llvm::StringRef Name);
     };
 }
 

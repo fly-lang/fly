@@ -18,6 +18,7 @@ namespace fly {
 
 	class ASTBinary;
 	class ASTTernary;
+	enum class ASTCallKind;
 
 	enum class Precedence {
 		LOWEST,         // No operators
@@ -61,7 +62,7 @@ namespace fly {
         ASTExpr *ParseNewExpr();
 
         /// Parse a call.
-        ASTCall *ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent = nullptr);
+        ASTCall *ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTCallKind CallKind, ASTExpr *Parent = nullptr);
 
         /// Parse multiple values.
         ASTValue *ParseValues();

@@ -23,7 +23,6 @@
 #include <AST/ASTBuilderSwitchStmt.h>
 #include <AST/ASTLocalVar.h>
 #include <AST/ASTParam.h>
-#include <AST/ASTReturnStmt.h>
 #include <AST/ASTTernary.h>
 #include <AST/ASTUnary.h>
 #include <AST/ASTValue.h>
@@ -50,7 +49,7 @@ namespace {
          */
         ASTModule *Module = CreateModule();
     	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // default bool a = false
     	ASTLocalVar *LocalVar_a = ASTBuilder::CreateLocalVar(SourceLoc, BoolTypeRef, "a", EmptyModifiers);
@@ -156,7 +155,7 @@ namespace {
         Params.push_back(ASTBuilder::CreateParam(SourceLoc, ULongTypeRef, "j", EmptyModifiers));
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
 
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
         // func(int a, float b, bool c, long d, double e, byte f, short g, ushort h, uint i, ulong l) {
         // }
 
@@ -165,31 +164,45 @@ namespace {
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @_F4func_i_f_b_l_d_y_s_us_ui_ul(%error* %0, i32 %1, float %2, i1 %3, i64 %4, double %5, i8 %6, i16 %7, i16 %8, i32 %9, i64 %10) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i_f_b_l_d_y_s_us_ui_ul(%error* %0, i32* %1, float* %2, i1* %3, i64* %4, double* %5, i8* %6, i16* %7, i16* %8, i32* %9, i64* %10) {\n"
                           "entry:\n"
                           "  %11 = alloca %error*, align 8\n"
-                          "  %12 = alloca i32, align 4\n"
-                          "  %13 = alloca float, align 4\n"
-                          "  %14 = alloca i8, align 1\n"
-                          "  %15 = alloca i64, align 8\n"
-                          "  %16 = alloca double, align 8\n"
-                          "  %17 = alloca i8, align 1\n"
-                          "  %18 = alloca i16, align 2\n"
-                          "  %19 = alloca i16, align 2\n"
-                          "  %20 = alloca i32, align 4\n"
-                          "  %21 = alloca i64, align 8\n"
                           "  store %error* %0, %error** %11, align 8\n"
-                          "  store i32 %1, i32* %12, align 4\n"
-                          "  store float %2, float* %13, align 4\n"
-                          "  %22 = zext i1 %3 to i8\n"
-                          "  store i8 %22, i8* %14, align 1\n"
-                          "  store i64 %4, i64* %15, align 8\n"
-                          "  store double %5, double* %16, align 8\n"
-                          "  store i8 %6, i8* %17, align 1\n"
-                          "  store i16 %7, i16* %18, align 2\n"
-                          "  store i16 %8, i16* %19, align 2\n"
-                          "  store i32 %9, i32* %20, align 4\n"
-                          "  store i64 %10, i64* %21, align 8\n"
+                          "  ret void\n"
+                          "}\n");
+    }
+
+    TEST_F(CodeGenTest, CGConstParamReadOnly) {
+        /**
+         * Fly code:
+         * void func(const int a, int b) {
+         * }
+         *
+         * Expected: const parameter 'a' should have 'readonly' attribute in LLVM IR
+         */
+        ASTModule *Module = CreateModule();
+
+        // Create const modifier
+        llvm::SmallVector<ASTModifier *, 8> ConstModifiers;
+        ConstModifiers.push_back(ASTBuilder::CreateModifier(SourceLoc, ASTModifierKind::MOD_CONSTANT));
+
+        llvm::SmallVector<ASTParam *, 8> Params;
+        Params.push_back(ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "a", ConstModifiers));  // const int a
+        Params.push_back(ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "b", EmptyModifiers));  // int b
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
+
+    	// Generate Code
+    	Generate();
+    	llvm::Module * M = getModules()[0];
+    	std::string output = getOutput(M->getFunctionList());
+
+        // The const parameter should have 'readonly' attribute
+        EXPECT_EQ(output, "define void @_F4func_i_i(%error* %0, i32* readonly %1, i32* %2) {\n"
+                          "entry:\n"
+                          "  %3 = alloca %error*, align 8\n"
+                          "  store %error* %0, %error** %3, align 8\n"
                           "  ret void\n"
                           "}\n");
     }
@@ -207,7 +220,7 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, FloatTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
     	// float g
     	ASTLocalVar *LocalVar_g = ASTBuilder::CreateLocalVar(SourceLoc, FloatTypeRef, "g", EmptyModifiers);
@@ -222,22 +235,20 @@ namespace {
 
         // return g
         ASTReturnStmt * Return = ASTBuilder::CreateReturnStmt(Body, SourceLoc);
-        Return->setExpr(ASTBuilder::CreateIdentifier(LocalVar_g));
 
     	// CreateVTable Code
     	Generate();
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define float @_F4func(%error* %0) {\n"
+        EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca float, align 4\n"
                           "  store %error* %0, %error** %1, align 8\n"
                           "  store float 0.000000e+00, float* %2, align 4\n"
                           "  store double 1.000000e+00, float* %2, align 8\n"
-                          "  %3 = load float, float* %2, align 4\n"
-                          "  ret float %3\n"
+                          "  ret void\n"
                           "}\n");
     }
 
@@ -252,7 +263,7 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // int a = 1
         ASTLocalVar *LocalVar_a = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "a", EmptyModifiers);
@@ -281,26 +292,26 @@ namespace {
         /**
          * Fly code:
          * int test() {
-         *   return 1
+         *   return
          * }
          * void func() {
-         *   return test()
+         *   test()
+         *   return
          * }
          */
         ASTModule *Module = CreateModule();
 
         // test()
         ASTBlockStmt *BodyTest = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Test = ASTBuilder::CreateFunction(Module, SourceLoc, IntTypeRef, "test", TopModifiers, Params, BodyTest);
+        ASTFunction *Test = ASTBuilder::CreateFunction(Module, SourceLoc, "test", TopModifiers, Params, BodyTest);
 
         // func()
         ASTBlockStmt *BodyFunc = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, IntTypeRef, "func", TopModifiers, Params, BodyFunc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, BodyFunc);
 
         //return test()
         ASTReturnStmt * Return = ASTBuilder::CreateReturnStmt(BodyFunc, SourceLoc);
         ASTCall *ReturnExpr = ASTBuilder::CreateCall(SourceLoc, Test->getName(), Args, ASTCallKind::CALL_DIRECT);
-        Return->setExpr(ReturnExpr);
 
     	// CreateVTable Code
     	Generate();
@@ -311,20 +322,19 @@ namespace {
 						  "%error = type { i8, i32, i8* }\n"
 						  "\n"
 						  "@error = external constant %error\n"
-                          "\n"
-						  "define i32 @_F4test(%error* %0) {\n"
+						  "\n"
+						  "define void @_F4test(%error* %0) {\n"
 						  "entry:\n"
 						  "  %1 = alloca %error*, align 8\n"
 						  "  store %error* %0, %error** %1, align 8\n"
+						  "  ret void\n"
 						  "}\n"
 						  "\n"
-						  "define i32 @_F4func(%error* %0) {\n"
+						  "define void @_F4func(%error* %0) {\n"
 						  "entry:\n"
 						  "  %1 = alloca %error*, align 8\n"
 						  "  store %error* %0, %error** %1, align 8\n"
-						  "  %2 = load %error*, %error** %1, align 8\n"
-						  "  %3 = call i32 @_F4test(%error* %2)\n"
-						  "  ret i32 %3\n"
+						  "  ret void\n"
 						  "}\n");
     }
 
@@ -344,10 +354,10 @@ namespace {
         Params.push_back(bParam);
         ASTParam *cParam = ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "c", EmptyModifiers);
         Params.push_back(cParam);
-        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, IntTypeRef, "func", TopModifiers, Params, Body);
 
-        ASTReturnStmt *Return = ASTBuilder::CreateReturnStmt(Body, SourceLoc);
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
+
         // Create this expression: 1 + a * b / (c - 2)
         // E1 + (E2 * E3) / (E4 - E5)
         // E1 + (G2 / G3)
@@ -363,31 +373,31 @@ namespace {
         ASTBinary *G1 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ARITH_DIV, G2, G3);
         ASTBinary *Group = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ARITH_ADD, E1, G1);
 
-        Return->setExpr(Group);
+
+    	ASTLocalVar *LocalVar_r = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "r", EmptyModifiers);
+    	ASTDeclStmt *DeclStmt_r = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_r);
+    	ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, ASTBuilder::CreateIdentifier(LocalVar_r), Group);
+    	DeclStmt_r->setExpr(AssignExpr);
 
     	// CreateVTable Code
     	Generate();
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define i32 @_F4func_i_i_i(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i_i_i(%error* %0, i32* %1, i32* %2, i32* %3) {\n"
                           "entry:\n"
                           "  %4 = alloca %error*, align 8\n"
                           "  %5 = alloca i32, align 4\n"
-                          "  %6 = alloca i32, align 4\n"
-                          "  %7 = alloca i32, align 4\n"
                           "  store %error* %0, %error** %4, align 8\n"
-                          "  store i32 %1, i32* %5, align 4\n"
-                          "  store i32 %2, i32* %6, align 4\n"
-                          "  store i32 %3, i32* %7, align 4\n"
-                          "  %8 = load i32, i32* %5, align 4\n"
-                          "  %9 = load i32, i32* %6, align 4\n"
-                          "  %10 = mul i32 %8, %9\n"
-                          "  %11 = load i32, i32* %7, align 4\n"
-                          "  %12 = sub i32 %11, 2\n"
-                          "  %13 = sdiv i32 %10, %12\n"
-                          "  %14 = add i32 1, %13\n"
-                          "  ret i32 %14\n"
+                          "  %6 = load i32, i32* %1, align 4\n"
+                          "  %7 = load i32, i32* %2, align 4\n"
+                          "  %8 = mul i32 %6, %7\n"
+                          "  %9 = load i32, i32* %3, align 4\n"
+                          "  %10 = sub i32 %9, 2\n"
+                          "  %11 = sdiv i32 %8, %10\n"
+                          "  %12 = add i32 1, %11\n"
+                          "  store i32 %12, i32* %5, align 4\n"
+                          "  ret void\n"
                           "}\n");
     }
 
@@ -424,7 +434,7 @@ namespace {
         ASTParam *cParam = ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "c", EmptyModifiers);
         Params.push_back(cParam);
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // a = 0
         ASTExprStmt * aVarStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
@@ -546,53 +556,47 @@ namespace {
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @_F4func_i_i_i(%error* %0, i32 %1, i32 %2, i32 %3) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i_i_i(%error* %0, i32* %1, i32* %2, i32* %3) {\n"
                           "entry:\n"
                           "  %4 = alloca %error*, align 8\n"
-                          "  %5 = alloca i32, align 4\n"
-                          "  %6 = alloca i32, align 4\n"
-                          "  %7 = alloca i32, align 4\n"
                           "  store %error* %0, %error** %4, align 8\n"
-                          "  store i32 %1, i32* %5, align 4\n"
-                          "  store i32 %2, i32* %6, align 4\n"
-                          "  store i32 %3, i32* %7, align 4\n"
-                          "  store i32 0, i32* %5, align 4\n"
-                          "  store i32 0, i32* %6, align 4\n"
-                          "  %8 = load i32, i32* %5, align 4\n"
-                          "  %9 = load i32, i32* %6, align 4\n"
-                          "  %10 = add i32 %8, %9\n"
-                          "  store i32 %10, i32* %7, align 4\n"
-                          "  %11 = sub i32 %8, %9\n"
-                          "  store i32 %11, i32* %7, align 4\n"
-                          "  %12 = mul i32 %8, %9\n"
-                          "  store i32 %12, i32* %7, align 4\n"
-                          "  %13 = sdiv i32 %8, %9\n"
-                          "  store i32 %13, i32* %7, align 4\n"
-                          "  %14 = srem i32 %8, %9\n"
-                          "  store i32 %14, i32* %7, align 4\n"
-                          "  %15 = and i32 %8, %9\n"
-                          "  store i32 %15, i32* %7, align 4\n"
-                          "  %16 = or i32 %8, %9\n"
-                          "  store i32 %16, i32* %7, align 4\n"
-                          "  %17 = xor i32 %8, %9\n"
-                          "  store i32 %17, i32* %7, align 4\n"
-                          "  %18 = shl i32 %8, %9\n"
-                          "  store i32 %18, i32* %7, align 4\n"
-                          "  %19 = ashr i32 %8, %9\n"
-                          "  store i32 %19, i32* %7, align 4\n"
+                          "  store i32 0, i32* %1, align 4\n"
+                          "  store i32 0, i32* %2, align 4\n"
+                          "  %5 = load i32, i32* %1, align 4\n"
+                          "  %6 = load i32, i32* %2, align 4\n"
+                          "  %7 = add i32 %5, %6\n"
+                          "  store i32 %7, i32* %3, align 4\n"
+                          "  %8 = sub i32 %5, %6\n"
+                          "  store i32 %8, i32* %3, align 4\n"
+                          "  %9 = mul i32 %5, %6\n"
+                          "  store i32 %9, i32* %3, align 4\n"
+                          "  %10 = sdiv i32 %5, %6\n"
+                          "  store i32 %10, i32* %3, align 4\n"
+                          "  %11 = srem i32 %5, %6\n"
+                          "  store i32 %11, i32* %3, align 4\n"
+                          "  %12 = and i32 %5, %6\n"
+                          "  store i32 %12, i32* %3, align 4\n"
+                          "  %13 = or i32 %5, %6\n"
+                          "  store i32 %13, i32* %3, align 4\n"
+                          "  %14 = xor i32 %5, %6\n"
+                          "  store i32 %14, i32* %3, align 4\n"
+                          "  %15 = shl i32 %5, %6\n"
+                          "  store i32 %15, i32* %3, align 4\n"
+                          "  %16 = ashr i32 %5, %6\n"
+                          "  store i32 %16, i32* %3, align 4\n"
                           // Unary Operations
-                          "  %20 = load i32, i32* %7, align 4\n"
-                          "  %21 = add nsw i32 %20, 1\n"
-                          "  store i32 %21, i32* %7, align 4\n"
-                          "  %22 = load i32, i32* %7, align 4\n"
-                          "  %23 = add nsw i32 %22, 1\n"
-                          "  store i32 %23, i32* %7, align 4\n"
-                          "  %24 = load i32, i32* %7, align 4\n"
-                          "  %25 = add nsw i32 %24, -1\n"
-                          "  store i32 %25, i32* %7, align 4\n"
-                          "  %26 = load i32, i32* %7, align 4\n"
-                          "  %27 = add nsw i32 %26, -1\n"
-                          "  store i32 %27, i32* %7, align 4\n"
+                          "  %17 = load i32, i32* %3, align 4\n"
+                          "  %18 = add nsw i32 %17, 1\n"
+                          "  store i32 %18, i32* %3, align 4\n"
+                          "  %19 = load i32, i32* %3, align 4\n"
+                          "  %20 = add nsw i32 %19, 1\n"
+                          "  store i32 %20, i32* %3, align 4\n"
+                          "  %21 = load i32, i32* %3, align 4\n"
+                          "  %22 = add nsw i32 %21, -1\n"
+                          "  store i32 %22, i32* %3, align 4\n"
+                          "  %23 = load i32, i32* %3, align 4\n"
+                          "  %24 = add nsw i32 %23, -1\n"
+                          "  store i32 %24, i32* %3, align 4\n"
                           "  ret void\n"
                           "}\n");
     }
@@ -618,7 +622,7 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         ASTLocalVar *LocalVar_a = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         ASTDeclStmt *DeclStmt_a = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_a);
@@ -745,7 +749,7 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         ASTLocalVar *LocalVar_a = ASTBuilder::CreateLocalVar(SourceLoc, BoolTypeRef, "a", EmptyModifiers);
         ASTDeclStmt *DeclStmt_a = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_a);
@@ -841,7 +845,7 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         ASTLocalVar *LocalVar_a = ASTBuilder::CreateLocalVar(SourceLoc, BoolTypeRef, "a", EmptyModifiers);
         ASTDeclStmt *DeclStmt_a = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_a);
@@ -915,7 +919,7 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // int a = 0
         ASTLocalVar *LocalVar_a = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "a", EmptyModifiers);
@@ -982,7 +986,7 @@ namespace {
         ASTParam *Param_a = ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         Params.push_back(Param_a);
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // if (a == 1)
         ASTNumberValue *NumberValue_1 = ASTBuilder::CreateNumberValue(SourceLoc, "1");
@@ -1014,22 +1018,20 @@ namespace {
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32* %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
-                          "  %3 = alloca i32, align 4\n"
                           "  store %error* %0, %error** %2, align 8\n"
-                          "  store i32 %1, i32* %3, align 4\n"
-                          "  %4 = load i32, i32* %3, align 4\n"
-                          "  %5 = icmp eq i32 %4, 1\n"
-                          "  br i1 %5, label %ifthen, label %else\n"
+                          "  %3 = load i32, i32* %1, align 4\n"
+                          "  %4 = icmp eq i32 %3, 1\n"
+                          "  br i1 %4, label %ifthen, label %else\n"
                           "\n"
                           "ifthen:                                           ; preds = %entry\n"
-                          "  store i32 1, i32* %3, align 4\n"
+                          "  store i32 1, i32* %1, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "else:                                             ; preds = %entry\n"
-                          "  store i32 2, i32* %3, align 4\n"
+                          "  store i32 2, i32* %1, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "endif:                                            ; preds = %else, %ifthen\n"
@@ -1060,7 +1062,7 @@ namespace {
         ASTParam *Param_a = ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         Params.push_back(Param_a);
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // if (a == 1)
         ASTBuilderIfStmt *IfBuilder = ASTBuilderIfStmt::Create(Body);
@@ -1117,40 +1119,38 @@ namespace {
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32* %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
-                          "  %3 = alloca i32, align 4\n"
                           "  store %error* %0, %error** %2, align 8\n"
-                          "  store i32 %1, i32* %3, align 4\n"
-                          "  %4 = load i32, i32* %3, align 4\n"
-                          "  %5 = icmp eq i32 %4, 1\n"
-                          "  br i1 %5, label %ifthen, label %elsif\n"
+                          "  %3 = load i32, i32* %1, align 4\n"
+                          "  %4 = icmp eq i32 %3, 1\n"
+                          "  br i1 %4, label %ifthen, label %elsif\n"
                           "\n"
                           "ifthen:                                           ; preds = %entry\n"
-                          "  store i32 11, i32* %3, align 4\n"
+                          "  store i32 11, i32* %1, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "elsif:                                            ; preds = %entry\n"
-                          "  %6 = load i32, i32* %3, align 4\n"
-                          "  %7 = icmp eq i32 %6, 2\n"
-                          "  br i1 %7, label %elsifthen, label %elsif1\n"
+                          "  %5 = load i32, i32* %1, align 4\n"
+                          "  %6 = icmp eq i32 %5, 2\n"
+                          "  br i1 %6, label %elsifthen, label %elsif1\n"
                           "\n"
                           "elsifthen:                                        ; preds = %elsif\n"
-                          "  store i32 22, i32* %3, align 4\n"
+                          "  store i32 22, i32* %1, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "elsif1:                                           ; preds = %elsif\n"
-                          "  %8 = load i32, i32* %3, align 4\n"
-                          "  %9 = icmp eq i32 %8, 3\n"
-                          "  br i1 %9, label %elsifthen2, label %else\n"
+                          "  %7 = load i32, i32* %1, align 4\n"
+                          "  %8 = icmp eq i32 %7, 3\n"
+                          "  br i1 %8, label %elsifthen2, label %else\n"
                           "\n"
                           "elsifthen2:                                       ; preds = %elsif1\n"
-                          "  store i32 33, i32* %3, align 4\n"
+                          "  store i32 33, i32* %1, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "else:                                             ; preds = %elsif1\n"
-                          "  store i32 44, i32* %3, align 4\n"
+                          "  store i32 44, i32* %1, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "endif:                                            ; preds = %else, %elsifthen2, %elsifthen, %ifthen\n"
@@ -1178,7 +1178,7 @@ namespace {
         ASTParam *Param_a = ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         Params.push_back(Param_a);
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // if a == 1
         ASTBuilderIfStmt *IfBuilder = ASTBuilderIfStmt::Create(Body);
@@ -1224,35 +1224,34 @@ namespace {
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32* %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
-                          "  %3 = alloca i32, align 4\n"
                           "  store %error* %0, %error** %2, align 8\n"
-                          "  store i32 %1, i32* %3, align 4\n"
-                          "  %4 = load i32, i32* %3, align 4\n"
-                          "  %5 = icmp eq i32 %4, 1\n"
-                          "  br i1 %5, label %ifthen, label %elsif\n"
+                          "  %3 = load i32, i32* %1, align 4\n"
+                          "  %4 = icmp eq i32 %3, 1\n"
+                          "  br i1 %4, label %ifthen, label %elsif\n"
                           "\n"
                           "ifthen:                                           ; preds = %entry\n"
-                          "  store i32 11, i32* %3, align 4\n"
+                          "  store i32 11, i32* %1, align 4\n"
                           "  br label %endif\n"
-                          "\nelsif:                                            ; preds = %entry\n"
-                          "  %6 = load i32, i32* %3, align 4\n"
-                          "  %7 = icmp eq i32 %6, 2\n"
-                          "  br i1 %7, label %elsifthen, label %elsif1\n"
+                          "\n"
+                          "elsif:                                            ; preds = %entry\n"
+                          "  %5 = load i32, i32* %1, align 4\n"
+                          "  %6 = icmp eq i32 %5, 2\n"
+                          "  br i1 %6, label %elsifthen, label %elsif1\n"
                           "\n"
                           "elsifthen:                                        ; preds = %elsif\n"
-                          "  store i32 22, i32* %3, align 4\n"
+                          "  store i32 22, i32* %1, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "elsif1:                                           ; preds = %elsif\n"
-                          "  %8 = load i32, i32* %3, align 4\n"
-                          "  %9 = icmp eq i32 %8, 3\n"
-                          "  br i1 %9, label %elsifthen2, label %endif\n"
+                          "  %7 = load i32, i32* %1, align 4\n"
+                          "  %8 = icmp eq i32 %7, 3\n"
+                          "  br i1 %8, label %elsifthen2, label %endif\n"
                           "\n"
                           "elsifthen2:                                       ; preds = %elsif1\n"
-                          "  store i32 33, i32* %3, align 4\n"
+                          "  store i32 33, i32* %1, align 4\n"
                           "  br label %endif\n"
                           "\n"
                           "endif:                                            ; preds = %elsifthen2, %elsif1, %elsifthen, %ifthen\n"
@@ -1281,7 +1280,7 @@ namespace {
         ASTParam *Param_a = ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         Params.push_back(Param_a);
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // switch a
     	ASTIdentifier *Identifier_aExpr = ASTBuilder::CreateIdentifier(Param_a);
@@ -1318,28 +1317,26 @@ namespace {
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32* %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
-                          "  %3 = alloca i32, align 4\n"
                           "  store %error* %0, %error** %2, align 8\n"
-                          "  store i32 %1, i32* %3, align 4\n"
-                          "  %4 = load i32, i32* %3, align 4\n"
-                          "  switch i32 %4, label %default [\n"
+                          "  %3 = load i32, i32* %1, align 4\n"
+                          "  switch i32 %3, label %default [\n"
                           "    i32 1, label %case\n"
                           "    i32 2, label %case1\n"
                           "  ]\n"
                           "\n"
                           "case:                                             ; preds = %entry\n"
-                          "  store i32 1, i32* %3, align 4\n"
+                          "  store i32 1, i32* %1, align 4\n"
                           "  br label %case1\n"
                           "\n"
                           "case1:                                            ; preds = %entry, %case\n"
-                          "  store i32 2, i32* %3, align 4\n"
+                          "  store i32 2, i32* %1, align 4\n"
                           "  br label %endswitch\n"
                           "\n"
                           "default:                                          ; preds = %entry\n"
-                          "  store i32 3, i32* %3, align 4\n"
+                          "  store i32 3, i32* %1, align 4\n"
                           "  br label %endswitch\n"
                           "\n"
                           "endswitch:                                        ; preds = %default, %case1\n"
@@ -1364,7 +1361,7 @@ namespace {
         ASTParam *Param_a = ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         Params.push_back(Param_a);
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // while a == 1
         ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::Create(Body, SourceLoc);
@@ -1385,21 +1382,19 @@ namespace {
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32* %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
-                          "  %3 = alloca i32, align 4\n"
                           "  store %error* %0, %error** %2, align 8\n"
-                          "  store i32 %1, i32* %3, align 4\n"
                           "  br label %loopcond\n"
                           "\n"
                           "loopcond:                                         ; preds = %loop, %entry\n"
-                          "  %4 = load i32, i32* %3, align 4\n"
-                          "  %5 = icmp eq i32 %4, 1\n"
-                          "  br i1 %5, label %loop, label %loopend\n"
+                          "  %3 = load i32, i32* %1, align 4\n"
+                          "  %4 = icmp eq i32 %3, 1\n"
+                          "  br i1 %4, label %loop, label %loopend\n"
                           "\n"
                           "loop:                                             ; preds = %loopcond\n"
-                          "  store i32 1, i32* %3, align 4\n"
+                          "  store i32 1, i32* %1, align 4\n"
                           "  br label %loopcond\n"
                           "\n"
                           "loopend:                                          ; preds = %loopcond\n"
@@ -1423,7 +1418,7 @@ namespace {
         ASTParam *Param_a = ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
         Params.push_back(Param_a);
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // for int i = 1; i < 1; ++i
         ASTBuilderLoopStmt *LoopBuilder = ASTBuilderLoopStmt::Create(Body, SourceLoc);
@@ -1473,29 +1468,27 @@ namespace {
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32 %1) {\n"
+        EXPECT_EQ(output, "define void @_F4func_i(%error* %0, i32* %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
                           "  %3 = alloca i32, align 4\n"
-                          "  %4 = alloca i32, align 4\n"
                           "  store %error* %0, %error** %2, align 8\n"
-                          "  store i32 %1, i32* %3, align 4\n"
-                          "  store i32 1, i32* %4, align 4\n"
+                          "  store i32 1, i32* %3, align 4\n"
                           "  br label %loopcond\n"
                           "\n"
                           "loopcond:                                         ; preds = %looppost, %entry\n"
-                          "  %5 = load i32, i32* %4, align 4\n"
-                          "  %6 = icmp sle i32 %5, 1\n"
-                          "  br i1 %6, label %loop, label %loopend\n"
+                          "  %4 = load i32, i32* %3, align 4\n"
+                          "  %5 = icmp sle i32 %4, 1\n"
+                          "  br i1 %5, label %loop, label %loopend\n"
                           "\n"
                           "loop:                                             ; preds = %loopcond\n"
-                          "  store i32 1, i32* %3, align 4\n"
+                          "  store i32 1, i32* %1, align 4\n"
                           "  br label %looppost\n"
                           "\n"
                           "looppost:                                         ; preds = %loop\n"
-                          "  %7 = load i32, i32* %4, align 4\n"
-                          "  %8 = add nsw i32 %7, 1\n"
-                          "  store i32 %8, i32* %4, align 4\n"
+                          "  %6 = load i32, i32* %3, align 4\n"
+                          "  %7 = add nsw i32 %6, 1\n"
+                          "  store i32 %7, i32* %3, align 4\n"
                           "  br label %loopcond\n"
                           "\n"
                           "loopend:                                          ; preds = %loopcond\n"
@@ -1515,7 +1508,7 @@ namespace {
         //
         // }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "main", TopModifiers, Params, Body);
 
 		// CreateVTable Code
 		Generate();

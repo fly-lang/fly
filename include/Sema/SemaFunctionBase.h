@@ -19,9 +19,10 @@
 
 namespace fly {
 
+	class SymbolTable;
     class ASTFunction;
     class SemaVar;
-    class SemaErrorHandler;
+    class SemaError;
     class SemaParam;
     class SemaLocalVar;
     class CodeGenFunctionBase;
@@ -30,35 +31,33 @@ namespace fly {
 
         friend class SemaBuilder;
 
+    	SymbolTable *Scope;
+
         llvm::SmallVector<SemaParam *, 8> Params;
 
         SemaType *ReturnType;
-
-    	SemaValue *DefaultReturnValue;
 
         ASTFunction &AST;
 
         llvm::SmallVector<SemaLocalVar *, 8> LocalVars;
 
-        SemaErrorHandler *ErrorHandler;
+    	SemaError *ErrorHandler;
+
+    	bool Fallible;
 
     protected:
 
-        explicit SemaFunctionBase(ASTFunction &AST, SemaKind Kind);
+        explicit SemaFunctionBase(ASTFunction &AST, SemaKind Kind, SymbolTable *Symbols);
 
     public:
 
         ~SemaFunctionBase() override;
 
+    	SymbolTable* getSymbols() const;
+
     	llvm::StringRef getName() const;
 
     	SemaType *getReturnType();
-
-        void setReturnType(SemaType *RetType);
-
-    	SemaValue *getDefaultReturnValue() const;
-
-    	void setDefaultReturnValue(SemaValue *Value);
 
         llvm::SmallVector<SemaParam *, 8> &getParams();
 
@@ -70,7 +69,11 @@ namespace fly {
 
         void addLocalVar(SemaLocalVar *LocalVar);
 
-        SemaErrorHandler *getErrorHandler() const;
+        SemaError *getErrorHandler() const;
+
+    	bool isFallible() const;
+
+    	void setFallible(bool Fallible);
 
         virtual CodeGenFunctionBase *getCodeGen() const = 0;
 

@@ -64,7 +64,7 @@
 #include <Sema/SemaClassType.h>
 #include <Sema/SemaEnumType.h>
 #include <Sema/SemaEnumValue.h>
-#include <Sema/SemaErrorHandler.h>
+#include <Sema/SemaError.h>
 #include <Sema/SemaFunction.h>
 #include <Sema/SemaMember.h>
 #include <Sema/SemaModule.h>
@@ -286,7 +286,7 @@ void CodeGenModule::visit(SemaClassInstance &Sema) {
 	}
 }
 
-void CodeGenModule::visit(SemaErrorHandler &Sema) {
+void CodeGenModule::visit(SemaError &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
 		Sema.getType()->accept(*this);
 		llvm::Value *ErrorHandler = Builder->CreateAlloca(CG.ErrorPtrTy);
@@ -552,36 +552,36 @@ void CodeGenModule::GenStmtContinue(ASTContinueStmt *ContinueStmt) {
 
 void CodeGenModule::GenStmtReturn(ASTReturnStmt *ReturnStmt) {
 	FLY_DEBUG_START("CodeGenModule", "GenStmtReturn");
-
-	ASTExpr *Expr = ReturnStmt->getExpr();
-	if (Expr == nullptr) {
-		Builder->CreateRetVoid();
-	} else {
-		Expr->getSema()->accept(*this);
-		llvm::Value *V = Expr->getSema()->getCodeGen()->getValue();
-		Builder->CreateRet(V);
-	}
-
+	Builder->CreateRetVoid();
 	FLY_DEBUG_END("CodeGenModule", "GenStmtReturn");
 }
 
 void CodeGenModule::GenStmtHandle(ASTHandleStmt *HandleStmt) {
 	FLY_DEBUG_START("CodeGenModule", "GenStmtHandle");
 
+	// Save parent handle statement for nested handles
+	llvm::BasicBlock *ParentHandleBB = CurrentHandleBB;
+	llvm::BasicBlock *ParentSafeBB = CurrentSafeBB;
+
+	// Take the current Function to create the Handle and Safe blocks in the same function
 	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
 	// Set Handle Block
-	llvm::BasicBlock *HandleBB = llvm::BasicBlock::Create(LLVMCtx, "handle", Fn);
-	Builder->CreateBr(HandleBB);
-	Builder->SetInsertPoint(HandleBB);
+	CurrentHandleBB = llvm::BasicBlock::Create(LLVMCtx, "handle", Fn);
+	Builder->CreateBr(CurrentHandleBB);
+	Builder->SetInsertPoint(CurrentHandleBB);
 
 	// Generate Handle Block
 	GenStmt(HandleStmt->getHandle());
 
 	// Generate in Safe Block
-	llvm::BasicBlock *SafeBB = llvm::BasicBlock::Create(LLVMCtx, "safe", Fn);
-	Builder->SetInsertPoint(SafeBB);
-	CurrentFunction->getCodeGen()->setSafeBB(SafeBB);
+	CurrentSafeBB = llvm::BasicBlock::Create(LLVMCtx, "safe", Fn);
+	Builder->SetInsertPoint(CurrentSafeBB);
+	CurrentFunction->getCodeGen()->setSafeBB(CurrentSafeBB);
+
+	// Restore parent handle statement for nested handles
+	CurrentHandleBB = ParentHandleBB;
+	CurrentSafeBB = ParentSafeBB;
 
 	FLY_DEBUG_END("CodeGenModule", "GenStmtHandle");
 }
@@ -589,38 +589,18 @@ void CodeGenModule::GenStmtHandle(ASTHandleStmt *HandleStmt) {
 
 void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt) {
 	FLY_DEBUG_START("CodeGenModule", "GenStmtFail");
-	ASTStmt *Parent = FailStmt->getParent();
 
-	// Set error handler with parent block or function
-	while (true) {
-		Parent = Parent->getParent();
-		if (Parent == nullptr) {
+	// Take the current ErrorHandler CodeGen (already resolved in ResolveStmtHandle())
+	CodeGenError *CGE = CurrentErrorHandler->getCodeGen();
+	StoreFail(FailStmt->getFirstExpr(), CGE);
 
-			// Set Function ErrorHandler with Fail
-			CodeGenError *CGE = CurrentFunction->getErrorHandler()->getCodeGen();
-			StoreFail(FailStmt->getExpr(), CGE);
-
-			// Generate Return with default value for stop execution flow
-			if (CurrentFunction->getReturnType()->isVoid()) {
-				Builder->CreateRetVoid();
-			} else {
-				CurrentFunction->getDefaultReturnValue()->accept(*this);
-				llvm::Value *RetV = CurrentFunction->getDefaultReturnValue()->getCodeGen()->getValue();
-				Builder->CreateRet(RetV);
-			}
-			break;
-		} else if (Parent->getStmtKind() == ASTStmtKind::STMT_HANDLE) {
-			// Set ErrorHandler of the parent with Fail
-			ASTHandleStmt * HandleStmt = static_cast<ASTHandleStmt *>(Parent);
-
-			// Take the current ErrorHandler CodeGen (already resolved in ResolveStmtHandle())
-			CodeGenError *CGE = static_cast<CodeGenError *>(static_cast<SemaVar *>(HandleStmt->getErrorHandler()->getSema())->getCodeGen());
-			StoreFail(FailStmt->getExpr(), CGE);
-
-			Builder->CreateBr(CurrentFunction->getCodeGen()->getSafeBB());
-			break;
-		}
+	if (CurrentHandleBB == nullptr) {
+		// No enclosing handle, so we just return from the function
+		Builder->CreateRetVoid();
+	} else {
+		Builder->CreateBr(CurrentSafeBB);
 	}
+
 	FLY_DEBUG_END("CodeGenModule", "GenStmtFail");
 }
 

@@ -20,6 +20,7 @@
 #include "ParserTest.h"
 
 #include <AST/ASTDeclStmt.h>
+#include <AST/ASTFailStmt.h>
 #include <AST/ASTLocalVar.h>
 #include <AST/ASTMember.h>
 #include <AST/ASTName.h>
@@ -31,9 +32,9 @@ namespace {
 
     TEST_F(ParserTest, NullTypeVarReturn) {
         llvm::StringRef str = ("public class Type {}\n"
-                               "Type func() {\n"
+                               "func() {\n"
                                "  Type t = null\n"
-                               "  return t\n"
+                               "  return\n"
                                "}\n");
         ASTModule *Module = Parse("TypeDefaultVarReturn", str);
 
@@ -45,7 +46,6 @@ namespace {
 
         // Get Function Body (now at index 1 since Type class is at index 0)
         ASTFunction *F = As<ASTFunction>(Module->getNodes()[1]);
-        EXPECT_EQ(F->getReturnType()->getTypeKind(), ASTTypeKind::TYPE_NAMED);
         ASTBlockStmt *Body = F->getBody();
         ASSERT_FALSE(Body->getContent().empty());
 
@@ -61,8 +61,7 @@ namespace {
     	EXPECT_TRUE(As<ASTValue>(assignExpr->getRightExpr())->isNull());
 
         ASTReturnStmt *Ret = As<ASTReturnStmt>(Body->getContent()[1]);
-        ASTIdentifier *RetRef = As<ASTIdentifier>(Ret->getExpr());
-        EXPECT_EQ(RetRef->getName(), "t");
+        EXPECT_EQ(Ret->getStmtKind(), ASTStmtKind::STMT_RETURN);
     }
 
     TEST_F(ParserTest, Struct) {
@@ -72,7 +71,7 @@ namespace {
             "  public int b = 2\n"
             "  const int c = 0\n"
             "}\n"
-            "void func1() {\n"
+            "func1() {\n"
             "  Test t = new Test()\n"
             "  Test x = { a = 3, b = 1 }\n"
             "}\n");
@@ -150,12 +149,12 @@ namespace {
         	"public class Test {\n"
 			"  int a = 1\n"
 			"  private int b = 1\n"
-			"  public int a() { return a }\n"
-			"  protected int b() { return 2 }\n"
-			"  private int c() { return 3 }\n"
-			"  const int d() { return 0 }\n"
+			"  public a() { fail a }\n"
+			"  protected b() { fail 2 }\n"
+			"  private c() { fail 3 }\n"
+			"  const d() { fail 0 }\n"
 			"}\n"
-			"void func() {\n"
+			"func() {\n"
 			"  Test t = new Test()\n"
 			"  t.a()\n"
 			"}\n");
@@ -197,54 +196,50 @@ namespace {
         EXPECT_TRUE(HasModifier(cMethod->getModifiers(), ASTModifierKind::MOD_PRIVATE));
         EXPECT_TRUE(HasModifier(dMethod->getModifiers(), ASTModifierKind::MOD_CONSTANT));
 
-        // Verify method return types and bodies
-        EXPECT_TRUE(HasBuiltinType(aMethod->getReturnType(), ASTBuiltinTypeKind::TYPE_INT));
-        EXPECT_TRUE(HasBuiltinType(bMethod->getReturnType(), ASTBuiltinTypeKind::TYPE_INT));
-        EXPECT_TRUE(HasBuiltinType(cMethod->getReturnType(), ASTBuiltinTypeKind::TYPE_INT));
-        EXPECT_TRUE(HasBuiltinType(dMethod->getReturnType(), ASTBuiltinTypeKind::TYPE_INT));
+        // Verify method return types are void and bodies contain fail statements
 
-        // a() { return a }
+        // a() { fail a }
         {
             ASTBlockStmt *MBody = aMethod->getBody();
             ASSERT_FALSE(MBody->getContent().empty());
-            ASTReturnStmt *Ret = As<ASTReturnStmt>(MBody->getContent()[0]);
-            ASSERT_TRUE(Ret != nullptr);
-            EXPECT_EQ(Ret->getStmtKind(), ASTStmtKind::STMT_RETURN);
-            EXPECT_EQ(Ret->getExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
-            EXPECT_EQ(As<ASTIdentifier>(Ret->getExpr())->getName(), "a");
+            ASTFailStmt *Fail = As<ASTFailStmt>(MBody->getContent()[0]);
+            ASSERT_TRUE(Fail != nullptr);
+            EXPECT_EQ(Fail->getStmtKind(), ASTStmtKind::STMT_FAIL);
+            EXPECT_EQ(Fail->getFirstExpr()->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
+            EXPECT_EQ(As<ASTIdentifier>(Fail->getFirstExpr())->getName(), "a");
         }
 
-        // b() { return 2 }
+        // b() { fail 2 }
         {
             ASTBlockStmt *MBody = bMethod->getBody();
             ASSERT_FALSE(MBody->getContent().empty());
-            ASTReturnStmt *Ret = As<ASTReturnStmt>(MBody->getContent()[0]);
-            ASSERT_TRUE(Ret != nullptr);
-            EXPECT_EQ(Ret->getStmtKind(), ASTStmtKind::STMT_RETURN);
-            EXPECT_EQ(Ret->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
-            EXPECT_EQ(As<ASTNumberValue>(Ret->getExpr())->getValue(), "2");
+            ASTFailStmt *Fail = As<ASTFailStmt>(MBody->getContent()[0]);
+            ASSERT_TRUE(Fail != nullptr);
+            EXPECT_EQ(Fail->getStmtKind(), ASTStmtKind::STMT_FAIL);
+            EXPECT_EQ(Fail->getFirstExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
+            EXPECT_EQ(As<ASTNumberValue>(Fail->getFirstExpr())->getValue(), "2");
         }
 
-        // c() { return 3 }
+        // c() { fail 3 }
         {
             ASTBlockStmt *MBody = cMethod->getBody();
             ASSERT_FALSE(MBody->getContent().empty());
-            ASTReturnStmt *Ret = As<ASTReturnStmt>(MBody->getContent()[0]);
-            ASSERT_TRUE(Ret != nullptr);
-            EXPECT_EQ(Ret->getStmtKind(), ASTStmtKind::STMT_RETURN);
-            EXPECT_EQ(Ret->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
-            EXPECT_EQ(As<ASTNumberValue>(Ret->getExpr())->getValue(), "3");
+            ASTFailStmt *Fail = As<ASTFailStmt>(MBody->getContent()[0]);
+            ASSERT_TRUE(Fail != nullptr);
+            EXPECT_EQ(Fail->getStmtKind(), ASTStmtKind::STMT_FAIL);
+            EXPECT_EQ(Fail->getFirstExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
+            EXPECT_EQ(As<ASTNumberValue>(Fail->getFirstExpr())->getValue(), "3");
         }
 
-        // d() { return 0 }
+        // d() { fail 0 }
         {
             ASTBlockStmt *MBody = dMethod->getBody();
             ASSERT_FALSE(MBody->getContent().empty());
-            ASTReturnStmt *Ret = As<ASTReturnStmt>(MBody->getContent()[0]);
-            ASSERT_TRUE(Ret != nullptr);
-            EXPECT_EQ(Ret->getStmtKind(), ASTStmtKind::STMT_RETURN);
-            EXPECT_EQ(Ret->getExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
-            EXPECT_EQ(As<ASTNumberValue>(Ret->getExpr())->getValue(), "0");
+            ASTFailStmt *Fail = As<ASTFailStmt>(MBody->getContent()[0]);
+            ASSERT_TRUE(Fail != nullptr);
+            EXPECT_EQ(Fail->getStmtKind(), ASTStmtKind::STMT_FAIL);
+            EXPECT_EQ(Fail->getFirstExpr()->getExprKind(), ASTExprKind::EXPR_VALUE);
+            EXPECT_EQ(As<ASTNumberValue>(Fail->getFirstExpr())->getValue(), "0");
         }
 
         // Verify we can call a method on an instance in function
@@ -271,7 +266,7 @@ namespace {
          llvm::StringRef str = (
 	         "public class Case : Test {\n"
 	         "  int b\n"
-	         "  void f() {}\n"
+	         "  f() {}\n"
 	         "}\n");
          ASTModule *Module = Parse("TestClass", str);
 
@@ -303,7 +298,6 @@ namespace {
         EXPECT_TRUE(bAttr->getModifiers().empty());
 
         EXPECT_EQ(fMethod->getName(), "f");
-        EXPECT_TRUE(HasBuiltinType(fMethod->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
         // method body should be present and empty
         ASTBlockStmt *FBody = fMethod->getBody();
         ASSERT_TRUE(FBody != nullptr);

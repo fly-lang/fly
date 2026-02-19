@@ -24,17 +24,11 @@ namespace fly {
         friend class ASTBuilder;
         friend class ASTBuilderStmt;
 
-        ASTExpr *Expr = nullptr;
-
         ASTReturnStmt(const SourceLocation &Loc);
 
     public:
 
         void accept(ASTVisitor& Visitor) override;
-
-        ASTExpr *getExpr() const;
-
-        void setExpr(ASTExpr *Expr);
 
         std::string str() const override;
     };

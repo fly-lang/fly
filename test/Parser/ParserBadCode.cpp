@@ -16,7 +16,7 @@ namespace {
 
     TEST_F(ParserTest, BadColon) {
         llvm::StringRef str = (
-                "void func() {\n"
+                "func() {\n"
                 "  a:"
                 "  return"
                 "}\n");

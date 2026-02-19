@@ -25,11 +25,11 @@ SemaFunctionBase *SemaCall::getFunction() const {
 	return Function;
 }
 
-SemaErrorHandler *SemaCall::getErrorHandler() const {
+SemaError *SemaCall::getErrorHandler() const {
 	return ErrorHandler;
 }
 
-void SemaCall::setErrorHandler(SemaErrorHandler *ErrorHandler) {
+void SemaCall::setErrorHandler(SemaError *ErrorHandler) {
 	this->ErrorHandler = ErrorHandler;
 }
 

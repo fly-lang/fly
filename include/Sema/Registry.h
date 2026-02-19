@@ -26,8 +26,8 @@ namespace fly {
 	class Symbol;
 
 	struct LocalScope {
+		SemaFunctionBase* Function;
 		SymbolTable* Symbols;
-		ASTBlockStmt* Body;
 	};
 
 	class Registry {
@@ -44,7 +44,7 @@ namespace fly {
 		
 		SemaNameSpace *DefaultNameSpace;
 
-		llvm::SmallVector<LocalScope, 4> Bodies;
+		llvm::SmallVector<SemaFunctionBase *, 4> Bodies;
 
 		// Diagnostics
 		DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID) const;
@@ -78,9 +78,9 @@ namespace fly {
 
 		Symbol *LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8> &Types, SymbolTable *Scope);
 
-		llvm::SmallVector<LocalScope, 4> getBodies() const;
+		llvm::SmallVector<SemaFunctionBase *, 4> getBodies() const;
 
-		void addBody(SymbolTable* Symbols, ASTBlockStmt* Body);
+		void addBody(SemaFunctionBase *FunctionBase);
 
 	};
 

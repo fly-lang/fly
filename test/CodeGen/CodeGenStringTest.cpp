@@ -36,7 +36,7 @@ namespace {
         ASTModule *Module = CreateModule();
 
     	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
     	// string k
     	ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, StringTypeRef, "k", EmptyModifiers);
@@ -70,7 +70,7 @@ namespace {
 
         llvm::SmallVector<ASTParam *, 8> Params;
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
     	// string k = ""
     	ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, StringTypeRef, "k", EmptyModifiers);
@@ -106,7 +106,7 @@ namespace {
 
     	llvm::SmallVector<ASTParam *, 8> Params;
     	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
     	// string k = ""
     	ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, StringTypeRef, "k", EmptyModifiers);

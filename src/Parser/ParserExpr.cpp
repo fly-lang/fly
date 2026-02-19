@@ -205,7 +205,7 @@ ASTExpr * ParserExpr::ParseIdentifierOrCall(ASTExpr *Parent) {
 
 	ASTExpr *Expr;
 	if (P->Tok.is(tok::l_paren)) {
-		Expr = ParseCall(Loc, Name, Parent);
+		Expr = ParseCall(Loc, Name, ASTCallKind::CALL_DIRECT, Parent);
 	} else if (Parent) {
 		Expr = ASTBuilder::CreateMember(Loc, Name, Parent);
 	} else {
@@ -471,7 +471,7 @@ ASTExpr *ParserExpr::ParseNewExpr() {
     if (P->Tok.isAnyIdentifier()) {
     	llvm::StringRef Name = P->Tok.getIdentifierInfo()->getName();
     	const SourceLocation &Loc = P->ConsumeToken();
-    	return ParseCall(Loc, Name);
+    	return ParseCall(Loc, Name, ASTCallKind::CALL_NEW);
     }
 
     // Error:
@@ -486,7 +486,7 @@ ASTExpr *ParserExpr::ParseNewExpr() {
  * @param Loc
  * @return true on Success or false on Error
  */
-ASTCall *ParserExpr::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent) {
+ASTCall *ParserExpr::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, ASTCallKind CallKind, ASTExpr *Parent) {
 	FLY_DEBUG_START("Parser", "ParseCall");
 	assert(P->Tok.is(tok::l_paren) && "Call start with parenthesis");
 
@@ -526,7 +526,7 @@ ASTCall *ParserExpr::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, 
 		}
 	}
 
-	return ASTBuilder::CreateCall(Loc, Name, Args, ASTCallKind::CALL_DIRECT, Parent);
+	return ASTBuilder::CreateCall(Loc, Name, Args, CallKind, Parent);
 }
 
 /**

@@ -7,28 +7,27 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "Sema/SemaErrorHandler.h"
-
 #include "AST/ASTVar.h"
+#include "Sema/SemaError.h"
 #include "Sema/SemaVisitor.h"
 
 #include <Sema/SemaType.h>
 
 using namespace fly;
 
-SemaErrorHandler::SemaErrorHandler(ASTVar *AST) : SemaVar(AST, SemaKind::ERROR_VAR, new SemaErrorType()) {
+SemaError::SemaError(ASTVar *AST) : SemaVar(AST, SemaKind::ERROR_VAR, new SemaErrorType()) {
 
 }
 
-CodeGenError * SemaErrorHandler::getCodeGen() const {
+CodeGenError * SemaError::getCodeGen() const {
 	return static_cast<CodeGenError *>(CodeGen);
 }
 
-void SemaErrorHandler::setCodeGen(CodeGenError *CodeGen) {
+void SemaError::setCodeGen(CodeGenError *CodeGen) {
 	this->CodeGen = CodeGen;
 }
 
-void SemaErrorHandler::accept(SemaVisitor &Visitor) {
+void SemaError::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 

@@ -24,14 +24,6 @@ void ASTHandleStmt::accept(ASTVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
-ASTExpr *ASTHandleStmt::getErrorHandler() const {
-    return ErrorHandler;
-}
-
-void ASTHandleStmt::setErrorHandler(ASTExpr *ErrorHandler) {
-    this->ErrorHandler = ErrorHandler;
-}
-
 ASTBlockStmt* ASTHandleStmt::getHandle() const {
     return Handle;
 }
@@ -40,6 +32,5 @@ std::string ASTHandleStmt::str() const {
     return Logger("ASTHandleBlock").
 	Attr("Location", getLocation()).
 Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("ErrorHandler", ErrorHandler).
             End();
 }

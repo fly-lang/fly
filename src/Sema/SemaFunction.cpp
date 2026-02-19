@@ -13,8 +13,8 @@
 
 using namespace fly;
 
-SemaFunction::SemaFunction(ASTFunction &AST, SymbolTable *Symbols) : SemaFunctionBase(AST, SemaKind::FUNCTION),
-	Symbols(Symbols) {
+SemaFunction::SemaFunction(ASTFunction &AST, SymbolTable *Scope) :
+	SemaFunctionBase(AST, SemaKind::FUNCTION, Scope) {
 
 }
 
@@ -27,10 +27,6 @@ SemaFunction::~SemaFunction() {
 
 SemaModule *SemaFunction::getModule() const {
 	return Module;
-}
-
-SymbolTable *SemaFunction::getSymbols() const {
-	return Symbols;
 }
 
 SemaComment * SemaFunction::getComment() const {

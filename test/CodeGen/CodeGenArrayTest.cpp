@@ -36,7 +36,7 @@ namespace {
         // Build function with an array parameter: void func(int[] k) {}
         llvm::SmallVector<ASTParam *, 8> LocalParams;
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, LocalParams, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, LocalParams, Body);
 
     	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, nullptr);
     	ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, ArrayIntType, "k", EmptyModifiers);
@@ -58,7 +58,7 @@ namespace {
     	// Build function with an array parameter: void func(int[] k) {}
     	llvm::SmallVector<ASTParam *, 8> LocalParams;
     	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, LocalParams, Body);
+    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, LocalParams, Body);
 
     	ASTNumberValue *ZeroValue = ASTBuilder::CreateNumberValue(SourceLoc, "0");
     	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, ZeroValue);
@@ -90,7 +90,7 @@ namespace {
     	ASTModule *Module = CreateModule();
 
     	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
     	// int[] k = {}
     	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, nullptr);
@@ -127,7 +127,7 @@ namespace {
     	ASTModule *Module = CreateModule();
 
     	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
     	// int[0] k = {}
     	ASTNumberValue *Value_0 = ASTBuilder::CreateNumberValue(SourceLoc, "0");
@@ -165,7 +165,7 @@ namespace {
     	ASTModule *Module = CreateModule();
 
     	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
     	// int[3] k
     	ASTNumberValue *Value_3 = ASTBuilder::CreateNumberValue(SourceLoc, "3");
@@ -210,7 +210,7 @@ namespace {
 
         // func()
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // int[] a = {1,2,3}
     	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, nullptr);
@@ -259,7 +259,7 @@ namespace {
 
     	// func()
     	ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+    	ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
     	// int[3] a = {1,2,3}
     	ASTNumberValue *Value_3 = ASTBuilder::CreateNumberValue(SourceLoc, "3");

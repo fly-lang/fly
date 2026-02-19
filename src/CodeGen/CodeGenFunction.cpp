@@ -21,7 +21,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Function.h"
 
-#include <Sema/SemaErrorHandler.h>
+#include <Sema/SemaError.h>
 #include <Sema/SemaType.h>
 
 using namespace fly;
@@ -140,5 +140,6 @@ void CodeGenFunction::GenBody() {
 }
 
 bool CodeGenFunction::isMainFunction(SemaFunction *Sema) {
-    return Sema->getAST().getName() == StringRef("main") && Sema->getAST().getReturnType()->getSema()->isVoid();
+    // All functions are implicitly void, so just check the name
+    return Sema->getAST().getName() == StringRef("main");
 }

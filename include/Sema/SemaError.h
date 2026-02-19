@@ -19,7 +19,7 @@ namespace fly {
     class SemaType;
     class CodeGenVar;
 
-    class SemaErrorHandler : public SemaVar {
+    class SemaError : public SemaVar {
 
         friend class SemaBuilder;
         friend class Resolver;
@@ -29,9 +29,9 @@ namespace fly {
 
     public:
 
-        explicit SemaErrorHandler(ASTVar *AST);
+        explicit SemaError(ASTVar *AST);
 
-        ~SemaErrorHandler() override = default;
+        ~SemaError() override = default;
 
         CodeGenError *getCodeGen() const override;
 

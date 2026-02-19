@@ -93,12 +93,12 @@ SemaNameSpace * Registry::getDefaultNameSpace() {
 	return DefaultNameSpace;
 }
 
-llvm::SmallVector<LocalScope, 4> Registry::getBodies() const {
+llvm::SmallVector<SemaFunctionBase *, 4> Registry::getBodies() const {
 	return Bodies;
 }
 
-void Registry::addBody(SymbolTable* Symbols, ASTBlockStmt *Body) {
-	Bodies.push_back(LocalScope{Symbols, Body});
+void Registry::addBody(SemaFunctionBase *FunctionBase) {
+	Bodies.push_back(FunctionBase);
 }
 
 SemaNameSpace* Registry::getOrCreateNameSpace(const llvm::SmallVector<ASTName *, 4>& Names) {

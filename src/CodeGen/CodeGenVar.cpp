@@ -262,3 +262,11 @@ void CodeGenVar::setPointer(llvm::Value *Pointer) {
 size_t CodeGenVar::getIndex() {
 	return Index;
 }
+
+bool CodeGenVar::isReadOnly() const {
+    return ReadOnly;
+}
+
+void CodeGenVar::setReadOnly(bool ReadOnly) {
+    this->ReadOnly = ReadOnly;
+}

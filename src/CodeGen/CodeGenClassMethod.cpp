@@ -25,7 +25,7 @@
 
 #include <AST/ASTType.h>
 #include <AST/ASTVar.h>
-#include <Sema/SemaErrorHandler.h>
+#include <Sema/SemaError.h>
 
 using namespace fly;
 

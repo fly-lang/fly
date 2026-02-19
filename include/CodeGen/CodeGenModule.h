@@ -88,7 +88,7 @@ namespace fly {
     class SemaParam;
     class SemaMember;
     class SemaClassInstance;
-    class SemaErrorHandler;
+    class SemaError;
     class SemaUnary;
     class SemaBinary;
     class SemaTernary;
@@ -144,7 +144,13 @@ namespace fly {
         llvm::SmallVector<llvm::BasicBlock *, 8> BreakTargetStack;
         llvm::SmallVector<llvm::BasicBlock *, 8> ContinueTargetStack;
 
-        SemaFunctionBase *CurrentFunction;
+        SemaFunctionBase *CurrentFunction = nullptr;
+
+    	SemaError *CurrentErrorHandler = nullptr;
+
+    	llvm::BasicBlock *CurrentHandleBB = nullptr;
+
+    	llvm::BasicBlock *CurrentSafeBB = nullptr;
 
         CodeGenModule(CodeGen &CG, DiagnosticsEngine &Diags, StringRef Name, llvm::LLVMContext &LLVMCtx,
                       TargetInfo &Target, CodeGenOptions &CGOpts);
@@ -186,7 +192,7 @@ namespace fly {
         void visit(SemaLocalVar &Sema) override;
         void visit(SemaParam &Sema) override;
         void visit(SemaClassInstance &Sema) override;
-        void visit(SemaErrorHandler &Sema) override;
+        void visit(SemaError &Sema) override;
 
         // Expressions
     	void visit(SemaMember &Sema) override;

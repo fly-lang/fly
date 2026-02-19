@@ -27,4 +27,5 @@ SemaClassAttribute * ASTAttribute::getSema() const {
 }
 
 void ASTAttribute::setSema(SemaClassAttribute *Sema) {
+	this->Sema = Sema;
 }

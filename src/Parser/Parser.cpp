@@ -169,9 +169,9 @@ llvm::SmallVector<ASTName *, 4> Parser::ParseNames() {
 		Names.push_back(Name);
 		ConsumeToken();
 
-		// Check for comma
+		// Check for period
 		if (Tok.is(tok::period)) {
-			ConsumeToken(); // consume ','
+			ConsumeToken(); // consume '.'
 		} else {
 			break;
 		}
@@ -288,29 +288,23 @@ ASTEnum *Parser::ParseEnum(SmallVector<ASTModifier *, 8>&Modifiers) {
 
 /**
  * ParseModule Function declaration
- * @param Visibility
- * @param Constant
- * @param TypeRef
- * @param Name
- * @param NameLoc
+ * Functions are implicitly void - no return type declaration
+ * @param Modifiers
  * @return
  */
 ASTFunction *Parser::ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers) {
 	FLY_DEBUG_START("Parser", "ParseFunction");
 
-	// Parse Return Type
-	ASTType * T = ParseType();
-
 	// Parse Function Name
-	StringRef Name = Tok.getIdentifierInfo()->getName();
 	const SourceLocation &Loc = Tok.getLocation();
+	StringRef Name = Tok.getIdentifierInfo()->getName();
 	ConsumeToken();
 
 	// Parse Params
 	SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(this);
 
-	// Create Function
-	ASTFunction *Function = ASTBuilder::CreateFunction(Module, Loc, T, Name, Modifiers, Params, nullptr);
+	// Create Function (implicitly void - no return type)
+	ASTFunction *Function = ASTBuilder::CreateFunction(Module, Loc, Name, Modifiers, Params, nullptr);
 	ASTBlockStmt *Body = isBlockStart() ? ParserFunction::ParseBody(this, Function) : nullptr;
 	return Function;
 }
@@ -397,7 +391,7 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 	}
 
 	if (Tok.is(tok::kw_handle)) {
-		ParseHandleStmt(Parent, nullptr);
+		ParseHandleStmt(Parent);
 		return;
 	}
 
@@ -406,19 +400,11 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 		return;
 	}
 
-	// Parse return statement (with optional expression)
+	// Parse return statement (no expression - just exits function without error)
 	if (Tok.is(tok::kw_return)) {
 		SourceLocation Loc = Tok.getLocation();
 		ConsumeToken();
-		ASTReturnStmt *Stmt = ASTBuilder::CreateReturnStmt(Parent, Loc);
-
-		// Only parse expression if not followed by statement terminators
-		if (!Tok.isOneOf(tok::r_brace, tok::eof, tok::kw_case, tok::kw_default,
-		                 tok::kw_break, tok::kw_continue, tok::kw_return,
-		                 tok::kw_if, tok::kw_switch, tok::kw_while, tok::kw_for)) {
-			ASTExpr *Expr = ParseExpr();
-			Stmt->setExpr(Expr);
-		}
+		ASTBuilder::CreateReturnStmt(Parent, Loc);
 		return;
 	}
 
@@ -431,6 +417,12 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 	if (Tok.is(tok::kw_continue)) {
 		ASTBuilder::CreateContinueStmt(Parent, Tok.getLocation());
 		ConsumeToken();
+		return;
+	}
+
+	// Check for error handling: "Type name handle { ... }"
+	if (Tok.is(tok::kw_handle)) {
+		ParseHandleStmt(Parent);
 		return;
 	}
 
@@ -459,12 +451,6 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 		if (isAssignOperator(Tok)) {
 			ASTDeclStmt *DeclStmt = ASTBuilder::CreateDeclStmt(Parent, Tok.getLocation(), LocalVar);
 			DeclStmt->setExpr(ParseExpr(Identifier));
-			return;
-		}
-
-		// Check for error handling: "Type name handle { ... }"
-		if (Tok.is(tok::kw_handle)) {
-			ParseHandleStmt(Parent, Identifier);
 			return;
 		}
 
@@ -1036,7 +1022,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
     ParseBlockOrStmt(LoopBlock);
 }
 
-void Parser::ParseHandleStmt(ASTBlockStmt *Parent, ASTIdentifier *Error) {
+void Parser::ParseHandleStmt(ASTBlockStmt *Parent) {
 	FLY_DEBUG_START("Parser", "ParseHandleStmt");
     assert(Tok.is(tok::kw_handle) && "Token is handle keyword");
 
@@ -1047,7 +1033,7 @@ void Parser::ParseHandleStmt(ASTBlockStmt *Parent, ASTIdentifier *Error) {
     // Parse statement between braces
     ASTBlockStmt *HandleBlock = ASTBuilder::CreateBlockStmt(HandleLoc);
     ParseBlockOrStmt(HandleBlock);
-    ASTBuilder::CreateHandleStmt(Parent, HandleLoc, HandleBlock, Error);
+    ASTBuilder::CreateHandleStmt(Parent, HandleLoc, HandleBlock);
 }
 
 void Parser::ParseFailStmt(ASTBlockStmt *Parent) {
@@ -1062,8 +1048,14 @@ void Parser::ParseFailStmt(ASTBlockStmt *Parent) {
     if (!Tok.isOneOf(tok::r_brace, tok::eof, tok::kw_case, tok::kw_default,
                      tok::kw_break, tok::kw_continue, tok::kw_return,
                      tok::kw_if, tok::kw_switch, tok::kw_while, tok::kw_for)) {
-        ASTExpr *Expr = ParseExpr();
-        Stmt->setExpr(Expr);
+        ASTExpr *FirstExpr = ParseExpr();
+        Stmt->setFirstExpr(FirstExpr);
+
+    	if (Tok.is(tok::comma)) {
+    		ConsumeToken(); // consume ','
+    		ASTExpr *SecondExpr = ParseExpr();
+    		Stmt->setSecondExpr(SecondExpr);
+    	}
     }
 }
 

@@ -17,7 +17,6 @@ namespace fly {
     class ASTModifier;
     class ASTParam;
     class ASTComment;
-    class ASTType;
     class ASTBlockStmt;
 
     enum class ASTFunctionKind {
@@ -33,9 +32,6 @@ namespace fly {
 
         llvm::StringRef Name;
 
-        // Function return type
-        ASTType *ReturnType = nullptr;
-
         llvm::SmallVector<ASTModifier *, 8> Modifiers;
 
         llvm::SmallVector<ASTParam *, 8> Params;
@@ -45,7 +41,7 @@ namespace fly {
 
     protected:
 
-        ASTFunction(const SourceLocation &Loc, ASTType *ReturnType,llvm::SmallVector<ASTModifier *, 8> &Modifiers,
+        ASTFunction(const SourceLocation &Loc, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
             llvm::StringRef Name, llvm::SmallVector<ASTParam *, 8> &Params,
             ASTFunctionKind FunctionKind = ASTFunctionKind::F_FUNCTION);
 
@@ -57,7 +53,6 @@ namespace fly {
 
         llvm::StringRef getName() const;
 
-        ASTType *getReturnType() const;
 
         llvm::SmallVector<ASTModifier *, 8> getModifiers() const;
 

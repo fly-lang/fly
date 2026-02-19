@@ -135,18 +135,17 @@ ASTImport *ASTBuilder::CreateImport(
  * Creates an ASTFunction
  * @param Module
  * @param Loc
- * @param Type
  * @param Name
  * @param Modifiers
  * @return
  */
 ASTFunction *ASTBuilder::CreateFunction(
-	ASTModule *Module, const SourceLocation &Loc, ASTType *TypeRef,
+	ASTModule *Module, const SourceLocation &Loc,
 	llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
 	SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body) {
 	FLY_DEBUG_START_MSG("ASTBuilder", "CreateFunction", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
-	ASTFunction *Function = new ASTFunction(Loc, TypeRef, Modifiers, Name, Params);
+	ASTFunction *Function = new ASTFunction(Loc, Modifiers, Name, Params);
 
 	// Create Body
 	if (Body)
@@ -207,7 +206,6 @@ ASTAttribute *ASTBuilder::CreateClassAttribute(
 
 ASTMethod *ASTBuilder::CreateDefaultConstructor(ASTClass *Class) {
 	SourceLocation Loc = SourceLocation();
-	ASTType *Void = CreateVoidType(Loc);
 
 	// Create Modifiers
 	llvm::SmallVector<ASTModifier *, 8> Modifiers;
@@ -217,7 +215,7 @@ ASTMethod *ASTBuilder::CreateDefaultConstructor(ASTClass *Class) {
 	llvm::SmallVector<ASTParam *, 8> Params;
 
 	// Create the Default Constructor
-	ASTMethod *Method = new ASTMethod(Loc, Void, Modifiers, Class->getName(), Params);
+	ASTMethod *Method = new ASTMethod(Loc, Modifiers, Class->getName(), Params);
 
 	// Add empty body
 	ASTBlockStmt *Body = CreateBlockStmt(Loc);
@@ -230,12 +228,12 @@ ASTMethod *ASTBuilder::CreateDefaultConstructor(ASTClass *Class) {
 }
 
 ASTMethod *ASTBuilder::CreateClassMethod(
-	const SourceLocation &Loc, ASTClass *Class, ASTType *ReturnType,
+	const SourceLocation &Loc, ASTClass *Class,
 	llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
 	llvm::SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body) {
 	FLY_DEBUG_START_MSG("ASTBuilder", "CreateClassMethod", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
-	ASTMethod *Method = new ASTMethod(Loc, ReturnType, Modifiers, Name, Params);
+	ASTMethod *Method = new ASTMethod(Loc, Modifiers, Name, Params);
 
 	if (Body)
 		CreateBody(Method, Body);
@@ -775,12 +773,11 @@ ASTFailStmt *ASTBuilder::CreateFailStmt(ASTBlockStmt *Parent, const SourceLocati
 
 ASTHandleStmt *ASTBuilder::CreateHandleStmt(
 	ASTBlockStmt *Parent, const SourceLocation &Loc,
-	ASTBlockStmt *BlockStmt, ASTIdentifier *ErrorHandler) {
+	ASTBlockStmt *BlockStmt) {
 	FLY_DEBUG_START_MSG("ASTBuilder", "CreateHandleStmt", "Loc=" << Loc.getRawEncoding());
 
 	ASTHandleStmt *HandleStmt = new ASTHandleStmt(Loc);
 	Parent->addContent(HandleStmt);
-	HandleStmt->ErrorHandler = ErrorHandler;
 	HandleStmt->Handle = BlockStmt;
 
 	// set Handle Block

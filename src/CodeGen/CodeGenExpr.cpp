@@ -34,7 +34,7 @@
 #include <Sema/SemaClassAttribute.h>
 #include <Sema/SemaClassInstance.h>
 #include <Sema/SemaClassMethod.h>
-#include <Sema/SemaErrorHandler.h>
+#include <Sema/SemaError.h>
 #include <Sema/SemaFunctionBase.h>
 #include <Sema/SemaMember.h>
 #include <Sema/SemaType.h>

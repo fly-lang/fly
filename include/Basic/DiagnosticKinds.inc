@@ -410,6 +410,8 @@ DIAG(err_sema_array_size_not_integer, CLASS_ERROR, (unsigned)diag::Severity::Err
 DIAG(err_sema_array_value_type_mismatch, CLASS_ERROR, (unsigned)diag::Severity::Error, "array element type mismatch: expected '%0', got '%1'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_array_size_missing, CLASS_ERROR, (unsigned)diag::Severity::Error, "array declaration must specify either size or initializer", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_var_redefinition, CLASS_ERROR, (unsigned)diag::Severity::Error, "local var '%0' is laready defined", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_duplicate_arg, CLASS_ERROR, (unsigned)diag::Severity::Error, "duplicate argument '%0' in function call", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_const_param_modification, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot modify const parameter '%0'", 0, SFINAE_Suppress, false, true, 0)
 
 
 // CodeGen
@@ -420,7 +422,6 @@ DIAG(err_expr_operator_unexpected, CLASS_ERROR, (unsigned)diag::Severity::Error,
 DIAG(err_expr_operator_expected, CLASS_ERROR, (unsigned)diag::Severity::Error, "operator expected", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_type_expect, CLASS_ERROR, (unsigned)diag::Severity::Error, "expected type '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_cg_unref_identity_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "unreferenced identity type '%0'", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_invalid_return_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "Invalid return type", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_namespace, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced namespace '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_module, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced module '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_unref_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced class '%0'", 0, SFINAE_Suppress, false, true, 0)
@@ -439,3 +440,4 @@ DIAG(err_value_max_overflow, CLASS_ERROR, (unsigned)diag::Severity::Error, "max 
 DIAG(err_value_min_underflow, CLASS_ERROR, (unsigned)diag::Severity::Error, "min value underflow for type '%0' for value '%1'", 0, SFINAE_Suppress, false, true, 0)
 
 DIAG(err_invalid_behavior, CLASS_ERROR, (unsigned)diag::Severity::Fatal, "invalid behavior", 0, SFINAE_Suppress, false, true, 0)
+

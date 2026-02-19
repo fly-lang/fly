@@ -86,19 +86,34 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) : 
             // Parse Modifiers
             llvm::SmallVector<ASTModifier *, 8> Modifiers = P->ParseModifiers();
 
-            // Parse Type
-            ASTType *Type = P->ParseType(); // Continue loop if there is a field or a method
+            // Check if this is a method (identifier followed by parenthesis)
+            // Methods are implicitly void - no return type declaration
+            // Constructors are identified by name matching class name
+            if (P->Tok.isAnyIdentifier()) {
+                const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
+                const SourceLocation &Loc = P->Tok.getLocation();
+
+                // Look ahead to see if this is a method (has parenthesis)
+                Optional<Token> NextTok = Lexer::findNextToken(Loc, P->SourceMgr);
+                if (NextTok && NextTok->is(tok::l_paren)) {
+                    // This is a method - consume name and parse as method
+                    P->ConsumeToken();
+                    // Methods are implicitly void - no return type needed
+                    ParseMethod(Modifiers, Loc, Name);
+                    Continue = true;
+                    continue;
+                }
+            }
+
+            // Otherwise, parse as attribute (Type Name)
+            ASTType *Type = P->ParseType();
 
             Continue = Type != nullptr;
             if (Continue && P->Tok.isAnyIdentifier()) {
                 const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
                 const SourceLocation &Loc = P->ConsumeToken();
 
-                if (P->Tok.is(tok::l_paren)) {
-                    ParseMethod(Modifiers, Type, Loc, Name);
-                } else {
-                    ParseAttribute(Modifiers, Type, Loc, Name);
-                }
+                ParseAttribute(Modifiers, Type, Loc, Name);
                 Continue = true;
             }
 
@@ -136,12 +151,12 @@ ASTAttribute *ParserClass::ParseAttribute(SmallVector<ASTModifier *, 8> &Modifie
     return ASTBuilder::CreateClassAttribute(Loc, Class, TypeRef, Name, Modifiers, Expr);
 }
 
-ASTMethod *ParserClass::ParseMethod(SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef,
+ASTMethod *ParserClass::ParseMethod(SmallVector<ASTModifier *, 8> &Modifiers,
 	const SourceLocation &Loc, llvm::StringRef Name) {
 	FLY_DEBUG_START("ClassParser", "ParseMethod");
 
 	SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(P);
-	ASTMethod *Function = ASTBuilder::CreateClassMethod(Loc, Class, TypeRef, Name, Modifiers, Params);
-	ASTBlockStmt *Body = P->isBlockStart() ? ParserFunction::ParseBody(P, Function) : nullptr;
-	return Function;
+	ASTMethod *Method = ASTBuilder::CreateClassMethod(Loc, Class, Name, Modifiers, Params);
+	ASTBlockStmt *Body = P->isBlockStart() ? ParserFunction::ParseBody(P, Method) : nullptr;
+	return Method;
 }

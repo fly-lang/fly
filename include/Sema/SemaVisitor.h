@@ -41,7 +41,7 @@ namespace fly {
 	class SemaClassAttribute;
 	class SemaClassInstance;
 	class SemaEnumValue;
-	class SemaErrorHandler;
+	class SemaError;
 
 	// Expressions
 	class SemaExpr;
@@ -98,7 +98,7 @@ namespace fly {
 		virtual void visit(SemaLocalVar &Sema) = 0;
 		virtual void visit(SemaParam &Sema) = 0;
 		virtual void visit(SemaClassInstance &Sema) = 0;
-		virtual void visit(SemaErrorHandler &Sema) = 0;
+		virtual void visit(SemaError &Sema) = 0;
 
 		// Expressions
 		virtual void visit(SemaMember &Sema) = 0;

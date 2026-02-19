@@ -16,8 +16,6 @@ namespace fly {
 
     class ASTModifier;
     class ASTParam;
-    class ASTComment;
-    class ASTType;
     class ASTBlockStmt;
 
     class ASTMethod : public ASTFunction {
@@ -26,7 +24,7 @@ namespace fly {
 
     protected:
 
-        ASTMethod(const SourceLocation &Loc, ASTType *ReturnType,llvm::SmallVector<ASTModifier *, 8> &Modifiers,
+        ASTMethod(const SourceLocation &Loc, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
             llvm::StringRef Name, llvm::SmallVector<ASTParam *, 8> &Params);
 
     public:

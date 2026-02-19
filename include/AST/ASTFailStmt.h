@@ -15,13 +15,16 @@
 namespace fly {
 
     class ASTHandleStmt;
+	class ASTValue;
 
     class ASTFailStmt : public ASTStmt {
 
         friend class ASTBuilder;
         friend class ASTBuilderStmt;
 
-        ASTExpr *Expr = nullptr;
+        ASTExpr *FirstExpr = nullptr;
+
+    	ASTExpr *SecondExpr = nullptr;
 
         ASTFailStmt(const SourceLocation &Loc);
 
@@ -29,9 +32,13 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTExpr *getExpr() const;
+        ASTExpr *getFirstExpr() const;
 
-        void setExpr(ASTExpr *);
+        void setFirstExpr(ASTExpr *);
+
+    	ASTExpr *getSecondExpr() const;
+
+    	void setSecondExpr(ASTExpr *);
 
         std::string str() const override;
     };

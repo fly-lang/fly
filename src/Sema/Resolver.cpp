@@ -57,6 +57,7 @@
 #include "Sema/SymbolTable.h"
 
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringSet.h"
 
 #include <AST/ASTCast.h>
 #include <AST/ASTDeclStmt.h>
@@ -242,8 +243,10 @@ void Resolver::visit(ASTAttribute &AST) {
 void Resolver::visit(ASTMethod &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTMethod)");
 
-	// Resolve Return Type add Params Type
-	AST.getReturnType()->accept(*this);
+	// Enter Method Scope
+	EnterScope();
+
+	// Methods are implicitly void - no return type to resolve
 	SmallVector<SemaType *, 8> Types = ResolveParams(AST);
 
 	// Find Method duplication
@@ -254,14 +257,13 @@ void Resolver::visit(ASTMethod &AST) {
 	}
 
 	// Create Class Method
-	SemaClassMethod *Sema = SemaBuilder::CreateClassMethod(CurrentClass, AST);
+	SemaClassMethod *Sema = SemaBuilder::CreateClassMethod(CurrentClass, AST, CurrentScope);
 	CurrentClass->addMethod(Sema); // Function Local var to be allocated
 	if (AST.getName() == CurrentClass->getName()) {
 		CurrentClass->setDefaultConstructor(Sema);
 	}
-	CurrentFunction = Sema;
 
-	// Enter Body Scope
+	// Enter Parameters Scope
 	EnterScope();
 
 	// Resolve Parameters Types
@@ -273,12 +275,19 @@ void Resolver::visit(ASTMethod &AST) {
 		addSymbol(new Symbol(Param->getName(), SymbolKind::VAR, Param->getSema()));
 	}
 
-	// Add to Body list for resolve in the next step
-	Reg.addBody(CurrentScope, AST.getBody());
+	// Exit Parameters Scope
 	ExitScope();
+
+	// Add to Body list for resolve in the next step
+	Reg.addBody(Sema);
 
 	// Create the Symbol and add to Symbol Table
 	Symbol *Sym = new Symbol(AST.getName(), SymbolKind::FUNCTION, Sema);
+
+	// Exit Method Scope
+	ExitScope();
+
+	// Add Symbol to the current scope
 	addSymbol(Sym);
 
 	FLY_DEBUG_END("Resolver", "visit(ASTMethod)");
@@ -516,42 +525,52 @@ void Resolver::visit(ASTDeclStmt &AST) {
 void Resolver::visit(ASTFailStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTFailStmt)");
 	CurrentStmt = &AST;
-	ASTExpr *Expr = AST.getExpr();
 
-	if (Expr != nullptr) {
-		Expr->accept(*this);
+	// Mark the current function as fallible only if there is no error handler,
+	// otherwise the error handler will handle the error and the function does not need to be marked as fallible
+	if (CurrentHandleStmt == nullptr) {
+		CurrentFunction->setFallible(true);
 	}
+
+	// Resolve the optional first expression if it exists
+	ASTExpr *FirstExpr = AST.getFirstExpr();
+	if (FirstExpr != nullptr) {
+		FirstExpr->accept(*this);
+	}
+
+	// Resolve the optional second expression if it exists
+	ASTExpr *SecondExpr = AST.getSecondExpr();
+	if (SecondExpr != nullptr) {
+		SecondExpr->accept(*this);
+	}
+
 	FLY_DEBUG_END("Resolver", "visit(ASTFailStmt)");
 }
 
 void Resolver::visit(ASTHandleStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTHandleStmt)");
 	CurrentStmt = &AST;
-	AST.getHandle()->accept(*this);
-	ASTExpr *ErrorHandler = AST.getErrorHandler();
 
-	if (ErrorHandler != nullptr) {
-		ErrorHandler->accept(*this);
-	}
+	// Create a new error handler for this handle statement
+	ASTHandleStmt *ParentHandle = CurrentHandleStmt; // Save the parent handle to restore later if needed
+	CurrentErrorHandler = SemaBuilder::CreateErrorHandler();
+
+	// Set the current handle for the nested fail statements to mark the function as fallible if needed
+	CurrentHandleStmt = &AST;
+
+	// Resolve the handle body
+	AST.getHandle()->accept(*this);
+
+	// Restore the parent handle after resolving the current handle body
+	CurrentHandleStmt = ParentHandle;
+
 	FLY_DEBUG_END("Resolver", "visit(ASTHandleStmt)");
 }
 
 void Resolver::visit(ASTReturnStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTReturnStmt)");
 	CurrentStmt = &AST;
-	SemaType *ReturnType = CurrentFunction->getReturnType(); // Force Return Expr to be of Return Type
-	ASTExpr *Expr = AST.getExpr();
 
-	if (Expr != nullptr) {
-		// Check if function has void return type but return statement has an expression
-		if (ReturnType->isVoid()) {
-			Diag(AST.getLocation(), diag::err_invalid_return_type);
-		} else {
-			Expr->accept(*this);
-		}
-	} else if (!ReturnType->isVoid()) {
-		Diag(AST.getLocation(), diag::err_invalid_return_type);
-	}
 	FLY_DEBUG_END("Resolver", "visit(ASTReturnStmt)");
 }
 
@@ -985,18 +1004,7 @@ void Resolver::visit(ASTCall &AST) {
 			// Set the Call Sema ErrorHandler
 			// Search until parent is null or parent is a Handle Stmt
 			// When Parent Stmt is nullptr assign Function ErrorHandler to Call ErrorHandler
-			ASTStmt *Parent = CurrentStmt;
-			while (Sema->getErrorHandler() == nullptr) {
-				Parent = Parent->getParent();
-				if (Parent == nullptr) {
-					Sema->ErrorHandler = CurrentFunction->getErrorHandler();
-				} else if (Parent->getStmtKind() == ASTStmtKind::STMT_HANDLE) {
-					ASTHandleStmt *HandleStmt = static_cast<ASTHandleStmt*>(Parent);
-					if (HandleStmt->getErrorHandler() != nullptr) {
-						Sema->ErrorHandler = reinterpret_cast<SemaErrorHandler *>(HandleStmt->getErrorHandler()->getSema());
-					}
-				}
-			}
+			Sema->ErrorHandler = CurrentErrorHandler;
 		}
 	}
 
@@ -1230,9 +1238,21 @@ void Resolver::Resolve() {
 		}
 	}
 
-	// Resolve Bodies
-	for (auto Scope : Reg.getBodies()) {
-		ResolveBody(Scope);
+	// Resolve Functions/Methods Bodies
+	for (auto FunctionBase : Reg.getBodies()) {
+		CurrentFunction = FunctionBase;
+
+		// Function/Method Scope
+		CurrentScope = FunctionBase->getSymbols();
+
+		// Enter Body Scope (already created in the first pass, just need to set it as current scope)
+		CurrentScope = CurrentScope->getChildren()[0];
+
+		// Resolve Body
+		ASTBlockStmt *Body = FunctionBase->getAST().getBody();
+		Body->accept(*this);
+
+		ExitScope();
 	}
 	FLY_DEBUG_END("Resolver", "Resolve");
 }
@@ -1261,21 +1281,14 @@ void Resolver::ResolveImports(SemaModule *Module) {
 /**
  * Resolve Module Function Definitions
  */
-void Resolver::ResolveFunction(SemaFunction *Func) {
+void Resolver::ResolveFunction(SemaFunction *Sema) {
 	FLY_DEBUG_START("Resolver", "ResolveFunction");
-	ASTFunction &AST = Func->getAST();
+	ASTFunction &AST = Sema->getAST();
 
 	// Set currents
-	CurrentFunction = Func;
-	CurrentScope = Func->getSymbols();
+	CurrentScope = Sema->getSymbols();
 
-	// Resolve Return Type
-	ASTType *ReturnType = AST.getReturnType();
-	ReturnType->accept(*this);
-	Func->setReturnType(ReturnType->getSema());
-	Func->setDefaultReturnValue(SemaBuilder::CreateDefaultValue(*Func->getReturnType()));
-
-	// Enter Function Scope
+	// Enter Body Scope
 	EnterScope();
 
 	// Resolve Parameters Types
@@ -1283,14 +1296,14 @@ void Resolver::ResolveFunction(SemaFunction *Func) {
 
 		// resolve parameter type
 		Param->accept(*this);
-		Func->addParam(Param->getSema());
+		Sema->addParam(Param->getSema());
 		addSymbol(new Symbol(Param->getName(), SymbolKind::VAR, Param->getSema()));
 	}
 
 	// Add to Body list for resolve in the next step
-	Reg.addBody(CurrentScope, AST.getBody());
+	Reg.addBody(Sema);
 
-	// Exit Function Scope
+	// Exit Body Scope
 	ExitScope();
 
 	FLY_DEBUG_END("Resolver", "ResolveFunction");
@@ -1429,14 +1442,18 @@ void Resolver::CreateDefaultConstructor() {
 	llvm::SmallVector<ASTModifier *, 8> Modifiers;
 	Modifiers.push_back(ASTBuilder::CreateModifier(SourceLocation(), ASTModifierKind::MOD_PUBLIC));
 
+	EnterScope();
+
 	// Create Class Method
-	SemaClassMethod *Sema = SemaBuilder::CreateDefaultConstructor(CurrentClass);
+	SemaClassMethod *Sema = SemaBuilder::CreateDefaultConstructor(CurrentClass, CurrentScope);
 
 	// Add Method/Constructor
 	CurrentClass->addMethod(Sema); // Function Local var to be allocated
 
 	// Set current function
 	CurrentFunction = Sema;
+
+	ExitScope();
 
 	FLY_DEBUG_END("Resolver", "CreateDefaultConstructor");
 }
@@ -1449,20 +1466,27 @@ void Resolver::ResolveEnumType(SemaEnumType *Enum) {
 	FLY_DEBUG_END("Resolver", "ResolveEnumType");
 }
 
-void Resolver::ResolveBody(LocalScope &Scope) {
-	FLY_DEBUG_START("Resolver", "ResolveBody");
-	CurrentScope = Scope.Symbols;
-	Scope.Body->accept(*this);
-	FLY_DEBUG_END("Resolver", "ResolveBody");
-}
-
-
 SmallVector<SemaType *, 8> Resolver::ResolveCallArgs(ASTCall *AST) {
 	FLY_DEBUG_START("Resolver", "ResolveCallArgs");
 	SmallVector<SemaType *, 8> Types;
+
+	// Track identifiers to detect duplicate arguments
+	// aggiorna(x, x) is a semantic error - same variable passed twice
+	llvm::StringSet<> SeenIdentifiers;
+
 	for (auto Arg : AST->getArgs()) {
 		Arg->getExpr()->accept(*this);
 		Types.push_back(Arg->getExpr()->getType());
+
+		// Check for duplicate identifier arguments
+		if (Arg->getExpr()->getExprKind() == ASTExprKind::EXPR_IDENTIFIER) {
+			ASTIdentifier *Ident = static_cast<ASTIdentifier *>(Arg->getExpr());
+			llvm::StringRef Name = Ident->getName();
+			if (!SeenIdentifiers.insert(Name).second) {
+				// Duplicate argument found
+				Diag(Ident->getLocation(), diag::err_sema_duplicate_arg) << Name;
+			}
+		}
 	}
 	FLY_DEBUG_END("Resolver", "ResolveCallArgs");
 	return std::move(Types);
@@ -1518,6 +1542,10 @@ void Resolver::PromoteTypes(ASTBinary &AST) {
 
 	FLY_DEBUG_END("Resolver", "PromoteTypes");
 }
+
+
+
+
 
 
 

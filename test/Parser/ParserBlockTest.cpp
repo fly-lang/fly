@@ -31,7 +31,7 @@ using namespace fly;
 
 TEST_F(ParserTest, IfElsifElseStmt) {
 	llvm::StringRef str =
-		"void func(int x, int y) {\n"
+		"func(int x, int y) {\n"
 		"  if (a == 1) {\n"
 		"    b = 0\n"
 		"  } elsif (c == 2) {\n"
@@ -144,7 +144,7 @@ TEST_F(ParserTest, IfElsifElseStmt) {
 
 TEST_F(ParserTest, IfElsifElseInlineStmt) {
 	llvm::StringRef str =
-		"void func(int x, int y) {\n"
+		"func(int x, int y) {\n"
 		"  if (a == 1) b = 0\n"
 		"  elsif c == 5 d = 7\n"
 		"  else e = 9\n"
@@ -201,7 +201,7 @@ TEST_F(ParserTest, IfElsifElseInlineStmt) {
 
 TEST_F(ParserTest, SwitchCaseDefaultStmt) {
 	llvm::StringRef str =
-		"void func(int x) {\n"
+		"func(int x) {\n"
 		"  switch (a) {\n"
 		"    case 1:\n"
 		"      break\n"
@@ -257,7 +257,7 @@ TEST_F(ParserTest, SwitchCaseDefaultStmt) {
 
 TEST_F(ParserTest, WhileStmt) {
 	llvm::StringRef str =
-		"void func(int x) {\n"
+		"func(int x) {\n"
 		"  while (a==1) {\n"
 		"    b++\n"
 		"  }\n"
@@ -295,7 +295,7 @@ TEST_F(ParserTest, WhileStmt) {
 }
 
 TEST_F(ParserTest, WhileValueStmt) {
-	llvm::StringRef str = "void func(int x) {\n"
+	llvm::StringRef str = "func(int x) {\n"
 		"  while true a++\n"
 		"}\n";
 	ASTModule *Module = Parse("WhileValueStmt", str);
@@ -323,7 +323,7 @@ TEST_F(ParserTest, WhileValueStmt) {
 
 TEST_F(ParserTest, LoopStmt) {
 	llvm::StringRef str = (
-		"private void func(int x) {\n"
+		"private func(int x) {\n"
 		"  for int b = 1, int c = 2; a < 10; d++, --e {\n"
 		"  }\n"
 		"}\n");
@@ -402,7 +402,7 @@ TEST_F(ParserTest, LoopStmt) {
 
 TEST_F(ParserTest, LoopInStmt) {
 	llvm::StringRef str = (
-		"private void func(int[] a) {\n"
+		"private func(int[] a) {\n"
 		"  for b in a {\n"
 		"  }\n"
 		"}\n");

@@ -55,7 +55,7 @@ namespace {
         //  return 1
         // }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // Build a type reference to the enum by creating an ASTName and then an ASTType
         llvm::SmallVector<ASTName *, 4> EnumNames;

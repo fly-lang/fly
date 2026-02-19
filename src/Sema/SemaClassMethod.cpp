@@ -16,8 +16,9 @@
 
 using namespace fly;
 
-SemaClassMethod::SemaClassMethod(ASTMethod &AST, SemaClassType *Class, SemaClassInstance *This, SemaClassMethodKind MethodKind) :
-	SemaFunctionBase(AST, SemaKind::METHOD), Class(Class), This(This), MethodKind(MethodKind) {
+SemaClassMethod::SemaClassMethod(ASTMethod &AST, SemaClassType *Class, SemaClassInstance *This,
+	SemaClassMethodKind MethodKind, SymbolTable *Scope) :
+	SemaFunctionBase(AST, SemaKind::METHOD, Scope), Class(Class), This(This), MethodKind(MethodKind) {
 
 }
 

@@ -17,11 +17,11 @@
 
 using namespace fly;
 
-ASTFunction::ASTFunction(const SourceLocation &Loc, ASTType *ReturnType,
+ASTFunction::ASTFunction(const SourceLocation &Loc,
                                  llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                                  llvm::StringRef Name, llvm::SmallVector<ASTParam *, 8> &Params,
                                  ASTFunctionKind FunctionKind) :
-        ASTNode(Loc, ASTKind::AST_FUNCTION), ReturnType(ReturnType), Modifiers(Modifiers), Name(Name),
+        ASTNode(Loc, ASTKind::AST_FUNCTION), Modifiers(Modifiers), Name(Name),
 		Params(Params), FunctionKind(FunctionKind) {
 
 }
@@ -61,15 +61,10 @@ ASTBlockStmt *ASTFunction::getBody() const {
     return Body;
 }
 
-ASTType *ASTFunction::getReturnType() const {
-    return ReturnType;
-}
-
 std::string ASTFunction::str() const {
     return Logger("ASTFunctionBase").
 	Attr("Location", getLocation()).
- Attr("Kind", static_cast<size_t>(getKind())).
+	Attr("Kind", static_cast<size_t>(getKind())).
            Attr("Params", ASTBase::str(Params)).
-           Attr("ReturnType", ReturnType).
            End();
 }

@@ -23,18 +23,27 @@ void ASTFailStmt::accept(ASTVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
-ASTExpr *ASTFailStmt::getExpr() const {
-    return Expr;
+ASTExpr *ASTFailStmt::getFirstExpr() const {
+    return FirstExpr;
 }
 
-void ASTFailStmt::setExpr(fly::ASTExpr *E) {
-    Expr = E;
+void ASTFailStmt::setFirstExpr(ASTExpr *E) {
+    FirstExpr = E;
+}
+
+ASTExpr *ASTFailStmt::getSecondExpr() const {
+	return SecondExpr;
+}
+
+void ASTFailStmt::setSecondExpr(ASTExpr *E) {
+	SecondExpr = E;
 }
 
 std::string ASTFailStmt::str() const {
     return Logger("ASTFailStmt").
 	Attr("Location", getLocation()).
 Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("Expr", Expr).
+            Attr("FirstExpr", FirstExpr).
+	Attr("SecondExpr", SecondExpr).
             End();
 }

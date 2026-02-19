@@ -163,7 +163,7 @@ namespace fly {
         // Create Import
         static ASTImport *CreateImport(ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names, llvm::SmallVector<ASTName *, 4> Alias);
 
-        static ASTFunction *CreateFunction(ASTModule *Module, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name,
+        static ASTFunction *CreateFunction(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name,
                                     llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::SmallVector<ASTParam *, 8> &Params,
                                     ASTBlockStmt *Body = nullptr);
 
@@ -176,7 +176,7 @@ namespace fly {
 
         static ASTMethod *CreateDefaultConstructor(ASTClass *Class);
 
-        static ASTMethod *CreateClassMethod(const SourceLocation &Loc, ASTClass *Class, ASTType *ReturnType,
+        static ASTMethod *CreateClassMethod(const SourceLocation &Loc, ASTClass *Class,
                                           llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                                           llvm::SmallVector<ASTParam *, 8> &Params, ASTBlockStmt *Body = nullptr);
 
@@ -272,7 +272,7 @@ namespace fly {
 
         static ASTFailStmt *CreateFailStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
-         static ASTHandleStmt *CreateHandleStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTBlockStmt *BlockStmt, ASTIdentifier *ErrorHandler = nullptr);
+         static ASTHandleStmt *CreateHandleStmt(ASTBlockStmt *Parent, const SourceLocation &Loc, ASTBlockStmt *BlockStmt);
 
          static ASTBreakStmt *CreateBreakStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 

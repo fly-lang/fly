@@ -8,19 +8,22 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaFunctionBase.h"
+
 #include "AST/ASTFunction.h"
+#include "Sema/SemaBuilder.h"
+#include "Sema/SemaBuiltin.h"
 #include "Sema/SemaLocalVar.h"
 #include "Sema/SemaParam.h"
 
 #include <AST/ASTVar.h>
 #include <CodeGen/CodeGenFunctionBase.h>
-#include <Sema/SemaErrorHandler.h>
+#include <Sema/SemaError.h>
 #include <Sema/SemaType.h>
 
 using namespace fly;
 
-SemaFunctionBase::SemaFunctionBase(ASTFunction &AST, SemaKind Kind) : SemaNode(Kind),
-	AST(AST), ErrorHandler(new SemaErrorHandler(nullptr)) {
+SemaFunctionBase::SemaFunctionBase(ASTFunction &AST, SemaKind Kind, SymbolTable *Symbols) : SemaNode(Kind),
+	AST(AST), Scope(Symbols), ReturnType(SemaBuiltin::getVoidType()), ErrorHandler(SemaBuilder::CreateErrorHandler()), Fallible(false) {
 
 }
 
@@ -39,24 +42,16 @@ SemaFunctionBase::~SemaFunctionBase() {
 	delete ErrorHandler;
 }
 
+SymbolTable* SemaFunctionBase::getSymbols() const {
+	return Scope;
+}
+
 llvm::StringRef SemaFunctionBase::getName() const {
 	return AST.getName();
 }
 
 SemaType *SemaFunctionBase::getReturnType() {
 	return ReturnType;
-}
-
-void SemaFunctionBase::setReturnType(SemaType *RetType) {
-	ReturnType = RetType;
-}
-
-SemaValue *SemaFunctionBase::getDefaultReturnValue() const {
-	return DefaultReturnValue;
-}
-
-void SemaFunctionBase::setDefaultReturnValue(SemaValue *Value) {
-	DefaultReturnValue = Value;
 }
 
 llvm::SmallVector<SemaParam *, 8> &SemaFunctionBase::getParams() {
@@ -79,7 +74,14 @@ void SemaFunctionBase::addLocalVar(SemaLocalVar *Var) {
 	LocalVars.push_back(Var);
 }
 
-SemaErrorHandler * SemaFunctionBase::getErrorHandler() const {
+SemaError * SemaFunctionBase::getErrorHandler() const {
 	return ErrorHandler;
 }
 
+bool SemaFunctionBase::isFallible() const {
+	return Fallible;
+}
+
+void SemaFunctionBase::setFallible(bool Fallible) {
+	this->Fallible = Fallible;
+}

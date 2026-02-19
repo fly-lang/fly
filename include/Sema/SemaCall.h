@@ -18,7 +18,7 @@ namespace fly {
     class SemaVar;
 	class SemaType;
     class SemaFunctionBase;
-	class SemaErrorHandler;
+	class SemaError;
 
     class SemaCall :  public SemaExpr {
 
@@ -30,7 +30,7 @@ namespace fly {
 
     	SemaFunctionBase *Function = nullptr;
 
-    	SemaErrorHandler *ErrorHandler = nullptr;
+    	SemaError *ErrorHandler = nullptr;
 
     	CodeGenExpr *CodeGen = nullptr;
 
@@ -44,9 +44,9 @@ namespace fly {
 
     	SemaFunctionBase *getFunction() const;
 
-    	SemaErrorHandler *getErrorHandler() const;
+    	SemaError *getErrorHandler() const;
 
-    	void setErrorHandler(SemaErrorHandler *ErrorHandler);
+    	void setErrorHandler(SemaError *ErrorHandler);
 
     	bool isNew() const;
 

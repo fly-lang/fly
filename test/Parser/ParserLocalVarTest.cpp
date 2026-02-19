@@ -26,7 +26,7 @@ namespace {
     using namespace fly;
 
     TEST_F(ParserTest, LocalVarBuiltinType) {
-        // void func() {
+        // func() {
         //   bool a = false
         //   byte b = 0
         //   short c = 0
@@ -39,7 +39,7 @@ namespace {
         //   double j = 0.0
         //   Type t = null
         // }
-        llvm::StringRef str = ("void func() {\n"
+        llvm::StringRef str = ("func() {\n"
                                    "bool a = false\n"
                                    "byte b = 0\n"
                                    "short c = 0\n"
@@ -56,7 +56,6 @@ namespace {
 
         // Get Body
         auto *F = As<ASTFunction>(Module->getNodes()[0]);
-        EXPECT_TRUE(HasBuiltinType(F->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
         auto *Body = F->getBody();
         ASSERT_FALSE(Body->getContent().empty());
 
@@ -167,7 +166,7 @@ namespace {
     }
 
 	TEST_F(ParserTest, LocalVarArray) {
-    	llvm::StringRef str = ("void func() {\n"
+    	llvm::StringRef str = ("func() {\n"
 		                       "byte[] a\n"
 		                       "byte[] b = {}\n"// array of zero bytes
 		                       "byte[] c = {1, 2, 3}\n"
@@ -178,7 +177,6 @@ namespace {
 
     	// Get Body
     	auto *F = As<ASTFunction>(Module->getNodes()[0]);
-    	EXPECT_TRUE(HasBuiltinType(F->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
     	auto *Body = F->getBody();
     	ASSERT_FALSE(Body->getContent().empty());
 
@@ -280,13 +278,13 @@ namespace {
     }
 
     TEST_F(ParserTest, LocalVarChar) {
-    	// void func() {
+    	// func() {
     	//   byte a = ''
     	//   byte b = 'b'
     	//   byte[] c = {'a', 'b', 'c', ''}
     	//   byte[2] d = {'', ''}
     	// }
-    	llvm::StringRef str = ("void func() {\n"
+    	llvm::StringRef str = ("func() {\n"
 						"byte a = ''\n"
 						"byte b = 'b'\n"
 						"byte[] c = {'a', 'b', 'c', ''}\n"
@@ -296,7 +294,6 @@ namespace {
 
         // Get Body
         auto *F = As<ASTFunction>(Module->getNodes()[0]);
-        EXPECT_TRUE(HasBuiltinType(F->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
         auto *Body = F->getBody();
         ASSERT_FALSE(Body->getContent().empty());
 
@@ -379,12 +376,12 @@ namespace {
     }
 
     TEST_F(ParserTest, LocalVarString) {
-    	// void func() {
+    	// func() {
     	//   string c
     	//   string a = ""
     	//   string b = "abc"
     	// }
-    	llvm::StringRef str = ("void func() {\n"
+    	llvm::StringRef str = ("func() {\n"
 						"string c\n"
 						"string a = \"\"\n" // array of zero bytes
 						"string b = \"abc\"\n" // string abc
@@ -393,7 +390,6 @@ namespace {
 
         // Get Body
         auto *F = As<ASTFunction>(Module->getNodes()[0]);
-        EXPECT_TRUE(HasBuiltinType(F->getReturnType(), ASTBuiltinTypeKind::TYPE_VOID));
         auto *Body = F->getBody();
         ASSERT_FALSE(Body->getContent().empty());
 

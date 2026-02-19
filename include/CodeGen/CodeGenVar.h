@@ -44,6 +44,9 @@ namespace fly {
 
         llvm::StringRef BlockID;
 
+        // Flag to indicate if this variable is read-only (const parameter)
+        bool ReadOnly = false;
+
     public:
 
         CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T);
@@ -71,6 +74,12 @@ namespace fly {
         llvm::Value *getPointer();
 
         void setPointer(llvm::Value *Pointer);
+
+        // Check if variable is read-only (const)
+        bool isReadOnly() const;
+
+        // Set read-only flag (for const parameters)
+        void setReadOnly(bool ReadOnly);
 
     };
 }

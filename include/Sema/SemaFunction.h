@@ -32,8 +32,6 @@ namespace fly {
 
         SemaModule *Module;
 
-        SymbolTable *Symbols;
-
         SemaComment *Comment = nullptr;
 
         SemaVisibilityKind Visibility;
@@ -43,15 +41,13 @@ namespace fly {
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;
 
-        explicit SemaFunction(ASTFunction &AST, SymbolTable *Symbols);
+        explicit SemaFunction(ASTFunction &AST, SymbolTable *Scope);
 
     public:
 
         ~SemaFunction() override;
 
         SemaModule *getModule() const;
-
-        SymbolTable *getSymbols() const;
 
         SemaComment *getComment() const;
 

@@ -22,7 +22,7 @@
 #include "llvm/IR/Function.h"
 
 #include <CodeGen/CodeGenVar.h>
-#include <Sema/SemaErrorHandler.h>
+#include <Sema/SemaError.h>
 #include <Sema/SemaLocalVar.h>
 #include <Sema/SemaParam.h>
 #include <llvm/IR/Instructions.h>
@@ -53,6 +53,7 @@ void CodeGenFunctionBase::GenReturnType() {
 
 void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, SemaFunctionBase * Sema) {
     // Populate Types by reference
+    // All parameters are passed by reference (as pointers), including primitive types
     for (auto Param : Sema->getParams()) {
     	if (!Param->getType()) {
     		CGM->Diag(diag::err_codegen_invalid_type);
@@ -63,7 +64,9 @@ void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<l
     		CGM->Diag(diag::err_codegen_invalid_type);
     		continue;
     	}
-        Types.push_back(Param->getType()->getCodeGen()->getType());
+        // All parameters are passed by reference (pointer type)
+        llvm::Type *ParamType = Param->getType()->getCodeGen()->getType();
+        Types.push_back(ParamType->getPointerTo());
     }
 //    if (Params->getEllipsis() != nullptr) {
         // TODO
@@ -93,10 +96,12 @@ void CodeGenFunctionBase::setInsertPoint() {
 }
 
 void CodeGenFunctionBase::AllocaLocalVars() {
-    // Allocation of declared ASTVar
+    // Parameters are passed by reference (as pointers), so we don't allocate them
+    // We just set up the CodeGenVar to use the passed pointer directly
     for (auto Param : Sema->getParams()) {
     	Param->accept(*CGM);
-    	Param->getCodeGen()->Alloca();
+    	// For parameters passed by reference, we use the pointer directly
+    	// No allocation needed - the pointer is the parameter itself
     }
 
     // Allocation of all declared SemaLocalVar
@@ -107,12 +112,24 @@ void CodeGenFunctionBase::AllocaLocalVars() {
 }
 
 void CodeGenFunctionBase::StoreParams(size_t Idx) {
-    // Store Param Values (n = 0 is the Error param)
+    // Parameters are passed by reference (as pointers)
+    // We store the pointer directly in the CodeGenVar
     for (auto &Param: Sema->getParams()) {
 
-        // Store Arg value into Param
+        // Get the pointer argument (already a pointer to the value)
         CodeGenVar *CGV = Param->getCodeGen();
-        CGV->Store(Fn->getArg(Idx));
+
+        // Store the pointer as the variable's address
+        // The argument is already a pointer, so we use it directly
+        CGV->setPointer(Fn->getArg(Idx));
+
+        // Mark const parameters as read-only at LLVM level
+        if (Param->isConstant()) {
+            CGV->setReadOnly(true);
+            // Add LLVM readonly attribute to the parameter
+            // This tells LLVM that this pointer parameter is not written to
+            Fn->addParamAttr(Idx, llvm::Attribute::ReadOnly);
+        }
 
         ++Idx;
     }

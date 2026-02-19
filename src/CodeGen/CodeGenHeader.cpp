@@ -61,8 +61,8 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 	for (auto &SemaFunc : NameSpace.getFunctions()) {
 		ASTFunction *Function = SemaFunc->getFunction();
 		if (Function->getVisibility() == ASTModifierKind::V_PUBLIC) {
-			Header.concat(Function->getReturnTypeRef()->print())
-			      .concat(Function->getName())
+			// Functions are implicitly void - no return type to print
+			Header.concat(Function->getName())
 			      .concat("(");
 			std::string ParamsStr = getParameters(Function);
 			Header.concat(ParamsStr).concat(")").concat("\n\n");
@@ -79,8 +79,8 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 		}
 		for (auto Constructor : Class->getConstructors()) {
 			if (Constructor->getVisibility() == ASTModifierKind::V_PUBLIC) {
-				Header.concat(Constructor->getReturnType()->print())
-				      .concat(Constructor->getName())
+				// Constructors are implicitly void - no return type to print
+				Header.concat(Constructor->getName())
 				      .concat("(");
 				std::string ParamsStr = getParameters(Constructor);
 				Header.concat(ParamsStr).concat(")").concat("\n\n");
@@ -88,8 +88,8 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 		}
 		for (auto &Method : Class->getMethods()) {
 			if (Method->getVisibility() == ASTModifierKind::V_PUBLIC) {
-				Header.concat(Method->getReturnType()->print())
-				      .concat(Method->getName())
+				// Methods are implicitly void - no return type to print
+				Header.concat(Method->getName())
 				      .concat("(");
 				std::string ParamsStr = getParameters(Method);
 				Header.concat(ParamsStr).concat(")").concat("\n\n");

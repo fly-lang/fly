@@ -50,7 +50,7 @@ namespace {
     	ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
     	ASTExprStmt *testNewStmt = ASTBuilder::CreateExprStmt(MainBody, SourceLoc);
     	testNewStmt->setExpr(ConstructorCall);
-    	ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
+    	ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, MainBody);
 
 		// Generate Code
 		llvm::Module * M = Generate()[0];
@@ -119,7 +119,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //  return 1
         // }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // TestStruct test = new TestStruct()
         ASTType *TestClassType = CreateType(TestStruct);
@@ -211,7 +211,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //  delete test
         // }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = CreateType(TestClass);
@@ -335,7 +335,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //  delete test
         // }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = CreateType(TestClass);
@@ -485,7 +485,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //  delete test
         // }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = CreateType(TestClass);
@@ -628,7 +628,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //  delete test
         // }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = CreateType(TestClass);
@@ -754,7 +754,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //  TestClass.a = 2
         // }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         //  TestClass.a = 2
     	ASTType *TestClassType = CreateType(TestClass);
@@ -843,7 +843,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         //  int a = TestClass.do()
         // }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // int a = TestClass.do()
         ASTLocalVar *aVar = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "a", EmptyModifiers);
@@ -1126,7 +1126,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
     	ASTExprStmt * testNewStmt = ASTBuilder::CreateExprStmt(MainBody, SourceLoc);
     	testNewStmt->setExpr(ConstructorCall);
-    	ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
+    	ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, MainBody);
 
     	// Generate Code
     	llvm::Module * M = Generate()[0];
@@ -1362,7 +1362,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	ASTIdentifier *aIdent = ASTBuilder::CreateIdentifier(aVar);
     	ASTBinaryOp *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, ConstructorCall);
     	aDeclStmt->setExpr(AssignExpr);
-    	ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
+    	ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, MainBody);
 
     	// Generate Code
     	llvm::Module * M = Generate()[0];
@@ -1755,7 +1755,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	ASTIdentifier *aIdent = ASTBuilder::CreateIdentifier(aVar);
     	ASTBinaryOp *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aIdent, ConstructorCall);
     	aDeclStmt->setExpr(AssignExpr);
-    	ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, MainBody);
+    	ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, MainBody);
 
     	// Generate Code
     	llvm::Module * M = Generate()[0];

@@ -29,6 +29,7 @@
 #include "Sema/SemaComment.h"
 #include "Sema/SemaEnumType.h"
 #include "Sema/SemaEnumValue.h"
+#include "Sema/SemaError.h"
 #include "Sema/SemaFunction.h"
 #include "Sema/SemaMember.h"
 #include "Sema/SemaModule.h"
@@ -132,32 +133,27 @@ SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType &Class, AST
 	return Attribute;
 }
 
-SemaClassMethod * SemaBuilder::CreateDefaultConstructor(SemaClassType *Class) {
+SemaClassMethod * SemaBuilder::CreateDefaultConstructor(SemaClassType *Class, SymbolTable* Scope) {
 	// Create AST
 	ASTMethod *AST = ASTBuilder::CreateDefaultConstructor(&Class->getAST());
 
 	// Create Sema
-	SemaClassMethod *Method = new SemaClassMethod(*AST, Class, Class->getThis(), SemaClassMethodKind::METHOD_CONSTRUCTOR);
-	Method->setReturnType(SemaBuiltin::getVoidType());
+	SemaClassMethod *Method = new SemaClassMethod(*AST, Class, Class->getThis(), SemaClassMethodKind::METHOD_CONSTRUCTOR, Scope);
 
 	return Method;
 }
 
-SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTMethod &AST) {
+SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTMethod &AST, SymbolTable* Scope) {
 	FLY_DEBUG_START("SemaBuilder", "CreateClassFunction");
 	SemaClassMethod *Method;
 
 	// When the Class Name is Equals to the Function Name this is a Constructor
 	if (AST.getName() == Class->getName()) {
-		Method = new SemaClassMethod(AST, Class, Class->getThis(), SemaClassMethodKind::METHOD_CONSTRUCTOR);
-		Method->setReturnType(SemaBuiltin::getVoidType());
+		Method = new SemaClassMethod(AST, Class, Class->getThis(), SemaClassMethodKind::METHOD_CONSTRUCTOR, Scope);
 	} else {
 		SemaClassMethodKind MethodKind = Class->getClassKind() == SemaClassKind::INTERFACE ?
 			                 SemaClassMethodKind::METHOD_ABSTRACT : SemaClassMethodKind::METHOD;
-		Method = new SemaClassMethod(AST, Class, Class->getThis(), MethodKind);
-
-		// ClassDefinition Return Type
-		Method->setReturnType(AST.getReturnType()->getSema());
+		Method = new SemaClassMethod(AST, Class, Class->getThis(), MethodKind, Scope);
 	}
 
 	// Set Modifiers
@@ -231,6 +227,10 @@ SemaParam *SemaBuilder::CreateParam(ASTParam &AST, SemaType *Type) {
 	// Create LocalVar Symbol
 	SemaParam *Sema = new SemaParam(AST, Type);
 
+	// Set Constant from modifiers
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
+	Sema->Constant = Builder->isConstant();
+
 	// Assign Symbol to AST
 	AST.setSema(Sema);
 
@@ -244,6 +244,15 @@ SemaMember * SemaBuilder::CreateMemberVar(ASTMember &AST, SemaExpr *Ref, SemaExp
 	SemaMember *Sema = new SemaMember(AST, Ref, Parent);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateMemberVar");
+	return Sema;
+}
+
+SemaError *SemaBuilder::CreateErrorHandler() {
+	FLY_DEBUG_START("SemaBuilder", "CreateErrorHandler");
+
+	SemaError * Sema = new SemaError(nullptr);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateErrorHandler");
 	return Sema;
 }
 

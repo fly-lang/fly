@@ -23,8 +23,6 @@ namespace {
 
     using namespace fly;
 
-
-
 	TEST_F(CodeGenTest, CGErrorHandler) {
         /**
          * Fly code:
@@ -40,7 +38,7 @@ namespace {
         //   error A handle fail
         // }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "func", TopModifiers, Params, Body);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
         ASTLocalVar *ErrorA = ASTBuilder::CreateLocalVar(SourceLoc, ErrorTypeRef, "A", EmptyModifiers);
         ASTIdentifier *ErrorIdentifier = ASTBuilder::CreateIdentifier(ErrorA);
         ASTBlockStmt *HandleBlock = ASTBuilder::CreateBlockStmt(SourceLoc);
@@ -89,14 +87,14 @@ namespace {
         //   fail
         // }
         ASTBlockStmt *Body0 = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail = ASTBuilder::CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body0);
+        ASTFunction *TestFail = ASTBuilder::CreateFunction(Module, SourceLoc, "testFail", TopModifiers, Params, Body0);
         ASTFailStmt * Fail0Stmt = ASTBuilder::CreateFailStmt(Body0, SourceLoc);
 
 		// main() {
 		//   testFail()
 		// }
 		ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
-		ASTFunction *Main = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
+		ASTFunction *Main = ASTBuilder::CreateFunction(Module, SourceLoc, "main", TopModifiers, Params, MainBody);
 
 		// call testFail0()
 		ASTExprStmt * CallTestFail0 = ASTBuilder::CreateExprStmt(MainBody, SourceLoc);
@@ -158,16 +156,16 @@ namespace {
         //   fail true
         // }
         ASTBlockStmt *Body1 = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail = ASTBuilder::CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body1);
+        ASTFunction *TestFail = ASTBuilder::CreateFunction(Module, SourceLoc, "testFail", TopModifiers, Params, Body1);
         ASTBoolValue *BoolVal = ASTBuilder::CreateBoolValue(SourceLoc, true);
         ASTFailStmt * Fail1Stmt = ASTBuilder::CreateFailStmt(Body1, SourceLoc);
-        Fail1Stmt->setExpr(BoolVal);
+        Fail1Stmt->setFirstExpr(BoolVal);
 
 		// main() {
 		//   testFail()
 		// }
 		ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
-		ASTFunction *Main = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
+		ASTFunction *Main = ASTBuilder::CreateFunction(Module, SourceLoc, "main", TopModifiers, Params, MainBody);
 
 		// call testFail1()
 		ASTExprStmt * CallTestFail1 = ASTBuilder::CreateExprStmt(MainBody, SourceLoc);
@@ -229,16 +227,16 @@ namespace {
         //   fail 10
         // }
         ASTBlockStmt *Body2 = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail2 = ASTBuilder::CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body2);
+        ASTFunction *TestFail2 = ASTBuilder::CreateFunction(Module, SourceLoc, "testFail", TopModifiers, Params, Body2);
         ASTNumberValue *IntVal = ASTBuilder::CreateNumberValue(SourceLoc, "10");
         ASTFailStmt * Fail2Stmt = ASTBuilder::CreateFailStmt(Body2, SourceLoc);
-        Fail2Stmt->setExpr(IntVal);
+        Fail2Stmt->setFirstExpr(IntVal);
 
         // main() {
         //   testFail()
         // }
         ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Main = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
+        ASTFunction *Main = ASTBuilder::CreateFunction(Module, SourceLoc, "main", TopModifiers, Params, MainBody);
 
         // call testFail()
         ASTExprStmt * CallTestFail2 = ASTBuilder::CreateExprStmt(MainBody, SourceLoc);
@@ -300,16 +298,16 @@ namespace {
         //  fail "Error"
         // }
         ASTBlockStmt *Body3 = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail3 = ASTBuilder::CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body3);
+        ASTFunction *TestFail3 = ASTBuilder::CreateFunction(Module, SourceLoc, "testFail", TopModifiers, Params, Body3);
         ASTStringValue *StrVal = ASTBuilder::CreateStringValue(SourceLoc, "Error");
         ASTFailStmt * Fail3Stmt = ASTBuilder::CreateFailStmt(Body3, SourceLoc);
-        Fail3Stmt->setExpr(StrVal);
+        Fail3Stmt->setFirstExpr(StrVal);
 
         // main() {
         //   testFail()
         // }
         ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Main = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
+        ASTFunction *Main = ASTBuilder::CreateFunction(Module, SourceLoc, "main", TopModifiers, Params, MainBody);
 
         // call testFail()
         ASTExprStmt * CallTestFail3 = ASTBuilder::CreateExprStmt(MainBody, SourceLoc);
@@ -382,18 +380,18 @@ namespace {
     	//  fail new TestStruct()
     	// }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *TestFail4 = ASTBuilder::CreateFunction(Module, SourceLoc, IntTypeRef, "testFail", TopModifiers, Params, Body);
+        ASTFunction *TestFail4 = ASTBuilder::CreateFunction(Module, SourceLoc, "testFail", TopModifiers, Params, Body);
         // TestStruct test = new TestStruct()
         ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
         // fail new TestStruct()
         ASTFailStmt * Fail4Stmt = ASTBuilder::CreateFailStmt(Body, SourceLoc);
-        Fail4Stmt->setExpr(ConstructorCall);
+        Fail4Stmt->setFirstExpr(ConstructorCall);
 
         // main() {
         //   testFail()
         // }
         ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Main = ASTBuilder::CreateFunction(Module, SourceLoc, VoidTypeRef, "main", TopModifiers, Params, MainBody);
+        ASTFunction *Main = ASTBuilder::CreateFunction(Module, SourceLoc, "main", TopModifiers, Params, MainBody);
 
         // call testFail()
         ASTExprStmt * CallTestFail4 = ASTBuilder::CreateExprStmt(MainBody, SourceLoc);

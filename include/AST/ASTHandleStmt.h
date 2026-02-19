@@ -21,8 +21,6 @@ namespace fly {
 
         friend class ASTBuilder;
 
-        ASTExpr *ErrorHandler = nullptr;
-
         ASTBlockStmt *Handle = nullptr;
 
         explicit ASTHandleStmt(const SourceLocation &Loc);
@@ -30,10 +28,6 @@ namespace fly {
     public:
 
         void accept(ASTVisitor& Visitor) override;
-
-        ASTExpr *getErrorHandler() const;
-
-        void setErrorHandler(ASTExpr *ErrorHandler);
 
         ASTBlockStmt* getHandle() const;
 
