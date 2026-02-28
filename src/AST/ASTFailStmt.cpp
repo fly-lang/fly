@@ -39,11 +39,20 @@ void ASTFailStmt::setSecondExpr(ASTExpr *E) {
 	SecondExpr = E;
 }
 
+ASTExpr *ASTFailStmt::getThirdExpr() const {
+	return ThirdExpr;
+}
+
+void ASTFailStmt::setThirdExpr(ASTExpr *E) {
+	ThirdExpr = E;
+}
+
 std::string ASTFailStmt::str() const {
     return Logger("ASTFailStmt").
 	Attr("Location", getLocation()).
 Attr("Kind", static_cast<size_t>(getKind())).
             Attr("FirstExpr", FirstExpr).
 	Attr("SecondExpr", SecondExpr).
+	Attr("ThirdExpr", ThirdExpr).
             End();
 }

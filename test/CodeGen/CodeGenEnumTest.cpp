@@ -82,7 +82,7 @@ namespace {
 		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "%error = type { i8, i32, i8* }\n"
+        EXPECT_EQ(output, "%error = type { i32, i8*, i8* }\n"
                           "\n"
                           "define void @F_0(%error* %0) {\n"
                           "entry:\n"

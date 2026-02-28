@@ -345,6 +345,7 @@ DIAG(err_parse_empty_while_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "
 DIAG(err_parse_number, CLASS_ERROR, (unsigned)diag::Severity::Error, "'%0' is not a number ", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_class_block_unclosed, CLASS_ERROR, (unsigned)diag::Severity::Error, "class block not correctly closed", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parse_new_instance, CLASS_ERROR, (unsigned)diag::Severity::Error, "new instance parsing error", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parse_fail_too_many_expr, CLASS_ERROR, (unsigned)diag::Severity::Error, "fail statement cannot have more than 3 expressions", 0, SFINAE_Suppress, false, true, 0)
 
 // Parser Warnings
 DIAG(warn_empty_code, CLASS_WARNING, (unsigned)diag::Severity::Warning, "code empty", 0, SFINAE_Suppress, false, false, 1)

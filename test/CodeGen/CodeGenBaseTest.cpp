@@ -319,7 +319,7 @@ namespace {
     	std::string output = getOutput(M);
 
     	EXPECT_EQ(output, "\n"
-						  "%error = type { i8, i32, i8* }\n"
+						  "%error = type { i32, i8*, i8* }\n"
 						  "\n"
 						  "@error = external constant %error\n"
 						  "\n"
@@ -1515,7 +1515,7 @@ namespace {
     	llvm::Module * M = getModules()[0];
 		std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+        EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
 						  "\n"
 						  "@error = external constant %error\n"
         				  "\n"

@@ -120,6 +120,9 @@ void CodeGenFunction::GenBody() {
 		StoreParams(1);
 	}
 
+	// Set error handler with function error handler
+	CGM->CurrentErrorHandler = Sema->getErrorHandler()->getCodeGen();
+
 	// Generate Function Body
     CGM->GenBlockStmt(Sema->getAST().getBody());
 

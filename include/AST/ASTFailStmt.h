@@ -26,6 +26,8 @@ namespace fly {
 
     	ASTExpr *SecondExpr = nullptr;
 
+    	ASTExpr *ThirdExpr = nullptr;
+
         ASTFailStmt(const SourceLocation &Loc);
 
     public:
@@ -39,6 +41,10 @@ namespace fly {
     	ASTExpr *getSecondExpr() const;
 
     	void setSecondExpr(ASTExpr *);
+
+    	ASTExpr *getThirdExpr() const;
+
+    	void setThirdExpr(ASTExpr *);
 
         std::string str() const override;
     };

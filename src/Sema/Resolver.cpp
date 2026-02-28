@@ -551,12 +551,14 @@ void Resolver::visit(ASTHandleStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTHandleStmt)");
 	CurrentStmt = &AST;
 
+	// Set the current handle for the nested fail statements to mark the function as fallible if needed
+	CurrentHandleStmt = &AST;
+
 	// Create a new error handler for this handle statement
 	ASTHandleStmt *ParentHandle = CurrentHandleStmt; // Save the parent handle to restore later if needed
 	CurrentErrorHandler = SemaBuilder::CreateErrorHandler();
+	CurrentHandleStmt->setErrorHandler(CurrentErrorHandler);
 
-	// Set the current handle for the nested fail statements to mark the function as fallible if needed
-	CurrentHandleStmt = &AST;
 
 	// Resolve the handle body
 	AST.getHandle()->accept(*this);

@@ -27,7 +27,7 @@ namespace {
         /**
          * Fly code:
          * void func() {
-         *   error A handle {
+         *   handle {
          *     fail
          *   }
          * }
@@ -35,14 +35,12 @@ namespace {
         ASTModule *Module = CreateModule();
 
         // func() {
-        //   error A handle fail
+        //   handle fail
         // }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
         ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
-        ASTLocalVar *ErrorA = ASTBuilder::CreateLocalVar(SourceLoc, ErrorTypeRef, "A", EmptyModifiers);
-        ASTIdentifier *ErrorIdentifier = ASTBuilder::CreateIdentifier(ErrorA);
         ASTBlockStmt *HandleBlock = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTBuilder::CreateHandleStmt(Body, SourceLoc, HandleBlock, ErrorIdentifier);
+        ASTBuilder::CreateHandleStmt(Body, SourceLoc, HandleBlock);
 
         ASTFailStmt * Fail0Stmt = ASTBuilder::CreateFailStmt(HandleBlock, SourceLoc);
 
@@ -54,16 +52,14 @@ namespace {
         EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n" // func() error handler
-                          "  %2 = alloca %error*, align 8\n" // A error handler
                           "  store %error* %0, %error** %1, align 8\n"
+                          "  %2 = alloca %error*, align 8\n" // A error handler
                           "  br label %handle\n"
                           "\n"
                           "handle:                                           ; preds = %entry\n"
                           "  %3 = load %error*, %error** %2, align 8\n"
                           "  %4 = getelementptr inbounds %error, %error* %3, i32 0, i32 0\n"
-                          "  store i8 1, i8* %4, align 1\n"
-                          "  %5 = getelementptr inbounds %error, %error* %3, i32 0, i32 1\n"
-                          "  store i32 1, i32* %5, align 4\n"
+                          "  store i32 1, i32* %4, align 4\n"
                           "  br label %safe\n"
                           "\n"
                           "safe:                                             ; preds = %handle\n"
@@ -106,7 +102,7 @@ namespace {
 		llvm::Module * M = getModules()[0];
 		std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+        EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
 						  "\n"
 						  "@error = external constant %error\n"
 						  "\n"
@@ -177,7 +173,7 @@ namespace {
 		llvm::Module * M = getModules()[0];
 		std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+        EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
 						  "\n"
 						  "@error = external constant %error\n"
 						  "\n"
@@ -248,7 +244,7 @@ namespace {
 		llvm::Module * M = getModules()[0];
 		std::string output = getOutput(M);
 
-		EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+		EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
 						  "\n"
 						  "@error = external constant %error\n"
 						  "\n"
@@ -319,7 +315,7 @@ namespace {
 		llvm::Module * M = getModules()[0];
 		std::string output = getOutput(M);
 
-		EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+		EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
 						  "\n"
 						  "@error = external constant %error\n"
 						  "@0 = private unnamed_addr constant [6 x i8] c\"Error\\00\", align 1\n"
@@ -403,7 +399,7 @@ namespace {
 		llvm::Module * M = getModules()[0];
 		std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+        EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
         				  "%TestStruct = type { i32 }\n"
         				  "\n"
 						  "@error = external constant %error\n"

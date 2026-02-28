@@ -420,12 +420,12 @@ void CodeGenModule::GenStmt(ASTStmt * Stmt) {
 	switch (Stmt->getStmtKind()) {
 
 		case ASTStmtKind::STMT_DECL:
-			GenStmtDecl(static_cast<ASTDeclStmt *>(Stmt));
+			GenDeclStmt(static_cast<ASTDeclStmt *>(Stmt));
 			break;
 
 			// Expression Statement (includes assignments, calls, etc.)
 		case ASTStmtKind::STMT_EXPR:
-			GenStmtExpr(static_cast<ASTExprStmt *>(Stmt));
+			GenExprStmt(static_cast<ASTExprStmt *>(Stmt));
 			break;
 
 			// Block of Stmt
@@ -451,26 +451,26 @@ void CodeGenModule::GenStmt(ASTStmt * Stmt) {
 
 		// Delete Stmt
 		case ASTStmtKind::STMT_DELETE:
-			GenStmtDelete(static_cast<ASTDeleteStmt *>(Stmt));
+			GenDeleteStmt(static_cast<ASTDeleteStmt *>(Stmt));
 			break;
 
 			// Break Stmt
 		case ASTStmtKind::STMT_BREAK:
-			GenStmtBreak(static_cast<ASTBreakStmt *>(Stmt));
+			GenBreakStmt(static_cast<ASTBreakStmt *>(Stmt));
 			break;
 
 			// Continue Stmt
 		case ASTStmtKind::STMT_CONTINUE:
-			GenStmtContinue(static_cast<ASTContinueStmt *>(Stmt));
+			GenContinueStmt(static_cast<ASTContinueStmt *>(Stmt));
 			break;
 
 			// Return Stmt
 		case ASTStmtKind::STMT_RETURN:
-				GenStmtReturn(static_cast<ASTReturnStmt *>(Stmt));
+				GenReturnStmt(static_cast<ASTReturnStmt *>(Stmt));
 				break;
 
 		case ASTStmtKind::STMT_HANDLE:
-			GenStmtHandle(static_cast<ASTHandleStmt *>(Stmt));
+			GenHandleStmt(static_cast<ASTHandleStmt *>(Stmt));
 			break;
 
 		case ASTStmtKind::STMT_FAIL:
@@ -479,7 +479,7 @@ void CodeGenModule::GenStmt(ASTStmt * Stmt) {
 	}
 }
 
-void CodeGenModule::GenStmtDecl(ASTDeclStmt *DeclStmt) {
+void CodeGenModule::GenDeclStmt(ASTDeclStmt *DeclStmt) {
 	FLY_DEBUG_START("CodeGenModule", "GenStmtDecl");
 
 	// Get the CodeGenVar for the Local Variable
@@ -495,7 +495,7 @@ void CodeGenModule::GenStmtDecl(ASTDeclStmt *DeclStmt) {
 	FLY_DEBUG_END("CodeGenModule", "GenStmtDecl");
 }
 
-void CodeGenModule::GenStmtExpr(ASTExprStmt *ExprStmt) {
+void CodeGenModule::GenExprStmt(ASTExprStmt *ExprStmt) {
 	FLY_DEBUG_START("CodeGenModule", "GenStmtExpr");
 
 	ExprStmt->getExpr()->getSema()->accept(*this);
@@ -503,7 +503,7 @@ void CodeGenModule::GenStmtExpr(ASTExprStmt *ExprStmt) {
 	FLY_DEBUG_END("CodeGenModule", "GenStmtExpr");
 }
 
-void CodeGenModule::GenStmtDelete(ASTDeleteStmt *DeleteStmt) {
+void CodeGenModule::GenDeleteStmt(ASTDeleteStmt *DeleteStmt) {
 	FLY_DEBUG_START("CodeGenModule", "GenStmtDelete");
 
 	DeleteStmt->getExpr()->getSema()->accept(*this);
@@ -518,7 +518,7 @@ void CodeGenModule::GenStmtDelete(ASTDeleteStmt *DeleteStmt) {
 	FLY_DEBUG_END("CodeGenModule", "GenStmtDelete");
 }
 
-void CodeGenModule::GenStmtBreak(ASTBreakStmt *BreakStmt) {
+void CodeGenModule::GenBreakStmt(ASTBreakStmt *BreakStmt) {
 	FLY_DEBUG_START("CodeGenModule", "GenStmtBreak");
 
 	// Break jumps to the end of the enclosing loop or switch
@@ -534,7 +534,7 @@ void CodeGenModule::GenStmtBreak(ASTBreakStmt *BreakStmt) {
 	FLY_DEBUG_END("CodeGenModule", "GenStmtBreak");
 }
 
-void CodeGenModule::GenStmtContinue(ASTContinueStmt *ContinueStmt) {
+void CodeGenModule::GenContinueStmt(ASTContinueStmt *ContinueStmt) {
 	FLY_DEBUG_START("CodeGenModule", "GenStmtContinue");
 
 	// Continue jumps to the start of the next iteration (or condition) of the enclosing loop
@@ -550,14 +550,21 @@ void CodeGenModule::GenStmtContinue(ASTContinueStmt *ContinueStmt) {
 	FLY_DEBUG_END("CodeGenModule", "GenStmtContinue");
 }
 
-void CodeGenModule::GenStmtReturn(ASTReturnStmt *ReturnStmt) {
+void CodeGenModule::GenReturnStmt(ASTReturnStmt *ReturnStmt) {
 	FLY_DEBUG_START("CodeGenModule", "GenStmtReturn");
 	Builder->CreateRetVoid();
 	FLY_DEBUG_END("CodeGenModule", "GenStmtReturn");
 }
 
-void CodeGenModule::GenStmtHandle(ASTHandleStmt *HandleStmt) {
+void CodeGenModule::GenHandleStmt(ASTHandleStmt *HandleStmt) {
 	FLY_DEBUG_START("CodeGenModule", "GenStmtHandle");
+
+	// Save parent error handler to restore after generating the current handle and safe blocks
+	CodeGenError *ParentErrorHandler = CurrentErrorHandler;
+
+	// Create a new error handler for this handle statement and set it as the current error handler
+	HandleStmt->getErrorHandler()->accept(*this);
+	CurrentErrorHandler = HandleStmt->getErrorHandler()->getCodeGen();
 
 	// Save parent handle statement for nested handles
 	llvm::BasicBlock *ParentHandleBB = CurrentHandleBB;
@@ -566,8 +573,9 @@ void CodeGenModule::GenStmtHandle(ASTHandleStmt *HandleStmt) {
 	// Take the current Function to create the Handle and Safe blocks in the same function
 	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
-	// Set Handle Block
+	// Create Handle and Safe Block
 	CurrentHandleBB = llvm::BasicBlock::Create(LLVMCtx, "handle", Fn);
+	CurrentSafeBB = llvm::BasicBlock::Create(LLVMCtx, "safe", Fn);
 	Builder->CreateBr(CurrentHandleBB);
 	Builder->SetInsertPoint(CurrentHandleBB);
 
@@ -575,13 +583,14 @@ void CodeGenModule::GenStmtHandle(ASTHandleStmt *HandleStmt) {
 	GenStmt(HandleStmt->getHandle());
 
 	// Generate in Safe Block
-	CurrentSafeBB = llvm::BasicBlock::Create(LLVMCtx, "safe", Fn);
 	Builder->SetInsertPoint(CurrentSafeBB);
-	CurrentFunction->getCodeGen()->setSafeBB(CurrentSafeBB);
 
 	// Restore parent handle statement for nested handles
 	CurrentHandleBB = ParentHandleBB;
 	CurrentSafeBB = ParentSafeBB;
+
+	// Restore parent error handler after generating the current handle and safe blocks
+	CurrentErrorHandler = ParentErrorHandler;
 
 	FLY_DEBUG_END("CodeGenModule", "GenStmtHandle");
 }
@@ -590,9 +599,23 @@ void CodeGenModule::GenStmtHandle(ASTHandleStmt *HandleStmt) {
 void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt) {
 	FLY_DEBUG_START("CodeGenModule", "GenStmtFail");
 
-	// Take the current ErrorHandler CodeGen (already resolved in ResolveStmtHandle())
-	CodeGenError *CGE = CurrentErrorHandler->getCodeGen();
-	StoreFail(FailStmt->getFirstExpr(), CGE);
+	// Store Fail value in ErrorHandler
+	if (FailStmt->getFirstExpr() == nullptr) {
+		CurrentErrorHandler->StoreInt(llvm::ConstantInt::get(CG.Int32Ty, 1));
+	} else {
+		// Store first expression in the error handler (this is the main error code)
+		StoreFail(FailStmt->getFirstExpr(), CurrentErrorHandler);
+
+		if (FailStmt->getSecondExpr()) {
+			// If there is a second expression, we store the error code in the error handler
+			StoreFail(FailStmt->getSecondExpr(), CurrentErrorHandler);
+
+			if (FailStmt->getThirdExpr()) {
+				// If there is a third expression, we store the error code in the error handler
+				StoreFail(FailStmt->getThirdExpr(), CurrentErrorHandler);
+			}
+		}
+	}
 
 	if (CurrentHandleBB == nullptr) {
 		// No enclosing handle, so we just return from the function
@@ -604,24 +627,18 @@ void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt) {
 	FLY_DEBUG_END("CodeGenModule", "GenStmtFail");
 }
 
-
-void CodeGenModule::StoreFail(ASTExpr* Expr, CodeGenError *CGE) {
-	// Store Fail value in ErrorHandler
-	if (Expr == nullptr) {
-		CGE->StoreInt(llvm::ConstantInt::get(CG.Int32Ty, 1));
-	} else {
-		Expr->getSema()->accept(*this);
-		llvm::Value *V = Expr->getSema()->getCodeGen()->getValue();
-		if (Expr->getType()->isBool() || Expr->getType()->isInteger()) {
-			CGE->StoreInt(V);
-		} else if (Expr->getType()->isString()) {
-			CGE->StoreString(V);
-		} else if (Expr->getType()->isClass()) {
-			llvm::Value *V = Expr->getSema()->getCodeGen()->getValue();
-			CGE->StoreObject(V);
-		} else if (Expr->getType()->isEnum()) {
-			CGE->StoreInt(V);
-		}
+void CodeGenModule::StoreFail(ASTExpr *Expr, CodeGenError *CGE) {
+	SemaExpr *SemaExpr = Expr->getSema();
+	SemaExpr->accept(*this);
+	llvm::Value *Value = SemaExpr->getCodeGen()->getValue();
+	if (SemaExpr->getType()->isBool() || SemaExpr->getType()->isInteger()) {
+		CGE->StoreInt(Value);
+	} else if (SemaExpr->getType()->isString()) {
+		CGE->StoreString(Value);
+	} else if (SemaExpr->getType()->isClass()) {
+		CGE->StoreObject(Value);
+	} else if (SemaExpr->getType()->isEnum()) {
+		CGE->StoreInt(Value);
 	}
 }
 

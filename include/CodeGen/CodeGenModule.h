@@ -146,7 +146,7 @@ namespace fly {
 
         SemaFunctionBase *CurrentFunction = nullptr;
 
-    	SemaError *CurrentErrorHandler = nullptr;
+    	CodeGenError *CurrentErrorHandler = nullptr;
 
     	llvm::BasicBlock *CurrentHandleBB = nullptr;
 
@@ -218,19 +218,19 @@ namespace fly {
 
     	void GenStmt(ASTStmt * Stmt);
 
-    	void GenStmtDecl(ASTDeclStmt *DeclStmt);
+    	void GenDeclStmt(ASTDeclStmt *DeclStmt);
 
-    	void GenStmtExpr(ASTExprStmt *ExprStmt);
+    	void GenExprStmt(ASTExprStmt *ExprStmt);
 
-    	void GenStmtDelete(ASTDeleteStmt *DeleteStmt);
+    	void GenDeleteStmt(ASTDeleteStmt *DeleteStmt);
 
-    	void GenStmtBreak(ASTBreakStmt *BreakStmt);
+    	void GenBreakStmt(ASTBreakStmt *BreakStmt);
 
-    	void GenStmtContinue(ASTContinueStmt *ContinueStmt);
+    	void GenContinueStmt(ASTContinueStmt *ContinueStmt);
 
-    	void GenStmtReturn(ASTReturnStmt *ReturnStmt);
+    	void GenReturnStmt(ASTReturnStmt *ReturnStmt);
 
-    	void GenStmtHandle(ASTHandleStmt *HandleStmt);
+    	void GenHandleStmt(ASTHandleStmt *HandleStmt);
 
     	void GenFailStmt(ASTFailStmt *FailStmt);
 

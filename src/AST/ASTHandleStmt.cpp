@@ -28,6 +28,15 @@ ASTBlockStmt* ASTHandleStmt::getHandle() const {
     return Handle;
 }
 
+
+SemaError *ASTHandleStmt::getErrorHandler() const {
+	return ErrorHandler;
+}
+
+void ASTHandleStmt::setErrorHandler(SemaError *ErrorHandler) {
+	this->ErrorHandler = ErrorHandler;
+}
+
 std::string ASTHandleStmt::str() const {
     return Logger("ASTHandleBlock").
 	Attr("Location", getLocation()).

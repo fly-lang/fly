@@ -1055,6 +1055,16 @@ void Parser::ParseFailStmt(ASTBlockStmt *Parent) {
     		ConsumeToken(); // consume ','
     		ASTExpr *SecondExpr = ParseExpr();
     		Stmt->setSecondExpr(SecondExpr);
+
+    		if (Tok.is(tok::comma)) {
+    			ConsumeToken(); // consume ','
+    			ASTExpr *ThirdExpr = ParseExpr();
+    			Stmt->setThirdExpr(ThirdExpr);
+
+    			if (Tok.is(tok::comma)) {
+    				Diag(Tok.getLocation(), diag::err_parse_fail_too_many_expr);
+    			}
+    		}
     	}
     }
 }

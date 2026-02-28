@@ -163,14 +163,6 @@ void CodeGenFunctionBase::CheckReturnVoid() {
     FLY_DEBUG_END("CodeGenFunctionBase", "GenBody");
 }
 
-llvm::BasicBlock * CodeGenFunctionBase::getSafeBB() {
-	return SafeBB;
-}
-
-void CodeGenFunctionBase::setSafeBB(llvm::BasicBlock *BB) {
-	this->SafeBB = BB;
-}
-
 // Mapping Fly types to mangled representations
 std::unordered_map<std::string, std::string> MangleTypeMap = {
 	{"bool", "_b"},

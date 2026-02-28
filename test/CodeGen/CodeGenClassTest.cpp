@@ -57,7 +57,7 @@ namespace {
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n"
-        				  "%error = type { i8, i32, i8* }\n"
+        				  "%error = type { i32, i8*, i8* }\n"
 						  "%TestStruct = type { i32 }\n"
 						  "\n"
 						  "@error = external constant %error\n"
@@ -145,7 +145,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 		std::string output = getOutput(M);
 
     	EXPECT_EQ(output, "\n"
-    					  "%error = type { i8, i32, i8* }\n"
+    					  "%error = type { i32, i8*, i8* }\n"
 						  "%TestStruct = type { i32 }\n"
 						  "\n"
 						  "@error = external constant %error\n"
@@ -237,7 +237,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n"
-						  "%error = type { i8, i32, i8* }\n"
+						  "%error = type { i32, i8*, i8* }\n"
 						  "%TestClass = type { i8**, i32 }\n"
                           "\n"
                           "@error = external constant %error\n"
@@ -363,7 +363,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n"
-						  "%error = type { i8, i32, i8* }\n"
+						  "%error = type { i32, i8*, i8* }\n"
                           "%TestClass = type { i8**, i32 }\n"
                           "\n"
                           "@error = external constant %error\n"
@@ -511,7 +511,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+        EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
                           "%TestClass = type { i8**, i32 }\n"
                           "\n"
                           "@error = external constant %error\n"
@@ -655,7 +655,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	llvm::Module * M = Generate()[0];
     	std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+        EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
                           "%TestClass = type { i8** }\n"
                           "\n"
 						  "@error = external constant %error\n"
@@ -768,7 +768,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 		llvm::Module * M = Generate()[0];
 		std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+        EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
 						  "%TestClass = type { i8**, i32 }\n"
                           "\n"
 						  "@error = external constant %error\n"
@@ -858,7 +858,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	llvm::Module * M = Generate()[0];
     	std::string output = getOutput(M);
 
-        EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+        EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
 						  "%TestClass = type { i8** }\n"
                           "\n"
 						  "@error = external constant %error\n"
@@ -942,7 +942,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	llvm::Module * M = Generate()[0];
     	std::string output = getOutput(M);
 
-    	EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+    	EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
     					  "%BaseStruct = type { i32 }\n"
     					  "%TestStruct = type { %BaseStruct, i32 }\n"
     					  "\n"
@@ -1023,7 +1023,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	llvm::Module * M = Generate()[0];
     	std::string output = getOutput(M);
 
-    	EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+    	EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
 					      "%BaseStruct = type { i32 }\n"
 					      "%TestStruct = type { %BaseStruct, %BaseStruct2, i32, i32 }\n"
     					  "%BaseStruct2 = type { i32 }\n"
@@ -1133,7 +1133,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	std::string output = getOutput(M);
 
     	EXPECT_EQ(output, "\n"
-    					  "%error = type { i8, i32, i8* }\n"
+    					  "%error = type { i32, i8*, i8* }\n"
 						  "%TestClass = type { i8**, %BaseStruct, i32 }\n"
 						  "%BaseStruct = type { i32 }\n"
 						  "\n"
@@ -1247,7 +1247,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	llvm::Module * M = Generate()[0];
     	std::string output = getOutput(M);
 
-    	EXPECT_EQ(output, "\n%error = type { i8, i32, i8* }\n"
+    	EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
 						  "%BaseStruct = type { i32 }\n"
 						  "%BaseStruct2 = type { i32, i32 }\n"
 						  "%TestClass = type { i8**, %BaseStruct, %BaseStruct2, i32, i32 }\n"
@@ -1375,7 +1375,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 	    // Offset - to - top is trivial now(always 0), but will matter with multiple inheritance
 
 	    EXPECT_EQ(output, "\n"
-						  "%error = type { i8, i32, i8* }\n"
+						  "%error = type { i32, i8*, i8* }\n"
 						  "%BaseClass = type { i8**, i32 }\n"
     					  "%TestClass = type { i8**, %BaseClass, i32 }\n"
 						  "\n"
@@ -1551,7 +1551,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     	std::string output = getOutput(M);
 
     	EXPECT_EQ(output, "\n"
-    					  "%error = type { i8, i32, i8* }\n"
+    					  "%error = type { i32, i8*, i8* }\n"
     					  "%BaseClass2 = type { i8**, i32 }\n"
     					  "%BaseClass = type { i8**, i32 }\n"
 						  "%TestClass = type { i8**, %BaseClass, %BaseClass2, i32, i32 }\n"
