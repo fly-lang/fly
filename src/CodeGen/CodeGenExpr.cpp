@@ -247,7 +247,7 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     } else {
 
     	// Add Error parameter
-        Args.push_back(Sema->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
+        Args.push_back(CGM->CurrentErrorHandler->getValue()); // Error is a Pointer
     	addArgs(Sema, Args);
 
     	llvm::Function *Fn = Sema->getFunction()->getCodeGen()->getFunction();

@@ -113,3 +113,22 @@ void CodeGenError::setPointer(llvm::Value *Pointer) {
 	this->ErrorHandler = ErrorHandler;
 	this->LoadI = nullptr;
 }
+
+void CodeGenError::Init() {
+	// Set default values for error struct: 0 for int, null for pointer
+	llvm::Constant *Zero = llvm::ConstantInt::get(CodeGen::Int32Ty, 0);
+	llvm::Constant *One = llvm::ConstantInt::get(CodeGen::Int32Ty, 1);
+	llvm::Constant *Two = llvm::ConstantInt::get(CodeGen::Int32Ty, 2);
+	llvm::Constant *NullPtr = llvm::ConstantPointerNull::get(CodeGen::Int8Ty->getPointerTo());
+
+	// Load the error struct pointer
+	llvm::Value *ErrorVar = Load();
+
+	// Store default values
+	llvm::Value *PtrInt = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Zero});
+	CGM->Builder->CreateStore(Zero, PtrInt);
+	llvm::Value *PtrStr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, One});
+	CGM->Builder->CreateStore(NullPtr, PtrStr);
+	llvm::Value *PtrPtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {Zero, Two});
+	CGM->Builder->CreateStore(NullPtr, PtrPtr);
+}

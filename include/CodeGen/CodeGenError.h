@@ -69,7 +69,8 @@ namespace fly {
 
         void setPointer(llvm::Value *Pointer);
 
-    };
+    	void Init();
+	};
 }
 
 #endif //FLY_CODEGEN_ERROR_H

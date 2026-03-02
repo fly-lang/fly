@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGenTest.h"
+#include "Sema/SemaBuiltin.h"
 #include "llvm/Support/MemoryBuffer.h"
 
 using namespace fly;
@@ -36,6 +37,9 @@ void CodeGenTest::SetUp() {
     Diags.Reset();
 }
 void CodeGenTest::TearDown() {
+	// Reset CodeGen pointers on builtin types to prevent stale pointers
+	// when running multiple tests with different LLVMContexts
+	SemaBuiltin::resetCodeGen();
 	Test::TearDown();
 }
 

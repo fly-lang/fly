@@ -88,23 +88,12 @@ void CodeGenFunction::GenBody() {
 		// Alloca Function Parameters and Local Vars
 		AllocaLocalVars();
 
-		llvm::Constant *Zero = llvm::ConstantInt::get(CodeGen::Int32Ty, 0);
-		llvm::Constant *One = llvm::ConstantInt::get(CodeGen::Int32Ty, 1);
-		llvm::Constant *Two = llvm::ConstantInt::get(CodeGen::Int32Ty, 2);
-		llvm::Constant *NullPtr = llvm::ConstantPointerNull::get(CodeGen::Int8Ty->getPointerTo());
-
 		// Alloca Error Handler
 		Sema->getErrorHandler()->accept(*CGM);
 
 		// Store Default No Error in Error Handler
 		CodeGenError *CGE = Sema->getErrorHandler()->getCodeGen();
-		llvm::Value *ErrorVar = CGE->Load();
-		llvm::Value *PtrType = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, Zero});
-		CGM->Builder->CreateStore(llvm::ConstantInt::get(CodeGen::Int8Ty, 0), PtrType);
-		llvm::Value *PtrInt = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, One});
-		CGM->Builder->CreateStore(Zero, PtrInt);
-		llvm::Value *PtrPtr = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorVar, {Zero, Two});
-		CGM->Builder->CreateStore(NullPtr, PtrPtr);
+		CGE->Init(); // Initialize the error handler struct with default values (0 for int, null for pointer)
 	} else {
 
 		// Alloca Function Error Handler
@@ -129,14 +118,13 @@ void CodeGenFunction::GenBody() {
     // if is Main check error and return right exit code
     if (isMain) {
         llvm::Value *Zero32 = llvm::ConstantInt::get(CodeGen::Int32Ty, 0);
-        llvm::Value *Zero8 = llvm::ConstantInt::get(CodeGen::Int8Ty, 0);
         // take return value from error struct
         CodeGenError *CGE = Sema->getErrorHandler()->getCodeGen();
         llvm::Value * ErrorHandler = CGE->getValue();
-        llvm::Value *ErrorKind = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorHandler, {Zero32, Zero32});
-        llvm::Value *Ret = CGM->Builder->CreateICmpNE(CGM->Builder->CreateLoad(ErrorKind), Zero8);
+        llvm::Value *ErrorVal = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorHandler, {Zero32, Zero32});
+        // llvm::Value *Ret = CGM->Builder->CreateICmpNE(BuiErrorVal->, Zero32);
         // main() will return 0 if ok or 1 on error
-        CGM->Builder->CreateRet(CGM->Builder->CreateZExt(Ret, Fn->getReturnType()));
+        CGM->Builder->CreateRet(CGM->Builder->CreateLoad(ErrorVal));
     } else {
     	CheckReturnVoid();
     }

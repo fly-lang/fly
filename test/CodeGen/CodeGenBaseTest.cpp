@@ -1524,16 +1524,14 @@ namespace {
                           "  %0 = alloca %error*, align 8\n"
                           "  %1 = load %error*, %error** %0, align 8\n"
                           "  %2 = getelementptr inbounds %error, %error* %1, i32 0, i32 0\n"
-                          "  store i8 0, i8* %2, align 1\n"
+                          "  store i32 0, i32* %2, align 4\n"
                           "  %3 = getelementptr inbounds %error, %error* %1, i32 0, i32 1\n"
-                          "  store i32 0, i32* %3, align 4\n"
+                          "  store i8* null, i8** %3, align 8\n"
                           "  %4 = getelementptr inbounds %error, %error* %1, i32 0, i32 2\n"
                           "  store i8* null, i8** %4, align 8\n"
                           "  %5 = getelementptr inbounds %error, %error* %1, i32 0, i32 0\n"
-                          "  %6 = load i8, i8* %5, align 1\n"
-                          "  %7 = icmp ne i8 %6, 0\n"
-                          "  %8 = zext i1 %7 to i32\n"
-                          "  ret i32 %8\n"
+                          "  %6 = load i32, i32* %5, align 4\n"
+                          "  ret i32 %6\n"
                           "}\n");
     }
 

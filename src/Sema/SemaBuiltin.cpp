@@ -123,3 +123,20 @@ SemaArrayType * SemaBuiltin::CreateArrayType(SemaType *Type, SemaExpr *SizeExpr)
 SemaArrayType * SemaBuiltin::CreateArrayType(SemaType *Type, uint64_t Size) {
 	return new SemaArrayType(Type, Size);
 }
+
+void SemaBuiltin::resetCodeGen() {
+	if (BoolType) BoolType->setCodeGen(nullptr);
+	if (ByteType) ByteType->setCodeGen(nullptr);
+	if (UShortType) UShortType->setCodeGen(nullptr);
+	if (ShortType) ShortType->setCodeGen(nullptr);
+	if (UIntType) UIntType->setCodeGen(nullptr);
+	if (IntType) IntType->setCodeGen(nullptr);
+	if (ULongType) ULongType->setCodeGen(nullptr);
+	if (LongType) LongType->setCodeGen(nullptr);
+	if (FloatType) FloatType->setCodeGen(nullptr);
+	if (DoubleType) DoubleType->setCodeGen(nullptr);
+	if (VoidType) VoidType->setCodeGen(nullptr);
+	if (StringType) StringType->setCodeGen(nullptr);
+	if (ErrorType) ErrorType->setCodeGen(nullptr);
+}
+

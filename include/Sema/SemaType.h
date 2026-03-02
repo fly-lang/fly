@@ -168,7 +168,7 @@ namespace fly {
 
     	uint64_t Size;
 
-        SemaExpr *SizeExpr;
+        SemaExpr *SizeExpr = nullptr;
 
     public:
 

@@ -85,6 +85,12 @@ namespace fly {
 
     	static SemaArrayType * CreateArrayType(SemaType *Type, std::uint64_t Size);
 
+        /**
+         * Resets the CodeGen pointers on all builtin types.
+         * This is needed when running multiple tests with different LLVMContexts.
+         */
+        static void resetCodeGen();
+
     };
 }
 

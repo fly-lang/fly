@@ -172,7 +172,6 @@ namespace {
     	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, Value_3);
     	ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, ArrayIntType, "k", EmptyModifiers);
     	ASTDeclStmt *DeclStmt_k = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_k);
-    	ASTIdentifier *kIdent = ASTBuilder::CreateIdentifier(LocalVar_k);
 
     	// Generate Code
     	Generate();
