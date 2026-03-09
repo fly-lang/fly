@@ -40,7 +40,7 @@ namespace fly {
 	class SemaMember;
 	class SemaClassAttribute;
 	class SemaClassInstance;
-	class SemaEnumValue;
+	class SemaEnumEntry;
 	class SemaError;
 
 	// Expressions
@@ -116,7 +116,7 @@ namespace fly {
 		virtual void visit(SemaArrayValue &Sema) = 0;
 		virtual void visit(SemaStructValue &Sema) = 0;
 		virtual void visit(SemaNullValue &Sema) = 0;
-		virtual void visit(SemaEnumValue &Sema) = 0;
+		virtual void visit(SemaEnumEntry &Sema) = 0;
 	};
 
 }

@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTEnumValue.cpp - AST Enum Value implementation
+// src/AST/ASTEnumEntry.cpp - AST Enum Entry implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,46 +8,46 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTEnum.h"
-#include "AST/ASTEnumValue.h"
+#include "AST/ASTEnumEntry.h"
 #include "AST/ASTVisitor.h"
 #include "Basic/Logger.h"
 
 using namespace fly;
 
-ASTEnumValue::ASTEnumValue(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name) :
-    ASTValue(ASTValueKind::VAL_ENUM, Loc), Enum(Enum), Name(Name) {
+ASTEnumEntry::ASTEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name) :
+    ASTExpr(Loc, ASTExprKind::EXPR_VALUE), Enum(Enum), Name(Name) {
 }
 
-void ASTEnumValue::accept(ASTVisitor &Visitor) {
+void ASTEnumEntry::accept(ASTVisitor &Visitor) {
     Visitor.visit(*this);
 }
 
-ASTEnum *ASTEnumValue::getEnum() const {
+ASTEnum *ASTEnumEntry::getEnum() const {
     return Enum;
 }
 
-llvm::StringRef ASTEnumValue::getName() const {
+llvm::StringRef ASTEnumEntry::getName() const {
     return Name;
 }
 
-uint32_t ASTEnumValue::getIndex() const {
+uint32_t ASTEnumEntry::getIndex() const {
     return Index;
 }
 
-void ASTEnumValue::setIndex(uint32_t Idx) {
+void ASTEnumEntry::setIndex(uint32_t Idx) {
     Index = Idx;
 }
 
-SemaEnumValue *ASTEnumValue::getSema() const {
+SemaEnumEntry *ASTEnumEntry::getSema() const {
     return Sema;
 }
 
-void ASTEnumValue::setSema(SemaEnumValue *S) {
+void ASTEnumEntry::setSema(SemaEnumEntry *S) {
     this->Sema = S;
 }
 
-std::string ASTEnumValue::str() const {
-    return Logger("ASTEnumValue").
+std::string ASTEnumEntry::str() const {
+    return Logger("ASTEnumEntry").
            Attr("Enum", Enum->getName()).
            Attr("Name", Name).
            Attr("Index", (uint64_t) Index).

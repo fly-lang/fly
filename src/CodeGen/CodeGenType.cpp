@@ -13,6 +13,7 @@
 #include "CodeGen/CodeGenModule.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTValue.h"
+#include "Sema/SemaEnumType.h"
 #include "Sema/SemaValue.h"
 
 using namespace fly;
@@ -97,3 +98,11 @@ void CodeGenType::GenType(SemaStringType &Sema) {
 		T = CodeGen::Int8PtrTy;
 	}
 }
+
+void CodeGenType::GenType(SemaEnumType &Sema) {
+	if (Sema.getCodeGen() == nullptr) {
+		// Enums are represented as i32 integers
+		T = CodeGen::Int32Ty;
+	}
+}
+

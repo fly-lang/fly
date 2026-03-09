@@ -20,7 +20,7 @@
 #include "AST/ASTContinueStmt.h"
 #include "AST/ASTDeleteStmt.h"
 #include "AST/ASTEnum.h"
-#include "AST/ASTEnumValue.h"
+#include "AST/ASTEnumEntry.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTFailStmt.h"
@@ -65,7 +65,7 @@
 #include <Sema/Helper.h>
 #include <Sema/Registry.h>
 #include <Sema/SemaCall.h>
-#include <Sema/SemaEnumValue.h>
+#include <Sema/SemaEnumEntry.h>
 #include <Sema/SemaFunction.h>
 #include <Sema/SemaLocalVar.h>
 #include <Sema/SemaParam.h>
@@ -320,25 +320,25 @@ void Resolver::visit(ASTEnum &AST) {
 	FLY_DEBUG_END("Resolver", "visit(ASTEnum)");
 }
 
-void Resolver::visit(ASTEnumValue &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTEnumValue)");
+void Resolver::visit(ASTEnumEntry &AST) {
+	FLY_DEBUG_START("Resolver", "visit(ASTEnumEntry)");
 
 	// Find Var duplication in the current scope
-	SemaEnumValue *ExistingEnum = CurrentEnum->LookupEntry(AST.getName());
+	SemaEnumEntry *ExistingEnum = CurrentEnum->LookupEntry(AST.getName());
 	if (ExistingEnum) {
 		Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
 	}
 
-	SemaEnumValue *Sema = SemaBuilder::CreateEnumValue(CurrentEnum, AST);
+	SemaEnumEntry *Sema = SemaBuilder::CreateEnumEntry(CurrentEnum, AST);
 	CurrentEnum->addEntry(Sema);
 
 	// Create Symbol
-	Symbol *Sym = new Symbol(AST.getName(), SymbolKind::VALUE, Sema);
+	Symbol *Sym = new Symbol(AST.getName(), SymbolKind::ENUM, Sema);
 
 	// Add Symbol to the current scope
 	addSymbol(Sym);
 
-	FLY_DEBUG_END("Resolver", "visit(ASTEnumValue)");
+	FLY_DEBUG_END("Resolver", "visit(ASTEnumEntry)");
 }
 
 void Resolver::visit(ASTLocalVar &AST) {
@@ -452,6 +452,7 @@ void Resolver::visit(ASTNamedType &AST) {
 
 		SymbolTable *Scope = CurrentScope;
 		SemaType *Sema = Reg.LookupNamedType(AST, Scope);
+
 		AST.setSema(Sema);
 	}
 	FLY_DEBUG_END("Resolver", "visit(ASTNamedType)");
@@ -721,28 +722,29 @@ void Resolver::visit(ASTLoopInStmt &AST) {
 
 void Resolver::visit(ASTIdentifier &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTIdentifier)");
-	CurrentExpr = &AST;
 
 	// Invalid if has Parent
 	if (AST.getParent() != nullptr) {
 		Diag(diag::err_invalid_behavior);
 		return;
 	}
-	ParentExpr = nullptr;
 
 	if (!AST.isVisited()) {
 		AST.setVisited(true);
+
+		// Set CurrentExpr for the parent expression to resolve member access in the next step
+		CurrentExpr = &AST;
 
 		// ---------------------------------------
 		// Try local and parent scopes (class, module, namespace, global scope)
 		// ---------------------------------------
 		SymbolTable * Scope = CurrentScope;
-		Symbol *Sym = nullptr;
-		while (!Sym && Scope) {
+		CurrentSymbol = nullptr;
+		while (!CurrentSymbol && Scope) {
 			llvm::SmallVector<Symbol *, 8> *Symbols;
 			if ((Symbols = Scope->lookupInParents(AST.getName()))) {
 				if (Symbols) {
-					Sym = (*Symbols)[0];
+					CurrentSymbol = (*Symbols)[0];
 					break;
 				}
 			}
@@ -752,30 +754,18 @@ void Resolver::visit(ASTIdentifier &AST) {
 		// ---------------------------------------
 		// Not Found → Error
 		// ---------------------------------------
-		if (!Sym) {
+		if (!CurrentSymbol) {
 			Diag(AST.getLocation(), diag::err_sema_syntax_error);
 			FLY_DEBUG_END("Resolver", "ResolveParent(ASTIdentifier)");
 			return;
 		}
 
 		// Sym Found as Variable
-		if (Sym && Sym->getKind() == SymbolKind::VAR) {
-			SemaVar *Sema = static_cast<SemaVar *>(Sym->getRef());
+		if (CurrentSymbol->getKind() == SymbolKind::VAR) {
+			SemaVar *Sema = static_cast<SemaVar *>(CurrentSymbol->getRef());
 
 			// Store Sema into AST
 			AST.setSema(Sema);
-			ParentExpr = Sema;
-		}
-
-		// ---------------------------------------
-		// Continue with children
-		// ---------------------------------------
-		if (AST.getChild()) {
-			CurrentSymbol = Sym;
-			AST.getChild()->accept(*this);
-		} else {
-			CurrentSymbol = nullptr;
-			ParentExpr = nullptr;
 		}
 	}
 	FLY_DEBUG_END("Resolver", "visit(ASTIdentifier)");
@@ -783,89 +773,74 @@ void Resolver::visit(ASTIdentifier &AST) {
 
 void Resolver::visit(ASTMember &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTMember)");
-	CurrentExpr = &AST;
 
-	// Invalid if it has no Parent (CurrentSymbol is set previously)
-	if (AST.getParent() == nullptr || !CurrentSymbol) {
+	// Invalid if it has no Parent
+	if (AST.getParent() == nullptr) {
 		Diag(diag::err_invalid_behavior);
 		return;
 	}
 
+	// After visiting parent
+	// CurrentSymbol should be set
 	if (!AST.isVisited()) {
-		AST.setVisited(true);
+		// Visit parent first if CurrentSymbol is not set
+		// This happens when member is visited directly (e.g., from binary expression)
+		//if (!CurrentSymbol) {
+			AST.getParent()->accept(*this);
+		//}
+		Symbol *ParentSymbol = CurrentSymbol;
+		if (ParentSymbol == nullptr) {
+			return; // already reported error in visiting parent
+		}
 
 		// ---------------------------------------
 		// Try in current scopes (namespace, class, enum, current scopes)
 		// ---------------------------------------
-		SemaType *ParentType = nullptr;
-		if (CurrentSymbol) {
-			if (CurrentSymbol->getKind() == SymbolKind::NAMESPACE) {
-				CurrentScope = static_cast<SemaNameSpace *>(CurrentSymbol->getRef())->getSymbols();
-			} else if (CurrentSymbol->getKind() == SymbolKind::CLASS) {
-				CurrentScope = static_cast<SemaClassType *>(CurrentSymbol->getRef())->getSymbols();
-			} else if (CurrentSymbol->getKind() == SymbolKind::ENUM) {
-				CurrentScope = static_cast<SemaEnumType *>(CurrentSymbol->getRef())->getSymbols();
-			} else if (CurrentSymbol->getKind() == SymbolKind::VAR) {
-				ParentType = static_cast<SemaVar *>(CurrentSymbol->getRef())->getType();
-			}  else if (CurrentSymbol->getKind() == SymbolKind::FUNCTION) {
-				ParentType = static_cast<SemaFunctionBase *>(CurrentSymbol->getRef())->getReturnType();
-			} else if (CurrentSymbol->getKind() == SymbolKind::VALUE) {
-				// Cannot exists Value after a Member access
-				Diag(diag::err_invalid_behavior);
-				return;
-			}
+		AST.setVisited(true);
+		CurrentExpr = &AST;
+		SemaExpr *Sema = nullptr;
+
+		// check namespace
+		if (ParentSymbol->getKind() == SymbolKind::NAMESPACE) {
+			CurrentScope = static_cast<SemaNameSpace *>(ParentSymbol->getRef())->getSymbols();
+			Diag(diag::err_invalid_behavior); // Member access on namespace is not allowed because global var not exists
+			return;
 		}
 
-		// Check ParentType where var type or function return type has its Symbol Table
-		if (ParentType) {
-			if (ParentType->isClass()) {
-				SemaClassType * ClassType = static_cast<SemaClassType *>(ParentType);
-				CurrentScope = ClassType->getSymbols();
-			} else if (ParentType->isEnum()) {
-				SemaEnumType * EnumType = static_cast<SemaEnumType *>(ParentType);
-				CurrentScope = EnumType->getSymbols();
+		if (ParentSymbol->getKind() == SymbolKind::CLASS) {
+			SemaClassType *ParentSema = static_cast<SemaClassType *>(ParentSymbol->getRef());
+			Sema = ResolveMemberSymbol(AST, ParentSema->getSymbols(), SemaKind::ATTRIBUTE);
+			if (!Sema) return;
+		} else if (ParentSymbol->getKind() == SymbolKind::ENUM) {
+			SemaEnumType *ParentSema = static_cast<SemaEnumType *>(ParentSymbol->getRef());
+			Sema = ResolveMemberSymbol(AST, ParentSema->getSymbols(), SemaKind::ENUM_ENTRY);
+			if (!Sema) return;
+		} else if (ParentSymbol->getKind() == SymbolKind::VAR) {
+			SemaVar *ParentVar = static_cast<SemaVar *>(ParentSymbol->getRef());
+
+			if (ParentVar->getType()->isClass()) {
+				SemaClassType * ClassType = static_cast<SemaClassType *>(ParentVar->getType());
+				Sema = ResolveMemberSymbol(AST, ClassType->getSymbols(), SemaKind::ATTRIBUTE, ParentVar);
+				if (!Sema) return;
+			} else if (ParentVar->getType()->isEnum()) {
+				SemaEnumType * EnumType = static_cast<SemaEnumType *>(ParentVar->getType());
+				Sema = ResolveMemberSymbol(AST, EnumType->getSymbols(), SemaKind::ENUM_ENTRY, ParentVar);
+				if (!Sema) return;
 			} else {
 				// Parent is not an object type
 				Diag(diag::err_invalid_behavior);
 				return;
 			}
+		//}  else if (CurrentSymbol->getKind() == SymbolKind::FUNCTION) { // return is always void
+		//	ParentType = static_cast<SemaFunctionBase *>(CurrentSymbol->getRef())->getReturnType();
+		} else if (CurrentSymbol->getKind() == SymbolKind::VALUE) {
+			// Cannot exists Value after a Member access
+			Diag(diag::err_invalid_behavior);
+			return;
 		}
 
-		// Lookup Member in Parent Scope
-		Symbol * Sym = Reg.LookupName(AST.getName(), CurrentScope);
-		if (Sym) {
-
-			// Get the Sema Node
-			SemaNode *Node = Sym->getRef();
-			SemaExpr *Sema = nullptr;
-
-			// Check Member Kind
-			if (Node->getKind() == SemaKind::ATTRIBUTE) {
-				SemaClassAttribute *Attribute = static_cast<SemaClassAttribute *>(Node);
-				Sema = SemaBuilder::CreateMemberVar(AST, Attribute, ParentExpr);
-			} else if (Node->getKind() == SemaKind::ENUM_VALUE) {
-				Sema = static_cast<SemaEnumValue *>(Node);
-			} else {
-				// Member is not a Class Attribute or Enum Value
-				Diag(diag::err_invalid_behavior);
-				return;
-			}
-
-			// Configure AST
-			AST.setSema(Sema);
-
-			// ---------------------------------------
-			// Continue with children
-			// ---------------------------------------
-			if (AST.getChild()) {
-				CurrentSymbol = Sym;
-				ParentExpr = Sema;
-				AST.getChild()->accept(*this);
-			} else {
-				CurrentSymbol = nullptr;
-				ParentExpr = nullptr;
-			}
-		}
+		// Configure AST
+		AST.setSema(Sema);
 	}
 
 	FLY_DEBUG_END("Resolver", "visit(ASTMember)");
@@ -990,18 +965,6 @@ void Resolver::visit(ASTCall &AST) {
 
 			// Configure AST
 			AST.setSema(Sema);
-
-			// ---------------------------------------
-			// Continue with children
-			// ---------------------------------------
-			if (AST.getChild()) {
-				CurrentSymbol = Sym;
-				ParentExpr = Sema;
-				AST.getChild()->accept(*this);
-			} else {
-				CurrentSymbol = nullptr;
-				ParentExpr = nullptr;
-			}
 
 			// Set the Call Sema ErrorHandler
 			// Search until parent is null or parent is a Handle Stmt
@@ -1545,9 +1508,36 @@ void Resolver::PromoteTypes(ASTBinary &AST) {
 	FLY_DEBUG_END("Resolver", "PromoteTypes");
 }
 
+SemaExpr * Resolver::ResolveMemberSymbol(ASTMember &AST, SymbolTable *Symbols, SemaKind ExpectedKind, SemaVar *ParentVar) {
+	FLY_DEBUG_START("Resolver", "ResolveMemberSymbol");
 
+	CurrentScope = Symbols;
 
+	// Lookup Member in Parent Scope
+	CurrentSymbol = Reg.LookupName(AST.getName(), CurrentScope);
+	if (CurrentSymbol) {
+		SemaNode *Node = CurrentSymbol->getRef();
 
+		// Get the Sema Node
+		if (Node->getKind() != ExpectedKind) {
+			Diag(diag::err_sema_generic); // Member access type mismatch
+			return nullptr;
+		}
 
+		// Create the appropriate Sema Node for the Member Access
+		if (ExpectedKind == SemaKind::ATTRIBUTE) {
+			if (ParentVar) {
+				return SemaBuilder::CreateMemberVar(AST, static_cast<SemaClassAttribute *>(Node), ParentVar);
+			}
+			return static_cast<SemaClassAttribute *>(Node);
+		} else if (ExpectedKind == SemaKind::ENUM_ENTRY) {
+			if (ParentVar) {
+				return SemaBuilder::CreateMemberVar(AST, static_cast<SemaEnumEntry *>(Node), ParentVar);
+			}
+			return static_cast<SemaEnumEntry *>(Node);
+		}
+	}
 
-
+	FLY_DEBUG_END("Resolver", "ResolveMemberSymbol");
+	return nullptr;
+}

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTEnumValue.h - AST Enum Value header
+// include/AST/ASTEnumEntry.h - AST Enum Entry header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,12 +7,12 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_AST_ENUMVALUE_H
-#define FLY_AST_ENUMVALUE_H
+#ifndef FLY_AST_ENUMENTRY_H
+#define FLY_AST_ENUMENTRY_H
 
 #include "ASTValue.h"
 
-#include <Sema/SemaEnumValue.h>
+#include <Sema/SemaEnumEntry.h>
 
 namespace fly {
 
@@ -20,9 +20,9 @@ namespace fly {
     class ASTEnum;
 
     /**
-     * Represents a constant enum value (e.g., Color.RED)
+     * Represents a constant enum entry (e.g., Color.RED)
      */
-    class ASTEnumValue : public ASTValue {
+    class ASTEnumEntry : public ASTExpr {
 
         friend class ASTBuilder;
 
@@ -32,11 +32,11 @@ namespace fly {
 
         uint32_t Index = 0;
 
-        SemaEnumValue *Sema;
+        SemaEnumEntry *Sema;
 
     protected:
 
-        ASTEnumValue(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name);
+        ASTEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name);
 
     public:
 
@@ -50,12 +50,12 @@ namespace fly {
 
         void setIndex(uint32_t Index);
 
-        SemaEnumValue *getSema() const override;
+        SemaEnumEntry *getSema() const override;
 
-        void setSema(SemaEnumValue *Sema);
+        void setSema(SemaEnumEntry *Sema);
 
         std::string str() const override;
     };
 }
 
-#endif //FLY_AST_ENUMVALUE_H
+#endif //FLY_AST_ENUMENTRY_H

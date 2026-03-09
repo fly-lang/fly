@@ -12,7 +12,7 @@
 #include "AST/ASTBlockStmt.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTEnum.h"
-#include "AST/ASTEnumValue.h"
+#include "AST/ASTEnumEntry.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTModule.h"
@@ -49,9 +49,9 @@ namespace {
     	EXPECT_TRUE(HasModifier(E->getModifiers(), ASTModifierKind::MOD_PUBLIC));
     	EXPECT_TRUE(!E->getNodes().empty());
     	EXPECT_EQ(E->getNodes().size(), 3);
-    	ASTEnumValue *A = As<ASTEnumValue>(E->getNodes()[0]);
-		ASTEnumValue *B = As<ASTEnumValue>(E->getNodes()[1]);
-		ASTEnumValue *C = As<ASTEnumValue>(E->getNodes()[2]);
+    	ASTEnumEntry *A = As<ASTEnumEntry>(E->getNodes()[0]);
+		ASTEnumEntry *B = As<ASTEnumEntry>(E->getNodes()[1]);
+		ASTEnumEntry *C = As<ASTEnumEntry>(E->getNodes()[2]);
 		ASSERT_TRUE(A != nullptr);
     	ASSERT_TRUE(B != nullptr);
     	ASSERT_TRUE(C != nullptr);
@@ -131,9 +131,9 @@ namespace {
         EXPECT_TRUE(HasModifier(Opt->getModifiers(), ASTModifierKind::MOD_PUBLIC));
         // entries A, B, C
         EXPECT_EQ(Opt->getNodes().size(), 3);
-    	ASTEnumValue *A = As<ASTEnumValue>(Opt->getNodes()[0]);
-        ASTEnumValue *B = As<ASTEnumValue>(Opt->getNodes()[1]);
-        ASTEnumValue *C = As<ASTEnumValue>(Opt->getNodes()[2]);
+    	ASTEnumEntry *A = As<ASTEnumEntry>(Opt->getNodes()[0]);
+        ASTEnumEntry *B = As<ASTEnumEntry>(Opt->getNodes()[1]);
+        ASTEnumEntry *C = As<ASTEnumEntry>(Opt->getNodes()[2]);
     	ASSERT_TRUE(A != nullptr);
         ASSERT_TRUE(B != nullptr);
         ASSERT_TRUE(C != nullptr);

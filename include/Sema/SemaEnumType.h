@@ -20,7 +20,7 @@ namespace fly {
     class SemaContext;
     class ASTEnum;
     class SemaComment;
-    class SemaEnumValue;
+    class SemaEnumEntry;
     class SemaModule;
     class SymbolTable;
     enum class SemaVisibilityKind;
@@ -49,7 +49,7 @@ namespace fly {
         bool Constant;
 
         // Enum Entries
-        llvm::StringMap<SemaEnumValue *> Entries;
+        llvm::StringMap<SemaEnumEntry *> Entries;
 
         SemaComment *Comment = nullptr;
 
@@ -73,11 +73,11 @@ namespace fly {
 
         bool isConstant() const;
 
-        const llvm::StringMap<SemaEnumValue *> &getEntries() const;
+        const llvm::StringMap<SemaEnumEntry *> &getEntries() const;
 
-        SemaEnumValue *LookupEntry(llvm::StringRef Name) const;
+        SemaEnumEntry *LookupEntry(llvm::StringRef Name) const;
 
-        void addEntry(SemaEnumValue *Value);
+        void addEntry(SemaEnumEntry *Entry);
 
         SemaComment *getComment() const;
 

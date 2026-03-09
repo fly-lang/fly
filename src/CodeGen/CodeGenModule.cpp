@@ -38,7 +38,8 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenArrayValue.h"
 #include "CodeGen/CodeGenClass.h"
-#include "CodeGen/CodeGenEnumValue.h"
+#include "CodeGen/CodeGenEnum.h"
+#include "CodeGen/CodeGenEnumEntry.h"
 #include "CodeGen/CodeGenError.h"
 #include "CodeGen/CodeGenExpr.h"
 #include "CodeGen/CodeGenFunction.h"
@@ -48,6 +49,7 @@
 #include "Sema/SemaParam.h"
 #include "Sema/SemaTernary.h"
 #include "Sema/SemaUnary.h"
+#include "Sema/SemaEnumEntry.h"
 
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
@@ -63,7 +65,7 @@
 #include <Sema/SemaClassMethod.h>
 #include <Sema/SemaClassType.h>
 #include <Sema/SemaEnumType.h>
-#include <Sema/SemaEnumValue.h>
+#include <Sema/SemaEnumEntry.h>
 #include <Sema/SemaError.h>
 #include <Sema/SemaFunction.h>
 #include <Sema/SemaMember.h>
@@ -217,11 +219,8 @@ void CodeGenModule::visit(SemaStringType &Sema) {
 
 void CodeGenModule::visit(SemaEnumType &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
-		for (auto &EnumEntry : Sema.getEntries()) {
-			SemaEnumValue *Sema = EnumEntry.getValue();
-			CodeGenEnumValue *CGEV = new CodeGenEnumValue(this, Sema);
-			Sema->setCodeGen(CGEV);
-		}
+		CodeGenEnum *CGE = new CodeGenEnum(this, &Sema, false);
+		Sema.setCodeGen(CGE);
 	}
 }
 
@@ -399,9 +398,9 @@ void CodeGenModule::visit(SemaNullValue &Sema) {
 	}
 }
 
-void CodeGenModule::visit(SemaEnumValue &Sema) {
+void CodeGenModule::visit(SemaEnumEntry &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
-		CodeGenExpr *CGE = new CodeGenExpr(this);
+		CodeGenEnumEntry *CGE = new CodeGenEnumEntry(this, &Sema);
 		CGE->GenExpr(&Sema);
 		Sema.setCodeGen(CGE);
 	}

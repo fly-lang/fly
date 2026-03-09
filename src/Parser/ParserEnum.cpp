@@ -10,7 +10,7 @@
 #include "Parser/ParserEnum.h"
 
 #include "AST/ASTBuilder.h"
-#include "AST/ASTEnumValue.h"
+#include "AST/ASTEnumEntry.h"
 #include "AST/ASTModifier.h"
 #include "Basic/Debug.h"
 #include "Parser/Parser.h"
@@ -91,7 +91,7 @@ ASTEnum *ParserEnum::Parse(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) 
 bool ParserEnum::ParseEntry(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> Modifiers) {
      FLY_DEBUG_START("EnumParser", "ParserEntry");
      // Create the first entry
-     ASTEnumValue *EnumEntry = ASTBuilder::CreateEnumValue(Loc, Enum, Name, Modifiers);
+     ASTEnumEntry *EnumEntry = ASTBuilder::CreateEnumEntry(Loc, Enum, Name, Modifiers);
 
      // Allow comma separated entries on the same line: A, B, C
     while (P->Tok.is(tok::comma)) {
@@ -113,7 +113,7 @@ bool ParserEnum::ParseEntry(const SourceLocation &Loc, llvm::StringRef Name, llv
         // Create the next enum entry
         Name = P->Tok.getIdentifierInfo()->getName();
         const SourceLocation NextLoc = P->ConsumeToken();
-        ASTBuilder::CreateEnumValue(NextLoc, Enum, Name, Modifiers);
+        ASTBuilder::CreateEnumEntry(NextLoc, Enum, Name, Modifiers);
     }
 
      return true;

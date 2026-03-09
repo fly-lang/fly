@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaEnumValue.h - SemaClassType
+// include/Sema/SemaEnumEntry.h - SemaClassType
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -10,40 +10,47 @@
 #ifndef FLY_SEMA_ENUM_ENTRY_H
 #define FLY_SEMA_ENUM_ENTRY_H
 
-#include "CodeGen/CodeGenEnumValue.h"
-#include "SemaValue.h"
+#include "CodeGen/CodeGenEnumEntry.h"
+#include "SemaExpr.h"
 
 namespace fly {
 
     class ASTVar;
     class SemaComment;
-	class CodeGenEnumValue;
+	class CodeGenEnumEntry;
+	class ASTEnumEntry;
 
-    class SemaEnumValue : public SemaValue {
+    class SemaEnumEntry : public SemaExpr {
 
         friend class SemaBuilder;
         friend class Resolver;
         friend class SemaValidator;
 
+    	ASTEnumEntry &AST;
+
         size_t Index;
 
         SemaComment *Comment = nullptr;
 
-        explicit SemaEnumValue(ASTEnumValue &AST, SemaEnumType *Type);
+    	CodeGenEnumEntry *CodeGen = nullptr;
+
+        explicit SemaEnumEntry(ASTEnumEntry &AST, SemaEnumType *Type);
 
     public:
 
-        ~SemaEnumValue() override;
+        ~SemaEnumEntry() override;
 
         size_t getIndex() const;
 
         SemaComment *getComment() const;
 
-    	CodeGenEnumValue *getCodeGen() const override;
+    	CodeGenEnumEntry *getCodeGen() const override;
+
+    	void setCodeGen(CodeGenEnumEntry *CodeGen);
 
         void accept(SemaVisitor& Visitor) override;
     };
 
 }  // end namespace fly
 
-#endif // FLY_SSEMA_ENUM_ENTRY_H
+#endif // FLY_SEMA_ENUM_ENTRY_H

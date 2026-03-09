@@ -13,7 +13,7 @@
 #include "AST/ASTVisitor.h"
 #include "SemaClassAttribute.h"
 #include "SemaClassMethod.h"
-#include "SemaEnumValue.h"
+#include "SemaEnumEntry.h"
 
 #include <AST/ASTMember.h>
 
@@ -100,8 +100,6 @@ namespace fly {
         // Current Statement being Resolved
         ASTStmt* CurrentStmt = nullptr;
 
-    	SemaExpr *ParentExpr = nullptr;
-
     	ASTExpr *CurrentExpr = nullptr;
 
     	Symbol *CurrentSymbol = nullptr;
@@ -168,7 +166,7 @@ namespace fly {
         void visit(ASTArrayValue &AST) override;
         void visit(ASTStructValue &AST) override;
         void visit(ASTNullValue &AST) override;
-    	void visit(ASTEnumValue &AST) override;
+    	void visit(ASTEnumEntry &AST) override;
 
         // Main Resolve Function
         void Resolve();
@@ -205,6 +203,8 @@ namespace fly {
     	SemaType * PromoteNumberTypes(SemaType * Type1, SemaType * Type2);
 
     	void PromoteTypes(ASTBinary &AST);
+
+    	SemaExpr * ResolveMemberSymbol(ASTMember &AST, SymbolTable *Symbols, SemaKind ExpectedKind, SemaVar *ParentVar = nullptr);
 
     };
 } // end namespace fly

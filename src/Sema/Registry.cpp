@@ -12,6 +12,7 @@
 #include "AST/ASTCall.h"
 #include "AST/ASTFunction.h"
 #include "Basic/Diagnostic.h"
+#include "Sema/Helper.h"
 #include "Sema/SemaNameSpace.h"
 
 #include <Sema/SemaBuiltin.h>
@@ -64,19 +65,19 @@ SymbolTable* Registry::CreateBuiltinScope() {
 	auto ErrorType = SemaBuiltin::getErrorType();
 
 	// Insert Builtin Types
-	Builtin->insert(new Symbol(BoolType->getName(), SymbolKind::TYPE, BoolType));
-	Builtin->insert(new Symbol(ByteType->getName(), SymbolKind::TYPE, ByteType));
-	Builtin->insert(new Symbol(UShortType->getName(), SymbolKind::TYPE, UShortType));
-	Builtin->insert(new Symbol(ShortType->getName(), SymbolKind::TYPE, ShortType));
-	Builtin->insert(new Symbol(UIntType->getName(), SymbolKind::TYPE, UIntType));
-	Builtin->insert(new Symbol(IntType->getName(), SymbolKind::TYPE, IntType));
-	Builtin->insert(new Symbol(ULongType->getName(), SymbolKind::TYPE, ULongType));
-	Builtin->insert(new Symbol(LongType->getName(), SymbolKind::TYPE, LongType));
-	Builtin->insert(new Symbol(FloatType->getName(), SymbolKind::TYPE, FloatType));
-	Builtin->insert(new Symbol(DoubleType->getName(), SymbolKind::TYPE, DoubleType));
-	Builtin->insert(new Symbol(StringType->getName(), SymbolKind::TYPE, StringType));
-	Builtin->insert(new Symbol(VoidType->getName(), SymbolKind::TYPE, VoidType));
-	Builtin->insert(new Symbol(ErrorType->getName(), SymbolKind::TYPE, ErrorType));
+	Builtin->insert(new Symbol(BoolType->getName(), SymbolKind::BUILTIN_TYPE, BoolType));
+	Builtin->insert(new Symbol(ByteType->getName(), SymbolKind::BUILTIN_TYPE, ByteType));
+	Builtin->insert(new Symbol(UShortType->getName(), SymbolKind::BUILTIN_TYPE, UShortType));
+	Builtin->insert(new Symbol(ShortType->getName(), SymbolKind::BUILTIN_TYPE, ShortType));
+	Builtin->insert(new Symbol(UIntType->getName(), SymbolKind::BUILTIN_TYPE, UIntType));
+	Builtin->insert(new Symbol(IntType->getName(), SymbolKind::BUILTIN_TYPE, IntType));
+	Builtin->insert(new Symbol(ULongType->getName(), SymbolKind::BUILTIN_TYPE, ULongType));
+	Builtin->insert(new Symbol(LongType->getName(), SymbolKind::BUILTIN_TYPE, LongType));
+	Builtin->insert(new Symbol(FloatType->getName(), SymbolKind::BUILTIN_TYPE, FloatType));
+	Builtin->insert(new Symbol(DoubleType->getName(), SymbolKind::BUILTIN_TYPE, DoubleType));
+	Builtin->insert(new Symbol(StringType->getName(), SymbolKind::BUILTIN_TYPE, StringType));
+	Builtin->insert(new Symbol(VoidType->getName(), SymbolKind::BUILTIN_TYPE, VoidType));
+	Builtin->insert(new Symbol(ErrorType->getName(), SymbolKind::BUILTIN_TYPE, ErrorType));
 
 	return Builtin;
 }
@@ -209,7 +210,7 @@ SemaType* Registry::LookupNamedType(llvm::StringRef Name, SymbolTable *Scope) {
 	// Take the unique Symbol
 	Symbol *CurrentSymbol = (*Symbols)[0];
 
-	if (CurrentSymbol->getKind() != SymbolKind::TYPE) {
+	if (CurrentSymbol->getKind() != SymbolKind::BUILTIN_TYPE) {
 		// Error: Symbol is not a Type
 		Diag(diag::err_invalid_behavior);
 	}
@@ -226,17 +227,17 @@ SemaType *Registry::LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope)
 		llvm::StringRef Name = Names[i]->getName();
 
 		// Lookup Name in current Scope
-		llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookupInParents(Name);
+		llvm::SmallVector<Symbol *, 8> *Symbols = CurrentScope->lookupInParents(Name);
 
 		if (!Symbols) {
 			// Error: Symbol not found
-			Diag(diag::err_invalid_behavior);
+			Diag(NamedType.getLocation(), diag::err_sema_unknown_type) << Helper::Flatten(Names);
 			return nullptr;
 		}
 
 		if (Symbols->size() > 1) {
 			// Error: Symbol Name conflict
-			Diag(diag::err_invalid_behavior);
+			Diag(NamedType.getLocation(), diag::err_sema_multiple_definition) << Helper::Flatten(Names);
 			return nullptr;
 		}
 
@@ -249,17 +250,15 @@ SemaType *Registry::LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope)
 		}
 	}
 
-	if (CurrentSymbol->getKind() != SymbolKind::TYPE) {
-		// Error: Symbol is not a Type or NameSpace
-		Diag(diag::err_invalid_behavior);
-		return nullptr;
-	}
-
-	if (CurrentSymbol->getKind() == SymbolKind::TYPE) {
+	if (CurrentSymbol->getKind() == SymbolKind::BUILTIN_TYPE ||
+		CurrentSymbol->getKind() == SymbolKind::CLASS ||
+		CurrentSymbol->getKind() == SymbolKind::ENUM) {
 		// Return Type
 		return static_cast<SemaType *>(CurrentSymbol->getRef());
 	}
 
+	// Error: Symbol is not a Type or NameSpace
+	Diag(diag::err_invalid_behavior);
 	return nullptr;
 }
 //

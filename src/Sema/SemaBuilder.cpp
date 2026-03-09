@@ -13,7 +13,7 @@
 #include "AST/ASTCall.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
-#include "AST/ASTEnumValue.h"
+#include "AST/ASTEnumEntry.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTMember.h"
 #include "AST/ASTTernary.h"
@@ -28,7 +28,7 @@
 #include "Sema/SemaClassType.h"
 #include "Sema/SemaComment.h"
 #include "Sema/SemaEnumType.h"
-#include "Sema/SemaEnumValue.h"
+#include "Sema/SemaEnumEntry.h"
 #include "Sema/SemaError.h"
 #include "Sema/SemaFunction.h"
 #include "Sema/SemaMember.h"
@@ -186,11 +186,12 @@ SemaEnumType * SemaBuilder::CreateEnum(SemaModule &Module, SymbolTable *Symbols,
 	return Enum;
 }
 
-SemaEnumValue * SemaBuilder::CreateEnumValue(SemaEnumType *Enum, ASTEnumValue &AST) {
+SemaEnumEntry * SemaBuilder::CreateEnumEntry(SemaEnumType *Enum, ASTEnumEntry &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateEnumEntry");
 
-	SemaEnumValue *Entry = new SemaEnumValue(AST, Enum);
-	// EnumEntry->Index = Enum.Entries.size() + 1; TODO
+	SemaEnumEntry *Entry = new SemaEnumEntry(AST, Enum);
+	// Start index from 1, so 0 can be used as undefined/default value
+	Entry->Index = Enum->Entries.size() + 1;
 	Enum->Entries.insert(std::make_pair(AST.getName(), Entry));
 
 	FLY_DEBUG_END("SemaBuilder", "CreateEnumEntry");

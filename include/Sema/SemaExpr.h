@@ -23,8 +23,6 @@ namespace fly {
 
     	friend class SemaBuilder;
 
-    	SemaKind Kind;
-
     	SemaExpr *Child = nullptr;
 
     protected:

@@ -22,9 +22,8 @@
 #include "Sema/SemaBuiltin.h"
 #include "Sema/SemaCast.h"
 #include "Sema/SemaClassType.h"
-#include "Sema/SemaEnumValue.h"
+#include "Sema/SemaEnumEntry.h"
 #include "Sema/SemaTernary.h"
-#include "Sema/SemaUnary.h"
 
 #include "llvm/ADT/SmallVector.h"
 
@@ -96,15 +95,15 @@ void CodeGenExpr::GenExpr(SemaStringValue *Sema) {
 }
 
 void CodeGenExpr::GenExpr(SemaStructValue *Sema) {
-	
+	// TODO: Implement StructValue CodeGen
 }
 
 void CodeGenExpr::GenExpr(SemaNullValue *Sema) {
-
+	// TODO: Implement NullValue CodeGen
 }
 
-void CodeGenExpr::GenExpr(SemaEnumValue *Sema) {
-
+void CodeGenExpr::GenExpr(SemaEnumEntry *Sema) {
+	// TODO: Implement EnumEntry CodeGen
 }
 
 void CodeGenExpr::GenExpr(SemaVar *Sema) {
@@ -272,7 +271,7 @@ void CodeGenExpr::GenExpr(SemaMember *Sema) {
 		CGV->setPointer(Pointer);
 		Sema->setCodeGen(CGV);
 		V = CGV->getValue();
-	} else if (Ref->getKind() == SemaKind::ENUM_VALUE) {
+	} else if (Ref->getKind() == SemaKind::ENUM_ENTRY) {
 		Ref->accept(*CGM);
 		V = Ref->getCodeGen()->getValue();
 	} else {

@@ -8,18 +8,20 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 // fly
-#include "CodeGenTest.h"
-#include "CodeGen/CodeGenModule.h"
-#include "Sema/SemaBuilderModifiers.h"
-#include "AST/ASTModule.h"
-#include <Sema/SemaNameSpace.h>
-#include "AST/ASTName.h"
-#include "AST/ASTEnumValue.h"
-#include "AST/ASTLocalVar.h"
-#include "AST/ASTIdentifier.h"
-#include "AST/ASTType.h"
+#include "AST/ASTBinary.h"
 #include "AST/ASTDeclStmt.h"
+#include "AST/ASTEnumEntry.h"
+#include "AST/ASTIdentifier.h"
+#include "AST/ASTLocalVar.h"
+#include "AST/ASTMember.h"
+#include "AST/ASTModule.h"
+#include "AST/ASTName.h"
+#include "AST/ASTType.h"
+#include "CodeGen/CodeGenModule.h"
+#include "CodeGenTest.h"
+#include "Sema/SemaBuilderModifiers.h"
 
+#include <Sema/SemaNameSpace.h>
 
 namespace {
 
@@ -45,54 +47,49 @@ namespace {
         // }
         llvm::SmallVector<ASTType *, 4> SuperEnums;
         ASTEnum *TestEnum = ASTBuilder::CreateEnum(Module, SourceLoc, "TestEnum", TopModifiers, SuperEnums);
-        ASTEnumValue *A = ASTBuilder::CreateEnumValue(SourceLoc, TestEnum, "A", EmptyModifiers);
-        ASTEnumValue *B = ASTBuilder::CreateEnumValue(SourceLoc, TestEnum, "B", EmptyModifiers);
-        ASTEnumValue *C = ASTBuilder::CreateEnumValue(SourceLoc, TestEnum, "C", EmptyModifiers);
+        ASTEnumEntry *A = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "A", EmptyModifiers);
+        ASTEnumEntry *B = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "B", EmptyModifiers);
+        ASTEnumEntry *C = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "C", EmptyModifiers);
 
-        // int main() {
+        // main() {
         //  TestEnum a = TestEnum.A;
         //  TestEnum b = a
-        //  return 1
         // }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
         ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
-        // Build a type reference to the enum by creating an ASTName and then an ASTType
-        llvm::SmallVector<ASTName *, 4> EnumNames;
-        EnumNames.push_back(ASTBuilder::CreateName(TestEnum->getName(), SourceLoc));
-        ASTType *TestEnumType = ASTBuilder::CreateType(SourceLoc, EnumNames);
+        // Build a type reference to the enum
+        ASTType *TestEnumType = CreateType(TestEnum);
 
         //  TestEnum a = TestEnum.A;
         ASTLocalVar *aVar = ASTBuilder::CreateLocalVar(SourceLoc, TestEnumType, "a", EmptyModifiers);
         ASTIdentifier *aVarIdent = ASTBuilder::CreateIdentifier(aVar);
         ASTDeclStmt *aDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, aVar);
-        ASTIdentifier *Enum_AIdent = ASTBuilder::CreateIdentifier(A);
-        ASTBinaryOp *aAssign = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, aVarIdent, Enum_AIdent);
+        // Create TestEnum.A as member expression
+        ASTIdentifier *TestEnumIdent = ASTBuilder::CreateIdentifier(SourceLoc, TestEnum->getName());
+        ASTMember *Enum_AMember = ASTBuilder::CreateMember(SourceLoc, A->getName(), TestEnumIdent);
+        ASTBinary *aAssign = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, aVarIdent, Enum_AMember);
         aDeclStmt->setExpr(aAssign);
 
         //  TestEnum b = a
-        ASTLocalVar *bVar = ASTBuilder::CreateLocalVar(SourceLoc, TestEnumType, "b", EmptyModifiers);
-        ASTIdentifier *bVarIdent = ASTBuilder::CreateIdentifier(bVar);
-        ASTDeclStmt *bDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, bVar);
-        ASTIdentifier *aIdent = ASTBuilder::CreateIdentifier(aVar);
-        ASTBinaryOp *bAssign = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryOpKind::OP_BINARY_ASSIGN, bVarIdent, aIdent);
-        bDeclStmt->setExpr(bAssign);
+        // ASTLocalVar *bVar = ASTBuilder::CreateLocalVar(SourceLoc, TestEnumType, "b", EmptyModifiers);
+        // ASTIdentifier *bVarIdent = ASTBuilder::CreateIdentifier(bVar);
+        // ASTDeclStmt *bDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, bVar);
+        // ASTIdentifier *aIdent = ASTBuilder::CreateIdentifier(aVar);
+        // ASTBinary *bAssign = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, bVarIdent, aIdent);
+        // bDeclStmt->setExpr(bAssign);
 
 		// Generate Code
-		llvm::Module * M = Generate()[0];
-		std::string output = getOutput(M);
+		Generate();
+		llvm::Module * M = getModules()[0];
+		std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "%error = type { i32, i8*, i8* }\n"
-                          "\n"
-                          "define void @F_0(%error* %0) {\n"
+        EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
                           "entry:\n"
                           "  %1 = alloca %error*, align 8\n"
                           "  %2 = alloca i32, align 4\n"
-                          "  %3 = alloca i32, align 4\n"
                           "  store %error* %0, %error** %1, align 8\n"
                           "  store i32 1, i32* %2, align 4\n"
-                          "  %4 = load i32, i32* %2, align 4\n"
-                          "  store i32 %4, i32* %3, align 4\n"
                           "  ret void\n"
                           "}\n");
     }

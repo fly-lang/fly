@@ -413,6 +413,8 @@ DIAG(err_sema_array_size_missing, CLASS_ERROR, (unsigned)diag::Severity::Error, 
 DIAG(err_sema_var_redefinition, CLASS_ERROR, (unsigned)diag::Severity::Error, "local var '%0' is laready defined", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_duplicate_arg, CLASS_ERROR, (unsigned)diag::Severity::Error, "duplicate argument '%0' in function call", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_const_param_modification, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot modify const parameter '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_unknown_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "unknown type '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_multiple_definition, CLASS_ERROR, (unsigned)diag::Severity::Error, "multiple definition of symbol '%0'", 0, SFINAE_Suppress, false, true, 0)
 
 
 // CodeGen

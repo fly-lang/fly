@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/CodeGen/CodeGenEnumVar.cpp - Code Generator Enum Var
+// src/CodeGen/CodeGenEnumEntry.cpp - Code Generator Enum Entry
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,11 +7,11 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "CodeGen/CodeGenEnumValue.h"
+#include "CodeGen/CodeGenEnumEntry.h"
 
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
-#include "Sema/SemaEnumValue.h"
+#include "Sema/SemaEnumEntry.h"
 
 #include <AST/ASTEnum.h>
 #include <Basic/Debug.h>
@@ -21,19 +21,19 @@
 
 using namespace fly;
 
-CodeGenEnumValue::CodeGenEnumValue(CodeGenModule *CGM, SemaEnumValue *Sema) : CodeGenExpr(CGM), T(CodeGen::Int32Ty),
+CodeGenEnumEntry::CodeGenEnumEntry(CodeGenModule *CGM, SemaEnumEntry *Sema) : CodeGenExpr(CGM), T(CodeGen::Int32Ty),
         Value(llvm::ConstantInt::get(CodeGen::Int32Ty, Sema->getIndex())) {
 
 }
 
-llvm::Type *CodeGenEnumValue::getType() {
+llvm::Type *CodeGenEnumEntry::getType() {
     return T;
 }
 
-llvm::Value *CodeGenEnumValue::getValue() {
+llvm::Value *CodeGenEnumEntry::getValue() {
     return Value;
 }
 
-size_t CodeGenEnumValue::getIndex() {
+size_t CodeGenEnumEntry::getIndex() {
 	return Index;
 }

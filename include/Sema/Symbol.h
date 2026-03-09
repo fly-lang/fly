@@ -18,7 +18,7 @@ namespace fly {
 
 	enum class SymbolKind {
 		NAMESPACE,
-		TYPE,
+		BUILTIN_TYPE,
 		VAR,
 		VALUE,
 		FUNCTION,

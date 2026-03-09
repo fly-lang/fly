@@ -33,9 +33,9 @@ namespace fly {
 
     class CodeGenType : public CodeGenBase {
 
-    	llvm::Type *T = nullptr;
-
     protected:
+
+    	llvm::Type *T = nullptr;
 
         CodeGenModule *CGM;
 
@@ -58,6 +58,8 @@ namespace fly {
     	void GenType(SemaVoidType &Sema);
 
     	void GenType(SemaStringType &Sema);
+
+    	void GenType(SemaEnumType &Sema);
     };
 }
 

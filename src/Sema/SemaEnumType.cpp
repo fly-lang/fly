@@ -14,7 +14,7 @@
 #include "llvm/ADT/StringMap.h"
 
 #include <AST/ASTEnum.h>
-#include <Sema/SemaEnumValue.h>
+#include <Sema/SemaEnumEntry.h>
 
 using namespace fly;
 
@@ -61,16 +61,16 @@ bool SemaEnumType::isConstant() const {
 	return Constant;
 }
 
-const llvm::StringMap<SemaEnumValue *> &SemaEnumType::getEntries() const {
+const llvm::StringMap<SemaEnumEntry *> &SemaEnumType::getEntries() const {
     return Entries;
 }
 
-SemaEnumValue * SemaEnumType::LookupEntry(llvm::StringRef Name) const {
+SemaEnumEntry * SemaEnumType::LookupEntry(llvm::StringRef Name) const {
 	return Entries.lookup(Name);
 }
 
-void SemaEnumType::addEntry(SemaEnumValue *Value) {
-	Nodes.push_back(Value);
+void SemaEnumType::addEntry(SemaEnumEntry *Entry) {
+	Nodes.push_back(Entry);
 }
 
 SemaComment * SemaEnumType::getComment() const {

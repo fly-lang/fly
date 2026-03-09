@@ -27,7 +27,7 @@ namespace fly {
 	class ASTArrayValue;
 	class ASTStructValue;
 	class ASTNullValue;
-	class ASTEnumValue;
+	class ASTEnumEntry;
 	class CodeGenArrayValue;
     class SemaType;
 

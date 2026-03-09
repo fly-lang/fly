@@ -53,7 +53,7 @@ namespace fly {
 		ENUM,
 
 		// Values
-		ENUM_VALUE,
+		ENUM_ENTRY,
 		VALUE
 	};
 

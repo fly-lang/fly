@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/Class.h - Code Generator of Class
+// include/CodeGen/CodeGenEnumEntry.h - Code Generator of Enum Entry
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,8 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CODEGEN_ENUMVALUE_H
-#define FLY_CODEGEN_ENUMVALUE_H
+#ifndef FLY_CODEGEN_ENUMENTRY_H
+#define FLY_CODEGEN_ENUMENTRY_H
 
 #include "CodeGenExpr.h"
 
@@ -22,10 +22,10 @@ namespace llvm {
 namespace fly {
 
     class CodeGenModule;
-    class SemaEnumValue;
+    class SemaEnumEntry;
     class SemaEnumType;
 
-    class CodeGenEnumValue : public CodeGenExpr {
+    class CodeGenEnumEntry : public CodeGenExpr {
 
         CodeGenModule *CGM;
 
@@ -38,7 +38,7 @@ namespace fly {
         size_t Index;
 
     public:
-        CodeGenEnumValue(CodeGenModule *CGM, SemaEnumValue *Sema);
+        CodeGenEnumEntry(CodeGenModule *CGM, SemaEnumEntry *Sema);
 
 //        llvm::AllocaInst *Alloca() override;
 
@@ -50,4 +50,4 @@ namespace fly {
     };
 }
 
-#endif //FLY_CODEGEN_ENUMVALUE_H
+#endif //FLY_CODEGEN_ENUMENTRY_H

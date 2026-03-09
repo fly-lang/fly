@@ -13,7 +13,7 @@ add_executable(fly_test
         CodeGen/CodeGenErrorTest.cpp
         CodeGen/CodeGenArrayTest.cpp
 #        CodeGen/CodeGenClassTest.cpp
-#        CodeGen/CodeGenEnumTest.cpp
+        CodeGen/CodeGenEnumTest.cpp
         CodeGen/CodeGenStringTest.cpp
         Parser/LexerTest.cpp
 #        Parser/ParserBadCode.cpp

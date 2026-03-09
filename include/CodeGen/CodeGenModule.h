@@ -100,7 +100,7 @@ namespace fly {
     class SemaArrayValue;
     class SemaStructValue;
     class SemaNullValue;
-    class SemaEnumValue;
+    class SemaEnumEntry;
 
     class CodeGenModule : public SemaVisitor {
 
@@ -210,7 +210,7 @@ namespace fly {
         void visit(SemaArrayValue &Sema) override;
         void visit(SemaStructValue &Sema) override;
         void visit(SemaNullValue &Sema) override;
-        void visit(SemaEnumValue &Sema) override;
+        void visit(SemaEnumEntry &Sema) override;
 
     private:
 
