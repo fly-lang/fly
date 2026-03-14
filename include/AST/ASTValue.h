@@ -23,7 +23,8 @@ namespace fly {
         VAL_STRUCT,
         VAL_NULL,
         VAL_DEFAULT,
-        VAL_ENUM
+        VAL_ENUM,
+        VAL_UNSET
     };
 
     class ASTValue : public ASTExpr {
@@ -53,6 +54,7 @@ namespace fly {
         bool isStruct() const;
         bool isNull() const;
         bool isDefault() const;
+        bool isUnset() const;
 
     };
 
@@ -179,6 +181,23 @@ namespace fly {
         friend class Resolver;
 
         explicit ASTNullValue(const SourceLocation &Loc);
+
+    public:
+
+        void accept(ASTVisitor& Visitor) override;
+
+        std::string str() const override;
+    };
+
+    /**
+     * Represents an unset enum value (index 0)
+     */
+    class ASTUnsetValue : public ASTValue {
+
+        friend class ASTBuilder;
+        friend class Resolver;
+
+        explicit ASTUnsetValue(const SourceLocation &Loc);
 
     public:
 

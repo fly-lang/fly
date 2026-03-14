@@ -60,6 +60,7 @@ namespace fly {
 	class SemaArrayValue;
 	class SemaStructValue;
 	class SemaNullValue;
+	class SemaUnsetValue;
 
 	/**
 	 * SemaVisitor - Visitor pattern for all Sema nodes
@@ -116,6 +117,7 @@ namespace fly {
 		virtual void visit(SemaArrayValue &Sema) = 0;
 		virtual void visit(SemaStructValue &Sema) = 0;
 		virtual void visit(SemaNullValue &Sema) = 0;
+		virtual void visit(SemaUnsetValue &Sema) = 0;
 		virtual void visit(SemaEnumEntry &Sema) = 0;
 	};
 

@@ -27,6 +27,7 @@ namespace fly {
 	class ASTArrayValue;
 	class ASTStructValue;
 	class ASTNullValue;
+	class ASTUnsetValue;
 	class ASTEnumEntry;
 	class CodeGenArrayValue;
     class SemaType;
@@ -183,6 +184,19 @@ namespace fly {
 	public:
 
 		~SemaNullValue() override = default;
+
+		void accept(SemaVisitor& Visitor) override;
+	};
+
+	class SemaUnsetValue : public SemaValue {
+
+		friend class SemaBuilder;
+
+		explicit SemaUnsetValue(ASTUnsetValue &AST);
+
+	public:
+
+		~SemaUnsetValue() override = default;
 
 		void accept(SemaVisitor& Visitor) override;
 	};

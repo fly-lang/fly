@@ -247,6 +247,11 @@ ASTValue *ParserExpr::ParseValue() {
         return ASTBuilder::CreateNullValue(Loc);
     }
 
+    if (P->Tok.is(tok::kw_unset)) {
+        const SourceLocation &Loc = P->ConsumeToken();
+        return ASTBuilder::CreateUnsetValue(Loc);
+    }
+
     // Parse Numeric Constants
     if (P->Tok.is(tok::numeric_constant)) {
         llvm::StringRef Val = llvm::StringRef(P->Tok.getLiteralData(), P->Tok.getLength());

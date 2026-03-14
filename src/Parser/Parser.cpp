@@ -1183,7 +1183,7 @@ bool Parser::isArrayType(Token &Tok) {
  */
 bool Parser::isValue() {
     FLY_DEBUG_START("Parser", "isValue");
-    return Tok.isOneOf(tok::numeric_constant, tok::kw_true, tok::kw_false, tok::kw_null, tok::l_brace,
+    return Tok.isOneOf(tok::numeric_constant, tok::kw_true, tok::kw_false, tok::kw_null, tok::kw_unset, tok::l_brace,
                        tok::char_constant, tok::string_literal);
 }
 

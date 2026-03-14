@@ -44,6 +44,8 @@ namespace fly {
 	class ASTStringValue;
 	class ASTArrayValue;
 	class ASTStructValue;
+	class ASTNullValue;
+	class ASTUnsetValue;
 	class ASTMember;
 	class ASTCall;
 	class ASTUnary;
@@ -112,8 +114,6 @@ namespace fly {
 
     	static SemaTernary *CreateTernary(ASTTernary &AST);
 
-    	static SemaValue *CreateDefaultValue(SemaType &Type);
-
     	static SemaBoolValue *CreateBoolValue(ASTBoolValue &AST);
 
     	static SemaValue *CreateNumberValue(ASTNumberValue &AST);
@@ -131,6 +131,8 @@ namespace fly {
     	static SemaStructValue *CreateStructValue(ASTStructValue &AST, llvm::StringMap<SemaValue *> Values);
 
     	static SemaValue * CreateNullValue(ASTNullValue &AST);
+
+    	static SemaValue * CreateUnsetValue(ASTUnsetValue &AST);
 
 
 	};

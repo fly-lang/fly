@@ -179,7 +179,7 @@ namespace {
                           "  store %error* %0, %error** %1, align 8\n"
                           "  %2 = load %error*, %error** %1, align 8\n"
                           "  %3 = getelementptr inbounds %error, %error* %2, i32 0, i32 0\n"
-                          "  store i1 true, i32* %3, align 1\n"
+                          "  store i32 1, i32* %3, align 4\n"
                           "  ret void\n"
                           "}\n\n"
                           "define i32 @_F4main() {\n"

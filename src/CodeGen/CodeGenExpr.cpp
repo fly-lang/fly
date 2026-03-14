@@ -102,6 +102,11 @@ void CodeGenExpr::GenExpr(SemaNullValue *Sema) {
 	// TODO: Implement NullValue CodeGen
 }
 
+void CodeGenExpr::GenExpr(SemaUnsetValue *Sema) {
+	// Generate a constant integer 0 for unset enum value
+	V = llvm::ConstantInt::get(CodeGen::Int32Ty, 0);
+}
+
 void CodeGenExpr::GenExpr(SemaEnumEntry *Sema) {
 	// TODO: Implement EnumEntry CodeGen
 }

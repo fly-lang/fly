@@ -107,3 +107,11 @@ void SemaNullValue::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
+SemaUnsetValue::SemaUnsetValue(ASTUnsetValue &AST) : SemaValue(AST, nullptr) {
+
+}
+
+void SemaUnsetValue::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+

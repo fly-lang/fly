@@ -29,6 +29,7 @@ namespace fly {
 	class ASTArrayValue;
 	class ASTStructValue;
 	class ASTNullValue;
+	class ASTUnsetValue;
 	class ASTLocalVar;
 	class ASTIdentifier;
 	class ASTBuiltinType;
@@ -107,6 +108,7 @@ namespace fly {
 		virtual void visit(ASTArrayValue &AST) = 0;
 		virtual void visit(ASTStructValue &AST) = 0;
 		virtual void visit(ASTNullValue &AST) = 0;
+		virtual void visit(ASTUnsetValue &AST) = 0;
 		virtual void visit(ASTEnumEntry &AST) = 0;
 	};
 

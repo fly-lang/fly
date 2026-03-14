@@ -166,6 +166,7 @@ namespace fly {
         void visit(ASTArrayValue &AST) override;
         void visit(ASTStructValue &AST) override;
         void visit(ASTNullValue &AST) override;
+        void visit(ASTUnsetValue &AST) override;
     	void visit(ASTEnumEntry &AST) override;
 
         // Main Resolve Function

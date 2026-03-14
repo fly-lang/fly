@@ -16,6 +16,7 @@
 #include "AST/ASTFunction.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTModule.h"
+#include "AST/ASTValue.h"
 #include "ParserTest.h"
 
 #include <AST/ASTDeclStmt.h>
@@ -52,9 +53,13 @@ namespace {
     	ASTEnumEntry *A = As<ASTEnumEntry>(E->getNodes()[0]);
 		ASTEnumEntry *B = As<ASTEnumEntry>(E->getNodes()[1]);
 		ASTEnumEntry *C = As<ASTEnumEntry>(E->getNodes()[2]);
-		ASSERT_TRUE(A != nullptr);
+    	ASSERT_TRUE(A != nullptr);
     	ASSERT_TRUE(B != nullptr);
     	ASSERT_TRUE(C != nullptr);
+    	// Indices start from 1 (0 is reserved for 'unset' keyword value)
+    	EXPECT_EQ(A->getIndex(), 1);
+    	EXPECT_EQ(B->getIndex(), 2);
+    	EXPECT_EQ(C->getIndex(), 3);
 
     	// Verify usage in main
     	ASTFunction *main = As<ASTFunction>(Module2->getNodes()[0]);
@@ -129,7 +134,7 @@ namespace {
         ASSERT_TRUE(Opt != nullptr);
         EXPECT_EQ(Opt->getName(), "Option");
         EXPECT_TRUE(HasModifier(Opt->getModifiers(), ASTModifierKind::MOD_PUBLIC));
-        // entries A, B, C
+        // entries: A, B, C (indices start from 1, 0 is reserved for 'unset')
         EXPECT_EQ(Opt->getNodes().size(), 3);
     	ASTEnumEntry *A = As<ASTEnumEntry>(Opt->getNodes()[0]);
         ASTEnumEntry *B = As<ASTEnumEntry>(Opt->getNodes()[1]);
@@ -140,6 +145,9 @@ namespace {
         EXPECT_EQ(A->getName(), "A");
         EXPECT_EQ(B->getName(), "B");
     	EXPECT_EQ(C->getName(), "C");
+    	EXPECT_EQ(A->getIndex(), 1);
+    	EXPECT_EQ(B->getIndex(), 2);
+    	EXPECT_EQ(C->getIndex(), 3);
 
         // Check super classes (should include named type 'Enum')
         const auto &Bases = Opt->getBases();
@@ -152,5 +160,63 @@ namespace {
         const auto &Names = Named->getNames();
         ASSERT_TRUE(!Names.empty());
         EXPECT_EQ(Names[0]->getName(), "Enum");
+    }
+
+    TEST_F(ParserTest, EnumUnset) {
+        llvm::StringRef str = ("public enum Status {\n"
+                               "  PENDING, ACTIVE, DONE\n"
+                               "}\n");
+        ASTModule *Module = Parse("StatusEnum", str);
+
+        llvm::StringRef str2 = (
+                "main() {\n"
+                "  Status s = unset\n"
+                "  Status t\n"
+                "}\n");
+        ASTModule *Module2 = Parse("func", str2);
+
+        // Verify enum node exists and has expected name
+        ASTEnum *E = As<ASTEnum>(Module->getNodes()[0]);
+        ASSERT_TRUE(E != nullptr);
+        EXPECT_EQ(E->getName(), "Status");
+        EXPECT_EQ(E->getNodes().size(), 3);
+        ASTEnumEntry *PENDING = As<ASTEnumEntry>(E->getNodes()[0]);
+        ASTEnumEntry *ACTIVE = As<ASTEnumEntry>(E->getNodes()[1]);
+        ASTEnumEntry *DONE = As<ASTEnumEntry>(E->getNodes()[2]);
+        ASSERT_TRUE(PENDING != nullptr);
+        ASSERT_TRUE(ACTIVE != nullptr);
+        ASSERT_TRUE(DONE != nullptr);
+        EXPECT_EQ(PENDING->getIndex(), 1);
+        EXPECT_EQ(ACTIVE->getIndex(), 2);
+        EXPECT_EQ(DONE->getIndex(), 3);
+
+        // Verify usage in main: Status s = unset
+        ASTFunction *main = As<ASTFunction>(Module2->getNodes()[0]);
+        ASTBlockStmt *Body = main->getBody();
+        ASSERT_FALSE(Body->getContent().empty());
+
+        // First statement: Status s = unset
+        auto *sDeclStmt = As<ASTDeclStmt>(Body->getContent()[0]);
+        ASSERT_TRUE(sDeclStmt != nullptr);
+        EXPECT_EQ(sDeclStmt->getLocalVar()->getName(), "s");
+        auto *AssignBinaryExpr = As<ASTBinary>(sDeclStmt->getExpr());
+        EXPECT_EQ(AssignBinaryExpr->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+
+        // Left side is 's'
+        auto *sIdent = As<ASTIdentifier>(AssignBinaryExpr->getLeftExpr());
+        ASSERT_TRUE(sIdent != nullptr);
+        EXPECT_EQ(sIdent->getName(), "s");
+
+        // Right side is 'unset' (ASTUnsetValue)
+        auto *unsetValue = As<ASTUnsetValue>(AssignBinaryExpr->getRightExpr());
+        ASSERT_TRUE(unsetValue != nullptr);
+        EXPECT_EQ(unsetValue->getExprKind(), ASTExprKind::EXPR_VALUE);
+        EXPECT_EQ(unsetValue->getValueKind(), ASTValueKind::VAL_UNSET);
+
+        // Second statement: Status t (without assignment, should be equivalent to Status t = unset)
+        auto *tDeclStmt = As<ASTDeclStmt>(Body->getContent()[1]);
+        ASSERT_TRUE(tDeclStmt != nullptr);
+        EXPECT_EQ(tDeclStmt->getLocalVar()->getName(), "t");
+        ASSERT_EQ(tDeclStmt->getExpr(), nullptr); // No initializer expression in declaration
     }
 }

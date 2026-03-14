@@ -298,54 +298,6 @@ SemaTernary *SemaBuilder::CreateTernary(ASTTernary &AST) {
 	return Sema;
 }
 
-SemaValue * SemaBuilder::CreateDefaultValue(SemaType &Type) {
-	FLY_DEBUG_START("ASTBuilder", "CreateDefaultValue");
-	SemaValue *Sema = nullptr;
-
-	if (Type.isBool()) {
-		ASTBoolValue * AST = ASTBuilder::CreateBoolValue(SourceLocation(), false);
-		Sema = CreateBoolValue(*AST);
-		AST->setSema(Sema);
-	}
-
-	else if (Type.isInteger()) {
-		SemaIntType *IntType = static_cast<SemaIntType *>(&Type);
-		ASTNumberValue *AST = ASTBuilder::CreateNumberValue(SourceLocation(), "0");
-		Sema =  CreateIntValue(*AST, IntType);
-		AST->setSema(Sema);
-	}
-
-	else if (Type.isFloat()) {
-		SemaFloatType *FloatType = static_cast<SemaFloatType *>(&Type);
-		ASTNumberValue *AST = ASTBuilder::CreateNumberValue(SourceLocation(), "0.0");
-		Sema =  CreateFloatValue(*AST, FloatType);
-		AST->setSema(Sema);
-	}
-
-	else if (Type.isString()) {
-		ASTStringValue *AST = ASTBuilder::CreateStringValue(SourceLocation(), "");
-		Sema =  CreateStringValue(*AST);
-		AST->setSema(Sema);
-	}
-
-	// else if (Type.isArray()) {
-	// 	llvm::SmallVector<ASTValue *, 8> ASTValues;
-	// 	ASTArrayValue *AST = ASTBuilder::CreateArrayValue(SourceLocation(), ASTValues);
-	// 	llvm::SmallVector<SemaValue *, 8> Values;
-	// 	Sema =  CreateArrayValue(*AST, Values);
-	// 	AST->setSema(Sema);
-	// }
-
-	else if (Type.isArray() || Type.isClass()) {
-		ASTNullValue * AST = ASTBuilder::CreateNullValue(SourceLocation());
-		Sema =  CreateNullValue(*AST);
-		AST->setSema(Sema);
-	}
-
-	FLY_DEBUG_END("ASTBuilder", "CreateDefaultValue");
-	return Sema;
-}
-
 SemaCall * SemaBuilder::CreateCall(ASTCall &AST, SemaType *Type, SemaFunctionBase *Function) {
 	FLY_DEBUG_START("SemaBuilder", "CreateParam");
 
@@ -486,3 +438,11 @@ SemaValue * SemaBuilder:: CreateNullValue(ASTNullValue &AST) {
 	SemaValue * V = new SemaNullValue(AST);
 	return V;
 }
+
+SemaValue * SemaBuilder:: CreateUnsetValue(ASTUnsetValue &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateUnsetValue");
+
+	SemaValue * V = new SemaUnsetValue(AST);
+	return V;
+}
+

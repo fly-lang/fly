@@ -38,6 +38,7 @@ namespace fly {
 	class SemaArrayValue;
 	class SemaStructValue;
 	class SemaNullValue;
+	class SemaUnsetValue;
 	class SemaEnumEntry;
 	class SemaMember;
 	class SemaCast;
@@ -79,6 +80,8 @@ namespace fly {
     	void GenExpr(SemaStructValue *Sema);
 
     	void GenExpr(SemaNullValue *Sema);
+
+    	void GenExpr(SemaUnsetValue *Sema);
 
     	void GenExpr(SemaEnumEntry *Sema);
 

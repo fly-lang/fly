@@ -398,6 +398,14 @@ void CodeGenModule::visit(SemaNullValue &Sema) {
 	}
 }
 
+void CodeGenModule::visit(SemaUnsetValue &Sema) {
+	if (Sema.getCodeGen() == nullptr) {
+		CodeGenExpr *CGE = new CodeGenExpr(this);
+		CGE->GenExpr(&Sema);
+		Sema.setCodeGen(CGE);
+	}
+}
+
 void CodeGenModule::visit(SemaEnumEntry &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenEnumEntry *CGE = new CodeGenEnumEntry(this, &Sema);
@@ -630,8 +638,34 @@ void CodeGenModule::StoreFail(ASTExpr *Expr, CodeGenError *CGE) {
 	SemaExpr *SemaExpr = Expr->getSema();
 	SemaExpr->accept(*this);
 	llvm::Value *Value = SemaExpr->getCodeGen()->getValue();
-	if (SemaExpr->getType()->isBool() || SemaExpr->getType()->isInteger()) {
-		CGE->StoreInt(Value);
+	if (SemaExpr->getType()->isBool()) {
+		// Bool is i1, need to zero extend to i32
+		llvm::Value *Int32Value = Builder->CreateZExt(Value, CG.Int32Ty);
+		CGE->StoreInt(Int32Value);
+	} else if (SemaExpr->getType()->isInteger()) {
+		SemaIntType *IntType = static_cast<SemaIntType *>(SemaExpr->getType());
+		llvm::Value *Int32Value = Value;
+
+		// Get the bit width from the integer kind
+		unsigned BitWidth = static_cast<unsigned>(IntType->getIntKind());
+		if (IntType->isSigned()) {
+			BitWidth += 1; // Signed types have one less bit for the sign
+		}
+
+		if (BitWidth < 32) {
+			// Smaller than i32, need to extend
+			if (IntType->isSigned()) {
+				Int32Value = Builder->CreateSExt(Value, CG.Int32Ty);
+			} else {
+				Int32Value = Builder->CreateZExt(Value, CG.Int32Ty);
+			}
+		} else if (BitWidth > 32) {
+			// Larger than i32 (i64), need to truncate
+			Int32Value = Builder->CreateTrunc(Value, CG.Int32Ty);
+		}
+		// If BitWidth == 32, no conversion needed
+
+		CGE->StoreInt(Int32Value);
 	} else if (SemaExpr->getType()->isString()) {
 		CGE->StoreString(Value);
 	} else if (SemaExpr->getType()->isClass()) {

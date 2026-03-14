@@ -1144,6 +1144,13 @@ void Resolver::visit(ASTNullValue &AST) {
 	FLY_DEBUG_END("Resolver", "visit(ASTNullValue)");
 }
 
+void Resolver::visit(ASTUnsetValue &AST) {
+	FLY_DEBUG_START("Resolver", "visit(ASTUnsetValue)");
+	SemaValue *Sema = SemaBuilder::CreateUnsetValue(AST);
+	AST.setSema(Sema);
+	FLY_DEBUG_END("Resolver", "visit(ASTUnsetValue)");
+}
+
 void Resolver::Resolver::EnterScope() {
 	FLY_DEBUG_START("Resolver", "EnterScope");
 	CurrentScope = CurrentScope->pushScope();
@@ -1483,22 +1490,21 @@ SemaType * Resolver::PromoteNumberTypes(SemaType *Left, SemaType *Right) {
 void Resolver::PromoteTypes(ASTBinary &AST) {
 	FLY_DEBUG_START("Resolver", "PromoteTypes");
 
+	SemaType *LeftType = AST.getLeftExpr()->getSema()->getType();
+	SemaType *RightType = AST.getRightExpr()->getSema()->getType();
+
 	// Promote Number Types if both operands are numbers
-	if (AST.getLeftExpr()->getSema()->getType()->isNumber() &&
-	    AST.getRightExpr()->getSema()->getType()->isNumber()) {
-		SemaType *PromotedType = PromoteNumberTypes(
-			AST.getLeftExpr()->getSema()->getType(),
-			AST.getRightExpr()->getSema()->getType()
-		);
+	if (LeftType && RightType && LeftType->isNumber() && RightType->isNumber()) {
+		SemaType *PromotedType = PromoteNumberTypes(LeftType, RightType);
 		AST.getLeftExpr()->getSema()->setType(PromotedType);
 		AST.getRightExpr()->getSema()->setType(PromotedType);
 	}
 
 	// Promote Array Types if both operands are arrays
-	if (AST.isAssign() && AST.getLeftExpr()->getSema()->getType()->isArray() &&
-		AST.getRightExpr()->getSema()->getType()->isArray() && AST.getRightExpr()->getSema()->getKind() == SemaKind::VALUE) {
+	if (AST.isAssign() && LeftType && RightType && LeftType->isArray() &&
+		RightType->isArray() && AST.getRightExpr()->getSema()->getKind() == SemaKind::VALUE) {
 		SemaArrayValue *ArrayValue = static_cast<SemaArrayValue *>(AST.getRightExpr()->getSema());
-		SemaType *ElementType = static_cast<SemaArrayType *>(AST.getLeftExpr()->getSema()->getType())->getElementType();
+		SemaType *ElementType = static_cast<SemaArrayType *>(LeftType)->getElementType();
 		for (auto &Val : ArrayValue->getValues()) {
 			Val->setType(ElementType);
 		}

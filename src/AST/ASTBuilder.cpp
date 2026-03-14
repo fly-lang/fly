@@ -266,6 +266,8 @@ ASTEnumEntry *ASTBuilder::CreateEnumEntry(
 	FLY_DEBUG_START_MSG("ASTBuilder", "CreateEnumEntry", "Loc=" << Loc.getRawEncoding() << ", Name=" << Name);
 
 	ASTEnumEntry *EnumEntry = new ASTEnumEntry(Loc, Enum, Name);
+	// Index starts from 1 since 0 is reserved for 'unset' keyword value
+	EnumEntry->setIndex(Enum->Nodes.size() + 1);
 	Enum->Nodes.push_back(EnumEntry);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateEnumEntry");
@@ -503,6 +505,20 @@ ASTNullValue *ASTBuilder::CreateNullValue(const SourceLocation &Loc) {
 	ASTNullValue *Value = new ASTNullValue(Loc);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateNullValue");
+	return Value;
+}
+
+/**
+ * Creates an unset value (for uninitialized enums)
+ * @param Loc
+ * @return
+ */
+ASTUnsetValue *ASTBuilder::CreateUnsetValue(const SourceLocation &Loc) {
+	FLY_DEBUG_START_MSG("ASTBuilder", "CreateUnsetValue", "Loc=" << Loc.getRawEncoding());
+
+	ASTUnsetValue *Value = new ASTUnsetValue(Loc);
+
+	FLY_DEBUG_END("ASTBuilder", "CreateUnsetValue");
 	return Value;
 }
 

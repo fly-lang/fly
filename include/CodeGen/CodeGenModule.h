@@ -210,6 +210,7 @@ namespace fly {
         void visit(SemaArrayValue &Sema) override;
         void visit(SemaStructValue &Sema) override;
         void visit(SemaNullValue &Sema) override;
+        void visit(SemaUnsetValue &Sema) override;
         void visit(SemaEnumEntry &Sema) override;
 
     private:

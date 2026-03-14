@@ -299,13 +299,15 @@ bool SemaValidator::CheckLogicalTypes(SemaType *Type1, SemaType *Type2) {
 
 bool SemaValidator::CheckBinary(ASTBinary &AST) {
 	// Check if Left and Right Expr have Sema
-	if (!AST.getLeftExpr()->getSema() || !AST.getRightExpr()->getSema()) {
+	ASTExpr * LeftExpr = AST.getLeftExpr();
+	ASTExpr * RightExpr = AST.getLeftExpr();
+	if (!LeftExpr->getSema() || !RightExpr->getSema()) {
 		return false;
 	}
 
 	// Check if Left and Right Expr are resolved
-	SemaType * LeftType = AST.getLeftExpr()->getType();
-	SemaType * RightType = AST.getRightExpr()->getType();
+	SemaType * LeftType = LeftExpr->getSema()->getType();
+	SemaType * RightType = RightExpr->getSema()->getType();
 
 	// Arithmetic Operations: Integer/Float, Float/Float, Integer/Integer
 	if (AST.isArith()) {
@@ -416,6 +418,14 @@ bool SemaValidator::CheckBinary(ASTBinary &AST) {
 		}
 
 		if (LeftType->isEnum()) {
+			if (RightExpr->getExprKind() == ASTExprKind::EXPR_VALUE) {
+				// Enum can be assigned with its underlying type value
+				ASTValue *RightValue = static_cast<ASTValue *>(RightExpr);
+				if (RightValue->isUnset()) {
+					return true;
+				}
+			}
+
 			return CheckEqualTypes(LeftType, RightType);
 		}
 

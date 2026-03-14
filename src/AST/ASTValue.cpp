@@ -39,6 +39,7 @@ bool ASTValue::isArray() const { return ValueKind == ASTValueKind::VAL_ARRAY; }
 bool ASTValue::isStruct() const { return ValueKind == ASTValueKind::VAL_STRUCT; }
 bool ASTValue::isNull() const { return ValueKind == ASTValueKind::VAL_NULL; }
 bool ASTValue::isDefault() const { return ValueKind == ASTValueKind::VAL_DEFAULT; }
+bool ASTValue::isUnset() const { return ValueKind == ASTValueKind::VAL_UNSET; }
 
 ASTBoolValue::ASTBoolValue(const SourceLocation &Loc, bool Value) : ASTValue(ASTValueKind::VAL_BOOL, Loc), Value(Value) {
 
@@ -178,6 +179,21 @@ void ASTNullValue::accept(ASTVisitor &Visitor) {
 
 std::string ASTNullValue::str() const {
     return Logger("ASTNullValue").
+	Attr("Location", getLocation()).
+Attr("Kind", static_cast<size_t>(getKind())).
+            End();
+}
+
+ASTUnsetValue::ASTUnsetValue(const SourceLocation &Loc) : ASTValue(ASTValueKind::VAL_UNSET, Loc) {
+
+}
+
+void ASTUnsetValue::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
+std::string ASTUnsetValue::str() const {
+    return Logger("ASTUnsetValue").
 	Attr("Location", getLocation()).
 Attr("Kind", static_cast<size_t>(getKind())).
             End();

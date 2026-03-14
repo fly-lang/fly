@@ -89,6 +89,8 @@ namespace fly {
 
     class ASTNullValue;
 
+    class ASTUnsetValue;
+
     class ASTBoolValue;
 
     class ASTArrayValue;
@@ -224,6 +226,8 @@ namespace fly {
         // Create Values
 
         static ASTNullValue *CreateNullValue(const SourceLocation &Loc);
+
+        static ASTUnsetValue *CreateUnsetValue(const SourceLocation &Loc);
 
         static ASTBoolValue *CreateBoolValue(const SourceLocation &Loc, bool Val);
 
