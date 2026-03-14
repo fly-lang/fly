@@ -165,6 +165,7 @@ add_library(flyLib
         Sema/SemaClassMethod.cpp
         Sema/SemaEnumType.cpp
         Sema/SemaEnumEntry.cpp
+        Sema/SemaEnumList.cpp
         Sema/SemaErrorHandler.cpp
         Sema/SemaFunction.cpp
         Sema/SemaFunctionBase.cpp

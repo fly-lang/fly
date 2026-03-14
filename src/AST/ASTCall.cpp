@@ -45,6 +45,7 @@ void ASTCall::setSema(SemaCall *Sema) {
 	this->Sema = Sema;
 }
 
+
 std::string ASTCall::str() const {
     return Logger("ASTCall").
 	Attr("Location", getLocation()).

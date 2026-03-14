@@ -26,6 +26,7 @@ namespace fly {
 	class SemaClassMethod;
     class SemaEnumType;
     class SemaEnumEntry;
+    class SemaEnumList;
     class SemaType;
 	class SemaMember;
     class ASTClass;
@@ -95,6 +96,8 @@ namespace fly {
     	static SemaEnumType *CreateEnum(SemaModule &Module, SymbolTable *Symbols, ASTEnum &AST);
 
     	static SemaEnumEntry *CreateEnumEntry(SemaEnumType *Enum, ASTEnumEntry &AST);
+
+    	static SemaEnumList *CreateEnumList(SemaEnumType *EnumType);
 
 	    static SemaComment* CreateComment(ASTComment &AST);
 

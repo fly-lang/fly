@@ -66,6 +66,7 @@
 #include <Sema/SemaClassType.h>
 #include <Sema/SemaEnumType.h>
 #include <Sema/SemaEnumEntry.h>
+#include <Sema/SemaEnumList.h>
 #include <Sema/SemaError.h>
 #include <Sema/SemaFunction.h>
 #include <Sema/SemaMember.h>
@@ -409,6 +410,14 @@ void CodeGenModule::visit(SemaUnsetValue &Sema) {
 void CodeGenModule::visit(SemaEnumEntry &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenEnumEntry *CGE = new CodeGenEnumEntry(this, &Sema);
+		CGE->GenExpr(&Sema);
+		Sema.setCodeGen(CGE);
+	}
+}
+
+void CodeGenModule::visit(SemaEnumList &Sema) {
+	if (Sema.getCodeGen() == nullptr) {
+		CodeGenArrayValue *CGE = new CodeGenArrayValue(this);
 		CGE->GenExpr(&Sema);
 		Sema.setCodeGen(CGE);
 	}

@@ -29,6 +29,7 @@
 #include "Sema/SemaComment.h"
 #include "Sema/SemaEnumType.h"
 #include "Sema/SemaEnumEntry.h"
+#include "Sema/SemaEnumList.h"
 #include "Sema/SemaError.h"
 #include "Sema/SemaFunction.h"
 #include "Sema/SemaMember.h"
@@ -196,6 +197,19 @@ SemaEnumEntry * SemaBuilder::CreateEnumEntry(SemaEnumType *Enum, ASTEnumEntry &A
 
 	FLY_DEBUG_END("SemaBuilder", "CreateEnumEntry");
 	return Entry;
+}
+
+SemaEnumList * SemaBuilder::CreateEnumList(SemaEnumType *EnumType) {
+	FLY_DEBUG_START("SemaBuilder", "CreateEnumList");
+
+	// Create an array type of the enum type with size = number of entries
+	uint64_t Size = EnumType->getEntries().size();
+	SemaArrayType *ArrayType = SemaBuiltin::CreateArrayType(EnumType, Size);
+
+	SemaEnumList *EnumList = new SemaEnumList(EnumType, ArrayType);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateEnumList");
+	return EnumList;
 }
 
 SemaComment * SemaBuilder::CreateComment(ASTComment &AST) {

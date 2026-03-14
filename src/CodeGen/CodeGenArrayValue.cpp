@@ -12,6 +12,9 @@
 #include "Basic/Debug.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
+#include "Sema/SemaEnumEntry.h"
+#include "Sema/SemaEnumList.h"
+#include "Sema/SemaEnumType.h"
 #include "Sema/SemaType.h"
 #include "Sema/SemaValue.h"
 
@@ -63,3 +66,45 @@ void CodeGenArrayValue::GenExpr(SemaArrayValue *Sema) {
 
 	// Note: Element stores will be done in CodeGenVar::StoreArrayValue
 }
+
+void CodeGenArrayValue::GenExpr(SemaEnumList *Sema) {
+	FLY_DEBUG_START("CodeGenArrayValue", "GenExpr(SemaEnumList)");
+
+	// Enum entries are stored as i32 constants
+	ElementType = CodeGen::Int32Ty;
+
+	// Generate constant values for all enum entries (sorted by index)
+	const auto &Entries = Sema->getEnumType()->getEntries();
+
+	// Collect entries and sort by index to ensure deterministic order
+	llvm::SmallVector<SemaEnumEntry *, 8> SortedEntries;
+	for (auto &Entry : Entries) {
+		SortedEntries.push_back(Entry.getValue());
+	}
+	std::sort(SortedEntries.begin(), SortedEntries.end(),
+		[](SemaEnumEntry *A, SemaEnumEntry *B) { return A->getIndex() < B->getIndex(); });
+
+	Values.clear();
+	for (SemaEnumEntry *Entry : SortedEntries) {
+		llvm::Value *Val = llvm::ConstantInt::get(CodeGen::Int32Ty, Entry->getIndex());
+		Values.push_back(Val);
+	}
+
+	// Allocate memory for the array
+	if (!Values.empty()) {
+		llvm::Value* NumElements = llvm::ConstantInt::get(CodeGen::IntPtrTy, Values.size());
+		llvm::TypeSize SizeInBytes = CGM->getTarget().getDataLayout().getTypeAllocSize(ElementType);
+		llvm::Value* ElementSize = llvm::ConstantInt::get(CodeGen::IntPtrTy, SizeInBytes);
+		llvm::Value* AllocSize = Builder->CreateMul(NumElements, ElementSize);
+
+		llvm::Instruction *I = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), CodeGen::IntPtrTy,
+			ElementType, AllocSize, nullptr, nullptr);
+		V = Builder->Insert(I);
+	} else {
+		V = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ElementType->getPointerTo()));
+	}
+
+	FLY_DEBUG_END("CodeGenArrayValue", "GenExpr(SemaEnumList)");
+	// Note: Element stores will be done in CodeGenVar::StoreArrayValue
+}
+

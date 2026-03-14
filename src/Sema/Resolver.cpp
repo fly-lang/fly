@@ -66,6 +66,7 @@
 #include <Sema/Registry.h>
 #include <Sema/SemaCall.h>
 #include <Sema/SemaEnumEntry.h>
+#include <Sema/SemaEnumList.h>
 #include <Sema/SemaFunction.h>
 #include <Sema/SemaLocalVar.h>
 #include <Sema/SemaParam.h>
@@ -813,8 +814,13 @@ void Resolver::visit(ASTMember &AST) {
 			if (!Sema) return;
 		} else if (ParentSymbol->getKind() == SymbolKind::ENUM) {
 			SemaEnumType *ParentSema = static_cast<SemaEnumType *>(ParentSymbol->getRef());
-			Sema = ResolveMemberSymbol(AST, ParentSema->getSymbols(), SemaKind::ENUM_ENTRY);
-			if (!Sema) return;
+			// Handle built-in enum members
+			if (AST.getName() == "list") {
+				Sema = SemaBuilder::CreateEnumList(ParentSema);
+			} else {
+				Sema = ResolveMemberSymbol(AST, ParentSema->getSymbols(), SemaKind::ENUM_ENTRY);
+				if (!Sema) return;
+			}
 		} else if (ParentSymbol->getKind() == SymbolKind::VAR) {
 			SemaVar *ParentVar = static_cast<SemaVar *>(ParentSymbol->getRef());
 

@@ -25,6 +25,7 @@ namespace fly {
 
     class CodeGenModule;
     class SemaVar;
+    class SemaEnumList;
 
     class CodeGenArrayValue : public CodeGenExpr {
 
@@ -42,6 +43,8 @@ namespace fly {
     	llvm::Type *getElementType() const;
 
     	void GenExpr(SemaArrayValue *Sema);
+
+    	void GenExpr(SemaEnumList *Sema);
 
     };
 }

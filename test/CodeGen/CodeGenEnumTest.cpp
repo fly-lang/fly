@@ -162,4 +162,44 @@ namespace {
                           "  ret void\n"
                           "}\n");
     }
+
+    TEST_F(CodeGenTest, CGEnumList) {
+        /**
+         * Fly code:
+         * enum TestEnum {
+         *   A, B, C
+         * }
+         * void func() {
+         *   TestEnum[] list = TestEnum.list
+         * }
+         */
+        ASTModule *Module = CreateModule();
+
+        // enum TestEnum { A, B, C }
+        llvm::SmallVector<ASTType *, 4> SuperEnums;
+        ASTEnum *TestEnum = ASTBuilder::CreateEnum(Module, SourceLoc, "TestEnum", TopModifiers, SuperEnums);
+        ASTEnumEntry *A = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "A", EmptyModifiers);
+        ASTEnumEntry *B = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "B", EmptyModifiers);
+        ASTEnumEntry *C = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "C", EmptyModifiers);
+
+        // void func() { ... }
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
+
+        // TestEnum.list
+        ASTIdentifier *TestEnumIdent = ASTBuilder::CreateIdentifier(SourceLoc, TestEnum->getName());
+        ASTMember *listMember = ASTBuilder::CreateMember(SourceLoc, "list", TestEnumIdent);
+
+        // TestEnum[] list = TestEnum.list
+        ASTType *TestEnumType = CreateType(TestEnum);
+        ASTLocalVar *listVar = ASTBuilder::CreateLocalVar(SourceLoc, TestEnumType, "list", EmptyModifiers);
+        ASTIdentifier *listVarIdent = ASTBuilder::CreateIdentifier(listVar);
+        ASTDeclStmt *listDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, listVar);
+        ASTBinary *listAssign = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, listVarIdent, listMember);
+        listDeclStmt->setExpr(listAssign);
+
+        // Resolve should succeed
+        bool Success = Resolve();
+        EXPECT_TRUE(Success);
+    }
 } // anonymous namespace

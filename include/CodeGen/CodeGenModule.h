@@ -212,6 +212,7 @@ namespace fly {
         void visit(SemaNullValue &Sema) override;
         void visit(SemaUnsetValue &Sema) override;
         void visit(SemaEnumEntry &Sema) override;
+        void visit(SemaEnumList &Sema) override;
 
     private:
 

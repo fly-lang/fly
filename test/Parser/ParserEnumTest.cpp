@@ -219,4 +219,51 @@ namespace {
         EXPECT_EQ(tDeclStmt->getLocalVar()->getName(), "t");
         ASSERT_EQ(tDeclStmt->getExpr(), nullptr); // No initializer expression in declaration
     }
+
+    TEST_F(ParserTest, EnumList) {
+        llvm::StringRef str = ("public enum Color {\n"
+                               "  RED, GREEN, BLUE\n"
+                               "}\n");
+        ASTModule *Module = Parse("ColorEnum", str);
+
+        llvm::StringRef str2 = (
+                "main() {\n"
+                "  Color[] list = Color.list\n"
+                "}\n");
+        ASTModule *Module2 = Parse("func", str2);
+
+        // Verify enum node exists and has expected name
+        ASTEnum *E = As<ASTEnum>(Module->getNodes()[0]);
+        ASSERT_TRUE(E != nullptr);
+        EXPECT_EQ(E->getName(), "Color");
+        EXPECT_EQ(E->getNodes().size(), 3);
+
+        // Verify usage in main: Color[] list = Color.list
+        ASTFunction *main = As<ASTFunction>(Module2->getNodes()[0]);
+        ASTBlockStmt *Body = main->getBody();
+        ASSERT_FALSE(Body->getContent().empty());
+
+        // First statement: Color[] list = Color.list
+        auto *listDeclStmt = As<ASTDeclStmt>(Body->getContent()[0]);
+        ASSERT_TRUE(listDeclStmt != nullptr);
+        EXPECT_EQ(listDeclStmt->getLocalVar()->getName(), "list");
+        auto *AssignBinaryExpr = As<ASTBinary>(listDeclStmt->getExpr());
+        EXPECT_EQ(AssignBinaryExpr->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+
+        // Left side is 'list'
+        auto *listIdent = As<ASTIdentifier>(AssignBinaryExpr->getLeftExpr());
+        ASSERT_TRUE(listIdent != nullptr);
+        EXPECT_EQ(listIdent->getName(), "list");
+
+        // Right side is Color.list (member expression)
+        auto *listMember = As<ASTMember>(AssignBinaryExpr->getRightExpr());
+        ASSERT_TRUE(listMember != nullptr);
+        EXPECT_EQ(listMember->getName(), "list");
+        EXPECT_EQ(listMember->getExprKind(), ASTExprKind::EXPR_MEMBER);
+
+        // Parent of the member should be Color identifier
+        auto *colorIdent = As<ASTIdentifier>(listMember->getParent());
+        ASSERT_TRUE(colorIdent != nullptr);
+        EXPECT_EQ(colorIdent->getName(), "Color");
+    }
 }

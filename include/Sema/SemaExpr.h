@@ -49,6 +49,8 @@ namespace fly {
     	SemaExpr *getChild() const;
 
     	virtual CodeGenExpr *getCodeGen() const;
+
+    	void setCodeGen(CodeGenExpr *CG);
     };
 
 }
