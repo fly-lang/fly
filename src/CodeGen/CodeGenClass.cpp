@@ -32,6 +32,7 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExter
 
 	// Generate Class Type
 	Type = llvm::StructType::create(CGM->LLVMCtx, Id);
+	T = Type; // Also set base class CodeGenType::T for polymorphic access
 	TypePtr = Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 
 	// Create CodeGenVar for Class Instance
@@ -67,7 +68,7 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExter
 std::string CodeGenClass::toIdentifier(SemaClassType *ClassType) {
 	FLY_DEBUG_START("CodeGenClass", "toIdentifier");
 	llvm::StringRef Name = ClassType->getAST().getName();
-	SemaNameSpace *NameSpace = ClassType->getModule()->getNameSpace();
+	SemaNameSpace *NameSpace = ClassType->getModule().getNameSpace();
 	return CGM->toIdentifier(Name, NameSpace);
 }
 
@@ -256,13 +257,12 @@ void CodeGenClass::GenInitConstructorBody() {
 	for (auto &AttrEntry : Sema->getAttributes()) {
 		SemaClassAttribute *Attr = AttrEntry.getValue();
 
-		// Set Value for all Attributes
-		// llvm::Value *V = CGM->GenExpr(Attr->getExpr());
-
-		// llvm::ArrayRef<llvm::Value *> IdxList = {
-		// 	CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Attr->getCodeGen()->getIndex())};
-		// llvm::Value *Pointer = CGM->Builder->CreateInBoundsGEP(Type, Load, IdxList);
-		// CGM->Builder->CreateStore(V, Pointer);
+		// Set Default init Value for all Attributes
+		llvm::ArrayRef<llvm::Value *> IdxList = {
+		 	CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Attr->getCodeGen()->getIndex())};
+		llvm::Value *Pointer = CGM->Builder->CreateInBoundsGEP(Type, Load, IdxList);
+		Attr->getCodeGen()->setPointer(Pointer);
+		Attr->getCodeGen()->StoreDefaultValue();
 	}
 
 	CGM->Builder->CreateRet(Load);

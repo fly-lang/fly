@@ -182,16 +182,16 @@ Symbol *Registry::LookupImport(const llvm::SmallVector<ASTName *, 4> &Names) {
 	return CurrentSymbol;
 }
 
-SemaType* Registry::LookupBuiltinType(llvm::StringRef TypeName) {
+Symbol* Registry::LookupBuiltinType(llvm::StringRef TypeName) {
 	SmallVector<Symbol *, 8> * Symbols = BuiltinScope->lookup(TypeName);
 
 	// Take the unique Symbol
 	Symbol *CurrentSymbol = (*Symbols)[0];
 
-	return static_cast<SemaType *>(CurrentSymbol->getRef());
+	return CurrentSymbol;
 }
 
-SemaType* Registry::LookupNamedType(llvm::StringRef Name, SymbolTable *Scope) {
+Symbol *Registry::LookupNamedType(llvm::StringRef Name, SymbolTable *Scope) {
 	// Lookup Name in current Scope
 	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookupInParents(Name);
 
@@ -210,15 +210,15 @@ SemaType* Registry::LookupNamedType(llvm::StringRef Name, SymbolTable *Scope) {
 	// Take the unique Symbol
 	Symbol *CurrentSymbol = (*Symbols)[0];
 
-	if (CurrentSymbol->getKind() != SymbolKind::BUILTIN_TYPE) {
+	if (CurrentSymbol->getKind() == SymbolKind::BUILTIN_TYPE) {
 		// Error: Symbol is not a Type
 		Diag(diag::err_invalid_behavior);
 	}
 
-	return static_cast<SemaType *>(CurrentSymbol->getRef());
+	return CurrentSymbol;
 }
 
-SemaType *Registry::LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope) {
+Symbol *Registry::LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope) {
 	const SmallVector<ASTName *, 4> &Names = NamedType.getNames();
 	SymbolTable *CurrentScope = Scope;
 	Symbol *CurrentSymbol = nullptr;
@@ -254,13 +254,14 @@ SemaType *Registry::LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope)
 		CurrentSymbol->getKind() == SymbolKind::CLASS ||
 		CurrentSymbol->getKind() == SymbolKind::ENUM) {
 		// Return Type
-		return static_cast<SemaType *>(CurrentSymbol->getRef());
+		return CurrentSymbol;
 	}
 
 	// Error: Symbol is not a Type or NameSpace
 	Diag(diag::err_invalid_behavior);
 	return nullptr;
 }
+
 //
 // SemaNameSpace* Registry::LookupNameSpace(llvm::StringRef Name, SymbolTable *Scope) {
 // 	if (Scope == nullptr) Scope = GlobalScope;

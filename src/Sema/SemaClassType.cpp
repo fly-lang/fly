@@ -8,8 +8,9 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaClassType.h"
-#include "Sema/SemaVisitor.h"
 
+#include "AST/ASTVar.h"
+#include "Sema/SemaVisitor.h"
 #include "Sema/SymbolTable.h"
 
 #include "llvm/ADT/StringMap.h"
@@ -19,7 +20,8 @@
 
 using namespace fly;
 
-SemaClassType::SemaClassType(ASTClass &AST, SymbolTable *Symbols) : SemaType(SemaKind::TYPE_CLASS, AST.getName().data()),
+SemaClassType::SemaClassType(ASTClass &AST, SemaModule &Module, SymbolTable *Symbols) :
+	SemaType(SemaKind::TYPE_CLASS, AST.getName().data()), Module(Module),
 	AST(AST), Symbols(Symbols), ClassKind(toClassKind(AST.getClassKind())) {
 
 }
@@ -59,7 +61,7 @@ ASTClass &SemaClassType::getAST() {
     return AST;
 }
 
-SemaModule * SemaClassType::getModule() const {
+SemaModule &SemaClassType::getModule() const {
 	return Module;
 }
 
@@ -156,6 +158,7 @@ const llvm::StringMap<SemaClassMethod *> &SemaClassType::getConstructors() const
 
 void SemaClassType::addAttribute(SemaClassAttribute *Attribute) {
 	Nodes.emplace_back(Attribute);
+	Attributes.insert({Attribute->getAST()->getName(), Attribute});
 }
 
 void SemaClassType::addMethod(SemaClassMethod *Method) {

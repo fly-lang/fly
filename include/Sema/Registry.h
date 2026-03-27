@@ -68,11 +68,11 @@ namespace fly {
 
 		Symbol *LookupImport(const llvm::SmallVector<ASTName *, 4> &Names);
 
-		SemaType *LookupBuiltinType(llvm::StringRef TypeName);
+		Symbol *LookupBuiltinType(llvm::StringRef TypeName);
 
-		SemaType* LookupNamedType(llvm::StringRef Name, SymbolTable *Scope);
+		Symbol *LookupNamedType(llvm::StringRef Name, SymbolTable *Scope);
 
-		SemaType* LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope);
+		Symbol *LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope);
 
 		Symbol *LookupName(llvm::StringRef Name, SymbolTable *Scope = nullptr);
 

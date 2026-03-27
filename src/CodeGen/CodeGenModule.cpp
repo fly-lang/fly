@@ -299,7 +299,10 @@ void CodeGenModule::visit(SemaMember &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenExpr *CGE = new CodeGenExpr(this);
 		CGE->GenExpr(&Sema);
-		Sema.setCodeGen(CGE);
+		// Only set wrapper if GenExpr didn't already set the CodeGen (e.g. CodeGenVar for attributes)
+		if (Sema.getCodeGen() == nullptr) {
+			Sema.setCodeGen(CGE);
+		}
 	}
 }
 

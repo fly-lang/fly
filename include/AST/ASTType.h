@@ -49,7 +49,7 @@ namespace fly {
 
         ASTTypeKind TypeKind;
 
-        SemaType *Sema;
+        SemaType *Sema = nullptr;
 
     protected:
 

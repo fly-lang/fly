@@ -24,6 +24,7 @@ SemaExpr *SemaExpr::getParent() const {
 }
 
 void SemaExpr::setParent(SemaExpr &Parent) {
+	this->Parent = &Parent;
 	Parent.Child = this;
 }
 

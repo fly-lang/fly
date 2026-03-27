@@ -30,7 +30,7 @@ namespace fly {
         friend class Resolver;
         friend class SemaValidator;
 
-        SemaModule *Module;
+        SemaModule *Module = nullptr;
 
         SemaComment *Comment = nullptr;
 

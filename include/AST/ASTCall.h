@@ -20,6 +20,7 @@ namespace fly {
 
     class ASTArg;
     class SemaCall;
+	class Symbol;
 
     enum class ASTCallKind {
         CALL_DIRECT,
@@ -37,6 +38,8 @@ namespace fly {
     class ASTCall : public ASTExpr {
 
         friend class ASTBuilder;
+
+    	Symbol *ResolvedSymbol = nullptr;
 
         const ASTCallKind CallKind;
 
@@ -58,6 +61,9 @@ namespace fly {
 
         void setSema(SemaCall *Sema);
 
+    	Symbol *getSymbol() const;
+
+    	void setSymbol(Symbol *Sym);
 
         ASTCallKind getCallKind() const;
 

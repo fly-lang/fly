@@ -27,7 +27,7 @@ namespace fly {
 
         Registry *Reg;
 
-        ASTBuilder *Builder;
+        ASTBuilder *Builder = nullptr;
 
     public:
 

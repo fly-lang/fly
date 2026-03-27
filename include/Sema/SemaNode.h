@@ -48,9 +48,7 @@ namespace fly {
 
 		// Top Level nodes
 		FUNCTION,
-		CLASS,
 		METHOD,
-		ENUM,
 
 		// Values
 		ENUM_ENTRY,

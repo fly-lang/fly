@@ -45,6 +45,12 @@ void ASTCall::setSema(SemaCall *Sema) {
 	this->Sema = Sema;
 }
 
+Symbol *ASTCall::getSymbol() const {
+	return ResolvedSymbol;
+}
+void ASTCall::setSymbol(Symbol *Sym) {
+	ResolvedSymbol = Sym;
+}
 
 std::string ASTCall::str() const {
     return Logger("ASTCall").

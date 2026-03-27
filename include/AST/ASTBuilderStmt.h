@@ -25,7 +25,7 @@ namespace fly {
 
         ASTBuilderStmt();
 
-        ASTStmt *Stmt;
+        ASTStmt *Stmt = nullptr;
 
     public:
 

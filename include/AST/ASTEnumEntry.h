@@ -32,7 +32,7 @@ namespace fly {
 
         uint32_t Index = 0;
 
-        SemaEnumEntry *Sema;
+        SemaEnumEntry *Sema = nullptr;
 
     protected:
 

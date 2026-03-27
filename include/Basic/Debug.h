@@ -27,6 +27,11 @@ extern bool DebugEnabled;
   do { if (DebugEnabled) { X; } \
   } while (false)
 
+#define FLY_DEBUG_MSG(MSG) \
+	FLY_DEBUG_WITH_TYPE(DEBUG_TYPE, llvm::dbgs() << FLY_DEBUG_PRINT_PREFIX \
+		<< FLY_DEBUG_PRINT_START << FLY_DEBUG_PRINT_SEP3 << MSG \
+		<< FLY_DEBUG_PRINT_POSTFIX)
+
 #define FLY_DEBUG_START_MSG(CLASS, METHOD, MSG) \
     FLY_DEBUG_WITH_TYPE(DEBUG_TYPE, llvm::dbgs() << FLY_DEBUG_PRINT_PREFIX \
         << CLASS << FLY_DEBUG_PRINT_SEP1 << METHOD << FLY_DEBUG_PRINT_SEP2 \

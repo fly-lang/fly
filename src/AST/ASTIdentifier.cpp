@@ -42,6 +42,14 @@ SemaVar *ASTIdentifier::getSema() const {
 	return static_cast<SemaVar *>(Sema);
 }
 
+Symbol *ASTIdentifier::getSymbol() const {
+	return ResolvedSymbol;
+}
+
+void ASTIdentifier::setSymbol(Symbol *Sym) {
+	ResolvedSymbol = Sym;
+}
+
 std::string ASTIdentifier::str() const {
     return Logger("ASTIdentifier").
 	Attr("Location", getLocation()).

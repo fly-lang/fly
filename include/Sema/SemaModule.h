@@ -29,9 +29,9 @@ namespace fly {
 
         ASTModule &AST;
 
-    	SymbolTable *Symbols;
+    	SymbolTable *Symbols = nullptr;
 
-    	SemaNameSpace *NameSpace;
+    	SemaNameSpace *NameSpace = nullptr;
 
     	llvm::SmallVector<SemaImport *, 8> Imports;
 

@@ -90,7 +90,7 @@ SemaClassType * SemaBuilder::CreateClass(SemaModule &Module, SymbolTable *Symbol
 	FLY_DEBUG_START("SemaBuilder", "CreateClass");
 
 	// Create the Class Type
-	SemaClassType *Class = new SemaClassType(AST, Symbols);
+	SemaClassType *Class = new SemaClassType(AST, Module, Symbols);
 
 	// Set Symbol Table
 	Class->Symbols = Symbols;
@@ -318,9 +318,6 @@ SemaCall * SemaBuilder::CreateCall(ASTCall &AST, SemaType *Type, SemaFunctionBas
 	// Create Call Symbol
 	SemaCall *Call = new SemaCall(AST, Type);
 	Call->Function = Function;
-
-	// Assign Symbol to AST
-	// AST.setSema(Call); // TODO add resolved symbol in the scope
 
 	FLY_DEBUG_END("SemaBuilder", "CreateParam");
 	return Call;

@@ -37,6 +37,13 @@ void ASTMember::setSema(SemaExpr *Sema) {
 	this->Sema = Sema;
 }
 
+Symbol *ASTMember::getSymbol() const {
+	return ResolvedSymbol;
+}
+void ASTMember::setSymbol(Symbol *Sym) {
+	ResolvedSymbol = Sym;
+}
+
 std::string ASTMember::str() const {
 	return ASTExpr::str();
 }

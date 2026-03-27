@@ -17,10 +17,13 @@ namespace fly {
 
     class ASTVar;
     class SemaVar;
+	class Symbol;
 
     class ASTIdentifier : public ASTExpr {
 
         friend class ASTBuilder;
+
+    	Symbol *ResolvedSymbol = nullptr;
 
     protected:
 
@@ -43,6 +46,10 @@ namespace fly {
         void setSema(SemaVar *Sema);
 
         SemaVar *getSema() const override;
+
+    	Symbol *getSymbol() const;
+
+    	void setSymbol(Symbol *Sym);
 
         std::string str() const override;
     };

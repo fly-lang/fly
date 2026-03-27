@@ -22,7 +22,7 @@ namespace fly {
 
         friend class ASTSwitchStmt;
 
-        ASTSwitchStmt *SwitchStmt;
+        ASTSwitchStmt *SwitchStmt = nullptr;
 
         explicit ASTBuilderSwitchStmt();
 

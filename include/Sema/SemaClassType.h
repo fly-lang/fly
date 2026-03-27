@@ -46,7 +46,7 @@ namespace fly {
         ASTClass &AST;
 
         // Class Module
-        SemaModule *Module;
+        SemaModule &Module;
 
         // Class Symbol Table
         SymbolTable *Symbols;
@@ -67,7 +67,7 @@ namespace fly {
         llvm::SmallVector<SemaClassType *, 4> BaseClasses;
 
         // Class this Attribute
-        SemaClassInstance *This;
+        SemaClassInstance *This = nullptr;
 
         // Class Attributes
         llvm::StringMap<SemaClassAttribute *> Attributes;
@@ -86,7 +86,7 @@ namespace fly {
         // Class CodeGen
         CodeGenClass *CodeGen = nullptr;
 
-        explicit SemaClassType(ASTClass &Class, SymbolTable *Symbols);
+        explicit SemaClassType(ASTClass &Class, SemaModule &Module, SymbolTable *Symbols);
 
         SemaClassKind toClassKind(ASTClassKind ASTKind);
 
@@ -96,7 +96,7 @@ namespace fly {
 
         ASTClass &getAST();
 
-        SemaModule *getModule() const;
+        SemaModule &getModule() const;
 
         SymbolTable *getSymbols() const;
 

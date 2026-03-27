@@ -18,6 +18,7 @@
 namespace fly {
 
 	class ASTVar;
+	class Symbol;
 	class SemaExpr;
 
 	class ASTMember : public ASTExpr {
@@ -25,6 +26,8 @@ namespace fly {
 		friend class ASTBuilder;
 
 		llvm::StringRef Name;
+
+		Symbol *ResolvedSymbol = nullptr;
 
 	protected:
 
@@ -41,6 +44,10 @@ namespace fly {
 		SemaExpr *getSema() const override;
 
 		void setSema(SemaExpr *Sema);
+
+		Symbol *getSymbol() const;
+
+		void setSymbol(Symbol *Sym);
 
 		std::string str() const override;
 	};

@@ -100,9 +100,7 @@ namespace fly {
         // Current Statement being Resolved
         ASTStmt* CurrentStmt = nullptr;
 
-    	ASTExpr *CurrentExpr = nullptr;
-
-    	Symbol *CurrentSymbol = nullptr;
+    	SemaExpr *CurrentExpr = nullptr;
 
     	SemaError *CurrentErrorHandler = nullptr;
 

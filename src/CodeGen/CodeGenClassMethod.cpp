@@ -201,7 +201,7 @@ void CodeGenClassMethod::GenBody() {
 std::string CodeGenClassMethod::toIdentifier(SemaClassMethod *ClassMethod) {
 	FLY_DEBUG_START("CodeGenClassMethod", "toIdentifier");
 	// For class methods, use the mangled name which includes the class name
-	SemaNameSpace *NameSpace = ClassMethod->getClass()->getModule()->getNameSpace();
+	SemaNameSpace *NameSpace = ClassMethod->getClass()->getModule().getNameSpace();
 	return CGM->toIdentifier(ClassMethod->getAST().getName(), NameSpace);
 }
 

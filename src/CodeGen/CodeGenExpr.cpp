@@ -263,8 +263,8 @@ void CodeGenExpr::GenExpr(SemaMember *Sema) {
 	// Generate Parent
 	Sema->getParent()->accept(*CGM);
 
-	// Get Pointer to Parent
-	llvm::Value *Pointer = Sema->getParent()->getCodeGen()->getValue();
+	// Get Pointer to Parent (struct pointer)
+	llvm::Value *ParentPtr = Sema->getParent()->getCodeGen()->getValue();
 
 	Sema->getType()->accept(*CGM);
 	llvm::Type *Ty = Sema->getType()->getCodeGen()->getType();
@@ -272,8 +272,18 @@ void CodeGenExpr::GenExpr(SemaMember *Sema) {
 	if (Ref->getKind() == SemaKind::ATTRIBUTE) {
 		SemaClassAttribute *Attr = static_cast<SemaClassAttribute *>(Ref);
 		size_t Index = Attr->getCodeGen()->getIndex();
+
+		// Create GEP to get pointer to the specific field in the struct
+		SemaClassType &ClassType = Attr->getClass();
+		ClassType.getCodeGen()->getType(); // ensure class CodeGen type is created
+		llvm::StructType *StructTy = ClassType.getCodeGen()->getType();
+		llvm::ArrayRef<llvm::Value *> IdxList = {
+			CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Index)
+		};
+		llvm::Value *FieldPtr = Builder->CreateInBoundsGEP(StructTy, ParentPtr, IdxList);
+
 		CodeGenVar *CGV = new CodeGenVar(CGM, Attr, Ty, Index);
-		CGV->setPointer(Pointer);
+		CGV->setPointer(FieldPtr);
 		Sema->setCodeGen(CGV);
 		V = CGV->getValue();
 	} else if (Ref->getKind() == SemaKind::ENUM_ENTRY) {
@@ -645,7 +655,7 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
 		}
 	}
 
-	return static_cast<SemaVar *>(E1)->getCodeGen()->Store(V2);
+	return static_cast<CodeGenVar *>(E1CodeGen)->Store(V2);
 }
 
 void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &Args) {

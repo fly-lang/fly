@@ -24,6 +24,7 @@
 #include <AST/ASTLocalVar.h>
 #include <AST/ASTMember.h>
 #include <AST/ASTName.h>
+#include <AST/ASTExprStmt.h>
 #include <AST/ASTReturnStmt.h>
 
 namespace {
@@ -149,6 +150,7 @@ namespace {
         	"public class Test {\n"
 			"  int a = 1\n"
 			"  private int b = 1\n"
+			"  static int c = 0\n"
 			"  public a() { fail a }\n"
 			"  protected b() { fail 2 }\n"
 			"  private c() { fail 3 }\n"
@@ -157,35 +159,41 @@ namespace {
 			"func() {\n"
 			"  Test t = new Test()\n"
 			"  t.a()\n"
+			"  t.a = 0\n"
+			"  Test.c = 1\n"
 			"}\n");
         ASTModule *Module = Parse("TestClass", str);
-
 
         ASTClass *TestClass = As<ASTClass>(Module->getNodes()[0]);
         ASSERT_TRUE(TestClass != nullptr);
         EXPECT_EQ(TestClass->getName(), "Test");
         EXPECT_TRUE(HasModifier(TestClass->getModifiers(), ASTModifierKind::MOD_PUBLIC));
 
-        // Attributes: a, b (direct index access into class nodes)
-        // Order in source: attribute a, attribute b, method a, method b, method c, method d
-        ASSERT_TRUE(TestClass->getNodes().size() >= 6);
+        // Attributes: a, b, c (direct index access into class nodes)
+        // Order in source: attribute a, attribute b, attribute c, method a, method b, method c, method d
+        ASSERT_TRUE(TestClass->getNodes().size() >= 7);
         ASTAttribute *aVar = As<ASTAttribute>(TestClass->getNodes()[0]);
         ASTAttribute *bVar = As<ASTAttribute>(TestClass->getNodes()[1]);
+        ASTAttribute *cVar = As<ASTAttribute>(TestClass->getNodes()[2]);
         ASSERT_TRUE(aVar != nullptr);
         ASSERT_TRUE(bVar != nullptr);
+        ASSERT_TRUE(cVar != nullptr);
         EXPECT_EQ(aVar->getName(), "a");
         EXPECT_EQ(bVar->getName(), "b");
+        EXPECT_EQ(cVar->getName(), "c");
         EXPECT_TRUE(aVar->getModifiers().empty());
         EXPECT_TRUE(HasModifier(bVar->getModifiers(), ASTModifierKind::MOD_PRIVATE));
+        EXPECT_TRUE(HasModifier(cVar->getModifiers(), ASTModifierKind::MOD_STATIC));
         // attribute initializers
         EXPECT_TRUE(As<ASTNumberValue>(aVar->getExpr())->getValue() == "1");
         EXPECT_TRUE(As<ASTNumberValue>(bVar->getExpr())->getValue() == "1");
+        EXPECT_TRUE(As<ASTNumberValue>(cVar->getExpr())->getValue() == "0");
 
         // Methods: a, b, c, d (direct index access)
-        ASTMethod *aMethod = As<ASTMethod>(TestClass->getNodes()[2]);
-        ASTMethod *bMethod = As<ASTMethod>(TestClass->getNodes()[3]);
-        ASTMethod *cMethod = As<ASTMethod>(TestClass->getNodes()[4]);
-        ASTMethod *dMethod = As<ASTMethod>(TestClass->getNodes()[5]);
+        ASTMethod *aMethod = As<ASTMethod>(TestClass->getNodes()[3]);
+        ASTMethod *bMethod = As<ASTMethod>(TestClass->getNodes()[4]);
+        ASTMethod *cMethod = As<ASTMethod>(TestClass->getNodes()[5]);
+        ASTMethod *dMethod = As<ASTMethod>(TestClass->getNodes()[6]);
         ASSERT_TRUE(aMethod != nullptr);
         ASSERT_TRUE(bMethod != nullptr);
         ASSERT_TRUE(cMethod != nullptr);
@@ -253,13 +261,79 @@ namespace {
         EXPECT_EQ(assignExpr->getLocalVar()->getName(), "t");
         auto *assign = As<ASTBinary>(assignExpr->getExpr());
         EXPECT_EQ(assign->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
-         auto *assign_src = As<ASTIdentifier>(assign->getLeftExpr());
-         ASSERT_TRUE(assign_src != nullptr);
-         EXPECT_EQ(assign_src->getName(), "t");
-         auto *newCall = As<ASTCall>(assign->getRightExpr());
-         ASSERT_TRUE(newCall != nullptr);
-         EXPECT_EQ(newCall->getExprKind(), ASTExprKind::EXPR_CALL);
-         EXPECT_EQ(newCall->getName(), "Test");
+		auto *assign_src = As<ASTIdentifier>(assign->getLeftExpr());
+		ASSERT_TRUE(assign_src != nullptr);
+		EXPECT_EQ(assign_src->getName(), "t");
+		auto *newCall = As<ASTCall>(assign->getRightExpr());
+		ASSERT_TRUE(newCall != nullptr);
+		EXPECT_EQ(newCall->getExprKind(), ASTExprKind::EXPR_CALL);
+		EXPECT_EQ(newCall->getName(), "Test");
+
+    	//  t.a()
+		{
+			auto *callStmt = As<ASTExprStmt>(Body->getContent()[1]);
+			ASSERT_TRUE(callStmt != nullptr);
+			EXPECT_EQ(callStmt->getStmtKind(), ASTStmtKind::STMT_EXPR);
+			auto *call = As<ASTCall>(callStmt->getExpr());
+			ASSERT_TRUE(call != nullptr);
+			EXPECT_EQ(call->getName(), "a");
+			EXPECT_EQ(call->getExprKind(), ASTExprKind::EXPR_CALL);
+			auto *parent = As<ASTIdentifier>(call->getParent());
+			ASSERT_TRUE(parent != nullptr);
+			EXPECT_EQ(parent->getName(), "t");
+			EXPECT_EQ(parent->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
+		}
+
+    	//  t.a = 0
+		{
+			auto *assignStmt = As<ASTExprStmt>(Body->getContent()[2]);
+			ASSERT_TRUE(assignStmt != nullptr);
+			EXPECT_EQ(assignStmt->getStmtKind(), ASTStmtKind::STMT_EXPR);
+			auto *binary = As<ASTBinary>(assignStmt->getExpr());
+			ASSERT_TRUE(binary != nullptr);
+			EXPECT_EQ(binary->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+
+			// Left side: t.a (member expression)
+			auto *member = As<ASTMember>(binary->getLeftExpr());
+			ASSERT_TRUE(member != nullptr);
+			EXPECT_EQ(member->getName(), "a");
+			EXPECT_EQ(member->getExprKind(), ASTExprKind::EXPR_MEMBER);
+			auto *memberParent = As<ASTIdentifier>(member->getParent());
+			ASSERT_TRUE(memberParent != nullptr);
+			EXPECT_EQ(memberParent->getName(), "t");
+			EXPECT_EQ(memberParent->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
+
+			// Right side: 0
+			auto *value = As<ASTNumberValue>(binary->getRightExpr());
+			ASSERT_TRUE(value != nullptr);
+			EXPECT_EQ(value->getValue(), "0");
+		}
+
+    	// Test.c = 1
+		{
+			auto *assignStmt = As<ASTExprStmt>(Body->getContent()[3]);
+			ASSERT_TRUE(assignStmt != nullptr);
+			EXPECT_EQ(assignStmt->getStmtKind(), ASTStmtKind::STMT_EXPR);
+			auto *binary = As<ASTBinary>(assignStmt->getExpr());
+			ASSERT_TRUE(binary != nullptr);
+			EXPECT_EQ(binary->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+
+			// Left side: Test.c (member expression)
+			auto *member = As<ASTMember>(binary->getLeftExpr());
+			ASSERT_TRUE(member != nullptr);
+			EXPECT_EQ(member->getName(), "c");
+			EXPECT_EQ(member->getExprKind(), ASTExprKind::EXPR_MEMBER);
+			auto *memberParent = As<ASTIdentifier>(member->getParent());
+			ASSERT_TRUE(memberParent != nullptr);
+			EXPECT_EQ(memberParent->getName(), "Test");
+			EXPECT_EQ(memberParent->getExprKind(), ASTExprKind::EXPR_IDENTIFIER);
+
+			// Right side: 1
+			auto *value = As<ASTNumberValue>(binary->getRightExpr());
+			ASSERT_TRUE(value != nullptr);
+			EXPECT_EQ(value->getValue(), "1");
+		}
+
     }
 
     TEST_F(ParserTest, ClassExtendClass) {

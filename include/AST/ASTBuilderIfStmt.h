@@ -25,7 +25,7 @@ namespace fly {
 
         ASTBlockStmt *Parent; // FIXME remove, extends Stmt?
 
-        ASTIfStmt *IfStmt;
+        ASTIfStmt *IfStmt = nullptr;
 
         explicit ASTBuilderIfStmt(ASTBlockStmt *Parent);
 

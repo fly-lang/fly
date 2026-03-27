@@ -24,7 +24,7 @@ namespace fly {
 
     	friend class ASTLoopStmt;
 
-        ASTLoopStmt *LoopStmt;
+        ASTLoopStmt *LoopStmt = nullptr;
 
         explicit ASTBuilderLoopStmt();
 

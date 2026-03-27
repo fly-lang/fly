@@ -25,7 +25,7 @@ namespace fly {
         friend class Resolver;
         friend class SemaValidator;
 
-    	SemaType *Type;
+    	SemaType *Type = nullptr;
 
     public:
 

@@ -223,23 +223,23 @@ llvm::Value *CodeGenVar::getValue() {
 }
 
 llvm::Value *CodeGenVar::getPointer() {
-	if (Sema->getKind() == SemaKind::MEMBER) { // FIXME
-		assert(this->Pointer && "Pointer must be set for MemberVar");
-
-		// If Pointer is not set, create it
-		llvm::PointerType *PtrType = llvm::cast<llvm::PointerType>(this->Pointer->getType());
-		llvm::ArrayRef<llvm::Value *> IdxList = {CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Index)};
-		this->Pointer = CGM->Builder->CreateInBoundsGEP(PtrType->getElementType(), this->Pointer, IdxList);
-	} else if (Sema->getKind() == SemaKind::ATTRIBUTE) {
-		assert(this->Pointer && "Pointer must be set for ClassAttribute");
-		SemaClassAttribute * Attribute = static_cast<SemaClassAttribute *>(Sema);
-
-		if (!Attribute->isStatic()) {
-			CodeGenVar *CGV = static_cast<SemaClassInstance *>(Attribute->getParent())->getCodeGen();
-			llvm::ArrayRef<llvm::Value *> IdxList = {CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Attribute->getCodeGen()->getIndex())};
-			this->Pointer = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(), IdxList);
-		}
-	}
+	// if (Sema->getKind() == SemaKind::MEMBER) { // FIXME
+	// 	assert(this->Pointer && "Pointer must be set for MemberVar");
+	//
+	// 	// If Pointer is not set, create it
+	// 	llvm::PointerType *PtrType = llvm::cast<llvm::PointerType>(this->Pointer->getType());
+	// 	llvm::ArrayRef<llvm::Value *> IdxList = {CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Index)};
+	// 	this->Pointer = CGM->Builder->CreateInBoundsGEP(PtrType->getElementType(), this->Pointer, IdxList);
+	// } else if (Sema->getKind() == SemaKind::ATTRIBUTE) {
+	// 	assert(this->Pointer && "Pointer must be set for ClassAttribute");
+	// 	SemaClassAttribute * Attribute = static_cast<SemaClassAttribute *>(Sema);
+	//
+	// 	if (!Attribute->isStatic()) {
+	// 		CodeGenVar *CGV = static_cast<SemaClassInstance *>(Attribute->getParent())->getCodeGen();
+	// 		llvm::ArrayRef<llvm::Value *> IdxList = {CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Attribute->getCodeGen()->getIndex())};
+	// 		this->Pointer = CGM->Builder->CreateInBoundsGEP(CGV->getType(), CGV->getValue(), IdxList);
+	// 	}
+	// }
 	// else if (Sema->getVarKind() == SemaVarKind::CLASS_INSTANCE) {
 	// 	// Check ClassType for setting Index
 	// 	SemaClassInstance * This = static_cast<SemaClassInstance *>(Sema);

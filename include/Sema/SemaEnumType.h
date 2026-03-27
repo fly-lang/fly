@@ -33,7 +33,7 @@ namespace fly {
 
         ASTEnum &AST;
 
-        SemaModule *Module;
+        SemaModule *Module = nullptr;
 
         // Symbol Table
         SymbolTable *Symbols;

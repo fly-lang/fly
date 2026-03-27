@@ -300,7 +300,7 @@ bool SemaValidator::CheckLogicalTypes(SemaType *Type1, SemaType *Type2) {
 bool SemaValidator::CheckBinary(ASTBinary &AST) {
 	// Check if Left and Right Expr have Sema
 	ASTExpr * LeftExpr = AST.getLeftExpr();
-	ASTExpr * RightExpr = AST.getLeftExpr();
+	ASTExpr * RightExpr = AST.getRightExpr();
 	if (!LeftExpr->getSema() || !RightExpr->getSema()) {
 		return false;
 	}
@@ -414,6 +414,13 @@ bool SemaValidator::CheckBinary(ASTBinary &AST) {
 		}
 
 		if (LeftType->isClass()) {
+			if (!RightType->isClass()) {
+				// Class type not compatible, cannot be converted
+				Diag(AST.getLocation(), diag::err_sema_types_operation)
+				  << LeftType->getName()
+				  << RightType->getName();
+				return false;
+			}
 			return CheckInheritance(static_cast<SemaClassType *>(RightType), static_cast<SemaClassType *>(LeftType));
 		}
 
