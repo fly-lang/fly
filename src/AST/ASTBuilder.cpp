@@ -52,7 +52,7 @@
 using namespace fly;
 
 /**
- * Private constructor used only from Sema constructor
+ * Private constructor used only from AST constructor
  * @param S
  */
 ASTBuilder::ASTBuilder(DiagnosticsEngine &Diags) : Diags(Diags) {

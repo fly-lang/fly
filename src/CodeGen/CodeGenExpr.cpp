@@ -14,6 +14,7 @@
 #include "AST/ASTExpr.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTTernary.h"
+#include "AST/ASTType.h"
 #include "AST/ASTUnary.h"
 #include "Basic/Debug.h"
 #include "CodeGen/CodeGen.h"
@@ -24,6 +25,7 @@
 #include "Sema/SemaClassType.h"
 #include "Sema/SemaEnumEntry.h"
 #include "Sema/SemaTernary.h"
+#include "Sema/SemaUnary.h"
 
 #include "llvm/ADT/SmallVector.h"
 
@@ -35,7 +37,9 @@
 #include <Sema/SemaClassMethod.h>
 #include <Sema/SemaError.h>
 #include <Sema/SemaFunctionBase.h>
+#include <Sema/SemaCall.h>
 #include <Sema/SemaMember.h>
+#include <Sema/SemaParam.h>
 #include <Sema/SemaType.h>
 #include <Sema/SemaValue.h>
 #include <Sema/SemaVar.h>
@@ -159,8 +163,15 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
         SemaClassMethod *Method = static_cast<SemaClassMethod *>(Sema->getFunction());
 
     	// Add Error parameter if the class is a not a Struct
-        if (Method->getClass()->getClassKind() != SemaClassKind::STRUCT)
-            Args.push_back(Sema->getErrorHandler()->getCodeGen()->getValue()); // Error is a Pointer
+        if (Method->getClass()->getClassKind() != SemaClassKind::STRUCT) {
+            // Use the call's dedicated error handler if present, otherwise fall back to the
+            // current function's error handler (set by CodeGenFunction::GenBody)
+            CodeGenError *EH = (Sema->getErrorHandler() && Sema->getErrorHandler()->getCodeGen())
+                                    ? Sema->getErrorHandler()->getCodeGen()
+                                    : CGM->CurrentErrorHandler;
+            if (EH)
+                Args.push_back(EH->getValue()); // Error is a Pointer
+        }
 
     	// Get Class CodeGen
     	CodeGenClass * CGClass = Method->getClass()->getCodeGen();
@@ -285,7 +296,9 @@ void CodeGenExpr::GenExpr(SemaMember *Sema) {
 		CodeGenVar *CGV = new CodeGenVar(CGM, Attr, Ty, Index);
 		CGV->setPointer(FieldPtr);
 		Sema->setCodeGen(CGV);
-		V = CGV->getValue();
+		// Do NOT load the value here – let callers decide (getValue vs Store).
+		// For rvalue usage, getValue() will generate the load on demand.
+		V = FieldPtr; // expose the raw pointer as V for internal use
 	} else if (Ref->getKind() == SemaKind::ENUM_ENTRY) {
 		Ref->accept(*CGM);
 		V = Ref->getCodeGen()->getValue();
@@ -295,9 +308,8 @@ void CodeGenExpr::GenExpr(SemaMember *Sema) {
 }
 
 void CodeGenExpr::GenExpr(SemaCast *Sema) {
-	ASTCast &AST = Sema->getAST();
-	SemaType *ToType = AST.getToType()->getSema();
-	switch (AST.getType()->getKind()) {
+	SemaType *ToType = Sema->getToType();
+	switch (Sema->getType()->getKind()) {
 
 		case SemaKind::TYPE_VOID:
 		case SemaKind::TYPE_ERROR:
@@ -329,10 +341,10 @@ void CodeGenExpr::GenExpr(SemaUnary *Sema) {
     FLY_DEBUG_START("CodeGenExpr", "GenUnary");
 	ASTUnary &Unary = Sema->getAST();
     assert(Unary.getExprKind() == ASTExprKind::EXPR_UNARY && "Expected Unary Group Expr");
-    assert(Unary.getExpr() && "Unary Expr empty");
+    assert(Sema->getExpr() && "Unary Expr empty");
 
-	Unary.getExpr()->getSema()->accept(*CGM);
-    llvm::Value *OldVal = Unary.getExpr()->getSema()->getCodeGen()->getValue();
+	Sema->getExpr()->accept(*CGM);
+    llvm::Value *OldVal = Sema->getExpr()->getCodeGen()->getValue();
 	llvm::Value *NewVal = nullptr;
 
     switch (Unary.getOpKind()) {
@@ -364,10 +376,11 @@ void CodeGenExpr::GenExpr(SemaUnary *Sema) {
         } break;
     }
 
-	// Set Var with NewVal
-	if (Unary.getExpr()->getExprKind() == ASTExprKind::EXPR_IDENTIFIER) {
-		ASTIdentifier *Identifier = static_cast<ASTIdentifier *>(Unary.getExpr());
-		Identifier->getSema()->getCodeGen()->Store(NewVal);
+	// Set Var with NewVal — use Sema Expr to find the SemaVar
+	if (Sema->getExpr()->getKind() == SemaKind::LOCAL_VAR ||
+		Sema->getExpr()->getKind() == SemaKind::PARAM_VAR ||
+		Sema->getExpr()->getKind() == SemaKind::ATTRIBUTE) {
+		static_cast<SemaVar *>(Sema->getExpr())->getCodeGen()->Store(NewVal);
 	}
 }
 
@@ -375,11 +388,9 @@ void CodeGenExpr::GenExpr(SemaBinary *Sema) {
 	FLY_DEBUG_START("CodeGenExpr", "GenBinary");
 	ASTBinary &Binary = Sema->getAST();
 	assert(Binary.getExprKind() == ASTExprKind::EXPR_BINARY && "Expected Binary Group Expr");
-	assert(Binary.getLeftExpr() && "First Expr is empty");
-	assert(Binary.getRightExpr() && "Second Expr is empty");
 
-	SemaExpr *Left = Binary.getLeftExpr()->getSema();
-	SemaExpr *Right = Binary.getRightExpr()->getSema();
+	SemaExpr *Left = Sema->getLeft();
+	SemaExpr *Right = Sema->getRight();
 	ASTBinaryKind OpKind = Binary.getBinaryKind();
 
 	// Generate Left and Right CodeGen Expressions
@@ -403,13 +414,10 @@ void CodeGenExpr::GenExpr(SemaBinary *Sema) {
 
 void CodeGenExpr::GenExpr(SemaTernary *Sema) {
 	ASTTernary &Ternary = Sema->getAST();
-	assert(Ternary.getConditionExpr() && "First Expr is empty");
-	assert(Ternary.getTrueExpr() && "Second Expr is empty");
-	assert(Ternary.getFalseExpr() && "Third Expr is empty");
 
 	llvm::BasicBlock *FromBB = Builder->GetInsertBlock();
-	Ternary.getConditionExpr()->getSema()->accept(*CGM);
-	llvm::Value *Cond = Ternary.getConditionExpr()->getSema()->getCodeGen()->getValue();
+	Sema->getCond()->accept(*CGM);
+	llvm::Value *Cond = Sema->getCond()->getCodeGen()->getValue();
 
 	// Create Blocks
 	llvm::BasicBlock *TrueBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "terntrue", FromBB->getParent());
@@ -421,15 +429,15 @@ void CodeGenExpr::GenExpr(SemaTernary *Sema) {
 
 	// True Label
 	Builder->SetInsertPoint(TrueBB);
-	Ternary.getTrueExpr()->getSema()->accept(*CGM);
-	llvm::Value *True = Ternary.getTrueExpr()->getSema()->getCodeGen()->getValue();
+	Sema->getTrueExpr()->accept(*CGM);
+	llvm::Value *True = Sema->getTrueExpr()->getCodeGen()->getValue();
 	llvm::Value *BoolTrue = ConvertToBool(True);
 	Builder->CreateBr(EndBB);
 
 	// False Label
 	Builder->SetInsertPoint(FalseBB);
-	Ternary.getFalseExpr()->getSema()->accept(*CGM);
-	llvm::Value *False = Ternary.getFalseExpr()->getSema()->getCodeGen()->getValue();
+	Sema->getFalseExpr()->accept(*CGM);
+	llvm::Value *False = Sema->getFalseExpr()->getCodeGen()->getValue();
 	llvm::Value *BoolFalse = ConvertToBool(False);
 	Builder->CreateBr(EndBB);
 
@@ -659,10 +667,47 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
 }
 
 void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &Args) {
-	// Add Call arguments to Function args
-	for (ASTArg *Arg : Sema->getAST().getArgs()) {
-		Arg->getExpr()->getSema()->accept(*CGM);
-		llvm::Value *V = Arg->getExpr()->getSema()->getCodeGen()->getValue();
+	// Add Call arguments using resolved Sema expressions
+	auto &Params = Sema->getFunction()->getParams();
+	auto &ArgExprs = Sema->getArgs();
+
+	for (size_t i = 0; i < ArgExprs.size(); i++) {
+		SemaExpr *ArgExpr = ArgExprs[i];
+		ArgExpr->accept(*CGM);
+		llvm::Value *V = ArgExpr->getCodeGen()->getValue();
+
+		// If value is not a pointer but the function expects a pointer (by-reference params),
+		// create a temp alloca, convert the value to match the param type, store, and pass pointer
+		if (!V->getType()->isPointerTy() && i < Params.size()) {
+			SemaParam *Param = Params[i];
+			Param->getType()->accept(*CGM);
+			llvm::Type *ExpectedType = Param->getType()->getCodeGen()->getType();
+
+			// Convert value to expected type if needed
+			if (V->getType() != ExpectedType) {
+				if (V->getType()->isIntegerTy() && ExpectedType->isIntegerTy()) {
+					unsigned SrcBits = V->getType()->getIntegerBitWidth();
+					unsigned DstBits = ExpectedType->getIntegerBitWidth();
+					if (SrcBits < DstBits) {
+						// Check if source type is signed for proper extension
+						SemaType *ArgType = ArgExpr->getType();
+						bool isSigned = ArgType->isNumber() &&
+							static_cast<SemaIntType *>(ArgType)->isSigned();
+						V = isSigned ? Builder->CreateSExt(V, ExpectedType)
+						             : Builder->CreateZExt(V, ExpectedType);
+					} else if (SrcBits > DstBits) {
+						V = Builder->CreateTrunc(V, ExpectedType);
+					}
+				} else if (V->getType()->isFloatingPointTy() && ExpectedType->isFloatingPointTy()) {
+					V = Builder->CreateFPCast(V, ExpectedType);
+				}
+			}
+
+			llvm::AllocaInst *TmpAlloca = Builder->CreateAlloca(ExpectedType);
+			Builder->CreateStore(V, TmpAlloca);
+			V = TmpAlloca;
+		}
+
 		Args.push_back(V);
 	}
 }

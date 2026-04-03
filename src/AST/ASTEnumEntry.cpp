@@ -10,6 +10,7 @@
 #include "AST/ASTEnum.h"
 #include "AST/ASTEnumEntry.h"
 #include "AST/ASTVisitor.h"
+#include "Sema/Symbol.h"
 #include "Basic/Logger.h"
 
 using namespace fly;
@@ -38,12 +39,12 @@ void ASTEnumEntry::setIndex(uint32_t Idx) {
     Index = Idx;
 }
 
-SemaEnumEntry *ASTEnumEntry::getSema() const {
-    return Sema;
+Symbol *ASTEnumEntry::getSymbol() const {
+    return Sym;
 }
 
-void ASTEnumEntry::setSema(SemaEnumEntry *S) {
-    this->Sema = S;
+void ASTEnumEntry::setSymbol(Symbol *S) {
+    Sym = S;
 }
 
 std::string ASTEnumEntry::str() const {

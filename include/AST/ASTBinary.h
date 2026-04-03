@@ -11,7 +11,6 @@
 #define FLY_AST_BINARY_H
 
 #include "ASTExpr.h"
-#include "Sema/SemaBinary.h"
 
 namespace fly {
 
@@ -92,10 +91,6 @@ namespace fly {
         ASTExpr *getLeftExpr() const;
 
         ASTExpr *getRightExpr() const;
-
-        SemaBinary *getSema() const override;
-
-    	void setSema(SemaBinary *Sema);
 
         std::string str() const override;
     };

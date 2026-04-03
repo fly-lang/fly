@@ -10,14 +10,13 @@
 #ifndef FLY_AST_ENUMENTRY_H
 #define FLY_AST_ENUMENTRY_H
 
-#include "ASTValue.h"
-
-#include <Sema/SemaEnumEntry.h>
+#include "ASTExpr.h"
 
 namespace fly {
 
     class SourceLocation;
     class ASTEnum;
+    class Symbol;
 
     /**
      * Represents a constant enum entry (e.g., Color.RED)
@@ -32,7 +31,7 @@ namespace fly {
 
         uint32_t Index = 0;
 
-        SemaEnumEntry *Sema = nullptr;
+        Symbol *Sym = nullptr;
 
     protected:
 
@@ -50,9 +49,9 @@ namespace fly {
 
         void setIndex(uint32_t Index);
 
-        SemaEnumEntry *getSema() const override;
+        Symbol *getSymbol() const;
 
-        void setSema(SemaEnumEntry *Sema);
+        void setSymbol(Symbol *Sym);
 
         std::string str() const override;
     };

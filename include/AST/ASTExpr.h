@@ -1,23 +1,14 @@
-    //===--------------------------------------------------------------------------------------------------------------===//
+//===--------------------------------------------------------------------------------------------------------------===//
 // include/AST/ASTExpr.h - AST Expression header
-//
-// Part of the Fly Project https://flylang.org
-// Under the Apache License v2.0 see LICENSE for details.
-// Thank you to LLVM Project https://llvm.org/
-//
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_AST_EXPR_H
 #define FLY_AST_EXPR_H
 
-#include <Sema/SemaType.h>
-
 #include "ASTNode.h"
-#include "ASTType.h"
 
-    namespace fly {
+namespace fly {
 
-    class SemaExpr;
 
     enum class ASTExprKind : char {
         EXPR_VALUE,
@@ -31,7 +22,9 @@
     };
 
     /**
-     * Expression Abstract Class
+     * Expression Abstract Class.
+     * Name-resolved nodes (ASTIdentifier, ASTCall, ASTMember) store a Symbol*.
+     * The resolved Sema expression is maintained in the Sema tree, not on the AST.
      */
     class ASTExpr : public ASTNode {
 
@@ -41,11 +34,9 @@
 
         const ASTExprKind ExprKind;
 
-        ASTExpr *Parent;
+        ASTExpr *Parent = nullptr;
 
-        ASTExpr *Child;
-
-        SemaExpr *Sema;
+        ASTExpr *Child  = nullptr;
 
         ASTExpr(const SourceLocation &Loc, ASTExprKind Kind, ASTExpr *Parent = nullptr, ASTExpr *Child = nullptr);
 
@@ -61,9 +52,6 @@
 
         void setChild(ASTExpr *Child);
 
-        virtual SemaExpr *getSema() const = 0;
-
-        SemaType *getType() const;
 
         std::string str() const override;
     };

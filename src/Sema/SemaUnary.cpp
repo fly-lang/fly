@@ -13,12 +13,16 @@
 
 using namespace fly;
 
-SemaUnary::SemaUnary(ASTUnary &AST) :
-	SemaExpr(SemaKind::UNARY, AST.getExpr()->getSema()->getType()), AST(AST) {
+SemaUnary::SemaUnary(ASTUnary &AST, SemaExpr *Expr) :
+	SemaExpr(SemaKind::UNARY, Expr->getType()), AST(AST), Expr(Expr) {
 }
 
 ASTUnary &SemaUnary::getAST() const {
 	return AST;
+}
+
+SemaExpr *SemaUnary::getExpr() const {
+	return Expr;
 }
 
 CodeGenExpr * SemaUnary::getCodeGen() const {

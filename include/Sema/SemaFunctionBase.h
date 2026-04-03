@@ -25,6 +25,7 @@ namespace fly {
     class SemaError;
     class SemaParam;
     class SemaLocalVar;
+    class SemaBlockStmt;
     class CodeGenFunctionBase;
 
     class SemaFunctionBase : public SemaNode {
@@ -44,6 +45,8 @@ namespace fly {
     	SemaError *ErrorHandler;
 
     	bool Fallible;
+
+        SemaBlockStmt *Body = nullptr;
 
     protected:
 
@@ -74,6 +77,10 @@ namespace fly {
     	bool isFallible() const;
 
     	void setFallible(bool Fallible);
+
+        SemaBlockStmt *getBody() const;
+
+        void setBody(SemaBlockStmt *Body);
 
         virtual CodeGenFunctionBase *getCodeGen() const = 0;
 

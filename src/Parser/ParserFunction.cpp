@@ -68,7 +68,7 @@ llvm::SmallVector<ASTParam *, 8> ParserFunction::ParseParams(Parser *P) {
             break; // End of parameter list
         } else {
             // Handle error: Unexpected token
-            P->Diag(P->Tok.getLocation(), diag::err_parse_expected_comma_or_rparen);
+            P->Diag(P->Tok.getLocation(), diag::err_parser_expected_comma_or_rparen);
         }
     }
 

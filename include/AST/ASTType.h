@@ -14,7 +14,7 @@
 
 namespace fly {
 
-    class SemaType;
+    class Symbol;
     class ASTName;
     class ASTExpr;
 
@@ -49,7 +49,7 @@ namespace fly {
 
         ASTTypeKind TypeKind;
 
-        SemaType *Sema = nullptr;
+        Symbol *Sym = nullptr;
 
     protected:
 
@@ -59,9 +59,9 @@ namespace fly {
 
         ASTTypeKind getTypeKind() const;
 
-        SemaType *getSema() const;
+        Symbol *getSymbol() const;
 
-        void setSema(SemaType *Sema);
+        void setSymbol(Symbol *Sym);
     };
 
     class ASTBuiltinType : public ASTType {

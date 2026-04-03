@@ -17,10 +17,10 @@
 
 using namespace fly;
 
-SemaType *SemaBinary::SelectType(ASTBinary &AST) {
+SemaType *SemaBinary::SelectType(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right) {
 	// Select the resulting type based on the operand types
-	SemaType *Type1 = AST.getLeftExpr()->getSema()->getType();
-	SemaType *Type2 = AST.getRightExpr()->getSema()->getType();
+	SemaType *Type1 = Left->getType();
+	SemaType *Type2 = Right->getType();
 
 	// Return Boolean type for logical and comparison operations
 	if (AST.isCompare() || AST.isLogic()) {
@@ -39,13 +39,21 @@ SemaType *SemaBinary::SelectType(ASTBinary &AST) {
 	return Type1;
 }
 
-SemaBinary::SemaBinary(ASTBinary &AST) :
-	SemaExpr(SemaKind::BINARY, SelectType(AST)),
-	AST(AST) {
+SemaBinary::SemaBinary(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right) :
+	SemaExpr(SemaKind::BINARY, SelectType(AST, Left, Right)),
+	AST(AST), Left(Left), Right(Right) {
 }
 
 ASTBinary &SemaBinary::getAST() const {
 	return AST;
+}
+
+SemaExpr *SemaBinary::getLeft() const {
+	return Left;
+}
+
+SemaExpr *SemaBinary::getRight() const {
+	return Right;
 }
 
 CodeGenExpr * SemaBinary::getCodeGen() const {
@@ -59,4 +67,3 @@ void SemaBinary::setCodeGen(CodeGenExpr *CodeGen) {
 void SemaBinary::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
-

@@ -41,6 +41,8 @@ namespace fly {
 	class ASTBinary;
 	class DiagnosticsEngine;
 	class DiagnosticBuilder;
+	class SemaType;
+	class SemaExpr;
     enum class SemaTypeKind;
 
     class SemaValidator {
@@ -71,7 +73,7 @@ namespace fly {
 
         static bool CheckCommentFail(SemaComment *Comment);
 
-        static bool CheckExpr(ASTExpr *Expr);
+        static bool CheckExpr(SemaExpr *Expr);
 
         static bool CheckEqualTypes(SemaType *Type1, SemaType *Type2);
 
@@ -85,7 +87,7 @@ namespace fly {
 
         bool CheckLogicalTypes(SemaType *Type1, SemaType *Type2);
 
-    	bool CheckBinary(ASTBinary &AST);
+    	bool CheckBinary(ASTBinary &AST, SemaExpr *LeftSema, SemaExpr *RightSema);
 
     	bool CheckSema(ASTExpr *Expr);
 

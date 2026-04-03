@@ -39,3 +39,11 @@ SymbolKind Symbol::getKind() const {
 SemaNode * Symbol::getRef() const {
 	return Ref;
 }
+
+bool Symbol::isVarKind() const {
+	return Kind == SymbolKind::VAR ||
+	       Kind == SymbolKind::LOCAL_VAR ||
+	       Kind == SymbolKind::PARAM ||
+	       Kind == SymbolKind::ATTRIBUTE;
+}
+

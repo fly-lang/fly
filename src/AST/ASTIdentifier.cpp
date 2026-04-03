@@ -8,54 +8,33 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTIdentifier.h"
+#include "Sema/Symbol.h"
 #include "Basic/Logger.h"
-
 #include <AST/ASTVisitor.h>
 
 using namespace fly;
 
 ASTIdentifier::ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name) :
-		ASTExpr(Loc, ASTExprKind::EXPR_IDENTIFIER), Name(Name), Var(nullptr) {
+		ASTExpr(Loc, ASTExprKind::EXPR_IDENTIFIER), Name(Name) {
 }
 
-void ASTIdentifier::accept(ASTVisitor &Visitor) {
-	Visitor.visit(*this);
-}
+void ASTIdentifier::accept(ASTVisitor &Visitor) { Visitor.visit(*this); }
 
-ASTIdentifier::~ASTIdentifier() {
+ASTIdentifier::~ASTIdentifier() {}
 
-}
+llvm::StringRef ASTIdentifier::getName() const { return Name; }
 
-llvm::StringRef ASTIdentifier::getName() const {
-    return Name;
-}
+ASTVar *ASTIdentifier::getVar() { return Var; }
 
-ASTVar * ASTIdentifier::getVar() {
-    return Var;
-}
+Symbol *ASTIdentifier::getSymbol() const { return ResolvedSymbol; }
 
-void ASTIdentifier::setSema(SemaVar *Sema) {
-	this->Sema = Sema;
-}
-
-SemaVar *ASTIdentifier::getSema() const {
-	return static_cast<SemaVar *>(Sema);
-}
-
-Symbol *ASTIdentifier::getSymbol() const {
-	return ResolvedSymbol;
-}
-
-void ASTIdentifier::setSymbol(Symbol *Sym) {
-	ResolvedSymbol = Sym;
-}
+void ASTIdentifier::setSymbol(Symbol *Sym) { ResolvedSymbol = Sym; }
 
 std::string ASTIdentifier::str() const {
     return Logger("ASTIdentifier").
 	Attr("Location", getLocation()).
-Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("Name", Name).
-            Attr("Child", Child).
-            End();
+	Attr("Kind", static_cast<size_t>(getKind())).
+        Attr("Name", Name).
+        Attr("Child", Child).
+        End();
 }
-

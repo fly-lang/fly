@@ -33,13 +33,25 @@ SemaType *SemaTernary::SelectType(SemaExpr *LeftExpr, SemaExpr *RightExpr) {
 	return Type1;
 }
 
-SemaTernary::SemaTernary(ASTTernary &AST) :
-	SemaExpr(SemaKind::TERNARY, SelectType(AST.getTrueExpr()->getSema(), AST.getFalseExpr()->getSema())),
-	AST(AST) {
+SemaTernary::SemaTernary(ASTTernary &AST, SemaExpr *Cond, SemaExpr *TrueExpr, SemaExpr *FalseExpr) :
+	SemaExpr(SemaKind::TERNARY, SelectType(TrueExpr, FalseExpr)),
+	AST(AST), Cond(Cond), TrueExpr(TrueExpr), FalseExpr(FalseExpr) {
 }
 
 ASTTernary &SemaTernary::getAST() const {
 	return AST;
+}
+
+SemaExpr *SemaTernary::getCond() const {
+	return Cond;
+}
+
+SemaExpr *SemaTernary::getTrueExpr() const {
+	return TrueExpr;
+}
+
+SemaExpr *SemaTernary::getFalseExpr() const {
+	return FalseExpr;
 }
 
 CodeGenExpr * SemaTernary::getCodeGen() const {

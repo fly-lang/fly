@@ -13,6 +13,7 @@
 #include "AST/ASTFunction.h"
 #include "Basic/Debug.h"
 #include "CodeGen/CodeGen.h"
+#include "Sema/SemaBlockStmt.h"
 #include "CodeGen/CodeGenClass.h"
 #include "CodeGen/CodeGenClassMethod.h"
 #include "CodeGen/CodeGenModule.h"
@@ -69,10 +70,11 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
         }
     }
 
-    // Set LLVM Function Name %MODULE_CLASS_METHOD (if MODULE == default is empty)
+    // Set LLVM Function Name %CLASSNAME_MANGLEDNAME
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
-	std::string Name = Mangle(Sema);
+	// Build name as ClassName + MangleName so that e.g. TestClass constructor becomes TestClass_F9TestClass
+	std::string Name = std::string(Class->getAST().getName()) + Mangle(Sema);
 	if (Class->getClassKind() != SemaClassKind::INTERFACE) {
 		Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
 	}
@@ -192,7 +194,9 @@ void CodeGenClassMethod::GenBody() {
     	}
     }
 
-	CGM->GenBlockStmt(Sema->getAST().getBody());
+	if (Sema->getBody()) {
+		Sema->getBody()->accept(*CGM);
+	}
 
 	// Add return Void
 	CheckReturnVoid();

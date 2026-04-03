@@ -53,7 +53,22 @@ namespace fly {
 		// Values
 		ENUM_ENTRY,
 		ENUM_LIST,
-		VALUE
+		VALUE,
+
+		// Statements
+		STMT_BLOCK,
+		STMT_DECL,
+		STMT_EXPR,
+		STMT_RETURN,
+		STMT_IF,
+		STMT_SWITCH,
+		STMT_LOOP,
+		STMT_LOOP_IN,
+		STMT_DELETE,
+		STMT_BREAK,
+		STMT_CONTINUE,
+		STMT_FAIL,
+		STMT_HANDLE
 	};
 
 	class SemaNode {

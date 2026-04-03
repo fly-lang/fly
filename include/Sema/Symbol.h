@@ -20,6 +20,11 @@ namespace fly {
 		NAMESPACE,
 		BUILTIN_TYPE,
 		VAR,
+		LOCAL_VAR,
+		PARAM,
+		ATTRIBUTE,
+		ENUM_ENTRY,
+		TYPE,
 		VALUE,
 		FUNCTION,
 		CLASS,
@@ -32,7 +37,7 @@ namespace fly {
 
 		SymbolKind Kind;
 
-		SemaNode *Ref;  // riferimento all’oggetto semantico (Sema*)
+		SemaNode *Ref;  // riferimento all'oggetto semantico (Sema*)
 
 		Symbol(std::string Name, SymbolKind Kind, SemaNode* Ref);
 
@@ -43,6 +48,16 @@ namespace fly {
 		SymbolKind getKind() const;
 
 		SemaNode * getRef() const;
+
+		/// Returns true if this Symbol represents any variable kind
+		/// (VAR, LOCAL_VAR, PARAM, ATTRIBUTE)
+		bool isVarKind() const;
+
+		/// Typed access to the Sema reference
+		template<typename T>
+		T *getRefAs() const {
+			return static_cast<T *>(Ref);
+		}
 	};
 }
 

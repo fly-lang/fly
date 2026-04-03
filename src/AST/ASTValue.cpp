@@ -19,19 +19,9 @@ ASTValue::ASTValue(const ASTValueKind ValueKind, const SourceLocation &Location)
 
 }
 
-const ASTValueKind &ASTValue::getValueKind() const {
-    return ValueKind;
-}
+const ASTValueKind &ASTValue::getValueKind() const { return ValueKind; }
 
-SemaValue *ASTValue::getSema() const {
-	return static_cast<SemaValue *>(Sema);
-}
-
-void ASTValue::setSema(SemaValue *Sema) {
-	this->Sema = Sema;
-}
-
-// Predicate helpers moved from header
+// Predicate helpers
 bool ASTValue::isBool() const { return ValueKind == ASTValueKind::VAL_BOOL; }
 bool ASTValue::isNumber() const { return ValueKind == ASTValueKind::VAL_NUMBER; }
 bool ASTValue::isString() const { return ValueKind == ASTValueKind::VAL_STRING; }

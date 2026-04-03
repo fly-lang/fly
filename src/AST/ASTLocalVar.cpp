@@ -9,7 +9,7 @@
 
 #include "AST/ASTLocalVar.h"
 #include "AST/ASTModifier.h"
-
+#include "Sema/Symbol.h"
 #include <AST/ASTVisitor.h>
 
 using namespace fly;
@@ -19,14 +19,8 @@ ASTLocalVar::ASTLocalVar(
 	ASTVar(Loc, Type, Name, Modifiers) {
 }
 
-void ASTLocalVar::accept(ASTVisitor &Visitor) {
-	Visitor.visit(*this);
-}
+void ASTLocalVar::accept(ASTVisitor &Visitor) { Visitor.visit(*this); }
 
-SemaLocalVar * ASTLocalVar::getSema() const {
-	return Sema;
-}
+Symbol *ASTLocalVar::getSymbol() const { return ASTVar::getSymbol(); }
 
-void ASTLocalVar::setSema(SemaLocalVar *Sema) {
-	this->Sema = Sema;
-}
+void ASTLocalVar::setSymbol(Symbol *Sym) { ASTVar::setSymbol(Sym); }

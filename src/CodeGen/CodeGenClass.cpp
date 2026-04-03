@@ -110,10 +110,14 @@ void CodeGenClass::CreateVTable() {
 			// 	CGM->Module->getDataLayout().getAllocaAddrSpace());
 			// VTableMethodTypes.push_back(InitCtorPtrType);
 
-			// Add Constructors
-			for (auto &Node : Sema->getNodes()) {
-				SemaClassMethod *Method = static_cast<SemaClassMethod *>(Node);
-				CodeGenClassMethod *CG;
+		// Add Constructors
+		for (auto &Node : Sema->getNodes()) {
+			// Skip non-method nodes (e.g., SemaClassAttribute)
+			if (Node->getKind() != SemaKind::METHOD) {
+				continue;
+			}
+			SemaClassMethod *Method = static_cast<SemaClassMethod *>(Node);
+			CodeGenClassMethod *CG;
 
 				// CodeGen not yet generated
 				if (Method->getCodeGen() == nullptr) {

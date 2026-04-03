@@ -10,8 +10,6 @@
 #ifndef FLY_AST_PARAM_H
 #define FLY_AST_PARAM_H
 
-#include <Sema/SemaParam.h>
-
 #include "ASTVar.h"
 
 namespace fly {
@@ -19,12 +17,11 @@ namespace fly {
     class SourceLocation;
     class ASTModifier;
     class ASTType;
+    class Symbol;
 
     class ASTParam : public ASTVar {
 
         friend class ASTBuilder;
-
-        SemaParam* Sema;
 
     protected:
         ASTParam(const SourceLocation& Loc, ASTType* Type, llvm::StringRef Name, SmallVector<ASTModifier*, 8>& Modifiers);
@@ -33,10 +30,9 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        SemaParam* getSema() const override;
+        Symbol* getSymbol() const override;
 
-        void setSema(SemaParam* Sema);
-
+        void setSymbol(Symbol* Sym) override;
     };
 }
 

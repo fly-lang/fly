@@ -29,13 +29,6 @@ ASTBlockStmt* ASTHandleStmt::getHandle() const {
 }
 
 
-SemaError *ASTHandleStmt::getErrorHandler() const {
-	return ErrorHandler;
-}
-
-void ASTHandleStmt::setErrorHandler(SemaError *ErrorHandler) {
-	this->ErrorHandler = ErrorHandler;
-}
 
 std::string ASTHandleStmt::str() const {
     return Logger("ASTHandleBlock").

@@ -11,15 +11,24 @@
 #include "Sema/SemaVisitor.h"
 
 #include "AST/ASTCast.h"
+#include "AST/ASTType.h"
 
 using namespace fly;
 
-SemaCast::SemaCast(ASTCast &AST) :
-	SemaExpr(SemaKind::CAST, AST.getToType()->getSema()), AST(AST) {
+SemaCast::SemaCast(ASTCast &AST, SemaExpr *Expr, SemaType *ToType) :
+	SemaExpr(SemaKind::CAST, ToType), AST(AST), Expr(Expr), ToType(ToType) {
 }
 
 ASTCast &SemaCast::getAST() const {
 	return AST;
+}
+
+SemaExpr *SemaCast::getExpr() const {
+	return Expr;
+}
+
+SemaType *SemaCast::getToType() const {
+	return ToType;
 }
 
 CodeGenExpr * SemaCast::getCodeGen() const {

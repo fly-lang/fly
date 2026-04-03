@@ -112,7 +112,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 		llvm::sys::fs::CD_CreateAlways,
 		llvm::sys::fs::F_None);
 	if (EC) {
-		Diags.Report(diag::err_generate_header) << EC.message();
+		Diags.Report(diag::err_codegen_generate_header) << EC.message();
 	}
 
 	llvm::raw_fd_ostream file(FD, true);

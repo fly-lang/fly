@@ -17,6 +17,22 @@ namespace fly {
 	class SemaNameSpace;
 	class SemaImport;
 
+	// Statements
+	class SemaStmt;
+	class SemaBlockStmt;
+	class SemaDeclStmt;
+	class SemaExprStmt;
+	class SemaReturnStmt;
+	class SemaIfStmt;
+	class SemaSwitchStmt;
+	class SemaLoopStmt;
+	class SemaLoopInStmt;
+	class SemaDeleteStmt;
+	class SemaBreakStmt;
+	class SemaContinueStmt;
+	class SemaFailStmt;
+	class SemaHandleStmt;
+
 	// Types
 	class SemaBoolType;
 	class SemaIntType;
@@ -121,6 +137,21 @@ namespace fly {
 		virtual void visit(SemaUnsetValue &Sema) = 0;
 		virtual void visit(SemaEnumEntry &Sema) = 0;
 		virtual void visit(SemaEnumList &Sema) = 0;
+
+		// Statements
+		virtual void visit(SemaBlockStmt &Sema) = 0;
+		virtual void visit(SemaDeclStmt &Sema) = 0;
+		virtual void visit(SemaExprStmt &Sema) = 0;
+		virtual void visit(SemaReturnStmt &Sema) = 0;
+		virtual void visit(SemaIfStmt &Sema) = 0;
+		virtual void visit(SemaSwitchStmt &Sema) = 0;
+		virtual void visit(SemaLoopStmt &Sema) = 0;
+		virtual void visit(SemaLoopInStmt &Sema) = 0;
+		virtual void visit(SemaDeleteStmt &Sema) = 0;
+		virtual void visit(SemaBreakStmt &Sema) = 0;
+		virtual void visit(SemaContinueStmt &Sema) = 0;
+		virtual void visit(SemaFailStmt &Sema) = 0;
+		virtual void visit(SemaHandleStmt &Sema) = 0;
 	};
 
 }

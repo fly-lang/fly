@@ -11,15 +11,12 @@
 #define FLY_AST_CALL_H
 
 #include "ASTExpr.h"
-#include "Sema/SemaCall.h"
-
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace fly {
 
     class ASTArg;
-    class SemaCall;
 	class Symbol;
 
     enum class ASTCallKind {
@@ -30,11 +27,6 @@ namespace fly {
         CALL_NEW_WEAK
     };
 
-    /**
-     * A Reference to a Function in a Declaration
-     * Ex.
-     *  int a = sqrt(4)
-     */
     class ASTCall : public ASTExpr {
 
         friend class ASTBuilder;
@@ -57,11 +49,7 @@ namespace fly {
 
         llvm::SmallVector<ASTArg *, 8> getArgs() const;
 
-        SemaCall *getSema() const override;
-
-        void setSema(SemaCall *Sema);
-
-    	Symbol *getSymbol() const;
+        Symbol *getSymbol() const;
 
     	void setSymbol(Symbol *Sym);
 

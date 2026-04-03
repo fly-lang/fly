@@ -44,6 +44,9 @@ DiagnosticBuilder Registry::Diag(const SourceLocation &Loc, unsigned DiagID) con
 }
 
 DiagnosticBuilder Registry::Diag(unsigned DiagID) const {
+	if (DiagID == diag::err_invalid_behavior) {
+		llvm::errs() << "DEBUG Registry::Diag err_invalid_behavior called\n";
+	}
 	return Diags.Report(DiagID);
 }
 
@@ -319,8 +322,6 @@ Symbol *Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8
 	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookupInParents(Name);
 
 	if (!Symbols) {
-		// Error: Symbol not found in Scope
-		Diag(diag::err_invalid_behavior);
 		return nullptr;
 	}
 
@@ -362,6 +363,11 @@ Symbol *Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8
 				}
 			}
 
+			// Check numeric type compatibility: smaller numeric types can be implicitly promoted
+			if (ParamType->isNumber() && ArgType->isNumber()) {
+				continue;
+			}
+
 			// Types don't match
 			AllTypesMatch = false;
 			break;
@@ -373,7 +379,5 @@ Symbol *Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8
 		}
 	}
 
-	// Error: No matching function found
-	Diag(diag::err_invalid_behavior);
 	return nullptr;
 }

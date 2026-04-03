@@ -37,6 +37,14 @@ bool SemaCall::isNew() const {
 	return AST.getCallKind() >= ASTCallKind::CALL_NEW;
 }
 
+llvm::SmallVector<SemaExpr *, 8> &SemaCall::getArgs() {
+	return Args;
+}
+
+void SemaCall::addArg(SemaExpr *Arg) {
+	Args.push_back(Arg);
+}
+
 CodeGenExpr * SemaCall::getCodeGen() const {
 	return CodeGen;
 }

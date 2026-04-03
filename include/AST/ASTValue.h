@@ -11,7 +11,7 @@
 #define FLY_AST_VALUE_H
 
 #include "ASTExpr.h"
-#include "Sema/SemaValue.h"
+#include "llvm/ADT/StringMap.h"
 
 namespace fly {
 
@@ -40,10 +40,6 @@ namespace fly {
     public:
 
         const ASTValueKind &getValueKind() const;
-
-        SemaValue *getSema() const override;
-
-        void setSema(SemaValue *Sema);
 
 
         // Predicate helpers

@@ -23,11 +23,25 @@
 #include "Basic/Diagnostic.h"
 #include "Sema/SemaBinary.h"
 #include "Sema/SemaCall.h"
+#include "Sema/SemaCast.h"
 #include "Sema/SemaClassAttribute.h"
 #include "Sema/SemaClassMethod.h"
 #include "Sema/SemaClassType.h"
 #include "Sema/SemaComment.h"
 #include "Sema/SemaEnumType.h"
+#include "Sema/SemaBlockStmt.h"
+#include "Sema/SemaDeclStmt.h"
+#include "Sema/SemaExprStmt.h"
+#include "Sema/SemaReturnStmt.h"
+#include "Sema/SemaIfStmt.h"
+#include "Sema/SemaSwitchStmt.h"
+#include "Sema/SemaLoopStmt.h"
+#include "Sema/SemaLoopInStmt.h"
+#include "Sema/SemaDeleteStmt.h"
+#include "Sema/SemaBreakStmt.h"
+#include "Sema/SemaContinueStmt.h"
+#include "Sema/SemaFailStmt.h"
+#include "Sema/SemaHandleStmt.h"
 #include "Sema/SemaEnumEntry.h"
 #include "Sema/SemaEnumList.h"
 #include "Sema/SemaError.h"
@@ -128,8 +142,6 @@ SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType &Class, AST
 	Attribute->Static = Builder->isStatic();
 	Attribute->Constant = Builder->isConstant();
 
-	AST.setSema(Attribute);
-
 	FLY_DEBUG_END("SemaBuilder", "CreateClassAttribute");
 	return Attribute;
 }
@@ -229,8 +241,6 @@ SemaLocalVar * SemaBuilder::CreateLocalVar(ASTLocalVar &AST, SemaType *Type) {
 	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
 	Sema->Constant = Builder->isConstant();
 
-	// Assign Symbol to AST
-	AST.setSema(Sema);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateLocalVar");
 	return Sema;
@@ -246,8 +256,6 @@ SemaParam *SemaBuilder::CreateParam(ASTParam &AST, SemaType *Type) {
 	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
 	Sema->Constant = Builder->isConstant();
 
-	// Assign Symbol to AST
-	AST.setSema(Sema);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateParam");
 	return Sema;
@@ -271,44 +279,42 @@ SemaError *SemaBuilder::CreateErrorHandler() {
 	return Sema;
 }
 
-SemaUnary *SemaBuilder::CreateUnary(ASTUnary &AST) {
+SemaUnary *SemaBuilder::CreateUnary(ASTUnary &AST, SemaExpr *Expr) {
 	FLY_DEBUG_START("SemaBuilder", "CreateUnary");
 
 	// Create Unary Symbol
-	SemaUnary *Sema = new SemaUnary(AST);
-
-	// Assign Symbol to AST
-	AST.setSema(Sema);
+	SemaUnary *Sema = new SemaUnary(AST, Expr);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateUnary");
 	return Sema;
 }
 
-SemaBinary *SemaBuilder::CreateBinary(ASTBinary &AST) {
+SemaBinary *SemaBuilder::CreateBinary(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right) {
 	FLY_DEBUG_START("SemaBuilder", "CreateBinary");
 
-	// Create Unary Symbol
-	SemaBinary *Sema = new SemaBinary(AST);
-
-	// Assign Symbol to AST
-	AST.setSema(Sema);
-
-	// Do Type1 or Type2 promotion if needed
+	// Create Binary Symbol
+	SemaBinary *Sema = new SemaBinary(AST, Left, Right);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateBinary");
 	return Sema;
 }
 
-SemaTernary *SemaBuilder::CreateTernary(ASTTernary &AST) {
+SemaTernary *SemaBuilder::CreateTernary(ASTTernary &AST, SemaExpr *Cond, SemaExpr *TrueExpr, SemaExpr *FalseExpr) {
 	FLY_DEBUG_START("SemaBuilder", "CreateTernary");
 
-	// Create Unary Symbol
-	SemaTernary *Sema = new SemaTernary(AST);
-
-	// Assign Symbol to AST
-	AST.setSema(Sema);
+	// Create Ternary Symbol
+	SemaTernary *Sema = new SemaTernary(AST, Cond, TrueExpr, FalseExpr);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateTernary");
+	return Sema;
+}
+
+SemaCast *SemaBuilder::CreateCast(ASTCast &AST, SemaExpr *Expr, SemaType *ToType) {
+	FLY_DEBUG_START("SemaBuilder", "CreateCast");
+
+	SemaCast *Sema = new SemaCast(AST, Expr, ToType);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateCast");
 	return Sema;
 }
 
@@ -450,10 +456,62 @@ SemaValue * SemaBuilder:: CreateNullValue(ASTNullValue &AST) {
 	return V;
 }
 
-SemaValue * SemaBuilder:: CreateUnsetValue(ASTUnsetValue &AST) {
+SemaValue *SemaBuilder::CreateUnsetValue(ASTUnsetValue &AST) {
 	FLY_DEBUG_START("SemaBuilder", "CreateUnsetValue");
-
 	SemaValue * V = new SemaUnsetValue(AST);
 	return V;
 }
 
+// ─── SemaStmt factory methods ───────────────────────────────────────────────
+
+SemaBlockStmt *SemaBuilder::CreateBlockStmt(ASTStmt *AST) {
+	return new SemaBlockStmt(AST);
+}
+
+SemaDeclStmt *SemaBuilder::CreateDeclStmt(ASTStmt *AST, SemaLocalVar *Var, SemaExpr *Expr) {
+	return new SemaDeclStmt(AST, Var, Expr);
+}
+
+SemaExprStmt *SemaBuilder::CreateExprStmt(ASTStmt *AST, SemaExpr *Expr) {
+	return new SemaExprStmt(AST, Expr);
+}
+
+SemaReturnStmt *SemaBuilder::CreateReturnStmt(ASTStmt *AST) {
+	return new SemaReturnStmt(AST);
+}
+
+SemaIfStmt *SemaBuilder::CreateIfStmt(ASTStmt *AST, SemaExpr *Cond, SemaStmt *Then) {
+	return new SemaIfStmt(AST, Cond, Then);
+}
+
+SemaSwitchStmt *SemaBuilder::CreateSwitchStmt(ASTStmt *AST, SemaExpr *Expr) {
+	return new SemaSwitchStmt(AST, Expr);
+}
+
+SemaLoopStmt *SemaBuilder::CreateLoopStmt(ASTStmt *AST, bool VerifyAtEnd) {
+	return new SemaLoopStmt(AST, VerifyAtEnd);
+}
+
+SemaLoopInStmt *SemaBuilder::CreateLoopInStmt(ASTStmt *AST, SemaExpr *Item, SemaExpr *List, SemaStmt *Body) {
+	return new SemaLoopInStmt(AST, Item, List, Body);
+}
+
+SemaDeleteStmt *SemaBuilder::CreateDeleteStmt(ASTStmt *AST, SemaExpr *Expr) {
+	return new SemaDeleteStmt(AST, Expr);
+}
+
+SemaBreakStmt *SemaBuilder::CreateBreakStmt(ASTStmt *AST) {
+	return new SemaBreakStmt(AST);
+}
+
+SemaContinueStmt *SemaBuilder::CreateContinueStmt(ASTStmt *AST) {
+	return new SemaContinueStmt(AST);
+}
+
+SemaFailStmt *SemaBuilder::CreateFailStmt(ASTStmt *AST) {
+	return new SemaFailStmt(AST);
+}
+
+SemaHandleStmt *SemaBuilder::CreateHandleStmt(ASTStmt *AST) {
+	return new SemaHandleStmt(AST);
+}

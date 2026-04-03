@@ -44,36 +44,13 @@ namespace fly {
     class CodeGenVar;
     class CodeGenBase;
     class CodeGenError;
-    class ASTCall;
-    class ASTFailStmt;
-    class ASTLoopStmt;
-    class ASTLoopInStmt;
-    class ASTSwitchStmt;
-    class ASTValue;
-    class ASTVar;
-    class ASTRuleStmt;
-    class ASTIdentifier;
-    class ASTFunction;
-    class ASTExpr;
-    class ASTStmt;
-    class ASTBlockStmt;
-    class ASTIfStmt;
-    class ASTDeclStmt;
-    class ASTExprStmt;
-    class ASTDeleteStmt;
-    class ASTBreakStmt;
-    class ASTContinueStmt;
-    class ASTReturnStmt;
-    class ASTHandleStmt;
     class SemaModule;
-    class SemaGlobalVar;
     class SemaFunction;
     class SemaClassType;
     class SemaEnumType;
     class SemaFunctionBase;
     class SemaVar;
     class SemaCall;
-    class SemaValue;
     class SemaExpr;
     class SemaNameSpace;
     class SemaClassMethod;
@@ -101,6 +78,20 @@ namespace fly {
     class SemaStructValue;
     class SemaNullValue;
     class SemaEnumEntry;
+    class SemaStmt;
+    class SemaBlockStmt;
+    class SemaDeclStmt;
+    class SemaExprStmt;
+    class SemaReturnStmt;
+    class SemaIfStmt;
+    class SemaSwitchStmt;
+    class SemaLoopStmt;
+    class SemaLoopInStmt;
+    class SemaDeleteStmt;
+    class SemaBreakStmt;
+    class SemaContinueStmt;
+    class SemaFailStmt;
+    class SemaHandleStmt;
 
     class CodeGenModule : public SemaVisitor {
 
@@ -214,41 +205,25 @@ namespace fly {
         void visit(SemaEnumEntry &Sema) override;
         void visit(SemaEnumList &Sema) override;
 
+        // Statements
+        void visit(SemaBlockStmt &Sema) override;
+        void visit(SemaDeclStmt &Sema) override;
+        void visit(SemaExprStmt &Sema) override;
+        void visit(SemaReturnStmt &Sema) override;
+        void visit(SemaIfStmt &Sema) override;
+        void visit(SemaSwitchStmt &Sema) override;
+        void visit(SemaLoopStmt &Sema) override;
+        void visit(SemaLoopInStmt &Sema) override;
+        void visit(SemaDeleteStmt &Sema) override;
+        void visit(SemaBreakStmt &Sema) override;
+        void visit(SemaContinueStmt &Sema) override;
+        void visit(SemaFailStmt &Sema) override;
+        void visit(SemaHandleStmt &Sema) override;
+
     private:
 
-    	void GenBlockStmt(ASTBlockStmt *BlockStmt);
+    	void StoreFail(SemaExpr *Expr, CodeGenError * CGE);
 
-    	void GenStmt(ASTStmt * Stmt);
-
-    	void GenDeclStmt(ASTDeclStmt *DeclStmt);
-
-    	void GenExprStmt(ASTExprStmt *ExprStmt);
-
-    	void GenDeleteStmt(ASTDeleteStmt *DeleteStmt);
-
-    	void GenBreakStmt(ASTBreakStmt *BreakStmt);
-
-    	void GenContinueStmt(ASTContinueStmt *ContinueStmt);
-
-    	void GenReturnStmt(ASTReturnStmt *ReturnStmt);
-
-    	void GenHandleStmt(ASTHandleStmt *HandleStmt);
-
-    	void GenFailStmt(ASTFailStmt *FailStmt);
-
-    	void StoreFail(ASTExpr *Expr, CodeGenError * CGE);
-
-    	void GenIfStmt(ASTIfStmt *If);
-
-    	void GenElsifStmt(CodeGenFunctionBase *CGF,
-										llvm::BasicBlock *ElsifBB,
-										llvm::SmallVector<ASTRuleStmt *, 8>::iterator &It);
-
-    	void GenSwitchStmt(ASTSwitchStmt *Switch);
-
-    	void GenLoopStmt(ASTLoopStmt *Loop);
-
-    	void GenStmtLoopIn(ASTLoopInStmt *LoopIn);
 
     	std::string toIdentifier(llvm::StringRef Name, SemaNameSpace *NameSpace);
 

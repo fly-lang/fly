@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTType.h"
+#include "Sema/Symbol.h"
 #include "Basic/Logger.h"
 
 #include <AST/ASTVisitor.h>
@@ -16,20 +17,14 @@ using namespace fly;
 
 ASTType::ASTType(const SourceLocation &Loc, ASTTypeKind TypeKind) :
         ASTNode(Loc, ASTKind::AST_TYPE), TypeKind(TypeKind) {
-
 }
 
-ASTTypeKind ASTType::getTypeKind() const {
-	return TypeKind;
-}
+ASTTypeKind ASTType::getTypeKind() const { return TypeKind; }
 
-SemaType * ASTType::getSema() const {
-	return Sema;
-}
+Symbol *ASTType::getSymbol() const { return Sym; }
 
-void ASTType::setSema(SemaType *Sema) {
-	this->Sema = Sema;
-}
+void ASTType::setSymbol(Symbol *S) { Sym = S; }
+
 
 ASTArrayType::ASTArrayType(const SourceLocation &Loc, ASTType *ElementType, ASTExpr *Size) :
 	ASTType(Loc, ASTTypeKind::TYPE_ARRAY), ElementType(ElementType), Size(Size) {

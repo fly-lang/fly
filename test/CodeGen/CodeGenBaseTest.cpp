@@ -34,7 +34,7 @@ namespace {
     TEST_F(CodeGenTest, CGDefaultValueLocalVar) {
         /**
          * Fly code:
-         * void func() {
+         * func() {
          *   bool a
          *   byte b
          *   short c
@@ -137,7 +137,7 @@ namespace {
     TEST_F(CodeGenTest, CGFuncParamTypes) {
         /**
          * Fly code:
-         * void func(int a, float b, bool c, long d, double e, byte f, short g, ushort h, uint i, ulong j) {
+         * func(int a, float b, bool c, long d, double e, byte f, short g, ushort h, uint i, ulong j) {
          * }
          */
         ASTModule *Module = CreateModule();
@@ -172,13 +172,13 @@ namespace {
                           "}\n");
     }
 
-    TEST_F(CodeGenTest, CGConstParamReadOnly) {
+    TEST_F(CodeGenTest, CGConstParamConstOnly) {
         /**
          * Fly code:
-         * void func(const int a, int b) {
+         * func(const int a, int b) {
          * }
          *
-         * Expected: const parameter 'a' should have 'readonly' attribute in LLVM IR
+         * Expected: const parameter 'a' is like 'readonly' attribute in LLVM IR
          */
         ASTModule *Module = CreateModule();
 
@@ -213,7 +213,7 @@ namespace {
          * float func() {
          *   float g
          *   g = 1.0
-         *   return g
+         *   return
          * }
          */
         ASTModule *Module = CreateModule();
@@ -255,7 +255,7 @@ namespace {
     TEST_F(CodeGenTest, CGLocalVarAssign) {
         /**
          * Fly code:
-         * void func() {
+         * func() {
          *   int a = 1
          * }
          */
@@ -294,7 +294,7 @@ namespace {
          * int test() {
          *   return
          * }
-         * void func() {
+         * func() {
          *   test()
          *   return
          * }
@@ -404,7 +404,7 @@ namespace {
     TEST_F(CodeGenTest, CGArithOp) {
         /**
          * Fly code:
-         * void func(int a, int b, int c) {
+         * func(int a, int b, int c) {
          *   a = 0
          *   b = 0
          *   c = a + b
@@ -604,7 +604,7 @@ namespace {
     TEST_F(CodeGenTest, CGComparatorOp) {
         /**
          * Fly code:
-         * void func() {
+         * func() {
     	 *   int a
 		 *   int b
 		 *   int c
@@ -735,7 +735,7 @@ namespace {
     TEST_F(CodeGenTest, CGLogicOp) {
         /**
          * Fly code:
-         * void func() {
+         * func() {
          *   bool a
          *   bool b
          *   bool c
@@ -834,7 +834,7 @@ namespace {
     TEST_F(CodeGenTest, CGTernaryOp) {
         /**
          * Fly code:
-         * void func() {
+         * func() {
          *   bool a
          *   bool b
          *   bool c
@@ -908,7 +908,7 @@ namespace {
     TEST_F(CodeGenTest, CGIfBlock) {
         /**
          * Fly code:
-         * void func() {
+         * func() {
          *   int a = 0
          *   if (a == 1) {
          *     a = 2
@@ -971,7 +971,7 @@ namespace {
     TEST_F(CodeGenTest, CGIfElseBlock) {
         /**
          * Fly code:
-         * void func(int a) {
+         * func(int a) {
          *   if (a == 1) {
          *     a = 2
          *   } else {
@@ -1042,7 +1042,7 @@ namespace {
     TEST_F(CodeGenTest, CGIfElsifElseBlock) {
         /**
          * Fly code:
-         * void func(int a) {
+         * func(int a) {
          *   if (a == 1) {
          *     a = 11
          *   } elsif (a == 2) {
@@ -1161,7 +1161,7 @@ namespace {
     TEST_F(CodeGenTest, CGIfElsif) {
         /**
          * Fly code:
-         * void func(int a) {
+         * func(int a) {
          *   if (a == 1) {
          *     a = 2
          *   } elsif (a == 2) {
@@ -1262,7 +1262,7 @@ namespace {
     TEST_F(CodeGenTest, CGSwitch) {
         /**
          * Fly code:
-         * void func(int a) {
+         * func(int a) {
          *   switch (a) {
          *     case 1:
          *       a = 1
@@ -1347,7 +1347,7 @@ namespace {
     TEST_F(CodeGenTest, CGWhile) {
         /**
          * Fly code:
-         * void func(int a) {
+         * func(int a) {
          *   while (a < 10) {
          *     a = a + 1
          *   }
@@ -1405,7 +1405,7 @@ namespace {
     TEST_F(CodeGenTest, CGFor) {
         /**
          * Fly code:
-         * void func(int a) {
+         * func(int a) {
          *   for (int i = 0; i < 10; i++) {
          *     a = a + 1
          *   }
@@ -1532,6 +1532,105 @@ namespace {
                           "  %5 = getelementptr inbounds %error, %error* %1, i32 0, i32 0\n"
                           "  %6 = load i32, i32* %5, align 4\n"
                           "  ret i32 %6\n"
+                          "}\n");
+    }
+
+    TEST_F(CodeGenTest, CGFuncCallWithParams) {
+        /**
+         * Fly code:
+         * int test(const int a, int b) {
+         *   b = a + 1
+         * }
+         * func() {
+         *   int a
+         *   int b
+         *   test(a, b)
+         *   return
+         * }
+         */
+        ASTModule *Module = CreateModule();
+
+        // int test(const int a, int b) { b = a + 1 }
+        llvm::SmallVector<ASTModifier *, 8> ConstModifiers;
+        ConstModifiers.push_back(ASTBuilder::CreateModifier(SourceLoc, ASTModifierKind::MOD_CONSTANT));
+
+        llvm::SmallVector<ASTParam *, 8> TestParams;
+        ASTParam *ParamA = ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "a", ConstModifiers);
+        ASTParam *ParamB = ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "b", EmptyModifiers);
+        TestParams.push_back(ParamA);
+        TestParams.push_back(ParamB);
+        ASTBlockStmt *BodyTest = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Test = ASTBuilder::CreateFunction(Module, SourceLoc, "test", TopModifiers, TestParams, BodyTest);
+
+        // b = a + 1
+        ASTIdentifier *RefB = ASTBuilder::CreateIdentifier(ParamB);
+        ASTIdentifier *RefA = ASTBuilder::CreateIdentifier(ParamA);
+        ASTNumberValue *Val1 = ASTBuilder::CreateNumberValue(SourceLoc, "1");
+        ASTBinary *AddExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ARITH_ADD, RefA, Val1);
+        ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, RefB, AddExpr);
+        ASTExprStmt *TestExprStmt = ASTBuilder::CreateExprStmt(BodyTest, SourceLoc);
+        TestExprStmt->setExpr(AssignExpr);
+
+        // func() { int a, int b; test(a, b); return }
+        ASTBlockStmt *BodyFunc = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, BodyFunc);
+
+        // int a
+        ASTLocalVar *LocalVar_a = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "a", EmptyModifiers);
+        ASTDeclStmt *DeclStmt_a = ASTBuilder::CreateDeclStmt(BodyFunc, SourceLoc, LocalVar_a);
+
+        // int b
+        ASTLocalVar *LocalVar_b = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "b", EmptyModifiers);
+        ASTDeclStmt *DeclStmt_b = ASTBuilder::CreateDeclStmt(BodyFunc, SourceLoc, LocalVar_b);
+
+        // test(a, b)
+        llvm::SmallVector<ASTExpr *, 8> CallArgs;
+        CallArgs.push_back(ASTBuilder::CreateIdentifier(LocalVar_a));
+        CallArgs.push_back(ASTBuilder::CreateIdentifier(LocalVar_b));
+        ASTCall *Call = ASTBuilder::CreateCall(SourceLoc, Test->getName(), CallArgs, ASTCallKind::CALL_DIRECT);
+        ASTExprStmt *ExprStmt = ASTBuilder::CreateExprStmt(BodyFunc, SourceLoc);
+        ExprStmt->setExpr(Call);
+
+        // return
+        ASTReturnStmt *ReturnFunc = ASTBuilder::CreateReturnStmt(BodyFunc, SourceLoc);
+
+        // Generate Code
+        Generate();
+        llvm::Module *M = getModules()[0];
+        std::string output = getOutput(M);
+
+        EXPECT_EQ(output, "\n"
+                          "%error = type { i32, i8*, i8* }\n"
+                          "\n"
+                          "@error = external constant %error\n"
+                          "\n"
+                          "define void @_F4test_i_i(%error* %0, i32* readonly %1, i32* %2) {\n"
+                          "entry:\n"
+                          "  %3 = alloca %error*, align 8\n"
+                          "  store %error* %0, %error** %3, align 8\n"
+                          "  %4 = load i32, i32* %1, align 4\n"
+                          "  %5 = add i32 %4, 1\n"
+                          "  store i32 %5, i32* %2, align 4\n"
+                          "  ret void\n"
+                          "}\n"
+                          "\n"
+                          "define void @_F4func(%error* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %2 = alloca i32, align 4\n"
+                          "  %3 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  store i32 0, i32* %2, align 4\n"
+                          "  store i32 0, i32* %3, align 4\n"
+                          "  %4 = load %error*, %error** %1, align 8\n"
+                          "  %5 = load i32, i32* %2, align 4\n"
+                          "  %6 = alloca i32, align 4\n"
+                          "  store i32 %5, i32* %6, align 4\n"
+                          "  %7 = load i32, i32* %3, align 4\n"
+                          "  %8 = alloca i32, align 4\n"
+                          "  store i32 %7, i32* %8, align 4\n"
+                          "  call void @_F4test_i_i(%error* %4, i32* %6, i32* %8)\n"
+                          "  ret void\n"
                           "}\n");
     }
 

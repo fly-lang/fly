@@ -66,6 +66,7 @@ namespace fly {
     class ASTBoolValue;
     class LocalScope;
     class SemaExpr;
+    class SemaBlockStmt;
     class SemaValidator;
     class ASTNameSpace;
     class Registry;
@@ -100,11 +101,21 @@ namespace fly {
         // Current Statement being Resolved
         ASTStmt* CurrentStmt = nullptr;
 
+    	// Current resolved expression (set by visit(ASTXxxExpr/Value))
     	SemaExpr *CurrentExpr = nullptr;
+
+    	// Current resolved type (set by visit(ASTXxxType))
+    	SemaType *CurrentType = nullptr;
+
+    	// Current SemaBlockStmt being populated
+    	SemaBlockStmt *CurrentSemaBlock = nullptr;
 
     	SemaError *CurrentErrorHandler = nullptr;
 
     	ASTHandleStmt *CurrentHandleStmt = nullptr;
+
+    	// Temporary storage for resolved call arg expressions
+    	SmallVector<SemaExpr *, 8> ResolvedCallArgs;
 
     public:
 
@@ -125,6 +136,7 @@ namespace fly {
         void visit(ASTAttribute &AST) override;
         void visit(ASTMethod &AST) override;
         void visit(ASTEnum &AST) override;
+    	void visit(ASTEnumEntry &AST) override;
         void visit(ASTLocalVar &AST) override;
         void visit(ASTParam &AST) override;
         void visit(ASTComment &AST) override;
@@ -165,7 +177,6 @@ namespace fly {
         void visit(ASTStructValue &AST) override;
         void visit(ASTNullValue &AST) override;
         void visit(ASTUnsetValue &AST) override;
-    	void visit(ASTEnumEntry &AST) override;
 
         // Main Resolve Function
         void Resolve();
@@ -187,13 +198,11 @@ namespace fly {
 
         void ResolveBaseClasses(SemaClassType *DerivedClass);
 
-        bool CanInheritMethod(SemaClassMethod *Method);
-
-        bool CanInheritAttribute(SemaClassAttribute *Attribute);
+        // bool CanInheritMethod(SemaClassMethod *Method);
+        //
+        // bool CanInheritAttribute(SemaClassAttribute *Attribute);
 
         void CreateDefaultConstructor();
-
-        void ResolveEnumType(SemaEnumType *Enum);
 
     	SmallVector<SemaType *, 8> ResolveCallArgs(ASTCall *AST);
 
@@ -201,7 +210,7 @@ namespace fly {
 
     	SemaType * PromoteNumberTypes(SemaType * Type1, SemaType * Type2);
 
-    	void PromoteTypes(ASTBinary &AST);
+    	void PromoteTypes(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right);
 
     	SemaExpr * ResolveMemberSymbol(ASTMember &AST, SymbolTable *Symbols, SemaKind ExpectedKind, SemaVar *ParentVar = nullptr);
 

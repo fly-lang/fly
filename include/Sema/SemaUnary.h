@@ -24,15 +24,19 @@ namespace fly {
 
 		ASTUnary &AST;
 
+		SemaExpr *Expr;
+
 		CodeGenExpr *CodeGen = nullptr;
 
-		explicit SemaUnary(ASTUnary &AST);
+		explicit SemaUnary(ASTUnary &AST, SemaExpr *Expr);
 
 	public:
 
     	~SemaUnary() override = default;
 
     	ASTUnary &getAST() const;
+
+		SemaExpr *getExpr() const;
 
 		CodeGenExpr *getCodeGen() const;
 

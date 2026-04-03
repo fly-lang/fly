@@ -13,6 +13,7 @@
 #include "AST/ASTModule.h"
 #include "AST/ASTType.h"
 #include "Basic/Debug.h"
+#include "Sema/SemaBlockStmt.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenError.h"
 #include "CodeGen/CodeGenModule.h"
@@ -112,8 +113,10 @@ void CodeGenFunction::GenBody() {
 	// Set error handler with function error handler
 	CGM->CurrentErrorHandler = Sema->getErrorHandler()->getCodeGen();
 
-	// Generate Function Body
-    CGM->GenBlockStmt(Sema->getAST().getBody());
+	// Generate Function Body from Sema tree
+	if (Sema->getBody()) {
+		Sema->getBody()->accept(*CGM);
+	}
 
     // if is Main check error and return right exit code
     if (isMain) {

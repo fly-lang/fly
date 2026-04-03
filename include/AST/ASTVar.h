@@ -10,8 +10,6 @@
 #ifndef FLY_AST_VAR_H
 #define FLY_AST_VAR_H
 
-#include <Sema/SemaVar.h>
-
 #include "ASTNode.h"
 
 namespace fly {
@@ -20,12 +18,14 @@ namespace fly {
     class ASTModifier;
     class ASTType;
 	class ASTExpr;
+    class Symbol;
 
     class ASTVar : public ASTNode {
 
         friend class ASTBuilder;
 
-        SemaVar* Sema;
+        Symbol* Sym = nullptr;
+
 
         ASTType* Type;
 
@@ -33,7 +33,7 @@ namespace fly {
 
         SmallVector<ASTModifier*, 8> Modifiers;
 
-        ASTExpr* Expr;
+        ASTExpr* Expr = nullptr;
 
     protected:
         ASTVar(const SourceLocation& Loc, ASTType* Type, llvm::StringRef Name, SmallVector<ASTModifier*, 8>& Modifiers);
@@ -50,7 +50,9 @@ namespace fly {
 
         void setExpr(ASTExpr* Expr);
 
-        virtual SemaVar *getSema() const = 0;
+        virtual Symbol *getSymbol() const;
+
+        virtual void setSymbol(Symbol *Sym);
 
         std::string str() const override;
     };

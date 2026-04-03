@@ -23,7 +23,10 @@
 #include <AST/ASTExpr.h>
 #include <Sema/SemaClassType.h>
 #include <Sema/SemaEnumType.h>
+#include <Sema/SemaExpr.h>
+#include <Sema/SemaNode.h>
 #include <Sema/SemaType.h>
+#include <Sema/SemaValue.h>
 
 using namespace fly;
 
@@ -35,6 +38,9 @@ DiagnosticBuilder SemaValidator::Diag(const SourceLocation &Loc, unsigned DiagID
 }
 
 DiagnosticBuilder SemaValidator::Diag(unsigned DiagID) const {
+	if (DiagID == diag::err_invalid_behavior) {
+		llvm::errs() << "DEBUG SemaValidator::Diag err_invalid_behavior\n";
+	}
 	return Diags.Report(DiagID);
 }
 
@@ -155,8 +161,8 @@ bool SemaValidator::CheckCommentFail(SemaComment *Comment) {
 	return true;
 }
 
-bool SemaValidator::CheckExpr(ASTExpr *Expr) {
-    if (!Expr->getSema()->getType()) {
+bool SemaValidator::CheckExpr(SemaExpr *Expr) {
+    if (!Expr || !Expr->getType()) {
         // if (DiagEnabled)
         //     S.Diag(Expr->getLocation(), diag::err_expr_type_miss);
         return false;
@@ -297,17 +303,15 @@ bool SemaValidator::CheckLogicalTypes(SemaType *Type1, SemaType *Type2) {
     return false;
 }
 
-bool SemaValidator::CheckBinary(ASTBinary &AST) {
+bool SemaValidator::CheckBinary(ASTBinary &AST, SemaExpr *LeftSema, SemaExpr *RightSema) {
 	// Check if Left and Right Expr have Sema
-	ASTExpr * LeftExpr = AST.getLeftExpr();
-	ASTExpr * RightExpr = AST.getRightExpr();
-	if (!LeftExpr->getSema() || !RightExpr->getSema()) {
+	if (!LeftSema || !RightSema) {
 		return false;
 	}
 
 	// Check if Left and Right Expr are resolved
-	SemaType * LeftType = LeftExpr->getSema()->getType();
-	SemaType * RightType = RightExpr->getSema()->getType();
+	SemaType * LeftType = LeftSema->getType();
+	SemaType * RightType = RightSema->getType();
 
 	// Arithmetic Operations: Integer/Float, Float/Float, Integer/Integer
 	if (AST.isArith()) {
@@ -327,22 +331,17 @@ bool SemaValidator::CheckBinary(ASTBinary &AST) {
 	// Comparison Operations: Bool/Bool, Integer/Integer, Float/Float, Class/Class, Enum/Enum
 	if (AST.isCompare()) {
 		if (LeftType->isBool() && RightType->isBool()) {
-			// OK: Boolean Comparison
 			return true;
 		}
 		if (LeftType->isNumber() && RightType->isNumber()) {
-			// OK: Numeric Comparison
 			return true;
 		}
 		if (LeftType->isClass() && RightType->isClass()) {
-			// OK: Class Comparison
 			return true;
 		}
 		if (LeftType->isEnum() && RightType->isEnum()) {
-			// OK: Enum Comparison
 			return true;
 		}
-		// Error: Binary Comparison operation can be made only with numbers, bools, classes or enums
 		Diag(AST.getLocation(), diag::err_sema_types_operation)
 				  << LeftType->getName()
 				  << RightType->getName();
@@ -352,11 +351,9 @@ bool SemaValidator::CheckBinary(ASTBinary &AST) {
 	// Logical Operations: Bool/Bool
 	if (AST.isLogic()) {
 		if (LeftType->isBool() && RightType->isBool()) {
-			// OK: Boolean Operation
 			return true;
 		}
 
-		// Error: Binary Comparison operation can be made only with numbers, bools, classes or enums
 		Diag(AST.getLocation(), diag::err_sema_types_operation)
 				  << LeftType->getName()
 				  << RightType->getName();
@@ -366,21 +363,18 @@ bool SemaValidator::CheckBinary(ASTBinary &AST) {
 	// Assignment Operations: Compatible Types
 	if (AST.isAssign()) {
 
-		// Right Type can be always converted to Boolean
 		if (LeftType->isBool()) {
 			return true;
 		}
 
 		if (LeftType->isNumber()) {
 			if (!RightType->isNumber()) {
-				// Cannot convert non-number to number
 				Diag(AST.getLocation(), diag::err_sema_types_operation)
 				  << LeftType->getName()
 				  << RightType->getName();
 				return false;
 			}
 			if (static_cast<SemaNumberType *>(LeftType)->getRank() < static_cast<SemaNumberType *>(RightType)->getRank()) {
-				// Cannot convert number with higher rank to lower rank
 				Diag(AST.getLocation(), diag::err_sema_types_operation)
 				  << LeftType->getName()
 				  << RightType->getName();
@@ -390,7 +384,6 @@ bool SemaValidator::CheckBinary(ASTBinary &AST) {
 
 		if (LeftType->isString()) {
 			if (!RightType->isString()) {
-				// Number rank not compatible, cannot be converted
 				Diag(AST.getLocation(), diag::err_sema_types_operation)
 				  << LeftType->getName()
 				  << RightType->getName();
@@ -400,14 +393,12 @@ bool SemaValidator::CheckBinary(ASTBinary &AST) {
 
 		if (LeftType->isArray()) {
 			if (!RightType->isArray()) {
-				// Array type not compatible, cannot be converted
 				Diag(AST.getLocation(), diag::err_sema_types_operation)
 				  << LeftType->getName()
 				  << RightType->getName();
 				return false;
 			}
 
-			// Check Element Types
 			SemaArrayType *LeftArrayType = static_cast<SemaArrayType *>(LeftType);
 			SemaArrayType *RightArrayType = static_cast<SemaArrayType *>(RightType);
 			return CheckEqualTypes(LeftArrayType->getElementType(), RightArrayType->getElementType());
@@ -415,7 +406,6 @@ bool SemaValidator::CheckBinary(ASTBinary &AST) {
 
 		if (LeftType->isClass()) {
 			if (!RightType->isClass()) {
-				// Class type not compatible, cannot be converted
 				Diag(AST.getLocation(), diag::err_sema_types_operation)
 				  << LeftType->getName()
 				  << RightType->getName();
@@ -425,10 +415,9 @@ bool SemaValidator::CheckBinary(ASTBinary &AST) {
 		}
 
 		if (LeftType->isEnum()) {
-			if (RightExpr->getExprKind() == ASTExprKind::EXPR_VALUE) {
-				// Enum can be assigned with its underlying type value
-				ASTValue *RightValue = static_cast<ASTValue *>(RightExpr);
-				if (RightValue->isUnset()) {
+			if (RightSema->getKind() == SemaKind::VALUE) {
+				// Check if the right side is an unset value (type is null for unset)
+				if (RightType == nullptr) {
 					return true;
 				}
 			}

@@ -9,7 +9,7 @@
 
 #include "AST/ASTAttribute.h"
 #include "AST/ASTModifier.h"
-
+#include "Sema/Symbol.h"
 #include <AST/ASTVisitor.h>
 
 using namespace fly;
@@ -19,13 +19,8 @@ ASTAttribute::ASTAttribute(
 	ASTVar(Loc, Type, Name, Modifiers) {
 }
 
-void ASTAttribute::accept(ASTVisitor &Visitor) {
-	Visitor.visit(*this);
-}
+void ASTAttribute::accept(ASTVisitor &Visitor) { Visitor.visit(*this); }
 
-SemaClassAttribute * ASTAttribute::getSema() const {
-}
+Symbol *ASTAttribute::getSymbol() const { return ASTVar::getSymbol(); }
 
-void ASTAttribute::setSema(SemaClassAttribute *Sema) {
-	this->Sema = Sema;
-}
+void ASTAttribute::setSymbol(Symbol *Sym) { ASTVar::setSymbol(Sym); }

@@ -33,6 +33,7 @@ namespace fly {
     class ASTNameSpace;
     class ASTImport;
     class ASTEnum;
+    class ASTEnumEntry;
     class ASTComment;
     class ASTVar;
     class ASTAttribute;
@@ -52,6 +53,7 @@ namespace fly {
 	class ASTUnary;
 	class ASTBinary;
 	class ASTTernary;
+	class ASTCast;
 	class SemaLocalVar;
 	class SemaParam;
 	class SemaNode;
@@ -66,12 +68,32 @@ namespace fly {
 	class SemaStringValue;
 	class SemaArrayValue;
 	class SemaStructValue;
+	class SemaIntValue;
+	class SemaFloatValue;
 	class SemaBinary;
 	class SemaTernary;
+	class SemaCast;
 	class ASTBuilderIfStmt;
 	class ASTBuilderSwitchStmt;
 	class ASTBuilderLoopStmt;
 	class ASTBuilderStmt;
+	class SemaError;
+	// Stmt forward declarations
+	class ASTStmt;
+	class SemaStmt;
+	class SemaBlockStmt;
+	class SemaDeclStmt;
+	class SemaExprStmt;
+	class SemaReturnStmt;
+	class SemaIfStmt;
+	class SemaSwitchStmt;
+	class SemaLoopStmt;
+	class SemaLoopInStmt;
+	class SemaDeleteStmt;
+	class SemaBreakStmt;
+	class SemaContinueStmt;
+	class SemaFailStmt;
+	class SemaHandleStmt;
 
     class SemaBuilder {
 
@@ -111,11 +133,13 @@ namespace fly {
 
     	static SemaCall *CreateCall(ASTCall &Call, SemaType *Type, SemaFunctionBase *Function);
 
-    	static SemaUnary *CreateUnary(ASTUnary &AST);
+    	static SemaUnary *CreateUnary(ASTUnary &AST, SemaExpr *Expr);
 
-    	static SemaBinary *CreateBinary(ASTBinary &AST);
+    	static SemaBinary *CreateBinary(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right);
 
-    	static SemaTernary *CreateTernary(ASTTernary &AST);
+    	static SemaTernary *CreateTernary(ASTTernary &AST, SemaExpr *Cond, SemaExpr *TrueExpr, SemaExpr *FalseExpr);
+
+    	static SemaCast *CreateCast(ASTCast &AST, SemaExpr *Expr, SemaType *ToType);
 
     	static SemaBoolValue *CreateBoolValue(ASTBoolValue &AST);
 
@@ -137,6 +161,20 @@ namespace fly {
 
     	static SemaValue * CreateUnsetValue(ASTUnsetValue &AST);
 
+		// Stmt factory methods
+    	static SemaBlockStmt  *CreateBlockStmt(ASTStmt *AST = nullptr);
+    	static SemaDeclStmt   *CreateDeclStmt(ASTStmt *AST, SemaLocalVar *Var, SemaExpr *Expr = nullptr);
+    	static SemaExprStmt   *CreateExprStmt(ASTStmt *AST, SemaExpr *Expr);
+    	static SemaReturnStmt *CreateReturnStmt(ASTStmt *AST);
+    	static SemaIfStmt     *CreateIfStmt(ASTStmt *AST, SemaExpr *Cond, SemaStmt *Then);
+    	static SemaSwitchStmt *CreateSwitchStmt(ASTStmt *AST, SemaExpr *Expr);
+    	static SemaLoopStmt   *CreateLoopStmt(ASTStmt *AST, bool VerifyAtEnd = false);
+    	static SemaLoopInStmt *CreateLoopInStmt(ASTStmt *AST, SemaExpr *Item, SemaExpr *List, SemaStmt *Body);
+    	static SemaDeleteStmt *CreateDeleteStmt(ASTStmt *AST, SemaExpr *Expr);
+    	static SemaBreakStmt    *CreateBreakStmt(ASTStmt *AST);
+    	static SemaContinueStmt *CreateContinueStmt(ASTStmt *AST);
+    	static SemaFailStmt   *CreateFailStmt(ASTStmt *AST);
+    	static SemaHandleStmt *CreateHandleStmt(ASTStmt *AST);
 
 	};
 

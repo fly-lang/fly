@@ -79,7 +79,7 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) : 
 
             // Error: Class block not correctly closed
             if (P->Tok.is(tok::eof)) {
-                P->Diag(P->Tok, diag::err_class_block_unclosed);
+                P->Diag(P->Tok, diag::err_parser_class_block_unclosed);
                 break;
             }
 

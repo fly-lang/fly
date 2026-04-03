@@ -14,26 +14,6 @@
 
 #include "CodeGen/CodeGenModule.h"
 
-#include "AST/ASTArg.h"
-#include "AST/ASTBlockStmt.h"
-#include "AST/ASTBreakStmt.h"
-#include "AST/ASTCall.h"
-#include "AST/ASTClass.h"
-#include "AST/ASTContinueStmt.h"
-#include "AST/ASTDeleteStmt.h"
-#include "AST/ASTEnum.h"
-#include "AST/ASTExprStmt.h"
-#include "AST/ASTFailStmt.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTHandleStmt.h"
-#include "AST/ASTIdentifier.h"
-#include "AST/ASTIfStmt.h"
-#include "AST/ASTLoopInStmt.h"
-#include "AST/ASTLoopStmt.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTNameSpace.h"
-#include "AST/ASTReturnStmt.h"
-#include "AST/ASTSwitchStmt.h"
 #include "Basic/Debug.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenArrayValue.h"
@@ -50,16 +30,19 @@
 #include "Sema/SemaTernary.h"
 #include "Sema/SemaUnary.h"
 #include "Sema/SemaEnumEntry.h"
-
-#include "llvm/IR/GlobalVariable.h"
-#include "llvm/IR/Value.h"
-
-#include <AST/ASTDeclStmt.h>
-#include <AST/ASTExpr.h>
-#include <AST/ASTLocalVar.h>
-#include <AST/ASTType.h>
-#include <AST/ASTVar.h>
-#include <CodeGen/CharUnits.h>
+#include "Sema/SemaBlockStmt.h"
+#include "Sema/SemaDeclStmt.h"
+#include "Sema/SemaExprStmt.h"
+#include "Sema/SemaReturnStmt.h"
+#include "Sema/SemaIfStmt.h"
+#include "Sema/SemaSwitchStmt.h"
+#include "Sema/SemaLoopStmt.h"
+#include "Sema/SemaLoopInStmt.h"
+#include "Sema/SemaDeleteStmt.h"
+#include "Sema/SemaBreakStmt.h"
+#include "Sema/SemaContinueStmt.h"
+#include "Sema/SemaFailStmt.h"
+#include "Sema/SemaHandleStmt.h"
 #include <Sema/SemaCall.h>
 #include <Sema/SemaClassAttribute.h>
 #include <Sema/SemaClassMethod.h>
@@ -73,6 +56,8 @@
 #include <Sema/SemaModule.h>
 #include <Sema/SemaValue.h>
 #include <llvm/IR/Instructions.h>
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/Value.h"
 
 using namespace fly;
 
@@ -426,170 +411,388 @@ void CodeGenModule::visit(SemaEnumList &Sema) {
 	}
 }
 
+// ─── Sema Statement visitors (delegate to AST-based Gen methods) ─────────────
 
-void CodeGenModule::GenBlockStmt(ASTBlockStmt *BlockStmt) {
-	FLY_DEBUG_START("CodeGenModule", "GenBlock");
-	for (ASTStmt *Stmt : BlockStmt->getContent()) {
-		GenStmt(Stmt);
+void CodeGenModule::visit(SemaBlockStmt &Sema) {
+	for (SemaStmt *Stmt : Sema.getContent()) {
+		Stmt->accept(*this);
 	}
 }
 
-void CodeGenModule::GenStmt(ASTStmt * Stmt) {
-	FLY_DEBUG_START("CodeGenModule", "GenStmt");
-	switch (Stmt->getStmtKind()) {
-
-		case ASTStmtKind::STMT_DECL:
-			GenDeclStmt(static_cast<ASTDeclStmt *>(Stmt));
-			break;
-
-			// Expression Statement (includes assignments, calls, etc.)
-		case ASTStmtKind::STMT_EXPR:
-			GenExprStmt(static_cast<ASTExprStmt *>(Stmt));
-			break;
-
-			// Block of Stmt
-		case ASTStmtKind::STMT_BLOCK:
-			GenBlockStmt(static_cast<ASTBlockStmt *>(Stmt));
-			break;
-
-		case ASTStmtKind::STMT_IF:
-			GenIfStmt(static_cast<ASTIfStmt *>(Stmt));
-			break;
-
-		case ASTStmtKind::STMT_SWITCH:
-			GenSwitchStmt(static_cast<ASTSwitchStmt *>(Stmt));
-			break;
-
-		case ASTStmtKind::STMT_LOOP:
-			GenLoopStmt(static_cast<ASTLoopStmt *>(Stmt));
-			break;
-
-		case ASTStmtKind::STMT_LOOP_IN:
-			GenStmtLoopIn(static_cast<ASTLoopInStmt *>(Stmt));
-			break;
-
-		// Delete Stmt
-		case ASTStmtKind::STMT_DELETE:
-			GenDeleteStmt(static_cast<ASTDeleteStmt *>(Stmt));
-			break;
-
-			// Break Stmt
-		case ASTStmtKind::STMT_BREAK:
-			GenBreakStmt(static_cast<ASTBreakStmt *>(Stmt));
-			break;
-
-			// Continue Stmt
-		case ASTStmtKind::STMT_CONTINUE:
-			GenContinueStmt(static_cast<ASTContinueStmt *>(Stmt));
-			break;
-
-			// Return Stmt
-		case ASTStmtKind::STMT_RETURN:
-				GenReturnStmt(static_cast<ASTReturnStmt *>(Stmt));
-				break;
-
-		case ASTStmtKind::STMT_HANDLE:
-			GenHandleStmt(static_cast<ASTHandleStmt *>(Stmt));
-			break;
-
-		case ASTStmtKind::STMT_FAIL:
-			GenFailStmt(static_cast<ASTFailStmt *>(Stmt));
-			break;
-	}
-}
-
-void CodeGenModule::GenDeclStmt(ASTDeclStmt *DeclStmt) {
-	FLY_DEBUG_START("CodeGenModule", "GenStmtDecl");
+void CodeGenModule::visit(SemaDeclStmt &Sema) {
+	FLY_DEBUG_START("CodeGenModule", "visit(SemaDeclStmt)");
 
 	// Get the CodeGenVar for the Local Variable
-	CodeGenVar *CGV = DeclStmt->getLocalVar()->getSema()->getCodeGen();
+	CodeGenVar *CGV = Sema.getVar()->getCodeGen();
 
 	// Declaration may be with initialization
-	if (DeclStmt->getExpr()) {
-		DeclStmt->getExpr()->getSema()->accept(*this);
+	if (Sema.getExpr()) {
+		Sema.getExpr()->accept(*this);
 	} else {
 		CGV->StoreDefaultValue();
 	}
 
-	FLY_DEBUG_END("CodeGenModule", "GenStmtDecl");
+	FLY_DEBUG_END("CodeGenModule", "visit(SemaDeclStmt)");
 }
 
-void CodeGenModule::GenExprStmt(ASTExprStmt *ExprStmt) {
-	FLY_DEBUG_START("CodeGenModule", "GenStmtExpr");
+void CodeGenModule::visit(SemaExprStmt &Sema) {
+	FLY_DEBUG_START("CodeGenModule", "visit(SemaExprStmt)");
 
-	ExprStmt->getExpr()->getSema()->accept(*this);
+	Sema.getExpr()->accept(*this);
 
-	FLY_DEBUG_END("CodeGenModule", "GenStmtExpr");
+	FLY_DEBUG_END("CodeGenModule", "visit(SemaExprStmt)");
 }
 
-void CodeGenModule::GenDeleteStmt(ASTDeleteStmt *DeleteStmt) {
-	FLY_DEBUG_START("CodeGenModule", "GenStmtDelete");
+void CodeGenModule::visit(SemaReturnStmt &Sema) {
+	FLY_DEBUG_START("CodeGenModule", "visit(SemaReturnStmt)");
+	Builder->CreateRetVoid();
+	FLY_DEBUG_END("CodeGenModule", "visit(SemaReturnStmt)");
+}
 
-	DeleteStmt->getExpr()->getSema()->accept(*this);
-	llvm::Value *V = DeleteStmt->getExpr()->getSema()->getCodeGen()->getValue();
+void CodeGenModule::visit(SemaIfStmt &Sema) {
+	FLY_DEBUG_START("CodeGenModule", "visit(SemaIfStmt)");
+	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
+
+	// If Block - use Sema condition expression
+	Sema.getCond()->accept(*this);
+	llvm::Value *IfCond = Sema.getCond()->getCodeGen()->getValue();
+	llvm::BasicBlock *IfBB = llvm::BasicBlock::Create(LLVMCtx, "ifthen", Fn);
+
+	// Create End block
+	llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endif", Fn);
+
+	if (!Sema.getElse()) {
+
+		if (Sema.getElsif().empty()) { // If ...
+			Builder->CreateCondBr(IfCond, IfBB, EndBB);
+			Builder->SetInsertPoint(IfBB);
+			Sema.getThen()->accept(*this);
+			Builder->CreateBr(EndBB);
+		} else { // If - elsif ...
+			llvm::BasicBlock *ElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, EndBB);
+			Builder->CreateCondBr(IfCond, IfBB, ElsifBB);
+
+			// Start if-then
+			Builder->SetInsertPoint(IfBB);
+			Sema.getThen()->accept(*this);
+			Builder->CreateBr(EndBB);
+
+			// Create Elsif Blocks
+			unsigned long Size = Sema.getElsif().size();
+			for (unsigned long i = 0; i < Size; i++) {
+				llvm::BasicBlock *ElsifThenBB = llvm::BasicBlock::Create(LLVMCtx, "elsifthen", Fn, EndBB);
+
+				llvm::BasicBlock *NextElsifBB;
+				if (i == Size-1) { // is Last
+					NextElsifBB = EndBB;
+				} else {
+					NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, EndBB);
+				}
+				SemaRuleStmt ElsifSema = Sema.getElsif()[i];
+				Builder->SetInsertPoint(ElsifBB);
+				ElsifSema.Expr->accept(*this);
+				llvm::Value *ElsifCond = ElsifSema.Expr->getCodeGen()->getValue();
+				Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
+
+				Builder->SetInsertPoint(ElsifThenBB);
+				ElsifSema.Stmt->accept(*this);
+				Builder->CreateBr(EndBB);
+
+				ElsifBB = NextElsifBB;
+			}
+		}
+
+	} else {
+
+		// Create Else block
+		llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(LLVMCtx, "else", Fn, EndBB);
+
+		if (Sema.getElsif().empty()) { // If - Else
+			Builder->CreateCondBr(IfCond, IfBB, ElseBB);
+			Builder->SetInsertPoint(IfBB);
+			Sema.getThen()->accept(*this);
+			Builder->CreateBr(EndBB);
+		} else { // If - Elsif - Else
+			llvm::BasicBlock *ElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, ElseBB);
+			Builder->CreateCondBr(IfCond, IfBB, ElsifBB);
+
+			// Start if-then
+			Builder->SetInsertPoint(IfBB);
+			Sema.getThen()->accept(*this);
+			Builder->CreateBr(EndBB);
+
+			// Create Elsif Blocks
+			unsigned long Size = Sema.getElsif().size();
+			for (unsigned long i = 0; i < Size; i++) {
+				llvm::BasicBlock *ElsifThenBB = llvm::BasicBlock::Create(LLVMCtx, "elsifthen", Fn, ElseBB);
+
+				llvm::BasicBlock *NextElsifBB;
+				if (i == Size-1) { // is Last
+					NextElsifBB = ElseBB;
+				} else {
+					NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, ElseBB);
+				}
+				SemaRuleStmt ElsifSema = Sema.getElsif()[i];
+				Builder->SetInsertPoint(ElsifBB);
+				ElsifSema.Expr->accept(*this);
+				llvm::Value *ElsifCond = ElsifSema.Expr->getCodeGen()->getValue();
+				Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
+
+				Builder->SetInsertPoint(ElsifThenBB);
+				ElsifSema.Stmt->accept(*this);
+				Builder->CreateBr(EndBB);
+
+				ElsifBB = NextElsifBB;
+			}
+		}
+
+		Builder->SetInsertPoint(ElseBB);
+		Sema.getElse()->accept(*this);
+		Builder->CreateBr(EndBB);
+	}
+
+	// Continue insertions into End Branch
+	Builder->SetInsertPoint(EndBB);
+	FLY_DEBUG_END("CodeGenModule", "visit(SemaIfStmt)");
+}
+
+void CodeGenModule::visit(SemaSwitchStmt &Sema) {
+	FLY_DEBUG_START("CodeGenModule", "visit(SemaSwitchStmt)");
+	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
+
+	// Create End Block
+	llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endswitch", Fn);
+
+	// Push break target onto stack (switches don't have continue)
+	BreakTargetStack.push_back(EndBB);
+
+	// Create Expression evaluator for Switch using Sema
+	Sema.getExpr()->accept(*this);
+	llvm::Value *SwitchVal = Sema.getExpr()->getCodeGen()->getValue();
+	llvm::SwitchInst *Inst = Builder->CreateSwitch(SwitchVal, EndBB);
+
+	// Create Cases
+	unsigned long Size = Sema.getCases().size();
+
+	llvm::BasicBlock *NextCaseBB = nullptr;
+	for (unsigned long i = 0; i < Size; i++) {
+		SemaRuleStmt CaseSema = Sema.getCases()[i];
+		CaseSema.Expr->accept(*this);
+		llvm::Value *CaseVal = CaseSema.Expr->getCodeGen()->getValue();
+		llvm::ConstantInt *CaseConst = llvm::cast<llvm::ConstantInt, llvm::Value>(CaseVal);
+		llvm::BasicBlock *CaseBB = NextCaseBB == nullptr ?
+								   llvm::BasicBlock::Create(LLVMCtx, "case", Fn, EndBB) : NextCaseBB;
+		Inst->addCase(CaseConst, CaseBB);
+		Builder->SetInsertPoint(CaseBB);
+		CaseSema.Stmt->accept(*this);
+
+		// If there is a Next
+		if (i + 1 < Size) {
+			NextCaseBB = llvm::BasicBlock::Create(LLVMCtx, "case", Fn, EndBB);
+			Builder->CreateBr(NextCaseBB);
+		} else {
+			Builder->CreateBr(EndBB);
+		}
+	}
+
+	// Create Default
+	if (Sema.getDefault()) {
+		llvm::BasicBlock *DefaultBB = llvm::BasicBlock::Create(LLVMCtx, "default", Fn, EndBB);
+		Inst->setDefaultDest(DefaultBB);
+		Builder->SetInsertPoint(DefaultBB);
+		Sema.getDefault()->accept(*this);
+		Builder->CreateBr(EndBB);
+	}
+
+	// Pop break target from stack
+	BreakTargetStack.pop_back();
+
+	// Continue insertions into End Branch
+	Builder->SetInsertPoint(EndBB);
+	FLY_DEBUG_END("CodeGenModule", "visit(SemaSwitchStmt)");
+}
+
+void CodeGenModule::visit(SemaLoopStmt &Sema) {
+	FLY_DEBUG_START("CodeGenModule", "visit(SemaLoopStmt)");
+	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
+
+	// Generate Init Statements via Sema
+	for (SemaStmt *S : Sema.getInit()) {
+		S->accept(*this);
+	}
+
+	// Create Condition Block
+	llvm::BasicBlock *CondBB = nullptr;
+	if (Sema.getCond()) {
+		CondBB = llvm::BasicBlock::Create(LLVMCtx, "loopcond", Fn);
+	}
+
+	// Create Loop Block
+	llvm::BasicBlock *LoopBB = llvm::BasicBlock::Create(LLVMCtx, "loop", Fn);
+
+	// Create Post Block
+	llvm::BasicBlock *PostBB = nullptr;
+	if (!Sema.getPost().empty()) {
+		PostBB = llvm::BasicBlock::Create(LLVMCtx, "looppost", Fn);
+	}
+
+	// Create End Block
+	llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "loopend", Fn);
+
+	// Push break and continue targets onto stacks
+	BreakTargetStack.push_back(EndBB);
+	// Continue target depends on whether we have a Post block or Condition block
+	if (PostBB) {
+		ContinueTargetStack.push_back(PostBB);
+	} else if (CondBB) {
+		ContinueTargetStack.push_back(CondBB);
+	} else {
+		ContinueTargetStack.push_back(LoopBB);
+	}
+
+	// Generate Code
+	if (CondBB) {
+		Builder->CreateBr(CondBB);
+
+		// Create Condition using Sema
+		Builder->SetInsertPoint(CondBB);
+		Sema.getCond()->accept(*this);
+		llvm::Value *Cond = Sema.getCond()->getCodeGen()->getValue();
+		Builder->CreateCondBr(Cond, LoopBB, EndBB);
+	} else {
+		Builder->CreateBr(LoopBB);
+	}
+
+	// Add to Loop via Sema body
+	Builder->SetInsertPoint(LoopBB);
+	if (Sema.getBody()) {
+		Sema.getBody()->accept(*this);
+	}
+	if (PostBB) {
+		Builder->CreateBr(PostBB);
+
+		// Add to Post via Sema
+		Builder->SetInsertPoint(PostBB);
+		for (SemaStmt *S : Sema.getPost()) {
+			S->accept(*this);
+		}
+		if (CondBB) {
+			Builder->CreateBr(CondBB);
+		} else {
+			Builder->CreateBr(LoopBB);
+		}
+	} else if (CondBB) {
+		Builder->CreateBr(CondBB);
+	} else {
+		Builder->CreateBr(LoopBB);
+	}
+
+	// Pop break and continue targets from stacks
+	BreakTargetStack.pop_back();
+	ContinueTargetStack.pop_back();
+
+	// Continue insertions into End Branch
+	Builder->SetInsertPoint(EndBB);
+	FLY_DEBUG_END("CodeGenModule", "visit(SemaLoopStmt)");
+}
+
+void CodeGenModule::visit(SemaLoopInStmt &Sema) {
+	FLY_DEBUG_START("CodeGenModule", "visit(SemaLoopInStmt)");
+
+	// TODO: Implement proper for-in loop code generation
+	// This requires:
+	// 1. Determine if List is an array, string, or iterable collection
+	// 2. Get the length/size of the collection
+	// 3. Generate loop with iterator to access each element
+	// 4. Assign each element to the Item variable
+	// 5. Execute the loop body
+
+	// For now, just generate the loop body as a placeholder
+	if (Sema.getBody()) {
+		Sema.getBody()->accept(*this);
+	}
+
+	FLY_DEBUG_END("CodeGenModule", "visit(SemaLoopInStmt)");
+}
+
+void CodeGenModule::visit(SemaDeleteStmt &Sema) {
+	FLY_DEBUG_START("CodeGenModule", "visit(SemaDeleteStmt)");
+
+	Sema.getExpr()->accept(*this);
+	llvm::Value *V = Sema.getExpr()->getCodeGen()->getValue();
 
 	// Free Memory
-	if (DeleteStmt->getExpr()->getType()->isClass()) {
+	if (Sema.getExpr()->getType()->isClass()) {
 		llvm::Instruction *I = llvm::CallInst::CreateFree(V, Builder->GetInsertBlock());
 		Builder->Insert(I);
 	}
 
-	FLY_DEBUG_END("CodeGenModule", "GenStmtDelete");
+	FLY_DEBUG_END("CodeGenModule", "visit(SemaDeleteStmt)");
 }
 
-void CodeGenModule::GenBreakStmt(ASTBreakStmt *BreakStmt) {
-	FLY_DEBUG_START("CodeGenModule", "GenStmtBreak");
-
-	// Break jumps to the end of the enclosing loop or switch
+void CodeGenModule::visit(SemaBreakStmt &Sema) {
+	FLY_DEBUG_START("CodeGenModule", "visit(SemaBreakStmt)");
 	if (!BreakTargetStack.empty()) {
 		llvm::BasicBlock *BreakTarget = BreakTargetStack.back();
 		Builder->CreateBr(BreakTarget);
 	} else {
-		// Error: break outside of loop/switch
-		// TODO: Add specific diagnostic for break outside loop/switch
 		Diag(diag::err_invalid_behavior);
 	}
-
-	FLY_DEBUG_END("CodeGenModule", "GenStmtBreak");
+	FLY_DEBUG_END("CodeGenModule", "visit(SemaBreakStmt)");
 }
 
-void CodeGenModule::GenContinueStmt(ASTContinueStmt *ContinueStmt) {
-	FLY_DEBUG_START("CodeGenModule", "GenStmtContinue");
-
-	// Continue jumps to the start of the next iteration (or condition) of the enclosing loop
+void CodeGenModule::visit(SemaContinueStmt &Sema) {
+	FLY_DEBUG_START("CodeGenModule", "visit(SemaContinueStmt)");
 	if (!ContinueTargetStack.empty()) {
 		llvm::BasicBlock *ContinueTarget = ContinueTargetStack.back();
 		Builder->CreateBr(ContinueTarget);
 	} else {
-		// Error: continue outside of loop
-		// TODO: Add specific diagnostic for continue outside loop
 		Diag(diag::err_invalid_behavior);
 	}
-
-	FLY_DEBUG_END("CodeGenModule", "GenStmtContinue");
+	FLY_DEBUG_END("CodeGenModule", "visit(SemaContinueStmt)");
 }
 
-void CodeGenModule::GenReturnStmt(ASTReturnStmt *ReturnStmt) {
-	FLY_DEBUG_START("CodeGenModule", "GenStmtReturn");
-	Builder->CreateRetVoid();
-	FLY_DEBUG_END("CodeGenModule", "GenStmtReturn");
+void CodeGenModule::visit(SemaFailStmt &Sema) {
+	FLY_DEBUG_START("CodeGenModule", "visit(SemaFailStmt)");
+
+	if (Sema.getFirst() == nullptr) {
+		CurrentErrorHandler->StoreInt(llvm::ConstantInt::get(CG.Int32Ty, 1));
+	} else {
+		StoreFail(Sema.getFirst(), CurrentErrorHandler);
+
+		if (Sema.getSecond()) {
+			StoreFail(Sema.getSecond(), CurrentErrorHandler);
+
+			if (Sema.getThird()) {
+				StoreFail(Sema.getThird(), CurrentErrorHandler);
+			}
+		}
+	}
+
+	if (CurrentHandleBB == nullptr) {
+		Builder->CreateRetVoid();
+	} else {
+		Builder->CreateBr(CurrentSafeBB);
+	}
+
+	FLY_DEBUG_END("CodeGenModule", "visit(SemaFailStmt)");
 }
 
-void CodeGenModule::GenHandleStmt(ASTHandleStmt *HandleStmt) {
-	FLY_DEBUG_START("CodeGenModule", "GenStmtHandle");
+void CodeGenModule::visit(SemaHandleStmt &Sema) {
+	FLY_DEBUG_START("CodeGenModule", "visit(SemaHandleStmt)");
 
-	// Save parent error handler to restore after generating the current handle and safe blocks
+	// Save parent error handler
 	CodeGenError *ParentErrorHandler = CurrentErrorHandler;
 
-	// Create a new error handler for this handle statement and set it as the current error handler
-	HandleStmt->getErrorHandler()->accept(*this);
-	CurrentErrorHandler = HandleStmt->getErrorHandler()->getCodeGen();
+	// Create a new error handler using the Sema data
+	Sema.getErrorHandler()->accept(*this);
+	CurrentErrorHandler = Sema.getErrorHandler()->getCodeGen();
 
 	// Save parent handle statement for nested handles
 	llvm::BasicBlock *ParentHandleBB = CurrentHandleBB;
 	llvm::BasicBlock *ParentSafeBB = CurrentSafeBB;
 
-	// Take the current Function to create the Handle and Safe blocks in the same function
+	// Take the current Function to create the Handle and Safe blocks
 	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
 	// Create Handle and Safe Block
@@ -598,64 +801,33 @@ void CodeGenModule::GenHandleStmt(ASTHandleStmt *HandleStmt) {
 	Builder->CreateBr(CurrentHandleBB);
 	Builder->SetInsertPoint(CurrentHandleBB);
 
-	// Generate Handle Block
-	GenStmt(HandleStmt->getHandle());
+	// Generate Handle Block from Sema
+	if (Sema.getHandle()) {
+		Sema.getHandle()->accept(*this);
+	}
 
 	// Generate in Safe Block
 	Builder->SetInsertPoint(CurrentSafeBB);
 
-	// Restore parent handle statement for nested handles
+	// Restore parent handles
 	CurrentHandleBB = ParentHandleBB;
 	CurrentSafeBB = ParentSafeBB;
-
-	// Restore parent error handler after generating the current handle and safe blocks
 	CurrentErrorHandler = ParentErrorHandler;
 
-	FLY_DEBUG_END("CodeGenModule", "GenStmtHandle");
+	FLY_DEBUG_END("CodeGenModule", "visit(SemaHandleStmt)");
 }
 
 
-void CodeGenModule::GenFailStmt(ASTFailStmt *FailStmt) {
-	FLY_DEBUG_START("CodeGenModule", "GenStmtFail");
 
-	// Store Fail value in ErrorHandler
-	if (FailStmt->getFirstExpr() == nullptr) {
-		CurrentErrorHandler->StoreInt(llvm::ConstantInt::get(CG.Int32Ty, 1));
-	} else {
-		// Store first expression in the error handler (this is the main error code)
-		StoreFail(FailStmt->getFirstExpr(), CurrentErrorHandler);
-
-		if (FailStmt->getSecondExpr()) {
-			// If there is a second expression, we store the error code in the error handler
-			StoreFail(FailStmt->getSecondExpr(), CurrentErrorHandler);
-
-			if (FailStmt->getThirdExpr()) {
-				// If there is a third expression, we store the error code in the error handler
-				StoreFail(FailStmt->getThirdExpr(), CurrentErrorHandler);
-			}
-		}
-	}
-
-	if (CurrentHandleBB == nullptr) {
-		// No enclosing handle, so we just return from the function
-		Builder->CreateRetVoid();
-	} else {
-		Builder->CreateBr(CurrentSafeBB);
-	}
-
-	FLY_DEBUG_END("CodeGenModule", "GenStmtFail");
-}
-
-void CodeGenModule::StoreFail(ASTExpr *Expr, CodeGenError *CGE) {
-	SemaExpr *SemaExpr = Expr->getSema();
-	SemaExpr->accept(*this);
-	llvm::Value *Value = SemaExpr->getCodeGen()->getValue();
-	if (SemaExpr->getType()->isBool()) {
+void CodeGenModule::StoreFail(SemaExpr *Expr, CodeGenError *CGE) {
+	Expr->accept(*this);
+	llvm::Value *Value = Expr->getCodeGen()->getValue();
+	if (Expr->getType()->isBool()) {
 		// Bool is i1, need to zero extend to i32
 		llvm::Value *Int32Value = Builder->CreateZExt(Value, CG.Int32Ty);
 		CGE->StoreInt(Int32Value);
-	} else if (SemaExpr->getType()->isInteger()) {
-		SemaIntType *IntType = static_cast<SemaIntType *>(SemaExpr->getType());
+	} else if (Expr->getType()->isInteger()) {
+		SemaIntType *IntType = static_cast<SemaIntType *>(Expr->getType());
 		llvm::Value *Int32Value = Value;
 
 		// Get the bit width from the integer kind
@@ -678,298 +850,18 @@ void CodeGenModule::StoreFail(ASTExpr *Expr, CodeGenError *CGE) {
 		// If BitWidth == 32, no conversion needed
 
 		CGE->StoreInt(Int32Value);
-	} else if (SemaExpr->getType()->isString()) {
+	} else if (Expr->getType()->isString()) {
 		CGE->StoreString(Value);
-	} else if (SemaExpr->getType()->isClass()) {
+	} else if (Expr->getType()->isClass()) {
 		CGE->StoreObject(Value);
-	} else if (SemaExpr->getType()->isEnum()) {
+	} else if (Expr->getType()->isEnum()) {
 		CGE->StoreInt(Value);
 	}
 }
 
 
-void CodeGenModule::GenIfStmt(ASTIfStmt *If) {
-    FLY_DEBUG_START("CodeGenModule", "GenIfBlock");
-    llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
-
-    // If Block
-	If->getExpr()->getSema()->accept(*this);
-    llvm::Value *IfCond = If->getExpr()->getSema()->getCodeGen()->getValue();
-    llvm::BasicBlock *IfBB = llvm::BasicBlock::Create(LLVMCtx, "ifthen", Fn);
-
-    // Create End block
-    llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endif", Fn);
-
-    if (!If->getElse()) {
-
-        if (If->getElsif().empty()) { // If ...
-            Builder->CreateCondBr(IfCond, IfBB, EndBB);
-            Builder->SetInsertPoint(IfBB);
-            GenStmt(If->getStmt());
-            Builder->CreateBr(EndBB);
-        } else { // If - elsif ...
-            llvm::BasicBlock *ElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, EndBB);
-            Builder->CreateCondBr(IfCond, IfBB, ElsifBB);
-
-            // Start if-then
-            Builder->SetInsertPoint(IfBB);
-            GenStmt(If->getStmt());
-            Builder->CreateBr(EndBB);
-
-            // Create Elsif Blocks
-            unsigned long Size = If->getElsif().size();
-            for (unsigned long i = 0; i < If->getElsif().size(); i++) {
-                llvm::BasicBlock *ElsifThenBB = llvm::BasicBlock::Create(LLVMCtx, "elsifthen", Fn, EndBB);
-
-                llvm::BasicBlock *NextElsifBB;
-                if (i == Size-1) { // is Last
-                    NextElsifBB = EndBB;
-                } else {
-                    NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, EndBB);
-                }
-                ASTRuleStmt *Elsif = If->getElsif()[i];
-                Builder->SetInsertPoint(ElsifBB);
-            	Elsif->getExpr()->getSema()->accept(*this);
-                llvm::Value *ElsifCond = Elsif->getExpr()->getSema()->getCodeGen()->getValue();
-                Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
-
-                Builder->SetInsertPoint(ElsifThenBB);
-                GenStmt(Elsif->getStmt());
-                Builder->CreateBr(EndBB);
-
-                ElsifBB = NextElsifBB;
-            }
-        }
-
-    } else {
-
-        // Create Else block
-        llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(LLVMCtx, "else", Fn, EndBB);
-
-        if (If->getElsif().empty()) { // If - Else
-            Builder->CreateCondBr(IfCond, IfBB, ElseBB);
-            Builder->SetInsertPoint(IfBB);
-            GenStmt(If->getStmt());
-            Builder->CreateBr(EndBB);
-        } else { // If - Elsif - Else
-            llvm::BasicBlock *ElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, ElseBB);
-            Builder->CreateCondBr(IfCond, IfBB, ElsifBB);
-
-            // Start if-then
-            Builder->SetInsertPoint(IfBB);
-            GenStmt(If->getStmt());
-            Builder->CreateBr(EndBB);
-
-            // Create Elsif Blocks
-            unsigned long Size = If->getElsif().size();
-            for (unsigned long i = 0; i < If->getElsif().size(); i++) {
-                llvm::BasicBlock *ElsifThenBB = llvm::BasicBlock::Create(LLVMCtx, "elsifthen", Fn, ElseBB);
-
-                llvm::BasicBlock *NextElsifBB;
-                if (i == Size-1) { // is Last
-                    NextElsifBB = ElseBB;
-                } else {
-                    NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, ElseBB);
-                }
-                ASTRuleStmt *Elsif = If->getElsif()[i];
-                Builder->SetInsertPoint(ElsifBB);
-            	Elsif->getExpr()->getSema()->accept(*this);
-                llvm::Value *ElsifCond = Elsif->getExpr()->getSema()->getCodeGen()->getValue();
-                Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
-
-                Builder->SetInsertPoint(ElsifThenBB);
-                GenStmt(Elsif->getStmt());
-                Builder->CreateBr(EndBB);
-
-                ElsifBB = NextElsifBB;
-            }
-        }
-
-        Builder->SetInsertPoint(ElseBB);
-        GenStmt(If->getElse());
-        Builder->CreateBr(EndBB);
-    }
-
-    // Continue insertions into End Branch
-    Builder->SetInsertPoint(EndBB);
-}
-
-void CodeGenModule::GenElsifStmt(CodeGenFunctionBase *CGF,
-                                               llvm::BasicBlock *ElsifBB,
-                                               llvm::SmallVector<ASTRuleStmt *, 8>::iterator &It) {
-    FLY_DEBUG_START("CodeGenModule", "GenElsifBlock");
-    llvm::Function *Fn = CGF->getFunction();
-    ASTRuleStmt *&Elsif = *It;
-    It++;
-    if (*It != nullptr) {
-        Builder->SetInsertPoint(ElsifBB);
-    	Elsif->getExpr()->getSema()->accept(*this);
-        llvm::Value *Cond = Elsif->getExpr()->getSema()->getCodeGen()->getValue();
-        llvm::BasicBlock *NextElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn);
-        Builder->CreateCondBr(Cond, ElsifBB, NextElsifBB);
-
-        llvm::BasicBlock *ElsifThenBB = llvm::BasicBlock::Create(LLVMCtx, "elsifthen", Fn);
-        Builder->SetInsertPoint(ElsifThenBB);
-        GenStmt(Elsif->getStmt());
-        GenElsifStmt(CGF, ElsifThenBB, It);
-    }
-}
-
-void CodeGenModule::GenSwitchStmt(ASTSwitchStmt *Switch) {
-    FLY_DEBUG_START("CodeGenModule", "GenSwitchBlock");
-	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
-
-    // Create End Block
-    llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endswitch", Fn);
-
-    // Push break target onto stack (switches don't have continue)
-    BreakTargetStack.push_back(EndBB);
-
-    // Create Expression evaluator for Switch
-	Switch->getExpr()->getSema()->accept(*this);
-    llvm::Value *SwitchVal = Switch->getExpr()->getSema()->getCodeGen()->getValue();
-    llvm::SwitchInst *Inst = Builder->CreateSwitch(SwitchVal, EndBB);
-
-    // Create Cases
-    unsigned long Size = Switch->getCases().size();
-
-    llvm::BasicBlock *NextCaseBB = nullptr;
-    for (unsigned long i=0; i < Size; i++) {
-        ASTRuleStmt *Case = Switch->getCases()[i];
-    	Case->getExpr()->getSema()->accept(*this);
-        llvm::Value *CaseVal = Case->getExpr()->getSema()->getCodeGen()->getValue();
-        llvm::ConstantInt *CaseConst = llvm::cast<llvm::ConstantInt, llvm::Value>(CaseVal);
-        llvm::BasicBlock *CaseBB = NextCaseBB == nullptr ?
-                                   llvm::BasicBlock::Create(LLVMCtx, "case", Fn, EndBB) : NextCaseBB;
-        Inst->addCase(CaseConst, CaseBB);
-        Builder->SetInsertPoint(CaseBB);
-        GenStmt(Case->getStmt());
-
-        // If there is a Next
-        if (i + 1 < Size) {
-            NextCaseBB = llvm::BasicBlock::Create(LLVMCtx, "case", Fn, EndBB);
-            Builder->CreateBr(NextCaseBB);
-        } else {
-            Builder->CreateBr(EndBB);
-        }
-    }
-
-    // Create Default
-    if (Switch->getDefault()) {
-        llvm::BasicBlock *DefaultBB = llvm::BasicBlock::Create(LLVMCtx, "default", Fn, EndBB);
-        Inst->setDefaultDest(DefaultBB);
-        Builder->SetInsertPoint(DefaultBB);
-        GenStmt(Switch->getDefault());
-        Builder->CreateBr(EndBB);
-    }
-
-    // Pop break target from stack
-    BreakTargetStack.pop_back();
-
-    // Continue insertions into End Branch
-    Builder->SetInsertPoint(EndBB);
-}
-
-void CodeGenModule::GenLoopStmt(ASTLoopStmt *Loop) {
-    FLY_DEBUG_START("CodeGenModule", "GenLoopBlock");
-	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
-
-    // Generate Init Statements
-    for (ASTStmt *S : Loop->getInit()) {
-    	GenStmt(S);
-    }
-
-    // Create Condition Block
-    llvm::BasicBlock *CondBB = nullptr;
-    if (Loop->getExpr()) {
-        CondBB = llvm::BasicBlock::Create(LLVMCtx, "loopcond", Fn);
-    }
-
-    // Create Loop Block
-    llvm::BasicBlock *LoopBB = LoopBB = llvm::BasicBlock::Create(LLVMCtx, "loop", Fn);
-
-    // Create Post Block
-    llvm::BasicBlock *PostBB = nullptr;
-    if (!Loop->getPost().empty()) {
-        PostBB = llvm::BasicBlock::Create(LLVMCtx, "looppost", Fn);
-    }
-
-    // Create End Block
-    llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "loopend", Fn);
-
-    // Push break and continue targets onto stacks
-    BreakTargetStack.push_back(EndBB);
-    // Continue target depends on whether we have a Post block or Condition block
-    if (PostBB) {
-        ContinueTargetStack.push_back(PostBB);
-    } else if (CondBB) {
-        ContinueTargetStack.push_back(CondBB);
-    } else {
-        ContinueTargetStack.push_back(LoopBB);
-    }
-
-    // Generate Code
-    if (CondBB) {
-        Builder->CreateBr(CondBB);
-
-        // Create Condition
-        Builder->SetInsertPoint(CondBB);
-    	Loop->getExpr()->getSema()->accept(*this);
-        llvm::Value *Cond = Loop->getExpr()->getSema()->getCodeGen()->getValue();
-        Builder->CreateCondBr(Cond, LoopBB, EndBB);
-    } else {
-        Builder->CreateBr(LoopBB);
-    }
-
-    // Add to Loop
-    Builder->SetInsertPoint(LoopBB);
-    GenStmt(Loop->getLoop());
-    if (PostBB) {
-        Builder->CreateBr(PostBB);
-
-        // Add to Post
-        Builder->SetInsertPoint(PostBB);
-    	for (ASTStmt *S : Loop->getPost()) {
-    		GenStmt(S);
-    	}
-        if (CondBB) {
-            Builder->CreateBr(CondBB);
-        } else {
-            Builder->CreateBr(LoopBB);
-        }
-    } else if (CondBB) {
-        Builder->CreateBr(CondBB);
-    } else {
-        Builder->CreateBr(LoopBB);
-    }
-
-    // Pop break and continue targets from stacks
-    BreakTargetStack.pop_back();
-    ContinueTargetStack.pop_back();
-
-    // Continue insertions into End Branch
-    Builder->SetInsertPoint(EndBB);
-}
-
-void CodeGenModule::GenStmtLoopIn(ASTLoopInStmt *LoopIn) {
-    FLY_DEBUG_START("CodeGenModule", "GenStmtLoopIn");
-
-    // TODO: Implement proper for-in loop code generation
-    // This requires:
-    // 1. Determine if List is an array, string, or iterable collection
-    // 2. Get the length/size of the collection
-    // 3. Generate loop with iterator to access each element
-    // 4. Assign each element to the Item variable
-    // 5. Execute the loop body (Stmt)
-
-    // For now, just generate the loop body as a placeholder
-    GenStmt(LoopIn->getStmt());
-
-    FLY_DEBUG_END("CodeGenModule", "GenStmtLoopIn");
-}
-
 std::string CodeGenModule::toIdentifier(llvm::StringRef Name, SemaNameSpace *NameSpace) {
 	FLY_DEBUG_START("CodeGenModule", "toIdentifier");
-	std::string Prefix = NameSpace ? std::string(NameSpace->getName()).append("_") : "";
+	std::string Prefix = NameSpace ? std::string(NameSpace->getName()).append(".") : "";
 	return Prefix.append(std::string(Name));
 }

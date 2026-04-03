@@ -10,7 +10,6 @@
 #include "AST/ASTBinary.h"
 #include "AST/ASTVisitor.h"
 #include "Basic/Logger.h"
-
 using namespace fly;
 
 ASTBinary::ASTBinary(ASTBinaryKind OpKind, const SourceLocation &OpLocation,
@@ -53,21 +52,9 @@ SourceLocation &ASTBinary::getOpLocation() {
     return OpLocation;
 }
 
-ASTExpr *ASTBinary::getLeftExpr() const {
-    return LeftExpr;
-}
+ASTExpr *ASTBinary::getLeftExpr() const { return LeftExpr; }
 
-ASTExpr *ASTBinary::getRightExpr() const {
-    return RightExpr;
-}
-
-SemaBinary * ASTBinary::getSema() const {
-	return static_cast<SemaBinary *>(Sema);
-}
-
-void ASTBinary::setSema(SemaBinary *Sema) {
-	this->Sema = Sema;
-}
+ASTExpr *ASTBinary::getRightExpr() const { return RightExpr; }
 
 std::string ASTBinary::str() const {
     return Logger("ASTBinaryOpExpr").

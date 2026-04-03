@@ -11,7 +11,6 @@
 #define FLY_AST_UNARY_H
 
 #include "ASTExpr.h"
-#include "Sema/SemaUnary.h"
 
 namespace fly {
 
@@ -46,9 +45,6 @@ namespace fly {
 
         ASTExpr *getExpr() const;
 
-        SemaUnary *getSema() const override;
-
-    	void setSema(SemaUnary *Sema);
 
         std::string str() const override;
     };

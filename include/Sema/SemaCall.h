@@ -12,6 +12,8 @@
 
 #include "Sema/SemaExpr.h"
 
+#include <llvm/ADT/SmallVector.h>
+
 namespace fly {
 
     class ASTCall;
@@ -32,6 +34,8 @@ namespace fly {
 
     	SemaError *ErrorHandler = nullptr;
 
+    	llvm::SmallVector<SemaExpr *, 8> Args;
+
     	CodeGenExpr *CodeGen = nullptr;
 
         explicit SemaCall(ASTCall &AST, SemaType *Type);
@@ -49,6 +53,10 @@ namespace fly {
     	void setErrorHandler(SemaError *ErrorHandler);
 
     	bool isNew() const;
+
+    	llvm::SmallVector<SemaExpr *, 8> &getArgs();
+
+    	void addArg(SemaExpr *Arg);
 
     	CodeGenExpr *getCodeGen() const;
 

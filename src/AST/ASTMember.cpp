@@ -8,9 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTMember.h"
-
+#include "Sema/Symbol.h"
 #include <AST/ASTVisitor.h>
-#include <Sema/SemaExpr.h>
 
 using namespace fly;
 
@@ -18,32 +17,14 @@ ASTMember::ASTMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *P
 	ASTExpr(Loc, ASTExprKind::EXPR_MEMBER, Parent), Name(Name) {
 }
 
-ASTMember::~ASTMember() {
-}
+ASTMember::~ASTMember() {}
 
-llvm::StringRef ASTMember::getName() const {
-	return Name;
-}
+llvm::StringRef ASTMember::getName() const { return Name; }
 
-void ASTMember::accept(ASTVisitor &Visitor) {
-	Visitor.visit(*this);
-}
+void ASTMember::accept(ASTVisitor &Visitor) { Visitor.visit(*this); }
 
-SemaExpr *ASTMember::getSema() const {
-	return Sema;
-}
+Symbol *ASTMember::getSymbol() const { return ResolvedSymbol; }
 
-void ASTMember::setSema(SemaExpr *Sema) {
-	this->Sema = Sema;
-}
+void ASTMember::setSymbol(Symbol *Sym) { ResolvedSymbol = Sym; }
 
-Symbol *ASTMember::getSymbol() const {
-	return ResolvedSymbol;
-}
-void ASTMember::setSymbol(Symbol *Sym) {
-	ResolvedSymbol = Sym;
-}
-
-std::string ASTMember::str() const {
-	return ASTExpr::str();
-}
+std::string ASTMember::str() const { return ASTExpr::str(); }

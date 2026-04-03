@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaBuilderLoopStmt.cpp - The Sema Builder Loop Stmt
+// src/AST/ASTBuilderLoopStmt.cpp - The AST Builder Loop Stmt
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

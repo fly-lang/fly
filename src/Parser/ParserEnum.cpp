@@ -61,7 +61,7 @@ ParserEnum::ParserEnum(Parser *P, llvm::SmallVector<ASTModifier *, 8> &Modifiers
             // Error: Class block not correctly closed
             if (P->Tok.is(tok::eof)) {
                 Success = false;
-                P->Diag(P->Tok, diag::err_class_block_unclosed);
+                P->Diag(P->Tok, diag::err_parser_class_block_unclosed);
                 break;
             }
 
@@ -106,7 +106,7 @@ bool ParserEnum::ParseEntry(const SourceLocation &Loc, llvm::StringRef Name, llv
         // Expect another identifier after comma
         if (!P->Tok.isAnyIdentifier()) {
             // malformed list: no identifier after comma
-            P->Diag(P->Tok, diag::err_parse_identifier_expected);
+            P->Diag(P->Tok, diag::err_parser_identifier_expected);
             return false;
         }
 

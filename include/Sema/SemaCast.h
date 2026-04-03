@@ -24,15 +24,21 @@ namespace fly {
 
 		ASTCast &AST;
 
+		SemaExpr *Expr;
+		SemaType *ToType;
+
 		CodeGenExpr *CodeGen = nullptr;
 
-		explicit SemaCast(ASTCast &AST);
+		explicit SemaCast(ASTCast &AST, SemaExpr *Expr, SemaType *ToType);
 
 	public:
 
 		~SemaCast() override = default;
 
 		ASTCast &getAST() const;
+
+		SemaExpr *getExpr() const;
+		SemaType *getToType() const;
 
 		CodeGenExpr *getCodeGen() const;
 

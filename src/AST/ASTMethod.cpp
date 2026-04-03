@@ -11,7 +11,6 @@
 #include "AST/ASTModifier.h"
 
 #include <AST/ASTVisitor.h>
-#include <Sema/SemaClassMethod.h>
 
 using namespace fly;
 

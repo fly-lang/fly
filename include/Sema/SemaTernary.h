@@ -22,17 +22,25 @@ namespace fly {
 
 		ASTTernary &AST;
 
+		SemaExpr *Cond;
+		SemaExpr *TrueExpr;
+		SemaExpr *FalseExpr;
+
 		CodeGenExpr *CodeGen = nullptr;
 
 		SemaType *SelectType(SemaExpr * LeftExpr, SemaExpr * RightExpr);
 
-		explicit SemaTernary(ASTTernary &AST);
+		explicit SemaTernary(ASTTernary &AST, SemaExpr *Cond, SemaExpr *TrueExpr, SemaExpr *FalseExpr);
 
 	public:
 
 		~SemaTernary() override = default;
 
 		ASTTernary &getAST() const;
+
+		SemaExpr *getCond() const;
+		SemaExpr *getTrueExpr() const;
+		SemaExpr *getFalseExpr() const;
 
 		CodeGenExpr *getCodeGen() const;
 
@@ -43,3 +51,4 @@ namespace fly {
 	};
 }
 #endif //FLY_SEMA_TERNARY_H
+

@@ -12,14 +12,10 @@
 
 #include "ASTExpr.h"
 #include "ASTName.h"
-#include "ASTVar.h"
-#include "Sema/SemaMember.h"
 
 namespace fly {
 
-	class ASTVar;
 	class Symbol;
-	class SemaExpr;
 
 	class ASTMember : public ASTExpr {
 
@@ -41,9 +37,6 @@ namespace fly {
 
 		void accept(ASTVisitor &Visitor) override;
 
-		SemaExpr *getSema() const override;
-
-		void setSema(SemaExpr *Sema);
 
 		Symbol *getSymbol() const;
 

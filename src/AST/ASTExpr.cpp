@@ -8,52 +8,36 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTExpr.h"
-
 #include "Basic/Logger.h"
-#include "Sema/SemaExpr.h"
-#include "Sema/SemaType.h"
 
 using namespace fly;
 
 ASTExpr::ASTExpr(const SourceLocation &Loc, ASTExprKind ExprKind, ASTExpr *Parent, ASTExpr *Child) :
-        ASTNode(Loc, ASTKind::AST_EXPR), ExprKind(ExprKind), Sema(nullptr) {
+        ASTNode(Loc, ASTKind::AST_EXPR), ExprKind(ExprKind) {
 	setParent(Parent);
 	setChild(Child);
 }
 
-ASTExprKind ASTExpr::getExprKind() const {
-    return ExprKind;
+ASTExprKind ASTExpr::getExprKind() const { return ExprKind; }
+
+void ASTExpr::setParent(ASTExpr *P) {
+	this->Parent = P;
+	if (P != nullptr) P->Child = this;
 }
 
-void ASTExpr::setParent(ASTExpr *Parent) {
-	this->Parent = Parent;
-	if (Parent != nullptr)
-		Parent->Child = this;
+void ASTExpr::setChild(ASTExpr *C) {
+	this->Child = C;
+	if (C) C->Parent = this;
 }
 
-
-void ASTExpr::setChild(ASTExpr *Child) {
-	this->Child = Child;
-	if (Child)
-		Child->Parent = this;
-}
-
-ASTExpr *ASTExpr::getParent() const {
-	return Parent;
-}
-
-ASTExpr *ASTExpr::getChild() const {
-	return Child;
-}
-
-SemaType * ASTExpr::getType() const {
-	return Sema->getType();
-}
+ASTExpr *ASTExpr::getParent() const { return Parent; }
+ASTExpr *ASTExpr::getChild() const  { return Child; }
 
 std::string ASTExpr::str() const {
     return Logger("ASTExpr").
 		Attr("Location", getLocation()).
 		Attr("Kind", static_cast<size_t>(getKind())).
-           Attr("Sema", Sema).
            End();
 }
+
+

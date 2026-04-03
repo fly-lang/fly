@@ -11,7 +11,6 @@
 #define FLY_AST_TERNARY_H
 
 #include "ASTExpr.h"
-#include "Sema/SemaTernary.h"
 
 namespace fly {
 
@@ -48,10 +47,6 @@ namespace fly {
         SourceLocation &getFalseOpLocation();
 
         ASTExpr *getFalseExpr() const;
-
-        SemaTernary *getSema() const override;
-
-    	void setSema(SemaTernary *Sema);
 
         std::string str() const override;
     };

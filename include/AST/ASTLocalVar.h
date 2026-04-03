@@ -10,8 +10,6 @@
 #ifndef FLY_AST_LOCALVAR_H
 #define FLY_AST_LOCALVAR_H
 
-#include <Sema/SemaLocalVar.h>
-
 #include "ASTVar.h"
 
 namespace fly {
@@ -19,13 +17,12 @@ namespace fly {
     class SourceLocation;
     class ASTModifier;
     class ASTType;
-	class ASTExpr;
+    class ASTExpr;
+    class Symbol;
 
     class ASTLocalVar : public ASTVar {
 
         friend class ASTBuilder;
-
-        SemaLocalVar* Sema;
 
     protected:
         ASTLocalVar(const SourceLocation& Loc, ASTType* Type, llvm::StringRef Name, SmallVector<ASTModifier*, 8>& Modifiers);
@@ -34,9 +31,9 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        SemaLocalVar* getSema() const override;
+        Symbol* getSymbol() const override;
 
-        void setSema(SemaLocalVar* Sema);
+        void setSymbol(Symbol* Sym);
 
     };
 }

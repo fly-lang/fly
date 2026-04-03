@@ -15,16 +15,12 @@
 namespace fly {
 
     class ASTIdentifier;
-	class SemaError;
-    class CodeGenHandle;
 
     class ASTHandleStmt : public ASTStmt {
 
         friend class ASTBuilder;
 
         ASTBlockStmt *Handle = nullptr;
-
-    	SemaError *ErrorHandler = nullptr;
 
         explicit ASTHandleStmt(const SourceLocation &Loc);
 
@@ -34,13 +30,9 @@ namespace fly {
 
         ASTBlockStmt* getHandle() const;
 
-    	SemaError *getErrorHandler() const;
-
-    	void setErrorHandler(SemaError *ErrorHandler);
 
         std::string str() const override;
     };
 }
-
 
 #endif //FLY_AST_HANDLESTMT_H

@@ -217,7 +217,7 @@ ASTExpr * ParserExpr::ParseIdentifierOrCall(ASTExpr *Parent) {
 		P->ConsumeToken();
 
 		if (!P->Tok.isAnyIdentifier()) {
-			P->Diag(P->Tok.getLocation(), diag::err_parse_identifier_expected);
+			P->Diag(P->Tok.getLocation(), diag::err_parser_identifier_expected);
 		} else {
 			return ParseIdentifierOrCall(Expr);
 		}
@@ -283,7 +283,7 @@ ASTValue *ParserExpr::ParseValue() {
 		return ParseValues();
 	}
 
-	P->Diag(diag::err_invalid_value) << P->Tok.getName();
+	P->Diag(diag::err_parser_invalid_value) << P->Tok.getName();
 	return nullptr;
 }
 
@@ -332,12 +332,12 @@ ASTExpr *ParserExpr::ParsePrimary() {
 		if (P->Tok.is(tok::r_paren)) {
 			P->ConsumeParen();
 		} else {
-			P->Diag(P->Tok.getLocation(), diag::err_parse_expr_close_paren);
+			P->Diag(P->Tok.getLocation(), diag::err_parser_expr_close_paren);
 		}
 		return Primary;
 	}
 
-	P->Diag(P->Tok.getLocation(), diag::err_parse_expr_expected_primary);
+	P->Diag(P->Tok.getLocation(), diag::err_parser_expr_expected_primary);
     // Consume token to avoid parser stalling in callers that expect progress
     P->ConsumeToken();
 
@@ -375,7 +375,7 @@ ASTTernary *ParserExpr::ParseTernaryExpr(ASTExpr *ConditionExpr) {
     ASTExpr* TrueExpr = PET.Parse();  // Parse the true expression
 
     if (P->Tok.isNot(tok::colon)) {
-        throw P->Diag(P->Tok.getLocation(), diag::err_parse_ternary_expr);
+        throw P->Diag(P->Tok.getLocation(), diag::err_parser_ternary_expr);
     }
 
     const SourceLocation &FalseOpLoc = P->ConsumeToken();  // Consume ':'
@@ -480,7 +480,7 @@ ASTExpr *ParserExpr::ParseNewExpr() {
     }
 
     // Error:
-    P->Diag(P->Tok.getLocation(), diag::err_parse_new_instance);
+    P->Diag(P->Tok.getLocation(), diag::err_parser_new_instance);
     return nullptr;
 }
 
@@ -527,7 +527,7 @@ ASTCall *ParserExpr::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, 
 			break; // End of parameter List
 		} else {
 			// Handle error: Unexpected token
-			P->Diag(P->Tok.getLocation(), diag::err_parse_expected_comma_or_rparen);
+			P->Diag(P->Tok.getLocation(), diag::err_parser_expected_comma_or_rparen);
 		}
 	}
 
@@ -564,7 +564,7 @@ ASTValue *ParserExpr::ParseValues() {
                 if (Value) {
                     StructValues.insert(std::make_pair(Key, Value));
                 } else {
-                    P->Diag(diag::err_invalid_value) << P->Tok.getName();
+                    P->Diag(diag::err_parser_invalid_value) << P->Tok.getName();
                 }
             }
         } else { // if is Value -> array
@@ -572,7 +572,7 @@ ASTValue *ParserExpr::ParseValues() {
             if (Value) {
                 ArrayValues.push_back(Value);
             } else {
-                P->Diag(diag::err_invalid_value) << P->Tok.getName();
+                P->Diag(diag::err_parser_invalid_value) << P->Tok.getName();
             }
         }
 
@@ -593,6 +593,6 @@ ASTValue *ParserExpr::ParseValues() {
         }
     }
 
-    P->Diag(diag::err_invalid_value) << P->Tok.getName();
+    P->Diag(diag::err_parser_invalid_value) << P->Tok.getName();
     return nullptr;
 }

@@ -24,17 +24,23 @@ namespace fly {
 
 		ASTBinary &AST;
 
+		SemaExpr *Left;
+		SemaExpr *Right;
+
 		CodeGenExpr *CodeGen = nullptr;
 
-		SemaType *SelectType(ASTBinary &AST);
+		SemaType *SelectType(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right);
 
-		explicit SemaBinary(ASTBinary &AST);
+		explicit SemaBinary(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right);
 
 	public:
 
     	~SemaBinary() override = default;
 
     	ASTBinary &getAST() const;
+
+		SemaExpr *getLeft() const;
+		SemaExpr *getRight() const;
 
 		CodeGenExpr *getCodeGen() const;
 

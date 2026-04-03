@@ -113,7 +113,7 @@ ASTNameSpace *Parser::ParseNameSpace() {
 	ConsumeToken(); // consume 'namespace'
 
 	if (!Tok.isAnyIdentifier()) {
-		Diag(Tok, diag::err_parse_identifier_expected);
+		Diag(Tok, diag::err_parser_identifier_expected);
 		return nullptr;
 	}
 
@@ -131,7 +131,7 @@ ASTImport *Parser::ParseImport() {
 	ConsumeToken(); // consume 'import'
 
 	if (!Tok.isAnyIdentifier()) {
-		Diag(Tok, diag::err_parse_identifier_expected);
+		Diag(Tok, diag::err_parser_identifier_expected);
 		return nullptr;
 	}
 
@@ -160,7 +160,7 @@ llvm::SmallVector<ASTName *, 4> Parser::ParseNames() {
 
 	while (true) {
 		if (!Tok.isAnyIdentifier()) {
-			Diag(Tok, diag::err_parse_identifier_expected);
+			Diag(Tok, diag::err_parser_identifier_expected);
 			break;
 		}
 
@@ -673,7 +673,7 @@ void Parser::ParseEndParen(bool HasParen) {
         if (Tok.is(tok::r_paren)) {
             ConsumeParen();
         } else {
-            Diag(diag::err_right_paren);
+            Diag(diag::err_parser_right_paren);
         }
     }
 }
@@ -827,7 +827,7 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
     			ConsumeToken();
 
     			if (SwitchBuilder->hasDefault()) {
-    				Diag(Tok.getLocation(), diag::err_syntax_default_error);
+    				Diag(Tok.getLocation(), diag::err_parser_syntax_default_error);
     				return;
     			}
 
@@ -856,7 +856,7 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
         }
     }
 
-    Diag(diag::err_parse_syntax_error);
+    Diag(diag::err_parser_syntax_error);
 }
 
 /**
@@ -1062,7 +1062,7 @@ void Parser::ParseFailStmt(ASTBlockStmt *Parent) {
     			Stmt->setThirdExpr(ThirdExpr);
 
     			if (Tok.is(tok::comma)) {
-    				Diag(Tok.getLocation(), diag::err_parse_fail_too_many_expr);
+    				Diag(Tok.getLocation(), diag::err_parser_fail_too_many_expr);
     			}
     		}
     	}
@@ -1401,8 +1401,8 @@ DiagnosticBuilder Parser::Diag(unsigned DiagID) {
 
 void Parser::DiagInvalidId(SourceLocation Loc) {
     if (isKeyword(Tok.getKind())) {
-        Diag(Loc, diag::err_invalid_id) << tok::getKeywordSpelling(Tok.getKind());
+        Diag(Loc, diag::err_parser_invalid_id) << tok::getKeywordSpelling(Tok.getKind());
     } else {
-        Diag(Loc, diag::err_invalid_id) << tok::getPunctuatorSpelling(Tok.getKind());
+        Diag(Loc, diag::err_parser_invalid_id) << tok::getPunctuatorSpelling(Tok.getKind());
     }
 }

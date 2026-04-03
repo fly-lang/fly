@@ -14,6 +14,7 @@
 #include "Sema/SemaBuiltin.h"
 #include "Sema/SemaLocalVar.h"
 #include "Sema/SemaParam.h"
+#include "Sema/SemaBlockStmt.h"
 
 #include <AST/ASTVar.h>
 #include <CodeGen/CodeGenFunctionBase.h>
@@ -78,10 +79,10 @@ SemaError * SemaFunctionBase::getErrorHandler() const {
 	return ErrorHandler;
 }
 
-bool SemaFunctionBase::isFallible() const {
-	return Fallible;
-}
+bool SemaFunctionBase::isFallible() const { return Fallible; }
 
-void SemaFunctionBase::setFallible(bool Fallible) {
-	this->Fallible = Fallible;
-}
+void SemaFunctionBase::setFallible(bool F) { Fallible = F; }
+
+SemaBlockStmt *SemaFunctionBase::getBody() const { return Body; }
+
+void SemaFunctionBase::setBody(SemaBlockStmt *B) { Body = B; }

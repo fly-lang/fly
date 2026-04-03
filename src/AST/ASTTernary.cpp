@@ -41,17 +41,7 @@ SourceLocation &ASTTernary::getFalseOpLocation() {
     return FalseOpLocation;
 }
 
-ASTExpr *ASTTernary::getFalseExpr() const {
-    return FalseExpr;
-}
-
-SemaTernary * ASTTernary::getSema() const {
-	return static_cast<SemaTernary *>(Sema);
-}
-
-void ASTTernary::setSema(SemaTernary *Sema) {
-	this->Sema = Sema;
-}
+ASTExpr *ASTTernary::getFalseExpr() const { return FalseExpr; }
 
 std::string ASTTernary::str() const {
     return Logger("ASTTernaryGroupExpr").

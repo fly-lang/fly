@@ -11,19 +11,17 @@
 #define FLY_AST_ATTRIBUTE_H
 
 #include "ASTVar.h"
-#include "Sema/SemaClassAttribute.h"
 
 namespace fly {
 
     class ASTModifier;
     class ASTType;
 	class ASTExpr;
+    class Symbol;
 
     class ASTAttribute : public ASTVar {
 
         friend class ASTBuilder;
-
-        SemaClassAttribute* Sema;
 
     protected:
         ASTAttribute(const SourceLocation& Loc, ASTType* Type, llvm::StringRef Name, SmallVector<ASTModifier*, 8>& Modifiers);
@@ -32,9 +30,9 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        SemaClassAttribute* getSema() const override;
+        Symbol* getSymbol() const override;
 
-        void setSema(SemaClassAttribute* Sema);
+        void setSymbol(Symbol* Sym) override;
 
     };
 }

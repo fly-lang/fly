@@ -184,6 +184,20 @@ add_library(flyLib
         Sema/SemaUnary.cpp
         Sema/SemaVar.cpp
         Sema/SemaValue.cpp
+        Sema/SemaStmt.cpp
+        Sema/SemaBlockStmt.cpp
+        Sema/SemaDeclStmt.cpp
+        Sema/SemaExprStmt.cpp
+        Sema/SemaReturnStmt.cpp
+        Sema/SemaIfStmt.cpp
+        Sema/SemaSwitchStmt.cpp
+        Sema/SemaLoopStmt.cpp
+        Sema/SemaLoopInStmt.cpp
+        Sema/SemaDeleteStmt.cpp
+        Sema/SemaBreakStmt.cpp
+        Sema/SemaContinueStmt.cpp
+        Sema/SemaFailStmt.cpp
+        Sema/SemaHandleStmt.cpp
         Sema/Registry.cpp
         Sema/Resolver.cpp
 )

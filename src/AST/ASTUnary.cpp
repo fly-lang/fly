@@ -29,17 +29,7 @@ const SourceLocation &ASTUnary::getOpLocation() const {
     return ASTBase::getLocation();
 }
 
-ASTExpr *ASTUnary::getExpr() const {
-    return Expr;
-}
-
-SemaUnary *ASTUnary::getSema() const {
-	return static_cast<SemaUnary *>(Sema);
-}
-
-void ASTUnary::setSema(SemaUnary *Sema) {
-	this->Sema = Sema;
-}
+ASTExpr *ASTUnary::getExpr() const { return Expr; }
 
 std::string ASTUnary::str() const {
     return Logger("ASTUnary").

@@ -1,0 +1,26 @@
+//===--------------------------------------------------------------------------------------------------------------===//
+// src/Sema/SemaIfStmt.cpp
+//===--------------------------------------------------------------------------------------------------------------===//
+
+#include "Sema/SemaIfStmt.h"
+#include "Sema/SemaVisitor.h"
+
+using namespace fly;
+
+SemaIfStmt::SemaIfStmt(ASTStmt *AST, SemaExpr *Cond, SemaStmt *Then)
+    : SemaStmt(SemaKind::STMT_IF, AST), Cond(Cond), Then(Then) {}
+
+SemaExpr *SemaIfStmt::getCond() const { return Cond; }
+SemaStmt *SemaIfStmt::getThen() const { return Then; }
+
+void SemaIfStmt::addElsif(SemaExpr *Expr, SemaStmt *Stmt) {
+    Elsif.push_back({Expr, Stmt});
+}
+
+const llvm::SmallVector<SemaRuleStmt, 4> &SemaIfStmt::getElsif() const { return Elsif; }
+
+SemaStmt *SemaIfStmt::getElse() const { return Else; }
+void SemaIfStmt::setElse(SemaStmt *E) { Else = E; }
+
+void SemaIfStmt::accept(SemaVisitor &Visitor) { Visitor.visit(*this); }
+

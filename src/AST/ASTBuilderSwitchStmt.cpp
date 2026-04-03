@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaBuilderSwitchStmt.cpp - The Sema Builder Switch Stmt
+// src/AST/ASTBuilderSwitchStmt.cpp - The AST Builder Switch Stmt
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

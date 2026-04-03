@@ -11,13 +11,11 @@
 #define FLY_AST_IDENTIFIER_H
 
 #include "ASTExpr.h"
-#include "Sema/SemaVar.h"
 
 namespace fly {
 
     class ASTVar;
-    class SemaVar;
-	class Symbol;
+    class Symbol;
 
     class ASTIdentifier : public ASTExpr {
 
@@ -29,7 +27,7 @@ namespace fly {
 
         const llvm::StringRef Name;
 
-        ASTVar *Var;
+        ASTVar *Var = nullptr;
 
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
 
@@ -43,11 +41,7 @@ namespace fly {
 
         ASTVar *getVar();
 
-        void setSema(SemaVar *Sema);
-
-        SemaVar *getSema() const override;
-
-    	Symbol *getSymbol() const;
+        Symbol *getSymbol() const;
 
     	void setSymbol(Symbol *Sym);
 

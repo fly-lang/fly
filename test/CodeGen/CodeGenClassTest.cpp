@@ -177,7 +177,6 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                           "  %9 = load i32, i32* %8, align 4\n"
                           "  store i32 %9, i32* %3, align 4\n"
                           "  %10 = getelementptr inbounds %TestStruct, %TestStruct* %7, i32 0, i32 0\n"
-                          "  %11 = load i32, i32* %10, align 4\n"
                           "  store i32 2, i32* %10, align 4\n"
                           "  ret void\n"
                           "}\n"
@@ -249,6 +248,27 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                           "@error = external constant %error\n"
                           "@vtable.TestClass = constant [2 x i8*] [i8* null, i8* bitcast (void (%error*, %TestClass*)* @TestClass_F9TestClass to i8*)]\n"
                           "\n"
+						  "define %TestClass* @TestClass.init_ctor(%TestClass* %0) {\n"
+						  "entry:\n"
+						  "  %1 = alloca %TestClass*, align 8\n"
+						  "  store %TestClass* %0, %TestClass** %1, align 8\n"
+						  "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
+						  "  %3 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 0\n"
+						  "  store i8** getelementptr inbounds ([2 x i8*], [2 x i8*]* @vtable.TestClass, i32 0, i32 0), i8*** %3, align 8\n"
+						  "  %4 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 1\n"
+						  "  store i32 0, i32* %4, align 4\n"
+						  "  ret %TestClass* %2\n"
+						  "}\n"
+						  "\n"
+						  "define void @TestClass_F9TestClass(%error* %0, %TestClass* %1) {\n"
+						  "entry:\n"
+						  "  %2 = alloca %error*, align 8\n"
+						  "  %3 = alloca %TestClass*, align 8\n"
+						  "  store %error* %0, %error** %2, align 8\n"
+						  "  store %TestClass* %1, %TestClass** %3, align 8\n"
+						  "  ret void\n"
+						  "}\n"
+						  "\n"
 						  "define void @_F4func(%error* %0) {\n"
 						  "entry:\n"
 						  "  %1 = alloca %error*, align 8\n"
@@ -265,49 +285,36 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 						  "  %8 = getelementptr inbounds %TestClass, %TestClass* %7, i32 0, i32 1\n"
 						  "  store i32 2, i32* %8, align 4\n"
 						  // delete test
-						  "  %9 = load %TestClass*, %TestClass** %2, align 8\n"
-						  "  %10 = bitcast %TestClass* %9 to i8*\n"
-						  "  tail call void @free(i8* %10)\n"
+						  "  %9 = bitcast %TestClass* %7 to i8*\n"
+						  "  tail call void @free(i8* %9)\n"
 						  "  ret void\n"
 						  "}\n"
 						  "\n"
-						  "define %TestClass* @TestClass.init_ctor(%TestClass* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %TestClass*, align 8\n"
-						  "  store %TestClass* %0, %TestClass** %1, align 8\n"
-						  "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 0\n"
-						  "  store i8** getelementptr inbounds ([2 x i8*], [2 x i8*]* @vtable.TestClass, i32 0, i32 0), i8*** %3, align 8\n"
-						  "  %4 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 1\n"
-						  "  store i32 0, i32* %4, align 4\n"
-						  "  ret %TestClass* %2\n"
-						  "}\n"
-						  "\n"
                           "declare i8* @malloc(i64)\n"
+                          "\n"
+                          "declare void @free(i8*)\n"
                           );
     }
 
 	TEST_F(CodeGenTest, CGClassGetterMethod) {
-        /**
+        /**th
          * Fly code:
          * class TestClass {
          *   int a
-         *   int getA() {
-         *     return a
+         *   getA(int a) {
+         *     a = this.a
          *   }
          * }
          * void func() {
          *   TestClass test = new TestClass()
-         *   int x = test.getA()
+         *   int x
+         *   test.getA(x)
          *   delete test
          * }
          */
         ASTModule *Module = CreateModule();
 
-        // TestClass {
-        //   int a
-        //   int getA() { return a }
-        // }
+        // TestClass { int a; getA(int a) { a = this.a } }
         llvm::SmallVector<ASTType *, 4> SuperClasses;
         ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass", TopModifiers,
                                                   SuperClasses);
@@ -315,37 +322,48 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         // int a
         ASTVar *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", TopModifiers);
 
-        // int getA() { return a }
+        // getA(int a) { a = this.a }
+        llvm::SmallVector<ASTParam *, 8> getAParams;
+        ASTParam *aParam = ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
+        getAParams.push_back(aParam);
         ASTBlockStmt *MethodBody = ASTBuilder::CreateBlockStmt(SourceLoc);
         ASTMethod *getAMethod = ASTBuilder::CreateClassMethod(SourceLoc, TestClass,
-                                                               "getA", TopModifiers, Params, MethodBody);
+                                                               "getA", TopModifiers, getAParams, MethodBody);
 
-        ASTReturnStmt * MethodReturn = ASTBuilder::CreateReturnStmt(MethodBody, SourceLoc);
+        // a = this.a
+        ASTMember *thisA = ASTBuilder::CreateMember(SourceLoc, aAttribute->getName(),
+                                                     ASTBuilder::CreateIdentifier(SourceLoc, "this"));
+        ASTExprStmt *assignStmt = ASTBuilder::CreateExprStmt(MethodBody, SourceLoc);
+        ASTIdentifier *aParamIdent = ASTBuilder::CreateIdentifier(aParam);
+        ASTBinary *MethodAssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+                                                                aParamIdent, thisA);
+        assignStmt->setExpr(MethodAssignExpr);
 
-        // int main() {
-        //  TestClass test = new TestClass()
-        //  int x = test.getA()
-        //  delete test
-        // }
+        // void func() { ... }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
         ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
 
         // TestClass test = new TestClass()
         ASTType *TestClassType = CreateType(TestClass);
-        ASTVar *TestVar = ASTBuilder::CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
-        ASTDeclStmt *TestDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, (ASTLocalVar*)TestVar);
+        ASTLocalVar *TestVar = ASTBuilder::CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
+        ASTDeclStmt *TestDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, TestVar);
         ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
         ASTIdentifier *testIdent = ASTBuilder::CreateIdentifier(TestVar);
         ASTBinary *AssignExpr1 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
         TestDeclStmt->setExpr(AssignExpr1);
 
-        // int x = test.getA()
+        // int x
         ASTLocalVar *xVar = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "x", EmptyModifiers);
-        ASTDeclStmt *xDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, xVar);
-        ASTCall *xCallExpr = ASTBuilder::CreateCall(SourceLoc, getAMethod->getName(), Args, ASTCallKind::CALL_DIRECT, ASTBuilder::CreateIdentifier(TestVar));
-        ASTIdentifier *xIdent = ASTBuilder::CreateIdentifier(xVar);
-        ASTBinary *AssignExpr2 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, xIdent, xCallExpr);
-        xDeclStmt->setExpr(AssignExpr2);
+        ASTBuilder::CreateDeclStmt(Body, SourceLoc, xVar);
+
+        // test.getA(x)
+        llvm::SmallVector<ASTExpr *, 8> getAArgs;
+        getAArgs.push_back(ASTBuilder::CreateIdentifier(xVar));
+        ASTCall *getACallExpr = ASTBuilder::CreateCall(SourceLoc, getAMethod->getName(), getAArgs,
+                                                        ASTCallKind::CALL_DIRECT,
+                                                        ASTBuilder::CreateIdentifier(TestVar));
+        ASTExprStmt *callStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
+        callStmt->setExpr(getACallExpr);
 
         // delete test
         ASTBuilder::CreateDeleteStmt(Body, SourceLoc, ASTBuilder::CreateIdentifier(TestVar));
@@ -356,53 +374,37 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 		std::string output = getOutput(M);
 
         EXPECT_EQ(output, "\n"
-						  "%error = type { i32, i8*, i8* }\n"
+                          "%error = type { i32, i8*, i8* }\n"
                           "%TestClass = type { i8**, i32 }\n"
                           "\n"
                           "@error = external constant %error\n"
-                          "@vtable.TestClass = constant [3 x i8*] [i8* null, i8* bitcast (void (%error*, %TestClass*)* @TestClass_F9TestClass to i8*), i8* bitcast (i32 (%error*, %TestClass*)* @TestClass_F4getA to i8*)]\n"
+                          "@vtable.TestClass = constant [3 x i8*] [i8* null, i8* bitcast (void (%error*, %TestClass*, i32*)* @TestClass_F4getA_i to i8*), i8* bitcast (void (%error*, %TestClass*)* @TestClass_F9TestClass to i8*)]\n"
                           "\n"
-                          "define void @_F4func(%error* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %error*, align 8\n"
-						  "  %2 = alloca %TestClass*, align 8\n"
-						  "  %3 = alloca i32, align 4\n"
-						  "  store %error* %0, %error** %1, align 8\n"
-						  "  %4 = load %error*, %error** %1, align 8\n"
-						  // TestClass test = new TestClass()
-						  "  %5 = call i8* @malloc(i64 ptrtoint (%TestClass* getelementptr (%TestClass, %TestClass* null, i32 1) to i64))\n"
-						  "  %6 = bitcast i8* %5 to %TestClass*\n"
-						  "  %7 = call %TestClass* @TestClass.init_ctor(%TestClass* %6)\n"
-						  "  call void @TestClass_F9TestClass(%error* %4, %TestClass* %7)\n"
-						  "  store %TestClass* %7, %TestClass** %2, align 8\n"
-						  "  %8 = load %TestClass*, %TestClass** %2, align 8\n"
-						  // int a = test.a()
-						  "  %9 = getelementptr inbounds %TestClass, %TestClass* %8, i32 0, i32 0\n"
-						  "  %10 = load i8**, i8*** %9, align 8\n"
-						  "  %11 = getelementptr i8*, i8** %10, i64 2\n"
-						  "  %12 = load i8*, i8** %11, align 8\n"
-						  "  %13 = bitcast i8* %12 to i32 (%error*, %TestClass*)*\n"
-						  "  %14 = call i32 %13(%error* %4, %TestClass* %8)\n"
-						  "  store i32 %14, i32* %3, align 4\n"
-						  // delete test
-						  "  %15 = load %TestClass*, %TestClass** %2, align 8\n"
-						  "  %16 = bitcast %TestClass* %15 to i8*\n"
-						  "  tail call void @free(i8* %16)\n"
-						  "  ret void\n"
-						  "}\n"
-						  "\n"
-						  "define %TestClass* @TestClass.init_ctor(%TestClass* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %TestClass*, align 8\n"
-						  "  store %TestClass* %0, %TestClass** %1, align 8\n"
-						  "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 0\n"
-						  "  store i8** getelementptr inbounds ([3 x i8*], [3 x i8*]* @vtable.TestClass, i32 0, i32 0), i8*** %3, align 8\n"
-						  "  %4 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 1\n"
-						  "  store i32 0, i32* %4, align 4\n"
-						  "  ret %TestClass* %2\n"
-						  "}\n"
-						  "\n"
+                          "define %TestClass* @TestClass.init_ctor(%TestClass* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %TestClass*, align 8\n"
+                          "  store %TestClass* %0, %TestClass** %1, align 8\n"
+                          "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
+                          "  %3 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 0\n"
+                          "  store i8** getelementptr inbounds ([3 x i8*], [3 x i8*]* @vtable.TestClass, i32 0, i32 0), i8*** %3, align 8\n"
+                          "  %4 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 1\n"
+                          "  store i32 0, i32* %4, align 4\n"
+                          "  ret %TestClass* %2\n"
+                          "}\n"
+                          "\n"
+                          "define void @TestClass_F4getA_i(%error* %0, %TestClass* %1, i32* %2) {\n"
+                          "entry:\n"
+                          "  %3 = alloca %error*, align 8\n"
+                          "  %4 = alloca %TestClass*, align 8\n"
+                          "  store %error* %0, %error** %3, align 8\n"
+                          "  store %TestClass* %1, %TestClass** %4, align 8\n"
+                          "  %5 = load %TestClass*, %TestClass** %4, align 8\n"
+                          "  %6 = getelementptr inbounds %TestClass, %TestClass* %5, i32 0, i32 1\n"
+                          "  %7 = load i32, i32* %6, align 4\n"
+                          "  store i32 %7, i32* %2, align 4\n"
+                          "  ret void\n"
+                          "}\n"
+                          "\n"
                           "define void @TestClass_F9TestClass(%error* %0, %TestClass* %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
@@ -412,31 +414,49 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                           "  ret void\n"
                           "}\n"
                           "\n"
-                          "define i32 @TestClass_F4getA(%error* %0, %TestClass* %1) {\n"
+                          "define void @_F4func(%error* %0) {\n"
                           "entry:\n"
-                          "  %2 = alloca %error*, align 8\n"
-                          "  %3 = alloca %TestClass*, align 8\n"
-                          "  store %error* %0, %error** %2, align 8\n"
-                          "  store %TestClass* %1, %TestClass** %3, align 8\n"
-                          "  %4 = load %TestClass*, %TestClass** %3, align 8\n"
-                          "  %5 = getelementptr inbounds %TestClass, %TestClass* %4, i32 0, i32 1\n"
-                          "  %6 = load i32, i32* %5, align 4\n"
-                          "  ret i32 %6\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %2 = alloca %TestClass*, align 8\n"
+                          "  %3 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  %4 = load %error*, %error** %1, align 8\n"
+                          "  %5 = call i8* @malloc(i64 ptrtoint (%TestClass* getelementptr (%TestClass, %TestClass* null, i32 1) to i64))\n"
+                          "  %6 = bitcast i8* %5 to %TestClass*\n"
+                          "  %7 = call %TestClass* @TestClass.init_ctor(%TestClass* %6)\n"
+                          "  call void @TestClass_F9TestClass(%error* %4, %TestClass* %7)\n"
+                          "  store %TestClass* %7, %TestClass** %2, align 8\n"
+                          "  store i32 0, i32* %3, align 4\n"
+                          // test.getA(x) - vtable dispatch
+                          "  %8 = load %TestClass*, %TestClass** %2, align 8\n"
+                          "  %9 = load i32, i32* %3, align 4\n"
+                          "  %10 = alloca i32, align 4\n"
+                          "  store i32 %9, i32* %10, align 4\n"
+                          "  %11 = getelementptr inbounds %TestClass, %TestClass* %8, i32 0, i32 0\n"
+                          "  %12 = load i8**, i8*** %11, align 8\n"
+                          "  %13 = getelementptr i8*, i8** %12, i64 1\n"
+                          "  %14 = load i8*, i8** %13, align 8\n"
+                          "  %15 = bitcast i8* %14 to void (%error*, %TestClass*, i32*)*\n"
+                          "  call void %15(%error* %4, %TestClass* %8, i32* %10)\n"
+                          // delete test
+                          "  %16 = bitcast %TestClass* %8 to i8*\n"
+                          "  tail call void @free(i8* %16)\n"
+                          "  ret void\n"
                           "}\n"
                           "\n"
                           "declare i8* @malloc(i64)\n"
                           "\n"
                           "declare void @free(i8*)\n"
-        );
+                          );
     }
 
-	TEST_F(CodeGenTest, CGClassSetterMethod) {
+		TEST_F(CodeGenTest, CGClassSetterMethod) {
         /**
          * Fly code:
          * class TestClass {
          *   int a
          *   void setA(int value) {
-         *     a = value
+         *     this.a = value
          *   }
          * }
          * void func() {
@@ -509,43 +529,33 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                           "%TestClass = type { i8**, i32 }\n"
                           "\n"
                           "@error = external constant %error\n"
-                          "@vtable.TestClass = constant [3 x i8*] [i8* null, i8* bitcast (void (%error*, %TestClass*)* @TestClass_F9TestClass to i8*), i8* bitcast (void (%error*, %TestClass*, i32)* @TestClass_F4setA_i to i8*)]\n"
+                          "@vtable.TestClass = constant [3 x i8*] [i8* null, i8* bitcast (void (%error*, %TestClass*, i32*)* @TestClass_F4setA_i to i8*), i8* bitcast (void (%error*, %TestClass*)* @TestClass_F9TestClass to i8*)]\n"
                           "\n"
-						  "define void @_F4func(%error* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %error*, align 8\n"
-						  "  %2 = alloca %TestClass*, align 8\n"
-						  "  store %error* %0, %error** %1, align 8\n"
-						  "  %3 = load %error*, %error** %1, align 8\n"
-						  "  %4 = call i8* @malloc(i64 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i64))\n"
-						  "  %5 = bitcast i8* %4 to %TestClass*\n"
-						  "  %6 = call %TestClass* @TestClass.init_ctor(%TestClass* %5)\n"
-						  "  call void @TestClass_F9TestClass(%error* %3, %TestClass* %6)\n"
-						  "  store %TestClass* %6, %TestClass** %2, align 8\n"
-						  "  %7 = load %TestClass*, %TestClass** %2, align 8\n"
-						  // test.a = 2
-						  "  %8 = getelementptr inbounds %TestClass, %TestClass* %7, i32 0, i32 0\n"
-						  "  %9 = load i32, i32* %8, align 4\n"
-						  "  store i32 %9, i32* %3, align 4\n"
-						  // delete test
-						  "  %10 = load %TestClass*, %TestClass** %2, align 8\n"
-						  "  %11 = bitcast %TestClass* %10 to i8*\n"
-						  "  tail call void @free(i8* %11)\n"
-						  "  ret void\n"
-						  "}\n"
-						  "\n"
-						  "define %TestClass* @TestClass.init_ctor(%TestClass* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %TestClass*, align 8\n"
-						  "  store %TestClass* %0, %TestClass** %1, align 8\n"
-						  "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 0\n"
-						  "  store i8** getelementptr inbounds ([3 x i8*], [3 x i8*]* @vtable.TestClass, i32 0, i32 0), i8*** %3, align 8\n"
-						  "  %4 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 1\n"
-						  "  store i32 0, i32* %4, align 4\n"
-						  "  ret %TestClass* %2\n"
-						  "}\n"
-						  "\n"
+                          "define %TestClass* @TestClass.init_ctor(%TestClass* %0) {\n"
+                          "entry:\n"
+                          "  %1 = alloca %TestClass*, align 8\n"
+                          "  store %TestClass* %0, %TestClass** %1, align 8\n"
+                          "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
+                          "  %3 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 0\n"
+                          "  store i8** getelementptr inbounds ([3 x i8*], [3 x i8*]* @vtable.TestClass, i32 0, i32 0), i8*** %3, align 8\n"
+                          "  %4 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 1\n"
+                          "  store i32 0, i32* %4, align 4\n"
+                          "  ret %TestClass* %2\n"
+                          "}\n"
+                          "\n"
+                          "define void @TestClass_F4setA_i(%error* %0, %TestClass* %1, i32* %2) {\n"
+                          "entry:\n"
+                          "  %3 = alloca %error*, align 8\n"
+                          "  %4 = alloca %TestClass*, align 8\n"
+                          "  store %error* %0, %error** %3, align 8\n"
+                          "  store %TestClass* %1, %TestClass** %4, align 8\n"
+                          "  %5 = load %TestClass*, %TestClass** %4, align 8\n"
+                          "  %6 = getelementptr inbounds %TestClass, %TestClass* %5, i32 0, i32 1\n"
+                          "  %7 = load i32, i32* %2, align 4\n"
+                          "  store i32 %7, i32* %6, align 4\n"
+                          "  ret void\n"
+                          "}\n"
+                          "\n"
                           "define void @TestClass_F9TestClass(%error* %0, %TestClass* %1) {\n"
                           "entry:\n"
                           "  %2 = alloca %error*, align 8\n"
@@ -555,18 +565,30 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                           "  ret void\n"
                           "}\n"
                           "\n"
-                          "define void @TestClass_F4setA_i(%error* %0, %TestClass* %1, i32 %2) {\n"
+                          "define void @_F4func(%error* %0) {\n"
                           "entry:\n"
-                          "  %3 = alloca %error*, align 8\n"
-                          "  %4 = alloca %TestClass*, align 8\n"
-                          "  %5 = alloca i32, align 4\n"
-                          "  store %error* %0, %error** %3, align 8\n"
-                          "  store %TestClass* %1, %TestClass** %4, align 8\n"
-                          "  store i32 %2, i32* %5, align 4\n"
-                          "  %6 = load %TestClass*, %TestClass** %4, align 8\n"
-                          "  %7 = load i32, i32* %5, align 4\n"
-                          "  %8 = getelementptr inbounds %TestClass, %TestClass* %6, i32 0, i32 1\n"
-                          "  store i32 %7, i32* %8, align 4\n"
+                          "  %1 = alloca %error*, align 8\n"
+                          "  %2 = alloca %TestClass*, align 8\n"
+                          "  store %error* %0, %error** %1, align 8\n"
+                          "  %3 = load %error*, %error** %1, align 8\n"
+                          "  %4 = call i8* @malloc(i64 ptrtoint (%TestClass* getelementptr (%TestClass, %TestClass* null, i32 1) to i64))\n"
+                          "  %5 = bitcast i8* %4 to %TestClass*\n"
+                          "  %6 = call %TestClass* @TestClass.init_ctor(%TestClass* %5)\n"
+                          "  call void @TestClass_F9TestClass(%error* %3, %TestClass* %6)\n"
+                          "  store %TestClass* %6, %TestClass** %2, align 8\n"
+                          "  %7 = load %TestClass*, %TestClass** %2, align 8\n"
+                          // test.setA(1) - vtable dispatch
+                          "  %8 = alloca i32, align 4\n"
+                          "  store i32 1, i32* %8, align 4\n"
+                          "  %9 = getelementptr inbounds %TestClass, %TestClass* %7, i32 0, i32 0\n"
+                          "  %10 = load i8**, i8*** %9, align 8\n"
+                          "  %11 = getelementptr i8*, i8** %10, i64 1\n"
+                          "  %12 = load i8*, i8** %11, align 8\n"
+                          "  %13 = bitcast i8* %12 to void (%error*, %TestClass*, i32*)*\n"
+                          "  call void %13(%error* %3, %TestClass* %7, i32* %8)\n"
+                          // delete test
+                          "  %14 = bitcast %TestClass* %7 to i8*\n"
+                          "  tail call void @free(i8* %14)\n"
                           "  ret void\n"
                           "}\n"
                           "\n"
