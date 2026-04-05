@@ -1851,6 +1851,22 @@ void Resolver::PromoteTypes(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right) {
 		static_cast<SemaArrayType *>(ArrayValue->getType())->setElementType(ElementType);
 	}
 
+	// Promote Struct Value Type: set the struct value's type from the left-hand side class type
+	if (AST.isAssign() && LeftType && LeftType->isClass() &&
+		Right->getKind() == SemaKind::VALUE && !RightType) {
+		Right->setType(LeftType);
+
+		// Promote the inner values' types to match the struct attribute types
+		SemaClassType *ClassType = static_cast<SemaClassType *>(LeftType);
+		SemaStructValue *StructValue = static_cast<SemaStructValue *>(Right);
+		for (auto &Entry : StructValue->Values) {
+			SemaClassAttribute *Attr = ClassType->LookupAttribute(Entry.getKey());
+			if (Attr && Entry.getValue() && Attr->getType()) {
+				Entry.getValue()->setType(Attr->getType());
+			}
+		}
+	}
+
 	FLY_DEBUG_END("Resolver", "PromoteTypes");
 }
 

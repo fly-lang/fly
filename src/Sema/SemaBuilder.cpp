@@ -444,6 +444,7 @@ SemaStructValue * SemaBuilder::CreateStructValue(ASTStructValue &AST, llvm::Stri
 
 	//TODO: Create Struct Type from Types
 	SemaStructValue * V = new SemaStructValue(AST, nullptr);
+	V->Values = std::move(Values);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateStructValue");
 	return V;

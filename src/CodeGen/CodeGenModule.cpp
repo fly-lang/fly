@@ -699,19 +699,109 @@ void CodeGenModule::visit(SemaLoopStmt &Sema) {
 void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 	FLY_DEBUG_START("CodeGenModule", "visit(SemaLoopInStmt)");
 
-	// TODO: Implement proper for-in loop code generation
-	// This requires:
-	// 1. Determine if List is an array, string, or iterable collection
-	// 2. Get the length/size of the collection
-	// 3. Generate loop with iterator to access each element
-	// 4. Assign each element to the Item variable
-	// 5. Execute the loop body
+	SemaExpr *ListExpr = Sema.getList();
+	SemaExpr *ItemExpr = Sema.getItem();
+	SemaType *ListType = ListExpr ? ListExpr->getType() : nullptr;
 
-	// For now, just generate the loop body as a placeholder
-	if (Sema.getBody()) {
-		Sema.getBody()->accept(*this);
+	// Only array iteration is supported currently
+	if (!ListType || !ListType->isArray()) {
+		if (Sema.getBody())
+			Sema.getBody()->accept(*this);
+		FLY_DEBUG_END("CodeGenModule", "visit(SemaLoopInStmt)");
+		return;
 	}
 
+	SemaArrayType *ArrSemaType = static_cast<SemaArrayType *>(ListType);
+	SemaType *ElemSemaType = ArrSemaType->getElementType();
+	ElemSemaType->accept(*this);
+	llvm::Type *ElemLLVMType = ElemSemaType->getCodeGen()->getType();
+
+	// Obtain the array struct pointer without loading the whole struct.
+	// The list var's alloca IS a pointer to the ArrayTy struct.
+	llvm::Value *ArrayStructPtr = nullptr;
+	SemaKind ListKind = ListExpr->getKind();
+	if (ListKind == SemaKind::LOCAL_VAR || ListKind == SemaKind::PARAM_VAR ||
+		ListKind == SemaKind::ATTRIBUTE || ListKind == SemaKind::INSTANCE_VAR) {
+		SemaVar *ListVar = static_cast<SemaVar *>(ListExpr);
+		if (ListVar->getCodeGen())
+			ArrayStructPtr = ListVar->getCodeGen()->getPointer();
+	}
+	if (!ArrayStructPtr) {
+		// Fallback: evaluate expression and use its value as the struct pointer
+		ListExpr->accept(*this);
+		ArrayStructPtr = ListExpr->getCodeGen()->getValue();
+	}
+
+	if (!ArrayStructPtr) {
+		if (Sema.getBody())
+			Sema.getBody()->accept(*this);
+		FLY_DEBUG_END("CodeGenModule", "visit(SemaLoopInStmt)");
+		return;
+	}
+
+	// Load data pointer: field 0 (i8*)
+	llvm::Value *DataPtrField = Builder->CreateStructGEP(CodeGen::ArrayTy, ArrayStructPtr, 0);
+	llvm::Value *DataPtr = Builder->CreateLoad(DataPtrField);
+
+	// Cast i8* to ElemType* for GEP arithmetic
+	llvm::Value *TypedDataPtr = Builder->CreateBitCast(DataPtr, ElemLLVMType->getPointerTo());
+
+	// Load size: field 1 (IntTy)
+	llvm::Value *SizeField = Builder->CreateStructGEP(CodeGen::ArrayTy, ArrayStructPtr, 1);
+	llvm::Value *Size = Builder->CreateLoad(SizeField);
+	// Ensure Size is IntTy width for the loop comparisons
+	if (Size->getType() != CodeGen::IntTy)
+		Size = Builder->CreateIntCast(Size, CodeGen::IntTy, false);
+
+	// Allocate and zero the loop index
+	llvm::AllocaInst *IndexAlloca = Builder->CreateAlloca(CodeGen::IntTy, nullptr, "forin.idx");
+	Builder->CreateStore(llvm::ConstantInt::get(CodeGen::IntTy, 0), IndexAlloca);
+
+	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
+	llvm::BasicBlock *CondBB = llvm::BasicBlock::Create(LLVMCtx, "forin.cond", Fn);
+	llvm::BasicBlock *BodyBB = llvm::BasicBlock::Create(LLVMCtx, "forin.body", Fn);
+	llvm::BasicBlock *EndBB  = llvm::BasicBlock::Create(LLVMCtx, "forin.end",  Fn);
+
+	BreakTargetStack.push_back(EndBB);
+	ContinueTargetStack.push_back(CondBB);
+
+	Builder->CreateBr(CondBB);
+
+	// Condition: i < size
+	Builder->SetInsertPoint(CondBB);
+	llvm::Value *Idx = Builder->CreateLoad(IndexAlloca, "forin.i");
+	llvm::Value *Cond = Builder->CreateICmpSLT(Idx, Size, "forin.cmp");
+	Builder->CreateCondBr(Cond, BodyBB, EndBB);
+
+	// Body: assign data[i] to item
+	Builder->SetInsertPoint(BodyBB);
+	llvm::Value *Idx2 = Builder->CreateLoad(IndexAlloca);
+	llvm::Value *ElemPtr = Builder->CreateGEP(ElemLLVMType, TypedDataPtr, Idx2, "forin.elem");
+	llvm::Value *ElemVal = Builder->CreateLoad(ElemLLVMType, ElemPtr);
+
+	// Store element into loop item variable
+	SemaKind ItemKind = ItemExpr ? ItemExpr->getKind() : SemaKind::VALUE;
+	if (ItemExpr && (ItemKind == SemaKind::LOCAL_VAR || ItemKind == SemaKind::PARAM_VAR ||
+					 ItemKind == SemaKind::ATTRIBUTE || ItemKind == SemaKind::INSTANCE_VAR)) {
+		SemaVar *ItemVar = static_cast<SemaVar *>(ItemExpr);
+		if (ItemVar->getCodeGen())
+			ItemVar->getCodeGen()->Store(ElemVal);
+	}
+
+	// Emit loop body
+	if (Sema.getBody())
+		Sema.getBody()->accept(*this);
+
+	// Increment index and back-edge
+	llvm::Value *CurIdx = Builder->CreateLoad(IndexAlloca);
+	llvm::Value *NextIdx = Builder->CreateAdd(CurIdx, llvm::ConstantInt::get(CodeGen::IntTy, 1));
+	Builder->CreateStore(NextIdx, IndexAlloca);
+	Builder->CreateBr(CondBB);
+
+	BreakTargetStack.pop_back();
+	ContinueTargetStack.pop_back();
+
+	Builder->SetInsertPoint(EndBB);
 	FLY_DEBUG_END("CodeGenModule", "visit(SemaLoopInStmt)");
 }
 

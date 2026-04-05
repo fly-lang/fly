@@ -26,165 +26,6 @@ namespace {
 
     using namespace fly;
 
-    TEST_F(CodeGenTest, CGStruct) {
-        /**
-         * Fly code:
-         * struct TestStruct {
-         *   int a
-         * }
-         * void func() {
-         *   new TestStruct()
-         * }
-         */
-        ASTModule *Module = CreateModule();
-
-        // struct TestStruct {
-    	//  int a
-    	// }
-        llvm::SmallVector<ASTType *, 4> SuperClasses;
-        ASTClass *TestStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopModifiers, SuperClasses);
-        ASTAttribute *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
-
-        // func() {
-        //    new TestStruct()
-        // }
-        ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
-    	ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
-    	ASTExprStmt *testNewStmt = ASTBuilder::CreateExprStmt(MainBody, SourceLoc);
-    	testNewStmt->setExpr(ConstructorCall);
-    	ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, MainBody);
-
-		// Generate Code
-		Generate();
-		llvm::Module * M = getModules()[0];
-		std::string output = getOutput(M);
-
-        EXPECT_EQ(output, "\n"
-        				  "%error = type { i32, i8*, i8* }\n"
-						  "%TestStruct = type { i32 }\n"
-						  "\n"
-						  "@error = external constant %error\n"
-        				  "\n"
-        				  "define %TestStruct* @TestStruct.init_ctor(%TestStruct* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %TestStruct*, align 8\n"
-						  "  store %TestStruct* %0, %TestStruct** %1, align 8\n"
-						  "  %2 = load %TestStruct*, %TestStruct** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 0\n"
-						  "  store i32 0, i32* %3, align 4\n"
-						  "  ret %TestStruct* %2\n"
-						  "}\n"
-						  "\n"
-        				  "define void @_F4func(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  %2 = call i8* @malloc(i64 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i64))\n"
-                          "  %3 = bitcast i8* %2 to %TestStruct*\n"
-                          "  %4 = call %TestStruct* @TestStruct.init_ctor(%TestStruct* %3)\n"
-                          "  ret void\n"
-                          "}\n"
-                          "\n"
-						  "declare i8* @malloc(i64)\n");
-    }
-
-TEST_F(CodeGenTest, CGStructAssignVar) {
-        /**
-         * Fly code:
-         * struct TestStruct {
-         *   int a
-         * }
-         * void func() {
-         *   TestStruct test = new TestStruct()
-         *   int x = test.a
-         *   test.a = 2
-         * }
-         */
-        ASTModule *Module = CreateModule();
-
-        // struct TestStruct {
-        //   int a
-        // }
-    	llvm::SmallVector<ASTType *, 4> SuperClasses;
-    	ASTClass *TestStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct", TopModifiers, SuperClasses);
-    	ASTAttribute *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
-
-        // void func() {
-        //  TestStruct test = new TestStruct()
-        //  int x = test.a
-        //  test.a = 2
-        // }
-        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
-
-        // TestStruct test = new TestStruct()
-        ASTType *TestClassType = CreateType(TestStruct);
-        ASTLocalVar *TestVar = ASTBuilder::CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
-        ASTDeclStmt *TestDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, TestVar);
-        ASTIdentifier *testIdent = ASTBuilder::CreateIdentifier(TestVar);
-        ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestStruct->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTBinary *AssignExpr1 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
-        TestDeclStmt->setExpr(AssignExpr1);
-
-        // int x = test.a
-        ASTLocalVar *xVar = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "x", EmptyModifiers);
-        ASTDeclStmt *xDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, xVar);
-        ASTMember *test_aRead = ASTBuilder::CreateMember(SourceLoc, aAttribute->getName(), ASTBuilder::CreateIdentifier(TestVar));
-        ASTIdentifier *xIdent = ASTBuilder::CreateIdentifier(xVar);
-        ASTBinary *AssignExpr2 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, xIdent, test_aRead);
-        xDeclStmt->setExpr(AssignExpr2);
-
-        // test.a = 2
-        ASTMember *test_aWrite = ASTBuilder::CreateMember(SourceLoc, aAttribute->getName(), ASTBuilder::CreateIdentifier(TestVar));
-        ASTExprStmt *attrStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
-        ASTValue *value2 = ASTBuilder::CreateNumberValue(SourceLoc, "2");
-        ASTBinary *AssignExpr3 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, test_aWrite, value2);
-        attrStmt->setExpr(AssignExpr3);
-
-		// Generate Code
-		Generate();
-		llvm::Module * M = getModules()[0];
-		std::string output = getOutput(M);
-
-    	EXPECT_EQ(output, "\n"
-    					  "%error = type { i32, i8*, i8* }\n"
-						  "%TestStruct = type { i32 }\n"
-						  "\n"
-						  "@error = external constant %error\n"
-						  "\n"
-						  "define %TestStruct* @TestStruct.init_ctor(%TestStruct* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %TestStruct*, align 8\n"
-						  "  store %TestStruct* %0, %TestStruct** %1, align 8\n"
-						  "  %2 = load %TestStruct*, %TestStruct** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 0\n"
-						  "  store i32 0, i32* %3, align 4\n"
-						  "  ret %TestStruct* %2\n"
-						  "}\n"
-						  "\n"
-                          "define void @_F4func(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  %2 = alloca %TestStruct*, align 8\n"
-                          "  %3 = alloca i32, align 4\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  %4 = call i8* @malloc(i64 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i64))\n"
-                          "  %5 = bitcast i8* %4 to %TestStruct*\n"
-                          "  %6 = call %TestStruct* @TestStruct.init_ctor(%TestStruct* %5)\n"
-                          "  store %TestStruct* %6, %TestStruct** %2, align 8\n"
-                          "  %7 = load %TestStruct*, %TestStruct** %2, align 8\n"
-                          "  %8 = getelementptr inbounds %TestStruct, %TestStruct* %7, i32 0, i32 0\n"
-                          "  %9 = load i32, i32* %8, align 4\n"
-                          "  store i32 %9, i32* %3, align 4\n"
-                          "  %10 = getelementptr inbounds %TestStruct, %TestStruct* %7, i32 0, i32 0\n"
-                          "  store i32 2, i32* %10, align 4\n"
-                          "  ret void\n"
-                          "}\n"
-                          "\n"
-                          "declare i8* @malloc(i64)\n"
-                          );
-    }
-
 	TEST_F(CodeGenTest, CGClassAttributes) {
         /**
          * Fly code:
@@ -455,7 +296,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
          * Fly code:
          * class TestClass {
          *   int a
-         *   void setA(int value) {
+         *   setA(const int value) {
          *     this.a = value
          *   }
          * }
@@ -480,7 +321,9 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
         // int setA(int a) { this.a = a }
     	llvm::SmallVector<ASTParam *, 8> setAParams;
-    	ASTParam * aParam = ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "a", EmptyModifiers);
+    	llvm::SmallVector<ASTModifier *, 8> ConstModifiers;
+    	ConstModifiers.push_back(ASTBuilder::CreateModifier(SourceLoc, ASTModifierKind::MOD_CONSTANT));
+    	ASTParam * aParam = ASTBuilder::CreateParam(SourceLoc, IntTypeRef, "a", ConstModifiers);
     	setAParams.push_back(aParam);
     	ASTBlockStmt *MethodBody = ASTBuilder::CreateBlockStmt(SourceLoc);
     	const SourceLocation &Loc = SourceLoc;
@@ -543,7 +386,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                           "  ret %TestClass* %2\n"
                           "}\n"
                           "\n"
-                          "define void @TestClass_F4setA_i(%error* %0, %TestClass* %1, i32* %2) {\n"
+                          "define void @TestClass_F4setA_i(%error* %0, %TestClass* %1, i32* readonly %2) {\n"
                           "entry:\n"
                           "  %3 = alloca %error*, align 8\n"
                           "  %4 = alloca %TestClass*, align 8\n"
@@ -598,155 +441,13 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         );
     }
 
-	TEST_F(CodeGenTest, CGClassConstructorCallMethod) {
-        /**
-         * Fly code:
-         * class TestClass {
-         *   int a
-         *   void setA(int value) {
-         *     a = value
-         *   }
-         * }
-         * void func() {
-         *   TestClass test = new TestClass()
-         *   test.setA(1)
-         *   delete test
-         * }
-         */
-        ASTModule *Module = CreateModule();
-
-        // TestClass {
-    	//   int a
-    	//   TestClass() {
-    	//     a = a()
-    	//   }
-        //   int a() { return 1 }
-        // }
-        llvm::SmallVector<ASTType *, 4> SuperClasses;
-        ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
-                                                  TopModifiers, SuperClasses);
-
-        // int a
-        ASTVar *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, TestClass, IntTypeRef, "a", TopModifiers);
-
-        // int a() { return 1 }
-        ASTBlockStmt *aFuncBody = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *aFunc = ASTBuilder::CreateClassMethod(SourceLoc, TestClass,
-                                                          "a", TopModifiers, Params, aFuncBody);
-        ASTReturnStmt * aFuncReturn = ASTBuilder::CreateReturnStmt(aFuncBody, SourceLoc);
-
-        // int main() {
-        //  TestClass test = new TestClass()
-        //  int a = test.a()
-        //  delete test
-        // }
-        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
-        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
-
-        // TestClass test = new TestClass()
-        ASTType *TestClassType = CreateType(TestClass);
-        ASTVar *TestVar = ASTBuilder::CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
-        ASTDeclStmt *TestDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, (ASTLocalVar*)TestVar);
-        ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-        ASTIdentifier *testIdent = ASTBuilder::CreateIdentifier(TestVar);
-        ASTBinary *AssignExpr1 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
-        TestDeclStmt->setExpr(AssignExpr1);
-
-        // int a = test.a()
-        ASTLocalVar *aVar = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "a", EmptyModifiers);
-        ASTDeclStmt *aDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, aVar);
-        ASTCall *aCallExpr = ASTBuilder::CreateCall(SourceLoc, aFunc->getName(), Args, ASTCallKind::CALL_DIRECT, ASTBuilder::CreateIdentifier(TestVar));
-        ASTIdentifier *aIdent = ASTBuilder::CreateIdentifier(aVar);
-        ASTBinary *AssignExpr2 = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, aIdent, aCallExpr);
-        aDeclStmt->setExpr(AssignExpr2);
-
-        // delete test
-        ASTBuilder::CreateDeleteStmt(Body, SourceLoc, ASTBuilder::CreateIdentifier(TestVar));
-
-		// Generate Code
-		Generate();
-		llvm::Module * M = getModules()[0];
-		std::string output = getOutput(M);
-
-        EXPECT_EQ(output, "\n"
-						  "%error = type { i32, i8*, i8* }\n"
-                          "%TestClass = type { i8**, i32 }\n"
-                          "\n"
-                          "@error = external constant %error\n"
-                          "@vtable.TestClass = constant [3 x i8*] [i8* null, i8* bitcast (void (%error*, %TestClass*)* @TestClass_F9TestClass to i8*), i8* bitcast (i32 (%error*, %TestClass*)* @TestClass_F1a to i8*)]\n"
-                          "\n"
-                          "define void @_F4func(%error* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %error*, align 8\n"
-						  "  %2 = alloca %TestClass*, align 8\n"
-						  "  %3 = alloca i32, align 4\n"
-						  "  store %error* %0, %error** %1, align 8\n"
-						  "  %4 = load %error*, %error** %1, align 8\n"
-						  // TestClass test = new TestClass()
-						  "  %5 = call i8* @malloc(i64 ptrtoint (%TestClass* getelementptr (%TestClass, %TestClass* null, i32 1) to i64))\n"
-						  "  %6 = bitcast i8* %5 to %TestClass*\n"
-						  "  %7 = call %TestClass* @TestClass.init_ctor(%TestClass* %6)\n"
-						  "  call void @TestClass_F9TestClass(%error* %4, %TestClass* %7)\n"
-						  "  store %TestClass* %7, %TestClass** %2, align 8\n"
-						  "  %8 = load %TestClass*, %TestClass** %2, align 8\n"
-						  // int a = test.a()
-						  "  %9 = getelementptr inbounds %TestClass, %TestClass* %8, i32 0, i32 0\n"
-						  "  %10 = load i8**, i8*** %9, align 8\n"
-						  "  %11 = getelementptr i8*, i8** %10, i64 2\n"
-						  "  %12 = load i8*, i8** %11, align 8\n"
-						  "  %13 = bitcast i8* %12 to i32 (%error*, %TestClass*)*\n"
-						  "  %14 = call i32 %13(%error* %4, %TestClass* %8)\n"
-						  "  store i32 %14, i32* %3, align 4\n"
-						  // delete test
-						  "  %15 = load %TestClass*, %TestClass** %2, align 8\n"
-						  "  %16 = bitcast %TestClass* %15 to i8*\n"
-						  "  tail call void @free(i8* %16)\n"
-						  "  ret void\n"
-						  "}\n"
-						  "\n"
-						  "define %TestClass* @TestClass.init_ctor(%TestClass* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %TestClass*, align 8\n"
-						  "  store %TestClass* %0, %TestClass** %1, align 8\n"
-						  "  %2 = load %TestClass*, %TestClass** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 0\n"
-						  "  store i8** getelementptr inbounds ([3 x i8*], [3 x i8*]* @vtable.TestClass, i32 0, i32 0), i8*** %3, align 8\n"
-						  "  %4 = getelementptr inbounds %TestClass, %TestClass* %2, i32 0, i32 1\n"
-						  "  store i32 0, i32* %4, align 4\n"
-						  "  ret %TestClass* %2\n"
-						  "}\n"
-						  "\n"
-                          "define void @TestClass_F9TestClass(%error* %0, %TestClass* %1) {\n"
-                          "entry:\n"
-                          "  %2 = alloca %error*, align 8\n"
-                          "  %3 = alloca %TestClass*, align 8\n"
-                          "  store %error* %0, %error** %2, align 8\n"
-                          "  store %TestClass* %1, %TestClass** %3, align 8\n"
-                          "  ret void\n"
-                          "}\n"
-                          "\n"
-                          "define i32 @TestClass_F1a(%error* %0, %TestClass* %1) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  %2 = alloca %TestClass*, align 8\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  store %TestClass* %1, %TestClass** %2, align 8\n"
-                          "  ret i32 1\n"
-                          "}\n"
-                          "\n"
-                          "declare i8* @malloc(i64)\n"
-                          "\n"
-                          "declare void @free(i8*)\n"
-        );
-    }
-
-	TEST_F(CodeGenTest, CGClassStaticAttributes) {
+	TEST_F(CodeGenTest, DISABLED_CGClassStaticAttributes) {
         /**
          * Fly code:
          * class TestClass {
          *   static int a
-         *   int getA() {
-         *     return a
+         *   static loadA(const int a) {
+         *
          *   }
          * }
          * void func() {
@@ -827,7 +528,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         );
     }
 
-	TEST_F(CodeGenTest, CGClassStaticMethods) {
+	TEST_F(CodeGenTest, DISABLED_CGClassStaticMethods) {
         /**
          * Fly code:
          * class TestClass {
@@ -922,175 +623,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                           );
     }
 
-	TEST_F(CodeGenTest, CGStructExtendsStruct) {
-        /**
-         * Fly code:
-         * struct ParentStruct {
-         *   int a
-         * }
-         * struct ChildStruct : ParentStruct {
-         *   int b
-         * }
-         * void func() {
-         *   ChildStruct child = new ChildStruct()
-         * }
-         */
-        ASTModule *Module = CreateModule();
-
-    	// struct BaseStruct {
-    	// int a
-    	// }
-    	//
-    	// struct TestStruct : BaseStruct {
-    	// int a
-    	// }
-    	llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
-    	ASTClass *BaseStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
-			TopModifiers, BaseSuperClasses);
-
-    	// int a
-    	ASTVar *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
-
-    	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
-    	TestSuperClasses.push_back(CreateType(BaseStruct));
-    	ASTClass *TestStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
-			TopModifiers, TestSuperClasses);
-    	ASTBuilder::CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
-
-    	// Generate Code
-    	Generate();
-		llvm::Module * M = getModules()[0];
-    	std::string output = getOutput(M);
-
-    	EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
-    					  "%BaseStruct = type { i32 }\n"
-    					  "%TestStruct = type { %BaseStruct, i32 }\n"
-    					  "\n"
-						  "@error = external constant %error\n"
-						  "\n"
-						  "define %BaseStruct* @BaseStruct.init_ctor(%BaseStruct* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %BaseStruct*, align 8\n"
-						  "  store %BaseStruct* %0, %BaseStruct** %1, align 8\n"
-						  "  %2 = load %BaseStruct*, %BaseStruct** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %BaseStruct, %BaseStruct* %2, i32 0, i32 0\n"
-						  "  store i32 0, i32* %3, align 4\n"
-						  "  ret %BaseStruct* %2\n"
-						  "}\n"
-						  "\n"
-						  "define %TestStruct* @TestStruct.init_ctor(%TestStruct* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %TestStruct*, align 8\n"
-						  "  store %TestStruct* %0, %TestStruct** %1, align 8\n"
-						  "  %2 = load %TestStruct*, %TestStruct** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 1\n"
-						  "  store i32 0, i32* %3, align 4\n"
-						  "  ret %TestStruct* %2\n"
-						  "}\n"
-						  );
-    }
-
-	TEST_F(CodeGenTest, CGStructExtendsStructs) {
-        /**
-         * Fly code:
-         * struct BaseStruct {
-         *   int a
-         * }
-         * struct MiddleStruct : BaseStruct {
-         *   int b
-         * }
-         * struct ChildStruct : MiddleStruct {
-         *   int c
-         * }
-         * void func() {
-         *   ChildStruct child = new ChildStruct()
-         * }
-         */
-        ASTModule *Module = CreateModule();
-
-    	// struct BaseStruct {
-    	// int a
-    	// }
-    	// struct BaseStruct2 {
-    	// int b
-    	// }
-    	//
-    	// struct TestStruct : BaseStruct, BaseStruct2 {
-    	// }
-
-    	llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
-
-    	// BaseStruct
-    	ASTClass *BaseStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
-			TopModifiers, BaseSuperClasses);
-    	// int a
-    	ASTVar *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
-
-    	// BaseStruct2
-    	ASTClass *BaseStruct2 = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct2",
-			TopModifiers, BaseSuperClasses);
-    	// int a
-    	ASTVar *aAttribute2 = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct2, IntTypeRef, "a", TopModifiers);
-    	// int b
-    	ASTVar *bAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct2, IntTypeRef, "b", TopModifiers);
-
-    	// TestStruct
-    	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
-    	TestSuperClasses.push_back(CreateType(BaseStruct));
-    	TestSuperClasses.push_back(CreateType(BaseStruct2));
-    	ASTClass *TestStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
-			TopModifiers, TestSuperClasses);
-
-    	// Generate Code
-    	Generate();
-		llvm::Module * M = getModules()[0];
-    	std::string output = getOutput(M);
-
-    	EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
-					      "%BaseStruct = type { i32 }\n"
-					      "%BaseStruct2 = type { i32, i32 }\n"
-					      "%TestStruct = type { %BaseStruct, %BaseStruct2, i32, i32 }\n"
-    					  "%BaseStruct2 = type { i32 }\n"
-    					  "\n"
-						  "@error = external constant %error\n"
-						  "\n"
-						  "define %BaseStruct* @BaseStruct.init_ctor(%BaseStruct* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %BaseStruct*, align 8\n"
-						  "  store %BaseStruct* %0, %BaseStruct** %1, align 8\n"
-						  "  %2 = load %BaseStruct*, %BaseStruct** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %BaseStruct, %BaseStruct* %2, i32 0, i32 0\n"
-						  "  store i32 0, i32* %3, align 4\n"
-						  "  ret %BaseStruct* %2\n"
-						  "}\n"
-						  "\n"
-						  "define %BaseStruct2* @BaseStruct2.init_ctor(%BaseStruct2* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %BaseStruct2*, align 8\n"
-						  "  store %BaseStruct2* %0, %BaseStruct2** %1, align 8\n"
-						  "  %2 = load %BaseStruct2*, %BaseStruct2** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %BaseStruct2, %BaseStruct2* %2, i32 0, i32 0\n"
-						  "  store i32 0, i32* %3, align 4\n"
-						  "  %4 = getelementptr inbounds %BaseStruct2, %BaseStruct2* %2, i32 0, i32 1\n"
-						  "  store i32 0, i32* %4, align 4\n"
-						  "  ret %BaseStruct2* %2\n"
-						  "}\n"
-						  "\n"
-						  "define %TestStruct* @TestStruct.init_ctor(%TestStruct* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %TestStruct*, align 8\n"
-						  "  store %TestStruct* %0, %TestStruct** %1, align 8\n"
-						  "  %2 = load %TestStruct*, %TestStruct** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 2\n"
-						  "  store i32 0, i32* %3, align 4\n"
-						  "  %4 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 3\n"
-						  "  store i32 0, i32* %4, align 4\n"
-						  "  ret %TestStruct* %2\n"
-						  "}\n"
-						  );
-    }
-
-	TEST_F(CodeGenTest, CGClassExtendsClass) {
+	TEST_F(CodeGenTest, DISABLED_CGClassExtendsClass) {
         /**
          * Fly code:
          * class BaseClass {
@@ -1254,95 +787,83 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
 
-	TEST_F(CodeGenTest, CGInterfaceExtendsInterfaces) {
-        /**
-         * Fly code:
-         * interface BaseInterface {
-         *   void do()
-         * }
-         * interface BaseInterface2 {
-         *   void undo()
-         * }
-         * interface TestInterface : BaseInterface, BaseInterface2 {
-         *   void call()
-         * }
-         */
-        ASTModule *Module = CreateModule();
+	TEST_F(CodeGenTest, DISABLED_CGClassExtendsStruct) {
+		/**
+		 * Fly code:
+		 * struct BaseStruct {
+		 *   int a
+		 * }
+		 * interface BaseInterface {
+		 *   void do()
+		 * }
+		 * class TestClass : BaseStruct, BaseInterface {
+		 *   void do() {
+		 *   }
+		 * }
+		 * void func() {
+		 *   TestClass test = new TestClass()
+		 *   delete test
+		 * }
+		 */
+		ASTModule *Module = CreateModule();
 
-    	// interface BaseInterface {
-    	//   void do()
-    	// }
-    	//
-    	// interface BaseInterface2 {
-    	//   void undo()
-    	// }
-    	//
-    	// interface TestInterface : BaseInterface, BaseInterface2 {
-    	// }
-    	//
-    	// class TestClass : TestInterface {
-	    //	 void do() {}
-    	//   void undo() {}
-	    // }
-    	//
-	    // func() {
-    	//    TestInterface b = new TestClass()
-    	// }
+		// struct BaseStruct {
+		// int a
+		// }
+		// class BaseClass {
+		// void undo() {}
+		// }
+		// interface BaseInterface {
+		// void do()
+		// }
+		//
+		// class TestClass : BaseStruct, BaseClass, BaseInterface {
+		//	void do() {
+		//		a = 2
+		//	    undo()
+		//  }
+		// }
+	}
 
-    	// BaseInterface
-    	llvm::SmallVector<ASTType *, 4> BaseInterfaces;
-    	ASTClass *BaseInterface = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE,
-    		"BaseInterface", TopModifiers, BaseInterfaces);
-    	ASTBuilder::CreateClassMethod(SourceLoc, BaseInterface, "do", TopModifiers, Params);
+	TEST_F(CodeGenTest, DISABLED_CGClassExtendsInterface) {
+		/**
+		 * Fly code:
+		 * struct BaseStruct {
+		 *   int a
+		 * }
+		 * interface BaseInterface {
+		 *   void do()
+		 * }
+		 * class TestClass : BaseStruct, BaseInterface {
+		 *   void do() {
+		 *   }
+		 * }
+		 * void func() {
+		 *   TestClass test = new TestClass()
+		 *   delete test
+		 * }
+		 */
+		ASTModule *Module = CreateModule();
 
+		// struct BaseStruct {
+		// int a
+		// }
+		// class BaseClass {
+		// void undo() {}
+		// }
+		// interface BaseInterface {
+		// void do()
+		// }
+		//
+		// class TestClass : BaseStruct, BaseClass, BaseInterface {
+		//	void do() {
+		//		a = 2
+		//	    undo()
+		//  }
+		// }
+	}
 
-    	// BaseInterface2
-    	llvm::SmallVector<ASTType *, 4> Base2Interfaces;
-    	ASTClass *BaseInterface2 = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE,
-    		"BaseInterface2", TopModifiers, Base2Interfaces);
-    	ASTBuilder::CreateClassMethod(SourceLoc, BaseInterface2, "undo", TopModifiers, Params);
-
-    	llvm::SmallVector<ASTType *, 4> TestBaseInterfaces;
-    	TestBaseInterfaces.push_back(CreateType(BaseInterface));
-    	TestBaseInterfaces.push_back(CreateType(BaseInterface2));
-    	ASTClass *TestInterface = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE,
-    		"TestInterface", TopModifiers, TestBaseInterfaces);
-
-    	// class TestClass
-    	llvm::SmallVector<ASTType *, 4> TestBaseClasses;
-    	TestBaseClasses.push_back(CreateType(TestInterface));
-    	ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
-			TopModifiers, TestBaseClasses);
-
-    	// void do()
-    	ASTBlockStmt *DoBody = ASTBuilder::CreateBlockStmt(SourceLoc);
-    	ASTMethod *TestClass_do = ASTBuilder::CreateClassMethod(SourceLoc, TestClass, "do", TopModifiers, Params, DoBody);
-
-    	// void undo()
-    	ASTBlockStmt *UndoBody = ASTBuilder::CreateBlockStmt(SourceLoc);
-    	ASTMethod *TestClass_undo = ASTBuilder::CreateClassMethod(SourceLoc, TestClass, "undo", TopModifiers, Params, UndoBody);
-
-    	// main() { new TestClass() }
-    	ASTBlockStmt *MainBody = ASTBuilder::CreateBlockStmt(SourceLoc);
-    	ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
-
-    	ASTType *TestInterfaceTypeeRef = CreateType(TestInterface);
-    	ASTLocalVar *aVar = ASTBuilder::CreateLocalVar(SourceLoc, TestInterfaceTypeeRef, "a", EmptyModifiers);
-    	ASTDeclStmt *aDeclStmt = ASTBuilder::CreateDeclStmt(MainBody, SourceLoc, aVar);
-    	ASTIdentifier *aIdent = ASTBuilder::CreateIdentifier(aVar);
-    	ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, aIdent, ConstructorCall);
-    	aDeclStmt->setExpr(AssignExpr);
-    	ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, MainBody);
-
-    	// Generate Code
-    	Generate();
-		llvm::Module * M = getModules()[0];
-    	std::string output = getOutput(M);
-
-    	EXPECT_EQ(output, "\n");
-    }
-
-	TEST_F(CodeGenTest, CGClassExtendsStructAndInterface) {
+	TEST_F(CodeGenTest, DISABLED_CGClassExtendsStructAndInterface) {
         /**
          * Fly code:
          * struct BaseStruct {

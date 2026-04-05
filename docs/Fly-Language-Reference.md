@@ -50,7 +50,7 @@ if          import      interface   int         long
 namespace   new         null        private     protected
 public      return      short       static      string
 struct      switch      true        uint        ulong
-ushort      void        while
+ushort      while
 ```
 
 ### 2.2 Identifiers
@@ -228,7 +228,6 @@ double precise = 3.14159265359
 | `bool`   | Boolean type (true or false)          |
 | `char`   | Character type                        |
 | `string` | String type                           |
-| `void`   | No type (for functions with no return)|
 | `error`  | Error type for error handling         |
 
 **Examples:**
@@ -299,7 +298,7 @@ LocalVar ::= [ Modifiers ] Type Identifier [ '=' Expression ]
 
 **Examples:**
 ```fly
-void func() {
+func() {
     // Simple declaration
     int x = 10
     
@@ -349,51 +348,45 @@ byte[3] buffer = {1, 2, 3}
 
 ### 5.1 Function Declaration
 
+Functions and methods in Fly are **always void**—they never return a value. Because all functions are implicitly void, there is no need to specify a return type in the declaration.
+
 **Syntax:**
 ```
-Function ::= [ Modifiers ] Type Identifier '(' [ Parameters ] ')' ( Block | ';' )
+Function ::= [ Modifiers ] Identifier '(' [ Parameters ] ')' ( Block | ';' )
 ```
 
 **Examples:**
 ```fly
 // Simple function
-void doSomething() {
+doSomething() {
     // function body
 }
 
-// Function with return type
-int calculate() {
-    return 42
-}
-
-// Function with parameters
-int add(int a, int b) {
-    return a + b
+// Function with parameters (all parameters require const modifier)
+add(const int a, const int b) {
+    // function body
 }
 ```
 
 ### 5.2 Function Parameters
 
+All function parameters **must** use the `const` modifier. Parameters are always immutable within the function body.
+
 **Syntax:**
 ```
 Parameters ::= Parameter ( ',' Parameter )*
-Parameter  ::= [ 'const' ] Type Identifier
+Parameter  ::= 'const' Type Identifier
 ```
 
 **Examples:**
 ```fly
-// Multiple parameters
-void process(int x, float y, bool flag) {
+// Multiple parameters (all const)
+process(const int x, const float y, const bool flag) {
     // implementation
 }
 
-// Constant parameters
-void readOnly(const int size, const string name) {
-    // size and name cannot be modified
-}
-
 // Array parameters
-void processArray(byte[] data, int[] indices) {
+processArray(const byte[] data, const int[] indices) {
     // implementation
 }
 ```
@@ -404,34 +397,34 @@ Functions can have different visibility levels:
 
 ```fly
 // Default visibility (package-private)
-void defaultFunction() {}
+defaultFunction() {}
 
 // Private function (internal use only)
-private void privateHelper() {}
+private privateHelper() {}
 
 // Public function (exported)
-public void publicAPI() {}
+public publicAPI() {}
 
 // Protected function (for inheritance)
-protected void protectedMethod() {}
+protected protectedMethod() {}
 ```
 
 ### 5.4 Return Statement
 
+Since all functions are void, the `return` statement is used only to exit the function early. It never carries a value.
+
 ```fly
-// Return void (no value)
-void noReturn() {
+// Return exits the function
+noReturn() {
     return
 }
 
-// Return a value
-int getValue() {
-    return 42
-}
-
-// Return expression
-int compute(int a, int b) {
-    return a * b + 10
+// Return used for early exit
+process(const int x) {
+    if (x < 0) {
+        return  // exit early
+    }
+    // continue processing
 }
 ```
 
@@ -441,14 +434,14 @@ The `main()` function is the entry point of a Fly application.
 
 **Syntax:**
 ```fly
-void main() {
+main() {
     // Application code
 }
 ```
 
 **Key Characteristics:**
 
-1. **Function signature:** Must be declared as `void main()` with no parameters
+1. **Function signature:** Must be declared as `main()` with no parameters and no return type
 2. **Entry point:** The application starts execution from `main()`
 3. **Automatic error handling:** The main function has special error handling behavior
 
@@ -463,7 +456,7 @@ This behavior is automatic—you don't explicitly return an integer from `main()
 
 **Example 1: Successful Execution**
 ```fly
-void main() {
+main() {
     // Code executes successfully
     int x = 10
     int y = 20
@@ -473,11 +466,11 @@ void main() {
 
 **Example 2: Unhandled Error**
 ```fly
-void err0() {
+err0() {
     fail "Something went wrong"
 }
 
-void main() {
+main() {
     err0()  // Error is not handled
     // Automatically returns 1 (failure)
 }
@@ -485,11 +478,11 @@ void main() {
 
 **Example 3: Handled Error**
 ```fly
-void err0() {
+err0() {
     fail "Something went wrong"
 }
 
-void main() {
+main() {
     handle err0()  // Error is caught and handled
     // Continues execution
     // Automatically returns 0 (success)
@@ -498,11 +491,11 @@ void main() {
 
 **Example 4: Captured Error with Graceful Handling**
 ```fly
-void riskyOperation() {
+riskyOperation() {
     fail "Operation failed"
 }
 
-void main() {
+main() {
     error err handle {
         riskyOperation()
     }
@@ -523,7 +516,7 @@ void main() {
 4. **Provide fallback logic:** When errors occur, provide alternative execution paths
 
 **Summary:**
-- `void main()` is required (not `int main()`)
+- `main()` is required (no return type, no parameters)
 - Exit code 0 = success (no unhandled errors)
 - Exit code 1 = failure (unhandled error occurred)
 - Use `handle` to catch errors and ensure successful exit
@@ -534,9 +527,11 @@ void main() {
 
 ### 6.1 Class Declaration
 
+Classes support **single inheritance**. A class can extend one struct or one interface.
+
 **Syntax:**
 ```
-Class ::= [ Modifiers ] 'class' Identifier [ ':' BaseList ] '{' ClassMember* '}'
+Class ::= [ Modifiers ] 'class' Identifier [ ':' Identifier ] '{' ClassMember* '}'
 ```
 
 **Examples:**
@@ -549,22 +544,22 @@ class MyClass {
 public class Application {
 }
 
-// Class with inheritance
-class Derived : Base {
+// Class extending a struct
+class Derived : BaseStruct {
 }
 
-// Class with multiple bases
-class MyClass : Base1, Base2 {
+// Class extending an interface
+class MyImpl : Drawable {
 }
 ```
 
 ### 6.2 Structure Declaration
 
-Structures are value types similar to classes.
+Structures are value types similar to classes. A struct can only extend another struct.
 
 **Syntax:**
 ```
-Struct ::= [ Modifiers ] 'struct' Identifier [ ':' BaseList ] '{' StructMember* '}'
+Struct ::= [ Modifiers ] 'struct' Identifier [ ':' Identifier ] '{' StructMember* '}'
 ```
 
 **Examples:**
@@ -581,28 +576,38 @@ public struct Vector {
     float y
     float z
 }
+
+// Struct extending another struct
+struct Point3D : Point {
+    int z
+}
 ```
 
 ### 6.3 Interface Declaration
 
-Interfaces define contracts for classes.
+Interfaces define contracts for classes. An interface can only extend another interface.
 
 **Syntax:**
 ```
-Interface ::= [ Modifiers ] 'interface' Identifier '{' InterfaceMember* '}'
+Interface ::= [ Modifiers ] 'interface' Identifier [ ':' Identifier ] '{' InterfaceMember* '}'
 ```
 
 **Examples:**
 ```fly
 // Simple interface
-interface IDrawable {
-    void draw()
+interface Drawable {
+    draw()
 }
 
 // Public interface
-public interface ISerializable {
-    string serialize()
-    void deserialize(string data)
+public interface Serializable {
+    serialize(const string path)
+    deserialize(const string data)
+}
+
+// Interface extending another interface
+interface Resizable : Drawable {
+    resize(const int width, const int height)
 }
 ```
 
@@ -620,20 +625,20 @@ public class Person {
     // Public field
     public bool isActive
     
-    // Constructor-like method
-    public void initialize(string personName, int personAge) {
+    // Constructor-like method (no return type)
+    public initialize(const string personName, const int personAge) {
         name = personName
         age = personAge
         isActive = true
     }
     
     // Public method
-    public string getName() {
-        return name
+    public getName(const string[] out) {
+        out[0] = name
     }
     
     // Private method
-    private void validate() {
+    private validate() {
         // validation logic
     }
     
@@ -641,8 +646,8 @@ public class Person {
     static int instanceCount = 0
     
     // Static method
-    public static int getCount() {
-        return instanceCount
+    public static getCount(const int[] out) {
+        out[0] = instanceCount
     }
 }
 ```
@@ -665,9 +670,11 @@ person.initialize("John", 30)
 
 ### 7.1 Enum Declaration
 
+Enumerations define a set of named constants. Enums **cannot extend** any other type.
+
 **Syntax:**
 ```
-Enum ::= [ Modifiers ] 'enum' Identifier [ ':' BaseType ] '{' EnumEntryList '}'
+Enum ::= [ Modifiers ] 'enum' Identifier '{' EnumEntryList '}'
 EnumEntryList ::= EnumEntry ( ',' EnumEntry )*
 EnumEntry ::= Identifier
 ```
@@ -684,10 +691,6 @@ public enum Status {
     IDLE, RUNNING, STOPPED, FAILED
 }
 
-// Enum extending a base type
-public enum Option : Enum {
-    A, B, C
-}
 
 // Multi-line enum for readability
 enum Direction {
@@ -702,7 +705,7 @@ enum Direction {
 
 **Examples:**
 ```fly
-void processColor() {
+processColor() {
     // Declare and initialize
     Color c = Color.RED
     
@@ -718,14 +721,8 @@ void processColor() {
     }
 }
 
-void setColor(Color c) {
+setColor(const Color c) {
     // use color
-}
-
-// Example with enum extending base type
-void testOption() {
-    Option opt = Option.A
-    opt = Option.B
 }
 ```
 
@@ -1124,21 +1121,22 @@ for int i = 0; i < length; i++ {
 
 #### 9.6.1 Return Statement
 
+Since all functions are void, `return` is used only to exit the function early.
+
 **Syntax:**
 ```
-ReturnStmt ::= 'return' [ Expression ]
+ReturnStmt ::= 'return'
 ```
 
 **Examples:**
 ```fly
-// Return without value
+// Return exits the function
 return
 
-// Return with value
-return 42
-
-// Return expression
-return a + b * c
+// Early return based on condition
+if (done) {
+    return
+}
 ```
 
 #### 9.6.2 Break Statement
@@ -1213,25 +1211,22 @@ FailStmt ::= 'fail' [ Expression ]
 
 ```fly
 // 1. Fail without a value (void failure)
-void err0() {
+err0() {
     fail                    // Simple failure
-    return false            // Never reached
 }
 
 // 2. Fail with an integer error code
-int err1() {
+err1() {
     fail 404                // Fail with error code
-    return 0                // Never reached
 }
 
 // 3. Fail with a string error message
-string err2() {
+err2() {
     fail "Error occurred"   // Fail with message
-    return ""               // Never reached
 }
 
-// 4. Fail with an object or expression
-void validateAge(int age) {
+// 4. Fail with an expression
+validateAge(const int age) {
     if (age < 0) {
         fail "Age cannot be negative"
     }
@@ -1260,7 +1255,7 @@ HandleStmt ::= [ 'error' Identifier ] 'handle' ( Statement | Block )
 
 **1. Simple Handle (No Error Capture):**
 ```fly
-void main() {
+main() {
     // Just handle the exception, ignore details
     handle err0()
     
@@ -1274,7 +1269,7 @@ void main() {
 
 **2. Handle with Error Variable Declaration:**
 ```fly
-void main() {
+main() {
     // Declare error variable and handle in one statement
     error err0 handle { 
         riskyOperation() 
@@ -1290,7 +1285,7 @@ void main() {
 
 **3. Handle with Statement Block:**
 ```fly
-void processData() {
+processData() {
     error err1 handle { 
         dangerousOperation()
         anotherRiskyCall()
@@ -1298,15 +1293,14 @@ void processData() {
     
     if (err1) {
         // Error occurred, err1 contains the error information
-        return -1
+        return
     }
-    return i
 }
 ```
 
 **4. Handle with Single Statement:**
 ```fly
-void quickCheck() {
+quickCheck() {
     error err2 handle checkData()  // Handle single statement
     
     if (err2) {
@@ -1319,11 +1313,11 @@ void quickCheck() {
 
 **Example 1: Simple Void Error Handling**
 ```fly
-void err0() {
+err0() {
     fail                    // Throw exception
 }
 
-void main() {
+main() {
     handle err0()           // Catch exception
     // Application continues and returns 0 (success)
 }
@@ -1333,17 +1327,15 @@ void main() {
 
 **Example 2: Integer Error Codes**
 ```fly
-int divide(int a, int b) {
+divide(const int a, const int b) {
     if (b == 0) {
         fail 1001           // Error code for division by zero
     }
-    return a / b
 }
 
-void calculate() {
-    int result = 0
+calculate() {
     error divErr = handle {
-        result = divide(10, 0)
+        divide(10, 0)
     }
     
     if (divErr) {
@@ -1355,18 +1347,16 @@ void calculate() {
 
 **Example 3: String Error Messages**
 ```fly
-string loadFile(string path) {
+loadFile(const string path) {
     if (path == "") {
         fail "Invalid file path"
     }
     // ... load file logic
-    return content
 }
 
-void processFile() {
-    string content = ""
+processFile() {
     error fileErr handle {
-        content = loadFile("")
+        loadFile("")
     }
     
     if (fileErr) {
@@ -1377,15 +1367,13 @@ void processFile() {
 
 **Example 4: Multiple Operations in Handle Block**
 ```fly
-void complexOperation() {
+complexOperation() {
     bool success = false
-    int value = 0
-    string data = ""
     
     error err handle {
-        success = operation1()  // May fail
-        value = operation2()    // May fail
-        data = operation3()     // May fail
+        operation1()        // May fail
+        operation2()        // May fail
+        operation3()        // May fail
     }
     
     if (err) {
@@ -1393,6 +1381,7 @@ void complexOperation() {
         // err contains the error information
     } else {
         // All operations succeeded
+        success = true
     }
 }
 ```
@@ -1401,22 +1390,21 @@ void complexOperation() {
 
 **Pattern 1: Graceful Degradation**
 ```fly
-int getValue() {
-    int result = 0
+getValue() {
     error err = handle {
-        result = riskyOperation()
+        riskyOperation()
     }
     
     if (err) {
-        return -1   // Default value on error
+        // Use fallback logic on error
+        return
     }
-    return result
 }
 ```
 
 **Pattern 2: Error Propagation**
 ```fly
-void caller() {
+caller() {
     // If handle captures an error, you can re-fail
     error err = handle {
         mayFail()
@@ -1430,7 +1418,7 @@ void caller() {
 
 **Pattern 3: Logging and Recovery**
 ```fly
-void process() {
+process() {
     error err = handle {
         criticalOperation()
     }
@@ -1527,8 +1515,8 @@ import data.models
 // File: utils.fly
 namespace utils
 
-public int getB() {
-    return 10
+public getB(const int[] out) {
+    out[0] = 10
 }
 ```
 
@@ -1536,8 +1524,9 @@ public int getB() {
 // File: main.fly
 import utils
 
-void main() {
-    int value = utils.getB()
+main() {
+    int[] result = {0}
+    utils.getB(result)
 }
 ```
 
@@ -1545,7 +1534,7 @@ void main() {
 // With alias
 import standard as std
 
-void process() {
+process() {
     std.doSomething()
 }
 ```
@@ -1568,7 +1557,7 @@ Control the accessibility of declarations.
 **Examples:**
 ```fly
 // Private function
-private void internalHelper() {}
+private internalHelper() {}
 
 // Protected member
 class Base {
@@ -1577,11 +1566,11 @@ class Base {
 
 // Public class
 public class PublicAPI {
-    public void exportedMethod() {}
+    public exportedMethod() {}
 }
 
 // Default visibility
-void packageFunction() {}
+packageFunction() {}
 class DefaultClass {}
 ```
 
@@ -1592,13 +1581,13 @@ The `const` modifier marks values as immutable.
 **Examples:**
 ```fly
 
-// Constant function parameter
-void process(const int size) {
+// Constant function parameter (const is required for all parameters)
+process(const int size) {
     // size cannot be modified
 }
 
 // Constant local variable
-void func() {
+func() {
     const int limit = 50
     // limit = 100  // Error: cannot modify const
 }
@@ -1613,17 +1602,18 @@ The `static` modifier creates class-level members.
 class Counter {
     static int totalCount = 0
     
-    public static int getTotal() {
-        return totalCount
+    public static getTotal(const int[] out) {
+        out[0] = totalCount
     }
     
-    public void increment() {
+    public increment() {
         totalCount++
     }
 }
 
 // Usage
-int total = Counter.getTotal()
+Counter c = new Counter()
+c.increment()
 ```
 
 ### 11.4 Combining Modifiers
@@ -1645,7 +1635,7 @@ class Configuration {
 }
 
 // In a function
-void process() {
+process() {
     // Constant local variable
     const int maxRetries = 3
 }
@@ -1682,8 +1672,8 @@ Block comments are enclosed between `/*` and `*/`.
  * for detailed documentation
  */
 
-int calculate() {
-    /* inline comment */ return 0
+calculate() {
+    /* inline comment */ return
 }
 ```
 
@@ -1717,7 +1707,7 @@ Type            ::= BuiltinType
                   | NamedType 
                   | ArrayType
 
-BuiltinType     ::= 'void' | 'bool' | 'byte' | 'char' 
+BuiltinType     ::= 'bool' | 'byte' | 'char' 
                   | 'short' | 'ushort' | 'int' | 'uint' 
                   | 'long' | 'ulong' | 'float' | 'double' 
                   | 'string' | 'error'
@@ -1730,21 +1720,30 @@ ArrayType       ::= Type '[' [ Expression ] ']'
 ### 13.3 Declarations
 
 ```
-ClassDecl       ::= Modifiers ( 'class' | 'struct' | 'interface' ) 
-                    Identifier [ ':' BaseList ] '{' ClassMember* '}'
+ClassDecl       ::= Modifiers ( 'class' | 'struct' ) 
+                    Identifier [ ':' Identifier ] '{' ClassMember* '}'
 
-EnumDecl        ::= Modifiers 'enum' Identifier [ ':' BaseType ] '{' EnumEntryList '}'
+InterfaceDecl   ::= Modifiers 'interface' 
+                    Identifier [ ':' Identifier ] '{' InterfaceMember* '}'
+
+EnumDecl        ::= Modifiers 'enum' Identifier '{' EnumEntryList '}'
 
 EnumEntryList   ::= EnumEntry ( ',' EnumEntry )*
 
 EnumEntry       ::= Identifier
 
-FunctionDecl    ::= Modifiers Type Identifier '(' [ ParamList ] ')' ( Block | ';' )
+FunctionDecl    ::= Modifiers Identifier '(' [ ParamList ] ')' ( Block | ';' )
 
 ParamList       ::= Param ( ',' Param )*
 
-Param           ::= [ 'const' ] Type Identifier
+Param           ::= 'const' Type Identifier
 ```
+
+**Inheritance Rules:**
+- **Class**: Single inheritance; can extend one struct or one interface
+- **Struct**: Can extend only another struct
+- **Interface**: Can extend only another interface
+- **Enum**: Cannot extend anything
 
 ### 13.4 Statements
 
@@ -1777,7 +1776,7 @@ WhileStmt       ::= 'while' [ '(' ] Expr [ ')' ] Statement
 ForStmt         ::= 'for' VarDecl ( ',' VarDecl )* ';' Expr ';' 
                     Expr ( ',' Expr )* Statement
 
-ReturnStmt      ::= 'return' [ Expr ]
+ReturnStmt      ::= 'return'
 
 BreakStmt       ::= 'break'
 
@@ -1850,12 +1849,12 @@ import utils
 import data.models as models
 
 
-// Enum declaration
+// Enum declaration (enums cannot extend anything)
 public enum Status {
     IDLE, RUNNING, PAUSED, STOPPED
 }
 
-// Class declaration
+// Class declaration (single inheritance)
 public class Application {
     // Private fields
     private string name
@@ -1865,8 +1864,8 @@ public class Application {
     // Static field
     static int instanceCount = 0
     
-    // Public method
-    public void initialize(string appName) {
+    // Public method (no return type — all functions are void)
+    public initialize(const string appName) {
         name = appName
         value = 0
         currentStatus = Status.IDLE
@@ -1874,32 +1873,29 @@ public class Application {
     }
     
     // Public method with error handling
-    public int process() {
-        int result = 0
+    public process() {
         error err = handle {
-            result = calculateResult()
+            calculateResult()
         }
         
         if (err) {
-            // Error occurred, return default value
-            return -1
+            // Error occurred
+            currentStatus = Status.STOPPED
         }
-        return result
     }
     
     // Private helper method that may fail
-    private int calculateResult() {
+    private calculateResult() {
         if (value < 0) {
             fail "Invalid value"     // Fail with string message
         }
         if (value > 1000) {
             fail 999                 // Fail with error code
         }
-        return value + utils.getB()
     }
     
     // Method demonstrating void error handling
-    public void validate() {
+    public validate() {
         error validationErr = handle {
             if (name == "") {
                 fail "Name cannot be empty"
@@ -1911,36 +1907,47 @@ public class Application {
         }
     }
     
-    // Getter method
-    public string getName() {
-        return name
-    }
-    
     // Setter method
-    public void setValue(int newValue) {
+    public setValue(const int newValue) {
         value = newValue
     }
     
     // Static method
-    public static int getInstanceCount() {
-        return instanceCount
+    public static incrementCount() {
+        instanceCount++
     }
 }
 
-// Structure declaration
+// Structure declaration (struct can extend only struct)
 public struct Point {
     int x
     int y
+}
+
+// Struct extending another struct
+public struct Point3D : Point {
+    int z
+}
+
+// Interface declaration (interface can extend only interface)
+public interface Drawable {
+    draw()
+}
+
+// Class implementing an interface (single inheritance)
+public class Shape : Drawable {
+    private int width
+    private int height
     
-    public int distanceSquared() {
-        return x * x + y * y
+    draw() {
+        // drawing logic
     }
 }
 
 // Main entry point
 // Note: main() automatically returns 0 if all errors are handled,
 // or returns 1 if an unhandled error occurs
-void main() {
+main() {
     // Create application instance
     Application app = new Application()
     app.initialize("MyApp")
@@ -1953,16 +1960,15 @@ void main() {
     
     // Control flow with error handling
     if (status == Status.RUNNING) {
-        int result = 0
         error processErr = handle {
-            result = app.process()
+            app.process()
         }
         
         if (processErr) {
             // Handle error gracefully
             status = Status.STOPPED
         } else {
-            handleResult(result)
+            handleResult()
         }
     } elsif (status == Status.PAUSED) {
         // Handle paused state
@@ -1998,22 +2004,20 @@ void main() {
     
     // Error handling with structure
     error distErr = handle {
-        int dist = p.distanceSquared()
+        int dist = p.x * p.x + p.y * p.y
         if (dist > 1000) {
             fail "Distance too large"
         }
     }
 }
 
-// Private helper function
-private void handleResult(int result) {
-    while (result > 0) {
-        result--
-    }
+// Private helper function (all parameters require const)
+private handleResult() {
+    // handle result logic
 }
 
-// Function with multiple parameters
-private void processNumber(int num) {
+// Function with const parameter
+private processNumber(const int num) {
     if (num % 2 == 0) {
         // even number
     } else {
@@ -2068,7 +2072,7 @@ if          import      interface   int         long
 namespace   new         null        private     protected
 public      return      short       static      string
 struct      switch      true        uint        ulong
-ushort      void        while
+ushort      while
 ```
 
 ---
@@ -2113,17 +2117,17 @@ Fly uses `fail` and `handle` keywords for error handling, which differs from tra
 
 ```fly
 // Pattern 1: Simple fail
-void operation() {
+operation() {
     fail                        // Throw exception
 }
 
 // Pattern 2: Fail with integer code
-int check() {
+check() {
     fail 404                    // Error code
 }
 
 // Pattern 3: Fail with string message
-string load() {
+load() {
     fail "File not found"       // Error message
 }
 
@@ -2138,10 +2142,12 @@ if (err) {
     // Handle error
 }
 
-// Pattern 6: Handle with return value
-int result = 0
+// Pattern 6: Handle with recovery
 error err = handle {
-    result = computation()
+    computation()
+}
+if (err) {
+    fallbackOperation()
 }
 ```
 
@@ -2167,7 +2173,7 @@ error err = handle {
 The `main()` function has special error handling behavior:
 
 ```fly
-void main() {
+main() {
     // If no error occurs or all errors are handled: returns 0
     // If an unhandled error occurs: returns 1
 }
@@ -2177,17 +2183,17 @@ void main() {
 
 ```fly
 // Returns 0 (success)
-void main() {
+main() {
     handle mayFail()
 }
 
 // Returns 1 (failure)
-void main() {
+main() {
     mayFail()  // Error not handled
 }
 
 // Returns 0 (success) - error is caught and handled
-void main() {
+main() {
     error err = handle {
         riskyOperation()
     }

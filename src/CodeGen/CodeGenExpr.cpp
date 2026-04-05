@@ -99,11 +99,52 @@ void CodeGenExpr::GenExpr(SemaStringValue *Sema) {
 }
 
 void CodeGenExpr::GenExpr(SemaStructValue *Sema) {
-	// TODO: Implement StructValue CodeGen
+	SemaType *Type = Sema->getType();
+	if (Type && Type->isClass()) {
+		Type->accept(*CGM);
+		SemaClassType *ClassType = static_cast<SemaClassType *>(Type);
+		llvm::StructType *StructLLVMType = ClassType->getCodeGen()->getType();
+		if (StructLLVMType) {
+			llvm::AllocaInst *Alloca = Builder->CreateAlloca(StructLLVMType);
+			uint64_t StructSize = CGM->Module->getDataLayout().getTypeAllocSize(StructLLVMType);
+			Builder->CreateMemSet(Alloca, llvm::ConstantInt::get(CodeGen::Int8Ty, 0),
+				StructSize, llvm::MaybeAlign());
+			for (auto &Entry : Sema->getValues()) {
+				llvm::StringRef FieldName = Entry.getKey();
+				SemaValue *FieldVal = Entry.getValue();
+				SemaClassAttribute *Attr = ClassType->LookupAttribute(FieldName);
+				if (Attr && Attr->getCodeGen()) {
+					size_t FieldIdx = Attr->getCodeGen()->getIndex();
+					llvm::Value *FieldPtr = Builder->CreateStructGEP(StructLLVMType, Alloca, FieldIdx);
+					FieldVal->accept(*CGM);
+					llvm::Value *Val = FieldVal->getCodeGen()->getValue();
+					Builder->CreateStore(Val, FieldPtr);
+				}
+			}
+			V = Alloca;
+			return;
+		}
+	}
+	V = llvm::ConstantPointerNull::get(CodeGen::VoidPtrTy);
 }
 
 void CodeGenExpr::GenExpr(SemaNullValue *Sema) {
-	// TODO: Implement NullValue CodeGen
+	SemaType *Type = Sema->getType();
+	if (Type) {
+		Type->accept(*CGM);
+		llvm::Type *LLVMType = Type->getCodeGen() ? Type->getCodeGen()->getType() : nullptr;
+		if (LLVMType) {
+			if (LLVMType->isPointerTy()) {
+				V = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(LLVMType));
+				return;
+			}
+			if (LLVMType->isStructTy()) {
+				V = llvm::ConstantPointerNull::get(LLVMType->getPointerTo());
+				return;
+			}
+		}
+	}
+	V = llvm::ConstantPointerNull::get(CodeGen::VoidPtrTy);
 }
 
 void CodeGenExpr::GenExpr(SemaUnsetValue *Sema) {
@@ -112,7 +153,11 @@ void CodeGenExpr::GenExpr(SemaUnsetValue *Sema) {
 }
 
 void CodeGenExpr::GenExpr(SemaEnumEntry *Sema) {
-	// TODO: Implement EnumEntry CodeGen
+	if (Sema->getCodeGen()) {
+		V = Sema->getCodeGen()->getValue();
+	} else {
+		V = llvm::ConstantInt::get(CodeGen::Int32Ty, Sema->getIndex());
+	}
 }
 
 void CodeGenExpr::GenExpr(SemaVar *Sema) {
@@ -308,32 +353,108 @@ void CodeGenExpr::GenExpr(SemaMember *Sema) {
 }
 
 void CodeGenExpr::GenExpr(SemaCast *Sema) {
-	SemaType *ToType = Sema->getToType();
-	switch (Sema->getType()->getKind()) {
+	// Evaluate the inner expression first
+	Sema->getExpr()->accept(*CGM);
+	llvm::Value *SrcVal = Sema->getExpr()->getCodeGen()->getValue();
+
+	SemaType *FromType = Sema->getExpr()->getType();
+	SemaType *ToType = Sema->getToType(); // Sema->getType() == ToType
+
+	// Helper: map SemaIntTypeKind to LLVM integer type
+	auto intLLVMType = [](SemaIntTypeKind k) -> llvm::Type * {
+		switch (k) {
+			case SemaIntTypeKind::TYPE_BYTE:                 return CodeGen::Int8Ty;
+			case SemaIntTypeKind::TYPE_SHORT:
+			case SemaIntTypeKind::TYPE_USHORT:               return CodeGen::Int16Ty;
+			case SemaIntTypeKind::TYPE_INT:
+			case SemaIntTypeKind::TYPE_UINT:                 return CodeGen::Int32Ty;
+			case SemaIntTypeKind::TYPE_LONG:
+			case SemaIntTypeKind::TYPE_ULONG:                return CodeGen::Int64Ty;
+			default:                                         return CodeGen::Int32Ty;
+		}
+	};
+
+	switch (ToType->getKind()) {
+
+		case SemaKind::TYPE_BOOL: {
+			// Cast to bool: non-zero → true
+			if (FromType->isInteger() || FromType->getKind() == SemaKind::TYPE_BOOL) {
+				V = Builder->CreateICmpNE(SrcVal, llvm::ConstantInt::get(SrcVal->getType(), 0));
+			} else if (FromType->isFloat()) {
+				V = Builder->CreateFCmpONE(SrcVal, llvm::ConstantFP::get(SrcVal->getType(), 0.0));
+			} else {
+				V = SrcVal;
+			}
+			break;
+		}
+
+		case SemaKind::TYPE_INTEGER: {
+			SemaIntType *ToIntTy = static_cast<SemaIntType *>(ToType);
+			llvm::Type *DestTy = intLLVMType(ToIntTy->getIntKind());
+			if (FromType->getKind() == SemaKind::TYPE_BOOL) {
+				// bool (i1 or i8) → integer: zero-extend
+				V = Builder->CreateZExtOrTrunc(SrcVal, DestTy);
+			} else if (FromType->isInteger()) {
+				SemaIntType *FromIntTy = static_cast<SemaIntType *>(FromType);
+				unsigned SrcBits = SrcVal->getType()->getIntegerBitWidth();
+				unsigned DstBits = DestTy->getIntegerBitWidth();
+				if (DstBits < SrcBits) {
+					V = Builder->CreateTrunc(SrcVal, DestTy);
+				} else if (DstBits > SrcBits) {
+					V = FromIntTy->isSigned()
+						? Builder->CreateSExt(SrcVal, DestTy)
+						: Builder->CreateZExt(SrcVal, DestTy);
+				} else {
+					V = Builder->CreateBitCast(SrcVal, DestTy);
+				}
+			} else if (FromType->isFloat()) {
+				V = ToIntTy->isSigned()
+					? Builder->CreateFPToSI(SrcVal, DestTy)
+					: Builder->CreateFPToUI(SrcVal, DestTy);
+			} else {
+				V = SrcVal;
+			}
+			break;
+		}
+
+		case SemaKind::TYPE_FLOAT: {
+			SemaFloatType *ToFPTy = static_cast<SemaFloatType *>(ToType);
+			llvm::Type *DestTy = (ToFPTy->getFloatKind() == SemaFloatTypeKind::TYPE_FLOAT)
+				? CodeGen::FloatTy : CodeGen::DoubleTy;
+			if (FromType->getKind() == SemaKind::TYPE_BOOL) {
+				V = Builder->CreateUIToFP(SrcVal, DestTy);
+			} else if (FromType->isInteger()) {
+				SemaIntType *FromIntTy = static_cast<SemaIntType *>(FromType);
+				V = FromIntTy->isSigned()
+					? Builder->CreateSIToFP(SrcVal, DestTy)
+					: Builder->CreateUIToFP(SrcVal, DestTy);
+			} else if (FromType->isFloat()) {
+				SemaFloatType *FromFPTy = static_cast<SemaFloatType *>(FromType);
+				bool toDouble = (ToFPTy->getFloatKind() == SemaFloatTypeKind::TYPE_DOUBLE);
+				bool fromDouble = (FromFPTy->getFloatKind() == SemaFloatTypeKind::TYPE_DOUBLE);
+				if (!fromDouble && toDouble) {
+					V = Builder->CreateFPExt(SrcVal, DestTy);
+				} else if (fromDouble && !toDouble) {
+					V = Builder->CreateFPTrunc(SrcVal, DestTy);
+				} else {
+					V = SrcVal;
+				}
+			} else {
+				V = SrcVal;
+			}
+			break;
+		}
 
 		case SemaKind::TYPE_VOID:
 		case SemaKind::TYPE_ERROR:
 		case SemaKind::TYPE_ENUM:
-			// TODO: Void, Error, Enum cast is not supported
-			break;
-		case SemaKind::TYPE_BOOL:
-			// TODO
-				break;
-		case SemaKind::TYPE_INTEGER:
-			// TODO
-				break;
-		case SemaKind::TYPE_FLOAT:
-			// TODO
-				break;
 		case SemaKind::TYPE_STRING:
-			// TODO
-				break;
 		case SemaKind::TYPE_ARRAY:
-			// TODO
-				break;
 		case SemaKind::TYPE_CLASS:
-			// TODO
-				break;
+		default:
+			// Unsupported cast: pass source value through unchanged
+			V = SrcVal;
+			break;
 	}
 }
 

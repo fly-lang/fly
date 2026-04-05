@@ -19,8 +19,10 @@
 
 #include <AST/ASTBinary.h>
 #include <AST/ASTBuilderIfStmt.h>
+#include <AST/ASTBuilderLoopInStmt.h>
 #include <AST/ASTBuilderLoopStmt.h>
 #include <AST/ASTBuilderSwitchStmt.h>
+#include <AST/ASTType.h>
 #include <AST/ASTLocalVar.h>
 #include <AST/ASTParam.h>
 #include <AST/ASTTernary.h>
@@ -1492,6 +1494,75 @@ namespace {
                           "  br label %loopcond\n"
                           "\n"
                           "loopend:                                          ; preds = %loopcond\n"
+                          "  ret void\n"
+                          "}\n");
+    }
+
+    TEST_F(CodeGenTest, CGForIn) {
+        /**
+         * Fly code:
+         * func(int[] a) {
+         *   int item
+         *   for item in a { }
+         * }
+         */
+        ASTModule *Module = CreateModule();
+
+        // func(int[] a)
+        llvm::SmallVector<ASTParam *, 8> FuncParams;
+        ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, nullptr);
+        ASTParam *Param_a = ASTBuilder::CreateParam(SourceLoc, ArrayIntType, "a", EmptyModifiers);
+        FuncParams.push_back(Param_a);
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, FuncParams, Body);
+
+        // int item
+        ASTLocalVar *LocalVar_item = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "item", EmptyModifiers);
+        ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_item);
+
+        // for item in a { }
+        ASTBlockStmt *LoopBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTBuilderLoopInStmt::Create(Body, SourceLoc,
+                                     ASTBuilder::CreateIdentifier(LocalVar_item),
+                                     ASTBuilder::CreateIdentifier(Param_a),
+                                     LoopBody);
+
+        // Generate code
+        Generate();
+        llvm::Module *M = getModules()[0];
+        std::string output = getOutput(M->getFunctionList());
+
+        EXPECT_EQ(output, "define void @_F4func_A_i(%error* %0, %array* %1) {\n"
+                          "entry:\n"
+                          "  %2 = alloca %error*, align 8\n"
+                          "  %3 = alloca i32, align 4\n"
+                          "  store %error* %0, %error** %2, align 8\n"
+                          "  store i32 0, i32* %3, align 4\n"
+                          "  %4 = getelementptr inbounds %array, %array* %1, i32 0, i32 0\n"
+                          "  %5 = load i8*, i8** %4, align 8\n"
+                          "  %6 = bitcast i8* %5 to i32*\n"
+                          "  %7 = getelementptr inbounds %array, %array* %1, i32 0, i32 1\n"
+                          "  %8 = load i32, i32* %7, align 4\n"
+                          "  %forin.idx = alloca i32, align 4\n"
+                          "  store i32 0, i32* %forin.idx, align 4\n"
+                          "  br label %forin.cond\n"
+                          "\n"
+                          "forin.cond:                                       ; preds = %forin.body, %entry\n"
+                          "  %forin.i = load i32, i32* %forin.idx, align 4\n"
+                          "  %forin.cmp = icmp slt i32 %forin.i, %8\n"
+                          "  br i1 %forin.cmp, label %forin.body, label %forin.end\n"
+                          "\n"
+                          "forin.body:                                       ; preds = %forin.cond\n"
+                          "  %9 = load i32, i32* %forin.idx, align 4\n"
+                          "  %forin.elem = getelementptr i32, i32* %6, i32 %9\n"
+                          "  %10 = load i32, i32* %forin.elem, align 4\n"
+                          "  store i32 %10, i32* %3, align 4\n"
+                          "  %11 = load i32, i32* %forin.idx, align 4\n"
+                          "  %12 = add i32 %11, 1\n"
+                          "  store i32 %12, i32* %forin.idx, align 4\n"
+                          "  br label %forin.cond\n"
+                          "\n"
+                          "forin.end:                                        ; preds = %forin.cond\n"
                           "  ret void\n"
                           "}\n");
     }
