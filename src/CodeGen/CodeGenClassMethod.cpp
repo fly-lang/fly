@@ -110,8 +110,14 @@ void CodeGenClassMethod::GenBody() {
 	llvm::AllocaInst * InstancePtr = nullptr;
     if (ClassMethod->isStatic()) {
 
-		// Static Method, add error handler
+    	// Alloca local vars and set up param pointers
+    	AllocaLocalVars();
+
+		// Static Method, store error handler
     	Sema->getErrorHandler()->getCodeGen()->StoreErrorHandler(Fn->getArg(0));
+
+    	// Store params starting at index 1 (after error handler)
+    	StoreParams(1);
 
     } else {
 
@@ -181,6 +187,10 @@ void CodeGenClassMethod::GenBody() {
     	// CodeGen Class Attributes
     	for (auto &AttributeEntry: Class->getAttributes()) {
     		SemaClassAttribute *Attribute = AttributeEntry.getValue();
+
+    		// Static attributes are backed by a GlobalVariable; their pointer
+    		// must not be overwritten with the instance pointer.
+    		if (Attribute->isStatic()) continue;
 
     		// Set Pointer for Class Attribute
     		Attribute->getCodeGen()->setPointer(InstancePtr);

@@ -316,17 +316,24 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
 }
 
 void CodeGenExpr::GenExpr(SemaMember *Sema) {
-	// Generate Parent
-	Sema->getParent()->accept(*CGM);
-
-	// Get Pointer to Parent (struct pointer)
-	llvm::Value *ParentPtr = Sema->getParent()->getCodeGen()->getValue();
-
-	Sema->getType()->accept(*CGM);
-	llvm::Type *Ty = Sema->getType()->getCodeGen()->getType();
-	SemaExpr *Ref = Sema->getRef();
+SemaExpr *Ref = Sema->getRef();
 	if (Ref->getKind() == SemaKind::ATTRIBUTE) {
 		SemaClassAttribute *Attr = static_cast<SemaClassAttribute *>(Ref);
+
+		// Static attributes are backed by a GlobalVariable — use it directly,
+		// no need to generate the parent or compute a GEP.
+		if (Attr->isStatic()) {
+			Sema->setCodeGen(Attr->getCodeGen());
+			V = Attr->getCodeGen()->getPointer();
+			return;
+		}
+
+		// Non-static: Generate Parent and create GEP into the struct instance.
+		Sema->getParent()->accept(*CGM);
+		llvm::Value *ParentPtr = Sema->getParent()->getCodeGen()->getValue();
+
+		Sema->getType()->accept(*CGM);
+		llvm::Type *Ty = Sema->getType()->getCodeGen()->getType();
 		size_t Index = Attr->getCodeGen()->getIndex();
 
 		// Create GEP to get pointer to the specific field in the struct
@@ -756,7 +763,6 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
 	// Validate E1 and E2 are not null
 	assert(E1 && "E1 is null");
 	assert(E2 && "E2 is null");
-
 	// Get CodeGen objects
 	CodeGenExpr *E1CodeGen = E1->getCodeGen();
 	CodeGenExpr *E2CodeGen = E2->getCodeGen();

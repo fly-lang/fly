@@ -58,7 +58,6 @@ llvm::AllocaInst *CodeGenVar::Alloca() {
 llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
     this->BlockID = CGM->Builder->GetInsertBlock()->getName();
     this->LoadI = nullptr;
-
     // Fix Architecture Compatibility of bool i1 to i8
     if (T->isIntegerTy(1)) {
         Val = CGM->Builder->CreateZExt(Val, CodeGen::Int8Ty);

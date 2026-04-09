@@ -261,6 +261,10 @@ void CodeGenClass::GenInitConstructorBody() {
 	for (auto &AttrEntry : Sema->getAttributes()) {
 		SemaClassAttribute *Attr = AttrEntry.getValue();
 
+		// Static attributes are backed by a GlobalVariable; they are not part of
+		// the instance struct and must not be initialized here.
+		if (Attr->isStatic()) continue;
+
 		// Set Default init Value for all Attributes
 		llvm::ArrayRef<llvm::Value *> IdxList = {
 		 	CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Attr->getCodeGen()->getIndex())};
