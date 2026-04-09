@@ -284,7 +284,7 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     		// %vptr1_ptr = getelementptr %class.Base1, %class.Base1* %as_base1, i32 0, i32 0
     		// %vptr1 = load i8**, i8*** %vptr1_ptr
     		llvm::Value * VTablePtrPtr = Builder->CreateStructGEP(CGClass->getType(), InstancePtr, 0);
-    		llvm::LoadInst * VTablePtr = Builder->CreateLoad(VTablePtrPtr);
+    		llvm::LoadInst * VTablePtr = Builder->CreateLoad(CodeGen::Int8PtrPtrTy, VTablePtrPtr);
 
     		// TODO
     		// Calculate the offset of the method in the VTable
@@ -294,7 +294,7 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     		// %fn1_i8 = load i8*, i8** %fn1_ptr
     		// %fn1 = bitcast i8* %fn1_i8 to void (%class.Base1*)*
     		llvm::Value * FuncPtrPtr = Builder->CreateGEP(CodeGen::Int8PtrTy, VTablePtr, llvm::ConstantInt::get(CodeGen::Int64Ty, Method->getCodeGen()->getIndex()));
-    		FuncPtr = Builder->CreateLoad(FuncPtrPtr);
+    		FuncPtr = Builder->CreateLoad(CodeGen::Int8PtrTy, FuncPtrPtr);
 			FuncPtr = Builder->CreateBitCast(FuncPtr, Method->getCodeGen()->getFunction()->getType());
 
     	} else {

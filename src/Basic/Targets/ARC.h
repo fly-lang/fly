@@ -15,7 +15,7 @@
 
 #include "Basic/TargetInfo.h"
 #include "Basic/TargetOptions.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Support/Compiler.h"
 
 namespace fly {
@@ -37,7 +37,7 @@ public:
                     "i32:32:32-f32:32:32-i64:32-f64:32-a:0:32-n32");
   }
 
-  ArrayRef<Builtin::Info> getTargetBuiltins() const override { return None; }
+  ArrayRef<Builtin::Info> getTargetBuiltins() const override { return std::nullopt; }
 
   BuiltinVaListKind getBuiltinVaListKind() const override {
     return TargetInfo::VoidPtrBuiltinVaList;
@@ -51,11 +51,11 @@ public:
         "r8",  "r9",  "r10", "r11", "r12", "r13",    "r14", "r15",
         "r16", "r17", "r18", "r19", "r20", "r21",    "r22", "r23",
         "r24", "r25", "gp",  "sp",  "fp",  "ilink1", "r30", "blink"};
-    return llvm::makeArrayRef(GCCRegNames);
+    return ArrayRef<const char *>(GCCRegNames);
   }
 
   ArrayRef<TargetInfo::GCCRegAlias> getGCCRegAliases() const override {
-    return None;
+    return std::nullopt;
   }
 
   bool validateAsmConstraint(const char *&Name,

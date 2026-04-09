@@ -110,7 +110,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 	const std::error_code &EC = llvm::sys::fs::openFileForWrite(
 		FileName, FD,
 		llvm::sys::fs::CD_CreateAlways,
-		llvm::sys::fs::F_None);
+		llvm::sys::fs::OF_None);
 	if (EC) {
 		Diags.Report(diag::err_codegen_generate_header) << EC.message();
 	}

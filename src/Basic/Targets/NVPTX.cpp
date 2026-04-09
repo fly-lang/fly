@@ -41,7 +41,7 @@ NVPTXTargetInfo::NVPTXTargetInfo(const llvm::Triple &Triple,
 
   PTXVersion = 32;
   for (const StringRef Feature : Opts.FeaturesAsWritten) {
-    if (!Feature.startswith("+ptx"))
+    if (!Feature.starts_with("+ptx"))
       continue;
     PTXVersion = llvm::StringSwitch<unsigned>(Feature)
                      .Case("+ptx70", 70)
@@ -62,7 +62,7 @@ NVPTXTargetInfo::NVPTXTargetInfo(const llvm::Triple &Triple,
   TLSSupported = false;
   VLASupported = false;
   AddrSpaceMap = &NVPTXAddrSpaceMap;
-  GridValues = llvm::omp::NVPTXGpuGridValues;
+  GridValues = &llvm::omp::NVPTXGridValues;
   UseAddrSpaceMapMangling = true;
 
   // Define available target features
@@ -162,7 +162,7 @@ NVPTXTargetInfo::NVPTXTargetInfo(const llvm::Triple &Triple,
 }
 
 ArrayRef<const char *> NVPTXTargetInfo::getGCCRegNames() const {
-  return llvm::makeArrayRef(GCCRegNames);
+  return ArrayRef<const char *>(GCCRegNames);
 }
 
 bool NVPTXTargetInfo::hasFeature(StringRef Feature) const {
@@ -172,6 +172,6 @@ bool NVPTXTargetInfo::hasFeature(StringRef Feature) const {
 }
 
 ArrayRef<Builtin::Info> NVPTXTargetInfo::getTargetBuiltins() const {
-  return llvm::makeArrayRef(BuiltinInfo, fly::NVPTX::LastTSBuiltin -
+  return ArrayRef<Builtin::Info>(BuiltinInfo, fly::NVPTX::LastTSBuiltin -
                                              Builtin::FirstTSBuiltin);
 }

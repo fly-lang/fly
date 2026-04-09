@@ -15,7 +15,7 @@
 
 #include "Basic/TargetInfo.h"
 #include "Basic/TargetOptions.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Support/Compiler.h"
 
 namespace fly {
@@ -57,13 +57,13 @@ public:
 
   ArrayRef<TargetInfo::GCCRegAlias> getGCCRegAliases() const override {
     // No aliases.
-    return None;
+    return std::nullopt;
   }
 
   ArrayRef<TargetInfo::AddlRegName> getGCCAddlRegNames() const override;
 
   bool isSPRegName(StringRef RegName) const override {
-    return RegName.equals("r15");
+    return RegName == "r15";
   }
 
   bool validateAsmConstraint(const char *&Name,

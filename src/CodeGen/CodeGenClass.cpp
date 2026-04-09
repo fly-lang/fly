@@ -235,7 +235,7 @@ void CodeGenClass::GenInitConstructorBody() {
 	// Alloca, Store, Load the first arg which is the instance
 	llvm::AllocaInst *InstancePtr = CGM->Builder->CreateAlloca(TypePtr);
 	CGM->Builder->CreateStore(InstanceArg, InstancePtr);
-	llvm::LoadInst *Load = CGM->Builder->CreateLoad(InstancePtr);
+	llvm::LoadInst *Load = CGM->Builder->CreateLoad(TypePtr, InstancePtr);
 
 	// Only for Class and Interface: Initialize Base Classes
 	if (Sema->getClassKind() == SemaClassKind::CLASS || Sema->getClassKind() == SemaClassKind::INTERFACE) {
@@ -342,7 +342,7 @@ llvm::Value *CodeGenClass::NewInstance(SemaClassType *ClassType) {
 		CGM->Module->getOrInsertFunction(
 			"malloc",
 			llvm::FunctionType::get(
-				llvm::Type::getInt8PtrTy(CGM->LLVMCtx),
+				llvm::PointerType::getUnqual(CGM->LLVMCtx),
 				{PtrSizedIntTy},
 				false
 				)

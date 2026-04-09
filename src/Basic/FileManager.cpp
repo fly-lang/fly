@@ -297,7 +297,9 @@ FileManager::getFileRef(StringRef Filename, bool openFile, bool CacheFailure) {
     // module's structure when its headers/module map are mapped in the VFS.
     // We should remove this as soon as we can properly support a file having
     // multiple names.
-    if (DirInfo != UFE.Dir && Status.IsVFSMapped)
+    // Note: IsVFSMapped was removed in LLVM 17+; always update Dir when
+    // the directory info differs (e.g. when accessed via a virtual path).
+    if (DirInfo != UFE.Dir)
       UFE.Dir = DirInfo;
 
     // Always update the name to use the last name by which a file was accessed.
@@ -404,11 +406,11 @@ FileManager::getVirtualFile(StringRef Filename, off_t Size,
   return UFE;
 }
 
-llvm::Optional<FileEntryRef> FileManager::getBypassFile(FileEntryRef VF) {
+std::optional<FileEntryRef> FileManager::getBypassFile(FileEntryRef VF) {
   // Stat of the file and return nullptr if it doesn't exist.
   llvm::vfs::Status Status;
   if (getStatValue(VF.getName(), Status, /*isFile=*/true, /*F=*/nullptr))
-    return None;
+    return std::nullopt;
 
   // Fill it in from the stat.
   BypassFileEntries.push_back(std::make_unique<FileEntry>());

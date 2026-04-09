@@ -37,7 +37,7 @@ jobs:
 
       - name: Dependencies
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt update && sudo apt-get -y install binutils-dev libdw-dev libdwarf-dev
+        run: sudo apt update && sudo apt-get -y install binutils-dev libdw-dev libdwarf-dev libzstd-dev
 
       - name: Configure
         run: cmake -E make_directory ${{env.BUILD_DIR}}

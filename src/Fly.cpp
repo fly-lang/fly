@@ -12,7 +12,7 @@
 #include <Basic/Stack.h>
 #include "Basic/Debug.h"
 #include <llvm/Support/Process.h>
-#include <llvm/Support/Host.h>
+#include <llvm/TargetParser/Host.h>
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/TargetSelect.h"

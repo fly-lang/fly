@@ -431,7 +431,7 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 	SmallVector<ASTModifier *, 8> Modifiers = ParseModifiers();
 
 	ASTIdentifier *Identifier = nullptr;
-	Optional<Token> LookAhead = Tok;
+	std::optional<Token> LookAhead = Tok;
 
 	// Try to parse a typed variable declaration: "Type name" or "Type name = expr"
 	if (isVarDecl(LookAhead)) {
@@ -489,7 +489,7 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 	}
 }
 
-bool Parser::isType(Optional<Token> &NexTok) {
+bool Parser::isType(std::optional<Token> &NexTok) {
     FLY_DEBUG_START("Parser", "isType");
     if (!NexTok) return false;
 
@@ -585,13 +585,13 @@ bool Parser::isType(Optional<Token> &NexTok) {
         return false;
 
     // If the next token is or starts an expression piece, it's not a pure type
-    if (NexTok && isAnyOperator(NexTok.getValue()))
+    if (NexTok && isAnyOperator(NexTok.value()))
         return false;
 
     return true;
 }
 
-bool Parser::isVarDecl(Optional<Token> &NexTok) {
+bool Parser::isVarDecl(std::optional<Token> &NexTok) {
 	// Var Decl must start with a Type
 	if (!isType(NexTok)) {
 		return false;
@@ -606,7 +606,7 @@ bool Parser::isVarDecl(Optional<Token> &NexTok) {
 	return true;
 }
 
-bool Parser::isVarAssign(Optional<Token> &NexTok) const {
+bool Parser::isVarAssign(std::optional<Token> &NexTok) const {
 	FLY_DEBUG_START("Parser", "isVarAssign");
 
 	if (NexTok && NexTok->isAnyIdentifier()) {
@@ -620,7 +620,7 @@ bool Parser::isVarAssign(Optional<Token> &NexTok) const {
 	return false;
 }
 
-bool Parser::isVar(Optional<Token> &NexTok) {
+bool Parser::isVar(std::optional<Token> &NexTok) {
     // Var must start with an Identifier
     if (!NexTok || !NexTok->isAnyIdentifier())
         return false;
@@ -931,7 +931,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
     // We need to look ahead to see if we have: identifier 'in'
     if (Tok.isAnyIdentifier()) {
         // Peek ahead to see if next token is 'in'
-        Optional<Token> NextTok = Lexer::findNextToken(Tok.getLocation(), SourceMgr);
+        std::optional<Token> NextTok = Lexer::findNextToken(Tok.getLocation(), SourceMgr);
         bool isForIn = false;
 
         if (NextTok) {
@@ -1366,7 +1366,7 @@ llvm::StringRef Parser::getLiteralString() {
     FLY_DEBUG_START("Parser", "getLiteralString");
     StringRef Name(Tok.getLiteralData(), Tok.getLength());
     StringRef Str = "";
-    if (Name.startswith("\"") && Name.endswith("\"")) {
+    if (Name.starts_with("\"") && Name.ends_with("\"")) {
         StringRef StrRefName = Name.substr(1, Name.size()-2);
         ConsumeStringToken();
         return StrRefName;

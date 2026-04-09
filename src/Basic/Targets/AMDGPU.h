@@ -16,9 +16,9 @@
 #include "Basic/TargetInfo.h"
 #include "Basic/TargetOptions.h"
 #include "llvm/ADT/StringSet.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/TargetParser.h"
+#include "llvm/TargetParser/TargetParser.h"
 
 namespace fly {
 namespace targets {
@@ -108,7 +108,7 @@ public:
   ArrayRef<const char *> getGCCRegNames() const override;
 
   ArrayRef<TargetInfo::GCCRegAlias> getGCCRegAliases() const override {
-    return None;
+    return std::nullopt;
   }
 
   /// Accepted register names: (n, m is unsigned integer, n < m)
@@ -290,7 +290,7 @@ public:
     return LangAS::Default;
   }
 
-  llvm::Optional<LangAS> getConstantAddressSpace() const override {
+  std::optional<LangAS> getConstantAddressSpace() const override {
     return getLangASFromTargetAS(Constant);
   }
 
@@ -303,9 +303,9 @@ public:
   /// space \p AddressSpace to be converted in order to be used, then return the
   /// corresponding target specific DWARF address space.
   ///
-  /// \returns Otherwise return None and no conversion will be emitted in the
+  /// \returns Otherwise return std::nullopt and no conversion will be emitted in the
   /// DWARF.
-  Optional<unsigned>
+  std::optional<unsigned>
   getDWARFAddressSpace(unsigned AddressSpace) const override {
     const unsigned DWARF_Private = 1;
     const unsigned DWARF_Local = 2;
@@ -314,7 +314,7 @@ public:
     } else if (AddressSpace == Local) {
       return DWARF_Local;
     } else {
-      return None;
+      return std::nullopt;
     }
   }
 

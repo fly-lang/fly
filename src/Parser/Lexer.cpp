@@ -23,8 +23,7 @@
 #include "Basic/Diagnostic.h"
 #include "Basic/LLVM.h"
 #include "Basic/TokenKinds.h"
-#include "llvm/ADT/None.h"
-#include "llvm/ADT/Optional.h"
+#include <optional>
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/StringRef.h"
@@ -819,7 +818,7 @@ const char *Lexer::SkipEscapedNewLines(const char *P) {
     }
 }
 
-Optional<Token> Lexer::findNextToken(SourceLocation Loc, const SourceManager &SM) {
+std::optional<Token> Lexer::findNextToken(SourceLocation Loc, const SourceManager &SM) {
     Loc = Lexer::getLocForEndOfToken(Loc, 0, SM);
 
     // Break down the source location.
@@ -829,7 +828,7 @@ Optional<Token> Lexer::findNextToken(SourceLocation Loc, const SourceManager &SM
     bool InvalidTemp = false;
     StringRef File = SM.getBufferData(LocInfo.first, &InvalidTemp);
     if (InvalidTemp)
-        return None;
+        return std::nullopt;
 
     const char *TokenBegin = File.data() + LocInfo.second;
 
@@ -849,7 +848,7 @@ Optional<Token> Lexer::findNextToken(SourceLocation Loc, const SourceManager &SM
 SourceLocation Lexer::findLocationAfterToken(
         SourceLocation Loc, tok::TokenKind TKind, const SourceManager &SM,
         bool SkipTrailingWhitespaceAndNewLine) {
-    Optional<Token> Tok = findNextToken(Loc, SM);
+    std::optional<Token> Tok = findNextToken(Loc, SM);
     if (!Tok || Tok->isNot(TKind))
         return {};
     SourceLocation TokenLoc = Tok->getLocation();
@@ -1816,7 +1815,7 @@ bool Lexer::SkipBlockComment(Token &Result, const char *CurPtr,
                     // Adjust the pointer to point directly after the first slash. It's
                     // not necessary to set C here, it will be overwritten at the end of
                     // the outer loop.
-                    CurPtr += llvm::countTrailingZeros<unsigned>(cmp) + 1;
+                    CurPtr += llvm::countr_zero<unsigned>(cmp) + 1;
                     goto FoundSlash;
                 }
                 CurPtr += 16;
@@ -1999,8 +1998,8 @@ bool Lexer::IsStartOfConflictMarker(const char *CurPtr) {
         return false;
 
     // Check to see if we have <<<<<<< or >>>>.
-    if (!StringRef(CurPtr, BufferEnd - CurPtr).startswith("<<<<<<<") &&
-        !StringRef(CurPtr, BufferEnd - CurPtr).startswith(">>>> "))
+    if (!StringRef(CurPtr, BufferEnd - CurPtr).starts_with("<<<<<<<") &&
+        !StringRef(CurPtr, BufferEnd - CurPtr).starts_with(">>>> "))
         return false;
 
     // If we have a situation where we don't care about conflict markers, ignore

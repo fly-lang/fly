@@ -16,7 +16,7 @@
 #include "OSTargets.h"
 #include "Basic/TargetInfo.h"
 #include "Basic/TargetOptions.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/Compiler.h"
 
@@ -342,7 +342,7 @@ public:
   bool hasExtIntType() const override { return true; }
 
   bool isSPRegName(StringRef RegName) const override {
-    return RegName.equals("r1") || RegName.equals("x1");
+    return RegName == "r1" || RegName == "x1";
   }
 };
 

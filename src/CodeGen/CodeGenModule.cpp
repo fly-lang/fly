@@ -741,14 +741,14 @@ void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 
 	// Load data pointer: field 0 (i8*)
 	llvm::Value *DataPtrField = Builder->CreateStructGEP(CodeGen::ArrayTy, ArrayStructPtr, 0);
-	llvm::Value *DataPtr = Builder->CreateLoad(DataPtrField);
+	llvm::Value *DataPtr = Builder->CreateLoad(CodeGen::Int8PtrTy, DataPtrField);
 
 	// Cast i8* to ElemType* for GEP arithmetic
 	llvm::Value *TypedDataPtr = Builder->CreateBitCast(DataPtr, ElemLLVMType->getPointerTo());
 
 	// Load size: field 1 (IntTy)
 	llvm::Value *SizeField = Builder->CreateStructGEP(CodeGen::ArrayTy, ArrayStructPtr, 1);
-	llvm::Value *Size = Builder->CreateLoad(SizeField);
+	llvm::Value *Size = Builder->CreateLoad(CodeGen::IntTy, SizeField);
 	// Ensure Size is IntTy width for the loop comparisons
 	if (Size->getType() != CodeGen::IntTy)
 		Size = Builder->CreateIntCast(Size, CodeGen::IntTy, false);
@@ -769,13 +769,13 @@ void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 
 	// Condition: i < size
 	Builder->SetInsertPoint(CondBB);
-	llvm::Value *Idx = Builder->CreateLoad(IndexAlloca, "forin.i");
+	llvm::Value *Idx = Builder->CreateLoad(CodeGen::IntTy, IndexAlloca, "forin.i");
 	llvm::Value *Cond = Builder->CreateICmpSLT(Idx, Size, "forin.cmp");
 	Builder->CreateCondBr(Cond, BodyBB, EndBB);
 
 	// Body: assign data[i] to item
 	Builder->SetInsertPoint(BodyBB);
-	llvm::Value *Idx2 = Builder->CreateLoad(IndexAlloca);
+	llvm::Value *Idx2 = Builder->CreateLoad(CodeGen::IntTy, IndexAlloca);
 	llvm::Value *ElemPtr = Builder->CreateGEP(ElemLLVMType, TypedDataPtr, Idx2, "forin.elem");
 	llvm::Value *ElemVal = Builder->CreateLoad(ElemLLVMType, ElemPtr);
 
@@ -793,7 +793,7 @@ void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 		Sema.getBody()->accept(*this);
 
 	// Increment index and back-edge
-	llvm::Value *CurIdx = Builder->CreateLoad(IndexAlloca);
+	llvm::Value *CurIdx = Builder->CreateLoad(CodeGen::IntTy, IndexAlloca);
 	llvm::Value *NextIdx = Builder->CreateAdd(CurIdx, llvm::ConstantInt::get(CodeGen::IntTy, 1));
 	Builder->CreateStore(NextIdx, IndexAlloca);
 	Builder->CreateBr(CondBB);
@@ -813,8 +813,13 @@ void CodeGenModule::visit(SemaDeleteStmt &Sema) {
 
 	// Free Memory
 	if (Sema.getExpr()->getType()->isClass()) {
-		llvm::Instruction *I = llvm::CallInst::CreateFree(V, Builder->GetInsertBlock());
-		Builder->Insert(I);
+		llvm::FunctionCallee FreeFn = Module->getOrInsertFunction(
+			"free",
+			llvm::FunctionType::get(
+				llvm::Type::getVoidTy(LLVMCtx),
+				{llvm::PointerType::getUnqual(LLVMCtx)},
+				false));
+		Builder->CreateCall(FreeFn, {V});
 	}
 
 	FLY_DEBUG_END("CodeGenModule", "visit(SemaDeleteStmt)");

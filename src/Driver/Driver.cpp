@@ -20,7 +20,8 @@
 #include "Basic/Debug.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Host.h"
+#include "llvm/Support/WithColor.h"
+#include "llvm/TargetParser/Host.h"
 #include "llvm/Support/CrashRecoveryContext.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Process.h"
@@ -184,11 +185,11 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         doExecute = false;
         return;
     } else if (ArgList.hasArg(options::OPT_HELP)) { // Show Help
-        getDriverOptTable().PrintHelp(
+        getDriverOptTable().printHelp(
                 llvm::outs(), "fly [options] source.fly ...\n",
                 "Example: fly -v -o out main.fly\n"
                 "Fly Compiler",
-                /*Include=*/driver::options::CoreOption, /*Exclude=*/0,
+                /*FlagsToInclude=*/driver::options::CoreOption, /*FlagsToExclude=*/0,
                 /*ShowAllAliases=*/false);
         doExecute = false;
         return;

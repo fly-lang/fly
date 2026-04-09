@@ -27,6 +27,6 @@ const Builtin::Info XCoreTargetInfo::BuiltinInfo[] = {
 };
 
 ArrayRef<Builtin::Info> XCoreTargetInfo::getTargetBuiltins() const {
-  return llvm::makeArrayRef(BuiltinInfo, fly::XCore::LastTSBuiltin -
+  return ArrayRef<Builtin::Info>(BuiltinInfo, fly::XCore::LastTSBuiltin -
                                              Builtin::FirstTSBuiltin);
 }

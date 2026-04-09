@@ -26,6 +26,6 @@ const Builtin::Info Le64TargetInfo::BuiltinInfo[] = {
 };
 
 ArrayRef<Builtin::Info> Le64TargetInfo::getTargetBuiltins() const {
-  return llvm::makeArrayRef(BuiltinInfo, fly::Le64::LastTSBuiltin -
+  return ArrayRef<Builtin::Info>(BuiltinInfo, fly::Le64::LastTSBuiltin -
                                              Builtin::FirstTSBuiltin);
 }

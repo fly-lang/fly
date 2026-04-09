@@ -99,7 +99,7 @@ void fly::ProcessWarningOptions(DiagnosticsEngine &Diags,
       // Check to see if this warning starts with "no-", if so, this is a
       // negative form of the option.
       bool isPositive = true;
-      if (Opt.startswith("no-")) {
+      if (Opt.starts_with("no-")) {
         isPositive = false;
         Opt = Opt.substr(3);
       }
@@ -133,7 +133,7 @@ void fly::ProcessWarningOptions(DiagnosticsEngine &Diags,
 
       // -Werror/-Wno-error is a special case, not controlled by the option
       // table. It also has the "specifier" form of -Werror=foo and -Werror-foo.
-      if (Opt.startswith("error")) {
+      if (Opt.starts_with("error")) {
         StringRef Specifier;
         if (Opt.size() > 5) {  // Specifier must be present.
           if ((Opt[5] != '=' && Opt[5] != '-') || Opt.size() == 6) {
@@ -161,7 +161,7 @@ void fly::ProcessWarningOptions(DiagnosticsEngine &Diags,
       }
 
       // -Wfatal-errors is yet another special case.
-      if (Opt.startswith("fatal-errors")) {
+      if (Opt.starts_with("fatal-errors")) {
         StringRef Specifier;
         if (Opt.size() != 12) {
           if ((Opt[12] != '=' && Opt[12] != '-') || Opt.size() == 13) {
@@ -203,7 +203,7 @@ void fly::ProcessWarningOptions(DiagnosticsEngine &Diags,
 
       // Check to see if this warning starts with "no-", if so, this is a
       // negative form of the option.
-      bool IsPositive = !Opt.startswith("no-");
+      bool IsPositive = !Opt.starts_with("no-");
       if (!IsPositive) Opt = Opt.substr(3);
 
       auto Severity = IsPositive ? diag::Severity::Remark

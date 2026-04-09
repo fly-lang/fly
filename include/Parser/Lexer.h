@@ -21,7 +21,7 @@
 #include "MultipleIncludeOpt.h"
 #include "Basic/TokenKinds.h"
 #include "Token.h"
-#include "llvm/ADT/Optional.h"
+#include <optional>
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -432,7 +432,7 @@ namespace fly {
         /// Finds the token that comes right after the given location.
         ///
         /// Returns the next token, or none if the location is inside a macro.
-        static Optional<Token> findNextToken(SourceLocation Loc,
+        static std::optional<Token> findNextToken(SourceLocation Loc,
                                              const SourceManager &SM);
 
         /// Checks that the given token is the first token that occurs after

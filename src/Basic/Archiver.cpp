@@ -14,7 +14,7 @@
 #include "Basic/Archiver.h"
 #include "Basic/Debug.h"
 #include "llvm/ADT/StringSwitch.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/BinaryFormat/Magic.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Object/IRObjectFile.h"
@@ -28,7 +28,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormatVariadic.h"
-#include "llvm/Support/Host.h"
+#include "llvm/TargetParser/Host.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
@@ -564,7 +564,8 @@ bool Archiver::performWriteOperation(ArchiveOperation Operation,
             llvm_unreachable("Unknown format");
     }
 
-    Error E = writeArchive(ArchiveName, NewMembersP ? *NewMembersP : NewMembers, Symtab,
+    Error E = writeArchive(ArchiveName, NewMembersP ? *NewMembersP : NewMembers,
+                           Symtab ? SymtabWritingMode::NormalSymtab : SymtabWritingMode::NoSymtab,
                            Kind, Deterministic, Thin, std::move(OldArchiveBuf));
     if (isError(std::move(E), ArchiveName)) {
         return false;

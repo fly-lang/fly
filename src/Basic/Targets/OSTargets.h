@@ -82,8 +82,12 @@ public:
     StringRef Segment, Section;
     unsigned TAA, StubSize;
     bool HasTAA;
-    return llvm::MCSectionMachO::ParseSectionSpecifier(SR, Segment, Section,
-                                                       TAA, HasTAA, StubSize);
+    if (llvm::Error Err = llvm::MCSectionMachO::ParseSectionSpecifier(
+            SR, Segment, Section, TAA, HasTAA, StubSize)) {
+      std::string Msg = llvm::toString(std::move(Err));
+      return Msg;
+    }
+    return std::string();
   }
 
   const char *getStaticInitSectionSpecifier() const override {
@@ -120,9 +124,8 @@ public:
       llvm_unreachable("Unexpected OS");
     }
 
-    unsigned Major, Minor, Micro;
-    T.getOSVersion(Major, Minor, Micro);
-    if (llvm::VersionTuple(Major, Minor, Micro) < MinVersion)
+    llvm::VersionTuple OsVersion = T.getOSVersion();
+    if (OsVersion < MinVersion)
       return 64;
     return OSTargetInfo<Target>::getExnObjectAlignment();
   }
@@ -479,8 +482,7 @@ public:
     } else if (Triple.getArch() == llvm::Triple::mipsel) {
       // Handled on mips' setDataLayout.
     } else {
-      assert(Triple.getArch() == llvm::Triple::le32);
-      this->resetDataLayout("e-p:32:32-i64:64");
+      // le32 arch was removed in LLVM 20; fall through without resetting layout
     }
   }
 };

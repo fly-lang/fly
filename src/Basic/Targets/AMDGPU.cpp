@@ -156,7 +156,7 @@ const char *const AMDGPUTargetInfo::GCCRegNames[] = {
 };
 
 ArrayRef<const char *> AMDGPUTargetInfo::getGCCRegNames() const {
-  return llvm::makeArrayRef(GCCRegNames);
+  return ArrayRef<const char *>(GCCRegNames);
 }
 
 bool AMDGPUTargetInfo::initFeatureMap(
@@ -301,7 +301,7 @@ AMDGPUTargetInfo::AMDGPUTargetInfo(const llvm::Triple &Triple,
   resetDataLayout(isAMDGCN(getTriple()) ? DataLayoutStringAMDGCN
                                         : DataLayoutStringR600);
   assert(DataLayout->getAllocaAddrSpace() == Private);
-  GridValues = llvm::omp::AMDGPUGpuGridValues;
+  GridValues = &llvm::omp::AMDGPUGridValues64;
 
   setAddressSpaceMap(Triple.getOS() == llvm::Triple::Mesa3D ||
                      !isAMDGCN(Triple));
@@ -331,7 +331,7 @@ void AMDGPUTargetInfo::adjust() {
 }
 
 ArrayRef<Builtin::Info> AMDGPUTargetInfo::getTargetBuiltins() const {
-  return llvm::makeArrayRef(BuiltinInfo, fly::AMDGPU::LastTSBuiltin -
+  return ArrayRef<Builtin::Info>(BuiltinInfo, fly::AMDGPU::LastTSBuiltin -
                                              Builtin::FirstTSBuiltin);
 }
 

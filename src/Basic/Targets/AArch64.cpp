@@ -16,7 +16,8 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringSwitch.h"
-#include "llvm/Support/AArch64TargetParser.h"
+#include "llvm/TargetParser/AArch64TargetParser.h"
+#include "llvm/TargetParser/ARMTargetParserCommon.h"
 
 using namespace fly;
 using namespace fly::targets;
@@ -119,8 +120,8 @@ bool AArch64TargetInfo::setABI(const std::string &Name) {
 bool AArch64TargetInfo::validateBranchProtection(StringRef Spec,
                                                  BranchProtectionInfo &BPI,
                                                  StringRef &Err) const {
-  llvm::AArch64::ParsedBranchProtection PBP;
-  if (!llvm::AArch64::parseBranchProtection(Spec, PBP, Err))
+  llvm::ARM::ParsedBranchProtection PBP;
+  if (!llvm::ARM::parseBranchProtection(Spec, PBP, Err))
     return false;
 
   BPI.BranchTargetEnforcement = PBP.BranchTargetEnforcement;
@@ -129,7 +130,7 @@ bool AArch64TargetInfo::validateBranchProtection(StringRef Spec,
 
 bool AArch64TargetInfo::isValidCPUName(StringRef Name) const {
   return Name == "generic" ||
-         llvm::AArch64::parseCPUArch(Name) != llvm::AArch64::ArchKind::INVALID;
+         llvm::AArch64::parseCpu(Name).has_value();
 }
 
 bool AArch64TargetInfo::setCPU(const std::string &Name) {
@@ -142,7 +143,7 @@ void AArch64TargetInfo::fillValidCPUList(
 }
 
 ArrayRef<Builtin::Info> AArch64TargetInfo::getTargetBuiltins() const {
-  return llvm::makeArrayRef(BuiltinInfo, fly::AArch64::LastTSBuiltin -
+  return ArrayRef<Builtin::Info>(BuiltinInfo, fly::AArch64::LastTSBuiltin -
                                              Builtin::FirstTSBuiltin);
 }
 
@@ -177,7 +178,7 @@ bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
   HasMatmulFP64 = false;
   HasMatmulFP32 = false;
 
-  ArchKind = llvm::AArch64::ArchKind::ARMV8A;
+  ArchKind = &llvm::AArch64::ARMV8A;
 
   for (const auto &Feature : Features) {
     if (Feature == "+neon")
@@ -230,17 +231,17 @@ bool AArch64TargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
     if (Feature == "+strict-align")
       HasUnaligned = false;
     if (Feature == "+v8.1a")
-      ArchKind = llvm::AArch64::ArchKind::ARMV8_1A;
+      ArchKind = &llvm::AArch64::ARMV8_1A;
     if (Feature == "+v8.2a")
-      ArchKind = llvm::AArch64::ArchKind::ARMV8_2A;
+      ArchKind = &llvm::AArch64::ARMV8_2A;
     if (Feature == "+v8.3a")
-      ArchKind = llvm::AArch64::ArchKind::ARMV8_3A;
+      ArchKind = &llvm::AArch64::ARMV8_3A;
     if (Feature == "+v8.4a")
-      ArchKind = llvm::AArch64::ArchKind::ARMV8_4A;
+      ArchKind = &llvm::AArch64::ARMV8_4A;
     if (Feature == "+v8.5a")
-      ArchKind = llvm::AArch64::ArchKind::ARMV8_5A;
+      ArchKind = &llvm::AArch64::ARMV8_5A;
     if (Feature == "+v8.6a")
-      ArchKind = llvm::AArch64::ArchKind::ARMV8_6A;
+      ArchKind = &llvm::AArch64::ARMV8_6A;
     if (Feature == "+fullfp16")
       HasFullFP16 = true;
     if (Feature == "+dotprod")
@@ -321,7 +322,7 @@ const char *const AArch64TargetInfo::GCCRegNames[] = {
 };
 
 ArrayRef<const char *> AArch64TargetInfo::getGCCRegNames() const {
-  return llvm::makeArrayRef(GCCRegNames);
+  return ArrayRef<const char *>(GCCRegNames);
 }
 
 const TargetInfo::GCCRegAlias AArch64TargetInfo::GCCRegAliases[] = {
@@ -364,7 +365,7 @@ const TargetInfo::GCCRegAlias AArch64TargetInfo::GCCRegAliases[] = {
 };
 
 ArrayRef<TargetInfo::GCCRegAlias> AArch64TargetInfo::getGCCRegAliases() const {
-  return llvm::makeArrayRef(GCCRegAliases);
+  return ArrayRef<TargetInfo::GCCRegAlias>(GCCRegAliases);
 }
 
 bool AArch64TargetInfo::validateAsmConstraint(

@@ -17,7 +17,7 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
-#include "llvm/Support/X86TargetParser.h"
+#include "llvm/TargetParser/X86TargetParser.h"
 
 namespace fly {
 namespace targets {
@@ -160,10 +160,7 @@ void X86TargetInfo::setFeatureEnabled(llvm::StringMap<bool> &Features,
 
   Features[Name] = Enabled;
 
-  SmallVector<StringRef, 8> ImpliedFeatures;
-  llvm::X86::getImpliedFeatures(Name, Enabled, ImpliedFeatures);
-  for (const auto &F : ImpliedFeatures)
-    Features[F] = Enabled;
+  llvm::X86::updateImpliedFeatures(Name, Enabled, Features);
 }
 
 /// handleTargetFeatures - Perform initialization based on the user
@@ -536,34 +533,20 @@ bool X86TargetInfo::hasFeature(StringRef Feature) const {
 // X86TargetInfo::hasFeature for a somewhat comprehensive list).
 bool X86TargetInfo::validateCpuSupports(StringRef FeatureStr) const {
   return llvm::StringSwitch<bool>(FeatureStr)
-#define X86_FEATURE_COMPAT(ENUM, STR) .Case(STR, true)
-#include "llvm/Support/X86TargetParser.def"
+#define X86_FEATURE_COMPAT(ENUM, STR, PRIORITY) .Case(STR, true)
+#include "llvm/TargetParser/X86TargetParser.def"
       .Default(false);
 }
 
 static llvm::X86::ProcessorFeatures getFeature(StringRef Name) {
   return llvm::StringSwitch<llvm::X86::ProcessorFeatures>(Name)
-#define X86_FEATURE_COMPAT(ENUM, STR) .Case(STR, llvm::X86::FEATURE_##ENUM)
-#include "llvm/Support/X86TargetParser.def"
+#define X86_FEATURE_COMPAT(ENUM, STR, PRIORITY) .Case(STR, llvm::X86::FEATURE_##ENUM)
+#include "llvm/TargetParser/X86TargetParser.def"
       ;
   // Note, this function should only be used after ensuring the value is
   // correct, so it asserts if the value is out of range.
 }
 
-static unsigned getFeaturePriority(llvm::X86::ProcessorFeatures Feat) {
-  enum class FeatPriority {
-#define FEATURE(FEAT) FEAT,
-#include "Basic/X86Target.def"
-  };
-  switch (Feat) {
-#define FEATURE(FEAT)                                                          \
-  case llvm::X86::FEAT:                                                        \
-    return static_cast<unsigned>(FeatPriority::FEAT);
-#include "Basic/X86Target.def"
-  default:
-    llvm_unreachable("No Feature Priority for non-CPUSupports Features");
-  }
-}
 
 unsigned X86TargetInfo::multiVersionSortPriority(StringRef Name) const {
   // Valid CPUs have a 'key feature' that compares just better than its key
@@ -622,7 +605,7 @@ bool X86TargetInfo::validateCpuIs(StringRef FeatureStr) const {
 #define X86_CPU_TYPE_ALIAS(ENUM, ALIAS) .Case(ALIAS, true)
 #define X86_CPU_TYPE(ENUM, STR) .Case(STR, true)
 #define X86_CPU_SUBTYPE(ENUM, STR) .Case(STR, true)
-#include "llvm/Support/X86TargetParser.def"
+#include "llvm/TargetParser/X86TargetParser.def"
       .Default(false);
 }
 
@@ -774,7 +757,7 @@ bool X86TargetInfo::validateAsmConstraint(
 // | Knights Landing                    |                      64 | https://software.intel.com/en-us/articles/intel-xeon-phi-processor-7200-family-memory-management-optimizations "The Intel® Xeon Phi™ Processor Architecture" |
 // | Knights Mill                       |                      64 | https://software.intel.com/sites/default/files/managed/9e/bc/64-ia-32-architectures-optimization-manual.pdf?countrylabel=Colombia "2.5.5.2 L1 DCache "       |
 // +------------------------------------+-------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------+
-Optional<unsigned> X86TargetInfo::getCPUCacheLineSize() const {
+std::optional<unsigned> X86TargetInfo::getCPUCacheLineSize() const {
   using namespace llvm::X86;
   switch (CPU) {
     // i386
@@ -862,7 +845,7 @@ Optional<unsigned> X86TargetInfo::getCPUCacheLineSize() const {
     // The following currently have unknown cache line sizes (but they are probably all 64):
     // Core
     case CK_None:
-      return None;
+      return std::nullopt;
   }
   llvm_unreachable("Unknown CPU kind");
 }
@@ -998,19 +981,19 @@ void X86TargetInfo::fillValidCPUList(SmallVectorImpl<StringRef> &Values) const {
 }
 
 ArrayRef<const char *> X86TargetInfo::getGCCRegNames() const {
-  return llvm::makeArrayRef(GCCRegNames);
+  return ArrayRef<const char *>(GCCRegNames);
 }
 
 ArrayRef<TargetInfo::AddlRegName> X86TargetInfo::getGCCAddlRegNames() const {
-  return llvm::makeArrayRef(AddlRegNames);
+  return ArrayRef<TargetInfo::AddlRegName>(AddlRegNames);
 }
 
 ArrayRef<Builtin::Info> X86_32TargetInfo::getTargetBuiltins() const {
-  return llvm::makeArrayRef(BuiltinInfoX86, fly::X86::LastX86CommonBuiltin -
+  return ArrayRef<Builtin::Info>(BuiltinInfoX86, fly::X86::LastX86CommonBuiltin -
                                                 Builtin::FirstTSBuiltin + 1);
 }
 
 ArrayRef<Builtin::Info> X86_64TargetInfo::getTargetBuiltins() const {
-  return llvm::makeArrayRef(BuiltinInfoX86,
+  return ArrayRef<Builtin::Info>(BuiltinInfoX86,
                             X86::LastTSBuiltin - Builtin::FirstTSBuiltin);
 }

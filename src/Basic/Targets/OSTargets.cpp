@@ -48,14 +48,17 @@ void getDarwinDefines(MacroBuilder &Builder, const LangOptions &Opts,
     Builder.defineMacro("_REENTRANT");
 
   // Get the platform type and version number from the triple.
-  unsigned Maj, Min, Rev;
+  VersionTuple OSVer;
   if (Triple.isMacOSX()) {
-    Triple.getMacOSXVersion(Maj, Min, Rev);
+    Triple.getMacOSXVersion(OSVer);
     PlatformName = "macos";
   } else {
-    Triple.getOSVersion(Maj, Min, Rev);
+    OSVer = Triple.getOSVersion();
     PlatformName = llvm::Triple::getOSTypeName(Triple.getOS());
   }
+  unsigned Maj = OSVer.getMajor();
+  unsigned Min = OSVer.getMinor().value_or(0);
+  unsigned Rev = OSVer.getSubminor().value_or(0);
 
   // If -target arch-pc-win32-macho option specified, we're
   // generating code for Win32 ABI. No need to emit

@@ -8,13 +8,13 @@ else()
 endif()
 
 #Fly config options
-set(FLY_LLVM_VERSION 11.1.0)
+set(FLY_LLVM_VERSION 20.1.8)
 set(FLY_BUG_REPORT_URL "https://github.com/fly-lang/fly/issues")
 set(FLY_SOURCE_DIR ${CMAKE_SOURCE_DIR})
 message(STATUS "Fly Project directory: ${CMAKE_SOURCE_DIR}")
 
 # specify the C++ standard and flags
-set(CMAKE_CXX_STANDARD 14 CACHE STRING "C++ standard to conform to")
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ standard to conform to")
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS NO)
 if (NOT MSVC)

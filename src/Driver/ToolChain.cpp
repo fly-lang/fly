@@ -17,7 +17,11 @@
 #include "llvm/Support/Program.h"
 #include "llvm/Support/ConvertUTF.h"
 #include "lld/Common/Driver.h"
-#include "lld/Core/Writer.h"
+LLD_HAS_DRIVER(coff)
+LLD_HAS_DRIVER(elf)
+LLD_HAS_DRIVER(macho)
+LLD_HAS_DRIVER(mingw)
+LLD_HAS_DRIVER(wasm)
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -100,14 +104,14 @@ void createLinkArgs(SmallVector<std::string, 16> &InArgs, SmallVector<const char
 static bool findVCToolChainViaEnvironment(std::string &Path, bool &isLegacyVersion) {
     // These variables are typically set by vcvarsall.bat
     // when launching a developer command prompt.
-    if (llvm::Optional<std::string> VCToolsInstallDir = llvm::sys::Process::GetEnv("VCToolsInstallDir")) {
+    if (std::optional<std::string> VCToolsInstallDir = llvm::sys::Process::GetEnv("VCToolsInstallDir")) {
         // This is only set by newer Visual Studios, and it leads straight to
         // the toolchain directory.
         Path = std::move(*VCToolsInstallDir);
         isLegacyVersion = false;
         return true;
     }
-    if (llvm::Optional<std::string> VCInstallDir = llvm::sys::Process::GetEnv("VCINSTALLDIR")) {
+    if (std::optional<std::string> VCInstallDir = llvm::sys::Process::GetEnv("VCINSTALLDIR")) {
         // If the previous variable isn't set but this one is, then we've found
         // an older Visual Studio. This variable is set by newer Visual Studios too,
         // so this check has to appear second.
@@ -120,7 +124,7 @@ static bool findVCToolChainViaEnvironment(std::string &Path, bool &isLegacyVersi
     // We couldn't find any VC environment variables. Let's walk through PATH and
     // see if it leads us to a VC toolchain bin directory. If it does, pick the
     // first one that we find.
-    if (llvm::Optional<std::string> PathEnv = llvm::sys::Process::GetEnv("PATH")) {
+    if (std::optional<std::string> PathEnv = llvm::sys::Process::GetEnv("PATH")) {
         llvm::SmallVector<llvm::StringRef, 8> PathEntries;
         llvm::StringRef(*PathEnv).split(PathEntries, llvm::sys::EnvPathSeparator);
         for (llvm::StringRef PathEntry : PathEntries) {
@@ -144,11 +148,11 @@ static bool findVCToolChainViaEnvironment(std::string &Path, bool &isLegacyVersi
 
             // whatever/VC/bin --> old toolchain, VC dir is toolchain dir.
             llvm::StringRef TestPath = PathEntry;
-            bool IsBin = llvm::sys::path::filename(TestPath).equals_lower("bin");
+            bool IsBin = llvm::sys::path::filename(TestPath).equals_insensitive("bin");
             if (!IsBin) {
                 // Strip any architecture subdir like "amd64".
                 TestPath = llvm::sys::path::parent_path(TestPath);
-                IsBin = llvm::sys::path::filename(TestPath).equals_lower("bin");
+                IsBin = llvm::sys::path::filename(TestPath).equals_insensitive("bin");
             }
             if (IsBin) {
                 llvm::StringRef ParentPath = llvm::sys::path::parent_path(TestPath);
@@ -171,7 +175,7 @@ static bool findVCToolChainViaEnvironment(std::string &Path, bool &isLegacyVersi
                 for (llvm::StringRef Prefix : ExpectedPrefixes) {
                     if (It == End)
                         goto NotAToolChain;
-                    if (!It->startswith(Prefix))
+                    if (!It->starts_with(Prefix))
                         goto NotAToolChain;
                     ++It;
                 }
@@ -367,7 +371,7 @@ static bool findVCToolChainViaSetupConfig(std::string &Path, bool &isLegacyVersi
     return false;
 
   ISetupInstancePtr NewestInstance;
-  Optional<uint64_t> NewestVersionNum;
+  std::optional<uint64_t> NewestVersionNum;
   do {
     bstr_t VersionString;
     uint64_t VersionNum;
@@ -524,7 +528,7 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     if (T.getObjectFormat() == llvm::Triple::COFF) {
         SmallVector<const char*, 16> LinkArgs;
         createLinkArgs(CmdArgs, LinkArgs);
-        return lld::coff::link(LinkArgs, false, llvm::outs(), llvm::errs());
+        return lld::coff::link(LinkArgs, llvm::outs(), llvm::errs(), false, false);
     }
 
     return false;
@@ -549,7 +553,7 @@ static bool getWindows10SDKVersionFromPath(const std::string &SDKPath,
         // If WDK is installed, there could be subfolders like "wdf" in the
         // "Include" directory.
         // Allow only directories which names start with "10.".
-        if (!CandidateName.startswith("10."))
+        if (!CandidateName.starts_with("10."))
             continue;
         if (CandidateName > SDKVersion)
             SDKVersion = std::string(CandidateName);
@@ -686,7 +690,7 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
     if (T.getObjectFormat() == llvm::Triple::MachO) {
         SmallVector<const char*, 16> LinkArgs;
         createLinkArgs(CmdArgs, LinkArgs);
-        return lld::macho::link(LinkArgs, false, llvm::outs(), llvm::errs());
+        return lld::macho::link(LinkArgs, llvm::outs(), llvm::errs(), false, false);
     }
 
     return false;
@@ -914,7 +918,7 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
     if (T.getObjectFormat() == llvm::Triple::ELF) {
         SmallVector<const char*, 16> LinkArgs;
         createLinkArgs(CmdArgs, LinkArgs);
-        return lld::elf::link(LinkArgs, false, llvm::outs(), llvm::errs());
+        return lld::elf::link(LinkArgs, llvm::outs(), llvm::errs(), false, false);
     }
 
     return false;
@@ -990,7 +994,7 @@ const char *ToolChain::getLDMOption() {
 std::string ToolChain::GetFilePath(llvm::Twine Name, SmallVector<std::string, 16> &PathList) const {
     // Search for Name in a list of paths.
     auto SearchPaths = [&](const llvm::SmallVectorImpl<std::string> &P)
-            -> llvm::Optional<std::string> {
+            -> std::optional<std::string> {
         // Respect a limited subset of the '-Bprefix' functionality in GCC by
         // attempting to use this prefix when looking for file paths.
         for (const auto &Dir : P) {
@@ -1003,7 +1007,7 @@ std::string ToolChain::GetFilePath(llvm::Twine Name, SmallVector<std::string, 16
                 return std::string(Path);
             }
         }
-        return None;
+        return std::nullopt;
     };
 
     if (auto P = SearchPaths(PathList))

@@ -16,9 +16,9 @@
 #include "OSTargets.h"
 #include "Basic/TargetInfo.h"
 #include "Basic/TargetOptions.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm/Support/X86TargetParser.h"
+#include "llvm/TargetParser/X86TargetParser.h"
 
 namespace fly {
     namespace targets {
@@ -156,13 +156,13 @@ namespace fly {
             ArrayRef<const char *> getGCCRegNames() const override;
 
             ArrayRef<TargetInfo::GCCRegAlias> getGCCRegAliases() const override {
-                return None;
+                return std::nullopt;
             }
 
             ArrayRef<TargetInfo::AddlRegName> getGCCAddlRegNames() const override;
 
             bool isSPRegName(llvm::StringRef RegName) const override {
-                return RegName.equals("esp") || RegName.equals("rsp");
+                return RegName == "esp" || RegName == "rsp";
             }
 
             bool validateCpuSupports(llvm::StringRef Name) const override;
@@ -177,7 +177,7 @@ namespace fly {
                     llvm::StringRef Name,
                     llvm::SmallVectorImpl<llvm::StringRef> &Features) const override;
 
-            Optional<unsigned> getCPUCacheLineSize() const override;
+            std::optional<unsigned> getCPUCacheLineSize() const override;
 
             bool validateAsmConstraint(const char *&Name,
                                        TargetInfo::ConstraintInfo &info) const override;
@@ -186,7 +186,7 @@ namespace fly {
                                                 bool &HasSizeMismatch) const override {
                 // esp and ebp are the only 32-bit registers the x86 backend can currently
                 // handle.
-                if (RegName.equals("esp") || RegName.equals("ebp")) {
+                if (RegName == "esp" || RegName == "ebp") {
                     // Check that the register size is 32-bit.
                     HasSizeMismatch = RegSize != 32;
                     return true;
@@ -419,8 +419,10 @@ namespace fly {
                     : NetBSDTargetInfo<X86_32TargetInfo>(Triple, Opts) {}
 
             unsigned getFloatEvalMethod() const override {
-                unsigned Major, Minor, Micro;
-                getTriple().getOSVersion(Major, Minor, Micro);
+                llvm::VersionTuple OSVer = getTriple().getOSVersion();
+                unsigned Major = OSVer.getMajor();
+                unsigned Minor = OSVer.getMinor().value_or(0);
+                unsigned Micro = OSVer.getSubminor().value_or(0);
                 // New NetBSD uses the default rounding mode.
                 if (Major >= 7 || (Major == 6 && Minor == 99 && Micro >= 26) || Major == 0)
                     return X86_32TargetInfo::getFloatEvalMethod();
@@ -651,7 +653,7 @@ namespace fly {
                                                 bool &HasSizeMismatch) const override {
                 // rsp and rbp are the only 64-bit registers the x86 backend can currently
                 // handle.
-                if (RegName.equals("rsp") || RegName.equals("rbp")) {
+                if (RegName == "rsp" || RegName == "rbp") {
                     // Check that the register size is 64-bit.
                     HasSizeMismatch = RegSize != 64;
                     return true;

@@ -40,7 +40,7 @@
 #include "Targets/XCore.h"
 #include "Basic/Diagnostic.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 
 using namespace fly;
 
@@ -84,8 +84,6 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
       return new DarwinAArch64TargetInfo(Triple, Opts);
 
     switch (os) {
-    case llvm::Triple::CloudABI:
-      return new CloudABITargetInfo<AArch64leTargetInfo>(Triple, Opts);
     case llvm::Triple::FreeBSD:
       return new FreeBSDTargetInfo<AArch64leTargetInfo>(Triple, Opts);
     case llvm::Triple::Fuchsia:
@@ -128,8 +126,6 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
       return new DarwinARMTargetInfo(Triple, Opts);
 
     switch (os) {
-    case llvm::Triple::CloudABI:
-      return new CloudABITargetInfo<ARMleTargetInfo>(Triple, Opts);
     case llvm::Triple::Linux:
       return new LinuxTargetInfo<ARMleTargetInfo>(Triple, Opts);
     case llvm::Triple::FreeBSD:
@@ -250,17 +246,6 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
     default:
       return new MipsTargetInfo(Triple, Opts);
     }
-
-  case llvm::Triple::le32:
-    switch (os) {
-    case llvm::Triple::NaCl:
-      return new NaClTargetInfo<PNaClTargetInfo>(Triple, Opts);
-    default:
-      return nullptr;
-    }
-
-  case llvm::Triple::le64:
-    return new Le64TargetInfo(Triple, Opts);
 
   case llvm::Triple::ppc:
     if (Triple.isOSDarwin())
@@ -410,10 +395,6 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
       return new DarwinI386TargetInfo(Triple, Opts);
 
     switch (os) {
-    case llvm::Triple::Ananas:
-      return new AnanasTargetInfo<X86_32TargetInfo>(Triple, Opts);
-    case llvm::Triple::CloudABI:
-      return new CloudABITargetInfo<X86_32TargetInfo>(Triple, Opts);
     case llvm::Triple::Linux: {
       switch (Triple.getEnvironment()) {
       default:
@@ -434,8 +415,6 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
       return new FuchsiaTargetInfo<X86_32TargetInfo>(Triple, Opts);
     case llvm::Triple::KFreeBSD:
       return new KFreeBSDTargetInfo<X86_32TargetInfo>(Triple, Opts);
-    case llvm::Triple::Minix:
-      return new MinixTargetInfo<X86_32TargetInfo>(Triple, Opts);
     case llvm::Triple::Solaris:
       return new SolarisTargetInfo<X86_32TargetInfo>(Triple, Opts);
     case llvm::Triple::Win32: {
@@ -469,10 +448,6 @@ TargetInfo *AllocateTarget(const llvm::Triple &Triple,
       return new DarwinX86_64TargetInfo(Triple, Opts);
 
     switch (os) {
-    case llvm::Triple::Ananas:
-      return new AnanasTargetInfo<X86_64TargetInfo>(Triple, Opts);
-    case llvm::Triple::CloudABI:
-      return new CloudABITargetInfo<X86_64TargetInfo>(Triple, Opts);
     case llvm::Triple::Linux: {
       switch (Triple.getEnvironment()) {
       default:

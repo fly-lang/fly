@@ -80,7 +80,7 @@ bool MipsTargetInfo::hasFeature(StringRef Feature) const {
 }
 
 ArrayRef<Builtin::Info> MipsTargetInfo::getTargetBuiltins() const {
-  return llvm::makeArrayRef(BuiltinInfo, fly::Mips::LastTSBuiltin -
+  return ArrayRef<Builtin::Info>(BuiltinInfo, fly::Mips::LastTSBuiltin -
                                              Builtin::FirstTSBuiltin);
 }
 

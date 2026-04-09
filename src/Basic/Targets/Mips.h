@@ -15,7 +15,7 @@
 
 #include "Basic/TargetInfo.h"
 #include "Basic/TargetOptions.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Support/Compiler.h"
 
 namespace fly {
@@ -223,7 +223,7 @@ public:
         "$msair", "$msacsr", "$msaaccess", "$msasave", "$msamodify",
         "$msarequest", "$msamap", "$msaunmap"
     };
-    return llvm::makeArrayRef(GCCRegNames);
+    return ArrayRef<const char *>(GCCRegNames);
   }
 
   bool validateAsmConstraint(const char *&Name,
@@ -392,8 +392,8 @@ public:
         {{"ra"}, "$31"}
     };
     if (ABI == "o32")
-      return llvm::makeArrayRef(O32RegAliases);
-    return llvm::makeArrayRef(NewABIRegAliases);
+      return ArrayRef<TargetInfo::GCCRegAlias>(O32RegAliases);
+    return ArrayRef<TargetInfo::GCCRegAlias>(NewABIRegAliases);
   }
 
   bool hasInt128Type() const override {

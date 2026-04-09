@@ -98,7 +98,7 @@ llvm::StoreInst *CodeGenError::Store(llvm::Value *Val) {
 
 llvm::LoadInst *CodeGenError::Load() {
     this->BlockID = CGM->Builder->GetInsertBlock()->getName();
-    this->LoadI = CGM->Builder->CreateLoad(ErrorHandler);
+    this->LoadI = CGM->Builder->CreateLoad(CodeGen::ErrorPtrTy, ErrorHandler);
     return this->LoadI;
 }
 

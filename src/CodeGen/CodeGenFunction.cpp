@@ -127,7 +127,7 @@ void CodeGenFunction::GenBody() {
         llvm::Value *ErrorVal = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorHandler, {Zero32, Zero32});
         // llvm::Value *Ret = CGM->Builder->CreateICmpNE(BuiErrorVal->, Zero32);
         // main() will return 0 if ok or 1 on error
-        CGM->Builder->CreateRet(CGM->Builder->CreateLoad(ErrorVal));
+        CGM->Builder->CreateRet(CGM->Builder->CreateLoad(CodeGen::Int32Ty, ErrorVal));
     } else {
     	CheckReturnVoid();
     }

@@ -85,14 +85,14 @@ namespace {
 		llvm::Module * M = getModules()[0];
 		std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  %2 = alloca i32, align 4\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  store i32 1, i32* %2, align 4\n"
-                          "  ret void\n"
-                          "}\n");
+        EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  %2 = alloca i32, align 4\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  store i32 1, ptr %2, align 4\n"
+                        "  ret void\n"
+                        "}\n");
     }
 
     TEST_F(CodeGenTest, CGEnumUnset) {
@@ -151,16 +151,16 @@ namespace {
         std::string output = getOutput(M->getFunctionList());
 
         // Both a and b should be initialized to 0 (unset value for enums)
-        EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  %2 = alloca i32, align 4\n"
-                          "  %3 = alloca i32, align 4\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  store i32 0, i32* %2, align 4\n"
-                          "  store i32 0, i32* %3, align 4\n"
-                          "  ret void\n"
-                          "}\n");
+        EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  %2 = alloca i32, align 4\n"
+                        "  %3 = alloca i32, align 4\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  store i32 0, ptr %2, align 4\n"
+                        "  store i32 0, ptr %3, align 4\n"
+                        "  ret void\n"
+                        "}\n");
     }
 
     TEST_F(CodeGenTest, CGEnumList) {

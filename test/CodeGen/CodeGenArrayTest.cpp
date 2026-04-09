@@ -70,14 +70,14 @@ namespace {
     	llvm::Module *M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-    	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %error*, align 8\n"
-						  "  %2 = alloca %array, align 8\n"
-						  "  store %error* %0, %error** %1, align 8\n"
-						  "  store %array* null, %array* %2, align 8\n"
-						  "  ret void\n"
-						  "}\n");
+    	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  %2 = alloca %array, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  store ptr null, ptr %2, align 8\n"
+                        "  ret void\n"
+                        "}\n");
     }
 
 	TEST_F(CodeGenTest, CGArrayLocalVarAssignEmpty) {
@@ -107,14 +107,14 @@ namespace {
     	llvm::Module *M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-    	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %error*, align 8\n"
-						  "  %2 = alloca %array, align 8\n"
-						  "  store %error* %0, %error** %1, align 8\n"
-						  "  store %array* null, %array* %2, align 8\n"
-						  "  ret void\n"
-						  "}\n");
+    	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  %2 = alloca %array, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  store ptr null, ptr %2, align 8\n"
+                        "  ret void\n"
+                        "}\n");
     }
 
 	TEST_F(CodeGenTest, CGArrayLocalVarAssignZero) {
@@ -145,14 +145,14 @@ namespace {
     	llvm::Module *M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-    	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %error*, align 8\n"
-						  "  %2 = alloca %array, align 8\n"
-						  "  store %error* %0, %error** %1, align 8\n"
-						  "  store %array* null, %array* %2, align 8\n"
-						  "  ret void\n"
-						  "}\n");
+    	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  %2 = alloca %array, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  store ptr null, ptr %2, align 8\n"
+                        "  ret void\n"
+                        "}\n");
     }
 
 	TEST_F(CodeGenTest, CGArrayLocalVar3) {
@@ -178,24 +178,22 @@ namespace {
     	llvm::Module *M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-    	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %error*, align 8\n"
-						  "  %2 = alloca %array, align 8\n"
-						  "  store %error* %0, %error** %1, align 8\n"
-						  "  %malloccall = tail call i8* @malloc(i16 3)\n"
-						  "  %3 = bitcast i8* %malloccall to i32*\n"
-						  "  %4 = bitcast i32* %3 to i8*\n"
-						  "  call void @llvm.memset.p0i8.i16(i8* %4, i8 0, i16 12, i1 false)\n"
-						  "  %5 = getelementptr inbounds %array, %array* %2, i32 0, i32 0\n"
-						  "  store i32* %3, i8** %5, align 8\n"
-						  "  %6 = getelementptr inbounds %array, %array* %2, i32 0, i32 1\n"
-						  "  store i64 3, i32* %6, align 8\n"
-						  "  ret void\n"
-						  "}\n"
-						  "declare noalias i8* @malloc(i64)\n"
-						  "; Function Attrs: argmemonly nounwind willreturn writeonly\n"
-						  "declare void @llvm.memset.p0i8.i16(i8* nocapture writeonly, i8, i16, i1 immarg) #0\n");
+    	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  %2 = alloca %array, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  %3 = call ptr @malloc(i64 12)\n"
+                        "  call void @llvm.memset.p0.i16(ptr %3, i8 0, i16 12, i1 false)\n"
+                        "  %4 = getelementptr inbounds nuw %array, ptr %2, i32 0, i32 0\n"
+                        "  store ptr %3, ptr %4, align 8\n"
+                        "  %5 = getelementptr inbounds nuw %array, ptr %2, i32 0, i32 1\n"
+                        "  store i64 3, ptr %5, align 8\n"
+                        "  ret void\n"
+                        "}\n"
+                        "declare ptr @malloc(i64)\n"
+                        "; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: write)\n"
+                        "declare void @llvm.memset.p0.i16(ptr nocapture writeonly, i8, i16, i1 immarg) #0\n");
     }
 
     TEST_F(CodeGenTest, CGArrayLocalVarAssignValues) {
@@ -229,22 +227,21 @@ namespace {
         llvm::Module *M = getModules()[0];
         std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
-                          "entry:\n"
-                          "  %1 = alloca %error*, align 8\n"
-                          "  %2 = alloca %array, align 8\n"
-                          "  store %error* %0, %error** %1, align 8\n"
-                          "  %malloccall = tail call i8* @malloc(i64 12)\n"
-                          "  %3 = bitcast i8* %malloccall to i32*\n"
-                          "  %4 = getelementptr i32, i32* %3, i64 0\n"
-                          "  store i32 1, i32* %4, align 4\n"
-                          "  %5 = getelementptr i32, i32* %3, i64 1\n"
-                          "  store i32 2, i32* %5, align 4\n"
-                          "  %6 = getelementptr i32, i32* %3, i64 2\n"
-                          "  store i32 3, i32* %6, align 4\n"
-                          "  ret void\n"
-                          "}\n"
-                          "declare noalias i8* @malloc(i64)\n");
+        EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  %2 = alloca %array, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  %3 = call ptr @malloc(i64 12)\n"
+                        "  %4 = getelementptr i32, ptr %3, i64 0\n"
+                        "  store i32 1, ptr %4, align 4\n"
+                        "  %5 = getelementptr i32, ptr %3, i64 1\n"
+                        "  store i32 2, ptr %5, align 4\n"
+                        "  %6 = getelementptr i32, ptr %3, i64 2\n"
+                        "  store i32 3, ptr %6, align 4\n"
+                        "  ret void\n"
+                        "}\n"
+                        "declare ptr @malloc(i64)\n");
     }
 
 	TEST_F(CodeGenTest, CGArrayLocalVarAssignSizeValues) {
@@ -279,21 +276,20 @@ namespace {
     	llvm::Module *M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-    	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %error*, align 8\n"
-						  "  %2 = alloca %array, align 8\n"
-						  "  store %error* %0, %error** %1, align 8\n"
-						  "  %malloccall = tail call i8* @malloc(i64 12)\n"
-						  "  %3 = bitcast i8* %malloccall to i32*\n"
-						  "  %4 = getelementptr i32, i32* %3, i64 0\n"
-						  "  store i32 1, i32* %4, align 4\n"
-						  "  %5 = getelementptr i32, i32* %3, i64 1\n"
-						  "  store i32 2, i32* %5, align 4\n"
-						  "  %6 = getelementptr i32, i32* %3, i64 2\n"
-						  "  store i32 3, i32* %6, align 4\n"
-						  "  ret void\n"
-						  "}\n"
-						  "declare noalias i8* @malloc(i64)\n");
+    	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  %2 = alloca %array, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  %3 = call ptr @malloc(i64 12)\n"
+                        "  %4 = getelementptr i32, ptr %3, i64 0\n"
+                        "  store i32 1, ptr %4, align 4\n"
+                        "  %5 = getelementptr i32, ptr %3, i64 1\n"
+                        "  store i32 2, ptr %5, align 4\n"
+                        "  %6 = getelementptr i32, ptr %3, i64 2\n"
+                        "  store i32 3, ptr %6, align 4\n"
+                        "  ret void\n"
+                        "}\n"
+                        "declare ptr @malloc(i64)\n");
     }
 } // anonymous namespace

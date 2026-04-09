@@ -19,8 +19,7 @@
 #include "Basic/SourceLocation.h"
 #include "Basic/SourceManagerInternals.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/Optional.h"
-#include "llvm/ADT/None.h"
+#include <optional>
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -749,7 +748,7 @@ void SourceManager::overrideFileContents(const FileEntry *SourceFile,
 const FileEntry *
 SourceManager::bypassFileContentsOverride(const FileEntry &File) {
   assert(isFileOverridden(&File));
-  llvm::Optional<FileEntryRef> BypassFile =
+  std::optional<FileEntryRef> BypassFile =
       FileMgr.getBypassFile(FileEntryRef(File.getName(), File));
 
   // If the file can't be found in the FS, give up.
@@ -766,15 +765,15 @@ void SourceManager::setFileIsTransient(const FileEntry *File) {
   const_cast<SrcMgr::ContentCache *>(CC)->IsTransient = true;
 }
 
-Optional<FileEntryRef> SourceManager::getFileEntryRefForID(FileID FID) const {
+std::optional<FileEntryRef> SourceManager::getFileEntryRefForID(FileID FID) const {
   bool Invalid = false;
   const SrcMgr::SLocEntry &Entry = getSLocEntry(FID, &Invalid);
   if (Invalid || !Entry.isFile())
-    return None;
+    return std::nullopt;
 
   const SrcMgr::ContentCache *Content = Entry.getFile().getContentCache();
   if (!Content || !Content->OrigEntry)
-    return None;
+    return std::nullopt;
   return FileEntryRef(Entry.getFile().getName(), *Content->OrigEntry);
 }
 
@@ -1862,7 +1861,7 @@ LLVM_DUMP_METHOD void SourceManager::dump() const {
   llvm::raw_ostream &out = llvm::errs();
 
   auto DumpSLocEntry = [&](int ID, const SrcMgr::SLocEntry &Entry,
-                           llvm::Optional<unsigned> NextStart) {
+                           std::optional<unsigned> NextStart) {
     out << "SLocEntry <FileID " << ID << "> " << (Entry.isFile() ? "file" : "expansion")
         << " <SourceLocation " << Entry.getOffset() << ":";
     if (NextStart)
@@ -1902,14 +1901,14 @@ LLVM_DUMP_METHOD void SourceManager::dump() const {
                                    : LocalSLocEntryTable[ID + 1].getOffset());
   }
   // Dump loaded SLocEntries.
-  llvm::Optional<unsigned> NextStart;
+  std::optional<unsigned> NextStart;
   for (unsigned Index = 0; Index != LoadedSLocEntryTable.size(); ++Index) {
     int ID = -(int)Index - 2;
     if (SLocEntryLoaded[Index]) {
       DumpSLocEntry(ID, LoadedSLocEntryTable[Index], NextStart);
       NextStart = LoadedSLocEntryTable[Index].getOffset();
     } else {
-      NextStart = None;
+      NextStart = std::nullopt;
     }
   }
 }

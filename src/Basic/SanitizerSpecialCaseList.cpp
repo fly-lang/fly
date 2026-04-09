@@ -13,6 +13,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 #include "Basic/SanitizerSpecialCaseList.h"
+#include "llvm/ADT/Twine.h"
 
 using namespace fly;
 
@@ -35,15 +36,16 @@ SanitizerSpecialCaseList::createOrDie(const std::vector<std::string> &Paths,
   std::string Error;
   if (auto SSCL = create(Paths, VFS, Error))
     return SSCL;
-  llvm::report_fatal_error(Error);
+  llvm::report_fatal_error(llvm::Twine(Error));
 }
 
 void SanitizerSpecialCaseList::createSanitizerSections() {
   for (auto &S : Sections) {
     SanitizerMask Mask;
+    auto &Sec = S.getValue();
 
 #define SANITIZER(NAME, ID)                                                    \
-  if (S.SectionMatcher->match(NAME))                                           \
+  if (Sec.SectionMatcher->match(NAME))                                         \
     Mask |= SanitizerKind::ID;
 #define SANITIZER_GROUP(NAME, ID, ALIAS) SANITIZER(NAME, ID)
 
@@ -51,7 +53,7 @@ void SanitizerSpecialCaseList::createSanitizerSections() {
 #undef SANITIZER
 #undef SANITIZER_GROUP
 
-    SanitizerSections.emplace_back(Mask, S.Entries);
+    SanitizerSections.emplace_back(Mask, Sec.Entries);
   }
 }
 

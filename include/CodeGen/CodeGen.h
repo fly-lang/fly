@@ -15,6 +15,7 @@
 #define FLY_CODEGEN_H
 
 #include "CodeGen/BackendUtil.h"
+#include "llvm/IR/Constants.h"
 
 namespace llvm {
     class Constant;

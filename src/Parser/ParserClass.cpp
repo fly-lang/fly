@@ -94,7 +94,7 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) : 
                 const SourceLocation &Loc = P->Tok.getLocation();
 
                 // Look ahead to see if this is a method (has parenthesis)
-                Optional<Token> NextTok = Lexer::findNextToken(Loc, P->SourceMgr);
+                std::optional<Token> NextTok = Lexer::findNextToken(Loc, P->SourceMgr);
                 if (NextTok && NextTok->is(tok::l_paren)) {
                     // This is a method - consume name and parse as method
                     P->ConsumeToken();

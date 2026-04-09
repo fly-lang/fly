@@ -167,25 +167,21 @@ llvm::StoreInst *CodeGenVar::StoreDefaultValue() {
 		// Use i8 0 for memset value
 		llvm::ConstantInt *ZeroInt8 = llvm::ConstantInt::get(CodeGen::Int8Ty, 0);
 
-		// Allocate array data in heap
-		// Note: CreateMalloc already multiplies Size by ElementType size
-		llvm::Instruction *DataMalloc = llvm::CallInst::CreateMalloc(
-			CGM->Builder->GetInsertBlock(),
-			CodeGen::IntPtrTy,
-			ElementType,
-			Size,
-			nullptr,
-			nullptr
-		);
-		llvm::Value *DataPtr = CGM->Builder->Insert(DataMalloc);
+		// Allocate array data in heap: malloc(Size * sizeof(ElementType))
+		llvm::TypeSize ElemAllocSize = CGM->Module->getDataLayout().getTypeAllocSize(ElementType);
+		llvm::Value *ElemAllocSizeVal = llvm::ConstantInt::get(Size->getType(), ElemAllocSize.getFixedValue());
+		llvm::Value *TotalAllocSize = CGM->Builder->CreateMul(Size, ElemAllocSizeVal);
+		llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
+			"malloc",
+			llvm::FunctionType::get(
+				llvm::PointerType::getUnqual(CGM->LLVMCtx),
+				{CodeGen::IntPtrTy},
+				false));
+		llvm::Value *TotalAllocSizeCast = CGM->Builder->CreateIntCast(TotalAllocSize, CodeGen::IntPtrTy, false);
+		llvm::Value *DataPtr = CGM->Builder->CreateCall(MallocFn, {TotalAllocSizeCast});
 
-		// Calculate total size in bytes for memset: Size * sizeof(ElementType)
-		llvm::TypeSize ElemSize = CGM->Module->getDataLayout().getTypeAllocSize(ElementType);
-		llvm::Value *ElemSizeVal = llvm::ConstantInt::get(Size->getType(), ElemSize.getFixedSize());
-		llvm::Value *TotalSize = CGM->Builder->CreateMul(Size, ElemSizeVal);
-
-		// Zero-initialize the data array
-		CGM->Builder->CreateMemSet(DataPtr, ZeroInt8, TotalSize, llvm::MaybeAlign());
+		// Zero-initialize the data array (TotalAllocSize already computed above)
+		CGM->Builder->CreateMemSet(DataPtr, ZeroInt8, TotalAllocSize, llvm::MaybeAlign());
 
 		// Get pointer to field 0 (data pointer)
 		llvm::Value *Field0Ptr = CGM->Builder->CreateStructGEP(CodeGen::ArrayTy, this->Pointer, 0);
@@ -211,7 +207,7 @@ llvm::StoreInst *CodeGenVar::StoreDefaultValue() {
 
 llvm::LoadInst *CodeGenVar::Load() {
     this->BlockID = CGM->Builder->GetInsertBlock()->getName();
-    this->LoadI = CGM->Builder->CreateLoad(getPointer());
+    this->LoadI = CGM->Builder->CreateLoad(T, getPointer());
     return this->LoadI;
 }
 

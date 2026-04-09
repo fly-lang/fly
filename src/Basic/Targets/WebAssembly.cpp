@@ -222,6 +222,6 @@ bool WebAssemblyTargetInfo::handleTargetFeatures(
 }
 
 ArrayRef<Builtin::Info> WebAssemblyTargetInfo::getTargetBuiltins() const {
-  return llvm::makeArrayRef(BuiltinInfo, fly::WebAssembly::LastTSBuiltin -
+  return ArrayRef<Builtin::Info>(BuiltinInfo, fly::WebAssembly::LastTSBuiltin -
                                              Builtin::FirstTSBuiltin);
 }

@@ -15,7 +15,7 @@
 
 #include "Basic/TargetInfo.h"
 #include "Basic/TargetOptions.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Support/Compiler.h"
 
 namespace fly {
@@ -50,7 +50,7 @@ public:
 
   ArrayRef<Builtin::Info> getTargetBuiltins() const override {
     // FIXME: Implement.
-    return None;
+    return std::nullopt;
   }
 
   bool allowsLargerPreferedTypeAlignment() const override { return false; }
@@ -69,7 +69,7 @@ public:
         {{"r2"}, "sr"},
         {{"r3"}, "cg"},
     };
-    return llvm::makeArrayRef(GCCRegAliases);
+    return ArrayRef<TargetInfo::GCCRegAlias>(GCCRegAliases);
   }
 
   bool validateAsmConstraint(const char *&Name,

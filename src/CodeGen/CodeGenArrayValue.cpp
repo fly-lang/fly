@@ -53,13 +53,17 @@ void CodeGenArrayValue::GenExpr(SemaArrayValue *Sema) {
 	if (Values.size() > 0) {
 		llvm::Value* NumElements = llvm::ConstantInt::get(CodeGen::IntPtrTy, Values.size());
 		llvm::TypeSize SizeInBytes = CGM->getTarget().getDataLayout().getTypeAllocSize(Values[0]->getType());
-		llvm::Value* ElementSize = llvm::ConstantInt::get(CodeGen::IntPtrTy, SizeInBytes);
+		llvm::Value* ElementSize = llvm::ConstantInt::get(CodeGen::IntPtrTy, SizeInBytes.getFixedValue());
 		AllocSize = Builder->CreateMul(NumElements, ElementSize);
 
-		// @malloc data type - CreateMalloc returns ElementType* (already bitcasted)
-		llvm::Instruction *I = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), CodeGen::IntPtrTy,
-													  ElementType, AllocSize, nullptr, nullptr);
-		V = Builder->Insert(I);  // Already ElementType*, no need for additional bitcast
+		// Call malloc to allocate memory for the array data
+		llvm::FunctionCallee MallocFn = CGM->getModule()->getOrInsertFunction(
+			"malloc",
+			llvm::FunctionType::get(
+				llvm::PointerType::getUnqual(CGM->getLLVMCtx()),
+				{CodeGen::IntPtrTy},
+				false));
+		V = Builder->CreateCall(MallocFn, {AllocSize});
 	} else {
 		V = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ElementType->getPointerTo()));
 	}
@@ -94,12 +98,17 @@ void CodeGenArrayValue::GenExpr(SemaEnumList *Sema) {
 	if (!Values.empty()) {
 		llvm::Value* NumElements = llvm::ConstantInt::get(CodeGen::IntPtrTy, Values.size());
 		llvm::TypeSize SizeInBytes = CGM->getTarget().getDataLayout().getTypeAllocSize(ElementType);
-		llvm::Value* ElementSize = llvm::ConstantInt::get(CodeGen::IntPtrTy, SizeInBytes);
+		llvm::Value* ElementSize = llvm::ConstantInt::get(CodeGen::IntPtrTy, SizeInBytes.getFixedValue());
 		llvm::Value* AllocSize = Builder->CreateMul(NumElements, ElementSize);
 
-		llvm::Instruction *I = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), CodeGen::IntPtrTy,
-			ElementType, AllocSize, nullptr, nullptr);
-		V = Builder->Insert(I);
+		// Call malloc to allocate memory for the array data
+		llvm::FunctionCallee MallocFn = CGM->getModule()->getOrInsertFunction(
+			"malloc",
+			llvm::FunctionType::get(
+				llvm::PointerType::getUnqual(CGM->getLLVMCtx()),
+				{CodeGen::IntPtrTy},
+				false));
+		V = Builder->CreateCall(MallocFn, {AllocSize});
 	} else {
 		V = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ElementType->getPointerTo()));
 	}

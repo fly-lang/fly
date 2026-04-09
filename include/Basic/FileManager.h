@@ -286,7 +286,7 @@ public:
                                                     bool CacheFailure = true);
 
   /// Get a \c DirectoryEntryRef if it exists, without doing anything on error.
-  llvm::Optional<DirectoryEntryRef>
+  std::optional<DirectoryEntryRef>
   getOptionalDirectoryRef(StringRef DirName, bool CacheFailure = true) {
     return llvm::expectedToOptional(getDirectoryRef(DirName, CacheFailure));
   }
@@ -343,7 +343,7 @@ public:
                                           bool CacheFailure = true);
 
   /// Get a FileEntryRef if it exists, without doing anything on error.
-  llvm::Optional<FileEntryRef> getOptionalFileRef(StringRef Filename,
+  std::optional<FileEntryRef> getOptionalFileRef(StringRef Filename,
                                                   bool OpenFile = false,
                                                   bool CacheFailure = true) {
     return llvm::expectedToOptional(
@@ -375,7 +375,7 @@ public:
   /// bypasses all mapping and uniquing, blindly creating a new FileEntry.
   /// There is no attempt to deduplicate these; if you bypass the same file
   /// twice, you getDouble two new file entries.
-  llvm::Optional<FileEntryRef> getBypassFile(FileEntryRef VFE);
+  std::optional<FileEntryRef> getBypassFile(FileEntryRef VFE);
 
   /// Open the specified file as a MemoryBuffer, returning a new
   /// MemoryBuffer if successful, otherwise returning null.

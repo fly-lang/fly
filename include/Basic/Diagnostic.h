@@ -1290,7 +1290,7 @@ inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
 
 inline const DiagnosticBuilder &
 operator<<(const DiagnosticBuilder &DB,
-           const llvm::Optional<SourceRange> &Opt) {
+           const std::optional<SourceRange> &Opt) {
   if (Opt)
     DB << *Opt;
   return DB;
@@ -1298,14 +1298,14 @@ operator<<(const DiagnosticBuilder &DB,
 
 inline const DiagnosticBuilder &
 operator<<(const DiagnosticBuilder &DB,
-           const llvm::Optional<CharSourceRange> &Opt) {
+           const std::optional<CharSourceRange> &Opt) {
   if (Opt)
     DB << *Opt;
   return DB;
 }
 
 inline const DiagnosticBuilder &
-operator<<(const DiagnosticBuilder &DB, const llvm::Optional<FixItHint> &Opt) {
+operator<<(const DiagnosticBuilder &DB, const std::optional<FixItHint> &Opt) {
   if (Opt)
     DB << *Opt;
   return DB;
@@ -1498,7 +1498,7 @@ public:
   unsigned range_size() const { return Ranges.size(); }
 
   ArrayRef<CharSourceRange> getRanges() const {
-    return llvm::makeArrayRef(Ranges);
+    return ArrayRef<CharSourceRange>(Ranges);
   }
 
   using fixit_iterator = std::vector<FixItHint>::const_iterator;
@@ -1508,7 +1508,7 @@ public:
   unsigned fixit_size() const { return FixIts.size(); }
 
   ArrayRef<FixItHint> getFixIts() const {
-    return llvm::makeArrayRef(FixIts);
+    return ArrayRef<FixItHint>(FixIts);
   }
 };
 

@@ -15,7 +15,8 @@
 
 #include "OSTargets.h"
 #include "Basic/TargetBuiltins.h"
-#include "llvm/Support/TargetParser.h"
+#include "llvm/TargetParser/AArch64TargetParser.h"
+#include "llvm/TargetParser/TargetParser.h"
 
 namespace fly {
 namespace targets {
@@ -45,7 +46,7 @@ class LLVM_LIBRARY_VISIBILITY AArch64TargetInfo : public TargetInfo {
   bool HasMatmulFP64;
   bool HasMatmulFP32;
 
-  llvm::AArch64::ArchKind ArchKind;
+  const llvm::AArch64::ArchInfo *ArchKind;
 
   static const Builtin::Info BuiltinInfo[];
 

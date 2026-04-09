@@ -49,14 +49,14 @@ namespace {
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-    	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
-    				  "entry:\n"
-    				  "  %1 = alloca %error*, align 8\n"
-    				  "  %2 = alloca i8*, align 8\n"
-    				  "  store %error* %0, %error** %1, align 8\n"
-    				  "  store i8* null, i8** %2, align 8\n"
-    				  "  ret void\n"
-    				  "}\n");
+    	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  %2 = alloca ptr, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  store ptr null, ptr %2, align 8\n"
+                        "  ret void\n"
+                        "}\n");
     }
 
     TEST_F(CodeGenTest, CGDefaultStringLocalVarAssignEmpty) {
@@ -85,14 +85,14 @@ namespace {
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-    	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
-					  "entry:\n"
-					  "  %1 = alloca %error*, align 8\n"
-					  "  %2 = alloca i8*, align 8\n"
-					  "  store %error* %0, %error** %1, align 8\n"
-					  "  store i8* getelementptr inbounds ([1 x i8], [1 x i8]* @0, i32 0, i32 0), i8** %2, align 8\n"
-					  "  ret void\n"
-					  "}\n");
+    	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  %2 = alloca ptr, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  store ptr @0, ptr %2, align 8\n"
+                        "  ret void\n"
+                        "}\n");
      }
 
 	TEST_F(CodeGenTest, CGDefaultStringLocalVarAssignValue) {
@@ -121,14 +121,14 @@ namespace {
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-    	EXPECT_EQ(output, "define void @_F4func(%error* %0) {\n"
-					  "entry:\n"
-					  "  %1 = alloca %error*, align 8\n"
-					  "  %2 = alloca i8*, align 8\n"
-					  "  store %error* %0, %error** %1, align 8\n"
-					  "  store i8* getelementptr inbounds ([7 x i8], [7 x i8]* @0, i32 0, i32 0), i8** %2, align 8\n"
-					  "  ret void\n"
-					  "}\n");
+    	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  %2 = alloca ptr, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  store ptr @0, ptr %2, align 8\n"
+                        "  ret void\n"
+                        "}\n");
     }
 
  } // anonymous namespace

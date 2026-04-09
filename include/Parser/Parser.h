@@ -134,14 +134,14 @@ private:
     /// Parse a statement.
     void ParseStmt(ASTBlockStmt *Parent);
 
-    bool isType(Optional<Token> &NexTok);
+    bool isType(std::optional<Token> &NexTok);
 
-    bool isVarDecl(Optional<Token> &NexTok);
+    bool isVarDecl(std::optional<Token> &NexTok);
 
     /// Check if is an assignment.
-    bool isVarAssign(Optional<Token> &NexTok) const;
+    bool isVarAssign(std::optional<Token> &NexTok) const;
 
-    bool isVar(Optional<Token> &NexTok);
+    bool isVar(std::optional<Token> &NexTok);
 
     /// Parse the start of a parenthesis.
     bool ParseStartParen();

@@ -22,5 +22,5 @@ const char *const MSP430TargetInfo::GCCRegNames[] = {
 };
 
 ArrayRef<const char *> MSP430TargetInfo::getGCCRegNames() const {
-  return llvm::makeArrayRef(GCCRegNames);
+  return ArrayRef<const char *>(GCCRegNames);
 }

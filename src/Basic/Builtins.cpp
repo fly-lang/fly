@@ -49,7 +49,7 @@ void Builtin::Context::InitializeTarget(const TargetInfo &Target,
 
 bool Builtin::Context::isBuiltinFunc(llvm::StringRef FuncName) {
   for (unsigned i = Builtin::NotBuiltin + 1; i != Builtin::FirstTSBuiltin; ++i)
-    if (FuncName.equals(BuiltinInfo[i].Name))
+    if (FuncName == BuiltinInfo[i].Name)
       return strchr(BuiltinInfo[i].Attributes, 'f') != nullptr;
 
   return false;

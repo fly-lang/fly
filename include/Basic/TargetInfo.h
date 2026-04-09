@@ -25,11 +25,12 @@
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
-#include "llvm/ADT/Optional.h"
+#include <optional>
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
+#include "llvm/Frontend/OpenMP/OMPGridValues.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/VersionTuple.h"
 #include <cassert>
@@ -191,8 +192,8 @@ namespace fly {
         unsigned char RegParmMax, SSERegParmMax;
         TargetCXXABI TheCXXABI;
         const LangASMap *AddrSpaceMap;
-        const unsigned *GridValues =
-                nullptr; // Array of target-specific GPU grid values that must be
+        const llvm::omp::GV *GridValues =
+                nullptr; // Target-specific GPU grid values that must be
         // consistent between host RTL (plugin), device RTL, and fly.
 
         mutable StringRef PlatformName;
@@ -1300,7 +1301,7 @@ namespace fly {
 
         // Get the cache line size of a given cpu. This method switches over
         // the given cpu and returns "None" if the CPU is not found.
-        virtual Optional<unsigned> getCPUCacheLineSize() const { return None; }
+        virtual std::optional<unsigned> getCPUCacheLineSize() const { return std::nullopt; }
 
         // Returns maximal number of args passed in registers.
         unsigned getRegParmMax() const {
@@ -1371,8 +1372,8 @@ namespace fly {
         /// Return an AST address space which can be used opportunistically
         /// for constant global memory. It must be possible to convert pointers into
         /// this address space to LangAS::Default. If no such address space exists,
-        /// this may return None, and such optimizations will be disabled.
-        virtual llvm::Optional<LangAS> getConstantAddressSpace() const {
+        /// this may return std::nullopt, and such optimizations will be disabled.
+        virtual std::optional<LangAS> getConstantAddressSpace() const {
             return LangAS::Default;
         }
 
@@ -1451,10 +1452,10 @@ namespace fly {
         /// space \p AddressSpace to be converted in order to be used, then return the
         /// corresponding target specific DWARF address space.
         ///
-        /// \returns Otherwise return None and no conversion will be emitted in the
+        /// \returns Otherwise return std::nullopt and no conversion will be emitted in the
         /// DWARF.
-        virtual Optional<unsigned> getDWARFAddressSpace(unsigned AddressSpace) const {
-            return None;
+        virtual std::optional<unsigned> getDWARFAddressSpace(unsigned AddressSpace) const {
+            return std::nullopt;
         }
 
         /// \returns The version of the SDK which was used during the compilation if
@@ -1494,7 +1495,7 @@ namespace fly {
         virtual ArrayRef<GCCRegAlias> getGCCRegAliases() const = 0;
 
         virtual ArrayRef<AddlRegName> getGCCAddlRegNames() const {
-            return None;
+            return std::nullopt;
         }
 
     private:

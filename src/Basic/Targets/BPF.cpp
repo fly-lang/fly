@@ -36,6 +36,6 @@ void BPFTargetInfo::fillValidCPUList(SmallVectorImpl<StringRef> &Values) const {
 }
 
 ArrayRef<Builtin::Info> BPFTargetInfo::getTargetBuiltins() const {
-  return llvm::makeArrayRef(BuiltinInfo, fly::BPF::LastTSBuiltin -
+  return ArrayRef<Builtin::Info>(BuiltinInfo, fly::BPF::LastTSBuiltin -
                                              Builtin::FirstTSBuiltin);
 }

@@ -13,7 +13,8 @@
 #include "RISCV.h"
 
 #include "llvm/ADT/StringSwitch.h"
-#include "llvm/Support/TargetParser.h"
+#include "llvm/TargetParser/RISCVTargetParser.h"
+#include "llvm/TargetParser/TargetParser.h"
 
 using namespace fly;
 using namespace fly::targets;
@@ -31,7 +32,7 @@ ArrayRef<const char *> RISCVTargetInfo::getGCCRegNames() const {
       "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",
       "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",
       "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31"};
-  return llvm::makeArrayRef(GCCRegNames);
+  return ArrayRef<const char *>(GCCRegNames);
 }
 
 ArrayRef<TargetInfo::GCCRegAlias> RISCVTargetInfo::getGCCRegAliases() const {
@@ -52,7 +53,7 @@ ArrayRef<TargetInfo::GCCRegAlias> RISCVTargetInfo::getGCCRegAliases() const {
       {{"fs4"}, "f20"}, {{"fs5"}, "f21"}, {{"fs6"}, "f22"},  {{"fs7"}, "f23"},
       {{"fs8"}, "f24"}, {{"fs9"}, "f25"}, {{"fs10"}, "f26"}, {{"fs11"}, "f27"},
       {{"ft8"}, "f28"}, {{"ft9"}, "f29"}, {{"ft10"}, "f30"}, {{"ft11"}, "f31"}};
-  return llvm::makeArrayRef(GCCRegAliases);
+  return ArrayRef<TargetInfo::GCCRegAlias>(GCCRegAliases);
 }
 
 bool RISCVTargetInfo::validateAsmConstraint(
@@ -121,8 +122,7 @@ bool RISCVTargetInfo::handleTargetFeatures(std::vector<std::string> &Features,
 }
 
 bool RISCV32TargetInfo::isValidCPUName(StringRef Name) const {
-  return llvm::RISCV::checkCPUKind(llvm::RISCV::parseCPUKind(Name),
-                                   /*Is64Bit=*/false);
+  return llvm::RISCV::parseCPU(Name, /*IsRV64=*/false);
 }
 
 void RISCV32TargetInfo::fillValidCPUList(
@@ -131,8 +131,7 @@ void RISCV32TargetInfo::fillValidCPUList(
 }
 
 bool RISCV64TargetInfo::isValidCPUName(StringRef Name) const {
-  return llvm::RISCV::checkCPUKind(llvm::RISCV::parseCPUKind(Name),
-                                   /*Is64Bit=*/true);
+  return llvm::RISCV::parseCPU(Name, /*IsRV64=*/true);
 }
 
 void RISCV64TargetInfo::fillValidCPUList(

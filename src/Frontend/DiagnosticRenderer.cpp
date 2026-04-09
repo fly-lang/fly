@@ -16,12 +16,12 @@
 #include "Parser/Lexer.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/None.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
+#include <optional>
 #include <utility>
 
 using namespace fly;
@@ -83,7 +83,7 @@ void DiagnosticRenderer::emitStoredDiagnostic(StoredDiagnostic &Diag) {
 
 void DiagnosticRenderer::emitBasicNote(StringRef Message) {
   emitDiagnosticMessage(FullSourceLoc(), PresumedLoc(), DiagnosticsEngine::Note,
-                        Message, None, DiagOrStoredDiag());
+                        Message, std::nullopt, DiagOrStoredDiag());
 }
 
 /// Prints an include stack when appropriate for a particular
@@ -313,7 +313,7 @@ void DiagnosticRenderer::emitSingleMacroExpansion(
   llvm::raw_svector_ostream Message(MessageStorage);
 
   emitDiagnostic(SpellingLoc, DiagnosticsEngine::Note, Message.str(),
-                 SpellingRanges, None);
+                 SpellingRanges, std::nullopt);
 }
 
 DiagnosticNoteRenderer::~DiagnosticNoteRenderer() = default;

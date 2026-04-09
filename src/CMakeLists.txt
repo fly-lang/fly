@@ -241,7 +241,7 @@ target_link_libraries(flyLib
         lldCommon
         lldCOFF
         lldELF
-        lldMachO2
+        lldMachO
         lldMinGW
         lldWasm)
 

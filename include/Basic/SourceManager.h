@@ -950,7 +950,7 @@ public:
   }
 
   /// Returns the FileEntryRef for the provided FileID.
-  Optional<FileEntryRef> getFileEntryRefForID(FileID FID) const;
+  std::optional<FileEntryRef> getFileEntryRefForID(FileID FID) const;
 
   /// Returns the FileEntry record for the provided SLocEntry.
   const FileEntry *getFileEntryForSLocEntry(const SrcMgr::SLocEntry &sloc) const
@@ -1349,19 +1349,19 @@ public:
   /// Returns whether \p Loc is located in a <built-in> file.
   bool isWrittenInBuiltinFile(SourceLocation Loc) const {
     StringRef Filename(getPresumedLoc(Loc).getFilename());
-    return Filename.equals("<built-in>");
+    return Filename == "<built-in>";
   }
 
   /// Returns whether \p Loc is located in a <command line> file.
   bool isWrittenInCommandLineFile(SourceLocation Loc) const {
     StringRef Filename(getPresumedLoc(Loc).getFilename());
-    return Filename.equals("<command line>");
+    return Filename == "<command line>";
   }
 
   /// Returns whether \p Loc is located in a <scratch space> file.
   bool isWrittenInScratchSpace(SourceLocation Loc) const {
     StringRef Filename(getPresumedLoc(Loc).getFilename());
-    return Filename.equals("<scratch space>");
+    return Filename == "<scratch space>";
   }
 
   /// Returns if a SourceLocation is in a system header.

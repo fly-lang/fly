@@ -12,7 +12,7 @@
 #include "CodeGen/BackendUtil.h"
 #include "CodeGen/CodeGen.h"
 
-#include "llvm/Support/Host.h"
+#include "llvm/TargetParser/Host.h"
 
 using namespace fly;
 

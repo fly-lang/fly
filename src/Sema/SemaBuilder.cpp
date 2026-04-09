@@ -379,16 +379,16 @@ SemaValue * SemaBuilder::CreateNumberValue(ASTNumberValue &AST) {
 }
 
 llvm::APInt SemaBuilder::CreateAPIntValue(StringRef ValStr) {
-	bool IsNegative = ValStr.startswith("-");
+	bool IsNegative = ValStr.starts_with("-");
 	if (IsNegative)
 		ValStr = ValStr.drop_front(1);
 
 	// Detect radix
 	unsigned Radix = 10;
-	if (ValStr.startswith("0x") || ValStr.startswith("0X")) {
+	if (ValStr.starts_with("0x") || ValStr.starts_with("0X")) {
 		Radix = 16;
 		ValStr = ValStr.drop_front(2);
-	} else if (ValStr.startswith("0b") || ValStr.startswith("0B")) {
+	} else if (ValStr.starts_with("0b") || ValStr.starts_with("0B")) {
 		Radix = 2;
 		ValStr = ValStr.drop_front(2);
 	}

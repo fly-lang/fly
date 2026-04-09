@@ -15,7 +15,7 @@
 
 #include "Basic/TargetInfo.h"
 #include "Basic/TargetOptions.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Support/Compiler.h"
 
 namespace fly {
@@ -57,7 +57,7 @@ public:
     resetDataLayout("e-P1-p:16:8-i8:8-i16:8-i32:8-i64:8-f32:8-f64:8-n8-a:8");
   }
 
-  ArrayRef<Builtin::Info> getTargetBuiltins() const override { return None; }
+  ArrayRef<Builtin::Info> getTargetBuiltins() const override { return std::nullopt; }
 
   BuiltinVaListKind getBuiltinVaListKind() const override {
     return TargetInfo::VoidPtrBuiltinVaList;
@@ -71,11 +71,11 @@ public:
         "r10", "r11", "r12", "r13", "r14", "r15", "r16", "r17", "r18", "r19",
         "r20", "r21", "r22", "r23", "r24", "r25", "X",   "Y",   "Z",   "SP"
     };
-    return llvm::makeArrayRef(GCCRegNames);
+    return ArrayRef<const char *>(GCCRegNames);
   }
 
   ArrayRef<TargetInfo::GCCRegAlias> getGCCRegAliases() const override {
-    return None;
+    return std::nullopt;
   }
 
   ArrayRef<TargetInfo::AddlRegName> getGCCAddlRegNames() const override {
@@ -85,7 +85,7 @@ public:
         {{"r30", "r31"}, 28},
         {{"SPL", "SPH"}, 29},
     };
-    return llvm::makeArrayRef(AddlRegNames);
+    return ArrayRef<TargetInfo::AddlRegName>(AddlRegNames);
   }
 
   bool validateAsmConstraint(const char *&Name,

@@ -15,7 +15,7 @@
 
 #include "Basic/TargetInfo.h"
 #include "Basic/TargetOptions.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 #include "llvm/Support/Compiler.h"
 
 namespace fly {
@@ -82,7 +82,7 @@ public:
         "sx48", "sx49", "sx50", "sx51", "sx52", "sx53", "sx54", "sx55",
         "sx56", "sx57", "sx58", "sx59", "sx60", "sx61", "sx62", "sx63",
     };
-    return llvm::makeArrayRef(GCCRegNames);
+    return ArrayRef<const char *>(GCCRegNames);
   }
 
   ArrayRef<TargetInfo::GCCRegAlias> getGCCRegAliases() const override {
@@ -152,7 +152,7 @@ public:
         {{"s62"}, "sx62"},
         {{"s63"}, "sx63"},
     };
-    return llvm::makeArrayRef(GCCRegAliases);
+    return ArrayRef<TargetInfo::GCCRegAlias>(GCCRegAliases);
   }
 
   bool validateAsmConstraint(const char *&Name,

@@ -176,7 +176,7 @@ void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
 
     std::error_code ErrCode;
     std::unique_ptr<llvm::raw_fd_ostream> OS =
-            std::make_unique<llvm::raw_fd_ostream>(OutName, ErrCode, llvm::sys::fs::F_None);
+            std::make_unique<llvm::raw_fd_ostream>(OutName, ErrCode, llvm::sys::fs::OF_None);
 
     // Include Bitcode in module
     EmbedBitcode(M, CodeGenOpts, llvm::MemoryBufferRef());
