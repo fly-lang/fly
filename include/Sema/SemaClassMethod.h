@@ -46,6 +46,8 @@ namespace fly {
 
     	bool Static = false;
 
+    	bool Final = false;
+
     	SemaClassMethod *Overridden = nullptr;
 
 		CodeGenClassMethod *CodeGen = nullptr;
@@ -70,6 +72,8 @@ namespace fly {
     	SemaVisibilityKind getVisibility() const;
 
     	bool isStatic() const;
+
+    	bool isFinal() const;
 
     	SemaClassMethod *getOverridden() const;
 

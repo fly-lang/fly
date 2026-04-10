@@ -60,6 +60,8 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSet.h"
 
+#include <functional>
+
 #include <AST/ASTCast.h>
 #include <AST/ASTDeclStmt.h>
 #include <AST/ASTParam.h>
@@ -280,6 +282,41 @@ void Resolver::visit(ASTMethod &AST) {
 
 	// Create Class Method
 	SemaClassMethod *Sema = SemaBuilder::CreateClassMethod(CurrentClass, AST, CurrentScope);
+
+	// Validate abstract method rules
+	if (Sema->isAbstract()) {
+		// Abstract method must not have a body
+		if (AST.getBody() != nullptr) {
+			Diag(AST.getLocation(), diag::err_sema_abstract_method_has_body) << AST.getName();
+			FLY_DEBUG_END("Resolver", "visit(ASTMethod)");
+			return;
+		}
+		// Class containing an abstract method must itself be abstract
+		if (!CurrentClass->isAbstract()) {
+			Diag(AST.getLocation(), diag::err_sema_abstract_method_requires_abstract_class)
+				<< CurrentClass->getName() << AST.getName();
+			FLY_DEBUG_END("Resolver", "visit(ASTMethod)");
+			return;
+		}
+	}
+
+	// Check that this method does not override a final method in a base class
+	if (!Sema->isConstructor()) {
+		for (auto *Base : CurrentClass->getBaseClasses()) {
+			SemaClassMethod *BaseMethod = Base->LookupMethod(AST.getName());
+			if (BaseMethod && BaseMethod->isFinal()) {
+				Diag(AST.getLocation(), diag::err_sema_final_method_overridden)
+					<< AST.getName() << Base->getName();
+				FLY_DEBUG_END("Resolver", "visit(ASTMethod)");
+				return;
+			}
+			// Track the overridden method
+			if (BaseMethod) {
+				Sema->Overridden = BaseMethod;
+			}
+		}
+	}
+
 	CurrentClass->addMethod(Sema); // Function Local var to be allocated
 
 	// Check if default constructor
@@ -1173,6 +1210,14 @@ void Resolver::visit(ASTCall &AST) {
 
 			// Lookup Constructor method into Class
 			SemaClassType *ClassType = static_cast<SemaClassType *>(Sym->getRef());
+
+			// Cannot instantiate an abstract class
+			if (ClassType->isAbstract()) {
+				Diag(AST.getLocation(), diag::err_sema_abstract_class_instantiation) << AST.getName();
+				CurrentScope = SavedScope;
+				return;
+			}
+
 			Symbol * CurrentSymbol = Reg.LookupFunction(AST.getName(), ArgTypes, ClassType->getSymbols());
 
 			// Check symbol is resolved
@@ -1610,56 +1655,236 @@ void Resolver::ResolveFunction(SemaFunction *Sema) {
 
 void Resolver::ResolveClassType(SemaClassType *ClassType) {
 	FLY_DEBUG_START("Resolver", "ResolveClassType");
+
+	// Guard against double-resolution (can happen when a base class appears both
+	// in the module node list and via ResolveBaseClasses from a derived class)
+	if (ClassType->Resolved) {
+		FLY_DEBUG_END("Resolver", "ResolveClassType");
+		return;
+	}
+	ClassType->Resolved = true;
+
 	CurrentScope = ClassType->getSymbols();
 	CurrentClass = ClassType;
 
-	// Resolve Base Classes
-	// this->ResolveBaseClasses(ClassType);
+	// Resolve Base Classes (includes kind checks, final check, diamond check)
+	this->ResolveBaseClasses(ClassType);
 
 	// Resolve Nodes: Attributes, Methods and Constructors
 	for (auto &Node: ClassType->getAST().getNodes()) {
 		Node->accept(*this);
 	}
 
-	// Create a Default Constructor if not exists
+	// Create a Default Constructor if not exists (not for interfaces or abstract classes)
 	if (CurrentClass->getDefaultConstructor() == nullptr && CurrentClass->getClassKind() != SemaClassKind::INTERFACE) {
 		CreateDefaultConstructor();
 	}
+
+	// Validate that all inherited abstract methods are implemented (concrete classes only)
+	CheckAbstractMethodsImplemented(ClassType);
+
 	FLY_DEBUG_END("Resolver", "ResolveClassType");
 }
 
 void Resolver::ResolveBaseClasses(SemaClassType *DerivedClass) {
 	FLY_DEBUG_START("Resolver", "ResolveBaseClasses");
-	// ClassDefinition Base Classes on first pass
+
+	// Check abstract+final conflict on the derived class itself
+	if (DerivedClass->isAbstract() && DerivedClass->isFinal()) {
+		Diag(DerivedClass->getAST().getLocation(), diag::err_sema_abstract_final_conflict)
+			<< DerivedClass->getName();
+		FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
+		return;
+	}
+
+	int classBaseCount = 0;
+
 	for (auto AST : DerivedClass->getAST().getBases()) {
 
 		if (AST->getTypeKind() != ASTTypeKind::TYPE_NAMED) {
-			// Error: cannot extend a type which differ from Class
 			Diag(AST->getLocation(), diag::err_sema_base_not_named_type);
 			FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
 			return;
 		}
 
-		// Resolve the Base Sema
+		// Resolve the base symbol
 		Symbol *Sym = Reg.LookupNamedType(*static_cast<ASTNamedType *>(AST), CurrentScope);
 		SemaType *NamedType = static_cast<SemaType *>(Sym->getRef());
 		if (!NamedType->isClass()) {
-			// Error: cannot extend a type which differ from Class
 			Diag(AST->getLocation(), diag::err_sema_base_not_class) << NamedType->getName();
 			FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
 			return;
 		}
 
-		// Resolve the Base Class Type
 		SemaClassType *BaseClass = static_cast<SemaClassType *>(NamedType);
+
+		// Kind compatibility rules
+		SemaClassKind DerivedKind = DerivedClass->getClassKind();
+		SemaClassKind BaseKind = BaseClass->getClassKind();
+
+		if (DerivedKind == SemaClassKind::INTERFACE) {
+			// Interface can only extend interfaces
+			if (BaseKind != SemaClassKind::INTERFACE) {
+				Diag(AST->getLocation(), diag::err_sema_interface_extends_class)
+					<< DerivedClass->getName() << BaseClass->getName();
+				FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
+				return;
+			}
+		} else if (DerivedKind == SemaClassKind::STRUCT) {
+			// Struct can only extend another struct
+			if (BaseKind != SemaClassKind::STRUCT) {
+				Diag(AST->getLocation(), diag::err_sema_struct_extends_non_struct)
+					<< DerivedClass->getName() << BaseClass->getName();
+				FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
+				return;
+			}
+			classBaseCount++;
+		} else {
+			// CLASS: at most one CLASS base, any number of INTERFACE bases
+			if (BaseKind == SemaClassKind::CLASS) {
+				classBaseCount++;
+				if (classBaseCount > 1) {
+					Diag(AST->getLocation(), diag::err_sema_multiple_class_bases)
+						<< DerivedClass->getName();
+					FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
+					return;
+				}
+			} else if (BaseKind == SemaClassKind::STRUCT) {
+				// A class cannot extend a struct
+				Diag(AST->getLocation(), diag::err_sema_struct_extends_non_struct)
+					<< DerivedClass->getName() << BaseClass->getName();
+				FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
+				return;
+			}
+			// INTERFACE base for a CLASS is allowed (implements)
+		}
+
+		// Cannot extend a final class/struct
+		if (BaseClass->isFinal()) {
+			Diag(AST->getLocation(), diag::err_sema_final_class_subclassed) << BaseClass->getName();
+			FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
+			return;
+		}
+
+		// Resolve the base class type (depth-first)
 		ResolveClassType(BaseClass);
 
-		// FIXME insert attribute in Derived Class?
-
-		// Add Base Class to the list
+		// Add to the derived class base list
 		DerivedClass->BaseClasses.push_back(BaseClass);
 	}
+
+	// Check diamond ambiguity from interface default methods
+	CheckDiamondAmbiguity(DerivedClass);
+
 	FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
+}
+
+void Resolver::CollectInterfaceDefaultMethods(
+		SemaClassType *Interface,
+		llvm::StringMap<llvm::SmallVector<SemaClassType *, 2>> &MethodSources) {
+	// Recurse into base interfaces first
+	for (auto *Base : Interface->getBaseClasses()) {
+		if (Base->getClassKind() == SemaClassKind::INTERFACE) {
+			CollectInterfaceDefaultMethods(Base, MethodSources);
+		}
+	}
+	// Collect default methods (METHOD kind, not ABSTRACT) defined directly here
+	for (auto *Node : Interface->getNodes()) {
+		if (Node->getKind() == SemaKind::METHOD) {
+			auto *Method = static_cast<SemaClassMethod *>(Node);
+			if (!Method->isAbstract() && !Method->isConstructor()) {
+				MethodSources[Method->getName()].push_back(Interface);
+			}
+		}
+	}
+}
+
+void Resolver::CheckDiamondAmbiguity(SemaClassType *ClassType) {
+	// Collect all interface bases (direct and indirect)
+	llvm::StringMap<llvm::SmallVector<SemaClassType *, 2>> DefaultMethodSources;
+
+	for (auto *Base : ClassType->getBaseClasses()) {
+		if (Base->getClassKind() == SemaClassKind::INTERFACE) {
+			CollectInterfaceDefaultMethods(Base, DefaultMethodSources);
+		}
+	}
+
+	// Check each method name that has more than one source
+	for (auto &Entry : DefaultMethodSources) {
+		if (Entry.second.size() < 2) continue;
+
+		llvm::StringRef MethodName = Entry.first();
+
+		// Check if the current class directly overrides this method (resolves the ambiguity)
+		bool overriddenLocally = false;
+		for (auto *Node : ClassType->getNodes()) {
+			if (Node->getKind() == SemaKind::METHOD) {
+				auto *Method = static_cast<SemaClassMethod *>(Node);
+				if (!Method->isConstructor() && Method->getName() == MethodName) {
+					overriddenLocally = true;
+					break;
+				}
+			}
+		}
+
+		if (!overriddenLocally) {
+			// Report ambiguity: take first two conflicting sources
+			Diag(ClassType->getAST().getLocation(), diag::err_sema_diamond_ambiguity)
+				<< MethodName << Entry.second[0]->getName()
+				<< Entry.second[1]->getName() << ClassType->getName();
+		}
+	}
+}
+
+void Resolver::CheckAbstractMethodsImplemented(SemaClassType *ClassType) {
+	// Only applies to concrete (non-abstract) classes
+	if (ClassType->isAbstract() || ClassType->getClassKind() == SemaClassKind::INTERFACE) return;
+
+	// Collect all abstract methods that need to be implemented
+	// Walk all base classes (depth-first) and gather unimplemented abstract methods
+	llvm::StringMap<SemaClassType *> RequiredImpls; // method name → interface/abstract class that declared it
+
+	std::function<void(SemaClassType *)> CollectAbstract = [&](SemaClassType *Base) {
+		for (auto *Base2 : Base->getBaseClasses()) {
+			CollectAbstract(Base2);
+		}
+		for (auto *Node : Base->getNodes()) {
+			if (Node->getKind() == SemaKind::METHOD) {
+				auto *Method = static_cast<SemaClassMethod *>(Node);
+				if (Method->isAbstract()) {
+					RequiredImpls[Method->getName()] = Base;
+				}
+			}
+		}
+	};
+
+	for (auto *Base : ClassType->getBaseClasses()) {
+		CollectAbstract(Base);
+	}
+
+	// Check each required method is implemented in ClassType's own nodes
+	for (auto &Entry : RequiredImpls) {
+		bool implemented = false;
+		for (auto *Node : ClassType->getNodes()) {
+			if (Node->getKind() == SemaKind::METHOD) {
+				auto *Method = static_cast<SemaClassMethod *>(Node);
+				if (!Method->isAbstract() && !Method->isConstructor() && Method->getName() == Entry.first()) {
+					implemented = true;
+					break;
+				}
+			}
+		}
+		if (!implemented) {
+			SemaClassType *DeclaredIn = Entry.second;
+			if (DeclaredIn->getClassKind() == SemaClassKind::INTERFACE) {
+				Diag(ClassType->getAST().getLocation(), diag::err_sema_interface_not_implemented)
+					<< ClassType->getName() << Entry.first() << DeclaredIn->getName();
+			} else {
+				Diag(ClassType->getAST().getLocation(), diag::err_sema_abstract_method_not_implemented)
+					<< ClassType->getName() << Entry.first() << DeclaredIn->getName();
+			}
+		}
+	}
 }
 
 // bool Resolver::CanInheritMethod(SemaClassMethod *BaseMethod) {

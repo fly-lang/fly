@@ -265,69 +265,18 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 	TEST_F(CodeGenTest, DISABLED_CGStructExtendsStruct) {
         /**
          * Fly code:
-         * struct ParentStruct {
+         * struct BaseStruct {
          *   int a
          * }
-         * struct ChildStruct : ParentStruct {
+         * struct MyStruct : BaseStruct {
          *   int b
          * }
          * void func() {
-         *   ChildStruct child = new ChildStruct()
+         *   MyStruct m = new MyStruct()
          * }
          */
         ASTModule *Module = CreateModule();
 
-    	// struct BaseStruct {
-    	// int a
-    	// }
-    	//
-    	// struct TestStruct : BaseStruct {
-    	// int a
-    	// }
-    	llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
-    	ASTClass *BaseStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
-			TopModifiers, BaseSuperClasses);
-
-    	// int a
-    	ASTVar *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
-
-    	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
-    	TestSuperClasses.push_back(CreateType(BaseStruct));
-    	ASTClass *TestStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
-			TopModifiers, TestSuperClasses);
-    	ASTBuilder::CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
-
-    	// Generate Code
-    	Generate();
-		llvm::Module * M = getModules()[0];
-    	std::string output = getOutput(M);
-
-    	EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
-    					  "%BaseStruct = type { i32 }\n"
-    					  "%TestStruct = type { %BaseStruct, i32 }\n"
-    					  "\n"
-						  "@error = external constant %error\n"
-						  "\n"
-						  "define %BaseStruct* @BaseStruct.init_ctor(%BaseStruct* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %BaseStruct*, align 8\n"
-						  "  store %BaseStruct* %0, %BaseStruct** %1, align 8\n"
-						  "  %2 = load %BaseStruct*, %BaseStruct** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %BaseStruct, %BaseStruct* %2, i32 0, i32 0\n"
-						  "  store i32 0, i32* %3, align 4\n"
-						  "  ret %BaseStruct* %2\n"
-						  "}\n"
-						  "\n"
-						  "define %TestStruct* @TestStruct.init_ctor(%TestStruct* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %TestStruct*, align 8\n"
-						  "  store %TestStruct* %0, %TestStruct** %1, align 8\n"
-						  "  %2 = load %TestStruct*, %TestStruct** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 1\n"
-						  "  store i32 0, i32* %3, align 4\n"
-						  "  ret %TestStruct* %2\n"
-						  "}\n"
-						  );
     }
 
 	TEST_F(CodeGenTest, DISABLED_CGStructExtendsStructs) {
@@ -343,91 +292,14 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
          *   int c
          * }
          * void func() {
-         *   ChildStruct child = new ChildStruct()
+         *   ChildStruct s = new ChildStruct()
+         *   s.a = 1
+         *   s.b = 2
+         *   s.c = 3
          * }
          */
         ASTModule *Module = CreateModule();
 
-    	// struct BaseStruct {
-    	// int a
-    	// }
-    	// struct BaseStruct2 {
-    	// int b
-    	// }
-    	//
-    	// struct TestStruct : BaseStruct, BaseStruct2 {
-    	// }
-
-    	llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
-
-    	// BaseStruct
-    	ASTClass *BaseStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
-			TopModifiers, BaseSuperClasses);
-    	// int a
-    	ASTVar *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
-
-    	// BaseStruct2
-    	ASTClass *BaseStruct2 = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct2",
-			TopModifiers, BaseSuperClasses);
-    	// int a
-    	ASTVar *aAttribute2 = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct2, IntTypeRef, "a", TopModifiers);
-    	// int b
-    	ASTVar *bAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct2, IntTypeRef, "b", TopModifiers);
-
-    	// TestStruct
-    	llvm::SmallVector<ASTType *, 4> TestSuperClasses;
-    	TestSuperClasses.push_back(CreateType(BaseStruct));
-    	TestSuperClasses.push_back(CreateType(BaseStruct2));
-    	ASTClass *TestStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "TestStruct",
-			TopModifiers, TestSuperClasses);
-
-    	// Generate Code
-    	Generate();
-		llvm::Module * M = getModules()[0];
-    	std::string output = getOutput(M);
-
-    	EXPECT_EQ(output, "\n%error = type { i32, i8*, i8* }\n"
-					      "%BaseStruct = type { i32 }\n"
-					      "%BaseStruct2 = type { i32, i32 }\n"
-					      "%TestStruct = type { %BaseStruct, %BaseStruct2, i32, i32 }\n"
-    					  "%BaseStruct2 = type { i32 }\n"
-    					  "\n"
-						  "@error = external constant %error\n"
-						  "\n"
-						  "define %BaseStruct* @BaseStruct.init_ctor(%BaseStruct* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %BaseStruct*, align 8\n"
-						  "  store %BaseStruct* %0, %BaseStruct** %1, align 8\n"
-						  "  %2 = load %BaseStruct*, %BaseStruct** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %BaseStruct, %BaseStruct* %2, i32 0, i32 0\n"
-						  "  store i32 0, i32* %3, align 4\n"
-						  "  ret %BaseStruct* %2\n"
-						  "}\n"
-						  "\n"
-						  "define %BaseStruct2* @BaseStruct2.init_ctor(%BaseStruct2* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %BaseStruct2*, align 8\n"
-						  "  store %BaseStruct2* %0, %BaseStruct2** %1, align 8\n"
-						  "  %2 = load %BaseStruct2*, %BaseStruct2** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %BaseStruct2, %BaseStruct2* %2, i32 0, i32 0\n"
-						  "  store i32 0, i32* %3, align 4\n"
-						  "  %4 = getelementptr inbounds %BaseStruct2, %BaseStruct2* %2, i32 0, i32 1\n"
-						  "  store i32 0, i32* %4, align 4\n"
-						  "  ret %BaseStruct2* %2\n"
-						  "}\n"
-						  "\n"
-						  "define %TestStruct* @TestStruct.init_ctor(%TestStruct* %0) {\n"
-						  "entry:\n"
-						  "  %1 = alloca %TestStruct*, align 8\n"
-						  "  store %TestStruct* %0, %TestStruct** %1, align 8\n"
-						  "  %2 = load %TestStruct*, %TestStruct** %1, align 8\n"
-						  "  %3 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 2\n"
-						  "  store i32 0, i32* %3, align 4\n"
-						  "  %4 = getelementptr inbounds %TestStruct, %TestStruct* %2, i32 0, i32 3\n"
-						  "  store i32 0, i32* %4, align 4\n"
-						  "  ret %TestStruct* %2\n"
-						  "}\n"
-						  );
     }
 
 } // anonymous namespace

@@ -55,6 +55,10 @@ bool SemaClassMethod::isStatic() const {
 	return Static;
 }
 
+bool SemaClassMethod::isFinal() const {
+	return Final;
+}
+
 SemaClassMethod * SemaClassMethod::getOverridden() const {
     return Overridden;
 }

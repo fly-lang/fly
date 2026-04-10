@@ -31,6 +31,12 @@ SemaBuilderModifiers * SemaBuilderModifiers::Build(llvm::SmallVector<ASTModifier
 			case ASTModifierKind::MOD_PROTECTED:
 				Instance->Visibility = SemaVisibilityKind::PROTECTED;
 				break;
+			case ASTModifierKind::MOD_ABSTRACT:
+				Instance->Abstract = true;
+				break;
+			case ASTModifierKind::MOD_FINAL:
+				Instance->Final = true;
+				break;
 		}
 	}
 	return Instance;
@@ -46,4 +52,12 @@ bool SemaBuilderModifiers::isConstant() {
 
 bool SemaBuilderModifiers::isStatic() {
 	return Static;
+}
+
+bool SemaBuilderModifiers::isAbstract() {
+	return Abstract;
+}
+
+bool SemaBuilderModifiers::isFinal() {
+	return Final;
 }

@@ -85,6 +85,14 @@ bool SemaClassType::isConstant() const {
 	return Constant;
 }
 
+bool SemaClassType::isAbstract() const {
+	return Abstract;
+}
+
+bool SemaClassType::isFinal() const {
+	return Final;
+}
+
 SemaClassKind SemaClassType::getClassKind() const {
 	return ClassKind;
 }
@@ -163,6 +171,11 @@ void SemaClassType::addAttribute(SemaClassAttribute *Attribute) {
 
 void SemaClassType::addMethod(SemaClassMethod *Method) {
 	Nodes.emplace_back(Method);
+	if (Method->isConstructor()) {
+		Constructors.insert({Method->getName(), Method});
+	} else {
+		Methods.insert({Method->getName(), Method});
+	}
 }
 
 bool SemaClassType::isDerivedOrEquals(SemaClassType *BaseClassType) const {

@@ -110,23 +110,20 @@ SemaClassType * SemaBuilder::CreateClass(SemaModule &Module, SymbolTable *Symbol
 	Class->Symbols = Symbols;
 
 	// Create the 'this' attribute for the current class
-	Class->This = CreateThisInstance(*Class);
+	Class->This = new SemaClassInstance(Class);
 
 	// Set Modifiers
 	SemaBuilderModifiers *BuilderModifiers = SemaBuilderModifiers::Build(AST.getModifiers());
 	Class->Constant = BuilderModifiers->isConstant();
 	Class->Visibility = BuilderModifiers->getVisibility();
+	Class->Abstract = BuilderModifiers->isAbstract();
+	Class->Final = BuilderModifiers->isFinal();
 
 	// Add to Module
 	Module.addNode(Class);
 
 	FLY_DEBUG_END("SemaBuilder", "CreateClass");
 	return Class;
-}
-
-SemaClassInstance *SemaBuilder::CreateThisInstance(SemaClassType &Class) {
-	// Create the 'this' attribute for the current class
-	return new SemaClassInstance(&Class);
 }
 
 SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType &Class, ASTAttribute &AST, SemaType *Type) {
@@ -160,19 +157,28 @@ SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTMethod
 	FLY_DEBUG_START("SemaBuilder", "CreateClassFunction");
 	SemaClassMethod *Method;
 
+	// Set Modifiers first so we can use them for method kind determination
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
+
 	// When the Class Name is Equals to the Function Name this is a Constructor
 	if (AST.getName() == Class->getName()) {
 		Method = new SemaClassMethod(AST, Class, Class->getThis(), SemaClassMethodKind::METHOD_CONSTRUCTOR, Scope);
 	} else {
-		SemaClassMethodKind MethodKind = Class->getClassKind() == SemaClassKind::INTERFACE ?
-			                 SemaClassMethodKind::METHOD_ABSTRACT : SemaClassMethodKind::METHOD;
+		SemaClassMethodKind MethodKind;
+		bool hasBody = AST.getBody() != nullptr;
+		if (Class->getClassKind() == SemaClassKind::INTERFACE) {
+			// Interface: method with body = default impl (METHOD), without body = abstract (METHOD_ABSTRACT)
+			MethodKind = hasBody ? SemaClassMethodKind::METHOD : SemaClassMethodKind::METHOD_ABSTRACT;
+		} else {
+			// Class/Struct: explicit abstract keyword and no body = METHOD_ABSTRACT, otherwise METHOD
+			MethodKind = (Builder->isAbstract() && !hasBody) ? SemaClassMethodKind::METHOD_ABSTRACT : SemaClassMethodKind::METHOD;
+		}
 		Method = new SemaClassMethod(AST, Class, Class->getThis(), MethodKind, Scope);
 	}
 
-	// Set Modifiers
-	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
 	Method->Visibility = Builder->getVisibility();
 	Method->Static = Builder->isStatic();
+	Method->Final = Builder->isFinal();
 
 	FLY_DEBUG_END("SemaBuilder", "CreateClassFunction");
 	return Method;

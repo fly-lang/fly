@@ -19,7 +19,9 @@ namespace fly {
         MOD_STATIC,
         MOD_PUBLIC,
         MOD_PRIVATE,
-        MOD_PROTECTED
+        MOD_PROTECTED,
+        MOD_ABSTRACT,
+        MOD_FINAL
     };
 
     class ASTModifier : public ASTBase {

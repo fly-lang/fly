@@ -169,6 +169,21 @@ DIAG(err_sema_duplicate_arg, CLASS_ERROR, (unsigned)diag::Severity::Error, "dupl
 DIAG(err_sema_unknown_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "unknown type '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_multiple_definition, CLASS_ERROR, (unsigned)diag::Severity::Error, "multiple definition of symbol '%0'", 0, SFINAE_Suppress, false, true, 0)
 
+// Inheritance
+DIAG(err_sema_abstract_class_instantiation, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot instantiate abstract class '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_final_class_subclassed, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot extend final class '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_final_method_overridden, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot override final method '%0' from '%1'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_abstract_method_not_implemented, CLASS_ERROR, (unsigned)diag::Severity::Error, "class '%0' must implement abstract method '%1' inherited from '%2'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_abstract_method_requires_abstract_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "class '%0' has abstract method '%1' but is not declared abstract", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_abstract_method_has_body, CLASS_ERROR, (unsigned)diag::Severity::Error, "abstract method '%0' cannot have a body", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_abstract_final_conflict, CLASS_ERROR, (unsigned)diag::Severity::Error, "'abstract' and 'final' cannot be combined on '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_class_extends_interface, CLASS_ERROR, (unsigned)diag::Severity::Error, "class '%0' cannot extend interface '%1'; use implements syntax", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_interface_extends_class, CLASS_ERROR, (unsigned)diag::Severity::Error, "interface '%0' cannot extend class '%1'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_multiple_class_bases, CLASS_ERROR, (unsigned)diag::Severity::Error, "class '%0' cannot extend more than one class", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_diamond_ambiguity, CLASS_ERROR, (unsigned)diag::Severity::Error, "ambiguous method '%0': inherited with conflicting default implementations from '%1' and '%2'; '%3' must override it", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_struct_extends_non_struct, CLASS_ERROR, (unsigned)diag::Severity::Error, "struct '%0' can only extend another struct, not '%1'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_interface_not_implemented, CLASS_ERROR, (unsigned)diag::Severity::Error, "class '%0' does not implement method '%1' from interface '%2'", 0, SFINAE_Suppress, false, true, 0)
+
 // CodeGen
 DIAG(err_codegen_invalid_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "codegen: invalid or null type encountered", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_codegen_unref_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unreferenced type", 0, SFINAE_Suppress, false, true, 0)

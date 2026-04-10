@@ -249,6 +249,10 @@ SmallVector<ASTModifier *, 8> Parser::ParseModifiers() {
             Modifiers.push_back(ASTBuilder::CreateModifier(Tok.getLocation(), ASTModifierKind::MOD_CONSTANT));
         } else if (Tok.is(tok::kw_static)) {
             Modifiers.push_back(ASTBuilder::CreateModifier(Tok.getLocation(), ASTModifierKind::MOD_STATIC));
+        } else if (Tok.is(tok::kw_abstract)) {
+            Modifiers.push_back(ASTBuilder::CreateModifier(Tok.getLocation(), ASTModifierKind::MOD_ABSTRACT));
+        } else if (Tok.is(tok::kw_final)) {
+            Modifiers.push_back(ASTBuilder::CreateModifier(Tok.getLocation(), ASTModifierKind::MOD_FINAL));
         } else {
             break;
         }

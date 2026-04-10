@@ -198,6 +198,13 @@ namespace fly {
 
         void ResolveBaseClasses(SemaClassType *DerivedClass);
 
+        void CheckAbstractMethodsImplemented(SemaClassType *ClassType);
+
+        void CheckDiamondAmbiguity(SemaClassType *ClassType);
+
+        void CollectInterfaceDefaultMethods(SemaClassType *Interface,
+                                            llvm::StringMap<llvm::SmallVector<SemaClassType *, 2>> &MethodSources);
+
         // bool CanInheritMethod(SemaClassMethod *Method);
         //
         // bool CanInheritAttribute(SemaClassAttribute *Attribute);

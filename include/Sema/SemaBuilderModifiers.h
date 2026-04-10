@@ -28,6 +28,10 @@ namespace fly {
 
         bool Static = false;
 
+        bool Abstract = false;
+
+        bool Final = false;
+
     public:
 
         static SemaBuilderModifiers *Build(llvm::SmallVector<ASTModifier *, 8> Modifiers);
@@ -37,6 +41,10 @@ namespace fly {
         bool isConstant();
 
         bool isStatic();
+
+        bool isAbstract();
+
+        bool isFinal();
 
     };
 }

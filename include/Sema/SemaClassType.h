@@ -58,7 +58,16 @@ namespace fly {
         SemaVisibilityKind Visibility;
 
         // Class is Constant (cannot be redefined)
-        bool Constant;
+        bool Constant = false;
+
+        // Class is Abstract (cannot be instantiated; has at least one abstract method)
+        bool Abstract = false;
+
+        // Class is Final (cannot be subclassed)
+        bool Final = false;
+
+        // Tracks whether this class has already been resolved (guards against double-resolution)
+        bool Resolved = false;
 
         // Class Kind
         SemaClassKind ClassKind;
@@ -107,6 +116,10 @@ namespace fly {
         SemaVisibilityKind getVisibility() const;
 
         bool isConstant() const;
+
+        bool isAbstract() const;
+
+        bool isFinal() const;
 
         SemaClassKind getClassKind() const;
 

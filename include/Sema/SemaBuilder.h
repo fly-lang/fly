@@ -107,8 +107,6 @@ namespace fly {
 
     	static SemaClassType *CreateClass(SemaModule &Module, SymbolTable *Symbols, ASTClass &AST);
 
-    	static SemaClassInstance *CreateThisInstance(SemaClassType &Class);
-
     	static SemaClassAttribute *CreateClassAttribute(SemaClassType &Class, ASTAttribute &AST, SemaType *Type);
 
     	static SemaClassMethod *CreateDefaultConstructor(SemaClassType *Class, SymbolTable* Scope);
