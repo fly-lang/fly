@@ -235,9 +235,10 @@ void Resolver::visit(ASTClass &AST) {
 void Resolver::visit(ASTAttribute &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTAttribute)");
 
-	// Find Var duplication
-	SemaClassAttribute *ExistingAttr = CurrentClass->LookupAttribute(AST.getName());
-	if (ExistingAttr) {
+	// Find Var duplication — only check the current class's own attributes,
+	// not inherited ones, so that a derived class can shadow a base field.
+	auto ExistingIt = CurrentClass->getAttributes().find(AST.getName());
+	if (ExistingIt != CurrentClass->getAttributes().end()) {
 		Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
 		FLY_DEBUG_END("Resolver", "visit(ASTAttribute)");
 		return;
@@ -1078,7 +1079,20 @@ void Resolver::visit(ASTMember &AST) {
 
 		if (ParentSymbol->getKind() == SymbolKind::CLASS) {
 			SemaClassType *ParentSema = static_cast<SemaClassType *>(ParentSymbol->getRef());
-			Sema = ResolveMemberSymbol(AST, ParentSema->getSymbols(), SemaKind::ATTRIBUTE);
+
+			// Feature 5b: BaseClass.field inside a derived class instance method →
+			// resolve as an instance access through 'this', navigating to the embedded base.
+			if (CurrentClass && CurrentClass->isDerived(ParentSema) &&
+			    CurrentFunction && CurrentFunction->getKind() == SemaKind::METHOD &&
+			    !static_cast<SemaClassMethod *>(CurrentFunction)->isStatic()) {
+				SemaClassInstance *ThisVar = static_cast<SemaClassMethod *>(CurrentFunction)->getThis();
+				Sema = ResolveMemberSymbol(AST, ParentSema->getSymbols(), SemaKind::ATTRIBUTE, ThisVar);
+			}
+
+			if (!Sema) {
+				// Static class attribute access
+				Sema = ResolveMemberSymbol(AST, ParentSema->getSymbols(), SemaKind::ATTRIBUTE);
+			}
 			if (!Sema) return;
 		} else if (ParentSymbol->getKind() == SymbolKind::ENUM) {
 			SemaEnumType *ParentSema = static_cast<SemaEnumType *>(ParentSymbol->getRef());
@@ -1094,7 +1108,15 @@ void Resolver::visit(ASTMember &AST) {
 
 			if (ParentVar->getType()->isClass()) {
 				SemaClassType * ClassType = static_cast<SemaClassType *>(ParentVar->getType());
-				Sema = ResolveMemberSymbol(AST, ClassType->getSymbols(), SemaKind::ATTRIBUTE, ParentVar);
+				// Use LookupAttribute to traverse the inheritance hierarchy so that
+				// fields inherited from base classes are found even though they live
+				// in the base class's symbol table rather than the derived class's.
+				SemaClassAttribute *Attr = ClassType->LookupAttribute(AST.getName());
+				if (!Attr) {
+					Diag(AST.getLocation(), diag::err_sema_unresolved_identifier) << AST.getName();
+					return;
+				}
+				Sema = ResolveMemberSymbol(AST, Attr->getClass().getSymbols(), SemaKind::ATTRIBUTE, ParentVar);
 				if (!Sema) return;
 			} else if (ParentVar->getType()->isEnum()) {
 				SemaEnumType * EnumType = static_cast<SemaEnumType *>(ParentVar->getType());
@@ -1572,6 +1594,7 @@ void Resolver::Resolve() {
 	// Resolve Functions/Methods Bodies
 	for (auto FunctionBase : Reg.getBodies()) {
 		CurrentFunction = FunctionBase;
+		CurrentClass = nullptr;
 
 		// Function/Method Scope
 		CurrentScope = FunctionBase->getSymbols();
@@ -1579,6 +1602,7 @@ void Resolver::Resolve() {
 		// For non-static class methods, add 'this' to the method scope so the body can reference it
 		if (FunctionBase->getKind() == SemaKind::METHOD) {
 			SemaClassMethod *Method = static_cast<SemaClassMethod *>(FunctionBase);
+			CurrentClass = Method->getClass(); // track owning class for feature 5b
 			if (!Method->isStatic()) {
 				Symbol *ThisSym = new Symbol(std::string("this"), SymbolKind::VAR, Method->getThis());
 				CurrentScope->insert(ThisSym);

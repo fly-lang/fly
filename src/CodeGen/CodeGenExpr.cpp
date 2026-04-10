@@ -330,20 +330,50 @@ SemaExpr *Ref = Sema->getRef();
 
 		// Non-static: Generate Parent and create GEP into the struct instance.
 		Sema->getParent()->accept(*CGM);
-		llvm::Value *ParentPtr = Sema->getParent()->getCodeGen()->getValue();
+		llvm::Value *InstancePtr = Sema->getParent()->getCodeGen()->getValue();
 
 		Sema->getType()->accept(*CGM);
 		llvm::Type *Ty = Sema->getType()->getCodeGen()->getType();
 		size_t Index = Attr->getCodeGen()->getIndex();
 
+		// Feature 5b: if the attribute belongs to a base class but the parent
+		// is typed as the derived class, navigate through the embedded base subobject first.
+		SemaClassType &AttrClass = Attr->getClass();
+		SemaType *ParentType = Sema->getParent()->getType();
+		if (ParentType && ParentType->isClass()) {
+			SemaClassType *ParentClass = static_cast<SemaClassType *>(ParentType);
+			if (ParentClass != &AttrClass) {
+				// Find the index of AttrClass in ParentClass's base list
+				auto &Bases = ParentClass->getBaseClasses();
+				int BaseIdx = -1;
+				for (int i = 0; i < (int)Bases.size(); ++i) {
+					if (Bases[i] == &AttrClass) {
+						BaseIdx = i;
+						break;
+					}
+				}
+				if (BaseIdx >= 0) {
+					// Compute the struct field index of the embedded base subobject.
+					// CLASS/INTERFACE: field 0 is the vtable pointer, bases start at 1.
+					// STRUCT: no vtable, bases start at 0.
+					int SubobjIdx = (ParentClass->getClassKind() == SemaClassKind::STRUCT)
+					                    ? BaseIdx
+					                    : (1 + BaseIdx);
+					llvm::StructType *DerivedStructTy = ParentClass->getCodeGen()->getType();
+					InstancePtr = Builder->CreateInBoundsGEP(
+					    DerivedStructTy, InstancePtr,
+					    {CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, SubobjIdx)});
+				}
+			}
+		}
+
 		// Create GEP to get pointer to the specific field in the struct
-		SemaClassType &ClassType = Attr->getClass();
-		ClassType.getCodeGen()->getType(); // ensure class CodeGen type is created
-		llvm::StructType *StructTy = ClassType.getCodeGen()->getType();
+		AttrClass.getCodeGen()->getType(); // ensure class CodeGen type is created
+		llvm::StructType *StructTy = AttrClass.getCodeGen()->getType();
 		llvm::ArrayRef<llvm::Value *> IdxList = {
 			CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Index)
 		};
-		llvm::Value *FieldPtr = Builder->CreateInBoundsGEP(StructTy, ParentPtr, IdxList);
+		llvm::Value *FieldPtr = Builder->CreateInBoundsGEP(StructTy, InstancePtr, IdxList);
 
 		CodeGenVar *CGV = new CodeGenVar(CGM, Attr, Ty, Index);
 		CGV->setPointer(FieldPtr);

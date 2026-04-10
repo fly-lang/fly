@@ -797,6 +797,114 @@ namespace {
 					      );
     }
 
+	TEST_F(CodeGenTest, CGClassBaseFieldAccess) {
+        /**
+         * Fly code (feature 5b: BaseClass.field from derived method):
+         * class BaseClass {
+         *   int b
+         * }
+         * class TestClass : BaseClass {
+         *   void setBase() {
+         *     BaseClass.b = 5
+         *   }
+         * }
+         */
+        ASTModule *Module = CreateModule();
+
+        // BaseClass { int b }
+        llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
+        ASTClass *BaseClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "BaseClass",
+                                                      TopModifiers, BaseSuperClasses);
+        ASTAttribute *bAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseClass, IntTypeRef, "b", TopModifiers);
+
+        // TestClass : BaseClass { void setBase() { BaseClass.b = 5 } }
+        llvm::SmallVector<ASTType *, 4> TestSuperClasses;
+        TestSuperClasses.push_back(CreateType(BaseClass));
+        ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+                                                       TopModifiers, TestSuperClasses);
+
+        // void setBase() { BaseClass.b = 5 }
+        ASTBlockStmt *SetBaseBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *setBaseMethod = ASTBuilder::CreateClassMethod(SourceLoc, TestClass, "setBase",
+                                                                    TopModifiers, Params, SetBaseBody);
+        // BaseClass.b = 5   (feature 5b: access base field via class name)
+        ASTMember *baseb = ASTBuilder::CreateMember(SourceLoc, bAttribute->getName(),
+                                                    ASTBuilder::CreateIdentifier(SourceLoc, "BaseClass"));
+        ASTExprStmt *setBaseStmt = ASTBuilder::CreateExprStmt(SetBaseBody, SourceLoc);
+        ASTValue *value5 = ASTBuilder::CreateNumberValue(SourceLoc, "5");
+        ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, baseb, value5);
+        setBaseStmt->setExpr(AssignExpr);
+
+        // Generate Code
+        Generate();
+        llvm::Module *M = getModules()[0];
+        std::string output = getOutput(M);
+
+        EXPECT_EQ(output, "\n"
+                        "%error = type { i32, ptr, ptr }\n"
+                        "%BaseClass = type { ptr, i32 }\n"
+                        "%TestClass = type { ptr, %BaseClass }\n"
+                        "\n"
+                        "@error = external constant %error\n"
+                        "@vtable.BaseClass = constant [2 x ptr] [ptr null, ptr @BaseClass_F9BaseClass]\n"
+                        "@vtable.TestClass = constant [3 x ptr] [ptr null, ptr @TestClass_F7setBase, ptr @TestClass_F9TestClass]\n"
+                        "\n"
+                        "define ptr @BaseClass.init_ctor(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  %2 = load ptr, ptr %1, align 8\n"
+                        "  %3 = getelementptr inbounds %BaseClass, ptr %2, i32 0, i32 0\n"
+                        "  store ptr @vtable.BaseClass, ptr %3, align 8\n"
+                        "  %4 = getelementptr inbounds %BaseClass, ptr %2, i32 0, i32 1\n"
+                        "  store i32 0, ptr %4, align 4\n"
+                        "  ret ptr %2\n"
+                        "}\n"
+                        "\n"
+                        "define void @BaseClass_F9BaseClass(ptr %0, ptr %1) {\n"
+                        "entry:\n"
+                        "  %2 = alloca ptr, align 8\n"
+                        "  %3 = alloca ptr, align 8\n"
+                        "  store ptr %0, ptr %2, align 8\n"
+                        "  store ptr %1, ptr %3, align 8\n"
+                        "  ret void\n"
+                        "}\n"
+                        "\n"
+                        "define ptr @TestClass.init_ctor(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  %2 = load ptr, ptr %1, align 8\n"
+                        "  %3 = getelementptr inbounds %TestClass, ptr %2, i32 0, i32 0\n"
+                        "  store ptr @vtable.TestClass, ptr %3, align 8\n"
+                        "  %4 = getelementptr inbounds %TestClass, ptr %2, i32 0, i32 1\n"
+                        "  %5 = call ptr @BaseClass.init_ctor(ptr %4)\n"
+                        "  ret ptr %2\n"
+                        "}\n"
+                        "\n"
+                        "define void @TestClass_F7setBase(ptr %0, ptr %1) {\n"
+                        "entry:\n"
+                        "  %2 = alloca ptr, align 8\n"
+                        "  %3 = alloca ptr, align 8\n"
+                        "  store ptr %0, ptr %2, align 8\n"
+                        "  store ptr %1, ptr %3, align 8\n"
+                        "  %4 = load %TestClass, ptr %3, align 8\n"
+                        // Feature 5b: two-level GEP — first to embedded BaseClass (index 1), then to field b (index 1)
+                        "  %5 = getelementptr inbounds %TestClass, %TestClass %4, i32 0, i32 1\n"
+                        "  %6 = getelementptr inbounds %BaseClass, %TestClass %5, i32 0, i32 1\n"
+                        "  store i32 5, %TestClass %6, align 4\n"
+                        "  ret void\n"
+                        "}\n"
+                        "\n"
+                        "define void @TestClass_F9TestClass(ptr %0, ptr %1) {\n"
+                        "entry:\n"
+                        "  %2 = alloca ptr, align 8\n"
+                        "  %3 = alloca ptr, align 8\n"
+                        "  store ptr %0, ptr %2, align 8\n"
+                        "  store ptr %1, ptr %3, align 8\n"
+                        "  ret void\n"
+                        "}\n");
+    }
 
 	TEST_F(CodeGenTest, DISABLED_CGClassExtendsStruct) {
 		/**
@@ -860,4 +968,5 @@ namespace {
         ASTModule *Module = CreateModule();
 
     }
+
 } // anonymous namespace

@@ -262,7 +262,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
     }
 
 
-	TEST_F(CodeGenTest, DISABLED_CGStructExtendsStruct) {
+	TEST_F(CodeGenTest, CGStructExtendsStruct) {
         /**
          * Fly code:
          * struct BaseStruct {
@@ -273,33 +273,231 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
          * }
          * void func() {
          *   MyStruct m = new MyStruct()
+         *   m.a = 1
+         *   m.b = 2
          * }
          */
         ASTModule *Module = CreateModule();
 
+        // struct BaseStruct { int a }
+        llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
+        ASTClass *BaseStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
+                                                       TopModifiers, BaseSuperClasses);
+        ASTAttribute *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
+
+        // struct MyStruct : BaseStruct { int b }
+        llvm::SmallVector<ASTType *, 4> MySuperClasses;
+        MySuperClasses.push_back(CreateType(BaseStruct));
+        ASTClass *MyStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "MyStruct",
+                                                     TopModifiers, MySuperClasses);
+        ASTAttribute *bAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, MyStruct, IntTypeRef, "b", TopModifiers);
+
+        // void func() {
+        //   MyStruct m = new MyStruct()
+        //   m.a = 1
+        //   m.b = 2
+        // }
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
+
+        // MyStruct m = new MyStruct()
+        ASTType *MyStructType = CreateType(MyStruct);
+        ASTLocalVar *mVar = ASTBuilder::CreateLocalVar(SourceLoc, MyStructType, "m", EmptyModifiers);
+        ASTDeclStmt *mDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, mVar);
+        ASTIdentifier *mIdent = ASTBuilder::CreateIdentifier(mVar);
+        ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, MyStruct->getName(), Args, ASTCallKind::CALL_NEW);
+        ASTBinary *AssignNew = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, mIdent, ConstructorCall);
+        mDeclStmt->setExpr(AssignNew);
+
+        // m.a = 1  (inherited from BaseStruct)
+        ASTMember *m_a = ASTBuilder::CreateMember(SourceLoc, aAttribute->getName(), ASTBuilder::CreateIdentifier(mVar));
+        ASTExprStmt *aStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
+        ASTValue *value1 = ASTBuilder::CreateNumberValue(SourceLoc, "1");
+        ASTBinary *AssignA = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, m_a, value1);
+        aStmt->setExpr(AssignA);
+
+        // m.b = 2  (own field of MyStruct)
+        ASTMember *m_b = ASTBuilder::CreateMember(SourceLoc, bAttribute->getName(), ASTBuilder::CreateIdentifier(mVar));
+        ASTExprStmt *bStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
+        ASTValue *value2 = ASTBuilder::CreateNumberValue(SourceLoc, "2");
+        ASTBinary *AssignB = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, m_b, value2);
+        bStmt->setExpr(AssignB);
+
+        // Generate Code
+        Generate();
+        llvm::Module *M = getModules()[0];
+        std::string output = getOutput(M);
+
+        EXPECT_EQ(output, "\n"
+                        "%error = type { i32, ptr, ptr }\n"
+                        "%BaseStruct = type { i32 }\n"
+                        "%MyStruct = type { %BaseStruct, i32 }\n"
+                        "\n"
+                        "@error = external constant %error\n"
+                        "\n"
+                        "define ptr @BaseStruct.init_ctor(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  %2 = load ptr, ptr %1, align 8\n"
+                        "  %3 = getelementptr inbounds %BaseStruct, ptr %2, i32 0, i32 0\n"
+                        "  store i32 0, ptr %3, align 4\n"
+                        "  ret ptr %2\n"
+                        "}\n"
+                        "\n"
+                        "define ptr @MyStruct.init_ctor(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  %2 = load ptr, ptr %1, align 8\n"
+                        "  %3 = getelementptr inbounds %MyStruct, ptr %2, i32 0, i32 1\n"
+                        "  store i32 0, ptr %3, align 4\n"
+                        "  ret ptr %2\n"
+                        "}\n"
+                        "\n"
+                        "define void @_F4func(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  %2 = alloca ptr, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  %3 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%MyStruct, ptr null, i32 1) to i64))\n"
+                        "  %4 = call ptr @MyStruct.init_ctor(ptr %3)\n"
+                        "  store ptr %4, ptr %2, align 8\n"
+                        "  %5 = load %MyStruct, ptr %2, align 4\n"
+                        // m.a = 1: two-level GEP — MyStruct→BaseStruct(index 0)→a(index 0)
+                        "  %6 = getelementptr inbounds %MyStruct, %MyStruct %5, i32 0, i32 0\n"
+                        "  %7 = getelementptr inbounds %BaseStruct, %MyStruct %6, i32 0, i32 0\n"
+                        "  store i32 1, %MyStruct %7, align 4\n"
+                        // m.b = 2: direct GEP — MyStruct→b(index 1)
+                        "  %8 = getelementptr inbounds %MyStruct, %MyStruct %5, i32 0, i32 1\n"
+                        "  store i32 2, %MyStruct %8, align 4\n"
+                        "  ret void\n"
+                        "}\n"
+                        "\n"
+                        "declare ptr @malloc(i64)\n");
     }
 
-	TEST_F(CodeGenTest, DISABLED_CGStructExtendsStructs) {
-        /**
-         * Fly code:
-         * struct BaseStruct {
-         *   int a
-         * }
-         * struct MiddleStruct : BaseStruct {
-         *   int b
-         * }
-         * struct ChildStruct : MiddleStruct {
-         *   int c
-         * }
-         * void func() {
-         *   ChildStruct s = new ChildStruct()
-         *   s.a = 1
-         *   s.b = 2
-         *   s.c = 3
-         * }
-         */
+	TEST_F(CodeGenTest, CGStructExtendsStructHideField) {
+    	/**
+		 * Fly code:
+		 * struct BaseStruct {
+		 *   int a
+		 * }
+		 * struct MyStruct : BaseStruct {
+		 *   int a  // hides BaseStruct.a
+		 * }
+		 * void func() {
+		 *   MyStruct m = new MyStruct()
+		 *   m.a = 1
+		 *   BaseStruct b = new MyStruct()
+		 *   b.a = 2
+		 * }
+		 */
         ASTModule *Module = CreateModule();
 
+        // struct BaseStruct { int a }
+        llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
+        ASTClass *BaseStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
+                                                       TopModifiers, BaseSuperClasses);
+        ASTAttribute *baseA = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
+
+        // struct MyStruct : BaseStruct { int a  // hides BaseStruct.a }
+        llvm::SmallVector<ASTType *, 4> MySuperClasses;
+        MySuperClasses.push_back(CreateType(BaseStruct));
+        ASTClass *MyStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "MyStruct",
+                                                     TopModifiers, MySuperClasses);
+        ASTAttribute *myA = ASTBuilder::CreateClassAttribute(SourceLoc, MyStruct, IntTypeRef, "a", TopModifiers);
+
+        // void func() { ... }
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
+
+        // MyStruct m = new MyStruct()
+        ASTType *MyStructType = CreateType(MyStruct);
+        ASTLocalVar *mVar = ASTBuilder::CreateLocalVar(SourceLoc, MyStructType, "m", EmptyModifiers);
+        ASTDeclStmt *mDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, mVar);
+        ASTIdentifier *mIdent = ASTBuilder::CreateIdentifier(mVar);
+        ASTCall *mCtorCall = ASTBuilder::CreateCall(SourceLoc, MyStruct->getName(), Args, ASTCallKind::CALL_NEW);
+        mDeclStmt->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, mIdent, mCtorCall));
+
+        // m.a = 1  (MyStruct.a — own field, shadows base)
+        ASTMember *m_a = ASTBuilder::CreateMember(SourceLoc, myA->getName(), ASTBuilder::CreateIdentifier(mVar));
+        ASTExprStmt *mAStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
+        mAStmt->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+                                                  m_a, ASTBuilder::CreateNumberValue(SourceLoc, "1")));
+
+        // BaseStruct b = new MyStruct()
+        ASTType *BaseStructType = CreateType(BaseStruct);
+        ASTLocalVar *bVar = ASTBuilder::CreateLocalVar(SourceLoc, BaseStructType, "b", EmptyModifiers);
+        ASTDeclStmt *bDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, bVar);
+        ASTIdentifier *bIdent = ASTBuilder::CreateIdentifier(bVar);
+        ASTCall *bCtorCall = ASTBuilder::CreateCall(SourceLoc, MyStruct->getName(), Args, ASTCallKind::CALL_NEW);
+        bDeclStmt->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, bIdent, bCtorCall));
+
+        // b.a = 2  (BaseStruct.a — base field, accessed via BaseStruct-typed reference)
+        ASTMember *b_a = ASTBuilder::CreateMember(SourceLoc, baseA->getName(), ASTBuilder::CreateIdentifier(bVar));
+        ASTExprStmt *bAStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
+        bAStmt->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+                                                  b_a, ASTBuilder::CreateNumberValue(SourceLoc, "2")));
+
+        // Generate Code
+        Generate();
+        llvm::Module *M = getModules()[0];
+        std::string output = getOutput(M);
+
+        EXPECT_EQ(output, "\n"
+                        "%error = type { i32, ptr, ptr }\n"
+                        "%BaseStruct = type { i32 }\n"
+                        // MyStruct embeds BaseStruct at index 0; own 'a' is at index 1
+                        "%MyStruct = type { %BaseStruct, i32 }\n"
+                        "\n"
+                        "@error = external constant %error\n"
+                        "\n"
+                        "define ptr @BaseStruct.init_ctor(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  %2 = load ptr, ptr %1, align 8\n"
+                        "  %3 = getelementptr inbounds %BaseStruct, ptr %2, i32 0, i32 0\n"
+                        "  store i32 0, ptr %3, align 4\n"
+                        "  ret ptr %2\n"
+                        "}\n"
+                        "\n"
+                        "define ptr @MyStruct.init_ctor(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  %2 = load ptr, ptr %1, align 8\n"
+                        // initializes own 'a' at index 1; embedded BaseStruct.a is at index 0 (not touched here)
+                        "  %3 = getelementptr inbounds %MyStruct, ptr %2, i32 0, i32 1\n"
+                        "  store i32 0, ptr %3, align 4\n"
+                        "  ret ptr %2\n"
+                        "}\n"
+                        "\n"
+                        "define void @_F4func(ptr %0) {\n"
+                        "entry:\n"
+                        "  %1 = alloca ptr, align 8\n"
+                        "  %2 = alloca ptr, align 8\n"
+                        "  %3 = alloca ptr, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  %4 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%MyStruct, ptr null, i32 1) to i64))\n"
+                        "  %5 = call ptr @MyStruct.init_ctor(ptr %4)\n"
+                        "  store ptr %5, ptr %2, align 8\n"
+                        "  %6 = load %MyStruct, ptr %2, align 4\n"
+                        // m.a = 1: direct GEP to MyStruct's own 'a' at index 1 (shadows BaseStruct.a)
+                        "  %7 = getelementptr inbounds %MyStruct, %MyStruct %6, i32 0, i32 1\n"
+                        "  store i32 1, %MyStruct %7, align 4\n"
+                        "  %8 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%MyStruct, ptr null, i32 1) to i64))\n"
+                        "  %9 = call ptr @MyStruct.init_ctor(ptr %8)\n"
+                        "  store ptr %9, ptr %3, align 8\n"
+                        "  %10 = load %BaseStruct, ptr %3, align 4\n"
+                        // b.a = 2: b is BaseStruct-typed → GEP to BaseStruct.a at index 0 (the embedded subobject)
+                        "  %11 = getelementptr inbounds %BaseStruct, %BaseStruct %10, i32 0, i32 0\n"
+                        "  store i32 2, %BaseStruct %11, align 4\n"
+                        "  ret void\n"
+                        "}\n"
+                        "\n"
+                        "declare ptr @malloc(i64)\n");
     }
 
 } // anonymous namespace
