@@ -235,10 +235,18 @@ void Resolver::visit(ASTClass &AST) {
 void Resolver::visit(ASTAttribute &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTAttribute)");
 
-	// Find Var duplication — only check the current class's own attributes,
-	// not inherited ones, so that a derived class can shadow a base field.
-	auto ExistingIt = CurrentClass->getAttributes().find(AST.getName());
-	if (ExistingIt != CurrentClass->getAttributes().end()) {
+	// Forbid redeclaration of inherited fields — two slots with the same name
+	// are never intentional and always cause confusion.
+	SemaClassAttribute *ExistingAttr = CurrentClass->LookupAttribute(AST.getName());
+	if (ExistingAttr) {
+		// Check whether the conflict is with an inherited field or the same class
+		if (&ExistingAttr->getClass() != CurrentClass) {
+			Diag(AST.getLocation(), diag::err_sema_field_hides_inherited)
+				<< AST.getName() << CurrentClass->getName() << ExistingAttr->getClass().getName();
+			FLY_DEBUG_END("Resolver", "visit(ASTAttribute)");
+			return;
+		}
+		// Same class: plain redefinition
 		Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
 		FLY_DEBUG_END("Resolver", "visit(ASTAttribute)");
 		return;

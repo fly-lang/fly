@@ -183,6 +183,7 @@ DIAG(err_sema_multiple_class_bases, CLASS_ERROR, (unsigned)diag::Severity::Error
 DIAG(err_sema_diamond_ambiguity, CLASS_ERROR, (unsigned)diag::Severity::Error, "ambiguous method '%0': inherited with conflicting default implementations from '%1' and '%2'; '%3' must override it", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_struct_extends_non_struct, CLASS_ERROR, (unsigned)diag::Severity::Error, "struct '%0' can only extend another struct, not '%1'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_interface_not_implemented, CLASS_ERROR, (unsigned)diag::Severity::Error, "class '%0' does not implement method '%1' from interface '%2'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_field_hides_inherited, CLASS_ERROR, (unsigned)diag::Severity::Error, "field '%0' in '%1' redeclares inherited field from '%2'; choose a different name", 0, SFINAE_Suppress, false, true, 0)
 
 // CodeGen
 DIAG(err_codegen_invalid_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "codegen: invalid or null type encountered", 0, SFINAE_Suppress, false, true, 0)
