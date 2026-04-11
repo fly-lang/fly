@@ -19,11 +19,13 @@ namespace fly {
     class ASTAttribute;
     class SemaComment;
     class SemaClassType;
+    class SemaExpr;
 	enum class SemaVisibilityKind;
 
     class SemaClassAttribute  : public SemaVar {
 
         friend class SemaBuilder;
+        friend class Resolver;
 
         SemaClassType &Class;
 
@@ -36,6 +38,8 @@ namespace fly {
 		CodeGenVar *CodeGen = nullptr;
 
         SemaComment *Comment = nullptr;
+
+        SemaExpr *InitExpr = nullptr;
 
     protected:
 
@@ -54,6 +58,8 @@ namespace fly {
         bool isStatic() const;
 
         SemaClassType *getInherited() const;
+
+        SemaExpr *getInitExpr() const;
 
         void accept(SemaVisitor& Visitor) override;
 

@@ -270,6 +270,13 @@ void Resolver::visit(ASTAttribute &AST) {
 	// Set Expr or Default Value
 	if (AST.getExpr()) {
 		AST.getExpr()->accept(*this);
+		// Promote the init expr's numeric type to the declared attribute type so that
+		// e.g. "int a = 3" generates i32 3 and not i16 3 (which getBitsNeeded infers).
+		if (CurrentExpr && Type->isNumber() &&
+		    CurrentExpr->getType() && CurrentExpr->getType()->isNumber()) {
+			CurrentExpr->setType(PromoteNumberTypes(Type, CurrentExpr->getType()));
+		}
+		Sema->InitExpr = CurrentExpr;
 	}
 
 	// Create the Symbol and add to Symbol Table

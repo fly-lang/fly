@@ -266,12 +266,17 @@ void CodeGenClass::GenInitConstructorBody() {
 		// the instance struct and must not be initialized here.
 		if (Attr->isStatic()) continue;
 
-		// Set Default init Value for all Attributes
+		// Initialize attribute: use programmer-supplied default if present, else zero.
 		llvm::ArrayRef<llvm::Value *> IdxList = {
 		 	CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Attr->getCodeGen()->getIndex())};
 		llvm::Value *Pointer = CGM->Builder->CreateInBoundsGEP(Type, Load, IdxList);
 		Attr->getCodeGen()->setPointer(Pointer);
-		Attr->getCodeGen()->StoreDefaultValue();
+		if (Attr->getInitExpr()) {
+			Attr->getInitExpr()->accept(*CGM);
+			CGM->Builder->CreateStore(Attr->getInitExpr()->getCodeGen()->getValue(), Pointer);
+		} else {
+			Attr->getCodeGen()->StoreDefaultValue();
+		}
 	}
 
 	CGM->Builder->CreateRet(Load);

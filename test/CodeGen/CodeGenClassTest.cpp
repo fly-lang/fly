@@ -910,7 +910,7 @@ namespace {
 		/**
 		 * Fly code:
 		 * struct BaseStruct {
-		 *   int a
+		 *   int a = 3
 		 * }
 		 * class TestClass : BaseStruct {
 		 *   void do() {
@@ -920,11 +920,12 @@ namespace {
 		 */
 		ASTModule *Module = CreateModule();
 
-		// struct BaseStruct { int a }
+		// struct BaseStruct { int a = 3 }
 		llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
 		ASTClass *BaseStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
 		                                               TopModifiers, BaseSuperClasses);
 		ASTAttribute *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
+		aAttribute->setExpr(ASTBuilder::CreateNumberValue(SourceLoc, "3"));
 
 		// class TestClass : BaseStruct { void do() { this.a = 1 } }
 		llvm::SmallVector<ASTType *, 4> TestSuperClasses;
@@ -962,7 +963,7 @@ namespace {
 		                  "  store ptr %0, ptr %1, align 8\n"
 		                  "  %2 = load ptr, ptr %1, align 8\n"
 		                  "  %3 = getelementptr inbounds %BaseStruct, ptr %2, i32 0, i32 0\n"
-		                  "  store i32 0, ptr %3, align 4\n"
+		                  "  store i32 3, ptr %3, align 4\n"
 		                  "  ret ptr %2\n"
 		                  "}\n"
 		                  "\n"
@@ -1009,10 +1010,10 @@ namespace {
 		 *   int a
 		 * }
 		 * interface BaseInterface {
-		 *   void do()
+		 *   do()
 		 * }
 		 * class TestClass : BaseStruct, BaseInterface {
-		 *   void do() {
+		 *   do() {
 		 *   }
 		 * }
 		 * void func() {

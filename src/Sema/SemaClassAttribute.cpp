@@ -10,6 +10,7 @@
 #include "Sema/SemaClassAttribute.h"
 
 #include "AST/ASTAttribute.h"
+#include "Sema/SemaExpr.h"
 #include "Sema/SemaVisibilityKind.h"
 #include "Sema/SemaVisitor.h"
 
@@ -43,6 +44,10 @@ bool SemaClassAttribute::isStatic() const {
 
 SemaClassType * SemaClassAttribute::getInherited() const {
 	return Inherited;
+}
+
+SemaExpr * SemaClassAttribute::getInitExpr() const {
+	return InitExpr;
 }
 
 void SemaClassAttribute::accept(SemaVisitor &Visitor) {
