@@ -1003,26 +1003,187 @@ namespace {
 		                  "}\n");
 	}
 
-	TEST_F(CodeGenTest, DISABLED_CGClassExtendsInterface) {
+	TEST_F(CodeGenTest, CGClassExtendsInterface) {
 		/**
 		 * Fly code:
-		 * struct BaseStruct {
-		 *   int a
-		 * }
-		 * interface BaseInterface {
-		 *   do()
-		 * }
-		 * class TestClass : BaseStruct, BaseInterface {
-		 *   do() {
-		 *   }
-		 * }
-		 * void func() {
-		 *   TestClass test = new TestClass()
-		 *   delete test
-		 * }
+		 *  interface IFirst {
+		 *		void first()
+		 *  }
+		 *  interface ISecond {
+		 *		void second()
+		 *  }
+		 *  class TestClass : IFirst, ISecond {
+		 *		void first() {}
+		 *		void second() {}
+		 *  }
+		 *  void func() {
+		 *		TestClass t = new TestClass()
+		 *		t.first()
+		 *		t.second()
+		 *		delete t
+		 *  }
 		 */
 		ASTModule *Module = CreateModule();
 
+		// interface IFirst { void first() }
+		llvm::SmallVector<ASTType *, 4> IFirstSuperClasses;
+		ASTClass *IFirst = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE, "IFirst",
+		                                           TopModifiers, IFirstSuperClasses);
+		ASTBlockStmt *IFirstFirstBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+		ASTBuilder::CreateClassMethod(SourceLoc, IFirst, "first", TopModifiers, Params, IFirstFirstBody);
+
+		// interface ISecond { void second() }
+		llvm::SmallVector<ASTType *, 4> ISecondSuperClasses;
+		ASTClass *ISecond = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE, "ISecond",
+		                                            TopModifiers, ISecondSuperClasses);
+		ASTBlockStmt *ISecondSecondBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+		ASTBuilder::CreateClassMethod(SourceLoc, ISecond, "second", TopModifiers, Params, ISecondSecondBody);
+
+		// class TestClass : IFirst, ISecond { void first() {} void second() {} }
+		llvm::SmallVector<ASTType *, 4> TestSuperClasses;
+		TestSuperClasses.push_back(CreateType(IFirst));
+		TestSuperClasses.push_back(CreateType(ISecond));
+		ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+		                                              TopModifiers, TestSuperClasses);
+
+		ASTBlockStmt *FirstBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+		ASTBuilder::CreateClassMethod(SourceLoc, TestClass, "first", TopModifiers, Params, FirstBody);
+
+		ASTBlockStmt *SecondBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+		ASTBuilder::CreateClassMethod(SourceLoc, TestClass, "second", TopModifiers, Params, SecondBody);
+
+		// void func() { TestClass t = new TestClass(); t.first(); t.second(); delete t }
+		ASTBlockStmt *FuncBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+
+		// TestClass t = new TestClass()
+		ASTType *TestClassType = CreateType(TestClass);
+		ASTLocalVar *tVar = ASTBuilder::CreateLocalVar(SourceLoc, TestClassType, "t", EmptyModifiers);
+		ASTDeclStmt *tDeclStmt = ASTBuilder::CreateDeclStmt(FuncBody, SourceLoc, tVar);
+		ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+		ASTIdentifier *tIdent = ASTBuilder::CreateIdentifier(tVar);
+		ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, tIdent, ConstructorCall);
+		tDeclStmt->setExpr(AssignExpr);
+
+		// t.first()
+		llvm::SmallVector<ASTExpr *, 8> firstArgs;
+		ASTCall *firstCall = ASTBuilder::CreateCall(SourceLoc, "first", firstArgs,
+		                                            ASTCallKind::CALL_DIRECT, ASTBuilder::CreateIdentifier(tVar));
+		ASTExprStmt *firstStmt = ASTBuilder::CreateExprStmt(FuncBody, SourceLoc);
+		firstStmt->setExpr(firstCall);
+
+		// t.second()
+		llvm::SmallVector<ASTExpr *, 8> secondArgs;
+		ASTCall *secondCall = ASTBuilder::CreateCall(SourceLoc, "second", secondArgs,
+		                                             ASTCallKind::CALL_DIRECT, ASTBuilder::CreateIdentifier(tVar));
+		ASTExprStmt *secondStmt = ASTBuilder::CreateExprStmt(FuncBody, SourceLoc);
+		secondStmt->setExpr(secondCall);
+
+		// delete t
+		ASTBuilder::CreateDeleteStmt(FuncBody, SourceLoc, ASTBuilder::CreateIdentifier(tVar));
+
+		ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, FuncBody);
+
+		// Generate Code
+		Generate();
+		llvm::Module *M = getModules()[0];
+		std::string output = getOutput(M);
+
+		EXPECT_EQ(output, "\n"
+		                  "%error = type { i32, ptr, ptr }\n"
+		                  "%IFirst = type { ptr }\n"
+		                  "%ISecond = type { ptr }\n"
+		                  "%TestClass = type { ptr, %IFirst, %ISecond }\n"
+		                  "\n"
+		                  "@error = external constant %error\n"
+		                  "@vtable.IFirst = constant [1 x ptr] zeroinitializer\n"
+		                  "@vtable.ISecond = constant [1 x ptr] zeroinitializer\n"
+		                  "@vtable.TestClass = constant [4 x ptr] [ptr null, ptr @TestClass_F5first, ptr @TestClass_F6second, ptr @TestClass_F9TestClass]\n"
+		                  "\n"
+		                  "define ptr @IFirst.init_ctor(ptr %0) {\n"
+		                  "entry:\n"
+		                  "  %1 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %1, align 8\n"
+		                  "  %2 = load ptr, ptr %1, align 8\n"
+		                  "  %3 = getelementptr inbounds %IFirst, ptr %2, i32 0, i32 0\n"
+		                  "  store ptr @vtable.IFirst, ptr %3, align 8\n"
+		                  "  ret ptr %2\n"
+		                  "}\n"
+		                  "\n"
+		                  "define ptr @ISecond.init_ctor(ptr %0) {\n"
+		                  "entry:\n"
+		                  "  %1 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %1, align 8\n"
+		                  "  %2 = load ptr, ptr %1, align 8\n"
+		                  "  %3 = getelementptr inbounds %ISecond, ptr %2, i32 0, i32 0\n"
+		                  "  store ptr @vtable.ISecond, ptr %3, align 8\n"
+		                  "  ret ptr %2\n"
+		                  "}\n"
+		                  "\n"
+		                  "define ptr @TestClass.init_ctor(ptr %0) {\n"
+		                  "entry:\n"
+		                  "  %1 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %1, align 8\n"
+		                  "  %2 = load ptr, ptr %1, align 8\n"
+		                  "  %3 = getelementptr inbounds %TestClass, ptr %2, i32 0, i32 0\n"
+		                  "  store ptr @vtable.TestClass, ptr %3, align 8\n"
+		                  "  ret ptr %2\n"
+		                  "}\n"
+		                  "\n"
+		                  "define void @TestClass_F5first(ptr %0, ptr %1) {\n"
+		                  "entry:\n"
+		                  "  %2 = alloca ptr, align 8\n"
+		                  "  %3 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %2, align 8\n"
+		                  "  store ptr %1, ptr %3, align 8\n"
+		                  "  ret void\n"
+		                  "}\n"
+		                  "\n"
+		                  "define void @TestClass_F6second(ptr %0, ptr %1) {\n"
+		                  "entry:\n"
+		                  "  %2 = alloca ptr, align 8\n"
+		                  "  %3 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %2, align 8\n"
+		                  "  store ptr %1, ptr %3, align 8\n"
+		                  "  ret void\n"
+		                  "}\n"
+		                  "\n"
+		                  "define void @TestClass_F9TestClass(ptr %0, ptr %1) {\n"
+		                  "entry:\n"
+		                  "  %2 = alloca ptr, align 8\n"
+		                  "  %3 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %2, align 8\n"
+		                  "  store ptr %1, ptr %3, align 8\n"
+		                  "  ret void\n"
+		                  "}\n"
+		                  "\n"
+		                  "define void @_F4func(ptr %0) {\n"
+		                  "entry:\n"
+		                  "  %1 = alloca ptr, align 8\n"
+		                  "  %2 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %1, align 8\n"
+		                  "  %3 = load ptr, ptr %1, align 8\n"
+		                  "  %4 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%TestClass, ptr null, i32 1) to i64))\n"
+		                  "  %5 = call ptr @TestClass.init_ctor(ptr %4)\n"
+		                  "  call void @TestClass_F9TestClass(ptr %3, ptr %5)\n"
+		                  "  store ptr %5, ptr %2, align 8\n"
+		                  "  %6 = load %TestClass, ptr %2, align 8\n"
+		                  "  %7 = getelementptr inbounds nuw %TestClass, %TestClass %6, i32 0, i32 0\n"
+		                  "  %8 = load ptr, %TestClass %7, align 8\n"
+		                  "  %9 = getelementptr ptr, ptr %8, i64 1\n"
+		                  "  %10 = load ptr, ptr %9, align 8\n"
+		                  "  call void %10(ptr %3, %TestClass %6)\n"
+		                  "  %11 = getelementptr inbounds nuw %TestClass, %TestClass %6, i32 0, i32 0\n"
+		                  "  %12 = load ptr, %TestClass %11, align 8\n"
+		                  "  %13 = getelementptr ptr, ptr %12, i64 2\n"
+		                  "  %14 = load ptr, ptr %13, align 8\n"
+		                  "  call void %14(ptr %3, %TestClass %6)\n"
+		                  "  call void @free(%TestClass %6)\n"
+		                  "  ret void\n"
+		                  "}\n"
+		                  "\n"
+		                  "declare ptr @malloc(i64)\n"
+		                  "\n"
+		                  "declare void @free(ptr)\n");
 	}
 
 	TEST_F(CodeGenTest, DISABLED_CGClassExtendsStructAndInterface) {
