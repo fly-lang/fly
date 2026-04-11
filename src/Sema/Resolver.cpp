@@ -239,17 +239,24 @@ void Resolver::visit(ASTAttribute &AST) {
 	// are never intentional and always cause confusion.
 	SemaClassAttribute *ExistingAttr = CurrentClass->LookupAttribute(AST.getName());
 	if (ExistingAttr) {
-		// Check whether the conflict is with an inherited field or the same class
 		if (&ExistingAttr->getClass() != CurrentClass) {
-			Diag(AST.getLocation(), diag::err_sema_field_hides_inherited)
-				<< AST.getName() << CurrentClass->getName() << ExistingAttr->getClass().getName();
+			// Inherited field: error only if visibility > private.
+			// A private field is invisible to subclasses so redeclaring it is allowed;
+			// base class methods can still reference the original private field via
+			// their own class's symbol table, while the subclass gets an independent slot.
+			if (ExistingAttr->getVisibility() != SemaVisibilityKind::PRIVATE) {
+				Diag(AST.getLocation(), diag::err_sema_field_hides_inherited)
+					<< AST.getName() << CurrentClass->getName() << ExistingAttr->getClass().getName();
+				FLY_DEBUG_END("Resolver", "visit(ASTAttribute)");
+				return;
+			}
+			// Private inherited field: allow the subclass to declare its own slot.
+		} else {
+			// Same class: plain redefinition.
+			Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
 			FLY_DEBUG_END("Resolver", "visit(ASTAttribute)");
 			return;
 		}
-		// Same class: plain redefinition
-		Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
-		FLY_DEBUG_END("Resolver", "visit(ASTAttribute)");
-		return;
 	}
 
 	// Resolve Type
@@ -1772,8 +1779,8 @@ void Resolver::ResolveBaseClasses(SemaClassType *DerivedClass) {
 			}
 			classBaseCount++;
 		} else {
-			// CLASS: at most one CLASS base, any number of INTERFACE bases
-			if (BaseKind == SemaClassKind::CLASS) {
+			// CLASS: at most one CLASS/STRUCT base, any number of INTERFACE bases
+			if (BaseKind == SemaClassKind::CLASS || BaseKind == SemaClassKind::STRUCT) {
 				classBaseCount++;
 				if (classBaseCount > 1) {
 					Diag(AST->getLocation(), diag::err_sema_multiple_class_bases)
@@ -1781,12 +1788,6 @@ void Resolver::ResolveBaseClasses(SemaClassType *DerivedClass) {
 					FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
 					return;
 				}
-			} else if (BaseKind == SemaClassKind::STRUCT) {
-				// A class cannot extend a struct
-				Diag(AST->getLocation(), diag::err_sema_struct_extends_non_struct)
-					<< DerivedClass->getName() << BaseClass->getName();
-				FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
-				return;
 			}
 			// INTERFACE base for a CLASS is allowed (implements)
 		}

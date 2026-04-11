@@ -245,15 +245,16 @@ void CodeGenClass::GenInitConstructorBody() {
 		llvm::Value * VTableBitCast = CGM->Builder->CreateBitCast(VTable, CodeGen::Int8PtrPtrTy);
 		CGM->Builder->CreateStore(VTableBitCast, VTablePtr);
 
-		// Call InitConstructor of all base classes
+		// Call InitConstructor of all base classes (CLASS and STRUCT)
 		size_t BaseIndex = 1; // Start at 1 because 0 is the vtable pointer
 		for (auto &Base : Sema->getBaseClasses()) {
-			if (Base->getClassKind() == SemaClassKind::CLASS) {
-				llvm::ConstantInt *Index = llvm::ConstantInt::get(CodeGen::Int32Ty, BaseIndex); // Get th index from GlobalVariable of Vtable
+			if (Base->getClassKind() == SemaClassKind::CLASS ||
+			    Base->getClassKind() == SemaClassKind::STRUCT) {
+				llvm::ConstantInt *Index = llvm::ConstantInt::get(CodeGen::Int32Ty, BaseIndex);
 				llvm::Value *BaseInstancePtr = CGM->Builder->CreateInBoundsGEP(Type, Load, {CodeGen::Zero, Index});
 				CGM->Builder->CreateCall(Base->getCodeGen()->getInitConstructor(), {BaseInstancePtr});
 			}
-			BaseIndex ++;
+			BaseIndex++;
 		}
 	}
 

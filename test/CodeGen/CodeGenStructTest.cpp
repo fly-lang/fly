@@ -267,6 +267,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
          * Fly code:
          * struct BaseStruct {
          *   int a
+         *   private int b
          * }
          * struct MyStruct : BaseStruct {
          *   int b
@@ -283,6 +284,9 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
         ASTClass *BaseStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
                                                        TopModifiers, BaseSuperClasses);
+    	llvm::SmallVector<ASTModifier *, 8> PrivateModifiers;
+		PrivateModifiers.push_back(ASTBuilder::CreateModifier(SourceLoc, ASTModifierKind::MOD_PRIVATE));
+    	ASTAttribute *pAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "b", PrivateModifiers);
         ASTAttribute *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
 
         // struct MyStruct : BaseStruct { int b }
@@ -330,7 +334,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
 
         EXPECT_EQ(output, "\n"
                         "%error = type { i32, ptr, ptr }\n"
-                        "%BaseStruct = type { i32 }\n"
+                        "%BaseStruct = type { i32, i32 }\n"
                         "%MyStruct = type { %BaseStruct, i32 }\n"
                         "\n"
                         "@error = external constant %error\n"
@@ -342,6 +346,8 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                         "  %2 = load ptr, ptr %1, align 8\n"
                         "  %3 = getelementptr inbounds %BaseStruct, ptr %2, i32 0, i32 0\n"
                         "  store i32 0, ptr %3, align 4\n"
+                        "  %4 = getelementptr inbounds %BaseStruct, ptr %2, i32 0, i32 1\n"
+                        "  store i32 0, ptr %4, align 4\n"
                         "  ret ptr %2\n"
                         "}\n"
                         "\n"

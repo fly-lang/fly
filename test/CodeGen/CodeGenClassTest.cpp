@@ -906,7 +906,7 @@ namespace {
                         "}\n");
     }
 
-	TEST_F(CodeGenTest, DISABLED_CGClassExtendsStruct) {
+	TEST_F(CodeGenTest, CGClassExtendsStruct) {
 		/**
 		 * Fly code:
 		 * struct BaseStruct {
@@ -914,15 +914,92 @@ namespace {
 		 * }
 		 * class TestClass : BaseStruct {
 		 *   void do() {
+		 *		this.a = 1
 		 *   }
-		 * }
-		 * void func() {
-		 *   TestClass test = new TestClass()
-		 *   delete test
 		 * }
 		 */
 		ASTModule *Module = CreateModule();
 
+		// struct BaseStruct { int a }
+		llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
+		ASTClass *BaseStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
+		                                               TopModifiers, BaseSuperClasses);
+		ASTAttribute *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
+
+		// class TestClass : BaseStruct { void do() { this.a = 1 } }
+		llvm::SmallVector<ASTType *, 4> TestSuperClasses;
+		TestSuperClasses.push_back(CreateType(BaseStruct));
+		ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+		                                              TopModifiers, TestSuperClasses);
+
+		// void do() { this.a = 1 }
+		ASTBlockStmt *DoBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+		ASTMember *this_a = ASTBuilder::CreateMember(SourceLoc, aAttribute->getName(),
+		                                              ASTBuilder::CreateIdentifier(SourceLoc, "this"));
+		ASTExprStmt *doStmt = ASTBuilder::CreateExprStmt(DoBody, SourceLoc);
+		ASTValue *value1 = ASTBuilder::CreateNumberValue(SourceLoc, "1");
+		ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+		                                                  this_a, value1);
+		doStmt->setExpr(AssignExpr);
+		ASTBuilder::CreateClassMethod(SourceLoc, TestClass, "do", TopModifiers, Params, DoBody);
+
+		// Generate Code
+		Generate();
+		llvm::Module *M = getModules()[0];
+		std::string output = getOutput(M);
+
+		EXPECT_EQ(output, "\n"
+		                  "%error = type { i32, ptr, ptr }\n"
+		                  "%BaseStruct = type { i32 }\n"
+		                  "%TestClass = type { ptr, %BaseStruct }\n"
+		                  "\n"
+		                  "@error = external constant %error\n"
+		                  "@vtable.TestClass = constant [3 x ptr] [ptr null, ptr @TestClass_F2do, ptr @TestClass_F9TestClass]\n"
+		                  "\n"
+		                  "define ptr @BaseStruct.init_ctor(ptr %0) {\n"
+		                  "entry:\n"
+		                  "  %1 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %1, align 8\n"
+		                  "  %2 = load ptr, ptr %1, align 8\n"
+		                  "  %3 = getelementptr inbounds %BaseStruct, ptr %2, i32 0, i32 0\n"
+		                  "  store i32 0, ptr %3, align 4\n"
+		                  "  ret ptr %2\n"
+		                  "}\n"
+		                  "\n"
+		                  "define ptr @TestClass.init_ctor(ptr %0) {\n"
+		                  "entry:\n"
+		                  "  %1 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %1, align 8\n"
+		                  "  %2 = load ptr, ptr %1, align 8\n"
+		                  "  %3 = getelementptr inbounds %TestClass, ptr %2, i32 0, i32 0\n"
+		                  "  store ptr @vtable.TestClass, ptr %3, align 8\n"
+		                  "  %4 = getelementptr inbounds %TestClass, ptr %2, i32 0, i32 1\n"
+		                  "  %5 = call ptr @BaseStruct.init_ctor(ptr %4)\n"
+		                  "  ret ptr %2\n"
+		                  "}\n"
+		                  "\n"
+		                  "define void @TestClass_F2do(ptr %0, ptr %1) {\n"
+		                  "entry:\n"
+		                  "  %2 = alloca ptr, align 8\n"
+		                  "  %3 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %2, align 8\n"
+		                  "  store ptr %1, ptr %3, align 8\n"
+		                  "  %4 = load %TestClass, ptr %3, align 8\n"
+		                  // this.a: two-level GEP — TestClass→BaseStruct(index 1)→a(index 0)
+		                  "  %5 = getelementptr inbounds %TestClass, %TestClass %4, i32 0, i32 1\n"
+		                  "  %6 = getelementptr inbounds %BaseStruct, %TestClass %5, i32 0, i32 0\n"
+		                  "  store i32 1, %TestClass %6, align 4\n"
+		                  "  ret void\n"
+		                  "}\n"
+		                  "\n"
+		                  "define void @TestClass_F9TestClass(ptr %0, ptr %1) {\n"
+		                  "entry:\n"
+		                  "  %2 = alloca ptr, align 8\n"
+		                  "  %3 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %2, align 8\n"
+		                  "  store ptr %1, ptr %3, align 8\n"
+		                  "  ret void\n"
+		                  "}\n");
 	}
 
 	TEST_F(CodeGenTest, DISABLED_CGClassExtendsInterface) {
