@@ -1090,34 +1090,14 @@ namespace {
 
 		EXPECT_EQ(output, "\n"
 		                  "%error = type { i32, ptr, ptr }\n"
+		                  "%TestClass = type { ptr, %IFirst, %ISecond }\n"
 		                  "%IFirst = type { ptr }\n"
 		                  "%ISecond = type { ptr }\n"
-		                  "%TestClass = type { ptr, %IFirst, %ISecond }\n"
 		                  "\n"
 		                  "@error = external constant %error\n"
 		                  "@vtable.IFirst = constant [1 x ptr] zeroinitializer\n"
 		                  "@vtable.ISecond = constant [1 x ptr] zeroinitializer\n"
 		                  "@vtable.TestClass = constant [4 x ptr] [ptr null, ptr @TestClass_F5first, ptr @TestClass_F6second, ptr @TestClass_F9TestClass]\n"
-		                  "\n"
-		                  "define ptr @IFirst.init_ctor(ptr %0) {\n"
-		                  "entry:\n"
-		                  "  %1 = alloca ptr, align 8\n"
-		                  "  store ptr %0, ptr %1, align 8\n"
-		                  "  %2 = load ptr, ptr %1, align 8\n"
-		                  "  %3 = getelementptr inbounds %IFirst, ptr %2, i32 0, i32 0\n"
-		                  "  store ptr @vtable.IFirst, ptr %3, align 8\n"
-		                  "  ret ptr %2\n"
-		                  "}\n"
-		                  "\n"
-		                  "define ptr @ISecond.init_ctor(ptr %0) {\n"
-		                  "entry:\n"
-		                  "  %1 = alloca ptr, align 8\n"
-		                  "  store ptr %0, ptr %1, align 8\n"
-		                  "  %2 = load ptr, ptr %1, align 8\n"
-		                  "  %3 = getelementptr inbounds %ISecond, ptr %2, i32 0, i32 0\n"
-		                  "  store ptr @vtable.ISecond, ptr %3, align 8\n"
-		                  "  ret ptr %2\n"
-		                  "}\n"
 		                  "\n"
 		                  "define ptr @TestClass.init_ctor(ptr %0) {\n"
 		                  "entry:\n"
@@ -1186,26 +1166,323 @@ namespace {
 		                  "declare void @free(ptr)\n");
 	}
 
-	TEST_F(CodeGenTest, DISABLED_CGClassExtendsStructAndInterface) {
-        /**
-         * Fly code:
-         * struct BaseStruct {
-         *   int a
-         * }
-         * interface BaseInterface {
-         *   void do()
-         * }
-         * class TestClass : BaseStruct, BaseInterface {
-         *   void do() {
-         *   }
-         * }
-         * void func() {
-         *   TestClass test = new TestClass()
-         *   delete test
-         * }
-         */
-        ASTModule *Module = CreateModule();
+	TEST_F(CodeGenTest, CGClassExtendsStructAndInterface) {
+		/**
+		 * Fly code:
+		 * struct BaseStruct {
+		 *   int a = 3
+		 * }
+		 * interface BaseInterface {
+		 *   void do()
+		 * }
+		 * class TestClass : BaseStruct, BaseInterface {
+		 *   void do() {
+		 *     this.a = 1
+		 *   }
+		 * }
+		 * void func() {
+		 *   TestClass test = new TestClass()
+		 *   test.do()
+		 *   delete test
+		 * }
+		 */
+		ASTModule *Module = CreateModule();
 
-    }
+		// struct BaseStruct { int a = 3 }
+		llvm::SmallVector<ASTType *, 4> BaseSuperClasses;
+		ASTClass *BaseStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT, "BaseStruct",
+		                                               TopModifiers, BaseSuperClasses);
+		ASTAttribute *aAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseStruct, IntTypeRef, "a", TopModifiers);
+		aAttribute->setExpr(ASTBuilder::CreateNumberValue(SourceLoc, "3"));
+
+		// interface BaseInterface { void do() }
+		llvm::SmallVector<ASTType *, 4> InterfaceSuperClasses;
+		ASTClass *BaseInterface = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE, "BaseInterface",
+		                                                  TopModifiers, InterfaceSuperClasses);
+		ASTBlockStmt *DoAbstractBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+		ASTBuilder::CreateClassMethod(SourceLoc, BaseInterface, "do", TopModifiers, Params, DoAbstractBody);
+
+		// class TestClass : BaseStruct, BaseInterface { void do() { this.a = 1 } }
+		llvm::SmallVector<ASTType *, 4> TestSuperClasses;
+		TestSuperClasses.push_back(CreateType(BaseStruct));
+		TestSuperClasses.push_back(CreateType(BaseInterface));
+		ASTClass *TestClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "TestClass",
+		                                              TopModifiers, TestSuperClasses);
+
+		ASTBlockStmt *DoBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+		ASTMember *this_a = ASTBuilder::CreateMember(SourceLoc, aAttribute->getName(),
+		                                              ASTBuilder::CreateIdentifier(SourceLoc, "this"));
+		ASTExprStmt *doAssignStmt = ASTBuilder::CreateExprStmt(DoBody, SourceLoc);
+		ASTValue *value1 = ASTBuilder::CreateNumberValue(SourceLoc, "1");
+		ASTBinary *AssignExpr_do = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, this_a, value1);
+		doAssignStmt->setExpr(AssignExpr_do);
+		ASTBuilder::CreateClassMethod(SourceLoc, TestClass, "do", TopModifiers, Params, DoBody);
+
+		// void func() { TestClass test = new TestClass(); test.do(); delete test }
+		ASTBlockStmt *FuncBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+
+		ASTType *TestClassType = CreateType(TestClass);
+		ASTLocalVar *testVar = ASTBuilder::CreateLocalVar(SourceLoc, TestClassType, "test", EmptyModifiers);
+		ASTDeclStmt *testDeclStmt = ASTBuilder::CreateDeclStmt(FuncBody, SourceLoc, testVar);
+		ASTCall *ConstructorCall = ASTBuilder::CreateCall(SourceLoc, TestClass->getName(), Args, ASTCallKind::CALL_NEW);
+		ASTIdentifier *testIdent = ASTBuilder::CreateIdentifier(testVar);
+		ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, testIdent, ConstructorCall);
+		testDeclStmt->setExpr(AssignExpr);
+
+		// test.do()
+		llvm::SmallVector<ASTExpr *, 8> doArgs;
+		ASTCall *doCall = ASTBuilder::CreateCall(SourceLoc, "do", doArgs,
+		                                         ASTCallKind::CALL_DIRECT, ASTBuilder::CreateIdentifier(testVar));
+		ASTExprStmt *doCallStmt = ASTBuilder::CreateExprStmt(FuncBody, SourceLoc);
+		doCallStmt->setExpr(doCall);
+
+		// delete test
+		ASTBuilder::CreateDeleteStmt(FuncBody, SourceLoc, ASTBuilder::CreateIdentifier(testVar));
+
+		ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, FuncBody);
+
+		// Generate Code
+		Generate();
+		llvm::Module *M = getModules()[0];
+		std::string output = getOutput(M);
+
+		EXPECT_EQ(output, "\n"
+		                  "%error = type { i32, ptr, ptr }\n"
+		                  "%BaseStruct = type { i32 }\n"
+		                  "%TestClass = type { ptr, %BaseStruct, %BaseInterface }\n"
+		                  "%BaseInterface = type { ptr }\n"
+		                  "\n"
+		                  "@error = external constant %error\n"
+		                  "@vtable.BaseInterface = constant [1 x ptr] zeroinitializer\n"
+		                  "@vtable.TestClass = constant [3 x ptr] [ptr null, ptr @TestClass_F2do, ptr @TestClass_F9TestClass]\n"
+		                  "\n"
+		                  "define ptr @BaseStruct.init_ctor(ptr %0) {\n"
+		                  "entry:\n"
+		                  "  %1 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %1, align 8\n"
+		                  "  %2 = load ptr, ptr %1, align 8\n"
+		                  "  %3 = getelementptr inbounds %BaseStruct, ptr %2, i32 0, i32 0\n"
+		                  "  store i32 3, ptr %3, align 4\n"
+		                  "  ret ptr %2\n"
+		                  "}\n"
+		                  "\n"
+		                  "define ptr @TestClass.init_ctor(ptr %0) {\n"
+		                  "entry:\n"
+		                  "  %1 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %1, align 8\n"
+		                  "  %2 = load ptr, ptr %1, align 8\n"
+		                  "  %3 = getelementptr inbounds %TestClass, ptr %2, i32 0, i32 0\n"
+		                  "  store ptr @vtable.TestClass, ptr %3, align 8\n"
+		                  "  %4 = getelementptr inbounds %TestClass, ptr %2, i32 0, i32 1\n"
+		                  "  %5 = call ptr @BaseStruct.init_ctor(ptr %4)\n"
+		                  "  ret ptr %2\n"
+		                  "}\n"
+		                  "\n"
+		                  "define void @TestClass_F2do(ptr %0, ptr %1) {\n"
+		                  "entry:\n"
+		                  "  %2 = alloca ptr, align 8\n"
+		                  "  %3 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %2, align 8\n"
+		                  "  store ptr %1, ptr %3, align 8\n"
+		                  "  %4 = load %TestClass, ptr %3, align 8\n"
+		                  // this.a: two-level GEP — TestClass→BaseStruct(index 1)→a(index 0)
+		                  "  %5 = getelementptr inbounds %TestClass, %TestClass %4, i32 0, i32 1\n"
+		                  "  %6 = getelementptr inbounds %BaseStruct, %TestClass %5, i32 0, i32 0\n"
+		                  "  store i32 1, %TestClass %6, align 4\n"
+		                  "  ret void\n"
+		                  "}\n"
+		                  "\n"
+		                  "define void @TestClass_F9TestClass(ptr %0, ptr %1) {\n"
+		                  "entry:\n"
+		                  "  %2 = alloca ptr, align 8\n"
+		                  "  %3 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %2, align 8\n"
+		                  "  store ptr %1, ptr %3, align 8\n"
+		                  "  ret void\n"
+		                  "}\n"
+		                  "\n"
+		                  "define void @_F4func(ptr %0) {\n"
+		                  "entry:\n"
+		                  "  %1 = alloca ptr, align 8\n"
+		                  "  %2 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %1, align 8\n"
+		                  "  %3 = load ptr, ptr %1, align 8\n"
+		                  "  %4 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%TestClass, ptr null, i32 1) to i64))\n"
+		                  "  %5 = call ptr @TestClass.init_ctor(ptr %4)\n"
+		                  "  call void @TestClass_F9TestClass(ptr %3, ptr %5)\n"
+		                  "  store ptr %5, ptr %2, align 8\n"
+		                  "  %6 = load %TestClass, ptr %2, align 8\n"
+		                  "  %7 = getelementptr inbounds nuw %TestClass, %TestClass %6, i32 0, i32 0\n"
+		                  "  %8 = load ptr, %TestClass %7, align 8\n"
+		                  "  %9 = getelementptr ptr, ptr %8, i64 1\n"
+		                  "  %10 = load ptr, ptr %9, align 8\n"
+		                  "  call void %10(ptr %3, %TestClass %6)\n"
+		                  "  call void @free(%TestClass %6)\n"
+		                  "  ret void\n"
+		                  "}\n"
+		                  "\n"
+		                  "declare ptr @malloc(i64)\n"
+		                  "\n"
+		                  "declare void @free(ptr)\n");
+	}
+
+	TEST_F(CodeGenTest, CGAbstractClass) {
+		/**
+		* Fly code:
+		* abstract class BaseClass {
+		*   int b
+		*   do()
+		*   foo() { int a = 1; this.b = 1 }
+		* }
+		* */
+		ASTModule *Module = CreateModule();
+
+		// abstract class BaseClass { int b; do(); foo() { int a = 1 } }
+		llvm::SmallVector<ASTModifier *, 8> AbstractModifiers;
+		AbstractModifiers.push_back(ASTBuilder::CreateModifier(SourceLoc, ASTModifierKind::MOD_ABSTRACT));
+		llvm::SmallVector<ASTType *, 4> SuperClasses;
+		ASTClass *BaseClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "BaseClass",
+		                                              AbstractModifiers, SuperClasses);
+
+		// int b
+		ASTVar *bAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, BaseClass, IntTypeRef, "b", TopModifiers);
+
+		// do() - abstract method (no body)
+		llvm::SmallVector<ASTModifier *, 8> AbstractMethodModifiers;
+		AbstractMethodModifiers.push_back(ASTBuilder::CreateModifier(SourceLoc, ASTModifierKind::MOD_ABSTRACT));
+		ASTBuilder::CreateClassMethod(SourceLoc, BaseClass, "do", AbstractMethodModifiers, Params, nullptr);
+
+		// foo() { int a = 1; this.b = 1 }
+		ASTBlockStmt *FooBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+		ASTLocalVar *aVar = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "a", EmptyModifiers);
+		ASTDeclStmt *aDeclStmt = ASTBuilder::CreateDeclStmt(FooBody, SourceLoc, aVar);
+		ASTValue *value1 = ASTBuilder::CreateNumberValue(SourceLoc, "1");
+		ASTIdentifier *aIdent = ASTBuilder::CreateIdentifier(aVar);
+		ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, aIdent, value1);
+		aDeclStmt->setExpr(AssignExpr);
+		ASTMember *thisB = ASTBuilder::CreateMember(SourceLoc, bAttribute->getName(),
+		                                             ASTBuilder::CreateIdentifier(SourceLoc, "this"));
+		ASTExprStmt *bAssignStmt = ASTBuilder::CreateExprStmt(FooBody, SourceLoc);
+		ASTValue *value2 = ASTBuilder::CreateNumberValue(SourceLoc, "1");
+		ASTBinary *bAssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, thisB, value2);
+		bAssignStmt->setExpr(bAssignExpr);
+		ASTBuilder::CreateClassMethod(SourceLoc, BaseClass, "foo", TopModifiers, Params, FooBody);
+
+		// Generate Code
+		Generate();
+		llvm::Module *M = getModules()[0];
+		std::string output = getOutput(M);
+
+		EXPECT_EQ(output, "\n"
+		                  "%error = type { i32, ptr, ptr }\n"
+		                  "%BaseClass = type { ptr, i32 }\n"
+		                  "\n"
+		                  "@error = external constant %error\n"
+		                  // abstract `do` → null slot; concrete `foo` and constructor → function ptrs
+		                  "@vtable.BaseClass = constant [4 x ptr] [ptr null, ptr null, ptr @BaseClass_F3foo, ptr @BaseClass_F9BaseClass]\n"
+		                  "\n"
+		                  // No init_ctor for abstract class
+		                  "define void @BaseClass_F3foo(ptr %0, ptr %1) {\n"
+		                  "entry:\n"
+		                  "  %2 = alloca ptr, align 8\n"
+		                  "  %3 = alloca ptr, align 8\n"
+		                  "  %4 = alloca i32, align 4\n"
+		                  "  store ptr %0, ptr %2, align 8\n"
+		                  "  store ptr %1, ptr %3, align 8\n"
+		                  "  store i32 1, ptr %4, align 4\n"
+		                  "  %5 = load %BaseClass, ptr %3, align 8\n"
+		                  "  %6 = getelementptr inbounds %BaseClass, %BaseClass %5, i32 0, i32 1\n"
+		                  "  store i32 1, %BaseClass %6, align 4\n"
+		                  "  ret void\n"
+		                  "}\n"
+		                  "\n"
+		                  "define void @BaseClass_F9BaseClass(ptr %0, ptr %1) {\n"
+		                  "entry:\n"
+		                  "  %2 = alloca ptr, align 8\n"
+		                  "  %3 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %2, align 8\n"
+		                  "  store ptr %1, ptr %3, align 8\n"
+		                  "  ret void\n"
+		                  "}\n");
+	}
+
+	TEST_F(CodeGenTest, CGFinalClass) {
+		/**
+		 * Fly code:
+		 * final class FinalClass {
+		 *   int b
+		 *   foo() { this.b = 1 }
+		 *   FinalClass() {}
+		 * }
+		 * */
+		ASTModule *Module = CreateModule();
+
+		llvm::SmallVector<ASTModifier *, 8> FinalModifiers;
+		FinalModifiers.push_back(ASTBuilder::CreateModifier(SourceLoc, ASTModifierKind::MOD_FINAL));
+		llvm::SmallVector<ASTType *, 4> SuperClasses;
+		ASTClass *FinalClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "FinalClass",
+		                                               FinalModifiers, SuperClasses);
+
+		// int b
+		ASTVar *bAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, FinalClass, IntTypeRef, "b", TopModifiers);
+
+		// foo() { this.b = 1 }
+		ASTBlockStmt *FooBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+		ASTMember *thisB = ASTBuilder::CreateMember(SourceLoc, bAttribute->getName(),
+		                                             ASTBuilder::CreateIdentifier(SourceLoc, "this"));
+		ASTExprStmt *bAssignStmt = ASTBuilder::CreateExprStmt(FooBody, SourceLoc);
+		ASTValue *value1 = ASTBuilder::CreateNumberValue(SourceLoc, "1");
+		ASTBinary *bAssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, thisB, value1);
+		bAssignStmt->setExpr(bAssignExpr);
+		ASTBuilder::CreateClassMethod(SourceLoc, FinalClass, "foo", TopModifiers, Params, FooBody);
+
+		// FinalClass() {}
+		ASTBlockStmt *CtorBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+		ASTBuilder::CreateClassMethod(SourceLoc, FinalClass, "FinalClass", TopModifiers, Params, CtorBody);
+
+		Generate();
+		llvm::Module *M = getModules()[0];
+		std::string output = getOutput(M);
+
+		EXPECT_EQ(output, "\n"
+		                  "%error = type { i32, ptr, ptr }\n"
+		                  "%FinalClass = type { ptr, i32 }\n"
+		                  "\n"
+		                  "@error = external constant %error\n"
+		                  "@vtable.FinalClass = constant [3 x ptr] [ptr null, ptr @FinalClass_F3foo, ptr @FinalClass_F10FinalClass]\n"
+		                  "\n"
+		                  "define ptr @FinalClass.init_ctor(ptr %0) {\n"
+		                  "entry:\n"
+		                  "  %1 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %1, align 8\n"
+		                  "  %2 = load ptr, ptr %1, align 8\n"
+		                  "  %3 = getelementptr inbounds %FinalClass, ptr %2, i32 0, i32 0\n"
+		                  "  store ptr @vtable.FinalClass, ptr %3, align 8\n"
+		                  "  %4 = getelementptr inbounds %FinalClass, ptr %2, i32 0, i32 1\n"
+		                  "  store i32 0, ptr %4, align 4\n"
+		                  "  ret ptr %2\n"
+		                  "}\n"
+		                  "\n"
+		                  "define void @FinalClass_F3foo(ptr %0, ptr %1) {\n"
+		                  "entry:\n"
+		                  "  %2 = alloca ptr, align 8\n"
+		                  "  %3 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %2, align 8\n"
+		                  "  store ptr %1, ptr %3, align 8\n"
+		                  "  %4 = load %FinalClass, ptr %3, align 8\n"
+		                  "  %5 = getelementptr inbounds %FinalClass, %FinalClass %4, i32 0, i32 1\n"
+		                  "  store i32 1, %FinalClass %5, align 4\n"
+		                  "  ret void\n"
+		                  "}\n"
+		                  "\n"
+		                  "define void @FinalClass_F10FinalClass(ptr %0, ptr %1) {\n"
+		                  "entry:\n"
+		                  "  %2 = alloca ptr, align 8\n"
+		                  "  %3 = alloca ptr, align 8\n"
+		                  "  store ptr %0, ptr %2, align 8\n"
+		                  "  store ptr %1, ptr %3, align 8\n"
+		                  "  ret void\n"
+		                  "}\n");
+	}
 
 } // anonymous namespace

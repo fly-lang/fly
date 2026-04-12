@@ -363,8 +363,10 @@ void Resolver::visit(ASTMethod &AST) {
 	// Exit Parameters Scope
 	ExitScope();
 
-	// Add to Body list for resolve in the next step
-	Reg.addBody(Sema);
+	// Add to Body list for resolve in the next step (abstract methods have no body to resolve)
+	if (!Sema->isAbstract()) {
+		Reg.addBody(Sema);
+	}
 
 	// Create the Symbol and add to Symbol Table of the parent scop
 	Symbol *Sym = new Symbol(AST.getName(), SymbolKind::FUNCTION, Sema);

@@ -39,8 +39,10 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExter
 	CodeGenVar *CGV = new CodeGenVar(CGM, Sema->getThis(), Type);
 	Sema->getThis()->setCodeGen(CGV);
 
-	// Create the Init Constructor Function
-	CreateInitConstructor();
+	// Create the Init Constructor Function only for concrete (non-abstract, non-interface) classes
+	if (Sema->getClassKind() != SemaClassKind::INTERFACE && !Sema->isAbstract()) {
+		CreateInitConstructor();
+	}
 
 	// Create the VTable Type (pointer to global vtable var)
 	// %class = { i8** %vtable, ... }
@@ -61,8 +63,10 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExter
 	// %type = type { %vtable_type, %...inherit_types, %...field_types }
 	Type->setBody(BodyType);
 
-	// Generate Init Constructor Body
-	GenInitConstructorBody();
+	// Generate Init Constructor Body only for concrete classes
+	if (Sema->getClassKind() != SemaClassKind::INTERFACE && !Sema->isAbstract()) {
+		GenInitConstructorBody();
+	}
 }
 
 std::string CodeGenClass::toIdentifier(SemaClassType *ClassType) {
@@ -99,54 +103,46 @@ void CodeGenClass::CreateVTable() {
 		// Create the VTable Initializer
 		VTableArrayValues.push_back(OffsetToTop); // First is the OffsetType
 
-		// Generate Constructors only for Class
-		// Struct uses only the Init Constructor
-		// Interface doesn't have constructors
+		// Generate methods only for CLASS (not INTERFACE — interface methods are blueprints only)
 		if (Sema->getClassKind() == SemaClassKind::CLASS) {
-
-			// Add Init Constructor Fn Type
-			// void (%ClassType*)*
-			// llvm::PointerType *InitCtorPtrType = InitConstructor->getFunctionType()->getPointerTo(
-			// 	CGM->Module->getDataLayout().getAllocaAddrSpace());
-			// VTableMethodTypes.push_back(InitCtorPtrType);
-
-		// Add Constructors
-		for (auto &Node : Sema->getNodes()) {
-			// Skip non-method nodes (e.g., SemaClassAttribute)
-			if (Node->getKind() != SemaKind::METHOD) {
-				continue;
-			}
-			SemaClassMethod *Method = static_cast<SemaClassMethod *>(Node);
-			CodeGenClassMethod *CG;
+			for (auto &Node : Sema->getNodes()) {
+				// Skip non-method nodes (e.g., SemaClassAttribute)
+				if (Node->getKind() != SemaKind::METHOD) {
+					continue;
+				}
+				SemaClassMethod *Method = static_cast<SemaClassMethod *>(Node);
+				CodeGenClassMethod *CG;
 
 				// CodeGen not yet generated
 				if (Method->getCodeGen() == nullptr) {
-
 					// Create CodeGen for Method: index + offset-to-type
 					CG = new CodeGenClassMethod(CGM, Method, Type, Methods.size() + 1);
 					Method->setCodeGen(CG);
 
-					// Add to Class Methods
+					// Add to Class Methods list
 					Methods.push_back(CG);
-					CGM->Functions.push_back(Method);
+
+					// Abstract methods have no body — do not schedule for code generation
+					if (!Method->isAbstract()) {
+						CGM->Functions.push_back(Method);
+					}
 				} else {
 					// CodeGen generated from super class
 					CG = Method->getCodeGen();
 				}
-
-				// Add to VTable
-				if (!Method->isStatic()) {
-					// Add to VTable only instance methods
-					llvm::PointerType *FnPtrType = CG->getFunctionType()->getPointerTo(
-						CGM->Module->getDataLayout().getAllocaAddrSpace());
-				}
 			}
 		}
 
-		// Add Null Function Pointer for each method in VTable
+		// Populate vtable: null for abstract/interface methods, function ptr for concrete methods
 		for (CodeGenClassMethod *Method : Methods) {
-			llvm::Constant * MethodIntPtr = llvm::ConstantExpr::getBitCast(Method->getFunction(), CodeGen::Int8PtrTy);
-			VTableArrayValues.push_back(MethodIntPtr);
+			llvm::Function *MethodFn = Method->getFunction();
+			if (MethodFn) {
+				llvm::Constant *MethodIntPtr = llvm::ConstantExpr::getBitCast(MethodFn, CodeGen::Int8PtrTy);
+				VTableArrayValues.push_back(MethodIntPtr);
+			} else {
+				// Abstract method: null vtable slot
+				VTableArrayValues.push_back(llvm::Constant::getNullValue(CodeGen::Int8PtrTy));
+			}
 		}
 
 		// Create an array of i8**
@@ -245,10 +241,10 @@ void CodeGenClass::GenInitConstructorBody() {
 		llvm::Value * VTableBitCast = CGM->Builder->CreateBitCast(VTable, CodeGen::Int8PtrPtrTy);
 		CGM->Builder->CreateStore(VTableBitCast, VTablePtr);
 
-		// Call InitConstructor of all base classes (CLASS and STRUCT)
+		// Call InitConstructor of all concrete base classes (CLASS and STRUCT, but not abstract or interface)
 		size_t BaseIndex = 1; // Start at 1 because 0 is the vtable pointer
 		for (auto &Base : Sema->getBaseClasses()) {
-			if (Base->getClassKind() == SemaClassKind::CLASS ||
+			if ((Base->getClassKind() == SemaClassKind::CLASS && !Base->isAbstract()) ||
 			    Base->getClassKind() == SemaClassKind::STRUCT) {
 				llvm::ConstantInt *Index = llvm::ConstantInt::get(CodeGen::Int32Ty, BaseIndex);
 				llvm::Value *BaseInstancePtr = CGM->Builder->CreateInBoundsGEP(Type, Load, {CodeGen::Zero, Index});

@@ -75,7 +75,9 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
 
 	// Build name as ClassName + MangleName so that e.g. TestClass constructor becomes TestClass_F9TestClass
 	std::string Name = std::string(Class->getAST().getName()) + Mangle(Sema);
-	if (Class->getClassKind() != SemaClassKind::INTERFACE) {
+	// Only concrete methods get an LLVM function — interface methods and abstract methods are blueprints only
+	SemaClassMethod *ClassMethodSema = static_cast<SemaClassMethod *>(Sema);
+	if (Class->getClassKind() != SemaClassKind::INTERFACE && !ClassMethodSema->isAbstract()) {
 		Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
 	}
 }
@@ -94,8 +96,8 @@ void CodeGenClassMethod::GenBody() {
 	SemaClassMethod *ClassMethod = (SemaClassMethod *) Sema;
 	SemaClassType *Class = ClassMethod->getClass();
 
-	if (Class->getClassKind() == SemaClassKind::INTERFACE) {
-		// Interface doesn't have body
+	if (Class->getClassKind() == SemaClassKind::INTERFACE || ClassMethod->isAbstract()) {
+		// Interface methods and abstract methods are blueprints — no body
 		return;
 	}
 
