@@ -295,14 +295,14 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     		// %fn1 = bitcast i8* %fn1_i8 to void (%class.Base1*)*
     		llvm::Value * FuncPtrPtr = Builder->CreateGEP(CodeGen::Int8PtrTy, VTablePtr, llvm::ConstantInt::get(CodeGen::Int64Ty, Method->getCodeGen()->getIndex()));
     		FuncPtr = Builder->CreateLoad(CodeGen::Int8PtrTy, FuncPtrPtr);
-			FuncPtr = Builder->CreateBitCast(FuncPtr, Method->getCodeGen()->getFunction()->getType());
+    		// With opaque pointers, no bitcast needed — the loaded ptr is already the right type
 
     	} else {
     		FuncPtr = Method->getCodeGen()->getFunction();
     	}
 
     	// Create the function call
-    	V = Builder->CreateCall(Method->getCodeGen()->getFunction()->getFunctionType(), FuncPtr, Args);
+    	V = Builder->CreateCall(Method->getCodeGen()->getFunctionType(), FuncPtr, Args);
 
     } else {
 

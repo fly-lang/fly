@@ -18,6 +18,7 @@
 #include "Sema/SemaModule.h"
 
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/IRBuilder.h"
 
 #include <AST/ASTVar.h>
 #include <Basic/Debug.h>
@@ -62,6 +63,12 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExter
 
 	// %type = type { %vtable_type, %...inherit_types, %...field_types }
 	Type->setBody(BodyType);
+
+	// Generate per-base vtables and thunks for multiple inheritance
+	// Must be called after Type->setBody so struct layout is available for byte-offset computation
+	if (Sema->getClassKind() == SemaClassKind::CLASS) {
+		CreateBaseVTables();
+	}
 
 	// Generate Init Constructor Body only for concrete classes
 	if (Sema->getClassKind() != SemaClassKind::INTERFACE && !Sema->isAbstract()) {
@@ -156,18 +163,169 @@ void CodeGenClass::CreateVTable() {
 		VTable = new llvm::GlobalVariable(
 			*CGM->Module, ArrayOfInt8Ptr, true,
 			llvm::GlobalValue::ExternalLinkage, ArrayValue, VTableName);
-
-		CreateBaseVTables(VTableName, Sema, 0);
 	}
 }
 
-void CodeGenClass::CreateBaseVTables(std::string VTableName, SemaClassType *Derived, size_t Offset) {
-	// for (auto &BaseClass : Derived->getBaseClasses()) {
-	// 	std::string VTableBaseName = VTableName + "." + BaseClass->getAST().getName().str();
-	// 	new llvm::GlobalVariable(*CGM->Module, ArrayOfInt8Ptr, true,
-	// 		llvm::GlobalValue::ExternalLinkage, ArrayValue, VTableName);
-	// 	CreateBaseVTables(VTableName, BaseClass, Offset);
-	// }
+void CodeGenClass::CreateBaseVTables() {
+	std::string VTableName = "vtable." + Id;
+	const llvm::StructLayout *Layout = CGM->Module->getDataLayout().getStructLayout(Type);
+
+	size_t FieldIdx = 1; // Field 0 is Derived's own vtable pointer; base subobjects start at 1
+	for (auto &Base : Sema->getBaseClasses()) {
+		// STRUCT bases have no vtable — skip them
+		if (Base->getClassKind() == SemaClassKind::STRUCT) {
+			VTableBases.push_back(nullptr);
+			FieldIdx++;
+			continue;
+		}
+
+		// For INTERFACE: always create per-base vtable (all methods must be overridden).
+		// For CLASS/ABSTRACT: only create per-base vtable if at least one method is overridden.
+		bool NeedsPerBaseVTable = (Base->getClassKind() == SemaClassKind::INTERFACE);
+		if (!NeedsPerBaseVTable) {
+			for (auto &Node : Base->getNodes()) {
+				if (Node->getKind() != SemaKind::METHOD) continue;
+				SemaClassMethod *M = static_cast<SemaClassMethod *>(Node);
+				if (M->isConstructor() || M->isStatic()) continue;
+				if (FindOverrideInDerived(Sema, M) != nullptr) {
+					NeedsPerBaseVTable = true;
+					break;
+				}
+			}
+		}
+
+		if (!NeedsPerBaseVTable) {
+			VTableBases.push_back(nullptr);
+			FieldIdx++;
+			continue;
+		}
+
+		// Compute byte offset of this base subobject within the derived struct
+		uint64_t BaseByteOffset = Layout->getElementOffset(FieldIdx);
+
+		// Build the per-base vtable entries
+		llvm::SmallVector<llvm::Constant *, 8> VTableValues;
+
+		// Slot 0: offset-to-top (negative byte offset)
+		llvm::ConstantInt *OffsetInt = llvm::ConstantInt::get(CodeGen::Int64Ty, -(int64_t)BaseByteOffset);
+		llvm::Constant *OffsetToTop = llvm::ConstantExpr::getIntToPtr(OffsetInt, CodeGen::Int8PtrTy);
+		VTableValues.push_back(OffsetToTop);
+
+		// Slots 1..N: one per virtual instance method of the base
+		size_t MethodIdx = 1;
+		for (auto &Node : Base->getNodes()) {
+			if (Node->getKind() != SemaKind::METHOD) continue;
+			SemaClassMethod *BaseMethod = static_cast<SemaClassMethod *>(Node);
+			if (BaseMethod->isConstructor() || BaseMethod->isStatic()) continue;
+
+			// Ensure base method has a CodeGenClassMethod so dispatch can read its vtable index.
+			// Interface methods never get one from CreateVTable(), so we create it here.
+			if (BaseMethod->getCodeGen() == nullptr) {
+				CodeGenClassMethod *CG = new CodeGenClassMethod(
+					CGM, BaseMethod, Base->getCodeGen()->getType(), MethodIdx);
+				BaseMethod->setCodeGen(CG);
+			}
+
+			// Find the concrete override in the derived class
+			SemaClassMethod *Override = FindOverrideInDerived(Sema, BaseMethod);
+			llvm::Constant *Slot;
+			if (Override && Override->getCodeGen() && Override->getCodeGen()->getFunction()) {
+				// Derived overrides this method: thunk adjusts this ptr before calling derived impl
+				llvm::Function *Thunk = CreateThunk(BaseMethod, Override, BaseByteOffset);
+				Slot = llvm::ConstantExpr::getBitCast(Thunk, CodeGen::Int8PtrTy);
+			} else if (BaseMethod->getCodeGen() && BaseMethod->getCodeGen()->getFunction()) {
+				// Concrete base method not overridden: dispatch directly to base implementation.
+				// No thunk needed: the this ptr already points to the base subobject.
+				Slot = llvm::ConstantExpr::getBitCast(BaseMethod->getCodeGen()->getFunction(), CodeGen::Int8PtrTy);
+			} else {
+				// Abstract method with no implementation (should not be reachable in a valid program)
+				Slot = llvm::Constant::getNullValue(CodeGen::Int8PtrTy);
+			}
+			VTableValues.push_back(Slot);
+			MethodIdx++;
+		}
+
+		// Create the per-base vtable global variable
+		llvm::ArrayType *ArrayTy = llvm::ArrayType::get(CodeGen::Int8PtrTy, VTableValues.size());
+		llvm::Constant *ArrayVal = llvm::ConstantArray::get(ArrayTy, VTableValues);
+		std::string BaseVTableName = VTableName + "." + Base->getAST().getName().str();
+		llvm::GlobalVariable *BaseVTable = new llvm::GlobalVariable(
+			*CGM->Module, ArrayTy, true,
+			llvm::GlobalValue::ExternalLinkage, ArrayVal, BaseVTableName);
+		VTableBases.push_back(BaseVTable);
+
+		FieldIdx++;
+	}
+}
+
+llvm::Function *CodeGenClass::CreateThunk(SemaClassMethod *BaseMethod, SemaClassMethod *Override,
+                                           uint64_t BaseOffset) {
+	CodeGenClassMethod *BaseCG = BaseMethod->getCodeGen();
+	llvm::FunctionType *ThunkType = BaseCG->getFunctionType();
+
+	// Name: thunk.DerivedName.BaseName.methodName
+	std::string ThunkName = "thunk." + Id + "." +
+		BaseMethod->getClass()->getAST().getName().str() + "." +
+		BaseMethod->getName().str();
+
+	// Avoid duplicate thunks (diamond inheritance)
+	if (llvm::Function *Existing = CGM->getModule()->getFunction(ThunkName)) {
+		return Existing;
+	}
+
+	llvm::Function *Thunk = llvm::Function::Create(
+		ThunkType, llvm::GlobalValue::InternalLinkage, ThunkName, CGM->getModule());
+
+	llvm::BasicBlock *Entry = llvm::BasicBlock::Create(CGM->LLVMCtx, "entry", Thunk);
+	llvm::IRBuilder<> Builder(Entry);
+
+	llvm::SmallVector<llvm::Value *, 8> Args;
+
+	// STRUCT classes have no error-handler param; all others have it as arg 0
+	bool IsStruct = (BaseMethod->getClass()->getAST().getClassKind() == ASTClassKind::STRUCT);
+	unsigned InstanceArgIdx = IsStruct ? 0 : 1;
+
+	// Forward error handler if present
+	if (!IsStruct) {
+		Args.push_back(Thunk->getArg(0));
+	}
+
+	// Adjust this pointer: base_subobj_ptr - BaseOffset = derived_ptr
+	llvm::Value *BaseThis = Thunk->getArg(InstanceArgIdx);
+	llvm::Value *BaseInt  = Builder.CreatePtrToInt(BaseThis, CodeGen::Int64Ty);
+	llvm::Value *AdjInt   = Builder.CreateSub(BaseInt,
+		llvm::ConstantInt::get(CodeGen::Int64Ty, BaseOffset));
+	llvm::Value *DerivedThis = Builder.CreateIntToPtr(AdjInt, BaseThis->getType());
+	Args.push_back(DerivedThis);
+
+	// Forward remaining params unchanged
+	for (unsigned I = InstanceArgIdx + 1; I < Thunk->arg_size(); I++) {
+		Args.push_back(Thunk->getArg(I));
+	}
+
+	// Call the concrete derived implementation
+	CodeGenClassMethod *OverrideCG = Override->getCodeGen();
+	llvm::CallInst *Call = Builder.CreateCall(
+		OverrideCG->getFunctionType(), OverrideCG->getFunction(), Args);
+
+	if (ThunkType->getReturnType()->isVoidTy()) {
+		Builder.CreateRetVoid();
+	} else {
+		Builder.CreateRet(Call);
+	}
+
+	return Thunk;
+}
+
+SemaClassMethod *CodeGenClass::FindOverrideInDerived(SemaClassType *Derived, SemaClassMethod *BaseMethod) {
+	for (auto &Node : Derived->getNodes()) {
+		if (Node->getKind() != SemaKind::METHOD) continue;
+		SemaClassMethod *Method = static_cast<SemaClassMethod *>(Node);
+		if (Method->getOverridden() == BaseMethod) {
+			return Method;
+		}
+	}
+	return nullptr;
 }
 
 
@@ -241,15 +399,28 @@ void CodeGenClass::GenInitConstructorBody() {
 		llvm::Value * VTableBitCast = CGM->Builder->CreateBitCast(VTable, CodeGen::Int8PtrPtrTy);
 		CGM->Builder->CreateStore(VTableBitCast, VTablePtr);
 
-		// Call InitConstructor of all concrete base classes (CLASS and STRUCT, but not abstract or interface)
+		// Initialize base class subobjects and store per-base vtable pointers
 		size_t BaseIndex = 1; // Start at 1 because 0 is the vtable pointer
-		for (auto &Base : Sema->getBaseClasses()) {
+		for (size_t I = 0; I < Sema->getBaseClasses().size(); I++) {
+			SemaClassType *Base = Sema->getBaseClasses()[I];
+			llvm::ConstantInt *FieldConst = llvm::ConstantInt::get(CodeGen::Int32Ty, BaseIndex);
+			llvm::Value *BaseSubobjPtr = CGM->Builder->CreateInBoundsGEP(Type, Load, {CodeGen::Zero, FieldConst});
+
+			// Call InitConstructor for concrete CLASS and STRUCT bases
 			if ((Base->getClassKind() == SemaClassKind::CLASS && !Base->isAbstract()) ||
 			    Base->getClassKind() == SemaClassKind::STRUCT) {
-				llvm::ConstantInt *Index = llvm::ConstantInt::get(CodeGen::Int32Ty, BaseIndex);
-				llvm::Value *BaseInstancePtr = CGM->Builder->CreateInBoundsGEP(Type, Load, {CodeGen::Zero, Index});
-				CGM->Builder->CreateCall(Base->getCodeGen()->getInitConstructor(), {BaseInstancePtr});
+				CGM->Builder->CreateCall(Base->getCodeGen()->getInitConstructor(), {BaseSubobjPtr});
 			}
+
+			// Store per-base vtable pointer into the base subobject's vtable slot
+			if (I < VTableBases.size() && VTableBases[I] != nullptr) {
+				llvm::Value *BaseVTablePtrPtr = CGM->Builder->CreateStructGEP(
+					Base->getCodeGen()->getType(), BaseSubobjPtr, 0);
+				llvm::Value *BaseVTableCast = CGM->Builder->CreateBitCast(
+					VTableBases[I], CodeGen::Int8PtrPtrTy);
+				CGM->Builder->CreateStore(BaseVTableCast, BaseVTablePtrPtr);
+			}
+
 			BaseIndex++;
 		}
 	}

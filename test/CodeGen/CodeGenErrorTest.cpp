@@ -342,7 +342,7 @@ namespace {
                         "}\n");
     }
 
-    TEST_F(CodeGenTest, DISABLED_CGErrorFail4) {
+    TEST_F(CodeGenTest, CGErrorFail4) {
         /**
          * Fly code:
          * struct TestStruct {

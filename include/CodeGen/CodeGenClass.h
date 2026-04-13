@@ -63,7 +63,11 @@ namespace fly {
 
         void CreateVTable();
 
-        void CreateBaseVTables(std::string VTableName, SemaClassType *Derived, size_t Offset);
+        void CreateBaseVTables();
+
+        llvm::Function *CreateThunk(SemaClassMethod *BaseMethod, SemaClassMethod *Override, uint64_t BaseOffset);
+
+        SemaClassMethod *FindOverrideInDerived(SemaClassType *Derived, SemaClassMethod *BaseMethod);
 
         void CreateAttributes();
 
