@@ -78,15 +78,15 @@ llvm::StoreInst *CodeGenError::StoreString(llvm::Value *Val) {
 }
 
 llvm::StoreInst *CodeGenError::StoreObject(llvm::Value *Val) {
-    this->Store(Val);
-    // errorType: 3=object
-    // Error: {errorInt: i32, errorPointer: *i8, errorObject: *i8}
-    llvm::Value *Two = llvm::ConstantInt::get(CodeGen::Int32Ty, 2);
-    // Store Error Type
+    // Error: {errorInt: i32, errorString: ptr, errorObject: ptr}
+    // Set field 0 = 1 so callers detect an error via the integer field
     llvm::Value *ErrorVar = Load();
+    llvm::Value *IntPtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {CodeGen::Zero, CodeGen::Zero});
+    CGM->Builder->CreateStore(llvm::ConstantInt::get(CodeGen::Int32Ty, 1), IntPtr);
 
-    // Store Error Value
-    llvm::Value *ValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {CodeGen::Zero, Two});
+    // Store the object pointer at field 2
+    llvm::Value *Two = llvm::ConstantInt::get(CodeGen::Int32Ty, 2);
+    llvm::Value *ValuePtr = CGM->Builder->CreateInBoundsGEP(T, getValue(), {CodeGen::Zero, Two});
     return CGM->Builder->CreateStore(Val, ValuePtr);
 }
 
