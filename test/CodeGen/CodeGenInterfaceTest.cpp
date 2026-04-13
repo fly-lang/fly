@@ -43,8 +43,7 @@ namespace {
     	llvm::SmallVector<ASTType *, 4> BaseInterfaces;
     	ASTClass *BaseInterface = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE,
     		"BaseInterface", TopModifiers, BaseInterfaces);
-    	ASTBlockStmt *DoBody = ASTBuilder::CreateBlockStmt(SourceLoc);
-    	ASTBuilder::CreateClassMethod(SourceLoc, BaseInterface, "do", TopModifiers, Params, DoBody);
+    	ASTBuilder::CreateClassMethod(SourceLoc, BaseInterface, "do", TopModifiers, Params);
 
     	// Generate Code
     	Generate();
@@ -83,8 +82,7 @@ namespace {
     	llvm::SmallVector<ASTType *, 4> BaseInterfaces;
     	ASTClass *BaseInterface = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE,
     		"BaseInterface", TopModifiers, BaseInterfaces);
-    	ASTBlockStmt *IDoBody = ASTBuilder::CreateBlockStmt(SourceLoc);
-    	ASTBuilder::CreateClassMethod(SourceLoc, BaseInterface, "do", TopModifiers, Params, IDoBody);
+    	ASTBuilder::CreateClassMethod(SourceLoc, BaseInterface, "do", TopModifiers, Params);
 
 		// interface BaseInterface2 {
 		//   undo()
@@ -94,8 +92,7 @@ namespace {
     	llvm::SmallVector<ASTType *, 4> Base2Interfaces;
     	ASTClass *BaseInterface2 = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::INTERFACE,
     		"BaseInterface2", TopModifiers, Base2Interfaces);
-    	ASTBlockStmt *IUndoBody = ASTBuilder::CreateBlockStmt(SourceLoc);
-    	ASTBuilder::CreateClassMethod(SourceLoc, BaseInterface2, "undo", TopModifiers, Params, IUndoBody);
+    	ASTBuilder::CreateClassMethod(SourceLoc, BaseInterface2, "undo", TopModifiers, Params);
 
 		//
 		// interface TestInterface : BaseInterface, BaseInterface2 {}

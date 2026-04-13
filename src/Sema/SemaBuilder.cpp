@@ -148,7 +148,7 @@ SemaClassMethod * SemaBuilder::CreateDefaultConstructor(SemaClassType *Class, Sy
 	ASTMethod *AST = ASTBuilder::CreateDefaultConstructor(&Class->getAST());
 
 	// Create Sema
-	SemaClassMethod *Method = new SemaClassMethod(*AST, Class, Class->getThis(), SemaClassMethodKind::METHOD_CONSTRUCTOR, Scope);
+	SemaClassMethod *Method = new SemaClassMethod(*AST, Class, Class->getThis(), true, Scope);
 
 	return Method;
 }
@@ -160,21 +160,8 @@ SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTMethod
 	// Set Modifiers first so we can use them for method kind determination
 	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
 
-	// When the Class Name is Equals to the Function Name this is a Constructor
-	if (AST.getName() == Class->getName()) {
-		Method = new SemaClassMethod(AST, Class, Class->getThis(), SemaClassMethodKind::METHOD_CONSTRUCTOR, Scope);
-	} else {
-		SemaClassMethodKind MethodKind;
-		bool hasBody = AST.getBody() != nullptr;
-		if (Class->getClassKind() == SemaClassKind::INTERFACE) {
-			// Interface: method with body = default impl (METHOD), without body = abstract (METHOD_ABSTRACT)
-			MethodKind = hasBody ? SemaClassMethodKind::METHOD : SemaClassMethodKind::METHOD_ABSTRACT;
-		} else {
-			// Class/Struct: explicit abstract keyword and no body = METHOD_ABSTRACT, otherwise METHOD
-			MethodKind = (Builder->isAbstract() && !hasBody) ? SemaClassMethodKind::METHOD_ABSTRACT : SemaClassMethodKind::METHOD;
-		}
-		Method = new SemaClassMethod(AST, Class, Class->getThis(), MethodKind, Scope);
-	}
+	bool IsConstructor = (AST.getName() == Class->getName());
+	Method = new SemaClassMethod(AST, Class, Class->getThis(), IsConstructor, Scope);
 
 	Method->Visibility = Builder->getVisibility();
 	Method->Static = Builder->isStatic();

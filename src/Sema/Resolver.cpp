@@ -306,16 +306,9 @@ void Resolver::visit(ASTMethod &AST) {
 	// Create Class Method
 	SemaClassMethod *Sema = SemaBuilder::CreateClassMethod(CurrentClass, AST, CurrentScope);
 
-	// Validate abstract method rules
+	// A method without a body is abstract; the class must be abstract or an interface
 	if (Sema->isAbstract()) {
-		// Abstract method must not have a body
-		if (AST.getBody() != nullptr) {
-			Diag(AST.getLocation(), diag::err_sema_abstract_method_has_body) << AST.getName();
-			FLY_DEBUG_END("Resolver", "visit(ASTMethod)");
-			return;
-		}
-		// Class containing an abstract method must itself be abstract
-		if (!CurrentClass->isAbstract()) {
+		if (!CurrentClass->isAbstract() && CurrentClass->getClassKind() != SemaClassKind::INTERFACE) {
 			Diag(AST.getLocation(), diag::err_sema_abstract_method_requires_abstract_class)
 				<< CurrentClass->getName() << AST.getName();
 			FLY_DEBUG_END("Resolver", "visit(ASTMethod)");

@@ -67,6 +67,10 @@ ASTFunction &SemaFunctionBase::getAST() {
 	return AST;
 }
 
+const ASTFunction &SemaFunctionBase::getAST() const {
+	return AST;
+}
+
 llvm::SmallVector<SemaLocalVar *, 8> SemaFunctionBase::getLocalVars() {
 	return LocalVars;
 }

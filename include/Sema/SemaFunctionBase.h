@@ -68,6 +68,7 @@ namespace fly {
         void addParam(SemaParam *Param);
 
         ASTFunction &getAST();
+        const ASTFunction &getAST() const;
 
         llvm::SmallVector<SemaLocalVar *, 8> getLocalVars();
 

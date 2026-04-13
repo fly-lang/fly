@@ -22,12 +22,6 @@ namespace fly {
 	class SemaClassInstance;
 	class CodeGenClassMethod;
 
-	enum class SemaClassMethodKind {
-		METHOD,
-		METHOD_CONSTRUCTOR,
-		METHOD_ABSTRACT
-	};
-
     class SemaClassMethod : public SemaFunctionBase {
 
     	friend class SemaBuilder;
@@ -40,7 +34,9 @@ namespace fly {
 
     	SemaClassInstance *This;
 
-    	SemaClassMethodKind MethodKind;
+    	bool Constructor = false;
+
+    	bool Abstract = false;
 
     	SemaVisibilityKind Visibility = SemaVisibilityKind::DEFAULT;
 
@@ -54,15 +50,15 @@ namespace fly {
 
     	SemaComment *Comment = nullptr;
 
-    	explicit SemaClassMethod(ASTMethod &AST, SemaClassType *Class,  SemaClassInstance *This,
-    		SemaClassMethodKind MethodKind, SymbolTable *Scope);
+    	explicit SemaClassMethod(ASTMethod &AST, SemaClassType *Class, SemaClassInstance *This,
+    		bool Constructor, SymbolTable *Scope);
 
     public:
 
     	~SemaClassMethod() override;
 
     	SemaClassType *getClass() const;
-    	
+
     	SemaClassInstance *getThis() const;
 
     	bool isConstructor() const;
