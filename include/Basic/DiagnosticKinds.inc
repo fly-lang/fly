@@ -165,6 +165,7 @@ DIAG(err_sema_array_size_not_integer, CLASS_ERROR, (unsigned)diag::Severity::Err
 DIAG(err_sema_array_value_type_mismatch, CLASS_ERROR, (unsigned)diag::Severity::Error, "array element type mismatch: expected '%0', got '%1'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_array_size_missing, CLASS_ERROR, (unsigned)diag::Severity::Error, "array declaration must specify either size or initializer", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_var_redefinition, CLASS_ERROR, (unsigned)diag::Severity::Error, "local var '%0' is already defined", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_unique_copy, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot copy unique pointer '%0': unique ownership is non-transferable", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_duplicate_arg, CLASS_ERROR, (unsigned)diag::Severity::Error, "duplicate argument '%0' in function call", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_unknown_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "unknown type '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_multiple_definition, CLASS_ERROR, (unsigned)diag::Severity::Error, "multiple definition of symbol '%0'", 0, SFINAE_Suppress, false, true, 0)

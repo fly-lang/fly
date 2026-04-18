@@ -504,40 +504,4 @@ llvm::Value *CodeGenClass::Downcast(llvm::Type *ToType, llvm::Value *InstancePtr
 	return Obj;
 }
 
-llvm::Value *CodeGenClass::NewInstance() {
-	return NewInstance(Sema);
-}
 
-llvm::Value *CodeGenClass::NewInstance(SemaClassType *ClassType) {
-	llvm::Type *PtrSizedIntTy = CGM->Module->getDataLayout().getIntPtrType(CGM->LLVMCtx);
-
-	// sizeof(ClassType)
-	llvm::Constant *SizeOf = llvm::ConstantExpr::getSizeOf(ClassType->getCodeGen()->getType());
-
-	// malloc declaration
-	llvm::FunctionCallee MallocFn =
-		CGM->Module->getOrInsertFunction(
-			"malloc",
-			llvm::FunctionType::get(
-				llvm::PointerType::getUnqual(CGM->LLVMCtx),
-				{PtrSizedIntTy},
-				false
-				)
-			);
-
-	// cast sizeof to pointer-sized integer
-	llvm::Value *SizeInt = CGM->Builder->CreateIntCast(SizeOf, PtrSizedIntTy, false);
-
-	// call malloc
-	llvm::Value *MallocCall = CGM->Builder->CreateCall(MallocFn, {SizeInt});
-
-	// bitcast to %Class*
-	llvm::Value *Obj = CGM->Builder->CreateBitCast(
-		MallocCall,
-		ClassType->getCodeGen()->getType()->getPointerTo()
-		);
-
-	llvm::CallInst *InitCall = CGM->Builder->CreateCall(InitConstructor, {Obj});
-
-	return InitCall;
-}

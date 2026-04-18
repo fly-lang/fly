@@ -17,6 +17,7 @@ add_executable(fly_test
         CodeGen/CodeGenInterfaceTest.cpp
         CodeGen/CodeGenStringTest.cpp
         CodeGen/CodeGenStructTest.cpp
+        CodeGen/CodeGenSmartAllocTest.cpp
         Parser/LexerTest.cpp
 #        Parser/ParserBadCode.cpp
         Parser/ParserBlockTest.cpp

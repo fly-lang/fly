@@ -97,10 +97,6 @@ namespace fly {
 
         llvm::Value *Downcast(llvm::Type *ToType, llvm::Value *InstancePtr);
 
-        llvm::Value* NewInstance();
-
-    private:
-        llvm::Value* NewInstance(SemaClassType *ClassType);
 
     };
 }

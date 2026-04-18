@@ -54,6 +54,10 @@
 #include "Sema/SemaMember.h"
 #include "Sema/SemaModule.h"
 #include "Sema/SemaNameSpace.h"
+#include "Sema/SemaBinary.h"
+#include "Sema/SemaBlockStmt.h"
+#include "Sema/SemaCall.h"
+#include "Sema/SemaSmartAlloc.h"
 #include "Sema/SemaValidator.h"
 #include "Sema/SymbolTable.h"
 
@@ -573,6 +577,35 @@ void Resolver::visit(ASTArrayType &AST) {
 	FLY_DEBUG_END("Resolver", "visit(ASTArrayType)");
 }
 
+SemaSmartAlloc *Resolver::RegisterSmartAlloc(SemaExpr *Expr) {
+	if (!CurrentSemaBlock || !Expr)
+		return nullptr;
+
+	SemaCall *SmartCall = nullptr;
+	auto CheckCall = [&](SemaExpr *E) {
+		if (E->getKind() == SemaKind::CALL) {
+			SemaCall *C = static_cast<SemaCall *>(E);
+			ASTCallKind CK = C->getAST().getCallKind();
+			if (CK == ASTCallKind::CALL_NEW_UNIQUE ||
+			    CK == ASTCallKind::CALL_NEW_SHARED ||
+			    CK == ASTCallKind::CALL_NEW_WEAK)
+				SmartCall = C;
+		}
+	};
+
+	if (Expr->getKind() == SemaKind::BINARY)
+		CheckCall(static_cast<SemaBinary *>(Expr)->getRight());
+	else
+		CheckCall(Expr);
+
+	if (SmartCall) {
+		SemaSmartAlloc *Alloc = new SemaSmartAlloc(SmartCall);
+		CurrentSemaBlock->addSmartAlloc(Alloc);
+		return Alloc;
+	}
+	return nullptr;
+}
+
 void Resolver::visit(ASTExprStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTExprStmt)");
 	CurrentStmt = &AST;
@@ -583,8 +616,11 @@ void Resolver::visit(ASTExprStmt &AST) {
 
 	// Create SemaExprStmt and add to current block
 	if (CurrentSemaBlock && ResolvedExpr) {
-		SemaExprStmt *SemaStmt = SemaBuilder::CreateExprStmt(&AST, ResolvedExpr);
-		CurrentSemaBlock->addContent(SemaStmt);
+		SemaExprStmt *ExprStmt = SemaBuilder::CreateExprStmt(&AST, ResolvedExpr);
+		CurrentSemaBlock->addContent(ExprStmt);
+
+		// Register smart-pointer alloc: handles direct call and binary assignment (a = new unique T())
+		RegisterSmartAlloc(ResolvedExpr);
 	}
 	FLY_DEBUG_END("Resolver", "visit(ASTExprStmt)");
 }
@@ -592,31 +628,71 @@ void Resolver::visit(ASTExprStmt &AST) {
 void Resolver::visit(ASTDeclStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTDeclStmt)");
 	CurrentStmt = &AST;
-	ASTLocalVar *LocalVar = AST.getLocalVar();
+	ASTLocalVar *LV = AST.getLocalVar();
 
 	// Resolve LocalVar Type
-	LocalVar->accept(*this);
-	SemaLocalVar *SemaLV = LocalVar->getSymbol() ?
-		LocalVar->getSymbol()->getRefAs<SemaLocalVar>() : nullptr;
+	LV->accept(*this);
+	SemaLocalVar *LocalVar = LV->getSymbol() ?
+		LV->getSymbol()->getRefAs<SemaLocalVar>() : nullptr;
 
 	// Resolve Initialization Expression
-	SemaExpr *InitExpr = nullptr;
+	SemaExpr *DeclExpr = nullptr;
 	if (AST.getExpr()) {
 		AST.getExpr()->accept(*this);
-		InitExpr = CurrentExpr;
+		DeclExpr = CurrentExpr;
 	}
 
 	// Check for array without size expression or initialization expression
-	if (SemaLV && SemaLV->getType() && SemaLV->getType()->isArray()) {
-		SemaArrayType *ArrayType = static_cast<SemaArrayType *>(SemaLV->getType());
+	if (LocalVar && LocalVar->getType() && LocalVar->getType()->isArray()) {
+		SemaArrayType *ArrayType = static_cast<SemaArrayType *>(LocalVar->getType());
 		if (ArrayType->getSizeExpr() == nullptr && AST.getExpr() == nullptr) {
-			Diag(LocalVar->getLocation(), diag::err_sema_array_size_missing);
+			Diag(LV->getLocation(), diag::err_sema_array_size_missing);
+		}
+	}
+
+	// Register a SemaSmartAlloc for any CALL_NEW_* in the init expression,
+	// and bind it to the local variable so copies can be detected later.
+	if (SemaSmartAlloc *NewAlloc = RegisterSmartAlloc(DeclExpr))
+		if (LocalVar)
+			LocalVar->setSmartAlloc(NewAlloc);
+
+	// Propagate SmartAlloc when the init expression is itself a SemaVar (var-to-var assignment).
+	// Covers: var b = a  (direct) or  var b = someExpr  where the binary RHS is a SemaVar.
+	if (LocalVar && DeclExpr) {
+		SemaVar *SrcVar = nullptr;
+		SemaKind IK = DeclExpr->getKind();
+		if (IK == SemaKind::LOCAL_VAR || IK == SemaKind::PARAM_VAR ||
+		    IK == SemaKind::ERROR_VAR  || IK == SemaKind::ATTRIBUTE  ||
+		    IK == SemaKind::INSTANCE_VAR) {
+			SrcVar = static_cast<SemaVar *>(DeclExpr);
+		} else if (IK == SemaKind::BINARY) {
+			SemaExpr *Right = static_cast<SemaBinary *>(DeclExpr)->getRight();
+			SemaKind RK = Right->getKind();
+			if (RK == SemaKind::LOCAL_VAR || RK == SemaKind::PARAM_VAR ||
+			    RK == SemaKind::ERROR_VAR  || RK == SemaKind::ATTRIBUTE  ||
+			    RK == SemaKind::INSTANCE_VAR) {
+				SrcVar = static_cast<SemaVar *>(Right);
+			}
+		}
+		if (SrcVar && SrcVar->getSmartAlloc()) {
+			if (SrcVar->getSmartAlloc()->isUnique()) {
+				Diag(LV->getLocation(), diag::err_sema_unique_copy) << SrcVar->getAST()->getName();
+			} else if (SrcVar->getSmartAlloc()->isShared()) {
+				// Each copy gets its own SemaSmartAlloc entry wrapping the same Call.
+				// Call->getCodeGen()->getValue() is always the right pointer for cleanup
+				// because every allocation has its own SA — no variable tracking needed.
+				SemaSmartAlloc *CopyAlloc = new SemaSmartAlloc(
+					SrcVar->getSmartAlloc()->getCall());
+				LocalVar->setSmartAlloc(CopyAlloc);
+				CurrentSemaBlock->addSmartAlloc(CopyAlloc);
+				SrcVar->getSmartAlloc()->incrReferenceCounter();
+			}
 		}
 	}
 
 	// Create SemaDeclStmt and add to current block
 	if (CurrentSemaBlock) {
-		SemaDeclStmt *SemaStmt = SemaBuilder::CreateDeclStmt(&AST, SemaLV, InitExpr);
+		SemaDeclStmt *SemaStmt = SemaBuilder::CreateDeclStmt(&AST, LocalVar, DeclExpr);
 		CurrentSemaBlock->addContent(SemaStmt);
 	}
 

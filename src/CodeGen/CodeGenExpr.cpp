@@ -225,9 +225,42 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     	if (Method->isConstructor()) {
 
     		// Allocate memory for the new instance in InstancePtr
-    		if (Sema->getAST().getCallKind() == ASTCallKind::CALL_NEW) {
-    			InstancePtr = CGClass->NewInstance();
-    			Builder->Insert(InstancePtr);
+    		if (Sema->getAST().getCallKind() == ASTCallKind::CALL_NEW ||
+    			Sema->getAST().getCallKind() == ASTCallKind::CALL_NEW_UNIQUE ||
+    			Sema->getAST().getCallKind() == ASTCallKind::CALL_NEW_SHARED ||
+    			Sema->getAST().getCallKind() == ASTCallKind::CALL_NEW_WEAK) {
+    			if (Sema->getAST().getCallKind() == ASTCallKind::CALL_NEW_SHARED) {
+    				// Shared alloc: [i64 refcount | T data] in one malloc block.
+    				// The class only knows about its own layout; the refcount header
+    				// is a smart-alloc concern handled here in CodeGenExpr.
+    				llvm::Type *PtrSizedIntTy = CGM->Module->getDataLayout().getIntPtrType(CGM->LLVMCtx);
+    				llvm::Type *I64Ty = llvm::Type::getInt64Ty(CGM->LLVMCtx);
+    				llvm::Type *I8Ty  = llvm::Type::getInt8Ty(CGM->LLVMCtx);
+    				llvm::StructType *WrapperTy = llvm::StructType::get(
+    					CGM->LLVMCtx, {I64Ty, CGClass->getType()});
+    				llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
+    					"malloc",
+    					llvm::FunctionType::get(
+    						llvm::PointerType::getUnqual(CGM->LLVMCtx), {PtrSizedIntTy}, false));
+    				llvm::Value *RawPtr = Builder->CreateCall(MallocFn,
+    					{Builder->CreateIntCast(
+    						llvm::ConstantExpr::getSizeOf(WrapperTy), PtrSizedIntTy, false)});
+    				Builder->CreateStore(llvm::ConstantInt::get(I64Ty, 1), RawPtr);
+    				InstancePtr = Builder->CreateGEP(I8Ty, RawPtr,
+    					llvm::ConstantInt::get(PtrSizedIntTy, 8));
+    				InstancePtr = Builder->CreateCall(CGClass->getInitConstructor(), {InstancePtr});
+    			} else {
+    				// Unique/plain alloc: malloc(sizeof(T)) + init_ctor.
+    				llvm::Type *PtrSizedIntTy = CGM->Module->getDataLayout().getIntPtrType(CGM->LLVMCtx);
+    				llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
+    					"malloc",
+    					llvm::FunctionType::get(
+    						llvm::PointerType::getUnqual(CGM->LLVMCtx), {PtrSizedIntTy}, false));
+    				llvm::Value *RawPtr = Builder->CreateCall(MallocFn,
+    					{Builder->CreateIntCast(
+    						llvm::ConstantExpr::getSizeOf(CGClass->getType()), PtrSizedIntTy, false)});
+    				InstancePtr = Builder->CreateCall(CGClass->getInitConstructor(), {RawPtr});
+    			}
 
     		} else {
 			    // this is a constructor without new

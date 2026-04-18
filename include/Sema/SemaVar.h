@@ -12,6 +12,7 @@
 
 #include "CodeGen/CodeGenVar.h"
 #include "Sema/SemaExpr.h"
+#include "Sema/SemaSmartAlloc.h"
 
 #include <llvm/ADT/StringRef.h>
 
@@ -31,6 +32,8 @@ namespace fly {
 
     	bool Constant = false;
 
+    	SemaSmartAlloc *SmartAlloc = nullptr;
+
         explicit SemaVar(ASTVar *AST, SemaKind Kind, SemaType *Type);
 
     public:
@@ -41,6 +44,10 @@ namespace fly {
     	virtual llvm::StringRef getName() const;
 
     	bool isConstant() const;
+
+    	SemaSmartAlloc *getSmartAlloc() const;
+
+    	void setSmartAlloc(SemaSmartAlloc *Alloc);
 
     	CodeGenVar *getCodeGen() const override;
 

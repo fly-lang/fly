@@ -10,9 +10,13 @@
 
 namespace fly {
 
+    class SemaSmartAlloc;
+
     class SemaBlockStmt : public SemaStmt {
 
         llvm::SmallVector<SemaStmt *, 8> Content;
+
+        llvm::SmallVector<SemaSmartAlloc *, 4> SmartAllocs;
 
     public:
 
@@ -25,6 +29,10 @@ namespace fly {
         const llvm::SmallVector<SemaStmt *, 8> &getContent() const;
 
         bool isEmpty() const;
+
+        void addSmartAlloc(SemaSmartAlloc *Alloc);
+
+        const llvm::SmallVector<SemaSmartAlloc *, 4> &getSmartAllocs() const;
 
         void accept(SemaVisitor &Visitor) override;
     };

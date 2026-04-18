@@ -63,6 +63,7 @@ namespace fly {
     class SemaErrorType;
     class SemaLocalVar;
     class SemaParam;
+    class SemaSmartAlloc;
     class SemaMember;
     class SemaClassInstance;
     class SemaError;
@@ -135,6 +136,13 @@ namespace fly {
         llvm::SmallVector<llvm::BasicBlock *, 8> BreakTargetStack;
         llvm::SmallVector<llvm::BasicBlock *, 8> ContinueTargetStack;
 
+        // Stack of SemaBlockStmt pointers; one entry pushed per SemaBlockStmt visit.
+        // Each block owns its SemaSmartAlloc list; cleanup iterates the top N frames.
+        llvm::SmallVector<SemaBlockStmt *, 8> UniqueVarCleanupStack;
+        // Depth of UniqueVarCleanupStack at each loop entry (for break/continue cleanup)
+        llvm::SmallVector<size_t, 8> BreakCleanupDepth;
+        llvm::SmallVector<size_t, 8> ContinueCleanupDepth;
+
         SemaFunctionBase *CurrentFunction = nullptr;
 
     	CodeGenError *CurrentErrorHandler = nullptr;
@@ -149,6 +157,13 @@ namespace fly {
         virtual ~CodeGenModule();
 
         DiagnosticBuilder Diag(unsigned DiagID);
+
+        // Emit cleanup (free / shared_release) for smart allocs in the top `frames` frames
+        void EmitUniqueVarCleanup(size_t frames);
+
+        // Emit inline retain/release for shared pointer reference counting
+        void EmitSharedRetain(llvm::Value *DataPtr);
+        void EmitSharedRelease(llvm::Value *DataPtr);
 
         llvm::Module *getModule() const;
 

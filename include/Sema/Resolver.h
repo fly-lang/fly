@@ -67,6 +67,7 @@ namespace fly {
     class LocalScope;
     class SemaExpr;
     class SemaBlockStmt;
+    class SemaSmartAlloc;
     class SemaValidator;
     class ASTNameSpace;
     class Registry;
@@ -214,6 +215,8 @@ namespace fly {
     	SmallVector<SemaType *, 8> ResolveCallArgs(ASTCall *AST);
 
     	SmallVector<SemaType *, 8> ResolveParams(ASTFunction &AST);
+
+    	SemaSmartAlloc *RegisterSmartAlloc(SemaExpr *Expr);
 
     	SemaType * PromoteNumberTypes(SemaType * Type1, SemaType * Type2);
 

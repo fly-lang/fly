@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaVar.h"
+#include "Sema/SemaSmartAlloc.h"
 #include <AST/ASTVar.h>
 
 using namespace fly;
@@ -30,6 +31,14 @@ llvm::StringRef SemaVar::getName() const {
 
 bool SemaVar::isConstant() const {
 	return Constant;
+}
+
+SemaSmartAlloc *SemaVar::getSmartAlloc() const {
+	return SmartAlloc;
+}
+
+void SemaVar::setSmartAlloc(SemaSmartAlloc *Alloc) {
+	SmartAlloc = Alloc;
 }
 
 CodeGenVar * SemaVar::getCodeGen() const {

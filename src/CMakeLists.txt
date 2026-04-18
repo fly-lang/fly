@@ -182,6 +182,7 @@ add_library(flyLib
         Sema/SemaTernary.cpp
         Sema/SemaType.cpp
         Sema/SemaUnary.cpp
+        Sema/SemaSmartAlloc.cpp
         Sema/SemaVar.cpp
         Sema/SemaValue.cpp
         Sema/SemaStmt.cpp

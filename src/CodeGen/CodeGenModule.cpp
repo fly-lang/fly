@@ -32,6 +32,8 @@
 #include "Sema/SemaEnumEntry.h"
 #include "Sema/SemaBlockStmt.h"
 #include "Sema/SemaDeclStmt.h"
+#include "Sema/SemaSmartAlloc.h"
+#include "AST/ASTCall.h"
 #include "Sema/SemaExprStmt.h"
 #include "Sema/SemaReturnStmt.h"
 #include "Sema/SemaIfStmt.h"
@@ -52,6 +54,8 @@
 #include <Sema/SemaEnumList.h>
 #include <Sema/SemaError.h>
 #include <Sema/SemaFunction.h>
+#include <Sema/SemaLocalVar.h>
+#include <Sema/SemaSmartAlloc.h>
 #include <Sema/SemaMember.h>
 #include <Sema/SemaModule.h>
 #include <Sema/SemaValue.h>
@@ -413,10 +417,80 @@ void CodeGenModule::visit(SemaEnumList &Sema) {
 
 // ─── Sema Statement visitors (delegate to AST-based Gen methods) ─────────────
 
+void CodeGenModule::EmitSharedRetain(llvm::Value *DataPtr) {
+	llvm::Type *I8Ty  = llvm::Type::getInt8Ty(LLVMCtx);
+	llvm::Type *I64Ty = llvm::Type::getInt64Ty(LLVMCtx);
+	// header is 8 bytes before the data pointer
+	llvm::Value *Header = Builder->CreateGEP(I8Ty, DataPtr,
+		llvm::ConstantInt::getSigned(llvm::Type::getInt64Ty(LLVMCtx), -8), "shrd_hdr");
+	llvm::Value *RC  = Builder->CreateLoad(I64Ty, Header, "shrd_rc");
+	llvm::Value *RC1 = Builder->CreateAdd(RC, llvm::ConstantInt::get(I64Ty, 1), "shrd_rc1");
+	Builder->CreateStore(RC1, Header);
+}
+
+void CodeGenModule::EmitSharedRelease(llvm::Value *DataPtr) {
+	llvm::Type *I8Ty  = llvm::Type::getInt8Ty(LLVMCtx);
+	llvm::Type *I64Ty = llvm::Type::getInt64Ty(LLVMCtx);
+	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
+
+	llvm::Value *Header = Builder->CreateGEP(I8Ty, DataPtr,
+		llvm::ConstantInt::getSigned(I64Ty, -8), "shrd_hdr");
+	llvm::Value *RC  = Builder->CreateLoad(I64Ty, Header, "shrd_rc");
+	llvm::Value *RC1 = Builder->CreateSub(RC, llvm::ConstantInt::get(I64Ty, 1), "shrd_rc1");
+	Builder->CreateStore(RC1, Header);
+
+	llvm::BasicBlock *FreeBB = llvm::BasicBlock::Create(LLVMCtx, "shrd_free", Fn);
+	llvm::BasicBlock *DoneBB = llvm::BasicBlock::Create(LLVMCtx, "shrd_done", Fn);
+	llvm::Value *IsZero = Builder->CreateICmpEQ(RC1, llvm::ConstantInt::get(I64Ty, 0));
+	Builder->CreateCondBr(IsZero, FreeBB, DoneBB);
+
+	Builder->SetInsertPoint(FreeBB);
+	llvm::FunctionCallee FreeFn = Module->getOrInsertFunction(
+		"free",
+		llvm::FunctionType::get(llvm::Type::getVoidTy(LLVMCtx),
+			{llvm::PointerType::getUnqual(LLVMCtx)}, false));
+	Builder->CreateCall(FreeFn, {Header});
+	Builder->CreateBr(DoneBB);
+
+	Builder->SetInsertPoint(DoneBB);
+}
+
+void CodeGenModule::EmitUniqueVarCleanup(size_t frames) {
+	if (frames == 0 || UniqueVarCleanupStack.empty()) return;
+	llvm::FunctionCallee FreeFn;
+	// Emit in reverse order (innermost scope first)
+	size_t depth = UniqueVarCleanupStack.size();
+	size_t limit = (frames < depth) ? depth - frames : 0;
+	for (size_t i = depth; i-- > limit;) {
+		for (auto *Alloc : UniqueVarCleanupStack[i]->getSmartAllocs()) {
+			if (Alloc->isUnique()) {
+				if (!FreeFn) {
+					FreeFn = Module->getOrInsertFunction(
+						"free",
+						llvm::FunctionType::get(
+							llvm::Type::getVoidTy(LLVMCtx),
+							{llvm::PointerType::getUnqual(LLVMCtx)},
+							false));
+				}
+				// The SemaCall CodeGen value is the heap pointer returned by init_ctor.
+				llvm::Value *Ptr = Alloc->getCall()->getCodeGen()->getValue();
+				Builder->CreateCall(FreeFn, {Ptr});
+			} else if (Alloc->isShared()) {
+				// Call->getValue() is always the canonical data pointer for this entry,
+				// whether it is an original allocation or a copy reference.
+				EmitSharedRelease(Alloc->getCall()->getCodeGen()->getValue());
+			}
+		}
+	}
+}
+
 void CodeGenModule::visit(SemaBlockStmt &Sema) {
+	UniqueVarCleanupStack.push_back(&Sema);
 	for (SemaStmt *Stmt : Sema.getContent()) {
 		Stmt->accept(*this);
 	}
+	EmitUniqueVarCleanup(1);
+	UniqueVarCleanupStack.pop_back();
 }
 
 void CodeGenModule::visit(SemaDeclStmt &Sema) {
@@ -428,6 +502,19 @@ void CodeGenModule::visit(SemaDeclStmt &Sema) {
 	// Declaration may be with initialization
 	if (Sema.getExpr()) {
 		Sema.getExpr()->accept(*this);
+		// Emit retain for shared copies: the expression is a variable reference
+		// (not a CALL_NEW_SHARED), so the SA wraps another variable's allocation call.
+		SemaSmartAlloc *SA = Sema.getVar()->getSmartAlloc();
+		if (SA && SA->isShared()) {
+			SemaExpr *E = Sema.getExpr();
+			SemaExpr *Rhs = (E->getKind() == SemaKind::BINARY)
+			                ? static_cast<SemaBinary *>(E)->getRight() : E;
+			bool isFreshAlloc = Rhs->getKind() == SemaKind::CALL &&
+			                    static_cast<SemaCall *>(Rhs)->getAST().getCallKind()
+			                        == ASTCallKind::CALL_NEW_SHARED;
+			if (!isFreshAlloc)
+				EmitSharedRetain(CGV->Load());
+		}
 	} else {
 		CGV->StoreDefaultValue();
 	}
@@ -445,6 +532,7 @@ void CodeGenModule::visit(SemaExprStmt &Sema) {
 
 void CodeGenModule::visit(SemaReturnStmt &Sema) {
 	FLY_DEBUG_START("CodeGenModule", "visit(SemaReturnStmt)");
+	EmitUniqueVarCleanup(UniqueVarCleanupStack.size());
 	Builder->CreateRetVoid();
 	FLY_DEBUG_END("CodeGenModule", "visit(SemaReturnStmt)");
 }
@@ -641,6 +729,7 @@ void CodeGenModule::visit(SemaLoopStmt &Sema) {
 
 	// Push break and continue targets onto stacks
 	BreakTargetStack.push_back(EndBB);
+	BreakCleanupDepth.push_back(UniqueVarCleanupStack.size());
 	// Continue target depends on whether we have a Post block or Condition block
 	if (PostBB) {
 		ContinueTargetStack.push_back(PostBB);
@@ -649,6 +738,7 @@ void CodeGenModule::visit(SemaLoopStmt &Sema) {
 	} else {
 		ContinueTargetStack.push_back(LoopBB);
 	}
+	ContinueCleanupDepth.push_back(UniqueVarCleanupStack.size());
 
 	// Generate Code
 	if (CondBB) {
@@ -689,7 +779,9 @@ void CodeGenModule::visit(SemaLoopStmt &Sema) {
 
 	// Pop break and continue targets from stacks
 	BreakTargetStack.pop_back();
+	BreakCleanupDepth.pop_back();
 	ContinueTargetStack.pop_back();
+	ContinueCleanupDepth.pop_back();
 
 	// Continue insertions into End Branch
 	Builder->SetInsertPoint(EndBB);
@@ -763,7 +855,9 @@ void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 	llvm::BasicBlock *EndBB  = llvm::BasicBlock::Create(LLVMCtx, "forin.end",  Fn);
 
 	BreakTargetStack.push_back(EndBB);
+	BreakCleanupDepth.push_back(UniqueVarCleanupStack.size());
 	ContinueTargetStack.push_back(CondBB);
+	ContinueCleanupDepth.push_back(UniqueVarCleanupStack.size());
 
 	Builder->CreateBr(CondBB);
 
@@ -799,7 +893,9 @@ void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 	Builder->CreateBr(CondBB);
 
 	BreakTargetStack.pop_back();
+	BreakCleanupDepth.pop_back();
 	ContinueTargetStack.pop_back();
+	ContinueCleanupDepth.pop_back();
 
 	Builder->SetInsertPoint(EndBB);
 	FLY_DEBUG_END("CodeGenModule", "visit(SemaLoopInStmt)");
@@ -828,8 +924,10 @@ void CodeGenModule::visit(SemaDeleteStmt &Sema) {
 void CodeGenModule::visit(SemaBreakStmt &Sema) {
 	FLY_DEBUG_START("CodeGenModule", "visit(SemaBreakStmt)");
 	if (!BreakTargetStack.empty()) {
-		llvm::BasicBlock *BreakTarget = BreakTargetStack.back();
-		Builder->CreateBr(BreakTarget);
+		// Free unique vars declared since the innermost loop was entered
+		size_t loopDepth = BreakCleanupDepth.back();
+		EmitUniqueVarCleanup(UniqueVarCleanupStack.size() - loopDepth);
+		Builder->CreateBr(BreakTargetStack.back());
 	} else {
 		Diag(diag::err_invalid_behavior);
 	}
@@ -839,8 +937,10 @@ void CodeGenModule::visit(SemaBreakStmt &Sema) {
 void CodeGenModule::visit(SemaContinueStmt &Sema) {
 	FLY_DEBUG_START("CodeGenModule", "visit(SemaContinueStmt)");
 	if (!ContinueTargetStack.empty()) {
-		llvm::BasicBlock *ContinueTarget = ContinueTargetStack.back();
-		Builder->CreateBr(ContinueTarget);
+		// Free unique vars declared in the current loop iteration body
+		size_t loopDepth = ContinueCleanupDepth.back();
+		EmitUniqueVarCleanup(UniqueVarCleanupStack.size() - loopDepth);
+		Builder->CreateBr(ContinueTargetStack.back());
 	} else {
 		Diag(diag::err_invalid_behavior);
 	}
@@ -864,6 +964,7 @@ void CodeGenModule::visit(SemaFailStmt &Sema) {
 		}
 	}
 
+	EmitUniqueVarCleanup(UniqueVarCleanupStack.size());
 	if (CurrentHandleBB == nullptr) {
 		Builder->CreateRetVoid();
 	} else {
