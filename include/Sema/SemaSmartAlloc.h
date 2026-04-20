@@ -44,6 +44,8 @@ namespace fly {
 
         bool isShared() const;
 
+        bool isWeak() const;
+
         uint64_t getReferenceCounter() const;
 
         uint64_t incrReferenceCounter();

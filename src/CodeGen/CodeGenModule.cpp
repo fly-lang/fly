@@ -463,7 +463,7 @@ void CodeGenModule::EmitUniqueVarCleanup(size_t frames) {
 	size_t limit = (frames < depth) ? depth - frames : 0;
 	for (size_t i = depth; i-- > limit;) {
 		for (auto *Alloc : UniqueVarCleanupStack[i]->getSmartAllocs()) {
-			if (Alloc->isUnique()) {
+			if (Alloc->isUnique() || Alloc->isWeak()) {
 				if (!FreeFn) {
 					FreeFn = Module->getOrInsertFunction(
 						"free",

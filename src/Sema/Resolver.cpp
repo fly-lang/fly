@@ -686,6 +686,16 @@ void Resolver::visit(ASTDeclStmt &AST) {
 				LocalVar->setSmartAlloc(CopyAlloc);
 				CurrentSemaBlock->addSmartAlloc(CopyAlloc);
 				SrcVar->getSmartAlloc()->incrReferenceCounter();
+			} else if (SrcVar->getSmartAlloc()->isWeak()) {
+				// Weak copy: no ownership transfer, no refcount increment.
+				// The copy does NOT register a cleanup SA entry — only the original
+				// allocation owns the pointer and frees it at scope exit. This ensures
+				// a single free regardless of how many copies exist, breaking cycles.
+				SemaSmartAlloc *CopyAlloc = new SemaSmartAlloc(
+					SrcVar->getSmartAlloc()->getCall());
+				LocalVar->setSmartAlloc(CopyAlloc);
+				// Intentionally NOT added to CurrentSemaBlock->addSmartAlloc —
+				// the copy carries no cleanup responsibility.
 			}
 		}
 	}

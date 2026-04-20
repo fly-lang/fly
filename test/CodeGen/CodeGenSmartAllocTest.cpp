@@ -480,4 +480,100 @@ namespace {
         ASSERT_FALSE(Resolve());
     }
 
+    /**
+     * Fly code:
+     * struct TestStruct { int a }
+     * void func() {
+     *   TestStruct t = new weak TestStruct()
+     * }  // free(t) emitted immediately at scope exit (no refcount)
+     */
+    TEST_F(CodeGenTest, CGWeakSmartAlloc) {
+        ASTModule *Module = CreateModule();
+
+        llvm::SmallVector<ASTType *, 4> SuperClasses;
+        ASTClass *TestStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT,
+                                                       "TestStruct", TopModifiers, SuperClasses);
+        ASTBuilder::CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
+
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
+
+        ASTType *TestStructType = CreateType(TestStruct);
+        ASTLocalVar *TVar = ASTBuilder::CreateLocalVar(SourceLoc, TestStructType, "t", EmptyModifiers);
+        ASTDeclStmt *TDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, TVar);
+        ASTCall *CtorCall = ASTBuilder::CreateCall(SourceLoc, TestStruct->getName(), Args,
+                                                   ASTCallKind::CALL_NEW_WEAK);
+        ASTIdentifier *TIdent = ASTBuilder::CreateIdentifier(TVar);
+        ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+                                                         TIdent, CtorCall);
+        TDeclStmt->setExpr(AssignExpr);
+
+        Generate();
+        std::string output = getOutput(getModules()[0]);
+
+        // Weak alloc: no refcount header, plain malloc like unique, free at scope exit.
+        EXPECT_NE(output.find("@malloc"), std::string::npos) << "weak alloc must call malloc";
+        EXPECT_NE(output.find("@free"),   std::string::npos) << "weak alloc must emit free at scope exit";
+        EXPECT_EQ(output.find("store i64 1"), std::string::npos) << "weak alloc must NOT store refcount";
+        EXPECT_EQ(output.find("add i64"),     std::string::npos) << "weak alloc must NOT emit retain";
+        EXPECT_EQ(output.find("sub i64"),     std::string::npos) << "weak alloc must NOT emit release";
+    }
+
+    /**
+     * Fly code:
+     * struct TestStruct { int a }
+     * void func() {
+     *   TestStruct t = new weak TestStruct()  // only t owns the pointer
+     *   TestStruct u = t                      // weak copy: no retain, no cleanup for u
+     * }  // only one free(t) emitted — u has no cleanup responsibility
+     */
+    TEST_F(CodeGenTest, CGWeakSmartAllocCopy) {
+        ASTModule *Module = CreateModule();
+
+        llvm::SmallVector<ASTType *, 4> SuperClasses;
+        ASTClass *TestStruct = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::STRUCT,
+                                                       "TestStruct", TopModifiers, SuperClasses);
+        ASTBuilder::CreateClassAttribute(SourceLoc, TestStruct, IntTypeRef, "a", TopModifiers);
+
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
+
+        // TestStruct t = new weak TestStruct()
+        ASTType *TestStructType = CreateType(TestStruct);
+        ASTLocalVar *TVar = ASTBuilder::CreateLocalVar(SourceLoc, TestStructType, "t", EmptyModifiers);
+        ASTDeclStmt *TDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, TVar);
+        ASTCall *CtorCall = ASTBuilder::CreateCall(SourceLoc, TestStruct->getName(), Args,
+                                                   ASTCallKind::CALL_NEW_WEAK);
+        ASTIdentifier *TIdent = ASTBuilder::CreateIdentifier(TVar);
+        ASTBinary *TAssign = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+                                                      TIdent, CtorCall);
+        TDeclStmt->setExpr(TAssign);
+
+        // TestStruct u = t  (weak copy — allowed, no retain, no cleanup for u)
+        ASTType *TestStructType2 = CreateType(TestStruct);
+        ASTLocalVar *UVar = ASTBuilder::CreateLocalVar(SourceLoc, TestStructType2, "u", EmptyModifiers);
+        ASTDeclStmt *UDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, UVar);
+        ASTIdentifier *UIdent = ASTBuilder::CreateIdentifier(UVar);
+        ASTIdentifier *TIdent2 = ASTBuilder::CreateIdentifier(TVar);
+        ASTBinary *UAssign = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+                                                      UIdent, TIdent2);
+        UDeclStmt->setExpr(UAssign);
+
+        // Resolve must succeed (weak copy is allowed)
+        ASSERT_TRUE(Resolve());
+
+        Generate();
+        std::string output = getOutput(getModules()[0]);
+
+        // Exactly one free — only t's SA entry emits cleanup, u has no SA cleanup entry.
+        size_t first_free  = output.find("call void @free");
+        size_t second_free = output.find("call void @free", first_free + 1);
+        ASSERT_NE(first_free,  std::string::npos) << "t must be freed at scope exit";
+        EXPECT_EQ(second_free, std::string::npos) << "u must NOT emit a second free (no double-free)";
+
+        // No retain or refcount operations
+        EXPECT_EQ(output.find("add i64"), std::string::npos) << "weak copy must NOT emit retain";
+        EXPECT_EQ(output.find("sub i64"), std::string::npos) << "weak copy must NOT emit release";
+    }
+
 } // anonymous namespace
