@@ -18,6 +18,7 @@
 #include "Frontend/LogDiagnosticPrinter.h"
 #include "CodeGen/BackendUtil.h"
 #include "Basic/Debug.h"
+#include <memory>
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/WithColor.h"
@@ -106,7 +107,6 @@ CompilerInstance &Driver::BuildCompilerInstance() {
 // Diagnostics
 IntrusiveRefCntPtr<DiagnosticsEngine> Driver::CreateDiagnostics(IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts) {
     FLY_DEBUG_START("Driver", "CreateDiagnostics");
-    DiagOpts = new DiagnosticOptions;
     TextDiagnosticPrinter *DiagClient = new TextDiagnosticPrinter(llvm::errs(), &*DiagOpts);
     StringRef ExeBasename(llvm::sys::path::stem(Path));
     DiagClient->setPrefix(std::string(ExeBasename));
@@ -176,12 +176,8 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     }
 
     // Show Version
-    if (ArgList.hasArg(options::OPT_VERSION)) { // Show Version
+    if (ArgList.hasArg(options::OPT_VERSION)) {
         printVersion();
-        doExecute = false;
-        return;
-    } else if (ArgList.hasArg(options::OPT_VERSION_SHORT)) { // Show Version (short)
-        printVersion(false);
         doExecute = false;
         return;
     } else if (ArgList.hasArg(options::OPT_HELP)) { // Show Help
@@ -342,7 +338,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
 void Driver::printVersion(bool full) {
     if (full) {
         llvm::outs() << "FLY version " << FLY_VERSION << " (https://flylang.org)" << "\n";
-        llvm::outs() << "with LLVM version " << LLVM_VERSION_STRING << "\n";
+        // llvm::outs() << "with LLVM version " << LLVM_VERSION_STRING << "\n";
     } else {
         llvm::outs() << FLY_VERSION << "\n";
     }
@@ -357,9 +353,11 @@ bool Driver::Execute() {
         Success = Front.Execute();
 
         if (!CI->getFrontendOptions().getOutputFile().empty()) {
-            const llvm::Triple &T = TargetInfo::CreateTargetInfo(CI->getDiagnostics(),
-                                                                 CI->getTargetOptions())->getTriple();
-            ToolChain *TC = new ToolChain(CI->getDiagnostics(), T, CI->getCodeGenOptions());
+            std::unique_ptr<TargetInfo> TI(TargetInfo::CreateTargetInfo(CI->getDiagnostics(),
+                                                                        CI->getTargetOptions()));
+            const llvm::Triple &T = TI->getTriple();
+            std::unique_ptr<ToolChain> TC = std::make_unique<ToolChain>(CI->getDiagnostics(), T,
+                                                                        CI->getCodeGenOptions());
             Success = TC->BuildOutput(Front.getOutputFiles(), CI->getFrontendOptions());
 
             // Delete Output Files on Library generation

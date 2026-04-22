@@ -18,7 +18,8 @@ SemaVar::SemaVar(ASTVar *AST, SemaKind Kind, SemaType *Type) :
 }
 
 SemaVar::~SemaVar() {
-	// CodeGen is deleted by parent SemaExpr destructor
+	// CodeGen: deleted by parent SemaExpr destructor.
+	// SmartAlloc: NOT deleted here — owned by SemaBlockStmt::SmartAllocs.
 }
 
 ASTVar *SemaVar::getAST() const {

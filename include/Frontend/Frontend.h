@@ -25,6 +25,8 @@ namespace fly {
     class FrontendAction;
     class CompilerInstance;
     class ASTBuilder;
+    class InputFile;
+    class Parser;
     class SemaContext;
 
     class Frontend {
@@ -33,6 +35,11 @@ namespace fly {
         DiagnosticsEngine &Diags;
 
         SmallVector<ASTModule *, 8> ASTModules;
+
+        // Keep Parsers and InputFiles alive until after Sema so that StringRefs
+        // stored in AST nodes (pointing into the Lexer's IdentifierTable) remain valid.
+        SmallVector<Parser *, 8> Parsers;
+        SmallVector<InputFile *, 8> InputFiles;
 
         // Compiler Invocation contains all a CompilerInstance needs
         CompilerInstance &CI;

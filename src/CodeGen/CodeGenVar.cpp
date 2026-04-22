@@ -206,7 +206,11 @@ llvm::StoreInst *CodeGenVar::StoreDefaultValue() {
 
 llvm::LoadInst *CodeGenVar::Load() {
     this->BlockID = CGM->Builder->GetInsertBlock()->getName();
-    this->LoadI = CGM->Builder->CreateLoad(T, getPointer());
+    // Struct-typed vars are stored as a ptr-to-struct (see Alloca()); load the pointer, not the struct.
+    llvm::Type *LoadTy = T->isStructTy()
+        ? llvm::PointerType::getUnqual(CGM->LLVMCtx)
+        : T;
+    this->LoadI = CGM->Builder->CreateLoad(LoadTy, getPointer());
     return this->LoadI;
 }
 

@@ -10,12 +10,14 @@
 #include "Frontend/Frontend.h"
 
 #include "AST/ASTBuilder.h"
+#include "Frontend/InputFile.h"
 #include "Basic/Archiver.h"
 #include "Basic/Debug.h"
 #include "Basic/Stack.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "Parser/Parser.h"
+#include "Sema/SemaBuiltin.h"
 #include "Sema/SemaContext.h"
 
 #include <iostream>
@@ -68,12 +70,15 @@ bool Frontend::Execute() {
 
     // Resolve AST references
 	SmallVector<SemaModule *, 8> SemaModules = S->Resolve(ASTModules);
+
     if (!SemaModules.empty()) {
 
         // Create LLVM Context (must outlive all modules)
         llvm::LLVMContext LLVMCtx;
 
         // Generate Backend Code
+        // Parsers and InputFiles must remain alive through CodeGen: AST StringRefs
+        // (class/function names, type names, etc.) point into the Lexer's IdentifierTable.
         CodeGen CG(Diags, LLVMCtx, CI.getCodeGenOptions(), CI.getTargetOptions(),
                    CI.getFrontendOptions().BackendAction,
                    CI.getFrontendOptions().ShowTimers);
@@ -81,10 +86,18 @@ bool Frontend::Execute() {
 
         // Emit code base on BackendActionKind
         for (auto M : Modules) {
-            CG.Emit(M, M->getName());
+            // Pass empty OutName: Emit will call getOutputFileName(M->getName())
+            // where M->getName() is the source filename (e.g. "main.fly"),
+            // producing the correct output path (e.g. "main.fly.o" / "main.fly.ll" etc.)
+            std::string OutFile = CG.getOutputFileName(M->getName());
+            CG.Emit(M, "");
+            if (!OutFile.empty())
+                OutputFiles.push_back(OutFile);
         }
 
-    	// Clean up generated modules
+    	// Delete generated LLVM modules (ownership transferred from CodeGenModule here)
+    	for (auto *M : Modules)
+    		delete M;
     	Modules.clear();
 
     	// FIXME: Generate Headers
@@ -92,6 +105,17 @@ bool Frontend::Execute() {
         //     CG.GenerateHeaders(S->getSymTable());
         // }
     }
+
+    // Reset CodeGen pointers on SemaBuiltin singletons: these are shared across
+    // compilations and their CodeGen pointers would become dangling after the
+    // LLVMContext above goes out of scope.
+    SemaBuiltin::resetCodeGen();
+
+    // Release Parsers and InputFiles now that CodeGen is done accessing AST StringRefs.
+    for (auto *P : Parsers) delete P;
+    for (auto *I : InputFiles) delete I;
+    Parsers.clear();
+    InputFiles.clear();
 
     Diags.getClient()->EndSourceFile();
 
@@ -152,11 +176,15 @@ void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
     InputFile *Input = new InputFile(Diags, CI.getSourceManager(), FileName);
     if (Input->getExt() == FileExt::FLY) {
         if (Input->Load()) {
-            // Create Parser and start to parse
+            // Create Parser and start to parse; keep alive until after Sema so
+            // that StringRefs in AST nodes (pointing into Lexer's IdentifierTable)
+            // remain valid throughout semantic analysis.
             Parser *P = new Parser(Input, CI.getSourceManager(), Diags, Builder);
             ASTModule *M = P->ParseModule();
         	ASTModules.push_back(M);
-        	delete P;
+        	Parsers.push_back(P);
+        	InputFiles.push_back(Input);
+        	return;
         }
         delete Input;
     } else if (Input->getExt() == FileExt::LIB) {
@@ -206,4 +234,21 @@ std::vector<StringRef> Frontend::ExtractFiles(const std::string &LibFileName) {
         return Ar.getExtractFiles();
     }
     return List;
+}
+
+bool Archiver::ExtractLib(FileManager &FileMgr) {
+    FLY_DEBUG_START("Archiver", "ExtractLib");
+    ErrorOr<std::unique_ptr<MemoryBuffer>> Buf =
+            MemoryBuffer::getFile(ArchiveName, -1, false);
+    std::error_code EC = Buf.getError();
+    if (EC) {
+        return fail("unable to open '" + ArchiveName + "': " + EC.message());
+    }
+
+    Error Err = Error::success();
+    object::Archive Arch(Buf.get()->getMemBufferRef(), Err);
+    if (isError(std::move(Err), "unable to load '" + ArchiveName + "'")) {
+        return false;
+    }
+    return performReadOperation(Extract, &Arch);
 }

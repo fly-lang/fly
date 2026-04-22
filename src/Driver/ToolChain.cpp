@@ -10,6 +10,7 @@
 #include "Frontend/FrontendOptions.h"
 #include "Driver/ToolChain.h"
 #include "Basic/Archiver.h"
+#include "llvm/Support/Errc.h"
 #include "Config/Config.h"
 #include "Basic/Debug.h"
 
@@ -1239,8 +1240,36 @@ SmallVector<std::string, 16> ToolChain::CreatePathList() {
     if (getVFS().exists(UsrLibArch))
         PathList.push_back(UsrLibArch.str().str());
 
-    // Example: /lib/gcc/x86_64-linux-gnu/10
-    if (getVFS().exists(GCC_LIB_PATH))
+    // Example: /lib/gcc/x86_64-linux-gnu/10 or /usr/lib/gcc/x86_64-linux-gnu/13
+    if (!GCC_LIB_PATH.empty() && getVFS().exists(GCC_LIB_PATH)) {
         PathList.push_back(GCC_LIB_PATH);
+    } else {
+        // GCC_LIB_PATH not set (e.g. building with Clang): probe standard locations
+        for (const char *Base : {"/usr/lib/gcc", "/lib/gcc"}) {
+            SmallString<128> GCCBase(Base);
+            llvm::sys::path::append(GCCBase, MultiarchTriple);
+            std::error_code EC;
+            for (llvm::vfs::directory_iterator It = getVFS().dir_begin(GCCBase, EC), End;
+                 !EC && It != End; It.increment(EC)) {
+                if (It->type() == llvm::sys::fs::file_type::directory_file) {
+                    PathList.push_back(It->path().str());
+                }
+            }
+        }
+    }
     return PathList;
+}
+
+bool Archiver::CreateLib(const llvm::SmallVector<std::string, 4> &Files) {
+    for (auto &File : Files) {
+        FLY_DEBUG_START_MSG("Archiver", "CreateLib", "File=" << File);
+        Members.emplace_back(File);
+    }
+    ErrorOr<std::unique_ptr<MemoryBuffer>> Buf =
+            MemoryBuffer::getFile(ArchiveName, -1, false);
+    std::error_code EC = Buf.getError();
+    if (EC && EC == errc::no_such_file_or_directory) {
+        return performWriteOperation(ReplaceOrInsert, nullptr, nullptr, nullptr);
+    }
+    return fail("File error: '" + ArchiveName + "' already exists " + EC.message());
 }

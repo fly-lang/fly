@@ -28,7 +28,7 @@ using namespace fly;
 class ParserTest : public ::testing::Test {
 
 public:
-    const CompilerInstance CI;
+    std::shared_ptr<CompilerInstance> CI;
     // Sema *S;
     DiagnosticsEngine &Diags;
     ASTBuilder *Builder;
@@ -48,8 +48,8 @@ public:
         DebugEnabled = false;
     }
 
-    ParserTest() : CI(*TestUtils::CreateCompilerInstance()),
-        Diags(CI.getDiagnostics()), Builder(new ASTBuilder(Diags))
+    ParserTest() : CI(TestUtils::CreateCompilerInstance()),
+        Diags(CI->getDiagnostics()), Builder(new ASTBuilder(Diags))
         // ,S(new Sema(CI.getDiagnostics()))
     {
 
@@ -63,12 +63,12 @@ protected:
 
     ASTModule *Parse(std::string Name, llvm::StringRef Source) {
         Diags.getClient()->BeginSourceFile();
-        auto FID = new InputFile(Diags, CI.getSourceManager(), Name);
+        auto FID = new InputFile(Diags, CI->getSourceManager(), Name);
         // Load the provided source into the InputFile so the Parser can access the buffer
         FID->Load(Source);
         // Keep a copy of the source text so tests can search tokens and compute expected locations
         LastParseSource = Source.str();
-        Parser *P = new Parser(FID, CI.getSourceManager(), Diags, *Builder);
+        Parser *P = new Parser(FID, CI->getSourceManager(), Diags, *Builder);
         ASTModule *AST = P->ParseModule();
         Diags.getClient()->EndSourceFile();
         ASTModules.push_back(AST);
@@ -115,8 +115,8 @@ protected:
     // Helper: convert a SourceLocation to (line, column) using the SourceManager (1-based)
     std::pair<unsigned, unsigned> LocToLineCol(const SourceLocation &L) {
         bool Invalid = false;
-        unsigned Line = CI.getSourceManager().getSpellingLineNumber(L, &Invalid);
-        unsigned Col = CI.getSourceManager().getSpellingColumnNumber(L, &Invalid);
+        unsigned Line = CI->getSourceManager().getSpellingLineNumber(L, &Invalid);
+        unsigned Col = CI->getSourceManager().getSpellingColumnNumber(L, &Invalid);
         return { Line, Col };
     }
 

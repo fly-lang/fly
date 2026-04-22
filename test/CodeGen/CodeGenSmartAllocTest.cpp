@@ -523,9 +523,11 @@ namespace {
      * Fly code:
      * struct TestStruct { int a }
      * void func() {
-     *   TestStruct t = new weak TestStruct()  // only t owns the pointer
-     *   TestStruct u = t                      // weak copy: no retain, no cleanup for u
-     * }  // only one free(t) emitted — u has no cleanup responsibility
+     *   TestStruct t = new weak TestStruct()
+     *   TestStruct u = t   // weak copy: each copy has its own SA → each calls free()
+     * }  // u exits scope first → free(ptr); t exits scope → free(ptr) again (dangling)
+     *    // Semantica A: il primo che esce libera, gli altri diventano dangling.
+     *    // Il double-free è responsabilità del programmatore.
      */
     TEST_F(CodeGenTest, CGWeakSmartAllocCopy) {
         ASTModule *Module = CreateModule();
@@ -565,13 +567,14 @@ namespace {
         Generate();
         std::string output = getOutput(getModules()[0]);
 
-        // Exactly one free — only t's SA entry emits cleanup, u has no SA cleanup entry.
+        // Semantica A: every SA entry (original + copy) calls free() at its own scope exit.
+        // Two weak vars in the same scope → two free() calls on the same pointer.
         size_t first_free  = output.find("call void @free");
         size_t second_free = output.find("call void @free", first_free + 1);
         ASSERT_NE(first_free,  std::string::npos) << "t must be freed at scope exit";
-        EXPECT_EQ(second_free, std::string::npos) << "u must NOT emit a second free (no double-free)";
+        ASSERT_NE(second_free, std::string::npos) << "u must also emit free (each weak SA owns cleanup)";
 
-        // No retain or refcount operations
+        // No refcount operations: weak never retains or releases via refcount
         EXPECT_EQ(output.find("add i64"), std::string::npos) << "weak copy must NOT emit retain";
         EXPECT_EQ(output.find("sub i64"), std::string::npos) << "weak copy must NOT emit release";
     }

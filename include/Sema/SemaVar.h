@@ -32,6 +32,8 @@ namespace fly {
 
     	bool Constant = false;
 
+    	// Non-owning: the SemaSmartAlloc is owned by the enclosing SemaBlockStmt
+    	// (via addSmartAlloc). Do NOT delete here.
     	SemaSmartAlloc *SmartAlloc = nullptr;
 
         explicit SemaVar(ASTVar *AST, SemaKind Kind, SemaType *Type);

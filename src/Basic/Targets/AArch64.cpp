@@ -469,11 +469,14 @@ AArch64leTargetInfo::AArch64leTargetInfo(const llvm::Triple &Triple,
 void AArch64leTargetInfo::setDataLayout() {
   if (getTriple().isOSBinFormatMachO()) {
     if(getTriple().isArch32Bit())
-      resetDataLayout("e-m:o-p:32:32-i64:64-i128:128-n32:64-S128");
+      resetDataLayout("e-m:o-p:32:32-p270:32:32-p271:32:32-p272:64:64-i64:64-"
+                      "i128:128-n32:64-S128-Fn32", "_");
     else
-      resetDataLayout("e-m:o-i64:64-i128:128-n32:64-S128");
+      resetDataLayout("e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-"
+                      "n32:64-S128-Fn32", "_");
   } else
-    resetDataLayout("e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128");
+    resetDataLayout("e-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-"
+                    "i64:64-i128:128-n32:64-S128-Fn32");
 }
 
 AArch64beTargetInfo::AArch64beTargetInfo(const llvm::Triple &Triple,
@@ -482,7 +485,8 @@ AArch64beTargetInfo::AArch64beTargetInfo(const llvm::Triple &Triple,
 
 void AArch64beTargetInfo::setDataLayout() {
   assert(!getTriple().isOSBinFormatMachO());
-  resetDataLayout("E-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128");
+  resetDataLayout("E-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-"
+                  "i64:64-i128:128-n32:64-S128-Fn32");
 }
 
 WindowsARM64TargetInfo::WindowsARM64TargetInfo(const llvm::Triple &Triple,
@@ -504,7 +508,12 @@ WindowsARM64TargetInfo::WindowsARM64TargetInfo(const llvm::Triple &Triple,
 }
 
 void WindowsARM64TargetInfo::setDataLayout() {
-  resetDataLayout("e-m:w-p:64:64-i32:32-i64:64-i128:128-n32:64-S128");
+  resetDataLayout(Triple.isOSBinFormatMachO()
+                      ? "e-m:o-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:"
+                        "128-n32:64-S128-Fn32"
+                      : "e-m:w-p270:32:32-p271:32:32-p272:64:64-p:64:64-i32:32-"
+                        "i64:64-i128:128-n32:64-S128-Fn32",
+                  Triple.isOSBinFormatMachO() ? "_" : "");
 }
 
 TargetInfo::BuiltinVaListKind

@@ -192,5 +192,5 @@ DIAG(err_codegen_unref_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "Unre
 DIAG(err_codegen_generate_header, CLASS_ERROR, (unsigned)diag::Severity::Error, "Error on header file generation %0", 0, SFINAE_Suppress, false, true, 0)
 
 // Fatal Invalid Compiler Behavior
-DIAG(err_invalid_behavior, CLASS_ERROR, (unsigned)diag::Severity::Fatal, "Invalid code behavior: it's a bug!", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_invalid_behavior, CLASS_ERROR, (unsigned)diag::Severity::Fatal, "Invalid compiler behavior: it's a bug!", 0, SFINAE_Suppress, false, true, 0)
 

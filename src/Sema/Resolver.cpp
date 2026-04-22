@@ -63,6 +63,7 @@
 
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSet.h"
+#include "llvm/Support/Signals.h"
 
 #include <functional>
 
@@ -117,9 +118,8 @@ DiagnosticBuilder Resolver::Diag(const SourceLocation &Loc, unsigned DiagID) con
 }
 
 DiagnosticBuilder Resolver::Diag(unsigned DiagID) const {
-	if (DiagID == diag::err_invalid_behavior) {
-		llvm::errs() << "DEBUG Resolver::Diag err_invalid_behavior called\n";
-	}
+	if (DebugEnabled && DiagID == diag::err_invalid_behavior)
+		llvm::sys::PrintStackTrace(llvm::errs());
 	return Diags.Report(DiagID);
 }
 
@@ -133,23 +133,15 @@ void Resolver::visit(ASTModule &AST) {
 		CurrentModule = new SemaModule(AST, CurrentScope);
 		Reg.addModule(CurrentModule);
 
-		for (size_t i = 0; i < AST.getNodes().size(); ++i) {
-			auto Node = AST.getNodes()[i];
+		// Process namespace declaration first; ASTModule stores it separately from Nodes
+		if (AST.getNameSpace() != nullptr) {
+			AST.getNameSpace()->accept(*this);
+		} else {
+			CurrentNameSpace = Reg.getDefaultNameSpace();
+		}
 
-			if (i == 0) {
-				if (Node->getKind() != ASTKind::AST_NAMESPACE) {
-					// Set the Module NameSpace
-					CurrentNameSpace = Reg.getDefaultNameSpace();
-				}
-
-				// Visit Definition
-				Node->accept(*this);
-
-			} else {
-
-				// Visit Definition
-				Node->accept(*this);
-			}
+		for (auto Node : AST.getNodes()) {
+			Node->accept(*this);
 		}
 
 		ExitScope();
@@ -541,6 +533,10 @@ void Resolver::visit(ASTNamedType &AST) {
 
 	SymbolTable *Scope = CurrentScope;
 	Symbol *Sym = Reg.LookupNamedType(AST, Scope);
+	if (!Sym) {
+		FLY_DEBUG_END("Resolver", "visit(ASTNamedType)");
+		return;
+	}
 	SemaType *Sema = static_cast<SemaType *>(Sym->getRef());
 
 	CurrentType = Sema;
@@ -687,15 +683,14 @@ void Resolver::visit(ASTDeclStmt &AST) {
 				CurrentSemaBlock->addSmartAlloc(CopyAlloc);
 				SrcVar->getSmartAlloc()->incrReferenceCounter();
 			} else if (SrcVar->getSmartAlloc()->isWeak()) {
-				// Weak copy: no ownership transfer, no refcount increment.
-				// The copy does NOT register a cleanup SA entry — only the original
-				// allocation owns the pointer and frees it at scope exit. This ensures
-				// a single free regardless of how many copies exist, breaking cycles.
+				// Weak copy: each copy owns a SA entry and calls free() at its own
+				// scope exit. The first copy to exit scope frees the object; all
+				// remaining copies become dangling — programmer's responsibility.
+				// Refcount is NOT incremented: weak never retains.
 				SemaSmartAlloc *CopyAlloc = new SemaSmartAlloc(
 					SrcVar->getSmartAlloc()->getCall());
 				LocalVar->setSmartAlloc(CopyAlloc);
-				// Intentionally NOT added to CurrentSemaBlock->addSmartAlloc —
-				// the copy carries no cleanup responsibility.
+				CurrentSemaBlock->addSmartAlloc(CopyAlloc);
 			}
 		}
 	}
@@ -1836,6 +1831,10 @@ void Resolver::ResolveBaseClasses(SemaClassType *DerivedClass) {
 
 		// Resolve the base symbol
 		Symbol *Sym = Reg.LookupNamedType(*static_cast<ASTNamedType *>(AST), CurrentScope);
+		if (!Sym) {
+			FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
+			return;
+		}
 		SemaType *NamedType = static_cast<SemaType *>(Sym->getRef());
 		if (!NamedType->isClass()) {
 			Diag(AST->getLocation(), diag::err_sema_base_not_class) << NamedType->getName();

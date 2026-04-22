@@ -62,6 +62,7 @@
 #include <llvm/IR/Instructions.h>
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
+#include "llvm/Support/Signals.h"
 
 using namespace fly;
 
@@ -108,6 +109,8 @@ CodeGenModule::~CodeGenModule() {
 }
 
 DiagnosticBuilder CodeGenModule::Diag(unsigned DiagID) {
+    if (DebugEnabled && DiagID == diag::err_invalid_behavior)
+        llvm::sys::PrintStackTrace(llvm::errs());
     return Diags.Report(DiagID);
 }
 

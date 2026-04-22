@@ -65,8 +65,8 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
     // Create LLVM Function
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
-    // Set Name
-	std::string Name = Mangle(Sema);
+    // Set Name: main() is the C entry point and must not be mangled
+	std::string Name = isMain ? "main" : Mangle(Sema);
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
 
     // Set Linkage

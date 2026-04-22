@@ -48,41 +48,6 @@ Archiver::Archiver(DiagnosticsEngine &Diag, const std::string &ArchiveName) : Di
     FLY_DEBUG_START_MSG("Archiver", "Archiver", "ArchiveName=" + ArchiveName);
 }
 
-bool Archiver::CreateLib(const llvm::SmallVector<std::string, 4> &Files) {
-    for (auto &File : Files) {
-        FLY_DEBUG_START_MSG("Archiver", "CreateLib", "File=" << File);
-        // Everything on the command line at this point is a member.
-        Members.emplace_back(File);
-    }
-    // Create or open the archive object.
-    ErrorOr<std::unique_ptr<MemoryBuffer>> Buf =
-            MemoryBuffer::getFile(ArchiveName, -1, false);
-    std::error_code EC = Buf.getError();
-    if (EC && EC == errc::no_such_file_or_directory) {
-        return performWriteOperation(ReplaceOrInsert, nullptr, nullptr, nullptr);
-    }
-    return fail("File error: '" + ArchiveName + "' already exists " + EC.message());
-}
-
-bool Archiver::ExtractLib(FileManager &FileMgr) {
-    FLY_DEBUG_START("Archiver", "ExtractLib");
-    // Create or open the archive object.
-    ErrorOr<std::unique_ptr<MemoryBuffer>> Buf =
-            MemoryBuffer::getFile(ArchiveName, -1, false);
-    std::error_code EC = Buf.getError();
-    std::vector<StringRef> HeaderFiles;
-    if (EC) {
-        return fail("unable to open '" + ArchiveName + "': " + EC.message());
-    }
-
-    Error Err = Error::success();
-    object::Archive Arch(Buf.get()->getMemBufferRef(), Err);
-    if (isError(std::move(Err), "unable to load '" + ArchiveName + "'")) {
-        return false;
-    }
-    return performReadOperation(Extract, &Arch);
-}
-
 const std::vector<StringRef> &Archiver::getExtractFiles() const {
     return ExtractFiles;
 }

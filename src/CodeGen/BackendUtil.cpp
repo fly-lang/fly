@@ -373,7 +373,8 @@ static void initTargetOptions(DiagnosticsEngine &Diags,
 //             Entry.Group == frontend::IncludeDirGroup::System))
 //            Options.MCOptions.IASSearchPaths.push_back(
 //                    Entry.IgnoreSysRoot ? Entry.Path : HSOpts.Sysroot + Entry.Path);
-    Options.MCOptions.Argv0 = CodeGenOpts.Argv0;
+    if (CodeGenOpts.Argv0)
+        Options.MCOptions.Argv0 = CodeGenOpts.Argv0;
     // Note: MCOptions.CommandLineArgs was removed in LLVM 17+.
 }
 

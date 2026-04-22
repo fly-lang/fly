@@ -19,142 +19,143 @@ using namespace fly::driver::options;
 using namespace llvm::opt;
 
 // ---------------------------------------------------------------------------
-// String table: a single packed null-terminated string literal.
-// Offset 0 MUST be the empty string (required by StringTable).
+// String table – single packed null-terminated string literal.
+// Offset 0 MUST be the empty string (StringTable requirement).
 //
-// Byte offsets (cumulative, each entry = string chars + '\0'):
-//  0   : ""             (1 byte,  empty string required by StringTable)
-//  1   : "-"            (2 bytes, next=3)
-//  3   : "--"           (3 bytes, next=6)
-//  6   : "<input>"      (8 bytes, next=14)
-//  14  : "<unknown>"    (10 bytes, next=24)
-//  24  : "-as"          (4 bytes, next=28)
-//  28  : "-bc"          (4 bytes, next=32)
-//  32  : "-debug"       (7 bytes, next=39)
-//  39  : "-ftime-report"(14 bytes, next=53)
-//  53  : "--help"       (7 bytes, next=60)
-//  60  : "-H"           (3 bytes, next=63)
-//  63  : "-lib"         (5 bytes, next=68)
-//  68  : "-log-file"    (10 bytes, next=78)
-//  78  : "-ll"          (4 bytes, next=82)
-//  82  : "-mc-model"    (10 bytes, next=92)
-//  92  : "-mthread-mode"(14 bytes, next=106)
-//  106 : "-no"          (4 bytes, next=110)
-//  110 : "-o"           (3 bytes, next=113)
-//  113 : "-print-stats" (13 bytes, next=126)
-//  126 : "-stats-file=" (13 bytes, next=139)
-//  139 : "-target-cpu"  (12 bytes, next=151)
-//  151 : "-target"      (8 bytes, next=159)
-//  159 : "--version-short" (16 bytes, next=175)
-//  175 : "-version-short"  (15 bytes, next=190)
-//  190 : "--version"    (10 bytes, next=200)
-//  200 : "-version"     (9 bytes, next=209)
-//  209 : "-v"           (3 bytes, next=212)
-//  212 : "-w"           (3 bytes, next=215)
-//  215 : "-working-dir" (13 bytes, next=228)
+// The InfoTable is sorted by pure option name (PrefixedName minus the
+// canonical prefix) using LLVM's StrCmpOptionName ordering, which is
+// case-insensitive with '\0' sorting LAST (so longer options sort before
+// any shorter option that is a prefix of them, e.g. "target-cpu" < "target").
+//
+// Byte offsets (each entry = string chars + '\0'):
+//   0  : ""               (1  byte,  next=1)
+//   1  : "-"              (2  bytes, next=3)
+//   3  : "--"             (3  bytes, next=6)
+//   6  : "<input>"        (8  bytes, next=14)
+//  14  : "<unknown>"      (10 bytes, next=24)
+//  24  : "-debug"         (7  bytes, next=31)
+//  31  : "-emit-as"       (9  bytes, next=40)
+//  40  : "-emit-bc"       (9  bytes, next=49)
+//  49  : "-emit-ll"       (9  bytes, next=58)
+//  58  : "-ftime-report"  (14 bytes, next=72)
+//  72  : "-header"        (8  bytes, next=80)
+//  80  : "-help"          (6  bytes, next=86)
+//  86  : "-lib"           (5  bytes, next=91)
+//  91  : "-log-file"      (10 bytes, next=101)
+// 101  : "-mcmodel"       (9  bytes, next=110)
+// 110  : "-mthread-model" (15 bytes, next=125)
+// 125  : "-no-output"     (11 bytes, next=136)
+// 136  : "-o"             (3  bytes, next=139)
+// 139  : "-print-stats"   (13 bytes, next=152)
+// 152  : "-stats-file"    (12 bytes, next=164)
+// 164  : "--target-cpu"   (13 bytes, next=177)
+// 177  : "--target"       (9  bytes, next=186)
+// 186  : "-version"       (9  bytes, next=195)
+// 195  : "-v"             (3  bytes, next=198)
+// 198  : "-working-dir"   (13 bytes, next=211)
+// 211  : "-w"             (3  bytes, next=214)
 // ---------------------------------------------------------------------------
 static constexpr llvm::StringTable OptionStrTable(
-    "\0"                 // 0
-    "-\0"                // 1
-    "--\0"               // 3
-    "<input>\0"          // 6
-    "<unknown>\0"        // 14
-    "-as\0"              // 24
-    "-bc\0"              // 28
-    "-debug\0"           // 32
-    "-ftime-report\0"    // 39
-    "--help\0"           // 53
-    "-H\0"               // 60
-    "-lib\0"             // 63
-    "-log-file\0"        // 68
-    "-ll\0"              // 78
-    "-mc-model\0"        // 82
-    "-mthread-mode\0"    // 92
-    "-no\0"              // 106
-    "-o\0"               // 110
-    "-print-stats\0"     // 113
-    "-stats-file=\0"     // 126
-    "-target-cpu\0"      // 139
-    "-target\0"          // 151
-    "--version-short\0"  // 159
-    "-version-short\0"   // 175
-    "--version\0"        // 190
-    "-version\0"         // 200
-    "-v\0"               // 209
-    "-w\0"               // 212
-    "-working-dir\0"     // 215
+    "\0"                    //   0 – empty (required)
+    "-\0"                   //   1
+    "--\0"                  //   3
+    "<input>\0"             //   6
+    "<unknown>\0"           //  14
+    "-debug\0"              //  24
+    "-emit-as\0"            //  31
+    "-emit-bc\0"            //  40
+    "-emit-ll\0"            //  49
+    "-ftime-report\0"       //  58
+    "-header\0"             //  72
+    "-help\0"               //  80
+    "-lib\0"                //  86
+    "-log-file\0"           //  91
+    "-mcmodel\0"            // 101
+    "-mthread-model\0"      // 110
+    "-no-output\0"          // 125
+    "-o\0"                  // 136
+    "-print-stats\0"        // 139
+    "-stats-file\0"         // 152
+    "--target-cpu\0"        // 164
+    "--target\0"            // 177
+    "-version\0"            // 186
+    "-v\0"                  // 195
+    "-working-dir\0"        // 198
+    "-w\0"                  // 211
 );
 
 namespace {
 
 // ---------------------------------------------------------------------------
-// OptionPrefixesTable: encodes sets of prefixes as arrays of StringTable offsets.
+// OptionPrefixesTable – prefix sets encoded as arrays of StringTable offsets.
 //
-// Each prefix set starts with its count, followed by that many offsets into
-// OptionStrTable. The PrefixesOffset field in Info points to the count slot.
+// Each set starts with its count followed by that many offsets into StrTable.
+// The PrefixesOffset field in Info points to the count slot.
 //
 // Layout:
-//   [0] = 0  (sentinel - PrefixesOffset=0 means "no prefix")
-//   [1] = 1  (count=1, single "-" prefix)
-//   [2] = 1  (offset of "-" in StrTable)
-//   [3] = 2  (count=2, "--" first then "-"; first prefix used by getName())
-//   [4] = 3  (offset of "--" in StrTable, first = canonical prefix for getName())
-//   [5] = 1  (offset of "-" in StrTable)
-//
-// PrefixesOffset values used in InfoTable:
-//   0 = no prefix  (INPUT, UNKNOWN)
-//   1 = single "-" prefix
-//   3 = "--" and "-" prefixes (canonical prefix is "--" so PrefixedNameOffset is "--name")
+//   [0] = 0  sentinel (PrefixesOffset=0 ⇒ no prefix, used for INPUT/UNKNOWN)
+//   [1] = 1  count=1
+//   [2] = 1  offset of "-"              → PrefixesOffset=1 ⇒ single-dash only
+//   [3] = 2  count=2
+//   [4] = 3  offset of "--" (canonical) → PrefixesOffset=3 ⇒ "--" and "-" both accepted
+//   [5] = 1  offset of "-"
 // ---------------------------------------------------------------------------
 static constexpr llvm::StringTable::Offset OptionPrefixesTable[] = {
-    {0},  // [0] sentinel (no-prefix)
+    {0},  // [0] sentinel
     {1},  // [1] count=1
     {1},  // [2] offset of "-"
     {2},  // [3] count=2
-    {3},  // [4] offset of "--" (first/canonical prefix)
+    {3},  // [4] offset of "--" (canonical prefix)
     {1},  // [5] offset of "-"
 };
 
-// Helper macro for empty HelpTextsForVariants
 #define NO_VARIANTS (std::array<std::pair<std::array<unsigned int, 2>, const char *>, 1>{{ {std::array<unsigned int, 2>{{0u, 0u}}, nullptr} }})
 
+// All Fly driver options are visible in every driver context.
+#define VIS (~0u)
+
 // ---------------------------------------------------------------------------
-// Option info table
+// InfoTable – entries MUST be sorted by pure option name via LLVM's
+// StrCmpOptionName (case-insensitive; '\0' sorts last so longer option names
+// precede any shorter name they extend: "target-cpu" < "target").
+//
+// OPT_INPUT (index 0) and OPT_UNKNOWN (index 1) are always first.
+// Each entry's ID must equal its 1-based position (ID = index + 1).
+//
 // Fields: PrefixesOffset, PrefixedNameOffset, HelpText, HelpTextsForVariants,
 //         MetaVar, ID, Kind, Param, Flags, Visibility, GroupID, AliasID,
 //         AliasArgs, Values
 // ---------------------------------------------------------------------------
 static const OptTable::Info InfoTable[] = {
-    // Fields: PrefixesOffset, PrefixedNameOffset, HelpText, HelpTextsForVariants,
-    //         MetaVar, ID, Kind, Param, Flags, Visibility, GroupID, AliasID,
-    //         AliasArgs, Values
-    {0, {6},   nullptr, NO_VARIANTS, nullptr, OPT_INPUT,          Option::InputClass,            0, 0, 0, 0, 0, nullptr, nullptr},
-    {0, {14},  nullptr, NO_VARIANTS, nullptr, OPT_UNKNOWN,         Option::UnknownClass,          0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {24},  "Produce assembly output .as file",            NO_VARIANTS, nullptr, OPT_EMIT_AS,       Option::FlagClass,             0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {28},  "Produce bitecode output .bc file",            NO_VARIANTS, nullptr, OPT_EMIT_BC,       Option::FlagClass,             0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {32},  "Print debug messages",                        NO_VARIANTS, nullptr, OPT_DEBUG,         Option::FlagClass,             0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {39},  "Show timers for individual actions",          NO_VARIANTS, nullptr, OPT_FTIME_REPORT,  Option::FlagClass,             0, 0, 0, 0, 0, nullptr, nullptr},
-    {3, {53},  "Display available options",                   NO_VARIANTS, nullptr, OPT_HELP,          Option::FlagClass,             0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {60},  "Generate Header File",                        NO_VARIANTS, nullptr, OPT_HEADER_GENERATOR, Option::FlagClass,          0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {63},  "Write output as library to <file>.lib",       NO_VARIANTS, nullptr, OPT_OUTPUT_LIB,    Option::JoinedOrSeparateClass, 0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {68},  "Log diagnostics to <file>",                   NO_VARIANTS, nullptr, OPT_LOG_FILE,      Option::JoinedOrSeparateClass, 0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {78},  "Produce LLVM formats output .ll file",        NO_VARIANTS, nullptr, OPT_EMIT_LL,       Option::FlagClass,             0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {82},  "Produce different Memory Code Model",         NO_VARIANTS, nullptr, OPT_MC_MODEL,      Option::FlagClass,             0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {92},  "Produce different Memory Thread Model",       NO_VARIANTS, nullptr, OPT_MTHREAD_MODEL, Option::FlagClass,             0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {106}, "Produce no output",                           NO_VARIANTS, nullptr, OPT_NO_OUTPUT,     Option::FlagClass,             0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {110}, "Write output to <file>",                      NO_VARIANTS, nullptr, OPT_OUTPUT,        Option::JoinedOrSeparateClass, 0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {113}, "Print performance metrics and statistics",    NO_VARIANTS, nullptr, OPT_PRINT_STATS,   Option::FlagClass,             0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {126}, "Filename to write statistics to",             NO_VARIANTS, nullptr, OPT_STATS_FILE,    Option::JoinedClass,           0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {139}, "Generate code for the given CPU",             NO_VARIANTS, nullptr, OPT_TARGET_CPU,    Option::SeparateClass,         0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {151}, "Generate code for the given target",          NO_VARIANTS, nullptr, OPT_TARGET,        Option::SeparateClass,         0, 0, 0, 0, 0, nullptr, nullptr},
-    {3, {159}, "Print version number",                        NO_VARIANTS, nullptr, OPT_VERSION_SHORT, Option::FlagClass,             0, 0, 0, 0, 0, nullptr, nullptr},
-    {3, {190}, "Print version information",                   NO_VARIANTS, nullptr, OPT_VERSION,       Option::FlagClass,             0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {209}, "Show commands to run and use verbose output", NO_VARIANTS, nullptr, OPT_VERBOSE,       Option::FlagClass,             0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {215}, "ResolveModule file paths relative to the specified directory", NO_VARIANTS, nullptr, OPT_WORKING_DIR, Option::JoinedOrSeparateClass, 0, 0, 0, 0, 0, nullptr, nullptr},
-    {1, {212}, "Suppress all warnings",                       NO_VARIANTS, nullptr, OPT_NO_WARNING,    Option::FlagClass,             0, 0, 0, 0, 0, nullptr, nullptr},
+    // ── INPUT / UNKNOWN (always first) ──────────────────────────────────────
+    {0, {6},   nullptr, NO_VARIANTS, nullptr, OPT_INPUT,            Option::InputClass,            0, 0, VIS, 0, 0, nullptr, nullptr},
+    {0, {14},  nullptr, NO_VARIANTS, nullptr, OPT_UNKNOWN,          Option::UnknownClass,          0, 0, VIS, 0, 0, nullptr, nullptr},
+    // ── sorted by pure name ─────────────────────────────────────────────────
+    {1, {24},  "Print debug messages",                               NO_VARIANTS, nullptr, OPT_DEBUG,            Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {31},  "Produce assembly output",                            NO_VARIANTS, nullptr, OPT_EMIT_AS,          Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {40},  "Produce bitcode output",                             NO_VARIANTS, nullptr, OPT_EMIT_BC,          Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {49},  "Produce LLVM IR output",                             NO_VARIANTS, nullptr, OPT_EMIT_LL,          Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {58},  "Show timers for individual actions",                 NO_VARIANTS, nullptr, OPT_FTIME_REPORT,     Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {72},  "Generate header file",                               NO_VARIANTS, nullptr, OPT_HEADER_GENERATOR, Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {80},  "Display available options",                          NO_VARIANTS, nullptr, OPT_HELP,             Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {86},  "Write output as library to <file>.a",                NO_VARIANTS, nullptr, OPT_OUTPUT_LIB,       Option::JoinedOrSeparateClass, 0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {91},  "Log diagnostics to <file>",                          NO_VARIANTS, nullptr, OPT_LOG_FILE,         Option::JoinedOrSeparateClass, 0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {101}, "Set memory code model",                              NO_VARIANTS, nullptr, OPT_MC_MODEL,         Option::JoinedOrSeparateClass, 0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {110}, "Set memory thread model",                            NO_VARIANTS, nullptr, OPT_MTHREAD_MODEL,    Option::JoinedOrSeparateClass, 0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {125}, "Produce no output",                                  NO_VARIANTS, nullptr, OPT_NO_OUTPUT,        Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {136}, "Write output to <file>",                             NO_VARIANTS, nullptr, OPT_OUTPUT,           Option::JoinedOrSeparateClass, 0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {139}, "Print performance metrics and statistics",           NO_VARIANTS, nullptr, OPT_PRINT_STATS,      Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {152}, "Filename to write statistics to",                    NO_VARIANTS, nullptr, OPT_STATS_FILE,       Option::JoinedOrSeparateClass, 0, 0, VIS, 0, 0, nullptr, nullptr},
+    {3, {164}, "Generate code for the given CPU",                    NO_VARIANTS, nullptr, OPT_TARGET_CPU,       Option::SeparateClass,         0, 0, VIS, 0, 0, nullptr, nullptr},
+    {3, {177}, "Generate code for the given target",                 NO_VARIANTS, nullptr, OPT_TARGET,           Option::SeparateClass,         0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {186}, "Print version information",                          NO_VARIANTS, nullptr, OPT_VERSION,          Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {195}, "Show commands to run and use verbose output",        NO_VARIANTS, nullptr, OPT_VERBOSE,          Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {198}, "Resolve file paths relative to the specified directory", NO_VARIANTS, nullptr, OPT_WORKING_DIR,  Option::JoinedOrSeparateClass, 0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {211}, "Suppress all warnings",                              NO_VARIANTS, nullptr, OPT_NO_WARNING,       Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
 };
 
 #undef NO_VARIANTS
+#undef VIS
 
 class DriverOptTable : public GenericOptTable {
 public:

@@ -19,7 +19,7 @@ SemaNameSpace::SemaNameSpace(llvm::StringRef Name, SymbolTable *Symbols) : SemaN
 }
 
 SemaNameSpace::~SemaNameSpace() {
-
+	delete Symbols;
 }
 
 SymbolTable * SemaNameSpace::getSymbols() const {

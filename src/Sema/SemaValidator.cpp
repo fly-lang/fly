@@ -17,7 +17,9 @@
 #include "AST/ASTModule.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVar.h"
+#include "Basic/Debug.h"
 #include "Basic/Diagnostic.h"
+#include "llvm/Support/Signals.h"
 #include "Sema/SemaNameSpace.h"
 
 #include <AST/ASTExpr.h>
@@ -38,9 +40,8 @@ DiagnosticBuilder SemaValidator::Diag(const SourceLocation &Loc, unsigned DiagID
 }
 
 DiagnosticBuilder SemaValidator::Diag(unsigned DiagID) const {
-	if (DiagID == diag::err_invalid_behavior) {
-		llvm::errs() << "DEBUG SemaValidator::Diag err_invalid_behavior\n";
-	}
+	if (DebugEnabled && DiagID == diag::err_invalid_behavior)
+		llvm::sys::PrintStackTrace(llvm::errs());
 	return Diags.Report(DiagID);
 }
 

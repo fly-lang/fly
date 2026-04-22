@@ -19,6 +19,7 @@
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenError.h"
 #include "Frontend/FrontendOptions.h"
+#include "Frontend/InputFile.h"
 #include "Sema/SemaModule.h"
 #include "Sema/SemaNameSpace.h"
 
@@ -176,7 +177,7 @@ void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
 
     std::error_code ErrCode;
     std::unique_ptr<llvm::raw_fd_ostream> OS =
-            std::make_unique<llvm::raw_fd_ostream>(OutName, ErrCode, llvm::sys::fs::OF_None);
+            std::make_unique<llvm::raw_fd_ostream>(OutputFileName, ErrCode, llvm::sys::fs::OF_None);
 
     // Include Bitcode in module
     EmbedBitcode(M, CodeGenOpts, llvm::MemoryBufferRef());
@@ -205,7 +206,10 @@ llvm::SmallVector<llvm::Module *, 8> CodeGen::GenerateModules(llvm::SmallVector<
 	llvm::SmallVector<CodeGenModule *, 8> CodeGenModules;
     for (auto &Sema : SemaModules) {
         Diags.getClient()->BeginSourceFile();
-    	CodeGenModule *CGM = new CodeGenModule(*this, Diags, Sema->getName(), LLVMCtx, *Target, CodeGenOpts);
+    	// Use the source filename (e.g. "main.fly") as the LLVM module identifier so that
+    	// getOutputFileName("main.fly") produces "main.fly.ll" / "main.fly.o" etc.
+    	llvm::StringRef ModuleId = Sema->getAST().getFile()->getFileName();
+    	CodeGenModule *CGM = new CodeGenModule(*this, Diags, ModuleId, LLVMCtx, *Target, CodeGenOpts);
     	Sema->accept(*CGM);
         Diags.getClient()->EndSourceFile();
     	// Transfer ownership: get the Module pointer and null it out in CodeGenModule

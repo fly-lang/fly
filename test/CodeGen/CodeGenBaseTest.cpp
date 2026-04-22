@@ -1583,7 +1583,7 @@ namespace {
                         "\n"
                         "@error = external constant %error\n"
                         "\n"
-                        "define i32 @_F4main() {\n"
+                        "define i32 @main() {\n"
                         "entry:\n"
                         "  %0 = alloca ptr, align 8\n"
                         "  %1 = load ptr, ptr %0, align 8\n"

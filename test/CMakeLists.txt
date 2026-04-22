@@ -5,9 +5,10 @@
 message(STATUS "Adding Fly Tests")
 
 add_executable(fly_test
-#        CmdTest.cpp
-#        DriverTest.cpp
-#        ImportTest.cpp
+        AppTest.cpp
+        DriverTest.cpp
+        FrontendTest.cpp
+        ToolChainTest.cpp
         CodeGen/CodeGenTest.cpp
         CodeGen/CodeGenBaseTest.cpp
         CodeGen/CodeGenErrorTest.cpp
@@ -40,9 +41,4 @@ target_link_libraries(fly_test PRIVATE
         flyLib
         )
 
-# Copy all .fly from test/src/ dir
-file(COPY src DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-configure_file(
-        ${CMAKE_SOURCE_DIR}/test/TestConfig.h.cmake
-        ${CMAKE_SOURCE_DIR}/test/TestConfig.h)
 add_test(NAME fly_test COMMAND fly_test)

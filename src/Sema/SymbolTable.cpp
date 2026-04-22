@@ -22,10 +22,10 @@ SymbolTable::SymbolTable(SymbolTable *Parent) : Parent(Parent) {
 }
 
 SymbolTable::~SymbolTable() {
-	// Clear the table structure (does not delete Symbol* values)
+	for (auto &Entry : Table)
+		for (Symbol *Sym : Entry.second)
+			delete Sym;
 	Table.clear();
-	// Note: Parent is not deleted - it's managed externally
-	// Note: Children are not deleted - call deleteChildren() explicitly if needed
 }
 
 bool SymbolTable::insert(Symbol *Sym) {

@@ -22,6 +22,7 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/ADT/StringRef.h>
+#include <memory>
 
 namespace fly {
 
@@ -42,10 +43,10 @@ namespace fly {
         IntrusiveRefCntPtr<SourceManager> SourceMgr;
 
         /// The frontend options
-        FrontendOptions *FrontendOpts;
+        std::unique_ptr<FrontendOptions> FrontendOpts;
 
-        /// The frontend options
-        CodeGenOptions *CodeGenOpts;
+        /// The codegen options
+        std::unique_ptr<CodeGenOptions> CodeGenOpts;
 
         /// The Target options
         std::shared_ptr<fly::TargetOptions> TargetOpts;

@@ -138,8 +138,9 @@ TargetInfo::TargetInfo(const llvm::Triple &T) : TargetOpts(), Triple(T) {
 // Out of line virtual dtor for TargetInfo.
 TargetInfo::~TargetInfo() {}
 
-void TargetInfo::resetDataLayout(StringRef DL) {
+void TargetInfo::resetDataLayout(StringRef DL, const char *UserLabelPrefix) {
   DataLayout.reset(new llvm::DataLayout(DL));
+  (void)UserLabelPrefix; // Reserved for future MachO symbol prefix support
 }
 
 bool

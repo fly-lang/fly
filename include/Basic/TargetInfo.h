@@ -216,7 +216,7 @@ namespace fly {
         // TargetInfo Constructor.  Default initializes all fields.
         TargetInfo(const llvm::Triple &T);
 
-        void resetDataLayout(StringRef DL);
+        void resetDataLayout(StringRef DL, const char *UserLabelPrefix = "");
 
     public:
         /// Construct a target for the given options.

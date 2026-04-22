@@ -11,7 +11,9 @@
 
 #include "AST/ASTCall.h"
 #include "AST/ASTFunction.h"
+#include "Basic/Debug.h"
 #include "Basic/Diagnostic.h"
+#include "llvm/Support/Signals.h"
 #include "Sema/Helper.h"
 #include "Sema/SemaNameSpace.h"
 
@@ -33,8 +35,14 @@ Registry::Registry(DiagnosticsEngine &Diags) : Diags(Diags),
 }
 
 Registry::~Registry() {
+	for (auto *M : Modules)
+		delete M;
 
-	// Delete Builtin Scope
+	GlobalScope->deleteChildren();
+	delete GlobalScope;
+
+	delete DefaultNameSpace;
+
 	BuiltinScope->deleteChildren();
 	delete BuiltinScope;
 }
@@ -44,9 +52,8 @@ DiagnosticBuilder Registry::Diag(const SourceLocation &Loc, unsigned DiagID) con
 }
 
 DiagnosticBuilder Registry::Diag(unsigned DiagID) const {
-	if (DiagID == diag::err_invalid_behavior) {
-		llvm::errs() << "DEBUG Registry::Diag err_invalid_behavior called\n";
-	}
+	if (DebugEnabled && DiagID == diag::err_invalid_behavior)
+		llvm::sys::PrintStackTrace(llvm::errs());
 	return Diags.Report(DiagID);
 }
 
@@ -186,12 +193,12 @@ Symbol *Registry::LookupImport(const llvm::SmallVector<ASTName *, 4> &Names) {
 }
 
 Symbol* Registry::LookupBuiltinType(llvm::StringRef TypeName) {
-	SmallVector<Symbol *, 8> * Symbols = BuiltinScope->lookup(TypeName);
-
-	// Take the unique Symbol
-	Symbol *CurrentSymbol = (*Symbols)[0];
-
-	return CurrentSymbol;
+	SmallVector<Symbol *, 8> *Symbols = BuiltinScope->lookup(TypeName);
+	if (!Symbols || Symbols->empty()) {
+		Diag(diag::err_invalid_behavior);
+		return nullptr;
+	}
+	return (*Symbols)[0];
 }
 
 Symbol *Registry::LookupNamedType(llvm::StringRef Name, SymbolTable *Scope) {

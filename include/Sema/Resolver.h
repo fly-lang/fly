@@ -16,6 +16,7 @@
 #include "SemaEnumEntry.h"
 
 #include <AST/ASTMember.h>
+#include <memory>
 
 namespace fly {
 
@@ -80,7 +81,7 @@ namespace fly {
 
         Registry &Reg;
 
-    	SemaValidator *Validator;
+    	std::unique_ptr<SemaValidator> Validator;
 
         SymbolTable* CurrentScope;
 

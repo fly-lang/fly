@@ -37,12 +37,22 @@ static const unsigned TCEOpenCLAddrSpaceMap[] = {
     0, // opencl_private
     // FIXME: generic has to be added to the target
     0, // opencl_generic
+    3, // opencl_global_device
+    3, // opencl_global_host
     0, // cuda_device
     0, // cuda_constant
     0, // cuda_shared
+    0, // sycl_global
+    0, // sycl_global_device
+    0, // sycl_global_host
+    0, // sycl_local
+    0, // sycl_private
     0, // ptr32_sptr
     0, // ptr32_uptr
     0, // ptr64
+    0, // hlsl_groupshared
+    0, // hlsl_constant
+    0, // wasm_funcref
 };
 
 class LLVM_LIBRARY_VISIBILITY TCETargetInfo : public TargetInfo {
