@@ -99,17 +99,24 @@ else()
 
 endif()
 
-if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
-    execute_process(COMMAND bash "-c" "gcc -print-search-dirs | grep install | sed 's/install: //' | tr -d '\n' | head -c -1"
-            OUTPUT_VARIABLE GCC_LIB_PATH)
-    MESSAGE(STATUS "GCC_LIB_PATH: " ${GCC_LIB_PATH})
-endif()
 
 message(STATUS "Include LLVM directory: ${LLVM_INCLUDE_DIRS}")
 include_directories(${LLVM_INCLUDE_DIRS})
 
 # Include Fly headers
 include_directories(include)
+
+# Deterministic output path for the runtime static library.
+# Must be set before add_subdirectory(src) because src/CMakeLists.txt calls
+# configure_file() which bakes FLY_RUNTIME_LIB_DIR into include/Config/Config.h.
+# Extract major version number from FLY_LLVM_VERSION (e.g. "20.1.8" → "20")
+string(REGEX MATCH "^([0-9]+)" FLY_LLVM_VERSION_MAJOR "${FLY_LLVM_VERSION}")
+
+set(FLY_RUNTIME_LIB_DIR "${CMAKE_BINARY_DIR}/lib")
+
+# Runtime must be configured before src/ so configure_file() in src/CMakeLists.txt
+# bakes the correct FLY_RUNTIME_LIB_DIR into include/Config/Config.h.
+add_subdirectory(src/Runtime)
 
 # Add Fly Sources
 add_subdirectory(src)

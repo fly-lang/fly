@@ -526,6 +526,12 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
         CmdArgs.push_back(ObjFile.c_str());
     }
 
+    const std::string WinRuntimeLib = GetRuntimeLibPath();
+    if (!WinRuntimeLib.empty()) {
+        FLY_DEBUG_START_MSG("ToolChain", "LinkWindows", "RuntimeLib=" << WinRuntimeLib);
+        CmdArgs.push_back(WinRuntimeLib.c_str());
+    }
+
     if (T.getObjectFormat() == llvm::Triple::COFF) {
         SmallVector<const char*, 16> LinkArgs;
         createLinkArgs(CmdArgs, LinkArgs);
@@ -688,6 +694,12 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
         CmdArgs.push_back(InFile.c_str());
     }
 
+    const std::string DarwinRuntimeLib = GetRuntimeLibPath();
+    if (!DarwinRuntimeLib.empty()) {
+        FLY_DEBUG_START_MSG("ToolChain", "LinkDarwin", "RuntimeLib=" << DarwinRuntimeLib);
+        CmdArgs.push_back(DarwinRuntimeLib.c_str());
+    }
+
     if (T.getObjectFormat() == llvm::Triple::MachO) {
         SmallVector<const char*, 16> LinkArgs;
         createLinkArgs(CmdArgs, LinkArgs);
@@ -726,7 +738,6 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
     const bool IsPIE = getPIE();
     const bool IsStaticPIE = CodeGenOpts.StaticPIE;
     const bool IsStatic = CodeGenOpts.Static && !CodeGenOpts.StaticPIE;
-    const bool HasCRTBeginEndFiles = T.hasEnvironment() || (T.getVendor() != llvm::Triple::MipsTechnologies);
 
     if (IsPIE)
         CmdArgs.push_back("-pie");
@@ -823,43 +834,19 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
         CmdArgs.push_back("max-page-size=0x4000000");
     }
 
-    // Add crtbegin object
-    if (IsIAMCU) {
-        const std::string crt0 = GetFilePath("crt0.o", PathList);
-        if (getVFS().exists(crt0))
-            CmdArgs.push_back(crt0);
-    } else if (HasCRTBeginEndFiles) {
-        std::string P;
-        if (!isAndroid) {
-            std::string crtbegin = getCompilerRT("crtbegin.o", PathList);
-            if (getVFS().exists(crtbegin))
-                P = crtbegin;
-        }
-        if (P.empty()) {
-            const char *crtbegin;
-            if (IsStatic)
-                crtbegin = isAndroid ? "crtbegin_static.o" : "crtbeginT.o";
-            else if (CodeGenOpts.Shared)
-                crtbegin = isAndroid ? "crtbegin_so.o" : "crtbeginS.o";
-            else if (IsPIE || IsStaticPIE)
-                crtbegin = isAndroid ? "crtbegin_dynamic.o" : "crtbeginS.o";
-            else
-                crtbegin = isAndroid ? "crtbegin_dynamic.o" : "crtbegin.o";
-            P = GetFilePath(crtbegin, PathList);
-        }
-        CmdArgs.push_back(P);
-    }
-
-    // Add crtfastmath.o if available and fast math is enabled.
-    const std::string &FastMathPath = GetFilePath("crtfastmath.o", PathList);
-    if (!FastMathPath.empty()) {
-        CmdArgs.push_back(FastMathPath);
-    }
-
     // Add Inputs
     for(const std::string &ObjFile : InFiles) {
         FLY_DEBUG_START_MSG("ToolChain", "Link", "Input=" << ObjFile);
         CmdArgs.push_back(ObjFile);
+    }
+
+    // Link the Fly runtime (libfly_runtime.a) immediately after user objects so
+    // that references to fly_mem_alloc, fly_io_write, fly_proc_exit, etc. resolve
+    // before the standard C library is searched.
+    const std::string RuntimeLib = GetRuntimeLibPath();
+    if (!RuntimeLib.empty()) {
+        FLY_DEBUG_START_MSG("ToolChain", "LinkLinux", "RuntimeLib=" << RuntimeLib);
+        CmdArgs.push_back(RuntimeLib);
     }
 
     // Add Library Paths
@@ -872,7 +859,16 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
         CmdArgs.push_back("--start-group");
 
     CmdArgs.push_back("-lc");
-    CmdArgs.push_back("-lgcc");
+
+    // compiler-rt builtins: arithmetic/float helpers (replaces -lgcc).
+    const std::string BuiltinsLib = GetCompilerRTBuiltinsPath();
+    if (!BuiltinsLib.empty()) {
+        FLY_DEBUG_START_MSG("ToolChain", "LinkLinux", "BuiltinsLib=" << BuiltinsLib);
+        CmdArgs.push_back(BuiltinsLib);
+    }
+
+    // Stack-unwinding support (replaces -lgcc_eh).  Found via the GCC versioned
+    // directory that CreatePathList() adds to PathList at runtime.
     CmdArgs.push_back("-lgcc_eh");
 
     // Add IAMCU specific libs, if needed.
@@ -889,31 +885,10 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
         CmdArgs.push_back("--no-as-needed");
     }
 
-    // Add crtend object
-    if (!IsIAMCU) {
-        if (HasCRTBeginEndFiles) {
-            std::string P;
-            if (!isAndroid) {
-                std::string crtend = getCompilerRT("crtend.o", PathList);
-                if (getVFS().exists(crtend))
-                    P = crtend;
-            }
-            if (P.empty()) {
-                std::string crtend;
-                if (CodeGenOpts.Shared)
-                    crtend = isAndroid ? "crtend_so.o" : "crtendS.o";
-                else if (IsPIE || IsStaticPIE)
-                    crtend = isAndroid ? "crtend_android.o" : "crtendS.o";
-                else
-                    crtend = isAndroid ? "crtend_android.o" : "crtend.o";
-                P = GetFilePath(crtend, PathList);
-            }
+    if (!IsIAMCU && !isAndroid) {
+        const std::string P = GetFilePath("crtn.o", PathList);
+        if (!P.empty())
             CmdArgs.push_back(P);
-        }
-        if (!isAndroid) {
-            const std::string P = GetFilePath("crtn.o", PathList);
-            CmdArgs.push_back(P);
-        }
     }
 
     if (T.getObjectFormat() == llvm::Triple::ELF) {
@@ -1028,7 +1003,7 @@ std::string ToolChain::getCompilerRT(const char *Name, SmallVector<std::string, 
         if (getVFS().exists(P))
             return std::string(P.str());
     }
-    return "/lib";
+    return "";
 }
 
 /// Get our best guess at the multiarch triple for a target.
@@ -1240,24 +1215,82 @@ SmallVector<std::string, 16> ToolChain::CreatePathList() {
     if (getVFS().exists(UsrLibArch))
         PathList.push_back(UsrLibArch.str().str());
 
-    // Example: /lib/gcc/x86_64-linux-gnu/10 or /usr/lib/gcc/x86_64-linux-gnu/13
-    if (!GCC_LIB_PATH.empty() && getVFS().exists(GCC_LIB_PATH)) {
-        PathList.push_back(GCC_LIB_PATH);
-    } else {
-        // GCC_LIB_PATH not set (e.g. building with Clang): probe standard locations
-        for (const char *Base : {"/usr/lib/gcc", "/lib/gcc"}) {
-            SmallString<128> GCCBase(Base);
-            llvm::sys::path::append(GCCBase, MultiarchTriple);
-            std::error_code EC;
-            for (llvm::vfs::directory_iterator It = getVFS().dir_begin(GCCBase, EC), End;
-                 !EC && It != End; It.increment(EC)) {
-                if (It->type() == llvm::sys::fs::file_type::directory_file) {
-                    PathList.push_back(It->path().str());
-                }
+    // Probe GCC versioned lib directories at runtime (covers libgcc_eh.a for
+    // stack unwinding).  No configure-time variable needed.
+    // Example: /usr/lib/gcc/x86_64-linux-gnu/13/
+    for (const char *Base : {"/usr/lib/gcc", "/lib/gcc"}) {
+        SmallString<128> GCCBase(Base);
+        llvm::sys::path::append(GCCBase, MultiarchTriple);
+        std::error_code EC;
+        for (llvm::vfs::directory_iterator It = getVFS().dir_begin(GCCBase, EC), End;
+             !EC && It != End; It.increment(EC)) {
+            if (It->type() == llvm::sys::fs::file_type::directory_file) {
+                PathList.push_back(It->path().str());
             }
         }
     }
+
     return PathList;
+}
+
+// Map an LLVM ArchType to the architecture suffix used by compiler-rt, e.g.
+// x86_64 → "x86_64", aarch64 → "aarch64", arm → "arm".
+static const char *archToCompilerRTSuffix(llvm::Triple::ArchType Arch) {
+    switch (Arch) {
+        case llvm::Triple::x86_64:  return "x86_64";
+        case llvm::Triple::x86:     return "i386";
+        case llvm::Triple::aarch64: return "aarch64";
+        case llvm::Triple::arm:
+        case llvm::Triple::thumb:   return "arm";
+        case llvm::Triple::riscv32: return "riscv32";
+        case llvm::Triple::riscv64: return "riscv64";
+        default:                    return nullptr;
+    }
+}
+
+std::string ToolChain::GetCompilerRTBuiltinsPath() const {
+    const char *Suffix = archToCompilerRTSuffix(T.getArch());
+    if (!Suffix)
+        return "";
+
+    // Name of the archive: libclang_rt.builtins-<arch>.a
+    std::string LibName = std::string("libclang_rt.builtins-") + Suffix + ".a";
+
+    // Probe standard installation directories in descending preference:
+    //   /usr/lib/llvm-<major>/lib/clang/<major>/lib/linux/
+    //   /usr/lib/clang/<major>/lib/linux/
+    //   /usr/lib/clang/<major>.x.y/lib/linux/    (version with dots)
+    const int Major = FLY_LLVM_VERSION_MAJOR;
+    const std::string MajorStr = std::to_string(Major);
+
+    const std::string Candidates[] = {
+        "/usr/lib/llvm-" + MajorStr + "/lib/clang/" + MajorStr + "/lib/linux/" + LibName,
+        "/usr/lib/clang/"  + MajorStr + "/lib/linux/" + LibName,
+        "/usr/lib/llvm-" + MajorStr + "/lib/clang/" + MajorStr + ".0/lib/linux/" + LibName,
+        "/usr/lib/llvm-" + MajorStr + "/lib/clang/" + MajorStr + ".0.0/lib/linux/" + LibName,
+    };
+
+    for (const auto &P : Candidates) {
+        if (getVFS().exists(P)) {
+            FLY_DEBUG_START_MSG("ToolChain", "GetCompilerRTBuiltinsPath", "Found: " << P);
+            return P;
+        }
+    }
+    FLY_DEBUG_START_MSG("ToolChain", "GetCompilerRTBuiltinsPath", "Not found: " << LibName);
+    return "";
+}
+
+std::string ToolChain::GetRuntimeLibPath() const {
+    // FLY_RUNTIME_LIB_DIR is baked into Config.h at cmake-configure time.
+    // It points to the directory where libRuntime.a is built (or installed).
+    llvm::SmallString<256> P(FLY_RUNTIME_LIB_DIR);
+    llvm::sys::path::append(P, "libRuntime.a");
+    if (getVFS().exists(P)) {
+        FLY_DEBUG_START_MSG("ToolChain", "GetRuntimeLibPath", "Found: " << P);
+        return std::string(P.str());
+    }
+    FLY_DEBUG_START_MSG("ToolChain", "GetRuntimeLibPath", "Not found: " << P);
+    return "";
 }
 
 bool Archiver::CreateLib(const llvm::SmallVector<std::string, 4> &Files) {

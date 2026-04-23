@@ -11,7 +11,8 @@
 
 const std::string FLY_SOURCE_DIR = "/home/marco/Projects/flylang/fly";
 const std::string FLY_LLVM_BINARY_DIR = "/home/marco/Projects/flylang/fly/cmake-build-debug/llvm-project";
-const std::string GCC_LIB_PATH = "";
+const std::string FLY_RUNTIME_LIB_DIR = "/home/marco/Projects/flylang/fly/cmake-build-debug/lib";
+#define FLY_LLVM_VERSION_MAJOR 20
 
 
 #endif

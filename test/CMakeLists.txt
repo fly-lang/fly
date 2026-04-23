@@ -42,3 +42,33 @@ target_link_libraries(fly_test PRIVATE
         )
 
 add_test(NAME fly_test COMMAND fly_test)
+
+######################################
+# Runtime smoke test (freestanding C)
+######################################
+
+add_executable(RuntimeTest RuntimeTest.c)
+
+target_include_directories(RuntimeTest PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_compile_options(RuntimeTest PRIVATE
+        -ffreestanding -nostdinc -fno-stack-protector -fno-builtin)
+    target_link_options(RuntimeTest PRIVATE -nostdlib -static -Wl,-e,_start)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_compile_options(RuntimeTest PRIVATE
+        -ffreestanding -fno-stack-protector -fno-builtin)
+    target_link_options(RuntimeTest PRIVATE -lSystem)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    if(MSVC)
+        target_compile_options(RuntimeTest PRIVATE /GS-)
+    else()
+        target_compile_options(RuntimeTest PRIVATE -fno-stack-protector -fno-builtin)
+    endif()
+    target_link_libraries(RuntimeTest PRIVATE synchronization kernel32)
+endif()
+
+target_link_libraries(RuntimeTest PRIVATE Runtime)
+
+add_test(NAME RuntimeSmoke COMMAND RuntimeTest)
+set_tests_properties(RuntimeSmoke PROPERTIES PASS_REGULAR_EXPRESSION "fly runtime ok")

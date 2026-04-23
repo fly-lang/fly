@@ -360,6 +360,30 @@ namespace {
         remove(arc);
     }
 
+    // ─── GetRuntimeLibPath ───────────────────────────────────────────────────
+
+    TEST_F(ToolChainTest, GetCompilerRTBuiltinsPath_ReturnsNonEmptyOnLinuxX86_64) {
+        ToolChain TC = makeTC("x86_64-linux-gnu");
+        std::string P = TC.GetCompilerRTBuiltinsPath();
+        EXPECT_FALSE(P.empty()) << "libclang_rt.builtins-x86_64.a not found";
+        EXPECT_TRUE(llvm::sys::fs::exists(P)) << "Path returned but file missing: " << P;
+    }
+
+    TEST_F(ToolChainTest, GetCompilerRTBuiltinsPath_EmptyForUnknownArch) {
+        ToolChain TC = makeTC("wasm32-unknown-unknown");
+        EXPECT_TRUE(TC.GetCompilerRTBuiltinsPath().empty());
+    }
+
+    TEST_F(ToolChainTest, GetRuntimeLibPath_ReturnsNonEmptyOnThisBuild) {
+        // libfly_runtime.a is built alongside fly_test in the same cmake build
+        // tree.  FLY_RUNTIME_LIB_DIR is baked into Config.h at configure time,
+        // so this path must exist on the current machine.
+        ToolChain TC = makeTC("x86_64-linux-gnu");
+        std::string P = TC.GetRuntimeLibPath();
+        EXPECT_FALSE(P.empty()) << "libfly_runtime.a not found at FLY_RUNTIME_LIB_DIR";
+        EXPECT_TRUE(llvm::sys::fs::exists(P)) << "Path returned but file missing: " << P;
+    }
+
     TEST_F(ToolChainTest, CreateLib_EmptyFileList) {
         const char *arc = "/tmp/fly_clib_empty.a";
         remove(arc);
