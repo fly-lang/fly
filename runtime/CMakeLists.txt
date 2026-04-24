@@ -1,4 +1,4 @@
-##===-- src/Runtime/CMakeLists.txt - Fly minimal runtime library ----------===##
+##===-- runtime/CMakeLists.txt - Fly minimal runtime library ----------===##
 #
 # Builds 'Runtime' as a static library with no libc dependency.
 # Platform subdirectories add sources and compile flags.
@@ -16,9 +16,9 @@ set_target_properties(Runtime PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
 )
 
-# include/Runtime/Runtime.h is the only public header.
+# Runtime.h is the only public header.
 target_include_directories(Runtime PUBLIC
-    "${CMAKE_SOURCE_DIR}/include"
+    "${CMAKE_SOURCE_DIR}/runtime"
 )
 
 # ── Platform dispatch ────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
-/*===-- src/Runtime/Linux/Proc.c - Process control via exit_group ---------===*/
+/*===-- runtime/Linux/Proc.c - Process control via exit_group ---------===*/
 
-#include "Runtime/Runtime.h"
+#include "../Runtime.h"
 #include "Syscall.h"
 
 __attribute__((noreturn)) void proc_exit(i32 code)

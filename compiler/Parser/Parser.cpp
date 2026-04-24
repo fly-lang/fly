@@ -159,7 +159,10 @@ llvm::SmallVector<ASTName *, 4> Parser::ParseNames() {
 	llvm::SmallVector<ASTName *, 4> Names;
 
 	while (true) {
-		if (!Tok.isAnyIdentifier()) {
+		// Accept plain identifiers OR keywords used as name components
+		// (e.g. 'string' in 'namespace fly.string' / 'import fly.string').
+		// Keyword tokens still carry an IdentifierInfo with the source spelling.
+		if (!Tok.isAnyIdentifier() && !Tok.getIdentifierInfo()) {
 			Diag(Tok, diag::err_parser_identifier_expected);
 			break;
 		}

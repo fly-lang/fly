@@ -1,6 +1,6 @@
-/*===-- src/Runtime/Windows/Io.c - Basic I/O via WriteFile ----------------===*/
+/*===-- runtime/Windows/Io.c - Basic I/O via WriteFile ----------------===*/
 
-#include "Runtime/Runtime.h"
+#include "../Runtime.h"
 #include "Win32.h"
 
 i64 io_write(i32 fd, const void *buf, usize count)

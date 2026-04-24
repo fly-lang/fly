@@ -38,7 +38,7 @@ add_backward(fly_test)
 
 target_link_libraries(fly_test PRIVATE
         gtest_main
-        flyLib
+        FlyCompiler
         )
 
 add_test(NAME fly_test COMMAND fly_test)
@@ -49,7 +49,7 @@ add_test(NAME fly_test COMMAND fly_test)
 
 add_executable(RuntimeTest RuntimeTest.c)
 
-target_include_directories(RuntimeTest PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(RuntimeTest PRIVATE ${CMAKE_SOURCE_DIR}/runtime)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_compile_options(RuntimeTest PRIVATE

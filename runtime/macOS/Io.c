@@ -1,6 +1,6 @@
-/*===-- src/Runtime/macOS/Io.c - Basic I/O via write ----------------------===*/
+/*===-- runtime/macOS/Io.c - Basic I/O via write ----------------------===*/
 
-#include "Runtime/Runtime.h"
+#include "../Runtime.h"
 #include "LibSystem.h"
 
 i64 io_write(i32 fd, const void *buf, usize count)

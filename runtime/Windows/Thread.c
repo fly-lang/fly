@@ -1,11 +1,11 @@
-/*===-- src/Runtime/Windows/Thread.c - Threads via CreateThread -----------===
+/*===-- runtime/Windows/Thread.c - Threads via CreateThread -----------===
  *
  * CreateThread requires DWORD WINAPI (LPVOID); a trampoline bridges it to
  * the fly void (*)(void *) signature.  The ThreadCtx is freed by the child
  * before calling the user function.
  *===----------------------------------------------------------------------===*/
 
-#include "Runtime/Runtime.h"
+#include "../Runtime.h"
 #include "Win32.h"
 
 typedef struct { void (*fn)(void *); void *arg; } ThreadCtx;

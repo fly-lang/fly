@@ -1,4 +1,4 @@
-/*===-- src/Runtime/macOS/Thread.c - Threads via pthread/__ulock ----------===
+/*===-- runtime/macOS/Thread.c - Threads via pthread/__ulock ----------===
  *
  * pthread_create requires void *(*)(void *); a trampoline bridges it to
  * the fly void (*)(void *) signature.
@@ -7,7 +7,7 @@
  * that provide compare-and-wait semantics equivalent to Linux FUTEX_WAIT/WAKE.
  *===----------------------------------------------------------------------===*/
 
-#include "Runtime/Runtime.h"
+#include "../Runtime.h"
 #include "LibSystem.h"
 
 typedef struct { void (*fn)(void *); void *arg; } ThreadCtx;

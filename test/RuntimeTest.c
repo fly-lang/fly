@@ -13,7 +13,7 @@
  * Exit code: 0 on success, 1 on any failure.
  *===----------------------------------------------------------------------===*/
 
-#include "Runtime/Runtime.h"
+#include "Runtime.h"
 
 static usize str_len(const char *s)
 {

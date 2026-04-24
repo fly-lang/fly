@@ -114,12 +114,15 @@ string(REGEX MATCH "^([0-9]+)" FLY_LLVM_VERSION_MAJOR "${FLY_LLVM_VERSION}")
 
 set(FLY_RUNTIME_LIB_DIR "${CMAKE_BINARY_DIR}/lib")
 
-# Runtime must be configured before src/ so configure_file() in src/CMakeLists.txt
+# Runtime must be configured before compiler/ so configure_file() in compiler/CMakeLists.txt
 # bakes the correct FLY_RUNTIME_LIB_DIR into include/Config/Config.h.
-add_subdirectory(src/Runtime)
+add_subdirectory(runtime)
 
 # Add Fly Sources
-add_subdirectory(src)
+add_subdirectory(compiler)
+
+# Standard library — compiled by the fly binary, so must come after src/
+add_subdirectory(lib)
 
 enable_testing()
 add_subdirectory(test)

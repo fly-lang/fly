@@ -2,7 +2,7 @@ add_executable(fly
         Fly.cpp
 )
 
-add_library(flyLib
+add_library(FlyCompiler
 
         # AST
         AST/ASTArg.cpp
@@ -204,7 +204,7 @@ add_library(flyLib
 )
 
 #if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-#    target_compile_options(flyLib PRIVATE -Wall)
+#    target_compile_options(FlyCompiler PRIVATE -Wall)
 #endif ()
 
 configure_file(
@@ -215,7 +215,7 @@ foreach(target ${LLVM_TARGETS_TO_BUILD})
     list(APPEND targets "LLVM${target}CodeGen")
 endforeach()
 
-target_link_libraries(flyLib
+target_link_libraries(FlyCompiler
         LLVMCore
         LLVMMC
         LLVMMCParser
@@ -247,4 +247,4 @@ target_link_libraries(flyLib
         lldWasm)
 
 target_link_libraries(fly
-        flyLib)
+        FlyCompiler)

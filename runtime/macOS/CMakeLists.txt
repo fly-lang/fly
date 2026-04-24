@@ -1,4 +1,4 @@
-##===-- src/Runtime/macOS/CMakeLists.txt ----------------------------------===##
+##===-- runtime/macOS/CMakeLists.txt ----------------------------------===##
 
 target_sources(Runtime PRIVATE Mem.c Io.c Proc.c Thread.c)
 

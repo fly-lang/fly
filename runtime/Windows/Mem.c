@@ -1,6 +1,6 @@
-/*===-- src/Runtime/Windows/Mem.c - Memory via VirtualAlloc/Free ----------===*/
+/*===-- runtime/Windows/Mem.c - Memory via VirtualAlloc/Free ----------===*/
 
-#include "Runtime/Runtime.h"
+#include "../Runtime.h"
 #include "Win32.h"
 
 void *mem_alloc(usize size)

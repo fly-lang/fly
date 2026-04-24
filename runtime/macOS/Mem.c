@@ -1,6 +1,6 @@
-/*===-- src/Runtime/macOS/Mem.c - Memory via mmap/munmap ------------------===*/
+/*===-- runtime/macOS/Mem.c - Memory via mmap/munmap ------------------===*/
 
-#include "Runtime/Runtime.h"
+#include "../Runtime.h"
 #include "LibSystem.h"
 
 void *mem_alloc(usize size)

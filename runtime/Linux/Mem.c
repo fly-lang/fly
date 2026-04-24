@@ -1,6 +1,6 @@
-/*===-- src/Runtime/Linux/Mem.c - Memory allocation via mmap/munmap -------===*/
+/*===-- runtime/Linux/Mem.c - Memory allocation via mmap/munmap -------===*/
 
-#include "Runtime/Runtime.h"
+#include "../Runtime.h"
 #include "Syscall.h"
 
 #define PROT_READ   0x1

@@ -1,6 +1,6 @@
-/*===-- src/Runtime/Linux/Io.c - Basic I/O via write syscall --------------===*/
+/*===-- runtime/Linux/Io.c - Basic I/O via write syscall --------------===*/
 
-#include "Runtime/Runtime.h"
+#include "../Runtime.h"
 #include "Syscall.h"
 
 i64 io_write(i32 fd, const void *buf, usize count)

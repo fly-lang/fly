@@ -1,4 +1,4 @@
-##===-- src/Runtime/Windows/CMakeLists.txt --------------------------------===##
+##===-- runtime/Windows/CMakeLists.txt --------------------------------===##
 
 target_sources(Runtime PRIVATE Mem.c Io.c Proc.c Thread.c)
 

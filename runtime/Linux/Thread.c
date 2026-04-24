@@ -1,4 +1,4 @@
-/*===-- src/Runtime/Linux/Thread.c - Threads via clone/futex --------------===
+/*===-- runtime/Linux/Thread.c - Threads via clone/futex --------------===
  *
  * clone ABI (x86-64 kernel):
  *   rax=56 rdi=flags rsi=child_stack rdx=parent_tidptr r10=child_tidptr r8=tls
@@ -9,7 +9,7 @@
  *   [sp+0x08] = arg
  *===----------------------------------------------------------------------===*/
 
-#include "Runtime/Runtime.h"
+#include "../Runtime.h"
 #include "Syscall.h"
 
 #define CLONE_VM        0x00000100
