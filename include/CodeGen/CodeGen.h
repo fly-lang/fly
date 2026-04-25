@@ -98,6 +98,11 @@ class CodeGen {
 
         static llvm::PointerType *ArrayPtrTy;
 
+        /// String structure: { ptr byte*, uint size }
+        static llvm::StructType *StringTy;
+
+        static llvm::PointerType *StringPtrTy;
+
         static llvm::ConstantInt *Zero;
 
         CodeGen(DiagnosticsEngine &Diags,

@@ -39,10 +39,9 @@ llvm::Type *CodeGenVar::getType() {
 
 llvm::AllocaInst *CodeGenVar::Alloca() {
 
-	if (T == CodeGen::ArrayTy) {
-		// Alloca pointer to array struct type (CodeGen::ArrayTy)
-		// This creates an alloca for the array struct, which contains a pointer to the data and the size
-		this->Pointer = CGM->Builder->CreateAlloca(CodeGen::ArrayTy);
+	if (T == CodeGen::ArrayTy || T == CodeGen::StringTy) {
+		// Value-type structs: allocate the struct directly
+		this->Pointer = CGM->Builder->CreateAlloca(T);
 	} else if (T->isStructTy()) {
 		// Array and other struct types: allocate pointer to the structure
 		llvm::PointerType *PtrTy = T->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
@@ -85,6 +84,10 @@ llvm::Value *CodeGenVar::StoreArrayValue(CodeGenArrayValue *ArrayValue) {
 }
 
 llvm::Value *CodeGenVar::getDefaultValue(llvm::Type *T) {
+	if (T == CodeGen::StringTy) {
+		// Zero-initialize the string struct: { null, 0 }
+		return llvm::Constant::getNullValue(T);
+	}
 	llvm::Value *DefaultValue = nullptr;
 	switch (T->getTypeID()) {
 		case llvm::Type::IntegerTyID:
@@ -95,11 +98,10 @@ llvm::Value *CodeGenVar::getDefaultValue(llvm::Type *T) {
 			DefaultValue = llvm::ConstantFP::get(T, 0.0);
 			break;
 		case llvm::Type::PointerTyID:
-			// Strings and pointers default to nullptr
 			DefaultValue = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(T));
 			break;
 		case llvm::Type::StructTyID:
-			// Other structs default to null value (all fields initialized to zero)
+			// Other structs default to null pointer (stored as ptr-to-struct)
 			DefaultValue = llvm::Constant::getNullValue(T->getPointerTo());
 			break;
 		default:
@@ -206,8 +208,9 @@ llvm::StoreInst *CodeGenVar::StoreDefaultValue() {
 
 llvm::LoadInst *CodeGenVar::Load() {
     this->BlockID = CGM->Builder->GetInsertBlock()->getName();
-    // Struct-typed vars are stored as a ptr-to-struct (see Alloca()); load the pointer, not the struct.
-    llvm::Type *LoadTy = T->isStructTy()
+    // Value-type structs (string, array) load their full struct value.
+    // Other struct types (class, error) are stored as a ptr-to-struct; load the pointer.
+    llvm::Type *LoadTy = (T->isStructTy() && T != CodeGen::StringTy)
         ? llvm::PointerType::getUnqual(CGM->LLVMCtx)
         : T;
     this->LoadI = CGM->Builder->CreateLoad(LoadTy, getPointer());

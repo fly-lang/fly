@@ -65,6 +65,8 @@ llvm::StructType *CodeGen::ErrorTy = nullptr;
 llvm::PointerType *CodeGen::ErrorPtrTy = nullptr;
 llvm::StructType *CodeGen::ArrayTy = nullptr;
 llvm::PointerType *CodeGen::ArrayPtrTy = nullptr;
+llvm::StructType *CodeGen::StringTy = nullptr;
+llvm::PointerType *CodeGen::StringPtrTy = nullptr;
 llvm::ConstantInt *CodeGen::Zero = nullptr;
 
 CodeGen::CodeGen(DiagnosticsEngine &Diags,
@@ -128,6 +130,13 @@ void CodeGen::InitializeTypes(llvm::LLVMContext &LLVMCtx, TargetInfo &Target) {
     ArrayFields.push_back(IntTy);     // size_t dims (pointer to dimensions array)
     ArrayTy = llvm::StructType::create(LLVMCtx, ArrayFields, "array");
     ArrayPtrTy = llvm::PointerType::get(ArrayTy, 0);
+
+    // Create String structure type: struct string { ptr byte*, uint size }
+    llvm::SmallVector<llvm::Type *, 2> StringFields;
+    StringFields.push_back(Int8PtrTy);  // byte* ptr
+    StringFields.push_back(Int32Ty);    // uint size
+    StringTy = llvm::StructType::create(LLVMCtx, StringFields, "string");
+    StringPtrTy = llvm::PointerType::get(StringTy, 0);
 }
 
 std::string CodeGen::getOutputFileName(llvm::StringRef BaseInput) {

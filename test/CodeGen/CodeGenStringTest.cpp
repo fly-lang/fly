@@ -52,9 +52,9 @@ namespace {
     	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
                         "entry:\n"
                         "  %1 = alloca ptr, align 8\n"
-                        "  %2 = alloca ptr, align 8\n"
+                        "  %2 = alloca %string, align 8\n"
                         "  store ptr %0, ptr %1, align 8\n"
-                        "  store ptr null, ptr %2, align 8\n"
+                        "  store %string zeroinitializer, ptr %2, align 8\n"
                         "  ret void\n"
                         "}\n");
     }
@@ -88,9 +88,9 @@ namespace {
     	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
                         "entry:\n"
                         "  %1 = alloca ptr, align 8\n"
-                        "  %2 = alloca ptr, align 8\n"
+                        "  %2 = alloca %string, align 8\n"
                         "  store ptr %0, ptr %1, align 8\n"
-                        "  store ptr @0, ptr %2, align 8\n"
+                        "  store %string { ptr @0, i32 0 }, ptr %2, align 8\n"
                         "  ret void\n"
                         "}\n");
      }
@@ -124,9 +124,9 @@ namespace {
     	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
                         "entry:\n"
                         "  %1 = alloca ptr, align 8\n"
-                        "  %2 = alloca ptr, align 8\n"
+                        "  %2 = alloca %string, align 8\n"
                         "  store ptr %0, ptr %1, align 8\n"
-                        "  store ptr @0, ptr %2, align 8\n"
+                        "  store %string { ptr @0, i32 6 }, ptr %2, align 8\n"
                         "  ret void\n"
                         "}\n");
     }

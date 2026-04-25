@@ -95,7 +95,7 @@ void CodeGenType::GenType(SemaVoidType &Sema) {
 
 void CodeGenType::GenType(SemaStringType &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
-		T = CodeGen::Int8PtrTy;
+		T = CodeGen::StringTy;
 	}
 }
 

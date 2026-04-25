@@ -65,16 +65,14 @@ llvm::StoreInst *CodeGenError::StoreInt(llvm::Value *Val) {
 }
 
 llvm::StoreInst *CodeGenError::StoreString(llvm::Value *Val) {
-    this->Store(Val);
-    // errorType: 2=string
+    // Extract the ptr field from the string struct { i8*, i32 }
+    llvm::Value *Ptr = CGM->Builder->CreateExtractValue(Val, 0);
+    this->Store(Ptr);
     // Error: {errorInt: i32, errorPointer: *i8, errorObject: *i8}
-	llvm::Value *One = llvm::ConstantInt::get(CodeGen::Int32Ty, 1);
-    // Store Error Type
+    llvm::Value *One = llvm::ConstantInt::get(CodeGen::Int32Ty, 1);
     llvm::Value *ErrorVar = Load();
-
-    // Store Error Value
     llvm::Value *ValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {CodeGen::Zero, One});
-    return CGM->Builder->CreateStore(Val, ValuePtr);
+    return CGM->Builder->CreateStore(Ptr, ValuePtr);
 }
 
 llvm::StoreInst *CodeGenError::StoreObject(llvm::Value *Val) {

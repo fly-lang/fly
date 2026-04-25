@@ -95,7 +95,9 @@ void CodeGenExpr::GenExpr(SemaFloatValue *Sema) {
 }
 
 void CodeGenExpr::GenExpr(SemaStringValue *Sema) {
-	V = Builder->CreateGlobalStringPtr(Sema->getValue());
+	llvm::Constant *Ptr = Builder->CreateGlobalStringPtr(Sema->getValue());
+	llvm::Constant *Size = llvm::ConstantInt::get(CodeGen::Int32Ty, Sema->getValue().size());
+	V = llvm::ConstantStruct::get(CodeGen::StringTy, {Ptr, Size});
 }
 
 void CodeGenExpr::GenExpr(SemaStructValue *Sema) {
