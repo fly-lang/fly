@@ -35,6 +35,11 @@ SemaType *SemaBinary::SelectType(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right
 		);
 	}
 
+	// String concatenation: string + string → string
+	if (AST.isArith() && Type1->isString() && Type2->isString()) {
+		return Type1;
+	}
+
 	// Default return Type1
 	return Type1;
 }

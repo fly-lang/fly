@@ -14,7 +14,7 @@
 using namespace fly;
 
 SemaSmartAlloc::SemaSmartAlloc(SemaCall *Call)
-    : Call(Call), ReferenceCounter(1) {}
+    : SemaAlloc(SemaAllocKind::SMART), Call(Call), ReferenceCounter(1) {}
 
 SemaCall *SemaSmartAlloc::getCall() const {
     return Call;

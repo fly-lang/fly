@@ -123,18 +123,18 @@ void CodeGen::InitializeTypes(llvm::LLVMContext &LLVMCtx, TargetInfo &Target) {
     ErrorTy = CodeGenError::GenErrorType(LLVMCtx);
     ErrorPtrTy = llvm::PointerType::get(ErrorTy, 0);
 
-    // Create Array structure type: { i8* data, size_t* dims }
+    // Create Array structure type: { i8* data, size_t size }
     // Uses SizeTy which adapts to the target's pointer/size width
     llvm::SmallVector<llvm::Type *, 3> ArrayFields;
     ArrayFields.push_back(Int8PtrTy);     // i8* data
-    ArrayFields.push_back(IntTy);     // size_t dims (pointer to dimensions array)
+    ArrayFields.push_back(IntTy);     // size_t size (dimensions array)
     ArrayTy = llvm::StructType::create(LLVMCtx, ArrayFields, "array");
     ArrayPtrTy = llvm::PointerType::get(ArrayTy, 0);
 
-    // Create String structure type: struct string { ptr byte*, uint size }
+    // Create String structure type: struct string { ptr byte*, size_t size }
     llvm::SmallVector<llvm::Type *, 2> StringFields;
     StringFields.push_back(Int8PtrTy);  // byte* ptr
-    StringFields.push_back(Int32Ty);    // uint size
+    StringFields.push_back(IntTy);    // size_t size (dimensions string)
     StringTy = llvm::StructType::create(LLVMCtx, StringFields, "string");
     StringPtrTy = llvm::PointerType::get(StringTy, 0);
 }

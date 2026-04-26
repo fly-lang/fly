@@ -12,7 +12,7 @@
 
 #include "CodeGen/CodeGenVar.h"
 #include "Sema/SemaExpr.h"
-#include "Sema/SemaSmartAlloc.h"
+#include "Sema/SemaAlloc.h"
 
 #include <llvm/ADT/StringRef.h>
 
@@ -21,6 +21,8 @@ namespace fly {
     class ASTVar;
     class SemaType;
     class CodeGenVar;
+    class SemaSmartAlloc;
+    class SemaStringAlloc;
 
     class SemaVar : public SemaExpr {
 
@@ -32,9 +34,9 @@ namespace fly {
 
     	bool Constant = false;
 
-    	// Non-owning: the SemaSmartAlloc is owned by the enclosing SemaBlockStmt
-    	// (via addSmartAlloc). Do NOT delete here.
-    	SemaSmartAlloc *SmartAlloc = nullptr;
+    	// Non-owning: owned by the enclosing SemaBlockStmt (via addAlloc). Do NOT delete here.
+    	// Holds either a SemaSmartAlloc (smart pointer) or SemaStringAlloc (heap string).
+    	SemaAlloc *Alloc = nullptr;
 
         explicit SemaVar(ASTVar *AST, SemaKind Kind, SemaType *Type);
 
@@ -47,9 +49,11 @@ namespace fly {
 
     	bool isConstant() const;
 
-    	SemaSmartAlloc *getSmartAlloc() const;
+    	SemaAlloc *getAlloc() const;
+    	void setAlloc(SemaAlloc *A);
 
-    	void setSmartAlloc(SemaSmartAlloc *Alloc);
+    	SemaSmartAlloc *getSmartAlloc() const;
+    	SemaStringAlloc *getStringAlloc() const;
 
     	CodeGenVar *getCodeGen() const override;
 

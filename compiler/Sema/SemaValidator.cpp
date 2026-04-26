@@ -314,7 +314,7 @@ bool SemaValidator::CheckBinary(ASTBinary &AST, SemaExpr *LeftSema, SemaExpr *Ri
 	SemaType * LeftType = LeftSema->getType();
 	SemaType * RightType = RightSema->getType();
 
-	// Arithmetic Operations: Integer/Float, Float/Float, Integer/Integer
+	// Arithmetic Operations: Integer/Float, Float/Float, Integer/Integer, String/String (+)
 	if (AST.isArith()) {
 
 		// Check between numbers
@@ -322,19 +322,27 @@ bool SemaValidator::CheckBinary(ASTBinary &AST, SemaExpr *LeftSema, SemaExpr *Ri
 			return true;
 		}
 
-		// Error: Binary Arithmetic operation can be made only with numbers
+		// String concatenation: only + is valid
+		if (LeftType->isString() && RightType->isString()) {
+			return true;
+		}
+
+		// Error: Binary Arithmetic operation can be made only with numbers or strings
 		Diag(AST.getLocation(), diag::err_sema_types_operation)
 				  << LeftType->getName()
 				  << RightType->getName();
 		return false;
 	}
 
-	// Comparison Operations: Bool/Bool, Integer/Integer, Float/Float, Class/Class, Enum/Enum
+	// Comparison Operations: Bool/Bool, Integer/Integer, Float/Float, String/String, Class/Class, Enum/Enum
 	if (AST.isCompare()) {
 		if (LeftType->isBool() && RightType->isBool()) {
 			return true;
 		}
 		if (LeftType->isNumber() && RightType->isNumber()) {
+			return true;
+		}
+		if (LeftType->isString() && RightType->isString()) {
 			return true;
 		}
 		if (LeftType->isClass() && RightType->isClass()) {

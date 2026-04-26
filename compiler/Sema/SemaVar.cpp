@@ -9,6 +9,7 @@
 
 #include "Sema/SemaVar.h"
 #include "Sema/SemaSmartAlloc.h"
+#include "Sema/SemaStringAlloc.h"
 #include <AST/ASTVar.h>
 
 using namespace fly;
@@ -19,7 +20,7 @@ SemaVar::SemaVar(ASTVar *AST, SemaKind Kind, SemaType *Type) :
 
 SemaVar::~SemaVar() {
 	// CodeGen: deleted by parent SemaExpr destructor.
-	// SmartAlloc: NOT deleted here — owned by SemaBlockStmt::SmartAllocs.
+	// Alloc: NOT deleted here — owned by SemaBlockStmt::Allocs.
 }
 
 ASTVar *SemaVar::getAST() const {
@@ -34,12 +35,24 @@ bool SemaVar::isConstant() const {
 	return Constant;
 }
 
-SemaSmartAlloc *SemaVar::getSmartAlloc() const {
-	return SmartAlloc;
+SemaAlloc *SemaVar::getAlloc() const {
+	return Alloc;
 }
 
-void SemaVar::setSmartAlloc(SemaSmartAlloc *Alloc) {
-	SmartAlloc = Alloc;
+void SemaVar::setAlloc(SemaAlloc *A) {
+	Alloc = A;
+}
+
+SemaSmartAlloc *SemaVar::getSmartAlloc() const {
+	if (Alloc && Alloc->getKind() == SemaAllocKind::SMART)
+		return static_cast<SemaSmartAlloc *>(Alloc);
+	return nullptr;
+}
+
+SemaStringAlloc *SemaVar::getStringAlloc() const {
+	if (Alloc && Alloc->getKind() == SemaAllocKind::STRING)
+		return static_cast<SemaStringAlloc *>(Alloc);
+	return nullptr;
 }
 
 CodeGenVar * SemaVar::getCodeGen() const {

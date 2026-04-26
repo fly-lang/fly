@@ -58,6 +58,7 @@
 #include "Sema/SemaBlockStmt.h"
 #include "Sema/SemaCall.h"
 #include "Sema/SemaSmartAlloc.h"
+#include "Sema/SemaStringAlloc.h"
 #include "Sema/SemaValidator.h"
 #include "Sema/SymbolTable.h"
 
@@ -573,6 +574,8 @@ void Resolver::visit(ASTArrayType &AST) {
 	FLY_DEBUG_END("Resolver", "visit(ASTArrayType)");
 }
 
+// Returns true if Expr produces a heap-allocated string at runtime.
+
 SemaSmartAlloc *Resolver::RegisterSmartAlloc(SemaExpr *Expr) {
 	if (!CurrentSemaBlock || !Expr)
 		return nullptr;
@@ -596,7 +599,7 @@ SemaSmartAlloc *Resolver::RegisterSmartAlloc(SemaExpr *Expr) {
 
 	if (SmartCall) {
 		SemaSmartAlloc *Alloc = new SemaSmartAlloc(SmartCall);
-		CurrentSemaBlock->addSmartAlloc(Alloc);
+		CurrentSemaBlock->addAlloc(Alloc);
 		return Alloc;
 	}
 	return nullptr;
@@ -612,6 +615,24 @@ void Resolver::visit(ASTExprStmt &AST) {
 
 	// Create SemaExprStmt and add to current block
 	if (CurrentSemaBlock && ResolvedExpr) {
+		// Detect string reassignment: any assign to a heap-owned string variable
+		// requires freeing the old buffer before storing the new one.
+		// Insert a SemaDeleteStmt for the LHS variable immediately before the assign.
+		if (ResolvedExpr->getKind() == SemaKind::BINARY) {
+			SemaBinary *Bin = static_cast<SemaBinary *>(ResolvedExpr);
+			if (Bin->getAST().isAssign()) {
+				SemaExpr *LHS = Bin->getLeft();
+				SemaKind LK = LHS ? LHS->getKind() : SemaKind::VALUE;
+				SemaVar *LHSVar = nullptr;
+				if (LK == SemaKind::LOCAL_VAR || LK == SemaKind::PARAM_VAR ||
+				    LK == SemaKind::ERROR_VAR || LK == SemaKind::ATTRIBUTE ||
+				    LK == SemaKind::INSTANCE_VAR)
+					LHSVar = static_cast<SemaVar *>(LHS);
+				if (LHSVar && LHSVar->getStringAlloc())
+					CurrentSemaBlock->addContent(SemaBuilder::CreateDeleteStmt(&AST, LHS));
+			}
+		}
+
 		SemaExprStmt *ExprStmt = SemaBuilder::CreateExprStmt(&AST, ResolvedExpr);
 		CurrentSemaBlock->addContent(ExprStmt);
 
@@ -650,7 +671,7 @@ void Resolver::visit(ASTDeclStmt &AST) {
 	// and bind it to the local variable so copies can be detected later.
 	if (SemaSmartAlloc *NewAlloc = RegisterSmartAlloc(DeclExpr))
 		if (LocalVar)
-			LocalVar->setSmartAlloc(NewAlloc);
+			LocalVar->setAlloc(NewAlloc);
 
 	// Propagate SmartAlloc when the init expression is itself a SemaVar (var-to-var assignment).
 	// Covers: var b = a  (direct) or  var b = someExpr  where the binary RHS is a SemaVar.
@@ -679,8 +700,8 @@ void Resolver::visit(ASTDeclStmt &AST) {
 				// because every allocation has its own SA — no variable tracking needed.
 				SemaSmartAlloc *CopyAlloc = new SemaSmartAlloc(
 					SrcVar->getSmartAlloc()->getCall());
-				LocalVar->setSmartAlloc(CopyAlloc);
-				CurrentSemaBlock->addSmartAlloc(CopyAlloc);
+				LocalVar->setAlloc(CopyAlloc);
+				CurrentSemaBlock->addAlloc(CopyAlloc);
 				SrcVar->getSmartAlloc()->incrReferenceCounter();
 			} else if (SrcVar->getSmartAlloc()->isWeak()) {
 				// Weak copy: each copy owns a SA entry and calls free() at its own
@@ -689,9 +710,20 @@ void Resolver::visit(ASTDeclStmt &AST) {
 				// Refcount is NOT incremented: weak never retains.
 				SemaSmartAlloc *CopyAlloc = new SemaSmartAlloc(
 					SrcVar->getSmartAlloc()->getCall());
-				LocalVar->setSmartAlloc(CopyAlloc);
-				CurrentSemaBlock->addSmartAlloc(CopyAlloc);
+				LocalVar->setAlloc(CopyAlloc);
+				CurrentSemaBlock->addAlloc(CopyAlloc);
 			}
+		}
+	}
+
+	// Non-const string variables with an initializer always own a heap buffer:
+	// register scope-exit free. Const strings and uninitialized strings (zero value)
+	// use a global/null pointer and never need freeing.
+	if (LocalVar && DeclExpr && LocalVar->getType() && LocalVar->getType()->isString() && !LocalVar->isConstant()) {
+		if (CurrentSemaBlock) {
+			SemaStringAlloc *SA = new SemaStringAlloc(LocalVar);
+			CurrentSemaBlock->addAlloc(SA);
+			LocalVar->setAlloc(SA);
 		}
 	}
 

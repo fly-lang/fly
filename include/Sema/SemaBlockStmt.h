@@ -10,13 +10,15 @@
 
 namespace fly {
 
-    class SemaSmartAlloc;
+    class SemaAlloc;
 
     class SemaBlockStmt : public SemaStmt {
 
         llvm::SmallVector<SemaStmt *, 8> Content;
 
-        llvm::SmallVector<SemaSmartAlloc *, 4> SmartAllocs;
+        // All scope-managed allocations in this block (smart pointers + heap strings).
+        // Owned by this block; destroyed in the destructor.
+        llvm::SmallVector<SemaAlloc *, 8> Allocs;
 
     public:
 
@@ -30,13 +32,12 @@ namespace fly {
 
         bool isEmpty() const;
 
-        void addSmartAlloc(SemaSmartAlloc *Alloc);
+        void addAlloc(SemaAlloc *Alloc);
 
-        const llvm::SmallVector<SemaSmartAlloc *, 4> &getSmartAllocs() const;
+        const llvm::SmallVector<SemaAlloc *, 8> &getAllocs() const;
 
         void accept(SemaVisitor &Visitor) override;
     };
 }
 
 #endif //FLY_SEMA_BLOCKSTMT_H
-

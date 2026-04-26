@@ -10,6 +10,8 @@
 #ifndef FLY_SEMA_SMART_ALLOC_H
 #define FLY_SEMA_SMART_ALLOC_H
 
+#include "Sema/SemaAlloc.h"
+
 #include <cstdint>
 
 namespace fly {
@@ -27,7 +29,7 @@ namespace fly {
      * copy (u = t) the SA wraps the original CALL_NEW_SHARED call whose return
      * value equals what u holds, so no separate variable tracking is needed.
      */
-    class SemaSmartAlloc {
+    class SemaSmartAlloc : public SemaAlloc {
 
         SemaCall    *Call;
         uint64_t    ReferenceCounter;
@@ -36,7 +38,7 @@ namespace fly {
 
         explicit SemaSmartAlloc(SemaCall *Call);
 
-        ~SemaSmartAlloc() = default;
+        ~SemaSmartAlloc() override = default;
 
         SemaCall *getCall() const;
 

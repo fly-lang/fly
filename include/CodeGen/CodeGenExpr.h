@@ -97,6 +97,10 @@ namespace fly {
 
         llvm::Value *GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
+        llvm::Value *GenStringConcat(SemaExpr *E1, SemaExpr *E2);
+
+        llvm::Value *GenStringHeapCopy(SemaStringValue *Sema);
+
         llvm::Value *GenBinaryCompare(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
         llvm::Value *GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);

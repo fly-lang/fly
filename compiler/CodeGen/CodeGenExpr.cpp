@@ -642,10 +642,77 @@ void CodeGenExpr::GenExpr(SemaTernary *Sema) {
 	V = Phi;
 }
 
+llvm::Value *CodeGenExpr::GenStringConcat(SemaExpr *E1, SemaExpr *E2) {
+	llvm::Value *V1 = E1->getCodeGen()->getValue();
+	llvm::Value *V2 = E2->getCodeGen()->getValue();
+
+	// Extract ptr (field 0) and size (field 1) from each string struct
+	llvm::Value *Ptr1  = Builder->CreateExtractValue(V1, 0, "s1_ptr");
+	llvm::Value *Size1 = Builder->CreateExtractValue(V1, 1, "s1_size");
+	llvm::Value *Ptr2  = Builder->CreateExtractValue(V2, 0, "s2_ptr");
+	llvm::Value *Size2 = Builder->CreateExtractValue(V2, 1, "s2_size");
+
+	// Total size in IntTy; extend to size_t (IntPtrTy) for malloc/memcpy
+	llvm::Value *Total    = Builder->CreateAdd(Size1, Size2, "str_total");
+	llvm::Value *TotalExt = Builder->CreateZExt(Total, CodeGen::IntPtrTy, "str_total_ext");
+	llvm::Value *Size1Ext = Builder->CreateZExt(Size1, CodeGen::IntPtrTy, "s1_size_ext");
+	llvm::Value *Size2Ext = Builder->CreateZExt(Size2, CodeGen::IntPtrTy, "s2_size_ext");
+
+	// Allocate buffer: malloc(total_size)
+	llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
+		"malloc",
+		llvm::FunctionType::get(
+			llvm::PointerType::getUnqual(CGM->LLVMCtx),
+			{CodeGen::IntPtrTy}, false));
+	llvm::Value *Buf = Builder->CreateCall(MallocFn, {TotalExt}, "str_buf");
+
+	// memcpy(buf, ptr1, size1)
+	Builder->CreateMemCpy(Buf, llvm::MaybeAlign(), Ptr1, llvm::MaybeAlign(), Size1Ext);
+
+	// memcpy(buf + size1, ptr2, size2)
+	llvm::Value *Buf2 = Builder->CreateGEP(CodeGen::Int8Ty, Buf, Size1Ext, "str_buf2");
+	Builder->CreateMemCpy(Buf2, llvm::MaybeAlign(), Ptr2, llvm::MaybeAlign(), Size2Ext);
+
+	// Build result string struct { buf, total }
+	llvm::Value *Result = llvm::UndefValue::get(CodeGen::StringTy);
+	Result = Builder->CreateInsertValue(Result, Buf, 0);
+	Result = Builder->CreateInsertValue(Result, Total, 1);
+	return Result;
+}
+
+llvm::Value *CodeGenExpr::GenStringHeapCopy(SemaStringValue *Sema) {
+	llvm::StringRef Str = Sema->getValue();
+	uint32_t Size = Str.size();
+	llvm::Constant *GlobalPtr = Builder->CreateGlobalStringPtr(Str);
+	llvm::Value *SizeVal = llvm::ConstantInt::get(CodeGen::Int32Ty, Size);
+	llvm::Value *SizeExt = Builder->CreateZExt(SizeVal, CodeGen::IntPtrTy, "str_size_ext");
+
+	llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
+		"malloc",
+		llvm::FunctionType::get(
+			llvm::PointerType::getUnqual(CGM->LLVMCtx),
+			{CodeGen::IntPtrTy}, false));
+	llvm::Value *HeapPtr = Builder->CreateCall(MallocFn, {SizeExt}, "str_heap");
+	Builder->CreateMemCpy(HeapPtr, llvm::MaybeAlign(), GlobalPtr, llvm::MaybeAlign(), SizeExt);
+
+	llvm::Value *Result = llvm::UndefValue::get(CodeGen::StringTy);
+	Result = Builder->CreateInsertValue(Result, HeapPtr, 0);
+	Result = Builder->CreateInsertValue(Result, SizeVal, 1);
+	return Result;
+}
+
 llvm::Value *CodeGenExpr::GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2) {
     FLY_DEBUG_START("CodeGenExpr", "GenBinaryArith");
-	SemaNumberType *Type1 = static_cast<SemaNumberType *>(E1->getType());
-	SemaNumberType *Type2 = static_cast<SemaNumberType *>(E2->getType());
+
+	SemaType *T1 = E1->getType();
+	SemaType *T2 = E2->getType();
+
+	// String concatenation (+ only)
+	if (T1->isString() && T2->isString())
+		return GenStringConcat(E1, E2);
+
+	SemaNumberType *Type1 = static_cast<SemaNumberType *>(T1);
+	SemaNumberType *Type2 = static_cast<SemaNumberType *>(T2);
 
 	// Get Values
     llvm::Value *V1 = E1->getCodeGen()->getValue();
@@ -696,6 +763,55 @@ llvm::Value *CodeGenExpr::GenBinaryCompare(SemaExpr *E1, ASTBinaryKind OperatorK
 	// Get Values
     llvm::Value *V1 = E1->getCodeGen()->getValue();
     llvm::Value *V2 = E2->getCodeGen()->getValue();
+
+	// String equality/inequality: compare size then memcmp
+	if (Type1->isString() && Type2->isString()) {
+		llvm::Value *Size1 = Builder->CreateExtractValue(V1, 1, "s1_size");
+		llvm::Value *Size2 = Builder->CreateExtractValue(V2, 1, "s2_size");
+		llvm::Value *SizesEq = Builder->CreateICmpEQ(Size1, Size2, "sizes_eq");
+
+		llvm::Function *Fn = Builder->GetInsertBlock()->getParent();
+		llvm::BasicBlock *DataCmpBB  = llvm::BasicBlock::Create(CGM->LLVMCtx, "str_data_cmp", Fn);
+		llvm::BasicBlock *SizeDiffBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "str_size_diff", Fn);
+		llvm::BasicBlock *EndBB      = llvm::BasicBlock::Create(CGM->LLVMCtx, "str_cmp_end", Fn);
+
+		Builder->CreateCondBr(SizesEq, DataCmpBB, SizeDiffBB);
+
+		// Branch: sizes differ → not equal
+		Builder->SetInsertPoint(SizeDiffBB);
+		Builder->CreateBr(EndBB);
+
+		// Branch: compare raw data via memcmp
+		Builder->SetInsertPoint(DataCmpBB);
+		llvm::Value *Ptr1    = Builder->CreateExtractValue(V1, 0, "s1_ptr");
+		llvm::Value *Ptr2    = Builder->CreateExtractValue(V2, 0, "s2_ptr");
+		llvm::Value *SizeExt = Builder->CreateZExt(Size1, CodeGen::IntPtrTy, "size_ext");
+		llvm::FunctionCallee MemCmpFn = CGM->Module->getOrInsertFunction(
+			"memcmp",
+			llvm::FunctionType::get(
+				CodeGen::Int32Ty,
+				{llvm::PointerType::getUnqual(CGM->LLVMCtx),
+				 llvm::PointerType::getUnqual(CGM->LLVMCtx),
+				 CodeGen::IntPtrTy}, false));
+		llvm::Value *CmpResult = Builder->CreateCall(MemCmpFn, {Ptr1, Ptr2, SizeExt}, "memcmp_res");
+		llvm::Value *DataEq = Builder->CreateICmpEQ(
+			CmpResult, llvm::ConstantInt::get(CodeGen::Int32Ty, 0), "data_eq");
+		Builder->CreateBr(EndBB);
+		llvm::BasicBlock *AfterDataBB = Builder->GetInsertBlock();
+
+		Builder->SetInsertPoint(EndBB);
+		llvm::PHINode *Phi = Builder->CreatePHI(CodeGen::BoolTy, 2, "str_eq");
+		Phi->addIncoming(llvm::ConstantInt::get(CodeGen::BoolTy, 0), SizeDiffBB);
+		Phi->addIncoming(DataEq, AfterDataBB);
+
+		switch (OperatorKind) {
+			case ASTBinaryKind::OP_BINARY_COMPARE_EQ: return Phi;
+			case ASTBinaryKind::OP_BINARY_COMPARE_NE: return Builder->CreateNot(Phi, "str_ne");
+			default:
+				CGM->Diag(diag::err_invalid_behavior);
+				return nullptr;
+		}
+	}
 
     if (Type1->isBool() && Type2->isBool()) {
 	    switch (OperatorKind) {
@@ -841,6 +957,20 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
 		CodeGenArrayValue *E2CGArray = static_cast<CodeGenArrayValue *>(E2CodeGen);
 		// Use StoreArrayValue to store both the pointer and the elements
 		return static_cast<SemaVar *>(E1)->getCodeGen()->StoreArrayValue(E2CGArray);
+	}
+
+	// Non-const string assigned a literal: heap-copy the global buffer so
+	// the variable always owns a malloc'd pointer that can be freed at scope exit.
+	if (E1->getType()->isString() && E2->getKind() == SemaKind::VALUE &&
+	    E2->getType() && E2->getType()->isString()) {
+		SemaKind K1 = E1->getKind();
+		bool IsVar = K1 == SemaKind::LOCAL_VAR || K1 == SemaKind::PARAM_VAR ||
+		             K1 == SemaKind::ERROR_VAR  || K1 == SemaKind::ATTRIBUTE ||
+		             K1 == SemaKind::INSTANCE_VAR;
+		if (IsVar && !static_cast<SemaVar *>(E1)->isConstant()) {
+			llvm::Value *HeapStr = GenStringHeapCopy(static_cast<SemaStringValue *>(E2));
+			return static_cast<CodeGenVar *>(E1CodeGen)->Store(HeapStr);
+		}
 	}
 
 	llvm::Value *V2 = E2CodeGen->getValue();
