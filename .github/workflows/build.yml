@@ -34,9 +34,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Dependencies
+      - name: Dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt update && sudo apt-get -y install binutils-dev libdw-dev libdwarf-dev libzstd-dev
+        run: sudo apt update && sudo apt-get -y install binutils-dev libdw-dev libdwarf-dev libzstd-dev gdb
+
+      - name: Dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: vcpkg install zstd:x64-windows
 
       - name: Configure
         run: cmake -E make_directory ${{env.BUILD_DIR}}
@@ -46,21 +50,48 @@ jobs:
         if: startsWith(github.ref, 'refs/heads/release/')
         run: echo "BUILD_TYPE=RelWithDebInfo" >> $GITHUB_ENV
 
-      - name: Build
+      - name: Build (Unix)
+        if: matrix.os != 'windows-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
         run: |
           cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON
           cmake --build . --config ${{env.BUILD_TYPE}}
 
+      - name: Build (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}
+        shell: pwsh
+        run: |
+          cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake"
+          cmake --build . --config ${{env.BUILD_TYPE}}
+
       - name: Test (Unix)
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
-        run: ./fly_test
+        run: |
+          ./fly_test
+          ./fly_lib_test
+          ./fly_runtime_test
+
+      - name: Backtrace on Crash (Ubuntu)
+        if: failure() && matrix.os == 'ubuntu-latest'
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
+        run: |
+          gdb -batch \
+              -ex "set pagination off" \
+              -ex "run --gtest_catch_exceptions=0" \
+              -ex "bt full" \
+              -ex "quit" \
+              --args ./fly_test
 
       - name: Test (Windows)
         if: matrix.os == 'windows-latest'
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\test\${{env.BUILD_TYPE}}
-        run: .\fly_test.exe --gtest_filter='-CmdTest.EmitOut'
+        run: |
+          .\fly_test.exe --gtest_filter='-CmdTest.EmitOut'
+          .\fly_lib_test.exe
+          .\fly_runtime_test.exe
 
       - name: Read Version (Unix)
         id: version

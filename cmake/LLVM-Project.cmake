@@ -28,15 +28,41 @@ FetchContent_MakeAvailable(${FLY_LLVM_PROJECT})
 
 message(STATUS "Downloaded LLVM precompiled files")
 
-# zstd is required by the precompiled LLVM (linked as zstd::libzstd_shared)
+# The precompiled LLVM package ships Findzstd.cmake in its cmake dir.
+# Add it to CMAKE_MODULE_PATH so find_package(zstd) uses it.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}/llvm/lib/cmake/llvm")
+
+# zstd is required by the precompiled LLVM (linked as zstd::libzstd_shared).
+# Search order:
+#   1. System cmake config  (finds libzstd-dev on Linux, vcpkg on Windows)
+#   2. find_library fallback with common library names (static variants included)
+#   3. FetchContent: download and build zstd statically from source
 find_package(zstd QUIET)
 if(NOT zstd_FOUND)
-    find_library(ZSTD_LIBRARY NAMES zstd)
+    find_library(ZSTD_LIBRARY
+        NAMES zstd libzstd zstd_static libzstd_static
+        PATHS "${CMAKE_BINARY_DIR}/llvm/lib"
+    )
     if(ZSTD_LIBRARY)
-        add_library(zstd::libzstd_shared SHARED IMPORTED GLOBAL)
-        set_target_properties(zstd::libzstd_shared PROPERTIES IMPORTED_LOCATION ${ZSTD_LIBRARY})
+        add_library(zstd::libzstd_shared UNKNOWN IMPORTED GLOBAL)
+        set_target_properties(zstd::libzstd_shared PROPERTIES
+            IMPORTED_LOCATION "${ZSTD_LIBRARY}")
     else()
-        message(FATAL_ERROR "zstd library not found. Install libzstd-dev.")
+        message(STATUS "zstd not found — downloading and building from source")
+        FetchContent_Declare(
+            zstd_fc
+            URL      https://github.com/facebook/zstd/releases/download/v1.5.5/zstd-1.5.5.tar.gz
+            URL_HASH SHA256=9c4396cc829cfae319a6e2615202e82aad41372073482fce286fac78646d3ee4
+            SOURCE_SUBDIR  build/cmake
+            DOWNLOAD_EXTRACT_TIMESTAMP true
+        )
+        set(ZSTD_BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
+        set(ZSTD_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
+        set(ZSTD_BUILD_STATIC   ON  CACHE BOOL "" FORCE)
+        set(ZSTD_BUILD_SHARED   OFF CACHE BOOL "" FORCE)
+        FetchContent_MakeAvailable(zstd_fc)
+        # Expose the static target under the name the LLVM cmake config expects
+        add_library(zstd::libzstd_shared ALIAS libzstd_static)
     endif()
 endif()
 

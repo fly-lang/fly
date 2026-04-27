@@ -13,15 +13,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     binutils-dev \
     libdw-dev \
     libdwarf-dev \
+    gdb \
     && rm -rf /var/lib/apt/lists/*
 
 # Get Sources
 WORKDIR /fly
 COPY . /fly/
 
-# Start Build
+# Build (tests run separately in CI for inline debug output)
 RUN cmake -E make_directory build
 WORKDIR /fly/build
 RUN cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_VERBOSE_MAKEFILE=ON
 RUN cmake --build . --config Debug --parallel $(nproc)
-RUN ctest -C Debug --rerun-failed --output-on-failure
