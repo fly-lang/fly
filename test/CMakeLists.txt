@@ -36,7 +36,10 @@ add_executable(fly_test
         ${BACKWARD_ENABLE}
 )
 
-add_backward(fly_test)
+# Link backward-cpp stack trace support using its stable cmake variables
+# (avoids the deprecated add_backward() and the version-dependent Backward:: targets)
+target_link_libraries(fly_test PRIVATE ${BACKWARD_LIBRARIES})
+target_include_directories(fly_test PRIVATE ${BACKWARD_INCLUDE_DIRS})
 
 target_link_libraries(fly_test PRIVATE
         gtest_main
