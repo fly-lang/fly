@@ -1,4 +1,4 @@
 #!/bin/bash
 
 cd ..
-sudo docker run -it --rm --name ubuntu-fly-build bash
+sudo docker run -it --rm ubuntu-fly-build bash

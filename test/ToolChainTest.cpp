@@ -380,7 +380,7 @@ namespace {
         // so this path must exist on the current machine.
         ToolChain TC = makeTC("x86_64-linux-gnu");
         std::string P = TC.GetRuntimeLibPath();
-        EXPECT_FALSE(P.empty()) << "libfly_runtime.a not found at FLY_RUNTIME_LIB_DIR";
+        EXPECT_FALSE(P.empty()) << "FlyRuntime.a not found at FLY_RUNTIME_LIB_DIR";
         EXPECT_TRUE(llvm::sys::fs::exists(P)) << "Path returned but file missing: " << P;
     }
 

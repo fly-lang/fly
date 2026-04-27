@@ -18,75 +18,67 @@ extern bool DebugEnabled;
 namespace {
     using namespace fly;
 
-#ifndef FLY_LIB_FLY_DIR
-#define FLY_LIB_FLY_DIR "."
-#endif
+    // ── Library stub: namespace my.utils with one public function ─────────────
+
+    static constexpr const char *UtilsSource = R"(
+namespace my.utils
+
+public foo() {}
+)";
 
     // ── Test sources ─────────────────────────────────────────────────────────
 
-    // Case 1: import fly  →  use fly.str.len()
-    static constexpr const char *ImportFlySource = R"(
-import fly
+    // Case 1: import my  →  use my.utils.foo() fully qualified
+    static constexpr const char *ImportMySource = R"(
+import my
 
 main() {
-    string hello = "hello"
-    int size = 0
-    fly.str.len(hello, size)
+    my.utils.foo()
 }
 )";
 
-    // Case 2: import fly.*  →  use str.len()
-    static constexpr const char *ImportFlyWildcardSource = R"(
-import fly.*
+    // Case 2: import my.*  →  use utils.foo() (wildcard brings my's children into scope)
+    static constexpr const char *ImportMyWildcardSource = R"(
+import my.*
 
 main() {
-    string hello = "hello"
-    int size = 0
-    str.len(hello, size)
+    utils.foo()
 }
 )";
 
-    // Case 3: import fly.str  →  use str.len()
-    static constexpr const char *ImportFlyStrSource = R"(
-import fly.str
+    // Case 3: import my.utils  →  use utils.foo() (last segment 'utils' in scope)
+    static constexpr const char *ImportMyUtilsSource = R"(
+import my.utils
 
 main() {
-    string hello = "hello"
-    int size = 0
-    str.len(hello, size)
+    utils.foo()
 }
 )";
 
-    // Case 4: import fly.str.*  →  use len() unqualified
-    static constexpr const char *ImportFlyStrWildcardSource = R"(
-import fly.str.*
+    // Case 4: import my.utils.*  →  use foo() unqualified (all symbols in scope)
+    static constexpr const char *ImportMyUtilsWildcardSource = R"(
+import my.utils.*
 
 main() {
-    string hello = "hello"
-    int size = 0
-    len(hello, size)
+    foo()
 }
 )";
 
-    // Case 5: import fly.str as s  →  use s.len()
-    static constexpr const char *ImportFlyStrAliasSource = R"(
-import fly.str as s
+    // Case 5: import my.utils as u  →  use u.foo()
+    static constexpr const char *ImportMyUtilsAliasSource = R"(
+import my.utils as u
 
 main() {
-    string hello = "hello"
-    int size = 0
-    s.len(hello, size)
+    u.foo()
 }
 )";
 
-    // Case 6: import fly.str.* as s  →  compiler error (wildcard + alias forbidden)
-    static constexpr const char *ImportFlyStrWildcardAliasSource = R"(
-import fly.str.* as s
+    // Case 6: import my.utils.* as u  →  compiler error (wildcard + alias forbidden)
+    static constexpr const char *ImportMyUtilsWildcardAliasSource = R"(
+import my.utils.* as u
 
 main() {
-    string hello = "hello"
-    int size = 0
-    len(hello, size)
+    foo()
 }
 )";
 
@@ -94,11 +86,13 @@ main() {
 
     class ImportTest : public ::testing::Test {
     public:
-        const char *mainfly = "main.fly";
+        const char *mainfly  = "main.fly";
+        const char *utilsfly = "utils.fly";
 
-        void SetUpWithSource(const char *Src) {
+        void SetUpWithSource(const char *MainSrc) {
             DebugEnabled = false;
-            { std::ofstream f(mainfly); f << Src; }
+            { std::ofstream f(mainfly);  f << MainSrc; }
+            { std::ofstream f(utilsfly); f << UtilsSource; }
             llvm::InitializeAllTargetInfos();
             llvm::InitializeAllTargets();
             llvm::InitializeAllTargetMCs();
@@ -108,61 +102,62 @@ main() {
 
         ~ImportTest() override {
             remove(mainfly);
+            remove(utilsfly);
             llvm::outs().flush();
         }
     };
 
     // ── Tests ─────────────────────────────────────────────────────────────────
 
-    // import fly → fly.str.len() fully qualified
-    TEST_F(ImportTest, ImportFly) {
-        SetUpWithSource(ImportFlySource);
-        const char *argv[] = {"fly", "-no-output", mainfly};
+    // import my → my.utils.foo() fully qualified
+    TEST_F(ImportTest, ImportMy) {
+        SetUpWithSource(ImportMySource);
+        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         EXPECT_TRUE(drv.Execute());
     }
 
-    // import fly.* → str.len() (wildcard brings fly's children into scope)
-    TEST_F(ImportTest, ImportFlyWildcard) {
-        SetUpWithSource(ImportFlyWildcardSource);
-        const char *argv[] = {"fly", "-no-output", mainfly};
+    // import my.* → utils.foo() (wildcard brings my's children into scope)
+    TEST_F(ImportTest, ImportMyWildcard) {
+        SetUpWithSource(ImportMyWildcardSource);
+        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         EXPECT_TRUE(drv.Execute());
     }
 
-    // import fly.str → str.len() (last segment 'str' added to scope)
-    TEST_F(ImportTest, ImportFlyStr) {
-        SetUpWithSource(ImportFlyStrSource);
-        const char *argv[] = {"fly", "-no-output", mainfly};
+    // import my.utils → utils.foo() (last segment 'utils' added to scope)
+    TEST_F(ImportTest, ImportMyUtils) {
+        SetUpWithSource(ImportMyUtilsSource);
+        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         EXPECT_TRUE(drv.Execute());
     }
 
-    // import fly.str.* → len() unqualified (all fly.str symbols in scope)
-    TEST_F(ImportTest, ImportFlyStrWildcard) {
-        SetUpWithSource(ImportFlyStrWildcardSource);
-        const char *argv[] = {"fly", "-no-output", mainfly};
+    // import my.utils.* → foo() unqualified (all my.utils symbols in scope)
+    TEST_F(ImportTest, ImportMyUtilsWildcard) {
+        SetUpWithSource(ImportMyUtilsWildcardSource);
+        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         EXPECT_TRUE(drv.Execute());
     }
 
-    // import fly.str as s → s.len()
-    TEST_F(ImportTest, ImportFlyStrAlias) {
-        SetUpWithSource(ImportFlyStrAliasSource);
-        const char *argv[] = {"fly", "-no-output", mainfly};
+    // import my.utils as u → u.foo()
+    TEST_F(ImportTest, ImportMyUtilsAlias) {
+        SetUpWithSource(ImportMyUtilsAliasSource);
+        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         EXPECT_TRUE(drv.Execute());
     }
 
-    // import fly.str.* as s → compiler error
-    TEST_F(ImportTest, ImportFlyStrWildcardAlias) {
-        SetUpWithSource(ImportFlyStrWildcardAliasSource);
-        const char *argv[] = {"fly", "-no-output", mainfly};
+    // import my.utils.* as u → compiler error
+    TEST_F(ImportTest, ImportMyUtilsWildcardAlias) {
+        SetUpWithSource(ImportMyUtilsWildcardAliasSource);
+        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         EXPECT_FALSE(drv.Execute());

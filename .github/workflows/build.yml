@@ -12,7 +12,6 @@ env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
   BUILD_DIR: build
-  LLVM_VERSION: 11.1.0
   WIN_FILE: win-x64.zip
   MACOS_FILE: macos-x86_64.tar.gz
   LINUX_FILE: linux-x86_64.tar.gz
@@ -65,29 +64,29 @@ jobs:
 
       - name: Read Version (Unix)
         id: version
-        if: github.ref == 'refs/heads/main' && (matrix.os == 'ubuntu-20.04' || matrix.os == 'macos-latest')
-        run: echo "::set-output name=version::$(${{github.workspace}}/${{env.BUILD_DIR}}/src/fly --version-short)"
+        if: github.ref == 'refs/heads/main' && (matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest')
+        run: echo "version=$(${{github.workspace}}/${{env.BUILD_DIR}}/compiler/fly --version-short)" >> $GITHUB_OUTPUT
 
       - name: Read Version (Windows)
         id: version-win
         if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
-        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src\${{env.BUILD_TYPE}}
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\compiler\${{env.BUILD_TYPE}}
         run: |
-          echo "::set-output name=version::$(.\fly.exe --version-short)"
+          echo "version=$(.\fly.exe --version-short)" >> $env:GITHUB_OUTPUT
 
       - name: Linux Packaging
-        if: github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-20.04'
-        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
+        if: github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/compiler
         run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}} fly
 
       - name: Windows Packaging
         if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
-        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src\${{env.BUILD_TYPE}}
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\compiler\${{env.BUILD_TYPE}}
         run: 7z a ..\..\fly-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}} fly.exe
 
       - name: macOS Packaging
         if: github.ref == 'refs/heads/main' && matrix.os == 'macos-latest'
-        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/compiler
         run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.MACOS_FILE}} fly
 
       - uses: actions/upload-artifact@v4

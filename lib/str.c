@@ -1,4 +1,4 @@
-/*===-- lib/Fly/String.c - fly.str native implementations -----------------===
+/*===-- lib/fly/str.c - fly.str native implementations -----------------===
  *
  * Functions in this file implement fly.str primitives.
  * Compiled by the host C compiler, linked into libFlyLib.a.
@@ -12,7 +12,7 @@
  *   string → _Ss     error → _e    array → _A<elem>
  *===----------------------------------------------------------------------===*/
 
-#include "String.h"
+#include "str.h"
 
 #include "Runtime.h"
 

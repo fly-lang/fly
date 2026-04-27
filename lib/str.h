@@ -1,6 +1,6 @@
-/*===-- lib/Fly/String.h - fly.str C types and declarations ---------------===
+/*===-- lib/fly/str.h - fly.str C types and declarations ---------------===
  *
- * Internal header shared between String.c and LibTest.cpp.
+ * Internal header shared between str.c and LibTest.cpp.
  * No libc headers — only fundamental C types.
  *===----------------------------------------------------------------------===*/
 

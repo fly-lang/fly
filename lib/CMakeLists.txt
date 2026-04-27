@@ -13,21 +13,21 @@
 # Users link both archives: -lflyLib fly_lib.lib
 #
 # Namespace  → Source file      → Header
-#   fly.string  Fly/String.fly  include/Lib/Fly/String.fly.h
-#   fly.math    Fly/Math.fly    include/Lib/Fly/Math.fly.h
-#   fly.os      Fly/Os.fly      include/Lib/Fly/Os.fly.h
-#   fly.thread  Fly/Thread.fly  include/Lib/Fly/Thread.fly.h
+#   fly.str     fly/str.fly     fly/str.fly.h
+#   fly.math    fly/math.fly    fly/math.fly.h
+#   fly.os      fly/os.fly      fly/os.fly.h
+#   fly.thread  fly/thread.fly  fly/thread.fly.h
 #
 
 # ── C implementations (linked into a regular static library) ─────────────────
 
 add_library(FlyLib STATIC
-        String.c
+        str.c
 )
 
 target_include_directories(FlyLib PUBLIC
     ${CMAKE_SOURCE_DIR}/runtime
-    ${CMAKE_CURRENT_SOURCE_DIR}        # exposes Fly/String.h to consumers
+    ${CMAKE_CURRENT_SOURCE_DIR}        # exposes fly/String.h to consumers
 )
 
 target_link_libraries(FlyLib PUBLIC FlyRuntime)
@@ -39,10 +39,10 @@ set_target_properties(FlyLib PROPERTIES
 # ── Fly namespace archive (built by the fly binary) ──────────────────────────
 
 set(FLY_LIB_SOURCES
-        Fly/string.fly
-        Fly/math.fly
-        Fly/os.fly
-        Fly/thread.fly
+        fly/str.fly
+        fly/math.fly
+        fly/os.fly
+        fly/thread.fly
 )
 
 # The fly compiler appends .lib automatically; pass the stem without extension.

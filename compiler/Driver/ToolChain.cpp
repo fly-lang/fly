@@ -1282,9 +1282,9 @@ std::string ToolChain::GetCompilerRTBuiltinsPath() const {
 
 std::string ToolChain::GetRuntimeLibPath() const {
     // FLY_RUNTIME_LIB_DIR is baked into Config.h at cmake-configure time.
-    // It points to the directory where libRuntime.a is built (or installed).
+    // It points to the directory where libFlyRuntime.a is built (or installed).
     llvm::SmallString<256> P(FLY_RUNTIME_LIB_DIR);
-    llvm::sys::path::append(P, "libRuntime.a");
+    llvm::sys::path::append(P, "libFlyRuntime.a");
     if (getVFS().exists(P)) {
         FLY_DEBUG_START_MSG("ToolChain", "GetRuntimeLibPath", "Found: " << P);
         return std::string(P.str());

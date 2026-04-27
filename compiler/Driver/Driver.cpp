@@ -88,17 +88,16 @@ CompilerInstance &Driver::BuildCompilerInstance() {
     FrontendOptions *FrontendOpts = new FrontendOptions();
     CodeGenOptions *CodeGenOpts = new CodeGenOptions();
     BuildOptions(FileSystemOpts, TargetOpts, FrontendOpts, CodeGenOpts);
-    
-    if (doExecute) {
-        CI = std::make_shared<CompilerInstance>(Diags,
-                                                std::move(FileSystemOpts),
-                                                std::move(TargetOpts),
-                                                FrontendOpts,
-                                                CodeGenOpts);
-        if (!CI) {
-            llvm::errs() << "Error while creating compiler instance!" << "\n";
-            exit(1);
-        }
+
+	CI = std::make_shared<CompilerInstance>(Diags,
+												std::move(FileSystemOpts),
+												std::move(TargetOpts),
+												FrontendOpts,
+												CodeGenOpts);
+
+    if (!CI) {
+        llvm::errs() << "Error while creating compiler instance!" << "\n";
+        exit(1);
     }
 
     return *CI;
