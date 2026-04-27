@@ -1813,8 +1813,26 @@ void Resolver::ResolveImports(SemaModule *Module) {
 			continue;
 		}
 
-		// Add Symbol to the Module current scope
-		Module->getSymbols()->insert(ImportedSymbol);
+		if (Import->isWildcard()) {
+			// Wildcard: add all direct children of the target namespace to module scope
+			if (ImportedSymbol->getKind() == SymbolKind::NAMESPACE) {
+				SemaNameSpace *NS = static_cast<SemaNameSpace *>(ImportedSymbol->getRef());
+				for (auto &Entry : NS->getSymbols()->getAll()) {
+					for (Symbol *Sym : Entry.second) {
+						Module->getSymbols()->insert(Sym);
+					}
+				}
+			}
+		} else if (!Import->getAST()->getAlias().empty()) {
+			// Alias: create a new symbol with the alias name pointing to the same ref
+			const auto &AliasNames = Import->getAST()->getAlias();
+			llvm::StringRef AliasName = AliasNames[0]->getName();
+			Symbol *AliasSym = new Symbol(AliasName, ImportedSymbol->getKind(), ImportedSymbol->getRef());
+			Module->getSymbols()->insert(AliasSym);
+		} else {
+			// Plain import: add symbol under its own name
+			Module->getSymbols()->insert(ImportedSymbol);
+		}
 	}
 	FLY_DEBUG_END("Resolver", "ResolveImports");
 }

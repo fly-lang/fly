@@ -49,6 +49,8 @@ namespace fly {
 
         llvm::SmallVector<Symbol *, 8> *lookupInParents(llvm::StringRef Name);
 
+        const llvm::StringMap<llvm::SmallVector<Symbol *, 8>> &getAll() const;
+
         llvm::SmallVector<Symbol *, 8> *lookupInChildren(llvm::StringRef Name);
 
         SymbolTable* pushScope();

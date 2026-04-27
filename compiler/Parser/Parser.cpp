@@ -180,23 +180,40 @@ ASTImport *Parser::ParseImport() {
 		return nullptr;
 	}
 
-	// Parse the Names
+	// Parse the Names (stops before '.*' if wildcard present)
 	llvm::SmallVector<ASTName *, 4> Names = ParseNames();
 
-	// Parse optional 'as' alias
+	// Check for wildcard suffix '.*'
+	bool Wildcard = false;
+	if (Tok.is(tok::period)) {
+		auto MaybeStar = Lexer::findNextToken(Tok.getLocation(), SourceMgr);
+		if (MaybeStar && MaybeStar->is(tok::star)) {
+			ConsumeToken(); // consume '.'
+			ConsumeToken(); // consume '*'
+			Wildcard = true;
+
+			// Wildcard + alias is forbidden: emit error and skip rest of line
+			if (Tok.is(tok::kw_as)) {
+				Diag(Tok, diag::err_import_wildcard_alias);
+				unsigned ErrLine = SourceMgr.getSpellingLineNumber(Tok.getLocation());
+				while (Tok.isNot(tok::eof) &&
+				       SourceMgr.getSpellingLineNumber(Tok.getLocation()) == ErrLine) {
+					ConsumeToken();
+				}
+				return nullptr;
+			}
+		}
+	}
+
+	// Parse optional 'as' alias (only valid without wildcard)
 	llvm::SmallVector<ASTName *, 4> Alias;
-	if (Tok.is(tok::kw_as)) {
-
-		// Consume 'as'
-		SourceLocation AsLoc = Tok.getLocation();
-		ConsumeToken();
-
-		// Parse the Names
+	if (!Wildcard && Tok.is(tok::kw_as)) {
+		ConsumeToken(); // consume 'as'
 		Alias = ParseNames();
 	}
 
 	// Create Import
-	return ASTBuilder::CreateImport(Module, Loc, Names, Alias);
+	return ASTBuilder::CreateImport(Module, Loc, Names, Alias, Wildcard);
 }
 
 llvm::SmallVector<ASTName *, 4> Parser::ParseNames() {
@@ -219,6 +236,11 @@ llvm::SmallVector<ASTName *, 4> Parser::ParseNames() {
 
 		// Check for period
 		if (Tok.is(tok::period)) {
+			// Peek ahead: if next token after '.' is '*', stop here — wildcard handled by caller
+			auto MaybeStar = Lexer::findNextToken(Tok.getLocation(), SourceMgr);
+			if (MaybeStar && MaybeStar->is(tok::star)) {
+				break;
+			}
 			ConsumeToken(); // consume '.'
 		} else {
 			break;

@@ -93,6 +93,10 @@ size_t SymbolTable::size() const {
 	return Table.size();
 }
 
+const llvm::StringMap<llvm::SmallVector<Symbol *, 8>> &SymbolTable::getAll() const {
+	return Table;
+}
+
 llvm::SmallVector<Symbol *, 8> *SymbolTable::lookup(llvm::StringRef Name) {
 	auto it = Table.find(Name);
 	if (it != Table.end())

@@ -25,7 +25,10 @@ namespace fly {
 
         llvm::SmallVector<ASTName *, 4> Alias;
 
-        ASTImport(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> &Names, llvm::SmallVector<ASTName *, 4> &Alias);
+        bool Wildcard = false;
+
+        ASTImport(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> &Names,
+                  llvm::SmallVector<ASTName *, 4> &Alias, bool Wildcard);
 
     public:
 
@@ -36,6 +39,8 @@ namespace fly {
         const llvm::SmallVector<ASTName *, 4> &getNames() const;
 
         const llvm::SmallVector<ASTName *, 4> &getAlias() const;
+
+        bool isWildcard() const;
 
         std::string str() const override;
     };

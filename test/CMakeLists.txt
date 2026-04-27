@@ -10,6 +10,7 @@ add_executable(fly_test
         FrontendTest.cpp
         ToolChainTest.cpp
         ImportLibTest.cpp
+        ImportTest.cpp
         CodeGen/CodeGenTest.cpp
         CodeGen/CodeGenBaseTest.cpp
         CodeGen/CodeGenErrorTest.cpp

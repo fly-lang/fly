@@ -119,10 +119,10 @@ ASTNameSpace *ASTBuilder::CreateNameSpace(
 
 ASTImport *ASTBuilder::CreateImport(
 	ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names,
-	llvm::SmallVector<ASTName *, 4> Alias) {
+	llvm::SmallVector<ASTName *, 4> Alias, bool Wildcard) {
 	FLY_DEBUG_START_MSG("ASTBuilder", "CreateImport", "Loc=" << Loc.getRawEncoding());
 
-	ASTImport *Import = new ASTImport(Loc, Names, Alias);
+	ASTImport *Import = new ASTImport(Loc, Names, Alias, Wildcard);
 
 	// Add Import to Module
 	Module->addNode(Import);

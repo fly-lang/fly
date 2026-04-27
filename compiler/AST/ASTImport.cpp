@@ -17,8 +17,9 @@
 
 using namespace fly;
 
-ASTImport::ASTImport(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> &Names, llvm::SmallVector<ASTName *, 4> &Alias) :
-        ASTNode(Loc, ASTKind::AST_IMPORT), Names(std::move(Names)), Alias(std::move(Alias)) {
+ASTImport::ASTImport(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> &Names,
+                     llvm::SmallVector<ASTName *, 4> &Alias, bool Wildcard) :
+        ASTNode(Loc, ASTKind::AST_IMPORT), Names(std::move(Names)), Alias(std::move(Alias)), Wildcard(Wildcard) {
 
 }
 
@@ -39,6 +40,10 @@ const llvm::SmallVector<ASTName *, 4> &ASTImport::getNames() const {
 
 const llvm::SmallVector<ASTName *, 4> &ASTImport::getAlias() const {
 	return Alias;
+}
+
+bool ASTImport::isWildcard() const {
+	return Wildcard;
 }
 
 std::string ASTImport::str() const {

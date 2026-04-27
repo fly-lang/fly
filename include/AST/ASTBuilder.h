@@ -163,7 +163,7 @@ namespace fly {
         static ASTNameSpace *CreateNameSpace(ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names);
 
         // Create Import
-        static ASTImport *CreateImport(ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names, llvm::SmallVector<ASTName *, 4> Alias);
+        static ASTImport *CreateImport(ASTModule *Module, const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names, llvm::SmallVector<ASTName *, 4> Alias, bool Wildcard = false);
 
         static ASTFunction *CreateFunction(ASTModule *Module, const SourceLocation &Loc, llvm::StringRef Name,
                                     llvm::SmallVector<ASTModifier *, 8> &Modifiers, llvm::SmallVector<ASTParam *, 8> &Params,

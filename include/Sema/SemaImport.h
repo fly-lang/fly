@@ -40,6 +40,8 @@ namespace fly {
 
         const llvm::SmallVector<ASTName *, 4> &getTarget() const;
 
+        bool isWildcard() const;
+
         SymbolTable *getSymbols() const;
 
         void setSymbols(SymbolTable *Symbols);

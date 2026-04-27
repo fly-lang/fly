@@ -30,6 +30,10 @@ const llvm::SmallVector<ASTName *, 4> &SemaImport::getTarget() const {
 	return AST.getNames();
 }
 
+bool SemaImport::isWildcard() const {
+	return AST.isWildcard();
+}
+
 SymbolTable * SemaImport::getSymbols() const {
 	return Symbols;
 }

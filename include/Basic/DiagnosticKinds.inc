@@ -142,6 +142,7 @@ DIAG(err_parser_fail_too_many_expr, CLASS_ERROR, (unsigned)diag::Severity::Error
 DIAG(err_import_conflict_namespace, CLASS_ERROR, (unsigned)diag::Severity::Error, "import name '%0' conflicts with namespace", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_alias_conflict_namespace, CLASS_ERROR, (unsigned)diag::Severity::Error, "import alias '%0' conflicts with namespace", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_conflict_import_alias, CLASS_ERROR, (unsigned)diag::Severity::Error, "import alias name '%0' conflict", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_import_wildcard_alias, CLASS_ERROR, (unsigned)diag::Severity::Error, "wildcard import cannot be combined with 'as' alias", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_duplicate_identity, CLASS_ERROR, (unsigned)diag::Severity::Error, "class '%0' duplicated", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_conflict_vardecl, CLASS_ERROR, (unsigned)diag::Severity::Error, "var '%0' conflict", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_conflict_params, CLASS_ERROR, (unsigned)diag::Severity::Error, "param name '%0' already declared", 0, SFINAE_Suppress, false, true, 0)

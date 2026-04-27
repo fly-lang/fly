@@ -33,7 +33,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Dependencies
         if: matrix.os == 'ubuntu-latest'
@@ -90,19 +90,19 @@ jobs:
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
         run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.MACOS_FILE}} fly
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         if: github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
         with:
           name: linux-artifact
           path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}}
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
         with:
           name: windows-artifact
           path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}}
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         if: github.ref == 'refs/heads/main' && matrix.os == 'macos-latest'
         with:
           name: macos-artifact
@@ -119,24 +119,24 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         if: github.ref == 'refs/heads/main'
         with:
           name: linux-artifact
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         if: github.ref == 'refs/heads/main'
         with:
           name: windows-artifact
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         if: github.ref == 'refs/heads/main'
         with:
           name: macos-artifact
 
       - name: Release
         if: github.ref == 'refs/heads/main'
-        uses: actions/create-release@v1
+        uses: actions/create-release@v1.1.4
         id: create_release
         with:
           draft: false
@@ -148,7 +148,7 @@ jobs:
 
       - name: Linux Upload
         if: github.ref == 'refs/heads/main'
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -159,7 +159,7 @@ jobs:
 
       - name: Windows Upload
         if: github.ref == 'refs/heads/main'
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -170,7 +170,7 @@ jobs:
 
       - name: macOS Upload
         if: github.ref == 'refs/heads/main'
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
