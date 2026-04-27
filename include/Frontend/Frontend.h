@@ -62,6 +62,10 @@ namespace fly {
 
         void ParseFile(ASTBuilder &Builder, const std::string &FileName);
 
+#ifdef FLY_LIB_FLY_DIR
+        void LoadStdlibHeaders(ASTBuilder &Builder);
+#endif
+
         void CreateFrontendTimer();
 
         const SmallVector<std::string, 4> &getOutputFiles() const;

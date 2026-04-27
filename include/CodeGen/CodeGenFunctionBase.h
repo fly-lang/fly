@@ -56,7 +56,7 @@ namespace fly {
 
         void GenReturnType();
 
-        void GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<llvm::Type *, 8> &Types, SemaFunctionBase * Sema);
+        static void GenParamTypes(CodeGenModule *CGM, llvm::SmallVector<llvm::Type *, 8> &Types, SemaFunctionBase *Sema);
 
         SemaFunctionBase *getSema();
 
@@ -76,9 +76,9 @@ namespace fly {
 
         virtual void GenBody() = 0;
 
-    	std::string Mangle(SemaType *Type);
+    	static std::string Mangle(SemaType *Type);
 
-    	std::string Mangle(SemaFunctionBase *AST);
+    	static std::string Mangle(SemaFunctionBase *F);
     };
 }
 

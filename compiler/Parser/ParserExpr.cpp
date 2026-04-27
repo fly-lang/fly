@@ -216,7 +216,8 @@ ASTExpr * ParserExpr::ParseIdentifierOrCall(ASTExpr *Parent) {
 	if (P->Tok.is(tok::period)) {
 		P->ConsumeToken();
 
-		if (!P->Tok.isAnyIdentifier()) {
+		// Allow keywords (e.g. "string") as namespace/member components after '.'
+		if (!P->Tok.isAnyIdentifier() && !P->Tok.getIdentifierInfo()) {
 			P->Diag(P->Tok.getLocation(), diag::err_parser_identifier_expected);
 		} else {
 			return ParseIdentifierOrCall(Expr);

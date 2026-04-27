@@ -1,8 +1,8 @@
 ##===-- runtime/Linux/CMakeLists.txt ----------------------------------===##
 
-target_sources(Runtime PRIVATE Mem.c Io.c Proc.c Thread.c)
+target_sources(FlyRuntime PRIVATE Mem.c Io.c Proc.c Thread.c)
 
-target_compile_options(Runtime PRIVATE
+target_compile_options(FlyRuntime PRIVATE
     -ffreestanding
     -nostdinc
     -fno-stack-protector

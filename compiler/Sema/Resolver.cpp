@@ -194,8 +194,45 @@ void Resolver::visit(ASTFunction &AST) {
 	// Exit Function Scope
 	ExitScope();
 
-	// Add Symbol to the current scope
+	// Build flattened namespace name (e.g. "fly_string" for fly.string)
+	ASTNameSpace *NS = CurrentModule->getAST().getNameSpace();
+	if (NS && !NS->getNames().empty()) {
+		std::string NSName;
+		for (auto *N : NS->getNames()) {
+			if (!NSName.empty()) NSName += "_";
+			NSName += N->getName();
+		}
+		CurrentFunction->setNamespaceName(std::move(NSName));
+	}
+
+	// For external functions (no body), resolve params and return type immediately
+	// so that callers can inspect them without waiting for the body resolution pass.
+	if (AST.getBody() == nullptr) {
+		SymbolTable *SavedScope = CurrentScope;
+		CurrentScope = CurrentFunction->getSymbols();
+		EnterScope();
+		for (auto Param : AST.getParams()) {
+			Param->accept(*this);
+			SemaParam *ResolvedParam = Param->getSymbol()->getRefAs<SemaParam>();
+			CurrentFunction->addParam(ResolvedParam);
+		}
+		// Resolve explicit return type if provided in the header
+		if (AST.getReturnType() != nullptr) {
+			AST.getReturnType()->accept(*this);
+			CurrentFunction->setReturnType(CurrentType);
+		}
+		ExitScope();
+		CurrentScope = SavedScope;
+	}
+
+	// Add Symbol to the module scope (for local / unqualified calls)
 	addSymbol(Sym);
+
+	// Also register in the namespace scope so qualified calls (fly.strings.len())
+	// can find the function when CurrentScope is switched to the namespace table.
+	if (CurrentNameSpace && CurrentNameSpace != Reg.getDefaultNameSpace()) {
+		CurrentNameSpace->getSymbols()->insert(Sym);
+	}
 
 	FLY_DEBUG_END("Resolver", "visit(ASTFunction)");
 }
@@ -1200,10 +1237,17 @@ void Resolver::visit(ASTMember &AST) {
 		AST.setVisited(true);
 		SemaExpr *Sema = nullptr;
 
-		// check namespace
+		// check namespace: member may be a sub-namespace (e.g. "string" in "fly.string")
 		if (ParentSymbol->getKind() == SymbolKind::NAMESPACE) {
-			CurrentScope = static_cast<SemaNameSpace *>(ParentSymbol->getRef())->getSymbols();
-			Diag(diag::err_invalid_behavior); // Member access on namespace is not allowed because global var not exists
+			SemaNameSpace *ParentNS = static_cast<SemaNameSpace *>(ParentSymbol->getRef());
+			llvm::SmallVector<Symbol *, 8> *SubSyms = ParentNS->getSymbols()->lookup(AST.getName());
+			if (SubSyms && !SubSyms->empty() && (*SubSyms)[0]->getKind() == SymbolKind::NAMESPACE) {
+				AST.setSymbol((*SubSyms)[0]);
+				CurrentExpr = nullptr; // not a value expression
+				FLY_DEBUG_END("Resolver", "visit(ASTMember)");
+				return;
+			}
+			Diag(diag::err_invalid_behavior); // Member access on namespace not resolved
 			return;
 		}
 
@@ -1781,6 +1825,13 @@ void Resolver::ResolveImports(SemaModule *Module) {
 void Resolver::ResolveFunction(SemaFunction *Sema) {
 	FLY_DEBUG_START("Resolver", "ResolveFunction");
 	ASTFunction &AST = Sema->getAST();
+
+	// External functions (from .fly.h headers) have no body; their params and
+	// return type were already resolved in visit(ASTFunction). Skip them here.
+	if (AST.getBody() == nullptr) {
+		FLY_DEBUG_END("Resolver", "ResolveFunction");
+		return;
+	}
 
 	// Set currents
 	CurrentScope = Sema->getSymbols();

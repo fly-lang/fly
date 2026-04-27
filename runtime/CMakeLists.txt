@@ -8,16 +8,16 @@
 #   src/Runtime/macOS/  — macOS AArch64/x86-64  (libSystem / __ulock)
 #
 
-add_library(Runtime STATIC)
+add_library(FlyRuntime STATIC)
 
 # Place the archive in a predictable location so ToolChain can locate it via
 # the FLY_RUNTIME_LIB_DIR cmake variable baked into Config.h.
-set_target_properties(Runtime PROPERTIES
+set_target_properties(FlyRuntime PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
 )
 
 # Runtime.h is the only public header.
-target_include_directories(Runtime PUBLIC
+target_include_directories(FlyRuntime PUBLIC
     "${CMAKE_SOURCE_DIR}/runtime"
 )
 

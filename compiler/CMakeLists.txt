@@ -185,6 +185,7 @@ add_library(FlyCompiler
         Sema/SemaAlloc.cpp
         Sema/SemaSmartAlloc.cpp
         Sema/SemaStringAlloc.cpp
+
         Sema/SemaVar.cpp
         Sema/SemaValue.cpp
         Sema/SemaStmt.cpp
@@ -248,5 +249,12 @@ target_link_libraries(FlyCompiler
         lldMinGW
         lldWasm)
 
+target_compile_definitions(FlyCompiler PRIVATE
+        FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/lib/Fly"
+)
+
 target_link_libraries(fly
-        FlyCompiler)
+        FlyCompiler
+        FlyLib
+        FlyRuntime
+)

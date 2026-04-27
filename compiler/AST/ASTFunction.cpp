@@ -29,12 +29,22 @@ ASTFunction::ASTFunction(const SourceLocation &Loc,
 ASTFunction::~ASTFunction() {
     for (auto *P : Params) delete P;
     Params.clear();
+    delete ReturnType;
+    ReturnType = nullptr;
     if (Body) {
         delete Body;
         Body = nullptr;
     }
     for (auto *M : Modifiers) delete M;
     Modifiers.clear();
+}
+
+ASTType *ASTFunction::getReturnType() const {
+    return ReturnType;
+}
+
+void ASTFunction::setReturnType(ASTType *RT) {
+    ReturnType = RT;
 }
 
 void ASTFunction::accept(ASTVisitor &Visitor) {

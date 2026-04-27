@@ -18,6 +18,7 @@ namespace fly {
     class ASTParam;
     class ASTComment;
     class ASTBlockStmt;
+    class ASTType;
 
     enum class ASTFunctionKind {
         F_FUNCTION,
@@ -35,6 +36,9 @@ namespace fly {
         llvm::SmallVector<ASTModifier *, 8> Modifiers;
 
         llvm::SmallVector<ASTParam *, 8> Params;
+
+        // Explicit return type (only set from .fly.h header declarations; null = void)
+        ASTType *ReturnType = nullptr;
 
         // Body is the main BlockStmt
         ASTBlockStmt *Body = nullptr;
@@ -57,6 +61,10 @@ namespace fly {
         llvm::SmallVector<ASTModifier *, 8> getModifiers() const;
 
         llvm::SmallVector<ASTParam *, 8> getParams() const;
+
+        ASTType *getReturnType() const;
+
+        void setReturnType(ASTType *RT);
 
         ASTBlockStmt *getBody() const;
 

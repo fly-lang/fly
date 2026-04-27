@@ -4,7 +4,6 @@
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
-//
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_FUNCTIONBASE_H
@@ -41,6 +40,9 @@ namespace fly {
 
         ASTFunction &AST;
 
+        // Flattened namespace name (e.g. "fly_string" for fly.string); empty = default namespace
+        std::string NamespaceName;
+
         llvm::SmallVector<SemaLocalVar *, 8> LocalVars;
 
     	SemaError *ErrorHandler;
@@ -62,6 +64,12 @@ namespace fly {
     	llvm::StringRef getName() const;
 
     	SemaType *getReturnType();
+
+        void setReturnType(SemaType *T);
+
+        const std::string &getNamespaceName() const;
+
+        void setNamespaceName(std::string NS);
 
         llvm::SmallVector<SemaParam *, 8> &getParams();
 

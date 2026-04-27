@@ -4,7 +4,6 @@
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
-//
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaFunctionBase.h"
@@ -29,17 +28,12 @@ SemaFunctionBase::SemaFunctionBase(ASTFunction &AST, SemaKind Kind, SymbolTable 
 }
 
 SemaFunctionBase::~SemaFunctionBase() {
-	// Delete all parameters
-	for (auto *Param : Params) {
+	for (auto *Param : Params)
 		delete Param;
-	}
 
-	// Delete all local variables
-	for (auto *LocalVar : LocalVars) {
+	for (auto *LocalVar : LocalVars)
 		delete LocalVar;
-	}
 
-	// Delete ErrorHandler
 	delete ErrorHandler;
 }
 
@@ -53,6 +47,18 @@ llvm::StringRef SemaFunctionBase::getName() const {
 
 SemaType *SemaFunctionBase::getReturnType() {
 	return ReturnType;
+}
+
+void SemaFunctionBase::setReturnType(SemaType *T) {
+	ReturnType = T;
+}
+
+const std::string &SemaFunctionBase::getNamespaceName() const {
+	return NamespaceName;
+}
+
+void SemaFunctionBase::setNamespaceName(std::string NS) {
+	NamespaceName = std::move(NS);
 }
 
 llvm::SmallVector<SemaParam *, 8> &SemaFunctionBase::getParams() {

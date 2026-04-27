@@ -22,14 +22,15 @@
 # ── C implementations (linked into a regular static library) ─────────────────
 
 add_library(FlyLib STATIC
-        Fly/String.c
+        String.c
 )
 
 target_include_directories(FlyLib PUBLIC
     ${CMAKE_SOURCE_DIR}/runtime
+    ${CMAKE_CURRENT_SOURCE_DIR}        # exposes Fly/String.h to consumers
 )
 
-target_link_libraries(FlyLib PUBLIC Runtime)
+target_link_libraries(FlyLib PUBLIC FlyRuntime)
 
 set_target_properties(FlyLib PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
@@ -38,10 +39,10 @@ set_target_properties(FlyLib PROPERTIES
 # ── Fly namespace archive (built by the fly binary) ──────────────────────────
 
 set(FLY_LIB_SOURCES
-        Fly/String.fly
-        Fly/Math.fly
-        Fly/Os.fly
-        Fly/Thread.fly
+        Fly/string.fly
+        Fly/math.fly
+        Fly/os.fly
+        Fly/thread.fly
 )
 
 # The fly compiler appends .lib automatically; pass the stem without extension.
@@ -58,4 +59,4 @@ add_custom_command(
     VERBATIM
 )
 
-add_custom_target(FlyLibOut ALL DEPENDS ${FLY_LIB_OUTPUT})
+add_custom_target(fly_lib ALL DEPENDS ${FLY_LIB_OUTPUT})

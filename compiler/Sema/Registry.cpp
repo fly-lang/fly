@@ -129,10 +129,11 @@ SemaNameSpace* Registry::getOrCreateNameSpace(const llvm::SmallVector<ASTName *,
 
 		// Create namespace if not found
 		if (Symbols == nullptr) {
-			SymbolTable *Symbols = new SymbolTable(CurrentScope);
-			NameSpace = new SemaNameSpace(Name, Symbols);
-			CurrentScope->insert(new Symbol(NameSpace->getName(), SymbolKind::NAMESPACE, NameSpace)); // add in Map
-			CurrentScope->addChild(Symbols); // add Child
+			SymbolTable *ChildScope = new SymbolTable(CurrentScope);
+			NameSpace = new SemaNameSpace(Name, ChildScope);
+			CurrentScope->insert(new Symbol(NameSpace->getName(), SymbolKind::NAMESPACE, NameSpace));
+			CurrentScope->addChild(ChildScope);
+			CurrentScope = ChildScope; // descend into the new namespace for subsequent names
 			continue;
 		}
 

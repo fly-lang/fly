@@ -204,11 +204,18 @@ std::string CodeGenFunctionBase::Mangle(SemaType *Type) {
 }
 
 std::string CodeGenFunctionBase::Mangle(SemaFunctionBase *F) {
-	std::string Name = std::string(F->getName()); // Function name
+	std::string Name = std::string(F->getName());
+	const std::string &NS = F->getNamespaceName();
 
-	// Mangling Function with _F prefix
+	std::string Mangled = "_F";
+
+	// Include flattened namespace prefix when not in the default namespace
+	if (!NS.empty()) {
+		Mangled += std::to_string(NS.size()) + NS;
+	}
+
 	// Encode function name with its length
-	std::string Mangled = "_F" + std::to_string(Name.size()) + Name;
+	Mangled += std::to_string(Name.size()) + Name;
 
 	// Encode parameters
 	for (const auto Param : F->getParams()) {

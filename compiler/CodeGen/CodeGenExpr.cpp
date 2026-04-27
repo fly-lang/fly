@@ -32,6 +32,7 @@
 #include <AST/ASTArg.h>
 #include <AST/ASTCall.h>
 #include <CodeGen/CodeGenClass.h>
+#include <CodeGen/CodeGenFunctionBase.h>
 #include <Sema/SemaClassAttribute.h>
 #include <Sema/SemaClassInstance.h>
 #include <Sema/SemaClassMethod.h>
@@ -344,6 +345,26 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     	// Add Error parameter
         Args.push_back(CGM->CurrentErrorHandler->getValue()); // Error is a Pointer
     	addArgs(Sema, Args);
+
+    	// External function (declared in .fly.h header, implemented in runtime)
+    	if (Sema->getFunction()->getCodeGen() == nullptr) {
+    		std::string MangledName = CodeGenFunctionBase::Mangle(Sema->getFunction());
+
+    		// Build LLVM param types: void* error + all params by pointer
+    		llvm::SmallVector<llvm::Type *, 8> ParamTypes;
+    		ParamTypes.push_back(CodeGen::VoidPtrTy);
+    		CodeGenFunctionBase::GenParamTypes(CGM, ParamTypes, Sema->getFunction());
+
+    		// Resolve LLVM return type
+    		SemaType *RetSema = Sema->getFunction()->getReturnType();
+    		RetSema->accept(*CGM);
+    		llvm::Type *LLVMRetTy = RetSema->getCodeGen()->getType();
+
+    		llvm::FunctionType *FnTy = llvm::FunctionType::get(LLVMRetTy, ParamTypes, false);
+    		llvm::FunctionCallee Callee = CGM->Module->getOrInsertFunction(MangledName, FnTy);
+    		V = Builder->CreateCall(Callee, Args);
+    		return;
+    	}
 
     	llvm::Function *Fn = Sema->getFunction()->getCodeGen()->getFunction();
     	V = Builder->CreateCall(Fn, Args);

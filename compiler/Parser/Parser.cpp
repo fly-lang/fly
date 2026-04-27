@@ -100,6 +100,51 @@ ASTModule *Parser::ParseHeader() {
     // Prime the lexer look-ahead.
     ConsumeToken();
 
+    Module = ASTBuilder::CreateModule(Input);
+
+    // Parse optional namespace declaration
+    if (Tok.is(tok::kw_namespace)) {
+        Module->setNameSpace(ParseNameSpace());
+    }
+
+    // Parse function declarations (no bodies)
+    while (ContinueParse && Tok.isNot(tok::eof)) {
+
+        // Skip comment tokens
+        if (isTokenComment()) {
+            ParseComment();
+            continue;
+        }
+
+        // Parse modifiers (public/private/etc.)
+        SmallVector<ASTModifier *, 8> Modifiers = ParseModifiers();
+
+        // Expect a function name identifier
+        if (!Tok.isAnyIdentifier()) {
+            break;
+        }
+
+        const SourceLocation &Loc = Tok.getLocation();
+        StringRef Name = Tok.getIdentifierInfo()->getName();
+        ConsumeToken();
+
+        // Parse parameter list
+        if (!Tok.is(tok::l_paren)) {
+            break;
+        }
+        SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(this);
+
+        // Create function node with no body (external declaration)
+        ASTFunction *Function = ASTBuilder::CreateFunction(Module, Loc, Name, Modifiers, Params, nullptr);
+
+        // Parse optional explicit return type (e.g. "int", "bool")
+        if (isBuiltinType(Tok)) {
+            ASTType *RetType = ParseType();
+            Function->setReturnType(RetType);
+        }
+    }
+
+    FLY_DEBUG_END("Parser", "ParseHeader");
     return Module;
 }
 
