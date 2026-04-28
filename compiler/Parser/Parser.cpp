@@ -412,7 +412,7 @@ void Parser::ParseBlock(ASTBlockStmt *Block) {
 
     	// Check if block is balanced
     	if (isBlockEnd()) {
-    		if (not isBraceBalanced()) {
+    		if (!isBraceBalanced()) {
     			Diag(Tok.getLocation(), diag::err_parser_unclosed_bracket);
     		}
 
