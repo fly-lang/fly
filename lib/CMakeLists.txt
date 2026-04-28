@@ -39,10 +39,10 @@ set_target_properties(FlyLib PROPERTIES
 # ── Fly namespace archive (built by the fly binary) ──────────────────────────
 
 set(FLY_LIB_SOURCES
-        fly/str.fly
-        fly/math.fly
-        fly/os.fly
-        fly/thread.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/fly/str.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/fly/math.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/fly/os.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/fly/thread.fly
 )
 
 # The fly compiler appends .lib automatically; pass the stem without extension.
