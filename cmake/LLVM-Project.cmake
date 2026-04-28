@@ -2,22 +2,25 @@ include(FetchContent)
 
 # Configure LLVM precompiled parameters
 set(LLVM_RELEASES_PREFIX_URL https://github.com/fly-lang/llvm-project/releases/download)
+
 if (MSVC)
-    set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v20.1.8-win-x64/llvm-20.1.8-win-x64.zip")
+    set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v${FLY_LLVM_VERSION}-win-x64/llvm-${FLY_LLVM_VERSION}-win-x64.zip")
     set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.zip")
-    set(LLVM_HASH 1fecdf21b5eb42728f9819f72169cef782cfd2c1f6a87cdc3650ba6c2c7e7d08) # TODO: update after build
+    set(LLVM_HASH 0484881e1ee455aac85a0fdf2a29e589597de6f630ea702f18a4a9f23430810c)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v20.1.8-macos-x86_64/llvm-20.1.8-x86_64-apple-darwin.tar.gz")
+    set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v${FLY_LLVM_VERSION}-macos-x86_64/llvm-${FLY_LLVM_VERSION}-x86_64-apple-darwin.tar.gz")
     set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.tar.gz")
-    set(LLVM_HASH 0000000000000000000000000000000000000000) # TODO: update after build
+    set(LLVM_HASH 0000000000000000000000000000000000000000)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v20.1.8-linux-x86_64/llvm-20.1.8-x86_64-linux-gnu.tar.gz")
+    set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v${FLY_LLVM_VERSION}-linux-x86_64/llvm-${FLY_LLVM_VERSION}-x86_64-linux-gnu.tar.gz")
     set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.tar.gz")
-    set(LLVM_HASH 9447dc6df09a1174f896889776e33711683356e92dbd877d53bb663ad02f1005) # TODO: update after build
+    set(LLVM_HASH 0484881e1ee455aac85a0fdf2a29e589597de6f630ea702f18a4a9f23430810c)
 else()
     message(FATAL_ERROR "Unknown system, cannot download pre-build llvm packages, run with -DLLVM_BUILD")
 endif()
 
+# Download and extract the precompiled LLVM package
+message(STATUS "Downloading LLVM from ${LLVM_RELEASES_URL}")
 FetchContent_Declare(
         ${FLY_LLVM_PROJECT}
         URL ${LLVM_RELEASES_URL}

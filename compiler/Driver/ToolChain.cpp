@@ -862,14 +862,13 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
 
     // compiler-rt builtins: arithmetic/float helpers (replaces -lgcc).
     const std::string BuiltinsLib = GetCompilerRTBuiltinsPath();
-    if (!BuiltinsLib.empty()) {
-        FLY_DEBUG_START_MSG("ToolChain", "LinkLinux", "BuiltinsLib=" << BuiltinsLib);
-        CmdArgs.push_back(BuiltinsLib);
+    if (BuiltinsLib.empty()) {
+        Diag.Report(diag::err_drv_compiler_rt_not_found) << T.str();
+        return false;
     }
+    FLY_DEBUG_START_MSG("ToolChain", "LinkLinux", "BuiltinsLib=" << BuiltinsLib);
+    CmdArgs.push_back(BuiltinsLib);
 
-    // Stack-unwinding support (replaces -lgcc_eh).  Found via the GCC versioned
-    // directory that CreatePathList() adds to PathList at runtime.
-    CmdArgs.push_back("-lgcc_eh");
 
     // Add IAMCU specific libs, if needed.
     if (IsIAMCU)
@@ -1253,21 +1252,35 @@ std::string ToolChain::GetCompilerRTBuiltinsPath() const {
     if (!Suffix)
         return "";
 
-    // Name of the archive: libclang_rt.builtins-<arch>.a
-    std::string LibName = std::string("libclang_rt.builtins-") + Suffix + ".a";
-
-    // Probe standard installation directories in descending preference:
-    //   /usr/lib/llvm-<major>/lib/clang/<major>/lib/linux/
-    //   /usr/lib/clang/<major>/lib/linux/
-    //   /usr/lib/clang/<major>.x.y/lib/linux/    (version with dots)
     const int Major = FLY_LLVM_VERSION_MAJOR;
     const std::string MajorStr = std::to_string(Major);
 
+    // LLVM 16+ naming: lib/clang/<major>/lib/<triple>/libclang_rt.builtins.a
+    const std::string TripleDir = T.str();
+    const std::string NewLibName = "libclang_rt.builtins.a";
+
+    // Legacy naming: lib/clang/<major>/lib/linux/libclang_rt.builtins-<arch>.a
+    const std::string OldLibName = std::string("libclang_rt.builtins-") + Suffix + ".a";
+
+    // Probe in descending preference:
+    //   1. Fly bundled LLVM package — new naming (LLVM 16+)
+    //   2. Fly bundled LLVM package — legacy naming
+    //   3. System LLVM installation — new naming
+    //   4. System LLVM installation — legacy naming
     const std::string Candidates[] = {
-        "/usr/lib/llvm-" + MajorStr + "/lib/clang/" + MajorStr + "/lib/linux/" + LibName,
-        "/usr/lib/clang/"  + MajorStr + "/lib/linux/" + LibName,
-        "/usr/lib/llvm-" + MajorStr + "/lib/clang/" + MajorStr + ".0/lib/linux/" + LibName,
-        "/usr/lib/llvm-" + MajorStr + "/lib/clang/" + MajorStr + ".0.0/lib/linux/" + LibName,
+        // Fly bundled — new style
+        FLY_LLVM_DIR + "/lib/clang/" + MajorStr + "/lib/" + TripleDir + "/" + NewLibName,
+        // Fly bundled — legacy style
+        FLY_LLVM_DIR + "/lib/clang/" + MajorStr + "/lib/linux/" + OldLibName,
+        FLY_LLVM_DIR + "/lib/clang/" + MajorStr + ".0/lib/linux/" + OldLibName,
+        FLY_LLVM_DIR + "/lib/clang/" + MajorStr + ".0.0/lib/linux/" + OldLibName,
+        // System — new style
+        "/usr/lib/llvm-" + MajorStr + "/lib/clang/" + MajorStr + "/lib/" + TripleDir + "/" + NewLibName,
+        // System — legacy style
+        "/usr/lib/llvm-" + MajorStr + "/lib/clang/" + MajorStr + "/lib/linux/" + OldLibName,
+        "/usr/lib/clang/"  + MajorStr + "/lib/linux/" + OldLibName,
+        "/usr/lib/llvm-" + MajorStr + "/lib/clang/" + MajorStr + ".0/lib/linux/" + OldLibName,
+        "/usr/lib/llvm-" + MajorStr + "/lib/clang/" + MajorStr + ".0.0/lib/linux/" + OldLibName,
     };
 
     for (const auto &P : Candidates) {
@@ -1276,9 +1289,29 @@ std::string ToolChain::GetCompilerRTBuiltinsPath() const {
             return P;
         }
     }
-    FLY_DEBUG_START_MSG("ToolChain", "GetCompilerRTBuiltinsPath", "Not found: " << LibName);
+
+    // The exact host triple (e.g. x86_64-pc-linux-gnu) may differ from the
+    // triple used when the bundled LLVM was built (e.g. x86_64-unknown-linux-gnu).
+    // Scan every subdirectory of lib/clang/<major>/lib/ in the bundled package.
+    for (const std::string &Base : {
+             FLY_LLVM_DIR + "/lib/clang/" + MajorStr + "/lib/",
+             "/usr/lib/llvm-" + MajorStr + "/lib/clang/" + MajorStr + "/lib/",
+         }) {
+        std::error_code EC;
+        for (llvm::vfs::directory_iterator It = getVFS().dir_begin(Base, EC), End;
+             !EC && It != End; It.increment(EC)) {
+            const std::string Candidate = It->path().str() + "/" + NewLibName;
+            if (getVFS().exists(Candidate)) {
+                FLY_DEBUG_START_MSG("ToolChain", "GetCompilerRTBuiltinsPath", "Found via scan: " << Candidate);
+                return Candidate;
+            }
+        }
+    }
+
+    FLY_DEBUG_START_MSG("ToolChain", "GetCompilerRTBuiltinsPath", "Not found: " << NewLibName);
     return "";
 }
+
 
 std::string ToolChain::GetRuntimeLibPath() const {
     // FLY_RUNTIME_LIB_DIR is baked into Config.h at cmake-configure time.

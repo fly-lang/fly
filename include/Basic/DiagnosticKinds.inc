@@ -37,6 +37,7 @@ DIAG(err_unavailable, CLASS_ERROR, (unsigned)diag::Severity::Error, "%0 is unava
 DIAG(err_unavailable_message, CLASS_ERROR, (unsigned)diag::Severity::Error, "%0 is unavailable: %1", 0, SFINAE_SubstitutionFailure, false, true, 2)
 DIAG(err_drv_unable_to_set_working_directory, CLASS_ERROR, (unsigned)diag::Severity::Error, "unable to set working directory: %0", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_drv_archive, CLASS_ERROR, (unsigned)diag::Severity::Error, "Lib Archive error: %0", 0, SFINAE_SubstitutionFailure, false, true, 0)
+DIAG(err_drv_compiler_rt_not_found, CLASS_ERROR, (unsigned)diag::Severity::Error, "compiler-rt builtins library not found for target '%0'", 0, SFINAE_SubstitutionFailure, false, true, 0)
 
 // Frontend
 DIAG(err_fe_error_backend, CLASS_ERROR, (unsigned)diag::Severity::Fatal, "error in backend: %0", 0, SFINAE_SubstitutionFailure, false, true, 0)

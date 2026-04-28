@@ -46,6 +46,10 @@ target_link_libraries(fly_test PRIVATE
         FlyCompiler
         )
 
+# fly_test does not link FlyRuntime, but integration tests (AppTest, ToolChainTest)
+# need libFlyRuntime.a to exist on disk before the test binary runs.
+add_dependencies(fly_test FlyRuntime)
+
 target_compile_definitions(fly_test PRIVATE
         FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/lib/fly"
 )

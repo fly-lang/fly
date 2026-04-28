@@ -10,8 +10,9 @@
 #define FLY_VERSION "0.10.0"
 
 const std::string FLY_SOURCE_DIR = "/home/marco/Projects/flylang/fly";
-const std::string FLY_LLVM_BINARY_DIR = "/home/marco/Projects/flylang/fly/cmake-build-debug/llvm-project";
-const std::string FLY_RUNTIME_LIB_DIR = "/home/marco/Projects/flylang/fly/cmake-build-debug/lib";
+const std::string FLY_LLVM_BINARY_DIR = "/home/marco/Projects/flylang/fly/cmake-build-release/llvm-project";
+const std::string FLY_LLVM_DIR = "/home/marco/Projects/flylang/fly/cmake-build-release/llvm";
+const std::string FLY_RUNTIME_LIB_DIR = "/home/marco/Projects/flylang/fly/cmake-build-release/lib";
 #define FLY_LLVM_VERSION_MAJOR 20
 
 

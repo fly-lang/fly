@@ -69,6 +69,7 @@ if (DEFINED LLVM_BUILD AND LLVM_BUILD)
             DOWNLOAD_EXTRACT_TIMESTAMP true)
 
     message(STATUS "Building LLVM from sources")
+    set(FLY_LLVM_DIR ${FLY_LLVM_BINARY_DIR})
     set(LLVM_DIR ${FLY_LLVM_BINARY_DIR}/llvm/lib/cmake/llvm)
     set(LLD_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/${FLY_LLVM_PROJECT}/lld/include)
     set(LLVM_ENABLE_PROJECTS lld)
@@ -88,6 +89,9 @@ if (DEFINED LLVM_BUILD AND LLVM_BUILD)
     set(ENABLE_LLVM_GTEST ON)
 
 else()
+    # Precompiled LLVM is extracted into ${CMAKE_BINARY_DIR}/llvm
+    set(FLY_LLVM_DIR ${CMAKE_BINARY_DIR}/llvm)
+
     # Add LLVM Precompiled version
     include(cmake/LLVM-Project.cmake)
 

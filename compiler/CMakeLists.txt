@@ -212,7 +212,12 @@ add_library(FlyCompiler
 
 configure_file(
         ${CMAKE_SOURCE_DIR}/include/Config/Config.h.cmake
-        ${CMAKE_SOURCE_DIR}/include/Config/Config.h)
+        ${CMAKE_BINARY_DIR}/include/Config/Config.h)
+
+# Each build profile (Debug/Release) writes its own Config.h into the build
+# tree. Prepend it so it shadows any stale copy in the source tree.
+target_include_directories(FlyCompiler BEFORE PUBLIC
+        ${CMAKE_BINARY_DIR}/include)
 
 foreach(target ${LLVM_TARGETS_TO_BUILD})
     list(APPEND targets "LLVM${target}CodeGen")
