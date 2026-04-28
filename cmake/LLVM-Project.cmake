@@ -6,7 +6,7 @@ set(LLVM_RELEASES_PREFIX_URL https://github.com/fly-lang/llvm-project/releases/d
 if (MSVC)
     set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v${FLY_LLVM_VERSION}-win-x64/llvm-${FLY_LLVM_VERSION}-win-x64.zip")
     set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.zip")
-    set(LLVM_HASH 0484881e1ee455aac85a0fdf2a29e589597de6f630ea702f18a4a9f23430810c)
+    set(LLVM_HASH 5ddc777fcb86d6c4b5d52a6bd36f98f865d1f3c89d75f00fc3a503ac4c8dd680)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v${FLY_LLVM_VERSION}-macos-x86_64/llvm-${FLY_LLVM_VERSION}-x86_64-apple-darwin.tar.gz")
     set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.tar.gz")
