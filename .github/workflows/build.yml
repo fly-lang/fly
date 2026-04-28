@@ -80,6 +80,7 @@ jobs:
         run: |
           gdb -batch \
               -ex "set pagination off" \
+              -ex "handle SIGSEGV stop nopass" \
               -ex "run --gtest_catch_exceptions=0" \
               -ex "bt full" \
               -ex "quit" \
