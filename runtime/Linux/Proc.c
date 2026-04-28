@@ -3,8 +3,8 @@
 #include "../Runtime.h"
 #include "Syscall.h"
 
-__attribute__((noreturn)) void proc_exit(i32 code)
+FLY_NORETURN void proc_exit(i32 code)
 {
     __syscall1(SYS_exit_group, (long)code);
-    __builtin_unreachable();
+    FLY_UNREACHABLE();
 }

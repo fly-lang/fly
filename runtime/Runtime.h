@@ -10,6 +10,19 @@
 #ifndef FLY_RUNTIME_H
 #define FLY_RUNTIME_H
 
+/* ── Compiler portability ───────────────────────────────────────────────── */
+
+#if defined(_MSC_VER)
+#  define FLY_NORETURN   __declspec(noreturn)
+#  define FLY_UNREACHABLE() __assume(0)
+#elif defined(__GNUC__) || defined(__clang__)
+#  define FLY_NORETURN   __attribute__((noreturn))
+#  define FLY_UNREACHABLE() __builtin_unreachable()
+#else
+#  define FLY_NORETURN
+#  define FLY_UNREACHABLE() do {} while (0)
+#endif
+
 /* ── Primitive types (no stdint.h / no libc headers) ───────────────────── */
 
 typedef unsigned char      u8;
@@ -51,7 +64,7 @@ i64 io_write(i32 fd, const void *buf, usize count);
 
 /* Terminate all threads in the process with 'code' as the exit status.
  * Never returns. */
-__attribute__((noreturn)) void proc_exit(i32 code);
+FLY_NORETURN void proc_exit(i32 code);
 
 /* ── Threads ─────────────────────────────────────────────────────────────── */
 

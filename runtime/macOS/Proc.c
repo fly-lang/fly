@@ -3,7 +3,8 @@
 #include "../Runtime.h"
 #include "LibSystem.h"
 
-__attribute__((noreturn)) void proc_exit(i32 code)
+FLY_NORETURN void proc_exit(i32 code)
 {
     _exit(code);
+    FLY_UNREACHABLE();
 }

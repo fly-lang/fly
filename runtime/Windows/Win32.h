@@ -60,7 +60,7 @@ WIN32_IMPORT BOOL   WINAPI CloseHandle(HANDLE hObject);
 /* WaitOnAddress / WakeByAddress (Windows 8+ / kernelbase.dll) */
 #define WIN32_INFINITE  0xFFFFFFFFUL
 
-WIN32_IMPORT BOOL WINAPI WaitOnAddress(volatile LPVOID Address,
+WIN32_IMPORT BOOL WINAPI WaitOnAddress(volatile void *Address,
                                        LPVOID CompareAddress,
                                        SIZE_T AddressSize,
                                        DWORD dwMilliseconds);

@@ -37,7 +37,7 @@ tid thread_spawn(void (*fn)(void *), void *arg, usize stack_size)
 
 i32 futex_wait(i32 *addr, i32 expected)
 {
-    BOOL ok = WaitOnAddress((volatile LPVOID)addr, (LPVOID)&expected,
+    BOOL ok = WaitOnAddress((volatile void *)addr, (LPVOID)&expected,
                             sizeof(i32), WIN32_INFINITE);
     return ok ? 0 : -1;
 }

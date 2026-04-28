@@ -3,10 +3,12 @@
 // called at runtime.  They exist solely to satisfy linker references that
 // come from libc.a cold paths and compiler-rt's gcc_personality_v0 object.
 
+#include "../Runtime.h"
+
 // __SIZE_TYPE__ is pointer-sized and always available in freestanding mode.
 typedef __SIZE_TYPE__ _fly_uptr;
 
-__attribute__((noreturn))
+FLY_NORETURN
 void _Unwind_Resume(void *exc) { __builtin_trap(); }
 
 _fly_uptr _Unwind_GetLanguageSpecificData(void *ctx) { (void)ctx; return 0; }
