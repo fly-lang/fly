@@ -433,10 +433,19 @@ void CodeGenClass::GenInitConstructorBody() {
 		// the instance struct and must not be initialized here.
 		if (Attr->isStatic()) continue;
 
+		/** Fixed
+		* llvm::ArrayRef<llvm::Value *> IdxList = {
+		*	CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Index)
+		* };
+		*  IdxList is initialized from a std::initializer_list
+		*  and stored as an ArrayRef, but the initializer list's backing array is destroyed at the end of that
+		*  statement, leaving IdxList.Data dangling. In a Release -O3 build, the stack memory gets reused and the
+		*  second element reads as null.
+		**/
+
 		// Initialize attribute: use programmer-supplied default if present, else zero.
-		llvm::ArrayRef<llvm::Value *> IdxList = {
-		 	CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Attr->getCodeGen()->getIndex())};
-		llvm::Value *Pointer = CGM->Builder->CreateInBoundsGEP(Type, Load, IdxList);
+		llvm::Value *Pointer = CGM->Builder->CreateInBoundsGEP(Type, Load,
+			{CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Attr->getCodeGen()->getIndex())});
 		Attr->getCodeGen()->setPointer(Pointer);
 		if (Attr->getInitExpr()) {
 			Attr->getInitExpr()->accept(*CGM);

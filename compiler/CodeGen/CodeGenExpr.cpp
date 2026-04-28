@@ -426,10 +426,17 @@ SemaExpr *Ref = Sema->getRef();
 		// Create GEP to get pointer to the specific field in the struct
 		AttrClass.getCodeGen()->getType(); // ensure class CodeGen type is created
 		llvm::StructType *StructTy = AttrClass.getCodeGen()->getType();
-		llvm::ArrayRef<llvm::Value *> IdxList = {
-			CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Index)
-		};
-		llvm::Value *FieldPtr = Builder->CreateInBoundsGEP(StructTy, InstancePtr, IdxList);
+		/** Fixed
+		* llvm::ArrayRef<llvm::Value *> IdxList = {
+		*	CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Index)
+		* };
+		*  IdxList is initialized from a std::initializer_list
+		*  and stored as an ArrayRef, but the initializer list's backing array is destroyed at the end of that
+		*  statement, leaving IdxList.Data dangling. In a Release -O3 build, the stack memory gets reused and the
+		*  second element reads as null.
+		**/
+		llvm::Value *FieldPtr = Builder->CreateInBoundsGEP(StructTy, InstancePtr,
+			{CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, Index)});
 
 		CodeGenVar *CGV = new CodeGenVar(CGM, Attr, Ty, Index);
 		CGV->setPointer(FieldPtr);
