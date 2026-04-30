@@ -141,71 +141,36 @@ jobs:
 
   release:
     needs: [build]
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
 
     defaults:
       run:
         shell: bash
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - uses: actions/download-artifact@v4
-        if: github.ref == 'refs/heads/main'
         with:
           name: linux-artifact
 
       - uses: actions/download-artifact@v4
-        if: github.ref == 'refs/heads/main'
         with:
           name: windows-artifact
 
       - uses: actions/download-artifact@v4
-        if: github.ref == 'refs/heads/main'
         with:
           name: macos-artifact
 
       - name: Release
-        if: github.ref == 'refs/heads/main'
-        uses: actions/create-release@v1.1.4
-        id: create_release
+        uses: softprops/action-gh-release@v2
         with:
           draft: false
           prerelease: true
-          release_name: Fly ${{ needs.build.outputs.version }}
+          name: Fly ${{ needs.build.outputs.version }}
           tag_name: v${{ needs.build.outputs.version }}
+          files: |
+            fly-${{ needs.build.outputs.version }}-${{ env.LINUX_FILE }}
+            fly-${{ needs.build.outputs.winversion }}-${{ env.WIN_FILE }}
+            fly-${{ needs.build.outputs.version }}-${{ env.MACOS_FILE }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
-
-      - name: Linux Upload
-        if: github.ref == 'refs/heads/main'
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: fly-${{ needs.build.outputs.version }}-${{env.LINUX_FILE}}
-          asset_name: fly-${{ needs.build.outputs.version }}-${{env.LINUX_FILE}}
-          asset_content_type: application/gzip
-
-      - name: Windows Upload
-        if: github.ref == 'refs/heads/main'
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: fly-${{ needs.build.outputs.version }}-${{env.WIN_FILE}}
-          asset_name: fly-${{ needs.build.outputs.version }}-${{env.WIN_FILE}}
-          asset_content_type: application/gzip
-
-      - name: macOS Upload
-        if: github.ref == 'refs/heads/main'
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: fly-${{ needs.build.outputs.version }}-${{env.MACOS_FILE}}
-          asset_name: fly-${{ needs.build.outputs.version }}-${{env.MACOS_FILE}}
-          asset_content_type: application/gzip

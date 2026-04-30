@@ -1,3 +1,3 @@
-# The Fly / Web Team
+# The Fly Project
 
 * [Marco Romagnolo](//github.com/marcoromagnolo) - Founder
