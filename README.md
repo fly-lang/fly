@@ -77,7 +77,7 @@ For more information see [CMake](https://llvm.org/docs/CMake.html)
 - See `LICENSE`
 
 ## Contact
-Twitter: [@fly_lang](https://twitter.com/fly_lang)
+BlueSky: [@flylang.org](https://bsky.app/profile/flylang.org)
 
 Email: [dev@flylang.org](mailto:dev@flylang.org)
 
