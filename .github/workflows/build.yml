@@ -4,9 +4,6 @@ name: Build
 on:
   # Triggers the workflow on push
   push:
-    paths-ignore:
-      - "docs/**"
-      - "ci/**"
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
@@ -24,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        os: [ ubuntu-latest, windows-latest ] # removed macos-latest for now not supported
     runs-on: ${{ matrix.os }}
 
     outputs:
@@ -151,15 +148,15 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: linux-artifact
+          name: fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}}
 
       - uses: actions/download-artifact@v4
         with:
-          name: windows-artifact
+          name: fly-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}}
 
       - uses: actions/download-artifact@v4
         with:
-          name: macos-artifact
+          name: fly-${{ steps.version.outputs.version }}-${{env.MACOS_FILE}}
 
       - name: Release
         uses: softprops/action-gh-release@v2
