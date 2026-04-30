@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/Class.h - Code Generator of Class
+// include/CodeGen/CodeGenEnumEntry.h - Code Generator of Enum Entry
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -11,7 +11,9 @@
 #ifndef FLY_CODEGEN_ENUMENTRY_H
 #define FLY_CODEGEN_ENUMENTRY_H
 
-#include "CodeGenVarBase.h"
+#include "CodeGenExpr.h"
+
+#include <llvm/IR/Type.h>
 
 namespace llvm {
     class Value;
@@ -20,29 +22,31 @@ namespace llvm {
 namespace fly {
 
     class CodeGenModule;
-    class CodeGenEnum;
-    class ASTEnumEntry;
+    class SemaEnumEntry;
+    class SemaEnumType;
 
-    class CodeGenEnumEntry : public CodeGenVarBase {
+    class CodeGenEnumEntry : public CodeGenExpr {
 
-        friend class CodeGenEnum;
+        CodeGenModule *CGM;
 
         llvm::Value *Value;
 
+        llvm::Type *T;
+
+        llvm::Value *Instance = nullptr;
+
+        size_t Index;
+
     public:
-        CodeGenEnumEntry(CodeGenModule *CGM, ASTEnumEntry *EnumEntry);
+        CodeGenEnumEntry(CodeGenModule *CGM, SemaEnumEntry *Sema);
+
+//        llvm::AllocaInst *Alloca() override;
+
+        llvm::Type *getType();
 
         llvm::Value *getValue() override;
 
-        void Init() override;
-
-        llvm::StoreInst *Store(llvm::Value *Val) override;
-
-        llvm::LoadInst *Load() override;
-
-        llvm::Value *getPointer() override;
-
-        ASTVar *getVar() override;
+        size_t getIndex();
     };
 }
 

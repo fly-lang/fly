@@ -63,7 +63,7 @@ public:
   unsigned countPopulation() const {
     unsigned total = 0;
     for (const auto &Val : maskLoToHigh)
-      total += llvm::countPopulation(Val);
+      total += llvm::popcount(Val);
     return total;
   }
 
@@ -175,7 +175,7 @@ struct SanitizerSet {
   SanitizerMask Mask;
 };
 
-/// Parse a single value from a -fsanitize= or -fno-sanitize= value list.
+/// ParseModule a single value from a -fsanitize= or -fno-sanitize= value list.
 /// Returns a non-zero SanitizerMask, or \c 0 if \p Value is not known.
 SanitizerMask parseSanitizerValue(StringRef Value, bool AllowGroups);
 

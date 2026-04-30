@@ -10,11 +10,10 @@
 #ifndef FLY_FRONTEND_H
 #define FLY_FRONTEND_H
 
-#include "FrontendAction.h"
+#include <AST/ASTModule.h>
+
 #include "CompilerInstance.h"
-#include "FrontendOptions.h"
 #include "Basic/Diagnostic.h"
-#include "AST/ASTContext.h"
 
 namespace llvm {
     class TimerGroup;
@@ -25,13 +24,22 @@ namespace fly {
 
     class FrontendAction;
     class CompilerInstance;
-    class SemaBuilder;
-    class Sema;
+    class ASTBuilder;
+    class InputFile;
+    class Parser;
+    class SemaContext;
 
     class Frontend {
 
         // The diagnostics engine instance.
         DiagnosticsEngine &Diags;
+
+        SmallVector<ASTModule *, 8> ASTModules;
+
+        // Keep Parsers and InputFiles alive until after Sema so that StringRefs
+        // stored in AST nodes (pointing into the Lexer's IdentifierTable) remain valid.
+        SmallVector<Parser *, 8> Parsers;
+        SmallVector<InputFile *, 8> InputFiles;
 
         // Compiler Invocation contains all a CompilerInstance needs
         CompilerInstance &CI;
@@ -52,7 +60,11 @@ namespace fly {
 
         bool Execute();
 
-        std::vector<FrontendAction *> ParseActions(CodeGen &CG, Sema &S);
+        void ParseFile(ASTBuilder &Builder, const std::string &FileName);
+
+#ifdef FLY_LIB_FLY_DIR
+        void LoadStdlibHeaders(ASTBuilder &Builder);
+#endif
 
         void CreateFrontendTimer();
 

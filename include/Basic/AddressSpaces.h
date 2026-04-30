@@ -37,16 +37,32 @@ enum class LangAS : unsigned {
   opencl_constant,
   opencl_private,
   opencl_generic,
+  opencl_global_device,
+  opencl_global_host,
 
   // CUDA specific address spaces.
   cuda_device,
   cuda_constant,
   cuda_shared,
 
+  // SYCL specific address spaces.
+  sycl_global,
+  sycl_global_device,
+  sycl_global_host,
+  sycl_local,
+  sycl_private,
+
   // Pointer size and extension address spaces.
   ptr32_sptr,
   ptr32_uptr,
   ptr64,
+
+  // HLSL specific address spaces.
+  hlsl_groupshared,
+  hlsl_constant,
+
+  // Wasm specific address spaces.
+  wasm_funcref,
 
   // This denotes the count of language-specific address spaces and also
   // the offset added to the target-specific address spaces, which are usually

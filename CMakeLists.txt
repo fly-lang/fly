@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.18.0)
-project(Fly VERSION 0.8.0 LANGUAGES C CXX ASM)
+cmake_minimum_required(VERSION 3.24.0)
+project(Fly VERSION 0.10.0 LANGUAGES C CXX ASM)
 #set(FLY_VERSION_POSTFIX alpha) #remove this line for stable release
 if(DEFINED FLY_VERSION_POSTFIX)
     set(FLY_VERSION "${PROJECT_VERSION}-${FLY_VERSION_POSTFIX}")
@@ -8,13 +8,13 @@ else()
 endif()
 
 #Fly config options
-set(FLY_LLVM_VERSION 11.1.0)
+set(FLY_LLVM_VERSION 20.1.8)
 set(FLY_BUG_REPORT_URL "https://github.com/fly-lang/fly/issues")
 set(FLY_SOURCE_DIR ${CMAKE_SOURCE_DIR})
 message(STATUS "Fly Project directory: ${CMAKE_SOURCE_DIR}")
 
 # specify the C++ standard and flags
-set(CMAKE_CXX_STANDARD 14 CACHE STRING "C++ standard to conform to")
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ standard to conform to")
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_EXTENSIONS NO)
 if (NOT MSVC)
@@ -28,8 +28,8 @@ string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
 message(STATUS "Build Type: ${BUILD_TYPE}")
 
 if(MSVC)
-    set(CMAKE_C_FLAGS_DEBUG "/W4")
-    set(CMAKE_CXX_FLAGS_DEBUG "/W4")
+    set(CMAKE_C_FLAGS_DEBUG "/W4 /WX")
+    set(CMAKE_CXX_FLAGS_DEBUG "/W4 /WX")
     set(CMAKE_C_FLAGS_RELEASE "/O2")
     set(CMAKE_CXX_FLAGS_RELEASE "/O2 /DNDEBUG")
 else()
@@ -69,6 +69,7 @@ if (DEFINED LLVM_BUILD AND LLVM_BUILD)
             DOWNLOAD_EXTRACT_TIMESTAMP true)
 
     message(STATUS "Building LLVM from sources")
+    set(FLY_LLVM_DIR ${FLY_LLVM_BINARY_DIR})
     set(LLVM_DIR ${FLY_LLVM_BINARY_DIR}/llvm/lib/cmake/llvm)
     set(LLD_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/${FLY_LLVM_PROJECT}/lld/include)
     set(LLVM_ENABLE_PROJECTS lld)
@@ -88,6 +89,9 @@ if (DEFINED LLVM_BUILD AND LLVM_BUILD)
     set(ENABLE_LLVM_GTEST ON)
 
 else()
+    # Precompiled LLVM is extracted into ${CMAKE_BINARY_DIR}/llvm
+    set(FLY_LLVM_DIR ${CMAKE_BINARY_DIR}/llvm)
+
     # Add LLVM Precompiled version
     include(cmake/LLVM-Project.cmake)
 
@@ -99,11 +103,6 @@ else()
 
 endif()
 
-if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
-    execute_process(COMMAND bash "-c" "gcc -print-search-dirs | grep install | sed 's/install: //' | tr -d '\n' | head -c -1"
-            OUTPUT_VARIABLE GCC_LIB_PATH)
-    MESSAGE(STATUS "GCC_LIB_PATH: " ${GCC_LIB_PATH})
-endif()
 
 message(STATUS "Include LLVM directory: ${LLVM_INCLUDE_DIRS}")
 include_directories(${LLVM_INCLUDE_DIRS})
@@ -111,8 +110,23 @@ include_directories(${LLVM_INCLUDE_DIRS})
 # Include Fly headers
 include_directories(include)
 
+# Deterministic output path for the runtime static library.
+# Must be set before add_subdirectory(src) because src/CMakeLists.txt calls
+# configure_file() which bakes FLY_RUNTIME_LIB_DIR into include/Config/Config.h.
+# Extract major version number from FLY_LLVM_VERSION (e.g. "20.1.8" → "20")
+string(REGEX MATCH "^([0-9]+)" FLY_LLVM_VERSION_MAJOR "${FLY_LLVM_VERSION}")
+
+set(FLY_RUNTIME_LIB_DIR "${CMAKE_BINARY_DIR}/lib")
+
+# Runtime must be configured before compiler/ so configure_file() in compiler/CMakeLists.txt
+# bakes the correct FLY_RUNTIME_LIB_DIR into include/Config/Config.h.
+add_subdirectory(runtime)
+
 # Add Fly Sources
-add_subdirectory(src)
+add_subdirectory(compiler)
+
+# Standard library — compiled by the fly binary, so must come after src/
+add_subdirectory(lib)
 
 enable_testing()
-#add_subdirectory(test)
+add_subdirectory(test)

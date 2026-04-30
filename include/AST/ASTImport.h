@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTImport.h - AST Import declaration
+// include/AST/ASTImport.h - AST Import header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,63 +7,44 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTIMPORT_H
-#define FLY_ASTIMPORT_H
+#ifndef FLY_AST_IMPORT_H
+#define FLY_AST_IMPORT_H
 
-#include "ASTBase.h"
+#include "ASTNode.h"
 
 namespace fly {
 
-    class ASTNameSpace;
-    class ASTNode;
+    class ASTName;
+    class ASTModule;
 
-    class ASTAlias : public ASTBase {
+    class ASTImport : public ASTNode {
 
-        friend class Sema;
-        friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class ASTBuilder;
 
-        llvm::StringRef Name;
+        llvm::SmallVector<ASTName *, 4> Names;
 
-        ASTAlias(const SourceLocation &Loc, llvm::StringRef Name);
+        llvm::SmallVector<ASTName *, 4> Alias;
 
-    public:
+        bool Wildcard = false;
 
-        llvm::StringRef getName() const;
-
-        std::string str() const;
-    };
-
-    class ASTImport : public ASTBase {
-
-        friend class Sema;
-        friend class SemaBuilder;
-        friend class SemaResolver;
-
-        llvm::StringRef Name;
-
-        ASTNameSpace *NameSpace = nullptr;
-
-        ASTAlias *Alias = nullptr;
-
-        ASTImport(const SourceLocation &Loc, llvm::StringRef Name);
+        ASTImport(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> &Names,
+                  llvm::SmallVector<ASTName *, 4> &Alias, bool Wildcard);
 
     public:
 
-        ~ASTImport();
+        ~ASTImport() override;
 
-        llvm::StringRef getName() const;
+        void accept(ASTVisitor& Visitor) override;
 
-        const ASTAlias *getAlias() const;
+        const llvm::SmallVector<ASTName *, 4> &getNames() const;
 
-        void setAlias(ASTAlias *Alias);
+        const llvm::SmallVector<ASTName *, 4> &getAlias() const;
 
-        ASTNameSpace *getNameSpace() const;
+        bool isWildcard() const;
 
-        void setNameSpace(ASTNameSpace *NS);
-
-        std::string str() const;
+        std::string str() const override;
     };
+
 }
 
-#endif //FLY_ASTIMPORT_H
+#endif //FLY_AST_IMPORT_H

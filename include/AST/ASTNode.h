@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTNode.h - AST Node
+// include/AST/ASTNode.h - AST Base header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,97 +7,34 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+#ifndef FLY_AST_NODE_H
+#define FLY_AST_NODE_H
 
-#ifndef FLY_ASTNODE_H
-#define FLY_ASTNODE_H
-
-#include "llvm/ADT/StringMap.h"
-
-#include <map>
+#include "ASTBase.h"
 
 namespace fly {
 
-    class CodeGenModule;
-    class ASTContext;
-    class ASTNameSpace;
-    class ASTImport;
-    class ASTGlobalVar;
-    class ASTFunction;
-    class FileID;
-    class ASTType;
-    class ASTIdentity;
-    class ASTExpr;
-    class ASTVarRef;
+    class ASTVisitor;
 
-    class ASTNode {
+    class ASTNode : public ASTBase {
 
-        friend class Sema;
-        friend class SemaResolver;
-        friend class SemaBuilder;
+        bool Visited = false;
 
-        // The Context
-        ASTContext* Context = nullptr;
+    protected:
 
-        // Namespace declaration
-        ASTNameSpace *NameSpace = nullptr;
-
-        // Node FileName
-        const std::string Name;
-
-        // Global Vars
-        llvm::StringMap<ASTGlobalVar *> GlobalVars;
-
-        // Functions
-        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> Functions;
-
-        const bool Header;
-
-        // Contains all Imports, the key is Alias or Name
-        llvm::StringMap<ASTImport *> Imports;
-
-        // Contains all Imports, the key is Alias or Name
-        llvm::StringMap<ASTImport *> AliasImports;
-        
-        // All used GlobalVars
-        llvm::StringMap<ASTGlobalVar *> ExternalGlobalVars;
-        
-        // All invoked Calls
-        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> ExternalFunctions;
-
-        ASTIdentity *Identity = nullptr;
-
-        ASTNode() = delete;
-
-        ~ASTNode();
-
-        ASTNode(const std::string FileName, ASTContext *Context, bool isHeader);
+        explicit ASTNode(const SourceLocation &Loc, ASTKind Kind);
 
     public:
+        virtual ~ASTNode() = default;
 
-        const bool isHeader() const;
+        virtual void accept(ASTVisitor& Visitor) = 0;
 
-        ASTContext &getContext() const;
+        virtual bool isVisited() const;
 
-        const std::string getName();
+        virtual void setVisited(bool Visited);
 
-        ASTNameSpace* getNameSpace();
-
-        const llvm::StringMap<ASTImport*> &getImports();
-
-        const llvm::StringMap<ASTImport*> &getAliasImports();
-
-        const llvm::StringMap<ASTGlobalVar *> &getExternalGlobalVars() const;
-
-        const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getExternalFunctions() const;
-
-        ASTIdentity *getIdentity() const;
-
-        const llvm::StringMap<ASTGlobalVar *> &getGlobalVars() const;
-
-        const llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTFunction *, 4>>> &getFunctions() const;
-
-        virtual std::string str() const;
     };
+
 }
 
-#endif //FLY_ASTNODE_H
+#endif //FLY_AST_NODE_H

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTClass.h - Class declaration
+// include/AST/ASTClass.h - AST Class header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,81 +7,61 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+#ifndef FLY_AST_CLASS_H
+#define FLY_AST_CLASS_H
 
-#ifndef FLY_ASTCLASS_H
-#define FLY_ASTCLASS_H
-
-#include "ASTIdentity.h"
-#include "ASTClassType.h"
-
-#include "llvm/ADT/StringMap.h"
-#include "llvm/ADT/SmallVector.h"
-
-#include <map>
+#include "ASTNode.h"
 
 namespace fly {
 
-    class ASTClassVar;
-    class ASTClassFunction;
+    class ASTModifier;
+    class ASTClassAttribute;
     class CodeGenClass;
-    class ASTBlock;
+    class ASTBlockStmt;
+    class ASTType;
 
     enum class ASTClassKind {
-        STRUCT, // has only Fields
-        CLASS, // has only Fields and Methods defined
-        INTERFACE, // has only Methods declarations
+        CLASS,
+        INTERFACE,
+        STRUCT
     };
 
-    class ASTClass : public ASTIdentity {
+    class ASTClass : public ASTNode {
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class ASTBuilder;
 
-        ASTClassType *Type = nullptr;
+        llvm::SmallVector<ASTNode *, 8> Nodes;
+
+        llvm::SmallVector<ASTModifier *, 8> Modifiers;
+
+        llvm::StringRef Name;
 
         ASTClassKind ClassKind;
 
-        llvm::SmallVector<ASTClassType *, 4> SuperClasses;
+        llvm::SmallVector<ASTType *, 4> Bases;
 
-        // Class Fields
-        llvm::StringMap<ASTClassVar *> Vars;
-
-        bool autoDefaultConstructor = false;
-
-        // Class Constructors
-        std::map <uint64_t, llvm::SmallVector <ASTClassFunction *, 4>> Constructors;
-
-        // Class Methods
-        llvm::StringMap<std::map <uint64_t, llvm::SmallVector <ASTClassFunction *, 4>>> Methods;
-
-        CodeGenClass *CodeGen = nullptr;
-
-        ASTClass(ASTNode *Node, ASTClassKind ClassKind, ASTScopes *Scopes,
-                 const SourceLocation &Loc, llvm::StringRef Name);
+        ASTClass(ASTClassKind ClassKind, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
+                 const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTType *, 4> &Bases);
 
     public:
 
-        ASTClassType *getType() override;
+        ~ASTClass() override;
+
+        void accept(ASTVisitor& Visitor) override;
+
+        llvm::SmallVector<ASTNode *, 8> getNodes() const;
 
         ASTClassKind getClassKind() const;
 
-        llvm::SmallVector<ASTClassType *, 4> getSuperClasses() const;
+        const llvm::SmallVector<ASTType *, 4> &getBases() const;
 
-        llvm::StringMap<ASTClassVar *> getVars() const;
+        llvm::SmallVector<ASTModifier *, 8> getModifiers() const;
 
-        std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>> getConstructors() const;
+        llvm::StringRef getName() const;
 
-        llvm::StringMap<std::map <uint64_t,llvm::SmallVector <ASTClassFunction *, 4>>> getMethods() const;
-
-        CodeGenClass *getCodeGen() const;
-
-        void setCodeGen(CodeGenClass *CGC);
-
-        std::string print() const;
-
-        std::string str() const;
+        std::string str() const override;
 
     };
 }
 
-#endif //FLY_ASTCLASS_H
+#endif //FLY_AST_CLASS_H

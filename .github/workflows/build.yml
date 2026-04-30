@@ -12,7 +12,6 @@ env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
   BUILD_DIR: build
-  LLVM_VERSION: 11.1.0
   WIN_FILE: win-x64.zip
   MACOS_FILE: macos-x86_64.tar.gz
   LINUX_FILE: linux-x86_64.tar.gz
@@ -33,11 +32,15 @@ jobs:
       version: ${{ steps.version.outputs.version }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      - name: Dependencies
+      - name: Dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt update && sudo apt-get -y install binutils-dev libdw-dev libdwarf-dev
+        run: sudo apt update && sudo apt-get -y install binutils-dev libdw-dev libdwarf-dev libzstd-dev gdb
+
+      - name: Dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: vcpkg install zstd:x64-windows
 
       - name: Configure
         run: cmake -E make_directory ${{env.BUILD_DIR}}
@@ -47,62 +50,90 @@ jobs:
         if: startsWith(github.ref, 'refs/heads/release/')
         run: echo "BUILD_TYPE=RelWithDebInfo" >> $GITHUB_ENV
 
-      - name: Build
+      - name: Build (Unix)
+        if: matrix.os != 'windows-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
         run: |
           cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON
           cmake --build . --config ${{env.BUILD_TYPE}}
 
+      - name: Build (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}
+        shell: pwsh
+        run: |
+          cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake"
+          cmake --build . --config ${{env.BUILD_TYPE}}
+
       - name: Test (Unix)
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
-        run: ./fly_test
+        run: |
+          ./fly_test
+          ./fly_lib_test
+          ./fly_runtime_test
+
+      - name: Backtrace on Crash (Ubuntu)
+        if: failure() && matrix.os == 'ubuntu-latest'
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
+        run: |
+          gdb -batch \
+              -ex "set pagination off" \
+              -ex "handle SIGSEGV stop nopass" \
+              -ex "run --gtest_catch_exceptions=0" \
+              -ex "bt full" \
+              -ex "quit" \
+              --args ./fly_test
 
       - name: Test (Windows)
         if: matrix.os == 'windows-latest'
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\test\${{env.BUILD_TYPE}}
-        run: .\fly_test.exe --gtest_filter='-CmdTest.EmitOut'
+        run: |
+          .\fly_test.exe --gtest_filter='-CmdTest.EmitOut'
+          .\fly_lib_test.exe
+          .\fly_runtime_test.exe
 
       - name: Read Version (Unix)
         id: version
         if: github.ref == 'refs/heads/main' && (matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest')
-        run: echo "::set-output name=version::$(${{github.workspace}}/${{env.BUILD_DIR}}/src/fly --version-short)"
+        run: echo "version=$(${{github.workspace}}/${{env.BUILD_DIR}}/compiler/fly --version-short)" >> $GITHUB_OUTPUT
 
       - name: Read Version (Windows)
         id: version-win
         if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
-        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src\${{env.BUILD_TYPE}}
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\compiler\${{env.BUILD_TYPE}}
         run: |
-          echo "::set-output name=version::$(.\fly.exe --version-short)"
+          echo "version=$(.\fly.exe --version-short)" >> $env:GITHUB_OUTPUT
 
       - name: Linux Packaging
         if: github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
-        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/compiler
         run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}} fly
 
       - name: Windows Packaging
         if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
-        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\src\${{env.BUILD_TYPE}}
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\compiler\${{env.BUILD_TYPE}}
         run: 7z a ..\..\fly-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}} fly.exe
 
       - name: macOS Packaging
         if: github.ref == 'refs/heads/main' && matrix.os == 'macos-latest'
-        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/src
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/compiler
         run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.MACOS_FILE}} fly
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         if: github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
         with:
           name: linux-artifact
           path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}}
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
         with:
           name: windows-artifact
           path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}}
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         if: github.ref == 'refs/heads/main' && matrix.os == 'macos-latest'
         with:
           name: macos-artifact
@@ -119,24 +150,24 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         if: github.ref == 'refs/heads/main'
         with:
           name: linux-artifact
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         if: github.ref == 'refs/heads/main'
         with:
           name: windows-artifact
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         if: github.ref == 'refs/heads/main'
         with:
           name: macos-artifact
 
       - name: Release
         if: github.ref == 'refs/heads/main'
-        uses: actions/create-release@v1
+        uses: actions/create-release@v1.1.4
         id: create_release
         with:
           draft: false
@@ -148,7 +179,7 @@ jobs:
 
       - name: Linux Upload
         if: github.ref == 'refs/heads/main'
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -159,7 +190,7 @@ jobs:
 
       - name: Windows Upload
         if: github.ref == 'refs/heads/main'
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -170,7 +201,7 @@ jobs:
 
       - name: macOS Upload
         if: github.ref == 'refs/heads/main'
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:

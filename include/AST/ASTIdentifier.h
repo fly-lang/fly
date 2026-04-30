@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTIdentifier.h - Identifier declaration
+// include/AST/ASTIdentifier.h - AST Identifier header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,74 +7,45 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
 #ifndef FLY_AST_IDENTIFIER_H
 #define FLY_AST_IDENTIFIER_H
 
-#include "ASTBase.h"
+#include "ASTExpr.h"
 
 namespace fly {
 
-    enum class ASTIdentifierKind {
-        REF_UNDEF,
-        REF_NAMESPACE,
-        REF_TYPE,
-        REF_CALL,
-        REF_VAR
-    };
+    class ASTVar;
+    class Symbol;
 
-    class ASTIdentifier : public ASTBase {
+    class ASTIdentifier : public ASTExpr {
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class ASTBuilder;
+
+    	Symbol *ResolvedSymbol = nullptr;
 
     protected:
 
         const llvm::StringRef Name;
 
-        bool Resolved = false;
-
-        std::string FullName;
-
-        ASTIdentifier *Parent = nullptr;
-
-        ASTIdentifier *Child = nullptr;
-
-        ASTIdentifierKind Kind = ASTIdentifierKind::REF_UNDEF;
+        ASTVar *Var = nullptr;
 
         ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name);
-
-        ASTIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTIdentifierKind Kind);
 
         ~ASTIdentifier();
 
     public:
 
+        void accept(ASTVisitor& Visitor) override;
+
         llvm::StringRef getName() const;
 
-        std::string getFullName() const;
+        ASTVar *getVar();
 
-        bool isUndef() const;
+        Symbol *getSymbol() const;
 
-        bool isNameSpace() const;
+    	void setSymbol(Symbol *Sym);
 
-        bool isType() const;
-
-        bool isCall() const;
-
-        bool isVarRef() const;
-
-        ASTIdentifierKind getIdKind() const;
-
-        ASTIdentifier * AddChild(ASTIdentifier *Identifier);
-
-        ASTIdentifier *getParent() const;
-
-        ASTIdentifier *getChild() const;
-
-        std::string print() const;
-
-        std::string str() const;
+        std::string str() const override;
     };
 }
 

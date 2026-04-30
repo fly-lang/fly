@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTEnum.h - Class declaration
+// include/AST/ASTEnum.h - AST Enum header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,55 +7,50 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTENUM_H
-#define FLY_ASTENUM_H
+#ifndef FLY_AST_ENUM_H
+#define FLY_AST_ENUM_H
 
-#include "ASTIdentity.h"
-#include "ASTEnumType.h"
-
+#include "ASTNode.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringMap.h"
-
-#include <map>
+#include "llvm/ADT/StringRef.h"
 
 namespace fly {
 
-    class CodeGenEnum;
-    class ASTEnumEntry;
+    class ASTModifier;
+    class ASTType;
 
-    class ASTEnum : public ASTIdentity {
+    class ASTEnum : public ASTNode {
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class ASTBuilder;
 
-        ASTEnumType *Type = nullptr;
+        llvm::SmallVector<ASTNode *, 8> Nodes;
 
-        llvm::SmallVector<ASTEnumType *, 4> SuperClasses; // FIXME ?
+        llvm::SmallVector<ASTModifier *, 8> Modifiers;
 
-        // Class Fields
-        llvm::StringMap<ASTEnumEntry *> Vars;
+        llvm::StringRef Name;
 
-        CodeGenEnum *CodeGen = nullptr;
+        llvm::SmallVector<ASTType *, 4> Bases;
 
-        ASTEnum(ASTNode *Node, ASTScopes *Scopes,
-                 const SourceLocation &Loc, llvm::StringRef Name,
-                 llvm::SmallVector<ASTEnumType *, 4> &ExtClasses);
+        ASTEnum(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
+                 llvm::SmallVector<ASTType *, 4> &Bases);
 
     public:
 
-        ASTEnumType *getType() override;
+        ~ASTEnum() override;
 
-        llvm::StringMap<ASTEnumEntry *> getVars() const;
+        void accept(ASTVisitor& Visitor) override;
 
-        CodeGenEnum *getCodeGen() const;
+        llvm::SmallVector<ASTNode*, 8> getNodes() const;
 
-        void setCodeGen(CodeGenEnum *CGC);
+        llvm::SmallVector<ASTModifier*, 8> getModifiers() const;
 
-        std::string print() const;
+        llvm::StringRef getName() const;
 
-        std::string str() const;
+        llvm::SmallVector<ASTType*, 4> getBases() const;
+
+        std::string str() const override;
 
     };
 }
 
-#endif //FLY_ASTENUM_H
+#endif //FLY_AST_ENUM_H

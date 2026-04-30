@@ -1,0 +1,71 @@
+# Base style - required for clang-format to work properly
+BasedOnStyle: LLVM
+
+# Brace wrapping settings for K&R style
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: false               # Opening brace for classes on new line
+  AfterControlStatement: Never  # Opening brace for control statements on new line
+  AfterEnum: false                # Opening brace for enums on new line
+  AfterFunction: false            # Opening brace for functions on new line
+  AfterNamespace: false           # Opening brace for namespaces on new line
+  AfterStruct: false              # Opening brace for structs on new line
+  AfterUnion: false               # Opening brace for unions on new line
+  BeforeCatch: false              # `catch` on new line
+  BeforeElse: false               # `else` on new line
+  IndentBraces: false            # Braces do not get additional indentation
+
+# Indentation settings
+IndentWidth: 4                    # Indent with 4 spaces
+TabWidth: 4                       # Tabs are equivalent to 4 spaces
+UseTab: Always                    # Always use tabs instead of spaces
+
+# Column limits
+ColumnLimit: 120                   # Maximum line width (default: 80 for LLVM style)
+
+# Alignment and spacing
+AlignAfterOpenBracket: BlockIndent # Align arguments after an open bracket by breaking into new lines
+AlignConsecutiveAssignments: None # Do not align consecutive assignments
+AlignConsecutiveDeclarations: None # Do not align consecutive declarations
+AlignEscapedNewlines: Left        # Align escaped newlines to the left
+AlignOperands: Align              # Align operands of binary and ternary expressions
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 1
+
+# Empty lines
+AllowShortBlocksOnASingleLine: Never # Do not allow blocks to fit on a single line
+AllowShortFunctionsOnASingleLine: None # Inline short functions, but only in declarations
+AllowShortLambdasOnASingleLine: None # Allow lambdas to fit on a single line
+AllowShortIfStatementsOnASingleLine: Never # Require multi-line `if` statements even if short
+AllowShortLoopsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
+
+# Namespace indentation
+NamespaceIndentation: All        # indent within namespaces
+
+# Pointer and reference styles
+PointerAlignment: Right # int *ptr
+# Example: int* ptr; instead of int *ptr;
+
+# Other formatting
+IndentCaseBlocks: true # Indent case blocks in switch statements
+IndentCaseLabels: true
+BreakBeforeTernaryOperators: true # Break before ternary operators
+BreakConstructorInitializers: BeforeComma # Break constructor initializers before commas
+ConstructorInitializerIndentWidth: 4 # Indent width for constructor initializers
+
+# Include sorting
+SortIncludes: CaseSensitive       # Sort #include statements alphabetically
+IncludeBlocks: Regroup            # Group includes into separate blocks (e.g., system headers, project headers)
+
+# Trailing commas
+Cpp11BracedListStyle: true        # Use C++11 braced list style with trailing commas
+
+# Macros
+IndentPPDirectives: None          # Preprocessor directives are not indented
+MacroBlockBegin: '^#if'           # Macro block start (used to group directives)
+MacroBlockEnd: '^#endif'          # Macro block end
+
+# Custom comment prefixes
+SpaceBeforeParens: ControlStatements # Space before parentheses in control statements only

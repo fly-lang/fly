@@ -25,7 +25,7 @@
 
 namespace llvm {
 
-template <typename T> struct DenseMapInfo;
+template <typename T, typename Enable> struct DenseMapInfo;
 
 } // namespace llvm
 

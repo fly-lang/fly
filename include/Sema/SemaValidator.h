@@ -10,69 +10,98 @@
 #ifndef FLY_SEMA_VALIDATOR_H
 #define FLY_SEMA_VALIDATOR_H
 
+#include <AST/ASTEnum.h>
+#include <llvm/ADT/DenseMap.h>
+
 #include "AST/ASTType.h"
-#include "AST/ASTParams.h"
-#include "AST/ASTClassType.h"
+#include "AST/ASTVar.h"
 
 namespace fly {
 
-    class Sema;
-    class ASTGlobalVar;
-    class ASTBlock;
+    class SemaContext;
+    class ASTBlockStmt;
     class ASTStmt;
-    class ASTLocalVar;
-    class ASTVarRef;
-    class ASTNode;
+    class ASTIdentifier;
+    class ASTModule;
     class ASTImport;
     class ASTExpr;
-    class ASTParams;
-    class ASTParam;
+    class ASTVar;
+    class ASTClass;
     class ASTType;
+    class ASTCall;
     class SourceLocation;
+    class SemaModule;
+    class SemaFunction;
+    class SemaClassType;
+    class SemaEnumType;
+    class SemaComment;
+    class ASTValue;
+    class SemaClassMethod;
+    class SemaFunctionBase;
+	class ASTBinary;
+	class DiagnosticsEngine;
+	class DiagnosticBuilder;
+	class SemaType;
+	class SemaExpr;
+    enum class SemaTypeKind;
 
     class SemaValidator {
 
-        friend class Sema;
+        friend class SemaContext;
 
-        Sema &S;
-
-        SemaValidator(Sema &S);
+    	DiagnosticsEngine &Diags;
 
     public:
 
-        bool DiagEnabled = true;
+    	explicit SemaValidator(DiagnosticsEngine &Diags);
 
-        bool CheckDuplicateParams(ASTParams *Params, ASTParam *Param);
+    	// Diagnostics
+    	DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID) const;
+    	DiagnosticBuilder Diag(unsigned DiagID) const;
 
-        bool CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName);
+    	void CheckImport(const ASTImport &AST);
 
-        static bool CheckParams(const ASTParams *Params, const ASTParams *CheckParams) {
-            // Types will be checked on Resolve()
-            for (ASTParam *Param : Params->getList()) {
-                for (ASTParam *CheckParam: CheckParams->getList()) {
-                    if (CheckEqualTypes(Param->getType(), CheckParam->getType())) {
-                        return false;
-                    }
-                }
-            }
-            return true;
-        }
+		// static bool CheckDuplicateModules(ASTModule * Module, const llvm::DenseMap<uint64_t, SemaModule *> &Modules);
 
-        bool CheckImport(ASTNode *Node, ASTImport *Import);
+        static bool CheckDuplicateParams(llvm::SmallVector<ASTVar *, 8> Params, ASTVar *Param);
 
-        bool CheckExpr(ASTExpr *Expr);
+        static bool CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName);
 
-        static bool CheckEqualTypes(ASTType *Type1, ASTType *Type2);
+        static bool CheckCommentParams(SemaComment *Comment, const llvm::SmallVector<ASTVar*, 8> &Params);
 
-        bool CheckEqualTypes(ASTType *Type, ASTTypeKind Kind);
+        static bool CheckCommentReturn(SemaComment *Comment, ASTType* ReturnType);
 
-        bool CheckConvertibleTypes(ASTType *FromType, ASTType *ToType);
+        static bool CheckCommentFail(SemaComment *Comment);
 
-        bool CheckArithTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2);
+        static bool CheckExpr(SemaExpr *Expr);
 
-        bool CheckLogicalTypes(const SourceLocation &Loc, ASTType *Type1, ASTType *Type2);
+        static bool CheckEqualTypes(SemaType *Type1, SemaType *Type2);
 
-        static bool CheckClassInheritance(fly::ASTClassType *FromType, fly::ASTClassType *ToType);
+        bool CheckConvertibleTypes(SemaType *FromType, SemaType *ToType);
+
+        bool CheckInheritance(SemaClassType *ClassType, SemaClassType *SuperClassType);
+
+        bool CheckInheritance(SemaEnumType *EnumType, SemaEnumType *SuperEnumType);
+
+        bool CheckArithTypes(SemaType *Type1, SemaType *Type2);
+
+        bool CheckLogicalTypes(SemaType *Type1, SemaType *Type2);
+
+    	bool CheckBinary(ASTBinary &AST, SemaExpr *LeftSema, SemaExpr *RightSema);
+
+    	bool CheckSema(ASTExpr *Expr);
+
+		static bool CheckNameEmpty(const SourceLocation &Loc, llvm::StringRef Name);
+
+        static bool CheckIsValueExpr(ASTExpr *Expr);
+
+        static bool CheckVarRefExpr(ASTExpr *Expr);
+
+        static bool CheckValue(ASTValue* Value);
+
+        static bool CheckVar(ASTStmt* Stmt, fly::ASTIdentifier* Ref);
+
+        static bool CheckCall(ASTStmt* Stmt, fly::ASTCall* Ref);
     };
 
 }  // end namespace fly

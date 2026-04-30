@@ -13,7 +13,6 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/SmallVector.h"
-#include "AST/ASTParams.h"
 
 namespace llvm {
     class Function;
@@ -21,36 +20,45 @@ namespace llvm {
     class Type;
     class BasicBlock;
     class StructType;
+    class Value;
+    class AllocaInst;
 }
 
 namespace fly {
 
-    class ASTFunctionBase;
-    class ASTParams;
-    class ASTType;
+	class SemaType;
+    class SemaFunctionBase;
+    class ASTVar;
     class CodeGenModule;
 
     class CodeGenFunctionBase {
 
     protected:
-        ASTFunctionBase *AST = nullptr;
-        CodeGenModule *CGM = nullptr;
+
+        SemaFunctionBase *Sema;
+
+        CodeGenModule *CGM;
+
         llvm::Function *Fn = nullptr;
+
         llvm::Type *RetType = nullptr;
+
+        llvm::SmallVector<llvm::Type *, 8> ParamTypes;
+
         llvm::FunctionType *FnType = nullptr;
+
         llvm::BasicBlock *Entry = nullptr;
-        llvm::Value *ErrorVar = nullptr;
 
     public:
-        CodeGenFunctionBase(CodeGenModule *CGM, ASTFunctionBase *AST);
+        CodeGenFunctionBase(CodeGenModule *CGM, SemaFunctionBase *Sema);
 
         CodeGenModule *getCodeGenModule();
 
         void GenReturnType();
 
-        void GenParamTypes(CodeGenModule * CGM, SmallVector<llvm::Type *, 8> &Types, const ASTParams *Params);
+        static void GenParamTypes(CodeGenModule *CGM, llvm::SmallVector<llvm::Type *, 8> &Types, SemaFunctionBase *Sema);
 
-        ASTFunctionBase *getAST();
+        SemaFunctionBase *getSema();
 
         llvm::StringRef getName() const;
 
@@ -60,13 +68,17 @@ namespace fly {
 
         void setInsertPoint();
 
-        void AllocaVars();
+        void AllocaLocalVars();
 
-        void StoreParams(bool isMain);
+        void StoreParams(size_t Idx);
 
-        llvm::Value *getErrorVar();
+        void CheckReturnVoid();
 
         virtual void GenBody() = 0;
+
+    	static std::string Mangle(SemaType *Type);
+
+    	static std::string Mangle(SemaFunctionBase *F);
     };
 }
 

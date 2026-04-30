@@ -3,7 +3,7 @@ source_filename = "constructor1.cpp"
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-pc-linux-gnu"
 
-%class.Test = type { i32 }
+%class.Test = type { i32, float }
 
 $_ZN4TestC2Ei = comdat any
 
@@ -15,34 +15,56 @@ define dso_local i32 @main() #0 personality i8* bitcast (i32 (...)* @__gxx_perso
   %2 = alloca %class.Test*, align 8
   %3 = alloca i8*, align 8
   %4 = alloca i32, align 4
+  %5 = alloca i32, align 4
   store i32 0, i32* %1, align 4
-  %5 = call noalias nonnull i8* @_Znwm(i64 4) #4
-  %6 = bitcast i8* %5 to %class.Test*
-  invoke void @_ZN4TestC2Ei(%class.Test* %6, i32 1)
-          to label %7 unwind label %10
+  %6 = call noalias nonnull i8* @_Znwm(i64 8) #4
+  %7 = bitcast i8* %6 to %class.Test*
+  invoke void @_ZN4TestC2Ei(%class.Test* %7, i32 1)
+          to label %8 unwind label %23
 
-7:                                                ; preds = %0
-  store %class.Test* %6, %class.Test** %2, align 8
-  %8 = load %class.Test*, %class.Test** %2, align 8
-  %9 = call i32 @_ZN4Test4getAEv(%class.Test* %8)
-  ret i32 %9
+8:                                                ; preds = %0
+  store %class.Test* %7, %class.Test** %2, align 8
+  %9 = load %class.Test*, %class.Test** %2, align 8
+  %10 = call i32 @_ZN4Test4getAEv(%class.Test* %9)
+  store i32 %10, i32* %5, align 4
+  %11 = load %class.Test*, %class.Test** %2, align 8
+  %12 = call i32 @_ZN4Test4getAEv(%class.Test* %11)
+  store i32 %12, i32* %5, align 4
+  %13 = load %class.Test*, %class.Test** %2, align 8
+  %14 = getelementptr inbounds %class.Test, %class.Test* %13, i32 0, i32 1
+  store float 4.400000e+01, float* %14, align 4
+  %15 = load %class.Test*, %class.Test** %2, align 8
+  %16 = getelementptr inbounds %class.Test, %class.Test* %15, i32 0, i32 1
+  store float 2.200000e+01, float* %16, align 4
+  %17 = load %class.Test*, %class.Test** %2, align 8
+  %18 = icmp eq %class.Test* %17, null
+  br i1 %18, label %21, label %19
 
-10:                                               ; preds = %0
-  %11 = landingpad { i8*, i32 }
+19:                                               ; preds = %8
+  %20 = bitcast %class.Test* %17 to i8*
+  call void @_ZdlPv(i8* %20) #5
+  br label %21
+
+21:                                               ; preds = %19, %8
+  %22 = load i32, i32* %5, align 4
+  ret i32 %22
+
+23:                                               ; preds = %0
+  %24 = landingpad { i8*, i32 }
           cleanup
-  %12 = extractvalue { i8*, i32 } %11, 0
-  store i8* %12, i8** %3, align 8
-  %13 = extractvalue { i8*, i32 } %11, 1
-  store i32 %13, i32* %4, align 4
-  call void @_ZdlPv(i8* %5) #5
-  br label %14
+  %25 = extractvalue { i8*, i32 } %24, 0
+  store i8* %25, i8** %3, align 8
+  %26 = extractvalue { i8*, i32 } %24, 1
+  store i32 %26, i32* %4, align 4
+  call void @_ZdlPv(i8* %6) #5
+  br label %27
 
-14:                                               ; preds = %10
-  %15 = load i8*, i8** %3, align 8
-  %16 = load i32, i32* %4, align 4
-  %17 = insertvalue { i8*, i32 } undef, i8* %15, 0
-  %18 = insertvalue { i8*, i32 } %17, i32 %16, 1
-  resume { i8*, i32 } %18
+27:                                               ; preds = %23
+  %28 = load i8*, i8** %3, align 8
+  %29 = load i32, i32* %4, align 4
+  %30 = insertvalue { i8*, i32 } undef, i8* %28, 0
+  %31 = insertvalue { i8*, i32 } %30, i32 %29, 1
+  resume { i8*, i32 } %31
 }
 
 ; Function Attrs: nobuiltin allocsize(0)
@@ -58,6 +80,8 @@ define linkonce_odr dso_local void @_ZN4TestC2Ei(%class.Test* %0, i32 %1) unname
   %6 = load i32, i32* %4, align 4
   %7 = getelementptr inbounds %class.Test, %class.Test* %5, i32 0, i32 0
   store i32 %6, i32* %7, align 4
+  %8 = getelementptr inbounds %class.Test, %class.Test* %5, i32 0, i32 1
+  store float 3.300000e+01, float* %8, align 4
   ret void
 }
 

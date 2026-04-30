@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// test/LibTest.cpp - Driver tests
+// test/ImportTest.cpp - Import statement integration tests
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,161 +7,160 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "TestConfig.h"
+#include "TestUtils.h"
 #include "Driver/Driver.h"
-#include "Driver/DriverOptions.h"
-#include "Basic/Archiver.h"
-
-#include "gtest/gtest.h"
 #include "llvm/Support/TargetSelect.h"
-#include "llvm/Support/ManagedStatic.h"
-
+#include "gtest/gtest.h"
 #include <fstream>
+
+extern bool DebugEnabled;
 
 namespace {
     using namespace fly;
 
+    // ── Library stub: namespace my.utils with one public function ─────────────
+
+    static constexpr const char *UtilsSource = R"(
+namespace my.utils
+
+public foo() {}
+)";
+
+    // ── Test sources ─────────────────────────────────────────────────────────
+
+    // Case 1: import my  →  use my.utils.foo() fully qualified
+    static constexpr const char *ImportMySource = R"(
+import my
+
+main() {
+    my.utils.foo()
+}
+)";
+
+    // Case 2: import my.*  →  use utils.foo() (wildcard brings my's children into scope)
+    static constexpr const char *ImportMyWildcardSource = R"(
+import my.*
+
+main() {
+    utils.foo()
+}
+)";
+
+    // Case 3: import my.utils  →  use utils.foo() (last segment 'utils' in scope)
+    static constexpr const char *ImportMyUtilsSource = R"(
+import my.utils
+
+main() {
+    utils.foo()
+}
+)";
+
+    // Case 4: import my.utils.*  →  use foo() unqualified (all symbols in scope)
+    static constexpr const char *ImportMyUtilsWildcardSource = R"(
+import my.utils.*
+
+main() {
+    foo()
+}
+)";
+
+    // Case 5: import my.utils as u  →  use u.foo()
+    static constexpr const char *ImportMyUtilsAliasSource = R"(
+import my.utils as u
+
+main() {
+    u.foo()
+}
+)";
+
+    // Case 6: import my.utils.* as u  →  compiler error (wildcard + alias forbidden)
+    static constexpr const char *ImportMyUtilsWildcardAliasSource = R"(
+import my.utils.* as u
+
+main() {
+    foo()
+}
+)";
+
+    // ── Fixture ───────────────────────────────────────────────────────────────
+
     class ImportTest : public ::testing::Test {
-
     public:
-        const char* mylib = FLY_TEST_SRC_PATH("/src/mylib.fly");
-        const char* import_mylib = FLY_TEST_SRC_PATH("/src/import_mylib.fly");
-        const char* import_mylib_alias = FLY_TEST_SRC_PATH("/src/import_mylib_alias.fly");
-        const char* import_mylib_external = FLY_TEST_SRC_PATH("/src/import_mylib_external.fly");
-        const char* yourlib_h = FLY_TEST_SRC_PATH("/src/yourlib.fly.h");
+        const char *mainfly  = "main.fly";
+        const char *utilsfly = "utils.fly";
 
-        ImportTest() {
+        void SetUpWithSource(const char *MainSrc) {
+            DebugEnabled = false;
+            { std::ofstream f(mainfly);  f << MainSrc; }
+            { std::ofstream f(utilsfly); f << UtilsSource; }
             llvm::InitializeAllTargetInfos();
             llvm::InitializeAllTargets();
             llvm::InitializeAllTargetMCs();
-            InitializeAllAsmParsers();
+            llvm::InitializeAllAsmParsers();
             llvm::InitializeAllAsmPrinters();
         }
 
-        ~ImportTest() {
+        ~ImportTest() override {
+            remove(mainfly);
+            remove(utilsfly);
             llvm::outs().flush();
-        }
-
-        void deleteFile(const char* testFile) {
-            remove(testFile);
         }
     };
 
-    TEST_F(ImportTest, DISABLED_MyLib) {
-        deleteFile("mylib.fly.o");
-        deleteFile("import_mylib.fly.o");
+    // ── Tests ─────────────────────────────────────────────────────────────────
 
-        const char* Argv[] = {"fly", "-debug", ImportTest::mylib, ImportTest::import_mylib, NULL};
-        int Argc = sizeof(Argv) / sizeof(char*) - 1;
-
-        SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
-        Driver TheDriver(ArgList);
-        CompilerInstance &CI = TheDriver.BuildCompilerInstance();
-        ASSERT_TRUE(TheDriver.Execute());
-
-        // Shutdown after execution
-        llvm::llvm_shutdown();
-
-        std::ifstream main("mylib.fly.o");
-        ASSERT_TRUE(main && "Error opening mylib.fly.o");
-
-        std::ifstream utils("import_mylib.fly.o");
-        ASSERT_TRUE(utils && "Error opening import_mylib.fly.o");
+    // import my → my.utils.foo() fully qualified
+    TEST_F(ImportTest, ImportMy) {
+        SetUpWithSource(ImportMySource);
+        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
     }
 
-    TEST_F(ImportTest, DISABLED_MyLibAlias) {
-        deleteFile("mylib.fly.o");
-        deleteFile("import_mylib_alias.fly.o");
-
-        const char* Argv[] = {"fly",  ImportTest::mylib, ImportTest::import_mylib_alias, NULL};
-        int Argc = sizeof(Argv) / sizeof(char*) - 1;
-
-        SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
-        Driver TheDriver(ArgList);
-        CompilerInstance &CI = TheDriver.BuildCompilerInstance();
-        ASSERT_TRUE(TheDriver.Execute());
-
-        std::ifstream main("mylib.fly.o");
-        ASSERT_TRUE(main && "Error opening mylib.fly.o");
-
-        std::ifstream utils("import_mylib_alias.fly.o");
-        ASSERT_TRUE(utils && "Error opening import_mylib_alias.fly.o");
+    // import my.* → utils.foo() (wildcard brings my's children into scope)
+    TEST_F(ImportTest, ImportMyWildcard) {
+        SetUpWithSource(ImportMyWildcardSource);
+        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
     }
 
-    TEST_F(ImportTest, Header) {
-        deleteFile("mylib.fly.o");
-        deleteFile("mylib.fly.h");
-
-        const char* Argv[] = {"fly", "-debug", "-H", ImportTest::mylib, NULL};
-        int Argc = sizeof(Argv) / sizeof(char*) - 1;
-
-        SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
-        Driver TheDriver(ArgList);
-        CompilerInstance &CI = TheDriver.BuildCompilerInstance();
-        ASSERT_TRUE(TheDriver.Execute());
-
-        std::ifstream main("mylib.fly.o");
-        ASSERT_TRUE(main && "Error opening mylib.fly.o");
-
-        std::ifstream utils("mylib.fly.h");
-        ASSERT_TRUE(utils && "Error opening mylib.fly.h");
+    // import my.utils → utils.foo() (last segment 'utils' added to scope)
+    TEST_F(ImportTest, ImportMyUtils) {
+        SetUpWithSource(ImportMyUtilsSource);
+        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
     }
 
-    TEST_F(ImportTest, DISABLED_MyLibExternal) {
-        //Create mylib.lib
-        deleteFile("mylib.lib");
-
-        const char* Argv[] = {"fly", "-debug", ImportTest::mylib, "-lib", "mylib", NULL};
-        int Argc = sizeof(Argv) / sizeof(char*) - 1;
-        SmallVector<const char *, 256> ArgList(Argv, Argv + Argc);
-        Driver TheDriver(ArgList);
-        CompilerInstance &CI = TheDriver.BuildCompilerInstance();
-        ASSERT_TRUE(TheDriver.Execute());
-
-        std::ifstream main("mylib.lib");
-        ASSERT_TRUE(main && "Error opening mylib.lib");
-
-        // Import mylib.lib
-
-        deleteFile("import_mylib_external.fly.o");
-
-        const char* Argv2[] = { "fly", "-debug", "mylib.lib", ImportTest::import_mylib_external, NULL };
-        int Argc2 = sizeof(Argv2) / sizeof(char*) - 1;
-        SmallVector<const char*, 256> ArgList2(Argv2, Argv2 + Argc2);
-        Driver TheDriver2(ArgList2);
-        CompilerInstance& CI2 = TheDriver2.BuildCompilerInstance();
-        ASSERT_TRUE(TheDriver2.Execute());
-
-        std::ifstream utils("import_mylib_external.fly.o");
-        ASSERT_TRUE(utils && "Error opening import_mylib_external.fly.o");
+    // import my.utils.* → foo() unqualified (all my.utils symbols in scope)
+    TEST_F(ImportTest, ImportMyUtilsWildcard) {
+        SetUpWithSource(ImportMyUtilsWildcardSource);
+        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
     }
 
-    TEST_F(ImportTest, ArchiverLib) {
-        deleteFile("yourlib.lib");
+    // import my.utils as u → u.foo()
+    TEST_F(ImportTest, ImportMyUtilsAlias) {
+        SetUpWithSource(ImportMyUtilsAliasSource);
+        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
 
-        FileSystemOptions FileMgrOpts;
-        FileManager FileMgr(FileMgrOpts);
-        IntrusiveRefCntPtr<DiagnosticIDs> DiagID = new DiagnosticIDs();
-        DiagnosticsEngine Diags(DiagID, new DiagnosticOptions, new IgnoringDiagConsumer());
-
-        //Create Lib
-        Archiver LibCreate(Diags, "yourlib.lib");
-        llvm::SmallVector<std::string, 4> Inputs;
-        Inputs.emplace_back(yourlib_h);
-        ASSERT_TRUE(LibCreate.CreateLib(Inputs));
-        std::ifstream lib("yourlib.lib");
-        ASSERT_TRUE(lib && "Error opening yourlib.lib");
-
-        // Extract from Lib
-        Archiver LibExtract(Diags, "yourlib.lib");
-        LibExtract.ExtractLib(FileMgr);
-        ASSERT_FALSE(LibExtract.getExtractFiles().empty());
-        for (StringRef File : LibExtract.getExtractFiles()) {
-            std::string FileStr = File.str();
-            ASSERT_EQ(FileStr, "yourlib.fly.h");
-            std::ifstream F(FileStr);
-            ASSERT_TRUE(F && "Error opening File");
-        }
+    // import my.utils.* as u → compiler error
+    TEST_F(ImportTest, ImportMyUtilsWildcardAlias) {
+        SetUpWithSource(ImportMyUtilsWildcardAliasSource);
+        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
     }
 
 } // anonymous namespace

@@ -1,6 +1,0 @@
-import mylib m
-
-int main() {
-    int a = m.myfunc()
-    return a
-}

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTStmt.h - AST Statement
+// include/AST/ASTExprStmt.h - AST Expression Statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,9 +7,8 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-
-#ifndef FLY_ASTEXPRSTMT_H
-#define FLY_ASTEXPRSTMT_H
+#ifndef FLY_AST_EXPRSTMT_H
+#define FLY_AST_EXPRSTMT_H
 
 #include "ASTStmt.h"
 
@@ -17,24 +16,28 @@ namespace fly {
 
     class ASTExprStmt : public ASTStmt {
 
-        friend class SemaResolver;
-        friend class SemaBuilder;
+        friend class ASTBuilder;
+        friend class ASTBuilderStmt;
 
     protected:
 
         ASTExpr *Expr = nullptr;
 
-        ASTExprStmt(ASTStmt *Parent, const SourceLocation &Loc);
+        explicit ASTExprStmt(const SourceLocation &Loc);
 
-        ASTExprStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTStmtKind Kind);
+        ASTExprStmt(const SourceLocation &Loc, ASTStmtKind Kind);
 
     public:
 
+        void accept(ASTVisitor& Visitor) override;
+
         ASTExpr *getExpr() const;
+
+        void setExpr(ASTExpr *Expr);
 
         std::string str() const override;
     };
 }
 
 
-#endif //FLY_ASTEXPRSTMT_H
+#endif //FLY_AST_EXPRSTMT_H

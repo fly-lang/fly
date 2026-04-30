@@ -11,7 +11,7 @@
 #define FLY_TOOLCHAIN_H
 
 #include "Frontend/InputFile.h"
-#include "llvm/ADT/Triple.h"
+#include "llvm/TargetParser/Triple.h"
 
 namespace fly {
 
@@ -51,6 +51,15 @@ namespace fly {
         std::string getOSLibDir();
 
         SmallVector<std::string, 16> CreatePathList();
+
+        // Returns the absolute path to libfly_runtime.a, or an empty string if
+        // it cannot be located (e.g. cross-compilation without an installed runtime).
+        std::string GetRuntimeLibPath() const;
+
+        // Returns the absolute path to the compiler-rt builtins archive
+        // (libclang_rt.builtins-<arch>.a) for the current target, or an empty
+        // string if it cannot be found.  Used in place of -lgcc.
+        std::string GetCompilerRTBuiltinsPath() const;
     };
 }
 

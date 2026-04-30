@@ -8,30 +8,35 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 
-#ifndef FLY_CG_VAR_H
-#define FLY_CG_VAR_H
+#ifndef FLY_CODEGEN_VAR_H
+#define FLY_CODEGEN_VAR_H
 
-#include "CodeGenVarBase.h"
-#include "llvm/ADT/StringRef.h"
+#include "CodeGenExpr.h"
+
+#include <llvm/ADT/StringRef.h>
+#include <llvm/IR/Instructions.h>
 
 namespace llvm {
     class Type;
+    class ConstantInt;
 }
 
 namespace fly {
 
     class CodeGenModule;
     class ASTVar;
+    class SemaVar;
+	class CodeGenArrayValue;
 
-    class CodeGenVar : public CodeGenVarBase {
+    class CodeGenVar : public CodeGenExpr {
 
     protected:
 
-        CodeGenModule *CGM = nullptr;
-
-        ASTVar *Var = nullptr;
+        SemaVar *Sema = nullptr;
 
         llvm::Type *T = nullptr;
+
+        size_t Index;
 
         llvm::Value *Pointer = nullptr;
 
@@ -39,21 +44,44 @@ namespace fly {
 
         llvm::StringRef BlockID;
 
+        // Flag to indicate if this variable is read-only (const parameter)
+        bool ReadOnly = false;
+
     public:
-        CodeGenVar(CodeGenModule *CGM, ASTVar *Var);
 
-        void Init() override;
+        CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T);
 
-        llvm::StoreInst *Store(llvm::Value *Val) override;
+        CodeGenVar(CodeGenModule *CGM, SemaVar *Sema, llvm::Type *T, size_t Index);
 
-        llvm::LoadInst *Load() override;
+        llvm::Type *getType();
+
+    	llvm::AllocaInst *Alloca();
+
+        llvm::StoreInst *Store(llvm::Value *Val);
+
+    	llvm::Value *StoreArrayValue(CodeGenArrayValue *ArrayValue);
+
+		llvm::Value *getDefaultValue(llvm::Type *T);
+
+		llvm::StoreInst *StoreDefaultValue();
+
+        llvm::LoadInst *Load();
 
         llvm::Value *getValue() override;
 
-        llvm::Value *getPointer() override;
+        size_t getIndex();
 
-        ASTVar *getVar() override;
+        llvm::Value *getPointer();
+
+        void setPointer(llvm::Value *Pointer);
+
+        // Check if variable is read-only (const)
+        bool isReadOnly() const;
+
+        // Set read-only flag (for const parameters)
+        void setReadOnly(bool ReadOnly);
+
     };
 }
 
-#endif //FLY_CG_VAR_H
+#endif //FLY_CODEGEN_VAR_H

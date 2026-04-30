@@ -1,0 +1,511 @@
+//===--------------------------------------------------------------------------------------------------------------===//
+// src/Sema/SemaBuilder.cpp - The Symbolic Table Builder
+//
+// Part of the Fly Project https://flylang.org
+// Under the Apache License v2.0 see LICENSE for details.
+// Thank you to LLVM Project https://llvm.org/
+//
+//===--------------------------------------------------------------------------------------------------------------===//
+
+#include "Sema/SemaBuilder.h"
+
+#include "AST/ASTBinary.h"
+#include "AST/ASTCall.h"
+#include "AST/ASTClass.h"
+#include "AST/ASTEnum.h"
+#include "AST/ASTEnumEntry.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTMember.h"
+#include "AST/ASTTernary.h"
+#include "AST/ASTUnary.h"
+#include "AST/ASTVar.h"
+#include "Basic/Debug.h"
+#include "Basic/Diagnostic.h"
+#include "Sema/SemaBinary.h"
+#include "Sema/SemaCall.h"
+#include "Sema/SemaCast.h"
+#include "Sema/SemaClassAttribute.h"
+#include "Sema/SemaClassMethod.h"
+#include "Sema/SemaClassType.h"
+#include "Sema/SemaComment.h"
+#include "Sema/SemaEnumType.h"
+#include "Sema/SemaBlockStmt.h"
+#include "Sema/SemaDeclStmt.h"
+#include "Sema/SemaExprStmt.h"
+#include "Sema/SemaReturnStmt.h"
+#include "Sema/SemaIfStmt.h"
+#include "Sema/SemaSwitchStmt.h"
+#include "Sema/SemaLoopStmt.h"
+#include "Sema/SemaLoopInStmt.h"
+#include "Sema/SemaDeleteStmt.h"
+#include "Sema/SemaBreakStmt.h"
+#include "Sema/SemaContinueStmt.h"
+#include "Sema/SemaFailStmt.h"
+#include "Sema/SemaHandleStmt.h"
+#include "Sema/SemaEnumEntry.h"
+#include "Sema/SemaEnumList.h"
+#include "Sema/SemaError.h"
+#include "Sema/SemaFunction.h"
+#include "Sema/SemaMember.h"
+#include "Sema/SemaModule.h"
+#include "Sema/SemaTernary.h"
+#include "Sema/SemaType.h"
+#include "Sema/SemaUnary.h"
+#include "Sema/SemaValue.h"
+#include "Sema/SymbolTable.h"
+
+#include "llvm/Support/Regex.h"
+
+#include <AST/ASTAttribute.h>
+#include <AST/ASTBuilder.h>
+#include <AST/ASTLocalVar.h>
+#include <AST/ASTMethod.h>
+#include <AST/ASTParam.h>
+#include <AST/ASTValue.h>
+#include <Sema/SemaBuilderModifiers.h>
+#include <Sema/SemaBuiltin.h>
+#include <Sema/SemaClassInstance.h>
+#include <Sema/SemaLocalVar.h>
+#include <Sema/SemaNameSpace.h>
+#include <Sema/SemaParam.h>
+
+using namespace fly;
+
+SemaImport *SemaBuilder::CreateImport(SemaModule &Module, ASTImport &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateImport");
+
+	// Search Namespace in Symbol Table
+	SemaImport *Import = new SemaImport(AST);
+
+	// Add Import to the Module Imports for next symbols resolution
+	Module.addImport(Import);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateImport");
+	return Import;
+}
+
+SemaFunction *SemaBuilder::CreateFunction(SemaModule &Module, SymbolTable *Symbols, ASTFunction &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateFunction");
+
+	// Create the Function
+	SemaFunction *Function = new SemaFunction(AST, Symbols);
+
+	SemaBuilderModifiers *BuilderModifiers = SemaBuilderModifiers::Build(AST.getModifiers());
+	Function->setVisibility(BuilderModifiers->getVisibility());
+
+	// Add to Module
+	Module.addNode(Function);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateFunction");
+	return Function;
+}
+
+SemaClassType * SemaBuilder::CreateClass(SemaModule &Module, SymbolTable *Symbols, ASTClass &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateClass");
+
+	// Create the Class Type
+	SemaClassType *Class = new SemaClassType(AST, Module, Symbols);
+
+	// Set Symbol Table
+	Class->Symbols = Symbols;
+
+	// Create the 'this' attribute for the current class
+	Class->This = new SemaClassInstance(Class);
+
+	// Set Modifiers
+	SemaBuilderModifiers *BuilderModifiers = SemaBuilderModifiers::Build(AST.getModifiers());
+	Class->Constant = BuilderModifiers->isConstant();
+	Class->Visibility = BuilderModifiers->getVisibility();
+	Class->Abstract = BuilderModifiers->isAbstract();
+	Class->Final = BuilderModifiers->isFinal();
+
+	// Add to Module
+	Module.addNode(Class);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateClass");
+	return Class;
+}
+
+SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType &Class, ASTAttribute &AST, SemaType *Type) {
+	FLY_DEBUG_START("SemaBuilder", "CreateClassAttribute");
+
+	SemaClassAttribute *Attribute = new SemaClassAttribute(AST, Class, Type);
+	Attribute->setParent(*Class.getThis());
+	// Attribute->Type = AST->TypeRef->getSema(); // TODO add resolved symbol in the scope
+
+	// Set Modifiers
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
+	Attribute->Visibility = Builder->getVisibility();
+	Attribute->Static = Builder->isStatic();
+	Attribute->Constant = Builder->isConstant();
+
+	FLY_DEBUG_END("SemaBuilder", "CreateClassAttribute");
+	return Attribute;
+}
+
+SemaClassMethod * SemaBuilder::CreateDefaultConstructor(SemaClassType *Class, SymbolTable* Scope) {
+	// Create AST
+	ASTMethod *AST = ASTBuilder::CreateDefaultConstructor(&Class->getAST());
+
+	// Create Sema
+	SemaClassMethod *Method = new SemaClassMethod(*AST, Class, Class->getThis(), true, Scope);
+
+	return Method;
+}
+
+SemaClassMethod * SemaBuilder::CreateClassMethod(SemaClassType *Class, ASTMethod &AST, SymbolTable* Scope) {
+	FLY_DEBUG_START("SemaBuilder", "CreateClassFunction");
+	SemaClassMethod *Method;
+
+	// Set Modifiers first so we can use them for method kind determination
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
+
+	bool IsConstructor = (AST.getName() == Class->getName());
+	Method = new SemaClassMethod(AST, Class, Class->getThis(), IsConstructor, Scope);
+
+	Method->Visibility = Builder->getVisibility();
+	Method->Static = Builder->isStatic();
+	Method->Final = Builder->isFinal();
+
+	FLY_DEBUG_END("SemaBuilder", "CreateClassFunction");
+	return Method;
+}
+
+SemaEnumType * SemaBuilder::CreateEnum(SemaModule &Module, SymbolTable *Symbols, ASTEnum &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateEnum");
+
+	SemaEnumType *Enum = new SemaEnumType(AST, Symbols);
+
+	// Set Symbol Table
+	Enum->Symbols = Symbols;
+
+	// Set Modifiers
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
+	Enum->Visibility = Builder->getVisibility();
+	Enum->Constant = Builder->isConstant();
+	Enum->Comment = nullptr;
+
+	// Add to Module
+	Module.addNode(Enum);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateEnum");
+	return Enum;
+}
+
+SemaEnumEntry * SemaBuilder::CreateEnumEntry(SemaEnumType *Enum, ASTEnumEntry &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateEnumEntry");
+
+	SemaEnumEntry *Entry = new SemaEnumEntry(AST, Enum);
+	// Start index from 1, so 0 can be used as undefined/default value
+	Entry->Index = Enum->Entries.size() + 1;
+	Enum->Entries.insert(std::make_pair(AST.getName(), Entry));
+
+	FLY_DEBUG_END("SemaBuilder", "CreateEnumEntry");
+	return Entry;
+}
+
+SemaEnumList * SemaBuilder::CreateEnumList(SemaEnumType *EnumType) {
+	FLY_DEBUG_START("SemaBuilder", "CreateEnumList");
+
+	// Create an array type of the enum type with size = number of entries
+	uint64_t Size = EnumType->getEntries().size();
+	SemaArrayType *ArrayType = SemaBuiltin::CreateArrayType(EnumType, Size);
+
+	SemaEnumList *EnumList = new SemaEnumList(EnumType, ArrayType);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateEnumList");
+	return EnumList;
+}
+
+SemaComment * SemaBuilder::CreateComment(ASTComment &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateComment");
+
+	SemaComment * Comment = new SemaComment(AST);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateComment");
+	return Comment;
+}
+
+SemaLocalVar * SemaBuilder::CreateLocalVar(ASTLocalVar &AST, SemaType *Type) {
+	FLY_DEBUG_START("SemaBuilder", "CreateLocalVar");
+
+	// Create LocalVar Symbol
+	SemaLocalVar *Sema = new SemaLocalVar(AST, Type);
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
+	Sema->Constant = Builder->isConstant();
+
+
+	FLY_DEBUG_END("SemaBuilder", "CreateLocalVar");
+	return Sema;
+}
+
+SemaParam *SemaBuilder::CreateParam(ASTParam &AST, SemaType *Type) {
+	FLY_DEBUG_START("SemaBuilder", "CreateParam");
+
+	// Create LocalVar Symbol
+	SemaParam *Sema = new SemaParam(AST, Type);
+
+	// Set Constant from modifiers
+	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
+	Sema->Constant = Builder->isConstant();
+
+
+	FLY_DEBUG_END("SemaBuilder", "CreateParam");
+	return Sema;
+}
+
+SemaMember * SemaBuilder::CreateMemberVar(ASTMember &AST, SemaExpr *Ref, SemaExpr *Parent) {
+	FLY_DEBUG_START("SemaBuilder", "CreateMemberVar");
+
+	SemaMember *Sema = new SemaMember(AST, Ref, Parent);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateMemberVar");
+	return Sema;
+}
+
+SemaError *SemaBuilder::CreateErrorHandler() {
+	FLY_DEBUG_START("SemaBuilder", "CreateErrorHandler");
+
+	SemaError * Sema = new SemaError(nullptr);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateErrorHandler");
+	return Sema;
+}
+
+SemaUnary *SemaBuilder::CreateUnary(ASTUnary &AST, SemaExpr *Expr) {
+	FLY_DEBUG_START("SemaBuilder", "CreateUnary");
+
+	// Create Unary Symbol
+	SemaUnary *Sema = new SemaUnary(AST, Expr);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateUnary");
+	return Sema;
+}
+
+SemaBinary *SemaBuilder::CreateBinary(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right) {
+	FLY_DEBUG_START("SemaBuilder", "CreateBinary");
+
+	// Create Binary Symbol
+	SemaBinary *Sema = new SemaBinary(AST, Left, Right);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateBinary");
+	return Sema;
+}
+
+SemaTernary *SemaBuilder::CreateTernary(ASTTernary &AST, SemaExpr *Cond, SemaExpr *TrueExpr, SemaExpr *FalseExpr) {
+	FLY_DEBUG_START("SemaBuilder", "CreateTernary");
+
+	// Create Ternary Symbol
+	SemaTernary *Sema = new SemaTernary(AST, Cond, TrueExpr, FalseExpr);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateTernary");
+	return Sema;
+}
+
+SemaCast *SemaBuilder::CreateCast(ASTCast &AST, SemaExpr *Expr, SemaType *ToType) {
+	FLY_DEBUG_START("SemaBuilder", "CreateCast");
+
+	SemaCast *Sema = new SemaCast(AST, Expr, ToType);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateCast");
+	return Sema;
+}
+
+SemaCall * SemaBuilder::CreateCall(ASTCall &AST, SemaType *Type, SemaFunctionBase *Function) {
+	FLY_DEBUG_START("SemaBuilder", "CreateParam");
+
+	// Create Call Symbol
+	SemaCall *Call = new SemaCall(AST, Type);
+	Call->Function = Function;
+
+	FLY_DEBUG_END("SemaBuilder", "CreateParam");
+	return Call;
+}
+
+SemaBoolValue * SemaBuilder::CreateBoolValue(ASTBoolValue &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateBoolValue");
+
+	SemaBoolValue * V = new SemaBoolValue(AST);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateBoolValue");
+	return V;
+}
+
+SemaValue * SemaBuilder::CreateNumberValue(ASTNumberValue &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateNumberValue");
+
+	SemaValue *Sema;
+
+	// Floating point number
+	llvm::Regex FloatRegex(R"(^[-+]?[0-9]*\.[0-9]+([eE][-+]?[0-9]+)?$)");
+	if (FloatRegex.match(AST.getValue())) {
+		// Floating point
+		llvm::APFloat Value = llvm::APFloat(llvm::APFloat::IEEEdouble(), AST.getValue());
+		Sema = new SemaFloatValue(AST, SemaBuiltin::getFloatType(), Value);
+	} else {
+		llvm::APInt Value = CreateAPIntValue(AST.getValue());
+
+		// Compute MinBits for type inference
+		unsigned MinBits = Value.isNegative()
+			? 1 + Value.getBitWidth() - Value.countLeadingOnes()
+			: 1 + Value.getBitWidth() - Value.countLeadingZeros();
+
+		// Infer Type based on MinBits, but keep the Value at its original bit width
+		SemaIntType *Type = nullptr;
+		if (Value.isNegative()) {
+			if (MinBits <= 16) Type = SemaBuiltin::getShortType();
+			else if (MinBits <= 32) Type = SemaBuiltin::getIntType();
+			else Type = SemaBuiltin::getLongType();
+		} else {
+			if (MinBits <= 8) Type = SemaBuiltin::getByteType();
+			else if (MinBits <= 16) Type = SemaBuiltin::getUShortType();
+			else if (MinBits <= 32) Type = SemaBuiltin::getUIntType();
+			else Type = SemaBuiltin::getULongType();
+		}
+
+		// Create SemaIntValue with the full-width Value (truncation will happen during codegen)
+		Sema = new SemaIntValue(AST, Type, Value);
+	}
+
+	FLY_DEBUG_END("SemaBuilder", "CreateNumberValue");
+	return Sema;
+}
+
+llvm::APInt SemaBuilder::CreateAPIntValue(StringRef ValStr) {
+	bool IsNegative = ValStr.starts_with("-");
+	if (IsNegative)
+		ValStr = ValStr.drop_front(1);
+
+	// Detect radix
+	unsigned Radix = 10;
+	if (ValStr.starts_with("0x") || ValStr.starts_with("0X")) {
+		Radix = 16;
+		ValStr = ValStr.drop_front(2);
+	} else if (ValStr.starts_with("0b") || ValStr.starts_with("0B")) {
+		Radix = 2;
+		ValStr = ValStr.drop_front(2);
+	}
+
+	// Parse
+	unsigned SrcBits = llvm::APInt::getBitsNeeded(ValStr, Radix);
+	llvm::APInt Value(SrcBits, ValStr, Radix);
+	return IsNegative ? -Value : Value;
+}
+
+SemaIntValue * SemaBuilder::CreateIntValue(ASTNumberValue &AST, SemaIntType *IntType) {
+	llvm::APInt Value = CreateAPIntValue(AST.getValue());
+	SemaIntValue *Sema = new SemaIntValue(AST, IntType, Value);
+	return Sema;
+}
+
+SemaFloatValue * SemaBuilder::CreateFloatValue(ASTNumberValue &AST, SemaFloatType *FloatType) {
+	llvm::APFloat Value = llvm::APFloat(llvm::APFloat::IEEEdouble(), AST.getValue());
+	SemaFloatValue *Sema = new SemaFloatValue(AST, FloatType, Value);
+	return Sema;
+}
+
+SemaStringValue * SemaBuilder::CreateStringValue(ASTStringValue &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateStringValue");
+
+	SemaStringValue * V = new SemaStringValue(AST);
+	V->Value = AST.getValue();
+	V->Type = SemaBuiltin::getStringType();
+
+	FLY_DEBUG_END("SemaBuilder", "CreateStringValue");
+	return V;
+}
+
+SemaArrayValue * SemaBuilder::CreateArrayValue(ASTArrayValue &AST, SemaType *Type, llvm::SmallVector<SemaValue *, 8> &Values) {
+	FLY_DEBUG_START("SemaBuilder", "CreateArrayValue");
+
+	uint64_t Size = Values.size();
+	SemaArrayType *ArrayType = SemaBuiltin::CreateArrayType(Type, Size);
+	SemaArrayValue * V = new SemaArrayValue(AST, ArrayType);
+	V->Values = std::move(Values);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateArrayValue");
+	return V;
+}
+
+SemaStructValue * SemaBuilder::CreateStructValue(ASTStructValue &AST, llvm::StringMap<SemaValue *> Values) {
+	FLY_DEBUG_START("SemaBuilder", "CreateStructValue");
+
+	llvm::SmallVector<SemaType *, 8> Types;
+	for (auto &Entry : Values) {
+		Types.push_back(Entry.second->getType());
+	}
+
+	//TODO: Create Struct Type from Types
+	SemaStructValue * V = new SemaStructValue(AST, nullptr);
+	V->Values = std::move(Values);
+
+	FLY_DEBUG_END("SemaBuilder", "CreateStructValue");
+	return V;
+}
+
+SemaValue * SemaBuilder:: CreateNullValue(ASTNullValue &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateNullValue");
+
+	SemaValue * V = new SemaNullValue(AST);
+	return V;
+}
+
+SemaValue *SemaBuilder::CreateUnsetValue(ASTUnsetValue &AST) {
+	FLY_DEBUG_START("SemaBuilder", "CreateUnsetValue");
+	SemaValue * V = new SemaUnsetValue(AST);
+	return V;
+}
+
+// ─── SemaStmt factory methods ───────────────────────────────────────────────
+
+SemaBlockStmt *SemaBuilder::CreateBlockStmt(ASTStmt *AST) {
+	return new SemaBlockStmt(AST);
+}
+
+SemaDeclStmt *SemaBuilder::CreateDeclStmt(ASTStmt *AST, SemaLocalVar *Var, SemaExpr *Expr) {
+	return new SemaDeclStmt(AST, Var, Expr);
+}
+
+SemaExprStmt *SemaBuilder::CreateExprStmt(ASTStmt *AST, SemaExpr *Expr) {
+	return new SemaExprStmt(AST, Expr);
+}
+
+SemaReturnStmt *SemaBuilder::CreateReturnStmt(ASTStmt *AST) {
+	return new SemaReturnStmt(AST);
+}
+
+SemaIfStmt *SemaBuilder::CreateIfStmt(ASTStmt *AST, SemaExpr *Cond, SemaStmt *Then) {
+	return new SemaIfStmt(AST, Cond, Then);
+}
+
+SemaSwitchStmt *SemaBuilder::CreateSwitchStmt(ASTStmt *AST, SemaExpr *Expr) {
+	return new SemaSwitchStmt(AST, Expr);
+}
+
+SemaLoopStmt *SemaBuilder::CreateLoopStmt(ASTStmt *AST, bool VerifyAtEnd) {
+	return new SemaLoopStmt(AST, VerifyAtEnd);
+}
+
+SemaLoopInStmt *SemaBuilder::CreateLoopInStmt(ASTStmt *AST, SemaExpr *Item, SemaExpr *List, SemaStmt *Body) {
+	return new SemaLoopInStmt(AST, Item, List, Body);
+}
+
+SemaDeleteStmt *SemaBuilder::CreateDeleteStmt(ASTStmt *AST, SemaExpr *Expr) {
+	return new SemaDeleteStmt(AST, Expr);
+}
+
+SemaBreakStmt *SemaBuilder::CreateBreakStmt(ASTStmt *AST) {
+	return new SemaBreakStmt(AST);
+}
+
+SemaContinueStmt *SemaBuilder::CreateContinueStmt(ASTStmt *AST) {
+	return new SemaContinueStmt(AST);
+}
+
+SemaFailStmt *SemaBuilder::CreateFailStmt(ASTStmt *AST) {
+	return new SemaFailStmt(AST);
+}
+
+SemaHandleStmt *SemaBuilder::CreateHandleStmt(ASTStmt *AST) {
+	return new SemaHandleStmt(AST);
+}

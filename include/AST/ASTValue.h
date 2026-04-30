@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTValue.h - AST Value
+// include/AST/ASTValue.h - AST Value header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,44 +7,51 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTVALUE_H
-#define FLY_ASTVALUE_H
+#ifndef FLY_AST_VALUE_H
+#define FLY_AST_VALUE_H
 
-#include "ASTBase.h"
-
-#include "llvm/ADT/StringRef.h"
+#include "ASTExpr.h"
 #include "llvm/ADT/StringMap.h"
-
-#include <string>
-#include <vector>
 
 namespace fly {
 
-    class ASTType;
-    class SourceLocation;
+    enum class ASTValueKind {
+        VAL_BOOL,
+        VAL_NUMBER,
+        VAL_STRING,
+        VAL_ARRAY,
+        VAL_STRUCT,
+        VAL_NULL,
+        VAL_DEFAULT,
+        VAL_ENUM,
+        VAL_UNSET
+    };
 
-    enum class ASTTypeKind;
+    class ASTValue : public ASTExpr {
 
-    class ASTValue : public ASTBase {
+        friend class ASTBuilder;
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
-
-        const ASTTypeKind TypeKind;
+        const ASTValueKind ValueKind;
 
     protected:
 
-        ASTValue(const ASTTypeKind TypeKind, const SourceLocation &Location);
+        ASTValue(ASTValueKind ValueKind, const SourceLocation &Location);
 
     public:
 
-        const ASTTypeKind &getTypeKind() const;
+        const ASTValueKind &getValueKind() const;
 
-        const std::string printType() const;
 
-        virtual const std::string print() const = 0;
+        // Predicate helpers
+        bool isBool() const;
+        bool isNumber() const;
+        bool isString() const;
+        bool isArray() const;
+        bool isStruct() const;
+        bool isNull() const;
+        bool isDefault() const;
+        bool isUnset() const;
 
-        std::string str() const;
     };
 
     /**
@@ -52,65 +59,39 @@ namespace fly {
      */
     class ASTBoolValue : public ASTValue {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
+        friend class Resolver;
 
         bool Value;
 
-        ASTBoolValue(const SourceLocation &Loc, bool Value = false);
+        explicit ASTBoolValue(const SourceLocation &Loc, bool Value);
 
     public:
+
+        void accept(ASTVisitor& Visitor) override;
 
         bool getValue() const;
 
-        const std::string print() const;
-
         std::string str() const override;
     };
 
     /**
-     * Used for Integer Numbers
+     * Used for Numbers
      */
-    class ASTIntegerValue : public ASTValue {
+    class ASTNumberValue : public ASTValue {
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class ASTBuilder;
+        friend class Resolver;
 
-        uint64_t Value; // the integer value
+        llvm::StringRef Value; // the integer value
 
-        bool Negative; // true is positive, false is negative
-
-        ASTIntegerValue(const SourceLocation &Loc, uint64_t Value, bool Negative = false);
+        ASTNumberValue(const SourceLocation &Loc, llvm::StringRef Value);
 
     public:
 
-        bool isNegative() const;
+        void accept(ASTVisitor& Visitor) override;
 
-        bool isPositive() const;
-
-        uint64_t getValue() const;
-
-        const std::string print() const;
-
-        std::string str() const override;
-    };
-
-    /**
-     * Used for Floating Point Numbers
-     */
-    class ASTFloatingValue : public ASTValue {
-
-        friend class SemaBuilder;
-        friend class SemaResolver;
-
-        std::string Value;
-
-        ASTFloatingValue(const SourceLocation &Loc, std::string Val);
-
-    public:
-
-        std::string getValue() const;
-
-        const std::string print() const;
+        llvm::StringRef getValue() const;
 
         std::string str() const override;
     };
@@ -120,7 +101,8 @@ namespace fly {
      */
     class ASTStringValue : public ASTValue {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
+        friend class Resolver;
 
         llvm::StringRef Value;
 
@@ -128,9 +110,9 @@ namespace fly {
 
     public:
 
-        llvm::StringRef getValue() const;
+        void accept(ASTVisitor& Visitor) override;
 
-        const std::string print() const;
+        llvm::StringRef getValue() const;
 
         std::string str() const override;
     };
@@ -140,21 +122,24 @@ namespace fly {
      */
     class ASTArrayValue : public ASTValue {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
+        friend class Resolver;
 
-        std::vector<ASTValue *> Values;
+        llvm::SmallVector<ASTValue *, 8> Values;
 
-        ASTArrayValue(const SourceLocation &Loc);
+        explicit ASTArrayValue(const SourceLocation &Loc);
 
     public:
 
-        const std::vector<ASTValue *> &getValues() const;
+        ~ASTArrayValue() override;
 
-        uint64_t size() const;
+        void accept(ASTVisitor& Visitor) override;
+
+        const llvm::SmallVector<ASTValue *, 8> &getValues() const;
+
+        size_t size() const;
 
         bool empty() const;
-
-        const std::string print() const;
 
         std::string str() const override;
     };
@@ -164,50 +149,59 @@ namespace fly {
      */
     class ASTStructValue : public ASTValue {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
+        friend class Resolver;
 
         llvm::StringMap<ASTValue *> Values;
 
-        ASTStructValue(const SourceLocation &Loc);
+        explicit ASTStructValue(const SourceLocation &Loc);
 
     public:
 
+        ~ASTStructValue() override;
+
+        void accept(ASTVisitor& Visitor) override;
+
         const llvm::StringMap<ASTValue *> &getValues() const;
 
-        uint64_t size() const;
+        size_t size() const;
 
         bool empty() const;
-
-        const std::string print() const;
 
         std::string str() const override;
     };
 
     class ASTNullValue : public ASTValue {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
+        friend class Resolver;
 
-        ASTNullValue(const SourceLocation &Loc);
+        explicit ASTNullValue(const SourceLocation &Loc);
 
     public:
 
-        const std::string print() const;
+        void accept(ASTVisitor& Visitor) override;
 
         std::string str() const override;
     };
 
-    class ASTZeroValue : public ASTValue {
+    /**
+     * Represents an unset enum value (index 0)
+     */
+    class ASTUnsetValue : public ASTValue {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
+        friend class Resolver;
 
-        ASTZeroValue(const SourceLocation &Loc);
+        explicit ASTUnsetValue(const SourceLocation &Loc);
 
     public:
 
-        const std::string print() const;
+        void accept(ASTVisitor& Visitor) override;
 
         std::string str() const override;
     };
+
 }
 
-#endif //FLY_ASTVALUE_H
+#endif //FLY_AST_VALUE_H

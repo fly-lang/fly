@@ -11,49 +11,111 @@
 #ifndef FLY_CODEGEN_EXPR_H
 #define FLY_CODEGEN_EXPR_H
 
-#include "AST/ASTExpr.h"
-#include "CodeGenModule.h"
+#include "CodeGenBase.h"
 
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/IR/IRBuilder.h>
+
+namespace llvm {
+	class Value;
+}
 
 namespace fly {
 
     class CodeGenModule;
+    class SemaExpr;
+	class SemaVar;
+	class SemaCall;
+	class SemaType;
+	class SemaIntType;
+	class SemaFloatType;
+	class SemaNumberType;
+	class SemaValue;
+	class SemaBoolValue;
+	class SemaIntValue;
+	class SemaFloatValue;
+	class SemaStringValue;
+	class SemaArrayValue;
+	class SemaStructValue;
+	class SemaNullValue;
+	class SemaUnsetValue;
+	class SemaEnumEntry;
+	class SemaMember;
+	class SemaCast;
+	class SemaUnary;
+	class SemaBinary;
+	class SemaTernary;
+    enum class ASTBinaryKind;
 
-    class CodeGenExpr {
+    class CodeGenExpr : public CodeGenBase {
 
-        CodeGenModule * CGM = nullptr;
+    protected:
 
-        llvm::Value *Val = nullptr;
+        CodeGenModule * CGM;
 
-        CodeGenFunctionBase *CGF = nullptr;
+    	llvm::Value *V;
 
-        ASTVar *Var = nullptr;
+    	llvm::IRBuilder<> * Builder;
 
-    public:
+	  public:
 
-        CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTExpr *Expr);
+        CodeGenExpr(CodeGenModule *CGM);
 
-        CodeGenExpr(CodeGenModule *CGM, CodeGenFunctionBase *CGF, ASTExpr *Expr, const ASTType *ToType);
+    	virtual llvm::Value *getValue();
 
-        llvm::Value *GenValue(const ASTExpr *Expr);
+        void GenExpr(SemaVar *Sema);
 
-        llvm::Value *getValue() const;
+        void GenExpr(SemaCall *Sema);
 
-        llvm::Value *Convert(llvm::Value *FromVal, const ASTType *FromType, const ASTType *ToType);
+    	void GenExpr(SemaMember *Sema);
 
-        llvm::Value *GenGroup(ASTGroupExpr *Group);
+    	void GenExpr(SemaBoolValue *Sema);
 
-        llvm::Value *GenUnary(ASTUnaryGroupExpr *Expr);
+    	void GenExpr(SemaIntValue *Sema);
 
-        llvm::Value *GenBinary(ASTBinaryGroupExpr *Expr);
+    	void GenExpr(SemaFloatValue *Sema);
 
-        llvm::Value *GenTernary(ASTTernaryGroupExpr *Expr);
+    	void GenExpr(SemaStringValue *Sema);
 
-        Value *GenBinaryArith(const ASTExpr *E1, ASTBinaryOperatorKind Op, const ASTExpr *E2);
+    	void GenExpr(SemaStructValue *Sema);
 
-        Value *GenBinaryComparison(const ASTExpr *E1, ASTBinaryOperatorKind Op, const ASTExpr *E2);
+    	void GenExpr(SemaNullValue *Sema);
 
-        Value *GenBinaryLogic(const ASTExpr *E1, ASTBinaryOperatorKind Op, const ASTExpr *E2);
+    	void GenExpr(SemaUnsetValue *Sema);
+
+    	void GenExpr(SemaEnumEntry *Sema);
+
+        void GenExpr(SemaCast *Sema);
+
+        void GenExpr(SemaUnary *Sema);
+
+        void GenExpr(SemaBinary *Sema);
+
+        void GenExpr(SemaTernary *Sema);
+
+    private:
+
+        llvm::Value *GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
+
+        llvm::Value *GenStringConcat(SemaExpr *E1, SemaExpr *E2);
+
+        llvm::Value *GenStringHeapCopy(SemaStringValue *Sema);
+
+        llvm::Value *GenBinaryCompare(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
+
+        llvm::Value *GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
+
+        llvm::Value* GenBinaryAssign(SemaExpr *E1, SemaExpr *E2);
+
+        void addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &Args);
+
+    	llvm::Value *ConvertToBool(llvm::Value *V);
+
+    	llvm::Value *ConvertNumber(llvm::Value *V, SemaNumberType *Ty);
+
+    	llvm::Value *ConvertToInteger(llvm::Value *V, SemaIntType *Ty);
+
+    	llvm::Value *ConvertToFloat(llvm::Value *V, SemaFloatType *Ty);
     };
 }
 

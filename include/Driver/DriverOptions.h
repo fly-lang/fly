@@ -30,32 +30,36 @@ namespace fly {
                 Ignored = (1 << 6)
             };
 
+            // IDs must match InfoTable order (ID = InfoTable index + 1).
+            // OPT_INPUT=1 and OPT_UNKNOWN=2 are always first.
+            // The remaining IDs are sorted by pure option name using
+            // StrCmpOptionName semantics (case-insensitive; longer wins when
+            // one name is a prefix of another, so "target-cpu" < "target").
             enum ID {
-                OPT_INVALID = 0, // This is not an option ID.
-                OPT_INPUT,
-                OPT_UNKNOWN,
-                OPT_EMIT_AS,
-                OPT_EMIT_BC,
-                OPT_EMIT_LL,
-                OPT_DEBUG,
-                OPT_FTIME_REPORT,
-                OPT_HEADER_GENERATOR,
-                OPT_HELP,
-                OPT_NO_WARNING,
-                OPT_LOG_FILE,
-                OPT_MC_MODEL,
-                OPT_MTHREAD_MODEL,
-                OPT_NO_OUTPUT,
-                OPT_OUTPUT,
-                OPT_OUTPUT_LIB,
-                OPT_PRINT_STATS,
-                OPT_STATS_FILE,
-                OPT_TARGET_CPU,
-                OPT_TARGET,
-                OPT_VERSION_SHORT,
-                OPT_VERSION,
-                OPT_VERBOSE,
-                OPT_WORKING_DIR,
+                OPT_INVALID = 0,        // not an option ID
+                OPT_INPUT,              //  1 - <input>
+                OPT_UNKNOWN,            //  2 - <unknown>
+                OPT_DEBUG,              //  3 - debug    (-debug)
+                OPT_EMIT_AS,            //  4 - emit-as  (-emit-as)
+                OPT_EMIT_BC,            //  5 - emit-bc  (-emit-bc)
+                OPT_EMIT_LL,            //  6 - emit-ll  (-emit-ll)
+                OPT_FTIME_REPORT,       //  7 - ftime-report  (-ftime-report)
+                OPT_HEADER_GENERATOR,   //  8 - header   (-header)
+                OPT_HELP,               //  9 - help     (-help)
+                OPT_OUTPUT_LIB,         // 10 - lib      (-lib)
+                OPT_LOG_FILE,           // 11 - log-file (-log-file)
+                OPT_MC_MODEL,           // 12 - mcmodel  (-mcmodel)
+                OPT_MTHREAD_MODEL,      // 13 - mthread-model (-mthread-model)
+                OPT_NO_OUTPUT,          // 14 - no-output (-no-output)
+                OPT_OUTPUT,             // 15 - o        (-o)
+                OPT_PRINT_STATS,        // 16 - print-stats (-print-stats)
+                OPT_STATS_FILE,         // 17 - stats-file (-stats-file)
+                OPT_TARGET_CPU,         // 18 - target-cpu (--target-cpu) [before target]
+                OPT_TARGET,             // 19 - target   (--target)
+                OPT_VERSION,            // 20 - version  (-version) [before v]
+                OPT_VERBOSE,            // 21 - v        (-v)
+                OPT_WORKING_DIR,        // 22 - working-dir (-working-dir) [before w]
+                OPT_NO_WARNING,         // 23 - w        (-w)
             };
         }
 

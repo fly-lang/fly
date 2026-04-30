@@ -15,11 +15,7 @@
 #define FLY_CODEGEN_H
 
 #include "CodeGen/BackendUtil.h"
-#include "Basic/Diagnostic.h"
-#include "AST/ASTContext.h"
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/Linker/Linker.h"
-#include <memory>
+#include "llvm/IR/Constants.h"
 
 namespace llvm {
     class Constant;
@@ -34,28 +30,93 @@ namespace fly {
     class CodeGenModule;
     class TargetInfo;
     class FrontendOptions;
+    class SymbolTable;
+    class SemaNameSpace;
+    class SemaModule;
 
-    class CodeGen {
+class CodeGen {
 
-    protected:
-        DiagnosticsEngine &Diags;
-        CodeGenOptions &CodeGenOpts;
-        TargetOptions &TargetOpts;
-        IntrusiveRefCntPtr<TargetInfo> Target;
-        llvm::LLVMContext LLVMCtx;
-        BackendActionKind ActionKind;
-        bool ShowTimers;
+    DiagnosticsEngine &Diags;
+    CodeGenOptions &CodeGenOpts;
+    TargetOptions &TargetOpts;
+    IntrusiveRefCntPtr<TargetInfo> Target;
+    llvm::LLVMContext &LLVMCtx;  // Reference instead of owned member
+    BackendActionKind ActionKind;
+    bool ShowTimers;
 
     public:
-        CodeGen(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts,
+        /// void
+        static llvm::Type *VoidTy;
+
+        /// i8, i16, i32, and i64
+        static llvm::IntegerType *BoolTy, *Int8Ty, *Int16Ty, *Int32Ty, *Int64Ty;
+        /// half, bfloat, float, double
+        static llvm::Type *HalfTy, *BFloatTy, *FloatTy, *DoubleTy;
+
+        /// int
+        static llvm::IntegerType *IntTy;
+
+        /// intptr_t, size_t, and ptrdiff_t, which we assume are the same size.
+        static llvm::IntegerType *IntPtrTy;
+        static llvm::IntegerType *SizeTy;
+        static llvm::IntegerType *PtrDiffTy;
+
+        /// void* in address space 0
+        static llvm::PointerType *VoidPtrTy;
+        static llvm::PointerType *Int8PtrTy;
+
+        /// void** in address space 0
+        static llvm::PointerType *VoidPtrPtrTy;
+        static llvm::PointerType *Int8PtrPtrTy;
+
+        /// void* in alloca address space
+        static llvm::PointerType *AllocaVoidPtrTy;
+        static llvm::PointerType *AllocaInt8PtrTy;
+
+        /// The width of a pointer into the generic address space.
+        static unsigned char PointerWidthInBits;
+
+        /// The size and alignment of a pointer into the generic address space.
+        static unsigned char PointerAlignInBytes;
+        static unsigned char PointerSizeInBytes;
+
+        /// The size and alignment of size_t.
+        static unsigned char SizeSizeInBytes; // sizeof(size_t)
+        static unsigned char SizeAlignInBytes;
+
+        /// The size and alignment of the builtin C type 'int'.  This comes
+        /// up enough in various ABI lowering tasks to be worth pre-computing.
+        static unsigned char IntSizeInBytes;
+        static unsigned char IntAlignInBytes;
+
+        static llvm::StructType *ErrorTy;
+
+        static llvm::PointerType *ErrorPtrTy;
+
+        /// Array structure: { i8* data, size_t* dims, size_t rank }
+        static llvm::StructType *ArrayTy;
+
+        static llvm::PointerType *ArrayPtrTy;
+
+        /// String structure: { ptr byte*, uint size }
+        static llvm::StructType *StringTy;
+
+        static llvm::PointerType *StringPtrTy;
+
+        static llvm::ConstantInt *Zero;
+
+        CodeGen(DiagnosticsEngine &Diags,
+                llvm::LLVMContext &LLVMCtx,
+                CodeGenOptions &CodeGenOpts,
                 const std::shared_ptr<TargetOptions> &TargetOpts,
                 BackendActionKind BackendAction, bool ShowTimers = false);
+
+        // Initialize or reinitialize static types with a new LLVMContext
+        static void InitializeTypes(llvm::LLVMContext &LLVMCtx, TargetInfo &Target);
 
         std::string getOutputFileName(StringRef BaseInput);
 
         void Emit(llvm::Module *M, llvm::StringRef OutName);
-
-        std::string HandleTranslationUnit(std::unique_ptr<llvm::Module> &M, llvm::StringRef OutFile = "");
 
         static TargetInfo* CreateTargetInfo(DiagnosticsEngine &Diags,
                                                  const std::shared_ptr<TargetOptions> &TargetOpts);
@@ -63,14 +124,10 @@ namespace fly {
         /// Get the current target info.
         TargetInfo &getTargetInfo() const;
 
-        CodeGenModule *CreateModule(llvm::StringRef Name);
-
         llvm::LLVMContext &getLLVMCtx();
 
-        static const std::string toIdentifier(llvm::StringRef Name, llvm::StringRef NameSpace, llvm::StringRef ClassName = "");
-
-        CodeGenHeader *CreateHeader(std::string FileName);
-    };
+        llvm::SmallVector<llvm::Module *, 8> GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules);
+};
 }
 
 #endif //FLY_CODEGEN_H

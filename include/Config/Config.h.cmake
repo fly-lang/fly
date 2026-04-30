@@ -11,7 +11,9 @@
 
 const std::string FLY_SOURCE_DIR = "${FLY_SOURCE_DIR}";
 const std::string FLY_LLVM_BINARY_DIR = "${FLY_LLVM_BINARY_DIR}";
-const std::string GCC_LIB_PATH = "${GCC_LIB_PATH}";
+const std::string FLY_LLVM_DIR = "${FLY_LLVM_DIR}";
+const std::string FLY_RUNTIME_LIB_DIR = "${FLY_RUNTIME_LIB_DIR}";
+#define FLY_LLVM_VERSION_MAJOR ${FLY_LLVM_VERSION_MAJOR}
 
 
 #endif

@@ -1,7 +1,0 @@
-namespace utils
-
-int b = 10
-
-int getB() {
-    return b
-}

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/Debuggable.h - AST Base Class
+// include/AST/ASTBase.h - AST Base
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,105 +7,78 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTBASE_H
-#define FLY_ASTBASE_H
+#ifndef FLY_AST_BASE_H
+#define FLY_AST_BASE_H
 
 #include "Basic/SourceLocation.h"
-#include "llvm/ADT/Twine.h"
-#include "llvm/ADT/StringRef.h"
-
-#include <vector>
-#include <string>
+#include <Basic/Logger.h>
 
 namespace fly {
 
-    class ASTBase {
+    class SourceLocation;
 
-        friend class SemaBuilder;
-
-        const SourceLocation Location;
-
-        llvm::StringRef Comment;
-
-    public:
-
-        ASTBase(const SourceLocation &Loc);
-
-        const SourceLocation &getLocation() const;
-
-        llvm::StringRef getComment() const;
-
-        virtual std::string str() const;
+    enum class ASTKind
+    {
+        AST_MODULE,
+        AST_NAMESPACE,
+        AST_IMPORT,
+        AST_NAME,
+        AST_VAR,
+        AST_ARG,
+        AST_STMT,
+        AST_TYPE,
+        AST_EXPR,
+        AST_COMMENT,
+        AST_FUNCTION,
+        AST_MODIFIER,
+        AST_CLASS,
+        AST_METHOD,
+        AST_ENUM,
+        AST_VALUE
     };
 
-    class Logger {
+    class ASTBase
+    {
+        SourceLocation Loc;
 
-        std::string Str;
-        bool isEmpty = true;
-        bool isClass = false;
+        ASTKind Kind;
+
+    protected:
+        ASTBase(const SourceLocation& Loc, ASTKind Kind);
 
     public:
+        virtual ~ASTBase() = default;
 
-        static const char * OPEN;
-        static const char * SEP;
-        static const char * EQ;
-        static const char * CLOSE;
-        static const char * OPEN_LIST;
-        static const char * CLOSE_LIST;
+        virtual const SourceLocation& getLocation() const;
 
-        Logger();
+        virtual ASTKind getKind() const;
 
-        Logger(const std::string str);
+        virtual void setKind(ASTKind Kind);
 
-        std::string End();
-
-        Logger &Super(const std::string val);
-
-        Logger &Attr(const char *key, const std::string val);
-
-        Logger &Attr(const char *key, const llvm::StringRef val);
-
-        Logger &Attr(const char *key, const SourceLocation &val);
-
-        Logger &Attr(const char *key, bool val);
-
-        Logger &Attr(const char *key, uint64_t val);
-
-        Logger &Attr(const char *key, ASTBase *val);
+        virtual std::string str() const;
 
         template <typename T>
-        Logger &AttrList(const char *key, std::vector<T *> Vect) {
-            std::string Entry = OPEN_LIST;
-            if(!Vect.empty()) {
-                for (ASTBase *V : Vect) {
-                    Entry += V->str() + SEP;
-                }
-                unsigned long end = Entry.length()-std::string(SEP).length()-1;
-                Entry = Entry.substr(0, end);
-            }
-            Entry += CLOSE_LIST;
-            Attr(key, Entry);
-            isEmpty = false;
-            return *this;
-        }
+        static std::string str(const llvm::SmallVector<T*, 8>& Vect)
+        {
+            std::string S;
+            S.reserve(128);
+            S += Logger::OPEN_LIST;
 
-        template <typename T>
-        Logger &AttrList(const char *key, llvm::SmallVector<T *, 4> Vect) {
-            std::string Entry = OPEN_LIST;
-            if(!Vect.empty()) {
-                for (ASTBase *V : Vect) {
-                    Entry += V->str() + SEP;
+            if (!Vect.empty())
+            {
+                for (auto* V : Vect)
+                {
+                    S += (V ? V->str() : "null");
+                    S += Logger::SEP;
                 }
-                unsigned long end = Entry.length()-std::string(SEP).length()-1;
-                Entry = Entry.substr(0, end);
+                // Remove the last separator
+                S.resize(S.size() - std::string(Logger::SEP).size());
             }
-            Entry += CLOSE_LIST;
-            Attr(key, Entry);
-            isEmpty = false;
-            return *this;
-        }
 
+            S += Logger::CLOSE_LIST;
+            return S;
+        }
     };
 }
 
-#endif //FLY_ASTBASE_H
+#endif //FLY_AST_BASE_H

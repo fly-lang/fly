@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTEnumVar.h - The Attribute in a Class
+// include/AST/ASTEnumEntry.h - AST Enum Entry header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,46 +7,54 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+#ifndef FLY_AST_ENUMENTRY_H
+#define FLY_AST_ENUMENTRY_H
 
-#ifndef FLY_ASTENUMENTRY_H
-#define FLY_ASTENUMENTRY_H
-
-#include "AST/ASTVar.h"
-#include "CodeGen/CodeGenEnumEntry.h"
+#include "ASTExpr.h"
 
 namespace fly {
 
+    class SourceLocation;
     class ASTEnum;
+    class Symbol;
 
-    class ASTEnumEntry : public ASTVar {
+    /**
+     * Represents a constant enum entry (e.g., Color.RED)
+     */
+    class ASTEnumEntry : public ASTExpr {
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class ASTBuilder;
 
         ASTEnum *Enum;
 
+        llvm::StringRef Name;
+
         uint32_t Index = 0;
 
-        llvm::StringRef Comment;
+        Symbol *Sym = nullptr;
 
-        CodeGenEnumEntry *CodeGen = nullptr;
+    protected:
 
-        ASTEnumEntry(ASTEnum *Enum, const SourceLocation &Loc, llvm::StringRef Name);
+        ASTEnumEntry(const SourceLocation &Loc, ASTEnum *Enum, llvm::StringRef Name);
 
     public:
 
+        void accept(ASTVisitor& Visitor) override;
+
         ASTEnum *getEnum() const;
+
+        llvm::StringRef getName() const;
 
         uint32_t getIndex() const;
 
-        CodeGenEnumEntry *getCodeGen() const;
+        void setIndex(uint32_t Index);
 
-        void setCodeGen(CodeGenEnumEntry *CGE);
+        Symbol *getSymbol() const;
 
-        std::string print() const;
+        void setSymbol(Symbol *Sym);
 
-        std::string str() const;
+        std::string str() const override;
     };
 }
 
-#endif //FLY_ASTCLASSVAR_H
+#endif //FLY_AST_ENUMENTRY_H

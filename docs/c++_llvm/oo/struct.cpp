@@ -1,16 +1,17 @@
-struct Test {
-    int a = 1;
+struct Base {
+	int c;
+	int d;
+};
+
+struct Test : Base {
+    int a;
     int b;
 };
 
-Test getTest() {
-    Test t;
-    return t;
-}
-
 int main() {
     Test *t = new Test();
-    int a = t->a;
+    t->a = 1;
     t->b = 2;
-    return getTest().a;
+    delete t;
+    return 1;
 }

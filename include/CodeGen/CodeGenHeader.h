@@ -7,52 +7,38 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_CODEGENHEADER_H
-#define FLY_CODEGENHEADER_H
+#ifndef FLY_CODEGEN_HEADER_H
+#define FLY_CODEGEN_HEADER_H
 
 #include <vector>
 #include <string>
+#include <AST/ASTType.h>
 
 namespace fly {
-
     class DiagnosticsEngine;
-    class ASTNameSpace;
-    class ASTGlobalVar;
+    class SemaNameSpace;
     class ASTFunction;
     class ASTClass;
-    class ASTType;
+    class ASTModule;
     class CodeGenOptions;
+    class ASTVar;
 
-    class CodeGenHeader {
-
-        DiagnosticsEngine &Diags;
-
-        CodeGenOptions &CodeGenOpts;
-
-        std::string Name;
-
-        ASTNameSpace *NameSpace = nullptr;
-
-        std::vector<ASTGlobalVar *> GlobalVars;
-
-        std::vector<ASTFunction *> Functions;
-
-        ASTClass *Class;
-
+    class CodeGenHeader
+    {
     public:
-        CodeGenHeader(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, std::string Name);
+        static void CreateFile(DiagnosticsEngine& Diags, CodeGenOptions& CodeGenOpts, SemaNameSpace& NameSpace);
 
-        std::string GenerateFile();
+        std::string SaveFile();
 
-        void AddGlobalVar(ASTGlobalVar *GlobalVar);
+        void AddGlobalVar(ASTVar* GlobalVar);
 
-        void AddFunction(ASTFunction *Func);
+        void AddFunction(ASTFunction* Func);
 
-        void setClass(ASTClass *Class);
+        void setClass(ASTClass* Class);
 
-        const std::string Convert(ASTType *Type);
+        const std::string Convert(ASTType* TypeRef);
 
-        void AddNameSpace(ASTNameSpace *pSpace);
+        void AddNameSpace(SemaNameSpace* pSpace);
     };
 }
 

@@ -1,5 +1,5 @@
-//===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTLocalVar.h - AST Local Variable statement
+//===--------------------------------------------------------------------------------------------------------------===//
+// include/AST/ASTLocalVar.h - AST Var header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,44 +7,35 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTLOCALVAR_H
-#define FLY_ASTLOCALVAR_H
+#ifndef FLY_AST_LOCALVAR_H
+#define FLY_AST_LOCALVAR_H
 
 #include "ASTVar.h"
-#include "CodeGen/CodeGenVar.h"
 
 namespace fly {
 
-    class ASTScopes;
+    class SourceLocation;
+    class ASTModifier;
+    class ASTType;
+    class ASTExpr;
+    class Symbol;
 
-    /**
-     * Local Var Declaration
-     * Ex.
-     *  int a = 1
-     */
     class ASTLocalVar : public ASTVar {
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
-
-        CodeGenVarBase *CodeGen = nullptr;
+        friend class ASTBuilder;
 
     protected:
-
-        ASTLocalVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
-
-        ASTLocalVar(const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
+        ASTLocalVar(const SourceLocation& Loc, ASTType* Type, llvm::StringRef Name, SmallVector<ASTModifier*, 8>& Modifiers);
 
     public:
 
-        CodeGenVarBase *getCodeGen() const override;
+        void accept(ASTVisitor& Visitor) override;
 
-        void setCodeGen(CodeGenVarBase *CG);
+        Symbol* getSymbol() const override;
 
-        std::string print() const override;
+        void setSymbol(Symbol* Sym);
 
-        std::string str() const;
     };
 }
 
-#endif //FLY_ASTLOCALVAR_H
+#endif //FLY_AST_LOCALVAR_H

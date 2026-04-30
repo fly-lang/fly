@@ -10,36 +10,40 @@
 #ifndef FLY_CODEGEN_ENUM_H
 #define FLY_CODEGEN_ENUM_H
 
+#include "CodeGenType.h"
 #include "llvm/ADT/StringMap.h"
 
 namespace llvm {
-    class Value;
     class Type;
 }
 
 namespace fly {
 
     class CodeGenModule;
-    class ASTEnum;
+    class SemaEnumType;
     class CodeGenEnumEntry;
 
-    class CodeGenEnum {
+    /**
+     * CodeGenEnum - Code generator for enum types.
+     *
+     * Enums are represented as i32 integers in LLVM IR.
+     * Each enum entry is a constant integer value based on its index.
+     */
+    class CodeGenEnum : public CodeGenType {
 
-        CodeGenModule * CGM = nullptr;
+        SemaEnumType *Sema = nullptr;
 
-        llvm::Type *Type = nullptr;
-
-        ASTEnum *AST = nullptr;
-
-        llvm::StringMap<CodeGenEnumEntry *> Vars;
+        llvm::StringMap<CodeGenEnumEntry *> Entries;
 
     public:
-        CodeGenEnum(CodeGenModule *CGM, ASTEnum *Enum, bool isExternal = false);
+        CodeGenEnum(CodeGenModule *CGM, SemaEnumType *Sema, bool isExternal = false);
 
-        void Generate();
+        SemaEnumType *getSema() const;
 
-        llvm::Type *getType() const;
+        const llvm::StringMap<CodeGenEnumEntry *> &getEntries() const;
     };
+
 }
 
 #endif //FLY_CODEGEN_ENUM_H
+

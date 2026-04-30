@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTFunction.h - Function declaration
+// include/AST/ASTFunction.h - AST Function Base header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,63 +7,71 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_FUNCTION_H
-#define FLY_FUNCTION_H
+#ifndef FLY_AST_FUNCTION_H
+#define FLY_AST_FUNCTION_H
 
-#include "ASTTopDef.h"
-#include "ASTFunctionBase.h"
-#include "CodeGen/CodeGenFunction.h"
-
-#include <vector>
+#include "ASTNode.h"
 
 namespace fly {
 
-    class ASTNode;
-    class ASTParams;
+    class ASTModifier;
+    class ASTParam;
+    class ASTComment;
+    class ASTBlockStmt;
     class ASTType;
-    class ASTBlock;
-    class ASTScopes;
-    class CodeGenFunction;
 
-    /**
-     * The Function Declaration and definition
-     * Ex.
-     *   int func() {
-     *     return 1
-     *   }
-     */
-    class ASTFunction : public ASTFunctionBase, public virtual ASTTopDef {
+    enum class ASTFunctionKind {
+        F_FUNCTION,
+        F_METHOD,
+    };
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
-        friend class FunctionParser;
+    class ASTFunction : public ASTNode {
 
-        ASTTopDefKind TopDefKind = ASTTopDefKind::DEF_FUNCTION;
+        friend class ASTBuilder;
 
-        ASTNode *Node;
+        ASTFunctionKind FunctionKind;
 
-        // Populated during codegen phase
-        CodeGenFunction *CodeGen = nullptr;
+        llvm::StringRef Name;
 
-        ASTFunction(const SourceLocation &Loc, ASTNode *Node, ASTType *ReturnType, llvm::StringRef Name,
-                    ASTScopes *Scopes);
+        llvm::SmallVector<ASTModifier *, 8> Modifiers;
+
+        llvm::SmallVector<ASTParam *, 8> Params;
+
+        // Explicit return type (only set from .fly.h header declarations; null = void)
+        ASTType *ReturnType = nullptr;
+
+        // Body is the main BlockStmt
+        ASTBlockStmt *Body = nullptr;
+
+    protected:
+
+        ASTFunction(const SourceLocation &Loc, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
+            llvm::StringRef Name, llvm::SmallVector<ASTParam *, 8> &Params,
+            ASTFunctionKind FunctionKind = ASTFunctionKind::F_FUNCTION);
 
     public:
 
-        ASTTopDefKind getTopDefKind() const override;
+        ~ASTFunction() override;
 
-        ASTNode *getNode() const override;
+        void accept(ASTVisitor& Visitor) override;
 
-        ASTNameSpace *getNameSpace() const override;
+        llvm::StringRef getName() const;
 
-        llvm::StringRef getName() const override;
 
-        CodeGenFunction *getCodeGen() const override;
+        llvm::SmallVector<ASTModifier *, 8> getModifiers() const;
 
-        void setCodeGen(CodeGenFunction *CGF);
+        llvm::SmallVector<ASTParam *, 8> getParams() const;
+
+        ASTType *getReturnType() const;
+
+        void setReturnType(ASTType *RT);
+
+        ASTBlockStmt *getBody() const;
+
+        bool isVarArg();
 
         std::string str() const override;
     };
 }
 
-#endif //FLY_FUNCTION_H
+#endif //FLY_AST_FUNCTION_H

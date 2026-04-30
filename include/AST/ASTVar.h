@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTVar.h - Var declaration
+// include/AST/ASTVar.h - AST Var header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,75 +7,55 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+#ifndef FLY_AST_VAR_H
+#define FLY_AST_VAR_H
 
-#ifndef FLY_ASTVAR_H
-#define FLY_ASTVAR_H
-
-#include "ASTBase.h"
-
-#include <string>
+#include "ASTNode.h"
 
 namespace fly {
 
     class SourceLocation;
-    class CodeGenVarBase;
+    class ASTModifier;
     class ASTType;
-    class ASTScopes;
-    class ASTVarStmt;
+	class ASTExpr;
+    class Symbol;
 
-    enum class ASTVarKind {
-        VAR_PARAM,
-        VAR_LOCAL,
-        VAR_GLOBAL,
-        VAR_CLASS,
-        VAR_ENUM
-    };
+    class ASTVar : public ASTNode {
 
-    /**
-     * Base Var used in:
-     *  - LocalVar
-     *  - GlobalVar
-     */
-    class ASTVar : public ASTBase {
+        friend class ASTBuilder;
 
-        ASTVarKind VarKind;
+        Symbol* Sym = nullptr;
 
-        ASTType *Type;
+
+        ASTType* Type;
 
         llvm::StringRef Name;
 
-        ASTScopes *Scopes;
+        SmallVector<ASTModifier*, 8> Modifiers;
 
-        ASTVarStmt *Initialization = nullptr;
+        ASTExpr* Expr = nullptr;
 
     protected:
-
-        ASTVar(ASTVarKind VarKind, const SourceLocation &Loc, ASTType *Type, llvm::StringRef Name, ASTScopes *Scopes);
+        ASTVar(const SourceLocation& Loc, ASTType* Type, llvm::StringRef Name, SmallVector<ASTModifier*, 8>& Modifiers);
 
     public:
 
-        ASTVarKind getVarKind();
-
-        ASTType *getType() const;
+        ASTType* getType() const;
 
         llvm::StringRef getName() const;
 
-        bool isConstant() const;
+        const SmallVector<ASTModifier*, 8>& getModifiers() const;
 
-        bool isInitialized();
+        ASTExpr* getExpr() const;
 
-        ASTVarStmt *getInitialization();
+        void setExpr(ASTExpr* Expr);
 
-        void setInitialization(ASTVarStmt *VarDefine);
+        virtual Symbol *getSymbol() const;
 
-        ASTScopes *getScopes() const;
+        virtual void setSymbol(Symbol *Sym);
 
-        virtual CodeGenVarBase *getCodeGen() const = 0;
-
-        virtual std::string print() const = 0;
-
-        std::string str() const;
+        std::string str() const override;
     };
 }
 
-#endif //FLY_ASTVAR_H
+#endif //FLY_AST_VAR_H

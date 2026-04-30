@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTStmt.h - AST Statement
+// include/AST/ASTStmt.h - AST Statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,60 +7,62 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
+#ifndef FLY_AST_STMT_H
+#define FLY_AST_STMT_H
 
-#ifndef FLY_ASTSTMT_H
-#define FLY_ASTSTMT_H
+#include "ASTNode.h"
 
-#include "ASTBase.h"
 
 namespace fly {
 
     enum class ASTStmtKind {
         STMT_BLOCK,
+        STMT_DECL,
         STMT_EXPR,
-        STMT_VAR,
         STMT_FAIL,
         STMT_HANDLE,
         STMT_BREAK,
         STMT_CONTINUE,
         STMT_DELETE,
-        STMT_RETURN
+        STMT_RETURN,
+        STMT_RULE,
+        STMT_IF,
+        STMT_SWITCH,
+        STMT_LOOP,
+        STMT_LOOP_IN
     };
 
     class ASTExpr;
-    class ASTBlock;
-    class ASTFunctionBase;
+    class ASTBlockStmt;
+    class ASTVar;
+    class ASTFunction;
 
-    class ASTStmt : public ASTBase {
+    class ASTStmt : public ASTNode {
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class ASTBuilder;
 
     protected:
 
+        ASTStmtKind StmtKind;
+
         ASTStmt *Parent = nullptr;
 
-        ASTFunctionBase *Top = nullptr;
-
-        ASTStmtKind Kind;
-
-        bool HandleError = false;
-
-        ASTStmt(ASTStmt *Parent, const SourceLocation &Loc, ASTStmtKind Kind);
+        ASTStmt(const SourceLocation &Loc, ASTStmtKind Kind);
 
     public:
 
         virtual ASTStmt *getParent() const;
 
-        ASTStmtKind getKind() const;
+        ASTFunction *getFunction() const;
 
-        void setHandleError(bool HandleError);
+        // Setters for parent/function (used by ASTBlockStmt when adding content)
+        void setParent(ASTStmt *P);
 
-        bool isHandlerError();
+        ASTStmtKind getStmtKind() const;
 
-        virtual std::string str() const;
+        std::string str() const override;
     };
 }
 
 
-#endif //FLY_ASTSTMT_H
+#endif //FLY_AST_STMT_H

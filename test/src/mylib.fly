@@ -1,5 +1,0 @@
-namespace mylib
-
-public int myfunc() {
-    return 1
-}

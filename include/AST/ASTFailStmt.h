@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTVarAssignStmt.h - AST Variable Assign statement
+// include/AST/ASTFailStmt.h - AST Fail Statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,31 +7,47 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_ASTFAILSTMT_H
-#define FLY_ASTFAILSTMT_H
+#ifndef FLY_AST_FAILSTMT_H
+#define FLY_AST_FAILSTMT_H
 
 #include "ASTStmt.h"
 
 namespace fly {
 
-    class ASTVarRef;
+    class ASTHandleStmt;
+	class ASTValue;
 
     class ASTFailStmt : public ASTStmt {
 
-        friend class SemaBuilder;
+        friend class ASTBuilder;
+        friend class ASTBuilderStmt;
 
-        ASTExpr *Expr = nullptr;
+        ASTExpr *FirstExpr = nullptr;
 
-        ASTFailStmt(ASTStmt *Parent, const SourceLocation &Loc);
+    	ASTExpr *SecondExpr = nullptr;
+
+    	ASTExpr *ThirdExpr = nullptr;
+
+        ASTFailStmt(const SourceLocation &Loc);
 
     public:
 
-        ASTExpr *getExpr() const;
+        void accept(ASTVisitor& Visitor) override;
 
-        void setExpr(ASTExpr *);
+        ASTExpr *getFirstExpr() const;
+
+        void setFirstExpr(ASTExpr *);
+
+    	ASTExpr *getSecondExpr() const;
+
+    	void setSecondExpr(ASTExpr *);
+
+    	ASTExpr *getThirdExpr() const;
+
+    	void setThirdExpr(ASTExpr *);
 
         std::string str() const override;
     };
 }
 
-#endif //FLY_ASTFAILSTMT_H
+#endif //FLY_AST_FAILSTMT_H

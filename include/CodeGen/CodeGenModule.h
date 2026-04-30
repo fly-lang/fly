@@ -11,64 +11,103 @@
 ///
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_CODEGENMODULE_H
-#define FLY_CODEGENMODULE_H
+#ifndef FLY_CODEGEN_MODULE_H
+#define FLY_CODEGEN_MODULE_H
 
-#include "CharUnits.h"
-#include "CodeGenTypeCache.h"
-#include "CodeGenHeader.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/TargetInfo.h"
-#include <llvm/IR/Module.h>
-#include <llvm/IR/LLVMContext.h>
+#include "Sema/SemaVisitor.h"
+#include <Sema/SemaType.h>
 #include <llvm/IR/IRBuilder.h>
-#include <AST/ASTBlock.h>
-#include <AST/ASTIfBlock.h>
 
-using namespace llvm;
+namespace llvm {
+    class LLVMContext;
+    class Module;
+    class Type;
+    class Value;
+    class PointerType;
+    class StructType;
+    class IntegerType;
+    class Constant;
+    class BasicBlock;
+    class Value;
+};
 
 namespace fly {
 
-    class ASTContext;
-    class ASTNode;
-    class ASTImport;
-    class ASTGlobalVar;
-    class ASTFunction;
-    class ASTCall;
-    class ASTType;
-    class ASTArrayType;
-    class ASTValue;
-    class ASTStmt;
-    class ASTExpr;
-    class ASTGroupExpr;
-    class ASTIfBlock;
-    class ASTSwitchBlock;
-    class ASTForBlock;
-    class ASTWhileBlock;
+    class SymbolTable;
+    class CodeGen;
     class CodeGenGlobalVar;
     class CodeGenFunction;
     class CodeGenFunctionBase;
     class CodeGenClass;
-    class CodeGenVarBase;
-    class CodeGenEnum;
-    class ASTClass;
-    class ASTVar;
-    class ASTEnum;
-    class ASTIdentifier;
+    class CodeGenVar;
+    class CodeGenBase;
+    class CodeGenError;
+    class SemaModule;
+    class SemaFunction;
+    class SemaClassType;
+    class SemaEnumType;
+    class SemaFunctionBase;
+    class SemaVar;
+    class SemaCall;
+    class SemaExpr;
+    class SemaNameSpace;
+    class SemaClassMethod;
+    class SemaClassAttribute;
+    class SemaImport;
+    class SemaType;
+    class SemaIntType;
+    class SemaFloatType;
+    class SemaArrayType;
+    class SemaErrorType;
+    class SemaLocalVar;
+    class SemaParam;
+    class SemaAlloc;
+    class SemaMember;
+    class SemaClassInstance;
+    class SemaError;
+    class SemaUnary;
+    class SemaBinary;
+    class SemaTernary;
+    class SemaCast;
+    class SemaBoolValue;
+    class SemaIntValue;
+    class SemaFloatValue;
+    class SemaStringValue;
+    class SemaArrayValue;
+    class SemaStructValue;
+    class SemaNullValue;
+    class SemaEnumEntry;
+    class SemaStmt;
+    class SemaBlockStmt;
+    class SemaDeclStmt;
+    class SemaExprStmt;
+    class SemaReturnStmt;
+    class SemaIfStmt;
+    class SemaSwitchStmt;
+    class SemaLoopStmt;
+    class SemaLoopInStmt;
+    class SemaDeleteStmt;
+    class SemaBreakStmt;
+    class SemaContinueStmt;
+    class SemaFailStmt;
+    class SemaHandleStmt;
 
-    class CodeGenModule : public CodeGenTypeCache {
+    class CodeGenModule : public SemaVisitor {
 
-        friend class CodeGenGlobalVar;
+        friend class CodeGen;
         friend class CodeGenFunction;
         friend class CodeGenFunctionBase;
         friend class CodeGenClass;
-        friend class CodeGenClassVar;
-        friend class CodeGenClassFunction;
-        friend class CodeGenVarBase;
-        friend class CodeGenInstance;
-        friend class CodeGenVar;
-        friend class CodeGenExpr;
-        friend class CodeGenFail;
+        friend class CodeGenClassMethod;
+        friend class CodeGenHandle;
+    	friend class CodeGenVar;
+    	friend class CodeGenError;
+    	friend class CodeGenExpr;
+
+        // Reference to CodeGen (contains all LLVM types)
+        CodeGen &CG;
 
         // Diagnostics
         DiagnosticsEngine &Diags;
@@ -85,71 +124,126 @@ namespace fly {
         // LLVM Builder
         llvm::IRBuilder<> *Builder;
 
-        llvm::StructType *ErrorType;
+    	llvm::Module *Module;
 
         // CGDebugInfo *DebugInfo; // TODO
 
     public:
-        // LLVM Module
-        std::unique_ptr<llvm::Module> Module;
 
-        CodeGenModule(DiagnosticsEngine &Diags, llvm::StringRef Name, LLVMContext &LLVMCtx, TargetInfo &Target,
-                      CodeGenOptions &CGOpts);
+    	llvm::SmallVector<SemaFunctionBase *, 8> Functions;
+
+        // Stack for tracking break/continue targets in loops and switches
+        llvm::SmallVector<llvm::BasicBlock *, 8> BreakTargetStack;
+        llvm::SmallVector<llvm::BasicBlock *, 8> ContinueTargetStack;
+
+        // Stack of SemaBlockStmt pointers; one entry pushed per SemaBlockStmt visit.
+        // Each block owns its SemaAlloc list; cleanup iterates the top N frames.
+        llvm::SmallVector<SemaBlockStmt *, 8> AllocCleanupStack;
+        // Depth of AllocCleanupStack at each loop entry (for break/continue cleanup)
+        llvm::SmallVector<size_t, 8> BreakCleanupDepth;
+        llvm::SmallVector<size_t, 8> ContinueCleanupDepth;
+
+        SemaFunctionBase *CurrentFunction = nullptr;
+
+    	CodeGenError *CurrentErrorHandler = nullptr;
+
+    	llvm::BasicBlock *CurrentHandleBB = nullptr;
+
+    	llvm::BasicBlock *CurrentSafeBB = nullptr;
+
+        CodeGenModule(CodeGen &CG, DiagnosticsEngine &Diags, StringRef Name, llvm::LLVMContext &LLVMCtx,
+                      TargetInfo &Target, CodeGenOptions &CGOpts);
 
         virtual ~CodeGenModule();
 
-        DiagnosticBuilder Diag(const SourceLocation &Loc, unsigned DiagID);
+        DiagnosticBuilder Diag(unsigned DiagID);
+
+        // Emit cleanup for all scope-managed allocations in the top `frames` frames.
+        // Handles both smart pointers (free / shared_release) and heap-owned strings (free).
+        void EmitAllocCleanup(size_t frames);
+
+        // Emit inline retain/release for shared pointer reference counting
+        void EmitSharedRetain(llvm::Value *DataPtr);
+        void EmitSharedRelease(llvm::Value *DataPtr);
 
         llvm::Module *getModule() const;
 
-        llvm::Module *ReleaseModule();
+    	TargetInfo &getTarget();
 
-        CodeGenGlobalVar *GenGlobalVar(ASTGlobalVar *GlobalVar, bool isExternal = false);
+    	llvm::LLVMContext &getLLVMCtx() const;
 
-        CodeGenFunction *GenFunction(ASTFunction *Function, bool isExternal = false);
+    	llvm::IRBuilder<> *getBuilder() const;
 
-        CodeGenClass *GenClass(ASTClass *Class, bool isExternal = false);
+        // SemaVisitor interface implementation
+        void visit(SemaModule &Sema) override;
+        void visit(SemaNameSpace &Sema) override;
+        void visit(SemaImport &Sema) override;
 
-        CodeGenEnum *GenEnum(ASTEnum *Enum, bool isExternal = false);
+        // Types
+        void visit(SemaBoolType &Sema) override;
+        void visit(SemaIntType &Sema) override;
+        void visit(SemaFloatType &Sema) override;
+        void visit(SemaArrayType &Sema) override;
+        void visit(SemaErrorType &Sema) override;
+    	void visit(SemaVoidType &Sema) override;
+    	void visit(SemaStringType &Sema) override;
+    	void visit(SemaEnumType &Sema) override;
+    	void visit(SemaClassType &Sema) override;
 
-        llvm::Type *GenType(const ASTType *Type);
+        // Functions
+        void visit(SemaClassMethod &Sema) override;
+    	void visit(SemaFunction &Sema) override;
 
-        llvm::ArrayType *GenArrayType(const ASTArrayType *Type);
+        // Variables
+    	void visit(SemaClassAttribute &Sema) override;
+        void visit(SemaLocalVar &Sema) override;
+        void visit(SemaParam &Sema) override;
+        void visit(SemaClassInstance &Sema) override;
+        void visit(SemaError &Sema) override;
 
-        llvm::Constant *GenDefaultValue(const ASTType *Type, llvm::Type *Ty = nullptr);
+        // Expressions
+    	void visit(SemaMember &Sema) override;
+        void visit(SemaCall &Sema) override;
+        void visit(SemaUnary &Sema) override;
+        void visit(SemaBinary &Sema) override;
+        void visit(SemaTernary &Sema) override;
+        void visit(SemaCast &Sema) override;
 
-        llvm::Constant *GenValue(const ASTType *Type, const ASTValue *Val);
+        // Values
+        void visit(SemaBoolValue &Sema) override;
+        void visit(SemaIntValue &Sema) override;
+        void visit(SemaFloatValue &Sema) override;
+        void visit(SemaStringValue &Sema) override;
+        void visit(SemaArrayValue &Sema) override;
+        void visit(SemaStructValue &Sema) override;
+        void visit(SemaNullValue &Sema) override;
+        void visit(SemaUnsetValue &Sema) override;
+        void visit(SemaEnumEntry &Sema) override;
+        void visit(SemaEnumList &Sema) override;
 
-        void GenStmt(CodeGenFunctionBase *CGF, ASTStmt * Stmt);
+        // Statements
+        void visit(SemaBlockStmt &Sema) override;
+        void visit(SemaDeclStmt &Sema) override;
+        void visit(SemaExprStmt &Sema) override;
+        void visit(SemaReturnStmt &Sema) override;
+        void visit(SemaIfStmt &Sema) override;
+        void visit(SemaSwitchStmt &Sema) override;
+        void visit(SemaLoopStmt &Sema) override;
+        void visit(SemaLoopInStmt &Sema) override;
+        void visit(SemaDeleteStmt &Sema) override;
+        void visit(SemaBreakStmt &Sema) override;
+        void visit(SemaContinueStmt &Sema) override;
+        void visit(SemaFailStmt &Sema) override;
+        void visit(SemaHandleStmt &Sema) override;
 
-        CodeGenVarBase *GenVar(ASTVar* Var);
+    private:
 
-        llvm::Value *GenVarRef(ASTVarRef *VarRef);
+    	void StoreFail(SemaExpr *Expr, CodeGenError * CGE);
 
-        llvm::Value *GenCall(CodeGenFunctionBase *CGF, ASTCall *Call);
 
-        llvm::Value *GenExpr(CodeGenFunctionBase *CGF, ASTExpr *Expr);
+    	std::string toIdentifier(llvm::StringRef Name, SemaNameSpace *NameSpace);
 
-        llvm::Value *GenExpr(CodeGenFunctionBase *CGF, const ASTType *Type, ASTExpr *Expr);
-
-        void GenBlock(CodeGenFunctionBase *CGF, const std::vector<ASTStmt *> &Content, llvm::BasicBlock *BB = nullptr);
-
-        void GenIfBlock(CodeGenFunctionBase *CGF, ASTIfBlock *If);
-
-        llvm::BasicBlock *GenElsifBlock(CodeGenFunctionBase *CGF,
-                                        llvm::BasicBlock *ElsifBB,
-                                        std::vector<ASTElsifBlock *>::iterator &It);
-
-        void GenSwitchBlock(CodeGenFunctionBase *CGF, ASTSwitchBlock *Switch);
-
-        void GenForBlock(CodeGenFunctionBase *CGF, ASTForBlock *For);
-
-        void GenWhileBlock(CodeGenFunctionBase *CGF, ASTWhileBlock *While);
-
-        void pushArgs(CodeGenFunctionBase *CGF, ASTCall *pCall, llvm::SmallVector<llvm::Value *, 8> &Args);
-
-        void GenReturn(ASTFunctionBase *CGF, llvm::Value *V = nullptr);
     };
 }
 
-#endif //FLY_CODEGENMODULE_H
+#endif //FLY_CODEGEN_MODULE_H

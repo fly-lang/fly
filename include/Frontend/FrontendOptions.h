@@ -22,21 +22,21 @@ namespace fly {
 
         std::string Output;
 
-        bool OutputLib;
+        bool OutputLib = false;
 
     public:
 
         /// Generate Library
-        bool CreateLibrary;
+        bool CreateLibrary = false;
 
         /// Generate Header
-        bool CreateHeader;
+        bool CreateHeader = false;
 
         /// Enable Verbose output
-        bool Verbose;
+        bool Verbose = false;
 
         /// The Backend action
-        BackendActionKind BackendAction;
+        BackendActionKind BackendAction = Backend_EmitObj;
 
         /// Show the -version text.
         bool ShowVersion = false;

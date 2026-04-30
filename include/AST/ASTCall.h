@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTCall.h - Call declaration
+// include/AST/ASTCall.h - AST Call header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,92 +7,56 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#ifndef FLY_FUNCTION_CALL_H
-#define FLY_FUNCTION_CALL_H
+#ifndef FLY_AST_CALL_H
+#define FLY_AST_CALL_H
 
 #include "ASTExpr.h"
-#include "AST/ASTIdentifier.h"
-
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/SmallVector.h"
-
-#include <vector>
 
 namespace fly {
 
-    class ASTType;
-    class ASTFunctionBase;
-    class ASTParam;
     class ASTArg;
-    class ASTCallExpr;
-    class ASTVar;
+	class Symbol;
 
     enum class ASTCallKind {
-        CALL_NORMAL,
+        CALL_DIRECT,
         CALL_NEW,
-        CALL_UNIQUE,
-        CALL_SHARED,
-        CALL_WEAK
+        CALL_NEW_UNIQUE,
+        CALL_NEW_SHARED,
+        CALL_NEW_WEAK
     };
 
-    /**
-     * A Reference to a Function in a Declaration
-     * Ex.
-     *  int a = sqrt(4)
-     */
-    class ASTCall : public ASTIdentifier {
+    class ASTCall : public ASTExpr {
 
-        friend class SemaBuilder;
-        friend class SemaResolver;
+        friend class ASTBuilder;
 
-        std::vector<ASTArg *> Args;
+    	Symbol *ResolvedSymbol = nullptr;
 
-        ASTFunctionBase *Def = nullptr;
+        const ASTCallKind CallKind;
 
-        ASTCallKind CallKind = ASTCallKind::CALL_NORMAL;
+        llvm::StringRef Name;
 
-        ASTCall(const SourceLocation &Loc, llvm::StringRef Name);
+        llvm::SmallVector<ASTArg *, 8> Args;
 
-        ASTCall(ASTFunctionBase *Function);
+        ASTCall(const SourceLocation &Loc, llvm::StringRef Name, ASTCallKind CallKind);
 
     public:
 
-        const std::vector<ASTArg *> getArgs() const;
+        void accept(ASTVisitor& Visitor) override;
 
-        ASTFunctionBase *getDef() const;
+        llvm::StringRef getName() const;
+
+        llvm::SmallVector<ASTArg *, 8> getArgs() const;
+
+        Symbol *getSymbol() const;
+
+    	void setSymbol(Symbol *Sym);
 
         ASTCallKind getCallKind() const;
 
-        std::string str() const;
-    };
-
-    class ASTArg : public ASTBase {
-
-        friend class SemaResolver;
-        friend class SemaBuilder;
-
-        ASTExpr *Expr;
-
-        uint64_t Index;
-
-        ASTParam *Def = nullptr;
-
-        ASTCall *Call = nullptr;
-
-        ASTArg(ASTCall *Call, ASTExpr *Expr);
-
-    public:
-
-        ASTExpr *getExpr() const;
-
-        uint64_t getIndex() const;
-
-        ASTParam *getDef() const;
-
-        ASTCall *getCall() const;
-
-        std::string str() const;
-
+        std::string str() const override;
     };
 }
 
-#endif //FLY_FUNCTION_CALL_H
+#endif //FLY_AST_CALL_H
