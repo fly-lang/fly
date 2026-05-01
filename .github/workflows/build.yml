@@ -62,7 +62,8 @@ jobs:
       - name: Read Version
         id: version
         if: github.ref == 'refs/heads/main'
-        run: echo "version=$(${{github.workspace}}/${{env.BUILD_DIR}}/compiler/fly --version-short)" >> $GITHUB_OUTPUT
+        shell: bash
+        run: echo "version=$(cmake -LA -N ${{env.BUILD_DIR}} | grep '^FLY_VERSION:STRING=' | cut -d= -f2)" >> $GITHUB_OUTPUT
 
       - name: Packaging
         if: github.ref == 'refs/heads/main'
@@ -113,8 +114,8 @@ jobs:
       - name: Read Version
         id: version
         if: github.ref == 'refs/heads/main'
-        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\compiler\${{env.BUILD_TYPE}}
-        run: echo "version=$(.\fly.exe --version-short)" >> $env:GITHUB_OUTPUT
+        shell: bash
+        run: echo "version=$(cmake -LA -N ${{env.BUILD_DIR}} | grep '^FLY_VERSION:STRING=' | cut -d= -f2)" >> $GITHUB_OUTPUT
 
       - name: Packaging
         if: github.ref == 'refs/heads/main'
@@ -164,7 +165,8 @@ jobs:
   #     - name: Read Version
   #       id: version
   #       if: github.ref == 'refs/heads/main'
-  #       run: echo "version=$(${{github.workspace}}/${{env.BUILD_DIR}}/compiler/fly --version-short)" >> $GITHUB_OUTPUT
+  #       shell: bash
+  #       run: echo "version=$(cmake -LA -N ${{env.BUILD_DIR}} | grep '^FLY_VERSION:STRING=' | cut -d= -f2)" >> $GITHUB_OUTPUT
   #
   #     - name: Packaging
   #       if: github.ref == 'refs/heads/main'
@@ -212,7 +214,7 @@ jobs:
           tag_name: v${{ needs.build-linux.outputs.version }}
           files: |
             fly-${{ needs.build-linux.outputs.version }}-${{ env.LINUX_FILE }}
-            fly-${{ needs.build-windows.outputs.version }}-${{ env.WIN_FILE }}
+            fly-${{ needs.build-linux.outputs.version }}-${{ env.WIN_FILE }}
             # fly-${{ needs.build-macos.outputs.version }}-${{ env.MACOS_FILE }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
