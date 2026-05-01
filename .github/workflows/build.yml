@@ -156,10 +156,10 @@ jobs:
           name: windows-artifact
           path: .
 
-      - uses: actions/download-artifact@v4
-        with:
-          name: macos-artifact
-          path: .
+#      - uses: actions/download-artifact@v4
+#        with:
+#          name: macos-artifact
+#          path: .
 
       - name: Release
         uses: softprops/action-gh-release@v2
@@ -171,6 +171,6 @@ jobs:
           files: |
             fly-${{ needs.build.outputs.version }}-${{ env.LINUX_FILE }}
             fly-${{ needs.build.outputs.winversion }}-${{ env.WIN_FILE }}
-            fly-${{ needs.build.outputs.version }}-${{ env.MACOS_FILE }}
+#            fly-${{ needs.build.outputs.version }}-${{ env.MACOS_FILE }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
