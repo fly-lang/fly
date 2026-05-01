@@ -71,7 +71,7 @@ jobs:
           ./fly_lib_test
           ./fly_runtime_test
 
-      - name: Backtrace on Crash (Ubuntu)
+      - name: Backtrace on Crash (Linux)
         if: failure() && matrix.os == 'ubuntu-latest'
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
         run: |
@@ -148,15 +148,18 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}}
+          name: linux-artifact
+          path: .
 
       - uses: actions/download-artifact@v4
         with:
-          name: fly-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}}
+          name: windows-artifact
+          path: .
 
       - uses: actions/download-artifact@v4
         with:
-          name: fly-${{ steps.version.outputs.version }}-${{env.MACOS_FILE}}
+          name: macos-artifact
+          path: .
 
       - name: Release
         uses: softprops/action-gh-release@v2
