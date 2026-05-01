@@ -1,43 +1,30 @@
 name: Build
 
-# Controls when the workflow will run
+# Triggers the workflow on every push
 on:
-  # Triggers the workflow on push
   push:
 
 env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  # CMake build type (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
   BUILD_DIR: build
   WIN_FILE: win-x64.zip
   MACOS_FILE: macos-x86_64.tar.gz
   LINUX_FILE: linux-x86_64.tar.gz
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
 
-  # This workflow contains multiple "build" jobs
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ ubuntu-latest, windows-latest ] # removed macos-latest for now not supported
-    runs-on: ${{ matrix.os }}
+  build-linux:
+    runs-on: ubuntu-latest
 
     outputs:
-      winversion: ${{ steps.version-win.outputs.version }}
       version: ${{ steps.version.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Dependencies
         run: sudo apt update && sudo apt-get -y install binutils-dev libdw-dev libdwarf-dev libzstd-dev gdb
-
-      - name: Dependencies (Windows)
-        if: matrix.os == 'windows-latest'
-        run: vcpkg install zstd:x64-windows
 
       - name: Configure
         run: cmake -E make_directory ${{env.BUILD_DIR}}
@@ -47,32 +34,21 @@ jobs:
         if: startsWith(github.ref, 'refs/heads/release/')
         run: echo "BUILD_TYPE=RelWithDebInfo" >> $GITHUB_ENV
 
-      - name: Build (Unix)
-        if: matrix.os != 'windows-latest'
+      - name: Build
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
         run: |
           cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON
           cmake --build . --config ${{env.BUILD_TYPE}}
 
-      - name: Build (Windows)
-        if: matrix.os == 'windows-latest'
-        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}
-        shell: pwsh
-        run: |
-          cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON `
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake"
-          cmake --build . --config ${{env.BUILD_TYPE}}
-
-      - name: Test (Unix)
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+      - name: Test
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
         run: |
           ./fly_test
           ./fly_lib_test
           ./fly_runtime_test
 
-      - name: Backtrace on Crash (Linux)
-        if: failure() && matrix.os == 'ubuntu-latest'
+      - name: Backtrace on Crash
+        if: failure()
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
         run: |
           gdb -batch \
@@ -83,61 +59,126 @@ jobs:
               -ex "quit" \
               --args ./fly_test
 
-      - name: Test (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Read Version
+        id: version
+        if: github.ref == 'refs/heads/main'
+        run: echo "version=$(${{github.workspace}}/${{env.BUILD_DIR}}/compiler/fly --version-short)" >> $GITHUB_OUTPUT
+
+      - name: Packaging
+        if: github.ref == 'refs/heads/main'
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/compiler
+        run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}} fly
+
+      - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          name: linux-artifact
+          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}}
+
+  build-windows:
+    runs-on: windows-latest
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: vcpkg install zstd:x64-windows
+
+      - name: Configure
+        run: cmake -E make_directory ${{env.BUILD_DIR}}
+
+      - name: Set Build Type
+        shell: bash
+        if: startsWith(github.ref, 'refs/heads/release/')
+        run: echo "BUILD_TYPE=RelWithDebInfo" >> $GITHUB_ENV
+
+      - name: Build
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}
+        shell: pwsh
+        run: |
+          cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake"
+          cmake --build . --config ${{env.BUILD_TYPE}}
+
+      - name: Test
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\test\${{env.BUILD_TYPE}}
         run: |
           .\fly_test.exe --gtest_filter='-CmdTest.EmitOut'
           .\fly_lib_test.exe
           .\fly_runtime_test.exe
 
-      - name: Read Version (Unix)
+      - name: Read Version
         id: version
-        if: github.ref == 'refs/heads/main' && (matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest')
-        run: echo "version=$(${{github.workspace}}/${{env.BUILD_DIR}}/compiler/fly --version-short)" >> $GITHUB_OUTPUT
-
-      - name: Read Version (Windows)
-        id: version-win
-        if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
+        if: github.ref == 'refs/heads/main'
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\compiler\${{env.BUILD_TYPE}}
-        run: |
-          echo "version=$(.\fly.exe --version-short)" >> $env:GITHUB_OUTPUT
+        run: echo "version=$(.\fly.exe --version-short)" >> $env:GITHUB_OUTPUT
 
-      - name: Linux Packaging
-        if: github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
-        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/compiler
-        run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}} fly
-
-      - name: Windows Packaging
-        if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
+      - name: Packaging
+        if: github.ref == 'refs/heads/main'
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\compiler\${{env.BUILD_TYPE}}
-        run: 7z a ..\..\fly-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}} fly.exe
-
-      - name: macOS Packaging
-        if: github.ref == 'refs/heads/main' && matrix.os == 'macos-latest'
-        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/compiler
-        run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.MACOS_FILE}} fly
+        run: 7z a ..\..\fly-${{ steps.version.outputs.version }}-${{env.WIN_FILE}} fly.exe
 
       - uses: actions/upload-artifact@v4
-        if: github.ref == 'refs/heads/main' && matrix.os == 'ubuntu-latest'
-        with:
-          name: linux-artifact
-          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}}
-
-      - uses: actions/upload-artifact@v4
-        if: github.ref == 'refs/heads/main' && matrix.os == 'windows-latest'
+        if: github.ref == 'refs/heads/main'
         with:
           name: windows-artifact
-          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version-win.outputs.version }}-${{env.WIN_FILE}}
+          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-${{env.WIN_FILE}}
 
-      - uses: actions/upload-artifact@v4
-        if: github.ref == 'refs/heads/main' && matrix.os == 'macos-latest'
-        with:
-          name: macos-artifact
-          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-${{env.MACOS_FILE}}
+  # macOS build is currently disabled (not yet supported).
+  # To re-enable: uncomment this job, add macos-artifact to the release job's
+  # download steps and files list, and add macos to release needs.
+  #
+  # build-macos:
+  #   runs-on: macos-latest
+  #
+  #   outputs:
+  #     version: ${{ steps.version.outputs.version }}
+  #
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Configure
+  #       run: cmake -E make_directory ${{env.BUILD_DIR}}
+  #
+  #     - name: Set Build Type
+  #       shell: bash
+  #       if: startsWith(github.ref, 'refs/heads/release/')
+  #       run: echo "BUILD_TYPE=RelWithDebInfo" >> $GITHUB_ENV
+  #
+  #     - name: Build
+  #       working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
+  #       run: |
+  #         cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON
+  #         cmake --build . --config ${{env.BUILD_TYPE}}
+  #
+  #     - name: Test
+  #       working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
+  #       run: |
+  #         ./fly_test
+  #         ./fly_lib_test
+  #         ./fly_runtime_test
+  #
+  #     - name: Read Version
+  #       id: version
+  #       if: github.ref == 'refs/heads/main'
+  #       run: echo "version=$(${{github.workspace}}/${{env.BUILD_DIR}}/compiler/fly --version-short)" >> $GITHUB_OUTPUT
+  #
+  #     - name: Packaging
+  #       if: github.ref == 'refs/heads/main'
+  #       working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/compiler
+  #       run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.MACOS_FILE}} fly
+  #
+  #     - uses: actions/upload-artifact@v4
+  #       if: github.ref == 'refs/heads/main'
+  #       with:
+  #         name: macos-artifact
+  #         path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-${{env.MACOS_FILE}}
 
   release:
-    needs: [build]
+    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
@@ -156,21 +197,22 @@ jobs:
           name: windows-artifact
           path: .
 
-#      - uses: actions/download-artifact@v4
-#        with:
-#          name: macos-artifact
-#          path: .
+      # Uncomment when build-macos is re-enabled
+      # - uses: actions/download-artifact@v4
+      #   with:
+      #     name: macos-artifact
+      #     path: .
 
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           draft: false
           prerelease: true
-          name: Fly ${{ needs.build.outputs.version }}
-          tag_name: v${{ needs.build.outputs.version }}
+          name: Fly ${{ needs.build-linux.outputs.version }}
+          tag_name: v${{ needs.build-linux.outputs.version }}
           files: |
-            fly-${{ needs.build.outputs.version }}-${{ env.LINUX_FILE }}
-            fly-${{ needs.build.outputs.winversion }}-${{ env.WIN_FILE }}
-#            fly-${{ needs.build.outputs.version }}-${{ env.MACOS_FILE }}
+            fly-${{ needs.build-linux.outputs.version }}-${{ env.LINUX_FILE }}
+            fly-${{ needs.build-windows.outputs.version }}-${{ env.WIN_FILE }}
+            # fly-${{ needs.build-macos.outputs.version }}-${{ env.MACOS_FILE }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
