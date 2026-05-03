@@ -35,41 +35,123 @@ Fly is written in C++ and it is a fork of Clang.
 
 ### Prerequisites
 In order to build this project you need:
-- [CMake (min version 3.4.3)](https://cmake.org)
-- C++ 14
+- [CMake (min version 3.24.0)](https://cmake.org)
+- C++ 17
+- [LLVM 20.1.8](https://github.com/llvm/llvm-project)
 
 ## Usage
-This is an example of how to configure and build the Fly source.
-1. Checkout Fly:
-    
-    * ``git clone https://github.com/fly-lang/fly.git``
-   
-    * Or, on windows, ``git clone --config core.autocrlf=false``
-2. Linux (Ubuntu 22.04) building packages:
-    
-   * Build dependencies: ``sudo apt install build-essential libxml2-dev zlib1g-dev libtinfo-dev``
-   * Add stacktrace (debug purpose): ``sudo apt install binutils-dev libdw-dev libdwarf-dev``
+
+### Linux
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/fly-lang/fly.git
+   ```
+
+2. Install build dependencies for your distribution:
+
+   **Debian / Ubuntu**
+   ```bash
+   sudo apt install build-essential libxml2-dev zlib1g-dev libtinfo-dev
+   # stacktrace support (debug purpose)
+   sudo apt install binutils-dev libdw-dev libdwarf-dev
+   ```
+
+   **Fedora**
+   ```bash
+   sudo dnf install gcc gcc-c++ make libxml2-devel zlib-devel ncurses-devel
+   # stacktrace support (debug purpose)
+   sudo dnf install binutils-devel elfutils-devel libdwarf-devel
+   ```
+
+   **RHEL / CentOS Stream**
+   ```bash
+   sudo dnf install gcc gcc-c++ make libxml2-devel zlib-devel ncurses-devel
+   # stacktrace support (debug purpose)
+   sudo dnf install binutils-devel elfutils-devel libdwarf-devel
+   ```
+
+   **openSUSE**
+   ```bash
+   sudo zypper install gcc gcc-c++ make libxml2-devel zlib-devel ncurses-devel
+   # stacktrace support (debug purpose)
+   sudo zypper install binutils-devel libdw-devel libdwarf-devel
+   ```
+
+   **Arch Linux**
+   ```bash
+   sudo pacman -S base-devel libxml2 zlib ncurses
+   # stacktrace support (debug purpose)
+   sudo pacman -S libdwarf elfutils
+   ```
 
 3. Configure and build:
-   
-   * ``cd fly``
+   ```bash
+   cd fly
+   mkdir build && cd build
+   cmake ..
+   cmake --build .
+   ```
 
-   * ``mkdir build``
+4. Run tests:
+   ```bash
+   ctest
+   ```
 
-   * ``cd build``
+### macOS
 
-   * ``cmake ..``
-     
-   * ``cmake --build . ``
-   
-4. Launch Fly tests:
-   
-   * ``ctest``
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/fly-lang/fly.git
+   ```
 
-You can build Fly with your installed [LLVM 11](https://github.com/llvm/llvm-project) (fastest method) or automatically 
-compiled from source.
+2. Install Xcode Command Line Tools:
+   ```bash
+   xcode-select --install
+   ```
 
-For more information see [CMake](https://llvm.org/docs/CMake.html)
+3. Install build dependencies via [Homebrew](https://brew.sh):
+   ```bash
+   brew install cmake libxml2 zlib
+   ```
+
+4. Configure and build:
+   ```bash
+   cd fly
+   mkdir build && cd build
+   cmake ..
+   cmake --build .
+   ```
+
+5. Run tests:
+   ```bash
+   ctest
+   ```
+
+### Windows
+
+1. Clone the repository:
+   ```bash
+   git clone --config core.autocrlf=false https://github.com/fly-lang/fly.git
+   ```
+
+2. Install dependencies via vcpkg:
+   ```bash
+   vcpkg install zstd:x64-windows
+   ```
+
+3. Configure and build:
+   ```bash
+   cd fly
+   mkdir build && cd build
+   cmake .. -DCMAKE_TOOLCHAIN_FILE="%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake"
+   cmake --build . --config Release
+   ```
+
+4. Run tests:
+   ```bash
+   ctest -C Release
+   ```
 
 ## Additional Info
 - For how to contribute see `CONTRIBUTING.md`
