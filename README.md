@@ -93,7 +93,7 @@ In order to build this project you need:
    cmake --build .
    ```
 
-4. Run tests:
+4. Run tests (must be run from the build directory):
    ```bash
    ctest
    ```

@@ -99,4 +99,4 @@ target_link_libraries(fly_lib_test PRIVATE
         FlyLib
 )
 
-add_test(NAME fly_lib_test COMMAND lib_test)
+add_test(NAME fly_lib_test COMMAND fly_lib_test)
