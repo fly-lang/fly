@@ -14,6 +14,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/TargetParser/Triple.h"
 #include "gtest/gtest.h"
+#include <filesystem>
 #include <fstream>
 
 namespace {
@@ -308,15 +309,15 @@ namespace {
     TEST_F(ToolChainTest, GetFilePath_FindsExistingFile) {
         ToolChain TC = makeTC("x86_64-linux-gnu");
 
-        // Create a temporary file
-        const char *tmpPath = "/tmp/fly_getfilepath_test.o";
+        auto tmpDir  = std::filesystem::temp_directory_path();
+        std::string tmpPath = (tmpDir / "fly_getfilepath_test.o").string();
         { std::ofstream f(tmpPath); f << ""; }
 
-        llvm::SmallVector<std::string, 16> PathList = {"/tmp"};
+        llvm::SmallVector<std::string, 16> PathList = {tmpDir.string()};
         std::string result = TC.GetFilePath("fly_getfilepath_test.o", PathList);
-        EXPECT_EQ(result, std::string(tmpPath));
+        EXPECT_EQ(result, tmpPath);
 
-        remove(tmpPath);
+        remove(tmpPath.c_str());
     }
 
     TEST_F(ToolChainTest, GetFilePath_SkipsEmptyPaths) {
@@ -330,13 +331,14 @@ namespace {
     // ─── Archiver::CreateLib (defined in ToolChain.cpp) ──────────────────────
 
     TEST_F(ToolChainTest, CreateLib_CreatesArchive) {
-        const char *f1  = "/tmp/fly_clib_1.o";
-        const char *f2  = "/tmp/fly_clib_2.o";
-        const char *arc = "/tmp/fly_clib_test.a";
+        auto tmpDir = std::filesystem::temp_directory_path();
+        std::string f1  = (tmpDir / "fly_clib_1.o").string();
+        std::string f2  = (tmpDir / "fly_clib_2.o").string();
+        std::string arc = (tmpDir / "fly_clib_test.a").string();
 
         { std::ofstream f(f1); f << "obj1"; }
         { std::ofstream f(f2); f << "obj2"; }
-        remove(arc);
+        remove(arc.c_str());
 
         Archiver ar(CI->getDiagnostics(), arc);
         llvm::SmallVector<std::string, 4> files = {f1, f2};
@@ -344,11 +346,11 @@ namespace {
         EXPECT_TRUE(ok);
         EXPECT_TRUE(llvm::sys::fs::exists(arc));
 
-        remove(f1); remove(f2); remove(arc);
+        remove(f1.c_str()); remove(f2.c_str()); remove(arc.c_str());
     }
 
     TEST_F(ToolChainTest, CreateLib_FailsIfArchiveAlreadyExists) {
-        const char *arc = "/tmp/fly_clib_exists.a";
+        std::string arc = (std::filesystem::temp_directory_path() / "fly_clib_exists.a").string();
 
         { std::ofstream f(arc); f << "already here"; }
 
@@ -357,23 +359,26 @@ namespace {
         bool ok = ar.CreateLib(files);
         EXPECT_FALSE(ok);
 
-        remove(arc);
+        remove(arc.c_str());
     }
 
     // ─── GetRuntimeLibPath ───────────────────────────────────────────────────
 
+#ifndef _WIN32
     TEST_F(ToolChainTest, GetCompilerRTBuiltinsPath_ReturnsNonEmptyOnLinuxX86_64) {
         ToolChain TC = makeTC("x86_64-linux-gnu");
         std::string P = TC.GetCompilerRTBuiltinsPath();
         EXPECT_FALSE(P.empty()) << "libclang_rt.builtins-x86_64.a not found";
         EXPECT_TRUE(llvm::sys::fs::exists(P)) << "Path returned but file missing: " << P;
     }
+#endif
 
     TEST_F(ToolChainTest, GetCompilerRTBuiltinsPath_EmptyForUnknownArch) {
         ToolChain TC = makeTC("wasm32-unknown-unknown");
         EXPECT_TRUE(TC.GetCompilerRTBuiltinsPath().empty());
     }
 
+#ifndef _WIN32
     TEST_F(ToolChainTest, GetRuntimeLibPath_ReturnsNonEmptyOnThisBuild) {
         // libfly_runtime.a is built alongside fly_test in the same cmake build
         // tree.  FLY_RUNTIME_LIB_DIR is baked into Config.h at configure time,
@@ -383,10 +388,11 @@ namespace {
         EXPECT_FALSE(P.empty()) << "FlyRuntime.a not found at FLY_RUNTIME_LIB_DIR";
         EXPECT_TRUE(llvm::sys::fs::exists(P)) << "Path returned but file missing: " << P;
     }
+#endif
 
     TEST_F(ToolChainTest, CreateLib_EmptyFileList) {
-        const char *arc = "/tmp/fly_clib_empty.a";
-        remove(arc);
+        std::string arc = (std::filesystem::temp_directory_path() / "fly_clib_empty.a").string();
+        remove(arc.c_str());
 
         Archiver ar(CI->getDiagnostics(), arc);
         llvm::SmallVector<std::string, 4> files;
@@ -394,7 +400,7 @@ namespace {
         EXPECT_TRUE(ok);
         EXPECT_TRUE(llvm::sys::fs::exists(arc));
 
-        remove(arc);
+        remove(arc.c_str());
     }
 
 } // anonymous namespace
