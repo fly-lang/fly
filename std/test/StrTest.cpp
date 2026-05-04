@@ -13,7 +13,7 @@
 #include <cstdlib>   // std::free
 
 extern "C" {
-#include "../lib/str.h"
+#include "../str.h"
 }
 
 /* Build a fly_string that borrows a C string literal (read-only). */

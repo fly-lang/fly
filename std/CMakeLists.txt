@@ -13,10 +13,10 @@
 # Users link both archives: -lflyLib fly_lib.lib
 #
 # Namespace  → Source file      → Header
-#   fly.str     fly/str.fly     fly/str.fly.h
-#   fly.math    fly/math.fly    fly/math.fly.h
-#   fly.os      fly/os.fly      fly/os.fly.h
-#   fly.thread  fly/thread.fly  fly/thread.fly.h
+#   fly.str     src/str.fly     src/str.fly.h
+#   fly.math    src/math.fly    src/math.fly.h
+#   fly.os      src/os.fly      src/os.fly.h
+#   fly.thread  src/thread.fly  src/thread.fly.h
 #
 
 # ── C implementations (linked into a regular static library) ─────────────────
@@ -39,10 +39,10 @@ set_target_properties(FlyLib PROPERTIES
 # ── Fly namespace archive (built by the fly binary) ──────────────────────────
 
 set(FLY_LIB_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/fly/str.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/fly/math.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/fly/os.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/fly/thread.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/str.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/math.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/os.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/thread.fly
 )
 
 # The fly compiler appends .lib automatically; pass the stem without extension.
@@ -60,3 +60,18 @@ add_custom_command(
 )
 
 add_custom_target(fly_lib ALL DEPENDS ${FLY_LIB_OUTPUT})
+
+######################################
+# fly.string library unit tests
+######################################
+
+add_executable(fly_lib_test
+        test/StrTest.cpp
+)
+
+target_link_libraries(fly_lib_test PRIVATE
+        gtest_main
+        FlyLib
+)
+
+add_test(NAME fly_lib_test COMMAND fly_lib_test)
