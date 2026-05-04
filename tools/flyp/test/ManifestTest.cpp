@@ -5,7 +5,6 @@
 
 #include <filesystem>
 #include <fstream>
-#include <unistd.h>
 
 namespace flyp::test {
 
@@ -13,8 +12,9 @@ namespace {
 
 // Write a temporary fly.toml and return its path.
 std::filesystem::path write_toml(const std::string& content) {
+    static int counter = 0;
     auto tmp = std::filesystem::temp_directory_path()
-             / ("flyp_test_" + std::to_string(::getpid()) + ".toml");
+             / ("flyp_test_" + std::to_string(++counter) + ".toml");
     std::ofstream f(tmp);
     f << content;
     return tmp;

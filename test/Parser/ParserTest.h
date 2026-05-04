@@ -39,14 +39,14 @@ public:
     std::string LastParseSource;
 
     // Enable debug messages for all tests in this suite
-    static void SetUpTestCase() {
-        DebugEnabled = true;
-    }
+    //static void SetUpTestCase() {
+    //    DebugEnabled = true;
+    //}
 
     // Disable debug messages after all tests complete
-    static void TearDownTestCase() {
-        DebugEnabled = false;
-    }
+    //static void TearDownTestCase() {
+    //    DebugEnabled = false;
+    //}
 
     ParserTest() : CI(TestUtils::CreateCompilerInstance()),
         Diags(CI->getDiagnostics()), Builder(new ASTBuilder(Diags))
