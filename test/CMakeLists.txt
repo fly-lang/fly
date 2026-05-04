@@ -51,7 +51,7 @@ target_link_libraries(fly_test PRIVATE
 add_dependencies(fly_test FlyRuntime)
 
 target_compile_definitions(fly_test PRIVATE
-        FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/std/fly"
+        FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/std/src"
 )
 
 add_test(NAME fly_test COMMAND fly_test)
