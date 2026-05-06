@@ -46,20 +46,22 @@ namespace fly {
                 OPT_FTIME_REPORT,       //  7 - ftime-report  (-ftime-report)
                 OPT_HEADER_GENERATOR,   //  8 - header   (-header)
                 OPT_HELP,               //  9 - help     (-help)
-                OPT_OUTPUT_LIB,         // 10 - lib      (-lib)
-                OPT_LOG_FILE,           // 11 - log-file (-log-file)
-                OPT_MC_MODEL,           // 12 - mcmodel  (-mcmodel)
-                OPT_MTHREAD_MODEL,      // 13 - mthread-model (-mthread-model)
-                OPT_NO_OUTPUT,          // 14 - no-output (-no-output)
-                OPT_OUTPUT,             // 15 - o        (-o)
-                OPT_PRINT_STATS,        // 16 - print-stats (-print-stats)
-                OPT_STATS_FILE,         // 17 - stats-file (-stats-file)
-                OPT_TARGET_CPU,         // 18 - target-cpu (--target-cpu) [before target]
-                OPT_TARGET,             // 19 - target   (--target)
-                OPT_VERSION,            // 20 - version  (-version) [before v]
-                OPT_VERBOSE,            // 21 - v        (-v)
-                OPT_WORKING_DIR,        // 22 - working-dir (-working-dir) [before w]
-                OPT_NO_WARNING,         // 23 - w        (-w)
+                OPT_HELP_LONG,          // 10 - help     (--help)  alias of OPT_HELP
+                OPT_OUTPUT_LIB,         // 11 - lib      (-lib)
+                OPT_LOG_FILE,           // 12 - log-file (-log-file)
+                OPT_MC_MODEL,           // 13 - mcmodel  (-mcmodel)
+                OPT_MTHREAD_MODEL,      // 14 - mthread-model (-mthread-model)
+                OPT_NO_OUTPUT,          // 15 - no-output (-no-output)
+                OPT_OUTPUT,             // 16 - o        (-o)
+                OPT_PRINT_STATS,        // 17 - print-stats (-print-stats)
+                OPT_STATS_FILE,         // 18 - stats-file (-stats-file)
+                OPT_TARGET_CPU,         // 19 - target-cpu (--target-cpu) [before target]
+                OPT_TARGET,             // 20 - target   (--target)
+                OPT_VERSION,            // 21 - version  (-version) [before v]
+                OPT_VERSION_LONG,       // 22 - version  (--version) alias of OPT_VERSION
+                OPT_VERBOSE,            // 23 - v        (-v)
+                OPT_WORKING_DIR,        // 24 - working-dir (-working-dir) [before w]
+                OPT_NO_WARNING,         // 25 - w        (-w)
             };
         }
 

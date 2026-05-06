@@ -263,3 +263,8 @@ target_link_libraries(fly
         FlyLib
         FlyRuntime
 )
+
+set_target_properties(fly PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+install(TARGETS fly RUNTIME DESTINATION bin)

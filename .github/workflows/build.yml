@@ -64,7 +64,7 @@ jobs:
 
       - name: Packaging
         if: github.ref == 'refs/heads/main'
-        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/compiler
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/bin
         run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}} fly
 
       - uses: actions/upload-artifact@v4
@@ -113,7 +113,7 @@ jobs:
 
       - name: Packaging
         if: github.ref == 'refs/heads/main'
-        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\compiler\${{env.BUILD_TYPE}}
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\bin\${{env.BUILD_TYPE}}
         run: 7z a ..\..\fly-${{ steps.version.outputs.version }}-${{env.WIN_FILE}} fly.exe
 
       - uses: actions/upload-artifact@v4
@@ -164,7 +164,7 @@ jobs:
   #
   #     - name: Packaging
   #       if: github.ref == 'refs/heads/main'
-  #       working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/compiler
+  #       working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/bin
   #       run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.MACOS_FILE}} fly
   #
   #     - uses: actions/upload-artifact@v4

@@ -54,6 +54,8 @@ using namespace llvm::opt;
 // 195  : "-v"             (3  bytes, next=198)
 // 198  : "-working-dir"   (13 bytes, next=211)
 // 211  : "-w"             (3  bytes, next=214)
+// 214  : "--help"         (7  bytes, next=221)
+// 221  : "--version"      (10 bytes, next=231)
 // ---------------------------------------------------------------------------
 static constexpr llvm::StringTable OptionStrTable(
     "\0"                    //   0 – empty (required)
@@ -82,6 +84,8 @@ static constexpr llvm::StringTable OptionStrTable(
     "-v\0"                  // 195
     "-working-dir\0"        // 198
     "-w\0"                  // 211
+    "--help\0"              // 214
+    "--version\0"           // 221
 );
 
 namespace {
@@ -95,18 +99,22 @@ namespace {
 // Layout:
 //   [0] = 0  sentinel (PrefixesOffset=0 ⇒ no prefix, used for INPUT/UNKNOWN)
 //   [1] = 1  count=1
-//   [2] = 1  offset of "-"              → PrefixesOffset=1 ⇒ single-dash only
-//   [3] = 2  count=2
-//   [4] = 3  offset of "--" (canonical) → PrefixesOffset=3 ⇒ "--" and "-" both accepted
-//   [5] = 1  offset of "-"
+//   [2] = 1  offset of "-"   → PrefixesOffset=1 ⇒ single-dash only
+//   [3] = 1  count=1
+//   [4] = 3  offset of "--"  → PrefixesOffset=3 ⇒ double-dash only
+//   [5] = 2  count=2
+//   [6] = 3  offset of "--"  → PrefixesOffset=5 ⇒ "--" and "-" both accepted
+//   [7] = 1  offset of "-"
 // ---------------------------------------------------------------------------
 static constexpr llvm::StringTable::Offset OptionPrefixesTable[] = {
     {0},  // [0] sentinel
     {1},  // [1] count=1
     {1},  // [2] offset of "-"
-    {2},  // [3] count=2
-    {3},  // [4] offset of "--" (canonical prefix)
-    {1},  // [5] offset of "-"
+    {1},  // [3] count=1
+    {3},  // [4] offset of "--"
+    {2},  // [5] count=2
+    {3},  // [6] offset of "--"
+    {1},  // [7] offset of "-"
 };
 
 #define NO_VARIANTS (std::array<std::pair<std::array<unsigned int, 2>, const char *>, 1>{{ {std::array<unsigned int, 2>{{0u, 0u}}, nullptr} }})
@@ -137,8 +145,9 @@ static const OptTable::Info InfoTable[] = {
     {1, {49},  "Produce LLVM IR output",                             NO_VARIANTS, nullptr, OPT_EMIT_LL,          Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
     {1, {58},  "Show timers for individual actions",                 NO_VARIANTS, nullptr, OPT_FTIME_REPORT,     Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
     {1, {72},  "Generate header file",                               NO_VARIANTS, nullptr, OPT_HEADER_GENERATOR, Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
-    {1, {80},  "Display available options",                          NO_VARIANTS, nullptr, OPT_HELP,             Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
-    {1, {86},  "Write output as library to <file>.a",                NO_VARIANTS, nullptr, OPT_OUTPUT_LIB,       Option::JoinedOrSeparateClass, 0, 0, VIS, 0, 0, nullptr, nullptr},
+    {1, {80},  "Display available options",                          NO_VARIANTS, nullptr, OPT_HELP,             Option::FlagClass,             0, 0, VIS, 0, 0,        nullptr, nullptr},
+    {3, {214}, "Alias for -help",                                    NO_VARIANTS, nullptr, OPT_HELP_LONG,        Option::FlagClass,             0, 0, VIS, 0, OPT_HELP, nullptr, nullptr},
+    {1, {86},  "Write output as library to <file>",				     NO_VARIANTS, nullptr, OPT_OUTPUT_LIB,       Option::JoinedOrSeparateClass, 0, 0, VIS, 0, 0,        nullptr, nullptr},
     {1, {91},  "Log diagnostics to <file>",                          NO_VARIANTS, nullptr, OPT_LOG_FILE,         Option::JoinedOrSeparateClass, 0, 0, VIS, 0, 0, nullptr, nullptr},
     {1, {101}, "Set memory code model",                              NO_VARIANTS, nullptr, OPT_MC_MODEL,         Option::JoinedOrSeparateClass, 0, 0, VIS, 0, 0, nullptr, nullptr},
     {1, {110}, "Set memory thread model",                            NO_VARIANTS, nullptr, OPT_MTHREAD_MODEL,    Option::JoinedOrSeparateClass, 0, 0, VIS, 0, 0, nullptr, nullptr},
@@ -146,9 +155,10 @@ static const OptTable::Info InfoTable[] = {
     {1, {136}, "Write output to <file>",                             NO_VARIANTS, nullptr, OPT_OUTPUT,           Option::JoinedOrSeparateClass, 0, 0, VIS, 0, 0, nullptr, nullptr},
     {1, {139}, "Print performance metrics and statistics",           NO_VARIANTS, nullptr, OPT_PRINT_STATS,      Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
     {1, {152}, "Filename to write statistics to",                    NO_VARIANTS, nullptr, OPT_STATS_FILE,       Option::JoinedOrSeparateClass, 0, 0, VIS, 0, 0, nullptr, nullptr},
-    {3, {164}, "Generate code for the given CPU",                    NO_VARIANTS, nullptr, OPT_TARGET_CPU,       Option::SeparateClass,         0, 0, VIS, 0, 0, nullptr, nullptr},
-    {3, {177}, "Generate code for the given target",                 NO_VARIANTS, nullptr, OPT_TARGET,           Option::SeparateClass,         0, 0, VIS, 0, 0, nullptr, nullptr},
-    {1, {186}, "Print version information",                          NO_VARIANTS, nullptr, OPT_VERSION,          Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
+    {5, {164}, "Generate code for the given CPU",                    NO_VARIANTS, nullptr, OPT_TARGET_CPU,       Option::SeparateClass,         0, 0, VIS, 0, 0,           nullptr, nullptr},
+    {5, {177}, "Generate code for the given target",                 NO_VARIANTS, nullptr, OPT_TARGET,           Option::SeparateClass,         0, 0, VIS, 0, 0,           nullptr, nullptr},
+    {1, {186}, "Print version information",                          NO_VARIANTS, nullptr, OPT_VERSION,          Option::FlagClass,             0, 0, VIS, 0, 0,           nullptr, nullptr},
+    {3, {221}, "Alias for -version",                                 NO_VARIANTS, nullptr, OPT_VERSION_LONG,     Option::FlagClass,             0, 0, VIS, 0, OPT_VERSION, nullptr, nullptr},
     {1, {195}, "Show commands to run and use verbose output",        NO_VARIANTS, nullptr, OPT_VERBOSE,          Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
     {1, {198}, "Resolve file paths relative to the specified directory", NO_VARIANTS, nullptr, OPT_WORKING_DIR,  Option::JoinedOrSeparateClass, 0, 0, VIS, 0, 0, nullptr, nullptr},
     {1, {211}, "Suppress all warnings",                              NO_VARIANTS, nullptr, OPT_NO_WARNING,       Option::FlagClass,             0, 0, VIS, 0, 0, nullptr, nullptr},
