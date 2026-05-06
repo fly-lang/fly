@@ -1,7 +1,6 @@
 #ifndef FLY_TESTUTILS_H
 #define FLY_TESTUTILS_H
 
-#include "Driver/DriverOptions.h"
 #include "Basic/Diagnostic.h"
 #include "Basic/DiagnosticIDs.h"
 #include "Basic/FileSystemOptions.h"

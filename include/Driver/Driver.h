@@ -10,12 +10,12 @@
 #ifndef FLY_DRIVER_H
 #define FLY_DRIVER_H
 
-#include "Driver/DriverOptions.h"
 #include "Frontend/FrontendOptions.h"
 #include "Frontend/CompilerInstance.h"
 #include "Basic/Diagnostic.h"
-#include <llvm/Option/Arg.h>
-#include <llvm/Option/ArgList.h>
+#include "Basic/FileSystemOptions.h"
+#include <string>
+#include <vector>
 
 namespace fly {
 
@@ -26,21 +26,13 @@ namespace fly {
         // The Compiler Instance contains components needs for compilation phase
         std::shared_ptr<CompilerInstance> CI;
 
-        // Contains all options before parsing
-        const llvm::ArrayRef<const char *> Args;
-
-        // Contains all parsed options
-        llvm::opt::InputArgList ArgList;
-
         // Can go ahead with execute phase
-        // It is false if some error happens or an option doesn't allow compilation like help or version
         bool doExecute = true;
 
         /// The name the driver was invoked as.
         std::string Name;
 
-        /// The path the driver executable was in, as invoked from the
-        /// command line.
+        /// The path the driver executable was in, as invoked from the command line.
         std::string Dir;
 
         /// The original path to the fly executable.
@@ -52,22 +44,39 @@ namespace fly {
         /// The path to the compiler resource directory.
         std::string ResourceDir;
 
-        // Create the diagnostics engine using the invocation's diagnostic options
-        // and replace any existing one with it.
+        // ── Parsed option values ──────────────────────────────────────────────
+        std::vector<std::string> InputFiles;
+        std::string OutputFile;
+        bool OutputLib    = false;
+        std::string LogFile;
+        std::string WorkingDir;
+        std::string McModel;
+        std::string MthreadModel;
+        std::string Target;
+        std::string TargetCpu;
+        std::string StatsFile;
+        bool Verbose      = false;
+        bool NoWarnings   = false;
+        bool EmitLL       = false;
+        bool EmitBC       = false;
+        bool EmitAS       = false;
+        bool NoOutput     = false;
+        bool HeaderGen    = false;
+        bool PrintStats   = false;
+        bool FtimeReport  = false;
+
         IntrusiveRefCntPtr<DiagnosticsEngine> CreateDiagnostics(IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts);
-
         IntrusiveRefCntPtr<DiagnosticOptions> BuildDiagnosticOptions();
-
         void BuildOptions(FileSystemOptions &FileSystemOpts,
-                           std::shared_ptr<TargetOptions> &TargetOpts,
-                           FrontendOptions *FrontendOpts,
-                           CodeGenOptions *CodeGenOpts);
+                          std::shared_ptr<TargetOptions> &TargetOpts,
+                          FrontendOptions *FrontendOpts,
+                          CodeGenOptions *CodeGenOpts);
 
     public:
 
         Driver();
 
-        Driver(llvm::ArrayRef<const char *> ArgList);
+        Driver(llvm::ArrayRef<const char *> Args);
 
         ~Driver();
 

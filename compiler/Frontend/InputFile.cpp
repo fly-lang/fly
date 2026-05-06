@@ -13,15 +13,24 @@
 using namespace fly;
 
 FileExt TakeExt(const std::string &FileName) {
-    if (FileName.size() > 4 && FileName.substr(FileName.size() - 4, FileName.size()) == ".fly") {
+    // Check .fly.h before .fly — .fly.h does not end with .fly
+    if (FileName.size() > 6 && FileName.substr(FileName.size() - 6) == ".fly.h") {
+        return FLY_H;
+    }
+
+    if (FileName.size() > 4 && FileName.substr(FileName.size() - 4) == ".fly") {
         return FLY;
     }
 
-	if (FileName.size() > 4 && FileName.substr(FileName.size() - 4, FileName.size()) == ".lib") {
+    if (FileName.size() > 4 && FileName.substr(FileName.size() - 4) == ".lib") {
         return LIB;
     }
 
-	if (FileName.size() > 2 && FileName.substr(FileName.size() - 2, FileName.size()) == ".o") {
+    if (FileName.size() > 2 && FileName.substr(FileName.size() - 2) == ".a") {
+        return LIB;
+    }
+
+    if (FileName.size() > 2 && FileName.substr(FileName.size() - 2) == ".o") {
         return OBJ;
     }
 
@@ -29,10 +38,11 @@ FileExt TakeExt(const std::string &FileName) {
 }
 
 std::string TakeName(const std::string &FileName) {
-	if (FileName.size() > 4)
-		return FileName.substr(0, FileName.size() - 4);
-	return FileName; // fallback if no extension or too short
-
+    if (FileName.size() > 6 && FileName.substr(FileName.size() - 6) == ".fly.h")
+        return FileName.substr(0, FileName.size() - 6);
+    if (FileName.size() > 4)
+        return FileName.substr(0, FileName.size() - 4);
+    return FileName;
 }
 
 InputFile::InputFile(DiagnosticsEngine &Diags, SourceManager &SourceMgr, const std::string &FileName) :

@@ -124,7 +124,6 @@ add_library(FlyCompiler
 
         # Driver
         Driver/Driver.cpp
-        Driver/DriverOptions.cpp
         Driver/ToolChain.cpp
 
         # Frontend
@@ -210,6 +209,8 @@ add_library(FlyCompiler
 #    target_compile_options(FlyCompiler PRIVATE -Wall)
 #endif ()
 
+include(${CMAKE_SOURCE_DIR}/cmake/CLI11.cmake)
+
 configure_file(
         ${CMAKE_SOURCE_DIR}/include/Config/Config.h.cmake
         ${CMAKE_BINARY_DIR}/include/Config/Config.h)
@@ -224,12 +225,12 @@ foreach(target ${LLVM_TARGETS_TO_BUILD})
 endforeach()
 
 target_link_libraries(FlyCompiler
+        CLI11::CLI11
         LLVMCore
         LLVMMC
         LLVMMCParser
         LLVMObject
         LLVMSupport
-        LLVMOption
         LLVMPasses
         LLVMLTO
         LLVMTarget

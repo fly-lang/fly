@@ -76,15 +76,23 @@ bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, Fr
     // Select right options format by platform (Win or others)
     FLY_DEBUG_START_MSG("ToolChain", "Link", "Output=" << OutFileName);
     if (FrontendOpts.CreateLibrary) {
-        Archiver Library(Diag, OutFileName + ".lib");
-        return Library.CreateLib(InFiles);
+        std::string LibPath = OutFileName;
+        if (llvm::sys::path::extension(LibPath).empty())
+            LibPath += T.isWindowsMSVCEnvironment() ? ".lib" : ".a";
+        // Only archive object files; .fly.h headers stay as standalone files.
+        llvm::SmallVector<std::string, 4> ObjFiles;
+        for (const auto &F : InFiles)
+            if (!llvm::StringRef(F).ends_with(".fly.h"))
+                ObjFiles.push_back(F);
+        Archiver Library(Diag, LibPath);
+        return Library.CreateLib(ObjFiles);
     } else {
         if (T.isWindowsMSVCEnvironment()) {
             return LinkWindows(InFiles, OutFileName);
         } else if (T.isOSDarwin()) {
             return LinkDarwin(InFiles, OutFileName);
         } else {
-            return LinkLinux(InFiles, OutFileName);
+            return LinkLinux(InFiles, OutFileName, FrontendOpts);
         }
     }
 
@@ -709,7 +717,7 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
     return false;
 }
 
-bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile) {
+bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile, FrontendOptions &FrontendOpts) {
     FLY_DEBUG_START_MSG("ToolChain", "LinkLinux", "Out: " + OutFile);
     llvm::SmallVector<std::string, 16> CmdArgs;
     CmdArgs.push_back("ld");
@@ -838,6 +846,15 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
     for(const std::string &ObjFile : InFiles) {
         FLY_DEBUG_START_MSG("ToolChain", "Link", "Input=" << ObjFile);
         CmdArgs.push_back(ObjFile);
+    }
+
+    // Add user library inputs (.a / .lib passed on the command line)
+    for (const auto &Input : FrontendOpts.getInputFiles()) {
+        const llvm::StringRef Ext = llvm::sys::path::extension(Input);
+        if (Ext == ".a" || Ext == ".lib") {
+            FLY_DEBUG_START_MSG("ToolChain", "Link", "UserLib=" << Input);
+            CmdArgs.push_back(Input);
+        }
     }
 
     // Link the Fly runtime (libfly_runtime.a) immediately after user objects so
@@ -1331,11 +1348,5 @@ bool Archiver::CreateLib(const llvm::SmallVector<std::string, 4> &Files) {
         FLY_DEBUG_START_MSG("Archiver", "CreateLib", "File=" << File);
         Members.emplace_back(File);
     }
-    ErrorOr<std::unique_ptr<MemoryBuffer>> Buf =
-            MemoryBuffer::getFile(ArchiveName, -1, false);
-    std::error_code EC = Buf.getError();
-    if (EC && EC == errc::no_such_file_or_directory) {
-        return performWriteOperation(ReplaceOrInsert, nullptr, nullptr, nullptr);
-    }
-    return fail("File error: '" + ArchiveName + "' already exists " + EC.message());
+    return performWriteOperation(ReplaceOrInsert, nullptr, nullptr, nullptr);
 }

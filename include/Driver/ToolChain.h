@@ -40,7 +40,7 @@ namespace fly {
 
         bool LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile);
 
-        bool LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile);
+        bool LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile, FrontendOptions &FrontendOpts);
         bool getPIE();
         bool isArmBigEndian();
         const char *getLDMOption();
