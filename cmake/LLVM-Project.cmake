@@ -6,7 +6,7 @@ set(LLVM_RELEASES_PREFIX_URL https://github.com/fly-lang/llvm-project/releases/d
 if (MSVC)
     set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v${FLY_LLVM_VERSION}-win-x64/llvm-${FLY_LLVM_VERSION}-win-x64.zip")
     set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.zip")
-    set(LLVM_HASH 5ddc777fcb86d6c4b5d52a6bd36f98f865d1f3c89d75f00fc3a503ac4c8dd680)
+    set(LLVM_HASH 5368d07f4cee65d53b2b4c4ef3726942911b6229fea61f0a883cb1b4bb76db57)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v${FLY_LLVM_VERSION}-macos-x86_64/llvm-${FLY_LLVM_VERSION}-x86_64-apple-darwin.tar.gz")
     set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.tar.gz")
@@ -14,17 +14,39 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v${FLY_LLVM_VERSION}-linux-x86_64/llvm-${FLY_LLVM_VERSION}-x86_64-linux-gnu.tar.gz")
     set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.tar.gz")
-    set(LLVM_HASH 0484881e1ee455aac85a0fdf2a29e589597de6f630ea702f18a4a9f23430810c)
+    set(LLVM_HASH 8664061d7282113e1e9a1c7d7fcc4def96a7762d84f275cd49e19d6e70b6eb0a)
 else()
     message(FATAL_ERROR "Unknown system, cannot download pre-build llvm packages, run with -DLLVM_BUILD")
 endif()
 
-# Download and extract the precompiled LLVM package
+# Download and extract the precompiled LLVM package.
+# We download manually first so we can show a clear error with the actual
+# hash when the package has been updated (instead of CMake's cryptic message).
 message(STATUS "Downloading LLVM from ${LLVM_RELEASES_URL}")
+get_filename_component(LLVM_ARCHIVE_NAME "${LLVM_RELEASES_URL}" NAME)
+set(LLVM_ARCHIVE "${CMAKE_BINARY_DIR}/${LLVM_ARCHIVE_NAME}")
+if(NOT EXISTS "${LLVM_ARCHIVE}")
+    file(DOWNLOAD "${LLVM_RELEASES_URL}" "${LLVM_ARCHIVE}" SHOW_PROGRESS STATUS dl_status)
+    list(GET dl_status 0 dl_code)
+    if(NOT dl_code EQUAL 0)
+        file(REMOVE "${LLVM_ARCHIVE}")
+        message(FATAL_ERROR "Failed to download LLVM package: ${dl_status}")
+    endif()
+endif()
+file(SHA256 "${LLVM_ARCHIVE}" actual_hash)
+if(NOT actual_hash STREQUAL LLVM_HASH)
+    file(REMOVE "${LLVM_ARCHIVE}")
+    message(FATAL_ERROR
+        "LLVM package hash mismatch — the precompiled package has changed.\n"
+        "  File:     ${LLVM_RELEASES_URL}\n"
+        "  Expected: ${LLVM_HASH}\n"
+        "  Actual:   ${actual_hash}\n"
+        "Update LLVM_HASH in cmake/LLVM-Project.cmake with the actual value above.")
+endif()
+
 FetchContent_Declare(
         ${FLY_LLVM_PROJECT}
-        URL ${LLVM_RELEASES_URL}
-        URL_HASH SHA256=${LLVM_HASH}
+        URL "${LLVM_ARCHIVE}"
         SOURCE_DIR llvm
         DOWNLOAD_EXTRACT_TIMESTAMP true)
 FetchContent_MakeAvailable(${FLY_LLVM_PROJECT})

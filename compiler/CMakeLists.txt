@@ -255,7 +255,7 @@ target_link_libraries(FlyCompiler
         lldWasm)
 
 target_compile_definitions(FlyCompiler PRIVATE
-        FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/lib/fly"
+        FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/std/src"
 )
 
 target_link_libraries(fly
@@ -263,3 +263,8 @@ target_link_libraries(fly
         FlyLib
         FlyRuntime
 )
+
+set_target_properties(fly PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+install(TARGETS fly RUNTIME DESTINATION bin)

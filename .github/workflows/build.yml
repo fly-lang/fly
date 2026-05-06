@@ -41,11 +41,8 @@ jobs:
           cmake --build . --config ${{env.BUILD_TYPE}}
 
       - name: Test
-        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
-        run: |
-          ./fly_test
-          ./fly_lib_test
-          ./fly_runtime_test
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
+        run: ctest --output-on-failure
 
       - name: Backtrace on Crash
         if: failure()
@@ -67,7 +64,7 @@ jobs:
 
       - name: Packaging
         if: github.ref == 'refs/heads/main'
-        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/compiler
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/bin
         run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}} fly
 
       - uses: actions/upload-artifact@v4
@@ -105,11 +102,8 @@ jobs:
           cmake --build . --config ${{env.BUILD_TYPE}}
 
       - name: Test
-        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\test\${{env.BUILD_TYPE}}
-        run: |
-          .\fly_test.exe --gtest_filter='-CmdTest.EmitOut'
-          .\fly_lib_test.exe
-          .\fly_runtime_test.exe
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}
+        run: ctest -C ${{env.BUILD_TYPE}} --output-on-failure
 
       - name: Read Version
         id: version
@@ -119,7 +113,7 @@ jobs:
 
       - name: Packaging
         if: github.ref == 'refs/heads/main'
-        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\compiler\${{env.BUILD_TYPE}}
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}\bin\${{env.BUILD_TYPE}}
         run: 7z a ..\..\fly-${{ steps.version.outputs.version }}-${{env.WIN_FILE}} fly.exe
 
       - uses: actions/upload-artifact@v4
@@ -130,7 +124,7 @@ jobs:
 
   # macOS build is currently disabled (not yet supported).
   # To re-enable: uncomment this job, add macos-artifact to the release job's
-  # download steps and files list, and add macos to release needs.
+  # download steps and files list, and add macOS to release needs.
   #
   # build-macos:
   #   runs-on: macos-latest
@@ -170,7 +164,7 @@ jobs:
   #
   #     - name: Packaging
   #       if: github.ref == 'refs/heads/main'
-  #       working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/compiler
+  #       working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/bin
   #       run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.MACOS_FILE}} fly
   #
   #     - uses: actions/upload-artifact@v4

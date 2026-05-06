@@ -184,7 +184,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
                 llvm::outs(), "fly [options] source.fly ...\n",
                 "Example: fly -v -o out main.fly\n"
                 "Fly Compiler",
-                /*FlagsToInclude=*/driver::options::CoreOption, /*FlagsToExclude=*/0,
+                /*FlagsToInclude=*/0, /*FlagsToExclude=*/0,
                 /*ShowAllAliases=*/false);
         doExecute = false;
         return;

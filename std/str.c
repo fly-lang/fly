@@ -14,7 +14,7 @@
 
 #include "str.h"
 
-#include "Runtime.h"
+#include "platform/Runtime.h"
 
 /* Allocator symbols — declare with unsigned long (= size_t on LP64) to match the
  * compiler's builtin signature and avoid -Wimplicit-function-declaration. */

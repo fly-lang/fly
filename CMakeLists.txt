@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24.0)
-set(FLY_VERSION "0.10.0" CACHE STRING "Fly version")
+set(FLY_VERSION "0.11.0" CACHE STRING "Fly version")
 project(Fly VERSION ${FLY_VERSION} LANGUAGES C CXX ASM)
 
 #Fly config options
@@ -121,7 +121,10 @@ add_subdirectory(runtime)
 add_subdirectory(compiler)
 
 # Standard library — compiled by the fly binary, so must come after src/
-add_subdirectory(lib)
+add_subdirectory(std)
 
 enable_testing()
 add_subdirectory(test)
+
+# flyp package manager
+add_subdirectory(tools/flyp)

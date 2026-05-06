@@ -23,11 +23,42 @@ target_include_directories(FlyRuntime PUBLIC
 
 # ── Platform dispatch ────────────────────────────────────────────────────────
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    add_subdirectory(Linux)
+    add_subdirectory(platform/Linux)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    add_subdirectory(Windows)
+    add_subdirectory(platform/Windows)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    add_subdirectory(macOS)
+    add_subdirectory(platform/macOS)
 else()
     message(FATAL_ERROR "Runtime: unsupported platform '${CMAKE_SYSTEM_NAME}'")
 endif()
+
+######################################
+# Runtime test (freestanding C)
+######################################
+
+add_executable(fly_runtime_test test/RuntimeTest.c)
+
+target_include_directories(fly_runtime_test PRIVATE ${CMAKE_SOURCE_DIR}/runtime)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_compile_options(fly_runtime_test PRIVATE
+            -ffreestanding -nostdinc -fno-stack-protector -fno-builtin)
+    target_link_options(fly_runtime_test PRIVATE -nostdlib -static -Wl,-e,_start)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_compile_options(fly_runtime_test PRIVATE
+            -ffreestanding -fno-stack-protector -fno-builtin)
+    target_link_options(fly_runtime_test PRIVATE -lSystem)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    if(MSVC)
+        target_compile_options(fly_runtime_test PRIVATE /GS-)
+    else()
+        target_compile_options(fly_runtime_test PRIVATE -fno-stack-protector -fno-builtin)
+    endif()
+    target_link_libraries(fly_runtime_test PRIVATE synchronization kernel32)
+endif()
+
+target_link_libraries(fly_runtime_test PRIVATE FlyRuntime)
+
+add_test(NAME fly_runtime_test COMMAND fly_runtime_test)
+set_tests_properties(fly_runtime_test PROPERTIES PASS_REGULAR_EXPRESSION "fly runtime ok")
+

@@ -16,6 +16,7 @@
 #include "CodeGen/BackendUtil.h"
 #include "llvm/Support/FileSystem.h"
 #include "gtest/gtest.h"
+#include <filesystem>
 #include <fstream>
 
 namespace {
@@ -262,28 +263,32 @@ namespace {
     // ─── Archiver::ExtractLib (defined in Frontend.cpp) ──────────────────────
 
     TEST_F(FrontendTest, ExtractFiles_MissingArchive) {
+        std::string missing = (std::filesystem::temp_directory_path()
+                               / "fly_nonexistent_archive_xyz.a").string();
         Frontend Front(*CI);
-        std::vector<llvm::StringRef> files = Front.ExtractFiles("/tmp/fly_nonexistent_archive_xyz.a");
+        std::vector<llvm::StringRef> files = Front.ExtractFiles(missing);
         EXPECT_TRUE(files.empty());
     }
 
     TEST_F(FrontendTest, ExtractFiles_InvalidArchive) {
-        const char *path = "/tmp/fly_invalid_archive.a";
+        std::string path = (std::filesystem::temp_directory_path()
+                            / "fly_invalid_archive.a").string();
         { std::ofstream f(path); f << "not an archive"; }
 
         Frontend Front(*CI);
         std::vector<llvm::StringRef> files = Front.ExtractFiles(path);
         EXPECT_TRUE(files.empty());
 
-        remove(path);
+        remove(path.c_str());
     }
 
     TEST_F(FrontendTest, ExtractFiles_ValidArchive) {
-        const char *member = "/tmp/fly_ext_member.o";
-        const char *arc    = "/tmp/fly_ext_archive.a";
+        auto tmpDir    = std::filesystem::temp_directory_path();
+        std::string member = (tmpDir / "fly_ext_member.o").string();
+        std::string arc    = (tmpDir / "fly_ext_archive.a").string();
 
         { std::ofstream f(member); f << "member content"; }
-        remove(arc);
+        remove(arc.c_str());
 
         // Build archive via CreateLib (defined in ToolChain.cpp)
         {
@@ -300,8 +305,8 @@ namespace {
         for (auto &f : extracted)
             remove(std::string(f).c_str());
 
-        remove(member);
-        remove(arc);
+        remove(member.c_str());
+        remove(arc.c_str());
     }
 
 } // anonymous namespace
