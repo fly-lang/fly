@@ -6,66 +6,78 @@ on:
 env:
   WIN_FILE: win-x64.zip
   LINUX_FILE: linux-x86_64.tar.gz
+  BUILD_DIR: build
 
 jobs:
-  get-version:
-    uses: ./.github/workflows/get-version.yml
-
   release:
-    needs: get-version
     runs-on: ubuntu-latest
-
-    env:
-      VERSION: ${{ needs.get-version.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Read Version from CMake
+        id: version
+        shell: bash
+        run: |
+          cmake -B ${{ env.BUILD_DIR }} -DCMAKE_BUILD_TYPE=Release
+          VERSION=$(cmake -LA -N ${{ env.BUILD_DIR }} | grep '^FLY_VERSION:STRING=' | cut -d= -f2)
+          if [ -z "$VERSION" ]; then
+            echo "ERROR: Could not read version from CMake"
+            exit 1
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Resolved version: $VERSION"
+
+      - name: Set artifact name
+        id: artifact
+        shell: bash
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          echo "artifact_name=linux-artifact-${BRANCH//\//-}" >> $GITHUB_OUTPUT
 
       - name: Download Linux artifact
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: build-linux.yml
-          name: linux-artifact
-          path: .
+          name: ${{ steps.artifact.outputs.artifact_name }}
+          path: ./linux
           search_artifacts: true
 
-      # - name: Download Windows artifact
-      #   uses: dawidd6/action-download-artifact@v2
-      #   with:
-      #     workflow: build-windows.yml
-      #     name: windows-artifact
-      #     path: .
-      #     search_artifacts: true
+      - name: Download Windows artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: build-windows.yml
+          name: ${{ steps.artifact.outputs.artifact_name }}
+          path: ./windows
+          search_artifacts: true
 
-      # Uncomment when build-macos is re-enabled in build.yml
-      # - name: Download macOS artifact
-      #   uses: dawidd6/action-download-artifact@v2
-      #   with:
-      #     workflow: build.yml
-      #     name: macos-artifact
-      #     path: .
-      #     search_artifacts: true
-
-      - name: Verify artifacts exist
+      - name: Package Linux
         run: |
-          echo "Version: ${{ env.VERSION }}"
+          cd linux
+          tar -czvf ../fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }} *
+
+      - name: Package Windows
+        run: |
+          cd windows
+          zip -r ../fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }} *
+
+      - name: Verify artifacts
+        run: |
           ls -la fly-*
-          [ -f "fly-${{ env.VERSION }}-${{ env.LINUX_FILE }}" ] || exit 1
-          #[ -f "fly-${{ env.VERSION }}-${{ env.WIN_FILE }}" ] || exit 1
+          [ -f "fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}" ] || exit 1
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           draft: false
           prerelease: true
-          tag_name: v${{ env.VERSION }}
-          name: Fly ${{ env.VERSION }}
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Fly ${{ steps.version.outputs.version }}
           files: |
-            fly-${{ env.VERSION }}-${{ env.LINUX_FILE }}
-            fly-${{ env.VERSION }}-${{ env.WIN_FILE }}
-            # fly-${{ env.VERSION }}-${{ env.MACOS_FILE }}
+            fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}
+            fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }}
           body: |
-            Fly ${{ env.VERSION }} Release
+            Fly ${{ steps.version.outputs.version }} Release
             
             Built and tested on:
             - Linux (Ubuntu)
