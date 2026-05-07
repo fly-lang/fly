@@ -1,0 +1,56 @@
+name: Build Windows
+
+on:
+  push:
+    paths-ignore:
+      - '.github/workflows/**'
+    branches:
+      - release/*
+      - main
+  workflow_dispatch:
+
+env:
+  BUILD_TYPE: Release
+  BUILD_DIR: build
+
+jobs:
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: choco install ninja -y
+
+      - name: Configure
+        run: cmake -E make_directory ${{env.BUILD_DIR}}
+
+      - name: Set Build Type
+        shell: bash
+        if: startsWith(github.ref, 'refs/heads/release/')
+        run: echo "BUILD_TYPE=RelWithDebInfo" >> $GITHUB_ENV
+
+      - name: Build
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}
+        run: |
+          cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON -G "Ninja"
+          cmake --build . --config ${{env.BUILD_TYPE}}
+
+      - name: Test
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}
+        run: ctest -C ${{env.BUILD_TYPE}} --output-on-failure
+
+      - name: Set artifact name
+        id: artifact
+        shell: bash
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          echo "artifact_name=windows-artifact-${BRANCH//\//-}" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.artifact_name }}
+          path: ${{github.workspace}}\${{env.BUILD_DIR}}\bin\*
+          overwrite: true
