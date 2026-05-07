@@ -54,5 +54,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact.outputs.artifact_name }}
-          path: ${{github.workspace}}\${{env.BUILD_DIR}}\bin\*
+          path: ${{github.workspace}}\${{env.BUILD_DIR}}\bin\${{BUILD_TYPE}}\*
           overwrite: true
