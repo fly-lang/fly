@@ -2,31 +2,26 @@ name: Build Linux
 
 on:
   push:
-    paths-ignore: # Ignore github workflows dir
+    paths-ignore:
       - '.github/workflows/**'
-    branches: # Triggers the workflow on push on branch main or release/*
+    branches:
       - release/*
       - main
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
 
 env:
-  # CMake build type (default is Release, if the branch is release/* is RelWithDebInfo)
   BUILD_TYPE: Release
   BUILD_DIR: build
-  LINUX_FILE: linux-x86_64.tar.gz
 
 jobs:
 
   build-linux:
     runs-on: ubuntu-latest
 
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Dependencies
+      - name: Install Dependencies
         run: sudo apt update && sudo apt-get -y install binutils-dev libdw-dev libdwarf-dev libzstd-dev gdb
 
       - name: Configure
@@ -59,16 +54,15 @@ jobs:
               -ex "quit" \
               --args ./fly_test
 
-      - name: Read Version
-        id: version
+      - name: Set artifact name
+        id: artifact
         shell: bash
-        run: echo "version=$(cmake -LA -N ${{env.BUILD_DIR}} | grep '^FLY_VERSION:STRING=' | cut -d= -f2)" >> $GITHUB_OUTPUT
-
-      - name: Packaging
-        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/bin
-        run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}} fly
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          echo "artifact_name=linux-artifact-${BRANCH//\//-}" >> $GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@v4
         with:
-          name: linux-artifact
-          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}}
+          name: ${{ steps.artifact.outputs.artifact_name }}
+          path: ${{github.workspace}}/${{env.BUILD_DIR}}/bin/*
+          overwrite: true
