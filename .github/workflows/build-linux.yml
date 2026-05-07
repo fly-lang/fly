@@ -1,0 +1,74 @@
+name: Build Linux
+
+on:
+  push:
+    paths-ignore: # Ignore github workflows dir
+      - '.github/workflows/**'
+    branches: # Triggers the workflow on push on branch main or release/*
+      - release/*
+      - main
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  # CMake build type (default is Release, if the branch is release/* is RelWithDebInfo)
+  BUILD_TYPE: Release
+  BUILD_DIR: build
+  LINUX_FILE: linux-x86_64.tar.gz
+
+jobs:
+
+  build-linux:
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: sudo apt update && sudo apt-get -y install binutils-dev libdw-dev libdwarf-dev libzstd-dev gdb
+
+      - name: Configure
+        run: cmake -E make_directory ${{env.BUILD_DIR}}
+
+      - name: Set Build Type
+        shell: bash
+        if: startsWith(github.ref, 'refs/heads/release/')
+        run: echo "BUILD_TYPE=RelWithDebInfo" >> $GITHUB_ENV
+
+      - name: Build
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
+        run: |
+          cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON
+          cmake --build . --config ${{env.BUILD_TYPE}}
+
+      - name: Test
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
+        run: ctest --output-on-failure
+
+      - name: Backtrace on Crash
+        if: failure()
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
+        run: |
+          gdb -batch \
+              -ex "set pagination off" \
+              -ex "handle SIGSEGV stop nopass" \
+              -ex "run --gtest_catch_exceptions=0" \
+              -ex "bt full" \
+              -ex "quit" \
+              --args ./fly_test
+
+      - name: Read Version
+        id: version
+        shell: bash
+        run: echo "version=$(cmake -LA -N ${{env.BUILD_DIR}} | grep '^FLY_VERSION:STRING=' | cut -d= -f2)" >> $GITHUB_OUTPUT
+
+      - name: Packaging
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/bin
+        run: tar -czvf ../fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}} fly
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifact
+          path: ${{github.workspace}}/${{env.BUILD_DIR}}/fly-${{ steps.version.outputs.version }}-${{env.LINUX_FILE}}
