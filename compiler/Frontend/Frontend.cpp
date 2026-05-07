@@ -10,6 +10,14 @@
 #include "Frontend/Frontend.h"
 
 #include "AST/ASTBuilder.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTModifier.h"
+#include "AST/ASTModule.h"
+#include "AST/ASTName.h"
+#include "AST/ASTNameSpace.h"
+#include "AST/ASTParam.h"
+#include "AST/ASTType.h"
+#include "AST/ASTVar.h"
 #include "Frontend/InputFile.h"
 #include "Basic/Archiver.h"
 #include "Basic/Debug.h"
@@ -19,14 +27,113 @@
 #include "Parser/Parser.h"
 #include "Sema/SemaBuiltin.h"
 #include "Sema/SemaContext.h"
+#include "Sema/SemaModule.h"
 
 #include <iostream>
 #include <llvm/ADT/Statistic.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Path.h>
+#include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/Timer.h>
 
 using namespace fly;
+
+// ─── Header generation helpers ───────────────────────────────────────────────
+
+static std::string typeStr(const ASTType *T) {
+    if (!T) return "";
+    if (T->getTypeKind() == ASTTypeKind::TYPE_BUILTIN) {
+        const auto *BT = static_cast<const ASTBuiltinType *>(T);
+        switch (BT->getBuiltinKind()) {
+            case ASTBuiltinTypeKind::TYPE_BOOL:   return "bool";
+            case ASTBuiltinTypeKind::TYPE_BYTE:   return "byte";
+            case ASTBuiltinTypeKind::TYPE_SHORT:  return "short";
+            case ASTBuiltinTypeKind::TYPE_INT:    return "int";
+            case ASTBuiltinTypeKind::TYPE_LONG:   return "long";
+            case ASTBuiltinTypeKind::TYPE_USHORT: return "ushort";
+            case ASTBuiltinTypeKind::TYPE_UINT:   return "uint";
+            case ASTBuiltinTypeKind::TYPE_ULONG:  return "ulong";
+            case ASTBuiltinTypeKind::TYPE_FLOAT:  return "float";
+            case ASTBuiltinTypeKind::TYPE_DOUBLE: return "double";
+            case ASTBuiltinTypeKind::TYPE_STRING: return "string";
+            default: return "";
+        }
+    }
+    if (T->getTypeKind() == ASTTypeKind::TYPE_NAMED) {
+        const auto *NT = static_cast<const ASTNamedType *>(T);
+        std::string name;
+        for (const auto *N : NT->getNames()) {
+            if (!name.empty()) name += ".";
+            name += N->getName().str();
+        }
+        return name;
+    }
+    return "";
+}
+
+static std::string paramStr(const ASTParam *P) {
+    std::string out;
+    for (auto *Mod : P->getModifiers())
+        if (Mod->getModifierKind() == ASTModifierKind::MOD_CONSTANT)
+            out += "const ";
+    out += typeStr(P->getType()) + " " + P->getName().str();
+    return out;
+}
+
+static std::string funcSignatureStr(const ASTFunction *F) {
+    std::string sig = "public ";
+    const std::string ret = typeStr(F->getReturnType());
+    if (!ret.empty()) sig += ret + " ";
+    sig += F->getName().str() + "(";
+    bool first = true;
+    for (const auto *P : F->getParams()) {
+        if (!first) sig += ", ";
+        sig += paramStr(P);
+        first = false;
+    }
+    sig += ")";
+    return sig;
+}
+
+// Writes a .fly.h declaration file for the public API of M.
+// Returns the path of the generated file, or empty string on failure.
+static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags) {
+    // Derive header path: <source>.fly → <source>.fly.h
+    std::string HeaderPath = M->getName() + ".fly.h";
+
+    std::error_code EC;
+    llvm::raw_fd_ostream OS(HeaderPath, EC, llvm::sys::fs::OF_Text);
+    if (EC) {
+        llvm::errs() << "error: cannot write header '" << HeaderPath << "': " << EC.message() << "\n";
+        return "";
+    }
+
+    // Namespace declaration
+    if (ASTNameSpace *NS = M->getNameSpace()) {
+        OS << "namespace ";
+        bool first = true;
+        for (const auto *N : NS->getNames()) {
+            if (!first) OS << ".";
+            OS << N->getName();
+            first = false;
+        }
+        OS << "\n\n";
+    }
+
+    // Public function signatures
+    for (const auto *Node : M->getNodes()) {
+        if (Node->getKind() != ASTKind::AST_FUNCTION) continue;
+        const auto *F = static_cast<const ASTFunction *>(Node);
+        bool isPublic = false;
+        for (auto *Mod : F->getModifiers())
+            if (Mod->getModifierKind() == ASTModifierKind::MOD_PUBLIC)
+                isPublic = true;
+        if (!isPublic) continue;
+        OS << funcSignatureStr(F) << "\n";
+    }
+
+    return HeaderPath;
+}
 
 Frontend::Frontend(CompilerInstance &CI) : CI(CI), Diags(CI.getDiagnostics()) {
 
@@ -91,7 +198,11 @@ bool Frontend::Execute() {
         CodeGen CG(Diags, LLVMCtx, CI.getCodeGenOptions(), CI.getTargetOptions(),
                    CI.getFrontendOptions().BackendAction,
                    CI.getFrontendOptions().ShowTimers);
-        llvm::SmallVector<llvm::Module *, 8> Modules = CG.GenerateModules(SemaModules);
+        SmallVector<SemaModule *, 8> CompilableModules;
+        for (auto *SM : SemaModules)
+            if (!SM->getAST().isHeader())
+                CompilableModules.push_back(SM);
+        llvm::SmallVector<llvm::Module *, 8> Modules = CG.GenerateModules(CompilableModules);
 
         // Emit code base on BackendActionKind
         for (auto M : Modules) {
@@ -109,10 +220,14 @@ bool Frontend::Execute() {
     		delete M;
     	Modules.clear();
 
-    	// FIXME: Generate Headers
-        // if (CI.getFrontendOptions().CreateHeader) {
-        //     CG.GenerateHeaders(S->getSymTable());
-        // }
+        // Generate .fly.h headers for each non-header module when --lib/--header is set.
+        if (CI.getFrontendOptions().CreateHeader) {
+            for (auto *SM : CompilableModules) {
+                std::string HPath = GenerateHeader(&SM->getAST(), Diags);
+                if (!HPath.empty())
+                    OutputFiles.push_back(HPath);
+            }
+        }
     }
 
     // Reset CodeGen pointers on SemaBuiltin singletons: these are shared across
@@ -197,23 +312,20 @@ void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
         }
         delete Input;
     } else if (Input->getExt() == FileExt::LIB) {
-        // Read Header Files from library by extracting them
-        const std::vector<StringRef> Files = ExtractFiles(FileName);
-        for (StringRef File : Files) {
-            if (llvm::sys::path::extension(File) == ".fly.h") {
-                InputFile *InputHeader = new InputFile(Diags, CI.getSourceManager(), File.str());
-                if (InputHeader->Load()) {
-                    Parser *P = new Parser(InputHeader, CI.getSourceManager(), Diags, Builder);
-                    P->ParseHeader();
-                    delete P;
-                }
+        // Look for a <archive_stem>.fly.h file alongside the archive.
+        // e.g. "mymath.a" → look for "mymath.fly.h" in the same directory.
+        llvm::SmallString<256> HeaderPath(FileName);
+        llvm::sys::path::replace_extension(HeaderPath, "fly.h");
+        if (llvm::sys::fs::exists(HeaderPath)) {
+            InputFile *InputHeader = new InputFile(Diags, CI.getSourceManager(), HeaderPath.str().str());
+            if (InputHeader->Load()) {
+                Parser *P = new Parser(InputHeader, CI.getSourceManager(), Diags, Builder);
+                ASTModule *M = P->ParseHeader();
+                if (M) ASTModules.push_back(M);
+                Parsers.push_back(P);
+                InputFiles.push_back(InputHeader);
+            } else {
                 delete InputHeader;
-
-                // Remove Header File after extraction and parsing
-                const std::error_code EC = llvm::sys::fs::remove(File, false);
-                if (EC) {
-                    Diags.Report(diag::err_fe_unable_remove_header) << EC.message();
-                }
             }
         }
         delete Input;

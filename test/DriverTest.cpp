@@ -8,9 +8,6 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include <Driver/Driver.h>
-#include <Driver/DriverOptions.h>
-#include <llvm/Option/OptTable.h>
-#include <llvm/Option/ArgList.h>
 #include "gtest/gtest.h"
 #include <fstream>
 #include <iostream>
@@ -18,7 +15,6 @@
 
 namespace {
     using namespace fly;
-    using namespace fly::driver;
 
     const char* testFile  = "file1.fly";
     const char* testFile2 = "file2.fly";
@@ -44,44 +40,22 @@ namespace {
         remove(path);
     }
 
-    // ─── OptTable ────────────────────────────────────────────────────────────
+    // ─── Basic option parsing via Driver ─────────────────────────────────────
 
     TEST_F(DriverTest, Options) {
-        const opt::OptTable &optTab = fly::driver::getDriverOptTable();
-        unsigned MissingArgIndex, MissingArgCount;
-        const opt::InputArgList &args = optTab.ParseArgs(
-            {"-v", "-help", "-version", testFile, "-o", "file.o"},
-            MissingArgIndex, MissingArgCount);
-        EXPECT_TRUE(args.hasArg(options::OPT_VERBOSE));
-        EXPECT_TRUE(args.hasArg(options::OPT_HELP));
-        EXPECT_TRUE(args.hasArg(options::OPT_VERSION));
-        EXPECT_TRUE(args.hasArg(options::OPT_INPUT));
-        EXPECT_TRUE(args.hasArg(options::OPT_OUTPUT));
-        ASSERT_EQ(args.getNumInputArgStrings(), 6);
-        EXPECT_EQ(testFile, args.getLastArg(options::OPT_INPUT)->getValue());
-        EXPECT_EQ("file.o", args.getLastArgValue(options::OPT_OUTPUT));
-    }
+        ASSERT_TRUE(createTestFile(testFile));
 
-    TEST_F(DriverTest, OptionsAllFlags) {
-        const opt::OptTable &optTab = fly::driver::getDriverOptTable();
-        unsigned Miss, MissCount;
-        const opt::InputArgList &args = optTab.ParseArgs(
-            {"-emit-ll", "-emit-bc", "-emit-as", "-no-output",
-             "-ftime-report", "-print-stats", "-debug",
-             "--target", "x86_64-linux-gnu", "--target-cpu", "generic",
-             "-mcmodel", "small", "-mthread-model", "posix"},
-            Miss, MissCount);
-        EXPECT_TRUE(args.hasArg(options::OPT_EMIT_LL));
-        EXPECT_TRUE(args.hasArg(options::OPT_EMIT_BC));
-        EXPECT_TRUE(args.hasArg(options::OPT_EMIT_AS));
-        EXPECT_TRUE(args.hasArg(options::OPT_NO_OUTPUT));
-        EXPECT_TRUE(args.hasArg(options::OPT_FTIME_REPORT));
-        EXPECT_TRUE(args.hasArg(options::OPT_PRINT_STATS));
-        EXPECT_TRUE(args.hasArg(options::OPT_DEBUG));
-        EXPECT_EQ("x86_64-linux-gnu", args.getLastArgValue(options::OPT_TARGET));
-        EXPECT_EQ("generic",          args.getLastArgValue(options::OPT_TARGET_CPU));
-        EXPECT_EQ("small",            args.getLastArgValue(options::OPT_MC_MODEL));
-        EXPECT_EQ("posix",            args.getLastArgValue(options::OPT_MTHREAD_MODEL));
+        const char *argv[] = {"fly", "-v", testFile, "-o", "file.o"};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        const FrontendOptions &FO = CI.getFrontendOptions();
+
+        EXPECT_TRUE(FO.Verbose);
+        ASSERT_EQ(FO.getInputFiles().size(), 1u);
+        EXPECT_EQ(FO.getInputFiles()[0], testFile);
+        EXPECT_EQ(FO.getOutputFile(), "file.o");
+
+        deleteTestFile(testFile);
     }
 
     // ─── doExecute=false paths (no compilation needed) ───────────────────────
@@ -160,7 +134,7 @@ namespace {
     TEST_F(DriverTest, OutputLib) {
         ASSERT_TRUE(createTestFile(testFile));
 
-        const char *argv[] = {"fly", testFile, "-lib", "out.a"};
+        const char *argv[] = {"fly", testFile, "--lib", "-o", "out.a"};
         Driver driver(argv);
         CompilerInstance &CI = driver.BuildCompilerInstance();
         const FrontendOptions &FO = CI.getFrontendOptions();

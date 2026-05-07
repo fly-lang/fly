@@ -485,7 +485,9 @@ static llvm::OptimizationLevel mapToLevel(const CodeGenOptions &Opts) {
 /// Emit assembly/IR/object using the new pass manager.
 void EmitAssemblyHelper::EmitAssembly(BackendActionKind Action,
                                       std::unique_ptr<raw_pwrite_stream> OS) {
-    llvm::TimeRegion Region(&CodeGenerationTime);
+    std::unique_ptr<llvm::TimeRegion> TimingRegion;
+    if (FrontendTimesIsEnabled)
+        TimingRegion = std::make_unique<llvm::TimeRegion>(&CodeGenerationTime);
     setCommandLineOpts(CodeGenOpts);
 
     bool RequiresCodeGen = (Action != Backend_EmitNothing &&

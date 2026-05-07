@@ -7,10 +7,11 @@
 #                      array subscript, unary minus, heap allocation).
 #                      Built by the host C compiler via a normal CMake target.
 #
-#   fly_lib.lib   — Fly-compiled namespace objects + .fly.h header metadata.
+#   fly_lib.a/.lib — Fly-compiled namespace objects + .fly.h header metadata.
 #                      Built by the fly binary after it is available.
+#                      Extension: .a on Linux/macOS, .lib on Windows-MSVC.
 #
-# Users link both archives: -lflyLib fly_lib.lib
+# Users link both archives: -lflyLib fly_lib.a  (or fly_lib.lib on Windows)
 #
 # Namespace  → Source file      → Header
 #   fly.str     src/str.fly     src/str.fly.h
@@ -45,14 +46,18 @@ set(FLY_LIB_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/thread.fly
 )
 
-# The fly compiler appends .lib automatically; pass the stem without extension.
-set(FLY_LIB_STEM   "${CMAKE_BINARY_DIR}/lib/fly_lib")
-set(FLY_LIB_OUTPUT "${FLY_LIB_STEM}.lib")
+# fly --lib appends .a (Linux/macOS) or .lib (Windows-MSVC); pass the stem via -o.
+set(FLY_LIB_STEM "${CMAKE_BINARY_DIR}/lib/fly_lib")
+if(MSVC)
+    set(FLY_LIB_OUTPUT "${FLY_LIB_STEM}.lib")
+else()
+    set(FLY_LIB_OUTPUT "${FLY_LIB_STEM}.a")
+endif()
 
 add_custom_command(
     OUTPUT  ${FLY_LIB_OUTPUT}
     COMMAND $<TARGET_FILE:fly>
-            -lib ${FLY_LIB_STEM}
+            --lib -o ${FLY_LIB_STEM}
             ${FLY_LIB_SOURCES}
     DEPENDS fly ${FLY_LIB_SOURCES}
     COMMENT "Compiling Fly standard library namespaces"

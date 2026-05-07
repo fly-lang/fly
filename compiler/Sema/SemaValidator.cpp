@@ -20,7 +20,6 @@
 #include "Basic/Debug.h"
 #include "Basic/Diagnostic.h"
 #include "llvm/Support/Signals.h"
-#include "Sema/SemaNameSpace.h"
 
 #include <AST/ASTExpr.h>
 #include <Sema/SemaClassType.h>

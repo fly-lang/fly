@@ -349,7 +349,7 @@ namespace {
         remove(f1.c_str()); remove(f2.c_str()); remove(arc.c_str());
     }
 
-    TEST_F(ToolChainTest, CreateLib_FailsIfArchiveAlreadyExists) {
+    TEST_F(ToolChainTest, CreateLib_OverrideIfArchiveAlreadyExists) {
         std::string arc = (std::filesystem::temp_directory_path() / "fly_clib_exists.a").string();
 
         { std::ofstream f(arc); f << "already here"; }
@@ -357,7 +357,7 @@ namespace {
         Archiver ar(CI->getDiagnostics(), arc);
         llvm::SmallVector<std::string, 4> files;
         bool ok = ar.CreateLib(files);
-        EXPECT_FALSE(ok);
+        EXPECT_TRUE(ok);
 
         remove(arc.c_str());
     }

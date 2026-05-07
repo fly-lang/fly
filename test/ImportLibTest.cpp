@@ -9,7 +9,6 @@
 
 #include "TestUtils.h"
 #include "Driver/Driver.h"
-#include "Driver/DriverOptions.h"
 #include "AST/ASTBuilder.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTEnum.h"
