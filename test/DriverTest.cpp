@@ -134,7 +134,7 @@ namespace {
     TEST_F(DriverTest, OutputLib) {
         ASSERT_TRUE(createTestFile(testFile));
 
-        const char *argv[] = {"fly", testFile, "-lib", "out.a"};
+        const char *argv[] = {"fly", testFile, "--lib", "-o", "out.a"};
         Driver driver(argv);
         CompilerInstance &CI = driver.BuildCompilerInstance();
         const FrontendOptions &FO = CI.getFrontendOptions();

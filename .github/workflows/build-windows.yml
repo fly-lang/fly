@@ -34,8 +34,10 @@ jobs:
 
       - name: Build
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}
+        shell: pwsh
         run: |
-          cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON -G "Ninja"
+          cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_VERBOSE_MAKEFILE=ON `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake"
           cmake --build . --config ${{env.BUILD_TYPE}}
 
       - name: Test
