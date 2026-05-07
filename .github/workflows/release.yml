@@ -11,7 +11,15 @@ env:
   BUILD_DIR: build
 
 jobs:
+
+  build-linux:
+    uses: ./.github/workflows/build-linux.yml
+
+  build-windows:
+    uses: ./.github/workflows/build-windows.yml
+
   release:
+    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
 
     steps:
@@ -30,28 +38,26 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Resolved version: $VERSION"
 
-      - name: Set artifact name
+      - name: Set artifact names
         id: artifact
         shell: bash
         run: |
           BRANCH="${{ github.ref_name }}"
-          echo "artifact_name=linux-artifact-${BRANCH//\//-}" >> $GITHUB_OUTPUT
+          BRANCH_SLUG="${BRANCH//\//-}"
+          echo "linux=linux-artifact-${BRANCH_SLUG}" >> $GITHUB_OUTPUT
+          echo "windows=windows-artifact-${BRANCH_SLUG}" >> $GITHUB_OUTPUT
 
       - name: Download Linux artifact
-        uses: dawidd6/action-download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
-          workflow: build-linux.yml
-          name: ${{ steps.artifact.outputs.artifact_name }}
+          name: ${{ steps.artifact.outputs.linux }}
           path: ./linux
-          search_artifacts: true
 
       - name: Download Windows artifact
-        uses: dawidd6/action-download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
-          workflow: build-windows.yml
-          name: ${{ steps.artifact.outputs.artifact_name }}
+          name: ${{ steps.artifact.outputs.windows }}
           path: ./windows
-          search_artifacts: true
 
       - name: Package Linux
         run: |
@@ -67,6 +73,7 @@ jobs:
         run: |
           ls -la fly-*
           [ -f "fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}" ] || exit 1
+          [ -f "fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }}" ] || exit 1
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -80,7 +87,7 @@ jobs:
             fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }}
           body: |
             Fly ${{ steps.version.outputs.version }} Release
-            
+
             Built and tested on:
             - Linux (Ubuntu)
             - Windows
