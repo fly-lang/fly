@@ -28,7 +28,7 @@ jobs:
         id: version
         shell: bash
         run: |
-          VERSION=$(grep -m1 'set(FLY_VERSION' CMakeLists.txt | sed 's/.*"\(.*\)".*/\1/')
+          VERSION=$(grep -m1 'set(FLY_VERSION' CMakeLists.txt | sed 's/[^"]*"\([^"]*\)".*/\1/')
           if [ -z "$VERSION" ]; then
             echo "ERROR: Could not read version from CMakeLists.txt"
             exit 1
