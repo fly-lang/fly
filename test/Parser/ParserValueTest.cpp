@@ -366,6 +366,95 @@ namespace {
         EXPECT_FALSE(HasErrorOccurred());
     }
 
+    // ─── octal prefix (Python style 0o) ─────────────────────────────────────
+
+    TEST_F(ParserTest, ValueIntegerOctal) {
+        llvm::StringRef src =
+            "func() {\n"
+            "  int a = 0o0\n"
+            "  int b = 0o7\n"
+            "  int c = 0o755\n"
+            "  int d = 0O644\n"
+            "}\n";
+        ASTModule *M = Parse("ValueIntegerOctal", src);
+        auto *Body = As<ASTFunction>(M->getNodes()[0])->getBody();
+
+        EXPECT_EQ(As<ASTNumberValue>(rhsValue(Body, 0))->getValue(), "0o0");
+        EXPECT_EQ(As<ASTNumberValue>(rhsValue(Body, 1))->getValue(), "0o7");
+        EXPECT_EQ(As<ASTNumberValue>(rhsValue(Body, 2))->getValue(), "0o755");
+        EXPECT_EQ(As<ASTNumberValue>(rhsValue(Body, 3))->getValue(), "0O644");
+        EXPECT_FALSE(HasErrorOccurred());
+    }
+
+    // ─── digit separator _ ───────────────────────────────────────────────────
+
+    TEST_F(ParserTest, ValueIntegerDigitSeparator) {
+        llvm::StringRef src =
+            "func() {\n"
+            "  int a = 1_000\n"
+            "  int b = 1_000_000\n"
+            "  int c = 0xFF_FF\n"
+            "  int d = 0b1010_1010\n"
+            "  int e = 0o7_5_5\n"
+            "}\n";
+        ASTModule *M = Parse("ValueIntegerDigitSeparator", src);
+        auto *Body = As<ASTFunction>(M->getNodes()[0])->getBody();
+
+        EXPECT_EQ(As<ASTNumberValue>(rhsValue(Body, 0))->getValue(), "1_000");
+        EXPECT_EQ(As<ASTNumberValue>(rhsValue(Body, 1))->getValue(), "1_000_000");
+        EXPECT_EQ(As<ASTNumberValue>(rhsValue(Body, 2))->getValue(), "0xFF_FF");
+        EXPECT_EQ(As<ASTNumberValue>(rhsValue(Body, 3))->getValue(), "0b1010_1010");
+        EXPECT_EQ(As<ASTNumberValue>(rhsValue(Body, 4))->getValue(), "0o7_5_5");
+        EXPECT_FALSE(HasErrorOccurred());
+    }
+
+    TEST_F(ParserTest, ValueFloatDigitSeparator) {
+        llvm::StringRef src =
+            "func() {\n"
+            "  double a = 1_000.5\n"
+            "  double b = 3.141_592\n"
+            "}\n";
+        ASTModule *M = Parse("ValueFloatDigitSeparator", src);
+        auto *Body = As<ASTFunction>(M->getNodes()[0])->getBody();
+
+        EXPECT_EQ(As<ASTNumberValue>(rhsValue(Body, 0))->getValue(), "1_000.5");
+        EXPECT_EQ(As<ASTNumberValue>(rhsValue(Body, 1))->getValue(), "3.141_592");
+        EXPECT_FALSE(HasErrorOccurred());
+    }
+
+    // ─── imaginary suffix j / complex type ──────────────────────────────────
+
+    TEST_F(ParserTest, ValueImaginary) {
+        llvm::StringRef src =
+            "func() {\n"
+            "  complex a = 3.14j\n"
+            "  complex b = 1.0J\n"
+            "  complex c = 0.0j\n"
+            "}\n";
+        ASTModule *M = Parse("ValueImaginary", src);
+        auto *Body = As<ASTFunction>(M->getNodes()[0])->getBody();
+
+        EXPECT_EQ(As<ASTNumberValue>(rhsValue(Body, 0))->getValue(), "3.14j");
+        EXPECT_EQ(As<ASTNumberValue>(rhsValue(Body, 1))->getValue(), "1.0J");
+        EXPECT_EQ(As<ASTNumberValue>(rhsValue(Body, 2))->getValue(), "0.0j");
+        EXPECT_FALSE(HasErrorOccurred());
+    }
+
+    TEST_F(ParserTest, ValueComplexType) {
+        llvm::StringRef src =
+            "func() {\n"
+            "  complex a = 2.5j\n"
+            "}\n";
+        ASTModule *M = Parse("ValueComplexType", src);
+        auto *Body = As<ASTFunction>(M->getNodes()[0])->getBody();
+        auto *Stmt = static_cast<ASTDeclStmt *>(Body->getContent()[0]);
+        auto *Var = Stmt->getLocalVar();
+
+        EXPECT_TRUE(HasBuiltinType(Var->getType(), ASTBuiltinTypeKind::TYPE_COMPLEX));
+        EXPECT_EQ(As<ASTNumberValue>(rhsValue(Body, 0))->getValue(), "2.5j");
+        EXPECT_FALSE(HasErrorOccurred());
+    }
+
     // ─── struct values ───────────────────────────────────────────────────────
 
     TEST_F(ParserTest, ValueStructSingle) {

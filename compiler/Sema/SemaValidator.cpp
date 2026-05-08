@@ -31,6 +31,27 @@
 
 using namespace fly;
 
+// ─── file-local helpers ──────────────────────────────────────────────────────
+
+// Returns true for any type that lives in the numeric cast group (bool/int/float).
+static bool isNumericGroup(const SemaType *T) {
+    return T->isBool() || T->isInteger() || T->isFloat();
+}
+
+// Returns true when From is assignable / castable to To via inheritance rules.
+// Handles class sub-typing and enum derivation; returns false for all other kinds.
+static bool isCompatibleByInheritance(SemaType *From, SemaType *To) {
+    if (From->isClass() && To->isClass())
+        return static_cast<SemaClassType *>(From)->isDerivedOrEquals(
+               static_cast<SemaClassType *>(To));
+    if (From->isEnum() && To->isEnum())
+        return static_cast<SemaEnumType *>(From)->isDerivedOrEquals(
+               static_cast<SemaEnumType *>(To));
+    return false;
+}
+
+// ─── SemaValidator ───────────────────────────────────────────────────────────
+
 SemaValidator::SemaValidator(DiagnosticsEngine &Diags) : Diags(Diags) {
 }
 
@@ -50,123 +71,82 @@ void SemaValidator::CheckImport(const ASTImport &AST) {
 	if (AST.getNames().empty()) {
 		Diag(AST.getLocation(), diag::err_sema_import_undefined);
 	}
-
-	// TODO
-	// Error: name is equals to the current ASTModule namespace
-	// if (AST.getName() == Module->getNameSpace()->getName()) {
-	// 	Diag(AST.getLocation(), diag::err_import_conflict_namespace) << AST.getName();
-	// }
-
-	// Replace with alias name if exists
-	// llvm::StringRef Name = AST.getImport()->getName();
-
-	// Error: alias is equals to the current ASTModule namespace
-	// if (AST.getAlias()) {
-	//
-	// 	// Set Import Name
-	// 	Name = AST.getAlias()->getName();
-	//
-	// 	// Check Alias
-	// 	if (Module->getImports().lookup(Name) != nullptr) {
-	// 		Diag(AST.getLocation(), diag::err_conflict_import_alias) << Name;
-	// 		return;
-	// 	}
-	//
-	// 	if (AST.getAlias()->getName() == Module->getNameSpace()->getName()) {
-	// 		Diag(AST.getAlias()->getLocation(), diag::err_alias_conflict_namespace) << AST.getAlias()->getName();
-	// 		return;
-	// 	}
-	// }
 }
 
-// bool SemaValidator::CheckDuplicateModules(ASTModule *Module, const llvm::DenseMap<uint64_t, SemaModule *> &Modules) {
-// 	// Check Duplicate Module Names
-// 	for (auto ModuleEntry : Modules) {
-// 		ASTModule * AST = ModuleEntry.getSecond()->getAST();
-// 		if (AST->getId() != Module->getId() && AST->getName() == Module->getName()) {
-// 			// S.Diag(diag::err_sema_module_duplicated) << AST->getName();
-// 			return false;
-// 		}
-// 	}
-// 	return true;
-// }
+void SemaValidator::CheckCast(SemaExpr *From, SemaExpr *To) {
+	if (!From || !To)
+		return;
 
-// bool SemaValidator::CheckDuplicateIdentities(const llvm::StringMap<SymIdentity *> &Identities, ASTIdentity * Identity) {
-// 	SymIdentity *DuplicateIdentity = Identities.lookup(Identity->getName());
-// 	if (DuplicateIdentity) { // This CurrentNameSpace already contains this Identity
-// 		S.Diag(Identity->getLocation(), diag::err_duplicate_identity) << Identity->getName();
-// 		return false;
-// 	}
-//
-// 	return true;
-// }
+	SemaType *FromType = From->getType();
+	SemaType *ToType   = To->getType();
 
-/**
- * Check if this param name is already declared
- * @param Params
- * @param Param
- * @return
- */
+	if (!FromType || !ToType)
+		return;
+
+	// Identity: same type is always valid
+	if (FromType->isEquals(ToType))
+		return;
+
+	// Numeric group: bool / integer / float are mutually castable
+	if (isNumericGroup(FromType) && isNumericGroup(ToType)) {
+		// Warn on lossy narrowing
+		if (FromType->isFloat() && ToType->isInteger()) {
+			Diag(diag::warn_sema_cast_lossy)
+				<< FromType->getName() << ToType->getName();
+		} else if (FromType->isFloat() && ToType->isFloat()) {
+			SemaFloatType *FromFP = static_cast<SemaFloatType *>(FromType);
+			SemaFloatType *ToFP   = static_cast<SemaFloatType *>(ToType);
+			if (static_cast<unsigned>(FromFP->getFloatKind()) >
+			    static_cast<unsigned>(ToFP->getFloatKind()))
+				Diag(diag::warn_sema_cast_lossy)
+					<< FromType->getName() << ToType->getName();
+		} else if (FromType->isInteger() && ToType->isInteger()) {
+			SemaIntType *FromInt = static_cast<SemaIntType *>(FromType);
+			SemaIntType *ToInt   = static_cast<SemaIntType *>(ToType);
+			if (static_cast<unsigned>(FromInt->getIntKind()) >
+			    static_cast<unsigned>(ToInt->getIntKind()))
+				Diag(diag::warn_sema_cast_lossy)
+					<< FromType->getName() << ToType->getName();
+		}
+		return;
+	}
+
+	// Same-kind identity casts (string, complex, array)
+	if (FromType->isString()  && ToType->isString())  return;
+	if (FromType->isComplex() && ToType->isComplex()) return;
+	if (FromType->isArray()   && ToType->isArray())   return;
+
+	// Class / enum: allow upcasting or same derivation
+	if (isCompatibleByInheritance(FromType, ToType))
+		return;
+
+	// All other combinations are invalid
+	Diag(diag::err_sema_invalid_cast)
+		<< FromType->getName() << ToType->getName();
+}
+
 bool SemaValidator::CheckDuplicateParams(llvm::SmallVector<ASTVar *, 8> Params, ASTVar *Param) {
     for (ASTVar *P : Params) {
-        if (P->getName() == Param->getName()) {
-            // if (DiagEnabled)
-            //     S.Diag(Param->getLocation(), diag::err_conflict_params) << Param->getName();
+        if (P->getName() == Param->getName())
             return false;
-        }
     }
     return true;
 }
 
-/**
- * Check if this var name is already declared
- * @param Block
- * @param Var
- * @return
- */
 bool SemaValidator::CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName) {
-    if (Stmt->getStmtKind() != ASTStmtKind::STMT_BLOCK) {
-        // Error: need stmt block, cannot search duplicate var
+    if (Stmt->getStmtKind() != ASTStmtKind::STMT_BLOCK)
         return true;
-    }
 
     ASTBlockStmt *Block = (ASTBlockStmt *) Stmt;
-    // ASTLocalVar *DuplicateVar = Block->getLocalVars().lookup(VarName);
-    // if (DuplicateVar != nullptr) {
-        // if (DiagEnabled)
-        //     S.Diag(DuplicateVar->getLocation(), diag::err_conflict_vardecl) << DuplicateVar->getName();
-        // return false;
-    // }
-
-    // Check with parents
-    if (Block->getParent() != nullptr) {
+    if (Block->getParent() != nullptr)
         return CheckDuplicateLocalVars(Block->getParent(), VarName);
-    }
 
     return true;
-}
-
-bool SemaValidator::CheckCommentParams(SemaComment *Comment, const llvm::SmallVector<ASTVar *, 8> &Params) {
-	// TODO
-	return true;
-}
-
-bool SemaValidator::CheckCommentReturn(SemaComment *Comment, ASTType *ReturnType) {
-	// TODO
-	return true;
-}
-
-bool SemaValidator::CheckCommentFail(SemaComment *Comment) {
-	// TODO
-	return true;
 }
 
 bool SemaValidator::CheckExpr(SemaExpr *Expr) {
-    if (!Expr || !Expr->getType()) {
-        // if (DiagEnabled)
-        //     S.Diag(Expr->getLocation(), diag::err_expr_type_miss);
+    if (!Expr || !Expr->getType())
         return false;
-    }
     return true;
 }
 
@@ -177,10 +157,8 @@ bool SemaValidator::CheckEqualTypes(SemaType *Type1, SemaType *Type2) {
         	SemaArrayType *ArrayType2 = static_cast<SemaArrayType *>(Type2);
             return CheckEqualTypes(ArrayType1->getElementType(), ArrayType2->getElementType());
         }
-
         return Type1->getId() == Type2->getId();
     }
-
     return false;
 }
 
@@ -188,278 +166,150 @@ bool SemaValidator::CheckConvertibleTypes(SemaType *FromType, SemaType *ToType) 
     assert(FromType && "FromType cannot be null");
     assert(ToType && "ToType cannot be null");
 
-	// Check Integer Type
-    if (FromType->isInteger() && ToType->isInteger()) {
-	    SemaIntType *FromIntegerType = static_cast<SemaIntType *>(FromType);
-	    SemaIntType *ToIntegerType = static_cast<SemaIntType *>(ToType);
-	    return FromIntegerType->getIntKind() <= ToIntegerType->getIntKind() ||
-	           FromIntegerType->isSigned() == ToIntegerType->isSigned();
-    }
-
-	// Check Floating Point Type
-    if (FromType->isFloat() && ToType->isFloat()) {
-	    SemaFloatType *FromFloatingType = static_cast<SemaFloatType *>(FromType);
-	    SemaFloatType *ToFloatingType = static_cast<SemaFloatType *>(ToType);
-	    return FromFloatingType->getFloatKind() <= ToFloatingType->getFloatKind();
-    }
-
-	// Check Array Type
-    if (FromType->isArray() && ToType->isArray()) {
-    	SemaArrayType *FromArrayType = static_cast<SemaArrayType *>(FromType);
-    	SemaArrayType *ToArrayType = static_cast<SemaArrayType *>(ToType);
-    	return CheckConvertibleTypes(FromArrayType->getElementType(), ToArrayType->getElementType());
-    }
-
-    // Check Enum name is equals
-    if (FromType->isEnum() && ToType->isEnum()) {
-    	SemaEnumType *FromEnumType = static_cast<SemaEnumType *>(FromType);
-    	SemaEnumType *ToEnumType = static_cast<SemaEnumType *>(ToType);
-    	return FromEnumType->isDerivedOrEquals(ToEnumType);
-    }
-
-    // Check Class Inheritance
-    if (FromType->isClass() && ToType->isClass()) {
-    	SemaClassType *FromClassType = static_cast<SemaClassType *>(FromType);
-    	SemaClassType *ToClassType = static_cast<SemaClassType *>(ToType);
-    	return FromClassType->isDerivedOrEquals(ToClassType);
-    }
-
-	// Check Void Type
-    if (FromType->isBool() && ToType->isBool()) {
-        return true;
-    }
-
-    if (FromType->isString() && ToType->isString()) {
-	    return true;
-    }
-
-    if (FromType->isError() && ToType->isError()) {
-    	return true;
-    }
-
-	if (FromType->isVoid() && ToType->isVoid()) {
+	// Identical types are always convertible
+	if (FromType->isEquals(ToType))
 		return true;
-	}
 
-    return false;
+	// Integer widening / same-signedness
+    if (FromType->isInteger() && ToType->isInteger()) {
+	    SemaIntType *FromInt = static_cast<SemaIntType *>(FromType);
+	    SemaIntType *ToInt   = static_cast<SemaIntType *>(ToType);
+	    return FromInt->getIntKind() <= ToInt->getIntKind() ||
+	           FromInt->isSigned() == ToInt->isSigned();
+    }
+
+	// Float widening
+    if (FromType->isFloat() && ToType->isFloat()) {
+	    SemaFloatType *FromFP = static_cast<SemaFloatType *>(FromType);
+	    SemaFloatType *ToFP   = static_cast<SemaFloatType *>(ToType);
+	    return FromFP->getFloatKind() <= ToFP->getFloatKind();
+    }
+
+	// Array element-wise convertibility
+    if (FromType->isArray() && ToType->isArray()) {
+    	SemaArrayType *FromArr = static_cast<SemaArrayType *>(FromType);
+    	SemaArrayType *ToArr   = static_cast<SemaArrayType *>(ToType);
+    	return CheckConvertibleTypes(FromArr->getElementType(), ToArr->getElementType());
+    }
+
+    // Class / enum: allow upcasting or same derivation
+    return isCompatibleByInheritance(FromType, ToType);
 }
 
 bool SemaValidator::CheckInheritance(SemaClassType *ClassType, SemaClassType *SuperClassType) {
-	// Check if ClassType is equals to SuperClassType
-	if (ClassType->getId() == SuperClassType->getId()) {
+	if (ClassType->getId() == SuperClassType->getId())
 		return true;
-	}
-
-	// Check if ClassType is a subclass of SuperClassType
 	for (auto &Entry : ClassType->getBaseClasses()) {
-		if (CheckInheritance(SuperClassType, Entry)) {
+		if (CheckInheritance(SuperClassType, Entry))
 			return true;
-		}
 	}
-
 	return false;
 }
 
 bool SemaValidator::CheckInheritance(SemaEnumType *EnumType, SemaEnumType *SuperEnumType) {
-	// Check if TheClass is equals to SuperClass
-	if (EnumType->getId() == SuperEnumType->getId()) {
+	if (EnumType->getId() == SuperEnumType->getId())
 		return true;
-	}
-
-	// Check if TheClass is a subclass of SuperClass
 	for (auto &SuperClassEntry : EnumType->getBaseEnums()) {
-		if (CheckInheritance(SuperClassEntry.getValue(), SuperEnumType)) {
+		if (CheckInheritance(SuperClassEntry.getValue(), SuperEnumType))
 			return true;
-		}
 	}
-
 	return false;
 }
 
-bool SemaValidator::CheckArithTypes(SemaType *Type1, SemaType *Type2) {
-	// Check if one of the types is an integer
-	if (Type1->isInteger() && Type2->isInteger()) {
-        return true;
-    }
-
-	// Check if one of the types is a floating point
-	if (Type1->isFloat() && Type2->isFloat()) {
-		return true;
-	}
-
-	// Check if one of the types is a boolean
-	if (Type1->isBool() && Type2->isBool()) {
-		return true;
-	}
-
-    return false;
-}
-
-bool SemaValidator::CheckLogicalTypes(SemaType *Type1, SemaType *Type2) {
-    if (Type1->isBool() && Type2->isBool()) {
-        return true;
-    }
-
-    return false;
-}
-
 bool SemaValidator::CheckBinary(ASTBinary &AST, SemaExpr *LeftSema, SemaExpr *RightSema) {
-	// Check if Left and Right Expr have Sema
-	if (!LeftSema || !RightSema) {
+	if (!LeftSema || !RightSema)
 		return false;
-	}
 
-	// Check if Left and Right Expr are resolved
-	SemaType * LeftType = LeftSema->getType();
-	SemaType * RightType = RightSema->getType();
+	SemaType *LeftType  = LeftSema->getType();
+	SemaType *RightType = RightSema->getType();
 
-	// Arithmetic Operations: Integer/Float, Float/Float, Integer/Integer, String/String (+)
+	auto diagnoseTypes = [&]() {
+		Diag(AST.getLocation(), diag::err_sema_types_operation)
+			<< LeftType->getName() << RightType->getName();
+	};
+
+	// Arithmetic: numbers or strings (+ only for strings)
 	if (AST.isArith()) {
-
-		// Check between numbers
-		if (LeftType->isNumber() && RightType->isNumber()) {
-			return true;
-		}
-
-		// String concatenation: only + is valid
-		if (LeftType->isString() && RightType->isString()) {
-			return true;
-		}
-
-		// Error: Binary Arithmetic operation can be made only with numbers or strings
-		Diag(AST.getLocation(), diag::err_sema_types_operation)
-				  << LeftType->getName()
-				  << RightType->getName();
+		if (LeftType->isNumber() && RightType->isNumber()) return true;
+		if (LeftType->isString() && RightType->isString()) return true;
+		diagnoseTypes();
 		return false;
 	}
 
-	// Comparison Operations: Bool/Bool, Integer/Integer, Float/Float, String/String, Class/Class, Enum/Enum
+	// Comparison: same-kind scalars, classes, enums
 	if (AST.isCompare()) {
-		if (LeftType->isBool() && RightType->isBool()) {
-			return true;
-		}
-		if (LeftType->isNumber() && RightType->isNumber()) {
-			return true;
-		}
-		if (LeftType->isString() && RightType->isString()) {
-			return true;
-		}
-		if (LeftType->isClass() && RightType->isClass()) {
-			return true;
-		}
-		if (LeftType->isEnum() && RightType->isEnum()) {
-			return true;
-		}
-		Diag(AST.getLocation(), diag::err_sema_types_operation)
-				  << LeftType->getName()
-				  << RightType->getName();
+		if (LeftType->isBool()   && RightType->isBool())   return true;
+		if (LeftType->isNumber() && RightType->isNumber()) return true;
+		if (LeftType->isString() && RightType->isString()) return true;
+		if (LeftType->isClass()  && RightType->isClass())  return true;
+		if (LeftType->isEnum()   && RightType->isEnum())   return true;
+		diagnoseTypes();
 		return false;
 	}
 
-	// Logical Operations: Bool/Bool
+	// Logical: booleans only
 	if (AST.isLogic()) {
-		if (LeftType->isBool() && RightType->isBool()) {
-			return true;
-		}
-
-		Diag(AST.getLocation(), diag::err_sema_types_operation)
-				  << LeftType->getName()
-				  << RightType->getName();
+		if (LeftType->isBool() && RightType->isBool()) return true;
+		diagnoseTypes();
 		return false;
 	}
 
-	// Assignment Operations: Compatible Types
+	// Assignment: compatible types
 	if (AST.isAssign()) {
-
-		if (LeftType->isBool()) {
-			return true;
-		}
+		if (LeftType->isBool()) return true;
 
 		if (LeftType->isNumber()) {
-			if (!RightType->isNumber()) {
-				Diag(AST.getLocation(), diag::err_sema_types_operation)
-				  << LeftType->getName()
-				  << RightType->getName();
+			if (!RightType->isNumber()) { diagnoseTypes(); return false; }
+			if (static_cast<SemaNumberType *>(LeftType)->getRank() <
+			    static_cast<SemaNumberType *>(RightType)->getRank()) {
+				diagnoseTypes();
 				return false;
 			}
-			if (static_cast<SemaNumberType *>(LeftType)->getRank() < static_cast<SemaNumberType *>(RightType)->getRank()) {
-				Diag(AST.getLocation(), diag::err_sema_types_operation)
-				  << LeftType->getName()
-				  << RightType->getName();
-				return false;
-			}
+			return true;
 		}
 
 		if (LeftType->isString()) {
-			if (!RightType->isString()) {
-				Diag(AST.getLocation(), diag::err_sema_types_operation)
-				  << LeftType->getName()
-				  << RightType->getName();
-				return true;
-			}
+			if (!RightType->isString()) { diagnoseTypes(); return false; }
+			return true;
 		}
 
 		if (LeftType->isArray()) {
-			if (!RightType->isArray()) {
-				Diag(AST.getLocation(), diag::err_sema_types_operation)
-				  << LeftType->getName()
-				  << RightType->getName();
-				return false;
-			}
-
-			SemaArrayType *LeftArrayType = static_cast<SemaArrayType *>(LeftType);
-			SemaArrayType *RightArrayType = static_cast<SemaArrayType *>(RightType);
-			return CheckEqualTypes(LeftArrayType->getElementType(), RightArrayType->getElementType());
+			if (!RightType->isArray()) { diagnoseTypes(); return false; }
+			SemaArrayType *LeftArr  = static_cast<SemaArrayType *>(LeftType);
+			SemaArrayType *RightArr = static_cast<SemaArrayType *>(RightType);
+			return CheckEqualTypes(LeftArr->getElementType(), RightArr->getElementType());
 		}
 
 		if (LeftType->isClass()) {
-			if (!RightType->isClass()) {
-				Diag(AST.getLocation(), diag::err_sema_types_operation)
-				  << LeftType->getName()
-				  << RightType->getName();
-				return false;
-			}
-			return CheckInheritance(static_cast<SemaClassType *>(RightType), static_cast<SemaClassType *>(LeftType));
+			if (!RightType->isClass()) { diagnoseTypes(); return false; }
+			return CheckInheritance(static_cast<SemaClassType *>(RightType),
+			                        static_cast<SemaClassType *>(LeftType));
 		}
 
 		if (LeftType->isEnum()) {
-			if (RightSema->getKind() == SemaKind::VALUE) {
-				// Check if the right side is an unset value (type is null for unset)
-				if (RightType == nullptr) {
-					return true;
-				}
-			}
-
+			// Allow assigning the unset sentinel (null type)
+			if (RightSema->getKind() == SemaKind::VALUE && RightType == nullptr)
+				return true;
 			return CheckEqualTypes(LeftType, RightType);
 		}
 
 		return true;
 	}
 
-	// Error: Invalid Binary Operation
-	Diag(AST.getLocation(), diag::err_invalid_behavior)
-				  << LeftType->getName()
-				  << RightType->getName();
+	diagnoseTypes();
 	return false;
 }
 
-bool SemaValidator::CheckNameEmpty(const SourceLocation &Loc,llvm::StringRef Name) {
-    return Name.empty() ? false : true;
+bool SemaValidator::CheckNameEmpty(const SourceLocation &Loc, llvm::StringRef Name) {
+    return !Name.empty();
 }
 
-
 bool SemaValidator::CheckIsValueExpr(ASTExpr *Expr) {
-    if (Expr->getExprKind() == ASTExprKind::EXPR_VALUE) {
-        return true;
-    }
-    return false;
+    return Expr->getExprKind() == ASTExprKind::EXPR_VALUE;
 }
 
 bool SemaValidator::CheckVarRefExpr(ASTExpr *Expr) {
-    if (Expr->getExprKind() == ASTExprKind::EXPR_IDENTIFIER) {
-        return true;
-    }
-    return false;
+    return Expr->getExprKind() == ASTExprKind::EXPR_IDENTIFIER;
 }
 
 bool SemaValidator::CheckValue(ASTValue *Value) {

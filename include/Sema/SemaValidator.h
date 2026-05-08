@@ -61,17 +61,13 @@ namespace fly {
 
     	void CheckImport(const ASTImport &AST);
 
+    	void CheckCast(SemaExpr * From, SemaExpr * To);
+
 		// static bool CheckDuplicateModules(ASTModule * Module, const llvm::DenseMap<uint64_t, SemaModule *> &Modules);
 
         static bool CheckDuplicateParams(llvm::SmallVector<ASTVar *, 8> Params, ASTVar *Param);
 
         static bool CheckDuplicateLocalVars(ASTStmt *Stmt, llvm::StringRef VarName);
-
-        static bool CheckCommentParams(SemaComment *Comment, const llvm::SmallVector<ASTVar*, 8> &Params);
-
-        static bool CheckCommentReturn(SemaComment *Comment, ASTType* ReturnType);
-
-        static bool CheckCommentFail(SemaComment *Comment);
 
         static bool CheckExpr(SemaExpr *Expr);
 
@@ -83,13 +79,7 @@ namespace fly {
 
         bool CheckInheritance(SemaEnumType *EnumType, SemaEnumType *SuperEnumType);
 
-        bool CheckArithTypes(SemaType *Type1, SemaType *Type2);
-
-        bool CheckLogicalTypes(SemaType *Type1, SemaType *Type2);
-
     	bool CheckBinary(ASTBinary &AST, SemaExpr *LeftSema, SemaExpr *RightSema);
-
-    	bool CheckSema(ASTExpr *Expr);
 
 		static bool CheckNameEmpty(const SourceLocation &Loc, llvm::StringRef Name);
 

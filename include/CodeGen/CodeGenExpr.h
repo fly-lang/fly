@@ -34,6 +34,7 @@ namespace fly {
 	class SemaBoolValue;
 	class SemaIntValue;
 	class SemaFloatValue;
+	class SemaComplexValue;
 	class SemaStringValue;
 	class SemaArrayValue;
 	class SemaStructValue;
@@ -74,6 +75,8 @@ namespace fly {
     	void GenExpr(SemaIntValue *Sema);
 
     	void GenExpr(SemaFloatValue *Sema);
+
+    	void GenExpr(SemaComplexValue *Sema);
 
     	void GenExpr(SemaStringValue *Sema);
 

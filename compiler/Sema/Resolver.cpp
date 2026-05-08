@@ -44,6 +44,7 @@
 #include "Basic/Debug.h"
 #include "Basic/Diagnostic.h"
 #include "Sema/SemaBuilder.h"
+#include "Sema/SemaCast.h"
 #include "Sema/SemaBuiltin.h"
 #include "Sema/SemaClassAttribute.h"
 #include "Sema/SemaClassInstance.h"
@@ -551,6 +552,9 @@ void Resolver::visit(ASTBuiltinType &AST) {
 			break;
 		case ASTBuiltinTypeKind::TYPE_DOUBLE:
 			Sema = SemaBuiltin::getDoubleType();
+			break;
+		case ASTBuiltinTypeKind::TYPE_COMPLEX:
+			Sema = SemaBuiltin::getComplexType();
 			break;
 		case ASTBuiltinTypeKind::TYPE_STRING:
 			Sema = SemaBuiltin::getStringType();
@@ -1610,10 +1614,19 @@ void Resolver::visit(ASTTernary &AST) {
 void Resolver::visit(ASTCast &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTCast)");
 
-	// Resolve ToType and Expr
+	// Resolve the expression being cast
+	AST.getExpr()->accept(*this);
+	SemaExpr *From = CurrentExpr;
+
+	// Resolve the target type (sets CurrentType)
 	AST.getToType()->accept(*this);
-    AST.getExpr()->accept(*this);
-	// TODO: Validate Cast
+	SemaType *ToType = CurrentType;
+
+	// Build the SemaCast node; its type IS ToType, so Cast->getType() == ToType
+	SemaCast *Cast = SemaBuilder::CreateCast(AST, From, ToType);
+	CurrentExpr = Cast;
+
+	Validator->CheckCast(From, Cast);
 	FLY_DEBUG_END("Resolver", "visit(ASTCast)");
 }
 

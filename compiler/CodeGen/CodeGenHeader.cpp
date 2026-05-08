@@ -102,7 +102,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 		ASTEnum *Enum = SemaEnum.getValue()->getAST();
 		Header.concat(Enum->getName()).concat("{\n");
 		for (auto &EnumEntry : Enum->getEntries()) {
-			Header.concat(EnumEntry->getName()).concat("\n\n"); // TODO add value
+			Header.concat(EnumEntry->getName()).concat("\n\n");
 		}
 	}
 

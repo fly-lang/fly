@@ -48,6 +48,10 @@ bool SemaType::isNumber() const {
 	return isInteger() || isFloat();
 }
 
+bool SemaType::isComplex() const {
+	return Kind == SemaKind::TYPE_COMPLEX;
+}
+
 bool SemaType::isArray() const {
 	return Kind == SemaKind::TYPE_ARRAY;
 }
@@ -172,5 +176,9 @@ void SemaStringType::accept(SemaVisitor &Visitor) {
 }
 
 void SemaVoidType::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
+void SemaComplexType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }

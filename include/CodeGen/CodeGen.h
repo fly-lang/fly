@@ -103,6 +103,9 @@ class CodeGen {
 
         static llvm::PointerType *StringPtrTy;
 
+        /// Complex structure: { double real, double imag }
+        static llvm::StructType *ComplexTy;
+
         static llvm::ConstantInt *Zero;
 
         CodeGen(DiagnosticsEngine &Diags,

@@ -36,6 +36,7 @@ namespace fly {
 		TYPE_ULONG,
 		TYPE_FLOAT,
 		TYPE_DOUBLE,
+		TYPE_COMPLEX,
 		TYPE_STRING,
 		TYPE_ERROR,
 	};

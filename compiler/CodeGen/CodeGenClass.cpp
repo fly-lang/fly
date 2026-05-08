@@ -484,32 +484,27 @@ const SmallVector<CodeGenClassMethod *, 4> &CodeGenClass::getMethods() const {
 }
 
 llvm::Value *CodeGenClass::getBaseInstance(llvm::Value *InstancePtr, SemaClassType *Base) {
-	size_t BaseIndex = 1; // Start at 1 because 0 is the vtable pointer
+	size_t BaseIndex = 1; // 0 is the vtable pointer
 	for (auto &B : Sema->getBaseClasses()) {
+		llvm::ConstantInt *Index = llvm::ConstantInt::get(CodeGen::Int32Ty, BaseIndex);
 		if (Base->isEquals(B)) {
-			llvm::ConstantInt *Index = llvm::ConstantInt::get(CodeGen::Int32Ty, BaseIndex);
-			// TODO search into base classes of base classes
 			return CGM->Builder->CreateInBoundsGEP(Type, InstancePtr, {CodeGen::Zero, Index});
-
-			// return llvm::ConstantExpr::getGetElementPtr(Type, InstancePtr, B->Index);
-
-			// TODO: search also into base classes of base classes
+		}
+		// Base is a proper ancestor of B — recurse into B's sub-object
+		if (Base->isBaseOrEquals(B)) {
+			llvm::Value *BSubobjPtr = CGM->Builder->CreateInBoundsGEP(Type, InstancePtr, {CodeGen::Zero, Index});
+			if (CodeGenClass *BCG = B->getCodeGen()) {
+				return BCG->getBaseInstance(BSubobjPtr, Base);
+			}
 		}
 		BaseIndex++;
 	}
-
-	// Error: Base class type not found
 	return nullptr;
 }
 
 llvm::Value *CodeGenClass::Downcast(llvm::Type *ToType, llvm::Value *InstancePtr) {
 	llvm::Value *Obj = CGM->Builder->CreateBitCast(InstancePtr, TypePtr);
-
-	// TODO: check if ToType is a base class of this class
-	// llvm::ArrayRef<llvm::Value *> Idx = getBaseInstance(ToType);
-	// llvm::Value *slot = CGM->Builder->CreateStructGEP(Type, Obj, /*vtable field index*/ Idx);
-	// CGM->Builder->CreateStore(vtablePtr, slot);
-
+	// TODO: verify ToType is a base class of this class and adjust vtable pointer
 	return Obj;
 }
 

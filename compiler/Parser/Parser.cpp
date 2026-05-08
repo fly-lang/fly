@@ -583,6 +583,7 @@ bool Parser::isType(std::optional<Token> &NexTok) {
             case tok::kw_long:
             case tok::kw_float:
             case tok::kw_double:
+            case tok::kw_complex:
             case tok::kw_void:
             case tok::kw_string:
             case tok::kw_char:
@@ -1185,6 +1186,9 @@ ASTType *Parser::ParseType() {
 			case tok::kw_double:
 				T = ASTBuilder::CreateDoubleType(Tok.getLocation());
 				break;
+			case tok::kw_complex:
+				T = ASTBuilder::CreateComplexType(Tok.getLocation());
+				break;
 			case tok::kw_void:
 				T = ASTBuilder::CreateVoidType(Tok.getLocation());
 				break;
@@ -1242,8 +1246,8 @@ ASTExpr *Parser::ParseIdentifier() {
 bool Parser::isBuiltinType(Token &Tok) {
     FLY_DEBUG_START("Parser", "isBuiltinType");
     return Tok.isOneOf(tok::kw_bool, tok::kw_byte, tok::kw_ushort, tok::kw_short, tok::kw_uint, tok::kw_int,
-                       tok::kw_ulong, tok::kw_long, tok::kw_float, tok::kw_double, tok::kw_void, tok::kw_string,
-                       tok::kw_char, tok::kw_error);
+                       tok::kw_ulong, tok::kw_long, tok::kw_float, tok::kw_double, tok::kw_complex,
+                       tok::kw_void, tok::kw_string, tok::kw_char, tok::kw_error);
 }
 
 bool Parser::isArrayType(Token &Tok) {

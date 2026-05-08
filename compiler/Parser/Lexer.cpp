@@ -1359,19 +1359,6 @@ bool Lexer::LexNumericConstant(Token &Result, const char *CurPtr) {
             return LexNumericConstant(Result, ConsumeChar(CurPtr, Size, Result));
     }
 
-    // If we have a digit separator, continue.
-    if (C == '\'') {
-        unsigned NextSize;
-        char Next = getCharAndSizeNoWarn(CurPtr + Size, NextSize);
-        if (isIdentifierBody(Next)) {
-            if (!isLexingRawMode())
-                Diag(CurPtr, diag::warn_cxx11_compat_digit_separator);
-            CurPtr = ConsumeChar(CurPtr, Size, Result);
-            CurPtr = ConsumeChar(CurPtr, NextSize, Result);
-            return LexNumericConstant(Result, CurPtr);
-        }
-    }
-
     // If we have a UCN or UTF-8 character (perhaps in a ud-suffix), continue.
     if (C == '\\' && tryConsumeIdentifierUCN(CurPtr, Size, Result))
         return LexNumericConstant(Result, CurPtr);

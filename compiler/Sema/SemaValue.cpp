@@ -99,6 +99,23 @@ void SemaStructValue::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
+SemaComplexValue::SemaComplexValue(ASTNumberValue &AST, SemaComplexType *Type,
+                                   llvm::APFloat &Real, llvm::APFloat &Imag) :
+	SemaValue(AST, Type), Real(Real), Imag(Imag) {
+}
+
+llvm::APFloat SemaComplexValue::getReal() const {
+	return Real;
+}
+
+llvm::APFloat SemaComplexValue::getImag() const {
+	return Imag;
+}
+
+void SemaComplexValue::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
 SemaNullValue::SemaNullValue(ASTNullValue &AST) : SemaValue(AST, nullptr) {
 
 }

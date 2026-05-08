@@ -171,6 +171,8 @@ DIAG(err_sema_unique_copy, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot
 DIAG(err_sema_duplicate_arg, CLASS_ERROR, (unsigned)diag::Severity::Error, "duplicate argument '%0' in function call", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_unknown_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "unknown type '%0'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_multiple_definition, CLASS_ERROR, (unsigned)diag::Severity::Error, "multiple definition of symbol '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_invalid_cast, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot cast type '%0' to '%1'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(warn_sema_cast_lossy, CLASS_WARNING, (unsigned)diag::Severity::Warning, "cast from '%0' to '%1' may lose data", 0, SFINAE_Suppress, false, false, 0)
 
 // Inheritance
 DIAG(err_sema_abstract_class_instantiation, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot instantiate abstract class '%0'", 0, SFINAE_Suppress, false, true, 0)

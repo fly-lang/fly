@@ -430,6 +430,11 @@ ASTType *ASTBuilder::CreateDoubleType(const SourceLocation &Loc) {
 	return TypeRef;
 }
 
+ASTType *ASTBuilder::CreateComplexType(const SourceLocation &Loc) {
+	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_COMPLEX);
+	return TypeRef;
+}
+
 /**
  * Creates a void type
  * @param Loc

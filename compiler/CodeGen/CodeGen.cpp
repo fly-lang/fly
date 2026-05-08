@@ -67,6 +67,7 @@ llvm::StructType *CodeGen::ArrayTy = nullptr;
 llvm::PointerType *CodeGen::ArrayPtrTy = nullptr;
 llvm::StructType *CodeGen::StringTy = nullptr;
 llvm::PointerType *CodeGen::StringPtrTy = nullptr;
+llvm::StructType *CodeGen::ComplexTy = nullptr;
 llvm::ConstantInt *CodeGen::Zero = nullptr;
 
 CodeGen::CodeGen(DiagnosticsEngine &Diags,
@@ -137,6 +138,12 @@ void CodeGen::InitializeTypes(llvm::LLVMContext &LLVMCtx, TargetInfo &Target) {
     StringFields.push_back(IntTy);    // size_t size (dimensions string)
     StringTy = llvm::StructType::create(LLVMCtx, StringFields, "string");
     StringPtrTy = llvm::PointerType::get(StringTy, 0);
+
+    // Create Complex structure type: struct complex { double real, double imag }
+    llvm::SmallVector<llvm::Type *, 2> ComplexFields;
+    ComplexFields.push_back(DoubleTy);  // double real
+    ComplexFields.push_back(DoubleTy);  // double imag
+    ComplexTy = llvm::StructType::create(LLVMCtx, ComplexFields, "complex");
 }
 
 std::string CodeGen::getOutputFileName(llvm::StringRef BaseInput) {
@@ -175,9 +182,6 @@ void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
                       "Module.Name=" << M->getName() << "\nModule.Output=" << str(M));
 
     std::string OutputFileName = OutName.empty() ? getOutputFileName(M->getName()) : OutName.str();
-    // TODO link to libraries
-//    Link = new llvm::Linker(*OutModule);
-//    Linker::linkModules(*OutModule, std::move(M));
 
     // Skip CodeGenModule instance creation
     if (ActionKind == Backend_EmitNothing) {

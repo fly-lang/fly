@@ -131,7 +131,6 @@ SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType &Class, AST
 
 	SemaClassAttribute *Attribute = new SemaClassAttribute(AST, Class, Type);
 	Attribute->setParent(*Class.getThis());
-	// Attribute->Type = AST->TypeRef->getSema(); // TODO add resolved symbol in the scope
 
 	// Set Modifiers
 	SemaBuilderModifiers *Builder = SemaBuilderModifiers::Build(AST.getModifiers());
@@ -336,14 +335,35 @@ SemaValue * SemaBuilder::CreateNumberValue(ASTNumberValue &AST) {
 
 	SemaValue *Sema;
 
-	// Floating point number
+	llvm::StringRef Raw = AST.getValue();
+
+	// Strip digit separators
+	std::string Stripped;
+	Stripped.reserve(Raw.size());
+	for (char C : Raw) {
+		if (C != '_')
+			Stripped += C;
+	}
+	llvm::StringRef ValStr(Stripped);
+
+	// Imaginary suffix: ends with 'j' or 'J' → complex value with real=0
+	if (ValStr.ends_with("j") || ValStr.ends_with("J")) {
+		llvm::StringRef ImagStr = ValStr.drop_back(1);
+		llvm::APFloat Imag(llvm::APFloat::IEEEdouble(), ImagStr);
+		llvm::APFloat Real = llvm::APFloat::getZero(llvm::APFloat::IEEEdouble());
+		Sema = new SemaComplexValue(AST, SemaBuiltin::getComplexType(), Real, Imag);
+		FLY_DEBUG_END("SemaBuilder", "CreateNumberValue");
+		return Sema;
+	}
+
+	// Floating point number (contains '.' or 'e'/'E' exponent)
 	llvm::Regex FloatRegex(R"(^[-+]?[0-9]*\.[0-9]+([eE][-+]?[0-9]+)?$)");
-	if (FloatRegex.match(AST.getValue())) {
+	if (FloatRegex.match(ValStr)) {
 		// Floating point
-		llvm::APFloat Value = llvm::APFloat(llvm::APFloat::IEEEdouble(), AST.getValue());
+		llvm::APFloat Value = llvm::APFloat(llvm::APFloat::IEEEdouble(), ValStr);
 		Sema = new SemaFloatValue(AST, SemaBuiltin::getFloatType(), Value);
 	} else {
-		llvm::APInt Value = CreateAPIntValue(AST.getValue());
+		llvm::APInt Value = CreateAPIntValue(ValStr);
 
 		// Compute MinBits for type inference
 		unsigned MinBits = Value.isNegative()
@@ -372,6 +392,15 @@ SemaValue * SemaBuilder::CreateNumberValue(ASTNumberValue &AST) {
 }
 
 llvm::APInt SemaBuilder::CreateAPIntValue(StringRef ValStr) {
+	// Strip digit separators
+	std::string Stripped;
+	Stripped.reserve(ValStr.size());
+	for (char C : ValStr) {
+		if (C != '_')
+			Stripped += C;
+	}
+	ValStr = StringRef(Stripped);
+
 	bool IsNegative = ValStr.starts_with("-");
 	if (IsNegative)
 		ValStr = ValStr.drop_front(1);
@@ -383,6 +412,9 @@ llvm::APInt SemaBuilder::CreateAPIntValue(StringRef ValStr) {
 		ValStr = ValStr.drop_front(2);
 	} else if (ValStr.starts_with("0b") || ValStr.starts_with("0B")) {
 		Radix = 2;
+		ValStr = ValStr.drop_front(2);
+	} else if (ValStr.starts_with("0o") || ValStr.starts_with("0O")) {
+		Radix = 8;
 		ValStr = ValStr.drop_front(2);
 	}
 
@@ -399,7 +431,10 @@ SemaIntValue * SemaBuilder::CreateIntValue(ASTNumberValue &AST, SemaIntType *Int
 }
 
 SemaFloatValue * SemaBuilder::CreateFloatValue(ASTNumberValue &AST, SemaFloatType *FloatType) {
-	llvm::APFloat Value = llvm::APFloat(llvm::APFloat::IEEEdouble(), AST.getValue());
+	std::string Stripped;
+	for (char C : AST.getValue())
+		if (C != '_') Stripped += C;
+	llvm::APFloat Value = llvm::APFloat(llvm::APFloat::IEEEdouble(), Stripped);
 	SemaFloatValue *Sema = new SemaFloatValue(AST, FloatType, Value);
 	return Sema;
 }
@@ -435,7 +470,6 @@ SemaStructValue * SemaBuilder::CreateStructValue(ASTStructValue &AST, llvm::Stri
 		Types.push_back(Entry.second->getType());
 	}
 
-	//TODO: Create Struct Type from Types
 	SemaStructValue * V = new SemaStructValue(AST, nullptr);
 	V->Values = std::move(Values);
 

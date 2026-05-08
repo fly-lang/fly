@@ -113,6 +113,29 @@ namespace fly {
 
 	};
 
+	class SemaComplexValue : public SemaValue {
+
+		friend class SemaBuilder;
+		friend class Resolver;
+		friend class SemaValidator;
+
+		llvm::APFloat Real;
+		llvm::APFloat Imag;
+
+		explicit SemaComplexValue(ASTNumberValue &AST, SemaComplexType *Type,
+		                          llvm::APFloat &Real, llvm::APFloat &Imag);
+
+	public:
+
+		~SemaComplexValue() override = default;
+
+		llvm::APFloat getReal() const;
+		llvm::APFloat getImag() const;
+
+		void accept(SemaVisitor& Visitor) override;
+
+	};
+
 	class SemaStringValue : public SemaValue {
 
 		friend class SemaBuilder;

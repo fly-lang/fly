@@ -17,6 +17,7 @@ namespace fly {
     class SemaType;
     class SemaIntType;
     class SemaFloatType;
+    class SemaComplexType;
     class SemaErrorType;
     class SemaArrayType;
     class SemaExpr;
@@ -46,6 +47,8 @@ namespace fly {
 
         static SemaFloatType *DoubleType;
 
+        static SemaComplexType *ComplexType;
+
         static SemaType *VoidType;
 
         static SemaType *StringType;
@@ -74,6 +77,8 @@ namespace fly {
         static SemaFloatType * getFloatType();
 
         static SemaFloatType * getDoubleType();
+
+        static SemaComplexType * getComplexType();
 
         static SemaType * getVoidType();
 

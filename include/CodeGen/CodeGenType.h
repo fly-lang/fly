@@ -23,7 +23,8 @@ namespace fly {
 	class CodeGenModule;
 	class SemaBoolType;
 	class SemaIntType;
-	class SemaFloatType; 
+	class SemaFloatType;
+	class SemaComplexType;
 	class SemaArrayType;
 	class SemaErrorType;
 	class SemaVoidType;
@@ -50,6 +51,8 @@ namespace fly {
     	void GenType(SemaIntType &Sema);
 
     	void GenType(SemaFloatType &Sema);
+
+    	void GenType(SemaComplexType &Sema);
 
     	void GenType(SemaArrayType &Sema);
 

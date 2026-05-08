@@ -213,6 +213,8 @@ namespace fly {
 
         static ASTType *CreateDoubleType(const SourceLocation &Loc);
 
+        static ASTType *CreateComplexType(const SourceLocation &Loc);
+
         static ASTType *CreateVoidType(const SourceLocation &Loc);
 
         static ASTType *CreateStringType(const SourceLocation &Loc);

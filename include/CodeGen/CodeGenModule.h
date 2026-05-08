@@ -59,6 +59,7 @@ namespace fly {
     class SemaType;
     class SemaIntType;
     class SemaFloatType;
+    class SemaComplexType;
     class SemaArrayType;
     class SemaErrorType;
     class SemaLocalVar;
@@ -74,6 +75,7 @@ namespace fly {
     class SemaBoolValue;
     class SemaIntValue;
     class SemaFloatValue;
+    class SemaComplexValue;
     class SemaStringValue;
     class SemaArrayValue;
     class SemaStructValue;
@@ -183,6 +185,7 @@ namespace fly {
         void visit(SemaBoolType &Sema) override;
         void visit(SemaIntType &Sema) override;
         void visit(SemaFloatType &Sema) override;
+        void visit(SemaComplexType &Sema) override;
         void visit(SemaArrayType &Sema) override;
         void visit(SemaErrorType &Sema) override;
     	void visit(SemaVoidType &Sema) override;
@@ -213,6 +216,7 @@ namespace fly {
         void visit(SemaBoolValue &Sema) override;
         void visit(SemaIntValue &Sema) override;
         void visit(SemaFloatValue &Sema) override;
+        void visit(SemaComplexValue &Sema) override;
         void visit(SemaStringValue &Sema) override;
         void visit(SemaArrayValue &Sema) override;
         void visit(SemaStructValue &Sema) override;

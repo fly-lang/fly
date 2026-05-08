@@ -14,6 +14,7 @@
 #include "AST/ASTExpr.h"
 #include "AST/ASTValue.h"
 #include "Sema/SemaEnumType.h"
+#include "Sema/SemaType.h"
 #include "Sema/SemaValue.h"
 
 using namespace fly;
@@ -66,6 +67,12 @@ void CodeGenType::GenType(SemaFloatType &Sema) {
 				T = CodeGen::DoubleTy;
 				break;
 		}
+	}
+}
+
+void CodeGenType::GenType(SemaComplexType &Sema) {
+	if (Sema.getCodeGen() == nullptr) {
+		T = CodeGen::ComplexTy;
 	}
 }
 

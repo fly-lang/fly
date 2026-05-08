@@ -180,6 +180,14 @@ void CodeGenModule::visit(SemaFloatType &Sema) {
 	}
 }
 
+void CodeGenModule::visit(SemaComplexType &Sema) {
+	if (Sema.getCodeGen() == nullptr) {
+		CodeGenType *CG = new CodeGenType(this);
+		CG->GenType(Sema);
+		Sema.setCodeGen(CG);
+	}
+}
+
 void CodeGenModule::visit(SemaArrayType &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenType *CG = new CodeGenType(this);
@@ -357,6 +365,14 @@ void CodeGenModule::visit(SemaIntValue &Sema) {
 }
 
 void CodeGenModule::visit(SemaFloatValue &Sema) {
+	if (Sema.getCodeGen() == nullptr) {
+		CodeGenExpr *CGE = new CodeGenExpr(this);
+		CGE->GenExpr(&Sema);
+		Sema.setCodeGen(CGE);
+	}
+}
+
+void CodeGenModule::visit(SemaComplexValue &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenExpr *CGE = new CodeGenExpr(this);
 		CGE->GenExpr(&Sema);
