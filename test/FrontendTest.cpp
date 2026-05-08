@@ -9,12 +9,15 @@
 
 #include "TestUtils.h"
 #include "Basic/Archiver.h"
+#include "Basic/DiagnosticIDs.h"
 #include "Frontend/Frontend.h"
 #include "Frontend/FrontendOptions.h"
 #include "Frontend/InputFile.h"
 #include "Frontend/CompilerInstance.h"
+#include "Frontend/LogDiagnosticPrinter.h"
 #include "CodeGen/BackendUtil.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/raw_ostream.h"
 #include "gtest/gtest.h"
 #include <filesystem>
 #include <fstream>
@@ -307,6 +310,209 @@ namespace {
 
         remove(member.c_str());
         remove(arc.c_str());
+    }
+
+    // ─── LogDiagnosticPrinter ─────────────────────────────────────────────────
+
+    class LogDiagnosticPrinterTest : public ::testing::Test {
+    protected:
+        // Creates a LogDiagnosticPrinter as the sole diagnostic consumer,
+        // runs emit(), triggers EndSourceFile(), and returns the captured output.
+        static std::string capture(
+            LogDiagnosticPrinter::LogFormat format,
+            const LogDiagnosticPrinter::InvocationInfo &invocation,
+            const std::string &outputFile,
+            std::function<void(DiagnosticsEngine &)> emit)
+        {
+            std::string out;
+            llvm::raw_string_ostream stream(out);
+
+            IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions;
+            IntrusiveRefCntPtr<DiagnosticIDs> DiagID = new DiagnosticIDs;
+
+            auto *printer = new LogDiagnosticPrinter(stream, DiagOpts.get(), nullptr);
+            printer->setLogFormat(format);
+            printer->setInvocation(invocation);
+            if (!outputFile.empty())
+                printer->setMainFilename(outputFile);
+
+            IntrusiveRefCntPtr<DiagnosticsEngine> Diags =
+                new DiagnosticsEngine(DiagID, DiagOpts, printer);
+
+            Diags->getClient()->BeginSourceFile();
+            emit(*Diags);
+            Diags->getClient()->EndSourceFile();
+
+            stream.flush();
+            return out;
+        }
+
+        static LogDiagnosticPrinter::InvocationInfo makeInvocation() {
+            LogDiagnosticPrinter::InvocationInfo info;
+            info.InputFiles   = {"main.fly", "utils.fly"};
+            info.Target       = "x86_64-linux-gnu";
+            info.McModel      = "default";
+            info.MthreadModel = "posix";
+            return info;
+        }
+    };
+
+    // ── txt format ──────────────────────────────────────────────────────────
+
+    TEST_F(LogDiagnosticPrinterTest, TxtNoEntries) {
+        std::string out = capture(LogDiagnosticPrinter::LogFormat::Txt, {}, "main.o",
+                                  [](DiagnosticsEngine &) {});
+        EXPECT_TRUE(out.empty());
+    }
+
+    TEST_F(LogDiagnosticPrinterTest, TxtInvocationHeader) {
+        std::string out = capture(LogDiagnosticPrinter::LogFormat::Txt, makeInvocation(), "main.o",
+            [](DiagnosticsEngine &Diags) {
+                Diags.Report(diag::err_fe_input_file_ext) << "test.fly";
+            });
+        EXPECT_NE(out.find("inputs: main.fly utils.fly"), std::string::npos);
+        EXPECT_NE(out.find("output: main.o"),             std::string::npos);
+        EXPECT_NE(out.find("target: x86_64-linux-gnu"),   std::string::npos);
+        EXPECT_NE(out.find("mcmodel: default"),            std::string::npos);
+        EXPECT_NE(out.find("mthread-model: posix"),        std::string::npos);
+        EXPECT_NE(out.find("---"),                         std::string::npos);
+    }
+
+    TEST_F(LogDiagnosticPrinterTest, TxtSeparatorBeforeDiagnostics) {
+        std::string out = capture(LogDiagnosticPrinter::LogFormat::Txt, makeInvocation(), "main.o",
+            [](DiagnosticsEngine &Diags) {
+                Diags.Report(diag::err_fe_input_file_ext) << "test.fly";
+            });
+        auto sepPos = out.find("---");
+        auto errPos = out.find("error:");
+        ASSERT_NE(sepPos, std::string::npos);
+        ASSERT_NE(errPos, std::string::npos);
+        EXPECT_LT(sepPos, errPos);
+    }
+
+    TEST_F(LogDiagnosticPrinterTest, TxtErrorLevel) {
+        std::string out = capture(LogDiagnosticPrinter::LogFormat::Txt, {}, "",
+            [](DiagnosticsEngine &Diags) {
+                Diags.Report(diag::err_fe_input_file_ext) << "bad.xyz";
+            });
+        EXPECT_NE(out.find("error:"), std::string::npos);
+        EXPECT_NE(out.find("bad.xyz"), std::string::npos);
+    }
+
+    TEST_F(LogDiagnosticPrinterTest, TxtWarningLevel) {
+        std::string out = capture(LogDiagnosticPrinter::LogFormat::Txt, {}, "",
+            [](DiagnosticsEngine &Diags) {
+                Diags.Report(diag::warn_fe_cc_log_diagnostics_failure) << "diag.log";
+            });
+        EXPECT_NE(out.find("warning:"), std::string::npos);
+    }
+
+    TEST_F(LogDiagnosticPrinterTest, TxtFlags) {
+        LogDiagnosticPrinter::InvocationInfo info;
+        info.EmitLL     = true;
+        info.Verbose    = true;
+        info.NoWarnings = true;
+        std::string out = capture(LogDiagnosticPrinter::LogFormat::Txt, info, "",
+            [](DiagnosticsEngine &Diags) {
+                Diags.Report(diag::err_fe_input_file_ext) << "test.fly";
+            });
+        EXPECT_NE(out.find("--emit-ll"),     std::string::npos);
+        EXPECT_NE(out.find("--verbose"),     std::string::npos);
+        EXPECT_NE(out.find("--no-warnings"), std::string::npos);
+    }
+
+    TEST_F(LogDiagnosticPrinterTest, TxtMultipleDiagnostics) {
+        std::string out = capture(LogDiagnosticPrinter::LogFormat::Txt, {}, "",
+            [](DiagnosticsEngine &Diags) {
+                Diags.Report(diag::err_fe_input_file_ext) << "a.xyz";
+                Diags.Report(diag::note_no_input_process);
+            });
+        EXPECT_NE(out.find("error:"), std::string::npos);
+        EXPECT_NE(out.find("note:"),  std::string::npos);
+    }
+
+    // ── json format ─────────────────────────────────────────────────────────
+
+    TEST_F(LogDiagnosticPrinterTest, JsonNoEntries) {
+        std::string out = capture(LogDiagnosticPrinter::LogFormat::Json, {}, "main.o",
+                                  [](DiagnosticsEngine &) {});
+        EXPECT_TRUE(out.empty());
+    }
+
+    TEST_F(LogDiagnosticPrinterTest, JsonTopLevelKeys) {
+        std::string out = capture(LogDiagnosticPrinter::LogFormat::Json, makeInvocation(), "main.o",
+            [](DiagnosticsEngine &Diags) {
+                Diags.Report(diag::err_fe_input_file_ext) << "test.fly";
+            });
+        EXPECT_EQ(out.front(), '{');
+        EXPECT_NE(out.find("\"inputs\""),      std::string::npos);
+        EXPECT_NE(out.find("\"output\""),      std::string::npos);
+        EXPECT_NE(out.find("\"options\""),     std::string::npos);
+        EXPECT_NE(out.find("\"diagnostics\""), std::string::npos);
+    }
+
+    TEST_F(LogDiagnosticPrinterTest, JsonInputsAndOutput) {
+        LogDiagnosticPrinter::InvocationInfo info;
+        info.InputFiles = {"a.fly", "b.fly"};
+        std::string out = capture(LogDiagnosticPrinter::LogFormat::Json, info, "out.o",
+            [](DiagnosticsEngine &Diags) {
+                Diags.Report(diag::err_fe_input_file_ext) << "test.fly";
+            });
+        EXPECT_NE(out.find("\"a.fly\""), std::string::npos);
+        EXPECT_NE(out.find("\"b.fly\""), std::string::npos);
+        EXPECT_NE(out.find("\"out.o\""), std::string::npos);
+    }
+
+    TEST_F(LogDiagnosticPrinterTest, JsonStringOptions) {
+        std::string out = capture(LogDiagnosticPrinter::LogFormat::Json, makeInvocation(), "",
+            [](DiagnosticsEngine &Diags) {
+                Diags.Report(diag::err_fe_input_file_ext) << "test.fly";
+            });
+        EXPECT_NE(out.find("\"target\""),           std::string::npos);
+        EXPECT_NE(out.find("\"x86_64-linux-gnu\""), std::string::npos);
+        EXPECT_NE(out.find("\"mcmodel\""),          std::string::npos);
+        EXPECT_NE(out.find("\"mthread-model\""),    std::string::npos);
+    }
+
+    TEST_F(LogDiagnosticPrinterTest, JsonBoolOptions) {
+        LogDiagnosticPrinter::InvocationInfo info;
+        info.EmitLL  = true;
+        info.Verbose = false;
+        std::string out = capture(LogDiagnosticPrinter::LogFormat::Json, info, "",
+            [](DiagnosticsEngine &Diags) {
+                Diags.Report(diag::err_fe_input_file_ext) << "test.fly";
+            });
+        EXPECT_NE(out.find("\"emit-ll\": true"),   std::string::npos);
+        EXPECT_NE(out.find("\"verbose\": false"),   std::string::npos);
+    }
+
+    TEST_F(LogDiagnosticPrinterTest, JsonDiagnosticEntry) {
+        std::string out = capture(LogDiagnosticPrinter::LogFormat::Json, {}, "",
+            [](DiagnosticsEngine &Diags) {
+                Diags.Report(diag::err_fe_input_file_ext) << "bad.xyz";
+            });
+        EXPECT_NE(out.find("\"level\""),   std::string::npos);
+        EXPECT_NE(out.find("\"error\""),   std::string::npos);
+        EXPECT_NE(out.find("\"message\""), std::string::npos);
+        EXPECT_NE(out.find("bad.xyz"),     std::string::npos);
+    }
+
+    TEST_F(LogDiagnosticPrinterTest, JsonEscaping) {
+        std::string out = capture(LogDiagnosticPrinter::LogFormat::Json, {}, "",
+            [](DiagnosticsEngine &Diags) {
+                Diags.Report(diag::err_fe_input_file_ext) << "file\"quoted\".xyz";
+            });
+        EXPECT_NE(out.find("\\\""), std::string::npos);
+    }
+
+    TEST_F(LogDiagnosticPrinterTest, JsonMultipleDiagnostics) {
+        std::string out = capture(LogDiagnosticPrinter::LogFormat::Json, {}, "",
+            [](DiagnosticsEngine &Diags) {
+                Diags.Report(diag::err_fe_input_file_ext) << "a.xyz";
+                Diags.Report(diag::note_no_input_process);
+            });
+        EXPECT_NE(out.find("\"error\""), std::string::npos);
+        EXPECT_NE(out.find("\"note\""),  std::string::npos);
     }
 
 } // anonymous namespace

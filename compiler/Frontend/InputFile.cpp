@@ -59,7 +59,6 @@ bool InputFile::Load(llvm::StringRef Source) {
     FID = SourceMgr.createFileID(std::move(Buf));
     // Retrieve buffer owned by SourceManager to keep a stable pointer
     Buffer = SourceMgr.getBuffer(FID);
-//    SourceMgr.setMainFileID(FID);
     return true;
 }
 
@@ -77,7 +76,6 @@ bool InputFile::Load() {
     std::unique_ptr<llvm::MemoryBuffer> &Buf = FileBuf.get();
     Buffer = Buf.get();
     FID = SourceMgr.createFileID(std::move(Buf));
-//    SourceMgr.setMainFileID(FID); // TODO set for main file
     return true;
 }
 

@@ -373,7 +373,6 @@ SourceManager::~SourceManager() {
 }
 
 void SourceManager::clearIDTables() {
-  MainFileID = FileID();
   LocalSLocEntryTable.clear();
   LoadedSLocEntryTable.clear();
   SLocEntryLoaded.clear();
@@ -390,16 +389,7 @@ void SourceManager::clearIDTables() {
   createExpansionLoc(SourceLocation(), SourceLocation(), SourceLocation(), 1);
 }
 
-bool SourceManager::isMainFile(FileEntryRef SourceFile) {
-  assert(MainFileID.isValid() && "expected initialized SourceManager");
-  auto FE = getFileEntryRefForID(MainFileID);
-  if (!FE)
-    return false;
-  return FE->getUID() == SourceFile.getUID();
-}
-
 void SourceManager::initializeForReplay(const SourceManager &Old) {
-  assert(MainFileID.isInvalid() && "expected uninitialized SourceManager");
 
   auto CloneContentCache = [&](const ContentCache *Cache) -> ContentCache * {
     auto *Clone = new (ContentCacheAlloc.Allocate<ContentCache>()) ContentCache;
@@ -1481,35 +1471,6 @@ PresumedLoc SourceManager::getPresumedLoc(SourceLocation Loc,
 }
 
 /// Returns whether the PresumedLoc for a given SourceLocation is
-/// in the main file.
-///
-/// This computes the "presumed" location for a SourceLocation, then checks
-/// whether it came from a file other than the main file. This is different
-/// from isWrittenInMainFile() because it takes line marker directives into
-/// account.
-bool SourceManager::isInMainFile(SourceLocation Loc) const {
-  if (Loc.isInvalid()) return false;
-
-  // Presumed locations are always for expansion points.
-  std::pair<FileID, unsigned> LocInfo = getDecomposedExpansionLoc(Loc);
-
-  bool Invalid = false;
-  const SLocEntry &Entry = getSLocEntry(LocInfo.first, &Invalid);
-  if (Invalid || !Entry.isFile())
-    return false;
-
-  const SrcMgr::FileInfo &FI = Entry.getFile();
-
-  // Check if there is a line directive for this location.
-  if (FI.hasLineDirectives())
-    if (const LineEntry *Entry =
-            LineTable->FindNearestLineEntry(LocInfo.first, LocInfo.second))
-      if (Entry->IncludeOffset)
-        return false;
-
-  return FI.getIncludeLoc().isInvalid();
-}
-
 /// The size of the SLocEntry that \p FID represents.
 unsigned SourceManager::getFileIDSize(FileID FID) const {
   bool Invalid = false;
@@ -1554,23 +1515,7 @@ SourceLocation SourceManager::translateFileLineCol(const FileEntry *SourceFile,
 FileID SourceManager::translateFile(const FileEntry *SourceFile) const {
   assert(SourceFile && "Null source file!");
 
-  // First, check the main file ID, since it is common to look for a
-  // location in the main file.
-  if (MainFileID.isValid()) {
-    bool Invalid = false;
-    const SLocEntry &MainSLoc = getSLocEntry(MainFileID, &Invalid);
-    if (Invalid)
-      return FileID();
-
-    if (MainSLoc.isFile()) {
-      const ContentCache *MainContentCache =
-          MainSLoc.getFile().getContentCache();
-      if (MainContentCache && MainContentCache->OrigEntry == SourceFile)
-        return MainFileID;
-    }
-  }
-
-  // The location we're looking for isn't in the main file; look
+  // Look
   // through all of the local source locations.
   for (unsigned I = 0, N = local_sloc_entry_size(); I != N; ++I) {
     const SLocEntry &SLoc = getLocalSLocEntry(I);
@@ -1948,28 +1893,3 @@ size_t SourceManager::getDataStructureSizes() const {
   return size;
 }
 
-SourceManagerForFile::SourceManagerForFile(StringRef FileName,
-                                           StringRef Content) {
-  // This is referenced by `FileMgr` and will be released by `FileMgr` when it
-  // is deleted.
-  IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> InMemoryFileSystem(
-      new llvm::vfs::InMemoryFileSystem);
-  InMemoryFileSystem->addFile(
-      FileName, 0,
-      llvm::MemoryBuffer::getMemBuffer(Content, FileName,
-                                       /*RequiresNullTerminator=*/false));
-  // This is passed to `SM` as reference, so the pointer has to be referenced
-  // in `Environment` so that `FileMgr` can out-live this function scope.
-  FileMgr =
-      std::make_unique<FileManager>(FileSystemOptions(), InMemoryFileSystem);
-  // This is passed to `SM` as reference, so the pointer has to be referenced
-  // by `Environment` due to the same reason above.
-  Diagnostics = std::make_unique<DiagnosticsEngine>(
-      IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs),
-      new DiagnosticOptions);
-  SourceMgr = std::make_unique<SourceManager>(*Diagnostics, *FileMgr);
-  FileID ID = SourceMgr->createFileID(*FileMgr->getFile(FileName),
-                                      SourceLocation(), fly::SrcMgr::C_User);
-  assert(ID.isValid());
-  SourceMgr->setMainFileID(ID);
-}

@@ -117,6 +117,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     app.add_option("-o",            OutputFile,   "Write output to <file>");
     app.add_flag("--lib",           OutputLib,    "Produce a library archive (.a/.lib)");
     app.add_option("--log-file",    LogFile,      "Log diagnostics to <file>");
+    app.add_option("--log-format",  LogFormat,    "Log format: txt (default) or json")->check(CLI::IsMember({"txt", "json"}));
     app.add_option("--mcmodel",     McModel,      "Set memory code model");
     app.add_option("--mthread-model", MthreadModel, "Set memory thread model");
     app.add_option("--target",      Target,       "Generate code for the given target");
@@ -226,6 +227,30 @@ Driver::CreateDiagnostics(IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts) {
         }
         auto Logger = std::make_unique<LogDiagnosticPrinter>(
             *OS, DiagOpts.get(), std::move(StreamOwner));
+        if (!OutputFile.empty())
+            Logger->setMainFilename(OutputFile);
+        if (LogFormat == "json")
+            Logger->setLogFormat(LogDiagnosticPrinter::LogFormat::Json);
+        {
+            LogDiagnosticPrinter::InvocationInfo Info;
+            Info.InputFiles   = InputFiles;
+            Info.Target       = Target;
+            Info.TargetCpu    = TargetCpu;
+            Info.McModel      = McModel;
+            Info.MthreadModel = MthreadModel;
+            Info.WorkingDir   = WorkingDir;
+            Info.OutputLib    = OutputLib;
+            Info.Verbose      = Verbose;
+            Info.NoWarnings   = NoWarnings;
+            Info.EmitLL       = EmitLL;
+            Info.EmitBC       = EmitBC;
+            Info.EmitAS       = EmitAS;
+            Info.NoOutput     = NoOutput;
+            Info.HeaderGen    = HeaderGen;
+            Info.PrintStats   = PrintStats;
+            Info.FtimeReport  = FtimeReport;
+            Logger->setInvocation(Info);
+        }
         if (Diags->ownsClient())
             Diags->setClient(new ChainedDiagnosticConsumer(Diags->takeClient(), std::move(Logger)));
         else

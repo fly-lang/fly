@@ -1,9 +1,6 @@
 namespace fly.str
 
-/* ── Conversion ─────────────────────────────────────────────────────────── */
 public convert(const int src, string out)
-
-/* ── Query (write result into out param) ────────────────────────────────── */
 public len(const string src, int out)
 public isEmpty(const string src, bool out)
 public contains(const string src, const string sub, bool out)
@@ -14,8 +11,6 @@ public lastIndexOf(const string src, const string sub, int out)
 public equals(const string a, const string b, bool out)
 public equalsIgnoreCase(const string a, const string b, bool out)
 public count(const string src, const string sub, int out)
-
-/* ── Transform (heap-allocate result into out, caller frees) ─────────────── */
 public toUpper(const string src, string out)
 public toLower(const string src, string out)
 public trim(const string src, string out)

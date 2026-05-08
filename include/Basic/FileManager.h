@@ -241,10 +241,6 @@ class FileManager : public RefCountedBase<FileManager> {
                                bool isFile,
                                std::unique_ptr<llvm::vfs::File> *F);
 
-  /// Add all ancestors of the given path (pointing to either a file
-  /// or a directory) as virtual directories.
-  void addAncestorsAsVirtualDirs(StringRef Path);
-
   /// Fills the RealPathName in file entry.
   void fillRealPathName(FileEntry *UFE, llvm::StringRef FileName);
 
@@ -256,18 +252,6 @@ public:
   FileManager(const FileSystemOptions &FileSystemOpts,
               IntrusiveRefCntPtr<llvm::vfs::FileSystem> FS = nullptr);
   ~FileManager();
-
-  /// Installs the provided FileSystemStatCache object within
-  /// the FileManager.
-  ///
-  /// Ownership of this object is transferred to the FileManager.
-  ///
-  /// \param statCache the new stat cache to install. Ownership of this
-  /// object is transferred to the FileManager.
-  void setStatCache(std::unique_ptr<FileSystemStatCache> statCache);
-
-  /// Removes the FileSystemStatCache object from the manager.
-  void clearStatCache();
 
   /// Returns the number of unique real file entries cached by the file manager.
   size_t getNumUniqueRealFiles() const { return UniqueRealFiles.size(); }
@@ -360,13 +344,6 @@ public:
     this->FS = std::move(FS);
   }
 
-  /// Retrieve a file entry for a "virtual" file that acts as
-  /// if there were a file with the given name on disk.
-  ///
-  /// The file itself is not accessed.
-  const FileEntry *getVirtualFile(StringRef Filename, off_t Size,
-                                  time_t ModificationTime);
-
   /// Retrieve a FileEntry that bypasses VFE, which is expected to be a virtual
   /// file entry, to access the real file.  The returned FileEntry will have
   /// the same filename as FE but a different identity and its own stat.
@@ -391,8 +368,7 @@ public:
 
 private:
   llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>>
-  getBufferForFileImpl(StringRef Filename, int64_t FileSize, bool isVolatile,
-                       bool RequiresNullTerminator);
+  getBufferForFileImpl(StringRef Filename, int64_t FileSize, bool isVolatile, bool RequiresNullTerminator);
 
 public:
   /// Get the 'stat' information for the given \p Path.
@@ -401,8 +377,7 @@ public:
   /// FileManager's FileSystemOptions.
   ///
   /// \returns a \c std::error_code describing an error, if there was one
-  std::error_code getNoncachedStatValue(StringRef Path,
-                                        llvm::vfs::Status &Result);
+  std::error_code getNoncachedStatValue(StringRef Path, llvm::vfs::Status &Result);
 
   /// If path is not absolute and FileSystemOptions set the working
   /// directory, the path is modified to be relative to the given
@@ -417,8 +392,7 @@ public:
 
   /// Produce an array mapping from the unique IDs assigned to each
   /// file to the corresponding FileEntry pointer.
-  void GetUniqueIDMapping(
-                    SmallVectorImpl<const FileEntry *> &UIDToFiles) const;
+  void GetUniqueIDMapping(SmallVectorImpl<const FileEntry *> &UIDToFiles) const;
 
   /// Retrieve the canonical name for a given directory.
   ///

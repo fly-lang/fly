@@ -41,8 +41,6 @@ namespace {
                     llvm::MemoryBuffer::getMemBuffer(Source);
             llvm::MemoryBuffer *b = Buf.get();
             const FileID &FID = SourceMgr.createFileID(std::move(Buf));
-            SourceMgr.setMainFileID(FID);
-
 
             // Create a lexer starting at the beginning of this token.
             Lexer TheLexer(FID, b, SourceMgr);

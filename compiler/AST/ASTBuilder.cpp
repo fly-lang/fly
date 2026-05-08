@@ -472,7 +472,6 @@ ASTType *ASTBuilder::CreateErrorType(const SourceLocation &Loc) {
 ASTArrayType *ASTBuilder::CreateArrayType(const SourceLocation &Loc, ASTType *ElementType, ASTExpr *SizeExpr) {
 	FLY_DEBUG_START_MSG("ASTBuilder", "CreateArrayTypeRef", "Loc=" << Loc.getRawEncoding());
 
-	// TODO Size
 	ASTArrayType *ArrayTypeRef = new ASTArrayType(Loc, ElementType, SizeExpr);
 
 	FLY_DEBUG_END("ASTBuilder", "CreateArrayTypeRef");

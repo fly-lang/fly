@@ -662,9 +662,6 @@ class SourceManager : public RefCountedBase<SourceManager> {
   mutable unsigned LastLineNoFilePos;
   mutable unsigned LastLineNoResult;
 
-  /// The file ID for the main source file of the translation unit.
-  FileID MainFileID;
-
   /// The file ID for the precompiled preamble there is one.
   FileID PreambleFileID;
 
@@ -752,23 +749,6 @@ public:
   void pushModuleBuildStack(StringRef moduleName, FullSourceLoc importLoc) {
     StoredModuleBuildStack.push_back(std::make_pair(moduleName.str(),importLoc));
   }
-
-  //===--------------------------------------------------------------------===//
-  // MainFileID creation and querying methods.
-  //===--------------------------------------------------------------------===//
-
-  /// Returns the FileID of the main source file.
-  FileID getMainFileID() const { return MainFileID; }
-
-  /// Set the file ID for the main source file.
-  void setMainFileID(FileID FID) {
-    MainFileID = FID;
-  }
-
-  /// Returns true when the given FileEntry corresponds to the main file.
-  ///
-  /// The main file should be set prior to calling this function.
-  bool isMainFile(FileEntryRef SourceFile);
 
   /// Set the file ID for the precompiled preamble.
   void setPreambleFileID(FileID Preamble) {
@@ -1322,28 +1302,12 @@ public:
                              bool UseLineDirectives = true) const;
 
   /// Returns whether the PresumedLoc for a given SourceLocation is
-  /// in the main file.
-  ///
-  /// This computes the "presumed" location for a SourceLocation, then checks
-  /// whether it came from a file other than the main file. This is different
-  /// from isWrittenInMainFile() because it takes line marker directives into
-  /// account.
-  bool isInMainFile(SourceLocation Loc) const;
-
   /// Returns true if the spelling locations for both SourceLocations
   /// are part of the same file buffer.
   ///
   /// This check ignores line marker directives.
   bool isWrittenInSameFile(SourceLocation Loc1, SourceLocation Loc2) const {
     return getFileID(Loc1) == getFileID(Loc2);
-  }
-
-  /// Returns true if the spelling location for the given location
-  /// is in the main file buffer.
-  ///
-  /// This check ignores line marker directives.
-  bool isWrittenInMainFile(SourceLocation Loc) const {
-    return getFileID(Loc) == getMainFileID();
   }
 
   /// Returns whether \p Loc is located in a <built-in> file.
@@ -1708,28 +1672,6 @@ public:
   bool operator()(SourceRange LHS, SourceRange RHS) const {
     return SM.isBeforeInTranslationUnit(LHS.getBegin(), RHS.getBegin());
   }
-};
-
-/// SourceManager and necessary depdencies (e.g. VFS, FileManager) for a single
-/// in-memorty file.
-class SourceManagerForFile {
-public:
-  /// Creates SourceManager and necessary depdencies (e.g. VFS, FileManager).
-  /// The main file in the SourceManager will be \p FileName with \p Content.
-  SourceManagerForFile(StringRef FileName, StringRef Content);
-
-  SourceManager &get() {
-    assert(SourceMgr);
-    return *SourceMgr;
-  }
-
-private:
-  // The order of these fields are important - they should be in the same order
-  // as they are created in `createSourceManagerForFile` so that they can be
-  // deleted in the reverse order as they are created.
-  std::unique_ptr<FileManager> FileMgr;
-  std::unique_ptr<DiagnosticsEngine> Diagnostics;
-  std::unique_ptr<SourceManager> SourceMgr;
 };
 
 } // namespace fly
