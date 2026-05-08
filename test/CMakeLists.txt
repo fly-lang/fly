@@ -32,6 +32,7 @@ add_executable(fly_test
         Parser/ParserFunctionTest.cpp
         Parser/ParserNameSpaceTest.cpp
         Parser/ParserLocalVarTest.cpp
+        Parser/ParserValueTest.cpp
         TestMain.cpp
         ${BACKWARD_ENABLE}
 )

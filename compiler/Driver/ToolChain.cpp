@@ -40,7 +40,7 @@ LLD_HAS_DRIVER(wasm)
 // Make sure this comes before MSVCSetupApi.h
 #include <comdef.h>
 
-#include "MSVCSetupApi.h"
+#include "Driver/MSVCSetupApi.h"
 #include "llvm/Support/COM.h"
 _COM_SMARTPTR_TYPEDEF(ISetupConfiguration, __uuidof(ISetupConfiguration));
 _COM_SMARTPTR_TYPEDEF(ISetupConfiguration2, __uuidof(ISetupConfiguration2));
