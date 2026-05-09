@@ -64,7 +64,6 @@ public class Circle : Shape {
     int radius
 
     public area() {
-        return 0
     }
 }
 
@@ -78,6 +77,12 @@ main() {
 
 helper(int a, int b) {
     int r = a + b
+}
+)";
+
+    // main() with a string[] parameter for command-line argument reading
+    static constexpr const char *MainArgsSource = R"(
+main(string[] args) {
 }
 )";
 
@@ -212,6 +217,53 @@ helper(int a, int b) {
 
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");
+    }
+
+    // ─── main(string[] args) ──────────────────────────────────────────────────
+
+    // Verify that main(string[] args) compiles without errors.
+    TEST_F(AppTest, MainWithArgs) {
+        const char *argsfly = "main_args.fly";
+        { std::ofstream f(argsfly); f << MainArgsSource; }
+
+        const char *argv[] = {"fly", "-no-output", argsfly};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        bool ok = drv.Execute();
+        remove(argsfly);
+        EXPECT_TRUE(ok);
+    }
+
+    // Emit IR for main(string[] args) and verify the expected LLVM patterns:
+    //   - C entry-point signature:  define i32 @main(i32 %0, ptr %1)
+    //   - argc/argv conversion loop:  args.loop.cond / args.loop.body
+    //   - strlen call to measure each argument's length
+    TEST_F(AppTest, MainWithArgsEmitLL) {
+        const char *argsfly = "main_args.fly";
+        const char *argsll  = "main_args.fly.ll";
+        deleteFile(argsll);
+        { std::ofstream f(argsfly); f << MainArgsSource; }
+
+        const char *argv[] = {"fly", "-emit-ll", argsfly};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        bool ok = drv.Execute();
+        remove(argsfly);
+        ASSERT_TRUE(ok);
+        ASSERT_TRUE(std::ifstream(argsll).good());
+
+        std::ifstream llfile(argsll);
+        std::string ir((std::istreambuf_iterator<char>(llfile)),
+                        std::istreambuf_iterator<char>());
+        deleteFile(argsll);
+
+        // C entry-point signature must carry argc (i32) and argv (ptr)
+        EXPECT_NE(ir.find("define i32 @main(i32"), std::string::npos);
+        // The argc→string[] bridge loop must be present
+        EXPECT_NE(ir.find("args.loop.cond"), std::string::npos);
+        EXPECT_NE(ir.find("args.loop.body"), std::string::npos);
+        // Each argument's length is measured via strlen
+        EXPECT_NE(ir.find("strlen"), std::string::npos);
     }
 
 } // anonymous namespace

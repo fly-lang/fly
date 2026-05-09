@@ -256,48 +256,68 @@ bool SemaValidator::CheckBinary(ASTBinary &AST, SemaExpr *LeftSema, SemaExpr *Ri
 
 	// Assignment: compatible types
 	if (AST.isAssign()) {
-		if (LeftType->isBool()) return true;
-
-		if (LeftType->isNumber()) {
-			if (!RightType->isNumber()) { diagnoseTypes(); return false; }
-			if (static_cast<SemaNumberType *>(LeftType)->getRank() <
-			    static_cast<SemaNumberType *>(RightType)->getRank()) {
-				diagnoseTypes();
-				return false;
-			}
-			return true;
-		}
-
-		if (LeftType->isString()) {
-			if (!RightType->isString()) { diagnoseTypes(); return false; }
-			return true;
-		}
-
-		if (LeftType->isArray()) {
-			if (!RightType->isArray()) { diagnoseTypes(); return false; }
-			SemaArrayType *LeftArr  = static_cast<SemaArrayType *>(LeftType);
-			SemaArrayType *RightArr = static_cast<SemaArrayType *>(RightType);
-			return CheckEqualTypes(LeftArr->getElementType(), RightArr->getElementType());
-		}
-
-		if (LeftType->isClass()) {
-			if (!RightType->isClass()) { diagnoseTypes(); return false; }
-			return CheckInheritance(static_cast<SemaClassType *>(RightType),
-			                        static_cast<SemaClassType *>(LeftType));
-		}
-
-		if (LeftType->isEnum()) {
-			// Allow assigning the unset sentinel (null type)
-			if (RightSema->getKind() == SemaKind::VALUE && RightType == nullptr)
-				return true;
-			return CheckEqualTypes(LeftType, RightType);
-		}
-
-		return true;
+		return CheckAssignment(AST.getLocation(), LeftType, RightSema);
 	}
 
 	diagnoseTypes();
 	return false;
+}
+
+bool SemaValidator::CheckAssignment(const SourceLocation &Loc, SemaType *LhsType, SemaExpr *RhsExpr) {
+	if (!LhsType || !RhsExpr) return true;
+	SemaType *RhsType = RhsExpr->getType();
+
+	auto diagnose = [&]() {
+		if (RhsType)
+			Diag(Loc, diag::err_sema_type_mismatch) << RhsType->getName() << LhsType->getName();
+	};
+
+	if (LhsType->isBool()) return true;
+
+	if (LhsType->isNumber()) {
+		if (!RhsType || !RhsType->isNumber()) { diagnose(); return false; }
+		if (static_cast<SemaNumberType *>(LhsType)->getRank() <
+		    static_cast<SemaNumberType *>(RhsType)->getRank()) {
+			diagnose(); return false;
+		}
+		return true;
+	}
+
+	if (LhsType->isString()) {
+		if (!RhsType || !RhsType->isString()) { diagnose(); return false; }
+		return true;
+	}
+
+	if (LhsType->isArray()) {
+		if (!RhsType || !RhsType->isArray()) { diagnose(); return false; }
+		SemaArrayType *LhsArr = static_cast<SemaArrayType *>(LhsType);
+		SemaArrayType *RhsArr = static_cast<SemaArrayType *>(RhsType);
+		if (!CheckEqualTypes(LhsArr->getElementType(), RhsArr->getElementType())) {
+			diagnose(); return false;
+		}
+		return true;
+	}
+
+	if (LhsType->isClass()) {
+		if (!RhsType || !RhsType->isClass()) { diagnose(); return false; }
+		if (!CheckInheritance(static_cast<SemaClassType *>(RhsType),
+		                      static_cast<SemaClassType *>(LhsType))) {
+			diagnose(); return false;
+		}
+		return true;
+	}
+
+	if (LhsType->isEnum()) {
+		// Allow assigning the unset sentinel (null/unset value)
+		if (RhsExpr->getKind() == SemaKind::VALUE && RhsType == nullptr)
+			return true;
+		if (!RhsType || !CheckEqualTypes(LhsType, RhsType)) {
+			diagnose(); return false;
+		}
+		return true;
+	}
+
+	return true;
 }
 
 bool SemaValidator::CheckNameEmpty(const SourceLocation &Loc, llvm::StringRef Name) {

@@ -516,10 +516,18 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 		return;
 	}
 
-	// Parse return statement (no expression - just exits function without error)
+	// Parse return statement — Fly functions are void; 'return' never carries a value
 	if (Tok.is(tok::kw_return)) {
 		SourceLocation Loc = Tok.getLocation();
 		ConsumeToken();
+		// If the next token is on the same line and is not '}' or EOF, the user
+		// wrote 'return <expr>' which is illegal in Fly.
+		if (!Tok.isAtStartOfLine() && Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
+			Diag(Tok, diag::err_parser_return_with_value);
+			// Skip the rest of the line as error recovery
+			while (!Tok.isAtStartOfLine() && Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof))
+				ConsumeToken();
+		}
 		ASTBuilder::CreateReturnStmt(Parent, Loc);
 		return;
 	}

@@ -1244,15 +1244,8 @@ bool Lexer::LexIdentifier(Token &Result, const char *CurPtr) {
     C = getCharAndSize(CurPtr, Size);
     while (true) {
         if (C == '$') {
-            // If we hit a $ and they are not supported in identifiers, we are done.
+            // '$' is not a valid identifier character in Fly; end the identifier here.
             goto FinishIdentifier;
-
-            // Otherwise, emit a diagnostic and continue.
-            if (!isLexingRawMode())
-                Diag(CurPtr, diag::ext_lex_dollar_in_identifier);
-            CurPtr = ConsumeChar(CurPtr, Size, Result);
-            C = getCharAndSize(CurPtr, Size);
-            continue;
         } else if (C == '\\' && tryConsumeIdentifierUCN(CurPtr, Size, Result)) {
             C = getCharAndSize(CurPtr, Size);
             continue;
@@ -1543,12 +1536,6 @@ bool Lexer::SkipWhitespace(Token &Result, const char *CurPtr,
 /// some tokens, this will store the first token and return true.
 bool Lexer::SkipLineComment(Token &Result, const char *CurPtr,
                             bool &TokAtPhysicalStartOfLine) {
-    // If Line comments aren't explicitly enabled for this language, emit an
-    // extension warning.
-    if (!isLexingRawMode()) {
-        Diag(BufferPtr, diag::ext_lex_line_comment);
-    }
-
     // Scan over the body of the comment.  The common case, when scanning, is that
     // the comment contains normal ascii characters with nothing interesting in
     // them.  As such, optimize for this case with the inner loop.
@@ -1622,8 +1609,6 @@ bool Lexer::SkipLineComment(Token &Result, const char *CurPtr,
                             break;
                     }
 
-                    if (!isLexingRawMode())
-                        Diag(OldPtr - 1, diag::ext_lex_multi_line_line_comment);
                     break;
                 }
         }
@@ -2203,8 +2188,7 @@ bool Lexer::CheckUnicodeWhitespace(Token &Result, uint32_t C,
     if (!isLexingRawMode() &&
         //  !PP->isPreprocessedOutput() && FIXME
         UnicodeWhitespaceChars.contains(C)) {
-        Diag(BufferPtr, diag::ext_lex_unicode_whitespace)
-                << makeCharRange(*this, BufferPtr, CurPtr);
+        Diag(BufferPtr, diag::err_lex_unicode_whitespace);
 
         Result.setFlag(Token::LeadingSpace);
         return true;

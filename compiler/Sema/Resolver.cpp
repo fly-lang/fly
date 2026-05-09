@@ -63,6 +63,7 @@
 #include "Sema/SemaValidator.h"
 #include "Sema/SymbolTable.h"
 
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/Signals.h"
@@ -188,6 +189,22 @@ void Resolver::visit(ASTFunction &AST) {
 
 	// Create Sema Function
 	CurrentFunction = SemaBuilder::CreateFunction(*CurrentModule, CurrentScope, AST);
+
+	// 'main' is the entry point: it may take no params or a single string[] param
+	if (AST.getName() == "main") {
+		const auto &MainParams = AST.getParams();
+		if (MainParams.size() > 1) {
+			Diag(AST.getLocation(), diag::err_sema_main_with_params);
+		} else if (MainParams.size() == 1) {
+			ASTType *PT = MainParams[0]->getType();
+			bool Valid = PT->getTypeKind() == ASTTypeKind::TYPE_ARRAY &&
+			             static_cast<ASTArrayType *>(PT)->getElementType()->getTypeKind() == ASTTypeKind::TYPE_BUILTIN &&
+			             static_cast<ASTBuiltinType *>(static_cast<ASTArrayType *>(PT)->getElementType())->getBuiltinKind()
+			                 == ASTBuiltinTypeKind::TYPE_STRING;
+			if (!Valid)
+				Diag(MainParams[0]->getLocation(), diag::err_sema_main_invalid_param);
+		}
+	}
 
 	// Add to Symbol Table of Parent Scope (Module or Class)
 	Symbol *Sym = new Symbol(AST.getName(), SymbolKind::FUNCTION, CurrentFunction);
@@ -338,6 +355,16 @@ void Resolver::visit(ASTMethod &AST) {
 		return;
 	}
 
+	// Abstract modifier + body is a conflict
+	for (auto *Mod : AST.getModifiers()) {
+		if (Mod->getModifierKind() == ASTModifierKind::MOD_ABSTRACT && AST.getBody() != nullptr) {
+			Diag(AST.getLocation(), diag::err_sema_abstract_method_has_body) << AST.getName();
+			ExitScope();
+			FLY_DEBUG_END("Resolver", "visit(ASTMethod)");
+			return;
+		}
+	}
+
 	// Create Class Method
 	SemaClassMethod *Sema = SemaBuilder::CreateClassMethod(CurrentClass, AST, CurrentScope);
 
@@ -412,6 +439,11 @@ void Resolver::visit(ASTEnum &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTEnum)");
 	ResetCurrents();
 
+	// Enums cannot extend classes, structs, or interfaces
+	if (!AST.getBases().empty()) {
+		Diag(AST.getLocation(), diag::err_sema_enum_extends_not_allowed) << AST.getName();
+	}
+
 	// Enter Enum Scope
 	EnterScope();
 
@@ -467,6 +499,9 @@ void Resolver::visit(ASTLocalVar &AST) {
 
 		// Create Sema Local Var
 		SemaLocalVar *Sema = SemaBuilder::CreateLocalVar(AST, Type);
+
+		// Track as potentially unused until a read is observed
+		UnusedLocalVars.insert(Sema);
 
 		// Add LocalVar to the Function Base LocalVars
 		CurrentFunction->addLocalVar(Sema);
@@ -700,6 +735,11 @@ void Resolver::visit(ASTDeclStmt &AST) {
 		DeclExpr = CurrentExpr;
 	}
 
+	// Type check: initializer must be compatible with declared type
+	if (LocalVar && DeclExpr && LocalVar->getType()) {
+		Validator->CheckAssignment(LV->getLocation(), LocalVar->getType(), DeclExpr);
+	}
+
 	// Check for array without size expression or initialization expression
 	if (LocalVar && LocalVar->getType() && LocalVar->getType()->isArray()) {
 		SemaArrayType *ArrayType = static_cast<SemaArrayType *>(LocalVar->getType());
@@ -780,6 +820,12 @@ void Resolver::visit(ASTDeclStmt &AST) {
 void Resolver::visit(ASTFailStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTFailStmt)");
 	CurrentStmt = &AST;
+
+	if (CurrentFunction == nullptr) {
+		Diag(AST.getLocation(), diag::err_sema_fail_outside_function);
+		FLY_DEBUG_END("Resolver", "visit(ASTFailStmt)");
+		return;
+	}
 
 	if (CurrentHandleStmt == nullptr) {
 		CurrentFunction->setFallible(true);
@@ -930,9 +976,19 @@ void Resolver::visit(ASTBlockStmt &AST) {
 		EnterScope();
 	}
 
-	// Resolve Statements
+	// Resolve Statements; detect unreachable code after unconditional jumps
+	bool Terminated = false;
 	for (ASTStmt *Stmt : AST.getContent()) {
+		if (Terminated) {
+			Diag(Stmt->getLocation(), diag::warn_sema_unreachable_code);
+			break;
+		}
 		Stmt->accept(*this);
+		ASTStmtKind SK = Stmt->getStmtKind();
+		if (SK == ASTStmtKind::STMT_RETURN || SK == ASTStmtKind::STMT_FAIL ||
+		    SK == ASTStmtKind::STMT_BREAK  || SK == ASTStmtKind::STMT_CONTINUE) {
+			Terminated = true;
+		}
 	}
 
 	// Exit Block Scope for nested blocks
@@ -1054,6 +1110,16 @@ void Resolver::visit(ASTSwitchStmt &AST) {
 		ExitScope();
 		CurrentSemaBlock = SavedBlock;
 
+		// Warn if non-empty case doesn't end with a terminator (fallthrough)
+		const auto &CaseContent = CaseCapture->getContent();
+		if (!CaseContent.empty()) {
+			SemaKind LastKind = CaseContent.back()->getKind();
+			if (LastKind != SemaKind::STMT_BREAK && LastKind != SemaKind::STMT_RETURN &&
+			    LastKind != SemaKind::STMT_FAIL) {
+				Diag(Case->getExpr()->getLocation(), diag::warn_sema_switch_fallthrough);
+			}
+		}
+
 		SemaSwitch->addCase(CaseExpr, CaseCapture);
 	}
 
@@ -1071,6 +1137,24 @@ void Resolver::visit(ASTSwitchStmt &AST) {
     }
 
 	--SwitchDepth;
+
+	// Warn if switching on an enum without a default and not all variants are covered
+	if (CaseType && CaseType->getKind() == SemaKind::TYPE_ENUM && AST.getDefault() == nullptr) {
+		SemaEnumType *EnumT = static_cast<SemaEnumType *>(CaseType);
+		llvm::SmallPtrSet<SemaEnumEntry *, 8> Covered;
+		for (const auto &Rule : SemaSwitch->getCases()) {
+			if (Rule.Expr && Rule.Expr->getKind() == SemaKind::ENUM_ENTRY) {
+				Covered.insert(static_cast<SemaEnumEntry *>(Rule.Expr));
+			}
+		}
+		for (const auto &KV : EnumT->getEntries()) {
+			if (!Covered.count(KV.second)) {
+				Diag(AST.getLocation(), diag::warn_sema_switch_enum_not_exhaustive)
+				    << EnumT->getName();
+				break;
+			}
+		}
+	}
 
 	// Add to current block
 	if (CurrentSemaBlock) {
@@ -1123,6 +1207,24 @@ void Resolver::visit(ASTLoopStmt &AST) {
 	ExitScope();
 	CurrentSemaBlock = SavedBlock;
 	SemaLoop->setBody(BodyCapture);
+
+	// Warn on `while(true)` without any break or fail in the body
+	if (AST.getExpr() && AST.getExpr()->getExprKind() == ASTExprKind::EXPR_VALUE) {
+		ASTValue *CondVal = static_cast<ASTValue *>(AST.getExpr());
+		if (CondVal->isBool() && static_cast<ASTBoolValue *>(CondVal)->getValue()) {
+			bool HasEscape = false;
+			for (SemaStmt *S : BodyCapture->getContent()) {
+				SemaKind K = S->getKind();
+				if (K == SemaKind::STMT_BREAK || K == SemaKind::STMT_FAIL) {
+					HasEscape = true;
+					break;
+				}
+			}
+			if (!HasEscape) {
+				Diag(AST.getLocation(), diag::warn_sema_infinite_loop);
+			}
+		}
+	}
 
 	// Capture Post statements
 	SemaBlockStmt *PostCapture = SemaBuilder::CreateBlockStmt(nullptr);
@@ -1220,6 +1322,11 @@ void Resolver::visit(ASTIdentifier &AST) {
 		if (CurrentSymbol->isVarKind()) {
 			SemaVar *Sema = static_cast<SemaVar *>(CurrentSymbol->getRef());
 			CurrentExpr = Sema;
+
+			// Mark local var as read (unless this is the write-only LHS of a plain '=')
+			if (!InAssignLHS && CurrentSymbol->getKind() == SymbolKind::LOCAL_VAR) {
+				UnusedLocalVars.erase(static_cast<SemaLocalVar *>(Sema));
+			}
 		}
 	}
 
@@ -1340,6 +1447,19 @@ void Resolver::visit(ASTMember &AST) {
 	}
 
 	FLY_DEBUG_END("Resolver", "visit(ASTMember)");
+}
+
+// Build a human-readable signature string like "foo(int, float)" for diagnostics.
+static std::string BuildCandidateSignature(SemaFunctionBase *F) {
+	std::string Sig = F->getName().str() + "(";
+	bool First = true;
+	for (SemaParam *P : F->getParams()) {
+		if (!First) Sig += ", ";
+		Sig += P->getType()->getName();
+		First = false;
+	}
+	Sig += ")";
+	return Sig;
 }
 
 void Resolver::visit(ASTCall &AST) {
@@ -1512,14 +1632,38 @@ void Resolver::visit(ASTCall &AST) {
 			AST.setSymbol(CurrentSymbol);
 
 		} else {
-			// Lookup Function or Method
-			Symbol *CurrentSymbol = Reg.LookupFunction(AST.getName(), ArgTypes, CurrentScope);
-
-			if (!CurrentSymbol) {
+			// Lookup Function or Method — three-way overload resolution
+			auto Candidates = Reg.FindFunctionCandidates(AST.getName(), CurrentScope);
+			if (Candidates.empty()) {
 				Diag(AST.getLocation(), diag::err_sema_function_not_found) << AST.getName();
 				CurrentScope = SavedScope;
 				return;
 			}
+
+			auto Matches = Reg.FindFunctionMatches(AST.getName(), ArgTypes, CurrentScope);
+			if (Matches.empty()) {
+				Diag(AST.getLocation(), diag::err_sema_wrong_args) << AST.getName();
+				for (Symbol *C : Candidates) {
+					SemaFunctionBase *F = static_cast<SemaFunctionBase *>(C->getRef());
+					Diag(F->getAST().getLocation(), diag::note_sema_candidate)
+					    << BuildCandidateSignature(F);
+				}
+				CurrentScope = SavedScope;
+				return;
+			}
+
+			if (Matches.size() > 1) {
+				Diag(AST.getLocation(), diag::err_sema_call_ambiguous) << AST.getName();
+				for (Symbol *M : Matches) {
+					SemaFunctionBase *F = static_cast<SemaFunctionBase *>(M->getRef());
+					Diag(F->getAST().getLocation(), diag::note_sema_candidate)
+					    << BuildCandidateSignature(F);
+				}
+				CurrentScope = SavedScope;
+				return;
+			}
+
+			Symbol *CurrentSymbol = Matches[0];
 
 			SemaKind RefKind = CurrentSymbol->getRef()->getKind();
 			if (RefKind != SemaKind::FUNCTION && RefKind != SemaKind::METHOD) {
@@ -1580,9 +1724,19 @@ void Resolver::visit(ASTUnary &AST) {
 void Resolver::visit(ASTBinary &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTBinaryOp)");
 
+	// For a plain '=' whose LHS is a bare identifier the variable is written but
+	// not read.  Set InAssignLHS so visit(ASTIdentifier) can skip the read-mark.
+	InAssignLHS = AST.getBinaryKind() == ASTBinaryKind::OP_BINARY_ASSIGN &&
+	              AST.getLeftExpr()->getExprKind() == ASTExprKind::EXPR_IDENTIFIER;
+
 	// Resolve Left and Right Expr
 	AST.getLeftExpr()->accept(*this);
+	InAssignLHS = false;
 	SemaExpr *Left = CurrentExpr;
+	// Any assignment (=, +=, …) to a bare-identifier param counts as a modification
+	if (AST.isAssign() && Left && Left->getKind() == SemaKind::PARAM_VAR) {
+		UnmodifiedParams.erase(static_cast<SemaParam *>(Left));
+	}
     AST.getRightExpr()->accept(*this);
 	SemaExpr *Right = CurrentExpr;
 
@@ -1763,6 +1917,18 @@ void Resolver::Resolver::ExitScope() {
 
 void Resolver::addSymbol(Symbol *Sym) {
 	FLY_DEBUG_START("Resolver", "addSymbol");
+	// Warn when a local variable shadows a variable in an outer scope
+	if (Sym->isVarKind() && CurrentScope->getParent()) {
+		auto *FoundInCurrent = CurrentScope->lookup(Sym->getName());
+		if (!FoundInCurrent) {
+			auto *FoundInParents = CurrentScope->getParent()->lookupInParents(Sym->getName());
+			if (FoundInParents && !FoundInParents->empty() &&
+			    (*FoundInParents)[0]->isVarKind()) {
+				SemaVar *Var = static_cast<SemaVar *>(Sym->getRef());
+				Diag(Var->getAST()->getLocation(), diag::warn_sema_var_shadow) << Sym->getName();
+			}
+		}
+	}
 	CurrentScope->insert(Sym);
 	FLY_DEBUG_END("Resolver", "addSymbol");
 }
@@ -1825,9 +1991,38 @@ void Resolver::Resolve() {
 		// Reset CurrentSemaBlock for the new function body
 		CurrentSemaBlock = nullptr;
 
+		// Start unused-variable tracking fresh for every function body
+		UnusedLocalVars.clear();
+
+		// Populate UnmodifiedParams with all non-const parameters of this function
+		UnmodifiedParams.clear();
+		for (SemaParam *P : FunctionBase->getParams()) {
+			if (!P->isConstant())
+				UnmodifiedParams.insert(P);
+		}
+
 		// Resolve Body - visit(ASTBlockStmt) will create SemaBlockStmt and set as function body
 		ASTBlockStmt *Body = FunctionBase->getAST().getBody();
 		Body->accept(*this);
+
+		// Emit warnings for local variables declared but never read in this function
+		for (SemaLocalVar *V : UnusedLocalVars) {
+			Diag(V->getAST()->getLocation(), diag::warn_sema_var_unused) << V->getAST()->getName();
+		}
+		UnusedLocalVars.clear();
+
+		// Emit warnings for parameters that were never modified (could be declared const).
+		// Skip empty-body functions — they are extern stubs; their params are analysed
+		// by the C implementation, not the Fly body.
+		SemaBlockStmt *ResolvedBody = FunctionBase->getBody();
+		bool BodyHasContent = ResolvedBody && !ResolvedBody->getContent().empty();
+		if (BodyHasContent) {
+			for (SemaParam *P : UnmodifiedParams) {
+				Diag(P->getAST()->getLocation(), diag::warn_sema_param_missing_const)
+				    << P->getAST()->getName();
+			}
+		}
+		UnmodifiedParams.clear();
 
 		ExitScope();
 	}
@@ -1845,7 +2040,7 @@ void Resolver::ResolveImports(SemaModule *Module) {
 		// Check if namespace was found
 		if (!ImportedSymbol) {
 			std::string TargetName = Helper::Flatten(Import->getTarget());
-			Diag(Import->getAST()->getLocation(), diag::err_codegen_unref_type) << TargetName;
+			Diag(Import->getAST()->getLocation(), diag::err_sema_namespace_not_found) << TargetName;
 			continue;
 		}
 
@@ -2378,11 +2573,19 @@ SemaExpr * Resolver::ResolveMemberSymbol(ASTMember &AST, SymbolTable *Symbols, S
 
 		// Create the appropriate Sema Node for the Member Access
 		if (ExpectedKind == SemaKind::ATTRIBUTE) {
+			SemaClassAttribute *Attr = static_cast<SemaClassAttribute *>(Node);
+			if (Attr->getVisibility() == SemaVisibilityKind::PRIVATE &&
+			    CurrentClass != &Attr->getClass()) {
+				Diag(AST.getLocation(), diag::err_sema_symbol_not_accessible)
+				    << AST.getName() << Attr->getClass().getName();
+				CurrentScope = SavedScope;
+				return nullptr;
+			}
 			CurrentScope = SavedScope;
 			if (ParentVar) {
-				return SemaBuilder::CreateMemberVar(AST, static_cast<SemaClassAttribute *>(Node), ParentVar);
+				return SemaBuilder::CreateMemberVar(AST, Attr, ParentVar);
 			}
-			return static_cast<SemaClassAttribute *>(Node);
+			return Attr;
 		} else if (ExpectedKind == SemaKind::ENUM_ENTRY) {
 			CurrentScope = SavedScope;
 			if (ParentVar) {
