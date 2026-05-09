@@ -73,7 +73,7 @@ namespace fly {
     class SemaValidator;
     class ASTNameSpace;
     class Registry;
-    class Symbol;
+    struct Symbol;
 
 
     class Resolver : public ASTVisitor {

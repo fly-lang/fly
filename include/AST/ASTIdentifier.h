@@ -15,7 +15,7 @@
 namespace fly {
 
     class ASTVar;
-    class Symbol;
+    struct Symbol;
 
     class ASTIdentifier : public ASTExpr {
 

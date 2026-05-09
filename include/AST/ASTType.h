@@ -14,7 +14,7 @@
 
 namespace fly {
 
-    class Symbol;
+    struct Symbol;
     class ASTName;
     class ASTExpr;
 

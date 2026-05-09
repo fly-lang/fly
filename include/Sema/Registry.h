@@ -23,7 +23,7 @@ namespace fly {
 	class SemaModule;
 	class ASTModule;
 	class ASTBlockStmt;
-	class Symbol;
+	struct Symbol;
 
 	struct LocalScope {
 		SemaFunctionBase* Function;
