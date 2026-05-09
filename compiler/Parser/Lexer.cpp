@@ -2531,11 +2531,6 @@ bool Lexer::LexTokenInternal(Token &Result, bool TokAtPhysicalStartOfLine) {
 //            } else if (Char == '*') {
 //                Kind = tok::periodstar;
 //                CurPtr += SizeTmp;
-            } else if (Char == '.' &&
-                       getCharAndSize(CurPtr + SizeTmp, SizeTmp2) == '.') {
-                Kind = tok::ellipsis;
-                CurPtr = ConsumeChar(ConsumeChar(CurPtr, SizeTmp, Result),
-                                     SizeTmp2, Result);
             } else {
                 Kind = tok::period;
             }

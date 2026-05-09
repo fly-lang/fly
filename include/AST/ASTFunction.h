@@ -68,8 +68,6 @@ namespace fly {
 
         ASTBlockStmt *getBody() const;
 
-        bool isVarArg();
-
         std::string str() const override;
     };
 }

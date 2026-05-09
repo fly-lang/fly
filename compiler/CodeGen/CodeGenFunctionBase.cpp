@@ -68,9 +68,6 @@ void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<l
         llvm::Type *ParamType = Param->getType()->getCodeGen()->getType();
         Types.push_back(ParamType->getPointerTo());
     }
-//    if (Params->getEllipsis() != nullptr) {
-        // TODO
-//    }
 }
 
 SemaFunctionBase *CodeGenFunctionBase::getSema() {

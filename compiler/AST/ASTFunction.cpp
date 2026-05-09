@@ -55,10 +55,6 @@ llvm::StringRef ASTFunction::getName() const {
 	return Name;
 }
 
-bool ASTFunction::isVarArg() {
-	return false;
-}
-
 llvm::SmallVector<ASTModifier *, 8> ASTFunction::getModifiers() const {
     return Modifiers;
 }
