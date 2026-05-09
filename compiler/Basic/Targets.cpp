@@ -567,7 +567,7 @@ TargetInfo::CreateTargetInfo(DiagnosticsEngine &Diags, const std::shared_ptr<Tar
     SmallVector<StringRef, 32> ValidList;
     Target->fillValidCPUList(ValidList);
     if (!ValidList.empty())
-      Diags.Report(diag::note_valid_options) << llvm::join(ValidList, ", ");
+      Diags.Report(diag::note_target_valid_options) << llvm::join(ValidList, ", ");
     return nullptr;
   }
 

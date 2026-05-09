@@ -425,7 +425,7 @@ namespace {
         std::string out = capture(LogDiagnosticPrinter::LogFormat::Txt, {}, "",
             [](DiagnosticsEngine &Diags) {
                 Diags.Report(diag::err_fe_input_file_ext) << "a.xyz";
-                Diags.Report(diag::note_no_input_process);
+                Diags.Report(diag::note_fe_no_input_process);
             });
         EXPECT_NE(out.find("error:"), std::string::npos);
         EXPECT_NE(out.find("note:"),  std::string::npos);
@@ -509,7 +509,7 @@ namespace {
         std::string out = capture(LogDiagnosticPrinter::LogFormat::Json, {}, "",
             [](DiagnosticsEngine &Diags) {
                 Diags.Report(diag::err_fe_input_file_ext) << "a.xyz";
-                Diags.Report(diag::note_no_input_process);
+                Diags.Report(diag::note_fe_no_input_process);
             });
         EXPECT_NE(out.find("\"error\""), std::string::npos);
         EXPECT_NE(out.find("\"note\""),  std::string::npos);

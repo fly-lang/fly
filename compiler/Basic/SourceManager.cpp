@@ -148,10 +148,10 @@ const llvm::MemoryBuffer *ContentCache::getBuffer(DiagnosticsEngine &Diag,
             .release());
 
       if (Diag.isDiagnosticInFlight())
-          Diag.SetDelayedDiagnostic(diag::err_file_too_large,
+          Diag.SetDelayedDiagnostic(diag::err_basic_file_too_large,
                                     ContentsEntry->getName());
       else
-          Diag.Report(Loc, diag::err_file_too_large)
+          Diag.Report(Loc, diag::err_basic_file_too_large)
                   << ContentsEntry->getName();
       Buffer.setInt(Buffer.getInt() | InvalidFlag);
     if (Invalid) *Invalid = true;
@@ -180,11 +180,11 @@ const llvm::MemoryBuffer *ContentCache::getBuffer(DiagnosticsEngine &Diag,
     Buffer.setPointer(BackupBuffer.release());
 
     if (Diag.isDiagnosticInFlight())
-      Diag.SetDelayedDiagnostic(diag::err_cannot_open_file,
+      Diag.SetDelayedDiagnostic(diag::err_basic_cannot_open_file,
                                 ContentsEntry->getName(),
                                 BufferOrError.getError().message());
     else
-      Diag.Report(Loc, diag::err_cannot_open_file)
+      Diag.Report(Loc, diag::err_basic_cannot_open_file)
           << ContentsEntry->getName() << BufferOrError.getError().message();
 
     Buffer.setInt(Buffer.getInt() | InvalidFlag);
@@ -199,10 +199,10 @@ const llvm::MemoryBuffer *ContentCache::getBuffer(DiagnosticsEngine &Diag,
   // have come from a stat cache).
   if (getRawBuffer()->getBufferSize() != (size_t)ContentsEntry->getSize()) {
     if (Diag.isDiagnosticInFlight())
-      Diag.SetDelayedDiagnostic(diag::err_file_modified,
+      Diag.SetDelayedDiagnostic(diag::err_basic_file_modified,
                                 ContentsEntry->getName());
     else
-      Diag.Report(Loc, diag::err_file_modified)
+      Diag.Report(Loc, diag::err_basic_file_modified)
         << ContentsEntry->getName();
 
     Buffer.setInt(Buffer.getInt() | InvalidFlag);
@@ -217,7 +217,7 @@ const llvm::MemoryBuffer *ContentCache::getBuffer(DiagnosticsEngine &Diag,
   const char *InvalidBOM = getInvalidBOM(BufStr);
 
   if (InvalidBOM) {
-    Diag.Report(Loc, diag::err_unsupported_bom)
+    Diag.Report(Loc, diag::err_basic_unsupported_bom)
       << InvalidBOM << ContentsEntry->getName();
     Buffer.setInt(Buffer.getInt() | InvalidFlag);
   }
@@ -643,7 +643,7 @@ FileID SourceManager::createFileID(const ContentCache *File, StringRef Filename,
   unsigned FileSize = File->getSize();
   if (!(NextLocalOffset + FileSize + 1 > NextLocalOffset &&
         NextLocalOffset + FileSize + 1 <= CurrentLoadedOffset)) {
-    Diag.Report(IncludePos, diag::err_include_too_large);
+    Diag.Report(IncludePos, diag::err_basic_include_too_large);
     return FileID();
   }
   LocalSLocEntryTable.push_back(

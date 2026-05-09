@@ -68,7 +68,7 @@ bool InputFile::Load() {
 
     // Check file error
     if (FileBuf.getError()) {
-        Diags.Report(diag::err_cannot_open_file) << getFileName() << FileBuf.getError().message();
+        Diags.Report(diag::err_basic_cannot_open_file) << getFileName() << FileBuf.getError().message();
         return false;
     }
 

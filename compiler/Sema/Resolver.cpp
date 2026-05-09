@@ -880,6 +880,11 @@ void Resolver::visit(ASTBreakStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTBreakStmt)");
 	CurrentStmt = &AST;
 
+	if (LoopDepth == 0 && SwitchDepth == 0) {
+		Diag(AST.getLocation(), diag::err_sema_break_outside_loop);
+		return;
+	}
+
 	// Create SemaBreakStmt and add to current block
 	if (CurrentSemaBlock) {
 		SemaBreakStmt *SemaStmt = SemaBuilder::CreateBreakStmt(&AST);
@@ -892,6 +897,11 @@ void Resolver::visit(ASTBreakStmt &AST) {
 void Resolver::visit(ASTContinueStmt &AST) {
 	FLY_DEBUG_START("Resolver", "visit(ASTContinueStmt)");
 	CurrentStmt = &AST;
+
+	if (LoopDepth == 0) {
+		Diag(AST.getLocation(), diag::err_sema_continue_outside_loop);
+		return;
+	}
 
 	// Create SemaContinueStmt and add to current block
 	if (CurrentSemaBlock) {
@@ -1024,6 +1034,8 @@ void Resolver::visit(ASTSwitchStmt &AST) {
 	// Create SemaSwitchStmt
 	SemaSwitchStmt *SemaSwitch = SemaBuilder::CreateSwitchStmt(&AST, SwitchExpr);
 
+	++SwitchDepth;
+
 	SemaBlockStmt *SavedBlock = CurrentSemaBlock;
 
 	// Case Blocks
@@ -1058,6 +1070,8 @@ void Resolver::visit(ASTSwitchStmt &AST) {
 		SemaSwitch->setDefault(DefaultCapture);
     }
 
+	--SwitchDepth;
+
 	// Add to current block
 	if (CurrentSemaBlock) {
 		CurrentSemaBlock->addContent(SemaSwitch);
@@ -1072,6 +1086,8 @@ void Resolver::visit(ASTLoopStmt &AST) {
 
 	// Create SemaLoopStmt
 	SemaLoopStmt *SemaLoop = SemaBuilder::CreateLoopStmt(&AST);
+
+	++LoopDepth;
 
 	// Enter Loop Scope to keep init variables visible in condition, body, and post
 	EnterScope();
@@ -1122,6 +1138,8 @@ void Resolver::visit(ASTLoopStmt &AST) {
 	// Exit Loop Scope
 	ExitScope();
 
+	--LoopDepth;
+
 	// Add to current block
 	if (CurrentSemaBlock) {
 		CurrentSemaBlock->addContent(SemaLoop);
@@ -1139,8 +1157,12 @@ void Resolver::visit(ASTLoopInStmt &AST) {
     AST.getList()->accept(*this);
 	SemaExpr *ListExpr = CurrentExpr;
 
+	++LoopDepth;
+
 	// Loop Statement
 	AST.getStmt()->accept(*this);
+
+	--LoopDepth;
 
 	// Create SemaLoopInStmt and add to block
 	SemaLoopInStmt *SemaLoopIn = SemaBuilder::CreateLoopInStmt(&AST, ItemExpr, ListExpr, nullptr);
@@ -1494,6 +1516,7 @@ void Resolver::visit(ASTCall &AST) {
 			Symbol *CurrentSymbol = Reg.LookupFunction(AST.getName(), ArgTypes, CurrentScope);
 
 			if (!CurrentSymbol) {
+				Diag(AST.getLocation(), diag::err_sema_function_not_found) << AST.getName();
 				CurrentScope = SavedScope;
 				return;
 			}
@@ -2347,7 +2370,8 @@ SemaExpr * Resolver::ResolveMemberSymbol(ASTMember &AST, SymbolTable *Symbols, S
 
 		// Get the Sema Node
 		if (Node->getKind() != ExpectedKind) {
-			Diag(diag::err_sema_generic); // Member access type mismatch
+			llvm::StringRef KindName = (ExpectedKind == SemaKind::ATTRIBUTE) ? "field" : "enum entry";
+			Diag(AST.getLocation(), diag::err_sema_member_type_mismatch) << AST.getName() << KindName;
 			CurrentScope = SavedScope;
 			return nullptr;
 		}

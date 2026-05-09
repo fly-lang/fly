@@ -116,6 +116,10 @@ namespace fly {
 
     	ASTHandleStmt *CurrentHandleStmt = nullptr;
 
+    	// Loop/switch nesting depth for break/continue validation
+    	int LoopDepth = 0;
+    	int SwitchDepth = 0;
+
     	// Temporary storage for resolved call arg expressions
     	SmallVector<SemaExpr *, 8> ResolvedCallArgs;
 

@@ -75,16 +75,34 @@ ASTModule *Parser::ParseModule() {
 
     Module = ASTBuilder::CreateModule(Input);
 
+    bool NamespaceSeen = false;
+    bool NonNamespaceSeen = false;
+
     // Start with Parse (recursively))
     while (ContinueParse && Tok.isNot(tok::eof)) {
 
 	    // Parse a NameSpace
     	if (Tok.is(tok::kw_namespace)) {
-    		Module->setNameSpace(ParseNameSpace());
+    		if (NamespaceSeen) {
+    			Diag(Tok, diag::err_parser_multiple_namespace);
+    			ConsumeToken(); // skip 'namespace'
+    			// skip the namespace name tokens
+    			while (Tok.isNot(tok::eof) && (Tok.isAnyIdentifier() || Tok.is(tok::period)))
+    				ConsumeToken();
+    		} else if (NonNamespaceSeen) {
+    			Diag(Tok, diag::err_parser_namespace_not_first);
+    			ConsumeToken();
+    			while (Tok.isNot(tok::eof) && (Tok.isAnyIdentifier() || Tok.is(tok::period)))
+    				ConsumeToken();
+    		} else {
+    			Module->setNameSpace(ParseNameSpace());
+    			NamespaceSeen = true;
+    		}
     	}
 
     	// Parse a Node
     	else {
+    		NonNamespaceSeen = true;
     		ParseNode();
     	}
     }
@@ -194,7 +212,7 @@ ASTImport *Parser::ParseImport() {
 
 			// Wildcard + alias is forbidden: emit error and skip rest of line
 			if (Tok.is(tok::kw_as)) {
-				Diag(Tok, diag::err_import_wildcard_alias);
+				Diag(Tok, diag::err_parser_import_wildcard_alias);
 				unsigned ErrLine = SourceMgr.getSpellingLineNumber(Tok.getLocation());
 				while (Tok.isNot(tok::eof) &&
 				       SourceMgr.getSpellingLineNumber(Tok.getLocation()) == ErrLine) {
@@ -297,7 +315,27 @@ void Parser::ParseNode() {
 		ParseEnum(Modifiers);
 	}
 
-    // Parse Identifier
+    // Handle unknown characters
+	else if (Tok.is(tok::unknown)) {
+		std::string Ch(1, *SourceMgr.getCharacterData(Tok.getLocation()));
+		Diag(Tok, diag::err_parser_unknown_token) << Ch;
+		ConsumeToken();
+	}
+
+    // Guard: identifier required for a function name
+	else if (!Tok.isAnyIdentifier()) {
+		std::string TokName;
+		if (Tok.getIdentifierInfo())
+			TokName = Tok.getIdentifierInfo()->getName().str();
+		else if (tok::getPunctuatorSpelling(Tok.getKind()))
+			TokName = tok::getPunctuatorSpelling(Tok.getKind());
+		else
+			TokName = tok::getTokenName(Tok.getKind());
+		Diag(Tok, diag::err_parser_unexpected_top_level_token) << TokName;
+		ConsumeToken();
+	}
+
+    // Parse Identifier as function
 	else {
 		ParseFunction(Modifiers);
 	}
@@ -379,7 +417,11 @@ ASTFunction *Parser::ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers) {
 
 	// Create Function (implicitly void - no return type)
 	ASTFunction *Function = ASTBuilder::CreateFunction(Module, Loc, Name, Modifiers, Params, nullptr);
-	ASTBlockStmt *Body = isBlockStart() ? ParserFunction::ParseBody(this, Function) : nullptr;
+	if (isBlockStart()) {
+		ParserFunction::ParseBody(this, Function);
+	} else if (Tok.isNot(tok::eof)) {
+		Diag(Tok, diag::err_parser_expected_lbrace);
+	}
 	return Function;
 }
 

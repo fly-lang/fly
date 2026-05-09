@@ -214,7 +214,7 @@ bool WebAssemblyTargetInfo::handleTargetFeatures(
       continue;
     }
 
-    Diags.Report(diag::err_opt_not_valid_with_opt)
+    Diags.Report(diag::err_target_opt_not_valid_with_opt)
         << Feature << "-target-feature";
     return false;
   }

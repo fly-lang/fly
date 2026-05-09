@@ -159,7 +159,7 @@ bool Frontend::Execute() {
 
     // Check if Input Files not empty
     if (CI.getFrontendOptions().getInputFiles().empty()) {
-        Diags.Report(SourceLocation(), diag::note_no_input_process);
+        Diags.Report(SourceLocation(), diag::note_fe_no_input_process);
         return false;
     }
 
