@@ -1,11 +1,11 @@
-/*===-- lib/fly/str.h - fly.str C types and declarations ---------------===
+/*===-- std/str/fly_str.h - fly.str C types and declarations ------------===
  *
- * Internal header shared between str.c and LibTest.cpp.
+ * Internal header shared between fly_str.c and fly_str_test.c.
  * No libc headers — only fundamental C types.
  *===----------------------------------------------------------------------===*/
 
-#ifndef FLY_LIB_STRING_H
-#define FLY_LIB_STRING_H
+#ifndef FLY_STR_H
+#define FLY_STR_H
 
 /* ── Fly string struct (mirrors LLVM IR: %string = { i8*, i32 }) ─────────── */
 
@@ -65,4 +65,4 @@ void _F7fly_str6concat_Ss_Ss_Ss    (void *err_ctx, const fly_string *a, const fl
 
 void _F7fly_str7convert_i_Ss       (void *err_ctx, const int *src, fly_string *out);
 
-#endif /* FLY_LIB_STRING_H */
+#endif /* FLY_STR_H */

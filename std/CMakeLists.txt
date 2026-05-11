@@ -1,4 +1,4 @@
-##===-- src/Lib/CMakeLists.txt - Fly standard library ---------------------===##
+##===-- std/CMakeLists.txt - Fly standard library --------------------------===##
 #
 # The Fly standard library consists of two complementary artifacts:
 #
@@ -11,30 +11,37 @@
 #                      Built by the fly binary after it is available.
 #                      Extension: .a on Linux/macOS, .lib on Windows-MSVC.
 #
-# Users link both archives: -lflyLib fly_lib.a  (or fly_lib.lib on Windows)
+# Users link both archives: -lFlyLib fly_lib.a  (or fly_lib.lib on Windows)
 #
 # Namespace  → Source file      → Header
 #   fly.str     src/str.fly     src/str.fly.h
 #   fly.math    src/math.fly    src/math.fly.h
 #   fly.os      src/os.fly      src/os.fly.h
-#   fly.thread  src/thread.fly  src/thread.fly.h
+#   fly.sync    src/sync.fly    src/sync.fly.h
+#
+# Module subdirectories (each owns its own static lib + freestanding tests)
+#   str/    → fly_str   (fly_str.c / fly_str_test.c)
+#   math/   → fly_math  (fly_math.c / fly_math_test.c)
+#   os/     → fly_os    (fly_os_*.c / fly_os_*_test.c per submodule)
 #
 
-# ── C implementations (linked into a regular static library) ─────────────────
+# ── Module subdirectories ─────────────────────────────────────────────────────
 
-add_library(FlyLib STATIC
-        str.c
-)
+add_subdirectory(str)
+add_subdirectory(math)
+add_subdirectory(os)
 
-target_include_directories(FlyLib PUBLIC
-    ${CMAKE_SOURCE_DIR}/runtime
-    ${CMAKE_CURRENT_SOURCE_DIR}        # exposes fly/String.h to consumers
-)
+# ── FlyLib: aggregate INTERFACE target linked by the compiler binary ─────────
+#
+# compiler/CMakeLists.txt links `fly` against FlyLib only.
+# Every new C stdlib module (fly_str, fly_math, …) must be listed here so the
+# compiler binary sees its symbols at link time.
 
-target_link_libraries(FlyLib PUBLIC FlyRuntime)
-
-set_target_properties(FlyLib PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+add_library(FlyLib INTERFACE)
+target_link_libraries(FlyLib INTERFACE
+    fly_str
+    fly_math
+    fly_os
 )
 
 # ── Fly namespace archive (built by the fly binary) ──────────────────────────
@@ -43,7 +50,7 @@ set(FLY_LIB_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/str.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/src/math.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/src/os.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/thread.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/sync.fly
 )
 
 # fly --lib appends .a (Linux/macOS) or .lib (Windows-MSVC); pass the stem via -o.
@@ -65,18 +72,3 @@ add_custom_command(
 )
 
 add_custom_target(fly_lib ALL DEPENDS ${FLY_LIB_OUTPUT})
-
-######################################
-# fly.string library unit tests
-######################################
-
-add_executable(fly_lib_test
-        test/StrTest.cpp
-)
-
-target_link_libraries(fly_lib_test PRIVATE
-        gtest_main
-        FlyLib
-)
-
-add_test(NAME fly_lib_test COMMAND fly_lib_test)
