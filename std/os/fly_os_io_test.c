@@ -97,18 +97,18 @@ static fly_writer make_buf_writer(fly_buf *b) {
 
 static void test_pipe(void) {                       /* 1 */
     fly_reader pr; fly_writer pw;
-    fly_io_pipe(&pr, &pw);
+    _F6fly_os6ioPipe_Cfly_reader_Cfly_writer((void*)0, &pr, &pw);
 
     const char *msg = "hello pipe";
     int mlen = 0; while(msg[mlen])mlen++;
     fly_buf wb; wb.ptr=(uint8_t*)msg; wb.size=(size_t)mlen; wb.cap=(size_t)mlen;
-    fly_io_writeAll(&pw, &wb);
+    _F6fly_os10ioWriteAll_Cfly_writer_Cfly_buf((void*)0, &pw, &wb);
 
     /* close write end before reading so read sees EOF */
     pw.close(pw.ctx);
 
     fly_buf rb = {(uint8_t*)0,0,0};
-    fly_io_readAll(&pr, &rb);
+    _F6fly_os9ioReadAll_Cfly_reader_Cfly_buf((void*)0, &pr, &rb);
 
     check(rb.size == (size_t)mlen, "pipe size matches");
     int ok = 1;
@@ -124,12 +124,12 @@ static void test_mem_reader_bufreadline(void) {     /* 2 */
     mem_ctx mctx;
     fly_reader r = make_mem_reader(&mctx, data, dlen);
     fly_buf_reader br;
-    fly_io_readerNew(&r, 16, &br); /* small buffer to force refill */
+    _F6fly_os11ioReaderNew_Cfly_reader_ul_Cfly_buf_reader((void*)0, &r, 16, &br); /* small buffer to force refill */
 
     fly_string line1, line2, line3;
-    fly_io_bufReadLine(&br, &line1);
-    fly_io_bufReadLine(&br, &line2);
-    fly_io_bufReadLine(&br, &line3);
+    _F6fly_os13ioBufReadLine_Cfly_buf_reader_Ss((void*)0, &br, &line1);
+    _F6fly_os13ioBufReadLine_Cfly_buf_reader_Ss((void*)0, &br, &line2);
+    _F6fly_os13ioBufReadLine_Cfly_buf_reader_Ss((void*)0, &br, &line3);
 
     /* lines include '\n' */
     check(line1.size > 0 && line1.ptr[0]=='l', "bufReadLine line1 starts with 'l'");
@@ -147,13 +147,13 @@ static void test_buf_writer(void) {                 /* 3 */
     fly_buf dst = {(uint8_t*)0,0,0};
     fly_writer w = make_buf_writer(&dst);
     fly_buf_writer bw;
-    fly_io_writerNew(&w, 8, &bw); /* small buffer to force flushes */
+    _F6fly_os11ioWriterNew_Cfly_writer_ul_Cfly_buf_writer((void*)0, &w, 8, &bw); /* small buffer to force flushes */
 
     const char *msg = "buffered write test";
     int mlen=0; while(msg[mlen])mlen++;
     fly_buf sb; sb.ptr=(uint8_t*)msg; sb.size=(size_t)mlen; sb.cap=(size_t)mlen;
-    fly_io_bufWrite(&bw, &sb);
-    fly_io_bufFlush(&bw);
+    _F6fly_os10ioBufWrite_Cfly_buf_writer_Cfly_buf((void*)0, &bw, &sb);
+    _F6fly_os10ioBufFlush_Cfly_buf_writer((void*)0, &bw);
 
     check(dst.size == (size_t)mlen, "bufWriter size");
     int ok=1;
@@ -172,7 +172,7 @@ static void test_copy(void) {                       /* 4 */
     fly_writer w = make_buf_writer(&dst);
 
     int64_t copied;
-    fly_io_copy(&r, &w, &copied);
+    _F6fly_os6ioCopy_Cfly_reader_Cfly_writer_l((void*)0, &r, &w, &copied);
 
     check(copied == (int64_t)dlen, "copy bytes count");
     int ok=1;

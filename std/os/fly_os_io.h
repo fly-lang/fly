@@ -130,39 +130,39 @@ typedef struct {
 } fly_duration;
 
 /* ══════════════════════════════════════════════════════════════════════════ */
-/* fly.io API  (C prefix: fly_io_*)                                          */
+/* fly.io API  (ABI-mangled names, prefix _F6fly_os)                         */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
 /* ── Raw reader/writer ───────────────────────────────────────────────────── */
 
-void fly_io_read      (fly_reader *r, fly_buf *buf, size_t n, size_t *out_read);
-void fly_io_readAll   (fly_reader *r, fly_buf *out);
-void fly_io_readLine  (fly_reader *r, fly_string *out);
-void fly_io_readLines (fly_reader *r, fly_string_array *out);
-void fly_io_close     (fly_reader *r);
+void _F6fly_os6ioRead_Cfly_reader_Cfly_buf_ul_ul    (void *err_ctx, fly_reader *r, fly_buf *buf, size_t n, size_t *out_read);
+void _F6fly_os9ioReadAll_Cfly_reader_Cfly_buf      (void *err_ctx, fly_reader *r, fly_buf *out);
+void _F6fly_os10ioReadLine_Cfly_reader_Ss           (void *err_ctx, fly_reader *r, fly_string *out);
+void _F6fly_os11ioReadLines_Cfly_reader_Cfly_string_array (void *err_ctx, fly_reader *r, fly_string_array *out);
+void _F6fly_os7ioClose_Cfly_reader                 (void *err_ctx, fly_reader *r);
 
-void fly_io_write      (fly_writer *w, const fly_buf *buf, size_t n, size_t *out_written);
-void fly_io_writeAll   (fly_writer *w, const fly_buf *buf);
-void fly_io_writeString(fly_writer *w, const fly_string *s);
-void fly_io_flush      (fly_writer *w);
+void _F6fly_os7ioWrite_Cfly_writer_Cfly_buf_ul_ul   (void *err_ctx, fly_writer *w, const fly_buf *buf, size_t n, size_t *out_written);
+void _F6fly_os10ioWriteAll_Cfly_writer_Cfly_buf    (void *err_ctx, fly_writer *w, const fly_buf *buf);
+void _F6fly_os13ioWriteString_Cfly_writer_Ss        (void *err_ctx, fly_writer *w, const fly_string *s);
+void _F6fly_os7ioFlush_Cfly_writer                 (void *err_ctx, fly_writer *w);
 
 /* ── Buffered reader ─────────────────────────────────────────────────────── */
 
-void fly_io_readerNew  (fly_reader *inner, size_t cap, fly_buf_reader *out);
-void fly_io_peek       (fly_buf_reader *r, size_t n, fly_buf *out);
-void fly_io_bufReadLine(fly_buf_reader *r, fly_string *out);
-void fly_io_fill       (fly_buf_reader *r);
+void _F6fly_os11ioReaderNew_Cfly_reader_ul_Cfly_buf_reader (void *err_ctx, fly_reader *inner, size_t cap, fly_buf_reader *out);
+void _F6fly_os6ioPeek_Cfly_buf_reader_ul_Cfly_buf          (void *err_ctx, fly_buf_reader *r, size_t n, fly_buf *out);
+void _F6fly_os13ioBufReadLine_Cfly_buf_reader_Ss            (void *err_ctx, fly_buf_reader *r, fly_string *out);
+void _F6fly_os6ioFill_Cfly_buf_reader                      (void *err_ctx, fly_buf_reader *r);
 
 /* ── Buffered writer ─────────────────────────────────────────────────────── */
 
-void fly_io_writerNew(fly_writer *inner, size_t cap, fly_buf_writer *out);
-void fly_io_bufWrite (fly_buf_writer *w, const fly_buf *buf);
-void fly_io_bufFlush (fly_buf_writer *w);
+void _F6fly_os11ioWriterNew_Cfly_writer_ul_Cfly_buf_writer (void *err_ctx, fly_writer *inner, size_t cap, fly_buf_writer *out);
+void _F6fly_os10ioBufWrite_Cfly_buf_writer_Cfly_buf        (void *err_ctx, fly_buf_writer *w, const fly_buf *buf);
+void _F6fly_os10ioBufFlush_Cfly_buf_writer                 (void *err_ctx, fly_buf_writer *w);
 
 /* ── Stream utilities ────────────────────────────────────────────────────── */
 
-void fly_io_copy (fly_reader *src, fly_writer *dst, int64_t *out_copied);
-void fly_io_copyN(fly_reader *src, fly_writer *dst, size_t n, int64_t *out_copied);
-void fly_io_pipe (fly_reader *pipe_r, fly_writer *pipe_w);
+void _F6fly_os6ioCopy_Cfly_reader_Cfly_writer_l    (void *err_ctx, fly_reader *src, fly_writer *dst, int64_t *out_copied);
+void _F6fly_os7ioCopyN_Cfly_reader_Cfly_writer_ul_l (void *err_ctx, fly_reader *src, fly_writer *dst, size_t n, int64_t *out_copied);
+void _F6fly_os6ioPipe_Cfly_reader_Cfly_writer       (void *err_ctx, fly_reader *pipe_r, fly_writer *pipe_w);
 
 #endif /* FLY_OS_IO_H */

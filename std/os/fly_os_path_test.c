@@ -57,10 +57,10 @@ static void cleanup_sa(fly_string_array *a) {
 static void test_join(void) {                           /* 19 */
     fly_string out;
     fly_string base = fs("/home/user"), comp = fs("docs/file.txt");
-    fly_path_join(&base, &comp, &out);
+    _F6fly_os8pathJoin_Ss_Ss_Ss((void*)0, &base, &comp, &out);
     check(fseq(&out, "/home/user/docs/file.txt"), "join abs+rel"); cleanup(&out);
     fly_string empty = fs("");
-    fly_path_join(&empty, &comp, &out);
+    _F6fly_os8pathJoin_Ss_Ss_Ss((void*)0, &empty, &comp, &out);
     check(fseq(&out, "docs/file.txt"), "join empty+rel");
 }
 
@@ -68,48 +68,48 @@ static void test_basename_dirname(void) {               /* 20 */
     fly_string out;
     fly_string p1 = fs("/a/b/file.txt"), p2 = fs("/a/b/"), root = fs("/");
 
-    fly_path_basename(&p1, &out); check(fseq(&out,"file.txt"), "basename file.txt"); cleanup(&out);
-    fly_path_basename(&p2, &out); check(fseq(&out,"b"),        "basename trailing/"); cleanup(&out);
-    fly_path_dirname (&p1, &out); check(fseq(&out,"/a/b"),     "dirname file"); cleanup(&out);
-    fly_path_dirname (&p2, &out); check(fseq(&out,"/a"),       "dirname trailing/"); cleanup(&out);
-    fly_path_dirname (&root,&out);check(fseq(&out,"/"),        "dirname root"); cleanup(&out);
+    _F6fly_os12pathBasename_Ss_Ss((void*)0, &p1, &out); check(fseq(&out,"file.txt"), "basename file.txt"); cleanup(&out);
+    _F6fly_os12pathBasename_Ss_Ss((void*)0, &p2, &out); check(fseq(&out,"b"),        "basename trailing/"); cleanup(&out);
+    _F6fly_os11pathDirname_Ss_Ss((void*)0,  &p1, &out); check(fseq(&out,"/a/b"),     "dirname file"); cleanup(&out);
+    _F6fly_os11pathDirname_Ss_Ss((void*)0,  &p2, &out); check(fseq(&out,"/a"),       "dirname trailing/"); cleanup(&out);
+    _F6fly_os11pathDirname_Ss_Ss((void*)0,  &root,&out);check(fseq(&out,"/"),        "dirname root"); cleanup(&out);
 }
 
 static void test_ext(void) {                            /* 21 */
     fly_string out;
     fly_string f1=fs("file.txt"), f2=fs("archive.tar.gz"), f3=fs("noext"), f4=fs(".hidden");
-    fly_path_ext(&f1,&out); check(fseq(&out,".txt"), "ext .txt"); cleanup(&out);
-    fly_path_ext(&f2,&out); check(fseq(&out,".gz"),  "ext .gz");  cleanup(&out);
-    fly_path_ext(&f3,&out); check(out.size==0,        "ext none"); cleanup(&out);
-    fly_path_ext(&f4,&out); check(out.size==0, "ext .hidden"); cleanup(&out);
+    _F6fly_os7pathExt_Ss_Ss((void*)0, &f1,&out); check(fseq(&out,".txt"), "ext .txt"); cleanup(&out);
+    _F6fly_os7pathExt_Ss_Ss((void*)0, &f2,&out); check(fseq(&out,".gz"),  "ext .gz");  cleanup(&out);
+    _F6fly_os7pathExt_Ss_Ss((void*)0, &f3,&out); check(out.size==0,        "ext none"); cleanup(&out);
+    _F6fly_os7pathExt_Ss_Ss((void*)0, &f4,&out); check(out.size==0, "ext .hidden"); cleanup(&out);
 }
 
 static void test_normalize(void) {                      /* 22 */
     fly_string out;
     fly_string p1=fs("/a/b/../c/./d"), p2=fs("a//b///c"), p3=fs(".");
-    fly_path_normalize(&p1,&out); check(fseq(&out,"/a/c/d"), "norm .."); cleanup(&out);
-    fly_path_normalize(&p2,&out); check(fseq(&out,"a/b/c"),  "norm //"); cleanup(&out);
-    fly_path_normalize(&p3,&out); check(fseq(&out,"."),      "norm .");  cleanup(&out);
+    _F6fly_os13pathNormalize_Ss_Ss((void*)0, &p1,&out); check(fseq(&out,"/a/c/d"), "norm .."); cleanup(&out);
+    _F6fly_os13pathNormalize_Ss_Ss((void*)0, &p2,&out); check(fseq(&out,"a/b/c"),  "norm //"); cleanup(&out);
+    _F6fly_os13pathNormalize_Ss_Ss((void*)0, &p3,&out); check(fseq(&out,"."),      "norm .");  cleanup(&out);
 }
 
 static void test_rel(void) {                            /* 23 */
     fly_string out;
     fly_string base=fs("/a/b"), target=fs("/a/c/d"), same=fs("/a/b");
-    fly_path_rel(&base,&target,&out); check(fseq(&out,"../c/d"), "rel diff"); cleanup(&out);
-    fly_path_rel(&base,&same,  &out); check(fseq(&out,"."),      "rel same"); cleanup(&out);
+    _F6fly_os7pathRel_Ss_Ss_Ss((void*)0, &base,&target,&out); check(fseq(&out,"../c/d"), "rel diff"); cleanup(&out);
+    _F6fly_os7pathRel_Ss_Ss_Ss((void*)0, &base,&same,  &out); check(fseq(&out,"."),      "rel same"); cleanup(&out);
 }
 
 static void test_comp(void) {                           /* 24 */
     fly_string_array out;
     fly_string p=fs("/a/b/c");
-    fly_path_comp(&p,&out);
+    _F6fly_os8pathComp_Ss_Cfly_string_array((void*)0, &p,&out);
     check(out.count==4,  "comp count /a/b/c");
     if (out.count>=1) check(fseq(&out.items[0],"/"), "comp[0]=/");
     if (out.count>=4) check(fseq(&out.items[3],"c"), "comp[3]=c");
     cleanup_sa(&out);
 
     fly_string rel=fs("x/y");
-    fly_path_comp(&rel,&out);
+    _F6fly_os8pathComp_Ss_Cfly_string_array((void*)0, &rel,&out);
     check(out.count==2, "comp count x/y");
     cleanup_sa(&out);
 }
@@ -120,12 +120,12 @@ static void test_match(void) {                          /* 25 */
     fly_string p2=fs("test_?.c"), yes2=fs("test_a.c"),   no2=fs("test_ab.c");
     fly_string p3=fs("[abc].h"),  yes3=fs("a.h"),         no3=fs("d.h");
 
-    fly_path_match(&p1,&yes1,&r); check(r!=0, "match *.fly YES");
-    fly_path_match(&p1,&no1, &r); check(r==0, "match *.fly NO");
-    fly_path_match(&p2,&yes2,&r); check(r!=0, "match test_?.c YES");
-    fly_path_match(&p2,&no2, &r); check(r==0, "match test_?.c NO");
-    fly_path_match(&p3,&yes3,&r); check(r!=0, "match [abc].h YES");
-    fly_path_match(&p3,&no3, &r); check(r==0, "match [abc].h NO");
+    _F6fly_os9pathMatch_Ss_Ss_b((void*)0, &p1,&yes1,&r); check(r!=0, "match *.fly YES");
+    _F6fly_os9pathMatch_Ss_Ss_b((void*)0, &p1,&no1, &r); check(r==0, "match *.fly NO");
+    _F6fly_os9pathMatch_Ss_Ss_b((void*)0, &p2,&yes2,&r); check(r!=0, "match test_?.c YES");
+    _F6fly_os9pathMatch_Ss_Ss_b((void*)0, &p2,&no2, &r); check(r==0, "match test_?.c NO");
+    _F6fly_os9pathMatch_Ss_Ss_b((void*)0, &p3,&yes3,&r); check(r!=0, "match [abc].h YES");
+    _F6fly_os9pathMatch_Ss_Ss_b((void*)0, &p3,&no3, &r); check(r==0, "match [abc].h NO");
 }
 
 static void test_glob(void) {                           /* 26 */
@@ -134,13 +134,13 @@ static void test_glob(void) {                           /* 26 */
 
     /* glob /tmp — at minimum no crash and returns items */
     fly_string pat = fs("/tmp/*.fly_test_XXXXXXXX");
-    fly_path_glob(&pat, &out);
+    _F6fly_os8pathGlob_Ss_Cfly_string_array((void*)0, &pat, &out);
     check(1, "glob no crash");     /* structural test only */
     cleanup_sa(&out);
 
     /* verify sep */
     uint8_t sep;
-    fly_path_sep(&sep);
+    _F6fly_os7pathSep_y((void*)0, &sep);
     check(sep == '/', "sep is /");
 }
 

@@ -102,17 +102,25 @@ static int glob_match(const char *pat, int plen, const char *name, int nlen) {
 /* Public API                                                                 */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-void fly_path_sep(uint8_t *out) { *out = (uint8_t)PATH_SEP; }
+void _F6fly_os7pathSep_y(void *err_ctx, uint8_t *out) {
+    (void)err_ctx;
+    *out = (uint8_t)PATH_SEP;
+}
 
-void fly_path_isAbsolute(const fly_string *path, int *out) {
+void _F6fly_os13pathIsAbsolute_Ss_b(void *err_ctx, const fly_string *path, int *out) {
+    (void)err_ctx;
     *out = (path && path->size > 0 && path->ptr[0] == PATH_SEP);
 }
 
-void fly_path_isRelative(const fly_string *path, int *out) {
-    int abs; fly_path_isAbsolute(path, &abs); *out = !abs;
+void _F6fly_os13pathIsRelative_Ss_b(void *err_ctx, const fly_string *path, int *out) {
+    (void)err_ctx;
+    int abs;
+    _F6fly_os13pathIsAbsolute_Ss_b((void*)0, path, &abs);
+    *out = !abs;
 }
 
-void fly_path_join(const fly_string *base, const fly_string *comp, fly_string *out) {
+void _F6fly_os8pathJoin_Ss_Ss_Ss(void *err_ctx, const fly_string *base, const fly_string *comp, fly_string *out) {
+    (void)err_ctx;
     if (!base || base->size == 0) { *out = *comp; return; }
     if (!comp || comp->size == 0) { *out = *base; return; }
     /* remove trailing '/' from base */
@@ -131,19 +139,21 @@ void fly_path_join(const fly_string *base, const fly_string *comp, fly_string *o
     out->size = total;
 }
 
-void fly_path_joinN(const fly_string *parts, size_t n, fly_string *out) {
+void _F6fly_os9pathJoinN_Ss_ul_Ss(void *err_ctx, const fly_string *parts, size_t n, fly_string *out) {
+    (void)err_ctx;
     if (n == 0) { out->ptr = (char *)0; out->size = 0; return; }
     fly_string cur = parts[0];
     for (size_t i = 1; i < n; i++) {
         fly_string next;
-        fly_path_join(&cur, &parts[i], &next);
+        _F6fly_os8pathJoin_Ss_Ss_Ss((void*)0, &cur, &parts[i], &next);
         if (i > 1 && cur.ptr) free(cur.ptr); /* free intermediates (not first) */
         cur = next;
     }
     *out = cur;
 }
 
-void fly_path_basename(const fly_string *path, fly_string *out) {
+void _F6fly_os12pathBasename_Ss_Ss(void *err_ctx, const fly_string *path, fly_string *out) {
+    (void)err_ctx;
     if (!path || path->size == 0) { out->ptr = (char *)0; out->size = 0; return; }
     int end = path->size;
     /* strip trailing slashes (but keep root "/") */
@@ -154,7 +164,8 @@ void fly_path_basename(const fly_string *path, fly_string *out) {
     fstr_from_cstr(path->ptr + start, len, out);
 }
 
-void fly_path_dirname(const fly_string *path, fly_string *out) {
+void _F6fly_os11pathDirname_Ss_Ss(void *err_ctx, const fly_string *path, fly_string *out) {
+    (void)err_ctx;
     if (!path || path->size == 0) { fstr_from_cstr(".", 1, out); return; }
     int end = path->size;
     while (end > 1 && path->ptr[end-1] == PATH_SEP) end--;
@@ -170,9 +181,10 @@ void fly_path_dirname(const fly_string *path, fly_string *out) {
     fstr_from_cstr(path->ptr, pos, out);
 }
 
-void fly_path_ext(const fly_string *path, fly_string *out) {
+void _F6fly_os7pathExt_Ss_Ss(void *err_ctx, const fly_string *path, fly_string *out) {
+    (void)err_ctx;
     fly_string base;
-    fly_path_basename(path, &base);
+    _F6fly_os12pathBasename_Ss_Ss((void*)0, path, &base);
     if (!base.ptr || base.size == 0) { out->ptr = (char *)0; out->size = 0; return; }
     int dot = -1;
     for (int i = base.size - 1; i > 0; i--) {
@@ -183,9 +195,10 @@ void fly_path_ext(const fly_string *path, fly_string *out) {
     free(base.ptr);
 }
 
-void fly_path_stem(const fly_string *path, fly_string *out) {
+void _F6fly_os8pathStem_Ss_Ss(void *err_ctx, const fly_string *path, fly_string *out) {
+    (void)err_ctx;
     fly_string base;
-    fly_path_basename(path, &base);
+    _F6fly_os12pathBasename_Ss_Ss((void*)0, path, &base);
     if (!base.ptr || base.size == 0) { out->ptr = (char *)0; out->size = 0; return; }
     int dot = -1;
     for (int i = base.size - 1; i > 0; i--) {
@@ -195,18 +208,21 @@ void fly_path_stem(const fly_string *path, fly_string *out) {
     else         { fstr_from_cstr(base.ptr, dot, out); free(base.ptr); }
 }
 
-void fly_path_split(const fly_string *path, fly_string *out_dir, fly_string *out_base) {
-    fly_path_dirname(path, out_dir);
-    fly_path_basename(path, out_base);
+void _F6fly_os9pathSplit_Ss_Ss_Ss(void *err_ctx, const fly_string *path, fly_string *out_dir, fly_string *out_base) {
+    (void)err_ctx;
+    _F6fly_os11pathDirname_Ss_Ss((void*)0, path, out_dir);
+    _F6fly_os12pathBasename_Ss_Ss((void*)0, path, out_base);
 }
 
-void fly_path_splitExt(const fly_string *path, fly_string *out_stem, fly_string *out_ext) {
-    fly_path_stem(path, out_stem);
-    fly_path_ext(path, out_ext);
+void _F6fly_os12pathSplitExt_Ss_Ss_Ss(void *err_ctx, const fly_string *path, fly_string *out_stem, fly_string *out_ext) {
+    (void)err_ctx;
+    _F6fly_os8pathStem_Ss_Ss((void*)0, path, out_stem);
+    _F6fly_os7pathExt_Ss_Ss((void*)0, path, out_ext);
 }
 
 /* Normalize path: collapse //, resolve . and .. */
-void fly_path_normalize(const fly_string *path, fly_string *out) {
+void _F6fly_os13pathNormalize_Ss_Ss(void *err_ctx, const fly_string *path, fly_string *out) {
+    (void)err_ctx;
     if (!path || path->size == 0) { fstr_from_cstr(".", 1, out); return; }
     char buf[PATH_MAX_LEN];
     int blen = 0;
@@ -246,16 +262,18 @@ void fly_path_normalize(const fly_string *path, fly_string *out) {
     fstr_from_cstr(buf, blen, out);
 }
 
-void fly_path_normalizeInPlace(fly_string *path) {
+void _F6fly_os20pathNormalizeInPlace_Ss(void *err_ctx, fly_string *path) {
+    (void)err_ctx;
     fly_string tmp;
-    fly_path_normalize(path, &tmp);
+    _F6fly_os13pathNormalize_Ss_Ss((void*)0, path, &tmp);
     free(path->ptr);
     *path = tmp;
 }
 
-void fly_path_absolute(const fly_string *path, fly_string *out) {
+void _F6fly_os12pathAbsolute_Ss_Ss(void *err_ctx, const fly_string *path, fly_string *out) {
+    (void)err_ctx;
     if (path && path->size > 0 && path->ptr[0] == PATH_SEP) {
-        fly_path_normalize(path, out);
+        _F6fly_os13pathNormalize_Ss_Ss((void*)0, path, out);
         return;
     }
     /* prepend cwd */
@@ -264,12 +282,13 @@ void fly_path_absolute(const fly_string *path, fly_string *out) {
     int cwdlen = (r > 0) ? (int)(r - 1) : 0; /* r includes null terminator */
     fly_string cwds = { cwd, cwdlen };
     fly_string joined;
-    fly_path_join(&cwds, path, &joined);
-    fly_path_normalize(&joined, out);
+    _F6fly_os8pathJoin_Ss_Ss_Ss((void*)0, &cwds, path, &joined);
+    _F6fly_os13pathNormalize_Ss_Ss((void*)0, &joined, out);
     free(joined.ptr);
 }
 
-void fly_path_rel(const fly_string *base, const fly_string *target, fly_string *out) {
+void _F6fly_os7pathRel_Ss_Ss_Ss(void *err_ctx, const fly_string *base, const fly_string *target, fly_string *out) {
+    (void)err_ctx;
     char bpath[PATH_MAX_LEN], tpath[PATH_MAX_LEN];
     fstr_to_buf(base, bpath, PATH_MAX_LEN);
     fstr_to_buf(target, tpath, PATH_MAX_LEN);
@@ -317,22 +336,26 @@ static int do_lstat_mode(const fly_string *path, unsigned int *mode_out) {
     return 1;
 }
 
-void fly_path_isFile(const fly_string *path, int *out) {
+void _F6fly_os10pathIsFile_Ss_b(void *err_ctx, const fly_string *path, int *out) {
+    (void)err_ctx;
     unsigned int m = 0;
     *out = do_lstat_mode(path, &m) && S_ISREG(m);
 }
 
-void fly_path_isDir(const fly_string *path, int *out) {
+void _F6fly_os9pathIsDir_Ss_b(void *err_ctx, const fly_string *path, int *out) {
+    (void)err_ctx;
     unsigned int m = 0;
     *out = do_lstat_mode(path, &m) && S_ISDIR(m);
 }
 
-void fly_path_isSym(const fly_string *path, int *out) {
+void _F6fly_os9pathIsSym_Ss_b(void *err_ctx, const fly_string *path, int *out) {
+    (void)err_ctx;
     unsigned int m = 0;
     *out = do_lstat_mode(path, &m) && S_ISLNK(m);
 }
 
-void fly_path_comp(const fly_string *path, fly_string_array *out) {
+void _F6fly_os8pathComp_Ss_Cfly_string_array(void *err_ctx, const fly_string *path, fly_string_array *out) {
+    (void)err_ctx;
     sa_builder b = {(fly_string *)0, 0, 0};
     if (!path || path->size == 0) goto done;
     int i = 0;
@@ -356,18 +379,20 @@ done:
     out->count = b.count;
 }
 
-void fly_path_match(const fly_string *pattern, const fly_string *name, int *out) {
+void _F6fly_os9pathMatch_Ss_Ss_b(void *err_ctx, const fly_string *pattern, const fly_string *name, int *out) {
+    (void)err_ctx;
     if (!pattern || !name) { *out = 0; return; }
     *out = glob_match(pattern->ptr, pattern->size, name->ptr, name->size);
 }
 
 /* Glob: enumerate directory matching pattern like a glob expression */
-void fly_path_glob(const fly_string *pattern, fly_string_array *out) {
+void _F6fly_os8pathGlob_Ss_Cfly_string_array(void *err_ctx, const fly_string *pattern, fly_string_array *out) {
+    (void)err_ctx;
     out->items = (fly_string *)0; out->count = 0;
     if (!pattern || pattern->size == 0) return;
     /* split pattern into dir + filename pattern */
     fly_string dir, filepat;
-    fly_path_split(pattern, &dir, &filepat);
+    _F6fly_os9pathSplit_Ss_Ss_Ss((void*)0, pattern, &dir, &filepat);
     char dirpath[PATH_MAX_LEN];
     fstr_to_buf(&dir, dirpath, PATH_MAX_LEN);
     long fd = __os_sc3(SYS_open, (long)dirpath,
@@ -390,7 +415,7 @@ void fly_path_glob(const fly_string *pattern, fly_string_array *out) {
             /* build full path */
             fly_string fname = { de->d_name, nlen };
             fly_string full;
-            fly_path_join(&dir, &fname, &full);
+            _F6fly_os8pathJoin_Ss_Ss_Ss((void*)0, &dir, &fname, &full);
             sa_push(&b, full);
         }
     }

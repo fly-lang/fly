@@ -60,27 +60,27 @@ static void cleanup_sa(fly_string_array *a) {
 
 static void test_set_get(void) {                    /* 27 */
     fly_string key=fs("FLY_TEST_VAR"), val=fs("hello_fly");
-    fly_env_set(&key, &val);
+    _F6fly_os6envSet_Ss_Ss((void*)0, &key, &val);
     fly_string out;
-    fly_env_get(&key, &out);
+    _F6fly_os6envGet_Ss_Ss((void*)0, &key, &out);
     check(fseq(&out, "hello_fly"), "env set+get round-trip");
     cleanup(&out);
 }
 
 static void test_delete(void) {                     /* 28 */
     fly_string key=fs("FLY_TEST_DELETE"), val=fs("to_remove");
-    fly_env_set(&key, &val);
-    fly_env_delete(&key);
+    _F6fly_os6envSet_Ss_Ss((void*)0, &key, &val);
+    _F6fly_os9envDelete_Ss((void*)0, &key);
     fly_string out;
-    fly_env_get(&key, &out);
+    _F6fly_os6envGet_Ss_Ss((void*)0, &key, &out);
     check(out.size==0, "env delete → empty"); cleanup(&out);
 }
 
 static void test_all(void) {                        /* 29 */
     fly_string key=fs("FLY_TEST_ALL"), val=fs("visible");
-    fly_env_set(&key, &val);
+    _F6fly_os6envSet_Ss_Ss((void*)0, &key, &val);
     fly_string_array all;
-    fly_env_all(&all);
+    _F6fly_os6envAll_Cfly_string_array((void*)0, &all);
     int found = 0;
     for (int i=0; i<all.count; i++) {
         fly_string *e = &all.items[i];
@@ -99,32 +99,32 @@ static void test_all(void) {                        /* 29 */
 
 static void test_expand(void) {                     /* 30 */
     fly_string key=fs("FLY_HOME"), val=fs("/home/fly");
-    fly_env_set(&key, &val);
+    _F6fly_os6envSet_Ss_Ss((void*)0, &key, &val);
     fly_string templ = fs("$FLY_HOME/subdir");
     fly_string out;
-    fly_env_expand(&templ, &out);
+    _F6fly_os9envExpand_Ss_Ss((void*)0, &templ, &out);
     check(fseq(&out, "/home/fly/subdir"), "expand $VAR/subdir"); cleanup(&out);
 
     fly_string templ2 = fs("${FLY_HOME}/other");
-    fly_env_expand(&templ2, &out);
+    _F6fly_os9envExpand_Ss_Ss((void*)0, &templ2, &out);
     check(fseq(&out, "/home/fly/other"), "expand ${VAR}/other"); cleanup(&out);
 }
 
 static void test_cwd(void) {                        /* 31 */
     fly_string orig;
-    fly_env_cwdGet(&orig);
+    _F6fly_os9envCwdGet_Ss((void*)0, &orig);
     check(orig.size > 0, "cwdGet non-empty");
 
     fly_string tmp = fs("/tmp");
-    fly_env_cwdSet(&tmp);
+    _F6fly_os9envCwdSet_Ss((void*)0, &tmp);
     fly_string after;
-    fly_env_cwdGet(&after);
+    _F6fly_os9envCwdGet_Ss((void*)0, &after);
     check(fseq(&after, "/tmp"), "cwdSet /tmp"); cleanup(&after);
 
     /* restore */
-    fly_env_cwdSet(&orig);
+    _F6fly_os9envCwdSet_Ss((void*)0, &orig);
     fly_string restored;
-    fly_env_cwdGet(&restored);
+    _F6fly_os9envCwdGet_Ss((void*)0, &restored);
     check(fseq2(&restored, &orig), "cwd restored");
     check(restored.size == orig.size, "cwd restored size");
     cleanup(&restored);
@@ -133,25 +133,25 @@ static void test_cwd(void) {                        /* 31 */
 
 static void test_args(void) {                       /* 32 */
     fly_string_array args;
-    fly_env_argsGet(&args);
+    _F6fly_os11envArgsGet_Cfly_string_array((void*)0, &args);
     check(args.count >= 1, "argsGet count >= 1");
     if (args.count >= 1) check(args.items[0].size > 0, "argv[0] non-empty");
     cleanup_sa(&args);
 
     int count;
-    fly_env_argsCount(&count);
+    _F6fly_os13envArgsCount_i((void*)0, &count);
     check(count >= 1, "argsCount >= 1");
 }
 
 static void test_hostname(void) {                   /* 33 */
     fly_string out;
-    fly_env_hostname(&out);
+    _F6fly_os11envHostname_Ss((void*)0, &out);
     check(out.size > 0, "hostname non-empty"); cleanup(&out);
 }
 
 static void test_osname(void) {                     /* 34 */
     fly_string out;
-    fly_env_osname(&out);
+    _F6fly_os9envOsname_Ss((void*)0, &out);
     check(fseq(&out, "linux"), "osname=linux"); cleanup(&out);
 }
 

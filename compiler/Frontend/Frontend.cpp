@@ -9,7 +9,9 @@
 
 #include "Frontend/Frontend.h"
 
+#include "AST/ASTAttribute.h"
 #include "AST/ASTBuilder.h"
+#include "AST/ASTClass.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTModifier.h"
 #include "AST/ASTModule.h"
@@ -118,6 +120,25 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags) {
             first = false;
         }
         OS << "\n\n";
+    }
+
+    // Public struct declarations (must precede function signatures that reference them)
+    for (const auto *Node : M->getNodes()) {
+        if (Node->getKind() != ASTKind::AST_CLASS) continue;
+        const auto *C = static_cast<const ASTClass *>(Node);
+        if (C->getClassKind() != ASTClassKind::STRUCT) continue;
+        bool isPublic = false;
+        for (auto *Mod : C->getModifiers())
+            if (Mod->getModifierKind() == ASTModifierKind::MOD_PUBLIC)
+                isPublic = true;
+        if (!isPublic) continue;
+        OS << "public struct " << C->getName() << " {\n";
+        for (const auto *Field : C->getNodes()) {
+            if (Field->getKind() != ASTKind::AST_VAR) continue;
+            const auto *V = static_cast<const ASTVar *>(Field);
+            OS << "    " << typeStr(V->getType()) << " " << V->getName() << "\n";
+        }
+        OS << "}\n\n";
     }
 
     // Public function signatures

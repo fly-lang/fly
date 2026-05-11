@@ -47,7 +47,8 @@ void fly_env_init(int argc, char **argv) {
     g_argv = argv;
 }
 
-void fly_env_get(const fly_string *key, fly_string *out) {
+void _F6fly_os6envGet_Ss_Ss(void *err_ctx, const fly_string *key, fly_string *out) {
+    (void)err_ctx;
     out->ptr  = (char *)0;
     out->size = 0;
     if (!key || key->size <= 0 || !environ) return;
@@ -67,20 +68,23 @@ void fly_env_get(const fly_string *key, fly_string *out) {
     }
 }
 
-void fly_env_set(const fly_string *key, const fly_string *value) {
+void _F6fly_os6envSet_Ss_Ss(void *err_ctx, const fly_string *key, const fly_string *value) {
+    (void)err_ctx;
     char kbuf[256], vbuf[4096];
     fstr_to_buf(key,   kbuf, (int)sizeof(kbuf));
     fstr_to_buf(value, vbuf, (int)sizeof(vbuf));
     setenv(kbuf, vbuf, 1);
 }
 
-void fly_env_delete(const fly_string *key) {
+void _F6fly_os9envDelete_Ss(void *err_ctx, const fly_string *key) {
+    (void)err_ctx;
     char kbuf[256];
     fstr_to_buf(key, kbuf, (int)sizeof(kbuf));
     unsetenv(kbuf);
 }
 
-void fly_env_all(fly_string_array *out) {
+void _F6fly_os6envAll_Cfly_string_array(void *err_ctx, fly_string_array *out) {
+    (void)err_ctx;
     out->items = (fly_string *)0;
     out->count = 0;
     if (!environ) return;
@@ -96,7 +100,8 @@ void fly_env_all(fly_string_array *out) {
     out->count = n;
 }
 
-void fly_env_expand(const fly_string *s, fly_string *out) {
+void _F6fly_os9envExpand_Ss_Ss(void *err_ctx, const fly_string *s, fly_string *out) {
+    (void)err_ctx;
     if (!s || !s->ptr || s->size == 0) { out->ptr = (char *)0; out->size = 0; return; }
     char result[8192];
     int rlen = 0;
@@ -143,7 +148,8 @@ void fly_env_expand(const fly_string *s, fly_string *out) {
     fstr_from_cstr(result, rlen, out);
 }
 
-void fly_env_cwdGet(fly_string *out) {
+void _F6fly_os9envCwdGet_Ss(void *err_ctx, fly_string *out) {
+    (void)err_ctx;
     char buf[4096];
     long r = __os_sc2(SYS_getcwd, (long)buf, (long)sizeof(buf));
     if (r <= 0) { out->ptr = (char *)0; out->size = 0; return; }
@@ -151,13 +157,15 @@ void fly_env_cwdGet(fly_string *out) {
     fstr_from_cstr(buf, len, out);
 }
 
-void fly_env_cwdSet(const fly_string *path) {
+void _F6fly_os9envCwdSet_Ss(void *err_ctx, const fly_string *path) {
+    (void)err_ctx;
     char buf[4096];
     fstr_to_buf(path, buf, (int)sizeof(buf));
     __os_sc1(SYS_chdir, (long)buf);
 }
 
-void fly_env_argsGet(fly_string_array *out) {
+void _F6fly_os11envArgsGet_Cfly_string_array(void *err_ctx, fly_string_array *out) {
+    (void)err_ctx;
     out->items = (fly_string *)0;
     out->count = 0;
     if (g_argc <= 0 || !g_argv) return;
@@ -172,9 +180,13 @@ void fly_env_argsGet(fly_string_array *out) {
     out->count = g_argc;
 }
 
-void fly_env_argsCount(int *out) { *out = g_argc; }
+void _F6fly_os13envArgsCount_i(void *err_ctx, int *out) {
+    (void)err_ctx;
+    *out = g_argc;
+}
 
-void fly_env_hostname(fly_string *out) {
+void _F6fly_os11envHostname_Ss(void *err_ctx, fly_string *out) {
+    (void)err_ctx;
     linux_utsname uts;
     long r = __os_sc1(SYS_uname, (long)&uts);
     if (r < 0) { out->ptr = (char *)0; out->size = 0; return; }
@@ -182,7 +194,8 @@ void fly_env_hostname(fly_string *out) {
     fstr_from_cstr(uts.nodename, len, out);
 }
 
-void fly_env_osname(fly_string *out) {
+void _F6fly_os9envOsname_Ss(void *err_ctx, fly_string *out) {
+    (void)err_ctx;
 #if defined(__linux__)
     fstr_from_cstr("linux", 5, out);
 #elif defined(__APPLE__)
@@ -194,7 +207,8 @@ void fly_env_osname(fly_string *out) {
 #endif
 }
 
-void fly_env_exit(int code) {
+void _F6fly_os7envExit_i(void *err_ctx, int code) {
+    (void)err_ctx;
     __os_sc1(SYS_exit_group, (long)code);
     __builtin_unreachable();
 }

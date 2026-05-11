@@ -111,21 +111,24 @@ static int64_t ymd_to_unix(int y, int m, int d) {
 /* Public API                                                                 */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-void fly_time_now(fly_time *out) {
+void _F6fly_os7timeNow_Cfly_time(void *err_ctx, fly_time *out) {
+    (void)err_ctx;
     linux_timespec ts;
     __os_sc2(SYS_clock_gettime, (long)CLOCK_REALTIME, (long)&ts);
     out->sec  = (int64_t)ts.tv_sec;
     out->nsec = (int64_t)ts.tv_nsec;
 }
 
-void fly_time_monotonic(fly_time *out) {
+void _F6fly_os13timeMonotonic_Cfly_time(void *err_ctx, fly_time *out) {
+    (void)err_ctx;
     linux_timespec ts;
     __os_sc2(SYS_clock_gettime, (long)CLOCK_MONOTONIC, (long)&ts);
     out->sec  = (int64_t)ts.tv_sec;
     out->nsec = (int64_t)ts.tv_nsec;
 }
 
-void fly_time_sleep(const fly_duration *d) {
+void _F6fly_os9timeSleep_Cfly_duration(void *err_ctx, const fly_duration *d) {
+    (void)err_ctx;
     if (!d || d->nsec <= 0) return;
     linux_timespec ts;
     ts.tv_sec  = (long)(d->nsec / FLY_SECOND);
@@ -134,26 +137,30 @@ void fly_time_sleep(const fly_duration *d) {
     __os_sc2(SYS_nanosleep, (long)&ts, (long)&rem);
 }
 
-void fly_time_since(const fly_time *t, fly_duration *out) {
+void _F6fly_os9timeSince_Cfly_time_Cfly_duration(void *err_ctx, const fly_time *t, fly_duration *out) {
+    (void)err_ctx;
     fly_time now;
-    fly_time_now(&now);
-    fly_time_diff(t, &now, out);
+    _F6fly_os7timeNow_Cfly_time((void*)0, &now);
+    _F6fly_os8timeDiff_Cfly_time_Cfly_time_Cfly_duration((void*)0, t, &now, out);
 }
 
-void fly_time_diff(const fly_time *a, const fly_time *b, fly_duration *out) {
+void _F6fly_os8timeDiff_Cfly_time_Cfly_time_Cfly_duration(void *err_ctx, const fly_time *a, const fly_time *b, fly_duration *out) {
+    (void)err_ctx;
     int64_t sec  = b->sec  - a->sec;
     int64_t nsec = b->nsec - a->nsec;
     out->nsec = sec * FLY_SECOND + nsec;
 }
 
-void fly_time_add(const fly_time *t, const fly_duration *d, fly_time *out) {
+void _F6fly_os7timeAdd_Cfly_time_Cfly_duration_Cfly_time(void *err_ctx, const fly_time *t, const fly_duration *d, fly_time *out) {
+    (void)err_ctx;
     int64_t total_nsec = t->nsec + d->nsec;
     out->sec  = t->sec + total_nsec / FLY_SECOND;
     out->nsec = total_nsec % FLY_SECOND;
     if (out->nsec < 0) { out->sec--; out->nsec += FLY_SECOND; }
 }
 
-void fly_time_compare(const fly_time *a, const fly_time *b, int *out) {
+void _F6fly_os11timeCompare_Cfly_time_Cfly_time_i(void *err_ctx, const fly_time *a, const fly_time *b, int *out) {
+    (void)err_ctx;
     if (a->sec < b->sec)                              { *out = -1; return; }
     if (a->sec > b->sec)                              { *out =  1; return; }
     if (a->nsec < b->nsec)                            { *out = -1; return; }
@@ -161,15 +168,24 @@ void fly_time_compare(const fly_time *a, const fly_time *b, int *out) {
     *out = 0;
 }
 
-void fly_time_unix(const fly_time *t, int64_t *out)     { *out = t->sec; }
-void fly_time_unixNano(const fly_time *t, int64_t *out) { *out = t->sec * FLY_SECOND + t->nsec; }
+void _F6fly_os8timeUnix_Cfly_time_l(void *err_ctx, const fly_time *t, int64_t *out) {
+    (void)err_ctx;
+    *out = t->sec;
+}
 
-void fly_time_fromUnix(int64_t sec, fly_time *out) {
+void _F6fly_os12timeUnixNano_Cfly_time_l(void *err_ctx, const fly_time *t, int64_t *out) {
+    (void)err_ctx;
+    *out = t->sec * FLY_SECOND + t->nsec;
+}
+
+void _F6fly_os12timeFromUnix_l_Cfly_time(void *err_ctx, int64_t sec, fly_time *out) {
+    (void)err_ctx;
     out->sec  = sec;
     out->nsec = 0;
 }
 
-void fly_time_fromUnixNano(int64_t nsec, fly_time *out) {
+void _F6fly_os16timeFromUnixNano_l_Cfly_time(void *err_ctx, int64_t nsec, fly_time *out) {
+    (void)err_ctx;
     out->sec  = nsec / FLY_SECOND;
     out->nsec = nsec % FLY_SECOND;
     if (out->nsec < 0) { out->sec--; out->nsec += FLY_SECOND; }
@@ -180,7 +196,8 @@ void fly_time_fromUnixNano(int64_t nsec, fly_time *out) {
  * Supported tokens: 2006, 01, 1, 02, 2, 15, 04, 4, 05, 5,
  *                   January, Jan, Monday, Mon
  */
-void fly_time_format(const fly_time *t, const fly_string *pattern, fly_string *out) {
+void _F6fly_os10timeFormat_Cfly_time_Ss_Ss(void *err_ctx, const fly_time *t, const fly_string *pattern, fly_string *out) {
+    (void)err_ctx;
     int year, month, day, hour, min, sec;
     unix_to_ymd(t->sec, &year, &month, &day);
     unix_to_hms(t->sec, &hour, &min, &sec);
@@ -217,7 +234,8 @@ void fly_time_format(const fly_time *t, const fly_string *pattern, fly_string *o
     fstr_from_cstr(buf, pos, out);
 }
 
-void fly_time_parse(const fly_string *s, const fly_string *pattern, fly_time *out) {
+void _F6fly_os9timeParse_Ss_Ss_Cfly_time(void *err_ctx, const fly_string *s, const fly_string *pattern, fly_time *out) {
+    (void)err_ctx;
     out->sec  = 0;
     out->nsec = 0;
     if (!s || !pattern) return;
@@ -248,11 +266,23 @@ void fly_time_parse(const fly_string *s, const fly_string *pattern, fly_time *ou
     out->nsec = 0;
 }
 
-void fly_time_durationSecs  (const fly_duration *d, int64_t *out) { *out = d->nsec / FLY_SECOND; }
-void fly_time_durationMillis(const fly_duration *d, int64_t *out) { *out = d->nsec / FLY_MILLISECOND; }
-void fly_time_durationMicros(const fly_duration *d, int64_t *out) { *out = d->nsec / FLY_MICROSECOND; }
+void _F6fly_os17timeDurationSecs_Cfly_duration_l(void *err_ctx, const fly_duration *d, int64_t *out) {
+    (void)err_ctx;
+    *out = d->nsec / FLY_SECOND;
+}
 
-void fly_time_durationFormat(const fly_duration *d, fly_string *out) {
+void _F6fly_os19timeDurationMillis_Cfly_duration_l(void *err_ctx, const fly_duration *d, int64_t *out) {
+    (void)err_ctx;
+    *out = d->nsec / FLY_MILLISECOND;
+}
+
+void _F6fly_os19timeDurationMicros_Cfly_duration_l(void *err_ctx, const fly_duration *d, int64_t *out) {
+    (void)err_ctx;
+    *out = d->nsec / FLY_MICROSECOND;
+}
+
+void _F6fly_os18timeDurationFormat_Cfly_duration_Ss(void *err_ctx, const fly_duration *d, fly_string *out) {
+    (void)err_ctx;
     if (!d || d->nsec == 0) { fstr_from_cstr("0s", 2, out); return; }
     char buf[64];
     int pos = 0;

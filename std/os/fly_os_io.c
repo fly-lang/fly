@@ -57,7 +57,8 @@ static void sa_push(sa_builder *b, fly_string s) {
 /* Raw reader                                                                 */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-void fly_io_read(fly_reader *r, fly_buf *buf, size_t n, size_t *out_read) {
+void _F6fly_os6ioRead_Cfly_reader_Cfly_buf_ul_ul(void *err_ctx, fly_reader *r, fly_buf *buf, size_t n, size_t *out_read) {
+    (void)err_ctx;
     buf_grow(buf, buf->size + n);
     *out_read = 0;
     if (!buf->ptr || !r || !r->read) return;
@@ -65,7 +66,8 @@ void fly_io_read(fly_reader *r, fly_buf *buf, size_t n, size_t *out_read) {
     buf->size += *out_read;
 }
 
-void fly_io_readAll(fly_reader *r, fly_buf *out) {
+void _F6fly_os9ioReadAll_Cfly_reader_Cfly_buf(void *err_ctx, fly_reader *r, fly_buf *out) {
+    (void)err_ctx;
     out->ptr  = (uint8_t *)0;
     out->size = 0;
     out->cap  = 0;
@@ -79,7 +81,8 @@ void fly_io_readAll(fly_reader *r, fly_buf *out) {
     }
 }
 
-void fly_io_readLine(fly_reader *r, fly_string *out) {
+void _F6fly_os10ioReadLine_Cfly_reader_Ss(void *err_ctx, fly_reader *r, fly_string *out) {
+    (void)err_ctx;
     out->ptr = (char *)0; out->size = 0;
     if (!r || !r->read) return;
     /* read byte by byte until '\n' or EOF — simple but portable */
@@ -97,12 +100,13 @@ void fly_io_readLine(fly_reader *r, fly_string *out) {
     if (line.ptr) free(line.ptr);
 }
 
-void fly_io_readLines(fly_reader *r, fly_string_array *out) {
+void _F6fly_os11ioReadLines_Cfly_reader_Cfly_string_array(void *err_ctx, fly_reader *r, fly_string_array *out) {
+    (void)err_ctx;
     out->items = (fly_string *)0; out->count = 0;
     sa_builder b = {(fly_string *)0, 0, 0};
     while (1) {
         fly_string line;
-        fly_io_readLine(r, &line);
+        _F6fly_os10ioReadLine_Cfly_reader_Ss((void*)0, r, &line);
         if (!line.ptr || line.size == 0) break;
         sa_push(&b, line);
     }
@@ -110,7 +114,8 @@ void fly_io_readLines(fly_reader *r, fly_string_array *out) {
     out->count = b.count;
 }
 
-void fly_io_close(fly_reader *r) {
+void _F6fly_os7ioClose_Cfly_reader(void *err_ctx, fly_reader *r) {
+    (void)err_ctx;
     if (r && r->close) r->close(r->ctx);
 }
 
@@ -118,14 +123,16 @@ void fly_io_close(fly_reader *r) {
 /* Raw writer                                                                 */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-void fly_io_write(fly_writer *w, const fly_buf *buf, size_t n, size_t *out_written) {
+void _F6fly_os7ioWrite_Cfly_writer_Cfly_buf_ul_ul(void *err_ctx, fly_writer *w, const fly_buf *buf, size_t n, size_t *out_written) {
+    (void)err_ctx;
     *out_written = 0;
     if (!w || !w->write || !buf || !buf->ptr) return;
     size_t to_write = n < buf->size ? n : buf->size;
     w->write(w->ctx, buf->ptr, to_write, out_written);
 }
 
-void fly_io_writeAll(fly_writer *w, const fly_buf *buf) {
+void _F6fly_os10ioWriteAll_Cfly_writer_Cfly_buf(void *err_ctx, fly_writer *w, const fly_buf *buf) {
+    (void)err_ctx;
     if (!w || !w->write || !buf || !buf->ptr || buf->size == 0) return;
     size_t written = 0;
     while (written < buf->size) {
@@ -136,16 +143,18 @@ void fly_io_writeAll(fly_writer *w, const fly_buf *buf) {
     }
 }
 
-void fly_io_writeString(fly_writer *w, const fly_string *s) {
+void _F6fly_os13ioWriteString_Cfly_writer_Ss(void *err_ctx, fly_writer *w, const fly_string *s) {
+    (void)err_ctx;
     if (!w || !w->write || !s || !s->ptr || s->size == 0) return;
     fly_buf tmp;
     tmp.ptr  = (uint8_t *)s->ptr;
     tmp.size = (size_t)s->size;
     tmp.cap  = (size_t)s->size;
-    fly_io_writeAll(w, &tmp);
+    _F6fly_os10ioWriteAll_Cfly_writer_Cfly_buf((void*)0, w, &tmp);
 }
 
-void fly_io_flush(fly_writer *w) {
+void _F6fly_os7ioFlush_Cfly_writer(void *err_ctx, fly_writer *w) {
+    (void)err_ctx;
     if (w && w->flush) w->flush(w->ctx);
 }
 
@@ -153,7 +162,8 @@ void fly_io_flush(fly_writer *w) {
 /* Buffered reader                                                            */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-void fly_io_readerNew(fly_reader *inner, size_t cap, fly_buf_reader *out) {
+void _F6fly_os11ioReaderNew_Cfly_reader_ul_Cfly_buf_reader(void *err_ctx, fly_reader *inner, size_t cap, fly_buf_reader *out) {
+    (void)err_ctx;
     out->inner    = *inner;
     out->buf.ptr  = (uint8_t *)malloc((unsigned long)cap);
     out->buf.size = 0;
@@ -161,7 +171,8 @@ void fly_io_readerNew(fly_reader *inner, size_t cap, fly_buf_reader *out) {
     out->pos      = 0;
 }
 
-void fly_io_fill(fly_buf_reader *r) {
+void _F6fly_os6ioFill_Cfly_buf_reader(void *err_ctx, fly_buf_reader *r) {
+    (void)err_ctx;
     /* move unconsumed bytes to front */
     size_t remaining = r->buf.size - r->pos;
     for (size_t i = 0; i < remaining; i++)
@@ -177,8 +188,9 @@ void fly_io_fill(fly_buf_reader *r) {
     }
 }
 
-void fly_io_peek(fly_buf_reader *r, size_t n, fly_buf *out) {
-    if (r->buf.size - r->pos < n) fly_io_fill(r);
+void _F6fly_os6ioPeek_Cfly_buf_reader_ul_Cfly_buf(void *err_ctx, fly_buf_reader *r, size_t n, fly_buf *out) {
+    (void)err_ctx;
+    if (r->buf.size - r->pos < n) _F6fly_os6ioFill_Cfly_buf_reader((void*)0, r);
     size_t avail = r->buf.size - r->pos;
     size_t peek  = n < avail ? n : avail;
     out->ptr  = (uint8_t *)malloc((unsigned long)peek);
@@ -187,7 +199,8 @@ void fly_io_peek(fly_buf_reader *r, size_t n, fly_buf *out) {
     for (size_t i = 0; i < peek; i++) out->ptr[i] = r->buf.ptr[r->pos + i];
 }
 
-void fly_io_bufReadLine(fly_buf_reader *r, fly_string *out) {
+void _F6fly_os13ioBufReadLine_Cfly_buf_reader_Ss(void *err_ctx, fly_buf_reader *r, fly_string *out) {
+    (void)err_ctx;
     fly_buf line = {(uint8_t *)0, 0, 0};
     while (1) {
         /* search for '\n' in current buffer */
@@ -200,7 +213,7 @@ void fly_io_bufReadLine(fly_buf_reader *r, fly_string *out) {
         }
         /* need more data */
         size_t old = r->buf.size;
-        fly_io_fill(r);
+        _F6fly_os6ioFill_Cfly_buf_reader((void*)0, r);
         if (r->buf.size == old) break; /* EOF */
     }
 done:
@@ -213,20 +226,23 @@ done:
 /* Buffered writer                                                            */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-void fly_io_writerNew(fly_writer *inner, size_t cap, fly_buf_writer *out) {
+void _F6fly_os11ioWriterNew_Cfly_writer_ul_Cfly_buf_writer(void *err_ctx, fly_writer *inner, size_t cap, fly_buf_writer *out) {
+    (void)err_ctx;
     out->inner    = *inner;
     out->buf.ptr  = (uint8_t *)malloc((unsigned long)cap);
     out->buf.size = 0;
     out->buf.cap  = cap;
 }
 
-void fly_io_bufFlush(fly_buf_writer *w) {
+void _F6fly_os10ioBufFlush_Cfly_buf_writer(void *err_ctx, fly_buf_writer *w) {
+    (void)err_ctx;
     if (w->buf.size == 0) return;
-    fly_io_writeAll(&w->inner, &w->buf);
+    _F6fly_os10ioWriteAll_Cfly_writer_Cfly_buf((void*)0, &w->inner, &w->buf);
     w->buf.size = 0;
 }
 
-void fly_io_bufWrite(fly_buf_writer *w, const fly_buf *buf) {
+void _F6fly_os10ioBufWrite_Cfly_buf_writer_Cfly_buf(void *err_ctx, fly_buf_writer *w, const fly_buf *buf) {
+    (void)err_ctx;
     if (!buf || !buf->ptr || buf->size == 0) return;
     size_t written = 0;
     while (written < buf->size) {
@@ -237,7 +253,7 @@ void fly_io_bufWrite(fly_buf_writer *w, const fly_buf *buf) {
             w->buf.ptr[w->buf.size + i] = buf->ptr[written + i];
         w->buf.size += chunk;
         written     += chunk;
-        if (w->buf.size >= w->buf.cap) fly_io_bufFlush(w);
+        if (w->buf.size >= w->buf.cap) _F6fly_os10ioBufFlush_Cfly_buf_writer((void*)0, w);
     }
 }
 
@@ -245,7 +261,8 @@ void fly_io_bufWrite(fly_buf_writer *w, const fly_buf *buf) {
 /* Stream utilities                                                           */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-void fly_io_copy(fly_reader *src, fly_writer *dst, int64_t *out_copied) {
+void _F6fly_os6ioCopy_Cfly_reader_Cfly_writer_l(void *err_ctx, fly_reader *src, fly_writer *dst, int64_t *out_copied) {
+    (void)err_ctx;
     *out_copied = 0;
     uint8_t tmp[4096];
     while (1) {
@@ -263,7 +280,8 @@ void fly_io_copy(fly_reader *src, fly_writer *dst, int64_t *out_copied) {
     }
 }
 
-void fly_io_copyN(fly_reader *src, fly_writer *dst, size_t n, int64_t *out_copied) {
+void _F6fly_os7ioCopyN_Cfly_reader_Cfly_writer_ul_l(void *err_ctx, fly_reader *src, fly_writer *dst, size_t n, int64_t *out_copied) {
+    (void)err_ctx;
     *out_copied = 0;
     uint8_t tmp[4096];
     size_t remaining = n;
@@ -311,7 +329,8 @@ static void pipe_close_w (void *ctx) {
     /* ctx shared with reader — don't free here */
 }
 
-void fly_io_pipe(fly_reader *pipe_r, fly_writer *pipe_w) {
+void _F6fly_os6ioPipe_Cfly_reader_Cfly_writer(void *err_ctx, fly_reader *pipe_r, fly_writer *pipe_w) {
+    (void)err_ctx;
     pipe_ctx *ctx = (pipe_ctx *)malloc(sizeof(pipe_ctx));
     int flags = O_CLOEXEC;
     __os_sc2(SYS_pipe2, (long)ctx->fds, (long)flags);

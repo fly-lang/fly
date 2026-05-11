@@ -47,28 +47,28 @@ static void cleanup(fly_string *s){
 
 static void test_now(void) {                        /* 35 */
     fly_time t;
-    fly_time_now(&t);
+    _F6fly_os7timeNow_Cfly_time((void*)0, &t);
     check(t.sec > 0, "now sec > 0");
     check(t.nsec >= 0 && t.nsec < FLY_SECOND, "now nsec in range");
 }
 
 static void test_monotonic(void) {                  /* 36 */
     fly_time a, b;
-    fly_time_monotonic(&a);
+    _F6fly_os13timeMonotonic_Cfly_time((void*)0, &a);
     /* minimal busy-wait — just two reads */
-    fly_time_monotonic(&b);
+    _F6fly_os13timeMonotonic_Cfly_time((void*)0, &b);
     int cmp;
-    fly_time_compare(&a, &b, &cmp);
+    _F6fly_os11timeCompare_Cfly_time_Cfly_time_i((void*)0, &a, &b, &cmp);
     check(cmp <= 0, "monotonic non-decreasing");
 }
 
 static void test_sleep(void) {                      /* 37 */
     fly_time before;
-    fly_time_monotonic(&before);
+    _F6fly_os13timeMonotonic_Cfly_time((void*)0, &before);
     fly_duration d; d.nsec = 10 * FLY_MILLISECOND;
-    fly_time_sleep(&d);
+    _F6fly_os9timeSleep_Cfly_duration((void*)0, &d);
     fly_duration elapsed;
-    fly_time_since(&before, &elapsed);
+    _F6fly_os9timeSince_Cfly_time_Cfly_duration((void*)0, &before, &elapsed);
     check(elapsed.nsec >= 10 * FLY_MILLISECOND, "sleep >= 10ms");
 }
 
@@ -77,7 +77,7 @@ static void test_diff(void) {                       /* 38 */
     a.sec = 100; a.nsec = 500000000LL;
     b.sec = 101; b.nsec = 200000000LL;
     fly_duration d;
-    fly_time_diff(&a, &b, &d);
+    _F6fly_os8timeDiff_Cfly_time_Cfly_time_Cfly_duration((void*)0, &a, &b, &d);
     /* b - a = 0.7s = 700_000_000 ns */
     check(d.nsec == 700000000LL, "diff correct");
 }
@@ -87,11 +87,11 @@ static void test_add(void) {                        /* 39 */
     t.sec  = 1000;
     t.nsec = 0;
     fly_duration d; d.nsec = FLY_SECOND;
-    fly_time_add(&t, &d, &out);
+    _F6fly_os7timeAdd_Cfly_time_Cfly_duration_Cfly_time((void*)0, &t, &d, &out);
     check(out.sec == 1001 && out.nsec == 0, "add +1s");
 
     fly_duration d2; d2.nsec = FLY_MILLISECOND * 500;
-    fly_time_add(&t, &d2, &out);
+    _F6fly_os7timeAdd_Cfly_time_Cfly_duration_Cfly_time((void*)0, &t, &d2, &out);
     check(out.sec == 1000 && out.nsec == 500000000LL, "add +500ms");
 }
 
@@ -99,20 +99,20 @@ static void test_unix_round_trip(void) {            /* 40 */
     fly_time t, out;
     t.sec = 1700000000LL; t.nsec = 0;
     int64_t unix_sec;
-    fly_time_unix(&t, &unix_sec);
+    _F6fly_os8timeUnix_Cfly_time_l((void*)0, &t, &unix_sec);
     check(unix_sec == 1700000000LL, "unix seconds");
 
-    fly_time_fromUnix(1700000000LL, &out);
+    _F6fly_os12timeFromUnix_l_Cfly_time((void*)0, 1700000000LL, &out);
     check(out.sec == 1700000000LL && out.nsec == 0, "fromUnix");
 }
 
 static void test_format(void) {                     /* 41 */
     fly_time t;
     /* 2024-01-15 — known unix timestamp: 1705276800 = 2024-01-15 00:00:00 UTC */
-    fly_time_fromUnix(1705276800LL, &t);
+    _F6fly_os12timeFromUnix_l_Cfly_time((void*)0, 1705276800LL, &t);
     fly_string pat = fs("2006-01-02");
     fly_string out;
-    fly_time_format(&t, &pat, &out);
+    _F6fly_os10timeFormat_Cfly_time_Ss_Ss((void*)0, &t, &pat, &out);
     check(fseq(&out, "2024-01-15"), "format 2006-01-02"); cleanup(&out);
 }
 
@@ -120,9 +120,9 @@ static void test_parse_format_roundtrip(void) {     /* 42 */
     fly_string s  = fs("2024-03-07");
     fly_string pat = fs("2006-01-02");
     fly_time parsed;
-    fly_time_parse(&s, &pat, &parsed);
+    _F6fly_os9timeParse_Ss_Ss_Cfly_time((void*)0, &s, &pat, &parsed);
     fly_string out;
-    fly_time_format(&parsed, &pat, &out);
+    _F6fly_os10timeFormat_Cfly_time_Ss_Ss((void*)0, &parsed, &pat, &out);
     check(fseq(&out, "2024-03-07"), "parse+format round-trip"); cleanup(&out);
 }
 
@@ -132,17 +132,17 @@ static void test_duration_format(void) {            /* 43 */
     fly_duration dms; dms.nsec = 200*FLY_MILLISECOND;
     fly_string out;
 
-    fly_time_durationFormat(&d0,  &out); check(fseq(&out,"0s"),    "dur 0");   cleanup(&out);
-    fly_time_durationFormat(&dms, &out); check(fseq(&out,"200ms"), "dur 200ms"); cleanup(&out);
-    fly_time_durationFormat(&dh,  &out);
+    _F6fly_os18timeDurationFormat_Cfly_duration_Ss((void*)0, &d0,  &out); check(fseq(&out,"0s"),    "dur 0");   cleanup(&out);
+    _F6fly_os18timeDurationFormat_Cfly_duration_Ss((void*)0, &dms, &out); check(fseq(&out,"200ms"), "dur 200ms"); cleanup(&out);
+    _F6fly_os18timeDurationFormat_Cfly_duration_Ss((void*)0, &dh,  &out);
     /* "1h30m00s" */
     check(out.size > 0, "dur 1h30m non-empty"); cleanup(&out);
 
     int64_t secs, millis, micros;
     fly_duration d1s; d1s.nsec = 3 * FLY_SECOND + 500*FLY_MILLISECOND;
-    fly_time_durationSecs  (&d1s, &secs);   check(secs   == 3, "durationSecs");
-    fly_time_durationMillis(&d1s, &millis); check(millis == 3500, "durationMillis");
-    fly_time_durationMicros(&d1s, &micros); check(micros == 3500000LL, "durationMicros");
+    _F6fly_os17timeDurationSecs_Cfly_duration_l  ((void*)0, &d1s, &secs);   check(secs   == 3, "durationSecs");
+    _F6fly_os19timeDurationMillis_Cfly_duration_l((void*)0, &d1s, &millis); check(millis == 3500, "durationMillis");
+    _F6fly_os19timeDurationMicros_Cfly_duration_l((void*)0, &d1s, &micros); check(micros == 3500000LL, "durationMicros");
 }
 
 static void run_tests(void);

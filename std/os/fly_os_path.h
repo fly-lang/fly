@@ -9,26 +9,26 @@
 
 #include "fly_os_io.h"
 
-void fly_path_join          (const fly_string *base, const fly_string *comp, fly_string *out);
-void fly_path_joinN         (const fly_string *parts, size_t n, fly_string *out);
-void fly_path_absolute      (const fly_string *path, fly_string *out);
-void fly_path_basename      (const fly_string *path, fly_string *out);
-void fly_path_dirname       (const fly_string *path, fly_string *out);
-void fly_path_ext           (const fly_string *path, fly_string *out);
-void fly_path_stem          (const fly_string *path, fly_string *out);
-void fly_path_split         (const fly_string *path, fly_string *out_dir, fly_string *out_base);
-void fly_path_splitExt      (const fly_string *path, fly_string *out_stem, fly_string *out_ext);
-void fly_path_isAbsolute    (const fly_string *path, int *out);
-void fly_path_isRelative    (const fly_string *path, int *out);
-void fly_path_normalize     (const fly_string *path, fly_string *out);
-void fly_path_normalizeInPlace(fly_string *path);
-void fly_path_rel           (const fly_string *base, const fly_string *target, fly_string *out);
-void fly_path_isFile        (const fly_string *path, int *out);
-void fly_path_isDir         (const fly_string *path, int *out);
-void fly_path_isSym         (const fly_string *path, int *out);
-void fly_path_glob          (const fly_string *pattern, fly_string_array *out);
-void fly_path_match         (const fly_string *pattern, const fly_string *name, int *out);
-void fly_path_comp          (const fly_string *path, fly_string_array *out);
-void fly_path_sep           (uint8_t *out);
+void _F6fly_os8pathJoin_Ss_Ss_Ss          (void *err_ctx, const fly_string *base, const fly_string *comp, fly_string *out);
+void _F6fly_os9pathJoinN_Ss_ul_Ss         (void *err_ctx, const fly_string *parts, size_t n, fly_string *out);
+void _F6fly_os12pathAbsolute_Ss_Ss       (void *err_ctx, const fly_string *path, fly_string *out);
+void _F6fly_os12pathBasename_Ss_Ss       (void *err_ctx, const fly_string *path, fly_string *out);
+void _F6fly_os11pathDirname_Ss_Ss        (void *err_ctx, const fly_string *path, fly_string *out);
+void _F6fly_os7pathExt_Ss_Ss             (void *err_ctx, const fly_string *path, fly_string *out);
+void _F6fly_os8pathStem_Ss_Ss            (void *err_ctx, const fly_string *path, fly_string *out);
+void _F6fly_os9pathSplit_Ss_Ss_Ss         (void *err_ctx, const fly_string *path, fly_string *out_dir, fly_string *out_base);
+void _F6fly_os12pathSplitExt_Ss_Ss_Ss     (void *err_ctx, const fly_string *path, fly_string *out_stem, fly_string *out_ext);
+void _F6fly_os13pathIsAbsolute_Ss_b     (void *err_ctx, const fly_string *path, int *out);
+void _F6fly_os13pathIsRelative_Ss_b     (void *err_ctx, const fly_string *path, int *out);
+void _F6fly_os13pathNormalize_Ss_Ss      (void *err_ctx, const fly_string *path, fly_string *out);
+void _F6fly_os20pathNormalizeInPlace_Ss (void *err_ctx, fly_string *path);
+void _F6fly_os7pathRel_Ss_Ss_Ss           (void *err_ctx, const fly_string *base, const fly_string *target, fly_string *out);
+void _F6fly_os10pathIsFile_Ss_b         (void *err_ctx, const fly_string *path, int *out);
+void _F6fly_os9pathIsDir_Ss_b           (void *err_ctx, const fly_string *path, int *out);
+void _F6fly_os9pathIsSym_Ss_b           (void *err_ctx, const fly_string *path, int *out);
+void _F6fly_os8pathGlob_Ss_Cfly_string_array (void *err_ctx, const fly_string *pattern, fly_string_array *out);
+void _F6fly_os9pathMatch_Ss_Ss_b         (void *err_ctx, const fly_string *pattern, const fly_string *name, int *out);
+void _F6fly_os8pathComp_Ss_Cfly_string_array (void *err_ctx, const fly_string *path, fly_string_array *out);
+void _F6fly_os7pathSep_y               (void *err_ctx, uint8_t *out);
 
 #endif /* FLY_OS_PATH_H */

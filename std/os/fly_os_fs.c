@@ -83,7 +83,8 @@ static void fd_close_w(void *ctx) { __os_sc1(SYS_close, (long)(int)(long)ctx); }
 /* Open / close                                                               */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-void fly_fs_open(const fly_string *path, fly_file *out) {
+void _F6fly_os6fsOpen_Ss_Cfly_file(void *err_ctx, const fly_string *path, fly_file *out) {
+    (void)err_ctx;
     char buf[PATH_MAX_LEN];
     fstr_to_buf(path, buf, PATH_MAX_LEN);
     long fd = __os_sc3(SYS_open, (long)buf, (long)O_RDONLY, 0L);
@@ -91,7 +92,8 @@ void fly_fs_open(const fly_string *path, fly_file *out) {
     out->flags = FLY_FILE_READ;
 }
 
-void fly_fs_create(const fly_string *path, fly_file *out) {
+void _F6fly_os8fsCreate_Ss_Cfly_file(void *err_ctx, const fly_string *path, fly_file *out) {
+    (void)err_ctx;
     char buf[PATH_MAX_LEN];
     fstr_to_buf(path, buf, PATH_MAX_LEN);
     long fd = __os_sc3(SYS_open, (long)buf,
@@ -100,7 +102,8 @@ void fly_fs_create(const fly_string *path, fly_file *out) {
     out->flags = FLY_FILE_WRITE | FLY_FILE_CREATE | FLY_FILE_TRUNC;
 }
 
-void fly_fs_openOpts(const fly_string *path, uint8_t flags, uint32_t perm, fly_file *out) {
+void _F6fly_os9fsOpenOpts_Ss_y_ui_Cfly_file(void *err_ctx, const fly_string *path, uint8_t flags, uint32_t perm, fly_file *out) {
+    (void)err_ctx;
     char buf[PATH_MAX_LEN];
     fstr_to_buf(path, buf, PATH_MAX_LEN);
     int oflags, must_create;
@@ -110,17 +113,20 @@ void fly_fs_openOpts(const fly_string *path, uint8_t flags, uint32_t perm, fly_f
     out->flags = flags;
 }
 
-void fly_fs_close(fly_file *f) {
+void _F6fly_os7fsClose_Cfly_file(void *err_ctx, fly_file *f) {
+    (void)err_ctx;
     if (f->fd >= 0) { __os_sc1(SYS_close, (long)f->fd); f->fd = -1; }
 }
 
-void fly_fs_reader(fly_file *f, fly_reader *out) {
+void _F6fly_os8fsReader_Cfly_file_Cfly_reader(void *err_ctx, fly_file *f, fly_reader *out) {
+    (void)err_ctx;
     out->ctx   = (void *)(long)f->fd;
     out->read  = fd_read;
     out->close = fd_close_r;
 }
 
-void fly_fs_writer(fly_file *f, fly_writer *out) {
+void _F6fly_os8fsWriter_Cfly_file_Cfly_writer(void *err_ctx, fly_file *f, fly_writer *out) {
+    (void)err_ctx;
     out->ctx   = (void *)(long)f->fd;
     out->write = fd_write;
     out->flush = fd_flush;
@@ -131,7 +137,8 @@ void fly_fs_writer(fly_file *f, fly_writer *out) {
 /* Convenience read / write                                                   */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-void fly_fs_read(const fly_string *path, fly_buf *out) {
+void _F6fly_os6fsRead_Ss_Cfly_buf(void *err_ctx, const fly_string *path, fly_buf *out) {
+    (void)err_ctx;
     out->ptr  = (uint8_t *)0;
     out->size = 0;
     out->cap  = 0;
@@ -161,7 +168,8 @@ static void write_all_fd(int fd, const uint8_t *data, size_t len) {
     }
 }
 
-void fly_fs_write(const fly_string *path, const fly_buf *data, uint32_t perm) {
+void _F6fly_os7fsWrite_Ss_Cfly_buf_ui(void *err_ctx, const fly_string *path, const fly_buf *data, uint32_t perm) {
+    (void)err_ctx;
     char pbuf[PATH_MAX_LEN];
     fstr_to_buf(path, pbuf, PATH_MAX_LEN);
     long fd = __os_sc3(SYS_open, (long)pbuf,
@@ -172,7 +180,8 @@ void fly_fs_write(const fly_string *path, const fly_buf *data, uint32_t perm) {
     __os_sc1(SYS_close, fd);
 }
 
-void fly_fs_append(const fly_string *path, const fly_buf *data, uint32_t perm) {
+void _F6fly_os8fsAppend_Ss_Cfly_buf_ui(void *err_ctx, const fly_string *path, const fly_buf *data, uint32_t perm) {
+    (void)err_ctx;
     char pbuf[PATH_MAX_LEN];
     fstr_to_buf(path, pbuf, PATH_MAX_LEN);
     long fd = __os_sc3(SYS_open, (long)pbuf,
@@ -187,12 +196,14 @@ void fly_fs_append(const fly_string *path, const fly_buf *data, uint32_t perm) {
 /* Seek                                                                       */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-void fly_fs_seekTo(fly_file *f, int64_t offset, int whence, int64_t *out_pos) {
+void _F6fly_os9fsSeekTo_Cfly_file_l_i_l(void *err_ctx, fly_file *f, int64_t offset, int whence, int64_t *out_pos) {
+    (void)err_ctx;
     long r = __os_sc3(SYS_lseek, (long)f->fd, (long)offset, (long)whence);
     *out_pos = (r >= 0) ? (int64_t)r : -1;
 }
 
-void fly_fs_seekPos(fly_file *f, int64_t *out_pos) {
+void _F6fly_os9fsSeekPos_Cfly_file_l(void *err_ctx, fly_file *f, int64_t *out_pos) {
+    (void)err_ctx;
     long r = __os_sc3(SYS_lseek, (long)f->fd, 0L, (long)FLY_SEEK_CUR);
     *out_pos = (r >= 0) ? (int64_t)r : -1;
 }
@@ -201,7 +212,8 @@ void fly_fs_seekPos(fly_file *f, int64_t *out_pos) {
 /* Metadata                                                                   */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-void fly_fs_stat(const fly_string *path, fly_stat *out) {
+void _F6fly_os6fsStat_Ss_Cfly_stat(void *err_ctx, const fly_string *path, fly_stat *out) {
+    (void)err_ctx;
     char pbuf[PATH_MAX_LEN];
     fstr_to_buf(path, pbuf, PATH_MAX_LEN);
     linux_stat ls;
@@ -210,7 +222,8 @@ void fly_fs_stat(const fly_string *path, fly_stat *out) {
     fill_stat(&ls, out);
 }
 
-void fly_fs_lstat(const fly_string *path, fly_stat *out) {
+void _F6fly_os7fsLstat_Ss_Cfly_stat(void *err_ctx, const fly_string *path, fly_stat *out) {
+    (void)err_ctx;
     char pbuf[PATH_MAX_LEN];
     fstr_to_buf(path, pbuf, PATH_MAX_LEN);
     linux_stat ls;
@@ -219,30 +232,35 @@ void fly_fs_lstat(const fly_string *path, fly_stat *out) {
     fill_stat(&ls, out);
 }
 
-void fly_fs_size(const fly_string *path, uint64_t *out) {
+void _F6fly_os6fsSize_Ss_ul(void *err_ctx, const fly_string *path, uint64_t *out) {
+    (void)err_ctx;
     fly_stat st;
-    fly_fs_stat(path, &st);
+    _F6fly_os6fsStat_Ss_Cfly_stat((void*)0, path, &st);
     *out = st.size;
 }
 
-void fly_fs_exists(const fly_string *path, int *out) {
+void _F6fly_os8fsExists_Ss_b(void *err_ctx, const fly_string *path, int *out) {
+    (void)err_ctx;
     char pbuf[PATH_MAX_LEN];
     fstr_to_buf(path, pbuf, PATH_MAX_LEN);
     linux_stat ls;
     *out = (__os_sc2(SYS_stat, (long)pbuf, (long)&ls) >= 0) ? 1 : 0;
 }
 
-void fly_fs_sync(fly_file *f) {
+void _F6fly_os6fsSync_Cfly_file(void *err_ctx, fly_file *f) {
+    (void)err_ctx;
     if (f->fd >= 0) __os_sc1(SYS_fsync, (long)f->fd);
 }
 
-void fly_fs_truncate(const fly_string *path, uint64_t size) {
+void _F6fly_os10fsTruncate_Ss_ul(void *err_ctx, const fly_string *path, uint64_t size) {
+    (void)err_ctx;
     char pbuf[PATH_MAX_LEN];
     fstr_to_buf(path, pbuf, PATH_MAX_LEN);
     __os_sc2(SYS_truncate, (long)pbuf, (long)size);
 }
 
-void fly_fs_chmod(const fly_string *path, uint32_t mode) {
+void _F6fly_os7fsChmod_Ss_ui(void *err_ctx, const fly_string *path, uint32_t mode) {
+    (void)err_ctx;
     char pbuf[PATH_MAX_LEN];
     fstr_to_buf(path, pbuf, PATH_MAX_LEN);
     __os_sc2(SYS_chmod, (long)pbuf, (long)mode);
@@ -252,43 +270,49 @@ void fly_fs_chmod(const fly_string *path, uint32_t mode) {
 /* File operations                                                            */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-void fly_fs_delete(const fly_string *path) {
+void _F6fly_os8fsDelete_Ss(void *err_ctx, const fly_string *path) {
+    (void)err_ctx;
     char pbuf[PATH_MAX_LEN];
     fstr_to_buf(path, pbuf, PATH_MAX_LEN);
     __os_sc1(SYS_unlink, (long)pbuf);
 }
 
-void fly_fs_copy(const fly_string *src, const fly_string *dst) {
+void _F6fly_os6fsCopy_Ss_Ss(void *err_ctx, const fly_string *src, const fly_string *dst) {
+    (void)err_ctx;
     fly_buf data = {(uint8_t *)0, 0, 0};
-    fly_fs_read(src, &data);
+    _F6fly_os6fsRead_Ss_Cfly_buf((void*)0, src, &data);
     if (data.ptr) {
-        fly_fs_write(dst, &data, 0644);
+        _F6fly_os7fsWrite_Ss_Cfly_buf_ui((void*)0, dst, &data, 0644);
         free(data.ptr);
     }
 }
 
-void fly_fs_move(const fly_string *src, const fly_string *dst) {
+void _F6fly_os6fsMove_Ss_Ss(void *err_ctx, const fly_string *src, const fly_string *dst) {
+    (void)err_ctx;
     char sbuf[PATH_MAX_LEN], dbuf[PATH_MAX_LEN];
     fstr_to_buf(src, sbuf, PATH_MAX_LEN);
     fstr_to_buf(dst, dbuf, PATH_MAX_LEN);
     __os_sc2(SYS_rename, (long)sbuf, (long)dbuf);
 }
 
-void fly_fs_rename(const fly_string *src, const fly_string *dst) {
-    fly_fs_move(src, dst);
+void _F6fly_os8fsRename_Ss_Ss(void *err_ctx, const fly_string *src, const fly_string *dst) {
+    (void)err_ctx;
+    _F6fly_os6fsMove_Ss_Ss((void*)0, src, dst);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */
 /* Directory operations                                                        */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-void fly_fs_dirCreate(const fly_string *path, uint32_t perm) {
+void _F6fly_os11fsDirCreate_Ss_ui(void *err_ctx, const fly_string *path, uint32_t perm) {
+    (void)err_ctx;
     char pbuf[PATH_MAX_LEN];
     fstr_to_buf(path, pbuf, PATH_MAX_LEN);
     __os_sc2(SYS_mkdir, (long)pbuf, (long)perm);
 }
 
-void fly_fs_dirCreateAll(const fly_string *path, uint32_t perm) {
+void _F6fly_os14fsDirCreateAll_Ss_ui(void *err_ctx, const fly_string *path, uint32_t perm) {
+    (void)err_ctx;
     char pbuf[PATH_MAX_LEN];
     int n = fstr_to_buf(path, pbuf, PATH_MAX_LEN);
     linux_stat ls;
@@ -301,14 +325,16 @@ void fly_fs_dirCreateAll(const fly_string *path, uint32_t perm) {
     }
 }
 
-void fly_fs_dirDelete(const fly_string *path) {
+void _F6fly_os11fsDirDelete_Ss(void *err_ctx, const fly_string *path) {
+    (void)err_ctx;
     char pbuf[PATH_MAX_LEN];
     fstr_to_buf(path, pbuf, PATH_MAX_LEN);
     __os_sc1(SYS_rmdir, (long)pbuf);
 }
 
 /* Recursive delete — simple iterative approach via depth-first walk */
-void fly_fs_dirDeleteAll(const fly_string *path) {
+void _F6fly_os14fsDirDeleteAll_Ss(void *err_ctx, const fly_string *path) {
+    (void)err_ctx;
     char pbuf[PATH_MAX_LEN];
     fstr_to_buf(path, pbuf, PATH_MAX_LEN);
     linux_stat ls;
@@ -333,14 +359,15 @@ void fly_fs_dirDeleteAll(const fly_string *path) {
             cstr_copy(child + plen + 1, name, nlen);
             child[plen + 1 + nlen] = '\0';
             fly_string cs = { child, plen + 1 + nlen };
-            fly_fs_dirDeleteAll(&cs);
+            _F6fly_os14fsDirDeleteAll_Ss((void*)0, &cs);
         }
     }
     __os_sc1(SYS_close, fd);
     __os_sc1(SYS_rmdir, (long)pbuf);
 }
 
-void fly_fs_dirRead(const fly_string *path, fly_dir_entries *out) {
+void _F6fly_os9fsDirRead_Ss_Cfly_dir_entries(void *err_ctx, const fly_string *path, fly_dir_entries *out) {
+    (void)err_ctx;
     out->items = (fly_dir_entry *)0;
     out->len   = 0;
     out->cap   = 0;
@@ -380,9 +407,9 @@ void fly_fs_dirRead(const fly_string *path, fly_dir_entries *out) {
             child[plen] = '/';
             cstr_copy(child + plen + 1, name, nlen);
             child[plen + 1 + nlen] = '\0';
-            linux_stat ls;
-            if (__os_sc2(SYS_lstat, (long)child, (long)&ls) == 0)
-                fill_stat(&ls, &ent->stat);
+            linux_stat lss;
+            if (__os_sc2(SYS_lstat, (long)child, (long)&lss) == 0)
+                fill_stat(&lss, &ent->stat);
             else {
                 ent->stat.size = 0;
                 ent->stat.is_file = 0;
@@ -394,11 +421,12 @@ void fly_fs_dirRead(const fly_string *path, fly_dir_entries *out) {
     __os_sc1(SYS_close, fd);
 }
 
-void fly_fs_dirWalk(const fly_string *path,
+void _F6fly_os9fsDirWalk_Ss_Cfly_walk_fn(void *err_ctx, const fly_string *path,
                     void (*cb)(const fly_string *, const fly_stat *, void *),
                     void *userdata) {
+    (void)err_ctx;
     fly_dir_entries entries = {(fly_dir_entry *)0, 0, 0};
-    fly_fs_dirRead(path, &entries);
+    _F6fly_os9fsDirRead_Ss_Cfly_dir_entries((void*)0, path, &entries);
     for (size_t i = 0; i < entries.len; i++) {
         fly_dir_entry *e = &entries.items[i];
         /* build child path */
@@ -411,7 +439,7 @@ void fly_fs_dirWalk(const fly_string *path,
         child.ptr  = p;
         child.size = path->size + 1 + e->name.size;
         cb(&child, &e->stat, userdata);
-        if (e->stat.is_dir) fly_fs_dirWalk(&child, cb, userdata);
+        if (e->stat.is_dir) _F6fly_os9fsDirWalk_Ss_Cfly_walk_fn((void*)0, &child, cb, userdata);
         free(p);
         free(e->name.ptr);
     }
@@ -422,14 +450,16 @@ void fly_fs_dirWalk(const fly_string *path,
 /* Symlinks                                                                   */
 /* ══════════════════════════════════════════════════════════════════════════ */
 
-void fly_fs_symlinkCreate(const fly_string *target, const fly_string *link) {
+void _F6fly_os15fsSymlinkCreate_Ss_Ss(void *err_ctx, const fly_string *target, const fly_string *link) {
+    (void)err_ctx;
     char tbuf[PATH_MAX_LEN], lbuf[PATH_MAX_LEN];
     fstr_to_buf(target, tbuf, PATH_MAX_LEN);
     fstr_to_buf(link,   lbuf, PATH_MAX_LEN);
     __os_sc2(SYS_symlink, (long)tbuf, (long)lbuf);
 }
 
-void fly_fs_symlinkRead(const fly_string *path, fly_string *out) {
+void _F6fly_os13fsSymlinkRead_Ss_Ss(void *err_ctx, const fly_string *path, fly_string *out) {
+    (void)err_ctx;
     char pbuf[PATH_MAX_LEN], rbuf[PATH_MAX_LEN];
     fstr_to_buf(path, pbuf, PATH_MAX_LEN);
     long n = __os_sc3(SYS_readlink, (long)pbuf, (long)rbuf, (long)(PATH_MAX_LEN-1));
@@ -471,8 +501,9 @@ static void build_temp_name(const fly_string *dir, const fly_string *pattern,
     *outlen = n;
 }
 
-void fly_fs_tempFile(const fly_string *dir, const fly_string *pattern,
+void _F6fly_os10fsTempFile_Ss_Ss_Ss_Cfly_file(void *err_ctx, const fly_string *dir, const fly_string *pattern,
                      fly_string *out_path, fly_file *out_file) {
+    (void)err_ctx;
     char pbuf[PATH_MAX_LEN];
     int  plen;
     build_temp_name(dir, pattern, pbuf, &plen);
@@ -492,7 +523,8 @@ void fly_fs_tempFile(const fly_string *dir, const fly_string *pattern,
     out_path->size = plen;
 }
 
-void fly_fs_tempDir(const fly_string *dir, const fly_string *pattern, fly_string *out) {
+void _F6fly_os9fsTempDir_Ss_Ss_Ss(void *err_ctx, const fly_string *dir, const fly_string *pattern, fly_string *out) {
+    (void)err_ctx;
     char pbuf[PATH_MAX_LEN];
     int  plen;
     build_temp_name(dir, pattern, pbuf, &plen);
