@@ -43,7 +43,9 @@ target_include_directories(fly_runtime_test PRIVATE ${CMAKE_SOURCE_DIR}/runtime)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_compile_options(fly_runtime_test PRIVATE
             -ffreestanding -nostdinc -fno-stack-protector -fno-builtin)
-    target_link_options(fly_runtime_test PRIVATE -nostdlib -static -Wl,-e,_start)
+    # mem_alloc is backed by malloc; link libc but supply our own _start entry point.
+    target_link_options(fly_runtime_test PRIVATE -nostartfiles -Wl,-e,_start)
+    target_link_libraries(fly_runtime_test PRIVATE c)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     target_compile_options(fly_runtime_test PRIVATE
             -ffreestanding -fno-stack-protector -fno-builtin)

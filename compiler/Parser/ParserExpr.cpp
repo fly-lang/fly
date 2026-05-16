@@ -354,13 +354,18 @@ ASTBinary *ParserExpr::ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Precede
     // Parse the right-hand side of the binary expression
     ASTExpr* RightExpr = ParsePrimary();  // Parse the RHS (which may include parentheses)
 
-    // Check for higher precedence operators on the right-hand side
-    Token NextTok = P->Tok;
-    Precedence nextPrecedence = getPrecedence(NextTok);
-
-    if (nextPrecedence > precedence ||
-        (nextPrecedence == precedence && isRightAssociative(OpToken))) {
-        RightExpr = ParseBinaryExpr(RightExpr, NextTok, nextPrecedence);  // Continue climbing
+    // Keep climbing the RHS while the next operator binds tighter than the current one.
+    // A single `if` only absorbed one level; the `while` handles chains like
+    // `x = a * a + b * b` where both `*` and `+` have higher precedence than `=`.
+    while (true) {
+        Token NextTok = P->Tok;
+        Precedence nextPrecedence = getPrecedence(NextTok);
+        if (nextPrecedence == Precedence::LOWEST) break;
+        // Ternary '?' must be handled by the outer ParseExpr loop, not consumed here.
+        if (nextPrecedence == Precedence::TERNARY) break;
+        if (!(nextPrecedence > precedence ||
+              (nextPrecedence == precedence && isRightAssociative(OpToken)))) break;
+        RightExpr = ParseBinaryExpr(RightExpr, NextTok, nextPrecedence);
     }
 
     // Combine the left and right into a binary operation node

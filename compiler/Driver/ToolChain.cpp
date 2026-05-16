@@ -876,6 +876,7 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
         CmdArgs.push_back("--start-group");
 
     CmdArgs.push_back("-lc");
+    CmdArgs.push_back("-lm"); // math functions (sin, cos, sqrt, etc.) from fly.math
 
     // compiler-rt builtins: arithmetic/float helpers (replaces -lgcc).
     const std::string BuiltinsLib = GetCompilerRTBuiltinsPath();

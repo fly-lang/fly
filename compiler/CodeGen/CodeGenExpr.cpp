@@ -28,6 +28,7 @@
 #include "Sema/SemaUnary.h"
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/IR/Intrinsics.h"
 
 #include <AST/ASTArg.h>
 #include <AST/ASTCall.h>
@@ -62,6 +63,17 @@ void CodeGenExpr::GenExpr(SemaBoolValue *Sema) {
 
 void CodeGenExpr::GenExpr(SemaIntValue *Sema) {
 	SemaType *Type = Sema->getType();
+	// PromoteTypes may have changed an integer literal's type to float for mixed arithmetic.
+	if (Type->isFloat()) {
+		double FPVal = (double)Sema->getValue().getZExtValue();
+		switch (static_cast<SemaFloatType *>(Type)->getFloatKind()) {
+			case SemaFloatTypeKind::TYPE_FLOAT:
+				V = llvm::ConstantFP::get(CodeGen::FloatTy, FPVal); break;
+			case SemaFloatTypeKind::TYPE_DOUBLE:
+				V = llvm::ConstantFP::get(CodeGen::DoubleTy, FPVal); break;
+		}
+		return;
+	}
 	SemaIntTypeKind IntKind = static_cast<SemaIntType *>(Type)->getIntKind();
 	switch (IntKind) {
 		case SemaIntTypeKind::TYPE_BYTE:
@@ -348,6 +360,222 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
 
     } else {
 
+        // fly.llvm → emit LLVM intrinsics directly (no err_ctx, no mangling).
+        // fly.runtime → call C symbols by exact name (no err_ctx, no mangling).
+        const std::string &NS = Sema->getFunction()->getNamespaceName();
+        if (NS == "fly_llvm" || NS == "fly_runtime") {
+            auto &Params = Sema->getFunction()->getParams();
+            auto &ArgExprs = Sema->getArgs();
+
+            // For fly.llvm: InArgs holds input values, OutPtrs/OutTypes hold output alloca ptrs.
+            // For fly.runtime: AllArgs/AllTypes are in declaration order (values + pointers).
+            llvm::SmallVector<llvm::Value *, 8> InArgs;
+            llvm::SmallVector<llvm::Value *, 8> AllArgs;
+            llvm::SmallVector<llvm::Type *, 8> AllTypes;
+            llvm::SmallVector<llvm::Value *, 4> OutPtrs;
+            llvm::SmallVector<llvm::Type *, 4> OutTypes;
+
+            for (size_t i = 0; i < ArgExprs.size() && i < Params.size(); i++) {
+                Params[i]->getType()->accept(*CGM);
+                llvm::Type *ParamTy = Params[i]->getType()->getCodeGen()->getType();
+
+                if (Params[i]->isConstant()) {
+                    // Input param: eval expression, load from alloca if needed, coerce to param type
+                    ArgExprs[i]->accept(*CGM);
+                    llvm::Value *ArgV = ArgExprs[i]->getCodeGen()->getValue();
+                    if (ArgV->getType()->isPointerTy()) {
+                        ArgV = Builder->CreateLoad(ParamTy, ArgV);
+                    } else if (ArgV->getType() != ParamTy) {
+                        // Coerce integer widths (e.g. literal i16 → param i32)
+                        if (ArgV->getType()->isIntegerTy() && ParamTy->isIntegerTy()) {
+                            unsigned SrcBits = ArgV->getType()->getIntegerBitWidth();
+                            unsigned DstBits = ParamTy->getIntegerBitWidth();
+                            bool IsSigned = Params[i]->getType()->isNumber() &&
+                                static_cast<SemaIntType *>(Params[i]->getType())->isSigned();
+                            ArgV = SrcBits < DstBits
+                                ? (IsSigned ? Builder->CreateSExt(ArgV, ParamTy)
+                                            : Builder->CreateZExt(ArgV, ParamTy))
+                                : Builder->CreateTrunc(ArgV, ParamTy);
+                        } else if (ArgV->getType()->isFloatingPointTy() && ParamTy->isFloatingPointTy()) {
+                            ArgV = Builder->CreateFPCast(ArgV, ParamTy);
+                        }
+                    }
+                    InArgs.push_back(ArgV);
+                    AllArgs.push_back(ArgV);
+                    AllTypes.push_back(ArgV->getType());
+                } else {
+                    // Output param: need the original alloca pointer, not the loaded value.
+                    // SemaVar subclasses have getPointer() which returns the alloca directly.
+                    llvm::Value *Ptr = nullptr;
+                    SemaKind K = ArgExprs[i]->getKind();
+                    if (K == SemaKind::LOCAL_VAR || K == SemaKind::PARAM_VAR ||
+                        K == SemaKind::ERROR_VAR || K == SemaKind::ATTRIBUTE ||
+                        K == SemaKind::INSTANCE_VAR) {
+                        Ptr = static_cast<SemaVar *>(ArgExprs[i])->getCodeGen()->getPointer();
+                    } else {
+                        ArgExprs[i]->accept(*CGM);
+                        Ptr = ArgExprs[i]->getCodeGen()->getValue();
+                    }
+                    OutPtrs.push_back(Ptr);
+                    OutTypes.push_back(ParamTy);
+                    AllArgs.push_back(Ptr);
+                    AllTypes.push_back(Ptr->getType());
+                }
+            }
+
+            if (NS == "fly_llvm") {
+                llvm::Type *IntrTy = InArgs.empty() ? nullptr : InArgs[0]->getType();
+                std::string BaseName(Sema->getFunction()->getName());
+
+                // Float32 variants use a trailing 'f' in Fly but map to the same intrinsic
+                if (IntrTy && IntrTy->isFloatTy() && BaseName.size() > 1 && BaseName.back() == 'f')
+                    BaseName.pop_back();
+
+                // Name mismatches between Fly and LLVM intrinsic names
+                if (BaseName == "fmin") BaseName = "minnum";
+                else if (BaseName == "fmax") BaseName = "maxnum";
+
+                // String struct primitives — operate on the %string = { ptr, i32 } value type.
+                if (BaseName == "strSize") {
+                    // extractvalue %string, 1 → i32 size
+                    V = Builder->CreateExtractValue(InArgs[0], 1);
+                    if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
+                    return;
+                }
+                if (BaseName == "strByteAt") {
+                    // ptr = extractvalue %string, 0 ; gep i8, ptr, sext(i) ; load i8
+                    llvm::Value *StrPtr = Builder->CreateExtractValue(InArgs[0], 0);
+                    llvm::Value *Idx    = Builder->CreateSExt(InArgs[1], CodeGen::Int64Ty);
+                    llvm::Value *BytePtr = Builder->CreateGEP(CodeGen::Int8Ty, StrPtr, Idx);
+                    V = Builder->CreateLoad(CodeGen::Int8Ty, BytePtr);
+                    if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
+                    return;
+                }
+                if (BaseName == "strGetPtr") {
+                    // ptrtoint (extractvalue %string, 0) → i64
+                    llvm::Value *StrPtr = Builder->CreateExtractValue(InArgs[0], 0);
+                    V = Builder->CreatePtrToInt(StrPtr, CodeGen::Int64Ty);
+                    if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
+                    return;
+                }
+                if (BaseName == "strMake") {
+                    // InArgs[0]=i64 ptr, InArgs[1]=i32 size → build %string struct
+                    llvm::Type *OpaquePtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+                    llvm::Value *Ptr = Builder->CreateIntToPtr(InArgs[0], OpaquePtrTy);
+                    llvm::Value *StrVal = llvm::UndefValue::get(CodeGen::StringTy);
+                    StrVal = Builder->CreateInsertValue(StrVal, Ptr, 0);
+                    StrVal = Builder->CreateInsertValue(StrVal, InArgs[1], 1);
+                    if (!OutPtrs.empty()) Builder->CreateStore(StrVal, OutPtrs[0]);
+                    V = StrVal;
+                    return;
+                }
+                if (BaseName == "strPoke") {
+                    // InArgs[0]=i64 ptr, InArgs[1]=i32 idx, InArgs[2]=i8 byte → store i8
+                    llvm::Type *OpaquePtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+                    llvm::Value *RawPtr  = Builder->CreateIntToPtr(InArgs[0], OpaquePtrTy);
+                    llvm::Value *Idx     = Builder->CreateSExt(InArgs[1], CodeGen::Int64Ty);
+                    llvm::Value *BytePtr = Builder->CreateGEP(CodeGen::Int8Ty, RawPtr, Idx);
+                    V = Builder->CreateStore(InArgs[2], BytePtr);
+                    return;
+                }
+                if (BaseName == "ptrByteAt") {
+                    // InArgs[0]=i64 ptr, InArgs[1]=i32 idx → load i8
+                    llvm::Type *OpaquePtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+                    llvm::Value *RawPtr  = Builder->CreateIntToPtr(InArgs[0], OpaquePtrTy);
+                    llvm::Value *Idx     = Builder->CreateSExt(InArgs[1], CodeGen::Int64Ty);
+                    llvm::Value *BytePtr = Builder->CreateGEP(CodeGen::Int8Ty, RawPtr, Idx);
+                    V = Builder->CreateLoad(CodeGen::Int8Ty, BytePtr);
+                    if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
+                    return;
+                }
+                if (BaseName == "longToInt") {
+                    // truncate i64 → i32 (caller is responsible for range)
+                    V = Builder->CreateTrunc(InArgs[0], CodeGen::Int32Ty);
+                    if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
+                    return;
+                }
+
+                // Memory intrinsics: long args are opaque addresses, convert to ptr
+                if (BaseName == "memcpy" || BaseName == "memmove" || BaseName == "memset") {
+                    llvm::Type *OpaquePtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+                    llvm::Value *Dst = Builder->CreateIntToPtr(InArgs[0], OpaquePtrTy);
+                    if (BaseName == "memcpy") {
+                        V = Builder->CreateMemCpy(
+                            Dst, llvm::MaybeAlign(),
+                            Builder->CreateIntToPtr(InArgs[1], OpaquePtrTy),
+                            llvm::MaybeAlign(), InArgs[2]);
+                    } else if (BaseName == "memmove") {
+                        V = Builder->CreateMemMove(
+                            Dst, llvm::MaybeAlign(),
+                            Builder->CreateIntToPtr(InArgs[1], OpaquePtrTy),
+                            llvm::MaybeAlign(), InArgs[2]);
+                    } else { // memset: InArgs[1] is byte (i8 val)
+                        V = Builder->CreateMemSet(Dst, InArgs[1], InArgs[2], llvm::MaybeAlign());
+                    }
+                    return;
+                }
+
+                llvm::Intrinsic::ID IntrID = llvm::Intrinsic::lookupIntrinsicID("llvm." + BaseName);
+                llvm::SmallVector<llvm::Type *, 2> TyArgs;
+                if (IntrTy) TyArgs.push_back(IntrTy);
+                llvm::Function *IntrFn = llvm::Intrinsic::getOrInsertDeclaration(
+                    CGM->Module, IntrID, TyArgs);
+
+                // ctlz/cttz require an extra i1 is_zero_undef argument (always false)
+                if (IntrID == llvm::Intrinsic::ctlz || IntrID == llvm::Intrinsic::cttz)
+                    InArgs.push_back(llvm::ConstantInt::getFalse(CGM->LLVMCtx));
+
+                llvm::Value *Result = Builder->CreateCall(IntrFn, InArgs);
+
+                // Store intrinsic result into the output param alloca, coercing type if needed
+                if (!OutPtrs.empty()) {
+                    llvm::Value *StoreVal = Result;
+                    if (StoreVal->getType() != OutTypes[0] &&
+                        StoreVal->getType()->isIntegerTy() && OutTypes[0]->isIntegerTy()) {
+                        unsigned SrcBits = StoreVal->getType()->getIntegerBitWidth();
+                        unsigned DstBits = OutTypes[0]->getIntegerBitWidth();
+                        StoreVal = SrcBits > DstBits
+                            ? Builder->CreateTrunc(StoreVal, OutTypes[0])
+                            : Builder->CreateZExt(StoreVal, OutTypes[0]);
+                    }
+                    Builder->CreateStore(StoreVal, OutPtrs[0]);
+                }
+                V = Result;
+            } else { // fly_runtime
+                // Call C function by exact Fly name, no mangling.
+                // Convention: only const (input) params become C arguments.
+                // The C return type is inferred from the output param type (void if none).
+                llvm::Type *CRetTy = OutTypes.empty() ? CodeGen::VoidTy : OutTypes[0];
+                llvm::SmallVector<llvm::Type *, 8> CParamTypes;
+                for (auto *A : InArgs) CParamTypes.push_back(A->getType());
+
+                llvm::FunctionType *FnTy = llvm::FunctionType::get(CRetTy, CParamTypes, false);
+                std::string CName(Sema->getFunction()->getName());
+                llvm::FunctionCallee Callee = CGM->Module->getOrInsertFunction(CName, FnTy);
+                llvm::Value *CResult = Builder->CreateCall(Callee, InArgs);
+
+                // Store C return value into the output param alloca with type coercion
+                if (!OutPtrs.empty() && !CRetTy->isVoidTy()) {
+                    llvm::Value *StoreVal = CResult;
+                    llvm::Type *OutTy = OutTypes[0];
+                    if (StoreVal->getType() != OutTy) {
+                        if (StoreVal->getType()->isPointerTy() && OutTy->isIntegerTy()) {
+                            StoreVal = Builder->CreatePtrToInt(StoreVal, OutTy);
+                        } else if (StoreVal->getType()->isIntegerTy() && OutTy->isIntegerTy()) {
+                            unsigned SrcBits = StoreVal->getType()->getIntegerBitWidth();
+                            unsigned DstBits = OutTy->getIntegerBitWidth();
+                            StoreVal = SrcBits > DstBits
+                                ? Builder->CreateTrunc(StoreVal, OutTy)
+                                : Builder->CreateSExt(StoreVal, OutTy);
+                        }
+                    }
+                    Builder->CreateStore(StoreVal, OutPtrs[0]);
+                }
+                V = CResult;
+            }
+            return;
+        }
+
     	// Add Error parameter
         Args.push_back(CGM->CurrentErrorHandler->getValue()); // Error is a Pointer
     	addArgs(Sema, Args);
@@ -603,10 +831,11 @@ void CodeGenExpr::GenExpr(SemaUnary *Sema) {
         } break;
     }
 
-	// Set Var with NewVal — use Sema Expr to find the SemaVar
-	if (Sema->getExpr()->getKind() == SemaKind::LOCAL_VAR ||
-		Sema->getExpr()->getKind() == SemaKind::PARAM_VAR ||
-		Sema->getExpr()->getKind() == SemaKind::ATTRIBUTE) {
+	// Only mutation ops (pre/post incr/decr) set NewVal; read-only ops (!) do not.
+	if (NewVal &&
+		(Sema->getExpr()->getKind() == SemaKind::LOCAL_VAR ||
+		 Sema->getExpr()->getKind() == SemaKind::PARAM_VAR ||
+		 Sema->getExpr()->getKind() == SemaKind::ATTRIBUTE)) {
 		static_cast<SemaVar *>(Sema->getExpr())->getCodeGen()->Store(NewVal);
 	}
 }
@@ -753,25 +982,38 @@ llvm::Value *CodeGenExpr::GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKin
     llvm::Value *V2 = E2->getCodeGen()->getValue();
 
 	// Promotion rules: convert Type1 or Type2 to the max type
+	SemaNumberType *EffectiveType = Type1;
 	if (Type1->getRank() > Type2->getRank()) {
-		V2 = ConvertNumber(V2, Type1); // Implicit conversion
+		bool Src2Signed = !Type2->isInteger() || static_cast<SemaIntType *>(Type2)->isSigned();
+		V2 = ConvertNumber(V2, Type1, Src2Signed); // Implicit conversion
 	} else if (Type1->getRank() < Type2->getRank()) {
 		// Promote T1 to T2 Type
-		V1 = ConvertNumber(V1, Type2); // Implicit conversion
+		bool Src1Signed = !Type1->isInteger() || static_cast<SemaIntType *>(Type1)->isSigned();
+		V1 = ConvertNumber(V1, Type2, Src1Signed); // Implicit conversion
+		EffectiveType = Type2;
 	}
+
+	// Choose float vs integer instructions based on effective type
+	bool IsFloat = EffectiveType->isFloat();
+	bool IsUnsignedInt = !IsFloat && EffectiveType->isInteger() &&
+	    !static_cast<SemaIntType *>(EffectiveType)->isSigned();
 
     switch (OperatorKind) {
 
         case ASTBinaryKind::OP_BINARY_ARITH_ADD:
-            return Builder->CreateAdd(V1, V2);
+            return IsFloat ? Builder->CreateFAdd(V1, V2) : Builder->CreateAdd(V1, V2);
         case ASTBinaryKind::OP_BINARY_ARITH_SUB:
-            return Builder->CreateSub(V1, V2);
+            return IsFloat ? Builder->CreateFSub(V1, V2) : Builder->CreateSub(V1, V2);
         case ASTBinaryKind::OP_BINARY_ARITH_MUL:
-            return Builder->CreateMul(V1, V2);
+            return IsFloat ? Builder->CreateFMul(V1, V2) : Builder->CreateMul(V1, V2);
         case ASTBinaryKind::OP_BINARY_ARITH_DIV:
-            return Builder->CreateSDiv(V1, V2);
+            return IsFloat ? Builder->CreateFDiv(V1, V2)
+                 : IsUnsignedInt ? Builder->CreateUDiv(V1, V2)
+                                 : Builder->CreateSDiv(V1, V2);
         case ASTBinaryKind::OP_BINARY_ARITH_MOD:
-            return Builder->CreateSRem(V1, V2);
+            return IsFloat ? Builder->CreateFRem(V1, V2)
+                 : IsUnsignedInt ? Builder->CreateURem(V1, V2)
+                                 : Builder->CreateSRem(V1, V2);
         case ASTBinaryKind::OP_BINARY_ARITH_AND:
             return Builder->CreateAnd(V1, V2);
         case ASTBinaryKind::OP_BINARY_ARITH_OR:
@@ -781,7 +1023,8 @@ llvm::Value *CodeGenExpr::GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKin
         case ASTBinaryKind::OP_BINARY_ARITH_SHIFT_L:
             return Builder->CreateShl(V1, V2);
         case ASTBinaryKind::OP_BINARY_ARITH_SHIFT_R:
-            return Builder->CreateAShr(V1, V2);
+            return IsUnsignedInt ? Builder->CreateLShr(V1, V2)
+                                 : Builder->CreateAShr(V1, V2);
     }
 
 	// Error
@@ -1014,8 +1257,8 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
 
 		// Promotion rules: convert Type1 or Type2 to the max type
 		if (Type1->getRank() > Type2->getRank()) {
-
-			V2 = ConvertNumber(V2, Type1); // Implicit conversion
+			bool Src2Signed = !Type2->isInteger() || static_cast<SemaIntType *>(Type2)->isSigned();
+			V2 = ConvertNumber(V2, Type1, Src2Signed); // Implicit conversion
 		}
 	}
 
@@ -1029,6 +1272,21 @@ void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &A
 
 	for (size_t i = 0; i < ArgExprs.size(); i++) {
 		SemaExpr *ArgExpr = ArgExprs[i];
+
+		// For output (non-const) params: pass the original alloca pointer directly and
+		// invalidate the variable's load cache so subsequent reads see the updated value.
+		if (i < Params.size() && !Params[i]->isConstant()) {
+			SemaKind K = ArgExpr->getKind();
+			if (K == SemaKind::LOCAL_VAR || K == SemaKind::PARAM_VAR ||
+			    K == SemaKind::ERROR_VAR || K == SemaKind::ATTRIBUTE ||
+			    K == SemaKind::INSTANCE_VAR) {
+				CodeGenVar *CGV = static_cast<SemaVar *>(ArgExpr)->getCodeGen();
+				Args.push_back(CGV->getPointer());
+				CGV->resetLoad();  // force fresh load on next use
+				continue;
+			}
+		}
+
 		ArgExpr->accept(*CGM);
 		llvm::Value *V = ArgExpr->getCodeGen()->getValue();
 
@@ -1095,12 +1353,12 @@ llvm::Value *CodeGenExpr::ConvertToBool(llvm::Value *V) {
 	return llvm::ConstantInt::get(CodeGen::BoolTy, 0, false);
 }
 
-llvm::Value *CodeGenExpr::ConvertNumber(llvm::Value *V, SemaNumberType *Ty) {
+llvm::Value *CodeGenExpr::ConvertNumber(llvm::Value *V, SemaNumberType *Ty, bool IsSigned) {
 	// Promote V to Type Ty
 	if (Ty->isInteger()) {
 		V  = ConvertToInteger(V, static_cast<SemaIntType *>(Ty)); // Implicit conversion
 	} else if (Ty->isFloat()) {
-		V = ConvertToFloat(V, static_cast<SemaFloatType *>(Ty)); // Implicit conversion
+		V = ConvertToFloat(V, static_cast<SemaFloatType *>(Ty), IsSigned); // Implicit conversion
 	}
 	return V;
 }
@@ -1161,7 +1419,7 @@ llvm::Value *CodeGenExpr::ConvertToInteger(llvm::Value *V, SemaIntType *Ty) {
 	}
 }
 
-llvm::Value *CodeGenExpr::ConvertToFloat(llvm::Value *V, SemaFloatType *Ty) {
+llvm::Value *CodeGenExpr::ConvertToFloat(llvm::Value *V, SemaFloatType *Ty, bool IsSigned) {
 	if (V->getType()->isFloatingPointTy()) {
 		switch (Ty->getFloatKind()) {
 
@@ -1175,6 +1433,14 @@ llvm::Value *CodeGenExpr::ConvertToFloat(llvm::Value *V, SemaFloatType *Ty) {
 	if (V->getType()->isIntegerTy()) {
 		switch (Ty->getFloatKind()) {
 
+			case SemaFloatTypeKind::TYPE_FLOAT:
+				return IsSigned ? Builder->CreateSIToFP(V, CodeGen::FloatTy)
+				                : Builder->CreateUIToFP(V, CodeGen::FloatTy);
+
+			case SemaFloatTypeKind::TYPE_DOUBLE:
+				return IsSigned ? Builder->CreateSIToFP(V, CodeGen::DoubleTy)
+				                : Builder->CreateUIToFP(V, CodeGen::DoubleTy);
 		}
 	}
+	return V;
 }

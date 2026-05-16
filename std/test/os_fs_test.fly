@@ -1,0 +1,87 @@
+import fly.os.fs
+import fly.os.path
+import fly.assert
+
+main() {
+    string s = ""
+    bool b = false
+
+    string test_dir = "/tmp/fly_fs_test_dir"
+    fly.os.fs.dirCreateAll(test_dir, 493)   // 0755
+
+    fly.os.fs.exists(test_dir, b)
+    fly.assert.assertTrue(b, 70)
+    fly.os.fs.exists("/tmp/fly_fs_nonexistent_xyzabc", b)
+    fly.assert.assertFalse(b, 71)
+
+    fly.os.fs.isDir(test_dir, b)
+    fly.assert.assertTrue(b, 72)
+    fly.os.fs.isDir("/tmp/fly_fs_nonexistent_xyzabc", b)
+    fly.assert.assertFalse(b, 73)
+
+    string test_file = "/tmp/fly_fs_test_dir/test.txt"
+    fly.os.fs.writeStr(test_file, "hello fly!", 420)   // 0644
+
+    fly.os.fs.exists(test_file, b)
+    fly.assert.assertTrue(b, 80)
+
+    fly.os.fs.isFile(test_file, b)
+    fly.assert.assertTrue(b, 81)
+
+    fly.os.fs.isDir(test_file, b)
+    fly.assert.assertFalse(b, 82)
+
+    fly.os.fs.readStr(test_file, s)
+    fly.assert.assertStr(s, "hello fly!", 83)
+
+    ulong fsz = 0
+    fly.os.fs.size(test_file, fsz)
+    if fsz != 10 { fly.assert.errExit(84) }
+
+    string test_copy = "/tmp/fly_fs_test_dir/copy.txt"
+    fly.os.fs.copy(test_file, test_copy)
+    fly.os.fs.exists(test_copy, b)
+    fly.assert.assertTrue(b, 85)
+    ulong copy_sz = 0
+    fly.os.fs.size(test_copy, copy_sz)
+    if copy_sz != 10 { fly.assert.errExit(86) }
+
+    fly.os.fs.appendStr(test_file, "++!", 420)
+    ulong appended_sz = 0
+    fly.os.fs.size(test_file, appended_sz)
+    if appended_sz != 13 { fly.assert.errExit(87) }
+
+    fly.os.fs.truncate(test_file, 5)
+    ulong trunc_sz = 0
+    fly.os.fs.size(test_file, trunc_sz)
+    if trunc_sz != 5 { fly.assert.errExit(88) }
+
+    fly.os.fs.chmod(test_file, 384)   // 0600
+
+    string test_moved = "/tmp/fly_fs_test_dir/moved.txt"
+    fly.os.fs.move(test_copy, test_moved)
+    fly.os.fs.exists(test_moved, b)
+    fly.assert.assertTrue(b, 89)
+    fly.os.fs.exists(test_copy, b)
+    fly.assert.assertFalse(b, 90)
+
+    string sym_path = "/tmp/fly_fs_test_dir/sym.txt"
+    fly.os.fs.symlinkCreate(test_file, sym_path)
+    fly.os.fs.exists(sym_path, b)
+    fly.assert.assertTrue(b, 91)
+    fly.os.path.isSym(sym_path, b)
+    fly.assert.assertTrue(b, 92)
+    fly.os.fs.symlinkRead(sym_path, s)
+    fly.assert.assertStr(s, test_file, 93)
+
+    string tmp_dir_path = ""
+    fly.os.fs.tempDir("/tmp", "fly_fs_tmpd_", tmp_dir_path)
+    fly.assert.assertNotEmpty(tmp_dir_path, 95)
+    fly.os.fs.isDir(tmp_dir_path, b)
+    fly.assert.assertTrue(b, 96)
+    fly.os.fs.dirDelete(tmp_dir_path)
+
+    fly.os.fs.dirDeleteAll(test_dir)
+    fly.os.fs.exists(test_dir, b)
+    fly.assert.assertFalse(b, 110)
+}

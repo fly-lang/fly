@@ -594,7 +594,8 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 			Builder->CreateCondBr(IfCond, IfBB, EndBB);
 			Builder->SetInsertPoint(IfBB);
 			Sema.getThen()->accept(*this);
-			Builder->CreateBr(EndBB);
+			if (!Builder->GetInsertBlock()->getTerminator())
+				Builder->CreateBr(EndBB);
 		} else { // If - elsif ...
 			llvm::BasicBlock *ElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, EndBB);
 			Builder->CreateCondBr(IfCond, IfBB, ElsifBB);
@@ -602,7 +603,8 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 			// Start if-then
 			Builder->SetInsertPoint(IfBB);
 			Sema.getThen()->accept(*this);
-			Builder->CreateBr(EndBB);
+			if (!Builder->GetInsertBlock()->getTerminator())
+				Builder->CreateBr(EndBB);
 
 			// Create Elsif Blocks
 			unsigned long Size = Sema.getElsif().size();
@@ -623,7 +625,8 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 
 				Builder->SetInsertPoint(ElsifThenBB);
 				ElsifSema.Stmt->accept(*this);
-				Builder->CreateBr(EndBB);
+				if (!Builder->GetInsertBlock()->getTerminator())
+					Builder->CreateBr(EndBB);
 
 				ElsifBB = NextElsifBB;
 			}
@@ -638,7 +641,8 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 			Builder->CreateCondBr(IfCond, IfBB, ElseBB);
 			Builder->SetInsertPoint(IfBB);
 			Sema.getThen()->accept(*this);
-			Builder->CreateBr(EndBB);
+			if (!Builder->GetInsertBlock()->getTerminator())
+				Builder->CreateBr(EndBB);
 		} else { // If - Elsif - Else
 			llvm::BasicBlock *ElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, ElseBB);
 			Builder->CreateCondBr(IfCond, IfBB, ElsifBB);
@@ -646,7 +650,8 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 			// Start if-then
 			Builder->SetInsertPoint(IfBB);
 			Sema.getThen()->accept(*this);
-			Builder->CreateBr(EndBB);
+			if (!Builder->GetInsertBlock()->getTerminator())
+				Builder->CreateBr(EndBB);
 
 			// Create Elsif Blocks
 			unsigned long Size = Sema.getElsif().size();
@@ -667,7 +672,8 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 
 				Builder->SetInsertPoint(ElsifThenBB);
 				ElsifSema.Stmt->accept(*this);
-				Builder->CreateBr(EndBB);
+				if (!Builder->GetInsertBlock()->getTerminator())
+					Builder->CreateBr(EndBB);
 
 				ElsifBB = NextElsifBB;
 			}
@@ -675,7 +681,8 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 
 		Builder->SetInsertPoint(ElseBB);
 		Sema.getElse()->accept(*this);
-		Builder->CreateBr(EndBB);
+		if (!Builder->GetInsertBlock()->getTerminator())
+			Builder->CreateBr(EndBB);
 	}
 
 	// Continue insertions into End Branch
@@ -798,22 +805,27 @@ void CodeGenModule::visit(SemaLoopStmt &Sema) {
 		Sema.getBody()->accept(*this);
 	}
 	if (PostBB) {
-		Builder->CreateBr(PostBB);
+		if (!Builder->GetInsertBlock()->getTerminator())
+			Builder->CreateBr(PostBB);
 
 		// Add to Post via Sema
 		Builder->SetInsertPoint(PostBB);
 		for (SemaStmt *S : Sema.getPost()) {
 			S->accept(*this);
 		}
+		if (!Builder->GetInsertBlock()->getTerminator()) {
+			if (CondBB) {
+				Builder->CreateBr(CondBB);
+			} else {
+				Builder->CreateBr(LoopBB);
+			}
+		}
+	} else if (!Builder->GetInsertBlock()->getTerminator()) {
 		if (CondBB) {
 			Builder->CreateBr(CondBB);
 		} else {
 			Builder->CreateBr(LoopBB);
 		}
-	} else if (CondBB) {
-		Builder->CreateBr(CondBB);
-	} else {
-		Builder->CreateBr(LoopBB);
 	}
 
 	// Pop break and continue targets from stacks

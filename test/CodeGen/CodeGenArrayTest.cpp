@@ -184,7 +184,7 @@ namespace {
                         "  %2 = alloca %array, align 8\n"
                         "  store ptr %0, ptr %1, align 8\n"
                         "  %3 = call ptr @malloc(i64 12)\n"
-                        "  call void @llvm.memset.p0.i16(ptr %3, i8 0, i16 12, i1 false)\n"
+                        "  call void @llvm.memset.p0.i8(ptr %3, i8 0, i8 12, i1 false)\n"
                         "  %4 = getelementptr inbounds nuw %array, ptr %2, i32 0, i32 0\n"
                         "  store ptr %3, ptr %4, align 8\n"
                         "  %5 = getelementptr inbounds nuw %array, ptr %2, i32 0, i32 1\n"
@@ -193,7 +193,7 @@ namespace {
                         "}\n"
                         "declare ptr @malloc(i64)\n"
                         "; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: write)\n"
-                        "declare void @llvm.memset.p0.i16(ptr nocapture writeonly, i8, i16, i1 immarg) #0\n");
+                        "declare void @llvm.memset.p0.i8(ptr nocapture writeonly, i8, i8, i1 immarg) #0\n");
     }
 
     TEST_F(CodeGenTest, CGArrayLocalVarAssignValues) {

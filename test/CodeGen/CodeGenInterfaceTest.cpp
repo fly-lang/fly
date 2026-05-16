@@ -136,7 +136,7 @@ namespace {
     	                  "@vtable.TestClass = constant [4 x ptr] [ptr null, ptr @TestClass_F2do, ptr @TestClass_F4undo, ptr @TestClass_F9TestClass]\n"
     	                  "@vtable.TestClass.TestInterface = constant [1 x ptr] [ptr inttoptr (i64 -8 to ptr)]\n"
     	                  "\n"
-    	                  "define ptr @TestClass.init_ctor(ptr %0) {\n"
+    	                  "define linkonce_odr ptr @TestClass.init_ctor(ptr %0) {\n"
     	                  "entry:\n"
     	                  "  %1 = alloca ptr, align 8\n"
     	                  "  store ptr %0, ptr %1, align 8\n"

@@ -123,9 +123,8 @@ add_subdirectory(runtime)
 add_subdirectory(compiler)
 
 # Standard library — compiled by the fly binary, so must come after src/
-add_subdirectory(std)
-
 enable_testing()
+add_subdirectory(std)
 add_subdirectory(test)
 
 # flyp package manager

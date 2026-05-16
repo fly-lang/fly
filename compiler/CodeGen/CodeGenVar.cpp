@@ -224,6 +224,11 @@ llvm::Value *CodeGenVar::getValue() {
     return this->LoadI;
 }
 
+void CodeGenVar::resetLoad() {
+    this->LoadI = nullptr;
+    this->BlockID = llvm::StringRef();
+}
+
 llvm::Value *CodeGenVar::getPointer() {
 	// if (Sema->getKind() == SemaKind::MEMBER) { // FIXME
 	// 	assert(this->Pointer && "Pointer must be set for MemberVar");

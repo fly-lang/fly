@@ -139,22 +139,19 @@ void CodeGenFunctionBase::CheckReturnVoid() {
 	if (!Fn->getReturnType()->isVoidTy())
 		return;
 
-	llvm::BasicBlock &lastBlock = Fn->back(); // Get last basic block
-
-	if (lastBlock.empty()) {
-		// If block is empty, just insert ret void
-		llvm::IRBuilder<> builder(&lastBlock);
-		builder.CreateRetVoid();
-		return;
+	// The Builder's current insert block may differ from Fn->back() when control
+	// flow (e.g. while inside if) leaves the insert point pointing at a merge
+	// block that is not the last block appended to the function.
+	llvm::BasicBlock *InsertBB = CGM->Builder->GetInsertBlock();
+	if (InsertBB && !InsertBB->getTerminator()) {
+		CGM->Builder->CreateRetVoid();
 	}
 
-	llvm::Instruction *lastInst = lastBlock.getTerminator();
-
-	if (!lastInst) {
-		// No terminator — add ret void
-		llvm::IRBuilder<> builder(&lastBlock);
+	// Also ensure the last appended block has a terminator.
+	llvm::BasicBlock &LastBlock = Fn->back();
+	if (!LastBlock.getTerminator()) {
+		llvm::IRBuilder<> builder(&LastBlock);
 		builder.CreateRetVoid();
-		return;
 	}
 
     FLY_DEBUG_END("CodeGenFunctionBase", "GenBody");

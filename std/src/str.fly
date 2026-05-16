@@ -1,61 +1,537 @@
 namespace fly.str
 
-public convert(const int src, string out) {
-}
+import fly.llvm
+import fly.runtime
+
+// ── Query functions ────────────────────────────────────────────────────────
 
 public len(const string src, int out) {
+    fly.llvm.strSize(src, out)
 }
 
 public isEmpty(const string src, bool out) {
-}
-
-public contains(const string src, const string sub, bool out) {
-}
-
-public startsWith(const string src, const string prefix, bool out) {
-}
-
-public endsWith(const string src, const string suffix, bool out) {
-}
-
-public indexOf(const string src, const string sub, int out) {
-}
-
-public lastIndexOf(const string src, const string sub, int out) {
+    int s = 0
+    fly.llvm.strSize(src, s)
+    out = s == 0
 }
 
 public equals(const string a, const string b, bool out) {
+    out = a == b
 }
 
 public equalsIgnoreCase(const string a, const string b, bool out) {
+    int sa = 0
+    int sb = 0
+    fly.llvm.strSize(a, sa)
+    fly.llvm.strSize(b, sb)
+    if sa != sb {
+        out = false
+        return
+    }
+    bool eq = true
+    int i = 0
+    while i < sa {
+        byte ba = 0
+        byte bb = 0
+        fly.llvm.strByteAt(a, i, ba)
+        fly.llvm.strByteAt(b, i, bb)
+        int ica = ba
+        int icb = bb
+        if ica >= 65 && ica <= 90 { ica = ica + 32 }
+        if icb >= 65 && icb <= 90 { icb = icb + 32 }
+        if ica != icb {
+            eq = false
+            i = sa
+        }
+        i = i + 1
+    }
+    out = eq
+}
+
+public startsWith(const string src, const string prefix, bool out) {
+    int ss = 0
+    int ps = 0
+    fly.llvm.strSize(src, ss)
+    fly.llvm.strSize(prefix, ps)
+    if ps > ss {
+        out = false
+        return
+    }
+    bool eq = true
+    int i = 0
+    while i < ps {
+        byte bs = 0
+        byte bp = 0
+        fly.llvm.strByteAt(src, i, bs)
+        fly.llvm.strByteAt(prefix, i, bp)
+        if bs != bp {
+            eq = false
+            i = ps
+        }
+        i = i + 1
+    }
+    out = eq
+}
+
+public endsWith(const string src, const string suffix, bool out) {
+    int ss = 0
+    int sfs = 0
+    fly.llvm.strSize(src, ss)
+    fly.llvm.strSize(suffix, sfs)
+    if sfs > ss {
+        out = false
+        return
+    }
+    int offset = ss - sfs
+    bool eq = true
+    int i = 0
+    while i < sfs {
+        byte bs = 0
+        byte bsf = 0
+        fly.llvm.strByteAt(src, offset + i, bs)
+        fly.llvm.strByteAt(suffix, i, bsf)
+        if bs != bsf {
+            eq = false
+            i = sfs
+        }
+        i = i + 1
+    }
+    out = eq
+}
+
+public indexOf(const string src, const string sub, int out) {
+    int ss = 0
+    int ns = 0
+    fly.llvm.strSize(src, ss)
+    fly.llvm.strSize(sub, ns)
+    if ns == 0 {
+        out = 0
+        return
+    }
+    if ns > ss {
+        out = 0 - 1
+        return
+    }
+    int limit = ss - ns
+    int found = 0 - 1
+    int i = 0
+    while i <= limit {
+        bool match = true
+        int j = 0
+        while j < ns {
+            byte bh = 0
+            byte bn = 0
+            fly.llvm.strByteAt(src, i + j, bh)
+            fly.llvm.strByteAt(sub, j, bn)
+            if bh != bn {
+                match = false
+                j = ns
+            }
+            j = j + 1
+        }
+        if match {
+            found = i
+            i = limit + 1
+        }
+        i = i + 1
+    }
+    out = found
+}
+
+public lastIndexOf(const string src, const string sub, int out) {
+    int ss = 0
+    int ns = 0
+    fly.llvm.strSize(src, ss)
+    fly.llvm.strSize(sub, ns)
+    if ns == 0 || ns > ss {
+        out = 0 - 1
+        return
+    }
+    int limit = ss - ns
+    int found = 0 - 1
+    int i = 0
+    while i <= limit {
+        bool match = true
+        int j = 0
+        while j < ns {
+            byte bh = 0
+            byte bn = 0
+            fly.llvm.strByteAt(src, i + j, bh)
+            fly.llvm.strByteAt(sub, j, bn)
+            if bh != bn {
+                match = false
+                j = ns
+            }
+            j = j + 1
+        }
+        if match { found = i }
+        i = i + 1
+    }
+    out = found
+}
+
+public contains(const string src, const string sub, bool out) {
+    int ss = 0
+    int ns = 0
+    fly.llvm.strSize(src, ss)
+    fly.llvm.strSize(sub, ns)
+    if ns == 0 {
+        out = true
+        return
+    }
+    if ns > ss {
+        out = false
+        return
+    }
+    int limit = ss - ns
+    bool found = false
+    int i = 0
+    while i <= limit {
+        bool match = true
+        int j = 0
+        while j < ns {
+            byte bh = 0
+            byte bn = 0
+            fly.llvm.strByteAt(src, i + j, bh)
+            fly.llvm.strByteAt(sub, j, bn)
+            if bh != bn {
+                match = false
+                j = ns
+            }
+            j = j + 1
+        }
+        if match {
+            found = true
+            i = limit + 1
+        }
+        i = i + 1
+    }
+    out = found
 }
 
 public count(const string src, const string sub, int out) {
+    int ss = 0
+    int ns = 0
+    fly.llvm.strSize(src, ss)
+    fly.llvm.strSize(sub, ns)
+    if ns == 0 || ns > ss {
+        out = 0
+        return
+    }
+    int n = 0
+    int i = 0
+    while i <= ss - ns {
+        bool match = true
+        int j = 0
+        while j < ns {
+            byte bh = 0
+            byte bn = 0
+            fly.llvm.strByteAt(src, i + j, bh)
+            fly.llvm.strByteAt(sub, j, bn)
+            if bh != bn {
+                match = false
+                j = ns
+            }
+            j = j + 1
+        }
+        if match {
+            n = n + 1
+            i = i + ns
+        } else {
+            i = i + 1
+        }
+    }
+    out = n
 }
 
+// ── Transform functions (allocate via fly.runtime.mem_alloc) ─────────────
+
 public toUpper(const string src, string out) {
+    int size = 0
+    fly.llvm.strSize(src, size)
+    long buf = 0
+    fly.runtime.mem_alloc(size, buf)
+    int i = 0
+    while i < size {
+        byte b = 0
+        fly.llvm.strByteAt(src, i, b)
+        int ib = b
+        if ib >= 97 && ib <= 122 { ib = ib - 32 }
+        fly.llvm.strPoke(buf, i, ib)
+        i = i + 1
+    }
+    fly.llvm.strMake(buf, size, out)
 }
 
 public toLower(const string src, string out) {
+    int size = 0
+    fly.llvm.strSize(src, size)
+    long buf = 0
+    fly.runtime.mem_alloc(size, buf)
+    int i = 0
+    while i < size {
+        byte b = 0
+        fly.llvm.strByteAt(src, i, b)
+        int ib = b
+        if ib >= 65 && ib <= 90 { ib = ib + 32 }
+        fly.llvm.strPoke(buf, i, ib)
+        i = i + 1
+    }
+    fly.llvm.strMake(buf, size, out)
 }
 
 public trim(const string src, string out) {
+    int size = 0
+    fly.llvm.strSize(src, size)
+    int lo = 0
+    int hi = size
+    byte b = 0
+    fly.llvm.strByteAt(src, lo, b)
+    while lo < hi && (b == 32 || b == 9 || b == 10 || b == 13) {
+        lo = lo + 1
+        if lo < hi { fly.llvm.strByteAt(src, lo, b) }
+    }
+    if hi > lo {
+        fly.llvm.strByteAt(src, hi - 1, b)
+        while hi > lo && (b == 32 || b == 9 || b == 10 || b == 13) {
+            hi = hi - 1
+            if hi > lo { fly.llvm.strByteAt(src, hi - 1, b) }
+        }
+    }
+    int len = hi - lo
+    long buf = 0
+    fly.runtime.mem_alloc(len, buf)
+    int i = 0
+    while i < len {
+        fly.llvm.strByteAt(src, lo + i, b)
+        fly.llvm.strPoke(buf, i, b)
+        i = i + 1
+    }
+    fly.llvm.strMake(buf, len, out)
 }
 
 public trimLeft(const string src, string out) {
+    int size = 0
+    fly.llvm.strSize(src, size)
+    int lo = 0
+    byte b = 0
+    if lo < size { fly.llvm.strByteAt(src, lo, b) }
+    while lo < size && (b == 32 || b == 9 || b == 10 || b == 13) {
+        lo = lo + 1
+        if lo < size { fly.llvm.strByteAt(src, lo, b) }
+    }
+    int len = size - lo
+    long buf = 0
+    fly.runtime.mem_alloc(len, buf)
+    int i = 0
+    while i < len {
+        fly.llvm.strByteAt(src, lo + i, b)
+        fly.llvm.strPoke(buf, i, b)
+        i = i + 1
+    }
+    fly.llvm.strMake(buf, len, out)
 }
 
 public trimRight(const string src, string out) {
+    int size = 0
+    fly.llvm.strSize(src, size)
+    int hi = size
+    byte b = 0
+    if hi > 0 {
+        fly.llvm.strByteAt(src, hi - 1, b)
+        while hi > 0 && (b == 32 || b == 9 || b == 10 || b == 13) {
+            hi = hi - 1
+            if hi > 0 { fly.llvm.strByteAt(src, hi - 1, b) }
+        }
+    }
+    long buf = 0
+    fly.runtime.mem_alloc(hi, buf)
+    int i = 0
+    while i < hi {
+        fly.llvm.strByteAt(src, i, b)
+        fly.llvm.strPoke(buf, i, b)
+        i = i + 1
+    }
+    fly.llvm.strMake(buf, hi, out)
 }
 
 public substring(const string src, const int start, const int end, string out) {
-}
-
-public replace(const string src, const string from, const string to, string out) {
-}
-
-public repeat(const string src, const int count, string out) {
+    int size = 0
+    fly.llvm.strSize(src, size)
+    int s = start
+    int e = end
+    if s < 0 { s = 0 }
+    if e > size { e = size }
+    if s > e { s = e }
+    int len = e - s
+    long buf = 0
+    fly.runtime.mem_alloc(len, buf)
+    byte b = 0
+    int i = 0
+    while i < len {
+        fly.llvm.strByteAt(src, s + i, b)
+        fly.llvm.strPoke(buf, i, b)
+        i = i + 1
+    }
+    fly.llvm.strMake(buf, len, out)
 }
 
 public concat(const string a, const string b, string out) {
+    out = a + b
+}
+
+public repeat(const string src, const int count, string out) {
+    int size = 0
+    fly.llvm.strSize(src, size)
+    if count <= 0 || size == 0 {
+        long empty = 0
+        fly.runtime.mem_alloc(1, empty)
+        fly.llvm.strMake(empty, 0, out)
+        return
+    }
+    int newSize = size * count
+    long buf = 0
+    fly.runtime.mem_alloc(newSize, buf)
+    byte b = 0
+    int ci = 0
+    while ci < count {
+        int si = 0
+        while si < size {
+            fly.llvm.strByteAt(src, si, b)
+            fly.llvm.strPoke(buf, ci * size + si, b)
+            si = si + 1
+        }
+        ci = ci + 1
+    }
+    fly.llvm.strMake(buf, newSize, out)
+}
+
+public replace(const string src, const string from, const string to, string out) {
+    int ss = 0
+    int fs = 0
+    int ts = 0
+    fly.llvm.strSize(src, ss)
+    fly.llvm.strSize(from, fs)
+    fly.llvm.strSize(to, ts)
+    if fs == 0 {
+        out = src
+        return
+    }
+    // Count occurrences (inlined)
+    int occ = 0
+    if fs <= ss {
+        int ci = 0
+        while ci <= ss - fs {
+            bool cm = true
+            int cj = 0
+            while cj < fs {
+                byte cbh = 0
+                byte cbn = 0
+                fly.llvm.strByteAt(src, ci + cj, cbh)
+                fly.llvm.strByteAt(from, cj, cbn)
+                if cbh != cbn {
+                    cm = false
+                    cj = fs
+                }
+                cj = cj + 1
+            }
+            if cm {
+                occ = occ + 1
+                ci = ci + fs
+            }
+            ci = ci + 1
+        }
+    }
+    int newSize = ss + occ * (ts - fs)
+    long buf = 0
+    fly.runtime.mem_alloc(newSize, buf)
+    int ri = 0
+    int wi = 0
+    byte b = 0
+    while ri < ss {
+        bool match = true
+        if ri + fs > ss { match = false }
+        if match {
+            int j = 0
+            while j < fs {
+                byte bh = 0
+                byte bn = 0
+                fly.llvm.strByteAt(src, ri + j, bh)
+                fly.llvm.strByteAt(from, j, bn)
+                if bh != bn {
+                    match = false
+                    j = fs
+                }
+                j = j + 1
+            }
+        }
+        if match {
+            int k = 0
+            while k < ts {
+                fly.llvm.strByteAt(to, k, b)
+                fly.llvm.strPoke(buf, wi, b)
+                wi = wi + 1
+                k = k + 1
+            }
+            ri = ri + fs
+        }
+        if match == false {
+            fly.llvm.strByteAt(src, ri, b)
+            fly.llvm.strPoke(buf, wi, b)
+            wi = wi + 1
+            ri = ri + 1
+        }
+    }
+    fly.llvm.strMake(buf, newSize, out)
+}
+
+// ── Conversion ─────────────────────────────────────────────────────────────
+
+public convert(const int src, string out) {
+    int n = src
+    if n == 0 {
+        long buf = 0
+        fly.runtime.mem_alloc(1, buf)
+        fly.llvm.strPoke(buf, 0, 48)
+        fly.llvm.strMake(buf, 1, out)
+        return
+    }
+    bool neg = n < 0
+    if neg { n = 0 - n }
+    long tmp = 0
+    fly.runtime.mem_alloc(12, tmp)
+    int len = 0
+    while n > 0 {
+        int digit = n - (n / 10) * 10
+        fly.llvm.strPoke(tmp, len, 48 + digit)
+        len = len + 1
+        n = n / 10
+    }
+    if neg {
+        fly.llvm.strPoke(tmp, len, 45)
+        len = len + 1
+    }
+    // Reverse in-place using ptrByteAt to read from raw long pointer
+    int lo = 0
+    int hi = len - 1
+    while lo < hi {
+        byte bl = 0
+        byte bh = 0
+        fly.llvm.ptrByteAt(tmp, lo, bl)
+        fly.llvm.ptrByteAt(tmp, hi, bh)
+        fly.llvm.strPoke(tmp, lo, bh)
+        fly.llvm.strPoke(tmp, hi, bl)
+        lo = lo + 1
+        hi = hi - 1
+    }
+    long buf = 0
+    fly.runtime.mem_alloc(len, buf)
+    int i = 0
+    while i < len {
+        byte bb = 0
+        fly.llvm.ptrByteAt(tmp, i, bb)
+        fly.llvm.strPoke(buf, i, bb)
+        i = i + 1
+    }
+    fly.llvm.strMake(buf, len, out)
 }

@@ -1,5 +1,8 @@
 namespace fly.os
 
+import fly.llvm
+import fly.runtime
+
 // ── Shared types ─────────────────────────────────────────────────────────────
 
 public struct fly_time {
@@ -32,28 +35,88 @@ public struct fly_buf {
     ulong cap
 }
 
-public struct fly_reader {
-    long ctx
-    long fn_read
-    long fn_close
+public interface Reader {
+    read(fly_buf buf, const ulong n, long out_read)
+    close()
 }
 
-public struct fly_writer {
-    long ctx
-    long fn_write
-    long fn_flush
-    long fn_close
+public interface Writer {
+    write(fly_buf buf, const ulong n, long out_written)
+    flush()
+    close()
 }
 
-public struct fly_buf_reader {
-    fly_reader inner
-    fly_buf buf
-    ulong pos
+public class FileReader : Reader {
+    int fd
+
+    public read(fly_buf buf, const ulong n, long out_read) {
+        long nread = 0
+        fly.runtime.fs_read(fd, buf.ptr, n, nread)
+        if nread > 0 {
+            out_read = nread
+            buf.size = nread
+        } else {
+            out_read = 0
+        }
+    }
+
+    public close() {
+        fly.runtime.fs_close(fd)
+    }
 }
 
-public struct fly_buf_writer {
-    fly_writer inner
-    fly_buf buf
+public class FileWriter : Writer {
+    int fd
+
+    public write(fly_buf buf, const ulong n, long out_written) {
+        long nwritten = 0
+        fly.runtime.fs_write(fd, buf.ptr, n, nwritten)
+        if nwritten > 0 { out_written = nwritten } else { out_written = 0 }
+    }
+
+    public flush() {
+        int ret = 0
+        fly.runtime.fs_fsync(fd, ret)
+    }
+
+    public close() {
+        fly.runtime.fs_close(fd)
+    }
+}
+
+// BufReader/BufWriter: VTable dispatch from within class method bodies is a
+// known compiler limitation. These are minimal stubs; the buffered io*
+// functions below are also stubs pending a compiler fix.
+public class BufReader : Reader {
+    Reader inner
+    long buf_ptr
+    int buf_fill
+    int buf_cap
+    int pos
+
+    public read(fly_buf buf, const ulong n, long out_read) {
+        out_read = 0
+    }
+
+    public close() {
+    }
+}
+
+public class BufWriter : Writer {
+    Writer inner
+    long buf_ptr
+    int buf_fill
+    int buf_cap
+
+    public write(fly_buf buf, const ulong n, long out_written) {
+        out_written = 0
+    }
+
+    public flush() {
+    }
+
+    public close() {
+    }
 }
 
 public struct fly_dir_entry {
@@ -72,312 +135,3106 @@ public struct fly_string_array {
     int count
 }
 
+// ── Private helpers ───────────────────────────────────────────────────────────
+
+// Copy fly string + null terminator into a fresh mem_alloc buffer.
+private strToCstr(const string src, long out) {
+    int size = 0
+    fly.llvm.strSize(src, size)
+    int cap = size + 1
+    long buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    int i = 0
+    while i < size {
+        byte b = 0
+        fly.llvm.strByteAt(src, i, b)
+        fly.llvm.strPoke(buf, i, b)
+        i = i + 1
+    }
+    fly.llvm.strPoke(buf, size, 0)
+    out = buf
+}
+
+// Fill fly_stat mode-derived fields from the raw mode integer.
+private fillStatMode(const int fmode, fly_stat out) {
+    out.mode = fmode
+    int ftype = fmode / 4096
+    int ftype16 = ftype - (ftype / 16) * 16
+    out.is_file = 0
+    out.is_dir = 0
+    out.is_symlink = 0
+    if ftype16 == 8 { out.is_file = 1 }
+    if ftype16 == 4 { out.is_dir = 1 }
+    if ftype16 == 10 { out.is_symlink = 1 }
+}
+
+// Convert digit (0-9) to ASCII byte.
+private digitToChar(const long d, byte out) {
+    if d <= 0 { out = 48 }
+    elsif d == 1 { out = 49 }
+    elsif d == 2 { out = 50 }
+    elsif d == 3 { out = 51 }
+    elsif d == 4 { out = 52 }
+    elsif d == 5 { out = 53 }
+    elsif d == 6 { out = 54 }
+    elsif d == 7 { out = 55 }
+    elsif d == 8 { out = 56 }
+    else { out = 57 }
+}
+
+// Append decimal representation of val to buf starting at pos; return new pos.
+private appendDecimal(const long val, const long buf, const int pos, int new_pos) {
+    if val == 0 {
+        fly.llvm.strPoke(buf, pos, 48)
+        new_pos = pos + 1
+        return
+    }
+    long v = val
+    long tmp = 0
+    fly.runtime.mem_alloc(24, tmp)
+    int nd = 0
+    while v > 0 {
+        long digit = v - (v / 10) * 10
+        byte db = 0
+        digitToChar(digit, db)
+        fly.llvm.strPoke(tmp, nd, db)
+        v = v / 10
+        nd = nd + 1
+    }
+    // digits in tmp are least-significant first; copy in reverse
+    int i = 0
+    while i < nd {
+        byte db = 0
+        fly.llvm.ptrByteAt(tmp, nd - 1 - i, db)
+        fly.llvm.strPoke(buf, pos + i, db)
+        i = i + 1
+    }
+    new_pos = pos + nd
+}
+
+// Append 2-digit zero-padded integer to buf at pos; return new pos.
+private append2Padded(const long val, const long buf, const int pos, int new_pos) {
+    long tens = val / 10
+    long ones = val - tens * 10
+    byte b1 = 0
+    byte b2 = 0
+    digitToChar(tens, b1)
+    digitToChar(ones, b2)
+    fly.llvm.strPoke(buf, pos, b1)
+    fly.llvm.strPoke(buf, pos + 1, b2)
+    new_pos = pos + 2
+}
+
+// Append 4-digit zero-padded integer to buf at pos; return new pos.
+private append4Padded(const long val, const long buf, const int pos, int new_pos) {
+    long v = val
+    long thousands = v / 1000
+    v = v - thousands * 1000
+    long hundreds = v / 100
+    v = v - hundreds * 100
+    long tens = v / 10
+    long ones = v - tens * 10
+    byte b1 = 0
+    byte b2 = 0
+    byte b3 = 0
+    byte b4 = 0
+    digitToChar(thousands, b1)
+    digitToChar(hundreds, b2)
+    digitToChar(tens, b3)
+    digitToChar(ones, b4)
+    fly.llvm.strPoke(buf, pos, b1)
+    fly.llvm.strPoke(buf, pos + 1, b2)
+    fly.llvm.strPoke(buf, pos + 2, b3)
+    fly.llvm.strPoke(buf, pos + 3, b4)
+    new_pos = pos + 4
+}
+
+// Convert ASCII digit byte to integer.
+private digitToInt(const byte d, int out) {
+    if d == 48 { out = 0 }
+    elsif d == 49 { out = 1 }
+    elsif d == 50 { out = 2 }
+    elsif d == 51 { out = 3 }
+    elsif d == 52 { out = 4 }
+    elsif d == 53 { out = 5 }
+    elsif d == 54 { out = 6 }
+    elsif d == 55 { out = 7 }
+    elsif d == 56 { out = 8 }
+    else { out = 9 }
+}
+
+// Parse 2-digit decimal from s at pos.
+private parse2Digits(const string s, const int pos, long out) {
+    byte d1 = 0
+    byte d2 = 0
+    fly.llvm.strByteAt(s, pos, d1)
+    fly.llvm.strByteAt(s, pos + 1, d2)
+    int v1 = 0
+    int v2 = 0
+    digitToInt(d1, v1)
+    digitToInt(d2, v2)
+    out = v1 * 10 + v2
+}
+
+// Parse 4-digit decimal from s at pos.
+private parse4Digits(const string s, const int pos, long out) {
+    byte d1 = 0
+    byte d2 = 0
+    byte d3 = 0
+    byte d4 = 0
+    fly.llvm.strByteAt(s, pos, d1)
+    fly.llvm.strByteAt(s, pos + 1, d2)
+    fly.llvm.strByteAt(s, pos + 2, d3)
+    fly.llvm.strByteAt(s, pos + 3, d4)
+    int v1 = 0
+    int v2 = 0
+    int v3 = 0
+    int v4 = 0
+    digitToInt(d1, v1)
+    digitToInt(d2, v2)
+    digitToInt(d3, v3)
+    digitToInt(d4, v4)
+    out = v1 * 1000 + v2 * 100 + v3 * 10 + v4
+}
+
 // ── Time ─────────────────────────────────────────────────────────────────────
 
 public timeNow(fly_time out) {
+    long total_ns = 0
+    fly.runtime.time_now_ns(total_ns)
+    long ns_per_sec = 1000000000
+    long s = total_ns / ns_per_sec
+    long n = total_ns - s * ns_per_sec
+    out.sec = s
+    out.nsec = n
 }
 
 public timeMonotonic(fly_time out) {
+    long total_ns = 0
+    fly.runtime.time_mono_ns(total_ns)
+    long ns_per_sec = 1000000000
+    long s = total_ns / ns_per_sec
+    long n = total_ns - s * ns_per_sec
+    out.sec = s
+    out.nsec = n
 }
 
 public timeSleep(fly_duration d) {
+    long ns = d.nsec
+    if ns <= 0 { return }
+    long ns_per_sec = 1000000000
+    long sec = ns / ns_per_sec
+    long rem = ns - sec * ns_per_sec
+    fly.runtime.time_sleep(sec, rem)
 }
 
 public timeSince(fly_time t, fly_duration out) {
+    long total_ns = 0
+    fly.runtime.time_now_ns(total_ns)
+    long ns_per_sec = 1000000000
+    long now_sec = total_ns / ns_per_sec
+    long now_nsec = total_ns - now_sec * ns_per_sec
+    long sec_diff = now_sec - t.sec
+    long nsec_diff = now_nsec - t.nsec
+    out.nsec = sec_diff * ns_per_sec + nsec_diff
 }
 
 public timeDiff(fly_time a, fly_time b, fly_duration out) {
+    long ns_per_sec = 1000000000
+    long sec_diff = b.sec - a.sec
+    long nsec_diff = b.nsec - a.nsec
+    out.nsec = sec_diff * ns_per_sec + nsec_diff
 }
 
 public timeAdd(fly_time t, fly_duration d, fly_time out) {
+    long ns_per_sec = 1000000000
+    long total_nsec = t.nsec + d.nsec
+    long extra_sec = total_nsec / ns_per_sec
+    long rem_nsec = total_nsec - extra_sec * ns_per_sec
+    out.sec = t.sec + extra_sec
+    out.nsec = rem_nsec
+    if rem_nsec < 0 {
+        out.sec = out.sec - 1
+        out.nsec = out.nsec + ns_per_sec
+    }
 }
 
 public timeCompare(fly_time a, fly_time b, int out) {
+    if a.sec < b.sec {
+        out = 0 - 1
+        return
+    }
+    if a.sec > b.sec {
+        out = 1
+        return
+    }
+    if a.nsec < b.nsec {
+        out = 0 - 1
+        return
+    }
+    if a.nsec > b.nsec {
+        out = 1
+        return
+    }
+    out = 0
 }
 
 public timeUnix(fly_time t, long out) {
+    out = t.sec
 }
 
 public timeUnixNano(fly_time t, long out) {
+    long ns_per_sec = 1000000000
+    out = t.sec * ns_per_sec + t.nsec
 }
 
 public timeFromUnix(const long sec, fly_time out) {
+    out.sec = sec
+    out.nsec = 0
 }
 
 public timeFromUnixNano(const long nsec, fly_time out) {
+    long ns_per_sec = 1000000000
+    long sec = nsec / ns_per_sec
+    long rem = nsec - sec * ns_per_sec
+    out.sec = sec
+    out.nsec = rem
+    if rem < 0 {
+        out.sec = out.sec - 1
+        out.nsec = out.nsec + ns_per_sec
+    }
 }
 
 public timeFormat(fly_time t, const string pattern, string out) {
+    // Howard Hinnant algorithm: Unix timestamp → calendar date
+    long days = t.sec / 86400
+    long sec_of_day = t.sec - days * 86400
+    long z = days + 719468
+    long era = z / 146097
+    long doe = z - era * 146097
+    long yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365
+    long year = yoe + era * 400
+    long doy = doe - (365 * yoe + yoe / 4 - yoe / 100)
+    long mp = (5 * doy + 2) / 153
+    long day = doy - (153 * mp + 2) / 5 + 1
+    long month = mp + 3
+    if mp >= 10 { month = mp - 9 }
+    if month <= 2 { year = year + 1 }
+    long hour = sec_of_day / 3600
+    long min = (sec_of_day - hour * 3600) / 60
+    long sec2 = sec_of_day - hour * 3600 - min * 60
+
+    int plen = 0
+    fly.llvm.strSize(pattern, plen)
+    long buf = 0
+    fly.runtime.mem_alloc(128, buf)
+    int bpos = 0
+    int bpos2 = 0
+    int pi = 0
+
+    while pi < plen {
+        byte pb0 = 0
+        fly.llvm.strByteAt(pattern, pi, pb0)
+        bool matched = false
+
+        // "2006" → 4-digit year
+        if pb0 == 50 {
+            if pi + 3 < plen {
+                byte pb1 = 0
+                byte pb2 = 0
+                byte pb3 = 0
+                fly.llvm.strByteAt(pattern, pi + 1, pb1)
+                fly.llvm.strByteAt(pattern, pi + 2, pb2)
+                fly.llvm.strByteAt(pattern, pi + 3, pb3)
+                if pb1 == 48 {
+                    if pb2 == 48 {
+                        if pb3 == 54 {
+                            append4Padded(year, buf, bpos, bpos2)
+                            bpos = bpos2
+                            pi = pi + 4
+                            matched = true
+                        }
+                    }
+                }
+            }
+        }
+
+        // "15" → hour (00-23)
+        if matched == false {
+            if pb0 == 49 {
+                if pi + 1 < plen {
+                    byte pb1 = 0
+                    fly.llvm.strByteAt(pattern, pi + 1, pb1)
+                    if pb1 == 53 {
+                        append2Padded(hour, buf, bpos, bpos2)
+                        bpos = bpos2
+                        pi = pi + 2
+                        matched = true
+                    }
+                }
+            }
+        }
+
+        // "01"→month  "02"→day  "04"→minute  "05"→second
+        if matched == false {
+            if pb0 == 48 {
+                if pi + 1 < plen {
+                    byte pb1 = 0
+                    fly.llvm.strByteAt(pattern, pi + 1, pb1)
+                    if pb1 == 49 {
+                        append2Padded(month, buf, bpos, bpos2)
+                        bpos = bpos2
+                        pi = pi + 2
+                        matched = true
+                    }
+                    if matched == false {
+                        if pb1 == 50 {
+                            append2Padded(day, buf, bpos, bpos2)
+                            bpos = bpos2
+                            pi = pi + 2
+                            matched = true
+                        }
+                    }
+                    if matched == false {
+                        if pb1 == 52 {
+                            append2Padded(min, buf, bpos, bpos2)
+                            bpos = bpos2
+                            pi = pi + 2
+                            matched = true
+                        }
+                    }
+                    if matched == false {
+                        if pb1 == 53 {
+                            append2Padded(sec2, buf, bpos, bpos2)
+                            bpos = bpos2
+                            pi = pi + 2
+                            matched = true
+                        }
+                    }
+                }
+            }
+        }
+
+        if matched == false {
+            fly.llvm.strPoke(buf, bpos, pb0)
+            bpos = bpos + 1
+            pi = pi + 1
+        }
+    }
+
+    fly.llvm.strMake(buf, bpos, out)
+}
+
+// timeFormatSec: same as timeFormat but takes raw Unix seconds.
+// Fully usable from Fly code (avoids fly_time local struct limitation).
+public timeFormatSec(const long sec, const string pattern, string out) {
+    long days = sec / 86400
+    long sec_of_day = sec - days * 86400
+    long z = days + 719468
+    long era = z / 146097
+    long doe = z - era * 146097
+    long yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365
+    long year = yoe + era * 400
+    long doy = doe - (365 * yoe + yoe / 4 - yoe / 100)
+    long mp = (5 * doy + 2) / 153
+    long day = doy - (153 * mp + 2) / 5 + 1
+    long month = mp + 3
+    if mp >= 10 { month = mp - 9 }
+    if month <= 2 { year = year + 1 }
+    long hour = sec_of_day / 3600
+    long min = (sec_of_day - hour * 3600) / 60
+    long sec2 = sec_of_day - hour * 3600 - min * 60
+
+    int plen = 0
+    fly.llvm.strSize(pattern, plen)
+    long buf = 0
+    fly.runtime.mem_alloc(128, buf)
+    int bpos = 0
+    int bpos2 = 0
+    int pi = 0
+
+    while pi < plen {
+        byte pb0 = 0
+        fly.llvm.strByteAt(pattern, pi, pb0)
+        bool matched = false
+
+        if pb0 == 50 {
+            if pi + 3 < plen {
+                byte pb1 = 0
+                byte pb2 = 0
+                byte pb3 = 0
+                fly.llvm.strByteAt(pattern, pi + 1, pb1)
+                fly.llvm.strByteAt(pattern, pi + 2, pb2)
+                fly.llvm.strByteAt(pattern, pi + 3, pb3)
+                if pb1 == 48 { if pb2 == 48 { if pb3 == 54 {
+                    append4Padded(year, buf, bpos, bpos2)
+                    bpos = bpos2
+                    pi = pi + 4
+                    matched = true
+                }}}
+            }
+        }
+        if matched == false { if pb0 == 49 { if pi + 1 < plen {
+            byte pb1 = 0
+            fly.llvm.strByteAt(pattern, pi + 1, pb1)
+            if pb1 == 53 {
+                append2Padded(hour, buf, bpos, bpos2)
+                bpos = bpos2
+                pi = pi + 2
+                matched = true
+            }
+        }}}
+        if matched == false { if pb0 == 48 { if pi + 1 < plen {
+            byte pb1 = 0
+            fly.llvm.strByteAt(pattern, pi + 1, pb1)
+            if pb1 == 49 {
+                append2Padded(month, buf, bpos, bpos2)
+                bpos = bpos2
+                pi = pi + 2
+                matched = true
+            }
+            if matched == false { if pb1 == 50 {
+                append2Padded(day, buf, bpos, bpos2)
+                bpos = bpos2
+                pi = pi + 2
+                matched = true
+            }}
+            if matched == false { if pb1 == 52 {
+                append2Padded(min, buf, bpos, bpos2)
+                bpos = bpos2
+                pi = pi + 2
+                matched = true
+            }}
+            if matched == false { if pb1 == 53 {
+                append2Padded(sec2, buf, bpos, bpos2)
+                bpos = bpos2
+                pi = pi + 2
+                matched = true
+            }}
+        }}}
+        if matched == false {
+            fly.llvm.strPoke(buf, bpos, pb0)
+            bpos = bpos + 1
+            pi = pi + 1
+        }
+    }
+
+    fly.llvm.strMake(buf, bpos, out)
 }
 
 public timeParse(const string s, const string pattern, fly_time out) {
+    int plen = 0
+    fly.llvm.strSize(pattern, plen)
+
+    long year = 1970
+    long month = 1
+    long day = 1
+    long hour = 0
+    long min = 0
+    long sec2 = 0
+    long parsed = 0
+
+    int pi = 0
+    int si = 0
+
+    while pi < plen {
+        byte pb0 = 0
+        fly.llvm.strByteAt(pattern, pi, pb0)
+        bool matched = false
+
+        // "2006" → year
+        if pb0 == 50 {
+            if pi + 3 < plen {
+                byte pb1 = 0
+                byte pb2 = 0
+                byte pb3 = 0
+                fly.llvm.strByteAt(pattern, pi + 1, pb1)
+                fly.llvm.strByteAt(pattern, pi + 2, pb2)
+                fly.llvm.strByteAt(pattern, pi + 3, pb3)
+                if pb1 == 48 {
+                    if pb2 == 48 {
+                        if pb3 == 54 {
+                            parse4Digits(s, si, parsed)
+                            year = parsed
+                            si = si + 4
+                            pi = pi + 4
+                            matched = true
+                        }
+                    }
+                }
+            }
+        }
+
+        // "15" → hour
+        if matched == false {
+            if pb0 == 49 {
+                if pi + 1 < plen {
+                    byte pb1 = 0
+                    fly.llvm.strByteAt(pattern, pi + 1, pb1)
+                    if pb1 == 53 {
+                        parse2Digits(s, si, parsed)
+                        hour = parsed
+                        si = si + 2
+                        pi = pi + 2
+                        matched = true
+                    }
+                }
+            }
+        }
+
+        // "01"→month  "02"→day  "04"→minute  "05"→second
+        if matched == false {
+            if pb0 == 48 {
+                if pi + 1 < plen {
+                    byte pb1 = 0
+                    fly.llvm.strByteAt(pattern, pi + 1, pb1)
+                    if pb1 == 49 {
+                        parse2Digits(s, si, parsed)
+                        month = parsed
+                        si = si + 2
+                        pi = pi + 2
+                        matched = true
+                    }
+                    if matched == false {
+                        if pb1 == 50 {
+                            parse2Digits(s, si, parsed)
+                            day = parsed
+                            si = si + 2
+                            pi = pi + 2
+                            matched = true
+                        }
+                    }
+                    if matched == false {
+                        if pb1 == 52 {
+                            parse2Digits(s, si, parsed)
+                            min = parsed
+                            si = si + 2
+                            pi = pi + 2
+                            matched = true
+                        }
+                    }
+                    if matched == false {
+                        if pb1 == 53 {
+                            parse2Digits(s, si, parsed)
+                            sec2 = parsed
+                            si = si + 2
+                            pi = pi + 2
+                            matched = true
+                        }
+                    }
+                }
+            }
+        }
+
+        if matched == false {
+            si = si + 1
+            pi = pi + 1
+        }
+    }
+
+    // Howard Hinnant inverse: calendar date → days since Unix epoch
+    long y = year
+    long m = month
+    if m <= 2 { y = y - 1 }
+    long era = y / 400
+    long yoe = y - era * 400
+    long m3 = m - 3
+    if m <= 2 { m3 = m + 9 }
+    long doy2 = (153 * m3 + 2) / 5 + day - 1
+    long doe2 = yoe * 365 + yoe / 4 - yoe / 100 + doy2
+    long days = doe2 + era * 146097 - 719468
+
+    out.sec = days * 86400 + hour * 3600 + min * 60 + sec2
+    out.nsec = 0
+}
+
+// timeParseToSec: same as timeParse but returns Unix seconds as long.
+// Fully usable from Fly code (avoids fly_time local struct limitation).
+public timeParseToSec(const string s, const string pattern, long out) {
+    int plen = 0
+    fly.llvm.strSize(pattern, plen)
+
+    long year = 1970
+    long month = 1
+    long day = 1
+    long hour = 0
+    long min = 0
+    long sec2 = 0
+    long parsed = 0
+
+    int pi = 0
+    int si = 0
+
+    while pi < plen {
+        byte pb0 = 0
+        fly.llvm.strByteAt(pattern, pi, pb0)
+        bool matched = false
+
+        if pb0 == 50 { if pi + 3 < plen {
+            byte pb1 = 0
+            byte pb2 = 0
+            byte pb3 = 0
+            fly.llvm.strByteAt(pattern, pi + 1, pb1)
+            fly.llvm.strByteAt(pattern, pi + 2, pb2)
+            fly.llvm.strByteAt(pattern, pi + 3, pb3)
+            if pb1 == 48 { if pb2 == 48 { if pb3 == 54 {
+                parse4Digits(s, si, parsed)
+                year = parsed
+                si = si + 4
+                pi = pi + 4
+                matched = true
+            }}}
+        }}
+        if matched == false { if pb0 == 49 { if pi + 1 < plen {
+            byte pb1 = 0
+            fly.llvm.strByteAt(pattern, pi + 1, pb1)
+            if pb1 == 53 {
+                parse2Digits(s, si, parsed)
+                hour = parsed
+                si = si + 2
+                pi = pi + 2
+                matched = true
+            }
+        }}}
+        if matched == false { if pb0 == 48 { if pi + 1 < plen {
+            byte pb1 = 0
+            fly.llvm.strByteAt(pattern, pi + 1, pb1)
+            if pb1 == 49 {
+                parse2Digits(s, si, parsed)
+                month = parsed
+                si = si + 2
+                pi = pi + 2
+                matched = true
+            }
+            if matched == false { if pb1 == 50 {
+                parse2Digits(s, si, parsed)
+                day = parsed
+                si = si + 2
+                pi = pi + 2
+                matched = true
+            }}
+            if matched == false { if pb1 == 52 {
+                parse2Digits(s, si, parsed)
+                min = parsed
+                si = si + 2
+                pi = pi + 2
+                matched = true
+            }}
+            if matched == false { if pb1 == 53 {
+                parse2Digits(s, si, parsed)
+                sec2 = parsed
+                si = si + 2
+                pi = pi + 2
+                matched = true
+            }}
+        }}}
+        if matched == false {
+            si = si + 1
+            pi = pi + 1
+        }
+    }
+
+    long y = year
+    long m = month
+    if m <= 2 { y = y - 1 }
+    long era = y / 400
+    long yoe = y - era * 400
+    long m3 = m - 3
+    if m <= 2 { m3 = m + 9 }
+    long doy2 = (153 * m3 + 2) / 5 + day - 1
+    long doe2 = yoe * 365 + yoe / 4 - yoe / 100 + doy2
+    long days = doe2 + era * 146097 - 719468
+
+    out = days * 86400 + hour * 3600 + min * 60 + sec2
 }
 
 public timeDurationSecs(fly_duration d, long out) {
+    long ns_per_sec = 1000000000
+    out = d.nsec / ns_per_sec
 }
 
 public timeDurationMillis(fly_duration d, long out) {
+    long ns_per_ms = 1000000
+    out = d.nsec / ns_per_ms
 }
 
 public timeDurationMicros(fly_duration d, long out) {
+    long ns_per_us = 1000
+    out = d.nsec / ns_per_us
 }
 
 public timeDurationFormat(fly_duration d, string out) {
+    long ns = d.nsec
+    if ns < 0 { ns = 0 - ns }
+    if ns == 0 {
+        long b0 = 0
+        fly.runtime.mem_alloc(4, b0)
+        fly.llvm.strPoke(b0, 0, 48)
+        fly.llvm.strPoke(b0, 1, 115)
+        fly.llvm.strMake(b0, 2, out)
+        return
+    }
+
+    long ns_per_hr  = 3600000000000
+    long ns_per_min = 60000000000
+    long ns_per_sec = 1000000000
+    long ns_per_ms  = 1000000
+    long ns_per_us  = 1000
+
+    long hours = ns / ns_per_hr
+    long rem   = ns - hours * ns_per_hr
+    long mins  = rem / ns_per_min
+    rem        = rem - mins * ns_per_min
+    long secs  = rem / ns_per_sec
+    rem        = rem - secs * ns_per_sec
+    long ms    = rem / ns_per_ms
+    rem        = rem - ms * ns_per_ms
+    long us    = rem / ns_per_us
+    long nanos = rem - us * ns_per_us
+
+    long buf = 0
+    fly.runtime.mem_alloc(64, buf)
+    int pos = 0
+
+    bool has_large = false
+    if hours > 0 { has_large = true }
+    if mins > 0  { has_large = true }
+    if secs > 0  { has_large = true }
+
+    int p2 = 0
+    if has_large {
+        if hours > 0 {
+            appendDecimal(hours, buf, pos, p2)
+            pos = p2
+            fly.llvm.strPoke(buf, pos, 104)
+            pos = pos + 1
+        }
+        bool has_hm = false
+        if hours > 0 { has_hm = true }
+        if mins > 0  { has_hm = true }
+        if has_hm {
+            if hours > 0 {
+                if mins < 10 {
+                    fly.llvm.strPoke(buf, pos, 48)
+                    pos = pos + 1
+                }
+            }
+            appendDecimal(mins, buf, pos, p2)
+            pos = p2
+            fly.llvm.strPoke(buf, pos, 109)
+            pos = pos + 1
+        }
+        if has_hm {
+            if secs < 10 {
+                fly.llvm.strPoke(buf, pos, 48)
+                pos = pos + 1
+            }
+        }
+        appendDecimal(secs, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    } elsif ms > 0 {
+        appendDecimal(ms, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 109)
+        pos = pos + 1
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    } elsif us > 0 {
+        appendDecimal(us, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 117)
+        pos = pos + 1
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    } else {
+        appendDecimal(nanos, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 110)
+        pos = pos + 1
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    }
+
+    fly.llvm.strMake(buf, pos, out)
 }
 
 // ── Env ──────────────────────────────────────────────────────────────────────
 
 public envGet(const string key, string out) {
+    long ckey = 0
+    strToCstr(key, ckey)
+    int cap = 4096
+    long buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    int len = 0
+    fly.runtime.env_get(ckey, buf, cap, len)
+    if len < 0 {
+        fly.llvm.strMake(buf, 0, out)
+        return
+    }
+    fly.llvm.strMake(buf, len, out)
 }
 
 public envSet(const string key, const string value) {
+    long ckey = 0
+    long cval = 0
+    strToCstr(key, ckey)
+    strToCstr(value, cval)
+    int ret = 0
+    fly.runtime.env_set(ckey, cval, ret)
 }
 
 public envDelete(const string key) {
+    long ckey = 0
+    strToCstr(key, ckey)
+    int ret = 0
+    fly.runtime.env_delete(ckey, ret)
 }
 
 public envAll(fly_string_array out) {
+    int n = 0
+    fly.runtime.env_all_count(n)
+    if n <= 0 {
+        out.items = 0
+        out.count = 0
+        return
+    }
+    long arr = 0
+    fly.runtime.mem_alloc(n * 16, arr)
+    fly.runtime.env_all_fill(arr, n)
+    out.items = arr
+    out.count = n
 }
 
 public envExpand(const string s, string out) {
+    int slen = 0
+    fly.llvm.strSize(s, slen)
+    int out_cap = slen * 4 + 256
+    long out_buf = 0
+    fly.runtime.mem_alloc(out_cap, out_buf)
+    int out_pos = 0
+    int i = 0
+    while i < slen {
+        byte b = 0
+        fly.llvm.strByteAt(s, i, b)
+        if b != 36 {
+            fly.llvm.strPoke(out_buf, out_pos, b)
+            out_pos = out_pos + 1
+            i = i + 1
+        } else {
+            i = i + 1
+            bool braced = false
+            if i < slen {
+                byte nb = 0
+                fly.llvm.strByteAt(s, i, nb)
+                if nb == 123 {
+                    braced = true
+                    i = i + 1
+                }
+            }
+            long vname_buf = 0
+            fly.runtime.mem_alloc(256, vname_buf)
+            int vname_len = 0
+            while i < slen {
+                byte vb = 0
+                fly.llvm.strByteAt(s, i, vb)
+                bool is_alnum = false
+                if vb >= 65 { if vb <= 90 { is_alnum = true } }
+                if vb >= 97 { if vb <= 122 { is_alnum = true } }
+                if vb >= 48 { if vb <= 57 { is_alnum = true } }
+                if vb == 95 { is_alnum = true }
+                if braced {
+                    if vb == 125 {
+                        i = i + 1
+                        break
+                    }
+                }
+                if is_alnum == false {
+                    if braced == false { break }
+                }
+                fly.llvm.strPoke(vname_buf, vname_len, vb)
+                vname_len = vname_len + 1
+                i = i + 1
+            }
+            fly.llvm.strPoke(vname_buf, vname_len, 0)
+            long val_buf = 0
+            fly.runtime.mem_alloc(4096, val_buf)
+            int val_len = 0
+            fly.runtime.env_get(vname_buf, val_buf, 4096, val_len)
+            if val_len > 0 {
+                int v = 0
+                while v < val_len {
+                    byte vb = 0
+                    fly.llvm.ptrByteAt(val_buf, v, vb)
+                    fly.llvm.strPoke(out_buf, out_pos, vb)
+                    out_pos = out_pos + 1
+                    v = v + 1
+                }
+            }
+        }
+    }
+    fly.llvm.strMake(out_buf, out_pos, out)
 }
 
 public envCwdGet(string out) {
+    int cap = 4096
+    long buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    int len = 0
+    fly.runtime.env_getcwd(buf, cap, len)
+    if len < 0 {
+        fly.llvm.strMake(buf, 0, out)
+        return
+    }
+    fly.llvm.strMake(buf, len, out)
 }
 
 public envCwdSet(const string path) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int ret = 0
+    fly.runtime.env_chdir(cpath, ret)
 }
 
 public envArgsGet(fly_string_array out) {
+    int n = 0
+    fly.runtime.env_args_count(n)
+    if n <= 0 {
+        out.items = 0
+        out.count = 0
+        return
+    }
+    long arr = 0
+    fly.runtime.mem_alloc(n * 16, arr)
+    fly.runtime.env_args_fill(arr, n)
+    out.items = arr
+    out.count = n
 }
 
 public envArgsCount(int out) {
+    fly.runtime.env_args_count(out)
 }
 
 public envHostname(string out) {
+    int cap = 256
+    long buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    int len = 0
+    fly.runtime.env_hostname(buf, cap, len)
+    if len < 0 {
+        fly.llvm.strMake(buf, 0, out)
+        return
+    }
+    fly.llvm.strMake(buf, len, out)
 }
 
 public envOsname(string out) {
+    int cap = 16
+    long buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    int len = 0
+    fly.runtime.env_osname(buf, cap, len)
+    if len < 0 {
+        fly.llvm.strMake(buf, 0, out)
+        return
+    }
+    fly.llvm.strMake(buf, len, out)
 }
 
 public envExit(const int code) {
+    fly.runtime.proc_exit(code)
 }
 
 // ── Path ─────────────────────────────────────────────────────────────────────
 
 public pathJoin(const string base, const string comp, string out) {
+    int bs = 0
+    int cs = 0
+    fly.llvm.strSize(base, bs)
+    fly.llvm.strSize(comp, cs)
+    int need_sep = 0
+    if bs > 0 {
+        byte last = 0
+        fly.llvm.strByteAt(base, bs - 1, last)
+        if last != 47 { need_sep = 1 }
+    }
+    if need_sep != 0 {
+        if cs > 0 {
+            byte first = 0
+            fly.llvm.strByteAt(comp, 0, first)
+            if first == 47 { need_sep = 0 }
+        }
+    }
+    int total = bs + need_sep + cs
+    long buf = 0
+    fly.runtime.mem_alloc(total + 1, buf)
+    int i = 0
+    while i < bs {
+        byte b = 0
+        fly.llvm.strByteAt(base, i, b)
+        fly.llvm.strPoke(buf, i, b)
+        i = i + 1
+    }
+    if need_sep != 0 { fly.llvm.strPoke(buf, bs, 47) }
+    int off = bs + need_sep
+    i = 0
+    while i < cs {
+        byte b = 0
+        fly.llvm.strByteAt(comp, i, b)
+        fly.llvm.strPoke(buf, off + i, b)
+        i = i + 1
+    }
+    fly.llvm.strMake(buf, total, out)
 }
 
-public pathJoinN(const string parts, const ulong n, string out) {
+public pathJoinN(const string parts, const int n, string out) {
+    long base = 0
+    fly.llvm.strGetPtr(parts, base)
+    int count = n
+    if count <= 0 {
+        long empty = 0
+        fly.runtime.mem_alloc(1, empty)
+        fly.llvm.strMake(empty, 0, out)
+        return
+    }
+    // Read first slot
+    long ptr0 = 0
+    int size0 = 0
+    fly.runtime.str_slot_ptr(base, 0, ptr0)
+    fly.runtime.str_slot_size(base, 0, size0)
+    string result = ""
+    fly.llvm.strMake(ptr0, size0, result)
+    int i = 1
+    while i < count {
+        long ptri = 0
+        int sizei = 0
+        fly.runtime.str_slot_ptr(base, i, ptri)
+        fly.runtime.str_slot_size(base, i, sizei)
+        string part = ""
+        fly.llvm.strMake(ptri, sizei, part)
+        string joined = ""
+        pathJoin(result, part, joined)
+        result = joined
+        i = i + 1
+    }
+    out = result
 }
 
 public pathAbsolute(const string path, string out) {
+    bool abs = false
+    pathIsAbsolute(path, abs)
+    string cwd = ""
+    string joined = ""
+    if abs {
+        pathNormalize(path, out)
+    } else {
+        envCwdGet(cwd)
+        pathJoin(cwd, path, joined)
+        pathNormalize(joined, out)
+    }
 }
 
 public pathBasename(const string path, string out) {
+    int size = 0
+    fly.llvm.strSize(path, size)
+    if size == 0 {
+        long empty = 0
+        fly.runtime.mem_alloc(1, empty)
+        fly.llvm.strMake(empty, 0, out)
+        return
+    }
+    int last_slash = 0 - 1
+    int i = 0
+    while i < size {
+        byte b = 0
+        fly.llvm.strByteAt(path, i, b)
+        if b == 47 { last_slash = i }
+        i = i + 1
+    }
+    int start = last_slash + 1
+    int len = size - start
+    if len <= 0 {
+        long empty = 0
+        fly.runtime.mem_alloc(1, empty)
+        fly.llvm.strMake(empty, 0, out)
+        return
+    }
+    long buf = 0
+    fly.runtime.mem_alloc(len, buf)
+    i = 0
+    while i < len {
+        byte b = 0
+        fly.llvm.strByteAt(path, start + i, b)
+        fly.llvm.strPoke(buf, i, b)
+        i = i + 1
+    }
+    fly.llvm.strMake(buf, len, out)
 }
 
 public pathDirname(const string path, string out) {
+    int size = 0
+    fly.llvm.strSize(path, size)
+    int last_slash = 0 - 1
+    int i = 0
+    while i < size {
+        byte b = 0
+        fly.llvm.strByteAt(path, i, b)
+        if b == 47 { last_slash = i }
+        i = i + 1
+    }
+    int len = 0
+    if last_slash < 0 { len = 1 }
+    elsif last_slash == 0 { len = 1 }
+    else { len = last_slash }
+    long buf = 0
+    fly.runtime.mem_alloc(len, buf)
+    if last_slash < 0 {
+        fly.llvm.strPoke(buf, 0, 46)
+    } elsif last_slash == 0 {
+        fly.llvm.strPoke(buf, 0, 47)
+    } else {
+        i = 0
+        while i < len {
+            byte b = 0
+            fly.llvm.strByteAt(path, i, b)
+            fly.llvm.strPoke(buf, i, b)
+            i = i + 1
+        }
+    }
+    fly.llvm.strMake(buf, len, out)
 }
 
 public pathExt(const string path, string out) {
+    int size = 0
+    fly.llvm.strSize(path, size)
+    int last_slash = 0 - 1
+    int last_dot = 0 - 1
+    int i = 0
+    while i < size {
+        byte b = 0
+        fly.llvm.strByteAt(path, i, b)
+        if b == 47 {
+            last_slash = i
+            last_dot = 0 - 1
+        }
+        if b == 46 { last_dot = i }
+        i = i + 1
+    }
+    if last_dot <= last_slash {
+        long empty = 0
+        fly.runtime.mem_alloc(1, empty)
+        fly.llvm.strMake(empty, 0, out)
+        return
+    }
+    int len = size - last_dot
+    long buf = 0
+    fly.runtime.mem_alloc(len, buf)
+    i = 0
+    while i < len {
+        byte b = 0
+        fly.llvm.strByteAt(path, last_dot + i, b)
+        fly.llvm.strPoke(buf, i, b)
+        i = i + 1
+    }
+    fly.llvm.strMake(buf, len, out)
 }
 
 public pathStem(const string path, string out) {
+    int size = 0
+    fly.llvm.strSize(path, size)
+    int last_slash = 0 - 1
+    int last_dot = 0 - 1
+    int i = 0
+    while i < size {
+        byte b = 0
+        fly.llvm.strByteAt(path, i, b)
+        if b == 47 {
+            last_slash = i
+            last_dot = 0 - 1
+        }
+        if b == 46 { last_dot = i }
+        i = i + 1
+    }
+    int start = last_slash + 1
+    int end_pos = 0
+    if last_dot > start { end_pos = last_dot } else { end_pos = size }
+    int len = end_pos - start
+    if len <= 0 {
+        long empty = 0
+        fly.runtime.mem_alloc(1, empty)
+        fly.llvm.strMake(empty, 0, out)
+        return
+    }
+    long buf = 0
+    fly.runtime.mem_alloc(len, buf)
+    i = 0
+    while i < len {
+        byte b = 0
+        fly.llvm.strByteAt(path, start + i, b)
+        fly.llvm.strPoke(buf, i, b)
+        i = i + 1
+    }
+    fly.llvm.strMake(buf, len, out)
 }
 
 public pathSplit(const string path, string out_dir, string out_base) {
+    pathDirname(path, out_dir)
+    pathBasename(path, out_base)
 }
 
 public pathSplitExt(const string path, string out_stem, string out_ext) {
+    pathStem(path, out_stem)
+    pathExt(path, out_ext)
 }
 
 public pathIsAbsolute(const string path, bool out) {
+    int size = 0
+    fly.llvm.strSize(path, size)
+    if size == 0 {
+        out = false
+        return
+    }
+    byte b = 0
+    fly.llvm.strByteAt(path, 0, b)
+    out = b == 47
 }
 
 public pathIsRelative(const string path, bool out) {
+    bool abs = false
+    pathIsAbsolute(path, abs)
+    out = abs == false
 }
 
 public pathNormalize(const string path, string out) {
+    int plen = 0
+    fly.llvm.strSize(path, plen)
+    if plen == 0 {
+        long b0 = 0
+        fly.runtime.mem_alloc(2, b0)
+        fly.llvm.strPoke(b0, 0, 46)
+        fly.llvm.strMake(b0, 1, out)
+        return
+    }
+
+    byte first_b = 0
+    fly.llvm.strByteAt(path, 0, first_b)
+    bool absolute = first_b == 47
+
+    long buf = 0
+    fly.runtime.mem_alloc(plen + 2, buf)
+    int out_len = 0
+
+    if absolute {
+        fly.llvm.strPoke(buf, 0, 47)
+        out_len = 1
+    }
+
+    int i = 0
+    if absolute { i = 1 }
+
+    while i <= plen {
+        // find end of component
+        int j = i
+        while j < plen {
+            byte bj = 0
+            fly.llvm.strByteAt(path, j, bj)
+            if bj == 47 { break }
+            j = j + 1
+        }
+        int clen = j - i
+
+        // check if "."
+        bool is_dot = false
+        if clen == 1 {
+            byte c0 = 0
+            fly.llvm.strByteAt(path, i, c0)
+            if c0 == 46 { is_dot = true }
+        }
+
+        // check if ".."
+        bool is_dotdot = false
+        if clen == 2 {
+            byte c0 = 0
+            byte c1 = 0
+            fly.llvm.strByteAt(path, i, c0)
+            fly.llvm.strByteAt(path, i + 1, c1)
+            if c0 == 46 { if c1 == 46 { is_dotdot = true } }
+        }
+
+        bool skip_seg = false
+        if clen == 0 { skip_seg = true }
+        if is_dot    { skip_seg = true }
+
+        if skip_seg {
+            // skip
+        } elsif is_dotdot {
+            // remove last component
+            bool at_root = false
+            if absolute { if out_len <= 1 { at_root = true } }
+            if at_root {
+                out_len = 1
+            } elsif out_len > 0 {
+                int found_at = 0 - 1
+                int back = out_len - 1
+                while back >= 0 {
+                    byte pb = 0
+                    fly.llvm.ptrByteAt(buf, back, pb)
+                    if pb == 47 {
+                        found_at = back
+                        break
+                    }
+                    back = back - 1
+                }
+                if found_at < 0 {
+                    out_len = 0
+                } else {
+                    bool is_abs_root = false
+                    if absolute { if found_at == 0 { is_abs_root = true } }
+                    if is_abs_root {
+                        out_len = 1
+                    } else {
+                        out_len = found_at
+                    }
+                }
+            }
+        } else {
+            // normal component: add separator then copy bytes
+            if out_len > 0 {
+                byte prev = 0
+                fly.llvm.ptrByteAt(buf, out_len - 1, prev)
+                if prev != 47 {
+                    fly.llvm.strPoke(buf, out_len, 47)
+                    out_len = out_len + 1
+                }
+            }
+            int k = 0
+            while k < clen {
+                byte bk = 0
+                fly.llvm.strByteAt(path, i + k, bk)
+                fly.llvm.strPoke(buf, out_len, bk)
+                out_len = out_len + 1
+                k = k + 1
+            }
+        }
+
+        i = j + 1
+    }
+
+    if out_len == 0 {
+        fly.llvm.strPoke(buf, 0, 46)
+        out_len = 1
+    }
+
+    fly.llvm.strMake(buf, out_len, out)
 }
 
 public pathNormalizeInPlace(string path) {
+    string norm = ""
+    pathNormalize(path, norm)
+    path = norm
 }
 
 public pathRel(const string base, const string target, string out) {
+    string nb = ""
+    string nt = ""
+    pathNormalize(base, nb)
+    pathNormalize(target, nt)
+
+    int blen = 0
+    int tlen = 0
+    fly.llvm.strSize(nb, blen)
+    fly.llvm.strSize(nt, tlen)
+
+    // find common prefix up to last shared '/'
+    int common = 0 - 1   // -1 = no common '/' found yet
+    int i = 0
+    while i < blen {
+        if i >= tlen { break }
+        byte bb = 0
+        byte tb = 0
+        fly.llvm.strByteAt(nb, i, bb)
+        fly.llvm.strByteAt(nt, i, tb)
+        if bb != tb { break }
+        if bb == 47 { common = i }
+        i = i + 1
+    }
+    // handle identical paths or one being prefix of the other
+    bool both_done = false
+    if i == blen { if i == tlen { both_done = true } }
+    if both_done {
+        long dot_buf = 0
+        fly.runtime.mem_alloc(2, dot_buf)
+        fly.llvm.strPoke(dot_buf, 0, 46)
+        fly.llvm.strMake(dot_buf, 1, out)
+        return
+    }
+    if i == blen {
+        byte tb = 0
+        fly.llvm.strByteAt(nt, i, tb)
+        if tb == 47 { common = i }
+    } elsif i == tlen {
+        byte bb = 0
+        fly.llvm.strByteAt(nb, i, bb)
+        if bb == 47 { common = i }
+    }
+
+    // base suffix start (just after common '/')
+    int b_start = 0
+    if common >= 0 { b_start = common + 1 } else { b_start = 0 }
+    // target suffix start
+    int t_start = 0
+    if common >= 0 { t_start = common + 1 } else { t_start = 0 }
+
+    // count '..' needed: one per component in nb[b_start..]
+    int dotdot_count = 0
+    int j = b_start
+    bool in_seg = false
+    while j < blen {
+        byte bb = 0
+        fly.llvm.strByteAt(nb, j, bb)
+        if bb == 47 {
+            if in_seg { dotdot_count = dotdot_count + 1 }
+            in_seg = false
+        } else {
+            in_seg = true
+        }
+        j = j + 1
+    }
+    if in_seg { dotdot_count = dotdot_count + 1 }
+
+    // suffix of target from t_start
+    int suffix_len = tlen - t_start
+
+    // allocate result
+    int total = dotdot_count * 3 + suffix_len + 2
+    long buf = 0
+    fly.runtime.mem_alloc(total, buf)
+    int pos = 0
+
+    int d = 0
+    while d < dotdot_count {
+        fly.llvm.strPoke(buf, pos, 46)
+        fly.llvm.strPoke(buf, pos + 1, 46)
+        pos = pos + 2
+        bool add_sep = false
+        if d < dotdot_count - 1 { add_sep = true }
+        if suffix_len > 0 { add_sep = true }
+        if add_sep {
+            fly.llvm.strPoke(buf, pos, 47)
+            pos = pos + 1
+        }
+        d = d + 1
+    }
+
+    if suffix_len > 0 {
+        int k = 0
+        while k < suffix_len {
+            byte tb = 0
+            fly.llvm.strByteAt(nt, t_start + k, tb)
+            fly.llvm.strPoke(buf, pos, tb)
+            pos = pos + 1
+            k = k + 1
+        }
+    }
+
+    if pos == 0 {
+        fly.llvm.strPoke(buf, 0, 46)
+        pos = 1
+    }
+
+    fly.llvm.strMake(buf, pos, out)
 }
 
 public pathIsFile(const string path, bool out) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int fmode = 0
+    fly.runtime.fs_mode(cpath, fmode)
+    out = false
+    if fmode < 0 { return }
+    int ftype = fmode / 4096
+    int ftype16 = ftype - (ftype / 16) * 16
+    out = ftype16 == 8
 }
 
 public pathIsDir(const string path, bool out) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int fmode = 0
+    fly.runtime.fs_mode(cpath, fmode)
+    out = false
+    if fmode < 0 { return }
+    int ftype = fmode / 4096
+    int ftype16 = ftype - (ftype / 16) * 16
+    out = ftype16 == 4
 }
 
 public pathIsSym(const string path, bool out) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int fmode = 0
+    fly.runtime.fs_lmode(cpath, fmode)
+    out = false
+    if fmode < 0 { return }
+    int ftype = fmode / 4096
+    int ftype16 = ftype - (ftype / 16) * 16
+    out = ftype16 == 10
 }
 
 public pathGlob(const string pattern, fly_string_array out) {
+    int plen = 0
+    fly.llvm.strSize(pattern, plen)
+    if plen == 0 {
+        out.items = 0
+        out.count = 0
+        return
+    }
+
+    // Find last '/' to split dir and name-pattern
+    int last_sep = 0 - 1
+    int i = 0
+    while i < plen {
+        byte b = 0
+        fly.llvm.strByteAt(pattern, i, b)
+        if b == 47 { last_sep = i }
+        i = i + 1
+    }
+
+    // dir_len, pat_start, need_sep
+    int dir_len = 0
+    int pat_start = 0
+    int need_sep = 1
+    if last_sep < 0 {
+        dir_len = 1       // dir = "."
+        pat_start = 0
+    } elsif last_sep == 0 {
+        dir_len = 1       // dir = "/"
+        pat_start = 1
+        need_sep = 0      // '/' already terminates dir
+    } else {
+        dir_len = last_sep
+        pat_start = last_sep + 1
+    }
+    int pat_len = plen - pat_start
+    if pat_len <= 0 {
+        out.items = 0
+        out.count = 0
+        return
+    }
+
+    // Build dir as raw buffer + Fly string (freed at exit — that's fine)
+    long dir_buf = 0
+    fly.runtime.mem_alloc(dir_len + 1, dir_buf)
+    if last_sep < 0 {
+        fly.llvm.strPoke(dir_buf, 0, 46)   // '.'
+    } elsif last_sep == 0 {
+        fly.llvm.strPoke(dir_buf, 0, 47)   // '/'
+    } else {
+        int ki = 0
+        while ki < dir_len {
+            byte b = 0
+            fly.llvm.strByteAt(pattern, ki, b)
+            fly.llvm.strPoke(dir_buf, ki, b)
+            ki = ki + 1
+        }
+    }
+    fly.llvm.strPoke(dir_buf, dir_len, 0)
+    string dir_str = ""
+    fly.llvm.strMake(dir_buf, dir_len, dir_str)
+
+    // Build name pattern as Fly string
+    long pat_buf = 0
+    fly.runtime.mem_alloc(pat_len + 1, pat_buf)
+    int ki2 = 0
+    while ki2 < pat_len {
+        byte b = 0
+        fly.llvm.strByteAt(pattern, pat_start + ki2, b)
+        fly.llvm.strPoke(pat_buf, ki2, b)
+        ki2 = ki2 + 1
+    }
+    fly.llvm.strPoke(pat_buf, pat_len, 0)
+    string name_pat = ""
+    fly.llvm.strMake(pat_buf, pat_len, name_pat)
+
+    // Open directory
+    long cdir = 0
+    strToCstr(dir_str, cdir)
+    int oflags = 65536   // O_DIRECTORY
+    int fd = 0
+    fly.runtime.fs_open(cdir, oflags, 0, fd)
+    if fd < 0 {
+        out.items = 0
+        out.count = 0
+        return
+    }
+
+    // Result array (16 bytes per fly_string slot), grows by doubling
+    int cap = 8
+    long arr = 0
+    fly.runtime.mem_alloc(cap * 16, arr)
+    int count = 0
+
+    // Getdents read buffer
+    int gbuf_cap = 4096
+    long gbuf = 0
+    fly.runtime.mem_alloc(gbuf_cap, gbuf)
+
+    // Temporary Fly string for pathMatch (overwritten each iteration; last freed at exit)
+    string entry_name = ""
+
+    bool done = false
+    while done == false {
+        int nread = 0
+        fly.runtime.fs_getdents(fd, gbuf, gbuf_cap, nread)
+        if nread <= 0 {
+            done = true
+        } else {
+            int pos = 0
+            while pos < nread {
+                // linux_dirent64: ino(8) off(8) reclen(2) type(1) name(var)
+                byte rl0 = 0
+                byte rl1 = 0
+                fly.llvm.ptrByteAt(gbuf, pos + 16, rl0)
+                fly.llvm.ptrByteAt(gbuf, pos + 17, rl1)
+                int reclen = rl0 + rl1 * 256
+                if reclen <= 0 {
+                    done = true
+                } else {
+                    // Measure name length (null-terminated at offset 19)
+                    int name_len = 0
+                    bool name_done = false
+                    while name_done == false {
+                        byte nb = 0
+                        fly.llvm.ptrByteAt(gbuf, pos + 19 + name_len, nb)
+                        if nb == 0 { name_done = true } else { name_len = name_len + 1 }
+                    }
+
+                    // Skip "." and ".."
+                    bool skip = false
+                    if name_len == 1 {
+                        byte n0 = 0
+                        fly.llvm.ptrByteAt(gbuf, pos + 19, n0)
+                        if n0 == 46 { skip = true }
+                    }
+                    if name_len == 2 {
+                        byte n0 = 0
+                        byte n1 = 0
+                        fly.llvm.ptrByteAt(gbuf, pos + 19, n0)
+                        fly.llvm.ptrByteAt(gbuf, pos + 20, n1)
+                        if n0 == 46 { if n1 == 46 { skip = true } }
+                    }
+
+                    if skip == false {
+                        // Build entry name as Fly string for pathMatch
+                        long nbuf = 0
+                        fly.runtime.mem_alloc(name_len + 1, nbuf)
+                        int ni = 0
+                        while ni < name_len {
+                            byte nb = 0
+                            fly.llvm.ptrByteAt(gbuf, pos + 19 + ni, nb)
+                            fly.llvm.strPoke(nbuf, ni, nb)
+                            ni = ni + 1
+                        }
+                        fly.llvm.strPoke(nbuf, name_len, 0)
+                        fly.llvm.strMake(nbuf, name_len, entry_name)
+
+                        bool matched = false
+                        pathMatch(name_pat, entry_name, matched)
+
+                        if matched {
+                            // Build full path as raw buffer (not Fly string — avoids dangling)
+                            int full_len = dir_len + need_sep + name_len
+                            long fbuf = 0
+                            fly.runtime.mem_alloc(full_len + 1, fbuf)
+                            int fi = 0
+                            while fi < dir_len {
+                                byte b = 0
+                                fly.llvm.strByteAt(dir_str, fi, b)
+                                fly.llvm.strPoke(fbuf, fi, b)
+                                fi = fi + 1
+                            }
+                            if need_sep == 1 { fly.llvm.strPoke(fbuf, dir_len, 47) }
+                            int ni2 = 0
+                            while ni2 < name_len {
+                                byte nb = 0
+                                fly.llvm.ptrByteAt(gbuf, pos + 19 + ni2, nb)
+                                fly.llvm.strPoke(fbuf, dir_len + need_sep + ni2, nb)
+                                ni2 = ni2 + 1
+                            }
+                            fly.llvm.strPoke(fbuf, full_len, 0)
+
+                            // Grow array if needed
+                            if count >= cap {
+                                cap = cap * 2
+                                long new_arr = 0
+                                fly.runtime.mem_alloc(cap * 16, new_arr)
+                                int ci = 0
+                                while ci < count {
+                                    long ptri = 0
+                                    int sizei = 0
+                                    fly.runtime.str_slot_ptr(arr, ci, ptri)
+                                    fly.runtime.str_slot_size(arr, ci, sizei)
+                                    fly.runtime.str_slot_set(new_arr, ci, ptri, sizei)
+                                    ci = ci + 1
+                                }
+                                arr = new_arr
+                            }
+
+                            fly.runtime.str_slot_set(arr, count, fbuf, full_len)
+                            count = count + 1
+                        }
+                    }
+
+                    pos = pos + reclen
+                }
+            }
+        }
+    }
+
+    fly.runtime.fs_close(fd)
+    out.items = arr
+    out.count = count
+}
+
+// pathGlobCount: count files matching pattern without building a string array.
+// Fully usable from Fly code (avoids fly_string_array local struct limitation).
+public pathGlobCount(const string pattern, int out) {
+    int plen = 0
+    fly.llvm.strSize(pattern, plen)
+    if plen == 0 {
+        out = 0
+        return
+    }
+
+    int last_sep = 0 - 1
+    int i = 0
+    while i < plen {
+        byte b = 0
+        fly.llvm.strByteAt(pattern, i, b)
+        if b == 47 { last_sep = i }
+        i = i + 1
+    }
+
+    int dir_len = 0
+    int pat_start = 0
+    if last_sep < 0 {
+        dir_len = 1
+        pat_start = 0
+    } elsif last_sep == 0 {
+        dir_len = 1
+        pat_start = 1
+    } else {
+        dir_len = last_sep
+        pat_start = last_sep + 1
+    }
+    int pat_len = plen - pat_start
+    if pat_len <= 0 {
+        out = 0
+        return
+    }
+
+    long dir_buf = 0
+    fly.runtime.mem_alloc(dir_len + 1, dir_buf)
+    if last_sep < 0 {
+        fly.llvm.strPoke(dir_buf, 0, 46)
+    } elsif last_sep == 0 {
+        fly.llvm.strPoke(dir_buf, 0, 47)
+    } else {
+        int ki = 0
+        while ki < dir_len {
+            byte b = 0
+            fly.llvm.strByteAt(pattern, ki, b)
+            fly.llvm.strPoke(dir_buf, ki, b)
+            ki = ki + 1
+        }
+    }
+    fly.llvm.strPoke(dir_buf, dir_len, 0)
+    string dir_str = ""
+    fly.llvm.strMake(dir_buf, dir_len, dir_str)
+
+    long pat_buf = 0
+    fly.runtime.mem_alloc(pat_len + 1, pat_buf)
+    int ki2 = 0
+    while ki2 < pat_len {
+        byte b = 0
+        fly.llvm.strByteAt(pattern, pat_start + ki2, b)
+        fly.llvm.strPoke(pat_buf, ki2, b)
+        ki2 = ki2 + 1
+    }
+    fly.llvm.strPoke(pat_buf, pat_len, 0)
+    string name_pat = ""
+    fly.llvm.strMake(pat_buf, pat_len, name_pat)
+
+    long cdir = 0
+    strToCstr(dir_str, cdir)
+    int fd = 0
+    fly.runtime.fs_open(cdir, 65536, 0, fd)
+    if fd < 0 {
+        out = 0
+        return
+    }
+
+    int count = 0
+    int gbuf_cap = 4096
+    long gbuf = 0
+    fly.runtime.mem_alloc(gbuf_cap, gbuf)
+    string entry_name = ""
+    bool done = false
+
+    while done == false {
+        int nread = 0
+        fly.runtime.fs_getdents(fd, gbuf, gbuf_cap, nread)
+        if nread <= 0 {
+            done = true
+        } else {
+            int pos = 0
+            while pos < nread {
+                byte rl0 = 0
+                byte rl1 = 0
+                fly.llvm.ptrByteAt(gbuf, pos + 16, rl0)
+                fly.llvm.ptrByteAt(gbuf, pos + 17, rl1)
+                int reclen = rl0 + rl1 * 256
+                if reclen <= 0 {
+                    done = true
+                } else {
+                    int name_len = 0
+                    bool name_done = false
+                    while name_done == false {
+                        byte nb = 0
+                        fly.llvm.ptrByteAt(gbuf, pos + 19 + name_len, nb)
+                        if nb == 0 { name_done = true } else { name_len = name_len + 1 }
+                    }
+                    bool skip = false
+                    if name_len == 1 {
+                        byte n0 = 0
+                        fly.llvm.ptrByteAt(gbuf, pos + 19, n0)
+                        if n0 == 46 { skip = true }
+                    }
+                    if name_len == 2 {
+                        byte n0 = 0
+                        byte n1 = 0
+                        fly.llvm.ptrByteAt(gbuf, pos + 19, n0)
+                        fly.llvm.ptrByteAt(gbuf, pos + 20, n1)
+                        if n0 == 46 { if n1 == 46 { skip = true } }
+                    }
+                    if skip == false {
+                        long nbuf = 0
+                        fly.runtime.mem_alloc(name_len + 1, nbuf)
+                        int ni = 0
+                        while ni < name_len {
+                            byte nb = 0
+                            fly.llvm.ptrByteAt(gbuf, pos + 19 + ni, nb)
+                            fly.llvm.strPoke(nbuf, ni, nb)
+                            ni = ni + 1
+                        }
+                        fly.llvm.strPoke(nbuf, name_len, 0)
+                        fly.llvm.strMake(nbuf, name_len, entry_name)
+                        bool matched = false
+                        pathMatch(name_pat, entry_name, matched)
+                        if matched { count = count + 1 }
+                    }
+                    pos = pos + reclen
+                }
+            }
+        }
+    }
+
+    fly.runtime.fs_close(fd)
+    out = count
 }
 
 public pathMatch(const string pattern, const string name, bool out) {
+    int plen = 0
+    int nlen = 0
+    fly.llvm.strSize(pattern, plen)
+    fly.llvm.strSize(name, nlen)
+
+    // simple greedy '*'/'?' matching (no character classes)
+    int pi = 0
+    int ni = 0
+    int star_pi = 0 - 1
+    int star_ni = 0
+
+    while ni < nlen {
+        if pi < plen {
+            byte pb = 0
+            byte nb = 0
+            fly.llvm.strByteAt(pattern, pi, pb)
+            fly.llvm.strByteAt(name, ni, nb)
+            if pb == 42 {
+                // '*' — record position and advance pattern
+                star_pi = pi
+                star_ni = ni
+                pi = pi + 1
+            } else {
+                bool match_ch = false
+                if pb == 63 { match_ch = true }
+                if pb == nb { match_ch = true }
+                if match_ch {
+                    pi = pi + 1
+                    ni = ni + 1
+                } else {
+                    if star_pi < 0 {
+                        out = false
+                        return
+                    }
+                    star_ni = star_ni + 1
+                    ni = star_ni
+                    pi = star_pi + 1
+                }
+            }
+        } else {
+            if star_pi < 0 {
+                out = false
+                return
+            }
+            star_ni = star_ni + 1
+            ni = star_ni
+            pi = star_pi + 1
+        }
+    }
+
+    // consume trailing '*' in pattern
+    while pi < plen {
+        byte pb = 0
+        fly.llvm.strByteAt(pattern, pi, pb)
+        if pb != 42 {
+            out = false
+            return
+        }
+        pi = pi + 1
+    }
+
+    out = true
 }
 
 public pathComp(const string path, fly_string_array out) {
+    int plen = 0
+    fly.llvm.strSize(path, plen)
+    if plen == 0 {
+        out.items = 0
+        out.count = 0
+        return
+    }
+
+    // count components
+    int count = 0
+    int start = 0
+    if plen > 0 {
+        byte fb = 0
+        fly.llvm.strByteAt(path, 0, fb)
+        if fb == 47 { start = 1 }
+    }
+    bool in_comp = false
+    int i = start
+    while i < plen {
+        byte b = 0
+        fly.llvm.strByteAt(path, i, b)
+        if b == 47 {
+            if in_comp { count = count + 1 }
+            in_comp = false
+        } else {
+            in_comp = true
+        }
+        i = i + 1
+    }
+    if in_comp { count = count + 1 }
+
+    if count == 0 {
+        out.items = 0
+        out.count = 0
+        return
+    }
+
+    long arr = 0
+    fly.runtime.mem_alloc(count * 16, arr)
+
+    // fill slots
+    i = start
+    int ci = 0
+    int comp_start = start
+    bool in_comp2 = false
+    while i <= plen {
+        byte b = 0
+        bool at_sep = i == plen
+        if at_sep == false { fly.llvm.strByteAt(path, i, b) }
+        bool is_sep_or_end = at_sep
+        if b == 47 { is_sep_or_end = true }
+        if is_sep_or_end {
+            if in_comp2 {
+                int clen = i - comp_start
+                long cbuf = 0
+                fly.runtime.mem_alloc(clen + 1, cbuf)
+                int k = 0
+                while k < clen {
+                    byte bk = 0
+                    fly.llvm.strByteAt(path, comp_start + k, bk)
+                    fly.llvm.strPoke(cbuf, k, bk)
+                    k = k + 1
+                }
+                fly.llvm.strPoke(cbuf, clen, 0)
+                fly.runtime.str_slot_set(arr, ci, cbuf, clen)
+                ci = ci + 1
+            }
+            in_comp2 = false
+            comp_start = i + 1
+        } else {
+            if in_comp2 == false {
+                comp_start = i
+                in_comp2 = true
+            }
+        }
+        i = i + 1
+    }
+
+    out.items = arr
+    out.count = ci
 }
 
 public pathSep(byte out) {
+    out = 47
 }
 
 // ── FS ───────────────────────────────────────────────────────────────────────
 
 public fsOpen(const string path, fly_file out) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int oflags = 0
+    int operm = 0
+    int fd = 0
+    fly.runtime.fs_open(cpath, oflags, operm, fd)
+    out.fd = fd
+    out.flags = 1
 }
 
 public fsCreate(const string path, fly_file out) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int oflags = 577
+    int operm = 420
+    int fd = 0
+    fly.runtime.fs_open(cpath, oflags, operm, fd)
+    out.fd = fd
+    out.flags = 2
 }
 
-public fsOpenOpts(const string path, const byte flags, const uint perm, fly_file out) {
+public fsOpenOpts(const string path, const int flags, const int perm, fly_file out) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int fd = 0
+    fly.runtime.fs_open(cpath, flags, perm, fd)
+    out.fd = fd
+    out.flags = 0
 }
 
 public fsClose(fly_file f) {
+    fly.runtime.fs_close(f.fd)
 }
 
-public fsReader(fly_file f, fly_reader out) {
+public fsReader(fly_file f, Reader out) {
+    FileReader fr = new FileReader()
+    fr.fd = f.fd
+    out = fr
 }
 
-public fsWriter(fly_file f, fly_writer out) {
+public fsWriter(fly_file f, Writer out) {
+    FileWriter fw = new FileWriter()
+    fw.fd = f.fd
+    out = fw
 }
 
 public fsRead(const string path, fly_buf out) {
+    ulong fsize = 0
+    fsSize(path, fsize)
+    ulong cap = fsize
+    if cap == 0 { cap = 1 }
+    long buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    out.ptr = buf
+    out.size = 0
+    out.cap = cap
+    if fsize == 0 { return }
+
+    long cpath = 0
+    strToCstr(path, cpath)
+    int fd = 0
+    fly.runtime.fs_open(cpath, 0, 0, fd)
+    if fd < 0 { return }
+
+    long nread = 0
+    fly.runtime.fs_read(fd, buf, fsize, nread)
+    fly.runtime.fs_close(fd)
+    if nread > 0 { out.size = nread }
 }
 
-public fsWrite(const string path, fly_buf data, const uint perm) {
+public fsWrite(const string path, fly_buf data, const int perm) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int flags = 577   // O_WRONLY|O_CREAT|O_TRUNC
+    int fd = 0
+    fly.runtime.fs_open(cpath, flags, perm, fd)
+    if fd < 0 { return }
+    long nwritten = 0
+    fly.runtime.fs_write(fd, data.ptr, data.size, nwritten)
+    fly.runtime.fs_close(fd)
 }
 
-public fsAppend(const string path, fly_buf data, const uint perm) {
+public fsAppend(const string path, fly_buf data, const int perm) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int flags = 1089  // O_WRONLY|O_CREAT|O_APPEND
+    int fd = 0
+    fly.runtime.fs_open(cpath, flags, perm, fd)
+    if fd < 0 { return }
+    long nwritten = 0
+    fly.runtime.fs_write(fd, data.ptr, data.size, nwritten)
+    fly.runtime.fs_close(fd)
 }
 
 public fsSeekTo(fly_file f, const long offset, const int whence, long out) {
+    fly.runtime.fs_seek(f.fd, offset, whence, out)
 }
 
 public fsSeekPos(fly_file f, long out) {
+    long zero = 0
+    int cur = 1
+    fly.runtime.fs_seek(f.fd, zero, cur, out)
 }
 
 public fsStat(const string path, fly_stat out) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int fmode = 0
+    fly.runtime.fs_mode(cpath, fmode)
+    out.size = 0
+    out.is_file = 0
+    out.is_dir = 0
+    out.is_symlink = 0
+    if fmode < 0 { return }
+    long fsize = 0
+    fly.runtime.fs_size(cpath, fsize)
+    out.size = fsize
+    fillStatMode(fmode, out)
 }
 
 public fsLstat(const string path, fly_stat out) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int fmode = 0
+    fly.runtime.fs_lmode(cpath, fmode)
+    out.size = 0
+    out.is_file = 0
+    out.is_dir = 0
+    out.is_symlink = 0
+    if fmode < 0 { return }
+    long fsize = 0
+    fly.runtime.fs_lsize(cpath, fsize)
+    out.size = fsize
+    fillStatMode(fmode, out)
 }
 
 public fsSize(const string path, ulong out) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    long fsize = 0
+    fly.runtime.fs_size(cpath, fsize)
+    if fsize < 0 { fsize = 0 }
+    out = fsize
 }
 
 public fsExists(const string path, bool out) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int fmode = 0
+    fly.runtime.fs_mode(cpath, fmode)
+    out = fmode >= 0
 }
 
 public fsSync(fly_file f) {
+    int ret = 0
+    fly.runtime.fs_fsync(f.fd, ret)
 }
 
-public fsTruncate(const string path, const ulong size) {
+public fsTruncate(const string path, const long size) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int ret = 0
+    fly.runtime.fs_truncate(cpath, size, ret)
 }
 
-public fsChmod(const string path, const uint mode) {
+public fsChmod(const string path, const int mode) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int ret = 0
+    fly.runtime.fs_chmod(cpath, mode, ret)
 }
 
 public fsDelete(const string path) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int ret = 0
+    fly.runtime.fs_unlink(cpath, ret)
 }
 
 public fsCopy(const string src, const string dst) {
+    long cpath_src = 0
+    strToCstr(src, cpath_src)
+    long fsize = 0
+    fly.runtime.fs_size(cpath_src, fsize)
+    if fsize < 0 { fsize = 0 }
+    ulong write_size = fsize
+    ulong alloc_size = fsize
+    if alloc_size == 0 { alloc_size = 1 }
+    long buf = 0
+    fly.runtime.mem_alloc(alloc_size, buf)
+    if fsize > 0 {
+        int fd_src = 0
+        fly.runtime.fs_open(cpath_src, 0, 0, fd_src)
+        if fd_src >= 0 {
+            long nread = 0
+            fly.runtime.fs_read(fd_src, buf, write_size, nread)
+            fly.runtime.fs_close(fd_src)
+        }
+    }
+    long cpath_dst = 0
+    strToCstr(dst, cpath_dst)
+    int flags = 577
+    int fd_dst = 0
+    fly.runtime.fs_open(cpath_dst, flags, 420, fd_dst)
+    if fd_dst < 0 { return }
+    long nwritten = 0
+    fly.runtime.fs_write(fd_dst, buf, write_size, nwritten)
+    fly.runtime.fs_close(fd_dst)
 }
 
 public fsMove(const string src, const string dst) {
+    long csrc = 0
+    long cdst = 0
+    strToCstr(src, csrc)
+    strToCstr(dst, cdst)
+    int ret = 0
+    fly.runtime.fs_rename(csrc, cdst, ret)
 }
 
 public fsRename(const string src, const string dst) {
+    long csrc = 0
+    long cdst = 0
+    strToCstr(src, csrc)
+    strToCstr(dst, cdst)
+    int ret = 0
+    fly.runtime.fs_rename(csrc, cdst, ret)
 }
 
-public fsDirCreate(const string path, const uint perm) {
+public fsDirCreate(const string path, const int perm) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int ret = 0
+    fly.runtime.fs_mkdir(cpath, perm, ret)
 }
 
-public fsDirCreateAll(const string path, const uint perm) {
+public fsDirCreateAll(const string path, const int perm) {
+    int plen = 0
+    fly.llvm.strSize(path, plen)
+    if plen == 0 { return }
+
+    // copy path into a mutable buffer so we can null-terminate at each '/'
+    long buf = 0
+    fly.runtime.mem_alloc(plen + 2, buf)
+    int k = 0
+    while k < plen {
+        byte bk = 0
+        fly.llvm.strByteAt(path, k, bk)
+        fly.llvm.strPoke(buf, k, bk)
+        k = k + 1
+    }
+    fly.llvm.strPoke(buf, plen, 0)
+
+    int i = 1   // start at 1 (skip root '/' or first component char)
+    while i <= plen {
+        byte b = 0
+        if i < plen { fly.llvm.ptrByteAt(buf, i, b) }
+        bool at_bound = false
+        if b == 47 { at_bound = true }
+        if i == plen { at_bound = true }
+        if at_bound {
+            // temporarily null-terminate here
+            fly.llvm.strPoke(buf, i, 0)
+            int ret = 0
+            fly.runtime.fs_mkdir(buf, perm, ret)
+            // restore original byte
+            fly.llvm.strPoke(buf, i, b)
+        }
+        i = i + 1
+    }
 }
 
 public fsDirDelete(const string path) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int ret = 0
+    fly.runtime.fs_rmdir(cpath, ret)
 }
 
 public fsDirDeleteAll(const string path) {
+    // open the directory
+    long cpath = 0
+    strToCstr(path, cpath)
+    int fd = 0
+    fly.runtime.fs_open(cpath, 0, 0, fd)
+    if fd < 0 { return }
+
+    // read entries with getdents64
+    int bufsize = 4096
+    long dbuf = 0
+    fly.runtime.mem_alloc(bufsize, dbuf)
+
+    bool done = false
+    while done == false {
+        int nbytes = 0
+        fly.runtime.fs_getdents(fd, dbuf, bufsize, nbytes)
+        if nbytes <= 0 {
+            done = true
+        } else {
+            int pos = 0
+            while pos < nbytes {
+                // d_reclen at bytes 16-17 (little-endian uint16)
+                byte rlen_lo = 0
+                byte rlen_hi = 0
+                fly.llvm.ptrByteAt(dbuf, pos + 16, rlen_lo)
+                fly.llvm.ptrByteAt(dbuf, pos + 17, rlen_hi)
+                int rlo = rlen_lo
+                int rhi = rlen_hi
+                int reclen = rlo + rhi * 256
+                if reclen <= 0 { done = true }
+
+                // d_type at byte 18: 4=DT_DIR, 8=DT_REG, 10=DT_LNK
+                byte dtype = 0
+                fly.llvm.ptrByteAt(dbuf, pos + 18, dtype)
+
+                // d_name from byte 19 (null-terminated)
+                int name_len = 0
+                byte nb = 1
+                while nb != 0 {
+                    fly.llvm.ptrByteAt(dbuf, pos + 19 + name_len, nb)
+                    if nb != 0 { name_len = name_len + 1 }
+                }
+
+                // skip "." and ".."
+                bool skip = false
+                if name_len == 1 {
+                    byte n0 = 0
+                    fly.llvm.ptrByteAt(dbuf, pos + 19, n0)
+                    if n0 == 46 { skip = true }
+                }
+                if name_len == 2 {
+                    byte n0 = 0
+                    byte n1 = 0
+                    fly.llvm.ptrByteAt(dbuf, pos + 19, n0)
+                    fly.llvm.ptrByteAt(dbuf, pos + 20, n1)
+                    if n0 == 46 { if n1 == 46 { skip = true } }
+                }
+
+                if skip == false {
+                    if reclen > 0 {
+                        // Build entry_path = path + "/" + name into a fresh buffer
+                        // (cannot use strMake with interior pointer dbuf+pos+19 as
+                        //  Fly frees the string ptr at function exit)
+                        int path_len = 0
+                        fly.llvm.strSize(path, path_len)
+                        int ep_total = path_len + 1 + name_len
+                        long ep_buf = 0
+                        fly.runtime.mem_alloc(ep_total + 1, ep_buf)
+                        int ki = 0
+                        while ki < path_len {
+                            byte pb = 0
+                            fly.llvm.strByteAt(path, ki, pb)
+                            fly.llvm.strPoke(ep_buf, ki, pb)
+                            ki = ki + 1
+                        }
+                        fly.llvm.strPoke(ep_buf, path_len, 47)
+                        int ni2 = 0
+                        while ni2 < name_len {
+                            byte nb2 = 0
+                            fly.llvm.ptrByteAt(dbuf, pos + 19 + ni2, nb2)
+                            fly.llvm.strPoke(ep_buf, path_len + 1 + ni2, nb2)
+                            ni2 = ni2 + 1
+                        }
+                        fly.llvm.strPoke(ep_buf, ep_total, 0)
+                        string entry_path = ""
+                        fly.llvm.strMake(ep_buf, ep_total, entry_path)
+
+                        if dtype == 4 {
+                            fsDirDeleteAll(entry_path)
+                        } else {
+                            long centry = 0
+                            strToCstr(entry_path, centry)
+                            int ret = 0
+                            fly.runtime.fs_unlink(centry, ret)
+                        }
+                    }
+                }
+
+                if reclen > 0 { pos = pos + reclen } else { done = true }
+            }
+        }
+    }
+
+    fly.runtime.fs_close(fd)
+    int ret2 = 0
+    fly.runtime.fs_rmdir(cpath, ret2)
 }
 
 public fsDirRead(const string path, fly_dir_entries out) {
+    // stub: requires writing composite fly_dir_entry structs to raw memory
+    out.items = 0
+    out.len = 0
+    out.cap = 0
 }
 
 public fsSymlinkCreate(const string target, const string link) {
+    long ctarget = 0
+    long clink = 0
+    strToCstr(target, ctarget)
+    strToCstr(link, clink)
+    int ret = 0
+    fly.runtime.fs_symlink(ctarget, clink, ret)
 }
 
 public fsSymlinkRead(const string path, string out) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int cap = 4096
+    long buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    int nread = 0
+    fly.runtime.fs_readlink(cpath, buf, cap, nread)
+    if nread <= 0 {
+        fly.llvm.strMake(buf, 0, out)
+        return
+    }
+    fly.llvm.strMake(buf, nread, out)
 }
 
 public fsTempFile(const string dir, const string pattern, string out_path, fly_file out_file) {
+    long base_ns = 0
+    fly.runtime.time_mono_ns(base_ns)
+
+    int plen = 0
+    fly.llvm.strSize(pattern, plen)
+
+    int counter = 0
+    while counter < 10000 {
+        long name_buf = 0
+        fly.runtime.mem_alloc(plen + 32, name_buf)
+        int k = 0
+        while k < plen {
+            byte bk = 0
+            fly.llvm.strByteAt(pattern, k, bk)
+            fly.llvm.strPoke(name_buf, k, bk)
+            k = k + 1
+        }
+        int npos = plen
+        long unique = base_ns + counter
+        int npos2 = 0
+        appendDecimal(unique, name_buf, npos, npos2)
+        npos = npos2
+        string name_str = ""
+        fly.llvm.strMake(name_buf, npos, name_str)
+        string full_path = ""
+        pathJoin(dir, name_str, full_path)
+        long cpath = 0
+        strToCstr(full_path, cpath)
+        // O_WRONLY|O_CREAT|O_EXCL = 1|64|128 = 193, mode 0600 = 384
+        int fd = 0
+        fly.runtime.fs_open(cpath, 193, 384, fd)
+        if fd >= 0 {
+            out_path = full_path
+            out_file.fd = fd
+            out_file.flags = 2
+            return
+        }
+        counter = counter + 1
+    }
+    out_file.fd = 0 - 1
+    out_file.flags = 0
 }
 
 public fsTempDir(const string dir, const string pattern, string out_path) {
+    long base_ns = 0
+    fly.runtime.time_mono_ns(base_ns)
+
+    int plen = 0
+    fly.llvm.strSize(pattern, plen)
+    string name_str = ""
+
+    int counter = 0
+    while counter < 10000 {
+        long name_buf = 0
+        fly.runtime.mem_alloc(plen + 32, name_buf)
+        int k = 0
+        while k < plen {
+            byte bk = 0
+            fly.llvm.strByteAt(pattern, k, bk)
+            fly.llvm.strPoke(name_buf, k, bk)
+            k = k + 1
+        }
+        int npos = plen
+        long unique = base_ns + counter
+        int npos2 = 0
+        appendDecimal(unique, name_buf, npos, npos2)
+        npos = npos2
+        fly.llvm.strMake(name_buf, npos, name_str)
+        pathJoin(dir, name_str, out_path)
+        long cpath = 0
+        strToCstr(out_path, cpath)
+        // mode 0700 = 448
+        int ret = 0
+        fly.runtime.fs_mkdir(cpath, 448, ret)
+        if ret >= 0 {
+            return
+        }
+        counter = counter + 1
+    }
+}
+
+// ── Primitive convenience wrappers ───────────────────────────────────────────
+
+// Write a Fly string to a file (creates/truncates).
+public fsWriteStr(const string path, const string content, const int perm) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    long ptr = 0
+    int size = 0
+    fly.llvm.strGetPtr(content, ptr)
+    fly.llvm.strSize(content, size)
+    int flags = 577   // O_WRONLY|O_CREAT|O_TRUNC
+    int fd = 0
+    fly.runtime.fs_open(cpath, flags, perm, fd)
+    if fd < 0 { return }
+    long nwritten = 0
+    fly.runtime.fs_write(fd, ptr, size, nwritten)
+    fly.runtime.fs_close(fd)
+}
+
+// Read file contents into a Fly string.
+public fsReadStr(const string path, string out) {
+    ulong fsize = 0
+    fsSize(path, fsize)
+    if fsize == 0 {
+        long empty = 0
+        fly.runtime.mem_alloc(1, empty)
+        fly.llvm.strMake(empty, 0, out)
+        return
+    }
+    ulong cap = fsize
+    long buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    long cpath = 0
+    strToCstr(path, cpath)
+    int fd = 0
+    fly.runtime.fs_open(cpath, 0, 0, fd)
+    if fd < 0 {
+        fly.llvm.strMake(buf, 0, out)
+        return
+    }
+    long nread = 0
+    fly.runtime.fs_read(fd, buf, fsize, nread)
+    fly.runtime.fs_close(fd)
+    if nread > 0 {
+        int nread_int = 0
+        fly.llvm.longToInt(nread, nread_int)
+        fly.llvm.strMake(buf, nread_int, out)
+    } else {
+        fly.llvm.strMake(buf, 0, out)
+    }
+}
+
+// Append a Fly string to a file.
+public fsAppendStr(const string path, const string content, const int perm) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    long ptr = 0
+    int size = 0
+    fly.llvm.strGetPtr(content, ptr)
+    fly.llvm.strSize(content, size)
+    int flags = 1089  // O_WRONLY|O_CREAT|O_APPEND
+    int fd = 0
+    fly.runtime.fs_open(cpath, flags, perm, fd)
+    if fd < 0 { return }
+    long nwritten = 0
+    fly.runtime.fs_write(fd, ptr, size, nwritten)
+    fly.runtime.fs_close(fd)
+}
+
+// Return current Unix timestamp (seconds since epoch).
+public timeNowSec(long out) {
+    long total_ns = 0
+    fly.runtime.time_now_ns(total_ns)
+    long ns_per_sec = 1000000000
+    out = total_ns / ns_per_sec
+}
+
+// Format a duration (given as nanoseconds) to a human-readable string.
+public durationFormatNsec(const long nsec, string out) {
+    long ns = nsec
+    if ns < 0 { ns = 0 - ns }
+    if ns == 0 {
+        long b0 = 0
+        fly.runtime.mem_alloc(4, b0)
+        fly.llvm.strPoke(b0, 0, 48)
+        fly.llvm.strPoke(b0, 1, 115)
+        fly.llvm.strMake(b0, 2, out)
+        return
+    }
+
+    long ns_per_hr  = 3600000000000
+    long ns_per_min = 60000000000
+    long ns_per_sec = 1000000000
+    long ns_per_ms  = 1000000
+    long ns_per_us  = 1000
+
+    long hours = ns / ns_per_hr
+    long rem   = ns - hours * ns_per_hr
+    long mins  = rem / ns_per_min
+    rem        = rem - mins * ns_per_min
+    long secs  = rem / ns_per_sec
+    rem        = rem - secs * ns_per_sec
+    long ms    = rem / ns_per_ms
+    rem        = rem - ms * ns_per_ms
+    long us    = rem / ns_per_us
+    long nanos = rem - us * ns_per_us
+
+    long buf = 0
+    fly.runtime.mem_alloc(64, buf)
+    int pos = 0
+
+    bool has_large = false
+    if hours > 0 { has_large = true }
+    if mins > 0  { has_large = true }
+    if secs > 0  { has_large = true }
+
+    int p2 = 0
+    if has_large {
+        if hours > 0 {
+            appendDecimal(hours, buf, pos, p2)
+            pos = p2
+            fly.llvm.strPoke(buf, pos, 104)
+            pos = pos + 1
+        }
+        bool has_hm = false
+        if hours > 0 { has_hm = true }
+        if mins > 0  { has_hm = true }
+        if has_hm {
+            if hours > 0 {
+                if mins < 10 {
+                    fly.llvm.strPoke(buf, pos, 48)
+                    pos = pos + 1
+                }
+            }
+            appendDecimal(mins, buf, pos, p2)
+            pos = p2
+            fly.llvm.strPoke(buf, pos, 109)
+            pos = pos + 1
+        }
+        if has_hm {
+            if secs < 10 {
+                fly.llvm.strPoke(buf, pos, 48)
+                pos = pos + 1
+            }
+        }
+        appendDecimal(secs, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    } elsif ms > 0 {
+        appendDecimal(ms, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 109)
+        pos = pos + 1
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    } elsif us > 0 {
+        appendDecimal(us, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 117)
+        pos = pos + 1
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    } else {
+        appendDecimal(nanos, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 110)
+        pos = pos + 1
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    }
+
+    fly.llvm.strMake(buf, pos, out)
+}
+
+// Count environment variables.
+public envAllCount(int out) {
+    fly.runtime.env_all_count(out)
+}
+
+// Count path components (counts non-empty segments separated by '/').
+public pathCompCount(const string path, int out) {
+    int plen = 0
+    fly.llvm.strSize(path, plen)
+    int count = 0
+    bool in_comp = false
+    int start = 0
+    if plen > 0 {
+        byte fb = 0
+        fly.llvm.strByteAt(path, 0, fb)
+        if fb == 47 { start = 1 }
+    }
+    int i = start
+    while i < plen {
+        byte b = 0
+        fly.llvm.strByteAt(path, i, b)
+        if b == 47 {
+            if in_comp { count = count + 1 }
+            in_comp = false
+        } else {
+            in_comp = true
+        }
+        i = i + 1
+    }
+    if in_comp { count = count + 1 }
+    out = count
+}
+
+// stat: returns true if path is a regular file.
+// S_IFREG = 0x8000 → mode & 0xF000 == 0x8000 → (mode >> 12) & 0xF == 8
+public fsIsFile(const string path, bool out) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int fmode = 0
+    fly.runtime.fs_mode(cpath, fmode)
+    if fmode < 0 {
+        out = false
+        return
+    }
+    int ftype = fmode / 4096
+    int ftype16 = ftype - (ftype / 16) * 16
+    if ftype16 == 8 { out = true } else { out = false }
+}
+
+// stat: returns true if path is a directory.
+// S_IFDIR = 0x4000 → (mode >> 12) & 0xF == 4
+public fsIsDir(const string path, bool out) {
+    long cpath = 0
+    strToCstr(path, cpath)
+    int fmode = 0
+    fly.runtime.fs_mode(cpath, fmode)
+    if fmode < 0 {
+        out = false
+        return
+    }
+    int ftype = fmode / 4096
+    int ftype16 = ftype - (ftype / 16) * 16
+    if ftype16 == 4 { out = true } else { out = false }
 }
 
 // ── IO ───────────────────────────────────────────────────────────────────────
 
-public ioRead(fly_reader r, fly_buf buf, const ulong n, ulong out_read) {
+public ioRead(Reader r, fly_buf buf, const ulong n, long out_read) {
+    r.read(buf, n, out_read)
 }
 
-public ioReadAll(fly_reader r, fly_buf out) {
+public ioReadAll(Reader r, fly_buf out) {
+    int cap = 4096
+    long buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    int total = 0
+    bool done = false
+    while done == false {
+        int avail = cap - total
+        long tmp = 0
+        fly.runtime.mem_alloc(avail, tmp)
+        fly_buf chunk = new fly_buf()
+        chunk.ptr = tmp
+        chunk.size = 0
+        ulong avail_u = avail
+        chunk.cap = avail_u
+        long nread = 0
+        r.read(chunk, avail_u, nread)
+        if nread == 0 {
+            done = true
+        } else {
+            int nread_int = 0
+            fly.llvm.longToInt(nread, nread_int)
+            int i = 0
+            while i < nread_int {
+                byte b = 0
+                fly.llvm.ptrByteAt(tmp, i, b)
+                fly.llvm.strPoke(buf, total + i, b)
+                i = i + 1
+            }
+            total = total + nread_int
+            if total >= cap {
+                int newcap = cap * 2
+                long newbuf = 0
+                fly.runtime.mem_alloc(newcap, newbuf)
+                int j = 0
+                while j < total {
+                    byte bb = 0
+                    fly.llvm.ptrByteAt(buf, j, bb)
+                    fly.llvm.strPoke(newbuf, j, bb)
+                    j = j + 1
+                }
+                buf = newbuf
+                cap = newcap
+            }
+        }
+    }
+    out.ptr = buf
+    out.size = total
+    out.cap = cap
 }
 
-public ioReadLine(fly_reader r, string out) {
+public ioReadLine(Reader r, string out) {
+    int cap = 256
+    long buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    int pos = 0
+    bool done = false
+    while done == false {
+        long tmp = 0
+        fly.runtime.mem_alloc(1, tmp)
+        fly_buf chunk = new fly_buf()
+        chunk.ptr = tmp
+        chunk.size = 0
+        chunk.cap = 1
+        long nread = 0
+        r.read(chunk, 1, nread)
+        if nread == 0 {
+            done = true
+        } else {
+            byte b = 0
+            fly.llvm.ptrByteAt(tmp, 0, b)
+            if b == 10 {
+                done = true
+            } else {
+                if pos >= cap {
+                    int newcap = cap * 2
+                    long newbuf = 0
+                    fly.runtime.mem_alloc(newcap, newbuf)
+                    int j = 0
+                    while j < pos {
+                        byte bb = 0
+                        fly.llvm.ptrByteAt(buf, j, bb)
+                        fly.llvm.strPoke(newbuf, j, bb)
+                        j = j + 1
+                    }
+                    buf = newbuf
+                    cap = newcap
+                }
+                fly.llvm.strPoke(buf, pos, b)
+                pos = pos + 1
+            }
+        }
+    }
+    fly.llvm.strMake(buf, pos, out)
 }
 
-public ioReadLines(fly_reader r, fly_string_array out) {
+public ioReadLines(Reader r, fly_string_array out) {
+    int arr_cap = 16
+    long arr = 0
+    fly.runtime.mem_alloc(arr_cap * 16, arr)
+    int count = 0
+    bool at_eof = false
+    while at_eof == false {
+        int line_cap = 256
+        long line_buf = 0
+        fly.runtime.mem_alloc(line_cap, line_buf)
+        int pos = 0
+        bool line_done = false
+        while line_done == false {
+            long tmp = 0
+            fly.runtime.mem_alloc(1, tmp)
+            fly_buf chunk = new fly_buf()
+            chunk.ptr = tmp
+            chunk.size = 0
+            chunk.cap = 1
+            long nread = 0
+            r.read(chunk, 1, nread)
+            if nread == 0 {
+                line_done = true
+                at_eof = true
+            } else {
+                byte b = 0
+                fly.llvm.ptrByteAt(tmp, 0, b)
+                if b == 10 {
+                    line_done = true
+                } else {
+                    if pos >= line_cap {
+                        int newcap = line_cap * 2
+                        long newbuf = 0
+                        fly.runtime.mem_alloc(newcap, newbuf)
+                        int j = 0
+                        while j < pos {
+                            byte bb = 0
+                            fly.llvm.ptrByteAt(line_buf, j, bb)
+                            fly.llvm.strPoke(newbuf, j, bb)
+                            j = j + 1
+                        }
+                        line_buf = newbuf
+                        line_cap = newcap
+                    }
+                    fly.llvm.strPoke(line_buf, pos, b)
+                    pos = pos + 1
+                }
+            }
+        }
+        bool add_line = false
+        if at_eof == false { add_line = true }
+        if pos > 0 { add_line = true }
+        if add_line {
+            if count >= arr_cap {
+                int newcap = arr_cap * 2
+                long newarr = 0
+                fly.runtime.mem_alloc(newcap * 16, newarr)
+                int bytes = arr_cap * 16
+                int j = 0
+                while j < bytes {
+                    byte bb = 0
+                    fly.llvm.ptrByteAt(arr, j, bb)
+                    fly.llvm.strPoke(newarr, j, bb)
+                    j = j + 1
+                }
+                arr = newarr
+                arr_cap = newcap
+            }
+            fly.runtime.str_slot_set(arr, count, line_buf, pos)
+            count = count + 1
+        }
+    }
+    out.items = arr
+    out.count = count
 }
 
-public ioClose(fly_reader r) {
+public ioClose(Reader r) {
+    r.close()
 }
 
-public ioWrite(fly_writer w, fly_buf buf, const ulong n, ulong out_written) {
+public ioWrite(Writer w, fly_buf buf, const ulong n, long out_written) {
+    w.write(buf, n, out_written)
 }
 
-public ioWriteAll(fly_writer w, fly_buf buf) {
+public ioWriteAll(Writer w, fly_buf buf) {
+    long written = 0
+    w.write(buf, buf.size, written)
 }
 
-public ioWriteString(fly_writer w, const string s) {
+public ioWriteString(Writer w, const string s) {
+    long ptr = 0
+    int size = 0
+    fly.llvm.strGetPtr(s, ptr)
+    fly.llvm.strSize(s, size)
+    fly_buf buf = new fly_buf()
+    buf.ptr = ptr
+    buf.size = size
+    ulong size_u = size
+    buf.cap = size_u
+    long written = 0
+    w.write(buf, size_u, written)
 }
 
-public ioFlush(fly_writer w) {
+public ioFlush(Writer w) {
+    w.flush()
 }
 
-public ioReaderNew(fly_reader inner, const ulong cap, fly_buf_reader out) {
+// Buffered IO: storing interface types in class fields and calling interface
+// methods from within class bodies triggers compiler bugs. These remain stubs
+// pending compiler fixes.
+public ioReaderNew(Reader inner, const ulong cap, BufReader out) {
 }
 
-public ioPeek(fly_buf_reader r, const ulong n, fly_buf out) {
+public ioPeek(BufReader r, const ulong n, fly_buf out) {
 }
 
-public ioBufReadLine(fly_buf_reader r, string out) {
+public ioBufReadLine(BufReader r, string out) {
 }
 
-public ioFill(fly_buf_reader r) {
+public ioFill(BufReader r) {
 }
 
-public ioWriterNew(fly_writer inner, const ulong cap, fly_buf_writer out) {
+public ioWriterNew(Writer inner, const ulong cap, BufWriter out) {
 }
 
-public ioBufWrite(fly_buf_writer w, fly_buf buf) {
+public ioBufWrite(BufWriter w, fly_buf buf) {
 }
 
-public ioBufFlush(fly_buf_writer w) {
+public ioBufFlush(BufWriter w) {
 }
 
-public ioCopy(fly_reader src, fly_writer dst, long out_copied) {
+public ioCopy(Reader src, Writer dst, long out_copied) {
+    int chunk_sz = 8192
+    long tmp = 0
+    fly.runtime.mem_alloc(chunk_sz, tmp)
+    long total = 0
+    bool done = false
+    while done == false {
+        fly_buf chunk = new fly_buf()
+        chunk.ptr = tmp
+        chunk.size = 0
+        ulong chunk_sz_u = chunk_sz
+        chunk.cap = chunk_sz_u
+        long nread = 0
+        src.read(chunk, chunk_sz_u, nread)
+        if nread == 0 {
+            done = true
+        } else {
+            chunk.size = nread
+            long nwritten = 0
+            dst.write(chunk, chunk_sz_u, nwritten)
+            total = total + nread
+        }
+    }
+    out_copied = total
 }
 
-public ioCopyN(fly_reader src, fly_writer dst, const ulong n, long out_copied) {
+public ioCopyN(Reader src, Writer dst, const ulong n, long out_copied) {
+    int chunk_sz = 8192
+    long tmp = 0
+    fly.runtime.mem_alloc(chunk_sz, tmp)
+    long total = 0
+    ulong remaining = n
+    bool done = false
+    while done == false {
+        if remaining == 0 {
+            done = true
+        } else {
+            ulong chunk_sz_u = chunk_sz
+            ulong to_read = chunk_sz_u
+            if remaining < to_read { to_read = remaining }
+            fly_buf chunk = new fly_buf()
+            chunk.ptr = tmp
+            chunk.size = 0
+            chunk.cap = to_read
+            long nread = 0
+            src.read(chunk, to_read, nread)
+            if nread == 0 {
+                done = true
+            } else {
+                chunk.size = nread
+                long nwritten = 0
+                dst.write(chunk, to_read, nwritten)
+                total = total + nread
+                ulong nread_u = nread
+                remaining = remaining - nread_u
+            }
+        }
+    }
+    out_copied = total
 }
 
-public ioPipe(fly_reader pipe_r, fly_writer pipe_w) {
+public ioPipe(Reader pipe_r, Writer pipe_w) {
+    long copied = 0
+    ioCopy(pipe_r, pipe_w, copied)
 }

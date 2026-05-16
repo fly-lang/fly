@@ -190,19 +190,11 @@ void Resolver::visit(ASTFunction &AST) {
 	// Create Sema Function
 	CurrentFunction = SemaBuilder::CreateFunction(*CurrentModule, CurrentScope, AST);
 
-	// 'main' is the entry point: it may take no params or a single string[] param
+	// 'main' is the entry point: it takes no parameters
 	if (AST.getName() == "main") {
 		const auto &MainParams = AST.getParams();
-		if (MainParams.size() > 1) {
+		if (!MainParams.empty()) {
 			Diag(AST.getLocation(), diag::err_sema_main_with_params);
-		} else if (MainParams.size() == 1) {
-			ASTType *PT = MainParams[0]->getType();
-			bool Valid = PT->getTypeKind() == ASTTypeKind::TYPE_ARRAY &&
-			             static_cast<ASTArrayType *>(PT)->getElementType()->getTypeKind() == ASTTypeKind::TYPE_BUILTIN &&
-			             static_cast<ASTBuiltinType *>(static_cast<ASTArrayType *>(PT)->getElementType())->getBuiltinKind()
-			                 == ASTBuiltinTypeKind::TYPE_STRING;
-			if (!Valid)
-				Diag(MainParams[0]->getLocation(), diag::err_sema_main_invalid_param);
 		}
 	}
 
@@ -279,6 +271,13 @@ void Resolver::visit(ASTClass &AST) {
 
 		// Add Class Symbol to the current scope
 		addSymbol(Sym);
+
+		// Also register in the namespace scope so qualified type lookups
+		// (e.g. fly.os.fly_file, fly.os.Reader) can find the type when
+		// CurrentScope is switched to the namespace symbol table.
+		if (CurrentNameSpace && CurrentNameSpace != Reg.getDefaultNameSpace()) {
+			CurrentNameSpace->getSymbols()->insert(Sym);
+		}
 	}
 
 	FLY_DEBUG_END("Resolver", "visit(ASTClass)");
@@ -2510,11 +2509,22 @@ void Resolver::PromoteTypes(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right) {
 	SemaType *LeftType = Left->getType();
 	SemaType *RightType = Right->getType();
 
-	// Promote Number Types if both operands are numbers
-	if (LeftType && RightType && LeftType->isNumber() && RightType->isNumber()) {
+	// Promote Number Types if both operands are numbers.
+	// For assignments, the CodeGen converts the RHS value at emit time.
+	// For arithmetic/compare ops, only promote literal/value expressions — never variable
+	// references (LOCAL_VAR, PARAM_VAR, etc.) since mutating their types corrupts
+	// alloca setup, name mangling, and causes cascading type errors across the function.
+	// CodeGen's ConvertNumber handles the actual value promotion at emit time.
+	if (!AST.isAssign() && LeftType && RightType && LeftType->isNumber() && RightType->isNumber()) {
 		SemaType *PromotedType = PromoteNumberTypes(LeftType, RightType);
-		Left->setType(PromotedType);
-		Right->setType(PromotedType);
+		auto IsVarRef = [](SemaExpr *E) {
+			SemaKind K = E->getKind();
+			return K == SemaKind::LOCAL_VAR || K == SemaKind::PARAM_VAR ||
+			       K == SemaKind::ERROR_VAR || K == SemaKind::ATTRIBUTE ||
+			       K == SemaKind::INSTANCE_VAR;
+		};
+		if (!IsVarRef(Left))  Left->setType(PromotedType);
+		if (!IsVarRef(Right)) Right->setType(PromotedType);
 	}
 
 	// Promote Array Types if both operands are arrays

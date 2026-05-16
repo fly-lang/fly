@@ -80,9 +80,9 @@ helper(int a, int b) {
 }
 )";
 
-    // main() with a string[] parameter for command-line argument reading
+    // main() with no parameters — args accessed via fly.os.env.argsGet()
     static constexpr const char *MainArgsSource = R"(
-main(string[] args) {
+main() {
 }
 )";
 
@@ -234,10 +234,9 @@ main(string[] args) {
         EXPECT_TRUE(ok);
     }
 
-    // Emit IR for main(string[] args) and verify the expected LLVM patterns:
+    // Emit IR for main() and verify the expected LLVM patterns:
     //   - C entry-point signature:  define i32 @main(i32 %0, ptr %1)
-    //   - argc/argv conversion loop:  args.loop.cond / args.loop.body
-    //   - strlen call to measure each argument's length
+    //   - env_init call to make argc/argv available via fly.os.env.argsGet()
     TEST_F(AppTest, MainWithArgsEmitLL) {
         const char *argsfly = "main_args.fly";
         const char *argsll  = "main_args.fly.ll";
@@ -257,13 +256,10 @@ main(string[] args) {
                         std::istreambuf_iterator<char>());
         deleteFile(argsll);
 
-        // C entry-point signature must carry argc (i32) and argv (ptr)
+        // C entry-point signature must carry argc (i32) and argv (ptr) for C ABI
         EXPECT_NE(ir.find("define i32 @main(i32"), std::string::npos);
-        // The argc→string[] bridge loop must be present
-        EXPECT_NE(ir.find("args.loop.cond"), std::string::npos);
-        EXPECT_NE(ir.find("args.loop.body"), std::string::npos);
-        // Each argument's length is measured via strlen
-        EXPECT_NE(ir.find("strlen"), std::string::npos);
+        // env_init wires argc/argv into the env args store for fly.os.env.argsGet()
+        EXPECT_NE(ir.find("env_init"), std::string::npos);
     }
 
 } // anonymous namespace

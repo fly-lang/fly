@@ -377,7 +377,7 @@ void CodeGenClass::CreateInitConstructor() {
 	llvm::SmallVector<llvm::Type *, 8> ParamTypes;
 	ParamTypes.push_back(TypePtr);
 	llvm::FunctionType *FnType = llvm::FunctionType::get(TypePtr, ParamTypes, false);
-	InitConstructor = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, CtorId, CGM->getModule());
+	InitConstructor = llvm::Function::Create(FnType, llvm::GlobalValue::LinkOnceODRLinkage, CtorId, CGM->getModule());
 }
 
 void CodeGenClass::GenInitConstructorBody() {

@@ -431,5 +431,19 @@ llvm::SmallVector<Symbol *, 4> Registry::FindFunctionMatches(llvm::StringRef Nam
 		if (FunctionTypesMatch(static_cast<SemaFunctionBase *>(Sym->getRef()), Types))
 			Result.push_back(Sym);
 	}
+	// When the same function is declared in both a header (no body) and a source
+	// file (has body), prefer the source definition to avoid "ambiguous" errors.
+	// This happens when LoadStdlibHeaders loads math.fly.h while math.fly is also
+	// compiled in the same invocation (e.g. when building fly_lib.a).
+	if (Result.size() > 1) {
+		llvm::SmallVector<Symbol *, 4> WithBody;
+		for (Symbol *Sym : Result) {
+			SemaFunctionBase *F = static_cast<SemaFunctionBase *>(Sym->getRef());
+			if (F->getBody() != nullptr)
+				WithBody.push_back(Sym);
+		}
+		if (!WithBody.empty())
+			return WithBody;
+	}
 	return Result;
 }

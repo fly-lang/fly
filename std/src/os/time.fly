@@ -1,0 +1,948 @@
+namespace fly.os.time
+
+import fly.llvm
+import fly.runtime
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+// Time represents an absolute point in time as seconds + nanoseconds since the
+// Unix epoch (1970-01-01 00:00:00 UTC).  Both fields are signed so times before
+// the epoch can be represented.
+public struct Time {
+    // Seconds component of the timestamp (Unix epoch).
+    long sec
+    // Sub-second nanoseconds component (0 ≤ nsec < 1_000_000_000).
+    long nsec
+}
+
+// Duration represents an elapsed time interval stored as a nanosecond count.
+// Positive values are future-pointing; negative values are past-pointing.
+public struct Duration {
+    // Elapsed nanoseconds.  Use durationSecs/Millis/Micros to convert.
+    long nsec
+}
+
+// ── Private helpers ───────────────────────────────────────────────────────────
+
+// Convert digit value (0–9) to its ASCII byte representation.
+private digitToChar(const long d, byte out) {
+    if d <= 0 { out = 48 }
+    elsif d == 1 { out = 49 }
+    elsif d == 2 { out = 50 }
+    elsif d == 3 { out = 51 }
+    elsif d == 4 { out = 52 }
+    elsif d == 5 { out = 53 }
+    elsif d == 6 { out = 54 }
+    elsif d == 7 { out = 55 }
+    elsif d == 8 { out = 56 }
+    else { out = 57 }
+}
+
+// Append the decimal representation of val into buf at position pos.
+// Returns the new write position in new_pos.
+private appendDecimal(const long val, const long buf, const int pos, int new_pos) {
+    if val == 0 {
+        fly.llvm.strPoke(buf, pos, 48)
+        new_pos = pos + 1
+        return
+    }
+    long v = val
+    long tmp = 0
+    fly.runtime.mem_alloc(24, tmp)
+    int nd = 0
+    while v > 0 {
+        long digit = v - (v / 10) * 10
+        byte db = 0
+        digitToChar(digit, db)
+        fly.llvm.strPoke(tmp, nd, db)
+        v = v / 10
+        nd = nd + 1
+    }
+    int i = 0
+    while i < nd {
+        byte db = 0
+        fly.llvm.ptrByteAt(tmp, nd - 1 - i, db)
+        fly.llvm.strPoke(buf, pos + i, db)
+        i = i + 1
+    }
+    new_pos = pos + nd
+}
+
+// Append a 2-digit zero-padded decimal integer into buf at pos.
+private append2Padded(const long val, const long buf, const int pos, int new_pos) {
+    long tens = val / 10
+    long ones = val - tens * 10
+    byte b1 = 0
+    byte b2 = 0
+    digitToChar(tens, b1)
+    digitToChar(ones, b2)
+    fly.llvm.strPoke(buf, pos, b1)
+    fly.llvm.strPoke(buf, pos + 1, b2)
+    new_pos = pos + 2
+}
+
+// Append a 4-digit zero-padded decimal integer into buf at pos.
+private append4Padded(const long val, const long buf, const int pos, int new_pos) {
+    long v = val
+    long thousands = v / 1000
+    v = v - thousands * 1000
+    long hundreds = v / 100
+    v = v - hundreds * 100
+    long tens = v / 10
+    long ones = v - tens * 10
+    byte b1 = 0
+    byte b2 = 0
+    byte b3 = 0
+    byte b4 = 0
+    digitToChar(thousands, b1)
+    digitToChar(hundreds, b2)
+    digitToChar(tens, b3)
+    digitToChar(ones, b4)
+    fly.llvm.strPoke(buf, pos, b1)
+    fly.llvm.strPoke(buf, pos + 1, b2)
+    fly.llvm.strPoke(buf, pos + 2, b3)
+    fly.llvm.strPoke(buf, pos + 3, b4)
+    new_pos = pos + 4
+}
+
+// Convert an ASCII digit byte ('0'–'9') to its integer value.
+private digitToInt(const byte d, int out) {
+    if d == 48 { out = 0 }
+    elsif d == 49 { out = 1 }
+    elsif d == 50 { out = 2 }
+    elsif d == 51 { out = 3 }
+    elsif d == 52 { out = 4 }
+    elsif d == 53 { out = 5 }
+    elsif d == 54 { out = 6 }
+    elsif d == 55 { out = 7 }
+    elsif d == 56 { out = 8 }
+    else { out = 9 }
+}
+
+// Parse two consecutive ASCII decimal digits from s at pos into a long value.
+private parse2Digits(const string s, const int pos, long out) {
+    byte d1 = 0
+    byte d2 = 0
+    fly.llvm.strByteAt(s, pos, d1)
+    fly.llvm.strByteAt(s, pos + 1, d2)
+    int v1 = 0
+    int v2 = 0
+    digitToInt(d1, v1)
+    digitToInt(d2, v2)
+    out = v1 * 10 + v2
+}
+
+// Parse four consecutive ASCII decimal digits from s at pos into a long value.
+private parse4Digits(const string s, const int pos, long out) {
+    byte d1 = 0
+    byte d2 = 0
+    byte d3 = 0
+    byte d4 = 0
+    fly.llvm.strByteAt(s, pos, d1)
+    fly.llvm.strByteAt(s, pos + 1, d2)
+    fly.llvm.strByteAt(s, pos + 2, d3)
+    fly.llvm.strByteAt(s, pos + 3, d4)
+    int v1 = 0
+    int v2 = 0
+    int v3 = 0
+    int v4 = 0
+    digitToInt(d1, v1)
+    digitToInt(d2, v2)
+    digitToInt(d3, v3)
+    digitToInt(d4, v4)
+    out = v1 * 1000 + v2 * 100 + v3 * 10 + v4
+}
+
+// ── Functions ─────────────────────────────────────────────────────────────────
+
+// now returns the current wall-clock time as a Time value (UTC, Unix epoch).
+public now(Time out) {
+    long total_ns = 0
+    fly.runtime.time_now_ns(total_ns)
+    long ns_per_sec = 1000000000
+    long s = total_ns / ns_per_sec
+    long n = total_ns - s * ns_per_sec
+    out.sec = s
+    out.nsec = n
+}
+
+// monotonic returns the current value of the monotonic clock as a Time.
+// Suitable for measuring elapsed time; not tied to wall-clock calendar.
+public monotonic(Time out) {
+    long total_ns = 0
+    fly.runtime.time_mono_ns(total_ns)
+    long ns_per_sec = 1000000000
+    long s = total_ns / ns_per_sec
+    long n = total_ns - s * ns_per_sec
+    out.sec = s
+    out.nsec = n
+}
+
+// sleep suspends execution for at least the duration d.
+// Negative or zero durations return immediately.
+public sleep(Duration d) {
+    long ns = d.nsec
+    if ns <= 0 { return }
+    long ns_per_sec = 1000000000
+    long sec = ns / ns_per_sec
+    long rem = ns - sec * ns_per_sec
+    fly.runtime.time_sleep(sec, rem)
+}
+
+// since returns the Duration elapsed since t (i.e., now − t).
+// Uses the wall clock; may not be monotonic.
+public since(Time t, Duration out) {
+    long total_ns = 0
+    fly.runtime.time_now_ns(total_ns)
+    long ns_per_sec = 1000000000
+    long now_sec = total_ns / ns_per_sec
+    long now_nsec = total_ns - now_sec * ns_per_sec
+    long sec_diff = now_sec - t.sec
+    long nsec_diff = now_nsec - t.nsec
+    out.nsec = sec_diff * ns_per_sec + nsec_diff
+}
+
+// diff returns the Duration from time a to time b (i.e., b − a).
+// Negative if b is before a.
+public diff(Time a, Time b, Duration out) {
+    long ns_per_sec = 1000000000
+    long sec_diff = b.sec - a.sec
+    long nsec_diff = b.nsec - a.nsec
+    out.nsec = sec_diff * ns_per_sec + nsec_diff
+}
+
+// add returns t advanced by duration d.
+public add(Time t, Duration d, Time out) {
+    long ns_per_sec = 1000000000
+    long total_nsec = t.nsec + d.nsec
+    long extra_sec = total_nsec / ns_per_sec
+    long rem_nsec = total_nsec - extra_sec * ns_per_sec
+    out.sec = t.sec + extra_sec
+    out.nsec = rem_nsec
+    if rem_nsec < 0 {
+        out.sec = out.sec - 1
+        out.nsec = out.nsec + ns_per_sec
+    }
+}
+
+// compare returns -1 if a < b, 0 if a == b, and 1 if a > b.
+public compare(Time a, Time b, int out) {
+    if a.sec < b.sec {
+        out = 0 - 1
+        return
+    }
+    if a.sec > b.sec {
+        out = 1
+        return
+    }
+    if a.nsec < b.nsec {
+        out = 0 - 1
+        return
+    }
+    if a.nsec > b.nsec {
+        out = 1
+        return
+    }
+    out = 0
+}
+
+// unix extracts the Unix timestamp (seconds since 1970-01-01 00:00:00 UTC) from t.
+public unix(Time t, long out) {
+    out = t.sec
+}
+
+// unixNano extracts the Unix timestamp as total nanoseconds since the Unix epoch.
+public unixNano(Time t, long out) {
+    long ns_per_sec = 1000000000
+    out = t.sec * ns_per_sec + t.nsec
+}
+
+// fromUnix constructs a Time from a Unix timestamp in seconds.
+public fromUnix(const long sec, Time out) {
+    out.sec = sec
+    out.nsec = 0
+}
+
+// fromUnixNano constructs a Time from a total nanosecond Unix timestamp.
+// Handles negative values by adjusting sec/nsec to keep nsec in [0, 1e9).
+public fromUnixNano(const long nsec, Time out) {
+    long ns_per_sec = 1000000000
+    long sec = nsec / ns_per_sec
+    long rem = nsec - sec * ns_per_sec
+    out.sec = sec
+    out.nsec = rem
+    if rem < 0 {
+        out.sec = out.sec - 1
+        out.nsec = out.nsec + ns_per_sec
+    }
+}
+
+// format formats time t using a reference-time pattern string.
+// Recognised tokens (Go-style reference time Mon Jan 2 15:04:05 MST 2006):
+//   "2006" → 4-digit year, "01" → month, "02" → day,
+//   "15"   → hour (24h),   "04" → minute, "05" → second.
+// All other bytes are emitted verbatim.
+public format(Time t, const string pattern, string out) {
+    long days = t.sec / 86400
+    long sec_of_day = t.sec - days * 86400
+    long z = days + 719468
+    long era = z / 146097
+    long doe = z - era * 146097
+    long yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365
+    long year = yoe + era * 400
+    long doy = doe - (365 * yoe + yoe / 4 - yoe / 100)
+    long mp = (5 * doy + 2) / 153
+    long day = doy - (153 * mp + 2) / 5 + 1
+    long month = mp + 3
+    if mp >= 10 { month = mp - 9 }
+    if month <= 2 { year = year + 1 }
+    long hour = sec_of_day / 3600
+    long min = (sec_of_day - hour * 3600) / 60
+    long sec2 = sec_of_day - hour * 3600 - min * 60
+
+    int plen = 0
+    fly.llvm.strSize(pattern, plen)
+    long buf = 0
+    fly.runtime.mem_alloc(128, buf)
+    int bpos = 0
+    int bpos2 = 0
+    int pi = 0
+
+    while pi < plen {
+        byte pb0 = 0
+        fly.llvm.strByteAt(pattern, pi, pb0)
+        bool matched = false
+
+        if pb0 == 50 {
+            if pi + 3 < plen {
+                byte pb1 = 0
+                byte pb2 = 0
+                byte pb3 = 0
+                fly.llvm.strByteAt(pattern, pi + 1, pb1)
+                fly.llvm.strByteAt(pattern, pi + 2, pb2)
+                fly.llvm.strByteAt(pattern, pi + 3, pb3)
+                if pb1 == 48 {
+                    if pb2 == 48 {
+                        if pb3 == 54 {
+                            append4Padded(year, buf, bpos, bpos2)
+                            bpos = bpos2
+                            pi = pi + 4
+                            matched = true
+                        }
+                    }
+                }
+            }
+        }
+
+        if matched == false {
+            if pb0 == 49 {
+                if pi + 1 < plen {
+                    byte pb1 = 0
+                    fly.llvm.strByteAt(pattern, pi + 1, pb1)
+                    if pb1 == 53 {
+                        append2Padded(hour, buf, bpos, bpos2)
+                        bpos = bpos2
+                        pi = pi + 2
+                        matched = true
+                    }
+                }
+            }
+        }
+
+        if matched == false {
+            if pb0 == 48 {
+                if pi + 1 < plen {
+                    byte pb1 = 0
+                    fly.llvm.strByteAt(pattern, pi + 1, pb1)
+                    if pb1 == 49 {
+                        append2Padded(month, buf, bpos, bpos2)
+                        bpos = bpos2
+                        pi = pi + 2
+                        matched = true
+                    }
+                    if matched == false {
+                        if pb1 == 50 {
+                            append2Padded(day, buf, bpos, bpos2)
+                            bpos = bpos2
+                            pi = pi + 2
+                            matched = true
+                        }
+                    }
+                    if matched == false {
+                        if pb1 == 52 {
+                            append2Padded(min, buf, bpos, bpos2)
+                            bpos = bpos2
+                            pi = pi + 2
+                            matched = true
+                        }
+                    }
+                    if matched == false {
+                        if pb1 == 53 {
+                            append2Padded(sec2, buf, bpos, bpos2)
+                            bpos = bpos2
+                            pi = pi + 2
+                            matched = true
+                        }
+                    }
+                }
+            }
+        }
+
+        if matched == false {
+            fly.llvm.strPoke(buf, bpos, pb0)
+            bpos = bpos + 1
+            pi = pi + 1
+        }
+    }
+
+    fly.llvm.strMake(buf, bpos, out)
+}
+
+// formatSec formats a raw Unix timestamp (seconds) using a pattern string.
+// Identical to format but takes a long instead of a Time, avoiding the
+// local-struct limitation in external callers.
+// Pattern tokens: same as format().
+public formatSec(const long sec, const string pattern, string out) {
+    long days = sec / 86400
+    long sec_of_day = sec - days * 86400
+    long z = days + 719468
+    long era = z / 146097
+    long doe = z - era * 146097
+    long yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365
+    long year = yoe + era * 400
+    long doy = doe - (365 * yoe + yoe / 4 - yoe / 100)
+    long mp = (5 * doy + 2) / 153
+    long day = doy - (153 * mp + 2) / 5 + 1
+    long month = mp + 3
+    if mp >= 10 { month = mp - 9 }
+    if month <= 2 { year = year + 1 }
+    long hour = sec_of_day / 3600
+    long min = (sec_of_day - hour * 3600) / 60
+    long sec2 = sec_of_day - hour * 3600 - min * 60
+
+    int plen = 0
+    fly.llvm.strSize(pattern, plen)
+    long buf = 0
+    fly.runtime.mem_alloc(128, buf)
+    int bpos = 0
+    int bpos2 = 0
+    int pi = 0
+
+    while pi < plen {
+        byte pb0 = 0
+        fly.llvm.strByteAt(pattern, pi, pb0)
+        bool matched = false
+
+        if pb0 == 50 { if pi + 3 < plen {
+            byte pb1 = 0
+            byte pb2 = 0
+            byte pb3 = 0
+            fly.llvm.strByteAt(pattern, pi + 1, pb1)
+            fly.llvm.strByteAt(pattern, pi + 2, pb2)
+            fly.llvm.strByteAt(pattern, pi + 3, pb3)
+            if pb1 == 48 { if pb2 == 48 { if pb3 == 54 {
+                append4Padded(year, buf, bpos, bpos2)
+                bpos = bpos2
+                pi = pi + 4
+                matched = true
+            }}}
+        }}
+        if matched == false { if pb0 == 49 { if pi + 1 < plen {
+            byte pb1 = 0
+            fly.llvm.strByteAt(pattern, pi + 1, pb1)
+            if pb1 == 53 {
+                append2Padded(hour, buf, bpos, bpos2)
+                bpos = bpos2
+                pi = pi + 2
+                matched = true
+            }
+        }}}
+        if matched == false { if pb0 == 48 { if pi + 1 < plen {
+            byte pb1 = 0
+            fly.llvm.strByteAt(pattern, pi + 1, pb1)
+            if pb1 == 49 {
+                append2Padded(month, buf, bpos, bpos2)
+                bpos = bpos2
+                pi = pi + 2
+                matched = true
+            }
+            if matched == false { if pb1 == 50 {
+                append2Padded(day, buf, bpos, bpos2)
+                bpos = bpos2
+                pi = pi + 2
+                matched = true
+            }}
+            if matched == false { if pb1 == 52 {
+                append2Padded(min, buf, bpos, bpos2)
+                bpos = bpos2
+                pi = pi + 2
+                matched = true
+            }}
+            if matched == false { if pb1 == 53 {
+                append2Padded(sec2, buf, bpos, bpos2)
+                bpos = bpos2
+                pi = pi + 2
+                matched = true
+            }}
+        }}}
+        if matched == false {
+            fly.llvm.strPoke(buf, bpos, pb0)
+            bpos = bpos + 1
+            pi = pi + 1
+        }
+    }
+
+    fly.llvm.strMake(buf, bpos, out)
+}
+
+// parse parses a date/time string s according to pattern and returns a Time.
+// Pattern tokens: same as format().  Unrecognised bytes in pattern are skipped
+// (both pattern pointer and string pointer advance by one).
+// Defaults: year=1970, month=1, day=1, hour/min/sec=0.
+public parse(const string s, const string pattern, Time out) {
+    int plen = 0
+    fly.llvm.strSize(pattern, plen)
+
+    long year = 1970
+    long month = 1
+    long day = 1
+    long hour = 0
+    long min = 0
+    long sec2 = 0
+    long parsed = 0
+
+    int pi = 0
+    int si = 0
+
+    while pi < plen {
+        byte pb0 = 0
+        fly.llvm.strByteAt(pattern, pi, pb0)
+        bool matched = false
+
+        if pb0 == 50 {
+            if pi + 3 < plen {
+                byte pb1 = 0
+                byte pb2 = 0
+                byte pb3 = 0
+                fly.llvm.strByteAt(pattern, pi + 1, pb1)
+                fly.llvm.strByteAt(pattern, pi + 2, pb2)
+                fly.llvm.strByteAt(pattern, pi + 3, pb3)
+                if pb1 == 48 {
+                    if pb2 == 48 {
+                        if pb3 == 54 {
+                            parse4Digits(s, si, parsed)
+                            year = parsed
+                            si = si + 4
+                            pi = pi + 4
+                            matched = true
+                        }
+                    }
+                }
+            }
+        }
+
+        if matched == false {
+            if pb0 == 49 {
+                if pi + 1 < plen {
+                    byte pb1 = 0
+                    fly.llvm.strByteAt(pattern, pi + 1, pb1)
+                    if pb1 == 53 {
+                        parse2Digits(s, si, parsed)
+                        hour = parsed
+                        si = si + 2
+                        pi = pi + 2
+                        matched = true
+                    }
+                }
+            }
+        }
+
+        if matched == false {
+            if pb0 == 48 {
+                if pi + 1 < plen {
+                    byte pb1 = 0
+                    fly.llvm.strByteAt(pattern, pi + 1, pb1)
+                    if pb1 == 49 {
+                        parse2Digits(s, si, parsed)
+                        month = parsed
+                        si = si + 2
+                        pi = pi + 2
+                        matched = true
+                    }
+                    if matched == false {
+                        if pb1 == 50 {
+                            parse2Digits(s, si, parsed)
+                            day = parsed
+                            si = si + 2
+                            pi = pi + 2
+                            matched = true
+                        }
+                    }
+                    if matched == false {
+                        if pb1 == 52 {
+                            parse2Digits(s, si, parsed)
+                            min = parsed
+                            si = si + 2
+                            pi = pi + 2
+                            matched = true
+                        }
+                    }
+                    if matched == false {
+                        if pb1 == 53 {
+                            parse2Digits(s, si, parsed)
+                            sec2 = parsed
+                            si = si + 2
+                            pi = pi + 2
+                            matched = true
+                        }
+                    }
+                }
+            }
+        }
+
+        if matched == false {
+            si = si + 1
+            pi = pi + 1
+        }
+    }
+
+    long y = year
+    long m = month
+    if m <= 2 { y = y - 1 }
+    long era = y / 400
+    long yoe = y - era * 400
+    long m3 = m - 3
+    if m <= 2 { m3 = m + 9 }
+    long doy2 = (153 * m3 + 2) / 5 + day - 1
+    long doe2 = yoe * 365 + yoe / 4 - yoe / 100 + doy2
+    long days = doe2 + era * 146097 - 719468
+
+    out.sec = days * 86400 + hour * 3600 + min * 60 + sec2
+    out.nsec = 0
+}
+
+// parseToSec parses a date/time string and returns the Unix timestamp as seconds.
+// Avoids the local-struct limitation.  Same pattern tokens as format().
+public parseToSec(const string s, const string pattern, long out) {
+    int plen = 0
+    fly.llvm.strSize(pattern, plen)
+
+    long year = 1970
+    long month = 1
+    long day = 1
+    long hour = 0
+    long min = 0
+    long sec2 = 0
+    long parsed = 0
+
+    int pi = 0
+    int si = 0
+
+    while pi < plen {
+        byte pb0 = 0
+        fly.llvm.strByteAt(pattern, pi, pb0)
+        bool matched = false
+
+        if pb0 == 50 { if pi + 3 < plen {
+            byte pb1 = 0
+            byte pb2 = 0
+            byte pb3 = 0
+            fly.llvm.strByteAt(pattern, pi + 1, pb1)
+            fly.llvm.strByteAt(pattern, pi + 2, pb2)
+            fly.llvm.strByteAt(pattern, pi + 3, pb3)
+            if pb1 == 48 { if pb2 == 48 { if pb3 == 54 {
+                parse4Digits(s, si, parsed)
+                year = parsed
+                si = si + 4
+                pi = pi + 4
+                matched = true
+            }}}
+        }}
+        if matched == false { if pb0 == 49 { if pi + 1 < plen {
+            byte pb1 = 0
+            fly.llvm.strByteAt(pattern, pi + 1, pb1)
+            if pb1 == 53 {
+                parse2Digits(s, si, parsed)
+                hour = parsed
+                si = si + 2
+                pi = pi + 2
+                matched = true
+            }
+        }}}
+        if matched == false { if pb0 == 48 { if pi + 1 < plen {
+            byte pb1 = 0
+            fly.llvm.strByteAt(pattern, pi + 1, pb1)
+            if pb1 == 49 {
+                parse2Digits(s, si, parsed)
+                month = parsed
+                si = si + 2
+                pi = pi + 2
+                matched = true
+            }
+            if matched == false { if pb1 == 50 {
+                parse2Digits(s, si, parsed)
+                day = parsed
+                si = si + 2
+                pi = pi + 2
+                matched = true
+            }}
+            if matched == false { if pb1 == 52 {
+                parse2Digits(s, si, parsed)
+                min = parsed
+                si = si + 2
+                pi = pi + 2
+                matched = true
+            }}
+            if matched == false { if pb1 == 53 {
+                parse2Digits(s, si, parsed)
+                sec2 = parsed
+                si = si + 2
+                pi = pi + 2
+                matched = true
+            }}
+        }}}
+        if matched == false {
+            si = si + 1
+            pi = pi + 1
+        }
+    }
+
+    long y = year
+    long m = month
+    if m <= 2 { y = y - 1 }
+    long era = y / 400
+    long yoe = y - era * 400
+    long m3 = m - 3
+    if m <= 2 { m3 = m + 9 }
+    long doy2 = (153 * m3 + 2) / 5 + day - 1
+    long doe2 = yoe * 365 + yoe / 4 - yoe / 100 + doy2
+    long days = doe2 + era * 146097 - 719468
+
+    out = days * 86400 + hour * 3600 + min * 60 + sec2
+}
+
+// durationSecs returns the whole-second count of duration d.
+public durationSecs(Duration d, long out) {
+    long ns_per_sec = 1000000000
+    out = d.nsec / ns_per_sec
+}
+
+// durationMillis returns the duration d expressed in whole milliseconds.
+public durationMillis(Duration d, long out) {
+    long ns_per_ms = 1000000
+    out = d.nsec / ns_per_ms
+}
+
+// durationMicros returns the duration d expressed in whole microseconds.
+public durationMicros(Duration d, long out) {
+    long ns_per_us = 1000
+    out = d.nsec / ns_per_us
+}
+
+// durationFormat formats a Duration as a human-readable string.
+// Examples: "1h30m05s", "500ms", "200us", "5ns", "0s".
+public durationFormat(Duration d, string out) {
+    long ns = d.nsec
+    if ns < 0 { ns = 0 - ns }
+    if ns == 0 {
+        long b0 = 0
+        fly.runtime.mem_alloc(4, b0)
+        fly.llvm.strPoke(b0, 0, 48)
+        fly.llvm.strPoke(b0, 1, 115)
+        fly.llvm.strMake(b0, 2, out)
+        return
+    }
+
+    long ns_per_hr  = 3600000000000
+    long ns_per_min = 60000000000
+    long ns_per_sec = 1000000000
+    long ns_per_ms  = 1000000
+    long ns_per_us  = 1000
+
+    long hours = ns / ns_per_hr
+    long rem   = ns - hours * ns_per_hr
+    long mins  = rem / ns_per_min
+    rem        = rem - mins * ns_per_min
+    long secs  = rem / ns_per_sec
+    rem        = rem - secs * ns_per_sec
+    long ms    = rem / ns_per_ms
+    rem        = rem - ms * ns_per_ms
+    long us    = rem / ns_per_us
+    long nanos = rem - us * ns_per_us
+
+    long buf = 0
+    fly.runtime.mem_alloc(64, buf)
+    int pos = 0
+
+    bool has_large = false
+    if hours > 0 { has_large = true }
+    if mins > 0  { has_large = true }
+    if secs > 0  { has_large = true }
+
+    int p2 = 0
+    if has_large {
+        if hours > 0 {
+            appendDecimal(hours, buf, pos, p2)
+            pos = p2
+            fly.llvm.strPoke(buf, pos, 104)
+            pos = pos + 1
+        }
+        bool has_hm = false
+        if hours > 0 { has_hm = true }
+        if mins > 0  { has_hm = true }
+        if has_hm {
+            if hours > 0 {
+                if mins < 10 {
+                    fly.llvm.strPoke(buf, pos, 48)
+                    pos = pos + 1
+                }
+            }
+            appendDecimal(mins, buf, pos, p2)
+            pos = p2
+            fly.llvm.strPoke(buf, pos, 109)
+            pos = pos + 1
+        }
+        if has_hm {
+            if secs < 10 {
+                fly.llvm.strPoke(buf, pos, 48)
+                pos = pos + 1
+            }
+        }
+        appendDecimal(secs, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    } elsif ms > 0 {
+        appendDecimal(ms, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 109)
+        pos = pos + 1
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    } elsif us > 0 {
+        appendDecimal(us, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 117)
+        pos = pos + 1
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    } else {
+        appendDecimal(nanos, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 110)
+        pos = pos + 1
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    }
+
+    fly.llvm.strMake(buf, pos, out)
+}
+
+// nowSec returns the current Unix timestamp as whole seconds.
+// Avoids the local-struct limitation in external callers.
+public nowSec(long out) {
+    long total_ns = 0
+    fly.runtime.time_now_ns(total_ns)
+    long ns_per_sec = 1000000000
+    out = total_ns / ns_per_sec
+}
+
+// durationFormatNsec formats a raw nanosecond count as a human-readable string.
+// Identical to durationFormat but accepts a raw long rather than a Duration.
+// Examples: "1h30m05s", "500ms", "200us", "5ns", "0s".
+public durationFormatNsec(const long nsec, string out) {
+    long ns = nsec
+    if ns < 0 { ns = 0 - ns }
+    if ns == 0 {
+        long b0 = 0
+        fly.runtime.mem_alloc(4, b0)
+        fly.llvm.strPoke(b0, 0, 48)
+        fly.llvm.strPoke(b0, 1, 115)
+        fly.llvm.strMake(b0, 2, out)
+        return
+    }
+
+    long ns_per_hr  = 3600000000000
+    long ns_per_min = 60000000000
+    long ns_per_sec = 1000000000
+    long ns_per_ms  = 1000000
+    long ns_per_us  = 1000
+
+    long hours = ns / ns_per_hr
+    long rem   = ns - hours * ns_per_hr
+    long mins  = rem / ns_per_min
+    rem        = rem - mins * ns_per_min
+    long secs  = rem / ns_per_sec
+    rem        = rem - secs * ns_per_sec
+    long ms    = rem / ns_per_ms
+    rem        = rem - ms * ns_per_ms
+    long us    = rem / ns_per_us
+    long nanos = rem - us * ns_per_us
+
+    long buf = 0
+    fly.runtime.mem_alloc(64, buf)
+    int pos = 0
+
+    bool has_large = false
+    if hours > 0 { has_large = true }
+    if mins > 0  { has_large = true }
+    if secs > 0  { has_large = true }
+
+    int p2 = 0
+    if has_large {
+        if hours > 0 {
+            appendDecimal(hours, buf, pos, p2)
+            pos = p2
+            fly.llvm.strPoke(buf, pos, 104)
+            pos = pos + 1
+        }
+        bool has_hm = false
+        if hours > 0 { has_hm = true }
+        if mins > 0  { has_hm = true }
+        if has_hm {
+            if hours > 0 {
+                if mins < 10 {
+                    fly.llvm.strPoke(buf, pos, 48)
+                    pos = pos + 1
+                }
+            }
+            appendDecimal(mins, buf, pos, p2)
+            pos = p2
+            fly.llvm.strPoke(buf, pos, 109)
+            pos = pos + 1
+        }
+        if has_hm {
+            if secs < 10 {
+                fly.llvm.strPoke(buf, pos, 48)
+                pos = pos + 1
+            }
+        }
+        appendDecimal(secs, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    } elsif ms > 0 {
+        appendDecimal(ms, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 109)
+        pos = pos + 1
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    } elsif us > 0 {
+        appendDecimal(us, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 117)
+        pos = pos + 1
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    } else {
+        appendDecimal(nanos, buf, pos, p2)
+        pos = p2
+        fly.llvm.strPoke(buf, pos, 110)
+        pos = pos + 1
+        fly.llvm.strPoke(buf, pos, 115)
+        pos = pos + 1
+    }
+
+    fly.llvm.strMake(buf, pos, out)
+}

@@ -114,11 +114,11 @@ namespace fly {
 
     	llvm::Value *ConvertToBool(llvm::Value *V);
 
-    	llvm::Value *ConvertNumber(llvm::Value *V, SemaNumberType *Ty);
+    	llvm::Value *ConvertNumber(llvm::Value *V, SemaNumberType *Ty, bool IsSigned = true);
 
     	llvm::Value *ConvertToInteger(llvm::Value *V, SemaIntType *Ty);
 
-    	llvm::Value *ConvertToFloat(llvm::Value *V, SemaFloatType *Ty);
+    	llvm::Value *ConvertToFloat(llvm::Value *V, SemaFloatType *Ty, bool IsSigned = true);
     };
 }
 

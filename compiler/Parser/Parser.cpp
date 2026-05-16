@@ -125,7 +125,7 @@ ASTModule *Parser::ParseHeader() {
         Module->setNameSpace(ParseNameSpace());
     }
 
-    // Parse function declarations (no bodies)
+    // Parse declarations (struct/class/enum/function, no function bodies)
     while (ContinueParse && Tok.isNot(tok::eof)) {
 
         // Skip comment tokens
@@ -136,6 +136,16 @@ ASTModule *Parser::ParseHeader() {
 
         // Parse modifiers (public/private/etc.)
         SmallVector<ASTModifier *, 8> Modifiers = ParseModifiers();
+
+        // Parse a struct/class/interface or enum declaration (e.g. "public struct fly_rng { ... }")
+        if (Tok.isOneOf(tok::kw_struct, tok::kw_class, tok::kw_interface)) {
+            ParseClass(Modifiers);
+            continue;
+        }
+        if (Tok.is(tok::kw_enum)) {
+            ParseEnum(Modifiers);
+            continue;
+        }
 
         // Expect a function name identifier
         if (!Tok.isAnyIdentifier()) {

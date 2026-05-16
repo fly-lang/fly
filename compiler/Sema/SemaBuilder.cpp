@@ -365,22 +365,28 @@ SemaValue * SemaBuilder::CreateNumberValue(ASTNumberValue &AST) {
 	} else {
 		llvm::APInt Value = CreateAPIntValue(ValStr);
 
-		// Compute MinBits for type inference
+		// Compute MinBits for type inference.
+		// For the negative branch use countLeadingOnes (two's complement sign bits).
+		// For the positive branch use getActiveBits() so the bit-width of the
+		// (large) parse buffer does not inflate the count.
 		unsigned MinBits = Value.isNegative()
 			? 1 + Value.getBitWidth() - Value.countLeadingOnes()
-			: 1 + Value.getBitWidth() - Value.countLeadingZeros();
+			: Value.getActiveBits() + 1;
 
-		// Infer Type based on MinBits, but keep the Value at its original bit width
+		// Infer Type based on MinBits, but keep the Value at its original bit width.
+		// Positive decimal literals follow signed-type convention (same as C/Rust):
+		// a value that fits in int is typed as int, not uint.
 		SemaIntType *Type = nullptr;
 		if (Value.isNegative()) {
 			if (MinBits <= 16) Type = SemaBuiltin::getShortType();
 			else if (MinBits <= 32) Type = SemaBuiltin::getIntType();
 			else Type = SemaBuiltin::getLongType();
 		} else {
-			if (MinBits <= 8) Type = SemaBuiltin::getByteType();
-			else if (MinBits <= 16) Type = SemaBuiltin::getUShortType();
-			else if (MinBits <= 32) Type = SemaBuiltin::getUIntType();
-			else Type = SemaBuiltin::getULongType();
+			if (MinBits <= 8)       Type = SemaBuiltin::getByteType();
+			else if (MinBits <= 16) Type = SemaBuiltin::getShortType();
+			else if (MinBits <= 32) Type = SemaBuiltin::getIntType();
+			else if (MinBits <= 64) Type = SemaBuiltin::getLongType();
+			else                    Type = SemaBuiltin::getULongType();
 		}
 
 		// Create SemaIntValue with the full-width Value (truncation will happen during codegen)
@@ -418,8 +424,10 @@ llvm::APInt SemaBuilder::CreateAPIntValue(StringRef ValStr) {
 		ValStr = ValStr.drop_front(2);
 	}
 
-	// Parse
-	unsigned SrcBits = llvm::APInt::getBitsNeeded(ValStr, Radix);
+	// Parse with sufficient precision (128-bit) so that values like INT_MAX
+	// (2147483647 = 0x7FFFFFFF) don't lose their high bit due to getBitsNeeded
+	// returning a width that is too small for unsigned representation.
+	unsigned SrcBits = std::max(128u, llvm::APInt::getBitsNeeded(ValStr, Radix));
 	llvm::APInt Value(SrcBits, ValStr, Radix);
 	return IsNegative ? -Value : Value;
 }
