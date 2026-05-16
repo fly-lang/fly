@@ -92,7 +92,7 @@ i32 env_args_count(void)
     return g_argc;
 }
 
-i64 env_args_get(i32 idx, char *buf, usize size)
+i32 env_args_get(i32 idx, char *buf, usize size)
 {
     if (idx < 0 || idx >= g_argc || !g_argv) {
         if (size > 0) buf[0] = '\0';

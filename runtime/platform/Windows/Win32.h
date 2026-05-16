@@ -118,6 +118,7 @@ WIN32_IMPORT HANDLE WINAPI CreateFileA(const char *lpFileName, DWORD dwDesiredAc
                                         DWORD dwCreationDisposition,
                                         DWORD dwFlagsAndAttributes, HANDLE hTemplateFile);
 WIN32_IMPORT BOOL   WINAPI FlushFileBuffers(HANDLE hFile);
+typedef struct { long long QuadPart; } LARGE_INTEGER_rt;
 WIN32_IMPORT BOOL   WINAPI SetFilePointerEx(HANDLE hFile, LARGE_INTEGER_rt liDistanceToMove,
                                              LPVOID lpNewFilePointer, DWORD dwMoveMethod);
 WIN32_IMPORT BOOL   WINAPI SetEndOfFile(HANDLE hFile);
@@ -134,7 +135,6 @@ WIN32_IMPORT BOOL   WINAPI SetFileAttributesA(const char *lpFileName, DWORD dwFi
 
 typedef struct { DWORD dwLowDateTime; DWORD dwHighDateTime; } FILETIME_rt;
 typedef union  { FILETIME_rt ft; unsigned long long val; }   FILETIME_u;
-typedef struct { long long QuadPart; } LARGE_INTEGER_rt;
 
 WIN32_IMPORT void  WINAPI GetSystemTimeAsFileTime(FILETIME_rt *lpSystemTimeAsFileTime);
 WIN32_IMPORT BOOL  WINAPI QueryPerformanceCounter(LARGE_INTEGER_rt *lpPerformanceCount);
