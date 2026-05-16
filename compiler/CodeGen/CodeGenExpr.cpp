@@ -199,8 +199,12 @@ void CodeGenExpr::GenExpr(SemaVar *Sema) {
 
 		// Check if the ClassAttribute is a static attribute
 		if (!ClassAttribute->isStatic()) {
-			llvm::Value *ParentPointer = ClassAttribute->getClass().getThis()->getCodeGen()->getValue();
-			ClassAttribute->getCodeGen()->setPointer(ParentPointer);
+			llvm::Value *Instance = ClassAttribute->getClass().getThis()->getCodeGen()->getValue();
+			llvm::StructType *StructTy = ClassAttribute->getClass().getCodeGen()->getType();
+			size_t FieldIdx = ClassAttribute->getCodeGen()->getIndex();
+			llvm::Value *FieldPtr = Builder->CreateInBoundsGEP(StructTy, Instance,
+				{CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, FieldIdx)});
+			ClassAttribute->getCodeGen()->setPointer(FieldPtr);
 		}
 	}
 
@@ -1280,6 +1284,13 @@ void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &A
 			if (K == SemaKind::LOCAL_VAR || K == SemaKind::PARAM_VAR ||
 			    K == SemaKind::ERROR_VAR || K == SemaKind::ATTRIBUTE ||
 			    K == SemaKind::INSTANCE_VAR) {
+				// For non-static class attributes: ensure the GEP pointer is computed
+				// before we hand the address to the callee (the GenBody loop pre-sets the
+				// wrong InstancePtr alloca; visit(SemaClassAttribute) fixes const args but
+				// is not called on this output-param path).
+				if (K == SemaKind::ATTRIBUTE) {
+					ArgExpr->accept(*CGM);  // triggers visit(SemaClassAttribute) → GEP setup
+				}
 				CodeGenVar *CGV = static_cast<SemaVar *>(ArgExpr)->getCodeGen();
 				Args.push_back(CGV->getPointer());
 				CGV->resetLoad();  // force fresh load on next use

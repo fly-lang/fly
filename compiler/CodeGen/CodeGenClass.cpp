@@ -28,7 +28,7 @@
 
 using namespace fly;
 
-CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExternal) : CodeGenType(CGM), Sema(Sema) {
+CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExternal) : CodeGenType(CGM), Sema(Sema), IsExternal(isExternal) {
 	Id = toIdentifier(Sema);
 
 	// Generate Class Type
@@ -64,15 +64,17 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExter
 	// %type = type { %vtable_type, %...inherit_types, %...field_types }
 	Type->setBody(BodyType);
 
-	// Generate per-base vtables and thunks for multiple inheritance
-	// Must be called after Type->setBody so struct layout is available for byte-offset computation
-	if (Sema->getClassKind() == SemaClassKind::CLASS) {
-		CreateBaseVTables();
-	}
+	if (!IsExternal) {
+		// Generate per-base vtables and thunks for multiple inheritance
+		// Must be called after Type->setBody so struct layout is available for byte-offset computation
+		if (Sema->getClassKind() == SemaClassKind::CLASS) {
+			CreateBaseVTables();
+		}
 
-	// Generate Init Constructor Body only for concrete classes
-	if (Sema->getClassKind() != SemaClassKind::INTERFACE && !Sema->isAbstract()) {
-		GenInitConstructorBody();
+		// Generate Init Constructor Body only for concrete classes
+		if (Sema->getClassKind() != SemaClassKind::INTERFACE && !Sema->isAbstract()) {
+			GenInitConstructorBody();
+		}
 	}
 }
 
@@ -129,8 +131,9 @@ void CodeGenClass::CreateVTable() {
 					// Add to Class Methods list
 					Methods.push_back(CG);
 
-					// Abstract methods have no body — do not schedule for code generation
-					if (!Method->isAbstract()) {
+					// Abstract methods have no body — do not schedule for code generation.
+					// External classes are defined in the library; never schedule their methods.
+					if (!Method->isAbstract() && !IsExternal) {
 						CGM->Functions.push_back(Method);
 					}
 				} else {
@@ -158,11 +161,15 @@ void CodeGenClass::CreateVTable() {
 		// Create the VTable Constant Struct Value
 		llvm::Constant *ArrayValue = llvm::ConstantArray::get(ArrayOfInt8Ptr, VTableArrayValues);
 
-		// Create the VTable Global Variable
+		// External classes already have their vtable defined in the library.
 		std::string VTableName = "vtable." + Id;
-		VTable = new llvm::GlobalVariable(
-			*CGM->Module, ArrayOfInt8Ptr, true,
-			llvm::GlobalValue::ExternalLinkage, ArrayValue, VTableName);
+		if (IsExternal) {
+			VTable = nullptr;
+		} else {
+			VTable = new llvm::GlobalVariable(
+				*CGM->Module, ArrayOfInt8Ptr, true,
+				llvm::GlobalValue::ExternalLinkage, ArrayValue, VTableName);
+		}
 	}
 }
 
@@ -377,7 +384,10 @@ void CodeGenClass::CreateInitConstructor() {
 	llvm::SmallVector<llvm::Type *, 8> ParamTypes;
 	ParamTypes.push_back(TypePtr);
 	llvm::FunctionType *FnType = llvm::FunctionType::get(TypePtr, ParamTypes, false);
-	InitConstructor = llvm::Function::Create(FnType, llvm::GlobalValue::LinkOnceODRLinkage, CtorId, CGM->getModule());
+	llvm::GlobalValue::LinkageTypes Linkage = IsExternal
+		? llvm::GlobalValue::ExternalLinkage
+		: llvm::GlobalValue::LinkOnceODRLinkage;
+	InitConstructor = llvm::Function::Create(FnType, Linkage, CtorId, CGM->getModule());
 }
 
 void CodeGenClass::GenInitConstructorBody() {

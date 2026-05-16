@@ -137,6 +137,8 @@ llvm::IRBuilder<> *CodeGenModule::getBuilder() const {
 // =============================================================================
 
 void CodeGenModule::visit(SemaModule &Sema) {
+    CurrentSemaModule = &Sema;
+
     // Generate all nodes (functions, classes, enums)
     for (auto &Node : Sema.getNodes()) {
         Node->accept(*this);
@@ -229,7 +231,9 @@ void CodeGenModule::visit(SemaEnumType &Sema) {
 
 void CodeGenModule::visit(SemaClassType &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
-		CodeGenClass *CGC = new CodeGenClass(this, &Sema, false);
+		bool isExternal = (CurrentSemaModule != nullptr &&
+		                   &Sema.getModule() != CurrentSemaModule);
+		CodeGenClass *CGC = new CodeGenClass(this, &Sema, isExternal);
 		Sema.setCodeGen(CGC);
 	}
 }
@@ -258,6 +262,21 @@ void CodeGenModule::visit(SemaClassAttribute &Sema) {
 		llvm::Type *T = Sema.getType()->getCodeGen()->getType();
 		CodeGenVar *CGV = new CodeGenVar(this, &Sema, T);
 		Sema.setCodeGen(CGV);
+	}
+
+	// When accessed inside a non-static class method as a bare name (e.g. `fd`, not `this.fd`),
+	// compute a GEP to the correct struct field so Load/Store hit the actual field, not the alloca.
+	if (!Sema.isStatic() && CurrentFunction &&
+	    CurrentFunction->getKind() == SemaKind::METHOD) {
+		SemaClassMethod *Method = static_cast<SemaClassMethod *>(CurrentFunction);
+		if (!Method->isStatic()) {
+			llvm::Value *Instance = Method->getThis()->getCodeGen()->getValue();
+			llvm::StructType *StructTy = Sema.getClass().getCodeGen()->getType();
+			size_t FieldIdx = Sema.getCodeGen()->getIndex();
+			llvm::Value *FieldPtr = Builder->CreateInBoundsGEP(StructTy, Instance,
+				{CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, FieldIdx)});
+			Sema.getCodeGen()->setPointer(FieldPtr);
+		}
 	}
 }
 

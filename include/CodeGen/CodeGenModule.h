@@ -147,6 +147,8 @@ namespace fly {
 
         SemaFunctionBase *CurrentFunction = nullptr;
 
+        SemaModule *CurrentSemaModule = nullptr;
+
     	CodeGenError *CurrentErrorHandler = nullptr;
 
     	llvm::BasicBlock *CurrentHandleBB = nullptr;

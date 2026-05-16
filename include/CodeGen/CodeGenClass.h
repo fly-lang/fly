@@ -41,6 +41,8 @@ namespace fly {
 
         SemaClassType *Sema;
 
+        bool IsExternal = false;
+
         std::string Id;
 
         llvm::StructType *Type = nullptr;
