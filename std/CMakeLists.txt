@@ -12,7 +12,6 @@
 #   fly.assert       src/assert.fly
 #   fly.str          src/str.fly
 #   fly.math         src/math.fly
-#   fly.os           src/os.fly       (legacy monolith — kept for backward compat)
 #   fly.os.time      src/os/time.fly
 #   fly.os.env       src/os/env.fly
 #   fly.os.path      src/os/path.fly
@@ -23,7 +22,6 @@
 # Tests live in test/:
 #   test/str_test.fly        — Fly-native tests for fly.str
 #   test/math_test.fly       — Fly-native tests for fly.math
-#   test/os_test.fly         — Fly-native tests for fly.os (legacy)
 #   test/os_env_test.fly     — Fly-native tests for fly.os.env
 #   test/os_path_test.fly    — Fly-native tests for fly.os.path
 #   test/os_fs_test.fly      — Fly-native tests for fly.os.fs
@@ -41,7 +39,6 @@ set(FLY_LIB_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/src/assert.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/src/str.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/src/math.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/os.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/time.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/env.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/path.fly
@@ -100,19 +97,6 @@ add_custom_command(
 )
 add_custom_target(math_test_fly_bin ALL DEPENDS ${CMAKE_BINARY_DIR}/math_test_fly)
 add_test(NAME fly_math_fly_test COMMAND ${CMAKE_BINARY_DIR}/math_test_fly)
-
-add_custom_command(
-    OUTPUT  ${CMAKE_BINARY_DIR}/os_test_fly
-    COMMAND $<TARGET_FILE:fly>
-            ${CMAKE_CURRENT_SOURCE_DIR}/test/os_test.fly
-            ${FLY_LIB_OUTPUT}
-            -o ${CMAKE_BINARY_DIR}/os_test_fly
-    DEPENDS fly fly_lib ${CMAKE_CURRENT_SOURCE_DIR}/test/os_test.fly
-    COMMENT "Compiling os_test.fly"
-    VERBATIM
-)
-add_custom_target(os_test_fly_bin ALL DEPENDS ${CMAKE_BINARY_DIR}/os_test_fly)
-add_test(NAME fly_os_fly_test COMMAND ${CMAKE_BINARY_DIR}/os_test_fly)
 
 add_custom_command(
     OUTPUT  ${CMAKE_BINARY_DIR}/os_env_test_fly
