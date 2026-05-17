@@ -70,11 +70,11 @@ bool BuildLib() {
 }
 
 bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, FrontendOptions &FrontendOpts) {
+    FLY_DEBUG_SCOPE_MSG("ToolChain", "BuildOutput", "Output=" << FrontendOpts.getOutputFile());
     llvm::SmallVector<const char *, 4> Args = {"fly"};
     const std::string OutFileName = FrontendOpts.getOutputFile();
 
     // Select right options format by platform (Win or others)
-    FLY_DEBUG_START_MSG("ToolChain", "Link", "Output=" << OutFileName);
     if (FrontendOpts.CreateLibrary) {
         std::string LibPath = OutFileName;
         if (llvm::sys::path::extension(LibPath).empty())
@@ -100,13 +100,14 @@ bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, Fr
 }
 
 void createLinkArgs(SmallVector<std::string, 16> &InArgs, SmallVector<const char*, 16> &OutArgs) {
+    FLY_DEBUG_SCOPE("ToolChain", "createLinkArgs");
     // Log arguments and generate link arguments
     std::string ArgStr;
     for (auto& A : InArgs) {
         ArgStr.append(A).append(" ");
         OutArgs.push_back(A.c_str());
     }
-    FLY_DEBUG_START_MSG("ToolChain", "createLinkArgs", "Args: " + ArgStr);
+    FLY_DEBUG_MSG("Args: " + ArgStr);
 }
 
 // Check various environment variables to try and find a toolchain.
@@ -488,7 +489,7 @@ static const char *llvmArchToWindowsSDKArch(llvm::Triple::ArchType Arch) {
 }
 
 bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile) {
-    FLY_DEBUG_START_MSG("ToolChain", "LinkWindows", "Out: " + OutFile);
+    FLY_DEBUG_SCOPE_MSG("ToolChain", "LinkWindows", "Out: " + OutFile);
     llvm::SmallVector<std::string, 16> CmdArgs;
     CmdArgs.push_back("lld-link");
 
@@ -530,13 +531,13 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
 
     // Add Inputs
     for (const std::string& ObjFile : InFiles) {
-        FLY_DEBUG_START_MSG("ToolChain", "LinkWindows", "Input=" << ObjFile);
+        FLY_DEBUG_MSG("Input=" << ObjFile);
         CmdArgs.push_back(ObjFile.c_str());
     }
 
     const std::string WinRuntimeLib = GetRuntimeLibPath();
     if (!WinRuntimeLib.empty()) {
-        FLY_DEBUG_START_MSG("ToolChain", "LinkWindows", "RuntimeLib=" << WinRuntimeLib);
+        FLY_DEBUG_MSG("RuntimeLib=" << WinRuntimeLib);
         CmdArgs.push_back(WinRuntimeLib.c_str());
     }
 
@@ -689,6 +690,7 @@ bool ToolChain::getWindowsSDKLibraryPath(std::string &path) const {
 }
 
 bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile) {
+    FLY_DEBUG_SCOPE_MSG("ToolChain", "LinkDarwin", "Out: " + OutFile);
     llvm::SmallVector<std::string, 16> CmdArgs;
     CmdArgs.push_back("ld64.lld");
 
@@ -698,13 +700,13 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
     CmdArgs.push_back(OutFile.c_str());
 
     for(const std::string &InFile : InFiles) {
-        FLY_DEBUG_START_MSG("ToolChain", "LinkDarwin", "Input=" << InFile);
+        FLY_DEBUG_MSG("Input=" << InFile);
         CmdArgs.push_back(InFile.c_str());
     }
 
     const std::string DarwinRuntimeLib = GetRuntimeLibPath();
     if (!DarwinRuntimeLib.empty()) {
-        FLY_DEBUG_START_MSG("ToolChain", "LinkDarwin", "RuntimeLib=" << DarwinRuntimeLib);
+        FLY_DEBUG_MSG("RuntimeLib=" << DarwinRuntimeLib);
         CmdArgs.push_back(DarwinRuntimeLib.c_str());
     }
 
@@ -718,7 +720,7 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
 }
 
 bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile, FrontendOptions &FrontendOpts) {
-    FLY_DEBUG_START_MSG("ToolChain", "LinkLinux", "Out: " + OutFile);
+    FLY_DEBUG_SCOPE_MSG("ToolChain", "LinkLinux", "Out: " + OutFile);
     llvm::SmallVector<std::string, 16> CmdArgs;
     CmdArgs.push_back("ld");
 
@@ -844,7 +846,7 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
 
     // Add Inputs
     for(const std::string &ObjFile : InFiles) {
-        FLY_DEBUG_START_MSG("ToolChain", "Link", "Input=" << ObjFile);
+        FLY_DEBUG_MSG("Input=" << ObjFile);
         CmdArgs.push_back(ObjFile);
     }
 
@@ -852,7 +854,7 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
     for (const auto &Input : FrontendOpts.getInputFiles()) {
         const llvm::StringRef Ext = llvm::sys::path::extension(Input);
         if (Ext == ".a" || Ext == ".lib") {
-            FLY_DEBUG_START_MSG("ToolChain", "Link", "UserLib=" << Input);
+            FLY_DEBUG_MSG("UserLib=" << Input);
             CmdArgs.push_back(Input);
         }
     }
@@ -862,13 +864,13 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
     // before the standard C library is searched.
     const std::string RuntimeLib = GetRuntimeLibPath();
     if (!RuntimeLib.empty()) {
-        FLY_DEBUG_START_MSG("ToolChain", "LinkLinux", "RuntimeLib=" << RuntimeLib);
+        FLY_DEBUG_MSG("RuntimeLib=" << RuntimeLib);
         CmdArgs.push_back(RuntimeLib);
     }
 
     // Add Library Paths
     for(const std::string &Path : PathList) {
-        FLY_DEBUG_START_MSG("ToolChain", "Link", "LibPath=" << Path);
+        FLY_DEBUG_MSG("LibPath=" << Path);
         CmdArgs.push_back(("-L" + Path));
     }
 
@@ -884,7 +886,7 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
         Diag.Report(diag::err_drv_compiler_rt_not_found) << T.str();
         return false;
     }
-    FLY_DEBUG_START_MSG("ToolChain", "LinkLinux", "BuiltinsLib=" << BuiltinsLib);
+    FLY_DEBUG_MSG("BuiltinsLib=" << BuiltinsLib);
     CmdArgs.push_back(BuiltinsLib);
 
 
@@ -985,6 +987,7 @@ const char *ToolChain::getLDMOption() {
 }
 
 std::string ToolChain::GetFilePath(llvm::Twine Name, SmallVector<std::string, 16> &PathList) const {
+    FLY_DEBUG_SCOPE("ToolChain", "GetFilePath");
     // Search for Name in a list of paths.
     auto SearchPaths = [&](const llvm::SmallVectorImpl<std::string> &P)
             -> std::optional<std::string> {
@@ -996,7 +999,7 @@ std::string ToolChain::GetFilePath(llvm::Twine Name, SmallVector<std::string, 16
             SmallString<128> Path(Dir);
             llvm::sys::path::append(Path, Name);
             if (llvm::sys::fs::exists(Twine(Path))) {
-                FLY_DEBUG_START_MSG("ToolChain", "GetFilePath", "Path exists " << Path);
+                FLY_DEBUG_MSG("Path exists " << Path);
                 return std::string(Path);
             }
         }
@@ -1266,6 +1269,7 @@ static const char *archToCompilerRTSuffix(llvm::Triple::ArchType Arch) {
 }
 
 std::string ToolChain::GetCompilerRTBuiltinsPath() const {
+    FLY_DEBUG_SCOPE("ToolChain", "GetCompilerRTBuiltinsPath");
     const char *Suffix = archToCompilerRTSuffix(T.getArch());
     if (!Suffix)
         return "";
@@ -1303,7 +1307,7 @@ std::string ToolChain::GetCompilerRTBuiltinsPath() const {
 
     for (const auto &P : Candidates) {
         if (getVFS().exists(P)) {
-            FLY_DEBUG_START_MSG("ToolChain", "GetCompilerRTBuiltinsPath", "Found: " << P);
+            FLY_DEBUG_MSG("Found: " << P);
             return P;
         }
     }
@@ -1320,33 +1324,35 @@ std::string ToolChain::GetCompilerRTBuiltinsPath() const {
              !EC && It != End; It.increment(EC)) {
             const std::string Candidate = It->path().str() + "/" + NewLibName;
             if (getVFS().exists(Candidate)) {
-                FLY_DEBUG_START_MSG("ToolChain", "GetCompilerRTBuiltinsPath", "Found via scan: " << Candidate);
+                FLY_DEBUG_MSG("Found via scan: " << Candidate);
                 return Candidate;
             }
         }
     }
 
-    FLY_DEBUG_START_MSG("ToolChain", "GetCompilerRTBuiltinsPath", "Not found: " << NewLibName);
+    FLY_DEBUG_MSG("Not found: " << NewLibName);
     return "";
 }
 
 
 std::string ToolChain::GetRuntimeLibPath() const {
+    FLY_DEBUG_SCOPE("ToolChain", "GetRuntimeLibPath");
     // FLY_RUNTIME_LIB_DIR is baked into Config.h at cmake-configure time.
     // It points to the directory where libFlyRuntime.a is built (or installed).
     llvm::SmallString<256> P(FLY_RUNTIME_LIB_DIR);
     llvm::sys::path::append(P, "libFlyRuntime.a");
     if (getVFS().exists(P)) {
-        FLY_DEBUG_START_MSG("ToolChain", "GetRuntimeLibPath", "Found: " << P);
+        FLY_DEBUG_MSG("Found: " << P);
         return std::string(P.str());
     }
-    FLY_DEBUG_START_MSG("ToolChain", "GetRuntimeLibPath", "Not found: " << P);
+    FLY_DEBUG_MSG("Not found: " << P);
     return "";
 }
 
 bool Archiver::CreateLib(const llvm::SmallVector<std::string, 4> &Files) {
+    FLY_DEBUG_SCOPE("Archiver", "CreateLib");
     for (auto &File : Files) {
-        FLY_DEBUG_START_MSG("Archiver", "CreateLib", "File=" << File);
+        FLY_DEBUG_MSG("File=" << File);
         Members.emplace_back(File);
     }
     return performWriteOperation(ReplaceOrInsert, nullptr, nullptr, nullptr);

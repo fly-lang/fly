@@ -91,7 +91,7 @@ bool CodeGenClassMethod::isStatic() const {
 }
 
 void CodeGenClassMethod::GenBody() {
-    FLY_DEBUG_START("CodeGenFunctionBase", "GenBody");
+    FLY_DEBUG_SCOPE("CodeGenFunctionBase", "GenBody");
 
 	SemaClassMethod *ClassMethod = (SemaClassMethod *) Sema;
 	SemaClassType *Class = ClassMethod->getClass();
@@ -215,7 +215,7 @@ void CodeGenClassMethod::GenBody() {
 }
 
 std::string CodeGenClassMethod::toIdentifier(SemaClassMethod *ClassMethod) {
-	FLY_DEBUG_START("CodeGenClassMethod", "toIdentifier");
+	FLY_DEBUG_SCOPE("CodeGenClassMethod", "toIdentifier");
 	// For class methods, use the mangled name which includes the class name
 	SemaNameSpace *NameSpace = ClassMethod->getClass()->getModule().getNameSpace();
 	return CGM->toIdentifier(ClassMethod->getAST().getName(), NameSpace);

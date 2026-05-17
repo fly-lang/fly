@@ -49,7 +49,7 @@
 using namespace fly;
 
 CodeGenExpr::CodeGenExpr(CodeGenModule *CGM) : CodeGenBase(), CGM(CGM), Builder(CGM->getBuilder()) {
-	FLY_DEBUG_START("CodeGenExpr", "CodeGenExpr");
+	FLY_DEBUG_SCOPE("CodeGenExpr", "CodeGenExpr");
 }
 
 llvm::Value *CodeGenExpr::getValue() {
@@ -63,7 +63,11 @@ void CodeGenExpr::GenExpr(SemaBoolValue *Sema) {
 
 void CodeGenExpr::GenExpr(SemaIntValue *Sema) {
 	SemaType *Type = Sema->getType();
-	// PromoteTypes may have changed an integer literal's type to float for mixed arithmetic.
+	// Even though the AST node is SemaIntValue (the literal has no decimal point in source),
+	// PromoteTypes may have rewritten its type to float to satisfy mixed-type arithmetic
+	// (e.g. "1 + 2.5" promotes the integer literal 1 to float before codegen).
+	// SemaIntValue records the literal's lexical form, not its final expression type,
+	// so we must consult getType() here rather than assuming the type is always integral.
 	if (Type->isFloat()) {
 		double FPVal = (double)Sema->getValue().getZExtValue();
 		switch (static_cast<SemaFloatType *>(Type)->getFloatKind()) {
@@ -498,6 +502,16 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
                     if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
                     return;
                 }
+                if (BaseName == "ptrPokeLong" || BaseName == "ptrPokeInt") {
+                    // InArgs[0]=i64 base, InArgs[1]=i32 offset, InArgs[2]=i64/i32 val
+                    // Emit: store val, gep(i8, inttoptr(base), sext(offset))
+                    llvm::Type *OpaquePtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+                    llvm::Value *RawPtr  = Builder->CreateIntToPtr(InArgs[0], OpaquePtrTy);
+                    llvm::Value *Idx     = Builder->CreateSExt(InArgs[1], CodeGen::Int64Ty);
+                    llvm::Value *BytePtr = Builder->CreateGEP(CodeGen::Int8Ty, RawPtr, Idx);
+                    V = Builder->CreateStore(InArgs[2], BytePtr);
+                    return;
+                }
 
                 // Memory intrinsics: long args are opaque addresses, convert to ptr
                 if (BaseName == "memcpy" || BaseName == "memmove" || BaseName == "memset") {
@@ -797,7 +811,7 @@ void CodeGenExpr::GenExpr(SemaCast *Sema) {
 }
 
 void CodeGenExpr::GenExpr(SemaUnary *Sema) {
-    FLY_DEBUG_START("CodeGenExpr", "GenUnary");
+    FLY_DEBUG_SCOPE("CodeGenExpr", "GenUnary");
 	ASTUnary &Unary = Sema->getAST();
     assert(Unary.getExprKind() == ASTExprKind::EXPR_UNARY && "Expected Unary Group Expr");
     assert(Sema->getExpr() && "Unary Expr empty");
@@ -845,7 +859,7 @@ void CodeGenExpr::GenExpr(SemaUnary *Sema) {
 }
 
 void CodeGenExpr::GenExpr(SemaBinary *Sema) {
-	FLY_DEBUG_START("CodeGenExpr", "GenBinary");
+	FLY_DEBUG_SCOPE("CodeGenExpr", "GenBinary");
 	ASTBinary &Binary = Sema->getAST();
 	assert(Binary.getExprKind() == ASTExprKind::EXPR_BINARY && "Expected Binary Group Expr");
 
@@ -969,7 +983,7 @@ llvm::Value *CodeGenExpr::GenStringHeapCopy(SemaStringValue *Sema) {
 }
 
 llvm::Value *CodeGenExpr::GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2) {
-    FLY_DEBUG_START("CodeGenExpr", "GenBinaryArith");
+    FLY_DEBUG_SCOPE("CodeGenExpr", "GenBinaryArith");
 
 	SemaType *T1 = E1->getType();
 	SemaType *T2 = E2->getType();
@@ -1037,7 +1051,7 @@ llvm::Value *CodeGenExpr::GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKin
 }
 
 llvm::Value *CodeGenExpr::GenBinaryCompare(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2) {
-    FLY_DEBUG_START("CodeGenExpr", "GenBinaryComparison");
+    FLY_DEBUG_SCOPE("CodeGenExpr", "GenBinaryComparison");
 	SemaType *Type1 = E1->getType();
 	SemaType *Type2 = E2->getType();
 
@@ -1166,7 +1180,7 @@ llvm::Value *CodeGenExpr::GenBinaryCompare(SemaExpr *E1, ASTBinaryKind OperatorK
 }
 
 llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2) {
-    FLY_DEBUG_START("CodeGenExpr", "GenBinaryLogic");
+    FLY_DEBUG_SCOPE("CodeGenExpr", "GenBinaryLogic");
 
 	// Get Values
 	llvm::Value *V1 = E1->getCodeGen()->getValue();
@@ -1338,7 +1352,7 @@ void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &A
 }
 
 llvm::Value *CodeGenExpr::ConvertToBool(llvm::Value *V) {
-	FLY_DEBUG_START_MSG("CodeGenExpr", "Convert", "FromVal=" << V << " to Bool Type=");
+	FLY_DEBUG_SCOPE_MSG("CodeGenExpr", "Convert", "FromVal=" << V << " to Bool Type=");
 
 	if (V->getType()->isIntegerTy()) {
 		if (V->getType()->getIntegerBitWidth() > 8) {

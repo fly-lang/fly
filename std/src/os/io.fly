@@ -353,10 +353,10 @@ public writeString(Writer w, const string s) {
     int size = 0
     fly.llvm.strGetPtr(s, ptr)
     fly.llvm.strSize(s, size)
+    ulong size_u = size
     Buf buf = new Buf()
     buf.ptr = ptr
-    buf.size = size
-    ulong size_u = size
+    buf.size = size_u
     buf.cap = size_u
     long written = 0
     w.write(buf, size_u, written)

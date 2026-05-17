@@ -27,7 +27,7 @@ SemaContext::~SemaContext() {
 }
 
 llvm::SmallVector<SemaModule *, 8> SemaContext::Resolve(llvm::SmallVector<ASTModule *, 8> &Modules) {
-	FLY_DEBUG_START("Sema", "Resolve");
+	FLY_DEBUG_SCOPE("Sema", "Resolve");
 
 	// Create the Resolver with AST Modules
 	Resolver R(Diags, *Reg);
@@ -37,7 +37,5 @@ llvm::SmallVector<SemaModule *, 8> SemaContext::Resolve(llvm::SmallVector<ASTMod
 
 	// Start the Resolution Process
 	R.Resolve();
-
-	FLY_DEBUG_END("Sema", "Resolve");
 	return Reg->getModules();
 }

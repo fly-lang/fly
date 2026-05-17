@@ -25,7 +25,7 @@ using namespace fly;
  * @param Constant
  */
 ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bool SkipBodies) : P(P), SkipBodies(SkipBodies) {
-    FLY_DEBUG_START("ClassParser", "ClassParser");
+    FLY_DEBUG_SCOPE("ClassParser", "ClassParser");
 
     ASTClassKind ClassKind;
     if (P->Tok.is(tok::kw_struct)) {
@@ -126,7 +126,7 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bo
  * @return
  */
 ASTClass *ParserClass::Parse(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bool SkipBodies) {
-	FLY_DEBUG_START("ClassParser", "Parse");
+	FLY_DEBUG_SCOPE("ClassParser", "Parse");
     ParserClass *CP = new ParserClass(P, Modifiers, SkipBodies);
     ASTClass *Class = CP->Class;
     delete CP;
@@ -134,7 +134,7 @@ ASTClass *ParserClass::Parse(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers
 }
 
 ASTAttribute *ParserClass::ParseAttribute(SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef, const SourceLocation &Loc, llvm::StringRef Name) {
-	FLY_DEBUG_START("ClassParser", "ParseAttribute");
+	FLY_DEBUG_SCOPE("ClassParser", "ParseAttribute");
 
     if (!TypeRef) {
         P->Diag(diag::err_parser_invalid_type);
@@ -153,7 +153,7 @@ ASTAttribute *ParserClass::ParseAttribute(SmallVector<ASTModifier *, 8> &Modifie
 
 ASTMethod *ParserClass::ParseMethod(SmallVector<ASTModifier *, 8> &Modifiers,
 	const SourceLocation &Loc, llvm::StringRef Name) {
-	FLY_DEBUG_START("ClassParser", "ParseMethod");
+	FLY_DEBUG_SCOPE("ClassParser", "ParseMethod");
 
 	SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(P);
 	ASTMethod *Method = ASTBuilder::CreateClassMethod(Loc, Class, Name, Modifiers, Params);

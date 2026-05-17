@@ -55,7 +55,5 @@ target_compile_definitions(fly_test PRIVATE
         FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/std/src"
 )
 
-add_test(NAME fly_test COMMAND fly_test)
-
 include(GoogleTest)
 gtest_discover_tests(fly_test)

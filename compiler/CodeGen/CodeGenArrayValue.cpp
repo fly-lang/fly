@@ -21,7 +21,7 @@
 using namespace fly;
 
 CodeGenArrayValue::CodeGenArrayValue(CodeGenModule *CGM) : CodeGenExpr(CGM) {
-	FLY_DEBUG_START("CodeGenArrayValue", "CodeGenArrayValue");
+	FLY_DEBUG_SCOPE("CodeGenArrayValue", "CodeGenArrayValue");
 }
 
 std::vector<llvm::Value *> CodeGenArrayValue::getValues() const {
@@ -72,7 +72,7 @@ void CodeGenArrayValue::GenExpr(SemaArrayValue *Sema) {
 }
 
 void CodeGenArrayValue::GenExpr(SemaEnumList *Sema) {
-	FLY_DEBUG_START("CodeGenArrayValue", "GenExpr(SemaEnumList)");
+	FLY_DEBUG_SCOPE("CodeGenArrayValue", "GenExpr(SemaEnumList)");
 
 	// Enum entries are stored as i32 constants
 	ElementType = CodeGen::Int32Ty;
@@ -112,8 +112,6 @@ void CodeGenArrayValue::GenExpr(SemaEnumList *Sema) {
 	} else {
 		V = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ElementType->getPointerTo()));
 	}
-
-	FLY_DEBUG_END("CodeGenArrayValue", "GenExpr(SemaEnumList)");
 	// Note: Element stores will be done in CodeGenVar::StoreArrayValue
 }
 

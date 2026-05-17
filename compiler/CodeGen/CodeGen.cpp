@@ -147,23 +147,24 @@ void CodeGen::InitializeTypes(llvm::LLVMContext &LLVMCtx, TargetInfo &Target) {
 }
 
 std::string CodeGen::getOutputFileName(llvm::StringRef BaseInput) {
+    FLY_DEBUG_SCOPE("CodeGen", "getOutputFileName");
     StringRef FileName = llvm::sys::path::filename(BaseInput);
     std::string Name = FileName.str();//.substr(0,FileName.size()-4/* sizeof('.fly') = 4 */).str();
     switch (ActionKind) {
         case Backend_EmitNothing:
-            FLY_DEBUG_START_MSG("CodeGen", "getOutputFileName","return ''");
+            FLY_DEBUG_MSG("return ''");
             return "";
         case Backend_EmitLL:
-            FLY_DEBUG_START_MSG("CodeGen", "getOutputFileName","return " << Name + ".ll");
+            FLY_DEBUG_MSG("return " << Name + ".ll");
             return Name + ".ll";
         case Backend_EmitBC:
-            FLY_DEBUG_START_MSG("CodeGen", "getOutputFileName","return " << Name + ".bc");
+            FLY_DEBUG_MSG("return " << Name + ".bc");
             return Name + ".bc";
         case Backend_EmitAssembly:
-            FLY_DEBUG_START_MSG("CodeGen", "getOutputFileName","return " << Name + ".s");
+            FLY_DEBUG_MSG("return " << Name + ".s");
             return Name + ".s";
         case Backend_EmitObj:
-            FLY_DEBUG_START_MSG("CodeGen", "getOutputFileName","return " << Name + ".o");
+            FLY_DEBUG_MSG("return " << Name + ".o");
             return Name + ".o";
     }
 
@@ -178,7 +179,7 @@ std::string str(llvm::Module *M) {
 }
 
 void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
-    FLY_DEBUG_START_MSG("CodeGen", "Emit",
+    FLY_DEBUG_SCOPE_MSG("CodeGen", "Emit",
                       "Module.Name=" << M->getName() << "\nModule.Output=" << str(M));
 
     std::string OutputFileName = OutName.empty() ? getOutputFileName(M->getName()) : OutName.str();
@@ -213,7 +214,7 @@ llvm::LLVMContext &CodeGen::getLLVMCtx() {
 }
 
 llvm::SmallVector<llvm::Module *, 8> CodeGen::GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules) {
-    FLY_DEBUG_START("CodeGen", "GenerateModules");
+    FLY_DEBUG_SCOPE("CodeGen", "GenerateModules");
 
 	llvm::SmallVector<llvm::Module *, 8> Modules;
 	llvm::SmallVector<CodeGenModule *, 8> CodeGenModules;
@@ -237,6 +238,5 @@ llvm::SmallVector<llvm::Module *, 8> CodeGen::GenerateModules(llvm::SmallVector<
 		delete CGM;
 	}
 
-	FLY_DEBUG_END("CodeGen", "GenerateModules");
     return Modules;
 }

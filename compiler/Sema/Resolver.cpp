@@ -127,7 +127,7 @@ DiagnosticBuilder Resolver::Diag(unsigned DiagID) const {
 }
 
 void Resolver::visit(ASTModule &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTModule)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTModule)");
 	if (!AST.isVisited()) {
 		AST.setVisited(true);
 
@@ -149,11 +149,10 @@ void Resolver::visit(ASTModule &AST) {
 
 		ExitScope();
 	}
-	FLY_DEBUG_END("Resolver", "visit(ASTModule)");
 }
 
 void Resolver::visit(ASTNameSpace &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTNameSpace)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTNameSpace)");
 	if (!AST.isVisited()) {
 		AST.setVisited(true);
 
@@ -164,11 +163,10 @@ void Resolver::visit(ASTNameSpace &AST) {
 		CurrentModule->setNameSpace(NameSpace);
 		CurrentNameSpace = NameSpace;
 	}
-	FLY_DEBUG_END("Resolver", "visit(ASTNameSpace)");
 }
 
 void Resolver::visit(ASTImport &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTImport)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTImport)");
 	if (!AST.isVisited()) {
 		AST.setVisited(true);
 
@@ -177,11 +175,10 @@ void Resolver::visit(ASTImport &AST) {
 		// Add import in Module
 		SemaBuilder::CreateImport(*CurrentModule, AST);
 	}
-	FLY_DEBUG_END("Resolver", "visit(ASTImport)");
 }
 
 void Resolver::visit(ASTFunction &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTFunction)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTFunction)");
 	ResetCurrents();
 
 	// Enter Function Scope
@@ -243,12 +240,10 @@ void Resolver::visit(ASTFunction &AST) {
 	if (CurrentNameSpace && CurrentNameSpace != Reg.getDefaultNameSpace()) {
 		CurrentNameSpace->getSymbols()->insert(Sym);
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTFunction)");
 }
 
 void Resolver::visit(ASTClass &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTClass)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTClass)");
 	if (!AST.isVisited()) {
 		AST.setVisited(true);
 
@@ -279,12 +274,10 @@ void Resolver::visit(ASTClass &AST) {
 			CurrentNameSpace->getSymbols()->insert(Sym);
 		}
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTClass)");
 }
 
 void Resolver::visit(ASTAttribute &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTAttribute)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTAttribute)");
 
 	// Forbid redeclaration of inherited fields — two slots with the same name
 	// are never intentional and always cause confusion.
@@ -298,14 +291,12 @@ void Resolver::visit(ASTAttribute &AST) {
 			if (ExistingAttr->getVisibility() != SemaVisibilityKind::PRIVATE) {
 				Diag(AST.getLocation(), diag::err_sema_field_hides_inherited)
 					<< AST.getName() << CurrentClass->getName() << ExistingAttr->getClass().getName();
-				FLY_DEBUG_END("Resolver", "visit(ASTAttribute)");
 				return;
 			}
 			// Private inherited field: allow the subclass to declare its own slot.
 		} else {
 			// Same class: plain redefinition.
 			Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
-			FLY_DEBUG_END("Resolver", "visit(ASTAttribute)");
 			return;
 		}
 	}
@@ -334,12 +325,10 @@ void Resolver::visit(ASTAttribute &AST) {
 	Symbol *Sym = new Symbol(AST.getName(), SymbolKind::ATTRIBUTE, Sema);
 	AST.setSymbol(Sym);
 	addSymbol(Sym);
-
-	FLY_DEBUG_END("Resolver", "visit(ASTAttribute)");
 }
 
 void Resolver::visit(ASTMethod &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTMethod)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTMethod)");
 
 	// Enter Method Scope
 	EnterScope();
@@ -350,7 +339,6 @@ void Resolver::visit(ASTMethod &AST) {
 	// Find Method duplication
 	if (Reg.LookupFunction(AST.getName(), Types, CurrentClass->getSymbols())) {
 		Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
-		FLY_DEBUG_END("Resolver", "visit(ASTMethod)");
 		return;
 	}
 
@@ -359,7 +347,6 @@ void Resolver::visit(ASTMethod &AST) {
 		if (Mod->getModifierKind() == ASTModifierKind::MOD_ABSTRACT && AST.getBody() != nullptr) {
 			Diag(AST.getLocation(), diag::err_sema_abstract_method_has_body) << AST.getName();
 			ExitScope();
-			FLY_DEBUG_END("Resolver", "visit(ASTMethod)");
 			return;
 		}
 	}
@@ -372,7 +359,6 @@ void Resolver::visit(ASTMethod &AST) {
 		if (!CurrentClass->isAbstract() && CurrentClass->getClassKind() != SemaClassKind::INTERFACE) {
 			Diag(AST.getLocation(), diag::err_sema_abstract_method_requires_abstract_class)
 				<< CurrentClass->getName() << AST.getName();
-			FLY_DEBUG_END("Resolver", "visit(ASTMethod)");
 			return;
 		}
 	}
@@ -384,7 +370,6 @@ void Resolver::visit(ASTMethod &AST) {
 			if (BaseMethod && BaseMethod->isFinal()) {
 				Diag(AST.getLocation(), diag::err_sema_final_method_overridden)
 					<< AST.getName() << Base->getName();
-				FLY_DEBUG_END("Resolver", "visit(ASTMethod)");
 				return;
 			}
 			// Track the overridden method
@@ -430,12 +415,10 @@ void Resolver::visit(ASTMethod &AST) {
 
 	// Add Symbol to the current scope
 	addSymbol(Sym);
-
-	FLY_DEBUG_END("Resolver", "visit(ASTMethod)");
 }
 
 void Resolver::visit(ASTEnum &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTEnum)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTEnum)");
 	ResetCurrents();
 
 	// Enums cannot extend classes, structs, or interfaces
@@ -462,12 +445,10 @@ void Resolver::visit(ASTEnum &AST) {
 
 	// Add Symbol to the current scope
 	addSymbol(Sym);
-
-	FLY_DEBUG_END("Resolver", "visit(ASTEnum)");
 }
 
 void Resolver::visit(ASTEnumEntry &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTEnumEntry)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTEnumEntry)");
 
 	// Find Var duplication in the current scope
 	SemaEnumEntry *ExistingEnum = CurrentEnum->LookupEntry(AST.getName());
@@ -483,12 +464,10 @@ void Resolver::visit(ASTEnumEntry &AST) {
 
 	// Add Symbol to the current scope
 	addSymbol(Sym);
-
-	FLY_DEBUG_END("Resolver", "visit(ASTEnumEntry)");
 }
 
 void Resolver::visit(ASTLocalVar &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTLocalVar)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTLocalVar)");
 	if (!AST.isVisited()) {
 		AST.setVisited(true);
 
@@ -518,11 +497,10 @@ void Resolver::visit(ASTLocalVar &AST) {
 		// Add Symbol to the current scope
 		addSymbol(Sym);
 	}
-	FLY_DEBUG_END("Resolver", "visit(ASTLocalVar)");
 }
 
 void Resolver::visit(ASTParam &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTParam)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTParam)");
 	if (!AST.isVisited()) {
 		AST.setVisited(true);
 		// Resolve Type
@@ -536,17 +514,15 @@ void Resolver::visit(ASTParam &AST) {
 		Symbol *Sym = new Symbol(AST.getName(), SymbolKind::PARAM, Sema);
 		AST.setSymbol(Sym);
 	}
-	FLY_DEBUG_END("Resolver", "visit(ASTParam)");
 }
 
 void Resolver::visit(ASTComment &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTComment)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTComment)");
 	CurrentComment = SemaBuilder::CreateComment(AST);
-	FLY_DEBUG_END("Resolver", "visit(ASTComment)");
 }
 
 void Resolver::visit(ASTBuiltinType &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTBuiltinType)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTBuiltinType)");
 	if (!AST.isVisited()) {
 		AST.setVisited(true);
 	}
@@ -598,11 +574,10 @@ void Resolver::visit(ASTBuiltinType &AST) {
 			break;
 	}
 	CurrentType = Sema;
-	FLY_DEBUG_END("Resolver", "visit(ASTBuiltinType)");
 }
 
 void Resolver::visit(ASTNamedType &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTNamedType)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTNamedType)");
 	if (!AST.isVisited()) {
 		AST.setVisited(true);
 	}
@@ -610,17 +585,15 @@ void Resolver::visit(ASTNamedType &AST) {
 	SymbolTable *Scope = CurrentScope;
 	Symbol *Sym = Reg.LookupNamedType(AST, Scope);
 	if (!Sym) {
-		FLY_DEBUG_END("Resolver", "visit(ASTNamedType)");
 		return;
 	}
 	SemaType *Sema = static_cast<SemaType *>(Sym->getRef());
 
 	CurrentType = Sema;
-	FLY_DEBUG_END("Resolver", "visit(ASTNamedType)");
 }
 
 void Resolver::visit(ASTArrayType &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTArrayType)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTArrayType)");
 	if (!AST.isVisited()) {
 		AST.setVisited(true);
 
@@ -646,7 +619,6 @@ void Resolver::visit(ASTArrayType &AST) {
 		SemaArrayType *Sema = SemaBuiltin::CreateArrayType(ElementSemaType, SizeExpr);
 		CurrentType = Sema;
 	}
-	FLY_DEBUG_END("Resolver", "visit(ASTArrayType)");
 }
 
 // Returns true if Expr produces a heap-allocated string at runtime.
@@ -681,7 +653,7 @@ SemaSmartAlloc *Resolver::RegisterSmartAlloc(SemaExpr *Expr) {
 }
 
 void Resolver::visit(ASTExprStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTExprStmt)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTExprStmt)");
 	CurrentStmt = &AST;
 	ASTExpr *Expr = AST.getExpr();
 
@@ -714,11 +686,10 @@ void Resolver::visit(ASTExprStmt &AST) {
 		// Register smart-pointer alloc: handles direct call and binary assignment (a = new unique T())
 		RegisterSmartAlloc(ResolvedExpr);
 	}
-	FLY_DEBUG_END("Resolver", "visit(ASTExprStmt)");
 }
 
 void Resolver::visit(ASTDeclStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTDeclStmt)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTDeclStmt)");
 	CurrentStmt = &AST;
 	ASTLocalVar *LV = AST.getLocalVar();
 
@@ -812,17 +783,14 @@ void Resolver::visit(ASTDeclStmt &AST) {
 		SemaDeclStmt *SemaStmt = SemaBuilder::CreateDeclStmt(&AST, LocalVar, DeclExpr);
 		CurrentSemaBlock->addContent(SemaStmt);
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTDeclStmt)");
 }
 
 void Resolver::visit(ASTFailStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTFailStmt)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTFailStmt)");
 	CurrentStmt = &AST;
 
 	if (CurrentFunction == nullptr) {
 		Diag(AST.getLocation(), diag::err_sema_fail_outside_function);
-		FLY_DEBUG_END("Resolver", "visit(ASTFailStmt)");
 		return;
 	}
 
@@ -850,12 +818,10 @@ void Resolver::visit(ASTFailStmt &AST) {
 	if (CurrentSemaBlock) {
 		CurrentSemaBlock->addContent(SemaStmt);
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTFailStmt)");
 }
 
 void Resolver::visit(ASTHandleStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTHandleStmt)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTHandleStmt)");
 	CurrentStmt = &AST;
 
 	ASTHandleStmt *ParentHandle = CurrentHandleStmt;
@@ -887,24 +853,20 @@ void Resolver::visit(ASTHandleStmt &AST) {
 	}
 
 	CurrentHandleStmt = ParentHandle;
-
-	FLY_DEBUG_END("Resolver", "visit(ASTHandleStmt)");
 }
 
 void Resolver::visit(ASTReturnStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTReturnStmt)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTReturnStmt)");
 	CurrentStmt = &AST;
 
 	if (CurrentSemaBlock) {
 		SemaReturnStmt *SemaStmt = SemaBuilder::CreateReturnStmt(&AST);
 		CurrentSemaBlock->addContent(SemaStmt);
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTReturnStmt)");
 }
 
 void Resolver::visit(ASTDeleteStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTDeleteStmt)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTDeleteStmt)");
 	CurrentStmt = &AST;
 	ASTExpr * Expr = AST.getExpr();
 
@@ -916,13 +878,11 @@ void Resolver::visit(ASTDeleteStmt &AST) {
 		SemaDeleteStmt *SemaStmt = SemaBuilder::CreateDeleteStmt(&AST, ResolvedExpr);
 		CurrentSemaBlock->addContent(SemaStmt);
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTDeleteStmt)");
 }
 
 
 void Resolver::visit(ASTBreakStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTBreakStmt)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTBreakStmt)");
 	CurrentStmt = &AST;
 
 	if (LoopDepth == 0 && SwitchDepth == 0) {
@@ -935,12 +895,10 @@ void Resolver::visit(ASTBreakStmt &AST) {
 		SemaBreakStmt *SemaStmt = SemaBuilder::CreateBreakStmt(&AST);
 		CurrentSemaBlock->addContent(SemaStmt);
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTBreakStmt)");
 }
 
 void Resolver::visit(ASTContinueStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTContinueStmt)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTContinueStmt)");
 	CurrentStmt = &AST;
 
 	if (LoopDepth == 0) {
@@ -953,12 +911,10 @@ void Resolver::visit(ASTContinueStmt &AST) {
 		SemaContinueStmt *SemaStmt = SemaBuilder::CreateContinueStmt(&AST);
 		CurrentSemaBlock->addContent(SemaStmt);
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTContinueStmt)");
 }
 
 void Resolver::visit(ASTBlockStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTBlockStmt)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTBlockStmt)");
 	CurrentStmt = &AST;
 
 	// Save parent SemaBlock
@@ -1004,20 +960,17 @@ void Resolver::visit(ASTBlockStmt &AST) {
 
 	// Restore parent SemaBlock
 	CurrentSemaBlock = ParentSemaBlock;
-
-	FLY_DEBUG_END("Resolver", "visit(ASTBlockStmt)");
 }
 
 void Resolver::visit(ASTRuleStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTRuleStmt)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTRuleStmt)");
 	CurrentStmt = &AST;
 	AST.getExpr()->accept(*this);
 	AST.getStmt()->accept(*this);
-	FLY_DEBUG_END("Resolver", "visit(ASTRuleStmt)");
 }
 
 void Resolver::visit(ASTIfStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTIfStmt)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTIfStmt)");
 	CurrentStmt = &AST;
 
 	// Resolve condition
@@ -1073,12 +1026,10 @@ void Resolver::visit(ASTIfStmt &AST) {
 	if (CurrentSemaBlock) {
 		CurrentSemaBlock->addContent(SemaIf);
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTIfStmt)");
 }
 
 void Resolver::visit(ASTSwitchStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTSwitchStmt)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTSwitchStmt)");
 	CurrentStmt = &AST;
 
 	// Switch Variable
@@ -1159,12 +1110,10 @@ void Resolver::visit(ASTSwitchStmt &AST) {
 	if (CurrentSemaBlock) {
 		CurrentSemaBlock->addContent(SemaSwitch);
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTSwitchStmt)");
 }
 
 void Resolver::visit(ASTLoopStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTLoopStmt)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTLoopStmt)");
 	CurrentStmt = &AST;
 
 	// Create SemaLoopStmt
@@ -1245,12 +1194,10 @@ void Resolver::visit(ASTLoopStmt &AST) {
 	if (CurrentSemaBlock) {
 		CurrentSemaBlock->addContent(SemaLoop);
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTLoopStmt)");
 }
 
 void Resolver::visit(ASTLoopInStmt &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTLoopInStmt)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTLoopInStmt)");
 	CurrentStmt = &AST;
 
 	AST.getItem()->accept(*this);
@@ -1270,12 +1217,10 @@ void Resolver::visit(ASTLoopInStmt &AST) {
 	if (CurrentSemaBlock) {
 		CurrentSemaBlock->addContent(SemaLoopIn);
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTLoopInStmt)");
 }
 
 void Resolver::visit(ASTIdentifier &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTIdentifier)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTIdentifier)");
 
 	// Invalid if it has Parent
 	if (AST.getParent() != nullptr) {
@@ -1310,7 +1255,6 @@ void Resolver::visit(ASTIdentifier &AST) {
 		// ---------------------------------------
 		if (!CurrentSymbol) {
 			Diag(AST.getLocation(), diag::err_sema_unresolved_identifier) << AST.getName();
-			FLY_DEBUG_END("Resolver", "ResolveParent(ASTIdentifier)");
 			return;
 		}
 
@@ -1328,12 +1272,10 @@ void Resolver::visit(ASTIdentifier &AST) {
 			}
 		}
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTIdentifier)");
 }
 
 void Resolver::visit(ASTMember &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTMember)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTMember)");
 
 	// Invalid if it has no Parent
 	if (AST.getParent() == nullptr) {
@@ -1376,7 +1318,6 @@ void Resolver::visit(ASTMember &AST) {
 			if (SubSyms && !SubSyms->empty() && (*SubSyms)[0]->getKind() == SymbolKind::NAMESPACE) {
 				AST.setSymbol((*SubSyms)[0]);
 				CurrentExpr = nullptr; // not a value expression
-				FLY_DEBUG_END("Resolver", "visit(ASTMember)");
 				return;
 			}
 			Diag(diag::err_invalid_behavior); // Member access on namespace not resolved
@@ -1444,8 +1385,6 @@ void Resolver::visit(ASTMember &AST) {
 		// Configure CurrentExpr
 		CurrentExpr = Sema;
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTMember)");
 }
 
 // Build a human-readable signature string like "foo(int, float)" for diagnostics.
@@ -1462,7 +1401,7 @@ static std::string BuildCandidateSignature(SemaFunctionBase *F) {
 }
 
 void Resolver::visit(ASTCall &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTCall)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTCall)");
 
 	if (!AST.isVisited()) {
 		AST.setVisited(true);
@@ -1701,12 +1640,10 @@ void Resolver::visit(ASTCall &AST) {
 		// Restore the scope
 		CurrentScope = SavedScope;
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTCall)");
 }
 
 void Resolver::visit(ASTUnary &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTUnaryOp)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTUnaryOp)");
 
 	// Resolve Expr
 	ASTExpr *Expr = AST.getExpr();
@@ -1716,12 +1653,10 @@ void Resolver::visit(ASTUnary &AST) {
 	// Create Sema
 	SemaUnary *Sema = SemaBuilder::CreateUnary(AST, ResolvedExpr);
 	CurrentExpr = Sema;
-
-	FLY_DEBUG_END("Resolver", "visit(ASTUnaryOp)");
 }
 
 void Resolver::visit(ASTBinary &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTBinaryOp)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTBinaryOp)");
 
 	// For a plain '=' whose LHS is a bare identifier the variable is written but
 	// not read.  Set InAssignLHS so visit(ASTIdentifier) can skip the read-mark.
@@ -1749,12 +1684,10 @@ void Resolver::visit(ASTBinary &AST) {
 		SemaBinary *Sema = SemaBuilder::CreateBinary(AST, Left, Right);
 		CurrentExpr = Sema;
 	}
-
-	FLY_DEBUG_END("Resolver", "visit(ASTBinaryOp)");
 }
 
 void Resolver::visit(ASTTernary &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTTernaryOp)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTTernaryOp)");
 
 	// Resolve Condition Expr
 	AST.getConditionExpr()->accept(*this);
@@ -1783,12 +1716,10 @@ void Resolver::visit(ASTTernary &AST) {
 	// Create Sema
 	SemaTernary *Sema = SemaBuilder::CreateTernary(AST, Cond, TrueExpr, FalseExpr);
 	CurrentExpr = Sema;
-
-	FLY_DEBUG_END("Resolver", "visit(ASTTernaryOp)");
 }
 
 void Resolver::visit(ASTCast &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTCast)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTCast)");
 
 	// Resolve the expression being cast
 	AST.getExpr()->accept(*this);
@@ -1803,35 +1734,30 @@ void Resolver::visit(ASTCast &AST) {
 	CurrentExpr = Cast;
 
 	Validator->CheckCast(From, Cast);
-	FLY_DEBUG_END("Resolver", "visit(ASTCast)");
 }
 
 void Resolver::visit(ASTBoolValue &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTBoolValue)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTBoolValue)");
 	SemaBoolValue *Sema = SemaBuilder::CreateBoolValue(AST);
 	CurrentExpr = Sema;
-	FLY_DEBUG_END("Resolver", "visit(ASTBoolValue)");
 }
 
 void Resolver::visit(ASTNumberValue &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTNumberValue)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTNumberValue)");
 
 	// The result type of the number value depends on the left side of an assignment
 	SemaValue *Sema = SemaBuilder::CreateNumberValue(AST);
 	CurrentExpr = Sema;
-
-	FLY_DEBUG_END("Resolver", "visit(ASTNumberValue)");
 }
 
 void Resolver::visit(ASTStringValue &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTStringValue)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTStringValue)");
 	SemaValue *Sema = SemaBuilder::CreateStringValue(AST);
 	CurrentExpr = Sema;
-	FLY_DEBUG_END("Resolver", "visit(ASTStringValue)");
 }
 
 void Resolver::visit(ASTArrayValue &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTArrayValue)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTArrayValue)");
 
 	// Resolve Values
 	SemaType *ElementType = nullptr;
@@ -1870,12 +1796,10 @@ void Resolver::visit(ASTArrayValue &AST) {
 	// Create Sema
 	SemaArrayValue *Sema = SemaBuilder::CreateArrayValue(AST, ElementType, Values);
 	CurrentExpr = Sema;
-
-	FLY_DEBUG_END("Resolver", "visit(ASTArrayValue)");
 }
 
 void Resolver::visit(ASTStructValue &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTStructValue)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTStructValue)");
 
 	llvm::StringMap<SemaValue *> Values;
 	for (auto &Entry : AST.getValues()) {
@@ -1885,37 +1809,32 @@ void Resolver::visit(ASTStructValue &AST) {
 
 	SemaStructValue *Sema = SemaBuilder::CreateStructValue(AST, Values);
 	CurrentExpr = Sema;
-	FLY_DEBUG_END("Resolver", "visit(ASTStructValue)");
 }
 
 void Resolver::visit(ASTNullValue &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTNullValue)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTNullValue)");
 	SemaValue *Sema = SemaBuilder::CreateNullValue(AST);
 	CurrentExpr = Sema;
-	FLY_DEBUG_END("Resolver", "visit(ASTNullValue)");
 }
 
 void Resolver::visit(ASTUnsetValue &AST) {
-	FLY_DEBUG_START("Resolver", "visit(ASTUnsetValue)");
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTUnsetValue)");
 	SemaValue *Sema = SemaBuilder::CreateUnsetValue(AST);
 	CurrentExpr = Sema;
-	FLY_DEBUG_END("Resolver", "visit(ASTUnsetValue)");
 }
 
 void Resolver::Resolver::EnterScope() {
-	FLY_DEBUG_START("Resolver", "EnterScope");
+	FLY_DEBUG_SCOPE("Resolver", "EnterScope");
 	CurrentScope = CurrentScope->pushScope();
-	FLY_DEBUG_END("Resolver", "EnterScope");
 }
 
 void Resolver::Resolver::ExitScope() {
-	FLY_DEBUG_START("Resolver", "ExitScope");
+	FLY_DEBUG_SCOPE("Resolver", "ExitScope");
 	CurrentScope = CurrentScope->getParent();
-	FLY_DEBUG_END("Resolver", "ExitScope");
 }
 
 void Resolver::addSymbol(Symbol *Sym) {
-	FLY_DEBUG_START("Resolver", "addSymbol");
+	FLY_DEBUG_SCOPE("Resolver", "addSymbol");
 	// Warn when a local variable shadows a variable in an outer scope
 	if (Sym->isVarKind() && CurrentScope->getParent()) {
 		auto *FoundInCurrent = CurrentScope->lookup(Sym->getName());
@@ -1929,24 +1848,22 @@ void Resolver::addSymbol(Symbol *Sym) {
 		}
 	}
 	CurrentScope->insert(Sym);
-	FLY_DEBUG_END("Resolver", "addSymbol");
 }
 
 void Resolver::ResetCurrents() {
-	FLY_DEBUG_START("Resolver", "ResetCurrent");
+	FLY_DEBUG_SCOPE("Resolver", "ResetCurrent");
 	CurrentClass = nullptr;
 	CurrentEnum = nullptr;
 	CurrentFunction = nullptr;
 	CurrentComment =nullptr;
 	CurrentStmt = nullptr;
-	FLY_DEBUG_END("Resolver", "ResetCurrent");
 }
 
 Resolver::~Resolver() {
 }
 
 void Resolver::Resolve() {
-	FLY_DEBUG_START("Resolver", "Resolve");
+	FLY_DEBUG_SCOPE("Resolver", "Resolve");
 	// Resolve Modules
 	for (auto Module : Reg.getModules()) {
 
@@ -2025,11 +1942,10 @@ void Resolver::Resolve() {
 
 		ExitScope();
 	}
-	FLY_DEBUG_END("Resolver", "Resolve");
 }
 
 void Resolver::ResolveImports(SemaModule *Module) {
-	FLY_DEBUG_START("Resolver", "ResolveImports");
+	FLY_DEBUG_SCOPE("Resolver", "ResolveImports");
 
 	for (auto Import : Module->getImports()) {
 
@@ -2064,20 +1980,18 @@ void Resolver::ResolveImports(SemaModule *Module) {
 			Module->getSymbols()->insert(ImportedSymbol);
 		}
 	}
-	FLY_DEBUG_END("Resolver", "ResolveImports");
 }
 
 /**
  * Resolve Module Function Definitions
  */
 void Resolver::ResolveFunction(SemaFunction *Sema) {
-	FLY_DEBUG_START("Resolver", "ResolveFunction");
+	FLY_DEBUG_SCOPE("Resolver", "ResolveFunction");
 	ASTFunction &AST = Sema->getAST();
 
 	// External functions (from .fly.h headers) have no body; their params and
 	// return type were already resolved in visit(ASTFunction). Skip them here.
 	if (AST.getBody() == nullptr) {
-		FLY_DEBUG_END("Resolver", "ResolveFunction");
 		return;
 	}
 
@@ -2102,17 +2016,14 @@ void Resolver::ResolveFunction(SemaFunction *Sema) {
 
 	// Exit Body Scope
 	ExitScope();
-
-	FLY_DEBUG_END("Resolver", "ResolveFunction");
 }
 
 void Resolver::ResolveClassType(SemaClassType *ClassType) {
-	FLY_DEBUG_START("Resolver", "ResolveClassType");
+	FLY_DEBUG_SCOPE("Resolver", "ResolveClassType");
 
 	// Guard against double-resolution (can happen when a base class appears both
 	// in the module node list and via ResolveBaseClasses from a derived class)
 	if (ClassType->Resolved) {
-		FLY_DEBUG_END("Resolver", "ResolveClassType");
 		return;
 	}
 	ClassType->Resolved = true;
@@ -2135,18 +2046,15 @@ void Resolver::ResolveClassType(SemaClassType *ClassType) {
 
 	// Validate that all inherited abstract methods are implemented (concrete classes only)
 	CheckAbstractMethodsImplemented(ClassType);
-
-	FLY_DEBUG_END("Resolver", "ResolveClassType");
 }
 
 void Resolver::ResolveBaseClasses(SemaClassType *DerivedClass) {
-	FLY_DEBUG_START("Resolver", "ResolveBaseClasses");
+	FLY_DEBUG_SCOPE("Resolver", "ResolveBaseClasses");
 
 	// Check abstract+final conflict on the derived class itself
 	if (DerivedClass->isAbstract() && DerivedClass->isFinal()) {
 		Diag(DerivedClass->getAST().getLocation(), diag::err_sema_abstract_final_conflict)
 			<< DerivedClass->getName();
-		FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
 		return;
 	}
 
@@ -2156,20 +2064,17 @@ void Resolver::ResolveBaseClasses(SemaClassType *DerivedClass) {
 
 		if (AST->getTypeKind() != ASTTypeKind::TYPE_NAMED) {
 			Diag(AST->getLocation(), diag::err_sema_base_not_named_type);
-			FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
 			return;
 		}
 
 		// Resolve the base symbol
 		Symbol *Sym = Reg.LookupNamedType(*static_cast<ASTNamedType *>(AST), CurrentScope);
 		if (!Sym) {
-			FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
 			return;
 		}
 		SemaType *NamedType = static_cast<SemaType *>(Sym->getRef());
 		if (!NamedType->isClass()) {
 			Diag(AST->getLocation(), diag::err_sema_base_not_class) << NamedType->getName();
-			FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
 			return;
 		}
 
@@ -2184,7 +2089,6 @@ void Resolver::ResolveBaseClasses(SemaClassType *DerivedClass) {
 			if (BaseKind != SemaClassKind::INTERFACE) {
 				Diag(AST->getLocation(), diag::err_sema_interface_extends_class)
 					<< DerivedClass->getName() << BaseClass->getName();
-				FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
 				return;
 			}
 		} else if (DerivedKind == SemaClassKind::STRUCT) {
@@ -2192,7 +2096,6 @@ void Resolver::ResolveBaseClasses(SemaClassType *DerivedClass) {
 			if (BaseKind != SemaClassKind::STRUCT) {
 				Diag(AST->getLocation(), diag::err_sema_struct_extends_non_struct)
 					<< DerivedClass->getName() << BaseClass->getName();
-				FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
 				return;
 			}
 			classBaseCount++;
@@ -2203,7 +2106,6 @@ void Resolver::ResolveBaseClasses(SemaClassType *DerivedClass) {
 				if (classBaseCount > 1) {
 					Diag(AST->getLocation(), diag::err_sema_multiple_class_bases)
 						<< DerivedClass->getName();
-					FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
 					return;
 				}
 			}
@@ -2213,7 +2115,6 @@ void Resolver::ResolveBaseClasses(SemaClassType *DerivedClass) {
 		// Cannot extend a final class/struct
 		if (BaseClass->isFinal()) {
 			Diag(AST->getLocation(), diag::err_sema_final_class_subclassed) << BaseClass->getName();
-			FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
 			return;
 		}
 
@@ -2226,8 +2127,6 @@ void Resolver::ResolveBaseClasses(SemaClassType *DerivedClass) {
 
 	// Check diamond ambiguity from interface default methods
 	CheckDiamondAmbiguity(DerivedClass);
-
-	FLY_DEBUG_END("Resolver", "ResolveBaseClasses");
 }
 
 void Resolver::CollectInterfaceDefaultMethods(
@@ -2413,7 +2312,7 @@ void Resolver::CheckAbstractMethodsImplemented(SemaClassType *ClassType) {
 // }
 
 void Resolver::CreateDefaultConstructor() {
-	FLY_DEBUG_START("Resolver", "CreateDefaultConstructor");
+	FLY_DEBUG_SCOPE("Resolver", "CreateDefaultConstructor");
 
 	// Create Default Modifier
 	llvm::SmallVector<ASTModifier *, 8> Modifiers;
@@ -2439,12 +2338,10 @@ void Resolver::CreateDefaultConstructor() {
 
 	// Add Symbol to the current scope
 	addSymbol(Sym);
-
-	FLY_DEBUG_END("Resolver", "CreateDefaultConstructor");
 }
 
 SmallVector<SemaType *, 8> Resolver::ResolveCallArgs(ASTCall *AST) {
-	FLY_DEBUG_START("Resolver", "ResolveCallArgs");
+	FLY_DEBUG_SCOPE("Resolver", "ResolveCallArgs");
 	SmallVector<SemaType *, 8> Types;
 
 	// Track identifiers to detect duplicate arguments
@@ -2468,12 +2365,11 @@ SmallVector<SemaType *, 8> Resolver::ResolveCallArgs(ASTCall *AST) {
 			}
 		}
 	}
-	FLY_DEBUG_END("Resolver", "ResolveCallArgs");
 	return std::move(Types);
 }
 
 SmallVector<SemaType *, 8> Resolver::ResolveParams(ASTFunction &AST) {
-	FLY_DEBUG_START("Resolver", "ResolveParams");
+	FLY_DEBUG_SCOPE("Resolver", "ResolveParams");
 	SmallVector<SemaType *, 8> Types;
 	for (auto Param : AST.getParams()) {
 		Param->accept(*this);
@@ -2481,28 +2377,24 @@ SmallVector<SemaType *, 8> Resolver::ResolveParams(ASTFunction &AST) {
 			Param->getSymbol()->getRefAs<SemaVar>() : nullptr;
 		Types.push_back(ParamSema ? ParamSema->getType() : nullptr);
 	}
-	FLY_DEBUG_END("Resolver", "ResolveParams");
 	return std::move(Types);
 }
 
 SemaType * Resolver::PromoteNumberTypes(SemaType *Left, SemaType *Right) {
-	FLY_DEBUG_START("Resolver", "PromoteNumberTypes");
+	FLY_DEBUG_SCOPE("Resolver", "PromoteNumberTypes");
 	SemaNumberType *LeftNum = static_cast<SemaNumberType *>(Left);
 	SemaNumberType *RightNum = static_cast<SemaNumberType *>(Right);
 	if (LeftNum->getRank() >= RightNum->getRank()) {
-		FLY_DEBUG_END("Resolver", "PromoteNumberTypes");
 		return Left;
 	}
-	FLY_DEBUG_END("Resolver", "PromoteNumberTypes");
 	return Right;
 }
 
 void Resolver::PromoteTypes(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right) {
-	FLY_DEBUG_START("Resolver", "PromoteTypes");
+	FLY_DEBUG_SCOPE("Resolver", "PromoteTypes");
 
 	// Guard: if either side failed to resolve, skip promotion
 	if (!Left || !Right) {
-		FLY_DEBUG_END("Resolver", "PromoteTypes");
 		return;
 	}
 
@@ -2553,12 +2445,10 @@ void Resolver::PromoteTypes(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right) {
 			}
 		}
 	}
-
-	FLY_DEBUG_END("Resolver", "PromoteTypes");
 }
 
 SemaExpr * Resolver::ResolveMemberSymbol(ASTMember &AST, SymbolTable *Symbols, SemaKind ExpectedKind, SemaVar *ParentVar) {
-	FLY_DEBUG_START("Resolver", "ResolveMemberSymbol");
+	FLY_DEBUG_SCOPE("Resolver", "ResolveMemberSymbol");
 
 	// Save the current scope and switch to the member's scope
 	SymbolTable *SavedScope = CurrentScope;
@@ -2606,6 +2496,5 @@ SemaExpr * Resolver::ResolveMemberSymbol(ASTMember &AST, SymbolTable *Symbols, S
 	}
 
 	CurrentScope = SavedScope;
-	FLY_DEBUG_END("Resolver", "ResolveMemberSymbol");
 	return nullptr;
 }

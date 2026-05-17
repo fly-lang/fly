@@ -94,7 +94,7 @@ main() {
         const char *utilsfly = "utils.fly";
 
         AppTest() {
-            DebugEnabled = true;
+            DebugEnabled = false;
             { std::ofstream f(mainfly);  f << MainAppSource; }
             { std::ofstream f(utilsfly); f << UtilsAppSource; }
             llvm::InitializeAllTargetInfos();
@@ -196,6 +196,7 @@ main() {
     }
 
     TEST_F(AppTest, EmitOut) {
+    	DebugEnabled = true;
         deleteFile("out");
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");

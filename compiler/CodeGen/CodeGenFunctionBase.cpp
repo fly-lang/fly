@@ -87,7 +87,7 @@ llvm::FunctionType *CodeGenFunctionBase::getFunctionType() {
 }
 
 void CodeGenFunctionBase::setInsertPoint() {
-    FLY_DEBUG_START("CodeGenFunctionBase", "setInsertPoint");
+    FLY_DEBUG_SCOPE("CodeGenFunctionBase", "setInsertPoint");
     Entry = llvm::BasicBlock::Create(CGM->LLVMCtx, "entry", Fn);
     CGM->Builder->SetInsertPoint(Entry);
 }
@@ -133,7 +133,7 @@ void CodeGenFunctionBase::StoreParams(size_t Idx) {
 }
 
 void CodeGenFunctionBase::CheckReturnVoid() {
-    FLY_DEBUG_START("CodeGenFunctionBase", "GenBody");
+    FLY_DEBUG_SCOPE("CodeGenFunctionBase", "GenBody");
 
 	// Only process functions that return void
 	if (!Fn->getReturnType()->isVoidTy())
@@ -153,8 +153,6 @@ void CodeGenFunctionBase::CheckReturnVoid() {
 		llvm::IRBuilder<> builder(&LastBlock);
 		builder.CreateRetVoid();
 	}
-
-    FLY_DEBUG_END("CodeGenFunctionBase", "GenBody");
 }
 
 // Mapping Fly types to mangled representations

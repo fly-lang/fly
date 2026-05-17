@@ -534,13 +534,169 @@ public dirDeleteAll(const string path) {
     fly.runtime.fs_rmdir(cpath, ret2)
 }
 
-// dirRead lists the entries in path and fills out with a DirEntries struct.
-// Stub: writing composite DirEntry structs to raw memory requires functional
-// programming support (planned for a future compiler version).
+// dirRead lists the entries in path (excluding "." and "..") and fills out.
+// DirEntry layout in raw heap memory (56 bytes, little-endian):
+//   0: string.ptr   (i64)   8 bytes
+//   8: string.size  (i32)   4 bytes
+//  12: padding               4 bytes
+//  16: Stat.size    (i64)   8 bytes
+//  24: Stat.mtime_sec (i64) 8 bytes
+//  32: Stat.mtime_nsec(i64) 8 bytes
+//  40: Stat.mode    (i32)   4 bytes
+//  44: Stat.is_file (i32)   4 bytes
+//  48: Stat.is_dir  (i32)   4 bytes
+//  52: Stat.is_symlink(i32) 4 bytes
 public dirRead(const string path, DirEntries out) {
     out.items = 0
     out.len = 0
     out.cap = 0
+
+    long cpath = 0
+    strToCstr(path, cpath)
+    int fd = 0
+    fly.runtime.fs_open(cpath, 0, 0, fd)
+    if fd < 0 { return }
+
+    ulong cap = 16
+    ulong stride = 56
+    long items = 0
+    fly.runtime.mem_alloc(cap * stride, items)
+
+    int bufsize = 4096
+    long dbuf = 0
+    fly.runtime.mem_alloc(bufsize, dbuf)
+    ulong count = 0
+
+    bool done = false
+    while done == false {
+        int nbytes = 0
+        fly.runtime.fs_getdents(fd, dbuf, bufsize, nbytes)
+        if nbytes <= 0 {
+            done = true
+        } else {
+            int pos = 0
+            while pos < nbytes {
+                byte rlen_lo = 0
+                byte rlen_hi = 0
+                fly.llvm.ptrByteAt(dbuf, pos + 16, rlen_lo)
+                fly.llvm.ptrByteAt(dbuf, pos + 17, rlen_hi)
+                int rlo = rlen_lo
+                int rhi = rlen_hi
+                int reclen = rlo + rhi * 256
+                if reclen <= 0 { done = true }
+
+                // Read d_type (byte at offset 18 in linux_dirent64)
+                byte dtype = 0
+                fly.llvm.ptrByteAt(dbuf, pos + 18, dtype)
+
+                // Read null-terminated name starting at offset 19
+                int name_len = 0
+                byte nb = 1
+                while nb != 0 {
+                    fly.llvm.ptrByteAt(dbuf, pos + 19 + name_len, nb)
+                    if nb != 0 { name_len = name_len + 1 }
+                }
+
+                // Skip "." and ".."
+                bool skip = false
+                if name_len == 1 {
+                    byte n0 = 0
+                    fly.llvm.ptrByteAt(dbuf, pos + 19, n0)
+                    if n0 == 46 { skip = true }
+                }
+                if name_len == 2 {
+                    byte n0 = 0
+                    byte n1 = 0
+                    fly.llvm.ptrByteAt(dbuf, pos + 19, n0)
+                    fly.llvm.ptrByteAt(dbuf, pos + 20, n1)
+                    if n0 == 46 { if n1 == 46 { skip = true } }
+                }
+
+                if skip == false {
+                    if reclen > 0 {
+                        // Build the full entry path for stat
+                        int path_len = 0
+                        fly.llvm.strSize(path, path_len)
+                        int ep_total = path_len + 1 + name_len
+                        long ep_buf = 0
+                        fly.runtime.mem_alloc(ep_total + 1, ep_buf)
+                        int ki = 0
+                        while ki < path_len {
+                            byte pb = 0
+                            fly.llvm.strByteAt(path, ki, pb)
+                            fly.llvm.strPoke(ep_buf, ki, pb)
+                            ki = ki + 1
+                        }
+                        fly.llvm.strPoke(ep_buf, path_len, 47)
+                        int ni2 = 0
+                        while ni2 < name_len {
+                            byte nb2 = 0
+                            fly.llvm.ptrByteAt(dbuf, pos + 19 + ni2, nb2)
+                            fly.llvm.strPoke(ep_buf, path_len + 1 + ni2, nb2)
+                            ni2 = ni2 + 1
+                        }
+                        fly.llvm.strPoke(ep_buf, ep_total, 0)
+                        string entry_path = ""
+                        fly.llvm.strMake(ep_buf, ep_total, entry_path)
+
+                        // Copy just the basename into a separate buffer for DirEntry.name
+                        long name_buf = 0
+                        fly.runtime.mem_alloc(name_len, name_buf)
+                        int nk = 0
+                        while nk < name_len {
+                            byte nb3 = 0
+                            fly.llvm.ptrByteAt(dbuf, pos + 19 + nk, nb3)
+                            fly.llvm.strPoke(name_buf, nk, nb3)
+                            nk = nk + 1
+                        }
+
+                        // Stat the entry
+                        Stat st = new Stat()
+                        lstat(entry_path, st)
+
+                        // Grow array if needed
+                        if count >= cap {
+                            ulong newcap = cap * 2
+                            long newbuf = 0
+                            fly.runtime.mem_alloc(newcap * stride, newbuf)
+                            ulong copied = count * stride
+                            fly.llvm.memcpy(newbuf, items, copied)
+                            items = newbuf
+                            cap = newcap
+                        }
+
+                        // Serialize DirEntry into slot at items + count * stride
+                        ulong slot_u = count * stride
+                        int slot_i = 0
+                        fly.llvm.longToInt(slot_u, slot_i)
+                        long slot = items + slot_u
+
+                        // string name: ptr at offset 0, size at offset 8
+                        fly.llvm.ptrPokeLong(slot, 0, name_buf)
+                        fly.llvm.ptrPokeInt(slot, 8, name_len)
+
+                        // Stat fields (offset 16..55)
+                        fly.llvm.ptrPokeLong(slot, 16, st.size)
+                        fly.llvm.ptrPokeLong(slot, 24, st.mtime_sec)
+                        fly.llvm.ptrPokeLong(slot, 32, st.mtime_nsec)
+                        fly.llvm.ptrPokeInt(slot, 40, st.mode)
+                        fly.llvm.ptrPokeInt(slot, 44, st.is_file)
+                        fly.llvm.ptrPokeInt(slot, 48, st.is_dir)
+                        fly.llvm.ptrPokeInt(slot, 52, st.is_symlink)
+
+                        count = count + 1
+                    }
+                }
+
+                if reclen > 0 { pos = pos + reclen } else { done = true }
+            }
+        }
+    }
+
+    fly.runtime.fs_close(fd)
+    out.items = items
+    out.len = count
+    out.cap = cap
 }
 
 // symlinkCreate creates a symbolic link at link pointing to target.

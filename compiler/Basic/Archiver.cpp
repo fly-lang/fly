@@ -45,7 +45,7 @@ using namespace llvm;
 using namespace fly;
 
 Archiver::Archiver(DiagnosticsEngine &Diag, const std::string &ArchiveName) : Diag(Diag), ArchiveName(ArchiveName) {
-    FLY_DEBUG_START_MSG("Archiver", "Archiver", "ArchiveName=" + ArchiveName);
+    FLY_DEBUG_SCOPE_MSG("Archiver", "Archiver", "ArchiveName=" + ArchiveName);
 }
 
 const std::vector<StringRef> &Archiver::getExtractFiles() const {

@@ -241,7 +241,7 @@ Frontend::~Frontend() {
 bool Frontend::Execute() {
     assert(!CI.getFrontendOptions().ShowHelp && "Client must handle '-help'!");
     assert(!CI.getFrontendOptions().ShowVersion && "Client must handle '-version'!");
-    FLY_DEBUG_START("Frontend", "Execute");
+    FLY_DEBUG_SCOPE("Frontend", "Execute");
 
     raw_ostream &OS = llvm::errs();
 
@@ -391,7 +391,7 @@ bool Frontend::Execute() {
  * @return
  */
 void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
-    FLY_DEBUG_START_MSG("Frontend", "Execute", "Loading input file " + FileName);
+    FLY_DEBUG_SCOPE_MSG("Frontend", "Execute", "Loading input file " + FileName);
     InputFile *Input = new InputFile(Diags, CI.getSourceManager(), FileName);
     if (Input->getExt() == FileExt::FLY) {
         if (Input->Load()) {
@@ -431,7 +431,7 @@ void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
 }
 
 void Frontend::CreateFrontendTimer() {
-    FLY_DEBUG_START("Frontend", "CreateFrontendTimer");
+    FLY_DEBUG_SCOPE("Frontend", "CreateFrontendTimer");
     FrontendTimerGroup.reset(
             new llvm::TimerGroup("frontend", "Clang front-end time report"));
     FrontendTimer.reset(
@@ -486,7 +486,7 @@ std::vector<StringRef> Frontend::ExtractFiles(const std::string &LibFileName) {
 }
 
 bool Archiver::ExtractLib(FileManager &FileMgr) {
-    FLY_DEBUG_START("Archiver", "ExtractLib");
+    FLY_DEBUG_SCOPE("Archiver", "ExtractLib");
     ErrorOr<std::unique_ptr<MemoryBuffer>> Buf =
             MemoryBuffer::getFile(ArchiveName, -1, false);
     std::error_code EC = Buf.getError();

@@ -86,7 +86,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
  * Alloca Local Vars
  */
 void CodeGenFunction::GenBody() {
-    FLY_DEBUG_START("CodeGenFunction", "GenBody");
+    FLY_DEBUG_SCOPE("CodeGenFunction", "GenBody");
     setInsertPoint();
 
 	// Store in Function Error Handler

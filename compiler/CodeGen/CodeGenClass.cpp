@@ -79,7 +79,7 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExter
 }
 
 std::string CodeGenClass::toIdentifier(SemaClassType *ClassType) {
-	FLY_DEBUG_START("CodeGenClass", "toIdentifier");
+	FLY_DEBUG_SCOPE("CodeGenClass", "toIdentifier");
 	llvm::StringRef Name = ClassType->getAST().getName();
 	SemaNameSpace *NameSpace = ClassType->getModule().getNameSpace();
 	return CGM->toIdentifier(Name, NameSpace);
