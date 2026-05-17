@@ -101,8 +101,8 @@ llvm::Value *CodeGenVar::getDefaultValue(llvm::Type *T) {
 			DefaultValue = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(T));
 			break;
 		case llvm::Type::StructTyID:
-			// Other structs default to null pointer (stored as ptr-to-struct)
-			DefaultValue = llvm::Constant::getNullValue(T->getPointerTo());
+			// Zero-initialize the embedded struct value
+			DefaultValue = llvm::Constant::getNullValue(T);
 			break;
 		default:
 			CGM->Diag(diag::err_invalid_behavior);

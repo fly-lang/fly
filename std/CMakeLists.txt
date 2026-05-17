@@ -57,6 +57,8 @@ else()
     set(FLY_LIB_OUTPUT "${FLY_LIB_STEM}.a")
 endif()
 
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+
 add_custom_command(
     OUTPUT  ${FLY_LIB_OUTPUT}
     COMMAND $<TARGET_FILE:fly>

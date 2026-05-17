@@ -228,6 +228,10 @@ void CodeGenClass::CreateBaseVTables() {
 			// Ensure base method has a CodeGenClassMethod so dispatch can read its vtable index.
 			// Interface methods never get one from CreateVTable(), so we create it here.
 			if (BaseMethod->getCodeGen() == nullptr) {
+				if (Base->getCodeGen() == nullptr) {
+					MethodIdx++;
+					continue;
+				}
 				CodeGenClassMethod *CG = new CodeGenClassMethod(
 					CGM, BaseMethod, Base->getCodeGen()->getType(), MethodIdx);
 				BaseMethod->setCodeGen(CG);
@@ -348,7 +352,7 @@ void CodeGenClass::CreateBaseInfo(llvm::SmallVector<SemaClassType *, 4> BaseClas
 void CodeGenClass::CreateAttributes() {
 	// Set CodeGen Attributes
 	if (!Sema->getAttributes().empty() &&
-		Sema->getClassKind() == SemaClassKind::CLASS || Sema->getClassKind() == SemaClassKind::STRUCT) {
+		(Sema->getClassKind() == SemaClassKind::CLASS || Sema->getClassKind() == SemaClassKind::STRUCT)) {
 
 		// add var to the type
 		for (auto &AttributeEntry : Sema->getAttributes()) {
