@@ -34,6 +34,7 @@
 
 #include <iostream>
 #include <llvm/ADT/Statistic.h>
+#include <llvm/ADT/StringSet.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
@@ -444,22 +445,32 @@ const SmallVector<std::string, 4> &Frontend::getOutputFiles() const {
 
 #ifdef FLY_LIB_FLY_DIR
 void Frontend::LoadStdlibHeaders(ASTBuilder &Builder) {
+    // Build a set of filenames currently being compiled (e.g. "math.fly").
+    // A stdlib source whose file is already an input is skipped: the in-memory
+    // AST built from the full parse is authoritative.
+    llvm::StringSet<> CompilingNow;
+    for (const auto &F : CI.getFrontendOptions().getInputFiles())
+        CompilingNow.insert(llvm::sys::path::filename(F));
+
     std::error_code EC;
     for (llvm::sys::fs::recursive_directory_iterator I(FLY_LIB_FLY_DIR, EC), E;
          I != E && !EC; I.increment(EC)) {
         const std::string &Path = I->path();
-        // Accept files ending in ".fly.h"
-        if (Path.size() > 6 && Path.substr(Path.size() - 6) == ".fly.h") {
-            InputFile *Input = new InputFile(Diags, CI.getSourceManager(), Path);
-            if (Input->Load()) {
-                Parser *P = new Parser(Input, CI.getSourceManager(), Diags, Builder);
-                ASTModule *M = P->ParseHeader();
-                if (M) ASTModules.push_back(M);
-                Parsers.push_back(P);
-                InputFiles.push_back(Input);
-            } else {
-                delete Input;
-            }
+        // Accept only .fly source files (not .fly.h generated headers)
+        llvm::StringRef Filename = llvm::sys::path::filename(Path);
+        if (!Filename.ends_with(".fly"))
+            continue;
+        if (CompilingNow.count(Filename))
+            continue;
+        InputFile *Input = new InputFile(Diags, CI.getSourceManager(), Path);
+        if (Input->Load()) {
+            Parser *P = new Parser(Input, CI.getSourceManager(), Diags, Builder);
+            ASTModule *M = P->ParseHeader();
+            if (M) ASTModules.push_back(M);
+            Parsers.push_back(P);
+            InputFiles.push_back(Input);
+        } else {
+            delete Input;
         }
     }
 }

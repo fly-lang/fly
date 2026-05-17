@@ -2,9 +2,11 @@
 #
 # The Fly standard library is 100% implemented in Fly source:
 #
-#   fly_lib.a/.lib — Fly-compiled namespace objects + .fly.h header metadata.
+#   fly_lib.a/.lib — Fly-compiled namespace objects.
 #                      Built by the fly binary after it is available.
 #                      Extension: .a on Linux/macOS, .lib on Windows-MSVC.
+#                      The compiler resolves stdlib imports by parsing .fly
+#                      sources directly (no .fly.h headers needed).
 #
 # Users link: fly_lib.a  (or fly_lib.lib on Windows) plus the runtime library.
 #

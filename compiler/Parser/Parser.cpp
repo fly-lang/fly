@@ -119,6 +119,15 @@ ASTModule *Parser::ParseHeader() {
     ConsumeToken();
 
     Module = ASTBuilder::CreateModule(Input);
+    // Mark as a header module so CodeGen and CompilableModules checks skip it.
+    Module->setHeader(true);
+
+    // Skip leading import statements (present in .fly source files, absent in .fly.h).
+    while (ContinueParse && Tok.is(tok::kw_import)) {
+        ConsumeToken(); // consume 'import'
+        while (Tok.isNot(tok::eof) && !Tok.isAtStartOfLine())
+            ConsumeToken();
+    }
 
     // Parse optional namespace declaration
     if (Tok.is(tok::kw_namespace)) {
@@ -134,12 +143,22 @@ ASTModule *Parser::ParseHeader() {
             continue;
         }
 
+        // Skip import statements that follow the namespace (e.g. in .fly source files)
+        if (Tok.is(tok::kw_import)) {
+            ConsumeToken(); // consume 'import'
+            while (Tok.isNot(tok::eof) && !Tok.isAtStartOfLine())
+                ConsumeToken();
+            continue;
+        }
+
         // Parse modifiers (public/private/etc.)
         SmallVector<ASTModifier *, 8> Modifiers = ParseModifiers();
 
         // Parse a struct/class/interface or enum declaration (e.g. "public struct fly_rng { ... }")
+        // Pass SkipBodies=true so class method bodies are skipped rather than fully
+        // parsed into body AST nodes — mirrors what the old .fly.h generated files had.
         if (Tok.isOneOf(tok::kw_struct, tok::kw_class, tok::kw_interface)) {
-            ParseClass(Modifiers);
+            ParseClass(Modifiers, /*SkipBodies=*/true);
             continue;
         }
         if (Tok.is(tok::kw_enum)) {
@@ -162,18 +181,35 @@ ASTModule *Parser::ParseHeader() {
         }
         SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(this);
 
-        // Create function node with no body (external declaration)
-        ASTFunction *Function = ASTBuilder::CreateFunction(Module, Loc, Name, Modifiers, Params, nullptr);
+        // Create function node with an empty non-null body so that:
+        //   a) Sema defers param resolution to ResolveFunction() (after all namespaces
+        //      are registered), avoiding "unknown type" errors for cross-file types.
+        //   b) The function is not treated as an abstract/external declaration.
+        ASTBlockStmt *EmptyBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
+        ASTFunction *Function = ASTBuilder::CreateFunction(Module, Loc, Name, Modifiers, Params, EmptyBlock);
 
         // Parse optional explicit return type (e.g. "int", "bool")
         if (isBuiltinType(Tok)) {
             ASTType *RetType = ParseType();
             Function->setReturnType(RetType);
         }
+
+        // Skip function body if present (source .fly files have implementations)
+        if (isBlockStart())
+            SkipBraceBlock();
     }
 
     FLY_DEBUG_END("Parser", "ParseHeader");
     return Module;
+}
+
+void Parser::SkipBraceBlock() {
+    int Depth = 0;
+    do {
+        if (isBlockStart())       ++Depth;
+        else if (isBlockEnd())    --Depth;
+        ConsumeToken();
+    } while (Depth > 0 && Tok.isNot(tok::eof));
 }
 
 bool Parser::isSuccess() {
@@ -386,10 +422,10 @@ SmallVector<ASTModifier *, 8> Parser::ParseModifiers() {
  * @param Constant
  * @return
  */
-ASTClass * Parser::ParseClass(SmallVector<ASTModifier *, 8> &Modifiers) {
+ASTClass * Parser::ParseClass(SmallVector<ASTModifier *, 8> &Modifiers, bool SkipBodies) {
 	FLY_DEBUG_START("Parser", "ParseClass");
 
-    ASTClass *Class = ParserClass::Parse(this, Modifiers);
+    ASTClass *Class = ParserClass::Parse(this, Modifiers, SkipBodies);
     return Class;
 }
 

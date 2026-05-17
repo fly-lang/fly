@@ -39,6 +39,10 @@ bool ASTModule::isHeader() const {
     return Header;
 }
 
+void ASTModule::setHeader(bool IsHeader) {
+    Header = IsHeader;
+}
+
 std::string ASTModule::getName() {
     return Name;
 }
