@@ -202,7 +202,19 @@ llvm::StoreInst *CodeGenVar::StoreDefaultValue() {
 	}
 
 	// Non-array types
-	llvm::Value *DefaultValue = getDefaultValue(Ty->getCodeGen()->getType());
+	llvm::Type *CodeGenTy = Ty->getCodeGen()->getType();
+
+	// Struct types (non-string) require different defaults depending on storage:
+	//   Local variable: Alloca() creates 'alloca ptr' (pointer-to-struct) → default is null ptr
+	//   Class attribute: setPointer(GEP) points into the struct body (embedded) → default is zeroinitializer
+	if (CodeGenTy->isStructTy() && CodeGenTy != CodeGen::StringTy) {
+		llvm::Value *DefaultValue = llvm::isa<llvm::AllocaInst>(this->Pointer)
+			? llvm::Constant::getNullValue(llvm::PointerType::getUnqual(CGM->LLVMCtx))
+			: llvm::Constant::getNullValue(CodeGenTy);
+		return Store(DefaultValue);
+	}
+
+	llvm::Value *DefaultValue = getDefaultValue(CodeGenTy);
 	return Store(DefaultValue);
 }
 
