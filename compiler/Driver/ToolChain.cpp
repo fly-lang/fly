@@ -710,6 +710,10 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
         CmdArgs.push_back(DarwinRuntimeLib.c_str());
     }
 
+    // Libraries required by CLang compile-time bridge calls
+    for (const auto &LibFlag : CodeGenOpts.LinkerOptions)
+        CmdArgs.push_back(LibFlag);
+
     if (T.getObjectFormat() == llvm::Triple::MachO) {
         SmallVector<const char*, 16> LinkArgs;
         createLinkArgs(CmdArgs, LinkArgs);
@@ -879,6 +883,10 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
 
     CmdArgs.push_back("-lc");
     CmdArgs.push_back("-lm"); // math functions (sin, cos, sqrt, etc.) from fly.math
+
+    // Libraries required by CLang compile-time bridge calls
+    for (const auto &LibFlag : CodeGenOpts.LinkerOptions)
+        CmdArgs.push_back(LibFlag);
 
     // compiler-rt builtins: arithmetic/float helpers (replaces -lgcc).
     const std::string BuiltinsLib = GetCompilerRTBuiltinsPath();

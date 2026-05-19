@@ -98,6 +98,10 @@ namespace fly {
 
     private:
 
+        void GenCLangBridgeCall(SemaCall *Sema);
+
+        static std::string NormalizeCLangLibFlag(const std::string &LibStr);
+
         llvm::Value *GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
         llvm::Value *GenStringConcat(SemaExpr *E1, SemaExpr *E2);

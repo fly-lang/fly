@@ -1,0 +1,24 @@
+namespace fly.bridge
+
+// Ptr — void* equivalent (untyped C pointer)
+public struct Ptr {
+    ulong addr
+}
+
+// Args — base struct for C function argument packs.
+// Extend this struct with fields matching the C function parameters in order:
+//   struct OpenArgs : fly.bridge.Args { string filename }
+public struct Args {}
+
+// Compile-time intrinsics — empty bodies replaced by codegen.
+// lib:  library name (e.g. "libsqlite3.so", "/path/libfoo.a")
+// sym:  C symbol name (e.g. "sqlite3_open")
+// args: user-defined struct extending fly.bridge.Args; fields map to C arguments in order
+// out:  output variable (non-const); receives the C return value
+public callVoid(const string lib, const string sym, const Args args) {}
+public callInt(const string lib, const string sym, const Args args, int out) {}
+public callLong(const string lib, const string sym, const Args args, long out) {}
+public callFloat(const string lib, const string sym, const Args args, float out) {}
+public callDouble(const string lib, const string sym, const Args args, double out) {}
+public callBool(const string lib, const string sym, const Args args, bool out) {}
+public callPtr(const string lib, const string sym, const Args args, Ptr out) {}

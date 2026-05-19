@@ -37,6 +37,7 @@
 #include <Sema/SemaClassAttribute.h>
 #include <Sema/SemaClassInstance.h>
 #include <Sema/SemaClassMethod.h>
+#include <Sema/SemaClassType.h>
 #include <Sema/SemaError.h>
 #include <Sema/SemaFunctionBase.h>
 #include <Sema/SemaCall.h>
@@ -370,7 +371,12 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
 
         // fly.llvm → emit LLVM intrinsics directly (no err_ctx, no mangling).
         // fly.runtime → call C symbols by exact name (no err_ctx, no mangling).
+        // fly.bridge → compile-time C FFI bridge.
         const std::string &NS = Sema->getFunction()->getNamespaceName();
+        if (NS == "fly_bridge") {
+            GenCLangBridgeCall(Sema);
+            return;
+        }
         if (NS == "fly_llvm" || NS == "fly_runtime") {
             auto &Params = Sema->getFunction()->getParams();
             auto &ArgExprs = Sema->getArgs();
@@ -499,6 +505,12 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
                 if (BaseName == "longToInt") {
                     // truncate i64 → i32 (caller is responsible for range)
                     V = Builder->CreateTrunc(InArgs[0], CodeGen::Int32Ty);
+                    if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
+                    return;
+                }
+                if (BaseName == "ulongToLong") {
+                    // ulong and long are both i64; reinterpret sign only
+                    V = InArgs[0];
                     if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
                     return;
                 }
@@ -1469,3 +1481,4 @@ llvm::Value *CodeGenExpr::ConvertToFloat(llvm::Value *V, SemaFloatType *Ty, bool
 	}
 	return V;
 }
+

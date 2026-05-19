@@ -667,9 +667,9 @@ public dirRead(const string path, DirEntries out) {
 
                         // Serialize DirEntry into slot at items + count * stride
                         ulong slot_u = count * stride
-                        int slot_i = 0
-                        fly.llvm.longToInt(slot_u, slot_i)
-                        long slot = items + slot_u
+                        long slot_l = 0
+                        fly.llvm.ulongToLong(slot_u, slot_l)
+                        long slot = items + slot_l
 
                         // string name: ptr at offset 0, size at offset 8
                         fly.llvm.ptrPokeLong(slot, 0, name_buf)

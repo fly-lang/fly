@@ -41,6 +41,7 @@ public strMake(const long ptr, const int size, string out) {}
 public strPoke(const long ptr, const int i, const byte val) {}
 public ptrByteAt(const long ptr, const int i, byte out) {}
 public longToInt(const long v, int out) {}
+public ulongToLong(const ulong v, long out) {}
 // ptrPokeLong writes a long (i64) value at byte offset i in the raw buffer ptr.
 // Use to serialize struct fields of type long/ulong into a heap array slot.
 public ptrPokeLong(const long ptr, const int i, const long val) {}

@@ -2125,6 +2125,28 @@ void Resolver::ResolveBaseClasses(SemaClassType *DerivedClass) {
 		DerivedClass->BaseClasses.push_back(BaseClass);
 	}
 
+	// Propagate concrete class method symbols (depth-first) into the derived class
+	// symbol table so that inherited methods are resolvable when the caller holds
+	// a variable of the derived type (e.g. CLang c = new CLang(); c.open(...)).
+	// Only class-kind bases are propagated; interface abstract methods are not.
+	llvm::StringSet<> Propagated;
+	std::function<void(SemaClassType *)> PropagateInherited = [&](SemaClassType *Base) {
+		if (Base->getClassKind() != SemaClassKind::CLASS) return;
+		for (auto &Entry : Base->getMethods()) {
+			llvm::StringRef Name = Entry.first();
+			SemaClassMethod *Method = Entry.second;
+			if (!DerivedClass->getMethods().count(Name) && !Propagated.count(Name)) {
+				Propagated.insert(Name);
+				Symbol *Sym = new Symbol(std::string(Name), SymbolKind::FUNCTION, Method);
+				DerivedClass->getSymbols()->insert(Sym);
+			}
+		}
+		for (auto *GrandBase : Base->getBaseClasses())
+			PropagateInherited(GrandBase);
+	};
+	for (auto *Base : DerivedClass->getBaseClasses())
+		PropagateInherited(Base);
+
 	// Check diamond ambiguity from interface default methods
 	CheckDiamondAmbiguity(DerivedClass);
 }
