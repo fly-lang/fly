@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenClassMethod.h"
+#include "CodeGen/CodeGenHelper.h"
 
 #include "AST/ASTClass.h"
 #include "AST/ASTFunction.h"
@@ -22,7 +23,7 @@
 #include "Sema/SemaClassMethod.h"
 #include "Sema/SemaClassType.h"
 #include "Sema/SemaModule.h"
-#include "Sema/SemaNameSpace.h"
+#include "AST/ASTModule.h"
 
 #include <AST/ASTType.h>
 #include <AST/ASTVar.h>
@@ -73,8 +74,10 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
     // Set LLVM Function Name %CLASSNAME_MANGLEDNAME
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
-	// Build name as ClassName + MangleName so that e.g. TestClass constructor becomes TestClass_F9TestClass
-	std::string Name = std::string(Class->getAST().getName()) + Mangle(Sema);
+	// Build name: ClassName_F[NS?]methodName_params
+	std::string Name = CodeGenHelper::Mangle(Class->getModule().getAST().getNameSpace(),
+	                                          std::string(Class->getAST().getName()),
+	                                          &Sema->getAST());
 	// Only concrete methods get an LLVM function — interface methods and abstract methods are blueprints only
 	SemaClassMethod *ClassMethodSema = static_cast<SemaClassMethod *>(Sema);
 	if (Class->getClassKind() != SemaClassKind::INTERFACE && !ClassMethodSema->isAbstract()) {

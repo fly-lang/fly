@@ -26,7 +26,6 @@
 #include <Sema/SemaLocalVar.h>
 #include <Sema/SemaParam.h>
 #include <llvm/IR/Instructions.h>
-#include <unordered_map>
 
 using namespace fly;
 
@@ -155,64 +154,3 @@ void CodeGenFunctionBase::CheckReturnVoid() {
 	}
 }
 
-// Mapping Fly types to mangled representations
-std::unordered_map<std::string, std::string> MangleTypeMap = {
-	{"bool", "_b"},
-	{"byte", "_y"},
-	{"ushort", "_us"},
-	{"short", "_s"},
-	{"uint", "_ui"},
-	{"int", "_i"},
-	{"ulong", "_ul"},
-	{"long", "_l"},
-	{"float", "_f"},
-	{"double", "_d"},
-	{"void", "_v"},
-	{"string", "_Ss"},
-	// {"char", "_c"},
-	{"error", "_e"},
-};
-
-// Function to process array type: "int[5]" -> "A5_i"
-std::string CodeGenFunctionBase::Mangle(SemaType *Type) {
-	std::string Mangled = "";
-
-	switch (Type->getKind()) {
-		case SemaKind::TYPE_ARRAY: {
-			SemaArrayType *Array = static_cast<SemaArrayType *>(Type);
-			Mangled += "_A" + Mangle(Array->getElementType());
-		}	break;
-		case SemaKind::TYPE_ENUM:
-			Mangled += "_E" + Type->getName();
-			break;
-		case SemaKind::TYPE_CLASS:
-			Mangled += "_C" + Type->getName();
-			break;
-		default:
-			Mangled += MangleTypeMap.at(Type->getName());
-	}
-
-	return Mangled;
-}
-
-std::string CodeGenFunctionBase::Mangle(SemaFunctionBase *F) {
-	std::string Name = std::string(F->getName());
-	const std::string &NS = F->getNamespaceName();
-
-	std::string Mangled = "_F";
-
-	// Include flattened namespace prefix when not in the default namespace
-	if (!NS.empty()) {
-		Mangled += std::to_string(NS.size()) + NS;
-	}
-
-	// Encode function name with its length
-	Mangled += std::to_string(Name.size()) + Name;
-
-	// Encode parameters
-	for (const auto Param : F->getParams()) {
-		Mangled += Mangle(Param->getType());
-	}
-
-	return Mangled;
-}

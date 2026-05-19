@@ -98,8 +98,18 @@ namespace fly {
 
     private:
 
-        void GenCLangBridgeCall(SemaCall *Sema);
-
+        // fly.bridge.CLang codegen
+        void GenCLangConstructorCapture(SemaCall *Sema, llvm::Value *InstancePtr);
+        void GenCLangBridgeMethodCall(SemaCall *Sema);
+        void BuildCArgsFromArgsStruct(SemaExpr *ArgsExpr,
+                                      llvm::SmallVector<llvm::Value *, 8> &CArgs,
+                                      llvm::SmallVector<llvm::Type  *, 8> &CArgTys);
+        void EmitCCallAndStoreResult(const std::string &SymStr,
+                                     llvm::Type *CRetTy,
+                                     bool IsVoid, bool IsPtr, bool IsBool,
+                                     llvm::SmallVector<llvm::Value *, 8> &CArgs,
+                                     llvm::SmallVector<llvm::Type  *, 8> &CArgTys,
+                                     SemaExpr *OutExpr);
         static std::string NormalizeCLangLibFlag(const std::string &LibStr);
 
         llvm::Value *GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);

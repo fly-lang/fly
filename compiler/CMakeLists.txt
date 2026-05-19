@@ -114,7 +114,7 @@ add_library(FlyCompiler
         CodeGen/CodeGenEnum.cpp
         CodeGen/CodeGenEnumEntry.cpp
         CodeGen/CodeGenExpr.cpp
-        CodeGen/CodeGenCLangBridge.cpp
+        CodeGen/CodeGenBridgeCLang.cpp
         CodeGen/CodeGenError.cpp
         CodeGen/CodeGenFunction.cpp
         CodeGen/CodeGenFunctionBase.cpp
@@ -122,6 +122,7 @@ add_library(FlyCompiler
         CodeGen/CodeGenModule.cpp
         CodeGen/CodeGenType.cpp
         CodeGen/CodeGenVar.cpp
+        CodeGen/CodeGenHelper.cpp
 
         # Driver
         Driver/Driver.cpp

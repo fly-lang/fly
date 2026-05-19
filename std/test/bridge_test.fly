@@ -1,4 +1,5 @@
 import fly.bridge
+import fly.bridge.*
 import fly.assert
 
 struct StrlenArgs : fly.bridge.Args {
@@ -9,7 +10,9 @@ main() {
     StrlenArgs args = new StrlenArgs()
     args.s = "hello"
 
+    CLang libc = new CLang("libc.so.6")
+
     long len = 0
-    fly.bridge.callLong("libc.so.6", "strlen", args, len)
+    libc.call("strlen", args, len)
     fly.assert.assertEqL(len, 5, 1)
 }

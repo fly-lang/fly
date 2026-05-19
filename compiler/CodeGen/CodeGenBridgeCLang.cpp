@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/CodeGen/CodeGenCLangBridge.cpp - Compile-time C FFI bridge codegen
+// src/CodeGen/CodeGenBridgeCLang.cpp - fly.bridge.CLang codegen
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -17,6 +17,7 @@
 #include <Sema/SemaCall.h>
 #include <Sema/SemaFunctionBase.h>
 #include <Sema/SemaClassAttribute.h>
+#include <Sema/SemaClassMethod.h>
 #include <Sema/SemaClassType.h>
 #include <Sema/SemaNode.h>
 #include <Sema/SemaType.h>
@@ -33,11 +34,11 @@ using namespace fly;
 std::string CodeGenExpr::NormalizeCLangLibFlag(const std::string &LibStr) {
     llvm::StringRef Lib(LibStr);
 
-    // Absolute path → pass as-is (static or dynamic already located)
+    // Absolute path → pass as-is
     if (Lib.starts_with("/"))
         return LibStr;
 
-    // Explicit static archive → use -l:<name> (GNU ld exact-name syntax)
+    // Explicit static archive → -l:<name>
     if (Lib.ends_with(".a"))
         return "-l:" + LibStr;
 
@@ -51,63 +52,49 @@ std::string CodeGenExpr::NormalizeCLangLibFlag(const std::string &LibStr) {
     return "-l" + Name;
 }
 
-// ─── Bridge call codegen ──────────────────────────────────────────────────────
+// ─── String literal check ─────────────────────────────────────────────────────
 
-void CodeGenExpr::GenCLangBridgeCall(SemaCall *Sema) {
-    std::string FnName(Sema->getFunction()->getName());
+static bool isStringLiteral(SemaExpr *E) {
+    return E->getKind() == SemaKind::VALUE &&
+           E->getType() && E->getType()->getKind() == SemaKind::TYPE_STRING;
+}
 
-    // Args layout: (const string lib, const string sym, const Args args [, T out])
+// ─── Constructor capture ──────────────────────────────────────────────────────
+//
+// Called after the normal constructor path has allocated the CLang instance.
+// Captures lib literal → registers linker flag → stores in CLangLibMap.
+
+void CodeGenExpr::GenCLangConstructorCapture(SemaCall *Sema, llvm::Value *InstancePtr) {
     auto &ArgExprs = Sema->getArgs();
-    if (ArgExprs.size() < 3) { V = nullptr; return; }
+    // ArgExprs[0] = lib (string)
 
-    // ─── Extract lib and sym string literals (must be compile-time constants) ─
-
-    SemaExpr *LibExpr = ArgExprs[0];
-    SemaExpr *SymExpr = ArgExprs[1];
-
-    auto isStringLiteral = [](SemaExpr *E) {
-        return E->getKind() == SemaKind::VALUE &&
-               E->getType() && E->getType()->getKind() == SemaKind::TYPE_STRING;
-    };
-    if (!isStringLiteral(LibExpr) || !isStringLiteral(SymExpr)) {
-        V = nullptr;
+    if (ArgExprs.empty() || !isStringLiteral(ArgExprs[0]))
         return;
-    }
-    std::string LibStr = static_cast<SemaStringValue *>(LibExpr)->getValue().str();
-    std::string SymStr = static_cast<SemaStringValue *>(SymExpr)->getValue().str();
 
-    // Register library flag with the linker (deduplicated)
+    std::string LibStr = static_cast<SemaStringValue *>(ArgExprs[0])->getValue().str();
+
+    // Register linker flag (deduplicated)
     std::string LibFlag = NormalizeCLangLibFlag(LibStr);
     auto &LinkerOpts = CGM->CGOpts.LinkerOptions;
     if (std::find(LinkerOpts.begin(), LinkerOpts.end(), LibFlag) == LinkerOpts.end())
         LinkerOpts.push_back(LibFlag);
 
-    // ─── C return type inferred from function name ─────────────────────────
+    // Associate this instance pointer with the lib string for later call() use
+    CGM->CLangLibMap[InstancePtr] = LibStr;
+}
 
-    bool IsVoid = (FnName == "callVoid");
-    bool IsPtr  = (FnName == "callPtr");
-    bool IsBool = (FnName == "callBool");
-    llvm::Type *CRetTy = nullptr;
-    if (IsVoid)                        CRetTy = CodeGen::VoidTy;
-    else if (IsPtr)                    CRetTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
-    else if (FnName == "callInt")      CRetTy = CodeGen::Int32Ty;
-    else if (FnName == "callLong")     CRetTy = CodeGen::Int64Ty;
-    else if (FnName == "callFloat")    CRetTy = CodeGen::FloatTy;
-    else if (FnName == "callDouble")   CRetTy = CodeGen::DoubleTy;
-    else if (IsBool)                   CRetTy = CodeGen::Int32Ty;
-    else { V = nullptr; return; }
+// ─── Args struct → C argument list ───────────────────────────────────────────
 
-    // ─── Build C argument list from concrete Args struct fields ────────────
+void CodeGenExpr::BuildCArgsFromArgsStruct(
+        SemaExpr *ArgsExpr,
+        llvm::SmallVector<llvm::Value *, 8> &CArgs,
+        llvm::SmallVector<llvm::Type  *, 8> &CArgTys) {
 
-    SemaExpr *ArgsExpr = ArgExprs[2];
     ArgsExpr->accept(*CGM);
     llvm::Value *ArgsPtr = ArgsExpr->getCodeGen()->getValue();
 
     SemaClassType *ArgsType = static_cast<SemaClassType *>(ArgsExpr->getType());
     llvm::StructType *ArgsStructTy = ArgsType->getCodeGen()->getType();
-
-    llvm::SmallVector<llvm::Value *, 8> CArgs;
-    llvm::SmallVector<llvm::Type *, 8>  CArgTys;
 
     for (SemaNode *Node : ArgsType->getNodes()) {
         if (Node->getKind() != SemaKind::ATTRIBUTE)
@@ -129,7 +116,7 @@ void CodeGenExpr::GenCLangBridgeCall(SemaCall *Sema) {
             CArg   = Builder->CreateExtractValue(FieldVal, 0);
             CArgTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
         } else if (FieldTy->isStructTy()) {
-            // Ptr { i64 addr } → void* (extract addr → inttoptr)
+            // Ptr { i64 addr } → void* via inttoptr
             llvm::Value *Addr = Builder->CreateExtractValue(FieldVal, 0);
             CArg   = Builder->CreateIntToPtr(Addr, llvm::PointerType::getUnqual(CGM->LLVMCtx));
             CArgTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
@@ -140,35 +127,37 @@ void CodeGenExpr::GenCLangBridgeCall(SemaCall *Sema) {
         CArgs.push_back(CArg);
         CArgTys.push_back(CArgTy);
     }
+}
 
-    // ─── Emit the C call ───────────────────────────────────────────────────
+// ─── Emit C call + store result ───────────────────────────────────────────────
+
+void CodeGenExpr::EmitCCallAndStoreResult(
+        const std::string &SymStr,
+        llvm::Type *CRetTy,
+        bool IsVoid, bool IsPtr, bool IsBool,
+        llvm::SmallVector<llvm::Value *, 8> &CArgs,
+        llvm::SmallVector<llvm::Type  *, 8> &CArgTys,
+        SemaExpr *OutExpr) {
 
     llvm::FunctionType *FTy = llvm::FunctionType::get(CRetTy, CArgTys, false);
     llvm::FunctionCallee Callee = CGM->Module->getOrInsertFunction(SymStr, FTy);
     llvm::Value *CResult = Builder->CreateCall(Callee, CArgs);
-
-    // ─── Write output parameter ────────────────────────────────────────────
 
     if (IsVoid) {
         V = CResult;
         return;
     }
 
-    // Output is ArgExprs[3] for non-void variants
-    if (ArgExprs.size() < 4) { V = nullptr; return; }
-    SemaVar *OutVar = static_cast<SemaVar *>(ArgExprs[3]);
+    SemaVar *OutVar = static_cast<SemaVar *>(OutExpr);
 
     if (IsPtr) {
-        // Allocate Ptr struct memory on stack (variable's alloca holds null initially)
         SemaClassType *PtrType = static_cast<SemaClassType *>(OutVar->getType());
         llvm::StructType *PtrStructTy = PtrType->getCodeGen()->getType();
         llvm::Value *PtrMem = Builder->CreateAlloca(PtrStructTy);
 
-        // Write struct pointer into the variable's alloca
         Builder->CreateStore(PtrMem, OutVar->getCodeGen()->getPointer());
         OutVar->getCodeGen()->resetLoad();
 
-        // Store C pointer as i64 into Ptr.addr (field 0 — struct has no vtable)
         llvm::Value *Addr = Builder->CreatePtrToInt(CResult, CodeGen::Int64Ty);
         llvm::Value *AddrPtr = Builder->CreateInBoundsGEP(PtrStructTy, PtrMem,
             {CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, 0)});
@@ -194,4 +183,70 @@ void CodeGenExpr::GenCLangBridgeCall(SemaCall *Sema) {
         OutVar->getCodeGen()->resetLoad();
         V = CResult;
     }
+}
+
+// ─── CLang::call() method codegen ─────────────────────────────────────────────
+
+void CodeGenExpr::GenCLangBridgeMethodCall(SemaCall *Sema) {
+    auto &ArgExprs = Sema->getArgs();
+    // ArgExprs[0] = sym  (string literal)
+    // ArgExprs[1] = const Args args
+    // ArgExprs[2] = out  (absent for void variant)
+
+    if (ArgExprs.size() < 2) { V = nullptr; return; }
+
+    // sym must be a string literal
+    if (!isStringLiteral(ArgExprs[0])) { V = nullptr; return; }
+    std::string SymStr = static_cast<SemaStringValue *>(ArgExprs[0])->getValue().str();
+
+    // Lib was captured at constructor time; verify the instance is known
+    SemaVar *Instance = static_cast<SemaVar *>(Sema->getParent());
+    if (!CGM->CLangLibMap.count(Instance->getCodeGen()->getPointer())) {
+        V = nullptr; return;
+    }
+
+    // ─── Determine C return type from the out parameter type (compile-time) ──
+
+    bool IsVoid = (ArgExprs.size() == 2);
+    bool IsPtr  = false;
+    bool IsBool = false;
+    llvm::Type *CRetTy = nullptr;
+
+    if (IsVoid) {
+        CRetTy = CodeGen::VoidTy;
+    } else {
+        SemaType *OutTy = ArgExprs[2]->getType();
+        switch (OutTy->getKind()) {
+            case SemaKind::TYPE_INTEGER: {
+                auto *IT = static_cast<SemaIntType *>(OutTy);
+                CRetTy = (IT->getIntKind() == SemaIntTypeKind::TYPE_LONG)
+                             ? CodeGen::Int64Ty : CodeGen::Int32Ty;
+                break;
+            }
+            case SemaKind::TYPE_FLOAT: {
+                auto *FT = static_cast<SemaFloatType *>(OutTy);
+                CRetTy = (FT->getFloatKind() == SemaFloatTypeKind::TYPE_DOUBLE)
+                             ? CodeGen::DoubleTy : CodeGen::FloatTy;
+                break;
+            }
+            case SemaKind::TYPE_BOOL:
+                CRetTy = CodeGen::Int32Ty; IsBool = true; break;
+            case SemaKind::TYPE_CLASS:
+                CRetTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+                IsPtr  = true; break;
+            default: V = nullptr; return;
+        }
+    }
+
+    // ─── Build C argument list from the Args struct ────────────────────────
+
+    llvm::SmallVector<llvm::Value *, 8> CArgs;
+    llvm::SmallVector<llvm::Type  *, 8> CArgTys;
+    BuildCArgsFromArgsStruct(ArgExprs[1], CArgs, CArgTys);
+
+    // ─── Emit LLVM call + write result into out ────────────────────────────
+
+    EmitCCallAndStoreResult(SymStr, CRetTy, IsVoid, IsPtr, IsBool,
+                            CArgs, CArgTys,
+                            IsVoid ? nullptr : ArgExprs[2]);
 }

@@ -18,7 +18,9 @@
 #include "Basic/TargetInfo.h"
 #include "Sema/SemaVisitor.h"
 #include <Sema/SemaType.h>
+#include <llvm/ADT/DenseMap.h>
 #include <llvm/IR/IRBuilder.h>
+#include <string>
 
 namespace llvm {
     class LLVMContext;
@@ -32,6 +34,7 @@ namespace llvm {
     class BasicBlock;
     class Value;
 };
+
 
 namespace fly {
 
@@ -133,6 +136,10 @@ namespace fly {
     public:
 
     	llvm::SmallVector<SemaFunctionBase *, 8> Functions;
+
+        // fly.bridge.CLang: maps each CLang instance alloca → lib string literal.
+        // Populated at new CLang(lib) call sites; consumed by CLang::call() codegen.
+        llvm::DenseMap<llvm::Value *, std::string> CLangLibMap;
 
         // Stack for tracking break/continue targets in loops and switches
         llvm::SmallVector<llvm::BasicBlock *, 8> BreakTargetStack;

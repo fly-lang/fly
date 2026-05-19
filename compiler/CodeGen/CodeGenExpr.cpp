@@ -13,12 +13,15 @@
 #include "AST/ASTCast.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTIdentifier.h"
+#include "AST/ASTModule.h"
 #include "AST/ASTTernary.h"
+#include "Sema/SemaModule.h"
 #include "AST/ASTType.h"
 #include "AST/ASTUnary.h"
 #include "Basic/Debug.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
+#include "CodeGen/CodeGenHelper.h"
 #include "Sema/SemaBinary.h"
 #include "Sema/SemaBuiltin.h"
 #include "Sema/SemaCast.h"
@@ -308,10 +311,26 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     			Builder->CreateCall(Method->getCodeGen()->getFunction(), Args);
 
     		V = InstancePtr;
+
+    		// fly.bridge.CLang: capture lib literal into CLangLibMap after allocation
+    		if (Method->getClass()->getName() == "CLang" &&
+    		    CodeGenHelper::FlattenNS(Method->getClass()->getModule().getAST().getNameSpace()) == "fly_bridge") {
+    		    GenCLangConstructorCapture(Sema, InstancePtr);
+    		}
+
     		return;
     	}
 
     	// Call is not a constructor, so it must be a method call
+
+    	// fly.bridge.CLang::call() — intercept before vtable dispatch
+    	if (Method->getName() == "call" &&
+    	    Method->getClass()->getName() == "CLang" &&
+    	    CodeGenHelper::FlattenNS(Method->getClass()->getModule().getAST().getNameSpace()) == "fly_bridge") {
+    	    GenCLangBridgeMethodCall(Sema);
+    	    return;
+    	}
+
     	if (Sema->getParent()) {
 
     		SemaClassType * ParentClass = static_cast<SemaClassType *>(Sema->getParent()->getType());
@@ -371,12 +390,7 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
 
         // fly.llvm → emit LLVM intrinsics directly (no err_ctx, no mangling).
         // fly.runtime → call C symbols by exact name (no err_ctx, no mangling).
-        // fly.bridge → compile-time C FFI bridge.
         const std::string &NS = Sema->getFunction()->getNamespaceName();
-        if (NS == "fly_bridge") {
-            GenCLangBridgeCall(Sema);
-            return;
-        }
         if (NS == "fly_llvm" || NS == "fly_runtime") {
             auto &Params = Sema->getFunction()->getParams();
             auto &ArgExprs = Sema->getArgs();
@@ -612,7 +626,7 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
 
     	// External function (declared in .fly.h header, implemented in runtime)
     	if (Sema->getFunction()->getCodeGen() == nullptr) {
-    		std::string MangledName = CodeGenFunctionBase::Mangle(Sema->getFunction());
+    		std::string MangledName = CodeGenHelper::Mangle(Sema->getFunction());
 
     		// Build LLVM param types: void* error + all params by pointer
     		llvm::SmallVector<llvm::Type *, 8> ParamTypes;
@@ -1289,6 +1303,20 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
 		if (Type1->getRank() > Type2->getRank()) {
 			bool Src2Signed = !Type2->isInteger() || static_cast<SemaIntType *>(Type2)->isSigned();
 			V2 = ConvertNumber(V2, Type1, Src2Signed); // Implicit conversion
+		}
+	}
+
+	// Bridge: when storing a CLang instance into a variable, propagate the
+	// InstancePtr → lib mapping to alloca → lib so call() can look it up.
+	if (E2->getKind() == SemaKind::CALL) {
+		auto LibIt = CGM->CLangLibMap.find(V2);
+		if (LibIt != CGM->CLangLibMap.end()) {
+			SemaKind K1 = E1->getKind();
+			if (K1 == SemaKind::LOCAL_VAR || K1 == SemaKind::PARAM_VAR ||
+			    K1 == SemaKind::ATTRIBUTE || K1 == SemaKind::INSTANCE_VAR) {
+				llvm::Value *DestAlloca = static_cast<CodeGenVar *>(E1CodeGen)->getPointer();
+				CGM->CLangLibMap[DestAlloca] = LibIt->second;
+			}
 		}
 	}
 

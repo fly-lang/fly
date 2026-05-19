@@ -336,8 +336,8 @@ void Resolver::visit(ASTMethod &AST) {
 	// Methods are implicitly void - no return type to resolve
 	SmallVector<SemaType *, 8> Types = ResolveParams(AST);
 
-	// Find Method duplication
-	if (Reg.LookupFunction(AST.getName(), Types, CurrentClass->getSymbols())) {
+	// Find Method duplication (strict: exact type match, no numeric promotion)
+	if (Reg.LookupFunctionExact(AST.getName(), Types, CurrentClass->getSymbols())) {
 		Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
 		return;
 	}

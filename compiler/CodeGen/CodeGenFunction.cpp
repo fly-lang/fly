@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenFunction.h"
+#include "CodeGen/CodeGenHelper.h"
 
 #include "AST/ASTFunction.h"
 #include "AST/ASTModule.h"
@@ -72,7 +73,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
     // Set Name: main() is the C entry point and must not be mangled
-	std::string Name = isMain ? "main" : Mangle(Sema);
+	std::string Name = isMain ? "main" : CodeGenHelper::Mangle(Sema);
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
 
     // Set Linkage

@@ -10,15 +10,21 @@ public struct Ptr {
 //   struct OpenArgs : fly.bridge.Args { string filename }
 public struct Args {}
 
-// Compile-time intrinsics — empty bodies replaced by codegen.
-// lib:  library name (e.g. "libsqlite3.so", "/path/libfoo.a")
-// sym:  C symbol name (e.g. "sqlite3_open")
-// args: user-defined struct extending fly.bridge.Args; fields map to C arguments in order
-// out:  output variable (non-const); receives the C return value
-public callVoid(const string lib, const string sym, const Args args) {}
-public callInt(const string lib, const string sym, const Args args, int out) {}
-public callLong(const string lib, const string sym, const Args args, long out) {}
-public callFloat(const string lib, const string sym, const Args args, float out) {}
-public callDouble(const string lib, const string sym, const Args args, double out) {}
-public callBool(const string lib, const string sym, const Args args, bool out) {}
-public callPtr(const string lib, const string sym, const Args args, Ptr out) {}
+// CLang — handle to a C library. lib must be a string literal (static linking).
+// Reuse the same instance to call multiple symbols in the same library.
+// sym must also be a string literal at each call site.
+public class CLang {
+    string lib
+
+    public CLang(string lib) {
+        this.lib = lib
+    }
+
+    public call(string sym, const Args args) {}
+    public call(string sym, const Args args, int out) {}
+    public call(string sym, const Args args, long out) {}
+    public call(string sym, const Args args, float out) {}
+    public call(string sym, const Args args, double out) {}
+    public call(string sym, const Args args, bool out) {}
+    public call(string sym, const Args args, Ptr out) {}
+}
