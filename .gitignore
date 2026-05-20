@@ -1,4 +1,5 @@
 /*build*/
 /.idea
 /.vscode
+/.vs
 std/src/**/*.fly.h

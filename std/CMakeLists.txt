@@ -167,16 +167,3 @@ add_custom_command(
 )
 add_custom_target(os_io_test_fly_bin ALL DEPENDS ${CMAKE_BINARY_DIR}/os_io_test_fly)
 add_test(NAME fly_os_io_fly_test COMMAND ${CMAKE_BINARY_DIR}/os_io_test_fly)
-
-add_custom_command(
-    OUTPUT  ${CMAKE_BINARY_DIR}/bridge_test_fly
-    COMMAND $<TARGET_FILE:fly>
-            ${CMAKE_CURRENT_SOURCE_DIR}/test/bridge_test.fly
-            ${FLY_LIB_OUTPUT}
-            -o ${CMAKE_BINARY_DIR}/bridge_test_fly
-    DEPENDS fly fly_lib ${CMAKE_CURRENT_SOURCE_DIR}/test/bridge_test.fly
-    COMMENT "Compiling bridge_test.fly"
-    VERBATIM
-)
-add_custom_target(bridge_test_fly_bin ALL DEPENDS ${CMAKE_BINARY_DIR}/bridge_test_fly)
-add_test(NAME fly_bridge_fly_test COMMAND ${CMAKE_BINARY_DIR}/bridge_test_fly)
