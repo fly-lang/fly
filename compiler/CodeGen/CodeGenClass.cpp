@@ -141,6 +141,23 @@ void CodeGenClass::CreateVTable() {
 					CG = Method->getCodeGen();
 				}
 			}
+		} else if (Sema->getClassKind() == SemaClassKind::INTERFACE) {
+			// Interface methods have no function body but need a CodeGen carrying their
+			// vtable index so that CodeGenExpr can resolve Method->getCodeGen()->getIndex()
+			// when emitting vtable dispatch from standalone functions (e.g. readAll(Reader r)).
+			// Without this, getCodeGen() returns nullptr and the compiler crashes.
+			for (auto &Node : Sema->getNodes()) {
+				if (Node->getKind() != SemaKind::METHOD) continue;
+				SemaClassMethod *Method = static_cast<SemaClassMethod *>(Node);
+				if (Method->isConstructor() || Method->isStatic()) continue;
+				if (Method->getCodeGen() == nullptr) {
+					// Index starts at 1: slot 0 in the vtable is the offset-to-top.
+					CodeGenClassMethod *CG = new CodeGenClassMethod(CGM, Method, Type, Methods.size() + 1);
+					Method->setCodeGen(CG);
+					Methods.push_back(CG);
+					// Interface methods are abstract — no function body to schedule.
+				}
+			}
 		}
 
 		// Populate vtable: null for abstract/interface methods, function ptr for concrete methods

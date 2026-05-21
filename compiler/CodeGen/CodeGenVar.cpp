@@ -61,7 +61,7 @@ llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
     if (T->isIntegerTy(1)) {
         Val = CGM->Builder->CreateZExt(Val, CodeGen::Int8Ty);
     }
-
+		
 	return CGM->Builder->CreateStore(Val, getPointer());
 }
 

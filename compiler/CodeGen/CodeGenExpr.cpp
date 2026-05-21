@@ -19,6 +19,7 @@
 #include "AST/ASTType.h"
 #include "AST/ASTUnary.h"
 #include "Basic/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGen/CodeGenHelper.h"
@@ -1305,7 +1306,6 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
 			V2 = ConvertNumber(V2, Type1, Src2Signed); // Implicit conversion
 		}
 	}
-
 	// Bridge: when storing a CLang instance into a variable, propagate the
 	// InstancePtr → lib mapping to alloca → lib so call() can look it up.
 	if (E2->getKind() == SemaKind::CALL) {
@@ -1456,7 +1456,8 @@ llvm::Value *CodeGenExpr::ConvertToInteger(llvm::Value *V, SemaIntType *Ty) {
 					return Ty->isSigned() ? Builder->CreateSExt(V, CodeGen::Int64Ty) :
 						   Builder->CreateZExt(V, CodeGen::Int64Ty);
 				}
-				break;
+				// V is already i64 — no conversion needed (covers long→ulong and ulong→long)
+				return V;
 		}
 	}
 
@@ -1482,6 +1483,9 @@ llvm::Value *CodeGenExpr::ConvertToInteger(llvm::Value *V, SemaIntType *Ty) {
 					   Builder->CreateFPToUI(V, CodeGen::Int64Ty);
 		}
 	}
+
+	// V is already the target type or an unhandled type — return as-is
+	return V;
 }
 
 llvm::Value *CodeGenExpr::ConvertToFloat(llvm::Value *V, SemaFloatType *Ty, bool IsSigned) {

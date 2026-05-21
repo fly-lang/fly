@@ -88,7 +88,15 @@ bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, Fr
         return Library.CreateLib(ObjFiles);
     } else {
         if (T.isWindowsMSVCEnvironment()) {
-            return LinkWindows(InFiles, OutFileName);
+            // Merge user-supplied .lib/.a files (e.g. fly_lib.lib) into the
+            // input list so they reach the linker — same as LinkLinux does.
+            llvm::SmallVector<std::string, 4> AllFiles = InFiles;
+            for (const auto &Input : FrontendOpts.getInputFiles()) {
+                llvm::StringRef Ext = llvm::sys::path::extension(Input);
+                if (Ext == ".lib" || Ext == ".a")
+                    AllFiles.push_back(Input);
+            }
+            return LinkWindows(AllFiles, OutFileName);
         } else if (T.isOSDarwin()) {
             return LinkDarwin(InFiles, OutFileName);
         } else {
@@ -1346,14 +1354,31 @@ std::string ToolChain::GetCompilerRTBuiltinsPath() const {
 std::string ToolChain::GetRuntimeLibPath() const {
     FLY_DEBUG_SCOPE("ToolChain", "GetRuntimeLibPath");
     // FLY_RUNTIME_LIB_DIR is baked into Config.h at cmake-configure time.
-    // It points to the directory where libFlyRuntime.a is built (or installed).
-    llvm::SmallString<256> P(FLY_RUNTIME_LIB_DIR);
-    llvm::sys::path::append(P, "libFlyRuntime.a");
-    if (getVFS().exists(P)) {
-        FLY_DEBUG_MSG("Found: " << P);
-        return std::string(P.str());
+    // Try platform-specific names and optional build-config subdirectories.
+    const llvm::StringRef BaseDir(FLY_RUNTIME_LIB_DIR);
+
+    // Candidates: (subdir, filename)
+    const std::pair<llvm::StringRef, llvm::StringRef> Candidates[] = {
+        // Windows MSVC: lib is in a Release/ or Debug/ subdirectory
+        {"Release", "FlyRuntime.lib"},
+        {"Debug",   "FlyRuntime.lib"},
+        {"",        "FlyRuntime.lib"},
+        // Unix / installed layout
+        {"",        "libFlyRuntime.a"},
+        {"Release", "libFlyRuntime.a"},
+    };
+
+    for (auto &[Sub, Name] : Candidates) {
+        llvm::SmallString<256> P(BaseDir);
+        if (!Sub.empty())
+            llvm::sys::path::append(P, Sub);
+        llvm::sys::path::append(P, Name);
+        if (getVFS().exists(P)) {
+            FLY_DEBUG_MSG("Found: " << P);
+            return std::string(P.str());
+        }
     }
-    FLY_DEBUG_MSG("Not found: " << P);
+    FLY_DEBUG_MSG("Not found in: " << BaseDir);
     return "";
 }
 

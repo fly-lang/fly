@@ -53,7 +53,7 @@ namespace {
     	EXPECT_EQ(output, "\n%error = type { i32, ptr, ptr }\n"
     	                  "\n"
     	                  "@error = external constant %error\n"
-    	                  "@vtable.BaseInterface = constant [1 x ptr] zeroinitializer\n");
+    	                  "@vtable.BaseInterface = constant [2 x ptr] zeroinitializer\n");
     }
 
 	TEST_F(CodeGenTest, CGInterfaceExtendsInterfaces) {
@@ -130,8 +130,8 @@ namespace {
     	                  "%BaseInterface2 = type { ptr }\n"
     	                  "\n"
     	                  "@error = external constant %error\n"
-    	                  "@vtable.BaseInterface = constant [1 x ptr] zeroinitializer\n"
-    	                  "@vtable.BaseInterface2 = constant [1 x ptr] zeroinitializer\n"
+    	                  "@vtable.BaseInterface = constant [2 x ptr] zeroinitializer\n"
+    	                  "@vtable.BaseInterface2 = constant [2 x ptr] zeroinitializer\n"
     	                  "@vtable.TestInterface = constant [1 x ptr] zeroinitializer\n"
     	                  "@vtable.TestClass = constant [4 x ptr] [ptr null, ptr @TestClass_F2do, ptr @TestClass_F4undo, ptr @TestClass_F9TestClass]\n"
     	                  "@vtable.TestClass.TestInterface = constant [1 x ptr] [ptr inttoptr (i64 -8 to ptr)]\n"
