@@ -151,4 +151,30 @@ WIN32_IMPORT char *WINAPI GetEnvironmentStringsA(void);
 WIN32_IMPORT BOOL  WINAPI FreeEnvironmentStringsA(char *lpszEnvironmentBlock);
 WIN32_IMPORT BOOL  WINAPI GetComputerNameA(char *lpBuffer, LPDWORD lpnSize);
 
+/* ── Directory enumeration ───────────────────────────────────────────────── */
+
+#define FILE_ATTRIBUTE_REPARSE_POINT  0x00000400UL   /* symbolic links / junctions */
+
+/* WIN32_FIND_DATAA — matches the OS struct layout (320 bytes with MSVC padding) */
+#define MAX_PATH_WIN32  260
+typedef struct {
+    DWORD  dwFileAttributes;
+    DWORD  ftCreationTime_lo;     DWORD ftCreationTime_hi;
+    DWORD  ftLastAccessTime_lo;   DWORD ftLastAccessTime_hi;
+    DWORD  ftLastWriteTime_lo;    DWORD ftLastWriteTime_hi;
+    DWORD  nFileSizeHigh;
+    DWORD  nFileSizeLow;
+    DWORD  dwReserved0;
+    DWORD  dwReserved1;
+    char   cFileName[MAX_PATH_WIN32];
+    char   cAlternateFileName[14];
+    /* MSVC pads this struct to 320 bytes (4-byte alignment); two implicit pad bytes */
+} WIN32_FIND_DATAA;
+
+WIN32_IMPORT HANDLE WINAPI FindFirstFileA(const char *lpFileName,
+                                           WIN32_FIND_DATAA *lpFindFileData);
+WIN32_IMPORT BOOL   WINAPI FindNextFileA(HANDLE hFindFile,
+                                          WIN32_FIND_DATAA *lpFindFileData);
+WIN32_IMPORT BOOL   WINAPI FindClose(HANDLE hFindFile);
+
 #endif /* FLY_RUNTIME_WINDOWS_WIN32_H */

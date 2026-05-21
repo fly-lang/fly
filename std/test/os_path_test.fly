@@ -67,15 +67,16 @@ main() {
     fly.os.path.rel("/a/b", "/a/d", s)
     fly.assert.assertStr(s, "../d", 66)
 
-    fly.os.path.isSym("/tmp", b)
-    // /tmp may or may not be a symlink; verify no crash
+    fly.os.path.isSym(".", b)
+    // "." is always a directory, never a symlink; verify no crash
 
-    // globCount requires files to exist
-    fly.os.fs.writeStr("/tmp/fly_path_glob_a.txt", "a", 420)
-    fly.os.fs.writeStr("/tmp/fly_path_glob_b.txt", "b", 420)
+    // globCount requires files to exist; use CWD-relative paths so the test
+    // works on every platform (Windows has no /tmp by default).
+    fly.os.fs.writeStr("fly_path_glob_a.txt", "a", 420)
+    fly.os.fs.writeStr("fly_path_glob_b.txt", "b", 420)
     int glob_n = 0
-    fly.os.path.globCount("/tmp/fly_path_glob_*.txt", glob_n)
+    fly.os.path.globCount("./fly_path_glob_*.txt", glob_n)
     fly.assert.assertGtI(glob_n, 1, 70)
-    fly.os.fs.delete("/tmp/fly_path_glob_a.txt")
-    fly.os.fs.delete("/tmp/fly_path_glob_b.txt")
+    fly.os.fs.delete("fly_path_glob_a.txt")
+    fly.os.fs.delete("fly_path_glob_b.txt")
 }
