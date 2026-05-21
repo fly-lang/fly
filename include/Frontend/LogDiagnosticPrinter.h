@@ -14,12 +14,37 @@
 #include "Basic/SourceLocation.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include <string>
+#include <vector>
 
 namespace fly {
 
     class DiagnosticOptions;
 
     class LogDiagnosticPrinter : public DiagnosticConsumer {
+public:
+  enum class LogFormat { Txt, Json };
+
+  struct InvocationInfo {
+    std::vector<std::string> InputFiles;
+    std::string Target;
+    std::string TargetCpu;
+    std::string McModel;
+    std::string MthreadModel;
+    std::string WorkingDir;
+    bool OutputLib   = false;
+    bool Verbose     = false;
+    bool NoWarnings  = false;
+    bool EmitLL      = false;
+    bool EmitBC      = false;
+    bool EmitAS      = false;
+    bool NoOutput    = false;
+    bool HeaderGen   = false;
+    bool PrintStats  = false;
+    bool FtimeReport = false;
+  };
+
+private:
   struct DiagEntry {
     /// The primary message line of the diagnostic.
     std::string Message;
@@ -60,13 +85,27 @@ namespace fly {
 
   std::string MainFilename;
   std::string DwarfDebugFlags;
+  LogFormat Format = LogFormat::Txt;
+  InvocationInfo Invocation;
 
 public:
   LogDiagnosticPrinter(raw_ostream &OS, DiagnosticOptions *Diags,
                        std::unique_ptr<raw_ostream> StreamOwner);
 
+  void setMainFilename(StringRef Value) {
+    MainFilename = std::string(Value);
+  }
+
   void setDwarfDebugFlags(StringRef Value) {
     DwarfDebugFlags = std::string(Value);
+  }
+
+  void setLogFormat(LogFormat F) {
+    Format = F;
+  }
+
+  void setInvocation(const InvocationInfo &Info) {
+    Invocation = Info;
   }
 
   void BeginSourceFile() override {

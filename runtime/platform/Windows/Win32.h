@@ -67,4 +67,114 @@ WIN32_IMPORT BOOL WINAPI WaitOnAddress(volatile void *Address,
 WIN32_IMPORT void WINAPI WakeByAddressSingle(LPVOID Address);
 WIN32_IMPORT void WINAPI WakeByAddressAll(LPVOID Address);
 
+/* ── File I/O (via UCRT low-level CRT functions) ────────────────────────── */
+
+/* Flag values for _open (same semantics as O_* on POSIX, different numbers) */
+#define WIN_O_RDONLY   0x0000
+#define WIN_O_WRONLY   0x0001
+#define WIN_O_RDWR     0x0002
+#define WIN_O_APPEND   0x0008
+#define WIN_O_CREAT    0x0100
+#define WIN_O_TRUNC    0x0200
+
+/* UCRT low-level I/O — available in msvcrt.dll / ucrt.dll */
+typedef unsigned int uint_rt;
+
+WIN32_IMPORT int       __cdecl _open(const char *path, int oflag, int pmode);
+WIN32_IMPORT int       __cdecl _close(int fd);
+WIN32_IMPORT int       __cdecl _read(int fd, void *buf, uint_rt count);
+WIN32_IMPORT int       __cdecl _write(int fd, const void *buf, uint_rt count);
+WIN32_IMPORT long long __cdecl _lseeki64(int fd, long long offset, int origin);
+
+/* stat-like via GetFileAttributesExA */
+typedef struct {
+    DWORD dwFileAttributes;
+    /* FILETIME = two DWORDs */
+    DWORD ftCreationTime_lo;    DWORD ftCreationTime_hi;
+    DWORD ftLastAccessTime_lo;  DWORD ftLastAccessTime_hi;
+    DWORD ftLastWriteTime_lo;   DWORD ftLastWriteTime_hi;
+    DWORD nFileSizeHigh;
+    DWORD nFileSizeLow;
+} WIN32_FILE_ATTRIBUTE_DATA;
+
+#define FILE_ATTRIBUTE_DIRECTORY 0x10
+
+WIN32_IMPORT BOOL WINAPI GetFileAttributesExA(const char *lpFileName,
+                                               int fInfoLevelId,
+                                               void *lpFileInformation);
+
+WIN32_IMPORT BOOL WINAPI CreateDirectoryA(const char *lpPathName,
+                                           LPVOID lpSecurityAttributes);
+WIN32_IMPORT BOOL WINAPI RemoveDirectoryA(const char *lpPathName);
+WIN32_IMPORT BOOL WINAPI DeleteFileA(const char *lpFileName);
+WIN32_IMPORT BOOL WINAPI MoveFileExA(const char *lpExistingFileName,
+                                      const char *lpNewFileName,
+                                      DWORD dwFlags);
+WIN32_IMPORT BOOL WINAPI CreateSymbolicLinkA(const char *lpSymlinkFileName,
+                                              const char *lpTargetFileName,
+                                              DWORD dwFlags);
+WIN32_IMPORT HANDLE WINAPI CreateFileA(const char *lpFileName, DWORD dwDesiredAccess,
+                                        DWORD dwShareMode, LPVOID lpSecurityAttributes,
+                                        DWORD dwCreationDisposition,
+                                        DWORD dwFlagsAndAttributes, HANDLE hTemplateFile);
+WIN32_IMPORT BOOL   WINAPI FlushFileBuffers(HANDLE hFile);
+typedef struct { long long QuadPart; } LARGE_INTEGER_rt;
+WIN32_IMPORT BOOL   WINAPI SetFilePointerEx(HANDLE hFile, LARGE_INTEGER_rt liDistanceToMove,
+                                             LPVOID lpNewFilePointer, DWORD dwMoveMethod);
+WIN32_IMPORT BOOL   WINAPI SetEndOfFile(HANDLE hFile);
+WIN32_IMPORT BOOL   WINAPI SetFileAttributesA(const char *lpFileName, DWORD dwFileAttributes);
+
+#define MOVEFILE_REPLACE_EXISTING   0x00000001UL
+#define GENERIC_WRITE               0x40000000UL
+#define OPEN_EXISTING               3UL
+#define FILE_ATTRIBUTE_NORMAL       0x00000080UL
+#define FILE_ATTRIBUTE_READONLY     0x00000001UL
+#define FILE_BEGIN                  0UL
+
+/* ── Time ───────────────────────────────────────────────────────────────── */
+
+typedef struct { DWORD dwLowDateTime; DWORD dwHighDateTime; } FILETIME_rt;
+typedef union  { FILETIME_rt ft; unsigned long long val; }   FILETIME_u;
+
+WIN32_IMPORT void  WINAPI GetSystemTimeAsFileTime(FILETIME_rt *lpSystemTimeAsFileTime);
+WIN32_IMPORT BOOL  WINAPI QueryPerformanceCounter(LARGE_INTEGER_rt *lpPerformanceCount);
+WIN32_IMPORT BOOL  WINAPI QueryPerformanceFrequency(LARGE_INTEGER_rt *lpFrequency);
+WIN32_IMPORT void  WINAPI Sleep(DWORD dwMilliseconds);
+
+/* ── Environment ────────────────────────────────────────────────────────── */
+
+WIN32_IMPORT DWORD WINAPI GetCurrentDirectoryA(DWORD nBufferLength, char *lpBuffer);
+WIN32_IMPORT BOOL  WINAPI SetCurrentDirectoryA(const char *lpPathName);
+WIN32_IMPORT DWORD WINAPI GetEnvironmentVariableA(const char *lpName, char *lpBuffer, DWORD nSize);
+WIN32_IMPORT BOOL  WINAPI SetEnvironmentVariableA(const char *lpName, const char *lpValue);
+WIN32_IMPORT char *WINAPI GetEnvironmentStringsA(void);
+WIN32_IMPORT BOOL  WINAPI FreeEnvironmentStringsA(char *lpszEnvironmentBlock);
+WIN32_IMPORT BOOL  WINAPI GetComputerNameA(char *lpBuffer, LPDWORD lpnSize);
+
+/* ── Directory enumeration ───────────────────────────────────────────────── */
+
+#define FILE_ATTRIBUTE_REPARSE_POINT  0x00000400UL   /* symbolic links / junctions */
+
+/* WIN32_FIND_DATAA — matches the OS struct layout (320 bytes with MSVC padding) */
+#define MAX_PATH_WIN32  260
+typedef struct {
+    DWORD  dwFileAttributes;
+    DWORD  ftCreationTime_lo;     DWORD ftCreationTime_hi;
+    DWORD  ftLastAccessTime_lo;   DWORD ftLastAccessTime_hi;
+    DWORD  ftLastWriteTime_lo;    DWORD ftLastWriteTime_hi;
+    DWORD  nFileSizeHigh;
+    DWORD  nFileSizeLow;
+    DWORD  dwReserved0;
+    DWORD  dwReserved1;
+    char   cFileName[MAX_PATH_WIN32];
+    char   cAlternateFileName[14];
+    /* MSVC pads this struct to 320 bytes (4-byte alignment); two implicit pad bytes */
+} WIN32_FIND_DATAA;
+
+WIN32_IMPORT HANDLE WINAPI FindFirstFileA(const char *lpFileName,
+                                           WIN32_FIND_DATAA *lpFindFileData);
+WIN32_IMPORT BOOL   WINAPI FindNextFileA(HANDLE hFindFile,
+                                          WIN32_FIND_DATAA *lpFindFileData);
+WIN32_IMPORT BOOL   WINAPI FindClose(HANDLE hFindFile);
+
 #endif /* FLY_RUNTIME_WINDOWS_WIN32_H */

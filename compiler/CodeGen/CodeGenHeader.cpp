@@ -39,10 +39,10 @@ std::string getParameters(ASTFunction *Function) {
 }
 
 void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGenOpts, SemaNameSpace &NameSpace) {
-	FLY_DEBUG_START("CodeGenHeader", "GenerateFile");
+	FLY_DEBUG_SCOPE("CodeGenHeader", "GenerateFile");
 	llvm::Twine FileHeader = llvm::Twine(NameSpace.getName()).concat(".h");
 	llvm::StringRef FileName = llvm::sys::path::filename(FileHeader.str());
-	FLY_DEBUG_START_MSG("CodeGenHeader", "GenerateFile", "FileName=" << FileName);
+	FLY_DEBUG_MSG("FileName=" << FileName);
 
 	// generate namespace
 	llvm::Twine Header = llvm::Twine("namespace ").concat(NameSpace.getName()).concat("\n\n");
@@ -102,7 +102,7 @@ void CodeGenHeader::CreateFile(DiagnosticsEngine &Diags, CodeGenOptions &CodeGen
 		ASTEnum *Enum = SemaEnum.getValue()->getAST();
 		Header.concat(Enum->getName()).concat("{\n");
 		for (auto &EnumEntry : Enum->getEntries()) {
-			Header.concat(EnumEntry->getName()).concat("\n\n"); // TODO add value
+			Header.concat(EnumEntry->getName()).concat("\n\n");
 		}
 	}
 

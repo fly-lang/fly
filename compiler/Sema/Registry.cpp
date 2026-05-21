@@ -389,3 +389,100 @@ Symbol *Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8
 
 	return nullptr;
 }
+
+Symbol *Registry::LookupFunctionExact(llvm::StringRef Name, SmallVector<SemaType *, 8> &Types, SymbolTable *Scope) {
+	if (Scope == nullptr) Scope = GlobalScope;
+	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookupInParents(Name);
+	if (!Symbols) return nullptr;
+
+	for (Symbol *Sym : *Symbols) {
+		if (Sym->getKind() != SymbolKind::FUNCTION) continue;
+
+		SemaFunctionBase *Function = static_cast<SemaFunctionBase *>(Sym->getRef());
+		llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
+
+		if (Params.size() != Types.size()) continue;
+
+		bool AllMatch = true;
+		for (size_t i = 0; i < Params.size(); i++) {
+			if (!Params[i]->getType()->isEquals(Types[i])) {
+				AllMatch = false;
+				break;
+			}
+		}
+		if (AllMatch) return Sym;
+	}
+	return nullptr;
+}
+
+static bool FunctionTypesMatchExact(SemaFunctionBase *Function, SmallVector<SemaType *, 8> &Types) {
+	llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
+	if (Params.size() != Types.size()) return false;
+	for (size_t i = 0; i < Params.size(); i++) {
+		SemaType *ParamType = Params[i]->getType();
+		SemaType *ArgType = Types[i];
+		if (ParamType->isEquals(ArgType)) continue;
+		if (ParamType->isClass() && ArgType->isClass()) {
+			if (static_cast<SemaClassType *>(ArgType)->isDerivedOrEquals(
+			        static_cast<SemaClassType *>(ParamType))) continue;
+		}
+		return false;
+	}
+	return true;
+}
+
+static bool FunctionTypesMatch(SemaFunctionBase *Function, SmallVector<SemaType *, 8> &Types) {
+	llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
+	if (Params.size() != Types.size()) return false;
+	for (size_t i = 0; i < Params.size(); i++) {
+		SemaType *ParamType = Params[i]->getType();
+		SemaType *ArgType = Types[i];
+		if (ParamType->isEquals(ArgType)) continue;
+		if (ParamType->isClass() && ArgType->isClass()) {
+			if (static_cast<SemaClassType *>(ArgType)->isDerivedOrEquals(
+			        static_cast<SemaClassType *>(ParamType))) continue;
+		}
+		if (ParamType->isNumber() && ArgType->isNumber()) continue;
+		return false;
+	}
+	return true;
+}
+
+llvm::SmallVector<Symbol *, 4> Registry::FindFunctionCandidates(llvm::StringRef Name, SymbolTable *Scope) {
+	if (Scope == nullptr) Scope = GlobalScope;
+	llvm::SmallVector<Symbol *, 4> Result;
+	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookupInParents(Name);
+	if (!Symbols) return Result;
+	for (Symbol *Sym : *Symbols) {
+		if (Sym->getKind() == SymbolKind::FUNCTION)
+			Result.push_back(Sym);
+	}
+	return Result;
+}
+
+llvm::SmallVector<Symbol *, 4> Registry::FindFunctionMatches(llvm::StringRef Name,
+                                                              SmallVector<SemaType *, 8> &Types,
+                                                              SymbolTable *Scope) {
+	if (Scope == nullptr) Scope = GlobalScope;
+	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookupInParents(Name);
+	if (!Symbols) return {};
+
+	// First pass: prefer exact matches (no numeric promotion) to avoid ambiguity
+	// when multiple overloads differ only in numeric type (e.g. int vs long).
+	llvm::SmallVector<Symbol *, 4> ExactResult;
+	for (Symbol *Sym : *Symbols) {
+		if (Sym->getKind() != SymbolKind::FUNCTION) continue;
+		if (FunctionTypesMatchExact(static_cast<SemaFunctionBase *>(Sym->getRef()), Types))
+			ExactResult.push_back(Sym);
+	}
+	if (!ExactResult.empty()) return ExactResult;
+
+	// Second pass: fall back to promotion-aware matches.
+	llvm::SmallVector<Symbol *, 4> Result;
+	for (Symbol *Sym : *Symbols) {
+		if (Sym->getKind() != SymbolKind::FUNCTION) continue;
+		if (FunctionTypesMatch(static_cast<SemaFunctionBase *>(Sym->getRef()), Types))
+			Result.push_back(Sym);
+	}
+	return Result;
+}

@@ -24,7 +24,7 @@ using namespace fly;
  * @param Constant
  */
 ParserEnum::ParserEnum(Parser *P, llvm::SmallVector<ASTModifier *, 8> &Modifiers) : P(P) {
-    FLY_DEBUG_START("EnumParser", "ParserEnum");
+    FLY_DEBUG_SCOPE("EnumParser", "ParserEnum");
     assert(P->Tok.is(tok::kw_enum) && "No ClassKind defined");
 
     P->ConsumeToken();
@@ -83,13 +83,13 @@ ParserEnum::ParserEnum(Parser *P, llvm::SmallVector<ASTModifier *, 8> &Modifiers
  * @return
  */
 ASTEnum *ParserEnum::Parse(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) {
-	FLY_DEBUG_START("EnumParser", "Parse");
+	FLY_DEBUG_SCOPE("EnumParser", "Parse");
     ParserEnum *PE = new ParserEnum(P, Modifiers);
     return PE->Enum;
 }
 
 bool ParserEnum::ParseEntry(const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTModifier *, 8> Modifiers) {
-     FLY_DEBUG_START("EnumParser", "ParserEntry");
+     FLY_DEBUG_SCOPE("EnumParser", "ParserEntry");
      // Create the first entry
      ASTEnumEntry *EnumEntry = ASTBuilder::CreateEnumEntry(Loc, Enum, Name, Modifiers);
 

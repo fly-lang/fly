@@ -30,11 +30,13 @@ namespace fly {
 
         unsigned short BraceCount = 0;
 
-        ParserClass(Parser *P, llvm::SmallVector<ASTModifier *, 8> &Modifiers);
+        bool SkipBodies;
+
+        ParserClass(Parser *P, llvm::SmallVector<ASTModifier *, 8> &Modifiers, bool SkipBodies = false);
 
     public:
 
-        static ASTClass *Parse(Parser *P, llvm::SmallVector<ASTModifier *, 8> &Modifiers);
+        static ASTClass *Parse(Parser *P, llvm::SmallVector<ASTModifier *, 8> &Modifiers, bool SkipBodies = false);
 
         ASTAttribute *ParseAttribute(llvm::SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef, const SourceLocation &Loc, llvm::StringRef Name);
 

@@ -17,7 +17,7 @@ namespace fly {
     class SourceLocation;
     class ASTModifier;
     class ASTType;
-    class Symbol;
+    struct Symbol;
 
     class ASTParam : public ASTVar {
 

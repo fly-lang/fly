@@ -81,6 +81,10 @@ namespace fly {
         // Set read-only flag (for const parameters)
         void setReadOnly(bool ReadOnly);
 
+        // Invalidate the cached load so the next getValue() re-loads from the alloca.
+        // Call this after passing the alloca as an output arg so subsequent reads are fresh.
+        void resetLoad();
+
     };
 }
 

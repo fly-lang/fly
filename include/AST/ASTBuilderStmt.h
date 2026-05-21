@@ -38,8 +38,6 @@ namespace fly {
         static ASTBuilderStmt *CreateFail(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
         static ASTBuilderStmt *CreateExpr(ASTBlockStmt *Parent, const SourceLocation &Loc);
-
-        void setExpr(ASTExpr *Expr);
     };
 }
 

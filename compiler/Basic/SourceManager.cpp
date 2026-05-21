@@ -148,10 +148,10 @@ const llvm::MemoryBuffer *ContentCache::getBuffer(DiagnosticsEngine &Diag,
             .release());
 
       if (Diag.isDiagnosticInFlight())
-          Diag.SetDelayedDiagnostic(diag::err_file_too_large,
+          Diag.SetDelayedDiagnostic(diag::err_basic_file_too_large,
                                     ContentsEntry->getName());
       else
-          Diag.Report(Loc, diag::err_file_too_large)
+          Diag.Report(Loc, diag::err_basic_file_too_large)
                   << ContentsEntry->getName();
       Buffer.setInt(Buffer.getInt() | InvalidFlag);
     if (Invalid) *Invalid = true;
@@ -180,11 +180,11 @@ const llvm::MemoryBuffer *ContentCache::getBuffer(DiagnosticsEngine &Diag,
     Buffer.setPointer(BackupBuffer.release());
 
     if (Diag.isDiagnosticInFlight())
-      Diag.SetDelayedDiagnostic(diag::err_cannot_open_file,
+      Diag.SetDelayedDiagnostic(diag::err_basic_cannot_open_file,
                                 ContentsEntry->getName(),
                                 BufferOrError.getError().message());
     else
-      Diag.Report(Loc, diag::err_cannot_open_file)
+      Diag.Report(Loc, diag::err_basic_cannot_open_file)
           << ContentsEntry->getName() << BufferOrError.getError().message();
 
     Buffer.setInt(Buffer.getInt() | InvalidFlag);
@@ -199,10 +199,10 @@ const llvm::MemoryBuffer *ContentCache::getBuffer(DiagnosticsEngine &Diag,
   // have come from a stat cache).
   if (getRawBuffer()->getBufferSize() != (size_t)ContentsEntry->getSize()) {
     if (Diag.isDiagnosticInFlight())
-      Diag.SetDelayedDiagnostic(diag::err_file_modified,
+      Diag.SetDelayedDiagnostic(diag::err_basic_file_modified,
                                 ContentsEntry->getName());
     else
-      Diag.Report(Loc, diag::err_file_modified)
+      Diag.Report(Loc, diag::err_basic_file_modified)
         << ContentsEntry->getName();
 
     Buffer.setInt(Buffer.getInt() | InvalidFlag);
@@ -217,7 +217,7 @@ const llvm::MemoryBuffer *ContentCache::getBuffer(DiagnosticsEngine &Diag,
   const char *InvalidBOM = getInvalidBOM(BufStr);
 
   if (InvalidBOM) {
-    Diag.Report(Loc, diag::err_unsupported_bom)
+    Diag.Report(Loc, diag::err_basic_unsupported_bom)
       << InvalidBOM << ContentsEntry->getName();
     Buffer.setInt(Buffer.getInt() | InvalidFlag);
   }
@@ -373,7 +373,6 @@ SourceManager::~SourceManager() {
 }
 
 void SourceManager::clearIDTables() {
-  MainFileID = FileID();
   LocalSLocEntryTable.clear();
   LoadedSLocEntryTable.clear();
   SLocEntryLoaded.clear();
@@ -390,16 +389,7 @@ void SourceManager::clearIDTables() {
   createExpansionLoc(SourceLocation(), SourceLocation(), SourceLocation(), 1);
 }
 
-bool SourceManager::isMainFile(FileEntryRef SourceFile) {
-  assert(MainFileID.isValid() && "expected initialized SourceManager");
-  auto FE = getFileEntryRefForID(MainFileID);
-  if (!FE)
-    return false;
-  return FE->getUID() == SourceFile.getUID();
-}
-
 void SourceManager::initializeForReplay(const SourceManager &Old) {
-  assert(MainFileID.isInvalid() && "expected uninitialized SourceManager");
 
   auto CloneContentCache = [&](const ContentCache *Cache) -> ContentCache * {
     auto *Clone = new (ContentCacheAlloc.Allocate<ContentCache>()) ContentCache;
@@ -653,7 +643,7 @@ FileID SourceManager::createFileID(const ContentCache *File, StringRef Filename,
   unsigned FileSize = File->getSize();
   if (!(NextLocalOffset + FileSize + 1 > NextLocalOffset &&
         NextLocalOffset + FileSize + 1 <= CurrentLoadedOffset)) {
-    Diag.Report(IncludePos, diag::err_include_too_large);
+    Diag.Report(IncludePos, diag::err_basic_include_too_large);
     return FileID();
   }
   LocalSLocEntryTable.push_back(
@@ -1481,35 +1471,6 @@ PresumedLoc SourceManager::getPresumedLoc(SourceLocation Loc,
 }
 
 /// Returns whether the PresumedLoc for a given SourceLocation is
-/// in the main file.
-///
-/// This computes the "presumed" location for a SourceLocation, then checks
-/// whether it came from a file other than the main file. This is different
-/// from isWrittenInMainFile() because it takes line marker directives into
-/// account.
-bool SourceManager::isInMainFile(SourceLocation Loc) const {
-  if (Loc.isInvalid()) return false;
-
-  // Presumed locations are always for expansion points.
-  std::pair<FileID, unsigned> LocInfo = getDecomposedExpansionLoc(Loc);
-
-  bool Invalid = false;
-  const SLocEntry &Entry = getSLocEntry(LocInfo.first, &Invalid);
-  if (Invalid || !Entry.isFile())
-    return false;
-
-  const SrcMgr::FileInfo &FI = Entry.getFile();
-
-  // Check if there is a line directive for this location.
-  if (FI.hasLineDirectives())
-    if (const LineEntry *Entry =
-            LineTable->FindNearestLineEntry(LocInfo.first, LocInfo.second))
-      if (Entry->IncludeOffset)
-        return false;
-
-  return FI.getIncludeLoc().isInvalid();
-}
-
 /// The size of the SLocEntry that \p FID represents.
 unsigned SourceManager::getFileIDSize(FileID FID) const {
   bool Invalid = false;
@@ -1554,23 +1515,7 @@ SourceLocation SourceManager::translateFileLineCol(const FileEntry *SourceFile,
 FileID SourceManager::translateFile(const FileEntry *SourceFile) const {
   assert(SourceFile && "Null source file!");
 
-  // First, check the main file ID, since it is common to look for a
-  // location in the main file.
-  if (MainFileID.isValid()) {
-    bool Invalid = false;
-    const SLocEntry &MainSLoc = getSLocEntry(MainFileID, &Invalid);
-    if (Invalid)
-      return FileID();
-
-    if (MainSLoc.isFile()) {
-      const ContentCache *MainContentCache =
-          MainSLoc.getFile().getContentCache();
-      if (MainContentCache && MainContentCache->OrigEntry == SourceFile)
-        return MainFileID;
-    }
-  }
-
-  // The location we're looking for isn't in the main file; look
+  // Look
   // through all of the local source locations.
   for (unsigned I = 0, N = local_sloc_entry_size(); I != N; ++I) {
     const SLocEntry &SLoc = getLocalSLocEntry(I);
@@ -1948,28 +1893,3 @@ size_t SourceManager::getDataStructureSizes() const {
   return size;
 }
 
-SourceManagerForFile::SourceManagerForFile(StringRef FileName,
-                                           StringRef Content) {
-  // This is referenced by `FileMgr` and will be released by `FileMgr` when it
-  // is deleted.
-  IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> InMemoryFileSystem(
-      new llvm::vfs::InMemoryFileSystem);
-  InMemoryFileSystem->addFile(
-      FileName, 0,
-      llvm::MemoryBuffer::getMemBuffer(Content, FileName,
-                                       /*RequiresNullTerminator=*/false));
-  // This is passed to `SM` as reference, so the pointer has to be referenced
-  // in `Environment` so that `FileMgr` can out-live this function scope.
-  FileMgr =
-      std::make_unique<FileManager>(FileSystemOptions(), InMemoryFileSystem);
-  // This is passed to `SM` as reference, so the pointer has to be referenced
-  // by `Environment` due to the same reason above.
-  Diagnostics = std::make_unique<DiagnosticsEngine>(
-      IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs),
-      new DiagnosticOptions);
-  SourceMgr = std::make_unique<SourceManager>(*Diagnostics, *FileMgr);
-  FileID ID = SourceMgr->createFileID(*FileMgr->getFile(FileName),
-                                      SourceLocation(), fly::SrcMgr::C_User);
-  assert(ID.isValid());
-  SourceMgr->setMainFileID(ID);
-}

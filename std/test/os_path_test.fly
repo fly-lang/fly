@@ -1,0 +1,82 @@
+import fly.os.path
+import fly.os.fs
+import fly.assert
+
+main() {
+    string s = ""
+    bool b = false
+    int n = 0
+
+    fly.os.path.join("/foo", "bar", s)
+    fly.assert.assertStr(s, "/foo/bar", 20)
+    fly.os.path.join("/foo/", "bar", s)
+    fly.assert.assertStr(s, "/foo/bar", 21)
+    fly.os.path.join("/foo", "/bar", s)
+    fly.assert.assertStr(s, "/foo/bar", 22)
+    fly.os.path.join("", "bar", s)
+    fly.assert.assertStr(s, "bar", 23)
+
+    fly.os.path.normalize("/a//b/../c", s)
+    fly.assert.assertStr(s, "/a/c", 30)
+    fly.os.path.normalize("/a/./b", s)
+    fly.assert.assertStr(s, "/a/b", 31)
+    fly.os.path.normalize("a/b/c", s)
+    fly.assert.assertStr(s, "a/b/c", 32)
+    fly.os.path.normalize("/", s)
+    fly.assert.assertStr(s, "/", 33)
+
+    fly.os.path.absolute(".", s)
+    fly.assert.assertNotEmpty(s, 34)
+    fly.os.path.absolute("/already/abs", s)
+    fly.assert.assertStr(s, "/already/abs", 35)
+
+    fly.os.path.match("*.fly", "test.fly", b)
+    fly.assert.assertTrue(b, 40)
+    fly.os.path.match("*.fly", "test.go", b)
+    fly.assert.assertFalse(b, 41)
+    fly.os.path.match("foo*", "foobar", b)
+    fly.assert.assertTrue(b, 42)
+    fly.os.path.match("fo?", "foo", b)
+    fly.assert.assertTrue(b, 43)
+    fly.os.path.match("fo?", "fo", b)
+    fly.assert.assertFalse(b, 44)
+    fly.os.path.match("*", "anything", b)
+    fly.assert.assertTrue(b, 45)
+    fly.os.path.match("", "", b)
+    fly.assert.assertTrue(b, 46)
+
+    fly.os.path.ext("foo.fly", s)
+    fly.assert.assertStr(s, ".fly", 50)
+    fly.os.path.ext("foo", s)
+    fly.assert.assertStr(s, "", 51)
+
+    fly.os.path.basename("/foo/bar/baz.fly", s)
+    fly.assert.assertStr(s, "baz.fly", 55)
+    fly.os.path.dirname("/foo/bar/baz.fly", s)
+    fly.assert.assertStr(s, "/foo/bar", 56)
+    fly.os.path.dirname("baz.fly", s)
+    fly.assert.assertStr(s, ".", 57)
+
+    fly.os.path.compCount("/foo/bar/baz", n)
+    fly.assert.assertEqI(n, 3, 60)
+    fly.os.path.compCount("a/b", n)
+    fly.assert.assertEqI(n, 2, 61)
+
+    fly.os.path.rel("/a/b", "/a/b/c", s)
+    fly.assert.assertStr(s, "c", 65)
+    fly.os.path.rel("/a/b", "/a/d", s)
+    fly.assert.assertStr(s, "../d", 66)
+
+    fly.os.path.isSym(".", b)
+    // "." is always a directory, never a symlink; verify no crash
+
+    // globCount requires files to exist; use CWD-relative paths so the test
+    // works on every platform (Windows has no /tmp by default).
+    fly.os.fs.writeStr("fly_path_glob_a.txt", "a", 420)
+    fly.os.fs.writeStr("fly_path_glob_b.txt", "b", 420)
+    int glob_n = 0
+    fly.os.path.globCount("./fly_path_glob_*.txt", glob_n)
+    fly.assert.assertGtI(glob_n, 1, 70)
+    fly.os.fs.delete("fly_path_glob_a.txt")
+    fly.os.fs.delete("fly_path_glob_b.txt")
+}

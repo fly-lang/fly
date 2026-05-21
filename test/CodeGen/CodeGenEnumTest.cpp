@@ -191,7 +191,7 @@ namespace {
         ASTMember *listMember = ASTBuilder::CreateMember(SourceLoc, "list", TestEnumIdent);
 
         // TestEnum[] list = TestEnum.list
-        ASTType *TestEnumType = CreateType(TestEnum);
+        ASTType *TestEnumType = ASTBuilder::CreateArrayType(SourceLoc, CreateType(TestEnum), nullptr);
         ASTLocalVar *listVar = ASTBuilder::CreateLocalVar(SourceLoc, TestEnumType, "list", EmptyModifiers);
         ASTIdentifier *listVarIdent = ASTBuilder::CreateIdentifier(listVar);
         ASTDeclStmt *listDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, listVar);

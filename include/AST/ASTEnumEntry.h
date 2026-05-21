@@ -16,7 +16,7 @@ namespace fly {
 
     class SourceLocation;
     class ASTEnum;
-    class Symbol;
+    struct Symbol;
 
     /**
      * Represents a constant enum entry (e.g., Color.RED)

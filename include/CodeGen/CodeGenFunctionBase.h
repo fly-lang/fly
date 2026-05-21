@@ -75,10 +75,6 @@ namespace fly {
         void CheckReturnVoid();
 
         virtual void GenBody() = 0;
-
-    	static std::string Mangle(SemaType *Type);
-
-    	static std::string Mangle(SemaFunctionBase *F);
     };
 }
 

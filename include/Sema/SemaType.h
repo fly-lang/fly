@@ -83,6 +83,8 @@ namespace fly {
 
     	bool isNumber() const;
 
+        bool isComplex() const;
+
         bool isArray() const;
 
         bool isString() const;
@@ -158,6 +160,17 @@ namespace fly {
         ~SemaFloatType() override = default;
 
         const SemaFloatTypeKind getFloatKind() const;
+
+        void accept(SemaVisitor& Visitor) override;
+    };
+
+    class SemaComplexType : public SemaType {
+
+    public:
+
+        explicit SemaComplexType() : SemaType(SemaKind::TYPE_COMPLEX, "complex") {}
+
+        ~SemaComplexType() override = default;
 
         void accept(SemaVisitor& Visitor) override;
     };

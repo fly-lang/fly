@@ -53,6 +53,51 @@ FetchContent_MakeAvailable(${FLY_LLVM_PROJECT})
 
 message(STATUS "Downloaded LLVM precompiled files")
 
+# The precompiled LLVM package may have been built on a machine with a different
+# Visual Studio edition (e.g. Enterprise) than the one available locally.
+# Patch LLVMExports.cmake to replace any hardcoded VS edition path with the
+# actual installation path of VS on the current machine so diaguids.lib is found correctly.
+if(MSVC)
+    set(_llvm_exports_file "${CMAKE_BINARY_DIR}/llvm/lib/cmake/llvm/LLVMExports.cmake")
+    if(EXISTS "${_llvm_exports_file}")
+        # Use vswhere.exe to reliably find the VS installation path regardless of
+        # whether VSINSTALLDIR env var is set (it is only set in Developer Prompt).
+        # Note: $ENV{ProgramFiles(x86)} is invalid in CMake (parentheses not allowed),
+        # so we use find_program with known fallback paths instead.
+        find_program(_vswhere vswhere.exe
+            PATHS
+                "C:/Program Files (x86)/Microsoft Visual Studio/Installer"
+                "C:/Program Files/Microsoft Visual Studio/Installer"
+            NO_DEFAULT_PATH)
+        if(_vswhere)
+            execute_process(
+                COMMAND "${_vswhere}" -latest -property installationPath
+                OUTPUT_VARIABLE _vs_install_path
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+        endif()
+        # Fallback to VSINSTALLDIR env var if vswhere is not available
+        if(NOT _vs_install_path AND DEFINED ENV{VSINSTALLDIR})
+            file(TO_CMAKE_PATH "$ENV{VSINSTALLDIR}" _vs_install_path)
+            string(REGEX REPLACE "/$" "" _vs_install_path "${_vs_install_path}")
+        endif()
+        if(_vs_install_path)
+            file(TO_CMAKE_PATH "${_vs_install_path}" _vs_install_path)
+            file(READ "${_llvm_exports_file}" _llvm_exports_content)
+            string(REGEX REPLACE
+                "C:/Program Files/Microsoft Visual Studio/[0-9]+/[^/\"]+/DIA SDK"
+                "${_vs_install_path}/DIA SDK"
+                _llvm_exports_patched
+                "${_llvm_exports_content}")
+            if(NOT _llvm_exports_patched STREQUAL _llvm_exports_content)
+                file(WRITE "${_llvm_exports_file}" "${_llvm_exports_patched}")
+                message(STATUS "Patched LLVMExports.cmake: DIA SDK path -> ${_vs_install_path}/DIA SDK")
+            endif()
+        else()
+            message(WARNING "Could not determine VS installation path — LLVMExports.cmake not patched. diaguids.lib may not be found.")
+        endif()
+    endif()
+endif()
+
 # The precompiled LLVM package ships Findzstd.cmake in its cmake dir.
 # Add it to CMAKE_MODULE_PATH so find_package(zstd) uses it.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_BINARY_DIR}/llvm/lib/cmake/llvm")

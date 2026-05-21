@@ -49,6 +49,7 @@ namespace fly {
         std::string OutputFile;
         bool OutputLib    = false;
         std::string LogFile;
+        std::string LogFormat;
         std::string WorkingDir;
         std::string McModel;
         std::string MthreadModel;

@@ -34,6 +34,7 @@ namespace fly {
 	class SemaBoolValue;
 	class SemaIntValue;
 	class SemaFloatValue;
+	class SemaComplexValue;
 	class SemaStringValue;
 	class SemaArrayValue;
 	class SemaStructValue;
@@ -75,6 +76,8 @@ namespace fly {
 
     	void GenExpr(SemaFloatValue *Sema);
 
+    	void GenExpr(SemaComplexValue *Sema);
+
     	void GenExpr(SemaStringValue *Sema);
 
     	void GenExpr(SemaStructValue *Sema);
@@ -95,6 +98,20 @@ namespace fly {
 
     private:
 
+        // fly.bridge.CLang codegen
+        void GenCLangConstructorCapture(SemaCall *Sema, llvm::Value *InstancePtr);
+        void GenCLangBridgeMethodCall(SemaCall *Sema);
+        void BuildCArgsFromArgsStruct(SemaExpr *ArgsExpr,
+                                      llvm::SmallVector<llvm::Value *, 8> &CArgs,
+                                      llvm::SmallVector<llvm::Type  *, 8> &CArgTys);
+        void EmitCCallAndStoreResult(const std::string &SymStr,
+                                     llvm::Type *CRetTy,
+                                     bool IsVoid, bool IsPtr, bool IsBool,
+                                     llvm::SmallVector<llvm::Value *, 8> &CArgs,
+                                     llvm::SmallVector<llvm::Type  *, 8> &CArgTys,
+                                     SemaExpr *OutExpr);
+        static std::string NormalizeCLangLibFlag(const std::string &LibStr);
+
         llvm::Value *GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
         llvm::Value *GenStringConcat(SemaExpr *E1, SemaExpr *E2);
@@ -111,11 +128,11 @@ namespace fly {
 
     	llvm::Value *ConvertToBool(llvm::Value *V);
 
-    	llvm::Value *ConvertNumber(llvm::Value *V, SemaNumberType *Ty);
+    	llvm::Value *ConvertNumber(llvm::Value *V, SemaNumberType *Ty, bool IsSigned = true);
 
     	llvm::Value *ConvertToInteger(llvm::Value *V, SemaIntType *Ty);
 
-    	llvm::Value *ConvertToFloat(llvm::Value *V, SemaFloatType *Ty);
+    	llvm::Value *ConvertToFloat(llvm::Value *V, SemaFloatType *Ty, bool IsSigned = true);
     };
 }
 

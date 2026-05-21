@@ -26,6 +26,8 @@ namespace fly {
 
         std::string toIdentifier(SemaFunction *Function);
 
+        void GenMainArgs();
+
     public:
         CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool isExternal = false);
 

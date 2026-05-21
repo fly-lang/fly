@@ -1,0 +1,86 @@
+namespace fly.assert
+
+import fly.llvm
+import fly.runtime
+
+public errExit(const int code) {
+    fly.runtime.proc_exit(code)
+}
+
+public assertEqI(const int got, const int exp, const int code) {
+    if got != exp {
+        fly.runtime.proc_exit(code)
+    }
+}
+
+public assertEqL(const long got, const long exp, const int code) {
+    if got != exp {
+        fly.runtime.proc_exit(code)
+    }
+}
+
+public assertStr(const string got, const string exp, const int code) {
+    int gn = 0
+    int en = 0
+    fly.llvm.strSize(got, gn)
+    fly.llvm.strSize(exp, en)
+    if gn != en {
+        fly.runtime.proc_exit(code)
+        return
+    }
+    int i = 0
+    while i < gn {
+        byte gb = 0
+        byte eb = 0
+        fly.llvm.strByteAt(got, i, gb)
+        fly.llvm.strByteAt(exp, i, eb)
+        if gb != eb {
+            fly.runtime.proc_exit(code)
+            return
+        }
+        i = i + 1
+    }
+}
+
+public assertNotEmpty(const string s, const int code) {
+    int n = 0
+    fly.llvm.strSize(s, n)
+    if n == 0 {
+        fly.runtime.proc_exit(code)
+    }
+}
+
+public assertTrue(const bool b, const int code) {
+    if b == false {
+        fly.runtime.proc_exit(code)
+    }
+}
+
+public assertFalse(const bool b, const int code) {
+    if b {
+        fly.runtime.proc_exit(code)
+    }
+}
+
+public assertGtI(const int got, const int threshold, const int code) {
+    if got <= threshold {
+        fly.runtime.proc_exit(code)
+    }
+}
+
+public assertApprox(const double got, const double exp, const int code) {
+    double diff = got - exp
+    if diff < 0.0 { diff = 0.0 - diff }
+    double eps = 0.000000001
+    if diff > eps {
+        fly.runtime.proc_exit(code)
+    }
+}
+
+public assertApproxEps(const double got, const double exp, const double eps, const int code) {
+    double diff = got - exp
+    if diff < 0.0 { diff = 0.0 - diff }
+    if diff > eps {
+        fly.runtime.proc_exit(code)
+    }
+}

@@ -26,7 +26,6 @@
 #include <Sema/SemaLocalVar.h>
 #include <Sema/SemaParam.h>
 #include <llvm/IR/Instructions.h>
-#include <unordered_map>
 
 using namespace fly;
 
@@ -68,9 +67,6 @@ void CodeGenFunctionBase::GenParamTypes(CodeGenModule * CGM, llvm::SmallVector<l
         llvm::Type *ParamType = Param->getType()->getCodeGen()->getType();
         Types.push_back(ParamType->getPointerTo());
     }
-//    if (Params->getEllipsis() != nullptr) {
-        // TODO
-//    }
 }
 
 SemaFunctionBase *CodeGenFunctionBase::getSema() {
@@ -90,7 +86,7 @@ llvm::FunctionType *CodeGenFunctionBase::getFunctionType() {
 }
 
 void CodeGenFunctionBase::setInsertPoint() {
-    FLY_DEBUG_START("CodeGenFunctionBase", "setInsertPoint");
+    FLY_DEBUG_SCOPE("CodeGenFunctionBase", "setInsertPoint");
     Entry = llvm::BasicBlock::Create(CGM->LLVMCtx, "entry", Fn);
     CGM->Builder->SetInsertPoint(Entry);
 }
@@ -136,91 +132,25 @@ void CodeGenFunctionBase::StoreParams(size_t Idx) {
 }
 
 void CodeGenFunctionBase::CheckReturnVoid() {
-    FLY_DEBUG_START("CodeGenFunctionBase", "GenBody");
+    FLY_DEBUG_SCOPE("CodeGenFunctionBase", "GenBody");
 
 	// Only process functions that return void
 	if (!Fn->getReturnType()->isVoidTy())
 		return;
 
-	llvm::BasicBlock &lastBlock = Fn->back(); // Get last basic block
+	// The Builder's current insert block may differ from Fn->back() when control
+	// flow (e.g. while inside if) leaves the insert point pointing at a merge
+	// block that is not the last block appended to the function.
+	llvm::BasicBlock *InsertBB = CGM->Builder->GetInsertBlock();
+	if (InsertBB && !InsertBB->getTerminator()) {
+		CGM->Builder->CreateRetVoid();
+	}
 
-	if (lastBlock.empty()) {
-		// If block is empty, just insert ret void
-		llvm::IRBuilder<> builder(&lastBlock);
+	// Also ensure the last appended block has a terminator.
+	llvm::BasicBlock &LastBlock = Fn->back();
+	if (!LastBlock.getTerminator()) {
+		llvm::IRBuilder<> builder(&LastBlock);
 		builder.CreateRetVoid();
-		return;
 	}
-
-	llvm::Instruction *lastInst = lastBlock.getTerminator();
-
-	if (!lastInst) {
-		// No terminator — add ret void
-		llvm::IRBuilder<> builder(&lastBlock);
-		builder.CreateRetVoid();
-		return;
-	}
-
-    FLY_DEBUG_END("CodeGenFunctionBase", "GenBody");
 }
 
-// Mapping Fly types to mangled representations
-std::unordered_map<std::string, std::string> MangleTypeMap = {
-	{"bool", "_b"},
-	{"byte", "_y"},
-	{"ushort", "_us"},
-	{"short", "_s"},
-	{"uint", "_ui"},
-	{"int", "_i"},
-	{"ulong", "_ul"},
-	{"long", "_l"},
-	{"float", "_f"},
-	{"double", "_d"},
-	{"void", "_v"},
-	{"string", "_Ss"},
-	// {"char", "_c"},
-	{"error", "_e"},
-};
-
-// Function to process array type: "int[5]" -> "A5_i"
-std::string CodeGenFunctionBase::Mangle(SemaType *Type) {
-	std::string Mangled = "";
-
-	switch (Type->getKind()) {
-		case SemaKind::TYPE_ARRAY: {
-			SemaArrayType *Array = static_cast<SemaArrayType *>(Type);
-			Mangled += "_A" + Mangle(Array->getElementType());
-		}	break;
-		case SemaKind::TYPE_ENUM:
-			Mangled += "_E" + Type->getName();
-			break;
-		case SemaKind::TYPE_CLASS:
-			Mangled += "_C" + Type->getName();
-			break;
-		default:
-			Mangled += MangleTypeMap.at(Type->getName());
-	}
-
-	return Mangled;
-}
-
-std::string CodeGenFunctionBase::Mangle(SemaFunctionBase *F) {
-	std::string Name = std::string(F->getName());
-	const std::string &NS = F->getNamespaceName();
-
-	std::string Mangled = "_F";
-
-	// Include flattened namespace prefix when not in the default namespace
-	if (!NS.empty()) {
-		Mangled += std::to_string(NS.size()) + NS;
-	}
-
-	// Encode function name with its length
-	Mangled += std::to_string(Name.size()) + Name;
-
-	// Encode parameters
-	for (const auto Param : F->getParams()) {
-		Mangled += Mangle(Param->getType());
-	}
-
-	return Mangled;
-}

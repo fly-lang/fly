@@ -23,7 +23,7 @@ namespace fly {
 	class SemaModule;
 	class ASTModule;
 	class ASTBlockStmt;
-	class Symbol;
+	struct Symbol;
 
 	struct LocalScope {
 		SemaFunctionBase* Function;
@@ -77,6 +77,17 @@ namespace fly {
 		Symbol *LookupName(llvm::StringRef Name, SymbolTable *Scope = nullptr);
 
 		Symbol *LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8> &Types, SymbolTable *Scope);
+
+		// Strict duplicate detection: matches only if all param types are exactly equal (no numeric promotion).
+		Symbol *LookupFunctionExact(llvm::StringRef Name, SmallVector<SemaType *, 8> &Types, SymbolTable *Scope);
+
+		// Returns all function-kind symbols with the given name (ignoring arg types).
+		llvm::SmallVector<Symbol *, 4> FindFunctionCandidates(llvm::StringRef Name, SymbolTable *Scope);
+
+		// Returns all function-kind symbols whose parameter types are compatible with Types.
+		llvm::SmallVector<Symbol *, 4> FindFunctionMatches(llvm::StringRef Name,
+		                                                    SmallVector<SemaType *, 8> &Types,
+		                                                    SymbolTable *Scope);
 
 		llvm::SmallVector<SemaFunctionBase *, 4> getBodies() const;
 

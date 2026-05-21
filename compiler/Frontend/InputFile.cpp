@@ -52,24 +52,23 @@ InputFile::InputFile(DiagnosticsEngine &Diags, SourceManager &SourceMgr, const s
 }
 
 bool InputFile::Load(llvm::StringRef Source) {
-    FLY_DEBUG_START_MSG("InputFile", "Load", "Source=" + Source);
+    FLY_DEBUG_SCOPE_MSG("InputFile", "Load", "Source=" + Source);
     // Set Source Manager file id
     std::unique_ptr<llvm::MemoryBuffer> Buf = llvm::MemoryBuffer::getMemBuffer(Source, Name);
 
     FID = SourceMgr.createFileID(std::move(Buf));
     // Retrieve buffer owned by SourceManager to keep a stable pointer
     Buffer = SourceMgr.getBuffer(FID);
-//    SourceMgr.setMainFileID(FID);
     return true;
 }
 
 bool InputFile::Load() {
-    FLY_DEBUG_START_MSG("InputFile", "Load", "File=" + Name);
+    FLY_DEBUG_SCOPE_MSG("InputFile", "Load", "File=" + Name);
     llvm::ErrorOr <std::unique_ptr<llvm::MemoryBuffer>> FileBuf = llvm::MemoryBuffer::getFile(FileName);
 
     // Check file error
     if (FileBuf.getError()) {
-        Diags.Report(diag::err_cannot_open_file) << getFileName() << FileBuf.getError().message();
+        Diags.Report(diag::err_basic_cannot_open_file) << getFileName() << FileBuf.getError().message();
         return false;
     }
 
@@ -77,7 +76,6 @@ bool InputFile::Load() {
     std::unique_ptr<llvm::MemoryBuffer> &Buf = FileBuf.get();
     Buffer = Buf.get();
     FID = SourceMgr.createFileID(std::move(Buf));
-//    SourceMgr.setMainFileID(FID); // TODO set for main file
     return true;
 }
 

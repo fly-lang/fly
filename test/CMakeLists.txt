@@ -32,6 +32,7 @@ add_executable(fly_test
         Parser/ParserFunctionTest.cpp
         Parser/ParserNameSpaceTest.cpp
         Parser/ParserLocalVarTest.cpp
+        Parser/ParserValueTest.cpp
         TestMain.cpp
         ${BACKWARD_ENABLE}
 )
@@ -54,7 +55,25 @@ target_compile_definitions(fly_test PRIVATE
         FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/std/src"
 )
 
-add_test(NAME fly_test COMMAND fly_test)
-
 include(GoogleTest)
-gtest_discover_tests(fly_test)
+
+# Integration tests compile/link real Fly source files in the working directory.
+# Give them a shared resource lock so they don't race each other when ctest runs
+# with -j N.  Unit tests (CodeGen, Parser, …) do no disk I/O and can run freely
+# in parallel.
+set(_fly_integration_filter
+    "AppTest.*:DriverTest.*:ImportLibTest.*:ImportTest.*")
+
+# GTest negative-filter syntax: positive*-neg1:neg2:neg3  (single '-' starts the
+# negative section; subsequent patterns are ':'-separated without extra '-').
+set(_fly_unit_filter
+    "*:-AppTest.*:DriverTest.*:ImportLibTest.*:ImportTest.*")
+
+gtest_discover_tests(fly_test
+    TEST_FILTER  "${_fly_integration_filter}"
+    PROPERTIES   RESOURCE_LOCK "fly_workspace"
+)
+
+gtest_discover_tests(fly_test
+    TEST_FILTER  "${_fly_unit_filter}"
+)

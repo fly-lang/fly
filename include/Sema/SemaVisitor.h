@@ -37,6 +37,7 @@ namespace fly {
 	class SemaBoolType;
 	class SemaIntType;
 	class SemaFloatType;
+	class SemaComplexType;
 	class SemaArrayType;
 	class SemaClassType;
 	class SemaEnumType;
@@ -73,6 +74,7 @@ namespace fly {
 	class SemaBoolValue;
 	class SemaIntValue;
 	class SemaFloatValue;
+	class SemaComplexValue;
 	class SemaStringValue;
 	class SemaArrayValue;
 	class SemaStructValue;
@@ -100,6 +102,7 @@ namespace fly {
 		virtual void visit(SemaBoolType &Sema) = 0;
 		virtual void visit(SemaIntType &Sema) = 0;
 		virtual void visit(SemaFloatType &Sema) = 0;
+		virtual void visit(SemaComplexType &Sema) = 0;
 		virtual void visit(SemaArrayType &Sema) = 0;
 		virtual void visit(SemaClassType &Sema) = 0;
 		virtual void visit(SemaEnumType &Sema) = 0;
@@ -130,6 +133,7 @@ namespace fly {
 		virtual void visit(SemaBoolValue &Sema) = 0;
 		virtual void visit(SemaIntValue &Sema) = 0;
 		virtual void visit(SemaFloatValue &Sema) = 0;
+		virtual void visit(SemaComplexValue &Sema) = 0;
 		virtual void visit(SemaStringValue &Sema) = 0;
 		virtual void visit(SemaArrayValue &Sema) = 0;
 		virtual void visit(SemaStructValue &Sema) = 0;

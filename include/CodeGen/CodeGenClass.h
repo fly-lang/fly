@@ -41,6 +41,8 @@ namespace fly {
 
         SemaClassType *Sema;
 
+        bool IsExternal = false;
+
         std::string Id;
 
         llvm::StructType *Type = nullptr;
@@ -51,7 +53,7 @@ namespace fly {
 
         llvm::Function *InitConstructor = nullptr;
 
-        llvm::GlobalVariable * VTable;
+        llvm::GlobalVariable * VTable = nullptr;
 
         llvm::SmallVector<llvm::GlobalVariable *, 4> VTableBases;
 

@@ -22,7 +22,7 @@ using namespace fly;
  * @return true on Success or false on Error
  */
 ASTBlockStmt *ParserFunction::ParseBody(Parser *P, ASTFunction *F) {
-    FLY_DEBUG_START("ParserFunction", "ParseBody");
+    FLY_DEBUG_SCOPE("ParserFunction", "ParseBody");
     assert(P->isBlockStart() && "Block Start");
     ASTBlockStmt *Block = ASTBuilder::CreateBlockStmt(P->Tok.getLocation());
     ASTBlockStmt *Body = ASTBuilder::CreateBody(F, Block);
@@ -36,7 +36,7 @@ ASTBlockStmt *ParserFunction::ParseBody(Parser *P, ASTFunction *F) {
  * @return true on Success or false on Error
  */
 llvm::SmallVector<ASTParam *, 8> ParserFunction::ParseParams(Parser *P) {
-    FLY_DEBUG_START("ParserFunction", "ParseParams");
+    FLY_DEBUG_SCOPE("ParserFunction", "ParseParams");
     assert(P->Tok.is(tok::l_paren) && "Tok must be an Identifier");
     P->ConsumeParen(); // consume l_paren
 
@@ -80,7 +80,7 @@ llvm::SmallVector<ASTParam *, 8> ParserFunction::ParseParams(Parser *P) {
  * @return true on Success or false on Error
  */
 ASTParam *ParserFunction::ParseParam(Parser *P) {
-    FLY_DEBUG_START("ParserFunction", "ParseParam");
+    FLY_DEBUG_SCOPE("ParserFunction", "ParseParam");
 
     // Parse Modifiers
     llvm::SmallVector<ASTModifier *, 8> Modifiers = P->ParseModifiers();

@@ -17,7 +17,7 @@
 namespace fly {
 
     class ASTArg;
-	class Symbol;
+	struct Symbol;
 
     enum class ASTCallKind {
         CALL_DIRECT,

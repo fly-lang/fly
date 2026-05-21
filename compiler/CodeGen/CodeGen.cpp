@@ -67,6 +67,7 @@ llvm::StructType *CodeGen::ArrayTy = nullptr;
 llvm::PointerType *CodeGen::ArrayPtrTy = nullptr;
 llvm::StructType *CodeGen::StringTy = nullptr;
 llvm::PointerType *CodeGen::StringPtrTy = nullptr;
+llvm::StructType *CodeGen::ComplexTy = nullptr;
 llvm::ConstantInt *CodeGen::Zero = nullptr;
 
 CodeGen::CodeGen(DiagnosticsEngine &Diags,
@@ -137,26 +138,33 @@ void CodeGen::InitializeTypes(llvm::LLVMContext &LLVMCtx, TargetInfo &Target) {
     StringFields.push_back(IntTy);    // size_t size (dimensions string)
     StringTy = llvm::StructType::create(LLVMCtx, StringFields, "string");
     StringPtrTy = llvm::PointerType::get(StringTy, 0);
+
+    // Create Complex structure type: struct complex { double real, double imag }
+    llvm::SmallVector<llvm::Type *, 2> ComplexFields;
+    ComplexFields.push_back(DoubleTy);  // double real
+    ComplexFields.push_back(DoubleTy);  // double imag
+    ComplexTy = llvm::StructType::create(LLVMCtx, ComplexFields, "complex");
 }
 
 std::string CodeGen::getOutputFileName(llvm::StringRef BaseInput) {
+    FLY_DEBUG_SCOPE("CodeGen", "getOutputFileName");
     StringRef FileName = llvm::sys::path::filename(BaseInput);
     std::string Name = FileName.str();//.substr(0,FileName.size()-4/* sizeof('.fly') = 4 */).str();
     switch (ActionKind) {
         case Backend_EmitNothing:
-            FLY_DEBUG_START_MSG("CodeGen", "getOutputFileName","return ''");
+            FLY_DEBUG_MSG("return ''");
             return "";
         case Backend_EmitLL:
-            FLY_DEBUG_START_MSG("CodeGen", "getOutputFileName","return " << Name + ".ll");
+            FLY_DEBUG_MSG("return " << Name + ".ll");
             return Name + ".ll";
         case Backend_EmitBC:
-            FLY_DEBUG_START_MSG("CodeGen", "getOutputFileName","return " << Name + ".bc");
+            FLY_DEBUG_MSG("return " << Name + ".bc");
             return Name + ".bc";
         case Backend_EmitAssembly:
-            FLY_DEBUG_START_MSG("CodeGen", "getOutputFileName","return " << Name + ".s");
+            FLY_DEBUG_MSG("return " << Name + ".s");
             return Name + ".s";
         case Backend_EmitObj:
-            FLY_DEBUG_START_MSG("CodeGen", "getOutputFileName","return " << Name + ".o");
+            FLY_DEBUG_MSG("return " << Name + ".o");
             return Name + ".o";
     }
 
@@ -171,13 +179,10 @@ std::string str(llvm::Module *M) {
 }
 
 void CodeGen::Emit(llvm::Module *M, llvm::StringRef OutName) {
-    FLY_DEBUG_START_MSG("CodeGen", "Emit",
+    FLY_DEBUG_SCOPE_MSG("CodeGen", "Emit",
                       "Module.Name=" << M->getName() << "\nModule.Output=" << str(M));
 
     std::string OutputFileName = OutName.empty() ? getOutputFileName(M->getName()) : OutName.str();
-    // TODO link to libraries
-//    Link = new llvm::Linker(*OutModule);
-//    Linker::linkModules(*OutModule, std::move(M));
 
     // Skip CodeGenModule instance creation
     if (ActionKind == Backend_EmitNothing) {
@@ -209,7 +214,7 @@ llvm::LLVMContext &CodeGen::getLLVMCtx() {
 }
 
 llvm::SmallVector<llvm::Module *, 8> CodeGen::GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules) {
-    FLY_DEBUG_START("CodeGen", "GenerateModules");
+    FLY_DEBUG_SCOPE("CodeGen", "GenerateModules");
 
 	llvm::SmallVector<llvm::Module *, 8> Modules;
 	llvm::SmallVector<CodeGenModule *, 8> CodeGenModules;
@@ -233,6 +238,5 @@ llvm::SmallVector<llvm::Module *, 8> CodeGen::GenerateModules(llvm::SmallVector<
 		delete CGM;
 	}
 
-	FLY_DEBUG_END("CodeGen", "GenerateModules");
     return Modules;
 }

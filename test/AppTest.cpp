@@ -64,7 +64,6 @@ public class Circle : Shape {
     int radius
 
     public area() {
-        return 0
     }
 }
 
@@ -81,6 +80,12 @@ helper(int a, int b) {
 }
 )";
 
+    // main() with no parameters — args accessed via fly.os.env.argsGet()
+    static constexpr const char *MainArgsSource = R"(
+main() {
+}
+)";
+
     // ─── Driver-level fixture ─────────────────────────────────────────────────
 
     class AppTest : public ::testing::Test {
@@ -89,7 +94,7 @@ helper(int a, int b) {
         const char *utilsfly = "utils.fly";
 
         AppTest() {
-            DebugEnabled = true;
+            DebugEnabled = false;
             { std::ofstream f(mainfly);  f << MainAppSource; }
             { std::ofstream f(utilsfly); f << UtilsAppSource; }
             llvm::InitializeAllTargetInfos();
@@ -191,6 +196,7 @@ helper(int a, int b) {
     }
 
     TEST_F(AppTest, EmitOut) {
+    	DebugEnabled = true;
         deleteFile("out");
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");
@@ -212,6 +218,49 @@ helper(int a, int b) {
 
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");
+    }
+
+    // ─── main(string[] args) ──────────────────────────────────────────────────
+
+    // Verify that main(string[] args) compiles without errors.
+    TEST_F(AppTest, MainWithArgs) {
+        const char *argsfly = "main_args.fly";
+        { std::ofstream f(argsfly); f << MainArgsSource; }
+
+        const char *argv[] = {"fly", "-no-output", argsfly};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        bool ok = drv.Execute();
+        remove(argsfly);
+        EXPECT_TRUE(ok);
+    }
+
+    // Emit IR for main() and verify the expected LLVM patterns:
+    //   - C entry-point signature:  define i32 @main(i32 %0, ptr %1)
+    //   - env_init call to make argc/argv available via fly.os.env.argsGet()
+    TEST_F(AppTest, MainWithArgsEmitLL) {
+        const char *argsfly = "main_args.fly";
+        const char *argsll  = "main_args.fly.ll";
+        deleteFile(argsll);
+        { std::ofstream f(argsfly); f << MainArgsSource; }
+
+        const char *argv[] = {"fly", "-emit-ll", argsfly};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        bool ok = drv.Execute();
+        remove(argsfly);
+        ASSERT_TRUE(ok);
+        ASSERT_TRUE(std::ifstream(argsll).good());
+
+        std::ifstream llfile(argsll);
+        std::string ir((std::istreambuf_iterator<char>(llfile)),
+                        std::istreambuf_iterator<char>());
+        deleteFile(argsll);
+
+        // C entry-point signature must carry argc (i32) and argv (ptr) for C ABI
+        EXPECT_NE(ir.find("define i32 @main(i32"), std::string::npos);
+        // env_init wires argc/argv into the env args store for fly.os.env.argsGet()
+        EXPECT_NE(ir.find("env_init"), std::string::npos);
     }
 
 } // anonymous namespace

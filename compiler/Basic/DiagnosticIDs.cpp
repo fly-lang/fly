@@ -681,8 +681,8 @@ bool DiagnosticIDs::isUnrecoverable(unsigned DiagID) const {
   if (getBuiltinDiagClass(DiagID) < CLASS_ERROR)
     return false;
 
-  if (DiagID == diag::err_unavailable ||
-      DiagID == diag::err_unavailable_message)
+  if (DiagID == diag::err_basic_unavailable ||
+      DiagID == diag::err_basic_unavailable_message)
     return false;
 
   // Currently we consider all ARC errors as recoverable.

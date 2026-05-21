@@ -117,7 +117,7 @@ private:
     SmallVector<ASTModifier *, 8> ParseModifiers();
 
     /// Parse a class.
-    ASTClass *ParseClass(SmallVector<ASTModifier *, 8> &Modifiers);
+    ASTClass *ParseClass(SmallVector<ASTModifier *, 8> &Modifiers, bool SkipBodies = false);
 
     /// Parse an enum.
     ASTEnum *ParseEnum(SmallVector<ASTModifier *, 8> &Modifiers);
@@ -228,6 +228,9 @@ private:
 
     /// Check if the braces are balanced.
     bool isBraceBalanced() const;
+
+    /// Skip a brace-delimited block, tracking nesting depth.
+    void SkipBraceBlock();
 
     /// Consume a string token.
     SourceLocation ConsumeStringToken();

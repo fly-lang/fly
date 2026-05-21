@@ -17,6 +17,7 @@
 
 #include <AST/ASTMember.h>
 #include <memory>
+#include "llvm/ADT/SmallPtrSet.h"
 
 namespace fly {
 
@@ -72,7 +73,7 @@ namespace fly {
     class SemaValidator;
     class ASTNameSpace;
     class Registry;
-    class Symbol;
+    struct Symbol;
 
 
     class Resolver : public ASTVisitor {
@@ -115,6 +116,19 @@ namespace fly {
     	SemaError *CurrentErrorHandler = nullptr;
 
     	ASTHandleStmt *CurrentHandleStmt = nullptr;
+
+    	// Loop/switch nesting depth for break/continue validation
+    	int LoopDepth = 0;
+    	int SwitchDepth = 0;
+
+    	// True while resolving the LHS of a pure '=' assignment (variable is written, not read)
+    	bool InAssignLHS = false;
+
+    	// Local vars declared in the current function that have never been read
+    	llvm::SmallPtrSet<SemaLocalVar *, 16> UnusedLocalVars;
+
+    	// Non-const params that have never been assigned to in the current function
+    	llvm::SmallPtrSet<SemaParam *, 8> UnmodifiedParams;
 
     	// Temporary storage for resolved call arg expressions
     	SmallVector<SemaExpr *, 8> ResolvedCallArgs;

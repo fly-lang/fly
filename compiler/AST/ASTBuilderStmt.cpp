@@ -48,19 +48,3 @@ ASTBuilderStmt *ASTBuilderStmt::CreateExpr(ASTBlockStmt *Parent, const SourceLoc
     return BuilderStmt;
 }
 
-void ASTBuilderStmt::setExpr(ASTExpr *Expr) {
-    // TODO use a super class with expr
-    switch (Stmt->getStmtKind()) {
-        case ASTStmtKind::STMT_FAIL:
-            ((ASTFailStmt *) Stmt)->setFirstExpr(Expr);
-            return;
-        case ASTStmtKind::STMT_EXPR:
-            ((ASTExprStmt *) Stmt)->setExpr(Expr);
-            return;
-    	case ASTStmtKind::STMT_DECL:
-    		((ASTDeclStmt *) Stmt)->setExpr(Expr);
-    		return;
-    }
-
-    assert(false && "Invalid Stmt Kind");
-}

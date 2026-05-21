@@ -1,16 +1,21 @@
-/*===-- runtime/Windows/Mem.c - Memory via VirtualAlloc/Free ----------===*/
+/*===-- runtime/Windows/Mem.c - Memory via malloc/free ----------------===*/
 
 #include "../Runtime.h"
-#include "Win32.h"
+
+/* Forward-declare libc malloc/free without pulling in any libc header.
+ * All Fly programs link against the CRT, so these are always available at link
+ * time. Using malloc ensures compatibility with free() in EmitAllocCleanup. */
+extern void *malloc(usize size);
+extern void  free(void *ptr);
 
 void *mem_alloc(usize size)
 {
-    return VirtualAlloc(WIN32_NULL, (SIZE_T)size,
-                        MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    return malloc(size > 0 ? size : 1);
 }
 
 i32 mem_free(void *ptr, usize size)
 {
-    (void)size;  /* MEM_RELEASE requires dwSize == 0 */
-    return VirtualFree((LPVOID)ptr, 0, MEM_RELEASE) ? 0 : -1;
+    (void)size;
+    free(ptr);
+    return 0;
 }

@@ -145,13 +145,13 @@ void TargetInfo::resetDataLayout(StringRef DL, const char *UserLabelPrefix) {
 
 bool
 TargetInfo::checkCFProtectionBranchSupported(DiagnosticsEngine &Diags) const {
-  Diags.Report(diag::err_opt_not_valid_on_target) << "cf-protection=branch";
+  Diags.Report(diag::err_target_opt_not_valid_on_target) << "cf-protection=branch";
   return false;
 }
 
 bool
 TargetInfo::checkCFProtectionReturnSupported(DiagnosticsEngine &Diags) const {
-  Diags.Report(diag::err_opt_not_valid_on_target) << "cf-protection=return";
+  Diags.Report(diag::err_target_opt_not_valid_on_target) << "cf-protection=return";
   return false;
 }
 

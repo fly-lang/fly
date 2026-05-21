@@ -762,11 +762,11 @@ static char DecodeTrigraphChar(const char *CP, Lexer *L) {
 
     // if Trigraphs
     if (!L->isLexingRawMode())
-        L->Diag(CP - 2, diag::trigraph_ignored);
+        L->Diag(CP - 2, diag::warn_lex_trigraph_ignored);
     return 0;
 
     if (!L->isLexingRawMode())
-        L->Diag(CP - 2, diag::trigraph_converted) << StringRef(&Res, 1);
+        L->Diag(CP - 2, diag::warn_lex_trigraph_converted) << StringRef(&Res, 1);
     return Res;
 }
 
@@ -909,7 +909,7 @@ char Lexer::getCharAndSizeSlow(const char *Ptr, unsigned &Size,
 
             // Warn if there was whitespace between the backslash and newline.
             if (Ptr[0] != '\n' && Ptr[0] != '\r' && Tok && !isLexingRawMode())
-                Diag(Ptr, diag::backslash_newline_space);
+                Diag(Ptr, diag::warn_lex_backslash_newline_space);
 
             // Found backslash<whitespace><newline>.  Parse the char after it.
             Size += EscapedNewLineSize;
@@ -1017,7 +1017,7 @@ static inline CharSourceRange makeCharRange(Lexer &L, const char *Begin,
 static void maybeDiagnoseIDCharCompat(DiagnosticsEngine &Diags, uint32_t C,
                                       CharSourceRange Range, bool IsFirst) {
     // Check C99 compatibility.
-    if (!Diags.isIgnored(diag::warn_c99_compat_unicode_id, Range.getBegin())) {
+    if (!Diags.isIgnored(diag::warn_lex_c99_compat_unicode_id, Range.getBegin())) {
         enum {
             CannotAppearInIdentifier = 0,
             CannotStartIdentifier
@@ -1028,22 +1028,22 @@ static void maybeDiagnoseIDCharCompat(DiagnosticsEngine &Diags, uint32_t C,
         static const llvm::sys::UnicodeCharSet C99DisallowedInitialIDChars(
                 C99DisallowedInitialIDCharRanges);
         if (!C99AllowedIDChars.contains(C)) {
-            Diags.Report(Range.getBegin(), diag::warn_c99_compat_unicode_id)
+            Diags.Report(Range.getBegin(), diag::warn_lex_c99_compat_unicode_id)
                     << Range
                     << CannotAppearInIdentifier;
         } else if (IsFirst && C99DisallowedInitialIDChars.contains(C)) {
-            Diags.Report(Range.getBegin(), diag::warn_c99_compat_unicode_id)
+            Diags.Report(Range.getBegin(), diag::warn_lex_c99_compat_unicode_id)
                     << Range
                     << CannotStartIdentifier;
         }
     }
 
     // Check C++98 compatibility.
-    if (!Diags.isIgnored(diag::warn_cxx98_compat_unicode_id, Range.getBegin())) {
+    if (!Diags.isIgnored(diag::warn_lex_cxx98_compat_unicode_id, Range.getBegin())) {
         static const llvm::sys::UnicodeCharSet CXX03AllowedIDChars(
                 CXX03AllowedIDCharRanges);
         if (!CXX03AllowedIDChars.contains(C)) {
-            Diags.Report(Range.getBegin(), diag::warn_cxx98_compat_unicode_id)
+            Diags.Report(Range.getBegin(), diag::warn_lex_cxx98_compat_unicode_id)
                     << Range;
         }
     }
@@ -1125,10 +1125,10 @@ static void maybeDiagnoseIDCharCompat(DiagnosticsEngine &Diags, uint32_t C,
 //        }
 //        if (Homoglyph->LooksLike) {
 //            const char LooksLikeStr[] = {Homoglyph->LooksLike, 0};
-//            Diags.Report(Range.getBegin(), diag::warn_utf8_symbol_homoglyph)
+//            Diags.Report(Range.getBegin(), diag::warn_lex_utf8_symbol_homoglyph)
 //                    << Range << CharBuf << LooksLikeStr;
 //        } else {
-//            Diags.Report(Range.getBegin(), diag::warn_utf8_symbol_zero_width)
+//            Diags.Report(Range.getBegin(), diag::warn_lex_utf8_symbol_zero_width)
 //                    << Range << CharBuf;
 //        }
 //    }
@@ -1244,15 +1244,8 @@ bool Lexer::LexIdentifier(Token &Result, const char *CurPtr) {
     C = getCharAndSize(CurPtr, Size);
     while (true) {
         if (C == '$') {
-            // If we hit a $ and they are not supported in identifiers, we are done.
+            // '$' is not a valid identifier character in Fly; end the identifier here.
             goto FinishIdentifier;
-
-            // Otherwise, emit a diagnostic and continue.
-            if (!isLexingRawMode())
-                Diag(CurPtr, diag::ext_dollar_in_identifier);
-            CurPtr = ConsumeChar(CurPtr, Size, Result);
-            C = getCharAndSize(CurPtr, Size);
-            continue;
         } else if (C == '\\' && tryConsumeIdentifierUCN(CurPtr, Size, Result)) {
             C = getCharAndSize(CurPtr, Size);
             continue;
@@ -1359,19 +1352,6 @@ bool Lexer::LexNumericConstant(Token &Result, const char *CurPtr) {
             return LexNumericConstant(Result, ConsumeChar(CurPtr, Size, Result));
     }
 
-    // If we have a digit separator, continue.
-    if (C == '\'') {
-        unsigned NextSize;
-        char Next = getCharAndSizeNoWarn(CurPtr + Size, NextSize);
-        if (isIdentifierBody(Next)) {
-            if (!isLexingRawMode())
-                Diag(CurPtr, diag::warn_cxx11_compat_digit_separator);
-            CurPtr = ConsumeChar(CurPtr, Size, Result);
-            CurPtr = ConsumeChar(CurPtr, NextSize, Result);
-            return LexNumericConstant(Result, CurPtr);
-        }
-    }
-
     // If we have a UCN or UTF-8 character (perhaps in a ud-suffix), continue.
     if (C == '\\' && tryConsumeIdentifierUCN(CurPtr, Size, Result))
         return LexNumericConstant(Result, CurPtr);
@@ -1408,7 +1388,7 @@ bool Lexer::LexStringLiteral(Token &Result, const char *CurPtr,
         if (C == '\n' || C == '\r' ||             // Newline.
             (C == 0 && CurPtr - 1 == BufferEnd)) {  // End of file.
             if (!isLexingRawMode())
-                Diag(BufferPtr, diag::ext_unterminated_char_or_string) << 1;
+                Diag(BufferPtr, diag::err_parser_string_not_terminated);
             FormTokenWithChars(Result, CurPtr - 1, Kind);
             return true;
         }
@@ -1424,7 +1404,7 @@ bool Lexer::LexStringLiteral(Token &Result, const char *CurPtr,
 
     // If a nul character existed in the string, warn about it.
     if (NulCharacter && !isLexingRawMode())
-        Diag(NulCharacter, diag::null_in_char_or_string) << 1;
+        Diag(NulCharacter, diag::warn_lex_null_in_char_or_string) << 1;
 
     // Update the location of the token as well as the BufferPtr instance var.
     const char *TokStart = BufferPtr + 1; //  +1 to filter out a double quote at start \"
@@ -1463,7 +1443,7 @@ bool Lexer::LexAngledStringLiteral(Token &Result, const char *CurPtr) {
 
     // If a nul character existed in the string, warn about it.
     if (NulCharacter && !isLexingRawMode())
-        Diag(NulCharacter, diag::null_in_char_or_string) << 1;
+        Diag(NulCharacter, diag::warn_lex_null_in_char_or_string) << 1;
 
     // Update the location of token as well as BufferPtr.
     const char *TokStart = BufferPtr;
@@ -1556,12 +1536,6 @@ bool Lexer::SkipWhitespace(Token &Result, const char *CurPtr,
 /// some tokens, this will store the first token and return true.
 bool Lexer::SkipLineComment(Token &Result, const char *CurPtr,
                             bool &TokAtPhysicalStartOfLine) {
-    // If Line comments aren't explicitly enabled for this language, emit an
-    // extension warning.
-    if (!isLexingRawMode()) {
-        Diag(BufferPtr, diag::ext_line_comment);
-    }
-
     // Scan over the body of the comment.  The common case, when scanning, is that
     // the comment contains normal ascii characters with nothing interesting in
     // them.  As such, optimize for this case with the inner loop.
@@ -1598,7 +1572,7 @@ bool Lexer::SkipLineComment(Token &Result, const char *CurPtr,
 
             // If there was space between the backslash and newline, warn about it.
             if (HasSpace && !isLexingRawMode())
-                Diag(EscapePtr, diag::backslash_newline_space);
+                Diag(EscapePtr, diag::warn_lex_backslash_newline_space);
         }
 
         // Otherwise, this is a hard case.  Fall back on getAndAdvanceChar to
@@ -1635,8 +1609,6 @@ bool Lexer::SkipLineComment(Token &Result, const char *CurPtr,
                             break;
                     }
 
-                    if (!isLexingRawMode())
-                        Diag(OldPtr - 1, diag::ext_multi_line_line_comment);
                     break;
                 }
         }
@@ -1723,19 +1695,19 @@ static bool isEndOfBlockCommentWithEscapedNewLine(const char *CurPtr,
         // If no trigraphs are enabled, warn that we ignored this trigraph and
         // ignore this * character.
 //        if (!L->isLexingRawMode())
-//            L->Diag(CurPtr, diag::trigraph_ignored_block_comment);
+//            L->Diag(CurPtr, diag::warn_lex_trigraph_ignored_block_comment);
 //        return false;
         if (!L->isLexingRawMode())
-            L->Diag(CurPtr, diag::trigraph_ends_block_comment);
+            L->Diag(CurPtr, diag::warn_lex_trigraph_ends_block_comment);
     }
 
     // Warn about having an escaped newline between the */ characters.
     if (!L->isLexingRawMode())
-        L->Diag(CurPtr, diag::escaped_newline_block_comment_end);
+        L->Diag(CurPtr, diag::warn_lex_escaped_newline_block_comment_end);
 
     // If there was space between the backslash and newline, warn about it.
     if (HasSpace && !L->isLexingRawMode())
-        L->Diag(CurPtr, diag::backslash_newline_space);
+        L->Diag(CurPtr, diag::warn_lex_backslash_newline_space);
 
     return true;
 }
@@ -1773,7 +1745,7 @@ bool Lexer::SkipBlockComment(Token &Result, const char *CurPtr,
     CurPtr += CharSize;
     if (C == 0 && CurPtr == BufferEnd + 1) {
         if (!isLexingRawMode())
-            Diag(BufferPtr, diag::err_unterminated_block_comment);
+            Diag(BufferPtr, diag::err_lex_unterminated_block_comment);
         --CurPtr;
 
         // KeepWhitespaceMode should return this broken comment as a token.  Since
@@ -1864,11 +1836,11 @@ bool Lexer::SkipBlockComment(Token &Result, const char *CurPtr,
                 // if this is a /*/, which will end the comment.  This misses cases with
                 // embedded escaped newlines, but oh well.
                 if (!isLexingRawMode())
-                    Diag(CurPtr - 1, diag::warn_nested_block_comment);
+                    Diag(CurPtr - 1, diag::warn_lex_nested_block_comment);
             }
         } else if (C == 0 && CurPtr == BufferEnd + 1) {
             if (!isLexingRawMode())
-                Diag(BufferPtr, diag::err_unterminated_block_comment);
+                Diag(BufferPtr, diag::err_lex_unterminated_block_comment);
             // Note: the user probably forgot a */.  We could continue immediately
             // after the /*, but this would involve lexing a lot of what really is the
             // comment, which surely would confuse the parser.
@@ -1952,10 +1924,10 @@ bool Lexer::LexEndOfFile(Token &Result, const char *CurPtr) {
         // C++11 [lex.phases] 2.2 p2
         // Prefer the C++98 pedantic compatibility warning over the generic,
         // non-extension, user-requested "missing newline at EOF" warning.
-        if (!Diags.isIgnored(diag::warn_cxx98_compat_no_newline_eof, EndLoc)) {
-            DiagID = diag::warn_cxx98_compat_no_newline_eof;
+        if (!Diags.isIgnored(diag::warn_lex_cxx98_compat_no_newline_eof, EndLoc)) {
+            DiagID = diag::warn_lex_cxx98_compat_no_newline_eof;
         } else {
-            DiagID = diag::warn_no_newline_eof;
+            DiagID = diag::warn_lex_no_newline_eof;
         }
 
         Diag(BufferEnd, DiagID)
@@ -2014,7 +1986,7 @@ bool Lexer::IsStartOfConflictMarker(const char *CurPtr) {
     if (FindConflictEnd(CurPtr, BufferEnd, Kind)) {
         // We found a match.  We are really in a conflict marker.
         // Diagnose this, and ignore to the end of line.
-        Diag(CurPtr, diag::err_conflict_marker);
+        Diag(CurPtr, diag::err_lex_conflict_marker);
         CurrentConflictMarkerState = Kind;
 
         // Skip ahead to the end of line.  We know this exists because the
@@ -2135,15 +2107,15 @@ uint32_t Lexer::tryReadUCN(const char *&StartPtr, const char *SlashLoc,
         if (Value == -1U) {
             if (Result && !isLexingRawMode()) {
                 if (i == 0) {
-                    Diag(BufferPtr, diag::warn_ucn_escape_no_digits)
+                    Diag(BufferPtr, diag::warn_lex_ucn_escape_no_digits)
                             << StringRef(KindLoc, 1);
                 } else {
-                    Diag(BufferPtr, diag::warn_ucn_escape_incomplete);
+                    Diag(BufferPtr, diag::warn_lex_ucn_escape_incomplete);
 
                     // If the user wrote \U1234, suggest a fixit to \u.
                     if (i == 4 && NumHexDigits == 8) {
                         CharSourceRange URange = makeCharRange(*this, KindLoc, KindLoc + 1);
-                        Diag(KindLoc, diag::note_ucn_four_not_eight)
+                        Diag(KindLoc, diag::note_lex_ucn_four_not_eight)
                                 << FixItHint::CreateReplacement(URange, "u");
                     }
                 }
@@ -2188,10 +2160,10 @@ uint32_t Lexer::tryReadUCN(const char *&StartPtr, const char *SlashLoc,
         // UCNs even when skipping preprocessing tokens in a #if block.
         if (Result) {
             if (CodePoint < 0x20 || CodePoint >= 0x7F)
-                Diag(BufferPtr, diag::err_ucn_control_character);
+                Diag(BufferPtr, diag::err_lex_ucn_control_character);
             else {
                 char C = static_cast<char>(CodePoint);
-                Diag(BufferPtr, diag::err_ucn_escape_basic_scs) << StringRef(&C, 1);
+                Diag(BufferPtr, diag::err_lex_ucn_escape_basic_scs) << StringRef(&C, 1);
             }
         }
 
@@ -2201,7 +2173,7 @@ uint32_t Lexer::tryReadUCN(const char *&StartPtr, const char *SlashLoc,
         // We don't use isLexingRawMode() here because we need to diagnose bad
         // UCNs even when skipping preprocessing tokens in a #if block.
         if (Result) {
-            Diag(BufferPtr, diag::err_ucn_escape_invalid);
+            Diag(BufferPtr, diag::err_lex_ucn_escape_invalid);
         }
         return 0;
     }
@@ -2216,8 +2188,7 @@ bool Lexer::CheckUnicodeWhitespace(Token &Result, uint32_t C,
     if (!isLexingRawMode() &&
         //  !PP->isPreprocessedOutput() && FIXME
         UnicodeWhitespaceChars.contains(C)) {
-        Diag(BufferPtr, diag::ext_unicode_whitespace)
-                << makeCharRange(*this, BufferPtr, CurPtr);
+        Diag(BufferPtr, diag::err_lex_unicode_whitespace);
 
         Result.setFlag(Token::LeadingSpace);
         return true;
@@ -2251,7 +2222,7 @@ bool Lexer::LexUnicode(Token &Result, uint32_t C, const char *CurPtr) {
         // loophole in the mapping of Unicode characters to basic character set
         // characters that allows us to map these particular characters to, say,
         // whitespace.
-        Diag(BufferPtr, diag::err_non_ascii)
+        Diag(BufferPtr, diag::err_lex_non_ascii)
                 << FixItHint::CreateRemoval(makeCharRange(*this, BufferPtr, CurPtr));
 
         BufferPtr = CurPtr;
@@ -2350,7 +2321,7 @@ bool Lexer::LexTokenInternal(Token &Result, bool TokAtPhysicalStartOfLine) {
 //            }
 
             if (!isLexingRawMode())
-                Diag(CurPtr - 1, diag::null_in_file);
+                Diag(CurPtr - 1, diag::warn_lex_null_in_file);
             Result.setFlag(Token::LeadingSpace);
             if (SkipWhitespace(Result, CurPtr, TokAtPhysicalStartOfLine))
                 return true; // KeepWhitespaceMode
@@ -2363,7 +2334,7 @@ bool Lexer::LexTokenInternal(Token &Result, bool TokAtPhysicalStartOfLine) {
             // If we're in Microsoft extensions mode, treat this as end of file.
 //            if (LangOpts.MicrosoftExt) {
 //                if (!isLexingRawMode())
-//                    Diag(CurPtr - 1, diag::ext_ctrl_z_eof_microsoft);
+//                    Diag(CurPtr - 1, diag::ext_lex_ctrl_z_eof_microsoft);
 //                return LexEndOfFile(Result, CurPtr - 1);
 //            }
 
@@ -2491,7 +2462,7 @@ bool Lexer::LexTokenInternal(Token &Result, bool TokAtPhysicalStartOfLine) {
         case '$':   // $ in identifiers.
 //            if (LangOpts.DollarIdents) {
 //                if (!isLexingRawMode())
-//                    Diag(CurPtr - 1, diag::ext_dollar_in_identifier);
+//                    Diag(CurPtr - 1, diag::ext_lex_dollar_in_identifier);
 //                // Notify MIOpt that we read a non-whitespace/non-comment token.
 //                MIOpt.ReadToken();
 //                return LexIdentifier(Result, CurPtr);
@@ -2544,11 +2515,6 @@ bool Lexer::LexTokenInternal(Token &Result, bool TokAtPhysicalStartOfLine) {
 //            } else if (Char == '*') {
 //                Kind = tok::periodstar;
 //                CurPtr += SizeTmp;
-            } else if (Char == '.' &&
-                       getCharAndSize(CurPtr + SizeTmp, SizeTmp2) == '.') {
-                Kind = tok::ellipsis;
-                CurPtr = ConsumeChar(ConsumeChar(CurPtr, SizeTmp, Result),
-                                     SizeTmp2, Result);
             } else {
                 Kind = tok::period;
             }
@@ -2693,7 +2659,7 @@ bool Lexer::LexTokenInternal(Token &Result, bool TokAtPhysicalStartOfLine) {
                 char After = getCharAndSize(CurPtr + SizeTmp, SizeTmp2);
 //                if (After == '>') {
 //                        if (!isLexingRawMode())
-//                            Diag(BufferPtr, diag::warn_cxx17_compat_spaceship);
+//                            Diag(BufferPtr, diag::warn_lex_cxx17_compat_spaceship);
 //                        CurPtr = ConsumeChar(ConsumeChar(CurPtr, SizeTmp, Result),
 //                                             SizeTmp2, Result);
 //                        Kind = tok::spaceship;
@@ -2701,7 +2667,7 @@ bool Lexer::LexTokenInternal(Token &Result, bool TokAtPhysicalStartOfLine) {
 //                    // Suggest adding a space between the '<=' and the '>' to avoid a
 //                    // change in semantics if this turns up in C++ <=17 mode.
 //                    if (!isLexingRawMode()) {
-//                        Diag(BufferPtr, diag::warn_cxx2a_compat_spaceship)
+//                        Diag(BufferPtr, diag::warn_lex_cxx2a_compat_spaceship)
 //                                << FixItHint::CreateInsertion(
 //                                        getSourceLocation(CurPtr + SizeTmp, SizeTmp2), " ");
 //                    }
@@ -2720,7 +2686,7 @@ bool Lexer::LexTokenInternal(Token &Result, bool TokAtPhysicalStartOfLine) {
                     if (After != ':' && After != '>') {
                         Kind = tok::less;
                         if (!isLexingRawMode())
-                            Diag(BufferPtr, diag::warn_cxx98_compat_less_colon_colon);
+                            Diag(BufferPtr, diag::warn_lex_cxx98_compat_less_colon_colon);
                         break;
                     }
                 }
@@ -2878,7 +2844,7 @@ bool Lexer::LexTokenInternal(Token &Result, bool TokAtPhysicalStartOfLine) {
             // Non-ASCII characters tend to creep into source code unintentionally.
             // Instead of letting the parser complain about the unknown token,
             // just diagnose the invalid UTF-8, then drop the character.
-            Diag(CurPtr, diag::err_invalid_utf8);
+            Diag(CurPtr, diag::err_lex_invalid_utf8);
 
             BufferPtr = CurPtr + 1;
             // We're pretending the character didn't exist, so just try again with

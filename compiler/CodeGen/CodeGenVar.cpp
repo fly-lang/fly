@@ -61,7 +61,7 @@ llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
     if (T->isIntegerTy(1)) {
         Val = CGM->Builder->CreateZExt(Val, CodeGen::Int8Ty);
     }
-
+		
 	return CGM->Builder->CreateStore(Val, getPointer());
 }
 
@@ -101,8 +101,8 @@ llvm::Value *CodeGenVar::getDefaultValue(llvm::Type *T) {
 			DefaultValue = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(T));
 			break;
 		case llvm::Type::StructTyID:
-			// Other structs default to null pointer (stored as ptr-to-struct)
-			DefaultValue = llvm::Constant::getNullValue(T->getPointerTo());
+			// Zero-initialize the embedded struct value
+			DefaultValue = llvm::Constant::getNullValue(T);
 			break;
 		default:
 			CGM->Diag(diag::err_invalid_behavior);
@@ -202,7 +202,19 @@ llvm::StoreInst *CodeGenVar::StoreDefaultValue() {
 	}
 
 	// Non-array types
-	llvm::Value *DefaultValue = getDefaultValue(Ty->getCodeGen()->getType());
+	llvm::Type *CodeGenTy = Ty->getCodeGen()->getType();
+
+	// Struct types (non-string) require different defaults depending on storage:
+	//   Local variable: Alloca() creates 'alloca ptr' (pointer-to-struct) → default is null ptr
+	//   Class attribute: setPointer(GEP) points into the struct body (embedded) → default is zeroinitializer
+	if (CodeGenTy->isStructTy() && CodeGenTy != CodeGen::StringTy) {
+		llvm::Value *DefaultValue = llvm::isa<llvm::AllocaInst>(this->Pointer)
+			? llvm::Constant::getNullValue(llvm::PointerType::getUnqual(CGM->LLVMCtx))
+			: llvm::Constant::getNullValue(CodeGenTy);
+		return Store(DefaultValue);
+	}
+
+	llvm::Value *DefaultValue = getDefaultValue(CodeGenTy);
 	return Store(DefaultValue);
 }
 
@@ -222,6 +234,11 @@ llvm::Value *CodeGenVar::getValue() {
         return Load();
     }
     return this->LoadI;
+}
+
+void CodeGenVar::resetLoad() {
+    this->LoadI = nullptr;
+    this->BlockID = llvm::StringRef();
 }
 
 llvm::Value *CodeGenVar::getPointer() {

@@ -33,7 +33,7 @@ namespace fly {
         const std::string Name;
 
         // Module is Header
-        const bool Header;
+        bool Header;
 
         // All Top Definitions sorted in the order it appears in the code: NameSpace, Imports, Global Vars, Functions
         llvm::SmallVector<ASTNode *, 8> Nodes;
@@ -51,6 +51,8 @@ namespace fly {
         InputFile *getFile() const;
 
         bool isHeader() const;
+
+        void setHeader(bool IsHeader);
 
         std::string getName();
 

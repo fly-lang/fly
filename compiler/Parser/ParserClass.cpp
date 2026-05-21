@@ -24,8 +24,8 @@ using namespace fly;
  * @param Visibility
  * @param Constant
  */
-ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) : P(P) {
-    FLY_DEBUG_START("ClassParser", "ClassParser");
+ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bool SkipBodies) : P(P), SkipBodies(SkipBodies) {
+    FLY_DEBUG_SCOPE("ClassParser", "ClassParser");
 
     ASTClassKind ClassKind;
     if (P->Tok.is(tok::kw_struct)) {
@@ -125,16 +125,16 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) : 
  * ParseModule Class Declaration
  * @return
  */
-ASTClass *ParserClass::Parse(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers) {
-	FLY_DEBUG_START("ClassParser", "Parse");
-    ParserClass *CP = new ParserClass(P, Modifiers);
+ASTClass *ParserClass::Parse(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bool SkipBodies) {
+	FLY_DEBUG_SCOPE("ClassParser", "Parse");
+    ParserClass *CP = new ParserClass(P, Modifiers, SkipBodies);
     ASTClass *Class = CP->Class;
     delete CP;
     return Class;
 }
 
 ASTAttribute *ParserClass::ParseAttribute(SmallVector<ASTModifier *, 8> &Modifiers, ASTType *TypeRef, const SourceLocation &Loc, llvm::StringRef Name) {
-	FLY_DEBUG_START("ClassParser", "ParseAttribute");
+	FLY_DEBUG_SCOPE("ClassParser", "ParseAttribute");
 
     if (!TypeRef) {
         P->Diag(diag::err_parser_invalid_type);
@@ -153,10 +153,20 @@ ASTAttribute *ParserClass::ParseAttribute(SmallVector<ASTModifier *, 8> &Modifie
 
 ASTMethod *ParserClass::ParseMethod(SmallVector<ASTModifier *, 8> &Modifiers,
 	const SourceLocation &Loc, llvm::StringRef Name) {
-	FLY_DEBUG_START("ClassParser", "ParseMethod");
+	FLY_DEBUG_SCOPE("ClassParser", "ParseMethod");
 
 	SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(P);
 	ASTMethod *Method = ASTBuilder::CreateClassMethod(Loc, Class, Name, Modifiers, Params);
-	ASTBlockStmt *Body = P->isBlockStart() ? ParserFunction::ParseBody(P, Method) : nullptr;
+	if (P->isBlockStart()) {
+		if (SkipBodies) {
+			// Create an empty non-null body so Sema doesn't treat this method as
+			// abstract (Body==nullptr signals an abstract/unimplemented method).
+			ASTBlockStmt *EmptyBlock = ASTBuilder::CreateBlockStmt(P->Tok.getLocation());
+			ASTBuilder::CreateBody(Method, EmptyBlock);
+			P->SkipBraceBlock();
+		} else {
+			ParserFunction::ParseBody(P, Method);
+		}
+	}
 	return Method;
 }

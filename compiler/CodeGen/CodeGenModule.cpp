@@ -137,6 +137,8 @@ llvm::IRBuilder<> *CodeGenModule::getBuilder() const {
 // =============================================================================
 
 void CodeGenModule::visit(SemaModule &Sema) {
+    CurrentSemaModule = &Sema;
+
     // Generate all nodes (functions, classes, enums)
     for (auto &Node : Sema.getNodes()) {
         Node->accept(*this);
@@ -173,6 +175,14 @@ void CodeGenModule::visit(SemaIntType &Sema) {
 }
 
 void CodeGenModule::visit(SemaFloatType &Sema) {
+	if (Sema.getCodeGen() == nullptr) {
+		CodeGenType *CG = new CodeGenType(this);
+		CG->GenType(Sema);
+		Sema.setCodeGen(CG);
+	}
+}
+
+void CodeGenModule::visit(SemaComplexType &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenType *CG = new CodeGenType(this);
 		CG->GenType(Sema);
@@ -221,7 +231,9 @@ void CodeGenModule::visit(SemaEnumType &Sema) {
 
 void CodeGenModule::visit(SemaClassType &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
-		CodeGenClass *CGC = new CodeGenClass(this, &Sema, false);
+		bool isExternal = (CurrentSemaModule != nullptr &&
+		                   &Sema.getModule() != CurrentSemaModule);
+		CodeGenClass *CGC = new CodeGenClass(this, &Sema, isExternal);
 		Sema.setCodeGen(CGC);
 	}
 }
@@ -250,6 +262,21 @@ void CodeGenModule::visit(SemaClassAttribute &Sema) {
 		llvm::Type *T = Sema.getType()->getCodeGen()->getType();
 		CodeGenVar *CGV = new CodeGenVar(this, &Sema, T);
 		Sema.setCodeGen(CGV);
+	}
+
+	// When accessed inside a non-static class method as a bare name (e.g. `fd`, not `this.fd`),
+	// compute a GEP to the correct struct field so Load/Store hit the actual field, not the alloca.
+	if (!Sema.isStatic() && CurrentFunction &&
+	    CurrentFunction->getKind() == SemaKind::METHOD) {
+		SemaClassMethod *Method = static_cast<SemaClassMethod *>(CurrentFunction);
+		if (!Method->isStatic()) {
+			llvm::Value *Instance = Method->getThis()->getCodeGen()->getValue();
+			llvm::StructType *StructTy = Sema.getClass().getCodeGen()->getType();
+			size_t FieldIdx = Sema.getCodeGen()->getIndex();
+			llvm::Value *FieldPtr = Builder->CreateInBoundsGEP(StructTy, Instance,
+				{CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, FieldIdx)});
+			Sema.getCodeGen()->setPointer(FieldPtr);
+		}
 	}
 }
 
@@ -357,6 +384,14 @@ void CodeGenModule::visit(SemaIntValue &Sema) {
 }
 
 void CodeGenModule::visit(SemaFloatValue &Sema) {
+	if (Sema.getCodeGen() == nullptr) {
+		CodeGenExpr *CGE = new CodeGenExpr(this);
+		CGE->GenExpr(&Sema);
+		Sema.setCodeGen(CGE);
+	}
+}
+
+void CodeGenModule::visit(SemaComplexValue &Sema) {
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenExpr *CGE = new CodeGenExpr(this);
 		CGE->GenExpr(&Sema);
@@ -517,7 +552,7 @@ void CodeGenModule::visit(SemaBlockStmt &Sema) {
 }
 
 void CodeGenModule::visit(SemaDeclStmt &Sema) {
-	FLY_DEBUG_START("CodeGenModule", "visit(SemaDeclStmt)");
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaDeclStmt)");
 
 	// Get the CodeGenVar for the Local Variable
 	CodeGenVar *CGV = Sema.getVar()->getCodeGen();
@@ -541,27 +576,22 @@ void CodeGenModule::visit(SemaDeclStmt &Sema) {
 	} else {
 		CGV->StoreDefaultValue();
 	}
-
-	FLY_DEBUG_END("CodeGenModule", "visit(SemaDeclStmt)");
 }
 
 void CodeGenModule::visit(SemaExprStmt &Sema) {
-	FLY_DEBUG_START("CodeGenModule", "visit(SemaExprStmt)");
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaExprStmt)");
 
 	Sema.getExpr()->accept(*this);
-
-	FLY_DEBUG_END("CodeGenModule", "visit(SemaExprStmt)");
 }
 
 void CodeGenModule::visit(SemaReturnStmt &Sema) {
-	FLY_DEBUG_START("CodeGenModule", "visit(SemaReturnStmt)");
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaReturnStmt)");
 	EmitAllocCleanup(AllocCleanupStack.size());
 	Builder->CreateRetVoid();
-	FLY_DEBUG_END("CodeGenModule", "visit(SemaReturnStmt)");
 }
 
 void CodeGenModule::visit(SemaIfStmt &Sema) {
-	FLY_DEBUG_START("CodeGenModule", "visit(SemaIfStmt)");
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaIfStmt)");
 	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
 	// If Block - use Sema condition expression
@@ -578,7 +608,8 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 			Builder->CreateCondBr(IfCond, IfBB, EndBB);
 			Builder->SetInsertPoint(IfBB);
 			Sema.getThen()->accept(*this);
-			Builder->CreateBr(EndBB);
+			if (!Builder->GetInsertBlock()->getTerminator())
+				Builder->CreateBr(EndBB);
 		} else { // If - elsif ...
 			llvm::BasicBlock *ElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, EndBB);
 			Builder->CreateCondBr(IfCond, IfBB, ElsifBB);
@@ -586,7 +617,8 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 			// Start if-then
 			Builder->SetInsertPoint(IfBB);
 			Sema.getThen()->accept(*this);
-			Builder->CreateBr(EndBB);
+			if (!Builder->GetInsertBlock()->getTerminator())
+				Builder->CreateBr(EndBB);
 
 			// Create Elsif Blocks
 			unsigned long Size = Sema.getElsif().size();
@@ -607,7 +639,8 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 
 				Builder->SetInsertPoint(ElsifThenBB);
 				ElsifSema.Stmt->accept(*this);
-				Builder->CreateBr(EndBB);
+				if (!Builder->GetInsertBlock()->getTerminator())
+					Builder->CreateBr(EndBB);
 
 				ElsifBB = NextElsifBB;
 			}
@@ -622,7 +655,8 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 			Builder->CreateCondBr(IfCond, IfBB, ElseBB);
 			Builder->SetInsertPoint(IfBB);
 			Sema.getThen()->accept(*this);
-			Builder->CreateBr(EndBB);
+			if (!Builder->GetInsertBlock()->getTerminator())
+				Builder->CreateBr(EndBB);
 		} else { // If - Elsif - Else
 			llvm::BasicBlock *ElsifBB = llvm::BasicBlock::Create(LLVMCtx, "elsif", Fn, ElseBB);
 			Builder->CreateCondBr(IfCond, IfBB, ElsifBB);
@@ -630,7 +664,8 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 			// Start if-then
 			Builder->SetInsertPoint(IfBB);
 			Sema.getThen()->accept(*this);
-			Builder->CreateBr(EndBB);
+			if (!Builder->GetInsertBlock()->getTerminator())
+				Builder->CreateBr(EndBB);
 
 			// Create Elsif Blocks
 			unsigned long Size = Sema.getElsif().size();
@@ -651,7 +686,8 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 
 				Builder->SetInsertPoint(ElsifThenBB);
 				ElsifSema.Stmt->accept(*this);
-				Builder->CreateBr(EndBB);
+				if (!Builder->GetInsertBlock()->getTerminator())
+					Builder->CreateBr(EndBB);
 
 				ElsifBB = NextElsifBB;
 			}
@@ -659,16 +695,16 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 
 		Builder->SetInsertPoint(ElseBB);
 		Sema.getElse()->accept(*this);
-		Builder->CreateBr(EndBB);
+		if (!Builder->GetInsertBlock()->getTerminator())
+			Builder->CreateBr(EndBB);
 	}
 
 	// Continue insertions into End Branch
 	Builder->SetInsertPoint(EndBB);
-	FLY_DEBUG_END("CodeGenModule", "visit(SemaIfStmt)");
 }
 
 void CodeGenModule::visit(SemaSwitchStmt &Sema) {
-	FLY_DEBUG_START("CodeGenModule", "visit(SemaSwitchStmt)");
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaSwitchStmt)");
 	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
 	// Create End Block
@@ -720,11 +756,10 @@ void CodeGenModule::visit(SemaSwitchStmt &Sema) {
 
 	// Continue insertions into End Branch
 	Builder->SetInsertPoint(EndBB);
-	FLY_DEBUG_END("CodeGenModule", "visit(SemaSwitchStmt)");
 }
 
 void CodeGenModule::visit(SemaLoopStmt &Sema) {
-	FLY_DEBUG_START("CodeGenModule", "visit(SemaLoopStmt)");
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaLoopStmt)");
 	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
 	// Generate Init Statements via Sema
@@ -782,22 +817,27 @@ void CodeGenModule::visit(SemaLoopStmt &Sema) {
 		Sema.getBody()->accept(*this);
 	}
 	if (PostBB) {
-		Builder->CreateBr(PostBB);
+		if (!Builder->GetInsertBlock()->getTerminator())
+			Builder->CreateBr(PostBB);
 
 		// Add to Post via Sema
 		Builder->SetInsertPoint(PostBB);
 		for (SemaStmt *S : Sema.getPost()) {
 			S->accept(*this);
 		}
+		if (!Builder->GetInsertBlock()->getTerminator()) {
+			if (CondBB) {
+				Builder->CreateBr(CondBB);
+			} else {
+				Builder->CreateBr(LoopBB);
+			}
+		}
+	} else if (!Builder->GetInsertBlock()->getTerminator()) {
 		if (CondBB) {
 			Builder->CreateBr(CondBB);
 		} else {
 			Builder->CreateBr(LoopBB);
 		}
-	} else if (CondBB) {
-		Builder->CreateBr(CondBB);
-	} else {
-		Builder->CreateBr(LoopBB);
 	}
 
 	// Pop break and continue targets from stacks
@@ -808,11 +848,10 @@ void CodeGenModule::visit(SemaLoopStmt &Sema) {
 
 	// Continue insertions into End Branch
 	Builder->SetInsertPoint(EndBB);
-	FLY_DEBUG_END("CodeGenModule", "visit(SemaLoopStmt)");
 }
 
 void CodeGenModule::visit(SemaLoopInStmt &Sema) {
-	FLY_DEBUG_START("CodeGenModule", "visit(SemaLoopInStmt)");
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaLoopInStmt)");
 
 	SemaExpr *ListExpr = Sema.getList();
 	SemaExpr *ItemExpr = Sema.getItem();
@@ -822,7 +861,6 @@ void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 	if (!ListType || !ListType->isArray()) {
 		if (Sema.getBody())
 			Sema.getBody()->accept(*this);
-		FLY_DEBUG_END("CodeGenModule", "visit(SemaLoopInStmt)");
 		return;
 	}
 
@@ -850,7 +888,6 @@ void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 	if (!ArrayStructPtr) {
 		if (Sema.getBody())
 			Sema.getBody()->accept(*this);
-		FLY_DEBUG_END("CodeGenModule", "visit(SemaLoopInStmt)");
 		return;
 	}
 
@@ -921,11 +958,10 @@ void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 	ContinueCleanupDepth.pop_back();
 
 	Builder->SetInsertPoint(EndBB);
-	FLY_DEBUG_END("CodeGenModule", "visit(SemaLoopInStmt)");
 }
 
 void CodeGenModule::visit(SemaDeleteStmt &Sema) {
-	FLY_DEBUG_START("CodeGenModule", "visit(SemaDeleteStmt)");
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaDeleteStmt)");
 
 	Sema.getExpr()->accept(*this);
 	llvm::Value *V = Sema.getExpr()->getCodeGen()->getValue();
@@ -943,12 +979,10 @@ void CodeGenModule::visit(SemaDeleteStmt &Sema) {
 		llvm::Value *StrPtr = Builder->CreateExtractValue(V, 0);
 		Builder->CreateCall(FreeFn, {StrPtr});
 	}
-
-	FLY_DEBUG_END("CodeGenModule", "visit(SemaDeleteStmt)");
 }
 
 void CodeGenModule::visit(SemaBreakStmt &Sema) {
-	FLY_DEBUG_START("CodeGenModule", "visit(SemaBreakStmt)");
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaBreakStmt)");
 	if (!BreakTargetStack.empty()) {
 		size_t loopDepth = BreakCleanupDepth.back();
 		EmitAllocCleanup(AllocCleanupStack.size() - loopDepth);
@@ -956,11 +990,10 @@ void CodeGenModule::visit(SemaBreakStmt &Sema) {
 	} else {
 		Diag(diag::err_invalid_behavior);
 	}
-	FLY_DEBUG_END("CodeGenModule", "visit(SemaBreakStmt)");
 }
 
 void CodeGenModule::visit(SemaContinueStmt &Sema) {
-	FLY_DEBUG_START("CodeGenModule", "visit(SemaContinueStmt)");
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaContinueStmt)");
 	if (!ContinueTargetStack.empty()) {
 		size_t loopDepth = ContinueCleanupDepth.back();
 		EmitAllocCleanup(AllocCleanupStack.size() - loopDepth);
@@ -968,11 +1001,10 @@ void CodeGenModule::visit(SemaContinueStmt &Sema) {
 	} else {
 		Diag(diag::err_invalid_behavior);
 	}
-	FLY_DEBUG_END("CodeGenModule", "visit(SemaContinueStmt)");
 }
 
 void CodeGenModule::visit(SemaFailStmt &Sema) {
-	FLY_DEBUG_START("CodeGenModule", "visit(SemaFailStmt)");
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaFailStmt)");
 
 	if (Sema.getFirst() == nullptr) {
 		CurrentErrorHandler->StoreInt(llvm::ConstantInt::get(CG.Int32Ty, 1));
@@ -994,12 +1026,10 @@ void CodeGenModule::visit(SemaFailStmt &Sema) {
 	} else {
 		Builder->CreateBr(CurrentSafeBB);
 	}
-
-	FLY_DEBUG_END("CodeGenModule", "visit(SemaFailStmt)");
 }
 
 void CodeGenModule::visit(SemaHandleStmt &Sema) {
-	FLY_DEBUG_START("CodeGenModule", "visit(SemaHandleStmt)");
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaHandleStmt)");
 
 	// Save parent error handler
 	CodeGenError *ParentErrorHandler = CurrentErrorHandler;
@@ -1033,8 +1063,6 @@ void CodeGenModule::visit(SemaHandleStmt &Sema) {
 	CurrentHandleBB = ParentHandleBB;
 	CurrentSafeBB = ParentSafeBB;
 	CurrentErrorHandler = ParentErrorHandler;
-
-	FLY_DEBUG_END("CodeGenModule", "visit(SemaHandleStmt)");
 }
 
 
@@ -1081,7 +1109,7 @@ void CodeGenModule::StoreFail(SemaExpr *Expr, CodeGenError *CGE) {
 
 
 std::string CodeGenModule::toIdentifier(llvm::StringRef Name, SemaNameSpace *NameSpace) {
-	FLY_DEBUG_START("CodeGenModule", "toIdentifier");
+	FLY_DEBUG_SCOPE("CodeGenModule", "toIdentifier");
 	std::string Prefix = NameSpace ? std::string(NameSpace->getName()).append(".") : "";
 	return Prefix.append(std::string(Name));
 }

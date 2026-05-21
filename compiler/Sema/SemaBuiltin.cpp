@@ -92,6 +92,14 @@ SemaFloatType * SemaBuiltin::getDoubleType() {
 	return DoubleType;
 }
 
+SemaComplexType *SemaBuiltin::ComplexType = nullptr;
+SemaComplexType * SemaBuiltin::getComplexType() {
+	if (ComplexType == nullptr) {
+		ComplexType = new SemaComplexType();
+	}
+	return ComplexType;
+}
+
 SemaType *SemaBuiltin::VoidType = nullptr;
 SemaType * SemaBuiltin::getVoidType() {
 	if (VoidType == nullptr) {
@@ -135,6 +143,7 @@ void SemaBuiltin::resetCodeGen() {
 	if (LongType) LongType->setCodeGen(nullptr);
 	if (FloatType) FloatType->setCodeGen(nullptr);
 	if (DoubleType) DoubleType->setCodeGen(nullptr);
+	if (ComplexType) ComplexType->setCodeGen(nullptr);
 	if (VoidType) VoidType->setCodeGen(nullptr);
 	if (StringType) StringType->setCodeGen(nullptr);
 	if (ErrorType) ErrorType->setCodeGen(nullptr);

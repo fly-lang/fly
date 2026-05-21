@@ -9,8 +9,11 @@
 
 #include "Frontend/Frontend.h"
 
+#include "AST/ASTAttribute.h"
 #include "AST/ASTBuilder.h"
+#include "AST/ASTClass.h"
 #include "AST/ASTFunction.h"
+#include "AST/ASTMethod.h"
 #include "AST/ASTModifier.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTName.h"
@@ -31,6 +34,7 @@
 
 #include <iostream>
 #include <llvm/ADT/Statistic.h>
+#include <llvm/ADT/StringSet.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
@@ -120,6 +124,97 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags) {
         OS << "\n\n";
     }
 
+    // Public struct declarations (must precede interface/class/function declarations)
+    for (const auto *Node : M->getNodes()) {
+        if (Node->getKind() != ASTKind::AST_CLASS) continue;
+        const auto *C = static_cast<const ASTClass *>(Node);
+        if (C->getClassKind() != ASTClassKind::STRUCT) continue;
+        bool isPublic = false;
+        for (auto *Mod : C->getModifiers())
+            if (Mod->getModifierKind() == ASTModifierKind::MOD_PUBLIC)
+                isPublic = true;
+        if (!isPublic) continue;
+        OS << "public struct " << C->getName() << " {\n";
+        for (const auto *Field : C->getNodes()) {
+            if (Field->getKind() != ASTKind::AST_VAR) continue;
+            const auto *V = static_cast<const ASTVar *>(Field);
+            OS << "    " << typeStr(V->getType()) << " " << V->getName() << "\n";
+        }
+        OS << "}\n\n";
+    }
+
+    // Public interface declarations (must precede class declarations that implement them)
+    for (const auto *Node : M->getNodes()) {
+        if (Node->getKind() != ASTKind::AST_CLASS) continue;
+        const auto *C = static_cast<const ASTClass *>(Node);
+        if (C->getClassKind() != ASTClassKind::INTERFACE) continue;
+        bool isPublic = false;
+        for (auto *Mod : C->getModifiers())
+            if (Mod->getModifierKind() == ASTModifierKind::MOD_PUBLIC)
+                isPublic = true;
+        if (!isPublic) continue;
+        OS << "public interface " << C->getName() << " {\n";
+        for (const auto *Child : C->getNodes()) {
+            // Methods in classes/interfaces use AST_FUNCTION kind (ASTMethod extends ASTFunction)
+            if (Child->getKind() != ASTKind::AST_FUNCTION) continue;
+            const auto *Meth = static_cast<const ASTMethod *>(Child);
+            OS << "    " << Meth->getName().str() << "(";
+            bool first = true;
+            for (const auto *P : Meth->getParams()) {
+                if (!first) OS << ", ";
+                OS << paramStr(P);
+                first = false;
+            }
+            OS << ")\n";
+        }
+        OS << "}\n\n";
+    }
+
+    // Public class declarations (concrete classes; must follow interfaces they implement)
+    for (const auto *Node : M->getNodes()) {
+        if (Node->getKind() != ASTKind::AST_CLASS) continue;
+        const auto *C = static_cast<const ASTClass *>(Node);
+        if (C->getClassKind() != ASTClassKind::CLASS) continue;
+        bool isPublic = false;
+        for (auto *Mod : C->getModifiers())
+            if (Mod->getModifierKind() == ASTModifierKind::MOD_PUBLIC)
+                isPublic = true;
+        if (!isPublic) continue;
+        OS << "public class " << C->getName();
+        bool firstBase = true;
+        for (const auto *Base : C->getBases()) {
+            if (firstBase) { OS << " : "; firstBase = false; }
+            else OS << ", ";
+            OS << typeStr(Base);
+        }
+        OS << " {\n";
+        for (const auto *Child : C->getNodes()) {
+            if (Child->getKind() == ASTKind::AST_VAR) {
+                const auto *V = static_cast<const ASTVar *>(Child);
+                OS << "    " << typeStr(V->getType()) << " " << V->getName() << "\n";
+            } else if (Child->getKind() == ASTKind::AST_FUNCTION) {
+                // Methods use AST_FUNCTION kind (ASTMethod extends ASTFunction)
+                const auto *Meth = static_cast<const ASTMethod *>(Child);
+                // Skip constructors (name matches class name)
+                if (Meth->getName() == C->getName()) continue;
+                bool methPublic = false;
+                for (auto *Mod : Meth->getModifiers())
+                    if (Mod->getModifierKind() == ASTModifierKind::MOD_PUBLIC)
+                        methPublic = true;
+                if (!methPublic) continue;
+                OS << "    public " << Meth->getName().str() << "(";
+                bool first = true;
+                for (const auto *P : Meth->getParams()) {
+                    if (!first) OS << ", ";
+                    OS << paramStr(P);
+                    first = false;
+                }
+                OS << ") {}\n";
+            }
+        }
+        OS << "}\n\n";
+    }
+
     // Public function signatures
     for (const auto *Node : M->getNodes()) {
         if (Node->getKind() != ASTKind::AST_FUNCTION) continue;
@@ -146,7 +241,7 @@ Frontend::~Frontend() {
 bool Frontend::Execute() {
     assert(!CI.getFrontendOptions().ShowHelp && "Client must handle '-help'!");
     assert(!CI.getFrontendOptions().ShowVersion && "Client must handle '-version'!");
-    FLY_DEBUG_START("Frontend", "Execute");
+    FLY_DEBUG_SCOPE("Frontend", "Execute");
 
     raw_ostream &OS = llvm::errs();
 
@@ -159,7 +254,7 @@ bool Frontend::Execute() {
 
     // Check if Input Files not empty
     if (CI.getFrontendOptions().getInputFiles().empty()) {
-        Diags.Report(SourceLocation(), diag::note_no_input_process);
+        Diags.Report(SourceLocation(), diag::note_fe_no_input_process);
         return false;
     }
 
@@ -296,7 +391,7 @@ bool Frontend::Execute() {
  * @return
  */
 void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
-    FLY_DEBUG_START_MSG("Frontend", "Execute", "Loading input file " + FileName);
+    FLY_DEBUG_SCOPE_MSG("Frontend", "Execute", "Loading input file " + FileName);
     InputFile *Input = new InputFile(Diags, CI.getSourceManager(), FileName);
     if (Input->getExt() == FileExt::FLY) {
         if (Input->Load()) {
@@ -336,7 +431,7 @@ void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
 }
 
 void Frontend::CreateFrontendTimer() {
-    FLY_DEBUG_START("Frontend", "CreateFrontendTimer");
+    FLY_DEBUG_SCOPE("Frontend", "CreateFrontendTimer");
     FrontendTimerGroup.reset(
             new llvm::TimerGroup("frontend", "Clang front-end time report"));
     FrontendTimer.reset(
@@ -350,22 +445,32 @@ const SmallVector<std::string, 4> &Frontend::getOutputFiles() const {
 
 #ifdef FLY_LIB_FLY_DIR
 void Frontend::LoadStdlibHeaders(ASTBuilder &Builder) {
+    // Build a set of filenames currently being compiled (e.g. "math.fly").
+    // A stdlib source whose file is already an input is skipped: the in-memory
+    // AST built from the full parse is authoritative.
+    llvm::StringSet<> CompilingNow;
+    for (const auto &F : CI.getFrontendOptions().getInputFiles())
+        CompilingNow.insert(llvm::sys::path::filename(F));
+
     std::error_code EC;
-    for (llvm::sys::fs::directory_iterator I(FLY_LIB_FLY_DIR, EC), E;
+    for (llvm::sys::fs::recursive_directory_iterator I(FLY_LIB_FLY_DIR, EC), E;
          I != E && !EC; I.increment(EC)) {
         const std::string &Path = I->path();
-        // Accept files ending in ".fly.h"
-        if (Path.size() > 6 && Path.substr(Path.size() - 6) == ".fly.h") {
-            InputFile *Input = new InputFile(Diags, CI.getSourceManager(), Path);
-            if (Input->Load()) {
-                Parser *P = new Parser(Input, CI.getSourceManager(), Diags, Builder);
-                ASTModule *M = P->ParseHeader();
-                if (M) ASTModules.push_back(M);
-                Parsers.push_back(P);
-                InputFiles.push_back(Input);
-            } else {
-                delete Input;
-            }
+        // Accept only .fly source files (not .fly.h generated headers)
+        llvm::StringRef Filename = llvm::sys::path::filename(Path);
+        if (!Filename.ends_with(".fly"))
+            continue;
+        if (CompilingNow.count(Filename))
+            continue;
+        InputFile *Input = new InputFile(Diags, CI.getSourceManager(), Path);
+        if (Input->Load()) {
+            Parser *P = new Parser(Input, CI.getSourceManager(), Diags, Builder);
+            ASTModule *M = P->ParseHeader();
+            if (M) ASTModules.push_back(M);
+            Parsers.push_back(P);
+            InputFiles.push_back(Input);
+        } else {
+            delete Input;
         }
     }
 }
@@ -381,7 +486,7 @@ std::vector<StringRef> Frontend::ExtractFiles(const std::string &LibFileName) {
 }
 
 bool Archiver::ExtractLib(FileManager &FileMgr) {
-    FLY_DEBUG_START("Archiver", "ExtractLib");
+    FLY_DEBUG_SCOPE("Archiver", "ExtractLib");
     ErrorOr<std::unique_ptr<MemoryBuffer>> Buf =
             MemoryBuffer::getFile(ArchiveName, -1, false);
     std::error_code EC = Buf.getError();

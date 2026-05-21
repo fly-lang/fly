@@ -56,4 +56,52 @@ extern int __ulock_wait(unsigned int op, void *addr,
 extern int __ulock_wake(unsigned int op, void *addr,
                         unsigned long long wake_value);
 
+/* ── Filesystem ─────────────────────────────────────────────────────────── */
+
+#define O_RDONLY   0x0000
+#define O_WRONLY   0x0001
+#define O_RDWR     0x0002
+#define O_CREAT    0x0200
+#define O_TRUNC    0x0400
+#define O_APPEND   0x0008
+
+extern int     open(const char *path, int flags, int mode);
+extern int     close(int fd);
+extern ssize_rt read(int fd, void *buf, size_rt count);
+extern long long lseek(int fd, long long offset, int whence);
+extern int     stat(const char *path, void *buf);
+extern int     lstat(const char *path, void *buf);
+extern int     mkdir(const char *path, unsigned int mode);
+extern int     rmdir(const char *path);
+extern int     unlink(const char *path);
+extern int     rename(const char *src, const char *dst);
+extern int     fsync(int fd);
+extern int     truncate(const char *path, long long length);
+extern int     chmod(const char *path, unsigned int mode);
+extern int     symlink(const char *target, const char *link);
+extern long    readlink(const char *path, char *buf, size_rt bufsz);
+extern long    getdirentries64(int fd, void *buf, size_rt bufcount, long long *basep);
+
+/* ── Time ───────────────────────────────────────────────────────────────── */
+
+typedef struct { long long tv_sec; long tv_nsec; } macos_timespec_t;
+
+#define CLOCK_REALTIME  0
+#define CLOCK_MONOTONIC 6
+
+extern int clock_gettime(int clk_id, macos_timespec_t *ts);
+extern int nanosleep(const macos_timespec_t *req, macos_timespec_t *rem);
+
+/* ── Environment ────────────────────────────────────────────────────────── */
+
+extern char *getcwd(char *buf, size_rt size);
+extern int   chdir(const char *path);
+extern char *getenv(const char *name);
+extern int   setenv(const char *name, const char *value, int overwrite);
+extern int   unsetenv(const char *name);
+extern char **environ;
+extern int   gethostname(char *name, size_rt len);
+extern size_rt strlen(const char *s);
+extern char  *strchr(const char *s, int c);
+
 #endif /* FLY_RUNTIME_MACOS_LIBSYSTEM_H */

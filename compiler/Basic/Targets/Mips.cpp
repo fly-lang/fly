@@ -131,26 +131,26 @@ bool MipsTargetInfo::validateTarget(DiagnosticsEngine &Diags) const {
 
   // -fpxx is valid only for the o32 ABI
   if (FPMode == FPXX && (ABI == "n32" || ABI == "n64")) {
-    Diags.Report(diag::err_unsupported_abi_for_opt) << "-mfpxx" << "o32";
+    Diags.Report(diag::err_target_unsupported_abi_for_opt) << "-mfpxx" << "o32";
     return false;
   }
 
   // -mfp32 and n32/n64 ABIs are incompatible
   if (FPMode != FP64 && FPMode != FPXX && !IsSingleFloat &&
       (ABI == "n32" || ABI == "n64")) {
-    Diags.Report(diag::err_opt_not_valid_with_opt) << "-mfpxx" << CPU;
+    Diags.Report(diag::err_target_opt_not_valid_with_opt) << "-mfpxx" << CPU;
     return false;
   }
   // Mips revision 6 and -mfp32 are incompatible
   if (FPMode != FP64 && FPMode != FPXX && (CPU == "mips32r6" ||
       CPU == "mips64r6")) {
-    Diags.Report(diag::err_opt_not_valid_with_opt) << "-mfp32" << CPU;
+    Diags.Report(diag::err_target_opt_not_valid_with_opt) << "-mfp32" << CPU;
     return false;
   }
   // Option -mfp64 permitted on Mips32 iff revision 2 or higher is present
   if (FPMode == FP64 && (CPU == "mips1" || CPU == "mips2" ||
       getISARev() < 2) && ABI == "o32") {
-    Diags.Report(diag::err_mips_fp64_req) << "-mfp64";
+    Diags.Report(diag::err_target_mips_fp64_req) << "-mfp64";
     return false;
   }
 

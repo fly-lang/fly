@@ -37,7 +37,7 @@ static void EmitUnknownDiagWarning(DiagnosticsEngine &Diags,
                                    diag::Flavor Flavor, StringRef Prefix,
                                    StringRef Opt) {
   StringRef Suggestion = DiagnosticIDs::getNearestOption(Flavor, Opt);
-  Diags.Report(diag::warn_unknown_diag_option)
+  Diags.Report(diag::warn_basic_unknown_diag_option)
       << (Flavor == diag::Flavor::WarningOrError ? 0 : 1)
       << (Prefix.str() += std::string(Opt)) << !Suggestion.empty()
       << (Prefix.str() += std::string(Suggestion));
@@ -138,7 +138,7 @@ void fly::ProcessWarningOptions(DiagnosticsEngine &Diags,
         if (Opt.size() > 5) {  // Specifier must be present.
           if ((Opt[5] != '=' && Opt[5] != '-') || Opt.size() == 6) {
             if (Report)
-              Diags.Report(diag::warn_unknown_warning_specifier)
+              Diags.Report(diag::warn_basic_unknown_warning_specifier)
                 << "-Werror" << ("-W" + OrigOpt.str());
             continue;
           }
@@ -166,7 +166,7 @@ void fly::ProcessWarningOptions(DiagnosticsEngine &Diags,
         if (Opt.size() != 12) {
           if ((Opt[12] != '=' && Opt[12] != '-') || Opt.size() == 13) {
             if (Report)
-              Diags.Report(diag::warn_unknown_warning_specifier)
+              Diags.Report(diag::warn_basic_unknown_warning_specifier)
                 << "-Wfatal-errors" << ("-W" + OrigOpt.str());
             continue;
           }

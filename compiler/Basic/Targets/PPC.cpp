@@ -90,7 +90,7 @@ static bool ppcUserFeaturesCheck(DiagnosticsEngine &Diags,
 
   auto FindVSXSubfeature = [&](StringRef Feature, StringRef Option) {
     if (llvm::find(FeaturesVec, Feature) != FeaturesVec.end()) {
-      Diags.Report(diag::err_opt_not_valid_with_opt) << Option << "-mno-vsx";
+      Diags.Report(diag::err_target_opt_not_valid_with_opt) << Option << "-mno-vsx";
       return true;
     }
     return false;
@@ -190,7 +190,7 @@ bool PPCTargetInfo::initFeatureMap(
   if (!(ArchDefs & ArchDefinePwr9) && (ArchDefs & ArchDefinePpcgr) &&
       llvm::find(FeaturesVec, "+float128") != FeaturesVec.end()) {
     // We have __float128 on PPC but not power 9 and above.
-    Diags.Report(diag::err_opt_not_valid_with_opt) << "-mfloat128" << CPU;
+    Diags.Report(diag::err_target_opt_not_valid_with_opt) << "-mfloat128" << CPU;
     return false;
   }
 

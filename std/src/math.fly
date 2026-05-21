@@ -1,1 +1,429 @@
 namespace fly.math
+
+import fly.llvm
+import fly.runtime
+
+public struct fly_rng {
+    ulong s0
+    ulong s1
+    ulong s2
+    ulong s3
+}
+
+// ── Base ──────────────────────────────────────────────────────────────────────
+
+public absI(const long x, long out) {
+    if x < 0 { out = 0 - x } else { out = x }
+}
+
+public absF(const double x, double out) {
+    fly.llvm.fabs(x, out)
+}
+
+public sign(const double x, int out) {
+    if x > 0.0 {
+        out = 1
+    } elsif x < 0.0 {
+        out = 0 - 1
+    } else {
+        out = 0
+    }
+}
+
+public minI(const long a, const long b, long out) {
+    if a < b { out = a } else { out = b }
+}
+
+public minF(const double a, const double b, double out) {
+    fly.llvm.fmin(a, b, out)
+}
+
+public maxI(const long a, const long b, long out) {
+    if a > b { out = a } else { out = b }
+}
+
+public maxF(const double a, const double b, double out) {
+    fly.llvm.fmax(a, b, out)
+}
+
+public clampI(const long x, const long lo, const long hi, long out) {
+    long v = x
+    if v < lo { v = lo }
+    if v > hi { v = hi }
+    out = v
+}
+
+public clampF(const double x, const double lo, const double hi, double out) {
+    double v = 0.0
+    fly.llvm.fmax(x, lo, v)
+    fly.llvm.fmin(v, hi, out)
+}
+
+public gcd(const long a, const long b, long out) {
+    long u = a
+    long v = b
+    if u < 0 { u = 0 - u }
+    if v < 0 { v = 0 - v }
+    while v != 0 {
+        long t = v
+        v = u % v
+        u = t
+    }
+    out = u
+}
+
+public lcm(const long a, const long b, long out) {
+    long g = 0
+    fly.math.gcd(a, b, g)
+    if g == 0 {
+        out = 0
+        return
+    }
+    long av = a
+    long bv = b
+    if av < 0 { av = 0 - av }
+    if bv < 0 { bv = 0 - bv }
+    out = (av / g) * bv
+}
+
+public divmod(const long a, const long b, long out_q, long out_r) {
+    out_q = a / b
+    out_r = a % b
+}
+
+// ── Trigonometry ─────────────────────────────────────────────────────────────
+
+public sin(const double x, double out)  { fly.llvm.sin(x, out) }
+public cos(const double x, double out)  { fly.llvm.cos(x, out) }
+public tan(const double x, double out)  { fly.llvm.tan(x, out) }
+public asin(const double x, double out) { fly.runtime.asin(x, out) }
+public acos(const double x, double out) { fly.runtime.acos(x, out) }
+public atan(const double x, double out) { fly.runtime.atan(x, out) }
+
+public atan2(const double y, const double x, double out) {
+    fly.runtime.atan2(y, x, out)
+}
+
+public sinh(const double x, double out)  { fly.runtime.sinh(x, out) }
+public cosh(const double x, double out)  { fly.runtime.cosh(x, out) }
+public tanh(const double x, double out)  { fly.runtime.tanh(x, out) }
+
+public toRadians(const double x, double out) {
+    out = x * 0.017453292519943295
+}
+
+public toDegrees(const double x, double out) {
+    out = x * 57.29577951308232
+}
+
+public hypot(const double a, const double b, double out) {
+    double sq = a * a + b * b
+    fly.llvm.sqrt(sq, out)
+}
+
+// ── Exponential & Logarithms ─────────────────────────────────────────────────
+
+public sqrt(const double x, double out)  { fly.llvm.sqrt(x, out) }
+
+public cbrt(const double x, double out) {
+    double v = 0.0
+    fly.llvm.fabs(x, v)
+    double third = 0.3333333333333333
+    fly.llvm.pow(v, third, out)
+    if x < 0.0 { out = 0.0 - out }
+}
+
+public pow(const double base, const double exp, double out) {
+    fly.llvm.pow(base, exp, out)
+}
+
+public exp(const double x, double out)   { fly.llvm.exp(x, out) }
+public exp2(const double x, double out)  { fly.llvm.exp2(x, out) }
+public log(const double x, double out)   { fly.llvm.log(x, out) }
+public log2(const double x, double out)  { fly.llvm.log2(x, out) }
+public log10(const double x, double out) { fly.llvm.log10(x, out) }
+
+public logN(const double x, const double n, double out) {
+    double lx = 0.0
+    double ln = 0.0
+    fly.llvm.log(x, lx)
+    fly.llvm.log(n, ln)
+    out = lx / ln
+}
+
+// ── Rounding ─────────────────────────────────────────────────────────────────
+
+public floor(const double x, double out) { fly.llvm.floor(x, out) }
+public ceil(const double x, double out)  { fly.llvm.ceil(x, out) }
+public round(const double x, double out) { fly.llvm.round(x, out) }
+public trunc(const double x, double out) { fly.llvm.trunc(x, out) }
+
+public roundTo(const double x, const int n, double out) {
+    double factor = 1.0
+    int k = n
+    if k >= 0 {
+        int i = 0
+        while i < k {
+            factor = factor * 10.0
+            i = i + 1
+        }
+        double r = 0.0
+        fly.llvm.round(x * factor, r)
+        out = r / factor
+    } else {
+        while k < 0 {
+            factor = factor * 10.0
+            k = k + 1
+        }
+        double r = 0.0
+        fly.llvm.round(x / factor, r)
+        out = r * factor
+    }
+}
+
+// ── Classification ────────────────────────────────────────────────────────────
+
+public isNaN(const double x, bool out) {
+    bool a = x >= 0.0
+    bool b = x < 0.0
+    out = !a && !b
+}
+
+public isInf(const double x, bool out) {
+    bool s = x == x + x
+    bool n = x != 0.0
+    out = s && n
+}
+
+public isFinite(const double x, bool out) {
+    double d = x - x
+    out = d == 0.0
+}
+
+public approxEqual(const double a, const double b, const double epsilon, bool out) {
+    double diff = a - b
+    double adiff = 0.0
+    fly.llvm.fabs(diff, adiff)
+    out = adiff <= epsilon
+}
+
+public copySign(const double x, const double y, double out) {
+    fly.llvm.copysign(x, y, out)
+}
+
+// ── Bitwise ──────────────────────────────────────────────────────────────────
+
+public isPow2(const long n, bool out) {
+    out = n > 0 && (n & (n - 1)) == 0
+}
+
+public nextPow2(const long n, long out) {
+    long v = n
+    if v <= 1 {
+        out = 1
+        return
+    }
+    v = v - 1
+    v = v | (v >> 1)
+    v = v | (v >> 2)
+    v = v | (v >> 4)
+    v = v | (v >> 8)
+    v = v | (v >> 16)
+    v = v | (v >> 32)
+    out = v + 1
+}
+
+public popcount(const long n, int out) {
+    fly.llvm.ctpop(n, out)
+}
+
+public leadingZeros(const long n, int out) {
+    if n == 0 {
+        out = 64
+        return
+    }
+    fly.llvm.ctlz(n, out)
+}
+
+public trailingZeros(const long n, int out) {
+    if n == 0 {
+        out = 64
+        return
+    }
+    fly.llvm.cttz(n, out)
+}
+
+// ── Random (xoshiro256**) ─────────────────────────────────────────────────────
+
+private rngRotl(const ulong x, const int k, ulong out) {
+    ulong kl = k
+    ulong r = 64 - kl
+    out = (x << kl) | (x >> r)
+}
+
+public rngNext(fly_rng rng, ulong out) {
+    ulong r = 0
+    fly.math.rngRotl(rng.s1 * 5, 7, r)
+    out = r * 9
+    ulong t = rng.s1 << 17
+    rng.s2 = rng.s2 ^ rng.s0
+    rng.s3 = rng.s3 ^ rng.s1
+    rng.s1 = rng.s1 ^ rng.s2
+    rng.s0 = rng.s0 ^ rng.s3
+    rng.s2 = rng.s2 ^ t
+    ulong s3r = 0
+    fly.math.rngRotl(rng.s3, 45, s3r)
+    rng.s3 = s3r
+}
+
+private splitmix(const ulong s, ulong out) {
+    ulong z = s + 0x9e3779b97f4a7c15
+    z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9
+    z = (z ^ (z >> 27)) * 0x94d049bb133111eb
+    out = z ^ (z >> 31)
+}
+
+public randSeed(fly_rng rng, const ulong seed) {
+    ulong s = seed
+    ulong z = 0
+    s = s + 0x9e3779b97f4a7c15
+    fly.math.splitmix(s, z)
+    rng.s0 = z
+    s = s + 0x9e3779b97f4a7c15
+    fly.math.splitmix(s, z)
+    rng.s1 = z
+    s = s + 0x9e3779b97f4a7c15
+    fly.math.splitmix(s, z)
+    rng.s2 = z
+    s = s + 0x9e3779b97f4a7c15
+    fly.math.splitmix(s, z)
+    rng.s3 = z
+}
+
+public randFloat(fly_rng rng, double out) {
+    ulong r = 0
+    fly.math.rngNext(rng, r)
+    ulong m = r >> 11
+    double d = m
+    out = d * 1.1102230246251565e-16
+}
+
+public randInt(fly_rng rng, const long a, const long b, long out) {
+    long lo = a
+    long hi = b
+    if lo > hi {
+        out = lo
+        return
+    }
+    long range = hi - lo + 1
+    long r = 0
+    fly.math.rngNext(rng, r)
+    if r < 0 { r = 0 - r }
+    if range == 0 {
+        out = r
+    } else {
+        out = lo + (r % range)
+    }
+}
+
+public randNormal(fly_rng rng, const double mu, const double sigma, double out) {
+    double u1 = 0.0
+    double u2 = 0.0
+    fly.math.randFloat(rng, u1)
+    fly.math.randFloat(rng, u2)
+    if u1 <= 0.0 { u1 = 2.2250738585072014e-308 }
+    double lu1 = 0.0
+    fly.llvm.log(u1, lu1)
+    double sq = 0.0
+    fly.llvm.sqrt(0.0 - 2.0 * lu1, sq)
+    double mag = sigma * sq
+    double cu2 = 0.0
+    fly.llvm.cos(2.0 * 3.14159265358979323846 * u2, cu2)
+    out = mag * cu2 + mu
+}
+
+// ── Special Functions ─────────────────────────────────────────────────────────
+
+public fma(const double a, const double b, const double c, double out) {
+    fly.llvm.fma(a, b, c, out)
+}
+
+public lerp(const double a, const double b, const double t, double out) {
+    out = a * (1.0 - t) + b * t
+}
+
+public saturate(const double x, double out) {
+    if x < 0.0 {
+        out = 0.0
+    } elsif x > 1.0 {
+        out = 1.0
+    } else {
+        out = x
+    }
+}
+
+public factorialI(const int n, long out) {
+    int k = n
+    long r = 1
+    int i = 2
+    while i <= k {
+        r = r * i
+        i = i + 1
+    }
+    out = r
+}
+
+public factorialF(const int n, double out) {
+    int k = n
+    double r = 1.0
+    int i = 2
+    while i <= k {
+        r = r * i
+        i = i + 1
+    }
+    out = r
+}
+
+public comb(const long n, const long k, long out) {
+    long nv = n
+    long kv = k
+    if kv < 0 {
+        out = 0
+        return
+    }
+    if kv > nv {
+        out = 0
+        return
+    }
+    if kv > nv - kv { kv = nv - kv }
+    long r = 1
+    long i = 0
+    while i < kv {
+        r = r * (nv - i) / (i + 1)
+        i = i + 1
+    }
+    out = r
+}
+
+public perm(const long n, const long k, long out) {
+    long nv = n
+    long kv = k
+    if kv < 0 {
+        out = 0
+        return
+    }
+    if kv > nv {
+        out = 0
+        return
+    }
+    long r = 1
+    long i = 0
+    while i < kv {
+        r = r * (nv - i)
+        i = i + 1
+    }
+    out = r
+}
+
+public erf(const double x, double out)   { fly.runtime.erf(x, out) }
+public gamma(const double x, double out) { fly.runtime.tgamma(x, out) }

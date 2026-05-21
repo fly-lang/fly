@@ -117,6 +117,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     app.add_option("-o",            OutputFile,   "Write output to <file>");
     app.add_flag("--lib",           OutputLib,    "Produce a library archive (.a/.lib)");
     app.add_option("--log-file",    LogFile,      "Log diagnostics to <file>");
+    app.add_option("--log-format",  LogFormat,    "Log format: txt (default) or json")->check(CLI::IsMember({"txt", "json"}));
     app.add_option("--mcmodel",     McModel,      "Set memory code model");
     app.add_option("--mthread-model", MthreadModel, "Set memory thread model");
     app.add_option("--target",      Target,       "Generate code for the given target");
@@ -152,7 +153,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
 
     if (debugFlag) {
         DebugEnabled = true;
-        FLY_DEBUG_START_MSG("Driver", "Driver", "Set -debug");
+        FLY_DEBUG_MSG("Set -debug");
     }
 
     if (showVersion) {
@@ -173,7 +174,7 @@ Driver::~Driver() {
 }
 
 CompilerInstance &Driver::BuildCompilerInstance() {
-    FLY_DEBUG_START("Driver", "BuildCompilerInstance");
+    FLY_DEBUG_SCOPE("Driver", "BuildCompilerInstance");
     llvm::PrettyStackTraceString CrashInfo("Building compiler instance");
 
     IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = BuildDiagnosticOptions();
@@ -200,7 +201,7 @@ CompilerInstance &Driver::BuildCompilerInstance() {
 
 IntrusiveRefCntPtr<DiagnosticsEngine>
 Driver::CreateDiagnostics(IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts) {
-    FLY_DEBUG_START("Driver", "CreateDiagnostics");
+    FLY_DEBUG_SCOPE("Driver", "CreateDiagnostics");
     TextDiagnosticPrinter *DiagClient = new TextDiagnosticPrinter(llvm::errs(), &*DiagOpts);
     StringRef ExeBasename(llvm::sys::path::stem(Path));
     DiagClient->setPrefix(std::string(ExeBasename));
@@ -226,6 +227,30 @@ Driver::CreateDiagnostics(IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts) {
         }
         auto Logger = std::make_unique<LogDiagnosticPrinter>(
             *OS, DiagOpts.get(), std::move(StreamOwner));
+        if (!OutputFile.empty())
+            Logger->setMainFilename(OutputFile);
+        if (LogFormat == "json")
+            Logger->setLogFormat(LogDiagnosticPrinter::LogFormat::Json);
+        {
+            LogDiagnosticPrinter::InvocationInfo Info;
+            Info.InputFiles   = InputFiles;
+            Info.Target       = Target;
+            Info.TargetCpu    = TargetCpu;
+            Info.McModel      = McModel;
+            Info.MthreadModel = MthreadModel;
+            Info.WorkingDir   = WorkingDir;
+            Info.OutputLib    = OutputLib;
+            Info.Verbose      = Verbose;
+            Info.NoWarnings   = NoWarnings;
+            Info.EmitLL       = EmitLL;
+            Info.EmitBC       = EmitBC;
+            Info.EmitAS       = EmitAS;
+            Info.NoOutput     = NoOutput;
+            Info.HeaderGen    = HeaderGen;
+            Info.PrintStats   = PrintStats;
+            Info.FtimeReport  = FtimeReport;
+            Logger->setInvocation(Info);
+        }
         if (Diags->ownsClient())
             Diags->setClient(new ChainedDiagnosticConsumer(Diags->takeClient(), std::move(Logger)));
         else
@@ -237,7 +262,7 @@ Driver::CreateDiagnostics(IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts) {
 }
 
 IntrusiveRefCntPtr<DiagnosticOptions> Driver::BuildDiagnosticOptions() {
-    FLY_DEBUG_START("Driver", "BuildDiagnosticOptions");
+    FLY_DEBUG_SCOPE("Driver", "BuildDiagnosticOptions");
     IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts(new DiagnosticOptions);
     DiagOpts->DiagnosticLogFile = LogFile;
     DiagOpts->IgnoreWarnings    = NoWarnings;
@@ -248,7 +273,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
                           std::shared_ptr<TargetOptions> &TargetOpts,
                           FrontendOptions *FrontendOpts,
                           CodeGenOptions  *CodeGenOpts) {
-    FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Parsing command line arguments");
+    FLY_DEBUG_SCOPE_MSG("Driver", "BuildOptions", "Parsing command line arguments");
     llvm::PrettyStackTraceString CrashInfo("Command line argument parsing");
 
     if (!doExecute) return;
@@ -260,13 +285,13 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         return;
     }
     for (const auto &F : InputFiles) {
-        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set input=" << F);
+        FLY_DEBUG_MSG("Set input=" << F);
         FrontendOpts->addInputFile(F.c_str());
     }
 
     // Verbose
     if (Verbose) {
-        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set -verbose");
+        FLY_DEBUG_MSG("Set -verbose");
         FrontendOpts->Verbose = true;
     }
 
@@ -277,47 +302,47 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
             doExecute = false;
             return;
         }
-        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set -o=" << OutputFile);
+        FLY_DEBUG_MSG("Set -o=" << OutputFile);
         FrontendOpts->setOutputFile(OutputFile);
     }
 
     // Working directory
     if (!WorkingDir.empty()) {
-        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set -working-dir=" << WorkingDir);
+        FLY_DEBUG_MSG("Set -working-dir=" << WorkingDir);
         FileSystemOpts.WorkingDir = WorkingDir;
     }
 
     // Statistics
     if (PrintStats) {
-        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set -print-stats");
+        FLY_DEBUG_MSG("Set -print-stats");
         FrontendOpts->ShowStats = true;
     }
     if (!StatsFile.empty()) {
         FrontendOpts->StatsFile = StatsFile;
-        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set -stats-file=" << StatsFile);
+        FLY_DEBUG_MSG("Set -stats-file=" << StatsFile);
     }
 
     // Timers
     if (FtimeReport) {
-        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set -ftime-report");
+        FLY_DEBUG_MSG("Set -ftime-report");
         FrontendOpts->ShowTimers = true;
     }
 
     // Backend emit action
     if (EmitLL) {
-        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set -emit-ll");
+        FLY_DEBUG_MSG("Set -emit-ll");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitLL;
         FrontendOpts->setOutputFile("");
     } else if (EmitBC) {
-        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set -emit-bc");
+        FLY_DEBUG_MSG("Set -emit-bc");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitBC;
         FrontendOpts->setOutputFile("");
     } else if (EmitAS) {
-        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set -emit-as");
+        FLY_DEBUG_MSG("Set -emit-as");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitAssembly;
         FrontendOpts->setOutputFile("");
     } else if (NoOutput) {
-        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set -no-output");
+        FLY_DEBUG_MSG("Set -no-output");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitNothing;
         FrontendOpts->setOutputFile("");
     } else {
@@ -338,7 +363,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     // Target triple
     if (!Target.empty()) {
         TargetOpts->Triple = Target;
-        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set --target=" << Target);
+        FLY_DEBUG_MSG("Set --target=" << Target);
     } else {
         TargetOpts->Triple = llvm::Triple::normalize(llvm::sys::getProcessTriple());
     }
@@ -346,7 +371,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     // Code model
     if (!McModel.empty()) {
         TargetOpts->CodeModel = McModel;
-        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set -mcmodel=" << McModel);
+        FLY_DEBUG_MSG("Set -mcmodel=" << McModel);
     } else {
         TargetOpts->CodeModel = "default";
     }
@@ -354,7 +379,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     // CPU
     if (!TargetCpu.empty()) {
         TargetOpts->CPU = TargetCpu;
-        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set --target-cpu=" << TargetCpu);
+        FLY_DEBUG_MSG("Set --target-cpu=" << TargetCpu);
     }
 
     // CodeGen options
@@ -362,7 +387,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
 
     if (!MthreadModel.empty()) {
         CodeGenOpts->ThreadModel = MthreadModel;
-        FLY_DEBUG_START_MSG("Driver", "BuildOptions", "Set -mthread-model=" << MthreadModel);
+        FLY_DEBUG_MSG("Set -mthread-model=" << MthreadModel);
     } else {
         CodeGenOpts->ThreadModel = "posix";
     }
@@ -378,7 +403,7 @@ void Driver::printVersion(bool full) {
 }
 
 bool Driver::Execute() {
-    FLY_DEBUG_START("Driver", "Execute");
+    FLY_DEBUG_SCOPE("Driver", "Execute");
     bool Success = true;
 
     if (doExecute) {
@@ -397,7 +422,7 @@ bool Driver::Execute() {
                 for (auto &Output : Front.getOutputFiles()) {
                     if (llvm::StringRef(Output).ends_with(".fly.h"))
                         continue;
-                    FLY_DEBUG_START_MSG("Driver", "Execute", "Delete Output File " << Output);
+                    FLY_DEBUG_MSG("Delete Output File " << Output);
                     const std::error_code &EC = llvm::sys::fs::remove(Output, false);
                     if (EC) {
                         CI->getDiagnostics().Report(diag::err_drv_archive) << EC.message();
@@ -407,6 +432,5 @@ bool Driver::Execute() {
             }
         }
     }
-    FLY_DEBUG_END("Driver", "Execute");
     return Success;
 }

@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "CodeGen/CodeGenFunction.h"
+#include "CodeGen/CodeGenHelper.h"
 
 #include "AST/ASTFunction.h"
 #include "AST/ASTModule.h"
@@ -22,7 +23,9 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Function.h"
 
+#include <Sema/SemaBuiltin.h>
 #include <Sema/SemaError.h>
+#include <Sema/SemaParam.h>
 #include <Sema/SemaType.h>
 
 using namespace fly;
@@ -36,6 +39,10 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
     // Generate Params Types
     if (isMain) {
         RetType = CodeGen::Int32Ty;
+        // Always expose argc/argv so env_init() can store them for fly.os.env*
+        ParamTypes.push_back(CodeGen::Int32Ty);                           // int argc
+        ParamTypes.push_back(llvm::PointerType::getUnqual(CGM->LLVMCtx)); // char** argv
+        // Do NOT call GenParamTypes — the C entry point uses argc/argv, not the Fly param type
     } else {
         GenReturnType();
 
@@ -48,8 +55,8 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
 
         // Add ErrorHandler as first param
         ParamTypes.push_back(CodeGen::ErrorPtrTy);
+        GenParamTypes(CGM, ParamTypes, Sema);
     }
-    GenParamTypes(CGM, ParamTypes, Sema);
 
     // Validate all types before creating function
     if (!RetType) {
@@ -66,7 +73,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
     // Set Name: main() is the C entry point and must not be mangled
-	std::string Name = isMain ? "main" : Mangle(Sema);
+	std::string Name = isMain ? "main" : CodeGenHelper::Mangle(Sema);
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
 
     // Set Linkage
@@ -80,7 +87,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
  * Alloca Local Vars
  */
 void CodeGenFunction::GenBody() {
-    FLY_DEBUG_START("CodeGenFunction", "GenBody");
+    FLY_DEBUG_SCOPE("CodeGenFunction", "GenBody");
     setInsertPoint();
 
 	// Store in Function Error Handler
@@ -92,9 +99,26 @@ void CodeGenFunction::GenBody() {
 		// Alloca Error Handler
 		Sema->getErrorHandler()->accept(*CGM);
 
-		// Store Default No Error in Error Handler
+		// For main() the error context has no caller-provided pointer, so allocate
+		// the error struct locally and store its address into the handler alloca.
 		CodeGenError *CGE = Sema->getErrorHandler()->getCodeGen();
+		llvm::AllocaInst *ErrStruct = CGM->Builder->CreateAlloca(CodeGen::ErrorTy, nullptr, "main_err");
+		CGM->Builder->CreateStore(ErrStruct, CGE->getPointer());
+
+		// Store Default No Error in Error Handler
 		CGE->Init(); // Initialize the error handler struct with default values (0 for int, null for pointer)
+
+		// Call env_init(argc, argv) so fly.os.env* functions can access command-line args
+		{
+			llvm::Value *Argc = Fn->getArg(0);
+			llvm::Value *Argv = Fn->getArg(1);
+			llvm::FunctionCallee EnvInitFn = CGM->Module->getOrInsertFunction(
+				"env_init",
+				llvm::FunctionType::get(CodeGen::VoidTy,
+					{CodeGen::Int32Ty, llvm::PointerType::getUnqual(CGM->LLVMCtx)}, false));
+			CGM->Builder->CreateCall(EnvInitFn, {Argc, Argv});
+		}
+
 	} else {
 
 		// Alloca Function Error Handler
@@ -137,3 +161,4 @@ bool CodeGenFunction::isMainFunction(SemaFunction *Sema) {
     // All functions are implicitly void, so just check the name
     return Sema->getAST().getName() == StringRef("main");
 }
+

@@ -41,8 +41,6 @@ namespace {
                     llvm::MemoryBuffer::getMemBuffer(Source);
             llvm::MemoryBuffer *b = Buf.get();
             const FileID &FID = SourceMgr.createFileID(std::move(Buf));
-            SourceMgr.setMainFileID(FID);
-
 
             // Create a lexer starting at the beginning of this token.
             Lexer TheLexer(FID, b, SourceMgr);
@@ -104,7 +102,6 @@ namespace {
                          "()"
                          "{} "
                          ". "
-                         "... "
                          "& "
                          "&& "
                          "&= "
@@ -152,7 +149,6 @@ namespace {
         exps.push_back({"{", tok::l_brace});
         exps.push_back({"}", tok::r_brace});
         exps.push_back({".", tok::period});
-        exps.push_back({"...", tok::ellipsis});
         exps.push_back({"&", tok::amp});
         exps.push_back({"&&", tok::ampamp});
         exps.push_back({"&=", tok::ampequal});
