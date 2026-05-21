@@ -56,4 +56,24 @@ target_compile_definitions(fly_test PRIVATE
 )
 
 include(GoogleTest)
-gtest_discover_tests(fly_test)
+
+# Integration tests compile/link real Fly source files in the working directory.
+# Give them a shared resource lock so they don't race each other when ctest runs
+# with -j N.  Unit tests (CodeGen, Parser, …) do no disk I/O and can run freely
+# in parallel.
+set(_fly_integration_filter
+    "AppTest.*:DriverTest.*:ImportLibTest.*:ImportTest.*")
+
+# GTest negative-filter syntax: positive*-neg1:neg2:neg3  (single '-' starts the
+# negative section; subsequent patterns are ':'-separated without extra '-').
+set(_fly_unit_filter
+    "*:-AppTest.*:DriverTest.*:ImportLibTest.*:ImportTest.*")
+
+gtest_discover_tests(fly_test
+    TEST_FILTER  "${_fly_integration_filter}"
+    PROPERTIES   RESOURCE_LOCK "fly_workspace"
+)
+
+gtest_discover_tests(fly_test
+    TEST_FILTER  "${_fly_unit_filter}"
+)

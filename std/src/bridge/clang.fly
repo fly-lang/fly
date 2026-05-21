@@ -16,8 +16,8 @@ public struct Args {}
 public class CLang {
     string lib
 
-    public CLang(string lib) {
-        this.lib = lib
+    public CLang(string libPath) {
+        this.lib = libPath
     }
 
     public call(string sym, const Args args) {}

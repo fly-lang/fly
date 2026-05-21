@@ -83,7 +83,7 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/test/str_test.fly
             ${FLY_LIB_OUTPUT}
             -o ${CMAKE_BINARY_DIR}/str_test_fly
-    DEPENDS fly fly_lib ${CMAKE_CURRENT_SOURCE_DIR}/test/str_test.fly
+    DEPENDS fly fly_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/str_test.fly
     COMMENT "Compiling str_test.fly"
     VERBATIM
 )
@@ -96,7 +96,7 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/test/math_test.fly
             ${FLY_LIB_OUTPUT}
             -o ${CMAKE_BINARY_DIR}/math_test_fly
-    DEPENDS fly fly_lib ${CMAKE_CURRENT_SOURCE_DIR}/test/math_test.fly
+    DEPENDS fly fly_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/math_test.fly
     COMMENT "Compiling math_test.fly"
     VERBATIM
 )
@@ -109,7 +109,7 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/test/os_env_test.fly
             ${FLY_LIB_OUTPUT}
             -o ${CMAKE_BINARY_DIR}/os_env_test_fly
-    DEPENDS fly fly_lib ${CMAKE_CURRENT_SOURCE_DIR}/test/os_env_test.fly
+    DEPENDS fly fly_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/os_env_test.fly
     COMMENT "Compiling os_env_test.fly"
     VERBATIM
 )
@@ -122,7 +122,7 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/test/os_path_test.fly
             ${FLY_LIB_OUTPUT}
             -o ${CMAKE_BINARY_DIR}/os_path_test_fly
-    DEPENDS fly fly_lib ${CMAKE_CURRENT_SOURCE_DIR}/test/os_path_test.fly
+    DEPENDS fly fly_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/os_path_test.fly
     COMMENT "Compiling os_path_test.fly"
     VERBATIM
 )
@@ -135,7 +135,7 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/test/os_fs_test.fly
             ${FLY_LIB_OUTPUT}
             -o ${CMAKE_BINARY_DIR}/os_fs_test_fly
-    DEPENDS fly fly_lib ${CMAKE_CURRENT_SOURCE_DIR}/test/os_fs_test.fly
+    DEPENDS fly fly_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/os_fs_test.fly
     COMMENT "Compiling os_fs_test.fly"
     VERBATIM
 )
@@ -148,7 +148,7 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/test/os_time_test.fly
             ${FLY_LIB_OUTPUT}
             -o ${CMAKE_BINARY_DIR}/os_time_test_fly
-    DEPENDS fly fly_lib ${CMAKE_CURRENT_SOURCE_DIR}/test/os_time_test.fly
+    DEPENDS fly fly_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/os_time_test.fly
     COMMENT "Compiling os_time_test.fly"
     VERBATIM
 )
@@ -161,7 +161,7 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/test/os_io_test.fly
             ${FLY_LIB_OUTPUT}
             -o ${CMAKE_BINARY_DIR}/os_io_test_fly
-    DEPENDS fly fly_lib ${CMAKE_CURRENT_SOURCE_DIR}/test/os_io_test.fly
+    DEPENDS fly fly_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/os_io_test.fly
     COMMENT "Compiling os_io_test.fly"
     VERBATIM
 )
