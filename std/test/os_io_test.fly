@@ -10,7 +10,8 @@ main() {
     bool b = false
 
     // Indirect test: fly.os.io.Reader/Writer are exercised by fly.os.fs read/write.
-    string test_file = "/tmp/fly_io_test.txt"
+    // Use CWD-relative paths so the test works on every platform (Windows has no /tmp).
+    string test_file = "fly_io_test.txt"
     fly.os.fs.writeStr(test_file, "io test data", 420)
     fly.os.fs.readStr(test_file, s)
     fly.assert.assertStr(s, "io test data", 1)
@@ -35,7 +36,7 @@ main() {
 
     // Test 6: FileWriter.write correctly reads this->fd (class-method attribute access fix).
     // Direct method dispatch bypasses writeString/interface coercion to isolate the fix.
-    string t6_path = "/tmp/fly_io_t6.txt"
+    string t6_path = "fly_io_t6.txt"
     File t6_file = new File()
     fly.os.fs.create(t6_path, t6_file)
     FileWriter fw6 = new FileWriter()
