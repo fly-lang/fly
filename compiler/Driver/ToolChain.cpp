@@ -1358,14 +1358,18 @@ std::string ToolChain::GetRuntimeLibPath() const {
     const llvm::StringRef BaseDir(FLY_RUNTIME_LIB_DIR);
 
     // Candidates: (subdir, filename)
+    // Windows MSVC places the lib in a build-config subdirectory.
+    // Cover all four standard configs so any CMAKE_BUILD_TYPE works.
     const std::pair<llvm::StringRef, llvm::StringRef> Candidates[] = {
-        // Windows MSVC: lib is in a Release/ or Debug/ subdirectory
-        {"Release", "FlyRuntime.lib"},
-        {"Debug",   "FlyRuntime.lib"},
-        {"",        "FlyRuntime.lib"},
+        {"RelWithDebInfo", "FlyRuntime.lib"},
+        {"Release",        "FlyRuntime.lib"},
+        {"Debug",          "FlyRuntime.lib"},
+        {"MinSizeRel",     "FlyRuntime.lib"},
+        {"",               "FlyRuntime.lib"},
         // Unix / installed layout
-        {"",        "libFlyRuntime.a"},
-        {"Release", "libFlyRuntime.a"},
+        {"",               "libFlyRuntime.a"},
+        {"RelWithDebInfo", "libFlyRuntime.a"},
+        {"Release",        "libFlyRuntime.a"},
     };
 
     for (auto &[Sub, Name] : Candidates) {
