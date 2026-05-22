@@ -1,7 +1,9 @@
 import fly.os.io
-import fly.os.io.*
+import fly.os.io.FileWriter
+import fly.os.io.FileReader
+import fly.os.io.Buf
+import fly.os.fs.File
 import fly.os.fs
-import fly.os.fs.*
 import fly.assert
 import fly.llvm
 
@@ -9,43 +11,43 @@ main() {
     string s = ""
     bool b = false
 
-    // Indirect test: fly.os.io.Reader/Writer are exercised by fly.os.fs read/write.
+    // Indirect test: io.Reader/Writer are exercised by fly.os.fs read/write.
     // Use CWD-relative paths so the test works on every platform (Windows has no /tmp).
     string test_file = "fly_io_test.txt"
-    fly.os.fs.writeStr(test_file, "io test data", 420)
-    fly.os.fs.readStr(test_file, s)
-    fly.assert.assertStr(s, "io test data", 1)
-    fly.os.fs.delete(test_file)
-    fly.os.fs.exists(test_file, b)
-    fly.assert.assertFalse(b, 2)
+    fs.writeStr(test_file, "io test data", 420)
+    fs.readStr(test_file, s)
+    assert.assertStr(s, "io test data", 1)
+    fs.delete(test_file)
+    fs.exists(test_file, b)
+    assert.assertFalse(b, 2)
 
     // Cross-namespace class instantiation — previously crashed CodeGen (isExternal bug).
     // With the fix: external classes declare init_ctor as extern, skip vtable global
     // emission and method body scheduling; the linker resolves everything from fly_lib.
     FileWriter fw = new FileWriter()
     fw.fd = 42
-    fly.assert.assertEqI(fw.fd, 42, 3)
+    assert.assertEqI(fw.fd, 42, 3)
 
     FileReader fr = new FileReader()
     fr.fd = 7
-    fly.assert.assertEqI(fr.fd, 7, 4)
+    assert.assertEqI(fr.fd, 7, 4)
 
     File f = new File()
     f.fd = 99
-    fly.assert.assertEqI(f.fd, 99, 5)
+    assert.assertEqI(f.fd, 99, 5)
 
     // Test 6: FileWriter.write correctly reads this->fd (class-method attribute access fix).
     // Direct method dispatch bypasses writeString/interface coercion to isolate the fix.
     string t6_path = "fly_io_t6.txt"
     File t6_file = new File()
-    fly.os.fs.create(t6_path, t6_file)
+    fs.create(t6_path, t6_file)
     FileWriter fw6 = new FileWriter()
     fw6.fd = t6_file.fd
     string t6_data = "hello_fw"
     long t6_ptr = 0
     int t6_size_i = 0
-    fly.llvm.strGetPtr(t6_data, t6_ptr)
-    fly.llvm.strSize(t6_data, t6_size_i)
+    llvm.strGetPtr(t6_data, t6_ptr)
+    llvm.strSize(t6_data, t6_size_i)
     Buf t6_buf = new Buf()
     t6_buf.ptr = t6_ptr
     ulong t6_sz = t6_size_i
@@ -55,7 +57,7 @@ main() {
     fw6.write(t6_buf, t6_sz, t6_nw)
     fw6.close()
     string t6_result = ""
-    fly.os.fs.readStr(t6_path, t6_result)
-    fly.assert.assertStr(t6_result, "hello_fw", 6)
-    fly.os.fs.delete(t6_path)
+    fs.readStr(t6_path, t6_result)
+    assert.assertStr(t6_result, "hello_fw", 6)
+    fs.delete(t6_path)
 }
