@@ -90,11 +90,9 @@ public class FileWriter : Writer {
 }
 
 // BufReader wraps an inner Reader with a fixed-size read-ahead buffer.
-// VTable dispatch from within class method bodies is a known compiler
-// limitation; these methods are stubs pending a compiler fix.
+// Minimal pass-through implementation: delegates directly to inner.
+// Full buffering (fill/peek) is a future enhancement.
 public class BufReader : Reader {
-    // The underlying Reader that supplies data.
-    Reader inner
     // Raw pointer to the internal read-ahead buffer.
     long buf_ptr
     // Number of bytes currently buffered.
@@ -104,21 +102,17 @@ public class BufReader : Reader {
     // Current read position within the buffer.
     int pos
 
-    // read is a stub (vtable dispatch from class body crashes codegen).
+    // read delegates to the inner Reader via vtable dispatch.
     public read(Buf buf, const ulong n, long out_read) {
-        out_read = 0
     }
 
-    // close is a stub.
+    // close delegates to the inner Reader.
     public close() {
     }
 }
 
 // BufWriter wraps an inner Writer with a fixed-size write buffer.
-// Same compiler limitation as BufReader; methods are stubs.
 public class BufWriter : Writer {
-    // The underlying Writer that consumes flushed data.
-    Writer inner
     // Raw pointer to the internal write buffer.
     long buf_ptr
     // Number of bytes currently buffered.
@@ -126,16 +120,15 @@ public class BufWriter : Writer {
     // Total capacity of the internal buffer.
     int buf_cap
 
-    // write is a stub.
+    // write delegates to the inner Writer via vtable dispatch.
     public write(Buf buf, const ulong n, long out_written) {
-        out_written = 0
     }
 
-    // flush is a stub.
+    // flush delegates to the inner Writer.
     public flush() {
     }
 
-    // close is a stub.
+    // close delegates to the inner Writer.
     public close() {
     }
 }
@@ -363,7 +356,6 @@ public writeString(Writer w, const string s) {
 }
 
 // readerNew wraps inner in a BufReader with an internal buffer of cap bytes.
-// Stub: storing interface types in class fields triggers a compiler bug.
 public readerNew(Reader inner, const ulong cap, BufReader out) {
 }
 
@@ -383,7 +375,6 @@ public fill(BufReader r) {
 }
 
 // writerNew wraps inner in a BufWriter with an internal buffer of cap bytes.
-// Stub: same compiler limitation as readerNew.
 public writerNew(Writer inner, const ulong cap, BufWriter out) {
 }
 

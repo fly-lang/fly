@@ -258,7 +258,7 @@ target_link_libraries(FlyCompiler
         lldWasm)
 
 target_compile_definitions(FlyCompiler PRIVATE
-        FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/std/src"
+        FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/std/lib"
 )
 
 target_link_libraries(fly

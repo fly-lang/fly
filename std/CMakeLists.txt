@@ -11,15 +11,15 @@
 # Users link: fly_lib.a  (or fly_lib.lib on Windows) plus the runtime library.
 #
 # Namespaces → Source files
-#   fly.assert       src/assert.fly
-#   fly.str          src/str.fly
-#   fly.math         src/math.fly
-#   fly.os.time      src/os/time.fly
-#   fly.os.env       src/os/env.fly
-#   fly.os.path      src/os/path.fly
-#   fly.os.io        src/os/io.fly
-#   fly.os.fs        src/os/fs.fly
-#   fly.sync         src/sync.fly
+#   fly.assert       lib/assert.fly
+#   fly.str          lib/str.fly
+#   fly.math         lib/math.fly
+#   fly.os.time      lib/os/time.fly
+#   fly.os.env       lib/os/env.fly
+#   fly.os.path      lib/os/path.fly
+#   fly.os.io        lib/os/io.fly
+#   fly.os.fs        lib/os/fs.fly
+#   fly.sync         lib/sync.fly
 #
 # Tests live in test/:
 #   test/str_test.fly        — Fly-native tests for fly.str
@@ -38,16 +38,16 @@ add_library(FlyLib INTERFACE)
 # ── Fly namespace archive (built by the fly binary) ──────────────────────────
 
 set(FLY_LIB_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/assert.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/str.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/math.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/time.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/env.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/path.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/io.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/fs.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sync.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/clang.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/assert.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/str.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/math.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/os/time.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/os/env.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/os/path.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/os/io.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/os/fs.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/sync.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/bridge/clang.fly
 )
 
 # fly --lib appends .a (Linux/macOS) or .lib (Windows-MSVC); pass the stem via -o.
