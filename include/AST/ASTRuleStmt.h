@@ -37,7 +37,7 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        ASTExpr *getExpr();
+        ASTExpr *getExpr() const;
 
         ASTStmt *getStmt() const;
 

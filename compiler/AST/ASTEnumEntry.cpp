@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTEnumEntry.cpp - AST Enum Entry implementation
+// compiler/AST/ASTEnumEntry.cpp - AST enum entry implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTFunctionBase.cpp - AST Function Base
+// compiler/AST/ASTFunction.cpp - AST function definition implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -9,6 +9,7 @@
 
 #include "AST/ASTFunction.h"
 #include "AST/ASTParam.h"
+#include "AST/ASTType.h"
 #include "Basic/Logger.h"
 
 #include <AST/ASTVisitor.h>
@@ -68,9 +69,14 @@ ASTBlockStmt *ASTFunction::getBody() const {
 }
 
 std::string ASTFunction::str() const {
-    return Logger("ASTFunctionBase").
-	Attr("Location", getLocation()).
-	Attr("Kind", static_cast<size_t>(getKind())).
-           Attr("Params", ASTBase::str(Params)).
-           End();
+    return Logger("ASTFunction")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("FunctionKind", static_cast<size_t>(FunctionKind))
+        .Attr("Name", Name)
+        .Attr("Modifiers", Modifiers)
+        .Attr("Params", Params)
+        .Attr("ReturnType", ReturnType)
+        .Attr("Body", Body)
+        .End();
 }

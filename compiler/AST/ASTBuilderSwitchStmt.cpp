@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTBuilderSwitchStmt.cpp - The AST Builder Switch Stmt
+// compiler/AST/ASTBuilderSwitchStmt.cpp - AST builder for switch statements
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

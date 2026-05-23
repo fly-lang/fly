@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTBreakStmt.cpp - AST Break Statement implementation
+// compiler/AST/ASTBreakStmt.cpp - AST break statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

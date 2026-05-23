@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTBinary.cpp - AST Binary Expression implementation
+// compiler/AST/ASTBinary.cpp - AST binary expression implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTRuleStmt.cpp - AST Rule Statement implementation
+// compiler/AST/ASTRuleStmt.cpp - AST conditional rule statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTRuleStmt.h"
+#include "AST/ASTExpr.h"
 #include "Basic/Logger.h"
 
 #include <AST/ASTVisitor.h>
@@ -28,7 +29,7 @@ ASTRuleStmt::ASTRuleStmt(const SourceLocation &Loc, ASTStmtKind Kind) :
 
 }
 
-ASTExpr *ASTRuleStmt::getExpr() {
+ASTExpr *ASTRuleStmt::getExpr() const {
     return Expr;
 }
 

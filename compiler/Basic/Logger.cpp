@@ -59,5 +59,5 @@ Logger &Logger::Attr(const char *key, bool val) {
 }
 
 Logger &Logger::Attr(const char *key, uint64_t val) {
-	return Attr(key, std::to_string(val));
+    return Attr(key, std::to_string(val));
 }

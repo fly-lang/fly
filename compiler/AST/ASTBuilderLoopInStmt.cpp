@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTBuilderLoopStmt.cpp - The AST Builder Loop Stmt
+// compiler/AST/ASTBuilderLoopInStmt.cpp - AST builder for loop-in statements
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

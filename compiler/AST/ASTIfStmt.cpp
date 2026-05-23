@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTIfBlock.cpp - AST If Block Statement implementation
+// compiler/AST/ASTIfStmt.cpp - AST if statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,6 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTIfStmt.h"
+#include "AST/ASTExpr.h"
+#include "AST/ASTStmt.h"
 #include "Basic/Logger.h"
 
 #include <AST/ASTVisitor.h>
@@ -32,8 +34,11 @@ ASTStmt *ASTIfStmt::getElse() {
 }
 
 std::string ASTIfStmt::str() const {
-    return Logger("ASTIfStmt").
-	Attr("Location", getLocation()).
- Attr("Kind", static_cast<size_t>(getKind())).
-           End();
+    return Logger("ASTIfStmt")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("Condition", getExpr())
+        .Attr("Elsif", Elsif)
+        .Attr("Else", Else)
+        .End();
 }

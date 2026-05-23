@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTDelete.cpp - AST Delete Statement implementation
+// compiler/AST/ASTDeleteStmt.cpp - AST delete statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

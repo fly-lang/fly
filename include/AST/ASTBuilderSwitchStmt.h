@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTBuilderSwitchStmt.h - Sema Builder Switch Stmt
+// include/AST/ASTBuilderSwitchStmt.h - AST builder for switch statements
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTDeclStmt.cpp - AST Decl Statement implementation
+// compiler/AST/ASTDeclStmt.cpp - AST variable declaration statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,6 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTDeclStmt.h"
+#include "AST/ASTLocalVar.h"
+#include "AST/ASTExpr.h"
 #include "Basic/Logger.h"
 
 #include <AST/ASTVisitor.h>
@@ -36,10 +38,10 @@ void ASTDeclStmt::setExpr(ASTExpr *Expr) {
 }
 
 std::string ASTDeclStmt::str() const {
-	return Logger("ASTDeclStmt").
-	Attr("Location", getLocation()).
- Attr("Kind", static_cast<size_t>(getKind())).
-		   Attr("LocalVar", LocalVar).
-		   Attr("Expr", Expr).
-		   End();
+    return Logger("ASTDeclStmt")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("LocalVar", LocalVar)
+        .Attr("Expr", Expr)
+        .End();
 }

@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTType.cpp - AST Type Ref implementation
+// compiler/AST/ASTType.cpp - AST type reference implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,8 +8,10 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTType.h"
-#include "Sema/Symbol.h"
+#include "AST/ASTExpr.h"
+#include "AST/ASTName.h"
 #include "Basic/Logger.h"
+#include "Sema/Symbol.h"
 
 #include <AST/ASTVisitor.h>
 
@@ -43,10 +45,12 @@ ASTExpr * ASTArrayType::getSizeExpr() const {
 }
 
 std::string ASTArrayType::str() const {
-	return Logger("ASTArrayType").
-		Attr("Location", getLocation()).
-		Attr("Kind", static_cast<size_t>(getKind())).
-		End();
+    return Logger("ASTArrayType")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("ElementType", ElementType)
+        .Attr("Size", Size)
+        .End();
 }
 
 ASTBuiltinType::ASTBuiltinType(const SourceLocation &Loc, ASTBuiltinTypeKind Kind) :
@@ -62,7 +66,11 @@ void ASTBuiltinType::accept(ASTVisitor &Visitor) {
 }
 
 std::string ASTBuiltinType::str() const {
-	return ASTType::str();
+    return Logger("ASTBuiltinType")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("BuiltinKind", static_cast<size_t>(BuiltinKind))
+        .End();
 }
 
 ASTNamedType::ASTNamedType(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names) :
@@ -78,5 +86,9 @@ const llvm::SmallVector<ASTName *, 4> &ASTNamedType::getNames() const {
 }
 
 std::string ASTNamedType::str() const {
-	return ASTType::str();
+    return Logger("ASTNamedType")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("Names", Names)
+        .End();
 }

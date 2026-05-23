@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTBuilderIfStmt.cpp - The AST Builder If Stmt
+// compiler/AST/ASTBuilderIfStmt.cpp - AST builder for if statements
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

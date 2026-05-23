@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTFailStmt.cpp - AST Fail Statement implementation
+// compiler/AST/ASTFailStmt.cpp - AST fail statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTFailStmt.h"
+#include "AST/ASTExpr.h"
 #include "Basic/Logger.h"
 
 #include <AST/ASTVisitor.h>

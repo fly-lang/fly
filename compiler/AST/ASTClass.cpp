@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTClass.cpp - Class implementation
+// compiler/AST/ASTClass.cpp - AST class definition implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -9,6 +9,7 @@
 
 #include "AST/ASTClass.h"
 #include "AST/ASTModifier.h"
+#include "AST/ASTType.h"
 #include "Basic/Logger.h"
 
 #include <AST/ASTIdentifier.h>
@@ -54,13 +55,13 @@ const llvm::SmallVector<ASTType *, 4> &ASTClass::getBases() const {
 }
 
 std::string ASTClass::str() const {
-
-	// Class to string
-	return Logger("ASTClass").
-	       Attr("Location", getLocation()).
-	       Attr("Kind", static_cast<size_t>(getKind())).
-	       Attr("ClassKind", (size_t)ClassKind).
-	       Attr("Name", Name).
-	       Attr("Definitions", ASTNode::str(Nodes)).
-	       End();
+    return Logger("ASTClass")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("ClassKind", static_cast<size_t>(ClassKind))
+        .Attr("Name", Name)
+        .Attr("Modifiers", Modifiers)
+        .Attr("Bases", Bases)
+        .Attr("Definitions", Nodes)
+        .End();
 }
