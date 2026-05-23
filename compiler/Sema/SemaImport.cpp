@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaImport.cpp - The Sema Import implementation
+// compiler/Sema/SemaImport.cpp - import semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

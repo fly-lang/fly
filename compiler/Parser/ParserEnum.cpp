@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Parser/EnumParser.cpp - Class Parser
+// compiler/Parser/ParserEnum.cpp - enum declaration parser
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

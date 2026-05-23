@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaStringAlloc.cpp - Heap-owned string allocation tracker
+// compiler/Sema/SemaStringAlloc.cpp - heap string allocation tracking
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

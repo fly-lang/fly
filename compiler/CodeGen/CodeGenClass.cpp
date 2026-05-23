@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/CodeGen/CodeGenClass.cpp - Code Generator Class
+// compiler/CodeGen/CodeGenClass.cpp - class type code generation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

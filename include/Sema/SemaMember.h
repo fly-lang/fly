@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaMemberVar.h - Sybolic Table for Member Var
+// include/Sema/SemaMember.h - member access semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

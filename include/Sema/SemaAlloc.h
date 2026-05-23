@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaAlloc.h - Base class for scope-managed allocations
+// include/Sema/SemaAlloc.h - scope-managed allocation base
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

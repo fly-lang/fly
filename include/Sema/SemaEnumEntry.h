@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaEnumEntry.h - SemaClassType
+// include/Sema/SemaEnumEntry.h - enum entry semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

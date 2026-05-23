@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaTernary.cpp - The Symbolic Table for Ternary Operation
+// compiler/Sema/SemaTernary.cpp - ternary expression semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

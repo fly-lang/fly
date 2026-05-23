@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Compiler/TextDiagnosticBuffer.cpp - Buffer Text Diagnostics
+// compiler/Frontend/TextDiagnosticBuffer.cpp - buffered text diagnostics
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/SanitizerSpecialCaseList.h - SCL for sanitizers
+// include/Basic/SanitizerSpecialCaseList.h - sanitizer special case lists
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

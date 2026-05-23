@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaErrorHandler.cpp - The Symbolic Table for Error Handler
+// compiler/Sema/SemaErrorHandler.cpp - error handler semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

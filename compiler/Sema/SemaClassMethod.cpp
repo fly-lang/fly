@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SymClassMethod.cpp - The Symbolic Table for Enum Entry
+// compiler/Sema/SemaClassMethod.cpp - class method semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

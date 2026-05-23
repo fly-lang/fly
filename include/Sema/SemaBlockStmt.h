@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaBlockStmt.h - Sema Block Statement header
+// include/Sema/SemaBlockStmt.h - block statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_BLOCKSTMT_H

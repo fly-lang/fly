@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaFailStmt.h - Sema Fail Statement header
+// include/Sema/SemaFailStmt.h - fail statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_FAILSTMT_H

@@ -1,6 +1,6 @@
 //===--- TokenKinds.cpp - Token Kinds Support ---------------------------------------------------------------------===//
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/AddressSpaces.h - Language-specific address spaces
+// compiler/Basic/TokenKinds.cpp - token kind support
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

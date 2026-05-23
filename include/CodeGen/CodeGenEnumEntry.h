@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CodeGenEnumEntry.h - Code Generator of Enum Entry
+// include/CodeGen/CodeGenEnumEntry.h - enum entry code generation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

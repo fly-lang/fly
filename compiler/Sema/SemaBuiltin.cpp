@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaBuiltin.cpp - Builtin Types implementation
+// compiler/Sema/SemaBuiltin.cpp - builtin type semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

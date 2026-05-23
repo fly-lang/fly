@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaAlloc.cpp - Base class for scope-managed allocations
+// compiler/Sema/SemaAlloc.cpp - allocation semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

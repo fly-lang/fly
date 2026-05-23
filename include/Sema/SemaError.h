@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaLocalVar.h - Sybolic Table for Local ASTVar
+// include/Sema/SemaError.h - semantic error types
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,6 +1,6 @@
 //===- SourceLocation.cpp - Compact identifier for Source Files ---------------------------------------------------===//
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/AddressSpaces.h - Language-specific address spaces
+// compiler/Basic/SourceLocation.cpp - source location utilities
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

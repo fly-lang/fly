@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/CodeGen/CodeGenFail.cpp - Code Generator Fail
+// compiler/CodeGen/CodeGenError.cpp - error/fail code generation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/CodeGen/BackendUtil.cpp - CodeGen Backend Util
+// compiler/CodeGen/BackendUtil.cpp - LLVM backend pipeline utilities
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

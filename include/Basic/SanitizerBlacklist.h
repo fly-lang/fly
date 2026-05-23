@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/SanitizerBlacklist.h - Blacklist for sanitizers
+// include/Basic/SanitizerBlacklist.h - sanitizer blocklist
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

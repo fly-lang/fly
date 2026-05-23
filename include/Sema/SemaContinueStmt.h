@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaContinueStmt.h - Sema Continue Statement header
+// include/Sema/SemaContinueStmt.h - continue statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_CONTINUESTMT_H

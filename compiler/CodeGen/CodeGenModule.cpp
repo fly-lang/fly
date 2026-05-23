@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// src/CodeGen/CodeGenModule.cpp - Emit LLVM Code from ASTs for a Module
+// compiler/CodeGen/CodeGenModule.cpp - LLVM IR emission for modules
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

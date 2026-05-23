@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Frontend/LogDiagnosticPrinter.h - Log Diagnostic Client
+// include/Frontend/LogDiagnosticPrinter.h - log-format diagnostic printer
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

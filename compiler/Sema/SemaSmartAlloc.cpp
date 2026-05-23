@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaSmartAlloc.cpp - Smart pointer allocation tracker
+// compiler/Sema/SemaSmartAlloc.cpp - smart pointer allocation tracking
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

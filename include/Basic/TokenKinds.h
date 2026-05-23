@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/TokenKinds.h - Enum values for C Token Kinds
+// include/Basic/TokenKinds.h - token kind enumeration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

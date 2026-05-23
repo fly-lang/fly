@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/DiagnosticError.h - Diagnostic payload for llvm::Error
+// include/Basic/DiagnosticError.h - diagnostic payload for llvm::Error
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

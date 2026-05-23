@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/DebugInfoOptions.h - Debug Info Emission Types
+// include/Basic/DebugInfoOptions.h - debug info emission options
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

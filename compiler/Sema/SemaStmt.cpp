@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaStmt.cpp - Sema Statement base implementation
+// compiler/Sema/SemaStmt.cpp - statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaStmt.h"

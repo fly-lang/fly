@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTRuleStmt.h - AST Rule Statement header
+// include/AST/ASTRuleStmt.h - AST conditional rule statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

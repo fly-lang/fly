@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaBuilderModifiers.cpp - The Sema Builder Modifiers
+// compiler/Sema/SemaBuilderModifiers.cpp - modifier semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

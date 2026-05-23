@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaExpr.cpp - The Symbolic Table for Var or Call
+// compiler/Sema/SemaExpr.cpp - expression semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

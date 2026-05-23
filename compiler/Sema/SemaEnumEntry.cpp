@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaEnumEntry.cpp - The Symbolic Table for Enum Entry
+// compiler/Sema/SemaEnumEntry.cpp - enum entry semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

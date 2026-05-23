@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Parser/ClassParser.cpp - Class Parser
+// compiler/Parser/ParserClass.cpp - class declaration parser
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

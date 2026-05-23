@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaCast.cpp - The Symbolic Table for Cast Operation
+// compiler/Sema/SemaCast.cpp - type cast semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

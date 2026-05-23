@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaBreakStmt.h - Sema Break Statement header
+// include/Sema/SemaBreakStmt.h - break statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_BREAKSTMT_H

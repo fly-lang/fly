@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/Basic/CharInfo.h - Classifying ASCII Characters
+// include/Basic/CharInfo.h - ASCII character classification tables
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Frontend/ChainedDiagnosticConsumer.cpp - Chain Diagnostic Clients
+// compiler/Frontend/ChainedDiagnosticConsumer.cpp - chained diagnostic consumers
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

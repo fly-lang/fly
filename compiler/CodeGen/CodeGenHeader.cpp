@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/CodeGen/CodeGenHeader.cpp - Header Generator implementation
+// compiler/CodeGen/CodeGenHeader.cpp - header file code generation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

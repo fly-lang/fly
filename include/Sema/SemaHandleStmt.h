@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaHandleStmt.h - Sema Handle Statement header
+// include/Sema/SemaHandleStmt.h - handle statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_HANDLESTMT_H

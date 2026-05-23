@@ -1,5 +1,5 @@
 //
-// Created by marco on 05/02/25.
+// include/Basic/Logger.h - debug string builder
 //
 
 #ifndef SEMA_LOGGER_H

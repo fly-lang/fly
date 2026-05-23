@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTLoopInStmt.h - AST Loop In Statement header
+// include/AST/ASTLoopInStmt.h - AST loop-in statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

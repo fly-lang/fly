@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaContinueStmt.cpp
+// compiler/Sema/SemaContinueStmt.cpp - continue statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaContinueStmt.h"

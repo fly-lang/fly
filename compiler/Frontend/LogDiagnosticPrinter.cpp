@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Compiler/LogDiagnosticPrinter.cpp - Log Diagnostic Printer
+// compiler/Frontend/LogDiagnosticPrinter.cpp - log-format diagnostic printer
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

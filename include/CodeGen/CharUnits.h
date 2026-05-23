@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CharUnits.h - AST Variable
+// include/CodeGen/CharUnits.h - character units for type layout
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

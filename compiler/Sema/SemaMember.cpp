@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaMemberVar.cpp - The Symbolic Table for Member Var
+// compiler/Sema/SemaMember.cpp - member access semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Basic/DiagnosticIDs.cpp - Diagnostic IDs Handling
+// compiler/Basic/DiagnosticIDs.cpp - diagnostic IDs and categories
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaFunctionBase.cpp - The Symbolic table of Function Base
+// compiler/Sema/SemaFunctionBase.cpp - function base semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

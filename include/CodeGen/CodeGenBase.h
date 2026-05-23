@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CodeGenBase.h - Code Generator of Statements
+// include/CodeGen/CodeGenBase.h - code generator base
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

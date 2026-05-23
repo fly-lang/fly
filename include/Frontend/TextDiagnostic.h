@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Frontend/TextDiagnostic.h - Text Diagnostic Pretty-Printing
+// include/Frontend/TextDiagnostic.h - text diagnostic rendering
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

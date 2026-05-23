@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CodeGenModule.h - LLVM Module code generation
+// include/CodeGen/CodeGenModule.h - LLVM IR emission for modules
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

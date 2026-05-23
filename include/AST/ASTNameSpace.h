@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTNameSpace.h - AST Namespace Ref header
+// include/AST/ASTNameSpace.h - AST namespace declaration header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

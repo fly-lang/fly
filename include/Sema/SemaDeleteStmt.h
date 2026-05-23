@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaDeleteStmt.h - Sema Delete Statement header
+// include/Sema/SemaDeleteStmt.h - delete statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_DELETESTMT_H

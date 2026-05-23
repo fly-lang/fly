@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Frontend/Frontend.h - Frontends Main
+// include/Frontend/Frontend.h - main compiler frontend
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/AddressSpaces.h - Language-specific address spaces
+// include/Basic/AddressSpaces.h - language-specific address spaces
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaBuilder.cpp - The Symbolic Table Builder
+// compiler/Sema/SemaBuilder.cpp - semantic analysis builder
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

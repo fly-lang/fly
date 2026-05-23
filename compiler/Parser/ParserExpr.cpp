@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Parser/ExprParser.cpp - Expression Parser
+// compiler/Parser/ParserExpr.cpp - expression parser
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

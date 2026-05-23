@@ -1,6 +1,6 @@
 //===- Diagnostic.cpp - C Language Family Diagnostic Handling -----------------------------------------------------===//
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Basic/Diagnostic.cpp - Language-specific address spaces
+// compiler/Basic/Diagnostic.cpp - diagnostic handling
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

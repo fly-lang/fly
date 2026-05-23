@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Frontend/InputOptions.h - Compiler Input options arguments
+// include/Frontend/FrontendOptions.h - frontend options
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

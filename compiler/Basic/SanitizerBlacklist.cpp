@@ -1,6 +1,6 @@
 //===--- SanitizerBlacklist.cpp - Blacklist for sanitizers ----------------===//
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/AddressSpaces.h - Language-specific address spaces
+// compiler/Basic/SanitizerBlacklist.cpp - sanitizer blocklist
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

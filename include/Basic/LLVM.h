@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/LLVM.h - Import various common LLVM datatypes
+// include/Basic/LLVM.h - common LLVM datatype imports
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
