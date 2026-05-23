@@ -115,6 +115,10 @@ string(REGEX MATCH "^([0-9]+)" FLY_LLVM_VERSION_MAJOR "${FLY_LLVM_VERSION}")
 
 set(FLY_RUNTIME_LIB_DIR "${CMAKE_BINARY_DIR}/lib")
 
+# Must be called before any add_subdirectory() that contains add_test() calls,
+# otherwise CTestTestfile.cmake is not generated for those subdirectories.
+enable_testing()
+
 # Runtime must be configured before compiler/ so configure_file() in compiler/CMakeLists.txt
 # bakes the correct FLY_RUNTIME_LIB_DIR into include/Config/Config.h.
 add_subdirectory(runtime)
@@ -123,7 +127,6 @@ add_subdirectory(runtime)
 add_subdirectory(compiler)
 
 # Standard library — compiled by the fly binary, so must come after src/
-enable_testing()
 add_subdirectory(std)
 add_subdirectory(test)
 

@@ -424,6 +424,9 @@ void EmitAssemblyHelper::CreateTargetMachine(bool MustCreateTM) {
             llvm::join(TargetOpts.Features.begin(), TargetOpts.Features.end(), ",");
     llvm::Reloc::Model RM = CodeGenOpts.RelocationModel;
     llvm::CodeGenOptLevel OptLevel = getCGOptLevel(CodeGenOpts);
+    // Debug symbols require -O0 to keep variables and line mappings intact
+    if (CodeGenOpts.DebugSymbols)
+        OptLevel = llvm::CodeGenOptLevel::None;
 
     llvm::TargetOptions Options;
     initTargetOptions(Diags, Options, CodeGenOpts, TargetOpts);
@@ -684,7 +687,9 @@ void EmitAssemblyHelper::EmitAssembly(BackendActionKind Action,
         } else {
             // Map our optimization levels into one of the distinct levels used to
             // configure the pipeline.
-            llvm::OptimizationLevel Level = mapToLevel(CodeGenOpts);
+            llvm::OptimizationLevel Level = CodeGenOpts.DebugSymbols
+                ? llvm::OptimizationLevel::O0
+                : mapToLevel(CodeGenOpts);
 
             // If we reached here with a non-empty index file name, then the index
             // file was empty and we are not performing ThinLTO backend compilation

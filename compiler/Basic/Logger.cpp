@@ -21,7 +21,7 @@ const char *Logger::CLOSE = "}";
 const char *Logger::OPEN_LIST = "[";
 const char *Logger::CLOSE_LIST = "]";
 
-bool DebugEnabled = false;
+bool DebugLog = false;
 thread_local int DebugDepth = 0;
 
 Logger::Logger() = default;

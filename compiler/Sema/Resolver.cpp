@@ -121,7 +121,7 @@ DiagnosticBuilder Resolver::Diag(const SourceLocation &Loc, unsigned DiagID) con
 }
 
 DiagnosticBuilder Resolver::Diag(unsigned DiagID) const {
-	if (DebugEnabled && DiagID == diag::err_invalid_behavior)
+	if (DebugLog && DiagID == diag::err_invalid_behavior)
 		llvm::sys::PrintStackTrace(llvm::errs());
 	return Diags.Report(DiagID);
 }

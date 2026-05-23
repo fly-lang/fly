@@ -293,6 +293,7 @@ bool Frontend::Execute() {
         CodeGen CG(Diags, LLVMCtx, CI.getCodeGenOptions(), CI.getTargetOptions(),
                    CI.getFrontendOptions().BackendAction,
                    CI.getFrontendOptions().ShowTimers);
+        CG.setSourceManager(CI.getSourceManager());
         SmallVector<SemaModule *, 8> CompilableModules;
         for (auto *SM : SemaModules)
             if (!SM->getAST().isHeader())

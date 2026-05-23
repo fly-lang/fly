@@ -137,6 +137,9 @@ public:
   bool PIE = false; // Position Independent Code
   bool StaticPIE = false; // Static Position Independent Code
 
+  /// Emit DWARF debug symbols in the compiled output (-g / --debug).
+  bool DebugSymbols = false;
+
   /// The code model to use (-mcmodel).
   std::string CodeModel;
 

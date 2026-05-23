@@ -64,3 +64,37 @@ target_link_libraries(fly_runtime_test PRIVATE FlyRuntime)
 add_test(NAME fly_runtime_test COMMAND fly_runtime_test)
 set_tests_properties(fly_runtime_test PROPERTIES PASS_REGULAR_EXPRESSION "fly runtime ok")
 
+######################################
+# LLDB debug integration test
+######################################
+
+find_program(LLVM_DWARFDUMP        NAMES llvm-dwarfdump llvm-dwarfdump-20 llvm-dwarfdump-19 llvm-dwarfdump-18)
+
+if(MSVC)
+    set(_fly_std_lib "${CMAKE_BINARY_DIR}/lib/fly_std_lib.lib")
+else()
+    set(_fly_std_lib "${CMAKE_BINARY_DIR}/lib/fly_std_lib.a")
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    add_test(NAME debug_dwarf_test
+        COMMAND powershell -ExecutionPolicy Bypass -File
+            "${CMAKE_CURRENT_SOURCE_DIR}/test/debug_dwarf_test.ps1"
+            "$<TARGET_FILE:fly>"
+            "${_fly_std_lib}"
+            "${LLVM_DWARFDUMP}"
+    )
+else()
+    add_test(NAME debug_dwarf_test
+        COMMAND bash
+            "${CMAKE_CURRENT_SOURCE_DIR}/test/debug_dwarf_test.sh"
+            "$<TARGET_FILE:fly>"
+            "${_fly_std_lib}"
+            "${LLVM_DWARFDUMP}"
+    )
+endif()
+
+set_tests_properties(debug_dwarf_test PROPERTIES
+    SKIP_REGULAR_EXPRESSION "^SKIP:"
+)
+

@@ -13,7 +13,7 @@
 #include "gtest/gtest.h"
 #include <fstream>
 
-extern bool DebugEnabled;
+extern bool DebugLog;
 
 namespace {
     using namespace fly;
@@ -90,7 +90,7 @@ main() {
         const char *utilsfly = "utils.fly";
 
         void SetUpWithSource(const char *MainSrc) {
-            DebugEnabled = false;
+            DebugLog = false;
             { std::ofstream f(mainfly);  f << MainSrc; }
             { std::ofstream f(utilsfly); f << UtilsSource; }
             llvm::InitializeAllTargetInfos();

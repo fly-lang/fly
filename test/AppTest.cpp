@@ -27,7 +27,7 @@
 #include "gtest/gtest.h"
 #include <fstream>
 
-extern bool DebugEnabled;
+extern bool DebugLog;
 
 namespace {
     using namespace fly;
@@ -94,7 +94,7 @@ main() {
         const char *utilsfly = "utils.fly";
 
         AppTest() {
-            DebugEnabled = false;
+            DebugLog = false;
             { std::ofstream f(mainfly);  f << MainAppSource; }
             { std::ofstream f(utilsfly); f << UtilsAppSource; }
             llvm::InitializeAllTargetInfos();
@@ -196,7 +196,7 @@ main() {
     }
 
     TEST_F(AppTest, EmitOut) {
-    	DebugEnabled = true;
+    	DebugLog = true;
         deleteFile("out");
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");

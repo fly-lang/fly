@@ -52,7 +52,7 @@ DiagnosticBuilder Registry::Diag(const SourceLocation &Loc, unsigned DiagID) con
 }
 
 DiagnosticBuilder Registry::Diag(unsigned DiagID) const {
-	if (DebugEnabled && DiagID == diag::err_invalid_behavior)
+	if (DebugLog && DiagID == diag::err_invalid_behavior)
 		llvm::sys::PrintStackTrace(llvm::errs());
 	return Diags.Report(DiagID);
 }

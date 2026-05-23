@@ -152,7 +152,8 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     }
 
     if (debugFlag) {
-        DebugEnabled = true;
+        DebugLog = true;
+        DebugSymbols = true;
         FLY_DEBUG_MSG("Set -debug");
     }
 
@@ -170,7 +171,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
 }
 
 Driver::~Driver() {
-    DebugEnabled = false;
+    DebugLog = false;
 }
 
 CompilerInstance &Driver::BuildCompilerInstance() {
@@ -380,6 +381,12 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     if (!TargetCpu.empty()) {
         TargetOpts->CPU = TargetCpu;
         FLY_DEBUG_MSG("Set --target-cpu=" << TargetCpu);
+    }
+
+    // Debug symbols
+    if (DebugSymbols) {
+        FLY_DEBUG_MSG("Set --debug: emitting debug symbols");
+        CodeGenOpts->DebugSymbols = true;
     }
 
     // CodeGen options

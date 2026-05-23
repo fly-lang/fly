@@ -105,6 +105,7 @@ void CodeGenClassMethod::GenBody() {
 	}
 
     setInsertPoint();
+    GenDebugSubprogram();
 
 	// Alloca Error Handler
     if (Class->getAST().getClassKind() != ASTClassKind::STRUCT) {

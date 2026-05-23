@@ -89,6 +89,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
 void CodeGenFunction::GenBody() {
     FLY_DEBUG_SCOPE("CodeGenFunction", "GenBody");
     setInsertPoint();
+    GenDebugSubprogram();
 
 	// Store in Function Error Handler
 	if (isMain) {

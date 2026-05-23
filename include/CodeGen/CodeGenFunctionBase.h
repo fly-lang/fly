@@ -68,6 +68,8 @@ namespace fly {
 
         void setInsertPoint();
 
+        void GenDebugSubprogram();
+
         void AllocaLocalVars();
 
         void StoreParams(size_t Idx);

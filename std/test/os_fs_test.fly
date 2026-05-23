@@ -1,5 +1,6 @@
 import fly.os.fs
 import fly.os.path
+import fly.str
 import fly.assert
 
 main() {
@@ -78,7 +79,7 @@ main() {
         // symlinkRead may return "" on platforms where readlink is not implemented;
         // only assert the content when the runtime returned something.
         int rlink_len = 0
-        llvm.strSize(s, rlink_len)
+        str.len(s, rlink_len)
         if rlink_len > 0 {
             assert.assertStr(s, test_file, 93)
         }

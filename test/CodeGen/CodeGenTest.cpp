@@ -18,7 +18,7 @@ std::shared_ptr<CompilerInstance> CodeGenTest::CI;
 
 // Static setup for the entire test suite
 void CodeGenTest::SetUpTestCase() {
-    DebugEnabled = false;
+    DebugLog = false;
     CI = TestUtils::CreateCompilerInstance();
     // Initialize LLVM targets once for the entire test suite
     // These are global initializations and are idempotent (safe to call multiple times)
@@ -29,7 +29,7 @@ void CodeGenTest::SetUpTestCase() {
 
 // Static teardown for the entire test suite
 void CodeGenTest::TearDownTestCase() {
-    DebugEnabled = false;
+    DebugLog = false;
 }
 
 void CodeGenTest::SetUp() {

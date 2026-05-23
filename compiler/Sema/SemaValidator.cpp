@@ -60,7 +60,7 @@ DiagnosticBuilder SemaValidator::Diag(const SourceLocation &Loc, unsigned DiagID
 }
 
 DiagnosticBuilder SemaValidator::Diag(unsigned DiagID) const {
-	if (DebugEnabled && DiagID == diag::err_invalid_behavior)
+	if (DebugLog && DiagID == diag::err_invalid_behavior)
 		llvm::sys::PrintStackTrace(llvm::errs());
 	return Diags.Report(DiagID);
 }

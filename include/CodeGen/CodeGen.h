@@ -15,6 +15,7 @@
 #define FLY_CODEGEN_H
 
 #include "CodeGen/BackendUtil.h"
+#include "Basic/SourceManager.h"
 #include "llvm/IR/Constants.h"
 
 namespace llvm {
@@ -43,6 +44,7 @@ class CodeGen {
     llvm::LLVMContext &LLVMCtx;  // Reference instead of owned member
     BackendActionKind ActionKind;
     bool ShowTimers;
+    SourceManager *SM_ = nullptr;
 
     public:
         /// void
@@ -128,6 +130,9 @@ class CodeGen {
         TargetInfo &getTargetInfo() const;
 
         llvm::LLVMContext &getLLVMCtx();
+
+        void setSourceManager(SourceManager &SM) { SM_ = &SM; }
+        SourceManager *getSourceManager() const { return SM_; }
 
         llvm::SmallVector<llvm::Module *, 8> GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules);
 };
