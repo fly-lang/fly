@@ -16,6 +16,9 @@
 #include "AST/ASTType.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTBinary.h"
+#include "AST/ASTBuilderIfStmt.h"
+#include "AST/ASTClass.h"
+#include "AST/ASTEnum.h"
 #include "CodeGenTest.h"
 
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -225,6 +228,114 @@ TEST_F(CodeGenDebugInfoTest, NoDebugInfoWhenDisabled) {
         << "Expected no DISubprogram when DebugSymbols is disabled";
     EXPECT_EQ(IR.find("!DICompileUnit"), std::string::npos)
         << "Expected no DICompileUnit when DebugSymbols is disabled";
+}
+
+// Verify DIEnumerationType is emitted for an enum variable
+TEST_F(CodeGenDebugInfoTest, EnumTypeHasDIEnumerationType) {
+    ASTModule *Module = CreateModule("dbg_enum");
+
+    llvm::SmallVector<ASTType *, 4> SuperEnums;
+    ASTEnum *MyEnum = ASTBuilder::CreateEnum(Module, SourceLoc, "Color", TopModifiers, SuperEnums);
+    ASTBuilder::CreateEnumEntry(SourceLoc, MyEnum, "Red",   EmptyModifiers);
+    ASTBuilder::CreateEnumEntry(SourceLoc, MyEnum, "Green", EmptyModifiers);
+    ASTBuilder::CreateEnumEntry(SourceLoc, MyEnum, "Blue",  EmptyModifiers);
+
+    ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+    ASTType *EnumTypeRef = CreateType(MyEnum);
+    ASTLocalVar *Var = ASTBuilder::CreateLocalVar(SourceLoc, EnumTypeRef, "c", EmptyModifiers);
+    ASTDeclStmt *Decl = ASTBuilder::CreateDeclStmt(Body, SourceLoc, Var);
+    ASTIdentifier *EnumIdent = ASTBuilder::CreateIdentifier(SourceLoc, MyEnum->getName());
+    ASTMember *RedMember = ASTBuilder::CreateMember(SourceLoc, "Red", EnumIdent);
+    Decl->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+                                           ASTBuilder::CreateIdentifier(Var), RedMember));
+    ASTBuilder::CreateFunction(Module, SourceLoc, "enumFunc", TopModifiers, Params, Body);
+
+    Generate();
+    std::string IR = getOutput(Modules[0]);
+
+    EXPECT_NE(IR.find("DW_TAG_enumeration_type"), std::string::npos)
+        << "Expected DW_TAG_enumeration_type in IR";
+    EXPECT_NE(IR.find("\"Color\""), std::string::npos)
+        << "Expected enum name 'Color' in DWARF metadata";
+    EXPECT_NE(IR.find("\"Red\""), std::string::npos)
+        << "Expected enum entry 'Red' in DWARF enumerators";
+}
+
+// Verify a DIPointerType is emitted for an array-typed parameter
+TEST_F(CodeGenDebugInfoTest, ArrayTypeHasDIPointerType) {
+    ASTModule *Module = CreateModule("dbg_arr");
+
+    llvm::SmallVector<ASTParam *, 8> FuncParams;
+    ASTArrayType *ArrTy = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, nullptr);
+    FuncParams.push_back(ASTBuilder::CreateParam(SourceLoc, ArrTy, "arr", EmptyModifiers));
+
+    ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+    ASTBuilder::CreateFunction(Module, SourceLoc, "arrFunc", TopModifiers, FuncParams, Body);
+
+    Generate();
+    std::string IR = getOutput(Modules[0]);
+
+    EXPECT_NE(IR.find("DW_TAG_pointer_type"), std::string::npos)
+        << "Expected DW_TAG_pointer_type for array parameter in DWARF metadata";
+}
+
+// Verify DIStructType is emitted for a class with an attribute
+TEST_F(CodeGenDebugInfoTest, ClassTypeHasDIStructType) {
+    ASTModule *Module = CreateModule("dbg_cls");
+
+    llvm::SmallVector<ASTType *, 4> SuperClasses;
+    ASTClass *MyClass = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS,
+                                                "Point", TopModifiers, SuperClasses);
+    ASTBuilder::CreateClassAttribute(SourceLoc, MyClass, IntTypeRef, "x", TopModifiers);
+    ASTBuilder::CreateClassAttribute(SourceLoc, MyClass, IntTypeRef, "y", TopModifiers);
+
+    ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+    ASTType *ClassTypeRef = CreateType(MyClass);
+    ASTLocalVar *Var = ASTBuilder::CreateLocalVar(SourceLoc, ClassTypeRef, "pt", EmptyModifiers);
+    ASTDeclStmt *Decl = ASTBuilder::CreateDeclStmt(Body, SourceLoc, Var);
+    ASTCall *CtorCall = ASTBuilder::CreateCall(SourceLoc, MyClass->getName(), Args, ASTCallKind::CALL_NEW);
+    Decl->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+                                           ASTBuilder::CreateIdentifier(Var), CtorCall));
+    ASTBuilder::CreateDeleteStmt(Body, SourceLoc, ASTBuilder::CreateIdentifier(Var));
+    ASTBuilder::CreateFunction(Module, SourceLoc, "classFunc", TopModifiers, Params, Body);
+
+    Generate();
+    std::string IR = getOutput(Modules[0]);
+
+    EXPECT_NE(IR.find("DW_TAG_structure_type"), std::string::npos)
+        << "Expected DW_TAG_structure_type for class 'Point' in DWARF metadata";
+    EXPECT_NE(IR.find("\"Point\""), std::string::npos)
+        << "Expected class name 'Point' in DWARF metadata";
+}
+
+// Verify DILexicalBlock is emitted for an if-body block
+TEST_F(CodeGenDebugInfoTest, LexicalBlockPresentInIfBody) {
+    ASTModule *Module = CreateModule("dbg_lex");
+
+    ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+    ASTLocalVar *A = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "a", EmptyModifiers);
+    ASTDeclStmt *DeclA = ASTBuilder::CreateDeclStmt(Body, SourceLoc, A);
+    DeclA->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+                                            ASTBuilder::CreateIdentifier(A),
+                                            ASTBuilder::CreateNumberValue(SourceLoc, "1")));
+
+    ASTBinary *Cond = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_COMPARE_EQ,
+                                               ASTBuilder::CreateIdentifier(A),
+                                               ASTBuilder::CreateNumberValue(SourceLoc, "1"));
+    ASTBlockStmt *IfBlock = ASTBuilder::CreateBlockStmt(SourceLoc);
+    ASTExprStmt *ExprS = ASTBuilder::CreateExprStmt(IfBlock, SourceLoc);
+    ExprS->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+                                            ASTBuilder::CreateIdentifier(A),
+                                            ASTBuilder::CreateNumberValue(SourceLoc, "2")));
+    ASTBuilderIfStmt::Create(Body)->If(SourceLoc, Cond, IfBlock);
+
+    ASTBuilder::CreateFunction(Module, SourceLoc, "lexFunc", TopModifiers, Params, Body);
+
+    Generate();
+    std::string IR = getOutput(Modules[0]);
+
+    EXPECT_NE(IR.find("DILexicalBlock"), std::string::npos)
+        << "Expected DILexicalBlock in IR for if-body block scope";
 }
 
 } // namespace

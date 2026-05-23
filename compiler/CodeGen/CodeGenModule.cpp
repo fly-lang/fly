@@ -147,8 +147,11 @@ void CodeGenModule::EmitDebugLocation(const SourceLocation &Loc) {
     if (!Fn || !Fn->getSubprogram()) return;
     unsigned Line = SM->getSpellingLineNumber(Loc);
     unsigned Col  = SM->getSpellingColumnNumber(Loc);
+    llvm::DIScope *Scope = DebugScopeStack.empty()
+        ? (llvm::DIScope *)Fn->getSubprogram()
+        : DebugScopeStack.back();
     Builder->SetCurrentDebugLocation(
-        llvm::DILocation::get(LLVMCtx, Line, Col, Fn->getSubprogram()));
+        llvm::DILocation::get(LLVMCtx, Line, Col, Scope));
 }
 
 llvm::DIType *CodeGenModule::GetOrCreateDIType(SemaType *Ty) {
@@ -192,8 +195,78 @@ llvm::DIType *CodeGenModule::GetOrCreateDIType(SemaType *Ty) {
         llvm::DIType *CharTy = DBuilder->createBasicType(
             "char", 8, llvm::dwarf::DW_ATE_unsigned_char);
         DIT = DBuilder->createPointerType(CharTy, PtrBits);
+    } else if (Ty->isEnum()) {
+        auto *ET = static_cast<SemaEnumType *>(Ty);
+        llvm::SmallVector<llvm::Metadata *, 8> Enumerators;
+        for (auto &[Name, Entry] : ET->getEntries())
+            Enumerators.push_back(DBuilder->createEnumerator(
+                Name.str(), (int64_t)Entry->getIndex()));
+        llvm::DIType *UnderlyingTy =
+            DBuilder->createBasicType("int", 32, llvm::dwarf::DW_ATE_signed);
+        DIT = DBuilder->createEnumerationType(
+            DebugCU, ET->getName(), DebugFile, /*LineNo=*/0,
+            /*SizeInBits=*/32, /*AlignInBits=*/32,
+            DBuilder->getOrCreateArray(Enumerators), UnderlyingTy);
+    } else if (Ty->isArray()) {
+        auto *AT = static_cast<SemaArrayType *>(Ty);
+        llvm::DIType *ElemDI = GetOrCreateDIType(AT->getElementType());
+        if (!ElemDI) ElemDI = DBuilder->createUnspecifiedType("?");
+        DIT = DBuilder->createPointerType(ElemDI, PtrBits, 0,
+                                          std::nullopt, Ty->getName());
+    } else if (Ty->isClass()) {
+        auto *CT = static_cast<SemaClassType *>(Ty);
+        CodeGenClass *CGC = CT->getCodeGen();
+        if (!CGC) {
+            DIT = DBuilder->createUnspecifiedType(CT->getName());
+        } else {
+            // Forward declare to break recursive type references
+            auto *Fwd = DBuilder->createReplaceableCompositeType(
+                llvm::dwarf::DW_TAG_structure_type,
+                CT->getName(), DebugCU, DebugFile, 0);
+            DITypeCache[Ty] = Fwd;
+
+            const llvm::StructLayout *Layout =
+                Module->getDataLayout().getStructLayout(CGC->getType());
+            llvm::SmallVector<llvm::Metadata *, 8> Members;
+
+            // VTable field (CLASS and INTERFACE only — always index 0)
+            if (CT->getClassKind() != SemaClassKind::STRUCT) {
+                llvm::DIType *VTPtrTy =
+                    DBuilder->createPointerType(nullptr, PtrBits);
+                Members.push_back(DBuilder->createMemberType(
+                    DebugCU, "__vtable", DebugFile, 0,
+                    PtrBits, PtrBits,
+                    Layout->getElementOffsetInBits(0),
+                    llvm::DINode::FlagArtificial, VTPtrTy));
+            }
+
+            // Attributes — CodeGenVar::getIndex() gives the struct field index
+            for (auto &[Name, Attr] : CT->getAttributes()) {
+                size_t FieldIdx = Attr->getCodeGen()->getIndex();
+                uint64_t OffsetBits = Layout->getElementOffsetInBits(FieldIdx);
+                llvm::DIType *AttrDI = GetOrCreateDIType(Attr->getType());
+                uint64_t SzBits = AttrDI ? AttrDI->getSizeInBits() : PtrBits;
+                Members.push_back(DBuilder->createMemberType(
+                    DebugCU, Name.str(), DebugFile, 0,
+                    SzBits, SzBits, OffsetBits,
+                    llvm::DINode::FlagZero, AttrDI));
+            }
+
+            uint64_t TotalBits = Layout->getSizeInBits();
+            uint64_t AlignBits =
+                Module->getDataLayout().getABITypeAlign(CGC->getType()).value() * 8;
+
+            auto *StructDI = DBuilder->createStructType(
+                DebugCU, CT->getName(), DebugFile, 0,
+                TotalBits, AlignBits, llvm::DINode::FlagZero,
+                /*DerivedFrom=*/nullptr,
+                DBuilder->getOrCreateArray(Members));
+
+            Fwd->replaceAllUsesWith(StructDI);
+            llvm::MDNode::deleteTemporary(Fwd);
+            DIT = StructDI;
+        }
     } else {
-        // Classes, arrays, enums: emit an unspecified opaque type for now
         DIT = DBuilder->createUnspecifiedType(Ty->getName());
     }
 
@@ -635,9 +708,34 @@ void CodeGenModule::EmitAllocCleanup(size_t frames) {
 
 void CodeGenModule::visit(SemaBlockStmt &Sema) {
 	AllocCleanupStack.push_back(&Sema);
+
+	if (DBuilder && DebugFile) {
+		llvm::DIScope *Parent;
+		if (!DebugScopeStack.empty()) {
+			Parent = DebugScopeStack.back();
+		} else {
+			llvm::BasicBlock *BB = Builder->GetInsertBlock();
+			llvm::Function *Fn = BB ? BB->getParent() : nullptr;
+			Parent = (Fn && Fn->getSubprogram())
+			             ? (llvm::DIScope *)Fn->getSubprogram()
+			             : (llvm::DIScope *)DebugCU;
+		}
+		unsigned Line = 0;
+		if (SM && !Sema.getContent().empty()) {
+			const SourceLocation &Loc = Sema.getContent().front()->getAST()->getLocation();
+			if (Loc.isValid()) Line = SM->getSpellingLineNumber(Loc);
+		}
+		DebugScopeStack.push_back(
+		    DBuilder->createLexicalBlock(Parent, DebugFile, Line, 0));
+	}
+
 	for (SemaStmt *Stmt : Sema.getContent()) {
 		Stmt->accept(*this);
 	}
+
+	if (DBuilder && !DebugScopeStack.empty())
+		DebugScopeStack.pop_back();
+
 	EmitAllocCleanup(1);
 	AllocCleanupStack.pop_back();
 }

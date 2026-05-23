@@ -149,6 +149,9 @@ namespace fly {
         // Cache: SemaType* → DIType* (avoids duplicate DWARF type entries)
         llvm::DenseMap<SemaType *, llvm::DIType *> DITypeCache;
 
+        // Scope stack: one DILexicalBlock per SemaBlockStmt visit
+        llvm::SmallVector<llvm::DIScope *, 4> DebugScopeStack;
+
     public:
 
     	llvm::SmallVector<SemaFunctionBase *, 8> Functions;
