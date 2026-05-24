@@ -10,6 +10,8 @@
 #ifndef FLY_SEMA_ALLOC_H
 #define FLY_SEMA_ALLOC_H
 
+#include <string>
+
 namespace fly {
 
     enum class SemaAllocKind {
@@ -35,6 +37,8 @@ namespace fly {
         virtual ~SemaAlloc() = default;
 
         SemaAllocKind getKind() const { return Kind; }
+
+        virtual std::string str() const;
     };
 
 }

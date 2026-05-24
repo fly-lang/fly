@@ -9,6 +9,7 @@
 
 #include "Sema/SemaModule.h"
 #include "Sema/SemaVisitor.h"
+#include "Basic/Logger.h"
 #include <AST/ASTModule.h>
 #include <llvm/IR/Module.h>
 
@@ -68,5 +69,11 @@ void SemaModule::addNode(SemaNode *Node) {
 
 void SemaModule::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaModule::str() const {
+	return Logger("SemaModule")
+		.Attr("Name", getName())
+		.End();
 }
 

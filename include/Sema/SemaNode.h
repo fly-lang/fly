@@ -13,6 +13,8 @@
 
 #include "Sema/SemaVisitor.h"
 
+#include <string>
+
 namespace fly {
 
 	enum class SemaKind {
@@ -85,6 +87,8 @@ namespace fly {
 		virtual ~SemaNode() = default;
 
 		SemaKind getKind() const;
+
+		virtual std::string str() const;
 
 		virtual void accept(SemaVisitor& Visitor) = 0;
 	};

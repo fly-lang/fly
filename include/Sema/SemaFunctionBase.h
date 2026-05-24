@@ -94,6 +94,8 @@ namespace fly {
 
         virtual CodeGenFunctionBase *getCodeGen() const = 0;
 
+        std::string str() const override;
+
     };
 
 }  // end namespace fly

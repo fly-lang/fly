@@ -9,6 +9,7 @@
 
 
 #include "Sema/SemaNode.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -17,4 +18,10 @@ SemaNode::SemaNode(SemaKind Kind) : Kind(Kind) {
 
 SemaKind SemaNode::getKind() const {
 	return Kind;
+}
+
+std::string SemaNode::str() const {
+	return Logger("SemaNode")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.End();
 }

@@ -9,6 +9,7 @@
 
 #include "Sema/SemaImport.h"
 #include "Sema/SemaVisitor.h"
+#include "Basic/Logger.h"
 
 #include <AST/ASTImport.h>
 #include <AST/ASTIdentifier.h>
@@ -48,5 +49,12 @@ void SemaImport::addSymbol(SymbolTable *Symbols) {
 
 void SemaImport::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaImport::str() const {
+	return Logger("SemaImport")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("AST", AST.str())
+		.End();
 }
 

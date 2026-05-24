@@ -10,6 +10,7 @@
 #include "Sema/SemaClassType.h"
 
 #include "AST/ASTVar.h"
+#include "Basic/Logger.h"
 #include "Sema/SemaVisitor.h"
 #include "Sema/SymbolTable.h"
 
@@ -245,5 +246,16 @@ void SemaClassType::setCodeGen(CodeGenClass *CGC) {
 
 void SemaClassType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaClassType::str() const {
+	return Logger("SemaClassType")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.Attr("Visibility", static_cast<uint64_t>(getVisibility()))
+		.Attr("Abstract", isAbstract())
+		.Attr("Final", isFinal())
+		.Attr("Constant", isConstant())
+		.End();
 }
 

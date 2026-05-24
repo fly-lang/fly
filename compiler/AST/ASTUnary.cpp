@@ -35,7 +35,7 @@ std::string ASTUnary::str() const {
     return Logger("ASTUnary").
 	Attr("Location", getLocation()).
 Attr("Kind", static_cast<size_t>(getKind())).
-           Attr("Expr", (ASTNode *) Expr).
+           Attr("Expr", Expr).
            Attr("Op", (uint64_t) OpKind).
            End();
 }

@@ -9,6 +9,8 @@
 
 #include "Sema/SemaParam.h"
 #include "Sema/SemaVisitor.h"
+#include "Sema/SemaType.h"
+#include "Basic/Logger.h"
 #include "AST/ASTParam.h"
 
 using namespace fly;
@@ -19,5 +21,14 @@ SemaParam::SemaParam(ASTParam &AST, SemaType *Type) : SemaVar(&AST, SemaKind::PA
 
 void SemaParam::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaParam::str() const {
+	return Logger("SemaParam")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.Attr("Constant", isConstant())
+		.Attr("Type", Type)
+		.End();
 }
 

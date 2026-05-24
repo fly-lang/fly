@@ -33,6 +33,8 @@ namespace fly {
         void setSecond(SemaExpr *E);
         void setThird(SemaExpr *E);
 
+        std::string str() const override;
+
         void accept(SemaVisitor &Visitor) override;
     };
 }

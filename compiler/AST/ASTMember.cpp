@@ -33,5 +33,7 @@ std::string ASTMember::str() const {
         .Attr("Location", getLocation())
         .Attr("Kind", static_cast<size_t>(getKind()))
         .Attr("Name", Name)
+        .Attr("Symbol", ResolvedSymbol ? ResolvedSymbol->getName() : std::string("null"))
+        .Attr("Parent", getParent())
         .End();
 }

@@ -106,6 +106,8 @@ namespace fly {
     	virtual CodeGenType *getCodeGen() const;
 
     	void setCodeGen(CodeGenType *CG);
+
+		std::string str() const override;
     };
 
 	class SemaBoolType : public SemaType {
@@ -114,6 +116,8 @@ namespace fly {
 		explicit SemaBoolType() : SemaType(SemaKind::TYPE_BOOL, "bool") {}
 
 		~SemaBoolType() override = default;
+
+		std::string str() const override;
 
 		void accept(SemaVisitor& Visitor) override;
 	};
@@ -128,6 +132,8 @@ namespace fly {
 		~SemaNumberType() override = default;
 
 		unsigned getRank();
+
+		std::string str() const override;
 	};
 
     class SemaIntType : public SemaNumberType {
@@ -146,6 +152,8 @@ namespace fly {
 
         bool isSigned();
 
+        std::string str() const override;
+
         void accept(SemaVisitor& Visitor) override;
     };
 
@@ -161,6 +169,8 @@ namespace fly {
 
         const SemaFloatTypeKind getFloatKind() const;
 
+        std::string str() const override;
+
         void accept(SemaVisitor& Visitor) override;
     };
 
@@ -171,6 +181,8 @@ namespace fly {
         explicit SemaComplexType() : SemaType(SemaKind::TYPE_COMPLEX, "complex") {}
 
         ~SemaComplexType() override = default;
+
+        std::string str() const override;
 
         void accept(SemaVisitor& Visitor) override;
     };
@@ -199,6 +211,8 @@ namespace fly {
 
     	uint64_t getSize() const;
 
+        std::string str() const override;
+
         void accept(SemaVisitor& Visitor) override;
 
     };
@@ -209,6 +223,8 @@ namespace fly {
 		explicit SemaErrorType() : SemaType(SemaKind::TYPE_ERROR, "error") {}
 
 		~SemaErrorType() override = default;
+
+		std::string str() const override;
 
 		void accept(SemaVisitor& Visitor) override;
 
@@ -221,6 +237,8 @@ namespace fly {
 
 		~SemaStringType() override = default;
 
+		std::string str() const override;
+
 		void accept(SemaVisitor& Visitor) override;
 	};
 
@@ -230,6 +248,8 @@ namespace fly {
 		explicit SemaVoidType() : SemaType(SemaKind::TYPE_VOID, "void") {}
 
 		~SemaVoidType() override = default;
+
+		std::string str() const override;
 
 		void accept(SemaVisitor& Visitor) override;
 	};

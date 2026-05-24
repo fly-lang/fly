@@ -43,6 +43,8 @@ namespace fly {
     public:
         virtual ~SemaVar();
 
+        std::string str() const override;
+
         ASTVar *getAST() const;
 
     	virtual llvm::StringRef getName() const;

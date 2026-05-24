@@ -79,6 +79,8 @@ namespace fly {
 
     	void setCodeGen(CodeGenClassMethod *CodeGen);
 
+    	std::string str() const override;
+
     	void accept(SemaVisitor& Visitor) override;
     };
 

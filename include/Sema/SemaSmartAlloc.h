@@ -53,6 +53,8 @@ namespace fly {
         uint64_t incrReferenceCounter();
 
         uint64_t decrReferenceCounter();
+
+        std::string str() const override;
     };
 }
 

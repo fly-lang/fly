@@ -4,6 +4,9 @@
 
 #include "Sema/SemaLoopStmt.h"
 #include "Sema/SemaVisitor.h"
+#include "Sema/SemaExpr.h"
+#include "Sema/SemaStmt.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -25,4 +28,13 @@ const llvm::SmallVector<SemaStmt *, 4> &SemaLoopStmt::getPost() const { return P
 bool SemaLoopStmt::hasVerifyConditionAtEnd() const { return VerifyConditionAtEnd; }
 
 void SemaLoopStmt::accept(SemaVisitor &Visitor) { Visitor.visit(*this); }
+
+std::string SemaLoopStmt::str() const {
+	return Logger("SemaLoopStmt")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Cond", Cond)
+		.Attr("Body", Body)
+		.Attr("VerifyConditionAtEnd", hasVerifyConditionAtEnd())
+		.End();
+}
 

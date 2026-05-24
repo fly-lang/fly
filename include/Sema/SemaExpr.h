@@ -38,6 +38,8 @@ namespace fly {
     public:
         virtual ~SemaExpr();
 
+        std::string str() const override;
+
     	SemaType *getType() const;
 
     	void setType(SemaType *Type);

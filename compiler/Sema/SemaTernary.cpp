@@ -9,6 +9,7 @@
 
 #include "Sema/SemaTernary.h"
 #include "Sema/SemaVisitor.h"
+#include "Basic/Logger.h"
 
 #include "AST/ASTTernary.h"
 #include "Sema/Helper.h"
@@ -64,4 +65,15 @@ void SemaTernary::setCodeGen(CodeGenExpr *CodeGen) {
 
 void SemaTernary::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaTernary::str() const {
+	return Logger("SemaTernary")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("AST", AST.str())
+		.Attr("Type", Type)
+		.Attr("Cond", Cond)
+		.Attr("TrueExpr", TrueExpr)
+		.Attr("FalseExpr", FalseExpr)
+		.End();
 }

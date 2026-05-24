@@ -7,6 +7,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaFunctionBase.h"
+#include "Basic/Logger.h"
 
 #include "AST/ASTFunction.h"
 #include "Sema/SemaBuilder.h"
@@ -96,3 +97,15 @@ void SemaFunctionBase::setFallible(bool F) { Fallible = F; }
 SemaBlockStmt *SemaFunctionBase::getBody() const { return Body; }
 
 void SemaFunctionBase::setBody(SemaBlockStmt *B) { Body = B; }
+
+std::string SemaFunctionBase::str() const {
+	return Logger("SemaFunctionBase")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.Attr("NamespaceName", getNamespaceName())
+		.Attr("ReturnType", const_cast<SemaFunctionBase*>(this)->getReturnType())
+		.Attr("Params", const_cast<SemaFunctionBase*>(this)->getParams())
+		.Attr("Fallible", isFallible())
+		.Attr("Body", getBody())
+		.End();
+}

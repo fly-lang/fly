@@ -61,6 +61,8 @@ namespace fly {
 
     	void addNode(SemaNode *Node);
 
+    	std::string str() const;
+
     	void accept(class SemaVisitor& Visitor);
 
     };

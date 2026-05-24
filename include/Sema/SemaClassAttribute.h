@@ -61,6 +61,8 @@ namespace fly {
 
         SemaExpr *getInitExpr() const;
 
+        std::string str() const override;
+
         void accept(SemaVisitor& Visitor) override;
 
     };

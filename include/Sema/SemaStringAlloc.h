@@ -32,6 +32,8 @@ namespace fly {
         ~SemaStringAlloc() override = default;
 
         SemaVar *getVar() const;
+
+        std::string str() const override;
     };
 
 }

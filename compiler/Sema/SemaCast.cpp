@@ -9,6 +9,8 @@
 
 #include "Sema/SemaCast.h"
 #include "Sema/SemaVisitor.h"
+#include "Sema/SemaType.h"
+#include "Basic/Logger.h"
 
 #include "AST/ASTCast.h"
 #include "AST/ASTType.h"
@@ -41,4 +43,14 @@ void SemaCast::setCodeGen(CodeGenExpr *CodeGen) {
 
 void SemaCast::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaCast::str() const {
+	return Logger("SemaCast")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("AST", AST.str())
+		.Attr("Type", Type)
+		.Attr("Expr", Expr)
+		.Attr("ToType", ToType)
+		.End();
 }

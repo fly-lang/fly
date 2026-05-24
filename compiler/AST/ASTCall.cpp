@@ -32,9 +32,12 @@ Symbol *ASTCall::getSymbol() const { return ResolvedSymbol; }
 void ASTCall::setSymbol(Symbol *Sym) { ResolvedSymbol = Sym; }
 
 std::string ASTCall::str() const {
-    return Logger("ASTCall").
-	Attr("Location", getLocation()).
-		Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("Args", ASTNode::str(Args)).
-            End();
+    return Logger("ASTCall")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("CallKind", static_cast<uint64_t>(CallKind))
+        .Attr("Name", Name)
+        .Attr("Symbol", ResolvedSymbol ? ResolvedSymbol->getName() : std::string("null"))
+        .Attr("Args", Args)
+        .End();
 }

@@ -44,12 +44,14 @@ SourceLocation &ASTTernary::getFalseOpLocation() {
 ASTExpr *ASTTernary::getFalseExpr() const { return FalseExpr; }
 
 std::string ASTTernary::str() const {
-    return Logger("ASTTernaryGroupExpr").
-	Attr("Location", getLocation()).
- Attr("Kind", static_cast<size_t>(getKind())).
-           Attr("First", ConditionExpr).
-           Attr("Second", TrueExpr).
-           Attr("Third", FalseExpr).
-           End();
+    return Logger("ASTTernary")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("ConditionExpr", ConditionExpr)
+        .Attr("TrueOpLocation", TrueOpLocation)
+        .Attr("TrueExpr", TrueExpr)
+        .Attr("FalseOpLocation", FalseOpLocation)
+        .Attr("FalseExpr", FalseExpr)
+        .End();
 }
 

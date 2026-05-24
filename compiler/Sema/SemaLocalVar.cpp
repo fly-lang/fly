@@ -9,6 +9,8 @@
 
 #include "Sema/SemaLocalVar.h"
 #include "Sema/SemaVisitor.h"
+#include "Sema/SemaType.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -17,5 +19,14 @@ SemaLocalVar::SemaLocalVar(ASTVar &AST, SemaType *Type) : SemaVar(&AST, SemaKind
 
 void SemaLocalVar::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaLocalVar::str() const {
+	return Logger("SemaLocalVar")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.Attr("Constant", isConstant())
+		.Attr("Type", Type)
+		.End();
 }
 

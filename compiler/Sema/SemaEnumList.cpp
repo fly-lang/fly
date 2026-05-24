@@ -9,6 +9,7 @@
 
 #include "Sema/SemaEnumList.h"
 
+#include "Basic/Logger.h"
 #include "Sema/SemaEnumType.h"
 #include "Sema/SemaVisitor.h"
 
@@ -24,5 +25,13 @@ SemaEnumType *SemaEnumList::getEnumType() const {
 
 void SemaEnumList::accept(SemaVisitor &Visitor) {
     Visitor.visit(*this);
+}
+
+std::string SemaEnumList::str() const {
+	return Logger("SemaEnumList")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("EnumType", EnumType)
+		.Attr("Type", Type)
+		.End();
 }
 

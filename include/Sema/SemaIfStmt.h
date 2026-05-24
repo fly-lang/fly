@@ -47,6 +47,8 @@ namespace fly {
 
         void setElse(SemaStmt *Else);
 
+        std::string str() const override;
+
         void accept(SemaVisitor &Visitor) override;
     };
 }

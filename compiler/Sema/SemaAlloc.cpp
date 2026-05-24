@@ -8,3 +8,12 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaAlloc.h"
+#include "Basic/Logger.h"
+
+using namespace fly;
+
+std::string SemaAlloc::str() const {
+	return Logger("SemaAlloc")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.End();
+}

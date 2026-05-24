@@ -106,16 +106,11 @@ uint64_t ASTArrayValue::size() const {
 }
 
 std::string ASTArrayValue::str() const {
-	std::string Str;
-	for (auto Value : Values) {
-	    Str += Value->str() + ", ";
-	}
-	Str = Str.substr(0, Str.size()-1); // remove final comma
-    return Logger("ASTArrayValue").
-	Attr("Location", getLocation()).
-	Attr("Kind", static_cast<size_t>(getKind())).
-	Attr("Values", Str).
-	End();
+    return Logger("ASTArrayValue")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("Values", Values)
+        .End();
 }
 
 bool ASTArrayValue::empty() const {
@@ -139,16 +134,19 @@ uint64_t ASTStructValue::size() const {
 }
 
 std::string ASTStructValue::str() const {
-	std::string Str;
-	for (auto &Value : Values) {
-	    Str += std::string(Value.getKey().data()) + ": " + Value.getValue()->str() + ", ";
-	}
-	Str = Str.substr(0, Str.size()-1); // remove final comma
-    return Logger("ASTStructValue").
-		Attr("Location", getLocation()).
-		Attr("Kind", static_cast<size_t>(getKind())).
-		Attr("Values", Str).
-		End();
+    std::string Str = Logger::OPEN_LIST;
+    bool first = true;
+    for (auto &KV : Values) {
+        if (!first) Str += Logger::SEP;
+        Str += KV.getKey().str() + Logger::EQ + (KV.getValue() ? KV.getValue()->str() : "null");
+        first = false;
+    }
+    Str += Logger::CLOSE_LIST;
+    return Logger("ASTStructValue")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("Values", Str)
+        .End();
 }
 
 bool ASTStructValue::empty() const {

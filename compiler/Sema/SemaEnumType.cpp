@@ -9,6 +9,7 @@
 
 #include "Sema/SemaEnumType.h"
 
+#include "Basic/Logger.h"
 #include "Sema/SemaVisitor.h"
 
 #include "llvm/ADT/StringMap.h"
@@ -131,5 +132,23 @@ bool SemaEnumType::isBase(const SemaEnumType *Derived) const {
 
 void SemaEnumType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaEnumType::str() const {
+	std::string Entries = Logger::OPEN_LIST;
+	bool first = true;
+	for (auto &KV : getEntries()) {
+		if (!first) Entries += Logger::SEP;
+		Entries += KV.getKey().str();
+		first = false;
+	}
+	Entries += Logger::CLOSE_LIST;
+	return Logger("SemaEnumType")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.Attr("Visibility", static_cast<uint64_t>(getVisibility()))
+		.Attr("Constant", isConstant())
+		.Attr("Entries", Entries)
+		.End();
 }
 

@@ -10,6 +10,8 @@
 #include "Sema/SemaVar.h"
 #include "Sema/SemaSmartAlloc.h"
 #include "Sema/SemaStringAlloc.h"
+#include "Sema/SemaType.h"
+#include "Basic/Logger.h"
 #include <AST/ASTVar.h>
 
 using namespace fly;
@@ -61,4 +63,13 @@ CodeGenVar * SemaVar::getCodeGen() const {
 
 void SemaVar::setCodeGen(CodeGenVar *CodeGen) {
 	this->CodeGen = CodeGen;
+}
+
+std::string SemaVar::str() const {
+	return Logger("SemaVar")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.Attr("Constant", Constant)
+		.Attr("Type", Type)
+		.End();
 }

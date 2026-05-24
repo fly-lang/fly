@@ -32,6 +32,8 @@ namespace fly {
 
         void setHandle(SemaBlockStmt *Handle);
 
+        std::string str() const override;
+
         void accept(SemaVisitor &Visitor) override;
     };
 }

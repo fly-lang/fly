@@ -48,6 +48,8 @@ namespace fly {
 
         bool hasVerifyConditionAtEnd() const;
 
+        std::string str() const override;
+
         void accept(SemaVisitor &Visitor) override;
     };
 }

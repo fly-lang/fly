@@ -10,7 +10,9 @@
 #include "Sema/SemaClassAttribute.h"
 
 #include "AST/ASTAttribute.h"
+#include "Basic/Logger.h"
 #include "Sema/SemaExpr.h"
+#include "Sema/SemaType.h"
 #include "Sema/SemaVisibilityKind.h"
 #include "Sema/SemaVisitor.h"
 
@@ -52,5 +54,16 @@ SemaExpr * SemaClassAttribute::getInitExpr() const {
 
 void SemaClassAttribute::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaClassAttribute::str() const {
+	return Logger("SemaClassAttribute")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.Attr("Visibility", static_cast<uint64_t>(getVisibility()))
+		.Attr("Static", isStatic())
+		.Attr("Constant", isConstant())
+		.Attr("Type", Type)
+		.End();
 }
 

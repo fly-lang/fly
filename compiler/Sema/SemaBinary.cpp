@@ -10,6 +10,7 @@
 #include "Sema/SemaBinary.h"
 
 #include "AST/ASTBinary.h"
+#include "Basic/Logger.h"
 #include "Sema/Helper.h"
 #include "Sema/SemaBuiltin.h"
 #include "Sema/SemaType.h"
@@ -71,4 +72,14 @@ void SemaBinary::setCodeGen(CodeGenExpr *CodeGen) {
 
 void SemaBinary::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaBinary::str() const {
+	return Logger("SemaBinary")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("AST", AST.str())
+		.Attr("Type", Type)
+		.Attr("Left", Left)
+		.Attr("Right", Right)
+		.End();
 }

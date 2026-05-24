@@ -28,6 +28,8 @@ namespace fly {
 
         ~SemaStmt() override = default;
 
+        std::string str() const override;
+
         ASTStmt *getAST() const;
 
         void accept(SemaVisitor &Visitor) override = 0;

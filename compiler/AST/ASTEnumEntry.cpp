@@ -48,9 +48,12 @@ void ASTEnumEntry::setSymbol(Symbol *S) {
 }
 
 std::string ASTEnumEntry::str() const {
-    return Logger("ASTEnumEntry").
-           Attr("Enum", Enum->getName()).
-           Attr("Name", Name).
-           Attr("Index", (uint64_t) Index).
-           End();
+    return Logger("ASTEnumEntry")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("Enum", Enum->getName())
+        .Attr("Name", Name)
+        .Attr("Index", (uint64_t) Index)
+        .Attr("Symbol", Sym ? Sym->getName() : std::string("null"))
+        .End();
 }

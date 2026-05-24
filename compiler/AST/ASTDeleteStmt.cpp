@@ -42,5 +42,5 @@ std::string ASTDeleteStmt::str() const {
     return Logger("ASTDelete").
 	Attr("Location", getLocation()).
 		Attr("Kind", static_cast<size_t>(getKind()))
-	.Attr("Expr", Expr->str()).End();
+	.Attr("Expr", Expr).End();
 }

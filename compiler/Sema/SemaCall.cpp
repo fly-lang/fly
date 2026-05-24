@@ -9,6 +9,9 @@
 
 #include "Sema/SemaCall.h"
 #include "Sema/SemaVisitor.h"
+#include "Sema/SemaType.h"
+#include "Sema/SemaFunctionBase.h"
+#include "Basic/Logger.h"
 
 #include <AST/ASTCall.h>
 
@@ -55,5 +58,15 @@ void SemaCall::setCodeGen(CodeGenExpr *CodeGen) {
 
 void SemaCall::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaCall::str() const {
+	return Logger("SemaCall")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("AST", AST.str())
+		.Attr("Type", Type)
+		.Attr("Function", Function)
+		.Attr("Args", Args)
+		.End();
 }
 

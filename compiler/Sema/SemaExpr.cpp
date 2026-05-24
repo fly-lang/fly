@@ -8,6 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaExpr.h"
+#include "Sema/SemaType.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -46,5 +48,14 @@ CodeGenExpr * SemaExpr::getCodeGen() const {
 
 void SemaExpr::setCodeGen(CodeGenExpr *CG) {
 	this->CodeGen = CG;
+}
+
+std::string SemaExpr::str() const {
+	return Logger("SemaExpr")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Type", Type)
+		.Attr("Parent", Parent)
+		.Attr("Child", Child)
+		.End();
 }
 

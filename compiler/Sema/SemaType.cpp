@@ -9,6 +9,7 @@
 
 #include "Sema/SemaType.h"
 #include "Sema/SemaVisitor.h"
+#include "Basic/Logger.h"
 
 #include <Sema/SemaClassType.h>
 #include <Sema/SemaNameSpace.h>
@@ -96,8 +97,23 @@ void SemaType::setCodeGen(CodeGenType *CG) {
 	this->CG = CG;
 }
 
+std::string SemaType::str() const {
+	return Logger("SemaType")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Id", (uint64_t)getId())
+		.Attr("Name", getName())
+		.End();
+}
+
 void SemaBoolType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaBoolType::str() const {
+	return Logger("SemaBoolType")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.End();
 }
 
 SemaNumberType::SemaNumberType(SemaKind Kind, std::string Name, unsigned Rank) :
@@ -106,6 +122,14 @@ SemaNumberType::SemaNumberType(SemaKind Kind, std::string Name, unsigned Rank) :
 
 unsigned SemaNumberType::getRank() {
 	return Rank;
+}
+
+std::string SemaNumberType::str() const {
+	return Logger("SemaNumberType")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.Attr("Rank", (uint64_t)const_cast<SemaNumberType*>(this)->getRank())
+		.End();
 }
 
 SemaIntType::SemaIntType(SemaIntTypeKind IntKind, std::string Name) :
@@ -128,6 +152,15 @@ void SemaIntType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
+std::string SemaIntType::str() const {
+	return Logger("SemaIntType")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.Attr("Rank", (uint64_t)const_cast<SemaIntType*>(this)->getRank())
+		.Attr("IntKind", static_cast<uint64_t>(getIntKind()))
+		.End();
+}
+
 SemaFloatType::SemaFloatType(SemaFloatTypeKind FPKind, std::string Name) :
 	SemaNumberType(SemaKind::TYPE_FLOAT, Name, static_cast<unsigned>(FPKind) * 10), FloatKind(FPKind) {
 }
@@ -138,6 +171,15 @@ const SemaFloatTypeKind SemaFloatType::getFloatKind() const {
 
 void SemaFloatType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaFloatType::str() const {
+	return Logger("SemaFloatType")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.Attr("Rank", (uint64_t)const_cast<SemaFloatType*>(this)->getRank())
+		.Attr("FloatKind", static_cast<uint64_t>(getFloatKind()))
+		.End();
 }
 
 SemaArrayType::SemaArrayType(SemaType *ElementType, SemaExpr *SizeExpr) :
@@ -167,18 +209,55 @@ void SemaArrayType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
+std::string SemaArrayType::str() const {
+	return Logger("SemaArrayType")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.Attr("ElementType", ElementType)
+		.Attr("Size", getSize())
+		.End();
+}
+
 void SemaErrorType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaErrorType::str() const {
+	return Logger("SemaErrorType")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.End();
 }
 
 void SemaStringType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
+std::string SemaStringType::str() const {
+	return Logger("SemaStringType")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.End();
+}
+
 void SemaVoidType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
+std::string SemaVoidType::str() const {
+	return Logger("SemaVoidType")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.End();
+}
+
 void SemaComplexType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaComplexType::str() const {
+	return Logger("SemaComplexType")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.End();
 }

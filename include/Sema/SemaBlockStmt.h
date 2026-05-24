@@ -36,6 +36,8 @@ namespace fly {
 
         const llvm::SmallVector<SemaAlloc *, 8> &getAllocs() const;
 
+        std::string str() const override;
+
         void accept(SemaVisitor &Visitor) override;
     };
 }

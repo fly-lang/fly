@@ -10,6 +10,8 @@
 #ifndef FLY_SEMA_COMMENT_H
 #define FLY_SEMA_COMMENT_H
 
+#include <string>
+
 
 namespace fly {
 
@@ -30,6 +32,8 @@ namespace fly {
         ~SemaComment() = default;
 
     	ASTComment &getAST() const;
+
+    	std::string str() const;
 
     };
 

@@ -51,6 +51,8 @@ namespace fly {
     	ASTValue *getAST() const;
 
     	void setCodeGen(CodeGenExpr *CGC);
+
+    	std::string str() const override;
     };
 
 	class SemaBoolValue : public SemaValue {
@@ -68,6 +70,8 @@ namespace fly {
 		~SemaBoolValue() override = default;
 
 		bool getValue() const;
+
+		std::string str() const override;
 
 		void accept(SemaVisitor& Visitor) override;
 
@@ -89,6 +93,8 @@ namespace fly {
 
 		llvm::APInt getValue() const;
 
+		std::string str() const override;
+
 		void accept(SemaVisitor& Visitor) override;
 
 	};
@@ -108,6 +114,8 @@ namespace fly {
 		~SemaFloatValue() override = default;
 
 		llvm::APFloat getValue() const;
+
+		std::string str() const override;
 
 		void accept(SemaVisitor& Visitor) override;
 
@@ -132,6 +140,8 @@ namespace fly {
 		llvm::APFloat getReal() const;
 		llvm::APFloat getImag() const;
 
+		std::string str() const override;
+
 		void accept(SemaVisitor& Visitor) override;
 
 	};
@@ -152,6 +162,8 @@ namespace fly {
 
 		llvm::StringRef getValue() const;
 
+		std::string str() const override;
+
 		void accept(SemaVisitor& Visitor) override;
 
 	};
@@ -171,6 +183,8 @@ namespace fly {
 		~SemaArrayValue() override = default;
 
 		const llvm::SmallVector<SemaValue *, 8> &getValues() const;
+
+		std::string str() const override;
 
 		void accept(SemaVisitor& Visitor) override;
 
@@ -194,6 +208,8 @@ namespace fly {
 
 		const llvm::StringMap<SemaValue *> &getValues() const;
 
+		std::string str() const override;
+
 		void accept(SemaVisitor& Visitor) override;
 
 	};
@@ -208,6 +224,8 @@ namespace fly {
 
 		~SemaNullValue() override = default;
 
+		std::string str() const override;
+
 		void accept(SemaVisitor& Visitor) override;
 	};
 
@@ -220,6 +238,8 @@ namespace fly {
 	public:
 
 		~SemaUnsetValue() override = default;
+
+		std::string str() const override;
 
 		void accept(SemaVisitor& Visitor) override;
 	};

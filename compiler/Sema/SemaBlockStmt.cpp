@@ -5,6 +5,7 @@
 #include "Sema/SemaBlockStmt.h"
 #include "Sema/SemaAlloc.h"
 #include "Sema/SemaVisitor.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -26,3 +27,10 @@ void SemaBlockStmt::addAlloc(SemaAlloc *Alloc) { Allocs.push_back(Alloc); }
 const llvm::SmallVector<SemaAlloc *, 8> &SemaBlockStmt::getAllocs() const { return Allocs; }
 
 void SemaBlockStmt::accept(SemaVisitor &Visitor) { Visitor.visit(*this); }
+
+std::string SemaBlockStmt::str() const {
+	return Logger("SemaBlockStmt")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Content", getContent())
+		.End();
+}

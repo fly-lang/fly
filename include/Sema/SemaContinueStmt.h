@@ -17,6 +17,8 @@ namespace fly {
 
         ~SemaContinueStmt() override = default;
 
+        std::string str() const override;
+
         void accept(SemaVisitor &Visitor) override;
     };
 }

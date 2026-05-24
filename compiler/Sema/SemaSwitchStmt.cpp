@@ -4,6 +4,9 @@
 
 #include "Sema/SemaSwitchStmt.h"
 #include "Sema/SemaVisitor.h"
+#include "Sema/SemaExpr.h"
+#include "Sema/SemaStmt.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -22,4 +25,12 @@ SemaStmt *SemaSwitchStmt::getDefault() const { return Default; }
 void SemaSwitchStmt::setDefault(SemaStmt *D) { Default = D; }
 
 void SemaSwitchStmt::accept(SemaVisitor &Visitor) { Visitor.visit(*this); }
+
+std::string SemaSwitchStmt::str() const {
+	return Logger("SemaSwitchStmt")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Expr", Expr)
+		.Attr("Default", Default)
+		.End();
+}
 
