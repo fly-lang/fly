@@ -8,7 +8,7 @@
 int main(int argc, char** argv) {
     CLI::App app{"flyp — Fly package manager"};
     app.require_subcommand(0, 1);
-    app.set_version_flag("-V,--version", "flyp 0.1.0");
+    app.set_version_flag("-V,--version", "flyp " FLYP_VERSION);
 
     // ── flyp version ─────────────────────────────────────────────────────────
     app.add_subcommand("version", "Print flyp version")
