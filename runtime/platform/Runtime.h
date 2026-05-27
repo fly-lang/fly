@@ -214,6 +214,27 @@ i32 env_args_get(i32 idx, char *buf, usize size);
  * Called once from the fly-compiled program entry point. */
 void env_init(int argc, char **argv);
 
+/* ── Math (libm) ─────────────────────────────────────────────────────────── */
+/* These symbols are resolved from libm (-lm on Linux, libSystem on macOS,
+ * libcmt on Windows) at Fly program link time.  They are NOT implemented in
+ * the runtime C sources — these declarations exist so C test code in this
+ * tree can call them without pulling in <math.h>. */
+
+double asin(double x);
+double acos(double x);
+double atan(double x);
+double atan2(double y, double x);
+double sinh(double x);
+double cosh(double x);
+double tanh(double x);
+double asinh(double x);
+double acosh(double x);
+double atanh(double x);
+double erf(double x);
+double erfc(double x);
+double tgamma(double x);
+double hypot(double x, double y);
+
 /* ── Fly string-array helpers ────────────────────────────────────────────── */
 
 /* Write a Fly string struct { i64 ptr, i32 size } at arr_base[idx * 16]. */

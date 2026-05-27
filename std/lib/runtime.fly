@@ -26,6 +26,10 @@ public void sinh(const double x, double out) {}
 public void cosh(const double x, double out) {}
 public void tanh(const double x, double out) {}
 public void hypot(const double x, const double y, double out) {}
+public void asinh(const double x, double out) {}
+public void acosh(const double x, double out) {}
+public void atanh(const double x, double out) {}
+public void erfc(const double x, double out) {}
 
 // ── Filesystem (Runtime.h) ───────────────────────────────────────────────────
 // flags: O_RDONLY=0, O_WRONLY=1, O_RDWR=2, O_CREAT=64, O_TRUNC=512, O_APPEND=1024

@@ -43,10 +43,33 @@ static void thread_fn(void *arg)
     futex_wake((i32 *)&thread_done, 1);
 }
 
+/* ── math smoke test ────────────────────────────────────────────────────── */
+
+static void test_math(void)
+{
+    if (asin(0.0)    != 0.0) proc_exit(10);
+    if (acos(1.0)    != 0.0) proc_exit(11);
+    if (atan(0.0)    != 0.0) proc_exit(12);
+    if (atan2(0.0, 1.0) != 0.0) proc_exit(13);
+    if (sinh(0.0)    != 0.0) proc_exit(14);
+    if (cosh(0.0)    != 1.0) proc_exit(15);
+    if (tanh(0.0)    != 0.0) proc_exit(16);
+    if (asinh(0.0)   != 0.0) proc_exit(17);
+    if (acosh(1.0)   != 0.0) proc_exit(18);
+    if (atanh(0.0)   != 0.0) proc_exit(19);
+    if (erf(0.0)     != 0.0) proc_exit(20);
+    if (erfc(0.0)    != 1.0) proc_exit(21);
+    if (tgamma(1.0)  != 1.0) proc_exit(22);
+    if (hypot(3.0, 4.0) != 5.0) proc_exit(23);
+}
+
 /* ── tests ──────────────────────────────────────────────────────────────── */
 
 static void run_tests(void)
 {
+    /* 0. Math (libm linkage smoke test) */
+    test_math();
+
     /* 1. Memory */
     const usize PAGE = 4096;
     void *mem = mem_alloc(PAGE);

@@ -45,7 +45,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             -ffreestanding -nostdinc -fno-stack-protector -fno-builtin)
     # mem_alloc is backed by malloc; link libc but supply our own _start entry point.
     target_link_options(fly_runtime_test PRIVATE -nostartfiles -Wl,-e,_start)
-    target_link_libraries(fly_runtime_test PRIVATE c)
+    target_link_libraries(fly_runtime_test PRIVATE c m)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     target_compile_options(fly_runtime_test PRIVATE
             -ffreestanding -fno-stack-protector -fno-builtin)

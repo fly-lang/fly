@@ -174,6 +174,8 @@ void main() {
     assert.assertApprox(d, 5.0, 200)
     d = math.hypot(5.0, 12.0)
     assert.assertApprox(d, 13.0, 201)
+    d = math.hypot(3.0e200, 4.0e200)
+    assert.assertApproxEps(d, 5.0e200, 1.0e185, 202)
 
     // ── asin / acos / atan / atan2 ────────────────────────────────────────────
     d = math.asin(0.0)
@@ -184,6 +186,14 @@ void main() {
     assert.assertApprox(d, 0.0, 212)
     d = math.atan2(0.0, 1.0)
     assert.assertApprox(d, 0.0, 213)
+    d = math.asin(0.5)
+    assert.assertApproxEps(d, 0.5235987755982988, 0.000000001, 214)
+    d = math.acos(0.5)
+    assert.assertApproxEps(d, 1.0471975511965979, 0.000000001, 215)
+    d = math.atan(1.0)
+    assert.assertApproxEps(d, 0.7853981633974483, 0.000000001, 216)
+    d = math.atan2(1.0, 1.0)
+    assert.assertApproxEps(d, 0.7853981633974483, 0.000000001, 217)
 
     // ── sinh / cosh / tanh ────────────────────────────────────────────────────
     d = math.sinh(0.0)
@@ -192,6 +202,12 @@ void main() {
     assert.assertApprox(d, 1.0, 221)
     d = math.tanh(0.0)
     assert.assertApprox(d, 0.0, 222)
+    d = math.sinh(1.0)
+    assert.assertApproxEps(d, 1.1752011936438014, 0.000000001, 223)
+    d = math.cosh(1.0)
+    assert.assertApproxEps(d, 1.5430806348152437, 0.000000001, 224)
+    d = math.tanh(1.0)
+    assert.assertApproxEps(d, 0.7615941559557649, 0.000000001, 225)
 
     // ── isNaN / isInf / isFinite ──────────────────────────────────────────────
     double zero = 0.0
@@ -291,10 +307,38 @@ void main() {
     assert.assertApprox(d, 0.0, 350)
     d = math.erf(1.0)
     assert.assertApproxEps(d, 0.8427007929497148, 0.000000001, 351)
+    d = math.erf(0.5)
+    assert.assertApproxEps(d, 0.5204998778130465, 0.000000001, 352)
 
     // ── gamma ─────────────────────────────────────────────────────────────────
     d = math.gamma(1.0)
     assert.assertApprox(d, 1.0, 360)
     d = math.gamma(5.0)
     assert.assertApprox(d, 24.0, 361)
+    d = math.gamma(0.5)
+    assert.assertApproxEps(d, 1.7724538509055159, 0.000000001, 362)
+
+    // ── asinh ─────────────────────────────────────────────────────────────────
+    d = math.asinh(0.0)
+    assert.assertApprox(d, 0.0, 370)
+    d = math.asinh(1.0)
+    assert.assertApproxEps(d, 0.881373587019543, 0.000000001, 371)
+
+    // ── acosh ─────────────────────────────────────────────────────────────────
+    d = math.acosh(1.0)
+    assert.assertApprox(d, 0.0, 380)
+    d = math.acosh(2.0)
+    assert.assertApproxEps(d, 1.3169578969248166, 0.000000001, 381)
+
+    // ── atanh ─────────────────────────────────────────────────────────────────
+    d = math.atanh(0.0)
+    assert.assertApprox(d, 0.0, 390)
+    d = math.atanh(0.5)
+    assert.assertApproxEps(d, 0.5493061443340549, 0.000000001, 391)
+
+    // ── erfc ──────────────────────────────────────────────────────────────────
+    d = math.erfc(0.0)
+    assert.assertApprox(d, 1.0, 400)
+    d = math.erfc(1.0)
+    assert.assertApproxEps(d, 0.15729920705028513, 0.000000001, 401)
 }

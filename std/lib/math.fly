@@ -116,8 +116,7 @@ public double toDegrees(const double x) {
 }
 
 public double hypot(const double a, const double b) {
-    double sq = a * a + b * b
-    fly.llvm.sqrt(sq, out)
+    fly.runtime.hypot(a, b, out)
 }
 
 // ── Exponential & Logarithms ─────────────────────────────────────────────────
@@ -420,5 +419,9 @@ public long perm(const long n, const long k) {
     out = r
 }
 
-public double erf(const double x)   { fly.runtime.erf(x, out) }
-public double gamma(const double x) { fly.runtime.tgamma(x, out) }
+public double erf(const double x)    { fly.runtime.erf(x, out) }
+public double erfc(const double x)   { fly.runtime.erfc(x, out) }
+public double gamma(const double x)  { fly.runtime.tgamma(x, out) }
+public double asinh(const double x)  { fly.runtime.asinh(x, out) }
+public double acosh(const double x)  { fly.runtime.acosh(x, out) }
+public double atanh(const double x)  { fly.runtime.atanh(x, out) }
