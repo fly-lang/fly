@@ -288,16 +288,27 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     					llvm::ConstantInt::get(PtrSizedIntTy, 8));
     				InstancePtr = Builder->CreateCall(CGClass->getInitConstructor(), {InstancePtr});
     			} else {
-    				// Unique/plain alloc: malloc(sizeof(T)) + init_ctor.
-    				llvm::Type *PtrSizedIntTy = CGM->Module->getDataLayout().getIntPtrType(CGM->LLVMCtx);
-    				llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
-    					"malloc",
-    					llvm::FunctionType::get(
-    						llvm::PointerType::getUnqual(CGM->LLVMCtx), {PtrSizedIntTy}, false));
-    				llvm::Value *RawPtr = Builder->CreateCall(MallocFn,
-    					{Builder->CreateIntCast(
-    						llvm::ConstantExpr::getSizeOf(CGClass->getType()), PtrSizedIntTy, false)});
-    				InstancePtr = Builder->CreateCall(CGClass->getInitConstructor(), {RawPtr});
+    				// Plain `new` for STRUCT → stack-allocate; no heap involved.
+    				// Smart-pointer variants (unique/weak) for STRUCT still use heap because the
+    				// runtime will call free() on scope exit.
+    				bool isStackStruct =
+    					Method->getClass()->getClassKind() == SemaClassKind::STRUCT &&
+    					Sema->getAST().getCallKind() == ASTCallKind::CALL_NEW;
+    				if (isStackStruct) {
+    					llvm::AllocaInst *StackPtr = Builder->CreateAlloca(CGClass->getType());
+    					InstancePtr = Builder->CreateCall(CGClass->getInitConstructor(), {StackPtr});
+    				} else {
+    					// CLASS/INTERFACE or smart-alloc variant: malloc(sizeof(T)) + init_ctor.
+    					llvm::Type *PtrSizedIntTy = CGM->Module->getDataLayout().getIntPtrType(CGM->LLVMCtx);
+    					llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
+    						"malloc",
+    						llvm::FunctionType::get(
+    							llvm::PointerType::getUnqual(CGM->LLVMCtx), {PtrSizedIntTy}, false));
+    					llvm::Value *RawPtr = Builder->CreateCall(MallocFn,
+    						{Builder->CreateIntCast(
+    							llvm::ConstantExpr::getSizeOf(CGClass->getType()), PtrSizedIntTy, false)});
+    					InstancePtr = Builder->CreateCall(CGClass->getInitConstructor(), {RawPtr});
+    				}
     			}
 
     		} else {
@@ -1179,15 +1190,22 @@ void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &A
 				if (ArgExpr == Sema->getOutVar()) {
 					llvm::Type *OVTy = CGV->getType();
 					if (OVTy->isStructTy() && OVTy != CodeGen::StringTy && OVTy != CodeGen::ArrayTy) {
-						llvm::Type *PSITy = CGM->Module->getDataLayout().getIntPtrType(CGM->LLVMCtx);
-						llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
-							"malloc",
-							llvm::FunctionType::get(
-								llvm::PointerType::getUnqual(CGM->LLVMCtx), {PSITy}, false));
-						llvm::Value *HeapPtr = Builder->CreateCall(MallocFn, {
-							Builder->CreateIntCast(
-								llvm::ConstantExpr::getSizeOf(OVTy), PSITy, false)});
-						Builder->CreateStore(HeapPtr, CGV->getPointer());
+						SemaType *SemaTy = static_cast<SemaVar *>(ArgExpr)->getType();
+						bool isStructKind = SemaTy && SemaTy->getKind() == SemaKind::TYPE_CLASS &&
+							static_cast<SemaClassType *>(SemaTy)->getClassKind() == SemaClassKind::STRUCT;
+						if (!isStructKind) {
+							// CLASS/INTERFACE: heap-allocate so the callee has a valid target.
+							llvm::Type *PSITy = CGM->Module->getDataLayout().getIntPtrType(CGM->LLVMCtx);
+							llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
+								"malloc",
+								llvm::FunctionType::get(
+									llvm::PointerType::getUnqual(CGM->LLVMCtx), {PSITy}, false));
+							llvm::Value *HeapPtr = Builder->CreateCall(MallocFn, {
+								Builder->CreateIntCast(
+									llvm::ConstantExpr::getSizeOf(OVTy), PSITy, false)});
+							Builder->CreateStore(HeapPtr, CGV->getPointer());
+						}
+						// STRUCT: ptr_slot already points to stack data from CodeGenVar::Alloca()
 					}
 				}
 				Args.push_back(CGV->getPointer());

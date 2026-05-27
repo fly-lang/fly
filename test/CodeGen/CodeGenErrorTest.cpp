@@ -430,7 +430,7 @@ namespace {
                           "entry:\n"
                           "  %1 = alloca ptr, align 8\n"
                           "  store ptr %0, ptr %1, align 8\n"
-                          "  %2 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%TestStruct, ptr null, i32 1) to i64))\n"
+                          "  %2 = alloca %TestStruct, align 8\n"
                           "  %3 = call ptr @TestStruct.init_ctor(ptr %2)\n"
                           "  %4 = load ptr, ptr %1, align 8\n"
                           "  %5 = getelementptr inbounds %error, ptr %4, i32 0, i32 0\n"
@@ -458,8 +458,6 @@ namespace {
                           "  %8 = load i32, ptr %7, align 4\n"
                           "  ret i32 %8\n"
                           "}\n"
-                          "\n"
-                          "declare ptr @malloc(i64)\n"
                           "\n"
                           "declare void @env_init(i32, ptr)\n");
     }

@@ -20,6 +20,7 @@
 #   fly.os.io        lib/os/io.fly
 #   fly.os.fs        lib/os/fs.fly
 #   fly.sync         lib/sync.fly
+#   fly.mem          lib/mem.fly
 #
 # Tests live in test/:
 #   test/str_test.fly        — Fly-native tests for fly.str
@@ -47,6 +48,7 @@ set(FLY_LIB_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/os/io.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/os/fs.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/sync.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/mem.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/bridge/clang.fly
 )
 

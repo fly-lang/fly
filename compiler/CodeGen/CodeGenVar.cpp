@@ -17,6 +17,7 @@
 #include <Sema/SemaCall.h>
 #include <Sema/SemaClassAttribute.h>
 #include <Sema/SemaClassInstance.h>
+#include <Sema/SemaClassType.h>
 #include <Sema/SemaMember.h>
 #include <Sema/SemaVar.h>
 #include <llvm/IR/Instructions.h>
@@ -43,9 +44,17 @@ llvm::AllocaInst *CodeGenVar::Alloca() {
 		// Value-type structs: allocate the struct directly
 		this->Pointer = CGM->Builder->CreateAlloca(T);
 	} else if (T->isStructTy()) {
-		// Struct-type variables store a ptr-to-heap; allocate ptr.
 		llvm::PointerType *PtrTy = T->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 		this->Pointer = CGM->Builder->CreateAlloca(PtrTy);
+
+		// For STRUCT kind: pre-allocate data on the caller's stack and point ptr_slot at it.
+		// CLASS/INTERFACE keep the ptr_slot uninitialised here; addArgs() will malloc for them.
+		SemaType *SemaTy = Sema->getType();
+		if (SemaTy && SemaTy->getKind() == SemaKind::TYPE_CLASS &&
+		    static_cast<SemaClassType *>(SemaTy)->getClassKind() == SemaClassKind::STRUCT) {
+			llvm::AllocaInst *DataAlloca = CGM->Builder->CreateAlloca(T);
+			CGM->Builder->CreateStore(DataAlloca, this->Pointer);
+		}
 	} else {
 		// Alloca for non-struct types
 		// Check if the type is bool (i1) and convert it to i8
