@@ -214,6 +214,20 @@ i32 env_args_get(i32 idx, char *buf, usize size);
  * Called once from the fly-compiled program entry point. */
 void env_init(int argc, char **argv);
 
+/* ── Atomic operations (seq-cst / acq-rel ordering) ─────────────────────── */
+
+/* Atomically load *addr (acquire). */
+i32  atomic_load_i32(i32 *addr);
+
+/* Atomically store val to *addr (release). */
+void atomic_store_i32(i32 *addr, i32 val);
+
+/* Compare-and-swap: if *addr == expected, write desired; return old value. */
+i32  atomic_cas_i32(i32 *addr, i32 expected, i32 desired);
+
+/* Atomically add delta to *addr; return the old value. */
+i32  atomic_fetch_add_i32(i32 *addr, i32 delta);
+
 /* ── Math (libm) ─────────────────────────────────────────────────────────── */
 /* These symbols are resolved from libm (-lm on Linux, libSystem on macOS,
  * libcmt on Windows) at Fly program link time.  They are NOT implemented in

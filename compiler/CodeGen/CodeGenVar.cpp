@@ -64,7 +64,7 @@ llvm::AllocaInst *CodeGenVar::Alloca() {
 }
 
 llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
-    this->BlockID = CGM->Builder->GetInsertBlock()->getName();
+    this->LoadBlock = nullptr;
     this->LoadI = nullptr;
     // Fix Architecture Compatibility of bool i1 to i8
     if (T->isIntegerTy(1)) {
@@ -228,7 +228,7 @@ llvm::StoreInst *CodeGenVar::StoreDefaultValue() {
 }
 
 llvm::LoadInst *CodeGenVar::Load() {
-    this->BlockID = CGM->Builder->GetInsertBlock()->getName();
+    this->LoadBlock = CGM->Builder->GetInsertBlock();
     // Value-type structs (string, array) load their full struct value.
     // Other struct types (class, error) are stored as a ptr-to-struct; load the pointer.
     llvm::Type *LoadTy = (T->isStructTy() && T != CodeGen::StringTy)
@@ -239,7 +239,7 @@ llvm::LoadInst *CodeGenVar::Load() {
 }
 
 llvm::Value *CodeGenVar::getValue() {
-    if (!this->LoadI || this->BlockID != CGM->Builder->GetInsertBlock()->getName()) {
+    if (!this->LoadI || this->LoadBlock != CGM->Builder->GetInsertBlock()) {
         return Load();
     }
     return this->LoadI;
@@ -247,7 +247,7 @@ llvm::Value *CodeGenVar::getValue() {
 
 void CodeGenVar::resetLoad() {
     this->LoadI = nullptr;
-    this->BlockID = llvm::StringRef();
+    this->LoadBlock = nullptr;
 }
 
 llvm::Value *CodeGenVar::getPointer() {

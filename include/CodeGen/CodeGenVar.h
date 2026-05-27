@@ -42,7 +42,7 @@ namespace fly {
 
         llvm::LoadInst *LoadI = nullptr;
 
-        llvm::StringRef BlockID;
+        llvm::BasicBlock *LoadBlock = nullptr;
 
         // Flag to indicate if this variable is read-only (const parameter)
         bool ReadOnly = false;

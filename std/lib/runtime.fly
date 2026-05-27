@@ -15,6 +15,12 @@ public void thread_spawn(const long fn, const long arg, const ulong stackSize, i
 public void futex_wait(const long addr, const int expected) {}
 public void futex_wake(const long addr, const int count, int out) {}
 
+// ── Atomic operations (Runtime.h) ────────────────────────────────────────────
+public void atomic_load_i32(const long addr, int out) {}
+public void atomic_store_i32(const long addr, const int val) {}
+public void atomic_cas_i32(const long addr, const int expected, const int desired, int out) {}
+public void atomic_fetch_add_i32(const long addr, const int delta, int out) {}
+
 // ── Math (libm) — functions without LLVM intrinsics ─────────────────────────
 public void erf(const double x, double out) {}
 public void tgamma(const double x, double out) {}

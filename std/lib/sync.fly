@@ -1,1 +1,267 @@
 namespace fly.sync
+
+import fly.runtime
+import fly.llvm
+
+// ── internal helpers ──────────────────────────────────────────────────────────
+
+private void atomicLoad(const long p, int out) {
+    fly.runtime.atomic_load_i32(p, out)
+}
+
+private void atomicStore(const long p, const int v) {
+    fly.runtime.atomic_store_i32(p, v)
+}
+
+private void atomicCas(const long p, const int expected, const int desired, int out) {
+    fly.runtime.atomic_cas_i32(p, expected, desired, out)
+}
+
+private void atomicAdd(const long p, const int delta, int out) {
+    fly.runtime.atomic_fetch_add_i32(p, delta, out)
+}
+
+// Allocate a zero-initialised 4-byte heap slot; return its address.
+private long newI32() {
+    ulong four = 4
+    long p = 0
+    fly.runtime.mem_alloc(four, p)
+    fly.llvm.memset(p, 0, four)
+    out = p
+}
+
+// ── Thread ────────────────────────────────────────────────────────────────────
+
+public struct Thread {
+    int id
+}
+
+// spawn starts fn(arg) in a new thread. stack=0 uses the default (1 MB).
+public Thread spawnThread(const long fn, const long arg, const ulong stack) {
+    ulong sz = stack
+    if sz == 0 { sz = 1048576 }
+    int t = 0
+    fly.runtime.thread_spawn(fn, arg, sz, t)
+    out.id = t
+}
+
+// ── Mutex ─────────────────────────────────────────────────────────────────────
+// Heap i32 state: 0=unlocked  1=locked
+
+public struct Mutex {
+    long ptr
+}
+
+public Mutex newMutex() {
+    out.ptr = fly.sync.newI32()
+}
+
+public void mutexLock(Mutex m) {
+    while true {
+        int old = 0
+        fly.sync.atomicCas(m.ptr, 0, 1, old)
+        if old == 0 { return }
+        fly.runtime.futex_wait(m.ptr, old)
+    }
+}
+
+public void mutexUnlock(Mutex m) {
+    fly.sync.atomicStore(m.ptr, 0)
+    int one = 1
+    int ignored = 0
+    fly.runtime.futex_wake(m.ptr, one, ignored)
+}
+
+public bool mutexTryLock(Mutex m) {
+    int old = 0
+    fly.sync.atomicCas(m.ptr, 0, 1, old)
+    out = old == 0
+}
+
+// ── RWMutex ───────────────────────────────────────────────────────────────────
+// state: 0=idle  >0=N readers  -1=writer
+// waiters: queued writer count
+
+public struct RWMutex {
+    long state_ptr
+    long waiters_ptr
+}
+
+public RWMutex newRWMutex() {
+    out.state_ptr   = fly.sync.newI32()
+    out.waiters_ptr = fly.sync.newI32()
+}
+
+public void rwmutexRlock(RWMutex rw) {
+    while true {
+        int s = 0
+        fly.sync.atomicLoad(rw.state_ptr, s)
+        if s >= 0 {
+            int ns = s + 1
+            int old = 0
+            fly.sync.atomicCas(rw.state_ptr, s, ns, old)
+            if old == s { return }
+        } else {
+            fly.runtime.futex_wait(rw.state_ptr, s)
+        }
+    }
+}
+
+public void rwmutexRunlock(RWMutex rw) {
+    int old = 0
+    fly.sync.atomicAdd(rw.state_ptr, 0 - 1, old)
+    if old == 1 {
+        int w = 0
+        fly.sync.atomicLoad(rw.waiters_ptr, w)
+        if w > 0 {
+            int all = 2147483647
+            int ignored = 0
+            fly.runtime.futex_wake(rw.state_ptr, all, ignored)
+        }
+    }
+}
+
+public void rwmutexWlock(RWMutex rw) {
+    int ignored = 0
+    fly.sync.atomicAdd(rw.waiters_ptr, 1, ignored)
+    while true {
+        int neg1 = 0 - 1
+        int old = 0
+        fly.sync.atomicCas(rw.state_ptr, 0, neg1, old)
+        if old == 0 {
+            fly.sync.atomicAdd(rw.waiters_ptr, 0 - 1, ignored)
+            return
+        }
+        fly.runtime.futex_wait(rw.state_ptr, old)
+    }
+}
+
+public void rwmutexWunlock(RWMutex rw) {
+    fly.sync.atomicStore(rw.state_ptr, 0)
+    int all = 2147483647
+    int ignored = 0
+    fly.runtime.futex_wake(rw.state_ptr, all, ignored)
+}
+
+// ── WaitGroup ─────────────────────────────────────────────────────────────────
+
+public struct WaitGroup {
+    long ptr
+}
+
+public WaitGroup newWaitGroup() {
+    out.ptr = fly.sync.newI32()
+}
+
+public void wgAdd(WaitGroup wg, const int n) {
+    int ignored = 0
+    fly.sync.atomicAdd(wg.ptr, n, ignored)
+}
+
+public void wgDone(WaitGroup wg) {
+    // fetch_add returns old value; old==1 means counter just reached 0
+    int old = 0
+    fly.sync.atomicAdd(wg.ptr, 0 - 1, old)
+    if old == 1 {
+        int all = 2147483647
+        int ignored = 0
+        fly.runtime.futex_wake(wg.ptr, all, ignored)
+    }
+}
+
+public void wgWait(WaitGroup wg) {
+    while true {
+        int v = 0
+        fly.sync.atomicLoad(wg.ptr, v)
+        if v == 0 { return }
+        fly.runtime.futex_wait(wg.ptr, v)
+    }
+}
+
+// ── Once ──────────────────────────────────────────────────────────────────────
+// State: 0=pending  1=in-progress  2=done
+//
+// Usage: if fly.sync.onceAcquire(o) { doInit(); fly.sync.onceRelease(o) }
+
+public struct Once {
+    long ptr
+}
+
+public Once newOnce() {
+    out.ptr = fly.sync.newI32()
+}
+
+// onceAcquire returns true to exactly the first caller.
+// All other callers block until onceRelease() is called.
+public bool onceAcquire(Once o) {
+    while true {
+        int s = 0
+        fly.sync.atomicLoad(o.ptr, s)
+        if s == 2 {
+            out = false
+            return
+        }
+        if s == 0 {
+            int old = 0
+            fly.sync.atomicCas(o.ptr, 0, 1, old)
+            if old == 0 {
+                out = true
+                return
+            }
+        }
+        fly.runtime.futex_wait(o.ptr, 1)
+    }
+}
+
+// onceRelease marks initialisation done and unblocks all waiters.
+public void onceRelease(Once o) {
+    fly.sync.atomicStore(o.ptr, 2)
+    int all = 2147483647
+    int ignored = 0
+    fly.runtime.futex_wake(o.ptr, all, ignored)
+}
+
+// ── Semaphore ─────────────────────────────────────────────────────────────────
+
+public struct Semaphore {
+    long ptr
+}
+
+public Semaphore newSemaphore(const int initial) {
+    long p = fly.sync.newI32()
+    fly.sync.atomicStore(p, initial)
+    out.ptr = p
+}
+
+public void semaphoreAcquire(Semaphore s) {
+    while true {
+        int v = 0
+        fly.sync.atomicLoad(s.ptr, v)
+        if v > 0 {
+            int old = 0
+            fly.sync.atomicCas(s.ptr, v, v - 1, old)
+            if old == v { return }
+        } else {
+            fly.runtime.futex_wait(s.ptr, 0)
+        }
+    }
+}
+
+public void semaphoreRelease(Semaphore s) {
+    int ignored = 0
+    fly.sync.atomicAdd(s.ptr, 1, ignored)
+    int one = 1
+    fly.runtime.futex_wake(s.ptr, one, ignored)
+}
+
+public bool semaphoreTryAcquire(Semaphore s) {
+    int v = 0
+    fly.sync.atomicLoad(s.ptr, v)
+    if v > 0 {
+        int old = 0
+        fly.sync.atomicCas(s.ptr, v, v - 1, old)
+        out = old == v
+    } else {
+        out = false
+    }
+}

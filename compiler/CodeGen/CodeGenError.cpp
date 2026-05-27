@@ -89,19 +89,19 @@ llvm::StoreInst *CodeGenError::StoreObject(llvm::Value *Val) {
 }
 
 llvm::StoreInst *CodeGenError::Store(llvm::Value *Val) {
-    this->BlockID = CGM->Builder->GetInsertBlock()->getName();
+    this->LoadBlock = nullptr;
     this->LoadI = nullptr;
     return nullptr;
 }
 
 llvm::LoadInst *CodeGenError::Load() {
-    this->BlockID = CGM->Builder->GetInsertBlock()->getName();
+    this->LoadBlock = CGM->Builder->GetInsertBlock();
     this->LoadI = CGM->Builder->CreateLoad(CodeGen::ErrorPtrTy, ErrorHandler);
     return this->LoadI;
 }
 
 llvm::Value *CodeGenError::getValue() {
-    if (!this->LoadI || this->BlockID != CGM->Builder->GetInsertBlock()->getName()) {
+    if (!this->LoadI || this->LoadBlock != CGM->Builder->GetInsertBlock()) {
         return Load();
     }
     return this->LoadI;

@@ -12,9 +12,8 @@
 
 #include "CodeGenVar.h"
 
-#include <llvm/ADT/StringRef.h>
-
 namespace llvm {
+    class BasicBlock;
     class StructType;
     class LLVMContext;
 }
@@ -35,7 +34,7 @@ namespace fly {
 
         llvm::LoadInst *LoadI = nullptr;
 
-        llvm::StringRef BlockID;
+        llvm::BasicBlock *LoadBlock = nullptr;
 
         static std::string ERROR_NAME;
 
