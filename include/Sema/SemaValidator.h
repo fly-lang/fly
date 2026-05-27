@@ -11,6 +11,7 @@
 #define FLY_SEMA_VALIDATOR_H
 
 #include <AST/ASTEnum.h>
+#include <AST/ASTUnary.h>
 #include <llvm/ADT/DenseMap.h>
 
 #include "AST/ASTType.h"
@@ -94,6 +95,12 @@ namespace fly {
         static bool CheckVar(ASTStmt* Stmt, fly::ASTIdentifier* Ref);
 
         static bool CheckCall(ASTStmt* Stmt, fly::ASTCall* Ref);
+
+        bool CheckUnary(ASTUnary &AST, SemaExpr *Expr);
+
+        bool CheckCondition(const SourceLocation &Loc, SemaExpr *Expr);
+
+        bool CheckLoopIn(const SourceLocation &Loc, SemaExpr *ListExpr);
     };
 
 }  // end namespace fly

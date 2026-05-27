@@ -212,6 +212,9 @@ DIAG(err_sema_wrong_args, CLASS_ERROR, (unsigned)diag::Severity::Error, "no over
 DIAG(err_sema_call_ambiguous, CLASS_ERROR, (unsigned)diag::Severity::Error, "call to '%0' is ambiguous; multiple overloads match", 0, SFINAE_Suppress, false, true, 0)
 DIAG(note_sema_candidate, CLASS_NOTE, (unsigned)diag::Severity::Fatal, "candidate: %0", 0, SFINAE_Suppress, false, false, 0)
 DIAG(err_sema_type_mismatch, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assign a value of type '%0' to a variable of type '%1'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_condition_not_bool, CLASS_ERROR, (unsigned)diag::Severity::Error, "condition must be convertible to 'bool'; got '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_unary_invalid_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "unary operator '%0' cannot be applied to type '%1'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_loopin_not_array, CLASS_ERROR, (unsigned)diag::Severity::Error, "for-in requires an array; got '%0'", 0, SFINAE_Suppress, false, true, 0)
 
 // CodeGen
 DIAG(err_codegen_invalid_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "internal error: invalid or null type encountered during code generation; please report this bug", 0, SFINAE_Suppress, false, true, 0)

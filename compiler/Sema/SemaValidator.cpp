@@ -22,6 +22,7 @@
 #include "llvm/Support/Signals.h"
 
 #include <AST/ASTExpr.h>
+#include <Sema/SemaBuiltin.h>
 #include <Sema/SemaClassType.h>
 #include <Sema/SemaEnumType.h>
 #include <Sema/SemaExpr.h>
@@ -341,5 +342,51 @@ bool SemaValidator::CheckVar(ASTStmt *Stmt, fly::ASTIdentifier *Ref) {
 }
 
 bool SemaValidator::CheckCall(ASTStmt *Stmt, fly::ASTCall *Ref) {
+	return true;
+}
+
+bool SemaValidator::CheckUnary(ASTUnary &AST, SemaExpr *Expr) {
+	if (!Expr || !Expr->getType())
+		return false;
+	SemaType *T = Expr->getType();
+	switch (AST.getOpKind()) {
+		case ASTUnaryKind::OP_UNARY_PRE_INCR:
+		case ASTUnaryKind::OP_UNARY_POST_INCR:
+		case ASTUnaryKind::OP_UNARY_PRE_DECR:
+		case ASTUnaryKind::OP_UNARY_POST_DECR:
+			if (!T->isNumber()) {
+				Diag(AST.getLocation(), diag::err_sema_unary_invalid_type)
+					<< "++/--" << T->getName();
+				return false;
+			}
+			return true;
+		case ASTUnaryKind::OP_UNARY_NOT_LOG:
+			if (!T->isBool()) {
+				Diag(AST.getLocation(), diag::err_sema_unary_invalid_type)
+					<< "!" << T->getName();
+				return false;
+			}
+			return true;
+	}
+	return true;
+}
+
+bool SemaValidator::CheckCondition(const SourceLocation &Loc, SemaExpr *Expr) {
+	if (!Expr || !Expr->getType())
+		return false;
+	if (!CheckConvertibleTypes(Expr->getType(), SemaBuiltin::getBoolType())) {
+		Diag(Loc, diag::err_sema_condition_not_bool) << Expr->getType()->getName();
+		return false;
+	}
+	return true;
+}
+
+bool SemaValidator::CheckLoopIn(const SourceLocation &Loc, SemaExpr *ListExpr) {
+	if (!ListExpr || !ListExpr->getType())
+		return false;
+	if (!ListExpr->getType()->isArray()) {
+		Diag(Loc, diag::err_sema_loopin_not_array) << ListExpr->getType()->getName();
+		return false;
+	}
 	return true;
 }

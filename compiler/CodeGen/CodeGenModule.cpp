@@ -301,6 +301,7 @@ llvm::IRBuilder<> *CodeGenModule::getBuilder() const {
 // =============================================================================
 
 void CodeGenModule::visit(SemaModule &Sema) {
+    FLY_DEBUG_SCOPE_MSG("CodeGenModule", "visit(SemaModule)", "Module: " + Sema.getName().str());
     CurrentSemaModule = &Sema;
 
     // Generate all nodes (functions, classes, enums)
@@ -394,6 +395,7 @@ void CodeGenModule::visit(SemaEnumType &Sema) {
 }
 
 void CodeGenModule::visit(SemaClassType &Sema) {
+	FLY_DEBUG_SCOPE_MSG("CodeGenModule", "visit(SemaClassType)", "Class: " + Sema.getAST().getName().str());
 	if (Sema.getCodeGen() == nullptr) {
 		bool isExternal = (CurrentSemaModule != nullptr &&
 		                   &Sema.getModule() != CurrentSemaModule);
@@ -403,6 +405,7 @@ void CodeGenModule::visit(SemaClassType &Sema) {
 }
 
 void CodeGenModule::visit(SemaClassMethod &Sema) {
+	FLY_DEBUG_SCOPE_MSG("CodeGenModule", "visit(SemaClassMethod)", "Method: " + Sema.getName().str());
 	CurrentFunction = &Sema;
 	if (Sema.getCodeGen()) {
 		Sema.getCodeGen()->GenBody();
@@ -410,6 +413,7 @@ void CodeGenModule::visit(SemaClassMethod &Sema) {
 }
 
 void CodeGenModule::visit(SemaFunction &Sema) {
+	FLY_DEBUG_SCOPE_MSG("CodeGenModule", "visit(SemaFunction)", "Function: " + Sema.getName().str());
 	CurrentFunction = &Sema;
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenFunction *CGF = new CodeGenFunction(this, &Sema, false);
@@ -421,6 +425,7 @@ void CodeGenModule::visit(SemaFunction &Sema) {
 }
 
 void CodeGenModule::visit(SemaClassAttribute &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaClassAttribute)");
 	if (Sema.getCodeGen() == nullptr) {
 		Sema.getType()->accept(*this);
 		llvm::Type *T = Sema.getType()->getCodeGen()->getType();
@@ -445,6 +450,7 @@ void CodeGenModule::visit(SemaClassAttribute &Sema) {
 }
 
 void CodeGenModule::visit(SemaLocalVar &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaLocalVar)");
 	if (Sema.getCodeGen() == nullptr) {
 		Sema.getType()->accept(*this);
 		llvm::Type *T = Sema.getType()->getCodeGen()->getType();
@@ -454,6 +460,7 @@ void CodeGenModule::visit(SemaLocalVar &Sema) {
 }
 
 void CodeGenModule::visit(SemaParam &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaParam)");
 	if (Sema.getCodeGen() == nullptr) {
 		Sema.getType()->accept(*this);
 		llvm::Type *T = Sema.getType()->getCodeGen()->getType();
@@ -463,6 +470,7 @@ void CodeGenModule::visit(SemaParam &Sema) {
 }
 
 void CodeGenModule::visit(SemaClassInstance &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaClassInstance)");
 	if (Sema.getCodeGen() == nullptr) {
 		Sema.getType()->accept(*this);
 		llvm::Type *T = Sema.getType()->getCodeGen()->getType();
@@ -472,6 +480,7 @@ void CodeGenModule::visit(SemaClassInstance &Sema) {
 }
 
 void CodeGenModule::visit(SemaError &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaError)");
 	if (Sema.getCodeGen() == nullptr) {
 		Sema.getType()->accept(*this);
 		llvm::Value *ErrorHandler = Builder->CreateAlloca(CG.ErrorPtrTy);
@@ -481,6 +490,7 @@ void CodeGenModule::visit(SemaError &Sema) {
 }
 
 void CodeGenModule::visit(SemaMember &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaMember)");
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenExpr *CGE = new CodeGenExpr(this);
 		CGE->GenExpr(&Sema);
@@ -492,6 +502,7 @@ void CodeGenModule::visit(SemaMember &Sema) {
 }
 
 void CodeGenModule::visit(SemaCall &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaCall)");
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenExpr *CGE = new CodeGenExpr(this);
 		CGE->GenExpr(&Sema);
@@ -500,6 +511,7 @@ void CodeGenModule::visit(SemaCall &Sema) {
 }
 
 void CodeGenModule::visit(SemaUnary &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaUnary)");
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenExpr *CGE = new CodeGenExpr(this);
 		CGE->GenExpr(&Sema);
@@ -508,6 +520,7 @@ void CodeGenModule::visit(SemaUnary &Sema) {
 }
 
 void CodeGenModule::visit(SemaBinary &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaBinary)");
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenExpr *CGE = new CodeGenExpr(this);
 		CGE->GenExpr(&Sema);
@@ -516,6 +529,7 @@ void CodeGenModule::visit(SemaBinary &Sema) {
 }
 
 void CodeGenModule::visit(SemaTernary &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaTernary)");
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenExpr *CGE = new CodeGenExpr(this);
 		CGE->GenExpr(&Sema);
@@ -524,6 +538,7 @@ void CodeGenModule::visit(SemaTernary &Sema) {
 }
 
 void CodeGenModule::visit(SemaCast &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaCast)");
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenExpr *CGE = new CodeGenExpr(this);
 		CGE->GenExpr(&Sema);
@@ -707,6 +722,7 @@ void CodeGenModule::EmitAllocCleanup(size_t frames) {
 }
 
 void CodeGenModule::visit(SemaBlockStmt &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaBlockStmt)");
 	AllocCleanupStack.push_back(&Sema);
 
 	if (DBuilder && DebugFile) {

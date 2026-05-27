@@ -614,6 +614,7 @@ void Resolver::visit(ASTNamedType &AST) {
 	SymbolTable *Scope = CurrentScope;
 	Symbol *Sym = Reg.LookupNamedType(AST, Scope);
 	if (!Sym) {
+		Diag(AST.getLocation(), diag::err_sema_unknown_type) << AST.str();
 		return;
 	}
 	SemaType *Sema = static_cast<SemaType *>(Sym->getRef());
@@ -630,6 +631,8 @@ void Resolver::visit(ASTArrayType &AST) {
 		ASTType * ElementType = AST.getElementType();
 		ElementType->accept(*this);
 		SemaType *ElementSemaType = CurrentType;
+		if (!ElementSemaType)
+			return;
 
 		// Resolve Size Expression
 		SemaExpr *SizeExpr = nullptr;
@@ -638,7 +641,8 @@ void Resolver::visit(ASTArrayType &AST) {
 			SizeExpr = CurrentExpr;
 
 			// Validate Size Expression Type
-			if (SizeExpr->getType()->isInteger() == false) {
+			if (!SizeExpr || !SizeExpr->getType() ||
+			    SizeExpr->getType()->isInteger() == false) {
 				Diag(AST.getSizeExpr()->getLocation(), diag::err_sema_array_size_not_integer);
 				return;
 			}
@@ -1005,6 +1009,7 @@ void Resolver::visit(ASTIfStmt &AST) {
 	// Resolve condition
 	AST.getExpr()->accept(*this);
 	SemaExpr *CondExpr = CurrentExpr;
+	Validator->CheckCondition(AST.getExpr()->getLocation(), CondExpr);
 
 	// Resolve then block — use a temporary capture block
 	SemaBlockStmt *SavedBlock = CurrentSemaBlock;
@@ -1024,6 +1029,7 @@ void Resolver::visit(ASTIfStmt &AST) {
 	for (ASTRuleStmt *Elsif : AST.getElsif()) {
 		Elsif->getExpr()->accept(*this);
 		SemaExpr *ElsifExpr = CurrentExpr;
+		Validator->CheckCondition(Elsif->getExpr()->getLocation(), ElsifExpr);
 
 		// Capture elsif body
 		SemaBlockStmt *ElsifCapture = SemaBuilder::CreateBlockStmt(nullptr);
@@ -1171,6 +1177,7 @@ void Resolver::visit(ASTLoopStmt &AST) {
 	if (AST.getExpr()) {
 		AST.getExpr()->accept(*this);
 		CondExpr = CurrentExpr;
+		Validator->CheckCondition(AST.getExpr()->getLocation(), CondExpr);
 	}
 	SemaLoop->setCond(CondExpr);
 
@@ -1233,6 +1240,7 @@ void Resolver::visit(ASTLoopInStmt &AST) {
 	SemaExpr *ItemExpr = CurrentExpr;
     AST.getList()->accept(*this);
 	SemaExpr *ListExpr = CurrentExpr;
+	Validator->CheckLoopIn(AST.getList()->getLocation(), ListExpr);
 
 	++LoopDepth;
 
@@ -1707,6 +1715,9 @@ void Resolver::visit(ASTUnary &AST) {
 	Expr->accept(*this);
 	SemaExpr *ResolvedExpr = CurrentExpr;
 
+	if (!Validator->CheckUnary(AST, ResolvedExpr))
+		return;
+
 	// Create Sema
 	SemaUnary *Sema = SemaBuilder::CreateUnary(AST, ResolvedExpr);
 	CurrentExpr = Sema;
@@ -1751,7 +1762,8 @@ void Resolver::visit(ASTTernary &AST) {
 	SemaExpr *Cond = CurrentExpr;
 
 	// Validate Condition Type
-	Validator->CheckConvertibleTypes(Cond->getType(), SemaBuiltin::getBoolType());
+	if (!Validator->CheckCondition(AST.getConditionExpr()->getLocation(), Cond))
+		return;
 
 	// Resolve True and False Expr
 	AST.getTrueExpr()->accept(*this);
@@ -1759,8 +1771,12 @@ void Resolver::visit(ASTTernary &AST) {
 	AST.getFalseExpr()->accept(*this);
 	SemaExpr *FalseExpr = CurrentExpr;
 
+	if (!TrueExpr || !FalseExpr)
+		return;
+
 	// Promote Number Types if needed
-	if (TrueExpr->getType()->isNumber() &&
+	if (TrueExpr->getType() && FalseExpr->getType() &&
+	    TrueExpr->getType()->isNumber() &&
 		FalseExpr->getType()->isNumber()) {
 		SemaType *PromotedType = PromoteNumberTypes(
 			TrueExpr->getType(),
@@ -1785,6 +1801,9 @@ void Resolver::visit(ASTCast &AST) {
 	// Resolve the target type (sets CurrentType)
 	AST.getToType()->accept(*this);
 	SemaType *ToType = CurrentType;
+
+	if (!From || !ToType)
+		return;
 
 	// Build the SemaCast node; its type IS ToType, so Cast->getType() == ToType
 	SemaCast *Cast = SemaBuilder::CreateCast(AST, From, ToType);
@@ -1833,11 +1852,13 @@ void Resolver::visit(ASTArrayValue &AST) {
 				static_cast<SemaNumberType *>(ElementType)->getRank())) ?
 				ValType :
 				ElementType;
-		} else if (!Validator->CheckEqualTypes(ElementType, ValType)) {
+		} else if (ElementType && ValType &&
+		           !Validator->CheckEqualTypes(ElementType, ValType)) {
 			Diag(Value->getLocation(), diag::err_sema_array_value_type_mismatch);
 		}
 
-		Values.push_back(static_cast<SemaValue *>(ValueExpr));
+		if (ValueExpr)
+			Values.push_back(static_cast<SemaValue *>(ValueExpr));
 	}
 
 	// Determine Array Type from parent binary assignment's left side
@@ -1861,7 +1882,8 @@ void Resolver::visit(ASTStructValue &AST) {
 	llvm::StringMap<SemaValue *> Values;
 	for (auto &Entry : AST.getValues()) {
 		Entry.second->accept(*this);
-		Values.insert(std::make_pair(Entry.getKey(), static_cast<SemaValue *>(CurrentExpr)));
+		if (CurrentExpr)
+			Values.insert(std::make_pair(Entry.getKey(), static_cast<SemaValue *>(CurrentExpr)));
 	}
 
 	SemaStructValue *Sema = SemaBuilder::CreateStructValue(AST, Values);

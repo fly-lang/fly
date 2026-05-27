@@ -392,7 +392,7 @@ bool Frontend::Execute() {
  * @return
  */
 void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
-    FLY_DEBUG_SCOPE_MSG("Frontend", "Execute", "Loading input file " + FileName);
+    FLY_DEBUG_SCOPE_MSG("Frontend", "ParseFile", "Loading input file " + FileName);
     InputFile *Input = new InputFile(Diags, CI.getSourceManager(), FileName);
     if (Input->getExt() == FileExt::FLY) {
         if (Input->Load()) {
