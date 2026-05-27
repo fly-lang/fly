@@ -20,11 +20,11 @@ public class CLang {
         this.lib = libPath
     }
 
-    public call(string sym, const Args args) {}
-    public call(string sym, const Args args, int out) {}
-    public call(string sym, const Args args, long out) {}
-    public call(string sym, const Args args, float out) {}
-    public call(string sym, const Args args, double out) {}
-    public call(string sym, const Args args, bool out) {}
-    public call(string sym, const Args args, Ptr out) {}
+    public void call(string sym, const Args args) {}
+    public void call(string sym, const Args args, int out) {}
+    public void call(string sym, const Args args, long out) {}
+    public void call(string sym, const Args args, float out) {}
+    public void call(string sym, const Args args, double out) {}
+    public void call(string sym, const Args args, bool out) {}
+    public void call(string sym, const Args args, Ptr out) {}
 }

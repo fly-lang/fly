@@ -5,7 +5,7 @@ struct StrlenArgs : Args {
     string s
 }
 
-main() {
+void main() {
     StrlenArgs args = new StrlenArgs()
     args.s = "hello"
 

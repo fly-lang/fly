@@ -37,8 +37,11 @@ namespace fly {
 
         llvm::SmallVector<ASTParam *, 8> Params;
 
-        // Explicit return type (only set from .fly.h header declarations; null = void)
+        // Explicit return type for single-return functions (null = void)
         ASTType *ReturnType = nullptr;
+
+        // Multiple return types (set only when > 1 return type is declared)
+        llvm::SmallVector<ASTType *, 4> ReturnTypes;
 
         // Body is the main BlockStmt
         ASTBlockStmt *Body = nullptr;
@@ -65,6 +68,10 @@ namespace fly {
         ASTType *getReturnType() const;
 
         void setReturnType(ASTType *RT);
+
+        const llvm::SmallVector<ASTType *, 4> &getReturnTypes() const;
+
+        void setReturnTypes(const llvm::SmallVector<ASTType *, 4> &RTs);
 
         ASTBlockStmt *getBody() const;
 

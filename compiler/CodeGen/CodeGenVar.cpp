@@ -43,7 +43,7 @@ llvm::AllocaInst *CodeGenVar::Alloca() {
 		// Value-type structs: allocate the struct directly
 		this->Pointer = CGM->Builder->CreateAlloca(T);
 	} else if (T->isStructTy()) {
-		// Array and other struct types: allocate pointer to the structure
+		// Struct-type variables store a ptr-to-heap; allocate ptr.
 		llvm::PointerType *PtrTy = T->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 		this->Pointer = CGM->Builder->CreateAlloca(PtrTy);
 	} else {

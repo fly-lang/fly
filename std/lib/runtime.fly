@@ -1,98 +1,98 @@
 namespace fly.runtime
 
 // ── Memory (Runtime.h) ──────────────────────────────────────────────────────
-public mem_alloc(const ulong size, long out) {}
-public mem_free(const long ptr, const ulong size) {}
+public void mem_alloc(const ulong size, long out) {}
+public void mem_free(const long ptr, const ulong size) {}
 
 // ── I/O (Runtime.h) ─────────────────────────────────────────────────────────
-public io_write(const int fd, const long buf, const ulong count, long out) {}
+public void io_write(const int fd, const long buf, const ulong count, long out) {}
 
 // ── Process (Runtime.h) ─────────────────────────────────────────────────────
-public proc_exit(const int code) {}
+public void proc_exit(const int code) {}
 
 // ── Threads (Runtime.h) ─────────────────────────────────────────────────────
-public thread_spawn(const long fn, const long arg, const ulong stackSize, int out) {}
-public futex_wait(const long addr, const int expected) {}
-public futex_wake(const long addr, const int count, int out) {}
+public void thread_spawn(const long fn, const long arg, const ulong stackSize, int out) {}
+public void futex_wait(const long addr, const int expected) {}
+public void futex_wake(const long addr, const int count, int out) {}
 
 // ── Math (libm) — functions without LLVM intrinsics ─────────────────────────
-public erf(const double x, double out) {}
-public tgamma(const double x, double out) {}
-public asin(const double x, double out) {}
-public acos(const double x, double out) {}
-public atan(const double x, double out) {}
-public atan2(const double y, const double x, double out) {}
-public sinh(const double x, double out) {}
-public cosh(const double x, double out) {}
-public tanh(const double x, double out) {}
-public hypot(const double x, const double y, double out) {}
+public void erf(const double x, double out) {}
+public void tgamma(const double x, double out) {}
+public void asin(const double x, double out) {}
+public void acos(const double x, double out) {}
+public void atan(const double x, double out) {}
+public void atan2(const double y, const double x, double out) {}
+public void sinh(const double x, double out) {}
+public void cosh(const double x, double out) {}
+public void tanh(const double x, double out) {}
+public void hypot(const double x, const double y, double out) {}
 
 // ── Filesystem (Runtime.h) ───────────────────────────────────────────────────
 // flags: O_RDONLY=0, O_WRONLY=1, O_RDWR=2, O_CREAT=64, O_TRUNC=512, O_APPEND=1024
-public fs_open(const long path, const int flags, const int mode, int out) {}
-public fs_close(const int fd) {}
-public fs_read(const int fd, const long buf, const ulong count, long out) {}
-public fs_write(const int fd, const long buf, const ulong count, long out) {}
+public void fs_open(const long path, const int flags, const int mode, int out) {}
+public void fs_close(const int fd) {}
+public void fs_read(const int fd, const long buf, const ulong count, long out) {}
+public void fs_write(const int fd, const long buf, const ulong count, long out) {}
 // whence: 0=SEEK_SET, 1=SEEK_CUR, 2=SEEK_END
-public fs_seek(const int fd, const long offset, const int whence, long out) {}
+public void fs_seek(const int fd, const long offset, const int whence, long out) {}
 // stat: size_out = file size, mode_out = mode bits (S_IFREG=0x8000, S_IFDIR=0x4000, S_IFLNK=0xA000)
-public fs_stat(const long path, ulong size_out, int mode_out, int out) {}
+public void fs_stat(const long path, ulong size_out, int mode_out, int out) {}
 // lstat: like fs_stat but does not follow symlinks
-public fs_lstat(const long path, ulong size_out, int mode_out, int out) {}
+public void fs_lstat(const long path, ulong size_out, int mode_out, int out) {}
 // single-value stat helpers: each returns one value (-1 on error)
-public fs_size(const long path, long out) {}
-public fs_mode(const long path, int out) {}
-public fs_lsize(const long path, long out) {}
-public fs_lmode(const long path, int out) {}
-public fs_mkdir(const long path, const int mode, int out) {}
-public fs_rmdir(const long path, int out) {}
-public fs_unlink(const long path, int out) {}
-public fs_rename(const long src, const long dst, int out) {}
-public fs_fsync(const int fd, int out) {}
-public fs_truncate(const long path, const long size, int out) {}
-public fs_chmod(const long path, const int mode, int out) {}
-public fs_symlink(const long target, const long link, int out) {}
+public void fs_size(const long path, long out) {}
+public void fs_mode(const long path, int out) {}
+public void fs_lsize(const long path, long out) {}
+public void fs_lmode(const long path, int out) {}
+public void fs_mkdir(const long path, const int mode, int out) {}
+public void fs_rmdir(const long path, int out) {}
+public void fs_unlink(const long path, int out) {}
+public void fs_rename(const long src, const long dst, int out) {}
+public void fs_fsync(const int fd, int out) {}
+public void fs_truncate(const long path, const long size, int out) {}
+public void fs_chmod(const long path, const int mode, int out) {}
+public void fs_symlink(const long target, const long link, int out) {}
 // readlink: returns bytes written into buf, -1 on error (buf not null-terminated)
-public fs_readlink(const long path, const long buf, const ulong size, int out) {}
+public void fs_readlink(const long path, const long buf, const ulong size, int out) {}
 // getdents: returns bytes filled, 0 at end-of-dir, -1 on error
-public fs_getdents(const int fd, const long buf, const ulong size, int out) {}
+public void fs_getdents(const int fd, const long buf, const ulong size, int out) {}
 
 // ── Time (Runtime.h) ─────────────────────────────────────────────────────────
-public time_realtime(long sec_out, long nsec_out, int out) {}
-public time_monotonic(long sec_out, long nsec_out, int out) {}
+public void time_realtime(long sec_out, long nsec_out, int out) {}
+public void time_monotonic(long sec_out, long nsec_out, int out) {}
 // single-value time helpers: return nanoseconds (-1 on error)
-public time_now_ns(long out) {}
-public time_mono_ns(long out) {}
-public time_sleep(const long sec, const long nsec) {}
+public void time_now_ns(long out) {}
+public void time_mono_ns(long out) {}
+public void time_sleep(const long sec, const long nsec) {}
 
 // ── Environment (Runtime.h) ──────────────────────────────────────────────────
 // Returns path length on success, -1 on error
-public env_getcwd(const long buf, const ulong cap, int out) {}
+public void env_getcwd(const long buf, const ulong cap, int out) {}
 // Returns 0 on success, -1 on error
-public env_chdir(const long path, int out) {}
+public void env_chdir(const long path, int out) {}
 // env_get: copies value into buf; returns value length, -1 if not found
-public env_get(const long key, const long buf, const ulong size, int out) {}
-public env_set(const long key, const long val, int out) {}
-public env_delete(const long key, int out) {}
-public env_all_count(int out) {}
-public env_all_get(const int idx, const long key_buf, const ulong key_size, const long val_buf, const ulong val_size) {}
+public void env_get(const long key, const long buf, const ulong size, int out) {}
+public void env_set(const long key, const long val, int out) {}
+public void env_delete(const long key, int out) {}
+public void env_all_count(int out) {}
+public void env_all_get(const int idx, const long key_buf, const ulong key_size, const long val_buf, const ulong val_size) {}
 // env_hostname: copies hostname into buf; returns length, -1 on error
-public env_hostname(const long buf, const ulong size, int out) {}
-public env_args_count(int out) {}
+public void env_hostname(const long buf, const ulong size, int out) {}
+public void env_args_count(int out) {}
 // env_args_get: copies argv[idx] into buf; returns length, -1 on error
-public env_args_get(const int idx, const long buf, const ulong size, int out) {}
+public void env_args_get(const int idx, const long buf, const ulong size, int out) {}
 
 // ── Fly string-array helpers (Runtime.h) ─────────────────────────────────────
 // str_slot_set: writes string struct {ptr, size} at arr_base[idx * 16]
-public str_slot_set(const long arr_base, const int idx, const long ptr, const int size) {}
+public void str_slot_set(const long arr_base, const int idx, const long ptr, const int size) {}
 // str_slot_get: reads string struct from arr_base[idx * 16]
-public str_slot_get(const long arr_base, const int idx, long ptr_out, int size_out) {}
+public void str_slot_get(const long arr_base, const int idx, long ptr_out, int size_out) {}
 // single-value string-slot helpers
-public str_slot_ptr(const long arr_base, const int idx, long out) {}
-public str_slot_size(const long arr_base, const int idx, int out) {}
+public void str_slot_ptr(const long arr_base, const int idx, long out) {}
+public void str_slot_size(const long arr_base, const int idx, int out) {}
 // env_args_fill: fills arr_base with count string structs from argv[]
-public env_args_fill(const long arr_base, const int count) {}
+public void env_args_fill(const long arr_base, const int count) {}
 // env_all_fill: fills arr_base with count KEY=VALUE string structs from environ[]
-public env_all_fill(const long arr_base, const int count) {}
+public void env_all_fill(const long arr_base, const int count) {}
 // env_osname: copies "linux"/"macos"/"windows" into buf; returns length
-public env_osname(const long buf, const ulong size, int out) {}
+public void env_osname(const long buf, const ulong size, int out) {}

@@ -39,7 +39,7 @@ namespace {
         //   double j = 0.0
         //   Type t = null
         // }
-        llvm::StringRef str = ("func() {\n"
+        llvm::StringRef str = ("void func() {\n"
                                    "bool a = false\n"
                                    "byte b = 0\n"
                                    "short c = 0\n"
@@ -166,7 +166,7 @@ namespace {
     }
 
 	TEST_F(ParserTest, LocalVarArray) {
-    	llvm::StringRef str = ("func() {\n"
+    	llvm::StringRef str = ("void func() {\n"
 		                       "byte[] a\n"
 		                       "byte[] b = {}\n"// array of zero bytes
 		                       "byte[] c = {1, 2, 3}\n"
@@ -284,7 +284,7 @@ namespace {
     	//   byte[] c = {'a', 'b', 'c', ''}
     	//   byte[2] d = {'', ''}
     	// }
-    	llvm::StringRef str = ("func() {\n"
+    	llvm::StringRef str = ("void func() {\n"
 						"byte a = ''\n"
 						"byte b = 'b'\n"
 						"byte[] c = {'a', 'b', 'c', ''}\n"
@@ -381,7 +381,7 @@ namespace {
     	//   string a = ""
     	//   string b = "abc"
     	// }
-    	llvm::StringRef str = ("func() {\n"
+    	llvm::StringRef str = ("void func() {\n"
 						"string c\n"
 						"string a = \"\"\n" // array of zero bytes
 						"string b = \"abc\"\n" // string abc

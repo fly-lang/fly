@@ -29,7 +29,7 @@ namespace {
 
     TEST_F(ParserTest, UnaryExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  ++a\n"
                 "  a++\n"
                 "  --a\n"
@@ -69,7 +69,7 @@ namespace {
 
     TEST_F(ParserTest, UnarySideExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a = a++ + ++a\n"
                 "}\n");
         ASTModule *Module = Parse("UnaryExpr", str);
@@ -109,7 +109,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryAssignAddExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a += 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignAddExpr", str);
@@ -136,7 +136,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryAssignSubExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a -= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignSubExpr", str);
@@ -163,7 +163,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryAssignMulExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a *= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignMulExpr", str);
@@ -190,7 +190,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryAssignDivExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a /= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignDivExpr", str);
@@ -217,7 +217,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryAssignModExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a %= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignModExpr", str);
@@ -244,7 +244,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryAssignAndExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a &= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignAndExpr", str);
@@ -271,7 +271,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryAssignOrExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a |= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignOrExpr", str);
@@ -298,7 +298,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryAssignXorExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a ^= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignXorExpr", str);
@@ -325,7 +325,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryAssignShiftLExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a <<= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignShiftLExpr", str);
@@ -352,7 +352,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryAssignShiftRExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a >>= 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAssignShiftRExpr", str);
@@ -379,7 +379,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryAddExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a = a + 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAddExpr", str);
@@ -415,7 +415,7 @@ namespace {
 
     TEST_F(ParserTest, BinarySubExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a = a - 1"
                 "}\n");
         ASTModule *Module = Parse("BinarySubExpr", str);
@@ -450,7 +450,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryMulExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a = a * 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryMulExpr", str);
@@ -484,7 +484,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryDivExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a = a / 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryDivExpr", str);
@@ -518,7 +518,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryModExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a = a % 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryModExpr", str);
@@ -552,7 +552,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryAndExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a = a & 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryAndExpr", str);
@@ -586,7 +586,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryOrExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a = a | 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryOrExpr", str);
@@ -620,7 +620,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryXorExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a = a ^ 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryXorExpr", str);
@@ -654,7 +654,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryShiftLExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a = a << 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryShiftLExpr", str);
@@ -688,7 +688,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryShiftRExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a = a >> 1"
                 "}\n");
         ASTModule *Module = Parse("BinaryShiftRExpr", str);
@@ -722,7 +722,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryLogicAndExpr) {
         llvm::StringRef str = (
-                "func(bool a) {\n"
+                "void func(bool a) {\n"
                 "  a = a && true"
                 "}\n");
         ASTModule *Module = Parse("BinaryLogicAndExpr", str);
@@ -756,7 +756,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryLogicOrExpr) {
         llvm::StringRef str = (
-                "func(bool a) {\n"
+                "void func(bool a) {\n"
                 "  a = a || true"
                 "}\n");
         ASTModule *Module = Parse("BinaryLogicOrExpr", str);
@@ -790,7 +790,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryComparisonEqualExpr) {
         llvm::StringRef str = (
-                "func(bool a) {\n"
+                "void func(bool a) {\n"
                 "  a = a == true"
                 "}\n");
         ASTModule *Module = Parse("BinaryComparisonEqualExpr", str);
@@ -824,7 +824,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryComparisonNotEqualExpr) {
         llvm::StringRef str = (
-                "func(bool a) {\n"
+                "void func(bool a) {\n"
                 "  a = a != true"
                 "}\n");
         ASTModule *Module = Parse("BinaryComparisonNotEqualExpr", str);
@@ -858,7 +858,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryComparisonGreaterThanExpr) {
         llvm::StringRef str = (
-                "func(bool a) {\n"
+                "void func(bool a) {\n"
                 "  a = a > true"
                 "}\n");
         ASTModule *Module = Parse("BinaryComparisonGreaterThanExpr", str);
@@ -892,7 +892,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryComparisonGreaterThanEqualExpr) {
         llvm::StringRef str = (
-                "func(bool a) {\n"
+                "void func(bool a) {\n"
                 "  a = a >= true"
                 "}\n");
         ASTModule *Module = Parse("BinaryComparisonGreaterThanEqualExpr", str);
@@ -926,7 +926,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryComparisonLessThanExpr) {
         llvm::StringRef str = (
-                "func(bool a) {\n"
+                "void func(bool a) {\n"
                 "  a = a < true"
                 "}\n");
         ASTModule *Module = Parse("BinaryComparisonLessThanExpr", str);
@@ -960,7 +960,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryComparisonLessThanEqualExpr) {
         llvm::StringRef str = (
-                "func(bool a) {\n"
+                "void func(bool a) {\n"
                 "  a = a <= true"
                 "}\n");
         ASTModule *Module = Parse("BinaryComparisonLessThanEqualExpr", str);
@@ -994,7 +994,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryAddMulExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a = a + 2 * a"
                 "}\n");
         ASTModule *Module = Parse("BinaryAddMulExpr", str);
@@ -1036,7 +1036,7 @@ namespace {
 
     TEST_F(ParserTest, BinarySubDivExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a = a - 2 / a"
                 "}\n");
         ASTModule *Module = Parse("BinarySubDivExpr", str);
@@ -1078,7 +1078,7 @@ namespace {
 
     TEST_F(ParserTest, BinaryParenExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a = (2 - a) % (a + 1)"
                 "}\n");
         ASTModule *Module = Parse("BinaryParenExpr", str);
@@ -1121,7 +1121,7 @@ namespace {
 
     TEST_F(ParserTest, TernaryExpr) {
         llvm::StringRef str = (
-                "func(int a) {\n"
+                "void func(int a) {\n"
                 "  a = a==1 ? 1 : a"
                 "}\n");
         ASTModule *Module = Parse("TernaryExpr", str);

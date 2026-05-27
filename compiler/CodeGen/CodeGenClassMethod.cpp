@@ -21,6 +21,7 @@
 #include "CodeGen/CodeGenVar.h"
 #include "Sema/SemaClassAttribute.h"
 #include "Sema/SemaClassMethod.h"
+#include "Sema/SemaParam.h"
 #include "Sema/SemaClassType.h"
 #include "Sema/SemaModule.h"
 #include "AST/ASTModule.h"
@@ -46,6 +47,12 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
 		if (!RetType) {
 			CGM->Diag(diag::err_codegen_invalid_type);
 			RetType = CodeGen::VoidTy;
+		}
+		// Methods using the out-param convention have LLVM return type void.
+		if (RetType != CodeGen::VoidTy) {
+			auto &Params = Sema->getParams();
+			if (!Params.empty() && Params.back()->getName() == "out")
+				RetType = CodeGen::VoidTy;
 		}
 	}
 

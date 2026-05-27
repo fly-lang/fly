@@ -49,8 +49,15 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
         // Check if RetType was successfully generated
         if (!RetType) {
             CGM->Diag(diag::err_codegen_invalid_type);
-            // Use void as fallback to prevent crash
             RetType = CodeGen::VoidTy;
+        }
+
+        // Functions that use the out-param convention have LLVM return type void;
+        // the user-declared return type is carried by the hidden 'out' pointer param.
+        if (RetType != CodeGen::VoidTy) {
+            auto &Params = Sema->getParams();
+            if (!Params.empty() && Params.back()->getName() == "out")
+                RetType = CodeGen::VoidTy;
         }
 
         // Add ErrorHandler as first param

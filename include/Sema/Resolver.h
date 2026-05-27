@@ -56,6 +56,7 @@ namespace fly {
     class ASTImport;
     class ASTType;
     class ASTParam;
+    class ASTLocalVar;
     class ASTLoopInStmt;
     class ASTEnum;
     class SemaFunction;
@@ -132,6 +133,16 @@ namespace fly {
 
     	// Temporary storage for resolved call arg expressions
     	SmallVector<SemaExpr *, 8> ResolvedCallArgs;
+
+    	// Counter for generating unique synthetic out-variable names (__out_0, __out_1, ...)
+    	unsigned OutVarCounter = 0;
+
+    	// Synthetic ASTLocalVar nodes created for call-site out vars (owned, freed at end)
+    	SmallVector<ASTLocalVar *, 16> SyntheticOutVars;
+
+    	// Stable string storage for synthetic parameter names (e.g. "__out_0", "__out_1").
+    	// StringRef values pointing into these strings remain valid for the Resolver's lifetime.
+    	SmallVector<std::string, 16> SyntheticParamNames;
 
     public:
 

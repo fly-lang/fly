@@ -159,7 +159,7 @@ namespace {
 
     TEST_F(InputFileTest, LoadFromSource) {
         InputFile F(Diags, SourceMgr, "test");
-        bool ok = F.Load("func main() {}\n");
+        bool ok = F.Load("void main() {}\n");
         EXPECT_TRUE(ok);
         EXPECT_TRUE(F.isBuffer());
         EXPECT_TRUE(F.getFileID().isValid());
@@ -185,7 +185,7 @@ namespace {
         const char *path = "tmp_input_test.fly";
         {
             std::ofstream ofs(path);
-            ofs << "func main() {}\n";
+            ofs << "void main() {}\n";
         }
         InputFile F(Diags, SourceMgr, path);
         bool ok = F.Load();
@@ -233,7 +233,7 @@ namespace {
         const char *path = "tmp_frontend_valid.fly";
         {
             std::ofstream ofs(path);
-            ofs << "main() {}\n";
+            ofs << "void main() {}\n";
         }
         CI->getFrontendOptions().addInputFile(path);
         CI->getFrontendOptions().BackendAction = BackendActionKind::Backend_EmitNothing;

@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaCall.h"
+#include "Sema/SemaLocalVar.h"
 #include "Sema/SemaVisitor.h"
 #include "Sema/SemaType.h"
 #include "Sema/SemaFunctionBase.h"
@@ -38,6 +39,10 @@ void SemaCall::setErrorHandler(SemaError *ErrorHandler) {
 
 bool SemaCall::isNew() const {
 	return AST.getCallKind() >= ASTCallKind::CALL_NEW;
+}
+
+SemaLocalVar *SemaCall::getOutVar() const {
+	return OutVar;
 }
 
 llvm::SmallVector<SemaExpr *, 8> &SemaCall::getArgs() {

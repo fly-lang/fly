@@ -1,37 +1,37 @@
 import fly.os.env
 import fly.assert
 
-main() {
+void main() {
     string s = ""
     int n = 0
 
-    env.osname(s)
+    s = env.osname()
     assert.assertNotEmpty(s, 1)
 
-    env.argsCount(n)
+    n = env.argsCount()
     assert.assertGtI(n, 0, 2)
 
-    env.hostname(s)
+    s = env.hostname()
     assert.assertNotEmpty(s, 3)
 
-    env.allCount(n)
+    n = env.allCount()
     assert.assertGtI(n, 0, 4)
 
     env.set("FLY_ENV_TEST_VAR", "hello_env")
-    env.get("FLY_ENV_TEST_VAR", s)
+    s = env.get("FLY_ENV_TEST_VAR")
     assert.assertStr(s, "hello_env", 10)
 
     env.delete("FLY_ENV_TEST_VAR")
-    env.get("FLY_ENV_TEST_VAR", s)
+    s = env.get("FLY_ENV_TEST_VAR")
     assert.assertStr(s, "", 11)
 
     env.set("FLY_ENV_EXP", "world")
-    env.expand("hello $FLY_ENV_EXP", s)
+    s = env.expand("hello $FLY_ENV_EXP")
     assert.assertStr(s, "hello world", 12)
-    env.expand("${FLY_ENV_EXP}!", s)
+    s = env.expand("${FLY_ENV_EXP}!")
     assert.assertStr(s, "world!", 13)
     env.delete("FLY_ENV_EXP")
 
-    env.cwdGet(s)
+    s = env.cwdGet()
     assert.assertNotEmpty(s, 14)
 }

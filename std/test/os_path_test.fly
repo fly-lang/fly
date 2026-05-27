@@ -2,80 +2,79 @@ import fly.os.path
 import fly.os.fs
 import fly.assert
 
-main() {
+void main() {
     string s = ""
     bool b = false
     int n = 0
 
-    path.join("/foo", "bar", s)
+    s = path.join("/foo", "bar")
     assert.assertStr(s, "/foo/bar", 20)
-    path.join("/foo/", "bar", s)
+    s = path.join("/foo/", "bar")
     assert.assertStr(s, "/foo/bar", 21)
-    path.join("/foo", "/bar", s)
+    s = path.join("/foo", "/bar")
     assert.assertStr(s, "/foo/bar", 22)
-    path.join("", "bar", s)
+    s = path.join("", "bar")
     assert.assertStr(s, "bar", 23)
 
-    path.normalize("/a//b/../c", s)
+    s = path.normalize("/a//b/../c")
     assert.assertStr(s, "/a/c", 30)
-    path.normalize("/a/./b", s)
+    s = path.normalize("/a/./b")
     assert.assertStr(s, "/a/b", 31)
-    path.normalize("a/b/c", s)
+    s = path.normalize("a/b/c")
     assert.assertStr(s, "a/b/c", 32)
-    path.normalize("/", s)
+    s = path.normalize("/")
     assert.assertStr(s, "/", 33)
 
-    path.absolute(".", s)
+    s = path.absolute(".")
     assert.assertNotEmpty(s, 34)
-    path.absolute("/already/abs", s)
+    s = path.absolute("/already/abs")
     assert.assertStr(s, "/already/abs", 35)
 
-    path.match("*.fly", "test.fly", b)
+    b = path.match("*.fly", "test.fly")
     assert.assertTrue(b, 40)
-    path.match("*.fly", "test.go", b)
+    b = path.match("*.fly", "test.go")
     assert.assertFalse(b, 41)
-    path.match("foo*", "foobar", b)
+    b = path.match("foo*", "foobar")
     assert.assertTrue(b, 42)
-    path.match("fo?", "foo", b)
+    b = path.match("fo?", "foo")
     assert.assertTrue(b, 43)
-    path.match("fo?", "fo", b)
+    b = path.match("fo?", "fo")
     assert.assertFalse(b, 44)
-    path.match("*", "anything", b)
+    b = path.match("*", "anything")
     assert.assertTrue(b, 45)
-    path.match("", "", b)
+    b = path.match("", "")
     assert.assertTrue(b, 46)
 
-    path.ext("foo.fly", s)
+    s = path.ext("foo.fly")
     assert.assertStr(s, ".fly", 50)
-    path.ext("foo", s)
+    s = path.ext("foo")
     assert.assertStr(s, "", 51)
 
-    path.basename("/foo/bar/baz.fly", s)
+    s = path.basename("/foo/bar/baz.fly")
     assert.assertStr(s, "baz.fly", 55)
-    path.dirname("/foo/bar/baz.fly", s)
+    s = path.dirname("/foo/bar/baz.fly")
     assert.assertStr(s, "/foo/bar", 56)
-    path.dirname("baz.fly", s)
+    s = path.dirname("baz.fly")
     assert.assertStr(s, ".", 57)
 
-    path.compCount("/foo/bar/baz", n)
+    n = path.compCount("/foo/bar/baz")
     assert.assertEqI(n, 3, 60)
-    path.compCount("a/b", n)
+    n = path.compCount("a/b")
     assert.assertEqI(n, 2, 61)
 
-    path.rel("/a/b", "/a/b/c", s)
+    s = path.rel("/a/b", "/a/b/c")
     assert.assertStr(s, "c", 65)
-    path.rel("/a/b", "/a/d", s)
+    s = path.rel("/a/b", "/a/d")
     assert.assertStr(s, "../d", 66)
 
-    path.isSym(".", b)
+    b = path.isSym(".")
     // "." is always a directory, never a symlink; verify no crash
 
     // globCount requires files to exist; use CWD-relative paths so the test
     // works on every platform (Windows has no /tmp by default).
     fs.writeStr("fly_path_glob_a.txt", "a", 420)
     fs.writeStr("fly_path_glob_b.txt", "b", 420)
-    int glob_n = 0
-    path.globCount("./fly_path_glob_*.txt", glob_n)
+    int glob_n = path.globCount("./fly_path_glob_*.txt")
     assert.assertGtI(glob_n, 1, 70)
     fs.delete("fly_path_glob_a.txt")
     fs.delete("fly_path_glob_b.txt")

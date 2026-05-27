@@ -24,7 +24,7 @@ namespace {
                                " * Multi-line \n"
 							   " * Func comment \n"
 							   " */\n"
-                               "func() {}\n"
+                               "void func() {}\n"
         );
 
         ASTModule *Module = Parse("LineComments", str);
@@ -42,7 +42,7 @@ namespace {
     TEST_F(ParserTest, BlockComments) {
         llvm::StringRef str = ("// Func line comment\n"
                                "\t /*   Func block comment \n*/\n"
-                               "func() {\n"
+                               "void func() {\n"
                                "  /* body block comment */\n"
                                "  // body inline comment */\n"
                                "}\n"

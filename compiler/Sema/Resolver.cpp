@@ -399,6 +399,35 @@ void Resolver::visit(ASTMethod &AST) {
 		addSymbol(Param->getSymbol());
 	}
 
+	// If the method declares a return type, resolve it and add a synthetic 'out' parameter.
+	if (AST.getReturnType() != nullptr) {
+		AST.getReturnType()->accept(*this);
+		Sema->setReturnType(CurrentType);
+
+		llvm::SmallVector<ASTModifier *, 8> NoMods;
+		ASTParam *OutParam = ASTBuilder::CreateParam(
+			AST.getLocation(), AST.getReturnType(), "out", NoMods);
+		OutParam->accept(*this);
+		SemaParam *OutSemaParam = OutParam->getSymbol()->getRefAs<SemaParam>();
+		Sema->addParam(OutSemaParam);
+		addSymbol(OutParam->getSymbol());
+	} else if (!AST.getReturnTypes().empty()) {
+		// Multi-return: create __out_0, __out_1, … params for each declared return type.
+		// Names are stored in SyntheticParamNames so StringRefs remain valid.
+		llvm::SmallVector<ASTModifier *, 8> NoMods;
+		for (size_t i = 0; i < AST.getReturnTypes().size(); ++i) {
+			ASTType *RT = AST.getReturnTypes()[i];
+			RT->accept(*this);
+			SyntheticParamNames.push_back("__out_" + std::to_string(i));
+			llvm::StringRef PName = SyntheticParamNames.back();
+			ASTParam *OutParam = ASTBuilder::CreateParam(AST.getLocation(), RT, PName, NoMods);
+			OutParam->accept(*this);
+			SemaParam *OutSemaParam = OutParam->getSymbol()->getRefAs<SemaParam>();
+			Sema->addParam(OutSemaParam);
+			addSymbol(OutParam->getSymbol());
+		}
+	}
+
 	// Exit Parameters Scope
 	ExitScope();
 
@@ -1632,6 +1661,34 @@ void Resolver::visit(ASTCall &AST) {
 		}
 		ResolvedCallArgs.clear();
 
+		// If the resolved function has a return type, create a synthetic local variable
+		// '__out_N' that receives the return value via the hidden out parameter.
+		// The function writes to it; the CodeGen loads it after the call to produce
+		// the expression value (enabling direct assignment and call chaining).
+		if (Sema->getFunction() &&
+		    Sema->getFunction()->getReturnType() &&
+		    !Sema->getFunction()->getReturnType()->isVoid() &&
+		    CurrentFunction) {
+
+			SemaType *RetType = Sema->getFunction()->getReturnType();
+			ASTType *RetASTType = Sema->getFunction()->getAST().getReturnType();
+
+			// Synthesise an ASTLocalVar node for the out variable (persists for codegen).
+			std::string OutName = "__out_" + std::to_string(OutVarCounter++);
+			llvm::SmallVector<ASTModifier *, 8> NoMods;
+			ASTLocalVar *OutASTVar = ASTBuilder::CreateLocalVar(
+				AST.getLocation(), RetASTType, OutName, NoMods);
+			SyntheticOutVars.push_back(OutASTVar); // take ownership
+
+			// Create the SemaLocalVar and register it with the enclosing function.
+			SemaLocalVar *OutVar = SemaBuilder::CreateLocalVar(*OutASTVar, RetType);
+			CurrentFunction->addLocalVar(OutVar); // CodeGen will alloca it in GenBody()
+
+			// Add as a hidden last argument (by pointer, matching the 'out' param).
+			Sema->addArg(OutVar);
+			Sema->OutVar = OutVar;
+		}
+
 		// Set the Call Sema ErrorHandler
 		// Search until parent is null or parent is a Handle Stmt
 		// When Parent Stmt is nullptr assign Function ErrorHandler to Call ErrorHandler
@@ -1930,10 +1987,15 @@ void Resolver::Resolve() {
 		// Emit warnings for parameters that were never modified (could be declared const).
 		// Skip empty-body functions — they are extern stubs; their params are analysed
 		// by the C implementation, not the Fly body.
+		// Skip the synthetic 'out' parameter — it is always an output param by design.
 		SemaBlockStmt *ResolvedBody = FunctionBase->getBody();
 		bool BodyHasContent = ResolvedBody && !ResolvedBody->getContent().empty();
 		if (BodyHasContent) {
 			for (SemaParam *P : UnmodifiedParams) {
+				if (P->getName() == "out")
+					continue; // synthetic single-return output parameter, never "const"
+				if (P->getName().starts_with("__out_"))
+					continue; // synthetic multi-return output parameter, never "const"
 				Diag(P->getAST()->getLocation(), diag::warn_sema_param_missing_const)
 				    << P->getAST()->getName();
 			}
@@ -2009,6 +2071,38 @@ void Resolver::ResolveFunction(SemaFunction *Sema) {
 		SemaParam *ResolvedParam = Param->getSymbol()->getRefAs<SemaParam>();
 		Sema->addParam(ResolvedParam);
 		addSymbol(Param->getSymbol());
+	}
+
+	// If the function declares a return type, resolve it and add a synthetic
+	// 'out' parameter (non-const = by pointer) that carries the return value.
+	// Inside the body, 'out' refers to this hidden parameter.
+	if (AST.getReturnType() != nullptr) {
+		AST.getReturnType()->accept(*this);
+		Sema->setReturnType(CurrentType);
+
+		llvm::SmallVector<ASTModifier *, 8> NoMods;
+		ASTParam *OutParam = ASTBuilder::CreateParam(
+			AST.getLocation(), AST.getReturnType(), "out", NoMods);
+		OutParam->accept(*this);
+		SemaParam *OutSemaParam = OutParam->getSymbol()->getRefAs<SemaParam>();
+		Sema->addParam(OutSemaParam);
+		addSymbol(OutParam->getSymbol()); // 'out' visible in body scope
+	} else if (!AST.getReturnTypes().empty()) {
+		// Multi-return: create __out_0, __out_1, … params for each declared return type.
+		// The body uses "out[N] = value" which the parser rewrites to "__out_N = value".
+		// Names are stored in SyntheticParamNames so StringRefs remain valid.
+		llvm::SmallVector<ASTModifier *, 8> NoMods;
+		for (size_t i = 0; i < AST.getReturnTypes().size(); ++i) {
+			ASTType *RT = AST.getReturnTypes()[i];
+			RT->accept(*this);
+			SyntheticParamNames.push_back("__out_" + std::to_string(i));
+			llvm::StringRef PName = SyntheticParamNames.back();
+			ASTParam *OutParam = ASTBuilder::CreateParam(AST.getLocation(), RT, PName, NoMods);
+			OutParam->accept(*this);
+			SemaParam *OutSemaParam = OutParam->getSymbol()->getRefAs<SemaParam>();
+			Sema->addParam(OutSemaParam);
+			addSymbol(OutParam->getSymbol());
+		}
 	}
 
 	// Add to Body list for resolve in the next step

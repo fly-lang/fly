@@ -35,7 +35,7 @@ namespace {
 
     TEST_F(ParserTest, ValueBoolTrue) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  bool a = true\n"
             "}\n";
         ASTModule *M = Parse("ValueBoolTrue", src);
@@ -50,7 +50,7 @@ namespace {
 
     TEST_F(ParserTest, ValueBoolFalse) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  bool a = false\n"
             "}\n";
         ASTModule *M = Parse("ValueBoolFalse", src);
@@ -67,7 +67,7 @@ namespace {
 
     TEST_F(ParserTest, ValueNull) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  Type a = null\n"
             "}\n";
         ASTModule *M = Parse("ValueNull", src);
@@ -81,7 +81,7 @@ namespace {
 
     TEST_F(ParserTest, ValueUnset) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  EnumType e = unset\n"
             "}\n";
         ASTModule *M = Parse("ValueUnset", src);
@@ -97,7 +97,7 @@ namespace {
 
     TEST_F(ParserTest, ValueIntegerDecimal) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  int a = 0\n"
             "  int b = 42\n"
             "  int c = 1000000\n"
@@ -123,7 +123,7 @@ namespace {
 
     TEST_F(ParserTest, ValueIntegerHex) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  int a = 0xFF\n"
             "  int b = 0x0\n"
             "  int c = 0xDEADBEEF\n"
@@ -139,7 +139,7 @@ namespace {
 
     TEST_F(ParserTest, ValueIntegerBinary) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  int a = 0b0\n"
             "  int b = 0b1010\n"
             "  int c = 0b11111111\n"
@@ -157,7 +157,7 @@ namespace {
 
     TEST_F(ParserTest, ValueFloatBasic) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  float a = 0.0\n"
             "  float b = 1.5\n"
             "  double c = 3.14159\n"
@@ -173,7 +173,7 @@ namespace {
 
     TEST_F(ParserTest, ValueFloatScientific) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  double a = 1.0e10\n"
             "  double b = 1.5e-3\n"
             "  double c = 6.022E23\n"
@@ -191,7 +191,7 @@ namespace {
 
     TEST_F(ParserTest, ValueCharEmpty) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  byte a = ''\n"
             "}\n";
         ASTModule *M = Parse("ValueCharEmpty", src);
@@ -206,7 +206,7 @@ namespace {
 
     TEST_F(ParserTest, ValueCharSingle) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  byte a = 'a'\n"
             "  byte b = 'Z'\n"
             "  byte c = '0'\n"
@@ -224,7 +224,7 @@ namespace {
 
     TEST_F(ParserTest, ValueStringEmpty) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  string a = \"\"\n"
             "}\n";
         ASTModule *M = Parse("ValueStringEmpty", src);
@@ -239,7 +239,7 @@ namespace {
 
     TEST_F(ParserTest, ValueStringContent) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  string a = \"hello\"\n"
             "  string b = \"fly lang\"\n"
             "  string c = \"1234\"\n"
@@ -257,7 +257,7 @@ namespace {
 
     TEST_F(ParserTest, ValueArrayEmpty) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  int[] a = {}\n"
             "}\n";
         ASTModule *M = Parse("ValueArrayEmpty", src);
@@ -273,7 +273,7 @@ namespace {
 
     TEST_F(ParserTest, ValueArrayIntegers) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  int[] a = {1, 2, 3}\n"
             "}\n";
         ASTModule *M = Parse("ValueArrayIntegers", src);
@@ -290,7 +290,7 @@ namespace {
 
     TEST_F(ParserTest, ValueArrayBools) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  bool[] a = {true, false, true}\n"
             "}\n";
         ASTModule *M = Parse("ValueArrayBools", src);
@@ -307,7 +307,7 @@ namespace {
 
     TEST_F(ParserTest, ValueArrayStrings) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  string[] a = {\"hello\", \"world\", \"\"}\n"
             "}\n";
         ASTModule *M = Parse("ValueArrayStrings", src);
@@ -324,7 +324,7 @@ namespace {
 
     TEST_F(ParserTest, ValueArrayNested) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  int[][] a = {{1, 2}, {3, 4}}\n"
             "}\n";
         ASTModule *M = Parse("ValueArrayNested", src);
@@ -351,7 +351,7 @@ namespace {
 
     TEST_F(ParserTest, ValueArrayMixed) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  int[] a = {0, 0xFF, 0b1010}\n"
             "}\n";
         ASTModule *M = Parse("ValueArrayMixed", src);
@@ -370,7 +370,7 @@ namespace {
 
     TEST_F(ParserTest, ValueIntegerOctal) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  int a = 0o0\n"
             "  int b = 0o7\n"
             "  int c = 0o755\n"
@@ -390,7 +390,7 @@ namespace {
 
     TEST_F(ParserTest, ValueIntegerDigitSeparator) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  int a = 1_000\n"
             "  int b = 1_000_000\n"
             "  int c = 0xFF_FF\n"
@@ -410,7 +410,7 @@ namespace {
 
     TEST_F(ParserTest, ValueFloatDigitSeparator) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  double a = 1_000.5\n"
             "  double b = 3.141_592\n"
             "}\n";
@@ -426,7 +426,7 @@ namespace {
 
     TEST_F(ParserTest, ValueImaginary) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  complex a = 3.14j\n"
             "  complex b = 1.0J\n"
             "  complex c = 0.0j\n"
@@ -442,7 +442,7 @@ namespace {
 
     TEST_F(ParserTest, ValueComplexType) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  complex a = 2.5j\n"
             "}\n";
         ASTModule *M = Parse("ValueComplexType", src);
@@ -459,7 +459,7 @@ namespace {
 
     TEST_F(ParserTest, ValueStructSingle) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  Type s = {x = 42}\n"
             "}\n";
         ASTModule *M = Parse("ValueStructSingle", src);
@@ -477,7 +477,7 @@ namespace {
 
     TEST_F(ParserTest, ValueStructMultiple) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  Type s = {x = 1, y = 2, z = 3}\n"
             "}\n";
         ASTModule *M = Parse("ValueStructMultiple", src);
@@ -494,7 +494,7 @@ namespace {
 
     TEST_F(ParserTest, ValueStructMixedValues) {
         llvm::StringRef src =
-            "func() {\n"
+            "void func() {\n"
             "  Type s = {name = \"fly\", count = 0, flag = true}\n"
             "}\n";
         ASTModule *M = Parse("ValueStructMixedValues", src);

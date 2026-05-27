@@ -3,23 +3,23 @@ namespace fly.assert
 import fly.llvm
 import fly.runtime
 
-public errExit(const int code) {
+public void errExit(const int code) {
     fly.runtime.proc_exit(code)
 }
 
-public assertEqI(const int got, const int exp, const int code) {
+public void assertEqI(const int got, const int exp, const int code) {
     if got != exp {
         fly.runtime.proc_exit(code)
     }
 }
 
-public assertEqL(const long got, const long exp, const int code) {
+public void assertEqL(const long got, const long exp, const int code) {
     if got != exp {
         fly.runtime.proc_exit(code)
     }
 }
 
-public assertStr(const string got, const string exp, const int code) {
+public void assertStr(const string got, const string exp, const int code) {
     int gn = 0
     int en = 0
     fly.llvm.strSize(got, gn)
@@ -42,7 +42,7 @@ public assertStr(const string got, const string exp, const int code) {
     }
 }
 
-public assertNotEmpty(const string s, const int code) {
+public void assertNotEmpty(const string s, const int code) {
     int n = 0
     fly.llvm.strSize(s, n)
     if n == 0 {
@@ -50,25 +50,25 @@ public assertNotEmpty(const string s, const int code) {
     }
 }
 
-public assertTrue(const bool b, const int code) {
+public void assertTrue(const bool b, const int code) {
     if b == false {
         fly.runtime.proc_exit(code)
     }
 }
 
-public assertFalse(const bool b, const int code) {
+public void assertFalse(const bool b, const int code) {
     if b {
         fly.runtime.proc_exit(code)
     }
 }
 
-public assertGtI(const int got, const int threshold, const int code) {
+public void assertGtI(const int got, const int threshold, const int code) {
     if got <= threshold {
         fly.runtime.proc_exit(code)
     }
 }
 
-public assertApprox(const double got, const double exp, const int code) {
+public void assertApprox(const double got, const double exp, const int code) {
     double diff = got - exp
     if diff < 0.0 { diff = 0.0 - diff }
     double eps = 0.000000001
@@ -77,7 +77,7 @@ public assertApprox(const double got, const double exp, const int code) {
     }
 }
 
-public assertApproxEps(const double got, const double exp, const double eps, const int code) {
+public void assertApproxEps(const double got, const double exp, const double eps, const int code) {
     double diff = got - exp
     if diff < 0.0 { diff = 0.0 - diff }
     if diff > eps {

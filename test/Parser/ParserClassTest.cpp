@@ -33,7 +33,7 @@ namespace {
 
     TEST_F(ParserTest, NullTypeVarReturn) {
         llvm::StringRef str = ("public class Type {}\n"
-                               "func() {\n"
+                               "void func() {\n"
                                "  Type t = null\n"
                                "  return\n"
                                "}\n");
@@ -72,7 +72,7 @@ namespace {
             "  public int b = 2\n"
             "  const int c = 0\n"
             "}\n"
-            "func1() {\n"
+            "void func1() {\n"
             "  Test t = new Test()\n"
             "  Test x = { a = 3, b = 1 }\n"
             "}\n");
@@ -151,12 +151,12 @@ namespace {
 			"  int a = 1\n"
 			"  private int b = 1\n"
 			"  static int c = 0\n"
-			"  public a() { fail a }\n"
-			"  protected b() { fail 2 }\n"
-			"  private c() { fail 3 }\n"
-			"  const d() { fail 0 }\n"
+			"  public void a() { fail a }\n"
+			"  protected void b() { fail 2 }\n"
+			"  private void c() { fail 3 }\n"
+			"  const void d() { fail 0 }\n"
 			"}\n"
-			"func() {\n"
+			"void func() {\n"
 			"  Test t = new Test()\n"
 			"  t.a()\n"
 			"  t.a = 0\n"
@@ -340,7 +340,7 @@ namespace {
          llvm::StringRef str = (
 	         "public class Case : Test {\n"
 	         "  int b\n"
-	         "  f() {}\n"
+	         "  void f() {}\n"
 	         "}\n");
          ASTModule *Module = Parse("TestClass", str);
 

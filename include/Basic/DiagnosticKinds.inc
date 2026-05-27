@@ -148,7 +148,8 @@ DIAG(err_parser_alias_conflict_namespace, CLASS_ERROR, (unsigned)diag::Severity:
 DIAG(err_parser_conflict_import_alias, CLASS_ERROR, (unsigned)diag::Severity::Error, "import alias '%0' is already used by another import in this file", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_import_wildcard_alias, CLASS_ERROR, (unsigned)diag::Severity::Error, "wildcard import ('.*') cannot be combined with 'as' alias — remove one of them", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_conflict_params, CLASS_ERROR, (unsigned)diag::Severity::Error, "parameter '%0' is already declared in this function signature", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_parser_return_with_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "'return' cannot carry a value; all Fly functions are void — use bare 'return' to exit early", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parser_return_with_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "'return' cannot carry a value; use 'out = expr' to set the return value, and bare 'return' to exit early", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parser_missing_return_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "function or method declaration is missing a return type; use 'void' for functions that do not return a value (e.g. 'void main()')", 0, SFINAE_Suppress, false, true, 0)
 
 // Sema
 DIAG(err_sema_duplicate_identity, CLASS_ERROR, (unsigned)diag::Severity::Error, "type '%0' is already defined in this namespace; each type name must be unique", 0, SFINAE_Suppress, false, true, 0)

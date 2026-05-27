@@ -48,6 +48,14 @@ void ASTFunction::setReturnType(ASTType *RT) {
     ReturnType = RT;
 }
 
+const llvm::SmallVector<ASTType *, 4> &ASTFunction::getReturnTypes() const {
+    return ReturnTypes;
+}
+
+void ASTFunction::setReturnTypes(const llvm::SmallVector<ASTType *, 4> &RTs) {
+    ReturnTypes = RTs;
+}
+
 void ASTFunction::accept(ASTVisitor &Visitor) {
 	Visitor.visit(*this);
 }

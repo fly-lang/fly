@@ -83,6 +83,10 @@ namespace fly {
 
     unsigned short ParenCount = 0, BracketCount = 0, BraceCount = 0;
 
+    // Stable string storage for synthetic names generated during parsing (e.g. "__out_N").
+    // Stored here so StringRefs into these strings outlive the ParseStmt stack frame.
+    llvm::SmallVector<std::string, 8> SyntheticNames;
+
 public:
 
     /// Constructor for the Parser class.
@@ -178,6 +182,9 @@ private:
 
     /// Check if the token is a built-in type.
     bool isBuiltinType(Token &Tok);
+
+    /// Check if the current identifier token is a named return type (not the function name).
+    bool isNamedReturnType();
 
     /// Check if the token is an array type.
     bool isArrayType(Token &Tok);

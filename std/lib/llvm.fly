@@ -1,50 +1,50 @@
 namespace fly.llvm
 
-public sqrt(const double x, double out) {}
-public sin(const double x, double out) {}
-public cos(const double x, double out) {}
-public fabs(const double x, double out) {}
-public floor(const double x, double out) {}
-public ceil(const double x, double out) {}
-public round(const double x, double out) {}
-public trunc(const double x, double out) {}
-public exp(const double x, double out) {}
-public exp2(const double x, double out) {}
-public log(const double x, double out) {}
-public log2(const double x, double out) {}
-public log10(const double x, double out) {}
-public tan(const double x, double out) {}
-public pow(const double b, const double e, double out) {}
-public fma(const double a, const double b, const double c, double out) {}
-public fmin(const double a, const double b, double out) {}
-public fmax(const double a, const double b, double out) {}
-public copysign(const double x, const double y, double out) {}
-public sqrtf(const float x, float out) {}
-public fabsf(const float x, float out) {}
-public floorf(const float x, float out) {}
-public ceilf(const float x, float out) {}
-public ctpop(const long n, int out) {}
-public ctlz(const long n, int out) {}
-public cttz(const long n, int out) {}
-public bswap(const long n, long out) {}
-public bitreverse(const long n, long out) {}
+public void sqrt(const double x, double out) {}
+public void sin(const double x, double out) {}
+public void cos(const double x, double out) {}
+public void fabs(const double x, double out) {}
+public void floor(const double x, double out) {}
+public void ceil(const double x, double out) {}
+public void round(const double x, double out) {}
+public void trunc(const double x, double out) {}
+public void exp(const double x, double out) {}
+public void exp2(const double x, double out) {}
+public void log(const double x, double out) {}
+public void log2(const double x, double out) {}
+public void log10(const double x, double out) {}
+public void tan(const double x, double out) {}
+public void pow(const double b, const double e, double out) {}
+public void fma(const double a, const double b, const double c, double out) {}
+public void fmin(const double a, const double b, double out) {}
+public void fmax(const double a, const double b, double out) {}
+public void copysign(const double x, const double y, double out) {}
+public void sqrtf(const float x, float out) {}
+public void fabsf(const float x, float out) {}
+public void floorf(const float x, float out) {}
+public void ceilf(const float x, float out) {}
+public void ctpop(const long n, int out) {}
+public void ctlz(const long n, int out) {}
+public void cttz(const long n, int out) {}
+public void bswap(const long n, long out) {}
+public void bitreverse(const long n, long out) {}
 
-public memcpy(const long dst, const long src, const ulong n) {}
-public memmove(const long dst, const long src, const ulong n) {}
-public memset(const long dst, const byte val, const ulong n) {}
+public void memcpy(const long dst, const long src, const ulong n) {}
+public void memmove(const long dst, const long src, const ulong n) {}
+public void memset(const long dst, const byte val, const ulong n) {}
 
 // ── String struct primitives (string = { ptr, i32 size }) ──────────────────
-public strSize(const string s, int out) {}
-public strByteAt(const string s, const int i, byte out) {}
-public strGetPtr(const string s, long out) {}
-public strMake(const long ptr, const int size, string out) {}
-public strPoke(const long ptr, const int i, const byte val) {}
-public ptrByteAt(const long ptr, const int i, byte out) {}
-public longToInt(const long v, int out) {}
-public ulongToLong(const ulong v, long out) {}
+public void strSize(const string s, int out) {}
+public void strByteAt(const string s, const int i, byte out) {}
+public void strGetPtr(const string s, long out) {}
+public void strMake(const long ptr, const int size, string out) {}
+public void strPoke(const long ptr, const int i, const byte val) {}
+public void ptrByteAt(const long ptr, const int i, byte out) {}
+public void longToInt(const long v, int out) {}
+public void ulongToLong(const ulong v, long out) {}
 // ptrPokeLong writes a long (i64) value at byte offset i in the raw buffer ptr.
 // Use to serialize struct fields of type long/ulong into a heap array slot.
-public ptrPokeLong(const long ptr, const int i, const long val) {}
+public void ptrPokeLong(const long ptr, const int i, const long val) {}
 // ptrPokeInt writes an int (i32) value at byte offset i in the raw buffer ptr.
 // Use to serialize struct fields of type int/uint into a heap array slot.
-public ptrPokeInt(const long ptr, const int i, const int val) {}
+public void ptrPokeInt(const long ptr, const int i, const int val) {}

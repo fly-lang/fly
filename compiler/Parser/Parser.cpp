@@ -166,6 +166,42 @@ ASTModule *Parser::ParseHeader() {
             continue;
         }
 
+        // Optional leading return type(s).  Four cases:
+        //   1. void/builtin single return: "int name(...)"
+        //   2. named single return:        "File name(...)"
+        //   3. builtin multi-return:       "string, string name(...)"
+        //   4. mixed multi-return:         "string, File name(...)"
+        // For multi-return we consume all type tokens but only record the first.
+        ASTType *HeaderRetType = nullptr;
+        bool isMultiReturn = false;
+        if (isBuiltinType(Tok) || isNamedReturnType()) {
+            std::optional<Token> LA = Lexer::findNextToken(Tok.getLocation(), SourceMgr);
+            // Peek past the qualified name to see if the lookahead is ',' (multi-return)
+            // or an identifier (single-return function name).
+            SourceLocation PeekLoc = Tok.getLocation();
+            // Walk past "ident.ident..." to find what follows the full type token
+            if (Tok.isAnyIdentifier()) {
+                std::optional<Token> N = Lexer::findNextToken(PeekLoc, SourceMgr);
+                while (N && N->is(tok::period)) {
+                    std::optional<Token> AD = Lexer::findNextToken(N->getLocation(), SourceMgr);
+                    if (AD && AD->isAnyIdentifier()) { PeekLoc = AD->getLocation(); N = Lexer::findNextToken(PeekLoc, SourceMgr); }
+                    else break;
+                }
+                LA = N;
+            }
+            if (LA && LA->is(tok::comma)) {
+                // Multi-return: consume all "T," pairs, record only the first type.
+                isMultiReturn = true;
+                HeaderRetType = ParseType();
+                while (Tok.is(tok::comma)) {
+                    ConsumeToken(); // consume ','
+                    ParseType();    // consume the next type; result discarded
+                }
+            } else if (LA && (LA->isAnyIdentifier() || LA->is(tok::l_paren))) {
+                HeaderRetType = ParseType();
+            }
+        }
+
         // Expect a function name identifier
         if (!Tok.isAnyIdentifier()) {
             break;
@@ -188,10 +224,15 @@ ASTModule *Parser::ParseHeader() {
         ASTBlockStmt *EmptyBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
         ASTFunction *Function = ASTBuilder::CreateFunction(Module, Loc, Name, Modifiers, Params, EmptyBlock);
 
-        // Parse optional explicit return type (e.g. "int", "bool")
-        if (isBuiltinType(Tok)) {
-            ASTType *RetType = ParseType();
-            Function->setReturnType(RetType);
+        // Set return type from leading keyword (new syntax), if any and non-void.
+        // Multi-return functions leave ReturnType unset (void) since the Resolver
+        // creates individual __out_N params at the call level.
+        if (HeaderRetType && !isMultiReturn) {
+            bool IsVoid = HeaderRetType->getTypeKind() == ASTTypeKind::TYPE_BUILTIN &&
+                          static_cast<ASTBuiltinType *>(HeaderRetType)->getBuiltinKind() == ASTBuiltinTypeKind::TYPE_VOID;
+            if (!IsVoid) {
+                Function->setReturnType(HeaderRetType);
+            }
         }
 
         // Skip function body if present (source .fly files have implementations)
@@ -366,6 +407,11 @@ void Parser::ParseNode() {
 		ConsumeToken();
 	}
 
+    // Function with return type(s): "int name(params)" or "int,int name(params)"
+	else if (isBuiltinType(Tok)) {
+		ParseFunction(Modifiers);
+	}
+
     // Guard: identifier required for a function name
 	else if (!Tok.isAnyIdentifier()) {
 		std::string TokName;
@@ -379,7 +425,7 @@ void Parser::ParseNode() {
 		ConsumeToken();
 	}
 
-    // Parse Identifier as function
+    // Identifier without a preceding return type — ParseFunction will emit the error
 	else {
 		ParseFunction(Modifiers);
 	}
@@ -443,24 +489,77 @@ ASTEnum *Parser::ParseEnum(SmallVector<ASTModifier *, 8>&Modifiers) {
 }
 
 /**
- * ParseModule Function declaration
- * Functions are implicitly void - no return type declaration
- * @param Modifiers
- * @return
+ * ParseModule Function declaration.
+ * Supports optional return type prefix: "int name(params)" or "int,int name(params)".
  */
 ASTFunction *Parser::ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers) {
 	FLY_DEBUG_SCOPE("Parser", "ParseFunction");
 
+	// Parse REQUIRED return type before the function name.
+	// Syntax: "void name(...)" or "int name(...)" or "int,int name(...)"
+	SmallVector<ASTType *, 4> ReturnTypes;
+	if (!isBuiltinType(Tok) && !isNamedReturnType()) {
+		// Return type is now mandatory — recover by treating as void
+		Diag(Tok, diag::err_parser_missing_return_type);
+	} else {
+		ASTType *FirstType = ParseType();
+		// void return type means no out-param; only non-void types go into ReturnTypes
+		bool IsVoid = FirstType->getTypeKind() == ASTTypeKind::TYPE_BUILTIN &&
+		              static_cast<ASTBuiltinType *>(FirstType)->getBuiltinKind() == ASTBuiltinTypeKind::TYPE_VOID;
+		if (!IsVoid) {
+			ReturnTypes.push_back(FirstType);
+			// Additional return types separated by commas: "int,int name(...)" or "string,File name(...)"
+			while (Tok.is(tok::comma)) {
+				std::optional<Token> LA = Lexer::findNextToken(Tok.getLocation(), SourceMgr);
+				if (LA && isBuiltinType(*LA)) {
+					ConsumeToken(); // consume ','
+					ReturnTypes.push_back(ParseType());
+				} else if (LA && LA->isAnyIdentifier()) {
+					// Named type after comma: scan past "ident.ident" to check if followed by identifier
+					SourceLocation NLoc = LA->getLocation();
+					std::optional<Token> NNext = Lexer::findNextToken(NLoc, SourceMgr);
+					while (NNext && NNext->is(tok::period)) {
+						std::optional<Token> AfterDot = Lexer::findNextToken(NNext->getLocation(), SourceMgr);
+						if (AfterDot && AfterDot->isAnyIdentifier()) {
+							NLoc = AfterDot->getLocation();
+							NNext = Lexer::findNextToken(NLoc, SourceMgr);
+						} else break;
+					}
+					if (NNext && NNext->isAnyIdentifier()) {
+						ConsumeToken(); // consume ','
+						ReturnTypes.push_back(ParseType());
+					} else {
+						break;
+					}
+				} else {
+					break;
+				}
+			}
+		}
+	}
+
 	// Parse Function Name
 	const SourceLocation &Loc = Tok.getLocation();
+	if (!Tok.isAnyIdentifier()) {
+		Diag(Tok, diag::err_parser_unexpected_top_level_token) << tok::getTokenName(Tok.getKind());
+		return nullptr;
+	}
 	StringRef Name = Tok.getIdentifierInfo()->getName();
 	ConsumeToken();
 
 	// Parse Params
 	SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(this);
 
-	// Create Function (implicitly void - no return type)
+	// Create Function
 	ASTFunction *Function = ASTBuilder::CreateFunction(Module, Loc, Name, Modifiers, Params, nullptr);
+
+	// Set return type(s) on the function node
+	if (ReturnTypes.size() == 1) {
+		Function->setReturnType(ReturnTypes[0]);
+	} else if (ReturnTypes.size() > 1) {
+		Function->setReturnTypes(ReturnTypes);
+	}
+
 	if (isBlockStart()) {
 		ParserFunction::ParseBody(this, Function);
 	} else if (Tok.isNot(tok::eof)) {
@@ -625,6 +724,40 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 		// Declaration without initializer
 		ASTBuilder::CreateDeclStmt(Parent, Identifier->getLocation(), LocalVar);
 		return;
+	}
+
+	// Multi-return assignment: "out[N] = expr" — rewrite to "__out_N = expr" at parse time.
+	// This is the body syntax for functions with multiple declared return types.
+	if (Tok.isAnyIdentifier() && Tok.getIdentifierInfo()->getName() == "out") {
+		std::optional<Token> NextTok = Lexer::findNextToken(Tok.getLocation(), SourceMgr);
+		if (NextTok && NextTok->is(tok::l_square)) {
+			std::optional<Token> IdxTok = Lexer::findNextToken(NextTok->getLocation(), SourceMgr);
+			if (IdxTok && IdxTok->is(tok::numeric_constant)) {
+				std::optional<Token> CloseTok = Lexer::findNextToken(IdxTok->getLocation(), SourceMgr);
+				if (CloseTok && CloseTok->is(tok::r_square)) {
+					std::optional<Token> AssignTok = Lexer::findNextToken(CloseTok->getLocation(), SourceMgr);
+					if (AssignTok && isAssignOperator(*AssignTok)) {
+						// Translate "out[N] = expr" to "__out_N = expr".
+						// Use Lex.getIdentifierInfo() to intern the name for stable StringRef lifetime.
+						const SourceLocation &OutLoc = Tok.getLocation();
+						ConsumeToken(); // consume 'out'
+						ConsumeBracket(); // consume '['
+						StringRef NumStr(Tok.getLiteralData(), Tok.getLength());
+						unsigned long N = std::stoul(NumStr.str());
+						ConsumeToken(); // consume N
+						ConsumeBracket(); // consume ']'
+						SyntheticNames.push_back("__out_" + std::to_string(N));
+						llvm::StringRef OutName = SyntheticNames.back();
+						Identifier = ASTBuilder::CreateIdentifier(OutLoc, OutName);
+						if (isAssignOperator(Tok)) {
+							ASTExprStmt *Stmt = ASTBuilder::CreateExprStmt(Parent, OutLoc);
+							Stmt->setExpr(ParseExpr(Identifier));
+							return;
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// Try to parse an identifier assignment: "name = expr" or "name += expr"
@@ -1342,6 +1475,22 @@ bool Parser::isBuiltinType(Token &Tok) {
     return Tok.isOneOf(tok::kw_bool, tok::kw_byte, tok::kw_ushort, tok::kw_short, tok::kw_uint, tok::kw_int,
                        tok::kw_ulong, tok::kw_long, tok::kw_float, tok::kw_double, tok::kw_complex,
                        tok::kw_void, tok::kw_string, tok::kw_char, tok::kw_error);
+}
+
+bool Parser::isNamedReturnType() {
+    if (!Tok.isAnyIdentifier()) return false;
+    SourceLocation Loc = Tok.getLocation();
+    std::optional<Token> Next = Lexer::findNextToken(Loc, SourceMgr);
+    // Walk past "ident.ident.ident" qualifications
+    while (Next && Next->is(tok::period)) {
+        std::optional<Token> AfterDot = Lexer::findNextToken(Next->getLocation(), SourceMgr);
+        if (AfterDot && AfterDot->isAnyIdentifier()) {
+            Loc = AfterDot->getLocation();
+            Next = Lexer::findNextToken(Loc, SourceMgr);
+        } else break;
+    }
+    // Token after the full type name must be another identifier (the function/method name)
+    return Next && Next->isAnyIdentifier();
 }
 
 bool Parser::isArrayType(Token &Tok) {

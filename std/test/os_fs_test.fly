@@ -3,7 +3,7 @@ import fly.os.path
 import fly.str
 import fly.assert
 
-main() {
+void main() {
     string s = ""
     bool b = false
 
@@ -11,88 +11,82 @@ main() {
     string test_dir = "fly_fs_test_dir"
     fs.dirCreateAll(test_dir, 493)   // 0755
 
-    fs.exists(test_dir, b)
+    b = fs.exists(test_dir)
     assert.assertTrue(b, 70)
-    fs.exists("fly_fs_nonexistent_xyzabc", b)
+    b = fs.exists("fly_fs_nonexistent_xyzabc")
     assert.assertFalse(b, 71)
 
-    fs.isDir(test_dir, b)
+    b = fs.isDir(test_dir)
     assert.assertTrue(b, 72)
-    fs.isDir("fly_fs_nonexistent_xyzabc", b)
+    b = fs.isDir("fly_fs_nonexistent_xyzabc")
     assert.assertFalse(b, 73)
 
     string test_file = "fly_fs_test_dir/test.txt"
     fs.writeStr(test_file, "hello fly!", 420)   // 0644
 
-    fs.exists(test_file, b)
+    b = fs.exists(test_file)
     assert.assertTrue(b, 80)
 
-    fs.isFile(test_file, b)
+    b = fs.isFile(test_file)
     assert.assertTrue(b, 81)
 
-    fs.isDir(test_file, b)
+    b = fs.isDir(test_file)
     assert.assertFalse(b, 82)
 
-    fs.readStr(test_file, s)
+    s = fs.readStr(test_file)
     assert.assertStr(s, "hello fly!", 83)
 
-    ulong fsz = 0
-    fs.size(test_file, fsz)
+    ulong fsz = fs.size(test_file)
     if fsz != 10 { assert.errExit(84) }
 
     string test_copy = "fly_fs_test_dir/copy.txt"
     fs.copy(test_file, test_copy)
-    fs.exists(test_copy, b)
+    b = fs.exists(test_copy)
     assert.assertTrue(b, 85)
-    ulong copy_sz = 0
-    fs.size(test_copy, copy_sz)
+    ulong copy_sz = fs.size(test_copy)
     if copy_sz != 10 { assert.errExit(86) }
 
     fs.appendStr(test_file, "++!", 420)
-    ulong appended_sz = 0
-    fs.size(test_file, appended_sz)
+    ulong appended_sz = fs.size(test_file)
     if appended_sz != 13 { assert.errExit(87) }
 
     fs.truncate(test_file, 5)
-    ulong trunc_sz = 0
-    fs.size(test_file, trunc_sz)
+    ulong trunc_sz = fs.size(test_file)
     if trunc_sz != 5 { assert.errExit(88) }
 
     fs.chmod(test_file, 384)   // 0600
 
     string test_moved = "fly_fs_test_dir/moved.txt"
     fs.move(test_copy, test_moved)
-    fs.exists(test_moved, b)
+    b = fs.exists(test_moved)
     assert.assertTrue(b, 89)
-    fs.exists(test_copy, b)
+    b = fs.exists(test_copy)
     assert.assertFalse(b, 90)
 
     // Symlinks may require administrator or Developer Mode on Windows.
     // If creation fails, skip the symlink-specific assertions gracefully.
     string sym_path = "fly_fs_test_dir/sym.txt"
     fs.symlinkCreate(test_file, sym_path)
-    fs.exists(sym_path, b)
+    b = fs.exists(sym_path)
     if b {
-        path.isSym(sym_path, b)
+        b = path.isSym(sym_path)
         assert.assertTrue(b, 92)
-        fs.symlinkRead(sym_path, s)
+        s = fs.symlinkRead(sym_path)
         // symlinkRead may return "" on platforms where readlink is not implemented;
         // only assert the content when the runtime returned something.
-        int rlink_len = 0
-        str.len(s, rlink_len)
+        int rlink_len = str.len(s)
         if rlink_len > 0 {
             assert.assertStr(s, test_file, 93)
         }
     }
 
-    string tmp_dir_path = ""
-    fs.tempDir(".", "fly_fs_tmpd_", tmp_dir_path)
+    string tmp_dir_path = fs.tempDir(".", "fly_fs_tmpd_")
     assert.assertNotEmpty(tmp_dir_path, 95)
-    fs.isDir(tmp_dir_path, b)
+    b = fs.isDir(tmp_dir_path)
     assert.assertTrue(b, 96)
     fs.dirDelete(tmp_dir_path)
 
     fs.dirDeleteAll(test_dir)
-    fs.exists(test_dir, b)
+    b = fs.exists(test_dir)
     assert.assertFalse(b, 110)
 }

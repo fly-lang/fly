@@ -21,6 +21,7 @@ namespace fly {
 	class SemaType;
     class SemaFunctionBase;
 	class SemaError;
+	class SemaLocalVar;
 
     class SemaCall :  public SemaExpr {
 
@@ -35,6 +36,12 @@ namespace fly {
     	SemaError *ErrorHandler = nullptr;
 
     	llvm::SmallVector<SemaExpr *, 8> Args;
+
+    	// Synthetic local variable that receives the return value (non-null when the
+    	// resolved function has a declared return type).  The callee writes to it via
+    	// the hidden out parameter; the CodeGen loads it after the call to produce
+    	// the expression value for assignments and chaining.
+    	SemaLocalVar *OutVar = nullptr;
 
     	CodeGenExpr *CodeGen = nullptr;
 
@@ -53,6 +60,8 @@ namespace fly {
     	void setErrorHandler(SemaError *ErrorHandler);
 
     	bool isNew() const;
+
+    	SemaLocalVar *getOutVar() const;
 
     	llvm::SmallVector<SemaExpr *, 8> &getArgs();
 

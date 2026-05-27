@@ -44,10 +44,9 @@ namespace {
     static constexpr const char *FlyStringMainSource = R"(
 import fly.str
 
-main() {
+void main() {
     string hello = "hello"
-    int size = 0
-    fly.str.len(hello, size)
+    int size = fly.str.len(hello)
 }
 )";
 

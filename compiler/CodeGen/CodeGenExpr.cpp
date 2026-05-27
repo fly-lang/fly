@@ -49,6 +49,7 @@
 #include <Sema/SemaParam.h>
 #include <Sema/SemaType.h>
 #include <Sema/SemaValue.h>
+#include <Sema/SemaLocalVar.h>
 #include <Sema/SemaVar.h>
 
 using namespace fly;
@@ -387,6 +388,24 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     	// Create the function call
     	V = Builder->CreateCall(Method->getCodeGen()->getFunctionType(), FuncPtr, Args);
 
+    	// If the method has a return type, load the result from the hidden out variable.
+    	if (Sema->getOutVar() != nullptr) {
+    		SemaLocalVar *OutVar = Sema->getOutVar();
+    		OutVar->getType()->accept(*CGM);
+    		llvm::Type *OutTy = OutVar->getType()->getCodeGen()->getType();
+    		// For struct out-params the alloca holds a heap ptr (pre-allocated in addArgs).
+    		// Load the ptr so the result is a File*/Stat*/... compatible with field access.
+    		// Covers STRUCT, CLASS, and INTERFACE kinds — all use alloca ptr convention.
+    		bool isFlyStruct = OutTy->isStructTy() &&
+    		    OutTy != CodeGen::StringTy && OutTy != CodeGen::ArrayTy &&
+    		    OutVar->getType()->getKind() == SemaKind::TYPE_CLASS;
+    		if (isFlyStruct)
+    			V = Builder->CreateLoad(llvm::PointerType::getUnqual(CGM->LLVMCtx),
+    			                        OutVar->getCodeGen()->getPointer());
+    		else
+    			V = Builder->CreateLoad(OutTy, OutVar->getCodeGen()->getPointer());
+    	}
+
     } else {
 
         // fly.llvm → emit LLVM intrinsics directly (no err_ctx, no mangling).
@@ -634,19 +653,50 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     		ParamTypes.push_back(CodeGen::VoidPtrTy);
     		CodeGenFunctionBase::GenParamTypes(CGM, ParamTypes, Sema->getFunction());
 
-    		// Resolve LLVM return type
-    		SemaType *RetSema = Sema->getFunction()->getReturnType();
-    		RetSema->accept(*CGM);
-    		llvm::Type *LLVMRetTy = RetSema->getCodeGen()->getType();
+    		// Functions with a declared return type use the out-param convention:
+    		// the hidden 'out' pointer is already in ParamTypes; LLVM return type is void.
+    		llvm::Type *LLVMRetTy = CodeGen::VoidTy;
+    		if (Sema->getOutVar() == nullptr) {
+    			SemaType *RetSema = Sema->getFunction()->getReturnType();
+    			RetSema->accept(*CGM);
+    			LLVMRetTy = RetSema->getCodeGen()->getType();
+    		}
 
     		llvm::FunctionType *FnTy = llvm::FunctionType::get(LLVMRetTy, ParamTypes, false);
     		llvm::FunctionCallee Callee = CGM->Module->getOrInsertFunction(MangledName, FnTy);
     		V = Builder->CreateCall(Callee, Args);
+
+    		if (Sema->getOutVar() != nullptr) {
+    			SemaLocalVar *OutVar = Sema->getOutVar();
+    			OutVar->getType()->accept(*CGM);
+    			llvm::Type *OutTy = OutVar->getType()->getCodeGen()->getType();
+    			bool isFlyStruct = OutTy->isStructTy() &&
+    			    OutTy != CodeGen::StringTy && OutTy != CodeGen::ArrayTy &&
+    			    OutVar->getType()->getKind() == SemaKind::TYPE_CLASS;
+    			if (isFlyStruct)
+    				V = Builder->CreateLoad(llvm::PointerType::getUnqual(CGM->LLVMCtx),
+    				                        OutVar->getCodeGen()->getPointer());
+    			else
+    				V = Builder->CreateLoad(OutTy, OutVar->getCodeGen()->getPointer());
+    		}
     		return;
     	}
 
     	llvm::Function *Fn = Sema->getFunction()->getCodeGen()->getFunction();
     	V = Builder->CreateCall(Fn, Args);
+    	if (Sema->getOutVar() != nullptr) {
+    		SemaLocalVar *OutVar = Sema->getOutVar();
+    		OutVar->getType()->accept(*CGM);
+    		llvm::Type *OutTy = OutVar->getType()->getCodeGen()->getType();
+    		bool isFlyStruct = OutTy->isStructTy() &&
+    		    OutTy != CodeGen::StringTy && OutTy != CodeGen::ArrayTy &&
+    		    OutVar->getType()->getKind() == SemaKind::TYPE_CLASS;
+    		if (isFlyStruct)
+    			V = Builder->CreateLoad(llvm::PointerType::getUnqual(CGM->LLVMCtx),
+    			                        OutVar->getCodeGen()->getPointer());
+    		else
+    			V = Builder->CreateLoad(OutTy, OutVar->getCodeGen()->getPointer());
+    	}
     }
 }
 
@@ -1346,6 +1396,23 @@ void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &A
 					ArgExpr->accept(*CGM);  // triggers visit(SemaClassAttribute) → GEP setup
 				}
 				CodeGenVar *CGV = static_cast<SemaVar *>(ArgExpr)->getCodeGen();
+				// For struct-type hidden out-params (__out_N): the callee convention does
+				// `load ptr, ptr %arg` to retrieve a heap File*.  Pre-allocate the struct
+				// on the heap so the callee has a valid target to write into.
+				if (ArgExpr == Sema->getOutVar()) {
+					llvm::Type *OVTy = CGV->getType();
+					if (OVTy->isStructTy() && OVTy != CodeGen::StringTy && OVTy != CodeGen::ArrayTy) {
+						llvm::Type *PSITy = CGM->Module->getDataLayout().getIntPtrType(CGM->LLVMCtx);
+						llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
+							"malloc",
+							llvm::FunctionType::get(
+								llvm::PointerType::getUnqual(CGM->LLVMCtx), {PSITy}, false));
+						llvm::Value *HeapPtr = Builder->CreateCall(MallocFn, {
+							Builder->CreateIntCast(
+								llvm::ConstantExpr::getSizeOf(OVTy), PSITy, false)});
+						Builder->CreateStore(HeapPtr, CGV->getPointer());
+					}
+				}
 				Args.push_back(CGV->getPointer());
 				CGV->resetLoad();  // force fresh load on next use
 				continue;
