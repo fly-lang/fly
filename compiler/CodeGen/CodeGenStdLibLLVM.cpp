@@ -140,12 +140,62 @@ void CodeGenStdLibLLVM::GenCall(SemaCall *Sema) {
         if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
         return;
     }
-    if (BaseName == "ptrPokeLong" || BaseName == "ptrPokeInt") {
+    if (BaseName == "ptrReadByte") {
+        llvm::Type  *OpaquePtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+        llvm::Value *RawPtr  = Builder->CreateIntToPtr(InArgs[0], OpaquePtrTy);
+        llvm::Value *Idx     = Builder->CreateSExt(InArgs[1], CodeGen::Int64Ty);
+        llvm::Value *BytePtr = Builder->CreateGEP(CodeGen::Int8Ty, RawPtr, Idx);
+        V = Builder->CreateLoad(CodeGen::Int8Ty, BytePtr);
+        if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
+        return;
+    }
+    if (BaseName == "ptrReadShort") {
+        llvm::Type  *OpaquePtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+        llvm::Type  *Int16Ty     = llvm::Type::getInt16Ty(CGM->LLVMCtx);
+        llvm::Value *RawPtr  = Builder->CreateIntToPtr(InArgs[0], OpaquePtrTy);
+        llvm::Value *Idx     = Builder->CreateSExt(InArgs[1], CodeGen::Int64Ty);
+        llvm::Value *BytePtr = Builder->CreateGEP(CodeGen::Int8Ty, RawPtr, Idx);
+        V = Builder->CreateLoad(Int16Ty, BytePtr);
+        if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
+        return;
+    }
+    if (BaseName == "ptrReadInt") {
+        llvm::Type  *OpaquePtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+        llvm::Value *RawPtr  = Builder->CreateIntToPtr(InArgs[0], OpaquePtrTy);
+        llvm::Value *Idx     = Builder->CreateSExt(InArgs[1], CodeGen::Int64Ty);
+        llvm::Value *BytePtr = Builder->CreateGEP(CodeGen::Int8Ty, RawPtr, Idx);
+        V = Builder->CreateLoad(CodeGen::Int32Ty, BytePtr);
+        if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
+        return;
+    }
+    if (BaseName == "ptrReadLong") {
+        llvm::Type  *OpaquePtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+        llvm::Value *RawPtr  = Builder->CreateIntToPtr(InArgs[0], OpaquePtrTy);
+        llvm::Value *Idx     = Builder->CreateSExt(InArgs[1], CodeGen::Int64Ty);
+        llvm::Value *BytePtr = Builder->CreateGEP(CodeGen::Int8Ty, RawPtr, Idx);
+        V = Builder->CreateLoad(CodeGen::Int64Ty, BytePtr);
+        if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
+        return;
+    }
+    if (BaseName == "ptrPokeByte" || BaseName == "ptrPokeShort" ||
+        BaseName == "ptrPokeLong" || BaseName == "ptrPokeInt") {
         llvm::Type  *OpaquePtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
         llvm::Value *RawPtr  = Builder->CreateIntToPtr(InArgs[0], OpaquePtrTy);
         llvm::Value *Idx     = Builder->CreateSExt(InArgs[1], CodeGen::Int64Ty);
         llvm::Value *BytePtr = Builder->CreateGEP(CodeGen::Int8Ty, RawPtr, Idx);
         V = Builder->CreateStore(InArgs[2], BytePtr);
+        return;
+    }
+    if (BaseName == "memcmp") {
+        llvm::Type  *OpaquePtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+        llvm::Value *A = Builder->CreateIntToPtr(InArgs[0], OpaquePtrTy);
+        llvm::Value *B = Builder->CreateIntToPtr(InArgs[1], OpaquePtrTy);
+        llvm::FunctionCallee Fn = CGM->Module->getOrInsertFunction(
+            "memcmp",
+            llvm::FunctionType::get(CodeGen::Int32Ty,
+                {OpaquePtrTy, OpaquePtrTy, CodeGen::IntPtrTy}, false));
+        V = Builder->CreateCall(Fn, {A, B, InArgs[2]});
+        if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
         return;
     }
 

@@ -48,3 +48,13 @@ public void ptrPokeLong(const long ptr, const int i, const long val) {}
 // ptrPokeInt writes an int (i32) value at byte offset i in the raw buffer ptr.
 // Use to serialize struct fields of type int/uint into a heap array slot.
 public void ptrPokeInt(const long ptr, const int i, const int val) {}
+// typed reads — offset i is always in bytes
+public void ptrReadByte(const long ptr, const int i, byte out) {}
+public void ptrReadShort(const long ptr, const int i, short out) {}
+public void ptrReadInt(const long ptr, const int i, int out) {}
+public void ptrReadLong(const long ptr, const int i, long out) {}
+// typed writes for byte and short (complement existing ptrPokeInt / ptrPokeLong)
+public void ptrPokeByte(const long ptr, const int i, const byte val) {}
+public void ptrPokeShort(const long ptr, const int i, const short val) {}
+// raw memory comparison (C memcmp semantics)
+public void memcmp(const long a, const long b, const ulong n, int out) {}

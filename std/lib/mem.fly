@@ -34,3 +34,53 @@ public long alloc(const ulong size) {
 public void free(const long ptr, const ulong size) {
     fly.runtime.mem_free(ptr, size)
 }
+
+// Null-address check: returns true when ptr is 0 (unset).
+public bool isNull(const long ptr) {
+    out = ptr == 0
+}
+
+// Resize a previous alloc; returns new address (may differ from ptr).
+public long realloc(const long ptr, const ulong newSize) {
+    fly.runtime.mem_realloc(ptr, newSize, out)
+}
+
+// Raw memory comparison (C memcmp semantics).
+// Returns 0 if equal, <0 if a<b, >0 if a>b.
+public int compare(const long a, const long b, const ulong size) {
+    fly.llvm.memcmp(a, b, size, out)
+}
+
+// Typed reads — offset is always in bytes
+public byte readByte(const long ptr, const int offset) {
+    fly.llvm.ptrByteAt(ptr, offset, out)
+}
+
+public short readShort(const long ptr, const int offset) {
+    fly.llvm.ptrReadShort(ptr, offset, out)
+}
+
+public int readInt(const long ptr, const int offset) {
+    fly.llvm.ptrReadInt(ptr, offset, out)
+}
+
+public long readLong(const long ptr, const int offset) {
+    fly.llvm.ptrReadLong(ptr, offset, out)
+}
+
+// Typed writes — offset is always in bytes
+public void writeByte(const long ptr, const int offset, const byte val) {
+    fly.llvm.ptrPokeByte(ptr, offset, val)
+}
+
+public void writeShort(const long ptr, const int offset, const short val) {
+    fly.llvm.ptrPokeShort(ptr, offset, val)
+}
+
+public void writeInt(const long ptr, const int offset, const int val) {
+    fly.llvm.ptrPokeInt(ptr, offset, val)
+}
+
+public void writeLong(const long ptr, const int offset, const long val) {
+    fly.llvm.ptrPokeLong(ptr, offset, val)
+}

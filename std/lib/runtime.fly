@@ -3,6 +3,7 @@ namespace fly.runtime
 // ── Memory (Runtime.h) ──────────────────────────────────────────────────────
 public void mem_alloc(const ulong size, long out) {}
 public void mem_free(const long ptr, const ulong size) {}
+public void mem_realloc(const long ptr, const ulong newSize, long out) {}
 
 // ── I/O (Runtime.h) ─────────────────────────────────────────────────────────
 public void io_write(const int fd, const long buf, const ulong count, long out) {}

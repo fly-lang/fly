@@ -56,6 +56,10 @@ void *mem_alloc(usize size);
  * Returns 0 on success, -1 on error. */
 i32 mem_free(void *ptr, usize size);
 
+/* Resize an allocation returned by mem_alloc to new_size bytes.
+ * Semantics match realloc(): returns new pointer or NULL on failure. */
+void *mem_realloc(void *ptr, usize new_size);
+
 /* ── I/O ─────────────────────────────────────────────────────────────────── */
 
 /* Write 'count' bytes from 'buf' to file descriptor 'fd'.
