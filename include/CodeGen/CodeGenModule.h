@@ -105,6 +105,10 @@ namespace fly {
     class SemaFailStmt;
     class SemaHandleStmt;
 
+    class CodeGenStdLibLLVM;
+    class CodeGenStdLibRuntime;
+    class CodeGenStdLibCLang;
+
     class CodeGenModule : public SemaVisitor {
 
         friend class CodeGen;
@@ -117,6 +121,9 @@ namespace fly {
     	friend class CodeGenVar;
     	friend class CodeGenError;
     	friend class CodeGenExpr;
+    	friend class CodeGenStdLibLLVM;
+    	friend class CodeGenStdLibRuntime;
+    	friend class CodeGenStdLibCLang;
 
         // Reference to CodeGen (contains all LLVM types)
         CodeGen &CG;

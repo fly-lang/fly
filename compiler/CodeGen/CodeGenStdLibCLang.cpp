@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// compiler/CodeGen/CodeGenBridgeCLang.cpp - fly.bridge.CLang code generation
+// compiler/CodeGen/CodeGenStdLibCLang.cpp - fly.bridge.CLang code generation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,7 +7,7 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
-#include "CodeGen/CodeGenExpr.h"
+#include "CodeGen/CodeGenStdLibCLang.h"
 
 #include "Basic/CodeGenOptions.h"
 #include "CodeGen/CodeGen.h"
@@ -29,9 +29,12 @@
 
 using namespace fly;
 
+CodeGenStdLibCLang::CodeGenStdLibCLang(CodeGenModule *CGM, llvm::IRBuilder<> *Builder, llvm::Value *&V)
+    : CGM(CGM), Builder(Builder), V(V) {}
+
 // ─── Library name normalisation ───────────────────────────────────────────────
 
-std::string CodeGenExpr::NormalizeCLangLibFlag(const std::string &LibStr) {
+std::string CodeGenStdLibCLang::NormalizeCLangLibFlag(const std::string &LibStr) {
     llvm::StringRef Lib(LibStr);
 
     // Absolute path → pass as-is
@@ -64,9 +67,8 @@ static bool isStringLiteral(SemaExpr *E) {
 // Called after the normal constructor path has allocated the CLang instance.
 // Captures lib literal → registers linker flag → stores in CLangLibMap.
 
-void CodeGenExpr::GenCLangConstructorCapture(SemaCall *Sema, llvm::Value *InstancePtr) {
+void CodeGenStdLibCLang::GenConstructorCapture(SemaCall *Sema, llvm::Value *InstancePtr) {
     auto &ArgExprs = Sema->getArgs();
-    // ArgExprs[0] = lib (string)
 
     if (ArgExprs.empty() || !isStringLiteral(ArgExprs[0]))
         return;
@@ -85,7 +87,7 @@ void CodeGenExpr::GenCLangConstructorCapture(SemaCall *Sema, llvm::Value *Instan
 
 // ─── Args struct → C argument list ───────────────────────────────────────────
 
-void CodeGenExpr::BuildCArgsFromArgsStruct(
+void CodeGenStdLibCLang::BuildCArgsFromArgsStruct(
         SemaExpr *ArgsExpr,
         llvm::SmallVector<llvm::Value *, 8> &CArgs,
         llvm::SmallVector<llvm::Type  *, 8> &CArgTys) {
@@ -112,11 +114,9 @@ void CodeGenExpr::BuildCArgsFromArgsStruct(
         llvm::Value *CArg;
         llvm::Type  *CArgTy;
         if (FieldTy == CodeGen::StringTy) {
-            // string { ptr, i32 } → const char* (first element)
             CArg   = Builder->CreateExtractValue(FieldVal, 0);
             CArgTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
         } else if (FieldTy->isStructTy()) {
-            // Ptr { i64 addr } → void* via inttoptr
             llvm::Value *Addr = Builder->CreateExtractValue(FieldVal, 0);
             CArg   = Builder->CreateIntToPtr(Addr, llvm::PointerType::getUnqual(CGM->LLVMCtx));
             CArgTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
@@ -131,7 +131,7 @@ void CodeGenExpr::BuildCArgsFromArgsStruct(
 
 // ─── Emit C call + store result ───────────────────────────────────────────────
 
-void CodeGenExpr::EmitCCallAndStoreResult(
+void CodeGenStdLibCLang::EmitCCallAndStoreResult(
         const std::string &SymStr,
         llvm::Type *CRetTy,
         bool IsVoid, bool IsPtr, bool IsBool,
@@ -187,7 +187,7 @@ void CodeGenExpr::EmitCCallAndStoreResult(
 
 // ─── CLang::call() method codegen ─────────────────────────────────────────────
 
-void CodeGenExpr::GenCLangBridgeMethodCall(SemaCall *Sema) {
+void CodeGenStdLibCLang::GenBridgeMethodCall(SemaCall *Sema) {
     auto &ArgExprs = Sema->getArgs();
     // ArgExprs[0] = sym  (string literal)
     // ArgExprs[1] = const Args args
@@ -195,11 +195,9 @@ void CodeGenExpr::GenCLangBridgeMethodCall(SemaCall *Sema) {
 
     if (ArgExprs.size() < 2) { V = nullptr; return; }
 
-    // sym must be a string literal
     if (!isStringLiteral(ArgExprs[0])) { V = nullptr; return; }
     std::string SymStr = static_cast<SemaStringValue *>(ArgExprs[0])->getValue().str();
 
-    // Lib was captured at constructor time; verify the instance is known
     SemaVar *Instance = static_cast<SemaVar *>(Sema->getParent());
     if (!CGM->CLangLibMap.count(Instance->getCodeGen()->getPointer())) {
         V = nullptr; return;

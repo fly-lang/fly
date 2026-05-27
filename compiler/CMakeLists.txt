@@ -114,7 +114,9 @@ add_library(FlyCompiler
         CodeGen/CodeGenEnum.cpp
         CodeGen/CodeGenEnumEntry.cpp
         CodeGen/CodeGenExpr.cpp
-        CodeGen/CodeGenBridgeCLang.cpp
+        CodeGen/CodeGenStdLibCLang.cpp
+        CodeGen/CodeGenStdLibLLVM.cpp
+        CodeGen/CodeGenStdLibRuntime.cpp
         CodeGen/CodeGenError.cpp
         CodeGen/CodeGenFunction.cpp
         CodeGen/CodeGenFunctionBase.cpp
