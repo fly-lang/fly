@@ -57,11 +57,15 @@ public Mutex newMutex() {
 }
 
 public void mutexLock(Mutex m) {
-    while true {
+    bool done = false
+    while done == false {
         int old = 0
         fly.sync.atomicCas(m.ptr, 0, 1, old)
-        if old == 0 { return }
-        fly.runtime.futex_wait(m.ptr, old)
+        if old == 0 {
+            done = true
+        } else {
+            fly.runtime.futex_wait(m.ptr, old)
+        }
     }
 }
 
@@ -93,14 +97,15 @@ public RWMutex newRWMutex() {
 }
 
 public void rwmutexRlock(RWMutex rw) {
-    while true {
+    bool done = false
+    while done == false {
         int s = 0
         fly.sync.atomicLoad(rw.state_ptr, s)
         if s >= 0 {
             int ns = s + 1
             int old = 0
             fly.sync.atomicCas(rw.state_ptr, s, ns, old)
-            if old == s { return }
+            if old == s { done = true }
         } else {
             fly.runtime.futex_wait(rw.state_ptr, s)
         }
@@ -124,15 +129,17 @@ public void rwmutexRunlock(RWMutex rw) {
 public void rwmutexWlock(RWMutex rw) {
     int ignored = 0
     fly.sync.atomicAdd(rw.waiters_ptr, 1, ignored)
-    while true {
+    bool done = false
+    while done == false {
         int neg1 = 0 - 1
         int old = 0
         fly.sync.atomicCas(rw.state_ptr, 0, neg1, old)
         if old == 0 {
             fly.sync.atomicAdd(rw.waiters_ptr, 0 - 1, ignored)
-            return
+            done = true
+        } else {
+            fly.runtime.futex_wait(rw.state_ptr, old)
         }
-        fly.runtime.futex_wait(rw.state_ptr, old)
     }
 }
 
@@ -170,11 +177,15 @@ public void wgDone(WaitGroup wg) {
 }
 
 public void wgWait(WaitGroup wg) {
-    while true {
+    bool done = false
+    while done == false {
         int v = 0
         fly.sync.atomicLoad(wg.ptr, v)
-        if v == 0 { return }
-        fly.runtime.futex_wait(wg.ptr, v)
+        if v == 0 {
+            done = true
+        } else {
+            fly.runtime.futex_wait(wg.ptr, v)
+        }
     }
 }
 
@@ -194,22 +205,25 @@ public Once newOnce() {
 // onceAcquire returns true to exactly the first caller.
 // All other callers block until onceRelease() is called.
 public bool onceAcquire(Once o) {
-    while true {
+    bool done = false
+    while done == false {
         int s = 0
         fly.sync.atomicLoad(o.ptr, s)
         if s == 2 {
             out = false
-            return
-        }
-        if s == 0 {
+            done = true
+        } elsif s == 0 {
             int old = 0
             fly.sync.atomicCas(o.ptr, 0, 1, old)
             if old == 0 {
                 out = true
-                return
+                done = true
+            } else {
+                fly.runtime.futex_wait(o.ptr, 1)
             }
+        } else {
+            fly.runtime.futex_wait(o.ptr, 1)
         }
-        fly.runtime.futex_wait(o.ptr, 1)
     }
 }
 
@@ -234,13 +248,14 @@ public Semaphore newSemaphore(const int initial) {
 }
 
 public void semaphoreAcquire(Semaphore s) {
-    while true {
+    bool done = false
+    while done == false {
         int v = 0
         fly.sync.atomicLoad(s.ptr, v)
         if v > 0 {
             int old = 0
             fly.sync.atomicCas(s.ptr, v, v - 1, old)
-            if old == v { return }
+            if old == v { done = true }
         } else {
             fly.runtime.futex_wait(s.ptr, 0)
         }

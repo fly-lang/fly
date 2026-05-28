@@ -333,15 +333,16 @@ public fly.os.env.StringArray readLines(Reader r) {
 }
 
 // writeAll writes all bytes of buf to w in a single call.
-// Does not retry on short writes.
-public void writeAll(Writer w, Buf buf) {
+// Returns true on success, false if the write returned an error.
+public bool writeAll(Writer w, Buf buf) {
     long written = 0
     written = w.write(buf, buf.size)
+    out = written >= 0
 }
 
 // writeString writes the bytes of Fly string s to Writer w.
-// Constructs a Buf view over the string's internal pointer without copying.
-public void writeString(Writer w, const string s) {
+// Returns true on success, false if the write returned an error.
+public bool writeString(Writer w, const string s) {
     long ptr = 0
     int size = 0
     fly.llvm.strGetPtr(s, ptr)
@@ -353,6 +354,7 @@ public void writeString(Writer w, const string s) {
     buf.cap = size_u
     long written = 0
     written = w.write(buf, size_u)
+    out = written >= 0
 }
 
 // readerNew wraps inner in a BufReader with an internal buffer of cap bytes.
@@ -410,6 +412,7 @@ public long copy(Reader src, Writer dst) {
             chunk.size = nread
             long nwritten = 0
             nwritten = dst.write(chunk, chunk_sz_u)
+            if nwritten < 0 { done = true }
             total = total + nread
         }
     }
@@ -444,6 +447,7 @@ public long copyN(Reader src, Writer dst, const ulong n) {
                 chunk.size = nread
                 long nwritten = 0
                 nwritten = dst.write(chunk, to_read)
+                if nwritten < 0 { done = true }
                 total = total + nread
                 ulong nread_u = nread
                 remaining = remaining - nread_u
@@ -454,8 +458,7 @@ public long copyN(Reader src, Writer dst, const ulong n) {
 }
 
 // pipe copies all bytes from pipe_r to pipe_w until EOF.
-// Equivalent to copy(pipe_r, pipe_w, _).
-public void pipe(Reader pipe_r, Writer pipe_w) {
-    long copied = 0
-    copied = copy(pipe_r, pipe_w)
+// Returns the total number of bytes copied (same as copy).
+public long pipe(Reader pipe_r, Writer pipe_w) {
+    out = copy(pipe_r, pipe_w)
 }

@@ -13,7 +13,7 @@ public struct Args {}
 public class CLang {
     string lib
 
-    public CLang(string libPath) {
+    public CLang(const string libPath) {
         this.lib = libPath
     }
 

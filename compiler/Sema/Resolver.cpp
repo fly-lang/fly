@@ -2044,6 +2044,14 @@ void Resolver::Resolve() {
 					continue; // synthetic single-return output parameter, never "const"
 				if (P->getName().starts_with("__out_"))
 					continue; // synthetic multi-return output parameter, never "const"
+				// Class/interface/struct params: adding 'const' to any reference-type param
+				// changes the call-site ABI (passes actual object pointer instead of
+				// address-of-local alloca), while the function body still expects the extra
+				// level of indirection.  The warning would lead to a runtime segfault, so
+				// suppress it for all class-family types.
+				SemaType *PType = P->getType();
+				if (PType && PType->isClass())
+					continue;
 				Diag(P->getAST()->getLocation(), diag::warn_sema_param_missing_const)
 				    << P->getAST()->getName();
 			}

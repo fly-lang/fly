@@ -55,6 +55,7 @@ void main() {
     t6_buf.size = t6_sz
     t6_buf.cap = t6_sz
     long t6_nw = fw6.write(t6_buf, t6_sz)
+    fly.assert.assertTrue(t6_nw >= 0, 60)
     fw6.close()
     string t6_result = fs.readStr(t6_path)
     assert.assertStr(t6_result, "hello_fw", 6)
