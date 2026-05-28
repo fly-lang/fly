@@ -217,6 +217,14 @@ void CodeGenClassMethod::GenBody() {
     	}
     }
 
+	// Set the current error handler so that calls to regular functions from within
+	// this method pass THIS method's error handler, not a stale one from a previously
+	// generated function. (CodeGenFunction::GenBody does this too; class methods need
+	// the same update or CurrentErrorHandler retains the last free function's alloca.)
+	if (Class->getAST().getClassKind() != ASTClassKind::STRUCT) {
+		CGM->CurrentErrorHandler = Sema->getErrorHandler()->getCodeGen();
+	}
+
 	if (Sema->getBody()) {
 		Sema->getBody()->accept(*CGM);
 	}

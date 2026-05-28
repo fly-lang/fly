@@ -1,0 +1,99 @@
+namespace fly.data
+
+import fly.llvm
+import fly.runtime
+
+public class List {
+    long ptr
+
+    public List() {
+        long p = 0
+        fly.runtime.mem_alloc(16, p)
+        fly.llvm.memset(p, 0, 16)
+        this.ptr = p
+    }
+
+    public void add(const long val) {
+        int len = 0
+        fly.llvm.ptrReadInt(this.ptr, 8, len)
+        int cap = 0
+        fly.llvm.ptrReadInt(this.ptr, 12, cap)
+        if len >= cap {
+            int newcap = cap * 2
+            if cap == 0 { newcap = 8 }
+            long items = 0
+            fly.llvm.ptrReadLong(this.ptr, 0, items)
+            long ni = 0
+            fly.runtime.mem_realloc(items, newcap * 8, ni)
+            fly.llvm.ptrPokeLong(this.ptr, 0, ni)
+            fly.llvm.ptrPokeInt(this.ptr, 12, newcap)
+        }
+        long items = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, items)
+        fly.llvm.ptrPokeLong(items, len * 8, val)
+        fly.llvm.ptrPokeInt(this.ptr, 8, len + 1)
+    }
+
+    public long get(const int idx) {
+        int len = 0
+        fly.llvm.ptrReadInt(this.ptr, 8, len)
+        if idx < 0 {
+            out = 0
+            return
+        }
+        if idx >= len {
+            out = 0
+            return
+        }
+        long items = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, items)
+        fly.llvm.ptrReadLong(items, idx * 8, out)
+    }
+
+    public void set(const int idx, const long val) {
+        int len = 0
+        fly.llvm.ptrReadInt(this.ptr, 8, len)
+        if idx < 0 { return }
+        if idx >= len { return }
+        long items = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, items)
+        fly.llvm.ptrPokeLong(items, idx * 8, val)
+    }
+
+    public int size() {
+        fly.llvm.ptrReadInt(this.ptr, 8, out)
+    }
+
+    public void remove(const int idx) {
+        int len = 0
+        fly.llvm.ptrReadInt(this.ptr, 8, len)
+        if idx < 0 { return }
+        if idx >= len { return }
+        long items = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, items)
+        int i = idx + 1
+        while i < len {
+            long v = 0
+            fly.llvm.ptrReadLong(items, i * 8, v)
+            int prev = i - 1
+            fly.llvm.ptrPokeLong(items, prev * 8, v)
+            i = i + 1
+        }
+        fly.llvm.ptrPokeInt(this.ptr, 8, len - 1)
+    }
+
+    public void clear() {
+        fly.llvm.ptrPokeInt(this.ptr, 8, 0)
+    }
+
+    public void free() {
+        long items = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, items)
+        int cap = 0
+        fly.llvm.ptrReadInt(this.ptr, 12, cap)
+        if items != 0 {
+            fly.runtime.mem_free(items, cap * 8)
+        }
+        fly.runtime.mem_free(this.ptr, 16)
+    }
+}

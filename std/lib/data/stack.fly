@@ -1,0 +1,84 @@
+namespace fly.data
+
+import fly.llvm
+import fly.runtime
+
+public class Stack {
+    long ptr
+
+    public Stack() {
+        long p = 0
+        fly.runtime.mem_alloc(16, p)
+        fly.llvm.memset(p, 0, 16)
+        this.ptr = p
+    }
+
+    public void push(const long val) {
+        int len = 0
+        fly.llvm.ptrReadInt(this.ptr, 8, len)
+        int cap = 0
+        fly.llvm.ptrReadInt(this.ptr, 12, cap)
+        if len >= cap {
+            int newcap = cap * 2
+            if cap == 0 { newcap = 8 }
+            long items = 0
+            fly.llvm.ptrReadLong(this.ptr, 0, items)
+            long ni = 0
+            fly.runtime.mem_realloc(items, newcap * 8, ni)
+            fly.llvm.ptrPokeLong(this.ptr, 0, ni)
+            fly.llvm.ptrPokeInt(this.ptr, 12, newcap)
+        }
+        long items = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, items)
+        fly.llvm.ptrPokeLong(items, len * 8, val)
+        fly.llvm.ptrPokeInt(this.ptr, 8, len + 1)
+    }
+
+    public long pop() {
+        int len = 0
+        fly.llvm.ptrReadInt(this.ptr, 8, len)
+        if len == 0 {
+            out = 0
+            return
+        }
+        int newlen = len - 1
+        long items = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, items)
+        fly.llvm.ptrReadLong(items, newlen * 8, out)
+        fly.llvm.ptrPokeInt(this.ptr, 8, newlen)
+    }
+
+    public long peek() {
+        int len = 0
+        fly.llvm.ptrReadInt(this.ptr, 8, len)
+        if len == 0 {
+            out = 0
+            return
+        }
+        long items = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, items)
+        int top = len - 1
+        fly.llvm.ptrReadLong(items, top * 8, out)
+    }
+
+    public bool isEmpty() {
+        int len = 0
+        fly.llvm.ptrReadInt(this.ptr, 8, len)
+        out = len == 0
+    }
+
+    public int size() {
+        fly.llvm.ptrReadInt(this.ptr, 8, out)
+    }
+
+    public void free() {
+        long items = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, items)
+        int cap = 0
+        fly.llvm.ptrReadInt(this.ptr, 12, cap)
+        if items != 0 {
+            fly.runtime.mem_free(items, cap * 8)
+        }
+        fly.runtime.mem_free(this.ptr, 16)
+    }
+}

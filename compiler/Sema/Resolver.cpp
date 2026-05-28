@@ -1667,6 +1667,21 @@ void Resolver::visit(ASTCall &AST) {
 		for (SemaExpr *ArgExpr : ResolvedCallArgs) {
 			Sema->addArg(ArgExpr);
 		}
+
+		// Passing a param to a non-const callee parameter counts as a modification:
+		// the callee may write through the reference (e.g. rngNext(rng) mutates rng).
+		if (Sema && Sema->getFunction()) {
+			auto &CalleeParams = Sema->getFunction()->getParams();
+			for (size_t i = 0; i < ResolvedCallArgs.size() && i < CalleeParams.size(); ++i) {
+				if (!CalleeParams[i]->isConstant()) {
+					SemaExpr *ArgExpr = ResolvedCallArgs[i];
+					if (ArgExpr && ArgExpr->getKind() == SemaKind::PARAM_VAR) {
+						UnmodifiedParams.erase(static_cast<SemaParam *>(ArgExpr));
+					}
+				}
+			}
+		}
+
 		ResolvedCallArgs.clear();
 
 		// If the resolved function has a return type, create a synthetic local variable
@@ -1738,6 +1753,17 @@ void Resolver::visit(ASTBinary &AST) {
 	// Any assignment (=, +=, …) to a bare-identifier param counts as a modification
 	if (AST.isAssign() && Left && Left->getKind() == SemaKind::PARAM_VAR) {
 		UnmodifiedParams.erase(static_cast<SemaParam *>(Left));
+	}
+	// A member assignment like `rng.s0 = z` also modifies the base struct param.
+	if (AST.isAssign() && Left && Left->getKind() == SemaKind::MEMBER) {
+		SemaMember *Mem = static_cast<SemaMember *>(Left);
+		SemaExpr *Root = Mem->getParent();
+		while (Root && Root->getKind() == SemaKind::MEMBER) {
+			Root = Root->getParent();
+		}
+		if (Root && Root->getKind() == SemaKind::PARAM_VAR) {
+			UnmodifiedParams.erase(static_cast<SemaParam *>(Root));
+		}
 	}
     AST.getRightExpr()->accept(*this);
 	SemaExpr *Right = CurrentExpr;
@@ -2482,9 +2508,6 @@ SmallVector<SemaType *, 8> Resolver::ResolveCallArgs(ASTCall *AST) {
 	FLY_DEBUG_SCOPE("Resolver", "ResolveCallArgs");
 	SmallVector<SemaType *, 8> Types;
 
-	// Track identifiers to detect duplicate arguments
-	llvm::StringSet<> SeenIdentifiers;
-
 	// Store resolved arg expressions in a temporary vector
 	ResolvedCallArgs.clear();
 
@@ -2493,15 +2516,6 @@ SmallVector<SemaType *, 8> Resolver::ResolveCallArgs(ASTCall *AST) {
 		SemaExpr *ArgExpr = CurrentExpr;
 		Types.push_back(ArgExpr ? ArgExpr->getType() : nullptr);
 		ResolvedCallArgs.push_back(ArgExpr);
-
-		// Check for duplicate identifier arguments
-		if (Arg->getExpr()->getExprKind() == ASTExprKind::EXPR_IDENTIFIER) {
-			ASTIdentifier *Ident = static_cast<ASTIdentifier *>(Arg->getExpr());
-			llvm::StringRef Name = Ident->getName();
-			if (!SeenIdentifiers.insert(Name).second) {
-				Diag(Ident->getLocation(), diag::err_sema_duplicate_arg) << Name;
-			}
-		}
 	}
 	return std::move(Types);
 }

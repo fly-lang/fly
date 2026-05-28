@@ -21,6 +21,13 @@
 #   fly.os.fs        lib/os/fs.fly
 #   fly.sync         lib/sync.fly
 #   fly.mem          lib/mem.fly
+#   fly.data         lib/data/list.fly
+#   fly.data         lib/data/stack.fly
+#   fly.data         lib/data/queue.fly
+#   fly.data         lib/data/deque.fly
+#   fly.data         lib/data/map.fly
+#   fly.data         lib/data/set.fly
+#   fly.data         lib/data/tree.fly
 #
 # Tests live in test/:
 #   test/str_test.fly        — Fly-native tests for fly.str
@@ -31,6 +38,7 @@
 #   test/os_time_test.fly    — Fly-native tests for fly.os.time
 #   test/os_io_test.fly      — Fly-native tests for fly.os.io
 #   test/mem_test.fly        — Fly-native tests for fly.mem
+#   test/data_test.fly       — Fly-native tests for fly.data.*
 #
 
 # ── FlyLib: empty INTERFACE target (kept for compiler/CMakeLists.txt compat) ──
@@ -51,6 +59,13 @@ set(FLY_LIB_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/sync.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/mem.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/bridge/clang.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/list.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/stack.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/queue.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/deque.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/map.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/set.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/tree.fly
 )
 
 # fly --lib appends .a (Linux/macOS) or .lib (Windows-MSVC); pass the stem via -o.
@@ -183,3 +198,16 @@ add_custom_command(
 )
 add_custom_target(mem_test_fly_bin ALL DEPENDS ${CMAKE_BINARY_DIR}/mem_test_fly)
 add_test(NAME fly_mem_fly_test COMMAND ${CMAKE_BINARY_DIR}/mem_test_fly)
+
+add_custom_command(
+    OUTPUT  ${CMAKE_BINARY_DIR}/data_test_fly
+    COMMAND $<TARGET_FILE:fly>
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/data_test.fly
+            ${FLY_LIB_OUTPUT}
+            -o ${CMAKE_BINARY_DIR}/data_test_fly
+    DEPENDS fly fly_std_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/data_test.fly
+    COMMENT "Compiling data_test.fly"
+    VERBATIM
+)
+add_custom_target(data_test_fly_bin ALL DEPENDS ${CMAKE_BINARY_DIR}/data_test_fly)
+add_test(NAME fly_data_fly_test COMMAND ${CMAKE_BINARY_DIR}/data_test_fly)
