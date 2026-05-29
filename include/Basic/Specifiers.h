@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/Specifiers.h - Declaration and Type Specifiers
+// include/Basic/Specifiers.h - declaration and type specifiers
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

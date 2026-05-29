@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaReturnStmt.h - Sema Return Statement header
+// include/Sema/SemaReturnStmt.h - return statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_RETURNSTMT_H
@@ -22,6 +22,8 @@ namespace fly {
         ~SemaReturnStmt() override = default;
 
         SemaExpr *getExpr() const;
+
+        std::string str() const override;
 
         void accept(SemaVisitor &Visitor) override;
     };

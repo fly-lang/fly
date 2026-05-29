@@ -21,6 +21,7 @@ add_executable(fly_test
         CodeGen/CodeGenStringTest.cpp
         CodeGen/CodeGenStructTest.cpp
         CodeGen/CodeGenSmartAllocTest.cpp
+        CodeGen/CodeGenDebugInfoTest.cpp
         Parser/LexerTest.cpp
 #        Parser/ParserBadCode.cpp
         Parser/ParserBlockTest.cpp
@@ -52,7 +53,7 @@ target_link_libraries(fly_test PRIVATE
 add_dependencies(fly_test FlyRuntime)
 
 target_compile_definitions(fly_test PRIVATE
-        FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/std/src"
+        FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/std/lib"
 )
 
 include(GoogleTest)

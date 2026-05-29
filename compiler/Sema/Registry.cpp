@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/Registry.cpp - The Namespace Registry
+// compiler/Sema/Registry.cpp - namespace registry
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -52,7 +52,7 @@ DiagnosticBuilder Registry::Diag(const SourceLocation &Loc, unsigned DiagID) con
 }
 
 DiagnosticBuilder Registry::Diag(unsigned DiagID) const {
-	if (DebugEnabled && DiagID == diag::err_invalid_behavior)
+	if (DebugLog && DiagID == diag::err_invalid_behavior)
 		llvm::sys::PrintStackTrace(llvm::errs());
 	return Diags.Report(DiagID);
 }
@@ -104,7 +104,7 @@ SemaNameSpace * Registry::getDefaultNameSpace() {
 	return DefaultNameSpace;
 }
 
-llvm::SmallVector<SemaFunctionBase *, 4> Registry::getBodies() const {
+const llvm::SmallVector<SemaFunctionBase *, 4> &Registry::getBodies() const {
 	return Bodies;
 }
 
@@ -325,6 +325,16 @@ Symbol *Registry::LookupName(llvm::StringRef Name, SymbolTable *Scope) {
 	return (*Symbols)[0];
 }
 
+// Number of explicit (user-visible) parameters: excludes the hidden 'out' param
+// added by the Resolver when the function declares a return type.
+static size_t ExplicitParamCount(SemaFunctionBase *Function) {
+	auto &Params = Function->getParams();
+	if (Params.empty()) return 0;
+	if (!Function->getReturnType()->isVoid())
+		return Params.size() - 1; // last param is the synthetic 'out'
+	return Params.size();
+}
+
 Symbol *Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8> &Types, SymbolTable *Scope) {
 	if (Scope == nullptr) Scope = GlobalScope;
 	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookupInParents(Name);
@@ -343,15 +353,16 @@ Symbol *Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8
 
 		SemaFunctionBase *Function = static_cast<SemaFunctionBase *>(Sym->getRef());
 		llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
+		size_t ExplicitCount = ExplicitParamCount(Function);
 
-		// Check if the number of parameters matches
-		if (Params.size() != Types.size()) {
+		// Check if the number of explicit parameters matches
+		if (ExplicitCount != Types.size()) {
 			continue;
 		}
 
 		// Check if all parameter types match
 		bool AllTypesMatch = true;
-		for (size_t i = 0; i < Params.size(); i++) {
+		for (size_t i = 0; i < ExplicitCount; i++) {
 			SemaType *ParamType = Params[i]->getType();
 			SemaType *ArgType = Types[i];
 
@@ -400,11 +411,12 @@ Symbol *Registry::LookupFunctionExact(llvm::StringRef Name, SmallVector<SemaType
 
 		SemaFunctionBase *Function = static_cast<SemaFunctionBase *>(Sym->getRef());
 		llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
+		size_t ExplicitCount = ExplicitParamCount(Function);
 
-		if (Params.size() != Types.size()) continue;
+		if (ExplicitCount != Types.size()) continue;
 
 		bool AllMatch = true;
-		for (size_t i = 0; i < Params.size(); i++) {
+		for (size_t i = 0; i < ExplicitCount; i++) {
 			if (!Params[i]->getType()->isEquals(Types[i])) {
 				AllMatch = false;
 				break;
@@ -417,8 +429,9 @@ Symbol *Registry::LookupFunctionExact(llvm::StringRef Name, SmallVector<SemaType
 
 static bool FunctionTypesMatchExact(SemaFunctionBase *Function, SmallVector<SemaType *, 8> &Types) {
 	llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
-	if (Params.size() != Types.size()) return false;
-	for (size_t i = 0; i < Params.size(); i++) {
+	size_t ExplicitCount = ExplicitParamCount(Function);
+	if (ExplicitCount != Types.size()) return false;
+	for (size_t i = 0; i < ExplicitCount; i++) {
 		SemaType *ParamType = Params[i]->getType();
 		SemaType *ArgType = Types[i];
 		if (ParamType->isEquals(ArgType)) continue;
@@ -433,8 +446,9 @@ static bool FunctionTypesMatchExact(SemaFunctionBase *Function, SmallVector<Sema
 
 static bool FunctionTypesMatch(SemaFunctionBase *Function, SmallVector<SemaType *, 8> &Types) {
 	llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
-	if (Params.size() != Types.size()) return false;
-	for (size_t i = 0; i < Params.size(); i++) {
+	size_t ExplicitCount = ExplicitParamCount(Function);
+	if (ExplicitCount != Types.size()) return false;
+	for (size_t i = 0; i < ExplicitCount; i++) {
 		SemaType *ParamType = Params[i]->getType();
 		SemaType *ArgType = Types[i];
 		if (ParamType->isEquals(ArgType)) continue;

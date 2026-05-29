@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaDeleteStmt.h - Sema Delete Statement header
+// include/Sema/SemaDeleteStmt.h - delete statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_DELETESTMT_H
@@ -22,6 +22,8 @@ namespace fly {
         ~SemaDeleteStmt() override = default;
 
         SemaExpr *getExpr() const;
+
+        std::string str() const override;
 
         void accept(SemaVisitor &Visitor) override;
     };

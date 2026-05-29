@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/Sema.h - Main Parser
+// include/Sema/Resolver.h - symbol resolver
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -52,10 +52,12 @@ namespace fly {
     class ASTHandleStmt;
     class ASTFunction;
     class ASTArrayType;
+    class ASTTypeParam;
     class ASTComment;
     class ASTImport;
     class ASTType;
     class ASTParam;
+    class ASTLocalVar;
     class ASTLoopInStmt;
     class ASTEnum;
     class SemaFunction;
@@ -133,6 +135,16 @@ namespace fly {
     	// Temporary storage for resolved call arg expressions
     	SmallVector<SemaExpr *, 8> ResolvedCallArgs;
 
+    	// Counter for generating unique synthetic out-variable names (__out_0, __out_1, ...)
+    	unsigned OutVarCounter = 0;
+
+    	// Synthetic ASTLocalVar nodes created for call-site out vars (owned, freed at end)
+    	SmallVector<ASTLocalVar *, 16> SyntheticOutVars;
+
+    	// Stable string storage for synthetic parameter names (e.g. "__out_0", "__out_1").
+    	// StringRef values pointing into these strings remain valid for the Resolver's lifetime.
+    	SmallVector<std::string, 16> SyntheticParamNames;
+
     public:
 
         Resolver(DiagnosticsEngine &Diags, Registry &Reg);
@@ -161,6 +173,7 @@ namespace fly {
         void visit(ASTBuiltinType &AST) override;
         void visit(ASTNamedType &AST) override;
         void visit(ASTArrayType &AST) override;
+        void visit(ASTTypeParam &AST) override;
 
         // Visit Statements
         void visit(ASTExprStmt &AST) override;

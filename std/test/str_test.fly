@@ -1,148 +1,148 @@
 import fly.str
 import fly.assert
 
-main() {
+void main() {
     int n = 0
     bool b = false
     string s = ""
 
     // ── len ───────────────────────────────────────────────────────────────────
-    fly.str.len("hello", n)
-    fly.assert.assertEqI(n, 5, 1)
-    fly.str.len("", n)
-    fly.assert.assertEqI(n, 0, 2)
+    n = str.len("hello")
+    assert.assertEqI(n, 5, 1)
+    n = str.len("")
+    assert.assertEqI(n, 0, 2)
 
     // ── isEmpty ───────────────────────────────────────────────────────────────
-    fly.str.isEmpty("", b)
-    if b == false { fly.assert.errExit(10) }
-    fly.str.isEmpty("x", b)
-    if b { fly.assert.errExit(11) }
+    b = str.isEmpty("")
+    if b == false { assert.errExit(10) }
+    b = str.isEmpty("x")
+    if b { assert.errExit(11) }
 
     // ── equals ────────────────────────────────────────────────────────────────
-    fly.str.equals("abc", "abc", b)
-    if b == false { fly.assert.errExit(20) }
-    fly.str.equals("abc", "ABC", b)
-    if b { fly.assert.errExit(21) }
-    fly.str.equals("", "", b)
-    if b == false { fly.assert.errExit(22) }
+    b = str.equals("abc", "abc")
+    if b == false { assert.errExit(20) }
+    b = str.equals("abc", "ABC")
+    if b { assert.errExit(21) }
+    b = str.equals("", "")
+    if b == false { assert.errExit(22) }
 
     // ── equalsIgnoreCase ──────────────────────────────────────────────────────
-    fly.str.equalsIgnoreCase("Hello", "HELLO", b)
-    if b == false { fly.assert.errExit(30) }
-    fly.str.equalsIgnoreCase("abc", "xyz", b)
-    if b { fly.assert.errExit(31) }
+    b = str.equalsIgnoreCase("Hello", "HELLO")
+    if b == false { assert.errExit(30) }
+    b = str.equalsIgnoreCase("abc", "xyz")
+    if b { assert.errExit(31) }
 
     // ── startsWith ────────────────────────────────────────────────────────────
-    fly.str.startsWith("hello world", "hello", b)
-    if b == false { fly.assert.errExit(40) }
-    fly.str.startsWith("hello world", "world", b)
-    if b { fly.assert.errExit(41) }
-    fly.str.startsWith("hello", "", b)
-    if b == false { fly.assert.errExit(42) }
+    b = str.startsWith("hello world", "hello")
+    if b == false { assert.errExit(40) }
+    b = str.startsWith("hello world", "world")
+    if b { assert.errExit(41) }
+    b = str.startsWith("hello", "")
+    if b == false { assert.errExit(42) }
 
     // ── endsWith ──────────────────────────────────────────────────────────────
-    fly.str.endsWith("hello world", "world", b)
-    if b == false { fly.assert.errExit(50) }
-    fly.str.endsWith("hello world", "hello", b)
-    if b { fly.assert.errExit(51) }
+    b = str.endsWith("hello world", "world")
+    if b == false { assert.errExit(50) }
+    b = str.endsWith("hello world", "hello")
+    if b { assert.errExit(51) }
 
     // ── indexOf ───────────────────────────────────────────────────────────────
-    fly.str.indexOf("hello world", "world", n)
-    fly.assert.assertEqI(n, 6, 60)
-    fly.str.indexOf("hello world", "xyz", n)
+    n = str.indexOf("hello world", "world")
+    assert.assertEqI(n, 6, 60)
+    n = str.indexOf("hello world", "xyz")
     int neg1 = 0 - 1
-    fly.assert.assertEqI(n, neg1, 61)
-    fly.str.indexOf("abab", "ab", n)
-    fly.assert.assertEqI(n, 0, 62)
+    assert.assertEqI(n, neg1, 61)
+    n = str.indexOf("abab", "ab")
+    assert.assertEqI(n, 0, 62)
 
     // ── lastIndexOf ───────────────────────────────────────────────────────────
-    fly.str.lastIndexOf("abcabc", "bc", n)
-    fly.assert.assertEqI(n, 4, 70)
-    fly.str.lastIndexOf("abcabc", "ab", n)
-    fly.assert.assertEqI(n, 3, 71)
+    n = str.lastIndexOf("abcabc", "bc")
+    assert.assertEqI(n, 4, 70)
+    n = str.lastIndexOf("abcabc", "ab")
+    assert.assertEqI(n, 3, 71)
 
     // ── contains ──────────────────────────────────────────────────────────────
-    fly.str.contains("hello world", "world", b)
-    if b == false { fly.assert.errExit(80) }
-    fly.str.contains("hello world", "xyz", b)
-    if b { fly.assert.errExit(81) }
+    b = str.contains("hello world", "world")
+    if b == false { assert.errExit(80) }
+    b = str.contains("hello world", "xyz")
+    if b { assert.errExit(81) }
 
     // ── count ─────────────────────────────────────────────────────────────────
-    fly.str.count("abcabcabc", "abc", n)
-    fly.assert.assertEqI(n, 3, 90)
-    fly.str.count("aaa", "a", n)
-    fly.assert.assertEqI(n, 3, 91)
-    fly.str.count("abc", "xyz", n)
-    fly.assert.assertEqI(n, 0, 92)
+    n = str.count("abcabcabc", "abc")
+    assert.assertEqI(n, 3, 90)
+    n = str.count("aaa", "a")
+    assert.assertEqI(n, 3, 91)
+    n = str.count("abc", "xyz")
+    assert.assertEqI(n, 0, 92)
 
     // ── toUpper ───────────────────────────────────────────────────────────────
-    fly.str.toUpper("hello", s)
-    fly.assert.assertStr(s, "HELLO", 100)
-    fly.str.toUpper("Hello World", s)
-    fly.assert.assertStr(s, "HELLO WORLD", 101)
+    s = str.toUpper("hello")
+    assert.assertStr(s, "HELLO", 100)
+    s = str.toUpper("Hello World")
+    assert.assertStr(s, "HELLO WORLD", 101)
 
     // ── toLower ───────────────────────────────────────────────────────────────
-    fly.str.toLower("WORLD", s)
-    fly.assert.assertStr(s, "world", 110)
-    fly.str.toLower("Hello World", s)
-    fly.assert.assertStr(s, "hello world", 111)
+    s = str.toLower("WORLD")
+    assert.assertStr(s, "world", 110)
+    s = str.toLower("Hello World")
+    assert.assertStr(s, "hello world", 111)
 
     // ── trim ──────────────────────────────────────────────────────────────────
-    fly.str.trim("  hello  ", s)
-    fly.assert.assertStr(s, "hello", 120)
-    fly.str.trim("hello", s)
-    fly.assert.assertStr(s, "hello", 121)
-    fly.str.trim("", s)
-    fly.assert.assertStr(s, "", 122)
+    s = str.trim("  hello  ")
+    assert.assertStr(s, "hello", 120)
+    s = str.trim("hello")
+    assert.assertStr(s, "hello", 121)
+    s = str.trim("")
+    assert.assertStr(s, "", 122)
 
     // ── trimLeft ──────────────────────────────────────────────────────────────
-    fly.str.trimLeft("  hello  ", s)
-    fly.assert.assertStr(s, "hello  ", 130)
+    s = str.trimLeft("  hello  ")
+    assert.assertStr(s, "hello  ", 130)
 
     // ── trimRight ─────────────────────────────────────────────────────────────
-    fly.str.trimRight("  hello  ", s)
-    fly.assert.assertStr(s, "  hello", 140)
+    s = str.trimRight("  hello  ")
+    assert.assertStr(s, "  hello", 140)
 
     // ── substring ─────────────────────────────────────────────────────────────
-    fly.str.substring("hello world", 6, 11, s)
-    fly.assert.assertStr(s, "world", 150)
-    fly.str.substring("hello world", 0, 5, s)
-    fly.assert.assertStr(s, "hello", 151)
-    fly.str.substring("abc", 1, 2, s)
-    fly.assert.assertStr(s, "b", 152)
+    s = str.substring("hello world", 6, 11)
+    assert.assertStr(s, "world", 150)
+    s = str.substring("hello world", 0, 5)
+    assert.assertStr(s, "hello", 151)
+    s = str.substring("abc", 1, 2)
+    assert.assertStr(s, "b", 152)
 
     // ── concat ────────────────────────────────────────────────────────────────
-    fly.str.concat("hello ", "world", s)
-    fly.assert.assertStr(s, "hello world", 160)
-    fly.str.concat("", "abc", s)
-    fly.assert.assertStr(s, "abc", 161)
-    fly.str.concat("abc", "", s)
-    fly.assert.assertStr(s, "abc", 162)
+    s = str.concat("hello ", "world")
+    assert.assertStr(s, "hello world", 160)
+    s = str.concat("", "abc")
+    assert.assertStr(s, "abc", 161)
+    s = str.concat("abc", "")
+    assert.assertStr(s, "abc", 162)
 
     // ── repeat ────────────────────────────────────────────────────────────────
-    fly.str.repeat("ab", 3, s)
-    fly.assert.assertStr(s, "ababab", 170)
-    fly.str.repeat("x", 1, s)
-    fly.assert.assertStr(s, "x", 171)
-    fly.str.repeat("abc", 0, s)
-    fly.assert.assertStr(s, "", 172)
+    s = str.repeat("ab", 3)
+    assert.assertStr(s, "ababab", 170)
+    s = str.repeat("x", 1)
+    assert.assertStr(s, "x", 171)
+    s = str.repeat("abc", 0)
+    assert.assertStr(s, "", 172)
 
     // ── replace ───────────────────────────────────────────────────────────────
-    fly.str.replace("aabbaa", "aa", "X", s)
-    fly.assert.assertStr(s, "XbbX", 180)
-    fly.str.replace("hello world", "world", "fly", s)
-    fly.assert.assertStr(s, "hello fly", 181)
-    fly.str.replace("abc", "xyz", "Z", s)
-    fly.assert.assertStr(s, "abc", 182)
+    s = str.replace("aabbaa", "aa", "X")
+    assert.assertStr(s, "XbbX", 180)
+    s = str.replace("hello world", "world", "fly")
+    assert.assertStr(s, "hello fly", 181)
+    s = str.replace("abc", "xyz", "Z")
+    assert.assertStr(s, "abc", 182)
 
     // ── convert ───────────────────────────────────────────────────────────────
-    fly.str.convert(0, s)
-    fly.assert.assertStr(s, "0", 190)
-    fly.str.convert(42, s)
-    fly.assert.assertStr(s, "42", 191)
+    s = str.convert(0)
+    assert.assertStr(s, "0", 190)
+    s = str.convert(42)
+    assert.assertStr(s, "42", 191)
     int neg_one = 0 - 1
-    fly.str.convert(neg_one, s)
-    fly.assert.assertStr(s, "-1", 192)
-    fly.str.convert(2147483647, s)
-    fly.assert.assertStr(s, "2147483647", 193)
+    s = str.convert(neg_one)
+    assert.assertStr(s, "-1", 192)
+    s = str.convert(2147483647)
+    assert.assertStr(s, "2147483647", 193)
 }

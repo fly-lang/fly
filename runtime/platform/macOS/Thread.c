@@ -60,3 +60,18 @@ i32 futex_wake(i32 *addr, i32 count)
     __ulock_wake(UL_COMPARE_AND_WAIT | ULF_WAKE_ALL, (void *)addr, 0ULL);
     return count;
 }
+
+i32 atomic_load_i32(i32 *addr) {
+    return __atomic_load_n(addr, __ATOMIC_ACQUIRE);
+}
+void atomic_store_i32(i32 *addr, i32 val) {
+    __atomic_store_n(addr, val, __ATOMIC_RELEASE);
+}
+i32 atomic_cas_i32(i32 *addr, i32 expected, i32 desired) {
+    __atomic_compare_exchange_n(addr, &expected, desired, 0,
+                                __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
+    return expected;
+}
+i32 atomic_fetch_add_i32(i32 *addr, i32 delta) {
+    return __atomic_fetch_add(addr, delta, __ATOMIC_ACQ_REL);
+}

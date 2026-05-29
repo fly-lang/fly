@@ -148,7 +148,9 @@ DIAG(err_parser_alias_conflict_namespace, CLASS_ERROR, (unsigned)diag::Severity:
 DIAG(err_parser_conflict_import_alias, CLASS_ERROR, (unsigned)diag::Severity::Error, "import alias '%0' is already used by another import in this file", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_import_wildcard_alias, CLASS_ERROR, (unsigned)diag::Severity::Error, "wildcard import ('.*') cannot be combined with 'as' alias — remove one of them", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_conflict_params, CLASS_ERROR, (unsigned)diag::Severity::Error, "parameter '%0' is already declared in this function signature", 0, SFINAE_Suppress, false, true, 0)
-DIAG(err_parser_return_with_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "'return' cannot carry a value; all Fly functions are void — use bare 'return' to exit early", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parser_return_with_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "'return' cannot carry a value; use 'out = expr' to set the return value, and bare 'return' to exit early", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parser_missing_return_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "function or method declaration is missing a return type; use 'void' for functions that do not return a value (e.g. 'void main()')", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parser_expected_greater, CLASS_ERROR, (unsigned)diag::Severity::Error, "unclosed type argument list: expected '>' to close the generic type arguments", 0, SFINAE_Suppress, false, true, 0)
 
 // Sema
 DIAG(err_sema_duplicate_identity, CLASS_ERROR, (unsigned)diag::Severity::Error, "type '%0' is already defined in this namespace; each type name must be unique", 0, SFINAE_Suppress, false, true, 0)
@@ -211,6 +213,13 @@ DIAG(err_sema_wrong_args, CLASS_ERROR, (unsigned)diag::Severity::Error, "no over
 DIAG(err_sema_call_ambiguous, CLASS_ERROR, (unsigned)diag::Severity::Error, "call to '%0' is ambiguous; multiple overloads match", 0, SFINAE_Suppress, false, true, 0)
 DIAG(note_sema_candidate, CLASS_NOTE, (unsigned)diag::Severity::Fatal, "candidate: %0", 0, SFINAE_Suppress, false, false, 0)
 DIAG(err_sema_type_mismatch, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot assign a value of type '%0' to a variable of type '%1'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_condition_not_bool, CLASS_ERROR, (unsigned)diag::Severity::Error, "condition must be convertible to 'bool'; got '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_unary_invalid_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "unary operator '%0' cannot be applied to type '%1'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_loopin_not_array, CLASS_ERROR, (unsigned)diag::Severity::Error, "for-in requires an array; got '%0'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_generic_wrong_arg_count, CLASS_ERROR, (unsigned)diag::Severity::Error, "generic type '%0' requires %1 type argument(s), but %2 were provided", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_generic_not_instantiable, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot instantiate generic class '%0' without type arguments", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_type_param_bound_violated, CLASS_ERROR, (unsigned)diag::Severity::Error, "type argument '%0' does not satisfy the bound '%1' for type parameter '%2'", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_type_param_not_inferable, CLASS_ERROR, (unsigned)diag::Severity::Error, "cannot infer type argument for '%0'; provide explicit type arguments", 0, SFINAE_Suppress, false, true, 0)
 
 // CodeGen
 DIAG(err_codegen_invalid_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "internal error: invalid or null type encountered during code generation; please report this bug", 0, SFINAE_Suppress, false, true, 0)

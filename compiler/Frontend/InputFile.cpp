@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Frontend/InputFile.cpp - Input File
+// compiler/Frontend/InputFile.cpp - input file abstraction
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

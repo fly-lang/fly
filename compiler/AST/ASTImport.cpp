@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTImport.cpp - AST Import implementation
+// compiler/AST/ASTImport.cpp - AST import declaration implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -47,9 +47,11 @@ bool ASTImport::isWildcard() const {
 }
 
 std::string ASTImport::str() const {
-    return Logger("ASTImport").
-			Attr("Kind", static_cast<size_t>(getKind())).
-            // Attr("Names", Names). // FIXME: implement printing of names
-            // Attr("Alias",Alias).
-            End();
+    return Logger("ASTImport")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("Names", Names)
+        .Attr("Alias", Alias)
+        .Attr("Wildcard", Wildcard)
+        .End();
 }

@@ -9,6 +9,7 @@
  * which the compiler emits in EmitAllocCleanup for string variable cleanup. */
 extern void *malloc(usize size);
 extern void  free(void *ptr);
+extern void *realloc(void *ptr, usize size);
 
 void *mem_alloc(usize size)
 {
@@ -20,4 +21,9 @@ i32 mem_free(void *ptr, usize size)
     (void)size;
     free(ptr);
     return 0;
+}
+
+void *mem_realloc(void *ptr, usize new_size)
+{
+    return realloc(ptr, new_size > 0 ? new_size : 1);
 }

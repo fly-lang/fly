@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Frontend/Frontend.cpp - Main Compiler Frontend
+// compiler/Frontend/Frontend.cpp - main compiler frontend
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -293,6 +293,7 @@ bool Frontend::Execute() {
         CodeGen CG(Diags, LLVMCtx, CI.getCodeGenOptions(), CI.getTargetOptions(),
                    CI.getFrontendOptions().BackendAction,
                    CI.getFrontendOptions().ShowTimers);
+        CG.setSourceManager(CI.getSourceManager());
         SmallVector<SemaModule *, 8> CompilableModules;
         for (auto *SM : SemaModules)
             if (!SM->getAST().isHeader())
@@ -391,7 +392,7 @@ bool Frontend::Execute() {
  * @return
  */
 void Frontend::ParseFile(ASTBuilder &Builder, const std::string &FileName) {
-    FLY_DEBUG_SCOPE_MSG("Frontend", "Execute", "Loading input file " + FileName);
+    FLY_DEBUG_SCOPE_MSG("Frontend", "ParseFile", "Loading input file " + FileName);
     InputFile *Input = new InputFile(Diags, CI.getSourceManager(), FileName);
     if (Input->getExt() == FileExt::FLY) {
         if (Input->Load()) {

@@ -1,9 +1,12 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaIfStmt.cpp
+// compiler/Sema/SemaIfStmt.cpp - if statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "Sema/SemaIfStmt.h"
 #include "Sema/SemaVisitor.h"
+#include "Sema/SemaExpr.h"
+#include "Sema/SemaStmt.h"
+#include "Basic/Logger.h"
 
 using namespace fly;
 
@@ -23,4 +26,13 @@ SemaStmt *SemaIfStmt::getElse() const { return Else; }
 void SemaIfStmt::setElse(SemaStmt *E) { Else = E; }
 
 void SemaIfStmt::accept(SemaVisitor &Visitor) { Visitor.visit(*this); }
+
+std::string SemaIfStmt::str() const {
+	return Logger("SemaIfStmt")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Cond", Cond)
+		.Attr("Then", Then)
+		.Attr("Else", Else)
+		.End();
+}
 

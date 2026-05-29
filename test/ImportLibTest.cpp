@@ -27,7 +27,7 @@
 #include "gtest/gtest.h"
 #include <fstream>
 
-extern bool DebugEnabled;
+extern bool DebugLog;
 
 namespace {
     using namespace fly;
@@ -44,10 +44,9 @@ namespace {
     static constexpr const char *FlyStringMainSource = R"(
 import fly.str
 
-main() {
+void main() {
     string hello = "hello"
-    int size = 0
-    fly.str.len(hello, size)
+    int size = fly.str.len(hello)
 }
 )";
 
@@ -56,7 +55,7 @@ main() {
         const char *mainfly = "main.fly";
 
         void SetUpWithSource(const char *Src) {
-            DebugEnabled = false;
+            DebugLog = false;
             { std::ofstream f(mainfly); f << Src; }
             llvm::InitializeAllTargetInfos();
             llvm::InitializeAllTargets();

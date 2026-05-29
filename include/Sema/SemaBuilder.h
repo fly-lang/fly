@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaBuilder.h - Symbolic Table Builder
+// include/Sema/SemaBuilder.h - semantic analysis builder
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -28,6 +28,7 @@ namespace fly {
     class SemaEnumEntry;
     class SemaEnumList;
     class SemaType;
+    class SemaTypeParam;
 	class SemaMember;
     class ASTClass;
     class ASTNameSpace;
@@ -106,6 +107,18 @@ namespace fly {
     	static SemaFunction *CreateFunction(SemaModule &Module, SymbolTable *Symbols, ASTFunction &AST);
 
     	static SemaClassType *CreateClass(SemaModule &Module, SymbolTable *Symbols, ASTClass &AST);
+
+    	// Create a monomorphized specialization of a generic class.
+    	// Returns a cached specialization if one already exists for these type args.
+    	static SemaClassType *CreateSpecialization(SemaClassType *Template,
+    	    llvm::SmallVector<SemaType *, 4> TypeArgs,
+    	    SymbolTable *Symbols);
+
+    	// Create a monomorphized specialization of a generic standalone function.
+    	// Returns a cached specialization if one already exists for these type args.
+    	static SemaFunction *CreateFunctionSpecialization(SemaFunction *Template,
+    	    llvm::SmallVector<SemaType *, 4> TypeArgs,
+    	    SymbolTable *Symbols);
 
     	static SemaClassAttribute *CreateClassAttribute(SemaClassType &Class, ASTAttribute &AST, SemaType *Type);
 

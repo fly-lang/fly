@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaContinueStmt.h - Sema Continue Statement header
+// include/Sema/SemaContinueStmt.h - continue statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_CONTINUESTMT_H
@@ -16,6 +16,8 @@ namespace fly {
         explicit SemaContinueStmt(ASTStmt *AST);
 
         ~SemaContinueStmt() override = default;
+
+        std::string str() const override;
 
         void accept(SemaVisitor &Visitor) override;
     };

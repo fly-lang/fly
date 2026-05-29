@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTBuilderStmt.cpp - The AST Builder Stmt
+// compiler/AST/ASTBuilderStmt.cpp - AST builder for generic statements
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

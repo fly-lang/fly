@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/CodeGen/CodeGen.cpp - Code Generator implementation
+// compiler/CodeGen/CodeGen.cpp - top-level code generator
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -223,8 +223,9 @@ llvm::SmallVector<llvm::Module *, 8> CodeGen::GenerateModules(llvm::SmallVector<
     	// Use the source filename (e.g. "main.fly") as the LLVM module identifier so that
     	// getOutputFileName("main.fly") produces "main.fly.ll" / "main.fly.o" etc.
     	llvm::StringRef ModuleId = Sema->getAST().getFile()->getFileName();
-    	CodeGenModule *CGM = new CodeGenModule(*this, Diags, ModuleId, LLVMCtx, *Target, CodeGenOpts);
+    	CodeGenModule *CGM = new CodeGenModule(*this, Diags, ModuleId, LLVMCtx, *Target, CodeGenOpts, SM_);
     	Sema->accept(*CGM);
+        CGM->FinalizeDebugInfo();
         Diags.getClient()->EndSourceFile();
     	// Transfer ownership: get the Module pointer and null it out in CodeGenModule
     	llvm::Module *M = CGM->getModule();

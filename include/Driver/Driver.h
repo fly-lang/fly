@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Driver/Driver.h - Driver
+// include/Driver/Driver.h - compiler driver
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -56,6 +56,7 @@ namespace fly {
         std::string Target;
         std::string TargetCpu;
         std::string StatsFile;
+        bool DebugSymbols = false;
         bool Verbose      = false;
         bool NoWarnings   = false;
         bool EmitLL       = false;

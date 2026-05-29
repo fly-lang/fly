@@ -1,0 +1,267 @@
+namespace fly.data
+
+import fly.llvm
+import fly.runtime
+
+public class Map {
+    long ptr
+
+    public Map() {
+        long p = 0
+        fly.runtime.mem_alloc(32, p)
+        fly.llvm.memset(p, 0, 32)
+        int initcap = 8
+        long keys = 0
+        fly.runtime.mem_alloc(initcap * 8, keys)
+        long vals = 0
+        fly.runtime.mem_alloc(initcap * 8, vals)
+        long flags = 0
+        fly.runtime.mem_alloc(initcap, flags)
+        fly.llvm.memset(flags, 0, initcap)
+        fly.llvm.ptrPokeLong(p, 0, keys)
+        fly.llvm.ptrPokeLong(p, 8, vals)
+        fly.llvm.ptrPokeLong(p, 16, flags)
+        fly.llvm.ptrPokeInt(p, 28, initcap)
+        this.ptr = p
+    }
+
+    public void put(const long key, const long val) {
+        int count = 0
+        fly.llvm.ptrReadInt(this.ptr, 24, count)
+        int cap = 0
+        fly.llvm.ptrReadInt(this.ptr, 28, cap)
+        if count * 4 >= cap * 3 {
+            long okeys = 0
+            fly.llvm.ptrReadLong(this.ptr, 0, okeys)
+            long ovals = 0
+            fly.llvm.ptrReadLong(this.ptr, 8, ovals)
+            long oflags = 0
+            fly.llvm.ptrReadLong(this.ptr, 16, oflags)
+            int newcap = cap * 2
+            long nkeys = 0
+            fly.runtime.mem_alloc(newcap * 8, nkeys)
+            long nvals = 0
+            fly.runtime.mem_alloc(newcap * 8, nvals)
+            long nflags = 0
+            fly.runtime.mem_alloc(newcap, nflags)
+            fly.llvm.memset(nflags, 0, newcap)
+            int ri = 0
+            while ri < cap {
+                byte rfl = 0
+                fly.llvm.ptrByteAt(oflags, ri, rfl)
+                if rfl == 1 {
+                    long rk = 0
+                    fly.llvm.ptrReadLong(okeys, ri * 8, rk)
+                    long rv = 0
+                    fly.llvm.ptrReadLong(ovals, ri * 8, rv)
+                    int rh = 0
+                    fly.llvm.longToInt(rk, rh)
+                    if rh < 0 { rh = 0 - rh }
+                    int rb = rh & (newcap - 1)
+                    byte rnfl = 0
+                    fly.llvm.ptrByteAt(nflags, rb, rnfl)
+                    while rnfl != 0 {
+                        rb = (rb + 1) & (newcap - 1)
+                        fly.llvm.ptrByteAt(nflags, rb, rnfl)
+                    }
+                    fly.llvm.ptrPokeLong(nkeys, rb * 8, rk)
+                    fly.llvm.ptrPokeLong(nvals, rb * 8, rv)
+                    fly.llvm.ptrPokeByte(nflags, rb, 1)
+                }
+                ri = ri + 1
+            }
+            fly.runtime.mem_free(okeys, cap * 8)
+            fly.runtime.mem_free(ovals, cap * 8)
+            fly.runtime.mem_free(oflags, cap)
+            fly.llvm.ptrPokeLong(this.ptr, 0, nkeys)
+            fly.llvm.ptrPokeLong(this.ptr, 8, nvals)
+            fly.llvm.ptrPokeLong(this.ptr, 16, nflags)
+            fly.llvm.ptrPokeInt(this.ptr, 28, newcap)
+            fly.llvm.ptrReadInt(this.ptr, 24, count)
+            fly.llvm.ptrReadInt(this.ptr, 28, cap)
+        }
+        long keys = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, keys)
+        long vals = 0
+        fly.llvm.ptrReadLong(this.ptr, 8, vals)
+        long flags = 0
+        fly.llvm.ptrReadLong(this.ptr, 16, flags)
+        int ph = 0
+        fly.llvm.longToInt(key, ph)
+        if ph < 0 { ph = 0 - ph }
+        int b = ph & (cap - 1)
+        int ts = 0 - 1
+        int probed = 0
+        bool done = false
+        while probed < cap {
+            byte fl = 0
+            fly.llvm.ptrByteAt(flags, b, fl)
+            if fl == 1 {
+                long k = 0
+                fly.llvm.ptrReadLong(keys, b * 8, k)
+                if k == key {
+                    fly.llvm.ptrPokeLong(vals, b * 8, val)
+                    done = true
+                    probed = cap
+                }
+            }
+            if done == false {
+                if fl == 2 {
+                    if ts < 0 { ts = b }
+                }
+                if fl == 0 {
+                    if ts >= 0 { b = ts }
+                    fly.llvm.ptrPokeLong(keys, b * 8, key)
+                    fly.llvm.ptrPokeLong(vals, b * 8, val)
+                    fly.llvm.ptrPokeByte(flags, b, 1)
+                    fly.llvm.ptrPokeInt(this.ptr, 24, count + 1)
+                    done = true
+                    probed = cap
+                }
+            }
+            if done == false {
+                b = (b + 1) & (cap - 1)
+                probed = probed + 1
+            }
+        }
+        if done == false {
+            if ts >= 0 {
+                fly.llvm.ptrPokeLong(keys, ts * 8, key)
+                fly.llvm.ptrPokeLong(vals, ts * 8, val)
+                fly.llvm.ptrPokeByte(flags, ts, 1)
+                fly.llvm.ptrPokeInt(this.ptr, 24, count + 1)
+            }
+        }
+    }
+
+    public long get(const long key) {
+        int cap = 0
+        fly.llvm.ptrReadInt(this.ptr, 28, cap)
+        long keys = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, keys)
+        long vals = 0
+        fly.llvm.ptrReadLong(this.ptr, 8, vals)
+        long flags = 0
+        fly.llvm.ptrReadLong(this.ptr, 16, flags)
+        int gh = 0
+        fly.llvm.longToInt(key, gh)
+        if gh < 0 { gh = 0 - gh }
+        int b = gh & (cap - 1)
+        int probed = 0
+        bool found = false
+        while probed < cap {
+            byte fl = 0
+            fly.llvm.ptrByteAt(flags, b, fl)
+            if fl == 0 {
+                probed = cap
+            } elsif fl == 1 {
+                long k = 0
+                fly.llvm.ptrReadLong(keys, b * 8, k)
+                if k == key {
+                    fly.llvm.ptrReadLong(vals, b * 8, out)
+                    found = true
+                    probed = cap
+                } else {
+                    b = (b + 1) & (cap - 1)
+                    probed = probed + 1
+                }
+            } else {
+                b = (b + 1) & (cap - 1)
+                probed = probed + 1
+            }
+        }
+        if found == false { out = 0 }
+    }
+
+    public bool has(const long key) {
+        int cap = 0
+        fly.llvm.ptrReadInt(this.ptr, 28, cap)
+        long keys = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, keys)
+        long flags = 0
+        fly.llvm.ptrReadLong(this.ptr, 16, flags)
+        int hh = 0
+        fly.llvm.longToInt(key, hh)
+        if hh < 0 { hh = 0 - hh }
+        int b = hh & (cap - 1)
+        int probed = 0
+        bool found = false
+        while probed < cap {
+            byte fl = 0
+            fly.llvm.ptrByteAt(flags, b, fl)
+            if fl == 0 {
+                probed = cap
+            } elsif fl == 1 {
+                long k = 0
+                fly.llvm.ptrReadLong(keys, b * 8, k)
+                if k == key {
+                    found = true
+                    probed = cap
+                } else {
+                    b = (b + 1) & (cap - 1)
+                    probed = probed + 1
+                }
+            } else {
+                b = (b + 1) & (cap - 1)
+                probed = probed + 1
+            }
+        }
+        out = found
+    }
+
+    public void remove(const long key) {
+        int cap = 0
+        fly.llvm.ptrReadInt(this.ptr, 28, cap)
+        long keys = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, keys)
+        long flags = 0
+        fly.llvm.ptrReadLong(this.ptr, 16, flags)
+        int rh = 0
+        fly.llvm.longToInt(key, rh)
+        if rh < 0 { rh = 0 - rh }
+        int b = rh & (cap - 1)
+        int probed = 0
+        while probed < cap {
+            byte fl = 0
+            fly.llvm.ptrByteAt(flags, b, fl)
+            if fl == 0 {
+                probed = cap
+            } elsif fl == 1 {
+                long k = 0
+                fly.llvm.ptrReadLong(keys, b * 8, k)
+                if k == key {
+                    fly.llvm.ptrPokeByte(flags, b, 2)
+                    int count = 0
+                    fly.llvm.ptrReadInt(this.ptr, 24, count)
+                    fly.llvm.ptrPokeInt(this.ptr, 24, count - 1)
+                    probed = cap
+                } else {
+                    b = (b + 1) & (cap - 1)
+                    probed = probed + 1
+                }
+            } else {
+                b = (b + 1) & (cap - 1)
+                probed = probed + 1
+            }
+        }
+    }
+
+    public int size() {
+        fly.llvm.ptrReadInt(this.ptr, 24, out)
+    }
+
+    public void free() {
+        long keys = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, keys)
+        long vals = 0
+        fly.llvm.ptrReadLong(this.ptr, 8, vals)
+        long flags = 0
+        fly.llvm.ptrReadLong(this.ptr, 16, flags)
+        int cap = 0
+        fly.llvm.ptrReadInt(this.ptr, 28, cap)
+        fly.runtime.mem_free(keys, cap * 8)
+        fly.runtime.mem_free(vals, cap * 8)
+        fly.runtime.mem_free(flags, cap)
+        fly.runtime.mem_free(this.ptr, 32)
+    }
+}

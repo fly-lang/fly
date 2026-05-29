@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaBlockStmt.h - Sema Block Statement header
+// include/Sema/SemaBlockStmt.h - block statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_BLOCKSTMT_H
@@ -35,6 +35,8 @@ namespace fly {
         void addAlloc(SemaAlloc *Alloc);
 
         const llvm::SmallVector<SemaAlloc *, 8> &getAllocs() const;
+
+        std::string str() const override;
 
         void accept(SemaVisitor &Visitor) override;
     };

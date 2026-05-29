@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/Debug.cpp - Debug
+// include/Basic/Debug.h - debug utilities
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -19,11 +19,11 @@
 
 #define DEBUG_TYPE "FLY_DEBUG"
 
-extern bool DebugEnabled;
+extern bool DebugLog;
 extern thread_local int DebugDepth;
 
 #define FLY_DEBUG_WITH_TYPE(TYPE, X) \
-  do { if (DebugEnabled) { X; } \
+  do { if (DebugLog) { X; } \
   } while (false)
 
 // Print one debug line.
@@ -52,7 +52,7 @@ struct DebugScope {
     DebugScope(const char *cls, const char *method,
                llvm::StringRef msg = {}) noexcept
         : Class(cls), Method(method) {
-        if (!DebugEnabled) return;
+        if (!DebugLog) return;
         T0 = std::chrono::steady_clock::now();
         llvm::SmallString<128> label;
         {
@@ -65,7 +65,7 @@ struct DebugScope {
     }
 
     ~DebugScope() noexcept {
-        if (!DebugEnabled) return;
+        if (!DebugLog) return;
         --DebugDepth;
         auto us = std::chrono::duration_cast<std::chrono::microseconds>(
             std::chrono::steady_clock::now() - T0).count();
@@ -89,7 +89,7 @@ struct DebugScope {
 // Built into a stack-allocated SmallString — no heap, no exceptions.
 #define FLY_DEBUG_SCOPE_MSG(CLASS, METHOD, MSG)                          \
     llvm::SmallString<128> _dbg_msg_;                                    \
-    do { if (DebugEnabled) {                                             \
+    do { if (DebugLog) {                                             \
         llvm::raw_svector_ostream _dbg_o_(_dbg_msg_); _dbg_o_ << MSG;   \
     } } while (false);                                                   \
     DebugScope _dbg_scope_(CLASS, METHOD, llvm::StringRef(_dbg_msg_))
@@ -97,7 +97,7 @@ struct DebugScope {
 // One-liner event with no matching end (e.g. "Set -debug", return-value trace).
 // Uses '*' as direction char.
 #define FLY_DEBUG_MSG(MSG)                                               \
-    do { if (DebugEnabled) {                                             \
+    do { if (DebugLog) {                                             \
         llvm::SmallString<128> _m_;                                      \
         { llvm::raw_svector_ostream _o_(_m_); _o_ << MSG; }             \
         DebugPrintLine('*', llvm::StringRef(_m_));                       \

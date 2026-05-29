@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaLoopStmt.h - Sema Loop Statement header
+// include/Sema/SemaLoopStmt.h - loop statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_LOOPSTMT_H
@@ -47,6 +47,8 @@ namespace fly {
         const llvm::SmallVector<SemaStmt *, 4> &getPost() const;
 
         bool hasVerifyConditionAtEnd() const;
+
+        std::string str() const override;
 
         void accept(SemaVisitor &Visitor) override;
     };

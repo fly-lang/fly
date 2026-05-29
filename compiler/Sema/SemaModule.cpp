@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/SemaNameSpace.cpp - AST Namespace implementation
+// compiler/Sema/SemaModule.cpp - module semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -9,6 +9,7 @@
 
 #include "Sema/SemaModule.h"
 #include "Sema/SemaVisitor.h"
+#include "Basic/Logger.h"
 #include <AST/ASTModule.h>
 #include <llvm/IR/Module.h>
 
@@ -68,5 +69,11 @@ void SemaModule::addNode(SemaNode *Node) {
 
 void SemaModule::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaModule::str() const {
+	return Logger("SemaModule")
+		.Attr("Name", getName())
+		.End();
 }
 

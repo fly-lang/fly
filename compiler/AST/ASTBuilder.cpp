@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTBuilder.cpp - The AST Builder
+// compiler/AST/ASTBuilder.cpp - AST builder factory methods
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -205,8 +205,10 @@ ASTMethod *ASTBuilder::CreateDefaultConstructor(ASTClass *Class) {
 	ASTBlockStmt *Body = CreateBlockStmt(Loc);
 	CreateBody(Method, Body);
 
-	// Add to Class Methods
-	Class->Nodes.push_back(Method);
+	// Note: intentionally NOT added to Class->Nodes here.
+	// Resolver::CreateDefaultConstructor() registers this method at the Sema level
+	// (symbol table + method list). Adding it to Nodes would cause specializations that
+	// share the same template ASTClass to visit it again, producing duplicate symbols.
 
 	return Method;
 }

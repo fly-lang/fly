@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaHandleStmt.h - Sema Handle Statement header
+// include/Sema/SemaHandleStmt.h - handle statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_HANDLESTMT_H
@@ -31,6 +31,8 @@ namespace fly {
         SemaBlockStmt *getHandle() const;
 
         void setHandle(SemaBlockStmt *Handle);
+
+        std::string str() const override;
 
         void accept(SemaVisitor &Visitor) override;
     };

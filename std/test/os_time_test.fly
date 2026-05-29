@@ -1,48 +1,47 @@
 import fly.os.time
 import fly.assert
 
-main() {
+void main() {
     string s = ""
     long ts = 0
 
-    fly.os.time.nowSec(ts)
-    if ts <= 0 { fly.assert.errExit(120) }
+    ts = time.nowSec()
+    if ts <= 0 { assert.errExit(120) }
 
-    fly.os.time.durationFormatNsec(5405000000000, s)   // 1h30m5s
-    fly.assert.assertStr(s, "1h30m05s", 130)
+    s = time.durationFormatNsec(5405000000000)   // 1h30m5s
+    assert.assertStr(s, "1h30m05s", 130)
 
-    fly.os.time.durationFormatNsec(500000000, s)   // 500ms
-    fly.assert.assertStr(s, "500ms", 131)
+    s = time.durationFormatNsec(500000000)   // 500ms
+    assert.assertStr(s, "500ms", 131)
 
-    fly.os.time.durationFormatNsec(200000, s)   // 200us
-    fly.assert.assertStr(s, "200us", 132)
+    s = time.durationFormatNsec(200000)   // 200us
+    assert.assertStr(s, "200us", 132)
 
-    fly.os.time.durationFormatNsec(5, s)   // 5ns
-    fly.assert.assertStr(s, "5ns", 133)
+    s = time.durationFormatNsec(5)   // 5ns
+    assert.assertStr(s, "5ns", 133)
 
-    fly.os.time.durationFormatNsec(0, s)   // 0s
-    fly.assert.assertStr(s, "0s", 134)
+    s = time.durationFormatNsec(0)   // 0s
+    assert.assertStr(s, "0s", 134)
 
     long epoch_ts = 1000000000
-    fly.os.time.formatSec(epoch_ts, "2006-01-02", s)
-    fly.assert.assertStr(s, "2001-09-09", 140)
+    s = time.formatSec(epoch_ts, "2006-01-02")
+    assert.assertStr(s, "2001-09-09", 140)
 
-    fly.os.time.formatSec(epoch_ts, "15:04:05", s)
-    fly.assert.assertStr(s, "01:46:40", 141)
+    s = time.formatSec(epoch_ts, "15:04:05")
+    assert.assertStr(s, "01:46:40", 141)
 
-    fly.os.time.formatSec(epoch_ts, "2006-01-02T15:04:05", s)
-    fly.assert.assertStr(s, "2001-09-09T01:46:40", 142)
+    s = time.formatSec(epoch_ts, "2006-01-02T15:04:05")
+    assert.assertStr(s, "2001-09-09T01:46:40", 142)
 
     long zero_sec = 0
-    fly.os.time.formatSec(zero_sec, "2006-01-02", s)
-    fly.assert.assertStr(s, "1970-01-01", 143)
+    s = time.formatSec(zero_sec, "2006-01-02")
+    assert.assertStr(s, "1970-01-01", 143)
 
-    long parsed_sec = 0
-    fly.os.time.parseToSec("2001-09-09T01:46:40", "2006-01-02T15:04:05", parsed_sec)
+    long parsed_sec = time.parseToSec("2001-09-09T01:46:40", "2006-01-02T15:04:05")
     long expected_ts = 1000000000
-    fly.assert.assertEqL(parsed_sec, expected_ts, 150)
+    assert.assertEqL(parsed_sec, expected_ts, 150)
 
-    fly.os.time.parseToSec("1970-01-01", "2006-01-02", parsed_sec)
+    parsed_sec = time.parseToSec("1970-01-01", "2006-01-02")
     long zero_ts = 0
-    fly.assert.assertEqL(parsed_sec, zero_ts, 151)
+    assert.assertEqL(parsed_sec, zero_ts, 151)
 }

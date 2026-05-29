@@ -1,5 +1,5 @@
 //===--- CodeGenOptions.h ---------------------------------------*- C++ -*-===//
-//
+// include/Basic/CodeGenOptions.h - code generation options
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
 // Thank you to LLVM Project https://llvm.org/
@@ -136,6 +136,9 @@ public:
   bool RDynamic = false;
   bool PIE = false; // Position Independent Code
   bool StaticPIE = false; // Static Position Independent Code
+
+  /// Emit DWARF debug symbols in the compiled output (-g / --debug).
+  bool DebugSymbols = false;
 
   /// The code model to use (-mcmodel).
   std::string CodeModel;

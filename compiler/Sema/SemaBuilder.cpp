@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaBuilder.cpp - The Symbolic Table Builder
+// compiler/Sema/SemaBuilder.cpp - semantic analysis builder
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -69,7 +69,45 @@
 #include <Sema/SemaNameSpace.h>
 #include <Sema/SemaParam.h>
 
+#include <string>
+
 using namespace fly;
+
+// --- Generic specialization helpers ---
+
+static std::string mangleSemaType(SemaType *T) {
+	if (T->isInteger()) {
+		switch (static_cast<SemaIntType *>(T)->getIntKind()) {
+			case SemaIntTypeKind::TYPE_BYTE:   return "Y";
+			case SemaIntTypeKind::TYPE_SHORT:  return "S";
+			case SemaIntTypeKind::TYPE_INT:    return "I";
+			case SemaIntTypeKind::TYPE_LONG:   return "L";
+			case SemaIntTypeKind::TYPE_USHORT: return "Us";
+			case SemaIntTypeKind::TYPE_UINT:   return "Ui";
+			case SemaIntTypeKind::TYPE_ULONG:  return "U";
+		}
+	}
+	if (T->isFloat()) {
+		switch (static_cast<SemaFloatType *>(T)->getFloatKind()) {
+			case SemaFloatTypeKind::TYPE_FLOAT:  return "F";
+			case SemaFloatTypeKind::TYPE_DOUBLE: return "D";
+		}
+	}
+	if (T->isBool())   return "B";
+	if (T->isString()) return "Ss";
+	if (T->isClass()) {
+		std::string N = T->getName();
+		return "C" + std::to_string(N.size()) + N;
+	}
+	return "X";
+}
+
+static std::string buildMangleKey(const std::string &BaseName,
+                                  const llvm::SmallVector<SemaType *, 4> &TypeArgs) {
+	std::string Key = BaseName + "_";
+	for (auto *T : TypeArgs) Key += mangleSemaType(T);
+	return Key;
+}
 
 SemaImport *SemaBuilder::CreateImport(SemaModule &Module, ASTImport &AST) {
 	FLY_DEBUG_SCOPE("SemaBuilder", "CreateImport");
@@ -118,6 +156,79 @@ SemaClassType * SemaBuilder::CreateClass(SemaModule &Module, SymbolTable *Symbol
 	// Add to Module
 	Module.addNode(Class);
 	return Class;
+}
+
+SemaClassType *SemaBuilder::CreateSpecialization(SemaClassType *Template,
+                                                  llvm::SmallVector<SemaType *, 4> TypeArgs,
+                                                  SymbolTable *Symbols) {
+	FLY_DEBUG_SCOPE("SemaBuilder", "CreateSpecialization");
+
+	// Build mangle key and check cache
+	std::string Key = buildMangleKey(std::string(Template->getName()), TypeArgs);
+	auto It = Template->Specializations.find(Key);
+	if (It != Template->Specializations.end())
+		return It->second;
+
+	// Create a fresh scope whose parent is the template scope's parent (module scope),
+	// so that module-level type lookups work but type params resolve to concrete types.
+	SymbolTable *SpecScope = new SymbolTable(Template->getSymbols()->getParent());
+
+	// Register each type arg under the type param's name (e.g. T → int)
+	const auto &TPs = Template->getTypeParams();
+	for (size_t i = 0; i < TPs.size() && i < TypeArgs.size(); ++i) {
+		Symbol *ParamSym = new Symbol(std::string(TPs[i]->getName()), SymbolKind::CLASS, TypeArgs[i]);
+		SpecScope->insert(ParamSym);
+	}
+
+	// Build the specialization shell (reuses template AST and module)
+	SemaClassType *Spec = new SemaClassType(Template->getAST(), Template->getModule(), SpecScope);
+	Spec->MangledName   = Key;
+	Spec->GenericTemplate = Template;
+	Spec->Visibility    = Template->Visibility;
+	Spec->Abstract      = Template->Abstract;
+	Spec->Final         = Template->Final;
+	Spec->Constant      = Template->Constant;
+	Spec->ClassKind     = Template->ClassKind;
+	Spec->This          = new SemaClassInstance(Spec);
+
+	// Cache before returning (prevents infinite recursion if T appears in its own body)
+	Template->Specializations[Key] = Spec;
+
+	return Spec;
+}
+
+SemaFunction *SemaBuilder::CreateFunctionSpecialization(
+    SemaFunction *Template,
+    llvm::SmallVector<SemaType *, 4> TypeArgs,
+    SymbolTable *Symbols) {
+	FLY_DEBUG_SCOPE("SemaBuilder", "CreateFunctionSpecialization");
+
+	// Build mangle key and check cache
+	std::string Key = buildMangleKey(std::string(Template->getAST().getName()), TypeArgs);
+	auto It = Template->Specializations.find(Key);
+	if (It != Template->Specializations.end())
+		return It->second;
+
+	// Create spec scope with T→concrete type bindings; parent = template scope's parent (module scope)
+	SymbolTable *SpecScope = new SymbolTable(Template->getSymbols()->getParent());
+
+	const auto &TPs = Template->getTypeParams();
+	for (size_t i = 0; i < TPs.size() && i < TypeArgs.size(); ++i) {
+		Symbol *ParamSym = new Symbol(std::string(TPs[i]->getName()), SymbolKind::CLASS, TypeArgs[i]);
+		SpecScope->insert(ParamSym);
+	}
+
+	// Build the specialization (reuses the template's ASTFunction)
+	SemaFunction *Spec = new SemaFunction(Template->getAST(), SpecScope);
+	Spec->MangledName = Key;
+	Spec->GenericTemplate = Template;
+	Spec->setVisibility(Template->getVisibility());
+	Spec->setNamespaceName(Template->getNamespaceName());
+
+	// Cache before returning
+	Template->Specializations[Key] = Spec;
+
+	return Spec;
 }
 
 SemaClassAttribute * SemaBuilder::CreateClassAttribute(SemaClassType &Class, ASTAttribute &AST, SemaType *Type) {

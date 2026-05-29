@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/Diagnostic.h - C Language Family Diagnostic Handling
+// include/Basic/Diagnostic.h - diagnostic handling
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTNameSpace.cpp - AST Namespace implementation
+// compiler/AST/ASTNameSpace.cpp - AST namespace declaration implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTNameSpace.h"
+#include "AST/ASTName.h"
 #include "Basic/Logger.h"
 
 #include "AST/ASTVisitor.h"
@@ -29,8 +30,9 @@ const llvm::SmallVector<ASTName *, 4> &ASTNameSpace::getNames() const {
 }
 
 std::string ASTNameSpace::str() const {
-    return Logger("ASTNameSpace").
-	Attr("Location", getLocation()).
-	Attr("Kind", static_cast<size_t>(getKind())).
-           End();
+    return Logger("ASTNameSpace")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("Names", Names)
+        .End();
 }

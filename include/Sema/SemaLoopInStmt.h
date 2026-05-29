@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaLoopInStmt.h - Sema Loop-In Statement header
+// include/Sema/SemaLoopInStmt.h - loop-in statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_LOOPINSTMT_H
@@ -30,6 +30,8 @@ namespace fly {
         SemaExpr *getList() const;
 
         SemaStmt *getBody() const;
+
+        std::string str() const override;
 
         void accept(SemaVisitor &Visitor) override;
     };

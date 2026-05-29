@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaDeclStmt.h - Sema Declaration Statement header
+// include/Sema/SemaDeclStmt.h - declaration statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_DECLSTMT_H
@@ -27,6 +27,8 @@ namespace fly {
         SemaLocalVar *getVar() const;
 
         SemaExpr *getExpr() const;
+
+        std::string str() const override;
 
         void accept(SemaVisitor &Visitor) override;
     };

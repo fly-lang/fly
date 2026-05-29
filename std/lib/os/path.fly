@@ -7,7 +7,7 @@ import fly.os.env
 // ── Private helpers ───────────────────────────────────────────────────────────
 
 // Copy a Fly string into a fresh null-terminated C-string buffer.
-private strToCstr(const string src, long out) {
+private long strToCstr(const string src) {
     int size = 0
     fly.llvm.strSize(src, size)
     int cap = size + 1
@@ -25,7 +25,7 @@ private strToCstr(const string src, long out) {
 }
 
 // Read the process current working directory into out (no fly.os.env cross-call).
-private cwdGet(string out) {
+private string cwdGet() {
     int cap = 4096
     long buf = 0
     fly.runtime.mem_alloc(cap, buf)
@@ -43,7 +43,7 @@ private cwdGet(string out) {
 // join concatenates base and comp with exactly one '/' separator.
 // Leading '/' in comp or trailing '/' in base are handled so no double-slash
 // appears.  If base is empty, the result is comp.
-public join(const string base, const string comp, string out) {
+public string join(const string base, const string comp) {
     int bs = 0
     int cs = 0
     fly.llvm.strSize(base, bs)
@@ -85,7 +85,7 @@ public join(const string base, const string comp, string out) {
 
 // joinN joins n path segments from the raw StringArray parts using join().
 // Equivalent to calling join() iteratively for each element.
-public joinN(const string parts, const int n, string out) {
+public string joinN(const string parts, const int n) {
     long base = 0
     fly.llvm.strGetPtr(parts, base)
     int count = n
@@ -109,8 +109,7 @@ public joinN(const string parts, const int n, string out) {
         fly.runtime.str_slot_size(base, i, sizei)
         string part = ""
         fly.llvm.strMake(ptri, sizei, part)
-        string joined = ""
-        join(result, part, joined)
+        string joined = join(result, part)
         result = joined
         i = i + 1
     }
@@ -120,23 +119,22 @@ public joinN(const string parts, const int n, string out) {
 // absolute returns the absolute, normalized form of path.
 // If path is already absolute it is normalized in-place.
 // Otherwise it is joined to the current working directory first.
-public absolute(const string path, string out) {
-    bool abs = false
-    isAbsolute(path, abs)
+public string absolute(const string path) {
+    bool abs = isAbsolute(path)
     string cwd = ""
     string joined = ""
     if abs {
-        normalize(path, out)
+        out = normalize(path)
     } else {
-        cwdGet(cwd)
-        join(cwd, path, joined)
-        normalize(joined, out)
+        cwd = cwdGet()
+        joined = join(cwd, path)
+        out = normalize(joined)
     }
 }
 
 // basename returns the last path component (the filename, including extension).
 // Returns an empty string for a path that ends with '/'.
-public basename(const string path, string out) {
+public string basename(const string path) {
     int size = 0
     fly.llvm.strSize(path, size)
     if size == 0 {
@@ -175,7 +173,7 @@ public basename(const string path, string out) {
 
 // dirname returns the directory portion of path (everything before the last '/').
 // Returns "." for a path with no directory component, "/" for a root path.
-public dirname(const string path, string out) {
+public string dirname(const string path) {
     int size = 0
     fly.llvm.strSize(path, size)
     int last_slash = 0 - 1
@@ -210,7 +208,7 @@ public dirname(const string path, string out) {
 
 // ext returns the file extension of path including the leading dot (e.g. ".fly").
 // Returns an empty string if the basename has no dot or the dot is first.
-public ext(const string path, string out) {
+public string ext(const string path) {
     int size = 0
     fly.llvm.strSize(path, size)
     int last_slash = 0 - 1
@@ -247,7 +245,7 @@ public ext(const string path, string out) {
 
 // stem returns the filename without its extension.
 // E.g. stem("/a/b/foo.fly") == "foo".
-public stem(const string path, string out) {
+public string stem(const string path) {
     int size = 0
     fly.llvm.strSize(path, size)
     int last_slash = 0 - 1
@@ -287,20 +285,20 @@ public stem(const string path, string out) {
 
 // split splits path into its directory and basename components.
 // Equivalent to calling dirname and basename separately.
-public split(const string path, string out_dir, string out_base) {
-    dirname(path, out_dir)
-    basename(path, out_base)
+public string, string split(const string path) {
+    out[0] = dirname(path)
+    out[1] = basename(path)
 }
 
 // splitExt splits path into its stem and extension components.
 // Equivalent to calling stem and ext separately.
-public splitExt(const string path, string out_stem, string out_ext) {
-    stem(path, out_stem)
-    ext(path, out_ext)
+public string, string splitExt(const string path) {
+    out[0] = stem(path)
+    out[1] = ext(path)
 }
 
 // isAbsolute returns true if path starts with a '/' separator.
-public isAbsolute(const string path, bool out) {
+public bool isAbsolute(const string path) {
     int size = 0
     fly.llvm.strSize(path, size)
     if size == 0 {
@@ -313,16 +311,15 @@ public isAbsolute(const string path, bool out) {
 }
 
 // isRelative returns true if path does not start with '/'.
-public isRelative(const string path, bool out) {
-    bool abs = false
-    isAbsolute(path, abs)
+public bool isRelative(const string path) {
+    bool abs = isAbsolute(path)
     out = abs == false
 }
 
 // normalize removes redundant separators, "." components, and resolves ".." by
 // removing the preceding path component.  Does not access the filesystem.
 // Returns "." for an empty input; returns "/" for the root after collapse.
-public normalize(const string path, string out) {
+public string normalize(const string path) {
     int plen = 0
     fly.llvm.strSize(path, plen)
     if plen == 0 {
@@ -441,20 +438,17 @@ public normalize(const string path, string out) {
 }
 
 // normalizeInPlace normalizes path in place by reassigning it.
-public normalizeInPlace(string path) {
-    string norm = ""
-    normalize(path, norm)
+public void normalizeInPlace(string path) {
+    string norm = normalize(path)
     path = norm
 }
 
 // rel computes a relative path from base to target.
 // Both paths are first normalized.  Returns "." if base == target.
 // Uses ".." components to ascend above the common prefix.
-public rel(const string base, const string target, string out) {
-    string nb = ""
-    string nt = ""
-    normalize(base, nb)
-    normalize(target, nt)
+public string rel(const string base, const string target) {
+    string nb = normalize(base)
+    string nt = normalize(target)
 
     int blen = 0
     int tlen = 0
@@ -554,9 +548,8 @@ public rel(const string base, const string target, string out) {
 }
 
 // isFile returns true if path exists and is a regular file (stat, follows symlinks).
-public isFile(const string path, bool out) {
-    long cpath = 0
-    strToCstr(path, cpath)
+public bool isFile(const string path) {
+    long cpath = strToCstr(path)
     int fmode = 0
     fly.runtime.fs_mode(cpath, fmode)
     out = false
@@ -567,9 +560,8 @@ public isFile(const string path, bool out) {
 }
 
 // isDir returns true if path exists and is a directory (follows symlinks).
-public isDir(const string path, bool out) {
-    long cpath = 0
-    strToCstr(path, cpath)
+public bool isDir(const string path) {
+    long cpath = strToCstr(path)
     int fmode = 0
     fly.runtime.fs_mode(cpath, fmode)
     out = false
@@ -580,9 +572,8 @@ public isDir(const string path, bool out) {
 }
 
 // isSym returns true if path itself is a symbolic link (lstat, does not follow).
-public isSym(const string path, bool out) {
-    long cpath = 0
-    strToCstr(path, cpath)
+public bool isSym(const string path) {
+    long cpath = strToCstr(path)
     int fmode = 0
     fly.runtime.fs_lmode(cpath, fmode)
     out = false
@@ -595,7 +586,7 @@ public isSym(const string path, bool out) {
 // glob returns all filesystem paths matching the shell glob pattern.
 // Supports '*' (any sequence of non-'/' bytes) and '?' (any single byte).
 // Results are stored in a StringArray; callers must import fly.os.env to use it.
-public glob(const string pattern, fly.os.env.StringArray out) {
+public fly.os.env.StringArray glob(const string pattern) {
     int plen = 0
     fly.llvm.strSize(pattern, plen)
     if plen == 0 {
@@ -666,8 +657,7 @@ public glob(const string pattern, fly.os.env.StringArray out) {
     string name_pat = ""
     fly.llvm.strMake(pat_buf, pat_len, name_pat)
 
-    long cdir = 0
-    strToCstr(dir_str, cdir)
+    long cdir = strToCstr(dir_str)
     int oflags = 65536
     int fd = 0
     fly.runtime.fs_open(cdir, oflags, 0, fd)
@@ -740,8 +730,7 @@ public glob(const string pattern, fly.os.env.StringArray out) {
                         fly.llvm.strPoke(nbuf, name_len, 0)
                         fly.llvm.strMake(nbuf, name_len, entry_name)
 
-                        bool matched = false
-                        match(name_pat, entry_name, matched)
+                        bool matched = match(name_pat, entry_name)
 
                         if matched {
                             int full_len = dir_len + need_sep + name_len
@@ -798,7 +787,7 @@ public glob(const string pattern, fly.os.env.StringArray out) {
 
 // globCount counts files matching the glob pattern without building a StringArray.
 // Useful when only the count is needed and the struct limitation applies.
-public globCount(const string pattern, int out) {
+public int globCount(const string pattern) {
     int plen = 0
     fly.llvm.strSize(pattern, plen)
     if plen == 0 {
@@ -865,8 +854,7 @@ public globCount(const string pattern, int out) {
     string name_pat = ""
     fly.llvm.strMake(pat_buf, pat_len, name_pat)
 
-    long cdir = 0
-    strToCstr(dir_str, cdir)
+    long cdir = strToCstr(dir_str)
     int fd = 0
     fly.runtime.fs_open(cdir, 65536, 0, fd)
     if fd < 0 {
@@ -929,8 +917,7 @@ public globCount(const string pattern, int out) {
                         }
                         fly.llvm.strPoke(nbuf, name_len, 0)
                         fly.llvm.strMake(nbuf, name_len, entry_name)
-                        bool matched = false
-                        match(name_pat, entry_name, matched)
+                        bool matched = match(name_pat, entry_name)
                         if matched { count = count + 1 }
                     }
                     pos = pos + reclen
@@ -946,7 +933,7 @@ public globCount(const string pattern, int out) {
 // match tests whether name matches the shell glob pattern.
 // Supports '*' (any sequence of bytes) and '?' (any single byte).
 // No character classes ([...]) are supported.
-public match(const string pattern, const string name, bool out) {
+public bool match(const string pattern, const string name) {
     int plen = 0
     int nlen = 0
     fly.llvm.strSize(pattern, plen)
@@ -1011,7 +998,7 @@ public match(const string pattern, const string name, bool out) {
 // comp splits path into its individual component strings and returns them
 // as a StringArray (callers must import fly.os.env).
 // Leading '/' is skipped; consecutive '/' are treated as a single separator.
-public comp(const string path, fly.os.env.StringArray out) {
+public fly.os.env.StringArray comp(const string path) {
     int plen = 0
     fly.llvm.strSize(path, plen)
     if plen == 0 {
@@ -1093,13 +1080,13 @@ public comp(const string path, fly.os.env.StringArray out) {
 }
 
 // sep writes the platform path separator byte (47 = '/') into out.
-public sep(byte out) {
+public byte sep() {
     out = 47
 }
 
 // compCount counts the non-empty path components in path.
 // Equivalent to comp() but returns only the count.
-public compCount(const string path, int out) {
+public int compCount(const string path) {
     int plen = 0
     fly.llvm.strSize(path, plen)
     int count = 0

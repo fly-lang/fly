@@ -56,6 +56,10 @@ void *mem_alloc(usize size);
  * Returns 0 on success, -1 on error. */
 i32 mem_free(void *ptr, usize size);
 
+/* Resize an allocation returned by mem_alloc to new_size bytes.
+ * Semantics match realloc(): returns new pointer or NULL on failure. */
+void *mem_realloc(void *ptr, usize new_size);
+
 /* ── I/O ─────────────────────────────────────────────────────────────────── */
 
 /* Write 'count' bytes from 'buf' to file descriptor 'fd'.
@@ -213,6 +217,41 @@ i32 env_args_get(i32 idx, char *buf, usize size);
 /* Store argc and argv for later retrieval via env_args_count/env_args_get.
  * Called once from the fly-compiled program entry point. */
 void env_init(int argc, char **argv);
+
+/* ── Atomic operations (seq-cst / acq-rel ordering) ─────────────────────── */
+
+/* Atomically load *addr (acquire). */
+i32  atomic_load_i32(i32 *addr);
+
+/* Atomically store val to *addr (release). */
+void atomic_store_i32(i32 *addr, i32 val);
+
+/* Compare-and-swap: if *addr == expected, write desired; return old value. */
+i32  atomic_cas_i32(i32 *addr, i32 expected, i32 desired);
+
+/* Atomically add delta to *addr; return the old value. */
+i32  atomic_fetch_add_i32(i32 *addr, i32 delta);
+
+/* ── Math (libm) ─────────────────────────────────────────────────────────── */
+/* These symbols are resolved from libm (-lm on Linux, libSystem on macOS,
+ * libcmt on Windows) at Fly program link time.  They are NOT implemented in
+ * the runtime C sources — these declarations exist so C test code in this
+ * tree can call them without pulling in <math.h>. */
+
+double asin(double x);
+double acos(double x);
+double atan(double x);
+double atan2(double y, double x);
+double sinh(double x);
+double cosh(double x);
+double tanh(double x);
+double asinh(double x);
+double acosh(double x);
+double atanh(double x);
+double erf(double x);
+double erfc(double x);
+double tgamma(double x);
+double hypot(double x, double y);
 
 /* ── Fly string-array helpers ────────────────────────────────────────────── */
 

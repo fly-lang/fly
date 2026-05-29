@@ -1,61 +1,94 @@
 import fly.os.io
-import fly.os.io.*
+import fly.os.io.FileWriter
+import fly.os.io.FileReader
+import fly.os.io.Reader
+import fly.os.io.Writer
+import fly.os.io.Buf
+import fly.os.fs.File
 import fly.os.fs
-import fly.os.fs.*
 import fly.assert
 import fly.llvm
 
-main() {
+void main() {
     string s = ""
     bool b = false
 
-    // Indirect test: fly.os.io.Reader/Writer are exercised by fly.os.fs read/write.
+    // Indirect test: io.Reader/Writer are exercised by fly.os.fs read/write.
     // Use CWD-relative paths so the test works on every platform (Windows has no /tmp).
     string test_file = "fly_io_test.txt"
-    fly.os.fs.writeStr(test_file, "io test data", 420)
-    fly.os.fs.readStr(test_file, s)
-    fly.assert.assertStr(s, "io test data", 1)
-    fly.os.fs.delete(test_file)
-    fly.os.fs.exists(test_file, b)
-    fly.assert.assertFalse(b, 2)
+    fs.writeStr(test_file, "io test data", 420)
+    s = fs.readStr(test_file)
+    assert.assertStr(s, "io test data", 1)
+    fs.delete(test_file)
+    b = fs.exists(test_file)
+    assert.assertFalse(b, 2)
 
     // Cross-namespace class instantiation — previously crashed CodeGen (isExternal bug).
     // With the fix: external classes declare init_ctor as extern, skip vtable global
     // emission and method body scheduling; the linker resolves everything from fly_lib.
     FileWriter fw = new FileWriter()
     fw.fd = 42
-    fly.assert.assertEqI(fw.fd, 42, 3)
+    assert.assertEqI(fw.fd, 42, 3)
 
     FileReader fr = new FileReader()
     fr.fd = 7
-    fly.assert.assertEqI(fr.fd, 7, 4)
+    assert.assertEqI(fr.fd, 7, 4)
 
     File f = new File()
     f.fd = 99
-    fly.assert.assertEqI(f.fd, 99, 5)
+    assert.assertEqI(f.fd, 99, 5)
 
     // Test 6: FileWriter.write correctly reads this->fd (class-method attribute access fix).
     // Direct method dispatch bypasses writeString/interface coercion to isolate the fix.
     string t6_path = "fly_io_t6.txt"
-    File t6_file = new File()
-    fly.os.fs.create(t6_path, t6_file)
+    File t6_file = fs.create(t6_path)
     FileWriter fw6 = new FileWriter()
     fw6.fd = t6_file.fd
     string t6_data = "hello_fw"
     long t6_ptr = 0
     int t6_size_i = 0
-    fly.llvm.strGetPtr(t6_data, t6_ptr)
-    fly.llvm.strSize(t6_data, t6_size_i)
+    llvm.strGetPtr(t6_data, t6_ptr)
+    llvm.strSize(t6_data, t6_size_i)
     Buf t6_buf = new Buf()
     t6_buf.ptr = t6_ptr
     ulong t6_sz = t6_size_i
     t6_buf.size = t6_sz
     t6_buf.cap = t6_sz
-    long t6_nw = 0
-    fw6.write(t6_buf, t6_sz, t6_nw)
+    long t6_nw = fw6.write(t6_buf, t6_sz)
+    fly.assert.assertTrue(t6_nw >= 0, 60)
     fw6.close()
-    string t6_result = ""
-    fly.os.fs.readStr(t6_path, t6_result)
-    fly.assert.assertStr(t6_result, "hello_fw", 6)
-    fly.os.fs.delete(t6_path)
+    string t6_result = fs.readStr(t6_path)
+    assert.assertStr(t6_result, "hello_fw", 6)
+    fs.delete(t6_path)
+
+    // Test 7: io.fileReader returns valid Reader (INTERFACE return-type fix).
+    // Without the fix, post-call load produces garbage/segfault.
+    string t7_path = "fly_io_t7.txt"
+    fs.writeStr(t7_path, "hello_r7", 420)
+    File t7_file = fs.open(t7_path)
+    Reader t7_r = io.fileReader(t7_file.fd)
+    Buf t7_all = io.readAll(t7_r)
+    bool t7_ok = t7_all.size > 0
+    assert.assertTrue(t7_ok, 7)
+    fs.delete(t7_path)
+
+    // Test 8: io.fileWriter returns valid Writer (INTERFACE return-type fix).
+    string t8_path = "fly_io_t8.txt"
+    File t8_file = fs.create(t8_path)
+    Writer t8_w = io.fileWriter(t8_file.fd)
+    string t8_data = "hello_w8"
+    long t8_ptr = 0
+    int t8_len = 0
+    llvm.strGetPtr(t8_data, t8_ptr)
+    llvm.strSize(t8_data, t8_len)
+    Buf t8_buf = new Buf()
+    t8_buf.ptr = t8_ptr
+    ulong t8_sz = t8_len
+    t8_buf.size = t8_sz
+    t8_buf.cap = t8_sz
+    t8_w.write(t8_buf, t8_sz)
+    t8_w.close()
+    s = fs.readStr(t8_path)
+    assert.assertStr(s, "hello_w8", 8)
+    fs.delete(t8_path)
 }

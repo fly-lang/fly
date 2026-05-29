@@ -1,0 +1,268 @@
+namespace fly.data
+
+import fly.llvm
+import fly.runtime
+
+public class Tree {
+    long ptr
+
+    public Tree() {
+        long p = 0
+        fly.runtime.mem_alloc(16, p)
+        fly.llvm.memset(p, 0, 16)
+        this.ptr = p
+    }
+
+    public void put(const long key, const long val) {
+        long root = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, root)
+        if root == 0 {
+            long node = 0
+            fly.runtime.mem_alloc(32, node)
+            fly.llvm.ptrPokeLong(node, 0, key)
+            fly.llvm.ptrPokeLong(node, 8, val)
+            fly.llvm.ptrPokeLong(node, 16, 0)
+            fly.llvm.ptrPokeLong(node, 24, 0)
+            fly.llvm.ptrPokeLong(this.ptr, 0, node)
+            int count = 0
+            fly.llvm.ptrReadInt(this.ptr, 8, count)
+            fly.llvm.ptrPokeInt(this.ptr, 8, count + 1)
+            return
+        }
+        long cur = root
+        bool done = false
+        while done == false {
+            long k = 0
+            fly.llvm.ptrReadLong(cur, 0, k)
+            if key == k {
+                fly.llvm.ptrPokeLong(cur, 8, val)
+                done = true
+            } elsif key < k {
+                long left = 0
+                fly.llvm.ptrReadLong(cur, 16, left)
+                if left == 0 {
+                    long node = 0
+                    fly.runtime.mem_alloc(32, node)
+                    fly.llvm.ptrPokeLong(node, 0, key)
+                    fly.llvm.ptrPokeLong(node, 8, val)
+                    fly.llvm.ptrPokeLong(node, 16, 0)
+                    fly.llvm.ptrPokeLong(node, 24, 0)
+                    fly.llvm.ptrPokeLong(cur, 16, node)
+                    int count = 0
+                    fly.llvm.ptrReadInt(this.ptr, 8, count)
+                    fly.llvm.ptrPokeInt(this.ptr, 8, count + 1)
+                    done = true
+                } else {
+                    cur = left
+                }
+            } else {
+                long right = 0
+                fly.llvm.ptrReadLong(cur, 24, right)
+                if right == 0 {
+                    long node = 0
+                    fly.runtime.mem_alloc(32, node)
+                    fly.llvm.ptrPokeLong(node, 0, key)
+                    fly.llvm.ptrPokeLong(node, 8, val)
+                    fly.llvm.ptrPokeLong(node, 16, 0)
+                    fly.llvm.ptrPokeLong(node, 24, 0)
+                    fly.llvm.ptrPokeLong(cur, 24, node)
+                    int count = 0
+                    fly.llvm.ptrReadInt(this.ptr, 8, count)
+                    fly.llvm.ptrPokeInt(this.ptr, 8, count + 1)
+                    done = true
+                } else {
+                    cur = right
+                }
+            }
+        }
+    }
+
+    public long get(const long key) {
+        long cur = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, cur)
+        bool done = false
+        while done == false {
+            if cur == 0 {
+                out = 0
+                done = true
+            } else {
+                long k = 0
+                fly.llvm.ptrReadLong(cur, 0, k)
+                if key == k {
+                    fly.llvm.ptrReadLong(cur, 8, out)
+                    done = true
+                } elsif key < k {
+                    long next = 0
+                    fly.llvm.ptrReadLong(cur, 16, next)
+                    cur = next
+                } else {
+                    long next = 0
+                    fly.llvm.ptrReadLong(cur, 24, next)
+                    cur = next
+                }
+            }
+        }
+    }
+
+    public bool has(const long key) {
+        long cur = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, cur)
+        bool found = false
+        bool done = false
+        while done == false {
+            if cur == 0 {
+                done = true
+            } else {
+                long k = 0
+                fly.llvm.ptrReadLong(cur, 0, k)
+                if key == k {
+                    found = true
+                    done = true
+                } elsif key < k {
+                    long next = 0
+                    fly.llvm.ptrReadLong(cur, 16, next)
+                    cur = next
+                } else {
+                    long next = 0
+                    fly.llvm.ptrReadLong(cur, 24, next)
+                    cur = next
+                }
+            }
+        }
+        out = found
+    }
+
+    public void remove(const long key) {
+        long root = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, root)
+        long cur = root
+        long parent = 0
+        bool isLeft = false
+        bool found = false
+        bool done = false
+        while done == false {
+            if cur == 0 {
+                done = true
+            } else {
+                long k = 0
+                fly.llvm.ptrReadLong(cur, 0, k)
+                if key == k {
+                    found = true
+                    done = true
+                } elsif key < k {
+                    parent = cur
+                    isLeft = true
+                    long next = 0
+                    fly.llvm.ptrReadLong(cur, 16, next)
+                    cur = next
+                } else {
+                    parent = cur
+                    isLeft = false
+                    long next = 0
+                    fly.llvm.ptrReadLong(cur, 24, next)
+                    cur = next
+                }
+            }
+        }
+        if found == false { return }
+        long left = 0
+        fly.llvm.ptrReadLong(cur, 16, left)
+        long right = 0
+        fly.llvm.ptrReadLong(cur, 24, right)
+        if left == 0 {
+            fly.runtime.mem_free(cur, 32)
+            int count = 0
+            fly.llvm.ptrReadInt(this.ptr, 8, count)
+            fly.llvm.ptrPokeInt(this.ptr, 8, count - 1)
+            if parent == 0 {
+                fly.llvm.ptrPokeLong(this.ptr, 0, right)
+            } elsif isLeft {
+                fly.llvm.ptrPokeLong(parent, 16, right)
+            } else {
+                fly.llvm.ptrPokeLong(parent, 24, right)
+            }
+        } elsif right == 0 {
+            fly.runtime.mem_free(cur, 32)
+            int count = 0
+            fly.llvm.ptrReadInt(this.ptr, 8, count)
+            fly.llvm.ptrPokeInt(this.ptr, 8, count - 1)
+            if parent == 0 {
+                fly.llvm.ptrPokeLong(this.ptr, 0, left)
+            } elsif isLeft {
+                fly.llvm.ptrPokeLong(parent, 16, left)
+            } else {
+                fly.llvm.ptrPokeLong(parent, 24, left)
+            }
+        } else {
+            long succParent = cur
+            long succ = right
+            bool sdone = false
+            while sdone == false {
+                long succLeft = 0
+                fly.llvm.ptrReadLong(succ, 16, succLeft)
+                if succLeft == 0 {
+                    sdone = true
+                } else {
+                    succParent = succ
+                    succ = succLeft
+                }
+            }
+            long sk = 0
+            fly.llvm.ptrReadLong(succ, 0, sk)
+            long sv = 0
+            fly.llvm.ptrReadLong(succ, 8, sv)
+            fly.llvm.ptrPokeLong(cur, 0, sk)
+            fly.llvm.ptrPokeLong(cur, 8, sv)
+            long succRight = 0
+            fly.llvm.ptrReadLong(succ, 24, succRight)
+            if succParent == cur {
+                fly.llvm.ptrPokeLong(succParent, 24, succRight)
+            } else {
+                fly.llvm.ptrPokeLong(succParent, 16, succRight)
+            }
+            fly.runtime.mem_free(succ, 32)
+            int count = 0
+            fly.llvm.ptrReadInt(this.ptr, 8, count)
+            fly.llvm.ptrPokeInt(this.ptr, 8, count - 1)
+        }
+    }
+
+    public int size() {
+        fly.llvm.ptrReadInt(this.ptr, 8, out)
+    }
+
+    public void free() {
+        long root = 0
+        fly.llvm.ptrReadLong(this.ptr, 0, root)
+        int count = 0
+        fly.llvm.ptrReadInt(this.ptr, 8, count)
+        if root != 0 {
+            int stk_cap = count + 1
+            long stk = 0
+            fly.runtime.mem_alloc(stk_cap * 8, stk)
+            int stk_top = 0
+            fly.llvm.ptrPokeLong(stk, 0, root)
+            stk_top = 1
+            while stk_top > 0 {
+                stk_top = stk_top - 1
+                long node = 0
+                fly.llvm.ptrReadLong(stk, stk_top * 8, node)
+                long left = 0
+                fly.llvm.ptrReadLong(node, 16, left)
+                long right = 0
+                fly.llvm.ptrReadLong(node, 24, right)
+                if left != 0 {
+                    fly.llvm.ptrPokeLong(stk, stk_top * 8, left)
+                    stk_top = stk_top + 1
+                }
+                if right != 0 {
+                    fly.llvm.ptrPokeLong(stk, stk_top * 8, right)
+                    stk_top = stk_top + 1
+                }
+                fly.runtime.mem_free(node, 32)
+            }
+            fly.runtime.mem_free(stk, stk_cap * 8)
+        }
+        fly.runtime.mem_free(this.ptr, 16)
+    }
+}

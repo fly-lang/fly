@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaClassType.h - SemaClassType
+// include/Sema/SemaClassType.h - class type semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -17,6 +17,7 @@
 #include "SemaVisibilityKind.h"
 
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/SmallVector.h"
 
 namespace fly {
 
@@ -30,6 +31,7 @@ namespace fly {
     class SemaClassAttribute;
     class SemaVar;
     class SymbolTable;
+    class SemaTypeParam;
     enum class SemaVisibilityKind;
 
     enum class SemaClassKind {
@@ -95,6 +97,19 @@ namespace fly {
         // Class CodeGen
         CodeGenClass *CodeGen = nullptr;
 
+        // Generic type parameters (non-empty for template classes like List<T>).
+        llvm::SmallVector<SemaTypeParam *, 4> TypeParams;
+
+        // Monomorphization cache: mangled key (e.g. "List_I") → specialized SemaClassType.
+        llvm::StringMap<SemaClassType *> Specializations;
+
+        // Back-pointer to the generic template this is a specialization of (null for templates).
+        SemaClassType *GenericTemplate = nullptr;
+
+        // Non-empty for specializations: overrides the base name in LLVM symbol generation.
+        // E.g. "List_I" for List<int>.  CodeGenClass::toIdentifier() checks this.
+        std::string MangledName;
+
         explicit SemaClassType(ASTClass &Class, SemaModule &Module, SymbolTable *Symbols);
 
         SemaClassKind toClassKind(ASTClassKind ASTKind);
@@ -143,6 +158,13 @@ namespace fly {
 
         const llvm::StringMap<SemaClassMethod *> &getConstructors() const;
 
+        // Generics accessors
+        const llvm::SmallVector<SemaTypeParam *, 4> &getTypeParams() const;
+        bool isGeneric() const;
+        SemaClassType *getGenericTemplate() const;
+        llvm::StringMap<SemaClassType *> &getSpecializations();
+        const std::string &getMangledName() const;
+
         void addAttribute(SemaClassAttribute *Attribute);
 
         void addMethod(SemaClassMethod *Method);
@@ -158,6 +180,8 @@ namespace fly {
         CodeGenClass *getCodeGen() const override;
 
         void setCodeGen(CodeGenClass *CGC);
+
+        std::string str() const override;
 
         void accept(SemaVisitor& Visitor) override;
     };

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaSwitchStmt.h - Sema Switch Statement header
+// include/Sema/SemaSwitchStmt.h - switch statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_SWITCHSTMT_H
@@ -36,6 +36,8 @@ namespace fly {
         SemaStmt *getDefault() const;
 
         void setDefault(SemaStmt *Default);
+
+        std::string str() const override;
 
         void accept(SemaVisitor &Visitor) override;
     };

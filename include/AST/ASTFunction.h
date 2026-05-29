@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTFunction.h - AST Function Base header
+// include/AST/ASTFunction.h - AST function definition header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -19,6 +19,7 @@ namespace fly {
     class ASTComment;
     class ASTBlockStmt;
     class ASTType;
+    class ASTTypeParam;
 
     enum class ASTFunctionKind {
         F_FUNCTION,
@@ -28,6 +29,8 @@ namespace fly {
     class ASTFunction : public ASTNode {
 
         friend class ASTBuilder;
+        friend class ParserClass;
+        friend class Parser;
 
         ASTFunctionKind FunctionKind;
 
@@ -37,11 +40,17 @@ namespace fly {
 
         llvm::SmallVector<ASTParam *, 8> Params;
 
-        // Explicit return type (only set from .fly.h header declarations; null = void)
+        // Explicit return type for single-return functions (null = void)
         ASTType *ReturnType = nullptr;
+
+        // Multiple return types (set only when > 1 return type is declared)
+        llvm::SmallVector<ASTType *, 4> ReturnTypes;
 
         // Body is the main BlockStmt
         ASTBlockStmt *Body = nullptr;
+
+        // Type parameters for generic functions/methods: void foo<T>(T v)
+        llvm::SmallVector<ASTTypeParam *, 4> TypeParams;
 
     protected:
 
@@ -62,9 +71,15 @@ namespace fly {
 
         llvm::SmallVector<ASTParam *, 8> getParams() const;
 
+        const llvm::SmallVector<ASTTypeParam *, 4> &getTypeParams() const;
+
         ASTType *getReturnType() const;
 
         void setReturnType(ASTType *RT);
+
+        const llvm::SmallVector<ASTType *, 4> &getReturnTypes() const;
+
+        void setReturnTypes(const llvm::SmallVector<ASTType *, 4> &RTs);
 
         ASTBlockStmt *getBody() const;
 

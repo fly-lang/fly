@@ -1,6 +1,6 @@
 //===- FixedPoint.cpp - Fixed point constant handling -----------*- C++ -*-===//
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/AddressSpaces.h - Language-specific address spaces
+// compiler/Basic/FixedPoint.cpp - fixed-point arithmetic
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/CodeGen/CGFunction.cpp - Code Generator Function implementation
+// compiler/CodeGen/CodeGenFunctionBase.cpp - function base code generation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -17,7 +17,12 @@
 #include "Sema/SemaClassAttribute.h"
 #include "Sema/SemaClassMethod.h"
 
+#include "AST/ASTVar.h"
+#include "Basic/SourceLocation.h"
+#include "Basic/SourceManager.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/IR/DIBuilder.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 
@@ -91,6 +96,42 @@ void CodeGenFunctionBase::setInsertPoint() {
     CGM->Builder->SetInsertPoint(Entry);
 }
 
+void CodeGenFunctionBase::GenDebugSubprogram() {
+    if (!CGM->DBuilder || !CGM->DebugFile)
+        return;
+
+    // Resolve actual source line number from AST location if SourceManager is available
+    unsigned Line = 1;
+    if (CGM->SM) {
+        const SourceLocation &Loc = Sema->getAST().getLocation();
+        if (Loc.isValid())
+            Line = CGM->SM->getSpellingLineNumber(Loc);
+    }
+
+    // Build subroutine type from return type + parameter types
+    llvm::SmallVector<llvm::Metadata *, 8> EltTys;
+    EltTys.push_back(CGM->GetOrCreateDIType(Sema->getReturnType()));
+    for (auto *P : Sema->getParams())
+        EltTys.push_back(CGM->GetOrCreateDIType(P->getType()));
+    llvm::DISubroutineType *FnTy =
+        CGM->DBuilder->createSubroutineType(CGM->DBuilder->getOrCreateTypeArray(EltTys));
+
+    llvm::DISubprogram *SP = CGM->DBuilder->createFunction(
+        CGM->DebugCU,
+        Fn->getName(),
+        Fn->getName(),
+        CGM->DebugFile,
+        Line,
+        FnTy,
+        /*ScopeLine=*/Line,
+        llvm::DINode::FlagZero,
+        llvm::DISubprogram::SPFlagDefinition
+    );
+    Fn->setSubprogram(SP);
+    CGM->Builder->SetCurrentDebugLocation(
+        llvm::DILocation::get(CGM->LLVMCtx, Line, 0, SP));
+}
+
 void CodeGenFunctionBase::AllocaLocalVars() {
     // Parameters are passed by reference (as pointers), so we don't allocate them
     // We just set up the CodeGenVar to use the passed pointer directly
@@ -104,6 +145,31 @@ void CodeGenFunctionBase::AllocaLocalVars() {
     for (auto &LocalVar: Sema->getLocalVars()) {
     	LocalVar->accept(*CGM);
     	LocalVar->getCodeGen()->Alloca();
+
+        if (CGM->DBuilder && CGM->DebugFile) {
+            llvm::BasicBlock *BB = CGM->Builder->GetInsertBlock();
+            if (BB) {
+                llvm::Function *FnDbg = BB->getParent();
+                if (FnDbg && FnDbg->getSubprogram()) {
+                    unsigned Line = 1;
+                    if (CGM->SM) {
+                        const SourceLocation &Loc = LocalVar->getAST()->getLocation();
+                        if (Loc.isValid())
+                            Line = CGM->SM->getSpellingLineNumber(Loc);
+                    }
+                    llvm::DIType *VarTy = CGM->GetOrCreateDIType(LocalVar->getType());
+                    auto *DV = CGM->DBuilder->createAutoVariable(
+                        FnDbg->getSubprogram(),
+                        LocalVar->getAST()->getName().str(),
+                        CGM->DebugFile, Line, VarTy ? VarTy : CGM->DBuilder->createUnspecifiedType("?"));
+                    CGM->DBuilder->insertDeclare(
+                        LocalVar->getCodeGen()->getPointer(), DV,
+                        CGM->DBuilder->createExpression(),
+                        llvm::DILocation::get(CGM->LLVMCtx, Line, 0, FnDbg->getSubprogram()),
+                        BB);
+                }
+            }
+        }
     }
 }
 
@@ -125,6 +191,33 @@ void CodeGenFunctionBase::StoreParams(size_t Idx) {
             // Add LLVM readonly attribute to the parameter
             // This tells LLVM that this pointer parameter is not written to
             Fn->addParamAttr(Idx, llvm::Attribute::ReadOnly);
+        }
+
+        if (CGM->DBuilder && CGM->DebugFile) {
+            llvm::BasicBlock *BB = CGM->Builder->GetInsertBlock();
+            if (BB) {
+                llvm::DISubprogram *SP = Fn->getSubprogram();
+                if (SP) {
+                    unsigned Line = SP->getLine();
+                    if (CGM->SM) {
+                        const SourceLocation &Loc = Param->getAST()->getLocation();
+                        if (Loc.isValid())
+                            Line = CGM->SM->getSpellingLineNumber(Loc);
+                    }
+                    llvm::DIType *ParamTy = CGM->GetOrCreateDIType(Param->getType());
+                    auto *DV = CGM->DBuilder->createParameterVariable(
+                        SP,
+                        Param->getAST()->getName().str(),
+                        /*ArgNo=*/static_cast<unsigned>(Idx) + 1,
+                        CGM->DebugFile, Line,
+                        ParamTy ? ParamTy : CGM->DBuilder->createUnspecifiedType("?"));
+                    CGM->DBuilder->insertDeclare(
+                        CGV->getPointer(), DV,
+                        CGM->DBuilder->createExpression(),
+                        llvm::DILocation::get(CGM->LLVMCtx, Line, 0, SP),
+                        BB);
+                }
+            }
         }
 
         ++Idx;

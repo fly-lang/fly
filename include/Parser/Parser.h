@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Parser/Parser.h - Main Parser
+// include/Parser/Parser.h - main parser
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -46,6 +46,7 @@ namespace fly {
     class ASTVar;
     class ASTArrayType;
     class ASTType;
+    class ASTTypeParam;
 
     /// ParseModule the main file known to the preprocessor, producing an
     /// abstract syntax tree.
@@ -82,6 +83,10 @@ namespace fly {
     SourceLocation PrevTokLocation;
 
     unsigned short ParenCount = 0, BracketCount = 0, BraceCount = 0;
+
+    // Stable string storage for synthetic names generated during parsing (e.g. "__out_N").
+    // Stored here so StringRefs into these strings outlive the ParseStmt stack frame.
+    llvm::SmallVector<std::string, 8> SyntheticNames;
 
 public:
 
@@ -170,6 +175,12 @@ private:
     /// Parse a type reference.
     ASTType *ParseType();
 
+    /// Parse generic type arguments: <int, string>
+    llvm::SmallVector<ASTType *, 4> ParseTypeArguments();
+
+    /// Parse generic type parameter declarations: <T, U extends Foo>
+    llvm::SmallVector<ASTTypeParam *, 4> ParseTypeParams();
+
     /// Parse an expression.
     ASTExpr *ParseExpr(ASTExpr *Left = nullptr);
 
@@ -178,6 +189,9 @@ private:
 
     /// Check if the token is a built-in type.
     bool isBuiltinType(Token &Tok);
+
+    /// Check if the current identifier token is a named return type (not the function name).
+    bool isNamedReturnType();
 
     /// Check if the token is an array type.
     bool isArrayType(Token &Tok);

@@ -1,12 +1,11 @@
-import fly.bridge
 import fly.bridge.*
 import fly.assert
 
-struct StrlenArgs : fly.bridge.Args {
+struct StrlenArgs : Args {
     string s
 }
 
-main() {
+void main() {
     StrlenArgs args = new StrlenArgs()
     args.s = "hello"
 
@@ -14,5 +13,5 @@ main() {
 
     long len = 0
     libc.call("strlen", args, len)
-    fly.assert.assertEqL(len, 5, 1)
+    assert.assertEqL(len, 5, 1)
 }

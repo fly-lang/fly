@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTBlockStmt.cpp - AST Block Statement implementation
+// compiler/AST/ASTBlockStmt.cpp - AST block statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -67,10 +67,11 @@ void ASTBlockStmt::addContent(ASTStmt *Stmt) {
  * @return string info for debugging
  */
 std::string ASTBlockStmt::str() const {
-    return Logger("ASTBlock").
-		Attr("Location", getLocation()).
-		Attr("Kind", static_cast<size_t>(getKind())).
-		End();
+    return Logger("ASTBlockStmt")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("Content", Content)
+        .End();
 }
 
 ASTBlockStmt::~ASTBlockStmt() {

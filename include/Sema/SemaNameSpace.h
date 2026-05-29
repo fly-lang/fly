@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/SemaNameSpace.h - AST Namespace header
+// include/Sema/SemaNameSpace.h - namespace semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -42,6 +42,8 @@ namespace fly {
         SymbolTable *getSymbols() const;
 
         llvm::StringRef getName() const;
+
+        std::string str() const override;
 
         void accept(SemaVisitor& Visitor) override;
 

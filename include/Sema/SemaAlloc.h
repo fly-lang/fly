@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaAlloc.h - Base class for scope-managed allocations
+// include/Sema/SemaAlloc.h - scope-managed allocation base
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -9,6 +9,8 @@
 
 #ifndef FLY_SEMA_ALLOC_H
 #define FLY_SEMA_ALLOC_H
+
+#include <string>
 
 namespace fly {
 
@@ -35,6 +37,8 @@ namespace fly {
         virtual ~SemaAlloc() = default;
 
         SemaAllocKind getKind() const { return Kind; }
+
+        virtual std::string str() const;
     };
 
 }

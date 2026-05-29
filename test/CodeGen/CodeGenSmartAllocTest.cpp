@@ -81,11 +81,13 @@ namespace {
                           "entry:\n"
                           "  %1 = alloca ptr, align 8\n"
                           "  %2 = alloca ptr, align 8\n"
+                          "  %3 = alloca %TestStruct, align 8\n"
+                          "  store ptr %3, ptr %2, align 8\n"
                           "  store ptr %0, ptr %1, align 8\n"
-                          "  %3 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%TestStruct, ptr null, i32 1) to i64))\n"
-                          "  %4 = call ptr @TestStruct.init_ctor(ptr %3)\n"
-                          "  store ptr %4, ptr %2, align 8\n"
-                          "  call void @free(ptr %4)\n"
+                          "  %4 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%TestStruct, ptr null, i32 1) to i64))\n"
+                          "  %5 = call ptr @TestStruct.init_ctor(ptr %4)\n"
+                          "  store ptr %5, ptr %2, align 8\n"
+                          "  call void @free(ptr %5)\n"
                           "  ret void\n"
                           "}\n"
                           "\n"
@@ -155,12 +157,14 @@ namespace {
                           "entry:\n"
                           "  %1 = alloca ptr, align 8\n"
                           "  %2 = alloca ptr, align 8\n"
+                          "  %3 = alloca %TestStruct, align 8\n"
+                          "  store ptr %3, ptr %2, align 8\n"
                           "  store ptr %0, ptr %1, align 8\n"
                           "  store ptr null, ptr %2, align 8\n"
-                          "  %3 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%TestStruct, ptr null, i32 1) to i64))\n"
-                          "  %4 = call ptr @TestStruct.init_ctor(ptr %3)\n"
-                          "  store ptr %4, ptr %2, align 8\n"
-                          "  call void @free(ptr %4)\n"
+                          "  %4 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%TestStruct, ptr null, i32 1) to i64))\n"
+                          "  %5 = call ptr @TestStruct.init_ctor(ptr %4)\n"
+                          "  store ptr %5, ptr %2, align 8\n"
+                          "  call void @free(ptr %5)\n"
                           "  ret void\n"
                           "}\n"
                           "\n"
@@ -220,18 +224,20 @@ namespace {
                           "entry:\n"
                           "  %1 = alloca ptr, align 8\n"
                           "  %2 = alloca ptr, align 8\n"
+                          "  %3 = alloca %TestStruct, align 8\n"
+                          "  store ptr %3, ptr %2, align 8\n"
                           "  store ptr %0, ptr %1, align 8\n"
-                          "  %3 = call ptr @malloc(i64 ptrtoint (ptr getelementptr ({ i64, %TestStruct }, ptr null, i32 1) to i64))\n"
-                          "  store i64 1, ptr %3, align 8\n"
-                          "  %4 = getelementptr i8, ptr %3, i64 8\n"
-                          "  %5 = call ptr @TestStruct.init_ctor(ptr %4)\n"
-                          "  store ptr %5, ptr %2, align 8\n"
-                          "  %shrd_hdr = getelementptr i8, ptr %5, i64 -8\n"
+                          "  %4 = call ptr @malloc(i64 ptrtoint (ptr getelementptr ({ i64, %TestStruct }, ptr null, i32 1) to i64))\n"
+                          "  store i64 1, ptr %4, align 8\n"
+                          "  %5 = getelementptr i8, ptr %4, i64 8\n"
+                          "  %6 = call ptr @TestStruct.init_ctor(ptr %5)\n"
+                          "  store ptr %6, ptr %2, align 8\n"
+                          "  %shrd_hdr = getelementptr i8, ptr %6, i64 -8\n"
                           "  %shrd_rc = load i64, ptr %shrd_hdr, align 8\n"
                           "  %shrd_rc1 = sub i64 %shrd_rc, 1\n"
                           "  store i64 %shrd_rc1, ptr %shrd_hdr, align 8\n"
-                          "  %6 = icmp eq i64 %shrd_rc1, 0\n"
-                          "  br i1 %6, label %shrd_free, label %shrd_done\n"
+                          "  %7 = icmp eq i64 %shrd_rc1, 0\n"
+                          "  br i1 %7, label %shrd_free, label %shrd_done\n"
                           "\n"
                           "shrd_free:                                        ; preds = %entry\n"
                           "  call void @free(ptr %shrd_hdr)\n"
@@ -350,9 +356,9 @@ namespace {
         std::string output = getOutput(getModules()[0]);
 
         // inner_t must be freed (inner scope exit) BEFORE outer_t (function scope exit)
-        size_t free_inner = output.find("call void @free(ptr %7)");
-        size_t free_outer = output.find("call void @free(ptr %5)");
+        size_t free_inner = output.find("call void @free");
         ASSERT_NE(free_inner, std::string::npos) << "inner_t must be freed";
+        size_t free_outer = output.find("call void @free", free_inner + 1);
         ASSERT_NE(free_outer, std::string::npos) << "outer_t must be freed";
         EXPECT_LT(free_inner, free_outer) << "inner_t freed before outer_t";
     }

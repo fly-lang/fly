@@ -40,12 +40,12 @@ public:
 
     // Enable debug messages for all tests in this suite
     //static void SetUpTestCase() {
-    //    DebugEnabled = true;
+    //    DebugLog = true;
     //}
 
     // Disable debug messages after all tests complete
     //static void TearDownTestCase() {
-    //    DebugEnabled = false;
+    //    DebugLog = false;
     //}
 
     ParserTest() : CI(TestUtils::CreateCompilerInstance()),

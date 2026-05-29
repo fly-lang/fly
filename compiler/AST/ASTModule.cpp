@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTModule.cpp - AST Module implementation
+// compiler/AST/ASTModule.cpp - AST source module implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTModule.h"
+#include "AST/ASTNameSpace.h"
 #include "AST/ASTVisitor.h"
 #include "Basic/Logger.h"
 
@@ -64,8 +65,11 @@ void ASTModule::addNode(ASTNode *Node) {
 }
 
 std::string ASTModule::str() const {
-    return Logger("ASTModule").
-           Attr("Name", Name).
-		   Attr("NameSpace", NameSpace).
-           End();
+    return Logger("ASTModule")
+        .Attr("Name", Name)
+        .Attr("File", File ? File->getName() : "null")
+        .Attr("Header", Header)
+        .Attr("NameSpace", NameSpace)
+        .Attr("Nodes", Nodes)
+        .End();
 }

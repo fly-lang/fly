@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTBuilderStmt.h - Sema Builder Stmt
+// include/AST/ASTBuilderStmt.h - AST builder for generic statements
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/Sym/SemaVar.h - Sybolic Table for ASTVar
+// include/Sema/SemaVar.h - variable semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -42,6 +42,8 @@ namespace fly {
 
     public:
         virtual ~SemaVar();
+
+        std::string str() const override;
 
         ASTVar *getAST() const;
 

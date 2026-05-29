@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTSwitchBlock.cpp - AST Switch Block Statement implementation
+// compiler/AST/ASTSwitchStmt.cpp - AST switch statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,6 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTSwitchStmt.h"
+#include "AST/ASTExpr.h"
+#include "AST/ASTStmt.h"
 #include "Basic/Logger.h"
 
 #include <AST/ASTVisitor.h>
@@ -36,9 +38,11 @@ ASTStmt *ASTSwitchStmt::getDefault() {
 }
 
 std::string ASTSwitchStmt::str() const {
-    return Logger("ASTSwitchStmt").
-	Attr("Location", getLocation()).
-Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("VarRef", Expr).
-            End();
+    return Logger("ASTSwitchStmt")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("Expr", Expr)
+        .Attr("Cases", Cases)
+        .Attr("Default", Default)
+        .End();
 }

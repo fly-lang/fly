@@ -22,7 +22,7 @@ namespace {
 	using namespace fly;
 
 	TEST_F(ParserTest, HandleFail_err0) {
-		llvm::StringRef str = ("main() {\n"
+		llvm::StringRef str = ("void main() {\n"
 							   "  handle { fail true }\n"
 							   "}\n");
 		ASTModule *Module = Parse("FunctionFail_err0", str);
@@ -52,7 +52,7 @@ namespace {
 	}
 
 	TEST_F(ParserTest, HandleFail_err1) {
-		llvm::StringRef str = ("main() {\n"
+		llvm::StringRef str = ("void main() {\n"
 							   "  handle { fail 404 }\n"
 							   "}\n");
 		ASTModule *Module = Parse("FunctionFail_err1", str);
@@ -82,7 +82,7 @@ namespace {
 	}
 
 	TEST_F(ParserTest, HandleFail_err2) {
-		llvm::StringRef str = ("main() {\n"
+		llvm::StringRef str = ("void main() {\n"
 							   "  handle { fail \"Error\" }\n"
 							   "}\n");
 		ASTModule *Module = Parse("FunctionFail_err2", str);
@@ -112,7 +112,7 @@ namespace {
 	}
 
 	TEST_F(ParserTest, HandleFail_void) {
-		llvm::StringRef str = ("main() {\n"
+		llvm::StringRef str = ("void main() {\n"
 							   "  handle { fail }\n"
 							   "}\n");
 		ASTModule *Module = Parse("HandleFail_void", str);
@@ -139,7 +139,7 @@ namespace {
 
 	TEST_F(ParserTest, HandleFail_err3) {
 		llvm::StringRef str = (
-							   "main() {\n"
+							   "void main() {\n"
 							   "  handle { fail 404, \"Not Found\" }\n"
 							   "}\n");
 		ASTModule *Module = Parse("FunctionFail_err3", str);
@@ -176,7 +176,7 @@ namespace {
 
 	TEST_F(ParserTest, HandleFail_err4) {
 		llvm::StringRef str = (
-							   "main() {\n"
+							   "void main() {\n"
 							   "  handle { fail new Err() }\n"
 							   "}\n");
 		ASTModule *Module = Parse("FunctionFail_err4", str);

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Parser/ExprParser.cpp - Expression Parser
+// compiler/Parser/ParserExpr.cpp - expression parser
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -11,6 +11,7 @@
 
 #include "AST/ASTBinary.h"
 #include "AST/ASTBuilder.h"
+#include "AST/ASTType.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTTernary.h"
 #include "AST/ASTUnary.h"
@@ -482,7 +483,16 @@ ASTExpr *ParserExpr::ParseNewExpr() {
     if (P->Tok.isAnyIdentifier()) {
     	llvm::StringRef Name = P->Tok.getIdentifierInfo()->getName();
     	const SourceLocation &Loc = P->ConsumeToken();
-    	return ParseCall(Loc, Name, ASTCallKind::CALL_NEW);
+    	// Parse optional generic type arguments: new List<int>()
+    	llvm::SmallVector<ASTType *, 4> TypeArgs;
+    	if (P->Tok.is(tok::less)) {
+    	    TypeArgs = P->ParseTypeArguments();
+    	}
+    	ASTCall *Call = ParseCall(Loc, Name, ASTCallKind::CALL_NEW);
+    	if (Call && !TypeArgs.empty()) {
+    	    Call->TypeArgs = std::move(TypeArgs);
+    	}
+    	return Call;
     }
 
     // Error:

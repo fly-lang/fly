@@ -1,12 +1,12 @@
 //
-// Created by marco on 05/02/25.
+// include/Basic/Logger.h - debug string builder
 //
 
 #ifndef SEMA_LOGGER_H
 #define SEMA_LOGGER_H
 
 #include "string"
-#include "llvm/ADT/Twine.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace fly {
@@ -42,7 +42,27 @@ namespace fly {
 
         Logger& Attr(const char* key, bool val);
 
-        Logger& Attr(const char* key, size_t val);
+        Logger& Attr(const char* key, uint64_t val);
+
+        // Null-safe pointer: calls val->str() or prints "null"
+        template<typename T>
+        Logger& Attr(const char* key, const T* val) {
+            return Attr(key, val ? val->str() : std::string("null"));
+        }
+
+        // SmallVector of pointers: prints [e1,e2,...] using each element's str()
+        template<typename T, unsigned N>
+        Logger& Attr(const char* key, const llvm::SmallVector<T*, N>& vec) {
+            std::string S = Logger::OPEN_LIST;
+            bool first = true;
+            for (auto* V : vec) {
+                if (!first) S += Logger::SEP;
+                S += V ? V->str() : "null";
+                first = false;
+            }
+            S += Logger::CLOSE_LIST;
+            return Attr(key, S);
+        }
     };
 }
 

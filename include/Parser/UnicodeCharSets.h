@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Lex/UnicodeCharSets.h - Contains important sets of characters
+// include/Parser/UnicodeCharSets.h - Unicode character sets
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

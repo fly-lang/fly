@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaClassSymbols.h - SemaClassSymbols
+// include/Sema/SemaClassMethod.h - class method semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -78,6 +78,8 @@ namespace fly {
     	CodeGenClassMethod *getCodeGen() const override;
 
     	void setCodeGen(CodeGenClassMethod *CodeGen);
+
+    	std::string str() const override;
 
     	void accept(SemaVisitor& Visitor) override;
     };

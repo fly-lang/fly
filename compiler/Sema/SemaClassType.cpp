@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaClassType.cpp - The Sema identity Symbols
+// compiler/Sema/SemaClassType.cpp - class type semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -10,6 +10,8 @@
 #include "Sema/SemaClassType.h"
 
 #include "AST/ASTVar.h"
+#include "Basic/Logger.h"
+#include "Sema/SemaType.h"
 #include "Sema/SemaVisitor.h"
 #include "Sema/SymbolTable.h"
 
@@ -245,5 +247,36 @@ void SemaClassType::setCodeGen(CodeGenClass *CGC) {
 
 void SemaClassType::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaClassType::str() const {
+	return Logger("SemaClassType")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.Attr("Visibility", static_cast<uint64_t>(getVisibility()))
+		.Attr("Abstract", isAbstract())
+		.Attr("Final", isFinal())
+		.Attr("Constant", isConstant())
+		.End();
+}
+
+const llvm::SmallVector<SemaTypeParam *, 4> &SemaClassType::getTypeParams() const {
+	return TypeParams;
+}
+
+bool SemaClassType::isGeneric() const {
+	return !TypeParams.empty();
+}
+
+SemaClassType *SemaClassType::getGenericTemplate() const {
+	return GenericTemplate;
+}
+
+llvm::StringMap<SemaClassType *> &SemaClassType::getSpecializations() {
+	return Specializations;
+}
+
+const std::string &SemaClassType::getMangledName() const {
+	return MangledName;
 }
 

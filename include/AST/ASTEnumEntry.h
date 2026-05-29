@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTEnumEntry.h - AST Enum Entry header
+// include/AST/ASTEnumEntry.h - AST enum entry header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

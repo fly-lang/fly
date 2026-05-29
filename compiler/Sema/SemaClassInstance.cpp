@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaClassInstance.cpp - The Symbolic Table for Class Attribute
+// compiler/Sema/SemaClassInstance.cpp - class instance semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -9,6 +9,7 @@
 
 #include "Sema/SemaClassInstance.h"
 
+#include "Basic/Logger.h"
 #include "CodeGen/CodeGenVar.h"
 #include "Sema/SemaClassType.h"
 #include "Sema/SemaVisitor.h"
@@ -65,6 +66,15 @@ uint64_t SemaClassInstance::getIndex() {
 
 void SemaClassInstance::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaClassInstance::str() const {
+	return Logger("SemaClassInstance")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.Attr("Index", const_cast<SemaClassInstance*>(this)->getIndex())
+		.Attr("Type", Type)
+		.End();
 }
 
 

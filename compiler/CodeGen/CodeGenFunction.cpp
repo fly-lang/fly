@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/CodeGen/CGFunction.cpp - Code Generator Function implementation
+// compiler/CodeGen/CodeGenFunction.cpp - function code generation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -49,8 +49,15 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
         // Check if RetType was successfully generated
         if (!RetType) {
             CGM->Diag(diag::err_codegen_invalid_type);
-            // Use void as fallback to prevent crash
             RetType = CodeGen::VoidTy;
+        }
+
+        // Functions that use the out-param convention have LLVM return type void;
+        // the user-declared return type is carried by the hidden 'out' pointer param.
+        if (RetType != CodeGen::VoidTy) {
+            auto &Params = Sema->getParams();
+            if (!Params.empty() && Params.back()->getName() == "out")
+                RetType = CodeGen::VoidTy;
         }
 
         // Add ErrorHandler as first param
@@ -89,6 +96,7 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
 void CodeGenFunction::GenBody() {
     FLY_DEBUG_SCOPE("CodeGenFunction", "GenBody");
     setInsertPoint();
+    GenDebugSubprogram();
 
 	// Store in Function Error Handler
 	if (isMain) {

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Compiler/TextDiagnostic.cpp - Text Diagnostic Pretty-Printing
+// compiler/Frontend/TextDiagnostic.cpp - text diagnostic rendering
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -79,12 +79,10 @@ namespace {
                         "entry:\n"
                         "  %1 = alloca ptr, align 8\n"
                         "  store ptr %0, ptr %1, align 8\n"
-                        "  %2 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%TestStruct, ptr null, i32 1) to i64))\n"
+                        "  %2 = alloca %TestStruct, align 8\n"
                         "  %3 = call ptr @TestStruct.init_ctor(ptr %2)\n"
                         "  ret void\n"
-                        "}\n"
-                        "\n"
-                        "declare ptr @malloc(i64)\n");
+                        "}\n");
     }
 
 TEST_F(CodeGenTest, CGStructAssignVar) {
@@ -165,21 +163,21 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                         "entry:\n"
                         "  %1 = alloca ptr, align 8\n"
                         "  %2 = alloca ptr, align 8\n"
-                        "  %3 = alloca i32, align 4\n"
+                        "  %3 = alloca %TestStruct, align 8\n"
+                        "  store ptr %3, ptr %2, align 8\n"
+                        "  %4 = alloca i32, align 4\n"
                         "  store ptr %0, ptr %1, align 8\n"
-                        "  %4 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%TestStruct, ptr null, i32 1) to i64))\n"
-                        "  %5 = call ptr @TestStruct.init_ctor(ptr %4)\n"
-                        "  store ptr %5, ptr %2, align 8\n"
-                        "  %6 = load ptr, ptr %2, align 8\n"
-                        "  %7 = getelementptr inbounds %TestStruct, ptr %6, i32 0, i32 0\n"
-                        "  %8 = load i32, ptr %7, align 4\n"
-                        "  store i32 %8, ptr %3, align 4\n"
-                        "  %9 = getelementptr inbounds %TestStruct, ptr %6, i32 0, i32 0\n"
-                        "  store i32 2, ptr %9, align 4\n"
+                        "  %5 = alloca %TestStruct, align 8\n"
+                        "  %6 = call ptr @TestStruct.init_ctor(ptr %5)\n"
+                        "  store ptr %6, ptr %2, align 8\n"
+                        "  %7 = load ptr, ptr %2, align 8\n"
+                        "  %8 = getelementptr inbounds %TestStruct, ptr %7, i32 0, i32 0\n"
+                        "  %9 = load i32, ptr %8, align 4\n"
+                        "  store i32 %9, ptr %4, align 4\n"
+                        "  %10 = getelementptr inbounds %TestStruct, ptr %7, i32 0, i32 0\n"
+                        "  store i32 2, ptr %10, align 4\n"
                         "  ret void\n"
-                        "}\n"
-                        "\n"
-                        "declare ptr @malloc(i64)\n");
+                        "}\n");
     }
 
 	TEST_F(CodeGenTest, CGStructValueAssign) {
@@ -246,12 +244,14 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                         "entry:\n"
                         "  %1 = alloca ptr, align 8\n"
                         "  %2 = alloca ptr, align 8\n"
-                        "  store ptr %0, ptr %1, align 8\n"
                         "  %3 = alloca %TestStruct, align 8\n"
-                        "  call void @llvm.memset.p0.i64(ptr %3, i8 0, i64 4, i1 false)\n"
-                        "  %4 = getelementptr inbounds nuw %TestStruct, ptr %3, i32 0, i32 0\n"
-                        "  store i32 1, ptr %4, align 4\n"
                         "  store ptr %3, ptr %2, align 8\n"
+                        "  store ptr %0, ptr %1, align 8\n"
+                        "  %4 = alloca %TestStruct, align 8\n"
+                        "  call void @llvm.memset.p0.i64(ptr %4, i8 0, i64 4, i1 false)\n"
+                        "  %5 = getelementptr inbounds nuw %TestStruct, ptr %4, i32 0, i32 0\n"
+                        "  store i32 1, ptr %5, align 4\n"
+                        "  store ptr %4, ptr %2, align 8\n"
                         "  ret void\n"
                         "}\n"
                         "\n"
@@ -365,22 +365,22 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                         "entry:\n"
                         "  %1 = alloca ptr, align 8\n"
                         "  %2 = alloca ptr, align 8\n"
+                        "  %3 = alloca %MyStruct, align 8\n"
+                        "  store ptr %3, ptr %2, align 8\n"
                         "  store ptr %0, ptr %1, align 8\n"
-                        "  %3 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%MyStruct, ptr null, i32 1) to i64))\n"
-                        "  %4 = call ptr @MyStruct.init_ctor(ptr %3)\n"
-                        "  store ptr %4, ptr %2, align 8\n"
-                        "  %5 = load ptr, ptr %2, align 8\n"
+                        "  %4 = alloca %MyStruct, align 8\n"
+                        "  %5 = call ptr @MyStruct.init_ctor(ptr %4)\n"
+                        "  store ptr %5, ptr %2, align 8\n"
+                        "  %6 = load ptr, ptr %2, align 8\n"
                         // m.a = 1: two-level GEP — MyStruct→BaseStruct(index 0)→a(index 0)
-                        "  %6 = getelementptr inbounds %MyStruct, ptr %5, i32 0, i32 0\n"
-                        "  %7 = getelementptr inbounds %BaseStruct, ptr %6, i32 0, i32 0\n"
-                        "  store i32 1, ptr %7, align 4\n"
+                        "  %7 = getelementptr inbounds %MyStruct, ptr %6, i32 0, i32 0\n"
+                        "  %8 = getelementptr inbounds %BaseStruct, ptr %7, i32 0, i32 0\n"
+                        "  store i32 1, ptr %8, align 4\n"
                         // m.b = 2: direct GEP — MyStruct→b(index 1)
-                        "  %8 = getelementptr inbounds %MyStruct, ptr %5, i32 0, i32 1\n"
-                        "  store i32 2, ptr %8, align 4\n"
+                        "  %9 = getelementptr inbounds %MyStruct, ptr %6, i32 0, i32 1\n"
+                        "  store i32 2, ptr %9, align 4\n"
                         "  ret void\n"
-                        "}\n"
-                        "\n"
-                        "declare ptr @malloc(i64)\n");
+                        "}\n");
     }
 
 } // anonymous namespace

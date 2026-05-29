@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Basic/DiagnosticOptions.cpp - C Language Family Diagnostic Handling
+// compiler/Basic/DiagnosticOptions.cpp - diagnostic output options
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

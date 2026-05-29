@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaClassSymbols.h - SemaClassSymbols
+// include/Sema/SemaClassAttribute.h - class attribute semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -60,6 +60,8 @@ namespace fly {
         SemaClassType *getInherited() const;
 
         SemaExpr *getInitExpr() const;
+
+        std::string str() const override;
 
         void accept(SemaVisitor& Visitor) override;
 

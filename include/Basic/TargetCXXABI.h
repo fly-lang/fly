@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/TargetCXXABI.h - C++ ABI Target Configuration
+// include/Basic/TargetCXXABI.h - C++ ABI target configuration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

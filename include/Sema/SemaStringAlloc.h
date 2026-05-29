@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaStringAlloc.h - Heap-owned string allocation tracker
+// include/Sema/SemaStringAlloc.h - heap string allocation tracking
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -32,6 +32,8 @@ namespace fly {
         ~SemaStringAlloc() override = default;
 
         SemaVar *getVar() const;
+
+        std::string str() const override;
     };
 
 }

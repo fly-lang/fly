@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/PartialDiagnostic.h - Diagnostic "closures"
+// include/Basic/PartialDiagnostic.h - partial diagnostic builder
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

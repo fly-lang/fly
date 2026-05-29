@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaUnary.cpp - The Symbolic Table for Unary Operation
+// compiler/Sema/SemaUnary.cpp - unary expression semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -9,6 +9,8 @@
 
 #include "Sema/SemaUnary.h"
 #include "Sema/SemaVisitor.h"
+#include "Sema/SemaType.h"
+#include "Basic/Logger.h"
 #include "AST/ASTUnary.h"
 
 using namespace fly;
@@ -35,4 +37,13 @@ void SemaUnary::setCodeGen(CodeGenExpr *CodeGen) {
 
 void SemaUnary::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaUnary::str() const {
+	return Logger("SemaUnary")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("AST", AST.str())
+		.Attr("Type", Type)
+		.Attr("Expr", Expr)
+		.End();
 }

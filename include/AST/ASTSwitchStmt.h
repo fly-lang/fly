@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/SwitchBlock.h - AST Switch Block Statement header
+// include/AST/ASTSwitchStmt.h - AST switch statement header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

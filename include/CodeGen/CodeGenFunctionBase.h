@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CGFunction.h - Code Generator of Function
+// include/CodeGen/CodeGenFunctionBase.h - function base code generation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -67,6 +67,8 @@ namespace fly {
         llvm::FunctionType *getFunctionType();
 
         void setInsertPoint();
+
+        void GenDebugSubprogram();
 
         void AllocaLocalVars();
 

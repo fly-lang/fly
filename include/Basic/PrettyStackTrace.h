@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/Basic/PrettyStackTrace.h - Pretty Crash Handling
+// include/Basic/PrettyStackTrace.h - pretty crash stack trace
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

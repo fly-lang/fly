@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/Sym/SemaVisibilityKind.h - Sybolic Table for Visibility
+// include/Sema/SemaVisibilityKind.h - visibility kind enumeration
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

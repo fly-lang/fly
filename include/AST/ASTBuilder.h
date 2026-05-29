@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTBuilder.h - Main Parser
+// include/AST/ASTBuilder.h - AST builder factory — creates all AST nodes
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

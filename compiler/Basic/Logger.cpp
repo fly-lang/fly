@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/Logger.cpp - The Sema
+// compiler/Basic/Logger.cpp - debug string builder
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -21,7 +21,7 @@ const char *Logger::CLOSE = "}";
 const char *Logger::OPEN_LIST = "[";
 const char *Logger::CLOSE_LIST = "]";
 
-bool DebugEnabled = false;
+bool DebugLog = false;
 thread_local int DebugDepth = 0;
 
 Logger::Logger() = default;
@@ -59,5 +59,5 @@ Logger &Logger::Attr(const char *key, bool val) {
 }
 
 Logger &Logger::Attr(const char *key, uint64_t val) {
-	return Attr(key, std::to_string(val));
+    return Attr(key, std::to_string(val));
 }

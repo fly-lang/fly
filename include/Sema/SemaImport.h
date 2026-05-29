@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaImport.h - AST Context header
+// include/Sema/SemaImport.h - import semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -47,6 +47,8 @@ namespace fly {
         void setSymbols(SymbolTable *Symbols);
 
         void addSymbol(SymbolTable *Symbols);
+
+        std::string str() const override;
 
         void accept(SemaVisitor& Visitor) override;
     };

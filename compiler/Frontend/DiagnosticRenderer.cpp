@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Compiler/DiagnosticRenderer.cpp - Diagnostic Pretty-Printing
+// compiler/Frontend/DiagnosticRenderer.cpp - diagnostic pretty-printing
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -13,7 +13,7 @@
 #include "gtest/gtest.h"
 #include <fstream>
 
-extern bool DebugEnabled;
+extern bool DebugLog;
 
 namespace {
     using namespace fly;
@@ -23,7 +23,7 @@ namespace {
     static constexpr const char *UtilsSource = R"(
 namespace my.utils
 
-public foo() {}
+public void foo() {}
 )";
 
     // ── Test sources ─────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ public foo() {}
     static constexpr const char *ImportMySource = R"(
 import my
 
-main() {
+void main() {
     my.utils.foo()
 }
 )";
@@ -41,7 +41,7 @@ main() {
     static constexpr const char *ImportMyWildcardSource = R"(
 import my.*
 
-main() {
+void main() {
     utils.foo()
 }
 )";
@@ -50,7 +50,7 @@ main() {
     static constexpr const char *ImportMyUtilsSource = R"(
 import my.utils
 
-main() {
+void main() {
     utils.foo()
 }
 )";
@@ -59,7 +59,7 @@ main() {
     static constexpr const char *ImportMyUtilsWildcardSource = R"(
 import my.utils.*
 
-main() {
+void main() {
     foo()
 }
 )";
@@ -68,7 +68,7 @@ main() {
     static constexpr const char *ImportMyUtilsAliasSource = R"(
 import my.utils as u
 
-main() {
+void main() {
     u.foo()
 }
 )";
@@ -77,7 +77,7 @@ main() {
     static constexpr const char *ImportMyUtilsWildcardAliasSource = R"(
 import my.utils.* as u
 
-main() {
+void main() {
     foo()
 }
 )";
@@ -90,7 +90,7 @@ main() {
         const char *utilsfly = "utils.fly";
 
         void SetUpWithSource(const char *MainSrc) {
-            DebugEnabled = false;
+            DebugLog = false;
             { std::ofstream f(mainfly);  f << MainSrc; }
             { std::ofstream f(utilsfly); f << UtilsSource; }
             llvm::InitializeAllTargetInfos();

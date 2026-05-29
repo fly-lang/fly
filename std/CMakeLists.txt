@@ -2,24 +2,32 @@
 #
 # The Fly standard library is 100% implemented in Fly source:
 #
-#   fly_lib.a/.lib — Fly-compiled namespace objects.
+#   fly_std_lib.a/.lib — Fly-compiled namespace objects.
 #                  x    Built by the fly binary after it is available.
 #                      Extension: .a on Linux/macOS, .lib on Windows-MSVC.
 #                      The compiler resolves stdlib imports by parsing .fly
 #                      sources directly (no .fly.h headers needed).
 #
-# Users link: fly_lib.a  (or fly_lib.lib on Windows) plus the runtime library.
+# Users link: fly_std_lib.a  (or fly_std_lib.lib on Windows) plus the runtime library.
 #
 # Namespaces → Source files
-#   fly.assert       src/assert.fly
-#   fly.str          src/str.fly
-#   fly.math         src/math.fly
-#   fly.os.time      src/os/time.fly
-#   fly.os.env       src/os/env.fly
-#   fly.os.path      src/os/path.fly
-#   fly.os.io        src/os/io.fly
-#   fly.os.fs        src/os/fs.fly
-#   fly.sync         src/sync.fly
+#   fly.assert       lib/assert.fly
+#   fly.str          lib/str.fly
+#   fly.math         lib/math.fly
+#   fly.os.time      lib/os/time.fly
+#   fly.os.env       lib/os/env.fly
+#   fly.os.path      lib/os/path.fly
+#   fly.os.io        lib/os/io.fly
+#   fly.os.fs        lib/os/fs.fly
+#   fly.sync         lib/sync.fly
+#   fly.mem          lib/mem.fly
+#   fly.data         lib/data/list.fly
+#   fly.data         lib/data/stack.fly
+#   fly.data         lib/data/queue.fly
+#   fly.data         lib/data/deque.fly
+#   fly.data         lib/data/map.fly
+#   fly.data         lib/data/set.fly
+#   fly.data         lib/data/tree.fly
 #
 # Tests live in test/:
 #   test/str_test.fly        — Fly-native tests for fly.str
@@ -29,6 +37,8 @@
 #   test/os_fs_test.fly      — Fly-native tests for fly.os.fs
 #   test/os_time_test.fly    — Fly-native tests for fly.os.time
 #   test/os_io_test.fly      — Fly-native tests for fly.os.io
+#   test/mem_test.fly        — Fly-native tests for fly.mem
+#   test/data_test.fly       — Fly-native tests for fly.data.*
 #
 
 # ── FlyLib: empty INTERFACE target (kept for compiler/CMakeLists.txt compat) ──
@@ -38,20 +48,29 @@ add_library(FlyLib INTERFACE)
 # ── Fly namespace archive (built by the fly binary) ──────────────────────────
 
 set(FLY_LIB_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/assert.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/str.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/math.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/time.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/env.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/path.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/io.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/fs.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/sync.fly
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/bridge/clang.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/assert.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/str.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/math.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/os/time.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/os/env.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/os/path.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/os/io.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/os/fs.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/sync.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/mem.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/bridge/clang.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/list.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/stack.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/queue.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/deque.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/map.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/set.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/tree.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/wrapper.fly
 )
 
 # fly --lib appends .a (Linux/macOS) or .lib (Windows-MSVC); pass the stem via -o.
-set(FLY_LIB_STEM "${CMAKE_BINARY_DIR}/lib/fly_lib")
+set(FLY_LIB_STEM "${CMAKE_BINARY_DIR}/lib/fly_std_lib")
 if(MSVC)
     set(FLY_LIB_OUTPUT "${FLY_LIB_STEM}.lib")
 else()
@@ -70,7 +89,7 @@ add_custom_command(
     VERBATIM
 )
 
-add_custom_target(fly_lib ALL DEPENDS ${FLY_LIB_OUTPUT})
+add_custom_target(fly_std_lib ALL DEPENDS ${FLY_LIB_OUTPUT})
 
 # ── Fly integration tests ─────────────────────────────────────────────────────
 #
@@ -83,7 +102,7 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/test/str_test.fly
             ${FLY_LIB_OUTPUT}
             -o ${CMAKE_BINARY_DIR}/str_test_fly
-    DEPENDS fly fly_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/str_test.fly
+    DEPENDS fly fly_std_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/str_test.fly
     COMMENT "Compiling str_test.fly"
     VERBATIM
 )
@@ -96,7 +115,7 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/test/math_test.fly
             ${FLY_LIB_OUTPUT}
             -o ${CMAKE_BINARY_DIR}/math_test_fly
-    DEPENDS fly fly_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/math_test.fly
+    DEPENDS fly fly_std_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/math_test.fly
     COMMENT "Compiling math_test.fly"
     VERBATIM
 )
@@ -109,7 +128,7 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/test/os_env_test.fly
             ${FLY_LIB_OUTPUT}
             -o ${CMAKE_BINARY_DIR}/os_env_test_fly
-    DEPENDS fly fly_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/os_env_test.fly
+    DEPENDS fly fly_std_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/os_env_test.fly
     COMMENT "Compiling os_env_test.fly"
     VERBATIM
 )
@@ -122,7 +141,7 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/test/os_path_test.fly
             ${FLY_LIB_OUTPUT}
             -o ${CMAKE_BINARY_DIR}/os_path_test_fly
-    DEPENDS fly fly_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/os_path_test.fly
+    DEPENDS fly fly_std_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/os_path_test.fly
     COMMENT "Compiling os_path_test.fly"
     VERBATIM
 )
@@ -135,7 +154,7 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/test/os_fs_test.fly
             ${FLY_LIB_OUTPUT}
             -o ${CMAKE_BINARY_DIR}/os_fs_test_fly
-    DEPENDS fly fly_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/os_fs_test.fly
+    DEPENDS fly fly_std_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/os_fs_test.fly
     COMMENT "Compiling os_fs_test.fly"
     VERBATIM
 )
@@ -148,7 +167,7 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/test/os_time_test.fly
             ${FLY_LIB_OUTPUT}
             -o ${CMAKE_BINARY_DIR}/os_time_test_fly
-    DEPENDS fly fly_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/os_time_test.fly
+    DEPENDS fly fly_std_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/os_time_test.fly
     COMMENT "Compiling os_time_test.fly"
     VERBATIM
 )
@@ -161,9 +180,48 @@ add_custom_command(
             ${CMAKE_CURRENT_SOURCE_DIR}/test/os_io_test.fly
             ${FLY_LIB_OUTPUT}
             -o ${CMAKE_BINARY_DIR}/os_io_test_fly
-    DEPENDS fly fly_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/os_io_test.fly
+    DEPENDS fly fly_std_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/os_io_test.fly
     COMMENT "Compiling os_io_test.fly"
     VERBATIM
 )
 add_custom_target(os_io_test_fly_bin ALL DEPENDS ${CMAKE_BINARY_DIR}/os_io_test_fly)
 add_test(NAME fly_os_io_fly_test COMMAND ${CMAKE_BINARY_DIR}/os_io_test_fly)
+
+add_custom_command(
+    OUTPUT  ${CMAKE_BINARY_DIR}/mem_test_fly
+    COMMAND $<TARGET_FILE:fly>
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/mem_test.fly
+            ${FLY_LIB_OUTPUT}
+            -o ${CMAKE_BINARY_DIR}/mem_test_fly
+    DEPENDS fly fly_std_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/mem_test.fly
+    COMMENT "Compiling mem_test.fly"
+    VERBATIM
+)
+add_custom_target(mem_test_fly_bin ALL DEPENDS ${CMAKE_BINARY_DIR}/mem_test_fly)
+add_test(NAME fly_mem_fly_test COMMAND ${CMAKE_BINARY_DIR}/mem_test_fly)
+
+add_custom_command(
+    OUTPUT  ${CMAKE_BINARY_DIR}/data_test_fly
+    COMMAND $<TARGET_FILE:fly>
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/data_test.fly
+            ${FLY_LIB_OUTPUT}
+            -o ${CMAKE_BINARY_DIR}/data_test_fly
+    DEPENDS fly fly_std_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/data_test.fly
+    COMMENT "Compiling data_test.fly"
+    VERBATIM
+)
+add_custom_target(data_test_fly_bin ALL DEPENDS ${CMAKE_BINARY_DIR}/data_test_fly)
+add_test(NAME fly_data_fly_test COMMAND ${CMAKE_BINARY_DIR}/data_test_fly)
+
+add_custom_command(
+    OUTPUT  ${CMAKE_BINARY_DIR}/generics_test_fly
+    COMMAND $<TARGET_FILE:fly>
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/generics_test.fly
+            ${FLY_LIB_OUTPUT}
+            -o ${CMAKE_BINARY_DIR}/generics_test_fly
+    DEPENDS fly fly_std_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/generics_test.fly
+    COMMENT "Compiling generics_test.fly"
+    VERBATIM
+)
+add_custom_target(generics_test_fly_bin ALL DEPENDS ${CMAKE_BINARY_DIR}/generics_test_fly)
+add_test(NAME fly_generics_fly_test COMMAND ${CMAKE_BINARY_DIR}/generics_test_fly)

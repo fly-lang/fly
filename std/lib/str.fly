@@ -5,21 +5,21 @@ import fly.runtime
 
 // ── Query functions ────────────────────────────────────────────────────────
 
-public len(const string src, int out) {
+public int len(const string src) {
     fly.llvm.strSize(src, out)
 }
 
-public isEmpty(const string src, bool out) {
+public bool isEmpty(const string src) {
     int s = 0
     fly.llvm.strSize(src, s)
     out = s == 0
 }
 
-public equals(const string a, const string b, bool out) {
+public bool equals(const string a, const string b) {
     out = a == b
 }
 
-public equalsIgnoreCase(const string a, const string b, bool out) {
+public bool equalsIgnoreCase(const string a, const string b) {
     int sa = 0
     int sb = 0
     fly.llvm.strSize(a, sa)
@@ -48,7 +48,7 @@ public equalsIgnoreCase(const string a, const string b, bool out) {
     out = eq
 }
 
-public startsWith(const string src, const string prefix, bool out) {
+public bool startsWith(const string src, const string prefix) {
     int ss = 0
     int ps = 0
     fly.llvm.strSize(src, ss)
@@ -73,7 +73,7 @@ public startsWith(const string src, const string prefix, bool out) {
     out = eq
 }
 
-public endsWith(const string src, const string suffix, bool out) {
+public bool endsWith(const string src, const string suffix) {
     int ss = 0
     int sfs = 0
     fly.llvm.strSize(src, ss)
@@ -99,7 +99,7 @@ public endsWith(const string src, const string suffix, bool out) {
     out = eq
 }
 
-public indexOf(const string src, const string sub, int out) {
+public int indexOf(const string src, const string sub) {
     int ss = 0
     int ns = 0
     fly.llvm.strSize(src, ss)
@@ -138,7 +138,7 @@ public indexOf(const string src, const string sub, int out) {
     out = found
 }
 
-public lastIndexOf(const string src, const string sub, int out) {
+public int lastIndexOf(const string src, const string sub) {
     int ss = 0
     int ns = 0
     fly.llvm.strSize(src, ss)
@@ -170,7 +170,7 @@ public lastIndexOf(const string src, const string sub, int out) {
     out = found
 }
 
-public contains(const string src, const string sub, bool out) {
+public bool contains(const string src, const string sub) {
     int ss = 0
     int ns = 0
     fly.llvm.strSize(src, ss)
@@ -209,7 +209,7 @@ public contains(const string src, const string sub, bool out) {
     out = found
 }
 
-public count(const string src, const string sub, int out) {
+public int count(const string src, const string sub) {
     int ss = 0
     int ns = 0
     fly.llvm.strSize(src, ss)
@@ -246,7 +246,7 @@ public count(const string src, const string sub, int out) {
 
 // ── Transform functions (allocate via fly.runtime.mem_alloc) ─────────────
 
-public toUpper(const string src, string out) {
+public string toUpper(const string src) {
     int size = 0
     fly.llvm.strSize(src, size)
     long buf = 0
@@ -263,7 +263,7 @@ public toUpper(const string src, string out) {
     fly.llvm.strMake(buf, size, out)
 }
 
-public toLower(const string src, string out) {
+public string toLower(const string src) {
     int size = 0
     fly.llvm.strSize(src, size)
     long buf = 0
@@ -280,7 +280,7 @@ public toLower(const string src, string out) {
     fly.llvm.strMake(buf, size, out)
 }
 
-public trim(const string src, string out) {
+public string trim(const string src) {
     int size = 0
     fly.llvm.strSize(src, size)
     int lo = 0
@@ -310,7 +310,7 @@ public trim(const string src, string out) {
     fly.llvm.strMake(buf, len, out)
 }
 
-public trimLeft(const string src, string out) {
+public string trimLeft(const string src) {
     int size = 0
     fly.llvm.strSize(src, size)
     int lo = 0
@@ -332,7 +332,7 @@ public trimLeft(const string src, string out) {
     fly.llvm.strMake(buf, len, out)
 }
 
-public trimRight(const string src, string out) {
+public string trimRight(const string src) {
     int size = 0
     fly.llvm.strSize(src, size)
     int hi = size
@@ -355,7 +355,7 @@ public trimRight(const string src, string out) {
     fly.llvm.strMake(buf, hi, out)
 }
 
-public substring(const string src, const int start, const int end, string out) {
+public string substring(const string src, const int start, const int end) {
     int size = 0
     fly.llvm.strSize(src, size)
     int s = start
@@ -376,11 +376,11 @@ public substring(const string src, const int start, const int end, string out) {
     fly.llvm.strMake(buf, len, out)
 }
 
-public concat(const string a, const string b, string out) {
+public string concat(const string a, const string b) {
     out = a + b
 }
 
-public repeat(const string src, const int count, string out) {
+public string repeat(const string src, const int count) {
     int size = 0
     fly.llvm.strSize(src, size)
     if count <= 0 || size == 0 {
@@ -406,7 +406,7 @@ public repeat(const string src, const int count, string out) {
     fly.llvm.strMake(buf, newSize, out)
 }
 
-public replace(const string src, const string from, const string to, string out) {
+public string replace(const string src, const string from, const string to) {
     int ss = 0
     int fs = 0
     int ts = 0
@@ -487,7 +487,7 @@ public replace(const string src, const string from, const string to, string out)
 
 // ── Conversion ─────────────────────────────────────────────────────────────
 
-public convert(const int src, string out) {
+public string convert(const int src) {
     int n = src
     if n == 0 {
         long buf = 0

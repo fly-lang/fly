@@ -21,8 +21,6 @@ namespace flyp::commands {
 
 namespace {
 
-constexpr const char* FLYP_VERSION = "0.1.0";
-
 // ── helpers ─────────────────────────────────────────────────────────────────
 
 // Find fly.toml upward from CWD. Throws if not found.

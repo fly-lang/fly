@@ -1,6 +1,6 @@
 //===--- Stack.cpp - Utilities for dealing with stack space ---------------===//
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/AddressSpaces.h - Language-specific address spaces
+// compiler/Basic/Stack.cpp - stack space utilities
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/DiagnosticOptions.h - Diagnostic Option
+// include/Basic/DiagnosticOptions.h - diagnostic output options
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

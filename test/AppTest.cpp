@@ -27,7 +27,7 @@
 #include "gtest/gtest.h"
 #include <fstream>
 
-extern bool DebugEnabled;
+extern bool DebugLog;
 
 namespace {
     using namespace fly;
@@ -38,7 +38,7 @@ namespace {
     static constexpr const char *UtilsAppSource = R"(
 namespace utils
 
-public add(int a, int b) {
+public void add(int a, int b) {
     int r = a + b
 }
 )";
@@ -52,7 +52,7 @@ public enum Color {
 }
 
 public interface Shape {
-    area()
+    void area()
 }
 
 public struct Point {
@@ -63,11 +63,11 @@ public struct Point {
 public class Circle : Shape {
     int radius
 
-    public area() {
+    public void area() {
     }
 }
 
-main() {
+void main() {
     Color c = Color.RED
     Point p = new Point()
     p.x = 10
@@ -75,14 +75,14 @@ main() {
     Circle circle = new Circle()
 }
 
-helper(int a, int b) {
+void helper(int a, int b) {
     int r = a + b
 }
 )";
 
     // main() with no parameters — args accessed via fly.os.env.argsGet()
     static constexpr const char *MainArgsSource = R"(
-main() {
+void main() {
 }
 )";
 
@@ -94,7 +94,7 @@ main() {
         const char *utilsfly = "utils.fly";
 
         AppTest() {
-            DebugEnabled = false;
+            DebugLog = false;
             { std::ofstream f(mainfly);  f << MainAppSource; }
             { std::ofstream f(utilsfly); f << UtilsAppSource; }
             llvm::InitializeAllTargetInfos();
@@ -196,7 +196,7 @@ main() {
     }
 
     TEST_F(AppTest, EmitOut) {
-    	DebugEnabled = true;
+    	DebugLog = true;
         deleteFile("out");
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");

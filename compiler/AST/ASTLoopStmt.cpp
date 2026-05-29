@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTLoopStmt.cpp - AST While Block Statement implementation
+// compiler/AST/ASTLoopStmt.cpp - AST loop statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,6 +8,8 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTLoopStmt.h"
+#include "AST/ASTExpr.h"
+#include "AST/ASTStmt.h"
 
 #include "AST/ASTVisitor.h"
 #include "Basic/Logger.h"
@@ -44,8 +46,13 @@ llvm::SmallVector<ASTStmt *, 4> &ASTLoopStmt::getPost() {
 }
 
 std::string ASTLoopStmt::str() const {
-    return Logger("ASTLoopStmt").
-	Attr("Location", getLocation()).
-Attr("Kind", static_cast<size_t>(getKind())).
-            End();
+    return Logger("ASTLoopStmt")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("VerifyConditionAtEnd", VerifyConditionAtEnd)
+        .Attr("Expr", Expr)
+        .Attr("Init", Init)
+        .Attr("Post", Post)
+        .Attr("Loop", Loop)
+        .End();
 }

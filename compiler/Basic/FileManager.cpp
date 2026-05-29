@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Basic/FileManager.cpp - File System Probing and Caching
+// compiler/Basic/FileManager.cpp - file system probing and caching
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

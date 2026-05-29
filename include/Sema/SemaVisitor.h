@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaVisitor.h - Sema Visitor
+// include/Sema/SemaVisitor.h - sema visitor interface
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -44,6 +44,7 @@ namespace fly {
 	class SemaErrorType;
 	class SemaVoidType;
 	class SemaStringType;
+	class SemaTypeParam;
 
 	// Functions
 	class SemaFunctionBase;
@@ -109,6 +110,8 @@ namespace fly {
 		virtual void visit(SemaErrorType &Sema) = 0;
 		virtual void visit(SemaVoidType &Sema) = 0;
 		virtual void visit(SemaStringType &Sema) = 0;
+		// Type params are substituted during monomorphization; CodeGen should never see them.
+		virtual void visit(SemaTypeParam &Sema) {};
 
 		// Functions
 		virtual void visit(SemaFunction &Sema) = 0;

@@ -29,10 +29,14 @@ target_link_libraries(flyp_lib PUBLIC
     tomlplusplus::tomlplusplus
 )
 
+target_compile_definitions(flyp_lib PUBLIC
+    FLYP_VERSION="${FLYP_VERSION}"
+)
+
 ######################################
 # flyp — executable
 ######################################
-add_executable(flyp main.cpp)
+add_executable(flyp Flyp.cpp)
 
 target_link_libraries(flyp PRIVATE
     flyp_lib

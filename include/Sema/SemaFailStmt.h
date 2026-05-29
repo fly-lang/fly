@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaFailStmt.h - Sema Fail Statement header
+// include/Sema/SemaFailStmt.h - fail statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_FAILSTMT_H
@@ -32,6 +32,8 @@ namespace fly {
         void setFirst(SemaExpr *E);
         void setSecond(SemaExpr *E);
         void setThird(SemaExpr *E);
+
+        std::string str() const override;
 
         void accept(SemaVisitor &Visitor) override;
     };

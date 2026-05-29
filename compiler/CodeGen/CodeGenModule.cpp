@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// src/CodeGen/CodeGenModule.cpp - Emit LLVM Code from ASTs for a Module
+// compiler/CodeGen/CodeGenModule.cpp - LLVM IR emission for modules
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -25,6 +25,7 @@
 #include "CodeGen/CodeGenFunction.h"
 #include "Sema/SemaBinary.h"
 #include "Sema/SemaCast.h"
+#include "Sema/SemaFunction.h"
 #include "Sema/SemaNameSpace.h"
 #include "Sema/SemaParam.h"
 #include "Sema/SemaTernary.h"
@@ -36,6 +37,7 @@
 #include "Sema/SemaSmartAlloc.h"
 #include "Sema/SemaStringAlloc.h"
 #include "AST/ASTCall.h"
+#include "AST/ASTStmt.h"
 #include "Sema/SemaExprStmt.h"
 #include "Sema/SemaReturnStmt.h"
 #include "Sema/SemaIfStmt.h"
@@ -62,14 +64,18 @@
 #include <Sema/SemaModule.h>
 #include <Sema/SemaValue.h>
 #include <llvm/IR/Instructions.h>
+#include "llvm/IR/DIBuilder.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Value.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/Signals.h"
+#include "llvm/BinaryFormat/Dwarf.h"
 
 using namespace fly;
 
 CodeGenModule::CodeGenModule(CodeGen &CG, DiagnosticsEngine &Diags, StringRef Name, llvm::LLVMContext &LLVMCtx,
-                             TargetInfo &Target, CodeGenOptions &CGOpts) :
+                             TargetInfo &Target, CodeGenOptions &CGOpts, SourceManager *SM) :
         CG(CG),
         Diags(Diags),
         Target(Target),
@@ -77,6 +83,7 @@ CodeGenModule::CodeGenModule(CodeGen &CG, DiagnosticsEngine &Diags, StringRef Na
         Module(new llvm::Module(Name, LLVMCtx)),
         Builder(new llvm::IRBuilder<>(LLVMCtx)),
         CGOpts(CGOpts),
+        SM(SM),
         CurrentFunction(nullptr) {
 
     // Types are now in CodeGen (CG), no need to initialize them here
@@ -100,6 +107,23 @@ CodeGenModule::CodeGenModule(CodeGen &CG, DiagnosticsEngine &Diags, StringRef Na
 
 
     // TODO Add dependencies, Linker Options
+
+    if (CGOpts.DebugSymbols) {
+        DBuilder = new llvm::DIBuilder(*Module);
+        llvm::StringRef FullPath = Module->getName();
+        llvm::StringRef Dir  = llvm::sys::path::parent_path(FullPath);
+        llvm::StringRef File = llvm::sys::path::filename(FullPath);
+        DebugFile = DBuilder->createFile(File.empty() ? FullPath : File,
+                                         Dir.empty()  ? "."      : Dir);
+        DebugCU = DBuilder->createCompileUnit(
+            llvm::dwarf::DW_LANG_C,
+            DebugFile,
+            "Fly Compiler",
+            /*isOptimized=*/false,
+            /*Flags=*/"",
+            /*RuntimeVersion=*/0
+        );
+    }
 }
 
 CodeGenModule::~CodeGenModule() {
@@ -107,11 +131,152 @@ CodeGenModule::~CodeGenModule() {
     BreakTargetStack.clear();
     ContinueTargetStack.clear();
     delete Builder;
+    delete DBuilder;
     // Note: Module ownership is transferred to caller via getModule(), so we don't delete it here
 }
 
+void CodeGenModule::FinalizeDebugInfo() {
+    if (DBuilder)
+        DBuilder->finalize();
+}
+
+void CodeGenModule::EmitDebugLocation(const SourceLocation &Loc) {
+    if (!DBuilder || !SM) return;
+    llvm::BasicBlock *BB = Builder->GetInsertBlock();
+    if (!BB) return;
+    llvm::Function *Fn = BB->getParent();
+    if (!Fn || !Fn->getSubprogram()) return;
+    unsigned Line = SM->getSpellingLineNumber(Loc);
+    unsigned Col  = SM->getSpellingColumnNumber(Loc);
+    llvm::DIScope *Scope = DebugScopeStack.empty()
+        ? (llvm::DIScope *)Fn->getSubprogram()
+        : DebugScopeStack.back();
+    Builder->SetCurrentDebugLocation(
+        llvm::DILocation::get(LLVMCtx, Line, Col, Scope));
+}
+
+llvm::DIType *CodeGenModule::GetOrCreateDIType(SemaType *Ty) {
+    if (!DBuilder || !Ty) return nullptr;
+
+    auto It = DITypeCache.find(Ty);
+    if (It != DITypeCache.end()) return It->second;
+
+    llvm::DIType *DIT = nullptr;
+    unsigned PtrBits = Target.getPointerWidth(0);
+
+    if (Ty->isVoid()) {
+        DIT = nullptr;
+    } else if (Ty->isBool()) {
+        DIT = DBuilder->createBasicType("bool", 1, llvm::dwarf::DW_ATE_boolean);
+    } else if (Ty->isInteger()) {
+        auto *IT = static_cast<SemaIntType *>(Ty);
+        switch (IT->getIntKind()) {
+            case SemaIntTypeKind::TYPE_BYTE:
+                DIT = DBuilder->createBasicType("byte",   8,  llvm::dwarf::DW_ATE_unsigned); break;
+            case SemaIntTypeKind::TYPE_USHORT:
+                DIT = DBuilder->createBasicType("ushort", 16, llvm::dwarf::DW_ATE_unsigned); break;
+            case SemaIntTypeKind::TYPE_UINT:
+                DIT = DBuilder->createBasicType("uint",   32, llvm::dwarf::DW_ATE_unsigned); break;
+            case SemaIntTypeKind::TYPE_ULONG:
+                DIT = DBuilder->createBasicType("ulong",  64, llvm::dwarf::DW_ATE_unsigned); break;
+            case SemaIntTypeKind::TYPE_SHORT:
+                DIT = DBuilder->createBasicType("short",  16, llvm::dwarf::DW_ATE_signed);   break;
+            case SemaIntTypeKind::TYPE_INT:
+                DIT = DBuilder->createBasicType("int",    32, llvm::dwarf::DW_ATE_signed);   break;
+            case SemaIntTypeKind::TYPE_LONG:
+                DIT = DBuilder->createBasicType("long",   64, llvm::dwarf::DW_ATE_signed);   break;
+        }
+    } else if (Ty->isFloat()) {
+        auto *FT = static_cast<SemaFloatType *>(Ty);
+        bool isDouble = (FT->getFloatKind() == SemaFloatTypeKind::TYPE_DOUBLE);
+        DIT = DBuilder->createBasicType(
+            isDouble ? "double" : "float",
+            isDouble ? 64 : 32, llvm::dwarf::DW_ATE_float);
+    } else if (Ty->isString()) {
+        llvm::DIType *CharTy = DBuilder->createBasicType(
+            "char", 8, llvm::dwarf::DW_ATE_unsigned_char);
+        DIT = DBuilder->createPointerType(CharTy, PtrBits);
+    } else if (Ty->isEnum()) {
+        auto *ET = static_cast<SemaEnumType *>(Ty);
+        llvm::SmallVector<llvm::Metadata *, 8> Enumerators;
+        for (auto &[Name, Entry] : ET->getEntries())
+            Enumerators.push_back(DBuilder->createEnumerator(
+                Name.str(), (int64_t)Entry->getIndex()));
+        llvm::DIType *UnderlyingTy =
+            DBuilder->createBasicType("int", 32, llvm::dwarf::DW_ATE_signed);
+        DIT = DBuilder->createEnumerationType(
+            DebugCU, ET->getName(), DebugFile, /*LineNo=*/0,
+            /*SizeInBits=*/32, /*AlignInBits=*/32,
+            DBuilder->getOrCreateArray(Enumerators), UnderlyingTy);
+    } else if (Ty->isArray()) {
+        auto *AT = static_cast<SemaArrayType *>(Ty);
+        llvm::DIType *ElemDI = GetOrCreateDIType(AT->getElementType());
+        if (!ElemDI) ElemDI = DBuilder->createUnspecifiedType("?");
+        DIT = DBuilder->createPointerType(ElemDI, PtrBits, 0,
+                                          std::nullopt, Ty->getName());
+    } else if (Ty->isClass()) {
+        auto *CT = static_cast<SemaClassType *>(Ty);
+        CodeGenClass *CGC = CT->getCodeGen();
+        if (!CGC) {
+            DIT = DBuilder->createUnspecifiedType(CT->getName());
+        } else {
+            // Forward declare to break recursive type references
+            auto *Fwd = DBuilder->createReplaceableCompositeType(
+                llvm::dwarf::DW_TAG_structure_type,
+                CT->getName(), DebugCU, DebugFile, 0);
+            DITypeCache[Ty] = Fwd;
+
+            const llvm::StructLayout *Layout =
+                Module->getDataLayout().getStructLayout(CGC->getType());
+            llvm::SmallVector<llvm::Metadata *, 8> Members;
+
+            // VTable field (CLASS and INTERFACE only — always index 0)
+            if (CT->getClassKind() != SemaClassKind::STRUCT) {
+                llvm::DIType *VTPtrTy =
+                    DBuilder->createPointerType(nullptr, PtrBits);
+                Members.push_back(DBuilder->createMemberType(
+                    DebugCU, "__vtable", DebugFile, 0,
+                    PtrBits, PtrBits,
+                    Layout->getElementOffsetInBits(0),
+                    llvm::DINode::FlagArtificial, VTPtrTy));
+            }
+
+            // Attributes — CodeGenVar::getIndex() gives the struct field index
+            for (auto &[Name, Attr] : CT->getAttributes()) {
+                size_t FieldIdx = Attr->getCodeGen()->getIndex();
+                uint64_t OffsetBits = Layout->getElementOffsetInBits(FieldIdx);
+                llvm::DIType *AttrDI = GetOrCreateDIType(Attr->getType());
+                uint64_t SzBits = AttrDI ? AttrDI->getSizeInBits() : PtrBits;
+                Members.push_back(DBuilder->createMemberType(
+                    DebugCU, Name.str(), DebugFile, 0,
+                    SzBits, SzBits, OffsetBits,
+                    llvm::DINode::FlagZero, AttrDI));
+            }
+
+            uint64_t TotalBits = Layout->getSizeInBits();
+            uint64_t AlignBits =
+                Module->getDataLayout().getABITypeAlign(CGC->getType()).value() * 8;
+
+            auto *StructDI = DBuilder->createStructType(
+                DebugCU, CT->getName(), DebugFile, 0,
+                TotalBits, AlignBits, llvm::DINode::FlagZero,
+                /*DerivedFrom=*/nullptr,
+                DBuilder->getOrCreateArray(Members));
+
+            Fwd->replaceAllUsesWith(StructDI);
+            llvm::MDNode::deleteTemporary(Fwd);
+            DIT = StructDI;
+        }
+    } else {
+        DIT = DBuilder->createUnspecifiedType(Ty->getName());
+    }
+
+    DITypeCache[Ty] = DIT;
+    return DIT;
+}
+
 DiagnosticBuilder CodeGenModule::Diag(unsigned DiagID) {
-    if (DebugEnabled && DiagID == diag::err_invalid_behavior)
+    if (DebugLog && DiagID == diag::err_invalid_behavior)
         llvm::sys::PrintStackTrace(llvm::errs());
     return Diags.Report(DiagID);
 }
@@ -137,6 +302,7 @@ llvm::IRBuilder<> *CodeGenModule::getBuilder() const {
 // =============================================================================
 
 void CodeGenModule::visit(SemaModule &Sema) {
+    FLY_DEBUG_SCOPE_MSG("CodeGenModule", "visit(SemaModule)", "Module: " + Sema.getName().str());
     CurrentSemaModule = &Sema;
 
     // Generate all nodes (functions, classes, enums)
@@ -230,8 +396,15 @@ void CodeGenModule::visit(SemaEnumType &Sema) {
 }
 
 void CodeGenModule::visit(SemaClassType &Sema) {
+	FLY_DEBUG_SCOPE_MSG("CodeGenModule", "visit(SemaClassType)", "Class: " + Sema.getAST().getName().str());
 	if (Sema.getCodeGen() == nullptr) {
-		bool isExternal = (CurrentSemaModule != nullptr &&
+		// Generic template classes have no concrete code to generate.
+		if (Sema.isGeneric() && Sema.getGenericTemplate() == nullptr)
+			return;
+		// Specializations are always generated locally in the using module, even when
+		// the generic template lives in an external library.
+		bool isExternal = (Sema.getGenericTemplate() == nullptr) &&
+		                  (CurrentSemaModule != nullptr &&
 		                   &Sema.getModule() != CurrentSemaModule);
 		CodeGenClass *CGC = new CodeGenClass(this, &Sema, isExternal);
 		Sema.setCodeGen(CGC);
@@ -239,6 +412,7 @@ void CodeGenModule::visit(SemaClassType &Sema) {
 }
 
 void CodeGenModule::visit(SemaClassMethod &Sema) {
+	FLY_DEBUG_SCOPE_MSG("CodeGenModule", "visit(SemaClassMethod)", "Method: " + Sema.getName().str());
 	CurrentFunction = &Sema;
 	if (Sema.getCodeGen()) {
 		Sema.getCodeGen()->GenBody();
@@ -246,6 +420,11 @@ void CodeGenModule::visit(SemaClassMethod &Sema) {
 }
 
 void CodeGenModule::visit(SemaFunction &Sema) {
+	FLY_DEBUG_SCOPE_MSG("CodeGenModule", "visit(SemaFunction)", "Function: " + Sema.getName().str());
+	// Generic template functions are never code-generated directly;
+	// only their concrete specializations (which have no TypeParams) produce LLVM IR.
+	if (Sema.isGeneric())
+		return;
 	CurrentFunction = &Sema;
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenFunction *CGF = new CodeGenFunction(this, &Sema, false);
@@ -257,6 +436,7 @@ void CodeGenModule::visit(SemaFunction &Sema) {
 }
 
 void CodeGenModule::visit(SemaClassAttribute &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaClassAttribute)");
 	if (Sema.getCodeGen() == nullptr) {
 		Sema.getType()->accept(*this);
 		llvm::Type *T = Sema.getType()->getCodeGen()->getType();
@@ -281,6 +461,7 @@ void CodeGenModule::visit(SemaClassAttribute &Sema) {
 }
 
 void CodeGenModule::visit(SemaLocalVar &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaLocalVar)");
 	if (Sema.getCodeGen() == nullptr) {
 		Sema.getType()->accept(*this);
 		llvm::Type *T = Sema.getType()->getCodeGen()->getType();
@@ -290,6 +471,7 @@ void CodeGenModule::visit(SemaLocalVar &Sema) {
 }
 
 void CodeGenModule::visit(SemaParam &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaParam)");
 	if (Sema.getCodeGen() == nullptr) {
 		Sema.getType()->accept(*this);
 		llvm::Type *T = Sema.getType()->getCodeGen()->getType();
@@ -299,6 +481,7 @@ void CodeGenModule::visit(SemaParam &Sema) {
 }
 
 void CodeGenModule::visit(SemaClassInstance &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaClassInstance)");
 	if (Sema.getCodeGen() == nullptr) {
 		Sema.getType()->accept(*this);
 		llvm::Type *T = Sema.getType()->getCodeGen()->getType();
@@ -308,6 +491,7 @@ void CodeGenModule::visit(SemaClassInstance &Sema) {
 }
 
 void CodeGenModule::visit(SemaError &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaError)");
 	if (Sema.getCodeGen() == nullptr) {
 		Sema.getType()->accept(*this);
 		llvm::Value *ErrorHandler = Builder->CreateAlloca(CG.ErrorPtrTy);
@@ -317,6 +501,7 @@ void CodeGenModule::visit(SemaError &Sema) {
 }
 
 void CodeGenModule::visit(SemaMember &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaMember)");
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenExpr *CGE = new CodeGenExpr(this);
 		CGE->GenExpr(&Sema);
@@ -328,6 +513,7 @@ void CodeGenModule::visit(SemaMember &Sema) {
 }
 
 void CodeGenModule::visit(SemaCall &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaCall)");
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenExpr *CGE = new CodeGenExpr(this);
 		CGE->GenExpr(&Sema);
@@ -336,6 +522,7 @@ void CodeGenModule::visit(SemaCall &Sema) {
 }
 
 void CodeGenModule::visit(SemaUnary &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaUnary)");
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenExpr *CGE = new CodeGenExpr(this);
 		CGE->GenExpr(&Sema);
@@ -344,6 +531,7 @@ void CodeGenModule::visit(SemaUnary &Sema) {
 }
 
 void CodeGenModule::visit(SemaBinary &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaBinary)");
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenExpr *CGE = new CodeGenExpr(this);
 		CGE->GenExpr(&Sema);
@@ -352,6 +540,7 @@ void CodeGenModule::visit(SemaBinary &Sema) {
 }
 
 void CodeGenModule::visit(SemaTernary &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaTernary)");
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenExpr *CGE = new CodeGenExpr(this);
 		CGE->GenExpr(&Sema);
@@ -360,6 +549,7 @@ void CodeGenModule::visit(SemaTernary &Sema) {
 }
 
 void CodeGenModule::visit(SemaCast &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaCast)");
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenExpr *CGE = new CodeGenExpr(this);
 		CGE->GenExpr(&Sema);
@@ -543,16 +733,43 @@ void CodeGenModule::EmitAllocCleanup(size_t frames) {
 }
 
 void CodeGenModule::visit(SemaBlockStmt &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaBlockStmt)");
 	AllocCleanupStack.push_back(&Sema);
+
+	if (DBuilder && DebugFile) {
+		llvm::DIScope *Parent;
+		if (!DebugScopeStack.empty()) {
+			Parent = DebugScopeStack.back();
+		} else {
+			llvm::BasicBlock *BB = Builder->GetInsertBlock();
+			llvm::Function *Fn = BB ? BB->getParent() : nullptr;
+			Parent = (Fn && Fn->getSubprogram())
+			             ? (llvm::DIScope *)Fn->getSubprogram()
+			             : (llvm::DIScope *)DebugCU;
+		}
+		unsigned Line = 0;
+		if (SM && !Sema.getContent().empty()) {
+			const SourceLocation &Loc = Sema.getContent().front()->getAST()->getLocation();
+			if (Loc.isValid()) Line = SM->getSpellingLineNumber(Loc);
+		}
+		DebugScopeStack.push_back(
+		    DBuilder->createLexicalBlock(Parent, DebugFile, Line, 0));
+	}
+
 	for (SemaStmt *Stmt : Sema.getContent()) {
 		Stmt->accept(*this);
 	}
+
+	if (DBuilder && !DebugScopeStack.empty())
+		DebugScopeStack.pop_back();
+
 	EmitAllocCleanup(1);
 	AllocCleanupStack.pop_back();
 }
 
 void CodeGenModule::visit(SemaDeclStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaDeclStmt)");
+	EmitDebugLocation(Sema.getAST()->getLocation());
 
 	// Get the CodeGenVar for the Local Variable
 	CodeGenVar *CGV = Sema.getVar()->getCodeGen();
@@ -580,18 +797,21 @@ void CodeGenModule::visit(SemaDeclStmt &Sema) {
 
 void CodeGenModule::visit(SemaExprStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaExprStmt)");
+	EmitDebugLocation(Sema.getAST()->getLocation());
 
 	Sema.getExpr()->accept(*this);
 }
 
 void CodeGenModule::visit(SemaReturnStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaReturnStmt)");
+	EmitDebugLocation(Sema.getAST()->getLocation());
 	EmitAllocCleanup(AllocCleanupStack.size());
 	Builder->CreateRetVoid();
 }
 
 void CodeGenModule::visit(SemaIfStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaIfStmt)");
+	EmitDebugLocation(Sema.getAST()->getLocation());
 	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
 	// If Block - use Sema condition expression
@@ -705,6 +925,7 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 
 void CodeGenModule::visit(SemaSwitchStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaSwitchStmt)");
+	EmitDebugLocation(Sema.getAST()->getLocation());
 	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
 	// Create End Block
@@ -760,6 +981,7 @@ void CodeGenModule::visit(SemaSwitchStmt &Sema) {
 
 void CodeGenModule::visit(SemaLoopStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaLoopStmt)");
+	EmitDebugLocation(Sema.getAST()->getLocation());
 	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
 	// Generate Init Statements via Sema
@@ -852,6 +1074,7 @@ void CodeGenModule::visit(SemaLoopStmt &Sema) {
 
 void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaLoopInStmt)");
+	EmitDebugLocation(Sema.getAST()->getLocation());
 
 	SemaExpr *ListExpr = Sema.getList();
 	SemaExpr *ItemExpr = Sema.getItem();
@@ -962,6 +1185,7 @@ void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 
 void CodeGenModule::visit(SemaDeleteStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaDeleteStmt)");
+	EmitDebugLocation(Sema.getAST()->getLocation());
 
 	Sema.getExpr()->accept(*this);
 	llvm::Value *V = Sema.getExpr()->getCodeGen()->getValue();
@@ -983,6 +1207,7 @@ void CodeGenModule::visit(SemaDeleteStmt &Sema) {
 
 void CodeGenModule::visit(SemaBreakStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaBreakStmt)");
+	EmitDebugLocation(Sema.getAST()->getLocation());
 	if (!BreakTargetStack.empty()) {
 		size_t loopDepth = BreakCleanupDepth.back();
 		EmitAllocCleanup(AllocCleanupStack.size() - loopDepth);
@@ -994,6 +1219,7 @@ void CodeGenModule::visit(SemaBreakStmt &Sema) {
 
 void CodeGenModule::visit(SemaContinueStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaContinueStmt)");
+	EmitDebugLocation(Sema.getAST()->getLocation());
 	if (!ContinueTargetStack.empty()) {
 		size_t loopDepth = ContinueCleanupDepth.back();
 		EmitAllocCleanup(AllocCleanupStack.size() - loopDepth);
@@ -1005,6 +1231,7 @@ void CodeGenModule::visit(SemaContinueStmt &Sema) {
 
 void CodeGenModule::visit(SemaFailStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaFailStmt)");
+	EmitDebugLocation(Sema.getAST()->getLocation());
 
 	if (Sema.getFirst() == nullptr) {
 		CurrentErrorHandler->StoreInt(llvm::ConstantInt::get(CG.Int32Ty, 1));
@@ -1030,6 +1257,7 @@ void CodeGenModule::visit(SemaFailStmt &Sema) {
 
 void CodeGenModule::visit(SemaHandleStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaHandleStmt)");
+	EmitDebugLocation(Sema.getAST()->getLocation());
 
 	// Save parent error handler
 	CodeGenError *ParentErrorHandler = CurrentErrorHandler;

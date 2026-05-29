@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaExprStmt.h - Sema Expression Statement header
+// include/Sema/SemaExprStmt.h - expression statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_EXPRSTMT_H
@@ -22,6 +22,8 @@ namespace fly {
         ~SemaExprStmt() override = default;
 
         SemaExpr *getExpr() const;
+
+        std::string str() const override;
 
         void accept(SemaVisitor &Visitor) override;
     };

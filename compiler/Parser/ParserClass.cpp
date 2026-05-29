@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Parser/ClassParser.cpp - Class Parser
+// compiler/Parser/ParserClass.cpp - class declaration parser
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -12,7 +12,9 @@
 #include "Parser/ParserClass.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTBuilder.h"
+#include "AST/ASTType.h"
 #include "Basic/Debug.h"
+#include "Basic/TokenKinds.h"
 
 #include <AST/ASTMethod.h>
 
@@ -44,6 +46,14 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bo
     const SourceLocation ClassLoc = P->Tok.getLocation();
     P->ConsumeToken();
 
+    // Parse optional generic type parameters: class Foo<T, U : Bar>
+    llvm::SmallVector<ASTTypeParam *, 4> TypeParams;
+    if (P->Tok.is(tok::less)) {
+        TypeParams = P->ParseTypeParams();
+        // Generic classes must keep their bodies so specializations can be code-generated.
+        this->SkipBodies = false;
+    }
+
     // Parse classes after colon
     // class Example : SuperClass, Interface, Struct { ... }
     llvm::SmallVector<ASTType *, 4> Bases;
@@ -68,6 +78,9 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bo
         P->ConsumeBrace(BraceCount);
 
         Class = ASTBuilder::CreateClass(P->Module, ClassLoc, ClassKind, ClassName, Modifiers, Bases);
+        if (!TypeParams.empty()) {
+            Class->TypeParams = TypeParams;
+        }
         bool Continue;
         do {
 
@@ -86,9 +99,69 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bo
             // Parse Modifiers
             llvm::SmallVector<ASTModifier *, 8> Modifiers = P->ParseModifiers();
 
-            // Check if this is a method (identifier followed by parenthesis)
-            // Methods are implicitly void - no return type declaration
-            // Constructors are identified by name matching class name
+            // Method with return type: "int|bool|... name(params) { body }"
+            // Detect: builtin-type identifier '('
+            if (P->isBuiltinType(P->Tok)) {
+                std::optional<Token> AfterType = Lexer::findNextToken(P->Tok.getLocation(), P->SourceMgr);
+                if (AfterType && AfterType->isAnyIdentifier()) {
+                    std::optional<Token> AfterName = Lexer::findNextToken(AfterType->getLocation(), P->SourceMgr);
+                    if (AfterName && AfterName->is(tok::l_paren)) {
+                        // Method with return type
+                        ASTType *RetType = P->ParseType();
+                        const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
+                        const SourceLocation &Loc = P->Tok.getLocation();
+                        P->ConsumeToken();
+                        ASTMethod *M = ParseMethod(Modifiers, Loc, Name);
+                        if (M) {
+                            bool IsVoid = RetType->getTypeKind() == ASTTypeKind::TYPE_BUILTIN &&
+                                          static_cast<ASTBuiltinType *>(RetType)->getBuiltinKind() == ASTBuiltinTypeKind::TYPE_VOID;
+                            if (!IsVoid) {
+                                M->setReturnType(RetType);
+                            }
+                        }
+                        Continue = true;
+                        continue;
+                    }
+                }
+                // Fall through: builtin type used as attribute type
+            }
+
+            // Named type return: "public Time now() { … }" or "public fly.os.io.Buf read() { … }"
+            // Must verify token after method name is '(' to distinguish from field declarations.
+            else if (P->Tok.isAnyIdentifier()) {
+                // Scan past the qualified type name to find the method name token
+                SourceLocation TLoc = P->Tok.getLocation();
+                std::optional<Token> TNext = Lexer::findNextToken(TLoc, P->SourceMgr);
+                while (TNext && TNext->is(tok::period)) {
+                    std::optional<Token> AfterDot = Lexer::findNextToken(TNext->getLocation(), P->SourceMgr);
+                    if (AfterDot && AfterDot->isAnyIdentifier()) {
+                        TLoc = AfterDot->getLocation();
+                        TNext = Lexer::findNextToken(TLoc, P->SourceMgr);
+                    } else break;
+                }
+                // TNext is now the candidate method name token; check it is an identifier
+                // followed immediately by '('
+                if (TNext && TNext->isAnyIdentifier()) {
+                    std::optional<Token> AfterName = Lexer::findNextToken(TNext->getLocation(), P->SourceMgr);
+                    if (AfterName && AfterName->is(tok::l_paren)) {
+                        ASTType *RetType = P->ParseType(); // consumes the full type name
+                        const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
+                        const SourceLocation &Loc = P->Tok.getLocation();
+                        P->ConsumeToken();
+                        ASTMethod *M = ParseMethod(Modifiers, Loc, Name);
+                        if (M) {
+                            M->setReturnType(RetType);
+                        }
+                        Continue = true;
+                        continue;
+                    }
+                }
+            }
+
+            // Check if this is a method without a return type (identifier followed by '(')
+            // This is now an error: all methods must declare a return type.
+            // Constructors are the exception — they are identified by name matching the class name
+            // and are still allowed without a return type.
             if (P->Tok.isAnyIdentifier()) {
                 const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
                 const SourceLocation &Loc = P->Tok.getLocation();
@@ -96,9 +169,12 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bo
                 // Look ahead to see if this is a method (has parenthesis)
                 std::optional<Token> NextTok = Lexer::findNextToken(Loc, P->SourceMgr);
                 if (NextTok && NextTok->is(tok::l_paren)) {
-                    // This is a method - consume name and parse as method
+                    bool IsConstructor = (Name == Class->getName());
+                    if (!IsConstructor) {
+                        // Non-constructor method without a return type — emit error and recover
+                        P->Diag(Loc, diag::err_parser_missing_return_type);
+                    }
                     P->ConsumeToken();
-                    // Methods are implicitly void - no return type needed
                     ParseMethod(Modifiers, Loc, Name);
                     Continue = true;
                     continue;

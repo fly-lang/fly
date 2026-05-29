@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaIfStmt.h - Sema If Statement header
+// include/Sema/SemaIfStmt.h - if statement semantic analysis
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #ifndef FLY_SEMA_IFSTMT_H
@@ -46,6 +46,8 @@ namespace fly {
         SemaStmt *getElse() const;
 
         void setElse(SemaStmt *Else);
+
+        std::string str() const override;
 
         void accept(SemaVisitor &Visitor) override;
     };

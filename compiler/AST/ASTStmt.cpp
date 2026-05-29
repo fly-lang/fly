@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTStmt.cpp - AST Statement implementation
+// compiler/AST/ASTStmt.cpp - AST statement base implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -30,9 +30,9 @@ ASTStmtKind ASTStmt::getStmtKind() const {
 }
 
 std::string ASTStmt::str() const {
-    return Logger("ASTStmt").
-	Attr("Location", getLocation()).
-Attr("Kind", static_cast<size_t>(getKind())).
-            Attr("Kind", static_cast<uint64_t>(StmtKind)).
-            End();
+    return Logger("ASTStmt")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("StmtKind", static_cast<uint64_t>(StmtKind))
+        .End();
 }

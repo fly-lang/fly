@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Frontend/ChainedDiagnosticConsumer.h - Chain Diagnostic Clients
+// include/Frontend/ChainedDiagnosticConsumer.h - chained diagnostic consumers
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaStmt.h - Sema Statement base header
+// include/Sema/SemaStmt.h - statement semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -27,6 +27,8 @@ namespace fly {
     public:
 
         ~SemaStmt() override = default;
+
+        std::string str() const override;
 
         ASTStmt *getAST() const;
 

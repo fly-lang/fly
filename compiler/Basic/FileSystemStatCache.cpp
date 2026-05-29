@@ -1,6 +1,6 @@
 //===- FileSystemStatCache.cpp - Caching for 'stat' calls -----------------===//
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/AddressSpaces.h - Language-specific address spaces
+// compiler/Basic/FileSystemStatCache.cpp - stat call caching
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

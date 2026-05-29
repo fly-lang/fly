@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTLoopInStmt.cpp - AST Loop In Statement implementation
+// compiler/AST/ASTLoopInStmt.cpp - AST loop-in (for-in) statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -36,10 +36,11 @@ ASTStmt *ASTLoopInStmt::getStmt() const {
 }
 
 std::string ASTLoopInStmt::str() const {
-    return Logger("ASTLoopInStmt").
-            Attr("Location", getLocation()).
-            Attr("Item", Item).
-            Attr("List", List).
-            Attr("Stmt", Stmt).
-            End();
+    return Logger("ASTLoopInStmt")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("Item", Item)
+        .Attr("List", List)
+        .Attr("Stmt", Stmt)
+        .End();
 }

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CodeGenFail.h - Code Generator of Fail
+// include/CodeGen/CodeGenError.h - error/fail code generation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -12,9 +12,8 @@
 
 #include "CodeGenVar.h"
 
-#include <llvm/ADT/StringRef.h>
-
 namespace llvm {
+    class BasicBlock;
     class StructType;
     class LLVMContext;
 }
@@ -35,7 +34,7 @@ namespace fly {
 
         llvm::LoadInst *LoadI = nullptr;
 
-        llvm::StringRef BlockID;
+        llvm::BasicBlock *LoadBlock = nullptr;
 
         static std::string ERROR_NAME;
 

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SymClassMethod.cpp - The Symbolic Table for Enum Entry
+// compiler/Sema/SemaClassMethod.cpp - class method semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -9,8 +9,11 @@
 
 #include "Sema/SemaClassMethod.h"
 #include "Sema/SemaVisitor.h"
-
 #include "Sema/Helper.h"
+#include "Sema/SemaParam.h"
+#include "Sema/SemaBlockStmt.h"
+#include "Sema/SemaType.h"
+#include "Basic/Logger.h"
 
 #include <AST/ASTMethod.h>
 
@@ -78,5 +81,20 @@ SemaComment * SemaClassMethod::getComment() const {
 
 void SemaClassMethod::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaClassMethod::str() const {
+	return Logger("SemaClassMethod")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.Attr("Visibility", static_cast<uint64_t>(getVisibility()))
+		.Attr("Constructor", isConstructor())
+		.Attr("Abstract", isAbstract())
+		.Attr("Static", isStatic())
+		.Attr("Final", isFinal())
+		.Attr("ReturnType", const_cast<SemaClassMethod*>(this)->getReturnType())
+		.Attr("Params", const_cast<SemaClassMethod*>(this)->getParams())
+		.Attr("Body", getBody())
+		.End();
 }
 

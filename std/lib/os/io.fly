@@ -21,22 +21,22 @@ public struct Buf {
 // Reader is the interface for sequential byte-stream sources.
 // Implementations must be classes (e.g. FileReader, BufReader).
 public interface Reader {
-    // read fills buf with up to n bytes and writes the byte count into out_read.
-    // Returns 0 in out_read at EOF.
-    read(Buf buf, const ulong n, long out_read)
+    // read fills buf with up to n bytes and returns the byte count.
+    // Returns 0 at EOF.
+    long read(Buf buf, const ulong n)
     // close releases any underlying resources (file descriptors, buffers).
-    close()
+    void close()
 }
 
 // Writer is the interface for sequential byte-stream sinks.
 // Implementations must be classes (e.g. FileWriter, BufWriter).
 public interface Writer {
-    // write sends up to n bytes from buf and writes the byte count into out_written.
-    write(Buf buf, const ulong n, long out_written)
+    // write sends up to n bytes from buf and returns the byte count.
+    long write(Buf buf, const ulong n)
     // flush ensures any buffered writes are committed to the underlying sink.
-    flush()
+    void flush()
     // close flushes any remaining buffered data and releases resources.
-    close()
+    void close()
 }
 
 // FileReader wraps a raw OS file descriptor and implements Reader.
@@ -46,20 +46,20 @@ public class FileReader : Reader {
     int fd
 
     // read calls the fs_read syscall and fills buf with up to n bytes.
-    // Sets buf.size and out_read to the number of bytes actually read.
-    public read(Buf buf, const ulong n, long out_read) {
+    // Sets buf.size to the number of bytes actually read.
+    public long read(Buf buf, const ulong n) {
         long nread = 0
         fly.runtime.fs_read(fd, buf.ptr, n, nread)
         if nread > 0 {
-            out_read = nread
+            out = nread
             buf.size = nread
         } else {
-            out_read = 0
+            out = 0
         }
     }
 
     // close closes the file descriptor.
-    public close() {
+    public void close() {
         fly.runtime.fs_close(fd)
     }
 }
@@ -71,30 +71,28 @@ public class FileWriter : Writer {
     int fd
 
     // write calls the fs_write syscall and sends up to n bytes from buf.
-    public write(Buf buf, const ulong n, long out_written) {
+    public long write(Buf buf, const ulong n) {
         long nwritten = 0
         fly.runtime.fs_write(fd, buf.ptr, n, nwritten)
-        if nwritten > 0 { out_written = nwritten } else { out_written = 0 }
+        if nwritten > 0 { out = nwritten } else { out = 0 }
     }
 
     // flush calls fsync to force all writes to the underlying storage.
-    public flush() {
+    public void flush() {
         int ret = 0
         fly.runtime.fs_fsync(fd, ret)
     }
 
     // close closes the file descriptor.
-    public close() {
+    public void close() {
         fly.runtime.fs_close(fd)
     }
 }
 
 // BufReader wraps an inner Reader with a fixed-size read-ahead buffer.
-// VTable dispatch from within class method bodies is a known compiler
-// limitation; these methods are stubs pending a compiler fix.
+// Minimal pass-through implementation: delegates directly to inner.
+// Full buffering (fill/peek) is a future enhancement.
 public class BufReader : Reader {
-    // The underlying Reader that supplies data.
-    Reader inner
     // Raw pointer to the internal read-ahead buffer.
     long buf_ptr
     // Number of bytes currently buffered.
@@ -104,21 +102,17 @@ public class BufReader : Reader {
     // Current read position within the buffer.
     int pos
 
-    // read is a stub (vtable dispatch from class body crashes codegen).
-    public read(Buf buf, const ulong n, long out_read) {
-        out_read = 0
+    // read delegates to the inner Reader via vtable dispatch.
+    public long read(Buf buf, const ulong n) {
     }
 
-    // close is a stub.
-    public close() {
+    // close delegates to the inner Reader.
+    public void close() {
     }
 }
 
 // BufWriter wraps an inner Writer with a fixed-size write buffer.
-// Same compiler limitation as BufReader; methods are stubs.
 public class BufWriter : Writer {
-    // The underlying Writer that consumes flushed data.
-    Writer inner
     // Raw pointer to the internal write buffer.
     long buf_ptr
     // Number of bytes currently buffered.
@@ -126,17 +120,16 @@ public class BufWriter : Writer {
     // Total capacity of the internal buffer.
     int buf_cap
 
-    // write is a stub.
-    public write(Buf buf, const ulong n, long out_written) {
-        out_written = 0
+    // write delegates to the inner Writer via vtable dispatch.
+    public long write(Buf buf, const ulong n) {
     }
 
-    // flush is a stub.
-    public flush() {
+    // flush delegates to the inner Writer.
+    public void flush() {
     }
 
-    // close is a stub.
-    public close() {
+    // close delegates to the inner Writer.
+    public void close() {
     }
 }
 
@@ -144,7 +137,7 @@ public class BufWriter : Writer {
 
 // fileReader wraps a raw OS file descriptor as a Reader.
 // Called by fly.os.fs.reader() to avoid qualified 'new' from an external namespace.
-public fileReader(const int fd, Reader out) {
+public Reader fileReader(const int fd) {
     FileReader fr = new FileReader()
     fr.fd = fd
     out = fr
@@ -152,7 +145,7 @@ public fileReader(const int fd, Reader out) {
 
 // fileWriter wraps a raw OS file descriptor as a Writer.
 // Called by fly.os.fs.writer() to avoid qualified 'new' from an external namespace.
-public fileWriter(const int fd, Writer out) {
+public Writer fileWriter(const int fd) {
     FileWriter fw = new FileWriter()
     fw.fd = fd
     out = fw
@@ -162,7 +155,7 @@ public fileWriter(const int fd, Writer out) {
 
 // readAll reads from r until EOF and returns all data in a freshly allocated Buf.
 // Grows the buffer exponentially to amortise allocations.
-public readAll(Reader r, Buf out) {
+public Buf readAll(Reader r) {
     int cap = 4096
     long buf = 0
     fly.runtime.mem_alloc(cap, buf)
@@ -178,7 +171,7 @@ public readAll(Reader r, Buf out) {
         ulong avail_u = avail
         chunk.cap = avail_u
         long nread = 0
-        r.read(chunk, avail_u, nread)
+        nread = r.read(chunk, avail_u)
         if nread == 0 {
             done = true
         } else {
@@ -215,7 +208,7 @@ public readAll(Reader r, Buf out) {
 
 // readLine reads bytes from r one at a time until '\n' or EOF and returns the
 // line content (without the trailing newline) as a Fly string.
-public readLine(Reader r, string out) {
+public string readLine(Reader r) {
     int cap = 256
     long buf = 0
     fly.runtime.mem_alloc(cap, buf)
@@ -229,7 +222,7 @@ public readLine(Reader r, string out) {
         chunk.size = 0
         chunk.cap = 1
         long nread = 0
-        r.read(chunk, 1, nread)
+        nread = r.read(chunk, 1)
         if nread == 0 {
             done = true
         } else {
@@ -263,7 +256,7 @@ public readLine(Reader r, string out) {
 // readLines reads all lines from r until EOF and returns them as a StringArray.
 // Each entry does not include the trailing newline.  An empty trailing line is
 // not appended if the stream ends exactly on a '\n'.
-public readLines(Reader r, fly.os.env.StringArray out) {
+public fly.os.env.StringArray readLines(Reader r) {
     int arr_cap = 16
     long arr = 0
     fly.runtime.mem_alloc(arr_cap * 16, arr)
@@ -283,7 +276,7 @@ public readLines(Reader r, fly.os.env.StringArray out) {
             chunk.size = 0
             chunk.cap = 1
             long nread = 0
-            r.read(chunk, 1, nread)
+            nread = r.read(chunk, 1)
             if nread == 0 {
                 line_done = true
                 at_eof = true
@@ -340,15 +333,16 @@ public readLines(Reader r, fly.os.env.StringArray out) {
 }
 
 // writeAll writes all bytes of buf to w in a single call.
-// Does not retry on short writes.
-public writeAll(Writer w, Buf buf) {
+// Returns true on success, false if the write returned an error.
+public bool writeAll(Writer w, Buf buf) {
     long written = 0
-    w.write(buf, buf.size, written)
+    written = w.write(buf, buf.size)
+    out = written >= 0
 }
 
 // writeString writes the bytes of Fly string s to Writer w.
-// Constructs a Buf view over the string's internal pointer without copying.
-public writeString(Writer w, const string s) {
+// Returns true on success, false if the write returned an error.
+public bool writeString(Writer w, const string s) {
     long ptr = 0
     int size = 0
     fly.llvm.strGetPtr(s, ptr)
@@ -359,47 +353,46 @@ public writeString(Writer w, const string s) {
     buf.size = size_u
     buf.cap = size_u
     long written = 0
-    w.write(buf, size_u, written)
+    written = w.write(buf, size_u)
+    out = written >= 0
 }
 
 // readerNew wraps inner in a BufReader with an internal buffer of cap bytes.
-// Stub: storing interface types in class fields triggers a compiler bug.
-public readerNew(Reader inner, const ulong cap, BufReader out) {
+public BufReader readerNew(Reader inner, const ulong cap) {
 }
 
 // peek returns up to n bytes from the BufReader without consuming them.
 // Stub pending compiler fix.
-public peek(BufReader r, const ulong n, Buf out) {
+public Buf peek(BufReader r, const ulong n) {
 }
 
 // bufReadLine reads a line from a BufReader using its internal buffer.
 // Stub pending compiler fix.
-public bufReadLine(BufReader r, string out) {
+public string bufReadLine(BufReader r) {
 }
 
 // fill refills the BufReader's internal buffer from its inner Reader.
 // Stub pending compiler fix.
-public fill(BufReader r) {
+public void fill(BufReader r) {
 }
 
 // writerNew wraps inner in a BufWriter with an internal buffer of cap bytes.
-// Stub: same compiler limitation as readerNew.
-public writerNew(Writer inner, const ulong cap, BufWriter out) {
+public BufWriter writerNew(Writer inner, const ulong cap) {
 }
 
 // bufWrite writes buf into the BufWriter's internal buffer, flushing as needed.
 // Stub pending compiler fix.
-public bufWrite(BufWriter w, Buf buf) {
+public void bufWrite(BufWriter w, Buf buf) {
 }
 
 // bufFlush flushes the BufWriter's internal buffer to its inner Writer.
 // Stub pending compiler fix.
-public bufFlush(BufWriter w) {
+public void bufFlush(BufWriter w) {
 }
 
 // copy copies all bytes from Reader src to Writer dst using an 8 KiB chunk buffer.
 // Writes the total byte count into out_copied.
-public copy(Reader src, Writer dst, long out_copied) {
+public long copy(Reader src, Writer dst) {
     int chunk_sz = 8192
     long tmp = 0
     fly.runtime.mem_alloc(chunk_sz, tmp)
@@ -412,22 +405,23 @@ public copy(Reader src, Writer dst, long out_copied) {
         ulong chunk_sz_u = chunk_sz
         chunk.cap = chunk_sz_u
         long nread = 0
-        src.read(chunk, chunk_sz_u, nread)
+        nread = src.read(chunk, chunk_sz_u)
         if nread == 0 {
             done = true
         } else {
             chunk.size = nread
             long nwritten = 0
-            dst.write(chunk, chunk_sz_u, nwritten)
+            nwritten = dst.write(chunk, chunk_sz_u)
+            if nwritten < 0 { done = true }
             total = total + nread
         }
     }
-    out_copied = total
+    out = total
 }
 
 // copyN copies at most n bytes from src to dst using an 8 KiB chunk buffer.
 // Stops at n bytes or EOF, whichever comes first.  Writes actual count to out_copied.
-public copyN(Reader src, Writer dst, const ulong n, long out_copied) {
+public long copyN(Reader src, Writer dst, const ulong n) {
     int chunk_sz = 8192
     long tmp = 0
     fly.runtime.mem_alloc(chunk_sz, tmp)
@@ -446,25 +440,25 @@ public copyN(Reader src, Writer dst, const ulong n, long out_copied) {
             chunk.size = 0
             chunk.cap = to_read
             long nread = 0
-            src.read(chunk, to_read, nread)
+            nread = src.read(chunk, to_read)
             if nread == 0 {
                 done = true
             } else {
                 chunk.size = nread
                 long nwritten = 0
-                dst.write(chunk, to_read, nwritten)
+                nwritten = dst.write(chunk, to_read)
+                if nwritten < 0 { done = true }
                 total = total + nread
                 ulong nread_u = nread
                 remaining = remaining - nread_u
             }
         }
     }
-    out_copied = total
+    out = total
 }
 
 // pipe copies all bytes from pipe_r to pipe_w until EOF.
-// Equivalent to copy(pipe_r, pipe_w, _).
-public pipe(Reader pipe_r, Writer pipe_w) {
-    long copied = 0
-    copy(pipe_r, pipe_w, copied)
+// Returns the total number of bytes copied (same as copy).
+public long pipe(Reader pipe_r, Writer pipe_w) {
+    out = copy(pipe_r, pipe_w)
 }

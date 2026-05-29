@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaCall.h - Sybolic Table for ASTCall
+// include/Sema/SemaCall.h - function call semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -21,6 +21,7 @@ namespace fly {
 	class SemaType;
     class SemaFunctionBase;
 	class SemaError;
+	class SemaLocalVar;
 
     class SemaCall :  public SemaExpr {
 
@@ -35,6 +36,12 @@ namespace fly {
     	SemaError *ErrorHandler = nullptr;
 
     	llvm::SmallVector<SemaExpr *, 8> Args;
+
+    	// Synthetic local variable that receives the return value (non-null when the
+    	// resolved function has a declared return type).  The callee writes to it via
+    	// the hidden out parameter; the CodeGen loads it after the call to produce
+    	// the expression value for assignments and chaining.
+    	SemaLocalVar *OutVar = nullptr;
 
     	CodeGenExpr *CodeGen = nullptr;
 
@@ -54,6 +61,8 @@ namespace fly {
 
     	bool isNew() const;
 
+    	SemaLocalVar *getOutVar() const;
+
     	llvm::SmallVector<SemaExpr *, 8> &getArgs();
 
     	void addArg(SemaExpr *Arg);
@@ -61,6 +70,8 @@ namespace fly {
     	CodeGenExpr *getCodeGen() const;
 
     	void setCodeGen(CodeGenExpr *CodeGen);
+
+    	std::string str() const override;
 
     	void accept(SemaVisitor& Visitor) override;
 

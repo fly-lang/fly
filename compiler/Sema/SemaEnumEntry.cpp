@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaEnumEntry.cpp - The Symbolic Table for Enum Entry
+// compiler/Sema/SemaEnumEntry.cpp - enum entry semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -10,6 +10,7 @@
 #include "Sema/SemaEnumEntry.h"
 
 #include "AST/ASTEnumEntry.h"
+#include "Basic/Logger.h"
 #include "Sema/SemaEnumType.h"
 #include "Sema/SemaVisitor.h"
 
@@ -42,4 +43,13 @@ void SemaEnumEntry::setCodeGen(CodeGenEnumEntry *CodeGen) {
 
 void SemaEnumEntry::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
+}
+
+std::string SemaEnumEntry::str() const {
+	return Logger("SemaEnumEntry")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("AST", AST.str())
+		.Attr("Index", (uint64_t)getIndex())
+		.Attr("Type", Type)
+		.End();
 }

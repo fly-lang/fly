@@ -114,7 +114,9 @@ add_library(FlyCompiler
         CodeGen/CodeGenEnum.cpp
         CodeGen/CodeGenEnumEntry.cpp
         CodeGen/CodeGenExpr.cpp
-        CodeGen/CodeGenBridgeCLang.cpp
+        CodeGen/CodeGenStdLibCLang.cpp
+        CodeGen/CodeGenStdLibLLVM.cpp
+        CodeGen/CodeGenStdLibRuntime.cpp
         CodeGen/CodeGenError.cpp
         CodeGen/CodeGenFunction.cpp
         CodeGen/CodeGenFunctionBase.cpp
@@ -258,7 +260,7 @@ target_link_libraries(FlyCompiler
         lldWasm)
 
 target_compile_definitions(FlyCompiler PRIVATE
-        FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/std/src"
+        FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/std/lib"
 )
 
 target_link_libraries(fly

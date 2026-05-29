@@ -1,5 +1,5 @@
 //===-------------------------------------------------------------------------------------------------------------===//
-// include/Sym/SemaType.h - AST Class Type header
+// include/Sema/SemaType.h - type semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -12,6 +12,8 @@
 
 #include "CodeGen/CodeGenType.h"
 #include "Sema/SemaNode.h"
+
+#include "llvm/ADT/StringRef.h"
 
 #include <cstdint>
 #include <string>
@@ -106,6 +108,8 @@ namespace fly {
     	virtual CodeGenType *getCodeGen() const;
 
     	void setCodeGen(CodeGenType *CG);
+
+		std::string str() const override;
     };
 
 	class SemaBoolType : public SemaType {
@@ -114,6 +118,8 @@ namespace fly {
 		explicit SemaBoolType() : SemaType(SemaKind::TYPE_BOOL, "bool") {}
 
 		~SemaBoolType() override = default;
+
+		std::string str() const override;
 
 		void accept(SemaVisitor& Visitor) override;
 	};
@@ -128,6 +134,8 @@ namespace fly {
 		~SemaNumberType() override = default;
 
 		unsigned getRank();
+
+		std::string str() const override;
 	};
 
     class SemaIntType : public SemaNumberType {
@@ -146,6 +154,8 @@ namespace fly {
 
         bool isSigned();
 
+        std::string str() const override;
+
         void accept(SemaVisitor& Visitor) override;
     };
 
@@ -161,6 +171,8 @@ namespace fly {
 
         const SemaFloatTypeKind getFloatKind() const;
 
+        std::string str() const override;
+
         void accept(SemaVisitor& Visitor) override;
     };
 
@@ -171,6 +183,8 @@ namespace fly {
         explicit SemaComplexType() : SemaType(SemaKind::TYPE_COMPLEX, "complex") {}
 
         ~SemaComplexType() override = default;
+
+        std::string str() const override;
 
         void accept(SemaVisitor& Visitor) override;
     };
@@ -199,6 +213,8 @@ namespace fly {
 
     	uint64_t getSize() const;
 
+        std::string str() const override;
+
         void accept(SemaVisitor& Visitor) override;
 
     };
@@ -209,6 +225,8 @@ namespace fly {
 		explicit SemaErrorType() : SemaType(SemaKind::TYPE_ERROR, "error") {}
 
 		~SemaErrorType() override = default;
+
+		std::string str() const override;
 
 		void accept(SemaVisitor& Visitor) override;
 
@@ -221,6 +239,8 @@ namespace fly {
 
 		~SemaStringType() override = default;
 
+		std::string str() const override;
+
 		void accept(SemaVisitor& Visitor) override;
 	};
 
@@ -230,6 +250,31 @@ namespace fly {
 		explicit SemaVoidType() : SemaType(SemaKind::TYPE_VOID, "void") {}
 
 		~SemaVoidType() override = default;
+
+		std::string str() const override;
+
+		void accept(SemaVisitor& Visitor) override;
+	};
+
+	// SemaTypeParam represents a type variable (T, U) in a generic class/method.
+	// It carries an optional upper bound (T extends Foo → Bound = SemaClassType*Foo).
+	// Instances exist only as template metadata; they are substituted away during
+	// monomorphization and never reach CodeGen.
+	class SemaTypeParam : public SemaType {
+
+		SemaType *Bound = nullptr;   // null = unconstrained
+
+	public:
+		explicit SemaTypeParam(llvm::StringRef Name, SemaType *Bound = nullptr)
+		    : SemaType(SemaKind::TYPE_PARAM, Name.str()), Bound(Bound) {}
+
+		~SemaTypeParam() override = default;
+
+		SemaType *getBound() const { return Bound; }
+
+		bool isClass() const { return false; }
+
+		std::string str() const override;
 
 		void accept(SemaVisitor& Visitor) override;
 	};

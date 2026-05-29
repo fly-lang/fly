@@ -29,7 +29,7 @@ namespace {
     using namespace fly;
 
     TEST_F(ParserTest, FunctionVisibilityDefault) {
-        llvm::StringRef str = ("func() {}\n");
+        llvm::StringRef str = ("void func() {}\n");
         ASTModule *Module = Parse("FunctionVisibilityDefault", str);
 
         EXPECT_TRUE(Module->getNodes().size() == 1);
@@ -38,7 +38,7 @@ namespace {
      }
 
      TEST_F(ParserTest, FunctionVisibilityPrivate) {
-        llvm::StringRef str = ("private func() {}\n");
+        llvm::StringRef str = ("private void func() {}\n");
         ASTModule *Module = Parse("FunctionVisibilityPrivate", str);
 
 
@@ -49,7 +49,7 @@ namespace {
      }
 
      TEST_F(ParserTest, FunctionVisibilityPublic) {
-        llvm::StringRef str = ("public func() {}\n");
+        llvm::StringRef str = ("public void func() {}\n");
         ASTModule *Module = Parse("FunctionVisibilityPublic", str);
 
         EXPECT_TRUE(Module->getNodes().size() == 1);
@@ -58,7 +58,7 @@ namespace {
      }
 
     TEST_F(ParserTest, FunctionType) {
-        llvm::StringRef str = ("func(bool a, "
+        llvm::StringRef str = ("void func(bool a, "
                                "byte b, short c, ushort d, int e, uint f, long g, ulong h, "
                                "float i, double j) {}\n");
         ASTModule *Module = Parse("FunctionType", str);
@@ -122,7 +122,7 @@ namespace {
 
     TEST_F(ParserTest, FunctionPrivateFailParams) {
         llvm::StringRef str = (
-                "private func(int a, const float b, bool c=false) {\n"
+                "private void func(int a, const float b, bool c=false) {\n"
                 "  fail 1\n"
                 "}\n");
         ASTModule *Module = Parse("FunctionPrivateFailParams", str);
@@ -154,9 +154,9 @@ namespace {
      }
 
      TEST_F(ParserTest, FunctionCall) {
-        llvm::StringRef str = ("private doSome(int b) {}\n"
-                               "doNow() {}\n"
-                               "do(int a) {\n"
+        llvm::StringRef str = ("private void doSome(int b) {}\n"
+                               "void doNow() {}\n"
+                               "void do(int a) {\n"
                                "  int b\n"
                                "  doSome(b)\n"
                                "  doNow()\n"

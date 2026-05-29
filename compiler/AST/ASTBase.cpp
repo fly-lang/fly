@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTBase.cpp - AST Base implementation
+// compiler/AST/ASTBase.cpp - AST base node implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -30,7 +30,7 @@ void ASTBase::setKind(ASTKind Kind) {
 
 std::string ASTBase::str() const {
 	return Logger()
-	.Attr("Location", &Loc)
+	.Attr("Location", Loc)
 	.Attr("Kind", static_cast<size_t>(Kind))
 	.End();
 }

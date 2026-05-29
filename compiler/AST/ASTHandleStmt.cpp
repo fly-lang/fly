@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTHandleStmt.cpp - AST Handle Statement implementation
+// compiler/AST/ASTHandleStmt.cpp - AST handle statement implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTHandleStmt.h"
+#include "AST/ASTBlockStmt.h"
 #include "AST/ASTIdentifier.h"
 #include "Basic/Logger.h"
 
@@ -31,8 +32,9 @@ ASTBlockStmt* ASTHandleStmt::getHandle() const {
 
 
 std::string ASTHandleStmt::str() const {
-    return Logger("ASTHandleBlock").
-	Attr("Location", getLocation()).
-Attr("Kind", static_cast<size_t>(getKind())).
-            End();
+    return Logger("ASTHandleStmt")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("Handle", Handle)
+        .End();
 }

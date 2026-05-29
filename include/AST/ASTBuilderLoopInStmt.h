@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTBuilderLoopStmt.h - Sema Builder If Stmt
+// include/AST/ASTBuilderLoopInStmt.h - AST builder for loop-in statements
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

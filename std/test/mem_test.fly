@@ -1,0 +1,112 @@
+import fly.mem
+import fly.assert
+
+void main() {
+    long p = 0
+    long p2 = 0
+    byte b = 0
+    short s = 0
+    int i = 0
+    long l = 0
+
+    // ── alloc / free ──────────────────────────────────────────────────────────
+    p = mem.alloc(32)
+    assert.assertFalse(mem.isNull(p), 1)
+    mem.free(p, 32)
+
+    // ── isNull ────────────────────────────────────────────────────────────────
+    assert.assertTrue(mem.isNull(0), 2)
+    p = mem.alloc(8)
+    assert.assertFalse(mem.isNull(p), 3)
+    mem.free(p, 8)
+
+    // ── writeByte / readByte round-trip ───────────────────────────────────────
+    p = mem.alloc(4)
+    mem.writeByte(p, 0, 10)
+    mem.writeByte(p, 1, 20)
+    mem.writeByte(p, 2, 30)
+    mem.writeByte(p, 3, 40)
+    b = mem.readByte(p, 0)
+    assert.assertEqI(b, 10, 10)
+    b = mem.readByte(p, 1)
+    assert.assertEqI(b, 20, 11)
+    b = mem.readByte(p, 2)
+    assert.assertEqI(b, 30, 12)
+    b = mem.readByte(p, 3)
+    assert.assertEqI(b, 40, 13)
+    mem.free(p, 4)
+
+    // ── writeShort / readShort round-trip ─────────────────────────────────────
+    p = mem.alloc(4)
+    mem.writeShort(p, 0, 1000)
+    mem.writeShort(p, 2, 2000)
+    s = mem.readShort(p, 0)
+    assert.assertEqI(s, 1000, 20)
+    s = mem.readShort(p, 2)
+    assert.assertEqI(s, 2000, 21)
+    mem.free(p, 4)
+
+    // ── writeInt / readInt round-trip ─────────────────────────────────────────
+    p = mem.alloc(8)
+    mem.writeInt(p, 0, 100000)
+    mem.writeInt(p, 4, 200000)
+    i = mem.readInt(p, 0)
+    assert.assertEqI(i, 100000, 30)
+    i = mem.readInt(p, 4)
+    assert.assertEqI(i, 200000, 31)
+    mem.free(p, 8)
+
+    // ── writeLong / readLong round-trip ───────────────────────────────────────
+    p = mem.alloc(16)
+    mem.writeLong(p, 0, 1234567890)
+    mem.writeLong(p, 8, 9876543210)
+    l = mem.readLong(p, 0)
+    assert.assertEqL(l, 1234567890, 40)
+    l = mem.readLong(p, 8)
+    assert.assertEqL(l, 9876543210, 41)
+    mem.free(p, 16)
+
+    // ── realloc — grow, data preserved ────────────────────────────────────────
+    p = mem.alloc(8)
+    mem.writeByte(p, 0, 11)
+    mem.writeByte(p, 1, 22)
+    mem.writeByte(p, 2, 33)
+    mem.writeByte(p, 3, 44)
+    p = mem.realloc(p, 64)
+    assert.assertFalse(mem.isNull(p), 50)
+    b = mem.readByte(p, 0)
+    assert.assertEqI(b, 11, 51)
+    b = mem.readByte(p, 1)
+    assert.assertEqI(b, 22, 52)
+    b = mem.readByte(p, 2)
+    assert.assertEqI(b, 33, 53)
+    b = mem.readByte(p, 3)
+    assert.assertEqI(b, 44, 54)
+    // realloc — shrink, first byte still accessible
+    p = mem.realloc(p, 4)
+    assert.assertFalse(mem.isNull(p), 55)
+    b = mem.readByte(p, 0)
+    assert.assertEqI(b, 11, 56)
+    mem.free(p, 4)
+
+    // ── copy + compare (equal) ────────────────────────────────────────────────
+    p  = mem.alloc(8)
+    p2 = mem.alloc(8)
+    mem.writeLong(p, 0, 12345678)
+    mem.copy(p2, p, 8)
+    i = mem.compare(p, p2, 8)
+    assert.assertEqI(i, 0, 60)
+
+    // ── compare — differ by one byte ─────────────────────────────────────────
+    mem.writeByte(p2, 7, 1)
+    i = mem.compare(p, p2, 8)
+    if i == 0 { assert.errExit(61) }
+
+    // ── zero + compare ────────────────────────────────────────────────────────
+    mem.zero(p, 8)
+    mem.zero(p2, 8)
+    i = mem.compare(p, p2, 8)
+    assert.assertEqI(i, 0, 62)
+    mem.free(p, 8)
+    mem.free(p2, 8)
+}

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Parser/LiteralSupport.h - Support for literal UCN expansion
+// include/Parser/LiteralSupport.h - literal token parsing
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

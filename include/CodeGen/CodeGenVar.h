@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CodeGenVar.h - Code Generator of Statements
+// include/CodeGen/CodeGenVar.h - variable code generation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -42,7 +42,7 @@ namespace fly {
 
         llvm::LoadInst *LoadI = nullptr;
 
-        llvm::StringRef BlockID;
+        llvm::BasicBlock *LoadBlock = nullptr;
 
         // Flag to indicate if this variable is read-only (const parameter)
         bool ReadOnly = false;

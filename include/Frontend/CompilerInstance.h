@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Compiler/CompilerInvocation.h - Chain Diagnostic Clients
+// include/Frontend/CompilerInstance.h - compiler instance
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

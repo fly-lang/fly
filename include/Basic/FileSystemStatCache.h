@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Basic/FileSystemStatCache.h - Caching for 'stat' calls
+// include/Basic/FileSystemStatCache.h - stat call caching
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.

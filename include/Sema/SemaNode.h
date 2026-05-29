@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaNode.h - Sema Node header
+// include/Sema/SemaNode.h - AST node semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -12,6 +12,8 @@
 #define FLY_SEMA_NODE_H
 
 #include "Sema/SemaVisitor.h"
+
+#include <string>
 
 namespace fly {
 
@@ -31,6 +33,7 @@ namespace fly {
 		TYPE_ARRAY,
 		TYPE_CLASS,
 		TYPE_ENUM,
+		TYPE_PARAM,
 
 		// Variables
 		PARAM_VAR,
@@ -85,6 +88,8 @@ namespace fly {
 		virtual ~SemaNode() = default;
 
 		SemaKind getKind() const;
+
+		virtual std::string str() const;
 
 		virtual void accept(SemaVisitor& Visitor) = 0;
 	};

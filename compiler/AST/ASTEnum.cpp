@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTEnum.cpp - AST Enum implementation
+// compiler/AST/ASTEnum.cpp - AST enum type definition implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -9,6 +9,7 @@
 
 #include "AST/ASTEnum.h"
 #include "AST/ASTModifier.h"
+#include "AST/ASTType.h"
 #include "Basic/Logger.h"
 
 #include <AST/ASTVisitor.h>
@@ -49,13 +50,12 @@ llvm::SmallVector<ASTType *, 4> ASTEnum::getBases() const {
 }
 
 std::string ASTEnum::str() const {
-
-    // Class to string
-    return Logger("ASTClass").
-	Attr("Location", getLocation()).
- Attr("Kind", static_cast<size_t>(getKind())).
-           Attr("Name", Name).
-           Attr("Modifiers", ASTNode::str(Modifiers)).
-           Attr("Definitions", ASTNode::str(Nodes)).
-           End();
+    return Logger("ASTEnum")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("Name", Name)
+        .Attr("Modifiers", Modifiers)
+        .Attr("Bases", Bases)
+        .Attr("Definitions", Nodes)
+        .End();
 }

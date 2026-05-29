@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/CodeGen/CodeGenModule.h - LLVM Module code generation
+// include/CodeGen/CodeGenModule.h - LLVM IR emission for modules
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -15,10 +15,13 @@
 #define FLY_CODEGEN_MODULE_H
 
 #include "Basic/Diagnostic.h"
+#include "Basic/SourceLocation.h"
+#include "Basic/SourceManager.h"
 #include "Basic/TargetInfo.h"
 #include "Sema/SemaVisitor.h"
 #include <Sema/SemaType.h>
 #include <llvm/ADT/DenseMap.h>
+#include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/IRBuilder.h>
 #include <string>
 
@@ -33,6 +36,9 @@ namespace llvm {
     class Constant;
     class BasicBlock;
     class Value;
+    class DIBuilder;
+    class DICompileUnit;
+    class DIFile;
 };
 
 
@@ -99,17 +105,25 @@ namespace fly {
     class SemaFailStmt;
     class SemaHandleStmt;
 
+    class CodeGenStdLibLLVM;
+    class CodeGenStdLibRuntime;
+    class CodeGenStdLibCLang;
+
     class CodeGenModule : public SemaVisitor {
 
         friend class CodeGen;
         friend class CodeGenFunction;
         friend class CodeGenFunctionBase;
+        friend class CodeGenClassMethod;
         friend class CodeGenClass;
         friend class CodeGenClassMethod;
         friend class CodeGenHandle;
     	friend class CodeGenVar;
     	friend class CodeGenError;
     	friend class CodeGenExpr;
+    	friend class CodeGenStdLibLLVM;
+    	friend class CodeGenStdLibRuntime;
+    	friend class CodeGenStdLibCLang;
 
         // Reference to CodeGen (contains all LLVM types)
         CodeGen &CG;
@@ -131,7 +145,19 @@ namespace fly {
 
     	llvm::Module *Module;
 
-        // CGDebugInfo *DebugInfo; // TODO
+        // Debug info (non-null only when CGOpts.DebugSymbols is true)
+        llvm::DIBuilder     *DBuilder  = nullptr;
+        llvm::DICompileUnit *DebugCU   = nullptr;
+        llvm::DIFile        *DebugFile = nullptr;
+
+        // Source manager for line/column lookup (nullable; null in tests without SM)
+        SourceManager *SM = nullptr;
+
+        // Cache: SemaType* → DIType* (avoids duplicate DWARF type entries)
+        llvm::DenseMap<SemaType *, llvm::DIType *> DITypeCache;
+
+        // Scope stack: one DILexicalBlock per SemaBlockStmt visit
+        llvm::SmallVector<llvm::DIScope *, 4> DebugScopeStack;
 
     public:
 
@@ -163,7 +189,7 @@ namespace fly {
     	llvm::BasicBlock *CurrentSafeBB = nullptr;
 
         CodeGenModule(CodeGen &CG, DiagnosticsEngine &Diags, StringRef Name, llvm::LLVMContext &LLVMCtx,
-                      TargetInfo &Target, CodeGenOptions &CGOpts);
+                      TargetInfo &Target, CodeGenOptions &CGOpts, SourceManager *SM = nullptr);
 
         virtual ~CodeGenModule();
 
@@ -178,6 +204,12 @@ namespace fly {
         void EmitSharedRelease(llvm::Value *DataPtr);
 
         llvm::Module *getModule() const;
+
+        void FinalizeDebugInfo();
+
+        void EmitDebugLocation(const SourceLocation &Loc);
+
+        llvm::DIType *GetOrCreateDIType(SemaType *Ty);
 
     	TargetInfo &getTarget();
 

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTFunctionBase.cpp - AST Function Base
+// compiler/AST/ASTFunction.cpp - AST function definition implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -9,6 +9,7 @@
 
 #include "AST/ASTFunction.h"
 #include "AST/ASTParam.h"
+#include "AST/ASTType.h"
 #include "Basic/Logger.h"
 
 #include <AST/ASTVisitor.h>
@@ -47,6 +48,14 @@ void ASTFunction::setReturnType(ASTType *RT) {
     ReturnType = RT;
 }
 
+const llvm::SmallVector<ASTType *, 4> &ASTFunction::getReturnTypes() const {
+    return ReturnTypes;
+}
+
+void ASTFunction::setReturnTypes(const llvm::SmallVector<ASTType *, 4> &RTs) {
+    ReturnTypes = RTs;
+}
+
 void ASTFunction::accept(ASTVisitor &Visitor) {
 	Visitor.visit(*this);
 }
@@ -63,14 +72,24 @@ llvm::SmallVector<ASTParam *, 8> ASTFunction::getParams() const {
     return Params;
 }
 
+const llvm::SmallVector<ASTTypeParam *, 4> &ASTFunction::getTypeParams() const {
+    return TypeParams;
+}
+
 ASTBlockStmt *ASTFunction::getBody() const {
     return Body;
 }
 
 std::string ASTFunction::str() const {
-    return Logger("ASTFunctionBase").
-	Attr("Location", getLocation()).
-	Attr("Kind", static_cast<size_t>(getKind())).
-           Attr("Params", ASTBase::str(Params)).
-           End();
+    return Logger("ASTFunction")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("FunctionKind", static_cast<size_t>(FunctionKind))
+        .Attr("Name", Name)
+        .Attr("TypeParams", TypeParams)
+        .Attr("Modifiers", Modifiers)
+        .Attr("Params", Params)
+        .Attr("ReturnType", ReturnType)
+        .Attr("Body", Body)
+        .End();
 }

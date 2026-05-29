@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/Sema/SemaSmartAlloc.cpp - Smart pointer allocation tracker
+// compiler/Sema/SemaSmartAlloc.cpp - smart pointer allocation tracking
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -9,6 +9,7 @@
 
 #include "Sema/SemaSmartAlloc.h"
 #include "Sema/SemaCall.h"
+#include "Basic/Logger.h"
 #include "AST/ASTCall.h"
 
 using namespace fly;
@@ -42,4 +43,11 @@ uint64_t SemaSmartAlloc::incrReferenceCounter() {
 
 uint64_t SemaSmartAlloc::decrReferenceCounter() {
     return --ReferenceCounter;
+}
+
+std::string SemaSmartAlloc::str() const {
+	return Logger("SemaSmartAlloc")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("ReferenceCounter", getReferenceCounter())
+		.End();
 }

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/AST/ASTCall.h - AST Call header
+// include/AST/ASTCall.h - AST function call expression header
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -17,6 +17,7 @@
 namespace fly {
 
     class ASTArg;
+    class ASTType;
 	struct Symbol;
 
     enum class ASTCallKind {
@@ -30,6 +31,7 @@ namespace fly {
     class ASTCall : public ASTExpr {
 
         friend class ASTBuilder;
+        friend class ParserExpr;
 
     	Symbol *ResolvedSymbol = nullptr;
 
@@ -38,6 +40,9 @@ namespace fly {
         llvm::StringRef Name;
 
         llvm::SmallVector<ASTArg *, 8> Args;
+
+        // Explicit type arguments for generic instantiation: new List<int>()
+        llvm::SmallVector<ASTType *, 4> TypeArgs;
 
         ASTCall(const SourceLocation &Loc, llvm::StringRef Name, ASTCallKind CallKind);
 
@@ -48,6 +53,8 @@ namespace fly {
         llvm::StringRef getName() const;
 
         llvm::SmallVector<ASTArg *, 8> getArgs() const;
+
+        const llvm::SmallVector<ASTType *, 4> &getTypeArgs() const;
 
         Symbol *getSymbol() const;
 

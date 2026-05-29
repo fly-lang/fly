@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/SemaFunction.h - Symbolic Table of Function
+// include/Sema/SemaFunctionBase.h - function base semantic analysis
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -93,6 +93,8 @@ namespace fly {
         void setBody(SemaBlockStmt *Body);
 
         virtual CodeGenFunctionBase *getCodeGen() const = 0;
+
+        std::string str() const override;
 
     };
 

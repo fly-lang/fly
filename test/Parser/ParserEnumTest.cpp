@@ -36,7 +36,7 @@ namespace {
         ASTModule *Module = Parse("TestEnum", str);
 
         llvm::StringRef str2 = (
-                "main() {\n"
+                "void main() {\n"
                 "  Test a = Test.A\n"
                 "  a = Test.B\n"
                 "  Test c = a\n"
@@ -169,7 +169,7 @@ namespace {
         ASTModule *Module = Parse("StatusEnum", str);
 
         llvm::StringRef str2 = (
-                "main() {\n"
+                "void main() {\n"
                 "  Status s = unset\n"
                 "  Status t\n"
                 "}\n");
@@ -227,7 +227,7 @@ namespace {
         ASTModule *Module = Parse("ColorEnum", str);
 
         llvm::StringRef str2 = (
-                "main() {\n"
+                "void main() {\n"
                 "  Color[] list = Color.list\n"
                 "}\n");
         ASTModule *Module2 = Parse("func", str2);

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTCastExpr.cpp - AST Cast Expression implementation
+// compiler/AST/ASTMember.cpp - AST member access expression implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTMember.h"
+#include "Basic/Logger.h"
 #include "Sema/Symbol.h"
 #include <AST/ASTVisitor.h>
 
@@ -27,4 +28,12 @@ Symbol *ASTMember::getSymbol() const { return ResolvedSymbol; }
 
 void ASTMember::setSymbol(Symbol *Sym) { ResolvedSymbol = Sym; }
 
-std::string ASTMember::str() const { return ASTExpr::str(); }
+std::string ASTMember::str() const {
+    return Logger("ASTMember")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("Name", Name)
+        .Attr("Symbol", ResolvedSymbol ? ResolvedSymbol->getName() : std::string("null"))
+        .Attr("Parent", getParent())
+        .End();
+}

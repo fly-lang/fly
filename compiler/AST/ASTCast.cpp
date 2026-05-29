@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/AST/ASTCastExpr.cpp - AST Cast Expression implementation
+// compiler/AST/ASTCast.cpp - AST type cast expression implementation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTCast.h"
+#include "Basic/Logger.h"
 
 #include <AST/ASTType.h>
 #include <AST/ASTVisitor.h>
@@ -31,5 +32,10 @@ ASTType * ASTCast::getToType() const {
 }
 
 std::string ASTCast::str() const {
-	return ASTExpr::str();
+    return Logger("ASTCast")
+        .Attr("Location", getLocation())
+        .Attr("Kind", static_cast<size_t>(getKind()))
+        .Attr("Expr", Expr)
+        .Attr("ToType", ToType)
+        .End();
 }

@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// include/Sema/Registry.h - Module Manager
+// include/Sema/Registry.h - namespace registry
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -89,7 +89,7 @@ namespace fly {
 		                                                    SmallVector<SemaType *, 8> &Types,
 		                                                    SymbolTable *Scope);
 
-		llvm::SmallVector<SemaFunctionBase *, 4> getBodies() const;
+		const llvm::SmallVector<SemaFunctionBase *, 4> &getBodies() const;
 
 		void addBody(SemaFunctionBase *FunctionBase);
 

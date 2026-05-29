@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// src/CodeGen/CodeGenClassMethod.cpp - Code Generator Class
+// compiler/CodeGen/CodeGenClassMethod.cpp - class method code generation
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -21,6 +21,7 @@
 #include "CodeGen/CodeGenVar.h"
 #include "Sema/SemaClassAttribute.h"
 #include "Sema/SemaClassMethod.h"
+#include "Sema/SemaParam.h"
 #include "Sema/SemaClassType.h"
 #include "Sema/SemaModule.h"
 #include "AST/ASTModule.h"
@@ -46,6 +47,12 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
 		if (!RetType) {
 			CGM->Diag(diag::err_codegen_invalid_type);
 			RetType = CodeGen::VoidTy;
+		}
+		// Methods using the out-param convention have LLVM return type void.
+		if (RetType != CodeGen::VoidTy) {
+			auto &Params = Sema->getParams();
+			if (!Params.empty() && Params.back()->getName() == "out")
+				RetType = CodeGen::VoidTy;
 		}
 	}
 
@@ -105,6 +112,7 @@ void CodeGenClassMethod::GenBody() {
 	}
 
     setInsertPoint();
+    GenDebugSubprogram();
 
 	// Alloca Error Handler
     if (Class->getAST().getClassKind() != ASTClassKind::STRUCT) {
@@ -208,6 +216,14 @@ void CodeGenClassMethod::GenBody() {
     		// }
     	}
     }
+
+	// Set the current error handler so that calls to regular functions from within
+	// this method pass THIS method's error handler, not a stale one from a previously
+	// generated function. (CodeGenFunction::GenBody does this too; class methods need
+	// the same update or CurrentErrorHandler retains the last free function's alloca.)
+	if (Class->getAST().getClassKind() != ASTClassKind::STRUCT) {
+		CGM->CurrentErrorHandler = Sema->getErrorHandler()->getCodeGen();
+	}
 
 	if (Sema->getBody()) {
 		Sema->getBody()->accept(*CGM);
