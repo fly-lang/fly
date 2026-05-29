@@ -69,6 +69,7 @@
 #include "llvm/Support/Signals.h"
 
 #include <functional>
+#include <map>
 
 #include <AST/ASTCast.h>
 #include <AST/ASTDeclStmt.h>
@@ -1748,12 +1749,14 @@ void Resolver::visit(ASTCall &AST) {
 
 			if (GenericFn) {
 				// Infer TypeArgs from call argument types by matching param types to TypeParams
-				llvm::StringMap<SemaType *> Substitution;
+				// Use std::string keys (not StringRef) since getName() returns by value — a
+				// StringRef would dangle after the temporary std::string is destroyed.
+				std::map<std::string, SemaType *> Substitution;
 				auto &TmplParams = GenericFn->getParams();
 				for (size_t i = 0; i < TmplParams.size() && i < ArgTypes.size(); ++i) {
 					SemaType *PType = TmplParams[i]->getType();
 					if (PType && PType->getKind() == SemaKind::TYPE_PARAM) {
-						llvm::StringRef TPName = PType->getName();
+						std::string TPName = PType->getName();
 						if (!Substitution.count(TPName))
 							Substitution[TPName] = ArgTypes[i];
 					}
@@ -1761,7 +1764,7 @@ void Resolver::visit(ASTCall &AST) {
 				// Build TypeArgs in declaration order
 				llvm::SmallVector<SemaType *, 4> InferredTypeArgs;
 				for (auto *TP : GenericFn->getTypeParams()) {
-					auto It = Substitution.find(TP->getName());
+					auto It = Substitution.find(std::string(TP->getName()));
 					if (It == Substitution.end()) {
 						Diag(AST.getLocation(), diag::err_sema_generic_not_instantiable) << AST.getName();
 						CurrentScope = SavedScope;
