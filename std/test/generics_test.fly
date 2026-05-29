@@ -1,0 +1,31 @@
+namespace fly.test.generics
+
+import fly.assert
+import fly.data.Wrapper
+
+T identity<T>(T v) {
+    out = v
+}
+
+void main() {
+    Wrapper<int> wi = new Wrapper<int>(42)
+    fly.assert.assertTrue(wi.get() == 42, 1)
+    wi.set(100)
+    fly.assert.assertTrue(wi.get() == 100, 2)
+
+    Wrapper<bool> wb = new Wrapper<bool>(true)
+    fly.assert.assertTrue(wb.get() == true, 3)
+    wb.set(false)
+    fly.assert.assertTrue(wb.get() == false, 4)
+
+    Wrapper<long> wl = new Wrapper<long>(9999)
+    fly.assert.assertTrue(wl.get() == 9999, 5)
+    wl.set(1234567890)
+    fly.assert.assertTrue(wl.get() == 1234567890, 6)
+
+    int ir = identity(42)
+    fly.assert.assertTrue(ir == 42, 7)
+
+    bool br = identity(true)
+    fly.assert.assertTrue(br == true, 8)
+}

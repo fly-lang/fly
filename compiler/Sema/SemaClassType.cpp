@@ -11,6 +11,7 @@
 
 #include "AST/ASTVar.h"
 #include "Basic/Logger.h"
+#include "Sema/SemaType.h"
 #include "Sema/SemaVisitor.h"
 #include "Sema/SymbolTable.h"
 
@@ -257,5 +258,25 @@ std::string SemaClassType::str() const {
 		.Attr("Final", isFinal())
 		.Attr("Constant", isConstant())
 		.End();
+}
+
+const llvm::SmallVector<SemaTypeParam *, 4> &SemaClassType::getTypeParams() const {
+	return TypeParams;
+}
+
+bool SemaClassType::isGeneric() const {
+	return !TypeParams.empty();
+}
+
+SemaClassType *SemaClassType::getGenericTemplate() const {
+	return GenericTemplate;
+}
+
+llvm::StringMap<SemaClassType *> &SemaClassType::getSpecializations() {
+	return Specializations;
+}
+
+const std::string &SemaClassType::getMangledName() const {
+	return MangledName;
 }
 

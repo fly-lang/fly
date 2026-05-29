@@ -52,6 +52,7 @@ namespace fly {
     class ASTHandleStmt;
     class ASTFunction;
     class ASTArrayType;
+    class ASTTypeParam;
     class ASTComment;
     class ASTImport;
     class ASTType;
@@ -172,6 +173,7 @@ namespace fly {
         void visit(ASTBuiltinType &AST) override;
         void visit(ASTNamedType &AST) override;
         void visit(ASTArrayType &AST) override;
+        void visit(ASTTypeParam &AST) override;
 
         // Visit Statements
         void visit(ASTExprStmt &AST) override;

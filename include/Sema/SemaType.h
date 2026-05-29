@@ -13,6 +13,8 @@
 #include "CodeGen/CodeGenType.h"
 #include "Sema/SemaNode.h"
 
+#include "llvm/ADT/StringRef.h"
+
 #include <cstdint>
 #include <string>
 
@@ -248,6 +250,29 @@ namespace fly {
 		explicit SemaVoidType() : SemaType(SemaKind::TYPE_VOID, "void") {}
 
 		~SemaVoidType() override = default;
+
+		std::string str() const override;
+
+		void accept(SemaVisitor& Visitor) override;
+	};
+
+	// SemaTypeParam represents a type variable (T, U) in a generic class/method.
+	// It carries an optional upper bound (T extends Foo → Bound = SemaClassType*Foo).
+	// Instances exist only as template metadata; they are substituted away during
+	// monomorphization and never reach CodeGen.
+	class SemaTypeParam : public SemaType {
+
+		SemaType *Bound = nullptr;   // null = unconstrained
+
+	public:
+		explicit SemaTypeParam(llvm::StringRef Name, SemaType *Bound = nullptr)
+		    : SemaType(SemaKind::TYPE_PARAM, Name.str()), Bound(Bound) {}
+
+		~SemaTypeParam() override = default;
+
+		SemaType *getBound() const { return Bound; }
+
+		bool isClass() const { return false; }
 
 		std::string str() const override;
 

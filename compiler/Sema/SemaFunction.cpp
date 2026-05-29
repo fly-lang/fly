@@ -49,6 +49,12 @@ const llvm::SmallVector<SemaLocalVar *, 4> &SemaFunction::getLocalVars() const {
 	return LocalVars;
 }
 
+llvm::StringRef SemaFunction::getName() const {
+	if (!MangledName.empty())
+		return MangledName;
+	return SemaFunctionBase::getName();
+}
+
 CodeGenFunction *SemaFunction::getCodeGen() const {
 	return CodeGen;
 }

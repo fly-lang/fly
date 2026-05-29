@@ -19,6 +19,7 @@ namespace fly {
     class CodeGenClass;
     class ASTBlockStmt;
     class ASTType;
+    class ASTTypeParam;
 
     enum class ASTClassKind {
         CLASS,
@@ -29,6 +30,7 @@ namespace fly {
     class ASTClass : public ASTNode {
 
         friend class ASTBuilder;
+        friend class ParserClass;
 
         llvm::SmallVector<ASTNode *, 8> Nodes;
 
@@ -39,6 +41,9 @@ namespace fly {
         ASTClassKind ClassKind;
 
         llvm::SmallVector<ASTType *, 4> Bases;
+
+        // Type parameters for generic classes: class Foo<T, U extends Bar>
+        llvm::SmallVector<ASTTypeParam *, 4> TypeParams;
 
         ASTClass(ASTClassKind ClassKind, llvm::SmallVector<ASTModifier *, 8> &Modifiers,
                  const SourceLocation &Loc, llvm::StringRef Name, llvm::SmallVector<ASTType *, 4> &Bases);
@@ -54,6 +59,8 @@ namespace fly {
         ASTClassKind getClassKind() const;
 
         const llvm::SmallVector<ASTType *, 4> &getBases() const;
+
+        const llvm::SmallVector<ASTTypeParam *, 4> &getTypeParams() const;
 
         llvm::SmallVector<ASTModifier *, 8> getModifiers() const;
 

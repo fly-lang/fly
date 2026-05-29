@@ -46,6 +46,7 @@ namespace fly {
     class ASTVar;
     class ASTArrayType;
     class ASTType;
+    class ASTTypeParam;
 
     /// ParseModule the main file known to the preprocessor, producing an
     /// abstract syntax tree.
@@ -173,6 +174,12 @@ private:
 
     /// Parse a type reference.
     ASTType *ParseType();
+
+    /// Parse generic type arguments: <int, string>
+    llvm::SmallVector<ASTType *, 4> ParseTypeArguments();
+
+    /// Parse generic type parameter declarations: <T, U extends Foo>
+    llvm::SmallVector<ASTTypeParam *, 4> ParseTypeParams();
 
     /// Parse an expression.
     ASTExpr *ParseExpr(ASTExpr *Left = nullptr);

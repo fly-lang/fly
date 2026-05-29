@@ -72,6 +72,10 @@ llvm::SmallVector<ASTParam *, 8> ASTFunction::getParams() const {
     return Params;
 }
 
+const llvm::SmallVector<ASTTypeParam *, 4> &ASTFunction::getTypeParams() const {
+    return TypeParams;
+}
+
 ASTBlockStmt *ASTFunction::getBody() const {
     return Body;
 }
@@ -82,6 +86,7 @@ std::string ASTFunction::str() const {
         .Attr("Kind", static_cast<size_t>(getKind()))
         .Attr("FunctionKind", static_cast<size_t>(FunctionKind))
         .Attr("Name", Name)
+        .Attr("TypeParams", TypeParams)
         .Attr("Modifiers", Modifiers)
         .Attr("Params", Params)
         .Attr("ReturnType", ReturnType)

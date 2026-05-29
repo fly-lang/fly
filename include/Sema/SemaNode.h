@@ -33,6 +33,7 @@ namespace fly {
 		TYPE_ARRAY,
 		TYPE_CLASS,
 		TYPE_ENUM,
+		TYPE_PARAM,
 
 		// Variables
 		PARAM_VAR,

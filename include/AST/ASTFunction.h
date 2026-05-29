@@ -19,6 +19,7 @@ namespace fly {
     class ASTComment;
     class ASTBlockStmt;
     class ASTType;
+    class ASTTypeParam;
 
     enum class ASTFunctionKind {
         F_FUNCTION,
@@ -28,6 +29,8 @@ namespace fly {
     class ASTFunction : public ASTNode {
 
         friend class ASTBuilder;
+        friend class ParserClass;
+        friend class Parser;
 
         ASTFunctionKind FunctionKind;
 
@@ -45,6 +48,9 @@ namespace fly {
 
         // Body is the main BlockStmt
         ASTBlockStmt *Body = nullptr;
+
+        // Type parameters for generic functions/methods: void foo<T>(T v)
+        llvm::SmallVector<ASTTypeParam *, 4> TypeParams;
 
     protected:
 
@@ -64,6 +70,8 @@ namespace fly {
         llvm::SmallVector<ASTModifier *, 8> getModifiers() const;
 
         llvm::SmallVector<ASTParam *, 8> getParams() const;
+
+        const llvm::SmallVector<ASTTypeParam *, 4> &getTypeParams() const;
 
         ASTType *getReturnType() const;
 

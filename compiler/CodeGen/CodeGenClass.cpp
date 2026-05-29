@@ -80,7 +80,10 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExter
 
 std::string CodeGenClass::toIdentifier(SemaClassType *ClassType) {
 	FLY_DEBUG_SCOPE("CodeGenClass", "toIdentifier");
-	llvm::StringRef Name = ClassType->getAST().getName();
+	// Use mangled name for generic specializations (e.g. "List_I" for List<int>).
+	llvm::StringRef Name = ClassType->getMangledName().empty()
+	    ? ClassType->getAST().getName()
+	    : llvm::StringRef(ClassType->getMangledName());
 	SemaNameSpace *NameSpace = ClassType->getModule().getNameSpace();
 	return CGM->toIdentifier(Name, NameSpace);
 }

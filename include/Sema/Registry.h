@@ -89,7 +89,7 @@ namespace fly {
 		                                                    SmallVector<SemaType *, 8> &Types,
 		                                                    SymbolTable *Scope);
 
-		llvm::SmallVector<SemaFunctionBase *, 4> getBodies() const;
+		const llvm::SmallVector<SemaFunctionBase *, 4> &getBodies() const;
 
 		void addBody(SemaFunctionBase *FunctionBase);
 

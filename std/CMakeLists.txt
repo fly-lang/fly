@@ -66,6 +66,7 @@ set(FLY_LIB_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/map.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/set.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/tree.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/wrapper.fly
 )
 
 # fly --lib appends .a (Linux/macOS) or .lib (Windows-MSVC); pass the stem via -o.
@@ -211,3 +212,16 @@ add_custom_command(
 )
 add_custom_target(data_test_fly_bin ALL DEPENDS ${CMAKE_BINARY_DIR}/data_test_fly)
 add_test(NAME fly_data_fly_test COMMAND ${CMAKE_BINARY_DIR}/data_test_fly)
+
+add_custom_command(
+    OUTPUT  ${CMAKE_BINARY_DIR}/generics_test_fly
+    COMMAND $<TARGET_FILE:fly>
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/generics_test.fly
+            ${FLY_LIB_OUTPUT}
+            -o ${CMAKE_BINARY_DIR}/generics_test_fly
+    DEPENDS fly fly_std_lib FlyRuntime ${CMAKE_CURRENT_SOURCE_DIR}/test/generics_test.fly
+    COMMENT "Compiling generics_test.fly"
+    VERBATIM
+)
+add_custom_target(generics_test_fly_bin ALL DEPENDS ${CMAKE_BINARY_DIR}/generics_test_fly)
+add_test(NAME fly_generics_fly_test COMMAND ${CMAKE_BINARY_DIR}/generics_test_fly)

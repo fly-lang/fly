@@ -261,3 +261,14 @@ std::string SemaComplexType::str() const {
 		.Attr("Name", getName())
 		.End();
 }
+
+void SemaTypeParam::accept(SemaVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
+std::string SemaTypeParam::str() const {
+	return Logger("SemaTypeParam")
+		.Attr("Kind", static_cast<uint64_t>(getKind()))
+		.Attr("Name", getName())
+		.End();
+}

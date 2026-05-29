@@ -547,11 +547,22 @@ ASTFunction *Parser::ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers) {
 	StringRef Name = Tok.getIdentifierInfo()->getName();
 	ConsumeToken();
 
+	// Parse optional generic type parameters: int identity<T>(T v)
+	llvm::SmallVector<ASTTypeParam *, 4> TypeParams;
+	if (Tok.is(tok::less)) {
+		TypeParams = ParseTypeParams();
+	}
+
 	// Parse Params
 	SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(this);
 
 	// Create Function
 	ASTFunction *Function = ASTBuilder::CreateFunction(Module, Loc, Name, Modifiers, Params, nullptr);
+
+	// Attach TypeParams if any
+	if (!TypeParams.empty()) {
+		Function->TypeParams = TypeParams;
+	}
 
 	// Set return type(s) on the function node
 	if (ReturnTypes.size() == 1) {
@@ -851,6 +862,36 @@ bool Parser::isType(std::optional<Token> &NexTok) {
 
             break;
         }
+    }
+
+    // --- Parse optional generic type arguments: Foo<T, U> ---
+    // Scan forward tracking '<'/'>' balance.  Only identifiers, keywords, commas,
+    // dots, and nested angle brackets are valid inside type args.  Anything else
+    // (e.g. '(' or an arithmetic operator) means this '<' is a comparison, not a
+    // type argument list, and we return false.
+    if (NexTok && NexTok->is(tok::less)) {
+        std::optional<Token> Probe = Lexer::findNextToken(NexTok->getLocation(), SourceMgr);
+        int Depth = 1;
+        bool Valid = true;
+        while (Probe && Depth > 0) {
+            if (Probe->is(tok::less)) {
+                ++Depth;
+            } else if (Probe->is(tok::greater)) {
+                if (--Depth == 0) break;
+            } else if (!Probe->isAnyIdentifier() && !Probe->isKeyword() &&
+                       !Probe->is(tok::comma) && !Probe->is(tok::period)) {
+                Valid = false;
+                break;
+            }
+            if (Depth > 0)
+                Probe = Lexer::findNextToken(Probe->getLocation(), SourceMgr);
+        }
+        if (Valid && Depth == 0) {
+            // Looks like type args: advance NexTok past the closing '>'
+            NexTok = Lexer::findNextToken(Probe->getLocation(), SourceMgr);
+        }
+        // If not valid type args, leave NexTok pointing at '<' so the operator
+        // check below correctly returns false.
     }
 
     // --- Parse [] suffixes ---
@@ -1433,6 +1474,11 @@ ASTType *Parser::ParseType() {
 	else if (Tok.isAnyIdentifier()) {
 		llvm::SmallVector<ASTName *, 4> Names = ParseNames();
 		T = ASTBuilder::CreateType(Tok.getLocation(), Names);
+		// Parse optional generic type arguments: Foo<int, string>
+		if (Tok.is(tok::less)) {
+			ASTNamedType *NT = static_cast<ASTNamedType *>(T);
+			NT->TypeArgs = ParseTypeArguments();
+		}
 	}
 
 	// Parse Array Type
@@ -1456,6 +1502,58 @@ ASTType *Parser::ParseType() {
 	}
 
     return T;
+}
+
+llvm::SmallVector<ASTType *, 4> Parser::ParseTypeArguments() {
+    FLY_DEBUG_SCOPE("Parser", "ParseTypeArguments");
+    llvm::SmallVector<ASTType *, 4> Args;
+    ConsumeToken(); // consume '<'
+    while (true) {
+        ASTType *Arg = ParseType();
+        if (!Arg) break;
+        Args.push_back(Arg);
+        if (Tok.is(tok::comma)) {
+            ConsumeToken(); // consume ','
+        } else {
+            break;
+        }
+    }
+    if (Tok.is(tok::greater)) {
+        ConsumeToken(); // consume '>'
+    } else {
+        Diag(Tok, diag::err_parser_expected_greater);
+    }
+    return Args;
+}
+
+llvm::SmallVector<ASTTypeParam *, 4> Parser::ParseTypeParams() {
+    FLY_DEBUG_SCOPE("Parser", "ParseTypeParams");
+    llvm::SmallVector<ASTTypeParam *, 4> Params;
+    ConsumeToken(); // consume '<'
+    while (Tok.isAnyIdentifier()) {
+        const SourceLocation &Loc = Tok.getLocation();
+        llvm::StringRef ParamName = Tok.getIdentifierInfo()->getName();
+        ConsumeToken(); // consume type param name
+        ASTType *Bound = nullptr;
+        // Parse optional ': BoundType'
+        if (Tok.is(tok::colon)) {
+            ConsumeToken(); // consume ':'
+            Bound = ParseType();
+        }
+        ASTTypeParam *TP = new ASTTypeParam(Loc, ParamName, Bound);
+        Params.push_back(TP);
+        if (Tok.is(tok::comma)) {
+            ConsumeToken(); // consume ','
+        } else {
+            break;
+        }
+    }
+    if (Tok.is(tok::greater)) {
+        ConsumeToken(); // consume '>'
+    } else {
+        Diag(Tok, diag::err_parser_expected_greater);
+    }
+    return Params;
 }
 
 ASTExpr *Parser::ParseExpr(ASTExpr *Left) {

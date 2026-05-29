@@ -104,7 +104,7 @@ SemaNameSpace * Registry::getDefaultNameSpace() {
 	return DefaultNameSpace;
 }
 
-llvm::SmallVector<SemaFunctionBase *, 4> Registry::getBodies() const {
+const llvm::SmallVector<SemaFunctionBase *, 4> &Registry::getBodies() const {
 	return Bodies;
 }
 
@@ -170,14 +170,12 @@ Symbol *Registry::LookupImport(const llvm::SmallVector<ASTName *, 4> &Names) {
 
 		if (!Symbols) {
 			// Error: Symbol not found
-			llvm::errs() << "[DEBUG] LookupImport: symbol not found: '" << Name << "' at index " << i << "\n";
 			Diag(diag::err_invalid_behavior);
 			return nullptr;
 		}
 
 		if (Symbols->size() > 1) {
 			// Error: Symbol Name conflict
-			llvm::errs() << "[DEBUG] LookupImport: symbol conflict (size=" << Symbols->size() << "): '" << Name << "' at index " << i << "\n";
 			Diag(diag::err_invalid_behavior);
 			return nullptr;
 		}

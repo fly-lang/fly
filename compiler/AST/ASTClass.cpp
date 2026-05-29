@@ -54,12 +54,17 @@ const llvm::SmallVector<ASTType *, 4> &ASTClass::getBases() const {
 	return Bases;
 }
 
+const llvm::SmallVector<ASTTypeParam *, 4> &ASTClass::getTypeParams() const {
+	return TypeParams;
+}
+
 std::string ASTClass::str() const {
     return Logger("ASTClass")
         .Attr("Location", getLocation())
         .Attr("Kind", static_cast<size_t>(getKind()))
         .Attr("ClassKind", static_cast<size_t>(ClassKind))
         .Attr("Name", Name)
+        .Attr("TypeParams", TypeParams)
         .Attr("Modifiers", Modifiers)
         .Attr("Bases", Bases)
         .Attr("Definitions", Nodes)

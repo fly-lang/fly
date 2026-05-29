@@ -9,6 +9,7 @@
 
 #include "AST/ASTCall.h"
 #include "AST/ASTArg.h"
+#include "AST/ASTType.h"
 #include "Sema/Symbol.h"
 #include "Basic/Logger.h"
 #include <AST/ASTVisitor.h>
@@ -25,6 +26,8 @@ llvm::StringRef ASTCall::getName() const { return Name; }
 
 llvm::SmallVector<ASTArg *, 8> ASTCall::getArgs() const { return Args; }
 
+const llvm::SmallVector<ASTType *, 4> &ASTCall::getTypeArgs() const { return TypeArgs; }
+
 ASTCallKind ASTCall::getCallKind() const { return CallKind; }
 
 Symbol *ASTCall::getSymbol() const { return ResolvedSymbol; }
@@ -37,6 +40,7 @@ std::string ASTCall::str() const {
         .Attr("Kind", static_cast<size_t>(getKind()))
         .Attr("CallKind", static_cast<uint64_t>(CallKind))
         .Attr("Name", Name)
+        .Attr("TypeArgs", TypeArgs)
         .Attr("Symbol", ResolvedSymbol ? ResolvedSymbol->getName() : std::string("null"))
         .Attr("Args", Args)
         .End();

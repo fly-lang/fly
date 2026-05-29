@@ -35,6 +35,7 @@ namespace fly {
 	class ASTBuiltinType;
 	class ASTNamedType;
 	class ASTArrayType;
+	class ASTTypeParam;
 	class ASTBreakStmt;
 	class ASTContinueStmt;
 	class ASTDeleteStmt;
@@ -77,6 +78,7 @@ namespace fly {
 		virtual void visit(ASTBuiltinType &AST) = 0;
 		virtual void visit(ASTNamedType &AST) = 0;
 		virtual void visit(ASTArrayType &AST) = 0;
+		virtual void visit(ASTTypeParam &AST) = 0;
 
 		// Statements
 		virtual void visit(ASTBreakStmt &AST) = 0;

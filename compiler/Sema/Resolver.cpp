@@ -195,6 +195,18 @@ void Resolver::visit(ASTFunction &AST) {
 		}
 	}
 
+	// Register generic type parameters (T, U) as CLASS symbols in the function's scope
+	// so that param types like "T v" resolve to SemaTypeParam("T") during ResolveFunction.
+	if (!AST.getTypeParams().empty()) {
+		SemaFunction *SF = static_cast<SemaFunction *>(CurrentFunction);
+		for (auto *TP : AST.getTypeParams()) {
+			SemaTypeParam *SP = new SemaTypeParam(TP->getName());
+			SF->TypeParams.push_back(SP);
+			Symbol *ParamSym = new Symbol(std::string(TP->getName()), SymbolKind::CLASS, SP);
+			CurrentScope->insert(ParamSym);
+		}
+	}
+
 	// Add to Symbol Table of Parent Scope (Module or Class)
 	Symbol *Sym = new Symbol(AST.getName(), SymbolKind::FUNCTION, CurrentFunction);
 
@@ -255,6 +267,15 @@ void Resolver::visit(ASTClass &AST) {
 
 		// Create Sema Class
 		CurrentClass = SemaBuilder::CreateClass(*CurrentModule, CurrentScope, AST);
+
+		// Register generic type parameters (e.g. T in List<T>) as CLASS symbols
+		// in the class scope so that body resolution can resolve them.
+		for (auto *TP : AST.getTypeParams()) {
+			SemaTypeParam *SP = new SemaTypeParam(TP->getName());
+			CurrentClass->TypeParams.push_back(SP);
+			Symbol *ParamSym = new Symbol(std::string(TP->getName()), SymbolKind::CLASS, SP);
+			CurrentScope->insert(ParamSym);
+		}
 
 		// Create Symbol
 		Symbol *Sym = new Symbol(AST.getName(), SymbolKind::CLASS, CurrentClass);
@@ -390,13 +411,25 @@ void Resolver::visit(ASTMethod &AST) {
 	EnterScope();
 
 	// Resolve Parameters Types
+	bool IsSpecializationCtx = CurrentClass && CurrentClass->getGenericTemplate() != nullptr;
 	for (auto Param : AST.getParams()) {
 
-		// resolve parameter type
-		Param->accept(*this);
-		SemaParam *SemaP = Param->getSymbol()->getRefAs<SemaParam>();
-		Sema->addParam(SemaP);
-		addSymbol(Param->getSymbol());
+		if (IsSpecializationCtx && Param->isVisited()) {
+			// The param was already resolved in the template context (isVisited guard would skip it).
+			// Re-resolve its type in the current specialization scope so T → concrete type.
+			Param->getType()->accept(*this);
+			SemaType *ParamType = CurrentType;
+			SemaParam *SemaP = SemaBuilder::CreateParam(*Param, ParamType);
+			Symbol *Sym = new Symbol(std::string(Param->getName()), SymbolKind::PARAM, SemaP);
+			Sema->addParam(SemaP);
+			addSymbol(Sym);
+		} else {
+			// resolve parameter type
+			Param->accept(*this);
+			SemaParam *SemaP = Param->getSymbol()->getRefAs<SemaParam>();
+			Sema->addParam(SemaP);
+			addSymbol(Param->getSymbol());
+		}
 	}
 
 	// If the method declares a return type, resolve it and add a synthetic 'out' parameter.
@@ -431,8 +464,12 @@ void Resolver::visit(ASTMethod &AST) {
 	// Exit Parameters Scope
 	ExitScope();
 
-	// Add to Body list for resolve in the next step (abstract methods have no body to resolve)
-	if (!Sema->isAbstract()) {
+	// Add to Body list for resolve in the next step.
+	// Template methods (generic class with no GenericTemplate back-pointer) are never
+	// code-generated directly — each specialization will register its own body copy.
+	bool IsGenericTemplate = CurrentClass && CurrentClass->isGeneric()
+	                         && CurrentClass->getGenericTemplate() == nullptr;
+	if (!Sema->isAbstract() && !IsGenericTemplate) {
 		Reg.addBody(Sema);
 	}
 
@@ -619,6 +656,60 @@ void Resolver::visit(ASTNamedType &AST) {
 	}
 	SemaType *Sema = static_cast<SemaType *>(Sym->getRef());
 
+	// Handle generic instantiation: e.g. List<int>
+	if (!AST.getTypeArgs().empty()) {
+		if (!Sema->isClass()) {
+			Diag(AST.getLocation(), diag::err_sema_generic_not_instantiable) << Sema->getName();
+			return;
+		}
+		SemaClassType *Template = static_cast<SemaClassType *>(Sema);
+		if (!Template->isGeneric()) {
+			Diag(AST.getLocation(), diag::err_sema_generic_not_instantiable) << Template->getName();
+			return;
+		}
+
+		// Resolve each type argument
+		llvm::SmallVector<SemaType *, 4> TypeArgs;
+		for (auto *TA : AST.getTypeArgs()) {
+			TA->accept(*this);
+			if (!CurrentType) return;
+			TypeArgs.push_back(CurrentType);
+		}
+
+		// Validate count
+		if (TypeArgs.size() != Template->getTypeParams().size()) {
+			Diag(AST.getLocation(), diag::err_sema_generic_wrong_arg_count)
+				<< Template->getName()
+				<< (unsigned)Template->getTypeParams().size()
+				<< (unsigned)TypeArgs.size();
+			return;
+		}
+
+		// Get or create specialization and resolve it
+		SemaClassType *Spec = SemaBuilder::CreateSpecialization(Template, TypeArgs, CurrentScope);
+		// Register the specialization in the current module on first encounter so that
+		// CodeGen can find and emit it (specializations live in the using module, not the
+		// template's library module).
+		if (!Spec->Resolved && CurrentModule)
+			CurrentModule->addNode(Spec);
+		// Save/restore CurrentScope: ResolveClassType switches to the spec's own symbol
+		// table and does not restore it, which would corrupt the caller's scope.
+		SymbolTable *SavedScope = CurrentScope;
+		ResolveClassType(Spec);
+		CurrentScope = SavedScope;
+		CurrentType = Spec;
+		return;
+	}
+
+	// Error if using a generic class without type arguments
+	if (Sema->isClass()) {
+		SemaClassType *CT = static_cast<SemaClassType *>(Sema);
+		if (CT->isGeneric()) {
+			Diag(AST.getLocation(), diag::err_sema_generic_not_instantiable) << CT->getName();
+			return;
+		}
+	}
+
 	CurrentType = Sema;
 }
 
@@ -652,6 +743,13 @@ void Resolver::visit(ASTArrayType &AST) {
 		SemaArrayType *Sema = SemaBuiltin::CreateArrayType(ElementSemaType, SizeExpr);
 		CurrentType = Sema;
 	}
+}
+
+void Resolver::visit(ASTTypeParam &AST) {
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTTypeParam)");
+	// ASTTypeParam nodes are declaration sites (class Foo<T>), not type references.
+	// Resolution of the bound (if any) happens in SemaBuilder::CreateClass when
+	// processing ASTClass::TypeParams; the visitor hook is a no-op placeholder.
 }
 
 // Returns true if Expr produces a heap-allocated string at runtime.
@@ -1265,48 +1363,46 @@ void Resolver::visit(ASTIdentifier &AST) {
 		return;
 	}
 
-	if (!AST.isVisited()) {
-		AST.setVisited(true);
+	// No isVisited() guard here: body expression identifiers must be re-resolved for
+	// each generic specialization — the same ASTIdentifier node is shared across specs
+	// but each spec has its own scope and its own SemaParam/SemaVar objects.
+	AST.setVisited(true);
 
-		// DEBUG: trace identifier lookup
-		// llvm::errs() << "DEBUG Identifier: name=" << AST.getName();
-
-		// ---------------------------------------
-		// Try local and parent scopes (class, module, namespace, global scope)
-		// ---------------------------------------
-		SymbolTable * Scope = CurrentScope;
-		Symbol *CurrentSymbol = nullptr;
-		while (!CurrentSymbol && Scope) {
-			llvm::SmallVector<Symbol *, 8> *Symbols;
-			if ((Symbols = Scope->lookupInParents(AST.getName()))) {
-				if (Symbols) {
-					CurrentSymbol = (*Symbols)[0];
-					break;
-				}
+	// ---------------------------------------
+	// Try local and parent scopes (class, module, namespace, global scope)
+	// ---------------------------------------
+	SymbolTable * Scope = CurrentScope;
+	Symbol *CurrentSymbol = nullptr;
+	while (!CurrentSymbol && Scope) {
+		llvm::SmallVector<Symbol *, 8> *Symbols;
+		if ((Symbols = Scope->lookupInParents(AST.getName()))) {
+			if (Symbols) {
+				CurrentSymbol = (*Symbols)[0];
+				break;
 			}
-			Scope = Scope->getParent();
 		}
+		Scope = Scope->getParent();
+	}
 
-		// ---------------------------------------
-		// Not Found → Error
-		// ---------------------------------------
-		if (!CurrentSymbol) {
-			Diag(AST.getLocation(), diag::err_sema_unresolved_identifier) << AST.getName();
-			return;
-		}
+	// ---------------------------------------
+	// Not Found → Error
+	// ---------------------------------------
+	if (!CurrentSymbol) {
+		Diag(AST.getLocation(), diag::err_sema_unresolved_identifier) << AST.getName();
+		return;
+	}
 
-		// Always store the resolved Symbol on the AST
-		AST.setSymbol(CurrentSymbol);
+	// Always store the resolved Symbol on the AST
+	AST.setSymbol(CurrentSymbol);
 
-		// Sym Found as Variable - set CurrentExpr
-		if (CurrentSymbol->isVarKind()) {
-			SemaVar *Sema = static_cast<SemaVar *>(CurrentSymbol->getRef());
-			CurrentExpr = Sema;
+	// Sym Found as Variable - set CurrentExpr
+	if (CurrentSymbol->isVarKind()) {
+		SemaVar *Sema = static_cast<SemaVar *>(CurrentSymbol->getRef());
+		CurrentExpr = Sema;
 
-			// Mark local var as read (unless this is the write-only LHS of a plain '=')
-			if (!InAssignLHS && CurrentSymbol->getKind() == SymbolKind::LOCAL_VAR) {
-				UnusedLocalVars.erase(static_cast<SemaLocalVar *>(Sema));
-			}
+		// Mark local var as read (unless this is the write-only LHS of a plain '=')
+		if (!InAssignLHS && CurrentSymbol->getKind() == SymbolKind::LOCAL_VAR) {
+			UnusedLocalVars.erase(static_cast<SemaLocalVar *>(Sema));
 		}
 	}
 }
@@ -1320,108 +1416,106 @@ void Resolver::visit(ASTMember &AST) {
 		return;
 	}
 
-	// After visiting parent
-	// CurrentSymbol should be set
-	if (!AST.isVisited()) {
+	// No isVisited() guard here: body expression member accesses must be re-resolved for
+	// each generic specialization — the same ASTMember node is shared across specs but
+	// each spec's 'this' and attributes resolve to spec-specific Sema objects.
 
-		// Visit parent first and resolve Parent Symbol
-		AST.getParent()->accept(*this);
+	// Visit parent first and resolve Parent Symbol
+	AST.getParent()->accept(*this);
 
-		// Read the resolved Symbol from the parent
-		Symbol *ParentSymbol = nullptr;
-		if (AST.getParent()->getExprKind() == ASTExprKind::EXPR_IDENTIFIER) {
-			ParentSymbol = static_cast<ASTIdentifier *>(AST.getParent())->getSymbol();
-		} else if (AST.getParent()->getExprKind() == ASTExprKind::EXPR_MEMBER) {
-			ParentSymbol = static_cast<ASTMember *>(AST.getParent())->getSymbol();
-		} else if (AST.getParent()->getExprKind() == ASTExprKind::EXPR_CALL) {
-			ParentSymbol = static_cast<ASTCall *>(AST.getParent())->getSymbol();
-		}
+	// Read the resolved Symbol from the parent
+	Symbol *ParentSymbol = nullptr;
+	if (AST.getParent()->getExprKind() == ASTExprKind::EXPR_IDENTIFIER) {
+		ParentSymbol = static_cast<ASTIdentifier *>(AST.getParent())->getSymbol();
+	} else if (AST.getParent()->getExprKind() == ASTExprKind::EXPR_MEMBER) {
+		ParentSymbol = static_cast<ASTMember *>(AST.getParent())->getSymbol();
+	} else if (AST.getParent()->getExprKind() == ASTExprKind::EXPR_CALL) {
+		ParentSymbol = static_cast<ASTCall *>(AST.getParent())->getSymbol();
+	}
 
+	if (!ParentSymbol) {
+		return; // already reported error in visiting parent
+	}
 
-		if (!ParentSymbol) {
-			return; // already reported error in visiting parent
-		}
+	// ---------------------------------------
+	// Try in current scopes (namespace, class, enum, current scopes)
+	// ---------------------------------------
+	AST.setVisited(true);
+	SemaExpr *Sema = nullptr;
 
-		// ---------------------------------------
-		// Try in current scopes (namespace, class, enum, current scopes)
-		// ---------------------------------------
-		AST.setVisited(true);
-		SemaExpr *Sema = nullptr;
-
-		// check namespace: member may be a sub-namespace (e.g. "string" in "fly.string")
-		if (ParentSymbol->getKind() == SymbolKind::NAMESPACE) {
-			SemaNameSpace *ParentNS = static_cast<SemaNameSpace *>(ParentSymbol->getRef());
-			llvm::SmallVector<Symbol *, 8> *SubSyms = ParentNS->getSymbols()->lookup(AST.getName());
-			if (SubSyms && !SubSyms->empty() && (*SubSyms)[0]->getKind() == SymbolKind::NAMESPACE) {
-				AST.setSymbol((*SubSyms)[0]);
-				CurrentExpr = nullptr; // not a value expression
-				return;
-			}
-			Diag(diag::err_invalid_behavior); // Member access on namespace not resolved
+	// check namespace: member may be a sub-namespace (e.g. "string" in "fly.string")
+	if (ParentSymbol->getKind() == SymbolKind::NAMESPACE) {
+		SemaNameSpace *ParentNS = static_cast<SemaNameSpace *>(ParentSymbol->getRef());
+		llvm::SmallVector<Symbol *, 8> *SubSyms = ParentNS->getSymbols()->lookup(AST.getName());
+		if (SubSyms && !SubSyms->empty() && (*SubSyms)[0]->getKind() == SymbolKind::NAMESPACE) {
+			AST.setSymbol((*SubSyms)[0]);
+			CurrentExpr = nullptr; // not a value expression
 			return;
 		}
+		Diag(diag::err_invalid_behavior); // Member access on namespace not resolved
+		return;
+	}
 
-		if (ParentSymbol->getKind() == SymbolKind::CLASS) {
-			SemaClassType *ParentSema = static_cast<SemaClassType *>(ParentSymbol->getRef());
+	if (ParentSymbol->getKind() == SymbolKind::CLASS) {
+		SemaClassType *ParentSema = static_cast<SemaClassType *>(ParentSymbol->getRef());
 
-			// Feature 5b: BaseClass.field inside a derived class instance method →
-			// resolve as an instance access through 'this', navigating to the embedded base.
-			if (CurrentClass && CurrentClass->isDerived(ParentSema) &&
-			    CurrentFunction && CurrentFunction->getKind() == SemaKind::METHOD &&
-			    !static_cast<SemaClassMethod *>(CurrentFunction)->isStatic()) {
-				SemaClassInstance *ThisVar = static_cast<SemaClassMethod *>(CurrentFunction)->getThis();
-				Sema = ResolveMemberSymbol(AST, ParentSema->getSymbols(), SemaKind::ATTRIBUTE, ThisVar);
-			}
+		// Feature 5b: BaseClass.field inside a derived class instance method →
+		// resolve as an instance access through 'this', navigating to the embedded base.
+		if (CurrentClass && CurrentClass->isDerived(ParentSema) &&
+		    CurrentFunction && CurrentFunction->getKind() == SemaKind::METHOD &&
+		    !static_cast<SemaClassMethod *>(CurrentFunction)->isStatic()) {
+			SemaClassInstance *ThisVar = static_cast<SemaClassMethod *>(CurrentFunction)->getThis();
+			Sema = ResolveMemberSymbol(AST, ParentSema->getSymbols(), SemaKind::ATTRIBUTE, ThisVar);
+		}
 
-			if (!Sema) {
-				// Static class attribute access
-				Sema = ResolveMemberSymbol(AST, ParentSema->getSymbols(), SemaKind::ATTRIBUTE);
-			}
+		if (!Sema) {
+			// Static class attribute access
+			Sema = ResolveMemberSymbol(AST, ParentSema->getSymbols(), SemaKind::ATTRIBUTE);
+		}
+		if (!Sema) return;
+	} else if (ParentSymbol->getKind() == SymbolKind::ENUM) {
+		SemaEnumType *ParentSema = static_cast<SemaEnumType *>(ParentSymbol->getRef());
+		// Handle built-in enum members
+		if (AST.getName() == "list") {
+			Sema = SemaBuilder::CreateEnumList(ParentSema);
+		} else {
+			Sema = ResolveMemberSymbol(AST, ParentSema->getSymbols(), SemaKind::ENUM_ENTRY);
 			if (!Sema) return;
-		} else if (ParentSymbol->getKind() == SymbolKind::ENUM) {
-			SemaEnumType *ParentSema = static_cast<SemaEnumType *>(ParentSymbol->getRef());
-			// Handle built-in enum members
-			if (AST.getName() == "list") {
-				Sema = SemaBuilder::CreateEnumList(ParentSema);
-			} else {
-				Sema = ResolveMemberSymbol(AST, ParentSema->getSymbols(), SemaKind::ENUM_ENTRY);
-				if (!Sema) return;
-			}
-		} else if (ParentSymbol->isVarKind()) {
-			SemaVar *ParentVar = static_cast<SemaVar *>(ParentSymbol->getRef());
+		}
+	} else if (ParentSymbol->isVarKind()) {
+		SemaVar *ParentVar = static_cast<SemaVar *>(ParentSymbol->getRef());
 
-			if (ParentVar->getType()->isClass()) {
-				SemaClassType * ClassType = static_cast<SemaClassType *>(ParentVar->getType());
-				// Use LookupAttribute to traverse the inheritance hierarchy so that
-				// fields inherited from base classes are found even though they live
-				// in the base class's symbol table rather than the derived class's.
-				SemaClassAttribute *Attr = ClassType->LookupAttribute(AST.getName());
-				if (!Attr) {
-					Diag(AST.getLocation(), diag::err_sema_unresolved_identifier) << AST.getName();
-					return;
-				}
-				Sema = ResolveMemberSymbol(AST, Attr->getClass().getSymbols(), SemaKind::ATTRIBUTE, ParentVar);
-				if (!Sema) return;
-			} else if (ParentVar->getType()->isEnum()) {
-				SemaEnumType * EnumType = static_cast<SemaEnumType *>(ParentVar->getType());
-				Sema = ResolveMemberSymbol(AST, EnumType->getSymbols(), SemaKind::ENUM_ENTRY, ParentVar);
-				if (!Sema) return;
-			} else {
-				// Parent is not an object type
-				Diag(diag::err_invalid_behavior);
+		if (ParentVar->getType()->isClass()) {
+			SemaClassType * ClassType = static_cast<SemaClassType *>(ParentVar->getType());
+			// Use LookupAttribute to traverse the inheritance hierarchy so that
+			// fields inherited from base classes are found even though they live
+			// in the base class's symbol table rather than the derived class's.
+			SemaClassAttribute *Attr = ClassType->LookupAttribute(AST.getName());
+			if (!Attr) {
+				Diag(AST.getLocation(), diag::err_sema_unresolved_identifier) << AST.getName();
 				return;
 			}
-		//}  else if (CurrentSymbol->getKind() == SymbolKind::FUNCTION) { // return is always void
-		//	ParentType = static_cast<SemaFunctionBase *>(CurrentSymbol->getRef())->getReturnType();
-		} else if (ParentSymbol->getKind() == SymbolKind::VALUE) {
-			// Cannot exists Value after a Member access
+			Sema = ResolveMemberSymbol(AST, Attr->getClass().getSymbols(), SemaKind::ATTRIBUTE, ParentVar);
+			if (!Sema) return;
+		} else if (ParentVar->getType()->isEnum()) {
+			SemaEnumType * EnumType = static_cast<SemaEnumType *>(ParentVar->getType());
+			Sema = ResolveMemberSymbol(AST, EnumType->getSymbols(), SemaKind::ENUM_ENTRY, ParentVar);
+			if (!Sema) return;
+		} else {
+			// Parent is not an object type
 			Diag(diag::err_invalid_behavior);
 			return;
 		}
-
-		// Configure CurrentExpr
-		CurrentExpr = Sema;
+	//}  else if (CurrentSymbol->getKind() == SymbolKind::FUNCTION) { // return is always void
+	//	ParentType = static_cast<SemaFunctionBase *>(CurrentSymbol->getRef())->getReturnType();
+	} else if (ParentSymbol->getKind() == SymbolKind::VALUE) {
+		// Cannot exists Value after a Member access
+		Diag(diag::err_invalid_behavior);
+		return;
 	}
+
+	// Configure CurrentExpr
+	CurrentExpr = Sema;
 }
 
 // Build a human-readable signature string like "foo(int, float)" for diagnostics.
@@ -1528,6 +1622,34 @@ void Resolver::visit(ASTCall &AST) {
 			// Lookup Constructor method into Class
 			SemaClassType *ClassType = static_cast<SemaClassType *>(Sym->getRef());
 
+			// Handle generic instantiation: new List<int>()
+			if (ClassType->isGeneric()) {
+				if (AST.getTypeArgs().empty()) {
+					Diag(AST.getLocation(), diag::err_sema_generic_not_instantiable) << AST.getName();
+					CurrentScope = SavedScope;
+					return;
+				}
+				llvm::SmallVector<SemaType *, 4> TypeArgs;
+				for (auto *TA : AST.getTypeArgs()) {
+					TA->accept(*this);
+					if (!CurrentType) { CurrentScope = SavedScope; return; }
+					TypeArgs.push_back(CurrentType);
+				}
+				if (TypeArgs.size() != ClassType->getTypeParams().size()) {
+					Diag(AST.getLocation(), diag::err_sema_generic_wrong_arg_count)
+						<< AST.getName()
+						<< (unsigned)ClassType->getTypeParams().size()
+						<< (unsigned)TypeArgs.size();
+					CurrentScope = SavedScope;
+					return;
+				}
+				SemaClassType *OldTemplate = ClassType;
+				ClassType = SemaBuilder::CreateSpecialization(OldTemplate, TypeArgs, CurrentScope);
+				if (!ClassType->Resolved && CurrentModule)
+					CurrentModule->addNode(ClassType);
+				ResolveClassType(ClassType);
+			}
+
 			// Cannot instantiate an abstract class
 			if (ClassType->isAbstract()) {
 				Diag(AST.getLocation(), diag::err_sema_abstract_class_instantiation) << AST.getName();
@@ -1615,44 +1737,94 @@ void Resolver::visit(ASTCall &AST) {
 				return;
 			}
 
-			auto Matches = Reg.FindFunctionMatches(AST.getName(), ArgTypes, CurrentScope);
-			if (Matches.empty()) {
-				Diag(AST.getLocation(), diag::err_sema_wrong_args) << AST.getName();
-				for (Symbol *C : Candidates) {
-					SemaFunctionBase *F = static_cast<SemaFunctionBase *>(C->getRef());
-					Diag(F->getAST().getLocation(), diag::note_sema_candidate)
-					    << BuildCandidateSignature(F);
+			// Check for generic template function: infer type args and instantiate
+			SemaFunction *GenericFn = nullptr;
+			for (Symbol *Cand : Candidates) {
+				if (Cand->getRef()->getKind() == SemaKind::FUNCTION) {
+					SemaFunction *SF = static_cast<SemaFunction *>(Cand->getRef());
+					if (SF->isGeneric()) { GenericFn = SF; break; }
 				}
-				CurrentScope = SavedScope;
-				return;
 			}
 
-			if (Matches.size() > 1) {
-				Diag(AST.getLocation(), diag::err_sema_call_ambiguous) << AST.getName();
-				for (Symbol *M : Matches) {
-					SemaFunctionBase *F = static_cast<SemaFunctionBase *>(M->getRef());
-					Diag(F->getAST().getLocation(), diag::note_sema_candidate)
-					    << BuildCandidateSignature(F);
+			if (GenericFn) {
+				// Infer TypeArgs from call argument types by matching param types to TypeParams
+				llvm::StringMap<SemaType *> Substitution;
+				auto &TmplParams = GenericFn->getParams();
+				for (size_t i = 0; i < TmplParams.size() && i < ArgTypes.size(); ++i) {
+					SemaType *PType = TmplParams[i]->getType();
+					if (PType && PType->getKind() == SemaKind::TYPE_PARAM) {
+						llvm::StringRef TPName = PType->getName();
+						if (!Substitution.count(TPName))
+							Substitution[TPName] = ArgTypes[i];
+					}
 				}
-				CurrentScope = SavedScope;
-				return;
+				// Build TypeArgs in declaration order
+				llvm::SmallVector<SemaType *, 4> InferredTypeArgs;
+				for (auto *TP : GenericFn->getTypeParams()) {
+					auto It = Substitution.find(TP->getName());
+					if (It == Substitution.end()) {
+						Diag(AST.getLocation(), diag::err_sema_generic_not_instantiable) << AST.getName();
+						CurrentScope = SavedScope;
+						return;
+					}
+					InferredTypeArgs.push_back(It->second);
+				}
+
+				// Create or retrieve the cached specialization
+				SemaFunction *Spec = SemaBuilder::CreateFunctionSpecialization(GenericFn, InferredTypeArgs, CurrentScope);
+
+				// Resolve the spec's params and return type if not yet done (params empty = not resolved)
+				if (Spec->getParams().empty()) {
+					SymbolTable *SavedScope2 = CurrentScope;
+					ResolveFunction(Spec);
+					CurrentScope = SavedScope2;
+					// Register spec in current module so CodeGen visits it
+					if (CurrentModule)
+						CurrentModule->addNode(Spec);
+				}
+
+				Sema = SemaBuilder::CreateCall(AST, Spec->getReturnType(), Spec);
+				AST.setSymbol(new Symbol(llvm::StringRef(GenericFn->getAST().getName()), SymbolKind::FUNCTION, Spec));
+			} else {
+				auto Matches = Reg.FindFunctionMatches(AST.getName(), ArgTypes, CurrentScope);
+				if (Matches.empty()) {
+					Diag(AST.getLocation(), diag::err_sema_wrong_args) << AST.getName();
+					for (Symbol *C : Candidates) {
+						SemaFunctionBase *F = static_cast<SemaFunctionBase *>(C->getRef());
+						Diag(F->getAST().getLocation(), diag::note_sema_candidate)
+						    << BuildCandidateSignature(F);
+					}
+					CurrentScope = SavedScope;
+					return;
+				}
+
+				if (Matches.size() > 1) {
+					Diag(AST.getLocation(), diag::err_sema_call_ambiguous) << AST.getName();
+					for (Symbol *M : Matches) {
+						SemaFunctionBase *F = static_cast<SemaFunctionBase *>(M->getRef());
+						Diag(F->getAST().getLocation(), diag::note_sema_candidate)
+						    << BuildCandidateSignature(F);
+					}
+					CurrentScope = SavedScope;
+					return;
+				}
+
+				Symbol *CurrentSymbol = Matches[0];
+
+				SemaKind RefKind = CurrentSymbol->getRef()->getKind();
+				if (RefKind != SemaKind::FUNCTION && RefKind != SemaKind::METHOD) {
+					Diag(AST.getLocation(), diag::err_sema_not_callable) << AST.getName();
+					CurrentScope = SavedScope;
+					return;
+				}
+
+				// Sym is a Function or Method
+				SemaFunctionBase *Func = static_cast<SemaFunctionBase *>(CurrentSymbol->getRef());
+				Sema = SemaBuilder::CreateCall(AST, Func->getReturnType(), Func);
+
+				// Store the resolved Symbol on the ASTCall
+				AST.setSymbol(CurrentSymbol);
 			}
-
-			Symbol *CurrentSymbol = Matches[0];
-
-			SemaKind RefKind = CurrentSymbol->getRef()->getKind();
-			if (RefKind != SemaKind::FUNCTION && RefKind != SemaKind::METHOD) {
-				Diag(AST.getLocation(), diag::err_sema_not_callable) << AST.getName();
-				CurrentScope = SavedScope;
-				return;
-			}
-
-			// Sym is a Function or Method
-			SemaFunctionBase *Func = static_cast<SemaFunctionBase *>(CurrentSymbol->getRef());
-			Sema = SemaBuilder::CreateCall(AST, Func->getReturnType(), Func);
-
-			// Store the resolved Symbol on the ASTCall
-			AST.setSymbol(CurrentSymbol);
 		}
 
 		// Configure CurrentExpr
@@ -1989,7 +2161,10 @@ void Resolver::Resolve() {
 	}
 
 	// Resolve Functions/Methods Bodies
-	for (auto FunctionBase : Reg.getBodies()) {
+	// Index-based loop: new bodies added during body resolution (e.g. generic specializations
+	// instantiated inside function bodies) are automatically picked up.
+	for (size_t BodyIdx = 0; BodyIdx < Reg.getBodies().size(); ++BodyIdx) {
+		auto *FunctionBase = Reg.getBodies()[BodyIdx];
 		CurrentFunction = FunctionBase;
 		CurrentClass = nullptr;
 
@@ -2036,9 +2211,16 @@ void Resolver::Resolve() {
 		// Skip empty-body functions — they are extern stubs; their params are analysed
 		// by the C implementation, not the Fly body.
 		// Skip the synthetic 'out' parameter — it is always an output param by design.
+		// Skip generic function/method specializations: the param's declared type in the
+		// template may be a TypeParam (T); the user cannot add 'const' to the template
+		// declaration since the specialization may be a class type (ABI issue).
+		bool IsFnSpec = FunctionBase->getKind() == SemaKind::FUNCTION &&
+		    static_cast<SemaFunction *>(FunctionBase)->getGenericTemplate() != nullptr;
+		bool IsMethodSpec = FunctionBase->getKind() == SemaKind::METHOD &&
+		    static_cast<SemaClassMethod *>(FunctionBase)->getClass()->getGenericTemplate() != nullptr;
 		SemaBlockStmt *ResolvedBody = FunctionBase->getBody();
 		bool BodyHasContent = ResolvedBody && !ResolvedBody->getContent().empty();
-		if (BodyHasContent) {
+		if (BodyHasContent && !IsFnSpec && !IsMethodSpec) {
 			for (SemaParam *P : UnmodifiedParams) {
 				if (P->getName() == "out")
 					continue; // synthetic single-return output parameter, never "const"
@@ -2049,8 +2231,12 @@ void Resolver::Resolve() {
 				// address-of-local alloca), while the function body still expects the extra
 				// level of indirection.  The warning would lead to a runtime segfault, so
 				// suppress it for all class-family types.
+				// TypeParam (T in generic functions): type is unknown at template definition;
+				// the concrete specialization may be a class type, so suppress the warning.
 				SemaType *PType = P->getType();
 				if (PType && PType->isClass())
+					continue;
+				if (PType && PType->getKind() == SemaKind::TYPE_PARAM)
 					continue;
 				Diag(P->getAST()->getLocation(), diag::warn_sema_param_missing_const)
 				    << P->getAST()->getName();
@@ -2120,13 +2306,25 @@ void Resolver::ResolveFunction(SemaFunction *Sema) {
 	EnterScope();
 
 	// Resolve Parameters Types
+	// For specializations, ASTParams are shared with the template so they may already be
+	// marked visited. Re-resolve their types using the specialization's scope (T → concrete).
+	bool IsFuncSpecCtx = Sema->getGenericTemplate() != nullptr;
 	for (auto Param : AST.getParams()) {
-
-		// resolve parameter type
-		Param->accept(*this);
-		SemaParam *ResolvedParam = Param->getSymbol()->getRefAs<SemaParam>();
-		Sema->addParam(ResolvedParam);
-		addSymbol(Param->getSymbol());
+		if (IsFuncSpecCtx && Param->isVisited()) {
+			// Re-resolve the param type in the specialization scope (T → concrete type)
+			Param->getType()->accept(*this);
+			SemaType *ParamType = CurrentType;
+			SemaParam *SemaP = SemaBuilder::CreateParam(*Param, ParamType);
+			Symbol *PSym = new Symbol(std::string(Param->getName()), SymbolKind::PARAM, SemaP);
+			Sema->addParam(SemaP);
+			addSymbol(PSym);
+		} else {
+			// resolve parameter type
+			Param->accept(*this);
+			SemaParam *ResolvedParam = Param->getSymbol()->getRefAs<SemaParam>();
+			Sema->addParam(ResolvedParam);
+			addSymbol(Param->getSymbol());
+		}
 	}
 
 	// If the function declares a return type, resolve it and add a synthetic
@@ -2161,8 +2359,11 @@ void Resolver::ResolveFunction(SemaFunction *Sema) {
 		}
 	}
 
-	// Add to Body list for resolve in the next step
-	Reg.addBody(Sema);
+	// Template functions are never code-generated directly; each specialization
+	// registers its own body. Skip addBody for generic templates.
+	if (!Sema->isGeneric()) {
+		Reg.addBody(Sema);
+	}
 
 	// Exit Body Scope
 	ExitScope();

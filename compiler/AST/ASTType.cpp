@@ -85,10 +85,31 @@ const llvm::SmallVector<ASTName *, 4> &ASTNamedType::getNames() const {
 	return Names;
 }
 
+const llvm::SmallVector<ASTType *, 4> &ASTNamedType::getTypeArgs() const {
+	return TypeArgs;
+}
+
 std::string ASTNamedType::str() const {
     return Logger("ASTNamedType")
         .Attr("Location", getLocation())
         .Attr("Kind", static_cast<size_t>(getKind()))
         .Attr("Names", Names)
+        .Attr("TypeArgs", TypeArgs)
+        .End();
+}
+
+ASTTypeParam::ASTTypeParam(const SourceLocation &Loc, llvm::StringRef Name, ASTType *Bound) :
+	ASTType(Loc, ASTTypeKind::TYPE_PARAM), Name(Name), Bound(Bound) {
+}
+
+void ASTTypeParam::accept(ASTVisitor &Visitor) {
+	Visitor.visit(*this);
+}
+
+std::string ASTTypeParam::str() const {
+    return Logger("ASTTypeParam")
+        .Attr("Location", getLocation())
+        .Attr("Name", Name)
+        .Attr("Bound", Bound)
         .End();
 }

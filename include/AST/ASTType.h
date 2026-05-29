@@ -21,7 +21,8 @@ namespace fly {
     enum class ASTTypeKind {
         TYPE_NAMED,
         TYPE_BUILTIN,
-        TYPE_ARRAY
+        TYPE_ARRAY,
+        TYPE_PARAM
     };
 
     enum class ASTBuiltinTypeKind {
@@ -86,8 +87,12 @@ namespace fly {
     class ASTNamedType : public ASTType {
 
         friend class ASTBuilder;
+        friend class Parser;
 
         llvm::SmallVector<ASTName *, 4> Names;
+
+        // Type arguments for generic instantiation: Foo<int, string>
+        llvm::SmallVector<ASTType *, 4> TypeArgs;
 
         explicit ASTNamedType(const SourceLocation &Loc, llvm::SmallVector<ASTName *, 4> Names);
 
@@ -96,6 +101,33 @@ namespace fly {
         void accept(ASTVisitor& Visitor) override;
 
         const llvm::SmallVector<ASTName*, 4>& getNames() const;
+
+        const llvm::SmallVector<ASTType*, 4>& getTypeArgs() const;
+
+        std::string str() const override;
+    };
+
+    // ASTTypeParam — a type-variable declaration in a generic class/function: T or T extends Foo.
+    // Appears in ASTClass::TypeParams and ASTFunction::TypeParams.
+    // Occurrences of T as a type reference in the body are plain ASTNamedType nodes resolved
+    // against the type-param scope during Sema.
+    class ASTTypeParam : public ASTType {
+
+        friend class ASTBuilder;
+        friend class Parser;
+
+        llvm::StringRef Name;
+        ASTType *Bound = nullptr;   // null = unconstrained; set for "T extends Foo"
+
+        explicit ASTTypeParam(const SourceLocation &Loc, llvm::StringRef Name, ASTType *Bound = nullptr);
+
+    public:
+
+        void accept(ASTVisitor &Visitor) override;
+
+        llvm::StringRef getName() const { return Name; }
+
+        ASTType *getBound() const { return Bound; }
 
         std::string str() const override;
     };

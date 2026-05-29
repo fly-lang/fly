@@ -38,6 +38,12 @@ namespace fly {
 
         llvm::SmallVector<SemaLocalVar *, 4> LocalVars;
 
+        // Generic function support (monomorphization)
+        llvm::SmallVector<SemaTypeParam *, 4> TypeParams; // non-empty → generic template
+        llvm::StringMap<SemaFunction *> Specializations;  // mangled key → concrete clone
+        SemaFunction *GenericTemplate = nullptr;          // non-null for specializations
+        std::string MangledName;                          // set for specializations
+
         // Populated during codegen phase
         CodeGenFunction *CodeGen = nullptr;
 
@@ -56,6 +62,14 @@ namespace fly {
     	void setVisibility(SemaVisibilityKind Visibility);
 
         const llvm::SmallVector<SemaLocalVar *, 4> &getLocalVars() const;
+
+        // Generic function support
+        const llvm::SmallVector<SemaTypeParam *, 4> &getTypeParams() const { return TypeParams; }
+        bool isGeneric() const { return !TypeParams.empty() && GenericTemplate == nullptr; }
+        SemaFunction *getGenericTemplate() const { return GenericTemplate; }
+        llvm::StringMap<SemaFunction *> &getSpecializations() { return Specializations; }
+
+        llvm::StringRef getName() const;
 
         CodeGenFunction *getCodeGen() const override;
 

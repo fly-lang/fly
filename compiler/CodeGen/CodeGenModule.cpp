@@ -25,6 +25,7 @@
 #include "CodeGen/CodeGenFunction.h"
 #include "Sema/SemaBinary.h"
 #include "Sema/SemaCast.h"
+#include "Sema/SemaFunction.h"
 #include "Sema/SemaNameSpace.h"
 #include "Sema/SemaParam.h"
 #include "Sema/SemaTernary.h"
@@ -397,7 +398,13 @@ void CodeGenModule::visit(SemaEnumType &Sema) {
 void CodeGenModule::visit(SemaClassType &Sema) {
 	FLY_DEBUG_SCOPE_MSG("CodeGenModule", "visit(SemaClassType)", "Class: " + Sema.getAST().getName().str());
 	if (Sema.getCodeGen() == nullptr) {
-		bool isExternal = (CurrentSemaModule != nullptr &&
+		// Generic template classes have no concrete code to generate.
+		if (Sema.isGeneric() && Sema.getGenericTemplate() == nullptr)
+			return;
+		// Specializations are always generated locally in the using module, even when
+		// the generic template lives in an external library.
+		bool isExternal = (Sema.getGenericTemplate() == nullptr) &&
+		                  (CurrentSemaModule != nullptr &&
 		                   &Sema.getModule() != CurrentSemaModule);
 		CodeGenClass *CGC = new CodeGenClass(this, &Sema, isExternal);
 		Sema.setCodeGen(CGC);
@@ -414,6 +421,10 @@ void CodeGenModule::visit(SemaClassMethod &Sema) {
 
 void CodeGenModule::visit(SemaFunction &Sema) {
 	FLY_DEBUG_SCOPE_MSG("CodeGenModule", "visit(SemaFunction)", "Function: " + Sema.getName().str());
+	// Generic template functions are never code-generated directly;
+	// only their concrete specializations (which have no TypeParams) produce LLVM IR.
+	if (Sema.isGeneric())
+		return;
 	CurrentFunction = &Sema;
 	if (Sema.getCodeGen() == nullptr) {
 		CodeGenFunction *CGF = new CodeGenFunction(this, &Sema, false);

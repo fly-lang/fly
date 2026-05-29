@@ -14,6 +14,7 @@
 #include "AST/ASTBuilder.h"
 #include "AST/ASTType.h"
 #include "Basic/Debug.h"
+#include "Basic/TokenKinds.h"
 
 #include <AST/ASTMethod.h>
 
@@ -45,6 +46,14 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bo
     const SourceLocation ClassLoc = P->Tok.getLocation();
     P->ConsumeToken();
 
+    // Parse optional generic type parameters: class Foo<T, U : Bar>
+    llvm::SmallVector<ASTTypeParam *, 4> TypeParams;
+    if (P->Tok.is(tok::less)) {
+        TypeParams = P->ParseTypeParams();
+        // Generic classes must keep their bodies so specializations can be code-generated.
+        this->SkipBodies = false;
+    }
+
     // Parse classes after colon
     // class Example : SuperClass, Interface, Struct { ... }
     llvm::SmallVector<ASTType *, 4> Bases;
@@ -69,6 +78,9 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bo
         P->ConsumeBrace(BraceCount);
 
         Class = ASTBuilder::CreateClass(P->Module, ClassLoc, ClassKind, ClassName, Modifiers, Bases);
+        if (!TypeParams.empty()) {
+            Class->TypeParams = TypeParams;
+        }
         bool Continue;
         do {
 
