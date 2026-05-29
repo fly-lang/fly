@@ -1,4 +1,5 @@
-  [![Build Status](https://github.com/fly-lang/fly/actions/workflows/build.yml/badge.svg)](https://github.com/fly-lang/fly/actions/workflows/build.yml)
+  [![Build Linux](https://github.com/fly-lang/fly/actions/workflows/build-linux.yml/badge.svg)](https://github.com/fly-lang/fly/actions/workflows/build-linux.yml)
+  [![Build Windows](https://github.com/fly-lang/fly/actions/workflows/build-windows.yml/badge.svg)](https://github.com/fly-lang/fly/actions/workflows/build-windows.yml)
   ![GitHub issues](https://img.shields.io/github/issues-raw/fly-lang/fly?color=blue)
   ![GitHub closed issues](https://img.shields.io/github/issues-closed/fly-lang/fly?color=blue)
   <br />
