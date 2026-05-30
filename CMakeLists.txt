@@ -133,3 +133,6 @@ add_subdirectory(test)
 
 # flyp package manager
 add_subdirectory(tools/flyp)
+
+# fly-lsp language server
+add_subdirectory(tools/lsp)

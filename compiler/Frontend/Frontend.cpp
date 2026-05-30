@@ -285,8 +285,9 @@ bool Frontend::Execute() {
 
     Diags.getClient()->BeginSourceFile();
 
-    // Resolve AST references
-	SmallVector<SemaModule *, 8> SemaModules = S->Resolve(ASTModules);
+    // Resolve AST references; store on the member so getSemaModules() works
+    // after Execute() returns (used by the LSP server and other tools).
+	SemaModules = S->Resolve(ASTModules);
 
     if (!SemaModules.empty()) {
 

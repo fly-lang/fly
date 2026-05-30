@@ -11,6 +11,7 @@
 #define FLY_FRONTEND_H
 
 #include <AST/ASTModule.h>
+#include <Sema/SemaModule.h>
 
 #include "CompilerInstance.h"
 #include "Basic/Diagnostic.h"
@@ -35,6 +36,11 @@ namespace fly {
         DiagnosticsEngine &Diags;
 
         SmallVector<ASTModule *, 8> ASTModules;
+
+        // Populated by Execute() after semantic resolution.
+        // Kept as a member so tools (e.g. the LSP server) can inspect the fully
+        // resolved AST + symbol tables without re-running the compiler.
+        SmallVector<SemaModule *, 8> SemaModules;
 
         // Keep Parsers and InputFiles alive until after Sema so that StringRefs
         // stored in AST nodes (pointing into the Lexer's IdentifierTable) remain valid.
@@ -73,6 +79,10 @@ namespace fly {
         void CreateFrontendTimer();
 
         const SmallVector<std::string, 4> &getOutputFiles() const;
+
+        /// Returns the semantic modules produced by the last Execute() call.
+        /// Valid only after a successful Execute(); empty if compilation failed.
+        const SmallVector<SemaModule *, 8> &getSemaModules() const { return SemaModules; }
 
         std::vector<StringRef> ExtractFiles(const std::string &LibFileName);
     };
