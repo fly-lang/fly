@@ -406,8 +406,12 @@ void CodeGenModule::visit(SemaClassType &Sema) {
 		bool isExternal = (Sema.getGenericTemplate() == nullptr) &&
 		                  (CurrentSemaModule != nullptr &&
 		                   &Sema.getModule() != CurrentSemaModule);
+		// Two-phase construction: Phase 1 creates the LLVM struct type (constructor),
+		// then setCodeGen() is called so self-referential return type lookups during
+		// Phase 2 (Build()) find the already-constructed CodeGen instead of recursing.
 		CodeGenClass *CGC = new CodeGenClass(this, &Sema, isExternal);
 		Sema.setCodeGen(CGC);
+		CGC->Build();
 	}
 }
 

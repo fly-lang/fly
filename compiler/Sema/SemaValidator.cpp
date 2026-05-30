@@ -224,6 +224,17 @@ bool SemaValidator::CheckBinary(ASTBinary &AST, SemaExpr *LeftSema, SemaExpr *Ri
 	SemaType *LeftType  = LeftSema->getType();
 	SemaType *RightType = RightSema->getType();
 
+	// Allow comparisons involving a null literal (null value has no type).
+	if (AST.isCompare() && (!LeftType || !RightType))
+		return true;
+
+	// Allow assignment of unset/null (RightType == nullptr); CheckAssignment handles it.
+	if (AST.isAssign() && LeftType && !RightType)
+		return CheckAssignment(AST.getLocation(), LeftType, RightSema);
+
+	if (!LeftType || !RightType)
+		return false;
+
 	auto diagnoseTypes = [&]() {
 		Diag(AST.getLocation(), diag::err_sema_types_operation)
 			<< LeftType->getName() << RightType->getName();
@@ -276,6 +287,11 @@ bool SemaValidator::CheckAssignment(const SourceLocation &Loc, SemaType *LhsType
 	if (LhsType->isBool()) return true;
 
 	if (LhsType->isNumber()) {
+		// Allow class → long: class pointers are pointer-sized (i64).
+		if (static_cast<SemaNumberType *>(LhsType)->isInteger() &&
+		    static_cast<SemaIntType *>(LhsType)->getIntKind() == SemaIntTypeKind::TYPE_LONG &&
+		    RhsType && RhsType->isClass())
+			return true;
 		if (!RhsType || !RhsType->isNumber()) { diagnose(); return false; }
 		if (static_cast<SemaNumberType *>(LhsType)->getRank() <
 		    static_cast<SemaNumberType *>(RhsType)->getRank()) {
@@ -300,6 +316,10 @@ bool SemaValidator::CheckAssignment(const SourceLocation &Loc, SemaType *LhsType
 	}
 
 	if (LhsType->isClass()) {
+		// Allow long → class: class slots are pointer-sized (i64).
+		if (RhsType && RhsType->isNumber() && RhsType->isInteger() &&
+		    static_cast<SemaIntType *>(RhsType)->getIntKind() == SemaIntTypeKind::TYPE_LONG)
+			return true;
 		if (!RhsType || !RhsType->isClass()) { diagnose(); return false; }
 		if (!CheckInheritance(static_cast<SemaClassType *>(RhsType),
 		                      static_cast<SemaClassType *>(LhsType))) {

@@ -83,6 +83,8 @@ namespace fly {
 
         CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExternal = false);
 
+        void Build();
+
         llvm::StructType *getType();
 
         llvm::PointerType *getTypePtr();

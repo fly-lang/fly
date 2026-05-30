@@ -21,6 +21,7 @@
 #include <Sema/SemaClassType.h>
 #include <Sema/SemaFunction.h>
 #include <Sema/SemaParam.h>
+#include <Sema/SemaType.h>
 #include <Sema/SymbolTable.h>
 
 using namespace fly;
@@ -169,8 +170,10 @@ Symbol *Registry::LookupImport(const llvm::SmallVector<ASTName *, 4> &Names) {
 		llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookup(Name);
 
 		if (!Symbols) {
-			// Error: Symbol not found
-			Diag(diag::err_invalid_behavior);
+			// Import target namespace component not found — the source files for that
+			// namespace are not part of this compilation unit.  Return null silently
+			// so ResolveImports can emit a proper "namespace not found" diagnostic
+			// instead of a fatal internal error.
 			return nullptr;
 		}
 
@@ -203,8 +206,9 @@ Symbol* Registry::LookupBuiltinType(llvm::StringRef TypeName) {
 }
 
 Symbol *Registry::LookupNamedType(llvm::StringRef Name, SymbolTable *Scope) {
-	// Lookup Name in current Scope
-	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookupInParents(Name);
+	// Use lookupTypeInParents to skip constructor/function symbols in the class's own scope
+	// when looking for a type with the same name (e.g. new Node() inside Node methods).
+	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookupTypeInParents(Name);
 
 	if (!Symbols) {
 		// Error: Symbol not found
@@ -237,8 +241,13 @@ Symbol *Registry::LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope) {
 	for (int i = 0; i < Names.size(); i++) {
 		llvm::StringRef Name = Names[i]->getName();
 
-		// Lookup Name in current Scope
-		llvm::SmallVector<Symbol *, 8> *Symbols = CurrentScope->lookupInParents(Name);
+		// For the last name in a qualified path, use lookupTypeInParents so that a
+		// constructor symbol with the same name in the class's own scope does not shadow
+		// the class type in an outer (module/namespace) scope.
+		bool IsLastName = (i == (int)Names.size() - 1);
+		llvm::SmallVector<Symbol *, 8> *Symbols = IsLastName
+		    ? CurrentScope->lookupTypeInParents(Name)
+		    : CurrentScope->lookupInParents(Name);
 
 		if (!Symbols) {
 			// Error: Symbol not found
@@ -387,6 +396,17 @@ Symbol *Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8
 				continue;
 			}
 
+			// Allow class ↔ long: class pointers are pointer-sized (i64).
+			if (ParamType->isNumber() && ParamType->isInteger() &&
+			    static_cast<SemaIntType *>(ParamType)->getIntKind() == SemaIntTypeKind::TYPE_LONG &&
+			    ArgType && ArgType->isClass()) {
+				continue;
+			}
+			if (ParamType->isClass() && ArgType && ArgType->isNumber() && ArgType->isInteger() &&
+			    static_cast<SemaIntType *>(ArgType)->getIntKind() == SemaIntTypeKind::TYPE_LONG) {
+				continue;
+			}
+
 			// Types don't match
 			AllTypesMatch = false;
 			break;
@@ -439,6 +459,12 @@ static bool FunctionTypesMatchExact(SemaFunctionBase *Function, SmallVector<Sema
 			if (static_cast<SemaClassType *>(ArgType)->isDerivedOrEquals(
 			        static_cast<SemaClassType *>(ParamType))) continue;
 		}
+		// Allow class ↔ long: class pointers are pointer-sized (i64).
+		if (ParamType->isNumber() && ParamType->isInteger() &&
+		    static_cast<SemaIntType *>(ParamType)->getIntKind() == SemaIntTypeKind::TYPE_LONG &&
+		    ArgType && ArgType->isClass()) continue;
+		if (ParamType->isClass() && ArgType && ArgType->isNumber() && ArgType->isInteger() &&
+		    static_cast<SemaIntType *>(ArgType)->getIntKind() == SemaIntTypeKind::TYPE_LONG) continue;
 		return false;
 	}
 	return true;
@@ -457,6 +483,12 @@ static bool FunctionTypesMatch(SemaFunctionBase *Function, SmallVector<SemaType 
 			        static_cast<SemaClassType *>(ParamType))) continue;
 		}
 		if (ParamType->isNumber() && ArgType->isNumber()) continue;
+		// Allow class ↔ long: class pointers are pointer-sized (i64).
+		if (ParamType->isNumber() && ParamType->isInteger() &&
+		    static_cast<SemaIntType *>(ParamType)->getIntKind() == SemaIntTypeKind::TYPE_LONG &&
+		    ArgType && ArgType->isClass()) continue;
+		if (ParamType->isClass() && ArgType && ArgType->isNumber() && ArgType->isInteger() &&
+		    static_cast<SemaIntType *>(ArgType)->getIntKind() == SemaIntTypeKind::TYPE_LONG) continue;
 		return false;
 	}
 	return true;

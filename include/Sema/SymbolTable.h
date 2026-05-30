@@ -48,6 +48,7 @@ namespace fly {
     	llvm::SmallVector<Symbol *, 8> *lookup(llvm::StringRef Name);
 
         llvm::SmallVector<Symbol *, 8> *lookupInParents(llvm::StringRef Name);
+        llvm::SmallVector<Symbol *, 8> *lookupTypeInParents(llvm::StringRef Name);
 
         const llvm::StringMap<llvm::SmallVector<Symbol *, 8>> &getAll() const;
 
