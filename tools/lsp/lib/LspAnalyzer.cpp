@@ -199,8 +199,9 @@ Symbol *LspAnalyzer::findSymbolAt(const std::string &file, int line, int col) {
             }
             case SemaKind::TYPE_CLASS: {
                 auto *cls = static_cast<SemaClassType *>(node);
-                for (auto &[name, method] : cls->getMethods()) {
-                    (void)name;
+                for (auto it = cls->getMethods().begin();
+                         it != cls->getMethods().end(); ++it) {
+                    SemaClassMethod *method = it->second;
                     if (method->getAST().getBody())
                         if (auto *s = walkBlock(method->getAST().getBody(),
                                                 file, line, col))
