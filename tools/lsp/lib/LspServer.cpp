@@ -2,8 +2,10 @@
 
 #include <llvm/Support/JSON.h>
 
-using namespace fly::lsp;
 using namespace llvm;
+
+namespace fly {
+namespace lsp {
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 
@@ -192,3 +194,6 @@ void LspServer::onReferences(json::Value id, const json::Object & /*params*/) {
     // TODO: walk all modules for uses of the symbol at position
     transport_.sendResult(std::move(id), json::Array{});
 }
+
+} // namespace lsp
+} // namespace fly

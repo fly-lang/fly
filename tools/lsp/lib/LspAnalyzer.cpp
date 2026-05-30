@@ -33,8 +33,50 @@
 
 #include <llvm/Support/TargetSelect.h>
 
-using namespace fly;
-using namespace fly::lsp;
+// All method definitions are inside the explicit namespace block so MSVC
+// resolves the class without relying on `using namespace` for out-of-class
+// member definitions (MSVC /permissive- mode is stricter about this).
+namespace fly {
+namespace lsp {
+
+// Pull compiler types into scope inside the namespace block
+using fly::ASTArg;
+using fly::ASTBinary;
+using fly::ASTBlockStmt;
+using fly::ASTCall;
+using fly::ASTClass;
+using fly::ASTClassKind;
+using fly::ASTDeclStmt;
+using fly::ASTExpr;
+using fly::ASTExprKind;
+using fly::ASTExprStmt;
+using fly::ASTFunction;
+using fly::ASTIdentifier;
+using fly::ASTMember;
+using fly::ASTRuleStmt;
+using fly::ASTStmt;
+using fly::ASTStmtKind;
+using fly::CompilerInstance;
+using fly::Driver;
+using fly::Frontend;
+using fly::PresumedLoc;
+using fly::SemaClassAttribute;
+using fly::SemaClassKind;
+using fly::SemaClassMethod;
+using fly::SemaClassType;
+using fly::SemaFunction;
+using fly::SemaFunctionBase;
+using fly::SemaKind;
+using fly::SemaLocalVar;
+using fly::SemaModule;
+using fly::SemaNameSpace;
+using fly::SemaNode;
+using fly::SemaParam;
+using fly::SemaType;
+using fly::SemaVar;
+using fly::SourceLocation;
+using fly::Symbol;
+using fly::SymbolKind;
 
 // ── Compile ───────────────────────────────────────────────────────────────────
 
@@ -388,3 +430,6 @@ std::vector<LspDocSymbol> LspAnalyzer::getDocumentSymbols(
     }
     return result;
 }
+
+} // namespace lsp
+} // namespace fly

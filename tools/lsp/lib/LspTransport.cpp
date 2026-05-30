@@ -6,8 +6,10 @@
 #include <cstring>
 #include <string>
 
-using namespace fly::lsp;
 using namespace llvm;
+
+namespace fly {
+namespace lsp {
 
 // ── Read ─────────────────────────────────────────────────────────────────────
 
@@ -86,3 +88,7 @@ void LspTransport::sendNotification(StringRef method, json::Object params) {
         {"params",  std::move(params)},
     });
 }
+
+
+} // namespace lsp
+} // namespace fly
