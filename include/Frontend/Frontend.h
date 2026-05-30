@@ -62,6 +62,10 @@ namespace fly {
 
         void ParseFile(ASTBuilder &Builder, const std::string &FileName);
 
+        /// Scan \p Dir recursively for .fly files and parse them as headers
+        /// (declarations only), registering their namespaces for import resolution.
+        void LoadLibHeaders(ASTBuilder &Builder, const std::string &Dir);
+
 #ifdef FLY_LIB_FLY_DIR
         void LoadStdlibHeaders(ASTBuilder &Builder);
 #endif

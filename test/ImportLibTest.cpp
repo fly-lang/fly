@@ -81,6 +81,61 @@ void main() {
         EXPECT_TRUE(drv.Execute());
     }
 
+    // Verify that -L <dir> makes the namespace in that dir available for import.
+    // We create a temporary lib dir with a source file declaring "namespace ext.lib",
+    // then compile a user file that imports "ext.lib" — it should succeed.
+    TEST_F(ImportLibTest, LibDirFlag) {
+        // Create a temporary lib directory with one .fly source file
+        const char *libDir  = "tmp_libdir";
+        const char *libFile = "tmp_libdir/mylib.fly";
+        const char *userFile = "tmp_libdir_main.fly";
+
+        llvm::sys::fs::create_directory(libDir);
+        { std::ofstream f(libFile);  f << "namespace ext.lib\npublic void libFunc() {}\n"; }
+        { std::ofstream f(userFile); f << "import ext.lib\nvoid main() { ext.lib.libFunc() }\n"; }
+
+        const char *argv[] = {"fly", "-no-output", "-L", libDir, userFile};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        bool ok = drv.Execute();
+
+        remove(libFile);
+        remove(userFile);
+        llvm::sys::fs::remove(libDir);
+
+        EXPECT_TRUE(ok);
+    }
+
+    // A non-.fly file in a -L dir should produce a warning but not fail compilation.
+    // The .fly.h generated header is always skipped silently (no warning).
+    TEST_F(ImportLibTest, LibDirNonFlyFileWarning) {
+        const char *libDir    = "tmp_warn_libdir";
+        const char *flyFile   = "tmp_warn_libdir/mylib.fly";
+        const char *flyHFile  = "tmp_warn_libdir/mylib.fly.h";  // silently skipped
+        const char *txtFile   = "tmp_warn_libdir/README.txt";   // triggers warning
+        const char *userFile  = "tmp_warn_libdir_main.fly";
+
+        llvm::sys::fs::create_directory(libDir);
+        { std::ofstream f(flyFile);  f << "namespace warn.lib\npublic void warnFunc() {}\n"; }
+        { std::ofstream f(flyHFile); f << "namespace warn.lib\npublic void warnFunc()\n"; }
+        { std::ofstream f(txtFile);  f << "this is a readme\n"; }
+        { std::ofstream f(userFile); f << "import warn.lib\nvoid main() { warn.lib.warnFunc() }\n"; }
+
+        const char *argv[] = {"fly", "-no-output", "-L", libDir, userFile};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        // Compilation succeeds (warning does not abort)
+        bool ok = drv.Execute();
+
+        remove(flyFile);
+        remove(flyHFile);
+        remove(txtFile);
+        remove(userFile);
+        llvm::sys::fs::remove(libDir);
+
+        EXPECT_TRUE(ok);
+    }
+
     // Emits LLVM IR for main.fly and verifies that fly.str.len is
     // referenced as an extern declare with the namespace-mangled name.
     TEST_F(ImportLibTest, ImportFlyLibEmitLL) {

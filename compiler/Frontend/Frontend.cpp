@@ -268,6 +268,12 @@ bool Frontend::Execute() {
     LoadStdlibHeaders(*Builder);
 #endif
 
+    // Load headers from additional library directories specified via -L <dir>.
+    // These are scanned in order and registered before user files, so any
+    // namespace declared in a dependency is immediately available for import.
+    for (const auto &Dir : CI.getFrontendOptions().LibDirs)
+        LoadLibHeaders(*Builder, Dir);
+
     for (auto &FileName: CI.getFrontendOptions().getInputFiles()) {
         Diags.getClient()->BeginSourceFile();
         ParseFile(*Builder, FileName);
@@ -444,23 +450,35 @@ const SmallVector<std::string, 4> &Frontend::getOutputFiles() const {
     return OutputFiles;
 }
 
-#ifdef FLY_LIB_FLY_DIR
-void Frontend::LoadStdlibHeaders(ASTBuilder &Builder) {
+void Frontend::LoadLibHeaders(ASTBuilder &Builder, const std::string &Dir) {
     // Build a set of filenames currently being compiled (e.g. "math.fly").
-    // A stdlib source whose file is already an input is skipped: the in-memory
+    // A source file whose basename is already an input is skipped: the in-memory
     // AST built from the full parse is authoritative.
     llvm::StringSet<> CompilingNow;
     for (const auto &F : CI.getFrontendOptions().getInputFiles())
         CompilingNow.insert(llvm::sys::path::filename(F));
 
     std::error_code EC;
-    for (llvm::sys::fs::recursive_directory_iterator I(FLY_LIB_FLY_DIR, EC), E;
-         I != E && !EC; I.increment(EC)) {
+    for (llvm::sys::fs::recursive_directory_iterator I(Dir, EC), E; I != E && !EC; I.increment(EC)) {
         const std::string &Path = I->path();
-        // Accept only .fly source files (not .fly.h generated headers)
         llvm::StringRef Filename = llvm::sys::path::filename(Path);
-        if (!Filename.ends_with(".fly"))
+
+        // Skip directories silently — the iterator descends into them automatically.
+        if (llvm::sys::fs::is_directory(Path))
             continue;
+
+        // Skip generated .fly.h declaration files silently — they are a known
+        // by-product of --header builds and carry no new declarations here.
+        if (Filename.ends_with(".fly.h"))
+            continue;
+
+        // Warn about any other non-.fly file: it cannot be compiled and its
+        // presence in a library search directory is likely a configuration mistake.
+        if (!Filename.ends_with(".fly")) {
+            Diags.Report(SourceLocation(), diag::warn_fe_lib_dir_non_fly_file) << Path;
+            continue;
+        }
+
         if (CompilingNow.count(Filename))
             continue;
         InputFile *Input = new InputFile(Diags, CI.getSourceManager(), Path);
@@ -474,6 +492,11 @@ void Frontend::LoadStdlibHeaders(ASTBuilder &Builder) {
             delete Input;
         }
     }
+}
+
+#ifdef FLY_LIB_FLY_DIR
+void Frontend::LoadStdlibHeaders(ASTBuilder &Builder) {
+    LoadLibHeaders(Builder, FLY_LIB_FLY_DIR);
 }
 #endif
 

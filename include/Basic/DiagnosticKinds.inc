@@ -56,6 +56,7 @@ DIAG(err_fe_unable_to_open_output, CLASS_ERROR, (unsigned)diag::Severity::Error,
 DIAG(err_fe_unable_remove_header, CLASS_ERROR, (unsigned)diag::Severity::Error, "unable to remove extracted header files '%0'", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(warn_fe_cc_log_diagnostics_failure, CLASS_WARNING, (unsigned)diag::Severity::Warning, "unable to open CC_LOG_DIAGNOSTICS file: %0 (using stderr)", 0, SFINAE_Suppress, false, false, 0)
 DIAG(warn_fe_unable_to_open_stats_file, CLASS_WARNING, (unsigned)diag::Severity::Warning, "unable to open statistics output file '%0': '%1'", 764, SFINAE_Suppress, false, false, 0)
+DIAG(warn_fe_lib_dir_non_fly_file, CLASS_WARNING, (unsigned)diag::Severity::Warning, "file '%0' in library search directory is not a .fly source file and will be ignored", 0, SFINAE_Suppress, false, false, 0)
 DIAG(note_fe_no_input_process, CLASS_NOTE, (unsigned)diag::Severity::Remark, "No input files for processing", 0, SFINAE_Suppress, false, true, 0)
 
 // Lexer
@@ -205,6 +206,7 @@ DIAG(warn_sema_switch_fallthrough, CLASS_WARNING, (unsigned)diag::Severity::Warn
 DIAG(warn_sema_switch_enum_not_exhaustive, CLASS_WARNING, (unsigned)diag::Severity::Warning, "switch on enum '%0' does not cover all variants; add the missing cases or a 'default' block", 0, SFINAE_Suppress, false, false, 0)
 DIAG(err_sema_symbol_not_accessible, CLASS_ERROR, (unsigned)diag::Severity::Error, "'%0' is private and cannot be accessed from outside '%1'", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_sema_namespace_not_found, CLASS_ERROR, (unsigned)diag::Severity::Error, "namespace or module '%0' was not found; check the import path and ensure the module is compiled", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_sema_import_wildcard_not_namespace, CLASS_ERROR, (unsigned)diag::Severity::Error, "wildcard import ('.*') requires a namespace target, but '%0' is not a namespace", 0, SFINAE_Suppress, false, true, 0)
 DIAG(warn_sema_infinite_loop, CLASS_WARNING, (unsigned)diag::Severity::Warning, "possible infinite loop: condition is always 'true' and the body contains no 'break' or 'fail'", 0, SFINAE_Suppress, false, false, 0)
 DIAG(warn_sema_var_shadow, CLASS_WARNING, (unsigned)diag::Severity::Warning, "'%0' shadows a variable declared in an outer scope", 0, SFINAE_Suppress, false, false, 0)
 DIAG(warn_sema_var_unused, CLASS_WARNING, (unsigned)diag::Severity::Warning, "variable '%0' is declared but its value is never read", 0, SFINAE_Suppress, false, false, 0)

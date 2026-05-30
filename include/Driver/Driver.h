@@ -46,6 +46,7 @@ namespace fly {
 
         // ── Parsed option values ──────────────────────────────────────────────
         std::vector<std::string> InputFiles;
+        std::vector<std::string> LibDirs;
         std::string OutputFile;
         bool OutputLib    = false;
         std::string LogFile;

@@ -124,6 +124,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     app.add_option("--target-cpu",  TargetCpu,    "Generate code for the given CPU");
     app.add_option("--stats-file",  StatsFile,    "Filename to write statistics to");
     app.add_option("--working-dir", WorkingDir,   "Resolve file paths relative to the specified directory");
+    app.add_option("-L",            LibDirs,      "Add <dir> to the library search path for namespace resolution")->allow_extra_args(false);
 
     // Remaining non-option args become input files.
     app.allow_extras(true);
@@ -288,6 +289,12 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     for (const auto &F : InputFiles) {
         FLY_DEBUG_MSG("Set input=" << F);
         FrontendOpts->addInputFile(F.c_str());
+    }
+
+    // Library search dirs (-L)
+    for (const auto &D : LibDirs) {
+        FLY_DEBUG_MSG("Set -L=" << D);
+        FrontendOpts->LibDirs.push_back(D);
     }
 
     // Verbose
