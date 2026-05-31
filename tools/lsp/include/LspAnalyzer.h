@@ -22,7 +22,7 @@ namespace fly {
     class ASTStmt;
     class ASTBlockStmt;
     class SemaModule;
-    class Symbol;
+    struct Symbol;
     class SourceManager;
     class SourceLocation;
 }
