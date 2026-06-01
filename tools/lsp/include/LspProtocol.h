@@ -42,6 +42,12 @@ struct LspDocSymbol {
     LspRange      selectionRange;
 };
 
+// LSP DocumentHighlightKind: 1=Text  2=Read  3=Write
+struct LspDocumentHighlight {
+    LspRange range;
+    int      kind = 1;
+};
+
 enum class LspCompletionKind {
     Text      = 1,
     Function  = 3,
@@ -77,6 +83,7 @@ llvm::json::Object toJson(const LspLocation &l);
 llvm::json::Object toJson(const LspDiagnostic &d);
 llvm::json::Object toJson(const LspDocSymbol &s);
 llvm::json::Object toJson(const LspCompletionItem &c);
+llvm::json::Object toJson(const LspDocumentHighlight &h);
 
 LspPosition positionFromJson(const llvm::json::Object &obj);
 

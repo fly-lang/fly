@@ -23,3 +23,6 @@ target_link_libraries(fly-lsp PRIVATE FlyLspLib)
 set_target_properties(fly-lsp PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 install(TARGETS fly-lsp RUNTIME DESTINATION bin)
+
+# LSP unit tests
+add_subdirectory(test)

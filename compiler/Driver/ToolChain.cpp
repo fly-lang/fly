@@ -543,6 +543,12 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
         CmdArgs.push_back(ObjFile.c_str());
     }
 
+    const std::string WinStdLib = GetStdLibPath();
+    if (!WinStdLib.empty()) {
+        FLY_DEBUG_MSG("StdLib=" << WinStdLib);
+        CmdArgs.push_back(WinStdLib.c_str());
+    }
+
     const std::string WinRuntimeLib = GetRuntimeLibPath();
     if (!WinRuntimeLib.empty()) {
         FLY_DEBUG_MSG("RuntimeLib=" << WinRuntimeLib);
@@ -712,6 +718,12 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
         CmdArgs.push_back(InFile.c_str());
     }
 
+    const std::string DarwinStdLib = GetStdLibPath();
+    if (!DarwinStdLib.empty()) {
+        FLY_DEBUG_MSG("StdLib=" << DarwinStdLib);
+        CmdArgs.push_back(DarwinStdLib.c_str());
+    }
+
     const std::string DarwinRuntimeLib = GetRuntimeLibPath();
     if (!DarwinRuntimeLib.empty()) {
         FLY_DEBUG_MSG("RuntimeLib=" << DarwinRuntimeLib);
@@ -869,6 +881,14 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
             FLY_DEBUG_MSG("UserLib=" << Input);
             CmdArgs.push_back(Input);
         }
+    }
+
+    // Link fly_std_lib.a (Fly standard library: fly.os.io, fly.str, …) before
+    // the runtime so its symbols resolve user-facing stdlib calls first.
+    const std::string StdLib = GetStdLibPath();
+    if (!StdLib.empty()) {
+        FLY_DEBUG_MSG("StdLib=" << StdLib);
+        CmdArgs.push_back(StdLib);
     }
 
     // Link the Fly runtime (libfly_runtime.a) immediately after user objects so
@@ -1350,6 +1370,36 @@ std::string ToolChain::GetCompilerRTBuiltinsPath() const {
     return "";
 }
 
+
+std::string ToolChain::GetStdLibPath() const {
+    FLY_DEBUG_SCOPE("ToolChain", "GetStdLibPath");
+    const llvm::StringRef BaseDir(FLY_RUNTIME_LIB_DIR);
+
+    const std::pair<llvm::StringRef, llvm::StringRef> Candidates[] = {
+        {"",               "fly_std_lib.a"},
+        {"RelWithDebInfo", "fly_std_lib.a"},
+        {"Release",        "fly_std_lib.a"},
+        {"Debug",          "fly_std_lib.a"},
+        {"MinSizeRel",     "fly_std_lib.a"},
+        // Windows
+        {"",               "fly_std_lib.lib"},
+        {"RelWithDebInfo", "fly_std_lib.lib"},
+        {"Release",        "fly_std_lib.lib"},
+    };
+
+    for (auto &[Sub, Name] : Candidates) {
+        llvm::SmallString<256> P(BaseDir);
+        if (!Sub.empty())
+            llvm::sys::path::append(P, Sub);
+        llvm::sys::path::append(P, Name);
+        if (getVFS().exists(P)) {
+            FLY_DEBUG_MSG("Found: " << P);
+            return std::string(P.str());
+        }
+    }
+    FLY_DEBUG_MSG("fly_std_lib not found in: " << BaseDir);
+    return "";
+}
 
 std::string ToolChain::GetRuntimeLibPath() const {
     FLY_DEBUG_SCOPE("ToolChain", "GetRuntimeLibPath");

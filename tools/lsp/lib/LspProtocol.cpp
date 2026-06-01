@@ -40,6 +40,10 @@ json::Object fly::lsp::toJson(const LspCompletionItem &c) {
     return obj;
 }
 
+json::Object fly::lsp::toJson(const LspDocumentHighlight &h) {
+    return json::Object{{"range", toJson(h.range)}, {"kind", h.kind}};
+}
+
 LspPosition fly::lsp::positionFromJson(const json::Object &obj) {
     return LspPosition{
         (int)obj.getInteger("line").value_or(0),

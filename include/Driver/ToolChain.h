@@ -56,6 +56,10 @@ namespace fly {
         // it cannot be located (e.g. cross-compilation without an installed runtime).
         std::string GetRuntimeLibPath() const;
 
+        // Returns the absolute path to fly_std_lib.a (the compiled Fly standard
+        // library), or an empty string if it cannot be found.
+        std::string GetStdLibPath() const;
+
         // Returns the absolute path to the compiler-rt builtins archive
         // (libclang_rt.builtins-<arch>.a) for the current target, or an empty
         // string if it cannot be found.  Used in place of -lgcc.

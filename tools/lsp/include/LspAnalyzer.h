@@ -59,6 +59,10 @@ public:
     /// Return all declared symbols in the given file (for document outline).
     std::vector<LspDocSymbol> getDocumentSymbols(const std::string &file);
 
+    /// Return highlight ranges for every occurrence of the symbol at (line,col).
+    std::vector<LspDocumentHighlight>
+        getDocumentHighlights(const std::string &file, int line, int col);
+
 private:
     // Kept alive so AST StringRefs (pointing into Lexer tables) remain valid.
     std::unique_ptr<Driver>   driver_;
@@ -74,6 +78,14 @@ private:
     fly::Symbol *walkExpr (fly::ASTExpr  *e, const std::string &f, int l, int c) const;
     fly::Symbol *walkStmt (fly::ASTStmt  *s, const std::string &f, int l, int c) const;
     fly::Symbol *walkBlock(fly::ASTBlockStmt *b, const std::string &f, int l, int c) const;
+
+    // Recursive AST collectors for getDocumentHighlights
+    void collectExpr (fly::ASTExpr      *e, fly::Symbol *sym,
+                      std::vector<LspDocumentHighlight> &out) const;
+    void collectStmt (fly::ASTStmt      *s, fly::Symbol *sym,
+                      std::vector<LspDocumentHighlight> &out) const;
+    void collectBlock(fly::ASTBlockStmt *b, fly::Symbol *sym,
+                      std::vector<LspDocumentHighlight> &out) const;
 };
 
 } // namespace fly::lsp
