@@ -23,8 +23,7 @@
 #include "LspProtocol.h"
 #include "LspServer.h"
 
-#include <fcntl.h>
-#include <unistd.h>
+#include "PosixCompat.h"
 
 using namespace fly::lsp;
 using namespace llvm;

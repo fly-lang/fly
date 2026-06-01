@@ -8,8 +8,7 @@
 #include "LspTransport.h"
 #include <llvm/Support/JSON.h>
 
-#include <fcntl.h>
-#include <unistd.h>
+#include "PosixCompat.h"
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -59,15 +58,7 @@ struct StdioCapture {
     // Drain all bytes currently in the stdout pipe (non-blocking after fflush).
     std::string captureStdout() {
         std::fflush(stdout);
-        int fl = fcntl(out_pipe[0], F_GETFL, 0);
-        fcntl(out_pipe[0], F_SETFL, fl | O_NONBLOCK);
-        std::string result;
-        char buf[4096];
-        ssize_t n;
-        while ((n = ::read(out_pipe[0], buf, sizeof(buf))) > 0)
-            result.append(buf, (size_t)n);
-        fcntl(out_pipe[0], F_SETFL, fl);
-        return result;
+        return drainPipe(out_pipe[0]);
     }
 
     ~StdioCapture() {

@@ -9,8 +9,7 @@
 #include "LspServer.h"
 #include <llvm/Support/JSON.h>
 
-#include <fcntl.h>
-#include <unistd.h>
+#include "PosixCompat.h"
 #include <cstdio>
 #include <string>
 
