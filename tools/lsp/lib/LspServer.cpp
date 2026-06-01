@@ -65,7 +65,8 @@ void LspServer::dispatch(const json::Object &msg) {
     else if (*method == "textDocument/definition") onDefinition(std::move(idVal), *params);
     else if (*method == "textDocument/completion") onCompletion(std::move(idVal), *params);
     else if (*method == "textDocument/documentSymbol") onDocSymbols(std::move(idVal), *params);
-    else if (*method == "textDocument/references") onReferences(std::move(idVal), *params);
+    else if (*method == "textDocument/references")        onReferences(std::move(idVal), *params);
+    else if (*method == "textDocument/documentHighlight") onDocumentHighlight(std::move(idVal), *params);
     else if (isRequest)
         transport_.sendError(std::move(idVal), -32601,
                              ("Unknown method: " + *method).str());
@@ -80,8 +81,9 @@ void LspServer::onInitialize(json::Value id, const json::Object & /*params*/) {
             {"textDocumentSync",       1},   // 1 = full document sync
             {"hoverProvider",          true},
             {"definitionProvider",     true},
-            {"referencesProvider",     true},
-            {"documentSymbolProvider", true},
+            {"referencesProvider",          true},
+            {"documentSymbolProvider",      true},
+            {"documentHighlightProvider",   true},
             {"completionProvider", json::Object{
                 {"triggerCharacters", json::Array{"."}},
             }},
@@ -193,6 +195,16 @@ void LspServer::onDocSymbols(json::Value id, const json::Object &params) {
 void LspServer::onReferences(json::Value id, const json::Object & /*params*/) {
     // TODO: walk all modules for uses of the symbol at position
     transport_.sendResult(std::move(id), json::Array{});
+}
+
+void LspServer::onDocumentHighlight(json::Value id, const json::Object &params) {
+    std::string path = extractPath(params);
+    LspPosition pos  = extractPosition(params);
+
+    auto highlights = analyzer_.getDocumentHighlights(path, pos.line, pos.character);
+    json::Array arr;
+    for (const auto &h : highlights) arr.push_back(toJson(h));
+    transport_.sendResult(std::move(id), std::move(arr));
 }
 
 } // namespace lsp

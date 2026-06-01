@@ -68,7 +68,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           draft: false
-          prerelease: true
+          prerelease: false
           tag_name: v${{ steps.version.outputs.version }}
           name: Fly ${{ steps.version.outputs.version }}
           files: |

@@ -31,6 +31,7 @@
 #include "Sema/SemaType.h"
 #include "Sema/Symbol.h"
 
+#include <llvm/ADT/SmallString.h>
 #include <llvm/Support/TargetSelect.h>
 
 // All method definitions are inside the explicit namespace block so MSVC
@@ -78,11 +79,61 @@ using fly::SourceLocation;
 using fly::Symbol;
 using fly::SymbolKind;
 
+// ── In-process diagnostic consumer ───────────────────────────────────────────
+
+// Captures compiler diagnostics as LspDiagnostic objects during Execute().
+// Installed on the DiagnosticsEngine with ShouldOwnClient=false so the engine
+// does not try to delete it; the caller resets the client before returning.
+class LspCapturingConsumer : public fly::DiagnosticConsumer {
+    fly::SourceManager           *SM_;
+    std::vector<LspDiagnostic>  &out_;
+public:
+    LspCapturingConsumer(fly::SourceManager *sm, std::vector<LspDiagnostic> &out)
+        : SM_(sm), out_(out) {}
+
+    void HandleDiagnostic(fly::DiagnosticsEngine::Level level,
+                          const fly::Diagnostic &info) override {
+        DiagnosticConsumer::HandleDiagnostic(level, info);  // update counts
+        if (level == fly::DiagnosticsEngine::Ignored) return;
+
+        // Format the diagnostic message text.
+        llvm::SmallString<256> msg;
+        info.FormatDiagnostic(msg);
+
+        // Resolve source location to file path and 0-based position.
+        LspPosition pos{0, 0};
+        std::string file;
+        fly::SourceLocation loc = info.getLocation();
+        if (SM_ && loc.isValid()) {
+            fly::PresumedLoc pl = SM_->getPresumedLoc(loc);
+            if (pl.isValid()) {
+                pos  = {(int)pl.getLine() - 1, (int)pl.getColumn() - 1};
+                file = pl.getFilename();
+            }
+        }
+
+        int severity;
+        switch (level) {
+        case fly::DiagnosticsEngine::Error:
+        case fly::DiagnosticsEngine::Fatal:   severity = 1; break;
+        case fly::DiagnosticsEngine::Warning: severity = 2; break;
+        default:                              severity = 3; break; // Note/Remark
+        }
+
+        LspDiagnostic d;
+        d.range    = {pos, pos};
+        d.severity = severity;
+        d.message  = msg.str().str();
+        d.file     = std::move(file);
+        out_.push_back(std::move(d));
+    }
+};
+
 // ── Compile ───────────────────────────────────────────────────────────────────
 
 std::vector<LspDiagnostic> LspAnalyzer::compile(
         const std::vector<std::string> &files) {
-    // Init LLVM targets once
+    // Init LLVM targets once per process.
     static bool targetInit = false;
     if (!targetInit) {
         llvm::InitializeAllTargetInfos();
@@ -108,15 +159,22 @@ std::vector<LspDiagnostic> LspAnalyzer::compile(
     CompilerInstance &ci = driver_->BuildCompilerInstance();
     SM_ = &ci.getSourceManager();
 
-    frontend_ = std::make_unique<Frontend>(ci);
-    frontend_->Execute();
+    // Install our capturing consumer before Execute() so every diagnostic
+    // emitted during parsing / sema / codegen is captured in-process.
+    // ShouldOwnClient=false: we manage the lifetime ourselves.
+    std::vector<LspDiagnostic> results;
+    {
+        LspCapturingConsumer consumer(SM_, results);
+        ci.getDiagnostics().setClient(&consumer, /*ShouldOwnClient=*/false);
 
-    // Diagnostics are currently printed to stderr by the engine's default
-    // consumer. To surface them as LspDiagnostic we would install a custom
-    // DiagnosticConsumer before Execute(); that is left as future work.
-    // The VS Code extension's existing subprocess+JSON path covers this
-    // until an in-process consumer is wired here.
-    return {};
+        frontend_ = std::make_unique<Frontend>(ci);
+        frontend_->Execute();
+
+        // Detach before the consumer goes out of scope so the engine never
+        // holds a dangling pointer (e.g. if an LLVM handler fires later).
+        ci.getDiagnostics().setClient(nullptr, /*ShouldOwnClient=*/false);
+    }
+    return results;
 }
 
 // ── Position helpers ──────────────────────────────────────────────────────────
@@ -429,6 +487,137 @@ std::vector<LspDocSymbol> LspAnalyzer::getDocumentSymbols(
         }
     }
     return result;
+}
+
+// ── getDocumentHighlights — collectors ────────────────────────────────────────
+
+void LspAnalyzer::collectExpr(ASTExpr *expr, Symbol *sym,
+                               std::vector<LspDocumentHighlight> &out) const {
+    if (!expr || !sym) return;
+
+    LspPosition epos = toPosition(expr->getLocation());
+
+    auto push = [&](int nameLen, int kind) {
+        LspPosition start = epos;
+        LspPosition end   = {epos.line, epos.character + nameLen};
+        out.push_back({LspRange{start, end}, kind});
+    };
+
+    switch (expr->getExprKind()) {
+
+    case ASTExprKind::EXPR_IDENTIFIER: {
+        auto *id = static_cast<ASTIdentifier *>(expr);
+        if (id->getSymbol() == sym)
+            push((int)id->getName().size(), 2); // Read
+        break;
+    }
+
+    case ASTExprKind::EXPR_MEMBER: {
+        auto *mem = static_cast<ASTMember *>(expr);
+        if (mem->getSymbol() == sym)
+            push((int)mem->getName().size(), 2);
+        if (auto *p = expr->getParent())
+            collectExpr(p, sym, out);
+        break;
+    }
+
+    case ASTExprKind::EXPR_CALL: {
+        auto *call = static_cast<ASTCall *>(expr);
+        if (call->getSymbol() == sym)
+            push((int)call->getName().size(), 2);
+        if (auto *p = expr->getParent())
+            collectExpr(p, sym, out);
+        for (auto *arg : call->getArgs())
+            collectExpr(arg->getExpr(), sym, out);
+        break;
+    }
+
+    case ASTExprKind::EXPR_BINARY: {
+        auto *bin = static_cast<ASTBinary *>(expr);
+        collectExpr(bin->getLeftExpr(),  sym, out);
+        collectExpr(bin->getRightExpr(), sym, out);
+        break;
+    }
+
+    default:
+        break;
+    }
+}
+
+void LspAnalyzer::collectStmt(ASTStmt *stmt, Symbol *sym,
+                               std::vector<LspDocumentHighlight> &out) const {
+    if (!stmt) return;
+    switch (stmt->getStmtKind()) {
+    case ASTStmtKind::STMT_BLOCK:
+        collectBlock(static_cast<ASTBlockStmt *>(stmt), sym, out);
+        break;
+    case ASTStmtKind::STMT_EXPR:
+        collectExpr(static_cast<ASTExprStmt *>(stmt)->getExpr(), sym, out);
+        break;
+    case ASTStmtKind::STMT_DECL:
+        // The RHS expression — mark write site
+        collectExpr(static_cast<ASTDeclStmt *>(stmt)->getExpr(), sym, out);
+        break;
+    case ASTStmtKind::STMT_RULE:
+    case ASTStmtKind::STMT_IF:
+    case ASTStmtKind::STMT_SWITCH: {
+        auto *rule = static_cast<ASTRuleStmt *>(stmt);
+        collectExpr(rule->getExpr(), sym, out);
+        collectStmt(rule->getStmt(), sym, out);
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+void LspAnalyzer::collectBlock(ASTBlockStmt *block, Symbol *sym,
+                                std::vector<LspDocumentHighlight> &out) const {
+    if (!block) return;
+    for (auto *stmt : block->getContent())
+        collectStmt(stmt, sym, out);
+}
+
+// ── getDocumentHighlights ─────────────────────────────────────────────────────
+
+std::vector<LspDocumentHighlight>
+LspAnalyzer::getDocumentHighlights(const std::string &file, int line, int col) {
+    if (!frontend_) return {};
+
+    // Identify which symbol is under the cursor.
+    Symbol *sym = findSymbolAt(file, line, col);
+    if (!sym) return {};
+
+    // Walk the entire file collecting all references to that symbol.
+    std::vector<LspDocumentHighlight> out;
+    for (SemaModule *mod : frontend_->getSemaModules()) {
+        const std::string &mf = mod->getAST().getName();
+        if (!mf.empty() && mf != file) continue;
+
+        for (SemaNode *node : mod->getNodes()) {
+            switch (node->getKind()) {
+            case SemaKind::FUNCTION: {
+                auto *fn = static_cast<SemaFunction *>(node);
+                if (fn->getAST().getBody())
+                    collectBlock(fn->getAST().getBody(), sym, out);
+                break;
+            }
+            case SemaKind::TYPE_CLASS: {
+                auto *cls = static_cast<SemaClassType *>(node);
+                for (auto it = cls->getMethods().begin();
+                         it != cls->getMethods().end(); ++it) {
+                    SemaClassMethod *method = it->getValue();
+                    if (method->getAST().getBody())
+                        collectBlock(method->getAST().getBody(), sym, out);
+                }
+                break;
+            }
+            default:
+                break;
+            }
+        }
+    }
+    return out;
 }
 
 } // namespace lsp

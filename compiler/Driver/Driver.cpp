@@ -424,7 +424,7 @@ bool Driver::Execute() {
         Frontend Front(*CI);
         Success = Front.Execute();
 
-        if (!CI->getFrontendOptions().getOutputFile().empty()) {
+        if (Success && !CI->getFrontendOptions().getOutputFile().empty()) {
             std::unique_ptr<TargetInfo> TI(TargetInfo::CreateTargetInfo(
                 CI->getDiagnostics(), CI->getTargetOptions()));
             const llvm::Triple &T = TI->getTriple();

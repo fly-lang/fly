@@ -41,11 +41,12 @@ private:
     void onDidChange    (const llvm::json::Object &params);
     void onDidClose     (const llvm::json::Object &params);
 
-    void onHover        (llvm::json::Value id, const llvm::json::Object &params);
-    void onDefinition   (llvm::json::Value id, const llvm::json::Object &params);
-    void onCompletion   (llvm::json::Value id, const llvm::json::Object &params);
-    void onDocSymbols   (llvm::json::Value id, const llvm::json::Object &params);
-    void onReferences   (llvm::json::Value id, const llvm::json::Object &params);
+    void onHover             (llvm::json::Value id, const llvm::json::Object &params);
+    void onDefinition        (llvm::json::Value id, const llvm::json::Object &params);
+    void onCompletion        (llvm::json::Value id, const llvm::json::Object &params);
+    void onDocSymbols        (llvm::json::Value id, const llvm::json::Object &params);
+    void onReferences        (llvm::json::Value id, const llvm::json::Object &params);
+    void onDocumentHighlight (llvm::json::Value id, const llvm::json::Object &params);
 
     // Recompile all open files and push diagnostics for the given file.
     void recompileAndPublish(const std::string &triggerFile);
