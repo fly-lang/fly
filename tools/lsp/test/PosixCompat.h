@@ -36,7 +36,8 @@ inline int  posix_write(int fd, const void *buf, unsigned n) { return _write(fd,
 #  define close(fd)          posix_close(fd)
 #  define read(fd,buf,n)     posix_read(fd, buf, (unsigned)(n))
 #  define write(fd,buf,n)    posix_write(fd, buf, (unsigned)(n))
-typedef int ssize_t;
+// ssize_t: do not redefine here — LLVM/SDK headers may already define it as
+// __int64. Callers should use `int` for read/write return values on Windows.
 #else
 #  include <unistd.h>
 #  include <fcntl.h>

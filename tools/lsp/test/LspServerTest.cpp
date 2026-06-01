@@ -65,7 +65,7 @@ public:
         header.reserve(128);
         for (;;) {
             char c;
-            ssize_t n = ::read(out_pipe[0], &c, 1);
+            int n = ::read(out_pipe[0], &c, 1);
             if (n <= 0) return json::Value(nullptr);
             header += c;
             if (header.size() >= 4 &&
@@ -83,7 +83,7 @@ public:
         std::string body(len, '\0');
         size_t done = 0;
         while (done < len) {
-            ssize_t n = ::read(out_pipe[0], body.data() + done, len - done);
+            int n = ::read(out_pipe[0], body.data() + done, len - done);
             if (n <= 0) break;
             done += (size_t)n;
         }
