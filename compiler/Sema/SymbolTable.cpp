@@ -114,6 +114,29 @@ llvm::SmallVector<Symbol *, 8> *SymbolTable::lookupInParents(llvm::StringRef Nam
 	return nullptr;
 }
 
+llvm::SmallVector<Symbol *, 8> *SymbolTable::lookupTypeInParents(llvm::StringRef Name) {
+	// Walk the scope chain looking for a named-type symbol (CLASS, ENUM, BUILTIN_TYPE).
+	// Unlike lookupInParents, this skips scopes where Name resolves only to FUNCTION
+	// symbols (e.g. a constructor in the class's own scope with the same name).
+	auto it = Table.find(Name);
+	if (it != Table.end()) {
+		bool hasType = false;
+		for (Symbol *S : it->second) {
+			SymbolKind K = S->getKind();
+			if (K == SymbolKind::CLASS || K == SymbolKind::ENUM || K == SymbolKind::BUILTIN_TYPE) {
+				hasType = true;
+				break;
+			}
+		}
+		if (hasType)
+			return &it->second;
+		// Only function/var symbols here — keep searching up the chain.
+	}
+
+	if (Parent) return Parent->lookupTypeInParents(Name);
+	return nullptr;
+}
+
 llvm::SmallVector<Symbol *, 8> *SymbolTable::lookupInChildren(llvm::StringRef Name) {
 	// First check in the current table
 	auto it = Table.find(Name);

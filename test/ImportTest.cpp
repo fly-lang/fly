@@ -18,12 +18,13 @@ extern bool DebugLog;
 namespace {
     using namespace fly;
 
-    // ── Library stub: namespace my.utils with one public function ─────────────
+    // ── Library stub: namespace my.utils with a function and a class ──────────
 
     static constexpr const char *UtilsSource = R"(
 namespace my.utils
 
 public void foo() {}
+public class MyUtil {}
 )";
 
     // ── Test sources ─────────────────────────────────────────────────────────
@@ -78,6 +79,32 @@ void main() {
 import my.utils.* as u
 
 void main() {
+    foo()
+}
+)";
+
+    // Case 7: import my.utils.MyUtil  →  Java-style class import → MyUtil in scope
+    static constexpr const char *ImportClassSource = R"(
+import my.utils.MyUtil
+
+void main() {
+    MyUtil u = new MyUtil()
+}
+)";
+
+    // Case 8: import my.utils.foo.*  →  compiler error (wildcard on a function)
+    static constexpr const char *ImportWildcardOnFunctionSource = R"(
+import my.utils.foo.*
+
+void main() {}
+)";
+
+    // Case 9: import my.utils.*  →  both MyUtil and foo in scope
+    static constexpr const char *ImportUtilsWildcardAllSource = R"(
+import my.utils.*
+
+void main() {
+    MyUtil u = new MyUtil()
     foo()
 }
 )";
@@ -161,6 +188,33 @@ void main() {
         Driver drv(argv);
         drv.BuildCompilerInstance();
         EXPECT_FALSE(drv.Execute());
+    }
+
+    // Java-style class import: import my.utils.MyUtil → new MyUtil()
+    TEST_F(ImportTest, ImportClassJavaStyle) {
+        SetUpWithSource(ImportClassSource);
+        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
+    // Wildcard on a non-namespace (function) → compiler error
+    TEST_F(ImportTest, ImportWildcardOnFunctionIsError) {
+        SetUpWithSource(ImportWildcardOnFunctionSource);
+        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
+    }
+
+    // Wildcard import brings both classes and functions into scope
+    TEST_F(ImportTest, ImportWildcardBringsAllSymbols) {
+        SetUpWithSource(ImportUtilsWildcardAllSource);
+        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
     }
 
 } // anonymous namespace

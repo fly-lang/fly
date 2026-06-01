@@ -247,7 +247,11 @@ void Parser::SkipBraceBlock() {
     do {
         if (isBlockStart())       ++Depth;
         else if (isBlockEnd())    --Depth;
-        ConsumeToken();
+        if (isTokenBrace())               ConsumeBrace(BracketCount);
+        else if (isTokenParen())          ConsumeParen();
+        else if (isTokenBracket())        ConsumeBracket();
+        else if (isTokenStringLiteral())  ConsumeStringToken();
+        else                              ConsumeToken();
     } while (Depth > 0 && Tok.isNot(tok::eof));
 }
 

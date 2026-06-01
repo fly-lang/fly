@@ -2275,6 +2275,11 @@ void Resolver::ResolveImports(SemaModule *Module) {
 						Module->getSymbols()->insert(Sym);
 					}
 				}
+			} else {
+				// Wildcard on a non-namespace target (class, enum, function) is an error
+				std::string TargetName = Helper::Flatten(Import->getTarget());
+				Diag(Import->getAST()->getLocation(),
+				     diag::err_sema_import_wildcard_not_namespace) << TargetName;
 			}
 		} else if (!Import->getAST()->getAlias().empty()) {
 			// Alias: create a new symbol with the alias name pointing to the same ref

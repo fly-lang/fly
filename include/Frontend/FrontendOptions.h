@@ -26,6 +26,11 @@ namespace fly {
 
     public:
 
+        /// Additional library search directories (added via -L <dir>).
+        /// Each directory is scanned for .fly header files, making the
+        /// namespaces declared in those files available for import.
+        llvm::SmallVector<std::string, 4> LibDirs;
+
         /// Generate Library
         bool CreateLibrary = false;
 

@@ -31,47 +31,37 @@ using namespace fly;
 CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExternal) : CodeGenType(CGM), Sema(Sema), IsExternal(isExternal) {
 	Id = toIdentifier(Sema);
 
-	// Generate Class Type
+	// Phase 1: Create the LLVM struct type and register the CodeGen var for 'this'.
+	// This must happen before setCodeGen() is called on Sema (done by the caller
+	// in visit(SemaClassType)) so that self-referential return type lookups during
+	// Phase 2 (Build()) can find the struct type via getCodeGen()->getType().
 	Type = llvm::StructType::create(CGM->LLVMCtx, Id);
-	T = Type; // Also set base class CodeGenType::T for polymorphic access
+	T = Type;
 	TypePtr = Type->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 
-	// Create CodeGenVar for Class Instance
 	CodeGenVar *CGV = new CodeGenVar(CGM, Sema->getThis(), Type);
 	Sema->getThis()->setCodeGen(CGV);
 
-	// Create the Init Constructor Function only for concrete (non-abstract, non-interface) classes
+	// Create the Init Constructor Function signature (no body yet).
 	if (Sema->getClassKind() != SemaClassKind::INTERFACE && !Sema->isAbstract()) {
 		CreateInitConstructor();
 	}
+	// Phase 2 (Build()) must be called by visit(SemaClassType) after setCodeGen().
+}
 
-	// Create the VTable Type (pointer to global vtable var)
-	// %class = { i8** %vtable, ... }
-	// Create the VTable Global Vars
-	// @vtable.Derived.Base1 = constant [2 x i8*]
-	// [
-	//   i8 *inttoptr(i64 0 to i8 *),
-	//   i8 *bitcast(void(%class.Base1*)*@ Derived_f to i8 *)
-	// ]
+void CodeGenClass::Build() {
+	// Phase 2: Complete class code generation. Called after Sema->setCodeGen(this) so
+	// that self-referential return types (e.g. pushScope() → SymbolTable) can resolve
+	// the CodeGen via getCodeGen()->getType() without triggering infinite recursion.
 	CreateVTable();
-
-	// Create the Base Class info
 	CreateBaseInfo(Sema->getBaseClasses());
-
-	// Create attributes inside the class
 	CreateAttributes();
-
-	// %type = type { %vtable_type, %...inherit_types, %...field_types }
 	Type->setBody(BodyType);
 
 	if (!IsExternal) {
-		// Generate per-base vtables and thunks for multiple inheritance
-		// Must be called after Type->setBody so struct layout is available for byte-offset computation
 		if (Sema->getClassKind() == SemaClassKind::CLASS) {
 			CreateBaseVTables();
 		}
-
-		// Generate Init Constructor Body only for concrete classes
 		if (Sema->getClassKind() != SemaClassKind::INTERFACE && !Sema->isAbstract()) {
 			GenInitConstructorBody();
 		}

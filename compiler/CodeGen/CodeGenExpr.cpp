@@ -1217,6 +1217,19 @@ void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &A
 		ArgExpr->accept(*CGM);
 		llvm::Value *V = ArgExpr->getCodeGen()->getValue();
 
+		// Allow class ↔ long parameter interchange: ptrtoint / inttoptr.
+		if (i < Params.size()) {
+			Params[i]->getType()->accept(*CGM);
+			llvm::Type *ExpLLVMTy = Params[i]->getType()->getCodeGen()->getType();
+			if (V->getType()->isPointerTy() && ExpLLVMTy->isIntegerTy(64)) {
+				// class → long: convert class pointer to i64
+				V = Builder->CreatePtrToInt(V, CodeGen::Int64Ty);
+			} else if (V->getType()->isIntegerTy(64) && ExpLLVMTy->isPointerTy()) {
+				// long → class: convert i64 to opaque pointer
+				V = Builder->CreateIntToPtr(V, llvm::PointerType::getUnqual(CGM->LLVMCtx));
+			}
+		}
+
 		// If value is not a pointer but the function expects a pointer (by-reference params),
 		// create a temp alloca, convert the value to match the param type, store, and pass pointer
 		if (!V->getType()->isPointerTy() && i < Params.size()) {

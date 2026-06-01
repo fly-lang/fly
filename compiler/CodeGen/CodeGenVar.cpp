@@ -70,7 +70,12 @@ llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
     if (T->isIntegerTy(1)) {
         Val = CGM->Builder->CreateZExt(Val, CodeGen::Int8Ty);
     }
-		
+    // Allow class ↔ long: ptrtoint / inttoptr for pointer-sized integer interchange.
+    if (T->isIntegerTy(64) && Val->getType()->isPointerTy()) {
+        Val = CGM->Builder->CreatePtrToInt(Val, CodeGen::Int64Ty);
+    } else if (T->isPointerTy() && Val->getType()->isIntegerTy(64)) {
+        Val = CGM->Builder->CreateIntToPtr(Val, llvm::PointerType::getUnqual(CGM->LLVMCtx));
+    }
 	return CGM->Builder->CreateStore(Val, getPointer());
 }
 
