@@ -44,6 +44,48 @@ json::Object fly::lsp::toJson(const LspDocumentHighlight &h) {
     return json::Object{{"range", toJson(h.range)}, {"kind", h.kind}};
 }
 
+json::Object fly::lsp::toJson(const LspSignatureHelp &h) {
+    json::Array sigs;
+    for (const auto &sig : h.signatures) {
+        json::Array params;
+        for (const auto &p : sig.parameters)
+            params.push_back(json::Object{{"label", p.label}});
+        sigs.push_back(json::Object{
+            {"label",      sig.label},
+            {"parameters", std::move(params)},
+        });
+    }
+    return json::Object{
+        {"signatures",       std::move(sigs)},
+        {"activeSignature",  h.activeSignature},
+        {"activeParameter",  h.activeParameter},
+    };
+}
+
+json::Object fly::lsp::toJson(const LspFoldingRange &r) {
+    json::Object obj{{"startLine", r.startLine}, {"endLine", r.endLine}};
+    if (!r.kind.empty()) obj["kind"] = r.kind;
+    return obj;
+}
+
+json::Object fly::lsp::toJson(const LspInlayHint &h) {
+    return json::Object{
+        {"position", toJson(h.position)},
+        {"label",    h.label},
+        {"kind",     h.kind},
+    };
+}
+
+json::Object fly::lsp::toJson(const LspWorkspaceSymbol &s) {
+    json::Object obj{
+        {"name",     s.name},
+        {"kind",     (int)s.kind},
+        {"location", toJson(s.location)},
+    };
+    if (!s.containerName.empty()) obj["containerName"] = s.containerName;
+    return obj;
+}
+
 LspPosition fly::lsp::positionFromJson(const json::Object &obj) {
     return LspPosition{
         (int)obj.getInteger("line").value_or(0),

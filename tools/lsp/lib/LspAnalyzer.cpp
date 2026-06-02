@@ -30,9 +30,14 @@
 #include "Sema/SemaParam.h"
 #include "Sema/SemaType.h"
 #include "Sema/Symbol.h"
+#include "Sema/SymbolTable.h"
+#include "AST/ASTName.h"
 
 #include <llvm/ADT/SmallString.h>
 #include <llvm/Support/TargetSelect.h>
+#include <algorithm>
+#include <cctype>
+#include <unordered_set>
 
 // All method definitions are inside the explicit namespace block so MSVC
 // resolves the class without relying on `using namespace` for out-of-class
@@ -363,6 +368,69 @@ std::optional<LspLocation> LspAnalyzer::getDefinitionLocation(Symbol *sym) {
     return LspLocation{pathToFileUri(pl.getFilename()), r};
 }
 
+// ── getTypeDefinitionLocation ─────────────────────────────────────────────────
+
+std::optional<LspLocation> LspAnalyzer::getTypeDefinitionLocation(Symbol *sym) {
+    if (!sym || !SM_) return std::nullopt;
+
+    ASTType *astType = nullptr;
+
+    switch (sym->getKind()) {
+    case SymbolKind::LOCAL_VAR: {
+        auto *var = static_cast<SemaLocalVar *>(sym->getRef());
+        if (var->getAST()) astType = var->getAST()->getType();
+        break;
+    }
+    case SymbolKind::PARAM: {
+        auto *par = static_cast<SemaParam *>(sym->getRef());
+        if (par->getAST()) astType = par->getAST()->getType();
+        break;
+    }
+    case SymbolKind::ATTRIBUTE: {
+        auto *attr = static_cast<SemaClassAttribute *>(sym->getRef());
+        if (attr->getAST()) astType = attr->getAST()->getType();
+        break;
+    }
+    case SymbolKind::CLASS:
+        // The symbol IS a type — reuse getDefinitionLocation.
+        return getDefinitionLocation(sym);
+    default:
+        return std::nullopt;
+    }
+
+    if (!astType) return std::nullopt;
+
+    // Built-in types (int, bool, string, …) have no declaration location.
+    if (astType->getTypeKind() == ASTTypeKind::TYPE_BUILTIN) return std::nullopt;
+
+    if (astType->getTypeKind() == ASTTypeKind::TYPE_NAMED) {
+        auto *named = static_cast<ASTNamedType *>(astType);
+        const auto &names = named->getNames();
+        if (names.empty()) return std::nullopt;
+        // Resolve the type name through all modules' symbol tables.
+        std::string typeName = names.back()->getName().str();
+        if (!frontend_) return std::nullopt;
+        for (SemaModule *mod : frontend_->getSemaModules()) {
+            for (SemaNode *node : mod->getNodes()) {
+                if (node->getKind() == SemaKind::TYPE_CLASS) {
+                    auto *cls = static_cast<SemaClassType *>(node);
+                    if (cls->getAST().getName().str() == typeName) {
+                        // Found the class — return its location.
+                        SourceLocation loc = cls->getAST().getLocation();
+                        if (!loc.isValid()) continue;
+                        PresumedLoc pl = SM_->getPresumedLoc(loc);
+                        if (pl.isInvalid()) continue;
+                        LspPosition p{(int)pl.getLine() - 1, (int)pl.getColumn() - 1};
+                        return LspLocation{pathToFileUri(pl.getFilename()), {p, p}};
+                    }
+                }
+            }
+        }
+    }
+
+    return std::nullopt;
+}
+
 // ── getHoverMarkdown ─────────────────────────────────────────────────────────
 
 std::string LspAnalyzer::getHoverMarkdown(Symbol *sym) {
@@ -442,11 +510,79 @@ std::string LspAnalyzer::getHoverMarkdown(Symbol *sym) {
 
 // ── getCompletions ────────────────────────────────────────────────────────────
 
+// Map SymbolKind → LspCompletionKind for getCompletions.
+static LspCompletionKind symbolToCompletionKind(SymbolKind k) {
+    switch (k) {
+    case SymbolKind::FUNCTION:   return LspCompletionKind::Function;
+    case SymbolKind::CLASS:      return LspCompletionKind::Class;
+    case SymbolKind::LOCAL_VAR:  return LspCompletionKind::Variable;
+    case SymbolKind::PARAM:      return LspCompletionKind::Variable;
+    case SymbolKind::ATTRIBUTE:  return LspCompletionKind::Field;
+    case SymbolKind::NAMESPACE:  return LspCompletionKind::Module;
+    case SymbolKind::ENUM_ENTRY: return LspCompletionKind::Field;
+    default:                     return LspCompletionKind::Text;
+    }
+}
+
+// Collect all symbols from a SymbolTable (local scope + parent chain).
+static void collectSymbols(SymbolTable *table,
+                            const std::string &prefix,
+                            std::vector<LspCompletionItem> &out,
+                            std::unordered_set<std::string> &seen) {
+    for (SymbolTable *t = table; t; t = t->getParent()) {
+        for (const auto &entry : t->getAll()) {
+            std::string name = entry.first().str();
+            if (seen.count(name)) continue;
+            if (!prefix.empty()) {
+                std::string nameLow = name, pfxLow = prefix;
+                for (auto &c : nameLow) c = (char)std::tolower((unsigned char)c);
+                for (auto &c : pfxLow)  c = (char)std::tolower((unsigned char)c);
+                if (nameLow.find(pfxLow) == std::string::npos) continue;
+            }
+            seen.insert(name);
+            for (Symbol *sym : entry.second) {
+                LspCompletionItem item;
+                item.label      = name;
+                item.kind       = symbolToCompletionKind(sym->getKind());
+                item.insertText = name;
+                out.push_back(std::move(item));
+                break;  // one item per name
+            }
+        }
+    }
+}
+
 std::vector<LspCompletionItem> LspAnalyzer::getCompletions(
-        const std::string & /*file*/, int /*line*/, int /*col*/,
-        const std::string & /*prefix*/) {
-    // TODO: use SymbolTable::lookupInParents at the scope matching position
-    return {};
+        const std::string &file, int line, int col,
+        const std::string &prefix) {
+    if (!frontend_) return {};
+
+    std::vector<LspCompletionItem> result;
+    std::unordered_set<std::string> seen;
+
+    for (SemaModule *mod : frontend_->getSemaModules()) {
+        const std::string &mf = mod->getAST().getName();
+
+        if (!mf.empty() && mf == file) {
+            // Local scope: find the enclosing function and use its SymbolTable.
+            for (SemaNode *node : mod->getNodes()) {
+                if (node->getKind() != SemaKind::FUNCTION) continue;
+                auto *fn = static_cast<SemaFunction *>(node);
+                if (!fn->getAST().getBody()) continue;
+                // Check if cursor is inside this function body.
+                LspPosition fnPos = toPosition(fn->getAST().getLocation());
+                if (fnPos.line <= line && fn->getSymbols()) {
+                    collectSymbols(fn->getSymbols(), prefix, result, seen);
+                }
+            }
+        }
+
+        // Global symbols from every module (functions, classes, namespaces).
+        if (mod->getSymbols())
+            collectSymbols(mod->getSymbols(), prefix, result, seen);
+    }
+
+    return result;
 }
 
 // ── getDocumentSymbols ────────────────────────────────────────────────────────
@@ -618,6 +754,593 @@ LspAnalyzer::getDocumentHighlights(const std::string &file, int line, int col) {
         }
     }
     return out;
+}
+
+// ── findReferences ────────────────────────────────────────────────────────────
+
+std::vector<LspLocation>
+LspAnalyzer::findReferences(const std::string &file, int line, int col,
+                             bool includeDeclaration) {
+    if (!frontend_) return {};
+
+    Symbol *sym = findSymbolAt(file, line, col);
+    if (!sym) return {};
+
+    std::vector<LspLocation> result;
+
+    // Optionally prepend the declaration location.
+    if (includeDeclaration) {
+        if (auto declLoc = getDefinitionLocation(sym))
+            result.push_back(std::move(*declLoc));
+    }
+
+    // Walk ALL compiled modules (not just the current file) and collect every
+    // expression that resolves to the same Symbol pointer.
+    for (SemaModule *mod : frontend_->getSemaModules()) {
+        const std::string &mf = mod->getAST().getName();
+        std::string moduleUri = mf.empty() ? pathToFileUri(file) : pathToFileUri(mf);
+
+        // Collect highlights (position ranges) within this module.
+        std::vector<LspDocumentHighlight> hits;
+        for (SemaNode *node : mod->getNodes()) {
+            switch (node->getKind()) {
+            case SemaKind::FUNCTION: {
+                auto *fn = static_cast<SemaFunction *>(node);
+                if (fn->getAST().getBody())
+                    collectBlock(fn->getAST().getBody(), sym, hits);
+                break;
+            }
+            case SemaKind::TYPE_CLASS: {
+                auto *cls = static_cast<SemaClassType *>(node);
+                for (auto it = cls->getMethods().begin();
+                         it != cls->getMethods().end(); ++it) {
+                    SemaClassMethod *method = it->getValue();
+                    if (method->getAST().getBody())
+                        collectBlock(method->getAST().getBody(), sym, hits);
+                }
+                break;
+            }
+            default:
+                break;
+            }
+        }
+
+        // Convert each highlight to an LspLocation in this module's file.
+        for (const auto &h : hits)
+            result.push_back({moduleUri, h.range});
+    }
+
+    return result;
+}
+
+// ── getSignatureHelp — helpers ────────────────────────────────────────────────
+
+// Returns {innermost enclosing ASTCall, active param index} for the position
+// (line, col), or {nullptr, 0} if the cursor is not inside a call arg list.
+std::pair<ASTCall *, int>
+LspAnalyzer::findEnclosingCall(ASTExpr *expr, int line, int col) const {
+    if (!expr) return {nullptr, 0};
+
+    if (expr->getExprKind() == ASTExprKind::EXPR_CALL) {
+        auto *call = static_cast<ASTCall *>(expr);
+        LspPosition callPos = toPosition(call->getLocation());
+
+        // Cursor must be after the call name (i.e., inside the argument list).
+        if (callPos.line > line || (callPos.line == line && callPos.character > col))
+            return {nullptr, 0};
+
+        // Count the active parameter by checking argument positions.
+        int activeParam = 0;
+        for (auto *arg : call->getArgs()) {
+            if (!arg->getExpr()) continue;
+            LspPosition argPos = toPosition(arg->getExpr()->getLocation());
+            if (argPos.line < line ||
+                (argPos.line == line && argPos.character <= col))
+                activeParam++;
+            else
+                break;
+        }
+        if (activeParam > 0) activeParam--;  // args after = next param still current
+
+        // Recurse into arguments for nested calls (prefer innermost).
+        for (auto *arg : call->getArgs()) {
+            auto [inner, ip] = findEnclosingCall(arg->getExpr(), line, col);
+            if (inner) return {inner, ip};
+        }
+
+        return {call, activeParam};
+    }
+
+    // Recurse into binary and member sub-expressions.
+    if (expr->getExprKind() == ASTExprKind::EXPR_BINARY) {
+        auto *bin = static_cast<ASTBinary *>(expr);
+        if (auto [c, i] = findEnclosingCall(bin->getLeftExpr(),  line, col); c) return {c, i};
+        if (auto [c, i] = findEnclosingCall(bin->getRightExpr(), line, col); c) return {c, i};
+    }
+    return {nullptr, 0};
+}
+
+std::pair<ASTCall *, int>
+LspAnalyzer::findEnclosingCallInBlock(ASTBlockStmt *block, int line, int col) const {
+    if (!block) return {nullptr, 0};
+    for (auto *stmt : block->getContent()) {
+        if (!stmt) continue;
+        ASTExpr *expr = nullptr;
+        switch (stmt->getStmtKind()) {
+        case ASTStmtKind::STMT_EXPR: expr = static_cast<ASTExprStmt *>(stmt)->getExpr(); break;
+        case ASTStmtKind::STMT_DECL: expr = static_cast<ASTDeclStmt *>(stmt)->getExpr(); break;
+        case ASTStmtKind::STMT_BLOCK:
+            if (auto [c, i] = findEnclosingCallInBlock(
+                    static_cast<ASTBlockStmt *>(stmt), line, col); c) return {c, i};
+            break;
+        case ASTStmtKind::STMT_RULE:
+        case ASTStmtKind::STMT_IF:
+        case ASTStmtKind::STMT_SWITCH: {
+            auto *rule = static_cast<ASTRuleStmt *>(stmt);
+            if (auto [c, i] = findEnclosingCall(rule->getExpr(), line, col); c) return {c, i};
+            break;
+        }
+        default: break;
+        }
+        if (expr) {
+            if (auto [c, i] = findEnclosingCall(expr, line, col); c) return {c, i};
+        }
+    }
+    return {nullptr, 0};
+}
+
+// ── getSignatureHelp ──────────────────────────────────────────────────────────
+
+std::optional<LspSignatureHelp>
+LspAnalyzer::getSignatureHelp(const std::string &file, int line, int col) {
+    if (!frontend_) return std::nullopt;
+
+    // Find the innermost call enclosing the cursor.
+    ASTCall *call  = nullptr;
+    int activeParam = 0;
+    for (SemaModule *mod : frontend_->getSemaModules()) {
+        const std::string &mf = mod->getAST().getName();
+        if (!mf.empty() && mf != file) continue;
+
+        for (SemaNode *node : mod->getNodes()) {
+            switch (node->getKind()) {
+            case SemaKind::FUNCTION: {
+                auto *fn = static_cast<SemaFunction *>(node);
+                if (fn->getAST().getBody()) {
+                    auto [c, i] = findEnclosingCallInBlock(fn->getAST().getBody(), line, col);
+                    if (c) { call = c; activeParam = i; }
+                }
+                break;
+            }
+            case SemaKind::TYPE_CLASS: {
+                auto *cls = static_cast<SemaClassType *>(node);
+                for (auto it = cls->getMethods().begin();
+                         it != cls->getMethods().end(); ++it) {
+                    SemaClassMethod *method = it->getValue();
+                    if (method->getAST().getBody()) {
+                        auto [c, i] = findEnclosingCallInBlock(
+                            method->getAST().getBody(), line, col);
+                        if (c) { call = c; activeParam = i; }
+                    }
+                }
+                break;
+            }
+            default: break;
+            }
+        }
+        if (call) break;
+    }
+
+    if (!call) return std::nullopt;
+
+    Symbol *sym = call->getSymbol();
+    if (!sym || sym->getKind() != SymbolKind::FUNCTION) return std::nullopt;
+
+    auto *fn = static_cast<SemaFunctionBase *>(sym->getRef());
+    if (!fn) return std::nullopt;
+
+    // Build the signature label: "retType name(type param, …)"
+    std::string label;
+    if (fn->getReturnType()) label += fn->getReturnType()->getName() + " ";
+    label += fn->getAST().getName().str() + "(";
+
+    LspSignatureInfo sig;
+    bool first = true;
+    for (auto *p : fn->getParams()) {
+        if (!first) label += ", ";
+        std::string paramLabel;
+        if (p->getAST() && p->getAST()->getType())
+            paramLabel += p->getAST()->getType()->str() + " ";
+        if (p->getAST()) paramLabel += p->getAST()->getName().str();
+        label += paramLabel;
+        sig.parameters.push_back({paramLabel});
+        first = false;
+    }
+    label += ")";
+    sig.label = label;
+
+    LspSignatureHelp help;
+    help.signatures.push_back(std::move(sig));
+    help.activeSignature = 0;
+    help.activeParameter = activeParam < (int)help.signatures[0].parameters.size()
+                         ? activeParam : 0;
+    return help;
+}
+
+// ── getFoldingRanges ──────────────────────────────────────────────────────────
+
+std::vector<LspFoldingRange> LspAnalyzer::getFoldingRanges(const std::string &file) {
+    std::vector<LspFoldingRange> out;
+    if (!frontend_) return out;
+
+    for (SemaModule *mod : frontend_->getSemaModules()) {
+        const std::string &mf = mod->getAST().getName();
+        if (!mf.empty() && mf != file) continue;
+
+        for (SemaNode *node : mod->getNodes()) {
+            switch (node->getKind()) {
+            case SemaKind::FUNCTION: {
+                auto *fn = static_cast<SemaFunction *>(node);
+                LspPosition start = toPosition(fn->getAST().getLocation());
+                ASTBlockStmt *body = fn->getAST().getBody();
+                if (body && !body->getContent().empty()) {
+                    LspPosition last = toPosition(
+                        body->getContent().back()->getLocation());
+                    if (last.line > start.line)
+                        out.push_back({start.line, last.line, ""});
+                }
+                break;
+            }
+            case SemaKind::TYPE_CLASS: {
+                auto *cls = static_cast<SemaClassType *>(node);
+                LspPosition start = toPosition(cls->getAST().getLocation());
+                // Estimate end from the last method's body.
+                int endLine = start.line;
+                for (auto it = cls->getMethods().begin();
+                         it != cls->getMethods().end(); ++it) {
+                    SemaClassMethod *m = it->getValue();
+                    if (m->getAST().getBody() &&
+                        !m->getAST().getBody()->getContent().empty()) {
+                        LspPosition mp = toPosition(
+                            m->getAST().getBody()->getContent().back()->getLocation());
+                        if (mp.line > endLine) endLine = mp.line;
+                    }
+                }
+                if (endLine > start.line)
+                    out.push_back({start.line, endLine, ""});
+                // Fold each method body.
+                for (auto it = cls->getMethods().begin();
+                         it != cls->getMethods().end(); ++it) {
+                    SemaClassMethod *m = it->getValue();
+                    LspPosition ms = toPosition(m->getAST().getLocation());
+                    ASTBlockStmt *body = m->getAST().getBody();
+                    if (body && !body->getContent().empty()) {
+                        LspPosition ml = toPosition(
+                            body->getContent().back()->getLocation());
+                        if (ml.line > ms.line)
+                            out.push_back({ms.line, ml.line, ""});
+                    }
+                }
+                break;
+            }
+            default: break;
+            }
+        }
+    }
+    return out;
+}
+
+// ── Inlay hints ───────────────────────────────────────────────────────────────
+
+// Map SymbolKind → LSP semantic token type index (matches legend in onInitialize).
+static int symbolKindToTokenType(SymbolKind k) {
+    switch (k) {
+    case SymbolKind::NAMESPACE:  return 0;
+    case SymbolKind::CLASS:      return 1;
+    case SymbolKind::FUNCTION:   return 2;
+    case SymbolKind::LOCAL_VAR:  return 3;
+    case SymbolKind::PARAM:      return 4;
+    case SymbolKind::ATTRIBUTE:  return 5;
+    case SymbolKind::ENUM_ENTRY: return 6;
+    case SymbolKind::TYPE:       return 7;
+    default:                     return -1;  // skip
+    }
+}
+
+void LspAnalyzer::collectHintsExpr(ASTExpr *expr, LspRange range,
+                                    std::vector<LspInlayHint> &out) const {
+    if (!expr) return;
+
+    if (expr->getExprKind() == ASTExprKind::EXPR_CALL) {
+        auto *call = static_cast<ASTCall *>(expr);
+        Symbol *sym = call->getSymbol();
+        if (sym && sym->getKind() == SymbolKind::FUNCTION) {
+            auto *fn = static_cast<SemaFunctionBase *>(sym->getRef());
+            const auto &params = fn->getParams();
+            const auto &args   = call->getArgs();
+            // Show hints when there are ≥1 params and the call is in range.
+            for (size_t i = 0; i < args.size() && i < params.size(); ++i) {
+                ASTExpr *argExpr = args[i]->getExpr();
+                if (!argExpr) continue;
+                LspPosition argPos = toPosition(argExpr->getLocation());
+                // Skip if outside the requested range.
+                if (argPos.line < range.start.line || argPos.line > range.end.line)
+                    continue;
+                SemaParam *p = params[i];
+                if (!p->getAST()) continue;
+                std::string name = p->getAST()->getName().str();
+                if (name.empty()) continue;
+                out.push_back({argPos, name + ":", 2});
+                // Recurse into the argument expression.
+                collectHintsExpr(argExpr, range, out);
+            }
+        }
+        // Recurse into receiver and remaining sub-expressions.
+        if (auto *parent = expr->getParent())
+            collectHintsExpr(parent, range, out);
+        return;
+    }
+
+    if (expr->getExprKind() == ASTExprKind::EXPR_BINARY) {
+        auto *bin = static_cast<ASTBinary *>(expr);
+        collectHintsExpr(bin->getLeftExpr(),  range, out);
+        collectHintsExpr(bin->getRightExpr(), range, out);
+    }
+}
+
+void LspAnalyzer::collectHintsBlock(ASTBlockStmt *block, LspRange range,
+                                     std::vector<LspInlayHint> &out) const {
+    if (!block) return;
+    for (auto *stmt : block->getContent()) {
+        if (!stmt) continue;
+        switch (stmt->getStmtKind()) {
+        case ASTStmtKind::STMT_EXPR:
+            collectHintsExpr(static_cast<ASTExprStmt *>(stmt)->getExpr(), range, out);
+            break;
+        case ASTStmtKind::STMT_DECL:
+            collectHintsExpr(static_cast<ASTDeclStmt *>(stmt)->getExpr(), range, out);
+            break;
+        case ASTStmtKind::STMT_BLOCK:
+            collectHintsBlock(static_cast<ASTBlockStmt *>(stmt), range, out);
+            break;
+        case ASTStmtKind::STMT_RULE:
+        case ASTStmtKind::STMT_IF:
+        case ASTStmtKind::STMT_SWITCH: {
+            auto *rule = static_cast<ASTRuleStmt *>(stmt);
+            collectHintsExpr(rule->getExpr(), range, out);
+            collectHintsBlock(static_cast<ASTBlockStmt *>(rule->getStmt()), range, out);
+            break;
+        }
+        default: break;
+        }
+    }
+}
+
+std::vector<LspInlayHint>
+LspAnalyzer::getInlayHints(const std::string &file, LspRange range) {
+    std::vector<LspInlayHint> out;
+    if (!frontend_) return out;
+
+    for (SemaModule *mod : frontend_->getSemaModules()) {
+        const std::string &mf = mod->getAST().getName();
+        if (!mf.empty() && mf != file) continue;
+
+        for (SemaNode *node : mod->getNodes()) {
+            switch (node->getKind()) {
+            case SemaKind::FUNCTION: {
+                auto *fn = static_cast<SemaFunction *>(node);
+                if (fn->getAST().getBody())
+                    collectHintsBlock(fn->getAST().getBody(), range, out);
+                break;
+            }
+            case SemaKind::TYPE_CLASS: {
+                auto *cls = static_cast<SemaClassType *>(node);
+                for (auto it = cls->getMethods().begin();
+                         it != cls->getMethods().end(); ++it) {
+                    SemaClassMethod *method = it->getValue();
+                    if (method->getAST().getBody())
+                        collectHintsBlock(method->getAST().getBody(), range, out);
+                }
+                break;
+            }
+            default: break;
+            }
+        }
+    }
+    return out;
+}
+
+// ── Semantic tokens ───────────────────────────────────────────────────────────
+
+void LspAnalyzer::collectTokensExpr(ASTExpr *expr,
+                                     std::vector<SemanticToken> &out) const {
+    if (!expr) return;
+
+    auto addToken = [&](LspPosition pos, int nameLen, SymbolKind kind) {
+        int tt = symbolKindToTokenType(kind);
+        if (tt >= 0 && nameLen > 0)
+            out.push_back({pos.line, pos.character, nameLen, tt});
+    };
+
+    LspPosition epos = toPosition(expr->getLocation());
+
+    switch (expr->getExprKind()) {
+    case ASTExprKind::EXPR_IDENTIFIER: {
+        auto *id = static_cast<ASTIdentifier *>(expr);
+        if (id->getSymbol())
+            addToken(epos, (int)id->getName().size(), id->getSymbol()->getKind());
+        break;
+    }
+    case ASTExprKind::EXPR_MEMBER: {
+        auto *mem = static_cast<ASTMember *>(expr);
+        if (mem->getSymbol())
+            addToken(epos, (int)mem->getName().size(), mem->getSymbol()->getKind());
+        if (auto *p = expr->getParent()) collectTokensExpr(p, out);
+        break;
+    }
+    case ASTExprKind::EXPR_CALL: {
+        auto *call = static_cast<ASTCall *>(expr);
+        if (call->getSymbol())
+            addToken(epos, (int)call->getName().size(), call->getSymbol()->getKind());
+        if (auto *p = expr->getParent()) collectTokensExpr(p, out);
+        for (auto *arg : call->getArgs())
+            collectTokensExpr(arg->getExpr(), out);
+        break;
+    }
+    case ASTExprKind::EXPR_BINARY: {
+        auto *bin = static_cast<ASTBinary *>(expr);
+        collectTokensExpr(bin->getLeftExpr(),  out);
+        collectTokensExpr(bin->getRightExpr(), out);
+        break;
+    }
+    default: break;
+    }
+}
+
+void LspAnalyzer::collectTokensBlock(ASTBlockStmt *block,
+                                      std::vector<SemanticToken> &out) const {
+    if (!block) return;
+    for (auto *stmt : block->getContent()) {
+        if (!stmt) continue;
+        switch (stmt->getStmtKind()) {
+        case ASTStmtKind::STMT_EXPR:
+            collectTokensExpr(static_cast<ASTExprStmt *>(stmt)->getExpr(), out);
+            break;
+        case ASTStmtKind::STMT_DECL:
+            collectTokensExpr(static_cast<ASTDeclStmt *>(stmt)->getExpr(), out);
+            break;
+        case ASTStmtKind::STMT_BLOCK:
+            collectTokensBlock(static_cast<ASTBlockStmt *>(stmt), out);
+            break;
+        case ASTStmtKind::STMT_RULE:
+        case ASTStmtKind::STMT_IF:
+        case ASTStmtKind::STMT_SWITCH: {
+            auto *rule = static_cast<ASTRuleStmt *>(stmt);
+            collectTokensExpr(rule->getExpr(), out);
+            if (rule->getStmt())
+                collectTokensBlock(static_cast<ASTBlockStmt *>(rule->getStmt()), out);
+            break;
+        }
+        default: break;
+        }
+    }
+}
+
+llvm::json::Array LspAnalyzer::getSemanticTokens(const std::string &file) {
+    if (!frontend_) return {};
+
+    std::vector<SemanticToken> tokens;
+    for (SemaModule *mod : frontend_->getSemaModules()) {
+        const std::string &mf = mod->getAST().getName();
+        if (!mf.empty() && mf != file) continue;
+
+        for (SemaNode *node : mod->getNodes()) {
+            switch (node->getKind()) {
+            case SemaKind::FUNCTION: {
+                auto *fn = static_cast<SemaFunction *>(node);
+                if (fn->getAST().getBody())
+                    collectTokensBlock(fn->getAST().getBody(), tokens);
+                break;
+            }
+            case SemaKind::TYPE_CLASS: {
+                auto *cls = static_cast<SemaClassType *>(node);
+                for (auto it = cls->getMethods().begin();
+                         it != cls->getMethods().end(); ++it) {
+                    SemaClassMethod *method = it->getValue();
+                    if (method->getAST().getBody())
+                        collectTokensBlock(method->getAST().getBody(), tokens);
+                }
+                break;
+            }
+            default: break;
+            }
+        }
+    }
+
+    // Sort by position (required for delta encoding).
+    std::sort(tokens.begin(), tokens.end(),
+              [](const SemanticToken &a, const SemanticToken &b) {
+                  return a.line != b.line ? a.line < b.line
+                                          : a.character < b.character;
+              });
+
+    // Delta-encode into flat integer array.
+    llvm::json::Array data;
+    int prevLine = 0, prevChar = 0;
+    for (const auto &t : tokens) {
+        int dLine = t.line - prevLine;
+        int dChar = (dLine == 0) ? t.character - prevChar : t.character;
+        data.push_back(dLine);
+        data.push_back(dChar);
+        data.push_back(t.length);
+        data.push_back(t.tokenType);
+        data.push_back(0);  // modifiers
+        prevLine = t.line;
+        prevChar = t.character;
+    }
+    return data;
+}
+
+// ── Workspace symbols ─────────────────────────────────────────────────────────
+
+std::vector<LspWorkspaceSymbol>
+LspAnalyzer::getWorkspaceSymbols(const std::string &query) {
+    std::vector<LspWorkspaceSymbol> result;
+    if (!frontend_) return result;
+
+    // Simple case-insensitive substring match helper.
+    auto matches = [&](const std::string &name) -> bool {
+        if (query.empty()) return true;
+        std::string nameLow = name, qLow = query;
+        for (auto &c : nameLow) c = (char)std::tolower((unsigned char)c);
+        for (auto &c : qLow)   c = (char)std::tolower((unsigned char)c);
+        return nameLow.find(qLow) != std::string::npos;
+    };
+
+    for (SemaModule *mod : frontend_->getSemaModules()) {
+        const std::string &mf = mod->getAST().getName();
+        std::string uri = mf.empty() ? "" : pathToFileUri(mf);
+
+        for (SemaNode *node : mod->getNodes()) {
+            switch (node->getKind()) {
+            case SemaKind::FUNCTION: {
+                auto *fn = static_cast<SemaFunction *>(node);
+                std::string name = fn->getAST().getName().str();
+                if (matches(name)) {
+                    LspPosition p = toPosition(fn->getAST().getLocation());
+                    result.push_back({name, LspSymbolKind::Function, {uri, {p, p}}, ""});
+                }
+                break;
+            }
+            case SemaKind::TYPE_CLASS: {
+                auto *cls = static_cast<SemaClassType *>(node);
+                std::string name = cls->getAST().getName().str();
+                LspSymbolKind kind =
+                    cls->getClassKind() == SemaClassKind::STRUCT    ? LspSymbolKind::Struct
+                  : cls->getClassKind() == SemaClassKind::INTERFACE  ? LspSymbolKind::Interface
+                                                                     : LspSymbolKind::Class;
+                if (matches(name)) {
+                    LspPosition p = toPosition(cls->getAST().getLocation());
+                    result.push_back({name, kind, {uri, {p, p}}, ""});
+                }
+                // Also expose methods within the class.
+                for (auto it = cls->getMethods().begin();
+                         it != cls->getMethods().end(); ++it) {
+                    SemaClassMethod *method = it->getValue();
+                    std::string mname = method->getAST().getName().str();
+                    if (matches(mname)) {
+                        LspPosition mp = toPosition(method->getAST().getLocation());
+                        result.push_back({mname, LspSymbolKind::Method, {uri, {mp, mp}}, name});
+                    }
+                }
+                break;
+            }
+            default: break;
+            }
+            if (result.size() >= 100) return result;  // cap for performance
+        }
+    }
+    return result;
 }
 
 } // namespace lsp

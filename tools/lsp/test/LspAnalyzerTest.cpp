@@ -194,10 +194,9 @@ TEST_F(CompileFixture, Compile_RangeStartEqualsEnd_PointDiagnostic) {
 
 // ── Stub methods (post-compile, no AST walking) ───────────────────────────────
 
-TEST_F(CompileFixture, GetCompletions_AfterCompile_IsEmptyStub) {
-    // getCompletions() is a stub — always returns {} regardless of state.
-    EXPECT_TRUE(s_ana->getCompletions(s_file->path, 0, 0, "").empty());
-}
+// getCompletions() now walks the AST which is unsafe on error-compiled files
+// (same limitation as findSymbolAt). Completions are verified via integration
+// testing. Pre-compile guard (no frontend_) is covered by LspAnalyzerSansCompile.
 // NOTE: findSymbolAt after an error-file compile is intentionally not tested
 // here because the partially-resolved AST (undefined symbols leave null nodes)
 // makes the AST walkers unsafe to call.  That path is covered by the

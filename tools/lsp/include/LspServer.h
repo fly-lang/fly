@@ -47,6 +47,13 @@ private:
     void onDocSymbols        (llvm::json::Value id, const llvm::json::Object &params);
     void onReferences        (llvm::json::Value id, const llvm::json::Object &params);
     void onDocumentHighlight (llvm::json::Value id, const llvm::json::Object &params);
+    void onSignatureHelp     (llvm::json::Value id, const llvm::json::Object &params);
+    void onTypeDefinition    (llvm::json::Value id, const llvm::json::Object &params);
+    void onImplementation    (llvm::json::Value id, const llvm::json::Object &params);
+    void onFoldingRanges     (llvm::json::Value id, const llvm::json::Object &params);
+    void onInlayHints        (llvm::json::Value id, const llvm::json::Object &params);
+    void onSemanticTokens    (llvm::json::Value id, const llvm::json::Object &params);
+    void onWorkspaceSymbols  (llvm::json::Value id, const llvm::json::Object &params);
 
     // Recompile all open files and push diagnostics for the given file.
     void recompileAndPublish(const std::string &triggerFile);

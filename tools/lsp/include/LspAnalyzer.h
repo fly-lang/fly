@@ -18,9 +18,12 @@
 
 namespace fly {
     // Forward declarations for AST types used in private helpers
+    class ASTCall;
     class ASTExpr;
     class ASTStmt;
     class ASTBlockStmt;
+    class ASTType;
+    class ASTNamedType;
     class SemaModule;
     struct Symbol;
     class SourceManager;
@@ -63,6 +66,39 @@ public:
     std::vector<LspDocumentHighlight>
         getDocumentHighlights(const std::string &file, int line, int col);
 
+    /// Return all reference locations of the symbol at (line,col) across all
+    /// compiled modules.  If includeDeclaration is true, the declaration site
+    /// is prepended to the result.
+    std::vector<LspLocation>
+        findReferences(const std::string &file, int line, int col,
+                       bool includeDeclaration);
+
+    /// Return the location of the type of the symbol at (line,col).
+    /// For a local variable `int x`, goes to the definition of `int` (builtin → nullopt)
+    /// or to the class/struct declaration for named types.
+    std::optional<LspLocation> getTypeDefinitionLocation(fly::Symbol *sym);
+
+    /// Return signature help for the function call enclosing (line,col),
+    /// or nullopt if the cursor is not inside a call argument list.
+    std::optional<LspSignatureHelp>
+        getSignatureHelp(const std::string &file, int line, int col);
+
+    /// Return folding ranges (function/class bodies) for the given file.
+    std::vector<LspFoldingRange> getFoldingRanges(const std::string &file);
+
+    /// Return parameter-name inlay hints for all call sites in the file
+    /// whose range overlaps [range].
+    std::vector<LspInlayHint>
+        getInlayHints(const std::string &file, LspRange range);
+
+    /// Return semantic tokens (delta-encoded) for the given file.
+    llvm::json::Array getSemanticTokens(const std::string &file);
+
+    /// Return symbols matching query across all compiled modules.
+    /// An empty query returns all top-level symbols (capped at 100).
+    std::vector<LspWorkspaceSymbol>
+        getWorkspaceSymbols(const std::string &query);
+
 private:
     // Kept alive so AST StringRefs (pointing into Lexer tables) remain valid.
     std::unique_ptr<Driver>   driver_;
@@ -86,6 +122,26 @@ private:
                       std::vector<LspDocumentHighlight> &out) const;
     void collectBlock(fly::ASTBlockStmt *b, fly::Symbol *sym,
                       std::vector<LspDocumentHighlight> &out) const;
+
+    // Find the innermost ASTCall whose argument list spans (line,col).
+    // Returns {call, activeParam} or {nullptr, 0}.
+    std::pair<fly::ASTCall *, int>
+        findEnclosingCall(fly::ASTExpr *e, int line, int col) const;
+    std::pair<fly::ASTCall *, int>
+        findEnclosingCallInBlock(fly::ASTBlockStmt *b, int line, int col) const;
+
+    // Collect inlay hints from an expression/block subtree.
+    void collectHintsExpr (fly::ASTExpr      *e, LspRange range,
+                            std::vector<LspInlayHint> &out) const;
+    void collectHintsBlock(fly::ASTBlockStmt *b, LspRange range,
+                            std::vector<LspInlayHint> &out) const;
+
+    // Collect (line, char, length, tokenType) tuples for semantic tokens.
+    struct SemanticToken { int line, character, length, tokenType; };
+    void collectTokensExpr (fly::ASTExpr      *e,
+                            std::vector<SemanticToken> &out) const;
+    void collectTokensBlock(fly::ASTBlockStmt *b,
+                            std::vector<SemanticToken> &out) const;
 };
 
 } // namespace fly::lsp

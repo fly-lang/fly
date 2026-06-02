@@ -188,6 +188,24 @@ int cmd_init(const std::string& name_arg, const std::string& version_arg) {
     // Write fly.toml
     {
         std::ofstream f(toml_path);
+        f << "# fly.toml — Fly project manifest\n";
+        f << "#\n";
+        f << "# Sections that use single brackets [ ] appear exactly once (e.g. [package]).\n";
+        f << "# Sections that use double brackets [[ ]] define an *array of tables*:\n";
+        f << "# you may repeat [[bin]], [[lib]], or [[test]] as many times as you need,\n";
+        f << "# each occurrence adds one target. Example:\n";
+        f << "#\n";
+        f << "#   [[bin]]\n";
+        f << "#   name = \"app\"\n";
+        f << "#   path = \"src/main.fly\"\n";
+        f << "#\n";
+        f << "#   [[bin]]\n";
+        f << "#   name = \"cli\"\n";
+        f << "#   path = \"src/cli.fly\"\n";
+        f << "#\n";
+        f << "# If no [[bin]] or [[lib]] is declared, flyp auto-detects src/main.fly\n";
+        f << "# and src/lib.fly when they exist.\n";
+        f << "\n";
         f << "[package]\n";
         f << "name        = \"" << pkg_name << "\"\n";
         f << "version     = \"" << pkg_ver  << "\"\n";
