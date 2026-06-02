@@ -60,6 +60,28 @@ struct LspSignatureHelp {
     int activeParameter = 0;
 };
 
+// LSP FoldingRange: kind "region" | "imports" | "comment"
+struct LspFoldingRange {
+    int         startLine;
+    int         endLine;
+    std::string kind;   // optional; empty = no kind
+};
+
+// LSP InlayHint: kind 1=Type  2=Parameter
+struct LspInlayHint {
+    LspPosition position;
+    std::string label;
+    int         kind = 2;
+};
+
+// LSP WorkspaceSymbol (includes file location for cross-file navigation)
+struct LspWorkspaceSymbol {
+    std::string   name;
+    LspSymbolKind kind;
+    LspLocation   location;
+    std::string   containerName;
+};
+
 enum class LspCompletionKind {
     Text      = 1,
     Function  = 3,
@@ -97,6 +119,9 @@ llvm::json::Object toJson(const LspDocSymbol &s);
 llvm::json::Object toJson(const LspCompletionItem &c);
 llvm::json::Object toJson(const LspDocumentHighlight &h);
 llvm::json::Object toJson(const LspSignatureHelp &h);
+llvm::json::Object toJson(const LspFoldingRange &r);
+llvm::json::Object toJson(const LspInlayHint &h);
+llvm::json::Object toJson(const LspWorkspaceSymbol &s);
 
 LspPosition positionFromJson(const llvm::json::Object &obj);
 

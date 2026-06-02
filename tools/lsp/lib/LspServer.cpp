@@ -1,6 +1,7 @@
 #include "LspServer.h"
 
 #include <llvm/Support/JSON.h>
+#include <algorithm>
 
 using namespace llvm;
 
@@ -68,6 +69,12 @@ void LspServer::dispatch(const json::Object &msg) {
     else if (*method == "textDocument/references")        onReferences(std::move(idVal), *params);
     else if (*method == "textDocument/documentHighlight") onDocumentHighlight(std::move(idVal), *params);
     else if (*method == "textDocument/signatureHelp")     onSignatureHelp(std::move(idVal), *params);
+    else if (*method == "textDocument/typeDefinition")    onTypeDefinition(std::move(idVal), *params);
+    else if (*method == "textDocument/implementation")    onImplementation(std::move(idVal), *params);
+    else if (*method == "textDocument/foldingRange")      onFoldingRanges(std::move(idVal), *params);
+    else if (*method == "textDocument/inlayHint")         onInlayHints(std::move(idVal), *params);
+    else if (*method == "textDocument/semanticTokens/full") onSemanticTokens(std::move(idVal), *params);
+    else if (*method == "workspace/symbol")               onWorkspaceSymbols(std::move(idVal), *params);
     else if (isRequest)
         transport_.sendError(std::move(idVal), -32601,
                              ("Unknown method: " + *method).str());
@@ -87,6 +94,20 @@ void LspServer::onInitialize(json::Value id, const json::Object & /*params*/) {
             {"documentHighlightProvider",   true},
             {"signatureHelpProvider", json::Object{
                 {"triggerCharacters", json::Array{"(", ","}},
+            }},
+            {"typeDefinitionProvider",   true},
+            {"implementationProvider",   true},
+            {"foldingRangeProvider",     true},
+            {"inlayHintProvider",        true},
+            {"workspaceSymbolProvider",  true},
+            {"semanticTokensProvider", json::Object{
+                {"legend", json::Object{
+                    {"tokenTypes",     json::Array{"namespace","class","function",
+                                                   "variable","parameter","property",
+                                                   "enumMember","type"}},
+                    {"tokenModifiers", json::Array{}},
+                }},
+                {"full", true},
             }},
             {"completionProvider", json::Object{
                 {"triggerCharacters", json::Array{"."}},
@@ -228,6 +249,65 @@ void LspServer::onDocumentHighlight(json::Value id, const json::Object &params) 
     auto highlights = analyzer_.getDocumentHighlights(path, pos.line, pos.character);
     json::Array arr;
     for (const auto &h : highlights) arr.push_back(toJson(h));
+    transport_.sendResult(std::move(id), std::move(arr));
+}
+
+void LspServer::onTypeDefinition(json::Value id, const json::Object &params) {
+    std::string path = extractPath(params);
+    LspPosition pos  = extractPosition(params);
+    fly::Symbol *sym = analyzer_.findSymbolAt(path, pos.line, pos.character);
+    auto loc = sym ? analyzer_.getTypeDefinitionLocation(sym) : std::nullopt;
+    if (!loc) { transport_.sendResult(std::move(id), json::Value(nullptr)); return; }
+    transport_.sendResult(std::move(id), toJson(*loc));
+}
+
+void LspServer::onImplementation(json::Value id, const json::Object &params) {
+    std::string path = extractPath(params);
+    LspPosition pos  = extractPosition(params);
+    // findReferences with the INTERFACE symbol returns all implementing classes.
+    // For now, delegate: find the symbol and return its references as implementations.
+    auto refs = analyzer_.findReferences(path, pos.line, pos.character, false);
+    json::Array arr;
+    for (const auto &r : refs) arr.push_back(toJson(r));
+    transport_.sendResult(std::move(id), std::move(arr));
+}
+
+void LspServer::onFoldingRanges(json::Value id, const json::Object &params) {
+    std::string path = extractPath(params);
+    auto ranges = analyzer_.getFoldingRanges(path);
+    json::Array arr;
+    for (const auto &r : ranges) arr.push_back(toJson(r));
+    transport_.sendResult(std::move(id), std::move(arr));
+}
+
+void LspServer::onInlayHints(json::Value id, const json::Object &params) {
+    std::string path = extractPath(params);
+    LspRange range{{0, 0}, {999999, 0}};
+    if (const auto *r = params.getObject("range")) {
+        if (const auto *s = r->getObject("start"))
+            range.start = positionFromJson(*s);
+        if (const auto *e = r->getObject("end"))
+            range.end   = positionFromJson(*e);
+    }
+    auto hints = analyzer_.getInlayHints(path, range);
+    json::Array arr;
+    for (const auto &h : hints) arr.push_back(toJson(h));
+    transport_.sendResult(std::move(id), std::move(arr));
+}
+
+void LspServer::onSemanticTokens(json::Value id, const json::Object &params) {
+    std::string path = extractPath(params);
+    json::Array data = analyzer_.getSemanticTokens(path);
+    transport_.sendResult(std::move(id),
+                          json::Object{{"data", std::move(data)}});
+}
+
+void LspServer::onWorkspaceSymbols(json::Value id, const json::Object &params) {
+    std::string query;
+    if (auto q = params.getString("query")) query = q->str();
+    auto syms = analyzer_.getWorkspaceSymbols(query);
+    json::Array arr;
+    for (const auto &s : syms) arr.push_back(toJson(s));
     transport_.sendResult(std::move(id), std::move(arr));
 }
 
