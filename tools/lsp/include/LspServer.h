@@ -47,6 +47,7 @@ private:
     void onDocSymbols        (llvm::json::Value id, const llvm::json::Object &params);
     void onReferences        (llvm::json::Value id, const llvm::json::Object &params);
     void onDocumentHighlight (llvm::json::Value id, const llvm::json::Object &params);
+    void onSignatureHelp     (llvm::json::Value id, const llvm::json::Object &params);
 
     // Recompile all open files and push diagnostics for the given file.
     void recompileAndPublish(const std::string &triggerFile);

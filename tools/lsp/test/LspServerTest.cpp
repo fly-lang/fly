@@ -445,6 +445,42 @@ TEST(LspServer, References_ReturnsEmptyArray) {
     EXPECT_TRUE(arr->empty());
 }
 
+TEST(LspServer, References_ResultIsArray) {
+    // Result must be a JSON array (possibly empty) — never null or an object.
+    ServerFixture f;
+    f.send(makeRequest(1, "initialize", kInit));
+    f.send(makeRequest(2, "textDocument/references",
+        R"({"textDocument":{"uri":"file:///a.fly"},"position":{"line":0,"character":0},"context":{"includeDeclaration":true}})"));
+    f.closeInput();
+    f.runServer();
+
+    f.readFrame();
+    auto v = f.readFrame();
+    const json::Value *res = v.getAsObject()->get("result");
+    ASSERT_NE(res, nullptr);
+    EXPECT_NE(res->getAsArray(), nullptr) << "references result must be an array";
+}
+
+TEST(LspServer, References_IncludeDeclarationFlagParsed) {
+    // Both includeDeclaration=true and =false must return a result (not an error).
+    for (const char *flag : {"true", "false"}) {
+        ServerFixture f;
+        f.send(makeRequest(1, "initialize", kInit));
+        std::string params = std::string(
+            R"({"textDocument":{"uri":"file:///a.fly"},"position":{"line":0,"character":0},"context":{"includeDeclaration":)") + flag + "}}";
+        f.send(makeRequest(2, "textDocument/references", params));
+        f.closeInput();
+        f.runServer();
+
+        f.readFrame();
+        auto v   = f.readFrame();
+        auto *obj = v.getAsObject();
+        ASSERT_NE(obj, nullptr);
+        EXPECT_EQ(obj->get("error"), nullptr)
+            << "includeDeclaration=" << flag << " must not produce an error";
+    }
+}
+
 // ── textDocument/didClose ─────────────────────────────────────────────────────
 
 TEST(LspServer, DidClose_PublishesDiagnosticsForUri) {
@@ -495,6 +531,48 @@ TEST(LspServer, DidClose_HasNoId) {
     f.readFrame();
     auto v = f.readFrame();
     EXPECT_EQ(v.getAsObject()->get("id"), nullptr);
+}
+
+// ── textDocument/signatureHelp ────────────────────────────────────────────────
+
+TEST(LspServer, SignatureHelp_NoSymbol_ReturnsNull) {
+    ServerFixture f;
+    f.send(makeRequest(1, "initialize", kInit));
+    f.send(makeRequest(2, "textDocument/signatureHelp",
+        R"({"textDocument":{"uri":"file:///a.fly"},"position":{"line":0,"character":0}})"));
+    f.closeInput();
+    f.runServer();
+
+    f.readFrame();
+    auto v = f.readFrame();
+    auto *obj = v.getAsObject();
+    ASSERT_NE(obj, nullptr);
+    EXPECT_EQ(obj->getInteger("id").value_or(-1), 2);
+    const json::Value *res = obj->get("result");
+    ASSERT_NE(res, nullptr);
+    EXPECT_TRUE(res->getAsNull().has_value()) << "No symbol → null result";
+}
+
+TEST(LspServer, Initialize_AdvertisesSignatureHelpProvider) {
+    ServerFixture f;
+    f.send(makeRequest(1, "initialize", kInit));
+    f.closeInput();
+    f.runServer();
+
+    auto v    = f.readFrame();
+    auto *caps = v.getAsObject()->getObject("result")->getObject("capabilities");
+    ASSERT_NE(caps, nullptr);
+    auto *sh = caps->getObject("signatureHelpProvider");
+    ASSERT_NE(sh, nullptr) << "capabilities must include signatureHelpProvider";
+    auto *triggers = sh->getArray("triggerCharacters");
+    ASSERT_NE(triggers, nullptr);
+    bool hasParen = false, hasComma = false;
+    for (const auto &t : *triggers) {
+        if (t.getAsString().value_or("") == "(") hasParen = true;
+        if (t.getAsString().value_or("") == ",") hasComma = true;
+    }
+    EXPECT_TRUE(hasParen) << "triggerCharacters must include '('";
+    EXPECT_TRUE(hasComma) << "triggerCharacters must include ','";
 }
 
 // ── full lifecycle ────────────────────────────────────────────────────────────

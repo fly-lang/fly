@@ -620,5 +620,216 @@ LspAnalyzer::getDocumentHighlights(const std::string &file, int line, int col) {
     return out;
 }
 
+// ── findReferences ────────────────────────────────────────────────────────────
+
+std::vector<LspLocation>
+LspAnalyzer::findReferences(const std::string &file, int line, int col,
+                             bool includeDeclaration) {
+    if (!frontend_) return {};
+
+    Symbol *sym = findSymbolAt(file, line, col);
+    if (!sym) return {};
+
+    std::vector<LspLocation> result;
+
+    // Optionally prepend the declaration location.
+    if (includeDeclaration) {
+        if (auto declLoc = getDefinitionLocation(sym))
+            result.push_back(std::move(*declLoc));
+    }
+
+    // Walk ALL compiled modules (not just the current file) and collect every
+    // expression that resolves to the same Symbol pointer.
+    for (SemaModule *mod : frontend_->getSemaModules()) {
+        const std::string &mf = mod->getAST().getName();
+        std::string moduleUri = mf.empty() ? pathToFileUri(file) : pathToFileUri(mf);
+
+        // Collect highlights (position ranges) within this module.
+        std::vector<LspDocumentHighlight> hits;
+        for (SemaNode *node : mod->getNodes()) {
+            switch (node->getKind()) {
+            case SemaKind::FUNCTION: {
+                auto *fn = static_cast<SemaFunction *>(node);
+                if (fn->getAST().getBody())
+                    collectBlock(fn->getAST().getBody(), sym, hits);
+                break;
+            }
+            case SemaKind::TYPE_CLASS: {
+                auto *cls = static_cast<SemaClassType *>(node);
+                for (auto it = cls->getMethods().begin();
+                         it != cls->getMethods().end(); ++it) {
+                    SemaClassMethod *method = it->getValue();
+                    if (method->getAST().getBody())
+                        collectBlock(method->getAST().getBody(), sym, hits);
+                }
+                break;
+            }
+            default:
+                break;
+            }
+        }
+
+        // Convert each highlight to an LspLocation in this module's file.
+        for (const auto &h : hits)
+            result.push_back({moduleUri, h.range});
+    }
+
+    return result;
+}
+
+// ── getSignatureHelp — helpers ────────────────────────────────────────────────
+
+// Returns {innermost enclosing ASTCall, active param index} for the position
+// (line, col), or {nullptr, 0} if the cursor is not inside a call arg list.
+std::pair<ASTCall *, int>
+LspAnalyzer::findEnclosingCall(ASTExpr *expr, int line, int col) const {
+    if (!expr) return {nullptr, 0};
+
+    if (expr->getExprKind() == ASTExprKind::EXPR_CALL) {
+        auto *call = static_cast<ASTCall *>(expr);
+        LspPosition callPos = toPosition(call->getLocation());
+
+        // Cursor must be after the call name (i.e., inside the argument list).
+        if (callPos.line > line || (callPos.line == line && callPos.character > col))
+            return {nullptr, 0};
+
+        // Count the active parameter by checking argument positions.
+        int activeParam = 0;
+        for (auto *arg : call->getArgs()) {
+            if (!arg->getExpr()) continue;
+            LspPosition argPos = toPosition(arg->getExpr()->getLocation());
+            if (argPos.line < line ||
+                (argPos.line == line && argPos.character <= col))
+                activeParam++;
+            else
+                break;
+        }
+        if (activeParam > 0) activeParam--;  // args after = next param still current
+
+        // Recurse into arguments for nested calls (prefer innermost).
+        for (auto *arg : call->getArgs()) {
+            auto [inner, ip] = findEnclosingCall(arg->getExpr(), line, col);
+            if (inner) return {inner, ip};
+        }
+
+        return {call, activeParam};
+    }
+
+    // Recurse into binary and member sub-expressions.
+    if (expr->getExprKind() == ASTExprKind::EXPR_BINARY) {
+        auto *bin = static_cast<ASTBinary *>(expr);
+        if (auto [c, i] = findEnclosingCall(bin->getLeftExpr(),  line, col); c) return {c, i};
+        if (auto [c, i] = findEnclosingCall(bin->getRightExpr(), line, col); c) return {c, i};
+    }
+    return {nullptr, 0};
+}
+
+std::pair<ASTCall *, int>
+LspAnalyzer::findEnclosingCallInBlock(ASTBlockStmt *block, int line, int col) const {
+    if (!block) return {nullptr, 0};
+    for (auto *stmt : block->getContent()) {
+        if (!stmt) continue;
+        ASTExpr *expr = nullptr;
+        switch (stmt->getStmtKind()) {
+        case ASTStmtKind::STMT_EXPR: expr = static_cast<ASTExprStmt *>(stmt)->getExpr(); break;
+        case ASTStmtKind::STMT_DECL: expr = static_cast<ASTDeclStmt *>(stmt)->getExpr(); break;
+        case ASTStmtKind::STMT_BLOCK:
+            if (auto [c, i] = findEnclosingCallInBlock(
+                    static_cast<ASTBlockStmt *>(stmt), line, col); c) return {c, i};
+            break;
+        case ASTStmtKind::STMT_RULE:
+        case ASTStmtKind::STMT_IF:
+        case ASTStmtKind::STMT_SWITCH: {
+            auto *rule = static_cast<ASTRuleStmt *>(stmt);
+            if (auto [c, i] = findEnclosingCall(rule->getExpr(), line, col); c) return {c, i};
+            break;
+        }
+        default: break;
+        }
+        if (expr) {
+            if (auto [c, i] = findEnclosingCall(expr, line, col); c) return {c, i};
+        }
+    }
+    return {nullptr, 0};
+}
+
+// ── getSignatureHelp ──────────────────────────────────────────────────────────
+
+std::optional<LspSignatureHelp>
+LspAnalyzer::getSignatureHelp(const std::string &file, int line, int col) {
+    if (!frontend_) return std::nullopt;
+
+    // Find the innermost call enclosing the cursor.
+    ASTCall *call  = nullptr;
+    int activeParam = 0;
+    for (SemaModule *mod : frontend_->getSemaModules()) {
+        const std::string &mf = mod->getAST().getName();
+        if (!mf.empty() && mf != file) continue;
+
+        for (SemaNode *node : mod->getNodes()) {
+            switch (node->getKind()) {
+            case SemaKind::FUNCTION: {
+                auto *fn = static_cast<SemaFunction *>(node);
+                if (fn->getAST().getBody()) {
+                    auto [c, i] = findEnclosingCallInBlock(fn->getAST().getBody(), line, col);
+                    if (c) { call = c; activeParam = i; }
+                }
+                break;
+            }
+            case SemaKind::TYPE_CLASS: {
+                auto *cls = static_cast<SemaClassType *>(node);
+                for (auto it = cls->getMethods().begin();
+                         it != cls->getMethods().end(); ++it) {
+                    SemaClassMethod *method = it->getValue();
+                    if (method->getAST().getBody()) {
+                        auto [c, i] = findEnclosingCallInBlock(
+                            method->getAST().getBody(), line, col);
+                        if (c) { call = c; activeParam = i; }
+                    }
+                }
+                break;
+            }
+            default: break;
+            }
+        }
+        if (call) break;
+    }
+
+    if (!call) return std::nullopt;
+
+    Symbol *sym = call->getSymbol();
+    if (!sym || sym->getKind() != SymbolKind::FUNCTION) return std::nullopt;
+
+    auto *fn = static_cast<SemaFunctionBase *>(sym->getRef());
+    if (!fn) return std::nullopt;
+
+    // Build the signature label: "retType name(type param, …)"
+    std::string label;
+    if (fn->getReturnType()) label += fn->getReturnType()->getName() + " ";
+    label += fn->getAST().getName().str() + "(";
+
+    LspSignatureInfo sig;
+    bool first = true;
+    for (auto *p : fn->getParams()) {
+        if (!first) label += ", ";
+        std::string paramLabel;
+        if (p->getAST() && p->getAST()->getType())
+            paramLabel += p->getAST()->getType()->str() + " ";
+        if (p->getAST()) paramLabel += p->getAST()->getName().str();
+        label += paramLabel;
+        sig.parameters.push_back({paramLabel});
+        first = false;
+    }
+    label += ")";
+    sig.label = label;
+
+    LspSignatureHelp help;
+    help.signatures.push_back(std::move(sig));
+    help.activeSignature = 0;
+    help.activeParameter = activeParam < (int)help.signatures[0].parameters.size()
+                         ? activeParam : 0;
+    return help;
+}
+
 } // namespace lsp
 } // namespace fly

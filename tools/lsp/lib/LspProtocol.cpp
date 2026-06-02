@@ -44,6 +44,24 @@ json::Object fly::lsp::toJson(const LspDocumentHighlight &h) {
     return json::Object{{"range", toJson(h.range)}, {"kind", h.kind}};
 }
 
+json::Object fly::lsp::toJson(const LspSignatureHelp &h) {
+    json::Array sigs;
+    for (const auto &sig : h.signatures) {
+        json::Array params;
+        for (const auto &p : sig.parameters)
+            params.push_back(json::Object{{"label", p.label}});
+        sigs.push_back(json::Object{
+            {"label",      sig.label},
+            {"parameters", std::move(params)},
+        });
+    }
+    return json::Object{
+        {"signatures",       std::move(sigs)},
+        {"activeSignature",  h.activeSignature},
+        {"activeParameter",  h.activeParameter},
+    };
+}
+
 LspPosition fly::lsp::positionFromJson(const json::Object &obj) {
     return LspPosition{
         (int)obj.getInteger("line").value_or(0),

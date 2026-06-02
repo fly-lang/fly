@@ -48,6 +48,18 @@ struct LspDocumentHighlight {
     int      kind = 1;
 };
 
+// LSP SignatureHelp structs
+struct LspParameterInfo { std::string label; };
+struct LspSignatureInfo {
+    std::string                   label;
+    std::vector<LspParameterInfo> parameters;
+};
+struct LspSignatureHelp {
+    std::vector<LspSignatureInfo> signatures;
+    int activeSignature = 0;
+    int activeParameter = 0;
+};
+
 enum class LspCompletionKind {
     Text      = 1,
     Function  = 3,
@@ -84,6 +96,7 @@ llvm::json::Object toJson(const LspDiagnostic &d);
 llvm::json::Object toJson(const LspDocSymbol &s);
 llvm::json::Object toJson(const LspCompletionItem &c);
 llvm::json::Object toJson(const LspDocumentHighlight &h);
+llvm::json::Object toJson(const LspSignatureHelp &h);
 
 LspPosition positionFromJson(const llvm::json::Object &obj);
 

@@ -18,6 +18,7 @@
 
 namespace fly {
     // Forward declarations for AST types used in private helpers
+    class ASTCall;
     class ASTExpr;
     class ASTStmt;
     class ASTBlockStmt;
@@ -63,6 +64,18 @@ public:
     std::vector<LspDocumentHighlight>
         getDocumentHighlights(const std::string &file, int line, int col);
 
+    /// Return all reference locations of the symbol at (line,col) across all
+    /// compiled modules.  If includeDeclaration is true, the declaration site
+    /// is prepended to the result.
+    std::vector<LspLocation>
+        findReferences(const std::string &file, int line, int col,
+                       bool includeDeclaration);
+
+    /// Return signature help for the function call enclosing (line,col),
+    /// or nullopt if the cursor is not inside a call argument list.
+    std::optional<LspSignatureHelp>
+        getSignatureHelp(const std::string &file, int line, int col);
+
 private:
     // Kept alive so AST StringRefs (pointing into Lexer tables) remain valid.
     std::unique_ptr<Driver>   driver_;
@@ -86,6 +99,13 @@ private:
                       std::vector<LspDocumentHighlight> &out) const;
     void collectBlock(fly::ASTBlockStmt *b, fly::Symbol *sym,
                       std::vector<LspDocumentHighlight> &out) const;
+
+    // Find the innermost ASTCall whose argument list spans (line,col).
+    // Returns {call, activeParam} or {nullptr, 0}.
+    std::pair<fly::ASTCall *, int>
+        findEnclosingCall(fly::ASTExpr *e, int line, int col) const;
+    std::pair<fly::ASTCall *, int>
+        findEnclosingCallInBlock(fly::ASTBlockStmt *b, int line, int col) const;
 };
 
 } // namespace fly::lsp

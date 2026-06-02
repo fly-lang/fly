@@ -67,6 +67,7 @@ void LspServer::dispatch(const json::Object &msg) {
     else if (*method == "textDocument/documentSymbol") onDocSymbols(std::move(idVal), *params);
     else if (*method == "textDocument/references")        onReferences(std::move(idVal), *params);
     else if (*method == "textDocument/documentHighlight") onDocumentHighlight(std::move(idVal), *params);
+    else if (*method == "textDocument/signatureHelp")     onSignatureHelp(std::move(idVal), *params);
     else if (isRequest)
         transport_.sendError(std::move(idVal), -32601,
                              ("Unknown method: " + *method).str());
@@ -84,6 +85,9 @@ void LspServer::onInitialize(json::Value id, const json::Object & /*params*/) {
             {"referencesProvider",          true},
             {"documentSymbolProvider",      true},
             {"documentHighlightProvider",   true},
+            {"signatureHelpProvider", json::Object{
+                {"triggerCharacters", json::Array{"(", ","}},
+            }},
             {"completionProvider", json::Object{
                 {"triggerCharacters", json::Array{"."}},
             }},
@@ -192,9 +196,29 @@ void LspServer::onDocSymbols(json::Value id, const json::Object &params) {
     transport_.sendResult(std::move(id), std::move(arr));
 }
 
-void LspServer::onReferences(json::Value id, const json::Object & /*params*/) {
-    // TODO: walk all modules for uses of the symbol at position
-    transport_.sendResult(std::move(id), json::Array{});
+void LspServer::onReferences(json::Value id, const json::Object &params) {
+    std::string path = extractPath(params);
+    LspPosition pos  = extractPosition(params);
+
+    bool inclDecl = false;
+    if (const auto *ctx = params.getObject("context"))
+        inclDecl = ctx->getBoolean("includeDeclaration").value_or(false);
+
+    auto refs = analyzer_.findReferences(path, pos.line, pos.character, inclDecl);
+    json::Array arr;
+    for (const auto &r : refs) arr.push_back(toJson(r));
+    transport_.sendResult(std::move(id), std::move(arr));
+}
+
+void LspServer::onSignatureHelp(json::Value id, const json::Object &params) {
+    std::string path = extractPath(params);
+    LspPosition pos  = extractPosition(params);
+    auto help = analyzer_.getSignatureHelp(path, pos.line, pos.character);
+    if (!help) {
+        transport_.sendResult(std::move(id), json::Value(nullptr));
+        return;
+    }
+    transport_.sendResult(std::move(id), toJson(*help));
 }
 
 void LspServer::onDocumentHighlight(json::Value id, const json::Object &params) {

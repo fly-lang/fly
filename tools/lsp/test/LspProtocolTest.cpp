@@ -333,3 +333,39 @@ TEST(LspProtocol, CompletionKindValues_MatchLspSpec) {
     EXPECT_EQ((int)LspCompletionKind::Module,     9);
     EXPECT_EQ((int)LspCompletionKind::Keyword,   14);
 }
+
+// ── toJson(LspSignatureHelp) ─────────────────────────────────────────────────
+
+TEST(LspProtocol, ToJsonSignatureHelp_Structure) {
+    LspSignatureHelp h;
+    LspSignatureInfo sig;
+    sig.label = "int foo(int a, string b)";
+    sig.parameters.push_back({"int a"});
+    sig.parameters.push_back({"string b"});
+    h.signatures.push_back(sig);
+    h.activeSignature = 0;
+    h.activeParameter = 1;
+
+    auto obj = toJson(h);
+    EXPECT_EQ(obj.getInteger("activeSignature").value_or(-1), 0);
+    EXPECT_EQ(obj.getInteger("activeParameter").value_or(-1), 1);
+    auto *sigs = obj.getArray("signatures");
+    ASSERT_NE(sigs, nullptr);
+    ASSERT_EQ(sigs->size(), 1u);
+    auto *s0 = (*sigs)[0].getAsObject();
+    ASSERT_NE(s0, nullptr);
+    EXPECT_EQ(s0->getString("label").value_or(""), "int foo(int a, string b)");
+    auto *params = s0->getArray("parameters");
+    ASSERT_NE(params, nullptr);
+    ASSERT_EQ(params->size(), 2u);
+    EXPECT_EQ((*params)[0].getAsObject()->getString("label").value_or(""), "int a");
+    EXPECT_EQ((*params)[1].getAsObject()->getString("label").value_or(""), "string b");
+}
+
+TEST(LspProtocol, ToJsonSignatureHelp_EmptySignatures) {
+    LspSignatureHelp h;
+    auto obj = toJson(h);
+    auto *sigs = obj.getArray("signatures");
+    ASSERT_NE(sigs, nullptr);
+    EXPECT_TRUE(sigs->empty());
+}
