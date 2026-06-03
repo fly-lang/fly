@@ -37,6 +37,9 @@
 
 #include <AST/ASTAttribute.h>
 #include <AST/ASTDeclStmt.h>
+#include <AST/ASTCaseStmt.h>
+#include <AST/ASTRuleStmt.h>
+#include <AST/ASTTestStmt.h>
 #include <AST/ASTEnumEntry.h>
 #include <AST/ASTExprStmt.h>
 #include <AST/ASTFailStmt.h>
@@ -757,5 +760,25 @@ ASTBlockStmt *ASTBuilder::CreateBlockStmt(ASTStmt *Parent, const SourceLocation 
 	ASTBlockStmt *Block = new ASTBlockStmt(Loc);
 	Block->Parent = Parent;
 	return Block;
+}
+
+ASTCaseStmt *ASTBuilder::CreateCaseStmt(ASTBlockStmt *Parent, const SourceLocation &Loc,
+                                          ASTExpr *Expr, ASTBlockStmt *Body) {
+	FLY_DEBUG_SCOPE_MSG("ASTBuilder", "CreateCaseStmt", "Loc=" << Loc.getRawEncoding());
+	ASTCaseStmt *Case = new ASTCaseStmt(Loc);
+	Case->Expr = Expr;
+	Case->Stmt = Body;
+	Parent->addContent(Case);
+	return Case;
+}
+
+ASTTestStmt *ASTBuilder::CreateTestStmt(ASTBlockStmt *Parent, const SourceLocation &Loc) {
+	FLY_DEBUG_SCOPE_MSG("ASTBuilder", "CreateTestStmt", "Loc=" << Loc.getRawEncoding());
+	ASTTestStmt *Stmt = new ASTTestStmt(Loc);
+	ASTBlockStmt *Body = new ASTBlockStmt(Loc);
+	Stmt->Body = Body;
+	Body->Parent = Stmt;
+	Parent->addContent(Stmt);
+	return Stmt;
 }
 

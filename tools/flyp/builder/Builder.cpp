@@ -2,8 +2,11 @@
 #include "../fetcher/Cache.h"
 
 #include <filesystem>
+#include <future>
 #include <iostream>
 #include <sstream>
+#include <string>
+#include <vector>
 
 namespace flyp {
 
@@ -30,14 +33,15 @@ Builder::Builder(const Manifest& manifest,
     : manifest_(manifest), lockfile_(lockfile), mode_(mode) {}
 
 std::filesystem::path Builder::out_dir() const {
-    return manifest_.root_dir / "target" /
-           (mode_ == BuildMode::Release ? "release" : "debug");
+    if (mode_ == BuildMode::Release) return manifest_.root_dir / "target" / "release";
+    if (mode_ == BuildMode::Test)    return manifest_.root_dir / "target" / "test";
+    return manifest_.root_dir / "target" / "debug";
 }
 
 std::vector<std::string> Builder::profile_flags() const {
     const BuildProfile& p = (mode_ == BuildMode::Release)
                             ? manifest_.profile_release
-                            : manifest_.profile_debug;
+                            : manifest_.profile_debug; // Test uses debug profile
     std::vector<std::string> flags;
     flags.push_back("-O" + std::to_string(p.opt_level));
     if (p.debug_info)  flags.push_back("-g");
@@ -117,29 +121,107 @@ bool Builder::build_lib(const std::string& name) {
     return invoke_fly(src.string(), out.string(), extra);
 }
 
-bool Builder::run_tests(const std::string& suite_name) {
+bool Builder::run_tests(const std::string& suite_filter) {
+    // Force test build mode
+    mode_ = BuildMode::Test;
     std::filesystem::create_directories(out_dir());
-    bool ok = true;
-    for (const auto& t : manifest_.tests) {
-        if (!suite_name.empty() && t.name != suite_name) continue;
 
-        auto src = manifest_.root_dir / t.path;
-        auto out = out_dir() / ("test-" + t.name);
+    // Parse filter: "SuiteName::method::\"label\""
+    std::string filter_suite, filter_method, filter_label;
+    {
+        std::string rem = suite_filter;
+        auto cut = [&](std::string& dst) {
+            auto pos = rem.find("::");
+            if (pos == std::string::npos) { dst = rem; rem.clear(); }
+            else { dst = rem.substr(0, pos); rem = rem.substr(pos + 2); }
+        };
+        if (!rem.empty()) { cut(filter_suite); cut(filter_method); cut(filter_label); }
+        // Strip surrounding quotes from label if present
+        if (filter_label.size() >= 2 && filter_label.front() == '"' && filter_label.back() == '"')
+            filter_label = filter_label.substr(1, filter_label.size() - 2);
+    }
 
-        if (!invoke_fly(src.string(), out.string(), {"--test"})) {
-            ok = false;
-            continue;
-        }
+    // Collect suite files from [test] config globs
+    std::vector<std::filesystem::path> suite_files;
 
-        std::cout << "  running " << t.name << "...\n";
-        int rc = run_cmd(shell_quote(out.string()));
-        if (rc != 0) {
-            std::cerr << "  FAILED: " << t.name << " (exit " << rc << ")\n";
-            ok = false;
+    // Glob expansion: match files ending with "Suite.fly" under each pattern prefix
+    for (const auto& pattern : manifest_.test_config.suites) {
+        std::filesystem::path base = manifest_.root_dir;
+        // Simplified glob: treat pattern as a directory prefix + filename suffix
+        // Full glob support would use a library; for now accept explicit paths or dir/**
+        auto p = base / pattern;
+        if (std::filesystem::exists(p) && std::filesystem::is_regular_file(p)) {
+            suite_files.push_back(p);
         } else {
-            std::cout << "  ok: " << t.name << "\n";
+            // Walk directories looking for *Suite.fly
+            auto dir = p.parent_path();
+            if (!std::filesystem::exists(dir)) dir = base;
+            for (auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
+                if (entry.is_regular_file() &&
+                    entry.path().extension() == ".fly" &&
+                    entry.path().filename().string().find("Suite") != std::string::npos) {
+                    suite_files.push_back(entry.path());
+                }
+            }
         }
     }
+
+    // Also include explicit [[test]] targets
+    for (const auto& t : manifest_.tests) {
+        suite_files.push_back(manifest_.root_dir / t.path);
+    }
+
+    if (suite_files.empty()) {
+        std::cerr << "flyp test: no suite files found. Add [test] suites = [...] to fly.toml\n";
+        return false;
+    }
+
+    bool ok = true;
+    auto run_suite = [&](const std::filesystem::path& src) -> bool {
+        std::string suite_name = src.stem().string();
+        if (!filter_suite.empty() && suite_name != filter_suite) return true; // skip
+
+        auto out = out_dir() / suite_name;
+
+        std::vector<std::string> extra_flags = {"--test"};
+        if (!invoke_fly(src.string(), out.string(), extra_flags))
+            return false;
+
+        // Build environment with filter
+        std::ostringstream cmd;
+        if (!filter_method.empty()) {
+            std::string filter_val = filter_suite;
+            if (!filter_method.empty()) filter_val += "::" + filter_method;
+            if (!filter_label.empty())  filter_val += "::\"" + filter_label + "\"";
+            cmd << "FLY_TEST_FILTER=" << shell_quote(filter_val) << " ";
+        }
+        cmd << shell_quote(out.string());
+
+        std::cout << "  running " << suite_name << "...\n";
+        int rc = run_cmd(cmd.str());
+        if (rc != 0) {
+            std::cerr << "  FAILED: " << suite_name << " (exit " << rc << ")\n";
+            if (manifest_.test_config.fail_fast) return false;
+            return false;
+        }
+        std::cout << "  ok: " << suite_name << "\n";
+        return true;
+    };
+
+    if (manifest_.test_config.parallel && suite_files.size() > 1) {
+        std::vector<std::future<bool>> futures;
+        for (const auto& sf : suite_files)
+            futures.push_back(std::async(std::launch::async, run_suite, sf));
+        for (auto& f : futures)
+            ok = f.get() && ok;
+    } else {
+        for (const auto& sf : suite_files) {
+            bool r = run_suite(sf);
+            ok = r && ok;
+            if (!r && manifest_.test_config.fail_fast) break;
+        }
+    }
+
     return ok;
 }
 

@@ -58,8 +58,9 @@ int main(int argc, char** argv) {
         auto* sub     = app.add_subcommand("test", "Build and run tests");
         auto  release = std::make_shared<bool>(false);
         auto  suite   = std::make_shared<std::string>();
-        sub->add_flag("--release", *release, "Build with release profile");
-        sub->add_option("suite",   *suite,   "Run only this test suite");
+        sub->add_flag("--release",   *release, "Build with release profile");
+        sub->add_option("--suite,-s", *suite,
+            "Filter: Suite[::method[::\"label\"]]");
         sub->callback([release, suite]{
             std::exit(flyp::commands::cmd_test(*release, *suite));
         });

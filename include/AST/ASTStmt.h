@@ -29,7 +29,9 @@ namespace fly {
         STMT_IF,
         STMT_SWITCH,
         STMT_LOOP,
-        STMT_LOOP_IN
+        STMT_LOOP_IN,
+        STMT_TEST,
+        STMT_CASE
     };
 
     class ASTExpr;

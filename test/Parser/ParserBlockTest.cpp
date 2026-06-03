@@ -17,6 +17,7 @@
 #include "AST/ASTLoopStmt.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
+#include "AST/ASTCaseStmt.h"
 #include "AST/ASTSwitchStmt.h"
 #include "AST/ASTUnary.h"
 #include "AST/ASTValue.h"
@@ -227,7 +228,7 @@ TEST_F(ParserTest, SwitchCaseDefaultStmt) {
 
 	// ===== Case 1 =====
 	ASSERT_FALSE(SwitchStmt->getCases().empty());
-	ASTRuleStmt *Case0 = SwitchStmt->getCases()[0];
+	ASTCaseStmt *Case0 = SwitchStmt->getCases()[0];
 	EXPECT_NODE_LOC(Case0, "case");
 	EXPECT_EQ(As<ASTNumberValue>(Case0->getExpr())->getValue(), "1");
 	EXPECT_NODE_LOC(As<ASTNumberValue>(Case0->getExpr()), "1");
@@ -238,7 +239,7 @@ TEST_F(ParserTest, SwitchCaseDefaultStmt) {
 	EXPECT_NODE_LOC(BreakStmt, "break");
 
 	// ===== Case 2 =====
-	ASTRuleStmt *Case1 = SwitchStmt->getCases()[1];
+	ASTCaseStmt *Case1 = SwitchStmt->getCases()[1];
 	EXPECT_NODE_LOC(Case1, "case", 2);
 	EXPECT_EQ(As<ASTNumberValue>(Case1->getExpr())->getValue(), "2");
 	EXPECT_NODE_LOC(As<ASTNumberValue>(Case1->getExpr()), "2");

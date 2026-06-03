@@ -35,7 +35,7 @@ namespace fly {
     enum class SemaVisibilityKind;
 
     enum class SemaClassKind {
-        CLASS, INTERFACE, STRUCT
+        CLASS, INTERFACE, STRUCT, SUITE
     };
 
     class SemaClassType : public SemaType {

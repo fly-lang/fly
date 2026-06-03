@@ -120,7 +120,7 @@ Manifest Manifest::parse(const std::filesystem::path& toml_path) {
         }
     }
 
-    // [[test]]
+    // [[test]] — array of explicit test targets (legacy format)
     if (auto* tests = tbl["test"].as_array()) {
         for (auto& el : *tests) {
             auto* t = el.as_table();
@@ -129,6 +129,19 @@ Manifest Manifest::parse(const std::filesystem::path& toml_path) {
             tt.path = (*t)["path"].value<std::string>().value_or("");
             if (!tt.name.empty()) m.tests.push_back(std::move(tt));
         }
+    }
+
+    // [test] — plain table for suite-based test configuration
+    if (auto* tc = tbl["test"].as_table()) {
+        if (auto* suites_arr = (*tc)["suites"].as_array()) {
+            for (auto& el : *suites_arr) {
+                if (auto s = el.value<std::string>())
+                    m.test_config.suites.push_back(*s);
+            }
+        }
+        m.test_config.parallel   = (*tc)["parallel"].value<bool>().value_or(false);
+        m.test_config.timeout_ms = (int)(*tc)["timeout_ms"].value<int64_t>().value_or(0);
+        m.test_config.fail_fast  = (*tc)["fail_fast"].value<bool>().value_or(false);
     }
 
     // Auto-detect targets if none declared

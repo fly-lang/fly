@@ -24,7 +24,8 @@ namespace fly {
     enum class ASTClassKind {
         CLASS,
         INTERFACE,
-        STRUCT
+        STRUCT,
+        SUITE
     };
 
     class ASTClass : public ASTNode {

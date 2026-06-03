@@ -26,11 +26,12 @@ SemaContext::~SemaContext() {
 	delete Reg;
 }
 
-llvm::SmallVector<SemaModule *, 8> SemaContext::Resolve(llvm::SmallVector<ASTModule *, 8> &Modules) {
+llvm::SmallVector<SemaModule *, 8> SemaContext::Resolve(llvm::SmallVector<ASTModule *, 8> &Modules,
+                                                          bool TestMode) {
 	FLY_DEBUG_SCOPE("Sema", "Resolve");
 
 	// Create the Resolver with AST Modules
-	Resolver R(Diags, *Reg);
+	Resolver R(Diags, *Reg, TestMode);
 	for (auto &Module : Modules) {
 		Module->accept(R);
 	}

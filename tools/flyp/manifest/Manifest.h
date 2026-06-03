@@ -41,6 +41,14 @@ struct TestTarget {
     std::string path;
 };
 
+// [test] plain-table configuration for the suite-based test system
+struct TestConfig {
+    std::vector<std::string> suites;  // glob patterns or explicit paths
+    bool   parallel   = false;
+    int    timeout_ms = 0;            // 0 = no timeout
+    bool   fail_fast  = false;
+};
+
 // ── Build profile ─────────────────────────────────────────────────────────────
 
 struct BuildProfile {
@@ -68,6 +76,7 @@ struct Manifest {
     std::vector<BinTarget>         bins;
     std::vector<LibTarget>         libs;
     std::vector<TestTarget>        tests;
+    TestConfig                     test_config;
 
     // dependencies
     std::map<std::string, GitDep>  dependencies;

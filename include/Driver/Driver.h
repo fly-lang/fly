@@ -58,6 +58,7 @@ namespace fly {
         std::string TargetCpu;
         std::string StatsFile;
         bool DebugSymbols = false;
+        bool TestMode     = false;
         bool Verbose      = false;
         bool NoWarnings   = false;
         bool EmitLL       = false;

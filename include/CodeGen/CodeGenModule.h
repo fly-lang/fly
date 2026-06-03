@@ -104,6 +104,8 @@ namespace fly {
     class SemaContinueStmt;
     class SemaFailStmt;
     class SemaHandleStmt;
+    class SemaTestStmt;
+    class SemaCaseStmt;
 
     class CodeGenStdLibLLVM;
     class CodeGenStdLibRuntime;
@@ -281,7 +283,14 @@ namespace fly {
         void visit(SemaFailStmt &Sema) override;
         void visit(SemaHandleStmt &Sema) override;
 
+        // Test block and suite case codegen
+        void visit(SemaTestStmt &Sema) override;
+        void visit(SemaCaseStmt &Sema) override;
+
     private:
+
+        // Called from visit(SemaClassType) when ClassKind == SUITE
+        void EmitSuite(SemaClassType &Sema);
 
     	void StoreFail(SemaExpr *Expr, CodeGenError * CGE);
 

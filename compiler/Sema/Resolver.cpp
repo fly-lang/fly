@@ -16,8 +16,12 @@
 #include "AST/ASTBreakStmt.h"
 #include "AST/ASTBuilder.h"
 #include "AST/ASTCall.h"
+#include "AST/ASTCaseStmt.h"
 #include "AST/ASTClass.h"
+#include "AST/ASTTestStmt.h"
 #include "AST/ASTContinueStmt.h"
+#include "Sema/SemaCaseStmt.h"
+#include "Sema/SemaTestStmt.h"
 #include "AST/ASTDeleteStmt.h"
 #include "AST/ASTEnum.h"
 #include "AST/ASTEnumEntry.h"
@@ -103,9 +107,10 @@
 
 using namespace fly;
 
-Resolver::Resolver(DiagnosticsEngine &Diags, Registry &Reg) : Diags(Diags),
+Resolver::Resolver(DiagnosticsEngine &Diags, Registry &Reg, bool TestMode) : Diags(Diags),
 	CurrentModule(nullptr),
 	Reg(Reg),
+	TestMode(TestMode),
 	CurrentNameSpace(Reg.getDefaultNameSpace()),
     CurrentScope(Reg.getDefaultNameSpace()->getSymbols()),
 	Validator(new SemaValidator(Diags)){
@@ -1179,7 +1184,7 @@ void Resolver::visit(ASTSwitchStmt &AST) {
 	SemaBlockStmt *SavedBlock = CurrentSemaBlock;
 
 	// Case Blocks
-	for (ASTRuleStmt *Case : AST.getCases()) {
+	for (ASTCaseStmt *Case : AST.getCases()) {
 		Case->getExpr()->accept(*this);
 		SemaExpr *CaseExpr = CurrentExpr;
 		if (CaseExpr && CaseType) CaseExpr->setType(CaseType);
@@ -2101,6 +2106,77 @@ void Resolver::visit(ASTUnsetValue &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTUnsetValue)");
 	SemaValue *Sema = SemaBuilder::CreateUnsetValue(AST);
 	CurrentExpr = Sema;
+}
+
+void Resolver::visit(ASTTestStmt &AST) {
+    FLY_DEBUG_SCOPE("Resolver", "visit(ASTTestStmt)");
+
+    // Strip in non-test mode — zero IR emitted
+    if (!TestMode) return;
+
+    bool SavedInTestBlock = InTestBlock;
+    InTestBlock = true;
+
+    SemaBlockStmt *Body = SemaBuilder::CreateBlockStmt(nullptr);
+    SemaBlockStmt *SavedBlock = CurrentSemaBlock;
+    CurrentSemaBlock = Body;
+
+    EnterScope();
+    for (auto *Stmt : AST.getBody()->getContent()) {
+        Stmt->accept(*this);
+    }
+    ExitScope();
+
+    CurrentSemaBlock = SavedBlock;
+    InTestBlock = SavedInTestBlock;
+
+    // Emit the SemaTestStmt into the current block
+    SemaTestStmt *SemaTest = new SemaTestStmt(&AST);
+    SemaTest->Body = Body;
+    if (CurrentSemaBlock) CurrentSemaBlock->addContent(SemaTest);
+}
+
+void Resolver::visit(ASTCaseStmt &AST) {
+    FLY_DEBUG_SCOPE("Resolver", "visit(ASTCaseStmt)");
+
+    // Validate: standalone case is only valid inside a suite test-method
+    bool inSuiteTest = CurrentClass &&
+                       CurrentClass->getClassKind() == SemaClassKind::SUITE &&
+                       CurrentFunction &&
+                       CurrentFunction->getName().ends_with("Test");
+    if (!inSuiteTest) {
+        Diag(AST.getLocation(), diag::err_parser_syntax_error);
+        return;
+    }
+
+    // Extract string label from expression
+    std::string Label;
+    if (AST.getExpr() &&
+        AST.getExpr()->getExprKind() == ASTExprKind::EXPR_VALUE) {
+        auto *Val = static_cast<ASTValue *>(AST.getExpr());
+        if (Val->getValueKind() == ASTValueKind::VAL_STRING)
+            Label = static_cast<ASTStringValue *>(Val)->getValue().str();
+    }
+
+    // Resolve body
+    SemaBlockStmt *CaseBody = SemaBuilder::CreateBlockStmt(nullptr);
+    SemaBlockStmt *SavedBlock = CurrentSemaBlock;
+    CurrentSemaBlock = CaseBody;
+    bool SavedInTestMethod = InSuiteTestMethod;
+    InSuiteTestMethod = true;
+
+    EnterScope();
+    if (AST.getStmt() && AST.getStmt()->getStmtKind() == ASTStmtKind::STMT_BLOCK) {
+        for (auto *Stmt : static_cast<ASTBlockStmt *>(AST.getStmt())->getContent())
+            Stmt->accept(*this);
+    }
+    ExitScope();
+
+    InSuiteTestMethod = SavedInTestMethod;
+    CurrentSemaBlock = SavedBlock;
+
+    SemaCaseStmt *SemaCase = new SemaCaseStmt(&AST, std::move(Label), CaseBody);
+    if (CurrentSemaBlock) CurrentSemaBlock->addContent(SemaCase);
 }
 
 void Resolver::Resolver::EnterScope() {

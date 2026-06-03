@@ -71,6 +71,8 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/BinaryFormat/Dwarf.h"
+#include "Sema/SemaCaseStmt.h"
+#include "Sema/SemaTestStmt.h"
 
 using namespace fly;
 
@@ -397,6 +399,13 @@ void CodeGenModule::visit(SemaEnumType &Sema) {
 
 void CodeGenModule::visit(SemaClassType &Sema) {
 	FLY_DEBUG_SCOPE_MSG("CodeGenModule", "visit(SemaClassType)", "Class: " + Sema.getAST().getName().str());
+
+	// Suites get their own codegen path: no vtable, emit implicit main()
+	if (Sema.getClassKind() == SemaClassKind::SUITE) {
+		EmitSuite(Sema);
+		return;
+	}
+
 	if (Sema.getCodeGen() == nullptr) {
 		// Generic template classes have no concrete code to generate.
 		if (Sema.isGeneric() && Sema.getGenericTemplate() == nullptr)
@@ -1344,4 +1353,174 @@ std::string CodeGenModule::toIdentifier(llvm::StringRef Name, SemaNameSpace *Nam
 	FLY_DEBUG_SCOPE("CodeGenModule", "toIdentifier");
 	std::string Prefix = NameSpace ? std::string(NameSpace->getName()).append(".") : "";
 	return Prefix.append(std::string(Name));
+}
+
+// Returns (or creates) the thread-local i8* sentinel used by the test system.
+// In production modules this is declared as an external reference.
+// In suite modules it is defined and initialized to null.
+static llvm::GlobalVariable *GetOrCreateTestCtxPtr(llvm::Module *M, llvm::LLVMContext &Ctx,
+                                                    bool IsDefinition) {
+    const char *Name = "__fly_test_ctx_ptr";
+    if (auto *Existing = M->getNamedGlobal(Name))
+        return Existing;
+
+    auto *PtrTy = llvm::PointerType::getUnqual(Ctx);
+    auto *GV = new llvm::GlobalVariable(
+        *M, PtrTy,
+        /*isConstant=*/false,
+        IsDefinition ? llvm::GlobalValue::ExternalLinkage : llvm::GlobalValue::ExternalLinkage,
+        IsDefinition ? llvm::ConstantPointerNull::get(PtrTy) : nullptr,
+        Name);
+    GV->setThreadLocal(true);
+    return GV;
+}
+
+// Classify a suite method name into its role
+static bool isSuiteSetup(llvm::StringRef N)    { return N == "setup"; }
+static bool isSuiteTeardown(llvm::StringRef N) { return N == "teardown"; }
+static bool isSuiteTestMethod(llvm::StringRef N) { return N.ends_with("Test"); }
+
+void CodeGenModule::EmitSuite(SemaClassType &Sema) {
+    FLY_DEBUG_SCOPE_MSG("CodeGenModule", "EmitSuite",
+                        "Suite: " + Sema.getAST().getName().str());
+
+    // Emit the TLS context pointer as a definition in this module
+    GetOrCreateTestCtxPtr(Module, LLVMCtx, /*IsDefinition=*/true);
+
+    // Classify suite methods by name convention
+    SemaClassMethod *SetupM    = nullptr;
+    SemaClassMethod *TeardownM = nullptr;
+    llvm::SmallVector<SemaClassMethod *, 8> TestMethods;
+
+    for (auto &[Name, M] : Sema.getMethods()) {
+        if (isSuiteSetup(Name))        SetupM = M;
+        else if (isSuiteTeardown(Name)) TeardownM = M;
+        else if (isSuiteTestMethod(Name)) TestMethods.push_back(M);
+    }
+
+    // Suite methods are SemaClassMethod but CodeGenClass::Build() is never called for SUITE.
+    // We must create CodeGenClassMethod instances here so the methods get LLVM functions and
+    // their bodies are generated in the second pass (Functions vector).
+    // A minimal empty struct type stands in for the suite "this" pointer.
+    auto *SuiteStructTy = llvm::StructType::create(LLVMCtx,
+                              "suite." + Sema.getAST().getName().str());
+    SuiteStructTy->setBody({});  // empty — suite methods never dereference 'this'
+
+    auto EnsureCompiled = [&](SemaClassMethod *M) {
+        if (!M || M->getCodeGen()) return;
+        auto *CGM = new CodeGenClassMethod(this, M, SuiteStructTy, 0);
+        M->setCodeGen(CGM);
+        Functions.push_back(M);
+    };
+
+    EnsureCompiled(SetupM);
+    EnsureCompiled(TeardownM);
+    for (auto *M : TestMethods) EnsureCompiled(M);
+
+    // Helper to get the LLVM function from a SemaClassMethod
+    auto GetFn = [](SemaClassMethod *M) -> llvm::Function * {
+        if (!M || !M->getCodeGen()) return nullptr;
+        return M->getCodeGen()->getFunction();
+    };
+
+    // Build implicit main(): int main() { setup(); test1(); ...; teardown(); return 0; }
+    auto *Int32Ty = llvm::Type::getInt32Ty(LLVMCtx);
+    auto *PtrTy   = llvm::PointerType::getUnqual(LLVMCtx);
+    auto *NullPtr = llvm::ConstantPointerNull::get(PtrTy);
+    auto *MainTy  = llvm::FunctionType::get(Int32Ty, /*isVarArg=*/false);
+    auto *MainFn  = llvm::Function::Create(MainTy, llvm::GlobalValue::ExternalLinkage, "main", Module);
+    auto *EntryBB = llvm::BasicBlock::Create(LLVMCtx, "entry", MainFn);
+    Builder->SetInsertPoint(EntryBB);
+
+    // Allocate and initialise a shared error handler for this suite's main().
+    // Each test-method case receives its own fresh alloca (see visit(SemaCaseStmt));
+    // setup/teardown/helpers receive this one as their first argument.
+    llvm::Value *ErrAlloca = Builder->CreateAlloca(PtrTy, nullptr, "suite_err");
+    Builder->CreateStore(NullPtr, ErrAlloca);
+
+    llvm::GlobalVariable *TLSPtr = GetOrCreateTestCtxPtr(Module, LLVMCtx, /*IsDefinition=*/false);
+    // Set TLS ptr to a non-null sentinel (address 1) before tests run
+    auto *Sentinel = llvm::ConstantExpr::getIntToPtr(
+        llvm::ConstantInt::get(llvm::Type::getInt64Ty(LLVMCtx), 1), PtrTy);
+    Builder->CreateStore(Sentinel, TLSPtr);
+
+    // Helper: call a suite method passing the error handler as arg 0, null for this + extras
+    auto CallMethod = [&](SemaClassMethod *M) {
+        auto *Fn = GetFn(M);
+        if (!Fn) return;
+        llvm::SmallVector<llvm::Value *, 4> Args;
+        size_t numParams = Fn->getFunctionType()->getNumParams();
+        if (numParams >= 1) Args.push_back(ErrAlloca); // error handler
+        for (size_t i = 1; i < numParams; ++i) Args.push_back(NullPtr); // this + extras
+        Builder->CreateCall(Fn->getFunctionType(), Fn, Args);
+    };
+
+    CallMethod(SetupM);
+    for (auto *M : TestMethods) CallMethod(M);
+    CallMethod(TeardownM);
+
+    // Clear TLS ptr after all tests
+    Builder->CreateStore(NullPtr, TLSPtr);
+    Builder->CreateRet(llvm::ConstantInt::get(Int32Ty, 0));
+}
+
+void CodeGenModule::visit(SemaTestStmt &Sema) {
+    FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaTestStmt)");
+
+    if (!CGOpts.TestMode) return;
+
+    llvm::Function *Fn = CurrentFunction ? CurrentFunction->getCodeGen()->getFunction() : nullptr;
+    if (!Fn) return;
+
+    llvm::GlobalVariable *TLSPtr = GetOrCreateTestCtxPtr(Module, LLVMCtx, /*IsDefinition=*/false);
+
+    // Load the TLS pointer
+    auto *PtrTy = llvm::PointerType::getUnqual(LLVMCtx);
+    llvm::Value *CtxVal = Builder->CreateLoad(PtrTy, TLSPtr, "test_ctx");
+
+    // Branch: if null → skip, else → body
+    llvm::BasicBlock *BodyBB  = llvm::BasicBlock::Create(LLVMCtx, "testbody",  Fn);
+    llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(LLVMCtx, "testmerge", Fn);
+
+    llvm::Value *IsNull = Builder->CreateIsNull(CtxVal, "ctx_isnull");
+    Builder->CreateCondBr(IsNull, MergeBB, BodyBB);
+
+    // Emit body
+    Builder->SetInsertPoint(BodyBB);
+    Sema.getBody()->accept(*this);
+    if (!Builder->GetInsertBlock()->getTerminator())
+        Builder->CreateBr(MergeBB);
+
+    Builder->SetInsertPoint(MergeBB);
+}
+
+void CodeGenModule::visit(SemaCaseStmt &Sema) {
+    FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaCaseStmt)");
+
+    llvm::Function *Fn = CurrentFunction ? CurrentFunction->getCodeGen()->getFunction() : nullptr;
+    if (!Fn) return;
+
+    // Emit as a labelled basic block; falls through to the next statement
+    llvm::BasicBlock *CaseBB = llvm::BasicBlock::Create(LLVMCtx, "case." + Sema.getLabel(), Fn);
+
+    if (!Builder->GetInsertBlock()->getTerminator())
+        Builder->CreateBr(CaseBB);
+
+    Builder->SetInsertPoint(CaseBB);
+
+    // Each case gets a fresh, isolated error handler so assertions are independent.
+    auto *PtrTy   = llvm::PointerType::getUnqual(LLVMCtx);
+    auto *NullPtr = llvm::ConstantPointerNull::get(PtrTy);
+    llvm::Value *CaseErrPtr = Builder->CreateAlloca(PtrTy, nullptr,
+                                                    "case_err." + Sema.getLabel());
+    Builder->CreateStore(NullPtr, CaseErrPtr);
+
+    CodeGenError *SavedErr = CurrentErrorHandler;
+    auto *CaseErrCG = new CodeGenError(this, nullptr, CaseErrPtr);
+    CurrentErrorHandler = CaseErrCG;
+
+    Sema.getBody()->accept(*this);
+
+    CurrentErrorHandler = SavedErr;
+    delete CaseErrCG;
 }

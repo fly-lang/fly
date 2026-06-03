@@ -133,6 +133,7 @@ public:
 
   bool Static = true;
   bool Shared = false;
+  bool TestMode = false;
   bool RDynamic = false;
   bool PIE = false; // Position Independent Code
   bool StaticPIE = false; // Static Position Independent Code

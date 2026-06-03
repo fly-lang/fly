@@ -7,7 +7,7 @@
 
 namespace flyp {
 
-enum class BuildMode { Debug, Release };
+enum class BuildMode { Debug, Release, Test };
 
 class Builder {
 public:

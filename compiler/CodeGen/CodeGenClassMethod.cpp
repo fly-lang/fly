@@ -132,6 +132,18 @@ void CodeGenClassMethod::GenBody() {
     	// Store params starting at index 1 (after error handler)
     	StoreParams(1);
 
+    } else if (Class->getClassKind() == SemaClassKind::SUITE) {
+
+        // Suite methods: error handler in arg 0, dummy 'this' in arg 1 (never accessed),
+        // actual params start at arg 2.
+        // 'this' codegen is intentionally skipped — suites have no instance state.
+        unsigned const int ErrorHandlerArgIdx = 0;
+        unsigned const int StartArgIdx = 2;
+
+        AllocaLocalVars();
+        Sema->getErrorHandler()->getCodeGen()->StoreErrorHandler(Fn->getArg(ErrorHandlerArgIdx));
+        StoreParams(StartArgIdx);
+
     } else {
 
     	// Alloca Class Instance Pointer

@@ -104,6 +104,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     app.add_flag("--help",    showHelp,    "Display available options");
     app.add_flag("--version", showVersion, "Print version information");
     app.add_flag("--debug",         debugFlag,   "Print debug messages");
+    app.add_flag("--test",          TestMode,    "Compile in test mode (enables test {} blocks)");
     app.add_flag("-v,--verbose",    Verbose,     "Show commands to run and use verbose output");
     app.add_flag("-w,--no-warning", NoWarnings,  "Suppress all warnings");
     app.add_flag("--emit-ll",       EmitLL,      "Produce LLVM IR output");
@@ -394,6 +395,12 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     if (DebugSymbols) {
         FLY_DEBUG_MSG("Set --debug: emitting debug symbols");
         CodeGenOpts->DebugSymbols = true;
+    }
+
+    // Test mode
+    if (TestMode) {
+        FLY_DEBUG_MSG("Set --test: compiling in test mode");
+        CodeGenOpts->TestMode = true;
     }
 
     // CodeGen options

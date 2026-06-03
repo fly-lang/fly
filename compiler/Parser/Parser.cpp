@@ -46,6 +46,8 @@
 #include <AST/ASTLocalVar.h>
 #include <AST/ASTModifier.h>
 #include <AST/ASTReturnStmt.h>
+#include <AST/ASTCaseStmt.h>
+#include <AST/ASTTestStmt.h>
 
 using namespace fly;
 
@@ -157,7 +159,7 @@ ASTModule *Parser::ParseHeader() {
         // Parse a struct/class/interface or enum declaration (e.g. "public struct fly_rng { ... }")
         // Pass SkipBodies=true so class method bodies are skipped rather than fully
         // parsed into body AST nodes — mirrors what the old .fly.h generated files had.
-        if (Tok.isOneOf(tok::kw_struct, tok::kw_class, tok::kw_interface)) {
+        if (Tok.isOneOf(tok::kw_struct, tok::kw_class, tok::kw_interface, tok::kw_suite)) {
             ParseClass(Modifiers, /*SkipBodies=*/true);
             continue;
         }
@@ -394,8 +396,8 @@ void Parser::ParseNode() {
 	// Parse Top Modifiers: Public/Private and Constant
 	SmallVector<ASTModifier *, 8> Modifiers = ParseModifiers();
 
-	// Parse a Class
-	if (Tok.isOneOf(tok::kw_struct, tok::kw_class, tok::kw_interface)) {
+	// Parse a Class or Suite
+	if (Tok.isOneOf(tok::kw_struct, tok::kw_class, tok::kw_interface, tok::kw_suite)) {
 		ParseClass(Modifiers);
 	}
 
@@ -671,6 +673,16 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 
 	if (Tok.is(tok::kw_fail)) {
 		ParseFailStmt(Parent);
+		return;
+	}
+
+	if (Tok.is(tok::kw_test)) {
+		ParseTestStmt(Parent);
+		return;
+	}
+
+	if (Tok.is(tok::kw_case)) {
+		ParseSuiteCase(Parent);
 		return;
 	}
 
@@ -1829,3 +1841,56 @@ void Parser::DiagInvalidId(SourceLocation Loc) {
         Diag(Loc, diag::err_parser_invalid_id) << tok::getPunctuatorSpelling(Tok.getKind());
     }
 }
+
+/**
+ * Parse an inline test block: "test { ... }"
+ * The block is always parsed (even in release mode) so that the AST is complete;
+ * the Resolver strips it at sema time when TestMode is off.
+ */
+void Parser::ParseTestStmt(ASTBlockStmt *Parent) {
+    FLY_DEBUG_SCOPE("Parser", "ParseTestStmt");
+    assert(Tok.is(tok::kw_test) && "Token is test keyword");
+
+    const SourceLocation &Loc = Tok.getLocation();
+    ConsumeToken(); // consume 'test'
+
+    if (!isBlockStart()) {
+        Diag(diag::err_parser_syntax_error);
+        return;
+    }
+
+    ASTTestStmt *TestStmt = ASTBuilder::CreateTestStmt(Parent, Loc);
+    ParseBlock(TestStmt->getBody());
+}
+
+/**
+ * Parse a standalone "case" statement: case "label": { ... }
+ * Valid only inside suite test-methods; Sema validates the context.
+ * Consecutive case statements in the same block share one ASTSuiteMethodStmt.
+ */
+void Parser::ParseSuiteCase(ASTBlockStmt *Parent) {
+    FLY_DEBUG_SCOPE("Parser", "ParseSuiteCase");
+    assert(Tok.is(tok::kw_case) && "Token is case keyword");
+
+    const SourceLocation &CaseLoc = Tok.getLocation();
+    ConsumeToken(); // consume 'case'
+
+    if (!Tok.is(tok::string_literal)) {
+        Diag(diag::err_parser_syntax_error);
+        return;
+    }
+    ASTExpr *LabelExpr = ParseExpr();
+
+    if (!Tok.is(tok::colon)) {
+        Diag(diag::err_parser_syntax_error);
+        return;
+    }
+    ConsumeToken(); // consume ':'
+
+    ASTBlockStmt *CaseBody = ASTBuilder::CreateBlockStmt(Tok.getLocation());
+    if (!isBlockEnd() && !Tok.is(tok::kw_case)) {
+        ParseBlockOrStmt(CaseBody);
+    }
+    ASTBuilder::CreateCaseStmt(Parent, CaseLoc, LabelExpr, CaseBody);
+}
+

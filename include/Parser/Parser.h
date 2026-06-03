@@ -121,7 +121,7 @@ private:
     /// Parse multiple Modifiers.
     SmallVector<ASTModifier *, 8> ParseModifiers();
 
-    /// Parse a class.
+    /// Parse a class or suite.
     ASTClass *ParseClass(SmallVector<ASTModifier *, 8> &Modifiers, bool SkipBodies = false);
 
     /// Parse an enum.
@@ -171,6 +171,12 @@ private:
 
     /// Parse a fail statement.
     void ParseFailStmt(ASTBlockStmt *Parent);
+
+    /// Parse an inline test block: "test { ... }"
+    void ParseTestStmt(ASTBlockStmt *Parent);
+
+    /// Parse a standalone "case" statement (suite test-method context).
+    void ParseSuiteCase(ASTBlockStmt *Parent);
 
     /// Parse a type reference.
     ASTType *ParseType();

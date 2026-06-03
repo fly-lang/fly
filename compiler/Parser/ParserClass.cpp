@@ -36,6 +36,8 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bo
         ClassKind = ASTClassKind::CLASS;
     } else if (P->Tok.is(tok::kw_interface)) {
         ClassKind = ASTClassKind::INTERFACE;
+    } else if (P->Tok.is(tok::kw_suite)) {
+        ClassKind = ASTClassKind::SUITE;
     } else {
         assert("No ClassKind defined");
     }
@@ -169,7 +171,9 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bo
                 // Look ahead to see if this is a method (has parenthesis)
                 std::optional<Token> NextTok = Lexer::findNextToken(Loc, P->SourceMgr);
                 if (NextTok && NextTok->is(tok::l_paren)) {
-                    bool IsConstructor = (Name == Class->getName());
+                    // Suites have no constructors; all methods must have a return type
+                    bool IsConstructor = (Class->getClassKind() != ASTClassKind::SUITE) &&
+                                         (Name == Class->getName());
                     if (!IsConstructor) {
                         // Non-constructor method without a return type — emit error and recover
                         P->Diag(Loc, diag::err_parser_missing_return_type);

@@ -35,7 +35,8 @@ namespace fly {
 
         ~SemaContext();
 
-        llvm::SmallVector<SemaModule *, 8> Resolve(llvm::SmallVector<ASTModule *, 8> &Modules);
+        llvm::SmallVector<SemaModule *, 8> Resolve(llvm::SmallVector<ASTModule *, 8> &Modules,
+                                                    bool TestMode = false);
 
     };
 
