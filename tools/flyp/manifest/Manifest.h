@@ -19,26 +19,36 @@ struct GitRef {
 };
 
 struct GitDep {
-    std::string git_url;
+    std::string git_url; // empty for path deps
     GitRef      ref;
+    std::string path;    // non-empty = path dependency (git fields unused)
+
+    bool is_path_dep() const { return !path.empty(); }
+};
+
+// ── Workspace ─────────────────────────────────────────────────────────────────
+
+struct WorkspaceConfig {
+    std::vector<std::string> members; // relative paths to member directories
 };
 
 // ── Build targets ─────────────────────────────────────────────────────────────
 
-struct BinTarget {
-    std::string name;
-    std::string path; // relative to project root
+struct Target {
+    std::string key;   // TOML map key → CLI lookup ID
+    std::string name;  // output filename (defaults to key)
+    std::string path;  // relative to project root
+    std::string lib;   // "" = bin; "static"/"dynamic"/"both" = lib
+
+    bool is_lib() const { return !lib.empty(); }
+    bool is_bin() const { return lib.empty(); }
 };
 
-struct LibTarget {
-    std::string name;
-    std::string path;
-    std::string type; // "static" | "dynamic" | "both"
-};
+// ── Build hooks ───────────────────────────────────────────────────────────────
 
-struct TestTarget {
-    std::string name;
-    std::string path;
+struct HooksConfig {
+    std::string pre_build;   // shell command run before compilation (empty = none)
+    std::string post_build;  // shell command run after successful compilation
 };
 
 // [test] plain-table configuration for the suite-based test system
@@ -73,18 +83,21 @@ struct Manifest {
     std::optional<std::string>     repository;
 
     // targets
-    std::vector<BinTarget>         bins;
-    std::vector<LibTarget>         libs;
-    std::vector<TestTarget>        tests;
+    std::vector<Target>            targets;
     TestConfig                     test_config;
+    HooksConfig                    hooks;
 
     // dependencies
     std::map<std::string, GitDep>  dependencies;
     std::map<std::string, GitDep>  dev_dependencies;
 
-    // profiles
-    BuildProfile                   profile_debug;
-    BuildProfile                   profile_release;
+    // profiles — keyed by profile name ("debug", "release", or custom)
+    std::map<std::string, BuildProfile> profiles;
+
+    // workspace — present if this manifest is a workspace root
+    std::optional<WorkspaceConfig> workspace;
+
+    bool is_workspace_root() const { return workspace.has_value(); }
 
     // Filesystem location of this manifest
     std::filesystem::path          root_dir;

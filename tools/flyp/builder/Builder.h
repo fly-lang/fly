@@ -2,43 +2,51 @@
 
 #include "../manifest/Lockfile.h"
 #include "../manifest/Manifest.h"
+#include <mutex>
 #include <string>
 #include <vector>
 
 namespace flyp {
 
-enum class BuildMode { Debug, Release, Test };
-
 class Builder {
 public:
     Builder(const Manifest& manifest,
             const Lockfile& lockfile,
-            BuildMode       mode = BuildMode::Debug);
+            const std::string& profile = "debug",
+            bool is_test = false,
+            int jobs = 0,
+            const std::string& target_triple = "",
+            std::vector<std::filesystem::path> extra_includes = {});
 
-    // Build all [[bin]] and [[lib]] targets.
-    // Returns false if any target fails.
-    bool build_all();
+    // Build all [targets] in parallel.
+    // jobs: max concurrent compilations (0 = hardware_concurrency, 1 = sequential).
+    bool build_all(int jobs = 0);
 
-    // Build a single bin target by name.
-    bool build_bin(const std::string& name);
+    // Build a subset of targets by key (same parallel logic as build_all).
+    bool build_subset(const std::vector<std::string>& keys, int jobs = 0);
 
-    // Build a single lib target by name.
-    bool build_lib(const std::string& name);
+    // Build a single target by key.
+    bool build_target(const std::string& key);
 
-    // Build all [[test]] targets and run them.
+    // Build and run test suites from [test] config.
     // If suite_name is non-empty, runs only that suite.
     bool run_tests(const std::string& suite_name = "");
 
-    // Run a built bin (must have been built first).
-    bool run_bin(const std::string& name,
-                 const std::vector<std::string>& args = {});
+    // Build and run a bin target by key.
+    bool run_target(const std::string& key,
+                    const std::vector<std::string>& args = {});
 
 private:
     const Manifest& manifest_;
     const Lockfile& lockfile_;
-    BuildMode       mode_;
+    std::string     profile_name_;
+    bool            is_test_;
+    int             jobs_;          // forwarded as --jobs to each fly invocation
+    std::string     target_triple_; // cross-compilation target (empty = native)
+    std::vector<std::filesystem::path> extra_includes_; // path-dep output dirs
+    mutable std::mutex log_mutex_;  // serialises progress lines during parallel builds
 
-    // Build output directory: <root>/target/debug or target/release
+    // Build output directory: target/<profile>/ or target/<profile>/<triple>/
     std::filesystem::path out_dir() const;
 
     // Compiler flags derived from the active profile.
@@ -51,6 +59,15 @@ private:
     bool invoke_fly(const std::string& source,
                     const std::string& output,
                     const std::vector<std::string>& extra_flags = {}) const;
+
+    // Run a build hook command with FLYP_* env vars set. Returns true on success.
+    bool run_hook(const std::string& cmd, const std::string& phase) const;
+
+    // Incremental build helpers.
+    std::string             compute_fingerprint(const Target& t) const;
+    std::filesystem::path   fp_path(const Target& t) const;
+    bool                    is_up_to_date(const Target& t) const;
+    void                    save_fingerprint(const Target& t) const;
 };
 
 } // namespace flyp

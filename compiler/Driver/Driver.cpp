@@ -121,6 +121,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     app.add_option("--log-format",  LogFormat,    "Log format: txt (default) or json")->check(CLI::IsMember({"txt", "json"}));
     app.add_option("--mcmodel",     McModel,      "Set memory code model");
     app.add_option("--mthread-model", MthreadModel, "Set memory thread model");
+    app.add_option("--jobs,-j",     Jobs,         "Number of threads for LLVM internal parallelism (0 = auto)");
     app.add_option("--target",      Target,       "Generate code for the given target");
     app.add_option("--target-cpu",  TargetCpu,    "Generate code for the given CPU");
     app.add_option("--stats-file",  StatsFile,    "Filename to write statistics to");
@@ -414,6 +415,9 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     }
     if (CodeGenOpts->ThreadModel != "posix" && CodeGenOpts->ThreadModel != "single")
         llvm::errs() << "invalid thread model: " << CodeGenOpts->ThreadModel << "\n";
+
+    CodeGenOpts->Jobs = Jobs;
+    FLY_DEBUG_MSG("Set --jobs=" << Jobs);
 }
 
 void Driver::printVersion(bool full) {

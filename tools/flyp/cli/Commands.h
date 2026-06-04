@@ -8,15 +8,20 @@ namespace flyp::commands {
 // flyp init [--name NAME] [--version VER]
 int cmd_init(const std::string& name, const std::string& version);
 
-// flyp build [--release] [--target NAME]
-int cmd_build(bool release, const std::string& target);
+// flyp workspace init --name NAME [--members A,B,...]
+int cmd_workspace_init(const std::string& name,
+                       const std::vector<std::string>& members);
 
-// flyp run [--release] [--bin NAME] [-- ARGS...]
-int cmd_run(bool release, const std::string& bin_name,
-            const std::vector<std::string>& run_args);
+// flyp build [--profile NAME | --release] [--targets KEY,KEY,...] [--jobs N] [--offline] [--cross TRIPLE]
+int cmd_build(const std::string& profile, const std::vector<std::string>& targets,
+              int jobs, bool offline, const std::string& triple);
 
-// flyp test [--release] [SUITE]
-int cmd_test(bool release, const std::string& suite);
+// flyp run [--profile NAME | --release] [--bin KEY] [--offline] [-- ARGS...]
+int cmd_run(const std::string& profile, const std::string& bin_key,
+            const std::vector<std::string>& run_args, bool offline);
+
+// flyp test [--profile NAME | --release] [--suite SUITE] [--offline]
+int cmd_test(const std::string& profile, const std::string& suite, bool offline);
 
 // flyp add <name> --git URL (--tag TAG | --branch BRANCH | --rev REV) [--dev]
 int cmd_add(const std::string& name,
@@ -37,6 +42,10 @@ int cmd_lock();
 
 // flyp why <name>
 int cmd_why(const std::string& name);
+
+// flyp clean [--profile NAME | --release]
+// profile empty → remove entire target/; otherwise remove target/<profile>/
+int cmd_clean(const std::string& profile);
 
 // flyp cache clean | stats
 int cmd_cache_clean();

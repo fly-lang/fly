@@ -223,6 +223,9 @@ public:
   /// The thread model to use
   std::string ThreadModel;
 
+  /// Number of threads for LLVM internal parallelism (0 = auto-detect).
+  unsigned Jobs = 0;
+
   /// If not an empty string, trap intrinsics are lowered to calls to this
   /// function instead of to trap instructions.
   std::string TrapFuncName;

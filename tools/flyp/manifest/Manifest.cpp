@@ -1,6 +1,7 @@
 #include "Manifest.h"
 
 #include <toml++/toml.hpp>
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <regex>
@@ -13,6 +14,12 @@ namespace {
 
 GitDep parse_git_dep(const std::string& name, const toml::table& tbl) {
     GitDep dep;
+
+    // Path dependency: { path = "../member" }
+    if (auto p = tbl["path"].value<std::string>()) {
+        dep.path = *p;
+        return dep;
+    }
 
     auto git = tbl["git"].value<std::string>();
     if (!git) throw std::runtime_error("[dependencies." + name + "] missing 'git' field");
@@ -30,22 +37,23 @@ GitDep parse_git_dep(const std::string& name, const toml::table& tbl) {
     return dep;
 }
 
-BuildProfile parse_profile(const toml::table* tbl, bool is_release) {
-    BuildProfile p;
-    if (is_release) {
+BuildProfile default_profile(const std::string& name) {
+    BuildProfile p; // defaults: opt_level=0, debug_info=true, assertions=true, lto=false, strip=false
+    if (name == "release") {
         p.opt_level  = 3;
         p.debug_info = false;
-        p.lto        = false;
-        p.strip      = false;
         p.assertions = false;
     }
-    if (!tbl) return p;
+    return p;
+}
 
-    if (auto v = (*tbl)["opt-level"].value<int64_t>())   p.opt_level  = (int)*v;
-    if (auto v = (*tbl)["debug-info"].value<bool>())      p.debug_info = *v;
-    if (auto v = (*tbl)["assertions"].value<bool>())      p.assertions = *v;
-    if (auto v = (*tbl)["lto"].value<bool>())             p.lto        = *v;
-    if (auto v = (*tbl)["strip"].value<bool>())           p.strip      = *v;
+BuildProfile parse_inline_profile(const toml::table& tbl, const std::string& name) {
+    BuildProfile p = default_profile(name);
+    if (auto v = tbl["opt-level"].value<int64_t>())  p.opt_level  = (int)*v;
+    if (auto v = tbl["debug-info"].value<bool>())    p.debug_info = *v;
+    if (auto v = tbl["assertions"].value<bool>())    p.assertions = *v;
+    if (auto v = tbl["lto"].value<bool>())           p.lto        = *v;
+    if (auto v = tbl["strip"].value<bool>())         p.strip      = *v;
     return p;
 }
 
@@ -77,58 +85,56 @@ Manifest Manifest::parse(const std::filesystem::path& toml_path) {
     Manifest m;
     m.root_dir = toml_path.parent_path();
 
-    // [package] — required fields
-    auto& pkg = *tbl["package"].as_table();
-    m.name        = pkg["name"].value<std::string>().value_or("");
-    m.version     = pkg["version"].value<std::string>().value_or("");
-    m.description = pkg["description"].value<std::string>().value_or("");
-    m.license     = pkg["license"].value<std::string>().value_or("");
-    m.fly_version = pkg["fly-version"].value<std::string>().value_or("");
-    m.homepage    = pkg["homepage"].value<std::string>();
-    m.repository  = pkg["repository"].value<std::string>();
+    // [package] — required for regular packages; workspace roots may omit it.
+    if (auto* pkg_tbl = tbl["package"].as_table()) {
+        auto& pkg = *pkg_tbl;
+        m.name        = pkg["name"].value<std::string>().value_or("");
+        m.version     = pkg["version"].value<std::string>().value_or("");
+        m.description = pkg["description"].value<std::string>().value_or("");
+        m.license     = pkg["license"].value<std::string>().value_or("");
+        m.fly_version = pkg["fly-version"].value<std::string>().value_or("");
+        m.homepage    = pkg["homepage"].value<std::string>();
+        m.repository  = pkg["repository"].value<std::string>();
 
-    if (m.name.empty())    throw std::runtime_error("[package] 'name' is required");
-    if (m.version.empty()) throw std::runtime_error("[package] 'version' is required");
+        if (auto* arr = pkg["authors"].as_array())
+            for (auto& el : *arr)
+                if (auto s = el.value<std::string>()) m.authors.push_back(*s);
+    }
 
-    validate_name(m.name);
-    validate_version(m.version);
+    // Parse [workspace] early so we can skip [package] validation for workspace roots.
+    if (auto* ws_tbl = tbl["workspace"].as_table()) {
+        WorkspaceConfig ws;
+        if (auto* members_arr = (*ws_tbl)["members"].as_array())
+            for (auto& el : *members_arr)
+                if (auto s = el.value<std::string>()) ws.members.push_back(*s);
+        m.workspace = std::move(ws);
+    }
 
-    if (auto* arr = pkg["authors"].as_array())
-        for (auto& el : *arr)
-            if (auto s = el.value<std::string>()) m.authors.push_back(*s);
+    // [package] name+version are required only for non-workspace-root manifests.
+    if (!m.is_workspace_root()) {
+        if (m.name.empty())    throw std::runtime_error("[package] 'name' is required");
+        if (m.version.empty()) throw std::runtime_error("[package] 'version' is required");
+        if (!m.name.empty())    validate_name(m.name);
+        if (!m.version.empty()) validate_version(m.version);
+    }
 
-    // [[bin]]
-    if (auto* bins = tbl["bin"].as_array()) {
-        for (auto& el : *bins) {
-            auto* t = el.as_table();
-            BinTarget b;
-            b.name = (*t)["name"].value<std::string>().value_or("");
-            b.path = (*t)["path"].value<std::string>().value_or("");
-            if (!b.name.empty()) m.bins.push_back(std::move(b));
+    // [targets]
+    if (auto* tbl_tgt = tbl["targets"].as_table()) {
+        for (auto& [k, v] : *tbl_tgt) {
+            auto* t = v.as_table(); if (!t) continue;
+            Target tgt;
+            tgt.key  = std::string(k);
+            tgt.name = (*t)["name"].value<std::string>().value_or(tgt.key);
+            tgt.path = (*t)["path"].value<std::string>().value_or("");
+            tgt.lib  = (*t)["lib"].value<std::string>().value_or("");
+            if (!tgt.path.empty()) m.targets.push_back(std::move(tgt));
         }
     }
 
-    // [[lib]]
-    if (auto* libs = tbl["lib"].as_array()) {
-        for (auto& el : *libs) {
-            auto* t = el.as_table();
-            LibTarget l;
-            l.name = (*t)["name"].value<std::string>().value_or("");
-            l.path = (*t)["path"].value<std::string>().value_or("");
-            l.type = (*t)["type"].value<std::string>().value_or("static");
-            if (!l.name.empty()) m.libs.push_back(std::move(l));
-        }
-    }
-
-    // [[test]] — array of explicit test targets (legacy format)
-    if (auto* tests = tbl["test"].as_array()) {
-        for (auto& el : *tests) {
-            auto* t = el.as_table();
-            TestTarget tt;
-            tt.name = (*t)["name"].value<std::string>().value_or("");
-            tt.path = (*t)["path"].value<std::string>().value_or("");
-            if (!tt.name.empty()) m.tests.push_back(std::move(tt));
-        }
+    // [hooks]
+    if (auto* h = tbl["hooks"].as_table()) {
+        m.hooks.pre_build  = (*h)["pre-build"].value<std::string>().value_or("");
+        m.hooks.post_build = (*h)["post-build"].value<std::string>().value_or("");
     }
 
     // [test] — plain table for suite-based test configuration
@@ -144,12 +150,16 @@ Manifest Manifest::parse(const std::filesystem::path& toml_path) {
         m.test_config.fail_fast  = (*tc)["fail_fast"].value<bool>().value_or(false);
     }
 
-    // Auto-detect targets if none declared
-    if (m.bins.empty() && std::filesystem::exists(m.root_dir / "src" / "main.fly"))
-        m.bins.push_back({m.name, "src/main.fly"});
+    // Auto-detect: independent checks for bin and lib
+    bool has_bin = std::any_of(m.targets.begin(), m.targets.end(),
+                               [](const Target& t){ return t.is_bin(); });
+    if (!has_bin && std::filesystem::exists(m.root_dir / "src" / "main.fly"))
+        m.targets.push_back({m.name, m.name, "src/main.fly", ""});
 
-    if (m.libs.empty() && std::filesystem::exists(m.root_dir / "src" / "lib.fly"))
-        m.libs.push_back({m.name, "src/lib.fly", "static"});
+    bool has_lib = std::any_of(m.targets.begin(), m.targets.end(),
+                               [](const Target& t){ return t.is_lib(); });
+    if (!has_lib && std::filesystem::exists(m.root_dir / "src" / "lib.fly"))
+        m.targets.push_back({m.name, m.name, "src/lib.fly", "static"});
 
     // [dependencies]
     if (auto* deps = tbl["dependencies"].as_table()) {
@@ -167,15 +177,16 @@ Manifest Manifest::parse(const std::filesystem::path& toml_path) {
         }
     }
 
-    // [profile.debug] / [profile.release]
-    const toml::table* prof_debug   = nullptr;
-    const toml::table* prof_release = nullptr;
-    if (auto* prof = tbl["profile"].as_table()) {
-        prof_debug   = (*prof)["debug"].as_table();
-        prof_release = (*prof)["release"].as_table();
+    // [profiles]
+    if (auto* prof_tbl = tbl["profiles"].as_table()) {
+        for (auto& [k, v] : *prof_tbl) {
+            auto* t = v.as_table(); if (!t) continue;
+            std::string pname = std::string(k);
+            m.profiles[pname] = parse_inline_profile(*t, pname);
+        }
     }
-    m.profile_debug   = parse_profile(prof_debug,   false);
-    m.profile_release = parse_profile(prof_release, true);
+    if (!m.profiles.count("debug"))   m.profiles["debug"]   = default_profile("debug");
+    if (!m.profiles.count("release")) m.profiles["release"] = default_profile("release");
 
     return m;
 }
@@ -225,40 +236,74 @@ void Manifest::save() const {
     }
     f << "\n";
 
-    for (auto& b : bins)
-        f << "[[bin]]\nname = \"" << b.name << "\"\npath = \"" << b.path << "\"\n\n";
-    for (auto& l : libs)
-        f << "[[lib]]\nname = \"" << l.name << "\"\npath = \"" << l.path
-          << "\"\ntype = \"" << l.type << "\"\n\n";
-    for (auto& t : tests)
-        f << "[[test]]\nname = \"" << t.name << "\"\npath = \"" << t.path << "\"\n\n";
+    if (!targets.empty()) {
+        f << "[targets]\n";
+        for (auto& t : targets) {
+            f << t.key << " = { ";
+            if (t.name != t.key) f << "name = \"" << t.name << "\", ";
+            f << "path = \"" << t.path << "\"";
+            if (t.is_lib()) f << ", lib = \"" << t.lib << "\"";
+            f << " }\n";
+        }
+        f << "\n";
+    }
+
+    if (!hooks.pre_build.empty() || !hooks.post_build.empty()) {
+        f << "[hooks]\n";
+        if (!hooks.pre_build.empty())
+            f << "pre-build  = \"" << hooks.pre_build  << "\"\n";
+        if (!hooks.post_build.empty())
+            f << "post-build = \"" << hooks.post_build << "\"\n";
+        f << "\n";
+    }
 
     if (!dependencies.empty()) {
         f << "[dependencies]\n";
-        for (auto& [n, d] : dependencies)
-            f << n << " = { git = \"" << d.git_url << "\", " << ref_str(d.ref) << " }\n";
+        for (auto& [n, d] : dependencies) {
+            if (d.is_path_dep())
+                f << n << " = { path = \"" << d.path << "\" }\n";
+            else
+                f << n << " = { git = \"" << d.git_url << "\", " << ref_str(d.ref) << " }\n";
+        }
         f << "\n";
     }
 
     if (!dev_dependencies.empty()) {
         f << "[dev-dependencies]\n";
-        for (auto& [n, d] : dev_dependencies)
-            f << n << " = { git = \"" << d.git_url << "\", " << ref_str(d.ref) << " }\n";
+        for (auto& [n, d] : dev_dependencies) {
+            if (d.is_path_dep())
+                f << n << " = { path = \"" << d.path << "\" }\n";
+            else
+                f << n << " = { git = \"" << d.git_url << "\", " << ref_str(d.ref) << " }\n";
+        }
         f << "\n";
     }
 
+    if (workspace) {
+        f << "[workspace]\n";
+        f << "members = [";
+        for (size_t i = 0; i < workspace->members.size(); ++i) {
+            if (i) f << ", ";
+            f << "\"" << workspace->members[i] << "\"";
+        }
+        f << "]\n\n";
+    }
+
     // profiles
-    f << "[profile.debug]\n";
-    f << "opt-level  = " << profile_debug.opt_level  << "\n";
-    f << "debug-info = " << (profile_debug.debug_info ? "true" : "false") << "\n";
-    f << "assertions = " << (profile_debug.assertions ? "true" : "false") << "\n";
-    f << "\n";
-    f << "[profile.release]\n";
-    f << "opt-level  = " << profile_release.opt_level  << "\n";
-    f << "debug-info = " << (profile_release.debug_info ? "true" : "false") << "\n";
-    f << "lto        = " << (profile_release.lto        ? "true" : "false") << "\n";
-    f << "strip      = " << (profile_release.strip      ? "true" : "false") << "\n";
-    f << "assertions = " << (profile_release.assertions ? "true" : "false") << "\n";
+    if (!profiles.empty()) {
+        auto b = [](bool v) { return v ? "true" : "false"; };
+        f << "[profiles]\n";
+        for (auto& [name, p] : profiles) {
+            f << name << " = { "
+              << "opt-level = "  << p.opt_level        << ", "
+              << "debug-info = " << b(p.debug_info)    << ", "
+              << "assertions = " << b(p.assertions)    << ", "
+              << "lto = "        << b(p.lto)           << ", "
+              << "strip = "      << b(p.strip)
+              << " }\n";
+        }
+        f << "\n";
+    }
 }
 
 } // namespace flyp

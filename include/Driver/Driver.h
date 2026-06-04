@@ -54,6 +54,7 @@ namespace fly {
         std::string WorkingDir;
         std::string McModel;
         std::string MthreadModel;
+        unsigned    Jobs = 0;
         std::string Target;
         std::string TargetCpu;
         std::string StatsFile;
