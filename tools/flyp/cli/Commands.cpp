@@ -11,6 +11,11 @@
 #include "../util/Checksum.h"
 #include "../util/Error.h"
 
+#ifdef _WIN32
+#  define popen  _popen
+#  define pclose _pclose
+#endif
+
 #include <algorithm>
 #include <array>
 #include <filesystem>
