@@ -81,7 +81,7 @@ static Request parse_request(const std::string& raw) {
 static void handle_connection(sock_t client, const RegistryHandler& handler) {
     std::string raw;
     std::array<char, 4096> buf{};
-    ssize_t n;
+    int n;
     while ((n = recv(client, buf.data(), buf.size(), 0)) > 0) {
         raw.append(buf.data(), static_cast<size_t>(n));
         auto he = raw.find("\r\n\r\n");
