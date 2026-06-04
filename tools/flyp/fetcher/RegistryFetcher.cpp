@@ -1,4 +1,5 @@
 #include "RegistryFetcher.h"
+#include "../resolver/MVSResolver.h"
 #include "../resolver/VersionConstraint.h"
 #include "../util/Checksum.h"
 
@@ -92,27 +93,31 @@ std::vector<std::string> RegistryFetcher::list_versions(
 std::string RegistryFetcher::resolve_version(const std::string& registry_url,
                                               const std::string& pkg_name,
                                               const std::string& version_req) const {
-    // Exact version — no need to query list.
-    static const std::regex exact_re{R"(\d+\.\d+\.\d+)"};
+    // Exact version — verify it exists but skip list query if possible.
+    static const std::regex exact_re{R"(v?\d+\.\d+\.\d+)"};
     if (std::regex_match(version_req, exact_re))
-        return version_req;
+        return SemVer::parse(version_req).str(); // normalise (strip leading 'v')
 
     auto versions = list_versions(registry_url, pkg_name);
     if (versions.empty())
         throw std::runtime_error("registry: no versions found for '" + pkg_name + "'");
 
-    // Select the highest version that matches the requirement.
-    // For now: treat any version_req that isn't exact as "latest".
-    // Full semver range matching would go here.
+    SemVerRange range = SemVerRange::parse(version_req);
+
     SemVer best{0, 0, 0};
     std::string best_str;
     for (const auto& v : versions) {
         auto sv = SemVer::parse(v);
-        if (sv > best) { best = sv; best_str = v; }
+        if (range.matches(sv) && sv > best) {
+            best     = sv;
+            best_str = v;
+        }
     }
+
     if (best_str.empty())
-        throw std::runtime_error("registry: no matching version for '"
-                                 + pkg_name + "' req='" + version_req + "'");
+        throw std::runtime_error(
+            "registry: no version of '" + pkg_name
+            + "' satisfies '" + version_req + "'");
     return best_str;
 }
 

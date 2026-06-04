@@ -37,6 +37,14 @@ int cmd_remove(const std::string& name);
 // flyp update [<name>]
 int cmd_update(const std::string& name);
 
+// flyp upgrade [<name>] [--dry-run]
+// Updates tag-pinned git deps to the latest available tag.
+int cmd_upgrade(const std::string& name, bool dry_run);
+
+// flyp doctor
+// Checks environment, manifest, lockfile, cache and registries.
+int cmd_doctor();
+
 // flyp lock
 int cmd_lock();
 

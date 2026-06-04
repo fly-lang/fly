@@ -7,10 +7,12 @@
 #include "../manifest/Lockfile.h"
 #include "../manifest/Manifest.h"
 #include "../resolver/MVSResolver.h"
+#include "../resolver/VersionConstraint.h"
 #include "../util/Checksum.h"
 #include "../util/Error.h"
 
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -718,6 +720,208 @@ int cmd_update(const std::string& name) {
     }
 
     return do_lock(toml_path, manifest, true);
+}
+
+// ── cmd_upgrade ──────────────────────────────────────────────────────────────
+
+int cmd_upgrade(const std::string& name, bool dry_run) {
+    auto toml_path = find_toml();
+    auto manifest  = Manifest::parse(toml_path);
+
+    Cache      cache;
+    GitFetcher fetcher(cache);
+
+    int updated = 0;
+
+    auto try_upgrade = [&](const std::string& dep_name, GitDep& dep) {
+        if (!name.empty() && dep_name != name) return;
+
+        if (dep.is_path_dep()) {
+            std::cout << "  skip (path dep):    " << dep_name << "\n";
+            return;
+        }
+        if (dep.is_registry_dep()) {
+            std::cout << "  skip (registry dep): " << dep_name << "\n";
+            return;
+        }
+        if (dep.ref.kind == GitRefKind::Rev) {
+            std::cout << "  skip (pinned rev):  " << dep_name << "\n";
+            return;
+        }
+        if (dep.ref.kind == GitRefKind::Branch) {
+            std::cout << "  skip (branch — use flyp update): " << dep_name << "\n";
+            return;
+        }
+
+        // Tag dep: find the highest semver tag on the remote.
+        std::vector<std::string> tags;
+        try { tags = fetcher.list_tags(dep.git_url); }
+        catch (...) {
+            std::cerr << "  warning: could not list tags for " << dep_name << "\n";
+            return;
+        }
+
+        SemVer current  = SemVer::parse(dep.ref.value);
+        SemVer best     = current;
+        std::string best_tag = dep.ref.value;
+        for (const auto& t : tags) {
+            auto sv = SemVer::parse(t);
+            if (sv > best) { best = sv; best_tag = t; }
+        }
+
+        if (best_tag == dep.ref.value) {
+            std::cout << "  up to date: " << dep_name << " " << dep.ref.value << "\n";
+            return;
+        }
+
+        std::cout << "  " << (dry_run ? "[dry-run] " : "")
+                  << "upgrading: " << dep_name
+                  << "  " << dep.ref.value << " → " << best_tag << "\n";
+
+        if (!dry_run) {
+            dep.ref.value = best_tag;
+            ++updated;
+        }
+    };
+
+    for (auto& [n, d] : manifest.dependencies)     try_upgrade(n, d);
+    for (auto& [n, d] : manifest.dev_dependencies) try_upgrade(n, d);
+
+    if (dry_run) {
+        std::cout << "(dry-run: no changes written)\n";
+        return 0;
+    }
+    if (updated == 0) {
+        std::cout << "all dependencies are up to date\n";
+        return 0;
+    }
+
+    manifest.save();
+    std::cout << "updated " << updated << " dependency/dependencies — re-locking...\n";
+    return do_lock(toml_path, manifest, true);
+}
+
+// ── cmd_doctor ────────────────────────────────────────────────────────────────
+
+int cmd_doctor() {
+    bool all_ok = true;
+
+    // Helper to run a command and capture first line of stdout.
+    auto capture = [](const std::string& cmd) -> std::string {
+        std::array<char,256> buf{};
+        std::string result;
+        std::unique_ptr<FILE, decltype(&pclose)> p{
+            popen((cmd + " 2>/dev/null").c_str(), "r"), pclose};
+        if (p && fgets(buf.data(), buf.size(), p.get()))
+            result = buf.data();
+        while (!result.empty() &&
+               (result.back() == '\n' || result.back() == '\r'))
+            result.pop_back();
+        return result;
+    };
+
+    auto chk  = [&](bool ok, const std::string& msg) {
+        std::cout << "  " << (ok ? "✓" : "✗") << " " << msg << "\n";
+        if (!ok) all_ok = false;
+    };
+    auto warn = [](const std::string& msg) {
+        std::cout << "  ⚠ " << msg << "\n";
+    };
+
+    // ── Compiler ──────────────────────────────────────────────────────────────
+    std::cout << "Compiler:\n";
+    std::string fly_ver = capture("fly --version");
+    chk(!fly_ver.empty(), fly_ver.empty()
+        ? "fly compiler not found in PATH"
+        : "fly compiler: " + fly_ver);
+
+    // ── flyp ──────────────────────────────────────────────────────────────────
+    std::cout << "\nflyp:\n";
+    std::cout << "  ✓ flyp " << FLYP_VERSION << "\n";
+
+    // ── Manifest ──────────────────────────────────────────────────────────────
+    std::cout << "\nManifest:\n";
+    std::filesystem::path toml_path;
+    Manifest manifest;
+    bool has_manifest = false;
+    try {
+        toml_path    = find_toml();
+        manifest     = Manifest::parse(toml_path);
+        has_manifest = true;
+        chk(true, "fly.toml: " + toml_path.string());
+    } catch (...) {
+        warn("no fly.toml found — run flyp init to create one");
+    }
+
+    if (has_manifest) {
+        // fly-version compatibility
+        if (!manifest.fly_version.empty() && !fly_ver.empty()) {
+            auto required = SemVer::parse(manifest.fly_version);
+            auto actual   = SemVer::parse(fly_ver);
+            chk(actual >= required,
+                actual >= required
+                    ? "fly-version satisfied (" + fly_ver + " >= " + manifest.fly_version + ")"
+                    : "fly-version mismatch: have " + fly_ver
+                      + ", need >= " + manifest.fly_version);
+        }
+
+        // ── Lockfile ──────────────────────────────────────────────────────────
+        std::cout << "\nLockfile:\n";
+        auto lock_path = toml_path.parent_path() / "fly.lock";
+        auto lockfile  = Lockfile::read(lock_path);
+
+        if (!std::filesystem::exists(lock_path)) {
+            if (manifest.dependencies.empty() && manifest.dev_dependencies.empty()) {
+                std::cout << "  ✓ no dependencies — fly.lock not needed\n";
+            } else {
+                chk(false, "fly.lock missing — run flyp lock");
+            }
+        } else if (lockfile.is_stale(toml_path)) {
+            chk(false, "fly.lock is stale — run flyp lock");
+        } else {
+            chk(true, "fly.lock up to date ("
+                + std::to_string(lockfile.packages.size()) + " packages)");
+        }
+
+        // ── Cache ─────────────────────────────────────────────────────────────
+        if (!lockfile.packages.empty()) {
+            std::cout << "\nCache:\n";
+            Cache cache;
+            std::cout << "  ✓ cache root: " << cache.root().string() << "\n";
+            int missing = 0;
+            for (const auto& pkg : lockfile.packages) {
+                std::string url = pkg.source.rfind("git+", 0) == 0
+                    ? pkg.source.substr(4) : pkg.source.substr(9);
+                auto entry = cache.entry_path(url, pkg.rev);
+                if (!std::filesystem::exists(entry)) {
+                    warn("not cached: " + pkg.name + " " + pkg.version);
+                    ++missing;
+                }
+            }
+            if (missing == 0)
+                std::cout << "  ✓ all " << lockfile.packages.size()
+                          << " packages in cache\n";
+            else
+                chk(false, std::to_string(missing)
+                    + " package(s) missing from cache — run flyp lock");
+        }
+
+        // ── Registries ────────────────────────────────────────────────────────
+        if (!manifest.repos.empty()) {
+            std::cout << "\nRegistries:\n";
+            for (const auto& [alias, url] : manifest.repos) {
+                std::string probe = capture("curl -fsSL --connect-timeout 3 "
+                                            + shell_quote(url + "/v1/search?q="));
+                bool reachable = !probe.empty();
+                chk(reachable,
+                    reachable ? alias + " reachable: " + url
+                              : alias + " unreachable: " + url);
+            }
+        }
+    }
+
+    std::cout << "\n" << (all_ok ? "✓ all checks passed\n" : "⚠ some issues found\n");
+    return all_ok ? 0 : 1;
 }
 
 // ── cmd_why ──────────────────────────────────────────────────────────────────

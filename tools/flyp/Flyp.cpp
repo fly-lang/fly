@@ -182,6 +182,32 @@ int main(int argc, char** argv) {
         sub->callback([name]{ std::exit(flyp::commands::cmd_update(*name)); });
     }
 
+    // ── flyp upgrade ─────────────────────────────────────────────────────────
+    {
+        auto* sub     = app.add_subcommand("upgrade",
+            "Upgrade tag-pinned git dependencies to the latest available tag");
+        auto  name    = std::make_shared<std::string>();
+        auto  dry_run = std::make_shared<bool>(false);
+        sub->add_option("name", *name,
+            "Upgrade only this dependency (omit to upgrade all).");
+        sub->add_flag("--dry-run", *dry_run,
+            "Show what would be upgraded without writing changes.");
+        sub->footer(
+            "Only tag-pinned git deps are upgraded (branch and rev deps are skipped).\n"
+            "Registry deps are also skipped — change version manually.\n"
+            "Example: flyp upgrade\n"
+            "         flyp upgrade fly-std\n"
+            "         flyp upgrade --dry-run");
+        sub->callback([name, dry_run]{
+            std::exit(flyp::commands::cmd_upgrade(*name, *dry_run));
+        });
+    }
+
+    // ── flyp doctor ──────────────────────────────────────────────────────────
+    app.add_subcommand("doctor",
+        "Check compiler, manifest, lockfile, cache and registries")
+       ->callback([]{ std::exit(flyp::commands::cmd_doctor()); });
+
     // ── flyp lock ────────────────────────────────────────────────────────────
     app.add_subcommand("lock", "Resolve dependencies and write fly.lock")
        ->callback([]{ std::exit(flyp::commands::cmd_lock()); });
