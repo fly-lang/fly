@@ -257,8 +257,56 @@ int main(int argc, char** argv) {
         sub->callback([query]{ std::exit(flyp::commands::cmd_search(*query)); });
     }
 
+    // ── flyp deploy ──────────────────────────────────────────────────────────
+    {
+        auto* sub   = app.add_subcommand("deploy",
+            "Package and upload the current project to a registry");
+        auto  reg   = std::make_shared<std::string>();
+        auto  ver   = std::make_shared<std::string>();
+        auto  token = std::make_shared<std::string>();
+        sub->add_option("--registry", *reg,
+            "Registry alias from [repo] to deploy to.\n"
+            "Defaults to the alias set in [package].registry.");
+        sub->add_option("--version", *ver,
+            "Override the version to publish (default: from [package].version).");
+        sub->add_option("--token", *token,
+            "API key for the registry (sent as Authorization: Bearer).\n"
+            "Can also be set via FLYP_TOKEN environment variable.");
+        sub->footer("Example: flyp deploy --registry local --token mykey");
+        sub->callback([reg, ver, token]{
+            std::string t = token->empty()
+                ? (std::getenv("FLYP_TOKEN") ? std::getenv("FLYP_TOKEN") : "")
+                : *token;
+            std::exit(flyp::commands::cmd_deploy(*reg, *ver, t));
+        });
+    }
+
+    // ── flyp vendor ──────────────────────────────────────────────────────────
+    {
+        auto* sub   = app.add_subcommand("vendor",
+            "Push all locked git dependencies to a registry (vendor use case)");
+        auto  reg   = std::make_shared<std::string>();
+        auto  token = std::make_shared<std::string>();
+        sub->add_option("--registry", *reg,
+            "Registry alias from [repo] to push packages to.\n"
+            "Defaults to the alias set in [package].registry.");
+        sub->add_option("--token", *token,
+            "API key for the registry.\n"
+            "Can also be set via FLYP_TOKEN environment variable.");
+        sub->footer(
+            "Packages are taken from the local cache (~/.flyp/cache/).\n"
+            "Run flyp lock first to populate the cache.\n"
+            "Example: flyp vendor --registry local --token mykey");
+        sub->callback([reg, token]{
+            std::string t = token->empty()
+                ? (std::getenv("FLYP_TOKEN") ? std::getenv("FLYP_TOKEN") : "")
+                : *token;
+            std::exit(flyp::commands::cmd_vendor(*reg, t));
+        });
+    }
+
     // ── flyp publish ─────────────────────────────────────────────────────────
-    app.add_subcommand("publish", "Publish package to registry")
+    app.add_subcommand("publish", "Alias for flyp deploy")
        ->callback([]{ std::exit(flyp::commands::cmd_publish()); });
 
     // Parse — all subcommand callbacks call std::exit(), so if we fall

@@ -136,3 +136,6 @@ add_subdirectory(tools/flyp)
 
 # fly-lsp language server
 add_subdirectory(tools/lsp)
+
+# flyp-registry REST registry server
+add_subdirectory(tools/registry)

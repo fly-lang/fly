@@ -3,6 +3,7 @@
 #include "../builder/Builder.h"
 #include "../fetcher/Cache.h"
 #include "../fetcher/GitFetcher.h"
+#include "../fetcher/RegistryFetcher.h"
 #include "../manifest/Lockfile.h"
 #include "../manifest/Manifest.h"
 #include "../resolver/MVSResolver.h"
@@ -22,6 +23,15 @@
 namespace flyp::commands {
 
 namespace {
+
+static std::string shell_quote(const std::string& s) {
+    std::string out = "'";
+    for (char c : s) {
+        if (c == '\'') out += "'\\''";
+        else           out += c;
+    }
+    return out + "'";
+}
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -149,36 +159,68 @@ int do_lock(const std::filesystem::path& toml_path,
             const Manifest& root,
             bool verbose = false)
 {
-    Cache      cache;
-    GitFetcher fetcher(cache);
+    Cache           cache;
+    GitFetcher      git_fetcher(cache);
+    RegistryFetcher reg_fetcher(cache);
 
     std::map<std::string, FetchResult>           fetch_results;
     std::map<std::string, std::vector<std::string>> pkg_deps;
     std::vector<ResolveError>                    extra_errors;
 
+    // Helper: resolve registry alias → URL using root manifest's [repo] map.
+    auto resolve_registry_url = [&](const std::string& alias) -> std::string {
+        auto it = root.repos.find(alias);
+        if (it == root.repos.end())
+            throw std::runtime_error("unknown registry alias '" + alias
+                                     + "' — declare it in [repo]");
+        return it->second;
+    };
+
     auto fetch_manifest = [&](const std::string& name,
                                const GitDep& dep) -> std::optional<Manifest>
     {
         try {
-            if (verbose)
-                std::cout << "  fetching " << name << " (" << dep.ref.value << ")...\n";
-            auto result = fetcher.fetch(name, dep);
-            fetch_results[name] = result;
-            auto m = fetcher.read_manifest(name, result.local_path);
-            std::vector<std::string> dn;
-            for (auto& [k, _] : m.dependencies)   dn.push_back(k);
-            for (auto& [k, _] : m.dev_dependencies) {} // dev deps not propagated
-            pkg_deps[name] = std::move(dn);
-            return m;
+            FetchResult result;
+            if (dep.is_registry_dep()) {
+                if (verbose)
+                    std::cout << "  fetching " << name
+                              << " from registry '" << dep.registry_name
+                              << "' version=" << dep.version_req << "...\n";
+                auto reg_url = resolve_registry_url(dep.registry_name);
+                result = reg_fetcher.fetch(name, dep, reg_url);
+                fetch_results[name] = result;
+                auto m = reg_fetcher.read_manifest(name, result.local_path);
+                std::vector<std::string> dn;
+                for (auto& [k, _] : m.dependencies) dn.push_back(k);
+                pkg_deps[name] = std::move(dn);
+                return m;
+            } else {
+                if (verbose)
+                    std::cout << "  fetching " << name
+                              << " (" << dep.ref.value << ")...\n";
+                result = git_fetcher.fetch(name, dep);
+                fetch_results[name] = result;
+                auto m = git_fetcher.read_manifest(name, result.local_path);
+                std::vector<std::string> dn;
+                for (auto& [k, _] : m.dependencies) dn.push_back(k);
+                pkg_deps[name] = std::move(dn);
+                return m;
+            }
         } catch (const std::exception& e) {
             ResolveError err;
             err.is_conflict = false;
             err.package     = name;
-            err.ref_kind    = (dep.ref.kind == GitRefKind::Tag    ? "tag"    :
-                               dep.ref.kind == GitRefKind::Branch ? "branch" : "rev");
-            err.ref_value   = dep.ref.value;
-            err.git_url     = dep.git_url;
-            try { err.available = fetcher.list_tags(dep.git_url); } catch (...) {}
+            if (dep.is_registry_dep()) {
+                err.ref_kind  = "version";
+                err.ref_value = dep.version_req;
+                err.git_url   = dep.registry_name; // reuse field for display
+            } else {
+                err.ref_kind  = (dep.ref.kind == GitRefKind::Tag    ? "tag"    :
+                                 dep.ref.kind == GitRefKind::Branch ? "branch" : "rev");
+                err.ref_value = dep.ref.value;
+                err.git_url   = dep.git_url;
+                try { err.available = git_fetcher.list_tags(dep.git_url); } catch (...) {}
+            }
             extra_errors.push_back(std::move(err));
             return std::nullopt;
         }
@@ -215,8 +257,15 @@ int do_lock(const std::filesystem::path& toml_path,
         LockedPackage p;
         p.name    = name;
         p.version = rp.version;
-        p.source  = "git+" + rp.git_url;
-        p.tag     = (rp.ref.kind == GitRefKind::Tag ? rp.ref.value : "");
+        // source: "git+<url>" for git deps, "registry+<url>/<pkg>/<ver>" for registry
+        if (rp.git_url.empty()) {
+            // Registry dep — reconstruct source from fetch result path hint
+            // We use rev field to store the resolved version for registry deps
+            p.source = "registry+" + name + "/" + rp.version;
+        } else {
+            p.source = "git+" + rp.git_url;
+        }
+        p.tag = (rp.ref.kind == GitRefKind::Tag ? rp.ref.value : "");
 
         if (auto it = fetch_results.find(name); it != fetch_results.end()) {
             p.rev      = it->second.rev;
@@ -721,17 +770,174 @@ int cmd_cache_stats() {
     return 0;
 }
 
-// ── stubs ────────────────────────────────────────────────────────────────────
+// ── cmd_deploy ───────────────────────────────────────────────────────────────
+
+int cmd_deploy(const std::string& registry_alias, const std::string& version_override,
+               const std::string& token) {
+    auto toml_path = find_toml();
+    auto manifest  = Manifest::parse(toml_path);
+
+    // Resolve alias → URL
+    std::string alias = registry_alias.empty() ? manifest.default_registry : registry_alias;
+    if (alias.empty()) {
+        std::cerr << "error: no registry specified. Use --registry or set"
+                     " 'registry' in [package].\n";
+        return 1;
+    }
+    auto it = manifest.repos.find(alias);
+    if (it == manifest.repos.end()) {
+        std::cerr << "error: unknown registry alias '" << alias
+                  << "'. Declare it in [repo].\n";
+        return 1;
+    }
+    const std::string& registry_url = it->second;
+
+    std::string version = version_override.empty() ? manifest.version : version_override;
+    if (version.empty()) {
+        std::cerr << "error: package version not set in [package].\n";
+        return 1;
+    }
+
+    // Create tarball of project root (exclude target/, .git/, vendor/).
+    auto tmp_tarball = std::filesystem::temp_directory_path()
+                     / (manifest.name + "-" + version + ".tar.gz");
+    std::string tar_cmd =
+        "tar -czf " + shell_quote(tmp_tarball.string())
+        + " --exclude=./target --exclude=./.git --exclude=./vendor"
+        + " -C " + shell_quote(manifest.root_dir.string()) + " .";
+    if (std::system(tar_cmd.c_str()) != 0) {
+        std::cerr << "error: failed to create tarball\n";
+        return 1;
+    }
+
+    // Upload.
+    Cache           cache;
+    RegistryFetcher reg(cache);
+    try {
+        reg.publish(manifest.name, version, tmp_tarball, registry_url, token);
+        std::cout << "deployed " << manifest.name << " " << version
+                  << " to '" << alias << "' (" << registry_url << ")\n";
+    } catch (const std::exception& e) {
+        std::cerr << "error: " << e.what() << "\n";
+        std::filesystem::remove(tmp_tarball);
+        return 1;
+    }
+    std::filesystem::remove(tmp_tarball);
+    return 0;
+}
+
+// ── cmd_vendor ───────────────────────────────────────────────────────────────
+
+int cmd_vendor(const std::string& registry_alias, const std::string& token) {
+    auto toml_path = find_toml();
+    auto manifest  = Manifest::parse(toml_path);
+    auto lock_path = toml_path.parent_path() / "fly.lock";
+    auto lockfile  = Lockfile::read(lock_path);
+
+    if (lockfile.packages.empty()) {
+        std::cout << "nothing to vendor (fly.lock is empty)\n";
+        return 0;
+    }
+
+    // Resolve alias → URL
+    std::string alias = registry_alias.empty() ? manifest.default_registry : registry_alias;
+    if (alias.empty()) {
+        std::cerr << "error: no registry specified. Use --registry or set"
+                     " 'registry' in [package].\n";
+        return 1;
+    }
+    auto it = manifest.repos.find(alias);
+    if (it == manifest.repos.end()) {
+        std::cerr << "error: unknown registry alias '" << alias
+                  << "'. Declare it in [repo].\n";
+        return 1;
+    }
+    const std::string& registry_url = it->second;
+
+    Cache           cache;
+    RegistryFetcher reg(cache);
+
+    bool ok = true;
+    for (const auto& pkg : lockfile.packages) {
+        // source is "git+<url>" or "registry+…"
+        if (pkg.source.rfind("registry+", 0) == 0) {
+            std::cout << "  skipping (already registry): " << pkg.name << "\n";
+            continue;
+        }
+
+        // Cache entry for git dep.
+        std::string git_url = pkg.source.substr(4); // strip "git+"
+        auto entry = cache.entry_path(git_url, pkg.rev);
+        if (!std::filesystem::exists(entry)) {
+            std::cerr << "  warning: " << pkg.name
+                      << " not in cache — run flyp lock first\n";
+            ok = false;
+            continue;
+        }
+
+        // Package as tarball.
+        auto tmp = std::filesystem::temp_directory_path()
+                 / (pkg.name + "-" + pkg.version + ".tar.gz");
+        std::string tar_cmd =
+            "tar -czf " + shell_quote(tmp.string())
+            + " --exclude=./target --exclude=./.git"
+            + " -C " + shell_quote(entry.string()) + " .";
+        if (std::system(tar_cmd.c_str()) != 0) {
+            std::cerr << "  error: failed to package " << pkg.name << "\n";
+            ok = false;
+            continue;
+        }
+
+        // Upload.
+        try {
+            reg.publish(pkg.name, pkg.version, tmp, registry_url, token);
+            std::cout << "  vendored: " << pkg.name << " " << pkg.version << "\n";
+        } catch (const std::exception& e) {
+            std::cerr << "  error: " << pkg.name << ": " << e.what() << "\n";
+            ok = false;
+        }
+        std::filesystem::remove(tmp);
+    }
+
+    if (ok) std::cout << "vendor complete: " << lockfile.packages.size()
+                      << " packages pushed to '" << alias << "'\n";
+    return ok ? 0 : 1;
+}
+
+// ── cmd_search / cmd_publish ──────────────────────────────────────────────────
 
 int cmd_search(const std::string& query) {
-    std::cout << "flyp search: package registry not yet available\n";
-    std::cout << "  (searched for: " << query << ")\n";
+    auto toml_path = find_toml();
+    auto manifest  = Manifest::parse(toml_path);
+
+    // Use default registry if configured.
+    std::string alias = manifest.default_registry;
+    if (alias.empty() || manifest.repos.empty()) {
+        std::cout << "flyp search: no registry configured in [repo] / [package].registry\n";
+        return 0;
+    }
+    auto it = manifest.repos.find(alias);
+    if (it == manifest.repos.end()) {
+        std::cerr << "error: unknown registry alias '" << alias << "'\n";
+        return 1;
+    }
+
+    Cache           cache;
+    RegistryFetcher reg(cache);
+    try {
+        std::string url = it->second + "/v1/search?q=" + query;
+        std::cout << reg.http_get(url);
+    } catch (const std::exception& e) {
+        std::cerr << "error: " << e.what() << "\n";
+        return 1;
+    }
     return 0;
 }
 
 int cmd_publish() {
-    std::cout << "flyp publish: package registry not yet available\n";
-    return 0;
+    // flyp publish is an alias for flyp deploy using the default registry.
+    const char* env = std::getenv("FLYP_TOKEN");
+    return cmd_deploy("", "", env ? env : "");
 }
 
 } // namespace flyp::commands

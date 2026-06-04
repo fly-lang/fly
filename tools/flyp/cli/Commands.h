@@ -51,10 +51,17 @@ int cmd_clean(const std::string& profile);
 int cmd_cache_clean();
 int cmd_cache_stats();
 
-// flyp search <query>  (stub — requires registry)
+// flyp deploy [--registry ALIAS] [--version VER] [--token KEY]
+int cmd_deploy(const std::string& registry_alias, const std::string& version_override,
+               const std::string& token);
+
+// flyp vendor [--registry ALIAS] [--token KEY]
+int cmd_vendor(const std::string& registry_alias, const std::string& token);
+
+// flyp search <query>
 int cmd_search(const std::string& query);
 
-// flyp publish  (stub — requires registry)
+// flyp publish  (alias for flyp deploy)
 int cmd_publish();
 
 // flyp version

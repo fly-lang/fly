@@ -207,6 +207,59 @@ mylib = { path = "src/lib.fly", lib = "static" }
     std::filesystem::remove(p);
 }
 
+TEST(ManifestTest, ParseRepoSection) {
+    auto p = write_toml(R"(
+[package]
+name     = "myapp"
+version  = "0.1.0"
+registry = "local"
+
+[repo]
+local  = "http://localhost:5000"
+remote = "https://registry.flylang.org"
+)");
+    auto m = Manifest::parse(p);
+    ASSERT_EQ(m.repos.size(), 2u);
+    EXPECT_EQ(m.repos.at("local"),  "http://localhost:5000");
+    EXPECT_EQ(m.repos.at("remote"), "https://registry.flylang.org");
+    EXPECT_EQ(m.default_registry, "local");
+    std::filesystem::remove(p);
+}
+
+TEST(ManifestTest, ParseRegistryDep) {
+    auto p = write_toml(R"(
+[package]
+name    = "myapp"
+version = "0.1.0"
+
+[repo]
+local = "http://localhost:5000"
+
+[dependencies]
+fly-std    = { registry = "local",  version = "0.14.0" }
+io-helpers = { registry = "local",  name = "fly-io", version = "1.0.0" }
+legacy     = { git = "https://github.com/example/legacy.git", tag = "v1.0" }
+)");
+    auto m = Manifest::parse(p);
+    ASSERT_EQ(m.dependencies.size(), 3u);
+
+    auto& std_dep = m.dependencies.at("fly-std");
+    EXPECT_TRUE(std_dep.is_registry_dep());
+    EXPECT_EQ(std_dep.registry_name, "local");
+    EXPECT_EQ(std_dep.pkg_name,      "fly-std"); // defaults to map key
+    EXPECT_EQ(std_dep.version_req,   "0.14.0");
+
+    auto& io_dep = m.dependencies.at("io-helpers");
+    EXPECT_TRUE(io_dep.is_registry_dep());
+    EXPECT_EQ(io_dep.pkg_name, "fly-io"); // explicit name override
+
+    auto& git_dep = m.dependencies.at("legacy");
+    EXPECT_TRUE(git_dep.is_git_dep());
+    EXPECT_FALSE(git_dep.is_registry_dep());
+
+    std::filesystem::remove(p);
+}
+
 TEST(ManifestTest, ParseHooks) {
     auto p = write_toml(R"(
 [package]

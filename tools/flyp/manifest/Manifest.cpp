@@ -12,12 +12,23 @@ namespace flyp {
 
 namespace {
 
-GitDep parse_git_dep(const std::string& name, const toml::table& tbl) {
+// map_key is the dependency alias (used as default pkg_name for registry deps).
+GitDep parse_git_dep(const std::string& name, const toml::table& tbl,
+                     const std::string& map_key = "") {
     GitDep dep;
 
     // Path dependency: { path = "../member" }
     if (auto p = tbl["path"].value<std::string>()) {
         dep.path = *p;
+        return dep;
+    }
+
+    // Registry dependency: { registry = "local", version = "1.0.0" }
+    if (auto reg = tbl["registry"].value<std::string>()) {
+        dep.registry_name = *reg;
+        dep.pkg_name      = tbl["name"].value<std::string>().value_or(
+                                map_key.empty() ? name : map_key);
+        dep.version_req   = tbl["version"].value<std::string>().value_or("*");
         return dep;
     }
 
@@ -99,7 +110,14 @@ Manifest Manifest::parse(const std::filesystem::path& toml_path) {
         if (auto* arr = pkg["authors"].as_array())
             for (auto& el : *arr)
                 if (auto s = el.value<std::string>()) m.authors.push_back(*s);
+
+        m.default_registry = pkg["registry"].value<std::string>().value_or("");
     }
+
+    // [repo] — named registry aliases
+    if (auto* repo_tbl = tbl["repo"].as_table())
+        for (auto& [k, v] : *repo_tbl)
+            if (auto url = v.value<std::string>()) m.repos[std::string(k)] = *url;
 
     // Parse [workspace] early so we can skip [package] validation for workspace roots.
     if (auto* ws_tbl = tbl["workspace"].as_table()) {
@@ -164,16 +182,18 @@ Manifest Manifest::parse(const std::filesystem::path& toml_path) {
     // [dependencies]
     if (auto* deps = tbl["dependencies"].as_table()) {
         for (auto& [k, v] : *deps) {
+            const std::string key = std::string(k);
             if (auto* t = v.as_table())
-                m.dependencies[std::string(k)] = parse_git_dep(std::string(k), *t);
+                m.dependencies[key] = parse_git_dep(key, *t, key);
         }
     }
 
     // [dev-dependencies]
     if (auto* deps = tbl["dev-dependencies"].as_table()) {
         for (auto& [k, v] : *deps) {
+            const std::string key = std::string(k);
             if (auto* t = v.as_table())
-                m.dev_dependencies[std::string(k)] = parse_git_dep(std::string(k), *t);
+                m.dev_dependencies[key] = parse_git_dep(key, *t, key);
         }
     }
 
@@ -224,8 +244,9 @@ void Manifest::save() const {
     f << "description = \"" << description << "\"\n";
     f << "license     = \"" << license     << "\"\n";
     f << "fly-version = \"" << fly_version << "\"\n";
-    if (homepage)   f << "homepage    = \"" << *homepage   << "\"\n";
-    if (repository) f << "repository  = \"" << *repository << "\"\n";
+    if (homepage)              f << "homepage    = \"" << *homepage         << "\"\n";
+    if (repository)            f << "repository  = \"" << *repository       << "\"\n";
+    if (!default_registry.empty()) f << "registry    = \"" << default_registry << "\"\n";
     if (!authors.empty()) {
         f << "authors     = [";
         for (size_t i = 0; i < authors.size(); ++i) {
@@ -235,6 +256,13 @@ void Manifest::save() const {
         f << "]\n";
     }
     f << "\n";
+
+    if (!repos.empty()) {
+        f << "[repo]\n";
+        for (auto& [alias, url] : repos)
+            f << alias << " = \"" << url << "\"\n";
+        f << "\n";
+    }
 
     if (!targets.empty()) {
         f << "[targets]\n";
@@ -257,25 +285,27 @@ void Manifest::save() const {
         f << "\n";
     }
 
+    auto dep_str = [&](const std::string& n, const GitDep& d) {
+        if (d.is_path_dep())
+            return n + " = { path = \"" + d.path + "\" }";
+        if (d.is_registry_dep()) {
+            std::string s = n + " = { registry = \"" + d.registry_name + "\", version = \""
+                          + d.version_req + "\"";
+            if (d.pkg_name != n) s += ", name = \"" + d.pkg_name + "\"";
+            return s + " }";
+        }
+        return n + " = { git = \"" + d.git_url + "\", " + ref_str(d.ref) + " }";
+    };
+
     if (!dependencies.empty()) {
         f << "[dependencies]\n";
-        for (auto& [n, d] : dependencies) {
-            if (d.is_path_dep())
-                f << n << " = { path = \"" << d.path << "\" }\n";
-            else
-                f << n << " = { git = \"" << d.git_url << "\", " << ref_str(d.ref) << " }\n";
-        }
+        for (auto& [n, d] : dependencies) f << dep_str(n, d) << "\n";
         f << "\n";
     }
 
     if (!dev_dependencies.empty()) {
         f << "[dev-dependencies]\n";
-        for (auto& [n, d] : dev_dependencies) {
-            if (d.is_path_dep())
-                f << n << " = { path = \"" << d.path << "\" }\n";
-            else
-                f << n << " = { git = \"" << d.git_url << "\", " << ref_str(d.ref) << " }\n";
-        }
+        for (auto& [n, d] : dev_dependencies) f << dep_str(n, d) << "\n";
         f << "\n";
     }
 

@@ -19,11 +19,16 @@ struct GitRef {
 };
 
 struct GitDep {
-    std::string git_url; // empty for path deps
+    std::string git_url;       // git dep (empty for path/registry deps)
     GitRef      ref;
-    std::string path;    // non-empty = path dependency (git fields unused)
+    std::string path;          // non-empty = path dependency
+    std::string registry_name; // non-empty = registry dependency (alias from [repo])
+    std::string pkg_name;      // package name on registry (defaults to map key)
+    std::string version_req;   // version requirement for registry deps ("1.0.0", "^1.2")
 
-    bool is_path_dep() const { return !path.empty(); }
+    bool is_path_dep()     const { return !path.empty(); }
+    bool is_registry_dep() const { return !registry_name.empty(); }
+    bool is_git_dep()      const { return !git_url.empty(); }
 };
 
 // ── Workspace ─────────────────────────────────────────────────────────────────
@@ -74,13 +79,17 @@ struct BuildProfile {
 struct Manifest {
     // [package]
     std::string                    name;
-    std::string                    version;    // semver MAJOR.MINOR.PATCH
+    std::string                    version;          // semver MAJOR.MINOR.PATCH
     std::vector<std::string>       authors;
     std::string                    description;
     std::string                    license;
     std::string                    fly_version;
     std::optional<std::string>     homepage;
     std::optional<std::string>     repository;
+    std::string                    default_registry; // alias from [repo] for deploy/publish
+
+    // [repo] — named registry aliases: name → URL
+    std::map<std::string, std::string> repos;
 
     // targets
     std::vector<Target>            targets;

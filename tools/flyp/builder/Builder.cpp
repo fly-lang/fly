@@ -68,7 +68,11 @@ std::vector<std::string> Builder::include_paths() const {
     std::vector<std::string> paths;
     Cache cache;
     for (const auto& pkg : lockfile_.packages) {
-        auto entry = cache.entry_path(pkg.source.substr(4), pkg.rev); // strip "git+"
+        // source is "git+<url>" or "registry+<name>/<version>"
+        std::string cache_url = pkg.source.rfind("git+", 0) == 0
+            ? pkg.source.substr(4)   // strip "git+"
+            : pkg.source.substr(9);  // strip "registry+"
+        auto entry = cache.entry_path(cache_url, pkg.rev);
         if (std::filesystem::exists(entry))
             paths.push_back("-I" + entry.string());
     }
