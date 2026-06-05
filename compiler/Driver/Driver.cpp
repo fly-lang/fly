@@ -67,8 +67,11 @@ normaliseDashes(llvm::ArrayRef<const char *> ArrArgs) {
     out.reserve(ArrArgs.size());
     for (const char *raw : ArrArgs) {
         std::string s(raw);
-        // -debug → --debug  (single-dash, multi-char, not -o<joined-value>)
-        if (s.size() > 2 && s[0] == '-' && s[1] != '-' && s[1] != 'o')
+        // -debug → --debug  (single-dash, multi-char)
+        // Exclude: -o<file>, -O<level>, -j<n>, -L<dir>, -I<dir>
+        if (s.size() > 2 && s[0] == '-' && s[1] != '-'
+                && s[1] != 'o' && s[1] != 'O' && s[1] != 'j'
+                && s[1] != 'L' && s[1] != 'I')
             s = "-" + s;
         out.push_back(std::move(s));
     }
@@ -104,6 +107,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     app.add_flag("--help",    showHelp,    "Display available options");
     app.add_flag("--version", showVersion, "Print version information");
     app.add_flag("--debug",         debugFlag,   "Print debug messages");
+    app.add_flag("--debug-symbols", DebugSymbols,"Emit DWARF debug information (no verbose logging)");
     app.add_flag("--test",          TestMode,    "Compile in test mode (enables test {} blocks)");
     app.add_flag("-v,--verbose",    Verbose,     "Show commands to run and use verbose output");
     app.add_flag("-w,--no-warning", NoWarnings,  "Suppress all warnings");
@@ -117,16 +121,19 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
 
     app.add_option("-o",            OutputFile,   "Write output to <file>");
     app.add_flag("--lib",           OutputLib,    "Produce a library archive (.a/.lib)");
+    app.add_flag("--shared",        OutputShared, "Produce a shared library (.so/.dylib/.dll)");
     app.add_option("--log-file",    LogFile,      "Log diagnostics to <file>");
     app.add_option("--log-format",  LogFormat,    "Log format: txt (default) or json")->check(CLI::IsMember({"txt", "json"}));
     app.add_option("--mcmodel",     McModel,      "Set memory code model");
     app.add_option("--mthread-model", MthreadModel, "Set memory thread model");
     app.add_option("--jobs,-j",     Jobs,         "Number of threads for LLVM internal parallelism (0 = auto)");
+    app.add_option("-O",            OptLevel,     "Optimisation level: 0 (none), 1, 2, 3 (max). Default: 0 for debug, 3 for release.");
     app.add_option("--target",      Target,       "Generate code for the given target");
     app.add_option("--target-cpu",  TargetCpu,    "Generate code for the given CPU");
     app.add_option("--stats-file",  StatsFile,    "Filename to write statistics to");
     app.add_option("--working-dir", WorkingDir,   "Resolve file paths relative to the specified directory");
     app.add_option("-L",            LibDirs,      "Add <dir> to the library search path for namespace resolution")->allow_extra_args(false);
+    app.add_option("--link-lib",   LinkLibs,     "Link against external C library NAME (passed as -lNAME to the linker)")->allow_extra_args(false);
 
     // Remaining non-option args become input files.
     app.allow_extras(true);
@@ -299,6 +306,14 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         FrontendOpts->LibDirs.push_back(D);
     }
 
+    // External C libraries to link (--link-lib NAME → -lNAME in linker flags)
+    for (const auto &Lib : LinkLibs) {
+        std::string Flag = "-l" + Lib;
+        if (std::find(CodeGenOpts->LinkerOptions.begin(), CodeGenOpts->LinkerOptions.end(), Flag)
+                == CodeGenOpts->LinkerOptions.end())
+            CodeGenOpts->LinkerOptions.push_back(Flag);
+    }
+
     // Verbose
     if (Verbose) {
         FLY_DEBUG_MSG("Set -verbose");
@@ -364,6 +379,13 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         FrontendOpts->CreateLibrary = true;
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitObj;
         FrontendOpts->CreateHeader  = true;
+    } else if (OutputShared) {
+        FrontendOpts->CreateSharedLib       = true;
+        CodeGenOpts->Shared                 = true;
+        CodeGenOpts->RelocationModel        = llvm::Reloc::PIC_;
+        FrontendOpts->BackendAction         = BackendActionKind::Backend_EmitObj;
+        FrontendOpts->CreateHeader          = true;
+        FLY_DEBUG_MSG("Set --shared: producing shared library with PIC");
     }
 
     // Header generator
@@ -418,6 +440,11 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
 
     CodeGenOpts->Jobs = Jobs;
     FLY_DEBUG_MSG("Set --jobs=" << Jobs);
+
+    if (OptLevel >= 0) {
+        CodeGenOpts->OptimizationLevel = OptLevel;
+        FLY_DEBUG_MSG("Set -O" << OptLevel);
+    }
 }
 
 void Driver::printVersion(bool full) {
@@ -443,7 +470,8 @@ bool Driver::Execute() {
                 CI->getDiagnostics(), T, CI->getCodeGenOptions());
             Success = TC->BuildOutput(Front.getOutputFiles(), CI->getFrontendOptions());
 
-            if (CI->getFrontendOptions().CreateLibrary) {
+            if (CI->getFrontendOptions().CreateLibrary ||
+                CI->getFrontendOptions().CreateSharedLib) {
                 for (auto &Output : Front.getOutputFiles()) {
                     if (llvm::StringRef(Output).ends_with(".fly.h"))
                         continue;

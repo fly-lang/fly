@@ -2801,15 +2801,20 @@ SmallVector<SemaType *, 8> Resolver::ResolveCallArgs(ASTCall *AST) {
 	FLY_DEBUG_SCOPE("Resolver", "ResolveCallArgs");
 	SmallVector<SemaType *, 8> Types;
 
-	// Store resolved arg expressions in a temporary vector
-	ResolvedCallArgs.clear();
+	// Use a local vector to avoid clobbering the class-member ResolvedCallArgs when
+	// a nested call (e.g. an inline "new Foo()" argument) recursively calls
+	// ResolveCallArgs and clears the class member mid-loop.
+	SmallVector<SemaExpr *, 8> LocalRC;
 
 	for (auto Arg : AST->getArgs()) {
 		Arg->getExpr()->accept(*this);
 		SemaExpr *ArgExpr = CurrentExpr;
 		Types.push_back(ArgExpr ? ArgExpr->getType() : nullptr);
-		ResolvedCallArgs.push_back(ArgExpr);
+		LocalRC.push_back(ArgExpr);
 	}
+
+	// Write back to the class member so callers (visit(ASTCall)) can read it.
+	ResolvedCallArgs = std::move(LocalRC);
 	return std::move(Types);
 }
 

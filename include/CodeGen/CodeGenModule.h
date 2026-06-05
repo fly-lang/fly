@@ -168,6 +168,9 @@ namespace fly {
         // fly.bridge.CLang: maps each CLang instance alloca → lib string literal.
         // Populated at new CLang(lib) call sites; consumed by CLang::call() codegen.
         llvm::DenseMap<llvm::Value *, std::string> CLangLibMap;
+        // Secondary map by SemaVar* for class-field CLang instances.
+        // Used when the GEP pointer differs between assignment and call sites.
+        llvm::DenseMap<SemaVar *, std::string> CLangLibMapBySema;
 
         // Stack for tracking break/continue targets in loops and switches
         llvm::SmallVector<llvm::BasicBlock *, 8> BreakTargetStack;

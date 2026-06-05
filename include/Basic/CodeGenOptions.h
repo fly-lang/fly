@@ -131,7 +131,7 @@ public:
     All,         // Keep all frame pointers.
   };
 
-  bool Static = true;
+  bool Static = false;
   bool Shared = false;
   bool TestMode = false;
   bool RDynamic = false;

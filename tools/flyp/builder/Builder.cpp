@@ -12,10 +12,69 @@
 #include <string>
 #include <thread>
 #include <vector>
+#if defined(__linux__)
+#  include <unistd.h>
+#  include <climits>
+#elif defined(__APPLE__)
+#  include <mach-o/dyld.h>
+#  include <climits>
+#elif defined(_WIN32)
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
+#  define WIN32_LEAN_AND_MEAN
+#  include <windows.h>
+#endif
 
 namespace flyp {
 
 namespace {
+
+// Resolve the fly compiler binary. Priority:
+//   1. FLY_COMPILER env var
+//   2. Sibling of the running flyp binary (same directory, platform-specific)
+//   3. "fly" (PATH lookup, fallback)
+std::string resolve_fly_binary() {
+    if (const char* env = std::getenv("FLY_COMPILER"))
+        if (*env) return env;
+
+    std::filesystem::path exe;
+
+#if defined(__linux__)
+    char buf[PATH_MAX];
+    ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    if (n > 0) { buf[n] = '\0'; exe = buf; }
+
+#elif defined(__APPLE__)
+    char buf[PATH_MAX];
+    uint32_t sz = sizeof(buf);
+    if (_NSGetExecutablePath(buf, &sz) == 0) {
+        char resolved[PATH_MAX];
+        if (realpath(buf, resolved)) exe = resolved;
+    }
+
+#elif defined(_WIN32)
+    char buf[MAX_PATH];
+    DWORD n = GetModuleFileNameA(nullptr, buf, MAX_PATH);
+    if (n > 0 && n < MAX_PATH) exe = buf;
+#endif
+
+    if (!exe.empty()) {
+        auto dir = exe.parent_path();
+#ifdef _WIN32
+        for (auto name : {"fly.exe", "fly"}) {
+#else
+        for (auto name : {"fly"}) {
+#endif
+            auto sibling = dir / name;
+            if (std::filesystem::exists(sibling))
+                return sibling.string();
+        }
+    }
+    return "fly";
+}
+
+} // anonymous namespace
 
 std::string shell_quote(const std::string& s) {
     std::string out = "'";
@@ -30,8 +89,6 @@ int run_cmd(const std::string& cmd) {
     return std::system(cmd.c_str());
 }
 
-} // anonymous namespace
-
 Builder::Builder(const Manifest& manifest,
                  const Lockfile& lockfile,
                  const std::string& profile,
@@ -42,7 +99,8 @@ Builder::Builder(const Manifest& manifest,
     : manifest_(manifest), lockfile_(lockfile),
       profile_name_(profile), is_test_(is_test),
       jobs_(jobs), target_triple_(target_triple),
-      extra_includes_(std::move(extra_includes)) {}
+      extra_includes_(std::move(extra_includes)),
+      fly_binary_(resolve_fly_binary()) {}
 
 std::filesystem::path Builder::out_dir() const {
     if (is_test_) return manifest_.root_dir / "target" / "test";
@@ -56,11 +114,10 @@ std::vector<std::string> Builder::profile_flags() const {
     auto it = manifest_.profiles.find(profile_name_);
     const BuildProfile& p = (it != manifest_.profiles.end()) ? it->second : kDefaultDebug;
     std::vector<std::string> flags;
-    flags.push_back("-O" + std::to_string(p.opt_level));
-    if (p.debug_info)  flags.push_back("-g");
-    if (p.assertions)  flags.push_back("--assertions");
-    if (p.lto)         flags.push_back("--lto");
-    if (p.strip)       flags.push_back("--strip");
+    flags.push_back("-O");
+    flags.push_back(std::to_string(p.opt_level));
+    if (p.debug_info) flags.push_back("--debug-symbols"); // emit DWARF debug info only
+    // --assertions, --lto, --strip not yet exposed as fly CLI flags
     return flags;
 }
 
@@ -74,13 +131,44 @@ std::vector<std::string> Builder::include_paths() const {
             : pkg.source.substr(9);  // strip "registry+"
         auto entry = cache.entry_path(cache_url, pkg.rev);
         if (std::filesystem::exists(entry))
-            paths.push_back("-I" + entry.string());
+            paths.push_back("-L" + entry.string()); // fly uses -L for library dirs
     }
     // Path dependency output directories (workspace members).
     for (const auto& dir : extra_includes_)
         if (std::filesystem::exists(dir))
-            paths.push_back("-I" + dir.string());
+            paths.push_back("-L" + dir.string());
+    // When building tests, also include the project's own source directories
+    // so test files can import the project's own library namespace via .fly.h.
+    if (is_test_) {
+        for (const auto& t : manifest_.targets) {
+            if (t.is_lib()) {
+                auto src_dir = (manifest_.root_dir / t.path).parent_path();
+                if (std::filesystem::exists(src_dir))
+                    paths.push_back("-L" + src_dir.string());
+            }
+        }
+        // Also add root src/ as a common convention.
+        auto src = manifest_.root_dir / "src";
+        if (std::filesystem::exists(src))
+            paths.push_back("-L" + src.string());
+    }
     return paths;
+}
+
+std::vector<std::filesystem::path> Builder::project_lib_inputs() const {
+    std::vector<std::filesystem::path> libs;
+    if (!is_test_) return libs;
+    // Add the project's own compiled library archives as inputs for test linking.
+    for (const auto& t : manifest_.targets) {
+        if (!t.is_lib()) continue;
+        std::string ext = (t.lib == "dynamic") ? ".so" : ".a";
+        // Use the profile's out_dir (not test out_dir) for lib artifacts.
+        auto lib_out = manifest_.root_dir / "target" / profile_name_;
+        auto lib_path = lib_out / ("lib" + t.name + ext);
+        if (std::filesystem::exists(lib_path))
+            libs.push_back(lib_path);
+    }
+    return libs;
 }
 
 // ── Build hooks ───────────────────────────────────────────────────────────────
@@ -174,13 +262,23 @@ bool Builder::invoke_fly(const std::string& source,
     if (jobs_ > 0)
         all_flags.push_back("--jobs=" + std::to_string(jobs_));
 
+    // Run from out_dir so intermediate .fly.o files land there, not in cwd.
+    std::filesystem::create_directories(out_dir());
     std::ostringstream cmd;
-    cmd << "fly";
+    cmd << "cd " << shell_quote(out_dir().string()) << " && ";
+    cmd << shell_quote(fly_binary_);
     for (const auto& f : profile_flags())  cmd << " " << shell_quote(f);
     for (const auto& i : include_paths())  cmd << " " << shell_quote(i);
     for (const auto& f : all_flags)        cmd << " " << shell_quote(f);
+    // Pass native library dependencies from [link] section
+    for (const auto& lib : manifest_.link_libs)
+        cmd << " --link-lib=" << shell_quote(lib);
     cmd << " -o " << shell_quote(output);
     cmd << " "    << shell_quote(source);
+    // For test builds, also pass the project's own .a libraries as inputs
+    // so the fly compiler can find and link them (it loads the companion .fly.h).
+    for (const auto& lib : project_lib_inputs())
+        cmd << " " << shell_quote(lib.string());
 
     {
         std::lock_guard<std::mutex> lk(log_mutex_);
@@ -303,6 +401,7 @@ bool Builder::build_target(const std::string& key) {
         auto out = out_dir() / ("lib" + t->name + ext);
         std::vector<std::string> extra;
         if (t->lib == "dynamic") extra.push_back("--shared");
+        else                     extra.push_back("--lib"); // static archive
         ok = invoke_fly(src.string(), out.string(), extra);
     } else {
         ok = invoke_fly(src.string(), (out_dir() / t->name).string());
@@ -334,24 +433,25 @@ bool Builder::run_tests(const std::string& suite_filter) {
     // Collect suite files from [test] config globs
     std::vector<std::filesystem::path> suite_files;
 
-    // Glob expansion: match files ending with "Suite.fly" under each pattern prefix
+    // Glob expansion: find all .fly files matching each pattern prefix.
     for (const auto& pattern : manifest_.test_config.suites) {
         std::filesystem::path base = manifest_.root_dir;
-        // Simplified glob: treat pattern as a directory prefix + filename suffix
-        // Full glob support would use a library; for now accept explicit paths or dir/**
         auto p = base / pattern;
         if (std::filesystem::exists(p) && std::filesystem::is_regular_file(p)) {
             suite_files.push_back(p);
         } else {
-            // Walk directories looking for *Suite.fly
-            auto dir = p.parent_path();
+            // Determine the concrete directory by stripping wildcard components.
+            std::filesystem::path dir = base;
+            for (const auto& comp : std::filesystem::path(pattern)) {
+                std::string s = comp.string();
+                if (s.find('*') != std::string::npos || s.find('?') != std::string::npos)
+                    break;
+                dir /= comp;
+            }
             if (!std::filesystem::exists(dir)) dir = base;
             for (auto& entry : std::filesystem::recursive_directory_iterator(dir)) {
-                if (entry.is_regular_file() &&
-                    entry.path().extension() == ".fly" &&
-                    entry.path().filename().string().find("Suite") != std::string::npos) {
+                if (entry.is_regular_file() && entry.path().extension() == ".fly")
                     suite_files.push_back(entry.path());
-                }
             }
         }
     }

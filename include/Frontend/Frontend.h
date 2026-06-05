@@ -70,7 +70,10 @@ namespace fly {
 
         /// Scan \p Dir recursively for .fly files and parse them as headers
         /// (declarations only), registering their namespaces for import resolution.
-        void LoadLibHeaders(ASTBuilder &Builder, const std::string &Dir);
+        /// If preferDotFlyH is true, .fly.h files take priority over .fly source
+        /// (used for external package dirs where .fly.h avoids transitive imports).
+        void LoadLibHeaders(ASTBuilder &Builder, const std::string &Dir,
+                            bool preferDotFlyH = false);
 
 #ifdef FLY_LIB_FLY_DIR
         void LoadStdlibHeaders(ASTBuilder &Builder);

@@ -1134,6 +1134,7 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
 	}
 
 	llvm::Value *V2 = E2CodeGen->getValue();
+
 	if (E1->getType()->isNumber() && E2->getType()->isNumber()) {
 		SemaNumberType *Type1 = static_cast<SemaNumberType *>(E1->getType());
 		SemaNumberType *Type2 = static_cast<SemaNumberType *>(E2->getType());
@@ -1154,6 +1155,9 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
 			    K1 == SemaKind::ATTRIBUTE || K1 == SemaKind::INSTANCE_VAR) {
 				llvm::Value *DestAlloca = static_cast<CodeGenVar *>(E1CodeGen)->getPointer();
 				CGM->CLangLibMap[DestAlloca] = LibIt->second;
+				// Also register by SemaVar* so call() can find the lib even when
+				// the GEP pointer changes between the assignment and the call site.
+				CGM->CLangLibMapBySema[static_cast<SemaVar *>(E1)] = LibIt->second;
 			}
 		}
 	}

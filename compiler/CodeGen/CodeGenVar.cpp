@@ -244,6 +244,16 @@ llvm::LoadInst *CodeGenVar::Load() {
 }
 
 llvm::Value *CodeGenVar::getValue() {
+    // For class-type const parameters (passed by value in fly's calling convention):
+    // StoreParams sets getPointer() to the raw function argument (not an alloca).
+    // Load() would dereference through the argument pointer — one level too deep.
+    // Instead, return the argument pointer directly: it IS the class instance pointer.
+    // ReadOnly is set by StoreParams for const params; non-const params ARE double pointers.
+    if (T->isStructTy() && T != CodeGen::StringTy && T != CodeGen::ArrayTy) {
+        if (!llvm::isa<llvm::AllocaInst>(this->Pointer) && this->ReadOnly) {
+            return this->Pointer;
+        }
+    }
     if (!this->LoadI || this->LoadBlock != CGM->Builder->GetInsertBlock()) {
         return Load();
     }
