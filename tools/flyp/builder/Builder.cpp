@@ -19,6 +19,10 @@
 #  include <mach-o/dyld.h>
 #  include <climits>
 #elif defined(_WIN32)
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
+#  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
 #endif
 
@@ -258,7 +262,10 @@ bool Builder::invoke_fly(const std::string& source,
     if (jobs_ > 0)
         all_flags.push_back("--jobs=" + std::to_string(jobs_));
 
+    // Run from out_dir so intermediate .fly.o files land there, not in cwd.
+    std::filesystem::create_directories(out_dir());
     std::ostringstream cmd;
+    cmd << "cd " << shell_quote(out_dir().string()) << " && ";
     cmd << shell_quote(fly_binary_);
     for (const auto& f : profile_flags())  cmd << " " << shell_quote(f);
     for (const auto& i : include_paths())  cmd << " " << shell_quote(i);
