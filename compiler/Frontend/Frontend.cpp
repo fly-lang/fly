@@ -191,18 +191,31 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags) {
         for (const auto *Child : C->getNodes()) {
             if (Child->getKind() == ASTKind::AST_VAR) {
                 const auto *V = static_cast<const ASTVar *>(Child);
+                // Only emit public fields; private/internal fields may have types
+                // from imported namespaces that are not available in the header context.
+                bool fieldPublic = false;
+                for (auto *Mod : V->getModifiers())
+                    if (Mod->getModifierKind() == ASTModifierKind::MOD_PUBLIC)
+                        fieldPublic = true;
+                if (!fieldPublic) continue;
                 OS << "    " << typeStr(V->getType()) << " " << V->getName() << "\n";
             } else if (Child->getKind() == ASTKind::AST_FUNCTION) {
                 // Methods use AST_FUNCTION kind (ASTMethod extends ASTFunction)
                 const auto *Meth = static_cast<const ASTMethod *>(Child);
-                // Skip constructors (name matches class name)
-                if (Meth->getName() == C->getName()) continue;
                 bool methPublic = false;
                 for (auto *Mod : Meth->getModifiers())
                     if (Mod->getModifierKind() == ASTModifierKind::MOD_PUBLIC)
                         methPublic = true;
                 if (!methPublic) continue;
-                OS << "    public " << Meth->getName().str() << "(";
+                bool isCtor = (Meth->getName() == C->getName());
+                OS << "    public ";
+                if (!isCtor) {
+                    // Emit return type (void methods need explicit 'void').
+                    const std::string ret = typeStr(Meth->getReturnType());
+                    if (!ret.empty()) OS << ret << " ";
+                    else OS << "void ";
+                }
+                OS << Meth->getName().str() << "(";
                 bool first = true;
                 for (const auto *P : Meth->getParams()) {
                     if (!first) OS << ", ";
@@ -272,7 +285,7 @@ bool Frontend::Execute() {
     // These are scanned in order and registered before user files, so any
     // namespace declared in a dependency is immediately available for import.
     for (const auto &Dir : CI.getFrontendOptions().LibDirs)
-        LoadLibHeaders(*Builder, Dir);
+        LoadLibHeaders(*Builder, Dir, /*preferDotFlyH=*/true);
 
     for (auto &FileName: CI.getFrontendOptions().getInputFiles()) {
         Diags.getClient()->BeginSourceFile();
@@ -451,7 +464,8 @@ const SmallVector<std::string, 4> &Frontend::getOutputFiles() const {
     return OutputFiles;
 }
 
-void Frontend::LoadLibHeaders(ASTBuilder &Builder, const std::string &Dir) {
+void Frontend::LoadLibHeaders(ASTBuilder &Builder, const std::string &Dir,
+                              bool preferDotFlyH) {
     // Build a set of filenames currently being compiled (e.g. "math.fly").
     // A source file whose basename is already an input is skipped: the in-memory
     // AST built from the full parse is authoritative.
@@ -468,10 +482,34 @@ void Frontend::LoadLibHeaders(ASTBuilder &Builder, const std::string &Dir) {
         if (llvm::sys::fs::is_directory(Path))
             continue;
 
-        // Skip generated .fly.h declaration files silently — they are a known
-        // by-product of --header builds and carry no new declarations here.
-        if (Filename.ends_with(".fly.h"))
+        // Prefer .fly.h over .fly when both exist in the same directory.
+        // A .fly.h is a generated declaration-only header with no imports:
+        // loading it avoids transitive dependency issues when ParseHeader()
+        // processes a .fly source that contains import statements.
+        if (Filename.ends_with(".fly.h")) {
+            // Load .fly.h only when preferDotFlyH is set (external package dirs).
+            // In stdlib mode, .fly.h files are skipped — the .fly source is parsed.
+            if (!preferDotFlyH)
+                continue;
+            // Skip if the corresponding .fly is currently being compiled as main input.
+            std::string SourceName = Path.substr(0, Path.size() - 2); // strip ".h"
+            llvm::StringRef SourceFilename = llvm::sys::path::filename(SourceName);
+            if (CompilingNow.count(SourceFilename))
+                continue;
+            Diags.getClient()->BeginSourceFile();
+            InputFile *Input = new InputFile(Diags, CI.getSourceManager(), Path);
+            if (Input->Load()) {
+                Parser *P = new Parser(Input, CI.getSourceManager(), Diags, Builder);
+                ASTModule *M = P->ParseHeader();
+                if (M) ASTModules.push_back(M);
+                Parsers.push_back(P);
+                InputFiles.push_back(Input);
+            } else {
+                delete Input;
+            }
+            Diags.getClient()->EndSourceFile();
             continue;
+        }
 
         // Warn about any other non-.fly file: it cannot be compiled and its
         // presence in a library search directory is likely a configuration mistake.
@@ -482,6 +520,13 @@ void Frontend::LoadLibHeaders(ASTBuilder &Builder, const std::string &Dir) {
 
         if (CompilingNow.count(Filename))
             continue;
+
+        // When preferDotFlyH is set (external package dirs), skip .fly source when
+        // a .fly.h companion exists — the header was already loaded above and is
+        // preferred (imports-free, no transitive dependency issues).
+        if (preferDotFlyH && llvm::sys::fs::exists(Path + ".h"))
+            continue;
+
         InputFile *Input = new InputFile(Diags, CI.getSourceManager(), Path);
         if (Input->Load()) {
             Parser *P = new Parser(Input, CI.getSourceManager(), Diags, Builder);

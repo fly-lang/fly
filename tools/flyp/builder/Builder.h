@@ -44,7 +44,9 @@ private:
     int             jobs_;          // forwarded as --jobs to each fly invocation
     std::string     target_triple_; // cross-compilation target (empty = native)
     std::vector<std::filesystem::path> extra_includes_; // path-dep output dirs
+    std::vector<std::filesystem::path> lib_inputs_;     // .a files to link (tests)
     mutable std::mutex log_mutex_;  // serialises progress lines during parallel builds
+    std::string     fly_binary_;    // resolved path to the fly compiler
 
     // Build output directory: target/<profile>/ or target/<profile>/<triple>/
     std::filesystem::path out_dir() const;
@@ -52,8 +54,11 @@ private:
     // Compiler flags derived from the active profile.
     std::vector<std::string> profile_flags() const;
 
-    // Collect -I include paths from locked packages.
+    // Collect -L library search paths from locked packages.
     std::vector<std::string> include_paths() const;
+
+    // Collect .a library files to pass as inputs during test compilation.
+    std::vector<std::filesystem::path> project_lib_inputs() const;
 
     // Invoke the fly compiler. Returns true on success.
     bool invoke_fly(const std::string& source,

@@ -833,10 +833,22 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
         if (CodeGenOpts.RDynamic)
             CmdArgs.push_back("-export-dynamic");
 
-//        if (!CodeGenOpts.Shared && !IsStaticPIE) {
-//            CmdArgs.push_back("-dynamic-linker");
-//            CmdArgs.push_back(getDynamicLinker(Args)));
-//        }
+        if (!CodeGenOpts.Shared && !IsStaticPIE) {
+            // Set the dynamic linker (ELF interpreter) for the target arch.
+            const char *DynLinker = nullptr;
+            switch (T.getArch()) {
+                case llvm::Triple::x86_64: DynLinker = "/lib64/ld-linux-x86-64.so.2"; break;
+                case llvm::Triple::aarch64: DynLinker = "/lib/ld-linux-aarch64.so.1"; break;
+                case llvm::Triple::arm:
+                case llvm::Triple::thumb:   DynLinker = "/lib/ld-linux-armhf.so.3"; break;
+                case llvm::Triple::riscv64: DynLinker = "/lib/ld-linux-riscv64-lp64d.so.1"; break;
+                default: break;
+            }
+            if (DynLinker && getVFS().exists(DynLinker)) {
+                CmdArgs.push_back("-dynamic-linker");
+                CmdArgs.push_back(DynLinker);
+            }
+        }
     }
 
     // Output

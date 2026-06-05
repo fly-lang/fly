@@ -117,7 +117,40 @@ void CodeGenStdLibCLang::BuildCArgsFromArgsStruct(
             CArg   = Builder->CreateExtractValue(FieldVal, 0);
             CArgTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
         } else if (FieldTy->isStructTy()) {
-            llvm::Value *Addr = Builder->CreateExtractValue(FieldVal, 0);
+            // Class-type fields (e.g. fly.mem.Ptr) in Args structs are assigned via Fly's
+            // reference semantics: the field holds a POINTER to the class instance, not
+            // the instance value. Dereference through that pointer to get the real i64 addr.
+            bool IsClassField = Attr->getType() && Attr->getType()->isClass();
+            llvm::Value *Addr;
+            if (IsClassField) {
+                // Class-type fields hold a Fly reference (pointer to the class instance).
+                // Dereference through it to get the real C pointer stored in the instance.
+                // BUT: if the field is null (not assigned), pass null to C directly.
+                llvm::Value *FieldI64 = Builder->CreateExtractValue(FieldVal, 0);
+                llvm::Value *IsNull = Builder->CreateICmpEQ(
+                    FieldI64, llvm::ConstantInt::get(CodeGen::Int64Ty, 0));
+                // Build the non-null path in a new BB, merge back.
+                llvm::Function *CurFn = Builder->GetInsertBlock()->getParent();
+                llvm::BasicBlock *OrigBB   = Builder->GetInsertBlock();
+                llvm::BasicBlock *NonNullBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "bridge.nonnull", CurFn);
+                llvm::BasicBlock *MergeBB  = llvm::BasicBlock::Create(CGM->LLVMCtx, "bridge.merge",   CurFn);
+                Builder->CreateCondBr(IsNull, MergeBB, NonNullBB);
+
+                Builder->SetInsertPoint(NonNullBB);
+                llvm::Value *InstancePtr = Builder->CreateIntToPtr(
+                    FieldI64, llvm::PointerType::getUnqual(CGM->LLVMCtx));
+                llvm::Value *InnerVal = Builder->CreateLoad(FieldTy, InstancePtr);
+                llvm::Value *InnerAddr = Builder->CreateExtractValue(InnerVal, 0);
+                Builder->CreateBr(MergeBB);
+
+                Builder->SetInsertPoint(MergeBB);
+                llvm::PHINode *Phi = Builder->CreatePHI(CodeGen::Int64Ty, 2);
+                Phi->addIncoming(llvm::ConstantInt::get(CodeGen::Int64Ty, 0), OrigBB); // null → 0
+                Phi->addIncoming(InnerAddr, NonNullBB);                                  // non-null → real addr
+                Addr = Phi;
+            } else {
+                Addr = Builder->CreateExtractValue(FieldVal, 0);
+            }
             CArg   = Builder->CreateIntToPtr(Addr, llvm::PointerType::getUnqual(CGM->LLVMCtx));
             CArgTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
         } else {
@@ -153,7 +186,16 @@ void CodeGenStdLibCLang::EmitCCallAndStoreResult(
     if (IsPtr) {
         SemaClassType *PtrType = static_cast<SemaClassType *>(OutVar->getType());
         llvm::StructType *PtrStructTy = PtrType->getCodeGen()->getType();
-        llvm::Value *PtrMem = Builder->CreateAlloca(PtrStructTy);
+
+        // Use malloc so the result struct outlives this method's stack frame.
+        // (alloca would create a dangling pointer when the callee returns.)
+        llvm::Type *IntPtrTy = CGM->Module->getDataLayout().getIntPtrType(CGM->LLVMCtx);
+        llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
+            "malloc", llvm::FunctionType::get(
+                llvm::PointerType::getUnqual(CGM->LLVMCtx), {IntPtrTy}, false));
+        llvm::Value *StructSize = llvm::ConstantExpr::getSizeOf(PtrStructTy);
+        llvm::Value *StructSizePtr = Builder->CreateIntCast(StructSize, IntPtrTy, false);
+        llvm::Value *PtrMem = Builder->CreateCall(MallocFn, {StructSizePtr});
 
         Builder->CreateStore(PtrMem, OutVar->getCodeGen()->getPointer());
         OutVar->getCodeGen()->resetLoad();
@@ -198,9 +240,26 @@ void CodeGenStdLibCLang::GenBridgeMethodCall(SemaCall *Sema) {
     if (!isStringLiteral(ArgExprs[0])) { V = nullptr; return; }
     std::string SymStr = static_cast<SemaStringValue *>(ArgExprs[0])->getValue().str();
 
-    SemaVar *Instance = static_cast<SemaVar *>(Sema->getParent());
-    if (!CGM->CLangLibMap.count(Instance->getCodeGen()->getPointer())) {
-        V = nullptr; return;
+    SemaNode *ParentNode = Sema->getParent();
+    if (!ParentNode) { V = nullptr; return; }
+    SemaVar *Instance = static_cast<SemaVar *>(ParentNode);
+    if (!Instance->getCodeGen()) { V = nullptr; return; }
+    llvm::Value *InstancePtr = Instance->getCodeGen()->getPointer();
+
+    std::string LibStr;
+    auto PtrIt = CGM->CLangLibMap.find(InstancePtr);
+    if (PtrIt != CGM->CLangLibMap.end()) {
+        LibStr = PtrIt->second;
+    } else {
+        // GEP is recreated on each access — fall back to semantic identity (SemaVar*).
+        auto SemaIt = CGM->CLangLibMapBySema.find(Instance);
+        if (SemaIt == CGM->CLangLibMapBySema.end()) {
+            V = nullptr;
+            return;
+        }
+        LibStr = SemaIt->second;
+        // Cache the new pointer so future lookups use the fast path.
+        CGM->CLangLibMap[InstancePtr] = LibStr;
     }
 
     // ─── Determine C return type from the out parameter type (compile-time) ──

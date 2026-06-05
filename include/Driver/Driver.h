@@ -47,14 +47,17 @@ namespace fly {
         // ── Parsed option values ──────────────────────────────────────────────
         std::vector<std::string> InputFiles;
         std::vector<std::string> LibDirs;
+        std::vector<std::string> LinkLibs;  // --link-lib flags: external C libs to link (-lNAME)
         std::string OutputFile;
         bool OutputLib    = false;
+        bool OutputShared = false;
         std::string LogFile;
         std::string LogFormat;
         std::string WorkingDir;
         std::string McModel;
         std::string MthreadModel;
-        unsigned    Jobs = 0;
+        unsigned    Jobs    = 0;
+        int         OptLevel = -1; // -1 = use default; 0–3 from -O flag
         std::string Target;
         std::string TargetCpu;
         std::string StatsFile;

@@ -155,6 +155,16 @@ Manifest Manifest::parse(const std::filesystem::path& toml_path) {
         m.hooks.post_build = (*h)["post-build"].value<std::string>().value_or("");
     }
 
+    // [link] — native C library dependencies
+    if (auto* lnk = tbl["link"].as_table()) {
+        if (auto* libs_arr = (*lnk)["libs"].as_array()) {
+            for (auto& el : *libs_arr) {
+                if (auto s = el.value<std::string>())
+                    m.link_libs.push_back(*s);
+            }
+        }
+    }
+
     // [test] — plain table for suite-based test configuration
     if (auto* tc = tbl["test"].as_table()) {
         if (auto* suites_arr = (*tc)["suites"].as_array()) {

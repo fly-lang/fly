@@ -459,12 +459,9 @@ static bool FunctionTypesMatchExact(SemaFunctionBase *Function, SmallVector<Sema
 			if (static_cast<SemaClassType *>(ArgType)->isDerivedOrEquals(
 			        static_cast<SemaClassType *>(ParamType))) continue;
 		}
-		// Allow class ↔ long: class pointers are pointer-sized (i64).
-		if (ParamType->isNumber() && ParamType->isInteger() &&
-		    static_cast<SemaIntType *>(ParamType)->getIntKind() == SemaIntTypeKind::TYPE_LONG &&
-		    ArgType && ArgType->isClass()) continue;
-		if (ParamType->isClass() && ArgType && ArgType->isNumber() && ArgType->isInteger() &&
-		    static_cast<SemaIntType *>(ArgType)->getIntKind() == SemaIntTypeKind::TYPE_LONG) continue;
+		// class ↔ long coercion is intentionally excluded here so that an
+		// exact class type match (fly.mem.Ptr) wins over a long overload.
+		// The coercion is handled in the second-pass FunctionTypesMatch below.
 		return false;
 	}
 	return true;

@@ -34,6 +34,9 @@ namespace fly {
         /// Generate Library
         bool CreateLibrary = false;
 
+        /// Generate Shared Library (.so/.dylib/.dll)
+        bool CreateSharedLib = false;
+
         /// Generate Header
         bool CreateHeader = false;
 

@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.24.0)
 
 # Set the project name and version
-set(FLY_VERSION "0.13.0")
-set(FLYP_VERSION "0.2.0")
+set(FLY_VERSION "0.13.1")
+set(FLYP_VERSION "0.2.1")
 project(Fly VERSION ${FLY_VERSION} LANGUAGES C CXX ASM)
 
 #Fly config options

@@ -103,6 +103,9 @@ struct Manifest {
     // profiles — keyed by profile name ("debug", "release", or custom)
     std::map<std::string, BuildProfile> profiles;
 
+    // [link] — native C library dependencies passed as -l flags to the fly linker
+    std::vector<std::string> link_libs;  // e.g. ["LLVM-20"] → -lLLVM-20
+
     // workspace — present if this manifest is a workspace root
     std::optional<WorkspaceConfig> workspace;
 
