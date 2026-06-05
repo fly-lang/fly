@@ -1,6 +1,7 @@
 /*build*/
+/out
+std/lib/**/*.fly.h
 /.idea
 /.vscode
 /.vs
-/out
-std/lib/**/*.fly.h
+.DS_Store

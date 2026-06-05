@@ -1,8 +1,0 @@
-*
-!/cmake/
-!/include/
-!/compiler/
-!/lib/
-!/runtime/
-!/test/
-!CMakeLists.txt

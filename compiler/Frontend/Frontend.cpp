@@ -36,6 +36,7 @@
 #include <llvm/ADT/Statistic.h>
 #include <llvm/ADT/StringSet.h>
 #include <llvm/Support/FileSystem.h>
+#include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/Path.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Support/Timer.h>
@@ -101,7 +102,33 @@ static std::string funcSignatureStr(const ASTFunction *F) {
 
 // Writes a .fly.h declaration file for the public API of M.
 // Returns the path of the generated file, or empty string on failure.
+// Modules that contain generic classes are skipped: they cannot be represented
+// as declaration-only stubs because monomorphization requires the full method
+// bodies.  Callers must ensure the .fly source is available in the lib dir so
+// LoadLibHeaders falls through to load it directly.
 static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags) {
+    // For modules with generic classes the header IS the full source:
+    // ParseHeader skips import statements and detects <T> to force
+    // SkipBodies=false, so monomorphization gets the complete method bodies.
+    bool hasGenericClasses = false;
+    for (const auto *Node : M->getNodes()) {
+        if (Node->getKind() == ASTKind::AST_CLASS) {
+            const auto *C = static_cast<const ASTClass *>(Node);
+            if (!C->getTypeParams().empty()) { hasGenericClasses = true; break; }
+        }
+    }
+    if (hasGenericClasses) {
+        std::string SourcePath = M->getName() + ".fly";
+        std::string HeaderPath = M->getName() + ".fly.h";
+        auto MBOrErr = llvm::MemoryBuffer::getFile(SourcePath);
+        if (!MBOrErr) return "";
+        std::error_code EC;
+        llvm::raw_fd_ostream OS(HeaderPath, EC, llvm::sys::fs::OF_Text);
+        if (EC) return "";
+        OS << MBOrErr.get()->getBuffer();
+        return HeaderPath;
+    }
+
     // Derive header path: <source>.fly → <source>.fly.h
     std::string HeaderPath = M->getName() + ".fly.h";
 
@@ -158,7 +185,11 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags) {
             // Methods in classes/interfaces use AST_FUNCTION kind (ASTMethod extends ASTFunction)
             if (Child->getKind() != ASTKind::AST_FUNCTION) continue;
             const auto *Meth = static_cast<const ASTMethod *>(Child);
-            OS << "    " << Meth->getName().str() << "(";
+            // Emit return type so callers know the calling convention (hidden out-pointer).
+            const std::string ret = typeStr(Meth->getReturnType());
+            if (!ret.empty()) OS << "    " << ret << " ";
+            else OS << "    void ";
+            OS << Meth->getName().str() << "(";
             bool first = true;
             for (const auto *P : Meth->getParams()) {
                 if (!first) OS << ", ";
@@ -191,14 +222,13 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags) {
         for (const auto *Child : C->getNodes()) {
             if (Child->getKind() == ASTKind::AST_VAR) {
                 const auto *V = static_cast<const ASTVar *>(Child);
-                // Only emit public fields; private/internal fields may have types
-                // from imported namespaces that are not available in the header context.
-                bool fieldPublic = false;
-                for (auto *Mod : V->getModifiers())
-                    if (Mod->getModifierKind() == ASTModifierKind::MOD_PUBLIC)
-                        fieldPublic = true;
-                if (!fieldPublic) continue;
-                OS << "    " << typeStr(V->getType()) << " " << V->getName() << "\n";
+                // Emit all fields (including private) so the object layout in the
+                // header matches the compiled implementation in fly_std_lib.a.
+                // Skip fields whose type cannot be expressed as a simple name (they
+                // would require imports not present in the header).
+                const std::string fieldTy = typeStr(V->getType());
+                if (fieldTy.empty()) continue;
+                OS << "    " << fieldTy << " " << V->getName() << "\n";
             } else if (Child->getKind() == ASTKind::AST_FUNCTION) {
                 // Methods use AST_FUNCTION kind (ASTMethod extends ASTFunction)
                 const auto *Meth = static_cast<const ASTMethod *>(Child);
@@ -275,15 +305,9 @@ bool Frontend::Execute() {
 	// Init the Sema Builder
 	ASTBuilder *Builder = new ASTBuilder(Diags);
 
-    // Load fly stdlib headers before user files so their declarations
-    // are available when resolving imports like "import fly.string".
-#ifdef FLY_LIB_FLY_DIR
-    LoadStdlibHeaders(*Builder);
-#endif
-
-    // Load headers from additional library directories specified via -L <dir>.
-    // These are scanned in order and registered before user files, so any
-    // namespace declared in a dependency is immediately available for import.
+    // Load stdlib headers (.fly.h), then external package dirs (.fly.h).
+    if (!CI.getFrontendOptions().StdLibDir.empty())
+        LoadLibHeaders(*Builder, CI.getFrontendOptions().StdLibDir, /*preferDotFlyH=*/true);
     for (const auto &Dir : CI.getFrontendOptions().LibDirs)
         LoadLibHeaders(*Builder, Dir, /*preferDotFlyH=*/true);
 
@@ -511,12 +535,11 @@ void Frontend::LoadLibHeaders(ASTBuilder &Builder, const std::string &Dir,
             continue;
         }
 
-        // Warn about any other non-.fly file: it cannot be compiled and its
-        // presence in a library search directory is likely a configuration mistake.
-        if (!Filename.ends_with(".fly")) {
-            Diags.Report(SourceLocation(), diag::warn_fe_lib_dir_non_fly_file) << Path;
+        // Skip non-.fly files silently. Static/shared libraries (.a, .lib, .so,
+        // .dylib) and object files legitimately share lib/ with .fly.h headers
+        // (fly_std_lib.a, fly_runtime_lib.a live here by design).
+        if (!Filename.ends_with(".fly"))
             continue;
-        }
 
         if (CompilingNow.count(Filename))
             continue;
@@ -540,11 +563,6 @@ void Frontend::LoadLibHeaders(ASTBuilder &Builder, const std::string &Dir,
     }
 }
 
-#ifdef FLY_LIB_FLY_DIR
-void Frontend::LoadStdlibHeaders(ASTBuilder &Builder) {
-    LoadLibHeaders(Builder, FLY_LIB_FLY_DIR);
-}
-#endif
 
 std::vector<StringRef> Frontend::ExtractFiles(const std::string &LibFileName) {
     Archiver Ar(Diags, LibFileName);

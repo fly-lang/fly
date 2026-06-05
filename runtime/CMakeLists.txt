@@ -10,11 +10,43 @@
 
 add_library(FlyRuntime STATIC)
 
-# Place the archive in a predictable location so ToolChain can locate it via
-# the FLY_RUNTIME_LIB_DIR cmake variable baked into Config.h.
+# Place the archive alongside fly_std_lib.a and the .fly.h headers so the
+# entire lib/ directory is the single install unit.
 set_target_properties(FlyRuntime PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+    OUTPUT_NAME              "fly_runtime_lib"
+    PREFIX                   ""
 )
+
+install(TARGETS FlyRuntime ARCHIVE DESTINATION lib)
+
+# ── Fly bridge header stubs (llvm, runtime) — copied to build/lib/ ────────────
+# llvm.fly.h   — LLVM intrinsics declarations (fly.llvm namespace)
+# runtime.fly.h— C runtime declarations (fly.runtime namespace)
+# Both are declaration-only stubs used by every stdlib module.
+set(_fly_bridge_headers
+    "${CMAKE_CURRENT_SOURCE_DIR}/lib/llvm.fly.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/lib/runtime.fly.h"
+)
+set(_fly_bridge_dst)
+foreach(_h ${_fly_bridge_headers})
+    get_filename_component(_name "${_h}" NAME)
+    set(_dst "${CMAKE_BINARY_DIR}/lib/${_name}")
+    add_custom_command(
+        OUTPUT  "${_dst}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_h}" "${_dst}"
+        DEPENDS "${_h}"
+        COMMENT "Copying ${_name} to build/lib/"
+        VERBATIM
+    )
+    list(APPEND _fly_bridge_dst "${_dst}")
+endforeach()
+add_custom_target(fly_runtime_lib_headers ALL DEPENDS ${_fly_bridge_dst})
+# Export DST paths to parent scope so std/CMakeLists.txt can add them to DEPENDS.
+set(FLY_RUNTIME_LIB_HEADERS_DST ${_fly_bridge_dst} PARENT_SCOPE)
+
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/lib/"
+        DESTINATION lib FILES_MATCHING PATTERN "*.fly.h")
 
 # Runtime.h is the only public header.
 target_include_directories(FlyRuntime PUBLIC
@@ -71,9 +103,9 @@ set_tests_properties(fly_runtime_test PROPERTIES PASS_REGULAR_EXPRESSION "fly ru
 find_program(LLVM_DWARFDUMP        NAMES llvm-dwarfdump llvm-dwarfdump-20 llvm-dwarfdump-19 llvm-dwarfdump-18)
 
 if(MSVC)
-    set(_fly_std_lib "${CMAKE_BINARY_DIR}/lib/fly_std_lib.lib")
+    set(_fly_std_lib "${CMAKE_BINARY_DIR}/std/fly_std_lib.lib")
 else()
-    set(_fly_std_lib "${CMAKE_BINARY_DIR}/lib/fly_std_lib.a")
+    set(_fly_std_lib "${CMAKE_BINARY_DIR}/std/fly_std_lib.a")
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")

@@ -1385,24 +1385,15 @@ std::string ToolChain::GetCompilerRTBuiltinsPath() const {
 
 std::string ToolChain::GetStdLibPath() const {
     FLY_DEBUG_SCOPE("ToolChain", "GetStdLibPath");
-    const llvm::StringRef BaseDir(FLY_RUNTIME_LIB_DIR);
+    const llvm::StringRef BaseDir(FLY_STD_LIB_DIR);
 
     const std::pair<llvm::StringRef, llvm::StringRef> Candidates[] = {
-        {"",               "fly_std_lib.a"},
-        {"RelWithDebInfo", "fly_std_lib.a"},
-        {"Release",        "fly_std_lib.a"},
-        {"Debug",          "fly_std_lib.a"},
-        {"MinSizeRel",     "fly_std_lib.a"},
-        // Windows
-        {"",               "fly_std_lib.lib"},
-        {"RelWithDebInfo", "fly_std_lib.lib"},
-        {"Release",        "fly_std_lib.lib"},
+        {"", "fly_std_lib.a"},
+        {"", "fly_std_lib.lib"},
     };
 
     for (auto &[Sub, Name] : Candidates) {
         llvm::SmallString<256> P(BaseDir);
-        if (!Sub.empty())
-            llvm::sys::path::append(P, Sub);
         llvm::sys::path::append(P, Name);
         if (getVFS().exists(P)) {
             FLY_DEBUG_MSG("Found: " << P);
@@ -1415,36 +1406,25 @@ std::string ToolChain::GetStdLibPath() const {
 
 std::string ToolChain::GetRuntimeLibPath() const {
     FLY_DEBUG_SCOPE("ToolChain", "GetRuntimeLibPath");
-    // FLY_RUNTIME_LIB_DIR is baked into Config.h at cmake-configure time.
-    // Try platform-specific names and optional build-config subdirectories.
-    const llvm::StringRef BaseDir(FLY_RUNTIME_LIB_DIR);
-
-    // Candidates: (subdir, filename)
-    // Windows MSVC places the lib in a build-config subdirectory.
-    // Cover all four standard configs so any CMAKE_BUILD_TYPE works.
-    const std::pair<llvm::StringRef, llvm::StringRef> Candidates[] = {
-        {"RelWithDebInfo", "FlyRuntime.lib"},
-        {"Release",        "FlyRuntime.lib"},
-        {"Debug",          "FlyRuntime.lib"},
-        {"MinSizeRel",     "FlyRuntime.lib"},
-        {"",               "FlyRuntime.lib"},
-        // Unix / installed layout
-        {"",               "libFlyRuntime.a"},
-        {"RelWithDebInfo", "libFlyRuntime.a"},
-        {"Release",        "libFlyRuntime.a"},
+    // Try auto-discovered lib/ dir first (set by Driver at startup from <bin>/../lib),
+    // then fall back to the baked FLY_RUNTIME_LIB_DIR for build-tree usage.
+    const llvm::StringRef Dirs[] = {
+        llvm::StringRef(CodeGenOpts.RuntimeLibDir),
+        llvm::StringRef(FLY_RUNTIME_LIB_DIR),
     };
-
-    for (auto &[Sub, Name] : Candidates) {
-        llvm::SmallString<256> P(BaseDir);
-        if (!Sub.empty())
-            llvm::sys::path::append(P, Sub);
-        llvm::sys::path::append(P, Name);
-        if (getVFS().exists(P)) {
-            FLY_DEBUG_MSG("Found: " << P);
-            return std::string(P.str());
+    const llvm::StringRef Names[] = {"fly_runtime_lib.a", "fly_runtime_lib.lib"};
+    for (auto Dir : Dirs) {
+        if (Dir.empty()) continue;
+        for (auto Name : Names) {
+            llvm::SmallString<256> P(Dir);
+            llvm::sys::path::append(P, Name);
+            if (getVFS().exists(P)) {
+                FLY_DEBUG_MSG("Found: " << P);
+                return std::string(P.str());
+            }
         }
     }
-    FLY_DEBUG_MSG("Not found in: " << BaseDir);
+    FLY_DEBUG_MSG("Not found");
     return "";
 }
 

@@ -144,6 +144,10 @@ public:
   /// The code model to use (-mcmodel).
   std::string CodeModel;
 
+  /// Runtime library directory — auto-discovered at startup by the Driver
+  /// as <fly_bin>/../lib (same as StdLibDir). Falls back to FLY_RUNTIME_LIB_DIR.
+  std::string RuntimeLibDir;
+
   /// The filename with path we use for coverage data files. The runtime
   /// allows further manipulation with the GCOV_PREFIX and GCOV_PREFIX_STRIP
   /// environment variables.

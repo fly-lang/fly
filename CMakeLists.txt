@@ -115,6 +115,7 @@ include_directories(include)
 string(REGEX MATCH "^([0-9]+)" FLY_LLVM_VERSION_MAJOR "${FLY_LLVM_VERSION}")
 
 set(FLY_RUNTIME_LIB_DIR "${CMAKE_BINARY_DIR}/lib")
+set(FLY_STD_LIB_DIR     "${CMAKE_BINARY_DIR}/lib")
 
 # Must be called before any add_subdirectory() that contains add_test() calls,
 # otherwise CTestTestfile.cmake is not generated for those subdirectories.

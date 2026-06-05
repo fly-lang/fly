@@ -171,11 +171,12 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bo
                 // Look ahead to see if this is a method (has parenthesis)
                 std::optional<Token> NextTok = Lexer::findNextToken(Loc, P->SourceMgr);
                 if (NextTok && NextTok->is(tok::l_paren)) {
-                    // Suites have no constructors; all methods must have a return type
+                    // Suites have no constructors; all methods must have a return type.
+                    // Interface methods and header-mode declarations may omit the return type.
                     bool IsConstructor = (Class->getClassKind() != ASTClassKind::SUITE) &&
                                          (Name == Class->getName());
-                    if (!IsConstructor) {
-                        // Non-constructor method without a return type — emit error and recover
+                    bool IsInterface = (Class->getClassKind() == ASTClassKind::INTERFACE);
+                    if (!IsConstructor && !IsInterface && !SkipBodies) {
                         P->Diag(Loc, diag::err_parser_missing_return_type);
                     }
                     P->ConsumeToken();

@@ -655,9 +655,29 @@ void Resolver::visit(ASTNamedType &AST) {
 	}
 
 	SymbolTable *Scope = CurrentScope;
-	Symbol *Sym = Reg.LookupNamedType(AST, Scope);
+	bool InHeader = CurrentModule && CurrentModule->getAST().isHeader();
+	Symbol *Sym = Reg.LookupNamedType(AST, Scope, /*SuppressError=*/InHeader);
 	if (!Sym) {
-		Diag(AST.getLocation(), diag::err_sema_unknown_type) << AST.str();
+		if (InHeader && CurrentClass && AST.getNames().size() == 1 && AST.getTypeArgs().empty()) {
+			// Unknown single-name type inside a header class body: treat as an implicit
+			// generic type parameter (e.g. T stripped from "class Wrapper<T>" by formatter).
+			// Register it as a TypeParam so Wrapper<int> etc. instantiate correctly.
+			llvm::StringRef TypeName = AST.getNames()[0]->getName();
+			for (auto *TP : CurrentClass->TypeParams) {
+				if (TP->getName() == TypeName.str()) {
+					CurrentType = TP;
+					return;
+				}
+			}
+			SemaTypeParam *SP = new SemaTypeParam(TypeName);
+			CurrentClass->TypeParams.push_back(SP);
+			Symbol *TPSym = new Symbol(TypeName.str(), SymbolKind::CLASS, SP);
+			CurrentClass->getSymbols()->insert(TPSym);
+			CurrentType = SP;
+			return;
+		}
+		if (!InHeader)
+			Diag(AST.getLocation(), diag::err_sema_unknown_type) << AST.str();
 		return;
 	}
 	SemaType *Sema = static_cast<SemaType *>(Sym->getRef());
@@ -2222,6 +2242,9 @@ void Resolver::Resolve() {
 	FLY_DEBUG_SCOPE("Resolver", "Resolve");
 	// Resolve Modules
 	for (auto Module : Reg.getModules()) {
+
+		// Track the module being resolved so visit(ASTNamedType) can check isHeader().
+		CurrentModule = Module;
 
 		// Set current scope
 		CurrentScope = Module->getSymbols();
