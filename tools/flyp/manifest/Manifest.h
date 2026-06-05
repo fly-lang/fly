@@ -19,26 +19,49 @@ struct GitRef {
 };
 
 struct GitDep {
-    std::string git_url;
+    std::string git_url;       // git dep (empty for path/registry deps)
     GitRef      ref;
+    std::string path;          // non-empty = path dependency
+    std::string registry_name; // non-empty = registry dependency (alias from [repo])
+    std::string pkg_name;      // package name on registry (defaults to map key)
+    std::string version_req;   // version requirement for registry deps ("1.0.0", "^1.2")
+
+    bool is_path_dep()     const { return !path.empty(); }
+    bool is_registry_dep() const { return !registry_name.empty(); }
+    bool is_git_dep()      const { return !git_url.empty(); }
+};
+
+// ── Workspace ─────────────────────────────────────────────────────────────────
+
+struct WorkspaceConfig {
+    std::vector<std::string> members; // relative paths to member directories
 };
 
 // ── Build targets ─────────────────────────────────────────────────────────────
 
-struct BinTarget {
-    std::string name;
-    std::string path; // relative to project root
+struct Target {
+    std::string key;   // TOML map key → CLI lookup ID
+    std::string name;  // output filename (defaults to key)
+    std::string path;  // relative to project root
+    std::string lib;   // "" = bin; "static"/"dynamic"/"both" = lib
+
+    bool is_lib() const { return !lib.empty(); }
+    bool is_bin() const { return lib.empty(); }
 };
 
-struct LibTarget {
-    std::string name;
-    std::string path;
-    std::string type; // "static" | "dynamic" | "both"
+// ── Build hooks ───────────────────────────────────────────────────────────────
+
+struct HooksConfig {
+    std::string pre_build;   // shell command run before compilation (empty = none)
+    std::string post_build;  // shell command run after successful compilation
 };
 
-struct TestTarget {
-    std::string name;
-    std::string path;
+// [test] plain-table configuration for the suite-based test system
+struct TestConfig {
+    std::vector<std::string> suites;  // glob patterns or explicit paths
+    bool   parallel   = false;
+    int    timeout_ms = 0;            // 0 = no timeout
+    bool   fail_fast  = false;
 };
 
 // ── Build profile ─────────────────────────────────────────────────────────────
@@ -56,26 +79,34 @@ struct BuildProfile {
 struct Manifest {
     // [package]
     std::string                    name;
-    std::string                    version;    // semver MAJOR.MINOR.PATCH
+    std::string                    version;          // semver MAJOR.MINOR.PATCH
     std::vector<std::string>       authors;
     std::string                    description;
     std::string                    license;
     std::string                    fly_version;
     std::optional<std::string>     homepage;
     std::optional<std::string>     repository;
+    std::string                    default_registry; // alias from [repo] for deploy/publish
+
+    // [repo] — named registry aliases: name → URL
+    std::map<std::string, std::string> repos;
 
     // targets
-    std::vector<BinTarget>         bins;
-    std::vector<LibTarget>         libs;
-    std::vector<TestTarget>        tests;
+    std::vector<Target>            targets;
+    TestConfig                     test_config;
+    HooksConfig                    hooks;
 
     // dependencies
     std::map<std::string, GitDep>  dependencies;
     std::map<std::string, GitDep>  dev_dependencies;
 
-    // profiles
-    BuildProfile                   profile_debug;
-    BuildProfile                   profile_release;
+    // profiles — keyed by profile name ("debug", "release", or custom)
+    std::map<std::string, BuildProfile> profiles;
+
+    // workspace — present if this manifest is a workspace root
+    std::optional<WorkspaceConfig> workspace;
+
+    bool is_workspace_root() const { return workspace.has_value(); }
 
     // Filesystem location of this manifest
     std::filesystem::path          root_dir;

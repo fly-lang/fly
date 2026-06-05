@@ -36,6 +36,8 @@ namespace fly {
     class ASTModule;
     class ASTNode;
     class ASTClass;
+    class ASTTestStmt;
+    class ASTCaseStmt;
     class ASTStmt;
     class ASTBlockStmt;
     class ASTArg;
@@ -145,9 +147,18 @@ namespace fly {
     	// StringRef values pointing into these strings remain valid for the Resolver's lifetime.
     	SmallVector<std::string, 16> SyntheticParamNames;
 
+        // True when compiling in test mode (--test flag)
+        bool TestMode = false;
+
+        // True while resolving the body of an inline test {} block
+        bool InTestBlock = false;
+
+        // True while resolving a suite test-method body
+        bool InSuiteTestMethod = false;
+
     public:
 
-        Resolver(DiagnosticsEngine &Diags, Registry &Reg);
+        Resolver(DiagnosticsEngine &Diags, Registry &Reg, bool TestMode = false);
 
         virtual ~Resolver();
 
@@ -190,6 +201,8 @@ namespace fly {
         void visit(ASTSwitchStmt &AST) override;
         void visit(ASTLoopStmt &AST) override;
         void visit(ASTLoopInStmt &AST) override;
+        void visit(ASTTestStmt &AST) override;
+        void visit(ASTCaseStmt &AST) override;
 
         // Visit Expressions
         void visit(ASTIdentifier &AST) override;

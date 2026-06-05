@@ -62,6 +62,8 @@
 #include "llvm/Transforms/Utils/EntryExitInstrumenter.h"
 #include "llvm/Transforms/Utils/NameAnonGlobals.h"
 #include "llvm/Transforms/Utils/SymbolRewriter.h"
+#include "llvm/Support/Parallel.h"
+#include "llvm/Support/Threading.h"
 #include <memory>
 
 using namespace fly;
@@ -492,6 +494,11 @@ void EmitAssemblyHelper::EmitAssembly(BackendActionKind Action,
     if (FrontendTimesIsEnabled)
         TimingRegion = std::make_unique<llvm::TimeRegion>(&CodeGenerationTime);
     setCommandLineOpts(CodeGenOpts);
+
+    // Configure LLVM's internal thread pool for parallel optimisation and codegen.
+    llvm::parallel::strategy = (CodeGenOpts.Jobs > 0)
+        ? llvm::hardware_concurrency(CodeGenOpts.Jobs)
+        : llvm::hardware_concurrency();
 
     bool RequiresCodeGen = (Action != Backend_EmitNothing &&
                             Action != Backend_EmitBC &&

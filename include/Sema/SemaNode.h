@@ -59,6 +59,9 @@ namespace fly {
 		ENUM_LIST,
 		VALUE,
 
+		// Types (suite)
+		TYPE_SUITE,
+
 		// Statements
 		STMT_BLOCK,
 		STMT_DECL,
@@ -72,7 +75,9 @@ namespace fly {
 		STMT_BREAK,
 		STMT_CONTINUE,
 		STMT_FAIL,
-		STMT_HANDLE
+		STMT_HANDLE,
+		STMT_TEST,
+		STMT_CASE
 	};
 
 	class SemaNode {

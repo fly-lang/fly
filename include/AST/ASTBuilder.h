@@ -125,6 +125,10 @@ namespace fly {
 
     class ASTStringValue;
 
+    class ASTTestStmt;
+
+    class ASTCaseStmt;
+
     class ASTNameSpace;
 
     class ASTName;
@@ -291,6 +295,15 @@ namespace fly {
          static ASTBlockStmt *CreateBlockStmt(const SourceLocation &Loc);
 
          static ASTBlockStmt *CreateBlockStmt(ASTStmt *Parent, const SourceLocation &Loc);
+
+        // Standalone case statement (suite test-method context)
+
+        static ASTCaseStmt *CreateCaseStmt(ASTBlockStmt *Parent, const SourceLocation &Loc,
+                                            ASTExpr *Expr, ASTBlockStmt *Body);
+
+        // Test block support
+
+        static ASTTestStmt *CreateTestStmt(ASTBlockStmt *Parent, const SourceLocation &Loc);
 
     };
 

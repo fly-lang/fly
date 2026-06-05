@@ -13,6 +13,8 @@
 namespace fly {
 
 	// Forward declarations
+	class SemaTestStmt;
+	class SemaCaseStmt;
 	class SemaModule;
 	class SemaNameSpace;
 	class SemaImport;
@@ -144,6 +146,10 @@ namespace fly {
 		virtual void visit(SemaUnsetValue &Sema) = 0;
 		virtual void visit(SemaEnumEntry &Sema) = 0;
 		virtual void visit(SemaEnumList &Sema) = 0;
+
+		// Test block and suite case (default no-op — CodeGen overrides)
+		virtual void visit(SemaTestStmt &Sema) {}
+		virtual void visit(SemaCaseStmt &Sema) {}
 
 		// Statements
 		virtual void visit(SemaBlockStmt &Sema) = 0;

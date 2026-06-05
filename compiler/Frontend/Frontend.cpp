@@ -287,7 +287,7 @@ bool Frontend::Execute() {
 
     // Resolve AST references; store on the member so getSemaModules() works
     // after Execute() returns (used by the LSP server and other tools).
-	SemaModules = S->Resolve(ASTModules);
+	SemaModules = S->Resolve(ASTModules, CI.getCodeGenOptions().TestMode);
 
     if (!SemaModules.empty()) {
 

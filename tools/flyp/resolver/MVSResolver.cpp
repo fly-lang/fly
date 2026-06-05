@@ -27,6 +27,99 @@ std::string SemVer::str() const {
     return std::to_string(major) + "." + std::to_string(minor) + "." + std::to_string(patch);
 }
 
+// ── SemVerRange ───────────────────────────────────────────────────────────────
+
+bool SemVerRange::Atom::matches(const SemVer& v) const {
+    switch (op) {
+        case Op::Any: return true;
+        case Op::Eq:  return v == ver;
+        case Op::Gt:  return v >  ver;
+        case Op::Gte: return v >= ver;
+        case Op::Lt:  return v <  ver;
+        case Op::Lte: return v <= ver;
+    }
+    return true;
+}
+
+bool SemVerRange::matches(const SemVer& v) const {
+    for (const auto& a : atoms)
+        if (!a.matches(v)) return false;
+    return true;
+}
+
+SemVerRange SemVerRange::parse(const std::string& s) {
+    SemVerRange range;
+    if (s.empty() || s == "*") return range; // any
+
+    // Split by comma (AND).
+    std::istringstream ss(s);
+    std::string token;
+    while (std::getline(ss, token, ',')) {
+        // Trim whitespace.
+        size_t first = token.find_first_not_of(" \t");
+        if (first == std::string::npos) continue;
+        token = token.substr(first);
+        token.erase(token.find_last_not_of(" \t") + 1);
+        if (token.empty()) continue;
+
+        // Caret: ^1.2.3 → >=1.2.3,<2.0.0 (or <0.3.0 / <0.0.4 for 0.x)
+        if (token[0] == '^') {
+            SemVer base = SemVer::parse(token.substr(1));
+            range.atoms.push_back({Atom::Op::Gte, base});
+            SemVer upper;
+            if (base.major > 0)       upper = {base.major + 1, 0, 0};
+            else if (base.minor > 0)  upper = {0, base.minor + 1, 0};
+            else                      upper = {0, 0, base.patch + 1};
+            range.atoms.push_back({Atom::Op::Lt, upper});
+            continue;
+        }
+
+        // Tilde: ~1.2.3 → >=1.2.3,<1.3.0 | ~1.2 → >=1.2.0,<1.3.0 | ~1 → >=1.0.0,<2.0.0
+        if (token[0] == '~') {
+            std::string rest = token.substr(1);
+            long dots = std::count(rest.begin(), rest.end(), '.');
+            SemVer base = SemVer::parse(rest);
+            range.atoms.push_back({Atom::Op::Gte, base});
+            SemVer upper;
+            if (dots >= 1) upper = {base.major, base.minor + 1, 0};
+            else           upper = {base.major + 1, 0, 0};
+            range.atoms.push_back({Atom::Op::Lt, upper});
+            continue;
+        }
+
+        // Comparison operators: >=, >, <=, <
+        if (token.size() >= 2 && token[0] == '>' && token[1] == '=') {
+            range.atoms.push_back({Atom::Op::Gte, SemVer::parse(token.substr(2))});
+            continue;
+        }
+        if (token.size() >= 2 && token[0] == '<' && token[1] == '=') {
+            range.atoms.push_back({Atom::Op::Lte, SemVer::parse(token.substr(2))});
+            continue;
+        }
+        if (token[0] == '>') {
+            range.atoms.push_back({Atom::Op::Gt, SemVer::parse(token.substr(1))});
+            continue;
+        }
+        if (token[0] == '<') {
+            range.atoms.push_back({Atom::Op::Lt, SemVer::parse(token.substr(1))});
+            continue;
+        }
+
+        // Wildcard shorthand: 1.x or 1.*
+        if (token.find(".x") != std::string::npos || token.find(".*") != std::string::npos) {
+            std::string base_str = token.substr(0, token.find_last_of('.'));
+            SemVer base = SemVer::parse(base_str);
+            range.atoms.push_back({Atom::Op::Gte, base});
+            range.atoms.push_back({Atom::Op::Lt,  {base.major + 1, 0, 0}});
+            continue;
+        }
+
+        // Exact version.
+        range.atoms.push_back({Atom::Op::Eq, SemVer::parse(token)});
+    }
+    return range;
+}
+
 // ── DependencyGraph ───────────────────────────────────────────────────────────
 
 void DependencyGraph::add_edge(const std::string& requirer,

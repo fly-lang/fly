@@ -133,6 +133,7 @@ public:
 
   bool Static = true;
   bool Shared = false;
+  bool TestMode = false;
   bool RDynamic = false;
   bool PIE = false; // Position Independent Code
   bool StaticPIE = false; // Static Position Independent Code
@@ -221,6 +222,9 @@ public:
 
   /// The thread model to use
   std::string ThreadModel;
+
+  /// Number of threads for LLVM internal parallelism (0 = auto-detect).
+  unsigned Jobs = 0;
 
   /// If not an empty string, trap intrinsics are lowered to calls to this
   /// function instead of to trap instructions.

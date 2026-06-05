@@ -16,6 +16,8 @@ namespace fly {
 	class ASTNameSpace;
 	class ASTImport;
 	class ASTClass;
+	class ASTTestStmt;
+	class ASTCaseStmt;
 	class ASTAttribute;
 	class ASTMethod;
 	class ASTFunction;
@@ -95,6 +97,8 @@ namespace fly {
 		virtual void visit(ASTLoopStmt &AST) = 0;
 		virtual void visit(ASTLoopInStmt &AST) = 0;
 		virtual void visit(ASTBlockStmt &AST) = 0;
+		virtual void visit(ASTTestStmt &AST) = 0;
+		virtual void visit(ASTCaseStmt &AST) = 0;
 
 		// Expressions
 		virtual void visit(ASTIdentifier &AST) = 0;

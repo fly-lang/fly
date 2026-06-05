@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTSwitchStmt.h"
+#include "AST/ASTCaseStmt.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTStmt.h"
 #include "Basic/Logger.h"
@@ -29,7 +30,7 @@ ASTExpr *ASTSwitchStmt::getExpr() const {
     return Expr;
 }
 
-llvm::SmallVector<ASTRuleStmt *, 8> &ASTSwitchStmt::getCases() {
+llvm::SmallVector<ASTCaseStmt *, 8> &ASTSwitchStmt::getCases() {
     return Cases;
 }
 

@@ -10,7 +10,7 @@
 #ifndef FLY_AST_SWITCHSTMT_H
 #define FLY_AST_SWITCHSTMT_H
 
-#include "ASTRuleStmt.h"
+#include "ASTCaseStmt.h"
 #include "ASTStmt.h"
 
 namespace fly {
@@ -25,7 +25,7 @@ namespace fly {
         ASTExpr *Expr = nullptr;
 
         // The Case Blocks
-        llvm::SmallVector<ASTRuleStmt *, 8> Cases;
+        llvm::SmallVector<ASTCaseStmt *, 8> Cases;
 
         // The Default Block
         ASTStmt *Default = nullptr;
@@ -38,7 +38,7 @@ namespace fly {
 
         ASTExpr *getExpr() const;
 
-        llvm::SmallVector<ASTRuleStmt *, 8> &getCases();
+        llvm::SmallVector<ASTCaseStmt *, 8> &getCases();
 
         ASTStmt *getDefault();
 

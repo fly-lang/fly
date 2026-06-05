@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.24.0)
 
 # Set the project name and version
-set(FLY_VERSION "0.12.6")
-set(FLYP_VERSION "0.1.0")
+set(FLY_VERSION "0.13.0")
+set(FLYP_VERSION "0.2.0")
 project(Fly VERSION ${FLY_VERSION} LANGUAGES C CXX ASM)
 
 #Fly config options
@@ -136,3 +136,6 @@ add_subdirectory(tools/flyp)
 
 # fly-lsp language server
 add_subdirectory(tools/lsp)
+
+# flyp-registry REST registry server
+add_subdirectory(tools/registry)

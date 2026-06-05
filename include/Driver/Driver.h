@@ -54,10 +54,12 @@ namespace fly {
         std::string WorkingDir;
         std::string McModel;
         std::string MthreadModel;
+        unsigned    Jobs = 0;
         std::string Target;
         std::string TargetCpu;
         std::string StatsFile;
         bool DebugSymbols = false;
+        bool TestMode     = false;
         bool Verbose      = false;
         bool NoWarnings   = false;
         bool EmitLL       = false;

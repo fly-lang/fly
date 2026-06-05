@@ -54,6 +54,9 @@ SemaClassKind SemaClassType::toClassKind(ASTClassKind Kind) {
 
 		case ASTClassKind::STRUCT:
 			return SemaClassKind::STRUCT;
+
+		case ASTClassKind::SUITE:
+			return SemaClassKind::SUITE;
 	}
 
 	assert(false && "unknown ASTClassKind");

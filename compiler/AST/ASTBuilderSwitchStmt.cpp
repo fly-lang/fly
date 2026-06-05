@@ -8,6 +8,7 @@
 //===--------------------------------------------------------------------------------------------------------------===//
 
 #include "AST/ASTBuilderSwitchStmt.h"
+#include "AST/ASTCaseStmt.h"
 #include "AST/ASTSwitchStmt.h"
 #include "AST/ASTBlockStmt.h"
 
@@ -31,7 +32,7 @@ ASTBuilderSwitchStmt *ASTBuilderSwitchStmt::Create(ASTBlockStmt *Parent, const S
 }
 
 ASTBuilderSwitchStmt *ASTBuilderSwitchStmt::addCase(const SourceLocation &Loc, ASTExpr *Expr, ASTBlockStmt *Stmt) {
-    ASTRuleStmt *Case = new ASTRuleStmt(Loc);
+    ASTCaseStmt *Case = new ASTCaseStmt(Loc);
     Case->Expr = Expr;
     Case->Stmt = Stmt;
 	Case->Parent = Stmt;

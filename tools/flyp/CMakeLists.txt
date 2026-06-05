@@ -17,6 +17,7 @@ add_library(flyp_lib STATIC
     resolver/MVSResolver.cpp
     fetcher/Cache.cpp
     fetcher/GitFetcher.cpp
+    fetcher/RegistryFetcher.cpp
     builder/Builder.cpp
     cli/Commands.cpp
 )

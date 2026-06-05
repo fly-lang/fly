@@ -21,6 +21,8 @@ add_library(FlyCompiler
         AST/ASTCall.cpp
         AST/ASTCast.cpp
         AST/ASTClass.cpp
+        AST/ASTCaseStmt.cpp
+        AST/ASTTestStmt.cpp
         AST/ASTComment.cpp
         AST/ASTContinueStmt.cpp
         AST/ASTDeleteStmt.cpp
@@ -205,6 +207,8 @@ add_library(FlyCompiler
         Sema/SemaContinueStmt.cpp
         Sema/SemaFailStmt.cpp
         Sema/SemaHandleStmt.cpp
+        Sema/SemaTestStmt.cpp
+        Sema/SemaCaseStmt.cpp
         Sema/Registry.cpp
         Sema/Resolver.cpp
 )

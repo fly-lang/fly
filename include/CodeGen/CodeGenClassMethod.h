@@ -30,6 +30,7 @@ namespace fly {
     class CodeGenClassMethod : public CodeGenFunctionBase {
 
         friend class CodeGenClass;
+        friend class CodeGenModule; // needed to compile suite methods in EmitSuite()
 
         size_t Index;
 
