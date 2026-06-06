@@ -64,5 +64,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact.outputs.artifact_name }}
-          path: ${{github.workspace}}/${{env.BUILD_DIR}}/bin/*
+          path: |
+            ${{github.workspace}}/${{env.BUILD_DIR}}/bin/*
+            ${{github.workspace}}/${{env.BUILD_DIR}}/lib/**/*.fly.h
+            ${{github.workspace}}/${{env.BUILD_DIR}}/lib/*.fly.h
+            ${{github.workspace}}/${{env.BUILD_DIR}}/lib/fly_std_lib.a
           overwrite: true

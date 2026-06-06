@@ -397,12 +397,15 @@ bool Builder::build_target(const std::string& key) {
     bool ok;
 
     if (t->is_lib()) {
-        std::string ext = (t->lib == "dynamic") ? ".so" : ".a";
-        auto out = out_dir() / ("lib" + t->name + ext);
-        std::vector<std::string> extra;
-        if (t->lib == "dynamic") extra.push_back("--shared");
-        else                     extra.push_back("--lib"); // static archive
-        ok = invoke_fly(src.string(), out.string(), extra);
+        if (t->lib == "dynamic" || t->lib == "both") {
+            auto out = out_dir() / ("lib" + t->name + ".so");
+            ok = invoke_fly(src.string(), out.string(), {"--shared"});
+            if (!ok) return false;
+        }
+        if (t->lib != "dynamic") { // "static" or "both"
+            auto out = out_dir() / ("lib" + t->name + ".a");
+            ok = invoke_fly(src.string(), out.string(), {"--lib"});
+        }
     } else {
         ok = invoke_fly(src.string(), (out_dir() / t->name).string());
     }

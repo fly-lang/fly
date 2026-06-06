@@ -28,6 +28,7 @@
 #include "llvm/Support/Program.h"
 
 #include <utility>
+#include <filesystem>
 
 using namespace fly;
 
@@ -304,6 +305,21 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     for (const auto &D : LibDirs) {
         FLY_DEBUG_MSG("Set -L=" << D);
         FrontendOpts->LibDirs.push_back(D);
+    }
+
+    // Auto-discover stdlib relative to the fly binary (<bin_dir>/../lib).
+    // Works in the build tree (build/bin → build/lib, copied by CMake at build time)
+    // and when installed (/usr/local/bin → /usr/local/lib).
+    // Stored in StdLibDir and loaded as .fly source (not .fly.h headers).
+    {
+        namespace fs = std::filesystem;
+        std::error_code ec;
+        auto candidate = fs::canonical(
+            fs::path(Dir) / ".." / "lib", ec);
+        if (!ec && fs::is_directory(candidate)) {
+            FrontendOpts->StdLibDir = candidate.string();
+            CodeGenOpts->RuntimeLibDir = candidate.string();
+        }
     }
 
     // External C libraries to link (--link-lib NAME → -lNAME in linker flags)

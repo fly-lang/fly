@@ -50,8 +50,13 @@ jobs:
 
       - name: Package Linux
         run: |
-          cd linux
-          tar -czvf ../fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }} *
+          mkdir -p bin
+          for f in fly flyp fly-lsp flyp-registry; do
+            [ -f "linux/$f" ] && mv "linux/$f" bin/
+          done
+          mv linux/lib lib
+          chmod +x bin/*
+          tar -czvf fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }} bin/ lib/
 
       - name: Package Windows
         run: |

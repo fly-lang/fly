@@ -263,10 +263,6 @@ target_link_libraries(FlyCompiler
         lldMinGW
         lldWasm)
 
-target_compile_definitions(FlyCompiler PRIVATE
-        FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/std/lib"
-)
-
 target_link_libraries(fly
         FlyCompiler
         FlyLib
@@ -274,6 +270,13 @@ target_link_libraries(fly
 )
 
 set_target_properties(fly PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+        RUNTIME_OUTPUT_DIRECTORY             "${CMAKE_BINARY_DIR}/bin"
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG       "${CMAKE_BINARY_DIR}/bin"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE     "${CMAKE_BINARY_DIR}/bin"
+        RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/bin"
+        RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL  "${CMAKE_BINARY_DIR}/bin"
+)
 
 install(TARGETS fly RUNTIME DESTINATION bin)
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/std/lib/" DESTINATION lib
+        FILES_MATCHING PATTERN "*.fly.h")

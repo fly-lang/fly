@@ -233,7 +233,7 @@ Symbol *Registry::LookupNamedType(llvm::StringRef Name, SymbolTable *Scope) {
 	return CurrentSymbol;
 }
 
-Symbol *Registry::LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope) {
+Symbol *Registry::LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope, bool SuppressError) {
 	const SmallVector<ASTName *, 4> &Names = NamedType.getNames();
 	SymbolTable *CurrentScope = Scope;
 	Symbol *CurrentSymbol = nullptr;
@@ -250,8 +250,8 @@ Symbol *Registry::LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope) {
 		    : CurrentScope->lookupInParents(Name);
 
 		if (!Symbols) {
-			// Error: Symbol not found
-			Diag(NamedType.getLocation(), diag::err_sema_unknown_type) << Helper::Flatten(Names);
+			if (!SuppressError)
+				Diag(NamedType.getLocation(), diag::err_sema_unknown_type) << Helper::Flatten(Names);
 			return nullptr;
 		}
 

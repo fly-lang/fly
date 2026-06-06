@@ -76,7 +76,6 @@ namespace fly {
                             bool preferDotFlyH = false);
 
 #ifdef FLY_LIB_FLY_DIR
-        void LoadStdlibHeaders(ASTBuilder &Builder);
 #endif
 
         void CreateFrontendTimer();

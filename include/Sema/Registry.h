@@ -72,7 +72,7 @@ namespace fly {
 
 		Symbol *LookupNamedType(llvm::StringRef Name, SymbolTable *Scope);
 
-		Symbol *LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope);
+		Symbol *LookupNamedType(ASTNamedType &NamedType, SymbolTable *Scope, bool SuppressError = false);
 
 		Symbol *LookupName(llvm::StringRef Name, SymbolTable *Scope = nullptr);
 

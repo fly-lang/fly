@@ -7,6 +7,13 @@ FetchContent_Declare(googletest
 # Modern approach - FetchContent_MakeAvailable handles everything
 FetchContent_MakeAvailable(googletest)
 
+# Redirect GTest/GMock archives to build/gtest/ instead of build/lib/
+# (googletest's internal_utils.cmake hardcodes CMAKE_BINARY_DIR/lib).
+set_target_properties(gtest gtest_main gmock gmock_main PROPERTIES
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gtest"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/gtest"
+)
+
 # Prevent GoogleTest from overriding our compiler/linker options
 # when building with Visual Studio
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
