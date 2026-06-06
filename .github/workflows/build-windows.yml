@@ -2,6 +2,9 @@ name: Build Windows
 
 on:
   workflow_call:
+    outputs:
+      build_info:
+        value: ${{ jobs.build-windows.outputs.build_info }}
   push:
     paths-ignore:
       - '.github/workflows/**'
@@ -17,6 +20,8 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    outputs:
+      build_info: ${{ steps.info.outputs.build_info }}
 
     steps:
       - uses: actions/checkout@v4
@@ -44,6 +49,14 @@ jobs:
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}
         run: ctest -C ${{env.BUILD_TYPE}} --output-on-failure
 
+      - name: Capture build info
+        id: info
+        shell: pwsh
+        run: |
+          $os = (Get-CimInstance Win32_OperatingSystem).Caption
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationVersion
+          echo "build_info=$os, MSVC $vs" >> $env:GITHUB_OUTPUT
+
       - name: Set artifact name
         id: artifact
         shell: bash
@@ -51,12 +64,18 @@ jobs:
           BRANCH="${{ github.ref_name }}"
           echo "artifact_name=windows-artifact-${BRANCH//\//-}" >> $GITHUB_OUTPUT
 
+      - name: Stage release artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist\bin, dist\lib | Out-Null
+          Copy-Item ${{env.BUILD_DIR}}\bin\* dist\bin\ -ErrorAction SilentlyContinue
+          Copy-Item -Recurse ${{env.BUILD_DIR}}\lib\. dist\lib\
+          Get-ChildItem dist\lib -Recurse -File |
+            Where-Object { $_.Extension -ne '.fly.h' -and $_.Name -ne 'fly_std_lib.lib' } |
+            Remove-Item -Force
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact.outputs.artifact_name }}
-          path: |
-            ${{github.workspace}}\${{env.BUILD_DIR}}\bin\${{env.BUILD_TYPE}}\*
-            ${{github.workspace}}\${{env.BUILD_DIR}}\lib\**\*.fly.h
-            ${{github.workspace}}\${{env.BUILD_DIR}}\lib\*.fly.h
-            ${{github.workspace}}\${{env.BUILD_DIR}}\lib\fly_std_lib.lib
+          path: dist/
           overwrite: true

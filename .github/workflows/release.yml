@@ -50,14 +50,8 @@ jobs:
 
       - name: Package Linux
         run: |
-          mkdir -p bin
-          for f in fly flyp fly-lsp flyp-registry; do
-            [ -f "linux/$f" ] && mv "linux/$f" bin/
-          done
-          mv linux/lib lib
-          chmod +x bin/*
-          tar -czvf fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }} bin/ lib/
-
+          chmod +x linux/bin/*
+          tar -czvf fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }} -C linux bin/ lib/
       - name: Package Windows
         run: |
           cd windows
@@ -83,7 +77,7 @@ jobs:
             Fly ${{ steps.version.outputs.version }} Release
 
             Built and tested on:
-            - Linux (Ubuntu)
-            - Windows
+            - Linux: ${{ needs.build-linux.outputs.build_info }}
+            - Windows: ${{ needs.build-windows.outputs.build_info }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
