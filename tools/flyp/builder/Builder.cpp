@@ -415,6 +415,15 @@ bool Builder::build_target(const std::string& key) {
 }
 
 bool Builder::run_tests(const std::string& suite_filter) {
+    // Build lib targets first with the same profile (Cargo/Maven model).
+    // is_test_ = false makes out_dir() return target/<profile>/ so
+    // the produced .a lands where project_lib_inputs() will look for it.
+    is_test_ = false;
+    for (const auto& t : manifest_.targets) {
+        if (!t.is_lib()) continue;
+        if (!build_target(t.key)) return false;
+    }
+
     is_test_ = true;
     std::filesystem::create_directories(out_dir());
 
