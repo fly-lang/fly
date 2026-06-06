@@ -106,7 +106,16 @@ static std::string funcSignatureStr(const ASTFunction *F) {
 // as declaration-only stubs because monomorphization requires the full method
 // bodies.  Callers must ensure the .fly source is available in the lib dir so
 // LoadLibHeaders falls through to load it directly.
-static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags) {
+static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags,
+                                   llvm::StringRef OutDir = "") {
+    // When OutDir is set (--lib / --shared), write the header flat into OutDir
+    // so it lands alongside the archive rather than next to the source file.
+    auto makeHeaderPath = [&](llvm::StringRef stem) -> std::string {
+        if (OutDir.empty())
+            return stem.str() + ".fly.h";
+        return (OutDir + "/" + llvm::sys::path::filename(stem) + ".fly.h").str();
+    };
+
     // For modules with generic classes the header IS the full source:
     // ParseHeader skips import statements and detects <T> to force
     // SkipBodies=false, so monomorphization gets the complete method bodies.
@@ -119,7 +128,7 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags) {
     }
     if (hasGenericClasses) {
         std::string SourcePath = M->getName() + ".fly";
-        std::string HeaderPath = M->getName() + ".fly.h";
+        std::string HeaderPath = makeHeaderPath(M->getName());
         auto MBOrErr = llvm::MemoryBuffer::getFile(SourcePath);
         if (!MBOrErr) return "";
         std::error_code EC;
@@ -129,8 +138,8 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags) {
         return HeaderPath;
     }
 
-    // Derive header path: <source>.fly → <source>.fly.h
-    std::string HeaderPath = M->getName() + ".fly.h";
+    // Derive header path: <source>.fly → <source>.fly.h (or OutDir/<stem>.fly.h)
+    std::string HeaderPath = makeHeaderPath(M->getName());
 
     std::error_code EC;
     llvm::raw_fd_ostream OS(HeaderPath, EC, llvm::sys::fs::OF_Text);
@@ -362,8 +371,14 @@ bool Frontend::Execute() {
 
         // Generate .fly.h headers for each non-header module when --lib/--header is set.
         if (CI.getFrontendOptions().CreateHeader) {
+            std::string OutDir;
+            if (CI.getFrontendOptions().CreateLibrary ||
+                CI.getFrontendOptions().CreateSharedLib) {
+                OutDir = llvm::sys::path::parent_path(
+                             CI.getFrontendOptions().getOutputFile()).str();
+            }
             for (auto *SM : CompilableModules) {
-                std::string HPath = GenerateHeader(&SM->getAST(), Diags);
+                std::string HPath = GenerateHeader(&SM->getAST(), Diags, OutDir);
                 if (!HPath.empty())
                     OutputFiles.push_back(HPath);
             }

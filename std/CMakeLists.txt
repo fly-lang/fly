@@ -49,53 +49,17 @@
 
 add_library(FlyLib INTERFACE)
 
-# ── Copy .fly.h headers to build/lib/ at build time ──────────────────────────
+# ── Derive the .fly.h output paths produced by fly --lib ─────────────────────
 #
-# One add_custom_command per file so CMake tracks individual source→dest
-# dependencies: re-copying only when the source header changes.
-
-set(FLY_H_HEADERS_REL
-    assert.fly.h
-    bridge/clang.fly.h
-    data/deque.fly.h
-    data/list.fly.h
-    data/map.fly.h
-    data/queue.fly.h
-    data/set.fly.h
-    data/stack.fly.h
-    data/tree.fly.h
-    data/wrapper.fly.h
-    math.fly.h
-    mem.fly.h
-    os/env.fly.h
-    os/fs.fly.h
-    os/io.fly.h
-    os/path.fly.h
-    os/time.fly.h
-    str.fly.h
-    sync.fly.h
-    # llvm.fly.h and runtime.fly.h live in runtime/lib/ and are copied by
-    # fly_runtime_lib_headers (runtime/CMakeLists.txt) → FLY_RUNTIME_LIB_HEADERS_DST.
-)
+# fly --lib writes one flat <stem>.fly.h per input source into the output
+# directory (build/lib/).  We declare them here so CMake can track them as
+# outputs of the fly_std_lib command and rebuild when they are missing.
 
 set(FLY_H_HEADERS_DST)
-foreach(H ${FLY_H_HEADERS_REL})
-    set(_SRC "${CMAKE_CURRENT_SOURCE_DIR}/lib/${H}")
-    set(_DST "${CMAKE_BINARY_DIR}/lib/${H}")
-    get_filename_component(_DST_DIR "${_DST}" DIRECTORY)
-
-    add_custom_command(
-        OUTPUT  "${_DST}"
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${_DST_DIR}"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_SRC}" "${_DST}"
-        DEPENDS "${_SRC}"
-        COMMENT "Copying ${H} to build/lib/"
-        VERBATIM
-    )
-    list(APPEND FLY_H_HEADERS_DST "${_DST}")
+foreach(_SRC ${FLY_LIB_SOURCES})
+    get_filename_component(_STEM "${_SRC}" NAME_WE)
+    list(APPEND FLY_H_HEADERS_DST "${CMAKE_BINARY_DIR}/lib/${_STEM}.fly.h")
 endforeach()
-
-add_custom_target(fly_h_headers ALL DEPENDS ${FLY_H_HEADERS_DST})
 
 # ── Fly namespace archive (built by the fly binary) ──────────────────────────
 
@@ -132,11 +96,11 @@ endif()
 # fly_std_lib depends on FLY_H_HEADERS_DST so headers are in build/lib/ before
 # fly tries to load them during stdlib compilation.
 add_custom_command(
-    OUTPUT  ${FLY_LIB_OUTPUT}
+    OUTPUT  ${FLY_LIB_OUTPUT} ${FLY_H_HEADERS_DST}
     COMMAND $<TARGET_FILE:fly>
             --lib -o ${FLY_LIB_STEM}
             ${FLY_LIB_SOURCES}
-    DEPENDS fly ${FLY_LIB_SOURCES} ${FLY_H_HEADERS_DST} fly_runtime_lib_headers
+    DEPENDS fly ${FLY_LIB_SOURCES} fly_runtime_lib_headers
     COMMENT "Compiling Fly standard library namespaces"
     VERBATIM
 )

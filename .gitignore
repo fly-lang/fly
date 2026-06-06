@@ -1,6 +1,5 @@
 /*build*/
 /out
-std/lib/**/*.fly.h
 /.idea
 /.vscode
 /.vs
