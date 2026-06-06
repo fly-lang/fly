@@ -1385,14 +1385,9 @@ std::string ToolChain::GetCompilerRTBuiltinsPath() const {
 
 std::string ToolChain::GetStdLibPath() const {
     FLY_DEBUG_SCOPE("ToolChain", "GetStdLibPath");
-    const llvm::StringRef BaseDir(FLY_STD_LIB_DIR);
-
-    const std::pair<llvm::StringRef, llvm::StringRef> Candidates[] = {
-        {"", "fly_std_lib.a"},
-        {"", "fly_std_lib.lib"},
-    };
-
-    for (auto &[Sub, Name] : Candidates) {
+    const llvm::StringRef BaseDir(CodeGenOpts.RuntimeLibDir);
+    const llvm::StringRef Names[] = {"fly_std_lib.a", "fly_std_lib.lib"};
+    for (auto Name : Names) {
         llvm::SmallString<256> P(BaseDir);
         llvm::sys::path::append(P, Name);
         if (getVFS().exists(P)) {
@@ -1406,22 +1401,14 @@ std::string ToolChain::GetStdLibPath() const {
 
 std::string ToolChain::GetRuntimeLibPath() const {
     FLY_DEBUG_SCOPE("ToolChain", "GetRuntimeLibPath");
-    // Try auto-discovered lib/ dir first (set by Driver at startup from <bin>/../lib),
-    // then fall back to the baked FLY_RUNTIME_LIB_DIR for build-tree usage.
-    const llvm::StringRef Dirs[] = {
-        llvm::StringRef(CodeGenOpts.RuntimeLibDir),
-        llvm::StringRef(FLY_RUNTIME_LIB_DIR),
-    };
+    const llvm::StringRef BaseDir(CodeGenOpts.RuntimeLibDir);
     const llvm::StringRef Names[] = {"fly_runtime_lib.a", "fly_runtime_lib.lib"};
-    for (auto Dir : Dirs) {
-        if (Dir.empty()) continue;
-        for (auto Name : Names) {
-            llvm::SmallString<256> P(Dir);
-            llvm::sys::path::append(P, Name);
-            if (getVFS().exists(P)) {
-                FLY_DEBUG_MSG("Found: " << P);
-                return std::string(P.str());
-            }
+    for (auto Name : Names) {
+        llvm::SmallString<256> P(BaseDir);
+        llvm::sys::path::append(P, Name);
+        if (getVFS().exists(P)) {
+            FLY_DEBUG_MSG("Found: " << P);
+            return std::string(P.str());
         }
     }
     FLY_DEBUG_MSG("Not found");

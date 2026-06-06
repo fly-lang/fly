@@ -145,7 +145,7 @@ public:
   std::string CodeModel;
 
   /// Runtime library directory — auto-discovered at startup by the Driver
-  /// as <fly_bin>/../lib (same as StdLibDir). Falls back to FLY_RUNTIME_LIB_DIR.
+  /// as <fly_bin>/../lib (same as StdLibDir).
   std::string RuntimeLibDir;
 
   /// The filename with path we use for coverage data files. The runtime

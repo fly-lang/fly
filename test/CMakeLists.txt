@@ -55,6 +55,7 @@ add_dependencies(fly_test FlyRuntime)
 
 target_compile_definitions(fly_test PRIVATE
         FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/std/lib"
+        FLY_TEST_LIB_DIR="${CMAKE_BINARY_DIR}/lib"
 )
 
 include(GoogleTest)

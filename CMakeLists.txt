@@ -108,21 +108,13 @@ include_directories(${LLVM_INCLUDE_DIRS})
 # Include Fly headers
 include_directories(include)
 
-# Deterministic output path for the runtime static library.
-# Must be set before add_subdirectory(src) because src/CMakeLists.txt calls
-# configure_file() which bakes FLY_RUNTIME_LIB_DIR into include/Config/Config.h.
 # Extract major version number from FLY_LLVM_VERSION (e.g. "20.1.8" → "20")
 string(REGEX MATCH "^([0-9]+)" FLY_LLVM_VERSION_MAJOR "${FLY_LLVM_VERSION}")
-
-set(FLY_RUNTIME_LIB_DIR "${CMAKE_BINARY_DIR}/lib")
-set(FLY_STD_LIB_DIR     "${CMAKE_BINARY_DIR}/lib")
 
 # Must be called before any add_subdirectory() that contains add_test() calls,
 # otherwise CTestTestfile.cmake is not generated for those subdirectories.
 enable_testing()
 
-# Runtime must be configured before compiler/ so configure_file() in compiler/CMakeLists.txt
-# bakes the correct FLY_RUNTIME_LIB_DIR into include/Config/Config.h.
 add_subdirectory(runtime)
 
 # Add Fly Sources

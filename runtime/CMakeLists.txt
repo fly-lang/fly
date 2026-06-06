@@ -13,9 +13,13 @@ add_library(FlyRuntime STATIC)
 # Place the archive alongside fly_std_lib.a and the .fly.h headers so the
 # entire lib/ directory is the single install unit.
 set_target_properties(FlyRuntime PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
-    OUTPUT_NAME              "fly_runtime_lib"
-    PREFIX                   ""
+    ARCHIVE_OUTPUT_DIRECTORY             "${CMAKE_BINARY_DIR}/lib"
+    ARCHIVE_OUTPUT_DIRECTORY_DEBUG       "${CMAKE_BINARY_DIR}/lib"
+    ARCHIVE_OUTPUT_DIRECTORY_RELEASE     "${CMAKE_BINARY_DIR}/lib"
+    ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/lib"
+    ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL  "${CMAKE_BINARY_DIR}/lib"
+    OUTPUT_NAME                          "fly_runtime_lib"
+    PREFIX                               ""
 )
 
 install(TARGETS FlyRuntime ARCHIVE DESTINATION lib)

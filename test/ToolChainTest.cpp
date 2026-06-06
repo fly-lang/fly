@@ -380,12 +380,10 @@ namespace {
 
 #ifndef _WIN32
     TEST_F(ToolChainTest, GetRuntimeLibPath_ReturnsNonEmptyOnThisBuild) {
-        // libfly_runtime.a is built alongside fly_test in the same cmake build
-        // tree.  FLY_RUNTIME_LIB_DIR is baked into Config.h at configure time,
-        // so this path must exist on the current machine.
+        CGOpts.RuntimeLibDir = FLY_TEST_LIB_DIR;
         ToolChain TC = makeTC("x86_64-linux-gnu");
         std::string P = TC.GetRuntimeLibPath();
-        EXPECT_FALSE(P.empty()) << "FlyRuntime.a not found at FLY_RUNTIME_LIB_DIR";
+        EXPECT_FALSE(P.empty()) << "fly_runtime_lib.a not found in " FLY_TEST_LIB_DIR;
         EXPECT_TRUE(llvm::sys::fs::exists(P)) << "Path returned but file missing: " << P;
     }
 #endif
