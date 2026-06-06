@@ -103,9 +103,9 @@ set_tests_properties(fly_runtime_test PROPERTIES PASS_REGULAR_EXPRESSION "fly ru
 find_program(LLVM_DWARFDUMP        NAMES llvm-dwarfdump llvm-dwarfdump-20 llvm-dwarfdump-19 llvm-dwarfdump-18)
 
 if(MSVC)
-    set(_fly_std_lib "${CMAKE_BINARY_DIR}/std/fly_std_lib.lib")
+    set(_fly_std_lib "${CMAKE_BINARY_DIR}/lib/fly_std_lib.lib")
 else()
-    set(_fly_std_lib "${CMAKE_BINARY_DIR}/std/fly_std_lib.a")
+    set(_fly_std_lib "${CMAKE_BINARY_DIR}/lib/fly_std_lib.a")
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
