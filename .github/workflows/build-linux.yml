@@ -2,6 +2,9 @@ name: Build Linux
 
 on:
   workflow_call:
+    outputs:
+      build_info:
+        value: ${{ jobs.build-linux.outputs.build_info }}
   push:
     paths-ignore:
       - '.github/workflows/**'
@@ -17,6 +20,8 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-latest
+    outputs:
+      build_info: ${{ steps.info.outputs.build_info }}
 
     steps:
       - uses: actions/checkout@v4
@@ -54,6 +59,13 @@ jobs:
               -ex "quit" \
               --args ./fly_test
 
+      - name: Capture build info
+        id: info
+        run: |
+          OS=$(lsb_release -ds)
+          CC=$(cc --version | head -1)
+          echo "build_info=${OS}, ${CC}" >> $GITHUB_OUTPUT
+
       - name: Set artifact name
         id: artifact
         shell: bash
@@ -61,12 +73,15 @@ jobs:
           BRANCH="${{ github.ref_name }}"
           echo "artifact_name=linux-artifact-${BRANCH//\//-}" >> $GITHUB_OUTPUT
 
+      - name: Stage release artifacts
+        run: |
+          mkdir -p dist/bin dist/lib
+          cp ${{env.BUILD_DIR}}/bin/* dist/bin/ 2>/dev/null || true
+          cp -r ${{env.BUILD_DIR}}/lib/. dist/lib/
+          find dist/lib -type f ! \( -name "*.fly.h" -o -name "fly_std_lib.a" \) -delete
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact.outputs.artifact_name }}
-          path: |
-            ${{github.workspace}}/${{env.BUILD_DIR}}/bin/*
-            ${{github.workspace}}/${{env.BUILD_DIR}}/lib/**/*.fly.h
-            ${{github.workspace}}/${{env.BUILD_DIR}}/lib/*.fly.h
-            ${{github.workspace}}/${{env.BUILD_DIR}}/lib/fly_std_lib.a
+          path: dist/
           overwrite: true
