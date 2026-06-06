@@ -54,8 +54,8 @@ jobs:
         shell: pwsh
         run: |
           $os = (Get-CimInstance Win32_OperatingSystem).Caption
-          $cl = (cl.exe /? 2>&1 | Select-String 'Version' | Select-Object -First 1).Line
-          echo "build_info=$os, $cl" >> $env:GITHUB_OUTPUT
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationVersion
+          echo "build_info=$os, MSVC $vs" >> $env:GITHUB_OUTPUT
 
       - name: Set artifact name
         id: artifact
