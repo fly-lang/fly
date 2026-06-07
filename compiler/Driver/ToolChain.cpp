@@ -505,6 +505,11 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     std::string Out = "/out:" + OutFile + ".exe";
     CmdArgs.push_back(Out.c_str());
 
+    // Toolchain LLVM lib dir, auto-discovered as <fly_bin>/../llvm/lib.
+    // Lets native [link] deps (e.g. LLVM-20.lib) resolve without a manual LIB setup.
+    if (!CodeGenOpts.ToolchainLibDir.empty())
+        CmdArgs.push_back("/libpath:" + CodeGenOpts.ToolchainLibDir);
+
     // https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features?view=msvc-170
     CmdArgs.push_back("/defaultlib:libcmt"); // DLL import library for the UCRT.
 
@@ -537,6 +542,23 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     if (getWindowsSDKLibraryPath(WindowsSdkLibPath))
         CmdArgs.push_back("/libpath:" + WindowsSdkLibPath);
 
+    // Propagate every directory in the LIB environment variable as /libpath:.
+    // MSVC link.exe does this automatically; lld-link called via API does not,
+    // so we replicate the behaviour here. This ensures that any .lib file
+    // reachable via LIB (e.g. LLVM-20.lib set by the user or CI) is found.
+    if (const char *LibEnv = std::getenv("LIB")) {
+        std::string LibStr(LibEnv);
+        std::string::size_type Start = 0;
+        while (Start < LibStr.size()) {
+            auto Sep = LibStr.find(';', Start);
+            if (Sep == std::string::npos) Sep = LibStr.size();
+            std::string Dir = LibStr.substr(Start, Sep - Start);
+            if (!Dir.empty())
+                CmdArgs.push_back("/libpath:" + Dir);
+            Start = Sep + 1;
+        }
+    }
+
     // Add Inputs
     for (const std::string& ObjFile : InFiles) {
         FLY_DEBUG_MSG("Input=" << ObjFile);
@@ -553,6 +575,18 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     if (!WinRuntimeLib.empty()) {
         FLY_DEBUG_MSG("RuntimeLib=" << WinRuntimeLib);
         CmdArgs.push_back(WinRuntimeLib.c_str());
+    }
+
+    // External C libraries from --link-lib flags.
+    // On POSIX these arrive as "-lNAME"; lld-link expects "NAME.lib" instead.
+    for (const auto &LibFlag : CodeGenOpts.LinkerOptions) {
+        if (LibFlag.size() > 2 && LibFlag[0] == '-' && LibFlag[1] == 'l') {
+            std::string WinLib = LibFlag.substr(2) + ".lib";
+            FLY_DEBUG_MSG("LinkLib=" << WinLib);
+            CmdArgs.push_back(WinLib);
+        } else {
+            CmdArgs.push_back(LibFlag);
+        }
     }
 
     if (T.getObjectFormat() == llvm::Triple::COFF) {
@@ -713,6 +747,10 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
     CmdArgs.push_back("-o");
     CmdArgs.push_back(OutFile.c_str());
 
+    // Toolchain LLVM lib dir, auto-discovered as <fly_bin>/../llvm/lib.
+    if (!CodeGenOpts.ToolchainLibDir.empty())
+        CmdArgs.push_back("-L" + CodeGenOpts.ToolchainLibDir);
+
     for(const std::string &InFile : InFiles) {
         FLY_DEBUG_MSG("Input=" << InFile);
         CmdArgs.push_back(InFile.c_str());
@@ -747,6 +785,10 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
     FLY_DEBUG_SCOPE_MSG("ToolChain", "LinkLinux", "Out: " + OutFile);
     llvm::SmallVector<std::string, 16> CmdArgs;
     CmdArgs.push_back("ld");
+
+    // Toolchain LLVM lib dir, auto-discovered as <fly_bin>/../llvm/lib.
+    if (!CodeGenOpts.ToolchainLibDir.empty())
+        CmdArgs.push_back("-L" + CodeGenOpts.ToolchainLibDir);
 
 //    switch (T.getArch()) {
 //        default:
@@ -1270,6 +1312,19 @@ SmallVector<std::string, 16> ToolChain::CreatePathList() {
     SmallString<128> UsrLib("/usr/lib");
     if (getVFS().exists(UsrLib))
         PathList.push_back(UsrLib.str().str());
+
+    // /usr/local/lib — FHS standard location (in the default ld.so.conf, so the
+    // runtime loader searches it). The linker must search it too, otherwise a
+    // native dep installed there (e.g. libLLVM-20.so) fails to resolve at link.
+    SmallString<128> UsrLocalLib("/usr/local/lib");
+    if (getVFS().exists(UsrLocalLib))
+        PathList.push_back(UsrLocalLib.str().str());
+
+    // Example: /usr/local/lib/x86_64-linux-gnu
+    SmallString<128> UsrLocalLibArch("/usr/local/lib");
+    llvm::sys::path::append(UsrLocalLibArch, MultiarchTriple);
+    if (getVFS().exists(UsrLocalLibArch))
+        PathList.push_back(UsrLocalLibArch.str().str());
 
     // Example: /lib/x86_64-linux-gnu
     SmallString<128> LibArch("/lib");

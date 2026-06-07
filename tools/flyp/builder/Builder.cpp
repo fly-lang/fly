@@ -74,19 +74,63 @@ std::string resolve_fly_binary() {
     return "fly";
 }
 
+// Resolve the toolchain root relative-to-binary (<flyp_bin_dir>/..).
+// Empty if undeterminable. Used to locate <root>/llvm/{bin,lib} for the test
+// runtime so LLVM-C.dll / libLLVM-20.so are found without a manual PATH setup.
+std::filesystem::path toolchain_root() {
+    std::error_code ec;
+    std::filesystem::path exe;
+#if defined(__linux__)
+    char buf[PATH_MAX];
+    ssize_t n = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+    if (n > 0) { buf[n] = '\0'; exe = buf; }
+#elif defined(__APPLE__)
+    char buf[PATH_MAX];
+    uint32_t sz = sizeof(buf);
+    if (_NSGetExecutablePath(buf, &sz) == 0) {
+        char resolved[PATH_MAX];
+        if (realpath(buf, resolved)) exe = resolved;
+    }
+#elif defined(_WIN32)
+    char buf[MAX_PATH];
+    DWORD n = GetModuleFileNameA(nullptr, buf, MAX_PATH);
+    if (n > 0 && n < MAX_PATH) exe = buf;
+#endif
+    if (exe.empty()) return {};
+    auto home = std::filesystem::canonical(exe.parent_path() / "..", ec);
+    if (ec) return {};
+    return home;
+}
+
 } // anonymous namespace
 
 std::string shell_quote(const std::string& s) {
+#ifdef _WIN32
+    // cmd.exe uses double-quote quoting.
+    std::string out = "\"";
+    for (char c : s) {
+        if (c == '"') out += "\\\"";
+        else          out += c;
+    }
+    return out + "\"";
+#else
     std::string out = "'";
     for (char c : s) {
         if (c == '\'') out += "'\\''";
         else           out += c;
     }
     return out + "'";
+#endif
 }
 
 int run_cmd(const std::string& cmd) {
+#ifdef _WIN32
+    // cmd.exe /C strips the outermost pair of quotes before parsing; wrapping
+    // the whole command lets inner double-quoted paths survive intact.
+    return std::system(("\"" + cmd + "\"").c_str());
+#else
     return std::system(cmd.c_str());
+#endif
 }
 
 Builder::Builder(const Manifest& manifest,
@@ -177,23 +221,29 @@ bool Builder::run_hook(const std::string& cmd, const std::string& phase) const {
     std::cout << "  hook [" << phase << "]: " << cmd << "\n";
     std::cout.flush();
 
-    // Set FLYP_* environment variables for the hook process.
-    auto set_env = [](const std::string& key, const std::string& val) {
+    // Pass FLYP_* variables inline in the shell command so they are scoped to
+    // the child process only — flyp's own environment is never modified.
 #ifdef _WIN32
-        _putenv_s(key.c_str(), val.c_str());
+    // cmd.exe: "set VAR=val && ... && cd /d "dir" && hook_cmd"
+    // Wrap the whole compound command in outer quotes for cmd.exe /C.
+    std::string full_cmd =
+        "\"set FLYP_PROFILE="       + profile_name_              + " && "
+        + "set FLYP_OUT_DIR="       + out_dir().string()          + " && "
+        + "set FLYP_ROOT_DIR="      + manifest_.root_dir.string() + " && "
+        + "set FLYP_TARGET_TRIPLE=" + target_triple_              + " && "
+        + "set FLYP_PACKAGE_NAME="  + manifest_.name              + " && "
+        + "cd /d " + shell_quote(manifest_.root_dir.string())     + " && "
+        + cmd + "\"";
 #else
-        ::setenv(key.c_str(), val.c_str(), 1);
+    // POSIX: "VAR=val VAR2=val2 sh -c 'cd dir && hook_cmd'"
+    std::string full_cmd =
+          "FLYP_PROFILE="       + shell_quote(profile_name_)              + " "
+        + "FLYP_OUT_DIR="       + shell_quote(out_dir().string())          + " "
+        + "FLYP_ROOT_DIR="      + shell_quote(manifest_.root_dir.string()) + " "
+        + "FLYP_TARGET_TRIPLE=" + shell_quote(target_triple_)              + " "
+        + "FLYP_PACKAGE_NAME="  + shell_quote(manifest_.name)              + " "
+        + "cd " + shell_quote(manifest_.root_dir.string()) + " && " + cmd;
 #endif
-    };
-    set_env("FLYP_PROFILE",       profile_name_);
-    set_env("FLYP_OUT_DIR",       out_dir().string());
-    set_env("FLYP_ROOT_DIR",      manifest_.root_dir.string());
-    set_env("FLYP_TARGET_TRIPLE", target_triple_);
-    set_env("FLYP_PACKAGE_NAME",  manifest_.name);
-
-    // Run from the package root directory.
-    std::string full_cmd = "cd " + shell_quote(manifest_.root_dir.string())
-                         + " && " + cmd;
     int rc = std::system(full_cmd.c_str());
     if (rc != 0) {
         std::cerr << "error: hook [" << phase << "] failed (exit " << rc << "): "
@@ -265,7 +315,11 @@ bool Builder::invoke_fly(const std::string& source,
     // Run from out_dir so intermediate .fly.o files land there, not in cwd.
     std::filesystem::create_directories(out_dir());
     std::ostringstream cmd;
+#ifdef _WIN32
+    cmd << "cd /d " << shell_quote(out_dir().string()) << " && ";
+#else
     cmd << "cd " << shell_quote(out_dir().string()) << " && ";
+#endif
     cmd << shell_quote(fly_binary_);
     for (const auto& f : profile_flags())  cmd << " " << shell_quote(f);
     for (const auto& i : include_paths())  cmd << " " << shell_quote(i);
@@ -474,6 +528,11 @@ bool Builder::run_tests(const std::string& suite_filter) {
     }
 
     bool ok = true;
+    // Toolchain root (relative-to-binary) → runtime lib dir for the test child.
+    // Windows loads LLVM-C.dll from <root>/llvm/bin; Linux from <root>/llvm/lib.
+    // Passed inline, scoped to the child only — flyp's own env is never modified.
+    std::filesystem::path home = toolchain_root();
+
     auto run_suite = [&](const std::filesystem::path& src) -> bool {
         std::string suite_name = src.stem().string();
         if (!filter_suite.empty() && suite_name != filter_suite) return true; // skip
@@ -484,15 +543,34 @@ bool Builder::run_tests(const std::string& suite_filter) {
         if (!invoke_fly(src.string(), out.string(), extra_flags))
             return false;
 
-        // Build environment with filter
-        std::ostringstream cmd;
+        // Compose filter value (if any), passed via FLY_TEST_FILTER.
+        std::string filter_val;
         if (!filter_method.empty()) {
-            std::string filter_val = filter_suite;
-            if (!filter_method.empty()) filter_val += "::" + filter_method;
-            if (!filter_label.empty())  filter_val += "::\"" + filter_label + "\"";
-            cmd << "FLY_TEST_FILTER=" << shell_quote(filter_val) << " ";
+            filter_val = filter_suite;
+            filter_val += "::" + filter_method;
+            if (!filter_label.empty()) filter_val += "::\"" + filter_label + "\"";
         }
+
+        // Build the run command with child-scoped environment (no persistent
+        // env writes, no DLL copy). Per-platform inline-env syntax.
+        std::ostringstream cmd;
+#ifdef _WIN32
+        if (!home.empty()) {
+            auto dllDir = (home / "llvm" / "bin").string();
+            cmd << "set PATH=" << dllDir << ";%PATH% && ";
+        }
+        if (!filter_val.empty())
+            cmd << "set FLY_TEST_FILTER=" << filter_val << " && ";
         cmd << shell_quote(out.string());
+#else
+        if (!home.empty()) {
+            auto soDir = (home / "llvm" / "lib").string();
+            cmd << "LD_LIBRARY_PATH=" << shell_quote(soDir) << ":$LD_LIBRARY_PATH ";
+        }
+        if (!filter_val.empty())
+            cmd << "FLY_TEST_FILTER=" << shell_quote(filter_val) << " ";
+        cmd << shell_quote(out.string());
+#endif
 
         std::cout << "  running " << suite_name << "...\n";
         int rc = run_cmd(cmd.str());
