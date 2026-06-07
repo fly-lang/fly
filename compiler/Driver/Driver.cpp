@@ -307,19 +307,37 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         FrontendOpts->LibDirs.push_back(D);
     }
 
-    // Auto-discover stdlib relative to the fly binary (<bin_dir>/../lib).
-    // Works in the build tree (build/bin → build/lib, copied by CMake at build time)
-    // and when installed (/usr/local/bin → /usr/local/lib).
-    // Stored in StdLibDir and loaded as .fly source (not .fly.h headers).
+    // Auto-discover the toolchain libraries (relative-to-binary).
+    //   <bin>/../lib      → std lib + runtime lib (.fly.h headers and archives)
+    //   <bin>/../llvm/lib → LLVM import/static libs for the linker
+    // Works zero-config in the build tree (build/bin → build/{lib,llvm/lib}) and
+    // in a standard install (/usr/local/bin → /usr/local/{lib,...}).
+    // If <bin>/../lib yields nothing, fall back to $FLY_LIB_PATH for the std lib.
     {
         namespace fs = std::filesystem;
         std::error_code ec;
-        auto candidate = fs::canonical(
-            fs::path(Dir) / ".." / "lib", ec);
-        if (!ec && fs::is_directory(candidate)) {
-            FrontendOpts->StdLibDir = candidate.string();
-            CodeGenOpts->RuntimeLibDir = candidate.string();
+
+        // Std/runtime lib dir: relative-to-binary first, then $FLY_LIB_PATH.
+        fs::path libDir = fs::canonical(fs::path(Dir) / ".." / "lib", ec);
+        if (ec || !fs::is_directory(libDir)) {
+            libDir.clear();
+            if (const char *EnvLib = std::getenv("FLY_LIB_PATH")) {
+                if (*EnvLib) {
+                    fs::path candidate = fs::canonical(EnvLib, ec);
+                    if (!ec && fs::is_directory(candidate))
+                        libDir = candidate;
+                }
+            }
         }
+        if (!libDir.empty()) {
+            FrontendOpts->StdLibDir = libDir.string();
+            CodeGenOpts->RuntimeLibDir = libDir.string();
+        }
+
+        // LLVM toolchain lib dir: relative-to-binary only.
+        fs::path llvmLibDir = fs::canonical(fs::path(Dir) / ".." / "llvm" / "lib", ec);
+        if (!ec && fs::is_directory(llvmLibDir))
+            CodeGenOpts->ToolchainLibDir = llvmLibDir.string();
     }
 
     // External C libraries to link (--link-lib NAME → -lNAME in linker flags)

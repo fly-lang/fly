@@ -148,6 +148,12 @@ public:
   /// as <fly_bin>/../lib (same as StdLibDir).
   std::string RuntimeLibDir;
 
+  /// Toolchain library directory (LLVM import/static libs: LLVM-20.lib,
+  /// LLVM-C.lib, …) — auto-discovered by the Driver as <fly_bin>/../llvm/lib
+  /// (relative-to-binary). Added to the linker search path so native deps
+  /// declared in [link] resolve without a manual LIB setup.
+  std::string ToolchainLibDir;
+
   /// The filename with path we use for coverage data files. The runtime
   /// allows further manipulation with the GCOV_PREFIX and GCOV_PREFIX_STRIP
   /// environment variables.

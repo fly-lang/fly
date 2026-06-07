@@ -13,6 +13,9 @@ Cache::Cache() {
         root_ = std::filesystem::path(home) / "cache";
     } else {
         const char* h = std::getenv("HOME");
+#ifdef _WIN32
+        if (!h || !*h) h = std::getenv("USERPROFILE");
+#endif
         if (!h || !*h) throw std::runtime_error("$HOME not set; set $FLYP_HOME");
         root_ = std::filesystem::path(h) / ".flyp" / "cache";
     }
