@@ -69,10 +69,14 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force dist\bin, dist\lib | Out-Null
           Copy-Item ${{env.BUILD_DIR}}\bin\* dist\bin\ -ErrorAction SilentlyContinue
-          Copy-Item -Recurse ${{env.BUILD_DIR}}\lib\. dist\lib\
-          Get-ChildItem dist\lib -Recurse -File |
-            Where-Object { $_.Extension -ne '.fly.h' -and $_.Name -ne 'fly_std_lib.lib' -and $_.Name -ne 'fly_runtime_lib.lib' } |
-            Remove-Item -Force
+          # Copy only the std-lib headers and archives, flat into dist\lib.
+          # NB: PowerShell's $_.Extension on "clang.fly.h" is ".h", not ".fly.h",
+          # so match on the full Name with -like '*.fly.h'. Copying the selected
+          # files (not the whole dir) also avoids the build\lib\. → dist\lib\lib
+          # nesting gotcha.
+          Get-ChildItem ${{env.BUILD_DIR}}\lib -Recurse -File |
+            Where-Object { $_.Name -like '*.fly.h' -or $_.Name -eq 'fly_std_lib.lib' -or $_.Name -eq 'fly_runtime_lib.lib' } |
+            Copy-Item -Destination dist\lib\ -Force
 
       - uses: actions/upload-artifact@v4
         with:
