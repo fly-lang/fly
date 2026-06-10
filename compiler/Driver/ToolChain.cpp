@@ -513,6 +513,15 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     // https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-library-features?view=msvc-170
     CmdArgs.push_back("/defaultlib:libcmt"); // DLL import library for the UCRT.
 
+    // The Fly runtime's Windows threading (runtime/platform/Windows/Thread.c) calls
+    // the WaitOnAddress / WakeByAddressSingle / WakeByAddressAll futex APIs directly.
+    // Their import library is synchronization.lib (resolved via the Windows SDK 'um'
+    // libpath added below). The runtime is C with hand-rolled declarations (Win32.h),
+    // so its objects carry no #pragma comment(lib) directive and lld-link will not
+    // auto-link it — link it explicitly. Mirrors runtime/CMakeLists.txt.
+    CmdArgs.push_back("/defaultlib:synchronization");
+    CmdArgs.push_back("/defaultlib:kernel32");
+
     // Check the environment first, since that's probably the user telling us
     // what they want to use.
     // Failing that, just try to find the newest Visual Studio version we can
