@@ -66,6 +66,19 @@ namespace {
             return llvm::sys::fs::exists(Path);
         }
 
+        // Platform artifact suffixes the ToolChain appends to auto-named outputs:
+        // executables get ".exe" and static libraries ".lib" on Windows (MSVC),
+        // ".a" / no suffix elsewhere. Tests must check the platform-correct name.
+#ifdef _WIN32
+        static constexpr const char *ExeExt = ".exe";
+        static constexpr const char *LibExt = ".lib";
+#else
+        static constexpr const char *ExeExt = "";
+        static constexpr const char *LibExt = ".a";
+#endif
+        static std::string exeName(const std::string &Stem) { return Stem + ExeExt; }
+        static std::string libName(const std::string &Stem) { return Stem + LibExt; }
+
         ~SingleFileBuildTest() override {
             for (const auto &P : Cleanup)
                 llvm::sys::fs::remove(P);
@@ -131,7 +144,7 @@ namespace {
     // No main, no suite → static library + header, auto-named from the file stem.
     TEST_F(SingleFileBuildTest, AutoDetectLibraryWhenNoMainNoSuite) {
         writeFile("sfb_lib.fly", "namespace demo\npublic int answer() { out = 42 }\n");
-        track("sfb_lib.a");
+        track(libName("sfb_lib"));
         track("sfb_lib.fly.h");
         const char *argv[] = {"fly", "sfb_lib.fly"};
         Driver drv(argv);
@@ -143,14 +156,14 @@ namespace {
         EXPECT_TRUE(CI.getFrontendOptions().CreateHeader);
         EXPECT_FALSE(CI.getCodeGenOptions().TestMode);
         EXPECT_EQ(CI.getFrontendOptions().getOutputFile(), "sfb_lib");
-        EXPECT_TRUE(exists("sfb_lib.a"));
+        EXPECT_TRUE(exists(libName("sfb_lib")));
         EXPECT_TRUE(exists("sfb_lib.fly.h"));
     }
 
     // void main() and no library flag → executable, auto-named, not test mode.
     TEST_F(SingleFileBuildTest, AutoDetectExecutableFromMain) {
         writeFile("sfb_exe.fly", "namespace demo\nvoid main() {}\n");
-        track("sfb_exe");
+        track(exeName("sfb_exe"));
         track("sfb_exe.fly.o"); // intermediate object (kept on the exe/test path)
         const char *argv[] = {"fly", "sfb_exe.fly"};
         Driver drv(argv);
@@ -161,13 +174,13 @@ namespace {
         EXPECT_FALSE(CI.getFrontendOptions().CreateLibrary);
         EXPECT_FALSE(CI.getCodeGenOptions().TestMode);
         EXPECT_EQ(CI.getFrontendOptions().getOutputFile(), "sfb_exe");
-        EXPECT_TRUE(exists("sfb_exe"));
+        EXPECT_TRUE(exists(exeName("sfb_exe")));
     }
 
     // --lib forces a library even when a main() exists (no executable produced).
     TEST_F(SingleFileBuildTest, LibFlagOverridesMain) {
         writeFile("sfb_ovr.fly", "namespace demo\nvoid main() {}\npublic int v() { out = 1 }\n");
-        track("sfb_ovr.a");
+        track(libName("sfb_ovr"));
         track("sfb_ovr.fly.h");
         const char *argv[] = {"fly", "sfb_ovr.fly", "--lib"};
         Driver drv(argv);
@@ -176,8 +189,8 @@ namespace {
 
         EXPECT_TRUE(ok);
         EXPECT_TRUE(CI.getFrontendOptions().CreateLibrary);
-        EXPECT_TRUE(exists("sfb_ovr.a"));
-        EXPECT_FALSE(exists("sfb_ovr")); // not linked as an executable
+        EXPECT_TRUE(exists(libName("sfb_ovr")));
+        EXPECT_FALSE(exists(exeName("sfb_ovr"))); // not linked as an executable
     }
 
     // A suite (test methods named *Test) → test mode is enabled automatically,
@@ -192,7 +205,7 @@ namespace {
                   "        }\n"
                   "    }\n"
                   "}\n");
-        track("sfb_suite");
+        track(exeName("sfb_suite"));
         track("sfb_suite.fly.o");
         const char *argv[] = {"fly", "sfb_suite.fly", "-L", FLY_LIB_FLY_DIR};
         Driver drv(argv);
@@ -207,7 +220,7 @@ namespace {
     // main() + --test → test executable (test mode on, still an executable).
     TEST_F(SingleFileBuildTest, MainPlusTestFlagIsTestMode) {
         writeFile("sfb_maintest.fly", "namespace demo\nvoid main() {}\n");
-        track("sfb_maintest");
+        track(exeName("sfb_maintest"));
         track("sfb_maintest.fly.o");
         const char *argv[] = {"fly", "sfb_maintest.fly", "--test", "-L", FLY_LIB_FLY_DIR};
         Driver drv(argv);
@@ -283,9 +296,9 @@ namespace {
         bool ok = drv.Execute();
 
         EXPECT_TRUE(ok);
-        EXPECT_TRUE(exists(dir + "/sfb_odlib.a"));
+        EXPECT_TRUE(exists(dir + "/" + libName("sfb_odlib")));
         EXPECT_TRUE(exists(dir + "/sfb_odlib.fly.h"));
-        EXPECT_FALSE(exists("sfb_odlib.a"));      // not in the CWD
+        EXPECT_FALSE(exists(libName("sfb_odlib")));  // not in the CWD
         EXPECT_FALSE(exists("sfb_odlib.fly.h"));
     }
 
@@ -300,8 +313,8 @@ namespace {
         bool ok = drv.Execute();
 
         EXPECT_TRUE(ok);
-        EXPECT_TRUE(exists(dir + "/sfb_odexe"));
-        EXPECT_FALSE(exists("sfb_odexe"));
+        EXPECT_TRUE(exists(dir + "/" + exeName("sfb_odexe")));
+        EXPECT_FALSE(exists(exeName("sfb_odexe")));
         EXPECT_FALSE(exists("sfb_odexe.fly.o")); // intermediate also redirected
     }
 
