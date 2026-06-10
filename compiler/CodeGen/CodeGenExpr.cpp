@@ -982,6 +982,27 @@ llvm::Value *CodeGenExpr::GenBinaryCompare(SemaExpr *E1, ASTBinaryKind OperatorK
 	    }
     }
 
+	// Enums are represented as i32 (see CodeGenType::GenType(SemaEnumType)), so
+	// compare their underlying integer values. Without this, enum comparisons
+	// fall through and return nullptr, producing a `br <null>` and a broken
+	// function in the verifier.
+	if (Type1->isEnum() && Type2->isEnum()) {
+		switch (OperatorKind) {
+			case ASTBinaryKind::OP_BINARY_COMPARE_EQ:
+				return Builder->CreateICmpEQ(V1, V2);
+			case ASTBinaryKind::OP_BINARY_COMPARE_NE:
+				return Builder->CreateICmpNE(V1, V2);
+			case ASTBinaryKind::OP_BINARY_COMPARE_GT:
+				return Builder->CreateICmpSGT(V1, V2);
+			case ASTBinaryKind::OP_BINARY_COMPARE_GTE:
+				return Builder->CreateICmpSGE(V1, V2);
+			case ASTBinaryKind::OP_BINARY_COMPARE_LT:
+				return Builder->CreateICmpSLT(V1, V2);
+			case ASTBinaryKind::OP_BINARY_COMPARE_LTE:
+				return Builder->CreateICmpSLE(V1, V2);
+		}
+	}
+
 	if (Type1->isInteger() && Type2->isInteger()) {
 		SemaIntType *IntType1 = static_cast<SemaIntType *>(E1->getType());
 		SemaIntType *IntType2 = static_cast<SemaIntType *>(E2->getType());

@@ -13,6 +13,7 @@
 #include "AST/ASTBuilder.h"
 #include "AST/ASTClass.h"
 #include "AST/ASTFunction.h"
+#include "AST/ASTImport.h"
 #include "AST/ASTMethod.h"
 #include "AST/ASTModifier.h"
 #include "AST/ASTModule.h"
@@ -32,7 +33,9 @@
 #include "Sema/SemaContext.h"
 #include "Sema/SemaModule.h"
 
+#include <fstream>
 #include <iostream>
+#include <map>
 #include <llvm/ADT/Statistic.h>
 #include <llvm/ADT/StringSet.h>
 #include <llvm/Support/FileSystem.h>
@@ -320,9 +323,31 @@ bool Frontend::Execute() {
     for (const auto &Dir : CI.getFrontendOptions().LibDirs)
         LoadLibHeaders(*Builder, Dir, /*preferDotFlyH=*/true);
 
-    for (auto &FileName: CI.getFrontendOptions().getInputFiles()) {
+    const auto &AllInputs = CI.getFrontendOptions().getInputFiles();
+
+    // Parse the entry file (first input) before auto-detection / dep-resolution.
+    {
         Diags.getClient()->BeginSourceFile();
-        ParseFile(*Builder, FileName);
+        ParseFile(*Builder, AllInputs[0]);
+        Diags.getClient()->EndSourceFile();
+    }
+
+    // Auto-detect output type from the entry file's AST (single-file build with no
+    // --lib/--shared). May set CreateLibrary/TestMode and auto-name the output.
+    if (CI.getFrontendOptions().AutoDetectOutput && !ASTModules.empty())
+        AutoDetectOutputType(ASTModules.back());
+
+    // Resolve import-based source dependencies ONLY when --src-dir is given. This is
+    // a deliberate opt-in: dependency pulling is never implicit, so explicit/per-file
+    // invocations (e.g. flyp's single-source per-target builds) compile exactly the
+    // sources they were handed, and the user keeps full control over composition.
+    if (!CI.getFrontendOptions().SrcDirs.empty())
+        ResolveSourceDeps(*Builder);
+
+    // Parse remaining explicit input files (multi-file CLI mode, unchanged).
+    for (size_t i = 1; i < AllInputs.size(); ++i) {
+        Diags.getClient()->BeginSourceFile();
+        ParseFile(*Builder, AllInputs[i]);
         Diags.getClient()->EndSourceFile();
     }
 
@@ -351,7 +376,11 @@ bool Frontend::Execute() {
         for (auto *SM : SemaModules)
             if (!SM->getAST().isHeader())
                 CompilableModules.push_back(SM);
-        llvm::SmallVector<llvm::Module *, 8> Modules = CG.GenerateModules(CompilableModules);
+        // A single explicit -o output means a single linked artifact (lib/shared/exe):
+        // lower all input files into one module so cross-file references resolve.
+        // Without -o, each file is emitted to its own .ll/.bc/.s/.o.
+        bool SingleModule = !CI.getFrontendOptions().getOutputFile().empty();
+        llvm::SmallVector<llvm::Module *, 8> Modules = CG.GenerateModules(CompilableModules, SingleModule);
 
         // Emit code base on BackendActionKind
         for (auto M : Modules) {
@@ -376,6 +405,11 @@ bool Frontend::Execute() {
                 CI.getFrontendOptions().CreateSharedLib) {
                 OutDir = llvm::sys::path::parent_path(
                              CI.getFrontendOptions().getOutputFile()).str();
+                // Output archive sits in the CWD (e.g. auto-named "Parser.a" or
+                // "-o foo.a"): keep the headers alongside it rather than scattering
+                // them next to each source file.
+                if (OutDir.empty())
+                    OutDir = ".";
             }
             for (auto *SM : CompilableModules) {
                 std::string HPath = GenerateHeader(&SM->getAST(), Diags, OutDir);
@@ -443,6 +477,141 @@ bool Frontend::Execute() {
     delete S;
 
     return !CI.getDiagnostics().getClient()->getNumErrors();
+}
+
+void Frontend::AutoDetectOutputType(ASTModule *M) {
+    FLY_DEBUG_SCOPE("Frontend", "AutoDetectOutputType");
+    bool hasMain = false, hasSuite = false;
+    for (ASTNode *N : M->getNodes()) {
+        if (N->getKind() == ASTKind::AST_FUNCTION) {
+            auto *F = static_cast<ASTFunction *>(N);
+            if (F->getName() == "main") hasMain = true;
+        } else if (N->getKind() == ASTKind::AST_CLASS) {
+            auto *C = static_cast<ASTClass *>(N);
+            if (C->getClassKind() == ASTClassKind::SUITE) hasSuite = true;
+        }
+    }
+
+    FrontendOptions &FO = CI.getFrontendOptions();
+    bool testMode = CI.getCodeGenOptions().TestMode; // set by --test flag
+    bool hasOutput = !FO.getOutputFile().empty();
+    std::string stem = llvm::sys::path::stem(
+        llvm::sys::path::filename(FO.getInputFiles()[0])).str();
+
+    // Forced library (--lib/--shared): keep the library behaviour set by the Driver,
+    // even when a main() is present. Only auto-name the output (ToolChain appends the
+    // platform extension: .a/.lib for static, .so/.dylib/.dll for shared).
+    if (FO.CreateLibrary || FO.CreateSharedLib) {
+        if (!hasOutput) FO.setOutputFile(stem, /*isLib=*/true);
+        FLY_DEBUG_MSG("Forced library output '" << stem << "'");
+        return;
+    }
+
+    // Precedence: (suite | (main & --test)) → test exe; main → exe; else → lib.
+    if (hasSuite || (hasMain && testMode)) {
+        // Test executable: TestMode drives implicit main() generation when only a
+        // suite is present; an explicit main() runs its test {} blocks.
+        CI.getCodeGenOptions().TestMode = true;
+        if (!hasOutput) FO.setOutputFile(stem);
+        FLY_DEBUG_MSG("Auto-detected: test executable '" << stem << "'");
+    } else if (hasMain) {
+        // Plain executable.
+        if (!hasOutput) FO.setOutputFile(stem);
+        FLY_DEBUG_MSG("Auto-detected: executable '" << stem << "'");
+    } else {
+        // No main, no suite → static library + header.
+        FO.CreateLibrary = true;
+        FO.CreateHeader  = true;
+        if (!hasOutput) FO.setOutputFile(stem, /*isLib=*/true);
+        FLY_DEBUG_MSG("Auto-detected: static library '" << stem << "'");
+    }
+}
+
+// Extract "namespace foo.bar" from the first non-comment, non-blank line of a file.
+static std::string extractFileNamespace(const std::string &FilePath) {
+    std::ifstream f(FilePath);
+    std::string line;
+    while (std::getline(f, line)) {
+        size_t s = line.find_first_not_of(" \t");
+        if (s == std::string::npos) continue;
+        line = line.substr(s);
+        if (line.empty() || line[0] == '/' || line[0] == '*') continue;
+        if (line.size() >= 9 && line.substr(0, 9) == "namespace") {
+            size_t ns = line.find_first_not_of(" \t", 9);
+            if (ns != std::string::npos) {
+                size_t end = line.find_first_of(" \t\r\n", ns);
+                return line.substr(ns, end == std::string::npos ? end : end - ns);
+            }
+        }
+        break;
+    }
+    return "";
+}
+
+// Reconstruct "fly.compiler" from an ASTImport's Names vector.
+static std::string importNamespace(const ASTImport *Imp) {
+    std::string ns;
+    for (const auto *N : Imp->getNames()) {
+        if (!ns.empty()) ns += ".";
+        ns += N->getName().str();
+    }
+    return ns;
+}
+
+void Frontend::ResolveSourceDeps(ASTBuilder &Builder) {
+    FLY_DEBUG_SCOPE("Frontend", "ResolveSourceDeps");
+    FrontendOptions &FO = CI.getFrontendOptions();
+
+    // Collect source search dirs: explicit --src-dir, or the entry file's parent dir.
+    llvm::SmallVector<std::string, 4> Dirs = FO.SrcDirs;
+    if (Dirs.empty()) {
+        std::string parent = llvm::sys::path::parent_path(FO.getInputFiles()[0]).str();
+        Dirs.push_back(parent.empty() ? "." : parent);
+    }
+
+    // Build namespace → [path] map from all .fly files in the source dirs.
+    std::map<std::string, std::vector<std::string>> NsToFiles;
+    llvm::StringSet<> KnownFiles; // files already parsed (entry + headers)
+    for (const auto *M : ASTModules)
+        KnownFiles.insert(llvm::sys::path::filename(M->getFile()->getFileName()));
+
+    std::error_code EC;
+    for (const auto &Dir : Dirs) {
+        for (llvm::sys::fs::recursive_directory_iterator I(Dir, EC), E;
+             I != E && !EC; I.increment(EC)) {
+            const std::string &Path = I->path();
+            llvm::StringRef PathRef(Path);
+            if (!PathRef.ends_with(".fly") || PathRef.ends_with(".fly.h")) continue;
+            if (KnownFiles.count(llvm::sys::path::filename(Path))) continue;
+            std::string ns = extractFileNamespace(Path);
+            if (!ns.empty()) NsToFiles[ns].push_back(Path);
+        }
+    }
+
+    // BFS: for each parsed module, resolve its imports to source files and parse them.
+    // ParseFile appends to ASTModules, so newly added modules are visited in turn.
+    size_t i = 0;
+    while (i < ASTModules.size()) {
+        ASTModule *M = ASTModules[i++];
+        for (ASTNode *N : M->getNodes()) {
+            if (N->getKind() != ASTKind::AST_IMPORT) continue;
+            auto *Imp = static_cast<ASTImport *>(N);
+            std::string ns = importNamespace(Imp);
+            auto it = NsToFiles.find(ns);
+            if (it == NsToFiles.end()) continue;
+            for (const auto &Path : it->second) {
+                llvm::StringRef Fname = llvm::sys::path::filename(Path);
+                if (KnownFiles.count(Fname)) continue;
+                KnownFiles.insert(Fname);
+                FLY_DEBUG_MSG("Resolved import '" << ns << "' → " << Path);
+                Diags.getClient()->BeginSourceFile();
+                ParseFile(Builder, Path);
+                Diags.getClient()->EndSourceFile();
+            }
+            // Done with this namespace; avoid re-processing it for other modules.
+            NsToFiles.erase(it);
+        }
+    }
 }
 
 /**

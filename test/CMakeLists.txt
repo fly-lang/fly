@@ -11,6 +11,7 @@ add_executable(fly_test
         ToolChainTest.cpp
         ImportLibTest.cpp
         ImportTest.cpp
+        SingleFileBuildTest.cpp
         CodeGen/CodeGenTest.cpp
         CodeGen/CodeGenBaseTest.cpp
         CodeGen/CodeGenErrorTest.cpp
@@ -65,12 +66,12 @@ include(GoogleTest)
 # with -j N.  Unit tests (CodeGen, Parser, …) do no disk I/O and can run freely
 # in parallel.
 set(_fly_integration_filter
-    "AppTest.*:DriverTest.*:ImportLibTest.*:ImportTest.*")
+    "AppTest.*:DriverTest.*:ImportLibTest.*:ImportTest.*:SingleFileBuildTest.*")
 
 # GTest negative-filter syntax: positive*-neg1:neg2:neg3  (single '-' starts the
 # negative section; subsequent patterns are ':'-separated without extra '-').
 set(_fly_unit_filter
-    "*:-AppTest.*:DriverTest.*:ImportLibTest.*:ImportTest.*")
+    "*:-AppTest.*:DriverTest.*:ImportLibTest.*:ImportTest.*:SingleFileBuildTest.*")
 
 gtest_discover_tests(fly_test
     TEST_FILTER  "${_fly_integration_filter}"

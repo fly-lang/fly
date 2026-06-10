@@ -34,6 +34,14 @@ namespace fly {
         /// Each directory is scanned for .fly.h headers (preferDotFlyH=true).
         llvm::SmallVector<std::string, 4> LibDirs;
 
+        /// Source search dirs added via --src-dir. Scanned for .fly files whose
+        /// namespace matches an import when building the dependency graph.
+        llvm::SmallVector<std::string, 4> SrcDirs;
+
+        /// True when a single input file was passed without --lib/--shared:
+        /// the output type is inferred from the parsed AST (main/suite/lib).
+        bool AutoDetectOutput = false;
+
         /// Generate Library
         bool CreateLibrary = false;
 

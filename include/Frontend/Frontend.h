@@ -68,6 +68,19 @@ namespace fly {
 
         void ParseFile(ASTBuilder &Builder, const std::string &FileName);
 
+        /// Infer the output type (executable / test executable / library) from the
+        /// entry module's top-level nodes (presence of main() / suite) and set the
+        /// corresponding FrontendOptions/CodeGenOptions. Auto-names the output file
+        /// from the entry file stem when -o was not given. Only called when
+        /// FrontendOptions::AutoDetectOutput is set.
+        void AutoDetectOutputType(ASTModule *M);
+
+        /// Build the import dependency graph: scan the source search dirs
+        /// (--src-dir, or the entry file's directory by default) for .fly files,
+        /// map each file's namespace, then BFS over parsed modules' imports adding
+        /// every matching source file to the compilation unit.
+        void ResolveSourceDeps(ASTBuilder &Builder);
+
         /// Scan \p Dir recursively for .fly files and parse them as headers
         /// (declarations only), registering their namespaces for import resolution.
         /// If preferDotFlyH is true, .fly.h files take priority over .fly source

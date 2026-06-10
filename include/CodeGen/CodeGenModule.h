@@ -21,6 +21,7 @@
 #include "Sema/SemaVisitor.h"
 #include <Sema/SemaType.h>
 #include <llvm/ADT/DenseMap.h>
+#include <llvm/ADT/SmallPtrSet.h>
 #include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/IRBuilder.h>
 #include <string>
@@ -187,6 +188,13 @@ namespace fly {
 
         SemaModule *CurrentSemaModule = nullptr;
 
+        // The set of SemaModules being lowered into THIS llvm::Module (the input
+        // files of a single `fly` invocation). A class is "external" — emitted as a
+        // declaration only — when its module is NOT in this set (it comes from an
+        // imported library). Without this, compiling several files together would
+        // wrongly treat a class first referenced from a sibling file as external.
+        llvm::SmallPtrSet<const SemaModule *, 8> OwnedModules;
+
     	CodeGenError *CurrentErrorHandler = nullptr;
 
     	llvm::BasicBlock *CurrentHandleBB = nullptr;
@@ -224,6 +232,18 @@ namespace fly {
 
         // SemaVisitor interface implementation
         void visit(SemaModule &Sema) override;
+
+        // Two-phase generation split out of visit(SemaModule) so that several
+        // SemaModules (e.g. multiple input files of the same namespace) can be
+        // lowered into ONE llvm::Module: declare every module's nodes first, then
+        // generate all queued function bodies. Cross-file calls then resolve
+        // intra-module instead of producing bodyless stubs.
+        void GenerateDeclarations(SemaModule &Sema);
+        void GenerateBodies();
+
+        // Register a module as owned by this CGM (local, not an external library).
+        void addOwnedModule(const SemaModule *M) { OwnedModules.insert(M); }
+        bool ownsModule(const SemaModule *M) const { return OwnedModules.contains(M); }
         void visit(SemaNameSpace &Sema) override;
         void visit(SemaImport &Sema) override;
 

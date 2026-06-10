@@ -213,10 +213,52 @@ llvm::LLVMContext &CodeGen::getLLVMCtx() {
     return LLVMCtx;
 }
 
-llvm::SmallVector<llvm::Module *, 8> CodeGen::GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules) {
+llvm::SmallVector<llvm::Module *, 8> CodeGen::GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules,
+                                                             bool SingleModule) {
     FLY_DEBUG_SCOPE("CodeGen", "GenerateModules");
 
 	llvm::SmallVector<llvm::Module *, 8> Modules;
+	if (SemaModules.empty())
+		return Modules;
+
+	// ── Single combined module ──────────────────────────────────────────────
+	// All input files are lowered into ONE llvm::Module so that references across
+	// files (functions/classes/enums of the same namespace) resolve intra-module.
+	// Emitting one module per file would leave a call to a function defined in a
+	// sibling file as a bodyless stub → "Broken function". Used when a single
+	// linked output (-o lib/shared/exe) is requested.
+	if (SingleModule) {
+		// First source filename is the LLVM module identifier (drives
+		// getOutputFileName when no explicit -o is given).
+		llvm::StringRef ModuleId = SemaModules[0]->getAST().getFile()->getFileName();
+		CodeGenModule *CGM = new CodeGenModule(*this, Diags, ModuleId, LLVMCtx, *Target, CodeGenOpts, SM_);
+
+		// Mark every input module as owned (local) so classes referenced across the
+		// input files are not misclassified as external (declaration-only).
+		for (auto &Sema : SemaModules)
+			CGM->addOwnedModule(Sema);
+
+		// Phase 1: declare every module's nodes (queues function bodies).
+		for (auto &Sema : SemaModules) {
+			Diags.getClient()->BeginSourceFile();
+			CGM->GenerateDeclarations(*Sema);
+			Diags.getClient()->EndSourceFile();
+		}
+
+		// Phase 2: generate all queued function bodies, now that every declaration exists.
+		CGM->GenerateBodies();
+		CGM->FinalizeDebugInfo();
+
+		llvm::Module *M = CGM->getModule();
+		CGM->Module = nullptr; // Transfer ownership; CGM no longer owns the Module
+		Modules.push_back(M);
+		delete CGM;
+		return Modules;
+	}
+
+	// ── One module per input file (default) ─────────────────────────────────
+	// Each file is emitted to its own .ll/.bc/.s/.o; cross-file symbols are
+	// resolved later by the linker.
 	llvm::SmallVector<CodeGenModule *, 8> CodeGenModules;
     for (auto &Sema : SemaModules) {
         Diags.getClient()->BeginSourceFile();
@@ -224,6 +266,7 @@ llvm::SmallVector<llvm::Module *, 8> CodeGen::GenerateModules(llvm::SmallVector<
     	// getOutputFileName("main.fly") produces "main.fly.ll" / "main.fly.o" etc.
     	llvm::StringRef ModuleId = Sema->getAST().getFile()->getFileName();
     	CodeGenModule *CGM = new CodeGenModule(*this, Diags, ModuleId, LLVMCtx, *Target, CodeGenOpts, SM_);
+    	CGM->addOwnedModule(Sema);
     	Sema->accept(*CGM);
         CGM->FinalizeDebugInfo();
         Diags.getClient()->EndSourceFile();

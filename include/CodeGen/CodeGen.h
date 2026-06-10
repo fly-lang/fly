@@ -134,7 +134,12 @@ class CodeGen {
         void setSourceManager(SourceManager &SM) { SM_ = &SM; }
         SourceManager *getSourceManager() const { return SM_; }
 
-        llvm::SmallVector<llvm::Module *, 8> GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules);
+        // When SingleModule is true, all input SemaModules are lowered into ONE
+        // llvm::Module (so cross-file references resolve intra-module) — used when a
+        // single linked output (-o lib/exe) is requested. When false, each module is
+        // emitted separately (one .ll/.bc/.s/.o per input file).
+        llvm::SmallVector<llvm::Module *, 8> GenerateModules(llvm::SmallVector<SemaModule *, 8> &SemaModules,
+                                                             bool SingleModule = false);
 };
 }
 
