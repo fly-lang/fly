@@ -411,6 +411,23 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         FLY_DEBUG_MSG("Set --shared: producing shared library with PIC");
     }
 
+    // Auto-detect / auto-name output for the quick single-file CLI mode: one source
+    // file AND no explicit -o. AutoDetectOutputType() infers the type from the AST
+    // (main → exe; suite or main+--test → test exe; otherwise lib) and auto-names the
+    // output. --lib / --shared are still honoured there (they force a library even
+    // with a main); only the auto-naming applies.
+    //
+    // The -o guard is deliberate: every explicit invocation that already knows its
+    // output (notably flyp's per-target builds, which always pass -o + an explicit
+    // type flag) keeps full control and is never reinterpreted here. The emit/no-output
+    // guard keeps --emit-ll/-bc/-as and --no-output from triggering a link step.
+    // Multi-file builds also keep the explicit behaviour.
+    if (InputFiles.size() == 1 && OutputFile.empty()
+        && !EmitLL && !EmitBC && !EmitAS && !NoOutput) {
+        FrontendOpts->AutoDetectOutput = true;
+        FLY_DEBUG_MSG("Set AutoDetectOutput (single input file, no -o, object backend)");
+    }
+
     // Header generator
     if (HeaderGen)
         FrontendOpts->CreateHeader = true;
