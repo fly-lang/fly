@@ -49,6 +49,7 @@ namespace fly {
         std::vector<std::string> LibDirs;
         std::vector<std::string> SrcDirs;   // --src-dir flags: source search paths for import-based dep discovery
         std::vector<std::string> LinkLibs;  // --link-lib flags: external C libs to link (-lNAME)
+        std::string OutDirOpt;              // --out-dir: directory for all generated build outputs
         std::string OutputFile;
         bool OutputLib    = false;
         bool OutputShared = false;

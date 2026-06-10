@@ -38,6 +38,10 @@ namespace fly {
         /// namespace matches an import when building the dependency graph.
         llvm::SmallVector<std::string, 4> SrcDirs;
 
+        /// Directory for all generated build outputs (set via --out-dir). Empty = CWD.
+        /// Relative output paths are written under this dir; absolute paths are unchanged.
+        std::string OutDir;
+
         /// True when a single input file was passed without --lib/--shared:
         /// the output type is inferred from the parsed AST (main/suite/lib).
         bool AutoDetectOutput = false;

@@ -135,6 +135,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     app.add_option("--working-dir", WorkingDir,   "Resolve file paths relative to the specified directory");
     app.add_option("-L",            LibDirs,      "Add <dir> to the library search path for namespace resolution")->allow_extra_args(false);
     app.add_option("--src-dir",     SrcDirs,      "Add <dir> to the source search path for import-based dependency discovery")->allow_extra_args(false);
+    app.add_option("--out-dir",     OutDirOpt,    "Directory for all generated build outputs (created if missing)");
     app.add_option("--link-lib",   LinkLibs,     "Link against external C library NAME (passed as -lNAME to the linker)")->allow_extra_args(false);
 
     // Remaining non-option args become input files.
@@ -312,6 +313,12 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     for (const auto &D : SrcDirs) {
         FLY_DEBUG_MSG("Set --src-dir=" << D);
         FrontendOpts->SrcDirs.push_back(D);
+    }
+
+    // Output directory (--out-dir): all generated build outputs go here.
+    if (!OutDirOpt.empty()) {
+        FLY_DEBUG_MSG("Set --out-dir=" << OutDirOpt);
+        FrontendOpts->OutDir = OutDirOpt;
     }
 
     // Auto-discover stdlib relative to the fly binary (<bin_dir>/../lib).

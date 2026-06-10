@@ -46,6 +46,15 @@
 
 using namespace fly;
 
+// Join a relative output path under OutDir; absolute paths and empty OutDir pass through.
+static std::string underOutDir(llvm::StringRef OutDir, llvm::StringRef Path) {
+    if (OutDir.empty() || Path.empty() || llvm::sys::path::is_absolute(Path))
+        return Path.str();
+    llvm::SmallString<256> P(OutDir);
+    llvm::sys::path::append(P, Path);
+    return std::string(P.str());
+}
+
 // ─── Header generation helpers ───────────────────────────────────────────────
 
 static std::string typeStr(const ASTType *T) {
@@ -337,6 +346,20 @@ bool Frontend::Execute() {
     if (CI.getFrontendOptions().AutoDetectOutput && !ASTModules.empty())
         AutoDetectOutputType(ASTModules.back());
 
+    // --out-dir: create the directory and resolve the final artifact (-o or
+    // auto-named) under it, so ToolChain and the header-dir derivation pick it up.
+    // Done after auto-detect so the auto-named output is redirected too.
+    {
+        const std::string &OutDir = CI.getFrontendOptions().OutDir;
+        if (!OutDir.empty()) {
+            llvm::sys::fs::create_directories(OutDir);
+            std::string Out = CI.getFrontendOptions().getOutputFile();
+            if (!Out.empty())
+                CI.getFrontendOptions().setOutputFile(
+                    underOutDir(OutDir, Out), CI.getFrontendOptions().isOutputLib());
+        }
+    }
+
     // Resolve import-based source dependencies ONLY when --src-dir is given. This is
     // a deliberate opt-in: dependency pulling is never implicit, so explicit/per-file
     // invocations (e.g. flyp's single-source per-target builds) compile exactly the
@@ -383,12 +406,13 @@ bool Frontend::Execute() {
         llvm::SmallVector<llvm::Module *, 8> Modules = CG.GenerateModules(CompilableModules, SingleModule);
 
         // Emit code base on BackendActionKind
+        const std::string &OutDir = CI.getFrontendOptions().OutDir;
         for (auto M : Modules) {
-            // Pass empty OutName: Emit will call getOutputFileName(M->getName())
-            // where M->getName() is the source filename (e.g. "main.fly"),
-            // producing the correct output path (e.g. "main.fly.o" / "main.fly.ll" etc.)
-            std::string OutFile = CG.getOutputFileName(M->getName());
-            CG.Emit(M, "");
+            // M->getName() is the source filename (e.g. "main.fly"); getOutputFileName
+            // turns it into "main.fly.o" / "main.fly.ll" etc. Redirect under --out-dir
+            // when set, and pass the resolved path to Emit so it lands there.
+            std::string OutFile = underOutDir(OutDir, CG.getOutputFileName(M->getName()));
+            CG.Emit(M, OutFile);
             if (!OutFile.empty())
                 OutputFiles.push_back(OutFile);
         }
@@ -400,19 +424,23 @@ bool Frontend::Execute() {
 
         // Generate .fly.h headers for each non-header module when --lib/--header is set.
         if (CI.getFrontendOptions().CreateHeader) {
-            std::string OutDir;
+            std::string HdrDir;
             if (CI.getFrontendOptions().CreateLibrary ||
                 CI.getFrontendOptions().CreateSharedLib) {
-                OutDir = llvm::sys::path::parent_path(
+                HdrDir = llvm::sys::path::parent_path(
                              CI.getFrontendOptions().getOutputFile()).str();
                 // Output archive sits in the CWD (e.g. auto-named "Parser.a" or
                 // "-o foo.a"): keep the headers alongside it rather than scattering
                 // them next to each source file.
-                if (OutDir.empty())
-                    OutDir = ".";
+                if (HdrDir.empty())
+                    HdrDir = ".";
             }
+            // --out-dir wins: it also covers the bare --header (non-lib) case, which
+            // would otherwise write headers next to each source file.
+            if (!OutDir.empty())
+                HdrDir = OutDir;
             for (auto *SM : CompilableModules) {
-                std::string HPath = GenerateHeader(&SM->getAST(), Diags, OutDir);
+                std::string HPath = GenerateHeader(&SM->getAST(), Diags, HdrDir);
                 if (!HPath.empty())
                     OutputFiles.push_back(HPath);
             }

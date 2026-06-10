@@ -70,7 +70,7 @@ namespace {
             for (const auto &P : Cleanup)
                 llvm::sys::fs::remove(P);
             for (const auto &D : CleanupDirs)
-                llvm::sys::fs::remove(D); // only succeeds when empty
+                llvm::sys::fs::remove_directories(D); // recursive: dir may hold artifacts
             llvm::outs().flush();
         }
 
@@ -267,6 +267,77 @@ namespace {
         drv.BuildCompilerInstance();
         // dep.util.helper is unresolved (no source pulled, no header on -L).
         EXPECT_FALSE(drv.Execute());
+    }
+
+    // ── --out-dir: every build artifact lands under the given directory ─────────
+
+    // No main/suite + --out-dir → library archive AND header go into the dir,
+    // nothing is left in the CWD.
+    TEST_F(SingleFileBuildTest, OutDirRedirectsAutoLibrary) {
+        const std::string dir = "sfb_od_lib";
+        CleanupDirs.push_back(dir);
+        writeFile("sfb_odlib.fly", "namespace demo\npublic int answer() { out = 42 }\n");
+        const char *argv[] = {"fly", "sfb_odlib.fly", "--out-dir", dir.c_str()};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        bool ok = drv.Execute();
+
+        EXPECT_TRUE(ok);
+        EXPECT_TRUE(exists(dir + "/sfb_odlib.a"));
+        EXPECT_TRUE(exists(dir + "/sfb_odlib.fly.h"));
+        EXPECT_FALSE(exists("sfb_odlib.a"));      // not in the CWD
+        EXPECT_FALSE(exists("sfb_odlib.fly.h"));
+    }
+
+    // void main() + --out-dir → executable produced inside the dir, not in the CWD.
+    TEST_F(SingleFileBuildTest, OutDirRedirectsExecutable) {
+        const std::string dir = "sfb_od_exe";
+        CleanupDirs.push_back(dir);
+        writeFile("sfb_odexe.fly", "namespace demo\nvoid main() {}\n");
+        const char *argv[] = {"fly", "sfb_odexe.fly", "--out-dir", dir.c_str()};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        bool ok = drv.Execute();
+
+        EXPECT_TRUE(ok);
+        EXPECT_TRUE(exists(dir + "/sfb_odexe"));
+        EXPECT_FALSE(exists("sfb_odexe"));
+        EXPECT_FALSE(exists("sfb_odexe.fly.o")); // intermediate also redirected
+    }
+
+    // Emit backend (--emit-ll) + --out-dir → the .ll lands in the dir, no link step,
+    // and auto-detect stays off (no executable produced).
+    TEST_F(SingleFileBuildTest, OutDirRedirectsEmitLl) {
+        const std::string dir = "sfb_od_ll";
+        CleanupDirs.push_back(dir);
+        writeFile("sfb_odll.fly", "namespace demo\nvoid main() {}\n");
+        const char *argv[] = {"fly", "--emit-ll", "sfb_odll.fly", "--out-dir", dir.c_str()};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        bool ok = drv.Execute();
+
+        EXPECT_TRUE(ok);
+        EXPECT_TRUE(exists(dir + "/sfb_odll.fly.ll"));
+        EXPECT_FALSE(exists("sfb_odll.fly.ll")); // not in the CWD
+        EXPECT_FALSE(exists(dir + "/sfb_odll")); // emit mode never links
+    }
+
+    // Explicit --lib -o foo.a together with --out-dir → the archive is resolved under
+    // the dir (build/foo.a); the per-module header also lands there.
+    TEST_F(SingleFileBuildTest, OutDirWithExplicitOutput) {
+        const std::string dir = "sfb_od_o";
+        CleanupDirs.push_back(dir);
+        writeFile("sfb_odo.fly", "namespace demo\npublic int v() { out = 1 }\n");
+        const char *argv[] = {"fly", "sfb_odo.fly", "--lib", "-o", "foo.a",
+                              "--out-dir", dir.c_str()};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        bool ok = drv.Execute();
+
+        EXPECT_TRUE(ok);
+        EXPECT_TRUE(exists(dir + "/foo.a"));
+        EXPECT_TRUE(exists(dir + "/sfb_odo.fly.h"));
+        EXPECT_FALSE(exists("foo.a"));           // not in the CWD
     }
 
 } // anonymous namespace

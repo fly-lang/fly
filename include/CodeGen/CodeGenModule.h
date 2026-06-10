@@ -20,6 +20,10 @@
 #include "Basic/TargetInfo.h"
 #include "Sema/SemaVisitor.h"
 #include <Sema/SemaType.h>
+// SemaModule must be a complete type here: the OwnedModules member instantiates
+// SmallPtrSet<const SemaModule*, 8>, and MSVC eagerly evaluates alignof(SemaModule)
+// via PointerLikeTypeTraits (a forward declaration fails to build on Windows).
+#include <Sema/SemaModule.h>
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallPtrSet.h>
 #include <llvm/IR/DIBuilder.h>
