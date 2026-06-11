@@ -134,6 +134,8 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     app.add_option("--stats-file",  StatsFile,    "Filename to write statistics to");
     app.add_option("--working-dir", WorkingDir,   "Resolve file paths relative to the specified directory");
     app.add_option("-L",            LibDirs,      "Add <dir> to the library search path for namespace resolution")->allow_extra_args(false);
+    app.add_option("--src-dir",     SrcDirs,      "Add <dir> to the source search path for import-based dependency discovery")->allow_extra_args(false);
+    app.add_option("--out-dir",     OutDirOpt,    "Directory for all generated build outputs (created if missing)");
     app.add_option("--link-lib",   LinkLibs,     "Link against external C library NAME (passed as -lNAME to the linker)")->allow_extra_args(false);
 
     // Remaining non-option args become input files.
@@ -307,37 +309,31 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         FrontendOpts->LibDirs.push_back(D);
     }
 
-    // Auto-discover the toolchain libraries (relative-to-binary).
-    //   <bin>/../lib      → std lib + runtime lib (.fly.h headers and archives)
-    //   <bin>/../llvm/lib → LLVM import/static libs for the linker
-    // Works zero-config in the build tree (build/bin → build/{lib,llvm/lib}) and
-    // in a standard install (/usr/local/bin → /usr/local/{lib,...}).
-    // If <bin>/../lib yields nothing, fall back to $FLY_LIB_PATH for the std lib.
+    // Source search dirs (--src-dir) for import-based dependency discovery
+    for (const auto &D : SrcDirs) {
+        FLY_DEBUG_MSG("Set --src-dir=" << D);
+        FrontendOpts->SrcDirs.push_back(D);
+    }
+
+    // Output directory (--out-dir): all generated build outputs go here.
+    if (!OutDirOpt.empty()) {
+        FLY_DEBUG_MSG("Set --out-dir=" << OutDirOpt);
+        FrontendOpts->OutDir = OutDirOpt;
+    }
+
+    // Auto-discover stdlib relative to the fly binary (<bin_dir>/../lib).
+    // Works in the build tree (build/bin → build/lib, copied by CMake at build time)
+    // and when installed (/usr/local/bin → /usr/local/lib).
+    // Stored in StdLibDir and loaded as .fly source (not .fly.h headers).
     {
         namespace fs = std::filesystem;
         std::error_code ec;
-
-        // Std/runtime lib dir: relative-to-binary first, then $FLY_LIB_PATH.
-        fs::path libDir = fs::canonical(fs::path(Dir) / ".." / "lib", ec);
-        if (ec || !fs::is_directory(libDir)) {
-            libDir.clear();
-            if (const char *EnvLib = std::getenv("FLY_LIB_PATH")) {
-                if (*EnvLib) {
-                    fs::path candidate = fs::canonical(EnvLib, ec);
-                    if (!ec && fs::is_directory(candidate))
-                        libDir = candidate;
-                }
-            }
+        auto candidate = fs::canonical(
+            fs::path(Dir) / ".." / "lib", ec);
+        if (!ec && fs::is_directory(candidate)) {
+            FrontendOpts->StdLibDir = candidate.string();
+            CodeGenOpts->RuntimeLibDir = candidate.string();
         }
-        if (!libDir.empty()) {
-            FrontendOpts->StdLibDir = libDir.string();
-            CodeGenOpts->RuntimeLibDir = libDir.string();
-        }
-
-        // LLVM toolchain lib dir: relative-to-binary only.
-        fs::path llvmLibDir = fs::canonical(fs::path(Dir) / ".." / "llvm" / "lib", ec);
-        if (!ec && fs::is_directory(llvmLibDir))
-            CodeGenOpts->ToolchainLibDir = llvmLibDir.string();
     }
 
     // External C libraries to link (--link-lib NAME → -lNAME in linker flags)
@@ -420,6 +416,23 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         FrontendOpts->BackendAction         = BackendActionKind::Backend_EmitObj;
         FrontendOpts->CreateHeader          = true;
         FLY_DEBUG_MSG("Set --shared: producing shared library with PIC");
+    }
+
+    // Auto-detect / auto-name output for the quick single-file CLI mode: one source
+    // file AND no explicit -o. AutoDetectOutputType() infers the type from the AST
+    // (main → exe; suite or main+--test → test exe; otherwise lib) and auto-names the
+    // output. --lib / --shared are still honoured there (they force a library even
+    // with a main); only the auto-naming applies.
+    //
+    // The -o guard is deliberate: every explicit invocation that already knows its
+    // output (notably flyp's per-target builds, which always pass -o + an explicit
+    // type flag) keeps full control and is never reinterpreted here. The emit/no-output
+    // guard keeps --emit-ll/-bc/-as and --no-output from triggering a link step.
+    // Multi-file builds also keep the explicit behaviour.
+    if (InputFiles.size() == 1 && OutputFile.empty()
+        && !EmitLL && !EmitBC && !EmitAS && !NoOutput) {
+        FrontendOpts->AutoDetectOutput = true;
+        FLY_DEBUG_MSG("Set AutoDetectOutput (single input file, no -o, object backend)");
     }
 
     // Header generator

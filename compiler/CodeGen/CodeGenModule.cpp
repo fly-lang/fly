@@ -303,19 +303,29 @@ llvm::IRBuilder<> *CodeGenModule::getBuilder() const {
 // SemaVisitor interface implementation
 // =============================================================================
 
-void CodeGenModule::visit(SemaModule &Sema) {
-    FLY_DEBUG_SCOPE_MSG("CodeGenModule", "visit(SemaModule)", "Module: " + Sema.getName().str());
+void CodeGenModule::GenerateDeclarations(SemaModule &Sema) {
+    FLY_DEBUG_SCOPE_MSG("CodeGenModule", "GenerateDeclarations", "Module: " + Sema.getName().str());
     CurrentSemaModule = &Sema;
 
-    // Generate all nodes (functions, classes, enums)
+    // Generate all nodes (functions, classes, enums). Function bodies are queued
+    // in Functions and emitted later by GenerateBodies().
     for (auto &Node : Sema.getNodes()) {
         Node->accept(*this);
     }
+}
 
+void CodeGenModule::GenerateBodies() {
+    FLY_DEBUG_SCOPE("CodeGenModule", "GenerateBodies");
     // Generate Function Bodies in a second pass
 	for (auto &FB : Functions) {
 		FB->accept(*this);
 	}
+}
+
+void CodeGenModule::visit(SemaModule &Sema) {
+    FLY_DEBUG_SCOPE_MSG("CodeGenModule", "visit(SemaModule)", "Module: " + Sema.getName().str());
+    GenerateDeclarations(Sema);
+    GenerateBodies();
 }
 
 void CodeGenModule::visit(SemaNameSpace &Sema) {
@@ -412,9 +422,12 @@ void CodeGenModule::visit(SemaClassType &Sema) {
 			return;
 		// Specializations are always generated locally in the using module, even when
 		// the generic template lives in an external library.
+		// External = defined in an imported library, i.e. not one of the input
+		// files compiled into this module. (Checking != CurrentSemaModule alone is
+		// wrong when several files are compiled together: a class first referenced
+		// from a sibling file would be misclassified as external.)
 		bool isExternal = (Sema.getGenericTemplate() == nullptr) &&
-		                  (CurrentSemaModule != nullptr &&
-		                   &Sema.getModule() != CurrentSemaModule);
+		                  !ownsModule(&Sema.getModule());
 		// Two-phase construction: Phase 1 creates the LLVM struct type (constructor),
 		// then setCodeGen() is called so self-referential return type lookups during
 		// Phase 2 (Build()) find the already-constructed CodeGen instead of recursing.

@@ -517,6 +517,13 @@ void Resolver::visit(ASTEnum &AST) {
 
 	// Add Symbol to the current scope
 	addSymbol(Sym);
+
+	// Also register in the namespace scope so qualified type lookups can find the
+	// enum across files (multi-file builds) when CurrentScope is switched to the
+	// namespace symbol table — mirrors visit(ASTClass).
+	if (CurrentNameSpace && CurrentNameSpace != Reg.getDefaultNameSpace()) {
+		CurrentNameSpace->getSymbols()->insert(Sym);
+	}
 }
 
 void Resolver::visit(ASTEnumEntry &AST) {
