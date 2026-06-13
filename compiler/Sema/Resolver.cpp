@@ -83,6 +83,7 @@
 #include <Sema/SemaCall.h>
 #include <Sema/SemaEnumEntry.h>
 #include <Sema/SemaEnumList.h>
+#include <Sema/SemaEnumAccessor.h>
 #include <Sema/SemaFunction.h>
 #include <Sema/SemaLocalVar.h>
 #include <Sema/SemaParam.h>
@@ -363,10 +364,20 @@ void Resolver::visit(ASTMethod &AST) {
 	// Methods are implicitly void - no return type to resolve
 	SmallVector<SemaType *, 8> Types = ResolveParams(AST);
 
-	// Find Method duplication (strict: exact type match, no numeric promotion)
-	if (Reg.LookupFunctionExact(AST.getName(), Types, CurrentClass->getSymbols())) {
-		Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
-		return;
+	// Find Method duplication (strict: exact type match, no numeric promotion).
+	// LookupFunctionExact searches parent scopes too, so it also finds methods
+	// INHERITED from a base class. A same-signature inherited method is a legal
+	// override (tracked below via Sema->Overridden); only a duplicate declared in
+	// THIS class is an error.
+	if (Symbol *Existing = Reg.LookupFunctionExact(AST.getName(), Types, CurrentClass->getSymbols())) {
+		SemaNode *Ref = Existing->getRef();
+		bool DefinedInThisClass = true;
+		if (Ref->getKind() == SemaKind::METHOD)
+			DefinedInThisClass = static_cast<SemaClassMethod *>(Ref)->getClass() == CurrentClass;
+		if (DefinedInThisClass) {
+			Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
+			return;
+		}
 	}
 
 	// Abstract modifier + body is a conflict
@@ -1453,6 +1464,45 @@ void Resolver::visit(ASTMember &AST) {
 	// each generic specialization — the same ASTMember node is shared across specs but
 	// each spec's 'this' and attributes resolve to spec-specific Sema objects.
 
+	// ── super.attribute : read/write an inherited base-class field (non-private) ─────
+	// `super` would not resolve as a normal identifier, so intercept it before the parent
+	// accept. The field is looked up on the immediate base and rooted at this method's
+	// `this`; CodeGen's multi-level navigation reaches the base subobject.
+	if (AST.getParent()->getExprKind() == ASTExprKind::EXPR_IDENTIFIER &&
+	    static_cast<ASTIdentifier *>(AST.getParent())->getName() == "super") {
+		SemaClassMethod *CurMethod = (CurrentFunction && CurrentFunction->getKind() == SemaKind::METHOD)
+			? static_cast<SemaClassMethod *>(CurrentFunction) : nullptr;
+		if (!CurMethod || CurMethod->isStatic()) {
+			Diag(AST.getLocation(), diag::err_sema_super_outside_method);
+			return;
+		}
+		SemaClassType *BaseClass = nullptr;
+		for (auto *B : CurMethod->getClass()->getBaseClasses()) {
+			if (B->getClassKind() == SemaClassKind::CLASS) { BaseClass = B; break; }
+		}
+		if (!BaseClass) {
+			Diag(AST.getLocation(), diag::err_sema_super_no_base) << CurMethod->getClass()->getName();
+			return;
+		}
+		SemaClassAttribute *Attr = BaseClass->LookupAttribute(AST.getName());
+		if (!Attr) {
+			Diag(AST.getLocation(), diag::err_sema_unresolved_identifier) << AST.getName();
+			return;
+		}
+		if (Attr->getVisibility() == SemaVisibilityKind::PRIVATE) {
+			Diag(AST.getLocation(), diag::err_sema_symbol_not_accessible)
+				<< AST.getName() << Attr->getClass().getName();
+			return;
+		}
+		AST.setVisited(true);
+		// Resolve against the attribute's *declaring* class (LookupAttribute traverses the
+		// chain, so the field may live several levels up — its own scope always has it).
+		// Rooted at `this`; CodeGen navigates `this`→declaring base subobject.
+		CurrentExpr = ResolveMemberSymbol(AST, Attr->getClass().getSymbols(), SemaKind::ATTRIBUTE,
+		                                  CurMethod->getThis());
+		return;
+	}
+
 	// Visit parent first and resolve Parent Symbol
 	AST.getParent()->accept(*this);
 
@@ -1507,13 +1557,29 @@ void Resolver::visit(ASTMember &AST) {
 		}
 		if (!Sema) return;
 	} else if (ParentSymbol->getKind() == SymbolKind::ENUM) {
-		SemaEnumType *ParentSema = static_cast<SemaEnumType *>(ParentSymbol->getRef());
-		// Handle built-in enum members
-		if (AST.getName() == "list") {
-			Sema = SemaBuilder::CreateEnumList(ParentSema);
+		// The ENUM symbol kind covers both the enum *type* (e.g. Color) and an
+		// enum *entry* (e.g. Color.RED). Distinguish by the referenced node kind.
+		SemaNode *Ref = ParentSymbol->getRef();
+		if (Ref->getKind() == SemaKind::ENUM_ENTRY) {
+			// Built-in accessors on a literal entry: Color.RED.name / Color.RED.value
+			SemaEnumEntry *Entry = static_cast<SemaEnumEntry *>(Ref);
+			if (AST.getName() == "name" || AST.getName() == "value") {
+				SemaEnumType *EnumType = static_cast<SemaEnumType *>(Entry->getType());
+				Sema = SemaBuilder::CreateEnumAccessor(EnumType, Entry, nullptr,
+				                                       AST.getName() == "name");
+			} else {
+				Diag(AST.getLocation(), diag::err_sema_unresolved_identifier) << AST.getName();
+				return;
+			}
 		} else {
-			Sema = ResolveMemberSymbol(AST, ParentSema->getSymbols(), SemaKind::ENUM_ENTRY);
-			if (!Sema) return;
+			SemaEnumType *ParentSema = static_cast<SemaEnumType *>(Ref);
+			// Handle built-in enum members
+			if (AST.getName() == "list") {
+				Sema = SemaBuilder::CreateEnumList(ParentSema);
+			} else {
+				Sema = ResolveMemberSymbol(AST, ParentSema->getSymbols(), SemaKind::ENUM_ENTRY);
+				if (!Sema) return;
+			}
 		}
 	} else if (ParentSymbol->isVarKind()) {
 		SemaVar *ParentVar = static_cast<SemaVar *>(ParentSymbol->getRef());
@@ -1532,8 +1598,14 @@ void Resolver::visit(ASTMember &AST) {
 			if (!Sema) return;
 		} else if (ParentVar->getType()->isEnum()) {
 			SemaEnumType * EnumType = static_cast<SemaEnumType *>(ParentVar->getType());
-			Sema = ResolveMemberSymbol(AST, EnumType->getSymbols(), SemaKind::ENUM_ENTRY, ParentVar);
-			if (!Sema) return;
+			// Built-in accessors on an enum-typed variable: c.name / c.value
+			if (AST.getName() == "name" || AST.getName() == "value") {
+				Sema = SemaBuilder::CreateEnumAccessor(EnumType, nullptr, ParentVar,
+				                                       AST.getName() == "name");
+			} else {
+				Sema = ResolveMemberSymbol(AST, EnumType->getSymbols(), SemaKind::ENUM_ENTRY, ParentVar);
+				if (!Sema) return;
+			}
 		} else {
 			// Parent is not an object type
 			Diag(diag::err_invalid_behavior);
@@ -1578,6 +1650,84 @@ void Resolver::visit(ASTCall &AST) {
 		// ---------------------------------------
 		Symbol *ParentSymbol = nullptr;
 		SemaExpr *ResolvedParentExpr = nullptr;
+
+		// ── super.method(args) : non-virtual call to the base class's method ───────
+		// The parent `super` would not resolve as a normal identifier, so intercept it
+		// here. A null parent makes CodeGen take the direct (non-virtual) call path; the
+		// multi-level base navigation targets the base subobject as `this`.
+		if (AST.getParent() &&
+		    AST.getParent()->getExprKind() == ASTExprKind::EXPR_IDENTIFIER &&
+		    static_cast<ASTIdentifier *>(AST.getParent())->getName() == "super") {
+
+			SemaClassMethod *CurMethod = (CurrentFunction && CurrentFunction->getKind() == SemaKind::METHOD)
+				? static_cast<SemaClassMethod *>(CurrentFunction) : nullptr;
+			if (!CurMethod || CurMethod->isStatic()) {
+				Diag(AST.getLocation(), diag::err_sema_super_outside_method);
+				CurrentScope = SavedScope;
+				return;
+			}
+			SemaClassType *BaseClass = nullptr;
+			for (auto *B : CurMethod->getClass()->getBaseClasses()) {
+				if (B->getClassKind() == SemaClassKind::CLASS) { BaseClass = B; break; }
+			}
+			if (!BaseClass) {
+				Diag(AST.getLocation(), diag::err_sema_super_no_base) << CurMethod->getClass()->getName();
+				CurrentScope = SavedScope;
+				return;
+			}
+
+			SmallVector<SemaType *, 8> SuperArgTypes = ResolveCallArgs(&AST);
+			Symbol *MSym = Reg.LookupFunction(AST.getName(), SuperArgTypes, BaseClass->getSymbols());
+			if (!MSym || MSym->getRef()->getKind() != SemaKind::METHOD ||
+			    static_cast<SemaClassMethod *>(MSym->getRef())->isConstructor()) {
+				Diag(AST.getLocation(), diag::err_sema_function_not_found) << AST.getName();
+				ResolvedCallArgs.clear();
+				CurrentScope = SavedScope;
+				return;
+			}
+			// MSym (found via the symbol table, which falls through to parent scopes)
+			// gives the matching *signature*, but its ref may be an inherited declaration.
+			// For a non-virtual super call we need the concrete implementation the immediate
+			// base would use: walk the CLASS chain from the base and take the most-derived
+			// override of this name (each class keeps its own override in its Methods map).
+			SemaClassMethod *BaseMethod = nullptr;
+			for (SemaClassType *K = BaseClass; K != nullptr; ) {
+				auto It = K->getMethods().find(AST.getName());
+				if (It != K->getMethods().end()) { BaseMethod = It->second; break; }
+				SemaClassType *Next = nullptr;
+				for (auto *B : K->getBaseClasses())
+					if (B->getClassKind() == SemaClassKind::CLASS) { Next = B; break; }
+				K = Next;
+			}
+			if (!BaseMethod)
+				BaseMethod = static_cast<SemaClassMethod *>(MSym->getRef());
+			SemaCall *SuperCall = SemaBuilder::CreateCall(AST, BaseMethod->getReturnType(), BaseMethod);
+			SuperCall->setSuper(true);
+			AST.setSymbol(MSym);
+
+			CurrentExpr = SuperCall;
+			for (SemaExpr *ArgExpr : ResolvedCallArgs)
+				SuperCall->addArg(ArgExpr);
+			ResolvedCallArgs.clear();
+
+			// Synthetic out-var for a non-void return (same convention as normal calls).
+			if (BaseMethod->getReturnType() && !BaseMethod->getReturnType()->isVoid() && CurrentFunction) {
+				SemaType *RetType = BaseMethod->getReturnType();
+				ASTType *RetASTType = BaseMethod->getAST().getReturnType();
+				std::string OutName = "__out_" + std::to_string(OutVarCounter++);
+				llvm::SmallVector<ASTModifier *, 8> NoMods;
+				ASTLocalVar *OutASTVar = ASTBuilder::CreateLocalVar(AST.getLocation(), RetASTType, OutName, NoMods);
+				SyntheticOutVars.push_back(OutASTVar);
+				SemaLocalVar *OutVar = SemaBuilder::CreateLocalVar(*OutASTVar, RetType);
+				CurrentFunction->addLocalVar(OutVar);
+				SuperCall->addArg(OutVar);
+				SuperCall->OutVar = OutVar;
+			}
+			SuperCall->ErrorHandler = CurrentErrorHandler;
+			CurrentScope = SavedScope;
+			return;
+		}
+
 		if (AST.getParent()) {
 			AST.getParent()->accept(*this);
 			ResolvedParentExpr = CurrentExpr; // Save the parent expression before ResolveCallArgs overwrites it
@@ -1595,6 +1745,63 @@ void Resolver::visit(ASTCall &AST) {
 
 		// Resolve arguments in the caller's scope (before switching to class/enum scope)
 		SmallVector<SemaType *, 8> ArgTypes = ResolveCallArgs(&AST);
+
+		// ── super(...) : call the single base-class constructor (at most once) ─────
+		if (AST.getName() == "super" && AST.getParent() == nullptr) {
+			SemaClassMethod *Ctor = (CurrentFunction && CurrentFunction->getKind() == SemaKind::METHOD)
+				? static_cast<SemaClassMethod *>(CurrentFunction) : nullptr;
+			if (!Ctor || !Ctor->isConstructor()) {
+				Diag(AST.getLocation(), diag::err_sema_super_outside_ctor);
+				ResolvedCallArgs.clear();
+				CurrentScope = SavedScope;
+				return;
+			}
+
+			// Find the single base CLASS the current class extends (interfaces skipped).
+			SemaClassType *DerivedClass = Ctor->getClass();
+			SemaClassType *BaseClass = nullptr;
+			for (auto *B : DerivedClass->getBaseClasses()) {
+				if (B->getClassKind() == SemaClassKind::CLASS) { BaseClass = B; break; }
+			}
+			if (!BaseClass) {
+				Diag(AST.getLocation(), diag::err_sema_super_no_base) << DerivedClass->getName();
+				ResolvedCallArgs.clear();
+				CurrentScope = SavedScope;
+				return;
+			}
+
+			// super(...) may be called at most once per constructor.
+			if (SawSuperCall) {
+				Diag(AST.getLocation(), diag::err_sema_super_already_called);
+				ResolvedCallArgs.clear();
+				CurrentScope = SavedScope;
+				return;
+			}
+
+			// Look up the base constructor matching the argument types (constructors are
+			// registered under the class name, the same lookup `new` uses).
+			Symbol *CtorSym = Reg.LookupFunction(BaseClass->getName(), ArgTypes, BaseClass->getSymbols());
+			if (!CtorSym || CtorSym->getRef()->getKind() != SemaKind::METHOD ||
+			    !static_cast<SemaClassMethod *>(CtorSym->getRef())->isConstructor()) {
+				Diag(AST.getLocation(), diag::err_sema_ctor_not_found) << BaseClass->getName();
+				ResolvedCallArgs.clear();
+				CurrentScope = SavedScope;
+				return;
+			}
+
+			SemaClassMethod *BaseCtor = static_cast<SemaClassMethod *>(CtorSym->getRef());
+			SemaCall *SuperCall = SemaBuilder::CreateCall(AST, BaseClass, BaseCtor);
+			SuperCall->setSuper(true);
+			SawSuperCall = true;
+			AST.setSymbol(CtorSym);
+
+			CurrentExpr = SuperCall;
+			for (SemaExpr *ArgExpr : ResolvedCallArgs)
+				SuperCall->addArg(ArgExpr);
+			ResolvedCallArgs.clear();
+			CurrentScope = SavedScope;
+			return;
+		}
 
 		// ---------------------------------------
 		// Try in current scopes (namespace, class, enum, current scopes)
@@ -2247,7 +2454,19 @@ Resolver::~Resolver() {
 
 void Resolver::Resolve() {
 	FLY_DEBUG_SCOPE("Resolver", "Resolve");
-	// Resolve Modules
+	// Phase 1: resolve EVERY module's imports first. A class may extend a base declared
+	// in another module; ResolveClassType→ResolveBaseClasses resolves that base (and its
+	// attribute types) depth-first, which requires the base's module scope to already hold
+	// its imports. Resolving imports per-module inline (the old single loop) failed when the
+	// base's module came later in iteration order — its imports were not yet populated, so
+	// the base's field types (e.g. an enum from a wildcard import) resolved as "unknown type".
+	for (auto Module : Reg.getModules()) {
+		CurrentModule = Module;
+		CurrentScope = Module->getSymbols();
+		ResolveImports(Module);
+	}
+
+	// Phase 2: resolve module nodes (functions and class types).
 	for (auto Module : Reg.getModules()) {
 
 		// Track the module being resolved so visit(ASTNamedType) can check isHeader().
@@ -2255,9 +2474,6 @@ void Resolver::Resolve() {
 
 		// Set current scope
 		CurrentScope = Module->getSymbols();
-
-		// Resolve Imports
-		ResolveImports(Module);
 
 		// Resolve Nodes
 		for (auto &Node : Module->getNodes()) {
@@ -2295,6 +2511,9 @@ void Resolver::Resolve() {
 
 		// Reset CurrentSemaBlock for the new function body
 		CurrentSemaBlock = nullptr;
+
+		// Reset the per-constructor `super(...)` guard for this body.
+		SawSuperCall = false;
 
 		// Start unused-variable tracking fresh for every function body
 		UnusedLocalVars.clear();
@@ -2498,6 +2717,13 @@ void Resolver::ResolveClassType(SemaClassType *ClassType) {
 
 	// Resolve Base Classes (includes kind checks, final check, diamond check)
 	this->ResolveBaseClasses(ClassType);
+
+	// ResolveBaseClasses may recurse into a base's ResolveClassType (depth-first), which
+	// leaves CurrentScope/CurrentClass pointing at the last-resolved base. Restore them to
+	// THIS class before resolving its own nodes so attribute/method resolution and the
+	// derived-class `this`/Feature-5b checks use the correct scope.
+	CurrentScope = ClassType->getSymbols();
+	CurrentClass = ClassType;
 
 	// Resolve Nodes: Attributes, Methods and Constructors
 	for (auto &Node: ClassType->getAST().getNodes()) {

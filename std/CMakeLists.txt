@@ -132,6 +132,6 @@ macro(add_fly_std_test name)
         COMMAND ${CMAKE_BINARY_DIR}/${name}_test_fly)
 endmacro()
 
-foreach(_test str math os_env os_path os_fs os_time os_io mem data generics)
+foreach(_test str math os_env os_path os_fs os_time os_io mem data generics enum cast override super interface deepinherit supermember)
     add_fly_std_test(${_test})
 endforeach()

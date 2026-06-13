@@ -188,9 +188,11 @@ bool SemaClassType::isDerivedOrEquals(SemaClassType *BaseClassType) const {
 		return true;
 	}
 
-	// Check if this->ClassType is a derived of BaseClassType
+	// Walk the FULL base chain, not just direct bases: a class is derived from any
+	// ancestor (ASTMethod → ASTFunction → ASTNode → ASTBase), so an upcast to a base
+	// several levels up is valid for assignment and argument compatibility.
 	for (auto &Base : this->getBaseClasses()) {
-		if (Base->isEquals(BaseClassType)) {
+		if (Base->isDerivedOrEquals(BaseClassType)) {
 			return true;
 		}
 	}
@@ -199,9 +201,10 @@ bool SemaClassType::isDerivedOrEquals(SemaClassType *BaseClassType) const {
 }
 
 bool SemaClassType::isDerived(SemaClassType *BaseClassType) const {
-	// Check if this->ClassType is a derived of BaseClassType
+	// Strictly derived (excludes equality): some base equals or is itself derived
+	// from BaseClassType. Recurses the full chain (see isDerivedOrEquals).
 	for (auto &Base : this->getBaseClasses()) {
-		if (Base->isEquals(BaseClassType)) {
+		if (Base->isDerivedOrEquals(BaseClassType)) {
 			return true;
 		}
 	}

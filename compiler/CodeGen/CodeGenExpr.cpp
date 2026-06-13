@@ -31,11 +31,15 @@
 #include "Sema/SemaCast.h"
 #include "Sema/SemaClassType.h"
 #include "Sema/SemaEnumEntry.h"
+#include "Sema/SemaEnumAccessor.h"
+#include "Sema/SemaEnumType.h"
+#include "CodeGen/CodeGenEnum.h"
 #include "Sema/SemaTernary.h"
 #include "Sema/SemaUnary.h"
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/GlobalVariable.h"
 
 #include <AST/ASTArg.h>
 #include <AST/ASTCall.h>
@@ -194,6 +198,49 @@ void CodeGenExpr::GenExpr(SemaEnumEntry *Sema) {
 	}
 }
 
+void CodeGenExpr::GenExpr(SemaEnumAccessor *Sema) {
+	SemaEnumEntry *Entry = Sema->getEntry();
+
+	// ── .value → i32 ──────────────────────────────────────────────────────────
+	if (!Sema->isName()) {
+		if (Entry) {
+			// Literal entry: fold to its constant index.
+			V = llvm::ConstantInt::get(CodeGen::Int32Ty, Entry->getIndex());
+		} else {
+			// Variable: the enum *is* its i32 value.
+			SemaVar *Var = Sema->getVar();
+			Var->accept(*CGM);
+			V = Var->getCodeGen()->getValue();
+		}
+		return;
+	}
+
+	// ── .name → String struct {i8*, i32} ──────────────────────────────────────
+	if (Entry) {
+		// Literal entry: fold to a compile-time string constant.
+		llvm::StringRef Name = Entry->getName();
+		llvm::Constant *Ptr = Builder->CreateGlobalStringPtr(Name);
+		llvm::Constant *Size = llvm::ConstantInt::get(CodeGen::Int32Ty, Name.size());
+		V = llvm::ConstantStruct::get(CodeGen::StringTy, {Ptr, Size});
+		return;
+	}
+
+	// Variable: load the name from the enum's runtime names table, indexed by
+	// the variable's i32 value.
+	SemaVar *Var = Sema->getVar();
+	Var->accept(*CGM);
+	llvm::Value *Idx = Var->getCodeGen()->getValue();
+
+	SemaEnumType *EnumType = Sema->getEnumType();
+	EnumType->accept(*CGM); // ensure the CodeGenEnum exists
+	CodeGenEnum *CGE = static_cast<CodeGenEnum *>(EnumType->getCodeGen());
+	llvm::GlobalVariable *Table = CGE->getNamesTable();
+
+	llvm::Value *ElemPtr = Builder->CreateInBoundsGEP(
+		Table->getValueType(), Table, {CodeGen::Zero, Idx});
+	V = Builder->CreateLoad(CodeGen::StringTy, ElemPtr);
+}
+
 void CodeGenExpr::GenExpr(SemaVar *Sema) {
 
 	// Class Instance
@@ -212,8 +259,25 @@ void CodeGenExpr::GenExpr(SemaVar *Sema) {
 
 		// Check if the ClassAttribute is a static attribute
 		if (!ClassAttribute->isStatic()) {
-			llvm::Value *Instance = ClassAttribute->getClass().getThis()->getCodeGen()->getValue();
-			llvm::StructType *StructTy = ClassAttribute->getClass().getCodeGen()->getType();
+			SemaClassType &DeclClass = ClassAttribute->getClass();
+			llvm::Value *Instance = DeclClass.getThis()->getCodeGen()->getValue();
+			// For an INHERITED field, start from the current method's `this` (the
+			// most-derived instance) and navigate the FULL base-subobject chain to the
+			// declaring class (recursively, for grandparent+ fields). The declaring
+			// base class's getThis() is only valid for the current class itself.
+			if (CGM->CurrentFunction && CGM->CurrentFunction->getKind() == SemaKind::METHOD) {
+				SemaClassMethod *M = static_cast<SemaClassMethod *>(CGM->CurrentFunction);
+				if (!M->isStatic() && M->getClass()) {
+					llvm::Value *ThisVal = M->getThis()->getCodeGen()->getValue();
+					if (M->getClass() != &DeclClass) {
+						llvm::Value *Adj = M->getClass()->getCodeGen()->getBaseInstance(ThisVal, &DeclClass);
+						Instance = Adj ? Adj : ThisVal;
+					} else {
+						Instance = ThisVal;
+					}
+				}
+			}
+			llvm::StructType *StructTy = DeclClass.getCodeGen()->getType();
 			size_t FieldIdx = ClassAttribute->getCodeGen()->getIndex();
 			llvm::Value *FieldPtr = Builder->CreateInBoundsGEP(StructTy, Instance,
 				{CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, FieldIdx)});
@@ -311,6 +375,13 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     				}
     			}
 
+    		} else if (Sema->isSuper()) {
+    			// super(...): call the base constructor on the BASE SUBOBJECT of the
+    			// enclosing (derived) `this`. Method->getClass() is the base class.
+    			SemaClassMethod *Enclosing = static_cast<SemaClassMethod *>(CGM->CurrentFunction);
+    			llvm::Value *DerivedThis = Enclosing->getThis()->getCodeGen()->getValue();
+    			InstancePtr = Enclosing->getClass()->getCodeGen()->getBaseInstance(
+    				DerivedThis, Method->getClass());
     		} else {
 			    // this is a constructor without new
     			// You are inside a class method call
@@ -350,22 +421,36 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     	if (Sema->getParent()) {
 
     		SemaClassType * ParentClass = static_cast<SemaClassType *>(Sema->getParent()->getType());
-    		if (Method->getClass()->isBase(ParentClass)) {
-    			// Instance of base class method call
-    			Sema->getParent()->accept(*CGM);
-    			InstancePtr = Sema->getParent()->getCodeGen()->getValue();
+    		Sema->getParent()->accept(*CGM);
+    		InstancePtr = Sema->getParent()->getCodeGen()->getValue();
 
-    			// Get the base class instance pointer
-    			InstancePtr = ParentClass->getCodeGen()->getBaseInstance(InstancePtr, Method->getClass());
-    		} else {
-    			// Instance of class method call
-    			Sema->getParent()->accept(*CGM);
-    			InstancePtr = Sema->getParent()->getCodeGen()->getValue();
+    		// Inherited method (declared in a base, possibly a grandparent+): navigate the
+    		// FULL base-subobject chain so the callee gets the right `this`. getBaseInstance
+    		// recurses; a single-level isBase() check would miss grandparent methods.
+    		if (ParentClass && Method->getClass() != ParentClass) {
+    			llvm::Value *Adj = ParentClass->getCodeGen()->getBaseInstance(InstancePtr, Method->getClass());
+    			if (Adj) InstancePtr = Adj;
     		}
 
     	} else {
-    		// Direct method call inside a class
-    		InstancePtr = Method->getClass()->getThis()->getCodeGen()->getValue();
+    		// Direct method call inside a class (implicit `this` or super.method()). Start
+    		// from the current method's `this` and navigate to the called method's declaring
+    		// class. Do NOT eagerly evaluate the called class's getThis() — for a super call
+    		// the called class is a base, whose `this` alloca lives in another function, and
+    		// emitting its load here would leave a cross-function reference in this body.
+    		SemaClassMethod *Cur = (CGM->CurrentFunction && CGM->CurrentFunction->getKind() == SemaKind::METHOD)
+    			? static_cast<SemaClassMethod *>(CGM->CurrentFunction) : nullptr;
+    		if (Cur && !Cur->isStatic() && Cur->getClass()) {
+    			llvm::Value *ThisVal = Cur->getThis()->getCodeGen()->getValue();
+    			if (Cur->getClass() != Method->getClass()) {
+    				llvm::Value *Adj = Cur->getClass()->getCodeGen()->getBaseInstance(ThisVal, Method->getClass());
+    				InstancePtr = Adj ? Adj : ThisVal;
+    			} else {
+    				InstancePtr = ThisVal;
+    			}
+    		} else {
+    			InstancePtr = Method->getClass()->getThis()->getCodeGen()->getValue();
+    		}
     	}
 
     	// Add Instance parameter
@@ -509,34 +594,17 @@ SemaExpr *Ref = Sema->getRef();
 		llvm::Type *Ty = Sema->getType()->getCodeGen()->getType();
 		size_t Index = Attr->getCodeGen()->getIndex();
 
-		// Feature 5b: if the attribute belongs to a base class but the parent
-		// is typed as the derived class, navigate through the embedded base subobject first.
+		// Feature 5b: if the attribute belongs to a base class but the parent is typed
+		// as the derived class, navigate through the embedded base subobject(s) first.
+		// Use the recursive getBaseInstance so grandparent+ fields work (it walks the
+		// full chain), instead of looking only in the parent's direct base list.
 		SemaClassType &AttrClass = Attr->getClass();
 		SemaType *ParentType = Sema->getParent()->getType();
 		if (ParentType && ParentType->isClass()) {
 			SemaClassType *ParentClass = static_cast<SemaClassType *>(ParentType);
 			if (ParentClass != &AttrClass) {
-				// Find the index of AttrClass in ParentClass's base list
-				auto &Bases = ParentClass->getBaseClasses();
-				int BaseIdx = -1;
-				for (int i = 0; i < (int)Bases.size(); ++i) {
-					if (Bases[i] == &AttrClass) {
-						BaseIdx = i;
-						break;
-					}
-				}
-				if (BaseIdx >= 0) {
-					// Compute the struct field index of the embedded base subobject.
-					// CLASS/INTERFACE: field 0 is the vtable pointer, bases start at 1.
-					// STRUCT: no vtable, bases start at 0.
-					int SubobjIdx = (ParentClass->getClassKind() == SemaClassKind::STRUCT)
-					                    ? BaseIdx
-					                    : (1 + BaseIdx);
-					llvm::StructType *DerivedStructTy = ParentClass->getCodeGen()->getType();
-					InstancePtr = Builder->CreateInBoundsGEP(
-					    DerivedStructTy, InstancePtr,
-					    {CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, SubobjIdx)});
-				}
+				llvm::Value *Adj = ParentClass->getCodeGen()->getBaseInstance(InstancePtr, &AttrClass);
+				if (Adj) InstancePtr = Adj;
 			}
 		}
 
@@ -1060,6 +1128,22 @@ llvm::Value *CodeGenExpr::GenBinaryCompare(SemaExpr *E1, ASTBinaryKind OperatorK
         }
     }
 
+	// Class/interface/struct compared with the `null` literal (or another reference):
+	// compare as pointers. The `null` value lowers to a null pointer constant and class
+	// values are pointers, so a pointer (in)equality is well-formed. Without this the
+	// comparison fell through to nullptr → `br <null operand>` → broken function.
+	if ((Type1 && Type1->isClass()) || (Type2 && Type2->isClass())) {
+		if (V1 && V2 && V1->getType()->isPointerTy() && V2->getType()->isPointerTy()) {
+			switch (OperatorKind) {
+				case ASTBinaryKind::OP_BINARY_COMPARE_EQ:
+					return Builder->CreateICmpEQ(V1, V2);
+				case ASTBinaryKind::OP_BINARY_COMPARE_NE:
+					return Builder->CreateICmpNE(V1, V2);
+				default: break;
+			}
+		}
+	}
+
 	// Error
 	CGM->Diag(diag::err_invalid_behavior);
 	return nullptr;
@@ -1183,7 +1267,29 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
 		}
 	}
 
+	// Upcast a derived class to a base/interface lvalue: store the base-subobject
+	// pointer so the variable's later dispatch uses the right vtable.
+	V2 = adjustToBaseSubobject(V2, E2->getType(), E1->getType());
+
 	return static_cast<CodeGenVar *>(E1CodeGen)->Store(V2);
+}
+
+llvm::Value *CodeGenExpr::adjustToBaseSubobject(llvm::Value *V, SemaType *FromType, SemaType *ToType) {
+	if (!V || !V->getType()->isPointerTy()) return V;
+	if (!FromType || !ToType || !FromType->isClass() || !ToType->isClass()) return V;
+	SemaClassType *From = static_cast<SemaClassType *>(FromType);
+	SemaClassType *To   = static_cast<SemaClassType *>(ToType);
+	// Only adjust when the target is an INTERFACE: an interface variable must hold its
+	// own subobject pointer so dispatch reads the right per-interface vtable. A plain
+	// base CLASS keeps the original (full-object) pointer — it dispatches via the call
+	// site and the original pointer is needed for free()/identity.
+	if (To->getClassKind() != SemaClassKind::INTERFACE) return V;
+	// Same type, or no codegen yet → nothing to adjust.
+	if (From->isEquals(To) || !From->getCodeGen()) return V;
+	// getBaseInstance navigates From's base subobjects (recursively) to To and returns
+	// the adjusted pointer, or null when To is not a base of From.
+	llvm::Value *Adj = From->getCodeGen()->getBaseInstance(V, To);
+	return Adj ? Adj : V;
 }
 
 void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &Args) {
@@ -1194,9 +1300,18 @@ void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &A
 	for (size_t i = 0; i < ArgExprs.size(); i++) {
 		SemaExpr *ArgExpr = ArgExprs[i];
 
+		// An upcast of a derived class to an INTERFACE param is a value-pass for
+		// polymorphic dispatch (not a writable reference), so it must NOT take the
+		// output-param fast-path below — it needs the interface-subobject pointer
+		// adjustment. (Plain base-class params keep the existing path.)
+		bool IsUpcast = i < Params.size() && ArgExpr->getType() && Params[i]->getType() &&
+			ArgExpr->getType()->isClass() && Params[i]->getType()->isClass() &&
+			static_cast<SemaClassType *>(Params[i]->getType())->getClassKind() == SemaClassKind::INTERFACE &&
+			!ArgExpr->getType()->isEquals(Params[i]->getType());
+
 		// For output (non-const) params: pass the original alloca pointer directly and
 		// invalidate the variable's load cache so subsequent reads see the updated value.
-		if (i < Params.size() && !Params[i]->isConstant()) {
+		if (i < Params.size() && !Params[i]->isConstant() && !IsUpcast) {
 			SemaKind K = ArgExpr->getKind();
 			if (K == SemaKind::LOCAL_VAR || K == SemaKind::PARAM_VAR ||
 			    K == SemaKind::ERROR_VAR || K == SemaKind::ATTRIBUTE ||
@@ -1241,6 +1356,22 @@ void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &A
 
 		ArgExpr->accept(*CGM);
 		llvm::Value *V = ArgExpr->getCodeGen()->getValue();
+
+		// Upcast a derived class argument to a base/interface param: adjust the pointer
+		// to the base subobject so the callee's dispatch reads the right vtable.
+		if (IsUpcast) {
+			V = adjustToBaseSubobject(V, ArgExpr->getType(), Params[i]->getType());
+			// A non-const param is passed by reference (the callee loads a pointer from
+			// the slot), so hand it a temp slot holding the adjusted pointer. A const
+			// param takes the pointer by value, so pass it directly.
+			if (!Params[i]->isConstant()) {
+				llvm::AllocaInst *Tmp = Builder->CreateAlloca(V->getType());
+				Builder->CreateStore(V, Tmp);
+				V = Tmp;
+			}
+			Args.push_back(V);
+			continue;
+		}
 
 		// Allow class ↔ long parameter interchange: ptrtoint / inttoptr.
 		if (i < Params.size()) {

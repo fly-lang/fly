@@ -44,6 +44,7 @@
 #include "Sema/SemaHandleStmt.h"
 #include "Sema/SemaEnumEntry.h"
 #include "Sema/SemaEnumList.h"
+#include "Sema/SemaEnumAccessor.h"
 #include "Sema/SemaError.h"
 #include "Sema/SemaFunction.h"
 #include "Sema/SemaMember.h"
@@ -309,6 +310,17 @@ SemaEnumList * SemaBuilder::CreateEnumList(SemaEnumType *EnumType) {
 
 	SemaEnumList *EnumList = new SemaEnumList(EnumType, ArrayType);
 	return EnumList;
+}
+
+SemaEnumAccessor * SemaBuilder::CreateEnumAccessor(SemaEnumType *EnumType, SemaEnumEntry *Entry,
+                                                   SemaVar *Var, bool IsName) {
+	FLY_DEBUG_SCOPE("SemaBuilder", "CreateEnumAccessor");
+
+	// .name yields a string, .value yields an int.
+	SemaType *Type = IsName ? SemaBuiltin::getStringType()
+	                        : static_cast<SemaType *>(SemaBuiltin::getIntType());
+
+	return new SemaEnumAccessor(EnumType, Entry, Var, IsName, Type);
 }
 
 SemaComment * SemaBuilder::CreateComment(ASTComment &AST) {

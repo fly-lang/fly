@@ -171,6 +171,7 @@ add_library(FlyCompiler
         Sema/SemaEnumType.cpp
         Sema/SemaEnumEntry.cpp
         Sema/SemaEnumList.cpp
+        Sema/SemaEnumAccessor.cpp
         Sema/SemaErrorHandler.cpp
         Sema/SemaFunction.cpp
         Sema/SemaFunctionBase.cpp

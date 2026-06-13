@@ -56,6 +56,7 @@
 #include <Sema/SemaEnumType.h>
 #include <Sema/SemaEnumEntry.h>
 #include <Sema/SemaEnumList.h>
+#include <Sema/SemaEnumAccessor.h>
 #include <Sema/SemaError.h>
 #include <Sema/SemaFunction.h>
 #include <Sema/SemaLocalVar.h>
@@ -476,8 +477,16 @@ void CodeGenModule::visit(SemaClassAttribute &Sema) {
 	    CurrentFunction->getKind() == SemaKind::METHOD) {
 		SemaClassMethod *Method = static_cast<SemaClassMethod *>(CurrentFunction);
 		if (!Method->isStatic()) {
+			SemaClassType &DeclClass = Sema.getClass();
 			llvm::Value *Instance = Method->getThis()->getCodeGen()->getValue();
-			llvm::StructType *StructTy = Sema.getClass().getCodeGen()->getType();
+			// For an INHERITED field, navigate the FULL base-subobject chain from the
+			// current `this` to the declaring class (recursively, for grandparent+ fields)
+			// instead of GEP-ing the declaring struct directly on the derived pointer.
+			if (Method->getClass() && Method->getClass() != &DeclClass) {
+				llvm::Value *Adj = Method->getClass()->getCodeGen()->getBaseInstance(Instance, &DeclClass);
+				if (Adj) Instance = Adj;
+			}
+			llvm::StructType *StructTy = DeclClass.getCodeGen()->getType();
 			size_t FieldIdx = Sema.getCodeGen()->getIndex();
 			llvm::Value *FieldPtr = Builder->CreateInBoundsGEP(StructTy, Instance,
 				{CodeGen::Zero, llvm::ConstantInt::get(CodeGen::Int32Ty, FieldIdx)});
@@ -671,6 +680,14 @@ void CodeGenModule::visit(SemaEnumList &Sema) {
 	}
 }
 
+void CodeGenModule::visit(SemaEnumAccessor &Sema) {
+	if (Sema.getCodeGen() == nullptr) {
+		CodeGenExpr *CGE = new CodeGenExpr(this);
+		CGE->GenExpr(&Sema);
+		Sema.setCodeGen(CGE);
+	}
+}
+
 // ─── Sema Statement visitors (delegate to AST-based Gen methods) ─────────────
 
 void CodeGenModule::EmitSharedRetain(llvm::Value *DataPtr) {
@@ -789,7 +806,13 @@ void CodeGenModule::visit(SemaBlockStmt &Sema) {
 	if (DBuilder && !DebugScopeStack.empty())
 		DebugScopeStack.pop_back();
 
-	EmitAllocCleanup(1);
+	// Emit this scope's cleanup only on a normal (fall-through) exit. If the block
+	// already ended with a terminator (a `return`/`break`/`continue` emitted its own
+	// cleanup for all enclosing frames), appending frees here would place instructions
+	// after the terminator → "Terminator found in the middle of a basic block".
+	llvm::BasicBlock *CurBB = Builder->GetInsertBlock();
+	if (!CurBB || !CurBB->getTerminator())
+		EmitAllocCleanup(1);
 	AllocCleanupStack.pop_back();
 }
 

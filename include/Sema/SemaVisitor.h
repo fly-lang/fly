@@ -62,6 +62,7 @@ namespace fly {
 	class SemaClassInstance;
 	class SemaEnumEntry;
 	class SemaEnumList;
+	class SemaEnumAccessor;
 	class SemaError;
 
 	// Expressions
@@ -146,6 +147,7 @@ namespace fly {
 		virtual void visit(SemaUnsetValue &Sema) = 0;
 		virtual void visit(SemaEnumEntry &Sema) = 0;
 		virtual void visit(SemaEnumList &Sema) = 0;
+		virtual void visit(SemaEnumAccessor &Sema) = 0;
 
 		// Test block and suite case (default no-op — CodeGen overrides)
 		virtual void visit(SemaTestStmt &Sema) {}

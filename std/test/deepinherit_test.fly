@@ -1,0 +1,51 @@
+import fly.assert
+
+// Multi-level (3-4) class inheritance: a deep derived must reach fields and
+// methods declared several levels up the chain (grandparent and beyond), via
+// implicit `this`, an explicit reference, and inherited methods.
+
+enum Kind { NONE, LEAF }
+
+class A {
+    Kind kind
+    int a
+    public A(const Kind k, const int x) { this.kind = k  this.a = x }
+    public int getA() { out = this.a }                       // base method reads own field
+    public int kindVal() { out = (int)this.kind.value }      // enum accessor on own field
+}
+
+class B : A {
+    int b
+    public B(const Kind k, const int x, const int y) { super(k, x)  this.b = y }
+}
+
+class C : B {
+    int c
+    public C(const Kind k, const int x, const int y, const int z) { super(k, x, y)  this.c = z }
+    // reach a great-grandparent field (A.a) and grandparent (B.b) directly
+    public int reach() { out = this.a + this.b + this.c }
+    public void bumpA() { this.a = this.a + 100 }            // write a great-grandparent field
+}
+
+class D : C {
+    int d
+    public D(const Kind k, const int x, const int y, const int z, const int w) {
+        super(k, x, y, z)  this.d = w
+    }
+    public int total() { out = this.reach() + this.d }       // inherited C.reach()
+}
+
+void main() {
+    D o = new D(Kind.LEAF, 1, 2, 3, 4)
+
+    // fields set via the super chain, read from the deepest class
+    assert.assertEqI(o.getA(), 1, 1)          // A.getA() at depth 4
+    assert.assertEqI(o.kindVal(), 2, 2)       // A.kindVal() (Kind.LEAF == 2)
+    assert.assertEqI(o.reach(), 6, 3)         // C.reach(): a+b+c = 1+2+3
+    assert.assertEqI(o.total(), 10, 4)        // D.total() = reach()+d = 6+4
+
+    // write a great-grandparent field through a deep method, then read back
+    o.bumpA()
+    assert.assertEqI(o.getA(), 101, 5)
+    assert.assertEqI(o.reach(), 106, 6)       // a now 101 → 101+2+3
+}

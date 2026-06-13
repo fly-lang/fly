@@ -1,0 +1,48 @@
+import fly.assert
+
+// Interface polymorphism: dispatch through an interface-typed value reads the
+// implementer's method, whether the value is a variable, a const param, or a
+// non-const param — including a class that both extends a base class AND
+// implements the interface (single-class inheritance + interfaces).
+
+interface Shape { int sides() }
+
+class Node {
+    int id
+    public Node(const int i) { this.id = i }
+    public int getId() { out = this.id }
+}
+
+class Box : Node, Shape {
+    public Box(const int i) { super(i) }
+    public int sides() { out = 4 }
+}
+
+class Tri : Node, Shape {
+    public Tri(const int i) { super(i) }
+    public int sides() { out = 3 }
+}
+
+int viaConst(const Shape s) { out = s.sides() }
+int viaParam(Shape s)       { out = s.sides() }
+
+void main() {
+    Box b = new Box(10)
+    Tri t = new Tri(20)
+
+    // direct
+    assert.assertEqI(b.sides(), 4, 1)
+    assert.assertEqI(b.getId(), 10, 2)     // base via super
+
+    // through an interface variable (the implementer's method, not slot 0)
+    Shape sb = b
+    Shape st = t
+    assert.assertEqI(sb.sides(), 4, 3)
+    assert.assertEqI(st.sides(), 3, 4)
+
+    // through const + non-const interface params
+    assert.assertEqI(viaConst(b), 4, 5)
+    assert.assertEqI(viaConst(t), 3, 6)
+    assert.assertEqI(viaParam(b), 4, 7)
+    assert.assertEqI(viaParam(t), 3, 8)
+}

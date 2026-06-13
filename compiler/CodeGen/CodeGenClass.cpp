@@ -228,12 +228,17 @@ void CodeGenClass::CreateBaseVTables() {
 		llvm::Constant *OffsetToTop = llvm::ConstantExpr::getIntToPtr(OffsetInt, CodeGen::Int8PtrTy);
 		VTableValues.push_back(OffsetToTop);
 
-		// Slots 1..N: one per virtual instance method of the base
+		// Slots 1..N: one per method of the base, in the SAME order/index as the
+		// base's own (main) vtable. CreateVTable() gives every method node — including
+		// constructors and statics — a slot, so we must NOT skip them here: skipping
+		// would shift the indices and a virtual call (which uses the method's
+		// main-vtable index) would read the wrong slot. Ctor/static slots are filled
+		// with the base function pointer purely to keep indices aligned; they are
+		// never dispatched virtually.
 		size_t MethodIdx = 1;
 		for (auto &Node : Base->getNodes()) {
 			if (Node->getKind() != SemaKind::METHOD) continue;
 			SemaClassMethod *BaseMethod = static_cast<SemaClassMethod *>(Node);
-			if (BaseMethod->isConstructor() || BaseMethod->isStatic()) continue;
 
 			// Ensure base method has a CodeGenClassMethod so dispatch can read its vtable index.
 			// Interface methods never get one from CreateVTable(), so we create it here.
@@ -247,8 +252,10 @@ void CodeGenClass::CreateBaseVTables() {
 				BaseMethod->setCodeGen(CG);
 			}
 
-			// Find the concrete override in the derived class
-			SemaClassMethod *Override = FindOverrideInDerived(Sema, BaseMethod);
+			// Find the concrete override in the derived class (constructors and
+			// statics are never overridden — keep their slot pointing at the base).
+			SemaClassMethod *Override = (BaseMethod->isConstructor() || BaseMethod->isStatic())
+				? nullptr : FindOverrideInDerived(Sema, BaseMethod);
 			llvm::Constant *Slot;
 			if (Override && Override->getCodeGen() && Override->getCodeGen()->getFunction()) {
 				// Derived overrides this method: thunk adjusts this ptr before calling derived impl
@@ -369,6 +376,15 @@ void CodeGenClass::CreateAttributes() {
 			SemaClassAttribute *Attribute = AttributeEntry.getValue();
 			Attribute->getType()->accept(*CGM);
 			llvm::Type *AttrType = Attribute->getType()->getCodeGen()->getType();
+
+			// Reference-type fields (class / interface) are heap pointers, NOT embedded
+			// structs: embedding a struct that (transitively) contains its own type makes
+			// an infinitely-sized/cyclic LLVM struct (StructType::isSized stack overflow).
+			// Only STRUCT-kind types stay embedded by value (Fly value semantics).
+			if (Attribute->getType()->isClass() &&
+			    static_cast<SemaClassType *>(Attribute->getType())->getClassKind() != SemaClassKind::STRUCT) {
+				AttrType = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+			}
 
 			// Check if the ClassAttribute is a static attribute
 			CodeGenVar *CGV;
@@ -508,7 +524,9 @@ const SmallVector<CodeGenClassMethod *, 4> &CodeGenClass::getMethods() const {
 }
 
 llvm::Value *CodeGenClass::getBaseInstance(llvm::Value *InstancePtr, SemaClassType *Base) {
-	size_t BaseIndex = 1; // 0 is the vtable pointer
+	// CLASS/INTERFACE: field 0 is the vtable pointer, base subobjects start at 1.
+	// STRUCT: no vtable, base subobjects start at 0.
+	size_t BaseIndex = (Sema->getClassKind() == SemaClassKind::STRUCT) ? 0 : 1;
 	for (auto &B : Sema->getBaseClasses()) {
 		llvm::ConstantInt *Index = llvm::ConstantInt::get(CodeGen::Int32Ty, BaseIndex);
 		if (Base->isEquals(B)) {

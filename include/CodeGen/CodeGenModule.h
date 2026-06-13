@@ -294,6 +294,7 @@ namespace fly {
         void visit(SemaUnsetValue &Sema) override;
         void visit(SemaEnumEntry &Sema) override;
         void visit(SemaEnumList &Sema) override;
+        void visit(SemaEnumAccessor &Sema) override;
 
         // Statements
         void visit(SemaBlockStmt &Sema) override;

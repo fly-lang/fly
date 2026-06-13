@@ -11,6 +11,7 @@
 
 #include "AST/ASTBinary.h"
 #include "AST/ASTBuilder.h"
+#include "AST/ASTCast.h"
 #include "AST/ASTType.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTTernary.h"
@@ -326,9 +327,24 @@ ASTExpr *ParserExpr::ParsePrimary() {
 		return ParseNewExpr();
 	}
 
-	// Parse Parentheses
+	// Parse Parentheses — either a C-style cast "(<builtin-type>) expr" or a
+	// plain parenthesized expression. A builtin-type keyword cannot begin an
+	// expression, so "( <builtin-type>" is an unambiguous cast.
 	if (P->Tok.is(tok::l_paren)) {
 		P->ConsumeParen();
+
+		// C-style cast to a builtin (numeric) type: (int)x, (uint)u, (byte)l, …
+		if (P->isBuiltinType(P->Tok)) {
+			ASTType *ToType = P->ParseType();
+			if (P->Tok.is(tok::r_paren)) {
+				P->ConsumeParen();
+			} else {
+				P->Diag(P->Tok.getLocation(), diag::err_parser_expr_close_paren);
+			}
+			ASTExpr *Operand = ParsePrimary();   // cast binds tightly to the operand
+			return ASTBuilder::CreateCast(Operand, ToType);
+		}
+
 		ParserExpr PE(P);
 		ASTExpr *Primary = PE.Parse();
 		if (P->Tok.is(tok::r_paren)) {

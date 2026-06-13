@@ -25,6 +25,10 @@ SemaEnumEntry::~SemaEnumEntry() {
 	delete Comment;
 }
 
+llvm::StringRef SemaEnumEntry::getName() const {
+	return AST.getName();
+}
+
 size_t SemaEnumEntry::getIndex() const {
 	return Index;
 }

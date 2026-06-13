@@ -41,6 +41,14 @@ bool SemaCall::isNew() const {
 	return AST.getCallKind() >= ASTCallKind::CALL_NEW;
 }
 
+bool SemaCall::isSuper() const {
+	return IsSuper;
+}
+
+void SemaCall::setSuper(bool Super) {
+	IsSuper = Super;
+}
+
 SemaLocalVar *SemaCall::getOutVar() const {
 	return OutVar;
 }

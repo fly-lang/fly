@@ -15,6 +15,7 @@
 
 namespace llvm {
     class Type;
+    class GlobalVariable;
 }
 
 namespace fly {
@@ -35,12 +36,21 @@ namespace fly {
 
         llvm::StringMap<CodeGenEnumEntry *> Entries;
 
+        // Lazily-built per-module table of entry name strings, indexed by the
+        // entry value (1-based; slot 0 is the undefined/default entry). Used to
+        // lower `.name` on an enum-typed variable. Private linkage — each module
+        // that needs it gets its own copy, avoiding cross-module link concerns.
+        llvm::GlobalVariable *NamesTable = nullptr;
+
     public:
         CodeGenEnum(CodeGenModule *CGM, SemaEnumType *Sema, bool isExternal = false);
 
         SemaEnumType *getSema() const;
 
         const llvm::StringMap<CodeGenEnumEntry *> &getEntries() const;
+
+        // Build (or return the cached) names table for `.name` on a variable.
+        llvm::GlobalVariable *getNamesTable();
     };
 
 }

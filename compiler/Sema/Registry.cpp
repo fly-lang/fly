@@ -375,6 +375,13 @@ Symbol *Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8
 			SemaType *ParamType = Params[i]->getType();
 			SemaType *ArgType = Types[i];
 
+			// A null argument type is the `null`/unset literal: it matches any class param.
+			if (!ArgType) {
+				if (ParamType->isClass()) continue;
+				AllTypesMatch = false;
+				break;
+			}
+
 			// Direct type match using isEquals method
 			if (ParamType->isEquals(ArgType)) {
 				continue;
@@ -454,6 +461,8 @@ static bool FunctionTypesMatchExact(SemaFunctionBase *Function, SmallVector<Sema
 	for (size_t i = 0; i < ExplicitCount; i++) {
 		SemaType *ParamType = Params[i]->getType();
 		SemaType *ArgType = Types[i];
+		// A null argument type is the `null`/unset literal: it matches any class param.
+		if (!ArgType) { if (ParamType->isClass()) continue; return false; }
 		if (ParamType->isEquals(ArgType)) continue;
 		if (ParamType->isClass() && ArgType->isClass()) {
 			if (static_cast<SemaClassType *>(ArgType)->isDerivedOrEquals(
@@ -474,6 +483,8 @@ static bool FunctionTypesMatch(SemaFunctionBase *Function, SmallVector<SemaType 
 	for (size_t i = 0; i < ExplicitCount; i++) {
 		SemaType *ParamType = Params[i]->getType();
 		SemaType *ArgType = Types[i];
+		// A null argument type is the `null`/unset literal: it matches any class param.
+		if (!ArgType) { if (ParamType->isClass()) continue; return false; }
 		if (ParamType->isEquals(ArgType)) continue;
 		if (ParamType->isClass() && ArgType->isClass()) {
 			if (static_cast<SemaClassType *>(ArgType)->isDerivedOrEquals(

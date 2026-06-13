@@ -27,6 +27,8 @@ namespace fly {
     class SemaEnumType;
     class SemaEnumEntry;
     class SemaEnumList;
+    class SemaEnumAccessor;
+    class SemaVar;
     class SemaType;
     class SemaTypeParam;
 	class SemaMember;
@@ -131,6 +133,9 @@ namespace fly {
     	static SemaEnumEntry *CreateEnumEntry(SemaEnumType *Enum, ASTEnumEntry &AST);
 
     	static SemaEnumList *CreateEnumList(SemaEnumType *EnumType);
+
+    	static SemaEnumAccessor *CreateEnumAccessor(SemaEnumType *EnumType, SemaEnumEntry *Entry,
+    	                                            SemaVar *Var, bool IsName);
 
 	    static SemaComment* CreateComment(ASTComment &AST);
 
