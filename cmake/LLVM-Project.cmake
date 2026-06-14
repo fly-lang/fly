@@ -130,7 +130,13 @@ if(NOT zstd_FOUND)
         set(ZSTD_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
         set(ZSTD_BUILD_STATIC   ON  CACHE BOOL "" FORCE)
         set(ZSTD_BUILD_SHARED   OFF CACHE BOOL "" FORCE)
+        # zstd 1.5.5 ships a CMakeLists with `cmake_minimum_required(VERSION 2.8.x)`, which
+        # CMake >= 4.0 (e.g. the Windows CI runner) rejects ("Compatibility with CMake < 3.5
+        # has been removed"). Raise the policy version floor for the FetchContent subproject;
+        # the variable is ignored by older CMake, so Linux/macOS builds are unaffected.
+        set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
         FetchContent_MakeAvailable(zstd_fc)
+        unset(CMAKE_POLICY_VERSION_MINIMUM)
         # Expose the static target under the name the LLVM cmake config expects
         add_library(zstd::libzstd_shared ALIAS libzstd_static)
     endif()
