@@ -57,6 +57,7 @@ namespace fly {
 		// Values
 		ENUM_ENTRY,
 		ENUM_LIST,
+		ENUM_ACCESSOR,
 		VALUE,
 
 		// Types (suite)

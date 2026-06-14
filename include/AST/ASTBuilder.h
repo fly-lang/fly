@@ -108,6 +108,7 @@ namespace fly {
     class ASTExpr;
 
     class ASTUnary;
+    class ASTCast;
 
     class ASTBinary;
 
@@ -264,6 +265,8 @@ namespace fly {
          static ASTMember *CreateMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent);
 
          static ASTUnary *CreateUnary(const SourceLocation &Loc, ASTUnaryKind OpKind, ASTExpr *Expr);
+
+         static ASTCast *CreateCast(ASTExpr *Expr, ASTType *ToType);
 
          static ASTBinary *CreateBinary(const SourceLocation &OpLocation, ASTBinaryKind OpKind,
                                             ASTExpr *LeftExpr, ASTExpr *RightExpr);

@@ -15,6 +15,7 @@
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTTernary.h"
+#include "AST/ASTCast.h"
 #include "AST/ASTUnary.h"
 #include "AST/ASTValue.h"
 #include "ParserTest.h"
@@ -65,6 +66,37 @@ namespace {
         auto *a4Unary = As<ASTUnary>(a4Stmt->getExpr());
         EXPECT_EQ(a4Unary->getOpKind(), ASTUnaryKind::OP_UNARY_POST_DECR);
         EXPECT_EQ(As<ASTIdentifier>(a4Unary->getExpr())->getName(), "a");
+    }
+
+    TEST_F(ParserTest, CastExpr) {
+        llvm::StringRef str = (
+                "void func(uint a, int b) {\n"
+                "  b = (int)a\n"
+                "  b = (int)a + 1\n"
+                "}\n");
+        ASTModule *Module = Parse("CastExpr", str);
+
+        ASTFunction *Func = As<ASTFunction>(Module->getNodes()[0]);
+        ASTBlockStmt *Body = Func->getBody();
+
+        // b = (int)a  → assignment whose RHS is a cast to int with operand 'a'
+        auto *s0 = As<ASTExprStmt>(Body->getContent()[0]);
+        auto *assign0 = As<ASTBinary>(s0->getExpr());
+        EXPECT_EQ(assign0->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        ASSERT_EQ(assign0->getRightExpr()->getExprKind(), ASTExprKind::EXPR_CAST);
+        auto *cast0 = As<ASTCast>(assign0->getRightExpr());
+        EXPECT_TRUE(HasBuiltinType(cast0->getToType(), ASTBuiltinTypeKind::TYPE_INT));
+        EXPECT_EQ(As<ASTIdentifier>(cast0->getExpr())->getName(), "a");
+
+        // b = (int)a + 1  → cast binds tighter than '+': ((int)a) + 1
+        auto *s1 = As<ASTExprStmt>(Body->getContent()[1]);
+        auto *assign1 = As<ASTBinary>(s1->getExpr());
+        auto *Add = As<ASTBinary>(assign1->getRightExpr());
+        EXPECT_EQ(Add->getBinaryKind(), ASTBinaryKind::OP_BINARY_ARITH_ADD);
+        ASSERT_EQ(Add->getLeftExpr()->getExprKind(), ASTExprKind::EXPR_CAST);
+        auto *cast1 = As<ASTCast>(Add->getLeftExpr());
+        EXPECT_TRUE(HasBuiltinType(cast1->getToType(), ASTBuiltinTypeKind::TYPE_INT));
+        EXPECT_EQ(As<ASTIdentifier>(cast1->getExpr())->getName(), "a");
     }
 
     TEST_F(ParserTest, UnarySideExpr) {

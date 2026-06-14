@@ -626,6 +626,20 @@ void Frontend::ResolveSourceDeps(ASTBuilder &Builder) {
             auto *Imp = static_cast<ASTImport *>(N);
             std::string ns = importNamespace(Imp);
             auto it = NsToFiles.find(ns);
+            // A plain/alias import is `Namespace.Symbol` (e.g. `import fly.compiler.ast.ASTNode`):
+            // its trailing component is the imported class/enum/function name, NOT a namespace
+            // component, so the joined path is not a declared namespace. Fall back to the parent
+            // namespace (drop the last component) so the namespace's source files still get pulled
+            // in. Wildcard imports already carry the bare namespace, so skip them here.
+            if (it == NsToFiles.end() && !Imp->isWildcard()) {
+                std::string parent = ns;
+                while (it == NsToFiles.end()) {
+                    auto dot = parent.rfind('.');
+                    if (dot == std::string::npos) break;
+                    parent = parent.substr(0, dot);
+                    it = NsToFiles.find(parent);
+                }
+            }
             if (it == NsToFiles.end()) continue;
             for (const auto &Path : it->second) {
                 llvm::StringRef Fname = llvm::sys::path::filename(Path);

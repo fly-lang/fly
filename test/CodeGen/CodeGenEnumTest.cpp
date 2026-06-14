@@ -202,4 +202,114 @@ namespace {
         bool Success = Resolve();
         EXPECT_TRUE(Success);
     }
+
+    TEST_F(CodeGenTest, CGEnumAccessorLiteral) {
+        /**
+         * Fly code:
+         * enum TestEnum { A, B, C }
+         * void func() {
+         *   string s = TestEnum.A.name    // "A"
+         *   int v = TestEnum.B.value      // 2  (entry indices are 1-based)
+         * }
+         */
+        ASTModule *Module = CreateModule();
+
+        llvm::SmallVector<ASTType *, 4> SuperEnums;
+        ASTEnum *TestEnum = ASTBuilder::CreateEnum(Module, SourceLoc, "TestEnum", TopModifiers, SuperEnums);
+        ASTEnumEntry *A = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "A", EmptyModifiers);
+        ASTEnumEntry *B = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "B", EmptyModifiers);
+        ASTEnumEntry *C = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "C", EmptyModifiers);
+
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
+
+        // string s = TestEnum.A.name
+        ASTIdentifier *EnumIdent1 = ASTBuilder::CreateIdentifier(SourceLoc, TestEnum->getName());
+        ASTMember *AMember = ASTBuilder::CreateMember(SourceLoc, A->getName(), EnumIdent1);
+        ASTMember *nameMember = ASTBuilder::CreateMember(SourceLoc, "name", AMember);
+        ASTLocalVar *sVar = ASTBuilder::CreateLocalVar(SourceLoc, ASTBuilder::CreateStringType(SourceLoc), "s", EmptyModifiers);
+        ASTIdentifier *sVarIdent = ASTBuilder::CreateIdentifier(sVar);
+        ASTDeclStmt *sDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, sVar);
+        ASTBinary *sAssign = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, sVarIdent, nameMember);
+        sDeclStmt->setExpr(sAssign);
+
+        // int v = TestEnum.B.value
+        ASTIdentifier *EnumIdent2 = ASTBuilder::CreateIdentifier(SourceLoc, TestEnum->getName());
+        ASTMember *BMember = ASTBuilder::CreateMember(SourceLoc, B->getName(), EnumIdent2);
+        ASTMember *valueMember = ASTBuilder::CreateMember(SourceLoc, "value", BMember);
+        ASTLocalVar *vVar = ASTBuilder::CreateLocalVar(SourceLoc, ASTBuilder::CreateIntType(SourceLoc), "v", EmptyModifiers);
+        ASTIdentifier *vVarIdent = ASTBuilder::CreateIdentifier(vVar);
+        ASTDeclStmt *vDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, vVar);
+        ASTBinary *vAssign = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, vVarIdent, valueMember);
+        vDeclStmt->setExpr(vAssign);
+
+        bool Success = Resolve();
+        EXPECT_TRUE(Success);
+
+        Generate();
+        llvm::Module *M = getModules()[0];
+        std::string output = getOutput(M->getFunctionList());
+
+        // B.value folds to the constant 2 (entry indices start at 1).
+        EXPECT_NE(output.find("store i32 2"), std::string::npos);
+    }
+
+    TEST_F(CodeGenTest, CGEnumAccessorVariable) {
+        /**
+         * Fly code:
+         * enum TestEnum { A, B, C }
+         * void func() {
+         *   TestEnum e = TestEnum.B
+         *   string s = e.name     // runtime lookup in the names table
+         *   int v = e.value       // the variable's i32
+         * }
+         */
+        ASTModule *Module = CreateModule();
+
+        llvm::SmallVector<ASTType *, 4> SuperEnums;
+        ASTEnum *TestEnum = ASTBuilder::CreateEnum(Module, SourceLoc, "TestEnum", TopModifiers, SuperEnums);
+        ASTEnumEntry *A = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "A", EmptyModifiers);
+        ASTEnumEntry *B = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "B", EmptyModifiers);
+        ASTEnumEntry *C = ASTBuilder::CreateEnumEntry(SourceLoc, TestEnum, "C", EmptyModifiers);
+
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
+
+        // TestEnum e = TestEnum.B
+        ASTLocalVar *eVar = ASTBuilder::CreateLocalVar(SourceLoc, CreateType(TestEnum), "e", EmptyModifiers);
+        ASTIdentifier *eVarIdent = ASTBuilder::CreateIdentifier(eVar);
+        ASTDeclStmt *eDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, eVar);
+        ASTIdentifier *EnumIdent = ASTBuilder::CreateIdentifier(SourceLoc, TestEnum->getName());
+        ASTMember *BMember = ASTBuilder::CreateMember(SourceLoc, B->getName(), EnumIdent);
+        ASTBinary *eAssign = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, eVarIdent, BMember);
+        eDeclStmt->setExpr(eAssign);
+
+        // string s = e.name
+        ASTIdentifier *eRef1 = ASTBuilder::CreateIdentifier(eVar);
+        ASTMember *nameMember = ASTBuilder::CreateMember(SourceLoc, "name", eRef1);
+        ASTLocalVar *sVar = ASTBuilder::CreateLocalVar(SourceLoc, ASTBuilder::CreateStringType(SourceLoc), "s", EmptyModifiers);
+        ASTIdentifier *sVarIdent = ASTBuilder::CreateIdentifier(sVar);
+        ASTDeclStmt *sDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, sVar);
+        ASTBinary *sAssign = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, sVarIdent, nameMember);
+        sDeclStmt->setExpr(sAssign);
+
+        // int v = e.value
+        ASTIdentifier *eRef2 = ASTBuilder::CreateIdentifier(eVar);
+        ASTMember *valueMember = ASTBuilder::CreateMember(SourceLoc, "value", eRef2);
+        ASTLocalVar *vVar = ASTBuilder::CreateLocalVar(SourceLoc, ASTBuilder::CreateIntType(SourceLoc), "v", EmptyModifiers);
+        ASTIdentifier *vVarIdent = ASTBuilder::CreateIdentifier(vVar);
+        ASTDeclStmt *vDeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, vVar);
+        ASTBinary *vAssign = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, vVarIdent, valueMember);
+        vDeclStmt->setExpr(vAssign);
+
+        bool Success = Resolve();
+        EXPECT_TRUE(Success);
+
+        Generate();
+        llvm::Module *M = getModules()[0];
+        std::string output = getOutput(M->getFunctionList());
+
+        // e.name lowers to a GEP into the per-enum runtime names table.
+        EXPECT_NE(output.find("enum.names.TestEnum"), std::string::npos);
+    }
 } // anonymous namespace

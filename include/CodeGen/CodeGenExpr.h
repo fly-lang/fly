@@ -41,6 +41,7 @@ namespace fly {
 	class SemaNullValue;
 	class SemaUnsetValue;
 	class SemaEnumEntry;
+	class SemaEnumAccessor;
 	class SemaMember;
 	class SemaCast;
 	class SemaUnary;
@@ -88,6 +89,8 @@ namespace fly {
 
     	void GenExpr(SemaEnumEntry *Sema);
 
+    	void GenExpr(SemaEnumAccessor *Sema);
+
         void GenExpr(SemaCast *Sema);
 
         void GenExpr(SemaUnary *Sema);
@@ -109,6 +112,11 @@ namespace fly {
         llvm::Value *GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
         llvm::Value* GenBinaryAssign(SemaExpr *E1, SemaExpr *E2);
+
+        // Upcast adjustment: when a class pointer V (static type FromType) flows into a
+        // base/interface-typed slot (ToType), return the pointer to the base subobject so
+        // polymorphic dispatch reads the correct per-interface vtable. No-op otherwise.
+        llvm::Value* adjustToBaseSubobject(llvm::Value *V, SemaType *FromType, SemaType *ToType);
 
         void addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &Args);
 

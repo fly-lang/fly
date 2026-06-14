@@ -26,6 +26,7 @@
 #include "AST/ASTImport.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTNameSpace.h"
+#include "AST/ASTCast.h"
 #include "AST/ASTTernary.h"
 #include "AST/ASTType.h"
 #include "AST/ASTUnary.h"
@@ -616,6 +617,13 @@ ASTUnary *ASTBuilder::CreateUnary(const SourceLocation &Loc, ASTUnaryKind OpKind
 
 	ASTUnary *UnaryOpExpr = new ASTUnary(Loc, OpKind, Expr);
 	return UnaryOpExpr;
+}
+
+ASTCast *ASTBuilder::CreateCast(ASTExpr *Expr, ASTType *ToType) {
+	FLY_DEBUG_SCOPE("ASTBuilder", "CreateCast");
+
+	ASTCast *Cast = new ASTCast(Expr, ToType);
+	return Cast;
 }
 
 ASTBinary *ASTBuilder::CreateBinary(

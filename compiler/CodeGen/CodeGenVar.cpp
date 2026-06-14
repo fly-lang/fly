@@ -43,6 +43,13 @@ llvm::AllocaInst *CodeGenVar::Alloca() {
 	if (T == CodeGen::ArrayTy || T == CodeGen::StringTy) {
 		// Value-type structs: allocate the struct directly
 		this->Pointer = CGM->Builder->CreateAlloca(T);
+		// Zero-initialise a string slot ({null, 0}) at the point of allocation. An early
+		// `return` in a nested block runs the full scope cleanup, which frees every string
+		// local in the frame — including ones whose declaration the control flow has not
+		// reached yet. Without this, that cleanup loads an uninitialised slot and frees a
+		// garbage pointer; with it, the freed pointer is null (free(null) is a safe no-op).
+		if (T == CodeGen::StringTy)
+			CGM->Builder->CreateStore(llvm::Constant::getNullValue(CodeGen::StringTy), this->Pointer);
 	} else if (T->isStructTy()) {
 		llvm::PointerType *PtrTy = T->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 		this->Pointer = CGM->Builder->CreateAlloca(PtrTy);
@@ -217,6 +224,23 @@ llvm::StoreInst *CodeGenVar::StoreDefaultValue() {
 
 	// Non-array types
 	llvm::Type *CodeGenTy = Ty->getCodeGen()->getType();
+
+	// A local string variable is already zero-initialised at its alloca (Alloca() stores
+	// {null,0} so an early `return` before this decl frees a null pointer, not garbage).
+	// Re-storing the default here would just duplicate that store. Class/struct string
+	// ATTRIBUTES are not alloca-backed (their pointer is a GEP into the object), so they
+	// still need the explicit default.
+	if (T == CodeGen::StringTy && llvm::isa<llvm::AllocaInst>(this->Pointer)) {
+		return nullptr;
+	}
+
+	// The default must match the actual storage SLOT type `T`, not the semantic type.
+	// A reference-type field (class / interface) is a pointer slot — its default is a
+	// null pointer. Storing the semantic struct's zeroinitializer would write a whole
+	// struct into an 8-byte pointer slot and corrupt the adjacent heap.
+	if (this->T && this->T->isPointerTy()) {
+		return Store(llvm::Constant::getNullValue(this->T));
+	}
 
 	// Struct types (non-string) require different defaults depending on storage:
 	//   Local variable: Alloca() creates 'alloca ptr' (pointer-to-struct) → default is null ptr

@@ -128,6 +128,11 @@ namespace fly {
     	// True while resolving the LHS of a pure '=' assignment (variable is written, not read)
     	bool InAssignLHS = false;
 
+    	// Set once a `super(...)` call has been resolved in the current constructor,
+    	// so a second one can be rejected (super may be called at most once). Reset at
+    	// the start of each method in visit(ASTMethod).
+    	bool SawSuperCall = false;
+
     	// Local vars declared in the current function that have never been read
     	llvm::SmallPtrSet<SemaLocalVar *, 16> UnusedLocalVars;
 

@@ -200,8 +200,11 @@ bool SemaValidator::CheckConvertibleTypes(SemaType *FromType, SemaType *ToType) 
 bool SemaValidator::CheckInheritance(SemaClassType *ClassType, SemaClassType *SuperClassType) {
 	if (ClassType->getId() == SuperClassType->getId())
 		return true;
+	// Recurse on each base asking "is this base (or an ancestor of it) SuperClassType?".
+	// The arguments must stay (Base, Super) — passing (Super, Base) only ever matched at
+	// depth 1, so a 2+-level upcast (ASTNumberValue → ASTExpr) was wrongly rejected.
 	for (auto &Entry : ClassType->getBaseClasses()) {
-		if (CheckInheritance(SuperClassType, Entry))
+		if (CheckInheritance(Entry, SuperClassType))
 			return true;
 	}
 	return false;

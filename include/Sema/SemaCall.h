@@ -35,6 +35,10 @@ namespace fly {
 
     	SemaError *ErrorHandler = nullptr;
 
+    	// True for a `super(...)` base-constructor call: CodeGen targets the base
+    	// subobject of the enclosing (derived) `this` rather than a fresh instance.
+    	bool IsSuper = false;
+
     	llvm::SmallVector<SemaExpr *, 8> Args;
 
     	// Synthetic local variable that receives the return value (non-null when the
@@ -60,6 +64,10 @@ namespace fly {
     	void setErrorHandler(SemaError *ErrorHandler);
 
     	bool isNew() const;
+
+    	bool isSuper() const;
+
+    	void setSuper(bool Super);
 
     	SemaLocalVar *getOutVar() const;
 

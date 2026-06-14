@@ -1,0 +1,41 @@
+import fly.assert
+
+// Explicit C-style integer conversions: (Type)x across every width and sign,
+// in both directions (widen = sext/zext, narrow = trunc, same-width sign flip =
+// bitcast). Narrowing is permitted (with a compiler warning).
+
+void main() {
+
+    // ── widening: byte → int, int → long ─────────────────────────────────────
+    byte b = (byte)5
+    int bi = (int)b
+    assert.assertEqI(bi, 5, 1)
+
+    int i = 300
+    long l = (long)i
+    assert.assertEqL(l, 300, 2)
+
+    // ── narrowing (trunc): long 300 → byte = 300 & 0xFF = 44 ─────────────────
+    long big = 300
+    byte bb = (byte)big
+    assert.assertEqI((int)bb, 44, 3)
+
+    // ── same-width sign reinterpret (bitcast): uint ↔ int ────────────────────
+    uint u = (uint)300
+    int ui = (int)u
+    assert.assertEqI(ui, 300, 4)
+
+    int back = 7
+    uint ub = (uint)back
+    assert.assertEqI((int)ub, 7, 5)
+
+    // ── narrowing into ushort: 70000 & 0xFFFF = 4464 ─────────────────────────
+    int v = 70000
+    ushort us = (ushort)v
+    assert.assertEqI((int)us, 4464, 6)
+
+    // ── ulong ↔ long round-trip ──────────────────────────────────────────────
+    long lv = 123456789
+    ulong ul = (ulong)lv
+    assert.assertEqL((long)ul, 123456789, 7)
+}

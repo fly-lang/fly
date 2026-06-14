@@ -40,6 +40,8 @@ namespace fly {
 
         ~SemaEnumEntry() override;
 
+        llvm::StringRef getName() const;
+
         size_t getIndex() const;
 
         SemaComment *getComment() const;
