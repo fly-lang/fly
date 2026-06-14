@@ -225,6 +225,15 @@ llvm::StoreInst *CodeGenVar::StoreDefaultValue() {
 	// Non-array types
 	llvm::Type *CodeGenTy = Ty->getCodeGen()->getType();
 
+	// A local string variable is already zero-initialised at its alloca (Alloca() stores
+	// {null,0} so an early `return` before this decl frees a null pointer, not garbage).
+	// Re-storing the default here would just duplicate that store. Class/struct string
+	// ATTRIBUTES are not alloca-backed (their pointer is a GEP into the object), so they
+	// still need the explicit default.
+	if (T == CodeGen::StringTy && llvm::isa<llvm::AllocaInst>(this->Pointer)) {
+		return nullptr;
+	}
+
 	// The default must match the actual storage SLOT type `T`, not the semantic type.
 	// A reference-type field (class / interface) is a pointer slot — its default is a
 	// null pointer. Storing the semantic struct's zeroinitializer would write a whole

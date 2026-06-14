@@ -1279,10 +1279,12 @@ llvm::Value *CodeGenExpr::adjustToBaseSubobject(llvm::Value *V, SemaType *FromTy
 	if (!FromType || !ToType || !FromType->isClass() || !ToType->isClass()) return V;
 	SemaClassType *From = static_cast<SemaClassType *>(FromType);
 	SemaClassType *To   = static_cast<SemaClassType *>(ToType);
-	// Only adjust when the target is an INTERFACE: an interface variable must hold its
-	// own subobject pointer so dispatch reads the right per-interface vtable. A plain
-	// base CLASS keeps the original (full-object) pointer — it dispatches via the call
-	// site and the original pointer is needed for free()/identity.
+	// Only adjust when the target is an INTERFACE: an interface variable must hold its own
+	// subobject pointer so dispatch reads the right per-interface vtable. A plain base CLASS
+	// keeps the original (full-object) pointer — it is needed for free()/identity (freeing a
+	// base-subobject pointer would free the middle of the heap block). NOTE: this means an
+	// inherited, field-accessing method called through a base-CLASS-typed variable reads the
+	// wrong subobject — a known limitation that needs base-at-offset-0 layout or this-thunks.
 	if (To->getClassKind() != SemaClassKind::INTERFACE) return V;
 	// Same type, or no codegen yet → nothing to adjust.
 	if (From->isEquals(To) || !From->getCodeGen()) return V;
