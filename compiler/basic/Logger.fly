@@ -1,0 +1,48 @@
+namespace fly.compiler.basic
+import fly.compiler.basic.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Logger — debug string builder, ported from compiler/Basic/Logger.cpp/.h.
+// Builds a structured "{key=val, key=val}" string. The C++ class overloads
+// Attr() by value type; Fly has no overloading, so the typed variants are
+// attrStr / attrBool / attrInt. Delimiters are inlined literals (no statics).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class Logger {
+    string buf
+    bool isEmpty
+
+    // Start a record: "<head>{".
+    public Logger(const string head) {
+        this.buf = fly.str.concat(head, "{")
+        this.isEmpty = true
+    }
+
+    // attrStr — append a "key=val" entry, comma-separating from any previous one.
+    public void attrStr(const string key, const string val) {
+        string entry = fly.str.concat(fly.str.concat(key, "="), val)
+        if this.isEmpty {
+            this.buf = fly.str.concat(this.buf, entry)
+        } else {
+            this.buf = fly.str.concat(this.buf, fly.str.concat(", ", entry))
+        }
+        this.isEmpty = false
+    }
+
+    public void attrBool(const string key, const bool val) {
+        string v = "false"
+        if val {
+            v = "true"
+        }
+        this.attrStr(key, v)
+    }
+
+    public void attrInt(const string key, const int val) {
+        this.attrStr(key, fly.str.convert(val))
+    }
+
+    // End the record: append "}" and return the built string.
+    public string end() {
+        out = fly.str.concat(this.buf, "}")
+    }
+}

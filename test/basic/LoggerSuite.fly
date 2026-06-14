@@ -1,0 +1,32 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.assert
+
+// LoggerSuite — structured debug string builder (compiler/basic).
+suite LoggerSuite {
+
+    void buildTest() {
+        case "mixed attrs": {
+            Logger lg = new Logger("Node")
+            lg.attrStr("name", "foo")
+            lg.attrInt("id", 7)
+            lg.attrBool("flag", true)
+            assert.assertStr(lg.end(), "Node{name=foo, id=7, flag=true}", 1)
+        }
+        case "single attr": {
+            Logger lg = new Logger("T")
+            lg.attrInt("n", 42)
+            assert.assertStr(lg.end(), "T{n=42}", 2)
+        }
+        case "empty record": {
+            Logger lg = new Logger("X")
+            assert.assertStr(lg.end(), "X{}", 3)
+        }
+        case "bool false": {
+            Logger lg = new Logger("B")
+            lg.attrBool("ok", false)
+            assert.assertStr(lg.end(), "B{ok=false}", 4)
+        }
+    }
+}

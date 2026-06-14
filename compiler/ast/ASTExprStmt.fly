@@ -1,0 +1,18 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTStmt
+import fly.compiler.ast.ASTStmtKind
+
+public class ASTExprStmt : ASTStmt {
+
+    ASTExpr expr
+
+    public ASTExprStmt(const SourceLocation loc) {
+        super(loc, ASTStmtKind.STMT_EXPR)
+    }
+
+    public ASTExpr getExpr() { out = this.expr }
+    public void setExpr(const ASTExpr expr) { this.expr = expr }
+}

@@ -1,0 +1,20 @@
+namespace fly.compiler.ast
+
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTExprKind
+import fly.compiler.ast.ASTType
+
+public class ASTCast : ASTExpr {
+
+    ASTExpr expr
+    ASTType toType
+
+    public ASTCast(const ASTExpr expr, const ASTType toType) {
+        super(toType.getLoc(), ASTExprKind.EXPR_CAST)
+        this.expr = expr
+        this.toType = toType
+    }
+
+    public ASTExpr getExpr() { out = this.expr }
+    public ASTType getToType() { out = this.toType }
+}

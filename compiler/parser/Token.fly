@@ -1,0 +1,37 @@
+namespace fly.compiler.parser
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Token — the lexical token type. A token records a [start,end) slice of the
+// source rather than a stored string; the spelling is resolved on demand by the
+// owning Lexer (Lexer.tokenText) — a string stored in many token fields is
+// auto-freed once per field at scope exit (double free).
+//
+// Token kinds, their names, and keyword recognition now live in
+// compiler/basic/TokenKinds.fly (the `TokenKind` enum); character classification
+// lives in compiler/basic/CharInfo.fly.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Token — a single lexical token, recorded as a [start,end) slice of the source.
+public class Token {
+    TokenKind kind
+    SourceLocation loc
+    int start
+    int end
+
+    public Token(const TokenKind kind, const SourceLocation loc, const int start, const int end) {
+        this.kind = kind
+        this.loc = loc
+        this.start = start
+        this.end = end
+    }
+
+    // Location accessors. `offset()` is the byte offset; line/col are decoded
+    // from `getLoc()` via a SourceManager (the location no longer stores them).
+    public SourceLocation getLoc() { out = this.loc }
+    public int offset() { out = this.loc.getOffset() }
+
+    public bool isEof() { out = this.kind == TokenKind.EOF }
+}

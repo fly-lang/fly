@@ -1,0 +1,51 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.data.*
+
+// ASTBuilderLoopStmt — 1:1 port of fly/.../ASTBuilderLoopStmt.cpp.
+public class ASTBuilderLoopStmt {
+
+    ASTLoopStmt loopStmt
+
+    public ASTBuilderLoopStmt() { }
+
+    public static ASTBuilderLoopStmt Create(const ASTBlockStmt parent, const SourceLocation loc) {
+        ASTBuilderLoopStmt b = new ASTBuilderLoopStmt()
+        b.loopStmt = new ASTLoopStmt(loc)
+        parent.addContent(b.loopStmt)
+        b.loopStmt.setParent(parent)
+        out = b
+    }
+    public ASTBuilderLoopStmt setCycle(const ASTExpr expr, const ASTBlockStmt stmt) {
+        this.loopStmt.setExpr(expr)
+        this.loopStmt.setLoop(stmt)
+        out = this
+    }
+    public ASTBuilderLoopStmt setInit(const ASTBlockStmt blockStmt) {
+        fly.data.List content = blockStmt.getContent()
+        int n = content.size()
+        int i = 0
+        while i < n {
+            ASTStmt s = content.get(i)
+            this.loopStmt.addInit(s)
+            i = i + 1
+        }
+        out = this
+    }
+    public ASTBuilderLoopStmt setPost(const ASTBlockStmt blockStmt) {
+        fly.data.List content = blockStmt.getContent()
+        int n = content.size()
+        int i = 0
+        while i < n {
+            ASTStmt s = content.get(i)
+            this.loopStmt.addPost(s)
+            i = i + 1
+        }
+        out = this
+    }
+    public void VerifyConditionAtEnd() {
+        this.loopStmt.setVerifyConditionAtEnd(true)
+    }
+}

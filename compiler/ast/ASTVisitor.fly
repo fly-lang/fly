@@ -1,0 +1,60 @@
+namespace fly.compiler.ast
+
+import fly.compiler.ast.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ASTVisitor — the visitor interface, a 1:1 port of fly/include/AST/ASTVisitor.h
+// (a pure-abstract class in C++). Ported as a Fly `interface`: one `visit`
+// overload per concrete AST node type. A walker implements this interface and
+// the node families dispatch to it (the C++ classes call `accept(ASTVisitor&)`).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public interface ASTVisitor {
+
+    public void visit(const ASTModule node)
+    public void visit(const ASTNameSpace node)
+    public void visit(const ASTImport node)
+    public void visit(const ASTFunction node)
+    public void visit(const ASTClass node)
+    public void visit(const ASTAttribute node)
+    public void visit(const ASTMethod node)
+    public void visit(const ASTEnum node)
+    public void visit(const ASTLocalVar node)
+    public void visit(const ASTParam node)
+    public void visit(const ASTComment node)
+    public void visit(const ASTBuiltinType node)
+    public void visit(const ASTNamedType node)
+    public void visit(const ASTArrayType node)
+    public void visit(const ASTTypeParam node)
+    public void visit(const ASTBreakStmt node)
+    public void visit(const ASTContinueStmt node)
+    public void visit(const ASTDeleteStmt node)
+    public void visit(const ASTExprStmt node)
+    public void visit(const ASTDeclStmt node)
+    public void visit(const ASTFailStmt node)
+    public void visit(const ASTHandleStmt node)
+    public void visit(const ASTReturnStmt node)
+    public void visit(const ASTRuleStmt node)
+    public void visit(const ASTIfStmt node)
+    public void visit(const ASTSwitchStmt node)
+    public void visit(const ASTLoopStmt node)
+    public void visit(const ASTLoopInStmt node)
+    public void visit(const ASTBlockStmt node)
+    public void visit(const ASTTestStmt node)
+    public void visit(const ASTCaseStmt node)
+    public void visit(const ASTIdentifier node)
+    public void visit(const ASTMember node)
+    public void visit(const ASTCall node)
+    public void visit(const ASTUnary node)
+    public void visit(const ASTBinary node)
+    public void visit(const ASTTernary node)
+    public void visit(const ASTCast node)
+    public void visit(const ASTBoolValue node)
+    public void visit(const ASTNumberValue node)
+    public void visit(const ASTStringValue node)
+    public void visit(const ASTArrayValue node)
+    public void visit(const ASTStructValue node)
+    public void visit(const ASTNullValue node)
+    public void visit(const ASTUnsetValue node)
+    public void visit(const ASTEnumEntry node)
+}

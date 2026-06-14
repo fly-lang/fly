@@ -1,0 +1,21 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// Logical / comparison operators.
+suite ParserLogicSuite {
+    void logicTest() {
+        case "a < b && c == d": {
+            Parser p = new Parser("a < b && c == d")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 1)
+        }
+        case "or chain": {
+            Parser p = new Parser("a || b || c >= d")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 2)
+        }
+    }
+}

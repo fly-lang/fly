@@ -1,0 +1,58 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTExprKind
+
+public enum ASTBinaryKind {
+    OP_BINARY_ARITH_ADD,
+    OP_BINARY_ARITH_SUB,
+    OP_BINARY_ARITH_MUL,
+    OP_BINARY_ARITH_DIV,
+    OP_BINARY_ARITH_MOD,
+    OP_BINARY_ARITH_AND,
+    OP_BINARY_ARITH_OR,
+    OP_BINARY_ARITH_XOR,
+    OP_BINARY_ARITH_SHIFT_L,
+    OP_BINARY_ARITH_SHIFT_R,
+    OP_BINARY_LOGIC_AND,
+    OP_BINARY_LOGIC_OR,
+    OP_BINARY_COMPARE_EQ,
+    OP_BINARY_COMPARE_NE,
+    OP_BINARY_COMPARE_GT,
+    OP_BINARY_COMPARE_GTE,
+    OP_BINARY_COMPARE_LT,
+    OP_BINARY_COMPARE_LTE,
+    OP_BINARY_ASSIGN,
+    OP_BINARY_ASSIGN_AND,
+    OP_BINARY_ASSIGN_MUL,
+    OP_BINARY_ASSIGN_ADD,
+    OP_BINARY_ASSIGN_SUB,
+    OP_BINARY_ASSIGN_DIV,
+    OP_BINARY_ASSIGN_MOD,
+    OP_BINARY_ASSIGN_SHIFT_L,
+    OP_BINARY_ASSIGN_SHIFT_R,
+    OP_BINARY_ASSIGN_XOR,
+    OP_BINARY_ASSIGN_OR
+}
+
+public class ASTBinary : ASTExpr {
+
+    ASTBinaryKind binaryKind
+    SourceLocation opLocation
+    ASTExpr leftExpr
+    ASTExpr rightExpr
+
+    public ASTBinary(const ASTBinaryKind binaryKind, const SourceLocation opLocation, const ASTExpr leftExpr, const ASTExpr rightExpr) {
+        super(leftExpr.getLoc(), ASTExprKind.EXPR_BINARY)
+        this.binaryKind = binaryKind
+        this.opLocation = opLocation
+        this.leftExpr = leftExpr
+        this.rightExpr = rightExpr
+    }
+
+    public ASTBinaryKind getBinaryKind() { out = this.binaryKind }
+    public SourceLocation getOpLocation() { out = this.opLocation }
+    public ASTExpr getLeftExpr() { out = this.leftExpr }
+    public ASTExpr getRightExpr() { out = this.rightExpr }
+}

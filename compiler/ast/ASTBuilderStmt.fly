@@ -1,0 +1,34 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.data.*
+
+// ASTBuilderStmt — 1:1 port of fly/.../ASTBuilderStmt.cpp. Wraps a freshly-created
+// statement and appends it to the parent block. (CreateAssignment/CreateVar are
+// declared but unimplemented in the C++ source, so they are not ported.)
+public class ASTBuilderStmt {
+
+    ASTStmt stmt
+
+    public ASTBuilderStmt() { }
+
+    public static ASTBuilderStmt CreateReturn(const ASTBlockStmt parent, const SourceLocation loc) {
+        ASTBuilderStmt b = new ASTBuilderStmt()
+        b.stmt = new ASTReturnStmt(loc)
+        parent.addContent(b.stmt)
+        out = b
+    }
+    public static ASTBuilderStmt CreateFail(const ASTBlockStmt parent, const SourceLocation loc) {
+        ASTBuilderStmt b = new ASTBuilderStmt()
+        b.stmt = new ASTFailStmt(loc)
+        parent.addContent(b.stmt)
+        out = b
+    }
+    public static ASTBuilderStmt CreateExpr(const ASTBlockStmt parent, const SourceLocation loc) {
+        ASTBuilderStmt b = new ASTBuilderStmt()
+        b.stmt = new ASTExprStmt(loc)
+        parent.addContent(b.stmt)
+        out = b
+    }
+}

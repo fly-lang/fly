@@ -1,0 +1,27 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTBase
+import fly.compiler.ast.ASTKind
+
+public enum ASTModifierKind {
+    MOD_CONSTANT,
+    MOD_STATIC,
+    MOD_PUBLIC,
+    MOD_PRIVATE,
+    MOD_PROTECTED,
+    MOD_ABSTRACT,
+    MOD_FINAL
+}
+
+public class ASTModifier : ASTBase {
+
+    ASTModifierKind modifierKind
+
+    public ASTModifier(const SourceLocation loc, const ASTModifierKind modifierKind) {
+        super(ASTKind.MODIFIER, loc)
+        this.modifierKind = modifierKind
+    }
+
+    public ASTModifierKind getModifierKind() { out = this.modifierKind }
+}

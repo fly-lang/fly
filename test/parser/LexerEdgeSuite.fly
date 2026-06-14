@@ -1,0 +1,47 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.List
+import fly.assert
+
+// LexerEdgeSuite — boundary cases: empty input, three-char operators, brackets,
+// and a stray (unknown) byte.
+suite LexerEdgeSuite {
+
+    void emptyTest() {
+        case "empty input": {
+            Lexer lx = newLexer("")
+            Token t = lx.next()
+            assert.assertTrue(t.kind == TokenKind.EOF, 1)
+        }
+        case "whitespace only": {
+            Lexer lx = newLexer("   ")
+            Token t = lx.next()
+            assert.assertTrue(t.kind == TokenKind.EOF, 2)
+        }
+    }
+
+    void operatorTest() {
+        case "three-char operator": {
+            Lexer lx = newLexer("<<=")
+            Token t = lx.next()
+            assert.assertTrue(t.kind == TokenKind.PUNCT, 3)
+            assert.assertStr(lx.tokenText(t), "<<=", 4)
+        }
+        case "brackets": {
+            Lexer lx = newLexer("[]")
+            Token a = lx.next()
+            assert.assertStr(lx.tokenText(a), "[", 5)
+            Token b = lx.next()
+            assert.assertStr(lx.tokenText(b), "]", 6)
+        }
+    }
+
+    void unknownTest() {
+        case "stray byte": {
+            Lexer lx = newLexer("$")
+            Token t = lx.next()
+            assert.assertTrue(t.kind == TokenKind.UNKNOWN, 7)
+        }
+    }
+}

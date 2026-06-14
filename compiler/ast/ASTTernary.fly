@@ -1,0 +1,29 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTExprKind
+
+public class ASTTernary : ASTExpr {
+
+    ASTExpr conditionExpr
+    SourceLocation trueOpLocation
+    ASTExpr trueExpr
+    SourceLocation falseOpLocation
+    ASTExpr falseExpr
+
+    public ASTTernary(const ASTExpr conditionExpr, const SourceLocation trueOpLocation, const ASTExpr trueExpr, const SourceLocation falseOpLocation, const ASTExpr falseExpr) {
+        super(conditionExpr.getLoc(), ASTExprKind.EXPR_TERNARY)
+        this.conditionExpr = conditionExpr
+        this.trueOpLocation = trueOpLocation
+        this.trueExpr = trueExpr
+        this.falseOpLocation = falseOpLocation
+        this.falseExpr = falseExpr
+    }
+
+    public ASTExpr getConditionExpr() { out = this.conditionExpr }
+    public SourceLocation getTrueOpLocation() { out = this.trueOpLocation }
+    public ASTExpr getTrueExpr() { out = this.trueExpr }
+    public SourceLocation getFalseOpLocation() { out = this.falseOpLocation }
+    public ASTExpr getFalseExpr() { out = this.falseExpr }
+}

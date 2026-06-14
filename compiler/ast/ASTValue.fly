@@ -1,0 +1,114 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTExprKind
+import fly.data.List
+
+public enum ASTValueKind {
+    VAL_BOOL,
+    VAL_NUMBER,
+    VAL_STRING,
+    VAL_ARRAY,
+    VAL_STRUCT,
+    VAL_NULL,
+    VAL_DEFAULT,
+    VAL_ENUM,
+    VAL_UNSET
+}
+
+public class ASTValue : ASTExpr {
+
+    ASTValueKind valueKind
+
+    public ASTValue(const ASTValueKind valueKind, const SourceLocation loc) {
+        super(loc, ASTExprKind.EXPR_VALUE)
+        this.valueKind = valueKind
+    }
+
+    public ASTValueKind getValueKind() { out = this.valueKind }
+    public bool isBool() { out = this.valueKind == ASTValueKind.VAL_BOOL }
+    public bool isNumber() { out = this.valueKind == ASTValueKind.VAL_NUMBER }
+    public bool isString() { out = this.valueKind == ASTValueKind.VAL_STRING }
+    public bool isArray() { out = this.valueKind == ASTValueKind.VAL_ARRAY }
+    public bool isStruct() { out = this.valueKind == ASTValueKind.VAL_STRUCT }
+    public bool isNull() { out = this.valueKind == ASTValueKind.VAL_NULL }
+    public bool isDefault() { out = this.valueKind == ASTValueKind.VAL_DEFAULT }
+    public bool isUnset() { out = this.valueKind == ASTValueKind.VAL_UNSET }
+}
+
+public class ASTBoolValue : ASTValue {
+
+    bool value
+
+    public ASTBoolValue(const SourceLocation loc, const bool value) {
+        super(ASTValueKind.VAL_BOOL, loc)
+        this.value = value
+    }
+
+    public bool getValue() { out = this.value }
+}
+
+public class ASTNumberValue : ASTValue {
+
+    string value
+
+    public ASTNumberValue(const SourceLocation loc, const string value) {
+        super(ASTValueKind.VAL_NUMBER, loc)
+        this.value = value
+    }
+
+    public string getValue() { out = this.value }
+}
+
+public class ASTStringValue : ASTValue {
+
+    string value
+
+    public ASTStringValue(const SourceLocation loc, const string value) {
+        super(ASTValueKind.VAL_STRING, loc)
+        this.value = value
+    }
+
+    public string getValue() { out = this.value }
+}
+
+public class ASTArrayValue : ASTValue {
+
+    fly.data.List values
+
+    public ASTArrayValue(const SourceLocation loc) {
+        super(ASTValueKind.VAL_ARRAY, loc)
+        this.values = new List()
+    }
+
+    public fly.data.List getValues() { out = this.values }
+    public void setValues(const fly.data.List v) { this.values = v }
+}
+
+public class ASTStructValue : ASTValue {
+
+    fly.data.List values
+
+    public ASTStructValue(const SourceLocation loc) {
+        super(ASTValueKind.VAL_STRUCT, loc)
+        this.values = new List()
+    }
+
+    public fly.data.List getValues() { out = this.values }
+    public void setValues(const fly.data.List v) { this.values = v }
+}
+
+public class ASTNullValue : ASTValue {
+
+    public ASTNullValue(const SourceLocation loc) {
+        super(ASTValueKind.VAL_NULL, loc)
+    }
+}
+
+public class ASTUnsetValue : ASTValue {
+
+    public ASTUnsetValue(const SourceLocation loc) {
+        super(ASTValueKind.VAL_UNSET, loc)
+    }
+}

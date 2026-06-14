@@ -1,0 +1,64 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// NodeSuite — construct the new AST node classes directly and assert their typed
+// accessors (replacing the old flat newNode/span/extra/.subKind model).
+suite ASTNodeSuite {
+
+    void unaryTest() {
+        case "ASTUnary holds op + operand": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTExpr operand = new ASTIdentifier(loc, "x")
+            ASTUnary u = new ASTUnary(loc, ASTUnaryKind.OP_UNARY_NOT_LOG, operand)
+            assert.assertTrue(u.getOpKind() == ASTUnaryKind.OP_UNARY_NOT_LOG, 1)
+            assert.assertTrue(u.getExprKind() == ASTExprKind.EXPR_UNARY, 2)
+            assert.assertTrue(u.getExpr() != null, 3)
+        }
+    }
+
+    void valueTest() {
+        case "ASTBoolValue": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTBoolValue b = new ASTBoolValue(loc, true)
+            assert.assertTrue(b.getValue(), 4)
+            assert.assertTrue(b.isBool(), 5)
+            assert.assertTrue(b.getValueKind() == ASTValueKind.VAL_BOOL, 6)
+            assert.assertTrue(b.getExprKind() == ASTExprKind.EXPR_VALUE, 7)
+        }
+    }
+
+    void moduleTest() {
+        case "ASTModule name + empty nodes": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTModule m = new ASTModule(loc, "demo.fly")
+            assert.assertStr(m.getName(), "demo.fly", 8)
+            assert.assertTrue(m.getKind() == ASTKind.MODULE, 9)
+            fly.data.List nodes = m.getNodes()
+            assert.assertEqI(nodes.size(), 0, 10)
+        }
+    }
+
+    void functionTest() {
+        case "ASTFunction params": {
+            SourceLocation loc = slGetFileLoc(0)
+            fly.data.List nomods = new List()
+            ASTType ty = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_INT)
+            ASTParam p1 = new ASTParam(loc, ty, "a", nomods)
+            ASTType ty2 = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_INT)
+            ASTParam p2 = new ASTParam(loc, ty2, "b", nomods)
+            fly.data.List params = new List()
+            params.add(p1)
+            params.add(p2)
+            fly.data.List fmods = new List()
+            ASTFunction fn = new ASTFunction(loc, fmods, "add", params, ASTFunctionKind.F_FUNCTION)
+            assert.assertStr(fn.getName(), "add", 11)
+            fly.data.List ps = fn.getParams()
+            assert.assertEqI(ps.size(), 2, 12)
+            assert.assertStr(p1.getName(), "a", 13)
+            assert.assertTrue(p1.getType() != null, 14)
+        }
+    }
+}

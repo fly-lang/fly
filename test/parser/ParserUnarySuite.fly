@@ -1,0 +1,27 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// Unary operators: logical not and pre-increment.
+suite ParserUnarySuite {
+    void unaryTest() {
+        case "logical not": {
+            Parser p = new Parser("!a")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 1)
+            assert.assertTrue(e != null, 2)
+        }
+        case "pre-increment": {
+            Parser p = new Parser("++i")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 3)
+        }
+        case "not of comparison": {
+            Parser p = new Parser("!(a == b)")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 4)
+        }
+    }
+}

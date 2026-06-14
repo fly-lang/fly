@@ -1,0 +1,25 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTStmt
+import fly.compiler.ast.ASTStmtKind
+
+public class ASTLoopInStmt : ASTStmt {
+
+    ASTExpr item
+    ASTExpr list
+    ASTStmt stmt
+
+    public ASTLoopInStmt(const SourceLocation loc, const ASTExpr item, const ASTExpr list, const ASTStmt stmt) {
+        super(loc, ASTStmtKind.STMT_LOOP_IN)
+        this.item = item
+        this.list = list
+        this.stmt = stmt
+    }
+
+    public ASTExpr getItem() { out = this.item }
+    public ASTExpr getList() { out = this.list }
+    public ASTStmt getStmt() { out = this.stmt }
+    public void setStmt(const ASTStmt s) { this.stmt = s }
+}

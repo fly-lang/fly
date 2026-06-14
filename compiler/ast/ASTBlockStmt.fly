@@ -1,0 +1,19 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTStmt
+import fly.compiler.ast.ASTStmtKind
+import fly.data.List
+
+public class ASTBlockStmt : ASTStmt {
+
+    fly.data.List content
+
+    public ASTBlockStmt(const SourceLocation loc) {
+        super(loc, ASTStmtKind.STMT_BLOCK)
+        this.content = new List()
+    }
+
+    public fly.data.List getContent() { out = this.content }
+    public void addContent(const ASTStmt stmt) { this.content.add(stmt) }
+}

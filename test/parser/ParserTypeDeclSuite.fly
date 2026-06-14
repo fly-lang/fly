@@ -1,0 +1,32 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// Type declarations: struct, interface, enum.
+suite ParserTypeDeclSuite {
+    void structTest() {
+        case "struct P { int x int y }": {
+            Parser p = new Parser("struct P { int x  int y }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 1)
+        }
+    }
+    void interfaceTest() {
+        case "interface R { int f() }": {
+            Parser p = new Parser("interface R { public int area() }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 2)
+        }
+    }
+    void enumTest() {
+        case "enum E { A, B, C }": {
+            Parser p = new Parser("enum Color { RED, GREEN, BLUE }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 3)
+            fly.data.List nodes = m.getNodes()
+            assert.assertEqI(nodes.size(), 1, 4)
+        }
+    }
+}

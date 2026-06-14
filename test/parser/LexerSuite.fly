@@ -1,0 +1,108 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.List
+import fly.assert
+
+// LexerSuite — token spelling is resolved via lx.tokenText(tok) (the Lexer is
+// the single source owner; tokens hold only offsets).
+suite LexerSuite {
+
+    void identKeywordTest() {
+        case "ident vs keyword": {
+            Lexer lx = newLexer("foo class bar")
+            Token t1 = lx.next()
+            assert.assertTrue(t1.kind == TokenKind.IDENT, 1)
+            assert.assertStr(lx.tokenText(t1), "foo", 2)
+            Token t2 = lx.next()
+            assert.assertTrue(t2.kind == TokenKind.KEYWORD, 3)
+            assert.assertStr(lx.tokenText(t2), "class", 4)
+            Token t3 = lx.next()
+            assert.assertStr(lx.tokenText(t3), "bar", 6)
+            Token t4 = lx.next()
+            assert.assertTrue(t4.kind == TokenKind.EOF, 7)
+        }
+        case "underscore digits": {
+            Lexer lx = newLexer("_x1 a2b")
+            Token t1 = lx.next()
+            assert.assertStr(lx.tokenText(t1), "_x1", 8)
+            Token t2 = lx.next()
+            assert.assertStr(lx.tokenText(t2), "a2b", 9)
+        }
+    }
+
+    void literalTest() {
+        case "number": {
+            Lexer lx = newLexer("42 3.14")
+            Token t1 = lx.next()
+            assert.assertTrue(t1.kind == TokenKind.NUMBER, 10)
+            assert.assertStr(lx.tokenText(t1), "42", 11)
+            Token t2 = lx.next()
+            assert.assertStr(lx.tokenText(t2), "3.14", 12)
+        }
+        case "char literal": {
+            Lexer lx = newLexer("'a'")
+            Token t1 = lx.next()
+            assert.assertTrue(t1.kind == TokenKind.CHAR, 13)
+            assert.assertStr(lx.tokenText(t1), "a", 14)
+        }
+    }
+
+    void operatorTest() {
+        case "maximal munch": {
+            Lexer lx = newLexer("a == b += 1 << 2")
+            Token a = lx.next()
+            assert.assertStr(lx.tokenText(a), "a", 15)
+            Token eq = lx.next()
+            assert.assertTrue(eq.kind == TokenKind.PUNCT, 16)
+            assert.assertStr(lx.tokenText(eq), "==", 17)
+            Token b = lx.next()
+            Token pe = lx.next()
+            assert.assertStr(lx.tokenText(pe), "+=", 19)
+            Token one = lx.next()
+            assert.assertStr(lx.tokenText(one), "1", 20)
+            Token shl = lx.next()
+            assert.assertStr(lx.tokenText(shl), "<<", 21)
+        }
+        case "braces": {
+            Lexer lx = newLexer("(){}")
+            Token p1 = lx.next()
+            assert.assertStr(lx.tokenText(p1), "(", 22)
+            Token p2 = lx.next()
+            Token p3 = lx.next()
+            assert.assertStr(lx.tokenText(p3), "{", 24)
+            Token p4 = lx.next()
+            assert.assertStr(lx.tokenText(p4), "}", 25)
+        }
+    }
+
+    void commentTest() {
+        case "block comment": {
+            Lexer lx = newLexer("x /* mid */ y")
+            Token a = lx.next()
+            assert.assertStr(lx.tokenText(a), "x", 26)
+            Token b = lx.next()
+            assert.assertStr(lx.tokenText(b), "y", 27)
+            Token e = lx.next()
+            assert.assertTrue(e.kind == TokenKind.EOF, 28)
+        }
+        case "line comment to eof": {
+            Lexer lx = newLexer("p // trailing comment")
+            Token a = lx.next()
+            assert.assertStr(lx.tokenText(a), "p", 29)
+            Token e = lx.next()
+            assert.assertTrue(e.kind == TokenKind.EOF, 30)
+        }
+        case "col tracking": {
+            // Tokens carry a SourceLocation (byte offset); line/col are decoded
+            // from the same buffer via SourceManager.
+            Lexer lx = newLexer("ab cd")
+            SourceManager sm = newSourceManager("test", "ab cd")
+            Token a = lx.next()
+            assert.assertEqI(sm.getColumnNumber(a.getLoc()), 1, 31)
+            Token b = lx.next()
+            assert.assertEqI(sm.getColumnNumber(b.getLoc()), 4, 32)
+            assert.assertEqI(sm.getLineNumber(b.getLoc()), 1, 33)
+        }
+    }
+}

@@ -1,0 +1,40 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.data.*
+
+// ASTBuilderIfStmt — 1:1 port of fly/.../ASTBuilderIfStmt.cpp. Fluent builder for
+// an if / elsif* / else chain.
+public class ASTBuilderIfStmt {
+
+    ASTBlockStmt parent
+    ASTIfStmt ifStmt
+
+    public ASTBuilderIfStmt(const ASTBlockStmt parent) {
+        this.parent = parent
+    }
+
+    public static ASTBuilderIfStmt Create(const ASTBlockStmt parent) {
+        out = new ASTBuilderIfStmt(parent)
+    }
+    public ASTBuilderIfStmt If(const SourceLocation loc, const ASTExpr expr, const ASTBlockStmt stmt) {
+        this.ifStmt = new ASTIfStmt(loc)
+        this.ifStmt.setExpr(expr)
+        this.ifStmt.setStmt(stmt)
+        this.parent.addContent(this.ifStmt)
+        this.ifStmt.setParent(this.parent)
+        out = this
+    }
+    public ASTBuilderIfStmt ElseIf(const SourceLocation loc, const ASTExpr expr, const ASTBlockStmt stmt) {
+        ASTRuleStmt elsifRule = new ASTRuleStmt(loc, ASTStmtKind.STMT_IF)
+        elsifRule.setExpr(expr)
+        elsifRule.setStmt(stmt)
+        this.ifStmt.addElsif(elsifRule)
+        out = this
+    }
+    public ASTBuilderIfStmt Else(const SourceLocation loc, const ASTBlockStmt stmt) {
+        this.ifStmt.setElse(stmt)
+        out = this
+    }
+}

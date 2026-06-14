@@ -1,0 +1,29 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// Assignment and parenthesised sub-expressions.
+suite ParserAssignParenSuite {
+    void assignTest() {
+        case "x = 1 + 2": {
+            Parser p = new Parser("x = 1 + 2")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 1)
+            assert.assertTrue(e != null, 2)
+        }
+    }
+    void parenTest() {
+        case "(1 + 2) * 3": {
+            Parser p = new Parser("(1 + 2) * 3")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 3)
+        }
+        case "unbalanced paren fails": {
+            Parser p = new Parser("(1 + 2")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess() == false, 4)
+        }
+    }
+}

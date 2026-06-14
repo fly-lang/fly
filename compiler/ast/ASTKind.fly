@@ -1,0 +1,29 @@
+namespace fly.compiler.ast
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ASTKind — the top-level node categories (ASTNode.kind), a native Fly `enum`
+// mirroring the C++ `enum class ASTKind`. Per-family sub-kinds and operator/value
+// ids stay as int constants with their node family (ASTType, ASTExpr, ASTStmt…).
+// Ordinals match the historical order (MODULE=0 … METHOD=17).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public enum ASTKind {
+    MODULE,
+    NAMESPACE,
+    IMPORT,
+    COMMENT,
+    CLASS,
+    ENUM,
+    ENUM_ENTRY,
+    FUNCTION,
+    PARAM,
+    VAR,         // global / local var declaration
+    ATTRIBUTE,   // class field
+    MODIFIER,
+    TYPE,
+    STMT,
+    EXPR,
+    ARG,
+    NAME,        // one identifier component of a qualified name
+    METHOD       // class method
+}

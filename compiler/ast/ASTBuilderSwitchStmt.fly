@@ -1,0 +1,37 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.data.*
+
+// ASTBuilderSwitchStmt — 1:1 port of fly/.../ASTBuilderSwitchStmt.cpp.
+public class ASTBuilderSwitchStmt {
+
+    ASTSwitchStmt switchStmt
+
+    public ASTBuilderSwitchStmt() { }
+
+    public static ASTBuilderSwitchStmt Create(const ASTBlockStmt parent, const SourceLocation loc, const ASTExpr expr) {
+        ASTBuilderSwitchStmt b = new ASTBuilderSwitchStmt()
+        b.switchStmt = new ASTSwitchStmt(loc)
+        b.switchStmt.setParent(parent)
+        parent.addContent(b.switchStmt)
+        b.switchStmt.setExpr(expr)
+        out = b
+    }
+    public ASTBuilderSwitchStmt addCase(const SourceLocation loc, const ASTExpr expr, const ASTBlockStmt stmt) {
+        ASTCaseStmt c = new ASTCaseStmt(loc)
+        c.setExpr(expr)
+        c.setStmt(stmt)
+        c.setParent(stmt)
+        this.switchStmt.addCase(c)
+        out = this
+    }
+    public ASTBuilderSwitchStmt setDefault(const SourceLocation loc, const ASTBlockStmt stmt) {
+        this.switchStmt.setDefault(stmt)
+        out = this
+    }
+    public bool hasDefault() {
+        out = this.switchStmt.getDefault() != null
+    }
+}

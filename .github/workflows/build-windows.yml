@@ -1,0 +1,66 @@
+name: Build Windows
+
+on:
+  workflow_call:
+  push:
+    paths-ignore:
+      - '.github/workflows/**'
+    branches:
+      - release/*
+  workflow_dispatch:
+
+env:
+  FLYC_VERSION: "0.12.3"
+
+jobs:
+
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install LLVM 20
+        run: choco install llvm --version=20.1.8 -y
+
+      - name: Download flyc binary
+        shell: pwsh
+        run: |
+          $url = "https://github.com/fly-lang/flyc/releases/download/v$env:FLYC_VERSION/fly-$env:FLYC_VERSION-win-x64.zip"
+          Invoke-WebRequest -Uri $url -OutFile fly.zip
+          Expand-Archive fly.zip -DestinationPath fly-bin
+          Copy-Item fly-bin\fly.exe -Destination "$env:SystemRoot\system32\fly.exe"
+          fly --version
+
+      - name: Download flyp binary
+        shell: pwsh
+        run: |
+          $url = "https://github.com/fly-lang/flyc/releases/download/v$env:FLYC_VERSION/flyp-$env:FLYC_VERSION-win-x64.zip"
+          Invoke-WebRequest -Uri $url -OutFile flyp.zip
+          Expand-Archive flyp.zip -DestinationPath flyp-bin
+          Copy-Item flyp-bin\flyp.exe -Destination "$env:SystemRoot\system32\flyp.exe"
+          flyp --version
+
+      - name: Set build type
+        shell: bash
+        if: startsWith(github.ref, 'refs/heads/release/')
+        run: echo "FLYP_PROFILE=--release" >> $GITHUB_ENV
+
+      - name: Build
+        run: flyp build ${{ env.FLYP_PROFILE }}
+
+      - name: Test
+        run: flyp test ${{ env.FLYP_PROFILE }}
+
+      - name: Set artifact name
+        id: artifact
+        shell: bash
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          echo "artifact_name=windows-artifact-${BRANCH//\//-}" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.artifact_name }}
+          path: build\bin\fly.exe
+          overwrite: true

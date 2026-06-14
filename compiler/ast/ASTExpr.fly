@@ -1,0 +1,34 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTKind
+import fly.compiler.ast.ASTNode
+
+public enum ASTExprKind {
+    EXPR_VALUE,
+    EXPR_IDENTIFIER,
+    EXPR_MEMBER,
+    EXPR_CALL,
+    EXPR_UNARY,
+    EXPR_BINARY,
+    EXPR_TERNARY,
+    EXPR_CAST
+}
+
+public class ASTExpr : ASTNode {
+
+    ASTExprKind exprKind
+    ASTExpr parent
+    ASTExpr child
+
+    public ASTExpr(const SourceLocation loc, const ASTExprKind exprKind) {
+        super(ASTKind.EXPR, loc)
+        this.exprKind = exprKind
+    }
+
+    public ASTExprKind getExprKind() { out = this.exprKind }
+    public ASTExpr getParent() { out = this.parent }
+    public ASTExpr getChild() { out = this.child }
+    public void setParent(const ASTExpr parent) { this.parent = parent }
+    public void setChild(const ASTExpr child) { this.child = child }
+}

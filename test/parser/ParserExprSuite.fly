@@ -1,0 +1,30 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// Expression parsing: arithmetic with precedence. Asserts the parser accepts the
+// input without error (deep structure read-back through base ASTExpr refs is a
+// pending compiler limitation — inherited-method dispatch via base-class ref).
+suite ParserExprSuite {
+    void precedenceTest() {
+        case "add/mul": {
+            Parser p = new Parser("1 + 2 * 3")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 1)
+            assert.assertTrue(e != null, 2)
+        }
+        case "bitwise and shift": {
+            Parser p = new Parser("a & b | c ^ d << 2 >> 1")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 3)
+        }
+        case "bare value": {
+            Parser p = new Parser("42")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 4)
+            assert.assertTrue(e != null, 5)
+        }
+    }
+}

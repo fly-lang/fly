@@ -1,0 +1,21 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTExprKind
+import fly.compiler.ast.ASTVar
+
+public class ASTIdentifier : ASTExpr {
+
+    string name
+    ASTVar var
+
+    public ASTIdentifier(const SourceLocation loc, const string name) {
+        super(loc, ASTExprKind.EXPR_IDENTIFIER)
+        this.name = name
+    }
+
+    public string getName() { out = this.name }
+    public ASTVar getVar() { out = this.var }
+    public void setVar(const ASTVar v) { this.var = v }
+}

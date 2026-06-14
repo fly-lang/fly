@@ -1,0 +1,28 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.data.*
+
+// ASTBuilderLoopInStmt — 1:1 port of fly/.../ASTBuilderLoopInStmt.cpp.
+public class ASTBuilderLoopInStmt {
+
+    ASTLoopInStmt loopStmt
+
+    public ASTBuilderLoopInStmt() { }
+
+    public static ASTBuilderLoopInStmt Create(const ASTBlockStmt parent, const SourceLocation loc, const ASTExpr item, const ASTExpr list, const ASTBlockStmt stmt) {
+        ASTBuilderLoopInStmt b = new ASTBuilderLoopInStmt()
+        b.loopStmt = new ASTLoopInStmt(loc, item, list, stmt)
+        parent.addContent(b.loopStmt)
+        b.loopStmt.setParent(parent)
+        if stmt != null {
+            stmt.setParent(b.loopStmt)
+        }
+        out = b
+    }
+    public ASTBuilderLoopInStmt setCycle(const ASTBlockStmt stmt) {
+        this.loopStmt.setStmt(stmt)
+        out = this
+    }
+}

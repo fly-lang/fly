@@ -1,0 +1,273 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.data.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ASTBuilder — 1:1 port of fly/include/AST/ASTBuilder.h + ASTBuilder.cpp. A set of
+// static factory methods that construct AST nodes and register them with their
+// parent (Module/Class/Enum/BlockStmt). Adaptations for the bootstrap toolchain:
+//   • CreateModule/CreateHeader take (loc, name) — InputFile is a Frontend type,
+//     not part of the AST port.
+//   • Array/StructValue values use fly.data.List (no llvm StringMap).
+//   • Optional C++ defaults (= nullptr) are explicit params (pass null).
+//   • CreateAssignment/CreateVar are unimplemented in the C++ source → not ported.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class ASTBuilder {
+
+    public ASTBuilder() { }
+
+    // ── Module / namespace / import / comment / name ─────────────────────────
+    public static ASTModule CreateModule(const SourceLocation loc, const string name) {
+        out = new ASTModule(loc, name)
+    }
+    public static ASTModule CreateHeader(const SourceLocation loc, const string name) {
+        ASTModule m = new ASTModule(loc, name)
+        m.setHeader(true)
+        out = m
+    }
+    public static ASTComment CreateComment(const ASTModule module, const SourceLocation loc, const string content) {
+        ASTComment comment = new ASTComment(loc, content)
+        module.addNode(comment)
+        out = comment
+    }
+    public static ASTName CreateName(const string name, const SourceLocation loc) {
+        out = new ASTName(loc, name)
+    }
+    public static ASTNameSpace CreateNameSpace(const ASTModule module, const SourceLocation loc, const fly.data.List names) {
+        ASTNameSpace ns = new ASTNameSpace(loc, names)
+        module.setNameSpace(ns)
+        out = ns
+    }
+    public static ASTImport CreateImport(const ASTModule module, const SourceLocation loc, const fly.data.List names, const fly.data.List alias, const bool wildcard) {
+        ASTImport imp = new ASTImport(loc, names, alias, wildcard)
+        module.addNode(imp)
+        out = imp
+    }
+
+    // ── Function / class / attribute / method / enum ─────────────────────────
+    public static ASTFunction CreateFunction(const ASTModule module, const SourceLocation loc, const string name, const fly.data.List modifiers, const fly.data.List params, const ASTBlockStmt body) {
+        ASTFunction function = new ASTFunction(loc, modifiers, name, params, ASTFunctionKind.F_FUNCTION)
+        if body != null {
+            ASTBuilder.CreateBody(function, body)
+        }
+        module.addNode(function)
+        out = function
+    }
+    public static ASTClass CreateClass(const ASTModule module, const SourceLocation loc, const ASTClassKind classKind, const string name, const fly.data.List modifiers, const fly.data.List bases) {
+        ASTClass cls = new ASTClass(classKind, modifiers, loc, name, bases)
+        module.addNode(cls)
+        out = cls
+    }
+    public static ASTAttribute CreateClassAttribute(const SourceLocation loc, const ASTClass cls, const ASTType type, const string name, const fly.data.List modifiers, const ASTExpr expr) {
+        ASTAttribute attr = new ASTAttribute(loc, type, name, modifiers)
+        attr.setExpr(expr)
+        cls.addNode(attr)
+        out = attr
+    }
+    public static ASTMethod CreateDefaultConstructor(const ASTClass cls) {
+        SourceLocation loc = slGetFileLoc(0)
+        fly.data.List modifiers = new List()
+        modifiers.add(ASTBuilder.CreateModifier(loc, ASTModifierKind.MOD_PUBLIC))
+        fly.data.List params = new List()
+        ASTMethod method = new ASTMethod(loc, modifiers, cls.getName(), params)
+        ASTBlockStmt body = ASTBuilder.CreateBlockStmt(loc)
+        ASTBuilder.CreateBody(method, body)
+        // NOT added to the class: the Resolver registers the default ctor at the Sema level.
+        out = method
+    }
+    public static ASTMethod CreateClassMethod(const SourceLocation loc, const ASTClass cls, const string name, const fly.data.List modifiers, const fly.data.List params, const ASTBlockStmt body) {
+        ASTMethod method = new ASTMethod(loc, modifiers, name, params)
+        if body != null {
+            ASTBuilder.CreateBody(method, body)
+        }
+        cls.addNode(method)
+        out = method
+    }
+    public static ASTEnum CreateEnum(const ASTModule module, const SourceLocation loc, const string name, const fly.data.List modifiers, const fly.data.List enumTypes) {
+        ASTEnum e = new ASTEnum(loc, name, modifiers, enumTypes)
+        module.addNode(e)
+        out = e
+    }
+    public static ASTEnumEntry CreateEnumEntry(const SourceLocation loc, const ASTEnum e, const string name, const fly.data.List modifiers) {
+        ASTEnumEntry entry = new ASTEnumEntry(loc, e, name)
+        fly.data.List nodes = e.getNodes()
+        // Index starts from 1 since 0 is reserved for the 'unset' value.
+        entry.setIndex(nodes.size() + 1)
+        e.addNode(entry)
+        out = entry
+    }
+    public static ASTModifier CreateModifier(const SourceLocation loc, const ASTModifierKind kind) {
+        out = new ASTModifier(loc, kind)
+    }
+
+    // ── Types ────────────────────────────────────────────────────────────────
+    public static ASTType CreateBoolType(const SourceLocation loc)    { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_BOOL) }
+    public static ASTType CreateByteType(const SourceLocation loc)    { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_BYTE) }
+    public static ASTType CreateUShortType(const SourceLocation loc)  { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_USHORT) }
+    public static ASTType CreateShortType(const SourceLocation loc)   { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_SHORT) }
+    public static ASTType CreateUIntType(const SourceLocation loc)    { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_UINT) }
+    public static ASTType CreateIntType(const SourceLocation loc)     { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_INT) }
+    public static ASTType CreateULongType(const SourceLocation loc)   { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_ULONG) }
+    public static ASTType CreateLongType(const SourceLocation loc)    { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_LONG) }
+    public static ASTType CreateFloatType(const SourceLocation loc)   { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_FLOAT) }
+    public static ASTType CreateDoubleType(const SourceLocation loc)  { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_DOUBLE) }
+    public static ASTType CreateComplexType(const SourceLocation loc) { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_COMPLEX) }
+    public static ASTType CreateVoidType(const SourceLocation loc)    { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_VOID) }
+    public static ASTType CreateStringType(const SourceLocation loc)  { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_STRING) }
+    public static ASTType CreateErrorType(const SourceLocation loc)   { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_ERROR) }
+    public static ASTArrayType CreateArrayType(const SourceLocation loc, const ASTType elementType, const ASTExpr sizeExpr) {
+        out = new ASTArrayType(loc, elementType, sizeExpr)
+    }
+    public static ASTType CreateType(const SourceLocation loc, const fly.data.List names) {
+        out = new ASTNamedType(loc, names)
+    }
+
+    // ── Values ───────────────────────────────────────────────────────────────
+    public static ASTNullValue CreateNullValue(const SourceLocation loc)   { out = new ASTNullValue(loc) }
+    public static ASTUnsetValue CreateUnsetValue(const SourceLocation loc) { out = new ASTUnsetValue(loc) }
+    public static ASTBoolValue CreateBoolValue(const SourceLocation loc, const bool val) { out = new ASTBoolValue(loc, val) }
+    public static ASTNumberValue CreateNumberValue(const SourceLocation loc, const string val) { out = new ASTNumberValue(loc, val) }
+    public static ASTStringValue CreateStringValue(const SourceLocation loc, const string val) { out = new ASTStringValue(loc, val) }
+    public static ASTArrayValue CreateArrayValue(const SourceLocation loc, const fly.data.List values) {
+        ASTArrayValue arr = new ASTArrayValue(loc)
+        arr.setValues(values)
+        out = arr
+    }
+    public static ASTStructValue CreateStructValue(const SourceLocation loc, const fly.data.List values) {
+        ASTStructValue st = new ASTStructValue(loc)
+        st.setValues(values)
+        out = st
+    }
+
+    // ── Vars ─────────────────────────────────────────────────────────────────
+    public static ASTParam CreateParam(const SourceLocation loc, const ASTType type, const string name, const fly.data.List modifiers, const ASTValue defaultValue) {
+        ASTParam param = new ASTParam(loc, type, name, modifiers)
+        param.setExpr(defaultValue)
+        out = param
+    }
+    public static ASTLocalVar CreateLocalVar(const SourceLocation loc, const ASTType type, const string name, const fly.data.List modifiers) {
+        out = new ASTLocalVar(loc, type, name, modifiers)
+    }
+
+    // ── Expressions ──────────────────────────────────────────────────────────
+    public static ASTCall CreateCall(const SourceLocation loc, const string name, const fly.data.List args, const ASTCallKind callKind, const ASTExpr parent) {
+        ASTCall call = new ASTCall(loc, name, callKind)
+        if parent != null {
+            call.setParent(parent)
+        }
+        int n = args.size()
+        int i = 0
+        while i < n {
+            ASTExpr e = args.get(i)
+            ASTArg arg = new ASTArg(loc, e, i)
+            call.addArg(arg)
+            i = i + 1
+        }
+        out = call
+    }
+    public static ASTIdentifier CreateIdentifier(const ASTVar var) {
+        ASTIdentifier identifier = new ASTIdentifier(var.getLoc(), var.getName())
+        identifier.setVar(var)
+        out = identifier
+    }
+    public static ASTIdentifier CreateIdentifier(const SourceLocation loc, const string name, const ASTExpr parent) {
+        ASTIdentifier identifier = new ASTIdentifier(loc, name)
+        if parent != null {
+            identifier.setParent(parent)
+        }
+        out = identifier
+    }
+    public static ASTMember CreateMember(const SourceLocation loc, const string name, const ASTExpr parent) {
+        out = new ASTMember(loc, name, parent)
+    }
+    public static ASTUnary CreateUnary(const SourceLocation loc, const ASTUnaryKind opKind, const ASTExpr expr) {
+        out = new ASTUnary(loc, opKind, expr)
+    }
+    public static ASTCast CreateCast(const ASTExpr expr, const ASTType toType) {
+        out = new ASTCast(expr, toType)
+    }
+    public static ASTBinary CreateBinary(const SourceLocation opLocation, const ASTBinaryKind opKind, const ASTExpr leftExpr, const ASTExpr rightExpr) {
+        out = new ASTBinary(opKind, opLocation, leftExpr, rightExpr)
+    }
+    public static ASTTernary CreateTernary(const ASTExpr conditionExpr, const SourceLocation trueOpLocation, const ASTExpr trueExpr, const SourceLocation falseOpLocation, const ASTExpr falseExpr) {
+        out = new ASTTernary(conditionExpr, trueOpLocation, trueExpr, falseOpLocation, falseExpr)
+    }
+
+    // ── Statements ───────────────────────────────────────────────────────────
+    public static ASTDeclStmt CreateDeclStmt(const ASTBlockStmt parent, const SourceLocation loc, const ASTLocalVar var) {
+        ASTDeclStmt stmt = new ASTDeclStmt(loc, var)
+        parent.addContent(stmt)
+        out = stmt
+    }
+    public static ASTReturnStmt CreateReturnStmt(const ASTBlockStmt parent, const SourceLocation loc) {
+        ASTReturnStmt stmt = new ASTReturnStmt(loc)
+        parent.addContent(stmt)
+        out = stmt
+    }
+    public static ASTExprStmt CreateExprStmt(const ASTBlockStmt parent, const SourceLocation loc) {
+        ASTExprStmt stmt = new ASTExprStmt(loc)
+        parent.addContent(stmt)
+        out = stmt
+    }
+    public static ASTFailStmt CreateFailStmt(const ASTBlockStmt parent, const SourceLocation loc) {
+        ASTFailStmt stmt = new ASTFailStmt(loc)
+        parent.addContent(stmt)
+        out = stmt
+    }
+    public static ASTHandleStmt CreateHandleStmt(const ASTBlockStmt parent, const SourceLocation loc, const ASTBlockStmt blockStmt) {
+        ASTHandleStmt handleStmt = new ASTHandleStmt(loc)
+        parent.addContent(handleStmt)
+        handleStmt.setHandle(blockStmt)
+        blockStmt.setParent(handleStmt)
+        out = handleStmt
+    }
+    public static ASTBreakStmt CreateBreakStmt(const ASTBlockStmt parent, const SourceLocation loc) {
+        ASTBreakStmt brk = new ASTBreakStmt(loc)
+        parent.addContent(brk)
+        brk.setParent(parent)
+        out = brk
+    }
+    public static ASTContinueStmt CreateContinueStmt(const ASTBlockStmt parent, const SourceLocation loc) {
+        ASTContinueStmt cont = new ASTContinueStmt(loc)
+        parent.addContent(cont)
+        cont.setParent(parent)
+        out = cont
+    }
+    public static ASTDeleteStmt CreateDeleteStmt(const ASTBlockStmt parent, const SourceLocation loc, const ASTIdentifier varRef) {
+        ASTDeleteStmt del = new ASTDeleteStmt(loc, varRef)
+        parent.addContent(del)
+        del.setParent(parent)
+        out = del
+    }
+    public static ASTBlockStmt CreateBody(const ASTFunction function, const ASTBlockStmt body) {
+        body.setParent(null)
+        function.setBody(body)
+        out = function.getBody()
+    }
+    public static ASTBlockStmt CreateBlockStmt(const SourceLocation loc) {
+        out = new ASTBlockStmt(loc)
+    }
+    public static ASTBlockStmt CreateBlockStmtChild(const ASTStmt parent, const SourceLocation loc) {
+        ASTBlockStmt block = new ASTBlockStmt(loc)
+        block.setParent(parent)
+        out = block
+    }
+    public static ASTCaseStmt CreateCaseStmt(const ASTBlockStmt parent, const SourceLocation loc, const ASTExpr expr, const ASTBlockStmt body) {
+        ASTCaseStmt c = new ASTCaseStmt(loc)
+        c.setExpr(expr)
+        c.setStmt(body)
+        parent.addContent(c)
+        out = c
+    }
+    public static ASTTestStmt CreateTestStmt(const ASTBlockStmt parent, const SourceLocation loc) {
+        ASTTestStmt stmt = new ASTTestStmt(loc)
+        ASTBlockStmt body = new ASTBlockStmt(loc)
+        stmt.setBody(body)
+        body.setParent(stmt)
+        parent.addContent(stmt)
+        out = stmt
+    }
+}

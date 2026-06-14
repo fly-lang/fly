@@ -1,0 +1,27 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// Call expressions with arguments.
+suite ParserCallSuite {
+    void callTest() {
+        case "call with args": {
+            Parser p = new Parser("foo(a, 2)")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 1)
+            assert.assertTrue(e != null, 2)
+        }
+        case "no-arg call": {
+            Parser p = new Parser("bar()")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 3)
+        }
+        case "nested call": {
+            Parser p = new Parser("f(g(1), h(2, 3))")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 4)
+        }
+    }
+}

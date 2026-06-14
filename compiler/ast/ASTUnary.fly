@@ -1,0 +1,29 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTExprKind
+
+public enum ASTUnaryKind {
+    OP_UNARY_PRE_INCR,
+    OP_UNARY_POST_INCR,
+    OP_UNARY_PRE_DECR,
+    OP_UNARY_POST_DECR,
+    OP_UNARY_NOT_LOG
+}
+
+public class ASTUnary : ASTExpr {
+
+    ASTUnaryKind opKind
+    ASTExpr expr
+
+    public ASTUnary(const SourceLocation loc, const ASTUnaryKind opKind, const ASTExpr expr) {
+        super(loc, ASTExprKind.EXPR_UNARY)
+        this.opKind = opKind
+        this.expr = expr
+    }
+
+    public SourceLocation getOpLocation() { out = this.getLoc() }
+    public ASTUnaryKind getOpKind() { out = this.opKind }
+    public ASTExpr getExpr() { out = this.expr }
+}

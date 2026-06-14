@@ -1,0 +1,54 @@
+namespace fly.compiler.basic
+import fly.compiler.basic.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TokenKinds — the lexical token kind set, its names, and keyword recognition,
+// ported from compiler/Basic/TokenKinds.cpp/.def. The C++ version enumerates the
+// full punctuator/keyword database; the self-host lexer uses the compact kind
+// set below (punctuators are lexed as PUNCT carrying their text, keywords as
+// KEYWORD), so that is what is modelled here.
+//
+// This is the single source of truth for token kinds: the constants, tokKindName
+// and isKeyword previously lived in Parser/Token.fly and now live here.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Token kinds — ordinals match the former TOK_* function values (0..7).
+public enum TokenKind {
+    EOF,
+    IDENT,
+    KEYWORD,
+    NUMBER,
+    STRING,
+    CHAR,
+    PUNCT,
+    UNKNOWN
+}
+
+// tokKindName — human-readable name for a token kind.
+public string tokKindName(const TokenKind k) {
+    if k == TokenKind.EOF     { out = "EOF"     return }
+    if k == TokenKind.IDENT   { out = "Ident"   return }
+    if k == TokenKind.KEYWORD { out = "Keyword" return }
+    if k == TokenKind.NUMBER  { out = "Number"  return }
+    if k == TokenKind.STRING  { out = "String"  return }
+    if k == TokenKind.CHAR    { out = "Char"    return }
+    if k == TokenKind.PUNCT   { out = "Punct"   return }
+    out = "Unknown"
+}
+
+// isKeyword — true if an identifier spelling is a Fly reserved word.
+public bool isKeyword(const string w) {
+    out = w == "abstract" || w == "as" || w == "bool" || w == "break"
+       || w == "byte" || w == "case" || w == "char" || w == "class"
+       || w == "complex" || w == "const" || w == "continue" || w == "default"
+       || w == "double" || w == "elsif" || w == "else" || w == "enum"
+       || w == "error" || w == "fail" || w == "false" || w == "final"
+       || w == "float" || w == "for" || w == "handle" || w == "if"
+       || w == "import" || w == "interface" || w == "in" || w == "int"
+       || w == "long" || w == "namespace" || w == "new" || w == "null"
+       || w == "private" || w == "protected" || w == "public" || w == "return"
+       || w == "short" || w == "static" || w == "string" || w == "struct"
+       || w == "suite" || w == "switch" || w == "test" || w == "true"
+       || w == "uint" || w == "ulong" || w == "unset" || w == "ushort"
+       || w == "void" || w == "while"
+}

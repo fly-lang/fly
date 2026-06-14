@@ -1,0 +1,35 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// KindsSuite — AST/token kind names (enum .name) and value distinctness.
+suite ASTKindsSuite {
+
+    void kindNameTest() {
+        case "ast kinds": {
+            assert.assertStr(ASTKind.MODULE.name, "MODULE", 1)
+            assert.assertStr(ASTKind.EXPR.name, "EXPR", 2)
+            assert.assertStr(ASTKind.STMT.name, "STMT", 3)
+            assert.assertStr(ASTKind.CLASS.name, "CLASS", 4)
+            assert.assertStr(ASTKind.METHOD.name, "METHOD", 5)
+            assert.assertStr(ASTKind.FUNCTION.name, "FUNCTION", 6)
+            assert.assertStr(ASTKind.TYPE.name, "TYPE", 7)
+        }
+        case "token kinds": {
+            assert.assertStr(tokKindName(TokenKind.EOF), "EOF", 8)
+            assert.assertStr(tokKindName(TokenKind.IDENT), "Ident", 9)
+            assert.assertStr(tokKindName(TokenKind.KEYWORD), "Keyword", 10)
+            assert.assertStr(tokKindName(TokenKind.NUMBER), "Number", 11)
+            assert.assertStr(tokKindName(TokenKind.PUNCT), "Punct", 12)
+        }
+        case "distinct kind values": {
+            assert.assertFalse(ASTKind.MODULE == ASTKind.EXPR, 13)
+            assert.assertFalse(ASTExprKind.EXPR_BINARY == ASTExprKind.EXPR_UNARY, 14)
+            assert.assertFalse(ASTStmtKind.STMT_IF == ASTStmtKind.STMT_LOOP, 15)
+            assert.assertFalse(ASTStmtKind.STMT_CASE == ASTStmtKind.STMT_TEST, 16)
+            assert.assertFalse(ASTStmtKind.STMT_RULE == ASTStmtKind.STMT_CASE, 17)
+        }
+    }
+}

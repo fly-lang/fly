@@ -1,0 +1,46 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTBlockStmt
+import fly.compiler.ast.ASTKind
+import fly.compiler.ast.ASTNode
+import fly.compiler.ast.ASTType
+import fly.data.List
+
+public enum ASTFunctionKind {
+    F_FUNCTION,
+    F_METHOD
+}
+
+public class ASTFunction : ASTNode {
+
+    ASTFunctionKind functionKind
+    string name
+    fly.data.List modifiers
+    fly.data.List params
+    ASTType returnType
+    fly.data.List returnTypes
+    ASTBlockStmt body
+    fly.data.List typeParams
+
+    public ASTFunction(const SourceLocation loc, const fly.data.List modifiers, const string name, const fly.data.List params, const ASTFunctionKind functionKind) {
+        super(ASTKind.FUNCTION, loc)
+        this.modifiers = modifiers
+        this.name = name
+        this.params = params
+        this.functionKind = functionKind
+        this.returnTypes = new List()
+        this.typeParams = new List()
+    }
+
+    public string getName() { out = this.name }
+    public fly.data.List getModifiers() { out = this.modifiers }
+    public fly.data.List getParams() { out = this.params }
+    public fly.data.List getTypeParams() { out = this.typeParams }
+    public ASTType getReturnType() { out = this.returnType }
+    public void setReturnType(const ASTType returnType) { this.returnType = returnType }
+    public fly.data.List getReturnTypes() { out = this.returnTypes }
+    public void setReturnTypes(const fly.data.List returnTypes) { this.returnTypes = returnTypes }
+    public ASTBlockStmt getBody() { out = this.body }
+    public void setBody(const ASTBlockStmt body) { this.body = body }
+}

@@ -1,0 +1,39 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.assert
+
+// TokenKindsSuite — token kind names, keyword recognition, enum comparison.
+suite TokenKindsSuite {
+
+    void nameTest() {
+        case "names": {
+            assert.assertStr(tokKindName(TokenKind.EOF), "EOF", 1)
+            assert.assertStr(tokKindName(TokenKind.IDENT), "Ident", 2)
+            assert.assertStr(tokKindName(TokenKind.KEYWORD), "Keyword", 3)
+            assert.assertStr(tokKindName(TokenKind.NUMBER), "Number", 4)
+            assert.assertStr(tokKindName(TokenKind.STRING), "String", 5)
+            assert.assertStr(tokKindName(TokenKind.CHAR), "Char", 6)
+            assert.assertStr(tokKindName(TokenKind.PUNCT), "Punct", 7)
+            assert.assertStr(tokKindName(TokenKind.UNKNOWN), "Unknown", 8)
+        }
+    }
+
+    void keywordTest() {
+        case "keywords": {
+            assert.assertTrue(isKeyword("class"), 9)
+            assert.assertTrue(isKeyword("enum"), 10)
+            assert.assertTrue(isKeyword("return"), 11)
+            assert.assertFalse(isKeyword("Foo"), 12)
+            assert.assertFalse(isKeyword("classy"), 13)
+        }
+    }
+
+    void enumCompareTest() {
+        case "equality": {
+            assert.assertTrue(TokenKind.PUNCT == TokenKind.PUNCT, 14)
+            assert.assertFalse(TokenKind.EOF == TokenKind.IDENT, 15)
+            assert.assertTrue(TokenKind.EOF != TokenKind.IDENT, 16)
+        }
+    }
+}

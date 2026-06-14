@@ -1,0 +1,68 @@
+name: Build Linux
+
+on:
+  workflow_call:
+  push:
+    paths-ignore:
+      - '.github/workflows/**'
+    branches:
+      - release/*
+  workflow_dispatch:
+
+env:
+  FLYC_VERSION: "0.12.3"
+
+jobs:
+
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install LLVM 20
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-20-dev libllvm20 lld-20
+
+      - name: Download flyc binary
+        run: |
+          curl -fsSL \
+            "https://github.com/fly-lang/flyc/releases/download/v${FLYC_VERSION}/fly-${FLYC_VERSION}-linux-x86_64.tar.gz" \
+            | tar -xz
+          chmod +x fly
+          sudo mv fly /usr/local/bin/fly
+          fly --version
+
+      - name: Download flyp binary
+        run: |
+          curl -fsSL \
+            "https://github.com/fly-lang/flyc/releases/download/v${FLYC_VERSION}/flyp-${FLYC_VERSION}-linux-x86_64.tar.gz" \
+            | tar -xz
+          chmod +x flyp
+          sudo mv flyp /usr/local/bin/flyp
+          flyp --version
+
+      - name: Set build type
+        shell: bash
+        if: startsWith(github.ref, 'refs/heads/release/')
+        run: echo "FLYP_PROFILE=--release" >> $GITHUB_ENV
+
+      - name: Build
+        run: flyp build ${{ env.FLYP_PROFILE }}
+
+      - name: Test
+        run: flyp test ${{ env.FLYP_PROFILE }}
+
+      - name: Set artifact name
+        id: artifact
+        shell: bash
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          echo "artifact_name=linux-artifact-${BRANCH//\//-}" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.artifact_name }}
+          path: build/bin/fly
+          overwrite: true

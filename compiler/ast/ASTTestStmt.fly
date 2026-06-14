@@ -1,0 +1,18 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTBlockStmt
+import fly.compiler.ast.ASTStmt
+import fly.compiler.ast.ASTStmtKind
+
+public class ASTTestStmt : ASTStmt {
+
+    ASTBlockStmt body
+
+    public ASTTestStmt(const SourceLocation loc) {
+        super(loc, ASTStmtKind.STMT_TEST)
+    }
+
+    public ASTBlockStmt getBody() { out = this.body }
+    public void setBody(const ASTBlockStmt b) { this.body = b }
+}

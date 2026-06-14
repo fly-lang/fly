@@ -1,0 +1,12 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTStmt
+import fly.compiler.ast.ASTStmtKind
+
+public class ASTReturnStmt : ASTStmt {
+
+    public ASTReturnStmt(const SourceLocation loc) {
+        super(loc, ASTStmtKind.STMT_RETURN)
+    }
+}

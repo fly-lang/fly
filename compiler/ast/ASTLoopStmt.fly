@@ -1,0 +1,34 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTStmt
+import fly.compiler.ast.ASTStmtKind
+import fly.data.List
+
+public class ASTLoopStmt : ASTStmt {
+
+    bool verifyConditionAtEnd
+    ASTExpr expr
+    fly.data.List init
+    fly.data.List post
+    ASTStmt loopStmt
+
+    public ASTLoopStmt(const SourceLocation loc) {
+        super(loc, ASTStmtKind.STMT_LOOP)
+        this.verifyConditionAtEnd = false
+        this.init = new List()
+        this.post = new List()
+    }
+
+    public bool hasVerifyConditionAtEnd() { out = this.verifyConditionAtEnd }
+    public ASTExpr getExpr() { out = this.expr }
+    public fly.data.List getInit() { out = this.init }
+    public ASTStmt getLoop() { out = this.loopStmt }
+    public fly.data.List getPost() { out = this.post }
+    public void setExpr(const ASTExpr expr) { this.expr = expr }
+    public void setLoop(const ASTStmt s) { this.loopStmt = s }
+    public void addInit(const ASTStmt s) { this.init.add(s) }
+    public void addPost(const ASTStmt s) { this.post.add(s) }
+    public void setVerifyConditionAtEnd(const bool v) { this.verifyConditionAtEnd = v }
+}

@@ -1,0 +1,28 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTBase
+import fly.compiler.ast.ASTKind
+import fly.compiler.ast.ASTNode
+import fly.str as s
+
+public class ASTArg : ASTBase {
+
+    ASTNode expr
+    uint index
+
+    public ASTArg(const SourceLocation loc, const ASTNode expr, const uint index) {
+        super(ASTKind.ARG, loc)
+        this.expr = expr
+        this.index = index
+    }
+
+    public ASTNode getExpr() { out = this.expr }
+    public uint getIndex() { out = this.index }
+
+    // str — extend the base rendering ("ARG@<loc>") with the arg index, calling the
+    // base implementation non-virtually via super.str() (must not recurse into this).
+    public string str() {
+        out = s.concat(super.str(), s.concat(" #", s.convert((int)this.index)))
+    }
+}

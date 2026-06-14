@@ -1,0 +1,28 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// Function declarations: return type, params, body.
+suite ParserFuncSuite {
+    void functionTest() {
+        case "int add(int a, int b)": {
+            Parser p = new Parser("int add(const int a, const int b) { out = a + b }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 1)
+            fly.data.List nodes = m.getNodes()
+            assert.assertEqI(nodes.size(), 1, 2)
+        }
+        case "void no params": {
+            Parser p = new Parser("void run() { }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 3)
+        }
+        case "default param value": {
+            Parser p = new Parser("int f(const int n = 3) { out = n }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 4)
+        }
+    }
+}

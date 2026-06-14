@@ -1,0 +1,96 @@
+namespace fly.compiler.basic
+import fly.compiler.basic.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SourceManager — decodes a SourceLocation (an opaque byte offset) into line,
+// column and a PresumedLoc, ported from fly/include/Basic/SourceManager.{h,cpp}.
+//
+// The C++ SourceManager is a ~3500-line, multi-buffer, macro-aware service with
+// a cached line table (ComputeLineNumbers / SourceLineCache) and binary search.
+// The self-host compiles ONE buffer with no macros and no #line, so this is the
+// single-buffer essence:
+//
+//   • getColumnNumber — scan back to the previous newline  (C++ getColumnNumber
+//                       fast path, SourceManager.cpp:1151-1154).
+//   • getLineNumber   — count newlines before the offset   (C++ getLineNumber,
+//                       minus the SourceLineCache binary-search optimisation).
+//
+// Behaviour matches the eager line/col the Lexer used to track (newline = byte
+// 10), so existing position assertions are preserved; only the *cache* is
+// dropped. Line/col are 1-based; column counts from the last '\n'.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class SourceManager {
+    string filename
+    string buffer
+    int len
+
+    public SourceManager(const string filename, const string buffer) {
+        this.filename = filename
+        this.buffer = buffer
+        int n = 0
+        fly.llvm.strSize(buffer, n)
+        this.len = n
+    }
+
+    // byteAt — byte code at index i, or 256 past end (mirrors Lexer.byteAt).
+    public int byteAt(const int i) {
+        if i >= this.len {
+            out = 256
+            return
+        }
+        byte b = 0
+        fly.llvm.strByteAt(this.buffer, i, b)
+        out = b
+    }
+
+    // getColumnNumber — 1-based column of the location: offset minus the start
+    // of its line. (C++ SourceManager::getColumnNumber simple path.)
+    public int getColumnNumber(const SourceLocation loc) {
+        int pos = loc.getOffset()
+        int lineStart = pos
+        while lineStart > 0 && this.byteAt(lineStart - 1) != 10 {
+            lineStart = lineStart - 1
+        }
+        out = (pos - lineStart) + 1
+    }
+
+    // getLineNumber — 1-based line of the location: 1 + the number of newlines
+    // before the offset. (C++ SourceManager::getLineNumber, sans line cache.)
+    public int getLineNumber(const SourceLocation loc) {
+        int pos = loc.getOffset()
+        int line = 1
+        int i = 0
+        while i < pos {
+            if this.byteAt(i) == 10 {
+                line = line + 1
+            }
+            i = i + 1
+        }
+        out = line
+    }
+
+    // getCharacterByte — byte at the location's offset (the single-buffer analog
+    // of C++ getCharacterData, which returns a pointer to that character).
+    public int getCharacterByte(const SourceLocation loc) {
+        out = this.byteAt(loc.getOffset())
+    }
+
+    // getBufferData — the whole source buffer (single FileID).
+    public string getBufferData() {
+        out = this.buffer
+    }
+
+    // getPresumedLoc — filename + decoded line/col for display. FileID is the
+    // single main-file id (1); no #include location in a single-buffer build.
+    public PresumedLoc getPresumedLoc(const SourceLocation loc) {
+        out = new PresumedLoc(this.filename, fileIDGet(1),
+                              this.getLineNumber(loc), this.getColumnNumber(loc),
+                              slInvalid())
+    }
+}
+
+// newSourceManager — convenience factory.
+public SourceManager newSourceManager(const string filename, const string buffer) {
+    out = new SourceManager(filename, buffer)
+}

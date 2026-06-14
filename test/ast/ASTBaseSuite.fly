@@ -1,0 +1,29 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.List
+import fly.assert
+
+// BaseSuite — ASTBase: the kind + loc root type ported from the C++ AST hierarchy.
+// (Standalone; ASTNode keeps its own flat fields — see ASTBase.fly header.)
+suite ASTBaseSuite {
+
+    void baseTest() {
+        case "construct + accessors": {
+            SourceLocation loc = slGetFileLoc(42)
+            ASTBase b = new ASTBase(ASTKind.CLASS, loc)
+            assert.assertTrue(b.getKind() == ASTKind.CLASS, 1)
+            SourceLocation bl = b.getLoc()
+            assert.assertEqI(bl.getOffset(), 42, 2)
+            assert.assertStr(b.str(), "CLASS@42", 5)
+        }
+        case "setKind updates kind + str": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTBase b = new ASTBase(ASTKind.ENUM, loc)
+            assert.assertStr(b.str(), "ENUM@0", 6)
+            b.setKind(ASTKind.MODULE)
+            assert.assertTrue(b.getKind() == ASTKind.MODULE, 7)
+            assert.assertStr(b.str(), "MODULE@0", 8)
+        }
+    }
+}

@@ -1,0 +1,18 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTStmt
+import fly.compiler.ast.ASTStmtKind
+
+public class ASTDeleteStmt : ASTStmt {
+
+    ASTExpr expr
+
+    public ASTDeleteStmt(const SourceLocation loc, const ASTExpr expr) {
+        super(loc, ASTStmtKind.STMT_DELETE)
+        this.expr = expr
+    }
+
+    public ASTExpr getExpr() { out = this.expr }
+}

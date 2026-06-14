@@ -1,0 +1,61 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// HelpersSuite — lexer/parser helper functions that survived the AST port:
+// keyword & char classification, operator precedence/mapping (binKindFor), and
+// builtin-type / modifier recognition via the Parser cursor.
+suite ASTHelpersSuite {
+
+    void keywordTest() {
+        case "isKeyword": {
+            assert.assertTrue(isKeyword("class"), 1)
+            assert.assertTrue(isKeyword("return"), 2)
+            assert.assertTrue(isKeyword("while"), 3)
+            assert.assertFalse(isKeyword("foo"), 4)
+            assert.assertFalse(isKeyword("classy"), 5)
+        }
+        case "builtin type & modifier via parser cursor": {
+            Parser p1 = new Parser("int")
+            assert.assertTrue(p1.curIsBuiltinType(), 6)
+            Parser p2 = new Parser("Foo")
+            assert.assertFalse(p2.curIsBuiltinType(), 7)
+            Parser p3 = new Parser("public")
+            assert.assertTrue(p3.curIsKw("public"), 8)
+            Parser p4 = new Parser("static")
+            assert.assertTrue(p4.curIsKw("static"), 9)
+        }
+    }
+
+    void operatorTest() {
+        case "precedence": {
+            assert.assertGtI(binPrec("*"), binPrec("+"), 10)
+            assert.assertGtI(binPrec("+"), binPrec("<"), 11)
+            assert.assertGtI(binPrec("&&"), binPrec("||"), 12)
+            assert.assertEqI(binPrec("foo"), 0, 13)
+        }
+        case "operator mapping": {
+            assert.assertTrue(binKindFor("==") == ASTBinaryKind.OP_BINARY_COMPARE_EQ, 14)
+            assert.assertTrue(binKindFor("+") == ASTBinaryKind.OP_BINARY_ARITH_ADD, 15)
+            assert.assertTrue(binKindFor("*") == ASTBinaryKind.OP_BINARY_ARITH_MUL, 16)
+            assert.assertTrue(binKindFor("&&") == ASTBinaryKind.OP_BINARY_LOGIC_AND, 17)
+        }
+    }
+
+    void charTest() {
+        case "classification": {
+            assert.assertTrue(isDigit(48), 18)
+            assert.assertTrue(isDigit(57), 19)
+            assert.assertFalse(isDigit(47), 20)
+            assert.assertTrue(isIdentifierHead(65), 21)
+            assert.assertTrue(isIdentifierHead(122), 22)
+            assert.assertTrue(isIdentifierHead(95), 23)
+            assert.assertTrue(isIdentifierBody(48), 24)
+            assert.assertTrue(isWhitespace(32), 25)
+            assert.assertTrue(isWhitespace(10), 26)
+            assert.assertFalse(isWhitespace(65), 27)
+        }
+    }
+}

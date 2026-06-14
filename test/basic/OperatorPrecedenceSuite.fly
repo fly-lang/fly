@@ -1,0 +1,34 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.assert
+
+// OperatorPrecedenceSuite — precedence levels for binary operators (compiler/basic).
+suite OperatorPrecedenceSuite {
+
+    void precedenceTest() {
+        case "levels": {
+            assert.assertTrue(getBinOpPrecedence("*") == Prec.MULTIPLICATIVE, 1)
+            assert.assertTrue(getBinOpPrecedence("/") == Prec.MULTIPLICATIVE, 2)
+            assert.assertTrue(getBinOpPrecedence("+") == Prec.ADDITIVE, 3)
+            assert.assertTrue(getBinOpPrecedence("<<") == Prec.SHIFT, 4)
+            assert.assertTrue(getBinOpPrecedence("<") == Prec.RELATIONAL, 5)
+            assert.assertTrue(getBinOpPrecedence("==") == Prec.EQUALITY, 6)
+            assert.assertTrue(getBinOpPrecedence("!=") == Prec.EQUALITY, 7)
+            assert.assertTrue(getBinOpPrecedence("&&") == Prec.LOGICALAND, 8)
+            assert.assertTrue(getBinOpPrecedence("||") == Prec.LOGICALOR, 9)
+            assert.assertTrue(getBinOpPrecedence("=") == Prec.ASSIGNMENT, 10)
+            assert.assertTrue(getBinOpPrecedence("+=") == Prec.ASSIGNMENT, 11)
+            assert.assertTrue(getBinOpPrecedence(",") == Prec.COMMA, 12)
+        }
+        case "non-operators": {
+            assert.assertTrue(getBinOpPrecedence("foo") == Prec.UNKNOWN, 13)
+            assert.assertTrue(getBinOpPrecedence("") == Prec.UNKNOWN, 14)
+        }
+        case "ordering": {
+            // '*' binds tighter than '+', which binds tighter than '<'.
+            assert.assertTrue(getBinOpPrecedence("*") == Prec.MULTIPLICATIVE, 15)
+            assert.assertTrue(getBinOpPrecedence("+") == Prec.ADDITIVE, 16)
+        }
+    }
+}

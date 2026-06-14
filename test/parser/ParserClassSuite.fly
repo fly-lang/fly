@@ -1,0 +1,28 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// Class declaration: attributes, constructor, methods, base list.
+suite ParserClassSuite {
+    void classTest() {
+        case "class Box": {
+            Parser p = new Parser("class Box { int v  public int get() { out = v } }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 1)
+            fly.data.List nodes = m.getNodes()
+            assert.assertEqI(nodes.size(), 1, 2)
+        }
+        case "class with base + ctor": {
+            Parser p = new Parser("public class Box : Base { int n  public Box(const int v) { this.n = v }  public int get() { out = this.n } }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 3)
+        }
+        case "multiple bases": {
+            Parser p = new Parser("class C : A, B { int x }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 4)
+        }
+    }
+}

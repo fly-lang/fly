@@ -1,0 +1,12 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTStmt
+import fly.compiler.ast.ASTStmtKind
+
+public class ASTBreakStmt : ASTStmt {
+
+    public ASTBreakStmt(const SourceLocation loc) {
+        super(loc, ASTStmtKind.STMT_BREAK)
+    }
+}

@@ -1,0 +1,17 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTBase
+import fly.compiler.ast.ASTKind
+
+public class ASTName : ASTBase {
+
+    string name
+
+    public ASTName(const SourceLocation loc, const string name) {
+        super(ASTKind.NAME, loc)
+        this.name = name
+    }
+
+    public string getName() { out = this.name }
+}

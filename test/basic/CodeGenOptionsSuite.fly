@@ -1,0 +1,34 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.assert
+
+// CodeGenOptionsSuite — default option values and the no-builtin function list.
+suite CodeGenOptionsSuite {
+
+    void defaultsTest() {
+        case "defaults": {
+            CodeGenOptions o = new CodeGenOptions()
+            assert.assertFalse(o.isStatic, 1)
+            assert.assertFalse(o.isShared, 2)
+            assert.assertFalse(o.debugSymbols, 3)
+            assert.assertEqI(o.optLevel, 0, 4)
+            assert.assertEqI(o.jobs, 0, 5)
+            assert.assertStr(o.coverageVersion, "402*", 6)
+        }
+    }
+
+    void noBuiltinTest() {
+        case "registration": {
+            CodeGenOptions o = new CodeGenOptions()
+            assert.assertFalse(o.isNoBuiltinFunc("memset"), 7)
+            o.addNoBuiltinFunc("memset")
+            o.addNoBuiltinFunc("memcpy")
+            assert.assertTrue(o.isNoBuiltinFunc("memset"), 8)
+            assert.assertTrue(o.isNoBuiltinFunc("memcpy"), 9)
+            assert.assertFalse(o.isNoBuiltinFunc("printf"), 10)
+            // whole-segment match only: "mem" must not match "memset"/"memcpy"
+            assert.assertFalse(o.isNoBuiltinFunc("mem"), 11)
+        }
+    }
+}

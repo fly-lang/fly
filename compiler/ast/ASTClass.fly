@@ -1,0 +1,41 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTKind
+import fly.compiler.ast.ASTNode
+import fly.data.List
+
+public enum ASTClassKind {
+    CLASS,
+    INTERFACE,
+    STRUCT,
+    SUITE
+}
+
+public class ASTClass : ASTNode {
+
+    fly.data.List nodes
+    fly.data.List modifiers
+    string name
+    ASTClassKind classKind
+    fly.data.List bases
+    fly.data.List typeParams
+
+    public ASTClass(const ASTClassKind classKind, const fly.data.List modifiers, const SourceLocation loc, const string name, const fly.data.List bases) {
+        super(ASTKind.CLASS, loc)
+        this.classKind = classKind
+        this.modifiers = modifiers
+        this.name = name
+        this.bases = bases
+        this.nodes = new List()
+        this.typeParams = new List()
+    }
+
+    public fly.data.List getNodes() { out = this.nodes }
+    public ASTClassKind getClassKind() { out = this.classKind }
+    public fly.data.List getBases() { out = this.bases }
+    public fly.data.List getTypeParams() { out = this.typeParams }
+    public fly.data.List getModifiers() { out = this.modifiers }
+    public string getName() { out = this.name }
+    public void addNode(const ASTNode node) { this.nodes.add(node) }
+}

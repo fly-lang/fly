@@ -1,0 +1,26 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// Local variable declarations (Type name [= expr]).
+suite ParserDeclSuite {
+    void declTest() {
+        case "int x = 5": {
+            Parser p = new Parser("void f() { int x = 5 }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 1)
+        }
+        case "class-typed decl": {
+            Parser p = new Parser("void f() { Box b = new Box(1) }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 2)
+        }
+        case "decl without init": {
+            Parser p = new Parser("void f() { string s }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 3)
+        }
+    }
+}

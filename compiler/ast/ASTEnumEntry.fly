@@ -1,0 +1,25 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTEnum
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTExprKind
+
+public class ASTEnumEntry : ASTExpr {
+
+    ASTEnum enumType
+    string name
+    uint index
+
+    public ASTEnumEntry(const SourceLocation loc, const ASTEnum enumType, const string name) {
+        super(loc, ASTExprKind.EXPR_VALUE)
+        this.enumType = enumType
+        this.name = name
+        this.index = 0
+    }
+
+    public ASTEnum getEnum() { out = this.enumType }
+    public string getName() { out = this.name }
+    public uint getIndex() { out = this.index }
+    public void setIndex(const uint index) { this.index = index }
+}

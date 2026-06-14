@@ -1,0 +1,23 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// Control flow: if/elsif/else and while with break/continue.
+suite ParserCtrlSuite {
+    void ifTest() {
+        case "if/elsif/else": {
+            Parser p = new Parser("void f() { if x > 0 { a = 1 } elsif x < 0 { a = 2 } else { a = 3 } }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 1)
+        }
+    }
+    void whileTest() {
+        case "while with break/continue": {
+            Parser p = new Parser("void f() { while c { if d { break } continue } }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 2)
+        }
+    }
+}

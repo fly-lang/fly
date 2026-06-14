@@ -1,0 +1,39 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTKind
+import fly.compiler.ast.ASTNode
+
+public enum ASTStmtKind {
+    STMT_BLOCK,
+    STMT_DECL,
+    STMT_EXPR,
+    STMT_FAIL,
+    STMT_HANDLE,
+    STMT_BREAK,
+    STMT_CONTINUE,
+    STMT_DELETE,
+    STMT_RETURN,
+    STMT_RULE,
+    STMT_IF,
+    STMT_SWITCH,
+    STMT_LOOP,
+    STMT_LOOP_IN,
+    STMT_TEST,
+    STMT_CASE
+}
+
+public class ASTStmt : ASTNode {
+
+    ASTStmtKind stmtKind
+    ASTStmt parent
+
+    public ASTStmt(const SourceLocation loc, const ASTStmtKind stmtKind) {
+        super(ASTKind.STMT, loc)
+        this.stmtKind = stmtKind
+    }
+
+    public ASTStmt getParent() { out = this.parent }
+    public void setParent(const ASTStmt parent) { this.parent = parent }
+    public ASTStmtKind getStmtKind() { out = this.stmtKind }
+}

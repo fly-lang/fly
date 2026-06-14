@@ -1,0 +1,51 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.assert
+
+// CharInfoSuite — ASCII character classification (compiler/basic).
+suite CharInfoSuite {
+
+    void classifyTest() {
+        case "digits": {
+            assert.assertTrue(isDigit(48), 1)    // '0'
+            assert.assertTrue(isDigit(57), 2)    // '9'
+            assert.assertFalse(isDigit(47), 3)
+            assert.assertFalse(isDigit(58), 4)
+        }
+        case "letters": {
+            assert.assertTrue(isLetter(65), 5)    // 'A'
+            assert.assertTrue(isLetter(122), 6)   // 'z'
+            assert.assertFalse(isLetter(95), 7)   // '_' is not a letter
+            assert.assertTrue(isUppercase(65), 8)
+            assert.assertFalse(isUppercase(97), 9)
+            assert.assertTrue(isLowercase(97), 10)
+        }
+        case "identifiers": {
+            assert.assertTrue(isIdentifierHead(95), 11)   // '_'
+            assert.assertTrue(isIdentifierHead(65), 12)
+            assert.assertFalse(isIdentifierHead(48), 13)  // digit not a head
+            assert.assertTrue(isIdentifierBody(48), 14)   // digit ok in body
+            assert.assertTrue(isIdentifierBody(95), 15)
+        }
+        case "hex / whitespace / punct": {
+            assert.assertTrue(isHexDigit(70), 16)   // 'F'
+            assert.assertTrue(isHexDigit(102), 17)  // 'f'
+            assert.assertFalse(isHexDigit(71), 18)  // 'G'
+            assert.assertTrue(isWhitespace(9), 19)  // tab
+            assert.assertTrue(isWhitespace(10), 20) // '\n'
+            assert.assertFalse(isWhitespace(65), 21)
+            assert.assertTrue(isPunctuation(33), 22)  // '!'
+            assert.assertFalse(isPunctuation(32), 23) // space is not punctuation
+        }
+    }
+
+    void convertTest() {
+        case "case folding": {
+            assert.assertEqI(toLowercase(65), 97, 24)   // 'A' -> 'a'
+            assert.assertEqI(toUppercase(97), 65, 25)   // 'a' -> 'A'
+            assert.assertEqI(toLowercase(97), 97, 26)   // already lower
+            assert.assertEqI(toUppercase(48), 48, 27)   // digit unchanged
+        }
+    }
+}

@@ -1,0 +1,30 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTKind
+import fly.compiler.ast.ASTNameSpace
+import fly.compiler.ast.ASTNode
+import fly.data.List
+
+public class ASTModule : ASTNode {
+
+    ASTNameSpace nameSpace
+    string name
+    bool header
+    fly.data.List nodes
+
+    public ASTModule(const SourceLocation loc, const string name) {
+        super(ASTKind.MODULE, loc)
+        this.name = name
+        this.header = false
+        this.nodes = new List()
+    }
+
+    public bool isHeader() { out = this.header }
+    public void setHeader(const bool header) { this.header = header }
+    public string getName() { out = this.name }
+    public ASTNameSpace getNameSpace() { out = this.nameSpace }
+    public void setNameSpace(const ASTNameSpace nameSpace) { this.nameSpace = nameSpace }
+    public fly.data.List getNodes() { out = this.nodes }
+    public void addNode(const ASTNode node) { this.nodes.add(node) }
+}

@@ -1,0 +1,241 @@
+namespace fly.compiler.parser
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Lexer — scans a source string into a stream of tokens. It is the single owner
+// of the source text and resolves token/node spellings via spanText/tokenText.
+// next() dispatches to small per-token helpers (a monolithic next() trips a
+// codegen "Broken function" bug).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class Lexer {
+    string source
+    int pos
+    int len
+
+    public Lexer(const string src) {
+        this.source = src
+        this.pos = 0
+        int n = 0
+        fly.llvm.strSize(src, n)
+        this.len = n
+    }
+
+    // spanText / tokenText — resolve a source slice to a fresh string (owned by
+    // the caller, so safe to return and store as a local).
+    public string spanText(const int s0, const int s1) {
+        out = fly.str.substring(this.source, s0, s1)
+    }
+    public string tokenText(const Token t) {
+        out = fly.str.substring(this.source, t.start, t.end)
+    }
+
+    // byteAt — byte code at index i, or 256 past end (256 matches no real byte).
+    public int byteAt(const int i) {
+        if i >= this.len {
+            out = 256
+            return
+        }
+        byte b = 0
+        fly.llvm.strByteAt(this.source, i, b)
+        out = b
+    }
+
+    // here — the current position as a SourceLocation (byte offset). Line/col
+    // are no longer tracked eagerly; SourceManager decodes them from the offset.
+    public SourceLocation here() {
+        out = slGetFileLoc(this.pos)
+    }
+
+    // advance — consume one byte.
+    public void advance() {
+        this.pos = this.pos + 1
+    }
+
+    // skipTrivia — skip whitespace and // line and /* block */ comments.
+    public void skipTrivia() {
+        bool go = true
+        while go {
+            if this.pos >= this.len {
+                go = false
+            } else {
+                int c = this.byteAt(this.pos)
+                if isWhitespace(c) {
+                    this.advance()
+                } elsif c == 47 && this.byteAt(this.pos + 1) == 47 {
+                    // line comment
+                    while this.pos < this.len && this.byteAt(this.pos) != 10 {
+                        this.advance()
+                    }
+                } elsif c == 47 && this.byteAt(this.pos + 1) == 42 {
+                    // block comment
+                    this.advance()
+                    this.advance()
+                    bool inComment = true
+                    while inComment {
+                        if this.pos >= this.len {
+                            inComment = false
+                        } elsif this.byteAt(this.pos) == 42 && this.byteAt(this.pos + 1) == 47 {
+                            this.advance()
+                            this.advance()
+                            inComment = false
+                        } else {
+                            this.advance()
+                        }
+                    }
+                } else {
+                    go = false
+                }
+            }
+        }
+    }
+
+    // matchPunct — return the punctuator spelling starting at pos using maximal
+    // munch (longest first), or "" if the next char is not a punctuator.
+    public string matchPunct() {
+        int c1 = this.byteAt(this.pos)
+        int c2 = this.byteAt(this.pos + 1)
+        int c3 = this.byteAt(this.pos + 2)
+        // 3-char: <<=  >>=
+        if c1 == 60 && c2 == 60 && c3 == 61 { out = "<<=" return }
+        if c1 == 62 && c2 == 62 && c3 == 61 { out = ">>=" return }
+        // 2-char
+        if c1 == 61 && c2 == 61 { out = "==" return }
+        if c1 == 33 && c2 == 61 { out = "!=" return }
+        if c1 == 60 && c2 == 61 { out = "<=" return }
+        if c1 == 62 && c2 == 61 { out = ">=" return }
+        if c1 == 38 && c2 == 38 { out = "&&" return }
+        if c1 == 124 && c2 == 124 { out = "||" return }
+        if c1 == 60 && c2 == 60 { out = "<<" return }
+        if c1 == 62 && c2 == 62 { out = ">>" return }
+        if c1 == 43 && c2 == 43 { out = "++" return }
+        if c1 == 45 && c2 == 45 { out = "--" return }
+        if c1 == 43 && c2 == 61 { out = "+=" return }
+        if c1 == 45 && c2 == 61 { out = "-=" return }
+        if c1 == 42 && c2 == 61 { out = "*=" return }
+        if c1 == 47 && c2 == 61 { out = "/=" return }
+        if c1 == 37 && c2 == 61 { out = "%=" return }
+        if c1 == 38 && c2 == 61 { out = "&=" return }
+        if c1 == 124 && c2 == 61 { out = "|=" return }
+        if c1 == 94 && c2 == 61 { out = "^=" return }
+        // 1-char
+        if c1 == 40 { out = "(" return }
+        if c1 == 41 { out = ")" return }
+        if c1 == 123 { out = "{" return }
+        if c1 == 125 { out = "}" return }
+        if c1 == 91 { out = "[" return }
+        if c1 == 93 { out = "]" return }
+        if c1 == 46 { out = "." return }
+        if c1 == 44 { out = "," return }
+        if c1 == 58 { out = ":" return }
+        if c1 == 59 { out = ";" return }
+        if c1 == 63 { out = "?" return }
+        if c1 == 64 { out = "@" return }
+        if c1 == 43 { out = "+" return }
+        if c1 == 45 { out = "-" return }
+        if c1 == 42 { out = "*" return }
+        if c1 == 47 { out = "/" return }
+        if c1 == 37 { out = "%" return }
+        if c1 == 61 { out = "=" return }
+        if c1 == 60 { out = "<" return }
+        if c1 == 62 { out = ">" return }
+        if c1 == 33 { out = "!" return }
+        if c1 == 38 { out = "&" return }
+        if c1 == 124 { out = "|" return }
+        if c1 == 94 { out = "^" return }
+        if c1 == 126 { out = "~" return }
+        out = ""
+    }
+
+    // lexWord — identifier or keyword, starting at `start` (alpha already seen).
+    public Token lexWord(const SourceLocation loc, const int start) {
+        while this.pos < this.len && isIdentifierBody(this.byteAt(this.pos)) {
+            this.advance()
+        }
+        string word = fly.str.substring(this.source, start, this.pos)
+        TokenKind kind = TokenKind.IDENT
+        if isKeyword(word) {
+            kind = TokenKind.KEYWORD
+        }
+        out = new Token(kind, loc, start, this.pos)
+    }
+
+    // lexNumber — integer / float / hex (digits, '.', trailing alnum).
+    public Token lexNumber(const SourceLocation loc, const int start) {
+        bool more = true
+        while more && this.pos < this.len {
+            int d = this.byteAt(this.pos)
+            if isIdentifierBody(d) || d == 46 {
+                this.advance()
+            } else {
+                more = false
+            }
+        }
+        out = new Token(TokenKind.NUMBER, loc, start, this.pos)
+    }
+
+    // lexQuoted — string ("...") or char ('...') literal; `quote` is the delimiter
+    // byte, `kind` the token kind. The token span covers the content (no delimiters).
+    public Token lexQuoted(const SourceLocation loc, const int quote, const TokenKind kind) {
+        this.advance()                 // opening delimiter
+        int contentStart = this.pos
+        while this.pos < this.len && this.byteAt(this.pos) != quote {
+            if this.byteAt(this.pos) == 92 {
+                this.advance()         // skip escape backslash
+            }
+            this.advance()
+        }
+        int contentEnd = this.pos
+        if this.pos < this.len {
+            this.advance()             // closing delimiter
+        }
+        out = new Token(kind, loc, contentStart, contentEnd)
+    }
+
+    // lexPunct — punctuator via maximal munch, or TOK_UNKNOWN for a stray byte.
+    public Token lexPunct(const SourceLocation loc, const int start) {
+        string p = this.matchPunct()
+        if fly.str.len(p) > 0 {
+            int k = 0
+            int plen = fly.str.len(p)
+            while k < plen {
+                this.advance()
+                k = k + 1
+            }
+            out = new Token(TokenKind.PUNCT, loc, start, this.pos)
+            return
+        }
+        this.advance()
+        out = new Token(TokenKind.UNKNOWN, loc, start, this.pos)
+    }
+
+    // next — produce the next token (TOK_EOF at end of input).
+    public Token next() {
+        this.skipTrivia()
+        SourceLocation loc = this.here()
+        if this.pos >= this.len {
+            out = new Token(TokenKind.EOF, loc, this.pos, this.pos)
+            return
+        }
+        int c = this.byteAt(this.pos)
+        int start = this.pos
+        if isIdentifierHead(c) {
+            out = this.lexWord(loc, start)
+        } elsif isDigit(c) {
+            out = this.lexNumber(loc, start)
+        } elsif c == 34 {
+            out = this.lexQuoted(loc, 34, TokenKind.STRING)
+        } elsif c == 39 {
+            out = this.lexQuoted(loc, 39, TokenKind.CHAR)
+        } else {
+            out = this.lexPunct(loc, start)
+        }
+    }
+}
+
+// newLexer — convenience factory.
+public Lexer newLexer(const string src) {
+    out = new Lexer(src)
+}

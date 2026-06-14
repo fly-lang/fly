@@ -1,0 +1,24 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTStmt
+import fly.compiler.ast.ASTStmtKind
+
+public class ASTFailStmt : ASTStmt {
+
+    ASTExpr firstExpr
+    ASTExpr secondExpr
+    ASTExpr thirdExpr
+
+    public ASTFailStmt(const SourceLocation loc) {
+        super(loc, ASTStmtKind.STMT_FAIL)
+    }
+
+    public ASTExpr getFirstExpr() { out = this.firstExpr }
+    public void setFirstExpr(const ASTExpr expr) { this.firstExpr = expr }
+    public ASTExpr getSecondExpr() { out = this.secondExpr }
+    public void setSecondExpr(const ASTExpr expr) { this.secondExpr = expr }
+    public ASTExpr getThirdExpr() { out = this.thirdExpr }
+    public void setThirdExpr(const ASTExpr expr) { this.thirdExpr = expr }
+}

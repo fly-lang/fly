@@ -1,0 +1,31 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTKind
+import fly.compiler.ast.ASTNode
+import fly.str as s
+
+public class ASTBase {
+
+    ASTKind kind
+    SourceLocation loc
+
+    public ASTBase(const ASTKind kind, const SourceLocation loc) {
+        this.kind = kind
+        this.loc = loc
+    }
+
+    // Kind — the node category (see ASTKind.fly).
+    public ASTKind getKind() { out = this.kind }
+    public void setKind(const ASTKind kind) { this.kind = kind }
+
+    // Source location. Expose line/col/offset through methods because chained
+    // loc.* field access crashes across the library boundary (as in ASTNode/Token).
+    public SourceLocation getLoc() { out = this.loc }
+
+    // str — "<kind name>@<loc id>", e.g. "CLASS@42". Kind via enum `.name`,
+    // position via SourceLocation.str() (its raw id). No Logger for now.
+    public string str() {
+        out = s.concat(this.kind.name, s.concat("@", this.loc.str()))
+    }
+}

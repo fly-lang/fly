@@ -1,0 +1,29 @@
+namespace fly.os.io
+
+import fly.os.io
+
+// printErr writes a string to stderr (fd=2) without a trailing newline.
+public void printErr(const string s) {
+    Writer w = io.fileWriter(2)
+    io.writeString(w, s)
+}
+
+// printErrLn writes a string to stderr followed by a newline.
+public void printErrLn(const string s) {
+    Writer w = io.fileWriter(2)
+    io.writeString(w, s)
+    io.writeString(w, "\n")
+}
+
+// print writes a string to stdout (fd=1) without a trailing newline.
+public void print(const string s) {
+    Writer w = io.fileWriter(1)
+    io.writeString(w, s)
+}
+
+// printLn writes a string to stdout followed by a newline.
+public void printLn(const string s) {
+    Writer w = io.fileWriter(1)
+    io.writeString(w, s)
+    io.writeString(w, "\n")
+}

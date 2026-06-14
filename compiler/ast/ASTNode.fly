@@ -1,0 +1,18 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTBase
+import fly.compiler.ast.ASTKind
+
+public class ASTNode : ASTBase {
+
+    bool visited
+
+    public ASTNode(const ASTKind kind, const SourceLocation loc) {
+        super(kind, loc)
+        this.visited = false
+    }
+
+    public bool isVisited() { out = this.visited }
+    public void setVisited(const bool visited) { this.visited = visited }
+}

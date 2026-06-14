@@ -1,0 +1,23 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// Statements parsed inside a function body via parseModule.
+suite ParserStmtSuite {
+    void stmtTest() {
+        case "return in body": {
+            Parser p = new Parser("int f(const int a) { int x = a + 1  out = x }")
+            ASTModule m = p.parseModule("demo")
+            assert.assertTrue(p.isSuccess(), 1)
+            fly.data.List nodes = m.getNodes()
+            assert.assertEqI(nodes.size(), 1, 2)
+        }
+        case "nested block + exprstmt": {
+            Parser p = new Parser("void g() { { x = 1 }  doIt(2) }")
+            ASTModule m = p.parseModule("d")
+            assert.assertTrue(p.isSuccess(), 3)
+        }
+    }
+}

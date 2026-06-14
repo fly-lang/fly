@@ -1,0 +1,61 @@
+namespace fly.compiler.basic
+import fly.compiler.basic.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenOptions — options controlling how code is optimized and emitted,
+// ported from compiler/Basic/CodeGenOptions.cpp/.h. The C++ version carries a
+// very large bitfield set generated from CodeGenOptions.def; here we port the
+// representative, explicitly-declared scalar options plus the no-builtin list.
+//
+// Fields ported: static / shared / test-mode / rdynamic / PIE / static-PIE /
+// debug-symbols flags, the code/thread model strings, optimisation level, job
+// count, coverage version, and the -fno-builtin-* function list.
+//
+// The C++ NoBuiltinFuncs is a std::vector<std::string>; fly.data.List stores
+// `long`, so to avoid the Wrapper<string> dance we keep the names in a single
+// ";"-delimited string and match whole segments.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenOptions {
+    bool isStatic
+    bool isShared
+    bool testMode
+    bool rdynamic
+    bool pie
+    bool staticPie
+    bool debugSymbols
+    int optLevel
+    int jobs
+    string codeModel
+    string threadModel
+    string coverageVersion
+    string noBuiltinFuncs   // ";name1;name2;" — leading+trailing ';' as boundaries
+
+    public CodeGenOptions() {
+        this.isStatic = false
+        this.isShared = false
+        this.testMode = false
+        this.rdynamic = false
+        this.pie = false
+        this.staticPie = false
+        this.debugSymbols = false
+        this.optLevel = 0
+        this.jobs = 0
+        this.codeModel = ""
+        this.threadModel = ""
+        this.coverageVersion = "402*"
+        this.noBuiltinFuncs = ";"
+    }
+
+    // addNoBuiltinFunc — register a -fno-builtin-<name> function.
+    public void addNoBuiltinFunc(const string name) {
+        this.noBuiltinFuncs = fly.str.concat(this.noBuiltinFuncs, fly.str.concat(name, ";"))
+    }
+
+    // isNoBuiltinFunc — is this a libc/libm function no longer treated as a
+    // builtin because a -fno-builtin-* option named it?
+    public bool isNoBuiltinFunc(const string name) {
+        string needle = fly.str.concat(";", fly.str.concat(name, ";"))
+        out = fly.str.contains(this.noBuiltinFuncs, needle)
+    }
+}

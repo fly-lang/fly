@@ -1,0 +1,18 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTExprKind
+
+public class ASTMember : ASTExpr {
+
+    string name
+
+    public ASTMember(const SourceLocation loc, const string name, const ASTExpr parent) {
+        super(loc, ASTExprKind.EXPR_MEMBER)
+        this.setParent(parent)
+        this.name = name
+    }
+
+    public string getName() { out = this.name }
+}

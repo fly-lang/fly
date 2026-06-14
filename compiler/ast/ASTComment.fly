@@ -1,0 +1,17 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTKind
+import fly.compiler.ast.ASTNode
+
+public class ASTComment : ASTNode {
+
+    string content
+
+    public ASTComment(const SourceLocation loc, const string content) {
+        super(ASTKind.COMMENT, loc)
+        this.content = content
+    }
+
+    public string getContent() { out = this.content }
+}

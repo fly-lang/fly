@@ -1,0 +1,81 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// EnumArgStmtSuite — enum / enum-entry, call argument, and switch-case / test /
+// guard-rule statement node classes on the new AST.
+suite ASTEnumArgStmtSuite {
+
+    void enumTest() {
+        case "ASTEnum + ASTEnumEntry": {
+            SourceLocation loc = slGetFileLoc(0)
+            fly.data.List mods = new List()
+            fly.data.List bases = new List()
+            ASTEnum e = new ASTEnum(loc, "Color", mods, bases)
+            assert.assertStr(e.getName(), "Color", 1)
+            assert.assertTrue(e.getKind() == ASTKind.ENUM, 2)
+            ASTEnumEntry en = new ASTEnumEntry(loc, e, "GREEN")
+            en.setIndex(2)
+            assert.assertStr(en.getName(), "GREEN", 3)
+            assert.assertTrue(en.getIndex() == 2, 4)
+            assert.assertTrue(en.getEnum() != null, 5)
+            assert.assertTrue(en.getExprKind() == ASTExprKind.EXPR_VALUE, 6)
+        }
+        case "enum kind names": {
+            assert.assertStr(ASTKind.ENUM.name, "ENUM", 7)
+            assert.assertStr(ASTKind.ENUM_ENTRY.name, "ENUM_ENTRY", 8)
+            assert.assertStr(ASTKind.ARG.name, "ARG", 9)
+        }
+    }
+
+    void argTest() {
+        case "ASTArg extends ASTBase, holds expr + index + str()": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTNode expr = new ASTIdentifier(loc, "x")
+            ASTArg a = new ASTArg(loc, expr, 1)
+            assert.assertTrue(a.getKind() == ASTKind.ARG, 10)
+            assert.assertTrue(a.getIndex() == 1, 11)
+            assert.assertTrue(a.getExpr() != null, 12)
+            assert.assertStr(a.str(), "ARG@0 #1", 13)
+        }
+    }
+
+    void stmtTest() {
+        case "ASTCaseStmt: value + body": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTCaseStmt c = new ASTCaseStmt(loc)
+            ASTExpr value = new ASTIdentifier(loc, "x")
+            ASTBlockStmt body = new ASTBlockStmt(loc)
+            c.setExpr(value)
+            c.setStmt(body)
+            assert.assertTrue(c.getStmtKind() == ASTStmtKind.STMT_CASE, 14)
+            assert.assertTrue(c.getExpr() != null, 15)
+            assert.assertTrue(c.getStmt() != null, 16)
+        }
+        case "ASTTestStmt: block body": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTTestStmt t = new ASTTestStmt(loc)
+            ASTBlockStmt body = new ASTBlockStmt(loc)
+            t.setBody(body)
+            assert.assertTrue(t.getStmtKind() == ASTStmtKind.STMT_TEST, 17)
+            assert.assertTrue(t.getBody() != null, 18)
+        }
+        case "ASTRuleStmt: guard + body": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTRuleStmt r = new ASTRuleStmt(loc, ASTStmtKind.STMT_RULE)
+            ASTExpr guard = new ASTIdentifier(loc, "g")
+            ASTBlockStmt body = new ASTBlockStmt(loc)
+            r.setExpr(guard)
+            r.setStmt(body)
+            assert.assertTrue(r.getStmtKind() == ASTStmtKind.STMT_RULE, 19)
+            assert.assertTrue(r.getExpr() != null, 20)
+        }
+        case "distinct stmt kinds": {
+            assert.assertFalse(ASTStmtKind.STMT_CASE == ASTStmtKind.STMT_TEST, 21)
+            assert.assertFalse(ASTStmtKind.STMT_TEST == ASTStmtKind.STMT_RULE, 22)
+            assert.assertFalse(ASTStmtKind.STMT_RULE == ASTStmtKind.STMT_DELETE, 23)
+        }
+    }
+}

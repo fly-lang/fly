@@ -1,0 +1,23 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTRuleStmt
+import fly.compiler.ast.ASTStmt
+import fly.compiler.ast.ASTStmtKind
+import fly.data.List
+
+public class ASTIfStmt : ASTRuleStmt {
+
+    fly.data.List elseIfList
+    ASTStmt elseStmt
+
+    public ASTIfStmt(const SourceLocation loc) {
+        super(loc, ASTStmtKind.STMT_IF)
+        this.elseIfList = new List()
+    }
+
+    public fly.data.List getElsif() { out = this.elseIfList }
+    public ASTStmt getElse() { out = this.elseStmt }
+    public void addElsif(const ASTRuleStmt r) { this.elseIfList.add(r) }
+    public void setElse(const ASTStmt s) { this.elseStmt = s }
+}

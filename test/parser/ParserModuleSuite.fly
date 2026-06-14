@@ -1,0 +1,28 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// Module with a namespace, a plain import, and a wildcard import.
+suite ParserModuleSuite {
+    void moduleTest() {
+        case "namespace and imports": {
+            Parser p = new Parser("namespace foo.bar  import a.b  import c.*  void m() { }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 1)
+            ASTNameSpace ns = m.getNameSpace()
+            assert.assertTrue(ns != null, 2)
+            fly.data.List nsnames = ns.getNames()
+            assert.assertEqI(nsnames.size(), 2, 3)
+            // 3 top-level nodes: 2 imports + 1 function
+            fly.data.List nodes = m.getNodes()
+            assert.assertEqI(nodes.size(), 3, 4)
+        }
+        case "module name preserved": {
+            Parser p = new Parser("void m() { }")
+            ASTModule m = p.parseModule("mymod")
+            assert.assertTrue(fly.str.equals(m.getName(), "mymod"), 5)
+        }
+    }
+}

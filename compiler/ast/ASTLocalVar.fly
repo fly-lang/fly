@@ -1,0 +1,13 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTType
+import fly.compiler.ast.ASTVar
+import fly.data.List
+
+public class ASTLocalVar : ASTVar {
+
+    public ASTLocalVar(const SourceLocation loc, const ASTType type, const string name, const fly.data.List modifiers) {
+        super(loc, type, name, modifiers)
+    }
+}

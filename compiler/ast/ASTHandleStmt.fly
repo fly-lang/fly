@@ -1,0 +1,18 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTBlockStmt
+import fly.compiler.ast.ASTStmt
+import fly.compiler.ast.ASTStmtKind
+
+public class ASTHandleStmt : ASTStmt {
+
+    ASTBlockStmt handleBlock
+
+    public ASTHandleStmt(const SourceLocation loc) {
+        super(loc, ASTStmtKind.STMT_HANDLE)
+    }
+
+    public ASTBlockStmt getHandle() { out = this.handleBlock }
+    public void setHandle(const ASTBlockStmt b) { this.handleBlock = b }
+}

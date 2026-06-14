@@ -1,0 +1,51 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// SmokeSuite — ASTModule foundation (name, nodes, addNode) and a binary expr.
+suite ASTSmokeSuite {
+
+    void moduleTest() {
+        case "empty module": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTModule m = new ASTModule(loc, "smoke.fly")
+            fly.data.List nodes = m.getNodes()
+            assert.assertEqI(nodes.size(), 0, 1)
+            assert.assertStr(m.getName(), "smoke.fly", 2)
+            assert.assertTrue(m.getKind() == ASTKind.MODULE, 3)
+        }
+        case "add child": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTModule m = new ASTModule(loc, "smoke.fly")
+            ASTComment cm = new ASTComment(loc, "hi")
+            m.addNode(cm)
+            fly.data.List nodes = m.getNodes()
+            assert.assertEqI(nodes.size(), 1, 4)
+            assert.assertTrue(cm.getKind() == ASTKind.COMMENT, 5)
+            assert.assertStr(cm.getContent(), "hi", 6)
+        }
+        case "location accessor": {
+            SourceLocation loc = slGetFileLoc(42)
+            ASTModule m = new ASTModule(loc, "x")
+            SourceLocation ml = m.getLoc()
+            assert.assertEqI(ml.getOffset(), 42, 7)
+        }
+    }
+
+    void exprTest() {
+        case "binary node": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTNumberValue l = new ASTNumberValue(loc, "1")
+            ASTNumberValue r = new ASTNumberValue(loc, "2")
+            ASTBinary bin = new ASTBinary(ASTBinaryKind.OP_BINARY_ARITH_ADD, loc, l, r)
+            assert.assertTrue(bin.getBinaryKind() == ASTBinaryKind.OP_BINARY_ARITH_ADD, 8)
+            assert.assertTrue(bin.getExprKind() == ASTExprKind.EXPR_BINARY, 9)
+            assert.assertTrue(bin.getLeftExpr() != null, 10)
+            assert.assertTrue(bin.getRightExpr() != null, 11)
+            assert.assertStr(l.getValue(), "1", 12)
+            assert.assertStr(r.getValue(), "2", 13)
+        }
+    }
+}

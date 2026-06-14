@@ -1,0 +1,18 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTKind
+import fly.compiler.ast.ASTNode
+import fly.data.List
+
+public class ASTNameSpace : ASTNode {
+
+    fly.data.List names
+
+    public ASTNameSpace(const SourceLocation loc, const fly.data.List names) {
+        super(ASTKind.NAMESPACE, loc)
+        this.names = names
+    }
+
+    public fly.data.List getNames() { out = this.names }
+}

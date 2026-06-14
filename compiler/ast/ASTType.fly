@@ -1,0 +1,100 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTKind
+import fly.compiler.ast.ASTNode
+import fly.data.List
+
+public enum ASTTypeKind {
+    TYPE_NAMED,
+    TYPE_BUILTIN,
+    TYPE_ARRAY,
+    TYPE_PARAM
+}
+
+public enum ASTBuiltinTypeKind {
+    TYPE_VOID,
+    TYPE_BOOL,
+    TYPE_BYTE,
+    TYPE_SHORT,
+    TYPE_INT,
+    TYPE_LONG,
+    TYPE_USHORT,
+    TYPE_UINT,
+    TYPE_ULONG,
+    TYPE_FLOAT,
+    TYPE_DOUBLE,
+    TYPE_COMPLEX,
+    TYPE_STRING,
+    TYPE_ERROR
+}
+
+public class ASTType : ASTNode {
+
+    ASTTypeKind typeKind
+
+    public ASTType(const SourceLocation loc, const ASTTypeKind typeKind) {
+        super(ASTKind.TYPE, loc)
+        this.typeKind = typeKind
+    }
+
+    public ASTTypeKind getTypeKind() { out = this.typeKind }
+}
+
+public class ASTBuiltinType : ASTType {
+
+    ASTBuiltinTypeKind builtinKind
+
+    public ASTBuiltinType(const SourceLocation loc, const ASTBuiltinTypeKind builtinKind) {
+        super(loc, ASTTypeKind.TYPE_BUILTIN)
+        this.builtinKind = builtinKind
+    }
+
+    public ASTBuiltinTypeKind getBuiltinKind() { out = this.builtinKind }
+}
+
+public class ASTNamedType : ASTType {
+
+    fly.data.List names
+    fly.data.List typeArgs
+
+    public ASTNamedType(const SourceLocation loc, const fly.data.List names) {
+        super(loc, ASTTypeKind.TYPE_NAMED)
+        this.names = names
+        this.typeArgs = new List()
+    }
+
+    public fly.data.List getNames() { out = this.names }
+    public fly.data.List getTypeArgs() { out = this.typeArgs }
+    public void addTypeArg(const ASTType t) { this.typeArgs.add(t) }
+}
+
+public class ASTTypeParam : ASTType {
+
+    string name
+    ASTType bound
+
+    public ASTTypeParam(const SourceLocation loc, const string name) {
+        super(loc, ASTTypeKind.TYPE_PARAM)
+        this.name = name
+    }
+
+    public string getName() { out = this.name }
+    public ASTType getBound() { out = this.bound }
+}
+
+public class ASTArrayType : ASTType {
+
+    ASTType elementType
+    ASTExpr size
+
+    public ASTArrayType(const SourceLocation loc, const ASTType elementType, const ASTExpr size) {
+        super(loc, ASTTypeKind.TYPE_ARRAY)
+        this.elementType = elementType
+        this.size = size
+    }
+
+    public ASTType getElementType() { out = this.elementType }
+    public ASTExpr getSizeExpr() { out = this.size }
+}
