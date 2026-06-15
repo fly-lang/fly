@@ -1,6 +1,7 @@
 namespace fly.test.data
 
 import fly.assert
+import fly.str
 import fly.data.List
 import fly.data.Stack
 import fly.data.Queue
@@ -10,7 +11,7 @@ import fly.data.Set
 import fly.data.Tree
 
 void testList() {
-    List l = new List()
+    List<long> l = new List<long>()
     fly.assert.assertTrue(l.size() == 0, 101)
     l.add(10)
     l.add(20)
@@ -40,8 +41,27 @@ void testList() {
     l.free()
 }
 
+// List<string>: exercises the ownership model (clone on insert, fresh clone on get,
+// free on remove/clear/free) against C++ std::vector<std::string> semantics.
+void testListString() {
+    List<string> ls = new List<string>()
+    string built = str.concat("foo", "bar")
+    ls.add(built)            // deep-clone into the list's own slot
+    ls.add("baz")            // literal -> heap copy in slot
+    fly.assert.assertTrue(ls.size() == 2, 120)
+    fly.assert.assertTrue(str.equals(ls.get(0), "foobar"), 121)
+    fly.assert.assertTrue(str.equals(ls.get(1), "baz"), 122)
+    fly.assert.assertTrue(str.equals(built, "foobar"), 123)   // source intact
+    ls.set(1, "qux")          // frees old element, clones new
+    fly.assert.assertTrue(str.equals(ls.get(1), "qux"), 124)
+    ls.remove(0)              // frees removed element, shifts
+    fly.assert.assertTrue(ls.size() == 1, 125)
+    fly.assert.assertTrue(str.equals(ls.get(0), "qux"), 126)
+    ls.free()                 // frees remaining element + buffer
+}
+
 void testStack() {
-    Stack s = new Stack()
+    Stack<long> s = new Stack<long>()
     fly.assert.assertTrue(s.isEmpty() == true, 201)
     fly.assert.assertTrue(s.pop() == 0, 202)
     fly.assert.assertTrue(s.peek() == 0, 203)
@@ -58,7 +78,7 @@ void testStack() {
 }
 
 void testQueue() {
-    Queue q = new Queue()
+    Queue<long> q = new Queue<long>()
     fly.assert.assertTrue(q.isEmpty() == true, 301)
     fly.assert.assertTrue(q.dequeue() == 0, 302)
     fly.assert.assertTrue(q.peek() == 0, 303)
@@ -82,7 +102,7 @@ void testQueue() {
 }
 
 void testDeque() {
-    Deque d = new Deque()
+    Deque<long> d = new Deque<long>()
     fly.assert.assertTrue(d.isEmpty() == true, 401)
     fly.assert.assertTrue(d.popFront() == 0, 402)
     fly.assert.assertTrue(d.popBack() == 0, 403)
@@ -99,7 +119,7 @@ void testDeque() {
 }
 
 void testMap() {
-    Map m = new Map()
+    Map<long, long> m = new Map<long, long>()
     fly.assert.assertTrue(m.size() == 0, 501)
     fly.assert.assertTrue(m.has(1) == false, 502)
     fly.assert.assertTrue(m.get(1) == 0, 503)
@@ -130,7 +150,7 @@ void testMap() {
 }
 
 void testSet() {
-    Set s = new Set()
+    Set<long> s = new Set<long>()
     fly.assert.assertTrue(s.size() == 0, 601)
     fly.assert.assertTrue(s.has(42) == false, 602)
     s.add(10)
@@ -158,7 +178,7 @@ void testSet() {
 }
 
 void testTree() {
-    Tree t = new Tree()
+    Tree<long, long> t = new Tree<long, long>()
     fly.assert.assertTrue(t.size() == 0, 701)
     fly.assert.assertTrue(t.has(5) == false, 702)
     fly.assert.assertTrue(t.get(5) == 0, 703)
@@ -191,12 +211,76 @@ void testTree() {
     t.free()
 }
 
+// Map<string,int> + Map<int,string>: string keys (hash/compare) and string values
+// (clone on put, fresh clone on get, free on remove/free) — vs unordered_map semantics.
+void testMapString() {
+    Map<string, int> ms = new Map<string, int>()
+    ms.put("ada", 36)
+    ms.put("grace", 45)
+    ms.put("ada", 99)            // update existing string key
+    fly.assert.assertTrue(ms.size() == 2, 801)
+    fly.assert.assertTrue(ms.get("ada") == 99, 802)
+    fly.assert.assertTrue(ms.get("grace") == 45, 803)
+    fly.assert.assertTrue(ms.has("ada") == true, 804)
+    fly.assert.assertTrue(ms.has("nope") == false, 805)
+    ms.remove("ada")
+    fly.assert.assertTrue(ms.has("ada") == false, 806)
+    fly.assert.assertTrue(ms.size() == 1, 807)
+    ms.free()
+
+    Map<int, string> mv = new Map<int, string>()
+    string built = str.concat("foo", "bar")
+    mv.put(1, built)             // value cloned
+    mv.put(2, "baz")
+    fly.assert.assertTrue(str.equals(mv.get(1), "foobar"), 808)
+    fly.assert.assertTrue(str.equals(mv.get(2), "baz"), 809)
+    fly.assert.assertTrue(str.equals(built, "foobar"), 810)   // source intact
+    mv.free()
+}
+
+// Set<string>: string membership with hashing/dedup/ownership.
+void testSetString() {
+    Set<string> ss = new Set<string>()
+    ss.add("red")
+    ss.add("green")
+    ss.add("red")                // dedup
+    fly.assert.assertTrue(ss.size() == 2, 820)
+    fly.assert.assertTrue(ss.has("red") == true, 821)
+    fly.assert.assertTrue(ss.has("blue") == false, 822)
+    ss.remove("red")
+    fly.assert.assertTrue(ss.has("red") == false, 823)
+    fly.assert.assertTrue(ss.size() == 1, 824)
+    ss.free()
+}
+
+// Tree<string,int>: lexicographically-ordered string keys (std::map analog).
+void testTreeString() {
+    Tree<string, int> ts = new Tree<string, int>()
+    ts.put("banana", 2)
+    ts.put("apple", 1)
+    ts.put("cherry", 3)
+    ts.put("apple", 11)          // update
+    fly.assert.assertTrue(ts.size() == 3, 830)
+    fly.assert.assertTrue(ts.get("apple") == 11, 831)
+    fly.assert.assertTrue(ts.get("cherry") == 3, 832)
+    fly.assert.assertTrue(ts.has("banana") == true, 833)
+    fly.assert.assertTrue(ts.has("durian") == false, 834)
+    ts.remove("banana")
+    fly.assert.assertTrue(ts.has("banana") == false, 835)
+    fly.assert.assertTrue(ts.size() == 2, 836)
+    ts.free()
+}
+
 void main() {
     testList()
+    testListString()
     testStack()
     testQueue()
     testDeque()
     testMap()
     testSet()
     testTree()
+    testMapString()
+    testSetString()
+    testTreeString()
 }

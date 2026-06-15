@@ -199,6 +199,170 @@ void CodeGenStdLibLLVM::GenCall(SemaCall *Sema) {
         return;
     }
 
+    // ── Generic typed-slot intrinsics ─────────────────────────────────────────
+    // These are declared generic (slotPokeT<T> etc.) in llvm.fly.h. By the time we
+    // reach CodeGen the call has been monomorphized to a concrete specialization, so
+    // the element type T is carried by the coerced argument value (InArgs) and the
+    // output param type (OutTypes) — both already concrete (int, long, double,
+    // string struct, pointer, …). One source intrinsic thus serves every T.
+    if (BaseName.rfind("slotHashT", 0) == 0 || BaseName.rfind("slotHashAtT", 0) == 0) {
+        // slotHashT(const T key, int out)                          → hash a value
+        // slotHashAtT(const long buf, const int off, T sample, out) → hash a stored slot
+        //  string → FNV-1a over bytes; integer → value; pointer → address.
+        // Equality is handled by Fly '==' / slotCmpT.
+        auto hashValue = [&](llvm::Value *Key) -> llvm::Value * {
+            llvm::Type *KeyTy = Key->getType();
+            if (KeyTy == CodeGen::StringTy) {
+                llvm::Value *Ptr  = Builder->CreateExtractValue(Key, 0);
+                llvm::Value *Size = Builder->CreateExtractValue(Key, 1); // i32
+                llvm::Function *Fn = Builder->GetInsertBlock()->getParent();
+                llvm::BasicBlock *PreBB  = Builder->GetInsertBlock();
+                llvm::BasicBlock *LoopBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "hash.loop", Fn);
+                llvm::BasicBlock *BodyBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "hash.body", Fn);
+                llvm::BasicBlock *ExitBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "hash.exit", Fn);
+                llvm::Value *Init = llvm::ConstantInt::get(CodeGen::Int32Ty, 2166136261u);
+                llvm::Value *Prime = llvm::ConstantInt::get(CodeGen::Int32Ty, 16777619u);
+                Builder->CreateBr(LoopBB);
+                Builder->SetInsertPoint(LoopBB);
+                llvm::PHINode *IPhi = Builder->CreatePHI(CodeGen::Int32Ty, 2);
+                llvm::PHINode *HPhi = Builder->CreatePHI(CodeGen::Int32Ty, 2);
+                IPhi->addIncoming(llvm::ConstantInt::get(CodeGen::Int32Ty, 0), PreBB);
+                HPhi->addIncoming(Init, PreBB);
+                Builder->CreateCondBr(Builder->CreateICmpSLT(IPhi, Size), BodyBB, ExitBB);
+                Builder->SetInsertPoint(BodyBB);
+                llvm::Value *BPtr = Builder->CreateGEP(CodeGen::Int8Ty, Ptr,
+                    Builder->CreateSExt(IPhi, CodeGen::Int64Ty));
+                llvm::Value *B = Builder->CreateZExt(Builder->CreateLoad(CodeGen::Int8Ty, BPtr), CodeGen::Int32Ty);
+                llvm::Value *H = Builder->CreateMul(Builder->CreateXor(HPhi, B), Prime);
+                IPhi->addIncoming(Builder->CreateAdd(IPhi, llvm::ConstantInt::get(CodeGen::Int32Ty, 1)), BodyBB);
+                HPhi->addIncoming(H, BodyBB);
+                Builder->CreateBr(LoopBB);
+                Builder->SetInsertPoint(ExitBB);
+                return HPhi;
+            }
+            if (KeyTy->isPointerTy())
+                return Builder->CreateTrunc(Builder->CreatePtrToInt(Key, CodeGen::Int64Ty), CodeGen::Int32Ty);
+            if (KeyTy->isIntegerTy()) {
+                unsigned Bits = KeyTy->getIntegerBitWidth();
+                return Bits == 32 ? Key
+                     : (Bits < 32 ? Builder->CreateZExt(Key, CodeGen::Int32Ty)
+                                  : Builder->CreateTrunc(Key, CodeGen::Int32Ty));
+            }
+            return llvm::ConstantInt::get(CodeGen::Int32Ty, 0);
+        };
+        llvm::Value *Key;
+        if (BaseName.rfind("slotHashAtT", 0) == 0) {
+            llvm::Type  *OpaquePtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+            llvm::Value *RawPtr  = Builder->CreateIntToPtr(InArgs[0], OpaquePtrTy);
+            llvm::Value *Idx     = Builder->CreateSExt(InArgs[1], CodeGen::Int64Ty);
+            llvm::Value *BytePtr = Builder->CreateGEP(CodeGen::Int8Ty, RawPtr, Idx);
+            Key = Builder->CreateLoad(InArgs[2]->getType(), BytePtr);
+        } else {
+            Key = InArgs[0];
+        }
+        V = hashValue(Key);
+        if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
+        return;
+    }
+    if (BaseName.rfind("slotCmpT", 0) == 0) {
+        // slotCmpT(const long buf, const int byteOff, const T key, int out): 3-way compare
+        // of the stored element vs key. string → lexicographic (memcmp + length tiebreak);
+        // integer → signed; pointer → address. No clone (safe for hash/tree probing).
+        llvm::Type  *OpaquePtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+        llvm::Value *RawPtr  = Builder->CreateIntToPtr(InArgs[0], OpaquePtrTy);
+        llvm::Value *Idx     = Builder->CreateSExt(InArgs[1], CodeGen::Int64Ty);
+        llvm::Value *BytePtr = Builder->CreateGEP(CodeGen::Int8Ty, RawPtr, Idx);
+        llvm::Value *Key     = InArgs[2];
+        llvm::Type  *ElemTy  = Key->getType();
+        llvm::Value *Stored  = Builder->CreateLoad(ElemTy, BytePtr);
+        llvm::Value *Zero    = llvm::ConstantInt::get(CodeGen::Int32Ty, 0);
+        llvm::Value *One     = llvm::ConstantInt::get(CodeGen::Int32Ty, 1);
+        llvm::Value *NegOne  = llvm::ConstantInt::get(CodeGen::Int32Ty, -1);
+        if (ElemTy == CodeGen::StringTy) {
+            llvm::Value *SP = Builder->CreateExtractValue(Stored, 0);
+            llvm::Value *SS = Builder->CreateExtractValue(Stored, 1); // i32
+            llvm::Value *KP = Builder->CreateExtractValue(Key, 0);
+            llvm::Value *KS = Builder->CreateExtractValue(Key, 1);
+            llvm::Value *MinS = Builder->CreateSelect(Builder->CreateICmpSLT(SS, KS), SS, KS);
+            llvm::FunctionCallee MemcmpFn = CGM->Module->getOrInsertFunction(
+                "memcmp", llvm::FunctionType::get(CodeGen::Int32Ty,
+                    {OpaquePtrTy, OpaquePtrTy, CodeGen::IntPtrTy}, false));
+            llvm::Value *C = Builder->CreateCall(MemcmpFn,
+                {SP, KP, Builder->CreateZExt(MinS, CodeGen::IntPtrTy)});
+            // tie on shared prefix → compare lengths
+            llvm::Value *LenDiff = Builder->CreateSub(SS, KS);
+            V = Builder->CreateSelect(Builder->CreateICmpNE(C, Zero), C, LenDiff);
+        } else if (ElemTy->isPointerTy()) {
+            llvm::Value *A = Builder->CreatePtrToInt(Stored, CodeGen::Int64Ty);
+            llvm::Value *B = Builder->CreatePtrToInt(Key, CodeGen::Int64Ty);
+            V = Builder->CreateSelect(Builder->CreateICmpULT(A, B), NegOne,
+                Builder->CreateSelect(Builder->CreateICmpUGT(A, B), One, Zero));
+        } else {
+            V = Builder->CreateSelect(Builder->CreateICmpSLT(Stored, Key), NegOne,
+                Builder->CreateSelect(Builder->CreateICmpSGT(Stored, Key), One, Zero));
+        }
+        if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
+        return;
+    }
+    if (BaseName.rfind("slotSizeT", 0) == 0) {
+        // slotSizeT(const T sample, int out): out = sizeof(T) in bytes
+        llvm::Type *ElemTy = InArgs[0]->getType();
+        uint64_t Sz = CGM->Module->getDataLayout().getTypeAllocSize(ElemTy).getFixedValue();
+        V = llvm::ConstantInt::get(CodeGen::Int32Ty, Sz);
+        if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
+        return;
+    }
+    if (BaseName.rfind("slotPokeT", 0) == 0 || BaseName.rfind("slotReadT", 0) == 0 ||
+        BaseName.rfind("slotFreeT", 0) == 0) {
+        llvm::Type  *OpaquePtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+        llvm::Value *RawPtr  = Builder->CreateIntToPtr(InArgs[0], OpaquePtrTy);
+        llvm::Value *Idx     = Builder->CreateSExt(InArgs[1], CodeGen::Int64Ty);
+        llvm::Value *BytePtr = Builder->CreateGEP(CodeGen::Int8Ty, RawPtr, Idx);
+
+        // Deep-clone a %string value ({ptr,i32}) into a fresh malloc'd buffer, so each
+        // owner frees an independent buffer (no aliasing → no double free). Mirrors
+        // CodeGenExpr::GenStringClone. No-op for any non-string element type.
+        auto cloneIfString = [&](llvm::Value *Val) -> llvm::Value * {
+            if (Val->getType() != CodeGen::StringTy) return Val;
+            llvm::Value *SrcPtr  = Builder->CreateExtractValue(Val, 0);
+            llvm::Value *Size    = Builder->CreateExtractValue(Val, 1);
+            llvm::Value *SizeExt = Builder->CreateZExt(Size, CodeGen::IntPtrTy);
+            llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
+                "malloc", llvm::FunctionType::get(OpaquePtrTy, {CodeGen::IntPtrTy}, false));
+            llvm::Value *HeapPtr = Builder->CreateCall(MallocFn, {SizeExt});
+            Builder->CreateMemCpy(HeapPtr, llvm::MaybeAlign(), SrcPtr, llvm::MaybeAlign(), SizeExt);
+            llvm::Value *R = llvm::UndefValue::get(CodeGen::StringTy);
+            R = Builder->CreateInsertValue(R, HeapPtr, 0);
+            R = Builder->CreateInsertValue(R, Size, 1);
+            return R;
+        };
+
+        if (BaseName.rfind("slotPokeT", 0) == 0) {
+            // slotPokeT(const long buf, const int byteOff, const T val): clone owned values
+            V = Builder->CreateStore(cloneIfString(InArgs[2]), BytePtr);
+            return;
+        }
+        if (BaseName.rfind("slotReadT", 0) == 0) {
+            // slotReadT(const long buf, const int byteOff, T out): return a fresh clone
+            llvm::Type *ElemTy = OutTypes.empty() ? CodeGen::Int64Ty : OutTypes[0];
+            V = cloneIfString(Builder->CreateLoad(ElemTy, BytePtr));
+            if (!OutPtrs.empty()) Builder->CreateStore(V, OutPtrs[0]);
+            return;
+        }
+        // slotFreeT(const long buf, const int byteOff, const T sample): free owned element.
+        // Only owned-value types (string) are released; trivial and handle types are no-ops
+        // (handles/refs are borrowed — the container never frees the pointee).
+        llvm::Type *ElemTy = InArgs.size() > 2 ? InArgs[2]->getType() : CodeGen::Int64Ty;
+        if (ElemTy == CodeGen::StringTy) {
+            llvm::Value *StrVal = Builder->CreateLoad(CodeGen::StringTy, BytePtr);
+            llvm::Value *StrPtr = Builder->CreateExtractValue(StrVal, 0);
+            llvm::FunctionCallee FreeFn = CGM->Module->getOrInsertFunction(
+                "free", llvm::FunctionType::get(llvm::Type::getVoidTy(CGM->LLVMCtx), {OpaquePtrTy}, false));
+            V = Builder->CreateCall(FreeFn, {StrPtr});
+        }
+        return;
+    }
+
     // ── Type conversions ───────────────────────────────────────────────────────
 
     if (BaseName == "longToInt") {

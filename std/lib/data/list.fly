@@ -3,97 +3,111 @@ namespace fly.data
 import fly.llvm
 import fly.runtime
 
-public class List {
-    long ptr
+// List<T> — a growable contiguous sequence, the Fly analog of C++ std::vector<T>
+// / llvm::SmallVector<T>. Elements live in a sizeof(T)-strided heap buffer.
+// Ownership follows the C++/Rust model: owned values (string) are deep-cloned on
+// insert and freed on removal/clear/free; trivial values are copied; class/array
+// handles are stored as-is (the pointee's lifetime stays with the caller).
+//
+// NOTE: methods are deliberately self-contained (no internal this.method() calls)
+// — generic method templates that are referenced internally get emitted with an
+// unresolved body, so helpers are inlined instead.
+public class List<T> {
+    long items
+    int len
+    int cap
+    int stride
 
     public List() {
-        long p = 0
-        fly.runtime.mem_alloc(16, p)
-        fly.llvm.memset(p, 0, 16)
-        this.ptr = p
+        this.items = 0
+        this.len = 0
+        this.cap = 0
+        this.stride = 0
     }
 
-    public void add(const long val) {
-        int len = 0
-        fly.llvm.ptrReadInt(this.ptr, 8, len)
-        int cap = 0
-        fly.llvm.ptrReadInt(this.ptr, 12, cap)
-        if len >= cap {
-            int newcap = cap * 2
-            if cap == 0 { newcap = 8 }
-            long items = 0
-            fly.llvm.ptrReadLong(this.ptr, 0, items)
+    public void add(const T val) {
+        if this.stride == 0 {
+            int s = 0
+            fly.llvm.slotSizeT(val, s)
+            this.stride = s
+        }
+        if this.len >= this.cap {
+            int newcap = this.cap * 2
+            if newcap == 0 { newcap = 8 }
             long ni = 0
-            fly.runtime.mem_realloc(items, newcap * 8, ni)
-            fly.llvm.ptrPokeLong(this.ptr, 0, ni)
-            fly.llvm.ptrPokeInt(this.ptr, 12, newcap)
+            if this.items == 0 {
+                fly.runtime.mem_alloc(newcap * this.stride, ni)
+            } else {
+                fly.runtime.mem_realloc(this.items, newcap * this.stride, ni)
+            }
+            this.items = ni
+            this.cap = newcap
         }
-        long items = 0
-        fly.llvm.ptrReadLong(this.ptr, 0, items)
-        fly.llvm.ptrPokeLong(items, len * 8, val)
-        fly.llvm.ptrPokeInt(this.ptr, 8, len + 1)
+        fly.llvm.slotPokeT(this.items, this.len * this.stride, val)
+        this.len = this.len + 1
     }
 
-    public long get(const int idx) {
-        int len = 0
-        fly.llvm.ptrReadInt(this.ptr, 8, len)
-        if idx < 0 {
-            out = 0
-            return
+    public T get(const int idx) {
+        if idx >= 0 {
+            if idx < this.len {
+                fly.llvm.slotReadT(this.items, idx * this.stride, out)
+                return
+            }
         }
-        if idx >= len {
-            out = 0
-            return
-        }
-        long items = 0
-        fly.llvm.ptrReadLong(this.ptr, 0, items)
-        fly.llvm.ptrReadLong(items, idx * 8, out)
+        // out of bounds → default-initialized T (0 / empty string / null)
+        T def
+        out = def
     }
 
-    public void set(const int idx, const long val) {
-        int len = 0
-        fly.llvm.ptrReadInt(this.ptr, 8, len)
+    public void set(const int idx, const T val) {
         if idx < 0 { return }
-        if idx >= len { return }
-        long items = 0
-        fly.llvm.ptrReadLong(this.ptr, 0, items)
-        fly.llvm.ptrPokeLong(items, idx * 8, val)
+        if idx >= this.len { return }
+        T probe
+        fly.llvm.slotFreeT(this.items, idx * this.stride, probe)
+        fly.llvm.slotPokeT(this.items, idx * this.stride, val)
     }
 
     public int size() {
-        fly.llvm.ptrReadInt(this.ptr, 8, out)
+        out = this.len
     }
 
     public void remove(const int idx) {
-        int len = 0
-        fly.llvm.ptrReadInt(this.ptr, 8, len)
         if idx < 0 { return }
-        if idx >= len { return }
-        long items = 0
-        fly.llvm.ptrReadLong(this.ptr, 0, items)
-        int i = idx + 1
-        while i < len {
-            long v = 0
-            fly.llvm.ptrReadLong(items, i * 8, v)
-            int prev = i - 1
-            fly.llvm.ptrPokeLong(items, prev * 8, v)
-            i = i + 1
+        if idx >= this.len { return }
+        T probe
+        fly.llvm.slotFreeT(this.items, idx * this.stride, probe)
+        int rest = this.len - idx - 1
+        if rest > 0 {
+            long dstoff = idx * this.stride
+            long srcoff = (idx + 1) * this.stride
+            long dst = this.items + dstoff
+            long src = this.items + srcoff
+            long nbytes = rest * this.stride
+            fly.llvm.memmove(dst, src, nbytes)
         }
-        fly.llvm.ptrPokeInt(this.ptr, 8, len - 1)
+        this.len = this.len - 1
     }
 
     public void clear() {
-        fly.llvm.ptrPokeInt(this.ptr, 8, 0)
+        T probe
+        int i = 0
+        while i < this.len {
+            fly.llvm.slotFreeT(this.items, i * this.stride, probe)
+            i = i + 1
+        }
+        this.len = 0
     }
 
     public void free() {
-        long items = 0
-        fly.llvm.ptrReadLong(this.ptr, 0, items)
-        int cap = 0
-        fly.llvm.ptrReadInt(this.ptr, 12, cap)
-        if items != 0 {
-            fly.runtime.mem_free(items, cap * 8)
+        T probe
+        int i = 0
+        while i < this.len {
+            fly.llvm.slotFreeT(this.items, i * this.stride, probe)
+            i = i + 1
         }
-        fly.runtime.mem_free(this.ptr, 16)
+        this.len = 0
+        if this.items != 0 {
+            fly.runtime.mem_free(this.items, this.cap * this.stride)
+        }
     }
 }

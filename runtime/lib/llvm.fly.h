@@ -50,3 +50,18 @@ public ptrReadLong(const long ptr, const int i, long out)
 public ptrPokeByte(const long ptr, const int i, const byte val)
 public ptrPokeShort(const long ptr, const int i, const short val)
 public memcmp(const long a, const long b, const ulong n, int out)
+
+// Generic typed-slot intrinsics: element type T inferred per monomorphization.
+// slotPokeT deep-clones owned values (string) on store; slotReadT returns a fresh
+// clone of owned values; slotFreeT releases an owned-value element (no-op for
+// trivial/handle types). Enables generic containers over any T.
+public slotPokeT<T>(const long buf, const int byteOff, const T val)
+public slotReadT<T>(const long buf, const int byteOff, T out)
+public slotSizeT<T>(const T sample, int out)
+public slotFreeT<T>(const long buf, const int byteOff, const T sample)
+public slotHashT<T>(const T key, int out)
+// 3-way compare of the element stored at buf+byteOff against key (no clone):
+// <0, 0, >0. string → lexicographic (memcmp + length); integer → signed; ref → address.
+public slotCmpT<T>(const long buf, const int byteOff, const T key, int out)
+// Hash the element stored at buf+byteOff (no clone). sample carries the type T.
+public slotHashAtT<T>(const long buf, const int byteOff, const T sample, int out)

@@ -213,6 +213,12 @@ ASTModule *Parser::ParseHeader() {
         StringRef Name = Tok.getIdentifierInfo()->getName();
         ConsumeToken();
 
+        // Parse optional generic type parameters: "T identity<T>(T v)" in headers.
+        llvm::SmallVector<ASTTypeParam *, 4> HeaderTypeParams;
+        if (Tok.is(tok::less)) {
+            HeaderTypeParams = ParseTypeParams();
+        }
+
         // Parse parameter list
         if (!Tok.is(tok::l_paren)) {
             break;
@@ -225,6 +231,12 @@ ASTModule *Parser::ParseHeader() {
         //   b) The function is not treated as an abstract/external declaration.
         ASTBlockStmt *EmptyBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
         ASTFunction *Function = ASTBuilder::CreateFunction(Module, Loc, Name, Modifiers, Params, EmptyBlock);
+
+        // Attach generic type parameters parsed above, so header-declared generic
+        // functions (e.g. fly.llvm slot intrinsics) resolve as templates.
+        if (!HeaderTypeParams.empty()) {
+            Function->TypeParams = HeaderTypeParams;
+        }
 
         // Set return type from leading keyword (new syntax), if any and non-void.
         // Multi-return functions leave ReturnType unset (void) since the Resolver

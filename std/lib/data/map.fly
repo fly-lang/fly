@@ -3,59 +3,69 @@ namespace fly.data
 import fly.llvm
 import fly.runtime
 
-public class Map {
-    long ptr
+// Map<K,V> — hash map with open addressing + tombstones, the Fly analog of
+// C++ std::unordered_map<K,V>. Keys hashed with slotHashT, compared with slotCmpT.
+// Ownership: keys and values each follow the C++/Rust model independently — owned
+// values (string) are cloned on insert and freed on update/remove/free; trivial
+// values are copied; handles are borrowed. flags: 0=empty, 1=occupied, 2=tombstone.
+public class Map<K, V> {
+    long keys
+    long vals
+    long flags
+    int count
+    int cap
+    int kstride
+    int vstride
 
     public Map() {
-        long p = 0
-        fly.runtime.mem_alloc(32, p)
-        fly.llvm.memset(p, 0, 32)
-        int initcap = 8
-        long keys = 0
-        fly.runtime.mem_alloc(initcap * 8, keys)
-        long vals = 0
-        fly.runtime.mem_alloc(initcap * 8, vals)
-        long flags = 0
-        fly.runtime.mem_alloc(initcap, flags)
-        fly.llvm.memset(flags, 0, initcap)
-        fly.llvm.ptrPokeLong(p, 0, keys)
-        fly.llvm.ptrPokeLong(p, 8, vals)
-        fly.llvm.ptrPokeLong(p, 16, flags)
-        fly.llvm.ptrPokeInt(p, 28, initcap)
-        this.ptr = p
+        this.keys = 0
+        this.vals = 0
+        this.flags = 0
+        this.count = 0
+        this.cap = 0
+        this.kstride = 0
+        this.vstride = 0
     }
 
-    public void put(const long key, const long val) {
-        int count = 0
-        fly.llvm.ptrReadInt(this.ptr, 24, count)
-        int cap = 0
-        fly.llvm.ptrReadInt(this.ptr, 28, cap)
-        if count * 4 >= cap * 3 {
-            long okeys = 0
-            fly.llvm.ptrReadLong(this.ptr, 0, okeys)
-            long ovals = 0
-            fly.llvm.ptrReadLong(this.ptr, 8, ovals)
-            long oflags = 0
-            fly.llvm.ptrReadLong(this.ptr, 16, oflags)
-            int newcap = cap * 2
+    public void put(const K key, const V val) {
+        if this.kstride == 0 {
+            int ks = 0
+            fly.llvm.slotSizeT(key, ks)
+            this.kstride = ks
+            int vs = 0
+            fly.llvm.slotSizeT(val, vs)
+            this.vstride = vs
+        }
+        if this.keys == 0 {
+            long nk = 0
+            fly.runtime.mem_alloc(8 * this.kstride, nk)
+            long nv = 0
+            fly.runtime.mem_alloc(8 * this.vstride, nv)
+            long nf = 0
+            fly.runtime.mem_alloc(8, nf)
+            fly.llvm.memset(nf, 0, 8)
+            this.keys = nk
+            this.vals = nv
+            this.flags = nf
+            this.cap = 8
+        }
+        if this.count * 4 >= this.cap * 3 {
+            int newcap = this.cap * 2
             long nkeys = 0
-            fly.runtime.mem_alloc(newcap * 8, nkeys)
+            fly.runtime.mem_alloc(newcap * this.kstride, nkeys)
             long nvals = 0
-            fly.runtime.mem_alloc(newcap * 8, nvals)
+            fly.runtime.mem_alloc(newcap * this.vstride, nvals)
             long nflags = 0
             fly.runtime.mem_alloc(newcap, nflags)
             fly.llvm.memset(nflags, 0, newcap)
+            K kprobe
             int ri = 0
-            while ri < cap {
+            while ri < this.cap {
                 byte rfl = 0
-                fly.llvm.ptrByteAt(oflags, ri, rfl)
+                fly.llvm.ptrByteAt(this.flags, ri, rfl)
                 if rfl == 1 {
-                    long rk = 0
-                    fly.llvm.ptrReadLong(okeys, ri * 8, rk)
-                    long rv = 0
-                    fly.llvm.ptrReadLong(ovals, ri * 8, rv)
                     int rh = 0
-                    fly.llvm.longToInt(rk, rh)
+                    fly.llvm.slotHashAtT(this.keys, ri * this.kstride, kprobe, rh)
                     if rh < 0 { rh = 0 - rh }
                     int rb = rh & (newcap - 1)
                     byte rnfl = 0
@@ -64,45 +74,49 @@ public class Map {
                         rb = (rb + 1) & (newcap - 1)
                         fly.llvm.ptrByteAt(nflags, rb, rnfl)
                     }
-                    fly.llvm.ptrPokeLong(nkeys, rb * 8, rk)
-                    fly.llvm.ptrPokeLong(nvals, rb * 8, rv)
+                    long ksoff = ri * this.kstride
+                    long kdoff = rb * this.kstride
+                    long ksrc = this.keys + ksoff
+                    long kdst = nkeys + kdoff
+                    long knb = this.kstride
+                    fly.llvm.memcpy(kdst, ksrc, knb)
+                    long vsoff = ri * this.vstride
+                    long vdoff = rb * this.vstride
+                    long vsrc = this.vals + vsoff
+                    long vdst = nvals + vdoff
+                    long vnb = this.vstride
+                    fly.llvm.memcpy(vdst, vsrc, vnb)
                     fly.llvm.ptrPokeByte(nflags, rb, 1)
                 }
                 ri = ri + 1
             }
-            fly.runtime.mem_free(okeys, cap * 8)
-            fly.runtime.mem_free(ovals, cap * 8)
-            fly.runtime.mem_free(oflags, cap)
-            fly.llvm.ptrPokeLong(this.ptr, 0, nkeys)
-            fly.llvm.ptrPokeLong(this.ptr, 8, nvals)
-            fly.llvm.ptrPokeLong(this.ptr, 16, nflags)
-            fly.llvm.ptrPokeInt(this.ptr, 28, newcap)
-            fly.llvm.ptrReadInt(this.ptr, 24, count)
-            fly.llvm.ptrReadInt(this.ptr, 28, cap)
+            fly.runtime.mem_free(this.keys, this.cap * this.kstride)
+            fly.runtime.mem_free(this.vals, this.cap * this.vstride)
+            fly.runtime.mem_free(this.flags, this.cap)
+            this.keys = nkeys
+            this.vals = nvals
+            this.flags = nflags
+            this.cap = newcap
         }
-        long keys = 0
-        fly.llvm.ptrReadLong(this.ptr, 0, keys)
-        long vals = 0
-        fly.llvm.ptrReadLong(this.ptr, 8, vals)
-        long flags = 0
-        fly.llvm.ptrReadLong(this.ptr, 16, flags)
         int ph = 0
-        fly.llvm.longToInt(key, ph)
+        fly.llvm.slotHashT(key, ph)
         if ph < 0 { ph = 0 - ph }
-        int b = ph & (cap - 1)
+        int b = ph & (this.cap - 1)
         int ts = 0 - 1
         int probed = 0
         bool done = false
-        while probed < cap {
+        while probed < this.cap {
             byte fl = 0
-            fly.llvm.ptrByteAt(flags, b, fl)
+            fly.llvm.ptrByteAt(this.flags, b, fl)
             if fl == 1 {
-                long k = 0
-                fly.llvm.ptrReadLong(keys, b * 8, k)
-                if k == key {
-                    fly.llvm.ptrPokeLong(vals, b * 8, val)
+                int c = 0
+                fly.llvm.slotCmpT(this.keys, b * this.kstride, key, c)
+                if c == 0 {
+                    V vprobe
+                    fly.llvm.slotFreeT(this.vals, b * this.vstride, vprobe)
+                    fly.llvm.slotPokeT(this.vals, b * this.vstride, val)
                     done = true
-                    probed = cap
+                    probed = this.cap
                 }
             }
             if done == false {
@@ -111,157 +125,149 @@ public class Map {
                 }
                 if fl == 0 {
                     if ts >= 0 { b = ts }
-                    fly.llvm.ptrPokeLong(keys, b * 8, key)
-                    fly.llvm.ptrPokeLong(vals, b * 8, val)
-                    fly.llvm.ptrPokeByte(flags, b, 1)
-                    fly.llvm.ptrPokeInt(this.ptr, 24, count + 1)
+                    fly.llvm.slotPokeT(this.keys, b * this.kstride, key)
+                    fly.llvm.slotPokeT(this.vals, b * this.vstride, val)
+                    fly.llvm.ptrPokeByte(this.flags, b, 1)
+                    this.count = this.count + 1
                     done = true
-                    probed = cap
+                    probed = this.cap
                 }
             }
             if done == false {
-                b = (b + 1) & (cap - 1)
+                b = (b + 1) & (this.cap - 1)
                 probed = probed + 1
             }
         }
         if done == false {
             if ts >= 0 {
-                fly.llvm.ptrPokeLong(keys, ts * 8, key)
-                fly.llvm.ptrPokeLong(vals, ts * 8, val)
-                fly.llvm.ptrPokeByte(flags, ts, 1)
-                fly.llvm.ptrPokeInt(this.ptr, 24, count + 1)
+                fly.llvm.slotPokeT(this.keys, ts * this.kstride, key)
+                fly.llvm.slotPokeT(this.vals, ts * this.vstride, val)
+                fly.llvm.ptrPokeByte(this.flags, ts, 1)
+                this.count = this.count + 1
             }
         }
     }
 
-    public long get(const long key) {
-        int cap = 0
-        fly.llvm.ptrReadInt(this.ptr, 28, cap)
-        long keys = 0
-        fly.llvm.ptrReadLong(this.ptr, 0, keys)
-        long vals = 0
-        fly.llvm.ptrReadLong(this.ptr, 8, vals)
-        long flags = 0
-        fly.llvm.ptrReadLong(this.ptr, 16, flags)
-        int gh = 0
-        fly.llvm.longToInt(key, gh)
-        if gh < 0 { gh = 0 - gh }
-        int b = gh & (cap - 1)
-        int probed = 0
-        bool found = false
-        while probed < cap {
-            byte fl = 0
-            fly.llvm.ptrByteAt(flags, b, fl)
-            if fl == 0 {
-                probed = cap
-            } elsif fl == 1 {
-                long k = 0
-                fly.llvm.ptrReadLong(keys, b * 8, k)
-                if k == key {
-                    fly.llvm.ptrReadLong(vals, b * 8, out)
-                    found = true
-                    probed = cap
+    public V get(const K key) {
+        if this.keys != 0 {
+            int gh = 0
+            fly.llvm.slotHashT(key, gh)
+            if gh < 0 { gh = 0 - gh }
+            int b = gh & (this.cap - 1)
+            int probed = 0
+            while probed < this.cap {
+                byte fl = 0
+                fly.llvm.ptrByteAt(this.flags, b, fl)
+                if fl == 0 {
+                    probed = this.cap
+                } elsif fl == 1 {
+                    int c = 0
+                    fly.llvm.slotCmpT(this.keys, b * this.kstride, key, c)
+                    if c == 0 {
+                        fly.llvm.slotReadT(this.vals, b * this.vstride, out)
+                        return
+                    }
+                    b = (b + 1) & (this.cap - 1)
+                    probed = probed + 1
                 } else {
-                    b = (b + 1) & (cap - 1)
+                    b = (b + 1) & (this.cap - 1)
                     probed = probed + 1
                 }
-            } else {
-                b = (b + 1) & (cap - 1)
-                probed = probed + 1
             }
         }
-        if found == false { out = 0 }
+        V def
+        out = def
     }
 
-    public bool has(const long key) {
-        int cap = 0
-        fly.llvm.ptrReadInt(this.ptr, 28, cap)
-        long keys = 0
-        fly.llvm.ptrReadLong(this.ptr, 0, keys)
-        long flags = 0
-        fly.llvm.ptrReadLong(this.ptr, 16, flags)
+    public bool has(const K key) {
+        if this.keys == 0 {
+            out = false
+            return
+        }
         int hh = 0
-        fly.llvm.longToInt(key, hh)
+        fly.llvm.slotHashT(key, hh)
         if hh < 0 { hh = 0 - hh }
-        int b = hh & (cap - 1)
+        int b = hh & (this.cap - 1)
         int probed = 0
         bool found = false
-        while probed < cap {
+        while probed < this.cap {
             byte fl = 0
-            fly.llvm.ptrByteAt(flags, b, fl)
+            fly.llvm.ptrByteAt(this.flags, b, fl)
             if fl == 0 {
-                probed = cap
+                probed = this.cap
             } elsif fl == 1 {
-                long k = 0
-                fly.llvm.ptrReadLong(keys, b * 8, k)
-                if k == key {
+                int c = 0
+                fly.llvm.slotCmpT(this.keys, b * this.kstride, key, c)
+                if c == 0 {
                     found = true
-                    probed = cap
+                    probed = this.cap
                 } else {
-                    b = (b + 1) & (cap - 1)
+                    b = (b + 1) & (this.cap - 1)
                     probed = probed + 1
                 }
             } else {
-                b = (b + 1) & (cap - 1)
+                b = (b + 1) & (this.cap - 1)
                 probed = probed + 1
             }
         }
         out = found
     }
 
-    public void remove(const long key) {
-        int cap = 0
-        fly.llvm.ptrReadInt(this.ptr, 28, cap)
-        long keys = 0
-        fly.llvm.ptrReadLong(this.ptr, 0, keys)
-        long flags = 0
-        fly.llvm.ptrReadLong(this.ptr, 16, flags)
+    public void remove(const K key) {
+        if this.keys == 0 { return }
         int rh = 0
-        fly.llvm.longToInt(key, rh)
+        fly.llvm.slotHashT(key, rh)
         if rh < 0 { rh = 0 - rh }
-        int b = rh & (cap - 1)
+        int b = rh & (this.cap - 1)
         int probed = 0
-        while probed < cap {
+        while probed < this.cap {
             byte fl = 0
-            fly.llvm.ptrByteAt(flags, b, fl)
+            fly.llvm.ptrByteAt(this.flags, b, fl)
             if fl == 0 {
-                probed = cap
+                probed = this.cap
             } elsif fl == 1 {
-                long k = 0
-                fly.llvm.ptrReadLong(keys, b * 8, k)
-                if k == key {
-                    fly.llvm.ptrPokeByte(flags, b, 2)
-                    int count = 0
-                    fly.llvm.ptrReadInt(this.ptr, 24, count)
-                    fly.llvm.ptrPokeInt(this.ptr, 24, count - 1)
-                    probed = cap
+                int c = 0
+                fly.llvm.slotCmpT(this.keys, b * this.kstride, key, c)
+                if c == 0 {
+                    K kprobe
+                    V vprobe
+                    fly.llvm.slotFreeT(this.keys, b * this.kstride, kprobe)
+                    fly.llvm.slotFreeT(this.vals, b * this.vstride, vprobe)
+                    fly.llvm.ptrPokeByte(this.flags, b, 2)
+                    this.count = this.count - 1
+                    probed = this.cap
                 } else {
-                    b = (b + 1) & (cap - 1)
+                    b = (b + 1) & (this.cap - 1)
                     probed = probed + 1
                 }
             } else {
-                b = (b + 1) & (cap - 1)
+                b = (b + 1) & (this.cap - 1)
                 probed = probed + 1
             }
         }
     }
 
     public int size() {
-        fly.llvm.ptrReadInt(this.ptr, 24, out)
+        out = this.count
     }
 
     public void free() {
-        long keys = 0
-        fly.llvm.ptrReadLong(this.ptr, 0, keys)
-        long vals = 0
-        fly.llvm.ptrReadLong(this.ptr, 8, vals)
-        long flags = 0
-        fly.llvm.ptrReadLong(this.ptr, 16, flags)
-        int cap = 0
-        fly.llvm.ptrReadInt(this.ptr, 28, cap)
-        fly.runtime.mem_free(keys, cap * 8)
-        fly.runtime.mem_free(vals, cap * 8)
-        fly.runtime.mem_free(flags, cap)
-        fly.runtime.mem_free(this.ptr, 32)
+        if this.keys != 0 {
+            K kprobe
+            V vprobe
+            int i = 0
+            while i < this.cap {
+                byte fl = 0
+                fly.llvm.ptrByteAt(this.flags, i, fl)
+                if fl == 1 {
+                    fly.llvm.slotFreeT(this.keys, i * this.kstride, kprobe)
+                    fly.llvm.slotFreeT(this.vals, i * this.vstride, vprobe)
+                }
+                i = i + 1
+            }
+            fly.runtime.mem_free(this.keys, this.cap * this.kstride)
+            fly.runtime.mem_free(this.vals, this.cap * this.vstride)
+            fly.runtime.mem_free(this.flags, this.cap)
+        }
     }
 }

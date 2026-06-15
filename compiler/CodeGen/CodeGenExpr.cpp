@@ -915,6 +915,29 @@ llvm::Value *CodeGenExpr::GenStringHeapCopy(SemaStringValue *Sema) {
 	return Result;
 }
 
+llvm::Value *CodeGenExpr::GenStringClone(llvm::Value *StrVal) {
+	// Deep-copy an arbitrary runtime %string ({ptr, i32}) into a fresh malloc'd
+	// buffer so the destination owns an independent heap buffer. Used when a string
+	// lvalue (another variable/parameter/field) is bound into an owned string slot,
+	// so each owner can free() its own buffer (no aliasing → no double free).
+	llvm::Value *SrcPtr  = Builder->CreateExtractValue(StrVal, 0, "clone_src_ptr");
+	llvm::Value *Size    = Builder->CreateExtractValue(StrVal, 1, "clone_size");
+	llvm::Value *SizeExt = Builder->CreateZExt(Size, CodeGen::IntPtrTy, "clone_size_ext");
+
+	llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
+		"malloc",
+		llvm::FunctionType::get(
+			llvm::PointerType::getUnqual(CGM->LLVMCtx),
+			{CodeGen::IntPtrTy}, false));
+	llvm::Value *HeapPtr = Builder->CreateCall(MallocFn, {SizeExt}, "str_clone");
+	Builder->CreateMemCpy(HeapPtr, llvm::MaybeAlign(), SrcPtr, llvm::MaybeAlign(), SizeExt);
+
+	llvm::Value *Result = llvm::UndefValue::get(CodeGen::StringTy);
+	Result = Builder->CreateInsertValue(Result, HeapPtr, 0);
+	Result = Builder->CreateInsertValue(Result, Size, 1);
+	return Result;
+}
+
 llvm::Value *CodeGenExpr::GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2) {
     FLY_DEBUG_SCOPE("CodeGenExpr", "GenBinaryArith");
 
@@ -1224,17 +1247,33 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
 		return static_cast<SemaVar *>(E1)->getCodeGen()->StoreArrayValue(E2CGArray);
 	}
 
-	// Non-const string assigned a literal: heap-copy the global buffer so
-	// the variable always owns a malloc'd pointer that can be freed at scope exit.
-	if (E1->getType()->isString() && E2->getKind() == SemaKind::VALUE &&
-	    E2->getType() && E2->getType()->isString()) {
+	// Non-const string store: the destination must own an independent heap buffer
+	// so it can free() it at scope exit without aliasing another owner's buffer.
+	//  - RHS is a string literal (VALUE)        → heap-copy the global constant.
+	//  - RHS is a string lvalue (var/param/field/member) → deep-clone its buffer.
+	// RHS that produces a *fresh* buffer (CALL result, BINARY concat, …) is left
+	// as-is: the destination takes ownership of that already-unique buffer. Because
+	// `out = <lvalue>` returns flow through here too, every function that returns a
+	// borrowed string (a param or field) returns a fresh clone — so its callers'
+	// CALL results are always fresh and need no clone.
+	if (E1->getType()->isString() && E2->getType() && E2->getType()->isString()) {
 		SemaKind K1 = E1->getKind();
-		bool IsVar = K1 == SemaKind::LOCAL_VAR || K1 == SemaKind::PARAM_VAR ||
-		             K1 == SemaKind::ERROR_VAR  || K1 == SemaKind::ATTRIBUTE ||
-		             K1 == SemaKind::INSTANCE_VAR;
-		if (IsVar && !static_cast<SemaVar *>(E1)->isConstant()) {
-			llvm::Value *HeapStr = GenStringHeapCopy(static_cast<SemaStringValue *>(E2));
-			return static_cast<CodeGenVar *>(E1CodeGen)->Store(HeapStr);
+		bool IsVar1 = K1 == SemaKind::LOCAL_VAR || K1 == SemaKind::PARAM_VAR ||
+		              K1 == SemaKind::ERROR_VAR  || K1 == SemaKind::ATTRIBUTE ||
+		              K1 == SemaKind::INSTANCE_VAR;
+		if (IsVar1 && !static_cast<SemaVar *>(E1)->isConstant()) {
+			SemaKind K2 = E2->getKind();
+			if (K2 == SemaKind::VALUE) {
+				llvm::Value *HeapStr = GenStringHeapCopy(static_cast<SemaStringValue *>(E2));
+				return static_cast<CodeGenVar *>(E1CodeGen)->Store(HeapStr);
+			}
+			bool IsLValue2 = K2 == SemaKind::LOCAL_VAR || K2 == SemaKind::PARAM_VAR ||
+			                 K2 == SemaKind::ERROR_VAR  || K2 == SemaKind::ATTRIBUTE ||
+			                 K2 == SemaKind::INSTANCE_VAR || K2 == SemaKind::MEMBER;
+			if (IsLValue2) {
+				llvm::Value *Clone = GenStringClone(E2CodeGen->getValue());
+				return static_cast<CodeGenVar *>(E1CodeGen)->Store(Clone);
+			}
 		}
 	}
 

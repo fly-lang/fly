@@ -1,13 +1,62 @@
 namespace fly.test.generics
 
 import fly.assert
+import fly.str
 import fly.data.Wrapper
 
+// Broad coverage of generic type arguments and generic constructs:
+//   - Wrapper<T> over every supported primitive + a user class (handle element)
+//   - generic free functions (identity, pickMax with a body local)
+//   - a two-type-parameter generic class (Pair<A,B>)
+//
+// NOTE: char / float / uint / array (T[]) are not yet usable as generic type
+// arguments (char/array fail to parse in <...>; float/uint mis-type in codegen),
+// so they are intentionally omitted here.
+
+// ── Generic free functions ──────────────────────────────────────────────────
+
+// Simplest generic: returns its argument unchanged (per-type monomorphization).
 T identity<T>(T v) {
     out = v
 }
 
+// Generic function with a LOCAL and a NESTED block — exercises per-specialization
+// re-resolution of method-body locals across multiple type instantiations.
+T pickMax<T>(const T a, const T b) {
+    T r = a
+    if b > a {
+        r = b
+    }
+    out = r
+}
+
+// ── Generic types defined here ──────────────────────────────────────────────
+
+// Two-type-parameter generic class (independent A/B monomorphization).
+public class Pair<A, B> {
+    A a
+    B b
+    public Pair(const A x, const B y) {
+        this.a = x
+        this.b = y
+    }
+    public A first() { out = this.a }
+    public B second() { out = this.b }
+    public void setFirst(const A x) { this.a = x }
+}
+
+// A user class used as a generic type argument (reference/handle element).
+public class Point {
+    public int x
+    public int y
+    public Point(const int px, const int py) {
+        this.x = px
+        this.y = py
+    }
+}
+
 void main() {
+    // ── Wrapper<T> over each supported integral type ────────────────────────
     Wrapper<int> wi = new Wrapper<int>(42)
     fly.assert.assertTrue(wi.get() == 42, 1)
     wi.set(100)
@@ -23,9 +72,82 @@ void main() {
     wl.set(1234567890)
     fly.assert.assertTrue(wl.get() == 1234567890, 6)
 
+    Wrapper<byte> wby = new Wrapper<byte>(7)
+    fly.assert.assertTrue(wby.get() == 7, 30)
+
+    Wrapper<short> wsh = new Wrapper<short>(1234)
+    fly.assert.assertTrue(wsh.get() == 1234, 31)
+
+    Wrapper<ulong> wul = new Wrapper<ulong>(9000000000)
+    fly.assert.assertTrue(wul.get() == 9000000000, 34)
+
+    // ── Floating point (double) ─────────────────────────────────────────────
+    Wrapper<double> wd = new Wrapper<double>(3.5)
+    fly.assert.assertTrue(wd.get() > 3.4, 20)
+    fly.assert.assertTrue(wd.get() < 3.6, 21)
+    wd.set(2.25)
+    fly.assert.assertTrue(wd.get() > 2.2, 22)
+
+    // ── Wrapper<string>: by-value string field through monomorphization ──────
+    // Each get() must clone (no aliasing → no double free).
+    Wrapper<string> ws = new Wrapper<string>("hello")
+    fly.assert.assertTrue(str.equals(ws.get(), "hello"), 9)
+    ws.set("world")
+    fly.assert.assertTrue(str.equals(ws.get(), "world"), 10)
+
+    // Store a heap string and read it back twice (double-owner stress).
+    string built = str.concat("foo", "bar")
+    Wrapper<string> wh = new Wrapper<string>(built)
+    string a = wh.get()
+    string b = wh.get()
+    fly.assert.assertTrue(str.equals(a, b), 11)
+    fly.assert.assertTrue(str.equals(a, "foobar"), 12)
+
+    // ── Wrapper<Point>: class instance as type argument (handle semantics) ───
+    Point pt = new Point(3, 4)
+    Wrapper<Point> wp = new Wrapper<Point>(pt)
+    Point pg = wp.get()
+    fly.assert.assertTrue(pg.x == 3, 70)
+    fly.assert.assertTrue(pg.y == 4, 71)
+    pt.x = 30
+    Point pg2 = wp.get()
+    fly.assert.assertTrue(pg2.x == 30, 72)   // same object, mutation visible
+
+    // ── identity<T> over many type arguments ────────────────────────────────
     int ir = identity(42)
     fly.assert.assertTrue(ir == 42, 7)
 
     bool br = identity(true)
     fly.assert.assertTrue(br == true, 8)
+
+    long lr = identity(5000000000)
+    fly.assert.assertTrue(lr == 5000000000, 50)
+
+    double dr = identity(6.5)
+    fly.assert.assertTrue(dr > 6.4, 51)
+
+    string sr = identity("zzz")
+    fly.assert.assertTrue(str.equals(sr, "zzz"), 13)
+
+    // ── pickMax<T>: generic function with locals, multiple numeric specs ─────
+    int mi = pickMax(3, 9)
+    fly.assert.assertTrue(mi == 9, 60)
+    double md = pickMax(1.5, 2.5)
+    fly.assert.assertTrue(md > 2.4, 62)
+
+    // ── Pair<A,B>: two independent type parameters, mixed type combos ───────
+    Pair<int, string> p1 = new Pair<int, string>(7, "hi")
+    fly.assert.assertTrue(p1.first() == 7, 100)
+    fly.assert.assertTrue(str.equals(p1.second(), "hi"), 101)
+
+    Pair<string, int> p2 = new Pair<string, int>("key", 9)
+    fly.assert.assertTrue(str.equals(p2.first(), "key"), 102)
+    fly.assert.assertTrue(p2.second() == 9, 103)
+
+    Pair<long, double> p3 = new Pair<long, double>(42, 3.5)
+    fly.assert.assertTrue(p3.first() == 42, 104)
+    fly.assert.assertTrue(p3.second() > 3.4, 105)
+
+    p1.setFirst(70)
+    fly.assert.assertTrue(p1.first() == 70, 106)
 }

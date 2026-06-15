@@ -558,7 +558,17 @@ void Resolver::visit(ASTEnumEntry &AST) {
 
 void Resolver::visit(ASTLocalVar &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTLocalVar)");
-	if (!AST.isVisited()) {
+
+	// In a generic specialization the method/function body AST is SHARED across all
+	// specializations, but each spec has its own scope and its own SemaLocalVar
+	// objects. The isVisited() guard (set by the first spec) would otherwise skip
+	// re-registering the local in subsequent specs' scopes, making it "not defined".
+	// Mirror the re-resolution done for ASTIdentifier/ASTMember body expressions.
+	bool IsSpecCtx = CurrentClass && CurrentClass->getGenericTemplate() != nullptr;
+	if (!IsSpecCtx && CurrentFunction && CurrentFunction->getKind() == SemaKind::FUNCTION)
+		IsSpecCtx = static_cast<SemaFunction *>(CurrentFunction)->getGenericTemplate() != nullptr;
+
+	if (!AST.isVisited() || IsSpecCtx) {
 		AST.setVisited(true);
 
 		// Resolve Type
@@ -574,10 +584,13 @@ void Resolver::visit(ASTLocalVar &AST) {
 		// Add LocalVar to the Function Base LocalVars
 		CurrentFunction->addLocalVar(Sema);
 
-		// Find Var duplication in the current scope
-		SmallVector<Symbol *, 8> *Symbols = CurrentScope->lookup(AST.getName());
-		if (Symbols) {
-			Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
+		// Find Var duplication in the current scope. Skipped under spec re-resolution:
+		// the name legitimately exists in earlier specs' scopes, not a redefinition.
+		if (!IsSpecCtx) {
+			SmallVector<Symbol *, 8> *Symbols = CurrentScope->lookup(AST.getName());
+			if (Symbols) {
+				Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
+			}
 		}
 
 		// Add to Symbol Table
@@ -1639,7 +1652,16 @@ static std::string BuildCandidateSignature(SemaFunctionBase *F) {
 void Resolver::visit(ASTCall &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTCall)");
 
-	if (!AST.isVisited()) {
+	// Inside a generic specialization the body AST is shared across all specs, but each
+	// spec needs its own resolved SemaCall — especially for calls to generic functions,
+	// which must specialize on this spec's concrete argument types. The isVisited() guard
+	// (set by the first spec) would otherwise skip resolution entirely, leaving the spec
+	// body without the call. Mirror the per-spec re-resolution of identifiers/members.
+	bool IsSpecCtx = CurrentClass && CurrentClass->getGenericTemplate() != nullptr;
+	if (!IsSpecCtx && CurrentFunction && CurrentFunction->getKind() == SemaKind::FUNCTION)
+		IsSpecCtx = static_cast<SemaFunction *>(CurrentFunction)->getGenericTemplate() != nullptr;
+
+	if (!AST.isVisited() || IsSpecCtx) {
 		AST.setVisited(true);
 
 		// Save the current scope
@@ -1992,12 +2014,35 @@ void Resolver::visit(ASTCall &AST) {
 				// StringRef would dangle after the temporary std::string is destroyed.
 				std::map<std::string, SemaType *> Substitution;
 				auto &TmplParams = GenericFn->getParams();
+
+				// When this call is inside a 2nd+ generic specialization, an argument's
+				// resolved type may still be the enclosing template's TypeParam (Sema
+				// types are not substituted in re-resolved shared bodies). Map such a
+				// TypeParam to the concrete type via the enclosing specialization's
+				// T→concrete binding, so the inner generic function specializes on the
+				// concrete type rather than the zero-size TypeParam.
+				SymbolTable *EnclSpecScope = nullptr;
+				if (CurrentClass && CurrentClass->getGenericTemplate() != nullptr)
+					EnclSpecScope = CurrentClass->getSymbols();
+				else if (CurrentFunction && CurrentFunction->getKind() == SemaKind::FUNCTION &&
+				         static_cast<SemaFunction *>(CurrentFunction)->getGenericTemplate() != nullptr)
+					EnclSpecScope = CurrentFunction->getSymbols();
+				auto SubstTypeParam = [&](SemaType *T) -> SemaType * {
+					if (EnclSpecScope && T && T->getKind() == SemaKind::TYPE_PARAM) {
+						if (auto *Syms = EnclSpecScope->lookup(T->getName()))
+							if (!Syms->empty())
+								if (auto *C = static_cast<SemaType *>((*Syms)[0]->getRef()))
+									return C;
+					}
+					return T;
+				};
+
 				for (size_t i = 0; i < TmplParams.size() && i < ArgTypes.size(); ++i) {
 					SemaType *PType = TmplParams[i]->getType();
 					if (PType && PType->getKind() == SemaKind::TYPE_PARAM) {
 						std::string TPName = PType->getName();
 						if (!Substitution.count(TPName))
-							Substitution[TPName] = ArgTypes[i];
+							Substitution[TPName] = SubstTypeParam(ArgTypes[i]);
 					}
 				}
 				// Build TypeArgs in declaration order
