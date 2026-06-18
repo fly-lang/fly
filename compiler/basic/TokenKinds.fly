@@ -1,19 +1,23 @@
 namespace fly.compiler.basic
 import fly.compiler.basic.*
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TokenKinds — the lexical token kind set, its names, and keyword recognition,
-// ported from compiler/Basic/TokenKinds.cpp/.def. The C++ version enumerates the
-// full punctuator/keyword database; the self-host lexer uses the compact kind
-// set below (punctuators are lexed as PUNCT carrying their text, keywords as
-// KEYWORD), so that is what is modelled here.
+// TokenKinds — the lexical token kind set, names, spellings and keyword/punctuator
+// recognition, ported 1:1 from include/Basic/TokenKinds.def.
 //
-// This is the single source of truth for token kinds: the constants, tokKindName
-// and isKeyword previously lived in Parser/Token.fly and now live here.
+// The enum carries BOTH:
+//   • the legacy COARSE kinds (EOF/IDENT/KEYWORD/NUMBER/STRING/CHAR/PUNCT/UNKNOWN)
+//     still emitted by the current pragmatic Lexer, and
+//   • the FINE-GRAINED kinds (eof, identifier, numeric_constant, the punctuators,
+//     and one kw_* per reserved word) the 1:1 Parser port uses for is(tok::…) checks.
+// The 1:1 lexer/parser (Stage 3) will emit/consume the fine kinds and the coarse
+// values will be retired then. getKeywordKind / getPunctKind let a pragmatic
+// scanner tag the precise kind from a spelling.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Token kinds — ordinals match the former TOK_* function values (0..7).
 public enum TokenKind {
+    // ── legacy coarse kinds (current Lexer) ──────────────────────────────────
     EOF,
     IDENT,
     KEYWORD,
@@ -21,10 +25,287 @@ public enum TokenKind {
     STRING,
     CHAR,
     PUNCT,
-    UNKNOWN
+    UNKNOWN,
+
+    // ── fine-grained kinds (TokenKinds.def) ──────────────────────────────────
+    unknown,
+    eof,
+    comment,
+    keyword,
+    identifier,
+    raw_identifier,
+    numeric_constant,
+    char_constant,
+    string_literal,
+    header_name,
+
+    // punctuators
+    l_square,
+    r_square,
+    l_paren,
+    r_paren,
+    l_brace,
+    r_brace,
+    period,
+    amp,
+    ampamp,
+    ampequal,
+    star,
+    starequal,
+    plus,
+    plusplus,
+    plusequal,
+    minus,
+    minusminus,
+    minusequal,
+    exclaim,
+    exclaimequal,
+    slash,
+    slashequal,
+    percent,
+    percentequal,
+    less,
+    lessless,
+    lessequal,
+    lesslessequal,
+    greater,
+    greatergreater,
+    greaterequal,
+    greatergreaterequal,
+    caret,
+    caretequal,
+    pipe,
+    pipepipe,
+    pipeequal,
+    question,
+    colon,
+    semi,
+    equal,
+    equalequal,
+    comma,
+    at,
+
+    // keywords
+    kw_abstract,
+    kw_as,
+    kw_bool,
+    kw_break,
+    kw_byte,
+    kw_case,
+    kw_char,
+    kw_class,
+    kw_complex,
+    kw_const,
+    kw_continue,
+    kw_default,
+    kw_double,
+    kw_elsif,
+    kw_else,
+    kw_enum,
+    kw_error,
+    kw_fail,
+    kw_false,
+    kw_final,
+    kw_float,
+    kw_for,
+    kw_handle,
+    kw_if,
+    kw_import,
+    kw_interface,
+    kw_in,
+    kw_int,
+    kw_long,
+    kw_namespace,
+    kw_new,
+    kw_null,
+    kw_private,
+    kw_protected,
+    kw_public,
+    kw_return,
+    kw_short,
+    kw_static,
+    kw_string,
+    kw_struct,
+    kw_suite,
+    kw_switch,
+    kw_test,
+    kw_true,
+    kw_uint,
+    kw_ulong,
+    kw_unset,
+    kw_ushort,
+    kw_void,
+    kw_while
 }
 
-// tokKindName — human-readable name for a token kind.
+// getTokenName — the enum constant's name (e.g. "kw_namespace", "l_paren").
+public string getTokenName(const TokenKind k) { out = k.name }
+
+// isKeywordKind — true for any kw_* kind.
+public bool isKeywordKind(const TokenKind k) { out = fly.str.startsWith(k.name, "kw_") }
+
+// isLiteralKind — true for a literal token (number / string / char).
+public bool isLiteralKind(const TokenKind k) {
+    out = k == TokenKind.numeric_constant || k == TokenKind.string_literal
+       || k == TokenKind.char_constant
+}
+
+// getKeywordKind — the kw_* kind for a reserved-word spelling, or `identifier`
+// if the spelling is not a keyword.
+public TokenKind getKeywordKind(const string w) {
+    if w == "abstract"  { out = TokenKind.kw_abstract  return }
+    if w == "as"        { out = TokenKind.kw_as        return }
+    if w == "bool"      { out = TokenKind.kw_bool      return }
+    if w == "break"     { out = TokenKind.kw_break     return }
+    if w == "byte"      { out = TokenKind.kw_byte      return }
+    if w == "case"      { out = TokenKind.kw_case      return }
+    if w == "char"      { out = TokenKind.kw_char      return }
+    if w == "class"     { out = TokenKind.kw_class     return }
+    if w == "complex"   { out = TokenKind.kw_complex   return }
+    if w == "const"     { out = TokenKind.kw_const     return }
+    if w == "continue"  { out = TokenKind.kw_continue  return }
+    if w == "default"   { out = TokenKind.kw_default   return }
+    if w == "double"    { out = TokenKind.kw_double    return }
+    if w == "elsif"     { out = TokenKind.kw_elsif     return }
+    if w == "else"      { out = TokenKind.kw_else      return }
+    if w == "enum"      { out = TokenKind.kw_enum      return }
+    if w == "error"     { out = TokenKind.kw_error     return }
+    if w == "fail"      { out = TokenKind.kw_fail      return }
+    if w == "false"     { out = TokenKind.kw_false     return }
+    if w == "final"     { out = TokenKind.kw_final     return }
+    if w == "float"     { out = TokenKind.kw_float     return }
+    if w == "for"       { out = TokenKind.kw_for       return }
+    if w == "handle"    { out = TokenKind.kw_handle    return }
+    if w == "if"        { out = TokenKind.kw_if        return }
+    if w == "import"    { out = TokenKind.kw_import    return }
+    if w == "interface" { out = TokenKind.kw_interface return }
+    if w == "in"        { out = TokenKind.kw_in        return }
+    if w == "int"       { out = TokenKind.kw_int       return }
+    if w == "long"      { out = TokenKind.kw_long      return }
+    if w == "namespace" { out = TokenKind.kw_namespace return }
+    if w == "new"       { out = TokenKind.kw_new       return }
+    if w == "null"      { out = TokenKind.kw_null      return }
+    if w == "private"   { out = TokenKind.kw_private   return }
+    if w == "protected" { out = TokenKind.kw_protected return }
+    if w == "public"    { out = TokenKind.kw_public    return }
+    if w == "return"    { out = TokenKind.kw_return    return }
+    if w == "short"     { out = TokenKind.kw_short     return }
+    if w == "static"    { out = TokenKind.kw_static    return }
+    if w == "string"    { out = TokenKind.kw_string    return }
+    if w == "struct"    { out = TokenKind.kw_struct    return }
+    if w == "suite"     { out = TokenKind.kw_suite     return }
+    if w == "switch"    { out = TokenKind.kw_switch    return }
+    if w == "test"      { out = TokenKind.kw_test      return }
+    if w == "true"      { out = TokenKind.kw_true      return }
+    if w == "uint"      { out = TokenKind.kw_uint      return }
+    if w == "ulong"     { out = TokenKind.kw_ulong     return }
+    if w == "unset"     { out = TokenKind.kw_unset     return }
+    if w == "ushort"    { out = TokenKind.kw_ushort    return }
+    if w == "void"      { out = TokenKind.kw_void      return }
+    if w == "while"     { out = TokenKind.kw_while     return }
+    out = TokenKind.identifier
+}
+
+// getPunctKind — the punctuator kind for a spelling, or `unknown` if not one.
+public TokenKind getPunctKind(const string p) {
+    if p == "["   { out = TokenKind.l_square            return }
+    if p == "]"   { out = TokenKind.r_square            return }
+    if p == "("   { out = TokenKind.l_paren             return }
+    if p == ")"   { out = TokenKind.r_paren             return }
+    if p == "{"   { out = TokenKind.l_brace             return }
+    if p == "}"   { out = TokenKind.r_brace             return }
+    if p == "."   { out = TokenKind.period              return }
+    if p == "&&"  { out = TokenKind.ampamp              return }
+    if p == "&="  { out = TokenKind.ampequal            return }
+    if p == "&"   { out = TokenKind.amp                 return }
+    if p == "*="  { out = TokenKind.starequal           return }
+    if p == "*"   { out = TokenKind.star                return }
+    if p == "++"  { out = TokenKind.plusplus            return }
+    if p == "+="  { out = TokenKind.plusequal           return }
+    if p == "+"   { out = TokenKind.plus                return }
+    if p == "--"  { out = TokenKind.minusminus          return }
+    if p == "-="  { out = TokenKind.minusequal          return }
+    if p == "-"   { out = TokenKind.minus               return }
+    if p == "!="  { out = TokenKind.exclaimequal        return }
+    if p == "!"   { out = TokenKind.exclaim             return }
+    if p == "/="  { out = TokenKind.slashequal          return }
+    if p == "/"   { out = TokenKind.slash               return }
+    if p == "%="  { out = TokenKind.percentequal        return }
+    if p == "%"   { out = TokenKind.percent             return }
+    if p == "<<=" { out = TokenKind.lesslessequal       return }
+    if p == "<<"  { out = TokenKind.lessless            return }
+    if p == "<="  { out = TokenKind.lessequal           return }
+    if p == "<"   { out = TokenKind.less                return }
+    if p == ">>=" { out = TokenKind.greatergreaterequal return }
+    if p == ">>"  { out = TokenKind.greatergreater      return }
+    if p == ">="  { out = TokenKind.greaterequal        return }
+    if p == ">"   { out = TokenKind.greater             return }
+    if p == "^="  { out = TokenKind.caretequal          return }
+    if p == "^"   { out = TokenKind.caret               return }
+    if p == "||"  { out = TokenKind.pipepipe            return }
+    if p == "|="  { out = TokenKind.pipeequal           return }
+    if p == "|"   { out = TokenKind.pipe                return }
+    if p == "?"   { out = TokenKind.question            return }
+    if p == ":"   { out = TokenKind.colon               return }
+    if p == ";"   { out = TokenKind.semi                return }
+    if p == "=="  { out = TokenKind.equalequal          return }
+    if p == "="   { out = TokenKind.equal               return }
+    if p == ","   { out = TokenKind.comma               return }
+    if p == "@"   { out = TokenKind.at                  return }
+    out = TokenKind.unknown
+}
+
+// getPunctuatorSpelling — the spelling for a punctuator kind, or "" if not one.
+public string getPunctuatorSpelling(const TokenKind k) {
+    if k == TokenKind.l_square            { out = "["   return }
+    if k == TokenKind.r_square            { out = "]"   return }
+    if k == TokenKind.l_paren             { out = "("   return }
+    if k == TokenKind.r_paren             { out = ")"   return }
+    if k == TokenKind.l_brace             { out = "{"   return }
+    if k == TokenKind.r_brace             { out = "}"   return }
+    if k == TokenKind.period              { out = "."   return }
+    if k == TokenKind.amp                 { out = "&"   return }
+    if k == TokenKind.ampamp              { out = "&&"  return }
+    if k == TokenKind.ampequal            { out = "&="  return }
+    if k == TokenKind.star                { out = "*"   return }
+    if k == TokenKind.starequal           { out = "*="  return }
+    if k == TokenKind.plus                { out = "+"   return }
+    if k == TokenKind.plusplus            { out = "++"  return }
+    if k == TokenKind.plusequal           { out = "+="  return }
+    if k == TokenKind.minus               { out = "-"   return }
+    if k == TokenKind.minusminus          { out = "--"  return }
+    if k == TokenKind.minusequal          { out = "-="  return }
+    if k == TokenKind.exclaim             { out = "!"   return }
+    if k == TokenKind.exclaimequal        { out = "!="  return }
+    if k == TokenKind.slash               { out = "/"   return }
+    if k == TokenKind.slashequal          { out = "/="  return }
+    if k == TokenKind.percent             { out = "%"   return }
+    if k == TokenKind.percentequal        { out = "%="  return }
+    if k == TokenKind.less                { out = "<"   return }
+    if k == TokenKind.lessless            { out = "<<"  return }
+    if k == TokenKind.lessequal           { out = "<="  return }
+    if k == TokenKind.lesslessequal       { out = "<<=" return }
+    if k == TokenKind.greater             { out = ">"   return }
+    if k == TokenKind.greatergreater      { out = ">>"  return }
+    if k == TokenKind.greaterequal        { out = ">="  return }
+    if k == TokenKind.greatergreaterequal { out = ">>=" return }
+    if k == TokenKind.caret               { out = "^"   return }
+    if k == TokenKind.caretequal          { out = "^="  return }
+    if k == TokenKind.pipe                { out = "|"   return }
+    if k == TokenKind.pipepipe            { out = "||"  return }
+    if k == TokenKind.pipeequal           { out = "|="  return }
+    if k == TokenKind.question            { out = "?"   return }
+    if k == TokenKind.colon               { out = ":"   return }
+    if k == TokenKind.semi                { out = ";"   return }
+    if k == TokenKind.equal               { out = "="   return }
+    if k == TokenKind.equalequal          { out = "=="  return }
+    if k == TokenKind.comma               { out = ","   return }
+    if k == TokenKind.at                  { out = "@"   return }
+    out = ""
+}
+
+// tokKindName — human-readable name for a (coarse) token kind. Retained for the
+// current Lexer/tests until the fine kinds take over in Stage 3.
 public string tokKindName(const TokenKind k) {
     if k == TokenKind.EOF     { out = "EOF"     return }
     if k == TokenKind.IDENT   { out = "Ident"   return }
@@ -38,17 +319,5 @@ public string tokKindName(const TokenKind k) {
 
 // isKeyword — true if an identifier spelling is a Fly reserved word.
 public bool isKeyword(const string w) {
-    out = w == "abstract" || w == "as" || w == "bool" || w == "break"
-       || w == "byte" || w == "case" || w == "char" || w == "class"
-       || w == "complex" || w == "const" || w == "continue" || w == "default"
-       || w == "double" || w == "elsif" || w == "else" || w == "enum"
-       || w == "error" || w == "fail" || w == "false" || w == "final"
-       || w == "float" || w == "for" || w == "handle" || w == "if"
-       || w == "import" || w == "interface" || w == "in" || w == "int"
-       || w == "long" || w == "namespace" || w == "new" || w == "null"
-       || w == "private" || w == "protected" || w == "public" || w == "return"
-       || w == "short" || w == "static" || w == "string" || w == "struct"
-       || w == "suite" || w == "switch" || w == "test" || w == "true"
-       || w == "uint" || w == "ulong" || w == "unset" || w == "ushort"
-       || w == "void" || w == "while"
+    out = getKeywordKind(w) != TokenKind.identifier
 }

@@ -1,0 +1,37 @@
+import fly.os.env
+import fly.assert
+
+void main() {
+    string s = ""
+    int n = 0
+
+    s = env.osname()
+    assert.assertNotEmpty(s, 1)
+
+    n = env.argsCount()
+    assert.assertGtI(n, 0, 2)
+
+    s = env.hostname()
+    assert.assertNotEmpty(s, 3)
+
+    n = env.allCount()
+    assert.assertGtI(n, 0, 4)
+
+    env.set("FLY_ENV_TEST_VAR", "hello_env")
+    s = env.get("FLY_ENV_TEST_VAR")
+    assert.assertStr(s, "hello_env", 10)
+
+    env.delete("FLY_ENV_TEST_VAR")
+    s = env.get("FLY_ENV_TEST_VAR")
+    assert.assertStr(s, "", 11)
+
+    env.set("FLY_ENV_EXP", "world")
+    s = env.expand("hello $FLY_ENV_EXP")
+    assert.assertStr(s, "hello world", 12)
+    s = env.expand("${FLY_ENV_EXP}!")
+    assert.assertStr(s, "world!", 13)
+    env.delete("FLY_ENV_EXP")
+
+    s = env.cwdGet()
+    assert.assertNotEmpty(s, 14)
+}

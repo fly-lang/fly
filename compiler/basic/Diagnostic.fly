@@ -1,0 +1,171 @@
+namespace fly.compiler.basic
+import fly.compiler.basic.*
+import fly.data.List
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Diagnostic — the diagnostics engine, ported from include/Basic/Diagnostic.h +
+// Diagnostic.cpp. Adapted to Fly: dropped the LLVM-only machinery (RefCountedBase,
+// llvm::Error payload, SFINAE responses); kept the functional surface — a
+// DiagnosticConsumer sink, a fluent DiagnosticBuilder (with %0 formatting and
+// FixItHints), and the DiagnosticsEngine that maps id→level, renders
+// "line:col: level: message", and tracks error/warning counts.
+//
+// The C++ '<<' builder operator (emit-on-destruction) becomes an explicit
+// builder.emit(); callers write: engine.report(loc, id).addStr(x).emit().
+// ─────────────────────────────────────────────────────────────────────────────
+
+// formatMessage — substitute %0..%9 placeholders in a description with args[i].
+public string formatMessage(const string desc, const List<string> args) {
+    string res = desc
+    int n = args.size()
+    int i = 0
+    while i < n {
+        string ph = fly.str.concat("%", fly.str.convert(i))
+        // NOTE: must use a distinct temp — `res = replace(res, …)` (reassigning a
+        // string var from a result computed over itself) corrupts under this compiler.
+        string next = fly.str.replace(res, ph, args.get(i))
+        res = next
+        i = i + 1
+    }
+    out = res
+}
+
+// FixItHint — a suggested source edit attached to a diagnostic (insert/remove/
+// replace over a source range). A 1:1 analog of clang's FixItHint.
+public class FixItHint {
+    SourceRange range
+    string insertText
+
+    public FixItHint(const SourceRange range, const string insertText) {
+        this.range = range
+        this.insertText = insertText
+    }
+
+    public SourceRange getRange() { out = this.range }
+    public string getInsertText() { out = this.insertText }
+}
+
+public FixItHint fixItInsert(const SourceLocation loc, const string text) {
+    out = new FixItHint(srcRangeFromLoc(loc), text)
+}
+public FixItHint fixItReplace(const SourceRange range, const string text) {
+    out = new FixItHint(range, text)
+}
+public FixItHint fixItRemove(const SourceRange range) {
+    out = new FixItHint(range, "")
+}
+
+// DiagnosticConsumer — sink for fully-formed diagnostics. The base is a no-op;
+// concrete consumers override handleDiagnostic (vtable dispatch).
+public class DiagnosticConsumer {
+    public DiagnosticConsumer() { }
+    public void handleDiagnostic(const DiagLevel level, const string message) { }
+}
+
+// StoringDiagnosticConsumer — records rendered diagnostics for inspection/tests.
+public class StoringDiagnosticConsumer : DiagnosticConsumer {
+    List<string> messages
+    int errors
+    int warnings
+
+    public StoringDiagnosticConsumer() {
+        super()
+        this.messages = new List<string>()
+        this.errors = 0
+        this.warnings = 0
+    }
+
+    public void handleDiagnostic(const DiagLevel level, const string message) {
+        this.messages.add(message)
+        if level == DiagLevel.Error || level == DiagLevel.Fatal { this.errors = this.errors + 1 }
+        elsif level == DiagLevel.Warning { this.warnings = this.warnings + 1 }
+    }
+
+    public int count() { out = this.messages.size() }
+    public string getMessage(const int i) { out = this.messages.get(i) }
+    public int errorCount() { out = this.errors }
+    public int warningCount() { out = this.warnings }
+}
+
+// DiagnosticBuilder — accumulates a diagnostic's arguments and fix-its, then emits
+// it via the engine. addStr/addInt/addFixIt return `this` for fluent chaining.
+public class DiagnosticBuilder {
+    DiagnosticsEngine engine
+    DiagID id
+    SourceLocation loc
+    List<string> args
+    List<FixItHint> fixits
+
+    public DiagnosticBuilder(const DiagnosticsEngine engine, const SourceLocation loc, const DiagID id) {
+        this.engine = engine
+        this.loc = loc
+        this.id = id
+        this.args = new List<string>()
+        this.fixits = new List<FixItHint>()
+    }
+
+    public DiagnosticBuilder addStr(const string s) { this.args.add(s)  out = this }
+    public DiagnosticBuilder addInt(const int n) { this.args.add(fly.str.convert(n))  out = this }
+    public DiagnosticBuilder addFixIt(const FixItHint h) { this.fixits.add(h)  out = this }
+
+    public DiagID getId() { out = this.id }
+    public SourceLocation getLoc() { out = this.loc }
+    public List<string> getArgs() { out = this.args }
+    public List<FixItHint> getFixits() { out = this.fixits }
+
+    public void emit() { this.engine.emitDiagnostic(this) }
+}
+
+// DiagnosticsEngine — central diagnostics state: maps id→level (applying options),
+// renders the message, dispatches to the consumer, and tracks counts.
+public class DiagnosticsEngine {
+    DiagnosticOptions opts
+    DiagnosticConsumer consumer
+    SourceManager sm
+    int errorCount
+    int warningCount
+    bool errorOccurred
+
+    public DiagnosticsEngine(const DiagnosticOptions opts, const DiagnosticConsumer consumer, const SourceManager sm) {
+        this.opts = opts
+        this.consumer = consumer
+        this.sm = sm
+        this.errorCount = 0
+        this.warningCount = 0
+        this.errorOccurred = false
+    }
+
+    // report — begin a diagnostic at loc with id; caller adds args then calls emit().
+    public DiagnosticBuilder report(const SourceLocation loc, const DiagID id) {
+        out = new DiagnosticBuilder(this, loc, id)
+    }
+
+    public void emitDiagnostic(const DiagnosticBuilder b) {
+        DiagLevel level = getDefaultLevel(b.getId())
+        // Apply warning options.
+        if level == DiagLevel.Warning {
+            if this.opts.isIgnoreWarnings() { return }
+            if this.opts.isWarningsAsErrors() { level = DiagLevel.Error }
+        }
+        string msg = formatMessage(getDescription(b.getId()), b.getArgs())
+        SourceLocation loc = b.getLoc()
+        int line = this.sm.getLineNumber(loc)
+        int col = this.sm.getColumnNumber(loc)
+        string prefix = fly.str.concat(fly.str.convert(line),
+                        fly.str.concat(":", fly.str.concat(fly.str.convert(col), ": ")))
+        string full = fly.str.concat(prefix, fly.str.concat(levelName(level), fly.str.concat(": ", msg)))
+        this.consumer.handleDiagnostic(level, full)
+        if level == DiagLevel.Error || level == DiagLevel.Fatal {
+            this.errorCount = this.errorCount + 1
+            this.errorOccurred = true
+        } elsif level == DiagLevel.Warning {
+            this.warningCount = this.warningCount + 1
+        }
+    }
+
+    public bool hasErrorOccurred() { out = this.errorOccurred }
+    public int getNumErrors() { out = this.errorCount }
+    public int getNumWarnings() { out = this.warningCount }
+    public DiagnosticConsumer getConsumer() { out = this.consumer }
+}

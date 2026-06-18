@@ -36,19 +36,19 @@ public class ASTBuilder {
     public static ASTName CreateName(const string name, const SourceLocation loc) {
         out = new ASTName(loc, name)
     }
-    public static ASTNameSpace CreateNameSpace(const ASTModule module, const SourceLocation loc, const fly.data.List names) {
+    public static ASTNameSpace CreateNameSpace(const ASTModule module, const SourceLocation loc, const List<ASTName> names) {
         ASTNameSpace ns = new ASTNameSpace(loc, names)
         module.setNameSpace(ns)
         out = ns
     }
-    public static ASTImport CreateImport(const ASTModule module, const SourceLocation loc, const fly.data.List names, const fly.data.List alias, const bool wildcard) {
+    public static ASTImport CreateImport(const ASTModule module, const SourceLocation loc, const List<ASTName> names, const List<ASTName> alias, const bool wildcard) {
         ASTImport imp = new ASTImport(loc, names, alias, wildcard)
         module.addNode(imp)
         out = imp
     }
 
     // ── Function / class / attribute / method / enum ─────────────────────────
-    public static ASTFunction CreateFunction(const ASTModule module, const SourceLocation loc, const string name, const fly.data.List modifiers, const fly.data.List params, const ASTBlockStmt body) {
+    public static ASTFunction CreateFunction(const ASTModule module, const SourceLocation loc, const string name, const List<ASTModifier> modifiers, const List<ASTParam> params, const ASTBlockStmt body) {
         ASTFunction function = new ASTFunction(loc, modifiers, name, params, ASTFunctionKind.F_FUNCTION)
         if body != null {
             ASTBuilder.CreateBody(function, body)
@@ -56,12 +56,12 @@ public class ASTBuilder {
         module.addNode(function)
         out = function
     }
-    public static ASTClass CreateClass(const ASTModule module, const SourceLocation loc, const ASTClassKind classKind, const string name, const fly.data.List modifiers, const fly.data.List bases) {
+    public static ASTClass CreateClass(const ASTModule module, const SourceLocation loc, const ASTClassKind classKind, const string name, const List<ASTModifier> modifiers, const List<ASTType> bases) {
         ASTClass cls = new ASTClass(classKind, modifiers, loc, name, bases)
         module.addNode(cls)
         out = cls
     }
-    public static ASTAttribute CreateClassAttribute(const SourceLocation loc, const ASTClass cls, const ASTType type, const string name, const fly.data.List modifiers, const ASTExpr expr) {
+    public static ASTAttribute CreateClassAttribute(const SourceLocation loc, const ASTClass cls, const ASTType type, const string name, const List<ASTModifier> modifiers, const ASTExpr expr) {
         ASTAttribute attr = new ASTAttribute(loc, type, name, modifiers)
         attr.setExpr(expr)
         cls.addNode(attr)
@@ -69,16 +69,16 @@ public class ASTBuilder {
     }
     public static ASTMethod CreateDefaultConstructor(const ASTClass cls) {
         SourceLocation loc = slGetFileLoc(0)
-        fly.data.List modifiers = new List()
+        List<ASTModifier> modifiers = new List<ASTModifier>()
         modifiers.add(ASTBuilder.CreateModifier(loc, ASTModifierKind.MOD_PUBLIC))
-        fly.data.List params = new List()
+        List<ASTParam> params = new List<ASTParam>()
         ASTMethod method = new ASTMethod(loc, modifiers, cls.getName(), params)
         ASTBlockStmt body = ASTBuilder.CreateBlockStmt(loc)
         ASTBuilder.CreateBody(method, body)
         // NOT added to the class: the Resolver registers the default ctor at the Sema level.
         out = method
     }
-    public static ASTMethod CreateClassMethod(const SourceLocation loc, const ASTClass cls, const string name, const fly.data.List modifiers, const fly.data.List params, const ASTBlockStmt body) {
+    public static ASTMethod CreateClassMethod(const SourceLocation loc, const ASTClass cls, const string name, const List<ASTModifier> modifiers, const List<ASTParam> params, const ASTBlockStmt body) {
         ASTMethod method = new ASTMethod(loc, modifiers, name, params)
         if body != null {
             ASTBuilder.CreateBody(method, body)
@@ -86,14 +86,14 @@ public class ASTBuilder {
         cls.addNode(method)
         out = method
     }
-    public static ASTEnum CreateEnum(const ASTModule module, const SourceLocation loc, const string name, const fly.data.List modifiers, const fly.data.List enumTypes) {
+    public static ASTEnum CreateEnum(const ASTModule module, const SourceLocation loc, const string name, const List<ASTModifier> modifiers, const List<ASTType> enumTypes) {
         ASTEnum e = new ASTEnum(loc, name, modifiers, enumTypes)
         module.addNode(e)
         out = e
     }
-    public static ASTEnumEntry CreateEnumEntry(const SourceLocation loc, const ASTEnum e, const string name, const fly.data.List modifiers) {
+    public static ASTEnumEntry CreateEnumEntry(const SourceLocation loc, const ASTEnum e, const string name, const List<ASTModifier> modifiers) {
         ASTEnumEntry entry = new ASTEnumEntry(loc, e, name)
-        fly.data.List nodes = e.getNodes()
+        List<ASTNode> nodes = e.getNodes()
         // Index starts from 1 since 0 is reserved for the 'unset' value.
         entry.setIndex(nodes.size() + 1)
         e.addNode(entry)
@@ -121,7 +121,7 @@ public class ASTBuilder {
     public static ASTArrayType CreateArrayType(const SourceLocation loc, const ASTType elementType, const ASTExpr sizeExpr) {
         out = new ASTArrayType(loc, elementType, sizeExpr)
     }
-    public static ASTType CreateType(const SourceLocation loc, const fly.data.List names) {
+    public static ASTType CreateType(const SourceLocation loc, const List<ASTName> names) {
         out = new ASTNamedType(loc, names)
     }
 
@@ -131,29 +131,29 @@ public class ASTBuilder {
     public static ASTBoolValue CreateBoolValue(const SourceLocation loc, const bool val) { out = new ASTBoolValue(loc, val) }
     public static ASTNumberValue CreateNumberValue(const SourceLocation loc, const string val) { out = new ASTNumberValue(loc, val) }
     public static ASTStringValue CreateStringValue(const SourceLocation loc, const string val) { out = new ASTStringValue(loc, val) }
-    public static ASTArrayValue CreateArrayValue(const SourceLocation loc, const fly.data.List values) {
+    public static ASTArrayValue CreateArrayValue(const SourceLocation loc, const List<ASTExpr> values) {
         ASTArrayValue arr = new ASTArrayValue(loc)
         arr.setValues(values)
         out = arr
     }
-    public static ASTStructValue CreateStructValue(const SourceLocation loc, const fly.data.List values) {
+    public static ASTStructValue CreateStructValue(const SourceLocation loc, const List<ASTExpr> values) {
         ASTStructValue st = new ASTStructValue(loc)
         st.setValues(values)
         out = st
     }
 
     // ── Vars ─────────────────────────────────────────────────────────────────
-    public static ASTParam CreateParam(const SourceLocation loc, const ASTType type, const string name, const fly.data.List modifiers, const ASTValue defaultValue) {
+    public static ASTParam CreateParam(const SourceLocation loc, const ASTType type, const string name, const List<ASTModifier> modifiers, const ASTValue defaultValue) {
         ASTParam param = new ASTParam(loc, type, name, modifiers)
         param.setExpr(defaultValue)
         out = param
     }
-    public static ASTLocalVar CreateLocalVar(const SourceLocation loc, const ASTType type, const string name, const fly.data.List modifiers) {
+    public static ASTLocalVar CreateLocalVar(const SourceLocation loc, const ASTType type, const string name, const List<ASTModifier> modifiers) {
         out = new ASTLocalVar(loc, type, name, modifiers)
     }
 
     // ── Expressions ──────────────────────────────────────────────────────────
-    public static ASTCall CreateCall(const SourceLocation loc, const string name, const fly.data.List args, const ASTCallKind callKind, const ASTExpr parent) {
+    public static ASTCall CreateCall(const SourceLocation loc, const string name, const List<ASTExpr> args, const ASTCallKind callKind, const ASTExpr parent) {
         ASTCall call = new ASTCall(loc, name, callKind)
         if parent != null {
             call.setParent(parent)

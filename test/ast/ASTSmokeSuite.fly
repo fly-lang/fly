@@ -11,7 +11,7 @@ suite ASTSmokeSuite {
         case "empty module": {
             SourceLocation loc = slGetFileLoc(0)
             ASTModule m = new ASTModule(loc, "smoke.fly")
-            fly.data.List nodes = m.getNodes()
+            List<ASTNode> nodes = m.getNodes()
             assert.assertEqI(nodes.size(), 0, 1)
             assert.assertStr(m.getName(), "smoke.fly", 2)
             assert.assertTrue(m.getKind() == ASTKind.MODULE, 3)
@@ -21,7 +21,7 @@ suite ASTSmokeSuite {
             ASTModule m = new ASTModule(loc, "smoke.fly")
             ASTComment cm = new ASTComment(loc, "hi")
             m.addNode(cm)
-            fly.data.List nodes = m.getNodes()
+            List<ASTNode> nodes = m.getNodes()
             assert.assertEqI(nodes.size(), 1, 4)
             assert.assertTrue(cm.getKind() == ASTKind.COMMENT, 5)
             assert.assertStr(cm.getContent(), "hi", 6)

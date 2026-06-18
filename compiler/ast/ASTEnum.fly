@@ -3,26 +3,28 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTKind
 import fly.compiler.ast.ASTNode
+import fly.compiler.ast.ASTModifier
+import fly.compiler.ast.ASTType
 import fly.data.List
 
 public class ASTEnum : ASTNode {
 
-    fly.data.List nodes
-    fly.data.List modifiers
+    List<ASTNode> nodes
+    List<ASTModifier> modifiers
     string name
-    fly.data.List bases
+    List<ASTType> bases
 
-    public ASTEnum(const SourceLocation loc, const string name, const fly.data.List modifiers, const fly.data.List bases) {
+    public ASTEnum(const SourceLocation loc, const string name, const List<ASTModifier> modifiers, const List<ASTType> bases) {
         super(ASTKind.ENUM, loc)
         this.name = name
         this.modifiers = modifiers
         this.bases = bases
-        this.nodes = new List()
+        this.nodes = new List<ASTNode>()
     }
 
-    public fly.data.List getNodes() { out = this.nodes }
-    public fly.data.List getModifiers() { out = this.modifiers }
+    public List<ASTNode> getNodes() { out = this.nodes }
+    public List<ASTModifier> getModifiers() { out = this.modifiers }
     public string getName() { out = this.name }
-    public fly.data.List getBases() { out = this.bases }
+    public List<ASTType> getBases() { out = this.bases }
     public void addNode(const ASTNode node) { this.nodes.add(node) }
 }

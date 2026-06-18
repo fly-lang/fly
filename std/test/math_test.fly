@@ -1,0 +1,344 @@
+import fly.math
+import fly.assert
+
+void main() {
+    long li = 0
+    double d = 0.0
+    bool b = false
+    int i = 0
+    long lq = 0
+    long lr = 0
+
+    // ── absI ──────────────────────────────────────────────────────────────────
+    long negFive = 0 - 5
+    li = math.absI(negFive)
+    assert.assertEqL(li, 5, 1)
+    li = math.absI(5)
+    assert.assertEqL(li, 5, 2)
+    li = math.absI(0)
+    assert.assertEqL(li, 0, 3)
+
+    // ── absF ──────────────────────────────────────────────────────────────────
+    double neg_pi = 0.0 - 3.14159265358979323846
+    d = math.absF(neg_pi)
+    assert.assertApprox(d, 3.14159265358979323846, 10)
+    d = math.absF(2.5)
+    assert.assertApprox(d, 2.5, 11)
+
+    // ── sign ──────────────────────────────────────────────────────────────────
+    i = math.sign(5.0)
+    if i != 1 { assert.errExit(20) }
+    double neg5 = 0.0 - 5.0
+    i = math.sign(neg5)
+    int neg1i = 0 - 1
+    if i != neg1i { assert.errExit(21) }
+    i = math.sign(0.0)
+    if i != 0 { assert.errExit(22) }
+
+    // ── minI / maxI ───────────────────────────────────────────────────────────
+    li = math.minI(3, 7)
+    assert.assertEqL(li, 3, 30)
+    li = math.minI(7, 3)
+    assert.assertEqL(li, 3, 31)
+    li = math.maxI(3, 7)
+    assert.assertEqL(li, 7, 32)
+    li = math.maxI(7, 3)
+    assert.assertEqL(li, 7, 33)
+
+    // ── minF / maxF ───────────────────────────────────────────────────────────
+    d = math.minF(1.5, 2.5)
+    assert.assertApprox(d, 1.5, 40)
+    d = math.maxF(1.5, 2.5)
+    assert.assertApprox(d, 2.5, 41)
+
+    // ── clampI ────────────────────────────────────────────────────────────────
+    li = math.clampI(5, 0, 3)
+    assert.assertEqL(li, 3, 50)
+    long negOne = 0 - 1
+    li = math.clampI(negOne, 0, 10)
+    assert.assertEqL(li, 0, 51)
+    li = math.clampI(5, 0, 10)
+    assert.assertEqL(li, 5, 52)
+
+    // ── clampF ────────────────────────────────────────────────────────────────
+    d = math.clampF(1.5, 0.0, 1.0)
+    assert.assertApprox(d, 1.0, 60)
+    d = math.clampF(0.0 - 0.5, 0.0, 1.0)
+    assert.assertApprox(d, 0.0, 61)
+    d = math.clampF(0.5, 0.0, 1.0)
+    assert.assertApprox(d, 0.5, 62)
+
+    // ── gcd ───────────────────────────────────────────────────────────────────
+    li = math.gcd(12, 8)
+    assert.assertEqL(li, 4, 70)
+    li = math.gcd(0, 5)
+    assert.assertEqL(li, 5, 71)
+    li = math.gcd(7, 7)
+    assert.assertEqL(li, 7, 72)
+
+    // ── lcm ───────────────────────────────────────────────────────────────────
+    li = math.lcm(4, 6)
+    assert.assertEqL(li, 12, 80)
+    li = math.lcm(5, 3)
+    assert.assertEqL(li, 15, 81)
+
+    // ── divmod ────────────────────────────────────────────────────────────────
+    math.divmod(17, 5, lq, lr)
+    assert.assertEqL(lq, 3, 90)
+    assert.assertEqL(lr, 2, 91)
+    math.divmod(10, 3, lq, lr)
+    assert.assertEqL(lq, 3, 92)
+    assert.assertEqL(lr, 1, 93)
+
+    // ── sqrt ──────────────────────────────────────────────────────────────────
+    d = math.sqrt(4.0)
+    assert.assertApprox(d, 2.0, 100)
+    d = math.sqrt(9.0)
+    assert.assertApprox(d, 3.0, 101)
+    d = math.sqrt(0.0)
+    assert.assertApprox(d, 0.0, 102)
+
+    // ── cbrt ──────────────────────────────────────────────────────────────────
+    d = math.cbrt(8.0)
+    assert.assertApprox(d, 2.0, 110)
+    d = math.cbrt(27.0)
+    assert.assertApprox(d, 3.0, 111)
+    d = math.cbrt(0.0 - 27.0)
+    assert.assertApprox(d, 0.0 - 3.0, 112)
+
+    // ── pow ───────────────────────────────────────────────────────────────────
+    d = math.pow(2.0, 10.0)
+    assert.assertApprox(d, 1024.0, 120)
+    d = math.pow(5.0, 0.0)
+    assert.assertApprox(d, 1.0, 121)
+    d = math.pow(3.0, 3.0)
+    assert.assertApprox(d, 27.0, 122)
+
+    // ── exp / exp2 ────────────────────────────────────────────────────────────
+    d = math.exp(0.0)
+    assert.assertApprox(d, 1.0, 130)
+    d = math.exp2(3.0)
+    assert.assertApprox(d, 8.0, 131)
+    d = math.exp2(0.0)
+    assert.assertApprox(d, 1.0, 132)
+
+    // ── log / log2 / log10 ────────────────────────────────────────────────────
+    d = math.log(1.0)
+    assert.assertApprox(d, 0.0, 140)
+    d = math.log2(8.0)
+    assert.assertApprox(d, 3.0, 141)
+    d = math.log10(1000.0)
+    assert.assertApprox(d, 3.0, 142)
+
+    // ── logN ──────────────────────────────────────────────────────────────────
+    d = math.logN(8.0, 2.0)
+    assert.assertApprox(d, 3.0, 150)
+    d = math.logN(100.0, 10.0)
+    assert.assertApprox(d, 2.0, 151)
+
+    // ── floor / ceil / round / trunc ──────────────────────────────────────────
+    d = math.floor(2.7)
+    assert.assertApprox(d, 2.0, 160)
+    d = math.ceil(2.1)
+    assert.assertApprox(d, 3.0, 161)
+    d = math.round(2.5)
+    assert.assertApprox(d, 3.0, 162)
+    d = math.trunc(2.9)
+    assert.assertApprox(d, 2.0, 163)
+    d = math.floor(0.0 - 2.7)
+    assert.assertApprox(d, 0.0 - 3.0, 164)
+
+    // ── roundTo ───────────────────────────────────────────────────────────────
+    d = math.roundTo(3.14159, 2)
+    assert.assertApproxEps(d, 3.14, 0.000001, 170)
+    d = math.roundTo(3.14159, 0)
+    assert.assertApprox(d, 3.0, 171)
+
+    // ── sin / cos / tan ───────────────────────────────────────────────────────
+    d = math.sin(0.0)
+    assert.assertApprox(d, 0.0, 180)
+    d = math.cos(0.0)
+    assert.assertApprox(d, 1.0, 181)
+    d = math.tan(0.0)
+    assert.assertApprox(d, 0.0, 182)
+
+    // ── toRadians / toDegrees ─────────────────────────────────────────────────
+    double pi = 3.14159265358979323846
+    d = math.toRadians(180.0)
+    assert.assertApproxEps(d, pi, 0.000000001, 190)
+    d = math.toDegrees(pi)
+    assert.assertApproxEps(d, 180.0, 0.000001, 191)
+
+    // ── hypot ─────────────────────────────────────────────────────────────────
+    d = math.hypot(3.0, 4.0)
+    assert.assertApprox(d, 5.0, 200)
+    d = math.hypot(5.0, 12.0)
+    assert.assertApprox(d, 13.0, 201)
+    d = math.hypot(3.0e200, 4.0e200)
+    assert.assertApproxEps(d, 5.0e200, 1.0e185, 202)
+
+    // ── asin / acos / atan / atan2 ────────────────────────────────────────────
+    d = math.asin(0.0)
+    assert.assertApprox(d, 0.0, 210)
+    d = math.acos(1.0)
+    assert.assertApprox(d, 0.0, 211)
+    d = math.atan(0.0)
+    assert.assertApprox(d, 0.0, 212)
+    d = math.atan2(0.0, 1.0)
+    assert.assertApprox(d, 0.0, 213)
+    d = math.asin(0.5)
+    assert.assertApproxEps(d, 0.5235987755982988, 0.000000001, 214)
+    d = math.acos(0.5)
+    assert.assertApproxEps(d, 1.0471975511965979, 0.000000001, 215)
+    d = math.atan(1.0)
+    assert.assertApproxEps(d, 0.7853981633974483, 0.000000001, 216)
+    d = math.atan2(1.0, 1.0)
+    assert.assertApproxEps(d, 0.7853981633974483, 0.000000001, 217)
+
+    // ── sinh / cosh / tanh ────────────────────────────────────────────────────
+    d = math.sinh(0.0)
+    assert.assertApprox(d, 0.0, 220)
+    d = math.cosh(0.0)
+    assert.assertApprox(d, 1.0, 221)
+    d = math.tanh(0.0)
+    assert.assertApprox(d, 0.0, 222)
+    d = math.sinh(1.0)
+    assert.assertApproxEps(d, 1.1752011936438014, 0.000000001, 223)
+    d = math.cosh(1.0)
+    assert.assertApproxEps(d, 1.5430806348152437, 0.000000001, 224)
+    d = math.tanh(1.0)
+    assert.assertApproxEps(d, 0.7615941559557649, 0.000000001, 225)
+
+    // ── isNaN / isInf / isFinite ──────────────────────────────────────────────
+    double zero = 0.0
+    double nan_val = zero / zero
+    b = math.isNaN(nan_val)
+    if b == false { assert.errExit(230) }
+    double one = 1.0
+    double inf_val = one / zero
+    b = math.isInf(inf_val)
+    if b == false { assert.errExit(231) }
+    b = math.isFinite(1.0)
+    if b == false { assert.errExit(232) }
+    b = math.isNaN(1.0)
+    if b { assert.errExit(233) }
+
+    // ── approxEqual ───────────────────────────────────────────────────────────
+    b = math.approxEqual(1.0, 1.0000000001, 0.000001)
+    if b == false { assert.errExit(240) }
+    b = math.approxEqual(1.0, 2.0, 0.000000001)
+    if b { assert.errExit(241) }
+
+    // ── copySign ─────────────────────────────────────────────────────────────
+    double negone = 0.0 - 1.0
+    d = math.copySign(3.0, negone)
+    assert.assertApprox(d, 0.0 - 3.0, 250)
+    d = math.copySign(0.0 - 3.0, 1.0)
+    assert.assertApprox(d, 3.0, 251)
+
+    // ── isPow2 / nextPow2 ─────────────────────────────────────────────────────
+    b = math.isPow2(8)
+    if b == false { assert.errExit(260) }
+    b = math.isPow2(7)
+    if b { assert.errExit(261) }
+    b = math.isPow2(1)
+    if b == false { assert.errExit(262) }
+    li = math.nextPow2(5)
+    assert.assertEqL(li, 8, 263)
+    li = math.nextPow2(8)
+    assert.assertEqL(li, 8, 264)
+    li = math.nextPow2(1)
+    assert.assertEqL(li, 1, 265)
+
+    // ── popcount / leadingZeros / trailingZeros ───────────────────────────────
+    i = math.popcount(255)
+    if i != 8 { assert.errExit(270) }
+    i = math.popcount(0)
+    if i != 0 { assert.errExit(271) }
+    i = math.leadingZeros(1)
+    if i != 63 { assert.errExit(272) }
+    i = math.leadingZeros(0)
+    if i != 64 { assert.errExit(273) }
+    i = math.trailingZeros(8)
+    if i != 3 { assert.errExit(274) }
+    i = math.trailingZeros(0)
+    if i != 64 { assert.errExit(275) }
+
+    // ── fma ───────────────────────────────────────────────────────────────────
+    d = math.fma(2.0, 3.0, 1.0)
+    assert.assertApprox(d, 7.0, 280)
+
+    // ── lerp ──────────────────────────────────────────────────────────────────
+    d = math.lerp(0.0, 10.0, 0.5)
+    assert.assertApprox(d, 5.0, 290)
+    d = math.lerp(0.0, 10.0, 0.0)
+    assert.assertApprox(d, 0.0, 291)
+    d = math.lerp(0.0, 10.0, 1.0)
+    assert.assertApprox(d, 10.0, 292)
+
+    // ── saturate ──────────────────────────────────────────────────────────────
+    d = math.saturate(2.0)
+    assert.assertApprox(d, 1.0, 300)
+    d = math.saturate(0.0 - 1.0)
+    assert.assertApprox(d, 0.0, 301)
+    d = math.saturate(0.5)
+    assert.assertApprox(d, 0.5, 302)
+
+    // ── factorialI / factorialF ───────────────────────────────────────────────
+    li = math.factorialI(5)
+    assert.assertEqL(li, 120, 310)
+    li = math.factorialI(0)
+    assert.assertEqL(li, 1, 311)
+    li = math.factorialI(1)
+    assert.assertEqL(li, 1, 312)
+
+    // ── comb / perm ───────────────────────────────────────────────────────────
+    li = math.comb(5, 2)
+    assert.assertEqL(li, 10, 320)
+    li = math.comb(5, 0)
+    assert.assertEqL(li, 1, 321)
+    li = math.perm(5, 2)
+    assert.assertEqL(li, 20, 322)
+    li = math.perm(5, 0)
+    assert.assertEqL(li, 1, 323)
+
+    // ── erf ───────────────────────────────────────────────────────────────────
+    d = math.erf(0.0)
+    assert.assertApprox(d, 0.0, 350)
+    d = math.erf(1.0)
+    assert.assertApproxEps(d, 0.8427007929497148, 0.000000001, 351)
+    d = math.erf(0.5)
+    assert.assertApproxEps(d, 0.5204998778130465, 0.000000001, 352)
+
+    // ── gamma ─────────────────────────────────────────────────────────────────
+    d = math.gamma(1.0)
+    assert.assertApprox(d, 1.0, 360)
+    d = math.gamma(5.0)
+    assert.assertApprox(d, 24.0, 361)
+    d = math.gamma(0.5)
+    assert.assertApproxEps(d, 1.7724538509055159, 0.000000001, 362)
+
+    // ── asinh ─────────────────────────────────────────────────────────────────
+    d = math.asinh(0.0)
+    assert.assertApprox(d, 0.0, 370)
+    d = math.asinh(1.0)
+    assert.assertApproxEps(d, 0.881373587019543, 0.000000001, 371)
+
+    // ── acosh ─────────────────────────────────────────────────────────────────
+    d = math.acosh(1.0)
+    assert.assertApprox(d, 0.0, 380)
+    d = math.acosh(2.0)
+    assert.assertApproxEps(d, 1.3169578969248166, 0.000000001, 381)
+
+    // ── atanh ─────────────────────────────────────────────────────────────────
+    d = math.atanh(0.0)
+    assert.assertApprox(d, 0.0, 390)
+    d = math.atanh(0.5)
+    assert.assertApproxEps(d, 0.5493061443340549, 0.000000001, 391)
+
+    // ── erfc ──────────────────────────────────────────────────────────────────
+    d = math.erfc(0.0)
+    assert.assertApprox(d, 1.0, 400)
+    d = math.erfc(1.0)
+    assert.assertApproxEps(d, 0.15729920705028513, 0.000000001, 401)
+}

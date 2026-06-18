@@ -1,0 +1,81 @@
+import fly.os.path
+import fly.os.fs
+import fly.assert
+
+void main() {
+    string s = ""
+    bool b = false
+    int n = 0
+
+    s = path.join("/foo", "bar")
+    assert.assertStr(s, "/foo/bar", 20)
+    s = path.join("/foo/", "bar")
+    assert.assertStr(s, "/foo/bar", 21)
+    s = path.join("/foo", "/bar")
+    assert.assertStr(s, "/foo/bar", 22)
+    s = path.join("", "bar")
+    assert.assertStr(s, "bar", 23)
+
+    s = path.normalize("/a//b/../c")
+    assert.assertStr(s, "/a/c", 30)
+    s = path.normalize("/a/./b")
+    assert.assertStr(s, "/a/b", 31)
+    s = path.normalize("a/b/c")
+    assert.assertStr(s, "a/b/c", 32)
+    s = path.normalize("/")
+    assert.assertStr(s, "/", 33)
+
+    s = path.absolute(".")
+    assert.assertNotEmpty(s, 34)
+    s = path.absolute("/already/abs")
+    assert.assertStr(s, "/already/abs", 35)
+
+    b = path.match("*.fly", "test.fly")
+    assert.assertTrue(b, 40)
+    b = path.match("*.fly", "test.go")
+    assert.assertFalse(b, 41)
+    b = path.match("foo*", "foobar")
+    assert.assertTrue(b, 42)
+    b = path.match("fo?", "foo")
+    assert.assertTrue(b, 43)
+    b = path.match("fo?", "fo")
+    assert.assertFalse(b, 44)
+    b = path.match("*", "anything")
+    assert.assertTrue(b, 45)
+    b = path.match("", "")
+    assert.assertTrue(b, 46)
+
+    s = path.ext("foo.fly")
+    assert.assertStr(s, ".fly", 50)
+    s = path.ext("foo")
+    assert.assertStr(s, "", 51)
+
+    s = path.basename("/foo/bar/baz.fly")
+    assert.assertStr(s, "baz.fly", 55)
+    s = path.dirname("/foo/bar/baz.fly")
+    assert.assertStr(s, "/foo/bar", 56)
+    s = path.dirname("baz.fly")
+    assert.assertStr(s, ".", 57)
+
+    n = path.compCount("/foo/bar/baz")
+    assert.assertEqI(n, 3, 60)
+    n = path.compCount("a/b")
+    assert.assertEqI(n, 2, 61)
+
+    s = path.rel("/a/b", "/a/b/c")
+    assert.assertStr(s, "c", 65)
+    s = path.rel("/a/b", "/a/d")
+    assert.assertStr(s, "../d", 66)
+
+    b = path.isSym(".")
+    // "." is always a directory, never a symlink; verify no crash
+
+    // globCount requires files to exist; use CWD-relative paths so the test
+    // works on every platform (Windows has no /tmp by default).
+    fs.writeStr("fly_path_glob_a.txt", "a", 420)
+    fs.writeStr("fly_path_glob_b.txt", "b", 420)
+    int glob_n = path.globCount("./fly_path_glob_*.txt")
+    assert.assertGtI(glob_n, 1, 70)
+    fs.delete("fly_path_glob_a.txt")
+    fs.delete("fly_path_glob_b.txt")
+}

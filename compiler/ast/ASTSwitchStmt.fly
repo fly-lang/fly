@@ -10,16 +10,16 @@ import fly.compiler.ast.ASTCaseStmt
 public class ASTSwitchStmt : ASTStmt {
 
     ASTExpr expr
-    fly.data.List cases
+    List<ASTCaseStmt> cases
     ASTStmt defaultStmt
 
     public ASTSwitchStmt(const SourceLocation loc) {
         super(loc, ASTStmtKind.STMT_SWITCH)
-        this.cases = new List()
+        this.cases = new List<ASTCaseStmt>()
     }
 
     public ASTExpr getExpr() { out = this.expr }
-    public fly.data.List getCases() { out = this.cases }
+    public List<ASTCaseStmt> getCases() { out = this.cases }
     public ASTStmt getDefault() { out = this.defaultStmt }
     public void setExpr(const ASTExpr expr) { this.expr = expr }
     public void addCase(const ASTCaseStmt c) { this.cases.add(c) }

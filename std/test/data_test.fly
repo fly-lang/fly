@@ -1,0 +1,286 @@
+namespace fly.test.data
+
+import fly.assert
+import fly.str
+import fly.data.List
+import fly.data.Stack
+import fly.data.Queue
+import fly.data.Deque
+import fly.data.Map
+import fly.data.Set
+import fly.data.Tree
+
+void testList() {
+    List<long> l = new List<long>()
+    fly.assert.assertTrue(l.size() == 0, 101)
+    l.add(10)
+    l.add(20)
+    l.add(30)
+    fly.assert.assertTrue(l.size() == 3, 102)
+    fly.assert.assertTrue(l.get(0) == 10, 103)
+    fly.assert.assertTrue(l.get(1) == 20, 104)
+    fly.assert.assertTrue(l.get(2) == 30, 105)
+    fly.assert.assertTrue(l.get(3) == 0, 106)
+    int negidx = 0 - 1
+    fly.assert.assertTrue(l.get(negidx) == 0, 107)
+    l.set(1, 99)
+    fly.assert.assertTrue(l.get(1) == 99, 108)
+    l.remove(1)
+    fly.assert.assertTrue(l.size() == 2, 109)
+    fly.assert.assertTrue(l.get(1) == 30, 110)
+    l.clear()
+    fly.assert.assertTrue(l.size() == 0, 111)
+    // grow beyond initial capacity
+    int i = 0
+    while i < 20 {
+        l.add(i)
+        i = i + 1
+    }
+    fly.assert.assertTrue(l.size() == 20, 112)
+    fly.assert.assertTrue(l.get(19) == 19, 113)
+    l.free()
+}
+
+// List<string>: exercises the ownership model (clone on insert, fresh clone on get,
+// free on remove/clear/free) against C++ std::vector<std::string> semantics.
+void testListString() {
+    List<string> ls = new List<string>()
+    string built = str.concat("foo", "bar")
+    ls.add(built)            // deep-clone into the list's own slot
+    ls.add("baz")            // literal -> heap copy in slot
+    fly.assert.assertTrue(ls.size() == 2, 120)
+    fly.assert.assertTrue(str.equals(ls.get(0), "foobar"), 121)
+    fly.assert.assertTrue(str.equals(ls.get(1), "baz"), 122)
+    fly.assert.assertTrue(str.equals(built, "foobar"), 123)   // source intact
+    ls.set(1, "qux")          // frees old element, clones new
+    fly.assert.assertTrue(str.equals(ls.get(1), "qux"), 124)
+    ls.remove(0)              // frees removed element, shifts
+    fly.assert.assertTrue(ls.size() == 1, 125)
+    fly.assert.assertTrue(str.equals(ls.get(0), "qux"), 126)
+    ls.free()                 // frees remaining element + buffer
+}
+
+void testStack() {
+    Stack<long> s = new Stack<long>()
+    fly.assert.assertTrue(s.isEmpty() == true, 201)
+    fly.assert.assertTrue(s.pop() == 0, 202)
+    fly.assert.assertTrue(s.peek() == 0, 203)
+    s.push(1)
+    s.push(2)
+    s.push(3)
+    fly.assert.assertTrue(s.size() == 3, 204)
+    fly.assert.assertTrue(s.peek() == 3, 205)
+    fly.assert.assertTrue(s.pop() == 3, 206)
+    fly.assert.assertTrue(s.pop() == 2, 207)
+    fly.assert.assertTrue(s.size() == 1, 208)
+    fly.assert.assertTrue(s.isEmpty() == false, 209)
+    s.free()
+}
+
+void testQueue() {
+    Queue<long> q = new Queue<long>()
+    fly.assert.assertTrue(q.isEmpty() == true, 301)
+    fly.assert.assertTrue(q.dequeue() == 0, 302)
+    fly.assert.assertTrue(q.peek() == 0, 303)
+    q.enqueue(100)
+    q.enqueue(200)
+    q.enqueue(300)
+    fly.assert.assertTrue(q.size() == 3, 304)
+    fly.assert.assertTrue(q.peek() == 100, 305)
+    fly.assert.assertTrue(q.dequeue() == 100, 306)
+    fly.assert.assertTrue(q.dequeue() == 200, 307)
+    fly.assert.assertTrue(q.size() == 1, 308)
+    // grow past capacity (initial 8)
+    int i = 0
+    while i < 10 {
+        q.enqueue(i)
+        i = i + 1
+    }
+    fly.assert.assertTrue(q.size() == 11, 309)
+    fly.assert.assertTrue(q.dequeue() == 300, 310)
+    q.free()
+}
+
+void testDeque() {
+    Deque<long> d = new Deque<long>()
+    fly.assert.assertTrue(d.isEmpty() == true, 401)
+    fly.assert.assertTrue(d.popFront() == 0, 402)
+    fly.assert.assertTrue(d.popBack() == 0, 403)
+    d.pushBack(10)
+    d.pushBack(20)
+    d.pushFront(5)
+    fly.assert.assertTrue(d.size() == 3, 404)
+    fly.assert.assertTrue(d.peekFront() == 5, 405)
+    fly.assert.assertTrue(d.peekBack() == 20, 406)
+    fly.assert.assertTrue(d.popFront() == 5, 407)
+    fly.assert.assertTrue(d.popBack() == 20, 408)
+    fly.assert.assertTrue(d.size() == 1, 409)
+    d.free()
+}
+
+void testMap() {
+    Map<long, long> m = new Map<long, long>()
+    fly.assert.assertTrue(m.size() == 0, 501)
+    fly.assert.assertTrue(m.has(1) == false, 502)
+    fly.assert.assertTrue(m.get(1) == 0, 503)
+    m.put(1, 100)
+    m.put(2, 200)
+    m.put(3, 300)
+    fly.assert.assertTrue(m.size() == 3, 504)
+    fly.assert.assertTrue(m.has(1) == true, 505)
+    fly.assert.assertTrue(m.get(1) == 100, 506)
+    fly.assert.assertTrue(m.get(2) == 200, 507)
+    fly.assert.assertTrue(m.get(3) == 300, 508)
+    // update existing key
+    m.put(2, 999)
+    fly.assert.assertTrue(m.get(2) == 999, 509)
+    fly.assert.assertTrue(m.size() == 3, 510)
+    // remove
+    m.remove(2)
+    fly.assert.assertTrue(m.has(2) == false, 511)
+    fly.assert.assertTrue(m.size() == 2, 512)
+    // force rehash by inserting many entries
+    int i = 10
+    while i < 20 {
+        m.put(i, i * 2)
+        i = i + 1
+    }
+    fly.assert.assertTrue(m.get(15) == 30, 513)
+    m.free()
+}
+
+void testSet() {
+    Set<long> s = new Set<long>()
+    fly.assert.assertTrue(s.size() == 0, 601)
+    fly.assert.assertTrue(s.has(42) == false, 602)
+    s.add(10)
+    s.add(20)
+    s.add(30)
+    fly.assert.assertTrue(s.size() == 3, 603)
+    fly.assert.assertTrue(s.has(10) == true, 604)
+    fly.assert.assertTrue(s.has(20) == true, 605)
+    fly.assert.assertTrue(s.has(99) == false, 606)
+    // deduplication: adding existing key does not increase count
+    s.add(10)
+    fly.assert.assertTrue(s.size() == 3, 607)
+    // remove
+    s.remove(20)
+    fly.assert.assertTrue(s.has(20) == false, 608)
+    fly.assert.assertTrue(s.size() == 2, 609)
+    // force rehash
+    int i = 100
+    while i < 115 {
+        s.add(i)
+        i = i + 1
+    }
+    fly.assert.assertTrue(s.has(110) == true, 610)
+    s.free()
+}
+
+void testTree() {
+    Tree<long, long> t = new Tree<long, long>()
+    fly.assert.assertTrue(t.size() == 0, 701)
+    fly.assert.assertTrue(t.has(5) == false, 702)
+    fly.assert.assertTrue(t.get(5) == 0, 703)
+    t.put(5, 50)
+    t.put(3, 30)
+    t.put(7, 70)
+    t.put(1, 10)
+    t.put(4, 40)
+    fly.assert.assertTrue(t.size() == 5, 704)
+    fly.assert.assertTrue(t.has(3) == true, 705)
+    fly.assert.assertTrue(t.get(7) == 70, 706)
+    fly.assert.assertTrue(t.get(99) == 0, 707)
+    // update existing key
+    t.put(3, 333)
+    fly.assert.assertTrue(t.get(3) == 333, 708)
+    fly.assert.assertTrue(t.size() == 5, 709)
+    // remove leaf
+    t.remove(1)
+    fly.assert.assertTrue(t.has(1) == false, 710)
+    fly.assert.assertTrue(t.size() == 4, 711)
+    // remove node with two children (root)
+    t.remove(5)
+    fly.assert.assertTrue(t.has(5) == false, 712)
+    fly.assert.assertTrue(t.size() == 3, 713)
+    fly.assert.assertTrue(t.has(3) == true, 714)
+    fly.assert.assertTrue(t.has(7) == true, 715)
+    // remove non-existent key: no-op
+    t.remove(999)
+    fly.assert.assertTrue(t.size() == 3, 716)
+    t.free()
+}
+
+// Map<string,int> + Map<int,string>: string keys (hash/compare) and string values
+// (clone on put, fresh clone on get, free on remove/free) — vs unordered_map semantics.
+void testMapString() {
+    Map<string, int> ms = new Map<string, int>()
+    ms.put("ada", 36)
+    ms.put("grace", 45)
+    ms.put("ada", 99)            // update existing string key
+    fly.assert.assertTrue(ms.size() == 2, 801)
+    fly.assert.assertTrue(ms.get("ada") == 99, 802)
+    fly.assert.assertTrue(ms.get("grace") == 45, 803)
+    fly.assert.assertTrue(ms.has("ada") == true, 804)
+    fly.assert.assertTrue(ms.has("nope") == false, 805)
+    ms.remove("ada")
+    fly.assert.assertTrue(ms.has("ada") == false, 806)
+    fly.assert.assertTrue(ms.size() == 1, 807)
+    ms.free()
+
+    Map<int, string> mv = new Map<int, string>()
+    string built = str.concat("foo", "bar")
+    mv.put(1, built)             // value cloned
+    mv.put(2, "baz")
+    fly.assert.assertTrue(str.equals(mv.get(1), "foobar"), 808)
+    fly.assert.assertTrue(str.equals(mv.get(2), "baz"), 809)
+    fly.assert.assertTrue(str.equals(built, "foobar"), 810)   // source intact
+    mv.free()
+}
+
+// Set<string>: string membership with hashing/dedup/ownership.
+void testSetString() {
+    Set<string> ss = new Set<string>()
+    ss.add("red")
+    ss.add("green")
+    ss.add("red")                // dedup
+    fly.assert.assertTrue(ss.size() == 2, 820)
+    fly.assert.assertTrue(ss.has("red") == true, 821)
+    fly.assert.assertTrue(ss.has("blue") == false, 822)
+    ss.remove("red")
+    fly.assert.assertTrue(ss.has("red") == false, 823)
+    fly.assert.assertTrue(ss.size() == 1, 824)
+    ss.free()
+}
+
+// Tree<string,int>: lexicographically-ordered string keys (std::map analog).
+void testTreeString() {
+    Tree<string, int> ts = new Tree<string, int>()
+    ts.put("banana", 2)
+    ts.put("apple", 1)
+    ts.put("cherry", 3)
+    ts.put("apple", 11)          // update
+    fly.assert.assertTrue(ts.size() == 3, 830)
+    fly.assert.assertTrue(ts.get("apple") == 11, 831)
+    fly.assert.assertTrue(ts.get("cherry") == 3, 832)
+    fly.assert.assertTrue(ts.has("banana") == true, 833)
+    fly.assert.assertTrue(ts.has("durian") == false, 834)
+    ts.remove("banana")
+    fly.assert.assertTrue(ts.has("banana") == false, 835)
+    fly.assert.assertTrue(ts.size() == 2, 836)
+    ts.free()
+}
+
+void main() {
+    testList()
+    testListString()
+    testStack()
+    testQueue()
+    testDeque()
+    testMap()
+    testSet()
+    testTree()
+    testMapString()
+    testSetString()
+    testTreeString()
+}

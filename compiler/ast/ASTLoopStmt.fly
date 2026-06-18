@@ -10,22 +10,22 @@ public class ASTLoopStmt : ASTStmt {
 
     bool verifyConditionAtEnd
     ASTExpr expr
-    fly.data.List init
-    fly.data.List post
+    List<ASTStmt> init
+    List<ASTStmt> post
     ASTStmt loopStmt
 
     public ASTLoopStmt(const SourceLocation loc) {
         super(loc, ASTStmtKind.STMT_LOOP)
         this.verifyConditionAtEnd = false
-        this.init = new List()
-        this.post = new List()
+        this.init = new List<ASTStmt>()
+        this.post = new List<ASTStmt>()
     }
 
     public bool hasVerifyConditionAtEnd() { out = this.verifyConditionAtEnd }
     public ASTExpr getExpr() { out = this.expr }
-    public fly.data.List getInit() { out = this.init }
+    public List<ASTStmt> getInit() { out = this.init }
     public ASTStmt getLoop() { out = this.loopStmt }
-    public fly.data.List getPost() { out = this.post }
+    public List<ASTStmt> getPost() { out = this.post }
     public void setExpr(const ASTExpr expr) { this.expr = expr }
     public void setLoop(const ASTStmt s) { this.loopStmt = s }
     public void addInit(const ASTStmt s) { this.init.add(s) }

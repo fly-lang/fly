@@ -1,0 +1,30 @@
+import fly.assert
+
+// Enum entry property accessors: .name (declared name) and .value (1-based index).
+
+enum Color { RED, GREEN, BLUE }
+
+void main() {
+
+    // ── literal .value ────────────────────────────────────────────────────────
+    // Entry indices are 1-based (0 is reserved for the undefined/default entry).
+    assert.assertEqI(Color.RED.value, 1, 1)
+    assert.assertEqI(Color.GREEN.value, 2, 2)
+    assert.assertEqI(Color.BLUE.value, 3, 3)
+
+    // ── literal .name ─────────────────────────────────────────────────────────
+    assert.assertStr(Color.RED.name, "RED", 10)
+    assert.assertStr(Color.GREEN.name, "GREEN", 11)
+    assert.assertStr(Color.BLUE.name, "BLUE", 12)
+
+    // ── variable .value ───────────────────────────────────────────────────────
+    Color c = Color.GREEN
+    assert.assertEqI(c.value, 2, 20)
+
+    // ── variable .name (runtime names table lookup) ───────────────────────────
+    assert.assertStr(c.name, "GREEN", 30)
+
+    c = Color.BLUE
+    assert.assertStr(c.name, "BLUE", 31)
+    assert.assertEqI(c.value, 3, 32)
+}

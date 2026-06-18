@@ -3,22 +3,23 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTKind
 import fly.compiler.ast.ASTNode
+import fly.compiler.ast.ASTName
 import fly.data.List
 
 public class ASTImport : ASTNode {
 
-    fly.data.List names
-    fly.data.List alias
+    List<ASTName> names
+    List<ASTName> alias
     bool wildcard
 
-    public ASTImport(const SourceLocation loc, const fly.data.List names, const fly.data.List alias, const bool wildcard) {
+    public ASTImport(const SourceLocation loc, const List<ASTName> names, const List<ASTName> alias, const bool wildcard) {
         super(ASTKind.IMPORT, loc)
         this.names = names
         this.alias = alias
         this.wildcard = wildcard
     }
 
-    public fly.data.List getNames() { out = this.names }
-    public fly.data.List getAlias() { out = this.alias }
+    public List<ASTName> getNames() { out = this.names }
+    public List<ASTName> getAlias() { out = this.alias }
     public bool isWildcard() { out = this.wildcard }
 }

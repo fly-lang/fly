@@ -1,0 +1,17 @@
+namespace fly.data
+
+public class Wrapper<T> {
+    T value
+
+    public Wrapper(T v) {
+        this.value = v
+    }
+
+    public T get() {
+        out = this.value
+    }
+
+    public void set(T v) {
+        this.value = v
+    }
+}

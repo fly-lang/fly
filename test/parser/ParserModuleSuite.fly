@@ -13,10 +13,10 @@ suite ParserModuleSuite {
             assert.assertTrue(p.isSuccess(), 1)
             ASTNameSpace ns = m.getNameSpace()
             assert.assertTrue(ns != null, 2)
-            fly.data.List nsnames = ns.getNames()
+            List<ASTName> nsnames = ns.getNames()
             assert.assertEqI(nsnames.size(), 2, 3)
             // 3 top-level nodes: 2 imports + 1 function
-            fly.data.List nodes = m.getNodes()
+            List<ASTNode> nodes = m.getNodes()
             assert.assertEqI(nodes.size(), 3, 4)
         }
         case "module name preserved": {

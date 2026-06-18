@@ -1,0 +1,67 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.str
+import fly.assert
+
+// ParserErrorSuite — malformed inputs must be rejected and report the right
+// diagnostic through the DiagnosticsEngine. (Deep AST-structure assertions are
+// avoided: retrieving a node from a List<ASTNode> and calling an inherited
+// accessor hits the deferred upcast limitation; success/counts/diagnostics are
+// the reliable surface.)
+suite ParserErrorSuite {
+
+    void ternaryTest() {
+        case "ternary missing ':'": {
+            Parser p = new Parser("int m() { out = a ? b }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertFalse(p.isSuccess(), 1)
+            StoringDiagnosticConsumer sink = p.getSink()
+            assert.assertTrue(fly.str.contains(sink.getMessage(0), "ternary"), 2)
+        }
+    }
+
+    void failTest() {
+        case "fail with too many expressions": {
+            Parser p = new Parser("void m() { fail 1, 2, 3, 4 }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertFalse(p.isSuccess(), 10)
+            StoringDiagnosticConsumer sink = p.getSink()
+            assert.assertTrue(fly.str.contains(sink.getMessage(0), "at most 3"), 11)
+        }
+    }
+
+    void classNameTest() {
+        case "class without a name": {
+            Parser p = new Parser("class { int x }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertFalse(p.isSuccess(), 20)
+            DiagnosticsEngine de = p.getDiags()
+            assert.assertTrue(de.getNumErrors() >= 1, 21)
+        }
+    }
+
+    void namespaceTest() {
+        case "two namespaces": {
+            Parser p = new Parser("namespace a  namespace b  void m() { }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertFalse(p.isSuccess(), 30)
+            StoringDiagnosticConsumer sink = p.getSink()
+            assert.assertTrue(fly.str.contains(sink.getMessage(0), "namespace"), 31)
+        }
+    }
+
+    void cleanControlTest() {
+        case "a valid program reports nothing": {
+            Parser p = new Parser("namespace demo  import a.b  int add(const int a, const int b) { out = a + b }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 40)
+            StoringDiagnosticConsumer sink = p.getSink()
+            assert.assertEqI(sink.count(), 0, 41)
+            // top-level node count: 1 import + 1 function (namespace is not a node)
+            List<ASTNode> nodes = mod.getNodes()
+            assert.assertEqI(nodes.size(), 2, 42)
+        }
+    }
+}

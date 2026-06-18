@@ -11,8 +11,8 @@ suite ASTEnumArgStmtSuite {
     void enumTest() {
         case "ASTEnum + ASTEnumEntry": {
             SourceLocation loc = slGetFileLoc(0)
-            fly.data.List mods = new List()
-            fly.data.List bases = new List()
+            List<ASTModifier> mods = new List<ASTModifier>()
+            List<ASTType> bases = new List<ASTType>()
             ASTEnum e = new ASTEnum(loc, "Color", mods, bases)
             assert.assertStr(e.getName(), "Color", 1)
             assert.assertTrue(e.getKind() == ASTKind.ENUM, 2)

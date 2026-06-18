@@ -11,7 +11,7 @@ suite ParserClassSuite {
             Parser p = new Parser("class Box { int v  public int get() { out = v } }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
-            fly.data.List nodes = m.getNodes()
+            List<ASTNode> nodes = m.getNodes()
             assert.assertEqI(nodes.size(), 1, 2)
         }
         case "class with base + ctor": {

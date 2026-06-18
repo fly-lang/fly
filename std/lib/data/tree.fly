@@ -1,0 +1,288 @@
+namespace fly.data
+
+import fly.llvm
+import fly.runtime
+
+// Tree<K,V> — ordered map backed by an unbalanced binary search tree, the Fly
+// analog of C++ std::map<K,V>. Keys are ordered with slotCmpT (signed for integers,
+// lexicographic for string). Each node is [ key | val | left(8) | right(8) ].
+// Ownership: put clones owned key/value; remove/free release them.
+public class Tree<K, V> {
+    long root
+    int count
+    int kstride
+    int vstride
+
+    public Tree() {
+        this.root = 0
+        this.count = 0
+        this.kstride = 0
+        this.vstride = 0
+    }
+
+    public void put(const K key, const V val) {
+        if this.kstride == 0 {
+            int ks = 0
+            fly.llvm.slotSizeT(key, ks)
+            this.kstride = ks
+            int vs = 0
+            fly.llvm.slotSizeT(val, vs)
+            this.vstride = vs
+        }
+        int valOff = this.kstride
+        int leftOff = this.kstride + this.vstride
+        int rightOff = leftOff + 8
+        int nodeSize = rightOff + 8
+        if this.root == 0 {
+            long node = 0
+            fly.runtime.mem_alloc(nodeSize, node)
+            fly.llvm.slotPokeT(node, 0, key)
+            fly.llvm.slotPokeT(node, valOff, val)
+            fly.llvm.ptrPokeLong(node, leftOff, 0)
+            fly.llvm.ptrPokeLong(node, rightOff, 0)
+            this.root = node
+            this.count = this.count + 1
+            return
+        }
+        long cur = this.root
+        bool done = false
+        while done == false {
+            int c = 0
+            fly.llvm.slotCmpT(cur, 0, key, c)
+            if c == 0 {
+                V vprobe
+                fly.llvm.slotFreeT(cur, valOff, vprobe)
+                fly.llvm.slotPokeT(cur, valOff, val)
+                done = true
+            } elsif c > 0 {
+                long left = 0
+                fly.llvm.ptrReadLong(cur, leftOff, left)
+                if left == 0 {
+                    long node = 0
+                    fly.runtime.mem_alloc(nodeSize, node)
+                    fly.llvm.slotPokeT(node, 0, key)
+                    fly.llvm.slotPokeT(node, valOff, val)
+                    fly.llvm.ptrPokeLong(node, leftOff, 0)
+                    fly.llvm.ptrPokeLong(node, rightOff, 0)
+                    fly.llvm.ptrPokeLong(cur, leftOff, node)
+                    this.count = this.count + 1
+                    done = true
+                } else {
+                    cur = left
+                }
+            } else {
+                long right = 0
+                fly.llvm.ptrReadLong(cur, rightOff, right)
+                if right == 0 {
+                    long node = 0
+                    fly.runtime.mem_alloc(nodeSize, node)
+                    fly.llvm.slotPokeT(node, 0, key)
+                    fly.llvm.slotPokeT(node, valOff, val)
+                    fly.llvm.ptrPokeLong(node, leftOff, 0)
+                    fly.llvm.ptrPokeLong(node, rightOff, 0)
+                    fly.llvm.ptrPokeLong(cur, rightOff, node)
+                    this.count = this.count + 1
+                    done = true
+                } else {
+                    cur = right
+                }
+            }
+        }
+    }
+
+    public V get(const K key) {
+        int valOff = this.kstride
+        int leftOff = this.kstride + this.vstride
+        int rightOff = leftOff + 8
+        long cur = this.root
+        bool done = false
+        while done == false {
+            if cur == 0 {
+                done = true
+            } else {
+                int c = 0
+                fly.llvm.slotCmpT(cur, 0, key, c)
+                if c == 0 {
+                    fly.llvm.slotReadT(cur, valOff, out)
+                    return
+                } elsif c > 0 {
+                    fly.llvm.ptrReadLong(cur, leftOff, cur)
+                } else {
+                    fly.llvm.ptrReadLong(cur, rightOff, cur)
+                }
+            }
+        }
+        V def
+        out = def
+    }
+
+    public bool has(const K key) {
+        int leftOff = this.kstride + this.vstride
+        int rightOff = leftOff + 8
+        long cur = this.root
+        bool found = false
+        bool done = false
+        while done == false {
+            if cur == 0 {
+                done = true
+            } else {
+                int c = 0
+                fly.llvm.slotCmpT(cur, 0, key, c)
+                if c == 0 {
+                    found = true
+                    done = true
+                } elsif c > 0 {
+                    fly.llvm.ptrReadLong(cur, leftOff, cur)
+                } else {
+                    fly.llvm.ptrReadLong(cur, rightOff, cur)
+                }
+            }
+        }
+        out = found
+    }
+
+    public void remove(const K key) {
+        int valOff = this.kstride
+        int leftOff = this.kstride + this.vstride
+        int rightOff = leftOff + 8
+        int nodeSize = rightOff + 8
+        long cur = this.root
+        long parent = 0
+        bool isLeft = false
+        bool found = false
+        bool done = false
+        while done == false {
+            if cur == 0 {
+                done = true
+            } else {
+                int c = 0
+                fly.llvm.slotCmpT(cur, 0, key, c)
+                if c == 0 {
+                    found = true
+                    done = true
+                } elsif c > 0 {
+                    parent = cur
+                    isLeft = true
+                    fly.llvm.ptrReadLong(cur, leftOff, cur)
+                } else {
+                    parent = cur
+                    isLeft = false
+                    fly.llvm.ptrReadLong(cur, rightOff, cur)
+                }
+            }
+        }
+        if found == false { return }
+        long left = 0
+        fly.llvm.ptrReadLong(cur, leftOff, left)
+        long right = 0
+        fly.llvm.ptrReadLong(cur, rightOff, right)
+        if left == 0 {
+            K kprobe
+            V vprobe
+            fly.llvm.slotFreeT(cur, 0, kprobe)
+            fly.llvm.slotFreeT(cur, valOff, vprobe)
+            fly.runtime.mem_free(cur, nodeSize)
+            this.count = this.count - 1
+            if parent == 0 {
+                this.root = right
+            } elsif isLeft {
+                fly.llvm.ptrPokeLong(parent, leftOff, right)
+            } else {
+                fly.llvm.ptrPokeLong(parent, rightOff, right)
+            }
+        } elsif right == 0 {
+            K kprobe
+            V vprobe
+            fly.llvm.slotFreeT(cur, 0, kprobe)
+            fly.llvm.slotFreeT(cur, valOff, vprobe)
+            fly.runtime.mem_free(cur, nodeSize)
+            this.count = this.count - 1
+            if parent == 0 {
+                this.root = left
+            } elsif isLeft {
+                fly.llvm.ptrPokeLong(parent, leftOff, left)
+            } else {
+                fly.llvm.ptrPokeLong(parent, rightOff, left)
+            }
+        } else {
+            // two children: replace cur's entry with the in-order successor's, then
+            // delete the successor node. cur's own key/val are freed first; the
+            // successor's key/val are MOVED (raw bytes) into cur, so not freed.
+            long succParent = cur
+            long succ = right
+            bool sdone = false
+            while sdone == false {
+                long succLeft = 0
+                fly.llvm.ptrReadLong(succ, leftOff, succLeft)
+                if succLeft == 0 {
+                    sdone = true
+                } else {
+                    succParent = succ
+                    succ = succLeft
+                }
+            }
+            K kprobe
+            V vprobe
+            fly.llvm.slotFreeT(cur, 0, kprobe)
+            fly.llvm.slotFreeT(cur, valOff, vprobe)
+            long kbytes = this.kstride
+            long vbytes = this.vstride
+            long ksrc = succ
+            long vsrc = succ + valOff
+            long vdst = cur + valOff
+            fly.llvm.memcpy(cur, ksrc, kbytes)
+            fly.llvm.memcpy(vdst, vsrc, vbytes)
+            long succRight = 0
+            fly.llvm.ptrReadLong(succ, rightOff, succRight)
+            if succParent == cur {
+                fly.llvm.ptrPokeLong(succParent, rightOff, succRight)
+            } else {
+                fly.llvm.ptrPokeLong(succParent, leftOff, succRight)
+            }
+            fly.runtime.mem_free(succ, nodeSize)
+            this.count = this.count - 1
+        }
+    }
+
+    public int size() {
+        out = this.count
+    }
+
+    public void free() {
+        int valOff = this.kstride
+        int leftOff = this.kstride + this.vstride
+        int rightOff = leftOff + 8
+        int nodeSize = rightOff + 8
+        if this.root != 0 {
+            int stkCap = this.count + 1
+            long stk = 0
+            fly.runtime.mem_alloc(stkCap * 8, stk)
+            int top = 0
+            fly.llvm.ptrPokeLong(stk, 0, this.root)
+            top = 1
+            while top > 0 {
+                top = top - 1
+                long node = 0
+                fly.llvm.ptrReadLong(stk, top * 8, node)
+                long left = 0
+                fly.llvm.ptrReadLong(node, leftOff, left)
+                long right = 0
+                fly.llvm.ptrReadLong(node, rightOff, right)
+                if left != 0 {
+                    fly.llvm.ptrPokeLong(stk, top * 8, left)
+                    top = top + 1
+                }
+                if right != 0 {
+                    fly.llvm.ptrPokeLong(stk, top * 8, right)
+                    top = top + 1
+                }
+                K kprobe
+                V vprobe
+                fly.llvm.slotFreeT(node, 0, kprobe)
+                fly.llvm.slotFreeT(node, valOff, vprobe)
+                fly.runtime.mem_free(node, nodeSize)
+            }
+            fly.runtime.mem_free(stk, stkCap * 8)
+        }
+    }
+}

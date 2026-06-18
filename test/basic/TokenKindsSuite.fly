@@ -36,4 +36,47 @@ suite TokenKindsSuite {
             assert.assertTrue(TokenKind.EOF != TokenKind.IDENT, 16)
         }
     }
+
+    // Fine-grained kinds (TokenKinds.def) used by the 1:1 parser port.
+    void keywordKindTest() {
+        case "getKeywordKind": {
+            assert.assertTrue(getKeywordKind("namespace") == TokenKind.kw_namespace, 20)
+            assert.assertTrue(getKeywordKind("class") == TokenKind.kw_class, 21)
+            assert.assertTrue(getKeywordKind("while") == TokenKind.kw_while, 22)
+            assert.assertTrue(getKeywordKind("int") == TokenKind.kw_int, 23)
+            // non-keyword spellings resolve to identifier
+            assert.assertTrue(getKeywordKind("foo") == TokenKind.identifier, 24)
+            assert.assertTrue(getKeywordKind("classy") == TokenKind.identifier, 25)
+        }
+    }
+
+    void punctKindTest() {
+        case "getPunctKind": {
+            assert.assertTrue(getPunctKind("(") == TokenKind.l_paren, 30)
+            assert.assertTrue(getPunctKind("==") == TokenKind.equalequal, 31)
+            assert.assertTrue(getPunctKind("<<=") == TokenKind.lesslessequal, 32)
+            assert.assertTrue(getPunctKind(">>") == TokenKind.greatergreater, 33)
+            assert.assertTrue(getPunctKind("&") == TokenKind.amp, 34)
+            assert.assertTrue(getPunctKind("zzz") == TokenKind.unknown, 35)
+        }
+        case "getPunctuatorSpelling round-trips": {
+            assert.assertStr(getPunctuatorSpelling(TokenKind.l_paren), "(", 36)
+            assert.assertStr(getPunctuatorSpelling(TokenKind.lesslessequal), "<<=", 37)
+            assert.assertStr(getPunctuatorSpelling(TokenKind.greatergreaterequal), ">>=", 38)
+            assert.assertStr(getPunctuatorSpelling(TokenKind.kw_class), "", 39)
+        }
+    }
+
+    void classifyTest() {
+        case "isKeywordKind / isLiteralKind / getTokenName": {
+            assert.assertTrue(isKeywordKind(TokenKind.kw_return), 40)
+            assert.assertFalse(isKeywordKind(TokenKind.l_paren), 41)
+            assert.assertFalse(isKeywordKind(TokenKind.identifier), 42)
+            assert.assertTrue(isLiteralKind(TokenKind.numeric_constant), 43)
+            assert.assertTrue(isLiteralKind(TokenKind.string_literal), 44)
+            assert.assertFalse(isLiteralKind(TokenKind.kw_int), 45)
+            assert.assertStr(getTokenName(TokenKind.kw_namespace), "kw_namespace", 46)
+            assert.assertStr(getTokenName(TokenKind.l_brace), "l_brace", 47)
+        }
+    }
 }

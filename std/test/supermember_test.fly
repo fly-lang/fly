@@ -1,0 +1,51 @@
+import fly.assert
+import fly.str
+
+// super.method() — non-virtual call to the base implementation, so an override can
+// extend the base behaviour instead of recursing into itself.
+// super.attribute — read/write an inherited field (public/protected/default).
+
+class A {
+    int a
+    protected int p
+    public A(const int x) { this.a = x  this.p = x * 10 }
+    public int label() { out = this.a }              // base impl, overridden below
+    public int onlyA() { out = this.a + 1 }          // not overridden
+}
+
+class B : A {
+    int b
+    public B(const int x, const int y) { super(x)  this.b = y }
+    // override label(): extend the base via super.label() (must NOT recurse into B.label)
+    public int label() { out = super.label() + this.b }
+    // read an inherited protected field through super
+    public int readP() { out = super.p }
+    // write an inherited field through super, then read it back via super
+    public void bumpP() { super.p = super.p + 5 }
+    // call a non-overridden base method through super
+    public int viaSuperOnlyA() { out = super.onlyA() }
+}
+
+class C : B {
+    int c
+    public C(const int x, const int y, const int z) { super(x, y)  this.c = z }
+    // super here is B → B.label() (which itself calls super.label() = A.label())
+    public int label() { out = super.label() + this.c }
+    // reach a grandparent field through the immediate base's super attribute
+    public int readGrandP() { out = super.p }
+}
+
+void main() {
+    B o = new B(3, 4)
+    assert.assertEqI(o.label(), 7, 1)            // super.label()=3 + b=4
+    assert.assertEqI(o.readP(), 30, 2)           // inherited protected p = 3*10
+    assert.assertEqI(o.viaSuperOnlyA(), 4, 3)    // A.onlyA() via super: a+1 = 3+1
+
+    o.bumpP()
+    assert.assertEqI(o.readP(), 35, 4)           // p written through super
+
+    C d = new C(1, 2, 5)
+    // C.label() = super(B).label() + c ; B.label() = super(A).label() + b = 1+2 = 3
+    assert.assertEqI(d.label(), 8, 5)            // 3 + c=5
+    assert.assertEqI(d.readGrandP(), 10, 6)      // A.p via two-level super chain = 1*10
+}

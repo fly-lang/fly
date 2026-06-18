@@ -3,11 +3,13 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTFunction
 import fly.compiler.ast.ASTFunctionKind
+import fly.compiler.ast.ASTModifier
+import fly.compiler.ast.ASTParam
 import fly.data.List
 
 public class ASTMethod : ASTFunction {
 
-    public ASTMethod(const SourceLocation loc, const fly.data.List modifiers, const string name, const fly.data.List params) {
+    public ASTMethod(const SourceLocation loc, const List<ASTModifier> modifiers, const string name, const List<ASTParam> params) {
         super(loc, modifiers, name, params, ASTFunctionKind.F_METHOD)
     }
 }

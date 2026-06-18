@@ -3,6 +3,8 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTKind
 import fly.compiler.ast.ASTNode
+import fly.compiler.ast.ASTModifier
+import fly.compiler.ast.ASTType
 import fly.data.List
 
 public enum ASTClassKind {
@@ -14,28 +16,28 @@ public enum ASTClassKind {
 
 public class ASTClass : ASTNode {
 
-    fly.data.List nodes
-    fly.data.List modifiers
+    List<ASTNode> nodes
+    List<ASTModifier> modifiers
     string name
     ASTClassKind classKind
-    fly.data.List bases
-    fly.data.List typeParams
+    List<ASTType> bases
+    List<ASTType> typeParams
 
-    public ASTClass(const ASTClassKind classKind, const fly.data.List modifiers, const SourceLocation loc, const string name, const fly.data.List bases) {
+    public ASTClass(const ASTClassKind classKind, const List<ASTModifier> modifiers, const SourceLocation loc, const string name, const List<ASTType> bases) {
         super(ASTKind.CLASS, loc)
         this.classKind = classKind
         this.modifiers = modifiers
         this.name = name
         this.bases = bases
-        this.nodes = new List()
-        this.typeParams = new List()
+        this.nodes = new List<ASTNode>()
+        this.typeParams = new List<ASTType>()
     }
 
-    public fly.data.List getNodes() { out = this.nodes }
+    public List<ASTNode> getNodes() { out = this.nodes }
     public ASTClassKind getClassKind() { out = this.classKind }
-    public fly.data.List getBases() { out = this.bases }
-    public fly.data.List getTypeParams() { out = this.typeParams }
-    public fly.data.List getModifiers() { out = this.modifiers }
+    public List<ASTType> getBases() { out = this.bases }
+    public List<ASTType> getTypeParams() { out = this.typeParams }
+    public List<ASTModifier> getModifiers() { out = this.modifiers }
     public string getName() { out = this.name }
     public void addNode(const ASTNode node) { this.nodes.add(node) }
 }

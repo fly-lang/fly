@@ -1,0 +1,98 @@
+import fly.compiler.basic.*
+import fly.data.*
+import fly.str
+import fly.assert
+
+// DiagnosticEngineSuite — the diagnostic subsystem: id→description/level,
+// %0 formatting, engine reporting + counts, options, fix-its, partial diagnostics.
+suite DiagnosticEngineSuite {
+
+    void idsTest() {
+        case "description + level + class": {
+            assert.assertStr(getDescription(DiagID.err_parser_multiple_namespace),
+                "a file can contain only one 'namespace' declaration", 1)
+            assert.assertTrue(getDefaultLevel(DiagID.err_parser_syntax_error) == DiagLevel.Error, 2)
+            assert.assertTrue(getDiagClass(DiagID.err_parser_invalid_id) == DiagClass.CLASS_ERROR, 3)
+            assert.assertStr(levelName(DiagLevel.Error), "error", 4)
+            assert.assertStr(levelName(DiagLevel.Warning), "warning", 5)
+        }
+    }
+
+    void formatTest() {
+        case "%0 substitution": {
+            List<string> args = new List<string>()
+            args.add("class")
+            string m = formatMessage(getDescription(DiagID.err_parser_invalid_id), args)
+            assert.assertStr(m, "'class' is a reserved keyword and cannot be used as an identifier", 10)
+        }
+        case "no-placeholder description passes through": {
+            List<string> args = new List<string>()
+            string m = formatMessage("plain message", args)
+            assert.assertStr(m, "plain message", 11)
+        }
+    }
+
+    void engineTest() {
+        case "report error increments count + renders line:col": {
+            DiagnosticOptions opts = new DiagnosticOptions()
+            StoringDiagnosticConsumer sink = new StoringDiagnosticConsumer()
+            SourceManager sm = newSourceManager("t", "func bad here")
+            DiagnosticsEngine eng = new DiagnosticsEngine(opts, sink, sm)
+            assert.assertFalse(eng.hasErrorOccurred(), 20)
+            // offset 5 is the 'b' of "bad": line 1, column 6
+            SourceLocation loc = slGetFileLoc(5)
+            DiagnosticBuilder db = eng.report(loc, DiagID.err_parser_unexpected_top_level_token)
+            db.addStr("bad")
+            db.emit()
+            assert.assertTrue(eng.hasErrorOccurred(), 21)
+            assert.assertEqI(eng.getNumErrors(), 1, 22)
+            assert.assertEqI(sink.count(), 1, 23)
+            assert.assertEqI(sink.errorCount(), 1, 24)
+            string msg = sink.getMessage(0)
+            // "1:6: error: unexpected 'bad' at top level; ..."
+            assert.assertTrue(fly.str.startsWith(msg, "1:6: error: unexpected 'bad' at top level"), 25)
+        }
+    }
+
+    void optionsTest() {
+        case "ignoreWarnings suppresses; counts unaffected": {
+            DiagnosticOptions opts = new DiagnosticOptions()
+            opts.setIgnoreWarnings(true)
+            StoringDiagnosticConsumer sink = new StoringDiagnosticConsumer()
+            SourceManager sm = newSourceManager("t", "x")
+            DiagnosticsEngine eng = new DiagnosticsEngine(opts, sink, sm)
+            // errors are still reported regardless of ignoreWarnings
+            DiagnosticBuilder db = eng.report(slGetFileLoc(0), DiagID.err_parser_syntax_error)
+            db.emit()
+            assert.assertEqI(eng.getNumErrors(), 1, 30)
+            assert.assertEqI(sink.count(), 1, 31)
+        }
+    }
+
+    void partialTest() {
+        case "PartialDiagnostic replays through engine": {
+            DiagnosticOptions opts = new DiagnosticOptions()
+            StoringDiagnosticConsumer sink = new StoringDiagnosticConsumer()
+            SourceManager sm = newSourceManager("t", "abc")
+            DiagnosticsEngine eng = new DiagnosticsEngine(opts, sink, sm)
+            PartialDiagnostic pd = new PartialDiagnostic(DiagID.err_parser_invalid_id, slGetFileLoc(0))
+            pd.addStr("int")
+            pd.emitWith(eng)
+            assert.assertEqI(eng.getNumErrors(), 1, 40)
+            assert.assertTrue(fly.str.contains(sink.getMessage(0), "'int' is a reserved keyword"), 41)
+        }
+    }
+
+    void fixItTest() {
+        case "fix-it hints construct": {
+            SourceLocation loc = slGetFileLoc(5)
+            FixItHint ins = fixItInsert(loc, ";")
+            assert.assertStr(ins.getInsertText(), ";", 50)
+            SourceRange r = srcRange(slGetFileLoc(2), slGetFileLoc(4))
+            FixItHint rep = fixItReplace(r, "out")
+            assert.assertStr(rep.getInsertText(), "out", 51)
+            FixItHint rem = fixItRemove(r)
+            assert.assertStr(rem.getInsertText(), "", 52)
+        }
+    }
+}

@@ -5,16 +5,17 @@ import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTKind
 import fly.compiler.ast.ASTNode
 import fly.compiler.ast.ASTType
+import fly.compiler.ast.ASTModifier
 import fly.data.List
 
 public class ASTVar : ASTNode {
 
     ASTType type
     string name
-    fly.data.List modifiers
+    List<ASTModifier> modifiers
     ASTExpr expr
 
-    public ASTVar(const SourceLocation loc, const ASTType type, const string name, const fly.data.List modifiers) {
+    public ASTVar(const SourceLocation loc, const ASTType type, const string name, const List<ASTModifier> modifiers) {
         super(ASTKind.VAR, loc)
         this.type = type
         this.name = name
@@ -23,7 +24,7 @@ public class ASTVar : ASTNode {
 
     public ASTType getType() { out = this.type }
     public string getName() { out = this.name }
-    public fly.data.List getModifiers() { out = this.modifiers }
+    public List<ASTModifier> getModifiers() { out = this.modifiers }
     public ASTExpr getExpr() { out = this.expr }
     public void setExpr(const ASTExpr expr) { this.expr = expr }
 }

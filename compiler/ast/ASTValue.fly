@@ -75,28 +75,28 @@ public class ASTStringValue : ASTValue {
 
 public class ASTArrayValue : ASTValue {
 
-    fly.data.List values
+    List<ASTExpr> values
 
     public ASTArrayValue(const SourceLocation loc) {
         super(ASTValueKind.VAL_ARRAY, loc)
-        this.values = new List()
+        this.values = new List<ASTExpr>()
     }
 
-    public fly.data.List getValues() { out = this.values }
-    public void setValues(const fly.data.List v) { this.values = v }
+    public List<ASTExpr> getValues() { out = this.values }
+    public void setValues(const List<ASTExpr> v) { this.values = v }
 }
 
 public class ASTStructValue : ASTValue {
 
-    fly.data.List values
+    List<ASTExpr> values
 
     public ASTStructValue(const SourceLocation loc) {
         super(ASTValueKind.VAL_STRUCT, loc)
-        this.values = new List()
+        this.values = new List<ASTExpr>()
     }
 
-    public fly.data.List getValues() { out = this.values }
-    public void setValues(const fly.data.List v) { this.values = v }
+    public List<ASTExpr> getValues() { out = this.values }
+    public void setValues(const List<ASTExpr> v) { this.values = v }
 }
 
 public class ASTNullValue : ASTValue {

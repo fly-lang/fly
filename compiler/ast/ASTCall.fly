@@ -3,6 +3,7 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTExprKind
+import fly.compiler.ast.ASTType
 import fly.data.List
 import fly.compiler.ast.ASTArg
 
@@ -18,20 +19,20 @@ public class ASTCall : ASTExpr {
 
     ASTCallKind callKind
     string name
-    fly.data.List args
-    fly.data.List typeArgs
+    List<ASTArg> args
+    List<ASTType> typeArgs
 
     public ASTCall(const SourceLocation loc, const string name, const ASTCallKind callKind) {
         super(loc, ASTExprKind.EXPR_CALL)
         this.name = name
         this.callKind = callKind
-        this.args = new List()
-        this.typeArgs = new List()
+        this.args = new List<ASTArg>()
+        this.typeArgs = new List<ASTType>()
     }
 
     public string getName() { out = this.name }
-    public fly.data.List getArgs() { out = this.args }
-    public fly.data.List getTypeArgs() { out = this.typeArgs }
+    public List<ASTArg> getArgs() { out = this.args }
+    public List<ASTType> getTypeArgs() { out = this.typeArgs }
     public ASTCallKind getCallKind() { out = this.callKind }
     public void addArg(const ASTArg a) { this.args.add(a) }
 }

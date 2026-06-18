@@ -1,0 +1,170 @@
+namespace fly.data
+
+import fly.llvm
+import fly.runtime
+
+// Deque<T> — double-ended queue over a power-of-two circular buffer, the Fly analog
+// of C++ std::deque<T>. Ownership: pushes deep-clone owned values (string); pops
+// transfer ownership to the caller; free releases live elements.
+public class Deque<T> {
+    long items
+    int head
+    int tail
+    int len
+    int cap
+    int stride
+
+    public Deque() {
+        this.items = 0
+        this.head = 0
+        this.tail = 0
+        this.len = 0
+        this.cap = 0
+        this.stride = 0
+    }
+
+    public void pushBack(const T val) {
+        if this.stride == 0 {
+            int s = 0
+            fly.llvm.slotSizeT(val, s)
+            this.stride = s
+        }
+        if this.items == 0 {
+            long a0 = 0
+            fly.runtime.mem_alloc(8 * this.stride, a0)
+            this.items = a0
+            this.cap = 8
+        }
+        if this.len >= this.cap {
+            int newcap = this.cap * 2
+            long ni = 0
+            fly.runtime.mem_alloc(newcap * this.stride, ni)
+            int gi = 0
+            while gi < this.len {
+                int idx = (this.head + gi) & (this.cap - 1)
+                long soff = idx * this.stride
+                long doff = gi * this.stride
+                long src = this.items + soff
+                long dst = ni + doff
+                long nb = this.stride
+                fly.llvm.memcpy(dst, src, nb)
+                gi = gi + 1
+            }
+            fly.runtime.mem_free(this.items, this.cap * this.stride)
+            this.items = ni
+            this.head = 0
+            this.tail = this.len
+            this.cap = newcap
+        }
+        fly.llvm.slotPokeT(this.items, this.tail * this.stride, val)
+        this.tail = (this.tail + 1) & (this.cap - 1)
+        this.len = this.len + 1
+    }
+
+    public void pushFront(const T val) {
+        if this.stride == 0 {
+            int s = 0
+            fly.llvm.slotSizeT(val, s)
+            this.stride = s
+        }
+        if this.items == 0 {
+            long a0 = 0
+            fly.runtime.mem_alloc(8 * this.stride, a0)
+            this.items = a0
+            this.cap = 8
+        }
+        if this.len >= this.cap {
+            int newcap = this.cap * 2
+            long ni = 0
+            fly.runtime.mem_alloc(newcap * this.stride, ni)
+            int gi = 0
+            while gi < this.len {
+                int idx = (this.head + gi) & (this.cap - 1)
+                long soff = idx * this.stride
+                long doff = gi * this.stride
+                long src = this.items + soff
+                long dst = ni + doff
+                long nb = this.stride
+                fly.llvm.memcpy(dst, src, nb)
+                gi = gi + 1
+            }
+            fly.runtime.mem_free(this.items, this.cap * this.stride)
+            this.items = ni
+            this.head = 0
+            this.tail = this.len
+            this.cap = newcap
+        }
+        int newhead = (this.head - 1) & (this.cap - 1)
+        fly.llvm.slotPokeT(this.items, newhead * this.stride, val)
+        this.head = newhead
+        this.len = this.len + 1
+    }
+
+    public T popFront() {
+        if this.len == 0 {
+            T def
+            out = def
+            return
+        }
+        fly.llvm.slotReadT(this.items, this.head * this.stride, out)
+        T probe
+        fly.llvm.slotFreeT(this.items, this.head * this.stride, probe)
+        this.head = (this.head + 1) & (this.cap - 1)
+        this.len = this.len - 1
+    }
+
+    public T popBack() {
+        if this.len == 0 {
+            T def
+            out = def
+            return
+        }
+        int newtail = (this.tail - 1) & (this.cap - 1)
+        fly.llvm.slotReadT(this.items, newtail * this.stride, out)
+        T probe
+        fly.llvm.slotFreeT(this.items, newtail * this.stride, probe)
+        this.tail = newtail
+        this.len = this.len - 1
+    }
+
+    public T peekFront() {
+        if this.len == 0 {
+            T def
+            out = def
+            return
+        }
+        fly.llvm.slotReadT(this.items, this.head * this.stride, out)
+    }
+
+    public T peekBack() {
+        if this.len == 0 {
+            T def
+            out = def
+            return
+        }
+        int last = (this.tail - 1) & (this.cap - 1)
+        fly.llvm.slotReadT(this.items, last * this.stride, out)
+    }
+
+    public bool isEmpty() {
+        out = this.len == 0
+    }
+
+    public int size() {
+        out = this.len
+    }
+
+    public void free() {
+        T probe
+        int i = 0
+        while i < this.len {
+            int idx = (this.head + i) & (this.cap - 1)
+            fly.llvm.slotFreeT(this.items, idx * this.stride, probe)
+            i = i + 1
+        }
+        this.len = 0
+        if this.items != 0 {
+            fly.runtime.mem_free(this.items, this.cap * this.stride)
+        }
+    }
+}

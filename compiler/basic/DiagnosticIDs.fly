@@ -1,0 +1,125 @@
+namespace fly.compiler.basic
+import fly.compiler.basic.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DiagnosticIDs — diagnostic identifiers, their default class/level and message
+// text, ported from include/Basic/DiagnosticIDs.h + DiagnosticKinds.inc.
+//
+// Adapted to Fly: the LLVM scaffolding (RefCountedBase, SFINAE responses, category
+// tables, custom-diag uniquing) is dropped; what remains is the functional surface
+// the parser/lexer need — Level/Severity/Class, an id→description table and an
+// id→default-level mapping. The id set covers the diagnostics the 1:1 Parser port
+// emits (err_parser_*) plus the lexer errors the pragmatic lexer can raise; more
+// ids from the .inc are a mechanical add.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// The level of a diagnostic after mapping (DiagnosticIDs::Level).
+public enum DiagLevel {
+    Ignored,
+    Note,
+    Remark,
+    Warning,
+    Error,
+    Fatal
+}
+
+// Diagnostic class (the CLASS_* column in DiagnosticKinds.inc).
+public enum DiagClass {
+    CLASS_NOTE,
+    CLASS_REMARK,
+    CLASS_WARNING,
+    CLASS_EXTENSION,
+    CLASS_ERROR
+}
+
+// Diagnostic identifiers (subset: parser + pragmatic-lexer diagnostics).
+public enum DiagID {
+    err_parser_syntax_error,
+    err_parser_identifier_expected,
+    err_parser_ternary_expr,
+    err_parser_expr_close_paren,
+    err_parser_expr_expected_primary,
+    err_parser_invalid_id,
+    err_parser_invalid_type,
+    err_parser_invalid_param,
+    err_parser_invalid_value,
+    err_parser_expected_comma_or_rparen,
+    err_parser_expected_greater,
+    err_parser_expected_lbrace,
+    err_parser_unclosed_bracket,
+    err_parser_right_paren,
+    err_parser_syntax_default_error,
+    err_parser_class_block_unclosed,
+    err_parser_new_instance,
+    err_parser_fail_too_many_expr,
+    err_parser_namespace_not_first,
+    err_parser_multiple_namespace,
+    err_parser_unexpected_top_level_token,
+    err_parser_missing_return_type,
+    err_parser_string_not_terminated,
+    err_parser_return_with_value,
+    err_parser_import_wildcard_alias,
+    err_parser_unknown_token,
+    err_lex_unterminated_block_comment
+}
+
+// getDiagClass — the class column for a diagnostic id.
+public DiagClass getDiagClass(const DiagID id) {
+    if id == DiagID.err_lex_unterminated_block_comment { out = DiagClass.CLASS_ERROR  return }
+    // every parser id in this subset is a hard error
+    out = DiagClass.CLASS_ERROR
+}
+
+// getDefaultLevel — the default mapped level for a diagnostic id (extensions are
+// ignored by default; everything else maps straight from its class).
+public DiagLevel getDefaultLevel(const DiagID id) {
+    DiagClass c = getDiagClass(id)
+    if c == DiagClass.CLASS_ERROR     { out = DiagLevel.Error    return }
+    if c == DiagClass.CLASS_WARNING   { out = DiagLevel.Warning  return }
+    if c == DiagClass.CLASS_NOTE      { out = DiagLevel.Note     return }
+    if c == DiagClass.CLASS_REMARK    { out = DiagLevel.Remark   return }
+    out = DiagLevel.Ignored
+}
+
+// levelName — the text label used in rendered diagnostics ("error", "warning", …).
+public string levelName(const DiagLevel l) {
+    if l == DiagLevel.Note    { out = "note"    return }
+    if l == DiagLevel.Remark  { out = "remark"  return }
+    if l == DiagLevel.Warning { out = "warning" return }
+    if l == DiagLevel.Error   { out = "error"   return }
+    if l == DiagLevel.Fatal   { out = "fatal error" return }
+    out = "ignored"
+}
+
+// getDescription — the format string for a diagnostic id ('%0' placeholders are
+// substituted by DiagnosticBuilder from the supplied arguments).
+public string getDescription(const DiagID id) {
+    if id == DiagID.err_parser_syntax_error { out = "unexpected token; cannot determine what statement or declaration this begins" return }
+    if id == DiagID.err_parser_identifier_expected { out = "expected an identifier here" return }
+    if id == DiagID.err_parser_ternary_expr { out = "expected ':' in ternary expression" return }
+    if id == DiagID.err_parser_expr_close_paren { out = "missing ')' to close the sub-expression" return }
+    if id == DiagID.err_parser_expr_expected_primary { out = "expected a value, variable, or sub-expression; found an unexpected token" return }
+    if id == DiagID.err_parser_invalid_id { out = "'%0' is a reserved keyword and cannot be used as an identifier" return }
+    if id == DiagID.err_parser_invalid_type { out = "expected a type or a named type; found an unexpected token" return }
+    if id == DiagID.err_parser_invalid_param { out = "invalid parameter declaration; expected a type followed by a name" return }
+    if id == DiagID.err_parser_invalid_value { out = "unexpected token '%0'; expected a literal value or an identifier" return }
+    if id == DiagID.err_parser_expected_comma_or_rparen { out = "expected ',' to continue the list or ')' to close it" return }
+    if id == DiagID.err_parser_expected_greater { out = "unclosed type argument list: expected '>' to close the generic type arguments" return }
+    if id == DiagID.err_parser_expected_lbrace { out = "expected '{' to open a block" return }
+    if id == DiagID.err_parser_unclosed_bracket { out = "unclosed block: missing '}'" return }
+    if id == DiagID.err_parser_right_paren { out = "unclosed '(': missing ')' to match the opening parenthesis" return }
+    if id == DiagID.err_parser_syntax_default_error { out = "duplicate 'default' label in switch" return }
+    if id == DiagID.err_parser_class_block_unclosed { out = "unclosed class or struct body: missing '}'" return }
+    if id == DiagID.err_parser_new_instance { out = "expected a class name after 'new'" return }
+    if id == DiagID.err_parser_fail_too_many_expr { out = "'fail' accepts at most 3 expressions: (code, message, cause)" return }
+    if id == DiagID.err_parser_namespace_not_first { out = "'namespace' must be the first declaration in a file" return }
+    if id == DiagID.err_parser_multiple_namespace { out = "a file can contain only one 'namespace' declaration" return }
+    if id == DiagID.err_parser_unexpected_top_level_token { out = "unexpected '%0' at top level; expected a function, class, enum, struct, or import declaration" return }
+    if id == DiagID.err_parser_missing_return_type { out = "function or method declaration is missing a return type; use 'void' for no value" return }
+    if id == DiagID.err_parser_string_not_terminated { out = "unterminated string literal; missing closing quote" return }
+    if id == DiagID.err_parser_return_with_value { out = "'return' cannot carry a value; use 'out = expr' and bare 'return' to exit early" return }
+    if id == DiagID.err_parser_import_wildcard_alias { out = "wildcard import ('.*') cannot be combined with 'as' alias" return }
+    if id == DiagID.err_parser_unknown_token { out = "unknown character '%0'; this character is not part of Fly's syntax" return }
+    if id == DiagID.err_lex_unterminated_block_comment { out = "unterminated /* comment" return }
+    out = "unknown diagnostic"
+}

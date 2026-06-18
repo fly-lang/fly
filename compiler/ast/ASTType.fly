@@ -4,6 +4,7 @@ import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTKind
 import fly.compiler.ast.ASTNode
+import fly.compiler.ast.ASTName
 import fly.data.List
 
 public enum ASTTypeKind {
@@ -56,17 +57,17 @@ public class ASTBuiltinType : ASTType {
 
 public class ASTNamedType : ASTType {
 
-    fly.data.List names
-    fly.data.List typeArgs
+    List<ASTName> names
+    List<ASTType> typeArgs
 
-    public ASTNamedType(const SourceLocation loc, const fly.data.List names) {
+    public ASTNamedType(const SourceLocation loc, const List<ASTName> names) {
         super(loc, ASTTypeKind.TYPE_NAMED)
         this.names = names
-        this.typeArgs = new List()
+        this.typeArgs = new List<ASTType>()
     }
 
-    public fly.data.List getNames() { out = this.names }
-    public fly.data.List getTypeArgs() { out = this.typeArgs }
+    public List<ASTName> getNames() { out = this.names }
+    public List<ASTType> getTypeArgs() { out = this.typeArgs }
     public void addTypeArg(const ASTType t) { this.typeArgs.add(t) }
 }
 

@@ -1,0 +1,55 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.str
+import fly.assert
+
+// ParserDiagSuite — the parser now reports through the real DiagnosticsEngine.
+// Verify success/failure state and that rendered diagnostics carry the right id text.
+suite ParserDiagSuite {
+
+    void successTest() {
+        case "clean parse → no diagnostics": {
+            Parser p = new Parser("void m() { }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 1)
+            StoringDiagnosticConsumer sink = p.getSink()
+            assert.assertEqI(sink.count(), 0, 2)
+            DiagnosticsEngine de = p.getDiags()
+            assert.assertEqI(de.getNumErrors(), 0, 3)
+        }
+    }
+
+    void multipleNamespaceTest() {
+        case "two namespaces → multiple_namespace error": {
+            Parser p = new Parser("namespace a.b  namespace c.d  void m() { }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertFalse(p.isSuccess(), 10)
+            StoringDiagnosticConsumer sink = p.getSink()
+            assert.assertTrue(sink.count() >= 1, 11)
+            assert.assertTrue(fly.str.contains(sink.getMessage(0), "only one 'namespace'"), 12)
+            assert.assertTrue(fly.str.contains(sink.getMessage(0), "error:"), 13)
+        }
+    }
+
+    void missingNameTest() {
+        case "class with no name → identifier expected": {
+            Parser p = new Parser("class { int x }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertFalse(p.isSuccess(), 20)
+            StoringDiagnosticConsumer sink = p.getSink()
+            assert.assertTrue(sink.errorCount() >= 1, 21)
+        }
+    }
+
+    void fineKindTest() {
+        case "curIs bridges to fine TokenKind": {
+            Parser p = new Parser("namespace foo")
+            assert.assertTrue(p.curIs(TokenKind.kw_namespace), 30)
+            assert.assertTrue(p.curKind() == TokenKind.kw_namespace, 31)
+            p.bump()
+            assert.assertTrue(p.curIs(TokenKind.identifier), 32)
+        }
+    }
+}

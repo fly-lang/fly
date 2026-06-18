@@ -25,7 +25,7 @@ suite ParserTypeDeclSuite {
             Parser p = new Parser("enum Color { RED, GREEN, BLUE }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 3)
-            fly.data.List nodes = m.getNodes()
+            List<ASTNode> nodes = m.getNodes()
             assert.assertEqI(nodes.size(), 1, 4)
         }
     }

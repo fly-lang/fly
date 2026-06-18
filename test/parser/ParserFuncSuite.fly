@@ -11,7 +11,7 @@ suite ParserFuncSuite {
             Parser p = new Parser("int add(const int a, const int b) { out = a + b }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
-            fly.data.List nodes = m.getNodes()
+            List<ASTNode> nodes = m.getNodes()
             assert.assertEqI(nodes.size(), 1, 2)
         }
         case "void no params": {

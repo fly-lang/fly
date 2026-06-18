@@ -24,7 +24,7 @@ public class ASTBuilderLoopStmt {
         out = this
     }
     public ASTBuilderLoopStmt setInit(const ASTBlockStmt blockStmt) {
-        fly.data.List content = blockStmt.getContent()
+        List<ASTStmt> content = blockStmt.getContent()
         int n = content.size()
         int i = 0
         while i < n {
@@ -35,7 +35,7 @@ public class ASTBuilderLoopStmt {
         out = this
     }
     public ASTBuilderLoopStmt setPost(const ASTBlockStmt blockStmt) {
-        fly.data.List content = blockStmt.getContent()
+        List<ASTStmt> content = blockStmt.getContent()
         int n = content.size()
         int i = 0
         while i < n {

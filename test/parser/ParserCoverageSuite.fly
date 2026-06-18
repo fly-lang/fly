@@ -1,0 +1,108 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+
+// ParserCoverageSuite — constructs added in the Stage 3 coverage pass:
+// for (C-style + for-in), switch/case/default, fail, handle, test, ternary.
+suite ParserCoverageSuite {
+
+    void loopTest() {
+        case "C-style for": {
+            Parser p = new Parser("void m() { for int i = 0; i < 10; i = i + 1 { x = i } }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 1)
+        }
+        case "for-in": {
+            Parser p = new Parser("void m() { for it in coll { use(it) } }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 2)
+        }
+    }
+
+    void switchTest() {
+        case "switch with case + default": {
+            Parser p = new Parser("void m() { switch x { case 1: a = 1 break  default: a = 0 } }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 10)
+        }
+    }
+
+    void errStmtTest() {
+        case "fail with code + msg": {
+            Parser p = new Parser("void m() { fail 400, msg }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 20)
+        }
+        case "fail bare": {
+            Parser p = new Parser("void m() { fail }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 21)
+        }
+        case "handle block": {
+            Parser p = new Parser("void m() { handle { risky() } }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 22)
+        }
+        case "test block": {
+            Parser p = new Parser("void m() { test { check() } }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 23)
+        }
+    }
+
+    void ternaryTest() {
+        case "ternary in assignment": {
+            Parser p = new Parser("int m() { out = a > b ? a : b }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 30)
+        }
+    }
+
+    void castTest() {
+        case "C-style builtin cast": {
+            Parser p = new Parser("int m() { byte b = (byte)5  out = (int)b }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 40)
+        }
+        case "parenthesized expr still works (not a cast)": {
+            Parser p = new Parser("int m() { out = (a + b) * c }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 41)
+        }
+    }
+
+    void postfixTest() {
+        case "postfix ++ in for-post": {
+            Parser p = new Parser("void m() { for int i = 0; i < 3; i++ { x = i } }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 50)
+        }
+        case "postfix -- as statement": {
+            Parser p = new Parser("void m() { n-- }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 51)
+        }
+    }
+
+    void genericDeclTest() {
+        case "generic class declaration": {
+            Parser p = new Parser("public class Box<T> { T v }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 60)
+            List<ASTNode> nodes = mod.getNodes()
+            assert.assertEqI(nodes.size(), 1, 61)
+        }
+        case "generic class with bound + two params": {
+            Parser p = new Parser("class Pair<A, B> { A a  B b }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 62)
+        }
+        case "generic function": {
+            Parser p = new Parser("T id<T>(T v) { out = v }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 63)
+        }
+    }
+}

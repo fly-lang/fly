@@ -3,11 +3,12 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTType
 import fly.compiler.ast.ASTVar
+import fly.compiler.ast.ASTModifier
 import fly.data.List
 
 public class ASTParam : ASTVar {
 
-    public ASTParam(const SourceLocation loc, const ASTType type, const string name, const fly.data.List modifiers) {
+    public ASTParam(const SourceLocation loc, const ASTType type, const string name, const List<ASTModifier> modifiers) {
         super(loc, type, name, modifiers)
     }
 }

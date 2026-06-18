@@ -1,0 +1,36 @@
+namespace fly.compiler.basic
+import fly.compiler.basic.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DiagnosticOptions — options controlling the diagnostics engine, ported from
+// include/Basic/DiagnosticOptions.h. The C++ version is a bitfield set generated
+// from DiagnosticOptions.def; here we keep the representative scalar options the
+// engine consults (warnings-as-errors, ignore-warnings, tab stop, error limit).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class DiagnosticOptions {
+    bool warningsAsErrors   // -Werror: promote warnings to errors
+    bool ignoreWarnings     // -w: suppress all warnings
+    bool pedantic           // -pedantic: enable extension diagnostics
+    int tabStop             // columns per tab when rendering carets
+    int errorLimit          // stop after this many errors (0 = no limit)
+
+    public DiagnosticOptions() {
+        this.warningsAsErrors = false
+        this.ignoreWarnings = false
+        this.pedantic = false
+        this.tabStop = 8
+        this.errorLimit = 0
+    }
+
+    public bool isWarningsAsErrors() { out = this.warningsAsErrors }
+    public void setWarningsAsErrors(const bool v) { this.warningsAsErrors = v }
+    public bool isIgnoreWarnings() { out = this.ignoreWarnings }
+    public void setIgnoreWarnings(const bool v) { this.ignoreWarnings = v }
+    public bool isPedantic() { out = this.pedantic }
+    public void setPedantic(const bool v) { this.pedantic = v }
+    public int getTabStop() { out = this.tabStop }
+    public void setTabStop(const int v) { this.tabStop = v }
+    public int getErrorLimit() { out = this.errorLimit }
+    public void setErrorLimit(const int v) { this.errorLimit = v }
+}

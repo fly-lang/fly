@@ -1,0 +1,37 @@
+import fly.assert
+
+// Method override: a derived class redefining a base method. Covers both
+// static-type dispatch (derived var) and dynamic dispatch through a base
+// reference (the vtable picks the most-derived implementation).
+
+class Shape {
+    public Shape() {}
+    public int sides() { out = 0 }
+}
+
+class Square : Shape {
+    public Square() {}
+    public int sides() { out = 4 }
+}
+
+class Triangle : Shape {
+    public Triangle() {}
+    public int sides() { out = 3 }
+}
+
+void main() {
+    Square sq = new Square()
+    Triangle tr = new Triangle()
+    Shape sh = new Shape()
+
+    // static-type dispatch
+    assert.assertEqI(sq.sides(), 4, 1)
+    assert.assertEqI(tr.sides(), 3, 2)
+    assert.assertEqI(sh.sides(), 0, 3)
+
+    // dynamic dispatch through a base reference → most-derived override
+    Shape a = sq
+    Shape b = tr
+    assert.assertEqI(a.sides(), 4, 4)
+    assert.assertEqI(b.sides(), 3, 5)
+}

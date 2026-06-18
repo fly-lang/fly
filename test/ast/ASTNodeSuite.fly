@@ -36,7 +36,7 @@ suite ASTNodeSuite {
             ASTModule m = new ASTModule(loc, "demo.fly")
             assert.assertStr(m.getName(), "demo.fly", 8)
             assert.assertTrue(m.getKind() == ASTKind.MODULE, 9)
-            fly.data.List nodes = m.getNodes()
+            List<ASTNode> nodes = m.getNodes()
             assert.assertEqI(nodes.size(), 0, 10)
         }
     }
@@ -44,18 +44,18 @@ suite ASTNodeSuite {
     void functionTest() {
         case "ASTFunction params": {
             SourceLocation loc = slGetFileLoc(0)
-            fly.data.List nomods = new List()
+            List<ASTModifier> nomods = new List<ASTModifier>()
             ASTType ty = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_INT)
             ASTParam p1 = new ASTParam(loc, ty, "a", nomods)
             ASTType ty2 = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_INT)
             ASTParam p2 = new ASTParam(loc, ty2, "b", nomods)
-            fly.data.List params = new List()
+            List<ASTParam> params = new List<ASTParam>()
             params.add(p1)
             params.add(p2)
-            fly.data.List fmods = new List()
+            List<ASTModifier> fmods = new List<ASTModifier>()
             ASTFunction fn = new ASTFunction(loc, fmods, "add", params, ASTFunctionKind.F_FUNCTION)
             assert.assertStr(fn.getName(), "add", 11)
-            fly.data.List ps = fn.getParams()
+            List<ASTParam> ps = fn.getParams()
             assert.assertEqI(ps.size(), 2, 12)
             assert.assertStr(p1.getName(), "a", 13)
             assert.assertTrue(p1.getType() != null, 14)

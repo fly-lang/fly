@@ -11,13 +11,13 @@ public class ASTModule : ASTNode {
     ASTNameSpace nameSpace
     string name
     bool header
-    fly.data.List nodes
+    List<ASTNode> nodes
 
     public ASTModule(const SourceLocation loc, const string name) {
         super(ASTKind.MODULE, loc)
         this.name = name
         this.header = false
-        this.nodes = new List()
+        this.nodes = new List<ASTNode>()
     }
 
     public bool isHeader() { out = this.header }
@@ -25,6 +25,6 @@ public class ASTModule : ASTNode {
     public string getName() { out = this.name }
     public ASTNameSpace getNameSpace() { out = this.nameSpace }
     public void setNameSpace(const ASTNameSpace nameSpace) { this.nameSpace = nameSpace }
-    public fly.data.List getNodes() { out = this.nodes }
+    public List<ASTNode> getNodes() { out = this.nodes }
     public void addNode(const ASTNode node) { this.nodes.add(node) }
 }

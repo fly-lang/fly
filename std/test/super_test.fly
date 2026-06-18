@@ -1,0 +1,41 @@
+import fly.assert
+
+// super(...): a derived constructor calling its single base-class constructor.
+// Two independent derived classes; `super` is the first statement in one and a
+// later statement in the other (super need not come first).
+// (Single-level base; deep >2-level inheritance is a separate, pre-existing issue.)
+
+class Base {
+    int k
+    int v
+    public Base(const int a, const int b) { this.k = a  this.v = b }
+    public int sum() { out = this.k + this.v }
+}
+
+class Add : Base {
+    int e
+    public Add(const int a, const int b, const int c) {
+        super(a, b)        // super first
+        this.e = c
+    }
+    public int r() { out = this.sum() + this.e }
+}
+
+class Mul : Base {
+    int e
+    public Mul(const int a, const int b, const int c) {
+        this.e = c         // super need NOT be the first statement
+        super(a, b)
+    }
+    public int r() { out = this.sum() * this.e }
+}
+
+void main() {
+    Add ad = new Add(2, 3, 10)
+    assert.assertEqI(ad.sum(), 5, 1)    // base fields set via super
+    assert.assertEqI(ad.r(), 15, 2)     // 5 + 10
+
+    Mul mu = new Mul(2, 3, 10)
+    assert.assertEqI(mu.sum(), 5, 3)    // super after a derived-field write
+    assert.assertEqI(mu.r(), 50, 4)     // 5 * 10
+}

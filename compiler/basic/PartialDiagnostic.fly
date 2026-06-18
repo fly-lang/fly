@@ -1,0 +1,42 @@
+namespace fly.compiler.basic
+import fly.compiler.basic.*
+import fly.data.List
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PartialDiagnostic — a diagnostic captured for deferred emission, ported from
+// include/Basic/PartialDiagnostic.h. It records the id, location and arguments so
+// the diagnostic can be raised later through a DiagnosticsEngine. Adapted to Fly:
+// the LLVM storage-allocator pooling is dropped; arguments are a List<string>.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class PartialDiagnostic {
+    DiagID id
+    SourceLocation loc
+    List<string> args
+
+    public PartialDiagnostic(const DiagID id, const SourceLocation loc) {
+        this.id = id
+        this.loc = loc
+        this.args = new List<string>()
+    }
+
+    public PartialDiagnostic addStr(const string s) { this.args.add(s)  out = this }
+    public PartialDiagnostic addInt(const int n) { this.args.add(fly.str.convert(n))  out = this }
+
+    public DiagID getId() { out = this.id }
+    public SourceLocation getLoc() { out = this.loc }
+    public List<string> getArgs() { out = this.args }
+
+    // emitWith — replay this captured diagnostic through an engine.
+    public void emitWith(const DiagnosticsEngine engine) {
+        DiagnosticBuilder b = engine.report(this.loc, this.id)
+        int n = this.args.size()
+        int i = 0
+        while i < n {
+            b.addStr(this.args.get(i))
+            i = i + 1
+        }
+        b.emit()
+    }
+}

@@ -5,6 +5,8 @@ import fly.compiler.ast.ASTBlockStmt
 import fly.compiler.ast.ASTKind
 import fly.compiler.ast.ASTNode
 import fly.compiler.ast.ASTType
+import fly.compiler.ast.ASTModifier
+import fly.compiler.ast.ASTParam
 import fly.data.List
 
 public enum ASTFunctionKind {
@@ -16,31 +18,31 @@ public class ASTFunction : ASTNode {
 
     ASTFunctionKind functionKind
     string name
-    fly.data.List modifiers
-    fly.data.List params
+    List<ASTModifier> modifiers
+    List<ASTParam> params
     ASTType returnType
-    fly.data.List returnTypes
+    List<ASTType> returnTypes
     ASTBlockStmt body
-    fly.data.List typeParams
+    List<ASTType> typeParams
 
-    public ASTFunction(const SourceLocation loc, const fly.data.List modifiers, const string name, const fly.data.List params, const ASTFunctionKind functionKind) {
+    public ASTFunction(const SourceLocation loc, const List<ASTModifier> modifiers, const string name, const List<ASTParam> params, const ASTFunctionKind functionKind) {
         super(ASTKind.FUNCTION, loc)
         this.modifiers = modifiers
         this.name = name
         this.params = params
         this.functionKind = functionKind
-        this.returnTypes = new List()
-        this.typeParams = new List()
+        this.returnTypes = new List<ASTType>()
+        this.typeParams = new List<ASTType>()
     }
 
     public string getName() { out = this.name }
-    public fly.data.List getModifiers() { out = this.modifiers }
-    public fly.data.List getParams() { out = this.params }
-    public fly.data.List getTypeParams() { out = this.typeParams }
+    public List<ASTModifier> getModifiers() { out = this.modifiers }
+    public List<ASTParam> getParams() { out = this.params }
+    public List<ASTType> getTypeParams() { out = this.typeParams }
     public ASTType getReturnType() { out = this.returnType }
     public void setReturnType(const ASTType returnType) { this.returnType = returnType }
-    public fly.data.List getReturnTypes() { out = this.returnTypes }
-    public void setReturnTypes(const fly.data.List returnTypes) { this.returnTypes = returnTypes }
+    public List<ASTType> getReturnTypes() { out = this.returnTypes }
+    public void setReturnTypes(const List<ASTType> returnTypes) { this.returnTypes = returnTypes }
     public ASTBlockStmt getBody() { out = this.body }
     public void setBody(const ASTBlockStmt body) { this.body = body }
 }

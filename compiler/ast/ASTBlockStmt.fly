@@ -7,13 +7,13 @@ import fly.data.List
 
 public class ASTBlockStmt : ASTStmt {
 
-    fly.data.List content
+    List<ASTStmt> content
 
     public ASTBlockStmt(const SourceLocation loc) {
         super(loc, ASTStmtKind.STMT_BLOCK)
-        this.content = new List()
+        this.content = new List<ASTStmt>()
     }
 
-    public fly.data.List getContent() { out = this.content }
+    public List<ASTStmt> getContent() { out = this.content }
     public void addContent(const ASTStmt stmt) { this.content.add(stmt) }
 }

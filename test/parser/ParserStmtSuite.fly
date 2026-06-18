@@ -11,7 +11,7 @@ suite ParserStmtSuite {
             Parser p = new Parser("int f(const int a) { int x = a + 1  out = x }")
             ASTModule m = p.parseModule("demo")
             assert.assertTrue(p.isSuccess(), 1)
-            fly.data.List nodes = m.getNodes()
+            List<ASTNode> nodes = m.getNodes()
             assert.assertEqI(nodes.size(), 1, 2)
         }
         case "nested block + exprstmt": {
