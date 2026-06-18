@@ -13,6 +13,7 @@
 #include "CodeGen/CodeGenModule.h"
 
 #include <Sema/SemaCall.h>
+#include <Sema/SemaClassType.h>
 #include <Sema/SemaFunctionBase.h>
 #include <Sema/SemaParam.h>
 #include <Sema/SemaType.h>
@@ -36,14 +37,29 @@ void CodeGenStdLibLLVM::GenCall(SemaCall *Sema) {
     llvm::SmallVector<llvm::Value *, 4> OutPtrs;
     llvm::SmallVector<llvm::Type  *, 4> OutTypes;
 
+    // A class element that is not a value STRUCT is a reference type: it lives on the heap
+    // and is represented everywhere as an 8-byte handle (pointer), e.g. the `ptr` field of
+    // Wrapper<SomeClass>. The typed-slot intrinsics must therefore store/load the handle,
+    // not copy the pointee struct by value (which would slice subclasses and break identity).
+    auto isRefClass = [](SemaType *T) {
+        return T->isClass() &&
+               static_cast<SemaClassType *>(T)->getClassKind() != SemaClassKind::STRUCT;
+    };
+    llvm::Type *OpaquePtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+
     for (size_t i = 0; i < ArgExprs.size() && i < Params.size(); i++) {
         Params[i]->getType()->accept(*CGM);
-        llvm::Type *ParamTy = Params[i]->getType()->getCodeGen()->getType();
+        bool IsRef = isRefClass(Params[i]->getType());
+        llvm::Type *ParamTy = IsRef ? OpaquePtrTy
+                                    : Params[i]->getType()->getCodeGen()->getType();
 
         if (Params[i]->isConstant()) {
             ArgExprs[i]->accept(*CGM);
             llvm::Value *ArgV = ArgExprs[i]->getCodeGen()->getValue();
-            if (ArgV->getType()->isPointerTy()) {
+            if (IsRef) {
+                // Reference handle: getValue() already yields the heap pointer; pass it as-is
+                // (an 8-byte handle) so slotSizeT→8 and slotPokeT/ReadT store/load the pointer.
+            } else if (ArgV->getType()->isPointerTy()) {
                 ArgV = Builder->CreateLoad(ParamTy, ArgV);
             } else if (ArgV->getType() != ParamTy) {
                 if (ArgV->getType()->isIntegerTy() && ParamTy->isIntegerTy()) {

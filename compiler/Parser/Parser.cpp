@@ -1615,8 +1615,37 @@ bool Parser::isNamedReturnType() {
             Next = Lexer::findNextToken(Loc, SourceMgr);
         } else break;
     }
+    // Skip an optional generic argument list on the type: "Foo<int, string> name"
+    if (Next && Next->is(tok::less)) {
+        Next = findTokenAfterTypeArgs(Next->getLocation());
+    }
     // Token after the full type name must be another identifier (the function/method name)
     return Next && Next->isAnyIdentifier();
+}
+
+std::optional<Token> Parser::findTokenAfterTypeArgs(SourceLocation LessLoc) {
+    FLY_DEBUG_SCOPE("Parser", "findTokenAfterTypeArgs");
+    // Caller positions us at the opening '<'.
+    int Depth = 1;
+    SourceLocation Loc = LessLoc;
+    while (true) {
+        std::optional<Token> T = Lexer::findNextToken(Loc, SourceMgr);
+        if (!T || T->is(tok::eof)) return std::nullopt;
+        if (T->is(tok::less)) {
+            Depth += 1;
+        } else if (T->is(tok::lessless)) {
+            Depth += 2;
+        } else if (T->is(tok::greater)) {
+            Depth -= 1;
+        } else if (T->is(tok::greatergreater)) {
+            Depth -= 2;
+        }
+        if (Depth <= 0) {
+            // Return the token immediately after the closing '>' (or '>>').
+            return Lexer::findNextToken(T->getLocation(), SourceMgr);
+        }
+        Loc = T->getLocation();
+    }
 }
 
 bool Parser::isArrayType(Token &Tok) {

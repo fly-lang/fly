@@ -199,6 +199,12 @@ private:
     /// Check if the current identifier token is a named return type (not the function name).
     bool isNamedReturnType();
 
+    /// During lookahead, skip a balanced generic argument list that begins with the
+    /// '<' token located at LessLoc, returning the token immediately after the
+    /// matching '>'. Handles '>>' as two closers (for nested generics like
+    /// List<Map<int>>). Returns nullopt if EOF is reached before the list balances.
+    std::optional<Token> findTokenAfterTypeArgs(SourceLocation LessLoc);
+
     /// Check if the token is an array type.
     bool isArrayType(Token &Tok);
 

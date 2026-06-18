@@ -141,6 +141,12 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bo
                         TNext = Lexer::findNextToken(TLoc, P->SourceMgr);
                     } else break;
                 }
+                // Skip an optional generic argument list on the return type:
+                // "List<long> get()" — without this the '<' stops the scan and the
+                // method is mis-parsed as an attribute named after the method.
+                if (TNext && TNext->is(tok::less)) {
+                    TNext = P->findTokenAfterTypeArgs(TNext->getLocation());
+                }
                 // TNext is now the candidate method name token; check it is an identifier
                 // followed immediately by '('
                 if (TNext && TNext->isAnyIdentifier()) {

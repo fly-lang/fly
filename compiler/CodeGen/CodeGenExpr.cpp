@@ -1318,14 +1318,15 @@ llvm::Value *CodeGenExpr::adjustToBaseSubobject(llvm::Value *V, SemaType *FromTy
 	if (!FromType || !ToType || !FromType->isClass() || !ToType->isClass()) return V;
 	SemaClassType *From = static_cast<SemaClassType *>(FromType);
 	SemaClassType *To   = static_cast<SemaClassType *>(ToType);
-	// Only adjust when the target is an INTERFACE: an interface variable must hold its own
-	// subobject pointer so dispatch reads the right per-interface vtable. A plain base CLASS
-	// keeps the original (full-object) pointer — it is needed for free()/identity (freeing a
-	// base-subobject pointer would free the middle of the heap block). NOTE: this means an
-	// inherited, field-accessing method called through a base-CLASS-typed variable reads the
-	// wrong subobject — a known limitation that needs base-at-offset-0 layout or this-thunks.
-	if (To->getClassKind() != SemaClassKind::INTERFACE) return V;
-	// Same type, or no codegen yet → nothing to adjust.
+	// Adjust an upcast (derived → base CLASS or INTERFACE) to the base subobject pointer, so a
+	// base-typed lvalue points at its own subobject. This preserves the invariant every consumer
+	// relies on — that a T-typed value points at the T subobject — so field access and
+	// inherited/virtual dispatch through the base-typed value resolve against the correct
+	// subobject and vtable (getBaseInstance navigates from the *static* type). Without this,
+	// `Base x = new Derived()` stored the full-object pointer and reads through x were wrong
+	// (bug #8). The per-base vtable thunks restore `this` to the most-derived object for
+	// overrides, so free()/identity through the base still reach the right method.
+	// Same type, or no codegen, or To is not a base of From → nothing to adjust.
 	if (From->isEquals(To) || !From->getCodeGen()) return V;
 	// getBaseInstance navigates From's base subobjects (recursively) to To and returns
 	// the adjusted pointer, or null when To is not a base of From.
@@ -1341,14 +1342,14 @@ void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &A
 	for (size_t i = 0; i < ArgExprs.size(); i++) {
 		SemaExpr *ArgExpr = ArgExprs[i];
 
-		// An upcast of a derived class to an INTERFACE param is a value-pass for
-		// polymorphic dispatch (not a writable reference), so it must NOT take the
-		// output-param fast-path below — it needs the interface-subobject pointer
-		// adjustment. (Plain base-class params keep the existing path.)
+		// An upcast of a derived class to a base CLASS or INTERFACE param is a value-pass for
+		// polymorphic dispatch (not a writable reference): it must NOT take the output-param
+		// fast-path below, and the pointer needs adjusting to the base subobject so the callee
+		// reads the right fields/vtable (bug #8).
 		bool IsUpcast = i < Params.size() && ArgExpr->getType() && Params[i]->getType() &&
 			ArgExpr->getType()->isClass() && Params[i]->getType()->isClass() &&
-			static_cast<SemaClassType *>(Params[i]->getType())->getClassKind() == SemaClassKind::INTERFACE &&
-			!ArgExpr->getType()->isEquals(Params[i]->getType());
+			!ArgExpr->getType()->isEquals(Params[i]->getType()) &&
+			static_cast<SemaClassType *>(ArgExpr->getType())->isDerived(static_cast<SemaClassType *>(Params[i]->getType()));
 
 		// For output (non-const) params: pass the original alloca pointer directly and
 		// invalidate the variable's load cache so subsequent reads see the updated value.

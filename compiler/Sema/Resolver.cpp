@@ -749,11 +749,9 @@ void Resolver::visit(ASTNamedType &AST) {
 		// template's library module).
 		if (!Spec->Resolved && CurrentModule)
 			CurrentModule->addNode(Spec);
-		// Save/restore CurrentScope: ResolveClassType switches to the spec's own symbol
-		// table and does not restore it, which would corrupt the caller's scope.
-		SymbolTable *SavedScope = CurrentScope;
-		ResolveClassType(Spec);
-		CurrentScope = SavedScope;
+		// Resolve the spec in an isolated context so it does not become the CurrentClass
+		// (or clobber CurrentScope/Function/etc.) of the class/body we are resolving.
+		ResolveClassTypeIsolated(Spec);
 		CurrentType = Spec;
 		return;
 	}
@@ -1909,7 +1907,7 @@ void Resolver::visit(ASTCall &AST) {
 				ClassType = SemaBuilder::CreateSpecialization(OldTemplate, TypeArgs, CurrentScope);
 				if (!ClassType->Resolved && CurrentModule)
 					CurrentModule->addNode(ClassType);
-				ResolveClassType(ClassType);
+				ResolveClassTypeIsolated(ClassType);
 			}
 
 			// Cannot instantiate an abstract class
@@ -2745,6 +2743,27 @@ void Resolver::ResolveFunction(SemaFunction *Sema) {
 
 	// Exit Body Scope
 	ExitScope();
+}
+
+void Resolver::ResolveClassTypeIsolated(SemaClassType *Spec) {
+	// Snapshot the mutable resolution context. ResolveClassType drives a full
+	// class+member+body resolution that overwrites CurrentClass/Function/Scope/etc.
+	// and does not restore them; restoring here keeps the enclosing resolution intact.
+	SymbolTable      *SavedScope        = CurrentScope;
+	SemaClassType    *SavedClass        = CurrentClass;
+	SemaEnumType     *SavedEnum         = CurrentEnum;
+	SemaFunctionBase *SavedFunction     = CurrentFunction;
+	SemaBlockStmt    *SavedSemaBlock    = CurrentSemaBlock;
+	SemaError        *SavedErrorHandler = CurrentErrorHandler;
+
+	ResolveClassType(Spec);
+
+	CurrentScope        = SavedScope;
+	CurrentClass        = SavedClass;
+	CurrentEnum         = SavedEnum;
+	CurrentFunction     = SavedFunction;
+	CurrentSemaBlock    = SavedSemaBlock;
+	CurrentErrorHandler = SavedErrorHandler;
 }
 
 void Resolver::ResolveClassType(SemaClassType *ClassType) {
