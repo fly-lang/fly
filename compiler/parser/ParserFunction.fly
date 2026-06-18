@@ -1,0 +1,62 @@
+namespace fly.compiler.parser
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ParserFunction — parameter and generic-type-parameter parsing, split out of
+// Parser to mirror fly/compiler/Parser/ParserFunction.cpp. Static methods thread
+// the Parser `p` (no stored field), matching the C++ ParserFunction::ParseParams.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class ParserFunction {
+
+    public ParserFunction() { }
+
+    // parseTypeParams — generic type parameter declarations: `<T, U : Bound>`.
+    public static List<ASTType> parseTypeParams(const Parser p) {
+        List<ASTType> params = new List<ASTType>()
+        p.expectPunct("<")
+        bool go = p.curIsNamePart()
+        while go {
+            SourceLocation tloc = p.curLoc()
+            string pn = p.curText()
+            p.bump()
+            ASTTypeParam tp = new ASTTypeParam(tloc, pn)
+            if p.curIsPunct(":") {
+                p.bump()
+                ASTType bound = p.parseType()
+            }
+            params.add(tp)
+            if p.curIsPunct(",") { p.bump()  go = p.curIsNamePart() }
+            else { go = false }
+        }
+        p.expectPunct(">")
+        out = params
+    }
+
+    // parseParams — `( (mods Type name (= default)?)(, …)* )`.
+    public static List<ASTParam> parseParams(const Parser p) {
+        List<ASTParam> params = new List<ASTParam>()
+        p.expectPunct("(")
+        bool go = p.curIsPunct(")") == false
+        while go {
+            List<ASTModifier> pmods = p.parseModifiers()
+            SourceLocation loc = p.curLoc()
+            ASTType ty = p.parseType()
+            string nm = ""
+            if p.curIsNamePart() { nm = p.curText()  p.bump() }
+            else { p.reportErr(DiagID.err_parser_invalid_param) }
+            ASTParam param = ASTBuilder.CreateParam(loc, ty, nm, pmods, null)
+            params.add(param)
+            // default value: '= expr' (parsed, kept on the var by Sema later)
+            if p.curIsPunct("=") { p.bump()  ASTExpr dv = p.parseExpr() }
+            if p.curIsPunct(",") { p.bump() }
+            else { go = false }
+        }
+        p.expectPunct(")")
+        out = params
+    }
+}

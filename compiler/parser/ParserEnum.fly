@@ -1,0 +1,43 @@
+namespace fly.compiler.parser
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ParserEnum — enum declaration parsing, split out of Parser to mirror
+// fly/compiler/Parser/ParserEnum.cpp. Static method threading the Parser `p`.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class ParserEnum {
+
+    public ParserEnum() { }
+
+    // parse — `enum Name { A, B, C }`.
+    public static ASTEnum parse(const Parser p, const List<ASTModifier> mods) {
+        SourceLocation loc = p.curLoc()
+        p.expectKw("enum")
+        string nm = ""
+        if p.curIsNamePart() { nm = p.curText()  p.bump() }
+        else { p.reportErr(DiagID.err_parser_identifier_expected) }
+        List<ASTType> bases = new List<ASTType>()
+        ASTEnum e = ASTBuilder.CreateEnum(p.getModule(), loc, nm, mods, bases)
+        List<ASTModifier> noMods = new List<ASTModifier>()
+        p.expectPunct("{")
+        bool go = p.curIsPunct("}") == false
+        while go {
+            if p.curIsNamePart() {
+                SourceLocation eloc = p.curLoc()
+                ASTEnumEntry entry = ASTBuilder.CreateEnumEntry(eloc, e, p.curText(), noMods)
+                p.bump()
+                if p.curIsPunct(",") { p.bump() }
+                else { go = false }
+            } else {
+                go = false
+            }
+        }
+        p.expectPunct("}")
+        out = e
+    }
+}

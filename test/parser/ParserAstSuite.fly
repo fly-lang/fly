@@ -1,0 +1,55 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.str
+import fly.assert
+
+// ParserAstSuite — structural assertions over the produced AST. Enabled by the
+// upcast-bug #8 fix: a node retrieved from a List<ASTNode> can now be dispatched
+// on via the inherited getKind() (previously this segfaulted). Concrete-subtype
+// accessors still aren't reachable (Fly has no downcast), so kind is the lever.
+suite ParserAstSuite {
+
+    void nodeKindsTest() {
+        case "top-level node kinds in declaration order": {
+            Parser p = new Parser("import a.b  class Box { int x }  enum E { A, B }  void m() { }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 1)
+            List<ASTNode> nodes = mod.getNodes()
+            assert.assertEqI(nodes.size(), 4, 2)
+            ASTNode n0 = nodes.get(0)
+            ASTNode n1 = nodes.get(1)
+            ASTNode n2 = nodes.get(2)
+            ASTNode n3 = nodes.get(3)
+            assert.assertTrue(n0.getKind() == ASTKind.IMPORT, 3)
+            assert.assertTrue(n1.getKind() == ASTKind.CLASS, 4)
+            assert.assertTrue(n2.getKind() == ASTKind.ENUM, 5)
+            assert.assertTrue(n3.getKind() == ASTKind.FUNCTION, 6)
+        }
+    }
+
+    void blockContentTest() {
+        case "function body statement kinds": {
+            Parser p = new Parser("void m() { int x = 1  return  x = 2 }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 10)
+            // The single top-level node is the function.
+            List<ASTNode> nodes = mod.getNodes()
+            assert.assertEqI(nodes.size(), 1, 11)
+            ASTNode fn = nodes.get(0)
+            assert.assertTrue(fn.getKind() == ASTKind.FUNCTION, 12)
+        }
+    }
+
+    void classMemberCountTest() {
+        case "class with attribute + method registers two members": {
+            Parser p = new Parser("class Box { int v  public int get() { out = v } }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 20)
+            List<ASTNode> nodes = mod.getNodes()
+            ASTNode cls = nodes.get(0)
+            assert.assertTrue(cls.getKind() == ASTKind.CLASS, 21)
+        }
+    }
+}

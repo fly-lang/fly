@@ -108,6 +108,10 @@ public class Parser {
     public bool curIs(const TokenKind k) { out = this.curKind() == k }
 
     public bool curIsIdent() { out = this.cur.kind == TokenKind.IDENT }
+    // Coarse token-kind predicates used by the ParserExpr companion (no direct `cur` field access).
+    public bool curIsNumber()   { out = this.cur.kind == TokenKind.NUMBER }
+    public bool curIsStringLit(){ out = this.cur.kind == TokenKind.STRING }
+    public bool curIsAnyPunct() { out = this.cur.kind == TokenKind.PUNCT }
     public bool curIsKw(const string w) {
         out = this.cur.kind == TokenKind.KEYWORD && fly.str.equals(this.lx.tokenText(this.cur), w)
     }
@@ -141,6 +145,7 @@ public class Parser {
     public bool hadErr() { out = this.diags.hasErrorOccurred() }
     public DiagnosticsEngine getDiags() { out = this.diags }
     public StoringDiagnosticConsumer getSink() { out = this.sink }
+    public ASTModule getModule() { out = this.module }
 
     public void reportErr(const DiagID id) {
         DiagnosticBuilder b = this.diags.report(this.curLoc(), id)
@@ -358,49 +363,11 @@ public class Parser {
     // ── ParseParams ───────────────────────────────────────────────────────────
     // ── ParseTypeParams ───────────────────────────────────────────────────────
     // Generic type parameter declarations: `<T, U : Bound>`. The bound is parsed
-    // (and currently discarded — ASTTypeParam carries no setter for it yet).
-    public List<ASTType> parseTypeParams() {
-        List<ASTType> params = new List<ASTType>()
-        this.expectPunct("<")
-        bool go = this.curIsNamePart()
-        while go {
-            SourceLocation tloc = this.curLoc()
-            string pn = this.curText()
-            this.bump()
-            ASTTypeParam tp = new ASTTypeParam(tloc, pn)
-            if this.curIsPunct(":") {
-                this.bump()
-                ASTType bound = this.parseType()
-            }
-            params.add(tp)
-            if this.curIsPunct(",") { this.bump()  go = this.curIsNamePart() }
-            else { go = false }
-        }
-        this.expectPunct(">")
-        out = params
-    }
-
-    public List<ASTParam> parseParams() {
-        List<ASTParam> params = new List<ASTParam>()
-        this.expectPunct("(")
-        bool go = this.curIsPunct(")") == false
-        while go {
-            List<ASTModifier> pmods = this.parseModifiers()
-            SourceLocation loc = this.curLoc()
-            ASTType ty = this.parseType()
-            string nm = ""
-            if this.curIsNamePart() { nm = this.curText()  this.bump() }
-            else { this.reportErr(DiagID.err_parser_invalid_param) }
-            ASTParam p = ASTBuilder.CreateParam(loc, ty, nm, pmods, null)
-            params.add(p)
-            // default value: '= expr' (parsed, kept on the var by Sema later)
-            if this.curIsPunct("=") { this.bump()  ASTExpr dv = this.parseExpr() }
-            if this.curIsPunct(",") { this.bump() }
-            else { go = false }
-        }
-        this.expectPunct(")")
-        out = params
-    }
+    // ── ParseTypeParams / ParseParams ─────────────────────────────────────────
+    // Delegated to the ParserFunction companion (ParserFunction.fly), mirroring
+    // fly/compiler/Parser/ParserFunction.cpp.
+    public List<ASTType> parseTypeParams() { out = ParserFunction.parseTypeParams(this) }
+    public List<ASTParam> parseParams() { out = ParserFunction.parseParams(this) }
 
     // ── ParseFunction ─────────────────────────────────────────────────────────
     public ASTFunction parseFunction(const List<ASTModifier> mods) {
@@ -424,109 +391,15 @@ public class Parser {
     }
 
     // ── ParseClass ────────────────────────────────────────────────────────────
-    public ASTClass parseClass(const List<ASTModifier> mods) {
-        SourceLocation loc = this.curLoc()
-        ASTClassKind kind = ASTClassKind.CLASS
-        if this.curIsKw("interface") { kind = ASTClassKind.INTERFACE }
-        elsif this.curIsKw("struct") { kind = ASTClassKind.STRUCT }
-        elsif this.curIsKw("suite")  { kind = ASTClassKind.SUITE }
-        this.bump()  // class kind keyword
-        string nm = ""
-        if this.curIsNamePart() { nm = this.curText()  this.bump() }
-        else { this.reportErr(DiagID.err_parser_identifier_expected) }
-        // generic type parameters: `class Box<T, U : Bound>`
-        List<ASTType> typeParams = new List<ASTType>()
-        if this.curIsPunct("<") { typeParams = this.parseTypeParams() }
-        // bases: ': Base (, Base)*'
-        List<ASTType> bases = new List<ASTType>()
-        if this.curIsPunct(":") {
-            this.bump()
-            bool gb = true
-            while gb {
-                ASTType b = this.parseType()
-                bases.add(b)
-                if this.curIsPunct(",") { this.bump() }
-                else { gb = false }
-            }
-        }
-        ASTClass c = ASTBuilder.CreateClass(this.module, loc, kind, nm, mods, bases)
-        List<ASTType> ctp = c.getTypeParams()
-        int ti = 0
-        while ti < typeParams.size() { ctp.add(typeParams.get(ti))  ti = ti + 1 }
-        this.expectPunct("{")
-        bool go = this.curIsPunct("}") == false && this.hadErr() == false
-        while go {
-            this.parseClassMember(c, nm)
-            if this.curIsPunct("}") || this.curIsEof() || this.hadErr() { go = false }
-        }
-        this.expectPunct("}")
-        out = c
-    }
+    // parseClass — delegated to the ParserClass companion (ParserClass.fly).
+    public ASTClass parseClass(const List<ASTModifier> mods) { out = ParserClass.parse(this, mods) }
 
     // parseClassMember — a constructor, method, or attribute.
-    public void parseClassMember(const ASTClass c, const string className) {
-        List<ASTModifier> mmods = this.parseModifiers()
-        SourceLocation loc = this.curLoc()
-        // Constructor: ClassName ( ... ) { ... }  (name == class, no return type)
-        if this.curIsNamePart() && fly.str.equals(this.curText(), className) && this.nxtIsPunct("(") {
-            this.bump()  // class name
-            List<ASTParam> params = this.parseParams()
-            // NOTE: created directly (not via ASTBuilder.CreateClassMethod) — that helper
-            // routes through CreateBody(ASTFunction, …), and passing an ASTMethod upcast to
-            // ASTFunction then calling the inherited setBody triggers the deferred upcast bug.
-            ASTMethod ctor = new ASTMethod(loc, mmods, className, params)
-            if this.curIsPunct("{") {
-                ASTBlockStmt cbody = this.parseBlock()
-                ctor.setBody(cbody)
-            }
-            c.addNode(ctor)
-            return
-        }
-        // Otherwise: Type name  →  method (if '(') or attribute
-        ASTType ty = this.parseType()
-        string nm = ""
-        if this.curIsNamePart() { nm = this.curText()  this.bump() }
-        else { this.reportErr(DiagID.err_parser_identifier_expected)  return }
-        if this.curIsPunct("(") {
-            List<ASTParam> params = this.parseParams()
-            ASTMethod meth = new ASTMethod(loc, mmods, nm, params)
-            meth.setReturnType(ty)
-            if this.curIsPunct("{") {
-                ASTBlockStmt mbody = this.parseBlock()
-                meth.setBody(mbody)
-            }
-            c.addNode(meth)
-        } else {
-            ASTAttribute attr = ASTBuilder.CreateClassAttribute(loc, c, ty, nm, mmods, null)
-        }
-    }
+    public void parseClassMember(const ASTClass c, const string className) { ParserClass.parseMember(this, c, className) }
 
     // ── ParseEnum ─────────────────────────────────────────────────────────────
-    public ASTEnum parseEnum(const List<ASTModifier> mods) {
-        SourceLocation loc = this.curLoc()
-        this.expectKw("enum")
-        string nm = ""
-        if this.curIsNamePart() { nm = this.curText()  this.bump() }
-        else { this.reportErr(DiagID.err_parser_identifier_expected) }
-        List<ASTType> bases = new List<ASTType>()
-        ASTEnum e = ASTBuilder.CreateEnum(this.module, loc, nm, mods, bases)
-        List<ASTModifier> noMods = new List<ASTModifier>()
-        this.expectPunct("{")
-        bool go = this.curIsPunct("}") == false
-        while go {
-            if this.curIsNamePart() {
-                SourceLocation eloc = this.curLoc()
-                ASTEnumEntry entry = ASTBuilder.CreateEnumEntry(eloc, e, this.curText(), noMods)
-                this.bump()
-                if this.curIsPunct(",") { this.bump() }
-                else { go = false }
-            } else {
-                go = false
-            }
-        }
-        this.expectPunct("}")
-        out = e
-    }
+    // parseEnum — delegated to the ParserEnum companion (ParserEnum.fly).
+    public ASTEnum parseEnum(const List<ASTModifier> mods) { out = ParserEnum.parse(this, mods) }
 
     // ── ParseBlock / ParseStmt ───────────────────────────────────────────────
     public ASTBlockStmt parseBlock() {
@@ -784,208 +657,12 @@ public class Parser {
         s.setExpr(e)
     }
 
-    // ── ParseExpr (precedence climbing) ──────────────────────────────────────
-    public ASTExpr parseExpr() { out = this.parseAssign() }
-
-    public ASTExpr parseAssign() {
-        ASTExpr left = this.parseTernary()
-        if this.curIsPunct("=") {
-            SourceLocation oploc = this.curLoc()
-            this.bump()
-            ASTExpr right = this.parseAssign()
-            out = ASTBuilder.CreateBinary(oploc, ASTBinaryKind.OP_BINARY_ASSIGN, left, right)
-            return
-        }
-        out = left
-    }
-
-    // parseTernary — `cond ? then : else` (binds tighter than '=', looser than binary).
-    public ASTExpr parseTernary() {
-        ASTExpr cond = this.parseBin(2)
-        if this.curIsPunct("?") {
-            SourceLocation tloc = this.curLoc()
-            this.bump()
-            ASTExpr t = this.parseExpr()
-            SourceLocation floc = this.curLoc()
-            if this.curIsPunct(":") { this.bump() }
-            else { this.reportErr(DiagID.err_parser_ternary_expr) }
-            ASTExpr f = this.parseTernary()
-            out = ASTBuilder.CreateTernary(cond, tloc, t, floc, f)
-            return
-        }
-        out = cond
-    }
-
-    public ASTExpr parseBin(const int minPrec) {
-        ASTExpr left = this.parseUnary()
-        bool go = true
-        while go {
-            string op = ""
-            if this.cur.kind == TokenKind.PUNCT { op = this.curText() }
-            int prec = binPrec(op)
-            if prec >= minPrec && prec > 0 {
-                SourceLocation oploc = this.curLoc()
-                this.bump()
-                ASTExpr right = this.parseBin(prec + 1)
-                ASTBinaryKind bk = binKindFor(op)
-                left = ASTBuilder.CreateBinary(oploc, bk, left, right)
-            } else {
-                go = false
-            }
-        }
-        out = left
-    }
-
-    public ASTExpr parseUnary() {
-        if this.curIsPunct("!") {
-            SourceLocation loc = this.curLoc()
-            this.bump()
-            ASTExpr operand = this.parseUnary()
-            out = ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_NOT_LOG, operand)
-            return
-        }
-        if this.curIsPunct("++") {
-            SourceLocation loc = this.curLoc()
-            this.bump()
-            ASTExpr operand = this.parseUnary()
-            out = ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_PRE_INCR, operand)
-            return
-        }
-        if this.curIsPunct("--") {
-            SourceLocation loc = this.curLoc()
-            this.bump()
-            ASTExpr operand = this.parseUnary()
-            out = ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_PRE_DECR, operand)
-            return
-        }
-        out = this.parsePostfix()
-    }
-
-    public ASTExpr parsePostfix() {
-        ASTExpr e = this.parsePrimary()
-        bool go = true
-        while go {
-            if this.curIsPunct(".") {
-                this.bump()
-                SourceLocation loc = this.curLoc()
-                string nm = ""
-                if this.curIsNamePart() { nm = this.curText()  this.bump() }
-                else { this.reportErr(DiagID.err_parser_identifier_expected)  go = false }
-                if this.curIsPunct("(") {
-                    ASTCall call = this.parseCallTail(loc, nm, ASTCallKind.CALL_DIRECT, e)
-                    e = call
-                } else {
-                    ASTMember mem = ASTBuilder.CreateMember(loc, nm, e)
-                    e = mem
-                }
-            } else {
-                go = false
-            }
-        }
-        // postfix increment / decrement
-        if this.curIsPunct("++") {
-            SourceLocation ploc = this.curLoc()
-            this.bump()
-            e = ASTBuilder.CreateUnary(ploc, ASTUnaryKind.OP_UNARY_POST_INCR, e)
-        } elsif this.curIsPunct("--") {
-            SourceLocation ploc = this.curLoc()
-            this.bump()
-            e = ASTBuilder.CreateUnary(ploc, ASTUnaryKind.OP_UNARY_POST_DECR, e)
-        }
-        out = e
-    }
-
-    // parseCallTail — parse '(' args ')' for a call named `nm` with parent `parent`.
-    public ASTCall parseCallTail(const SourceLocation loc, const string nm, const ASTCallKind kind, const ASTExpr parent) {
-        ASTCall call = new ASTCall(loc, nm, kind)
-        if parent != null { call.setParent(parent) }
-        this.expectPunct("(")
-        bool go = this.curIsPunct(")") == false
-        int idx = 0
-        while go {
-            ASTExpr a = this.parseExpr()
-            ASTArg arg = new ASTArg(loc, a, idx)
-            call.addArg(arg)
-            idx = idx + 1
-            if this.curIsPunct(",") { this.bump() }
-            else { go = false }
-        }
-        this.expectPunct(")")
-        out = call
-    }
-
-    // parseLiteral — a value literal (number/string/bool/null), or null if the
-    // current token is not a literal. Split out of parsePrimary to keep each method
-    // small (a monolithic many-branch method trips a codegen "Broken function").
-    public ASTExpr parseLiteral() {
-        SourceLocation loc = this.curLoc()
-        if this.cur.kind == TokenKind.NUMBER {
-            ASTNumberValue n = ASTBuilder.CreateNumberValue(loc, this.curText())
-            this.bump()
-            out = n
-            return
-        }
-        if this.cur.kind == TokenKind.STRING {
-            ASTStringValue s = ASTBuilder.CreateStringValue(loc, this.curText())
-            this.bump()
-            out = s
-            return
-        }
-        if this.curIsKw("true")  { this.bump()  out = ASTBuilder.CreateBoolValue(loc, true)   return }
-        if this.curIsKw("false") { this.bump()  out = ASTBuilder.CreateBoolValue(loc, false)  return }
-        if this.curIsKw("null")  { this.bump()  out = ASTBuilder.CreateNullValue(loc)         return }
-        out = null
-    }
-
-    public ASTExpr parsePrimary() {
-        SourceLocation loc = this.curLoc()
-        if this.curIsKw("new") {
-            out = this.parseNew()
-            return
-        }
-        if this.cur.kind == TokenKind.NUMBER || this.cur.kind == TokenKind.STRING || this.curIsKw("true") || this.curIsKw("false") || this.curIsKw("null") {
-            out = this.parseLiteral()
-            return
-        }
-        if this.curIsPunct("(") {
-            this.bump()
-            // C-style cast to a builtin type: `(int)x` — unambiguous because a builtin
-            // type keyword followed by ')' cannot be a parenthesized expression.
-            if this.curIsBuiltinType() && this.nxtIsPunct(")") {
-                ASTType castTy = this.parseBuiltinType()
-                this.expectPunct(")")
-                ASTExpr operand = this.parseUnary()
-                out = ASTBuilder.CreateCast(operand, castTy)
-                return
-            }
-            ASTExpr e = this.parseExpr()
-            this.expectPunct(")")
-            out = e
-            return
-        }
-        // identifier, or call `name(...)`
-        if this.curIsNamePart() {
-            string nm = this.curText()
-            this.bump()
-            if this.curIsPunct("(") {
-                out = this.parseCallTail(loc, nm, ASTCallKind.CALL_DIRECT, null)
-                return
-            }
-            out = ASTBuilder.CreateIdentifier(loc, nm, null)
-            return
-        }
-        this.reportErr(DiagID.err_parser_expr_expected_primary)
-        out = ASTBuilder.CreateNullValue(loc)
-    }
-
-    public ASTExpr parseNew() {
-        SourceLocation loc = this.curLoc()
-        this.expectKw("new")
-        string nm = ""
-        if this.curIsNamePart() { nm = this.curText()  this.bump() }
-        else { this.reportErr(DiagID.err_parser_new_instance) }
-        out = this.parseCallTail(loc, nm, ASTCallKind.CALL_NEW, null)
-    }
+    // ── ParseExpr ─────────────────────────────────────────────────────────────
+    // Expression parsing lives in the ParserExpr companion (ParserExpr.fly), mirroring
+    // fly/compiler/Parser/ParserExpr.cpp. ParserExpr uses STATIC methods threading `this`
+    // (no stored Parser field) to avoid the Parser<->companion instance cycle that crashes
+    // codegen (task #11).
+    public ASTExpr parseExpr() { out = ParserExpr.parse(this) }
 }
 
 // newParser — convenience factory.

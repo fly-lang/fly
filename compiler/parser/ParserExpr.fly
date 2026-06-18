@@ -1,0 +1,223 @@
+namespace fly.compiler.parser
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ParserExpr — expression parsing, split out of Parser to mirror the C++
+// fly/compiler/Parser/ParserExpr.cpp. Uses STATIC methods that thread the Parser
+// `p` (like the C++ ParserClass/Enum/Function which take a Parser*), so there is
+// no stored Parser field and thus no Parser<->ParserExpr instance cycle (that
+// cycle crashes the current fly codegen — see task #11). Precedence climbing:
+// assignment → ternary → binary → unary → postfix → primary.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class ParserExpr {
+
+    public ParserExpr() { }
+
+    // parse — entry point: an assignment expression.
+    public static ASTExpr parse(const Parser p) { out = ParserExpr.parseAssign(p) }
+
+    public static ASTExpr parseAssign(const Parser p) {
+        ASTExpr left = ParserExpr.parseTernary(p)
+        if p.curIsPunct("=") {
+            SourceLocation oploc = p.curLoc()
+            p.bump()
+            ASTExpr right = ParserExpr.parseAssign(p)
+            out = ASTBuilder.CreateBinary(oploc, ASTBinaryKind.OP_BINARY_ASSIGN, left, right)
+            return
+        }
+        out = left
+    }
+
+    // parseTernary — `cond ? then : else` (binds tighter than '=', looser than binary).
+    public static ASTExpr parseTernary(const Parser p) {
+        ASTExpr cond = ParserExpr.parseBin(p, 2)
+        if p.curIsPunct("?") {
+            SourceLocation tloc = p.curLoc()
+            p.bump()
+            ASTExpr t = ParserExpr.parse(p)
+            SourceLocation floc = p.curLoc()
+            if p.curIsPunct(":") { p.bump() }
+            else { p.reportErr(DiagID.err_parser_ternary_expr) }
+            ASTExpr f = ParserExpr.parseTernary(p)
+            out = ASTBuilder.CreateTernary(cond, tloc, t, floc, f)
+            return
+        }
+        out = cond
+    }
+
+    public static ASTExpr parseBin(const Parser p, const int minPrec) {
+        ASTExpr left = ParserExpr.parseUnary(p)
+        bool go = true
+        while go {
+            string op = ""
+            if p.curIsAnyPunct() { op = p.curText() }
+            int prec = binPrec(op)
+            if prec >= minPrec && prec > 0 {
+                SourceLocation oploc = p.curLoc()
+                p.bump()
+                ASTExpr right = ParserExpr.parseBin(p, prec + 1)
+                ASTBinaryKind bk = binKindFor(op)
+                left = ASTBuilder.CreateBinary(oploc, bk, left, right)
+            } else {
+                go = false
+            }
+        }
+        out = left
+    }
+
+    public static ASTExpr parseUnary(const Parser p) {
+        if p.curIsPunct("!") {
+            SourceLocation loc = p.curLoc()
+            p.bump()
+            ASTExpr operand = ParserExpr.parseUnary(p)
+            out = ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_NOT_LOG, operand)
+            return
+        }
+        if p.curIsPunct("++") {
+            SourceLocation loc = p.curLoc()
+            p.bump()
+            ASTExpr operand = ParserExpr.parseUnary(p)
+            out = ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_PRE_INCR, operand)
+            return
+        }
+        if p.curIsPunct("--") {
+            SourceLocation loc = p.curLoc()
+            p.bump()
+            ASTExpr operand = ParserExpr.parseUnary(p)
+            out = ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_PRE_DECR, operand)
+            return
+        }
+        out = ParserExpr.parsePostfix(p)
+    }
+
+    public static ASTExpr parsePostfix(const Parser p) {
+        ASTExpr e = ParserExpr.parsePrimary(p)
+        bool go = true
+        while go {
+            if p.curIsPunct(".") {
+                p.bump()
+                SourceLocation loc = p.curLoc()
+                string nm = ""
+                if p.curIsNamePart() { nm = p.curText()  p.bump() }
+                else { p.reportErr(DiagID.err_parser_identifier_expected)  go = false }
+                if p.curIsPunct("(") {
+                    ASTCall call = ParserExpr.parseCallTail(p, loc, nm, ASTCallKind.CALL_DIRECT, e)
+                    e = call
+                } else {
+                    ASTMember mem = ASTBuilder.CreateMember(loc, nm, e)
+                    e = mem
+                }
+            } else {
+                go = false
+            }
+        }
+        // postfix increment / decrement
+        if p.curIsPunct("++") {
+            SourceLocation ploc = p.curLoc()
+            p.bump()
+            e = ASTBuilder.CreateUnary(ploc, ASTUnaryKind.OP_UNARY_POST_INCR, e)
+        } elsif p.curIsPunct("--") {
+            SourceLocation ploc = p.curLoc()
+            p.bump()
+            e = ASTBuilder.CreateUnary(ploc, ASTUnaryKind.OP_UNARY_POST_DECR, e)
+        }
+        out = e
+    }
+
+    // parseCallTail — parse '(' args ')' for a call named `nm` with parent `parent`.
+    public static ASTCall parseCallTail(const Parser p, const SourceLocation loc, const string nm, const ASTCallKind kind, const ASTExpr parent) {
+        ASTCall call = new ASTCall(loc, nm, kind)
+        if parent != null { call.setParent(parent) }
+        p.expectPunct("(")
+        bool go = p.curIsPunct(")") == false
+        int idx = 0
+        while go {
+            ASTExpr a = ParserExpr.parse(p)
+            ASTArg arg = new ASTArg(loc, a, idx)
+            call.addArg(arg)
+            idx = idx + 1
+            if p.curIsPunct(",") { p.bump() }
+            else { go = false }
+        }
+        p.expectPunct(")")
+        out = call
+    }
+
+    // parseLiteral — a value literal (number/string/bool/null), or null if the current
+    // token is not a literal. Split out of parsePrimary to keep each method small (a
+    // monolithic many-branch method trips a codegen "Broken function").
+    public static ASTExpr parseLiteral(const Parser p) {
+        SourceLocation loc = p.curLoc()
+        if p.curIsNumber() {
+            ASTNumberValue n = ASTBuilder.CreateNumberValue(loc, p.curText())
+            p.bump()
+            out = n
+            return
+        }
+        if p.curIsStringLit() {
+            ASTStringValue s = ASTBuilder.CreateStringValue(loc, p.curText())
+            p.bump()
+            out = s
+            return
+        }
+        if p.curIsKw("true")  { p.bump()  out = ASTBuilder.CreateBoolValue(loc, true)   return }
+        if p.curIsKw("false") { p.bump()  out = ASTBuilder.CreateBoolValue(loc, false)  return }
+        if p.curIsKw("null")  { p.bump()  out = ASTBuilder.CreateNullValue(loc)         return }
+        out = null
+    }
+
+    public static ASTExpr parsePrimary(const Parser p) {
+        SourceLocation loc = p.curLoc()
+        if p.curIsKw("new") {
+            out = ParserExpr.parseNew(p)
+            return
+        }
+        if p.curIsNumber() || p.curIsStringLit() || p.curIsKw("true") || p.curIsKw("false") || p.curIsKw("null") {
+            out = ParserExpr.parseLiteral(p)
+            return
+        }
+        if p.curIsPunct("(") {
+            p.bump()
+            // C-style cast to a builtin type: `(int)x` — unambiguous because a builtin
+            // type keyword followed by ')' cannot be a parenthesized expression.
+            if p.curIsBuiltinType() && p.nxtIsPunct(")") {
+                ASTType castTy = p.parseBuiltinType()
+                p.expectPunct(")")
+                ASTExpr operand = ParserExpr.parseUnary(p)
+                out = ASTBuilder.CreateCast(operand, castTy)
+                return
+            }
+            ASTExpr e = ParserExpr.parse(p)
+            p.expectPunct(")")
+            out = e
+            return
+        }
+        // identifier, or call `name(...)`
+        if p.curIsNamePart() {
+            string nm = p.curText()
+            p.bump()
+            if p.curIsPunct("(") {
+                out = ParserExpr.parseCallTail(p, loc, nm, ASTCallKind.CALL_DIRECT, null)
+                return
+            }
+            out = ASTBuilder.CreateIdentifier(loc, nm, null)
+            return
+        }
+        p.reportErr(DiagID.err_parser_expr_expected_primary)
+        out = ASTBuilder.CreateNullValue(loc)
+    }
+
+    public static ASTExpr parseNew(const Parser p) {
+        SourceLocation loc = p.curLoc()
+        p.expectKw("new")
+        string nm = ""
+        if p.curIsNamePart() { nm = p.curText()  p.bump() }
+        else { p.reportErr(DiagID.err_parser_new_instance) }
+        out = ParserExpr.parseCallTail(p, loc, nm, ASTCallKind.CALL_NEW, null)
+    }
+}

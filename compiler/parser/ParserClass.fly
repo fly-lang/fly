@@ -1,0 +1,87 @@
+namespace fly.compiler.parser
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ParserClass — class/struct/interface/suite declaration parsing, split out of
+// Parser to mirror fly/compiler/Parser/ParserClass.cpp. Static methods threading
+// the Parser `p`. Members (attribute / constructor / method) self-register into
+// the class via ASTBuilder.Create*.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class ParserClass {
+
+    public ParserClass() { }
+
+    // parse — `class|struct|interface|suite Name <T…> : Bases { members }`.
+    public static ASTClass parse(const Parser p, const List<ASTModifier> mods) {
+        SourceLocation loc = p.curLoc()
+        ASTClassKind kind = ASTClassKind.CLASS
+        if p.curIsKw("interface") { kind = ASTClassKind.INTERFACE }
+        elsif p.curIsKw("struct") { kind = ASTClassKind.STRUCT }
+        elsif p.curIsKw("suite")  { kind = ASTClassKind.SUITE }
+        p.bump()  // class kind keyword
+        string nm = ""
+        if p.curIsNamePart() { nm = p.curText()  p.bump() }
+        else { p.reportErr(DiagID.err_parser_identifier_expected) }
+        // generic type parameters: `class Box<T, U : Bound>`
+        List<ASTType> typeParams = new List<ASTType>()
+        if p.curIsPunct("<") { typeParams = p.parseTypeParams() }
+        // bases: ': Base (, Base)*'
+        List<ASTType> bases = new List<ASTType>()
+        if p.curIsPunct(":") {
+            p.bump()
+            bool gb = true
+            while gb {
+                ASTType b = p.parseType()
+                bases.add(b)
+                if p.curIsPunct(",") { p.bump() }
+                else { gb = false }
+            }
+        }
+        ASTClass c = ASTBuilder.CreateClass(p.getModule(), loc, kind, nm, mods, bases)
+        List<ASTType> ctp = c.getTypeParams()
+        int ti = 0
+        while ti < typeParams.size() { ctp.add(typeParams.get(ti))  ti = ti + 1 }
+        p.expectPunct("{")
+        bool go = p.curIsPunct("}") == false && p.hadErr() == false
+        while go {
+            ParserClass.parseMember(p, c, nm)
+            if p.curIsPunct("}") || p.curIsEof() || p.hadErr() { go = false }
+        }
+        p.expectPunct("}")
+        out = c
+    }
+
+    // parseMember — a constructor, method, or attribute.
+    public static void parseMember(const Parser p, const ASTClass c, const string className) {
+        List<ASTModifier> mmods = p.parseModifiers()
+        SourceLocation loc = p.curLoc()
+        // Constructor: ClassName ( ... ) { ... }  (name == class, no return type)
+        if p.curIsNamePart() && fly.str.equals(p.curText(), className) && p.nxtIsPunct("(") {
+            p.bump()  // class name
+            List<ASTParam> params = p.parseParams()
+            ASTBlockStmt cbody = null
+            if p.curIsPunct("{") { cbody = p.parseBlock() }
+            ASTMethod ctor = ASTBuilder.CreateClassMethod(loc, c, className, mmods, params, cbody)
+            return
+        }
+        // Otherwise: Type name  →  method (if '(') or attribute
+        ASTType ty = p.parseType()
+        string nm = ""
+        if p.curIsNamePart() { nm = p.curText()  p.bump() }
+        else { p.reportErr(DiagID.err_parser_identifier_expected)  return }
+        if p.curIsPunct("(") {
+            List<ASTParam> params = p.parseParams()
+            ASTBlockStmt mbody = null
+            if p.curIsPunct("{") { mbody = p.parseBlock() }
+            ASTMethod meth = ASTBuilder.CreateClassMethod(loc, c, nm, mmods, params, mbody)
+            meth.setReturnType(ty)
+        } else {
+            ASTAttribute attr = ASTBuilder.CreateClassAttribute(loc, c, ty, nm, mmods, null)
+        }
+    }
+}
