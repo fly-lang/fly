@@ -3,6 +3,7 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTExprKind
+import fly.compiler.ast.ASTVisitor
 
 public class ASTTernary : ASTExpr {
 
@@ -26,4 +27,6 @@ public class ASTTernary : ASTExpr {
     public ASTExpr getTrueExpr() { out = this.trueExpr }
     public SourceLocation getFalseOpLocation() { out = this.falseOpLocation }
     public ASTExpr getFalseExpr() { out = this.falseExpr }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

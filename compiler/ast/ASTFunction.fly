@@ -7,6 +7,7 @@ import fly.compiler.ast.ASTNode
 import fly.compiler.ast.ASTType
 import fly.compiler.ast.ASTModifier
 import fly.compiler.ast.ASTParam
+import fly.compiler.ast.ASTVisitor
 import fly.data.List
 
 public enum ASTFunctionKind {
@@ -45,4 +46,6 @@ public class ASTFunction : ASTNode {
     public void setReturnTypes(const List<ASTType> returnTypes) { this.returnTypes = returnTypes }
     public ASTBlockStmt getBody() { out = this.body }
     public void setBody(const ASTBlockStmt body) { this.body = body }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

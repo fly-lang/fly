@@ -1,0 +1,13 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaVar
+import fly.compiler.sema.SemaType
+import fly.compiler.ast.ASTVar
+
+// SemaLocalVar — a resolved function/method local variable. 1:1 with C++.
+public class SemaLocalVar : SemaVar {
+    public SemaLocalVar(const ASTVar varAst, const SemaType type) {
+        super(varAst, SemaKind.LOCAL_VAR, type)
+    }
+}

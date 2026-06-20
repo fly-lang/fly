@@ -3,6 +3,7 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTStmt
 import fly.compiler.ast.ASTStmtKind
+import fly.compiler.ast.ASTVisitor
 import fly.data.List
 
 public class ASTBlockStmt : ASTStmt {
@@ -16,4 +17,6 @@ public class ASTBlockStmt : ASTStmt {
 
     public List<ASTStmt> getContent() { out = this.content }
     public void addContent(const ASTStmt stmt) { this.content.add(stmt) }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

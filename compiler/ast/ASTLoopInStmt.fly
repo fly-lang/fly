@@ -4,6 +4,7 @@ import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTStmt
 import fly.compiler.ast.ASTStmtKind
+import fly.compiler.ast.ASTVisitor
 
 public class ASTLoopInStmt : ASTStmt {
 
@@ -22,4 +23,6 @@ public class ASTLoopInStmt : ASTStmt {
     public ASTExpr getList() { out = this.list }
     public ASTStmt getStmt() { out = this.stmt }
     public void setStmt(const ASTStmt s) { this.stmt = s }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

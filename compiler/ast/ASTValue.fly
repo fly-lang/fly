@@ -3,6 +3,7 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTExprKind
+import fly.compiler.ast.ASTVisitor
 import fly.data.List
 
 public enum ASTValueKind {
@@ -47,6 +48,8 @@ public class ASTBoolValue : ASTValue {
     }
 
     public bool getValue() { out = this.value }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }
 
 public class ASTNumberValue : ASTValue {
@@ -59,6 +62,8 @@ public class ASTNumberValue : ASTValue {
     }
 
     public string getValue() { out = this.value }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }
 
 public class ASTStringValue : ASTValue {
@@ -71,6 +76,8 @@ public class ASTStringValue : ASTValue {
     }
 
     public string getValue() { out = this.value }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }
 
 public class ASTArrayValue : ASTValue {
@@ -84,6 +91,8 @@ public class ASTArrayValue : ASTValue {
 
     public List<ASTExpr> getValues() { out = this.values }
     public void setValues(const List<ASTExpr> v) { this.values = v }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }
 
 public class ASTStructValue : ASTValue {
@@ -97,6 +106,8 @@ public class ASTStructValue : ASTValue {
 
     public List<ASTExpr> getValues() { out = this.values }
     public void setValues(const List<ASTExpr> v) { this.values = v }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }
 
 public class ASTNullValue : ASTValue {
@@ -104,6 +115,8 @@ public class ASTNullValue : ASTValue {
     public ASTNullValue(const SourceLocation loc) {
         super(ASTValueKind.VAL_NULL, loc)
     }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }
 
 public class ASTUnsetValue : ASTValue {
@@ -111,4 +124,6 @@ public class ASTUnsetValue : ASTValue {
     public ASTUnsetValue(const SourceLocation loc) {
         super(ASTValueKind.VAL_UNSET, loc)
     }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

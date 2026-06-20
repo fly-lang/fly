@@ -1,0 +1,70 @@
+import fly.compiler.sema.*
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.data.List
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaExprSuite — Stage 4 (exprs/values portion): value nodes + SemaVar base +
+// expr parent/child linking. (Operator exprs and member/call added with their
+// node files.)
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite SemaExprSuite {
+
+    void valueTest() {
+        case "bool / int / float / string values": {
+            SourceLocation loc = slGetFileLoc(0)
+            SemaBoolType bt = new SemaBoolType()
+            ASTBoolValue ab = new ASTBoolValue(loc, true)
+            SemaBoolValue sb = new SemaBoolValue(ab, bt)
+            assert.assertTrue(sb.getValue(), 1)
+            assert.assertTrue(sb.getKind() == SemaKind.VALUE, 2)
+            SemaType sbt = sb.getType()
+            assert.assertTrue(sbt.isBool(), 3)
+
+            SemaIntType it = new SemaIntType(SemaIntTypeKind.TYPE_INT, "int")
+            ASTNumberValue an = new ASTNumberValue(loc, "42")
+            SemaIntValue si = new SemaIntValue(an, it, "42")
+            assert.assertStr(si.getValue(), "42", 4)
+
+            SemaFloatType ft = new SemaFloatType(SemaFloatTypeKind.TYPE_DOUBLE, "double")
+            ASTNumberValue af = new ASTNumberValue(loc, "3.14")
+            SemaFloatValue sf = new SemaFloatValue(af, ft, "3.14")
+            assert.assertStr(sf.getValue(), "3.14", 5)
+
+            SemaStringType strt = new SemaStringType()
+            ASTStringValue astr = new ASTStringValue(loc, "hi")
+            SemaStringValue ss = new SemaStringValue(astr, strt)
+            assert.assertStr(ss.getValue(), "hi", 6)
+        }
+        case "array value holds elements": {
+            SourceLocation loc = slGetFileLoc(0)
+            SemaIntType it = new SemaIntType(SemaIntTypeKind.TYPE_INT, "int")
+            ASTArrayValue aav = new ASTArrayValue(loc)
+            SemaArrayValue sav = new SemaArrayValue(aav, it)
+            ASTNumberValue an = new ASTNumberValue(loc, "1")
+            SemaIntValue e = new SemaIntValue(an, it, "1")
+            sav.addValue(e)
+            List<SemaValue> vs = sav.getValues()
+            assert.assertEqI(vs.size(), 1, 7)
+        }
+    }
+
+    void varTest() {
+        case "SemaVar base: name + const + type": {
+            SourceLocation loc = slGetFileLoc(0)
+            List<ASTModifier> mods = new List<ASTModifier>()
+            ASTBuiltinType bt = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_INT)
+            ASTLocalVar lv = new ASTLocalVar(loc, bt, "n", mods)
+            SemaIntType it = new SemaIntType(SemaIntTypeKind.TYPE_INT, "int")
+            SemaVar v = new SemaVar(lv, SemaKind.LOCAL_VAR, it)
+            assert.assertStr(v.getName(), "n", 10)
+            assert.assertTrue(v.isConstant() == false, 11)
+            v.setConstant(true)
+            assert.assertTrue(v.isConstant(), 12)
+            SemaType vt = v.getType()
+            assert.assertTrue(vt.isInteger(), 13)
+        }
+    }
+}

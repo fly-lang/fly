@@ -1,0 +1,385 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.compiler.basic.*
+import fly.data.List
+
+// ResolverClass — class/enum resolution companion (static methods threading the
+// Resolver). Classes are resolved in two phases: declareClass (Phase A, during the
+// module walk) creates the type shell + registers its symbol so every class name is
+// known before any member resolution; resolveClassType (Phase B, from Resolve())
+// resolves base classes, attributes and methods once all shells exist.
+public class ResolverClass {
+
+    public ResolverClass() { }
+
+    // declareClass — visit(ASTClass): create the SemaClassType shell, register the
+    // type symbol in the module (and namespace) scope, and queue it for Phase B.
+    public static void declareClass(const Resolver r, const ASTClass node) {
+        if node.isVisited() { return }
+        node.setVisited(true)
+        r.resetCurrents()
+        r.enterScope()
+        SemaModule mod = r.getCurrentModule()
+        SymbolTable clsScope = r.getCurrentScope()
+        SemaClassType cls = SemaBuilder.CreateClass(mod, clsScope, node)
+
+        // Register generic type parameters (e.g. T in Wrapper<T>) as CLASS symbols in
+        // the class scope so member types resolve T to the SemaTypeParam. Each
+        // specialization later rebinds T → a concrete type in its own scope.
+        List<ASTType> tps = node.getTypeParams()
+        int ti = 0
+        while ti < tps.size() {
+            ASTType tpt = tps.get(ti)
+            ASTTypeParam tp = tpt.asTypeParam()
+            if tp != null {
+                SemaTypeParam sp = new SemaTypeParam(tp.getName())
+                cls.addTypeParam(sp)
+                Symbol psym = new Symbol(tp.getName(), SymbolKind.CLASS, sp)
+                psym.setTypeRef(sp)
+                bool ok = clsScope.insert(psym)
+            }
+            ti = ti + 1
+        }
+
+        r.exitScope()
+
+        Symbol sym = new Symbol(node.getName(), SymbolKind.CLASS, cls)
+        sym.setTypeRef(cls)
+        r.addSymbol(sym)
+
+        Registry reg = r.getReg()
+        reg.addClass(cls)
+    }
+
+    // resolveClassType — Phase B: resolve a class's members (attributes + methods)
+    // against its own scope, then synthesize a default constructor if needed.
+    public static void resolveClassType(const Resolver r, const SemaClassType cls) {
+        if cls.isResolved() { return }
+        cls.setResolved(true)
+        r.setCurrentScope(cls.getSymbols())
+        r.setCurrentClass(cls)
+
+        // Resolve base classes first (depth-first) so inherited members exist before
+        // this class's methods are matched against them; restore current scope/class
+        // afterwards (base recursion moves them).
+        ResolverClass.resolveBaseClasses(r, cls)
+        r.setCurrentScope(cls.getSymbols())
+        r.setCurrentClass(cls)
+
+        ASTClass ac = cls.getAST()
+        List<ASTNode> nodes = ac.getNodes()
+        int i = 0
+        while i < nodes.size() {
+            ASTNode n = nodes.get(i)
+            n.accept(r)
+            i = i + 1
+        }
+
+        SemaClassMethod dc = cls.getDefaultConstructor()
+        if dc == null {
+            if cls.getClassKind() != SemaClassKind.INTERFACE {
+                ResolverClass.createDefaultConstructor(r, cls)
+            }
+        }
+
+        ResolverClass.checkAbstractMethods(r, cls)
+        r.setCurrentClass(null)
+    }
+
+    // checkAbstractMethods — a concrete class must provide a concrete implementation
+    // for every abstract method declared in its base chain (interfaces + abstract
+    // classes). Emits err_sema_abstract_not_implemented per missing method.
+    public static void checkAbstractMethods(const Resolver r, const SemaClassType cls) {
+        if cls.isAbstract() { return }
+        if cls.getClassKind() == SemaClassKind.INTERFACE { return }
+
+        List<string> required = new List<string>()
+        List<SemaClassType> bases = cls.getBaseClasses()
+        int i = 0
+        while i < bases.size() {
+            SemaClassType b = bases.get(i)
+            ResolverClass.collectAbstract(b, required)
+            i = i + 1
+        }
+
+        ASTClass ac = cls.getAST()
+        SourceLocation loc = ac.getLoc()
+        string cn = cls.getName()
+        int j = 0
+        while j < required.size() {
+            string name = required.get(j)
+            if ResolverClass.hasConcreteMethod(cls, name) == false {
+                r.diagStr2(loc, DiagID.err_sema_abstract_not_implemented, cn, name)
+            }
+            j = j + 1
+        }
+    }
+
+    // collectAbstract — gather the names of abstract methods declared anywhere in a
+    // base's chain (depth-first).
+    public static void collectAbstract(const SemaClassType base, const List<string> required) {
+        List<SemaClassType> supers = base.getBaseClasses()
+        int i = 0
+        while i < supers.size() {
+            SemaClassType s = supers.get(i)
+            ResolverClass.collectAbstract(s, required)
+            i = i + 1
+        }
+        List<SemaClassMethod> ms = base.getMethodList()
+        int j = 0
+        while j < ms.size() {
+            SemaClassMethod m = ms.get(j)
+            if m.isAbstract() { required.add(m.getName()) }
+            j = j + 1
+        }
+    }
+
+    // hasConcreteMethod — true if `cls` or any ancestor declares a concrete
+    // (non-abstract, non-constructor) method named `name`.
+    public static bool hasConcreteMethod(const SemaClassType cls, const string name) {
+        List<SemaClassMethod> ms = cls.getMethodList()
+        int i = 0
+        while i < ms.size() {
+            SemaClassMethod m = ms.get(i)
+            if m.isAbstract() == false {
+                if m.isConstructor() == false {
+                    if fly.str.equals(m.getName(), name) { out = true  return }
+                }
+            }
+            i = i + 1
+        }
+        List<SemaClassType> bases = cls.getBaseClasses()
+        int j = 0
+        while j < bases.size() {
+            SemaClassType b = bases.get(j)
+            if ResolverClass.hasConcreteMethod(b, name) { out = true  return }
+            j = j + 1
+        }
+        out = false
+    }
+
+    // resolveClassTypeIsolated — resolve a (generic specialization) class while
+    // preserving the enclosing resolution context, since resolveClassType overwrites
+    // the "current" fields and does not restore them (1:1 with C++).
+    public static void resolveClassTypeIsolated(const Resolver r, const SemaClassType spec) {
+        SymbolTable savedScope = r.getCurrentScope()
+        SemaClassType savedClass = r.getCurrentClass()
+        SemaEnumType savedEnum = r.getCurrentEnum()
+        SemaFunctionBase savedFn = r.getCurrentFunction()
+        SemaBlockStmt savedBlock = r.getCurrentSemaBlock()
+        SemaError savedEH = r.getCurrentErrorHandler()
+
+        ResolverClass.resolveClassType(r, spec)
+
+        r.setCurrentScope(savedScope)
+        r.setCurrentClass(savedClass)
+        r.setCurrentEnum(savedEnum)
+        r.setCurrentFunctionBase(savedFn)
+        r.setCurrentSemaBlock(savedBlock)
+        r.setCurrentErrorHandler(savedEH)
+    }
+
+    // resolveBaseClasses — resolve each `extends` type to a class, resolve that base
+    // fully (depth-first), and link it. Non-class / unresolved bases are skipped
+    // (kind/diamond/abstract checks are Stage 8).
+    public static void resolveBaseClasses(const Resolver r, const SemaClassType cls) {
+        ASTClass ac = cls.getAST()
+        List<ASTType> bases = ac.getBases()
+        int i = 0
+        while i < bases.size() {
+            ASTType bt = bases.get(i)
+            bt.accept(r)
+            SemaType st = r.getCurrentType()
+            SemaClassType bc = null
+            if st != null { bc = st.asClass() }
+            if bc != null {
+                ResolverClass.resolveClassType(r, bc)
+                cls.addBaseClass(bc)
+            }
+            i = i + 1
+        }
+    }
+
+    // linkOverride — set meth.Overridden to the base method (matched by name +
+    // explicit parameter types) it overrides, if any. LookupMethod already recurses
+    // into base classes.
+    public static void linkOverride(const SemaClassType cls, const SemaClassMethod meth, const string name) {
+        List<SemaClassType> bases = cls.getBaseClasses()
+        List<SemaType> ptypes = meth.getParamTypes()
+        int i = 0
+        while i < bases.size() {
+            SemaClassType b = bases.get(i)
+            SemaClassMethod bm = b.LookupMethod(name)
+            if bm != null {
+                List<SemaType> bp = bm.getParamTypes()
+                if ResolverClass.typesMatch(bp, ptypes) { meth.setOverridden(bm) }
+            }
+            i = i + 1
+        }
+    }
+
+    // typesMatch — element-wise SemaType.isEquals over two explicit-param lists.
+    public static bool typesMatch(const List<SemaType> a, const List<SemaType> b) {
+        if a.size() != b.size() { out = false  return }
+        int i = 0
+        while i < a.size() {
+            SemaType ta = a.get(i)
+            SemaType tb = b.get(i)
+            bool eq = false
+            if ta != null {
+                if tb != null { eq = ta.isEquals(tb) }
+            }
+            if eq == false { out = false  return }
+            i = i + 1
+        }
+        out = true
+    }
+
+    // attribute — visit(ASTAttribute): resolve the field type + optional initializer
+    // and register the field on the class and in the class scope.
+    public static void attribute(const Resolver r, const ASTAttribute node) {
+        SemaClassType cls = r.getCurrentClass()
+        ASTType at = node.getType()
+        at.accept(r)
+        SemaType t = r.getCurrentType()
+        SemaClassAttribute attr = SemaBuilder.CreateClassAttribute(cls, node, t)
+        cls.addAttribute(attr)
+
+        ASTExpr ie = node.getExpr()
+        if ie != null {
+            ie.accept(r)
+            attr.setInitExpr(r.getCurrentExpr())
+        }
+
+        Symbol sym = new Symbol(node.getName(), SymbolKind.ATTRIBUTE, attr)
+        sym.setExprRef(attr)
+        r.addSymbol(sym)
+    }
+
+    // method — visit(ASTMethod): build the method shell + signature (params +
+    // synthetic 'out' for a declared return type), register `this` and the method
+    // symbol, and queue the body for Phase C. A method with no body is abstract.
+    public static void method(const Resolver r, const ASTMethod node) {
+        SemaClassType cls = r.getCurrentClass()
+        r.enterScope()
+        SymbolTable mscope = r.getCurrentScope()
+        SemaClassMethod meth = SemaBuilder.CreateClassMethod(cls, node, mscope)
+        ASTBlockStmt body = node.getBody()
+        if body == null { meth.setAbstract(true) }
+        cls.addMethod(meth)
+
+        string mn = node.getName()
+        string cn = cls.getName()
+        if fly.str.equals(mn, cn) {
+            List<ASTParam> ps0 = node.getParams()
+            if ps0.size() == 0 { cls.setDefaultConstructor(meth) }
+        }
+
+        r.setCurrentFunctionBase(meth)
+
+        List<ASTParam> params = node.getParams()
+        int i = 0
+        while i < params.size() {
+            ASTParam p = params.get(i)
+            p.accept(r)
+            meth.addParam(r.getCurrentParam())
+            i = i + 1
+        }
+
+        ASTType rt = node.getReturnType()
+        if rt != null {
+            rt.accept(r)
+            meth.setReturnType(r.getCurrentType())
+            List<ASTModifier> noMods = new List<ASTModifier>()
+            ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rt, "out", noMods, null)
+            outAst.accept(r)
+            meth.addParam(r.getCurrentParam())
+        }
+
+        // Link this method to the base method it overrides (skip constructors).
+        if meth.isConstructor() == false {
+            ResolverClass.linkOverride(cls, meth, mn)
+        }
+
+        // `this` for non-static methods, added to the method scope so the body
+        // phase (which resolves against meth.getSymbols()) can reference it.
+        if meth.isStatic() == false {
+            SemaClassInstance ti = meth.getThis()
+            Symbol thisSym = new Symbol("this", SymbolKind.VAR, ti)
+            thisSym.setExprRef(ti)
+            r.addSymbol(thisSym)
+        }
+
+        r.exitScope()
+
+        // Queue the body for Phase C — except for a generic TEMPLATE's methods (a
+        // template with no GenericTemplate back-pointer): only its specializations
+        // produce resolvable bodies (T → concrete), like the C++ IsGenericTemplate guard.
+        if meth.isAbstract() == false {
+            bool isTemplate = false
+            if cls.isGeneric() {
+                if cls.getGenericTemplate() == null { isTemplate = true }
+            }
+            if isTemplate == false {
+                Registry reg = r.getReg()
+                reg.addBody(meth)
+            }
+        }
+
+        Symbol sym = new Symbol(mn, SymbolKind.FUNCTION, meth)
+        sym.setParamTypes(meth.getParamTypes())
+        r.addSymbol(sym)
+    }
+
+    // createDefaultConstructor — synthesize a no-arg constructor for a class that
+    // declares none (not for interfaces).
+    public static void createDefaultConstructor(const Resolver r, const SemaClassType cls) {
+        SymbolTable scope = cls.getSymbols()
+        SemaClassMethod dc = SemaBuilder.CreateDefaultConstructor(cls, scope)
+        cls.addMethod(dc)
+        cls.setDefaultConstructor(dc)
+        // Register the ctor symbol (under the class name) so `new C()` resolves it.
+        r.setCurrentScope(scope)
+        Symbol sym = new Symbol(cls.getName(), SymbolKind.FUNCTION, dc)
+        sym.setParamTypes(dc.getParamTypes())
+        r.addSymbol(sym)
+    }
+
+    // declareEnum — visit(ASTEnum): create the enum type + its entries + register
+    // the type symbol. Enums are self-contained (no bases), so this resolves fully
+    // in one pass during the module walk.
+    public static void declareEnum(const Resolver r, const ASTEnum node) {
+        r.resetCurrents()
+        r.enterScope()
+        SemaModule mod = r.getCurrentModule()
+        SymbolTable enScope = r.getCurrentScope()
+        SemaEnumType en = SemaBuilder.CreateEnum(mod, enScope, node)
+        r.setCurrentEnum(en)
+
+        List<ASTNode> nodes = node.getNodes()
+        int i = 0
+        while i < nodes.size() {
+            ASTNode n = nodes.get(i)
+            n.accept(r)
+            i = i + 1
+        }
+
+        r.exitScope()
+        Symbol sym = new Symbol(node.getName(), SymbolKind.ENUM, en)
+        sym.setTypeRef(en)
+        r.addSymbol(sym)
+        r.setCurrentEnum(null)
+    }
+
+    // enumEntry — visit(ASTEnumEntry): create the entry, add it to the enum, and
+    // register an entry symbol in the enum scope.
+    public static void enumEntry(const Resolver r, const ASTEnumEntry node) {
+        SemaEnumType en = r.getCurrentEnum()
+        SemaEnumEntry entry = SemaBuilder.CreateEnumEntry(en, node)
+        en.addEntry(entry)
+        Symbol sym = new Symbol(node.getName(), SymbolKind.ENUM_ENTRY, entry)
+        r.addSymbol(sym)
+    }
+}

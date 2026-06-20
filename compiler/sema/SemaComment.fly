@@ -1,0 +1,19 @@
+namespace fly.compiler.sema
+
+import fly.compiler.ast.ASTComment
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaComment — wraps a documentation comment attached to a declaration. 1:1 with
+// the C++ SemaComment (a standalone class, not a SemaNode).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class SemaComment {
+
+    ASTComment ast
+
+    public SemaComment(const ASTComment ast) {
+        this.ast = ast
+    }
+
+    public ASTComment getAST() { out = this.ast }
+}

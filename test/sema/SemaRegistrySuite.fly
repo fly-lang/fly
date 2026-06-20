@@ -1,0 +1,100 @@
+import fly.compiler.sema.*
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.data.List
+import fly.assert
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaRegistrySuite — Stage 5: Registry (builtin scope, namespaces, exact-match
+// function lookup, modules/bodies) and SemaBuiltin.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite SemaRegistrySuite {
+
+    void builtinTest() {
+        case "builtin types registered + lookup": {
+            Registry reg = new Registry(null)
+            Symbol it = reg.LookupBuiltinType("int")
+            assert.assertTrue(it != null, 1)
+            assert.assertStr(it.getName(), "int", 2)
+            assert.assertTrue(it.getKind() == SymbolKind.BUILTIN_TYPE, 3)
+            Symbol st = reg.LookupBuiltinType("string")
+            assert.assertTrue(st != null, 4)
+            Symbol no = reg.LookupBuiltinType("nope")
+            assert.assertTrue(no == null, 5)
+        }
+        case "SemaBuiltin getters carry names + ranks": {
+            SemaIntType i = SemaBuiltin.getIntType()
+            assert.assertStr(i.getName(), "int", 6)
+            assert.assertEqI(i.getRank(), 31, 7)
+            SemaType s = SemaBuiltin.getStringType()
+            assert.assertTrue(s.isString(), 8)
+        }
+    }
+
+    void namespaceTest() {
+        case "default + get-or-create + caching": {
+            Registry reg = new Registry(null)
+            SemaNameSpace def = reg.getDefaultNameSpace()
+            assert.assertStr(def.getName(), "default", 10)
+
+            SourceLocation loc = slGetFileLoc(0)
+            List<ASTName> path = new List<ASTName>()
+            path.add(new ASTName(loc, "fly"))
+            path.add(new ASTName(loc, "compiler"))
+            path.add(new ASTName(loc, "ast"))
+            SemaNameSpace ns = reg.getOrCreateNameSpace(path)
+            assert.assertStr(ns.getName(), "ast", 11)
+            SemaNameSpace ns2 = reg.getOrCreateNameSpace(path)
+            assert.assertTrue(ns == ns2, 12)
+        }
+    }
+
+    void modulesBodiesTest() {
+        case "modules + bodies accumulate": {
+            Registry reg = new Registry(null)
+            SourceLocation loc = slGetFileLoc(0)
+            ASTModule am = new ASTModule(loc, "m.fly")
+            SymbolTable st = new SymbolTable(null)
+            SemaModule sm = new SemaModule(am, st)
+            reg.addModule(sm)
+            List<SemaModule> ms = reg.getModules()
+            assert.assertEqI(ms.size(), 1, 20)
+            List<SemaFunctionBase> bs = reg.getBodies()
+            assert.assertEqI(bs.size(), 0, 21)
+        }
+    }
+
+    void lookupFunctionTest() {
+        case "exact-match function lookup by signature": {
+            Registry reg = new Registry(null)
+            SymbolTable scope = new SymbolTable(reg.getGlobalScope())
+            SemaNode dummy = new SemaNode(SemaKind.FUNCTION)
+            Symbol fsym = new Symbol("add", SymbolKind.FUNCTION, dummy)
+            List<SemaType> sig = new List<SemaType>()
+            sig.add(SemaBuiltin.getIntType())
+            sig.add(SemaBuiltin.getIntType())
+            fsym.setParamTypes(sig)
+            bool ok = scope.insert(fsym)
+            assert.assertTrue(ok, 30)
+
+            List<SemaType> good = new List<SemaType>()
+            good.add(SemaBuiltin.getIntType())
+            good.add(SemaBuiltin.getIntType())
+            Symbol found = reg.LookupFunctionExact("add", good, scope)
+            assert.assertTrue(found != null, 31)
+
+            List<SemaType> wrongArity = new List<SemaType>()
+            wrongArity.add(SemaBuiltin.getIntType())
+            Symbol miss = reg.LookupFunctionExact("add", wrongArity, scope)
+            assert.assertTrue(miss == null, 32)
+
+            List<SemaType> wrongType = new List<SemaType>()
+            wrongType.add(SemaBuiltin.getIntType())
+            wrongType.add(SemaBuiltin.getStringType())
+            Symbol miss2 = reg.LookupFunctionExact("add", wrongType, scope)
+            assert.assertTrue(miss2 == null, 33)
+        }
+    }
+}

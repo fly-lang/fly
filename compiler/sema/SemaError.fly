@@ -1,0 +1,13 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaVar
+import fly.compiler.ast.ASTVar
+
+// SemaError — the implicit error variable in fail/handle blocks. 1:1 with C++
+// SemaError (its redundant Type field is folded into the inherited SemaExpr.type).
+public class SemaError : SemaVar {
+    public SemaError(const ASTVar varAst) {
+        super(varAst, SemaKind.ERROR_VAR, null)
+    }
+}

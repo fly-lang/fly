@@ -1,0 +1,36 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaNode
+import fly.compiler.sema.SemaNameSpace
+import fly.compiler.sema.SemaImport
+import fly.compiler.sema.SymbolTable
+import fly.compiler.ast.ASTModule
+import fly.data.List
+
+// SemaModule — top-level resolved module: its namespace, imports and declarations.
+// 1:1 with C++ SemaModule (a standalone class, not a SemaNode).
+public class SemaModule {
+
+    ASTModule moduleAst
+    SymbolTable symbols
+    SemaNameSpace nameSpace
+    List<SemaImport> imports
+    List<SemaNode> nodes
+
+    public SemaModule(const ASTModule moduleAst, const SymbolTable symbols) {
+        this.moduleAst = moduleAst
+        this.symbols = symbols
+        this.imports = new List<SemaImport>()
+        this.nodes = new List<SemaNode>()
+    }
+
+    public ASTModule getAST() { out = this.moduleAst }
+    public SymbolTable getSymbols() { out = this.symbols }
+    public string getName() { out = this.moduleAst.getName() }
+    public SemaNameSpace getNameSpace() { out = this.nameSpace }
+    public void setNameSpace(const SemaNameSpace nameSpace) { this.nameSpace = nameSpace }
+    public List<SemaImport> getImports() { out = this.imports }
+    public void addImport(const SemaImport imp) { this.imports.add(imp) }
+    public List<SemaNode> getNodes() { out = this.nodes }
+    public void addNode(const SemaNode node) { this.nodes.add(node) }
+}

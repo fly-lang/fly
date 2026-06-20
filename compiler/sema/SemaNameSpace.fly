@@ -1,0 +1,21 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaNode
+import fly.compiler.sema.SymbolTable
+
+// SemaNameSpace — a resolved namespace with its own symbol scope. 1:1 with C++.
+public class SemaNameSpace : SemaNode {
+
+    string nsName
+    SymbolTable symbols
+
+    public SemaNameSpace(const string nsName, const SymbolTable symbols) {
+        super(SemaKind.NAMESPACE)
+        this.nsName = nsName
+        this.symbols = symbols
+    }
+
+    public string getName() { out = this.nsName }
+    public SymbolTable getSymbols() { out = this.symbols }
+}

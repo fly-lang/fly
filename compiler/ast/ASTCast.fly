@@ -3,6 +3,7 @@ namespace fly.compiler.ast
 import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTExprKind
 import fly.compiler.ast.ASTType
+import fly.compiler.ast.ASTVisitor
 
 public class ASTCast : ASTExpr {
 
@@ -17,4 +18,6 @@ public class ASTCast : ASTExpr {
 
     public ASTExpr getExpr() { out = this.expr }
     public ASTType getToType() { out = this.toType }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

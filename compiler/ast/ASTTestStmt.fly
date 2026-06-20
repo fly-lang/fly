@@ -4,6 +4,7 @@ import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTBlockStmt
 import fly.compiler.ast.ASTStmt
 import fly.compiler.ast.ASTStmtKind
+import fly.compiler.ast.ASTVisitor
 
 public class ASTTestStmt : ASTStmt {
 
@@ -15,4 +16,6 @@ public class ASTTestStmt : ASTStmt {
 
     public ASTBlockStmt getBody() { out = this.body }
     public void setBody(const ASTBlockStmt b) { this.body = b }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

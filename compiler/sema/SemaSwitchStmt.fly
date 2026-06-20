@@ -1,0 +1,30 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaStmt
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaRuleStmt
+import fly.compiler.ast.ASTStmt
+import fly.data.List
+
+// SemaSwitchStmt — a resolved switch (cases as SemaRuleStmt + optional default). 1:1.
+public class SemaSwitchStmt : SemaStmt {
+
+    SemaExpr expr
+    List<SemaRuleStmt> cases
+    SemaStmt defaultStmt
+
+    public SemaSwitchStmt(const ASTStmt ast, const SemaExpr expr) {
+        super(SemaKind.STMT_SWITCH, ast)
+        this.expr = expr
+        this.cases = new List<SemaRuleStmt>()
+    }
+
+    public SemaExpr getExpr() { out = this.expr }
+    public void addCase(const SemaExpr caseExpr, const SemaStmt caseStmt) {
+        this.cases.add(new SemaRuleStmt(caseExpr, caseStmt))
+    }
+    public List<SemaRuleStmt> getCases() { out = this.cases }
+    public SemaStmt getDefault() { out = this.defaultStmt }
+    public void setDefault(const SemaStmt defaultStmt) { this.defaultStmt = defaultStmt }
+}

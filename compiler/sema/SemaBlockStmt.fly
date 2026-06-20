@@ -1,0 +1,23 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaStmt
+import fly.compiler.ast.ASTStmt
+import fly.data.List
+
+// SemaBlockStmt — a resolved block of statements. 1:1 with C++ SemaBlockStmt
+// minus the Allocs list (scope allocation tracking is deferred to the CodeGen
+// stage).
+public class SemaBlockStmt : SemaStmt {
+
+    List<SemaStmt> content
+
+    public SemaBlockStmt(const ASTStmt ast) {
+        super(SemaKind.STMT_BLOCK, ast)
+        this.content = new List<SemaStmt>()
+    }
+
+    public void addContent(const SemaStmt stmt) { this.content.add(stmt) }
+    public List<SemaStmt> getContent() { out = this.content }
+    public bool isEmpty() { out = this.content.size() == 0 }
+}

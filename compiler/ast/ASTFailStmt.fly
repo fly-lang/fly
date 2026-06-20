@@ -4,6 +4,7 @@ import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTStmt
 import fly.compiler.ast.ASTStmtKind
+import fly.compiler.ast.ASTVisitor
 
 public class ASTFailStmt : ASTStmt {
 
@@ -21,4 +22,6 @@ public class ASTFailStmt : ASTStmt {
     public void setSecondExpr(const ASTExpr expr) { this.secondExpr = expr }
     public ASTExpr getThirdExpr() { out = this.thirdExpr }
     public void setThirdExpr(const ASTExpr expr) { this.thirdExpr = expr }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

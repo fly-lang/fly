@@ -1,0 +1,91 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaType
+import fly.compiler.sema.SemaNode
+import fly.compiler.sema.SemaEnumEntry
+import fly.compiler.sema.SemaComment
+import fly.compiler.sema.SemaModule
+import fly.compiler.sema.SemaVisibilityKind
+import fly.compiler.sema.SymbolTable
+import fly.compiler.ast.ASTEnum
+import fly.data.List
+import fly.data.Map
+
+// SemaEnumType — a resolved enum type. 1:1 with C++ SemaEnumType. Base enums are
+// modelled as a List (the C++ StringMap is only iterated, never keyed).
+public class SemaEnumType : SemaType {
+
+    ASTEnum enumAst
+    SemaModule module
+    SymbolTable symbols
+    List<SemaNode> nodes
+    List<SemaEnumType> superEnums
+    SemaVisibilityKind visibility
+    bool constantFlag
+    Map<string, SemaEnumEntry> entries
+    SemaComment comment
+
+    public SemaEnumType(const ASTEnum enumAst, const SemaModule module, const SymbolTable symbols) {
+        super(SemaKind.TYPE_ENUM, enumAst.getName())
+        this.enumAst = enumAst
+        this.module = module
+        this.symbols = symbols
+        this.nodes = new List<SemaNode>()
+        this.superEnums = new List<SemaEnumType>()
+        this.visibility = SemaVisibilityKind.DEFAULT
+        this.constantFlag = false
+        this.entries = new Map<string, SemaEnumEntry>()
+    }
+
+    public ASTEnum getAST() { out = this.enumAst }
+    public SemaModule getModule() { out = this.module }
+    public SymbolTable getSymbols() { out = this.symbols }
+    public List<SemaNode> getNodes() { out = this.nodes }
+    public List<SemaEnumType> getBaseEnums() { out = this.superEnums }
+    public void addBaseEnum(const SemaEnumType base) { this.superEnums.add(base) }
+    public SemaVisibilityKind getVisibility() { out = this.visibility }
+    public void setVisibility(const SemaVisibilityKind visibility) { this.visibility = visibility }
+    public bool isConstant() { out = this.constantFlag }
+    public void setConstant(const bool constantFlag) { this.constantFlag = constantFlag }
+    public Map<string, SemaEnumEntry> getEntries() { out = this.entries }
+    public SemaComment getComment() { out = this.comment }
+    public void setComment(const SemaComment comment) { this.comment = comment }
+
+    public void addEntry(const SemaEnumEntry entry) {
+        this.nodes.add(entry)
+        this.entries.put(entry.getName(), entry)
+    }
+
+    public SemaEnumEntry LookupEntry(const string name) {
+        SemaEnumEntry r = null
+        if this.entries.has(name) { r = this.entries.get(name) }
+        out = r
+    }
+
+    public bool isDerivedOrEquals(const SemaEnumType base) {
+        bool r = false
+        if this.isEquals(base) {
+            r = true
+        } else {
+            int i = 0
+            while i < this.superEnums.size() && r == false {
+                SemaEnumType b = this.superEnums.get(i)
+                r = b.isDerivedOrEquals(base)
+                i = i + 1
+            }
+        }
+        out = r
+    }
+
+    public bool isDerived(const SemaEnumType base) {
+        bool r = false
+        int i = 0
+        while i < this.superEnums.size() && r == false {
+            SemaEnumType b = this.superEnums.get(i)
+            r = b.isDerivedOrEquals(base)
+            i = i + 1
+        }
+        out = r
+    }
+}

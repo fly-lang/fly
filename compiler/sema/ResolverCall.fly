@@ -1,0 +1,157 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.compiler.basic.*
+import fly.data.List
+
+// ResolverCall — call resolution companion (decomposed into small helpers; the C++
+// visit(ASTCall) is ~530 lines). Stage-6 scope: exact-match resolution of a free
+// function `f(a)`, an instance method `obj.m(a)`, and a constructor `new C(a)`,
+// with synthetic out-var creation for non-void returns. Overload ranking is
+// Stage 7; super-calls and generic instantiation are Stage 8.
+public class ResolverCall {
+
+    public ResolverCall() { }
+
+    // call — visit(ASTCall): resolve receiver + args, dispatch by call kind, then
+    // attach args / parent / out-var.
+    public static void call(const Resolver r, const ASTCall node) {
+        SymbolTable savedScope = r.getCurrentScope()
+
+        // receiver of an instance method call, resolved in the caller's scope
+        ASTExpr parent = node.getParent()
+        SemaExpr parentExpr = null
+        SemaType parentType = null
+        if parent != null {
+            parent.accept(r)
+            parentExpr = r.getCurrentExpr()
+            if parentExpr != null { parentType = parentExpr.getType() }
+        }
+
+        // arguments (resolved exprs + their types), in the caller's scope
+        List<ASTArg> astArgs = node.getArgs()
+        List<SemaExpr> argExprs = new List<SemaExpr>()
+        List<SemaType> argTypes = new List<SemaType>()
+        int i = 0
+        while i < astArgs.size() {
+            ASTArg a = astArgs.get(i)
+            ASTNode ae = a.getExpr()
+            ae.accept(r)
+            SemaExpr ax = r.getCurrentExpr()
+            argExprs.add(ax)
+            SemaType at = null
+            if ax != null { at = ax.getType() }
+            argTypes.add(at)
+            i = i + 1
+        }
+
+        ASTCallKind ck = node.getCallKind()
+        SemaCall sema = null
+        if ck == ASTCallKind.CALL_NEW {
+            sema = ResolverCall.resolveNew(r, node, savedScope, argTypes)
+        } elsif parentType != null {
+            sema = ResolverCall.resolveMethodCall(r, node, parentType, argTypes)
+        } else {
+            sema = ResolverCall.resolveFunctionCall(r, node, savedScope, argTypes)
+        }
+
+        if sema == null {
+            // Suppress a cascade error when the receiver itself failed to resolve
+            // (it already reported its own diagnostic).
+            bool parentFailed = false
+            if parent != null {
+                if parentExpr == null { parentFailed = true }
+            }
+            if parentFailed == false {
+                r.diagStr(node.getLoc(), DiagID.err_sema_function_not_found, node.getName())
+            }
+            r.setCurrentScope(savedScope)
+            r.setCurrentExpr(null)
+            return
+        }
+
+        int j = 0
+        while j < argExprs.size() { sema.addArg(argExprs.get(j))  j = j + 1 }
+        if parentExpr != null { sema.setParent(parentExpr) }
+
+        ResolverCall.synthOutVar(r, node, sema)
+        sema.setErrorHandler(r.getCurrentErrorHandler())
+        r.setCurrentScope(savedScope)
+        r.setCurrentExpr(sema)
+    }
+
+    // resolveFunctionCall — free function, looked up in the caller scope.
+    public static SemaCall resolveFunctionCall(const Resolver r, const ASTCall node, const SymbolTable scope, const List<SemaType> argTypes) {
+        Registry reg = r.getReg()
+        Symbol sym = reg.LookupFunction(node.getName(), argTypes, scope)
+        out = ResolverCall.makeCall(node, sym)
+    }
+
+    // resolveMethodCall — instance method, looked up in the receiver's class scope.
+    public static SemaCall resolveMethodCall(const Resolver r, const ASTCall node, const SemaType parentType, const List<SemaType> argTypes) {
+        SemaClassType cls = parentType.asClass()
+        if cls == null { out = null  return }
+        Registry reg = r.getReg()
+        SymbolTable cscope = cls.getSymbols()
+        Symbol sym = reg.LookupFunction(node.getName(), argTypes, cscope)
+        out = ResolverCall.makeCall(node, sym)
+    }
+
+    // makeCall — build a SemaCall from a resolved function/method symbol (the ref is
+    // recovered as a SemaFunctionBase without a downcast).
+    public static SemaCall makeCall(const ASTCall node, const Symbol sym) {
+        if sym == null { out = null  return }
+        SemaNode ref = sym.getRef()
+        SemaFunctionBase fn = ref.asFunctionBase()
+        if fn == null { out = null  return }
+        out = SemaBuilder.CreateCall(node, fn.getReturnType(), fn)
+    }
+
+    // resolveNew — `new C(args)`: resolve the class type then its matching ctor (the
+    // call's type IS the class).
+    public static SemaCall resolveNew(const Resolver r, const ASTCall node, const SymbolTable scope, const List<SemaType> argTypes) {
+        Registry reg = r.getReg()
+        Symbol tsym = reg.LookupNamedType(node.getName(), scope)
+        if tsym == null { out = null  return }
+        SemaType tt = tsym.getTypeRef()
+        if tt == null { out = null  return }
+        SemaClassType cls = tt.asClass()
+        if cls == null { out = null  return }
+        // Generic instantiation: new Wrapper<int>() — swap to the specialization.
+        List<ASTType> typeArgsAst = node.getTypeArgs()
+        if typeArgsAst.size() > 0 {
+            SemaClassType spec = ResolverType.instantiate(r, tt, typeArgsAst)
+            if spec != null { cls = spec }
+        }
+        SymbolTable cscope = cls.getSymbols()
+        Symbol csym = reg.LookupFunction(node.getName(), argTypes, cscope)
+        if csym == null { out = null  return }
+        SemaNode ref = csym.getRef()
+        SemaFunctionBase ctor = ref.asFunctionBase()
+        if ctor == null { out = null  return }
+        out = SemaBuilder.CreateCall(node, cls, ctor)
+    }
+
+    // synthOutVar — a non-void return is delivered through a synthetic "__out_N"
+    // local passed as the hidden out argument; register it on the enclosing function.
+    public static void synthOutVar(const Resolver r, const ASTCall node, const SemaCall sema) {
+        SemaFunctionBase fn = sema.getFunction()
+        if fn == null { return }
+        SemaType rt = fn.getReturnType()
+        if rt == null { return }
+        if rt.isVoid() { return }
+        SemaFunctionBase cf = r.getCurrentFunction()
+        if cf == null { return }
+        ASTFunction fa = fn.getAST()
+        ASTType rtAst = fa.getReturnType()
+        if rtAst == null { return }
+        string outName = r.nextOutName()
+        List<ASTModifier> noMods = new List<ASTModifier>()
+        ASTLocalVar outAst = ASTBuilder.CreateLocalVar(node.getLoc(), rtAst, outName, noMods)
+        SemaLocalVar outVar = SemaBuilder.CreateLocalVar(outAst, rt)
+        cf.addLocalVar(outVar)
+        sema.addArg(outVar)
+        sema.setOutVar(outVar)
+    }
+}

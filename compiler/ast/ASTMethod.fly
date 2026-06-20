@@ -5,6 +5,7 @@ import fly.compiler.ast.ASTFunction
 import fly.compiler.ast.ASTFunctionKind
 import fly.compiler.ast.ASTModifier
 import fly.compiler.ast.ASTParam
+import fly.compiler.ast.ASTVisitor
 import fly.data.List
 
 public class ASTMethod : ASTFunction {
@@ -12,4 +13,6 @@ public class ASTMethod : ASTFunction {
     public ASTMethod(const SourceLocation loc, const List<ASTModifier> modifiers, const string name, const List<ASTParam> params) {
         super(loc, modifiers, name, params, ASTFunctionKind.F_METHOD)
     }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

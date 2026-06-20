@@ -3,6 +3,7 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTExprKind
+import fly.compiler.ast.ASTVisitor
 
 public class ASTMember : ASTExpr {
 
@@ -15,4 +16,6 @@ public class ASTMember : ASTExpr {
     }
 
     public string getName() { out = this.name }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

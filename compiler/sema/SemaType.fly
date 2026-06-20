@@ -1,0 +1,177 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaNode
+import fly.compiler.sema.SemaClassType
+import fly.compiler.sema.semaIntRank
+import fly.compiler.sema.semaFloatRank
+import fly.str as s
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaType — the resolved type hierarchy, a 1:1 port of include/Sema/SemaType.h.
+// SemaType is the base; the builtin scalar types, arrays, and generic type
+// parameters extend it. SemaClassType / SemaEnumType (which depend on the symbol
+// table and module nodes) are ported alongside those once they exist.
+//
+// Adaptations from C++: the CodeGenType back-pointer is dropped (no self-hosted
+// CodeGen yet); type identity (`isEquals`) compares the type Name directly rather
+// than the std::hash-of-name Id the C++ uses — equivalent for the unique names the
+// compiler assigns (builtins + mangled specializations).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Bit widths used as numeric promotion ranks. The parity also encodes signedness
+// (even = unsigned), matching the C++ SemaIntTypeKind underlying values.
+public enum SemaIntTypeKind {
+    TYPE_BYTE,    // 8  (unsigned)
+    TYPE_USHORT,  // 16 (unsigned)
+    TYPE_UINT,    // 32 (unsigned)
+    TYPE_ULONG,   // 64 (unsigned)
+    TYPE_SHORT,   // 15 (signed)
+    TYPE_INT,     // 31 (signed)
+    TYPE_LONG     // 63 (signed)
+}
+
+public enum SemaFloatTypeKind {
+    TYPE_FLOAT,   // 32
+    TYPE_DOUBLE   // 64
+}
+
+public class SemaType : SemaNode {
+
+    string typeName
+
+    public SemaType(const SemaKind kind, const string typeName) {
+        super(kind)
+        this.typeName = typeName
+    }
+
+    public string getName() { out = this.typeName }
+
+    // asClass — narrow to SemaClassType without a downcast (Fly has none): the base
+    // returns null; SemaClassType overrides it to return `this`.
+    public SemaClassType asClass() { out = null }
+
+    // getRank — numeric promotion rank; non-number types have no rank (0).
+    // SemaNumberType overrides this with its bit-width rank, so a SemaType-typed
+    // number dispatches to the right value without a downcast.
+    public int getRank() { out = 0 }
+
+    public bool isBool()    { out = this.getKind() == SemaKind.TYPE_BOOL }
+    public bool isFloat()   { out = this.getKind() == SemaKind.TYPE_FLOAT }
+    public bool isInteger() { out = this.getKind() == SemaKind.TYPE_INTEGER }
+    public bool isNumber()  { out = this.isInteger() || this.isFloat() }
+    public bool isComplex() { out = this.getKind() == SemaKind.TYPE_COMPLEX }
+    public bool isArray()   { out = this.getKind() == SemaKind.TYPE_ARRAY }
+    public bool isString()  { out = this.getKind() == SemaKind.TYPE_STRING }
+    public bool isClass()   { out = this.getKind() == SemaKind.TYPE_CLASS }
+    public bool isEnum()    { out = this.getKind() == SemaKind.TYPE_ENUM }
+    public bool isError()   { out = this.getKind() == SemaKind.TYPE_ERROR }
+    public bool isVoid()    { out = this.getKind() == SemaKind.TYPE_VOID }
+
+    // isEquals — two types are equal iff they carry the same name. Guard the null
+    // check with an explicit `if`: Fly's `&&` does NOT short-circuit, so writing
+    // `other != null && s.equals(...)` would still evaluate other.getName() on null.
+    public bool isEquals(const SemaType other) {
+        bool r = false
+        if other != null {
+            r = s.equals(this.typeName, other.getName())
+        }
+        out = r
+    }
+
+    public string str() { out = this.typeName }
+}
+
+public class SemaBoolType : SemaType {
+    public SemaBoolType() { super(SemaKind.TYPE_BOOL, "bool") }
+}
+
+public class SemaNumberType : SemaType {
+
+    int rank
+
+    public SemaNumberType(const SemaKind kind, const string typeName, const int rank) {
+        super(kind, typeName)
+        this.rank = rank
+    }
+
+    public int getRank() { out = this.rank }
+}
+
+public class SemaIntType : SemaNumberType {
+
+    SemaIntTypeKind intKind
+
+    public SemaIntType(const SemaIntTypeKind intKind, const string typeName) {
+        super(SemaKind.TYPE_INTEGER, typeName, semaIntRank(intKind))
+        this.intKind = intKind
+    }
+
+    public SemaIntTypeKind getIntKind() { out = this.intKind }
+
+    // even bit-width = unsigned (byte/ushort/uint/ulong), odd = signed.
+    public bool isUnsigned() { out = (semaIntRank(this.intKind) % 2) == 0 }
+    public bool isSigned()   { out = this.isUnsigned() == false }
+}
+
+public class SemaFloatType : SemaNumberType {
+
+    SemaFloatTypeKind floatKind
+
+    public SemaFloatType(const SemaFloatTypeKind floatKind, const string typeName) {
+        super(SemaKind.TYPE_FLOAT, typeName, semaFloatRank(floatKind))
+        this.floatKind = floatKind
+    }
+
+    public SemaFloatTypeKind getFloatKind() { out = this.floatKind }
+}
+
+public class SemaComplexType : SemaType {
+    public SemaComplexType() { super(SemaKind.TYPE_COMPLEX, "complex") }
+}
+
+public class SemaStringType : SemaType {
+    public SemaStringType() { super(SemaKind.TYPE_STRING, "string") }
+}
+
+public class SemaVoidType : SemaType {
+    public SemaVoidType() { super(SemaKind.TYPE_VOID, "void") }
+}
+
+public class SemaErrorType : SemaType {
+    public SemaErrorType() { super(SemaKind.TYPE_ERROR, "error") }
+}
+
+public class SemaArrayType : SemaType {
+
+    SemaType elementType
+    long size
+    SemaNode sizeExpr   // a SemaExpr (typed as the base until exprs are ported)
+
+    public SemaArrayType(const SemaType elementType, const long size) {
+        super(SemaKind.TYPE_ARRAY, "array")
+        this.elementType = elementType
+        this.size = size
+    }
+
+    public SemaType getElementType() { out = this.elementType }
+    public void setElementType(const SemaType elementType) { this.elementType = elementType }
+    public long getSize() { out = this.size }
+    public SemaNode getSizeExpr() { out = this.sizeExpr }
+    public void setSizeExpr(const SemaNode sizeExpr) { this.sizeExpr = sizeExpr }
+}
+
+// SemaTypeParam — a generic type variable (T, U) with an optional upper bound.
+// Substituted away during monomorphization; never reaches CodeGen.
+public class SemaTypeParam : SemaType {
+
+    SemaType bound   // null = unconstrained
+
+    public SemaTypeParam(const string typeName) {
+        super(SemaKind.TYPE_PARAM, typeName)
+    }
+
+    public SemaType getBound() { out = this.bound }
+    public void setBound(const SemaType bound) { this.bound = bound }
+    public bool isClass() { out = false }
+}

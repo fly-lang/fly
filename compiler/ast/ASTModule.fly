@@ -4,6 +4,7 @@ import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTKind
 import fly.compiler.ast.ASTNameSpace
 import fly.compiler.ast.ASTNode
+import fly.compiler.ast.ASTVisitor
 import fly.data.List
 
 public class ASTModule : ASTNode {
@@ -27,4 +28,6 @@ public class ASTModule : ASTNode {
     public void setNameSpace(const ASTNameSpace nameSpace) { this.nameSpace = nameSpace }
     public List<ASTNode> getNodes() { out = this.nodes }
     public void addNode(const ASTNode node) { this.nodes.add(node) }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

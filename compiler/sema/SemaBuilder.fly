@@ -1,0 +1,296 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.data.List
+import fly.data.Map
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaBuilder — static factory for every Sema node, 1:1 with C++ SemaBuilder.
+// Modifier-derived flags come from SemaBuilderModifiers; builtin types from
+// SemaBuiltin. Adaptations: numeric literals keep their text and are typed by a
+// simplified rule (float if it contains '.', else int — full APInt bit-width
+// inference is deferred); generic specialization factories are stubbed until
+// Stage 8.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class SemaBuilder {
+
+    public SemaBuilder() { }
+
+    public static SemaImport CreateImport(const SemaModule module, const ASTImport ast) {
+        SemaImport imp = new SemaImport(ast)
+        module.addImport(imp)
+        out = imp
+    }
+
+    public static SemaFunction CreateFunction(const SemaModule module, const SymbolTable symbols, const ASTFunction ast) {
+        SemaFunction function = new SemaFunction(ast, symbols)
+        SemaBuilderModifiers mods = SemaBuilderModifiers.Build(ast.getModifiers())
+        function.setVisibility(mods.getVisibility())
+        function.setModule(module)
+        module.addNode(function)
+        out = function
+    }
+
+    public static SemaClassType CreateClass(const SemaModule module, const SymbolTable symbols, const ASTClass ast) {
+        SemaClassType cls = new SemaClassType(ast, module, symbols)
+        cls.setThis(new SemaClassInstance(cls))
+        SemaBuilderModifiers mods = SemaBuilderModifiers.Build(ast.getModifiers())
+        cls.setConstant(mods.isConstant())
+        cls.setVisibility(mods.getVisibility())
+        cls.setAbstract(mods.isAbstract())
+        cls.setFinal(mods.isFinal())
+        module.addNode(cls)
+        out = cls
+    }
+
+    // CreateSpecialization — get-or-create a monomorphized SemaClassType for a
+    // generic template + concrete type args (Stage 8). Memoized on the template by
+    // mangle key. The spec scope rebinds each type param T → its concrete type so
+    // member resolution (ResolveClassTypeIsolated) substitutes T. Caches BEFORE
+    // returning so a self-referential T in the body finds the in-progress spec.
+    public static SemaClassType CreateSpecialization(const SemaClassType template, const List<SemaType> typeArgs, const SymbolTable symbols) {
+        string key = buildMangleKey(template.getName(), typeArgs)
+        Map<string, SemaClassType> specs = template.getSpecializations()
+        if specs.has(key) { out = specs.get(key)  return }
+
+        SymbolTable tplScope = template.getSymbols()
+        SymbolTable parent = tplScope.getParent()
+        SymbolTable specScope = new SymbolTable(parent)
+
+        List<SemaTypeParam> tps = template.getTypeParams()
+        int i = 0
+        while i < tps.size() {
+            if i < typeArgs.size() {
+                SemaTypeParam tp = tps.get(i)
+                SemaType ta = typeArgs.get(i)
+                Symbol psym = new Symbol(tp.getName(), SymbolKind.CLASS, ta)
+                psym.setTypeRef(ta)
+                bool ok = specScope.insert(psym)
+            }
+            i = i + 1
+        }
+
+        ASTClass ast = template.getAST()
+        SemaModule mod = template.getModule()
+        SemaClassType spec = new SemaClassType(ast, mod, specScope)
+        spec.setMangledName(key)
+        spec.setGenericTemplate(template)
+        spec.setVisibility(template.getVisibility())
+        spec.setAbstract(template.isAbstract())
+        spec.setFinal(template.isFinal())
+        spec.setConstant(template.isConstant())
+        spec.setThis(new SemaClassInstance(spec))
+
+        specs.put(key, spec)
+        out = spec
+    }
+
+    public static SemaFunction CreateFunctionSpecialization(const SemaFunction template, const List<SemaType> typeArgs, const SymbolTable symbols) {
+        out = null
+    }
+
+    public static SemaClassAttribute CreateClassAttribute(const SemaClassType cls, const ASTAttribute ast, const SemaType type) {
+        SemaClassAttribute attr = new SemaClassAttribute(ast, cls, type)
+        SemaClassInstance thisInst = cls.getThis()
+        attr.setParent(thisInst)
+        SemaBuilderModifiers mods = SemaBuilderModifiers.Build(ast.getModifiers())
+        attr.setVisibility(mods.getVisibility())
+        attr.setStatic(mods.isStatic())
+        attr.setConstant(mods.isConstant())
+        out = attr
+    }
+
+    public static SemaClassMethod CreateDefaultConstructor(const SemaClassType cls, const SymbolTable scope) {
+        ASTClass ac = cls.getAST()
+        ASTMethod ast = ASTBuilder.CreateDefaultConstructor(ac)
+        SemaClassInstance thisInst = cls.getThis()
+        out = new SemaClassMethod(ast, cls, thisInst, true, scope)
+    }
+
+    public static SemaClassMethod CreateClassMethod(const SemaClassType cls, const ASTMethod ast, const SymbolTable scope) {
+        SemaBuilderModifiers mods = SemaBuilderModifiers.Build(ast.getModifiers())
+        string an = ast.getName()
+        string cn = cls.getName()
+        bool isCtor = fly.str.equals(an, cn)
+        SemaClassInstance thisInst = cls.getThis()
+        SemaClassMethod meth = new SemaClassMethod(ast, cls, thisInst, isCtor, scope)
+        meth.setVisibility(mods.getVisibility())
+        meth.setStatic(mods.isStatic())
+        meth.setFinal(mods.isFinal())
+        out = meth
+    }
+
+    public static SemaEnumType CreateEnum(const SemaModule module, const SymbolTable symbols, const ASTEnum ast) {
+        SemaEnumType en = new SemaEnumType(ast, module, symbols)
+        SemaBuilderModifiers mods = SemaBuilderModifiers.Build(ast.getModifiers())
+        en.setVisibility(mods.getVisibility())
+        en.setConstant(mods.isConstant())
+        module.addNode(en)
+        out = en
+    }
+
+    public static SemaEnumEntry CreateEnumEntry(const SemaEnumType en, const ASTEnumEntry ast) {
+        SemaIntType it = SemaBuiltin.getIntType()
+        SemaEnumEntry entry = new SemaEnumEntry(ast, it)
+        Map<string, SemaEnumEntry> es = en.getEntries()
+        int sz = es.size()
+        entry.setIndex(sz + 1)
+        en.addEntry(entry)
+        out = entry
+    }
+
+    public static SemaEnumList CreateEnumList(const SemaEnumType en) {
+        Map<string, SemaEnumEntry> es = en.getEntries()
+        long size = es.size()
+        SemaArrayType arrayType = SemaBuiltin.CreateArrayType(en, size)
+        out = new SemaEnumList(en, arrayType)
+    }
+
+    public static SemaEnumAccessor CreateEnumAccessor(const SemaEnumType en, const SemaEnumEntry entry, const SemaVar var, const bool isName) {
+        SemaType type = SemaBuiltin.getIntType()
+        if isName { type = SemaBuiltin.getStringType() }
+        out = new SemaEnumAccessor(en, entry, var, isName, type)
+    }
+
+    public static SemaComment CreateComment(const ASTComment ast) {
+        out = new SemaComment(ast)
+    }
+
+    public static SemaLocalVar CreateLocalVar(const ASTLocalVar ast, const SemaType type) {
+        SemaLocalVar v = new SemaLocalVar(ast, type)
+        SemaBuilderModifiers mods = SemaBuilderModifiers.Build(ast.getModifiers())
+        v.setConstant(mods.isConstant())
+        out = v
+    }
+
+    public static SemaParam CreateParam(const ASTParam ast, const SemaType type) {
+        SemaParam v = new SemaParam(ast, type)
+        SemaBuilderModifiers mods = SemaBuilderModifiers.Build(ast.getModifiers())
+        v.setConstant(mods.isConstant())
+        out = v
+    }
+
+    public static SemaMember CreateMemberVar(const ASTMember ast, const SemaExpr ref, const SemaExpr parent) {
+        out = new SemaMember(ast, ref, parent, null)
+    }
+
+    public static SemaError CreateErrorHandler() {
+        out = new SemaError(null)
+    }
+
+    public static SemaCall CreateCall(const ASTCall ast, const SemaType type, const SemaFunctionBase function) {
+        SemaCall call = new SemaCall(ast, type)
+        call.setFunction(function)
+        out = call
+    }
+
+    public static SemaUnary CreateUnary(const ASTUnary ast, const SemaExpr expr) {
+        SemaType t = expr.getType()
+        out = new SemaUnary(ast, expr, t)
+    }
+
+    public static SemaBinary CreateBinary(const ASTBinary ast, const SemaExpr left, const SemaExpr right) {
+        SemaType t = left.getType()
+        out = new SemaBinary(ast, left, right, t)
+    }
+
+    public static SemaTernary CreateTernary(const ASTTernary ast, const SemaExpr cond, const SemaExpr trueExpr, const SemaExpr falseExpr) {
+        SemaType t = trueExpr.getType()
+        out = new SemaTernary(ast, cond, trueExpr, falseExpr, t)
+    }
+
+    public static SemaCast CreateCast(const ASTCast ast, const SemaExpr expr, const SemaType toType) {
+        out = new SemaCast(ast, expr, toType)
+    }
+
+    public static SemaBoolValue CreateBoolValue(const ASTBoolValue ast) {
+        SemaType t = SemaBuiltin.getBoolType()
+        out = new SemaBoolValue(ast, t)
+    }
+
+    public static SemaValue CreateNumberValue(const ASTNumberValue ast) {
+        string raw = ast.getValue()
+        SemaValue v = null
+        if fly.str.contains(raw, ".") {
+            SemaType ft = SemaBuiltin.getDoubleType()
+            v = new SemaFloatValue(ast, ft, raw)
+        } else {
+            SemaType it = SemaBuiltin.getIntType()
+            v = new SemaIntValue(ast, it, raw)
+        }
+        out = v
+    }
+
+    public static SemaIntValue CreateIntValue(const ASTNumberValue ast, const SemaIntType intType) {
+        string raw = ast.getValue()
+        out = new SemaIntValue(ast, intType, raw)
+    }
+
+    public static SemaFloatValue CreateFloatValue(const ASTNumberValue ast, const SemaFloatType floatType) {
+        string raw = ast.getValue()
+        out = new SemaFloatValue(ast, floatType, raw)
+    }
+
+    public static SemaStringValue CreateStringValue(const ASTStringValue ast) {
+        SemaType t = SemaBuiltin.getStringType()
+        out = new SemaStringValue(ast, t)
+    }
+
+    public static SemaArrayValue CreateArrayValue(const ASTArrayValue ast, const SemaType type, const List<SemaValue> values) {
+        long size = values.size()
+        SemaArrayType arrayType = SemaBuiltin.CreateArrayType(type, size)
+        SemaArrayValue v = new SemaArrayValue(ast, arrayType)
+        int i = 0
+        while i < values.size() {
+            v.addValue(values.get(i))
+            i = i + 1
+        }
+        out = v
+    }
+
+    public static SemaStructValue CreateStructValue(const ASTStructValue ast) {
+        out = new SemaStructValue(ast, null)
+    }
+
+    public static SemaValue CreateNullValue(const ASTNullValue ast) {
+        out = new SemaNullValue(ast, null)
+    }
+
+    public static SemaValue CreateUnsetValue(const ASTUnsetValue ast) {
+        out = new SemaUnsetValue(ast, null)
+    }
+
+    // ─── Statement factory methods ──────────────────────────────────────────
+    public static SemaBlockStmt CreateBlockStmt(const ASTStmt ast) { out = new SemaBlockStmt(ast) }
+    public static SemaDeclStmt CreateDeclStmt(const ASTStmt ast, const SemaLocalVar var, const SemaExpr expr) { out = new SemaDeclStmt(ast, var, expr) }
+    public static SemaExprStmt CreateExprStmt(const ASTStmt ast, const SemaExpr expr) { out = new SemaExprStmt(ast, expr) }
+    public static SemaReturnStmt CreateReturnStmt(const ASTStmt ast, const SemaExpr expr) { out = new SemaReturnStmt(ast, expr) }
+    public static SemaIfStmt CreateIfStmt(const ASTStmt ast, const SemaExpr cond, const SemaStmt thenStmt) { out = new SemaIfStmt(ast, cond, thenStmt) }
+    public static SemaSwitchStmt CreateSwitchStmt(const ASTStmt ast, const SemaExpr expr) { out = new SemaSwitchStmt(ast, expr) }
+    public static SemaLoopStmt CreateLoopStmt(const ASTStmt ast, const bool verifyAtEnd) { out = new SemaLoopStmt(ast, verifyAtEnd) }
+    public static SemaLoopInStmt CreateLoopInStmt(const ASTStmt ast, const SemaExpr item, const SemaExpr list, const SemaStmt body) { out = new SemaLoopInStmt(ast, item, list, body) }
+    public static SemaDeleteStmt CreateDeleteStmt(const ASTStmt ast, const SemaExpr expr) { out = new SemaDeleteStmt(ast, expr) }
+    public static SemaBreakStmt CreateBreakStmt(const ASTStmt ast) { out = new SemaBreakStmt(ast) }
+    public static SemaContinueStmt CreateContinueStmt(const ASTStmt ast) { out = new SemaContinueStmt(ast) }
+    public static SemaFailStmt CreateFailStmt(const ASTStmt ast) { out = new SemaFailStmt(ast) }
+    public static SemaHandleStmt CreateHandleStmt(const ASTStmt ast) { out = new SemaHandleStmt(ast) }
+}
+
+// buildMangleKey — a unique key "<base>_<argname><argname>…" for a generic
+// specialization, e.g. Wrapper<int> → "Wrapper_int". Type names are unique enough
+// to disambiguate specializations within a template's cache.
+public string buildMangleKey(const string base, const List<SemaType> typeArgs) {
+    string key = fly.str.concat(base, "_")
+    int i = 0
+    while i < typeArgs.size() {
+        SemaType t = typeArgs.get(i)
+        string tn = t.getName()
+        string k2 = fly.str.concat(key, tn)
+        key = k2
+        i = i + 1
+    }
+    out = key
+}

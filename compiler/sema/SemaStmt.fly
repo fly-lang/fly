@@ -1,0 +1,22 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaNode
+import fly.compiler.ast.ASTStmt
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaStmt — base of every resolved statement, a 1:1 port of C++ SemaStmt.
+// Holds a back-pointer to the originating AST statement.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class SemaStmt : SemaNode {
+
+    ASTStmt ast
+
+    public SemaStmt(const SemaKind kind, const ASTStmt ast) {
+        super(kind)
+        this.ast = ast
+    }
+
+    public ASTStmt getAST() { out = this.ast }
+}

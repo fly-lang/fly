@@ -1,0 +1,33 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaStmt
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaRuleStmt
+import fly.compiler.ast.ASTStmt
+import fly.data.List
+
+// SemaIfStmt — a resolved if / elsif* / else. 1:1 (Elsif clauses are SemaRuleStmt).
+public class SemaIfStmt : SemaStmt {
+
+    SemaExpr cond
+    SemaStmt thenStmt
+    List<SemaRuleStmt> elsifList   // 'elsif' is a Fly keyword — name the field elsifList
+    SemaStmt elseStmt
+
+    public SemaIfStmt(const ASTStmt ast, const SemaExpr cond, const SemaStmt thenStmt) {
+        super(SemaKind.STMT_IF, ast)
+        this.cond = cond
+        this.thenStmt = thenStmt
+        this.elsifList = new List<SemaRuleStmt>()
+    }
+
+    public SemaExpr getCond() { out = this.cond }
+    public SemaStmt getThen() { out = this.thenStmt }
+    public void addElsif(const SemaExpr expr, const SemaStmt stmt) {
+        this.elsifList.add(new SemaRuleStmt(expr, stmt))
+    }
+    public List<SemaRuleStmt> getElsif() { out = this.elsifList }
+    public SemaStmt getElse() { out = this.elseStmt }
+    public void setElse(const SemaStmt elseStmt) { this.elseStmt = elseStmt }
+}

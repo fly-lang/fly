@@ -1,0 +1,37 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaFunctionBase
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaNode — abstract base of every semantic node, a 1:1 port of the C++
+// `SemaNode` (include/Sema/SemaNode.h). Carries the SemaKind discriminator;
+// concrete subclasses (types, expressions, statements, declarations) add their
+// resolved data and an `ASTxxx` back-pointer.
+//
+// The C++ base declares `virtual void accept(SemaVisitor&)` for the CodeGen pass.
+// That visitor is DEFERRED here (no self-hosted CodeGen consumes the Sema tree
+// yet): the Resolver walks the AST via ASTVisitor and produces these nodes as
+// data. SemaVisitor/accept will be wired alongside a future CodeGen port.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class SemaNode {
+
+    SemaKind kind
+
+    public SemaNode(const SemaKind kind) {
+        this.kind = kind
+    }
+
+    public SemaKind getKind() { out = this.kind }
+
+    // str — the kind name, e.g. "TYPE_CLASS". Mirrors the C++ Logger-based str()
+    // without the logging scaffolding.
+    public string str() { out = this.kind.name }
+
+    // asFunctionBase — narrow a Symbol's SemaNode ref to a callable without a
+    // downcast: the base returns null; SemaFunctionBase (so SemaFunction AND
+    // SemaClassMethod) overrides it to return `this`. Lets call resolution recover
+    // the callee's return type/params uniformly for functions and methods.
+    public SemaFunctionBase asFunctionBase() { out = null }
+}

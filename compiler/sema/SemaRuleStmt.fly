@@ -1,0 +1,21 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaStmt
+
+// SemaRuleStmt — a (condition/value, body) pair used for elsif clauses and switch
+// cases. The C++ `struct SemaRuleStmt`, modelled here as a small class so it can
+// live in a List<SemaRuleStmt>.
+public class SemaRuleStmt {
+
+    SemaExpr expr
+    SemaStmt stmt
+
+    public SemaRuleStmt(const SemaExpr expr, const SemaStmt stmt) {
+        this.expr = expr
+        this.stmt = stmt
+    }
+
+    public SemaExpr getExpr() { out = this.expr }
+    public SemaStmt getStmt() { out = this.stmt }
+}

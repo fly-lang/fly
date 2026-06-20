@@ -1,0 +1,19 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaStmt
+import fly.compiler.sema.SemaExpr
+import fly.compiler.ast.ASTStmt
+
+// SemaExprStmt — an expression used as a statement. 1:1.
+public class SemaExprStmt : SemaStmt {
+
+    SemaExpr expr
+
+    public SemaExprStmt(const ASTStmt ast, const SemaExpr expr) {
+        super(SemaKind.STMT_EXPR, ast)
+        this.expr = expr
+    }
+
+    public SemaExpr getExpr() { out = this.expr }
+}

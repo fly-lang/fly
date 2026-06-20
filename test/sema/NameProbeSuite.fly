@@ -1,0 +1,98 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.data.*
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NameProbeSuite — regression test for base-typed visitor dispatch READING the
+// dispatched node's fields. A base-typed `ASTNode` is dispatched via accept to
+// visit(ASTFunction); inside, the concrete node's string name field and its
+// params list must read correctly. This exercises two compiler fixes together:
+//   1. transitive per-base vtable this-adjustment (node points at the right
+//      subobject, so node.getParams() reads the correct field), and
+//   2. clone-on-store for `this.field = stringParam` (so the parser-stored
+//      function name is an owned buffer, not an alias freed at scope exit).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class NameProbe : ASTVisitor {
+    string fnName
+    int paramCount
+    public NameProbe() { this.fnName = ""  this.paramCount = 0 }
+    public string getFnName() { out = this.fnName }
+    public int getParamCount() { out = this.paramCount }
+
+    public void visit(const ASTFunction node) {
+        this.fnName = node.getName()
+        List<ASTParam> ps = node.getParams()
+        this.paramCount = ps.size()
+    }
+
+    public void visit(const ASTModule node) { }
+    public void visit(const ASTNameSpace node) { }
+    public void visit(const ASTImport node) { }
+    public void visit(const ASTClass node) { }
+    public void visit(const ASTAttribute node) { }
+    public void visit(const ASTMethod node) { }
+    public void visit(const ASTEnum node) { }
+    public void visit(const ASTLocalVar node) { }
+    public void visit(const ASTParam node) { }
+    public void visit(const ASTComment node) { }
+    public void visit(const ASTBuiltinType node) { }
+    public void visit(const ASTNamedType node) { }
+    public void visit(const ASTArrayType node) { }
+    public void visit(const ASTTypeParam node) { }
+    public void visit(const ASTBreakStmt node) { }
+    public void visit(const ASTContinueStmt node) { }
+    public void visit(const ASTDeleteStmt node) { }
+    public void visit(const ASTExprStmt node) { }
+    public void visit(const ASTDeclStmt node) { }
+    public void visit(const ASTFailStmt node) { }
+    public void visit(const ASTHandleStmt node) { }
+    public void visit(const ASTReturnStmt node) { }
+    public void visit(const ASTRuleStmt node) { }
+    public void visit(const ASTIfStmt node) { }
+    public void visit(const ASTSwitchStmt node) { }
+    public void visit(const ASTLoopStmt node) { }
+    public void visit(const ASTLoopInStmt node) { }
+    public void visit(const ASTBlockStmt node) { }
+    public void visit(const ASTTestStmt node) { }
+    public void visit(const ASTCaseStmt node) { }
+    public void visit(const ASTIdentifier node) { }
+    public void visit(const ASTMember node) { }
+    public void visit(const ASTCall node) { }
+    public void visit(const ASTUnary node) { }
+    public void visit(const ASTBinary node) { }
+    public void visit(const ASTTernary node) { }
+    public void visit(const ASTCast node) { }
+    public void visit(const ASTBoolValue node) { }
+    public void visit(const ASTNumberValue node) { }
+    public void visit(const ASTStringValue node) { }
+    public void visit(const ASTArrayValue node) { }
+    public void visit(const ASTStructValue node) { }
+    public void visit(const ASTNullValue node) { }
+    public void visit(const ASTUnsetValue node) { }
+    public void visit(const ASTEnumEntry node) { }
+}
+
+suite NameProbeSuite {
+    void baseTypedFieldReadTest() {
+        case "base-typed dispatch reads concrete node fields": {
+            Parser p = new Parser("int foo(const int a) { int x = a }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 1)
+            List<ASTNode> nodes = m.getNodes()
+            assert.assertEqI(nodes.size(), 1, 2)
+
+            ASTNode n0 = nodes.get(0)
+            NameProbe probe = new NameProbe()
+            n0.accept(probe)
+
+            // this-adjusted node reads its params list correctly
+            assert.assertEqI(probe.getParamCount(), 1, 3)
+            // parser-stored name is an owned buffer (not a freed alias)
+            assert.assertStr(probe.getFnName(), "foo", 4)
+        }
+    }
+}

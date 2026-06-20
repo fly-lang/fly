@@ -4,6 +4,7 @@ import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTType
 import fly.compiler.ast.ASTVar
 import fly.compiler.ast.ASTModifier
+import fly.compiler.ast.ASTVisitor
 import fly.data.List
 
 public class ASTParam : ASTVar {
@@ -11,4 +12,6 @@ public class ASTParam : ASTVar {
     public ASTParam(const SourceLocation loc, const ASTType type, const string name, const List<ASTModifier> modifiers) {
         super(loc, type, name, modifiers)
     }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

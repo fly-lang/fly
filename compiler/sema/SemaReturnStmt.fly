@@ -1,0 +1,19 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaStmt
+import fly.compiler.sema.SemaExpr
+import fly.compiler.ast.ASTStmt
+
+// SemaReturnStmt — a return (with optional value, via the out-param model). 1:1.
+public class SemaReturnStmt : SemaStmt {
+
+    SemaExpr expr
+
+    public SemaReturnStmt(const ASTStmt ast, const SemaExpr expr) {
+        super(SemaKind.STMT_RETURN, ast)
+        this.expr = expr
+    }
+
+    public SemaExpr getExpr() { out = this.expr }
+}

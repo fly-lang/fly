@@ -1,0 +1,21 @@
+namespace fly.compiler.sema
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SymbolKind — what a symbol-table entry names. 1:1 with the C++ `enum class
+// SymbolKind`. VAR/LOCAL_VAR/PARAM/ATTRIBUTE are the "variable" kinds (isVarKind).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public enum SymbolKind {
+    NAMESPACE,
+    BUILTIN_TYPE,
+    VAR,
+    LOCAL_VAR,
+    PARAM,
+    ATTRIBUTE,
+    ENUM_ENTRY,
+    TYPE,
+    VALUE,
+    FUNCTION,
+    CLASS,
+    ENUM
+}

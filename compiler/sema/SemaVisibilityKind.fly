@@ -1,0 +1,14 @@
+namespace fly.compiler.sema
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaVisibilityKind — access level of a resolved declaration (class, method,
+// attribute, function). 1:1 with the C++ `enum class SemaVisibilityKind`.
+// DEFAULT is the package-private level applied when no explicit modifier is given.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public enum SemaVisibilityKind {
+    PRIVATE,
+    PROTECTED,
+    DEFAULT,
+    PUBLIC
+}

@@ -1,0 +1,23 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaStmt
+import fly.compiler.sema.SemaLocalVar
+import fly.compiler.sema.SemaExpr
+import fly.compiler.ast.ASTStmt
+
+// SemaDeclStmt — a local variable declaration (with optional initializer). 1:1.
+public class SemaDeclStmt : SemaStmt {
+
+    SemaLocalVar var
+    SemaExpr expr
+
+    public SemaDeclStmt(const ASTStmt ast, const SemaLocalVar var, const SemaExpr expr) {
+        super(SemaKind.STMT_DECL, ast)
+        this.var = var
+        this.expr = expr
+    }
+
+    public SemaLocalVar getVar() { out = this.var }
+    public SemaExpr getExpr() { out = this.expr }
+}

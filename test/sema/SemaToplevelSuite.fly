@@ -1,0 +1,117 @@
+import fly.compiler.sema.*
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.data.List
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaToplevelSuite — Stage 4 top-level batch: module, class type (lookup +
+// inheritance), methods, enum type, function.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite SemaToplevelSuite {
+
+    void moduleTest() {
+        case "module nodes + name": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTModule am = new ASTModule(loc, "t.fly")
+            SymbolTable st = new SymbolTable(null)
+            SemaModule sm = new SemaModule(am, st)
+            assert.assertStr(sm.getName(), "t.fly", 1)
+            List<SemaNode> ns = sm.getNodes()
+            assert.assertEqI(ns.size(), 0, 2)
+        }
+    }
+
+    void classTest() {
+        case "class kind + method lookup + attribute": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTModule am = new ASTModule(loc, "t.fly")
+            SymbolTable st = new SymbolTable(null)
+            SemaModule sm = new SemaModule(am, st)
+            List<ASTModifier> mods = new List<ASTModifier>()
+            List<ASTType> bases = new List<ASTType>()
+            ASTClass ac = new ASTClass(ASTClassKind.CLASS, mods, loc, "Foo", bases)
+            SemaClassType foo = new SemaClassType(ac, sm, st)
+            assert.assertTrue(foo.getClassKind() == SemaClassKind.CLASS, 10)
+            assert.assertTrue(foo.isGeneric() == false, 11)
+            SemaType ft = foo
+            assert.assertTrue(ft.isClass(), 12)
+
+            List<ASTParam> params = new List<ASTParam>()
+            ASTMethod amth = new ASTMethod(loc, mods, "run", params)
+            SemaClassInstance inst = new SemaClassInstance(foo)
+            SemaClassMethod meth = new SemaClassMethod(amth, foo, inst, false, st)
+            foo.addMethod(meth)
+            SemaClassMethod found = foo.LookupMethod("run")
+            assert.assertTrue(found != null, 13)
+            assert.assertTrue(found.isConstructor() == false, 14)
+            SemaClassMethod miss = foo.LookupMethod("nope")
+            assert.assertTrue(miss == null, 15)
+        }
+        case "inheritance queries": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTModule am = new ASTModule(loc, "t.fly")
+            SymbolTable st = new SymbolTable(null)
+            SemaModule sm = new SemaModule(am, st)
+            List<ASTModifier> mods = new List<ASTModifier>()
+            List<ASTType> bases = new List<ASTType>()
+            ASTClass acA = new ASTClass(ASTClassKind.CLASS, mods, loc, "A", bases)
+            ASTClass acB = new ASTClass(ASTClassKind.CLASS, mods, loc, "B", bases)
+            SemaClassType a = new SemaClassType(acA, sm, st)
+            SemaClassType b = new SemaClassType(acB, sm, st)
+            b.addBaseClass(a)
+            assert.assertTrue(b.isDerivedOrEquals(a), 20)
+            assert.assertTrue(b.isDerived(a), 21)
+            assert.assertTrue(a.isDerivedOrEquals(b) == false, 22)
+            assert.assertTrue(a.isBase(b), 23)
+
+            // method inherited from base A via B
+            List<ASTParam> params = new List<ASTParam>()
+            ASTMethod amth = new ASTMethod(loc, mods, "base", params)
+            SemaClassInstance inst = new SemaClassInstance(a)
+            SemaClassMethod meth = new SemaClassMethod(amth, a, inst, false, st)
+            a.addMethod(meth)
+            SemaClassMethod viaB = b.LookupMethod("base")
+            assert.assertTrue(viaB != null, 24)
+        }
+    }
+
+    void enumTest() {
+        case "enum entries lookup": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTModule am = new ASTModule(loc, "t.fly")
+            SymbolTable st = new SymbolTable(null)
+            SemaModule sm = new SemaModule(am, st)
+            List<ASTModifier> mods = new List<ASTModifier>()
+            List<ASTType> bases = new List<ASTType>()
+            ASTEnum ae = new ASTEnum(loc, "Color", mods, bases)
+            SemaEnumType col = new SemaEnumType(ae, sm, st)
+            SemaType ct = col
+            assert.assertTrue(ct.isEnum(), 30)
+            ASTEnumEntry aRed = new ASTEnumEntry(loc, ae, "RED")
+            SemaEnumEntry red = new SemaEnumEntry(aRed, col)
+            col.addEntry(red)
+            SemaEnumEntry got = col.LookupEntry("RED")
+            assert.assertTrue(got != null, 31)
+            assert.assertStr(got.getName(), "RED", 32)
+            SemaEnumEntry no = col.LookupEntry("BLUE")
+            assert.assertTrue(no == null, 33)
+        }
+    }
+
+    void functionTest() {
+        case "function visibility + generic flag": {
+            SourceLocation loc = slGetFileLoc(0)
+            SymbolTable st = new SymbolTable(null)
+            List<ASTModifier> mods = new List<ASTModifier>()
+            List<ASTParam> params = new List<ASTParam>()
+            ASTFunction af = new ASTFunction(loc, mods, "add", params, ASTFunctionKind.F_FUNCTION)
+            SemaFunction fn = new SemaFunction(af, st)
+            assert.assertStr(fn.getName(), "add", 40)
+            assert.assertTrue(fn.isGeneric() == false, 41)
+            assert.assertTrue(fn.getVisibility() == SemaVisibilityKind.DEFAULT, 42)
+            assert.assertTrue(fn.getKind() == SemaKind.FUNCTION, 43)
+        }
+    }
+}

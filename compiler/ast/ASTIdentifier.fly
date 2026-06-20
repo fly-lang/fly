@@ -4,6 +4,7 @@ import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTExprKind
 import fly.compiler.ast.ASTVar
+import fly.compiler.ast.ASTVisitor
 
 public class ASTIdentifier : ASTExpr {
 
@@ -18,4 +19,6 @@ public class ASTIdentifier : ASTExpr {
     public string getName() { out = this.name }
     public ASTVar getVar() { out = this.var }
     public void setVar(const ASTVar v) { this.var = v }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

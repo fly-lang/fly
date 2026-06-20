@@ -1,0 +1,99 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.compiler.basic.*
+import fly.data.List
+
+// ResolverType — type-node resolution companion (static methods threading the
+// Resolver). Sets r.currentType.
+public class ResolverType {
+
+    public ResolverType() { }
+
+    public static void builtin(const Resolver r, const ASTBuiltinType node) {
+        ASTBuiltinTypeKind k = node.getBuiltinKind()
+        SemaType t = SemaBuiltin.getIntType()
+        if k == ASTBuiltinTypeKind.TYPE_VOID { t = SemaBuiltin.getVoidType() }
+        elsif k == ASTBuiltinTypeKind.TYPE_BOOL { t = SemaBuiltin.getBoolType() }
+        elsif k == ASTBuiltinTypeKind.TYPE_BYTE { t = SemaBuiltin.getByteType() }
+        elsif k == ASTBuiltinTypeKind.TYPE_SHORT { t = SemaBuiltin.getShortType() }
+        elsif k == ASTBuiltinTypeKind.TYPE_INT { t = SemaBuiltin.getIntType() }
+        elsif k == ASTBuiltinTypeKind.TYPE_LONG { t = SemaBuiltin.getLongType() }
+        elsif k == ASTBuiltinTypeKind.TYPE_USHORT { t = SemaBuiltin.getUShortType() }
+        elsif k == ASTBuiltinTypeKind.TYPE_UINT { t = SemaBuiltin.getUIntType() }
+        elsif k == ASTBuiltinTypeKind.TYPE_ULONG { t = SemaBuiltin.getULongType() }
+        elsif k == ASTBuiltinTypeKind.TYPE_FLOAT { t = SemaBuiltin.getFloatType() }
+        elsif k == ASTBuiltinTypeKind.TYPE_DOUBLE { t = SemaBuiltin.getDoubleType() }
+        elsif k == ASTBuiltinTypeKind.TYPE_COMPLEX { t = SemaBuiltin.getComplexType() }
+        elsif k == ASTBuiltinTypeKind.TYPE_STRING { t = SemaBuiltin.getStringType() }
+        elsif k == ASTBuiltinTypeKind.TYPE_ERROR { t = SemaBuiltin.getErrorType() }
+        r.setCurrentType(t)
+    }
+
+    // named — resolve a class/enum/type-param by name via the symbol table's
+    // typeRef. (Generic type arguments are handled in Stage 8.)
+    public static void named(const Resolver r, const ASTNamedType node) {
+        SemaType t = null
+        List<ASTName> names = node.getNames()
+        if names.size() > 0 {
+            ASTName last = names.get(names.size() - 1)
+            Registry reg = r.getReg()
+            Symbol sym = reg.LookupNamedType(last.getName(), r.getCurrentScope())
+            if sym != null { t = sym.getTypeRef() }
+        }
+
+        // Generic instantiation: Wrapper<int> → resolve type args, get-or-create the
+        // specialization, and resolve it in isolation (T → concrete).
+        List<ASTType> targs = node.getTypeArgs()
+        if targs.size() > 0 {
+            SemaClassType spec = ResolverType.instantiate(r, t, targs)
+            if spec != null { r.setCurrentType(spec)  return }
+        }
+
+        // A named type that resolved to nothing is an unknown type.
+        if t == null {
+            if names.size() > 0 {
+                ASTName last = names.get(names.size() - 1)
+                r.diagStr(node.getLoc(), DiagID.err_sema_unknown_type, last.getName())
+            }
+        }
+
+        r.setCurrentType(t)
+    }
+
+    // instantiate — build (or fetch) the specialization of generic `t` for `targs`;
+    // null if `t` is not an instantiable generic class or a type arg fails to resolve.
+    public static SemaClassType instantiate(const Resolver r, const SemaType t, const List<ASTType> targs) {
+        if t == null { out = null  return }
+        SemaClassType template = t.asClass()
+        if template == null { out = null  return }
+        if template.isGeneric() == false { out = null  return }
+
+        List<SemaType> typeArgs = new List<SemaType>()
+        bool okAll = true
+        int i = 0
+        while i < targs.size() {
+            ASTType ta = targs.get(i)
+            ta.accept(r)
+            SemaType tas = r.getCurrentType()
+            if tas == null { okAll = false }
+            typeArgs.add(tas)
+            i = i + 1
+        }
+        if okAll == false { out = null  return }
+        List<SemaTypeParam> tparams = template.getTypeParams()
+        if typeArgs.size() != tparams.size() { out = null  return }
+
+        SemaClassType spec = SemaBuilder.CreateSpecialization(template, typeArgs, r.getCurrentScope())
+        ResolverClass.resolveClassTypeIsolated(r, spec)
+        out = spec
+    }
+
+    public static void array(const Resolver r, const ASTArrayType node) {
+        ASTType et = node.getElementType()
+        et.accept(r)
+        SemaType el = r.getCurrentType()
+        r.setCurrentType(SemaBuiltin.CreateArrayType(el, 0))
+    }
+}

@@ -60,7 +60,15 @@ public enum DiagID {
     err_parser_return_with_value,
     err_parser_import_wildcard_alias,
     err_parser_unknown_token,
-    err_lex_unterminated_block_comment
+    err_lex_unterminated_block_comment,
+    // ── semantic-analysis (Resolver) diagnostics ──
+    err_sema_unresolved_identifier,
+    err_sema_unknown_type,
+    err_sema_function_not_found,
+    err_sema_unknown_member,
+    err_sema_new_not_class,
+    err_sema_abstract_not_implemented,
+    err_sema_diamond_ambiguous
 }
 
 // getDiagClass — the class column for a diagnostic id.
@@ -121,5 +129,12 @@ public string getDescription(const DiagID id) {
     if id == DiagID.err_parser_import_wildcard_alias { out = "wildcard import ('.*') cannot be combined with 'as' alias" return }
     if id == DiagID.err_parser_unknown_token { out = "unknown character '%0'; this character is not part of Fly's syntax" return }
     if id == DiagID.err_lex_unterminated_block_comment { out = "unterminated /* comment" return }
+    if id == DiagID.err_sema_unresolved_identifier { out = "cannot find '%0' in this scope" return }
+    if id == DiagID.err_sema_unknown_type { out = "unknown type '%0'" return }
+    if id == DiagID.err_sema_function_not_found { out = "no function or method named '%0' matches this call" return }
+    if id == DiagID.err_sema_unknown_member { out = "'%0' is not a member of this type" return }
+    if id == DiagID.err_sema_new_not_class { out = "'%0' is not a class; only classes can be instantiated with 'new'" return }
+    if id == DiagID.err_sema_abstract_not_implemented { out = "class '%0' must implement inherited abstract method '%1'" return }
+    if id == DiagID.err_sema_diamond_ambiguous { out = "member '%0' is inherited ambiguously from multiple base classes of '%1'" return }
     out = "unknown diagnostic"
 }

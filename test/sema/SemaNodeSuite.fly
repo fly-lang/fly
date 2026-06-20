@@ -1,0 +1,41 @@
+import fly.compiler.sema.*
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaNodeSuite — Stage 1 skeleton: SemaKind / SemaVisibilityKind enums and the
+// SemaNode base (kind, getKind, str).
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite SemaNodeSuite {
+
+    void kindTest() {
+        case "SemaKind ordinals + names": {
+            assert.assertTrue(SemaKind.NAMESPACE == SemaKind.NAMESPACE, 1)
+            assert.assertTrue(SemaKind.TYPE_CLASS != SemaKind.TYPE_ENUM, 2)
+            assert.assertStr(SemaKind.VALUE.name, "VALUE", 3)
+            assert.assertStr(SemaKind.STMT_CASE.name, "STMT_CASE", 4)
+            assert.assertStr(SemaKind.TYPE_INTEGER.name, "TYPE_INTEGER", 5)
+        }
+    }
+
+    void visibilityTest() {
+        case "SemaVisibilityKind values": {
+            assert.assertTrue(SemaVisibilityKind.PUBLIC != SemaVisibilityKind.PRIVATE, 10)
+            assert.assertStr(SemaVisibilityKind.DEFAULT.name, "DEFAULT", 11)
+            assert.assertStr(SemaVisibilityKind.PROTECTED.name, "PROTECTED", 12)
+        }
+    }
+
+    void nodeTest() {
+        case "SemaNode construct + accessors": {
+            SemaNode n = new SemaNode(SemaKind.TYPE_CLASS)
+            assert.assertTrue(n.getKind() == SemaKind.TYPE_CLASS, 20)
+            assert.assertStr(n.str(), "TYPE_CLASS", 21)
+        }
+        case "SemaNode str tracks kind": {
+            SemaNode m = new SemaNode(SemaKind.CALL)
+            assert.assertStr(m.str(), "CALL", 22)
+            assert.assertTrue(m.getKind() == SemaKind.CALL, 23)
+        }
+    }
+}

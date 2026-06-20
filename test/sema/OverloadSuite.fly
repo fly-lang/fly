@@ -1,0 +1,67 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.data.*
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OverloadSuite — Stage 7: overload resolution + numeric promotion. A call's
+// synthetic out-var takes the resolved callee's return type, so its type reveals
+// WHICH overload was selected. Promotion is checked by calling a long-param
+// overload with an int argument (exact match fails; the promotion pass must
+// succeed, synthesizing an out-var).
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite OverloadSuite {
+
+    void overloadByTypeTest() {
+        case "each call resolves to the matching overload by argument type": {
+            Parser p = new Parser("int f(const int n) { out = n }  bool f(const bool b) { out = b }  void use() { int a = f(3)  bool c = f(true) }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 1)
+
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(null)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+
+            Registry reg = ctx.getReg()
+            List<SemaFunctionBase> bodies = reg.getBodies()
+            SemaFunctionBase use = bodies.get(2)
+            assert.assertStr(use.getName(), "use", 2)
+
+            List<SemaLocalVar> locals = use.getLocalVars()
+            assert.assertEqI(locals.size(), 2, 3)
+            SemaLocalVar o0 = locals.get(0)
+            SemaType t0 = o0.getType()
+            assert.assertTrue(t0.isInteger(), 4)   // f(3) → int f
+            SemaLocalVar o1 = locals.get(1)
+            SemaType t1 = o1.getType()
+            assert.assertTrue(t1.isBool(), 5)      // f(true) → bool f
+        }
+    }
+
+    void promotionTest() {
+        case "int argument resolves to a long-param overload via promotion": {
+            Parser p = new Parser("long g(const long x) { out = x }  void useG() { long r = g(3) }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 10)
+
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(null)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+
+            Registry reg = ctx.getReg()
+            List<SemaFunctionBase> bodies = reg.getBodies()
+            SemaFunctionBase useG = bodies.get(1)
+            assert.assertStr(useG.getName(), "useG", 11)
+
+            // g(3): int arg ≠ long param, so only the promotion pass matches; a match
+            // synthesizes one out-var. Zero would mean promotion failed.
+            List<SemaLocalVar> locals = useG.getLocalVars()
+            assert.assertEqI(locals.size(), 1, 12)
+        }
+    }
+}

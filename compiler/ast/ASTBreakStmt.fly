@@ -3,10 +3,13 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTStmt
 import fly.compiler.ast.ASTStmtKind
+import fly.compiler.ast.ASTVisitor
 
 public class ASTBreakStmt : ASTStmt {
 
     public ASTBreakStmt(const SourceLocation loc) {
         super(loc, ASTStmtKind.STMT_BREAK)
     }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

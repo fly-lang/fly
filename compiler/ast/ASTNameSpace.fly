@@ -4,6 +4,7 @@ import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTKind
 import fly.compiler.ast.ASTNode
 import fly.compiler.ast.ASTName
+import fly.compiler.ast.ASTVisitor
 import fly.data.List
 
 public class ASTNameSpace : ASTNode {
@@ -16,4 +17,6 @@ public class ASTNameSpace : ASTNode {
     }
 
     public List<ASTName> getNames() { out = this.names }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

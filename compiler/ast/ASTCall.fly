@@ -6,6 +6,7 @@ import fly.compiler.ast.ASTExprKind
 import fly.compiler.ast.ASTType
 import fly.data.List
 import fly.compiler.ast.ASTArg
+import fly.compiler.ast.ASTVisitor
 
 public enum ASTCallKind {
     CALL_DIRECT,
@@ -35,4 +36,6 @@ public class ASTCall : ASTExpr {
     public List<ASTType> getTypeArgs() { out = this.typeArgs }
     public ASTCallKind getCallKind() { out = this.callKind }
     public void addArg(const ASTArg a) { this.args.add(a) }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

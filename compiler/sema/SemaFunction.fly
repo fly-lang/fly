@@ -1,0 +1,57 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaFunctionBase
+import fly.compiler.sema.SemaModule
+import fly.compiler.sema.SemaComment
+import fly.compiler.sema.SemaVisibilityKind
+import fly.compiler.sema.SemaTypeParam
+import fly.compiler.sema.SymbolTable
+import fly.compiler.ast.ASTFunction
+import fly.data.List
+import fly.data.Map
+
+// SemaFunction — a resolved standalone function. 1:1 with C++ SemaFunction,
+// including the generic-template machinery (type params + monomorphization cache).
+public class SemaFunction : SemaFunctionBase {
+
+    SemaModule module
+    SemaComment comment
+    SemaVisibilityKind visibility
+    List<SemaTypeParam> typeParams
+    Map<string, SemaFunction> specializations
+    SemaFunction genericTemplate
+    string mangledName
+
+    public SemaFunction(const ASTFunction funcAst, const SymbolTable scope) {
+        super(funcAst, SemaKind.FUNCTION, scope)
+        this.visibility = SemaVisibilityKind.DEFAULT
+        this.typeParams = new List<SemaTypeParam>()
+        this.specializations = new Map<string, SemaFunction>()
+        this.mangledName = ""
+    }
+
+    public SemaModule getModule() { out = this.module }
+    public void setModule(const SemaModule module) { this.module = module }
+    public SemaComment getComment() { out = this.comment }
+    public void setComment(const SemaComment comment) { this.comment = comment }
+    public SemaVisibilityKind getVisibility() { out = this.visibility }
+    public void setVisibility(const SemaVisibilityKind visibility) { this.visibility = visibility }
+    public List<SemaTypeParam> getTypeParams() { out = this.typeParams }
+    public void addTypeParam(const SemaTypeParam tp) { this.typeParams.add(tp) }
+
+    // isGeneric — a template (has type params and is not itself a specialization).
+    public bool isGeneric() {
+        bool r = false
+        if this.typeParams.size() > 0 {
+            r = this.genericTemplate == null
+        }
+        out = r
+    }
+
+    public SemaFunction getGenericTemplate() { out = this.genericTemplate }
+    public void setGenericTemplate(const SemaFunction t) { this.genericTemplate = t }
+    public Map<string, SemaFunction> getSpecializations() { out = this.specializations }
+    public string getMangledName() { out = this.mangledName }
+    public void setMangledName(const string mangledName) { this.mangledName = mangledName }
+}

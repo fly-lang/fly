@@ -1,0 +1,94 @@
+import fly.compiler.sema.*
+import fly.data.List
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SymbolTableSuite — Stage 3: Symbol / SymbolKind / SymbolTable. Insert + lookup,
+// duplicate rejection, scope chain (push/lookupInParents), type-only lookup,
+// child search.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite SymbolTableSuite {
+
+    void symbolTest() {
+        case "Symbol accessors + isVarKind": {
+            SemaNode r = new SemaNode(SemaKind.VALUE)
+            Symbol s = new Symbol("x", SymbolKind.LOCAL_VAR, r)
+            assert.assertStr(s.getName(), "x", 1)
+            assert.assertTrue(s.getKind() == SymbolKind.LOCAL_VAR, 2)
+            assert.assertTrue(s.isVarKind(), 3)
+            assert.assertTrue(s.getRef() == r, 4)
+
+            Symbol fn = new Symbol("f", SymbolKind.FUNCTION, r)
+            assert.assertTrue(fn.isVarKind() == false, 5)
+        }
+    }
+
+    void insertLookupTest() {
+        case "insert + lookup in scope": {
+            SymbolTable t = new SymbolTable(null)
+            SemaNode r = new SemaNode(SemaKind.VALUE)
+            bool ok = t.insert(new Symbol("x", SymbolKind.LOCAL_VAR, r))
+            assert.assertTrue(ok, 10)
+            List<Symbol> found = t.lookup("x")
+            assert.assertTrue(found != null, 11)
+            assert.assertEqI(found.size(), 1, 12)
+            List<Symbol> miss = t.lookup("nope")
+            assert.assertTrue(miss == null, 13)
+        }
+        case "duplicate non-function rejected; functions append": {
+            SymbolTable t = new SymbolTable(null)
+            SemaNode r = new SemaNode(SemaKind.VALUE)
+            bool ok1 = t.insert(new Symbol("v", SymbolKind.VAR, r))
+            bool ok2 = t.insert(new Symbol("v", SymbolKind.VAR, r))
+            assert.assertTrue(ok1, 14)
+            assert.assertTrue(ok2 == false, 15)
+
+            bool f1 = t.insert(new Symbol("f", SymbolKind.FUNCTION, r))
+            bool f2 = t.insert(new Symbol("f", SymbolKind.FUNCTION, r))
+            assert.assertTrue(f1, 16)
+            assert.assertTrue(f2, 17)
+            List<Symbol> fs = t.lookup("f")
+            assert.assertEqI(fs.size(), 2, 18)
+        }
+    }
+
+    void scopeChainTest() {
+        case "pushScope + lookupInParents": {
+            SymbolTable root = new SymbolTable(null)
+            SemaNode r = new SemaNode(SemaKind.VALUE)
+            t_ins(root, "g", SymbolKind.LOCAL_VAR, r)
+
+            SymbolTable child = root.pushScope()
+            assert.assertTrue(child.getParent() == root, 20)
+            List<Symbol> local = child.lookup("g")
+            assert.assertTrue(local == null, 21)
+            List<Symbol> up = child.lookupInParents("g")
+            assert.assertTrue(up != null, 22)
+            assert.assertEqI(up.size(), 1, 23)
+            List<SymbolTable> kids = root.getChildren()
+            assert.assertEqI(kids.size(), 1, 24)
+        }
+    }
+
+    void typeLookupTest() {
+        case "lookupTypeInParents skips function-only scopes": {
+            SemaNode rc = new SemaNode(SemaKind.TYPE_CLASS)
+            SemaNode rf = new SemaNode(SemaKind.FUNCTION)
+            SymbolTable root = new SymbolTable(null)
+            t_ins(root, "C", SymbolKind.CLASS, rc)
+            t_ins(root, "g", SymbolKind.FUNCTION, rf)
+            SymbolTable child = root.pushScope()
+
+            List<Symbol> cls = child.lookupTypeInParents("C")
+            assert.assertTrue(cls != null, 30)
+            List<Symbol> fn = child.lookupTypeInParents("g")
+            assert.assertTrue(fn == null, 31)
+        }
+    }
+}
+
+// helper: insert and ignore the result (keeps cases terse)
+void t_ins(const SymbolTable t, const string name, const SymbolKind k, const SemaNode r) {
+    bool ok = t.insert(new Symbol(name, k, r))
+}

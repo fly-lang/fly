@@ -1,0 +1,19 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaStmt
+import fly.compiler.sema.SemaBlockStmt
+import fly.compiler.ast.ASTTestStmt
+
+// SemaTestStmt — a resolved inline test { } block. 1:1.
+public class SemaTestStmt : SemaStmt {
+
+    SemaBlockStmt body
+
+    public SemaTestStmt(const ASTTestStmt ast) {
+        super(SemaKind.STMT_TEST, ast)
+    }
+
+    public SemaBlockStmt getBody() { out = this.body }
+    public void setBody(const SemaBlockStmt body) { this.body = body }
+}

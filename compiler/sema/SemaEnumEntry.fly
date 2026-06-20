@@ -1,0 +1,27 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaType
+import fly.compiler.sema.SemaComment
+import fly.compiler.ast.ASTEnumEntry
+
+// SemaEnumEntry — a resolved enum value. 1:1 with C++ SemaEnumEntry.
+public class SemaEnumEntry : SemaExpr {
+
+    ASTEnumEntry entryAst
+    long index
+    SemaComment comment
+
+    public SemaEnumEntry(const ASTEnumEntry entryAst, const SemaType type) {
+        super(SemaKind.ENUM_ENTRY, type)
+        this.entryAst = entryAst
+        this.index = 0
+    }
+
+    public string getName() { out = this.entryAst.getName() }
+    public long getIndex() { out = this.index }
+    public void setIndex(const long index) { this.index = index }
+    public SemaComment getComment() { out = this.comment }
+    public void setComment(const SemaComment comment) { this.comment = comment }
+}

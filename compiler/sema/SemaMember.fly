@@ -1,0 +1,24 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaType
+import fly.compiler.ast.ASTMember
+
+// SemaMember — resolved member access (obj.field / namespace.x). 1:1 with C++
+// SemaMember. `ref` is the resolved referent (attribute, enum entry, …).
+public class SemaMember : SemaExpr {
+
+    ASTMember memberAst
+    SemaExpr ref
+
+    public SemaMember(const ASTMember memberAst, const SemaExpr ref, const SemaExpr parent, const SemaType type) {
+        super(SemaKind.MEMBER, type)
+        this.memberAst = memberAst
+        this.ref = ref
+        if parent != null { this.setParent(parent) }
+    }
+
+    public ASTMember getAST() { out = this.memberAst }
+    public SemaExpr getRef() { out = this.ref }
+}

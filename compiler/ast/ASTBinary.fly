@@ -3,6 +3,7 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTExprKind
+import fly.compiler.ast.ASTVisitor
 
 public enum ASTBinaryKind {
     OP_BINARY_ARITH_ADD,
@@ -55,4 +56,24 @@ public class ASTBinary : ASTExpr {
     public SourceLocation getOpLocation() { out = this.opLocation }
     public ASTExpr getLeftExpr() { out = this.leftExpr }
     public ASTExpr getRightExpr() { out = this.rightExpr }
+
+    // isArith — true for the arithmetic/bitwise/shift operators (their result type
+    // is the numeric type of the operands, subject to promotion). Comparisons and
+    // logical ops yield bool; assignments yield the assignee type.
+    public bool isArith() {
+        ASTBinaryKind k = this.binaryKind
+        bool r = k == ASTBinaryKind.OP_BINARY_ARITH_ADD
+            || k == ASTBinaryKind.OP_BINARY_ARITH_SUB
+            || k == ASTBinaryKind.OP_BINARY_ARITH_MUL
+            || k == ASTBinaryKind.OP_BINARY_ARITH_DIV
+            || k == ASTBinaryKind.OP_BINARY_ARITH_MOD
+            || k == ASTBinaryKind.OP_BINARY_ARITH_AND
+            || k == ASTBinaryKind.OP_BINARY_ARITH_OR
+            || k == ASTBinaryKind.OP_BINARY_ARITH_XOR
+            || k == ASTBinaryKind.OP_BINARY_ARITH_SHIFT_L
+            || k == ASTBinaryKind.OP_BINARY_ARITH_SHIFT_R
+        out = r
+    }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

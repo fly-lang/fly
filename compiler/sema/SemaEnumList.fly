@@ -1,0 +1,20 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaType
+import fly.compiler.sema.SemaEnumType
+
+// SemaEnumList — the result of the built-in Enum.list() (array of all entries).
+// 1:1 with C++ SemaEnumList.
+public class SemaEnumList : SemaExpr {
+
+    SemaEnumType enumType
+
+    public SemaEnumList(const SemaEnumType enumType, const SemaType arrayType) {
+        super(SemaKind.ENUM_LIST, arrayType)
+        this.enumType = enumType
+    }
+
+    public SemaEnumType getEnumType() { out = this.enumType }
+}

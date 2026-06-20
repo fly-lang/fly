@@ -1,0 +1,125 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.Symbol
+import fly.compiler.sema.SymbolKind
+import fly.data.Map
+import fly.data.List
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SymbolTable — a hierarchical scope: name → list of symbols (overloads share a
+// name), with a parent and child scopes. 1:1 port of C++ SymbolTable, with the
+// LLVM StringMap<SmallVector<Symbol*>> modelled as Map<string, List<Symbol>>.
+//
+// NOTE: insert()'s duplicate detection for FUNCTION symbols compares parameter
+// signatures, which needs SemaFunctionBase (ported in a later stage). Until then
+// functions are appended without the signature dedup; non-function duplicates are
+// rejected as in C++.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class SymbolTable {
+
+    Map<string, List<Symbol> > table
+    SymbolTable parent
+    List<SymbolTable> children
+
+    public SymbolTable(const SymbolTable parent) {
+        this.table = new Map<string, List<Symbol> >()
+        this.parent = parent
+        this.children = new List<SymbolTable>()
+    }
+
+    // insert — add a symbol; returns false if it duplicates an existing entry.
+    public bool insert(const Symbol sym) {
+        string nm = sym.getName()
+        bool ok = true
+        if this.table.has(nm) {
+            List<Symbol> existing = this.table.get(nm)
+            if sym.getKind() == SymbolKind.FUNCTION {
+                // TODO(stage4): reject when an existing function has the same
+                // parameter signature (needs SemaFunctionBase.getParams()).
+                existing.add(sym)
+            } else {
+                // Any same-named non-function symbol is a duplicate.
+                ok = false
+            }
+        } else {
+            List<Symbol> lst = new List<Symbol>()
+            lst.add(sym)
+            this.table.put(nm, lst)
+        }
+        out = ok
+    }
+
+    public void addChild(const SymbolTable child) { this.children.add(child) }
+
+    public int size() { out = this.table.size() }
+
+    // lookup — symbols for Name in THIS scope only (null if none).
+    public List<Symbol> lookup(const string name) {
+        List<Symbol> r = null
+        if this.table.has(name) { r = this.table.get(name) }
+        out = r
+    }
+
+    // lookupInParents — walk up the scope chain, return the first scope's symbols.
+    public List<Symbol> lookupInParents(const string name) {
+        List<Symbol> r = null
+        if this.table.has(name) {
+            r = this.table.get(name)
+        } elsif this.parent != null {
+            r = this.parent.lookupInParents(name)
+        }
+        out = r
+    }
+
+    // lookupTypeInParents — like lookupInParents but only stops at a scope that
+    // actually binds Name to a named type (CLASS / ENUM / BUILTIN_TYPE), skipping
+    // scopes where Name resolves only to functions/vars (e.g. a same-named ctor).
+    public List<Symbol> lookupTypeInParents(const string name) {
+        List<Symbol> r = null
+        if this.table.has(name) {
+            List<Symbol> here = this.table.get(name)
+            bool hasType = false
+            int i = 0
+            while i < here.size() {
+                Symbol s = here.get(i)
+                SymbolKind k = s.getKind()
+                if k == SymbolKind.CLASS || k == SymbolKind.ENUM || k == SymbolKind.BUILTIN_TYPE {
+                    hasType = true
+                }
+                i = i + 1
+            }
+            if hasType { r = here }
+        }
+        if r == null && this.parent != null {
+            r = this.parent.lookupTypeInParents(name)
+        }
+        out = r
+    }
+
+    // lookupInChildren — search this scope then recurse into descendant scopes.
+    public List<Symbol> lookupInChildren(const string name) {
+        List<Symbol> r = null
+        if this.table.has(name) {
+            r = this.table.get(name)
+        } else {
+            int i = 0
+            while i < this.children.size() && r == null {
+                SymbolTable c = this.children.get(i)
+                if c != null { r = c.lookupInChildren(name) }
+                i = i + 1
+            }
+        }
+        out = r
+    }
+
+    // pushScope — create and register a child scope, returning it.
+    public SymbolTable pushScope() {
+        SymbolTable child = new SymbolTable(this)
+        this.children.add(child)
+        out = child
+    }
+
+    public SymbolTable getParent() { out = this.parent }
+    public List<SymbolTable> getChildren() { out = this.children }
+}

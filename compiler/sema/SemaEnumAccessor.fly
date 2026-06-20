@@ -1,0 +1,33 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaType
+import fly.compiler.sema.SemaEnumType
+import fly.compiler.sema.SemaEnumEntry
+import fly.compiler.sema.SemaVar
+
+// SemaEnumAccessor — a built-in enum property access (.name / .value) on a
+// literal entry or an enum-typed variable. Exactly one of {entry, var} is set.
+// 1:1 with C++ SemaEnumAccessor.
+public class SemaEnumAccessor : SemaExpr {
+
+    SemaEnumType enumType
+    SemaEnumEntry entry
+    SemaVar var
+    bool isNameFlag   // true = .name (string), false = .value (int)
+
+    public SemaEnumAccessor(const SemaEnumType enumType, const SemaEnumEntry entry,
+                            const SemaVar var, const bool isNameFlag, const SemaType type) {
+        super(SemaKind.ENUM_ACCESSOR, type)
+        this.enumType = enumType
+        this.entry = entry
+        this.var = var
+        this.isNameFlag = isNameFlag
+    }
+
+    public SemaEnumType getEnumType() { out = this.enumType }
+    public SemaEnumEntry getEntry() { out = this.entry }
+    public SemaVar getVar() { out = this.var }
+    public bool isName() { out = this.isNameFlag }
+}

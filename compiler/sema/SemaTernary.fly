@@ -1,0 +1,30 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaType
+import fly.compiler.ast.ASTTernary
+
+// SemaTernary — resolved conditional expression. 1:1 with C++ SemaTernary; the
+// result type (SelectType of the branches) is computed by the resolver.
+public class SemaTernary : SemaExpr {
+
+    ASTTernary ternaryAst
+    SemaExpr cond
+    SemaExpr trueExpr
+    SemaExpr falseExpr
+
+    public SemaTernary(const ASTTernary ternaryAst, const SemaExpr cond,
+                       const SemaExpr trueExpr, const SemaExpr falseExpr, const SemaType type) {
+        super(SemaKind.TERNARY, type)
+        this.ternaryAst = ternaryAst
+        this.cond = cond
+        this.trueExpr = trueExpr
+        this.falseExpr = falseExpr
+    }
+
+    public ASTTernary getAST() { out = this.ternaryAst }
+    public SemaExpr getCond() { out = this.cond }
+    public SemaExpr getTrueExpr() { out = this.trueExpr }
+    public SemaExpr getFalseExpr() { out = this.falseExpr }
+}

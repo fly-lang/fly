@@ -1,0 +1,42 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaVar
+import fly.compiler.sema.SemaClassType
+import fly.data.Map
+
+// SemaClassInstance — the implicit `this` object inside a class method. 1:1 with
+// C++ SemaClassInstance. Its type IS the owning class (a SemaClassType), and it
+// has no AST var, so getName() is overridden to return "this".
+//
+// NOTE: the base-subobject navigation fallback in getBaseInstance (the C++
+// "search nested bases" branch) needs map iteration, which fly.data.Map does not
+// expose; only the direct typeId lookup is ported until CodeGen needs more.
+public class SemaClassInstance : SemaVar {
+
+    SemaClassType instClass
+    long index
+    Map<long, SemaClassInstance> baseInstances
+
+    public SemaClassInstance(const SemaClassType instClass) {
+        super(null, SemaKind.INSTANCE_VAR, instClass)
+        this.instClass = instClass
+        this.index = 0
+        this.baseInstances = new Map<long, SemaClassInstance>()
+    }
+
+    public string getName() { out = "this" }
+    public SemaClassType getClass() { out = this.instClass }
+    public long getIndex() { out = this.index }
+    public void setIndex(const long index) { this.index = index }
+    public Map<long, SemaClassInstance> getBaseInstances() { out = this.baseInstances }
+    public void addBaseInstance(const long typeId, const SemaClassInstance inst) {
+        this.baseInstances.put(typeId, inst)
+    }
+
+    public SemaClassInstance getBaseInstance(const long typeId) {
+        SemaClassInstance r = null
+        if this.baseInstances.has(typeId) { r = this.baseInstances.get(typeId) }
+        out = r
+    }
+}

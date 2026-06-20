@@ -3,6 +3,7 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTKind
 import fly.compiler.ast.ASTNode
+import fly.compiler.ast.ASTVisitor
 
 public class ASTComment : ASTNode {
 
@@ -14,4 +15,6 @@ public class ASTComment : ASTNode {
     }
 
     public string getContent() { out = this.content }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

@@ -1,0 +1,30 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaType
+import fly.compiler.ast.ASTVar
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaVar — base of the resolved variable kinds (local var, parameter, class
+// attribute, error var, `this` instance). 1:1 port of C++ SemaVar minus the
+// allocation tracking (SemaAlloc) and CodeGenVar, both deferred to the CodeGen
+// stage. `getName()` defers to the AST var.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class SemaVar : SemaExpr {
+
+    ASTVar varAst
+    bool constant
+
+    public SemaVar(const ASTVar varAst, const SemaKind kind, const SemaType type) {
+        super(kind, type)
+        this.varAst = varAst
+        this.constant = false
+    }
+
+    public ASTVar getAST() { out = this.varAst }
+    public string getName() { out = this.varAst.getName() }
+    public bool isConstant() { out = this.constant }
+    public void setConstant(const bool constant) { this.constant = constant }
+}

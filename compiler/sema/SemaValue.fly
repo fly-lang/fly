@@ -1,0 +1,137 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaType
+import fly.compiler.ast.ASTValue
+import fly.compiler.ast.ASTBoolValue
+import fly.compiler.ast.ASTNumberValue
+import fly.compiler.ast.ASTStringValue
+import fly.compiler.ast.ASTArrayValue
+import fly.compiler.ast.ASTStructValue
+import fly.compiler.ast.ASTNullValue
+import fly.compiler.ast.ASTUnsetValue
+import fly.data.List
+import fly.data.Map
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaValue — resolved literal values, 1:1 with C++ SemaValue and subclasses.
+// Adaptation: numeric payloads (APInt/APFloat in C++) are kept as the literal
+// text `string`, mirroring the already-string ASTNumberValue; parse to int/double
+// only where constant arithmetic needs it. Complex value internals are minimal
+// for now (deferred until a consumer needs them).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class SemaValue : SemaExpr {
+
+    ASTValue valueAst
+
+    public SemaValue(const ASTValue valueAst, const SemaType type) {
+        super(SemaKind.VALUE, type)
+        this.valueAst = valueAst
+    }
+
+    public ASTValue getAST() { out = this.valueAst }
+}
+
+public class SemaBoolValue : SemaValue {
+
+    bool value
+
+    public SemaBoolValue(const ASTBoolValue ast, const SemaType type) {
+        super(ast, type)
+        this.value = ast.getValue()
+    }
+
+    public bool getValue() { out = this.value }
+}
+
+public class SemaIntValue : SemaValue {
+
+    string value   // the integer literal text
+
+    public SemaIntValue(const ASTNumberValue ast, const SemaType type, const string value) {
+        super(ast, type)
+        this.value = value
+    }
+
+    public string getValue() { out = this.value }
+}
+
+public class SemaFloatValue : SemaValue {
+
+    string value   // the float literal text
+
+    public SemaFloatValue(const ASTNumberValue ast, const SemaType type, const string value) {
+        super(ast, type)
+        this.value = value
+    }
+
+    public string getValue() { out = this.value }
+}
+
+public class SemaComplexValue : SemaValue {
+
+    string realPart
+    string imagPart
+
+    public SemaComplexValue(const ASTNumberValue ast, const SemaType type,
+                            const string realPart, const string imagPart) {
+        super(ast, type)
+        this.realPart = realPart
+        this.imagPart = imagPart
+    }
+
+    public string getReal() { out = this.realPart }
+    public string getImag() { out = this.imagPart }
+}
+
+public class SemaStringValue : SemaValue {
+
+    string value
+
+    public SemaStringValue(const ASTStringValue ast, const SemaType type) {
+        super(ast, type)
+        this.value = ast.getValue()
+    }
+
+    public string getValue() { out = this.value }
+}
+
+public class SemaArrayValue : SemaValue {
+
+    List<SemaValue> values
+
+    public SemaArrayValue(const ASTArrayValue ast, const SemaType type) {
+        super(ast, type)
+        this.values = new List<SemaValue>()
+    }
+
+    public List<SemaValue> getValues() { out = this.values }
+    public void addValue(const SemaValue v) { this.values.add(v) }
+}
+
+public class SemaStructValue : SemaValue {
+
+    Map<string, SemaValue> values
+
+    public SemaStructValue(const ASTStructValue ast, const SemaType type) {
+        super(ast, type)
+        this.values = new Map<string, SemaValue>()
+    }
+
+    public Map<string, SemaValue> getValues() { out = this.values }
+    public void putValue(const string name, const SemaValue v) { this.values.put(name, v) }
+}
+
+public class SemaNullValue : SemaValue {
+    public SemaNullValue(const ASTNullValue ast, const SemaType type) {
+        super(ast, type)
+    }
+}
+
+public class SemaUnsetValue : SemaValue {
+    public SemaUnsetValue(const ASTUnsetValue ast, const SemaType type) {
+        super(ast, type)
+    }
+}

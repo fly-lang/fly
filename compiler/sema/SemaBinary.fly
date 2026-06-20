@@ -1,0 +1,27 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaType
+import fly.compiler.ast.ASTBinary
+
+// SemaBinary — resolved binary operation. 1:1 with C++ SemaBinary; the result
+// type (C++ SelectType / numeric promotion) is computed by the resolver and
+// passed in, rather than in the constructor.
+public class SemaBinary : SemaExpr {
+
+    ASTBinary binaryAst
+    SemaExpr left
+    SemaExpr right
+
+    public SemaBinary(const ASTBinary binaryAst, const SemaExpr left, const SemaExpr right, const SemaType type) {
+        super(SemaKind.BINARY, type)
+        this.binaryAst = binaryAst
+        this.left = left
+        this.right = right
+    }
+
+    public ASTBinary getAST() { out = this.binaryAst }
+    public SemaExpr getLeft() { out = this.left }
+    public SemaExpr getRight() { out = this.right }
+}

@@ -1,0 +1,22 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaStmt
+import fly.compiler.sema.SemaBlockStmt
+import fly.compiler.ast.ASTCaseStmt
+
+// SemaCaseStmt — a labelled case body (e.g. a suite test case). 1:1.
+public class SemaCaseStmt : SemaStmt {
+
+    string label
+    SemaBlockStmt body
+
+    public SemaCaseStmt(const ASTCaseStmt ast, const string label, const SemaBlockStmt body) {
+        super(SemaKind.STMT_CASE, ast)
+        this.label = label
+        this.body = body
+    }
+
+    public string getLabel() { out = this.label }
+    public SemaBlockStmt getBody() { out = this.body }
+}

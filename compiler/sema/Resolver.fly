@@ -1,0 +1,271 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.compiler.basic.*
+import fly.data.List
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Resolver — the AST→Sema walker, an ASTVisitor (1:1 port of C++ Resolver). It
+// builds SemaModule/Function/Class/etc. from the parsed AST, threading the
+// resolution context through mutable "current" fields.
+//
+// Stage-6 scope: the monomorphic, non-generic core — modules, namespaces,
+// standalone functions (params/return/body), builtin & named types, literal
+// values, identifier/binary expressions, and block/decl/expr/return statements.
+// Classes/enums/methods, calls, member access, control-flow statements, generics
+// (Stage 8) and overload promotion (Stage 7) are stubbed and filled in next.
+//
+// Adaptation: where C++ stashes a resolved node on the AST node's Symbol slot,
+// this port returns it via currentExpr / currentType / currentVar, consumed by
+// the caller immediately after node.accept(this). Diagnostics emission is
+// deferred (valid programs resolve; error reporting comes with the Stage-6
+// completion). The result-passing model is single-threaded, like the C++ visitor.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class Resolver : ASTVisitor {
+
+    Registry reg
+    bool testMode
+
+    SymbolTable currentScope
+    SemaModule currentModule
+    SemaClassType currentClass
+    SemaEnumType currentEnum
+    SemaFunctionBase currentFunction
+    SemaNameSpace currentNameSpace
+
+    // result of the most recent expression / type / var resolution (typed per
+    // result kind because Fly has no downcast to recover the concrete type)
+    SemaExpr currentExpr
+    SemaType currentType
+    SemaVar currentVar
+    SemaParam currentParam
+    SemaLocalVar currentLocalVar
+
+    // block currently being populated, and the most recently completed block
+    SemaBlockStmt currentSemaBlock
+    SemaBlockStmt lastBlock
+
+    // control-flow nesting depth (for break/continue legality) and the active
+    // error handler / handle-block nesting (for fail-outside-handle → fallible).
+    int loopDepth
+    int switchDepth
+    int handleDepth
+    int outVarCounter
+    SemaError currentErrorHandler
+
+    public Resolver(const Registry reg, const bool testMode) {
+        this.reg = reg
+        this.testMode = testMode
+        // Seed the scope chain at the Registry's global scope so the first
+        // enterScope() (per module) pushes a module scope beneath it.
+        this.currentScope = reg.getGlobalScope()
+        this.loopDepth = 0
+        this.switchDepth = 0
+        this.handleDepth = 0
+        this.outVarCounter = 0
+    }
+
+    // nextOutName — a fresh "__out_N" name for a call's synthetic return variable.
+    public string nextOutName() {
+        string n = fly.str.convert(this.outVarCounter)
+        this.outVarCounter = this.outVarCounter + 1
+        string t = fly.str.concat("__out_", n)
+        out = t
+    }
+
+    // ── control-flow nesting ──────────────────────────────────────────────────
+    public int getLoopDepth() { out = this.loopDepth }
+    public void enterLoop() { this.loopDepth = this.loopDepth + 1 }
+    public void exitLoop() { this.loopDepth = this.loopDepth - 1 }
+    public int getSwitchDepth() { out = this.switchDepth }
+    public void enterSwitch() { this.switchDepth = this.switchDepth + 1 }
+    public void exitSwitch() { this.switchDepth = this.switchDepth - 1 }
+    public int getHandleDepth() { out = this.handleDepth }
+    public void enterHandle() { this.handleDepth = this.handleDepth + 1 }
+    public void exitHandle() { this.handleDepth = this.handleDepth - 1 }
+    public SemaError getCurrentErrorHandler() { out = this.currentErrorHandler }
+    public void setCurrentErrorHandler(const SemaError h) { this.currentErrorHandler = h }
+
+    // ── accessors for companions ────────────────────────────────────────────
+    public Registry getReg() { out = this.reg }
+    public SymbolTable getCurrentScope() { out = this.currentScope }
+    public void setCurrentScope(const SymbolTable s) { this.currentScope = s }
+    public SemaModule getCurrentModule() { out = this.currentModule }
+    public void setCurrentModule(const SemaModule m) { this.currentModule = m }
+    public SemaClassType getCurrentClass() { out = this.currentClass }
+    public void setCurrentClass(const SemaClassType c) { this.currentClass = c }
+    public SemaEnumType getCurrentEnum() { out = this.currentEnum }
+    public void setCurrentEnum(const SemaEnumType e) { this.currentEnum = e }
+    public SemaFunctionBase getCurrentFunction() { out = this.currentFunction }
+    public void setCurrentFunctionBase(const SemaFunctionBase f) { this.currentFunction = f }
+    public SemaExpr getCurrentExpr() { out = this.currentExpr }
+    public void setCurrentExpr(const SemaExpr e) { this.currentExpr = e }
+    public SemaType getCurrentType() { out = this.currentType }
+    public void setCurrentType(const SemaType t) { this.currentType = t }
+    public SemaVar getCurrentVar() { out = this.currentVar }
+    public void setCurrentVar(const SemaVar v) { this.currentVar = v }
+    public SemaParam getCurrentParam() { out = this.currentParam }
+    public void setCurrentParam(const SemaParam p) { this.currentParam = p }
+    public SemaLocalVar getCurrentLocalVar() { out = this.currentLocalVar }
+    public void setCurrentLocalVar(const SemaLocalVar v) { this.currentLocalVar = v }
+    public SemaBlockStmt getCurrentSemaBlock() { out = this.currentSemaBlock }
+    public void setCurrentSemaBlock(const SemaBlockStmt b) { this.currentSemaBlock = b }
+    public SemaBlockStmt getLastBlock() { out = this.lastBlock }
+    public void setLastBlock(const SemaBlockStmt b) { this.lastBlock = b }
+
+    // ── scope management ────────────────────────────────────────────────────
+    public void enterScope() { this.currentScope = this.currentScope.pushScope() }
+    public void exitScope() { this.currentScope = this.currentScope.getParent() }
+
+    public void resetCurrents() {
+        this.currentClass = null
+        this.currentEnum = null
+        this.currentFunction = null
+    }
+
+    public void addSymbol(const Symbol sym) {
+        bool ok = this.currentScope.insert(sym)
+    }
+
+    // ── diagnostics ───────────────────────────────────────────────────────────
+    // Emit a semantic error through the Registry's DiagnosticsEngine (null in tests
+    // that don't supply one — then resolution still proceeds silently). The engine's
+    // SourceManager (shared with the Parser's) renders the AST node's location.
+    public void diag(const SourceLocation loc, const DiagID id) {
+        DiagnosticsEngine d = this.reg.getDiags()
+        if d != null {
+            DiagnosticBuilder b = d.report(loc, id)
+            b.emit()
+        }
+    }
+    public void diagStr(const SourceLocation loc, const DiagID id, const string arg) {
+        DiagnosticsEngine d = this.reg.getDiags()
+        if d != null {
+            DiagnosticBuilder b = d.report(loc, id)
+            b.addStr(arg)
+            b.emit()
+        }
+    }
+    public void diagStr2(const SourceLocation loc, const DiagID id, const string a0, const string a1) {
+        DiagnosticsEngine d = this.reg.getDiags()
+        if d != null {
+            DiagnosticBuilder b = d.report(loc, id)
+            b.addStr(a0)
+            b.addStr(a1)
+            b.emit()
+        }
+    }
+
+    // ── main resolve driver ──────────────────────────────────────────────────
+    // Function/class declaration happens during module.accept(). Here:
+    //  Phase B — resolve class members (attributes/methods/bases) now that every
+    //            class shell + symbol exists (iterates the Registry's typed class
+    //            list, avoiding a SemaNode→SemaClassType downcast);
+    //  Phase C — resolve function/method BODIES queued in Reg.getBodies().
+    public void Resolve() {
+        List<SemaClassType> classes = this.reg.getClasses()
+        int ci = 0
+        while ci < classes.size() {
+            SemaClassType cls = classes.get(ci)
+            ResolverClass.resolveClassType(this, cls)
+            ci = ci + 1
+        }
+
+        List<SemaFunctionBase> bodies = this.reg.getBodies()
+        int bi = 0
+        while bi < bodies.size() {
+            SemaFunctionBase fb = bodies.get(bi)
+            ResolverDecl.resolveBody(this, fb)
+            bi = bi + 1
+        }
+    }
+
+    // ── top-level visits ────────────────────────────────────────────────────
+    public void visit(const ASTModule node) {
+        if node.isVisited() == false {
+            node.setVisited(true)
+            this.enterScope()
+            this.currentModule = new SemaModule(node, this.currentScope)
+            this.reg.addModule(this.currentModule)
+            ASTNameSpace ns = node.getNameSpace()
+            if ns != null {
+                ns.accept(this)
+            } else {
+                this.currentNameSpace = this.reg.getDefaultNameSpace()
+            }
+            List<ASTNode> nodes = node.getNodes()
+            int i = 0
+            while i < nodes.size() {
+                ASTNode n = nodes.get(i)
+                n.accept(this)
+                i = i + 1
+            }
+            this.exitScope()
+        }
+    }
+
+    public void visit(const ASTNameSpace node) {
+        if node.isVisited() == false {
+            node.setVisited(true)
+            SemaNameSpace ns = this.reg.getOrCreateNameSpace(node.getNames())
+            this.currentModule.setNameSpace(ns)
+            this.currentNameSpace = ns
+        }
+    }
+
+    public void visit(const ASTImport node) { }
+
+    public void visit(const ASTFunction node) { ResolverDecl.declareFunction(this, node) }
+    public void visit(const ASTClass node) { ResolverClass.declareClass(this, node) }
+    public void visit(const ASTAttribute node) { ResolverClass.attribute(this, node) }
+    public void visit(const ASTMethod node) { ResolverClass.method(this, node) }
+    public void visit(const ASTEnum node) { ResolverClass.declareEnum(this, node) }
+    public void visit(const ASTEnumEntry node) { ResolverClass.enumEntry(this, node) }
+    public void visit(const ASTComment node) { }
+
+    public void visit(const ASTLocalVar node) { ResolverDecl.localVar(this, node) }
+    public void visit(const ASTParam node) { ResolverDecl.param(this, node) }
+
+    // ── types ────────────────────────────────────────────────────────────────
+    public void visit(const ASTBuiltinType node) { ResolverType.builtin(this, node) }
+    public void visit(const ASTNamedType node) { ResolverType.named(this, node) }
+    public void visit(const ASTArrayType node) { ResolverType.array(this, node) }
+    public void visit(const ASTTypeParam node) { }
+
+    // ── statements ─────────────────────────────────────────────────────────
+    public void visit(const ASTBlockStmt node) { ResolverStmt.block(this, node) }
+    public void visit(const ASTDeclStmt node) { ResolverStmt.decl(this, node) }
+    public void visit(const ASTExprStmt node) { ResolverStmt.expr(this, node) }
+    public void visit(const ASTReturnStmt node) { ResolverStmt.ret(this, node) }
+    public void visit(const ASTFailStmt node) { ResolverStmt.failStmt(this, node) }
+    public void visit(const ASTHandleStmt node) { ResolverStmt.handleStmt(this, node) }
+    public void visit(const ASTDeleteStmt node) { ResolverStmt.deleteStmt(this, node) }
+    public void visit(const ASTBreakStmt node) { ResolverStmt.breakStmt(this, node) }
+    public void visit(const ASTContinueStmt node) { ResolverStmt.continueStmt(this, node) }
+    public void visit(const ASTRuleStmt node) { ResolverStmt.ruleStmt(this, node) }
+    public void visit(const ASTIfStmt node) { ResolverStmt.ifStmt(this, node) }
+    public void visit(const ASTSwitchStmt node) { ResolverStmt.switchStmt(this, node) }
+    public void visit(const ASTLoopStmt node) { ResolverStmt.loopStmt(this, node) }
+    public void visit(const ASTLoopInStmt node) { ResolverStmt.loopInStmt(this, node) }
+    public void visit(const ASTTestStmt node) { }
+    public void visit(const ASTCaseStmt node) { }
+
+    // ── expressions ──────────────────────────────────────────────────────────
+    public void visit(const ASTIdentifier node) { ResolverExpr.identifier(this, node) }
+    public void visit(const ASTMember node) { ResolverExpr.member(this, node) }
+    public void visit(const ASTCall node) { ResolverCall.call(this, node) }
+    public void visit(const ASTUnary node) { ResolverExpr.unary(this, node) }
+    public void visit(const ASTBinary node) { ResolverExpr.binary(this, node) }
+    public void visit(const ASTTernary node) { ResolverExpr.ternary(this, node) }
+    public void visit(const ASTCast node) { ResolverExpr.cast(this, node) }
+    public void visit(const ASTBoolValue node) { this.currentExpr = SemaBuilder.CreateBoolValue(node) }
+    public void visit(const ASTNumberValue node) { this.currentExpr = SemaBuilder.CreateNumberValue(node) }
+    public void visit(const ASTStringValue node) { this.currentExpr = SemaBuilder.CreateStringValue(node) }
+    public void visit(const ASTArrayValue node) { }
+    public void visit(const ASTStructValue node) { }
+    public void visit(const ASTNullValue node) { this.currentExpr = SemaBuilder.CreateNullValue(node) }
+    public void visit(const ASTUnsetValue node) { this.currentExpr = SemaBuilder.CreateUnsetValue(node) }
+}

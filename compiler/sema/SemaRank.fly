@@ -1,0 +1,33 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaIntTypeKind
+import fly.compiler.sema.SemaFloatTypeKind
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaRank — numeric promotion ranks for the integer/float kinds. Kept in a
+// separate file from SemaType so SemaIntType / SemaFloatType constructors can
+// call these from their super() arguments: a class method calling a free function
+// in the SAME file miscompiles, but a cross-file (same-namespace) call is fine.
+//
+// The integer rank is the bit width, whose parity also encodes signedness
+// (even = unsigned); the float rank is bit-width * 10 so any float outranks every
+// integer. These mirror the C++ SemaIntTypeKind / SemaFloatTypeKind values.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public int semaIntRank(const SemaIntTypeKind k) {
+    int r = 0
+    if k == SemaIntTypeKind.TYPE_BYTE      { r = 8 }
+    elsif k == SemaIntTypeKind.TYPE_USHORT { r = 16 }
+    elsif k == SemaIntTypeKind.TYPE_UINT   { r = 32 }
+    elsif k == SemaIntTypeKind.TYPE_ULONG  { r = 64 }
+    elsif k == SemaIntTypeKind.TYPE_SHORT  { r = 15 }
+    elsif k == SemaIntTypeKind.TYPE_INT    { r = 31 }
+    elsif k == SemaIntTypeKind.TYPE_LONG   { r = 63 }
+    out = r
+}
+
+public int semaFloatRank(const SemaFloatTypeKind k) {
+    int r = 320
+    if k == SemaFloatTypeKind.TYPE_DOUBLE { r = 640 }
+    out = r
+}

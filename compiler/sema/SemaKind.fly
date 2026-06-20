@@ -1,0 +1,73 @@
+namespace fly.compiler.sema
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaKind — the discriminator for every semantic node (SemaNode.kind), a native
+// Fly `enum` mirroring the C++ `enum class SemaKind` in include/Sema/SemaNode.h.
+// One value per resolved Sema node category: namespaces/imports, the type
+// hierarchy, variables, expressions, top-level functions/methods, enum values,
+// and statements.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public enum SemaKind {
+    NAMESPACE,
+    IMPORT,
+    TYPE,
+
+    // Types
+    TYPE_VOID,
+    TYPE_BOOL,
+    TYPE_INTEGER,
+    TYPE_FLOAT,
+    TYPE_COMPLEX,
+    TYPE_STRING,
+    TYPE_ERROR,
+    TYPE_ARRAY,
+    TYPE_CLASS,
+    TYPE_ENUM,
+    TYPE_PARAM,
+
+    // Variables
+    PARAM_VAR,
+    LOCAL_VAR,
+    ERROR_VAR,
+    ATTRIBUTE,
+    INSTANCE_VAR,
+
+    // Expressions
+    MEMBER,
+    CALL,
+    UNARY,
+    BINARY,
+    TERNARY,
+    CAST,
+
+    // Top level nodes
+    FUNCTION,
+    METHOD,
+
+    // Values
+    ENUM_ENTRY,
+    ENUM_LIST,
+    ENUM_ACCESSOR,
+    VALUE,
+
+    // Types (suite)
+    TYPE_SUITE,
+
+    // Statements
+    STMT_BLOCK,
+    STMT_DECL,
+    STMT_EXPR,
+    STMT_RETURN,
+    STMT_IF,
+    STMT_SWITCH,
+    STMT_LOOP,
+    STMT_LOOP_IN,
+    STMT_DELETE,
+    STMT_BREAK,
+    STMT_CONTINUE,
+    STMT_FAIL,
+    STMT_HANDLE,
+    STMT_TEST,
+    STMT_CASE
+}

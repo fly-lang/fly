@@ -1,0 +1,345 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.Symbol
+import fly.compiler.sema.SymbolKind
+import fly.compiler.sema.SymbolTable
+import fly.compiler.sema.SemaNameSpace
+import fly.compiler.sema.SemaModule
+import fly.compiler.sema.SemaFunctionBase
+import fly.compiler.sema.SemaType
+import fly.compiler.sema.SemaClassType
+import fly.compiler.sema.SemaNode
+import fly.compiler.sema.SemaBuiltin
+import fly.compiler.basic.DiagnosticsEngine
+import fly.compiler.ast.ASTName
+import fly.data.List
+import fly.data.Map
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Registry — central symbol/type registry: the builtin scope, the global scope,
+// the default namespace, the resolved modules and the function bodies pending
+// resolution. 1:1 with C++ Registry.
+//
+// Stage-5 scope: exact-match function lookup only (numeric-promotion overload
+// resolution is added in Stage 7). Lookup failures return null; diagnostics
+// emission (C++ err_invalid_behavior) is left to the Resolver, which checks the
+// null results — the DiagnosticsEngine is stored for that future wiring.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class Registry {
+
+    DiagnosticsEngine diags
+    SymbolTable builtinScope
+    SymbolTable globalScope
+    List<SemaModule> modules
+    SemaNameSpace defaultNameSpace
+    List<SemaFunctionBase> bodies
+    List<SemaClassType> classes           // pending member resolution (typed; avoids SemaNode downcast)
+    Map<string, SemaNameSpace> nsByPath   // dotted path → namespace (avoids ref downcast)
+
+    public Registry(const DiagnosticsEngine diags) {
+        this.diags = diags
+        this.builtinScope = this.createBuiltinScope()
+        this.globalScope = new SymbolTable(this.builtinScope)
+        SymbolTable nsScope = new SymbolTable(this.globalScope)
+        this.defaultNameSpace = new SemaNameSpace("default", nsScope)
+        Symbol nsSym = new Symbol(this.defaultNameSpace.getName(), SymbolKind.NAMESPACE, this.defaultNameSpace)
+        bool ok = this.globalScope.insert(nsSym)
+        this.modules = new List<SemaModule>()
+        this.bodies = new List<SemaFunctionBase>()
+        this.classes = new List<SemaClassType>()
+        this.nsByPath = new Map<string, SemaNameSpace>()
+    }
+
+    public DiagnosticsEngine getDiags() { out = this.diags }
+    public SymbolTable getBuiltinScope() { out = this.builtinScope }
+    public SymbolTable getGlobalScope() { out = this.globalScope }
+    public SemaNameSpace getDefaultNameSpace() { out = this.defaultNameSpace }
+
+    public void addModule(const SemaModule module) { this.modules.add(module) }
+    public List<SemaModule> getModules() { out = this.modules }
+    public void addBody(const SemaFunctionBase fb) { this.bodies.add(fb) }
+    public List<SemaFunctionBase> getBodies() { out = this.bodies }
+    public void addClass(const SemaClassType cls) { this.classes.add(cls) }
+    public List<SemaClassType> getClasses() { out = this.classes }
+
+    // createBuiltinScope — a scope holding every builtin type, keyed by its name.
+    public SymbolTable createBuiltinScope() {
+        SymbolTable b = new SymbolTable(null)
+        SemaType bt = SemaBuiltin.getBoolType()
+        bool r0 = b.insert(new Symbol(bt.getName(), SymbolKind.BUILTIN_TYPE, bt))
+        SemaType byT = SemaBuiltin.getByteType()
+        bool r1 = b.insert(new Symbol(byT.getName(), SymbolKind.BUILTIN_TYPE, byT))
+        SemaType usT = SemaBuiltin.getUShortType()
+        bool r2 = b.insert(new Symbol(usT.getName(), SymbolKind.BUILTIN_TYPE, usT))
+        SemaType shT = SemaBuiltin.getShortType()
+        bool r3 = b.insert(new Symbol(shT.getName(), SymbolKind.BUILTIN_TYPE, shT))
+        SemaType uiT = SemaBuiltin.getUIntType()
+        bool r4 = b.insert(new Symbol(uiT.getName(), SymbolKind.BUILTIN_TYPE, uiT))
+        SemaType iT = SemaBuiltin.getIntType()
+        bool r5 = b.insert(new Symbol(iT.getName(), SymbolKind.BUILTIN_TYPE, iT))
+        SemaType ulT = SemaBuiltin.getULongType()
+        bool r6 = b.insert(new Symbol(ulT.getName(), SymbolKind.BUILTIN_TYPE, ulT))
+        SemaType lT = SemaBuiltin.getLongType()
+        bool r7 = b.insert(new Symbol(lT.getName(), SymbolKind.BUILTIN_TYPE, lT))
+        SemaType fT = SemaBuiltin.getFloatType()
+        bool r8 = b.insert(new Symbol(fT.getName(), SymbolKind.BUILTIN_TYPE, fT))
+        SemaType dT = SemaBuiltin.getDoubleType()
+        bool r9 = b.insert(new Symbol(dT.getName(), SymbolKind.BUILTIN_TYPE, dT))
+        SemaType sT = SemaBuiltin.getStringType()
+        bool r10 = b.insert(new Symbol(sT.getName(), SymbolKind.BUILTIN_TYPE, sT))
+        SemaType vT = SemaBuiltin.getVoidType()
+        bool r11 = b.insert(new Symbol(vT.getName(), SymbolKind.BUILTIN_TYPE, vT))
+        SemaType eT = SemaBuiltin.getErrorType()
+        bool r12 = b.insert(new Symbol(eT.getName(), SymbolKind.BUILTIN_TYPE, eT))
+        out = b
+    }
+
+    // getOrCreateNameSpace — descend/create the namespace path; empty → default.
+    // Namespaces are tracked by dotted path in nsByPath so an existing one is
+    // recovered without downcasting a Symbol ref (Fly has no downcast).
+    public SemaNameSpace getOrCreateNameSpace(const List<ASTName> names) {
+        SemaNameSpace ns = this.defaultNameSpace
+        if names.size() > 0 {
+            SymbolTable currentScope = this.globalScope
+            // Seeded non-empty so concat never aliases. The leaf name is passed via
+            // n.getName() DIRECTLY (not through a `string nm` local): a copied local
+            // is auto-freed at loop-iteration end while the namespace would still
+            // borrow it, corrupting the stored name. The AST node outlives the Sema
+            // tree, so borrowing its name (as the C++ StringRef does) is safe.
+            string path = "ns"
+            int i = 0
+            while i < names.size() {
+                ASTName n = names.get(i)
+                string pd = fly.str.concat(path, ".")
+                path = pd
+                string pn = fly.str.concat(path, n.getName())
+                path = pn
+                if this.nsByPath.has(path) {
+                    ns = this.nsByPath.get(path)
+                    currentScope = ns.getSymbols()
+                } else {
+                    SymbolTable childScope = new SymbolTable(currentScope)
+                    ns = new SemaNameSpace(n.getName(), childScope)
+                    bool ok = currentScope.insert(new Symbol(n.getName(), SymbolKind.NAMESPACE, ns))
+                    currentScope.addChild(childScope)
+                    this.nsByPath.put(path, ns)
+                    currentScope = childScope
+                }
+                i = i + 1
+            }
+        }
+        out = ns
+    }
+
+    public Symbol LookupBuiltinType(const string typeName) {
+        out = firstOf(this.builtinScope.lookup(typeName))
+    }
+
+    public Symbol LookupNamedType(const string name, const SymbolTable scope) {
+        out = firstOf(scope.lookupTypeInParents(name))
+    }
+
+    public Symbol LookupName(const string name, const SymbolTable scope) {
+        out = firstOf(scope.lookupInParents(name))
+    }
+
+    // LookupFunctionExact — first FUNCTION symbol whose explicit signature exactly
+    // matches `types` (by isEquals, no inheritance/promotion).
+    public Symbol LookupFunctionExact(const string name, const List<SemaType> types, const SymbolTable scope) {
+        Symbol r = null
+        List<Symbol> syms = scope.lookupInParents(name)
+        if syms != null {
+            int i = 0
+            while i < syms.size() && r == null {
+                Symbol s = syms.get(i)
+                if s.getKind() == SymbolKind.FUNCTION {
+                    List<SemaType> ptypes = s.getParamTypes()
+                    if ptypes != null {
+                        if signaturesEqual(ptypes, types) { r = s }
+                    }
+                }
+                i = i + 1
+            }
+        }
+        out = r
+    }
+
+    // LookupFunction — overload resolution (Stage 7). Two passes mirroring the C++
+    // Registry::FindFunctionMatches:
+    //   1. exact (inheritance-tolerant) match; if several, a strict no-upcast
+    //      tie-break picks the most-derived/identical overload;
+    //   2. promotion-aware match (numeric widening) as a fallback.
+    // Returns the single best candidate (ambiguity diagnostics come with a Validator).
+    public Symbol LookupFunction(const string name, const List<SemaType> types, const SymbolTable scope) {
+        List<Symbol> syms = scope.lookupInParents(name)
+        if syms == null { out = null  return }
+
+        // Pass 1: exact (inheritance-tolerant)
+        Symbol exact = null
+        int exactCount = 0
+        int i = 0
+        while i < syms.size() {
+            Symbol s = syms.get(i)
+            if s.getKind() == SymbolKind.FUNCTION {
+                List<SemaType> p = s.getParamTypes()
+                if p != null {
+                    if typesMatchExact(p, types) {
+                        if exact == null { exact = s }
+                        exactCount = exactCount + 1
+                    }
+                }
+            }
+            i = i + 1
+        }
+        if exactCount == 1 { out = exact  return }
+        if exactCount > 1 {
+            // Strict tie-break: a uniquely identical (no-upcast) overload wins.
+            Symbol strict = null
+            int strictCount = 0
+            int k = 0
+            while k < syms.size() {
+                Symbol s = syms.get(k)
+                if s.getKind() == SymbolKind.FUNCTION {
+                    List<SemaType> p = s.getParamTypes()
+                    if p != null {
+                        if typesMatchStrict(p, types) {
+                            if strict == null { strict = s }
+                            strictCount = strictCount + 1
+                        }
+                    }
+                }
+                k = k + 1
+            }
+            if strictCount == 1 { out = strict  return }
+            out = exact
+            return
+        }
+
+        // Pass 2: promotion-aware fallback
+        Symbol promo = null
+        int j = 0
+        while j < syms.size() {
+            Symbol s = syms.get(j)
+            if s.getKind() == SymbolKind.FUNCTION {
+                List<SemaType> p = s.getParamTypes()
+                if p != null {
+                    if typesMatchPromote(p, types) {
+                        if promo == null { promo = s }
+                    }
+                }
+            }
+            j = j + 1
+        }
+        out = promo
+    }
+}
+
+// ── overload type-compatibility predicates (param types vs argument types) ──────
+// Each compares a candidate's explicit parameter types `p` against call arg types
+// `a` (a null arg type is the `null`/unset literal, matching any class param).
+
+// typesMatchExact — arity + per-element: isEquals, or arg-class derived-or-equals
+// param-class. No numeric promotion (so int vs long overloads stay distinct).
+public bool typesMatchExact(const List<SemaType> p, const List<SemaType> a) {
+    if p.size() != a.size() { out = false  return }
+    int i = 0
+    while i < p.size() {
+        SemaType pt = p.get(i)
+        SemaType at = a.get(i)
+        if pt == null { out = false  return }
+        bool ok = matchClassOrEqual(pt, at)
+        if ok == false { out = false  return }
+        i = i + 1
+    }
+    out = true
+}
+
+// typesMatchStrict — arity + per-element identity (isEquals only; no upcast).
+public bool typesMatchStrict(const List<SemaType> p, const List<SemaType> a) {
+    if p.size() != a.size() { out = false  return }
+    int i = 0
+    while i < p.size() {
+        SemaType pt = p.get(i)
+        SemaType at = a.get(i)
+        if pt == null { out = false  return }
+        bool ok = false
+        if at == null {
+            SemaClassType pc = pt.asClass()
+            if pc != null { ok = true }
+        } else {
+            if pt.isEquals(at) { ok = true }
+        }
+        if ok == false { out = false  return }
+        i = i + 1
+    }
+    out = true
+}
+
+// typesMatchPromote — exact rules plus number→number widening.
+public bool typesMatchPromote(const List<SemaType> p, const List<SemaType> a) {
+    if p.size() != a.size() { out = false  return }
+    int i = 0
+    while i < p.size() {
+        SemaType pt = p.get(i)
+        SemaType at = a.get(i)
+        if pt == null { out = false  return }
+        bool ok = matchClassOrEqual(pt, at)
+        if ok == false {
+            if at != null {
+                if pt.isNumber() {
+                    if at.isNumber() { ok = true }
+                }
+            }
+        }
+        if ok == false { out = false  return }
+        i = i + 1
+    }
+    out = true
+}
+
+// matchClassOrEqual — a single param/arg pair under exact rules (isEquals, or
+// arg-class derived-or-equals param-class, or null arg → class param).
+public bool matchClassOrEqual(const SemaType pt, const SemaType at) {
+    if at == null {
+        SemaClassType pc = pt.asClass()
+        if pc != null { out = true } else { out = false }
+        return
+    }
+    if pt.isEquals(at) { out = true  return }
+    SemaClassType pc = pt.asClass()
+    SemaClassType ac = at.asClass()
+    if pc != null {
+        if ac != null {
+            if ac.isDerivedOrEquals(pc) { out = true  return }
+        }
+    }
+    out = false
+}
+
+// firstOf — the first symbol of a lookup result, or null.
+public Symbol firstOf(const List<Symbol> syms) {
+    Symbol r = null
+    if syms != null {
+        if syms.size() > 0 { r = syms.get(0) }
+    }
+    out = r
+}
+
+// signaturesEqual — same arity and each type isEquals.
+public bool signaturesEqual(const List<SemaType> a, const List<SemaType> b) {
+    bool eq = true
+    if a.size() != b.size() {
+        eq = false
+    } else {
+        int i = 0
+        while i < a.size() && eq {
+            SemaType x = a.get(i)
+            SemaType y = b.get(i)
+            if x.isEquals(y) == false { eq = false }
+            i = i + 1
+        }
+    }
+    out = eq
+}

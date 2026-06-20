@@ -1,0 +1,13 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaVar
+import fly.compiler.sema.SemaType
+import fly.compiler.ast.ASTParam
+
+// SemaParam — a resolved function/method parameter. 1:1 with C++.
+public class SemaParam : SemaVar {
+    public SemaParam(const ASTParam paramAst, const SemaType type) {
+        super(paramAst, SemaKind.PARAM_VAR, type)
+    }
+}

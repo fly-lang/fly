@@ -5,6 +5,7 @@ import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTKind
 import fly.compiler.ast.ASTNode
 import fly.compiler.ast.ASTName
+import fly.compiler.ast.ASTVisitor
 import fly.data.List
 
 public enum ASTTypeKind {
@@ -41,6 +42,10 @@ public class ASTType : ASTNode {
     }
 
     public ASTTypeKind getTypeKind() { out = this.typeKind }
+
+    // asTypeParam — narrow to ASTTypeParam without a downcast: the base returns
+    // null; ASTTypeParam overrides it to return `this`.
+    public ASTTypeParam asTypeParam() { out = null }
 }
 
 public class ASTBuiltinType : ASTType {
@@ -53,6 +58,8 @@ public class ASTBuiltinType : ASTType {
     }
 
     public ASTBuiltinTypeKind getBuiltinKind() { out = this.builtinKind }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }
 
 public class ASTNamedType : ASTType {
@@ -69,6 +76,8 @@ public class ASTNamedType : ASTType {
     public List<ASTName> getNames() { out = this.names }
     public List<ASTType> getTypeArgs() { out = this.typeArgs }
     public void addTypeArg(const ASTType t) { this.typeArgs.add(t) }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }
 
 public class ASTTypeParam : ASTType {
@@ -83,6 +92,10 @@ public class ASTTypeParam : ASTType {
 
     public string getName() { out = this.name }
     public ASTType getBound() { out = this.bound }
+
+    public ASTTypeParam asTypeParam() { out = this }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }
 
 public class ASTArrayType : ASTType {
@@ -98,4 +111,6 @@ public class ASTArrayType : ASTType {
 
     public ASTType getElementType() { out = this.elementType }
     public ASTExpr getSizeExpr() { out = this.size }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

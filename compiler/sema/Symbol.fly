@@ -1,0 +1,59 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SymbolKind
+import fly.compiler.sema.SemaNode
+import fly.compiler.sema.SemaType
+import fly.compiler.sema.SemaExpr
+import fly.data.List
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Symbol — a symbol-table entry: a name, its kind, and a reference to the
+// resolved semantic object it denotes. 1:1 with the C++ `struct Symbol`.
+//
+// The C++ `getRefAs<T>()` template downcast has no Fly analog: `getRef()` returns
+// the SemaNode base; callers narrow by `getKind()` + the concrete node's getters.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class Symbol {
+
+    string name
+    SymbolKind kind
+    SemaNode ref
+    List<SemaType> paramTypes   // explicit param types for FUNCTION symbols (else null)
+    SemaExpr exprRef            // the ref as a SemaExpr, for VAR/LOCAL_VAR/PARAM (else null)
+    SemaType typeRef            // the ref as a SemaType, for BUILTIN_TYPE/CLASS/ENUM (else null)
+
+    public Symbol(const string name, const SymbolKind kind, const SemaNode ref) {
+        this.name = name
+        this.kind = kind
+        this.ref = ref
+    }
+
+    public string getName() { out = this.name }
+    public SymbolKind getKind() { out = this.kind }
+    public SemaNode getRef() { out = this.ref }
+
+    // Function signature for overload lookup. Set by the Resolver when inserting a
+    // function/method symbol (the C++ recovers this via static_cast on the ref;
+    // Fly has no downcast, so it is carried on the Symbol instead).
+    public List<SemaType> getParamTypes() { out = this.paramTypes }
+    public void setParamTypes(const List<SemaType> paramTypes) { this.paramTypes = paramTypes }
+
+    // The variable this symbol denotes, as a SemaExpr (set for VAR/LOCAL_VAR/PARAM),
+    // so an identifier reference can recover it without downcasting `ref`.
+    public SemaExpr getExprRef() { out = this.exprRef }
+    public void setExprRef(const SemaExpr exprRef) { this.exprRef = exprRef }
+
+    // The type this symbol denotes (set for BUILTIN_TYPE/CLASS/ENUM), recovered
+    // without downcasting `ref`.
+    public SemaType getTypeRef() { out = this.typeRef }
+    public void setTypeRef(const SemaType typeRef) { this.typeRef = typeRef }
+
+    // isVarKind — true for any variable kind (VAR, LOCAL_VAR, PARAM, ATTRIBUTE).
+    public bool isVarKind() {
+        out = this.kind == SymbolKind.VAR
+           || this.kind == SymbolKind.LOCAL_VAR
+           || this.kind == SymbolKind.PARAM
+           || this.kind == SymbolKind.ATTRIBUTE
+    }
+}

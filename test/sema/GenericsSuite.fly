@@ -1,0 +1,55 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.data.*
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GenericsSuite — Stage 8: generic monomorphization. A generic class Wrapper<T>
+// used as Wrapper<int> produces a memoized specialization (mangled "Wrapper_int")
+// on the template, whose members are re-resolved with T → int — so the
+// specialization's get() returns int, not the type parameter.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite GenericsSuite {
+
+    void monomorphizeTest() {
+        case "generic class instantiates with T bound to a concrete type": {
+            Parser p = new Parser("public class Wrapper<T> { T value  public T get() { out = this.value } }  int useW(const Wrapper<int> w) { out = w.get() }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 1)
+
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(null)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+
+            Registry reg = ctx.getReg()
+            List<SemaClassType> classes = reg.getClasses()
+            SemaClassType wrapper = classes.get(0)
+            assert.assertStr(wrapper.getName(), "Wrapper", 2)
+            assert.assertTrue(wrapper.isGeneric(), 3)
+
+            // the specialization was created + memoized under its mangle key
+            Map<string, SemaClassType> specs = wrapper.getSpecializations()
+            assert.assertTrue(specs.has("Wrapper_int"), 4)
+            SemaClassType spec = specs.get("Wrapper_int")
+            assert.assertStr(spec.getMangledName(), "Wrapper_int", 5)
+
+            // T was substituted: the spec's get() returns int, not the type parameter
+            SemaClassMethod get = spec.LookupMethod("get")
+            assert.assertTrue(get != null, 6)
+            SemaType rt = get.getReturnType()
+            assert.assertTrue(rt != null, 7)
+            assert.assertTrue(rt.isInteger(), 8)
+
+            // and the spec's field 'value' is int too
+            SemaClassAttribute val = spec.LookupAttribute("value")
+            assert.assertTrue(val != null, 9)
+            SemaType vt = val.getType()
+            assert.assertTrue(vt.isInteger(), 10)
+        }
+    }
+
+}

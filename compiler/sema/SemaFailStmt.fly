@@ -1,0 +1,25 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaStmt
+import fly.compiler.sema.SemaExpr
+import fly.compiler.ast.ASTStmt
+
+// SemaFailStmt — a resolved fail [code][, msg][, obj]. 1:1.
+public class SemaFailStmt : SemaStmt {
+
+    SemaExpr first
+    SemaExpr second
+    SemaExpr third
+
+    public SemaFailStmt(const ASTStmt ast) {
+        super(SemaKind.STMT_FAIL, ast)
+    }
+
+    public SemaExpr getFirst() { out = this.first }
+    public SemaExpr getSecond() { out = this.second }
+    public SemaExpr getThird() { out = this.third }
+    public void setFirst(const SemaExpr e) { this.first = e }
+    public void setSecond(const SemaExpr e) { this.second = e }
+    public void setThird(const SemaExpr e) { this.third = e }
+}

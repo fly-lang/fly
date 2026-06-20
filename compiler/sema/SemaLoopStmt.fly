@@ -1,0 +1,34 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaStmt
+import fly.compiler.sema.SemaExpr
+import fly.compiler.ast.ASTStmt
+import fly.data.List
+
+// SemaLoopStmt — unified for/while/do-while/infinite loop. 1:1.
+public class SemaLoopStmt : SemaStmt {
+
+    List<SemaStmt> init
+    SemaExpr cond
+    SemaStmt body
+    List<SemaStmt> post
+    bool verifyConditionAtEnd
+
+    public SemaLoopStmt(const ASTStmt ast, const bool verifyConditionAtEnd) {
+        super(SemaKind.STMT_LOOP, ast)
+        this.init = new List<SemaStmt>()
+        this.post = new List<SemaStmt>()
+        this.verifyConditionAtEnd = verifyConditionAtEnd
+    }
+
+    public void addInit(const SemaStmt stmt) { this.init.add(stmt) }
+    public List<SemaStmt> getInit() { out = this.init }
+    public SemaExpr getCond() { out = this.cond }
+    public void setCond(const SemaExpr cond) { this.cond = cond }
+    public SemaStmt getBody() { out = this.body }
+    public void setBody(const SemaStmt body) { this.body = body }
+    public void addPost(const SemaStmt stmt) { this.post.add(stmt) }
+    public List<SemaStmt> getPost() { out = this.post }
+    public bool hasVerifyConditionAtEnd() { out = this.verifyConditionAtEnd }
+}

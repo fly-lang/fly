@@ -4,6 +4,7 @@ import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTStmt
 import fly.compiler.ast.ASTStmtKind
+import fly.compiler.ast.ASTVisitor
 import fly.data.List
 
 public class ASTLoopStmt : ASTStmt {
@@ -31,4 +32,6 @@ public class ASTLoopStmt : ASTStmt {
     public void addInit(const ASTStmt s) { this.init.add(s) }
     public void addPost(const ASTStmt s) { this.post.add(s) }
     public void setVerifyConditionAtEnd(const bool v) { this.verifyConditionAtEnd = v }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

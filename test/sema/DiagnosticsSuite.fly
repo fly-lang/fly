@@ -1,0 +1,106 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.data.*
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DiagnosticsSuite — the Resolver reports semantic errors. The Parser's
+// DiagnosticsEngine (over the same SourceManager) is reused for Sema, so a
+// syntactically-valid but semantically-malformed program parses cleanly yet
+// resolution records an error. A valid program records none (no false positives).
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite DiagnosticsSuite {
+
+    void unresolvedIdentifierTest() {
+        case "use of an undefined variable is reported": {
+            Parser p = new Parser("int f() { out = nope }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 1)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred(), 2)
+        }
+    }
+
+    void unknownTypeTest() {
+        case "a parameter of an unknown type is reported": {
+            Parser p = new Parser("void f(const NoSuchType x) { }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 10)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred(), 11)
+        }
+    }
+
+    void unknownMemberTest() {
+        case "access to a non-existent field is reported": {
+            Parser p = new Parser("public class C { public int x }  int f(const C c) { out = c.nope }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 20)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred(), 21)
+        }
+    }
+
+    void unimplementedAbstractTest() {
+        case "concrete class missing an inherited interface method is reported": {
+            Parser p = new Parser("public interface Shape { int area() }  public class Bad : Shape { }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 40)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred(), 41)
+        }
+    }
+
+    void implementedAbstractOkTest() {
+        case "concrete class implementing the interface method is clean": {
+            Parser p = new Parser("public interface Shape { int area() }  public class Good : Shape { public int area() { out = 4 } }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 50)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred() == false, 51)
+        }
+    }
+
+    void noFalsePositiveTest() {
+        case "a well-formed program reports no errors": {
+            Parser p = new Parser("public class P { public int x  public int get() { out = this.x } }  int use(const P p) { out = p.get() }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 30)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred() == false, 31)
+        }
+    }
+}

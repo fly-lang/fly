@@ -3,6 +3,7 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTBase
 import fly.compiler.ast.ASTKind
+import fly.compiler.ast.ASTVisitor
 
 public class ASTNode : ASTBase {
 
@@ -15,4 +16,10 @@ public class ASTNode : ASTBase {
 
     public bool isVisited() { out = this.visited }
     public void setVisited(const bool visited) { this.visited = visited }
+
+    // accept — virtual visitor dispatch. Concrete leaf nodes override this with
+    // `v.visit(this)`; this base no-op lets a base-typed node (ASTExpr/ASTStmt/
+    // ASTType) be dispatched polymorphically (skip-level overrides are routed via
+    // transitive per-base vtables in the codegen).
+    public void accept(const ASTVisitor v) { }
 }

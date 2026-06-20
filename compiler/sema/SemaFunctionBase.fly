@@ -1,0 +1,82 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaNode
+import fly.compiler.sema.SemaType
+import fly.compiler.sema.SemaParam
+import fly.compiler.sema.SemaLocalVar
+import fly.compiler.sema.SemaError
+import fly.compiler.sema.SemaBlockStmt
+import fly.compiler.sema.SymbolTable
+import fly.compiler.ast.ASTFunction
+import fly.data.List
+
+// SemaFunctionBase — common base of standalone functions and class methods. 1:1
+// with C++ SemaFunctionBase (minus CodeGenFunctionBase). Holds the local scope,
+// parameters, return type, locals, error handler, fallibility and body.
+public class SemaFunctionBase : SemaNode {
+
+    SymbolTable scope
+    List<SemaParam> params
+    SemaType returnType
+    ASTFunction funcAst
+    string namespaceName
+    List<SemaLocalVar> localVars
+    SemaError errorHandler
+    bool fallible
+    SemaBlockStmt body
+
+    public SemaFunctionBase(const ASTFunction funcAst, const SemaKind kind, const SymbolTable scope) {
+        super(kind)
+        this.funcAst = funcAst
+        this.scope = scope
+        this.params = new List<SemaParam>()
+        this.localVars = new List<SemaLocalVar>()
+        this.namespaceName = ""
+        this.fallible = false
+    }
+
+    public SemaFunctionBase asFunctionBase() { out = this }
+
+    public SymbolTable getSymbols() { out = this.scope }
+    public string getName() { out = this.funcAst.getName() }
+    public SemaType getReturnType() { out = this.returnType }
+    public void setReturnType(const SemaType returnType) { this.returnType = returnType }
+    public string getNamespaceName() { out = this.namespaceName }
+    public void setNamespaceName(const string namespaceName) { this.namespaceName = namespaceName }
+    public List<SemaParam> getParams() { out = this.params }
+    public void addParam(const SemaParam param) { this.params.add(param) }
+    public ASTFunction getAST() { out = this.funcAst }
+    public List<SemaLocalVar> getLocalVars() { out = this.localVars }
+    public void addLocalVar(const SemaLocalVar localVar) { this.localVars.add(localVar) }
+    public SemaError getErrorHandler() { out = this.errorHandler }
+    public void setErrorHandler(const SemaError errorHandler) { this.errorHandler = errorHandler }
+    public bool isFallible() { out = this.fallible }
+    public void setFallible(const bool fallible) { this.fallible = fallible }
+    public SemaBlockStmt getBody() { out = this.body }
+    public void setBody(const SemaBlockStmt body) { this.body = body }
+
+    // getParamTypes — the EXPLICIT parameter types (excludes the synthetic trailing
+    // 'out' param a non-void function carries). Overrides SemaNode.getParamTypes so
+    // function symbols can be matched by signature from a Symbol ref.
+    public List<SemaType> getParamTypes() {
+        List<SemaType> r = new List<SemaType>()
+        int n = this.params.size()
+        int explicitCount = n
+        // Drop the trailing synthetic 'out' param of a non-void function. Guard with
+        // nested ifs: Fly's `&&` does NOT short-circuit, so a single condition would
+        // deref returnType.isVoid() even when returnType is null (e.g. a constructor).
+        if this.returnType != null {
+            if this.returnType.isVoid() == false {
+                if n > 0 { explicitCount = n - 1 }
+            }
+        }
+        int i = 0
+        while i < explicitCount {
+            SemaParam p = this.params.get(i)
+            r.add(p.getType())
+            i = i + 1
+        }
+        out = r
+    }
+}

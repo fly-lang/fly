@@ -1,0 +1,27 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaNode
+import fly.compiler.sema.SymbolTable
+import fly.compiler.ast.ASTImport
+import fly.compiler.ast.ASTName
+import fly.data.List
+
+// SemaImport — a resolved import and the symbols it brings into scope. 1:1 with C++.
+public class SemaImport : SemaNode {
+
+    ASTImport importAst
+    SymbolTable symbols
+
+    public SemaImport(const ASTImport importAst) {
+        super(SemaKind.IMPORT)
+        this.importAst = importAst
+    }
+
+    public ASTImport getAST() { out = this.importAst }
+    public List<ASTName> getNames() { out = this.importAst.getNames() }
+    public List<ASTName> getTarget() { out = this.importAst.getAlias() }
+    public bool isWildcard() { out = this.importAst.isWildcard() }
+    public SymbolTable getSymbols() { out = this.symbols }
+    public void setSymbols(const SymbolTable symbols) { this.symbols = symbols }
+}

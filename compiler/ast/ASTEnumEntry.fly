@@ -4,6 +4,7 @@ import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTEnum
 import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTExprKind
+import fly.compiler.ast.ASTVisitor
 
 public class ASTEnumEntry : ASTExpr {
 
@@ -22,4 +23,6 @@ public class ASTEnumEntry : ASTExpr {
     public string getName() { out = this.name }
     public uint getIndex() { out = this.index }
     public void setIndex(const uint index) { this.index = index }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

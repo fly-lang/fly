@@ -1,0 +1,12 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaStmt
+import fly.compiler.ast.ASTStmt
+
+// SemaContinueStmt — a resolved continue. 1:1.
+public class SemaContinueStmt : SemaStmt {
+    public SemaContinueStmt(const ASTStmt ast) {
+        super(SemaKind.STMT_CONTINUE, ast)
+    }
+}

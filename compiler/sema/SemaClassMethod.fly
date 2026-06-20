@@ -1,0 +1,55 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaFunctionBase
+import fly.compiler.sema.SemaClassType
+import fly.compiler.sema.SemaClassInstance
+import fly.compiler.sema.SemaComment
+import fly.compiler.sema.SemaVisibilityKind
+import fly.compiler.ast.ASTMethod
+import fly.compiler.sema.SymbolTable
+
+// SemaClassMethod — a resolved class method or constructor. 1:1 with C++.
+// Field names avoid the Fly modifier keywords (static/final/abstract) — they are
+// suffixed Flag.
+public class SemaClassMethod : SemaFunctionBase {
+
+    SemaClassType classType
+    SemaClassInstance thisInstance
+    bool ctorFlag
+    bool abstractFlag
+    SemaVisibilityKind visibility
+    bool staticFlag
+    bool finalFlag
+    SemaClassMethod overridden
+    SemaComment comment
+
+    public SemaClassMethod(const ASTMethod methodAst, const SemaClassType classType,
+                           const SemaClassInstance thisInstance, const bool ctorFlag,
+                           const SymbolTable scope) {
+        super(methodAst, SemaKind.METHOD, scope)
+        this.classType = classType
+        this.thisInstance = thisInstance
+        this.ctorFlag = ctorFlag
+        this.abstractFlag = false
+        this.visibility = SemaVisibilityKind.DEFAULT
+        this.staticFlag = false
+        this.finalFlag = false
+    }
+
+    public SemaClassType getClass() { out = this.classType }
+    public SemaClassInstance getThis() { out = this.thisInstance }
+    public bool isConstructor() { out = this.ctorFlag }
+    public bool isAbstract() { out = this.abstractFlag }
+    public void setAbstract(const bool abstractFlag) { this.abstractFlag = abstractFlag }
+    public SemaVisibilityKind getVisibility() { out = this.visibility }
+    public void setVisibility(const SemaVisibilityKind visibility) { this.visibility = visibility }
+    public bool isStatic() { out = this.staticFlag }
+    public void setStatic(const bool staticFlag) { this.staticFlag = staticFlag }
+    public bool isFinal() { out = this.finalFlag }
+    public void setFinal(const bool finalFlag) { this.finalFlag = finalFlag }
+    public SemaClassMethod getOverridden() { out = this.overridden }
+    public void setOverridden(const SemaClassMethod overridden) { this.overridden = overridden }
+    public SemaComment getComment() { out = this.comment }
+    public void setComment(const SemaComment comment) { this.comment = comment }
+}

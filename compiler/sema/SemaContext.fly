@@ -1,0 +1,40 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.Registry
+import fly.compiler.sema.Resolver
+import fly.compiler.sema.SemaModule
+import fly.compiler.basic.DiagnosticsEngine
+import fly.compiler.ast.ASTModule
+import fly.data.List
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaContext — the semantic-analysis entry point, 1:1 with C++ SemaContext.
+// Owns the Registry and drives the Resolver: visit each AST module to declare its
+// symbols, then resolve the function/method bodies. Returns the resolved
+// SemaModule list (the Registry retains ownership).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class SemaContext {
+
+    DiagnosticsEngine diags
+    Registry reg
+
+    public SemaContext(const DiagnosticsEngine diags) {
+        this.diags = diags
+        this.reg = new Registry(diags)
+    }
+
+    public Registry getReg() { out = this.reg }
+
+    public List<SemaModule> Resolve(const List<ASTModule> modules, const bool testMode) {
+        Resolver r = new Resolver(this.reg, testMode)
+        int i = 0
+        while i < modules.size() {
+            ASTModule m = modules.get(i)
+            m.accept(r)
+            i = i + 1
+        }
+        r.Resolve()
+        out = this.reg.getModules()
+    }
+}

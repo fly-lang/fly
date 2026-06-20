@@ -3,6 +3,7 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTExprKind
+import fly.compiler.ast.ASTVisitor
 
 public enum ASTUnaryKind {
     OP_UNARY_PRE_INCR,
@@ -26,4 +27,6 @@ public class ASTUnary : ASTExpr {
     public SourceLocation getOpLocation() { out = this.getLoc() }
     public ASTUnaryKind getOpKind() { out = this.opKind }
     public ASTExpr getExpr() { out = this.expr }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

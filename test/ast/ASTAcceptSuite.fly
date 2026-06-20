@@ -1,0 +1,200 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.data.*
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ASTAcceptSuite — proves the visitor double-dispatch wired onto the AST nodes
+// (`node.accept(v)` → `v.visit(<concrete>)`) lands on the correct overload. The
+// interesting cases are the two inheritance pairs where BOTH classes are visited:
+// ASTMethod : ASTFunction and ASTIfStmt : ASTRuleStmt — these must dispatch to
+// the most-derived overload, not the base one.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// AcceptProbe — an ASTVisitor that records a tag for whichever overload fired.
+public class AcceptProbe : ASTVisitor {
+
+    string last
+
+    public AcceptProbe() { this.last = "" }
+
+    public string getLast() { out = this.last }
+
+    public void visit(const ASTModule node) { this.last = "module" }
+    public void visit(const ASTNameSpace node) { this.last = "namespace" }
+    public void visit(const ASTImport node) { this.last = "import" }
+    public void visit(const ASTFunction node) { this.last = "function" }
+    public void visit(const ASTClass node) { this.last = "class" }
+    public void visit(const ASTAttribute node) { this.last = "attribute" }
+    public void visit(const ASTMethod node) { this.last = "method" }
+    public void visit(const ASTEnum node) { this.last = "enum" }
+    public void visit(const ASTLocalVar node) { this.last = "localvar" }
+    public void visit(const ASTParam node) { this.last = "param" }
+    public void visit(const ASTComment node) { this.last = "comment" }
+    public void visit(const ASTBuiltinType node) { this.last = "builtinType" }
+    public void visit(const ASTNamedType node) { this.last = "namedType" }
+    public void visit(const ASTArrayType node) { this.last = "arrayType" }
+    public void visit(const ASTTypeParam node) { this.last = "typeParam" }
+    public void visit(const ASTBreakStmt node) { this.last = "break" }
+    public void visit(const ASTContinueStmt node) { this.last = "continue" }
+    public void visit(const ASTDeleteStmt node) { this.last = "delete" }
+    public void visit(const ASTExprStmt node) { this.last = "exprStmt" }
+    public void visit(const ASTDeclStmt node) { this.last = "declStmt" }
+    public void visit(const ASTFailStmt node) { this.last = "fail" }
+    public void visit(const ASTHandleStmt node) { this.last = "handle" }
+    public void visit(const ASTReturnStmt node) { this.last = "return" }
+    public void visit(const ASTRuleStmt node) { this.last = "rule" }
+    public void visit(const ASTIfStmt node) { this.last = "if" }
+    public void visit(const ASTSwitchStmt node) { this.last = "switch" }
+    public void visit(const ASTLoopStmt node) { this.last = "loop" }
+    public void visit(const ASTLoopInStmt node) { this.last = "loopIn" }
+    public void visit(const ASTBlockStmt node) { this.last = "block" }
+    public void visit(const ASTTestStmt node) { this.last = "test" }
+    public void visit(const ASTCaseStmt node) { this.last = "case" }
+    public void visit(const ASTIdentifier node) { this.last = "identifier" }
+    public void visit(const ASTMember node) { this.last = "member" }
+    public void visit(const ASTCall node) { this.last = "call" }
+    public void visit(const ASTUnary node) { this.last = "unary" }
+    public void visit(const ASTBinary node) { this.last = "binary" }
+    public void visit(const ASTTernary node) { this.last = "ternary" }
+    public void visit(const ASTCast node) { this.last = "cast" }
+    public void visit(const ASTBoolValue node) { this.last = "bool" }
+    public void visit(const ASTNumberValue node) { this.last = "number" }
+    public void visit(const ASTStringValue node) { this.last = "string" }
+    public void visit(const ASTArrayValue node) { this.last = "arrayValue" }
+    public void visit(const ASTStructValue node) { this.last = "structValue" }
+    public void visit(const ASTNullValue node) { this.last = "null" }
+    public void visit(const ASTUnsetValue node) { this.last = "unset" }
+    public void visit(const ASTEnumEntry node) { this.last = "enumEntry" }
+}
+
+suite ASTAcceptSuite {
+
+    // The two inheritance pairs: most-derived overload must win.
+    void inheritedDispatchTest() {
+        case "ASTFunction dispatches to function": {
+            SourceLocation loc = slGetFileLoc(0)
+            List<ASTModifier> mods = new List<ASTModifier>()
+            List<ASTParam> params = new List<ASTParam>()
+            ASTFunction f = new ASTFunction(loc, mods, "f", params, ASTFunctionKind.F_FUNCTION)
+            AcceptProbe p = new AcceptProbe()
+            f.accept(p)
+            assert.assertStr(p.getLast(), "function", 1)
+        }
+        case "ASTMethod dispatches to method (not function)": {
+            SourceLocation loc = slGetFileLoc(0)
+            List<ASTModifier> mods = new List<ASTModifier>()
+            List<ASTParam> params = new List<ASTParam>()
+            ASTMethod m = new ASTMethod(loc, mods, "m", params)
+            AcceptProbe p = new AcceptProbe()
+            m.accept(p)
+            assert.assertStr(p.getLast(), "method", 2)
+        }
+        case "ASTRuleStmt dispatches to rule": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTRuleStmt r = new ASTRuleStmt(loc, ASTStmtKind.STMT_RULE)
+            AcceptProbe p = new AcceptProbe()
+            r.accept(p)
+            assert.assertStr(p.getLast(), "rule", 3)
+        }
+        case "ASTIfStmt dispatches to if (not rule)": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTIfStmt i = new ASTIfStmt(loc)
+            AcceptProbe p = new AcceptProbe()
+            i.accept(p)
+            assert.assertStr(p.getLast(), "if", 4)
+        }
+    }
+
+    // Base-TYPED dispatch: a node held in a base-class variable (ASTNode/ASTStmt/
+    // ASTExpr/ASTType) must still dispatch to its most-derived overload. This is
+    // what the Resolver relies on (it walks base-typed ASTStmt/ASTExpr), and it
+    // exercises the transitive per-base vtable path in the codegen (the override
+    // lives 2-3 levels below where `accept` is declared on ASTNode).
+    void baseTypedDispatchTest() {
+        case "ASTNode-typed ASTIfStmt dispatches to if": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTIfStmt i = new ASTIfStmt(loc)
+            ASTNode n = i
+            AcceptProbe p = new AcceptProbe()
+            n.accept(p)
+            assert.assertStr(p.getLast(), "if", 20)
+        }
+        case "ASTStmt-typed ASTExprStmt dispatches to exprStmt": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTExprStmt es = new ASTExprStmt(loc)
+            ASTStmt s = es
+            AcceptProbe p = new AcceptProbe()
+            s.accept(p)
+            assert.assertStr(p.getLast(), "exprStmt", 21)
+        }
+        case "ASTExpr-typed ASTBinary dispatches to binary": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTNumberValue l = new ASTNumberValue(loc, "1")
+            ASTNumberValue r = new ASTNumberValue(loc, "2")
+            ASTBinary b = new ASTBinary(ASTBinaryKind.OP_BINARY_ARITH_ADD, loc, l, r)
+            ASTExpr e = b
+            AcceptProbe p = new AcceptProbe()
+            e.accept(p)
+            assert.assertStr(p.getLast(), "binary", 22)
+        }
+        case "ASTType-typed ASTBuiltinType dispatches to builtinType": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTBuiltinType t = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_INT)
+            ASTType bt = t
+            AcceptProbe p = new AcceptProbe()
+            bt.accept(p)
+            assert.assertStr(p.getLast(), "builtinType", 23)
+        }
+    }
+
+    // A spread of leaf nodes across the type/expr/stmt/value families.
+    void leafDispatchTest() {
+        case "module": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTModule mod = new ASTModule(loc, "m")
+            AcceptProbe p = new AcceptProbe()
+            mod.accept(p)
+            assert.assertStr(p.getLast(), "module", 10)
+        }
+        case "builtin type": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTBuiltinType t = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_INT)
+            AcceptProbe p = new AcceptProbe()
+            t.accept(p)
+            assert.assertStr(p.getLast(), "builtinType", 11)
+        }
+        case "binary expr": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTNumberValue l = new ASTNumberValue(loc, "1")
+            ASTNumberValue r = new ASTNumberValue(loc, "2")
+            ASTBinary b = new ASTBinary(ASTBinaryKind.OP_BINARY_ARITH_ADD, loc, l, r)
+            AcceptProbe p = new AcceptProbe()
+            b.accept(p)
+            assert.assertStr(p.getLast(), "binary", 12)
+        }
+        case "number value": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTNumberValue n = new ASTNumberValue(loc, "42")
+            AcceptProbe p = new AcceptProbe()
+            n.accept(p)
+            assert.assertStr(p.getLast(), "number", 13)
+        }
+        case "block stmt": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTBlockStmt blk = new ASTBlockStmt(loc)
+            AcceptProbe p = new AcceptProbe()
+            blk.accept(p)
+            assert.assertStr(p.getLast(), "block", 14)
+        }
+        case "class decl": {
+            SourceLocation loc = slGetFileLoc(0)
+            List<ASTModifier> mods = new List<ASTModifier>()
+            List<ASTType> bases = new List<ASTType>()
+            ASTClass c = new ASTClass(ASTClassKind.CLASS, mods, loc, "C", bases)
+            AcceptProbe p = new AcceptProbe()
+            c.accept(p)
+            assert.assertStr(p.getLast(), "class", 15)
+        }
+    }
+}

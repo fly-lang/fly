@@ -1,0 +1,23 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaStmt
+import fly.compiler.sema.SemaError
+import fly.compiler.sema.SemaBlockStmt
+import fly.compiler.ast.ASTStmt
+
+// SemaHandleStmt — a resolved handle { } guard with its error binding. 1:1.
+public class SemaHandleStmt : SemaStmt {
+
+    SemaError errorHandler
+    SemaBlockStmt handleBlock   // 'handle' is a Fly keyword — name the field handleBlock
+
+    public SemaHandleStmt(const ASTStmt ast) {
+        super(SemaKind.STMT_HANDLE, ast)
+    }
+
+    public SemaError getErrorHandler() { out = this.errorHandler }
+    public void setErrorHandler(const SemaError errorHandler) { this.errorHandler = errorHandler }
+    public SemaBlockStmt getHandle() { out = this.handleBlock }
+    public void setHandle(const SemaBlockStmt handleBlock) { this.handleBlock = handleBlock }
+}

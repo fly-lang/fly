@@ -1,0 +1,77 @@
+import fly.compiler.sema.*
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.data.List
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaStmtSuite — Stage 4 (statements portion): block/return/break/if/loop.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite SemaStmtSuite {
+
+    void blockTest() {
+        case "block content + isEmpty": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTBlockStmt ab = new ASTBlockStmt(loc)
+            SemaBlockStmt blk = new SemaBlockStmt(ab)
+            assert.assertTrue(blk.isEmpty(), 1)
+            assert.assertTrue(blk.getKind() == SemaKind.STMT_BLOCK, 2)
+            ASTReturnStmt ar = new ASTReturnStmt(loc)
+            SemaReturnStmt sr = new SemaReturnStmt(ar, null)
+            blk.addContent(sr)
+            assert.assertTrue(blk.isEmpty() == false, 3)
+            List<SemaStmt> c = blk.getContent()
+            assert.assertEqI(c.size(), 1, 4)
+        }
+    }
+
+    void simpleStmtTest() {
+        case "break / continue / delete kinds": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTBreakStmt abr = new ASTBreakStmt(loc)
+            SemaBreakStmt sbr = new SemaBreakStmt(abr)
+            assert.assertTrue(sbr.getKind() == SemaKind.STMT_BREAK, 10)
+            ASTContinueStmt ac = new ASTContinueStmt(loc)
+            SemaContinueStmt sc = new SemaContinueStmt(ac)
+            assert.assertTrue(sc.getKind() == SemaKind.STMT_CONTINUE, 11)
+        }
+    }
+
+    void ifTest() {
+        case "if cond/then + elsif": {
+            SourceLocation loc = slGetFileLoc(0)
+            SemaBoolType bt = new SemaBoolType()
+            ASTBoolValue abv = new ASTBoolValue(loc, true)
+            SemaBoolValue cond = new SemaBoolValue(abv, bt)
+            ASTBlockStmt athen = new ASTBlockStmt(loc)
+            SemaBlockStmt thenB = new SemaBlockStmt(athen)
+            ASTIfStmt aif = new ASTIfStmt(loc)
+            SemaIfStmt sif = new SemaIfStmt(aif, cond, thenB)
+            assert.assertTrue(sif.getKind() == SemaKind.STMT_IF, 20)
+
+            ASTBoolValue abv2 = new ASTBoolValue(loc, false)
+            SemaBoolValue ec = new SemaBoolValue(abv2, bt)
+            ASTBlockStmt aelse = new ASTBlockStmt(loc)
+            SemaBlockStmt elB = new SemaBlockStmt(aelse)
+            sif.addElsif(ec, elB)
+            List<SemaRuleStmt> el = sif.getElsif()
+            assert.assertEqI(el.size(), 1, 21)
+            SemaRuleStmt r0 = el.get(0)
+            SemaExpr re = r0.getExpr()
+            assert.assertTrue(re.getKind() == SemaKind.VALUE, 22)
+        }
+    }
+
+    void loopTest() {
+        case "loop init/cond/body/post": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTLoopStmt al = new ASTLoopStmt(loc)
+            SemaLoopStmt sl = new SemaLoopStmt(al, false)
+            assert.assertTrue(sl.hasVerifyConditionAtEnd() == false, 30)
+            assert.assertTrue(sl.getKind() == SemaKind.STMT_LOOP, 31)
+            List<SemaStmt> ini = sl.getInit()
+            assert.assertEqI(ini.size(), 0, 32)
+        }
+    }
+}

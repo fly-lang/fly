@@ -1,0 +1,92 @@
+import fly.compiler.sema.*
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.data.List
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaBuilderSuite — Stage 5: SemaBuilder factories + SemaBuilderModifiers.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite SemaBuilderSuite {
+
+    void modifiersTest() {
+        case "modifier folding": {
+            SourceLocation loc = slGetFileLoc(0)
+            List<ASTModifier> mods = new List<ASTModifier>()
+            mods.add(ASTBuilder.CreateModifier(loc, ASTModifierKind.MOD_PUBLIC))
+            mods.add(ASTBuilder.CreateModifier(loc, ASTModifierKind.MOD_STATIC))
+            SemaBuilderModifiers m = SemaBuilderModifiers.Build(mods)
+            assert.assertTrue(m.getVisibility() == SemaVisibilityKind.PUBLIC, 1)
+            assert.assertTrue(m.isStatic(), 2)
+            assert.assertTrue(m.isConstant() == false, 3)
+        }
+    }
+
+    void valueFactoryTest() {
+        case "bool / int / float number values": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTBoolValue ab = new ASTBoolValue(loc, true)
+            SemaBoolValue sb = SemaBuilder.CreateBoolValue(ab)
+            assert.assertTrue(sb.getValue(), 10)
+
+            ASTNumberValue an = new ASTNumberValue(loc, "42")
+            SemaValue iv = SemaBuilder.CreateNumberValue(an)
+            assert.assertTrue(iv.getKind() == SemaKind.VALUE, 11)
+            SemaType it = iv.getType()
+            assert.assertTrue(it.isInteger(), 12)
+
+            ASTNumberValue af = new ASTNumberValue(loc, "3.14")
+            SemaValue fv = SemaBuilder.CreateNumberValue(af)
+            SemaType ft = fv.getType()
+            assert.assertTrue(ft.isFloat(), 13)
+        }
+    }
+
+    void classFactoryTest() {
+        case "CreateClass + CreateClassMethod self-register": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTModule am = new ASTModule(loc, "t.fly")
+            SymbolTable st = new SymbolTable(null)
+            SemaModule sm = new SemaModule(am, st)
+
+            List<ASTModifier> mods = new List<ASTModifier>()
+            List<ASTType> bases = new List<ASTType>()
+            ASTClass ac = new ASTClass(ASTClassKind.CLASS, mods, loc, "Foo", bases)
+            SemaClassType foo = SemaBuilder.CreateClass(sm, st, ac)
+            assert.assertTrue(foo.getClassKind() == SemaClassKind.CLASS, 20)
+            SemaClassInstance ths = foo.getThis()
+            assert.assertTrue(ths != null, 21)
+            List<SemaNode> ns = sm.getNodes()
+            assert.assertEqI(ns.size(), 1, 22)
+
+            // a constructor method (name == class name)
+            List<ASTParam> params = new List<ASTParam>()
+            ASTMethod actor = new ASTMethod(loc, mods, "Foo", params)
+            SemaClassMethod ctor = SemaBuilder.CreateClassMethod(foo, actor, st)
+            assert.assertTrue(ctor.isConstructor(), 23)
+
+            ASTMethod arun = new ASTMethod(loc, mods, "run", params)
+            SemaClassMethod run = SemaBuilder.CreateClassMethod(foo, arun, st)
+            assert.assertTrue(run.isConstructor() == false, 24)
+        }
+    }
+
+    void functionFactoryTest() {
+        case "CreateFunction registers in module": {
+            SourceLocation loc = slGetFileLoc(0)
+            ASTModule am = new ASTModule(loc, "t.fly")
+            SymbolTable st = new SymbolTable(null)
+            SemaModule sm = new SemaModule(am, st)
+            List<ASTModifier> mods = new List<ASTModifier>()
+            mods.add(ASTBuilder.CreateModifier(loc, ASTModifierKind.MOD_PUBLIC))
+            List<ASTParam> params = new List<ASTParam>()
+            ASTFunction af = new ASTFunction(loc, mods, "add", params, ASTFunctionKind.F_FUNCTION)
+            SemaFunction fn = SemaBuilder.CreateFunction(sm, st, af)
+            assert.assertStr(fn.getName(), "add", 30)
+            assert.assertTrue(fn.getVisibility() == SemaVisibilityKind.PUBLIC, 31)
+            List<SemaNode> ns = sm.getNodes()
+            assert.assertEqI(ns.size(), 1, 32)
+        }
+    }
+}

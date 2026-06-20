@@ -1,0 +1,37 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaNode
+import fly.compiler.sema.SemaType
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaExpr — base of every resolved expression, a 1:1 port of C++ SemaExpr
+// (minus the CodeGenExpr back-pointer). Carries the resolved Type and a
+// parent/child link used to thread member/call chains.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class SemaExpr : SemaNode {
+
+    SemaExpr child
+    SemaExpr parent
+    SemaType type
+
+    public SemaExpr(const SemaKind kind, const SemaType type) {
+        super(kind)
+        this.type = type
+    }
+
+    public SemaType getType() { out = this.type }
+    public void setType(const SemaType type) { this.type = type }
+
+    public SemaExpr getParent() { out = this.parent }
+    public SemaExpr getChild() { out = this.child }
+    public void setChild(const SemaExpr child) { this.child = child }
+
+    // setParent — link this expr under `parent` and make this its child (the C++
+    // setParent sets both directions).
+    public void setParent(const SemaExpr parent) {
+        this.parent = parent
+        parent.setChild(this)
+    }
+}

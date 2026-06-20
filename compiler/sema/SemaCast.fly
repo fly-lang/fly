@@ -1,0 +1,26 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaType
+import fly.compiler.ast.ASTCast
+
+// SemaCast — resolved type cast. 1:1 with C++ SemaCast. The expr type carries the
+// target (ToType is also the SemaExpr.type).
+public class SemaCast : SemaExpr {
+
+    ASTCast castAst
+    SemaExpr expr
+    SemaType toType
+
+    public SemaCast(const ASTCast castAst, const SemaExpr expr, const SemaType toType) {
+        super(SemaKind.CAST, toType)
+        this.castAst = castAst
+        this.expr = expr
+        this.toType = toType
+    }
+
+    public ASTCast getAST() { out = this.castAst }
+    public SemaExpr getExpr() { out = this.expr }
+    public SemaType getToType() { out = this.toType }
+}

@@ -1,0 +1,25 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaStmt
+import fly.compiler.sema.SemaExpr
+import fly.compiler.ast.ASTStmt
+
+// SemaLoopInStmt — a for-in loop over an iterable. 1:1.
+public class SemaLoopInStmt : SemaStmt {
+
+    SemaExpr item
+    SemaExpr list
+    SemaStmt body
+
+    public SemaLoopInStmt(const ASTStmt ast, const SemaExpr item, const SemaExpr list, const SemaStmt body) {
+        super(SemaKind.STMT_LOOP_IN, ast)
+        this.item = item
+        this.list = list
+        this.body = body
+    }
+
+    public SemaExpr getItem() { out = this.item }
+    public SemaExpr getList() { out = this.list }
+    public SemaStmt getBody() { out = this.body }
+}

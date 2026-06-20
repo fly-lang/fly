@@ -1,0 +1,22 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaType
+import fly.compiler.ast.ASTUnary
+
+// SemaUnary — resolved unary operation. 1:1 with C++ SemaUnary.
+public class SemaUnary : SemaExpr {
+
+    ASTUnary unaryAst
+    SemaExpr expr
+
+    public SemaUnary(const ASTUnary unaryAst, const SemaExpr expr, const SemaType type) {
+        super(SemaKind.UNARY, type)
+        this.unaryAst = unaryAst
+        this.expr = expr
+    }
+
+    public ASTUnary getAST() { out = this.unaryAst }
+    public SemaExpr getExpr() { out = this.expr }
+}

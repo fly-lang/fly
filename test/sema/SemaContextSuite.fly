@@ -1,0 +1,282 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.data.*
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaContextSuite — Stage 6: first end-to-end Sema run. Parses a Fly source
+// string with the real Parser, drives SemaContext.Resolve, and asserts the
+// resolved tree (module, function signature, params + synthetic 'out', local
+// declarations and their types/initializers). Exercises the AST→Sema visitor
+// dispatch over base-typed nodes (the deep-inheritance dispatch the codegen now
+// supports), the Registry, SemaBuilder and the Resolver companions.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite SemaContextSuite {
+
+    // Resolve a single function with a typed param, a return type, and a local
+    // declaration initialized from the param.
+    void resolveFunctionTest() {
+        case "function signature + local decl resolve end-to-end": {
+            Parser p = new Parser("int f(const int a) { int x = a }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 1)
+
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(null)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertEqI(resolved.size(), 1, 2)
+
+            Registry reg = ctx.getReg()
+            List<SemaFunctionBase> bodies = reg.getBodies()
+            assert.assertEqI(bodies.size(), 1, 3)
+
+            SemaFunctionBase fn = bodies.get(0)
+            assert.assertStr(fn.getName(), "f", 4)
+
+            // return type resolved to int
+            SemaType rt = fn.getReturnType()
+            assert.assertTrue(rt != null, 5)
+            assert.assertTrue(rt.isInteger(), 6)
+
+            // explicit param 'a' + synthetic 'out' (out-param return model)
+            List<SemaParam> params = fn.getParams()
+            assert.assertEqI(params.size(), 2, 7)
+            SemaParam pa = params.get(0)
+            assert.assertTrue(fly.str.equals(pa.getName(), "a"), 8)
+            SemaType pat = pa.getType()
+            assert.assertTrue(pat.isInteger(), 9)
+
+            // body: one decl statement `int x = a`
+            SemaBlockStmt body = fn.getBody()
+            assert.assertTrue(body != null, 10)
+            List<SemaStmt> content = body.getContent()
+            assert.assertEqI(content.size(), 1, 11)
+        }
+    }
+
+    // A function body with a literal-initialized local resolves to a single decl
+    // statement. (Concrete decl-var fields are not asserted here — Fly has no
+    // downcast, which is exactly why the Resolver threads results through typed
+    // "current" fields; resolveFunctionTest covers type resolution.)
+    void resolveLocalDeclTest() {
+        case "literal-initialized local resolves to a decl statement": {
+            Parser p = new Parser("int g() { int y = 5 }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 20)
+
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(null)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+
+            Registry reg = ctx.getReg()
+            List<SemaFunctionBase> bodies = reg.getBodies()
+            SemaFunctionBase fn = bodies.get(0)
+            SemaBlockStmt body = fn.getBody()
+            List<SemaStmt> content = body.getContent()
+            assert.assertEqI(content.size(), 1, 21)
+
+            SemaStmt s = content.get(0)
+            assert.assertTrue(s.getKind() == SemaKind.STMT_DECL, 22)
+        }
+    }
+
+    // Control flow: an if/else and a while loop resolve to STMT_IF / STMT_LOOP in
+    // the function body, with their conditions (binary + identifier) resolved.
+    void resolveControlFlowTest() {
+        case "if + while resolve into the body": {
+            Parser p = new Parser("void h(const int n) { int r = 0  if n > 0 { r = 1 } else { r = 2 }  while r < 10 { r = r + 1 } }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 30)
+
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(null)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+
+            Registry reg = ctx.getReg()
+            List<SemaFunctionBase> bodies = reg.getBodies()
+            SemaFunctionBase fn = bodies.get(0)
+            SemaBlockStmt body = fn.getBody()
+            List<SemaStmt> content = body.getContent()
+            assert.assertEqI(content.size(), 3, 31)
+
+            SemaStmt s0 = content.get(0)
+            assert.assertTrue(s0.getKind() == SemaKind.STMT_DECL, 32)
+            SemaStmt s1 = content.get(1)
+            assert.assertTrue(s1.getKind() == SemaKind.STMT_IF, 33)
+            SemaStmt s2 = content.get(2)
+            assert.assertTrue(s2.getKind() == SemaKind.STMT_LOOP, 34)
+        }
+    }
+
+    // Class declaration: fields resolve to typed attributes and a default
+    // constructor is synthesized.
+    void resolveClassTest() {
+        case "class with fields resolves attributes + default ctor": {
+            Parser p = new Parser("public class Point { public int x  public int y }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 40)
+
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(null)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+
+            Registry reg = ctx.getReg()
+            List<SemaClassType> classes = reg.getClasses()
+            assert.assertEqI(classes.size(), 1, 41)
+            SemaClassType cls = classes.get(0)
+            assert.assertStr(cls.getName(), "Point", 42)
+
+            SemaClassAttribute ax = cls.LookupAttribute("x")
+            assert.assertTrue(ax != null, 43)
+            SemaType axt = ax.getType()
+            assert.assertTrue(axt.isInteger(), 44)
+
+            SemaClassMethod dc = cls.getDefaultConstructor()
+            assert.assertTrue(dc != null, 45)
+        }
+    }
+
+    // Class method: signature (return → synthetic out) + body resolve.
+    void resolveMethodTest() {
+        case "class method resolves signature + body": {
+            Parser p = new Parser("public class Box { public int get() { out = 5 } }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 50)
+
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(null)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+
+            Registry reg = ctx.getReg()
+            List<SemaClassType> classes = reg.getClasses()
+            SemaClassType cls = classes.get(0)
+
+            SemaClassMethod gm = cls.LookupMethod("get")
+            assert.assertTrue(gm != null, 51)
+            SemaType rt = gm.getReturnType()
+            assert.assertTrue(rt.isInteger(), 52)
+            // explicit params (0) + synthetic out (1)
+            List<SemaParam> ps = gm.getParams()
+            assert.assertEqI(ps.size(), 1, 53)
+            SemaBlockStmt body = gm.getBody()
+            assert.assertTrue(body != null, 54)
+            List<SemaStmt> content = body.getContent()
+            assert.assertEqI(content.size(), 1, 55)
+        }
+    }
+
+    // Inheritance: a subclass links its base and its overriding method records the
+    // base method it overrides.
+    void resolveInheritanceTest() {
+        case "subclass links base class + override": {
+            Parser p = new Parser("public class A { public int who() { out = 1 } }  public class B : A { public int who() { out = 2 } }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 60)
+
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(null)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+
+            Registry reg = ctx.getReg()
+            List<SemaClassType> classes = reg.getClasses()
+            assert.assertEqI(classes.size(), 2, 61)
+            SemaClassType b = classes.get(1)
+            assert.assertStr(b.getName(), "B", 62)
+
+            List<SemaClassType> bbases = b.getBaseClasses()
+            assert.assertEqI(bbases.size(), 1, 63)
+            SemaClassType base = bbases.get(0)
+            assert.assertStr(base.getName(), "A", 64)
+
+            SemaClassMethod bwho = b.LookupMethod("who")
+            assert.assertTrue(bwho != null, 65)
+            SemaClassMethod ov = bwho.getOverridden()
+            assert.assertTrue(ov != null, 66)
+        }
+    }
+
+    // Enum: the type resolves and is registered as a named TYPE_ENUM symbol.
+    void resolveEnumTest() {
+        case "enum resolves as a named type": {
+            Parser p = new Parser("enum Color { RED, GREEN, BLUE }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 70)
+
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(null)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+
+            SemaModule sm = resolved.get(0)
+            SymbolTable scope = sm.getSymbols()
+            Registry reg = ctx.getReg()
+            Symbol esym = reg.LookupNamedType("Color", scope)
+            assert.assertTrue(esym != null, 71)
+            SemaNode eref = esym.getRef()
+            assert.assertTrue(eref.getKind() == SemaKind.TYPE_ENUM, 72)
+        }
+    }
+
+    // Function call: a non-void callee resolves and a synthetic out-var is created
+    // on the caller (out-param return convention).
+    void resolveFunctionCallTest() {
+        case "function call resolves + synthesizes out-var": {
+            Parser p = new Parser("int dbl(const int n) { out = n + n }  int use() { int r = dbl(3) }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 80)
+
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(null)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+
+            Registry reg = ctx.getReg()
+            List<SemaFunctionBase> bodies = reg.getBodies()
+            SemaFunctionBase use = bodies.get(1)
+            assert.assertStr(use.getName(), "use", 81)
+            List<SemaLocalVar> locals = use.getLocalVars()
+            assert.assertEqI(locals.size(), 1, 82)
+        }
+    }
+
+    // new + instance method call + member access (this.x) resolve end-to-end.
+    void resolveNewAndMethodCallTest() {
+        case "new + method call + member access resolve": {
+            Parser p = new Parser("public class Box { public int x  public int get() { out = this.x } }  int useBox() { Box b = new Box()  int v = b.get() }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 90)
+
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(null)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+
+            Registry reg = ctx.getReg()
+            List<SemaFunctionBase> bodies = reg.getBodies()
+            SemaFunctionBase useBox = bodies.get(0)
+            assert.assertStr(useBox.getName(), "useBox", 91)
+            // b.get() (returns int) synthesizes one out-var; new Box() (ctor) does not
+            List<SemaLocalVar> locals = useBox.getLocalVars()
+            assert.assertEqI(locals.size(), 1, 92)
+
+            // the method body resolved this.x into a member access (1 statement)
+            List<SemaClassType> classes = reg.getClasses()
+            SemaClassType box = classes.get(0)
+            SemaClassMethod get = box.LookupMethod("get")
+            assert.assertTrue(get != null, 93)
+            SemaBlockStmt gb = get.getBody()
+            assert.assertTrue(gb != null, 94)
+            List<SemaStmt> gc = gb.getContent()
+            assert.assertEqI(gc.size(), 1, 95)
+        }
+    }
+}

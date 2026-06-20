@@ -1,0 +1,40 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaVar
+import fly.compiler.sema.SemaType
+import fly.compiler.sema.SemaClassType
+import fly.compiler.sema.SemaComment
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaVisibilityKind
+import fly.compiler.ast.ASTAttribute
+
+// SemaClassAttribute — a resolved class member variable. 1:1 with C++.
+public class SemaClassAttribute : SemaVar {
+
+    SemaClassType classType
+    SemaVisibilityKind visibility
+    bool staticFlag
+    SemaClassType inherited
+    SemaComment comment
+    SemaExpr initExpr
+
+    public SemaClassAttribute(const ASTAttribute attrAst, const SemaClassType classType, const SemaType type) {
+        super(attrAst, SemaKind.ATTRIBUTE, type)
+        this.classType = classType
+        this.visibility = SemaVisibilityKind.DEFAULT
+        this.staticFlag = false
+    }
+
+    public SemaClassType getClass() { out = this.classType }
+    public SemaComment getComment() { out = this.comment }
+    public void setComment(const SemaComment comment) { this.comment = comment }
+    public SemaVisibilityKind getVisibility() { out = this.visibility }
+    public void setVisibility(const SemaVisibilityKind visibility) { this.visibility = visibility }
+    public bool isStatic() { out = this.staticFlag }
+    public void setStatic(const bool staticFlag) { this.staticFlag = staticFlag }
+    public SemaClassType getInherited() { out = this.inherited }
+    public void setInherited(const SemaClassType inherited) { this.inherited = inherited }
+    public SemaExpr getInitExpr() { out = this.initExpr }
+    public void setInitExpr(const SemaExpr initExpr) { this.initExpr = initExpr }
+}

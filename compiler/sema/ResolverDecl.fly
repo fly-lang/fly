@@ -1,0 +1,90 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.data.List
+
+// ResolverDecl — declaration resolution companion: functions, params, locals.
+public class ResolverDecl {
+
+    public ResolverDecl() { }
+
+    // declareFunction — visit(ASTFunction): build the SemaFunction shell and its
+    // signature (params + return type + synthetic 'out' param), register the
+    // function symbol in the module scope, and queue the body for phase-2.
+    public static void declareFunction(const Resolver r, const ASTFunction node) {
+        r.resetCurrents()
+        r.enterScope()
+        SemaModule mod = r.getCurrentModule()
+        SymbolTable fnScope = r.getCurrentScope()
+        SemaFunction fn = SemaBuilder.CreateFunction(mod, fnScope, node)
+        r.setCurrentFunctionBase(fn)
+
+        // explicit params
+        List<ASTParam> params = node.getParams()
+        int i = 0
+        while i < params.size() {
+            ASTParam p = params.get(i)
+            p.accept(r)
+            fn.addParam(r.getCurrentParam())
+            i = i + 1
+        }
+
+        // return type → resolve + add the synthetic 'out' param (out-param model)
+        ASTType rt = node.getReturnType()
+        if rt != null {
+            rt.accept(r)
+            fn.setReturnType(r.getCurrentType())
+            List<ASTModifier> noMods = new List<ASTModifier>()
+            ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rt, "out", noMods, null)
+            outAst.accept(r)
+            fn.addParam(r.getCurrentParam())
+        }
+
+        // function symbol (signature carried for overload lookup) in module scope
+        Symbol sym = new Symbol(node.getName(), SymbolKind.FUNCTION, fn)
+        sym.setParamTypes(fn.getParamTypes())
+        r.exitScope()
+        r.addSymbol(sym)
+
+        // queue the body for resolution in phase 2
+        Registry reg = r.getReg()
+        reg.addBody(fn)
+    }
+
+    // resolveBody — resolve a function/method body against its own scope.
+    public static void resolveBody(const Resolver r, const SemaFunctionBase fb) {
+        r.setCurrentFunctionBase(fb)
+        r.setCurrentScope(fb.getSymbols())
+        ASTFunction af = fb.getAST()
+        ASTBlockStmt body = af.getBody()
+        if body != null {
+            body.accept(r)
+            fb.setBody(r.getLastBlock())
+        }
+    }
+
+    // param — visit(ASTParam): resolve the type, build the SemaParam, register it.
+    public static void param(const Resolver r, const ASTParam node) {
+        ASTType at = node.getType()
+        at.accept(r)
+        SemaType t = r.getCurrentType()
+        SemaParam sp = SemaBuilder.CreateParam(node, t)
+        r.setCurrentParam(sp)
+        r.setCurrentVar(sp)
+        Symbol sym = new Symbol(node.getName(), SymbolKind.PARAM, sp)
+        sym.setExprRef(sp)
+        r.addSymbol(sym)
+    }
+
+    // localVar — visit(ASTLocalVar): resolve the type, build the SemaLocalVar.
+    // (The symbol is registered by the enclosing decl statement.)
+    public static void localVar(const Resolver r, const ASTLocalVar node) {
+        ASTType at = node.getType()
+        at.accept(r)
+        SemaType t = r.getCurrentType()
+        SemaLocalVar lv = SemaBuilder.CreateLocalVar(node, t)
+        r.setCurrentLocalVar(lv)
+        r.setCurrentVar(lv)
+    }
+}

@@ -6,6 +6,7 @@ import fly.compiler.ast.ASTStmt
 import fly.compiler.ast.ASTStmtKind
 import fly.data.List
 import fly.compiler.ast.ASTCaseStmt
+import fly.compiler.ast.ASTVisitor
 
 public class ASTSwitchStmt : ASTStmt {
 
@@ -24,4 +25,6 @@ public class ASTSwitchStmt : ASTStmt {
     public void setExpr(const ASTExpr expr) { this.expr = expr }
     public void addCase(const ASTCaseStmt c) { this.cases.add(c) }
     public void setDefault(const ASTStmt s) { this.defaultStmt = s }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }

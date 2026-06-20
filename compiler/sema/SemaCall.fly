@@ -1,0 +1,51 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaType
+import fly.compiler.sema.SemaFunctionBase
+import fly.compiler.sema.SemaError
+import fly.compiler.sema.SemaLocalVar
+import fly.compiler.ast.ASTCall
+import fly.compiler.ast.ASTCallKind
+import fly.data.List
+
+// SemaCall — a resolved function/method/constructor call. 1:1 with C++ SemaCall.
+// Function/out-var are wired by the builder/resolver after construction.
+public class SemaCall : SemaExpr {
+
+    ASTCall callAst
+    SemaFunctionBase function
+    SemaError errorHandler
+    bool isSuperFlag
+    List<SemaExpr> args
+    SemaLocalVar outVar
+
+    public SemaCall(const ASTCall callAst, const SemaType type) {
+        super(SemaKind.CALL, type)
+        this.callAst = callAst
+        this.isSuperFlag = false
+        this.args = new List<SemaExpr>()
+    }
+
+    public ASTCall getAST() { out = this.callAst }
+    public SemaFunctionBase getFunction() { out = this.function }
+    public void setFunction(const SemaFunctionBase function) { this.function = function }
+    public SemaError getErrorHandler() { out = this.errorHandler }
+    public void setErrorHandler(const SemaError errorHandler) { this.errorHandler = errorHandler }
+    public bool isSuper() { out = this.isSuperFlag }
+    public void setSuper(const bool isSuperFlag) { this.isSuperFlag = isSuperFlag }
+    public SemaLocalVar getOutVar() { out = this.outVar }
+    public void setOutVar(const SemaLocalVar outVar) { this.outVar = outVar }
+    public List<SemaExpr> getArgs() { out = this.args }
+    public void addArg(const SemaExpr arg) { this.args.add(arg) }
+
+    // isNew — a constructor/new call (any of the new variants).
+    public bool isNew() {
+        ASTCallKind k = this.callAst.getCallKind()
+        out = k == ASTCallKind.CALL_NEW
+           || k == ASTCallKind.CALL_NEW_UNIQUE
+           || k == ASTCallKind.CALL_NEW_SHARED
+           || k == ASTCallKind.CALL_NEW_WEAK
+    }
+}

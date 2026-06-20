@@ -1,0 +1,44 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaType
+import fly.compiler.sema.SemaIntType
+import fly.compiler.sema.SemaFloatType
+import fly.compiler.sema.SemaIntTypeKind
+import fly.compiler.sema.SemaFloatTypeKind
+import fly.compiler.sema.SemaBoolType
+import fly.compiler.sema.SemaComplexType
+import fly.compiler.sema.SemaStringType
+import fly.compiler.sema.SemaVoidType
+import fly.compiler.sema.SemaErrorType
+import fly.compiler.sema.SemaArrayType
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaBuiltin — factory for the builtin types. 1:1 with C++ SemaBuiltin, but the
+// getters return a FRESH instance each call instead of a cached singleton: type
+// identity here is by Name (SemaType.isEquals), so two `int` instances compare
+// equal and no shared CodeGen state needs caching.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class SemaBuiltin {
+
+    public SemaBuiltin() { }
+
+    public static SemaType getBoolType()   { out = new SemaBoolType() }
+    public static SemaIntType getByteType()   { out = new SemaIntType(SemaIntTypeKind.TYPE_BYTE, "byte") }
+    public static SemaIntType getUShortType() { out = new SemaIntType(SemaIntTypeKind.TYPE_USHORT, "ushort") }
+    public static SemaIntType getShortType()  { out = new SemaIntType(SemaIntTypeKind.TYPE_SHORT, "short") }
+    public static SemaIntType getUIntType()   { out = new SemaIntType(SemaIntTypeKind.TYPE_UINT, "uint") }
+    public static SemaIntType getIntType()    { out = new SemaIntType(SemaIntTypeKind.TYPE_INT, "int") }
+    public static SemaIntType getULongType()  { out = new SemaIntType(SemaIntTypeKind.TYPE_ULONG, "ulong") }
+    public static SemaIntType getLongType()   { out = new SemaIntType(SemaIntTypeKind.TYPE_LONG, "long") }
+    public static SemaFloatType getFloatType()  { out = new SemaFloatType(SemaFloatTypeKind.TYPE_FLOAT, "float") }
+    public static SemaFloatType getDoubleType() { out = new SemaFloatType(SemaFloatTypeKind.TYPE_DOUBLE, "double") }
+    public static SemaComplexType getComplexType() { out = new SemaComplexType() }
+    public static SemaType getVoidType()   { out = new SemaVoidType() }
+    public static SemaType getStringType() { out = new SemaStringType() }
+    public static SemaErrorType getErrorType() { out = new SemaErrorType() }
+
+    public static SemaArrayType CreateArrayType(const SemaType elementType, const long size) {
+        out = new SemaArrayType(elementType, size)
+    }
+}

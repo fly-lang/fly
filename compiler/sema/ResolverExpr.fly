@@ -1,0 +1,119 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.compiler.basic.*
+
+// ResolverExpr — expression resolution companion. Sets r.currentExpr.
+public class ResolverExpr {
+
+    public ResolverExpr() { }
+
+    // identifier — resolve a name to the variable it references (via the symbol's
+    // exprRef). Function/type identifiers and member chains come later.
+    public static void identifier(const Resolver r, const ASTIdentifier node) {
+        Registry reg = r.getReg()
+        Symbol sym = reg.LookupName(node.getName(), r.getCurrentScope())
+        SemaExpr e = null
+        if sym != null {
+            e = sym.getExprRef()
+        } else {
+            r.diagStr(node.getLoc(), DiagID.err_sema_unresolved_identifier, node.getName())
+        }
+        r.setCurrentExpr(e)
+    }
+
+    public static void binary(const Resolver r, const ASTBinary node) {
+        ASTExpr l = node.getLeftExpr()
+        l.accept(r)
+        SemaExpr left = r.getCurrentExpr()
+        ASTExpr rt = node.getRightExpr()
+        rt.accept(r)
+        SemaExpr right = r.getCurrentExpr()
+        SemaBinary b = SemaBuilder.CreateBinary(node, left, right)
+        // Numeric promotion: an arithmetic op over two numbers yields the wider type
+        // (Stage 7). Comparisons/logic (bool) and assignments (assignee type) keep the
+        // default. CreateBinary defaulted the type to the left operand's.
+        if node.isArith() {
+            if left != null {
+                if right != null {
+                    SemaType lt = left.getType()
+                    SemaType rtp = right.getType()
+                    if lt != null {
+                        if rtp != null {
+                            if lt.isNumber() {
+                                if rtp.isNumber() {
+                                    b.setType(promoteNumberTypes(lt, rtp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        r.setCurrentExpr(b)
+    }
+
+    public static void unary(const Resolver r, const ASTUnary node) {
+        ASTExpr e = node.getExpr()
+        e.accept(r)
+        SemaExpr inner = r.getCurrentExpr()
+        SemaUnary u = SemaBuilder.CreateUnary(node, inner)
+        r.setCurrentExpr(u)
+    }
+
+    public static void ternary(const Resolver r, const ASTTernary node) {
+        ASTExpr c = node.getConditionExpr()
+        c.accept(r)
+        SemaExpr cond = r.getCurrentExpr()
+        ASTExpr te = node.getTrueExpr()
+        te.accept(r)
+        SemaExpr trueE = r.getCurrentExpr()
+        ASTExpr fe = node.getFalseExpr()
+        fe.accept(r)
+        SemaExpr falseE = r.getCurrentExpr()
+        // numeric promotion of the two branches is deferred to Stage 7.
+        SemaTernary t = SemaBuilder.CreateTernary(node, cond, trueE, falseE)
+        r.setCurrentExpr(t)
+    }
+
+    public static void cast(const Resolver r, const ASTCast node) {
+        ASTExpr e = node.getExpr()
+        e.accept(r)
+        SemaExpr from = r.getCurrentExpr()
+        ASTType tt = node.getToType()
+        tt.accept(r)
+        SemaType toType = r.getCurrentType()
+        SemaCast c = SemaBuilder.CreateCast(node, from, toType)
+        r.setCurrentExpr(c)
+    }
+
+    // member — `obj.field` / `this.field`: resolve the receiver expression, then
+    // look up the field on its class (LookupAttribute traverses the inheritance
+    // chain). Enum accessors / static / namespace member access are Stage 7+.
+    public static void member(const Resolver r, const ASTMember node) {
+        ASTExpr parent = node.getParent()
+        if parent == null { r.setCurrentExpr(null)  return }
+        parent.accept(r)
+        SemaExpr pe = r.getCurrentExpr()
+        if pe == null { r.setCurrentExpr(null)  return }
+        SemaType pt = pe.getType()
+        if pt == null { r.setCurrentExpr(null)  return }
+        SemaClassType pcls = pt.asClass()
+        if pcls == null { r.setCurrentExpr(null)  return }
+        SemaClassAttribute attr = pcls.LookupAttribute(node.getName())
+        if attr == null {
+            r.diagStr(node.getLoc(), DiagID.err_sema_unknown_member, node.getName())
+            r.setCurrentExpr(null)
+            return
+        }
+        SemaMember mem = SemaBuilder.CreateMemberVar(node, attr, pe)
+        r.setCurrentExpr(mem)
+    }
+}
+
+// promoteNumberTypes — rank-based widening (1:1 with C++ Resolver::PromoteNumberTypes):
+// the operand with the higher (or equal) rank wins.
+public SemaType promoteNumberTypes(const SemaType left, const SemaType right) {
+    if left.getRank() >= right.getRank() { out = left } else { out = right }
+}

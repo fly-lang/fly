@@ -1,0 +1,12 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaStmt
+import fly.compiler.ast.ASTStmt
+
+// SemaBreakStmt — a resolved break. 1:1.
+public class SemaBreakStmt : SemaStmt {
+    public SemaBreakStmt(const ASTStmt ast) {
+        super(SemaKind.STMT_BREAK, ast)
+    }
+}

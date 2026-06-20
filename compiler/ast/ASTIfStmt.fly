@@ -4,6 +4,7 @@ import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTRuleStmt
 import fly.compiler.ast.ASTStmt
 import fly.compiler.ast.ASTStmtKind
+import fly.compiler.ast.ASTVisitor
 import fly.data.List
 
 public class ASTIfStmt : ASTRuleStmt {
@@ -20,4 +21,6 @@ public class ASTIfStmt : ASTRuleStmt {
     public ASTStmt getElse() { out = this.elseStmt }
     public void addElsif(const ASTRuleStmt r) { this.elseIfList.add(r) }
     public void setElse(const ASTStmt s) { this.elseStmt = s }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
 }
