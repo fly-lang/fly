@@ -103,4 +103,34 @@ suite DiagnosticsSuite {
             assert.assertTrue(diags.hasErrorOccurred() == false, 31)
         }
     }
+
+    void diamondAmbiguityTest() {
+        case "ambiguous inherited default method is reported": {
+            Parser p = new Parser("public interface A { int foo() { out = 1 } }  public interface B { int foo() { out = 2 } }  public class D : A, B { }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 70)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred(), 71)
+        }
+    }
+
+    void diamondResolvedTest() {
+        case "overriding the conflicting method resolves the diamond": {
+            Parser p = new Parser("public interface A { int foo() { out = 1 } }  public interface B { int foo() { out = 2 } }  public class D : A, B { public int foo() { out = 3 } }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 80)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred() == false, 81)
+        }
+    }
 }

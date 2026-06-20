@@ -85,6 +85,7 @@ public class ResolverClass {
         }
 
         ResolverClass.checkAbstractMethods(r, cls)
+        ResolverClass.checkDiamond(r, cls)
         r.setCurrentClass(null)
     }
 
@@ -156,6 +157,112 @@ public class ResolverClass {
             SemaClassType b = bases.get(j)
             if ResolverClass.hasConcreteMethod(b, name) { out = true  return }
             j = j + 1
+        }
+        out = false
+    }
+
+    // checkDiamond — a class that inherits a DEFAULT (concrete) method of the same
+    // name from two unrelated interface bases must override it, else the call is
+    // ambiguous. Emits err_sema_diamond_ambiguous per unresolved conflict.
+    public static void checkDiamond(const Resolver r, const SemaClassType cls) {
+        List<string> dnames = new List<string>()
+        List<string> dsrcs = new List<string>()
+        List<SemaClassType> bases = cls.getBaseClasses()
+        int i = 0
+        while i < bases.size() {
+            SemaClassType b = bases.get(i)
+            if b.getClassKind() == SemaClassKind.INTERFACE {
+                ResolverClass.collectInterfaceDefaults(b, dnames, dsrcs)
+            }
+            i = i + 1
+        }
+
+        ASTClass ac = cls.getAST()
+        SourceLocation loc = ac.getLoc()
+        string cn = cls.getName()
+        List<string> reported = new List<string>()
+        int j = 0
+        while j < dnames.size() {
+            string name = dnames.get(j)
+            if ResolverClass.listHasStr(reported, name) == false {
+                int distinct = ResolverClass.distinctSourceCount(dnames, dsrcs, name)
+                if distinct >= 2 {
+                    if ResolverClass.hasOwnMethod(cls, name) == false {
+                        r.diagStr2(loc, DiagID.err_sema_diamond_ambiguous, name, cn)
+                        reported.add(name)
+                    }
+                }
+            }
+            j = j + 1
+        }
+    }
+
+    // collectInterfaceDefaults — gather (default-method-name, declaring-interface-name)
+    // pairs from an interface and its interface bases. The DECLARING interface is the
+    // source, so the same interface reached via two paths counts once (not a conflict).
+    public static void collectInterfaceDefaults(const SemaClassType iface, const List<string> dnames, const List<string> dsrcs) {
+        List<SemaClassType> supers = iface.getBaseClasses()
+        int i = 0
+        while i < supers.size() {
+            SemaClassType s = supers.get(i)
+            if s.getClassKind() == SemaClassKind.INTERFACE {
+                ResolverClass.collectInterfaceDefaults(s, dnames, dsrcs)
+            }
+            i = i + 1
+        }
+        string srcName = iface.getName()
+        List<SemaClassMethod> ms = iface.getMethodList()
+        int j = 0
+        while j < ms.size() {
+            SemaClassMethod m = ms.get(j)
+            if m.isAbstract() == false {
+                if m.isConstructor() == false {
+                    dnames.add(m.getName())
+                    dsrcs.add(srcName)
+                }
+            }
+            j = j + 1
+        }
+    }
+
+    // distinctSourceCount — number of distinct declaring-interface names providing a
+    // default method named `name`.
+    public static int distinctSourceCount(const List<string> dnames, const List<string> dsrcs, const string name) {
+        List<string> seen = new List<string>()
+        int i = 0
+        while i < dnames.size() {
+            string nm = dnames.get(i)
+            if fly.str.equals(nm, name) {
+                string src = dsrcs.get(i)
+                if ResolverClass.listHasStr(seen, src) == false { seen.add(src) }
+            }
+            i = i + 1
+        }
+        out = seen.size()
+    }
+
+    // hasOwnMethod — cls declares its own (non-ctor) method named `name`, resolving a
+    // diamond by overriding.
+    public static bool hasOwnMethod(const SemaClassType cls, const string name) {
+        List<SemaClassMethod> ms = cls.getMethodList()
+        int i = 0
+        while i < ms.size() {
+            SemaClassMethod m = ms.get(i)
+            if m.isConstructor() == false {
+                if fly.str.equals(m.getName(), name) { out = true  return }
+            }
+            i = i + 1
+        }
+        out = false
+    }
+
+    // listHasStr — membership test on a string list.
+    public static bool listHasStr(const List<string> list, const string s) {
+        int i = 0
+        while i < list.size() {
+            string x = list.get(i)
+            if fly.str.equals(x, s) { out = true  return }
+            i = i + 1
         }
         out = false
     }
