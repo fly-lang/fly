@@ -30,15 +30,23 @@ public class ResolverDecl {
             i = i + 1
         }
 
-        // return type → resolve + add the synthetic 'out' param (out-param model)
+        // return type → resolve + add the synthetic 'out' param (out-param model),
+        // but NOT for a `void` return — a void function has no out value, so the
+        // signature is just (errPtr, params…). (Constructors have a null return type
+        // and never reach here.)
         ASTType rt = node.getReturnType()
         if rt != null {
             rt.accept(r)
-            fn.setReturnType(r.getCurrentType())
-            List<ASTModifier> noMods = new List<ASTModifier>()
-            ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rt, "out", noMods, null)
-            outAst.accept(r)
-            fn.addParam(r.getCurrentParam())
+            SemaType rtt = r.getCurrentType()
+            fn.setReturnType(rtt)
+            bool isVoidRet = false
+            if rtt != null { isVoidRet = rtt.isVoid() }
+            if isVoidRet == false {
+                List<ASTModifier> noMods = new List<ASTModifier>()
+                ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rt, "out", noMods, null)
+                outAst.accept(r)
+                fn.addParam(r.getCurrentParam())
+            }
         }
 
         // function symbol (signature carried for overload lookup) in module scope

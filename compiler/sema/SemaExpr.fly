@@ -4,6 +4,7 @@ import fly.compiler.sema.SemaVisitor
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaNode
 import fly.compiler.sema.SemaType
+import fly.compiler.sema.SemaCall
 import fly.mem
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,6 +28,11 @@ public class SemaExpr : SemaNode {
 
     public SemaType getType() { out = this.type }
     public void setType(const SemaType type) { this.type = type }
+
+    // asCall — narrow to SemaCall without a downcast (null on the base; SemaCall
+    // overrides to return `this`). Used to spot `new` initializers for alloc tracking.
+    public SemaCall asCall() { out = null }
+
     public fly.mem.Ptr getLlvmValue() { out = this.llvmValue }
     public void setLlvmValue(const fly.mem.Ptr v) { this.llvmValue = v }
 

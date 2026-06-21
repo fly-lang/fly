@@ -29,6 +29,7 @@ public class SemaCall : SemaExpr {
         this.args = new List<SemaExpr>()
     }
 
+    public SemaCall asCall() { out = this }
     public ASTCall getAST() { out = this.callAst }
     public SemaFunctionBase getFunction() { out = this.function }
     public void setFunction(const SemaFunctionBase function) { this.function = function }

@@ -1,0 +1,35 @@
+namespace fly.compiler.codegen.test.stage10
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+
+// Stage 7: allocation tracking. `Box b = new Box(42)` binds an owned heap handle;
+// it's used locally (never returned/escaped) and freed via libc free() at the
+// block's scope exit. out = 42; the IR contains a `call void @free`. Runnable:
+// allocate → use → free → exit 42 (no crash proves the free is well-formed).
+void main() {
+    string src = "public class Box { int v  public Box(const int x) { this.v = x }  public int get() { out = this.v } }  int main() { Box b = new Box(42)  int r = b.get()  out = r }"
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 1)
+
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    Registry reg = ctx.getReg()
+
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(reg)
+
+    cgm.emitIR("/tmp/cg/stage10.ll")
+
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 2)
+}

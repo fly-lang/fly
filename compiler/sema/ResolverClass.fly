@@ -398,11 +398,16 @@ public class ResolverClass {
         ASTType rt = node.getReturnType()
         if rt != null {
             rt.accept(r)
-            meth.setReturnType(r.getCurrentType())
-            List<ASTModifier> noMods = new List<ASTModifier>()
-            ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rt, "out", noMods, null)
-            outAst.accept(r)
-            meth.addParam(r.getCurrentParam())
+            SemaType rtt = r.getCurrentType()
+            meth.setReturnType(rtt)
+            bool isVoidRet = false
+            if rtt != null { isVoidRet = rtt.isVoid() }
+            if isVoidRet == false {
+                List<ASTModifier> noMods = new List<ASTModifier>()
+                ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rt, "out", noMods, null)
+                outAst.accept(r)
+                meth.addParam(r.getCurrentParam())
+            }
         }
 
         // Link this method to the base method it overrides (skip constructors).

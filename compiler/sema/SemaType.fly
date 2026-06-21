@@ -3,6 +3,7 @@ namespace fly.compiler.sema
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaNode
 import fly.compiler.sema.SemaClassType
+import fly.compiler.sema.SemaEnumType
 import fly.compiler.sema.semaIntRank
 import fly.compiler.sema.semaFloatRank
 import fly.str as s
@@ -55,6 +56,9 @@ public class SemaType : SemaNode {
     // asClass — narrow to SemaClassType without a downcast (Fly has none): the base
     // returns null; SemaClassType overrides it to return `this`.
     public SemaClassType asClass() { out = null }
+
+    // asEnum — narrow to SemaEnumType (null on the base; overridden in SemaEnumType).
+    public SemaEnumType asEnum() { out = null }
 
     // getRank — numeric promotion rank; non-number types have no rank (0).
     // SemaNumberType overrides this with its bit-width rank, so a SemaType-typed

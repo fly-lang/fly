@@ -47,6 +47,22 @@ public class ResolverStmt {
         SemaDeclStmt ds = SemaBuilder.CreateDeclStmt(node, slv, init)
         SemaBlockStmt blk = r.getCurrentSemaBlock()
         blk.addContent(ds)
+
+        // Alloc tracking (Stage 7): a `C x = new C(...)` binds an owned heap class
+        // handle — register it for free at this scope's exit. (Conservative: only
+        // direct new-into-local; escape analysis / smart-pointer ownership is the
+        // soundness follow-up.)
+        if init != null {
+            SemaCall ic = init.asCall()
+            if ic != null {
+                if ic.isNew() {
+                    SemaType vt = slv.getType()
+                    if vt != null {
+                        if vt.asClass() != null { blk.addAlloc(slv) }
+                    }
+                }
+            }
+        }
     }
 
     public static void expr(const Resolver r, const ASTExprStmt node) {

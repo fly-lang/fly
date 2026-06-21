@@ -124,6 +124,17 @@ struct Ptr3IntStrArgs : Args {
     string s
 }
 
+// 4 ptrs + int + string, e.g. LLVMBuildCall2(B, FnTy, Fn, Args, NumArgs, Name)
+// and LLVMBuildGEP2(B, Ty, Ptr, Indices, NumIndices, Name).
+struct Ptr4IntStrArgs : Args {
+    fly.mem.Ptr a
+    fly.mem.Ptr b
+    fly.mem.Ptr c
+    fly.mem.Ptr d
+    int n
+    string s
+}
+
 struct StrArgs : Args {
     string s
 }
@@ -158,6 +169,14 @@ struct PtrStrIntArgs : Args {
     fly.mem.Ptr a
     string s
     int n
+}
+
+// ptr + string + 2 ints, e.g. LLVMConstStringInContext(Ctx, Str, Length, DontNull)
+struct PtrStrIntIntArgs : Args {
+    fly.mem.Ptr a
+    string s
+    int n
+    int m
 }
 
 // ── LLVM wrapper ──────────────────────────────────────────────────────────────
@@ -275,6 +294,7 @@ public class LLVM {
         PtrIntPtrArgs vargs = new PtrIntPtrArgs()
         vargs.a = mod
         vargs.n = 2
+        vargs.b = fly.mem.toPtr(0)
         CLang lib = new CLang("libLLVM-20.so")
         bool broken = false
         lib.call("LLVMVerifyModule", vargs, broken)
@@ -766,13 +786,28 @@ public class LLVM {
     }
 
     public void buildGEP2(const fly.mem.Ptr b, const fly.mem.Ptr ty, const fly.mem.Ptr ptr, const fly.mem.Ptr indices, const int numIndices, const string name, fly.mem.Ptr v) {
-        Ptr4Args a = new Ptr4Args()
+        // LLVMBuildGEP2(B, Ty, Ptr, Indices, NumIndices, Name) — must pass NumIndices
+        // and Name (the old Ptr4Args dropped them → garbage index-count + name).
+        Ptr4IntStrArgs a = new Ptr4IntStrArgs()
         a.a = b
         a.b = ty
         a.c = ptr
         a.d = indices
+        a.n = numIndices
+        a.s = name
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMBuildGEP2", a, v)
+    }
+
+    // buildMalloc — LLVMBuildMalloc(B, Ty, Name): allocates sizeof(Ty) on the heap
+    // (LLVM computes the size + auto-declares @malloc) and returns the typed ptr.
+    public void buildMalloc(const fly.mem.Ptr b, const fly.mem.Ptr ty, const string name, fly.mem.Ptr v) {
+        Ptr2StrArgs a = new Ptr2StrArgs()
+        a.a = b
+        a.b = ty
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildMalloc", a, v)
     }
 
     public void buildStructGEP2(const fly.mem.Ptr b, const fly.mem.Ptr ty, const fly.mem.Ptr ptr, const int idx, const string name, fly.mem.Ptr v) {
@@ -965,11 +1000,15 @@ public class LLVM {
     // ── Build — call ──────────────────────────────────────────────────────────
 
     public void buildCall2(const fly.mem.Ptr b, const fly.mem.Ptr fnTy, const fly.mem.Ptr fn, const fly.mem.Ptr args, const int numArgs, const string name, fly.mem.Ptr v) {
-        Ptr4Args a = new Ptr4Args()
+        // LLVMBuildCall2(B, FnTy, Fn, Args, NumArgs, Name) — must pass NumArgs and
+        // Name (the old Ptr4Args dropped them → garbage arg-count + name).
+        Ptr4IntStrArgs a = new Ptr4IntStrArgs()
         a.a = b
         a.b = fnTy
         a.c = fn
         a.d = args
+        a.n = numArgs
+        a.s = name
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMBuildCall2", a, v)
     }
@@ -1016,13 +1055,15 @@ public class LLVM {
         lib.call("LLVMConstPointerNull", a, v)
     }
 
-    public void constStringInContext(const fly.mem.Ptr ctx, const string str, const bool nullTerminated, fly.mem.Ptr v) {
-        // LLVMConstStringInContext(Ctx, Str, Length, DontNullTerminate)
-        // DontNullTerminate=0 means ADD null terminator (nullTerminated=true).
-        PtrStrIntArgs a = new PtrStrIntArgs()
+    public void constStringInContext(const fly.mem.Ptr ctx, const string str, const int length, const bool nullTerminated, fly.mem.Ptr v) {
+        // LLVMConstStringInContext(Ctx, Str, Length, DontNullTerminate). Length is
+        // explicit (Fly strings aren't null-terminated C strings); DontNull=0 ADDS a
+        // terminator. The old 1-int variant dropped Length → empty [0 x i8].
+        PtrStrIntIntArgs a = new PtrStrIntIntArgs()
         a.a = ctx
         a.s = str
-        if nullTerminated { a.n = 0 } else { a.n = 1 }
+        a.n = length
+        if nullTerminated { a.m = 0 } else { a.m = 1 }
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMConstStringInContext", a, v)
     }
@@ -1043,6 +1084,18 @@ public class LLVM {
         a.n = numVals
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMConstArray", a, v)
+    }
+
+    // constNamedStruct — LLVMConstNamedStruct(StructTy, ConstantVals, Count): a
+    // constant of a NAMED struct type (unlike LLVMConstStruct which makes an
+    // anonymous literal-struct constant that wouldn't match a %name alloca).
+    public void constNamedStruct(const fly.mem.Ptr structTy, const fly.mem.Ptr vals, const int numVals, fly.mem.Ptr v) {
+        PtrPtrIntArgs a = new PtrPtrIntArgs()
+        a.a = structTy
+        a.b = vals
+        a.n = numVals
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMConstNamedStruct", a, v)
     }
 
     // ── Global variables ──────────────────────────────────────────────────────

@@ -18,11 +18,15 @@ public class CodeGenType {
 
     CodeGenLLVM cg
     fly.mem.Ptr ctx
+    fly.mem.Ptr stringTy       // the module's `%string` named struct (set by CodeGenModule)
 
     public CodeGenType(const CodeGenLLVM cg, const fly.mem.Ptr ctx) {
         this.cg = cg
         this.ctx = ctx
+        this.stringTy = fly.mem.toPtr(0)
     }
+
+    public void setStringTy(const fly.mem.Ptr t) { this.stringTy = t }
 
     public fly.mem.Ptr lowerType(const SemaType t) {
         LLVM llvm = this.cg.getLLVM()
@@ -41,8 +45,14 @@ public class CodeGenType {
             int rank = t.getRank()
             if rank <= 32 { llvm.floatTypeInContext(this.ctx, r) }
             else { llvm.doubleTypeInContext(this.ctx, r) }
+        } elsif t.getKind() == SemaKind.TYPE_ENUM {
+            // enums are plain i32 (each entry is its integer index)
+            llvm.int32TypeInContext(this.ctx, r)
+        } elsif t.isString() {
+            // string = the %string { ptr, i64 } value struct
+            r = this.stringTy
         } else {
-            // string / class / enum / array / error → opaque pointer
+            // class / array / error → opaque pointer
             r = this.ptrType()
         }
         // No caching on t.llvmType: a fly.mem.Ptr value-struct field does NOT reliably

@@ -67,6 +67,7 @@ public class Parser {
     SourceManager sm
     Token cur
     Token nxt
+    List<Token> pending      // lookahead buffer: tokens probed past `nxt`, re-served by bump()
     DiagnosticsEngine diags
     StoringDiagnosticConsumer sink
     ASTModule module
@@ -77,6 +78,7 @@ public class Parser {
         this.sink = new StoringDiagnosticConsumer()
         DiagnosticOptions opts = new DiagnosticOptions()
         this.diags = new DiagnosticsEngine(opts, this.sink, this.sm)
+        this.pending = new List<Token>()
         this.cur = this.lx.next()
         this.nxt = this.lx.next()
     }
@@ -84,7 +86,61 @@ public class Parser {
     // ── token cursor ──────────────────────────────────────────────────────────
     public void bump() {
         this.cur = this.nxt
-        this.nxt = this.lx.next()
+        if this.pending.size() > 0 {
+            this.nxt = this.pending.get(0)
+            this.pending.remove(0)
+        } else {
+            this.nxt = this.lx.next()
+        }
+    }
+
+    // nextRaw — pull the next raw token, draining the pending buffer first so a
+    // lookahead scan and normal bumping share one stream.
+    public Token nextRaw() {
+        if this.pending.size() > 0 {
+            Token t = this.pending.get(0)
+            this.pending.remove(0)
+            out = t
+        } else {
+            out = this.lx.next()
+        }
+    }
+
+    // genericDeclAhead — with cur=identifier and nxt='<', probe forward over a
+    // balanced `<…>` and report whether an identifier follows the closing '>'
+    // (i.e. `Name<…> name` is a declaration, not a `Name < …` comparison). All
+    // probed tokens are pushed into `pending` so the stream is left untouched.
+    public bool genericDeclAhead() {
+        List<Token> scanned = new List<Token>()
+        int depth = 1
+        bool isDecl = false
+        bool go = true
+        while go {
+            Token t = this.nextRaw()
+            scanned.add(t)
+            if t.isEof() {
+                go = false
+            } else {
+                string tx = this.lx.tokenText(t)
+                if t.kind == TokenKind.PUNCT && fly.str.equals(tx, "<") {
+                    depth = depth + 1
+                } elsif t.kind == TokenKind.PUNCT && fly.str.equals(tx, ">") {
+                    depth = depth - 1
+                    if depth == 0 {
+                        Token after = this.nextRaw()
+                        scanned.add(after)
+                        if after.kind == TokenKind.IDENT { isDecl = true }
+                        go = false
+                    }
+                }
+            }
+        }
+        int i = 0
+        while i < scanned.size() {
+            this.pending.add(scanned.get(i))
+            i = i + 1
+        }
+        out = isDecl
     }
     public bool curIsEof() { out = this.cur.isEof() }
     public string curText() { out = this.lx.tokenText(this.cur) }
@@ -630,7 +686,11 @@ public class Parser {
     // (builtin keyword, or `Ident name`) followed by a name.
     public bool looksLikeDecl() {
         if this.curIsBuiltinType() { out = true  return }
-        if this.curIsIdent() && this.nxt.kind == TokenKind.IDENT { out = true  return }
+        if this.curIsIdent() {
+            if this.nxt.kind == TokenKind.IDENT { out = true  return }
+            // generic-typed decl `Name<…> name` — probe past the angle brackets.
+            if this.nxtIsPunct("<") { out = this.genericDeclAhead()  return }
+        }
         out = false
     }
 

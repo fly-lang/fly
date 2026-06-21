@@ -45,6 +45,7 @@ public class SemaClassType : SemaType {
     List<SemaClassType> baseClasses
     SemaClassInstance thisInstance
     Map<string, SemaClassAttribute> attributes
+    List<SemaClassAttribute> attributeList   // own attributes in declaration order (for struct field layout)
     Map<string, SemaClassMethod> methods
     List<SemaClassMethod> methodList   // every method incl. ctors, in declaration order (typed; no asMethod downcast)
     Map<string, SemaClassMethod> constructors
@@ -52,9 +53,11 @@ public class SemaClassType : SemaType {
     SemaComment comment
     List<SemaTypeParam> typeParams
     Map<string, SemaClassType> specializations
+    List<SemaClassType> specializationList   // ordered specializations (Map has no iteration; for codegen)
     SemaClassType genericTemplate
     string mangledName
     fly.mem.Ptr llvmStructType   // CodeGen back-pointer: the LLVM struct type (null until codegen'd)
+    fly.mem.Ptr llvmVTable       // CodeGen back-pointer: the LLVM vtable global (null until codegen'd)
 
     public SemaClassType(const ASTClass classAst, const SemaModule module, const SymbolTable symbols) {
         super(SemaKind.TYPE_CLASS, classAst.getName())
@@ -69,13 +72,16 @@ public class SemaClassType : SemaType {
         this.resolvedFlag = false
         this.baseClasses = new List<SemaClassType>()
         this.attributes = new Map<string, SemaClassAttribute>()
+        this.attributeList = new List<SemaClassAttribute>()
         this.methods = new Map<string, SemaClassMethod>()
         this.methodList = new List<SemaClassMethod>()
         this.constructors = new Map<string, SemaClassMethod>()
         this.typeParams = new List<SemaTypeParam>()
         this.specializations = new Map<string, SemaClassType>()
+        this.specializationList = new List<SemaClassType>()
         this.mangledName = ""
         this.llvmStructType = fly.mem.toPtr(0)
+        this.llvmVTable = fly.mem.toPtr(0)
         ASTClassKind ak = classAst.getClassKind()
         SemaClassKind sk = SemaClassKind.CLASS
         if ak == ASTClassKind.INTERFACE { sk = SemaClassKind.INTERFACE }
@@ -118,18 +124,25 @@ public class SemaClassType : SemaType {
     public SemaClassType getGenericTemplate() { out = this.genericTemplate }
     public void setGenericTemplate(const SemaClassType t) { this.genericTemplate = t }
     public Map<string, SemaClassType> getSpecializations() { out = this.specializations }
+    public List<SemaClassType> getSpecializationList() { out = this.specializationList }
+    public void addSpecialization(const SemaClassType spec) { this.specializationList.add(spec) }
     public string getMangledName() { out = this.mangledName }
     public void setMangledName(const string mangledName) { this.mangledName = mangledName }
     public fly.mem.Ptr getLlvmStructType() { out = this.llvmStructType }
     public void setLlvmStructType(const fly.mem.Ptr t) { this.llvmStructType = t }
+    public fly.mem.Ptr getLlvmVTable() { out = this.llvmVTable }
+    public void setLlvmVTable(const fly.mem.Ptr t) { this.llvmVTable = t }
 
     // addAttribute / addMethod — append to Nodes and index by name. Overloaded
     // methods collapse to one map entry per name (as in C++); the ordered Nodes
     // list keeps them all.
     public void addAttribute(const SemaClassAttribute attribute) {
         this.nodes.add(attribute)
+        this.attributeList.add(attribute)
         this.attributes.put(attribute.getName(), attribute)
     }
+
+    public List<SemaClassAttribute> getAttributeList() { out = this.attributeList }
 
     public void addMethod(const SemaClassMethod method) {
         this.nodes.add(method)

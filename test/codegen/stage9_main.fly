@@ -1,0 +1,55 @@
+namespace fly.compiler.codegen.test.stage9
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.llvm
+import fly.mem
+import fly.str
+
+// Phase 1: string-literal codegen. `string` lowers to %string { ptr, i64 }; a
+// literal becomes a private [N x i8] global + a constant { ptr, len } stored into
+// the local. Self-contained (no imports/intrinsics/runtime) — IR + verifyModule.
+// (Fly string literals keep escapes raw, so the inner program's quotes are built
+// from a runtime-constructed `"` rather than `\"`.)
+
+// dquote — a one-character string containing a double-quote (byte 34).
+string dquote() {
+    long buf = fly.mem.alloc(1)
+    byte q = 34
+    fly.llvm.strPoke(buf, 0, q)
+    string s = ""
+    fly.llvm.strMake(buf, 1, s)
+    out = s
+}
+
+void main() {
+    string Q = dquote()
+    string a = fly.str.concat("void main() { string s = ", Q)
+    string b = fly.str.concat(a, "hello")
+    string c = fly.str.concat(b, Q)
+    string src = fly.str.concat(c, " }")
+
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 1)
+
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    Registry reg = ctx.getReg()
+
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(reg)
+
+    cgm.emitIR("/tmp/cg/stage9.ll")
+
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 2)
+}

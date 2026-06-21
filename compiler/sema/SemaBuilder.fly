@@ -85,6 +85,7 @@ public class SemaBuilder {
         spec.setThis(new SemaClassInstance(spec))
 
         specs.put(key, spec)
+        template.addSpecialization(spec)
         out = spec
     }
 

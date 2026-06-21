@@ -1,0 +1,105 @@
+namespace fly.compiler.codegen
+
+import fly.compiler.sema.*
+import fly.compiler.codegen.CodeGenExpr
+import fly.compiler.codegen.CodeGenModule
+import llvm.api.*
+import fly.mem
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenError — `fail` / `handle` lowering over the shared `%error` struct
+// ({ i32 code, ptr str, ptr obj }) that every function receives by pointer
+// (param 0). `fail` writes the struct then returns early (the failing callee
+// returns; the caller continues — propagation is not stack unwinding). `handle`
+// runs its guarded block and then clears the error code (consuming it). The
+// reference compiler crashes on its own handle codegen + rejects `if (err)`, so
+// this is an independent, simpler model. Automatic cross-call propagation (the
+// caller re-checking + returning after every fallible call) is deferred.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenError {
+
+    public CodeGenError() { }
+
+    // fail — write the error struct (code / str / obj by operand type) and ret void.
+    public static void emitFail(const CodeGenExpr cge, const SemaFailStmt node) {
+        if cge.isTerminated() { return }
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        fly.mem.Ptr errTy = cgm.getErrorTy()
+        fly.mem.Ptr errPtr = cge.getErrPtr()
+
+        SemaExpr first = node.getFirst()
+        SemaExpr second = node.getSecond()
+        bool wroteCode = false
+        if first != null {
+            writeField(cge, errTy, errPtr, first)
+            SemaType ft = first.getType()
+            if ft != null { wroteCode = isCodeField(ft) }
+        }
+        if second != null { writeField(cge, errTy, errPtr, second) }
+
+        // A failure with no integer code still signals "failed": default code = 1.
+        if wroteCode == false {
+            fly.mem.Ptr i32
+            llvm.int32TypeInContext(cgm.getCtx(), i32)
+            fly.mem.Ptr one
+            llvm.constInt(i32, 1, true, one)
+            fly.mem.Ptr cp
+            llvm.buildStructGEP2(b, errTy, errPtr, 0, "ecode", cp)
+            llvm.buildStore(b, one, cp)
+        }
+
+        fly.mem.Ptr r
+        llvm.buildRetVoid(b, r)
+        cge.setTerminated(true)
+    }
+
+    // writeField — store one fail operand into its slot: int/enum/bool → code (0),
+    // string → str (1), class/other ptr → obj (2).
+    public static void writeField(const CodeGenExpr cge, const fly.mem.Ptr errTy, const fly.mem.Ptr errPtr, const SemaExpr e) {
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+        fly.mem.Ptr v = cge.gen(e)
+        int idx = 2
+        SemaType t = e.getType()
+        if t != null {
+            if isCodeField(t) { idx = 0 } elsif t.isString() { idx = 1 }
+        }
+        fly.mem.Ptr fp
+        llvm.buildStructGEP2(b, errTy, errPtr, idx, "efld", fp)
+        llvm.buildStore(b, v, fp)
+    }
+
+    // isCodeField — operand types that land in the i32 code slot.
+    public static bool isCodeField(const SemaType t) {
+        if t.isInteger() { out = true  return }
+        if t.isBool() { out = true  return }
+        if t.getKind() == SemaKind.TYPE_ENUM { out = true  return }
+        out = false
+    }
+
+    // handle — run the guarded block, then clear the error code (consume it) so it
+    // does not propagate past the handled region.
+    public static void emitHandle(const CodeGenExpr cge, const SemaHandleStmt node) {
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+
+        SemaBlockStmt block = node.getHandle()
+        if block != null { block.accept(cge) }
+
+        if cge.isTerminated() == false {
+            fly.mem.Ptr errTy = cgm.getErrorTy()
+            fly.mem.Ptr errPtr = cge.getErrPtr()
+            fly.mem.Ptr i32
+            llvm.int32TypeInContext(cgm.getCtx(), i32)
+            fly.mem.Ptr zero
+            llvm.constInt(i32, 0, true, zero)
+            fly.mem.Ptr cp
+            llvm.buildStructGEP2(b, errTy, errPtr, 0, "ecode", cp)
+            llvm.buildStore(b, zero, cp)
+        }
+    }
+}

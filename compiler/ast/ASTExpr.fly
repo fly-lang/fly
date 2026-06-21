@@ -3,6 +3,7 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTKind
 import fly.compiler.ast.ASTNode
+import fly.compiler.ast.ASTIdentifier
 
 public enum ASTExprKind {
     EXPR_VALUE,
@@ -27,6 +28,8 @@ public class ASTExpr : ASTNode {
     }
 
     public ASTExprKind getExprKind() { out = this.exprKind }
+    // asIdentifier — narrow to ASTIdentifier (null on the base; overridden there).
+    public ASTIdentifier asIdentifier() { out = null }
     public ASTExpr getParent() { out = this.parent }
     public ASTExpr getChild() { out = this.child }
     public void setParent(const ASTExpr parent) { this.parent = parent }

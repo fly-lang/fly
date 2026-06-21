@@ -7,6 +7,9 @@ import fly.compiler.codegen.CodeGenLLVM
 import fly.compiler.codegen.CodeGenType
 import fly.compiler.codegen.CodeGenExprOps
 import fly.compiler.codegen.CodeGenStmt
+import fly.compiler.codegen.CodeGenCall
+import fly.compiler.codegen.CodeGenClass
+import fly.compiler.codegen.CodeGenError
 import llvm.api.*
 import fly.mem
 import fly.data.List
@@ -33,6 +36,7 @@ public class CodeGenExpr : SemaVisitor {
     bool terminated            // current block already has a terminator?
     fly.mem.Ptr breakTarget    // innermost loop/switch exit block
     fly.mem.Ptr continueTarget // innermost loop post block
+    fly.mem.Ptr errPtr         // current function's error-handler pointer (LLVM param 0)
 
     public CodeGenExpr(const CodeGenModule cgm) {
         this.cgm = cgm
@@ -43,11 +47,15 @@ public class CodeGenExpr : SemaVisitor {
         this.terminated = false
         this.breakTarget = fly.mem.toPtr(0)
         this.continueTarget = fly.mem.toPtr(0)
+        this.errPtr = fly.mem.toPtr(0)
     }
+    public fly.mem.Ptr getErrPtr() { out = this.errPtr }
+    public void setErrPtr(const fly.mem.Ptr p) { this.errPtr = p }
 
     public CodeGenModule getCgm() { out = this.cgm }
     public LLVM getLLVM() { out = this.llvm }
     public fly.mem.Ptr getBuilder() { out = this.builder }
+    public bool isAddrMode() { out = this.addrMode }
 
     // ── basic-block / control-flow helpers ────────────────────────────────────
     public bool isTerminated() { out = this.terminated }
@@ -116,6 +124,22 @@ public class CodeGenExpr : SemaVisitor {
             SemaStmt s = content.get(i)
             s.accept(this)
             i = i + 1
+        }
+        // Stage 7: on fall-through, free this scope's owned heap class handles. (A
+        // terminating return inside the block skips this — early-return cleanup is a
+        // follow-up; the milestone programs fall through.)
+        if this.terminated == false {
+            List<SemaLocalVar> allocs = node.getAllocs()
+            int j = 0
+            while j < allocs.size() {
+                SemaLocalVar v = allocs.get(j)
+                fly.mem.Ptr alloca = v.getLlvmAlloca()
+                fly.mem.Ptr ty = this.lowerType(v.getType())
+                fly.mem.Ptr objPtr
+                this.llvm.buildLoad2(this.builder, ty, alloca, "freeld", objPtr)
+                this.cgm.freeHandle(objPtr)
+                j = j + 1
+            }
         }
     }
     public void visit(const SemaExprStmt node) {
@@ -196,20 +220,66 @@ public class CodeGenExpr : SemaVisitor {
     public void visit(const SemaCast node) { CodeGenExprOps.cast(this, node) }
     public void visit(const SemaTernary node) { CodeGenExprOps.ternary(this, node) }
 
+    // ── calls + member access ─────────────────────────────────────────────────
+    public void visit(const SemaCall node) {
+        if node.isNew() {
+            CodeGenClass.genNew(this, node)
+        } elsif node.getParent() != null {
+            CodeGenClass.methodCall(this, node)
+        } else {
+            CodeGenCall.call(this, node)
+        }
+    }
+    public void visit(const SemaMember node) { CodeGenClass.member(this, node) }
+
+    // ── enums (each entry is its integer index, lowered to i32) ───────────────
+    public void visit(const SemaEnumEntry node) {
+        fly.mem.Ptr ty = this.lowerType(node.getType())
+        long idx = node.getIndex()
+        fly.mem.Ptr c
+        this.llvm.constInt(ty, idx, true, c)
+        node.setLlvmValue(c)
+    }
+    public void visit(const SemaEnumAccessor node) {
+        SemaEnumEntry e = node.getEntry()
+        fly.mem.Ptr ty = this.lowerType(node.getType())
+        long idx = 0
+        if e != null { idx = e.getIndex() }
+        fly.mem.Ptr c
+        this.llvm.constInt(ty, idx, true, c)
+        node.setLlvmValue(c)
+    }
+
+    // ── error handling ────────────────────────────────────────────────────────
+    public void visit(const SemaFailStmt node) { CodeGenError.emitFail(this, node) }
+    public void visit(const SemaHandleStmt node) { CodeGenError.emitHandle(this, node) }
+
     // ── stubbed (later stages) ────────────────────────────────────────────────
-    public void visit(const SemaCall node) { }
-    public void visit(const SemaMember node) { }
-    public void visit(const SemaEnumEntry node) { }
     public void visit(const SemaEnumList node) { }
-    public void visit(const SemaEnumAccessor node) { }
-    public void visit(const SemaStringValue node) { }
+
+    // string literal → a private `[N x i8]` global + a constant %string { ptr, len }.
+    public void visit(const SemaStringValue node) {
+        string val = node.getValue()
+        int len = fly.str.len(val)
+        CodeGenLLVM cg = this.cgm.getCg()
+        fly.mem.Ptr g = cg.globalString(this.cgm.getModule(), this.cgm.getCtx(), val)
+        fly.mem.Ptr i64
+        this.llvm.int64TypeInContext(this.cgm.getCtx(), i64)
+        fly.mem.Ptr lenC
+        this.llvm.constInt(i64, len, false, lenC)
+        List<long> fields = new List<long>()
+        fields.add(g.addr)
+        fields.add(lenC.addr)
+        fly.mem.Ptr strTy = this.cgm.getStringTy()
+        fly.mem.Ptr sv
+        cg.constNamedStructN(strTy, fields, sv)
+        node.setLlvmValue(sv)
+    }
     public void visit(const SemaComplexValue node) { }
     public void visit(const SemaArrayValue node) { }
     public void visit(const SemaStructValue node) { }
     public void visit(const SemaUnsetValue node) { }
     public void visit(const SemaLoopInStmt node) { }
-    public void visit(const SemaFailStmt node) { }
-    public void visit(const SemaHandleStmt node) { }
     public void visit(const SemaDeleteStmt node) { }
     public void visit(const SemaCaseStmt node) { }
     public void visit(const SemaTestStmt node) { }

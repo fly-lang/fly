@@ -38,6 +38,7 @@ public class SemaEnumType : SemaType {
         this.entries = new Map<string, SemaEnumEntry>()
     }
 
+    public SemaEnumType asEnum() { out = this }
     public ASTEnum getAST() { out = this.enumAst }
     public SemaModule getModule() { out = this.module }
     public SymbolTable getSymbols() { out = this.symbols }

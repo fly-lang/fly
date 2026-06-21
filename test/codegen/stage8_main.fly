@@ -1,0 +1,25 @@
+namespace fly.compiler.codegen.test.stage8
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+void main() {
+    string src = "public class Wrapper<T> { T value  public Wrapper(const T v) { this.value = v }  public T get() { out = this.value } }  int main() { Wrapper<int> w = new Wrapper<int>(42)  out = w.get() }"
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 1)
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    Registry reg = ctx.getReg()
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(reg)
+    cgm.emitIR("/tmp/cg/stage8.ll")
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 2)
+}

@@ -88,14 +88,31 @@ public class ResolverCall {
         out = ResolverCall.makeCall(node, sym)
     }
 
-    // resolveMethodCall — instance method, looked up in the receiver's class scope.
+    // resolveMethodCall — instance method, looked up in the receiver's class scope
+    // and then up the inheritance chain (so inherited methods resolve too).
     public static SemaCall resolveMethodCall(const Resolver r, const ASTCall node, const SemaType parentType, const List<SemaType> argTypes) {
         SemaClassType cls = parentType.asClass()
         if cls == null { out = null  return }
         Registry reg = r.getReg()
-        SymbolTable cscope = cls.getSymbols()
-        Symbol sym = reg.LookupFunction(node.getName(), argTypes, cscope)
+        Symbol sym = ResolverCall.lookupMethodInHierarchy(reg, cls, node.getName(), argTypes)
         out = ResolverCall.makeCall(node, sym)
+    }
+
+    // lookupMethodInHierarchy — try the class's own scope, then recurse into base
+    // classes (depth-first, first base wins). Returns null if nowhere defines it.
+    public static Symbol lookupMethodInHierarchy(const Registry reg, const SemaClassType cls, const string name, const List<SemaType> argTypes) {
+        SymbolTable cscope = cls.getSymbols()
+        Symbol sym = reg.LookupFunction(name, argTypes, cscope)
+        if sym != null { out = sym  return }
+        List<SemaClassType> bases = cls.getBaseClasses()
+        int i = 0
+        while i < bases.size() {
+            SemaClassType base = bases.get(i)
+            Symbol s = ResolverCall.lookupMethodInHierarchy(reg, base, name, argTypes)
+            if s != null { out = s  return }
+            i = i + 1
+        }
+        out = null
     }
 
     // makeCall — build a SemaCall from a resolved function/method symbol (the ref is

@@ -94,6 +94,30 @@ public class ResolverExpr {
     public static void member(const Resolver r, const ASTMember node) {
         ASTExpr parent = node.getParent()
         if parent == null { r.setCurrentExpr(null)  return }
+
+        // Enum entry access `EnumName.ENTRY`: the parent is a bare identifier naming
+        // an enum TYPE (not a value), so resolve it as a named type first — this also
+        // avoids the spurious "unresolved identifier" diagnostic that resolving the
+        // type name as a value expression would emit.
+        ASTIdentifier pid = parent.asIdentifier()
+        if pid != null {
+            Registry ereg = r.getReg()
+            Symbol tsym = ereg.LookupNamedType(pid.getName(), r.getCurrentScope())
+            if tsym != null {
+                SemaType tt = tsym.getTypeRef()
+                if tt != null {
+                    SemaEnumType et = tt.asEnum()
+                    if et != null {
+                        SemaEnumEntry entry = et.LookupEntry(node.getName())
+                        if entry != null { r.setCurrentExpr(entry)  return }
+                        r.diagStr(node.getLoc(), DiagID.err_sema_unknown_member, node.getName())
+                        r.setCurrentExpr(null)
+                        return
+                    }
+                }
+            }
+        }
+
         parent.accept(r)
         SemaExpr pe = r.getCurrentExpr()
         if pe == null { r.setCurrentExpr(null)  return }

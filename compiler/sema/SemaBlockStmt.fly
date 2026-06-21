@@ -3,23 +3,28 @@ import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaStmt
+import fly.compiler.sema.SemaLocalVar
 import fly.compiler.ast.ASTStmt
 import fly.data.List
 
-// SemaBlockStmt — a resolved block of statements. 1:1 with C++ SemaBlockStmt
-// minus the Allocs list (scope allocation tracking is deferred to the CodeGen
-// stage).
+// SemaBlockStmt — a resolved block of statements. 1:1 with C++ SemaBlockStmt.
+// `allocs` is the scope's owned heap allocations (class handles from `new`) to free
+// at scope exit (CodeGen Stage 7 — the deferred Allocs list, now implemented).
 public class SemaBlockStmt : SemaStmt {
 
     List<SemaStmt> content
+    List<SemaLocalVar> allocs
 
     public SemaBlockStmt(const ASTStmt ast) {
         super(SemaKind.STMT_BLOCK, ast)
         this.content = new List<SemaStmt>()
+        this.allocs = new List<SemaLocalVar>()
     }
 
     public void addContent(const SemaStmt stmt) { this.content.add(stmt) }
     public List<SemaStmt> getContent() { out = this.content }
     public bool isEmpty() { out = this.content.size() == 0 }
+    public void addAlloc(const SemaLocalVar v) { this.allocs.add(v) }
+    public List<SemaLocalVar> getAllocs() { out = this.allocs }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

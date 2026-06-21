@@ -218,6 +218,24 @@ public class ParserExpr {
         string nm = ""
         if p.curIsNamePart() { nm = p.curText()  p.bump() }
         else { p.reportErr(DiagID.err_parser_new_instance) }
-        out = ParserExpr.parseCallTail(p, loc, nm, ASTCallKind.CALL_NEW, null)
+        // optional generic type args: new Wrapper<int>(...)
+        List<ASTType> targs = new List<ASTType>()
+        if p.curIsPunct("<") {
+            p.bump()
+            bool go = true
+            while go {
+                ASTType ta = p.parseType()
+                targs.add(ta)
+                if p.curIsPunct(",") { p.bump() } else { go = false }
+            }
+            p.expectPunct(">")
+        }
+        ASTCall call = ParserExpr.parseCallTail(p, loc, nm, ASTCallKind.CALL_NEW, null)
+        int i = 0
+        while i < targs.size() {
+            call.addTypeArg(targs.get(i))
+            i = i + 1
+        }
+        out = call
     }
 }

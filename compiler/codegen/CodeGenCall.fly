@@ -1,0 +1,84 @@
+namespace fly.compiler.codegen
+
+import fly.compiler.sema.*
+import fly.compiler.codegen.CodeGenExpr
+import fly.compiler.codegen.CodeGenModule
+import fly.compiler.codegen.CodeGenLLVM
+import llvm.api.*
+import fly.mem
+import fly.data.List
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenCall — lower a SemaCall to the uniform calling convention (from the
+// reference compiler): the callee is `void (errPtr, arg1, …, argN, [outPtr])` with
+// every operand passed BY POINTER. So the call site:
+//   1) passes the current function's error pointer (LLVM param 0) first,
+//   2) materialises each argument into a fresh alloca and passes that pointer,
+//   3) for a non-void result, allocas the synthetic out local and passes its
+//      pointer last, then loads it back as the call's value.
+// Marshalled through CodeGenLLVM.buildCallN (the bridge can't pass multi-arg
+// arrays directly).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenCall {
+
+    public CodeGenCall() { }
+
+    public static void call(const CodeGenExpr cge, const SemaCall node) {
+        SemaFunctionBase fn = node.getFunction()
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+        fly.mem.Ptr fnTy = fn.getLlvmFnType()
+        fly.mem.Ptr fnVal = fn.getLlvmFn()
+
+        List<long> argAddrs = new List<long>()
+
+        // (1) error pointer — forward the current function's param-0 handler.
+        fly.mem.Ptr err = cge.getErrPtr()
+        argAddrs.add(err.addr)
+
+        // The resolver appends the synthetic out var to getArgs() (so it is the
+        // LAST element when the call returns non-void); it must be passed by
+        // pointer, NOT gen'd as a value. So gen only the leading `realCount` args.
+        List<SemaExpr> args = node.getArgs()
+        SemaLocalVar outVar = node.getOutVar()
+        bool hasOut = outVar != null
+        int realCount = args.size()
+        if hasOut { realCount = realCount - 1 }
+
+        // (2) actual arguments — fresh temp per arg, store the rvalue, pass &temp.
+        int i = 0
+        while i < realCount {
+            SemaExpr a = args.get(i)
+            fly.mem.Ptr av = cge.gen(a)
+            fly.mem.Ptr aty = cge.lowerType(a.getType())
+            fly.mem.Ptr tmp
+            llvm.buildAlloca(b, aty, "arg", tmp)
+            llvm.buildStore(b, av, tmp)
+            argAddrs.add(tmp.addr)
+            i = i + 1
+        }
+
+        // (3) out pointer for a non-void return.
+        fly.mem.Ptr outPtr = fly.mem.toPtr(0)
+        if hasOut {
+            fly.mem.Ptr oty = cge.lowerType(outVar.getType())
+            llvm.buildAlloca(b, oty, "callout", outPtr)
+            outVar.setLlvmAlloca(outPtr)
+            argAddrs.add(outPtr.addr)
+        }
+
+        CodeGenModule m = cge.getCgm()
+        CodeGenLLVM cg = m.getCg()
+        fly.mem.Ptr callV
+        cg.buildCallN(b, fnTy, fnVal, argAddrs, "", callV)
+
+        // the call's rvalue is the out slot reloaded (void calls produce nothing).
+        if hasOut {
+            fly.mem.Ptr oty2 = cge.lowerType(outVar.getType())
+            fly.mem.Ptr loaded
+            llvm.buildLoad2(b, oty2, outPtr, "callres", loaded)
+            node.setLlvmValue(loaded)
+        }
+    }
+}

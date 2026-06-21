@@ -1,0 +1,35 @@
+namespace fly.compiler.codegen.test.stage6b
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+
+// Stage 6: fail + handle over the shared %error struct. classify sets out=0 then
+// `fail 7` on negative input → early return (out stays 0). The handle block runs
+// the failing call (a=0) and clears the error; the next call succeeds (b=5).
+// out = a + b = 0 + 5 = 5 — proving `fail` returns early and `handle` continues.
+void main() {
+    string src = "int classify(const int n) { out = 0  if n < 0 { fail 7 }  out = n }  int main() { int neg = 0 - 1  int a = 0  handle { a = classify(neg) }  int b = classify(5)  out = a + b }"
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 1)
+
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    Registry reg = ctx.getReg()
+
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(reg)
+
+    cgm.emitIR("/tmp/cg/stage6b.ll")
+
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 2)
+}

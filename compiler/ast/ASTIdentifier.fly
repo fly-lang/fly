@@ -16,6 +16,7 @@ public class ASTIdentifier : ASTExpr {
         this.name = name
     }
 
+    public ASTIdentifier asIdentifier() { out = this }
     public string getName() { out = this.name }
     public ASTVar getVar() { out = this.var }
     public void setVar(const ASTVar v) { this.var = v }

@@ -34,6 +34,7 @@ public class ASTCall : ASTExpr {
     public string getName() { out = this.name }
     public List<ASTArg> getArgs() { out = this.args }
     public List<ASTType> getTypeArgs() { out = this.typeArgs }
+    public void addTypeArg(const ASTType ta) { this.typeArgs.add(ta) }
     public ASTCallKind getCallKind() { out = this.callKind }
     public void addArg(const ASTArg a) { this.args.add(a) }
 

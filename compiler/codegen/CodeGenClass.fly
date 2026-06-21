@@ -1,0 +1,424 @@
+namespace fly.compiler.codegen
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.compiler.codegen.CodeGenModule
+import fly.compiler.codegen.CodeGenExpr
+import fly.compiler.codegen.CodeGenLLVM
+import fly.compiler.codegen.CodeGenType
+import llvm.api.*
+import fly.mem
+import fly.data.List
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenClass — class lowering (Stage 5a: single classes, no inheritance yet).
+// Layout mirrors the reference compiler: every object is `{ ptr vtable, fields… }`
+// (the vtable pointer at slot 0, attributes from slot 1 in declaration order).
+// Each class gets a vtable global `[null, method0, method1, …]` (methodList order);
+// instance method calls dispatch through it (vtable load → slot GEP → indirect
+// call). Methods lower to `void (errPtr, this, params…, [out])`; `this` is a real
+// object pointer passed by value (so it gets its own alloca, unlike by-pointer
+// params). Inheritance / base subobjects / this-adjusting thunks: Stage 5b.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenClass {
+
+    public CodeGenClass() { }
+
+    // declareStruct — create the named LLVM struct type { ptr vtable, fields… }.
+    public static void declareStruct(const CodeGenModule cgm, const SemaClassType cls) {
+        CodeGenLLVM cg = cgm.getCg()
+        LLVM llvm = cg.getLLVM()
+        CodeGenType types = cgm.getTypes()
+
+        string sname = structName(cls)
+        fly.mem.Ptr st
+        llvm.structCreateNamed(cgm.getCtx(), sname, st)
+        cls.setLlvmStructType(st)
+
+        List<long> fieldTys = new List<long>()
+        fly.mem.Ptr vtp = types.ptrType()
+        fieldTys.add(vtp.addr)                       // slot 0: vtable pointer
+        List<SemaClassAttribute> attrs = allAttributes(cls)   // base fields first, then own
+        int i = 0
+        while i < attrs.size() {
+            SemaClassAttribute a = attrs.get(i)
+            fly.mem.Ptr fty = types.lowerType(a.getType())
+            fieldTys.add(fty.addr)
+            i = i + 1
+        }
+        cg.structSetBodyN(st, fieldTys, false)
+    }
+
+    // declareMethod — LLVM signature `void (errPtr, this, params…)` (params already
+    // include the synthetic out for a non-void return). No body.
+    public static void declareMethod(const CodeGenModule cgm, const SemaClassType cls, const SemaClassMethod m) {
+        CodeGenLLVM cg = cgm.getCg()
+        LLVM llvm = cg.getLLVM()
+        CodeGenType types = cgm.getTypes()
+
+        fly.mem.Ptr voidTy
+        llvm.voidTypeInContext(cgm.getCtx(), voidTy)
+        List<long> ptypes = new List<long>()
+        fly.mem.Ptr err = types.ptrType()
+        ptypes.add(err.addr)                         // errPtr
+        fly.mem.Ptr thisp = types.ptrType()
+        ptypes.add(thisp.addr)                       // this
+        List<SemaParam> params = m.getParams()
+        int i = 0
+        while i < params.size() {
+            fly.mem.Ptr pp = types.ptrType()
+            ptypes.add(pp.addr)
+            i = i + 1
+        }
+        fly.mem.Ptr fnTy
+        cg.functionTypeN(voidTy, ptypes, false, fnTy)
+        m.setLlvmFnType(fnTy)
+
+        string name = methodMangle(cgm, cls, m)
+        fly.mem.Ptr f
+        llvm.addFunction(cgm.getModule(), name, fnTy, f)
+        m.setLlvmFn(f)
+    }
+
+    // buildVTable — emit `@vtable.<ns>.<Class> = constant [N x ptr] [null, m0, …]`.
+    public static void buildVTable(const CodeGenModule cgm, const SemaClassType cls) {
+        CodeGenLLVM cg = cgm.getCg()
+        LLVM llvm = cg.getLLVM()
+        CodeGenType types = cgm.getTypes()
+        fly.mem.Ptr ptrTy = types.ptrType()
+
+        List<SemaClassMethod> ms = vmethods(cls)     // inherited slots + own (overrides in-place)
+        List<long> slots = new List<long>()
+        fly.mem.Ptr nullSlot
+        llvm.constPointerNull(ptrTy, nullSlot)
+        slots.add(nullSlot.addr)                     // slot 0: offset-to-top (null)
+        int i = 0
+        while i < ms.size() {
+            SemaClassMethod m = ms.get(i)
+            fly.mem.Ptr f = m.getLlvmFn()
+            slots.add(f.addr)
+            i = i + 1
+        }
+        fly.mem.Ptr init
+        cg.constArrayN(ptrTy, slots, init)
+        int n = ms.size() + 1
+        fly.mem.Ptr arrTy
+        llvm.arrayType(ptrTy, n, arrTy)
+        fly.mem.Ptr g
+        llvm.addGlobal(cgm.getModule(), arrTy, vtableName(cls), g)
+        llvm.setInitializer(g, init)
+        llvm.setGlobalConstant(g, true)
+        cls.setLlvmVTable(g)
+    }
+
+    // genMethodBody — entry + prologue (err=param0; this gets its own alloca from
+    // param1; params from param2 are by-pointer) + body + ret void.
+    public static void genMethodBody(const CodeGenModule cgm, const SemaClassType cls, const SemaClassMethod m) {
+        CodeGenLLVM cg = cgm.getCg()
+        LLVM llvm = cg.getLLVM()
+        CodeGenType types = cgm.getTypes()
+        fly.mem.Ptr b = cgm.getBuilder()
+        fly.mem.Ptr f = m.getLlvmFn()
+
+        fly.mem.Ptr entry
+        llvm.appendBasicBlockInContext(cgm.getCtx(), f, "entry", entry)
+        llvm.positionBuilderAtEnd(b, entry)
+
+        CodeGenExpr cge = new CodeGenExpr(cgm)
+        fly.mem.Ptr errParam
+        llvm.getParam(f, 0, errParam)
+        cge.setErrPtr(errParam)
+
+        // `this` is passed by value (the object pointer); store it into its own slot.
+        fly.mem.Ptr thisParam
+        llvm.getParam(f, 1, thisParam)
+        fly.mem.Ptr ptrTy = types.ptrType()
+        fly.mem.Ptr thisSlot
+        llvm.buildAlloca(b, ptrTy, "this", thisSlot)
+        llvm.buildStore(b, thisParam, thisSlot)
+        SemaClassInstance ti = m.getThis()
+        if ti != null { ti.setLlvmAlloca(thisSlot) }
+
+        List<SemaParam> params = m.getParams()
+        int i = 0
+        while i < params.size() {
+            SemaParam pm = params.get(i)
+            fly.mem.Ptr arg
+            llvm.getParam(f, i + 2, arg)
+            pm.setLlvmAlloca(arg)
+            i = i + 1
+        }
+
+        SemaBlockStmt body = m.getBody()
+        if body != null { body.accept(cge) }
+        if cge.isTerminated() == false {
+            fly.mem.Ptr ret
+            llvm.buildRetVoid(b, ret)
+        }
+    }
+
+    // genNew — `new C(args)`: malloc the struct, store the vtable pointer, run the
+    // constructor (errPtr, this, args…). The expression's value is the object ptr.
+    public static void genNew(const CodeGenExpr cge, const SemaCall node) {
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+
+        SemaType t = node.getType()
+        SemaClassType cls = t.asClass()
+        fly.mem.Ptr structTy = cls.getLlvmStructType()
+
+        fly.mem.Ptr obj
+        llvm.buildMalloc(b, structTy, "obj", obj)
+
+        fly.mem.Ptr vtSlot
+        llvm.buildStructGEP2(b, structTy, obj, 0, "vtslot", vtSlot)
+        fly.mem.Ptr vtable = cls.getLlvmVTable()
+        llvm.buildStore(b, vtable, vtSlot)
+
+        SemaFunctionBase ctor = node.getFunction()
+        if ctor != null {
+            fly.mem.Ptr cf = ctor.getLlvmFn()
+            List<long> argAddrs = new List<long>()
+            fly.mem.Ptr err = cge.getErrPtr()
+            argAddrs.add(err.addr)
+            argAddrs.add(obj.addr)
+            List<SemaExpr> args = node.getArgs()
+            int i = 0
+            while i < args.size() {
+                SemaExpr a = args.get(i)
+                fly.mem.Ptr av = cge.gen(a)
+                fly.mem.Ptr aty = cge.lowerType(a.getType())
+                fly.mem.Ptr tmp
+                llvm.buildAlloca(b, aty, "arg", tmp)
+                llvm.buildStore(b, av, tmp)
+                argAddrs.add(tmp.addr)
+                i = i + 1
+            }
+            fly.mem.Ptr cty = ctor.getLlvmFnType()
+            fly.mem.Ptr cv
+            cg.buildCallN(b, cty, cf, argAddrs, "", cv)
+        }
+        node.setLlvmValue(obj)
+    }
+
+    // methodCall — `obj.m(args)`: virtual dispatch through the receiver's vtable
+    // (load vtable → GEP to the method's slot → indirect call), passing
+    // (errPtr, obj, args…, [out]) and reloading the out slot as the call value.
+    public static void methodCall(const CodeGenExpr cge, const SemaCall node) {
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+        CodeGenType types = cgm.getTypes()
+        fly.mem.Ptr ptrTy = types.ptrType()
+
+        SemaFunctionBase fn = node.getFunction()
+        SemaExpr parent = node.getParent()
+        fly.mem.Ptr objPtr = cge.gen(parent)
+        SemaType pt = parent.getType()
+        SemaClassType cls = pt.asClass()
+        fly.mem.Ptr structTy = cls.getLlvmStructType()
+
+        // load the vtable pointer (object slot 0), then the method slot.
+        fly.mem.Ptr vtSlot
+        llvm.buildStructGEP2(b, structTy, objPtr, 0, "vtslot", vtSlot)
+        fly.mem.Ptr vt
+        llvm.buildLoad2(b, ptrTy, vtSlot, "vt", vt)
+        int slot = methodSlot(cls, fn)
+        fly.mem.Ptr i64Ty
+        llvm.int64TypeInContext(cgm.getCtx(), i64Ty)
+        fly.mem.Ptr slotIdx
+        llvm.constInt(i64Ty, slot, false, slotIdx)
+        List<long> idxAddrs = new List<long>()
+        idxAddrs.add(slotIdx.addr)
+        fly.mem.Ptr fnSlot
+        cg.buildGEP2N(b, ptrTy, vt, idxAddrs, "vfnslot", fnSlot)
+        fly.mem.Ptr fnPtr
+        llvm.buildLoad2(b, ptrTy, fnSlot, "vfn", fnPtr)
+
+        // arguments: errPtr, obj, real args…, out
+        List<long> argAddrs = new List<long>()
+        fly.mem.Ptr err = cge.getErrPtr()
+        argAddrs.add(err.addr)
+        argAddrs.add(objPtr.addr)
+
+        List<SemaExpr> args = node.getArgs()
+        SemaLocalVar outVar = node.getOutVar()
+        bool hasOut = outVar != null
+        int realCount = args.size()
+        if hasOut { realCount = realCount - 1 }
+        int i = 0
+        while i < realCount {
+            SemaExpr a = args.get(i)
+            fly.mem.Ptr av = cge.gen(a)
+            fly.mem.Ptr aty = cge.lowerType(a.getType())
+            fly.mem.Ptr tmp
+            llvm.buildAlloca(b, aty, "arg", tmp)
+            llvm.buildStore(b, av, tmp)
+            argAddrs.add(tmp.addr)
+            i = i + 1
+        }
+        fly.mem.Ptr outPtr = fly.mem.toPtr(0)
+        if hasOut {
+            fly.mem.Ptr oty = cge.lowerType(outVar.getType())
+            llvm.buildAlloca(b, oty, "callout", outPtr)
+            outVar.setLlvmAlloca(outPtr)
+            argAddrs.add(outPtr.addr)
+        }
+
+        fly.mem.Ptr fnTy = fn.getLlvmFnType()
+        fly.mem.Ptr cv
+        cg.buildCallN(b, fnTy, fnPtr, argAddrs, "", cv)
+        if hasOut {
+            fly.mem.Ptr oty2 = cge.lowerType(outVar.getType())
+            fly.mem.Ptr loaded
+            llvm.buildLoad2(b, oty2, outPtr, "callres", loaded)
+            node.setLlvmValue(loaded)
+        }
+    }
+
+    // member — `obj.field`: GEP to the field slot; load it (rvalue) or return its
+    // address (addrMode, for an assignment LHS).
+    public static void member(const CodeGenExpr cge, const SemaMember node) {
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+        // Capture addrMode BEFORE gen(parent) — gen() resets it to rvalue mode.
+        bool addr = cge.isAddrMode()
+        SemaExpr parent = node.getParent()
+        fly.mem.Ptr objPtr = cge.gen(parent)
+        SemaType pt = parent.getType()
+        SemaClassType cls = pt.asClass()
+        fly.mem.Ptr structTy = cls.getLlvmStructType()
+
+        ASTMember mast = node.getAST()
+        string fname = mast.getName()
+        int idx = fieldIndex(cls, fname)
+        fly.mem.Ptr fldPtr
+        llvm.buildStructGEP2(b, structTy, objPtr, idx, "fld", fldPtr)
+
+        if addr {
+            node.setLlvmValue(fldPtr)
+        } else {
+            SemaClassAttribute a = cls.LookupAttribute(fname)
+            fly.mem.Ptr fty = cge.lowerType(a.getType())
+            fly.mem.Ptr loaded
+            llvm.buildLoad2(b, fty, fldPtr, "fldv", loaded)
+            node.setLlvmValue(loaded)
+        }
+    }
+
+    // ── name + index helpers ──────────────────────────────────────────────────
+
+    // fieldIndex — slot index of a field: 1 + its position in the FLATTENED
+    // attribute list (base fields first), so inherited fields keep one stable index
+    // across base and derived. Slot 0 is the vtable pointer.
+    public static int fieldIndex(const SemaClassType cls, const string name) {
+        List<SemaClassAttribute> attrs = allAttributes(cls)
+        int i = 0
+        while i < attrs.size() {
+            SemaClassAttribute a = attrs.get(i)
+            if str.equals(a.getName(), name) { out = i + 1  return }
+            i = i + 1
+        }
+        out = 1
+    }
+
+    // methodSlot — vtable slot of a method: 1 + its position in the FLATTENED
+    // virtual-method list. Overrides keep the base's slot (vmethods replaces
+    // in-place), so a base-typed dispatch and a derived object agree on the slot.
+    public static int methodSlot(const SemaClassType cls, const SemaFunctionBase fn) {
+        List<SemaClassMethod> ms = vmethods(cls)
+        int slot = indexOfMethodName(ms, fn.getName())
+        if slot >= 0 { out = slot + 1  return }
+        out = 1
+    }
+
+    // allAttributes — every field, base classes first then own, in declaration
+    // order (single-inheritance flattened layout; first base only for now).
+    public static List<SemaClassAttribute> allAttributes(const SemaClassType cls) {
+        List<SemaClassAttribute> r = new List<SemaClassAttribute>()
+        List<SemaClassType> bases = cls.getBaseClasses()
+        if bases.size() > 0 {
+            SemaClassType base = bases.get(0)
+            List<SemaClassAttribute> ba = allAttributes(base)
+            int i = 0
+            while i < ba.size() { r.add(ba.get(i))  i = i + 1 }
+        }
+        List<SemaClassAttribute> own = cls.getAttributeList()
+        int j = 0
+        while j < own.size() { r.add(own.get(j))  j = j + 1 }
+        out = r
+    }
+
+    // vmethods — the effective virtual method per vtable slot: start from the base's
+    // slots, then for each own (non-constructor) method, replace the inherited slot
+    // of the same name (override) or append a new slot. This keeps slot indices
+    // stable across the hierarchy so single-vtable dispatch is correct.
+    public static List<SemaClassMethod> vmethods(const SemaClassType cls) {
+        List<SemaClassMethod> r = new List<SemaClassMethod>()
+        List<SemaClassType> bases = cls.getBaseClasses()
+        if bases.size() > 0 {
+            SemaClassType base = bases.get(0)
+            List<SemaClassMethod> bm = vmethods(base)
+            int i = 0
+            while i < bm.size() { r.add(bm.get(i))  i = i + 1 }
+        }
+        List<SemaClassMethod> own = cls.getMethodList()
+        int j = 0
+        while j < own.size() {
+            SemaClassMethod m = own.get(j)
+            if m.isConstructor() == false {
+                int slot = indexOfMethodName(r, m.getName())
+                if slot >= 0 { r.set(slot, m) } else { r.add(m) }
+            }
+            j = j + 1
+        }
+        out = r
+    }
+
+    public static int indexOfMethodName(const List<SemaClassMethod> ms, const string name) {
+        int i = 0
+        while i < ms.size() {
+            SemaClassMethod m = ms.get(i)
+            if str.equals(m.getName(), name) { out = i  return }
+            i = i + 1
+        }
+        out = 0 - 1
+    }
+
+    // className — the disambiguating name: a generic specialization carries a mangled
+    // name (e.g. "Wrapper_int") so its struct/methods don't collide with sibling
+    // specializations (which all share the template's simple getName()).
+    public static string className(const SemaClassType cls) {
+        string mn = cls.getMangledName()
+        if str.isEmpty(mn) == false { out = mn  return }
+        out = cls.getName()
+    }
+
+    public static string structName(const SemaClassType cls) {
+        SemaModule mod = cls.getModule()
+        string nsn = ""
+        if mod != null {
+            SemaNameSpace ns = mod.getNameSpace()
+            if ns != null { nsn = ns.getName() }
+        }
+        string a = str.concat(nsn, ".")
+        out = str.concat(a, className(cls))
+    }
+
+    public static string vtableName(const SemaClassType cls) {
+        string a = str.concat("vtable.", structName(cls))
+        out = a
+    }
+
+    // methodMangle — `<Class>_` + the standard function mangling of the method.
+    public static string methodMangle(const CodeGenModule cgm, const SemaClassType cls, const SemaClassMethod m) {
+        string pfx = str.concat(className(cls), "_")
+        string body = cgm.mangle(m)
+        out = str.concat(pfx, body)
+    }
+}

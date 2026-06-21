@@ -2,6 +2,7 @@ namespace fly.compiler.codegen
 
 import llvm.api.*
 import fly.mem
+import fly.str
 import fly.data.List
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -84,6 +85,39 @@ public class CodeGenLLVM {
         long buf = this.packAddrs(valAddrs)
         fly.mem.Ptr arr = fly.mem.toPtr(buf)
         this.llvm.constArray(elemTy, arr, n, v)
+        this.freeBuf(buf, n)
+    }
+
+    // constNamedStructN — a constant of a named struct type over marshalled fields.
+    public void constNamedStructN(const fly.mem.Ptr structTy, const List<long> valAddrs, fly.mem.Ptr v) {
+        int n = valAddrs.size()
+        long buf = this.packAddrs(valAddrs)
+        fly.mem.Ptr arr = fly.mem.toPtr(buf)
+        this.llvm.constNamedStruct(structTy, arr, n, v)
+        this.freeBuf(buf, n)
+    }
+
+    // globalString — emit a private constant `[N x i8]` global holding `bytes`
+    // (null-terminated) and return the global (an `i8*` under opaque pointers).
+    public fly.mem.Ptr globalString(const fly.mem.Ptr mod, const fly.mem.Ptr ctx, const string bytes) {
+        int n = fly.str.len(bytes)
+        fly.mem.Ptr strConst
+        this.llvm.constStringInContext(ctx, bytes, n, true, strConst)
+        fly.mem.Ptr arrTy
+        this.llvm.typeOf(strConst, arrTy)
+        fly.mem.Ptr g
+        this.llvm.addGlobal(mod, arrTy, ".str", g)
+        this.llvm.setInitializer(g, strConst)
+        this.llvm.setGlobalConstant(g, true)
+        out = g
+    }
+
+    // buildGEP2N — LLVMBuildGEP2 over a marshalled index-value array.
+    public void buildGEP2N(const fly.mem.Ptr b, const fly.mem.Ptr ty, const fly.mem.Ptr ptr, const List<long> idxAddrs, const string name, fly.mem.Ptr v) {
+        int n = idxAddrs.size()
+        long buf = this.packAddrs(idxAddrs)
+        fly.mem.Ptr arr = fly.mem.toPtr(buf)
+        this.llvm.buildGEP2(b, ty, ptr, arr, n, name, v)
         this.freeBuf(buf, n)
     }
 }
