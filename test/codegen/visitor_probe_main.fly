@@ -1,0 +1,86 @@
+namespace fly.compiler.codegen.test.visitor
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.data.*
+import fly.assert
+
+// Probe — a SemaVisitor that proves base-typed accept dispatch reaches the right
+// concrete leaf. visit(SemaDeclStmt) (1-level from SemaStmt) recurses into the
+// decl's init expr, whose accept must reach visit(SemaIntValue) (3-level skip:
+// SemaIntValue→SemaValue→SemaExpr).
+public class Probe : SemaVisitor {
+    bool declSeen
+    bool intSeen
+    public Probe() { this.declSeen = false  this.intSeen = false }
+    public bool getDeclSeen() { out = this.declSeen }
+    public bool getIntSeen() { out = this.intSeen }
+
+    public void visit(const SemaDeclStmt node) {
+        this.declSeen = true
+        SemaExpr e = node.getExpr()
+        if e != null { e.accept(this) }
+    }
+    public void visit(const SemaIntValue node) { this.intSeen = true }
+
+    // remaining visit methods — no-op for this probe
+    public void visit(const SemaBlockStmt node) { }
+    public void visit(const SemaExprStmt node) { }
+    public void visit(const SemaReturnStmt node) { }
+    public void visit(const SemaIfStmt node) { }
+    public void visit(const SemaSwitchStmt node) { }
+    public void visit(const SemaLoopStmt node) { }
+    public void visit(const SemaLoopInStmt node) { }
+    public void visit(const SemaBreakStmt node) { }
+    public void visit(const SemaContinueStmt node) { }
+    public void visit(const SemaFailStmt node) { }
+    public void visit(const SemaHandleStmt node) { }
+    public void visit(const SemaDeleteStmt node) { }
+    public void visit(const SemaCaseStmt node) { }
+    public void visit(const SemaTestStmt node) { }
+    public void visit(const SemaCall node) { }
+    public void visit(const SemaBinary node) { }
+    public void visit(const SemaUnary node) { }
+    public void visit(const SemaTernary node) { }
+    public void visit(const SemaMember node) { }
+    public void visit(const SemaCast node) { }
+    public void visit(const SemaEnumEntry node) { }
+    public void visit(const SemaEnumList node) { }
+    public void visit(const SemaEnumAccessor node) { }
+    public void visit(const SemaBoolValue node) { }
+    public void visit(const SemaFloatValue node) { }
+    public void visit(const SemaComplexValue node) { }
+    public void visit(const SemaStringValue node) { }
+    public void visit(const SemaArrayValue node) { }
+    public void visit(const SemaStructValue node) { }
+    public void visit(const SemaNullValue node) { }
+    public void visit(const SemaUnsetValue node) { }
+    public void visit(const SemaLocalVar node) { }
+    public void visit(const SemaParam node) { }
+    public void visit(const SemaClassInstance node) { }
+    public void visit(const SemaClassAttribute node) { }
+    public void visit(const SemaError node) { }
+}
+
+void main() {
+    Parser p = new Parser("int f() { int x = 5 }")
+    ASTModule m = p.parseModule("t")
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+
+    Registry reg = ctx.getReg()
+    List<SemaFunctionBase> bodies = reg.getBodies()
+    SemaFunctionBase fn = bodies.get(0)
+    SemaBlockStmt body = fn.getBody()
+    List<SemaStmt> content = body.getContent()
+    SemaStmt s0 = content.get(0)
+
+    Probe probe = new Probe()
+    s0.accept(probe)
+    assert.assertTrue(probe.getDeclSeen(), 1)
+    assert.assertTrue(probe.getIntSeen(), 2)
+}

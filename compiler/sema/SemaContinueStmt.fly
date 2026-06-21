@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaStmt
@@ -9,4 +10,5 @@ public class SemaContinueStmt : SemaStmt {
     public SemaContinueStmt(const ASTStmt ast) {
         super(SemaKind.STMT_CONTINUE, ast)
     }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

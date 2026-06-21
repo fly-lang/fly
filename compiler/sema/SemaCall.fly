@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaExpr
@@ -48,4 +49,5 @@ public class SemaCall : SemaExpr {
            || k == ASTCallKind.CALL_NEW_SHARED
            || k == ASTCallKind.CALL_NEW_WEAK
     }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

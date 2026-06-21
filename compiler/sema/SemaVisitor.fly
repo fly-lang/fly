@@ -1,0 +1,62 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaVisitor — visitor interface over the body-level Sema nodes (statements and
+// expressions), the analog of ASTVisitor. CodeGen implements this and dispatches
+// via `node.accept(visitor)` on base-typed `SemaStmt`/`SemaExpr` values (block
+// content lists, expression fields). Top-level nodes (functions/methods, classes,
+// enums) are driven directly from the Registry's typed lists, so they need no
+// accept — keeping `accept` off the SemaNode root (which already carries the
+// asFunctionBase virtual; a second skip-level root virtual regresses dispatch).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public interface SemaVisitor {
+
+    // ── statements ────────────────────────────────────────────────────────────
+    public void visit(const SemaBlockStmt node)
+    public void visit(const SemaDeclStmt node)
+    public void visit(const SemaExprStmt node)
+    public void visit(const SemaReturnStmt node)
+    public void visit(const SemaIfStmt node)
+    public void visit(const SemaSwitchStmt node)
+    public void visit(const SemaLoopStmt node)
+    public void visit(const SemaLoopInStmt node)
+    public void visit(const SemaBreakStmt node)
+    public void visit(const SemaContinueStmt node)
+    public void visit(const SemaFailStmt node)
+    public void visit(const SemaHandleStmt node)
+    public void visit(const SemaDeleteStmt node)
+    public void visit(const SemaCaseStmt node)
+    public void visit(const SemaTestStmt node)
+
+    // ── expressions ───────────────────────────────────────────────────────────
+    public void visit(const SemaCall node)
+    public void visit(const SemaBinary node)
+    public void visit(const SemaUnary node)
+    public void visit(const SemaTernary node)
+    public void visit(const SemaMember node)
+    public void visit(const SemaCast node)
+    public void visit(const SemaEnumEntry node)
+    public void visit(const SemaEnumList node)
+    public void visit(const SemaEnumAccessor node)
+
+    // values
+    public void visit(const SemaBoolValue node)
+    public void visit(const SemaIntValue node)
+    public void visit(const SemaFloatValue node)
+    public void visit(const SemaComplexValue node)
+    public void visit(const SemaStringValue node)
+    public void visit(const SemaArrayValue node)
+    public void visit(const SemaStructValue node)
+    public void visit(const SemaNullValue node)
+    public void visit(const SemaUnsetValue node)
+
+    // variable references
+    public void visit(const SemaLocalVar node)
+    public void visit(const SemaParam node)
+    public void visit(const SemaClassInstance node)
+    public void visit(const SemaClassAttribute node)
+    public void visit(const SemaError node)
+}

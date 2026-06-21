@@ -1,6 +1,7 @@
 namespace fly.compiler.sema
 
 import fly.compiler.sema.SemaKind
+import fly.mem
 import fly.compiler.sema.SemaType
 import fly.compiler.sema.SemaNode
 import fly.compiler.sema.SemaClassMethod
@@ -53,6 +54,7 @@ public class SemaClassType : SemaType {
     Map<string, SemaClassType> specializations
     SemaClassType genericTemplate
     string mangledName
+    fly.mem.Ptr llvmStructType   // CodeGen back-pointer: the LLVM struct type (null until codegen'd)
 
     public SemaClassType(const ASTClass classAst, const SemaModule module, const SymbolTable symbols) {
         super(SemaKind.TYPE_CLASS, classAst.getName())
@@ -73,6 +75,7 @@ public class SemaClassType : SemaType {
         this.typeParams = new List<SemaTypeParam>()
         this.specializations = new Map<string, SemaClassType>()
         this.mangledName = ""
+        this.llvmStructType = fly.mem.toPtr(0)
         ASTClassKind ak = classAst.getClassKind()
         SemaClassKind sk = SemaClassKind.CLASS
         if ak == ASTClassKind.INTERFACE { sk = SemaClassKind.INTERFACE }
@@ -117,6 +120,8 @@ public class SemaClassType : SemaType {
     public Map<string, SemaClassType> getSpecializations() { out = this.specializations }
     public string getMangledName() { out = this.mangledName }
     public void setMangledName(const string mangledName) { this.mangledName = mangledName }
+    public fly.mem.Ptr getLlvmStructType() { out = this.llvmStructType }
+    public void setLlvmStructType(const fly.mem.Ptr t) { this.llvmStructType = t }
 
     // addAttribute / addMethod — append to Nodes and index by name. Overloaded
     // methods collapse to one map entry per name (as in C++); the ordered Nodes

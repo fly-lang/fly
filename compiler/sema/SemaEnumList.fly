@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaExpr
@@ -17,4 +18,5 @@ public class SemaEnumList : SemaExpr {
     }
 
     public SemaEnumType getEnumType() { out = this.enumType }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

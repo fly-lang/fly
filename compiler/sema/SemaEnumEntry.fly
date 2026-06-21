@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaExpr
@@ -24,4 +25,5 @@ public class SemaEnumEntry : SemaExpr {
     public void setIndex(const long index) { this.index = index }
     public SemaComment getComment() { out = this.comment }
     public void setComment(const SemaComment comment) { this.comment = comment }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

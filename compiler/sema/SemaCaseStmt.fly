@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaStmt
@@ -19,4 +20,5 @@ public class SemaCaseStmt : SemaStmt {
 
     public string getLabel() { out = this.label }
     public SemaBlockStmt getBody() { out = this.body }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

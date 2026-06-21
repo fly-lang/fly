@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaStmt
@@ -20,4 +21,5 @@ public class SemaHandleStmt : SemaStmt {
     public void setErrorHandler(const SemaError errorHandler) { this.errorHandler = errorHandler }
     public SemaBlockStmt getHandle() { out = this.handleBlock }
     public void setHandle(const SemaBlockStmt handleBlock) { this.handleBlock = handleBlock }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

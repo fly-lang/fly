@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaStmt
@@ -30,4 +31,5 @@ public class SemaIfStmt : SemaStmt {
     public List<SemaRuleStmt> getElsif() { out = this.elsifList }
     public SemaStmt getElse() { out = this.elseStmt }
     public void setElse(const SemaStmt elseStmt) { this.elseStmt = elseStmt }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaNode
@@ -19,4 +20,6 @@ public class SemaStmt : SemaNode {
     }
 
     public ASTStmt getAST() { out = this.ast }
+    // accept — base no-op; concrete leaves override with v.visit(this).
+    public void accept(const SemaVisitor v) { }
 }

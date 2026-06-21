@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaExpr
@@ -30,4 +31,5 @@ public class SemaEnumAccessor : SemaExpr {
     public SemaEnumEntry getEntry() { out = this.entry }
     public SemaVar getVar() { out = this.var }
     public bool isName() { out = this.isNameFlag }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

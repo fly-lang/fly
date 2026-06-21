@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaVar
@@ -39,4 +40,5 @@ public class SemaClassInstance : SemaVar {
         if this.baseInstances.has(typeId) { r = this.baseInstances.get(typeId) }
         out = r
     }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

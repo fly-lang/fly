@@ -4,6 +4,7 @@ import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaExpr
 import fly.compiler.sema.SemaType
 import fly.compiler.ast.ASTVar
+import fly.mem
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SemaVar — base of the resolved variable kinds (local var, parameter, class
@@ -16,15 +17,19 @@ public class SemaVar : SemaExpr {
 
     ASTVar varAst
     bool constant
+    fly.mem.Ptr llvmAlloca   // CodeGen back-pointer: the var's stack slot (null until codegen'd)
 
     public SemaVar(const ASTVar varAst, const SemaKind kind, const SemaType type) {
         super(kind, type)
         this.varAst = varAst
         this.constant = false
+        this.llvmAlloca = fly.mem.toPtr(0)
     }
 
     public ASTVar getAST() { out = this.varAst }
     public string getName() { out = this.varAst.getName() }
     public bool isConstant() { out = this.constant }
     public void setConstant(const bool constant) { this.constant = constant }
+    public fly.mem.Ptr getLlvmAlloca() { out = this.llvmAlloca }
+    public void setLlvmAlloca(const fly.mem.Ptr a) { this.llvmAlloca = a }
 }

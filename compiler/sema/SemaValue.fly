@@ -3,6 +3,7 @@ namespace fly.compiler.sema
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaExpr
 import fly.compiler.sema.SemaType
+import fly.compiler.sema.SemaVisitor
 import fly.compiler.ast.ASTValue
 import fly.compiler.ast.ASTBoolValue
 import fly.compiler.ast.ASTNumberValue
@@ -44,6 +45,7 @@ public class SemaBoolValue : SemaValue {
     }
 
     public bool getValue() { out = this.value }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }
 
 public class SemaIntValue : SemaValue {
@@ -56,6 +58,7 @@ public class SemaIntValue : SemaValue {
     }
 
     public string getValue() { out = this.value }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }
 
 public class SemaFloatValue : SemaValue {
@@ -68,6 +71,7 @@ public class SemaFloatValue : SemaValue {
     }
 
     public string getValue() { out = this.value }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }
 
 public class SemaComplexValue : SemaValue {
@@ -84,6 +88,7 @@ public class SemaComplexValue : SemaValue {
 
     public string getReal() { out = this.realPart }
     public string getImag() { out = this.imagPart }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }
 
 public class SemaStringValue : SemaValue {
@@ -96,6 +101,7 @@ public class SemaStringValue : SemaValue {
     }
 
     public string getValue() { out = this.value }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }
 
 public class SemaArrayValue : SemaValue {
@@ -109,6 +115,7 @@ public class SemaArrayValue : SemaValue {
 
     public List<SemaValue> getValues() { out = this.values }
     public void addValue(const SemaValue v) { this.values.add(v) }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }
 
 public class SemaStructValue : SemaValue {
@@ -122,16 +129,19 @@ public class SemaStructValue : SemaValue {
 
     public Map<string, SemaValue> getValues() { out = this.values }
     public void putValue(const string name, const SemaValue v) { this.values.put(name, v) }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }
 
 public class SemaNullValue : SemaValue {
     public SemaNullValue(const ASTNullValue ast, const SemaType type) {
         super(ast, type)
     }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }
 
 public class SemaUnsetValue : SemaValue {
     public SemaUnsetValue(const ASTUnsetValue ast, const SemaType type) {
         super(ast, type)
     }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

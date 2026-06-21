@@ -1,6 +1,7 @@
 namespace fly.compiler.sema
 
 import fly.compiler.sema.SemaKind
+import fly.mem
 import fly.compiler.sema.SemaNode
 import fly.compiler.sema.SemaType
 import fly.compiler.sema.SemaParam
@@ -25,6 +26,8 @@ public class SemaFunctionBase : SemaNode {
     SemaError errorHandler
     bool fallible
     SemaBlockStmt body
+    fly.mem.Ptr llvmFn       // CodeGen back-pointer: the LLVM function (null until codegen'd)
+    fly.mem.Ptr llvmFnType   // CodeGen back-pointer: the LLVM function type
 
     public SemaFunctionBase(const ASTFunction funcAst, const SemaKind kind, const SymbolTable scope) {
         super(kind)
@@ -34,7 +37,14 @@ public class SemaFunctionBase : SemaNode {
         this.localVars = new List<SemaLocalVar>()
         this.namespaceName = ""
         this.fallible = false
+        this.llvmFn = fly.mem.toPtr(0)
+        this.llvmFnType = fly.mem.toPtr(0)
     }
+
+    public fly.mem.Ptr getLlvmFn() { out = this.llvmFn }
+    public void setLlvmFn(const fly.mem.Ptr f) { this.llvmFn = f }
+    public fly.mem.Ptr getLlvmFnType() { out = this.llvmFnType }
+    public void setLlvmFnType(const fly.mem.Ptr t) { this.llvmFnType = t }
 
     public SemaFunctionBase asFunctionBase() { out = this }
 

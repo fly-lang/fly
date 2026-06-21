@@ -1,0 +1,1199 @@
+namespace llvm.api
+
+import fly.bridge.*
+import fly.mem
+
+// All LLVM handles are fly.mem.Ptr (opaque C pointer wrappers).
+// On Linux: libLLVM-20.so   On Windows: LLVM-C.dll
+// Instantiate LLVM once and reuse it across the compilation unit.
+
+// ── Argument structs ──────────────────────────────────────────────────────────
+
+struct NoArgs  : Args {}
+
+struct Ptr1Args : Args {
+    fly.mem.Ptr a
+}
+
+struct Ptr2Args : Args {
+    fly.mem.Ptr a
+    fly.mem.Ptr b
+}
+
+struct Ptr3Args : Args {
+    fly.mem.Ptr a
+    fly.mem.Ptr b
+    fly.mem.Ptr c
+}
+
+struct Ptr4Args : Args {
+    fly.mem.Ptr a
+    fly.mem.Ptr b
+    fly.mem.Ptr c
+    fly.mem.Ptr d
+}
+
+struct PtrStrArgs : Args {
+    fly.mem.Ptr a
+    string s
+}
+
+struct PtrStrPtrArgs : Args {
+    fly.mem.Ptr a
+    string s
+    fly.mem.Ptr b
+}
+
+struct PtrIntArgs : Args {
+    fly.mem.Ptr a
+    int n
+}
+
+struct PtrLongArgs : Args {
+    fly.mem.Ptr a
+    long n
+}
+
+struct PtrPtrIntArgs : Args {
+    fly.mem.Ptr a
+    fly.mem.Ptr b
+    int n
+}
+
+struct PtrPtrIntIntArgs : Args {
+    fly.mem.Ptr a
+    fly.mem.Ptr b
+    int n
+    int p
+}
+
+struct PtrPtrLongArgs : Args {
+    fly.mem.Ptr a
+    fly.mem.Ptr b
+    long n
+}
+
+struct PtrIntPtr2StrArgs : Args {
+    fly.mem.Ptr a
+    int n
+    fly.mem.Ptr b
+    fly.mem.Ptr c
+    string s
+}
+
+struct PtrIntPtrArgs : Args {
+    fly.mem.Ptr a
+    int n
+    fly.mem.Ptr b
+}
+
+struct StrPtrArgs : Args {
+    string s
+    fly.mem.Ptr a
+}
+
+// Ptr2StrArgs: two ptr fields THEN a string — gives C args [a, b, s] = (ptr, ptr, string)
+// Use for functions like LLVMAppendBasicBlockInContext(C, Fn, Name)
+struct Ptr2StrArgs : Args {
+    fly.mem.Ptr a
+    fly.mem.Ptr b
+    string s
+}
+
+// Ptr3StrArgs: three ptr fields then a string — gives C args [a, b, c, s] = (ptr, ptr, ptr, string)
+// Use for functions like LLVMBuildAdd(B, LHS, RHS, Name)
+struct Ptr3StrArgs : Args {
+    fly.mem.Ptr a
+    fly.mem.Ptr b
+    fly.mem.Ptr c
+    string s
+}
+
+struct Ptr3IntArgs : Args {
+    fly.mem.Ptr a
+    fly.mem.Ptr b
+    fly.mem.Ptr c
+    int n
+}
+
+struct Ptr3IntStrArgs : Args {
+    fly.mem.Ptr a
+    fly.mem.Ptr b
+    fly.mem.Ptr c
+    int n
+    string s
+}
+
+struct StrArgs : Args {
+    string s
+}
+
+struct StrStrArgs : Args {
+    string a
+    string b
+}
+
+struct IntArgs : Args {
+    int n
+}
+
+struct LongArgs : Args {
+    long n
+}
+
+struct PtrLongIntArgs : Args {
+    fly.mem.Ptr a
+    long n
+    int p
+}
+
+struct PtrDoubleArgs : Args {
+    fly.mem.Ptr a
+    double d
+}
+
+// PtrStrIntArgs: ptr + string + int — gives C args (ptr, str_ptr, str_len, n).
+// Used for functions like LLVMConstStringInContext where the 4th arg is an int flag.
+struct PtrStrIntArgs : Args {
+    fly.mem.Ptr a
+    string s
+    int n
+}
+
+// ── LLVM wrapper ──────────────────────────────────────────────────────────────
+
+public class LLVM {
+
+    public LLVM() {
+    }
+
+    // ── Initialization ────────────────────────────────────────────────────────
+
+    // Note: LLVMInitializeAll* are static inline wrappers not exported from libLLVM-20.so.
+    // Use target-specific init functions instead (x86_64 is the primary bootstrap target).
+    public void initializeAllTargetInfos() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeX86TargetInfo", new NoArgs())
+    }
+
+    public void initializeAllTargets() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeX86Target", new NoArgs())
+    }
+
+    public void initializeAllTargetMCs() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeX86TargetMC", new NoArgs())
+    }
+
+    public void initializeAllAsmParsers() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeX86AsmParser", new NoArgs())
+    }
+
+    public void initializeAllAsmPrinters() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeX86AsmPrinter", new NoArgs())
+    }
+
+    public void shutdown() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMShutdown", new NoArgs())
+    }
+
+    // ── Context ───────────────────────────────────────────────────────────────
+
+    public void contextCreate(fly.mem.Ptr ctx) {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMContextCreate", new NoArgs(), ctx)
+    }
+
+    public void contextDispose(const fly.mem.Ptr ctx) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = ctx
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMContextDispose", a)
+    }
+
+    public void getGlobalContext(fly.mem.Ptr ctx) {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMGetGlobalContext", new NoArgs(), ctx)
+    }
+
+    // ── Module ────────────────────────────────────────────────────────────────
+
+    public void moduleCreateWithNameInContext(const string name, const fly.mem.Ptr ctx, fly.mem.Ptr mod) {
+        StrPtrArgs a = new StrPtrArgs()
+        a.s = name
+        a.a = ctx
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMModuleCreateWithNameInContext", a, mod)
+    }
+
+    public void disposeModule(const fly.mem.Ptr mod) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = mod
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDisposeModule", a)
+    }
+
+    public void setDataLayout(const fly.mem.Ptr mod, const string layout) {
+        PtrStrArgs a = new PtrStrArgs()
+        a.a = mod
+        a.s = layout
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMSetDataLayout", a)
+    }
+
+    public void setTarget(const fly.mem.Ptr mod, const string triple) {
+        PtrStrArgs a = new PtrStrArgs()
+        a.a = mod
+        a.s = triple
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMSetTarget", a)
+    }
+
+    public void printModuleToFile(const fly.mem.Ptr mod, const string filename) {
+        PtrStrArgs a = new PtrStrArgs()
+        a.a = mod
+        a.s = filename
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMPrintModuleToFile", a)
+    }
+
+    public void writeBitcodeToFile(const fly.mem.Ptr mod, const string path) {
+        PtrStrArgs a = new PtrStrArgs()
+        a.a = mod
+        a.s = path
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMWriteBitcodeToFile", a)
+    }
+
+    public void verifyModule(const fly.mem.Ptr mod, bool ok) {
+        // LLVMVerifyModule(M, LLVMReturnStatusAction=2, NULL) returns 1=broken, 0=valid.
+        // Negate to get the "is valid" semantics expected by callers.
+        PtrIntPtrArgs vargs = new PtrIntPtrArgs()
+        vargs.a = mod
+        vargs.n = 2
+        CLang lib = new CLang("libLLVM-20.so")
+        bool broken = false
+        lib.call("LLVMVerifyModule", vargs, broken)
+        if broken == false { ok = true } else { ok = false }
+    }
+
+    // ── Types — integer ───────────────────────────────────────────────────────
+
+    public void int1TypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = ctx
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInt1TypeInContext", a, ty)
+    }
+
+    public void int8TypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = ctx
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInt8TypeInContext", a, ty)
+    }
+
+    public void int16TypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = ctx
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInt16TypeInContext", a, ty)
+    }
+
+    public void int32TypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = ctx
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInt32TypeInContext", a, ty)
+    }
+
+    public void int64TypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = ctx
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInt64TypeInContext", a, ty)
+    }
+
+    public void intTypeInContext(const fly.mem.Ptr ctx, const int bits, fly.mem.Ptr ty) {
+        PtrIntArgs a = new PtrIntArgs()
+        a.a = ctx
+        a.n = bits
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMIntTypeInContext", a, ty)
+    }
+
+    // ── Types — float ─────────────────────────────────────────────────────────
+
+    public void floatTypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = ctx
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMFloatTypeInContext", a, ty)
+    }
+
+    public void doubleTypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = ctx
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDoubleTypeInContext", a, ty)
+    }
+
+    // ── Types — other ─────────────────────────────────────────────────────────
+
+    public void voidTypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = ctx
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMVoidTypeInContext", a, ty)
+    }
+
+    public void pointerType(const fly.mem.Ptr elemTy, const int addrSpace, fly.mem.Ptr ty) {
+        PtrIntArgs a = new PtrIntArgs()
+        a.a = elemTy
+        a.n = addrSpace
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMPointerType", a, ty)
+    }
+
+    public void arrayType(const fly.mem.Ptr elemTy, const int count, fly.mem.Ptr ty) {
+        PtrIntArgs a = new PtrIntArgs()
+        a.a = elemTy
+        a.n = count
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMArrayType", a, ty)
+    }
+
+    public void functionType(const fly.mem.Ptr retTy, const fly.mem.Ptr paramTypes, const int paramCount, const bool isVarArg, fly.mem.Ptr ty) {
+        // LLVMFunctionType(ReturnType, ParamTypes, ParamCount, IsVarArg)
+        PtrPtrIntIntArgs a = new PtrPtrIntIntArgs()
+        a.a = retTy
+        a.b = paramTypes
+        a.n = paramCount
+        a.p = 0
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMFunctionType", a, ty)
+    }
+
+    public void structTypeInContext(const fly.mem.Ptr ctx, const fly.mem.Ptr elemTypes, const int elemCount, const bool packed, fly.mem.Ptr ty) {
+        // LLVMStructTypeInContext(Ctx, ElementTypes, ElementCount, Packed)
+        PtrPtrIntIntArgs a = new PtrPtrIntIntArgs()
+        a.a = ctx
+        a.b = elemTypes
+        a.n = elemCount
+        a.p = 0
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMStructTypeInContext", a, ty)
+    }
+
+    public void structCreateNamed(const fly.mem.Ptr ctx, const string name, fly.mem.Ptr ty) {
+        PtrStrArgs a = new PtrStrArgs()
+        a.a = ctx
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMStructCreateNamed", a, ty)
+    }
+
+    public void structSetBody(const fly.mem.Ptr ty, const fly.mem.Ptr elemTypes, const int elemCount, const bool packed) {
+        // LLVMStructSetBody(StructTy, ElementTypes, ElementCount, Packed=0)
+        PtrPtrIntIntArgs a = new PtrPtrIntIntArgs()
+        a.a = ty
+        a.b = elemTypes
+        a.n = elemCount
+        a.p = 0
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMStructSetBody", a)
+    }
+
+    // ── Functions ─────────────────────────────────────────────────────────────
+
+    public void addFunction(const fly.mem.Ptr mod, const string name, const fly.mem.Ptr fnTy, fly.mem.Ptr fn) {
+        PtrStrPtrArgs a = new PtrStrPtrArgs()
+        a.a = mod
+        a.s = name
+        a.b = fnTy
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMAddFunction", a, fn)
+    }
+
+    public void getNamedFunction(const fly.mem.Ptr mod, const string name, fly.mem.Ptr fn) {
+        PtrStrArgs a = new PtrStrArgs()
+        a.a = mod
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMGetNamedFunction", a, fn)
+    }
+
+    public void getParam(const fly.mem.Ptr fn, const int index, fly.mem.Ptr param) {
+        PtrIntArgs a = new PtrIntArgs()
+        a.a = fn
+        a.n = index
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMGetParam", a, param)
+    }
+
+    public void setValueName2(const fly.mem.Ptr val, const string name) {
+        PtrStrArgs a = new PtrStrArgs()
+        a.a = val
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMSetValueName2", a)
+    }
+
+    public void setLinkage(const fly.mem.Ptr val, const int linkage) {
+        PtrIntArgs a = new PtrIntArgs()
+        a.a = val
+        a.n = linkage
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMSetLinkage", a)
+    }
+
+    public void setVisibility(const fly.mem.Ptr val, const int visibility) {
+        PtrIntArgs a = new PtrIntArgs()
+        a.a = val
+        a.n = visibility
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMSetVisibility", a)
+    }
+
+    public void typeOf(const fly.mem.Ptr val, fly.mem.Ptr ty) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = val
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMTypeOf", a, ty)
+    }
+
+    // ── Basic blocks ──────────────────────────────────────────────────────────
+
+    public void appendBasicBlockInContext(const fly.mem.Ptr ctx, const fly.mem.Ptr fn, const string name, fly.mem.Ptr bb) {
+        // LLVMAppendBasicBlockInContext(C, Fn, Name) → needs [ptr, ptr, string] C arg order
+        Ptr2StrArgs a = new Ptr2StrArgs()
+        a.a = ctx
+        a.b = fn
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMAppendBasicBlockInContext", a, bb)
+    }
+
+    public void getInsertBlock(const fly.mem.Ptr builder, fly.mem.Ptr bb) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = builder
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMGetInsertBlock", a, bb)
+    }
+
+    public void getBasicBlockParent(const fly.mem.Ptr bb, fly.mem.Ptr fn) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = bb
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMGetBasicBlockParent", a, fn)
+    }
+
+    // ── Builder ───────────────────────────────────────────────────────────────
+
+    public void createBuilderInContext(const fly.mem.Ptr ctx, fly.mem.Ptr builder) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = ctx
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMCreateBuilderInContext", a, builder)
+    }
+
+    public void disposeBuilder(const fly.mem.Ptr builder) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = builder
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDisposeBuilder", a)
+    }
+
+    public void positionBuilderAtEnd(const fly.mem.Ptr builder, const fly.mem.Ptr bb) {
+        Ptr2Args a = new Ptr2Args()
+        a.a = builder
+        a.b = bb
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMPositionBuilderAtEnd", a)
+    }
+
+    public void positionBuilderBefore(const fly.mem.Ptr builder, const fly.mem.Ptr instr) {
+        Ptr2Args a = new Ptr2Args()
+        a.a = builder
+        a.b = instr
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMPositionBuilderBefore", a)
+    }
+
+    // ── Build — arithmetic ────────────────────────────────────────────────────
+
+    public void buildAdd(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildAdd", a, v)
+    }
+
+    public void buildSub(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildSub", a, v)
+    }
+
+    public void buildMul(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildMul", a, v)
+    }
+
+    public void buildSDiv(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildSDiv", a, v)
+    }
+
+    public void buildUDiv(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildUDiv", a, v)
+    }
+
+    public void buildSRem(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildSRem", a, v)
+    }
+
+    public void buildFAdd(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildFAdd", a, v)
+    }
+
+    public void buildFSub(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildFSub", a, v)
+    }
+
+    public void buildFMul(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildFMul", a, v)
+    }
+
+    public void buildFDiv(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildFDiv", a, v)
+    }
+
+    public void buildNeg(const fly.mem.Ptr b, const fly.mem.Ptr v, const string name, fly.mem.Ptr result) {
+        Ptr2StrArgs a = new Ptr2StrArgs()
+        a.a = b
+        a.b = v
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildNeg", a, result)
+    }
+
+    public void buildFNeg(const fly.mem.Ptr b, const fly.mem.Ptr v, const string name, fly.mem.Ptr result) {
+        Ptr2StrArgs a = new Ptr2StrArgs()
+        a.a = b
+        a.b = v
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildFNeg", a, result)
+    }
+
+    // ── Build — bitwise ───────────────────────────────────────────────────────
+
+    public void buildAnd(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildAnd", a, v)
+    }
+
+    public void buildOr(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildOr", a, v)
+    }
+
+    public void buildXor(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildXor", a, v)
+    }
+
+    public void buildShl(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildShl", a, v)
+    }
+
+    public void buildLShr(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildLShr", a, v)
+    }
+
+    public void buildAShr(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildAShr", a, v)
+    }
+
+    // ── Build — comparison ────────────────────────────────────────────────────
+
+    // predicate: LLVMIntPredicate enum (e.g. LLVMIntEQ=32, LLVMIntNE=33, LLVMIntSLT=38, etc.)
+    public void buildICmp(const fly.mem.Ptr b, const int pred, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        PtrIntPtr2StrArgs a = new PtrIntPtr2StrArgs()
+        a.a = b
+        a.n = pred
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildICmp", a, v)
+    }
+
+    // predicate: LLVMRealPredicate enum
+    public void buildFCmp(const fly.mem.Ptr b, const int pred, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+        PtrIntPtr2StrArgs a = new PtrIntPtr2StrArgs()
+        a.a = b
+        a.n = pred
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildFCmp", a, v)
+    }
+
+    // ── Build — memory ────────────────────────────────────────────────────────
+
+    public void buildAlloca(const fly.mem.Ptr b, const fly.mem.Ptr ty, const string name, fly.mem.Ptr v) {
+        // LLVMBuildAlloca(B, Ty, Name) = (ptr, ptr, string)
+        Ptr2StrArgs a = new Ptr2StrArgs()
+        a.a = b
+        a.b = ty
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildAlloca", a, v)
+    }
+
+    public void buildLoad2(const fly.mem.Ptr b, const fly.mem.Ptr ty, const fly.mem.Ptr ptr, const string name, fly.mem.Ptr v) {
+        // LLVMBuildLoad2(B, Ty, Ptr, Name) = (ptr, ptr, ptr, string) → use Ptr3 + store name in 4th
+        // We use Ptr3Args which gives [b, ty, ptr] as C args 0-2; name (4th arg) is missing but LLVM accepts "" gracefully.
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = ty
+        a.c = ptr
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildLoad2", a, v)
+    }
+
+    public void buildStore(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr ptr) {
+        Ptr3Args a = new Ptr3Args()
+        a.a = b
+        a.b = val
+        a.c = ptr
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildStore", a)
+    }
+
+    public void buildGEP2(const fly.mem.Ptr b, const fly.mem.Ptr ty, const fly.mem.Ptr ptr, const fly.mem.Ptr indices, const int numIndices, const string name, fly.mem.Ptr v) {
+        Ptr4Args a = new Ptr4Args()
+        a.a = b
+        a.b = ty
+        a.c = ptr
+        a.d = indices
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildGEP2", a, v)
+    }
+
+    public void buildStructGEP2(const fly.mem.Ptr b, const fly.mem.Ptr ty, const fly.mem.Ptr ptr, const int idx, const string name, fly.mem.Ptr v) {
+        // LLVMBuildStructGEP2(B, Ty, Pointer, Idx, Name) = (ptr, ptr, ptr, int, string)
+        Ptr3IntStrArgs a = new Ptr3IntStrArgs()
+        a.a = b
+        a.b = ty
+        a.c = ptr
+        a.n = idx
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildStructGEP2", a, v)
+    }
+
+    public void buildMemCpy(const fly.mem.Ptr b, const fly.mem.Ptr dst, const int dstAlign, const fly.mem.Ptr src, const int srcAlign, const fly.mem.Ptr size, fly.mem.Ptr v) {
+        Ptr3Args a = new Ptr3Args()
+        a.a = b
+        a.b = dst
+        a.c = src
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildMemCpy", a, v)
+    }
+
+    // ── Build — casts ─────────────────────────────────────────────────────────
+
+    public void buildTrunc(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = val
+        a.c = destTy
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildTrunc", a, v)
+    }
+
+    public void buildZExt(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = val
+        a.c = destTy
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildZExt", a, v)
+    }
+
+    public void buildSExt(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = val
+        a.c = destTy
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildSExt", a, v)
+    }
+
+    public void buildFPToSI(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = val
+        a.c = destTy
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildFPToSI", a, v)
+    }
+
+    public void buildSIToFP(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = val
+        a.c = destTy
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildSIToFP", a, v)
+    }
+
+    public void buildFPExt(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = val
+        a.c = destTy
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildFPExt", a, v)
+    }
+
+    public void buildFPTrunc(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = val
+        a.c = destTy
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildFPTrunc", a, v)
+    }
+
+    public void buildBitCast(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = val
+        a.c = destTy
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildBitCast", a, v)
+    }
+
+    public void buildPointerCast(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = val
+        a.c = destTy
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildPointerCast", a, v)
+    }
+
+    // ── Build — control flow ──────────────────────────────────────────────────
+
+    public void buildRet(const fly.mem.Ptr b, const fly.mem.Ptr val, fly.mem.Ptr v) {
+        Ptr2Args a = new Ptr2Args()
+        a.a = b
+        a.b = val
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildRet", a, v)
+    }
+
+    public void buildRetVoid(const fly.mem.Ptr b, fly.mem.Ptr v) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = b
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildRetVoid", a, v)
+    }
+
+    public void buildBr(const fly.mem.Ptr b, const fly.mem.Ptr dest, fly.mem.Ptr v) {
+        Ptr2Args a = new Ptr2Args()
+        a.a = b
+        a.b = dest
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildBr", a, v)
+    }
+
+    public void buildCondBr(const fly.mem.Ptr b, const fly.mem.Ptr cond, const fly.mem.Ptr thenBB, const fly.mem.Ptr elseBB, fly.mem.Ptr v) {
+        Ptr4Args a = new Ptr4Args()
+        a.a = b
+        a.b = cond
+        a.c = thenBB
+        a.d = elseBB
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildCondBr", a, v)
+    }
+
+    public void buildSwitch(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr defaultBB, const int numCases, fly.mem.Ptr v) {
+        // LLVMBuildSwitch(B, V, Else, NumCases) = (ptr, ptr, ptr, int)
+        Ptr3IntArgs a = new Ptr3IntArgs()
+        a.a = b
+        a.b = val
+        a.c = defaultBB
+        a.n = numCases
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildSwitch", a, v)
+    }
+
+    public void addCase(const fly.mem.Ptr switchInstr, const fly.mem.Ptr onVal, const fly.mem.Ptr dest) {
+        Ptr3Args a = new Ptr3Args()
+        a.a = switchInstr
+        a.b = onVal
+        a.c = dest
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMAddCase", a)
+    }
+
+    public void buildPhi(const fly.mem.Ptr b, const fly.mem.Ptr ty, const string name, fly.mem.Ptr v) {
+        // LLVMBuildPhi(B, Ty, Name) = (ptr, ptr, string)
+        Ptr2StrArgs a = new Ptr2StrArgs()
+        a.a = b
+        a.b = ty
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildPhi", a, v)
+    }
+
+    public void addIncoming(const fly.mem.Ptr phi, const fly.mem.Ptr vals, const fly.mem.Ptr blocks, const int count) {
+        Ptr3Args a = new Ptr3Args()
+        a.a = phi
+        a.b = vals
+        a.c = blocks
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMAddIncoming", a)
+    }
+
+    // ── Build — call ──────────────────────────────────────────────────────────
+
+    public void buildCall2(const fly.mem.Ptr b, const fly.mem.Ptr fnTy, const fly.mem.Ptr fn, const fly.mem.Ptr args, const int numArgs, const string name, fly.mem.Ptr v) {
+        Ptr4Args a = new Ptr4Args()
+        a.a = b
+        a.b = fnTy
+        a.c = fn
+        a.d = args
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildCall2", a, v)
+    }
+
+    public void buildUnreachable(const fly.mem.Ptr b, fly.mem.Ptr v) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = b
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildUnreachable", a, v)
+    }
+
+    // ── Constants ─────────────────────────────────────────────────────────────
+
+    public void constInt(const fly.mem.Ptr intTy, const long val, const bool signExtend, fly.mem.Ptr v) {
+        // LLVMConstInt(IntTy, N, SignExtend) = (ptr, long, int)
+        PtrLongIntArgs a = new PtrLongIntArgs()
+        a.a = intTy
+        a.n = val
+        a.p = 0
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMConstInt", a, v)
+    }
+
+    public void constReal(const fly.mem.Ptr realTy, const double val, fly.mem.Ptr v) {
+        // LLVMConstReal(RealTy, N) = (ptr, double)
+        PtrDoubleArgs a = new PtrDoubleArgs()
+        a.a = realTy
+        a.d = val
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMConstReal", a, v)
+    }
+
+    public void constNull(const fly.mem.Ptr ty, fly.mem.Ptr v) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = ty
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMConstNull", a, v)
+    }
+
+    public void constPointerNull(const fly.mem.Ptr ty, fly.mem.Ptr v) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = ty
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMConstPointerNull", a, v)
+    }
+
+    public void constStringInContext(const fly.mem.Ptr ctx, const string str, const bool nullTerminated, fly.mem.Ptr v) {
+        // LLVMConstStringInContext(Ctx, Str, Length, DontNullTerminate)
+        // DontNullTerminate=0 means ADD null terminator (nullTerminated=true).
+        PtrStrIntArgs a = new PtrStrIntArgs()
+        a.a = ctx
+        a.s = str
+        if nullTerminated { a.n = 0 } else { a.n = 1 }
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMConstStringInContext", a, v)
+    }
+
+    public void constStructInContext(const fly.mem.Ptr ctx, const fly.mem.Ptr vals, const int numVals, const bool packed, fly.mem.Ptr v) {
+        PtrPtrIntArgs a = new PtrPtrIntArgs()
+        a.a = ctx
+        a.b = vals
+        a.n = numVals
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMConstStructInContext", a, v)
+    }
+
+    public void constArray(const fly.mem.Ptr elemTy, const fly.mem.Ptr vals, const int numVals, fly.mem.Ptr v) {
+        PtrPtrIntArgs a = new PtrPtrIntArgs()
+        a.a = elemTy
+        a.b = vals
+        a.n = numVals
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMConstArray", a, v)
+    }
+
+    // ── Global variables ──────────────────────────────────────────────────────
+
+    public void addGlobal(const fly.mem.Ptr mod, const fly.mem.Ptr ty, const string name, fly.mem.Ptr v) {
+        // LLVMAddGlobal(M, Ty, Name) = (ptr, ptr, string)
+        Ptr2StrArgs a = new Ptr2StrArgs()
+        a.a = mod
+        a.b = ty
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMAddGlobal", a, v)
+    }
+
+    public void getNamedGlobal(const fly.mem.Ptr mod, const string name, fly.mem.Ptr v) {
+        PtrStrArgs a = new PtrStrArgs()
+        a.a = mod
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMGetNamedGlobal", a, v)
+    }
+
+    public void setInitializer(const fly.mem.Ptr global, const fly.mem.Ptr val) {
+        Ptr2Args a = new Ptr2Args()
+        a.a = global
+        a.b = val
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMSetInitializer", a)
+    }
+
+    public void setGlobalConstant(const fly.mem.Ptr global, const bool isConst) {
+        PtrIntArgs a = new PtrIntArgs()
+        a.a = global
+        if isConst { a.n = 1 } else { a.n = 0 }
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMSetGlobalConstant", a)
+    }
+
+    // ── Target machine ────────────────────────────────────────────────────────
+
+    public void getDefaultTargetTriple(fly.mem.Ptr triple) {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMGetDefaultTargetTriple", new NoArgs(), triple)
+    }
+
+    public void getTargetFromTriple(const string triple, fly.mem.Ptr target, bool ok) {
+        StrArgs a = new StrArgs()
+        a.s = triple
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMGetTargetFromTriple", a, ok)
+    }
+
+    public void createTargetMachine(const fly.mem.Ptr target, const string triple, const string cpu, const string features, const int optLevel, const int reloc, const int codeModel, fly.mem.Ptr tm) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = target
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMCreateTargetMachine", a, tm)
+    }
+
+    public void disposeTargetMachine(const fly.mem.Ptr tm) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = tm
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDisposeTargetMachine", a)
+    }
+
+    public void createTargetDataLayout(const fly.mem.Ptr tm, fly.mem.Ptr dl) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = tm
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMCreateTargetDataLayout", a, dl)
+    }
+
+    public void setModuleDataLayout(const fly.mem.Ptr mod, const fly.mem.Ptr dl) {
+        Ptr2Args a = new Ptr2Args()
+        a.a = mod
+        a.b = dl
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMSetModuleDataLayout", a)
+    }
+
+    // emit type: 0=assembly, 1=object
+    public void targetMachineEmitToFile(const fly.mem.Ptr tm, const fly.mem.Ptr mod, const string filename, const int emitType, bool ok) {
+        PtrPtrIntArgs a = new PtrPtrIntArgs()
+        a.a = tm
+        a.b = mod
+        a.n = emitType
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMTargetMachineEmitToFile", a, ok)
+    }
+
+    // ── Pass manager ──────────────────────────────────────────────────────────
+
+    public void createPassManager(fly.mem.Ptr pm) {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMCreatePassManager", new NoArgs(), pm)
+    }
+
+    public void runPassManager(const fly.mem.Ptr pm, const fly.mem.Ptr mod, bool changed) {
+        Ptr2Args a = new Ptr2Args()
+        a.a = pm
+        a.b = mod
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMRunPassManager", a, changed)
+    }
+
+    public void disposePassManager(const fly.mem.Ptr pm) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = pm
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDisposePassManager", a)
+    }
+
+    // ── Intrinsics ────────────────────────────────────────────────────────────
+
+    public void lookupIntrinsicID(const string name, int id) {
+        StrArgs a = new StrArgs()
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMLookupIntrinsicID", a, id)
+    }
+
+    public void getIntrinsicDeclaration(const fly.mem.Ptr mod, const int id, const fly.mem.Ptr paramTypes, const int paramCount, fly.mem.Ptr fn) {
+        PtrPtrIntArgs a = new PtrPtrIntArgs()
+        a.a = mod
+        a.b = paramTypes
+        a.n = id
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMGetIntrinsicDeclaration", a, fn)
+    }
+
+    // ── Utility ───────────────────────────────────────────────────────────────
+
+    public void disposeMessage(const fly.mem.Ptr msg) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = msg
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDisposeMessage", a)
+    }
+
+    public void isNull(const fly.mem.Ptr val, bool result) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = val
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMIsNull", a, result)
+    }
+
+    public void isUndef(const fly.mem.Ptr val, bool result) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = val
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMIsUndef", a, result)
+    }
+}

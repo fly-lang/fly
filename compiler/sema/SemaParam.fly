@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaVar
@@ -10,4 +11,5 @@ public class SemaParam : SemaVar {
     public SemaParam(const ASTParam paramAst, const SemaType type) {
         super(paramAst, SemaKind.PARAM_VAR, type)
     }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

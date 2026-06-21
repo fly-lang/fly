@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaVar
@@ -37,4 +38,5 @@ public class SemaClassAttribute : SemaVar {
     public void setInherited(const SemaClassType inherited) { this.inherited = inherited }
     public SemaExpr getInitExpr() { out = this.initExpr }
     public void setInitExpr(const SemaExpr initExpr) { this.initExpr = initExpr }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

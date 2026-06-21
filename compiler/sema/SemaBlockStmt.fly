@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaStmt
@@ -20,4 +21,5 @@ public class SemaBlockStmt : SemaStmt {
     public void addContent(const SemaStmt stmt) { this.content.add(stmt) }
     public List<SemaStmt> getContent() { out = this.content }
     public bool isEmpty() { out = this.content.size() == 0 }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

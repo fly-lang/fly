@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaVar
@@ -10,4 +11,5 @@ public class SemaError : SemaVar {
     public SemaError(const ASTVar varAst) {
         super(varAst, SemaKind.ERROR_VAR, null)
     }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

@@ -1,0 +1,272 @@
+namespace fly.compiler.codegen
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.compiler.codegen.CodeGenModule
+import fly.compiler.codegen.CodeGenLLVM
+import fly.compiler.codegen.CodeGenType
+import fly.compiler.codegen.CodeGenExprOps
+import fly.compiler.codegen.CodeGenStmt
+import llvm.api.*
+import fly.mem
+import fly.data.List
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenExpr — the SemaVisitor that lowers a function body. It implements the
+// whole SemaVisitor (statements + expressions); Stage 2 fills in expressions and
+// the minimal statement scaffolding (block / expr-stmt / return) needed to observe
+// them, leaving control-flow statements stubbed for Stage 3.
+//
+// Each expr visit stores its LLVM value on the node (SemaExpr.llvmValue); gen()
+// reads it back. addrMode flips a variable visit between LOAD (rvalue) and its
+// storage address (lvalue, for an assignment LHS). It holds the CodeGenModule
+// one-directionally (no stored back-reference from CodeGenModule → no cycle).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenExpr : SemaVisitor {
+
+    CodeGenModule cgm
+    LLVM llvm
+    fly.mem.Ptr builder
+    bool addrMode
+    bool terminated            // current block already has a terminator?
+    fly.mem.Ptr breakTarget    // innermost loop/switch exit block
+    fly.mem.Ptr continueTarget // innermost loop post block
+
+    public CodeGenExpr(const CodeGenModule cgm) {
+        this.cgm = cgm
+        CodeGenLLVM c = cgm.getCg()
+        this.llvm = c.getLLVM()
+        this.builder = cgm.getBuilder()
+        this.addrMode = false
+        this.terminated = false
+        this.breakTarget = fly.mem.toPtr(0)
+        this.continueTarget = fly.mem.toPtr(0)
+    }
+
+    public CodeGenModule getCgm() { out = this.cgm }
+    public LLVM getLLVM() { out = this.llvm }
+    public fly.mem.Ptr getBuilder() { out = this.builder }
+
+    // ── basic-block / control-flow helpers ────────────────────────────────────
+    public bool isTerminated() { out = this.terminated }
+    public void setTerminated(const bool t) { this.terminated = t }
+    public fly.mem.Ptr getBreakTarget() { out = this.breakTarget }
+    public void setBreakTarget(const fly.mem.Ptr b) { this.breakTarget = b }
+    public fly.mem.Ptr getContinueTarget() { out = this.continueTarget }
+    public void setContinueTarget(const fly.mem.Ptr b) { this.continueTarget = b }
+
+    // position the builder at the end of a block and clear the terminated flag.
+    public void position(const fly.mem.Ptr bb) {
+        this.llvm.positionBuilderAtEnd(this.builder, bb)
+        this.terminated = false
+    }
+
+    // newBlock — append a fresh basic block to the current function.
+    public fly.mem.Ptr newBlock(const string name) {
+        fly.mem.Ptr cur
+        this.llvm.getInsertBlock(this.builder, cur)
+        fly.mem.Ptr fn
+        this.llvm.getBasicBlockParent(cur, fn)
+        fly.mem.Ptr bb
+        this.llvm.appendBasicBlockInContext(this.cgm.getCtx(), fn, name, bb)
+        out = bb
+    }
+
+    // br — branch to dest if the current block isn't already terminated.
+    public void br(const fly.mem.Ptr dest) {
+        if this.terminated == false {
+            fly.mem.Ptr v
+            this.llvm.buildBr(this.builder, dest, v)
+            this.terminated = true
+        }
+    }
+
+    // type helpers (avoid chaining cgm.getTypes().lowerType(...) on a call result)
+    public fly.mem.Ptr lowerType(const SemaType t) {
+        CodeGenType ct = this.cgm.getTypes()
+        out = ct.lowerType(t)
+    }
+    public fly.mem.Ptr ptrType() {
+        CodeGenType ct = this.cgm.getTypes()
+        out = ct.ptrType()
+    }
+
+    // gen — codegen an expression as an rvalue, returning its LLVM value.
+    public fly.mem.Ptr gen(const SemaExpr e) {
+        this.addrMode = false
+        e.accept(this)
+        out = e.getLlvmValue()
+    }
+
+    // genAddr — codegen an expression as an lvalue, returning its storage address.
+    public fly.mem.Ptr genAddr(const SemaExpr e) {
+        this.addrMode = true
+        e.accept(this)
+        this.addrMode = false
+        out = e.getLlvmValue()
+    }
+
+    // ── statements (minimal for Stage 2) ──────────────────────────────────────
+    public void visit(const SemaBlockStmt node) {
+        List<SemaStmt> content = node.getContent()
+        int i = 0
+        while i < content.size() {
+            SemaStmt s = content.get(i)
+            s.accept(this)
+            i = i + 1
+        }
+    }
+    public void visit(const SemaExprStmt node) {
+        SemaExpr e = node.getExpr()
+        if e != null { e.accept(this) }
+    }
+    public void visit(const SemaReturnStmt node) { CodeGenStmt.ret(this, node) }
+    public void visit(const SemaDeclStmt node) { CodeGenStmt.decl(this, node) }
+    public void visit(const SemaIfStmt node) { CodeGenStmt.ifStmt(this, node) }
+    public void visit(const SemaLoopStmt node) { CodeGenStmt.loopStmt(this, node) }
+    public void visit(const SemaSwitchStmt node) { CodeGenStmt.switchStmt(this, node) }
+    public void visit(const SemaBreakStmt node) { CodeGenStmt.breakStmt(this, node) }
+    public void visit(const SemaContinueStmt node) { CodeGenStmt.continueStmt(this, node) }
+
+    // ── value expressions ─────────────────────────────────────────────────────
+    public void visit(const SemaIntValue node) {
+        fly.mem.Ptr ty = this.lowerType(node.getType())
+        long v = parseLong(node.getValue())
+        fly.mem.Ptr c
+        this.llvm.constInt(ty, v, true, c)
+        node.setLlvmValue(c)
+    }
+    public void visit(const SemaBoolValue node) {
+        fly.mem.Ptr ty = this.lowerType(node.getType())
+        long v = 0
+        if node.getValue() { v = 1 }
+        fly.mem.Ptr c
+        this.llvm.constInt(ty, v, false, c)
+        node.setLlvmValue(c)
+    }
+    public void visit(const SemaFloatValue node) {
+        fly.mem.Ptr ty = this.lowerType(node.getType())
+        double d = parseDouble(node.getValue())
+        fly.mem.Ptr c
+        this.llvm.constReal(ty, d, c)
+        node.setLlvmValue(c)
+    }
+    public void visit(const SemaNullValue node) {
+        fly.mem.Ptr ty = this.ptrType()
+        fly.mem.Ptr c
+        this.llvm.constPointerNull(ty, c)
+        node.setLlvmValue(c)
+    }
+
+    // ── variable references (load rvalue, or address in addrMode) ──────────────
+    public void visit(const SemaParam node) { this.genVarAccess(node) }
+    public void visit(const SemaLocalVar node) { this.genVarAccess(node) }
+    public void visit(const SemaClassInstance node) { this.genVarAccess(node) }
+    public void visit(const SemaClassAttribute node) { this.genVarAccess(node) }
+    public void visit(const SemaError node) { this.genVarAccess(node) }
+
+    public void genVarAccess(const SemaVar v) {
+        fly.mem.Ptr addr = v.getLlvmAlloca()
+        if this.addrMode {
+            v.setLlvmValue(addr)
+        } else {
+            fly.mem.Ptr ty = this.lowerType(v.getType())
+            fly.mem.Ptr loaded
+            this.llvm.buildLoad2(this.builder, ty, addr, "ld", loaded)
+            v.setLlvmValue(loaded)
+        }
+    }
+
+    // ── binary ────────────────────────────────────────────────────────────────
+    public void visit(const SemaBinary node) {
+        ASTBinary ba = node.getAST()
+        ASTBinaryKind k = ba.getBinaryKind()
+        if k == ASTBinaryKind.OP_BINARY_ASSIGN {
+            CodeGenExprOps.assign(this, node)
+        } elsif ba.isArith() {
+            CodeGenExprOps.arith(this, node, k)
+        } else {
+            CodeGenExprOps.compare(this, node, k)
+        }
+    }
+
+    public void visit(const SemaUnary node) { CodeGenExprOps.unary(this, node) }
+    public void visit(const SemaCast node) { CodeGenExprOps.cast(this, node) }
+    public void visit(const SemaTernary node) { CodeGenExprOps.ternary(this, node) }
+
+    // ── stubbed (later stages) ────────────────────────────────────────────────
+    public void visit(const SemaCall node) { }
+    public void visit(const SemaMember node) { }
+    public void visit(const SemaEnumEntry node) { }
+    public void visit(const SemaEnumList node) { }
+    public void visit(const SemaEnumAccessor node) { }
+    public void visit(const SemaStringValue node) { }
+    public void visit(const SemaComplexValue node) { }
+    public void visit(const SemaArrayValue node) { }
+    public void visit(const SemaStructValue node) { }
+    public void visit(const SemaUnsetValue node) { }
+    public void visit(const SemaLoopInStmt node) { }
+    public void visit(const SemaFailStmt node) { }
+    public void visit(const SemaHandleStmt node) { }
+    public void visit(const SemaDeleteStmt node) { }
+    public void visit(const SemaCaseStmt node) { }
+    public void visit(const SemaTestStmt node) { }
+}
+
+// ── literal parsing helpers (free functions; intrinsic byte access) ─────────────
+public long parseLong(const string s) {
+    long r = 0
+    int n = fly.str.len(s)
+    int i = 0
+    bool neg = false
+    if n > 0 {
+        byte b0 = 0
+        fly.llvm.strByteAt(s, 0, b0)
+        if b0 == 45 { neg = true  i = 1 }   // '-'
+    }
+    while i < n {
+        byte b = 0
+        fly.llvm.strByteAt(s, i, b)
+        int bi = b
+        if bi >= 48 {
+            if bi <= 57 {
+                long d = bi - 48
+                r = r * 10 + d
+            }
+        }
+        i = i + 1
+    }
+    if neg { r = 0 - r }
+    out = r
+}
+
+public double parseDouble(const string s) {
+    // integer + fractional parts split on '.'; minimal (no exponent) for Stage 2.
+    int dot = fly.str.indexOf(s, ".")
+    double result = 0.0
+    if dot < 0 {
+        result = parseLong(s)
+    } else {
+        string ip = fly.str.substring(s, 0, dot)
+        int n = fly.str.len(s)
+        string fp = fly.str.substring(s, dot + 1, n)
+        double whole = parseLong(ip)
+        double frac = 0.0
+        double scale = 1.0
+        int fn = fly.str.len(fp)
+        int i = 0
+        while i < fn {
+            byte b = 0
+            fly.llvm.strByteAt(fp, i, b)
+            int bi = b
+            double d = bi - 48
+            scale = scale * 10.0
+            frac = frac + d / scale
+            i = i + 1
+        }
+        result = whole + frac
+    }
+    out = result
+}

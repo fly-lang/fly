@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaStmt
@@ -16,4 +17,5 @@ public class SemaTestStmt : SemaStmt {
 
     public SemaBlockStmt getBody() { out = this.body }
     public void setBody(const SemaBlockStmt body) { this.body = body }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

@@ -1,0 +1,89 @@
+namespace fly.compiler.codegen
+
+import llvm.api.*
+import fly.mem
+import fly.data.List
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenLLVM — thin wrapper over llvm.api.LLVM that adds the multi-element
+// array-marshalling the CLang bridge can't do directly. LLVM's array-taking C
+// functions (LLVMFunctionType, LLVMStructSetBody, LLVMBuildCall2, LLVMConstArray)
+// expect a `LLVMTypeRef*` / `LLVMValueRef*`; the bridge can only pass a single
+// handle, so we pack the handle ADDRESSES into a contiguous heap buffer (one
+// 8-byte slot each) and pass the buffer address as the array pointer.
+//
+// Marshalling takes a `List<long>` of handle addresses (`ptr.addr`), NOT a
+// `List<fly.mem.Ptr>`: a generic List of value structs does not round-trip in the
+// self-host containers (only class handles and primitives do), whereas List<long>
+// works. All single-handle LLVM ops go straight through getLLVM().
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenLLVM {
+
+    LLVM llvm
+
+    public CodeGenLLVM() {
+        this.llvm = new LLVM()
+    }
+
+    public LLVM getLLVM() { out = this.llvm }
+
+    // packAddrs — allocate an n*8 buffer and store each handle address; returns the
+    // buffer address (0 for empty). Caller frees with freeBuf.
+    public long packAddrs(const List<long> addrs) {
+        int n = addrs.size()
+        if n == 0 { out = 0  return }
+        ulong sz = n * 8
+        long buf = fly.mem.alloc(sz)
+        int i = 0
+        while i < n {
+            long v = addrs.get(i)
+            fly.mem.writeLong(buf, i * 8, v)
+            i = i + 1
+        }
+        out = buf
+    }
+
+    public void freeBuf(const long buf, const int count) {
+        if buf != 0 {
+            ulong sz = count * 8
+            fly.mem.free(buf, sz)
+        }
+    }
+
+    // functionTypeN — LLVMFunctionType over a marshalled parameter-type array.
+    public void functionTypeN(const fly.mem.Ptr retTy, const List<long> paramAddrs, const bool varArg, fly.mem.Ptr ty) {
+        int n = paramAddrs.size()
+        long buf = this.packAddrs(paramAddrs)
+        fly.mem.Ptr arr = fly.mem.toPtr(buf)
+        this.llvm.functionType(retTy, arr, n, varArg, ty)
+        this.freeBuf(buf, n)
+    }
+
+    // structSetBodyN — LLVMStructSetBody over a marshalled element-type array.
+    public void structSetBodyN(const fly.mem.Ptr structTy, const List<long> elemAddrs, const bool packed) {
+        int n = elemAddrs.size()
+        long buf = this.packAddrs(elemAddrs)
+        fly.mem.Ptr arr = fly.mem.toPtr(buf)
+        this.llvm.structSetBody(structTy, arr, n, packed)
+        this.freeBuf(buf, n)
+    }
+
+    // buildCallN — LLVMBuildCall2 over a marshalled argument-value array.
+    public void buildCallN(const fly.mem.Ptr b, const fly.mem.Ptr fnTy, const fly.mem.Ptr fn, const List<long> argAddrs, const string name, fly.mem.Ptr v) {
+        int n = argAddrs.size()
+        long buf = this.packAddrs(argAddrs)
+        fly.mem.Ptr arr = fly.mem.toPtr(buf)
+        this.llvm.buildCall2(b, fnTy, fn, arr, n, name, v)
+        this.freeBuf(buf, n)
+    }
+
+    // constArrayN — LLVMConstArray over a marshalled element-value array.
+    public void constArrayN(const fly.mem.Ptr elemTy, const List<long> valAddrs, fly.mem.Ptr v) {
+        int n = valAddrs.size()
+        long buf = this.packAddrs(valAddrs)
+        fly.mem.Ptr arr = fly.mem.toPtr(buf)
+        this.llvm.constArray(elemTy, arr, n, v)
+        this.freeBuf(buf, n)
+    }
+}

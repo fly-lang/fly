@@ -1,0 +1,151 @@
+namespace fly.compiler.codegen
+
+import fly.compiler.sema.*
+import fly.compiler.codegen.CodeGenLLVM
+import fly.compiler.codegen.CodeGenType
+import fly.compiler.codegen.CodeGenExpr
+import llvm.api.*
+import fly.mem
+import fly.data.List
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenModule — owns the LLVM context/module/builder and drives lowering of the
+// resolved SemaModule tree. Function calling convention (from the reference
+// compiler): every Fly function lowers to an LLVM function returning VOID whose
+// params are all pointers — first a hidden error-handler pointer, then each Fly
+// parameter (the synthetic trailing `out` for a non-void return is already in the
+// Sema params list). The body stores the result into the out pointer and `ret`s.
+//
+// Stage 1 emits only the function SHELL (signature + entry + ret void); the body
+// (expressions/statements) lands in Stages 2–3.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenModule {
+
+    CodeGenLLVM cg
+    CodeGenType types
+    fly.mem.Ptr ctx
+    fly.mem.Ptr module
+    fly.mem.Ptr builder
+
+    public CodeGenModule(const string name) {
+        this.cg = new CodeGenLLVM()
+        LLVM llvm = this.cg.getLLVM()
+        fly.mem.Ptr c
+        llvm.contextCreate(c)
+        this.ctx = c
+        fly.mem.Ptr m
+        llvm.moduleCreateWithNameInContext(name, c, m)
+        this.module = m
+        fly.mem.Ptr b
+        llvm.createBuilderInContext(c, b)
+        this.builder = b
+        this.types = new CodeGenType(this.cg, this.ctx)
+    }
+
+    public CodeGenLLVM getCg() { out = this.cg }
+    public CodeGenType getTypes() { out = this.types }
+    public fly.mem.Ptr getCtx() { out = this.ctx }
+    public fly.mem.Ptr getModule() { out = this.module }
+    public fly.mem.Ptr getBuilder() { out = this.builder }
+
+    // generate — two passes: declare all signatures, then emit all bodies (so a
+    // call can reference a function defined later). Mirrors the reference's
+    // GenerateDeclarations + GenerateBodies.
+    public void generate(const Registry reg) {
+        List<SemaFunctionBase> bodies = reg.getBodies()
+        int i = 0
+        while i < bodies.size() {
+            SemaFunctionBase fn = bodies.get(i)
+            this.declareFunction(fn)
+            i = i + 1
+        }
+        int j = 0
+        while j < bodies.size() {
+            SemaFunctionBase fn2 = bodies.get(j)
+            this.genBody(fn2)
+            j = j + 1
+        }
+    }
+
+    // declareFunction — build the LLVM signature only (void return; hidden error
+    // ptr + one `ptr` per Fly param incl. the synthetic out). No body.
+    public void declareFunction(const SemaFunctionBase fn) {
+        LLVM llvm = this.cg.getLLVM()
+
+        fly.mem.Ptr voidTy
+        llvm.voidTypeInContext(this.ctx, voidTy)
+
+        List<long> ptypes = new List<long>()
+        fly.mem.Ptr errPtr = this.types.ptrType()
+        ptypes.add(errPtr.addr)
+        List<SemaParam> params = fn.getParams()
+        int i = 0
+        while i < params.size() {
+            fly.mem.Ptr pp = this.types.ptrType()
+            ptypes.add(pp.addr)
+            i = i + 1
+        }
+
+        fly.mem.Ptr fnTy
+        this.cg.functionTypeN(voidTy, ptypes, false, fnTy)
+        fn.setLlvmFnType(fnTy)
+
+        string name = this.mangle(fn)
+        fly.mem.Ptr f
+        llvm.addFunction(this.module, name, fnTy, f)
+        fn.setLlvmFn(f)
+    }
+
+    // genBody — entry block + prologue (each Fly param's storage IS its pointer
+    // arg, at LLVM index i+1 since index 0 is the hidden error ptr) + the resolved
+    // body (via the CodeGenExpr visitor) + ret void.
+    public void genBody(const SemaFunctionBase fn) {
+        LLVM llvm = this.cg.getLLVM()
+        fly.mem.Ptr f = fn.getLlvmFn()
+
+        fly.mem.Ptr entry
+        llvm.appendBasicBlockInContext(this.ctx, f, "entry", entry)
+        llvm.positionBuilderAtEnd(this.builder, entry)
+
+        List<SemaParam> params = fn.getParams()
+        int i = 0
+        while i < params.size() {
+            SemaParam pm = params.get(i)
+            fly.mem.Ptr arg
+            llvm.getParam(f, i + 1, arg)
+            pm.setLlvmAlloca(arg)
+            i = i + 1
+        }
+
+        CodeGenExpr cge = new CodeGenExpr(this)
+        SemaBlockStmt body = fn.getBody()
+        if body != null {
+            body.accept(cge)
+        }
+
+        // close the final block with ret void unless the body already terminated it
+        // (e.g. an explicit `return` as the last statement).
+        if cge.isTerminated() == false {
+            fly.mem.Ptr ret
+            llvm.buildRetVoid(this.builder, ret)
+        }
+    }
+
+    // mangle — Stage 1 uses the plain function name. The reference's full mangling
+    // (name + param/return type codes) lands in Stage 4 when calls need matching
+    // symbols; `main` must stay `main` (the C entry point) once Driver exists.
+    public string mangle(const SemaFunctionBase fn) {
+        out = fn.getName()
+    }
+
+    public void verify(bool ok) {
+        LLVM llvm = this.cg.getLLVM()
+        llvm.verifyModule(this.module, ok)
+    }
+
+    public void emitIR(const string filename) {
+        LLVM llvm = this.cg.getLLVM()
+        llvm.printModuleToFile(this.module, filename)
+    }
+}

@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaExpr
@@ -27,4 +28,5 @@ public class SemaTernary : SemaExpr {
     public SemaExpr getCond() { out = this.cond }
     public SemaExpr getTrueExpr() { out = this.trueExpr }
     public SemaExpr getFalseExpr() { out = this.falseExpr }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

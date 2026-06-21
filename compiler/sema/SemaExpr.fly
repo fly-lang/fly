@@ -1,8 +1,10 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaNode
 import fly.compiler.sema.SemaType
+import fly.mem
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SemaExpr — base of every resolved expression, a 1:1 port of C++ SemaExpr
@@ -15,14 +17,18 @@ public class SemaExpr : SemaNode {
     SemaExpr child
     SemaExpr parent
     SemaType type
+    fly.mem.Ptr llvmValue   // CodeGen back-pointer: the LLVM value (null until codegen'd)
 
     public SemaExpr(const SemaKind kind, const SemaType type) {
         super(kind)
         this.type = type
+        this.llvmValue = fly.mem.toPtr(0)
     }
 
     public SemaType getType() { out = this.type }
     public void setType(const SemaType type) { this.type = type }
+    public fly.mem.Ptr getLlvmValue() { out = this.llvmValue }
+    public void setLlvmValue(const fly.mem.Ptr v) { this.llvmValue = v }
 
     public SemaExpr getParent() { out = this.parent }
     public SemaExpr getChild() { out = this.child }
@@ -34,4 +40,6 @@ public class SemaExpr : SemaNode {
         this.parent = parent
         parent.setChild(this)
     }
+    // accept — base no-op; concrete leaves override with v.visit(this).
+    public void accept(const SemaVisitor v) { }
 }

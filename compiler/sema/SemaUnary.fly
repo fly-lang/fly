@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaExpr
@@ -19,4 +20,5 @@ public class SemaUnary : SemaExpr {
 
     public ASTUnary getAST() { out = this.unaryAst }
     public SemaExpr getExpr() { out = this.expr }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

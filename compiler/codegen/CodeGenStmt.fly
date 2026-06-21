@@ -1,0 +1,198 @@
+namespace fly.compiler.codegen
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.compiler.codegen.CodeGenExpr
+import llvm.api.*
+import fly.mem
+import fly.data.List
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenStmt — static companions lowering control-flow statements, threading the
+// CodeGenExpr visitor (cge). Kept off CodeGenExpr's visit() methods so each visit
+// stays a one-liner (the "Broken function" codegen bug bites large many-branch
+// methods). Block management goes through cge's helpers: newBlock (append a block
+// to the current function), position (move the builder + clear `terminated`), and
+// br (branch only if the current block isn't already terminated).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenStmt {
+
+    public CodeGenStmt() { }
+
+    // decl — `T x [= init]`: an alloca for the local, an optional store of init.
+    public static void decl(const CodeGenExpr cge, const SemaDeclStmt node) {
+        SemaLocalVar v = node.getVar()
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+        fly.mem.Ptr ty = cge.lowerType(v.getType())
+        fly.mem.Ptr alloca
+        llvm.buildAlloca(b, ty, "lv", alloca)
+        v.setLlvmAlloca(alloca)
+        SemaExpr init = node.getExpr()
+        if init != null {
+            fly.mem.Ptr iv = cge.gen(init)
+            llvm.buildStore(b, iv, alloca)
+        }
+    }
+
+    // ret — bare `return`: any attached value-assignment is gen'd, then ret void
+    // (the out-param model already stored the result via an `out = …` assignment).
+    public static void ret(const CodeGenExpr cge, const SemaReturnStmt node) {
+        if cge.isTerminated() { return }
+        SemaExpr e = node.getExpr()
+        if e != null { fly.mem.Ptr ignore = cge.gen(e) }
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr r
+        llvm.buildRetVoid(cge.getBuilder(), r)
+        cge.setTerminated(true)
+    }
+
+    // ifStmt — cond/then, an elsif chain, and an optional else, merging at ifcont.
+    public static void ifStmt(const CodeGenExpr cge, const SemaIfStmt node) {
+        fly.mem.Ptr mergeBB = cge.newBlock("ifcont")
+        emitIfChain(cge, node.getCond(), node.getThen(), node.getElsif(), 0, node.getElse(), mergeBB)
+        cge.position(mergeBB)
+    }
+
+    // emitIfChain — recursively lower `if cond { then } [elsif…] [else]`. Each
+    // level: condBr(cond → then, next); then → merge; next holds the rest.
+    public static void emitIfChain(const CodeGenExpr cge, const SemaExpr cond, const SemaStmt thenS,
+                                   const List<SemaRuleStmt> elsifs, const int idx,
+                                   const SemaStmt elseS, const fly.mem.Ptr mergeBB) {
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+        fly.mem.Ptr cv = cge.gen(cond)
+        fly.mem.Ptr thenBB = cge.newBlock("then")
+        fly.mem.Ptr nextBB = cge.newBlock("else")
+        fly.mem.Ptr cbr
+        llvm.buildCondBr(b, cv, thenBB, nextBB, cbr)
+        cge.setTerminated(true)
+
+        cge.position(thenBB)
+        if thenS != null { thenS.accept(cge) }
+        cge.br(mergeBB)
+
+        cge.position(nextBB)
+        if idx < elsifs.size() {
+            SemaRuleStmt r = elsifs.get(idx)
+            emitIfChain(cge, r.getExpr(), r.getStmt(), elsifs, idx + 1, elseS, mergeBB)
+        } else {
+            if elseS != null { elseS.accept(cge) }
+            cge.br(mergeBB)
+        }
+    }
+
+    // loopStmt — while/for: init → cond → body → post → cond, exit on false cond.
+    // break targets exit, continue targets post. Handles do/while via the
+    // verify-condition-at-end flag (body runs before the first cond check).
+    public static void loopStmt(const CodeGenExpr cge, const SemaLoopStmt node) {
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+
+        List<SemaStmt> init = node.getInit()
+        int i = 0
+        while i < init.size() {
+            SemaStmt s = init.get(i)
+            s.accept(cge)
+            i = i + 1
+        }
+
+        fly.mem.Ptr condBB = cge.newBlock("loopcond")
+        fly.mem.Ptr bodyBB = cge.newBlock("loopbody")
+        fly.mem.Ptr postBB = cge.newBlock("looppost")
+        fly.mem.Ptr exitBB = cge.newBlock("loopexit")
+
+        bool atEnd = node.hasVerifyConditionAtEnd()
+        if atEnd { cge.br(bodyBB) } else { cge.br(condBB) }
+
+        // cond
+        cge.position(condBB)
+        SemaExpr cond = node.getCond()
+        if cond != null {
+            fly.mem.Ptr cv = cge.gen(cond)
+            fly.mem.Ptr cbr
+            llvm.buildCondBr(b, cv, bodyBB, exitBB, cbr)
+            cge.setTerminated(true)
+        } else {
+            cge.br(bodyBB)
+        }
+
+        // body (save/restore enclosing break/continue targets)
+        fly.mem.Ptr savedBreak = cge.getBreakTarget()
+        fly.mem.Ptr savedCont = cge.getContinueTarget()
+        cge.setBreakTarget(exitBB)
+        cge.setContinueTarget(postBB)
+        cge.position(bodyBB)
+        SemaStmt body = node.getBody()
+        if body != null { body.accept(cge) }
+        cge.br(postBB)
+        cge.setBreakTarget(savedBreak)
+        cge.setContinueTarget(savedCont)
+
+        // post
+        cge.position(postBB)
+        List<SemaStmt> post = node.getPost()
+        int j = 0
+        while j < post.size() {
+            SemaStmt s = post.get(j)
+            s.accept(cge)
+            j = j + 1
+        }
+        cge.br(condBB)
+
+        cge.position(exitBB)
+    }
+
+    // switchStmt — buildSwitch over the selector; one block per case; break exits.
+    public static void switchStmt(const CodeGenExpr cge, const SemaSwitchStmt node) {
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+
+        fly.mem.Ptr sel = cge.gen(node.getExpr())
+        List<SemaRuleStmt> cases = node.getCases()
+        int n = cases.size()
+
+        fly.mem.Ptr exitBB = cge.newBlock("swexit")
+        fly.mem.Ptr defaultBB = exitBB
+        SemaStmt defS = node.getDefault()
+        if defS != null { defaultBB = cge.newBlock("swdefault") }
+
+        fly.mem.Ptr sw
+        llvm.buildSwitch(b, sel, defaultBB, n, sw)
+        cge.setTerminated(true)
+
+        fly.mem.Ptr savedBreak = cge.getBreakTarget()
+        cge.setBreakTarget(exitBB)
+
+        int i = 0
+        while i < n {
+            SemaRuleStmt r = cases.get(i)
+            fly.mem.Ptr onVal = cge.gen(r.getExpr())
+            fly.mem.Ptr caseBB = cge.newBlock("swcase")
+            llvm.addCase(sw, onVal, caseBB)
+            cge.position(caseBB)
+            SemaStmt cs = r.getStmt()
+            if cs != null { cs.accept(cge) }
+            cge.br(exitBB)
+            i = i + 1
+        }
+
+        if defS != null {
+            cge.position(defaultBB)
+            defS.accept(cge)
+            cge.br(exitBB)
+        }
+
+        cge.setBreakTarget(savedBreak)
+        cge.position(exitBB)
+    }
+
+    // breakStmt / continueStmt — branch to the innermost exit / post block.
+    public static void breakStmt(const CodeGenExpr cge, const SemaBreakStmt node) {
+        cge.br(cge.getBreakTarget())
+    }
+    public static void continueStmt(const CodeGenExpr cge, const SemaContinueStmt node) {
+        cge.br(cge.getContinueTarget())
+    }
+}

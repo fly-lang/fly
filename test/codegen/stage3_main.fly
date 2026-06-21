@@ -1,0 +1,34 @@
+namespace fly.compiler.codegen.test.stage3
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+
+// Stage 3: statements — local decl + alloca/store, if/elsif/else, a while loop
+// with break/continue, a switch, and a ternary. Each lowers to control-flow IR;
+// the whole module must verify.
+void main() {
+    string src = "int classify(const int n) { int r = 0  if n > 10 { r = 2 } elsif n > 0 { r = 1 } else { r = 0 }  out = r }  int sumTo(const int n) { int acc = 0  int i = 0  while i < n { i = i + 1  if i == 3 { continue }  if i > 100 { break }  acc = acc + i }  out = acc }  int pick(const int k) { int r = 0  switch k { case 1: r = 10  case 2: r = 20  default: r = 99 }  out = r }  int maxOf(const int a, const int b) { out = a > b ? a : b }"
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 1)
+
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    Registry reg = ctx.getReg()
+
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(reg)
+
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 2)
+
+    cgm.emitIR("/tmp/cg/stage3.ll")
+}

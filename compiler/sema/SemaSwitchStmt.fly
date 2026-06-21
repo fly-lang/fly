@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaStmt
@@ -27,4 +28,5 @@ public class SemaSwitchStmt : SemaStmt {
     public List<SemaRuleStmt> getCases() { out = this.cases }
     public SemaStmt getDefault() { out = this.defaultStmt }
     public void setDefault(const SemaStmt defaultStmt) { this.defaultStmt = defaultStmt }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

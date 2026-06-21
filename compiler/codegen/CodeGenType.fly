@@ -1,0 +1,64 @@
+namespace fly.compiler.codegen
+
+import fly.compiler.sema.*
+import fly.compiler.codegen.CodeGenLLVM
+import llvm.api.*
+import fly.mem
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenType — lower a resolved SemaType to an LLVM type handle. No downcast is
+// available, so integer/float widths come from getKind() + getRank() (both on the
+// SemaType base): rank encodes the bit width (byte=8, short=15, int=31, long=63,
+// and the unsigned siblings 16/32/64; float=32, double=64). LLVM 20 uses opaque
+// pointers, so strings/classes/enums/arrays/errors all lower to a single `ptr`.
+// The result is cached on the SemaType's llvmType slot.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenType {
+
+    CodeGenLLVM cg
+    fly.mem.Ptr ctx
+
+    public CodeGenType(const CodeGenLLVM cg, const fly.mem.Ptr ctx) {
+        this.cg = cg
+        this.ctx = ctx
+    }
+
+    public fly.mem.Ptr lowerType(const SemaType t) {
+        LLVM llvm = this.cg.getLLVM()
+        fly.mem.Ptr r
+        if t.isVoid() {
+            llvm.voidTypeInContext(this.ctx, r)
+        } elsif t.isBool() {
+            llvm.int1TypeInContext(this.ctx, r)
+        } elsif t.isInteger() {
+            int rank = t.getRank()
+            if rank <= 8 { llvm.int8TypeInContext(this.ctx, r) }
+            elsif rank <= 16 { llvm.int16TypeInContext(this.ctx, r) }
+            elsif rank <= 32 { llvm.int32TypeInContext(this.ctx, r) }
+            else { llvm.int64TypeInContext(this.ctx, r) }
+        } elsif t.isFloat() {
+            int rank = t.getRank()
+            if rank <= 32 { llvm.floatTypeInContext(this.ctx, r) }
+            else { llvm.doubleTypeInContext(this.ctx, r) }
+        } else {
+            // string / class / enum / array / error → opaque pointer
+            r = this.ptrType()
+        }
+        // No caching on t.llvmType: a fly.mem.Ptr value-struct field does NOT reliably
+        // round-trip here (returns garbage), and LLVM interns scalar types anyway, so
+        // recomputing is both correct and cheap.
+        out = r
+    }
+
+    // ptrType — the opaque `ptr` type (LLVM 20). All Fly params are passed by
+    // pointer, and class/string handles are pointers, so this is used widely.
+    public fly.mem.Ptr ptrType() {
+        LLVM llvm = this.cg.getLLVM()
+        fly.mem.Ptr i8
+        llvm.int8TypeInContext(this.ctx, i8)
+        fly.mem.Ptr p
+        llvm.pointerType(i8, 0, p)
+        out = p
+    }
+}

@@ -1,0 +1,214 @@
+namespace fly.compiler.codegen
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.compiler.codegen.CodeGenExpr
+import llvm.api.*
+import fly.mem
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenExprOps — static companions for the larger binary/unary/cast operators,
+// threading the CodeGenExpr visitor (cge) so the monolithic visit(SemaBinary) stays
+// small (the "Broken function" codegen bug bites large many-branch methods).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenExprOps {
+
+    public CodeGenExprOps() { }
+
+    // assign — store the RHS rvalue into the LHS lvalue (its storage address).
+    public static void assign(const CodeGenExpr cge, const SemaBinary node) {
+        SemaExpr left = node.getLeft()
+        SemaExpr right = node.getRight()
+        fly.mem.Ptr rhs = cge.gen(right)
+        fly.mem.Ptr addr = cge.genAddr(left)
+        LLVM llvm = cge.getLLVM()
+        llvm.buildStore(cge.getBuilder(), rhs, addr)
+        node.setLlvmValue(rhs)
+    }
+
+    // arith — +, -, *, /, %, &, |, ^, <<, >> (int or float by result type).
+    public static void arith(const CodeGenExpr cge, const SemaBinary node, const ASTBinaryKind k) {
+        SemaExpr left = node.getLeft()
+        SemaExpr right = node.getRight()
+        fly.mem.Ptr l = cge.gen(left)
+        fly.mem.Ptr r = cge.gen(right)
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+        bool isF = false
+        SemaType t = node.getType()
+        if t != null { isF = t.isFloat() }
+
+        fly.mem.Ptr v
+        if k == ASTBinaryKind.OP_BINARY_ARITH_ADD {
+            if isF { llvm.buildFAdd(b, l, r, "add", v) } else { llvm.buildAdd(b, l, r, "add", v) }
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_SUB {
+            if isF { llvm.buildFSub(b, l, r, "sub", v) } else { llvm.buildSub(b, l, r, "sub", v) }
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_MUL {
+            if isF { llvm.buildFMul(b, l, r, "mul", v) } else { llvm.buildMul(b, l, r, "mul", v) }
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_DIV {
+            if isF { llvm.buildFDiv(b, l, r, "div", v) } else { llvm.buildSDiv(b, l, r, "div", v) }
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_MOD {
+            llvm.buildSRem(b, l, r, "rem", v)
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_AND {
+            llvm.buildAnd(b, l, r, "and", v)
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_OR {
+            llvm.buildOr(b, l, r, "or", v)
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_XOR {
+            llvm.buildXor(b, l, r, "xor", v)
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_SHIFT_L {
+            llvm.buildShl(b, l, r, "shl", v)
+        } else {
+            llvm.buildAShr(b, l, r, "shr", v)
+        }
+        node.setLlvmValue(v)
+    }
+
+    // compare — ==, !=, <, <=, >, >= → i1 via ICmp (int) or FCmp (float).
+    public static void compare(const CodeGenExpr cge, const SemaBinary node, const ASTBinaryKind k) {
+        SemaExpr left = node.getLeft()
+        SemaExpr right = node.getRight()
+        fly.mem.Ptr l = cge.gen(left)
+        fly.mem.Ptr r = cge.gen(right)
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+        bool isF = false
+        SemaType lt = left.getType()
+        if lt != null { isF = lt.isFloat() }
+
+        fly.mem.Ptr v
+        if isF {
+            llvm.buildFCmp(b, fcmpPred(k), l, r, "cmp", v)
+        } else {
+            llvm.buildICmp(b, icmpPred(k), l, r, "cmp", v)
+        }
+        node.setLlvmValue(v)
+    }
+
+    // unary — logical not + pre/post increment/decrement.
+    public static void unary(const CodeGenExpr cge, const SemaUnary node) {
+        ASTUnary ua = node.getAST()
+        ASTUnaryKind k = ua.getOpKind()
+        SemaExpr e = node.getExpr()
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+
+        if k == ASTUnaryKind.OP_UNARY_NOT_LOG {
+            fly.mem.Ptr val = cge.gen(e)
+            fly.mem.Ptr ty = cge.lowerType(node.getType())
+            fly.mem.Ptr one
+            llvm.constInt(ty, 1, false, one)
+            fly.mem.Ptr v
+            llvm.buildXor(b, val, one, "not", v)
+            node.setLlvmValue(v)
+            return
+        }
+
+        // increment / decrement: load, +/- 1, store back; result is new or old value.
+        fly.mem.Ptr addr = cge.genAddr(e)
+        fly.mem.Ptr ty = cge.lowerType(e.getType())
+        fly.mem.Ptr old
+        llvm.buildLoad2(b, ty, addr, "ld", old)
+        fly.mem.Ptr one
+        llvm.constInt(ty, 1, true, one)
+        fly.mem.Ptr nv
+        bool incr = k == ASTUnaryKind.OP_UNARY_PRE_INCR || k == ASTUnaryKind.OP_UNARY_POST_INCR
+        if incr { llvm.buildAdd(b, old, one, "inc", nv) } else { llvm.buildSub(b, old, one, "dec", nv) }
+        llvm.buildStore(b, nv, addr)
+        bool post = k == ASTUnaryKind.OP_UNARY_POST_INCR || k == ASTUnaryKind.OP_UNARY_POST_DECR
+        if post { node.setLlvmValue(old) } else { node.setLlvmValue(nv) }
+    }
+
+    // cast — numeric conversions (int↔int width, int↔float, float↔float).
+    public static void cast(const CodeGenExpr cge, const SemaCast node) {
+        SemaExpr e = node.getExpr()
+        fly.mem.Ptr val = cge.gen(e)
+        SemaType from = e.getType()
+        SemaType to = node.getToType()
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+        fly.mem.Ptr toTy = cge.lowerType(to)
+
+        fly.mem.Ptr v = val
+        bool fromF = false
+        bool toF = false
+        if from != null { fromF = from.isFloat() }
+        if to != null { toF = to.isFloat() }
+
+        if fromF {
+            if toF {
+                if to.getRank() >= from.getRank() { llvm.buildFPExt(b, val, toTy, "fpext", v) }
+                else { llvm.buildFPTrunc(b, val, toTy, "fptrunc", v) }
+            } else {
+                llvm.buildFPToSI(b, val, toTy, "fptosi", v)
+            }
+        } else {
+            if toF {
+                llvm.buildSIToFP(b, val, toTy, "sitofp", v)
+            } else {
+                // int → int: widen (sext) or narrow (trunc) by rank
+                int fr = 0
+                int tr = 0
+                if from != null { fr = from.getRank() }
+                if to != null { tr = to.getRank() }
+                if tr > fr { llvm.buildSExt(b, val, toTy, "sext", v) }
+                elsif tr < fr { llvm.buildTrunc(b, val, toTy, "trunc", v) }
+            }
+        }
+        node.setLlvmValue(v)
+    }
+
+    // ternary — cond ? a : b, lowered to a result alloca + cond/then/else/merge
+    // blocks (the api has no buildSelect): each arm stores into the slot; merge
+    // loads it. Each arm is gen'd in its own block so side effects stay guarded.
+    public static void ternary(const CodeGenExpr cge, const SemaTernary node) {
+        LLVM llvm = cge.getLLVM()
+        fly.mem.Ptr b = cge.getBuilder()
+        fly.mem.Ptr ty = cge.lowerType(node.getType())
+        fly.mem.Ptr slot
+        llvm.buildAlloca(b, ty, "tern.slot", slot)
+
+        fly.mem.Ptr cv = cge.gen(node.getCond())
+        fly.mem.Ptr thenBB = cge.newBlock("tern.then")
+        fly.mem.Ptr elseBB = cge.newBlock("tern.else")
+        fly.mem.Ptr mergeBB = cge.newBlock("tern.end")
+        fly.mem.Ptr cbr
+        llvm.buildCondBr(b, cv, thenBB, elseBB, cbr)
+        cge.setTerminated(true)
+
+        cge.position(thenBB)
+        fly.mem.Ptr tv = cge.gen(node.getTrueExpr())
+        llvm.buildStore(cge.getBuilder(), tv, slot)
+        cge.br(mergeBB)
+
+        cge.position(elseBB)
+        fly.mem.Ptr fv = cge.gen(node.getFalseExpr())
+        llvm.buildStore(cge.getBuilder(), fv, slot)
+        cge.br(mergeBB)
+
+        cge.position(mergeBB)
+        fly.mem.Ptr loaded
+        llvm.buildLoad2(cge.getBuilder(), ty, slot, "ternv", loaded)
+        node.setLlvmValue(loaded)
+    }
+}
+
+// LLVM IntPredicate codes (signed comparisons).
+public int icmpPred(const ASTBinaryKind k) {
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_EQ  { out = 32  return }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_NE  { out = 33  return }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { out = 38  return }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { out = 39  return }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { out = 40  return }
+    out = 41   // LTE
+}
+
+// LLVM RealPredicate codes (ordered comparisons).
+public int fcmpPred(const ASTBinaryKind k) {
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_EQ  { out = 1  return }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_NE  { out = 6  return }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { out = 2  return }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { out = 3  return }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { out = 4  return }
+    out = 5   // OLE
+}

@@ -1,4 +1,5 @@
 namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
 
 import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaStmt
@@ -22,4 +23,5 @@ public class SemaFailStmt : SemaStmt {
     public void setFirst(const SemaExpr e) { this.first = e }
     public void setSecond(const SemaExpr e) { this.second = e }
     public void setThird(const SemaExpr e) { this.third = e }
+    public void accept(const SemaVisitor v) { v.visit(this) }
 }

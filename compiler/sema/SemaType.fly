@@ -6,6 +6,7 @@ import fly.compiler.sema.SemaClassType
 import fly.compiler.sema.semaIntRank
 import fly.compiler.sema.semaFloatRank
 import fly.str as s
+import fly.mem
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SemaType — the resolved type hierarchy, a 1:1 port of include/Sema/SemaType.h.
@@ -39,13 +40,17 @@ public enum SemaFloatTypeKind {
 public class SemaType : SemaNode {
 
     string typeName
+    fly.mem.Ptr llvmType   // CodeGen back-pointer: the lowered LLVM type (null until codegen'd)
 
     public SemaType(const SemaKind kind, const string typeName) {
         super(kind)
         this.typeName = typeName
+        this.llvmType = fly.mem.toPtr(0)
     }
 
     public string getName() { out = this.typeName }
+    public fly.mem.Ptr getLlvmType() { out = this.llvmType }
+    public void setLlvmType(const fly.mem.Ptr t) { this.llvmType = t }
 
     // asClass — narrow to SemaClassType without a downcast (Fly has none): the base
     // returns null; SemaClassType overrides it to return `this`.
