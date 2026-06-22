@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  FLYC_VERSION: "0.12.3"
+  FLY_VERSION: "0.13.5"
 
 jobs:
 
@@ -23,36 +23,22 @@ jobs:
       - name: Install LLVM 20
         run: |
           sudo apt-get update
-          sudo apt-get install -y llvm-20-dev libllvm20 lld-20
+          sudo apt-get install -y llvm-20-dev libllvm20 lld-20 clang-20
 
-      - name: Download flyc binary
+      - name: Download fly binary
         run: |
           curl -fsSL \
-            "https://github.com/fly-lang/flyc/releases/download/v${FLYC_VERSION}/fly-${FLYC_VERSION}-linux-x86_64.tar.gz" \
+            "https://github.com/fly-lang/fly/releases/download/v${FLY_VERSION}/fly-${FLY_VERSION}-linux-x86_64.tar.gz" \
             | tar -xz
           chmod +x fly
           sudo mv fly /usr/local/bin/fly
           fly --version
 
-      - name: Download flyp binary
-        run: |
-          curl -fsSL \
-            "https://github.com/fly-lang/flyc/releases/download/v${FLYC_VERSION}/flyp-${FLYC_VERSION}-linux-x86_64.tar.gz" \
-            | tar -xz
-          chmod +x flyp
-          sudo mv flyp /usr/local/bin/flyp
-          flyp --version
+      - name: Build self-host compiler
+        run: FLY=fly ./build_compiler.sh
 
-      - name: Set build type
-        shell: bash
-        if: startsWith(github.ref, 'refs/heads/release/')
-        run: echo "FLYP_PROFILE=--release" >> $GITHUB_ENV
-
-      - name: Build
-        run: flyp build ${{ env.FLYP_PROFILE }}
-
-      - name: Test
-        run: flyp test ${{ env.FLYP_PROFILE }}
+      - name: Test self-host compiler
+        run: FLY=fly ./test_compiler.sh
 
       - name: Set artifact name
         id: artifact

@@ -8,7 +8,7 @@ import fly.assert
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenDriverSuite — the compiler front (Driver + Frontend), exercised
-// IN-PROCESS (the old shell driver_test.sh spawned the `flyc` binary + clang; a
+// IN-PROCESS (the old shell driver_test.sh spawned the `fly` binary + clang; a
 // Fly suite calls Frontend.compile / Driver helpers directly). Covers the same
 // behaviour: a valid program → exit 0 + emitted IR; a malformed one → exit 1;
 // --no-output → exit 0 + no file; the output-path / module-name helpers.

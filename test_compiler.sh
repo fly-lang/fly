@@ -11,7 +11,9 @@ set -uo pipefail
 cd "$(dirname "$0")"
 
 FLY="${FLY:-../fly/cmake-build-relwithdebinfo/bin/fly}"
-OUT=target/debug
+# Scratch for per-suite test binaries/logs; under build/ but separate from
+# build/bin so it doesn't sit next to the release artifact.
+OUT=build/test
 STD=std/lib
 mkdir -p "$OUT"
 

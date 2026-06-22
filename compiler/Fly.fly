@@ -1,4 +1,4 @@
-namespace flyc.main
+namespace fly.compiler
 
 import fly.compiler.driver.*
 import fly.os.env
@@ -7,7 +7,7 @@ import fly.os.env
 // Fly — the self-host compiler entry point, a 1:1 port of fly/compiler/Fly.cpp.
 // Reads the command line and hands off to the Driver. `--src-dir compiler` indexes
 // this file into every build, but each `main` lives in its own namespace
-// (flyc.main.main vs a test's main), so the entry file's main becomes the C entry
+// (fly.compiler.main vs a test's main), so the entry file's main becomes the C entry
 // and the others are just ordinary functions — no symbol clash.
 //
 // NOTE: in the reference toolchain an `int main()` entry and a `fail` inside main

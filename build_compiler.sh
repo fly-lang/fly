@@ -15,7 +15,9 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 FLY="${FLY:-../fly/cmake-build-relwithdebinfo/bin/fly}"
-OUT=target/debug
+# build/bin is the release-artifact path the workflows (build-linux.yml →
+# release.yml) upload and package; keep emitting the `fly` binary there.
+OUT=build/bin
 STD=std/lib
 mkdir -p "$OUT"
 
@@ -24,3 +26,4 @@ mkdir -p "$OUT"
     -o fly --out-dir "$OUT" -L "$STD"
 
 echo "fly -> $OUT/fly"
+

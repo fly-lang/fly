@@ -1,20 +1,23 @@
 name: Build Windows
 
+# ─────────────────────────────────────────────────────────────────────────────
+# TEMPORARILY DISABLED — the self-host compiler is only validated on Linux for
+# now. Auto-triggers are removed (manual workflow_dispatch only) and the job is
+# gated behind `if: false` so it never executes. Re-enable by restoring the
+# push/workflow_call triggers and removing the `if: false` guard once the
+# Windows toolchain path is ported.
+# ─────────────────────────────────────────────────────────────────────────────
+
 on:
-  workflow_call:
-  push:
-    paths-ignore:
-      - '.github/workflows/**'
-    branches:
-      - release/*
   workflow_dispatch:
 
 env:
-  FLYC_VERSION: "0.12.3"
+  FLY_VERSION: "0.13.5"
 
 jobs:
 
   build-windows:
+    if: false
     runs-on: windows-latest
 
     steps:
@@ -23,10 +26,10 @@ jobs:
       - name: Install LLVM 20
         run: choco install llvm --version=20.1.8 -y
 
-      - name: Download flyc binary
+      - name: Download fly binary
         shell: pwsh
         run: |
-          $url = "https://github.com/fly-lang/flyc/releases/download/v$env:FLYC_VERSION/fly-$env:FLYC_VERSION-win-x64.zip"
+          $url = "https://github.com/fly-lang/fly/releases/download/v$env:FLY_VERSION/fly-$env:FLY_VERSION-win-x64.zip"
           Invoke-WebRequest -Uri $url -OutFile fly.zip
           Expand-Archive fly.zip -DestinationPath fly-bin
           Copy-Item fly-bin\fly.exe -Destination "$env:SystemRoot\system32\fly.exe"
@@ -35,7 +38,7 @@ jobs:
       - name: Download flyp binary
         shell: pwsh
         run: |
-          $url = "https://github.com/fly-lang/flyc/releases/download/v$env:FLYC_VERSION/flyp-$env:FLYC_VERSION-win-x64.zip"
+          $url = "https://github.com/fly-lang/fly/releases/download/v$env:FLY_VERSION/flyp-$env:FLY_VERSION-win-x64.zip"
           Invoke-WebRequest -Uri $url -OutFile flyp.zip
           Expand-Archive flyp.zip -DestinationPath flyp-bin
           Copy-Item flyp-bin\flyp.exe -Destination "$env:SystemRoot\system32\flyp.exe"
