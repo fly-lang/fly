@@ -1,0 +1,69 @@
+namespace fly.compiler.codegen.test.str
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+import fly.mem
+import fly.llvm
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenStringSuite — string literal lowering: `string` = %string { ptr, i64 };
+// a literal becomes a private [N x i8] global + a constant { ptr, len }. Faithful
+// port of fly/test/CodeGen/CodeGenStringTest.cpp (CGDefaultStringLocalVar /
+// CGDefaultStringLocalVarAssignValue — the literal cases).
+//
+// Fly keeps string escapes RAW (`"a\"b"` stays `a\"b`), so the inner program's
+// quote is built at runtime via fly.llvm.strPoke + strMake (`dquote`).
+//
+// DEFERRED (needs the string runtime / fly.llvm intrinsic lowering): CGString-
+// ConcatNonConst / CGStringConcatConst / CGStringReassignConcat.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// dquote — a one-character string containing a double-quote (byte 34).
+public string dquote() {
+    long buf = fly.mem.alloc(1)
+    byte q = 34
+    fly.llvm.strPoke(buf, 0, q)
+    string s = ""
+    fly.llvm.strMake(buf, 1, s)
+    out = s
+}
+
+public string cgIR(const string src) {
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 91)
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(ctx.getReg())
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 92)
+    cgm.emitIR("/tmp/cg/suite.ll")
+    out = fly.os.fs.readStr("/tmp/cg/suite.ll")
+}
+
+suite CodeGenStringSuite {
+
+    void literalTest() {
+        case "string literal → %string type + private byte global": {
+            string Q = dquote()
+            string a = fly.str.concat("void main() { string s = ", Q)
+            string b = fly.str.concat(a, "hello")
+            string c = fly.str.concat(b, Q)
+            string src = fly.str.concat(c, " }")
+            string ir = cgIR(src)
+            assert.assertTrue(fly.str.contains(ir, "%string = type { ptr, i64 }"), 11)
+            assert.assertTrue(fly.str.contains(ir, "hello"), 12)
+        }
+    }
+}

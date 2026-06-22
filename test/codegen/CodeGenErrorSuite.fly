@@ -1,0 +1,49 @@
+namespace fly.compiler.codegen.test.err
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenErrorSuite — error handling over the shared %error struct: `fail` writes
+// the struct + ret void (early return); `handle` runs the guarded block then
+// clears the error code. Faithful port of fly/test/CodeGen/CodeGenErrorTest.cpp
+// (CGErrorHandler / CGErrorFail0..4 — the integer-code + handle subset).
+//
+// DEFERRED: string/obj fail operands beyond code, automatic cross-call propagation.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public string cgIR(const string src) {
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 91)
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(ctx.getReg())
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 92)
+    cgm.emitIR("/tmp/cg/suite.ll")
+    out = fly.os.fs.readStr("/tmp/cg/suite.ll")
+}
+
+suite CodeGenErrorSuite {
+
+    void failHandleTest() {
+        case "%error struct; fail writes code + ret void; handle clears the code": {
+            string ir = cgIR("int classify(const int n) { out = 0  if n < 0 { fail 7 }  out = n }  int main() { int neg = 0 - 1  int a = 0  handle { a = classify(neg) }  int b = classify(5)  out = a + b }")
+            assert.assertTrue(fly.str.contains(ir, "%error = type"), 11)
+            assert.assertTrue(fly.str.contains(ir, "store i32 7"), 12)        // fail 7 → error.code
+            assert.assertTrue(fly.str.contains(ir, "ecode"), 13)              // GEP to error.code
+        }
+    }
+}

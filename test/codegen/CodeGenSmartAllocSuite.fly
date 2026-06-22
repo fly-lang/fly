@@ -1,0 +1,24 @@
+namespace fly.compiler.codegen.test.smartalloc
+
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenSmartAllocSuite — PLACEHOLDER. Faithful port of fly/test/CodeGen/
+// CodeGenSmartAllocTest.cpp is DEFERRED: `new unique/shared/weak` aren't parsed
+// in the self-host and genNew treats every `new` as a plain malloc (no refcount,
+// no this-adjusting copy semantics). The non-escaping plain-`new` free case IS
+// covered in CodeGenAllocSuite.
+//
+// Reference scenarios to port once smart pointers exist (CodeGenSmartAllocTest.cpp):
+//   CGUniqueSmartAlloc, CGUniqueSmartAllocLate, CGSharedSmartAlloc,
+//   CGSharedSmartAllocCopy, CGUniqueNestedScopeCleanup, CGSharedNestedScopeCopy,
+//   CGUniqueSmartAllocCopyError, CGWeakSmartAlloc, CGWeakSmartAllocCopy.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite CodeGenSmartAllocSuite {
+    void deferredTest() {
+        case "unique/shared/weak smart pointers — DEFERRED (not parsed)": {
+            assert.assertTrue(true, 1)
+        }
+    }
+}

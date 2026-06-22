@@ -1,0 +1,21 @@
+namespace fly.compiler.codegen.test.iface
+
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenInterfaceSuite — PLACEHOLDER. Faithful port of fly/test/CodeGen/
+// CodeGenInterfaceTest.cpp is DEFERRED: interfaces are not implemented in the
+// self-host (no interface vtable / extends-interface lowering).
+//
+// Reference scenarios to port (CodeGenInterfaceTest.cpp):
+//   CGInterface, CGClassImplementsInterface (+ CGClassExtendsInterface /
+//   CGClassExtendsStructAndInterface from CodeGenClassTest.cpp).
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite CodeGenInterfaceSuite {
+    void deferredTest() {
+        case "interfaces — DEFERRED (not implemented)": {
+            assert.assertTrue(true, 1)
+        }
+    }
+}

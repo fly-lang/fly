@@ -1,0 +1,56 @@
+namespace fly.compiler.codegen.test.func
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenFunctionSuite — function lowering: the out-param calling convention,
+// parameters, direct calls, recursion, and the C-ABI `main` wrapper. Faithful
+// port of fly/test/CodeGen/CodeGenBaseTest.cpp (CGFuncParamTypes / CGLocalVar* /
+// CGFuncCall / CGFuncCallWithParams / CGMain).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public string cgIR(const string src) {
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 91)
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(ctx.getReg())
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 92)
+    cgm.emitIR("/tmp/cg/suite.ll")
+    out = fly.os.fs.readStr("/tmp/cg/suite.ll")
+}
+
+suite CodeGenFunctionSuite {
+
+    void declTest() {
+        case "void-returning function with out-param + ret void": {
+            string ir = cgIR("int five() { out = 5 }")
+            assert.assertTrue(fly.str.contains(ir, "define void @_F"), 11)
+            assert.assertTrue(fly.str.contains(ir, "store i32 5"), 12)
+            assert.assertTrue(fly.str.contains(ir, "ret void"), 13)
+        }
+    }
+
+    void callTest() {
+        case "calls + recursion + i32 @main wrapper": {
+            string ir = cgIR("int add(const int a, const int b) { out = a + b }  int fact(const int n) { if n <= 1 { out = 1 } else { out = n * fact(n - 1) } }  int main() { int s = add(40, 2)  int f = fact(4)  out = s }")
+            assert.assertTrue(fly.str.contains(ir, "call void @_F03add"), 21)
+            assert.assertTrue(fly.str.contains(ir, "call void @_F04fact"), 22)  // recursion
+            assert.assertTrue(fly.str.contains(ir, "define i32 @main()"), 23)
+        }
+    }
+}

@@ -1,0 +1,74 @@
+namespace fly.compiler.codegen.test.run
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenRunSuite — the end-to-end milestone PROGRAMS (complete modules with a
+// `main`) compiled + verified as whole modules, with the expected process exit
+// code documented per case. Replaces the old shell milestone_test.sh.
+//
+// NOTE: a Fly suite cannot clang-link + run a binary (no process-exec / JIT), so
+// the actual "exit == N" assertion of milestone_test.sh is NOT reproducible here.
+// What IS checked in-process: the full program codegens, verifyModule passes, and
+// the C-ABI `i32 @main()` wrapper is emitted. (The per-feature instruction-level
+// checks live in the CodeGen<Feature>Suite files.)
+// ─────────────────────────────────────────────────────────────────────────────
+
+public string cgIR(const string src) {
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 91)
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(ctx.getReg())
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 92)
+    cgm.emitIR("/tmp/cg/run.ll")
+    out = fly.os.fs.readStr("/tmp/cg/run.ll")
+}
+
+suite CodeGenRunSuite {
+
+    void programTest() {
+        case "functions + calls + recursion → would exit 42": {
+            string ir = cgIR("int add(const int a, const int b) { out = a + b }  int fact(const int n) { if n <= 1 { out = 1 } else { out = n * fact(n - 1) } }  int main() { int s = add(40, 2)  int f = fact(4)  out = s }")
+            assert.assertTrue(fly.str.contains(ir, "define i32 @main()"), 11)
+        }
+        case "class + new + virtual method → would exit 42": {
+            string ir = cgIR("public class Point { int x  int y  public Point(int a, int b) { this.x = a  this.y = b }  public int sum() { out = this.x + this.y } }  int main() { Point p = new Point(40, 2)  out = p.sum() }")
+            assert.assertTrue(fly.str.contains(ir, "define i32 @main()"), 21)
+        }
+        case "single inheritance + override dispatch → would exit 11": {
+            string ir = cgIR("public class Animal { int legs  public Animal() { this.legs = 4 }  public int sound() { out = 0 }  public int getLegs() { out = this.legs } }  public class Dog : Animal { public Dog() { this.legs = 4 }  public int sound() { out = 7 } }  int poke(Animal a) { out = a.sound() }  int main() { Dog d = new Dog()  int s = poke(d)  int l = d.getLegs()  out = s + l }")
+            assert.assertTrue(fly.str.contains(ir, "define i32 @main()"), 31)
+        }
+        case "enums → would exit 33": {
+            string ir = cgIR("public enum Color { RED, GREEN, BLUE }  int classify(const Color c) { int r = 11  if c == Color.GREEN { r = 22 } elsif c == Color.BLUE { r = 33 }  out = r }  int main() { Color c = Color.BLUE  out = classify(c) }")
+            assert.assertTrue(fly.str.contains(ir, "define i32 @main()"), 41)
+        }
+        case "fail / handle → would exit 5": {
+            string ir = cgIR("int classify(const int n) { out = 0  if n < 0 { fail 7 }  out = n }  int main() { int neg = 0 - 1  int a = 0  handle { a = classify(neg) }  int b = classify(5)  out = a + b }")
+            assert.assertTrue(fly.str.contains(ir, "define i32 @main()"), 51)
+        }
+        case "generics Wrapper<int> → would exit 42": {
+            string ir = cgIR("public class Wrapper<T> { T value  public Wrapper(const T v) { this.value = v }  public T get() { out = this.value } }  int main() { Wrapper<int> w = new Wrapper<int>(42)  out = w.get() }")
+            assert.assertTrue(fly.str.contains(ir, "define i32 @main()"), 61)
+        }
+        case "alloc tracking (free at scope exit) → would exit 42": {
+            string ir = cgIR("public class Box { int v  public Box(const int x) { this.v = x }  public int get() { out = this.v } }  int main() { Box b = new Box(42)  int r = b.get()  out = r }")
+            assert.assertTrue(fly.str.contains(ir, "define i32 @main()"), 71)
+        }
+    }
+}

@@ -1,0 +1,22 @@
+namespace fly.compiler.codegen.test.array
+
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenArraySuite — PLACEHOLDER. Faithful port of fly/test/CodeGen/
+// CodeGenArrayTest.cpp is DEFERRED: array codegen is a stub in the self-host
+// (visit(SemaArrayValue) is empty; the %array type + element GEP/load/store and
+// for-in iteration are not lowered yet).
+//
+// Reference scenarios to port once arrays are implemented (CodeGenArrayTest.cpp):
+//   CGArrayInt, CGArrayString, CGArrayClass, CGArrayAssign, CGArrayIndexRead,
+//   CGArrayIndexWrite, CGArrayLoop (for-in).
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite CodeGenArraySuite {
+    void deferredTest() {
+        case "arrays — DEFERRED (codegen stub)": {
+            assert.assertTrue(true, 1)
+        }
+    }
+}

@@ -1,0 +1,85 @@
+namespace fly.compiler.codegen.test.expr
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenExprSuite — expression lowering (values, arithmetic, comparison, cast,
+// ternary). Faithful port of the expression cases in the reference
+// fly/test/CodeGen/CodeGenBaseTest.cpp (CGBinaryExpr / CGArithOp / CGComparatorOp /
+// CGTernaryOp). Each case compiles a tiny program and asserts the key LLVM
+// instruction appears in the emitted IR (the self-host analog of the reference's
+// FileCheck), after verifyModule.
+//
+// NOTE: the codegen pipeline must run in a TOP-LEVEL free function, not a suite
+// method — the reference --test codegen SIGSEGVs when a suite method drives the
+// codegen module (a suite `case` body is fine, but a free helper keeps it DRY).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// cgIR — parse → resolve → codegen → verify → return the emitted LLVM IR text.
+// Codes 91/92 flag a parse / verify failure in the shared helper.
+public string cgIR(const string src) {
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 91)
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(ctx.getReg())
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 92)
+    cgm.emitIR("/tmp/cg/suite.ll")
+    out = fly.os.fs.readStr("/tmp/cg/suite.ll")
+}
+
+suite CodeGenExprSuite {
+
+    void arithTest() {
+        case "integer add / sub / mul / sdiv / srem": {
+            string ir = cgIR("int f(const int a, const int b) { out = a + b }  int g(const int a, const int b) { out = a - b }  int h(const int a, const int b) { out = a * b }  int d(const int a, const int b) { out = a / b }  int r(const int a, const int b) { out = a % b }")
+            assert.assertTrue(fly.str.contains(ir, "add i32"), 11)
+            assert.assertTrue(fly.str.contains(ir, "sub i32"), 12)
+            assert.assertTrue(fly.str.contains(ir, "mul i32"), 13)
+            assert.assertTrue(fly.str.contains(ir, "sdiv i32"), 14)
+            assert.assertTrue(fly.str.contains(ir, "srem i32"), 15)
+        }
+        case "float add lowers to fadd": {
+            string ir = cgIR("double f(const double a, const double b) { out = a + b }")
+            assert.assertTrue(fly.str.contains(ir, "fadd double"), 16)
+        }
+    }
+
+    void compareTest() {
+        case "signed comparisons → icmp": {
+            string ir = cgIR("bool gt(const int a, const int b) { out = a > b }  bool eq(const int a, const int b) { out = a == b }  bool le(const int a, const int b) { out = a <= b }")
+            assert.assertTrue(fly.str.contains(ir, "icmp sgt i32"), 21)
+            assert.assertTrue(fly.str.contains(ir, "icmp eq i32"), 22)
+            assert.assertTrue(fly.str.contains(ir, "icmp sle i32"), 23)
+        }
+    }
+
+    void castTest() {
+        case "int → long widening is sext": {
+            string ir = cgIR("long widen(const int n) { out = (long) n }")
+            assert.assertTrue(fly.str.contains(ir, "sext i32"), 31)
+        }
+    }
+
+    void ternaryTest() {
+        case "ternary lowers to branch + slot blocks": {
+            string ir = cgIR("int maxOf(const int a, const int b) { out = a > b ? a : b }")
+            assert.assertTrue(fly.str.contains(ir, "tern.then"), 41)
+            assert.assertTrue(fly.str.contains(ir, "tern.end"), 42)
+        }
+    }
+}

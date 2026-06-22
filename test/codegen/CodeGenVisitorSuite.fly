@@ -7,10 +7,14 @@ import fly.compiler.sema.*
 import fly.data.*
 import fly.assert
 
-// Probe — a SemaVisitor that proves base-typed accept dispatch reaches the right
-// concrete leaf. visit(SemaDeclStmt) (1-level from SemaStmt) recurses into the
-// decl's init expr, whose accept must reach visit(SemaIntValue) (3-level skip:
-// SemaIntValue→SemaValue→SemaExpr).
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenVisitorSuite — the SemaVisitor double-dispatch the whole CodeGen layer
+// rides on: a base-typed SemaStmt → visit(SemaDeclStmt), and the decl's init
+// SemaExpr → visit(SemaIntValue) (a 3-level skip SemaIntValue→SemaValue→SemaExpr).
+// This is the self-host's `accept(SemaVisitor)` wiring, not a direct C++ analog.
+// (No CodeGen here, so the walk runs inline in the case.)
+// ─────────────────────────────────────────────────────────────────────────────
+
 public class Probe : SemaVisitor {
     bool declSeen
     bool intSeen
@@ -25,7 +29,6 @@ public class Probe : SemaVisitor {
     }
     public void visit(const SemaIntValue node) { this.intSeen = true }
 
-    // remaining visit methods — no-op for this probe
     public void visit(const SemaBlockStmt node) { }
     public void visit(const SemaExprStmt node) { }
     public void visit(const SemaReturnStmt node) { }
@@ -64,23 +67,27 @@ public class Probe : SemaVisitor {
     public void visit(const SemaError node) { }
 }
 
-void main() {
-    Parser p = new Parser("int f() { int x = 5 }")
-    ASTModule m = p.parseModule("t")
-    List<ASTModule> mods = new List<ASTModule>()
-    mods.add(m)
-    SemaContext ctx = new SemaContext(null)
-    List<SemaModule> res = ctx.Resolve(mods, false)
+suite CodeGenVisitorSuite {
 
-    Registry reg = ctx.getReg()
-    List<SemaFunctionBase> bodies = reg.getBodies()
-    SemaFunctionBase fn = bodies.get(0)
-    SemaBlockStmt body = fn.getBody()
-    List<SemaStmt> content = body.getContent()
-    SemaStmt s0 = content.get(0)
+    void dispatchTest() {
+        case "accept(SemaVisitor) reaches decl + int value": {
+            Parser p = new Parser("int f() { int x = 5 }")
+            ASTModule m = p.parseModule("t")
+            List<ASTModule> mods = new List<ASTModule>()
+            mods.add(m)
+            SemaContext ctx = new SemaContext(null)
+            List<SemaModule> res = ctx.Resolve(mods, false)
+            Registry reg = ctx.getReg()
+            List<SemaFunctionBase> bodies = reg.getBodies()
+            SemaFunctionBase fn = bodies.get(0)
+            SemaBlockStmt body = fn.getBody()
+            List<SemaStmt> content = body.getContent()
+            SemaStmt s0 = content.get(0)
 
-    Probe probe = new Probe()
-    s0.accept(probe)
-    assert.assertTrue(probe.getDeclSeen(), 1)
-    assert.assertTrue(probe.getIntSeen(), 2)
+            Probe probe = new Probe()
+            s0.accept(probe)
+            assert.assertTrue(probe.getDeclSeen(), 1)
+            assert.assertTrue(probe.getIntSeen(), 2)
+        }
+    }
 }

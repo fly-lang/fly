@@ -1,0 +1,74 @@
+namespace fly.compiler.codegen.test.stmt
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenStmtSuite — statement / control-flow lowering. Faithful port of
+// fly/test/CodeGen/CodeGenBaseTest.cpp control-flow cases (CGIfBlock /
+// CGIfElseBlock / CGIfElsifElseBlock / CGSwitch / CGWhile) + local decl + break/
+// continue. The pipeline runs in the top-level free function `cgIR` (a suite
+// method driving codegen SIGSEGVs the reference --test backend).
+//
+// DEFERRED (reference cases not yet supported): CGFor (C-style for), CGForIn
+// (for-in / iterables) — needs SemaLoopInStmt codegen + arrays.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public string cgIR(const string src) {
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 91)
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(ctx.getReg())
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 92)
+    cgm.emitIR("/tmp/cg/suite.ll")
+    out = fly.os.fs.readStr("/tmp/cg/suite.ll")
+}
+
+suite CodeGenStmtSuite {
+
+    void ifTest() {
+        case "if / elsif / else → conditional branches + merge block": {
+            string ir = cgIR("int classify(const int n) { int r = 0  if n > 10 { r = 2 } elsif n > 0 { r = 1 } else { r = 0 }  out = r }")
+            assert.assertTrue(fly.str.contains(ir, "br i1"), 11)
+            assert.assertTrue(fly.str.contains(ir, "then"), 12)
+            assert.assertTrue(fly.str.contains(ir, "ifcont"), 13)
+        }
+        case "local decl allocas + stores its initializer": {
+            string ir = cgIR("int f() { int r = 7  out = r }")
+            assert.assertTrue(fly.str.contains(ir, "alloca i32"), 14)
+            assert.assertTrue(fly.str.contains(ir, "store i32 7"), 15)
+        }
+    }
+
+    void loopTest() {
+        case "while with break/continue → loop blocks + back-edge": {
+            string ir = cgIR("int sumTo(const int n) { int acc = 0  int i = 0  while i < n { i = i + 1  if i == 3 { continue }  if i > 100 { break }  acc = acc + i }  out = acc }")
+            assert.assertTrue(fly.str.contains(ir, "loopcond"), 21)
+            assert.assertTrue(fly.str.contains(ir, "loopbody"), 22)
+            assert.assertTrue(fly.str.contains(ir, "loopexit"), 23)
+            assert.assertTrue(fly.str.contains(ir, "looppost"), 24)
+        }
+    }
+
+    void switchTest() {
+        case "switch → llvm switch + case/default blocks": {
+            string ir = cgIR("int pick(const int k) { int r = 0  switch k { case 1: r = 10  case 2: r = 20  default: r = 99 }  out = r }")
+            assert.assertTrue(fly.str.contains(ir, "switch i32"), 31)
+            assert.assertTrue(fly.str.contains(ir, "swdefault"), 32)
+        }
+    }
+}

@@ -1,0 +1,47 @@
+namespace fly.compiler.codegen.test.enm
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenEnumSuite — enum lowering: each entry is its i32 index, enum vars are
+// i32, comparison via icmp. Faithful port of fly/test/CodeGen/CodeGenEnumTest.cpp
+// (CGEnum / CGEnumAccessorLiteral / CGEnumAccessorVariable).
+//
+// DEFERRED: CGEnumUnset (unset value), CGEnumList (Color.list), `.name` accessor.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public string cgIR(const string src) {
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 91)
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(ctx.getReg())
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 92)
+    cgm.emitIR("/tmp/cg/suite.ll")
+    out = fly.os.fs.readStr("/tmp/cg/suite.ll")
+}
+
+suite CodeGenEnumSuite {
+
+    void enumTest() {
+        case "entry constants (BLUE=3) + enum comparison via icmp": {
+            string ir = cgIR("public enum Color { RED, GREEN, BLUE }  int classify(const Color c) { int r = 11  if c == Color.GREEN { r = 22 } elsif c == Color.BLUE { r = 33 }  out = r }  int main() { Color c = Color.BLUE  out = classify(c) }")
+            assert.assertTrue(fly.str.contains(ir, "store i32 3"), 11)        // c = Color.BLUE
+            assert.assertTrue(fly.str.contains(ir, "icmp eq i32"), 12)        // c == Color.GREEN/BLUE
+        }
+    }
+}

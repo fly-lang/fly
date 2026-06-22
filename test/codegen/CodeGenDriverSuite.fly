@@ -1,0 +1,56 @@
+namespace fly.compiler.codegen.test.driver
+
+import fly.compiler.frontend.*
+import fly.compiler.driver.*
+import fly.os.fs
+import fly.str
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenDriverSuite — the compiler front (Driver + Frontend), exercised
+// IN-PROCESS (the old shell driver_test.sh spawned the `flyc` binary + clang; a
+// Fly suite calls Frontend.compile / Driver helpers directly). Covers the same
+// behaviour: a valid program → exit 0 + emitted IR; a malformed one → exit 1;
+// --no-output → exit 0 + no file; the output-path / module-name helpers.
+//
+// NOTE: the clang-link + run + exit-code part of driver_test.sh CANNOT run inside
+// a Fly suite (no process-exec / JIT) — it's replaced by asserting the emitted IR
+// content (the value reaches main's out). The end-to-end RUN of the compiled
+// programs is covered structurally by the per-feature CodeGen*Suite.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite CodeGenDriverSuite {
+
+    void compileTest() {
+        case "valid program → exit 0 + .ll emitted with IR": {
+            Frontend fe = new Frontend()
+            int code = fe.compile("t", "int main() { out = 42 }", "/tmp/cg/drv.ll", false)
+            assert.assertEqI(code, 0, 1)
+            assert.assertTrue(fly.os.fs.exists("/tmp/cg/drv.ll"), 2)
+            string ir = fly.os.fs.readStr("/tmp/cg/drv.ll")
+            assert.assertTrue(fly.str.contains(ir, "define"), 3)
+            assert.assertTrue(fly.str.contains(ir, "store i32 42"), 4)
+        }
+        case "malformed program → exit 1": {
+            Frontend fe = new Frontend()
+            int code = fe.compile("t", "int main( { out =", "/tmp/cg/bad.ll", false)
+            assert.assertEqI(code, 1, 11)
+        }
+        case "--no-output → exit 0 + no file written": {
+            fly.os.fs.delete("/tmp/cg/noout.ll")
+            Frontend fe = new Frontend()
+            int code = fe.compile("t", "int main() { out = 1 }", "/tmp/cg/noout.ll", true)
+            assert.assertEqI(code, 0, 21)
+            assert.assertTrue(fly.os.fs.exists("/tmp/cg/noout.ll") == false, 22)
+        }
+    }
+
+    void pathTest() {
+        case "Driver output-path + module-name helpers": {
+            Driver d = new Driver()
+            assert.assertStr(d.defaultOut("foo.fly"), "foo.ll", 31)
+            assert.assertStr(d.defaultOut("bar.txt"), "bar.txt.ll", 32)
+            assert.assertStr(d.moduleName("foo.fly"), "foo", 33)
+        }
+    }
+}

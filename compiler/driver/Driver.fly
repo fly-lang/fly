@@ -1,0 +1,100 @@
+namespace fly.compiler.driver
+
+import fly.compiler.frontend.*
+import fly.os.env
+import fly.os.fs
+import fly.os.io
+import fly.mem
+import fly.str
+import fly.llvm
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Driver — CLI front of the self-host compiler, a 1:1 port of the core of
+// fly/compiler/Driver/Driver.cpp (option parsing + Execute orchestration). Reads
+// the command line, loads the input `.fly`, and runs the Frontend, returning a
+// process exit code. Output is LLVM IR (`.ll`) — linking/object emission need a
+// process-exec/target-machine path the self-host doesn't have yet (the user links
+// the .ll with clang, as the milestone harness does).
+//
+//   flyc <file.fly> [--emit-ll] [-o out.ll] [--no-output]
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class Driver {
+
+    public Driver() { }
+
+    public int run(const fly.os.env.StringArray args) {
+        string input = ""
+        string outPath = ""
+        bool noOutput = false
+
+        int n = args.count
+        int i = 1                       // skip argv[0] (program name)
+        while i < n {
+            string a = this.argAt(args, i)
+            if fly.str.equals(a, "-o") {
+                i = i + 1
+                if i < n { outPath = this.argAt(args, i) }
+            } elsif fly.str.equals(a, "--emit-ll") {
+                // LLVM IR is the only emit mode; flag accepted for parity.
+            } elsif fly.str.equals(a, "--no-output") {
+                noOutput = true
+            } elsif fly.str.startsWith(a, "-") {
+                fly.os.io.printErrLn(fly.str.concat("warning: ignoring unknown option ", a))
+            } else {
+                if fly.str.isEmpty(input) { input = a }
+            }
+            i = i + 1
+        }
+
+        if fly.str.isEmpty(input) {
+            fly.os.io.printErrLn("usage: flyc <file.fly> [--emit-ll] [-o out.ll] [--no-output]")
+            out = 1
+            return
+        }
+
+        string src = fly.os.fs.readStr(input)
+        if fly.str.isEmpty(src) {
+            fly.os.io.printErrLn(fly.str.concat("error: cannot read input file: ", input))
+            out = 1
+            return
+        }
+
+        if fly.str.isEmpty(outPath) { outPath = this.defaultOut(input) }
+        string name = this.moduleName(input)
+
+        Frontend fe = new Frontend()
+        out = fe.compile(name, src, outPath, noOutput)
+    }
+
+    // argAt — read argv[i] from the StringArray's 16-byte {ptr,len} slots.
+    public string argAt(const fly.os.env.StringArray args, const int i) {
+        long base = args.items
+        long ptr = fly.mem.readLong(base, i * 16)
+        int len = fly.mem.readInt(base, i * 16 + 8)
+        string s = ""
+        fly.llvm.strMake(ptr, len, s)
+        out = s
+    }
+
+    // defaultOut — `<input>.fly` → `<input>.ll`, else append `.ll`.
+    public string defaultOut(const string input) {
+        if fly.str.endsWith(input, ".fly") {
+            int L = fly.str.len(input)
+            string base = fly.str.substring(input, 0, L - 4)
+            out = fly.str.concat(base, ".ll")
+        } else {
+            out = fly.str.concat(input, ".ll")
+        }
+    }
+
+    // moduleName — the input path minus a trailing `.fly` extension.
+    public string moduleName(const string input) {
+        if fly.str.endsWith(input, ".fly") {
+            int L = fly.str.len(input)
+            out = fly.str.substring(input, 0, L - 4)
+        } else {
+            out = input
+        }
+    }
+}

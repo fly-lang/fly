@@ -1,0 +1,46 @@
+namespace fly.compiler.codegen.test.generics
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenGenericsSuite — generics: a generic TEMPLATE emits no IR; each concrete
+// specialization is emitted with a mangled name (Wrapper<int> → %.Wrapper_int,
+// @Wrapper_int__…). No direct C++ analog in fly/test/CodeGen (generics codegen is
+// exercised through the self-host monomorphization path).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public string cgIR(const string src) {
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 91)
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(ctx.getReg())
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 92)
+    cgm.emitIR("/tmp/cg/suite.ll")
+    out = fly.os.fs.readStr("/tmp/cg/suite.ll")
+}
+
+suite CodeGenGenericsSuite {
+
+    void specializationTest() {
+        case "Wrapper<int> specialization emitted with a mangled name": {
+            string ir = cgIR("public class Wrapper<T> { T value  public Wrapper(const T v) { this.value = v }  public T get() { out = this.value } }  int main() { Wrapper<int> w = new Wrapper<int>(42)  out = w.get() }")
+            assert.assertTrue(fly.str.contains(ir, "%.Wrapper_int = type { ptr, i32 }"), 11)
+            assert.assertTrue(fly.str.contains(ir, "@Wrapper_int__"), 12)
+        }
+    }
+}

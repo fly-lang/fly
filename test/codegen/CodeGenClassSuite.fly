@@ -1,0 +1,67 @@
+namespace fly.compiler.codegen.test.cls
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenClassSuite — class lowering: struct layout (vtable ptr + fields), the
+// constructor, `new` (malloc + vtable store + ctor call), member access (GEP),
+// and method calls via vtable dispatch. Faithful port of
+// fly/test/CodeGen/CodeGenClassTest.cpp (CGClassAttributes / CGClassGetterMethod /
+// CGClassSetterMethod).
+//
+// DEFERRED (reference cases not yet supported): CGClassStaticAttributes /
+// CGClassStaticMethods (statics), CGAbstractClass, CGFinalClass.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public string cgIR(const string src) {
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 91)
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(ctx.getReg())
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 92)
+    cgm.emitIR("/tmp/cg/suite.ll")
+    out = fly.os.fs.readStr("/tmp/cg/suite.ll")
+}
+
+suite CodeGenClassSuite {
+
+    void layoutTest() {
+        case "struct = { vtable ptr, fields } + per-class vtable global": {
+            string ir = cgIR("public class Point { int x  int y  public Point(int a, int b) { this.x = a  this.y = b }  public int sum() { out = this.x + this.y } }  int main() { Point p = new Point(40, 2)  int s = p.sum()  out = s }")
+            assert.assertTrue(fly.str.contains(ir, "%.Point = type { ptr, i32, i32 }"), 11)
+            assert.assertTrue(fly.str.contains(ir, "@vtable..Point"), 12)
+        }
+    }
+
+    void newTest() {
+        case "new → malloc + vtable store + ctor call": {
+            string ir = cgIR("public class Point { int x  int y  public Point(int a, int b) { this.x = a  this.y = b }  public int sum() { out = this.x + this.y } }  int main() { Point p = new Point(40, 2)  int s = p.sum()  out = s }")
+            assert.assertTrue(fly.str.contains(ir, "@malloc"), 21)
+            assert.assertTrue(fly.str.contains(ir, "store ptr @vtable..Point"), 22)
+            assert.assertTrue(fly.str.contains(ir, "call void @Point__"), 23)
+        }
+    }
+
+    void memberTest() {
+        case "this.field access → struct GEP; method via vtable load": {
+            string ir = cgIR("public class Point { int x  int y  public Point(int a, int b) { this.x = a  this.y = b }  public int sum() { out = this.x + this.y } }  int main() { Point p = new Point(40, 2)  int s = p.sum()  out = s }")
+            assert.assertTrue(fly.str.contains(ir, "getelementptr inbounds nuw %.Point"), 31)
+            assert.assertTrue(fly.str.contains(ir, "getelementptr ptr"), 32)  // vtable slot
+        }
+    }
+}

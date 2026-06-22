@@ -1,0 +1,21 @@
+namespace fly.compiler.codegen.test.debuginfo
+
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenDebugInfoSuite — PLACEHOLDER. Faithful port of fly/test/CodeGen/
+// CodeGenDebugInfoTest.cpp is DEFERRED: the self-host emits no DWARF debug info
+// (no DIBuilder / !dbg metadata), and the backend pass pipeline (BackendUtil) is
+// not ported — IR is emitted as text and lowered by clang.
+//
+// Reference scenarios to port once debug info exists (CodeGenDebugInfoTest.cpp):
+//   the 14 DWARF metadata cases (compile unit, functions, locals, types, lines).
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite CodeGenDebugInfoSuite {
+    void deferredTest() {
+        case "DWARF debug info — DEFERRED (not emitted)": {
+            assert.assertTrue(true, 1)
+        }
+    }
+}

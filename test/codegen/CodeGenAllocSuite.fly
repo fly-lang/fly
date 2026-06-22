@@ -1,0 +1,48 @@
+namespace fly.compiler.codegen.test.alloc
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenAllocSuite — allocation tracking: a `new`-bound class-handle local is
+// freed (libc free) at scope exit. Faithful port of the non-escaping case of
+// fly/test/CodeGen/CodeGenSmartAllocTest.cpp.
+//
+// DEFERRED (in CodeGenSmartAllocSuite placeholder): unique/shared/weak smart
+// pointers (not parsed in the self-host), refcount, escape analysis.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public string cgIR(const string src) {
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 91)
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(ctx.getReg())
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 92)
+    cgm.emitIR("/tmp/cg/suite.ll")
+    out = fly.os.fs.readStr("/tmp/cg/suite.ll")
+}
+
+suite CodeGenAllocSuite {
+
+    void scopeExitFreeTest() {
+        case "non-escaping new'd handle freed via @free at scope exit": {
+            string ir = cgIR("public class Box { int v  public Box(const int x) { this.v = x }  public int get() { out = this.v } }  int main() { Box b = new Box(42)  int r = b.get()  out = r }")
+            assert.assertTrue(fly.str.contains(ir, "@malloc"), 11)
+            assert.assertTrue(fly.str.contains(ir, "call void @free"), 12)
+        }
+    }
+}

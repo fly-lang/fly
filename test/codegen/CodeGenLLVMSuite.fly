@@ -1,0 +1,63 @@
+namespace fly.compiler.codegen.test.llvm
+
+import llvm.api.*
+import fly.compiler.codegen.*
+import fly.mem
+import fly.data.List
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenLLVMSuite — the CodeGenLLVM array-marshalling layer (the `*N` helpers
+// that pack handle addresses into a buffer, since the CLang bridge can't pass
+// multi-element pointer arrays). Builds a real `int add(int,int)` via
+// functionTypeN and asserts the module verifies. No direct C++ analog — this is
+// the self-host's bridge-marshalling workaround.
+//
+// NOTE: this drives the LLVM C API + fly.mem.Ptr directly; that must live in a
+// top-level free function (`buildAddVerifies`), not a suite method, or the
+// reference --test backend SIGSEGVs.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// buildAddVerifies — build `i32 add(i32,i32)` through CodeGenLLVM's marshalled
+// functionTypeN and return whether the module passes verifyModule.
+public bool buildAddVerifies() {
+    CodeGenLLVM cg = new CodeGenLLVM()
+    LLVM llvm = cg.getLLVM()
+    fly.mem.Ptr ctx
+    llvm.contextCreate(ctx)
+    fly.mem.Ptr mod
+    llvm.moduleCreateWithNameInContext("m", ctx, mod)
+    fly.mem.Ptr i32
+    llvm.int32TypeInContext(ctx, i32)
+    List<long> params = new List<long>()
+    params.add(i32.addr)
+    params.add(i32.addr)
+    fly.mem.Ptr fnTy
+    cg.functionTypeN(i32, params, false, fnTy)
+    fly.mem.Ptr fn
+    llvm.addFunction(mod, "add", fnTy, fn)
+    fly.mem.Ptr entry
+    llvm.appendBasicBlockInContext(ctx, fn, "entry", entry)
+    fly.mem.Ptr b
+    llvm.createBuilderInContext(ctx, b)
+    llvm.positionBuilderAtEnd(b, entry)
+    fly.mem.Ptr a0
+    llvm.getParam(fn, 0, a0)
+    fly.mem.Ptr a1
+    llvm.getParam(fn, 1, a1)
+    fly.mem.Ptr sum
+    llvm.buildAdd(b, a0, a1, "sum", sum)
+    fly.mem.Ptr ret
+    llvm.buildRet(b, sum, ret)
+    bool ok = false
+    llvm.verifyModule(mod, ok)
+    out = ok
+}
+
+suite CodeGenLLVMSuite {
+    void marshalTest() {
+        case "functionTypeN marshalling builds a verifiable int add(int,int)": {
+            assert.assertTrue(buildAddVerifies(), 1)
+        }
+    }
+}

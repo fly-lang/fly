@@ -1,0 +1,21 @@
+namespace fly.compiler.codegen.test.struct
+
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenStructSuite — PLACEHOLDER. Faithful port of fly/test/CodeGen/
+// CodeGenStructTest.cpp is DEFERRED: struct-value codegen is a stub
+// (visit(SemaStructValue) is empty; stack-allocated struct literals + field
+// init are not lowered yet).
+//
+// Reference scenarios to port (CodeGenStructTest.cpp):
+//   CGStruct, CGStructFieldInit, CGStructAssign, CGStructNested.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite CodeGenStructSuite {
+    void deferredTest() {
+        case "structs — DEFERRED (codegen stub)": {
+            assert.assertTrue(true, 1)
+        }
+    }
+}

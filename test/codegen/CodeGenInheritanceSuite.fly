@@ -1,0 +1,58 @@
+namespace fly.compiler.codegen.test.inherit
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenInheritanceSuite — single inheritance (flattened layout + per-class
+// vtable with overrides in-place) + virtual dispatch through a base-typed
+// receiver. Faithful port of fly/test/CodeGen/CodeGenClassTest.cpp
+// (CGClassExtendsClass / CGClassBaseFieldAccess / CGClassOverrideDispatch).
+//
+// DEFERRED: CGClassMultiLevelUpcast / CGClassUpcastBaseFieldWrite (multiple
+// inheritance, secondary vtables + this-adjusting thunks), CGClassExtendsStruct /
+// CGClassExtendsInterface, super calls.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public string cgIR(const string src) {
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 91)
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(ctx.getReg())
+    bool ok = false
+    cgm.verify(ok)
+    assert.assertTrue(ok, 92)
+    cgm.emitIR("/tmp/cg/suite.ll")
+    out = fly.os.fs.readStr("/tmp/cg/suite.ll")
+}
+
+suite CodeGenInheritanceSuite {
+
+    void overrideTest() {
+        case "derived overrides base method in its vtable (override dispatch)": {
+            string ir = cgIR("public class Animal { int legs  public Animal() { this.legs = 4 }  public int sound() { out = 0 }  public int getLegs() { out = this.legs } }  public class Dog : Animal { public Dog() { this.legs = 4 }  public int sound() { out = 7 } }  int poke(Animal a) { out = a.sound() }  int main() { Dog d = new Dog()  int s = poke(d)  int l = d.getLegs()  out = s + l }")
+            assert.assertTrue(fly.str.contains(ir, "@vtable..Animal"), 11)
+            assert.assertTrue(fly.str.contains(ir, "@vtable..Dog"), 12)
+            // Dog's vtable holds the overriding Dog sound + the inherited Animal getLegs
+            assert.assertTrue(fly.str.contains(ir, "@Dog__F05sound"), 13)
+            assert.assertTrue(fly.str.contains(ir, "@Animal__F07getLegs"), 14)
+        }
+        case "base-typed receiver dispatches through the loaded vtable": {
+            string ir = cgIR("public class Animal { int legs  public Animal() { this.legs = 4 }  public int sound() { out = 0 } }  public class Dog : Animal { public Dog() { this.legs = 4 }  public int sound() { out = 7 } }  int poke(Animal a) { out = a.sound() }  int main() { Dog d = new Dog()  out = poke(d) }")
+            assert.assertTrue(fly.str.contains(ir, "getelementptr ptr"), 21)  // vtable slot GEP
+            assert.assertTrue(fly.str.contains(ir, "call void %"), 22)        // indirect call
+        }
+    }
+}
