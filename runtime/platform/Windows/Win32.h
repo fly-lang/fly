@@ -47,6 +47,45 @@ WIN32_IMPORT BOOL   WINAPI WriteFile(HANDLE hFile, LPCVOID lpBuffer,
 /* Process / thread */
 WIN32_IMPORT void   WINAPI ExitProcess(DWORD uExitCode);
 
+/* CreateProcessA + wait/exit-code (for proc_exec) */
+typedef struct {
+    DWORD  cb;
+    char  *lpReserved;
+    char  *lpDesktop;
+    char  *lpTitle;
+    DWORD  dwX;            DWORD dwY;
+    DWORD  dwXSize;        DWORD dwYSize;
+    DWORD  dwXCountChars;  DWORD dwYCountChars;
+    DWORD  dwFillAttribute;
+    DWORD  dwFlags;
+    unsigned short wShowWindow;
+    unsigned short cbReserved2;
+    void  *lpReserved2;
+    HANDLE hStdInput;
+    HANDLE hStdOutput;
+    HANDLE hStdError;
+} STARTUPINFOA;
+
+typedef struct {
+    HANDLE hProcess;
+    HANDLE hThread;
+    DWORD  dwProcessId;
+    DWORD  dwThreadId;
+} PROCESS_INFORMATION;
+
+WIN32_IMPORT BOOL  WINAPI CreateProcessA(const char *lpApplicationName,
+                                         char *lpCommandLine,
+                                         LPVOID lpProcessAttributes,
+                                         LPVOID lpThreadAttributes,
+                                         BOOL bInheritHandles,
+                                         DWORD dwCreationFlags,
+                                         LPVOID lpEnvironment,
+                                         const char *lpCurrentDirectory,
+                                         STARTUPINFOA *lpStartupInfo,
+                                         PROCESS_INFORMATION *lpProcessInformation);
+WIN32_IMPORT DWORD WINAPI WaitForSingleObject(HANDLE hHandle, DWORD dwMilliseconds);
+WIN32_IMPORT BOOL  WINAPI GetExitCodeProcess(HANDLE hProcess, LPDWORD lpExitCode);
+
 typedef DWORD (WINAPI *LPTHREAD_START_ROUTINE)(LPVOID lpThreadParameter);
 
 WIN32_IMPORT HANDLE WINAPI CreateThread(LPVOID lpThreadAttributes,

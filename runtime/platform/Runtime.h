@@ -72,6 +72,11 @@ i64 io_write(i32 fd, const void *buf, usize count);
  * Never returns. */
 FLY_NORETURN void proc_exit(i32 code);
 
+/* Spawn 'path' with the NULL-terminated 'argv', inheriting the current
+ * environment, and block until it finishes. Returns the child's exit code
+ * (0..255), 128+signo if it was killed by a signal, or -1 on spawn failure. */
+i32 proc_exec(const char *path, char *const argv[]);
+
 /* ── Threads ─────────────────────────────────────────────────────────────── */
 
 /* Spawn a new thread that executes fn(arg).

@@ -10,6 +10,9 @@ public void io_write(const int fd, const long buf, const ulong count, long out) 
 
 // ── Process (Runtime.h) ─────────────────────────────────────────────────────
 public void proc_exit(const int code) {}
+// proc_exec: spawn 'path' (C-string ptr) with 'argv' (NULL-terminated char** ptr),
+// inheriting the environment; blocks until done. out = exit code (0..255), -1 on failure.
+public void proc_exec(const long path, const long argv, int out) {}
 
 // ── Threads (Runtime.h) ─────────────────────────────────────────────────────
 public void thread_spawn(const long fn, const long arg, const ulong stackSize, int out) {}

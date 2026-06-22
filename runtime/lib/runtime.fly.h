@@ -7,6 +7,7 @@ public mem_realloc(const long ptr, const ulong newSize, long out)
 public io_write(const int fd, const long buf, const ulong count, long out)
 
 public proc_exit(const int code)
+public proc_exec(const long path, const long argv, int out)
 
 public thread_spawn(const long fn, const long arg, const ulong stackSize, int out)
 public futex_wait(const long addr, const int expected)

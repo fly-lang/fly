@@ -83,6 +83,20 @@ static std::string typeStr(const ASTType *T) {
             if (!name.empty()) name += ".";
             name += N->getName().str();
         }
+        // Preserve generic type arguments so a header'd `List<string>` parameter
+        // stays instantiable (without this the `<string>` is dropped and the
+        // generic class can't be resolved at the call site).
+        const auto &Args = NT->getTypeArgs();
+        if (!Args.empty()) {
+            name += "<";
+            bool first = true;
+            for (const auto *A : Args) {
+                if (!first) name += ", ";
+                name += typeStr(A);
+                first = false;
+            }
+            name += ">";
+        }
         return name;
     }
     return "";

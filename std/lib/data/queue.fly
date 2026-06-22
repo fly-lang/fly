@@ -3,109 +3,105 @@ namespace fly.data
 import fly.llvm
 import fly.runtime
 
-public class Queue {
-    long ptr
+// Queue<T> — FIFO over a power-of-two circular buffer, the Fly analog of
+// C++ std::queue<T>. Ownership: enqueue deep-clones owned values (string);
+// dequeue transfers ownership to the caller; free releases live elements.
+public class Queue<T> {
+    long items
+    int head
+    int tail
+    int len
+    int cap
+    int stride
 
     public Queue() {
-        long p = 0
-        fly.runtime.mem_alloc(24, p)
-        fly.llvm.memset(p, 0, 24)
-        long items = 0
-        fly.runtime.mem_alloc(8 * 8, items)
-        fly.llvm.ptrPokeLong(p, 0, items)
-        fly.llvm.ptrPokeInt(p, 20, 8)
-        this.ptr = p
+        this.items = 0
+        this.head = 0
+        this.tail = 0
+        this.len = 0
+        this.cap = 0
+        this.stride = 0
     }
 
-    public void enqueue(const long val) {
-        int len = 0
-        fly.llvm.ptrReadInt(this.ptr, 16, len)
-        int cap = 0
-        fly.llvm.ptrReadInt(this.ptr, 20, cap)
-        if len >= cap {
-            int head = 0
-            fly.llvm.ptrReadInt(this.ptr, 8, head)
-            long items = 0
-            fly.llvm.ptrReadLong(this.ptr, 0, items)
-            int newcap = cap * 2
+    public void enqueue(const T val) {
+        if this.stride == 0 {
+            int s = 0
+            fly.llvm.slotSizeT(val, s)
+            this.stride = s
+        }
+        if this.items == 0 {
             long ni = 0
-            fly.runtime.mem_alloc(newcap * 8, ni)
+            fly.runtime.mem_alloc(8 * this.stride, ni)
+            this.items = ni
+            this.cap = 8
+        }
+        if this.len >= this.cap {
+            int newcap = this.cap * 2
+            long ni = 0
+            fly.runtime.mem_alloc(newcap * this.stride, ni)
             int gi = 0
-            while gi < len {
-                int idx = (head + gi) & (cap - 1)
-                long v = 0
-                fly.llvm.ptrReadLong(items, idx * 8, v)
-                fly.llvm.ptrPokeLong(ni, gi * 8, v)
+            while gi < this.len {
+                int idx = (this.head + gi) & (this.cap - 1)
+                long srcoff = idx * this.stride
+                long dstoff = gi * this.stride
+                long src = this.items + srcoff
+                long dst = ni + dstoff
+                long nb = this.stride
+                fly.llvm.memcpy(dst, src, nb)
                 gi = gi + 1
             }
-            fly.runtime.mem_free(items, cap * 8)
-            fly.llvm.ptrPokeLong(this.ptr, 0, ni)
-            fly.llvm.ptrPokeInt(this.ptr, 8, 0)
-            fly.llvm.ptrPokeInt(this.ptr, 12, len)
-            fly.llvm.ptrPokeInt(this.ptr, 20, newcap)
-            cap = newcap
+            fly.runtime.mem_free(this.items, this.cap * this.stride)
+            this.items = ni
+            this.head = 0
+            this.tail = this.len
+            this.cap = newcap
         }
-        long items = 0
-        fly.llvm.ptrReadLong(this.ptr, 0, items)
-        int tail = 0
-        fly.llvm.ptrReadInt(this.ptr, 12, tail)
-        fly.llvm.ptrPokeLong(items, tail * 8, val)
-        int newtail = (tail + 1) & (cap - 1)
-        fly.llvm.ptrPokeInt(this.ptr, 12, newtail)
-        fly.llvm.ptrPokeInt(this.ptr, 16, len + 1)
+        fly.llvm.slotPokeT(this.items, this.tail * this.stride, val)
+        this.tail = (this.tail + 1) & (this.cap - 1)
+        this.len = this.len + 1
     }
 
-    public long dequeue() {
-        int len = 0
-        fly.llvm.ptrReadInt(this.ptr, 16, len)
-        if len == 0 {
-            out = 0
+    public T dequeue() {
+        if this.len == 0 {
+            T def
+            out = def
             return
         }
-        long items = 0
-        fly.llvm.ptrReadLong(this.ptr, 0, items)
-        int head = 0
-        fly.llvm.ptrReadInt(this.ptr, 8, head)
-        int cap = 0
-        fly.llvm.ptrReadInt(this.ptr, 20, cap)
-        fly.llvm.ptrReadLong(items, head * 8, out)
-        int newhead = (head + 1) & (cap - 1)
-        fly.llvm.ptrPokeInt(this.ptr, 8, newhead)
-        fly.llvm.ptrPokeInt(this.ptr, 16, len - 1)
+        fly.llvm.slotReadT(this.items, this.head * this.stride, out)
+        T probe
+        fly.llvm.slotFreeT(this.items, this.head * this.stride, probe)
+        this.head = (this.head + 1) & (this.cap - 1)
+        this.len = this.len - 1
     }
 
-    public long peek() {
-        int len = 0
-        fly.llvm.ptrReadInt(this.ptr, 16, len)
-        if len == 0 {
-            out = 0
+    public T peek() {
+        if this.len == 0 {
+            T def
+            out = def
             return
         }
-        long items = 0
-        fly.llvm.ptrReadLong(this.ptr, 0, items)
-        int head = 0
-        fly.llvm.ptrReadInt(this.ptr, 8, head)
-        fly.llvm.ptrReadLong(items, head * 8, out)
+        fly.llvm.slotReadT(this.items, this.head * this.stride, out)
     }
 
     public bool isEmpty() {
-        int len = 0
-        fly.llvm.ptrReadInt(this.ptr, 16, len)
-        out = len == 0
+        out = this.len == 0
     }
 
     public int size() {
-        fly.llvm.ptrReadInt(this.ptr, 16, out)
+        out = this.len
     }
 
     public void free() {
-        long items = 0
-        fly.llvm.ptrReadLong(this.ptr, 0, items)
-        int cap = 0
-        fly.llvm.ptrReadInt(this.ptr, 20, cap)
-        if items != 0 {
-            fly.runtime.mem_free(items, cap * 8)
+        T probe
+        int i = 0
+        while i < this.len {
+            int idx = (this.head + i) & (this.cap - 1)
+            fly.llvm.slotFreeT(this.items, idx * this.stride, probe)
+            i = i + 1
         }
-        fly.runtime.mem_free(this.ptr, 24)
+        this.len = 0
+        if this.items != 0 {
+            fly.runtime.mem_free(this.items, this.cap * this.stride)
+        }
     }
 }

@@ -23,6 +23,7 @@
 #   fly.os.path      lib/os/path.fly
 #   fly.os.io        lib/os/io.fly
 #   fly.os.fs        lib/os/fs.fly
+#   fly.os.proc      lib/os/proc.fly
 #   fly.sync         lib/sync.fly
 #   fly.mem          lib/mem.fly
 #   fly.data         lib/data/list.fly
@@ -83,6 +84,7 @@ set(FLY_LIB_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/set.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/tree.fly
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/data/wrapper.fly
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/os/proc.fly
 )
 
 # fly --lib appends .a (Linux/macOS) or .lib (Windows-MSVC); pass the stem via -o.

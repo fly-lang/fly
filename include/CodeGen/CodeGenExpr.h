@@ -107,6 +107,8 @@ namespace fly {
 
         llvm::Value *GenStringHeapCopy(SemaStringValue *Sema);
 
+        llvm::Value *GenStringClone(llvm::Value *StrVal);
+
         llvm::Value *GenBinaryCompare(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
         llvm::Value *GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);

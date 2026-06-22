@@ -355,6 +355,46 @@ void Resolver::visit(ASTAttribute &AST) {
 	addSymbol(Sym);
 }
 
+// Find the base-class method that a derived method with the given name and
+// resolved parameter types overrides. Matches by name AND exact parameter
+// signature (walking the base's full node list and its own bases), so that
+// OVERLOADED methods — several methods sharing a name but differing in
+// parameter types, e.g. a visitor's many visit(...) overloads — each resolve to
+// the correct base override instead of collapsing to a single name-keyed entry.
+static SemaClassMethod *FindBaseOverride(SemaClassType *Base, llvm::StringRef Name,
+                                         llvm::SmallVector<SemaType *, 8> &Types) {
+	for (auto &Node : Base->getNodes()) {
+		if (Node->getKind() != SemaKind::METHOD) continue;
+		SemaClassMethod *M = static_cast<SemaClassMethod *>(Node);
+		if (M->isConstructor() || M->isStatic()) continue;
+		if (M->getName() != Name) continue;
+		llvm::SmallVector<SemaParam *, 8> &Params = M->getParams();
+		// Exclude the synthetic trailing 'out' param a non-void method carries (the
+		// out-param return convention) so the count/types match `Types`, which holds
+		// only the explicit parameters. Without this, any overriding method with a
+		// return type (e.g. string str()) fails to match its base and loses its
+		// override link — breaking virtual dispatch through the base subobject.
+		size_t Explicit = Params.size();
+		if (Explicit > 0 && M->getReturnType() && !M->getReturnType()->isVoid())
+			Explicit--;
+		if (Explicit != Types.size()) continue;
+		bool Match = true;
+		for (size_t i = 0; i < Explicit; i++) {
+			SemaType *PT = Params[i]->getType();
+			SemaType *AT = Types[i];
+			if (!AT) { if (PT && PT->isClass()) continue; Match = false; break; }
+			if (!PT || !PT->isEquals(AT)) { Match = false; break; }
+		}
+		if (Match) return M;
+	}
+	// Not declared directly on Base: search the classes Base itself extends.
+	for (auto *Super : Base->getBaseClasses()) {
+		if (SemaClassMethod *Found = FindBaseOverride(Super, Name, Types))
+			return Found;
+	}
+	return nullptr;
+}
+
 void Resolver::visit(ASTMethod &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTMethod)");
 
@@ -404,7 +444,9 @@ void Resolver::visit(ASTMethod &AST) {
 	// Check that this method does not override a final method in a base class
 	if (!Sema->isConstructor()) {
 		for (auto *Base : CurrentClass->getBaseClasses()) {
-			SemaClassMethod *BaseMethod = Base->LookupMethod(AST.getName());
+			// Match by name AND signature so overloaded methods (e.g. a visitor's
+			// many visit(...) overloads) each map to the right base method.
+			SemaClassMethod *BaseMethod = FindBaseOverride(Base, AST.getName(), Types);
 			if (BaseMethod && BaseMethod->isFinal()) {
 				Diag(AST.getLocation(), diag::err_sema_final_method_overridden)
 					<< AST.getName() << Base->getName();
@@ -558,7 +600,17 @@ void Resolver::visit(ASTEnumEntry &AST) {
 
 void Resolver::visit(ASTLocalVar &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTLocalVar)");
-	if (!AST.isVisited()) {
+
+	// In a generic specialization the method/function body AST is SHARED across all
+	// specializations, but each spec has its own scope and its own SemaLocalVar
+	// objects. The isVisited() guard (set by the first spec) would otherwise skip
+	// re-registering the local in subsequent specs' scopes, making it "not defined".
+	// Mirror the re-resolution done for ASTIdentifier/ASTMember body expressions.
+	bool IsSpecCtx = CurrentClass && CurrentClass->getGenericTemplate() != nullptr;
+	if (!IsSpecCtx && CurrentFunction && CurrentFunction->getKind() == SemaKind::FUNCTION)
+		IsSpecCtx = static_cast<SemaFunction *>(CurrentFunction)->getGenericTemplate() != nullptr;
+
+	if (!AST.isVisited() || IsSpecCtx) {
 		AST.setVisited(true);
 
 		// Resolve Type
@@ -574,10 +626,13 @@ void Resolver::visit(ASTLocalVar &AST) {
 		// Add LocalVar to the Function Base LocalVars
 		CurrentFunction->addLocalVar(Sema);
 
-		// Find Var duplication in the current scope
-		SmallVector<Symbol *, 8> *Symbols = CurrentScope->lookup(AST.getName());
-		if (Symbols) {
-			Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
+		// Find Var duplication in the current scope. Skipped under spec re-resolution:
+		// the name legitimately exists in earlier specs' scopes, not a redefinition.
+		if (!IsSpecCtx) {
+			SmallVector<Symbol *, 8> *Symbols = CurrentScope->lookup(AST.getName());
+			if (Symbols) {
+				Diag(AST.getLocation(), diag::err_sema_var_redefinition) << AST.getName();
+			}
 		}
 
 		// Add to Symbol Table
@@ -736,11 +791,9 @@ void Resolver::visit(ASTNamedType &AST) {
 		// template's library module).
 		if (!Spec->Resolved && CurrentModule)
 			CurrentModule->addNode(Spec);
-		// Save/restore CurrentScope: ResolveClassType switches to the spec's own symbol
-		// table and does not restore it, which would corrupt the caller's scope.
-		SymbolTable *SavedScope = CurrentScope;
-		ResolveClassType(Spec);
-		CurrentScope = SavedScope;
+		// Resolve the spec in an isolated context so it does not become the CurrentClass
+		// (or clobber CurrentScope/Function/etc.) of the class/body we are resolving.
+		ResolveClassTypeIsolated(Spec);
 		CurrentType = Spec;
 		return;
 	}
@@ -1639,7 +1692,16 @@ static std::string BuildCandidateSignature(SemaFunctionBase *F) {
 void Resolver::visit(ASTCall &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTCall)");
 
-	if (!AST.isVisited()) {
+	// Inside a generic specialization the body AST is shared across all specs, but each
+	// spec needs its own resolved SemaCall — especially for calls to generic functions,
+	// which must specialize on this spec's concrete argument types. The isVisited() guard
+	// (set by the first spec) would otherwise skip resolution entirely, leaving the spec
+	// body without the call. Mirror the per-spec re-resolution of identifiers/members.
+	bool IsSpecCtx = CurrentClass && CurrentClass->getGenericTemplate() != nullptr;
+	if (!IsSpecCtx && CurrentFunction && CurrentFunction->getKind() == SemaKind::FUNCTION)
+		IsSpecCtx = static_cast<SemaFunction *>(CurrentFunction)->getGenericTemplate() != nullptr;
+
+	if (!AST.isVisited() || IsSpecCtx) {
 		AST.setVisited(true);
 
 		// Save the current scope
@@ -1887,7 +1949,7 @@ void Resolver::visit(ASTCall &AST) {
 				ClassType = SemaBuilder::CreateSpecialization(OldTemplate, TypeArgs, CurrentScope);
 				if (!ClassType->Resolved && CurrentModule)
 					CurrentModule->addNode(ClassType);
-				ResolveClassType(ClassType);
+				ResolveClassTypeIsolated(ClassType);
 			}
 
 			// Cannot instantiate an abstract class
@@ -1992,12 +2054,35 @@ void Resolver::visit(ASTCall &AST) {
 				// StringRef would dangle after the temporary std::string is destroyed.
 				std::map<std::string, SemaType *> Substitution;
 				auto &TmplParams = GenericFn->getParams();
+
+				// When this call is inside a 2nd+ generic specialization, an argument's
+				// resolved type may still be the enclosing template's TypeParam (Sema
+				// types are not substituted in re-resolved shared bodies). Map such a
+				// TypeParam to the concrete type via the enclosing specialization's
+				// T→concrete binding, so the inner generic function specializes on the
+				// concrete type rather than the zero-size TypeParam.
+				SymbolTable *EnclSpecScope = nullptr;
+				if (CurrentClass && CurrentClass->getGenericTemplate() != nullptr)
+					EnclSpecScope = CurrentClass->getSymbols();
+				else if (CurrentFunction && CurrentFunction->getKind() == SemaKind::FUNCTION &&
+				         static_cast<SemaFunction *>(CurrentFunction)->getGenericTemplate() != nullptr)
+					EnclSpecScope = CurrentFunction->getSymbols();
+				auto SubstTypeParam = [&](SemaType *T) -> SemaType * {
+					if (EnclSpecScope && T && T->getKind() == SemaKind::TYPE_PARAM) {
+						if (auto *Syms = EnclSpecScope->lookup(T->getName()))
+							if (!Syms->empty())
+								if (auto *C = static_cast<SemaType *>((*Syms)[0]->getRef()))
+									return C;
+					}
+					return T;
+				};
+
 				for (size_t i = 0; i < TmplParams.size() && i < ArgTypes.size(); ++i) {
 					SemaType *PType = TmplParams[i]->getType();
 					if (PType && PType->getKind() == SemaKind::TYPE_PARAM) {
 						std::string TPName = PType->getName();
 						if (!Substitution.count(TPName))
-							Substitution[TPName] = ArgTypes[i];
+							Substitution[TPName] = SubstTypeParam(ArgTypes[i]);
 					}
 				}
 				// Build TypeArgs in declaration order
@@ -2702,6 +2787,27 @@ void Resolver::ResolveFunction(SemaFunction *Sema) {
 	ExitScope();
 }
 
+void Resolver::ResolveClassTypeIsolated(SemaClassType *Spec) {
+	// Snapshot the mutable resolution context. ResolveClassType drives a full
+	// class+member+body resolution that overwrites CurrentClass/Function/Scope/etc.
+	// and does not restore them; restoring here keeps the enclosing resolution intact.
+	SymbolTable      *SavedScope        = CurrentScope;
+	SemaClassType    *SavedClass        = CurrentClass;
+	SemaEnumType     *SavedEnum         = CurrentEnum;
+	SemaFunctionBase *SavedFunction     = CurrentFunction;
+	SemaBlockStmt    *SavedSemaBlock    = CurrentSemaBlock;
+	SemaError        *SavedErrorHandler = CurrentErrorHandler;
+
+	ResolveClassType(Spec);
+
+	CurrentScope        = SavedScope;
+	CurrentClass        = SavedClass;
+	CurrentEnum         = SavedEnum;
+	CurrentFunction     = SavedFunction;
+	CurrentSemaBlock    = SavedSemaBlock;
+	CurrentErrorHandler = SavedErrorHandler;
+}
+
 void Resolver::ResolveClassType(SemaClassType *ClassType) {
 	FLY_DEBUG_SCOPE("Resolver", "ResolveClassType");
 
@@ -3141,13 +3247,20 @@ void Resolver::PromoteTypes(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right) {
 		Right->getKind() == SemaKind::VALUE && !RightType) {
 		Right->setType(LeftType);
 
-		// Promote the inner values' types to match the struct attribute types
-		SemaClassType *ClassType = static_cast<SemaClassType *>(LeftType);
-		SemaStructValue *StructValue = static_cast<SemaStructValue *>(Right);
-		for (auto &Entry : StructValue->Values) {
-			SemaClassAttribute *Attr = ClassType->LookupAttribute(Entry.getKey());
-			if (Attr && Entry.getValue() && Attr->getType()) {
-				Entry.getValue()->setType(Attr->getType());
+		// Only a struct literal ({field = value, …}) carries named fields to promote. A plain
+		// value assigned to a class-typed lvalue (e.g. `Foo x = null`) is a SemaValue that is NOT
+		// a SemaStructValue, so the unchecked cast + Values iteration below would read garbage and
+		// crash — guard it on the AST value kind.
+		SemaValue *RightValue = static_cast<SemaValue *>(Right);
+		if (RightValue->getAST() && RightValue->getAST()->isStruct()) {
+			// Promote the inner values' types to match the struct attribute types
+			SemaClassType *ClassType = static_cast<SemaClassType *>(LeftType);
+			SemaStructValue *StructValue = static_cast<SemaStructValue *>(Right);
+			for (auto &Entry : StructValue->Values) {
+				SemaClassAttribute *Attr = ClassType->LookupAttribute(Entry.getKey());
+				if (Attr && Entry.getValue() && Attr->getType()) {
+					Entry.getValue()->setType(Attr->getType());
+				}
 			}
 		}
 	}

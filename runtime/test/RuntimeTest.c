@@ -63,6 +63,42 @@ static void test_math(void)
     if (hypot(3.0, 4.0) != 5.0) proc_exit(23);
 }
 
+/* ── process-exec test (platform-gated executables) ─────────────────────── */
+
+/* Spawn a known external command and assert its exit code. Uses paths that
+ * exist on the host OS the runtime is being built for:
+ *   Linux  — /bin/true (0), /bin/false (1)
+ *   macOS  — /usr/bin/true (0), /usr/bin/false (1)
+ *   Windows — cmd.exe /c exit N
+ * Skipped where no portable command is guaranteed. */
+static void test_proc(void)
+{
+#if defined(__linux__)
+    const char *true_path  = "/bin/true";
+    const char *false_path = "/bin/false";
+#endif
+#if defined(__APPLE__)
+    const char *true_path  = "/usr/bin/true";
+    const char *false_path = "/usr/bin/false";
+#endif
+#if defined(__linux__) || defined(__APPLE__)
+    char *const true_argv[]  = { (char *)true_path,  0 };
+    char *const false_argv[] = { (char *)false_path, 0 };
+    if (proc_exec(true_path, true_argv) != 0)
+        fail("FAIL: proc_exec(true) did not return 0\n");
+    if (proc_exec(false_path, false_argv) != 1)
+        fail("FAIL: proc_exec(false) did not return 1\n");
+#elif defined(_WIN32)
+    const char *cmd = "C:\\Windows\\System32\\cmd.exe";
+    char *const ok_argv[]  = { (char *)"cmd", (char *)"/c", (char *)"exit 0", 0 };
+    char *const err_argv[] = { (char *)"cmd", (char *)"/c", (char *)"exit 1", 0 };
+    if (proc_exec(cmd, ok_argv) != 0)
+        fail("FAIL: proc_exec(cmd exit 0) did not return 0\n");
+    if (proc_exec(cmd, err_argv) != 1)
+        fail("FAIL: proc_exec(cmd exit 1) did not return 1\n");
+#endif
+}
+
 /* ── tests ──────────────────────────────────────────────────────────────── */
 
 static void run_tests(void)
@@ -82,6 +118,9 @@ static void run_tests(void)
     /* 2. I/O */
     i64 written = io_write(STDOUT, "fly runtime ok\n", 15);
     if (written != 15) fail("FAIL: io_write returned unexpected count\n");
+
+    /* 2b. Process exec (spawn an external command, check exit code) */
+    test_proc();
 
     /* 3. Thread + futex */
     tid t = thread_spawn(thread_fn, (void *)"thread: hello from thread\n", 65536);

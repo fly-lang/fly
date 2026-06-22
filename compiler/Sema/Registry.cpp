@@ -476,6 +476,23 @@ static bool FunctionTypesMatchExact(SemaFunctionBase *Function, SmallVector<Sema
 	return true;
 }
 
+// Strict identity match: class-typed params must be the SAME class (isEquals),
+// never a derived→base upcast. Used to break ties when the (looser) exact pass
+// yields several candidates that differ only by inheritance distance — the most
+// derived / identical overload should win (C++ overload-ranking semantics).
+static bool FunctionTypesMatchStrict(SemaFunctionBase *Function, SmallVector<SemaType *, 8> &Types) {
+	llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
+	size_t ExplicitCount = ExplicitParamCount(Function);
+	if (ExplicitCount != Types.size()) return false;
+	for (size_t i = 0; i < ExplicitCount; i++) {
+		SemaType *ParamType = Params[i]->getType();
+		SemaType *ArgType = Types[i];
+		if (!ArgType) { if (ParamType->isClass()) continue; return false; }
+		if (!ParamType->isEquals(ArgType)) return false;
+	}
+	return true;
+}
+
 static bool FunctionTypesMatch(SemaFunctionBase *Function, SmallVector<SemaType *, 8> &Types) {
 	llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
 	size_t ExplicitCount = ExplicitParamCount(Function);
@@ -528,6 +545,17 @@ llvm::SmallVector<Symbol *, 4> Registry::FindFunctionMatches(llvm::StringRef Nam
 		if (Sym->getKind() != SymbolKind::FUNCTION) continue;
 		if (FunctionTypesMatchExact(static_cast<SemaFunctionBase *>(Sym->getRef()), Types))
 			ExactResult.push_back(Sym);
+	}
+	// Tie-break: if several candidates passed the (inheritance-tolerant) exact
+	// pass, prefer a uniquely identical (no-upcast) overload so the most derived
+	// match wins instead of producing a spurious ambiguity.
+	if (ExactResult.size() > 1) {
+		llvm::SmallVector<Symbol *, 4> StrictResult;
+		for (Symbol *Sym : ExactResult) {
+			if (FunctionTypesMatchStrict(static_cast<SemaFunctionBase *>(Sym->getRef()), Types))
+				StrictResult.push_back(Sym);
+		}
+		if (StrictResult.size() == 1) return StrictResult;
 	}
 	if (!ExactResult.empty()) return ExactResult;
 

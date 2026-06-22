@@ -213,6 +213,12 @@ ASTModule *Parser::ParseHeader() {
         StringRef Name = Tok.getIdentifierInfo()->getName();
         ConsumeToken();
 
+        // Parse optional generic type parameters: "T identity<T>(T v)" in headers.
+        llvm::SmallVector<ASTTypeParam *, 4> HeaderTypeParams;
+        if (Tok.is(tok::less)) {
+            HeaderTypeParams = ParseTypeParams();
+        }
+
         // Parse parameter list
         if (!Tok.is(tok::l_paren)) {
             break;
@@ -225,6 +231,12 @@ ASTModule *Parser::ParseHeader() {
         //   b) The function is not treated as an abstract/external declaration.
         ASTBlockStmt *EmptyBlock = ASTBuilder::CreateBlockStmt(Tok.getLocation());
         ASTFunction *Function = ASTBuilder::CreateFunction(Module, Loc, Name, Modifiers, Params, EmptyBlock);
+
+        // Attach generic type parameters parsed above, so header-declared generic
+        // functions (e.g. fly.llvm slot intrinsics) resolve as templates.
+        if (!HeaderTypeParams.empty()) {
+            Function->TypeParams = HeaderTypeParams;
+        }
 
         // Set return type from leading keyword (new syntax), if any and non-void.
         // Multi-return functions leave ReturnType unset (void) since the Resolver
@@ -1603,8 +1615,37 @@ bool Parser::isNamedReturnType() {
             Next = Lexer::findNextToken(Loc, SourceMgr);
         } else break;
     }
+    // Skip an optional generic argument list on the type: "Foo<int, string> name"
+    if (Next && Next->is(tok::less)) {
+        Next = findTokenAfterTypeArgs(Next->getLocation());
+    }
     // Token after the full type name must be another identifier (the function/method name)
     return Next && Next->isAnyIdentifier();
+}
+
+std::optional<Token> Parser::findTokenAfterTypeArgs(SourceLocation LessLoc) {
+    FLY_DEBUG_SCOPE("Parser", "findTokenAfterTypeArgs");
+    // Caller positions us at the opening '<'.
+    int Depth = 1;
+    SourceLocation Loc = LessLoc;
+    while (true) {
+        std::optional<Token> T = Lexer::findNextToken(Loc, SourceMgr);
+        if (!T || T->is(tok::eof)) return std::nullopt;
+        if (T->is(tok::less)) {
+            Depth += 1;
+        } else if (T->is(tok::lessless)) {
+            Depth += 2;
+        } else if (T->is(tok::greater)) {
+            Depth -= 1;
+        } else if (T->is(tok::greatergreater)) {
+            Depth -= 2;
+        }
+        if (Depth <= 0) {
+            // Return the token immediately after the closing '>' (or '>>').
+            return Lexer::findNextToken(T->getLocation(), SourceMgr);
+        }
+        Loc = T->getLocation();
+    }
 }
 
 bool Parser::isArrayType(Token &Tok) {

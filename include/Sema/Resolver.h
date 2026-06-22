@@ -243,6 +243,14 @@ namespace fly {
 
         void ResolveClassType(SemaClassType *ClassType);
 
+        /// Resolve a (generic specialization) class type as a self-contained sub-resolution:
+        /// snapshot and restore the mutable "current" context (class/enum/function/scope/
+        /// block/error-handler) so the nested resolution cannot leak into the caller. Used
+        /// when a generic instantiation (e.g. List<long>) is encountered while resolving a
+        /// different class's attribute/body — otherwise the spec becomes the CurrentClass and
+        /// the enclosing class's later members are created against the wrong class.
+        void ResolveClassTypeIsolated(SemaClassType *Spec);
+
         void ResolveBaseClasses(SemaClassType *DerivedClass);
 
         void CheckAbstractMethodsImplemented(SemaClassType *ClassType);

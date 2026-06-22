@@ -915,6 +915,29 @@ llvm::Value *CodeGenExpr::GenStringHeapCopy(SemaStringValue *Sema) {
 	return Result;
 }
 
+llvm::Value *CodeGenExpr::GenStringClone(llvm::Value *StrVal) {
+	// Deep-copy an arbitrary runtime %string ({ptr, i32}) into a fresh malloc'd
+	// buffer so the destination owns an independent heap buffer. Used when a string
+	// lvalue (another variable/parameter/field) is bound into an owned string slot,
+	// so each owner can free() its own buffer (no aliasing → no double free).
+	llvm::Value *SrcPtr  = Builder->CreateExtractValue(StrVal, 0, "clone_src_ptr");
+	llvm::Value *Size    = Builder->CreateExtractValue(StrVal, 1, "clone_size");
+	llvm::Value *SizeExt = Builder->CreateZExt(Size, CodeGen::IntPtrTy, "clone_size_ext");
+
+	llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
+		"malloc",
+		llvm::FunctionType::get(
+			llvm::PointerType::getUnqual(CGM->LLVMCtx),
+			{CodeGen::IntPtrTy}, false));
+	llvm::Value *HeapPtr = Builder->CreateCall(MallocFn, {SizeExt}, "str_clone");
+	Builder->CreateMemCpy(HeapPtr, llvm::MaybeAlign(), SrcPtr, llvm::MaybeAlign(), SizeExt);
+
+	llvm::Value *Result = llvm::UndefValue::get(CodeGen::StringTy);
+	Result = Builder->CreateInsertValue(Result, HeapPtr, 0);
+	Result = Builder->CreateInsertValue(Result, Size, 1);
+	return Result;
+}
+
 llvm::Value *CodeGenExpr::GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2) {
     FLY_DEBUG_SCOPE("CodeGenExpr", "GenBinaryArith");
 
@@ -1224,17 +1247,39 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
 		return static_cast<SemaVar *>(E1)->getCodeGen()->StoreArrayValue(E2CGArray);
 	}
 
-	// Non-const string assigned a literal: heap-copy the global buffer so
-	// the variable always owns a malloc'd pointer that can be freed at scope exit.
-	if (E1->getType()->isString() && E2->getKind() == SemaKind::VALUE &&
-	    E2->getType() && E2->getType()->isString()) {
+	// Non-const string store: the destination must own an independent heap buffer
+	// so it can free() it at scope exit without aliasing another owner's buffer.
+	//  - RHS is a string literal (VALUE)        → heap-copy the global constant.
+	//  - RHS is a string lvalue (var/param/field/member) → deep-clone its buffer.
+	// RHS that produces a *fresh* buffer (CALL result, BINARY concat, …) is left
+	// as-is: the destination takes ownership of that already-unique buffer. Because
+	// `out = <lvalue>` returns flow through here too, every function that returns a
+	// borrowed string (a param or field) returns a fresh clone — so its callers'
+	// CALL results are always fresh and need no clone.
+	if (E1->getType()->isString() && E2->getType() && E2->getType()->isString()) {
 		SemaKind K1 = E1->getKind();
-		bool IsVar = K1 == SemaKind::LOCAL_VAR || K1 == SemaKind::PARAM_VAR ||
-		             K1 == SemaKind::ERROR_VAR  || K1 == SemaKind::ATTRIBUTE ||
-		             K1 == SemaKind::INSTANCE_VAR;
-		if (IsVar && !static_cast<SemaVar *>(E1)->isConstant()) {
-			llvm::Value *HeapStr = GenStringHeapCopy(static_cast<SemaStringValue *>(E2));
-			return static_cast<CodeGenVar *>(E1CodeGen)->Store(HeapStr);
+		bool IsVar1 = K1 == SemaKind::LOCAL_VAR || K1 == SemaKind::PARAM_VAR ||
+		              K1 == SemaKind::ERROR_VAR  || K1 == SemaKind::ATTRIBUTE ||
+		              K1 == SemaKind::INSTANCE_VAR;
+		// A `this.field = ...` store is a MEMBER whose ref is an attribute/instance
+		// var; the field owns its heap buffer and outlives the assigning scope, so it
+		// needs the same clone-on-store as a direct var (otherwise it aliases the RHS
+		// param/local, which is freed at scope exit → use-after-free).
+		bool IsMember1 = K1 == SemaKind::MEMBER;
+		bool Const1 = IsVar1 && static_cast<SemaVar *>(E1)->isConstant();
+		if ((IsVar1 || IsMember1) && !Const1) {
+			SemaKind K2 = E2->getKind();
+			if (K2 == SemaKind::VALUE) {
+				llvm::Value *HeapStr = GenStringHeapCopy(static_cast<SemaStringValue *>(E2));
+				return static_cast<CodeGenVar *>(E1CodeGen)->Store(HeapStr);
+			}
+			bool IsLValue2 = K2 == SemaKind::LOCAL_VAR || K2 == SemaKind::PARAM_VAR ||
+			                 K2 == SemaKind::ERROR_VAR  || K2 == SemaKind::ATTRIBUTE ||
+			                 K2 == SemaKind::INSTANCE_VAR || K2 == SemaKind::MEMBER;
+			if (IsLValue2) {
+				llvm::Value *Clone = GenStringClone(E2CodeGen->getValue());
+				return static_cast<CodeGenVar *>(E1CodeGen)->Store(Clone);
+			}
 		}
 	}
 
@@ -1279,14 +1324,15 @@ llvm::Value *CodeGenExpr::adjustToBaseSubobject(llvm::Value *V, SemaType *FromTy
 	if (!FromType || !ToType || !FromType->isClass() || !ToType->isClass()) return V;
 	SemaClassType *From = static_cast<SemaClassType *>(FromType);
 	SemaClassType *To   = static_cast<SemaClassType *>(ToType);
-	// Only adjust when the target is an INTERFACE: an interface variable must hold its own
-	// subobject pointer so dispatch reads the right per-interface vtable. A plain base CLASS
-	// keeps the original (full-object) pointer — it is needed for free()/identity (freeing a
-	// base-subobject pointer would free the middle of the heap block). NOTE: this means an
-	// inherited, field-accessing method called through a base-CLASS-typed variable reads the
-	// wrong subobject — a known limitation that needs base-at-offset-0 layout or this-thunks.
-	if (To->getClassKind() != SemaClassKind::INTERFACE) return V;
-	// Same type, or no codegen yet → nothing to adjust.
+	// Adjust an upcast (derived → base CLASS or INTERFACE) to the base subobject pointer, so a
+	// base-typed lvalue points at its own subobject. This preserves the invariant every consumer
+	// relies on — that a T-typed value points at the T subobject — so field access and
+	// inherited/virtual dispatch through the base-typed value resolve against the correct
+	// subobject and vtable (getBaseInstance navigates from the *static* type). Without this,
+	// `Base x = new Derived()` stored the full-object pointer and reads through x were wrong
+	// (bug #8). The per-base vtable thunks restore `this` to the most-derived object for
+	// overrides, so free()/identity through the base still reach the right method.
+	// Same type, or no codegen, or To is not a base of From → nothing to adjust.
 	if (From->isEquals(To) || !From->getCodeGen()) return V;
 	// getBaseInstance navigates From's base subobjects (recursively) to To and returns
 	// the adjusted pointer, or null when To is not a base of From.
@@ -1302,14 +1348,14 @@ void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &A
 	for (size_t i = 0; i < ArgExprs.size(); i++) {
 		SemaExpr *ArgExpr = ArgExprs[i];
 
-		// An upcast of a derived class to an INTERFACE param is a value-pass for
-		// polymorphic dispatch (not a writable reference), so it must NOT take the
-		// output-param fast-path below — it needs the interface-subobject pointer
-		// adjustment. (Plain base-class params keep the existing path.)
+		// An upcast of a derived class to a base CLASS or INTERFACE param is a value-pass for
+		// polymorphic dispatch (not a writable reference): it must NOT take the output-param
+		// fast-path below, and the pointer needs adjusting to the base subobject so the callee
+		// reads the right fields/vtable (bug #8).
 		bool IsUpcast = i < Params.size() && ArgExpr->getType() && Params[i]->getType() &&
 			ArgExpr->getType()->isClass() && Params[i]->getType()->isClass() &&
-			static_cast<SemaClassType *>(Params[i]->getType())->getClassKind() == SemaClassKind::INTERFACE &&
-			!ArgExpr->getType()->isEquals(Params[i]->getType());
+			!ArgExpr->getType()->isEquals(Params[i]->getType()) &&
+			static_cast<SemaClassType *>(ArgExpr->getType())->isDerived(static_cast<SemaClassType *>(Params[i]->getType()));
 
 		// For output (non-const) params: pass the original alloca pointer directly and
 		// invalidate the variable's load cache so subsequent reads see the updated value.
