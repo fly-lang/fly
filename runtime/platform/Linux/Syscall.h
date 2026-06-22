@@ -49,6 +49,9 @@
 #define SYS_futex         202
 #define SYS_exit_group    231
 #define SYS_getdents64    217
+#define SYS_fork          57
+#define SYS_execve        59
+#define SYS_wait4         61
 
 /* ── Inline helpers ─────────────────────────────────────────────────────── */
 

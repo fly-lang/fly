@@ -313,6 +313,15 @@ void CodeGenModule::GenerateDeclarations(SemaModule &Sema) {
     for (auto &Node : Sema.getNodes()) {
         Node->accept(*this);
     }
+
+    // Drain classes whose layout-dependent steps were deferred during a cyclic
+    // build. All types reachable from this module's declarations are now fully
+    // sized, so per-base vtables and init-constructor bodies can be emitted.
+    // Index-based: FinishBuild may itself force-build (and defer) further classes.
+    for (size_t i = 0; i < DeferredClassFinish.size(); ++i) {
+        DeferredClassFinish[i]->FinishBuild();
+    }
+    DeferredClassFinish.clear();
 }
 
 void CodeGenModule::GenerateBodies() {

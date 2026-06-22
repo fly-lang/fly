@@ -355,6 +355,46 @@ void Resolver::visit(ASTAttribute &AST) {
 	addSymbol(Sym);
 }
 
+// Find the base-class method that a derived method with the given name and
+// resolved parameter types overrides. Matches by name AND exact parameter
+// signature (walking the base's full node list and its own bases), so that
+// OVERLOADED methods — several methods sharing a name but differing in
+// parameter types, e.g. a visitor's many visit(...) overloads — each resolve to
+// the correct base override instead of collapsing to a single name-keyed entry.
+static SemaClassMethod *FindBaseOverride(SemaClassType *Base, llvm::StringRef Name,
+                                         llvm::SmallVector<SemaType *, 8> &Types) {
+	for (auto &Node : Base->getNodes()) {
+		if (Node->getKind() != SemaKind::METHOD) continue;
+		SemaClassMethod *M = static_cast<SemaClassMethod *>(Node);
+		if (M->isConstructor() || M->isStatic()) continue;
+		if (M->getName() != Name) continue;
+		llvm::SmallVector<SemaParam *, 8> &Params = M->getParams();
+		// Exclude the synthetic trailing 'out' param a non-void method carries (the
+		// out-param return convention) so the count/types match `Types`, which holds
+		// only the explicit parameters. Without this, any overriding method with a
+		// return type (e.g. string str()) fails to match its base and loses its
+		// override link — breaking virtual dispatch through the base subobject.
+		size_t Explicit = Params.size();
+		if (Explicit > 0 && M->getReturnType() && !M->getReturnType()->isVoid())
+			Explicit--;
+		if (Explicit != Types.size()) continue;
+		bool Match = true;
+		for (size_t i = 0; i < Explicit; i++) {
+			SemaType *PT = Params[i]->getType();
+			SemaType *AT = Types[i];
+			if (!AT) { if (PT && PT->isClass()) continue; Match = false; break; }
+			if (!PT || !PT->isEquals(AT)) { Match = false; break; }
+		}
+		if (Match) return M;
+	}
+	// Not declared directly on Base: search the classes Base itself extends.
+	for (auto *Super : Base->getBaseClasses()) {
+		if (SemaClassMethod *Found = FindBaseOverride(Super, Name, Types))
+			return Found;
+	}
+	return nullptr;
+}
+
 void Resolver::visit(ASTMethod &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTMethod)");
 
@@ -404,7 +444,9 @@ void Resolver::visit(ASTMethod &AST) {
 	// Check that this method does not override a final method in a base class
 	if (!Sema->isConstructor()) {
 		for (auto *Base : CurrentClass->getBaseClasses()) {
-			SemaClassMethod *BaseMethod = Base->LookupMethod(AST.getName());
+			// Match by name AND signature so overloaded methods (e.g. a visitor's
+			// many visit(...) overloads) each map to the right base method.
+			SemaClassMethod *BaseMethod = FindBaseOverride(Base, AST.getName(), Types);
 			if (BaseMethod && BaseMethod->isFinal()) {
 				Diag(AST.getLocation(), diag::err_sema_final_method_overridden)
 					<< AST.getName() << Base->getName();
@@ -3205,13 +3247,20 @@ void Resolver::PromoteTypes(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right) {
 		Right->getKind() == SemaKind::VALUE && !RightType) {
 		Right->setType(LeftType);
 
-		// Promote the inner values' types to match the struct attribute types
-		SemaClassType *ClassType = static_cast<SemaClassType *>(LeftType);
-		SemaStructValue *StructValue = static_cast<SemaStructValue *>(Right);
-		for (auto &Entry : StructValue->Values) {
-			SemaClassAttribute *Attr = ClassType->LookupAttribute(Entry.getKey());
-			if (Attr && Entry.getValue() && Attr->getType()) {
-				Entry.getValue()->setType(Attr->getType());
+		// Only a struct literal ({field = value, …}) carries named fields to promote. A plain
+		// value assigned to a class-typed lvalue (e.g. `Foo x = null`) is a SemaValue that is NOT
+		// a SemaStructValue, so the unchecked cast + Values iteration below would read garbage and
+		// crash — guard it on the AST value kind.
+		SemaValue *RightValue = static_cast<SemaValue *>(Right);
+		if (RightValue->getAST() && RightValue->getAST()->isStruct()) {
+			// Promote the inner values' types to match the struct attribute types
+			SemaClassType *ClassType = static_cast<SemaClassType *>(LeftType);
+			SemaStructValue *StructValue = static_cast<SemaStructValue *>(Right);
+			for (auto &Entry : StructValue->Values) {
+				SemaClassAttribute *Attr = ClassType->LookupAttribute(Entry.getKey());
+				if (Attr && Entry.getValue() && Attr->getType()) {
+					Entry.getValue()->setType(Attr->getType());
+				}
 			}
 		}
 	}

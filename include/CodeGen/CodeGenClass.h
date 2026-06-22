@@ -57,6 +57,12 @@ namespace fly {
 
         llvm::SmallVector<llvm::GlobalVariable *, 4> VTableBases;
 
+        // Per-base vtables for TRANSITIVE (non-direct) base subobjects that this
+        // most-derived class overrides methods of — keyed by their byte offset
+        // within this class. The constructor stores each at that offset so a
+        // grandparent-typed reference dispatches to this class's override.
+        llvm::SmallVector<std::pair<uint64_t, llvm::GlobalVariable *>, 4> ExtraBaseVTables;
+
         llvm::SmallVector<CodeGenClassMethod *, 4> Methods;
 
         // llvm::SmallVector<BaseType *, 4> BaseTypes;
@@ -66,6 +72,15 @@ namespace fly {
         void CreateVTable();
 
         void CreateBaseVTables();
+
+        // Build a per-base vtable global for `Base` whose subobject sits at
+        // `byteOffset` within this most-derived class (offset-to-top = -byteOffset),
+        // with this class's overrides routed through this-adjusting thunks.
+        llvm::GlobalVariable *BuildPerBaseVTable(SemaClassType *Base, uint64_t byteOffset);
+
+        // Recurse into Base's own bases (transitive w.r.t. this class), building a
+        // per-base vtable for any whose methods this class overrides.
+        void CollectTransitiveBaseVTables(SemaClassType *Base, uint64_t baseOffsetInDerived);
 
         llvm::Function *CreateThunk(SemaClassMethod *BaseMethod, SemaClassMethod *Override, uint64_t BaseOffset);
 
@@ -84,6 +99,11 @@ namespace fly {
         CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExternal = false);
 
         void Build();
+
+        // Offset-dependent build steps (per-base vtables + init-constructor body)
+        // split out so they can be deferred to a post-pass for cyclic builds where
+        // the struct layout is not yet available. See CodeGenClass::Build.
+        void FinishBuild();
 
         llvm::StructType *getType();
 

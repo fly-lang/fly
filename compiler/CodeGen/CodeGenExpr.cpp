@@ -1261,7 +1261,13 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
 		bool IsVar1 = K1 == SemaKind::LOCAL_VAR || K1 == SemaKind::PARAM_VAR ||
 		              K1 == SemaKind::ERROR_VAR  || K1 == SemaKind::ATTRIBUTE ||
 		              K1 == SemaKind::INSTANCE_VAR;
-		if (IsVar1 && !static_cast<SemaVar *>(E1)->isConstant()) {
+		// A `this.field = ...` store is a MEMBER whose ref is an attribute/instance
+		// var; the field owns its heap buffer and outlives the assigning scope, so it
+		// needs the same clone-on-store as a direct var (otherwise it aliases the RHS
+		// param/local, which is freed at scope exit → use-after-free).
+		bool IsMember1 = K1 == SemaKind::MEMBER;
+		bool Const1 = IsVar1 && static_cast<SemaVar *>(E1)->isConstant();
+		if ((IsVar1 || IsMember1) && !Const1) {
 			SemaKind K2 = E2->getKind();
 			if (K2 == SemaKind::VALUE) {
 				llvm::Value *HeapStr = GenStringHeapCopy(static_cast<SemaStringValue *>(E2));

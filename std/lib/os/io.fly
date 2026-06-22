@@ -463,6 +463,21 @@ public long pipe(Reader pipe_r, Writer pipe_w) {
     out = copy(pipe_r, pipe_w)
 }
 
+// writeNL writes a single newline byte (0x0A) to w. Fly string literals keep
+// escapes RAW (`"\n"` is the two chars backslash+n, NOT a newline), so the
+// terminator must be emitted as a real byte rather than a literal string.
+public void writeNL(Writer w) {
+    long buf = 0
+    fly.runtime.mem_alloc(1, buf)
+    fly.llvm.strPoke(buf, 0, 10)
+    Buf b = new Buf()
+    b.ptr = buf
+    b.size = 1
+    b.cap = 1
+    w.write(b, 1)
+    fly.runtime.mem_free(buf, 1)
+}
+
 // printErr writes s to stderr (fd=2) without a trailing newline.
 public void printErr(const string s) {
     Writer w = fileWriter(2)
@@ -473,7 +488,7 @@ public void printErr(const string s) {
 public void printErrLn(const string s) {
     Writer w = fileWriter(2)
     writeString(w, s)
-    writeString(w, "\n")
+    writeNL(w)
 }
 
 // print writes s to stdout (fd=1) without a trailing newline.
@@ -486,5 +501,5 @@ public void print(const string s) {
 public void printLn(const string s) {
     Writer w = fileWriter(1)
     writeString(w, s)
-    writeString(w, "\n")
+    writeNL(w)
 }

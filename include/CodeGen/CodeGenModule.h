@@ -170,6 +170,11 @@ namespace fly {
 
     	llvm::SmallVector<SemaFunctionBase *, 8> Functions;
 
+        // Classes whose offset-dependent build steps were deferred because their
+        // struct layout was not yet available during a cyclic build. Drained at
+        // the end of GenerateDeclarations once all types are sized.
+        llvm::SmallVector<CodeGenClass *, 8> DeferredClassFinish;
+
         // fly.bridge.CLang: maps each CLang instance alloca → lib string literal.
         // Populated at new CLang(lib) call sites; consumed by CLang::call() codegen.
         llvm::DenseMap<llvm::Value *, std::string> CLangLibMap;
