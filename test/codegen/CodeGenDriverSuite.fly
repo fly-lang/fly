@@ -52,5 +52,21 @@ suite CodeGenDriverSuite {
             assert.assertStr(d.defaultOut("bar.txt"), "bar.txt.ll", 32)
             assert.assertStr(d.moduleName("foo.fly"), "foo", 33)
         }
+        case "--out-dir prefixes relative paths, leaves absolute/empty alone": {
+            Driver d = new Driver()
+            assert.assertStr(d.applyOutDir("/tmp/od", "sub.ll"), "/tmp/od/sub.ll", 41)
+            assert.assertStr(d.applyOutDir("", "x.ll"), "x.ll", 42)
+            assert.assertStr(d.applyOutDir("/tmp/od", "/abs.ll"), "/abs.ll", 43)
+        }
+    }
+
+    void optionsTest() {
+        case "-v / --test setters don't change a successful compile": {
+            Frontend fe = new Frontend()
+            fe.setVerbose(true)
+            fe.setTestMode(true)
+            int code = fe.compile("t", "int main() { out = 1 }", "/tmp/cg/opt.ll", false)
+            assert.assertEqI(code, 0, 51)
+        }
     }
 }

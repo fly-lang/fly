@@ -7,6 +7,7 @@ import fly.compiler.sema.*
 import fly.compiler.codegen.*
 import fly.data.*
 import fly.os.io
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Frontend — drives one compilation unit through the self-host pipeline, a 1:1
@@ -18,13 +19,28 @@ import fly.os.io
 
 public class Frontend {
 
-    public Frontend() { }
+    bool verbose      // -v/--verbose: log each phase to stderr
+    bool testMode     // --test: compile in test mode (resolve test {} blocks)
+
+    public Frontend() {
+        this.verbose = false
+        this.testMode = false
+    }
+
+    public void setVerbose(const bool v) { this.verbose = v }
+    public void setTestMode(const bool t) { this.testMode = t }
+
+    // trace — print a verbose phase message to stderr (only when -v is set).
+    public void trace(const string msg) {
+        if this.verbose { fly.os.io.printErrLn(fly.str.concat("fly: ", msg)) }
+    }
 
     // compile — parse `src` (named `name`), resolve it, lower it to LLVM IR and
     // (unless noOutput) write the IR to `outPath`. Returns 0 on success, 1 on the
     // first failing phase (after printing that phase's diagnostics).
     public int compile(const string name, const string src, const string outPath, const bool noOutput) {
         // 1) parse
+        this.trace("parsing")
         Parser p = new Parser(src)
         ASTModule m = p.parseModule(name)
         if p.isSuccess() == false {
@@ -35,6 +51,7 @@ public class Frontend {
 
         // 2) resolve — give Sema a real diagnostics engine so its errors surface
         // (the test harness passes null; a real compiler must not).
+        this.trace("resolving")
         DiagnosticOptions opts = new DiagnosticOptions()
         StoringDiagnosticConsumer sink = new StoringDiagnosticConsumer()
         SourceManager sm = new SourceManager(name, src)
@@ -42,7 +59,7 @@ public class Frontend {
         List<ASTModule> mods = new List<ASTModule>()
         mods.add(m)
         SemaContext ctx = new SemaContext(diags)
-        List<SemaModule> res = ctx.Resolve(mods, false)
+        List<SemaModule> res = ctx.Resolve(mods, this.testMode)
         if diags.hasErrorOccurred() {
             this.printDiags(sink)
             out = 1
@@ -51,6 +68,7 @@ public class Frontend {
         Registry reg = ctx.getReg()
 
         // 3) codegen + verify
+        this.trace("generating code")
         CodeGenModule cgm = new CodeGenModule(name)
         cgm.generate(reg)
         bool ok = false
@@ -63,6 +81,7 @@ public class Frontend {
 
         // 4) emit
         if noOutput == false {
+            this.trace(fly.str.concat("emitting ", outPath))
             cgm.emitIR(outPath)
         }
         out = 0

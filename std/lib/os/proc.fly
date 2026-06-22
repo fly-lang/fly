@@ -1,0 +1,141 @@
+namespace fly.os.proc
+
+import fly.llvm
+import fly.runtime
+import fly.mem
+
+// ── Process spawning ──────────────────────────────────────────────────────────
+//
+// Thin wrapper over the platform-dependent fly.runtime.proc_exec primitive
+// (fork/execve/wait4 on Linux, fork/execve/waitpid on macOS, CreateProcessA on
+// Windows). exec() spawns 'path' with the arguments collected in an ArgList,
+// inheriting the current environment, blocks until it finishes, and returns the
+// child exit code. This unblocks invoking external tools (e.g. the LLVM linker)
+// from Fly.
+//
+// The argument vector is a non-generic heap "ArgList" handle rather than a
+// fly.data.List<string>: a monomorphized generic instance cannot currently be
+// passed across the std-library compilation-unit boundary (the two units
+// produce structurally-distinct LLVM types for the same List<string>, which the
+// optimizer rejects). The handle API sidesteps that — every parameter here is a
+// plain long/string/int.
+//
+// Usage:
+//     long a = fly.os.proc.argsNew()
+//     fly.os.proc.argsAdd(a, "-o")
+//     fly.os.proc.argsAdd(a, "out")
+//     int rc = fly.os.proc.exec("cc", a)   // a may be 0 for no extra args
+//     fly.os.proc.argsFree(a)
+
+// ArgList heap layout (16 bytes):
+//   [0..7]   long items   — char** buffer holding 'count' C-string pointers
+//   [8..11]  int  count   — number of args currently stored
+//   [12..15] int  cap     — capacity of 'items' (in pointer slots)
+
+// Copy a Fly string into a fresh null-terminated C-string buffer.
+private long strToCstr(const string src) {
+    int size = 0
+    fly.llvm.strSize(src, size)
+    int cap = size + 1
+    long buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    int i = 0
+    while i < size {
+        byte b = 0
+        fly.llvm.strByteAt(src, i, b)
+        fly.llvm.strPoke(buf, i, b)
+        i = i + 1
+    }
+    fly.llvm.strPoke(buf, size, 0)
+    out = buf
+}
+
+// argsNew — allocate an empty ArgList; returns its handle.
+public long argsNew() {
+    long h = 0
+    fly.runtime.mem_alloc(16, h)
+    int cap = 4
+    long items = 0
+    fly.runtime.mem_alloc(cap * 8, items)
+    fly.mem.writeLong(h, 0, items)
+    fly.mem.writeInt(h, 8, 0)
+    fly.mem.writeInt(h, 12, cap)
+    out = h
+}
+
+// argsAdd — append a copy of 'a' to the ArgList, growing if needed.
+public void argsAdd(const long h, const string a) {
+    if h == 0 { return }
+    long items = fly.mem.readLong(h, 0)
+    int count = fly.mem.readInt(h, 8)
+    int cap = fly.mem.readInt(h, 12)
+    if count == cap {
+        int newCap = cap * 2
+        long bigger = 0
+        fly.runtime.mem_realloc(items, newCap * 8, bigger)
+        items = bigger
+        fly.mem.writeLong(h, 0, items)
+        fly.mem.writeInt(h, 12, newCap)
+    }
+    long cs = strToCstr(a)
+    fly.mem.writeLong(items, count * 8, cs)
+    fly.mem.writeInt(h, 8, count + 1)
+}
+
+// exec — spawn 'path' with argv[0]=path followed by the ArgList args (h may be
+// 0 for none), inheriting the environment, and wait for it. Returns the child
+// exit code (0..255), 128+signo if killed by a signal, or -1 on spawn failure.
+public int exec(const string path, const long h) {
+    int count = 0
+    long items = 0
+    if h != 0 {
+        items = fly.mem.readLong(h, 0)
+        count = fly.mem.readInt(h, 8)
+    }
+
+    // argv = [ path, args..., NULL ] → (count + 2) pointer slots.
+    int slots = count + 2
+    long argv = 0
+    fly.runtime.mem_alloc(slots * 8, argv)
+
+    long cpath = strToCstr(path)
+    fly.mem.writeLong(argv, 0, cpath)
+
+    int i = 0
+    while i < count {
+        long cs = fly.mem.readLong(items, i * 8)
+        fly.mem.writeLong(argv, (i + 1) * 8, cs)
+        i = i + 1
+    }
+    fly.mem.writeLong(argv, (count + 1) * 8, 0)
+
+    int code = 0
+    fly.runtime.proc_exec(cpath, argv, code)
+
+    // Free the path C-string + the argv array. The ArgList's own C-strings stay
+    // owned by the ArgList (released by argsFree); we only borrowed their pointers.
+    fly.runtime.mem_free(cpath, 0)
+    fly.runtime.mem_free(argv, slots * 8)
+
+    out = code
+}
+
+// run — convenience: exec 'path' with no extra arguments.
+public int run(const string path) {
+    out = exec(path, 0)
+}
+
+// argsFree — release an ArgList and every C-string it owns.
+public void argsFree(const long h) {
+    if h == 0 { return }
+    long items = fly.mem.readLong(h, 0)
+    int count = fly.mem.readInt(h, 8)
+    int i = 0
+    while i < count {
+        long cs = fly.mem.readLong(items, i * 8)
+        if cs != 0 { fly.runtime.mem_free(cs, 0) }
+        i = i + 1
+    }
+    fly.runtime.mem_free(items, 0)
+    fly.runtime.mem_free(h, 16)
+}

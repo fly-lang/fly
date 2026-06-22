@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# compiler.sh — build the self-host compiler EXECUTABLE `flyc`.
+# compiler.sh — build the self-host compiler EXECUTABLE `fly`.
 #
-# Like build.sh, but the entry is compiler/Fly.fly (which has `void main`) and we
-# don't pass --lib, so the reference toolchain links an executable. --src-dir
-# indexes the whole fly.compiler graph (driver → frontend → parser/sema/codegen) and
-# pulls in every file — that's fine: each `main` is in its own namespace, so the
-# entry file's main becomes the C entry without clashing with test mains. -L resolves
-# std. (Other builds use Parser.fly --lib as the entry, so this main isn't theirs.)
+# The entry is compiler/Fly.fly (which has `void main`); without --lib the
+# reference toolchain links an executable. --src-dir indexes the whole
+# fly.compiler graph (driver → frontend → parser/sema/codegen) and pulls in every
+# file — that's fine: each `main` is in its own namespace, so the entry file's main
+# becomes the C entry without clashing with test mains. -L resolves std.
+#
+# This is the single build script: compiling the executable compile-checks every
+# compiler source (and links), so it subsumes the old --lib-only build.
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 cd "$(dirname "$0")"

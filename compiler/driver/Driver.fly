@@ -16,7 +16,7 @@ import fly.llvm
 // process-exec/target-machine path the self-host doesn't have yet (the user links
 // the .ll with clang, as the milestone harness does).
 //
-//   flyc <file.fly> [--emit-ll] [-o out.ll] [--no-output]
+//   fly <file.fly> [--emit-ll] [-o out.ll] [--no-output]
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class Driver {
@@ -26,7 +26,10 @@ public class Driver {
     public int run(const fly.os.env.StringArray args) {
         string input = ""
         string outPath = ""
+        string outDir = ""
         bool noOutput = false
+        bool verbose = false
+        bool testMode = false
 
         int n = args.count
         int i = 1                       // skip argv[0] (program name)
@@ -35,10 +38,27 @@ public class Driver {
             if fly.str.equals(a, "-o") {
                 i = i + 1
                 if i < n { outPath = this.argAt(args, i) }
+            } elsif fly.str.equals(a, "--out-dir") {
+                i = i + 1
+                if i < n { outDir = this.argAt(args, i) }
             } elsif fly.str.equals(a, "--emit-ll") {
                 // LLVM IR is the only emit mode; flag accepted for parity.
             } elsif fly.str.equals(a, "--no-output") {
                 noOutput = true
+            } elsif fly.str.equals(a, "--test") {
+                testMode = true
+            } elsif fly.str.equals(a, "-v") || fly.str.equals(a, "--verbose") {
+                verbose = true
+            } elsif fly.str.equals(a, "-w") || fly.str.equals(a, "--no-warning") {
+                // accepted (no-op): diagnostics are only printed on failure today.
+            } elsif fly.str.equals(a, "--help") || fly.str.equals(a, "-help") {
+                this.printUsage()
+                out = 0
+                return
+            } elsif fly.str.equals(a, "--version") || fly.str.equals(a, "-version") {
+                this.printVersion()
+                out = 0
+                return
             } elsif fly.str.startsWith(a, "-") {
                 fly.os.io.printErrLn(fly.str.concat("warning: ignoring unknown option ", a))
             } else {
@@ -48,7 +68,7 @@ public class Driver {
         }
 
         if fly.str.isEmpty(input) {
-            fly.os.io.printErrLn("usage: flyc <file.fly> [--emit-ll] [-o out.ll] [--no-output]")
+            this.printUsage()
             out = 1
             return
         }
@@ -60,11 +80,45 @@ public class Driver {
             return
         }
 
-        if fly.str.isEmpty(outPath) { outPath = this.defaultOut(input) }
+        string basePath = outPath
+        if fly.str.isEmpty(basePath) { basePath = this.defaultOut(input) }
+        string finalPath = this.applyOutDir(outDir, basePath)
         string name = this.moduleName(input)
 
         Frontend fe = new Frontend()
-        out = fe.compile(name, src, outPath, noOutput)
+        fe.setVerbose(verbose)
+        fe.setTestMode(testMode)
+        out = fe.compile(name, src, finalPath, noOutput)
+    }
+
+    // printUsage — the --help / no-input usage text.
+    public void printUsage() {
+        fly.os.io.printErrLn("usage: fly <file.fly> [options]")
+        fly.os.io.printErrLn("options:")
+        fly.os.io.printErrLn("  -o <file>       write output to <file>")
+        fly.os.io.printErrLn("  --out-dir <dir> directory for generated outputs")
+        fly.os.io.printErrLn("  --emit-ll       produce LLVM IR (.ll) — the only emit mode")
+        fly.os.io.printErrLn("  --no-output     type-check only, produce no output")
+        fly.os.io.printErrLn("  --test          compile in test mode (test {} blocks)")
+        fly.os.io.printErrLn("  -v, --verbose   log each compilation phase")
+        fly.os.io.printErrLn("  -w, --no-warning  suppress warnings")
+        fly.os.io.printErrLn("  --version       print version")
+        fly.os.io.printErrLn("  --help          display this help")
+    }
+
+    // printVersion — the --version text.
+    public void printVersion() {
+        fly.os.io.printErrLn("fly 0.14.0 (self-host)")
+    }
+
+    // applyOutDir — prefix a RELATIVE output path with outDir (absolute paths and
+    // an empty outDir are returned unchanged). The dir must already exist (the
+    // self-host has no mkdir yet).
+    public string applyOutDir(const string outDir, const string outPath) {
+        if fly.str.isEmpty(outDir) { out = outPath  return }
+        if fly.str.startsWith(outPath, "/") { out = outPath  return }
+        string slash = fly.str.concat(outDir, "/")
+        out = fly.str.concat(slash, outPath)
     }
 
     // argAt — read argv[i] from the StringArray's 16-byte {ptr,len} slots.
