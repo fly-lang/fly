@@ -36,7 +36,6 @@ jobs:
           FLY_BIN="fly/bin/fly"
           chmod +x "$FLY_BIN"
           echo "$(pwd)/fly/bin" >> "$GITHUB_PATH"
-          fly --version
 
       - name: Build self-host compiler
         run: fly ./build_compiler.sh
