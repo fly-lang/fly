@@ -1,6 +1,6 @@
 namespace fly.compiler.codegen.test.driver
 
-import fly.compiler.frontend.*
+import fly.compiler.driver.*
 import fly.compiler.driver.*
 import fly.os.fs
 import fly.str

@@ -1,4 +1,4 @@
-namespace fly.compiler.frontend
+namespace fly.compiler.driver
 
 import fly.compiler.basic.*
 import fly.compiler.ast.*

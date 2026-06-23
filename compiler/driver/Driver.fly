@@ -1,6 +1,6 @@
 namespace fly.compiler.driver
 
-import fly.compiler.frontend.*
+import fly.compiler.driver.Frontend
 import fly.os.env
 import fly.os.fs
 import fly.os.io
