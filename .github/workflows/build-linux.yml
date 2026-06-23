@@ -35,7 +35,7 @@ jobs:
           tar -xzf fly.tar.gz -C fly
           FLY_BIN="fly/bin/fly"
           chmod +x "$FLY_BIN"
-          export PATH="$PATH:$(pwd)/fly/bin"
+          echo "$(pwd)/fly/bin" >> "$GITHUB_PATH"
           fly --version
 
       - name: Build self-host compiler
