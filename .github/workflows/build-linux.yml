@@ -31,25 +31,18 @@ jobs:
           curl -fsSL \
             "https://github.com/fly-lang/fly/releases/download/v${FLY_VERSION}/fly-${FLY_VERSION}-linux-x86_64.tar.gz" \
             -o fly.tar.gz
-          mkdir -p fly-bin
-          tar -xzf fly.tar.gz -C fly-bin
-          # The binary may be at the tarball root or nested (e.g. build/bin/fly),
-          # so locate it rather than assuming a fixed path.
-          FLY_BIN="$(find fly-bin -type f -name fly | head -1)"
-          if [ -z "$FLY_BIN" ]; then
-            echo "error: 'fly' binary not found in tarball; contents:"
-            tar -tzf fly.tar.gz
-            exit 1
-          fi
+          mkdir -p fly
+          tar -xzf fly.tar.gz -C fly
+          FLY_BIN="fly/bin/fly"
           chmod +x "$FLY_BIN"
-          sudo mv "$FLY_BIN" /usr/local/bin/fly
+          export PATH="$PATH:$(pwd)/fly/bin"
           fly --version
 
       - name: Build self-host compiler
-        run: FLY=fly ./build_compiler.sh
+        run: fly ./build_compiler.sh
 
       - name: Test self-host compiler
-        run: FLY=fly ./test_compiler.sh
+        run: fly ./test_compiler.sh
 
       - name: Set artifact name
         id: artifact
@@ -61,5 +54,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact.outputs.artifact_name }}
-          path: build/bin/fly
+          path: build/linux
           overwrite: true
