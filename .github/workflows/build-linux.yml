@@ -38,10 +38,10 @@ jobs:
           echo "$(pwd)/fly/bin" >> "$GITHUB_PATH"
 
       - name: Build self-host compiler
-        run: fly ./build_compiler.sh
+        run: chmod +x ./build_compiler.sh && ./build_compiler.sh
 
       - name: Test self-host compiler
-        run: fly ./test_compiler.sh
+        run: chmod +x ./test_compiler.sh && ./test_compiler.sh
 
       - name: Set artifact name
         id: artifact

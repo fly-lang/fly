@@ -10,7 +10,6 @@
 set -uo pipefail
 cd "$(dirname "$0")"
 
-FLY="${FLY:-../fly/cmake-build-relwithdebinfo/bin/fly}"
 # Scratch for per-suite test binaries/logs; under build/ but separate from
 # build/bin so it doesn't sit next to the release artifact.
 OUT=build/test
@@ -22,7 +21,7 @@ fail=0
 for suite in $(find test -name '*Suite.fly' | sort); do
     name=$(basename "$suite" .fly)
     bin="$OUT/test_$name"
-    if ! "$FLY" "$suite" --test --src-dir compiler -o "test_$name" --out-dir "$OUT" -L "$STD" >"$OUT/_$name.log" 2>&1; then
+    if ! fly "$suite" --test --src-dir compiler -o "test_$name" --out-dir "$OUT" -L "$STD" >"$OUT/_$name.log" 2>&1; then
         echo "  COMPILE FAIL  $name"
         grep -iE 'error|broken|abort' "$OUT/_$name.log" | head -3 | sed 's/^/      /'
         fail=$((fail + 1))
