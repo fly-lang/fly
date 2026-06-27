@@ -1,0 +1,9 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+
+// VE — NEC SX-Aurora Vector Engine, 64-bit. clang-verified LLVM-20 layout
+// (verbatim — long vector list). Reduced port of fly/compiler/Basic/Targets/VE.*.
+
+public void vePopulate(const TargetInfo ti) {
+    ti.applyData("e-m:e-i64:64-n32:64-S128-v64:64:64-v128:64:64-v256:64:64-v512:64:64-v1024:64:64-v2048:64:64-v4096:64:64-v8192:64:64-v16384:64:64", 64, false, 32, 64)
+}

@@ -1,0 +1,27 @@
+namespace fly.compiler.target.test.wasm
+
+import fly.compiler.target.*
+import fly.assert
+
+suite WebAssemblySuite {
+
+    void metadataTest() {
+        case "wasm32 / wasm64": {
+            assert.assertTrue(archFromName("wasm32") == Arch.WASM32, 1)
+            TargetInfo a = targetInfoCreate(new TargetOptions("wasm32-unknown-unknown"))
+            assert.assertStr(a.getDataLayout(), "e-m:e-p:32:32-p10:8:8-p20:8:8-i64:64-i128:128-n32:64-S128-ni:1:10:20", 2)
+            assert.assertEqI(a.getPointerWidth(), 32, 3)
+            assert.assertFalse(a.isBigEndian(), 4)
+            assert.assertTrue(archFromName("wasm64") == Arch.WASM64, 5)
+            TargetInfo b = targetInfoCreate(new TargetOptions("wasm64-unknown-unknown"))
+            assert.assertStr(b.getDataLayout(), "e-m:e-p:64:64-p10:8:8-p20:8:8-i64:64-i128:128-n32:64-S128-ni:1:10:20", 6)
+            assert.assertEqI(b.getPointerWidth(), 64, 7)
+        }
+    }
+
+    void machineTest() {
+        case "wasm32 target machine": {
+            assert.assertTrue(targetMachineCheck("wasm32-unknown-unknown", Arch.WASM32) != 2, 8)
+        }
+    }
+}

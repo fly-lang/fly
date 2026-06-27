@@ -1,0 +1,13 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+
+// RISCV — riscv32 (ILP32) and riscv64 (LP64). clang-verified LLVM-20 layouts.
+// Reduced port of fly/compiler/Basic/Targets/RISCV.*.
+
+public void riscv32Populate(const TargetInfo ti) {
+    ti.applyData("e-m:e-p:32:32-i64:64-n32-S128", 32, false, 32, 32)
+}
+
+public void riscv64Populate(const TargetInfo ti) {
+    ti.applyData("e-m:e-p:64:64-i64:64-i128:128-n32:64-S128", 64, false, 32, 64)
+}

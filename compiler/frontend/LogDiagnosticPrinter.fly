@@ -1,0 +1,112 @@
+namespace fly.compiler.frontend
+
+import fly.compiler.frontend.*
+import fly.compiler.basic.*
+import fly.data.List
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LogDiagnosticPrinter — accumulates a structured machine-readable log of every
+// diagnostic, a reduced port of fly/Frontend/LogDiagnosticPrinter.{h,cpp} (clang
+// emits a plist; we emit JSON or a flat text log). Each entry records
+// level/file/line/col/message; toJson()/toText() serialise the collected log.
+//
+// Adapted: line/col are kept pre-rendered as strings (fly.data.List stores `long`,
+// and fly.str.convert takes an int) — sidesteps the long/int marshalling.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class LogDiagnosticPrinter : DiagnosticConsumer {
+    List<string> levels
+    List<string> files
+    List<string> lines
+    List<string> cols
+    List<string> messages
+
+    public LogDiagnosticPrinter() {
+        super()
+        this.levels = new List<string>()
+        this.files = new List<string>()
+        this.lines = new List<string>()
+        this.cols = new List<string>()
+        this.messages = new List<string>()
+    }
+
+    public void handleDiagnostic(const Diagnostic diag) {
+        this.levels.add(diagLevelName(diag.getLevel()))
+        this.files.add(diag.getFilename())
+        this.lines.add(fly.str.convert(diag.getLine()))
+        this.cols.add(fly.str.convert(diag.getColumn()))
+        this.messages.add(diag.getMessage())
+    }
+
+    public int count() { out = this.levels.size() }
+
+    // jsonEscape — escape `\` then `"` so messages embed safely in JSON strings
+    // (the search/replacement patterns are built from real bytes, since `"\\"` /
+    // `"\""` string literals are stored RAW under this compiler).
+    public string jsonEscape(const string s) {
+        string bs = backslashChar()
+        string q = quoteChar()
+        string a = fly.str.replace(s, bs, fly.str.concat(bs, bs))
+        string b = fly.str.replace(a, q, fly.str.concat(bs, q))
+        out = b
+    }
+
+    // jstr — a JSON `"key":"val"` pair (val quoted), with real `"` bytes.
+    public string jstr(const string key, const string val) {
+        string q = quoteChar()
+        out = fly.str.concat(q, fly.str.concat(key, fly.str.concat(q,
+              fly.str.concat(":", fly.str.concat(q, fly.str.concat(val, q))))))
+    }
+
+    // jnum — a JSON `"key":val` pair (val unquoted, e.g. a number).
+    public string jnum(const string key, const string val) {
+        string q = quoteChar()
+        out = fly.str.concat(q, fly.str.concat(key, fly.str.concat(q, fly.str.concat(":", val))))
+    }
+
+    // toJson — `[{"level":..,"file":..,"line":N,"column":M,"message":".."}, …]`.
+    // Each entry is built as ONE nested concat expression: repeatedly reassigning
+    // `entry = concat(entry, …)` self-aliases and frees the first fragment under
+    // this compiler (see the formatMessage note in basic/Diagnostic.fly).
+    public string toJson() {
+        string res = "["
+        int n = this.levels.size()
+        int i = 0
+        while i < n {
+            string sep = ""
+            if i > 0 { sep = "," }
+            string p1 = this.jstr("level", this.levels.get(i))
+            string p2 = this.jstr("file", this.files.get(i))
+            string p3 = this.jnum("line", this.lines.get(i))
+            string p4 = this.jnum("column", this.cols.get(i))
+            string p5 = this.jstr("message", this.jsonEscape(this.messages.get(i)))
+            string body = fly.str.concat(p1, fly.str.concat(",", fly.str.concat(p2,
+                          fly.str.concat(",", fly.str.concat(p3, fly.str.concat(",",
+                          fly.str.concat(p4, fly.str.concat(",", p5))))))))
+            string entry = fly.str.concat("{", fly.str.concat(body, "}"))
+            string acc = fly.str.concat(res, fly.str.concat(sep, entry))
+            res = acc
+            i = i + 1
+        }
+        out = fly.str.concat(res, "]")
+    }
+
+    // toText — one `level: file:line:col: message` line per diagnostic.
+    public string toText() {
+        string res = ""
+        int n = this.levels.size()
+        int i = 0
+        while i < n {
+            string loc = fly.str.concat(this.files.get(i),
+                         fly.str.concat(":", fly.str.concat(this.lines.get(i),
+                         fly.str.concat(":", fly.str.concat(this.cols.get(i), ": ")))))
+            string line = fly.str.concat(this.levels.get(i),
+                          fly.str.concat(": ", fly.str.concat(loc, this.messages.get(i))))
+            string acc = fly.str.concat(res, fly.str.concat(line, lineFeed()))
+            res = acc
+            i = i + 1
+        }
+        out = res
+    }
+}

@@ -1,0 +1,76 @@
+namespace fly.compiler.frontend
+
+import fly.compiler.frontend.*
+import fly.compiler.basic.*
+import fly.os.fs
+import fly.os.path
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// InputFile — an input to the front end, 1:1 with fly/Frontend/InputFile.{h,cpp}.
+// Adapted: the C++ reads via llvm::MemoryBuffer + registers with SourceManager
+// (createFileID); the self-host reads via fly.os.fs into a MemoryBuffer and tags a
+// FileID (the single-buffer SourceManager assigns id 1). The buffer is held here.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public enum FileExt {
+    UNKNOWN, FLY, FLY_H, LIB, OBJ, HEAD
+}
+
+// extOf — classify a filename by extension (the C++ FileExt detection).
+public FileExt extOf(const string fileName) {
+    if fly.str.endsWith(fileName, ".fly.h") { out = FileExt.FLY_H  return }
+    if fly.str.endsWith(fileName, ".fly")   { out = FileExt.FLY    return }
+    if fly.str.endsWith(fileName, ".a") || fly.str.endsWith(fileName, ".lib") { out = FileExt.LIB  return }
+    if fly.str.endsWith(fileName, ".o")     { out = FileExt.OBJ    return }
+    out = FileExt.UNKNOWN
+}
+
+public class InputFile {
+    DiagnosticsEngine diags
+    SourceManager sourceMgr
+    string fileName
+    string name
+    FileExt ext
+    FileID fid
+    MemoryBuffer buffer
+    bool loaded
+
+    public InputFile(const DiagnosticsEngine diags, const SourceManager sourceMgr, const string fileName) {
+        this.diags = diags
+        this.sourceMgr = sourceMgr
+        this.fileName = fileName
+        this.name = fly.os.path.stem(fileName)
+        this.ext = extOf(fileName)
+        this.fid = fileIDInvalid()
+        this.buffer = null
+        this.loaded = false
+    }
+
+    // load — read the file from disk into a MemoryBuffer. Returns false if the file
+    // is missing/empty (the C++ reports err_basic_cannot_open_file).
+    public bool load() {
+        if fly.os.fs.exists(this.fileName) == false { out = false  return }
+        string txt = fly.os.fs.readStr(this.fileName)
+        out = this.loadBuffer(txt)
+    }
+
+    // loadBuffer — load from an in-memory source (the C++ Load(StringRef)).
+    public bool loadBuffer(const string src) {
+        this.buffer = new MemoryBuffer(this.fileName, src)
+        this.fid = fileIDGet(1)
+        this.loaded = true
+        out = fly.str.isEmpty(src) == false
+    }
+
+    public bool isEmpty() {
+        if this.loaded == false { out = true  return }
+        out = this.buffer.isEmpty()
+    }
+    public bool isBuffer()           { out = this.loaded }
+    public string getFileName()      { out = this.fileName }
+    public string getName()          { out = this.name }
+    public FileExt getExt()          { out = this.ext }
+    public FileID getFileID()        { out = this.fid }
+    public MemoryBuffer getBuffer()  { out = this.buffer }
+}

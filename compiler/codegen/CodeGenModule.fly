@@ -1,6 +1,7 @@
 namespace fly.compiler.codegen
 
 import fly.compiler.sema.*
+import fly.compiler.target.*
 import fly.compiler.codegen.CodeGenLLVM
 import fly.compiler.codegen.CodeGenType
 import fly.compiler.codegen.CodeGenExpr
@@ -401,5 +402,60 @@ public class CodeGenModule {
     public void emitIR(const string filename) {
         LLVM llvm = this.cg.getLLVM()
         llvm.printModuleToFile(this.module, filename)
+    }
+
+    // configureTarget — stamp the LLVM module with the target triple + data layout
+    // from `ti` (mirrors fly/compiler/CodeGen/CodeGenModule.cpp setTargetTriple /
+    // setDataLayout). After this the emitted .ll carries `target triple` and
+    // `target datalayout` lines; before, the module had neither.
+    public void configureTarget(const TargetInfo ti) {
+        LLVM llvm = this.cg.getLLVM()
+        llvm.setTarget(this.module, ti.getTripleStr())
+        llvm.setDataLayout(this.module, ti.getDataLayout())
+        // Make usize/isize lowering follow this target's pointer width.
+        this.types.setTargetInfo(ti)
+    }
+
+    // emitObjectOrAsm — emit `this.module` to `filename` as an object (fileType 1)
+    // or assembly (fileType 0) via an LLVM TargetMachine. Mirrors the reference
+    // compiler's BackendUtil path: look up the target, build a TargetMachine,
+    // override the module data layout with the machine's exact layout, then emit.
+    // Sets `ok` = true on success. Requires the X86 backend to be registered.
+    public void emitObjectOrAsm(const TargetInfo ti, const string filename, const int fileType, bool ok) {
+        LLVM llvm = this.cg.getLLVM()
+
+        // Register the backend for the requested arch (dispatch on the triple).
+        Triple tr = ti.getTriple()
+        initTargetForArch(llvm, tr.getArch())
+
+        string triple = ti.getTripleStr()
+
+        // Look up the LLVMTargetRef for the triple (out-pointer + status).
+        fly.mem.Ptr target = fly.mem.toPtr(0)
+        bool tok = false
+        llvm.getTargetFromTriple(triple, target, tok)
+        if target.addr == 0 {
+            ok = false
+            return
+        }
+
+        // LLVMCodeGenLevelDefault=2, LLVMRelocPIC=2, LLVMCodeModelDefault=0.
+        fly.mem.Ptr tm = fly.mem.toPtr(0)
+        llvm.createTargetMachine(target, triple, "", "", 2, 2, 0, tm)
+        if tm.addr == 0 {
+            ok = false
+            return
+        }
+
+        // Use the machine's exact data layout (matches the reference compiler).
+        fly.mem.Ptr dl = fly.mem.toPtr(0)
+        llvm.createTargetDataLayout(tm, dl)
+        llvm.setModuleDataLayout(this.module, dl)
+
+        // Emit. targetMachineEmitToFile returns the raw LLVMBool (true = FAILURE).
+        bool emitFail = false
+        llvm.targetMachineEmitToFile(tm, this.module, filename, fileType, emitFail)
+        llvm.disposeTargetMachine(tm)
+        ok = emitFail == false
     }
 }

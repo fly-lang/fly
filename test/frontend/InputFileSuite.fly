@@ -1,0 +1,54 @@
+namespace fly.compiler.frontend.test
+
+import fly.compiler.frontend.*
+import fly.compiler.basic.*
+import fly.compiler.driver.FrontendOptions
+import fly.compiler.target.*
+import fly.assert
+import fly.str
+
+// Phase-B infrastructure: MemoryBuffer / FileManager / InputFile / CompilerInstance.
+
+suite InputFileSuite {
+
+    void bufferTest() {
+        case "MemoryBuffer holds name + text": {
+            MemoryBuffer mb = new MemoryBuffer("a.fly", "int main(){out=0}")
+            assert.assertStr(mb.getBufferName(), "a.fly", 1)
+            assert.assertStr(mb.getBuffer(), "int main(){out=0}", 2)
+            assert.assertFalse(mb.isEmpty(), 3)
+        }
+    }
+
+    void inputFileTest() {
+        case "InputFile classifies extensions + loads from a buffer": {
+            assert.assertTrue(extOf("x.fly") == FileExt.FLY, 10)
+            assert.assertTrue(extOf("x.fly.h") == FileExt.FLY_H, 11)
+            assert.assertTrue(extOf("libfoo.a") == FileExt.LIB, 12)
+            assert.assertTrue(extOf("x.o") == FileExt.OBJ, 13)
+            InputFile inf = new InputFile(null, null, "prog.fly")
+            assert.assertTrue(inf.getExt() == FileExt.FLY, 14)
+            assert.assertStr(inf.getName(), "prog", 15)
+            bool ok = inf.loadBuffer("void main() {}")
+            assert.assertTrue(ok, 16)
+            assert.assertTrue(inf.isBuffer(), 17)
+            MemoryBuffer b = inf.getBuffer()
+            assert.assertStr(b.getBuffer(), "void main() {}", 18)
+        }
+    }
+
+    void compilerInstanceTest() {
+        case "CompilerInstance bundles the components": {
+            FrontendOptions fo = new FrontendOptions("out")
+            CodeGenOptions cgo = new CodeGenOptions()
+            TargetOptions to = new TargetOptions("x86_64-unknown-linux-gnu")
+            CompilerInstance ci = new CompilerInstance(null, fo, cgo, to)
+            ci.createFileManager()
+            ci.createSourceManager("m.fly", "void main() {}")
+            assert.assertTrue(ci.getFileManager() != null, 20)
+            assert.assertTrue(ci.getSourceManager() != null, 21)
+            FrontendOptions got = ci.getFrontendOptions()
+            assert.assertStr(got.getOutputFile(), "out", 22)
+        }
+    }
+}

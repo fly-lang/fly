@@ -1,0 +1,23 @@
+namespace fly.compiler.target.test.lanai
+
+import fly.compiler.target.*
+import fly.assert
+
+suite LanaiSuite {
+
+    void metadataTest() {
+        case "lanai (BE 32)": {
+            assert.assertTrue(archFromName("lanai") == Arch.LANAI, 1)
+            TargetInfo a = targetInfoCreate(new TargetOptions("lanai-unknown-unknown"))
+            assert.assertStr(a.getDataLayout(), "E-m:e-p:32:32-i64:64-a:0:32-n32-S64", 2)
+            assert.assertEqI(a.getPointerWidth(), 32, 3)
+            assert.assertTrue(a.isBigEndian(), 4)
+        }
+    }
+
+    void machineTest() {
+        case "lanai target machine": {
+            assert.assertTrue(targetMachineCheck("lanai-unknown-unknown", Arch.LANAI) != 2, 5)
+        }
+    }
+}

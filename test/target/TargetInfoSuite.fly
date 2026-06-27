@@ -1,0 +1,62 @@
+namespace fly.compiler.target.test
+
+import fly.compiler.target.*
+import fly.assert
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TargetInfoSuite — core target subsystem (compiler/target/): triple parsing,
+// x86_64 TargetInfo population (data layout + widths + endianness), and the
+// invalid-marker path for an architecture that has not been ported.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite TargetInfoSuite {
+
+    void tripleTest() {
+        case "tripleParse splits x86_64-unknown-linux-gnu": {
+            Triple t = tripleParse("x86_64-unknown-linux-gnu")
+            assert.assertTrue(t.getArch() == Arch.X86_64, 1)
+            assert.assertTrue(t.isOSLinux(), 2)
+            assert.assertTrue(t.isKnown(), 3)
+            assert.assertStr(t.getArchName(), "x86_64", 4)
+            assert.assertStr(t.getVendorName(), "unknown", 5)
+            assert.assertStr(t.getOSName(), "linux", 6)
+            assert.assertStr(t.getEnvName(), "gnu", 7)
+            assert.assertStr(t.getTriple(), "x86_64-unknown-linux-gnu", 8)
+        }
+
+        case "amd64 alias maps to X86_64": {
+            Triple t = tripleParse("amd64-pc-linux")
+            assert.assertTrue(t.getArch() == Arch.X86_64, 9)
+            assert.assertTrue(t.isKnown(), 10)
+        }
+    }
+
+    void targetInfoTest() {
+        case "x86_64 TargetInfo: data layout + widths + endianness": {
+            TargetOptions o = new TargetOptions("x86_64-unknown-linux-gnu")
+            TargetInfo ti = targetInfoCreate(o)
+            assert.assertTrue(ti.isValid(), 20)
+            assert.assertStr(ti.getDataLayout(), "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128", 21)
+            assert.assertEqI(ti.getPointerWidth(), 64, 22)
+            assert.assertFalse(ti.isBigEndian(), 23)
+            assert.assertEqI(ti.getBoolWidth(), 8, 24)
+            assert.assertEqI(ti.getIntWidth(), 32, 25)
+            assert.assertEqI(ti.getLongWidth(), 64, 26)
+            assert.assertEqI(ti.getDoubleWidth(), 64, 27)
+            assert.assertStr(ti.getTripleStr(), "x86_64-unknown-linux-gnu", 28)
+        }
+
+        case "i386 TargetInfo: 32-bit": {
+            assert.assertTrue(archFromName("i686") == Arch.X86, 29)
+            TargetInfo ti = targetInfoCreate(new TargetOptions("i686-unknown-linux-gnu"))
+            assert.assertEqI(ti.getPointerWidth(), 32, 30)
+        }
+
+        case "unported arch yields invalid TargetInfo": {
+            TargetOptions o = new TargetOptions("loongarch64-unknown-linux-gnu")
+            TargetInfo ti = targetInfoCreate(o)
+            assert.assertFalse(ti.isValid(), 31)
+        }
+    }
+}

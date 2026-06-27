@@ -23,6 +23,8 @@ public class ResolverType {
         elsif k == ASTBuiltinTypeKind.TYPE_USHORT { t = SemaBuiltin.getUShortType() }
         elsif k == ASTBuiltinTypeKind.TYPE_UINT { t = SemaBuiltin.getUIntType() }
         elsif k == ASTBuiltinTypeKind.TYPE_ULONG { t = SemaBuiltin.getULongType() }
+        elsif k == ASTBuiltinTypeKind.TYPE_USIZE { t = SemaBuiltin.getUSizeType() }
+        elsif k == ASTBuiltinTypeKind.TYPE_ISIZE { t = SemaBuiltin.getISizeType() }
         elsif k == ASTBuiltinTypeKind.TYPE_FLOAT { t = SemaBuiltin.getFloatType() }
         elsif k == ASTBuiltinTypeKind.TYPE_DOUBLE { t = SemaBuiltin.getDoubleType() }
         elsif k == ASTBuiltinTypeKind.TYPE_COMPLEX { t = SemaBuiltin.getComplexType() }

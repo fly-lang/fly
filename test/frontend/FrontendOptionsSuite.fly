@@ -1,0 +1,51 @@
+namespace fly.compiler.frontend.test
+
+import fly.compiler.driver.FrontendOptions
+import fly.assert
+import fly.str
+
+// Phase-D: the expanded FrontendOptions field set (output / backend action / flags
+// / input-file list) consumed by Frontend + ToolChain.
+
+suite FrontendOptionsSuite {
+
+    void defaultsTest() {
+        case "constructor defaults": {
+            FrontendOptions fo = new FrontendOptions("out.exe")
+            assert.assertStr(fo.getOutputFile(), "out.exe", 1)
+            assert.assertFalse(fo.getCreateLibrary(), 2)
+            assert.assertFalse(fo.getCreateShared(), 3)
+            assert.assertFalse(fo.getVerbose(), 4)
+            assert.assertFalse(fo.getTestMode(), 5)
+            assert.assertEqI(fo.getBackendAction(), 3, 6)     // link by default
+            assert.assertEqI(fo.inputCount(), 0, 7)
+        }
+    }
+
+    void settersTest() {
+        case "flag + backend-action setters": {
+            FrontendOptions fo = new FrontendOptions("a.ll")
+            fo.setCreateLibrary(true)
+            fo.setCreateShared(true)
+            fo.setVerbose(true)
+            fo.setTestMode(true)
+            fo.setBackendAction(0)
+            assert.assertTrue(fo.getCreateLibrary(), 10)
+            assert.assertTrue(fo.getCreateShared(), 11)
+            assert.assertTrue(fo.getVerbose(), 12)
+            assert.assertTrue(fo.getTestMode(), 13)
+            assert.assertEqI(fo.getBackendAction(), 0, 14)
+        }
+    }
+
+    void inputsTest() {
+        case "input-file list (;-delimited) round-trips": {
+            FrontendOptions fo = new FrontendOptions("prog")
+            fo.addInputFile("libfoo.a")
+            fo.addInputFile("bar.o")
+            assert.assertEqI(fo.inputCount(), 2, 20)
+            assert.assertStr(fo.inputAt(0), "libfoo.a", 21)
+            assert.assertStr(fo.inputAt(1), "bar.o", 22)
+        }
+    }
+}

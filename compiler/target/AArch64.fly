@@ -1,0 +1,13 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+
+// AArch64 — 64-bit ARM (LP64). Datalayouts: canonical LLVM-20 ELF (clang-verified).
+// Reduced port of fly/compiler/Basic/Targets/AArch64.*.
+
+public void aarch64Populate(const TargetInfo ti) {
+    ti.applyData("e-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32", 64, false, 32, 64)
+}
+
+public void aarch64BePopulate(const TargetInfo ti) {
+    ti.applyData("E-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32", 64, true, 32, 64)
+}

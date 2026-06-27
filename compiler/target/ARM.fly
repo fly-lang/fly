@@ -1,0 +1,13 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+
+// ARM — 32-bit ARM (ILP32), AAPCS ELF. clang-verified LLVM-20 layouts.
+// Reduced port of fly/compiler/Basic/Targets/ARM.*.
+
+public void armPopulate(const TargetInfo ti) {
+    ti.applyData("e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64", 32, false, 32, 32)
+}
+
+public void armebPopulate(const TargetInfo ti) {
+    ti.applyData("E-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64", 32, true, 32, 32)
+}

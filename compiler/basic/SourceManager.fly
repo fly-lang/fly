@@ -1,5 +1,6 @@
 namespace fly.compiler.basic
 import fly.compiler.basic.*
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SourceManager — decodes a SourceLocation (an opaque byte offset) into line,
@@ -79,6 +80,35 @@ public class SourceManager {
     // getBufferData — the whole source buffer (single FileID).
     public string getBufferData() {
         out = this.buffer
+    }
+
+    // getFilename — the name this buffer was registered under (for diagnostics).
+    public string getFilename() {
+        out = this.filename
+    }
+
+    // getLineStartOffset — byte offset where 1-based `line` begins (start of buffer
+    // for line 1; just past the (line-1)th '\n' otherwise). Caret-diagnostic helper.
+    public int getLineStartOffset(const int line) {
+        int start = 0
+        int curLine = 1
+        while curLine < line && start < this.len {
+            if this.byteAt(start) == 10 { curLine = curLine + 1 }
+            start = start + 1
+        }
+        out = start
+    }
+
+    // getSourceLine — the text of 1-based `line` (without the trailing newline).
+    // The ingredient TextDiagnostic needs to render a source snippet. (C++ uses
+    // SourceManager buffer + getLineNumber; here we scan the single buffer.)
+    public string getSourceLine(const int line) {
+        int start = this.getLineStartOffset(line)
+        int end = start
+        while end < this.len && this.byteAt(end) != 10 {
+            end = end + 1
+        }
+        out = fly.str.substring(this.buffer, start, end)
     }
 
     // getPresumedLoc — filename + decoded line/col for display. FileID is the

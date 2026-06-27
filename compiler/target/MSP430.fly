@@ -1,0 +1,9 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+
+// MSP430 — 16-bit MCU (16-bit pointers and int). clang-verified LLVM-20 layout.
+// Reduced port of fly/compiler/Basic/Targets/MSP430.*.
+
+public void msp430Populate(const TargetInfo ti) {
+    ti.applyData("e-m:e-p:16:16-i32:16-i64:16-f32:16-f64:16-a:8-n8:16-S16", 16, false, 16, 32)
+}

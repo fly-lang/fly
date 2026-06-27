@@ -56,11 +56,50 @@ public FixItHint fixItRemove(const SourceRange range) {
     out = new FixItHint(range, "")
 }
 
+// Diagnostic — a fully-formed diagnostic handed to a DiagnosticConsumer. Carries
+// the level + location (+ decoded line/col/filename) + the formatted message AND
+// the "line:col: level: message" rendered short form, plus the SourceManager so a
+// rich consumer (TextDiagnosticPrinter) can fetch the source line for a caret.
+// (1:1 with the C++ Diagnostic info passed to DiagnosticConsumer::HandleDiagnostic.)
+public class Diagnostic {
+    DiagLevel level
+    SourceLocation loc
+    int line
+    int col
+    string filename
+    string message
+    string rendered
+    SourceManager sm
+
+    public Diagnostic(const DiagLevel level, const SourceLocation loc, const int line, const int col,
+                      const string filename, const string message, const string rendered, const SourceManager sm) {
+        this.level = level
+        this.loc = loc
+        this.line = line
+        this.col = col
+        this.filename = filename
+        this.message = message
+        this.rendered = rendered
+        this.sm = sm
+    }
+
+    public DiagLevel getLevel()        { out = this.level }
+    public SourceLocation getLoc()     { out = this.loc }
+    public int getLine()               { out = this.line }
+    public int getColumn()             { out = this.col }
+    public string getFilename()        { out = this.filename }
+    public string getMessage()         { out = this.message }
+    public string getRendered()        { out = this.rendered }
+    public SourceManager getSourceManager() { out = this.sm }
+}
+
 // DiagnosticConsumer — sink for fully-formed diagnostics. The base is a no-op;
-// concrete consumers override handleDiagnostic (vtable dispatch).
+// concrete consumers override handleDiagnostic (vtable dispatch). Receives a rich
+// Diagnostic (the C++ HandleDiagnostic(Level, Diagnostic&) shape) so consumers can
+// render carets; the rendered short form is on Diagnostic.getRendered().
 public class DiagnosticConsumer {
     public DiagnosticConsumer() { }
-    public void handleDiagnostic(const DiagLevel level, const string message) { }
+    public void handleDiagnostic(const Diagnostic diag) { }
 }
 
 // StoringDiagnosticConsumer — records rendered diagnostics for inspection/tests.
@@ -76,8 +115,9 @@ public class StoringDiagnosticConsumer : DiagnosticConsumer {
         this.warnings = 0
     }
 
-    public void handleDiagnostic(const DiagLevel level, const string message) {
-        this.messages.add(message)
+    public void handleDiagnostic(const Diagnostic diag) {
+        this.messages.add(diag.getRendered())
+        DiagLevel level = diag.getLevel()
         if level == DiagLevel.Error || level == DiagLevel.Fatal { this.errors = this.errors + 1 }
         elsif level == DiagLevel.Warning { this.warnings = this.warnings + 1 }
     }
@@ -155,7 +195,10 @@ public class DiagnosticsEngine {
         string prefix = fly.str.concat(fly.str.convert(line),
                         fly.str.concat(":", fly.str.concat(fly.str.convert(col), ": ")))
         string full = fly.str.concat(prefix, fly.str.concat(levelName(level), fly.str.concat(": ", msg)))
-        this.consumer.handleDiagnostic(level, full)
+        PresumedLoc pl = this.sm.getPresumedLoc(loc)
+        string fname = pl.getFilename()
+        Diagnostic diag = new Diagnostic(level, loc, line, col, fname, msg, full, this.sm)
+        this.consumer.handleDiagnostic(diag)
         if level == DiagLevel.Error || level == DiagLevel.Fatal {
             this.errorCount = this.errorCount + 1
             this.errorOccurred = true

@@ -1,0 +1,10 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+
+// Le64 — LLVM's 64-bit little-endian abstract machine. Not present in clang/
+// libLLVM-20 as a real backend, so the layout is taken verbatim from
+// fly/compiler/Basic/Targets/Le64.h; machine/emit tests skip it (no backend).
+
+public void le64Populate(const TargetInfo ti) {
+    ti.applyData("e-m:e-v128:32-v16:16-v32:32-v96:32-n8:16:32:64-S128", 64, false, 32, 64)
+}

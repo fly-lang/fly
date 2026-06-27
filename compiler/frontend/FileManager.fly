@@ -1,0 +1,23 @@
+namespace fly.compiler.frontend
+
+import fly.compiler.frontend.*
+import fly.os.fs
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FileManager — reads files into MemoryBuffers, the bootstrap analog of the C++
+// llvm::vfs-backed FileManager. Adapted to fly.os.fs (no VFS, no FileEntry cache,
+// no canonicalisation); just exists() + getFile() reading via fly.os.fs.readStr.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class FileManager {
+    public FileManager() { }
+
+    public bool exists(const string path) { out = fly.os.fs.exists(path) }
+
+    // getFile — read `path` into a MemoryBuffer (empty text if unreadable).
+    public MemoryBuffer getFile(const string path) {
+        string txt = fly.os.fs.readStr(path)
+        out = new MemoryBuffer(path, txt)
+    }
+}

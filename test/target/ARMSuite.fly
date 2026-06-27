@@ -1,0 +1,32 @@
+namespace fly.compiler.target.test.arm
+
+import fly.compiler.target.*
+import fly.assert
+
+suite ARMSuite {
+
+    void metadataTest() {
+        case "arm (LE, ILP32)": {
+            assert.assertTrue(archFromName("arm") == Arch.ARM, 1)
+            assert.assertTrue(archFromName("thumb") == Arch.ARM, 2)
+            TargetOptions o = new TargetOptions("arm-unknown-linux-gnueabi")
+            TargetInfo ti = targetInfoCreate(o)
+            assert.assertStr(ti.getDataLayout(), "e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64", 3)
+            assert.assertEqI(ti.getPointerWidth(), 32, 4)
+            assert.assertFalse(ti.isBigEndian(), 5)
+        }
+        case "armeb (BE)": {
+            assert.assertTrue(archFromName("armeb") == Arch.ARMEB, 6)
+            TargetOptions o = new TargetOptions("armeb-unknown-linux-gnueabi")
+            TargetInfo ti = targetInfoCreate(o)
+            assert.assertStr(ti.getDataLayout(), "E-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64", 7)
+            assert.assertTrue(ti.isBigEndian(), 8)
+        }
+    }
+
+    void machineTest() {
+        case "arm target machine": {
+            assert.assertTrue(targetMachineCheck("arm-unknown-linux-gnueabi", Arch.ARM) != 2, 9)
+        }
+    }
+}

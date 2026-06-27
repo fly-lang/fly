@@ -1,0 +1,155 @@
+namespace fly.compiler.frontend
+
+import fly.compiler.frontend.*
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.compiler.target.*
+import fly.compiler.driver.FrontendOptions
+import fly.data.*
+import fly.os.io
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Frontend — drives a compilation through the self-host pipeline reading all of
+// its state from a CompilerInstance, a 1:1 port of fly/compiler/Frontend/
+// Frontend.cpp::Execute() onto the CI model (superseding driver/Frontend.fly):
+//   parse → resolve → codegen → emit, then expose the emitted artifact via
+//   getOutputFile() so the Driver can hand it to the ToolChain.
+//
+// Diagnostics: Sema errors flow through the CI's DiagnosticsEngine into a
+// TextDiagnosticPrinter (caret + source line + ^~~, via the Phase-C renderer).
+// Parser errors are still surfaced as the parser's stored "line:col: …" messages
+// (the Parser owns its own sink and doesn't carry a SourceManager for carets yet).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class Frontend {
+
+    CompilerInstance ci
+    string outputFile     // the emitted artifact (object for link mode, else .ll/.o/.s)
+
+    public Frontend(const CompilerInstance ci) {
+        this.ci = ci
+        this.outputFile = ""
+    }
+
+    public string getOutputFile() { out = this.outputFile }
+
+    // trace — verbose phase log to stderr (only when FrontendOptions.verbose).
+    public void trace(const string msg) {
+        FrontendOptions fo = this.ci.getFrontendOptions()
+        if fo.getVerbose() {
+            fly.os.io.printErrLn(fly.str.concat("fly: ", msg))
+        }
+    }
+
+    // execute — run the pipeline for the CI's source buffer. `objPath` is where a
+    // link-mode object is written (the per-input artifact); for direct-emit modes
+    // (.ll/.o/.s) the output goes to FrontendOptions.outputFile. `noOutput` type-
+    // checks only. Returns 0 on success, 1 on the first failing phase.
+    public int execute(const string objPath, const bool noOutput) {
+        FrontendOptions fo = this.ci.getFrontendOptions()
+        TargetOptions topts = this.ci.getTargetOptions()
+        SourceManager sm = this.ci.getSourceManager()
+        string name = sm.getFilename()
+        string src = sm.getBufferData()
+
+        // 0) select target — fail fast on an unsupported arch.
+        TargetInfo ti = targetInfoCreate(topts)
+        if ti.isValid() == false {
+            fly.os.io.printErrLn(fly.str.concat("error: unsupported target: ", topts.getTriple()))
+            out = 1
+            return
+        }
+
+        // 1) parse
+        this.trace("parsing")
+        Parser p = new Parser(src)
+        ASTModule m = p.parseModule(name)
+        if p.isSuccess() == false {
+            this.printDiags(p.getSink())
+            out = 1
+            return
+        }
+
+        // 2) resolve — route Sema diagnostics through a TextDiagnosticPrinter so real
+        // errors render carets (the CI's SourceManager supplies the source line).
+        this.trace("resolving")
+        DiagnosticOptions opts = new DiagnosticOptions()
+        TextDiagnosticPrinter printer = new TextDiagnosticPrinter()
+        DiagnosticsEngine diags = new DiagnosticsEngine(opts, printer, sm)
+        List<ASTModule> mods = new List<ASTModule>()
+        mods.add(m)
+        SemaContext ctx = new SemaContext(diags)
+        List<SemaModule> resModules = ctx.Resolve(mods, fo.getTestMode())
+        if diags.hasErrorOccurred() {
+            out = 1
+            return
+        }
+        Registry reg = ctx.getReg()
+
+        // 3) codegen + verify
+        this.trace("generating code")
+        CodeGenModule cgm = new CodeGenModule(name)
+        cgm.configureTarget(ti)
+        cgm.generate(reg)
+        bool ok = false
+        cgm.verify(ok)
+        if ok == false {
+            fly.os.io.printErrLn("error: backend module verification failed")
+            out = 1
+            return
+        }
+
+        // 4) emit — for link mode (action 3) write an object to objPath and record it
+        // as the output artifact; otherwise emit directly to FrontendOptions.output.
+        if noOutput {
+            this.outputFile = ""
+            out = 0
+            return
+        }
+        int action = fo.getBackendAction()
+        if action == 3 {
+            this.trace(fly.str.concat("emitting ", objPath))
+            bool eok = false
+            cgm.emitObjectOrAsm(ti, objPath, 1, eok)     // 1 = object
+            if eok == false {
+                fly.os.io.printErrLn("error: object emission failed")
+                out = 1
+                return
+            }
+            this.outputFile = objPath
+        } else {
+            string outPath = fo.getOutputFile()
+            this.trace(fly.str.concat("emitting ", outPath))
+            if action == 0 {
+                cgm.emitIR(outPath)
+            } else {
+                int fileType = 1                       // object
+                if action == 2 { fileType = 0 }        // assembly
+                bool eok = false
+                cgm.emitObjectOrAsm(ti, outPath, fileType, eok)
+                if eok == false {
+                    fly.os.io.printErrLn("error: object/assembly emission failed")
+                    out = 1
+                    return
+                }
+            }
+            this.outputFile = outPath
+        }
+        out = 0
+    }
+
+    // printDiags — dump every stored parser message to stderr.
+    public void printDiags(const StoringDiagnosticConsumer sink) {
+        int n = sink.count()
+        int i = 0
+        while i < n {
+            string msg = sink.getMessage(i)
+            fly.os.io.printErrLn(msg)
+            i = i + 1
+        }
+    }
+}

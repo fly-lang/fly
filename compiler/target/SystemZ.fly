@@ -1,0 +1,9 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+
+// SystemZ — IBM z/Architecture (s390x, 64-bit BE). clang-verified LLVM-20 layout
+// (the vector-capable default). Reduced port of Basic/Targets/SystemZ.*.
+
+public void systemzPopulate(const TargetInfo ti) {
+    ti.applyData("E-m:e-i1:8:16-i8:8:16-i64:64-f128:64-v128:64-a:8:16-n32:64", 64, true, 32, 64)
+}

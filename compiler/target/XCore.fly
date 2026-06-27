@@ -1,0 +1,9 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+
+// XCore — XMOS xCORE, 32-bit (i64 aligned to 32). clang-verified LLVM-20 layout.
+// Reduced port of fly/compiler/Basic/Targets/XCore.*.
+
+public void xcorePopulate(const TargetInfo ti) {
+    ti.applyData("e-m:e-p:32:32-i1:8:32-i8:8:32-i16:16:32-i64:32-f64:32-a:0:32-n32", 32, false, 32, 32)
+}

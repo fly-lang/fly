@@ -1,0 +1,32 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TargetOptions — the user-facing configuration that selects a target, a reduced
+// port of fly/include/Basic/TargetOptions.h. The C++ version also carries the
+// feature map, EABI version, SDK version, linker version, etc.; the self-host
+// only needs the triple, CPU, the (comma-joined) feature string, and code model.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class TargetOptions {
+    string triple      // e.g. "x86_64-unknown-linux-gnu" (already defaulted by the caller)
+    string cpu         // e.g. "" (generic) or "x86-64-v2"
+    string features    // LLVM feature string, comma-joined "+sse4.2,-avx" ("" = none)
+    string codeModel   // "default" / "small" / ... (passed through to the TargetMachine)
+
+    public TargetOptions(const string triple) {
+        this.triple = triple
+        this.cpu = ""
+        this.features = ""
+        this.codeModel = "default"
+    }
+
+    public string getTriple()    { out = this.triple }
+    public string getCPU()       { out = this.cpu }
+    public string getFeatures()  { out = this.features }
+    public string getCodeModel() { out = this.codeModel }
+
+    public void setCPU(const string cpu)            { this.cpu = cpu }
+    public void setFeatures(const string features)  { this.features = features }
+    public void setCodeModel(const string cm)       { this.codeModel = cm }
+}

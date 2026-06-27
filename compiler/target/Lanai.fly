@@ -1,0 +1,9 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+
+// Lanai — 32-bit, big-endian. clang-verified LLVM-20 layout.
+// Reduced port of fly/compiler/Basic/Targets/Lanai.*.
+
+public void lanaiPopulate(const TargetInfo ti) {
+    ti.applyData("E-m:e-p:32:32-i64:64-a:0:32-n32-S64", 32, true, 32, 32)
+}

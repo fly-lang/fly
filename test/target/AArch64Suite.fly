@@ -1,0 +1,36 @@
+namespace fly.compiler.target.test.aarch64
+
+import fly.compiler.target.*
+import fly.assert
+
+// AArch64 target: metadata (runs anywhere) + machine constructibility
+// (availability-gated: passes where the backend is in libLLVM, skips otherwise).
+
+suite AArch64Suite {
+
+    void metadataTest() {
+        case "aarch64 (LE, LP64)": {
+            assert.assertTrue(archFromName("aarch64") == Arch.AARCH64, 1)
+            assert.assertTrue(archFromName("arm64") == Arch.AARCH64, 2)
+            TargetOptions o = new TargetOptions("aarch64-unknown-linux-gnu")
+            TargetInfo ti = targetInfoCreate(o)
+            assert.assertTrue(ti.isValid(), 3)
+            assert.assertStr(ti.getDataLayout(), "e-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32", 4)
+            assert.assertEqI(ti.getPointerWidth(), 64, 5)
+            assert.assertFalse(ti.isBigEndian(), 6)
+        }
+        case "aarch64_be (BE)": {
+            assert.assertTrue(archFromName("aarch64_be") == Arch.AARCH64_BE, 7)
+            TargetOptions o = new TargetOptions("aarch64_be-unknown-linux-gnu")
+            TargetInfo ti = targetInfoCreate(o)
+            assert.assertStr(ti.getDataLayout(), "E-m:e-p270:32:32-p271:32:32-p272:64:64-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128-Fn32", 8)
+            assert.assertTrue(ti.isBigEndian(), 9)
+        }
+    }
+
+    void machineTest() {
+        case "aarch64 target machine": {
+            assert.assertTrue(targetMachineCheck("aarch64-unknown-linux-gnu", Arch.AARCH64) != 2, 10)
+        }
+    }
+}

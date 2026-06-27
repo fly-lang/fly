@@ -1,0 +1,32 @@
+namespace fly.compiler.target.test.ppc
+
+import fly.compiler.target.*
+import fly.assert
+
+suite PPCSuite {
+
+    void metadataTest() {
+        case "ppc (BE 32)": {
+            assert.assertTrue(archFromName("powerpc") == Arch.PPC, 1)
+            TargetInfo a = targetInfoCreate(new TargetOptions("powerpc-unknown-linux-gnu"))
+            assert.assertStr(a.getDataLayout(), "E-m:e-p:32:32-Fn32-i64:64-n32", 2)
+            assert.assertEqI(a.getPointerWidth(), 32, 3)
+            assert.assertTrue(a.isBigEndian(), 4)
+        }
+        case "ppc64 (BE) / ppc64le (LE)": {
+            TargetInfo a = targetInfoCreate(new TargetOptions("powerpc64-unknown-linux-gnu"))
+            assert.assertStr(a.getDataLayout(), "E-m:e-Fi64-i64:64-i128:128-n32:64-S128-v256:256:256-v512:512:512", 5)
+            assert.assertTrue(a.isBigEndian(), 6)
+            TargetInfo b = targetInfoCreate(new TargetOptions("powerpc64le-unknown-linux-gnu"))
+            assert.assertStr(b.getDataLayout(), "e-m:e-Fn32-i64:64-i128:128-n32:64-S128-v256:256:256-v512:512:512", 7)
+            assert.assertEqI(b.getPointerWidth(), 64, 8)
+            assert.assertFalse(b.isBigEndian(), 9)
+        }
+    }
+
+    void machineTest() {
+        case "ppc64le target machine": {
+            assert.assertTrue(targetMachineCheck("powerpc64le-unknown-linux-gnu", Arch.PPC64LE) != 2, 10)
+        }
+    }
+}

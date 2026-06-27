@@ -1,0 +1,21 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+
+// Mips — o32 (32-bit) and n64 (64-bit), big- and little-endian. clang-verified
+// LLVM-20 layouts. Reduced port of fly/compiler/Basic/Targets/Mips.*.
+
+public void mipsPopulate(const TargetInfo ti) {
+    ti.applyData("E-m:m-p:32:32-i8:8:32-i16:16:32-i64:64-n32-S64", 32, true, 32, 32)
+}
+
+public void mipselPopulate(const TargetInfo ti) {
+    ti.applyData("e-m:m-p:32:32-i8:8:32-i16:16:32-i64:64-n32-S64", 32, false, 32, 32)
+}
+
+public void mips64Populate(const TargetInfo ti) {
+    ti.applyData("E-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128", 64, true, 32, 64)
+}
+
+public void mips64elPopulate(const TargetInfo ti) {
+    ti.applyData("e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128", 64, false, 32, 64)
+}

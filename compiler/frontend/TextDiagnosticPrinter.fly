@@ -1,0 +1,44 @@
+namespace fly.compiler.frontend
+
+import fly.compiler.frontend.*
+import fly.compiler.basic.*
+import fly.os.io
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TextDiagnosticPrinter — a DiagnosticConsumer that renders each diagnostic with
+// TextDiagnostic (caret + source snippet) to stderr. 1:1 with
+// fly/Frontend/TextDiagnosticPrinter.cpp (HandleDiagnostic → TextDiagnostic),
+// adapted: writes via fly.os.io.printErrLn (no raw_ostream / color), and receives
+// the rich Diagnostic the engine now builds.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class TextDiagnosticPrinter : DiagnosticConsumer {
+    TextDiagnostic td
+    string prefix
+    int errors
+    int warnings
+
+    public TextDiagnosticPrinter() {
+        super()
+        this.td = new TextDiagnostic()
+        this.prefix = ""
+        this.errors = 0
+        this.warnings = 0
+    }
+
+    public void setPrefix(const string p) { this.prefix = p }
+
+    public void handleDiagnostic(const Diagnostic diag) {
+        string text = this.td.render(diag)
+        if fly.str.isEmpty(this.prefix) == false {
+            text = fly.str.concat(fly.str.concat(this.prefix, ": "), text)
+        }
+        fly.os.io.printErrLn(text)
+        DiagLevel level = diag.getLevel()
+        if level == DiagLevel.Error || level == DiagLevel.Fatal { this.errors = this.errors + 1 }
+        elsif level == DiagLevel.Warning { this.warnings = this.warnings + 1 }
+    }
+
+    public int errorCount()   { out = this.errors }
+    public int warningCount() { out = this.warnings }
+}

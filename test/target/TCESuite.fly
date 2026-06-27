@@ -1,0 +1,27 @@
+namespace fly.compiler.target.test.tce
+
+import fly.compiler.target.*
+import fly.assert
+
+// TCE has no backend in libLLVM-20, so machineTest skips.
+suite TCESuite {
+
+    void metadataTest() {
+        case "tce (BE 32) / tcele (LE 32)": {
+            assert.assertTrue(archFromName("tce") == Arch.TCE, 1)
+            TargetInfo a = targetInfoCreate(new TargetOptions("tce-unknown-unknown"))
+            assert.assertStr(a.getDataLayout(), "E-p:32:32:32-i1:8:8-i8:8:32-i16:16:32-i32:32:32-i64:32:32-f32:32:32-f64:32:32-v64:32:32-v128:32:32-v256:32:32-v512:32:32-v1024:32:32-a0:0:32-n32", 2)
+            assert.assertTrue(a.isBigEndian(), 3)
+            assert.assertTrue(archFromName("tcele") == Arch.TCELE, 4)
+            TargetInfo b = targetInfoCreate(new TargetOptions("tcele-unknown-unknown"))
+            assert.assertStr(b.getDataLayout(), "e-p:32:32:32-i1:8:8-i8:8:32-i16:16:32-i32:32:32-i64:32:32-f32:32:32-f64:32:32-v64:32:32-v128:32:32-v256:32:32-v512:32:32-v1024:32:32-a0:0:32-n32", 5)
+            assert.assertFalse(b.isBigEndian(), 6)
+        }
+    }
+
+    void machineTest() {
+        case "tce target machine (skips: no backend)": {
+            assert.assertTrue(targetMachineCheck("tce-unknown-unknown", Arch.TCE) != 2, 7)
+        }
+    }
+}

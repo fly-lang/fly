@@ -1,0 +1,35 @@
+namespace fly.compiler.target.test.mips
+
+import fly.compiler.target.*
+import fly.assert
+
+suite MipsSuite {
+
+    void metadataTest() {
+        case "mips (BE o32) / mipsel (LE)": {
+            assert.assertTrue(archFromName("mips") == Arch.MIPS, 1)
+            TargetInfo a = targetInfoCreate(new TargetOptions("mips-unknown-linux-gnu"))
+            assert.assertStr(a.getDataLayout(), "E-m:m-p:32:32-i8:8:32-i16:16:32-i64:64-n32-S64", 2)
+            assert.assertEqI(a.getPointerWidth(), 32, 3)
+            assert.assertTrue(a.isBigEndian(), 4)
+            TargetInfo b = targetInfoCreate(new TargetOptions("mipsel-unknown-linux-gnu"))
+            assert.assertStr(b.getDataLayout(), "e-m:m-p:32:32-i8:8:32-i16:16:32-i64:64-n32-S64", 5)
+            assert.assertFalse(b.isBigEndian(), 6)
+        }
+        case "mips64 (BE) / mips64el (LE)": {
+            TargetInfo a = targetInfoCreate(new TargetOptions("mips64-unknown-linux-gnuabi64"))
+            assert.assertStr(a.getDataLayout(), "E-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128", 7)
+            assert.assertEqI(a.getPointerWidth(), 64, 8)
+            assert.assertTrue(a.isBigEndian(), 9)
+            TargetInfo b = targetInfoCreate(new TargetOptions("mips64el-unknown-linux-gnuabi64"))
+            assert.assertStr(b.getDataLayout(), "e-m:e-i8:8:32-i16:16:32-i64:64-i128:128-n32:64-S128", 10)
+            assert.assertFalse(b.isBigEndian(), 11)
+        }
+    }
+
+    void machineTest() {
+        case "mips target machine": {
+            assert.assertTrue(targetMachineCheck("mips-unknown-linux-gnu", Arch.MIPS) != 2, 12)
+        }
+    }
+}

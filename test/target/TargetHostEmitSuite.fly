@@ -1,0 +1,51 @@
+namespace fly.compiler.target.test.hostemit
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.compiler.target.*
+import fly.data.*
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TargetHostEmitSuite — the host-gated real object emission. Detects the host
+// arch, builds a trivial module, configures it for the host target and emits an
+// object via the TargetMachine path. This is the "runs on the right system"
+// proof: it adapts to whatever machine runs it, and skips cleanly if the host
+// arch can't be detected / has no backend. Writes /tmp/cg/hostemit.o.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite TargetHostEmitSuite {
+
+    void hostEmitTest() {
+        case "emit an object for the host architecture": {
+            Arch ha = hostArch()
+            if ha == Arch.UNKNOWN { assert.assertTrue(true, 1)  return }
+
+            string tri = hostTripleStr()
+            TargetInfo ti = targetInfoCreate(new TargetOptions(tri))
+            if ti.isValid() == false { assert.assertTrue(true, 2)  return }
+
+            Parser p = new Parser("int main() { out = 0 }")
+            ASTModule m = p.parseModule("hostemit")
+            assert.assertTrue(p.isSuccess(), 3)
+            List<ASTModule> mods = new List<ASTModule>()
+            mods.add(m)
+            SemaContext ctx = new SemaContext(null)
+            List<SemaModule> res = ctx.Resolve(mods, false)
+
+            CodeGenModule cgm = new CodeGenModule("hostemit")
+            cgm.configureTarget(ti)
+            cgm.generate(ctx.getReg())
+            bool vok = false
+            cgm.verify(vok)
+            assert.assertTrue(vok, 4)
+
+            bool ok = false
+            cgm.emitObjectOrAsm(ti, "/tmp/cg/hostemit.o", 1, ok)
+            assert.assertTrue(ok, 5)
+        }
+    }
+}

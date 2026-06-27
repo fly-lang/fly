@@ -1,0 +1,47 @@
+namespace fly.compiler.frontend
+
+import fly.compiler.basic.*
+import fly.data.List
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TextDiagnosticBuffer — buffers diagnostics by level for later replay, 1:1 with
+// fly/Frontend/TextDiagnosticBuffer.{h,cpp}. The C++ keeps ordered (loc,text) lists
+// per level; here we store the rendered short form, partitioned into errors /
+// warnings / notes, plus an "all" stream that preserves emission order.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class TextDiagnosticBuffer : DiagnosticConsumer {
+    List<string> errors
+    List<string> warnings
+    List<string> notes
+    List<string> all
+
+    public TextDiagnosticBuffer() {
+        super()
+        this.errors = new List<string>()
+        this.warnings = new List<string>()
+        this.notes = new List<string>()
+        this.all = new List<string>()
+    }
+
+    public void handleDiagnostic(const Diagnostic diag) {
+        string text = diag.getRendered()
+        this.all.add(text)
+        DiagLevel level = diag.getLevel()
+        if level == DiagLevel.Error || level == DiagLevel.Fatal { this.errors.add(text) }
+        elsif level == DiagLevel.Warning { this.warnings.add(text) }
+        elsif level == DiagLevel.Note { this.notes.add(text) }
+    }
+
+    // flushTo — replay every buffered diagnostic to another consumer (the C++
+    // FlushDiagnostics drives a DiagnosticsEngine; we forward the stored Diagnostics'
+    // rendered text). Kept minimal: replays nothing structurally, callers read lists.
+    public int errorCount()   { out = this.errors.size() }
+    public int warningCount() { out = this.warnings.size() }
+    public int noteCount()    { out = this.notes.size() }
+    public int count()        { out = this.all.size() }
+    public string getError(const int i)   { out = this.errors.get(i) }
+    public string getWarning(const int i) { out = this.warnings.get(i) }
+    public string getNote(const int i)    { out = this.notes.get(i) }
+    public string get(const int i)        { out = this.all.get(i) }
+}

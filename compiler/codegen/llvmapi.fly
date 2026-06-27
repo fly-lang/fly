@@ -2,10 +2,37 @@ namespace llvm.api
 
 import fly.bridge.*
 import fly.mem
+import fly.llvm
 
 // All LLVM handles are fly.mem.Ptr (opaque C pointer wrappers).
 // On Linux: libLLVM-20.so   On Windows: LLVM-C.dll
 // Instantiate LLVM once and reuse it across the compilation unit.
+
+// cbuf — a raw, NUL-terminated byte buffer holding `s`, returned as its address.
+//
+// Fly strings are {ptr,len} and are NOT NUL-terminated; LLVM's `const char*`
+// entry points call strlen and read past the end of a heap string, appending
+// adjacent garbage (e.g. a stray '!' after a triple stored in a field). A Fly
+// string can't carry the terminator either — assigning it into an Args field
+// re-clones it into a len-byte buffer, dropping the NUL. So we emit a plain
+// buffer and pass its ADDRESS as a Ptr arg (a long is never cloned), giving the C
+// side a real, terminated C string. The buffer outlives the (synchronous) call;
+// it leaks, which is fine for the one-shot compiler.
+public long cbuf(const string s) {
+    int n = 0
+    fly.llvm.strSize(s, n)
+    long buf = fly.mem.alloc(n + 1)
+    byte b = 0
+    int i = 0
+    while i < n {
+        fly.llvm.strByteAt(s, i, b)
+        fly.llvm.strPoke(buf, i, b)
+        i = i + 1
+    }
+    byte z = 0
+    fly.llvm.strPoke(buf, n, z)
+    out = buf
+}
 
 // ── Argument structs ──────────────────────────────────────────────────────────
 
@@ -179,6 +206,30 @@ struct PtrStrIntIntArgs : Args {
     int m
 }
 
+// LLVMCreateTargetMachine(T, Triple, CPU, Features, Level, Reloc, CodeModel).
+// Source field order == C argument order (the bridge marshals fields positionally).
+// The three C strings are passed as Ptr-to-NUL-buffer (see cbuf) rather than Fly
+// `string` fields, which would lose the terminator on assignment.
+struct CreateTMArgs : Args {
+    fly.mem.Ptr target
+    fly.mem.Ptr triple
+    fly.mem.Ptr cpu
+    fly.mem.Ptr features
+    int level
+    int reloc
+    int codeModel
+}
+
+// LLVMTargetMachineEmitToFile(TM, M, Filename, FileType, char** Err).
+// `filename` is a Ptr-to-NUL-buffer; `err` stays null (char** NULL).
+struct EmitFileArgs : Args {
+    fly.mem.Ptr tm
+    fly.mem.Ptr mod
+    fly.mem.Ptr filename
+    int emitType
+    fly.mem.Ptr err
+}
+
 // ── LLVM wrapper ──────────────────────────────────────────────────────────────
 
 public class LLVM {
@@ -213,6 +264,141 @@ public class LLVM {
     public void initializeAllAsmPrinters() {
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMInitializeX86AsmPrinter", new NoArgs())
+    }
+
+    // ── Per-backend registration ───────────────────────────────────────────────
+    //
+    // Each registers a backend's TargetInfo + Target + TargetMC + AsmPrinter (the
+    // set needed to look up a target and emit .o/.s). Only backends actually
+    // present in libLLVM-20.so are wrapped — referencing a missing LLVMInitialize*
+    // symbol would break linking. `initTargetForArch` (target/TargetInit.fly)
+    // dispatches the right one per arch.
+
+    public void initX86() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeX86TargetInfo", new NoArgs())
+        lib.call("LLVMInitializeX86Target", new NoArgs())
+        lib.call("LLVMInitializeX86TargetMC", new NoArgs())
+        lib.call("LLVMInitializeX86AsmPrinter", new NoArgs())
+    }
+    public void initAArch64() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeAArch64TargetInfo", new NoArgs())
+        lib.call("LLVMInitializeAArch64Target", new NoArgs())
+        lib.call("LLVMInitializeAArch64TargetMC", new NoArgs())
+        lib.call("LLVMInitializeAArch64AsmPrinter", new NoArgs())
+    }
+    public void initARM() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeARMTargetInfo", new NoArgs())
+        lib.call("LLVMInitializeARMTarget", new NoArgs())
+        lib.call("LLVMInitializeARMTargetMC", new NoArgs())
+        lib.call("LLVMInitializeARMAsmPrinter", new NoArgs())
+    }
+    public void initMips() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeMipsTargetInfo", new NoArgs())
+        lib.call("LLVMInitializeMipsTarget", new NoArgs())
+        lib.call("LLVMInitializeMipsTargetMC", new NoArgs())
+        lib.call("LLVMInitializeMipsAsmPrinter", new NoArgs())
+    }
+    public void initPowerPC() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializePowerPCTargetInfo", new NoArgs())
+        lib.call("LLVMInitializePowerPCTarget", new NoArgs())
+        lib.call("LLVMInitializePowerPCTargetMC", new NoArgs())
+        lib.call("LLVMInitializePowerPCAsmPrinter", new NoArgs())
+    }
+    public void initRISCV() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeRISCVTargetInfo", new NoArgs())
+        lib.call("LLVMInitializeRISCVTarget", new NoArgs())
+        lib.call("LLVMInitializeRISCVTargetMC", new NoArgs())
+        lib.call("LLVMInitializeRISCVAsmPrinter", new NoArgs())
+    }
+    public void initSparc() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeSparcTargetInfo", new NoArgs())
+        lib.call("LLVMInitializeSparcTarget", new NoArgs())
+        lib.call("LLVMInitializeSparcTargetMC", new NoArgs())
+        lib.call("LLVMInitializeSparcAsmPrinter", new NoArgs())
+    }
+    public void initSystemZ() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeSystemZTargetInfo", new NoArgs())
+        lib.call("LLVMInitializeSystemZTarget", new NoArgs())
+        lib.call("LLVMInitializeSystemZTargetMC", new NoArgs())
+        lib.call("LLVMInitializeSystemZAsmPrinter", new NoArgs())
+    }
+    public void initWebAssembly() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeWebAssemblyTargetInfo", new NoArgs())
+        lib.call("LLVMInitializeWebAssemblyTarget", new NoArgs())
+        lib.call("LLVMInitializeWebAssemblyTargetMC", new NoArgs())
+        lib.call("LLVMInitializeWebAssemblyAsmPrinter", new NoArgs())
+    }
+    public void initBPF() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeBPFTargetInfo", new NoArgs())
+        lib.call("LLVMInitializeBPFTarget", new NoArgs())
+        lib.call("LLVMInitializeBPFTargetMC", new NoArgs())
+        lib.call("LLVMInitializeBPFAsmPrinter", new NoArgs())
+    }
+    public void initNVPTX() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeNVPTXTargetInfo", new NoArgs())
+        lib.call("LLVMInitializeNVPTXTarget", new NoArgs())
+        lib.call("LLVMInitializeNVPTXTargetMC", new NoArgs())
+        lib.call("LLVMInitializeNVPTXAsmPrinter", new NoArgs())
+    }
+    public void initAMDGPU() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeAMDGPUTargetInfo", new NoArgs())
+        lib.call("LLVMInitializeAMDGPUTarget", new NoArgs())
+        lib.call("LLVMInitializeAMDGPUTargetMC", new NoArgs())
+        lib.call("LLVMInitializeAMDGPUAsmPrinter", new NoArgs())
+    }
+    public void initAVR() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeAVRTargetInfo", new NoArgs())
+        lib.call("LLVMInitializeAVRTarget", new NoArgs())
+        lib.call("LLVMInitializeAVRTargetMC", new NoArgs())
+        lib.call("LLVMInitializeAVRAsmPrinter", new NoArgs())
+    }
+    public void initMSP430() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeMSP430TargetInfo", new NoArgs())
+        lib.call("LLVMInitializeMSP430Target", new NoArgs())
+        lib.call("LLVMInitializeMSP430TargetMC", new NoArgs())
+        lib.call("LLVMInitializeMSP430AsmPrinter", new NoArgs())
+    }
+    public void initHexagon() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeHexagonTargetInfo", new NoArgs())
+        lib.call("LLVMInitializeHexagonTarget", new NoArgs())
+        lib.call("LLVMInitializeHexagonTargetMC", new NoArgs())
+        lib.call("LLVMInitializeHexagonAsmPrinter", new NoArgs())
+    }
+    public void initLanai() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeLanaiTargetInfo", new NoArgs())
+        lib.call("LLVMInitializeLanaiTarget", new NoArgs())
+        lib.call("LLVMInitializeLanaiTargetMC", new NoArgs())
+        lib.call("LLVMInitializeLanaiAsmPrinter", new NoArgs())
+    }
+    public void initXCore() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeXCoreTargetInfo", new NoArgs())
+        lib.call("LLVMInitializeXCoreTarget", new NoArgs())
+        lib.call("LLVMInitializeXCoreTargetMC", new NoArgs())
+        lib.call("LLVMInitializeXCoreAsmPrinter", new NoArgs())
+    }
+    public void initVE() {
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMInitializeVETargetInfo", new NoArgs())
+        lib.call("LLVMInitializeVETarget", new NoArgs())
+        lib.call("LLVMInitializeVETargetMC", new NoArgs())
+        lib.call("LLVMInitializeVEAsmPrinter", new NoArgs())
     }
 
     public void shutdown() {
@@ -257,17 +443,17 @@ public class LLVM {
     }
 
     public void setDataLayout(const fly.mem.Ptr mod, const string layout) {
-        PtrStrArgs a = new PtrStrArgs()
+        Ptr2Args a = new Ptr2Args()
         a.a = mod
-        a.s = layout
+        a.b = fly.mem.toPtr(cbuf(layout))
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMSetDataLayout", a)
     }
 
     public void setTarget(const fly.mem.Ptr mod, const string triple) {
-        PtrStrArgs a = new PtrStrArgs()
+        Ptr2Args a = new Ptr2Args()
         a.a = mod
-        a.s = triple
+        a.b = fly.mem.toPtr(cbuf(triple))
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMSetTarget", a)
     }
@@ -1141,16 +1327,35 @@ public class LLVM {
         lib.call("LLVMGetDefaultTargetTriple", new NoArgs(), triple)
     }
 
+    // getTargetFromTriple — look up the LLVMTargetRef for `triple`. The C function
+    // writes the target through a `LLVMTargetRef*` out-pointer and returns a status
+    // (0 = success). We give it an 8-byte buffer (via the Ptr-buffer idiom) for the
+    // out-pointer, then copy the written value into `target.addr`. `ok` carries the
+    // raw LLVMBool return (true = FAILURE); callers should test `target.addr != 0`.
     public void getTargetFromTriple(const string triple, fly.mem.Ptr target, bool ok) {
-        StrArgs a = new StrArgs()
-        a.s = triple
+        long buf = fly.mem.alloc(8)
+        fly.mem.writeLong(buf, 0, 0)
+        Ptr3Args a = new Ptr3Args()
+        a.a = fly.mem.toPtr(cbuf(triple))   // const char* Triple (NUL-terminated)
+        a.b = fly.mem.toPtr(buf)            // LLVMTargetRef* T  (out-pointer buffer)
+        // a.c stays null → char** Err = NULL
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMGetTargetFromTriple", a, ok)
+        target.addr = fly.mem.readLong(buf, 0)
+        fly.mem.free(buf, 8)
     }
 
+    // createTargetMachine — full 7-argument marshalling (the old stub dropped all
+    // but `target`). The TM pointer is the C return value, captured into `tm`.
     public void createTargetMachine(const fly.mem.Ptr target, const string triple, const string cpu, const string features, const int optLevel, const int reloc, const int codeModel, fly.mem.Ptr tm) {
-        Ptr1Args a = new Ptr1Args()
-        a.a = target
+        CreateTMArgs a = new CreateTMArgs()
+        a.target = target
+        a.triple = fly.mem.toPtr(cbuf(triple))
+        a.cpu = fly.mem.toPtr(cbuf(cpu))
+        a.features = fly.mem.toPtr(cbuf(features))
+        a.level = optLevel
+        a.reloc = reloc
+        a.codeModel = codeModel
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMCreateTargetMachine", a, tm)
     }
@@ -1177,12 +1382,15 @@ public class LLVM {
         lib.call("LLVMSetModuleDataLayout", a)
     }
 
-    // emit type: 0=assembly, 1=object
+    // targetMachineEmitToFile — emit `mod` to `filename` (emitType 0=assembly,
+    // 1=object). The old stub dropped `filename`; this passes all four args plus a
+    // null `char** ErrorMessage`. `ok` is the raw LLVMBool return (true = FAILURE).
     public void targetMachineEmitToFile(const fly.mem.Ptr tm, const fly.mem.Ptr mod, const string filename, const int emitType, bool ok) {
-        PtrPtrIntArgs a = new PtrPtrIntArgs()
-        a.a = tm
-        a.b = mod
-        a.n = emitType
+        EmitFileArgs a = new EmitFileArgs()
+        a.tm = tm
+        a.mod = mod
+        a.filename = fly.mem.toPtr(cbuf(filename))
+        a.emitType = emitType
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMTargetMachineEmitToFile", a, ok)
     }

@@ -1,0 +1,203 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Triple — a target triple value object, a minimal re-implementation of the
+// slice of llvm::Triple the compiler actually uses (arch / 64-bit / endianness /
+// OS). LLVM's own Triple is C++-only and cannot be reached from the self-host,
+// so the canonical "arch-vendor-os-environment" string is parsed here directly.
+//
+// Faithful port adaptations (see compiler/basic/SourceLocation.fly for the full
+// list of self-host limitations):
+//   • No static member functions → llvm::Triple::normalize / the constructor's
+//     parsing become the free factory `tripleParse(string)`.
+//   • No enum-method overloading  → arch is a plain `Arch` enum; queries are
+//     ordinary methods.
+//
+// Only x86_64 is recognised (the bootstrap target). Every other arch parses to
+// Arch.UNKNOWN, which TargetInfo turns into a diagnostic.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Arch — the architecture component of a triple. One value per LLVM arch token
+// the self-host recognises (the canonical token; aliases map in archFromName).
+public enum Arch {
+    UNKNOWN,
+    X86, X86_64,
+    AARCH64, AARCH64_BE,
+    ARM, ARMEB,
+    MIPS, MIPSEL, MIPS64, MIPS64EL,
+    PPC, PPC64, PPC64LE,
+    RISCV32, RISCV64,
+    SPARC, SPARCV9,
+    SYSTEMZ,
+    WASM32, WASM64,
+    BPFEL, BPFEB,
+    NVPTX, NVPTX64,
+    AMDGCN, R600,
+    AVR, MSP430,
+    HEXAGON, LANAI, LE64, ARC, XCORE,
+    SPIR, SPIR64,
+    TCE, TCELE,
+    VE
+}
+
+public class Triple {
+    string full        // the original/normalised triple string
+    Arch arch
+    string archName    // raw arch token (e.g. "x86_64")
+    string vendor      // e.g. "unknown", "pc", "apple"
+    string os          // e.g. "linux", "darwin", "windows"
+    string env         // e.g. "gnu", "musl", "" (may be empty)
+
+    public Triple(const string full, const Arch arch, const string archName,
+                  const string vendor, const string os, const string env) {
+        this.full = full
+        this.arch = arch
+        this.archName = archName
+        this.vendor = vendor
+        this.os = os
+        this.env = env
+    }
+
+    // getTriple — the full triple string (llvm::Triple::getTriple / str()).
+    public string getTriple() { out = this.full }
+
+    public Arch getArch()        { out = this.arch }
+    public string getArchName()  { out = this.archName }
+    public string getVendorName(){ out = this.vendor }
+    public string getOSName()    { out = this.os }
+    public string getEnvName()   { out = this.env }
+
+    public bool isOSLinux()      { out = fly.str.equals(this.os, "linux") }
+    public bool isKnown()        { out = this.arch != Arch.UNKNOWN }
+
+    // ── Query helpers consumed by the ToolChain port (1:1 with llvm::Triple) ──
+    public bool isOSDarwin() {
+        out = fly.str.equals(this.os, "darwin") || fly.str.equals(this.os, "macosx") || fly.str.equals(this.os, "ios")
+    }
+    public bool isWindowsMSVC() {
+        out = fly.str.equals(this.os, "windows") && fly.str.equals(this.env, "msvc")
+    }
+    public bool isAndroid()  { out = fly.str.contains(this.env, "android") }
+    public bool isOSIAMCU()  { out = fly.str.equals(this.os, "elfiamcu") }
+    public bool isVE()       { out = this.arch == Arch.VE }
+    public bool isARM()      { out = this.arch == Arch.ARM || this.arch == Arch.ARMEB }
+    public bool isThumb()    { out = false }   // self-host has no separate thumb arch token
+    public bool isAArch64()  { out = this.arch == Arch.AARCH64 || this.arch == Arch.AARCH64_BE }
+    public bool isArmBigEndian() { out = this.arch == Arch.ARMEB }
+    // Object format: ELF unless Darwin (Mach-O) or Windows (COFF).
+    public bool isOSBinFormatELF()   { out = this.isOSDarwin() == false && this.isWindowsMSVC() == false }
+    public bool isOSBinFormatMachO() { out = this.isOSDarwin() }
+    public bool isOSBinFormatCOFF()  { out = this.isWindowsMSVC() }
+    // x32 ABI (32-bit pointers on x86_64). env == "gnux32".
+    public bool isX32()      { out = fly.str.equals(this.env, "gnux32") }
+
+    // isArch64Bit — true for the 64-bit-pointer arches (used by getOSLibDir).
+    public bool isArch64Bit() {
+        out = this.arch == Arch.X86_64 || this.arch == Arch.AARCH64 || this.arch == Arch.AARCH64_BE
+           || this.arch == Arch.MIPS64 || this.arch == Arch.MIPS64EL
+           || this.arch == Arch.PPC64 || this.arch == Arch.PPC64LE
+           || this.arch == Arch.RISCV64 || this.arch == Arch.SPARCV9 || this.arch == Arch.SYSTEMZ
+           || this.arch == Arch.WASM64 || this.arch == Arch.BPFEL || this.arch == Arch.BPFEB
+           || this.arch == Arch.NVPTX64 || this.arch == Arch.AMDGCN || this.arch == Arch.LE64
+           || this.arch == Arch.SPIR64 || this.arch == Arch.VE
+    }
+    public bool isArch32Bit() { out = this.isArch64Bit() == false }
+}
+
+// archFromName — map the raw arch token onto the Arch enum, accepting the
+// canonical token plus the common aliases LLVM's parseArch recognises. The
+// `eq` helper keeps the long chain readable.
+public bool archEq(const string a, const string b) { out = fly.str.equals(a, b) }
+
+public Arch archFromName(const string name) {
+    // x86 family
+    if archEq(name, "x86_64") || archEq(name, "amd64")           { out = Arch.X86_64  return }
+    if archEq(name, "x86") || archEq(name, "i386") || archEq(name, "i486") || archEq(name, "i586") || archEq(name, "i686") { out = Arch.X86  return }
+    // aarch64
+    if archEq(name, "aarch64") || archEq(name, "arm64")          { out = Arch.AARCH64  return }
+    if archEq(name, "aarch64_be")                                { out = Arch.AARCH64_BE  return }
+    // arm
+    if archEq(name, "arm") || archEq(name, "thumb")              { out = Arch.ARM  return }
+    if archEq(name, "armeb") || archEq(name, "thumbeb")          { out = Arch.ARMEB  return }
+    // mips
+    if archEq(name, "mips")                                      { out = Arch.MIPS  return }
+    if archEq(name, "mipsel")                                    { out = Arch.MIPSEL  return }
+    if archEq(name, "mips64")                                    { out = Arch.MIPS64  return }
+    if archEq(name, "mips64el")                                  { out = Arch.MIPS64EL  return }
+    // powerpc
+    if archEq(name, "ppc") || archEq(name, "powerpc")           { out = Arch.PPC  return }
+    if archEq(name, "ppc64") || archEq(name, "powerpc64")       { out = Arch.PPC64  return }
+    if archEq(name, "ppc64le") || archEq(name, "powerpc64le")   { out = Arch.PPC64LE  return }
+    // riscv
+    if archEq(name, "riscv32")                                   { out = Arch.RISCV32  return }
+    if archEq(name, "riscv64")                                   { out = Arch.RISCV64  return }
+    // sparc
+    if archEq(name, "sparc")                                     { out = Arch.SPARC  return }
+    if archEq(name, "sparcv9") || archEq(name, "sparc64")       { out = Arch.SPARCV9  return }
+    // systemz
+    if archEq(name, "systemz") || archEq(name, "s390x")         { out = Arch.SYSTEMZ  return }
+    // wasm
+    if archEq(name, "wasm32")                                    { out = Arch.WASM32  return }
+    if archEq(name, "wasm64")                                    { out = Arch.WASM64  return }
+    // bpf
+    if archEq(name, "bpfel") || archEq(name, "bpf")             { out = Arch.BPFEL  return }
+    if archEq(name, "bpfeb")                                     { out = Arch.BPFEB  return }
+    // nvptx
+    if archEq(name, "nvptx")                                     { out = Arch.NVPTX  return }
+    if archEq(name, "nvptx64")                                   { out = Arch.NVPTX64  return }
+    // amdgpu
+    if archEq(name, "amdgcn")                                    { out = Arch.AMDGCN  return }
+    if archEq(name, "r600")                                      { out = Arch.R600  return }
+    // micro / dsp / ir / vector
+    if archEq(name, "avr")                                       { out = Arch.AVR  return }
+    if archEq(name, "msp430")                                    { out = Arch.MSP430  return }
+    if archEq(name, "hexagon")                                   { out = Arch.HEXAGON  return }
+    if archEq(name, "lanai")                                     { out = Arch.LANAI  return }
+    if archEq(name, "le64")                                      { out = Arch.LE64  return }
+    if archEq(name, "arc")                                       { out = Arch.ARC  return }
+    if archEq(name, "xcore")                                     { out = Arch.XCORE  return }
+    if archEq(name, "spir")                                      { out = Arch.SPIR  return }
+    if archEq(name, "spir64")                                    { out = Arch.SPIR64  return }
+    if archEq(name, "tce")                                       { out = Arch.TCE  return }
+    if archEq(name, "tcele")                                     { out = Arch.TCELE  return }
+    if archEq(name, "ve")                                        { out = Arch.VE  return }
+    out = Arch.UNKNOWN
+}
+
+// tripleComponent — return the substring of `s` up to the first '-', and (via the
+// shared cursor pattern is not available) leave splitting to tripleParse. This
+// helper returns the head; tripleParse advances the tail itself.
+public string tripleHead(const string s) {
+    int p = fly.str.indexOf(s, "-")
+    if p < 0 { out = s  return }
+    out = fly.str.substring(s, 0, p)
+}
+
+// tripleTail — the remainder of `s` after the first '-' ("" if there is none).
+public string tripleTail(const string s) {
+    int p = fly.str.indexOf(s, "-")
+    if p < 0 { out = ""  return }
+    out = fly.str.substring(s, p + 1, fly.str.len(s))
+}
+
+// tripleParse — split "arch-vendor-os-env" into a Triple. Missing trailing
+// components become "". (llvm::Triple::Triple(StringRef) + normalize, reduced.)
+//
+// Each tail is bound to a FRESH variable (r0/r1/r2/r3): the self-host miscompiles
+// `x = substring(x, …)` (the return aliases the source), so the source and the
+// destination of every split step must be different variables.
+public Triple tripleParse(const string s) {
+    string r0 = s
+    string archName = tripleHead(r0)
+    string r1 = tripleTail(r0)
+    string vendor = tripleHead(r1)
+    string r2 = tripleTail(r1)
+    string os = tripleHead(r2)
+    string r3 = tripleTail(r2)
+    string env = r3                 // whatever is left (may contain further '-')
+
+    Arch a = archFromName(archName)
+    out = new Triple(s, a, archName, vendor, os, env)
+}

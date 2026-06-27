@@ -1,0 +1,13 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+
+// Sparc — V8 (32-bit BE) and V9 (64-bit BE). clang-verified LLVM-20 layouts.
+// Reduced port of fly/compiler/Basic/Targets/Sparc.*.
+
+public void sparcPopulate(const TargetInfo ti) {
+    ti.applyData("E-m:e-p:32:32-i64:64-i128:128-f128:64-n32-S64", 32, true, 32, 32)
+}
+
+public void sparcv9Populate(const TargetInfo ti) {
+    ti.applyData("E-m:e-i64:64-i128:128-n32:64-S128", 64, true, 32, 64)
+}

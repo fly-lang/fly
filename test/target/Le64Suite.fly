@@ -1,0 +1,23 @@
+namespace fly.compiler.target.test.le64
+
+import fly.compiler.target.*
+import fly.assert
+
+// Le64 has no backend in libLLVM-20, so machineTest skips (targetMachineCheck=0).
+suite Le64Suite {
+
+    void metadataTest() {
+        case "le64 (64)": {
+            assert.assertTrue(archFromName("le64") == Arch.LE64, 1)
+            TargetInfo a = targetInfoCreate(new TargetOptions("le64-unknown-unknown"))
+            assert.assertStr(a.getDataLayout(), "e-m:e-v128:32-v16:16-v32:32-v96:32-n8:16:32:64-S128", 2)
+            assert.assertEqI(a.getPointerWidth(), 64, 3)
+        }
+    }
+
+    void machineTest() {
+        case "le64 target machine (skips: no backend)": {
+            assert.assertTrue(targetMachineCheck("le64-unknown-unknown", Arch.LE64) != 2, 4)
+        }
+    }
+}

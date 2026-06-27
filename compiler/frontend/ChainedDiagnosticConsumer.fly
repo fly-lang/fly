@@ -1,0 +1,28 @@
+namespace fly.compiler.frontend
+
+import fly.compiler.basic.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ChainedDiagnosticConsumer — forwards each diagnostic to two consumers, 1:1 with
+// fly/Frontend/ChainedDiagnosticConsumer.{h,cpp}. The C++ chains a Primary + a
+// Secondary (e.g. the printer + a buffer); same shape here.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class ChainedDiagnosticConsumer : DiagnosticConsumer {
+    DiagnosticConsumer primary
+    DiagnosticConsumer secondary
+
+    public ChainedDiagnosticConsumer(const DiagnosticConsumer primary, const DiagnosticConsumer secondary) {
+        super()
+        this.primary = primary
+        this.secondary = secondary
+    }
+
+    public void handleDiagnostic(const Diagnostic diag) {
+        if this.primary != null   { this.primary.handleDiagnostic(diag) }
+        if this.secondary != null { this.secondary.handleDiagnostic(diag) }
+    }
+
+    public DiagnosticConsumer getPrimary()   { out = this.primary }
+    public DiagnosticConsumer getSecondary() { out = this.secondary }
+}

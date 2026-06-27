@@ -1,0 +1,44 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+import llvm.api.*
+import fly.mem
+import fly.llvm
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Host — detect the architecture of the machine the compiler is running on, so
+// per-target test suites can gate real object emission on "am I on this arch?"
+// and so default emission targets the host. Uses LLVMGetDefaultTargetTriple,
+// which returns a heap `char*`; we read it back byte-by-byte to the NUL (the
+// same idiom Driver.argAt uses for argv slots) and rebuild a Fly string.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// hostTripleStr — the host's default target triple (e.g. "x86_64-pc-linux-gnu").
+// Empty if detection fails (caller falls back to a known default).
+public string hostTripleStr() {
+    LLVM llvm = new LLVM()
+    fly.mem.Ptr tp = fly.mem.toPtr(0)
+    llvm.getDefaultTargetTriple(tp)
+    long p = 0
+    fly.llvm.ulongToLong(tp.addr, p)
+    if p == 0 { out = ""  return }
+
+    byte zero = 0
+    int len = 0
+    byte b = fly.mem.readByte(p, len)
+    while b != zero {
+        len = len + 1
+        b = fly.mem.readByte(p, len)
+    }
+    string s = ""
+    fly.llvm.strMake(p, len, s)
+    out = s
+}
+
+// hostArch — the host's Arch (UNKNOWN if detection failed/unrecognised).
+public Arch hostArch() {
+    string t = hostTripleStr()
+    if fly.str.isEmpty(t) { out = Arch.UNKNOWN  return }
+    Triple tr = tripleParse(t)
+    out = tr.getArch()
+}

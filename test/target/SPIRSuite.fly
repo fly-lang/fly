@@ -1,0 +1,27 @@
+namespace fly.compiler.target.test.spir
+
+import fly.compiler.target.*
+import fly.assert
+
+// SPIR (the OpenCL IR) has no codegen backend in libLLVM-20, so machineTest skips.
+suite SPIRSuite {
+
+    void metadataTest() {
+        case "spir (32) / spir64 (64)": {
+            assert.assertTrue(archFromName("spir") == Arch.SPIR, 1)
+            TargetInfo a = targetInfoCreate(new TargetOptions("spir-unknown-unknown"))
+            assert.assertStr(a.getDataLayout(), "e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-G1", 2)
+            assert.assertEqI(a.getPointerWidth(), 32, 3)
+            assert.assertTrue(archFromName("spir64") == Arch.SPIR64, 4)
+            TargetInfo b = targetInfoCreate(new TargetOptions("spir64-unknown-unknown"))
+            assert.assertStr(b.getDataLayout(), "e-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-G1", 5)
+            assert.assertEqI(b.getPointerWidth(), 64, 6)
+        }
+    }
+
+    void machineTest() {
+        case "spir target machine (skips: no backend)": {
+            assert.assertTrue(targetMachineCheck("spir-unknown-unknown", Arch.SPIR) != 2, 7)
+        }
+    }
+}

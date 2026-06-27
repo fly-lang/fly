@@ -30,6 +30,9 @@ public class CodeGenOptions {
     string threadModel
     string coverageVersion
     string noBuiltinFuncs   // ";name1;name2;" — leading+trailing ';' as boundaries
+    string toolchainLibDir  // -L for the bundled LLVM lib dir ("" = none)
+    string runtimeLibDir    // base dir holding fly_std_lib.a / fly_runtime_lib.a
+    string linkerOptions    // ";-lfoo;-lbar;" — native [link] deps (CLang bridge libs)
 
     public CodeGenOptions() {
         this.isStatic = false
@@ -45,7 +48,30 @@ public class CodeGenOptions {
         this.threadModel = ""
         this.coverageVersion = "402*"
         this.noBuiltinFuncs = ";"
+        this.toolchainLibDir = ""
+        this.runtimeLibDir = ""
+        this.linkerOptions = ";"
     }
+
+    // ── Linker option accessors (consumed by the ToolChain port) ──
+    public bool getStatic()       { out = this.isStatic }
+    public bool getShared()       { out = this.isShared }
+    public void setStatic(const bool b) { this.isStatic = b }
+    public void setShared(const bool b) { this.isShared = b }
+    public void setPie(const bool b)    { this.pie = b }
+    public bool getPIE()          { out = this.pie }
+    public bool getStaticPIE()    { out = this.staticPie }
+    public bool getRDynamic()     { out = this.rdynamic }
+    public string getToolchainLibDir() { out = this.toolchainLibDir }
+    public string getRuntimeLibDir()   { out = this.runtimeLibDir }
+    public void setToolchainLibDir(const string d) { this.toolchainLibDir = d }
+    public void setRuntimeLibDir(const string d)   { this.runtimeLibDir = d }
+
+    // addLinkerOption — register a native link flag (e.g. "-lLLVM-20").
+    public void addLinkerOption(const string flag) {
+        this.linkerOptions = fly.str.concat(this.linkerOptions, fly.str.concat(flag, ";"))
+    }
+    public string getLinkerOptions() { out = this.linkerOptions }
 
     // addNoBuiltinFunc — register a -fno-builtin-<name> function.
     public void addNoBuiltinFunc(const string name) {

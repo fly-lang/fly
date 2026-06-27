@@ -1,0 +1,24 @@
+namespace fly.compiler.target.test.avr
+
+import fly.compiler.target.*
+import fly.assert
+
+suite AVRSuite {
+
+    void metadataTest() {
+        case "avr (16-bit ptr, 16-bit int)": {
+            assert.assertTrue(archFromName("avr") == Arch.AVR, 1)
+            TargetInfo a = targetInfoCreate(new TargetOptions("avr-unknown-unknown"))
+            assert.assertStr(a.getDataLayout(), "e-P1-p:16:8-i8:8-i16:8-i32:8-i64:8-f32:8-f64:8-n8-a:8", 2)
+            assert.assertEqI(a.getPointerWidth(), 16, 3)
+            assert.assertEqI(a.getIntWidth(), 16, 4)
+            assert.assertFalse(a.isBigEndian(), 5)
+        }
+    }
+
+    void machineTest() {
+        case "avr target machine": {
+            assert.assertTrue(targetMachineCheck("avr-unknown-unknown", Arch.AVR) != 2, 6)
+        }
+    }
+}

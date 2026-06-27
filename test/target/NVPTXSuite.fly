@@ -1,0 +1,26 @@
+namespace fly.compiler.target.test.nvptx
+
+import fly.compiler.target.*
+import fly.assert
+
+suite NVPTXSuite {
+
+    void metadataTest() {
+        case "nvptx (32) / nvptx64 (64)": {
+            assert.assertTrue(archFromName("nvptx") == Arch.NVPTX, 1)
+            TargetInfo a = targetInfoCreate(new TargetOptions("nvptx-unknown-unknown"))
+            assert.assertStr(a.getDataLayout(), "e-p:32:32-p6:32:32-p7:32:32-i64:64-i128:128-v16:16-v32:32-n16:32:64", 2)
+            assert.assertEqI(a.getPointerWidth(), 32, 3)
+            assert.assertTrue(archFromName("nvptx64") == Arch.NVPTX64, 4)
+            TargetInfo b = targetInfoCreate(new TargetOptions("nvptx64-unknown-unknown"))
+            assert.assertStr(b.getDataLayout(), "e-p6:32:32-i64:64-i128:128-v16:16-v32:32-n16:32:64", 5)
+            assert.assertEqI(b.getPointerWidth(), 64, 6)
+        }
+    }
+
+    void machineTest() {
+        case "nvptx64 target machine": {
+            assert.assertTrue(targetMachineCheck("nvptx64-unknown-unknown", Arch.NVPTX64) != 2, 7)
+        }
+    }
+}

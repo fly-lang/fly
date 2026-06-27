@@ -1,0 +1,24 @@
+namespace fly.compiler.target.test.systemz
+
+import fly.compiler.target.*
+import fly.assert
+
+suite SystemZSuite {
+
+    void metadataTest() {
+        case "systemz / s390x (BE 64)": {
+            assert.assertTrue(archFromName("s390x") == Arch.SYSTEMZ, 1)
+            assert.assertTrue(archFromName("systemz") == Arch.SYSTEMZ, 2)
+            TargetInfo a = targetInfoCreate(new TargetOptions("s390x-unknown-linux-gnu"))
+            assert.assertStr(a.getDataLayout(), "E-m:e-i1:8:16-i8:8:16-i64:64-f128:64-v128:64-a:8:16-n32:64", 3)
+            assert.assertEqI(a.getPointerWidth(), 64, 4)
+            assert.assertTrue(a.isBigEndian(), 5)
+        }
+    }
+
+    void machineTest() {
+        case "systemz target machine": {
+            assert.assertTrue(targetMachineCheck("s390x-unknown-linux-gnu", Arch.SYSTEMZ) != 2, 6)
+        }
+    }
+}

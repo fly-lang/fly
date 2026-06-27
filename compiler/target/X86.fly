@@ -1,0 +1,18 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// X86 — x86 / x86_64 target descriptions, reduced port of
+// fly/compiler/Basic/Targets/X86.* (Linux/ELF subclasses). Datalayout strings
+// are the canonical LLVM-20 ELF layouts (verified via clang --target=...).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// i386 (32-bit, ILP32, little-endian)
+public void x86Populate(const TargetInfo ti) {
+    ti.applyData("e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-i128:128-f64:32:64-f80:32-n8:16:32-S128", 32, false, 32, 32)
+}
+
+// x86_64 (64-bit, LP64, little-endian)
+public void x86_64Populate(const TargetInfo ti) {
+    ti.applyData("e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128", 64, false, 32, 64)
+}

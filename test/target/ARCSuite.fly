@@ -1,0 +1,23 @@
+namespace fly.compiler.target.test.arc
+
+import fly.compiler.target.*
+import fly.assert
+
+// ARC has no backend in libLLVM-20, so machineTest skips.
+suite ARCSuite {
+
+    void metadataTest() {
+        case "arc (32, i64 aligned to 32)": {
+            assert.assertTrue(archFromName("arc") == Arch.ARC, 1)
+            TargetInfo a = targetInfoCreate(new TargetOptions("arc-unknown-unknown"))
+            assert.assertStr(a.getDataLayout(), "e-m:e-p:32:32-i1:8:32-i8:8:32-i16:16:32-i32:32:32-f32:32:32-i64:32-f64:32-a:0:32-n32", 2)
+            assert.assertEqI(a.getPointerWidth(), 32, 3)
+        }
+    }
+
+    void machineTest() {
+        case "arc target machine (skips: no backend)": {
+            assert.assertTrue(targetMachineCheck("arc-unknown-unknown", Arch.ARC) != 2, 4)
+        }
+    }
+}

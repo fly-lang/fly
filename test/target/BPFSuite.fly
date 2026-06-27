@@ -1,0 +1,27 @@
+namespace fly.compiler.target.test.bpf
+
+import fly.compiler.target.*
+import fly.assert
+
+suite BPFSuite {
+
+    void metadataTest() {
+        case "bpfel (LE) / bpfeb (BE)": {
+            assert.assertTrue(archFromName("bpf") == Arch.BPFEL, 1)
+            TargetInfo a = targetInfoCreate(new TargetOptions("bpfel-unknown-unknown"))
+            assert.assertStr(a.getDataLayout(), "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128", 2)
+            assert.assertEqI(a.getPointerWidth(), 64, 3)
+            assert.assertFalse(a.isBigEndian(), 4)
+            assert.assertTrue(archFromName("bpfeb") == Arch.BPFEB, 5)
+            TargetInfo b = targetInfoCreate(new TargetOptions("bpfeb-unknown-unknown"))
+            assert.assertStr(b.getDataLayout(), "E-m:e-p:64:64-i64:64-i128:128-n32:64-S128", 6)
+            assert.assertTrue(b.isBigEndian(), 7)
+        }
+    }
+
+    void machineTest() {
+        case "bpfel target machine": {
+            assert.assertTrue(targetMachineCheck("bpfel-unknown-unknown", Arch.BPFEL) != 2, 8)
+        }
+    }
+}

@@ -1,6 +1,9 @@
 namespace fly.compiler.driver
 
-import fly.compiler.driver.Frontend
+import fly.compiler.driver.*
+import fly.compiler.frontend.*
+import fly.compiler.basic.*
+import fly.compiler.target.*
 import fly.os.env
 import fly.os.fs
 import fly.os.io
@@ -27,6 +30,15 @@ public class Driver {
         string input = ""
         string outPath = ""
         string outDir = ""
+        string targetTriple = ""
+        string targetCpu = ""
+        string runtimeLibDir = ""       // --runtime-lib-dir: holds fly_std_lib.a / fly_runtime_lib.a
+        string toolchainLibDir = ""     // -L: extra linker search dir
+        string linkLibs = ";"           // ";-lfoo;" native [link] deps
+        int emitMode = 3                // 0=.ll 1=.o 2=.s 3=link(executable, default)
+        bool isStatic = false
+        bool isShared = false
+        bool isPie = false
         bool noOutput = false
         bool verbose = false
         bool testMode = false
@@ -41,8 +53,33 @@ public class Driver {
             } elsif fly.str.equals(a, "--out-dir") {
                 i = i + 1
                 if i < n { outDir = this.argAt(args, i) }
+            } elsif fly.str.equals(a, "--target") {
+                i = i + 1
+                if i < n { targetTriple = this.argAt(args, i) }
+            } elsif fly.str.equals(a, "--target-cpu") {
+                i = i + 1
+                if i < n { targetCpu = this.argAt(args, i) }
+            } elsif fly.str.equals(a, "-c") {
+                emitMode = 1
+            } elsif fly.str.equals(a, "-S") {
+                emitMode = 2
             } elsif fly.str.equals(a, "--emit-ll") {
-                // LLVM IR is the only emit mode; flag accepted for parity.
+                emitMode = 0
+            } elsif fly.str.equals(a, "--runtime-lib-dir") {
+                i = i + 1
+                if i < n { runtimeLibDir = this.argAt(args, i) }
+            } elsif fly.str.equals(a, "-L") {
+                i = i + 1
+                if i < n { toolchainLibDir = this.argAt(args, i) }
+            } elsif fly.str.equals(a, "--link-lib") {
+                i = i + 1
+                if i < n { linkLibs = fly.str.concat(linkLibs, fly.str.concat(fly.str.concat("-l", this.argAt(args, i)), ";")) }
+            } elsif fly.str.equals(a, "--shared") {
+                isShared = true
+            } elsif fly.str.equals(a, "-static") {
+                isStatic = true
+            } elsif fly.str.equals(a, "-pie") {
+                isPie = true
             } elsif fly.str.equals(a, "--no-output") {
                 noOutput = true
             } elsif fly.str.equals(a, "--test") {
@@ -81,14 +118,73 @@ public class Driver {
         }
 
         string basePath = outPath
-        if fly.str.isEmpty(basePath) { basePath = this.defaultOut(input) }
+        if fly.str.isEmpty(basePath) { basePath = this.defaultOut(input, this.emitExt(emitMode)) }
         string finalPath = this.applyOutDir(outDir, basePath)
         string name = this.moduleName(input)
 
-        Frontend fe = new Frontend()
-        fe.setVerbose(verbose)
-        fe.setTestMode(testMode)
-        out = fe.compile(name, src, finalPath, noOutput)
+        string effTriple = targetTriple
+        if fly.str.isEmpty(effTriple) { effTriple = "x86_64-unknown-linux-gnu" }
+
+        // Build the CompilerInstance (the C++ Driver::Execute model): bundle the
+        // Frontend/CodeGen/Target options + the source buffer, then run the Frontend.
+        CodeGenOptions cgo = new CodeGenOptions()
+        cgo.setRuntimeLibDir(runtimeLibDir)
+        cgo.setToolchainLibDir(toolchainLibDir)
+        cgo.setStatic(isStatic)
+        cgo.setShared(isShared)
+        cgo.setPie(isPie)
+        int nl = segCount(linkLibs)
+        int li = 0
+        while li < nl { cgo.addLinkerOption(segAt(linkLibs, li))  li = li + 1 }
+
+        TargetOptions topts = new TargetOptions(effTriple)
+        if fly.str.isEmpty(targetCpu) == false { topts.setCPU(targetCpu) }
+
+        FrontendOptions fo = new FrontendOptions(finalPath)
+        fo.setVerbose(verbose)
+        fo.setTestMode(testMode)
+        fo.setCreateShared(isShared)
+        fo.setBackendAction(emitMode)
+
+        CompilerInstance ci = new CompilerInstance(null, fo, cgo, topts)
+        ci.createFileManager()
+        ci.createSourceManager(name, src)
+        Frontend fe = new Frontend(ci)
+
+        // Link mode (default): the Frontend emits a temp object, then the ToolChain
+        // links it into an executable — mirrors Driver.cpp::Execute (Frontend emits
+        // objects → ToolChain.BuildOutput).
+        if emitMode == 3 && noOutput == false {
+            string tempObj = fly.str.concat(finalPath, ".o")
+            int rc = fe.execute(tempObj, false)
+            if rc != 0 { out = rc  return }
+            out = this.linkExecutable(ci, fe.getOutputFile())
+            return
+        }
+
+        // Emit-only modes (.ll / .o / .s, or --no-output).
+        out = fe.execute("", noOutput)
+    }
+
+    // linkExecutable — construct a ToolChain from the CompilerInstance and link
+    // `objFile` into the FrontendOptions output (the C++ Driver::Execute
+    // ToolChain.BuildOutput path). Cleans up the intermediate object.
+    public int linkExecutable(const CompilerInstance ci, const string objFile) {
+        TargetOptions topts = ci.getTargetOptions()
+        Triple tr = tripleParse(topts.getTriple())
+        ToolChain tc = new ToolChain(null, tr, ci.getCodeGenOptions())
+        string inFiles = fly.str.concat(";", fly.str.concat(objFile, ";"))
+        bool ok = tc.BuildOutput(inFiles, ci.getFrontendOptions())
+        if fly.os.fs.exists(objFile) { fly.os.fs.delete(objFile) }
+        if ok { out = 0 } else { out = 1 }
+    }
+
+    // emitExt — output extension for an emit mode (0=.ll, 1=.o, 2=.s, 3=link/exe).
+    public string emitExt(const int emitMode) {
+        if emitMode == 1 { out = ".o"  return }
+        if emitMode == 2 { out = ".s"  return }
+        if emitMode == 3 { out = ""    return }   // executable: no extension
+        out = ".ll"
     }
 
     // printUsage — the --help / no-input usage text.
@@ -97,7 +193,16 @@ public class Driver {
         fly.os.io.printErrLn("options:")
         fly.os.io.printErrLn("  -o <file>       write output to <file>")
         fly.os.io.printErrLn("  --out-dir <dir> directory for generated outputs")
-        fly.os.io.printErrLn("  --emit-ll       produce LLVM IR (.ll) — the only emit mode")
+        fly.os.io.printErrLn("  (default)       link an executable via ToolChain")
+        fly.os.io.printErrLn("  --emit-ll       produce LLVM IR (.ll)")
+        fly.os.io.printErrLn("  -c              produce an object file (.o)")
+        fly.os.io.printErrLn("  -S              produce target assembly (.s)")
+        fly.os.io.printErrLn("  --runtime-lib-dir <dir>  dir holding fly_std_lib.a / fly_runtime_lib.a")
+        fly.os.io.printErrLn("  -L <dir>             extra linker search directory")
+        fly.os.io.printErrLn("  --link-lib <name>    link native library (-lname)")
+        fly.os.io.printErrLn("  -static / --shared / -pie   link mode flags")
+        fly.os.io.printErrLn("  --target <triple>    target triple (default: x86_64-unknown-linux-gnu)")
+        fly.os.io.printErrLn("  --target-cpu <cpu>   target CPU (default: generic)")
         fly.os.io.printErrLn("  --no-output     type-check only, produce no output")
         fly.os.io.printErrLn("  --test          compile in test mode (test {} blocks)")
         fly.os.io.printErrLn("  -v, --verbose   log each compilation phase")
@@ -131,14 +236,20 @@ public class Driver {
         out = s
     }
 
-    // defaultOut — `<input>.fly` → `<input>.ll`, else append `.ll`.
+    // defaultOut — `<input>.fly` → `<input>.ll` (default IR extension). Kept as a
+    // 1-arg overload for callers/tests that only want the IR path.
     public string defaultOut(const string input) {
+        out = this.defaultOut(input, ".ll")
+    }
+
+    // defaultOut — `<input>.fly` → `<input><ext>`, else append `<ext>`.
+    public string defaultOut(const string input, const string ext) {
         if fly.str.endsWith(input, ".fly") {
             int L = fly.str.len(input)
             string base = fly.str.substring(input, 0, L - 4)
-            out = fly.str.concat(base, ".ll")
+            out = fly.str.concat(base, ext)
         } else {
-            out = fly.str.concat(input, ".ll")
+            out = fly.str.concat(input, ext)
         }
     }
 

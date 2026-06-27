@@ -1,0 +1,107 @@
+namespace fly.compiler.frontend.test
+
+import fly.compiler.frontend.*
+import fly.compiler.basic.*
+import fly.assert
+import fly.str
+
+// Phase-C: the caret renderer (TextDiagnostic / TextDiagnosticPrinter) and the
+// structured log printer (LogDiagnosticPrinter), plus chaining + buffering.
+//
+// The diagnostic points at the `zzz` identifier in a SINGLE-LINE buffer (offset
+// 21, line 1, column 22). Notes:
+//  - a `suite` helper method that returns a value and is called via `this.` crashes
+//    the reference compiler, so the diagnostic is built INLINE in each case.
+//  - Fly string literals keep escapes RAW (`"\n"` is backslash+n), so buffers can't
+//    embed real newlines — a single-line buffer exercises getSourceLine + caret
+//    without needing one (the renderer's own line breaks use frontend.lineFeed()).
+
+suite DiagnosticRenderSuite {
+
+    void caretTest() {
+        case "TextDiagnostic renders header + source line + caret underline": {
+            string src = "void main() { return zzz }"
+            SourceManager sm = new SourceManager("t.fly", src)
+            SourceLocation loc = new SourceLocation(21)
+            Diagnostic diag = new Diagnostic(DiagLevel.Error, loc, 1, 22, "t.fly",
+                                 "use of undeclared 'zzz'", "1:22: error: use of undeclared 'zzz'", sm)
+            TextDiagnostic td = new TextDiagnostic()
+            assert.assertStr(td.header(diag), "t.fly:1:22: error: use of undeclared 'zzz'", 1)
+            string full = td.render(diag)
+            assert.assertTrue(fly.str.contains(full, "t.fly:1:22: error: use of undeclared 'zzz'"), 2)
+            assert.assertTrue(fly.str.contains(full, "void main() { return zzz }"), 3)
+            // caret + tilde underline: 21 spaces, then ^~~ across 'zzz'
+            string expected = fly.str.concat(fly.str.repeat(" ", 21), "^~~")
+            assert.assertTrue(fly.str.contains(full, expected), 4)
+        }
+    }
+
+    void noSourceManagerTest() {
+        case "render falls back to the header when no SourceManager is attached": {
+            SourceLocation loc = new SourceLocation(0)
+            Diagnostic diag = new Diagnostic(DiagLevel.Warning, loc, 0, 0, "x.fly",
+                                             "deprecated", "0:0: warning: deprecated", null)
+            TextDiagnostic td = new TextDiagnostic()
+            string full = td.render(diag)
+            assert.assertStr(full, "x.fly:0:0: warning: deprecated", 10)
+        }
+    }
+
+    void printerTest() {
+        case "TextDiagnosticPrinter counts errors via the rich Diagnostic": {
+            string src = "void main() { return zzz }"
+            SourceManager sm = new SourceManager("t.fly", src)
+            SourceLocation loc = new SourceLocation(21)
+            Diagnostic diag = new Diagnostic(DiagLevel.Error, loc, 1, 22, "t.fly",
+                                 "use of undeclared 'zzz'", "1:22: error: use of undeclared 'zzz'", sm)
+            TextDiagnosticPrinter p = new TextDiagnosticPrinter()
+            p.handleDiagnostic(diag)
+            assert.assertEqI(p.errorCount(), 1, 20)
+            assert.assertEqI(p.warningCount(), 0, 21)
+        }
+    }
+
+    void chainTest() {
+        case "ChainedDiagnosticConsumer forwards to both sinks": {
+            string src = "void main() { return zzz }"
+            SourceManager sm = new SourceManager("t.fly", src)
+            SourceLocation loc = new SourceLocation(21)
+            Diagnostic diag = new Diagnostic(DiagLevel.Error, loc, 1, 22, "t.fly",
+                                 "use of undeclared 'zzz'", "1:22: error: use of undeclared 'zzz'", sm)
+            StoringDiagnosticConsumer a = new StoringDiagnosticConsumer()
+            TextDiagnosticBuffer b = new TextDiagnosticBuffer()
+            ChainedDiagnosticConsumer chain = new ChainedDiagnosticConsumer(a, b)
+            chain.handleDiagnostic(diag)
+            assert.assertEqI(a.count(), 1, 30)
+            assert.assertEqI(b.errorCount(), 1, 31)
+            assert.assertEqI(b.count(), 1, 32)
+        }
+    }
+
+    void logTest() {
+        case "LogDiagnosticPrinter serialises to JSON and text": {
+            string src = "void main() { return zzz }"
+            SourceManager sm = new SourceManager("t.fly", src)
+            SourceLocation loc = new SourceLocation(21)
+            Diagnostic diag = new Diagnostic(DiagLevel.Error, loc, 1, 22, "t.fly",
+                                 "use of undeclared 'zzz'", "1:22: error: use of undeclared 'zzz'", sm)
+            LogDiagnosticPrinter log = new LogDiagnosticPrinter()
+            log.handleDiagnostic(diag)
+            assert.assertEqI(log.count(), 1, 40)
+            string json = log.toJson()
+            // needles use real `"` bytes (a bare quote can't appear in a literal)
+            string q = quoteChar()
+            string levelPair = fly.str.concat(q, fly.str.concat("level",
+                               fly.str.concat(q, fly.str.concat(":",
+                               fly.str.concat(q, fly.str.concat("error", q))))))
+            assert.assertTrue(fly.str.contains(json, levelPair), 41)
+            string colPair = fly.str.concat(q, fly.str.concat("column", fly.str.concat(q, ":22")))
+            assert.assertTrue(fly.str.contains(json, colPair), 42)
+            string linePair = fly.str.concat(q, fly.str.concat("line", fly.str.concat(q, ":1")))
+            assert.assertTrue(fly.str.contains(json, linePair), 43)
+            assert.assertTrue(fly.str.contains(json, "use of undeclared 'zzz'"), 44)
+            string txt = log.toText()
+            assert.assertTrue(fly.str.contains(txt, "error: t.fly:1:22: use of undeclared 'zzz'"), 45)
+        }
+    }
+}

@@ -1,0 +1,24 @@
+namespace fly.compiler.target.test.msp430
+
+import fly.compiler.target.*
+import fly.assert
+
+suite MSP430Suite {
+
+    void metadataTest() {
+        case "msp430 (16-bit)": {
+            assert.assertTrue(archFromName("msp430") == Arch.MSP430, 1)
+            TargetInfo a = targetInfoCreate(new TargetOptions("msp430-unknown-unknown"))
+            assert.assertStr(a.getDataLayout(), "e-m:e-p:16:16-i32:16-i64:16-f32:16-f64:16-a:8-n8:16-S16", 2)
+            assert.assertEqI(a.getPointerWidth(), 16, 3)
+            assert.assertEqI(a.getIntWidth(), 16, 4)
+            assert.assertFalse(a.isBigEndian(), 5)
+        }
+    }
+
+    void machineTest() {
+        case "msp430 target machine": {
+            assert.assertTrue(targetMachineCheck("msp430-unknown-unknown", Arch.MSP430) != 2, 6)
+        }
+    }
+}

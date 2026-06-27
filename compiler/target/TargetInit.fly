@@ -1,0 +1,53 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+import llvm.api.*
+import fly.mem
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TargetInit — register the LLVM backend for a given arch before target lookup /
+// machine creation. Mirrors the per-arch dispatch of the reference compiler's
+// driver (which initialises only the backend it needs). Arches whose backend is
+// not built into libLLVM-20.so (ARC, Le64, SPIR, TCE) are no-ops: lookup then
+// returns null and the caller reports "unsupported", never crashes.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public void initTargetForArch(const LLVM llvm, const Arch a) {
+    if a == Arch.X86 || a == Arch.X86_64                                  { llvm.initX86() }
+    elsif a == Arch.AARCH64 || a == Arch.AARCH64_BE                       { llvm.initAArch64() }
+    elsif a == Arch.ARM || a == Arch.ARMEB                                { llvm.initARM() }
+    elsif a == Arch.MIPS || a == Arch.MIPSEL || a == Arch.MIPS64 || a == Arch.MIPS64EL { llvm.initMips() }
+    elsif a == Arch.PPC || a == Arch.PPC64 || a == Arch.PPC64LE           { llvm.initPowerPC() }
+    elsif a == Arch.RISCV32 || a == Arch.RISCV64                          { llvm.initRISCV() }
+    elsif a == Arch.SPARC || a == Arch.SPARCV9                            { llvm.initSparc() }
+    elsif a == Arch.SYSTEMZ                                               { llvm.initSystemZ() }
+    elsif a == Arch.WASM32 || a == Arch.WASM64                            { llvm.initWebAssembly() }
+    elsif a == Arch.BPFEL || a == Arch.BPFEB                              { llvm.initBPF() }
+    elsif a == Arch.NVPTX || a == Arch.NVPTX64                            { llvm.initNVPTX() }
+    elsif a == Arch.AMDGCN || a == Arch.R600                              { llvm.initAMDGPU() }
+    elsif a == Arch.AVR                                                   { llvm.initAVR() }
+    elsif a == Arch.MSP430                                                { llvm.initMSP430() }
+    elsif a == Arch.HEXAGON                                               { llvm.initHexagon() }
+    elsif a == Arch.LANAI                                                 { llvm.initLanai() }
+    elsif a == Arch.XCORE                                                 { llvm.initXCore() }
+    elsif a == Arch.VE                                                    { llvm.initVE() }
+    // ARC, LE64, SPIR, SPIR64, TCE, TCELE: no backend in libLLVM-20 → no-op.
+}
+
+// targetMachineCheck — does the backend for `triple`/`a` build a TargetMachine?
+// Returns 0 = backend not available (skip), 1 = TM constructed OK, 2 = available
+// but construction failed. Used by per-target machine tests, which assert the
+// result is not 2 (so they pass cross-arch where the backend exists and skip
+// where it doesn't, never spuriously failing).
+public int targetMachineCheck(const string triple, const Arch a) {
+    LLVM llvm = new LLVM()
+    initTargetForArch(llvm, a)
+    fly.mem.Ptr target = fly.mem.toPtr(0)
+    bool ok = false
+    llvm.getTargetFromTriple(triple, target, ok)
+    if target.addr == 0 { out = 0  return }
+    fly.mem.Ptr tm = fly.mem.toPtr(0)
+    // LLVMCodeGenLevelDefault=2, LLVMRelocPIC=2, LLVMCodeModelDefault=0.
+    llvm.createTargetMachine(target, triple, "", "", 2, 2, 0, tm)
+    if tm.addr == 0 { out = 2  return }
+    out = 1
+}

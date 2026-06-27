@@ -1,0 +1,13 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+
+// WebAssembly — wasm32 / wasm64. clang-verified LLVM-20 layouts (with the modern
+// p10/p20 address spaces). Reduced port of Basic/Targets/WebAssembly.*.
+
+public void wasm32Populate(const TargetInfo ti) {
+    ti.applyData("e-m:e-p:32:32-p10:8:8-p20:8:8-i64:64-i128:128-n32:64-S128-ni:1:10:20", 32, false, 32, 32)
+}
+
+public void wasm64Populate(const TargetInfo ti) {
+    ti.applyData("e-m:e-p:64:64-p10:8:8-p20:8:8-i64:64-i128:128-n32:64-S128-ni:1:10:20", 64, false, 32, 64)
+}

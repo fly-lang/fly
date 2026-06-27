@@ -1,0 +1,134 @@
+namespace fly.compiler.target
+import fly.compiler.target.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TargetInfo — machine description consumed by codegen, a reduced port of
+// fly/include/Basic/TargetInfo.h + the CreateTargetInfo / AllocateTarget factory
+// in fly/compiler/Basic/Targets.cpp. It holds the parsed Triple, the LLVM data
+// layout string, endianness and the scalar type widths for the selected arch.
+//
+// The full C++ class also drives feature maps, ABI selection, calling
+// conventions and target builtins; the self-host bootstrap (module-level target
+// only — codegen keeps hardcoded widths) needs just the triple + data layout to
+// stamp onto the LLVM module, so the rest is intentionally dropped.
+//
+// `targetInfoCreate` dispatches on Triple.getArch() to the per-family populate
+// functions (target/<Family>.fly). An unknown arch yields an invalid TargetInfo
+// (isValid()==false) and the Frontend reports it — mirroring AllocateTarget
+// returning nullptr for an unknown arch.
+//
+// Each populate fills the instance through `applyData`, which sets the data
+// layout + pointer width + endianness + int/long widths and the near-universal
+// defaults (bool 8, long long 64, float 32, double 64). The exotic deviations
+// the bootstrap doesn't care about (e.g. AVR double=32) are left at default;
+// codegen never reads these widths (module-level target only).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class TargetInfo {
+    Triple triple
+    bool valid
+    bool bigEndian
+    string dataLayout
+    int pointerWidth
+    int boolWidth
+    int intWidth
+    int longWidth
+    int longLongWidth
+    int floatWidth
+    int doubleWidth
+
+    public TargetInfo(const Triple triple) {
+        this.triple = triple
+        this.valid = false
+        this.bigEndian = false
+        this.dataLayout = ""
+        this.pointerWidth = 0
+        this.boolWidth = 0
+        this.intWidth = 0
+        this.longWidth = 0
+        this.longLongWidth = 0
+        this.floatWidth = 0
+        this.doubleWidth = 0
+    }
+
+    public bool isValid()        { out = this.valid }
+    public bool isBigEndian()    { out = this.bigEndian }
+    public Triple getTriple()    { out = this.triple }
+    public string getTripleStr() { out = this.triple.getTriple() }
+    public string getDataLayout(){ out = this.dataLayout }
+
+    public int getPointerWidth()  { out = this.pointerWidth }
+    public int getBoolWidth()     { out = this.boolWidth }
+    public int getIntWidth()      { out = this.intWidth }
+    public int getLongWidth()     { out = this.longWidth }
+    public int getLongLongWidth() { out = this.longLongWidth }
+    public int getFloatWidth()    { out = this.floatWidth }
+    public int getDoubleWidth()   { out = this.doubleWidth }
+
+    // applyData — populate from a family's machine description. Sets the data
+    // layout, pointer width, endianness and int/long widths; the remaining
+    // widths take the near-universal defaults. Marks the target valid.
+    public void applyData(const string dataLayout, const int ptrWidth, const bool bigEndian, const int intWidth, const int longWidth) {
+        this.valid = true
+        this.dataLayout = dataLayout
+        this.pointerWidth = ptrWidth
+        this.bigEndian = bigEndian
+        this.intWidth = intWidth
+        this.longWidth = longWidth
+        this.boolWidth = 8
+        this.longLongWidth = 64
+        this.floatWidth = 32
+        this.doubleWidth = 64
+    }
+}
+
+// targetInfoCreate — build a TargetInfo from the parsed triple inside `opts`
+// (TargetInfo::CreateTargetInfo + AllocateTarget, reduced to a flat dispatch on
+// the arch). x86_64 → populated; anything else → its family populate; unknown →
+// invalid marker for the Frontend to report.
+public TargetInfo targetInfoCreate(const TargetOptions opts) {
+    Triple t = tripleParse(opts.getTriple())
+    TargetInfo ti = new TargetInfo(t)
+    Arch a = t.getArch()
+
+    if a == Arch.X86            { x86Populate(ti) }
+    elsif a == Arch.X86_64      { x86_64Populate(ti) }
+    elsif a == Arch.AARCH64     { aarch64Populate(ti) }
+    elsif a == Arch.AARCH64_BE  { aarch64BePopulate(ti) }
+    elsif a == Arch.ARM         { armPopulate(ti) }
+    elsif a == Arch.ARMEB       { armebPopulate(ti) }
+    elsif a == Arch.MIPS        { mipsPopulate(ti) }
+    elsif a == Arch.MIPSEL      { mipselPopulate(ti) }
+    elsif a == Arch.MIPS64      { mips64Populate(ti) }
+    elsif a == Arch.MIPS64EL    { mips64elPopulate(ti) }
+    elsif a == Arch.PPC         { ppcPopulate(ti) }
+    elsif a == Arch.PPC64       { ppc64Populate(ti) }
+    elsif a == Arch.PPC64LE     { ppc64lePopulate(ti) }
+    elsif a == Arch.RISCV32     { riscv32Populate(ti) }
+    elsif a == Arch.RISCV64     { riscv64Populate(ti) }
+    elsif a == Arch.SPARC       { sparcPopulate(ti) }
+    elsif a == Arch.SPARCV9     { sparcv9Populate(ti) }
+    elsif a == Arch.SYSTEMZ     { systemzPopulate(ti) }
+    elsif a == Arch.WASM32      { wasm32Populate(ti) }
+    elsif a == Arch.WASM64      { wasm64Populate(ti) }
+    elsif a == Arch.BPFEL       { bpfelPopulate(ti) }
+    elsif a == Arch.BPFEB       { bpfebPopulate(ti) }
+    elsif a == Arch.NVPTX       { nvptxPopulate(ti) }
+    elsif a == Arch.NVPTX64     { nvptx64Populate(ti) }
+    elsif a == Arch.AMDGCN      { amdgcnPopulate(ti) }
+    elsif a == Arch.R600        { r600Populate(ti) }
+    elsif a == Arch.AVR         { avrPopulate(ti) }
+    elsif a == Arch.MSP430      { msp430Populate(ti) }
+    elsif a == Arch.HEXAGON     { hexagonPopulate(ti) }
+    elsif a == Arch.LANAI       { lanaiPopulate(ti) }
+    elsif a == Arch.LE64        { le64Populate(ti) }
+    elsif a == Arch.ARC         { arcPopulate(ti) }
+    elsif a == Arch.XCORE       { xcorePopulate(ti) }
+    elsif a == Arch.SPIR        { spirPopulate(ti) }
+    elsif a == Arch.SPIR64      { spir64Populate(ti) }
+    elsif a == Arch.TCE         { tcePopulate(ti) }
+    elsif a == Arch.TCELE       { tcelePopulate(ti) }
+    elsif a == Arch.VE          { vePopulate(ti) }
+
+    out = ti
+}

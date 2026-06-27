@@ -1,9 +1,11 @@
 namespace fly.compiler.codegen
 
 import fly.compiler.sema.*
+import fly.compiler.target.*
 import fly.compiler.codegen.CodeGenLLVM
 import llvm.api.*
 import fly.mem
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenType — lower a resolved SemaType to an LLVM type handle. No downcast is
@@ -19,14 +21,27 @@ public class CodeGenType {
     CodeGenLLVM cg
     fly.mem.Ptr ctx
     fly.mem.Ptr stringTy       // the module's `%string` named struct (set by CodeGenModule)
+    TargetInfo targetInfo      // set via configureTarget; null → default 64-bit pointers
 
     public CodeGenType(const CodeGenLLVM cg, const fly.mem.Ptr ctx) {
         this.cg = cg
         this.ctx = ctx
         this.stringTy = fly.mem.toPtr(0)
+        this.targetInfo = null
     }
 
     public void setStringTy(const fly.mem.Ptr t) { this.stringTy = t }
+
+    // setTargetInfo — supply the active target so usize/isize lower to its pointer
+    // width. Called by CodeGenModule.configureTarget before lowering.
+    public void setTargetInfo(const TargetInfo ti) { this.targetInfo = ti }
+
+    // pointerWidth — the target pointer width in bits (default 64 when no target
+    // is configured, e.g. unit tests that never call configureTarget).
+    public int pointerWidth() {
+        if this.targetInfo == null { out = 64  return }
+        out = this.targetInfo.getPointerWidth()
+    }
 
     public fly.mem.Ptr lowerType(const SemaType t) {
         LLVM llvm = this.cg.getLLVM()
@@ -36,11 +51,23 @@ public class CodeGenType {
         } elsif t.isBool() {
             llvm.int1TypeInContext(this.ctx, r)
         } elsif t.isInteger() {
-            int rank = t.getRank()
-            if rank <= 8 { llvm.int8TypeInContext(this.ctx, r) }
-            elsif rank <= 16 { llvm.int16TypeInContext(this.ctx, r) }
-            elsif rank <= 32 { llvm.int32TypeInContext(this.ctx, r) }
-            else { llvm.int64TypeInContext(this.ctx, r) }
+            // usize/isize are detected by NAME (not a new SemaType virtual method —
+            // adding one shifts the vtable and mis-dispatches getRank). getName()
+            // already exists on the base.
+            string nm = t.getName()
+            if fly.str.equals(nm, "usize") || fly.str.equals(nm, "isize") {
+                // usize/isize → the target pointer width (16/32/64).
+                int pw = this.pointerWidth()
+                if pw <= 16 { llvm.int16TypeInContext(this.ctx, r) }
+                elsif pw <= 32 { llvm.int32TypeInContext(this.ctx, r) }
+                else { llvm.int64TypeInContext(this.ctx, r) }
+            } else {
+                int rank = t.getRank()
+                if rank <= 8 { llvm.int8TypeInContext(this.ctx, r) }
+                elsif rank <= 16 { llvm.int16TypeInContext(this.ctx, r) }
+                elsif rank <= 32 { llvm.int32TypeInContext(this.ctx, r) }
+                else { llvm.int64TypeInContext(this.ctx, r) }
+            }
         } elsif t.isFloat() {
             int rank = t.getRank()
             if rank <= 32 { llvm.floatTypeInContext(this.ctx, r) }

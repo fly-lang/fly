@@ -1,0 +1,50 @@
+namespace fly.compiler.frontend
+
+import fly.compiler.frontend.*
+import fly.compiler.basic.*
+import fly.compiler.driver.FrontendOptions
+import fly.compiler.target.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CompilerInstance — the central holder of compiler state, 1:1 with
+// fly/Frontend/CompilerInstance.{h,cpp}: Diags + FileManager + SourceManager +
+// FrontendOptions + CodeGenOptions + TargetOptions.
+//
+// Adapted: the C++ createSourceManager() builds an empty SourceManager that
+// InputFiles populate via createFileID; the self-host SourceManager is buffer-
+// based (constructed with {filename, text}), so createSourceManager takes the
+// main input's name + text (set by the Frontend once the entry file is read).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CompilerInstance {
+    DiagnosticsEngine diags
+    FileManager fileMgr
+    SourceManager sourceMgr
+    FrontendOptions frontendOpts
+    CodeGenOptions codeGenOpts
+    TargetOptions targetOpts
+
+    public CompilerInstance(const DiagnosticsEngine diags, const FrontendOptions frontendOpts,
+                            const CodeGenOptions codeGenOpts, const TargetOptions targetOpts) {
+        this.diags = diags
+        this.frontendOpts = frontendOpts
+        this.codeGenOpts = codeGenOpts
+        this.targetOpts = targetOpts
+        this.fileMgr = null
+        this.sourceMgr = null
+    }
+
+    public void createFileManager() { this.fileMgr = new FileManager() }
+
+    // createSourceManager — build the SourceManager for the entry file's buffer.
+    public void createSourceManager(const string fileName, const string buffer) {
+        this.sourceMgr = new SourceManager(fileName, buffer)
+    }
+
+    public DiagnosticsEngine getDiagnostics()    { out = this.diags }
+    public FileManager getFileManager()          { out = this.fileMgr }
+    public SourceManager getSourceManager()      { out = this.sourceMgr }
+    public FrontendOptions getFrontendOptions()  { out = this.frontendOpts }
+    public CodeGenOptions getCodeGenOptions()    { out = this.codeGenOpts }
+    public TargetOptions getTargetOptions()      { out = this.targetOpts }
+}

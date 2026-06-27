@@ -23,6 +23,8 @@ public int semaIntRank(const SemaIntTypeKind k) {
     elsif k == SemaIntTypeKind.TYPE_SHORT  { r = 15 }
     elsif k == SemaIntTypeKind.TYPE_INT    { r = 31 }
     elsif k == SemaIntTypeKind.TYPE_LONG   { r = 63 }
+    elsif k == SemaIntTypeKind.TYPE_USIZE  { r = 64 }   // unsigned, ptr-sized; rank == ulong
+    elsif k == SemaIntTypeKind.TYPE_ISIZE  { r = 63 }   // signed, ptr-sized; rank == long
     out = r
 }
 

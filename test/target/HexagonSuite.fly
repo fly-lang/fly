@@ -1,0 +1,23 @@
+namespace fly.compiler.target.test.hexagon
+
+import fly.compiler.target.*
+import fly.assert
+
+suite HexagonSuite {
+
+    void metadataTest() {
+        case "hexagon (32)": {
+            assert.assertTrue(archFromName("hexagon") == Arch.HEXAGON, 1)
+            TargetInfo a = targetInfoCreate(new TargetOptions("hexagon-unknown-unknown"))
+            assert.assertStr(a.getDataLayout(), "e-m:e-p:32:32:32-a:0-n16:32-i64:64:64-i32:32:32-i16:16:16-i1:8:8-f32:32:32-f64:64:64-v32:32:32-v64:64:64-v512:512:512-v1024:1024:1024-v2048:2048:2048", 2)
+            assert.assertEqI(a.getPointerWidth(), 32, 3)
+            assert.assertFalse(a.isBigEndian(), 4)
+        }
+    }
+
+    void machineTest() {
+        case "hexagon target machine": {
+            assert.assertTrue(targetMachineCheck("hexagon-unknown-unknown", Arch.HEXAGON) != 2, 5)
+        }
+    }
+}

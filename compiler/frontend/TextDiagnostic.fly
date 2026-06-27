@@ -1,0 +1,112 @@
+namespace fly.compiler.frontend
+
+import fly.compiler.basic.*
+import fly.str
+import fly.llvm
+import fly.runtime
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TextDiagnostic — renders a Diagnostic as caret text, a reduced port of
+// fly/Frontend/{DiagnosticRenderer,TextDiagnostic}.cpp folded into one class
+// (the self-host has no abstract-base-with-virtual-hooks pattern; folding avoids
+// adding base virtuals). Produces:
+//
+//   <file>:<line>:<col>: <level>: <message>
+//       <source line>
+//                ^~~~
+//
+// Adaptations: MONOCHROME (fly.os.io has no terminal color), no tab expansion /
+// UTF-8 column mapping (carets assume 1 col == 1 byte), single ^ + ~ underline
+// across the identifier at the caret (the C++ uses CharSourceRanges).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// lineFeed — a string holding a single LF byte (0x0A). Fly string literals keep
+// escapes RAW (`"\n"` is the two chars backslash+n, NOT a newline), and the std
+// `fly.str` is baked into the compiler binary so new helpers there don't link —
+// so the byte is built locally via the same intrinsics fly.os.io.writeNL uses.
+public string lineFeed() {
+    long buf = 0
+    fly.runtime.mem_alloc(1, buf)
+    fly.llvm.strPoke(buf, 0, 10)
+    fly.llvm.strMake(buf, 1, out)
+}
+
+// quoteChar — a string holding a single `"` byte (0x22). Same rationale as
+// lineFeed: a bare `"` can't appear in a Fly string literal (it terminates the
+// string) and `\"` is stored RAW as backslash+quote, so JSON structural quotes
+// must be built byte-wise.
+public string quoteChar() {
+    long buf = 0
+    fly.runtime.mem_alloc(1, buf)
+    fly.llvm.strPoke(buf, 0, 34)
+    fly.llvm.strMake(buf, 1, out)
+}
+
+// backslashChar — a string holding a single `\` byte (0x5C), built byte-wise for
+// the same reason as quoteChar (a literal `"\\"` is two raw chars, not one).
+public string backslashChar() {
+    long buf = 0
+    fly.runtime.mem_alloc(1, buf)
+    fly.llvm.strPoke(buf, 0, 92)
+    fly.llvm.strMake(buf, 1, out)
+}
+
+// diagLevelName — display name for a level ("error"/"warning"/…).
+public string diagLevelName(const DiagLevel level) {
+    if level == DiagLevel.Fatal   { out = "fatal error"  return }
+    if level == DiagLevel.Error   { out = "error"        return }
+    if level == DiagLevel.Warning { out = "warning"      return }
+    if level == DiagLevel.Remark  { out = "remark"       return }
+    out = "note"
+}
+
+public class TextDiagnostic {
+    public TextDiagnostic() { }
+
+    // tokenLenAt — length of the identifier at buffer `offset` (>=1), for the `~`
+    // underline. Uses SourceManager.byteAt (returns int) to avoid byte/int compares.
+    public int tokenLenAt(const SourceManager sm, const int offset) {
+        int i = offset
+        int len = 0
+        bool go = true
+        while go {
+            int b = sm.byteAt(i)
+            bool isId = (b >= 97 && b <= 122) || (b >= 65 && b <= 90) || (b >= 48 && b <= 57) || b == 95
+            if isId { len = len + 1  i = i + 1 } else { go = false }
+        }
+        if len < 1 { len = 1 }
+        out = len
+    }
+
+    // header — "<file>:<line>:<col>: <level>: <message>".
+    public string header(const Diagnostic diag) {
+        string lc = fly.str.concat(fly.str.convert(diag.getLine()),
+                    fly.str.concat(":", fly.str.concat(fly.str.convert(diag.getColumn()), ": ")))
+        string lvl = fly.str.concat(diagLevelName(diag.getLevel()), ": ")
+        out = fly.str.concat(fly.str.concat(diag.getFilename(), ":"),
+              fly.str.concat(lc, fly.str.concat(lvl, diag.getMessage())))
+    }
+
+    // render — the full caret diagnostic. Falls back to the header alone when no
+    // SourceManager is attached (e.g. a location-less diagnostic).
+    public string render(const Diagnostic diag) {
+        string head = this.header(diag)
+        SourceManager sm = diag.getSourceManager()
+        if sm == null { out = head  return }
+
+        string srcLine = sm.getSourceLine(diag.getLine())
+        int col0 = diag.getColumn() - 1
+        if col0 < 0 { col0 = 0 }
+        SourceLocation dloc = diag.getLoc()
+        int tokLen = this.tokenLenAt(sm, dloc.getOffset())
+
+        string pad = fly.str.repeat(" ", col0)
+        string tilde = ""
+        if tokLen > 1 { tilde = fly.str.repeat("~", tokLen - 1) }
+        string underline = fly.str.concat(pad, fly.str.concat("^", tilde))
+
+        string nl = lineFeed()
+        out = fly.str.concat(head, fly.str.concat(nl,
+              fly.str.concat(srcLine, fly.str.concat(nl, underline))))
+    }
+}

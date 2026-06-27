@@ -1,0 +1,83 @@
+namespace fly.compiler.driver.test
+
+import fly.compiler.basic.*
+import fly.compiler.target.*
+import fly.compiler.driver.*
+import fly.assert
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ToolChainSuite — the ported ToolChain decision logic (no real linking): the
+// arch→ld-emulation table, the PIE truth table, ARM endianness, OS lib dir, the
+// compiler-rt suffix, and the ";"-delimited list helpers. Constructing a
+// ToolChain needs no DiagnosticsEngine for these (null is fine — only the link
+// error paths reference it).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public ToolChain tcFor(const string triple) {
+    out = new ToolChain(null, tripleParse(triple), new CodeGenOptions())
+}
+
+suite ToolChainSuite {
+
+    void ldmTest() {
+        case "getLDMOption maps arch → ld emulation": {
+            ToolChain x64 = tcFor("x86_64-unknown-linux-gnu")
+            assert.assertStr(x64.getLDMOption(), "elf_x86_64", 1)
+            ToolChain a64 = tcFor("aarch64-unknown-linux-gnu")
+            assert.assertStr(a64.getLDMOption(), "aarch64linux", 2)
+            ToolChain rv = tcFor("riscv64-unknown-linux-gnu")
+            assert.assertStr(rv.getLDMOption(), "elf64lriscv", 3)
+            ToolChain arm = tcFor("arm-unknown-linux-gnueabi")
+            assert.assertStr(arm.getLDMOption(), "armelf_linux_eabi", 4)
+            ToolChain armeb = tcFor("armeb-unknown-linux-gnueabi")
+            assert.assertStr(armeb.getLDMOption(), "armelfb_linux_eabi", 5)
+            ToolChain sz = tcFor("s390x-unknown-linux-gnu")
+            assert.assertStr(sz.getLDMOption(), "elf64_s390", 6)
+            ToolChain x86 = tcFor("i686-unknown-linux-gnu")
+            assert.assertStr(x86.getLDMOption(), "elf_i386", 7)
+        }
+    }
+
+    void miscTest() {
+        case "isArmBigEndian / getOSLibDir / compiler-rt suffix": {
+            ToolChain armeb = tcFor("armeb-unknown-linux-gnueabi")
+            assert.assertTrue(armeb.isArmBigEndian(), 10)
+            ToolChain x64 = tcFor("x86_64-unknown-linux-gnu")
+            assert.assertFalse(x64.isArmBigEndian(), 11)
+            assert.assertStr(x64.getOSLibDir(), "lib64", 12)
+            ToolChain x86 = tcFor("i686-unknown-linux-gnu")
+            assert.assertStr(x86.getOSLibDir(), "lib32", 13)
+            ToolChain rv32 = tcFor("riscv32-unknown-linux-gnu")
+            assert.assertStr(rv32.getOSLibDir(), "lib32", 14)
+            assert.assertStr(archToCompilerRTSuffix(Arch.X86_64), "x86_64", 15)
+            assert.assertStr(archToCompilerRTSuffix(Arch.AARCH64), "aarch64", 16)
+        }
+    }
+
+    void pieTest() {
+        case "getPIE truth table (PIE unless Shared/Static)": {
+            CodeGenOptions o1 = new CodeGenOptions()
+            ToolChain a = new ToolChain(null, tripleParse("x86_64-unknown-linux-gnu"), o1)
+            assert.assertFalse(a.getPIE(), 20)                 // default: no PIE
+            o1.setPie(true)
+            assert.assertTrue(a.getPIE(), 21)                  // PIE enabled
+            o1.setStatic(true)
+            assert.assertFalse(a.getPIE(), 22)                 // static cancels PIE
+            CodeGenOptions o2 = new CodeGenOptions()
+            o2.setPie(true)
+            o2.setShared(true)
+            ToolChain b = new ToolChain(null, tripleParse("x86_64-unknown-linux-gnu"), o2)
+            assert.assertFalse(b.getPIE(), 23)                 // shared cancels PIE
+        }
+    }
+
+    void segTest() {
+        case "segCount / segAt iterate a ';'-delimited list": {
+            string lst = ";crt1.o;libfly_runtime.a;"
+            assert.assertEqI(segCount(lst), 2, 30)
+            assert.assertStr(segAt(lst, 0), "crt1.o", 31)
+            assert.assertStr(segAt(lst, 1), "libfly_runtime.a", 32)
+        }
+    }
+}

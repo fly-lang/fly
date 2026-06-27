@@ -1,0 +1,23 @@
+namespace fly.compiler.frontend
+
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MemoryBuffer — a named in-memory source buffer, the bootstrap analog of
+// llvm::MemoryBuffer (which InputFile/FileManager pass around). Just a {name,text}
+// pair; the self-host has no ref-counted buffer ownership.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class MemoryBuffer {
+    string name
+    string text
+
+    public MemoryBuffer(const string name, const string text) {
+        this.name = name
+        this.text = text
+    }
+
+    public string getBuffer()     { out = this.text }
+    public string getBufferName() { out = this.name }
+    public bool isEmpty()         { out = fly.str.isEmpty(this.text) }
+}

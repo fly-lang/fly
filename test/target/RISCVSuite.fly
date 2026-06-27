@@ -1,0 +1,29 @@
+namespace fly.compiler.target.test.riscv
+
+import fly.compiler.target.*
+import fly.assert
+
+suite RISCVSuite {
+
+    void metadataTest() {
+        case "riscv32 (ILP32)": {
+            assert.assertTrue(archFromName("riscv32") == Arch.RISCV32, 1)
+            TargetInfo a = targetInfoCreate(new TargetOptions("riscv32-unknown-linux-gnu"))
+            assert.assertStr(a.getDataLayout(), "e-m:e-p:32:32-i64:64-n32-S128", 2)
+            assert.assertEqI(a.getPointerWidth(), 32, 3)
+            assert.assertFalse(a.isBigEndian(), 4)
+        }
+        case "riscv64 (LP64)": {
+            assert.assertTrue(archFromName("riscv64") == Arch.RISCV64, 5)
+            TargetInfo b = targetInfoCreate(new TargetOptions("riscv64-unknown-linux-gnu"))
+            assert.assertStr(b.getDataLayout(), "e-m:e-p:64:64-i64:64-i128:128-n32:64-S128", 6)
+            assert.assertEqI(b.getPointerWidth(), 64, 7)
+        }
+    }
+
+    void machineTest() {
+        case "riscv64 target machine": {
+            assert.assertTrue(targetMachineCheck("riscv64-unknown-linux-gnu", Arch.RISCV64) != 2, 8)
+        }
+    }
+}

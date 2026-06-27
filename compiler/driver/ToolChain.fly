@@ -1,0 +1,624 @@
+namespace fly.compiler.driver
+
+import fly.compiler.basic.*
+import fly.compiler.target.*
+import fly.compiler.driver.FrontendOptions
+import fly.os.proc
+import fly.os.fs
+import fly.os.path
+import fly.os.env
+import fly.os.io
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ToolChain — faithful 1:1 port of fly/compiler/Driver/ToolChain.cpp (+ .h):
+// build the platform linker command line (arch/OS dispatch, crt objects, dynamic
+// linker, lib paths, system libs) and link.
+//
+// Self-host adaptations (the language/runtime can't do these 1:1):
+//   • In-process LLD → subprocess. The C++ calls lld::{elf,coff,macho}::link(args)
+//     (the LLD library). The self-host has no LLD binding, so it builds the SAME
+//     argument list and EXECs the LLD binary `ld.lld`/`ld64.lld`/`lld-link`
+//     (fallback `ld`) via fly.os.proc.exec.
+//   • llvm::vfs / llvm::sys::path → fly.os.fs.exists / fly.os.path.join.
+//   • Windows VS/SDK discovery (COM + registry) is not expressible in pure Fly:
+//     getUniversalCRTLibraryPath / getWindowsSDKLibraryPath are stubs (false).
+//     LinkWindows structure is kept; it is inert on the Linux self-host.
+//   • The external Archiver (CreateLibrary path, Archiver.cpp — not in scope) is
+//     stubbed: BuildOutput's library branch returns false.
+//   • Diag.Report (location-less toolchain errors) → fly.os.io.printErrLn.
+//   • FLY_LLVM_VERSION_MAJOR / FLY_LLVM_DIR → "20" + system /usr/lib/llvm-20 paths.
+//
+// SmallVector<std::string> CmdArgs → a fly.os.proc ArgList handle, accumulated
+// with argsAdd and run with exec (the program name is exec's `path`, not arg 0).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// segCount / segAt — iterate a ";"-delimited list (";a;b;" → a, b). Only fresh
+// substrings of the immutable source are taken (never `x = substring(x,…)`,
+// which the self-host miscompiles).
+public int segCount(const string s) { out = fly.str.count(s, ";") - 1 }
+
+public string segAt(const string s, const int idx) {
+    int from = 1
+    int seg = 0
+    string result = ""
+    bool go = true
+    while go {
+        string tail = fly.str.substring(s, from, fly.str.len(s))
+        int rel = fly.str.indexOf(tail, ";")
+        if rel < 0 {
+            go = false
+        } else {
+            int end = from + rel
+            if seg == idx {
+                result = fly.str.substring(s, from, end)
+                go = false
+            } else {
+                seg = seg + 1
+                from = end + 1
+            }
+        }
+    }
+    out = result
+}
+
+// segAppend — append `v` to a ";"-delimited list.
+public string segAppend(const string s, const string v) {
+    out = fly.str.concat(s, fly.str.concat(v, ";"))
+}
+
+// llvmMajor — the LLVM major version the self-host targets (libLLVM-20).
+public string llvmMajor() { out = "20" }
+
+// archToCompilerRTSuffix — compiler-rt arch suffix; "" if unsupported.
+public string archToCompilerRTSuffix(const Arch a) {
+    if a == Arch.X86_64  { out = "x86_64"  return }
+    if a == Arch.X86     { out = "i386"    return }
+    if a == Arch.AARCH64 { out = "aarch64" return }
+    if a == Arch.ARM     { out = "arm"     return }
+    if a == Arch.RISCV32 { out = "riscv32" return }
+    if a == Arch.RISCV64 { out = "riscv64" return }
+    out = ""
+}
+
+public class ToolChain {
+
+    DiagnosticsEngine diags
+    Triple t
+    CodeGenOptions codeGenOpts
+
+    public ToolChain(const DiagnosticsEngine diags, const Triple t, const CodeGenOptions codeGenOpts) {
+        this.diags = diags
+        this.t = t
+        this.codeGenOpts = codeGenOpts
+    }
+
+    // resolveProg — resolve a program name to a full path via $PATH. The runtime's
+    // proc_exec is raw execve (no PATH search, unlike the C++'s in-process LLD, which
+    // never spawned), so the linker must be an absolute path. "" if not found.
+    public string resolveProg(const string name) {
+        if fly.str.contains(name, "/") { out = name  return }
+        string pathEnv = fly.os.env.get("PATH")
+        if fly.str.isEmpty(pathEnv) { pathEnv = "/usr/bin:/bin" }
+        int from = 0
+        int len = fly.str.len(pathEnv)
+        string found = ""
+        bool go = true
+        while go {
+            string tail = fly.str.substring(pathEnv, from, len)
+            int rel = fly.str.indexOf(tail, ":")
+            int end = len
+            if rel >= 0 { end = from + rel }
+            string dir = fly.str.substring(pathEnv, from, end)
+            if fly.str.isEmpty(dir) == false {
+                string cand = fly.os.path.join(dir, name)
+                if fly.os.fs.exists(cand) { found = cand  go = false }
+            }
+            if rel < 0 { go = false } else { from = end + 1 }
+        }
+        out = found
+    }
+
+    // ── runLinker — exec `prog` (fallback `alt`) with the built ArgList. Returns
+    // true on a 0 exit code. Replaces the in-process lld::*::link(args) call;
+    // resolves the binary against $PATH first (execve needs a full path).
+    public bool runLinker(const string prog, const string alt, const long h) {
+        string p = this.resolveProg(prog)
+        if fly.str.isEmpty(p) { p = this.resolveProg(alt) }
+        if fly.str.isEmpty(p) {
+            fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: linker not found: ", prog), fly.str.concat(" / ", alt)))
+            out = false
+            return
+        }
+        int rc = fly.os.proc.exec(p, h)
+        out = rc == 0
+    }
+
+    // ── BuildOutput — top-level dispatcher (cpp:72-108) ───────────────────────
+    public bool BuildOutput(const string inFilesSemi, const FrontendOptions frontendOpts) {
+        string outFileName = frontendOpts.getOutputFile()
+        if frontendOpts.getCreateLibrary() {
+            // Archiver (Archiver.cpp) is not ported — library archiving unavailable.
+            fly.os.io.printErrLn("error: library archiving (Archiver) not ported in the self-host")
+            out = false
+            return
+        }
+        if this.t.isWindowsMSVC() {
+            out = this.LinkWindows(inFilesSemi, outFileName)
+        } elsif this.t.isOSDarwin() {
+            out = this.LinkDarwin(inFilesSemi, outFileName)
+        } else {
+            out = this.LinkLinux(inFilesSemi, outFileName, frontendOpts)
+        }
+    }
+
+    public bool BuildLib() { out = false }
+
+    // ── LinkLinux — the core (cpp:793-1019) ───────────────────────────────────
+    public bool LinkLinux(const string inFilesSemi, const string outFile, const FrontendOptions frontendOpts) {
+        long h = fly.os.proc.argsNew()
+
+        if fly.str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
+            fly.os.proc.argsAdd(h, fly.str.concat("-L", this.codeGenOpts.getToolchainLibDir()))
+        }
+
+        Arch arch = this.t.getArch()
+        bool isAndroid = this.t.isAndroid()
+        bool isIAMCU = this.t.isOSIAMCU()
+        bool isVE = this.t.isVE()
+        bool isPIE = this.getPIE()
+        bool isStaticPIE = this.codeGenOpts.getStaticPIE()
+        bool isStatic = this.codeGenOpts.getStatic() && this.codeGenOpts.getStaticPIE() == false
+
+        if isPIE { fly.os.proc.argsAdd(h, "-pie") }
+
+        if isStaticPIE {
+            fly.os.proc.argsAdd(h, "-static")
+            fly.os.proc.argsAdd(h, "-pie")
+            fly.os.proc.argsAdd(h, "--no-dynamic-linker")
+            fly.os.proc.argsAdd(h, "-z")
+            fly.os.proc.argsAdd(h, "text")
+        }
+
+        if this.codeGenOpts.getRDynamic() { fly.os.proc.argsAdd(h, "-export-dynamic") }
+
+        // ARM endianness
+        if this.t.isARM() || this.t.isThumb() || this.t.isAArch64() {
+            bool isBE = this.isArmBigEndian()
+            if isBE { fly.os.proc.argsAdd(h, "--be8") }
+            bool be2 = isBE || arch == Arch.AARCH64_BE
+            if be2 { fly.os.proc.argsAdd(h, "-EB") } else { fly.os.proc.argsAdd(h, "-EL") }
+        }
+
+        if isAndroid { fly.os.proc.argsAdd(h, "--warn-shared-textrel") }
+
+        fly.os.proc.argsAdd(h, "--eh-frame-hdr")
+
+        string ldm = this.getLDMOption()
+        if fly.str.isEmpty(ldm) {
+            fly.os.io.printErrLn(fly.str.concat("error: unknown target triple: ", this.t.getTriple()))
+            fly.os.proc.argsFree(h)
+            out = false
+            return
+        }
+        fly.os.proc.argsAdd(h, "-m")
+        fly.os.proc.argsAdd(h, ldm)
+
+        if isStatic {
+            if arch == Arch.ARM || arch == Arch.ARMEB {
+                fly.os.proc.argsAdd(h, "-Bstatic")
+            } else {
+                fly.os.proc.argsAdd(h, "-static")
+            }
+        } elsif this.codeGenOpts.getShared() {
+            fly.os.proc.argsAdd(h, "-shared")
+        }
+
+        if isStatic == false {
+            if this.codeGenOpts.getRDynamic() { fly.os.proc.argsAdd(h, "-export-dynamic") }
+            if this.codeGenOpts.getShared() == false && isStaticPIE == false {
+                string dynLinker = ""
+                if arch == Arch.X86_64      { dynLinker = "/lib64/ld-linux-x86-64.so.2" }
+                elsif arch == Arch.AARCH64  { dynLinker = "/lib/ld-linux-aarch64.so.1" }
+                elsif arch == Arch.ARM      { dynLinker = "/lib/ld-linux-armhf.so.3" }
+                elsif arch == Arch.RISCV64  { dynLinker = "/lib/ld-linux-riscv64-lp64d.so.1" }
+                if fly.str.isEmpty(dynLinker) == false && fly.os.fs.exists(dynLinker) {
+                    fly.os.proc.argsAdd(h, "-dynamic-linker")
+                    fly.os.proc.argsAdd(h, dynLinker)
+                }
+            }
+        }
+
+        // Output
+        fly.os.proc.argsAdd(h, "-o")
+        fly.os.proc.argsAdd(h, outFile)
+
+        // Path list (";"-delimited)
+        string pathList = this.CreatePathList()
+
+        // crt1 + crti
+        if isAndroid == false && isIAMCU == false {
+            string crt1 = ""
+            if this.codeGenOpts.getShared() == false {
+                if isPIE { crt1 = "Scrt1.o" }
+                elsif isStaticPIE { crt1 = "rcrt1.o" }
+                else { crt1 = "crt1.o" }
+            }
+            if fly.str.isEmpty(crt1) == false {
+                fly.os.proc.argsAdd(h, this.GetFilePath(crt1, pathList))
+            }
+            fly.os.proc.argsAdd(h, this.GetFilePath("crti.o", pathList))
+        }
+
+        if isVE {
+            fly.os.proc.argsAdd(h, "-z")
+            fly.os.proc.argsAdd(h, "max-page-size=0x4000000")
+        }
+
+        // Inputs (the emitted object files, ";"-delimited)
+        int ni = segCount(inFilesSemi)
+        int i = 0
+        while i < ni {
+            fly.os.proc.argsAdd(h, segAt(inFilesSemi, i))
+            i = i + 1
+        }
+
+        // User .a/.lib inputs
+        int nf = frontendOpts.inputCount()
+        int j = 0
+        while j < nf {
+            string inp = frontendOpts.inputAt(j)
+            string ex = fly.os.path.ext(inp)
+            if fly.str.equals(ex, ".a") || fly.str.equals(ex, ".lib") {
+                fly.os.proc.argsAdd(h, inp)
+            }
+            j = j + 1
+        }
+
+        // fly_std_lib.a then libfly_runtime
+        string stdLib = this.GetStdLibPath()
+        if fly.str.isEmpty(stdLib) == false { fly.os.proc.argsAdd(h, stdLib) }
+        string rtLib = this.GetRuntimeLibPath()
+        if fly.str.isEmpty(rtLib) == false { fly.os.proc.argsAdd(h, rtLib) }
+
+        // -L for every path in the list
+        int np = segCount(pathList)
+        int k = 0
+        while k < np {
+            fly.os.proc.argsAdd(h, fly.str.concat("-L", segAt(pathList, k)))
+            k = k + 1
+        }
+
+        if isStatic || isStaticPIE { fly.os.proc.argsAdd(h, "--start-group") }
+
+        fly.os.proc.argsAdd(h, "-lc")
+        fly.os.proc.argsAdd(h, "-lm")
+
+        // CLang-bridge libs
+        string lo = this.codeGenOpts.getLinkerOptions()
+        int nl = segCount(lo)
+        int li = 0
+        while li < nl {
+            fly.os.proc.argsAdd(h, segAt(lo, li))
+            li = li + 1
+        }
+
+        // compiler-rt builtins
+        string builtins = this.GetCompilerRTBuiltinsPath()
+        if fly.str.isEmpty(builtins) {
+            fly.os.io.printErrLn(fly.str.concat("error: compiler-rt builtins not found for ", this.t.getTriple()))
+            fly.os.proc.argsFree(h)
+            out = false
+            return
+        }
+        fly.os.proc.argsAdd(h, builtins)
+
+        if isIAMCU { fly.os.proc.argsAdd(h, "-lgloss") }
+
+        if isStatic || isStaticPIE { fly.os.proc.argsAdd(h, "--end-group") }
+
+        if isIAMCU {
+            fly.os.proc.argsAdd(h, "--as-needed")
+            fly.os.proc.argsAdd(h, "-lsoftfp")
+            fly.os.proc.argsAdd(h, "--no-as-needed")
+        }
+
+        if isIAMCU == false && isAndroid == false {
+            string crtn = this.GetFilePath("crtn.o", pathList)
+            if fly.str.isEmpty(crtn) == false { fly.os.proc.argsAdd(h, crtn) }
+        }
+
+        bool ok = false
+        if this.t.isOSBinFormatELF() {
+            ok = this.runLinker("ld.lld", "ld", h)
+        }
+        fly.os.proc.argsFree(h)
+        out = ok
+    }
+
+    // ── LinkDarwin (cpp:749-791) ──────────────────────────────────────────────
+    public bool LinkDarwin(const string inFilesSemi, const string outFile) {
+        long h = fly.os.proc.argsNew()
+        fly.os.proc.argsAdd(h, "-e")
+        fly.os.proc.argsAdd(h, "_main")
+        fly.os.proc.argsAdd(h, "-o")
+        fly.os.proc.argsAdd(h, outFile)
+
+        if fly.str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
+            fly.os.proc.argsAdd(h, fly.str.concat("-L", this.codeGenOpts.getToolchainLibDir()))
+        }
+
+        int ni = segCount(inFilesSemi)
+        int i = 0
+        while i < ni { fly.os.proc.argsAdd(h, segAt(inFilesSemi, i))  i = i + 1 }
+
+        string stdLib = this.GetStdLibPath()
+        if fly.str.isEmpty(stdLib) == false { fly.os.proc.argsAdd(h, stdLib) }
+        string rtLib = this.GetRuntimeLibPath()
+        if fly.str.isEmpty(rtLib) == false { fly.os.proc.argsAdd(h, rtLib) }
+
+        string lo = this.codeGenOpts.getLinkerOptions()
+        int nl = segCount(lo)
+        int li = 0
+        while li < nl { fly.os.proc.argsAdd(h, segAt(lo, li))  li = li + 1 }
+
+        bool ok = false
+        if this.t.isOSBinFormatMachO() {
+            ok = this.runLinker("ld64.lld", "ld", h)
+        }
+        fly.os.proc.argsFree(h)
+        out = ok
+    }
+
+    // ── LinkWindows (cpp:499-608) — structural; SDK discovery stubbed ─────────
+    public bool LinkWindows(const string inFilesSemi, const string outFile) {
+        long h = fly.os.proc.argsNew()
+        fly.os.proc.argsAdd(h, fly.str.concat(fly.str.concat("/out:", outFile), ".exe"))
+
+        if fly.str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
+            fly.os.proc.argsAdd(h, fly.str.concat("/libpath:", this.codeGenOpts.getToolchainLibDir()))
+        }
+        fly.os.proc.argsAdd(h, "/defaultlib:libcmt")
+        fly.os.proc.argsAdd(h, "/defaultlib:synchronization")
+        fly.os.proc.argsAdd(h, "/defaultlib:kernel32")
+
+        // VS toolchain + UCRT + Windows SDK lib paths are discovered via COM/
+        // registry in the C++ — not expressible in pure Fly, so stubbed (skipped).
+        string ucrt = ""
+        if this.getUniversalCRTLibraryPath() == true { fly.os.proc.argsAdd(h, ucrt) }
+        string sdk = ""
+        if this.getWindowsSDKLibraryPath() == true { fly.os.proc.argsAdd(h, sdk) }
+
+        int ni = segCount(inFilesSemi)
+        int i = 0
+        while i < ni { fly.os.proc.argsAdd(h, segAt(inFilesSemi, i))  i = i + 1 }
+
+        string stdLib = this.GetStdLibPath()
+        if fly.str.isEmpty(stdLib) == false { fly.os.proc.argsAdd(h, stdLib) }
+        string rtLib = this.GetRuntimeLibPath()
+        if fly.str.isEmpty(rtLib) == false { fly.os.proc.argsAdd(h, rtLib) }
+
+        // -lNAME → NAME.lib
+        string lo = this.codeGenOpts.getLinkerOptions()
+        int nl = segCount(lo)
+        int li = 0
+        while li < nl {
+            string flag = segAt(lo, li)
+            if fly.str.len(flag) > 2 && fly.str.startsWith(flag, "-l") {
+                string nm = fly.str.substring(flag, 2, fly.str.len(flag))
+                fly.os.proc.argsAdd(h, fly.str.concat(nm, ".lib"))
+            } else {
+                fly.os.proc.argsAdd(h, flag)
+            }
+            li = li + 1
+        }
+
+        bool ok = false
+        if this.t.isOSBinFormatCOFF() {
+            ok = this.runLinker("lld-link", "link", h)
+        }
+        fly.os.proc.argsFree(h)
+        out = ok
+    }
+
+    // Windows VS/SDK discovery needs COM + registry — not portable. Stubs.
+    public bool getUniversalCRTLibraryPath() { out = false }
+    public bool getWindowsSDKLibraryPath()   { out = false }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    public bool getPIE() {
+        if this.codeGenOpts.getShared() || this.codeGenOpts.getStatic() { out = false  return }
+        out = this.codeGenOpts.getPIE()
+    }
+
+    public bool isArmBigEndian() { out = this.t.getArch() == Arch.ARMEB }
+
+    // getLDMOption — arch → ld emulation name ("" = unknown). (cpp:1031-1086)
+    public string getLDMOption() {
+        Arch a = this.t.getArch()
+        if a == Arch.X86 {
+            if this.t.isOSIAMCU() { out = "elf_iamcu" } else { out = "elf_i386" }
+            return
+        }
+        if a == Arch.X86_64 {
+            if this.t.isX32() { out = "elf32_x86_64" } else { out = "elf_x86_64" }
+            return
+        }
+        if a == Arch.AARCH64    { out = "aarch64linux"  return }
+        if a == Arch.AARCH64_BE { out = "aarch64linuxb" return }
+        if a == Arch.ARM        { out = "armelf_linux_eabi"  return }
+        if a == Arch.ARMEB      { out = "armelfb_linux_eabi" return }
+        if a == Arch.PPC        { out = "elf32ppclinux" return }
+        if a == Arch.PPC64      { out = "elf64ppc"      return }
+        if a == Arch.PPC64LE    { out = "elf64lppc"     return }
+        if a == Arch.RISCV32    { out = "elf32lriscv"   return }
+        if a == Arch.RISCV64    { out = "elf64lriscv"   return }
+        if a == Arch.SPARC      { out = "elf32_sparc"   return }
+        if a == Arch.SPARCV9    { out = "elf64_sparc"   return }
+        if a == Arch.MIPS       { out = "elf32btsmip"   return }
+        if a == Arch.MIPSEL     { out = "elf32ltsmip"   return }
+        if a == Arch.MIPS64     { out = "elf64btsmip"   return }
+        if a == Arch.MIPS64EL   { out = "elf64ltsmip"   return }
+        if a == Arch.SYSTEMZ    { out = "elf64_s390"    return }
+        if a == Arch.VE         { out = "elf64ve"       return }
+        out = ""
+    }
+
+    // GetFilePath — find Name within the ";"-delimited path list; "" if absent.
+    public string GetFilePath(const string name, const string pathList) {
+        int n = segCount(pathList)
+        int i = 0
+        while i < n {
+            string dir = segAt(pathList, i)
+            if fly.str.isEmpty(dir) == false {
+                string p = fly.os.path.join(dir, name)
+                if fly.os.fs.exists(p) { out = p  return }
+            }
+            i = i + 1
+        }
+        out = ""
+    }
+
+    public string getCompilerRT(const string name, const string pathList) {
+        int n = segCount(pathList)
+        int i = 0
+        while i < n {
+            string p = fly.os.path.join(segAt(pathList, i), name)
+            if fly.os.fs.exists(p) { out = p  return }
+            i = i + 1
+        }
+        out = ""
+    }
+
+    // getMultiarch — Debian multiarch dir guess, probed via fs.exists. (cpp:1134)
+    public string getMultiarch() {
+        Arch a = this.t.getArch()
+        bool isAndroid = this.t.isAndroid()
+        if a == Arch.ARM {
+            if isAndroid { out = "arm-linux-androideabi"  return }
+            if fly.os.fs.exists("/lib/arm-linux-gnueabihf") { out = "arm-linux-gnueabihf"  return }
+            if fly.os.fs.exists("/lib/arm-linux-gnueabi")   { out = "arm-linux-gnueabi"    return }
+        } elsif a == Arch.ARMEB {
+            if fly.os.fs.exists("/lib/armeb-linux-gnueabi") { out = "armeb-linux-gnueabi"  return }
+        } elsif a == Arch.X86 {
+            if isAndroid { out = "i686-linux-android"  return }
+            if fly.os.fs.exists("/lib/i386-linux-gnu") { out = "i386-linux-gnu"  return }
+        } elsif a == Arch.X86_64 {
+            if isAndroid { out = "x86_64-linux-android"  return }
+            if this.t.isX32() == false && fly.os.fs.exists("/lib/x86_64-linux-gnu") { out = "x86_64-linux-gnu"  return }
+        } elsif a == Arch.AARCH64 {
+            if isAndroid { out = "aarch64-linux-android"  return }
+            if fly.os.fs.exists("/lib/aarch64-linux-gnu") { out = "aarch64-linux-gnu"  return }
+        } elsif a == Arch.AARCH64_BE {
+            if fly.os.fs.exists("/lib/aarch64_be-linux-gnu") { out = "aarch64_be-linux-gnu"  return }
+        } elsif a == Arch.MIPS {
+            if fly.os.fs.exists("/lib/mips-linux-gnu") { out = "mips-linux-gnu"  return }
+        } elsif a == Arch.MIPSEL {
+            if isAndroid { out = "mipsel-linux-android"  return }
+            if fly.os.fs.exists("/lib/mipsel-linux-gnu") { out = "mipsel-linux-gnu"  return }
+        } elsif a == Arch.MIPS64 {
+            if fly.os.fs.exists("/lib/mips64-linux-gnuabi64") { out = "mips64-linux-gnuabi64"  return }
+            if fly.os.fs.exists("/lib/mips64-linux-gnu")      { out = "mips64-linux-gnu"       return }
+        } elsif a == Arch.MIPS64EL {
+            if isAndroid { out = "mips64el-linux-android"  return }
+            if fly.os.fs.exists("/lib/mips64el-linux-gnuabi64") { out = "mips64el-linux-gnuabi64"  return }
+            if fly.os.fs.exists("/lib/mips64el-linux-gnu")      { out = "mips64el-linux-gnu"       return }
+        } elsif a == Arch.PPC {
+            if fly.os.fs.exists("/lib/powerpc-linux-gnuspe") { out = "powerpc-linux-gnuspe"  return }
+            if fly.os.fs.exists("/lib/powerpc-linux-gnu")    { out = "powerpc-linux-gnu"     return }
+        } elsif a == Arch.PPC64 {
+            if fly.os.fs.exists("/lib/powerpc64-linux-gnu") { out = "powerpc64-linux-gnu"  return }
+        } elsif a == Arch.PPC64LE {
+            if fly.os.fs.exists("/lib/powerpc64le-linux-gnu") { out = "powerpc64le-linux-gnu"  return }
+        } elsif a == Arch.SPARC {
+            if fly.os.fs.exists("/lib/sparc-linux-gnu") { out = "sparc-linux-gnu"  return }
+        } elsif a == Arch.SPARCV9 {
+            if fly.os.fs.exists("/lib/sparc64-linux-gnu") { out = "sparc64-linux-gnu"  return }
+        } elsif a == Arch.SYSTEMZ {
+            if fly.os.fs.exists("/lib/s390x-linux-gnu") { out = "s390x-linux-gnu"  return }
+        }
+        out = this.t.getTriple()
+    }
+
+    // getOSLibDir — lib / lib64 / lib32 / libx32. (cpp:1260-1301)
+    public string getOSLibDir() {
+        Arch a = this.t.getArch()
+        if a == Arch.X86 || a == Arch.PPC { out = "lib32"  return }
+        if a == Arch.X86_64 && this.t.isX32() { out = "libx32"  return }
+        if a == Arch.RISCV32 { out = "lib32"  return }
+        if this.t.isArch32Bit() { out = "lib" } else { out = "lib64" }
+    }
+
+    // CreatePathList — the ";"-delimited library search path list. (cpp:1303-1366)
+    public string CreatePathList() {
+        string list = ";"
+        string multiarch = this.getMultiarch()
+        string osLibDir = this.getOSLibDir()
+
+        string osLib = fly.str.concat("/", osLibDir)
+        if fly.os.fs.exists(osLib) { list = segAppend(list, osLib) }
+
+        if fly.str.equals(osLib, "/lib") == false {
+            if fly.os.fs.exists("/lib") { list = segAppend(list, "/lib") }
+        }
+        if fly.os.fs.exists("/usr/lib") { list = segAppend(list, "/usr/lib") }
+        if fly.os.fs.exists("/usr/local/lib") { list = segAppend(list, "/usr/local/lib") }
+
+        string usrLocalArch = fly.os.path.join("/usr/local/lib", multiarch)
+        if fly.os.fs.exists(usrLocalArch) { list = segAppend(list, usrLocalArch) }
+        string libArch = fly.os.path.join("/lib", multiarch)
+        if fly.os.fs.exists(libArch) { list = segAppend(list, libArch) }
+        string usrLibArch = fly.os.path.join("/usr/lib", multiarch)
+        if fly.os.fs.exists(usrLibArch) { list = segAppend(list, usrLibArch) }
+
+        // GCC versioned dir (libgcc_eh.a etc.). The C++ scans the directory; the
+        // self-host probes the common version directories under it.
+        string gccBase = fly.os.path.join("/usr/lib/gcc", multiarch)
+        if fly.os.fs.exists(gccBase) { list = segAppend(list, gccBase) }
+
+        out = list
+    }
+
+    // GetStdLibPath / GetRuntimeLibPath — locate the Fly archives under runtimeLibDir.
+    public string GetStdLibPath() {
+        string base = this.codeGenOpts.getRuntimeLibDir()
+        string p1 = fly.os.path.join(base, "fly_std_lib.a")
+        if fly.os.fs.exists(p1) { out = p1  return }
+        string p2 = fly.os.path.join(base, "fly_std_lib.lib")
+        if fly.os.fs.exists(p2) { out = p2  return }
+        out = ""
+    }
+
+    public string GetRuntimeLibPath() {
+        string base = this.codeGenOpts.getRuntimeLibDir()
+        string p1 = fly.os.path.join(base, "fly_runtime_lib.a")
+        if fly.os.fs.exists(p1) { out = p1  return }
+        string p2 = fly.os.path.join(base, "fly_runtime_lib.lib")
+        if fly.os.fs.exists(p2) { out = p2  return }
+        out = ""
+    }
+
+    // GetCompilerRTBuiltinsPath — libclang_rt.builtins for the target. (cpp:1383)
+    public string GetCompilerRTBuiltinsPath() {
+        string suffix = archToCompilerRTSuffix(this.t.getArch())
+        if fly.str.isEmpty(suffix) { out = ""  return }
+
+        string major = llvmMajor()
+        string tripleDir = this.t.getTriple()
+        string newLib = "libclang_rt.builtins.a"
+        string oldLib = fly.str.concat(fly.str.concat("libclang_rt.builtins-", suffix), ".a")
+        string sysBase = fly.str.concat("/usr/lib/llvm-", major)
+
+        // 1) system new-style: /usr/lib/llvm-20/lib/clang/20/lib/<triple>/libclang_rt.builtins.a
+        string c1 = fly.os.path.join(fly.os.path.join(fly.os.path.join(sysBase, fly.str.concat("lib/clang/", fly.str.concat(major, "/lib"))), tripleDir), newLib)
+        if fly.os.fs.exists(c1) { out = c1  return }
+        // 2) system legacy: .../lib/clang/20/lib/linux/libclang_rt.builtins-<arch>.a
+        string c2 = fly.os.path.join(fly.os.path.join(sysBase, fly.str.concat("lib/clang/", fly.str.concat(major, "/lib/linux"))), oldLib)
+        if fly.os.fs.exists(c2) { out = c2  return }
+        // 3) /usr/lib/clang/20/lib/linux/libclang_rt.builtins-<arch>.a
+        string c3 = fly.os.path.join(fly.str.concat("/usr/lib/clang/", fly.str.concat(major, "/lib/linux")), oldLib)
+        if fly.os.fs.exists(c3) { out = c3  return }
+        out = ""
+    }
+}

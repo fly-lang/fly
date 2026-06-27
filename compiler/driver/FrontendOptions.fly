@@ -1,0 +1,78 @@
+namespace fly.compiler.driver
+
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FrontendOptions — the slice of the reference Frontend/FrontendOptions that the
+// ToolChain port consumes: the output file, whether to build a library, and the
+// list of user input files (so .a/.lib deps reach the linker). The reference
+// stores InputFile objects; the bootstrap keeps the input paths in a single
+// ";"-delimited string (fly.data.List stores `long`, so List<string> is avoided —
+// same convention as CodeGenOptions.noBuiltinFuncs).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class FrontendOptions {
+    string outputFile
+    bool createLibrary
+    bool createShared    // --shared: emit a shared library
+    bool verbose         // -v: log each compilation phase
+    bool testMode        // --test: resolve test {} blocks
+    int backendAction    // 0=LLVM IR (.ll) 1=object (.o) 2=assembly (.s) 3=link(exe)
+    string inputFiles    // ";a.o;b.a;" — leading + trailing ';' as boundaries
+
+    public FrontendOptions(const string outputFile) {
+        this.outputFile = outputFile
+        this.createLibrary = false
+        this.createShared = false
+        this.verbose = false
+        this.testMode = false
+        this.backendAction = 3
+        this.inputFiles = ";"
+    }
+
+    public string getOutputFile()   { out = this.outputFile }
+    public bool getCreateLibrary()  { out = this.createLibrary }
+    public void setCreateLibrary(const bool b) { this.createLibrary = b }
+    public bool getCreateShared()   { out = this.createShared }
+    public void setCreateShared(const bool b) { this.createShared = b }
+    public bool getVerbose()        { out = this.verbose }
+    public void setVerbose(const bool b) { this.verbose = b }
+    public bool getTestMode()       { out = this.testMode }
+    public void setTestMode(const bool b) { this.testMode = b }
+    public int getBackendAction()   { out = this.backendAction }
+    public void setBackendAction(const int a) { this.backendAction = a }
+
+    public void addInputFile(const string f) {
+        this.inputFiles = fly.str.concat(this.inputFiles, fly.str.concat(f, ";"))
+    }
+
+    // inputCount — number of input paths stored ("a;b;" boundaries → segments).
+    public int inputCount() { out = fly.str.count(this.inputFiles, ";") - 1 }
+
+    // inputAt — the idx-th input path. Uses only fresh substrings of the immutable
+    // backing string (never `x = substring(x,…)`, which the self-host miscompiles).
+    public string inputAt(const int idx) {
+        string s = this.inputFiles
+        int from = 1                 // skip the leading ';'
+        int seg = 0
+        string result = ""
+        bool go = true
+        while go {
+            string tail = fly.str.substring(s, from, fly.str.len(s))
+            int rel = fly.str.indexOf(tail, ";")
+            if rel < 0 {
+                go = false
+            } else {
+                int end = from + rel
+                if seg == idx {
+                    result = fly.str.substring(s, from, end)
+                    go = false
+                } else {
+                    seg = seg + 1
+                    from = end + 1
+                }
+            }
+        }
+        out = result
+    }
+}

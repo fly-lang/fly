@@ -1,30 +1,39 @@
 namespace fly.compiler.codegen.test.driver
 
+import fly.compiler.frontend.*
 import fly.compiler.driver.*
-import fly.compiler.driver.*
+import fly.compiler.basic.*
+import fly.compiler.target.*
 import fly.os.fs
 import fly.str
 import fly.assert
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CodeGenDriverSuite — the compiler front (Driver + Frontend), exercised
-// IN-PROCESS (the old shell driver_test.sh spawned the `fly` binary + clang; a
-// Fly suite calls Frontend.compile / Driver helpers directly). Covers the same
-// behaviour: a valid program → exit 0 + emitted IR; a malformed one → exit 1;
-// --no-output → exit 0 + no file; the output-path / module-name helpers.
+// CodeGenDriverSuite — the compiler front (CompilerInstance + Frontend + Driver),
+// exercised IN-PROCESS. A program is fed through a CompilerInstance (the C++ CI
+// model): build FrontendOptions/CodeGenOptions/TargetOptions, register the source
+// buffer, then Frontend.execute() parses → resolves → codegens → emits. Covers a
+// valid program → exit 0 + emitted IR; a malformed one → exit 1; --no-output →
+// exit 0 + no file; the Driver output-path / module-name helpers.
 //
-// NOTE: the clang-link + run + exit-code part of driver_test.sh CANNOT run inside
-// a Fly suite (no process-exec / JIT) — it's replaced by asserting the emitted IR
-// content (the value reaches main's out). The end-to-end RUN of the compiled
-// programs is covered structurally by the per-feature CodeGen*Suite.
+// NOTE: clang-link + run + exit-code (old driver_test.sh) can't run in a suite (no
+// process-exec / JIT) — replaced by asserting the emitted IR content. CI setup is
+// inlined per case (a suite helper returning a value crashes the reference
+// compiler).
 // ─────────────────────────────────────────────────────────────────────────────
 
 suite CodeGenDriverSuite {
 
     void compileTest() {
         case "valid program → exit 0 + .ll emitted with IR": {
-            Frontend fe = new Frontend()
-            int code = fe.compile("t", "int main() { out = 42 }", "/tmp/cg/drv.ll", false)
+            FrontendOptions fo = new FrontendOptions("/tmp/cg/drv.ll")
+            fo.setBackendAction(0)                     // emit LLVM IR
+            CodeGenOptions cgo = new CodeGenOptions()
+            TargetOptions to = new TargetOptions("x86_64-unknown-linux-gnu")
+            CompilerInstance ci = new CompilerInstance(null, fo, cgo, to)
+            ci.createSourceManager("t", "int main() { out = 42 }")
+            Frontend fe = new Frontend(ci)
+            int code = fe.execute("", false)
             assert.assertEqI(code, 0, 1)
             assert.assertTrue(fly.os.fs.exists("/tmp/cg/drv.ll"), 2)
             string ir = fly.os.fs.readStr("/tmp/cg/drv.ll")
@@ -32,14 +41,26 @@ suite CodeGenDriverSuite {
             assert.assertTrue(fly.str.contains(ir, "store i32 42"), 4)
         }
         case "malformed program → exit 1": {
-            Frontend fe = new Frontend()
-            int code = fe.compile("t", "int main( { out =", "/tmp/cg/bad.ll", false)
+            FrontendOptions fo = new FrontendOptions("/tmp/cg/bad.ll")
+            fo.setBackendAction(0)
+            CodeGenOptions cgo = new CodeGenOptions()
+            TargetOptions to = new TargetOptions("x86_64-unknown-linux-gnu")
+            CompilerInstance ci = new CompilerInstance(null, fo, cgo, to)
+            ci.createSourceManager("t", "int main( { out =")
+            Frontend fe = new Frontend(ci)
+            int code = fe.execute("", false)
             assert.assertEqI(code, 1, 11)
         }
         case "--no-output → exit 0 + no file written": {
             fly.os.fs.delete("/tmp/cg/noout.ll")
-            Frontend fe = new Frontend()
-            int code = fe.compile("t", "int main() { out = 1 }", "/tmp/cg/noout.ll", true)
+            FrontendOptions fo = new FrontendOptions("/tmp/cg/noout.ll")
+            fo.setBackendAction(0)
+            CodeGenOptions cgo = new CodeGenOptions()
+            TargetOptions to = new TargetOptions("x86_64-unknown-linux-gnu")
+            CompilerInstance ci = new CompilerInstance(null, fo, cgo, to)
+            ci.createSourceManager("t", "int main() { out = 1 }")
+            Frontend fe = new Frontend(ci)
+            int code = fe.execute("", true)
             assert.assertEqI(code, 0, 21)
             assert.assertTrue(fly.os.fs.exists("/tmp/cg/noout.ll") == false, 22)
         }
@@ -61,11 +82,17 @@ suite CodeGenDriverSuite {
     }
 
     void optionsTest() {
-        case "-v / --test setters don't change a successful compile": {
-            Frontend fe = new Frontend()
-            fe.setVerbose(true)
-            fe.setTestMode(true)
-            int code = fe.compile("t", "int main() { out = 1 }", "/tmp/cg/opt.ll", false)
+        case "-v / --test options don't change a successful compile": {
+            FrontendOptions fo = new FrontendOptions("/tmp/cg/opt.ll")
+            fo.setBackendAction(0)
+            fo.setVerbose(true)
+            fo.setTestMode(true)
+            CodeGenOptions cgo = new CodeGenOptions()
+            TargetOptions to = new TargetOptions("x86_64-unknown-linux-gnu")
+            CompilerInstance ci = new CompilerInstance(null, fo, cgo, to)
+            ci.createSourceManager("t", "int main() { out = 1 }")
+            Frontend fe = new Frontend(ci)
+            int code = fe.execute("", false)
             assert.assertEqI(code, 0, 51)
         }
     }
