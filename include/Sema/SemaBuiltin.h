@@ -43,6 +43,8 @@ namespace fly {
 
         static SemaIntType *LongType;
 
+        static SemaIntType *PtrSizeType;
+
         static SemaFloatType *FloatType;
 
         static SemaFloatType *DoubleType;
@@ -73,6 +75,8 @@ namespace fly {
         static SemaIntType * getULongType();
 
         static SemaIntType * getLongType();
+
+        static SemaIntType * getPtrSizeType();
 
         static SemaFloatType * getFloatType();
 

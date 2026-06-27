@@ -76,6 +76,14 @@ SemaIntType * SemaBuiltin::getLongType() {
 	return LongType;
 }
 
+SemaIntType *SemaBuiltin::PtrSizeType = nullptr;
+SemaIntType * SemaBuiltin::getPtrSizeType() {
+	if (PtrSizeType == nullptr) {
+		PtrSizeType = new SemaIntType(SemaIntTypeKind::TYPE_PTRSIZE, "ptrsize");
+	}
+	return PtrSizeType;
+}
+
 SemaFloatType *SemaBuiltin::FloatType = nullptr;
 SemaFloatType * SemaBuiltin::getFloatType() {
 	if (FloatType == nullptr) {
@@ -141,6 +149,7 @@ void SemaBuiltin::resetCodeGen() {
 	if (IntType) IntType->setCodeGen(nullptr);
 	if (ULongType) ULongType->setCodeGen(nullptr);
 	if (LongType) LongType->setCodeGen(nullptr);
+	if (PtrSizeType) PtrSizeType->setCodeGen(nullptr);
 	if (FloatType) FloatType->setCodeGen(nullptr);
 	if (DoubleType) DoubleType->setCodeGen(nullptr);
 	if (ComplexType) ComplexType->setCodeGen(nullptr);

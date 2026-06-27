@@ -106,6 +106,7 @@ void CodeGenExpr::GenExpr(SemaIntValue *Sema) {
 			break;
 		case SemaIntTypeKind::TYPE_ULONG:
 		case SemaIntTypeKind::TYPE_LONG:
+		case SemaIntTypeKind::TYPE_PTRSIZE:
 			V = llvm::ConstantInt::get(CGM->LLVMCtx, Sema->getValue().trunc(64));
 			break;
 	}
@@ -655,6 +656,7 @@ void CodeGenExpr::GenExpr(SemaCast *Sema) {
 			case SemaIntTypeKind::TYPE_UINT:                 return CodeGen::Int32Ty;
 			case SemaIntTypeKind::TYPE_LONG:
 			case SemaIntTypeKind::TYPE_ULONG:                return CodeGen::Int64Ty;
+			case SemaIntTypeKind::TYPE_PTRSIZE:              return CodeGen::Int64Ty;
 			default:                                         return CodeGen::Int32Ty;
 		}
 	};
@@ -1531,11 +1533,12 @@ llvm::Value *CodeGenExpr::ConvertToInteger(llvm::Value *V, SemaIntType *Ty) {
 
 			case SemaIntTypeKind::TYPE_ULONG:
 			case SemaIntTypeKind::TYPE_LONG:
+			case SemaIntTypeKind::TYPE_PTRSIZE:
 				if (V->getType() == CodeGen::Int8Ty || V->getType() == CodeGen::Int16Ty || V->getType() == CodeGen::Int32Ty) {
 					return Ty->isSigned() ? Builder->CreateSExt(V, CodeGen::Int64Ty) :
 						   Builder->CreateZExt(V, CodeGen::Int64Ty);
 				}
-				// V is already i64 — no conversion needed (covers long→ulong and ulong→long)
+				// V is already i64 — no conversion needed (covers long/ulong/ptrsize on the host)
 				return V;
 		}
 	}
@@ -1558,6 +1561,7 @@ llvm::Value *CodeGenExpr::ConvertToInteger(llvm::Value *V, SemaIntType *Ty) {
 
 			case SemaIntTypeKind::TYPE_ULONG:
 			case SemaIntTypeKind::TYPE_LONG:
+			case SemaIntTypeKind::TYPE_PTRSIZE:
 				return Ty->isSigned() ? Builder->CreateFPToSI(V, CodeGen::Int64Ty) :
 					   Builder->CreateFPToUI(V, CodeGen::Int64Ty);
 		}

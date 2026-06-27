@@ -151,6 +151,7 @@ KEYWORD(uint)
 KEYWORD(ulong)
 KEYWORD(unset)
 KEYWORD(ushort)
+KEYWORD(ptrsize)
 KEYWORD(void)
 KEYWORD(while)
 
