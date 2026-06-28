@@ -814,7 +814,7 @@ void CodeGenExpr::GenExpr(SemaBinary *Sema) {
 	} else if (Binary.isLogic()) {
 		V = GenBinaryLogic(Left, OpKind, Right);
 	} else if (Binary.isAssign()) {
-		V = GenBinaryAssign(Left, Right);
+		V = GenBinaryAssign(Left, Right, Sema->isFreeLHSOnAssign());
 	} else {
 		assert(0 && "Unknown Binary Operation");
 	}
@@ -1230,7 +1230,7 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKin
 	return nullptr;
 }
 
-llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
+llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool FreeOldLHS) {
 	// Validate E1 and E2 are not null
 	assert(E1 && "E1 is null");
 	assert(E2 && "E2 is null");
@@ -1271,17 +1271,40 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2) {
 		bool Const1 = IsVar1 && static_cast<SemaVar *>(E1)->isConstant();
 		if ((IsVar1 || IsMember1) && !Const1) {
 			SemaKind K2 = E2->getKind();
+			// Compute the new, independently-owned heap buffer for the destination.
+			llvm::Value *NewVal;
 			if (K2 == SemaKind::VALUE) {
-				llvm::Value *HeapStr = GenStringHeapCopy(static_cast<SemaStringValue *>(E2));
-				return static_cast<CodeGenVar *>(E1CodeGen)->Store(HeapStr);
+				NewVal = GenStringHeapCopy(static_cast<SemaStringValue *>(E2));
+			} else {
+				bool IsLValue2 = K2 == SemaKind::LOCAL_VAR || K2 == SemaKind::PARAM_VAR ||
+				                 K2 == SemaKind::ERROR_VAR  || K2 == SemaKind::ATTRIBUTE ||
+				                 K2 == SemaKind::INSTANCE_VAR || K2 == SemaKind::MEMBER;
+				// CALL/BINARY RHS already yields a fresh, uniquely-owned buffer; an
+				// lvalue RHS must be deep-cloned so the destination doesn't alias it.
+				NewVal = IsLValue2 ? GenStringClone(E2CodeGen->getValue())
+				                   : E2CodeGen->getValue();
 			}
-			bool IsLValue2 = K2 == SemaKind::LOCAL_VAR || K2 == SemaKind::PARAM_VAR ||
-			                 K2 == SemaKind::ERROR_VAR  || K2 == SemaKind::ATTRIBUTE ||
-			                 K2 == SemaKind::INSTANCE_VAR || K2 == SemaKind::MEMBER;
-			if (IsLValue2) {
-				llvm::Value *Clone = GenStringClone(E2CodeGen->getValue());
-				return static_cast<CodeGenVar *>(E1CodeGen)->Store(Clone);
+			// Reassignment (FreeOldLHS, set by the Resolver) frees the destination's
+			// PREVIOUS heap buffer — but only AFTER the new value is computed above,
+			// because the RHS may read this same variable (`s = concat(s, …)` /
+			// `s = s + x`); freeing first would memcpy from freed memory. The initial
+			// `string s = …` declaration is NOT a reassignment (no flag → no free): its
+			// slot is freshly zero-initialised and has no buffer to release. The slot
+			// still holds the old {ptr,size} until Store.
+			llvm::Value *OldPtr = nullptr;
+			if (FreeOldLHS && IsVar1 && static_cast<SemaVar *>(E1)->getStringAlloc())
+				OldPtr = Builder->CreateExtractValue(E1CodeGen->getValue(), 0);
+			llvm::StoreInst *St = static_cast<CodeGenVar *>(E1CodeGen)->Store(NewVal);
+			if (OldPtr) {
+				llvm::FunctionCallee FreeFn = CGM->Module->getOrInsertFunction(
+					"free",
+					llvm::FunctionType::get(
+						llvm::Type::getVoidTy(CGM->LLVMCtx),
+						{llvm::PointerType::getUnqual(CGM->LLVMCtx)},
+						false));
+				Builder->CreateCall(FreeFn, {OldPtr});
 			}
+			return St;
 		}
 	}
 

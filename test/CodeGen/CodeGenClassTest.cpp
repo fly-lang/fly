@@ -277,6 +277,73 @@ namespace {
                         "declare void @free(ptr)\n");
     }
 
+    TEST_F(CodeGenTest, CGClassMethodChaining) {
+        /**
+         * Method chaining on a call-result (was unresolvable — "no function 'get' matches"):
+         * class Box {
+         *   int v
+         *   int get() { out = this.v }
+         * }
+         * Box makeBox() { out = new Box() }
+         * void func() {
+         *   int r = makeBox().get()
+         * }
+         */
+        ASTModule *Module = CreateModule();
+
+        // class Box { int v; int get() { out = this.v } }
+        llvm::SmallVector<ASTType *, 4> SuperClasses;
+        ASTClass *Box = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "Box", TopModifiers, SuperClasses);
+        ASTVar *vAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, Box, IntTypeRef, "v", TopModifiers);
+
+        // int get() { out = this.v }
+        llvm::SmallVector<ASTParam *, 8> getParams;
+        ASTBlockStmt *getBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTMethod *getMethod = ASTBuilder::CreateClassMethod(SourceLoc, Box, "get", TopModifiers, getParams, getBody);
+        getMethod->setReturnType(IntTypeRef);
+        ASTMember *thisV = ASTBuilder::CreateMember(SourceLoc, vAttribute->getName(),
+                                                    ASTBuilder::CreateIdentifier(SourceLoc, "this"));
+        ASTExprStmt *getOutStmt = ASTBuilder::CreateExprStmt(getBody, SourceLoc);
+        getOutStmt->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+                                                     ASTBuilder::CreateIdentifier(SourceLoc, "out"), thisV));
+
+        // Box makeBox() { out = new Box() }
+        llvm::SmallVector<ASTParam *, 8> mbParams;
+        ASTBlockStmt *mbBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *MakeBox = ASTBuilder::CreateFunction(Module, SourceLoc, "makeBox", TopModifiers, mbParams, mbBody);
+        MakeBox->setReturnType(CreateType(Box));
+        llvm::SmallVector<ASTExpr *, 8> newArgs;
+        ASTCall *NewBox = ASTBuilder::CreateCall(SourceLoc, Box->getName(), newArgs, ASTCallKind::CALL_NEW);
+        ASTExprStmt *mbOutStmt = ASTBuilder::CreateExprStmt(mbBody, SourceLoc);
+        mbOutStmt->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+                                                    ASTBuilder::CreateIdentifier(SourceLoc, "out"), NewBox));
+
+        // void func() { int r = makeBox().get() }
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
+        ASTLocalVar *rVar = ASTBuilder::CreateLocalVar(SourceLoc, IntTypeRef, "r", EmptyModifiers);
+        ASTDeclStmt *rDecl = ASTBuilder::CreateDeclStmt(Body, SourceLoc, rVar);
+
+        // makeBox().get() — the method 'get' is called on the RESULT of makeBox() (a CALL parent)
+        llvm::SmallVector<ASTExpr *, 8> mbCallArgs;
+        ASTCall *MakeBoxCall = ASTBuilder::CreateCall(SourceLoc, "makeBox", mbCallArgs, ASTCallKind::CALL_DIRECT);
+        llvm::SmallVector<ASTExpr *, 8> getCallArgs;
+        ASTCall *ChainedGet = ASTBuilder::CreateCall(SourceLoc, "get", getCallArgs, ASTCallKind::CALL_DIRECT, MakeBoxCall);
+        rDecl->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+                                                ASTBuilder::CreateIdentifier(rVar), ChainedGet));
+
+        // Generate Code
+        Generate();
+        llvm::Module *M = getModules()[0];
+        std::string output = getOutput(M);
+
+        // The chained call resolves + codegens: makeBox() is called, then get() is dispatched
+        // on its result. Pre-fix the resolver could not find 'get' on the call result.
+        EXPECT_FALSE(output.empty());
+        EXPECT_NE(output.find("_F7makeBox"), std::string::npos);   // the receiver call resolved
+        EXPECT_NE(output.find("Box_F3get"), std::string::npos);    // get() dispatched on the result
+    }
+
 		TEST_F(CodeGenTest, CGClassSetterMethod) {
         /**
          * Fly code:
