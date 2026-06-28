@@ -19,6 +19,13 @@ suite FrontendOptionsSuite {
             assert.assertFalse(fo.getTestMode(), 5)
             assert.assertEqI(fo.getBackendAction(), 3, 6)     // link by default
             assert.assertEqI(fo.inputCount(), 0, 7)
+            assert.assertFalse(fo.isOutputLib(), 8)
+            assert.assertFalse(fo.getCreateHeader(), 9)
+            assert.assertFalse(fo.getAutoDetectOutput(), 10)
+            assert.assertFalse(fo.getShowStats(), 11)
+            assert.assertFalse(fo.getShowTimers(), 12)
+            assert.assertEqI(fo.libDirCount(), 0, 13)
+            assert.assertEqI(fo.srcDirCount(), 0, 14)
         }
     }
 
@@ -30,11 +37,31 @@ suite FrontendOptionsSuite {
             fo.setVerbose(true)
             fo.setTestMode(true)
             fo.setBackendAction(0)
-            assert.assertTrue(fo.getCreateLibrary(), 10)
-            assert.assertTrue(fo.getCreateShared(), 11)
-            assert.assertTrue(fo.getVerbose(), 12)
-            assert.assertTrue(fo.getTestMode(), 13)
-            assert.assertEqI(fo.getBackendAction(), 0, 14)
+            assert.assertTrue(fo.getCreateLibrary(), 20)
+            assert.assertTrue(fo.getCreateShared(), 21)
+            assert.assertTrue(fo.getVerbose(), 22)
+            assert.assertTrue(fo.getTestMode(), 23)
+            assert.assertEqI(fo.getBackendAction(), 0, 24)
+        }
+        case "new string/flag fields": {
+            FrontendOptions fo = new FrontendOptions("a")
+            fo.setOutputFile("libfoo.a", true)
+            assert.assertStr(fo.getOutputFile(), "libfoo.a", 30)
+            assert.assertTrue(fo.isOutputLib(), 31)
+            fo.setCreateHeader(true)
+            fo.setAutoDetectOutput(true)
+            fo.setShowStats(true)
+            fo.setShowTimers(true)
+            fo.setStdLibDir("/usr/lib/fly")
+            fo.setOutDir("/tmp/build")
+            fo.setStatsFile("stats.txt")
+            assert.assertTrue(fo.getCreateHeader(), 32)
+            assert.assertTrue(fo.getAutoDetectOutput(), 33)
+            assert.assertTrue(fo.getShowStats(), 34)
+            assert.assertTrue(fo.getShowTimers(), 35)
+            assert.assertStr(fo.getStdLibDir(), "/usr/lib/fly", 36)
+            assert.assertStr(fo.getOutDir(), "/tmp/build", 37)
+            assert.assertStr(fo.getStatsFile(), "stats.txt", 38)
         }
     }
 
@@ -43,9 +70,20 @@ suite FrontendOptionsSuite {
             FrontendOptions fo = new FrontendOptions("prog")
             fo.addInputFile("libfoo.a")
             fo.addInputFile("bar.o")
-            assert.assertEqI(fo.inputCount(), 2, 20)
-            assert.assertStr(fo.inputAt(0), "libfoo.a", 21)
-            assert.assertStr(fo.inputAt(1), "bar.o", 22)
+            assert.assertEqI(fo.inputCount(), 2, 40)
+            assert.assertStr(fo.inputAt(0), "libfoo.a", 41)
+            assert.assertStr(fo.inputAt(1), "bar.o", 42)
+        }
+        case "libDirs / srcDirs lists round-trip": {
+            FrontendOptions fo = new FrontendOptions("prog")
+            fo.addLibDir("/a")
+            fo.addLibDir("/b")
+            fo.addSrcDir("/src")
+            assert.assertEqI(fo.libDirCount(), 2, 50)
+            assert.assertStr(fo.libDirAt(0), "/a", 51)
+            assert.assertStr(fo.libDirAt(1), "/b", 52)
+            assert.assertEqI(fo.srcDirCount(), 1, 53)
+            assert.assertStr(fo.srcDirAt(0), "/src", 54)
         }
     }
 }

@@ -1,5 +1,6 @@
 namespace fly.compiler.basic
 import fly.compiler.basic.*
+import fly.runtime
 import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,9 +30,7 @@ public class SourceManager {
     public SourceManager(const string filename, const string buffer) {
         this.filename = filename
         this.buffer = buffer
-        int n = 0
-        fly.llvm.strSize(buffer, n)
-        this.len = n
+        this.len = fly.str.len(buffer)
     }
 
     // byteAt — byte code at index i, or 256 past end (mirrors Lexer.byteAt).
@@ -41,7 +40,7 @@ public class SourceManager {
             return
         }
         byte b = 0
-        fly.llvm.strByteAt(this.buffer, i, b)
+        fly.str.byteAt(this.buffer, i, b)
         out = b
     }
 

@@ -32,7 +32,7 @@ public class CodeGenType {
 
     public void setStringTy(const fly.mem.Ptr t) { this.stringTy = t }
 
-    // setTargetInfo — supply the active target so usize/isize lower to its pointer
+    // setTargetInfo — supply the active target so ptrsize lowers to its pointer
     // width. Called by CodeGenModule.configureTarget before lowering.
     public void setTargetInfo(const TargetInfo ti) { this.targetInfo = ti }
 
@@ -51,12 +51,12 @@ public class CodeGenType {
         } elsif t.isBool() {
             llvm.int1TypeInContext(this.ctx, r)
         } elsif t.isInteger() {
-            // usize/isize are detected by NAME (not a new SemaType virtual method —
+            // ptrsize is detected by NAME (not a new SemaType virtual method —
             // adding one shifts the vtable and mis-dispatches getRank). getName()
             // already exists on the base.
             string nm = t.getName()
-            if fly.str.equals(nm, "usize") || fly.str.equals(nm, "isize") {
-                // usize/isize → the target pointer width (16/32/64).
+            if fly.str.equals(nm, "ptrsize") {
+                // ptrsize → the target pointer width (16/32/64).
                 int pw = this.pointerWidth()
                 if pw <= 16 { llvm.int16TypeInContext(this.ctx, r) }
                 elsif pw <= 32 { llvm.int32TypeInContext(this.ctx, r) }

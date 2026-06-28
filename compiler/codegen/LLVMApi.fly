@@ -2,7 +2,8 @@ namespace llvm.api
 
 import fly.bridge.*
 import fly.mem
-import fly.llvm
+import fly.runtime
+import fly.str
 
 // All LLVM handles are fly.mem.Ptr (opaque C pointer wrappers).
 // On Linux: libLLVM-20.so   On Windows: LLVM-C.dll
@@ -19,18 +20,17 @@ import fly.llvm
 // side a real, terminated C string. The buffer outlives the (synchronous) call;
 // it leaks, which is fine for the one-shot compiler.
 public long cbuf(const string s) {
-    int n = 0
-    fly.llvm.strSize(s, n)
+    int n = fly.str.len(s)
     long buf = fly.mem.alloc(n + 1)
     byte b = 0
     int i = 0
     while i < n {
-        fly.llvm.strByteAt(s, i, b)
-        fly.llvm.strPoke(buf, i, b)
+        fly.str.byteAt(s, i, b)
+        fly.mem.writeByte(buf, i, b)
         i = i + 1
     }
     byte z = 0
-    fly.llvm.strPoke(buf, n, z)
+    fly.mem.writeByte(buf, n, z)
     out = buf
 }
 

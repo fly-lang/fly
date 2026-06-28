@@ -2,7 +2,7 @@ namespace fly.compiler.frontend
 
 import fly.compiler.basic.*
 import fly.str
-import fly.llvm
+import fly.mem
 import fly.runtime
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,8 +27,8 @@ import fly.runtime
 public string lineFeed() {
     long buf = 0
     fly.runtime.mem_alloc(1, buf)
-    fly.llvm.strPoke(buf, 0, 10)
-    fly.llvm.strMake(buf, 1, out)
+    fly.mem.writeByte(buf, 0, 10)
+    fly.str.fromBytes(buf, 1, out)
 }
 
 // quoteChar — a string holding a single `"` byte (0x22). Same rationale as
@@ -38,8 +38,8 @@ public string lineFeed() {
 public string quoteChar() {
     long buf = 0
     fly.runtime.mem_alloc(1, buf)
-    fly.llvm.strPoke(buf, 0, 34)
-    fly.llvm.strMake(buf, 1, out)
+    fly.mem.writeByte(buf, 0, 34)
+    fly.str.fromBytes(buf, 1, out)
 }
 
 // backslashChar — a string holding a single `\` byte (0x5C), built byte-wise for
@@ -47,8 +47,8 @@ public string quoteChar() {
 public string backslashChar() {
     long buf = 0
     fly.runtime.mem_alloc(1, buf)
-    fly.llvm.strPoke(buf, 0, 92)
-    fly.llvm.strMake(buf, 1, out)
+    fly.mem.writeByte(buf, 0, 92)
+    fly.str.fromBytes(buf, 1, out)
 }
 
 // diagLevelName — display name for a level ("error"/"warning"/…).

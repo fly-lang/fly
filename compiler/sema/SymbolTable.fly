@@ -19,25 +19,47 @@ import fly.data.List
 public class SymbolTable {
 
     Map<string, List<Symbol> > table
+    List<Symbol> allSyms          // insertion-ordered view (Map has no key iteration)
     SymbolTable parent
     List<SymbolTable> children
 
     public SymbolTable(const SymbolTable parent) {
         this.table = new Map<string, List<Symbol> >()
+        this.allSyms = new List<Symbol>()
         this.parent = parent
         this.children = new List<SymbolTable>()
     }
 
     // insert — add a symbol; returns false if it duplicates an existing entry.
+    // Functions are deduped by exact parameter signature (overloads with a
+    // different signature are kept); other kinds dedup by name. Mirrors C++
+    // SymbolTable::insert — important so re-injecting a module's own symbols
+    // (the implicit same-namespace import) is a safe no-op.
     public bool insert(const Symbol sym) {
         string nm = sym.getName()
         bool ok = true
         if this.table.has(nm) {
             List<Symbol> existing = this.table.get(nm)
             if sym.getKind() == SymbolKind.FUNCTION {
-                // TODO(stage4): reject when an existing function has the same
-                // parameter signature (needs SemaFunctionBase.getParams()).
-                existing.add(sym)
+                List<SemaType> newSig = sym.getParamTypes()
+                bool dup = false
+                int i = 0
+                while i < existing.size() {
+                    Symbol es = existing.get(i)
+                    if es.getKind() == SymbolKind.FUNCTION {
+                        List<SemaType> esig = es.getParamTypes()
+                        if newSig != null && esig != null {
+                            if signaturesEqual(esig, newSig) { dup = true }
+                        }
+                    }
+                    i = i + 1
+                }
+                if dup {
+                    ok = false
+                } else {
+                    existing.add(sym)
+                    this.allSyms.add(sym)
+                }
             } else {
                 // Any same-named non-function symbol is a duplicate.
                 ok = false
@@ -46,9 +68,13 @@ public class SymbolTable {
             List<Symbol> lst = new List<Symbol>()
             lst.add(sym)
             this.table.put(nm, lst)
+            this.allSyms.add(sym)
         }
         out = ok
     }
+
+    // getAllSymbols — every symbol stored directly in THIS scope (insertion order).
+    public List<Symbol> getAllSymbols() { out = this.allSyms }
 
     public void addChild(const SymbolTable child) { this.children.add(child) }
 

@@ -3,44 +3,110 @@ namespace fly.compiler.driver
 import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FrontendOptions — the slice of the reference Frontend/FrontendOptions that the
-// ToolChain port consumes: the output file, whether to build a library, and the
-// list of user input files (so .a/.lib deps reach the linker). The reference
-// stores InputFile objects; the bootstrap keeps the input paths in a single
-// ";"-delimited string (fly.data.List stores `long`, so List<string> is avoided —
-// same convention as CodeGenOptions.noBuiltinFuncs).
+// FrontendOptions — a 1:1 port of the directly-declared members of the reference
+// fly/include/Frontend/FrontendOptions.h: the input files, output file + library
+// kind, the search/output directories, the create-* flags, the backend action and
+// the show-* flags. The reference stores InputFiles/LibDirs/SrcDirs as
+// SmallVector<std::string>; the bootstrap keeps each list in a single ";"-delimited
+// string (fly.data.List stores `long`, so List<string> is avoided) and iterates it
+// with the shared segCount/segAt/segAppend helpers (ToolChain.fly).
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class FrontendOptions {
-    string outputFile
-    bool createLibrary
-    bool createShared    // --shared: emit a shared library
-    bool verbose         // -v: log each compilation phase
-    bool testMode        // --test: resolve test {} blocks
-    int backendAction    // 0=LLVM IR (.ll) 1=object (.o) 2=assembly (.s) 3=link(exe)
-    string inputFiles    // ";a.o;b.a;" — leading + trailing ';' as boundaries
+    string inputFiles    // ";a.fly;b.fly;" — Inputs
+    string outputFile    // Output
+    bool outputLib       // OutputLib (set via setOutputFile(.., isLib=true))
+    string stdLibDir     // StdLibDir — stdlib dir (loaded as .fly source)
+    string libDirs       // ";dir1;dir2;" — LibDirs (-L namespace resolution)
+    string srcDirs       // ";dir1;dir2;" — SrcDirs (--src-dir dep discovery)
+    string outDir        // OutDir — directory for generated outputs (--out-dir)
+    bool autoDetectOutput // AutoDetectOutput — infer output type from the AST
+    bool createLibrary   // CreateLibrary (--lib)
+    bool createShared    // CreateSharedLib (--shared)
+    bool createHeader    // CreateHeader (--header)
+    bool verbose         // Verbose (-v)
+    bool testMode        // (self-host) --test: resolve test {} blocks
+    int backendAction    // BackendAction: 0=LLVM IR 1=object 2=assembly 3=link(exe)
+    bool showVersion     // ShowVersion (--version)
+    bool showHelp        // ShowHelp (--help)
+    bool showStats       // ShowStats (--print-stats)
+    bool showTimers      // ShowTimers (--ftime-report)
+    string statsFile     // StatsFile (--stats-file)
 
     public FrontendOptions(const string outputFile) {
+        this.inputFiles = ";"
         this.outputFile = outputFile
+        this.outputLib = false
+        this.stdLibDir = ""
+        this.libDirs = ";"
+        this.srcDirs = ";"
+        this.outDir = ""
+        this.autoDetectOutput = false
         this.createLibrary = false
         this.createShared = false
+        this.createHeader = false
         this.verbose = false
         this.testMode = false
         this.backendAction = 3
-        this.inputFiles = ";"
+        this.showVersion = false
+        this.showHelp = false
+        this.showStats = false
+        this.showTimers = false
+        this.statsFile = ""
     }
 
     public string getOutputFile()   { out = this.outputFile }
+    // setOutputFile — set the output path; isLib marks it as a library archive
+    // (mirrors the C++ setOutputFile(StringRef, bool isLib)).
+    public void setOutputFile(const string f, const bool isLib) {
+        this.outputFile = f
+        this.outputLib = isLib
+    }
+    public bool isOutputLib()       { out = this.outputLib }
+    public void setOutputLib(const bool b) { this.outputLib = b }
+
+    public string getStdLibDir()    { out = this.stdLibDir }
+    public void setStdLibDir(const string d) { this.stdLibDir = d }
+    public string getOutDir()       { out = this.outDir }
+    public void setOutDir(const string d) { this.outDir = d }
+    public bool getAutoDetectOutput() { out = this.autoDetectOutput }
+    public void setAutoDetectOutput(const bool b) { this.autoDetectOutput = b }
+
     public bool getCreateLibrary()  { out = this.createLibrary }
     public void setCreateLibrary(const bool b) { this.createLibrary = b }
     public bool getCreateShared()   { out = this.createShared }
     public void setCreateShared(const bool b) { this.createShared = b }
+    public bool getCreateHeader()   { out = this.createHeader }
+    public void setCreateHeader(const bool b) { this.createHeader = b }
     public bool getVerbose()        { out = this.verbose }
     public void setVerbose(const bool b) { this.verbose = b }
     public bool getTestMode()       { out = this.testMode }
     public void setTestMode(const bool b) { this.testMode = b }
     public int getBackendAction()   { out = this.backendAction }
     public void setBackendAction(const int a) { this.backendAction = a }
+
+    public bool getShowVersion()    { out = this.showVersion }
+    public void setShowVersion(const bool b) { this.showVersion = b }
+    public bool getShowHelp()       { out = this.showHelp }
+    public void setShowHelp(const bool b) { this.showHelp = b }
+    public bool getShowStats()      { out = this.showStats }
+    public void setShowStats(const bool b) { this.showStats = b }
+    public bool getShowTimers()     { out = this.showTimers }
+    public void setShowTimers(const bool b) { this.showTimers = b }
+    public string getStatsFile()    { out = this.statsFile }
+    public void setStatsFile(const string f) { this.statsFile = f }
+
+    // ── LibDirs (-L) ──
+    public void addLibDir(const string d) { this.libDirs = segAppend(this.libDirs, d) }
+    public string getLibDirs()      { out = this.libDirs }
+    public int libDirCount()        { out = segCount(this.libDirs) }
+    public string libDirAt(const int idx) { out = segAt(this.libDirs, idx) }
+
+    // ── SrcDirs (--src-dir) ──
+    public void addSrcDir(const string d) { this.srcDirs = segAppend(this.srcDirs, d) }
+    public string getSrcDirs()      { out = this.srcDirs }
+    public int srcDirCount()        { out = segCount(this.srcDirs) }
+    public string srcDirAt(const int idx) { out = segAt(this.srcDirs, idx) }
 
     public void addInputFile(const string f) {
         this.inputFiles = fly.str.concat(this.inputFiles, fly.str.concat(f, ";"))

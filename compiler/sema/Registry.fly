@@ -57,6 +57,13 @@ public class Registry {
     public SymbolTable getGlobalScope() { out = this.globalScope }
     public SemaNameSpace getDefaultNameSpace() { out = this.defaultNameSpace }
 
+    // isDefaultNameSpace — true for the catch-all default namespace (Fly has no
+    // object reference equality, so compare by the reserved "default" name).
+    public bool isDefaultNameSpace(const SemaNameSpace ns) {
+        if ns == null { out = true  return }
+        out = fly.str.equals(ns.getName(), "default")
+    }
+
     public void addModule(const SemaModule module) { this.modules.add(module) }
     public List<SemaModule> getModules() { out = this.modules }
     public void addBody(const SemaFunctionBase fb) { this.bodies.add(fb) }
@@ -83,10 +90,8 @@ public class Registry {
         bool r6 = b.insert(new Symbol(ulT.getName(), SymbolKind.BUILTIN_TYPE, ulT))
         SemaType lT = SemaBuiltin.getLongType()
         bool r7 = b.insert(new Symbol(lT.getName(), SymbolKind.BUILTIN_TYPE, lT))
-        SemaType uzT = SemaBuiltin.getUSizeType()
-        bool r7a = b.insert(new Symbol(uzT.getName(), SymbolKind.BUILTIN_TYPE, uzT))
-        SemaType izT = SemaBuiltin.getISizeType()
-        bool r7b = b.insert(new Symbol(izT.getName(), SymbolKind.BUILTIN_TYPE, izT))
+        SemaType pzT = SemaBuiltin.getPtrSizeType()
+        bool r7a = b.insert(new Symbol(pzT.getName(), SymbolKind.BUILTIN_TYPE, pzT))
         SemaType fT = SemaBuiltin.getFloatType()
         bool r8 = b.insert(new Symbol(fT.getName(), SymbolKind.BUILTIN_TYPE, fT))
         SemaType dT = SemaBuiltin.getDoubleType()
@@ -135,6 +140,26 @@ public class Registry {
             }
         }
         out = ns
+    }
+
+    // lookupNameSpaceByNames — find an already-created namespace by its dotted path
+    // (same "ns.a.b" key scheme as getOrCreateNameSpace); null if absent. Used to
+    // resolve a wildcard import's target namespace.
+    public SemaNameSpace lookupNameSpaceByNames(const List<ASTName> names) {
+        if names.size() == 0 { out = null  return }
+        string path = "ns"
+        int i = 0
+        while i < names.size() {
+            string pd = fly.str.concat(path, ".")
+            path = pd
+            ASTName n = names.get(i)
+            string pn = fly.str.concat(path, n.getName())
+            path = pn
+            i = i + 1
+        }
+        SemaNameSpace r = null
+        if this.nsByPath.has(path) { r = this.nsByPath.get(path) }
+        out = r
     }
 
     public Symbol LookupBuiltinType(const string typeName) {

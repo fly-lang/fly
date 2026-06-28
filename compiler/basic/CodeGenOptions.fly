@@ -2,21 +2,26 @@ namespace fly.compiler.basic
 import fly.compiler.basic.*
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CodeGenOptions — options controlling how code is optimized and emitted,
-// ported from compiler/Basic/CodeGenOptions.cpp/.h. The C++ version carries a
-// very large bitfield set generated from CodeGenOptions.def; here we port the
-// representative, explicitly-declared scalar options plus the no-builtin list.
+// CodeGenOptions — a 1:1 port of the directly-declared members of the reference
+// fly/include/Basic/CodeGenOptions.h (the link/target/debug/coverage/profile/
+// LTO/remark fields). The ~200 bitfield knobs generated from CodeGenOptions.def
+// (sanitizer/XRay/TLS/DWARF tuning, …) are intentionally NOT ported — the
+// self-host LLVM-C-API backend never reads them.
 //
-// Fields ported: static / shared / test-mode / rdynamic / PIE / static-PIE /
-// debug-symbols flags, the code/thread model strings, optimisation level, job
-// count, coverage version, and the -fno-builtin-* function list.
-//
-// The C++ NoBuiltinFuncs is a std::vector<std::string>; fly.data.List stores
-// `long`, so to avoid the Wrapper<string> dance we keep the names in a single
-// ";"-delimited string and match whole segments.
+// Representation conventions (matching the bootstrap):
+//   • std::vector<std::string> → a single ";a;b;" string (fly.data.List stores
+//     `long`, so List<string> is avoided); addX appends, getX returns the raw
+//     string, callers iterate with the driver's segCount/segAt.
+//   • enums with no value type here (Reloc::Model, DenormalMode) → the canonical
+//     string ("static"/"pic"/… ; "ieee").
+//   • SanitizerSet (SanitizeRecover/Trap) → ";"-delimited sanitizer names.
+//   • the 3 shared_ptr<Regex> remark patterns → their pattern strings;
+//     vector<uint8_t> CmdArgs / Argv0 → strings; BitcodeFileToLink list →
+//     ";"-delimited filenames (per-file attrs dropped); CommandLineArgs skipped.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class CodeGenOptions {
+    // ── flags (directly-declared bools) ──
     bool isStatic
     bool isShared
     bool testMode
@@ -24,15 +29,66 @@ public class CodeGenOptions {
     bool pie
     bool staticPie
     bool debugSymbols
-    int optLevel
-    int jobs
-    string codeModel
-    string threadModel
-    string coverageVersion
-    string noBuiltinFuncs   // ";name1;name2;" — leading+trailing ';' as boundaries
-    string toolchainLibDir  // -L for the bundled LLVM lib dir ("" = none)
-    string runtimeLibDir    // base dir holding fly_std_lib.a / fly_runtime_lib.a
-    string linkerOptions    // ";-lfoo;-lbar;" — native [link] deps (CLang bridge libs)
+
+    // ── scalars / strings ──
+    int optLevel              // OptimizationLevel (-O)
+    int jobs                  // Jobs (--jobs)
+    string bbSections         // BBSections
+    string codeModel          // CodeModel (-mcmodel)
+    string runtimeLibDir      // RuntimeLibDir
+    string toolchainLibDir    // ToolchainLibDir
+    string coverageDataFile   // CoverageDataFile
+    string coverageNotesFile  // CoverageNotesFile
+    string profileFilterFiles // ProfileFilterFiles
+    string profileExcludeFiles// ProfileExcludeFiles
+    string coverageVersion    // CoverageVersion (char[4])
+    string debugPass          // DebugPass
+    string debugCompilationDir// DebugCompilationDir
+    string dwarfDebugFlags    // DwarfDebugFlags
+    string recordCommandLine  // RecordCommandLine
+    string debugPrefixMap     // DebugPrefixMap → ";k=v;" pairs
+    string floatABI           // FloatABI
+    string fpDenormalMode     // FPDenormalMode (canonical string, default "ieee")
+    string fp32DenormalMode   // FP32DenormalMode
+    string limitFloatPrecision// LimitFloatPrecision
+    string mainFileName       // MainFileName
+    string splitDwarfFile     // SplitDwarfFile
+    string splitDwarfOutput   // SplitDwarfOutput
+    string relocationModel    // RelocationModel (canonical string: "static"/"pic"/…)
+    string threadModel        // ThreadModel (-mthread-model)
+    string trapFuncName       // TrapFuncName
+    string instrProfileOutput // InstrProfileOutput
+    string sampleProfileFile  // SampleProfileFile
+    string profileInstrumentUsePath // ProfileInstrumentUsePath
+    string profileRemappingFile     // ProfileRemappingFile
+    string thinLTOIndexFile   // ThinLTOIndexFile
+    string thinLinkBitcodeFile// ThinLinkBitcodeFile
+    string saveTempsFilePrefix// SaveTempsFilePrefix
+    string cudaGpuBinaryFileName    // CudaGpuBinaryFileName
+    string optRecordFile      // OptRecordFile
+    string optRecordPasses    // OptRecordPasses
+    string optRecordFormat    // OptRecordFormat
+    string symbolPartition    // SymbolPartition
+    string preferVectorWidth  // PreferVectorWidth
+    string argv0              // Argv0
+    string cmdArgs            // CmdArgs (vector<uint8_t> → string)
+    string optimizationRemarkPattern         // OptimizationRemarkPattern (regex src)
+    string optimizationRemarkMissedPattern   // OptimizationRemarkMissedPattern
+    string optimizationRemarkAnalysisPattern // OptimizationRemarkAnalysisPattern
+
+    // ── ";"-delimited lists ──
+    string linkerOptions      // LinkerOptions (";-lfoo;-lbar;")
+    string noBuiltinFuncs     // NoBuiltinFuncs (";name1;name2;")
+    string dependentLibraries // DependentLibraries
+    string linkBitcodeFiles   // LinkBitcodeFiles (filenames only)
+    string rewriteMapFiles    // RewriteMapFiles
+    string reciprocals        // Reciprocals
+    string defaultFunctionAttrs     // DefaultFunctionAttrs
+    string passPlugins        // PassPlugins
+    string sanitizeCoverageAllowlistFiles // SanitizeCoverageAllowlistFiles
+    string sanitizeCoverageBlocklistFiles // SanitizeCoverageBlocklistFiles
+    string sanitizeRecover    // SanitizeRecover (sanitizer names)
+    string sanitizeTrap       // SanitizeTrap (sanitizer names)
 
     public CodeGenOptions() {
         this.isStatic = false
@@ -44,44 +100,228 @@ public class CodeGenOptions {
         this.debugSymbols = false
         this.optLevel = 0
         this.jobs = 0
+        this.bbSections = ""
         this.codeModel = ""
-        this.threadModel = ""
-        this.coverageVersion = "402*"
-        this.noBuiltinFuncs = ";"
-        this.toolchainLibDir = ""
         this.runtimeLibDir = ""
+        this.toolchainLibDir = ""
+        this.coverageDataFile = ""
+        this.coverageNotesFile = ""
+        this.profileFilterFiles = ""
+        this.profileExcludeFiles = ""
+        this.coverageVersion = "402*"
+        this.debugPass = ""
+        this.debugCompilationDir = ""
+        this.dwarfDebugFlags = ""
+        this.recordCommandLine = ""
+        this.debugPrefixMap = ";"
+        this.floatABI = ""
+        this.fpDenormalMode = "ieee"
+        this.fp32DenormalMode = "ieee"
+        this.limitFloatPrecision = ""
+        this.mainFileName = ""
+        this.splitDwarfFile = ""
+        this.splitDwarfOutput = ""
+        this.relocationModel = ""
+        this.threadModel = ""
+        this.trapFuncName = ""
+        this.instrProfileOutput = ""
+        this.sampleProfileFile = ""
+        this.profileInstrumentUsePath = ""
+        this.profileRemappingFile = ""
+        this.thinLTOIndexFile = ""
+        this.thinLinkBitcodeFile = ""
+        this.saveTempsFilePrefix = ""
+        this.cudaGpuBinaryFileName = ""
+        this.optRecordFile = ""
+        this.optRecordPasses = ""
+        this.optRecordFormat = ""
+        this.symbolPartition = ""
+        this.preferVectorWidth = ""
+        this.argv0 = ""
+        this.cmdArgs = ""
+        this.optimizationRemarkPattern = ""
+        this.optimizationRemarkMissedPattern = ""
+        this.optimizationRemarkAnalysisPattern = ""
         this.linkerOptions = ";"
+        this.noBuiltinFuncs = ";"
+        this.dependentLibraries = ";"
+        this.linkBitcodeFiles = ";"
+        this.rewriteMapFiles = ";"
+        this.reciprocals = ";"
+        this.defaultFunctionAttrs = ";"
+        this.passPlugins = ";"
+        this.sanitizeCoverageAllowlistFiles = ";"
+        this.sanitizeCoverageBlocklistFiles = ";"
+        this.sanitizeRecover = ";"
+        this.sanitizeTrap = ";"
     }
 
-    // ── Linker option accessors (consumed by the ToolChain port) ──
+    // ── flag accessors ──
     public bool getStatic()       { out = this.isStatic }
-    public bool getShared()       { out = this.isShared }
     public void setStatic(const bool b) { this.isStatic = b }
+    public bool getShared()       { out = this.isShared }
     public void setShared(const bool b) { this.isShared = b }
-    public void setPie(const bool b)    { this.pie = b }
-    public bool getPIE()          { out = this.pie }
-    public bool getStaticPIE()    { out = this.staticPie }
+    public bool getTestMode()     { out = this.testMode }
+    public void setTestMode(const bool b) { this.testMode = b }
     public bool getRDynamic()     { out = this.rdynamic }
-    public string getToolchainLibDir() { out = this.toolchainLibDir }
-    public string getRuntimeLibDir()   { out = this.runtimeLibDir }
-    public void setToolchainLibDir(const string d) { this.toolchainLibDir = d }
-    public void setRuntimeLibDir(const string d)   { this.runtimeLibDir = d }
+    public void setRDynamic(const bool b) { this.rdynamic = b }
+    public bool getPIE()          { out = this.pie }
+    public void setPie(const bool b) { this.pie = b }
+    public bool getStaticPIE()    { out = this.staticPie }
+    public void setStaticPie(const bool b) { this.staticPie = b }
+    public bool getDebugSymbols() { out = this.debugSymbols }
+    public void setDebugSymbols(const bool b) { this.debugSymbols = b }
 
-    // addLinkerOption — register a native link flag (e.g. "-lLLVM-20").
+    // ── scalar / string accessors ──
+    public int getOptLevel()      { out = this.optLevel }
+    public void setOptLevel(const int n) { this.optLevel = n }
+    public int getJobs()          { out = this.jobs }
+    public void setJobs(const int n) { this.jobs = n }
+    public string getBBSections() { out = this.bbSections }
+    public void setBBSections(const string s) { this.bbSections = s }
+    public string getCodeModel()  { out = this.codeModel }
+    public void setCodeModel(const string s) { this.codeModel = s }
+    public string getRuntimeLibDir()   { out = this.runtimeLibDir }
+    public void setRuntimeLibDir(const string d)   { this.runtimeLibDir = d }
+    public string getToolchainLibDir() { out = this.toolchainLibDir }
+    public void setToolchainLibDir(const string d) { this.toolchainLibDir = d }
+    public string getCoverageDataFile()  { out = this.coverageDataFile }
+    public void setCoverageDataFile(const string s) { this.coverageDataFile = s }
+    public string getCoverageNotesFile() { out = this.coverageNotesFile }
+    public void setCoverageNotesFile(const string s) { this.coverageNotesFile = s }
+    public string getProfileFilterFiles() { out = this.profileFilterFiles }
+    public void setProfileFilterFiles(const string s) { this.profileFilterFiles = s }
+    public string getProfileExcludeFiles() { out = this.profileExcludeFiles }
+    public void setProfileExcludeFiles(const string s) { this.profileExcludeFiles = s }
+    public string getCoverageVersion() { out = this.coverageVersion }
+    public void setCoverageVersion(const string s) { this.coverageVersion = s }
+    public string getDebugPass()  { out = this.debugPass }
+    public void setDebugPass(const string s) { this.debugPass = s }
+    public string getDebugCompilationDir() { out = this.debugCompilationDir }
+    public void setDebugCompilationDir(const string s) { this.debugCompilationDir = s }
+    public string getDwarfDebugFlags() { out = this.dwarfDebugFlags }
+    public void setDwarfDebugFlags(const string s) { this.dwarfDebugFlags = s }
+    public string getRecordCommandLine() { out = this.recordCommandLine }
+    public void setRecordCommandLine(const string s) { this.recordCommandLine = s }
+    public string getDebugPrefixMap() { out = this.debugPrefixMap }
+    public void addDebugPrefixMap(const string pair) {
+        this.debugPrefixMap = fly.str.concat(this.debugPrefixMap, fly.str.concat(pair, ";"))
+    }
+    public string getFloatABI()   { out = this.floatABI }
+    public void setFloatABI(const string s) { this.floatABI = s }
+    public string getFPDenormalMode()   { out = this.fpDenormalMode }
+    public void setFPDenormalMode(const string s) { this.fpDenormalMode = s }
+    public string getFP32DenormalMode() { out = this.fp32DenormalMode }
+    public void setFP32DenormalMode(const string s) { this.fp32DenormalMode = s }
+    public string getLimitFloatPrecision() { out = this.limitFloatPrecision }
+    public void setLimitFloatPrecision(const string s) { this.limitFloatPrecision = s }
+    public string getMainFileName() { out = this.mainFileName }
+    public void setMainFileName(const string s) { this.mainFileName = s }
+    public string getSplitDwarfFile()   { out = this.splitDwarfFile }
+    public void setSplitDwarfFile(const string s) { this.splitDwarfFile = s }
+    public string getSplitDwarfOutput() { out = this.splitDwarfOutput }
+    public void setSplitDwarfOutput(const string s) { this.splitDwarfOutput = s }
+    public string getRelocationModel()  { out = this.relocationModel }
+    public void setRelocationModel(const string s) { this.relocationModel = s }
+    public string getThreadModel() { out = this.threadModel }
+    public void setThreadModel(const string s) { this.threadModel = s }
+    public string getTrapFuncName() { out = this.trapFuncName }
+    public void setTrapFuncName(const string s) { this.trapFuncName = s }
+    public string getInstrProfileOutput() { out = this.instrProfileOutput }
+    public void setInstrProfileOutput(const string s) { this.instrProfileOutput = s }
+    public string getSampleProfileFile() { out = this.sampleProfileFile }
+    public void setSampleProfileFile(const string s) { this.sampleProfileFile = s }
+    public string getProfileInstrumentUsePath() { out = this.profileInstrumentUsePath }
+    public void setProfileInstrumentUsePath(const string s) { this.profileInstrumentUsePath = s }
+    public string getProfileRemappingFile() { out = this.profileRemappingFile }
+    public void setProfileRemappingFile(const string s) { this.profileRemappingFile = s }
+    public string getThinLTOIndexFile() { out = this.thinLTOIndexFile }
+    public void setThinLTOIndexFile(const string s) { this.thinLTOIndexFile = s }
+    public string getThinLinkBitcodeFile() { out = this.thinLinkBitcodeFile }
+    public void setThinLinkBitcodeFile(const string s) { this.thinLinkBitcodeFile = s }
+    public string getSaveTempsFilePrefix() { out = this.saveTempsFilePrefix }
+    public void setSaveTempsFilePrefix(const string s) { this.saveTempsFilePrefix = s }
+    public string getCudaGpuBinaryFileName() { out = this.cudaGpuBinaryFileName }
+    public void setCudaGpuBinaryFileName(const string s) { this.cudaGpuBinaryFileName = s }
+    public string getOptRecordFile()   { out = this.optRecordFile }
+    public void setOptRecordFile(const string s) { this.optRecordFile = s }
+    public string getOptRecordPasses() { out = this.optRecordPasses }
+    public void setOptRecordPasses(const string s) { this.optRecordPasses = s }
+    public string getOptRecordFormat() { out = this.optRecordFormat }
+    public void setOptRecordFormat(const string s) { this.optRecordFormat = s }
+    public string getSymbolPartition() { out = this.symbolPartition }
+    public void setSymbolPartition(const string s) { this.symbolPartition = s }
+    public string getPreferVectorWidth() { out = this.preferVectorWidth }
+    public void setPreferVectorWidth(const string s) { this.preferVectorWidth = s }
+    public string getArgv0()      { out = this.argv0 }
+    public void setArgv0(const string s) { this.argv0 = s }
+    public string getCmdArgs()    { out = this.cmdArgs }
+    public void setCmdArgs(const string s) { this.cmdArgs = s }
+    public string getOptimizationRemarkPattern() { out = this.optimizationRemarkPattern }
+    public void setOptimizationRemarkPattern(const string s) { this.optimizationRemarkPattern = s }
+    public string getOptimizationRemarkMissedPattern() { out = this.optimizationRemarkMissedPattern }
+    public void setOptimizationRemarkMissedPattern(const string s) { this.optimizationRemarkMissedPattern = s }
+    public string getOptimizationRemarkAnalysisPattern() { out = this.optimizationRemarkAnalysisPattern }
+    public void setOptimizationRemarkAnalysisPattern(const string s) { this.optimizationRemarkAnalysisPattern = s }
+
+    // ── linker options (consumed by the ToolChain port) ──
     public void addLinkerOption(const string flag) {
         this.linkerOptions = fly.str.concat(this.linkerOptions, fly.str.concat(flag, ";"))
     }
     public string getLinkerOptions() { out = this.linkerOptions }
 
-    // addNoBuiltinFunc — register a -fno-builtin-<name> function.
+    // ── -fno-builtin-<name> functions ──
     public void addNoBuiltinFunc(const string name) {
         this.noBuiltinFuncs = fly.str.concat(this.noBuiltinFuncs, fly.str.concat(name, ";"))
     }
-
+    public string getNoBuiltinFuncs() { out = this.noBuiltinFuncs }
     // isNoBuiltinFunc — is this a libc/libm function no longer treated as a
     // builtin because a -fno-builtin-* option named it?
     public bool isNoBuiltinFunc(const string name) {
         string needle = fly.str.concat(";", fly.str.concat(name, ";"))
         out = fly.str.contains(this.noBuiltinFuncs, needle)
     }
+
+    // ── other ";"-delimited list fields (add appends, get returns the raw list;
+    // callers iterate with the driver's segCount/segAt) ──
+    public void addDependentLibrary(const string s) {
+        this.dependentLibraries = fly.str.concat(this.dependentLibraries, fly.str.concat(s, ";"))
+    }
+    public string getDependentLibraries() { out = this.dependentLibraries }
+    public void addLinkBitcodeFile(const string s) {
+        this.linkBitcodeFiles = fly.str.concat(this.linkBitcodeFiles, fly.str.concat(s, ";"))
+    }
+    public string getLinkBitcodeFiles() { out = this.linkBitcodeFiles }
+    public void addRewriteMapFile(const string s) {
+        this.rewriteMapFiles = fly.str.concat(this.rewriteMapFiles, fly.str.concat(s, ";"))
+    }
+    public string getRewriteMapFiles() { out = this.rewriteMapFiles }
+    public void addReciprocal(const string s) {
+        this.reciprocals = fly.str.concat(this.reciprocals, fly.str.concat(s, ";"))
+    }
+    public string getReciprocals() { out = this.reciprocals }
+    public void addDefaultFunctionAttr(const string s) {
+        this.defaultFunctionAttrs = fly.str.concat(this.defaultFunctionAttrs, fly.str.concat(s, ";"))
+    }
+    public string getDefaultFunctionAttrs() { out = this.defaultFunctionAttrs }
+    public void addPassPlugin(const string s) {
+        this.passPlugins = fly.str.concat(this.passPlugins, fly.str.concat(s, ";"))
+    }
+    public string getPassPlugins() { out = this.passPlugins }
+    public void addSanitizeCoverageAllowlistFile(const string s) {
+        this.sanitizeCoverageAllowlistFiles = fly.str.concat(this.sanitizeCoverageAllowlistFiles, fly.str.concat(s, ";"))
+    }
+    public string getSanitizeCoverageAllowlistFiles() { out = this.sanitizeCoverageAllowlistFiles }
+    public void addSanitizeCoverageBlocklistFile(const string s) {
+        this.sanitizeCoverageBlocklistFiles = fly.str.concat(this.sanitizeCoverageBlocklistFiles, fly.str.concat(s, ";"))
+    }
+    public string getSanitizeCoverageBlocklistFiles() { out = this.sanitizeCoverageBlocklistFiles }
+    public void addSanitizeRecover(const string s) {
+        this.sanitizeRecover = fly.str.concat(this.sanitizeRecover, fly.str.concat(s, ";"))
+    }
+    public string getSanitizeRecover() { out = this.sanitizeRecover }
+    public void addSanitizeTrap(const string s) {
+        this.sanitizeTrap = fly.str.concat(this.sanitizeTrap, fly.str.concat(s, ";"))
+    }
+    public string getSanitizeTrap() { out = this.sanitizeTrap }
 }

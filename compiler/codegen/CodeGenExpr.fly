@@ -14,6 +14,7 @@ import llvm.api.*
 import fly.mem
 import fly.data.List
 import fly.str
+import fly.runtime
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenExpr — the SemaVisitor that lowers a function body. It implements the
@@ -293,12 +294,12 @@ public long parseLong(const string s) {
     bool neg = false
     if n > 0 {
         byte b0 = 0
-        fly.llvm.strByteAt(s, 0, b0)
+        fly.str.byteAt(s, 0, b0)
         if b0 == 45 { neg = true  i = 1 }   // '-'
     }
     while i < n {
         byte b = 0
-        fly.llvm.strByteAt(s, i, b)
+        fly.str.byteAt(s, i, b)
         int bi = b
         if bi >= 48 {
             if bi <= 57 {
@@ -329,7 +330,7 @@ public double parseDouble(const string s) {
         int i = 0
         while i < fn {
             byte b = 0
-            fly.llvm.strByteAt(fp, i, b)
+            fly.str.byteAt(fp, i, b)
             int bi = b
             double d = bi - 48
             scale = scale * 10.0

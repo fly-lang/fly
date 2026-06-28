@@ -1,4 +1,4 @@
-namespace fly.compiler.target.test.usize
+namespace fly.compiler.target.test.ptrsize
 
 import fly.compiler.basic.*
 import fly.compiler.ast.*
@@ -12,8 +12,8 @@ import fly.os.fs
 import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
-// UsizeWidthSuite — usize/isize are pointer-sized (Rust-style): they lower to the
-// TARGET pointer width, while long stays a fixed 64-bit type on every target.
+// PtrSizeWidthSuite — ptrsize is the pointer-sized unsigned integer: it lowers to
+// the TARGET pointer width, while long stays a fixed 64-bit type on every target.
 // Proven by emitting the same source for x86_64 (64-bit) and riscv32 (32-bit) and
 // inspecting the integer widths in the IR.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,28 +29,28 @@ public string cgIRTarget(const string src, const string triple) {
     List<SemaModule> res = ctx.Resolve(mods, false)
     CodeGenModule cgm = new CodeGenModule("t")
     TargetInfo ti = targetInfoCreate(new TargetOptions(triple))
-    cgm.configureTarget(ti)              // sets pointer width for usize/isize
+    cgm.configureTarget(ti)              // sets pointer width for ptrsize
     cgm.generate(ctx.getReg())
     bool ok = false
     cgm.verify(ok)
     assert.assertTrue(ok, 91)
-    cgm.emitIR("/tmp/cg/usize.ll")
-    out = fly.os.fs.readStr("/tmp/cg/usize.ll")
+    cgm.emitIR("/tmp/cg/ptrsize.ll")
+    out = fly.os.fs.readStr("/tmp/cg/ptrsize.ll")
 }
 
-suite UsizeWidthSuite {
+suite PtrSizeWidthSuite {
 
     void widthTest() {
-        case "usize = i64 on x86_64, i32 on riscv32; long stays i64": {
-            string src = "usize uid(const usize a) { out = a }  long lid(const long a) { out = a }"
+        case "ptrsize = i64 on x86_64, i32 on riscv32; long stays i64": {
+            string src = "ptrsize uid(const ptrsize a) { out = a }  long lid(const long a) { out = a }"
             string ir64 = cgIRTarget(src, "x86_64-unknown-linux-gnu")
             string ir32 = cgIRTarget(src, "riscv32-unknown-linux-gnu")
 
-            // x86_64: usize and long both i64; no i32 integer load present.
+            // x86_64: ptrsize and long both i64; no i32 integer load present.
             assert.assertTrue(fly.str.contains(ir64, "load i64"), 1)
             assert.assertFalse(fly.str.contains(ir64, "load i32"), 2)
 
-            // riscv32: usize became i32, but long is STILL i64 (fixed-width).
+            // riscv32: ptrsize became i32, but long is STILL i64 (fixed-width).
             assert.assertTrue(fly.str.contains(ir32, "load i32"), 3)
             assert.assertTrue(fly.str.contains(ir32, "load i64"), 4)
         }

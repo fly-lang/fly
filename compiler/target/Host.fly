@@ -2,7 +2,7 @@ namespace fly.compiler.target
 import fly.compiler.target.*
 import llvm.api.*
 import fly.mem
-import fly.llvm
+import fly.runtime
 import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,8 +19,7 @@ public string hostTripleStr() {
     LLVM llvm = new LLVM()
     fly.mem.Ptr tp = fly.mem.toPtr(0)
     llvm.getDefaultTargetTriple(tp)
-    long p = 0
-    fly.llvm.ulongToLong(tp.addr, p)
+    long p = fly.mem.ulongToLong(tp.addr)
     if p == 0 { out = ""  return }
 
     byte zero = 0
@@ -31,7 +30,7 @@ public string hostTripleStr() {
         b = fly.mem.readByte(p, len)
     }
     string s = ""
-    fly.llvm.strMake(p, len, s)
+    fly.str.fromBytes(p, len, s)
     out = s
 }
 

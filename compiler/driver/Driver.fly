@@ -9,7 +9,7 @@ import fly.os.fs
 import fly.os.io
 import fly.mem
 import fly.str
-import fly.llvm
+import fly.runtime
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Driver — CLI front of the self-host compiler, a 1:1 port of the core of
@@ -42,6 +42,19 @@ public class Driver {
         bool noOutput = false
         bool verbose = false
         bool testMode = false
+        // new option state mirroring fly/compiler/Driver/Driver.cpp::BuildOptions
+        string codeModel = ""           // --mcmodel
+        string threadModel = ""         // --mthread-model
+        string statsFile = ""           // --stats-file
+        string srcDirs = ";"            // --src-dir (accumulated)
+        int jobs = 0                    // --jobs / -j
+        int optLevel = 0                // -O<n>
+        bool debugSymbols = false       // --debug-symbols / --debug
+        bool createLibrary = false      // --lib
+        bool createHeader = false       // --header / --lib
+        bool showStats = false          // --print-stats
+        bool showTimers = false         // --ftime-report
+        bool emitBc = false             // --emit-bc (no bitcode emitter → IR fallback)
 
         int n = args.count
         int i = 1                       // skip argv[0] (program name)
@@ -65,6 +78,50 @@ public class Driver {
                 emitMode = 2
             } elsif fly.str.equals(a, "--emit-ll") {
                 emitMode = 0
+            } elsif fly.str.equals(a, "--emit-bc") {
+                // No bitcode emitter in the self-host CodeGenModule → emit IR + a note.
+                emitMode = 0
+                emitBc = true
+            } elsif fly.str.equals(a, "--mcmodel") {
+                i = i + 1
+                if i < n { codeModel = this.argAt(args, i) }
+            } elsif fly.str.equals(a, "--mthread-model") {
+                i = i + 1
+                if i < n { threadModel = this.argAt(args, i) }
+            } elsif fly.str.equals(a, "--jobs") || fly.str.equals(a, "-j") {
+                i = i + 1
+                if i < n { jobs = this.parseUInt(this.argAt(args, i), 0) }
+            } elsif fly.str.equals(a, "--stats-file") {
+                i = i + 1
+                if i < n { statsFile = this.argAt(args, i) }
+            } elsif fly.str.equals(a, "--src-dir") {
+                i = i + 1
+                if i < n { srcDirs = fly.str.concat(srcDirs, fly.str.concat(this.argAt(args, i), ";")) }
+            } elsif fly.str.equals(a, "--working-dir") {
+                i = i + 1                 // accepted (FileSystemOptions, out of scope) — consumed, not stored
+            } elsif fly.str.equals(a, "--debug") {
+                verbose = true
+                debugSymbols = true
+            } elsif fly.str.equals(a, "--debug-symbols") {
+                debugSymbols = true
+            } elsif fly.str.equals(a, "--header") {
+                createHeader = true
+            } elsif fly.str.equals(a, "--lib") {
+                createLibrary = true
+                createHeader = true
+                emitMode = 1              // a library is built from an object, not linked
+            } elsif fly.str.equals(a, "--print-stats") {
+                showStats = true
+            } elsif fly.str.equals(a, "--ftime-report") {
+                showTimers = true
+            } elsif fly.str.startsWith(a, "-O") {
+                // -O<n> (attached) or "-O <n>" (separate).
+                string lvl = fly.str.substring(a, 2, fly.str.len(a))
+                if fly.str.isEmpty(lvl) {
+                    i = i + 1
+                    if i < n { lvl = this.argAt(args, i) }
+                }
+                optLevel = this.parseUInt(lvl, 0)
             } elsif fly.str.equals(a, "--runtime-lib-dir") {
                 i = i + 1
                 if i < n { runtimeLibDir = this.argAt(args, i) }
@@ -125,26 +182,54 @@ public class Driver {
         string effTriple = targetTriple
         if fly.str.isEmpty(effTriple) { effTriple = "x86_64-unknown-linux-gnu" }
 
+        if emitBc {
+            fly.os.io.printErrLn("note: --emit-bc: bitcode emission unsupported, emitting LLVM IR")
+        }
+
         // Build the CompilerInstance (the C++ Driver::Execute model): bundle the
         // Frontend/CodeGen/Target options + the source buffer, then run the Frontend.
+        // Mirrors fly/compiler/Driver/Driver.cpp::BuildOptions option plumbing.
         CodeGenOptions cgo = new CodeGenOptions()
         cgo.setRuntimeLibDir(runtimeLibDir)
         cgo.setToolchainLibDir(toolchainLibDir)
         cgo.setStatic(isStatic)
         cgo.setShared(isShared)
         cgo.setPie(isPie)
+        cgo.setDebugSymbols(debugSymbols)
+        cgo.setOptLevel(optLevel)
+        cgo.setJobs(jobs)
+        if fly.str.isEmpty(codeModel) == false { cgo.setCodeModel(codeModel) }
+        // Thread model: default posix; warn on anything but posix/single (as the C++ does).
+        string effThread = threadModel
+        if fly.str.isEmpty(effThread) { effThread = "posix" }
+        if fly.str.equals(effThread, "posix") == false && fly.str.equals(effThread, "single") == false {
+            fly.os.io.printErrLn(fly.str.concat("invalid thread model: ", effThread))
+        }
+        cgo.setThreadModel(effThread)
+        if isShared { cgo.setRelocationModel("pic") }
         int nl = segCount(linkLibs)
         int li = 0
         while li < nl { cgo.addLinkerOption(segAt(linkLibs, li))  li = li + 1 }
 
         TargetOptions topts = new TargetOptions(effTriple)
         if fly.str.isEmpty(targetCpu) == false { topts.setCPU(targetCpu) }
+        if fly.str.isEmpty(codeModel) == false { topts.setCodeModel(codeModel) }
 
         FrontendOptions fo = new FrontendOptions(finalPath)
         fo.setVerbose(verbose)
         fo.setTestMode(testMode)
         fo.setCreateShared(isShared)
+        fo.setCreateLibrary(createLibrary)
+        fo.setCreateHeader(createHeader)
+        fo.setShowStats(showStats)
+        fo.setShowTimers(showTimers)
+        fo.setStatsFile(statsFile)
+        fo.setOutDir(outDir)
         fo.setBackendAction(emitMode)
+        if fly.str.isEmpty(toolchainLibDir) == false { fo.addLibDir(toolchainLibDir) }
+        int sd = segCount(srcDirs)
+        int sdi = 0
+        while sdi < sd { fo.addSrcDir(segAt(srcDirs, sdi))  sdi = sdi + 1 }
 
         CompilerInstance ci = new CompilerInstance(null, fo, cgo, topts)
         ci.createFileManager()
@@ -187,6 +272,23 @@ public class Driver {
         out = ".ll"
     }
 
+    // parseUInt — parse a non-negative decimal string; non-digits/empty → dflt.
+    public int parseUInt(const string s, const int dflt) {
+        int len = fly.str.len(s)
+        if len == 0 { out = dflt  return }
+        int acc = 0
+        int i = 0
+        while i < len {
+            byte b = 0
+            fly.str.byteAt(s, i, b)
+            int c = b
+            if c < 48 || c > 57 { out = dflt  return }
+            acc = acc * 10 + (c - 48)
+            i = i + 1
+        }
+        out = acc
+    }
+
     // printUsage — the --help / no-input usage text.
     public void printUsage() {
         fly.os.io.printErrLn("usage: fly <file.fly> [options]")
@@ -195,16 +297,29 @@ public class Driver {
         fly.os.io.printErrLn("  --out-dir <dir> directory for generated outputs")
         fly.os.io.printErrLn("  (default)       link an executable via ToolChain")
         fly.os.io.printErrLn("  --emit-ll       produce LLVM IR (.ll)")
+        fly.os.io.printErrLn("  --emit-bc       produce bitcode (falls back to LLVM IR)")
         fly.os.io.printErrLn("  -c              produce an object file (.o)")
         fly.os.io.printErrLn("  -S              produce target assembly (.s)")
+        fly.os.io.printErrLn("  --lib           produce a library (emit object + header)")
+        fly.os.io.printErrLn("  --header        generate a header file")
         fly.os.io.printErrLn("  --runtime-lib-dir <dir>  dir holding fly_std_lib.a / fly_runtime_lib.a")
         fly.os.io.printErrLn("  -L <dir>             extra linker search directory")
+        fly.os.io.printErrLn("  --src-dir <dir>      source search dir for import resolution")
         fly.os.io.printErrLn("  --link-lib <name>    link native library (-lname)")
         fly.os.io.printErrLn("  -static / --shared / -pie   link mode flags")
+        fly.os.io.printErrLn("  -O<n>                optimisation level 0..3")
+        fly.os.io.printErrLn("  -j, --jobs <n>       LLVM parallelism (0 = auto)")
+        fly.os.io.printErrLn("  --mcmodel <m>        memory code model")
+        fly.os.io.printErrLn("  --mthread-model <m>  thread model (posix|single)")
         fly.os.io.printErrLn("  --target <triple>    target triple (default: x86_64-unknown-linux-gnu)")
         fly.os.io.printErrLn("  --target-cpu <cpu>   target CPU (default: generic)")
         fly.os.io.printErrLn("  --no-output     type-check only, produce no output")
         fly.os.io.printErrLn("  --test          compile in test mode (test {} blocks)")
+        fly.os.io.printErrLn("  --debug         verbose + emit debug symbols")
+        fly.os.io.printErrLn("  --debug-symbols emit DWARF debug symbols")
+        fly.os.io.printErrLn("  --print-stats   print performance metrics")
+        fly.os.io.printErrLn("  --ftime-report  show per-action timers")
+        fly.os.io.printErrLn("  --stats-file <f>  write statistics to <f>")
         fly.os.io.printErrLn("  -v, --verbose   log each compilation phase")
         fly.os.io.printErrLn("  -w, --no-warning  suppress warnings")
         fly.os.io.printErrLn("  --version       print version")
@@ -232,7 +347,7 @@ public class Driver {
         long ptr = fly.mem.readLong(base, i * 16)
         int len = fly.mem.readInt(base, i * 16 + 8)
         string s = ""
-        fly.llvm.strMake(ptr, len, s)
+        fly.str.fromBytes(ptr, len, s)
         out = s
     }
 

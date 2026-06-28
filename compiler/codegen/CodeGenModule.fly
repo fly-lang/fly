@@ -412,7 +412,7 @@ public class CodeGenModule {
         LLVM llvm = this.cg.getLLVM()
         llvm.setTarget(this.module, ti.getTripleStr())
         llvm.setDataLayout(this.module, ti.getDataLayout())
-        // Make usize/isize lowering follow this target's pointer width.
+        // Make ptrsize lowering follow this target's pointer width.
         this.types.setTargetInfo(ti)
     }
 

@@ -2,6 +2,8 @@ namespace fly.compiler.parser
 import fly.compiler.basic.*
 import fly.compiler.ast.*
 import fly.compiler.parser.*
+import fly.runtime
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lexer — scans a source string into a stream of tokens. It is the single owner
@@ -18,9 +20,7 @@ public class Lexer {
     public Lexer(const string src) {
         this.source = src
         this.pos = 0
-        int n = 0
-        fly.llvm.strSize(src, n)
-        this.len = n
+        this.len = fly.str.len(src)
     }
 
     // spanText / tokenText — resolve a source slice to a fresh string (owned by
@@ -39,7 +39,7 @@ public class Lexer {
             return
         }
         byte b = 0
-        fly.llvm.strByteAt(this.source, i, b)
+        fly.str.byteAt(this.source, i, b)
         out = b
     }
 

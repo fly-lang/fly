@@ -54,6 +54,7 @@ public class ResolverDecl {
         sym.setParamTypes(fn.getParamTypes())
         r.exitScope()
         r.addSymbol(sym)
+        r.registerInNamespace(sym)        // publish for same-namespace sibling files
 
         // queue the body for resolution in phase 2
         Registry reg = r.getReg()

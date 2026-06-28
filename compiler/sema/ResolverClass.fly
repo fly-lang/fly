@@ -48,6 +48,7 @@ public class ResolverClass {
         Symbol sym = new Symbol(node.getName(), SymbolKind.CLASS, cls)
         sym.setTypeRef(cls)
         r.addSymbol(sym)
+        r.registerInNamespace(sym)        // publish for same-namespace sibling files
 
         Registry reg = r.getReg()
         reg.addClass(cls)
@@ -482,6 +483,7 @@ public class ResolverClass {
         Symbol sym = new Symbol(node.getName(), SymbolKind.ENUM, en)
         sym.setTypeRef(en)
         r.addSymbol(sym)
+        r.registerInNamespace(sym)        // publish for same-namespace sibling files
         r.setCurrentEnum(null)
     }
 

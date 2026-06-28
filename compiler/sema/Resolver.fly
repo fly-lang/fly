@@ -95,6 +95,7 @@ public class Resolver : ASTVisitor {
     public void setCurrentScope(const SymbolTable s) { this.currentScope = s }
     public SemaModule getCurrentModule() { out = this.currentModule }
     public void setCurrentModule(const SemaModule m) { this.currentModule = m }
+    public SemaNameSpace getCurrentNameSpace() { out = this.currentNameSpace }
     public SemaClassType getCurrentClass() { out = this.currentClass }
     public void setCurrentClass(const SemaClassType c) { this.currentClass = c }
     public SemaEnumType getCurrentEnum() { out = this.currentEnum }
@@ -128,6 +129,18 @@ public class Resolver : ASTVisitor {
 
     public void addSymbol(const Symbol sym) {
         bool ok = this.currentScope.insert(sym)
+    }
+
+    // registerInNamespace — also publish a top-level symbol in the file's namespace
+    // table (skipping the default namespace), so sibling files in the same namespace
+    // can see it via the implicit same-namespace import. Mirrors the C++ dual
+    // registration (Resolver.cpp insert into CurrentNameSpace->getSymbols()).
+    public void registerInNamespace(const Symbol sym) {
+        SemaNameSpace ns = this.currentNameSpace
+        if ns != null && this.reg.isDefaultNameSpace(ns) == false {
+            SymbolTable nst = ns.getSymbols()
+            bool ok = nst.insert(sym)
+        }
     }
 
     // ── diagnostics ───────────────────────────────────────────────────────────
@@ -166,6 +179,16 @@ public class Resolver : ASTVisitor {
     //            list, avoiding a SemaNode→SemaClassType downcast);
     //  Phase C — resolve function/method BODIES queued in Reg.getBodies().
     public void Resolve() {
+        // Phase 1 — resolve every module's imports (explicit + the implicit
+        // same-namespace import) now that the visit pass has fully populated every
+        // namespace table. Mirrors C++ Resolver::Resolve() Phase 1.
+        List<SemaModule> mods = this.reg.getModules()
+        int mi = 0
+        while mi < mods.size() {
+            this.resolveImports(mods.get(mi))
+            mi = mi + 1
+        }
+
         List<SemaClassType> classes = this.reg.getClasses()
         int ci = 0
         while ci < classes.size() {
@@ -216,7 +239,48 @@ public class Resolver : ASTVisitor {
         }
     }
 
-    public void visit(const ASTImport node) { }
+    public void visit(const ASTImport node) {
+        SemaImport imp = new SemaImport(node)
+        this.currentModule.addImport(imp)
+    }
+
+    // resolveImports — populate a module's scope with the symbols it can reference
+    // unqualified: each explicit wildcard import's target namespace, PLUS the file's
+    // OWN namespace (the implicit same-namespace import — no `import` needed for
+    // sibling files). 1:1 with C++ Resolver::ResolveImports. Additive: insert()
+    // dedups, so the module's own symbols are skipped and nothing already resolvable
+    // regresses.
+    public void resolveImports(const SemaModule module) {
+        SymbolTable modScope = module.getSymbols()
+
+        // explicit imports (wildcard `import ns.*` brings the namespace's children)
+        List<SemaImport> imps = module.getImports()
+        int i = 0
+        while i < imps.size() {
+            SemaImport imp = imps.get(i)
+            if imp.isWildcard() {
+                SemaNameSpace target = this.reg.lookupNameSpaceByNames(imp.getNames())
+                if target != null { this.injectAll(target.getSymbols(), modScope) }
+            }
+            i = i + 1
+        }
+
+        // implicit: the file's own namespace (skip the catch-all default)
+        SemaNameSpace own = module.getNameSpace()
+        if own != null && this.reg.isDefaultNameSpace(own) == false {
+            this.injectAll(own.getSymbols(), modScope)
+        }
+    }
+
+    // injectAll — copy every symbol of `from` into `into` (insert() dedups).
+    public void injectAll(const SymbolTable from, const SymbolTable into) {
+        List<Symbol> all = from.getAllSymbols()
+        int i = 0
+        while i < all.size() {
+            bool ok = into.insert(all.get(i))
+            i = i + 1
+        }
+    }
 
     public void visit(const ASTFunction node) { ResolverDecl.declareFunction(this, node) }
     public void visit(const ASTClass node) { ResolverClass.declareClass(this, node) }

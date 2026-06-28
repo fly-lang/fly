@@ -134,8 +134,7 @@ public enum TokenKind {
     kw_ulong,
     kw_unset,
     kw_ushort,
-    kw_usize,
-    kw_isize,
+    kw_ptrsize,
     kw_void,
     kw_while
 }
@@ -203,8 +202,7 @@ public TokenKind getKeywordKind(const string w) {
     if w == "ulong"     { out = TokenKind.kw_ulong     return }
     if w == "unset"     { out = TokenKind.kw_unset     return }
     if w == "ushort"    { out = TokenKind.kw_ushort    return }
-    if w == "usize"     { out = TokenKind.kw_usize     return }
-    if w == "isize"     { out = TokenKind.kw_isize     return }
+    if w == "ptrsize"   { out = TokenKind.kw_ptrsize   return }
     if w == "void"      { out = TokenKind.kw_void      return }
     if w == "while"     { out = TokenKind.kw_while     return }
     out = TokenKind.identifier

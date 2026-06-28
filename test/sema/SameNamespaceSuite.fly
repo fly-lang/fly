@@ -1,0 +1,61 @@
+namespace fly.compiler.sema.test.samens
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.compiler.target.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SameNamespaceSuite — an object declared in ANOTHER file of the same namespace is
+// visible WITHOUT an import (the implicit same-namespace import). Two source files
+// are parsed into two ASTModules sharing `namespace demo`; the second calls a
+// function declared in the first with NO import, and references a class from it.
+// The whole pipeline (Resolve → CodeGen) is run and the emitted IR is inspected:
+// resolution that did not exist before this feature (cross-module symbols were
+// isolated in their own module scopes) now succeeds.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite SameNamespaceSuite {
+
+    void crossFileFunctionTest() {
+        case "a function in another file of the same namespace resolves without import": {
+            // module A: declares helperFn in namespace demo
+            string srcA = "namespace demo  public int helperFn(const int x) { out = x + 1 }"
+            // module B: same namespace, calls helperFn with NO `import`
+            string srcB = "namespace demo  public int useIt(const int y) { out = helperFn(y) }"
+
+            Parser pa = new Parser(srcA)
+            ASTModule ma = pa.parseModule("a")
+            assert.assertTrue(pa.isSuccess(), 1)
+            Parser pb = new Parser(srcB)
+            ASTModule mb = pb.parseModule("b")
+            assert.assertTrue(pb.isSuccess(), 2)
+
+            List<ASTModule> mods = new List<ASTModule>()
+            mods.add(ma)
+            mods.add(mb)
+            SemaContext ctx = new SemaContext(null)
+            List<SemaModule> res = ctx.Resolve(mods, false)
+
+            CodeGenModule cgm = new CodeGenModule("t")
+            TargetInfo ti = targetInfoCreate(new TargetOptions("x86_64-unknown-linux-gnu"))
+            cgm.configureTarget(ti)
+            cgm.generate(ctx.getReg())
+            bool ok = false
+            cgm.verify(ok)
+            assert.assertTrue(ok, 3)            // module verifies → the call resolved
+
+            cgm.emitIR("/tmp/cg/samens.ll")
+            string ir = fly.os.fs.readStr("/tmp/cg/samens.ll")
+            // B's useIt emits a call into A's helperFn (its mangled name carries the name)
+            assert.assertTrue(fly.str.contains(ir, "helperFn"), 4)
+            assert.assertTrue(fly.str.contains(ir, "call"), 5)
+        }
+    }
+}

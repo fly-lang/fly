@@ -112,8 +112,7 @@ public class ASTBuilder {
     public static ASTType CreateIntType(const SourceLocation loc)     { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_INT) }
     public static ASTType CreateULongType(const SourceLocation loc)   { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_ULONG) }
     public static ASTType CreateLongType(const SourceLocation loc)    { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_LONG) }
-    public static ASTType CreateUSizeType(const SourceLocation loc)   { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_USIZE) }
-    public static ASTType CreateISizeType(const SourceLocation loc)   { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_ISIZE) }
+    public static ASTType CreatePtrSizeType(const SourceLocation loc) { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_PTRSIZE) }
     public static ASTType CreateFloatType(const SourceLocation loc)   { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_FLOAT) }
     public static ASTType CreateDoubleType(const SourceLocation loc)  { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_DOUBLE) }
     public static ASTType CreateComplexType(const SourceLocation loc) { out = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_COMPLEX) }
