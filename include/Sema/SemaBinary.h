@@ -27,6 +27,12 @@ namespace fly {
 		SemaExpr *Left;
 		SemaExpr *Right;
 
+		// Set by the Resolver when this is a reassignment to a heap-owned string
+		// variable (`s = …`, not the initial `string s = …` declaration). Tells
+		// codegen to free the destination's previous buffer AFTER storing the new
+		// value (the RHS may read the same variable — `s = concat(s, …)`).
+		bool FreeLHSOnAssign = false;
+
 		CodeGenExpr *CodeGen = nullptr;
 
 		SemaType *SelectType(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right);
@@ -41,6 +47,8 @@ namespace fly {
 
 		SemaExpr *getLeft() const;
 		SemaExpr *getRight() const;
+
+		bool isFreeLHSOnAssign() const;
 
 		CodeGenExpr *getCodeGen() const;
 

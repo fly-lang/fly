@@ -10,6 +10,8 @@
 // fly
 #include "AST/ASTParam.h"
 #include "AST/ASTBinary.h"
+#include "AST/ASTCall.h"
+#include "AST/ASTFunction.h"
 #include "AST/ASTExprStmt.h"
 #include "AST/ASTDeclStmt.h"
 #include "AST/ASTExprStmt.h"
@@ -187,9 +189,14 @@ namespace {
          * Fly code:
          * void func() {
          *   string s = "hello"    → s.ptr = heap1
-         *   s = s + " world"      → free(heap1), then s.ptr = heap2
+         *   s = s + " world"      → concat reads heap1, store heap2, THEN free(heap1)
          *   // scope exit: free(heap2)
          * }
+         *
+         * Self-reassignment: the RHS `s + " world"` reads `s` itself, so the previous
+         * buffer (heap1) must be freed AFTER the concat has copied from it and the new
+         * buffer (heap2) is stored — never before (that frees memory the concat memcpys
+         * from → garbage). The free of heap1 follows the `store %string %7` of heap2.
          */
         ASTModule *Module = CreateModule();
 
@@ -218,7 +225,84 @@ namespace {
         llvm::Module *M = getModules()[0];
         std::string output = getOutput(M->getFunctionList());
 
-        EXPECT_EQ(output, "define void @_F4func(ptr %0) {\nentry:\n  %1 = alloca ptr, align 8\n  %2 = alloca %string, align 8\n  store %string zeroinitializer, ptr %2, align 8\n  store ptr %0, ptr %1, align 8\n  %str_heap = call ptr @malloc(i64 5)\n  call void @llvm.memcpy.p0.p0.i64(ptr %str_heap, ptr @1, i64 5, i1 false)\n  %3 = insertvalue %string undef, ptr %str_heap, 0\n  %4 = insertvalue %string %3, i32 5, 1\n  store %string %4, ptr %2, align 8\n  %5 = load %string, ptr %2, align 8\n  %6 = extractvalue %string %5, 0\n  call void @free(ptr %6)\n  %s1_ptr = extractvalue %string %5, 0\n  %s1_size = extractvalue %string %5, 1\n  %str_total = add i32 %s1_size, 6\n  %str_total_ext = zext i32 %str_total to i64\n  %s1_size_ext = zext i32 %s1_size to i64\n  %str_buf = call ptr @malloc(i64 %str_total_ext)\n  call void @llvm.memcpy.p0.p0.i64(ptr %str_buf, ptr %s1_ptr, i64 %s1_size_ext, i1 false)\n  %str_buf2 = getelementptr i8, ptr %str_buf, i64 %s1_size_ext\n  call void @llvm.memcpy.p0.p0.i64(ptr %str_buf2, ptr @2, i64 6, i1 false)\n  %7 = insertvalue %string undef, ptr %str_buf, 0\n  %8 = insertvalue %string %7, i32 %str_total, 1\n  store %string %8, ptr %2, align 8\n  %9 = load %string, ptr %2, align 8\n  %hs_ptr = extractvalue %string %9, 0\n  call void @free(ptr %hs_ptr)\n  ret void\n}\ndeclare ptr @malloc(i64)\n; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)\ndeclare void @llvm.memcpy.p0.p0.i64(ptr noalias nocapture writeonly, ptr noalias nocapture readonly, i64, i1 immarg) #0\ndeclare void @free(ptr)\n");
+        EXPECT_EQ(output, "define void @_F4func(ptr %0) {\nentry:\n  %1 = alloca ptr, align 8\n  %2 = alloca %string, align 8\n  store %string zeroinitializer, ptr %2, align 8\n  store ptr %0, ptr %1, align 8\n  %str_heap = call ptr @malloc(i64 5)\n  call void @llvm.memcpy.p0.p0.i64(ptr %str_heap, ptr @1, i64 5, i1 false)\n  %3 = insertvalue %string undef, ptr %str_heap, 0\n  %4 = insertvalue %string %3, i32 5, 1\n  store %string %4, ptr %2, align 8\n  %5 = load %string, ptr %2, align 8\n  %s1_ptr = extractvalue %string %5, 0\n  %s1_size = extractvalue %string %5, 1\n  %str_total = add i32 %s1_size, 6\n  %str_total_ext = zext i32 %str_total to i64\n  %s1_size_ext = zext i32 %s1_size to i64\n  %str_buf = call ptr @malloc(i64 %str_total_ext)\n  call void @llvm.memcpy.p0.p0.i64(ptr %str_buf, ptr %s1_ptr, i64 %s1_size_ext, i1 false)\n  %str_buf2 = getelementptr i8, ptr %str_buf, i64 %s1_size_ext\n  call void @llvm.memcpy.p0.p0.i64(ptr %str_buf2, ptr @2, i64 6, i1 false)\n  %6 = insertvalue %string undef, ptr %str_buf, 0\n  %7 = insertvalue %string %6, i32 %str_total, 1\n  %8 = extractvalue %string %5, 0\n  store %string %7, ptr %2, align 8\n  call void @free(ptr %8)\n  %9 = load %string, ptr %2, align 8\n  %hs_ptr = extractvalue %string %9, 0\n  call void @free(ptr %hs_ptr)\n  ret void\n}\ndeclare ptr @malloc(i64)\n; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)\ndeclare void @llvm.memcpy.p0.p0.i64(ptr noalias nocapture writeonly, ptr noalias nocapture readonly, i64, i1 immarg) #0\ndeclare void @free(ptr)\n");
+    }
+
+    TEST_F(CodeGenTest, CGStringSelfReassignCall) {
+        /**
+         * Fly code (the literal quirk: x = strFn(x, …)):
+         * string concat2(string a, string b) { out = a + b }
+         * void func() {
+         *   string s = "ab"
+         *   s = concat2(s, "cd")   → concat2 reads s, store result, THEN free old s
+         * }
+         *
+         * The reassignment's RHS passes `s` itself to concat2. The destination's previous
+         * buffer must be freed only AFTER the call returns (it copies from that buffer);
+         * freeing before the call would make concat2 read freed memory → garbage. This
+         * test locks in that ordering: in func(), the concat2 call precedes the old-buffer
+         * free (regression for the use-after-free fixed in GenBinaryAssign).
+         */
+        ASTModule *Module = CreateModule();
+
+        // string concat2(string a, string b) { out = a + b }
+        llvm::SmallVector<ASTParam *, 8> CParams;
+        ASTParam *Param_a = ASTBuilder::CreateParam(SourceLoc, StringTypeRef, "a", EmptyModifiers);
+        ASTParam *Param_b = ASTBuilder::CreateParam(SourceLoc, StringTypeRef, "b", EmptyModifiers);
+        CParams.push_back(Param_a);
+        CParams.push_back(Param_b);
+        ASTBlockStmt *CBody = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Concat2 = ASTBuilder::CreateFunction(Module, SourceLoc, "concat2", TopModifiers, CParams, CBody);
+        Concat2->setReturnType(StringTypeRef);
+        ASTBinary *AbConcat = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ARITH_ADD,
+                                                       ASTBuilder::CreateIdentifier(Param_a),
+                                                       ASTBuilder::CreateIdentifier(Param_b));
+        ASTExprStmt *COutStmt = ASTBuilder::CreateExprStmt(CBody, SourceLoc);
+        COutStmt->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+                                                   ASTBuilder::CreateIdentifier(SourceLoc, "out"), AbConcat));
+
+        // void func() { string s = "ab"  s = concat2(s, "cd") }
+        llvm::SmallVector<ASTParam *, 8> Params;
+        ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);
+        ASTFunction *Func = ASTBuilder::CreateFunction(Module, SourceLoc, "func", TopModifiers, Params, Body);
+
+        // string s = "ab"
+        ASTLocalVar *LocalVar_s = ASTBuilder::CreateLocalVar(SourceLoc, StringTypeRef, "s", EmptyModifiers);
+        ASTDeclStmt *DeclStmt_s = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_s);
+        ASTStringValue *AbStr = ASTBuilder::CreateStringValue(SourceLoc, "ab");
+        DeclStmt_s->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
+                                                     ASTBuilder::CreateIdentifier(LocalVar_s), AbStr));
+
+        // s = concat2(s, "cd") — the LHS and the first argument are the SAME variable
+        ASTIdentifier *Ident_s_lhs = ASTBuilder::CreateIdentifier(SourceLoc, "s");
+        ASTIdentifier *Ident_s_arg = ASTBuilder::CreateIdentifier(SourceLoc, "s");
+        ASTStringValue *CdStr = ASTBuilder::CreateStringValue(SourceLoc, "cd");
+        llvm::SmallVector<ASTExpr *, 8> CallArgs;
+        CallArgs.push_back(Ident_s_arg);
+        CallArgs.push_back(CdStr);
+        ASTCall *Concat2Call = ASTBuilder::CreateCall(SourceLoc, "concat2", CallArgs, ASTCallKind::CALL_DIRECT);
+        ASTExprStmt *ReStmt = ASTBuilder::CreateExprStmt(Body, SourceLoc);
+        ReStmt->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, Ident_s_lhs, Concat2Call));
+
+        // Generate Code
+        Generate();
+        llvm::Module *M = getModules()[0];
+        std::string output = getOutput(M);
+
+        // Isolate func()'s body and assert the call to concat2 precedes the free of the
+        // old buffer — i.e. concat2 reads a live `s`, not a freed one (no use-after-free).
+        size_t FuncPos = output.find("define void @_F4func(");
+        ASSERT_NE(FuncPos, std::string::npos);
+        std::string FuncIR = output.substr(FuncPos);
+        size_t EndPos = FuncIR.find("\n}");
+        ASSERT_NE(EndPos, std::string::npos);
+        FuncIR = FuncIR.substr(0, EndPos);
+
+        size_t CallPos = FuncIR.find("concat2");          // the call to concat2 (reads s)
+        size_t FreePos = FuncIR.find("call void @free("); // the reassignment's old-buffer free
+        EXPECT_NE(CallPos, std::string::npos);
+        EXPECT_NE(FreePos, std::string::npos);
+        EXPECT_LT(CallPos, FreePos);                      // call BEFORE free → no use-after-free
     }
 
  } // anonymous namespace

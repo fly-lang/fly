@@ -891,11 +891,15 @@ void Resolver::visit(ASTExprStmt &AST) {
 	Expr->accept(*this);
 	SemaExpr *ResolvedExpr = CurrentExpr;
 
-	// Create SemaExprStmt and add to current block
+	// Create SemaExprStmt and add to current block.
 	if (CurrentSemaBlock && ResolvedExpr) {
-		// Detect string reassignment: any assign to a heap-owned string variable
-		// requires freeing the old buffer before storing the new one.
-		// Insert a SemaDeleteStmt for the LHS variable immediately before the assign.
+		// Detect string reassignment: an assign to a heap-owned string variable must
+		// free the destination's previous buffer. Mark the binary so codegen emits
+		// that free *after* the RHS is evaluated (CodeGenExpr::GenBinaryAssign) — the
+		// RHS may read the same variable (`s = concat(s, …)` / `s = s + x`), so freeing
+		// before the assign would make the RHS memcpy from freed memory. (Only the
+		// reassignment is marked; the initial `string s = …` declaration is resolved by
+		// visit(ASTDeclStmt) and has no previous buffer to free.)
 		if (ResolvedExpr->getKind() == SemaKind::BINARY) {
 			SemaBinary *Bin = static_cast<SemaBinary *>(ResolvedExpr);
 			if (Bin->getAST().isAssign()) {
@@ -907,7 +911,7 @@ void Resolver::visit(ASTExprStmt &AST) {
 				    LK == SemaKind::INSTANCE_VAR)
 					LHSVar = static_cast<SemaVar *>(LHS);
 				if (LHSVar && LHSVar->getStringAlloc())
-					CurrentSemaBlock->addContent(SemaBuilder::CreateDeleteStmt(&AST, LHS));
+					Bin->FreeLHSOnAssign = true;
 			}
 		}
 
@@ -1885,9 +1889,18 @@ void Resolver::visit(ASTCall &AST) {
 					CurrentScope = static_cast<SemaEnumType *>(ParentType)->getSymbols();
 				}
 			}
-			// else if (ParentSymbol->getKind() == SymbolKind::FUNCTION) {
-			//	ParentType = static_cast<SemaFunctionBase *>(ParentSymbol->getRef())->getReturnType();
-			//}
+			else if (ParentSymbol->getKind() == SymbolKind::FUNCTION) {
+				// Call-result receiver (method chaining `f(x).g()`): look the method up in
+				// the parent function's RETURN-type class/enum scope. Methods are also
+				// FUNCTION-kind symbols, so this covers both free-function results
+				// (`makeBox(42).get()`) and chained method results (`a.inner().value()`).
+				SemaType *RetType = static_cast<SemaFunctionBase *>(ParentSymbol->getRef())->getReturnType();
+				if (RetType && RetType->isClass()) {
+					CurrentScope = static_cast<SemaClassType *>(RetType)->getSymbols();
+				} else if (RetType && RetType->isEnum()) {
+					CurrentScope = static_cast<SemaEnumType *>(RetType)->getSymbols();
+				}
+			}
 			else if (ParentSymbol->getKind() == SymbolKind::VALUE) {
 				// Cannot exists Value after a Member access
 				Diag(diag::err_invalid_behavior);

@@ -113,7 +113,7 @@ namespace fly {
 
         llvm::Value *GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
-        llvm::Value* GenBinaryAssign(SemaExpr *E1, SemaExpr *E2);
+        llvm::Value* GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool FreeOldLHS = false);
 
         // Upcast adjustment: when a class pointer V (static type FromType) flows into a
         // base/interface-typed slot (ToType), return the pointer to the base subobject so

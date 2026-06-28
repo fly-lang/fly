@@ -62,6 +62,10 @@ SemaExpr *SemaBinary::getRight() const {
 	return Right;
 }
 
+bool SemaBinary::isFreeLHSOnAssign() const {
+	return FreeLHSOnAssign;
+}
+
 CodeGenExpr * SemaBinary::getCodeGen() const {
 	return CodeGen;
 }
