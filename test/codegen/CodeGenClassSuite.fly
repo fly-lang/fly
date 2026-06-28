@@ -64,4 +64,17 @@ suite CodeGenClassSuite {
             assert.assertTrue(fly.str.contains(ir, "getelementptr ptr"), 32)  // vtable slot
         }
     }
+
+    // Method chaining on a call-result: `makeBox(7).get()` calls a method on the
+    // RESULT of a function call. The self-host resolver is type-based (it resolves
+    // the method on the parent expr's return type), so chaining works without the
+    // "bind a temp" workaround the reference compiler needed before its fix. The
+    // cgIR helper already asserts parse-success + module verification.
+    void chainTest() {
+        case "method call on a call-result resolves + dispatches (f(x).g())": {
+            string ir = cgIR("public class Box { int v  public Box(int n) { this.v = n }  public int get() { out = this.v } }  public Box makeBox(int n) { out = new Box(n) }  int main() { int r = makeBox(7).get()  out = r }")
+            assert.assertTrue(fly.str.contains(ir, "makeBox"), 41)            // receiver call emitted
+            assert.assertTrue(fly.str.contains(ir, "getelementptr ptr"), 42)  // get() via vtable on the result
+        }
+    }
 }
