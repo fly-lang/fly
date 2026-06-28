@@ -188,6 +188,8 @@ llvm::DIType *CodeGenModule::GetOrCreateDIType(SemaType *Ty) {
                 DIT = DBuilder->createBasicType("int",    32, llvm::dwarf::DW_ATE_signed);   break;
             case SemaIntTypeKind::TYPE_LONG:
                 DIT = DBuilder->createBasicType("long",   64, llvm::dwarf::DW_ATE_signed);   break;
+            case SemaIntTypeKind::TYPE_PTRSIZE:
+                DIT = DBuilder->createBasicType("ptrsize", 64, llvm::dwarf::DW_ATE_unsigned); break;
         }
     } else if (Ty->isFloat()) {
         auto *FT = static_cast<SemaFloatType *>(Ty);

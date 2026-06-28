@@ -214,6 +214,8 @@ namespace fly {
 
         static ASTType *CreateLongType(const SourceLocation &Loc);
 
+        static ASTType *CreatePtrSizeType(const SourceLocation &Loc);
+
         static ASTType *CreateFloatType(const SourceLocation &Loc);
 
         static ASTType *CreateDoubleType(const SourceLocation &Loc);

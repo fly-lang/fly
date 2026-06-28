@@ -69,6 +69,7 @@ SymbolTable* Registry::CreateBuiltinScope() {
 	auto IntType = SemaBuiltin::getIntType();
 	auto ULongType = SemaBuiltin::getULongType();
 	auto LongType = SemaBuiltin::getLongType();
+	auto PtrSizeType = SemaBuiltin::getPtrSizeType();
 	auto FloatType = SemaBuiltin::getFloatType();
 	auto DoubleType = SemaBuiltin::getDoubleType();
 	auto StringType = SemaBuiltin::getStringType();
@@ -84,6 +85,7 @@ SymbolTable* Registry::CreateBuiltinScope() {
 	Builtin->insert(new Symbol(IntType->getName(), SymbolKind::BUILTIN_TYPE, IntType));
 	Builtin->insert(new Symbol(ULongType->getName(), SymbolKind::BUILTIN_TYPE, ULongType));
 	Builtin->insert(new Symbol(LongType->getName(), SymbolKind::BUILTIN_TYPE, LongType));
+	Builtin->insert(new Symbol(PtrSizeType->getName(), SymbolKind::BUILTIN_TYPE, PtrSizeType));
 	Builtin->insert(new Symbol(FloatType->getName(), SymbolKind::BUILTIN_TYPE, FloatType));
 	Builtin->insert(new Symbol(DoubleType->getName(), SymbolKind::BUILTIN_TYPE, DoubleType));
 	Builtin->insert(new Symbol(StringType->getName(), SymbolKind::BUILTIN_TYPE, StringType));

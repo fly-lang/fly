@@ -110,3 +110,10 @@ public void env_args_fill(const long arr_base, const int count) {}
 public void env_all_fill(const long arr_base, const int count) {}
 // env_osname: copies "linux"/"macos"/"windows" into buf; returns length
 public void env_osname(const long buf, const ulong size, int out) {}
+
+// env_arch: copies the CPU architecture (uname machine, e.g. "x86_64"); returns length
+public void env_arch(const long buf, const ulong size, int out) {}
+// env_kernel: copies the kernel release (uname release, e.g. "7.0.0-22-generic")
+public void env_kernel(const long buf, const ulong size, int out) {}
+// env_kernelversion: copies the kernel version (uname version build string)
+public void env_kernelversion(const long buf, const ulong size, int out) {}

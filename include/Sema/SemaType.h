@@ -50,6 +50,13 @@ namespace fly {
         TYPE_SHORT = 15,
         TYPE_INT = 31,
         TYPE_LONG = 63,
+
+        // Pointer-sized unsigned integer (size_t / uintptr_t). A distinct tag (not
+        // a real width) so it survives switch/case; the constructor maps its RANK to
+        // 64 for promotion parity with ulong, and the even tag encodes unsigned.
+        // Lowered to the target pointer width in CodeGen. (Replaces usize/isize:
+        // addresses/sizes are non-negative, so a single unsigned type suffices.)
+        TYPE_PTRSIZE = 66,
     };
 
     enum class SemaFloatTypeKind

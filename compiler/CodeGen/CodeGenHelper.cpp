@@ -32,6 +32,7 @@ static std::unordered_map<std::string, std::string> MangleTypeMap = {
 	{"int", "_i"},
 	{"ulong", "_ul"},
 	{"long", "_l"},
+	{"ptrsize", "_pz"},
 	{"float", "_f"},
 	{"double", "_d"},
 	{"void", "_v"},

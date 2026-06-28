@@ -9,6 +9,17 @@ public int len(const string src) {
     fly.llvm.strSize(src, out)
 }
 
+// byteAt — the i-th byte of a string. Public wrapper over the LLVM intrinsic so
+// non-std code reads string bytes without calling fly.llvm directly.
+public void byteAt(const string s, const int i, byte out) {
+    fly.llvm.strByteAt(s, i, out)
+}
+
+// fromBytes — build a string value from a raw buffer pointer + byte length.
+public void fromBytes(const long ptr, const int size, string out) {
+    fly.llvm.strMake(ptr, size, out)
+}
+
 public bool isEmpty(const string src) {
     int s = 0
     fly.llvm.strSize(src, s)

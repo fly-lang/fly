@@ -270,6 +270,10 @@ void str_slot_get(char *arr_base, i32 idx, i64 *ptr_out, i32 *size_out);
 i64 str_slot_ptr(char *arr_base, i32 idx);
 i32 str_slot_size(char *arr_base, i32 idx);
 
+/* (Note: string/numeric value primitives like strMake/strByteAt/ulongToLong are
+ * NOT here — fly.runtime can't reliably pass Fly value types across the C ABI;
+ * those are Fly wrappers over fly.llvm in fly.str / fly.mem.) */
+
 /* Fill arr_base with 'count' Fly string structs from argv[].
  * Each string is a fresh mem_alloc'd copy of the argument. */
 void env_args_fill(char *arr_base, i32 count);
@@ -280,5 +284,12 @@ void env_all_fill(char *arr_base, i32 count);
 /* Copy the OS name ("linux", "macos", "windows") into buf.
  * Returns the length on success, -1 on error. */
 i32 env_osname(char *buf, usize size);
+
+/* Host platform details from uname(2): CPU architecture ("x86_64"), kernel
+ * release ("7.0.0-22-generic"), kernel version (build string). Copy into buf;
+ * return the length on success, -1 on error. */
+i32 env_arch(char *buf, usize size);
+i32 env_kernel(char *buf, usize size);
+i32 env_kernelversion(char *buf, usize size);
 
 #endif /* FLY_RUNTIME_H */

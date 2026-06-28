@@ -702,6 +702,9 @@ void Resolver::visit(ASTBuiltinType &AST) {
 		case ASTBuiltinTypeKind::TYPE_ULONG:
 			Sema = SemaBuiltin::getULongType();
 			break;
+		case ASTBuiltinTypeKind::TYPE_PTRSIZE:
+			Sema = SemaBuiltin::getPtrSizeType();
+			break;
 		case ASTBuiltinTypeKind::TYPE_FLOAT:
 			Sema = SemaBuiltin::getFloatType();
 			break;
@@ -2700,6 +2703,21 @@ void Resolver::ResolveImports(SemaModule *Module) {
 		} else {
 			// Plain import: add symbol under its own name
 			Module->getSymbols()->insert(ImportedSymbol);
+		}
+	}
+
+	// Implicit self-import: every object declared in the file's OWN namespace is
+	// visible WITHOUT an import (an implicit `import <ownNamespace>.*`). The
+	// namespace table holds all same-namespace symbols across files; copy them into
+	// this module's scope. insert() dedups (functions by exact signature, others by
+	// name), so the module's own symbols are skipped — only sibling-file symbols are
+	// added. Exposes all symbols incl. private, exactly like an explicit `import ns.*`.
+	SemaNameSpace *OwnNS = Module->getNameSpace();
+	if (OwnNS && OwnNS != Reg.getDefaultNameSpace()) {
+		for (auto &Entry : OwnNS->getSymbols()->getAll()) {
+			for (Symbol *Sym : Entry.second) {
+				Module->getSymbols()->insert(Sym);
+			}
 		}
 	}
 }

@@ -87,6 +87,60 @@ i32 env_hostname(char *buf, usize size)
     return GetComputerNameA(buf, &sz) ? (i32)sz : -1;
 }
 
+/* Host details (best-effort; untested on this Linux host). Architecture is a
+ * compile-time constant; kernel release/version come from GetVersion(). */
+WIN32_IMPORT DWORD WINAPI GetVersion(void);
+
+static i32 fly_append_uint(char *buf, usize size, i32 pos, unsigned v)
+{
+    char tmp[12];
+    int n = 0;
+    if (v == 0u) tmp[n++] = '0';
+    while (v) { tmp[n++] = (char)('0' + (v % 10u)); v /= 10u; }
+    while (n > 0 && (usize)pos < size - 1) buf[pos++] = tmp[--n];
+    return pos;
+}
+
+i32 env_arch(char *buf, usize size)
+{
+#if defined(_M_ARM64) || defined(__aarch64__)
+    const char *name = "arm64";
+#elif defined(_WIN64) || defined(_M_X64) || defined(__x86_64__)
+    const char *name = "x86_64";
+#elif defined(_M_ARM)
+    const char *name = "arm";
+#else
+    const char *name = "x86";
+#endif
+    usize len = 0; while (name[len]) len++;
+    if (len >= size) len = size - 1;
+    usize i;
+    for (i = 0; i < len; i++) buf[i] = name[i];
+    buf[i] = '\0';
+    return (i32)len;
+}
+
+i32 env_kernel(char *buf, usize size)
+{
+    DWORD v = GetVersion();
+    unsigned major = (unsigned)(v & 0xFFu);
+    unsigned minor = (unsigned)((v >> 8) & 0xFFu);
+    i32 pos = fly_append_uint(buf, size, 0, major);
+    if ((usize)pos < size - 1) buf[pos++] = '.';
+    pos = fly_append_uint(buf, size, pos, minor);
+    buf[pos] = '\0';
+    return pos;
+}
+
+i32 env_kernelversion(char *buf, usize size)
+{
+    DWORD v = GetVersion();
+    unsigned build = (v < 0x80000000u) ? (unsigned)((v >> 16) & 0xFFFFu) : 0u;
+    i32 pos = fly_append_uint(buf, size, 0, build);
+    buf[pos] = '\0';
+    return pos;
+}
+
 i32 env_args_count(void)
 {
     return g_argc;
@@ -136,6 +190,7 @@ i32 str_slot_size(char *arr, i32 idx)
     FlyStrSlot *fs = (FlyStrSlot *)(arr + (usize)idx * 16u);
     return fs->s;
 }
+
 
 void env_args_fill(char *arr, i32 count)
 {

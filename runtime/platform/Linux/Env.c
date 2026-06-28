@@ -112,6 +112,47 @@ i32 env_hostname(char *buf, usize size)
     return (i32)len;
 }
 
+/* env_arch / env_kernel / env_kernelversion — host details from a uname(2) syscall
+ * (machine / release / version), same copy-into-buf contract as env_hostname. */
+i32 env_arch(char *buf, usize size)
+{
+    linux_utsname_t u;
+    long r = __syscall1(SYS_uname, (long)&u);
+    if (r < 0) { if (size > 0) buf[0] = '\0'; return -1; }
+    usize len = strlen(u.machine);
+    if (len >= size) len = size - 1;
+    usize i;
+    for (i = 0; i < len; i++) buf[i] = u.machine[i];
+    buf[i] = '\0';
+    return (i32)len;
+}
+
+i32 env_kernel(char *buf, usize size)
+{
+    linux_utsname_t u;
+    long r = __syscall1(SYS_uname, (long)&u);
+    if (r < 0) { if (size > 0) buf[0] = '\0'; return -1; }
+    usize len = strlen(u.release);
+    if (len >= size) len = size - 1;
+    usize i;
+    for (i = 0; i < len; i++) buf[i] = u.release[i];
+    buf[i] = '\0';
+    return (i32)len;
+}
+
+i32 env_kernelversion(char *buf, usize size)
+{
+    linux_utsname_t u;
+    long r = __syscall1(SYS_uname, (long)&u);
+    if (r < 0) { if (size > 0) buf[0] = '\0'; return -1; }
+    usize len = strlen(u.version);
+    if (len >= size) len = size - 1;
+    usize i;
+    for (i = 0; i < len; i++) buf[i] = u.version[i];
+    buf[i] = '\0';
+    return (i32)len;
+}
+
 i32 env_args_count(void)
 {
     return g_argc;
@@ -162,6 +203,7 @@ i32 str_slot_size(char *arr, i32 idx)
     FlyStrSlot *fs = (FlyStrSlot *)(arr + (usize)idx * 16u);
     return fs->s;
 }
+
 
 void env_args_fill(char *arr, i32 count)
 {

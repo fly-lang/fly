@@ -15,6 +15,13 @@ public Ptr toPtr(const long addr) {
     out.addr = addr
 }
 
+// ulongToLong — reinterpret an unsigned 64-bit value (e.g. a raw address) as a
+// signed long, bit-preserving. Wraps the LLVM intrinsic so non-std code can do
+// the cast without calling fly.llvm directly.
+public long ulongToLong(const ulong v) {
+    fly.llvm.ulongToLong(v, out)
+}
+
 public void copy(const long dst, const long src, const ulong size) {
     fly.llvm.memcpy(dst, src, size)
 }
