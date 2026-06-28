@@ -85,6 +85,42 @@ i32 env_hostname(char *buf, usize size)
     return cstr_len(buf);
 }
 
+/* Host details from uname(3). macOS _SYS_NAMELEN == 256 for every field. */
+struct fly_utsname { char sysname[256]; char nodename[256]; char release[256];
+                     char version[256]; char machine[256]; };
+extern int uname(struct fly_utsname *);
+
+static i32 fly_copy_field(const char *field, char *buf, usize size)
+{
+    usize len = (usize)strlen(field);
+    if (len >= size) len = size - 1;
+    usize i;
+    for (i = 0; i < len; i++) buf[i] = field[i];
+    buf[i] = '\0';
+    return (i32)len;
+}
+
+i32 env_arch(char *buf, usize size)
+{
+    struct fly_utsname u;
+    if (uname(&u) != 0) { if (size > 0) buf[0] = '\0'; return -1; }
+    return fly_copy_field(u.machine, buf, size);
+}
+
+i32 env_kernel(char *buf, usize size)
+{
+    struct fly_utsname u;
+    if (uname(&u) != 0) { if (size > 0) buf[0] = '\0'; return -1; }
+    return fly_copy_field(u.release, buf, size);
+}
+
+i32 env_kernelversion(char *buf, usize size)
+{
+    struct fly_utsname u;
+    if (uname(&u) != 0) { if (size > 0) buf[0] = '\0'; return -1; }
+    return fly_copy_field(u.version, buf, size);
+}
+
 i32 env_args_count(void)
 {
     return g_argc;
@@ -134,6 +170,7 @@ i32 str_slot_size(char *arr, i32 idx)
     FlyStrSlot *fs = (FlyStrSlot *)(arr + (usize)idx * 16u);
     return fs->s;
 }
+
 
 void env_args_fill(char *arr, i32 count)
 {
