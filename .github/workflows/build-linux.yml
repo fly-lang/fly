@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  FLY_VERSION: "0.13.6"
+  FLY_VERSION: "0.13.7"
 
 jobs:
 
