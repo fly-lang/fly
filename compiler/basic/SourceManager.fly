@@ -1,6 +1,5 @@
 namespace fly.compiler.basic
 import fly.compiler.basic.*
-import fly.runtime
 import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -2,7 +2,6 @@ namespace llvm.api
 
 import fly.bridge.*
 import fly.mem
-import fly.runtime
 import fly.str
 
 // All LLVM handles are fly.mem.Ptr (opaque C pointer wrappers).

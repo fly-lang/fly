@@ -14,7 +14,6 @@ import llvm.api.*
 import fly.mem
 import fly.data.List
 import fly.str
-import fly.runtime
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenExpr — the SemaVisitor that lowers a function body. It implements the
