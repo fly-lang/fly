@@ -16,12 +16,22 @@ OUT=build/test
 STD=std/lib
 mkdir -p "$OUT"
 
+# CodeGen/target suites emit IR/objects to /tmp/cg and read them back (e.g.
+# cgm.emitIR("/tmp/cg/suite.ll")). The directory must exist before they run —
+# otherwise the LLVM file open fails and LLVMPrintModuleToFile/EmitToFile crash
+# on the error path. Create it up front so a fresh checkout/CI runner passes.
+mkdir -p /tmp/cg
+
+# Bootstrap compiler: $FLY (default `fly`). CI passes an absolute path — see the
+# note in build_compiler.sh (executable-path stdlib discovery / bare-name trap).
+FLY="${FLY:-fly}"
+
 pass=0
 fail=0
 for suite in $(find test -name '*Suite.fly' | sort); do
     name=$(basename "$suite" .fly)
     bin="$OUT/test_$name"
-    if ! fly "$suite" --test --src-dir compiler -o "test_$name" --out-dir "$OUT" -L "$STD" >"$OUT/_$name.log" 2>&1; then
+    if ! "$FLY" "$suite" --test --src-dir compiler -o "test_$name" --out-dir "$OUT" -L "$STD" >"$OUT/_$name.log" 2>&1; then
         echo "  COMPILE FAIL  $name"
         grep -iE 'error|broken|abort' "$OUT/_$name.log" | head -3 | sed 's/^/      /'
         fail=$((fail + 1))

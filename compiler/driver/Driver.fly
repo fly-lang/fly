@@ -7,6 +7,7 @@ import fly.compiler.target.*
 import fly.os.env
 import fly.os.fs
 import fly.os.io
+import fly.os.path
 import fly.mem
 import fly.str
 
@@ -32,6 +33,7 @@ public class Driver {
         string targetTriple = ""
         string targetCpu = ""
         string runtimeLibDir = ""       // --runtime-lib-dir: holds fly_std_lib.a / fly_runtime_lib.a
+        string stdLibDir = ""           // auto-discovered <install>/lib: stdlib .fly source
         string toolchainLibDir = ""     // -L: extra linker search dir
         string linkLibs = ";"           // ";-lfoo;" native [link] deps
         int emitMode = 3                // 0=.ll 1=.o 2=.s 3=link(executable, default)
@@ -166,6 +168,25 @@ public class Driver {
             return
         }
 
+        // Auto-discover the stdlib/runtime dir relative to the running compiler
+        // binary (<install>/bin/fly → <install>/lib), mirroring
+        // fly/compiler/Driver/Driver.cpp (StdLibDir + RuntimeLibDir). Resolves the
+        // real executable path (not argv[0]) via fly.os.env.exePath(), so a
+        // bare-name PATH invocation still works. An explicit --runtime-lib-dir
+        // takes precedence for the archives.
+        if fly.str.isEmpty(runtimeLibDir) || fly.str.isEmpty(stdLibDir) {
+            string exe = fly.os.env.exePath()
+            if fly.str.isEmpty(exe) == false {
+                string binDir = fly.os.path.dirname(exe)
+                string instDir = fly.os.path.dirname(binDir)
+                string cand = fly.os.path.join(instDir, "lib")
+                if fly.os.path.isDir(cand) {
+                    if fly.str.isEmpty(runtimeLibDir) { runtimeLibDir = cand }
+                    if fly.str.isEmpty(stdLibDir) { stdLibDir = cand }
+                }
+            }
+        }
+
         string src = fly.os.fs.readStr(input)
         if fly.str.isEmpty(src) {
             fly.os.io.printErrLn(fly.str.concat("error: cannot read input file: ", input))
@@ -226,6 +247,7 @@ public class Driver {
         fo.setOutDir(outDir)
         fo.setBackendAction(emitMode)
         if fly.str.isEmpty(toolchainLibDir) == false { fo.addLibDir(toolchainLibDir) }
+        if fly.str.isEmpty(stdLibDir) == false { fo.setStdLibDir(stdLibDir) }
         int sd = segCount(srcDirs)
         int sdi = 0
         while sdi < sd { fo.addSrcDir(segAt(srcDirs, sdi))  sdi = sdi + 1 }

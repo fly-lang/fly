@@ -458,9 +458,14 @@ public class LLVM {
     }
 
     public void printModuleToFile(const fly.mem.Ptr mod, const string filename) {
-        PtrStrArgs a = new PtrStrArgs()
+        // LLVMPrintModuleToFile(M, Filename, char **ErrorMessage). Filename must be a
+        // NUL-terminated C string (cbuf), and ErrorMessage must be a real pointer —
+        // pass NULL. Omitting it leaves a garbage register that LLVM writes through on
+        // the error path → SIGSEGV. Mirrors verifyModule's null-out-param pattern.
+        Ptr3Args a = new Ptr3Args()
         a.a = mod
-        a.s = filename
+        a.b = fly.mem.toPtr(cbuf(filename))
+        a.c = fly.mem.toPtr(0)
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMPrintModuleToFile", a)
     }
@@ -1390,6 +1395,7 @@ public class LLVM {
         a.mod = mod
         a.filename = fly.mem.toPtr(cbuf(filename))
         a.emitType = emitType
+        a.err = fly.mem.toPtr(0)
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMTargetMachineEmitToFile", a, ok)
     }

@@ -10,6 +10,9 @@ on:
   workflow_dispatch:
 
 env:
+  # Bootstrap compiler release. Bump to the first release that ships the
+  # executable-path stdlib resolution fix (fly Driver.cpp getMainExecutable);
+  # until then the absolute $FLY below keeps older releases working in CI.
   FLY_VERSION: "0.13.7"
 
 jobs:
@@ -33,8 +36,13 @@ jobs:
             -o fly.tar.gz
           mkdir -p fly
           tar -xzf fly.tar.gz -C fly
-          FLY_BIN="fly/bin/fly"
+          FLY_BIN="$(pwd)/fly/bin/fly"
           chmod +x "$FLY_BIN"
+          # Use an absolute path (not a bare `fly` on PATH): released compilers
+          # derive their stdlib dir from the executable path, and a bare name
+          # resolved from a cwd containing this `fly/` directory breaks that
+          # lookup. The build/test scripts honour $FLY.
+          echo "FLY=$FLY_BIN" >> "$GITHUB_ENV"
           echo "$(pwd)/fly/bin" >> "$GITHUB_PATH"
 
       - name: Build self-host compiler

@@ -23,7 +23,13 @@ OUT=build/bin
 STD=std/lib
 mkdir -p "$OUT"
 
-fly compiler/Fly.fly \
+# Invoke the bootstrap compiler via $FLY (default: `fly` on PATH). CI sets FLY to
+# an absolute path: released binaries derive their stdlib dir from the executable
+# path, and a bare `fly` resolved from a cwd containing a `fly/` directory fails
+# that lookup. A slash-containing path sidesteps it. See ../fly Driver.cpp.
+FLY="${FLY:-fly}"
+
+"$FLY" compiler/Fly.fly \
     --src-dir compiler \
     -o fly --out-dir "$OUT" -L "$STD"
 
