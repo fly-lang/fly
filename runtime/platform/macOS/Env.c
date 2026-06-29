@@ -121,6 +121,19 @@ i32 env_kernelversion(char *buf, usize size)
     return fly_copy_field(u.version, buf, size);
 }
 
+/* env_exe_path — running executable path via _NSGetExecutablePath. Independent
+ * of argv[0]; the Fly equivalent of std::env::current_exe. The function NUL-
+ * terminates buf and returns non-zero if it is too small. */
+extern int _NSGetExecutablePath(char *buf, unsigned int *bufsize);
+
+i32 env_exe_path(char *buf, usize size)
+{
+    if (size == 0) return -1;
+    unsigned int bufsize = (unsigned int)size;
+    if (_NSGetExecutablePath(buf, &bufsize) != 0) { buf[0] = '\0'; return -1; }
+    return (i32)strlen(buf);
+}
+
 i32 env_args_count(void)
 {
     return g_argc;

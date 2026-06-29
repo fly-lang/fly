@@ -141,6 +141,20 @@ i32 env_kernelversion(char *buf, usize size)
     return pos;
 }
 
+/* env_exe_path — running executable path via GetModuleFileNameA(NULL, ...).
+ * Independent of argv[0]; the Fly equivalent of std::env::current_exe. Returns
+ * the number of chars copied; treats a full buffer as truncation/error. */
+WIN32_IMPORT DWORD WINAPI GetModuleFileNameA(void *hModule, char *lpFilename, DWORD nSize);
+
+i32 env_exe_path(char *buf, usize size)
+{
+    if (size == 0) return -1;
+    DWORD n = GetModuleFileNameA((void *)0, buf, (DWORD)size);
+    if (n == 0 || (usize)n >= size) { buf[0] = '\0'; return -1; }
+    buf[n] = '\0';
+    return (i32)n;
+}
+
 i32 env_args_count(void)
 {
     return g_argc;

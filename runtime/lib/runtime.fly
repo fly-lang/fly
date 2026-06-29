@@ -117,3 +117,6 @@ public void env_arch(const long buf, const ulong size, int out) {}
 public void env_kernel(const long buf, const ulong size, int out) {}
 // env_kernelversion: copies the kernel version (uname version build string)
 public void env_kernelversion(const long buf, const ulong size, int out) {}
+// env_exe_path: copies the running executable's absolute path (independent of
+// argv[0]: /proc/self/exe, _NSGetExecutablePath, GetModuleFileName); returns length
+public void env_exe_path(const long buf, const ulong size, int out) {}

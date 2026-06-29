@@ -292,4 +292,9 @@ i32 env_arch(char *buf, usize size);
 i32 env_kernel(char *buf, usize size);
 i32 env_kernelversion(char *buf, usize size);
 
+/* Absolute path of the running executable (Linux: readlink /proc/self/exe;
+ * macOS: _NSGetExecutablePath; Windows: GetModuleFileNameW). Independent of
+ * argv[0]. Copy into buf; return the length on success, -1 on error. */
+i32 env_exe_path(char *buf, usize size);
+
 #endif /* FLY_RUNTIME_H */
