@@ -153,6 +153,20 @@ i32 env_kernelversion(char *buf, usize size)
     return (i32)len;
 }
 
+/* env_exe_path — absolute path of the running executable via readlink(2) on
+ * /proc/self/exe. Independent of argv[0]/$PATH; the Fly equivalent of
+ * std::env::current_exe (cf. getMainExecutable in the C++ driver). readlink does
+ * not NUL-terminate, so reserve a byte and add the terminator ourselves. */
+i32 env_exe_path(char *buf, usize size)
+{
+    if (size == 0) return -1;
+    long r = __syscall3(SYS_readlink, (long)"/proc/self/exe",
+                        (long)buf, (long)(size - 1u));
+    if (r < 0) { buf[0] = '\0'; return -1; }
+    buf[(usize)r] = '\0';
+    return (i32)r;
+}
+
 i32 env_args_count(void)
 {
     return g_argc;

@@ -50,9 +50,23 @@ target_link_libraries(fly_test PRIVATE
         FlyCompiler
         )
 
-# fly_test does not link FlyRuntime, but integration tests (AppTest, ToolChainTest)
-# need libFlyRuntime.a to exist on disk before the test binary runs.
-add_dependencies(fly_test FlyRuntime)
+# fly_test does not link FlyRuntime or fly_std_lib, but integration tests need
+# both to exist on disk (including build/lib/*.fly.h headers) before the test binary runs.
+add_dependencies(fly_test FlyRuntime fly_std_lib)
+
+# Place fly_test next to the real fly binary in <build>/bin so the compiler's
+# stdlib auto-discovery (<exe>/../lib) resolves to <build>/lib, where fly_std_lib,
+# the runtime archive, and the *.fly.h headers live. Without this, multi-config
+# generators (MSVC) put fly_test in <build>/test/Release/, making ../lib point at
+# the nonexistent <build>/test/lib and breaking every integration test that
+# imports the stdlib or links the runtime (ImportLib, AppTest, SingleFileBuild…).
+set_target_properties(fly_test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY                 "${CMAKE_BINARY_DIR}/bin"
+        RUNTIME_OUTPUT_DIRECTORY_DEBUG           "${CMAKE_BINARY_DIR}/bin"
+        RUNTIME_OUTPUT_DIRECTORY_RELEASE         "${CMAKE_BINARY_DIR}/bin"
+        RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO  "${CMAKE_BINARY_DIR}/bin"
+        RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL      "${CMAKE_BINARY_DIR}/bin"
+)
 
 target_compile_definitions(fly_test PRIVATE
         FLY_LIB_FLY_DIR="${CMAKE_SOURCE_DIR}/std/lib"

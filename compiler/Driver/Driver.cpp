@@ -44,11 +44,19 @@ public:
 };
 
 std::string GetExecutablePath(const char *Argv0) {
-    SmallString<128> ExecutablePath(Argv0);
-    if (!llvm::sys::fs::exists(ExecutablePath))
-        if (llvm::ErrorOr<std::string> P = llvm::sys::findProgramByName(ExecutablePath))
-            ExecutablePath = *P;
-    return std::string(ExecutablePath.str());
+    // Resolve the *real* running executable, independent of argv[0]/$PATH — the
+    // same mechanism Clang's driver uses and the C++/LLVM equivalent of Rust's
+    // std::env::current_exe / rustc's current_dll_path. MainAddr is the address
+    // of a local symbol; llvm::sys::fs::getMainExecutable uses it together with
+    // /proc/self/exe (Linux), dladdr (macOS) and GetModuleFileName (Windows),
+    // falling back to an argv0+$PATH search only if those fail.
+    //
+    // This avoids the bare-name trap: invoking `fly` (found via $PATH) from a
+    // directory that happens to contain a `fly/` subdirectory previously made
+    // llvm::sys::fs::exists("fly") return true, leaving the path unresolved and
+    // breaking <bin>/../lib stdlib discovery.
+    void *MainAddr = (void *)(intptr_t)GetExecutablePath;
+    return llvm::sys::fs::getMainExecutable(Argv0, MainAddr);
 }
 
 static llvm::ArrayRef<const char *> initDriverArgs() {
