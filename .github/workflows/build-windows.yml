@@ -26,6 +26,28 @@ jobs:
       - name: Install LLVM 20
         run: choco install llvm --version=20.1.8 -y
 
+      - name: Provide LLVM-20.lib for the linker
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $llvmLib = "C:\Program Files\LLVM\lib"
+          $llvmBin = "C:\Program Files\LLVM\bin"
+          # The self-host compiler declares its backend as `libLLVM-20.so` (see
+          # compiler/codegen/LLVMApi.fly); on Windows the toolchain maps that to
+          # the link name `LLVM-20.lib`. The official LLVM build that choco ships
+          # only provides the C-API import library as `LLVM-C.lib` (the import lib
+          # for LLVM-C.dll), so lld-link fails with
+          #   "could not open 'LLVM-20.lib': no such file or directory".
+          # Alias it: LLVM-C.lib resolves every LLVM C-API symbol the generated
+          # code references, and its import entries point at LLVM-C.dll — exactly
+          # the Windows runtime the compiler loads (LLVMApi.fly: "On Windows:
+          # LLVM-C.dll"). A copy is used over a symlink to avoid privilege gotchas.
+          Copy-Item "$llvmLib\LLVM-C.lib" "$llvmLib\LLVM-20.lib" -Force
+          # The toolchain propagates %LIB% as /libpath: entries to lld-link, so put
+          # the LLVM lib dir on LIB; put bin on PATH so LLVM-C.dll loads at runtime.
+          "LIB=$llvmLib;$env:LIB" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $llvmBin | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
       - name: Download fly binary
         shell: pwsh
         run: |
@@ -37,9 +59,8 @@ jobs:
           # Use an absolute path (not a bare `fly` on PATH): released compilers
           # derive their stdlib dir from the executable path, and a bare name
           # resolved from a cwd containing this `fly\` directory breaks that
-          # lookup. The build/test scripts honour $FLY. The released zip bundles
-          # its own llvm\lib (LLVM-20.lib) and llvm\bin (LLVM-C.dll) alongside
-          # bin\, so the toolchain link and runtime DLL resolve automatically.
+          # lookup. The build/test scripts honour $FLY. LLVM (link lib + runtime
+          # DLL) is provided by the choco install + alias step above.
           "FLY=$FLY_BIN" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           (Join-Path (Get-Location) "fly\bin") | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
