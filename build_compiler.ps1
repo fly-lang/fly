@@ -13,6 +13,10 @@
 # -----------------------------------------------------------------------------
 
 $ErrorActionPreference = 'Stop'
+# Under `shell: pwsh` CI runners, pwsh 7.4 enables this preference, making a
+# native non-zero exit throw before our own $LASTEXITCODE check. Disable it so the
+# explicit check below is the sole arbiter (harmless no-op variable on PS 5.1).
+$PSNativeCommandUseErrorActionPreference = $false
 Set-Location $PSScriptRoot
 
 # build/bin is the release-artifact path the workflows (build-windows.yml ->
