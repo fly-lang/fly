@@ -14,6 +14,12 @@ env:
   # executable-path stdlib resolution fix (fly Driver.cpp getMainExecutable);
   # until then the absolute $FLY below keeps older releases working in CI.
   FLY_VERSION: "0.13.7"
+  # LLVM the self-host compiler links against. We use the project's own LLVM
+  # build (fly-lang/llvm-project release) rather than the stock LLVM installer:
+  # only that build ships an LLVM-C.dll exporting the per-target LLVMInitialize*
+  # symbols the compiler references (the official/choco LLVM-C.dll omits them).
+  # This mirrors Linux, where apt's full libLLVM-20.so exports everything.
+  LLVM_VERSION: "20.1.8"
 
 jobs:
 
@@ -23,25 +29,54 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install LLVM 20
-        run: choco install llvm --version=20.1.8 -y
+      # The released fly.exe statically embeds LLVM + LLD (it links in-process via
+      # lld::coff::link), so no external lld-link/clang is needed. What IS needed
+      # is an LLVM import lib + runtime DLL for the program fly builds, because the
+      # self-host compiler calls the LLVM C API. We only need two files from the
+      # ~900 MB LLVM artifact: LLVM-C.lib (the link import lib) and LLVM-C.dll
+      # (loaded at runtime); cache them across runs keyed on the LLVM version.
+      - name: Cache LLVM (fly-lang build)
+        id: llvm-cache
+        uses: actions/cache@v4
+        with:
+          path: llvm
+          key: fly-llvm-${{ env.LLVM_VERSION }}-win-x64
 
-      - name: Provide LLVM-20.lib for the linker
+      - name: Download LLVM (fly-lang build)
+        if: steps.llvm-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $llvmLib = "C:\Program Files\LLVM\lib"
-          $llvmBin = "C:\Program Files\LLVM\bin"
+          $url = "https://github.com/fly-lang/llvm-project/releases/download/v$env:LLVM_VERSION-win-x64/llvm-$env:LLVM_VERSION-win-x64.zip"
+          Invoke-WebRequest -Uri $url -OutFile llvm.zip
+          # Extract only LLVM-C.lib and LLVM-C.dll; the full archive is huge.
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          New-Item -ItemType Directory -Force llvm\lib, llvm\bin | Out-Null
+          $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path llvm.zip))
+          try {
+            foreach ($want in @(
+              @{ entry = 'llvm/lib/LLVM-C.lib'; out = 'llvm\lib\LLVM-C.lib' },
+              @{ entry = 'llvm/bin/LLVM-C.dll'; out = 'llvm\bin\LLVM-C.dll' }
+            )) {
+              $e = $zip.GetEntry($want.entry)
+              if (-not $e) { throw "missing $($want.entry) in LLVM archive" }
+              [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, (Join-Path (Get-Location) $want.out), $true)
+            }
+          } finally { $zip.Dispose() }
+          Remove-Item llvm.zip
+
+      - name: Configure LLVM for the linker
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $llvmLib = Join-Path (Get-Location) 'llvm\lib'
+          $llvmBin = Join-Path (Get-Location) 'llvm\bin'
           # The self-host compiler declares its backend as `libLLVM-20.so` (see
           # compiler/codegen/LLVMApi.fly); on Windows the toolchain maps that to
-          # the link name `LLVM-20.lib`. The official LLVM build that choco ships
-          # only provides the C-API import library as `LLVM-C.lib` (the import lib
-          # for LLVM-C.dll), so lld-link fails with
-          #   "could not open 'LLVM-20.lib': no such file or directory".
-          # Alias it: LLVM-C.lib resolves every LLVM C-API symbol the generated
-          # code references, and its import entries point at LLVM-C.dll — exactly
-          # the Windows runtime the compiler loads (LLVMApi.fly: "On Windows:
-          # LLVM-C.dll"). A copy is used over a symlink to avoid privilege gotchas.
+          # the link name `LLVM-20.lib`. Alias LLVM-C.lib -> LLVM-20.lib: it is the
+          # import lib for LLVM-C.dll, which (in the fly-lang build) exports every
+          # symbol the generated code references, incl. the per-target
+          # LLVMInitialize* functions. A copy avoids symlink privilege gotchas.
           Copy-Item "$llvmLib\LLVM-C.lib" "$llvmLib\LLVM-20.lib" -Force
           # The toolchain propagates %LIB% as /libpath: entries to lld-link, so put
           # the LLVM lib dir on LIB; put bin on PATH so LLVM-C.dll loads at runtime.
@@ -60,7 +95,7 @@ jobs:
           # derive their stdlib dir from the executable path, and a bare name
           # resolved from a cwd containing this `fly\` directory breaks that
           # lookup. The build/test scripts honour $FLY. LLVM (link lib + runtime
-          # DLL) is provided by the choco install + alias step above.
+          # DLL) is provided by the LLVM steps above.
           "FLY=$FLY_BIN" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           (Join-Path (Get-Location) "fly\bin") | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
