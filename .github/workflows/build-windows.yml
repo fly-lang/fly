@@ -1,23 +1,23 @@
 name: Build Windows
 
-# ─────────────────────────────────────────────────────────────────────────────
-# TEMPORARILY DISABLED — the self-host compiler is only validated on Linux for
-# now. Auto-triggers are removed (manual workflow_dispatch only) and the job is
-# gated behind `if: false` so it never executes. Re-enable by restoring the
-# push/workflow_call triggers and removing the `if: false` guard once the
-# Windows toolchain path is ported.
-# ─────────────────────────────────────────────────────────────────────────────
-
 on:
+  workflow_call:
+  push:
+    paths-ignore:
+      - '.github/workflows/**'
+    branches:
+      - release/*
   workflow_dispatch:
 
 env:
-  FLY_VERSION: "0.13.5"
+  # Bootstrap compiler release. Bump to the first release that ships the
+  # executable-path stdlib resolution fix (fly Driver.cpp getMainExecutable);
+  # until then the absolute $FLY below keeps older releases working in CI.
+  FLY_VERSION: "0.13.7"
 
 jobs:
 
   build-windows:
-    if: false
     runs-on: windows-latest
 
     steps:
@@ -29,31 +29,27 @@ jobs:
       - name: Download fly binary
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $url = "https://github.com/fly-lang/fly/releases/download/v$env:FLY_VERSION/fly-$env:FLY_VERSION-win-x64.zip"
           Invoke-WebRequest -Uri $url -OutFile fly.zip
-          Expand-Archive fly.zip -DestinationPath fly-bin
-          Copy-Item fly-bin\fly.exe -Destination "$env:SystemRoot\system32\fly.exe"
-          fly --version
+          Expand-Archive fly.zip -DestinationPath fly -Force
+          $FLY_BIN = Join-Path (Get-Location) "fly\bin\fly.exe"
+          # Use an absolute path (not a bare `fly` on PATH): released compilers
+          # derive their stdlib dir from the executable path, and a bare name
+          # resolved from a cwd containing this `fly\` directory breaks that
+          # lookup. The build/test scripts honour $FLY. The released zip bundles
+          # its own llvm\lib (LLVM-20.lib) and llvm\bin (LLVM-C.dll) alongside
+          # bin\, so the toolchain link and runtime DLL resolve automatically.
+          "FLY=$FLY_BIN" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          (Join-Path (Get-Location) "fly\bin") | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
-      - name: Download flyp binary
+      - name: Build self-host compiler
         shell: pwsh
-        run: |
-          $url = "https://github.com/fly-lang/fly/releases/download/v$env:FLY_VERSION/flyp-$env:FLY_VERSION-win-x64.zip"
-          Invoke-WebRequest -Uri $url -OutFile flyp.zip
-          Expand-Archive flyp.zip -DestinationPath flyp-bin
-          Copy-Item flyp-bin\flyp.exe -Destination "$env:SystemRoot\system32\flyp.exe"
-          flyp --version
+        run: .\build_compiler.ps1
 
-      - name: Set build type
-        shell: bash
-        if: startsWith(github.ref, 'refs/heads/release/')
-        run: echo "FLYP_PROFILE=--release" >> $GITHUB_ENV
-
-      - name: Build
-        run: flyp build ${{ env.FLYP_PROFILE }}
-
-      - name: Test
-        run: flyp test ${{ env.FLYP_PROFILE }}
+      - name: Test self-host compiler
+        shell: pwsh
+        run: .\test_compiler.ps1
 
       - name: Set artifact name
         id: artifact
@@ -65,5 +61,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact.outputs.artifact_name }}
-          path: build\bin\fly.exe
+          path: build/bin/fly.exe
           overwrite: true
