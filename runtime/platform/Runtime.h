@@ -46,10 +46,14 @@ typedef i64                tid;     /* thread id */
 
 /* ── Memory ─────────────────────────────────────────────────────────────── */
 
-/* Allocate 'size' bytes of heap memory (backed by malloc).
- * The returned pointer is compatible with free().
+/* Allocate 'size' bytes of UNINITIALISED heap memory (backed by malloc; Rust's
+ * GlobalAlloc::alloc). The returned pointer is compatible with free().
  * Returns NULL on failure. */
 void *mem_alloc(usize size);
+
+/* Allocate 'size' bytes of ZEROED heap memory (backed by calloc; Rust's
+ * GlobalAlloc::alloc_zeroed). Compatible with free(). Returns NULL on failure. */
+void *mem_alloc_zeroed(usize size);
 
 /* Release memory previously returned by mem_alloc (calls free).
  * 'size' is accepted for API symmetry but ignored.

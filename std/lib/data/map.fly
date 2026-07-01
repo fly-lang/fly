@@ -42,8 +42,7 @@ public class Map<K, V> {
             long nv = 0
             fly.runtime.mem_alloc(8 * this.vstride, nv)
             long nf = 0
-            fly.runtime.mem_alloc(8, nf)
-            fly.llvm.memset(nf, 0, 8)
+            fly.runtime.mem_alloc_zeroed(8, nf)
             this.keys = nk
             this.vals = nv
             this.flags = nf
@@ -56,8 +55,7 @@ public class Map<K, V> {
             long nvals = 0
             fly.runtime.mem_alloc(newcap * this.vstride, nvals)
             long nflags = 0
-            fly.runtime.mem_alloc(newcap, nflags)
-            fly.llvm.memset(nflags, 0, newcap)
+            fly.runtime.mem_alloc_zeroed(newcap, nflags)
             K kprobe
             int ri = 0
             while ri < this.cap {

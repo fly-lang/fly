@@ -348,6 +348,12 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     				llvm::Value *RawPtr = Builder->CreateCall(MallocFn,
     					{Builder->CreateIntCast(
     						llvm::ConstantExpr::getSizeOf(WrapperTy), PtrSizedIntTy, false)});
+    				// Zero the whole block so fields the ctor does not assign are
+    				// deterministic: Windows malloc returns reused (garbage) heap, while
+    				// Linux returns zeroed fresh pages. Then set the refcount header.
+    				uint64_t SharedSize = CGM->Module->getDataLayout().getTypeAllocSize(WrapperTy);
+    				Builder->CreateMemSet(RawPtr, llvm::ConstantInt::get(CodeGen::Int8Ty, 0),
+    					SharedSize, llvm::MaybeAlign());
     				Builder->CreateStore(llvm::ConstantInt::get(I64Ty, 1), RawPtr);
     				InstancePtr = Builder->CreateGEP(I8Ty, RawPtr,
     					llvm::ConstantInt::get(PtrSizedIntTy, 8));
@@ -372,6 +378,11 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     					llvm::Value *RawPtr = Builder->CreateCall(MallocFn,
     						{Builder->CreateIntCast(
     							llvm::ConstantExpr::getSizeOf(CGClass->getType()), PtrSizedIntTy, false)});
+    					// Zero the instance so fields the ctor does not assign are
+    					// deterministic (Windows malloc returns garbage; Linux zeroes).
+    					uint64_t NewSize = CGM->Module->getDataLayout().getTypeAllocSize(CGClass->getType());
+    					Builder->CreateMemSet(RawPtr, llvm::ConstantInt::get(CodeGen::Int8Ty, 0),
+    						NewSize, llvm::MaybeAlign());
     					InstancePtr = Builder->CreateCall(CGClass->getInitConstructor(), {RawPtr});
     				}
     			}

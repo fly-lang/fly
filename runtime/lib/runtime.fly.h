@@ -1,6 +1,7 @@
 namespace fly.runtime
 
 public mem_alloc(const ulong size, long out)
+public mem_alloc_zeroed(const ulong size, long out)
 public mem_free(const long ptr, const ulong size)
 public mem_realloc(const long ptr, const ulong newSize, long out)
 

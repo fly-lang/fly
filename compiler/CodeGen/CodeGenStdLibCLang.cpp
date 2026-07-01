@@ -114,7 +114,25 @@ void CodeGenStdLibCLang::BuildCArgsFromArgsStruct(
         llvm::Value *CArg;
         llvm::Type  *CArgTy;
         if (FieldTy == CodeGen::StringTy) {
-            CArg   = Builder->CreateExtractValue(FieldVal, 0);
+            // Fly strings are {ptr,len} and NOT NUL-terminated, but C entry points
+            // (const char*) call strlen and read one past the end — adjacent heap,
+            // which is zero on Linux but garbage on Windows (nondeterministic name
+            // corruption). Copy into a fresh len+1 buffer with a trailing NUL so the
+            // C side always sees a proper C string. Leaks per call, fine for a
+            // one-shot compiler (same rationale as the fly-side cbuf helper).
+            llvm::Value *StrPtr = Builder->CreateExtractValue(FieldVal, 0);
+            llvm::Value *StrLen = Builder->CreateExtractValue(FieldVal, 1);
+            llvm::Type *PtrSizedIntTy = CGM->Module->getDataLayout().getIntPtrType(CGM->LLVMCtx);
+            llvm::Value *LenExt = Builder->CreateIntCast(StrLen, PtrSizedIntTy, false);
+            llvm::Value *AllocSize = Builder->CreateAdd(LenExt, llvm::ConstantInt::get(PtrSizedIntTy, 1));
+            llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
+                "malloc", llvm::FunctionType::get(
+                    llvm::PointerType::getUnqual(CGM->LLVMCtx), {PtrSizedIntTy}, false));
+            llvm::Value *Buf = Builder->CreateCall(MallocFn, {AllocSize}, "cstr");
+            Builder->CreateMemCpy(Buf, llvm::MaybeAlign(), StrPtr, llvm::MaybeAlign(), LenExt);
+            llvm::Value *NulPtr = Builder->CreateInBoundsGEP(CodeGen::Int8Ty, Buf, {LenExt});
+            Builder->CreateStore(llvm::ConstantInt::get(CodeGen::Int8Ty, 0), NulPtr);
+            CArg   = Buf;
             CArgTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
         } else if (FieldTy->isStructTy()) {
             // Class-type fields (e.g. fly.mem.Ptr) in Args structs are assigned via Fly's
