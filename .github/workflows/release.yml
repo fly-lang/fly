@@ -1,11 +1,15 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 0.14.0)'
+        required: true
+        type: string
 
 env:
+  WIN_FILE: win-x64.zip
   LINUX_FILE: linux-x86_64.tar.gz
 
 jobs:
@@ -13,56 +17,75 @@ jobs:
   build-linux:
     uses: ./.github/workflows/build-linux.yml
 
-  # build-windows temporarily disabled (see build-windows.yml).
+  build-windows:
+    uses: ./.github/workflows/build-windows.yml
 
   release:
-    needs: [build-linux]
+    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Read Version from fly.toml
+      - name: Resolve version
         id: version
         shell: bash
         run: |
-          VERSION=$(grep '^version' fly.toml | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
-          if [ -z "$VERSION" ]; then
-            echo "ERROR: Could not read version from fly.toml"
-            exit 1
-          fi
+          VERSION="${{ inputs.version }}"
+          [ -n "$VERSION" ] || { echo "ERROR: version input is required"; exit 1; }
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Resolved version: $VERSION"
+
+      - name: Resolve artifact suffix
+        id: artifact
+        shell: bash
+        run: |
+          SUFFIX="${{ github.ref_name }}"
+          echo "suffix=${SUFFIX//\//-}" >> $GITHUB_OUTPUT
 
       - name: Download Linux artifact
         uses: actions/download-artifact@v4
         with:
-          name: linux-artifact-main
+          name: linux-artifact-${{ steps.artifact.outputs.suffix }}
           path: ./linux
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-artifact-${{ steps.artifact.outputs.suffix }}
+          path: ./windows
 
       - name: Package Linux
         run: |
           cd linux
           tar -czvf ../fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }} *
 
+      - name: Package Windows
+        run: |
+          cd windows
+          zip -r ../fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }} *
+
       - name: Verify artifacts
         run: |
           ls -la fly-*
           [ -f "fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}" ] || exit 1
+          [ -f "fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }}" ] || exit 1
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           draft: false
-          prerelease: true
+          prerelease: false
           tag_name: v${{ steps.version.outputs.version }}
           name: Fly ${{ steps.version.outputs.version }}
           files: |
             fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}
+            fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }}
           body: |
             Fly ${{ steps.version.outputs.version }} Release
 
             Built and tested on:
             - Linux (Ubuntu)
+            - Windows (x64)
         env:
           GITHUB_TOKEN: ${{ github.token }}
