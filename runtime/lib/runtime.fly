@@ -1,7 +1,10 @@
 namespace fly.runtime
 
 // ── Memory (Runtime.h) ──────────────────────────────────────────────────────
+// mem_alloc: UNINITIALISED heap (Rust GlobalAlloc::alloc / malloc).
+// mem_alloc_zeroed: ZEROED heap (Rust GlobalAlloc::alloc_zeroed / calloc).
 public void mem_alloc(const ulong size, long out) {}
+public void mem_alloc_zeroed(const ulong size, long out) {}
 public void mem_free(const long ptr, const ulong size) {}
 public void mem_realloc(const long ptr, const ulong newSize, long out) {}
 
