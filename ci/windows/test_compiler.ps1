@@ -18,7 +18,8 @@
 $ErrorActionPreference = 'Continue'
 $PSNativeCommandUseErrorActionPreference = $false
 
-Set-Location $PSScriptRoot
+# Scripts live in ci\windows\; operate from the project root (two levels up).
+Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
 
 # Scratch for per-suite test binaries/logs; under build/ but separate from
 # build/bin so it doesn't sit next to the release artifact.

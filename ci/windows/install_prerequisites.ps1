@@ -9,8 +9,8 @@
 # the same locally.
 #
 # Local use: dot-source it so LIB/PATH/FLY persist in your shell, then build:
-#     . .\install_prerequisites.ps1
-#     .\build_compiler.ps1
+#     . .\ci\windows\install_prerequisites.ps1
+#     .\ci\windows\build_compiler.ps1
 #
 # In CI ($GITHUB_ENV set) it appends to $GITHUB_ENV / $GITHUB_PATH instead of the
 # process environment - auto-detected below.
@@ -31,12 +31,13 @@ $ErrorActionPreference = 'Stop'
 $LLVM_VERSION = if ($env:LLVM_VERSION) { $env:LLVM_VERSION } else { "20.1.8" }
 $FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.7" }
 
-# Resolve everything against the script's own directory (the project root) so the
-# downloads land next to build_compiler.ps1 regardless of the caller's cwd, and
-# without changing it (this script is dot-sourced locally). All prerequisites go
-# under build\ (alongside the build\bin output, so a single dir is disposable):
-# LLVM in build\llvm, the bootstrap compiler in build\bootstrap.
-$buildDir = Join-Path $PSScriptRoot 'build'
+# Resolve everything against the PROJECT ROOT (this script lives in ci\windows\,
+# two levels down) so the downloads land next to the build regardless of the
+# caller's cwd, and without changing it (this script is dot-sourced locally). All
+# prerequisites go under build\ (alongside the build\bin output, so a single dir
+# is disposable): LLVM in build\llvm, the bootstrap compiler in build\bootstrap.
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$buildDir = Join-Path $repoRoot 'build'
 $llvmLib  = Join-Path $buildDir 'llvm\lib'
 $llvmBin  = Join-Path $buildDir 'llvm\bin'
 $flyDir   = Join-Path $buildDir 'bootstrap'
@@ -112,5 +113,5 @@ if ($env:GITHUB_ENV) {
     Write-Host "Prerequisites configured for this session:"
     Write-Host "  LLVM $LLVM_VERSION  -> LIB += $llvmLib ; PATH += $llvmBin"
     Write-Host "  fly  $FLY_VERSION   -> FLY  = $flyExe ; PATH += $flyBin"
-    Write-Host "Note: dot-source this script (. .\install_prerequisites.ps1) for LIB/PATH/FLY to persist in your shell before running .\build_compiler.ps1"
+    Write-Host "Note: dot-source this script (. .\ci\windows\install_prerequisites.ps1) for LIB/PATH/FLY to persist in your shell before running .\ci\windows\build_compiler.ps1"
 }

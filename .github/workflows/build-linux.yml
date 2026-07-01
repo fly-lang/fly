@@ -23,33 +23,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install LLVM 20
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y llvm-20-dev libllvm20 lld-20 clang-20
-
-      - name: Download fly binary
-        run: |
-          set -euo pipefail
-          curl -fsSL \
-            "https://github.com/fly-lang/fly/releases/download/v${FLY_VERSION}/fly-${FLY_VERSION}-linux-x86_64.tar.gz" \
-            -o fly.tar.gz
-          mkdir -p fly
-          tar -xzf fly.tar.gz -C fly
-          FLY_BIN="$(pwd)/fly/bin/fly"
-          chmod +x "$FLY_BIN"
-          # Use an absolute path (not a bare `fly` on PATH): released compilers
-          # derive their stdlib dir from the executable path, and a bare name
-          # resolved from a cwd containing this `fly/` directory breaks that
-          # lookup. The build/test scripts honour $FLY.
-          echo "FLY=$FLY_BIN" >> "$GITHUB_ENV"
-          echo "$(pwd)/fly/bin" >> "$GITHUB_PATH"
+      # Install LLVM 20 (apt) + the bootstrap fly compiler ($FLY / PATH). Single
+      # source of truth shared with local builds: it self-skips work already done
+      # and wires up the env via $GITHUB_ENV/$GITHUB_PATH in CI. Run it locally to
+      # reproduce this.
+      - name: Install prerequisites (LLVM + fly)
+        run: chmod +x ./ci/linux/install_prerequisites.sh && ./ci/linux/install_prerequisites.sh
 
       - name: Build self-host compiler
-        run: chmod +x ./build_compiler.sh && ./build_compiler.sh
+        run: chmod +x ./ci/linux/build_compiler.sh && ./ci/linux/build_compiler.sh
 
       - name: Test self-host compiler
-        run: chmod +x ./test_compiler.sh && ./test_compiler.sh
+        run: chmod +x ./ci/linux/test_compiler.sh && ./ci/linux/test_compiler.sh
 
       - name: Set artifact name
         id: artifact

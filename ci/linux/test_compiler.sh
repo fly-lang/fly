@@ -8,7 +8,8 @@
 # No file list, no concatenation.
 # ─────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
-cd "$(dirname "$0")"
+# Scripts live in ci/linux/; operate from the project root (two levels up).
+cd "$(dirname "$0")/../.."
 
 # Scratch for per-suite test binaries/logs; under build/ but separate from
 # build/bin so it doesn't sit next to the release artifact.

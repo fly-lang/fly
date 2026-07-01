@@ -49,11 +49,11 @@ jobs:
       # in CI. Run it locally to reproduce this.
       - name: Install prerequisites (LLVM + fly)
         shell: pwsh
-        run: .\install_prerequisites.ps1
+        run: .\ci\windows\install_prerequisites.ps1
 
       - name: Build self-host compiler
         shell: pwsh
-        run: .\build_compiler.ps1
+        run: .\ci\windows\build_compiler.ps1
 
       - name: Test self-host compiler
         # Non-blocking: a subset of codegen suites is non-deterministically
@@ -62,7 +62,7 @@ jobs:
         # full suite results show in the log. Make strict again once stable.
         continue-on-error: true
         shell: pwsh
-        run: .\test_compiler.ps1
+        run: .\ci\windows\test_compiler.ps1
 
       - name: Set artifact name
         id: artifact

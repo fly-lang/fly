@@ -17,7 +17,8 @@ $ErrorActionPreference = 'Stop'
 # native non-zero exit throw before our own $LASTEXITCODE check. Disable it so the
 # explicit check below is the sole arbiter (harmless no-op variable on PS 5.1).
 $PSNativeCommandUseErrorActionPreference = $false
-Set-Location $PSScriptRoot
+# Scripts live in ci\windows\; operate from the project root (two levels up).
+Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
 
 # build/bin is the release-artifact path the workflows (build-windows.yml ->
 # release.yml) upload and package; keep emitting the `fly` binary there.

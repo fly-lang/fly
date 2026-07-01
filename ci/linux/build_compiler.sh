@@ -15,7 +15,8 @@
 #PATH="$PATH:/home/marco/Projects/flylang/fly/build/bin"
 
 set -euo pipefail
-cd "$(dirname "$0")"
+# Scripts live in ci/linux/; operate from the project root (two levels up).
+cd "$(dirname "$0")/../.."
 
 # build/bin is the release-artifact path the workflows (build-linux.yml →
 # release.yml) upload and package; keep emitting the `fly` binary there.
