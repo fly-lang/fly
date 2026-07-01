@@ -53,15 +53,9 @@ llvm::AllocaInst *CodeGenVar::Alloca() {
 	} else if (T->isStructTy()) {
 		llvm::PointerType *PtrTy = T->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 		this->Pointer = CGM->Builder->CreateAlloca(PtrTy);
-		// Zero the ptr slot up front, for the same reason as the string slot above:
-		// scope cleanup (and any read before the declaration is reached) must see a
-		// null pointer, not garbage. On Linux fresh stack pages are zero, but on
-		// Windows they hold reused garbage → nondeterministic behaviour. The STRUCT
-		// kind overwrites this below; CLASS/INTERFACE keep null until addArgs mallocs.
-		CGM->Builder->CreateStore(llvm::Constant::getNullValue(PtrTy), this->Pointer);
 
 		// For STRUCT kind: pre-allocate data on the caller's stack and point ptr_slot at it.
-		// CLASS/INTERFACE keep the ptr_slot null here; addArgs() will malloc for them.
+		// CLASS/INTERFACE keep the ptr_slot uninitialised here; addArgs() will malloc for them.
 		SemaType *SemaTy = Sema->getType();
 		if (SemaTy && SemaTy->getKind() == SemaKind::TYPE_CLASS &&
 		    static_cast<SemaClassType *>(SemaTy)->getClassKind() == SemaClassKind::STRUCT) {
@@ -71,12 +65,7 @@ llvm::AllocaInst *CodeGenVar::Alloca() {
 	} else {
 		// Alloca for non-struct types
 		// Check if the type is bool (i1) and convert it to i8
-		llvm::Type *AllocTy = T->isIntegerTy(1) ? CodeGen::Int8Ty : T;
-		this->Pointer = CGM->Builder->CreateAlloca(AllocTy);
-		// Zero-initialise the slot so an uninitialised local reads as its zero value
-		// (fly zero-value semantics) rather than Windows stack garbage. Mirrors the
-		// string-slot zeroing above; a dead store when an initialiser follows.
-		CGM->Builder->CreateStore(llvm::Constant::getNullValue(AllocTy), this->Pointer);
+		this->Pointer = CGM->Builder->CreateAlloca(T->isIntegerTy(1) ? CodeGen::Int8Ty : T);
 	}
 	return llvm::cast<llvm::AllocaInst>(this->Pointer);
 }
