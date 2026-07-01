@@ -9,6 +9,15 @@
 # No file list, no concatenation.
 # -----------------------------------------------------------------------------
 
+# Keep $LASTEXITCODE the sole arbiter of pass/fail (like bash `if ! "$FLY"`):
+# don't let a native command's stderr or non-zero exit raise a terminating error
+# that would abort the loop before the summary. CI runs this under `shell: pwsh`
+# where $ErrorActionPreference='Stop' and pwsh 7.4 enables
+# $PSNativeCommandUseErrorActionPreference; both are neutralised here. (On PS 5.1
+# the native-command variable is just an unused local.)
+$ErrorActionPreference = 'Continue'
+$PSNativeCommandUseErrorActionPreference = $false
+
 Set-Location $PSScriptRoot
 
 # Scratch for per-suite test binaries/logs; under build/ but separate from
@@ -39,10 +48,13 @@ foreach ($suite in $suites) {
 
     & $FLY $suite.FullName --test --src-dir compiler -o "test_$name" --out-dir $OUT -L $STD *> $log
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "  COMPILE FAIL  $name"
-        Select-String -Path $log -Pattern 'error|broken|abort' |
-            Select-Object -First 3 |
-            ForEach-Object { "      $($_.Line)" }
+        Write-Host "  COMPILE FAIL  $name (exit $LASTEXITCODE)"
+        # Match real diagnostics (`error:`), not the substring "error" inside
+        # warnings like 'errorHandler'/'SemaError'. If nothing matches (e.g. a
+        # silent crash with a 0xC.. exit), fall back to the log tail for context.
+        $hits = Select-String -Path $log -Pattern 'error:|broken|abort' | Select-Object -First 3
+        if ($hits) { $hits | ForEach-Object { "      $($_.Line)" } }
+        else { Get-Content -Tail 3 $log | ForEach-Object { "      $_" } }
         $fail++
         continue
     }

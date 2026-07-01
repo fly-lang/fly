@@ -174,6 +174,18 @@ public class CodeGenClass {
         fly.mem.Ptr obj
         llvm.buildMalloc(b, structTy, "obj", obj)
 
+        // Zero the instance so fields the constructor does not assign are
+        // deterministic across platforms (Windows malloc returns garbage; Linux
+        // zeroes). Mirrors the memset-after-malloc in the C++ reference codegen.
+        fly.mem.Ptr i8Ty
+        llvm.int8TypeInContext(cgm.getCtx(), i8Ty)
+        fly.mem.Ptr zeroVal
+        llvm.constInt(i8Ty, 0, false, zeroVal)
+        fly.mem.Ptr szVal
+        llvm.sizeOf(structTy, szVal)
+        fly.mem.Ptr memsetV
+        llvm.buildMemSet(b, obj, zeroVal, szVal, 0, memsetV)
+
         fly.mem.Ptr vtSlot
         llvm.buildStructGEP2(b, structTy, obj, 0, "vtslot", vtSlot)
         fly.mem.Ptr vtable = cls.getLlvmVTable()

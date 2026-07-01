@@ -161,6 +161,15 @@ struct Ptr4IntStrArgs : Args {
     string s
 }
 
+// 4 ptrs + int, e.g. LLVMBuildMemSet(B, Ptr, Val, Len, Align).
+struct Ptr4IntArgs : Args {
+    fly.mem.Ptr a
+    fly.mem.Ptr b
+    fly.mem.Ptr c
+    fly.mem.Ptr d
+    int n
+}
+
 struct StrArgs : Args {
     string s
 }
@@ -998,6 +1007,29 @@ public class LLVM {
         a.s = name
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMBuildMalloc", a, v)
+    }
+
+    // sizeOf — LLVMSizeOf(Ty): an i64 constant (ConstantExpr) of Ty's ABI size,
+    // usable as the Len operand of buildMemSet.
+    public void sizeOf(const fly.mem.Ptr ty, fly.mem.Ptr v) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = ty
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMSizeOf", a, v)
+    }
+
+    // buildMemSet — LLVMBuildMemSet(B, Ptr, Val, Len, Align): fill Len bytes at Ptr
+    // with the i8 Val. Align 0 = unspecified. Used to zero a fresh malloc so fields
+    // the constructor does not assign are deterministic (Windows heap is garbage).
+    public void buildMemSet(const fly.mem.Ptr b, const fly.mem.Ptr ptr, const fly.mem.Ptr val, const fly.mem.Ptr len, const int align, fly.mem.Ptr v) {
+        Ptr4IntArgs a = new Ptr4IntArgs()
+        a.a = b
+        a.b = ptr
+        a.c = val
+        a.d = len
+        a.n = align
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildMemSet", a, v)
     }
 
     public void buildStructGEP2(const fly.mem.Ptr b, const fly.mem.Ptr ty, const fly.mem.Ptr ptr, const int idx, const string name, fly.mem.Ptr v) {
