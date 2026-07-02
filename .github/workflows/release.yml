@@ -47,13 +47,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: linux-artifact-${{ steps.artifact.outputs.suffix }}
-          path: ./linux
+          path: build/linux
 
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
         with:
           name: windows-artifact-${{ steps.artifact.outputs.suffix }}
-          path: ./windows
+          path: build/windows
 
       - name: Package Linux
         run: |

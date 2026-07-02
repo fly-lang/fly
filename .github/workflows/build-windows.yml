@@ -74,5 +74,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact.outputs.artifact_name }}
-          path: build/bin/fly.exe
+          path: build/windows
           overwrite: true
