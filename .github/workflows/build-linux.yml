@@ -84,4 +84,5 @@ jobs:
         with:
           name: ${{ steps.artifact.outputs.artifact_name }}
           path: dist/
+          if-no-files-found: error
           overwrite: true
