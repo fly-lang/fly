@@ -1,32 +1,29 @@
 namespace fly.runtime
 
 // ── Memory (Runtime.h) ──────────────────────────────────────────────────────
-// mem_alloc: UNINITIALISED heap (Rust GlobalAlloc::alloc / malloc).
-// mem_alloc_zeroed: ZEROED heap (Rust GlobalAlloc::alloc_zeroed / calloc).
-public void mem_alloc(const ulong size, long out) {}
-public void mem_alloc_zeroed(const ulong size, long out) {}
-public void mem_free(const long ptr, const ulong size) {}
-public void mem_realloc(const long ptr, const ulong newSize, long out) {}
+public void mem_alloc(const ulong size, pointer out) {}
+public void mem_free(const pointer ptr, const ulong size) {}
+public void mem_realloc(const pointer ptr, const ulong newSize, pointer out) {}
 
 // ── I/O (Runtime.h) ─────────────────────────────────────────────────────────
-public void io_write(const int fd, const long buf, const ulong count, long out) {}
+public void io_write(const int fd, const pointer buf, const ulong count, long out) {}
 
 // ── Process (Runtime.h) ─────────────────────────────────────────────────────
 public void proc_exit(const int code) {}
 // proc_exec: spawn 'path' (C-string ptr) with 'argv' (NULL-terminated char** ptr),
 // inheriting the environment; blocks until done. out = exit code (0..255), -1 on failure.
-public void proc_exec(const long path, const long argv, int out) {}
+public void proc_exec(const pointer path, const pointer argv, int out) {}
 
 // ── Threads (Runtime.h) ─────────────────────────────────────────────────────
-public void thread_spawn(const long fn, const long arg, const ulong stackSize, int out) {}
-public void futex_wait(const long addr, const int expected) {}
-public void futex_wake(const long addr, const int count, int out) {}
+public void thread_spawn(const pointer fn, const pointer arg, const ulong stackSize, int out) {}
+public void futex_wait(const pointer addr, const int expected) {}
+public void futex_wake(const pointer addr, const int count, int out) {}
 
 // ── Atomic operations (Runtime.h) ────────────────────────────────────────────
-public void atomic_load_i32(const long addr, int out) {}
-public void atomic_store_i32(const long addr, const int val) {}
-public void atomic_cas_i32(const long addr, const int expected, const int desired, int out) {}
-public void atomic_fetch_add_i32(const long addr, const int delta, int out) {}
+public void atomic_load_i32(const pointer addr, int out) {}
+public void atomic_store_i32(const pointer addr, const int val) {}
+public void atomic_cas_i32(const pointer addr, const int expected, const int desired, int out) {}
+public void atomic_fetch_add_i32(const pointer addr, const int delta, int out) {}
 
 // ── Math (libm) — functions without LLVM intrinsics ─────────────────────────
 public void erf(const double x, double out) {}
@@ -46,33 +43,33 @@ public void erfc(const double x, double out) {}
 
 // ── Filesystem (Runtime.h) ───────────────────────────────────────────────────
 // flags: O_RDONLY=0, O_WRONLY=1, O_RDWR=2, O_CREAT=64, O_TRUNC=512, O_APPEND=1024
-public void fs_open(const long path, const int flags, const int mode, int out) {}
+public void fs_open(const pointer path, const int flags, const int mode, int out) {}
 public void fs_close(const int fd) {}
-public void fs_read(const int fd, const long buf, const ulong count, long out) {}
-public void fs_write(const int fd, const long buf, const ulong count, long out) {}
+public void fs_read(const int fd, const pointer buf, const ulong count, long out) {}
+public void fs_write(const int fd, const pointer buf, const ulong count, long out) {}
 // whence: 0=SEEK_SET, 1=SEEK_CUR, 2=SEEK_END
 public void fs_seek(const int fd, const long offset, const int whence, long out) {}
 // stat: size_out = file size, mode_out = mode bits (S_IFREG=0x8000, S_IFDIR=0x4000, S_IFLNK=0xA000)
-public void fs_stat(const long path, ulong size_out, int mode_out, int out) {}
+public void fs_stat(const pointer path, ulong size_out, int mode_out, int out) {}
 // lstat: like fs_stat but does not follow symlinks
-public void fs_lstat(const long path, ulong size_out, int mode_out, int out) {}
+public void fs_lstat(const pointer path, ulong size_out, int mode_out, int out) {}
 // single-value stat helpers: each returns one value (-1 on error)
-public void fs_size(const long path, long out) {}
-public void fs_mode(const long path, int out) {}
-public void fs_lsize(const long path, long out) {}
-public void fs_lmode(const long path, int out) {}
-public void fs_mkdir(const long path, const int mode, int out) {}
-public void fs_rmdir(const long path, int out) {}
-public void fs_unlink(const long path, int out) {}
-public void fs_rename(const long src, const long dst, int out) {}
+public void fs_size(const pointer path, long out) {}
+public void fs_mode(const pointer path, int out) {}
+public void fs_lsize(const pointer path, long out) {}
+public void fs_lmode(const pointer path, int out) {}
+public void fs_mkdir(const pointer path, const int mode, int out) {}
+public void fs_rmdir(const pointer path, int out) {}
+public void fs_unlink(const pointer path, int out) {}
+public void fs_rename(const pointer src, const pointer dst, int out) {}
 public void fs_fsync(const int fd, int out) {}
-public void fs_truncate(const long path, const long size, int out) {}
-public void fs_chmod(const long path, const int mode, int out) {}
-public void fs_symlink(const long target, const long link, int out) {}
+public void fs_truncate(const pointer path, const long size, int out) {}
+public void fs_chmod(const pointer path, const int mode, int out) {}
+public void fs_symlink(const pointer target, const pointer link, int out) {}
 // readlink: returns bytes written into buf, -1 on error (buf not null-terminated)
-public void fs_readlink(const long path, const long buf, const ulong size, int out) {}
+public void fs_readlink(const pointer path, const pointer buf, const ulong size, int out) {}
 // getdents: returns bytes filled, 0 at end-of-dir, -1 on error
-public void fs_getdents(const int fd, const long buf, const ulong size, int out) {}
+public void fs_getdents(const int fd, const pointer buf, const ulong size, int out) {}
 
 // ── Time (Runtime.h) ─────────────────────────────────────────────────────────
 public void time_realtime(long sec_out, long nsec_out, int out) {}
@@ -84,42 +81,42 @@ public void time_sleep(const long sec, const long nsec) {}
 
 // ── Environment (Runtime.h) ──────────────────────────────────────────────────
 // Returns path length on success, -1 on error
-public void env_getcwd(const long buf, const ulong cap, int out) {}
+public void env_getcwd(const pointer buf, const ulong cap, int out) {}
 // Returns 0 on success, -1 on error
-public void env_chdir(const long path, int out) {}
+public void env_chdir(const pointer path, int out) {}
 // env_get: copies value into buf; returns value length, -1 if not found
-public void env_get(const long key, const long buf, const ulong size, int out) {}
-public void env_set(const long key, const long val, int out) {}
-public void env_delete(const long key, int out) {}
+public void env_get(const pointer key, const pointer buf, const ulong size, int out) {}
+public void env_set(const pointer key, const pointer val, int out) {}
+public void env_delete(const pointer key, int out) {}
 public void env_all_count(int out) {}
-public void env_all_get(const int idx, const long key_buf, const ulong key_size, const long val_buf, const ulong val_size) {}
+public void env_all_get(const int idx, const pointer key_buf, const ulong key_size, const pointer val_buf, const ulong val_size) {}
 // env_hostname: copies hostname into buf; returns length, -1 on error
-public void env_hostname(const long buf, const ulong size, int out) {}
+public void env_hostname(const pointer buf, const ulong size, int out) {}
 public void env_args_count(int out) {}
 // env_args_get: copies argv[idx] into buf; returns length, -1 on error
-public void env_args_get(const int idx, const long buf, const ulong size, int out) {}
+public void env_args_get(const int idx, const pointer buf, const ulong size, int out) {}
 
 // ── Fly string-array helpers (Runtime.h) ─────────────────────────────────────
 // str_slot_set: writes string struct {ptr, size} at arr_base[idx * 16]
-public void str_slot_set(const long arr_base, const int idx, const long ptr, const int size) {}
+public void str_slot_set(const pointer arr_base, const int idx, const pointer ptr, const int size) {}
 // str_slot_get: reads string struct from arr_base[idx * 16]
-public void str_slot_get(const long arr_base, const int idx, long ptr_out, int size_out) {}
+public void str_slot_get(const pointer arr_base, const int idx, long ptr_out, int size_out) {}
 // single-value string-slot helpers
-public void str_slot_ptr(const long arr_base, const int idx, long out) {}
-public void str_slot_size(const long arr_base, const int idx, int out) {}
+public void str_slot_ptr(const pointer arr_base, const int idx, pointer out) {}
+public void str_slot_size(const pointer arr_base, const int idx, int out) {}
 // env_args_fill: fills arr_base with count string structs from argv[]
-public void env_args_fill(const long arr_base, const int count) {}
+public void env_args_fill(const pointer arr_base, const int count) {}
 // env_all_fill: fills arr_base with count KEY=VALUE string structs from environ[]
-public void env_all_fill(const long arr_base, const int count) {}
+public void env_all_fill(const pointer arr_base, const int count) {}
 // env_osname: copies "linux"/"macos"/"windows" into buf; returns length
-public void env_osname(const long buf, const ulong size, int out) {}
+public void env_osname(const pointer buf, const ulong size, int out) {}
 
 // env_arch: copies the CPU architecture (uname machine, e.g. "x86_64"); returns length
-public void env_arch(const long buf, const ulong size, int out) {}
+public void env_arch(const pointer buf, const ulong size, int out) {}
 // env_kernel: copies the kernel release (uname release, e.g. "7.0.0-22-generic")
-public void env_kernel(const long buf, const ulong size, int out) {}
+public void env_kernel(const pointer buf, const ulong size, int out) {}
 // env_kernelversion: copies the kernel version (uname version build string)
-public void env_kernelversion(const long buf, const ulong size, int out) {}
+public void env_kernelversion(const pointer buf, const ulong size, int out) {}
 // env_exe_path: copies the running executable's absolute path (independent of
 // argv[0]: /proc/self/exe, _NSGetExecutablePath, GetModuleFileName); returns length
-public void env_exe_path(const long buf, const ulong size, int out) {}
+public void env_exe_path(const pointer buf, const ulong size, int out) {}

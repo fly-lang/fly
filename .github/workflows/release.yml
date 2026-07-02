@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches:
-      - main
+      - boot
 
 env:
   WIN_FILE: win-x64.zip

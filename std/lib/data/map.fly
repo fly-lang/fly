@@ -9,9 +9,9 @@ import fly.runtime
 // values (string) are cloned on insert and freed on update/remove/free; trivial
 // values are copied; handles are borrowed. flags: 0=empty, 1=occupied, 2=tombstone.
 public class Map<K, V> {
-    long keys
-    long vals
-    long flags
+    pointer keys
+    pointer vals
+    pointer flags
     int count
     int cap
     int kstride
@@ -37,12 +37,13 @@ public class Map<K, V> {
             this.vstride = vs
         }
         if this.keys == 0 {
-            long nk = 0
+            pointer nk = 0
             fly.runtime.mem_alloc(8 * this.kstride, nk)
-            long nv = 0
+            pointer nv = 0
             fly.runtime.mem_alloc(8 * this.vstride, nv)
-            long nf = 0
-            fly.runtime.mem_alloc_zeroed(8, nf)
+            pointer nf = 0
+            fly.runtime.mem_alloc(8, nf)
+            fly.llvm.memset(nf, 0, 8)
             this.keys = nk
             this.vals = nv
             this.flags = nf
@@ -50,12 +51,13 @@ public class Map<K, V> {
         }
         if this.count * 4 >= this.cap * 3 {
             int newcap = this.cap * 2
-            long nkeys = 0
+            pointer nkeys = 0
             fly.runtime.mem_alloc(newcap * this.kstride, nkeys)
-            long nvals = 0
+            pointer nvals = 0
             fly.runtime.mem_alloc(newcap * this.vstride, nvals)
-            long nflags = 0
-            fly.runtime.mem_alloc_zeroed(newcap, nflags)
+            pointer nflags = 0
+            fly.runtime.mem_alloc(newcap, nflags)
+            fly.llvm.memset(nflags, 0, newcap)
             K kprobe
             int ri = 0
             while ri < this.cap {
@@ -74,14 +76,14 @@ public class Map<K, V> {
                     }
                     long ksoff = ri * this.kstride
                     long kdoff = rb * this.kstride
-                    long ksrc = this.keys + ksoff
-                    long kdst = nkeys + kdoff
+                    pointer ksrc = this.keys + ksoff
+                    pointer kdst = nkeys + kdoff
                     long knb = this.kstride
                     fly.llvm.memcpy(kdst, ksrc, knb)
                     long vsoff = ri * this.vstride
                     long vdoff = rb * this.vstride
-                    long vsrc = this.vals + vsoff
-                    long vdst = nvals + vdoff
+                    pointer vsrc = this.vals + vsoff
+                    pointer vdst = nvals + vdoff
                     long vnb = this.vstride
                     fly.llvm.memcpy(vdst, vsrc, vnb)
                     fly.llvm.ptrPokeByte(nflags, rb, 1)

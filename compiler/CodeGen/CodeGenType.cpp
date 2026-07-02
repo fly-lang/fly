@@ -52,11 +52,11 @@ void CodeGenType::GenType(SemaIntType &Sema) {
 			case SemaIntTypeKind::TYPE_LONG:
 				T = CodeGen::Int64Ty;
 				break;
-			// ptrsize is pointer-sized. The reference only emits for the host
+			// pointer is pointer-sized. The reference only emits for the host
 			// (x86_64), where the pointer width is 64 — use the always-initialised
 			// Int64Ty (IntPtrTy can be null at type-gen time). The target-variable
 			// lowering lives in the self-host compiler.
-			case SemaIntTypeKind::TYPE_PTRSIZE:
+			case SemaIntTypeKind::TYPE_POINTER:
 				T = CodeGen::Int64Ty;
 				break;
 		}

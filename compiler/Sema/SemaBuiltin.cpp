@@ -79,7 +79,7 @@ SemaIntType * SemaBuiltin::getLongType() {
 SemaIntType *SemaBuiltin::PtrSizeType = nullptr;
 SemaIntType * SemaBuiltin::getPtrSizeType() {
 	if (PtrSizeType == nullptr) {
-		PtrSizeType = new SemaIntType(SemaIntTypeKind::TYPE_PTRSIZE, "ptrsize");
+		PtrSizeType = new SemaIntType(SemaIntTypeKind::TYPE_POINTER, "pointer");
 	}
 	return PtrSizeType;
 }

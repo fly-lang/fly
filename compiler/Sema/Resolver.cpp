@@ -702,7 +702,7 @@ void Resolver::visit(ASTBuiltinType &AST) {
 		case ASTBuiltinTypeKind::TYPE_ULONG:
 			Sema = SemaBuiltin::getULongType();
 			break;
-		case ASTBuiltinTypeKind::TYPE_PTRSIZE:
+		case ASTBuiltinTypeKind::TYPE_POINTER:
 			Sema = SemaBuiltin::getPtrSizeType();
 			break;
 		case ASTBuiltinTypeKind::TYPE_FLOAT:

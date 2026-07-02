@@ -7,11 +7,11 @@ import fly.os.env
 // ── Private helpers ───────────────────────────────────────────────────────────
 
 // Copy a Fly string into a fresh null-terminated C-string buffer.
-private long strToCstr(const string src) {
+private pointer strToCstr(const string src) {
     int size = 0
     fly.llvm.strSize(src, size)
     int cap = size + 1
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(cap, buf)
     int i = 0
     while i < size {
@@ -27,7 +27,7 @@ private long strToCstr(const string src) {
 // Read the process current working directory into out (no fly.os.env cross-call).
 private string cwdGet() {
     int cap = 4096
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(cap, buf)
     int len = 0
     fly.runtime.env_getcwd(buf, cap, len)
@@ -62,7 +62,7 @@ public string join(const string base, const string comp) {
         }
     }
     int total = bs + need_sep + cs
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(total + 1, buf)
     int i = 0
     while i < bs {
@@ -86,16 +86,16 @@ public string join(const string base, const string comp) {
 // joinN joins n path segments from the raw StringArray parts using join().
 // Equivalent to calling join() iteratively for each element.
 public string joinN(const string parts, const int n) {
-    long base = 0
+    pointer base = 0
     fly.llvm.strGetPtr(parts, base)
     int count = n
     if count <= 0 {
-        long empty = 0
+        pointer empty = 0
         fly.runtime.mem_alloc(1, empty)
         fly.llvm.strMake(empty, 0, out)
         return
     }
-    long ptr0 = 0
+    pointer ptr0 = 0
     int size0 = 0
     fly.runtime.str_slot_ptr(base, 0, ptr0)
     fly.runtime.str_slot_size(base, 0, size0)
@@ -103,7 +103,7 @@ public string joinN(const string parts, const int n) {
     fly.llvm.strMake(ptr0, size0, result)
     int i = 1
     while i < count {
-        long ptri = 0
+        pointer ptri = 0
         int sizei = 0
         fly.runtime.str_slot_ptr(base, i, ptri)
         fly.runtime.str_slot_size(base, i, sizei)
@@ -138,7 +138,7 @@ public string basename(const string path) {
     int size = 0
     fly.llvm.strSize(path, size)
     if size == 0 {
-        long empty = 0
+        pointer empty = 0
         fly.runtime.mem_alloc(1, empty)
         fly.llvm.strMake(empty, 0, out)
         return
@@ -154,12 +154,12 @@ public string basename(const string path) {
     int start = last_slash + 1
     int len = size - start
     if len <= 0 {
-        long empty = 0
+        pointer empty = 0
         fly.runtime.mem_alloc(1, empty)
         fly.llvm.strMake(empty, 0, out)
         return
     }
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(len, buf)
     i = 0
     while i < len {
@@ -188,7 +188,7 @@ public string dirname(const string path) {
     if last_slash < 0 { len = 1 }
     elsif last_slash == 0 { len = 1 }
     else { len = last_slash }
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(len, buf)
     if last_slash < 0 {
         fly.llvm.strPoke(buf, 0, 46)
@@ -225,13 +225,13 @@ public string ext(const string path) {
         i = i + 1
     }
     if last_dot <= last_slash {
-        long empty = 0
+        pointer empty = 0
         fly.runtime.mem_alloc(1, empty)
         fly.llvm.strMake(empty, 0, out)
         return
     }
     int len = size - last_dot
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(len, buf)
     i = 0
     while i < len {
@@ -266,12 +266,12 @@ public string stem(const string path) {
     if last_dot > start { end_pos = last_dot } else { end_pos = size }
     int len = end_pos - start
     if len <= 0 {
-        long empty = 0
+        pointer empty = 0
         fly.runtime.mem_alloc(1, empty)
         fly.llvm.strMake(empty, 0, out)
         return
     }
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(len, buf)
     i = 0
     while i < len {
@@ -323,7 +323,7 @@ public string normalize(const string path) {
     int plen = 0
     fly.llvm.strSize(path, plen)
     if plen == 0 {
-        long b0 = 0
+        pointer b0 = 0
         fly.runtime.mem_alloc(2, b0)
         fly.llvm.strPoke(b0, 0, 46)
         fly.llvm.strMake(b0, 1, out)
@@ -334,7 +334,7 @@ public string normalize(const string path) {
     fly.llvm.strByteAt(path, 0, first_b)
     bool absolute = first_b == 47
 
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(plen + 2, buf)
     int out_len = 0
 
@@ -470,7 +470,7 @@ public string rel(const string base, const string target) {
     bool both_done = false
     if i == blen { if i == tlen { both_done = true } }
     if both_done {
-        long dot_buf = 0
+        pointer dot_buf = 0
         fly.runtime.mem_alloc(2, dot_buf)
         fly.llvm.strPoke(dot_buf, 0, 46)
         fly.llvm.strMake(dot_buf, 1, out)
@@ -509,7 +509,7 @@ public string rel(const string base, const string target) {
 
     int suffix_len = tlen - t_start
     int total = dotdot_count * 3 + suffix_len + 2
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(total, buf)
     int pos = 0
 
@@ -549,7 +549,7 @@ public string rel(const string base, const string target) {
 
 // isFile returns true if path exists and is a regular file (stat, follows symlinks).
 public bool isFile(const string path) {
-    long cpath = strToCstr(path)
+    pointer cpath = strToCstr(path)
     int fmode = 0
     fly.runtime.fs_mode(cpath, fmode)
     out = false
@@ -561,7 +561,7 @@ public bool isFile(const string path) {
 
 // isDir returns true if path exists and is a directory (follows symlinks).
 public bool isDir(const string path) {
-    long cpath = strToCstr(path)
+    pointer cpath = strToCstr(path)
     int fmode = 0
     fly.runtime.fs_mode(cpath, fmode)
     out = false
@@ -573,7 +573,7 @@ public bool isDir(const string path) {
 
 // isSym returns true if path itself is a symbolic link (lstat, does not follow).
 public bool isSym(const string path) {
-    long cpath = strToCstr(path)
+    pointer cpath = strToCstr(path)
     int fmode = 0
     fly.runtime.fs_lmode(cpath, fmode)
     out = false
@@ -625,7 +625,7 @@ public fly.os.env.StringArray glob(const string pattern) {
         return
     }
 
-    long dir_buf = 0
+    pointer dir_buf = 0
     fly.runtime.mem_alloc(dir_len + 1, dir_buf)
     if last_sep < 0 {
         fly.llvm.strPoke(dir_buf, 0, 46)
@@ -644,7 +644,7 @@ public fly.os.env.StringArray glob(const string pattern) {
     string dir_str = ""
     fly.llvm.strMake(dir_buf, dir_len, dir_str)
 
-    long pat_buf = 0
+    pointer pat_buf = 0
     fly.runtime.mem_alloc(pat_len + 1, pat_buf)
     int ki2 = 0
     while ki2 < pat_len {
@@ -657,7 +657,7 @@ public fly.os.env.StringArray glob(const string pattern) {
     string name_pat = ""
     fly.llvm.strMake(pat_buf, pat_len, name_pat)
 
-    long cdir = strToCstr(dir_str)
+    pointer cdir = strToCstr(dir_str)
     int oflags = 65536
     int fd = 0
     fly.runtime.fs_open(cdir, oflags, 0, fd)
@@ -668,12 +668,12 @@ public fly.os.env.StringArray glob(const string pattern) {
     }
 
     int cap = 8
-    long arr = 0
+    pointer arr = 0
     fly.runtime.mem_alloc(cap * 16, arr)
     int count = 0
 
     int gbuf_cap = 4096
-    long gbuf = 0
+    pointer gbuf = 0
     fly.runtime.mem_alloc(gbuf_cap, gbuf)
 
     string entry_name = ""
@@ -718,7 +718,7 @@ public fly.os.env.StringArray glob(const string pattern) {
                     }
 
                     if skip == false {
-                        long nbuf = 0
+                        pointer nbuf = 0
                         fly.runtime.mem_alloc(name_len + 1, nbuf)
                         int ni = 0
                         while ni < name_len {
@@ -734,7 +734,7 @@ public fly.os.env.StringArray glob(const string pattern) {
 
                         if matched {
                             int full_len = dir_len + need_sep + name_len
-                            long fbuf = 0
+                            pointer fbuf = 0
                             fly.runtime.mem_alloc(full_len + 1, fbuf)
                             int fi = 0
                             while fi < dir_len {
@@ -755,11 +755,11 @@ public fly.os.env.StringArray glob(const string pattern) {
 
                             if count >= cap {
                                 cap = cap * 2
-                                long new_arr = 0
+                                pointer new_arr = 0
                                 fly.runtime.mem_alloc(cap * 16, new_arr)
                                 int ci = 0
                                 while ci < count {
-                                    long ptri = 0
+                                    pointer ptri = 0
                                     int sizei = 0
                                     fly.runtime.str_slot_ptr(arr, ci, ptri)
                                     fly.runtime.str_slot_size(arr, ci, sizei)
@@ -822,7 +822,7 @@ public int globCount(const string pattern) {
         return
     }
 
-    long dir_buf = 0
+    pointer dir_buf = 0
     fly.runtime.mem_alloc(dir_len + 1, dir_buf)
     if last_sep < 0 {
         fly.llvm.strPoke(dir_buf, 0, 46)
@@ -841,7 +841,7 @@ public int globCount(const string pattern) {
     string dir_str = ""
     fly.llvm.strMake(dir_buf, dir_len, dir_str)
 
-    long pat_buf = 0
+    pointer pat_buf = 0
     fly.runtime.mem_alloc(pat_len + 1, pat_buf)
     int ki2 = 0
     while ki2 < pat_len {
@@ -854,7 +854,7 @@ public int globCount(const string pattern) {
     string name_pat = ""
     fly.llvm.strMake(pat_buf, pat_len, name_pat)
 
-    long cdir = strToCstr(dir_str)
+    pointer cdir = strToCstr(dir_str)
     int fd = 0
     fly.runtime.fs_open(cdir, 65536, 0, fd)
     if fd < 0 {
@@ -864,7 +864,7 @@ public int globCount(const string pattern) {
 
     int count = 0
     int gbuf_cap = 4096
-    long gbuf = 0
+    pointer gbuf = 0
     fly.runtime.mem_alloc(gbuf_cap, gbuf)
     string entry_name = ""
     bool done = false
@@ -906,7 +906,7 @@ public int globCount(const string pattern) {
                         if n0 == 46 { if n1 == 46 { skip = true } }
                     }
                     if skip == false {
-                        long nbuf = 0
+                        pointer nbuf = 0
                         fly.runtime.mem_alloc(name_len + 1, nbuf)
                         int ni = 0
                         while ni < name_len {
@@ -1035,7 +1035,7 @@ public fly.os.env.StringArray comp(const string path) {
         return
     }
 
-    long arr = 0
+    pointer arr = 0
     fly.runtime.mem_alloc(count * 16, arr)
 
     i = start
@@ -1051,7 +1051,7 @@ public fly.os.env.StringArray comp(const string path) {
         if is_sep_or_end {
             if in_comp2 {
                 int clen = i - comp_start
-                long cbuf = 0
+                pointer cbuf = 0
                 fly.runtime.mem_alloc(clen + 1, cbuf)
                 int k = 0
                 while k < clen {
