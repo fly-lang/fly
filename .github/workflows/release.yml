@@ -36,16 +36,23 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Resolved version: $VERSION"
 
+      - name: Resolve artifact suffix
+        id: artifact
+        shell: bash
+        run: |
+          SUFFIX="${{ github.ref_name }}"
+          echo "suffix=${SUFFIX//\//-}" >> $GITHUB_OUTPUT
+
       - name: Download Linux artifact
         uses: actions/download-artifact@v4
         with:
-          name: linux-artifact-main
+          name: linux-artifact-${{ steps.artifact.outputs.suffix }}
           path: ./linux
 
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
         with:
-          name: windows-artifact-main
+          name: windows-artifact-${{ steps.artifact.outputs.suffix }}
           path: ./windows
 
       - name: Package Linux
