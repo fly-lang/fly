@@ -40,7 +40,7 @@ private byte digitToChar(const long d) {
 
 // Append the decimal representation of val into buf at position pos.
 // Returns the new write position in new_pos.
-private int appendDecimal(const long val, const long buf, const int pos) {
+private int appendDecimal(const long val, const pointer buf, const int pos) {
     if val == 0 {
         fly.llvm.strPoke(buf, pos, 48)
         out = pos + 1
@@ -68,7 +68,7 @@ private int appendDecimal(const long val, const long buf, const int pos) {
 }
 
 // Append a 2-digit zero-padded decimal integer into buf at pos.
-private int append2Padded(const long val, const long buf, const int pos) {
+private int append2Padded(const long val, const pointer buf, const int pos) {
     long tens = val / 10
     long ones = val - tens * 10
     byte b1 = digitToChar(tens)
@@ -79,7 +79,7 @@ private int append2Padded(const long val, const long buf, const int pos) {
 }
 
 // Append a 4-digit zero-padded decimal integer into buf at pos.
-private int append4Padded(const long val, const long buf, const int pos) {
+private int append4Padded(const long val, const pointer buf, const int pos) {
     long v = val
     long thousands = v / 1000
     v = v - thousands * 1000
@@ -289,7 +289,7 @@ public string format(Time t, const string pattern) {
 
     int plen = 0
     fly.llvm.strSize(pattern, plen)
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(128, buf)
     int bpos = 0
     int bpos2 = 0
@@ -409,7 +409,7 @@ public string formatSec(const long sec, const string pattern) {
 
     int plen = 0
     fly.llvm.strSize(pattern, plen)
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(128, buf)
     int bpos = 0
     int bpos2 = 0
@@ -757,7 +757,7 @@ public string durationFormat(Duration d) {
     long us    = rem / ns_per_us
     long nanos = rem - us * ns_per_us
 
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(64, buf)
     int pos = 0
 
@@ -866,7 +866,7 @@ public string durationFormatNsec(const long nsec) {
     long us    = rem / ns_per_us
     long nanos = rem - us * ns_per_us
 
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(64, buf)
     int pos = 0
 

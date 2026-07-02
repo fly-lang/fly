@@ -56,7 +56,7 @@ namespace fly {
         // 64 for promotion parity with ulong, and the even tag encodes unsigned.
         // Lowered to the target pointer width in CodeGen. (Replaces usize/isize:
         // addresses/sizes are non-negative, so a single unsigned type suffices.)
-        TYPE_PTRSIZE = 66,
+        TYPE_POINTER = 66,
     };
 
     enum class SemaFloatTypeKind

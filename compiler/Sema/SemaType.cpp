@@ -132,12 +132,12 @@ std::string SemaNumberType::str() const {
 		.End();
 }
 
-// The rank is normally the enum value (which is the bit width). ptrsize uses an
+// The rank is normally the enum value (which is the bit width). pointer uses an
 // out-of-band tag (66), so map its rank to 64 — equal to ulong — so numeric
 // promotion treats a pointer-sized int like its 64-bit sibling. The even tag
 // still drives isUnsigned() correctly.
 static unsigned semaIntKindRank(SemaIntTypeKind IntKind) {
-	if (IntKind == SemaIntTypeKind::TYPE_PTRSIZE) return 64;
+	if (IntKind == SemaIntTypeKind::TYPE_POINTER) return 64;
 	return static_cast<unsigned>(IntKind);
 }
 

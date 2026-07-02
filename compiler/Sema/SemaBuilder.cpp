@@ -86,7 +86,7 @@ static std::string mangleSemaType(SemaType *T) {
 			case SemaIntTypeKind::TYPE_USHORT: return "Us";
 			case SemaIntTypeKind::TYPE_UINT:   return "Ui";
 			case SemaIntTypeKind::TYPE_ULONG:  return "U";
-			case SemaIntTypeKind::TYPE_PTRSIZE: return "Pz";
+			case SemaIntTypeKind::TYPE_POINTER: return "Pz";
 		}
 	}
 	if (T->isFloat()) {

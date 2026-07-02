@@ -11,7 +11,7 @@ import fly.os.env
 // cap is the total allocated capacity.
 public struct Buf {
     // Raw pointer to the allocated memory region.
-    long ptr
+    pointer ptr
     // Number of valid (written) bytes currently in the buffer.
     ulong size
     // Total allocated capacity in bytes.
@@ -94,7 +94,7 @@ public class FileWriter : Writer {
 // Full buffering (fill/peek) is a future enhancement.
 public class BufReader : Reader {
     // Raw pointer to the internal read-ahead buffer.
-    long buf_ptr
+    pointer buf_ptr
     // Number of bytes currently buffered.
     int buf_fill
     // Total capacity of the internal buffer.
@@ -114,7 +114,7 @@ public class BufReader : Reader {
 // BufWriter wraps an inner Writer with a fixed-size write buffer.
 public class BufWriter : Writer {
     // Raw pointer to the internal write buffer.
-    long buf_ptr
+    pointer buf_ptr
     // Number of bytes currently buffered.
     int buf_fill
     // Total capacity of the internal buffer.
@@ -157,13 +157,13 @@ public Writer fileWriter(const int fd) {
 // Grows the buffer exponentially to amortise allocations.
 public Buf readAll(Reader r) {
     int cap = 4096
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(cap, buf)
     int total = 0
     bool done = false
     while done == false {
         int avail = cap - total
-        long tmp = 0
+        pointer tmp = 0
         fly.runtime.mem_alloc(avail, tmp)
         Buf chunk = new Buf()
         chunk.ptr = tmp
@@ -187,7 +187,7 @@ public Buf readAll(Reader r) {
             total = total + nread_int
             if total >= cap {
                 int newcap = cap * 2
-                long newbuf = 0
+                pointer newbuf = 0
                 fly.runtime.mem_alloc(newcap, newbuf)
                 int j = 0
                 while j < total {
@@ -210,12 +210,12 @@ public Buf readAll(Reader r) {
 // line content (without the trailing newline) as a Fly string.
 public string readLine(Reader r) {
     int cap = 256
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(cap, buf)
     int pos = 0
     bool done = false
     while done == false {
-        long tmp = 0
+        pointer tmp = 0
         fly.runtime.mem_alloc(1, tmp)
         Buf chunk = new Buf()
         chunk.ptr = tmp
@@ -233,7 +233,7 @@ public string readLine(Reader r) {
             } else {
                 if pos >= cap {
                     int newcap = cap * 2
-                    long newbuf = 0
+                    pointer newbuf = 0
                     fly.runtime.mem_alloc(newcap, newbuf)
                     int j = 0
                     while j < pos {
@@ -258,18 +258,18 @@ public string readLine(Reader r) {
 // not appended if the stream ends exactly on a '\n'.
 public fly.os.env.StringArray readLines(Reader r) {
     int arr_cap = 16
-    long arr = 0
+    pointer arr = 0
     fly.runtime.mem_alloc(arr_cap * 16, arr)
     int count = 0
     bool at_eof = false
     while at_eof == false {
         int line_cap = 256
-        long line_buf = 0
+        pointer line_buf = 0
         fly.runtime.mem_alloc(line_cap, line_buf)
         int pos = 0
         bool line_done = false
         while line_done == false {
-            long tmp = 0
+            pointer tmp = 0
             fly.runtime.mem_alloc(1, tmp)
             Buf chunk = new Buf()
             chunk.ptr = tmp
@@ -288,7 +288,7 @@ public fly.os.env.StringArray readLines(Reader r) {
                 } else {
                     if pos >= line_cap {
                         int newcap = line_cap * 2
-                        long newbuf = 0
+                        pointer newbuf = 0
                         fly.runtime.mem_alloc(newcap, newbuf)
                         int j = 0
                         while j < pos {
@@ -311,7 +311,7 @@ public fly.os.env.StringArray readLines(Reader r) {
         if add_line {
             if count >= arr_cap {
                 int newcap = arr_cap * 2
-                long newarr = 0
+                pointer newarr = 0
                 fly.runtime.mem_alloc(newcap * 16, newarr)
                 int bytes = arr_cap * 16
                 int j = 0
@@ -343,7 +343,7 @@ public bool writeAll(Writer w, Buf buf) {
 // writeString writes the bytes of Fly string s to Writer w.
 // Returns true on success, false if the write returned an error.
 public bool writeString(Writer w, const string s) {
-    long ptr = 0
+    pointer ptr = 0
     int size = 0
     fly.llvm.strGetPtr(s, ptr)
     fly.llvm.strSize(s, size)
@@ -394,7 +394,7 @@ public void bufFlush(BufWriter w) {
 // Writes the total byte count into out_copied.
 public long copy(Reader src, Writer dst) {
     int chunk_sz = 8192
-    long tmp = 0
+    pointer tmp = 0
     fly.runtime.mem_alloc(chunk_sz, tmp)
     long total = 0
     bool done = false
@@ -423,7 +423,7 @@ public long copy(Reader src, Writer dst) {
 // Stops at n bytes or EOF, whichever comes first.  Writes actual count to out_copied.
 public long copyN(Reader src, Writer dst, const ulong n) {
     int chunk_sz = 8192
-    long tmp = 0
+    pointer tmp = 0
     fly.runtime.mem_alloc(chunk_sz, tmp)
     long total = 0
     ulong remaining = n
@@ -467,7 +467,7 @@ public long pipe(Reader pipe_r, Writer pipe_w) {
 // escapes RAW (`"\n"` is the two chars backslash+n, NOT a newline), so the
 // terminator must be emitted as a real byte rather than a literal string.
 public void writeNL(Writer w) {
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(1, buf)
     fly.llvm.strPoke(buf, 0, 10)
     Buf b = new Buf()

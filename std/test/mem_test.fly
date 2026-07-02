@@ -2,8 +2,8 @@ import fly.mem
 import fly.assert
 
 void main() {
-    long p = 0
-    long p2 = 0
+    pointer p = 0
+    pointer p2 = 0
     byte b = 0
     short s = 0
     int i = 0

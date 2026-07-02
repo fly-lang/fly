@@ -370,7 +370,7 @@ ASTType *ASTBuilder::CreateLongType(const SourceLocation &Loc) {
 ASTType *ASTBuilder::CreatePtrSizeType(const SourceLocation &Loc) {
 	FLY_DEBUG_SCOPE_MSG("ASTBuilder", "CreatePtrSizeTypeRef", "Loc=" << Loc.getRawEncoding());
 
-	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_PTRSIZE);
+	ASTType *TypeRef = new ASTBuiltinType(Loc, ASTBuiltinTypeKind::TYPE_POINTER);
 	return TypeRef;
 }
 

@@ -70,6 +70,7 @@ static std::string typeStr(const ASTType *T) {
             case ASTBuiltinTypeKind::TYPE_USHORT: return "ushort";
             case ASTBuiltinTypeKind::TYPE_UINT:   return "uint";
             case ASTBuiltinTypeKind::TYPE_ULONG:  return "ulong";
+            case ASTBuiltinTypeKind::TYPE_POINTER: return "pointer";
             case ASTBuiltinTypeKind::TYPE_FLOAT:  return "float";
             case ASTBuiltinTypeKind::TYPE_DOUBLE: return "double";
             case ASTBuiltinTypeKind::TYPE_STRING: return "string";
