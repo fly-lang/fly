@@ -37,7 +37,7 @@ public class CodeGenClass {
         llvm.structCreateNamed(cgm.getCtx(), sname, st)
         cls.setLlvmStructType(st)
 
-        List<long> fieldTys = new List<long>()
+        List<pointer> fieldTys = new List<pointer>()
         fly.mem.Ptr vtp = types.ptrType()
         fieldTys.add(vtp.addr)                       // slot 0: vtable pointer
         List<SemaClassAttribute> attrs = allAttributes(cls)   // base fields first, then own
@@ -60,7 +60,7 @@ public class CodeGenClass {
 
         fly.mem.Ptr voidTy
         llvm.voidTypeInContext(cgm.getCtx(), voidTy)
-        List<long> ptypes = new List<long>()
+        List<pointer> ptypes = new List<pointer>()
         fly.mem.Ptr err = types.ptrType()
         ptypes.add(err.addr)                         // errPtr
         fly.mem.Ptr thisp = types.ptrType()
@@ -90,7 +90,7 @@ public class CodeGenClass {
         fly.mem.Ptr ptrTy = types.ptrType()
 
         List<SemaClassMethod> ms = vmethods(cls)     // inherited slots + own (overrides in-place)
-        List<long> slots = new List<long>()
+        List<pointer> slots = new List<pointer>()
         fly.mem.Ptr nullSlot
         llvm.constPointerNull(ptrTy, nullSlot)
         slots.add(nullSlot.addr)                     // slot 0: offset-to-top (null)
@@ -194,7 +194,7 @@ public class CodeGenClass {
         SemaFunctionBase ctor = node.getFunction()
         if ctor != null {
             fly.mem.Ptr cf = ctor.getLlvmFn()
-            List<long> argAddrs = new List<long>()
+            List<pointer> argAddrs = new List<pointer>()
             fly.mem.Ptr err = cge.getErrPtr()
             argAddrs.add(err.addr)
             argAddrs.add(obj.addr)
@@ -245,7 +245,7 @@ public class CodeGenClass {
         llvm.int64TypeInContext(cgm.getCtx(), i64Ty)
         fly.mem.Ptr slotIdx
         llvm.constInt(i64Ty, slot, false, slotIdx)
-        List<long> idxAddrs = new List<long>()
+        List<pointer> idxAddrs = new List<pointer>()
         idxAddrs.add(slotIdx.addr)
         fly.mem.Ptr fnSlot
         cg.buildGEP2N(b, ptrTy, vt, idxAddrs, "vfnslot", fnSlot)
@@ -253,7 +253,7 @@ public class CodeGenClass {
         llvm.buildLoad2(b, ptrTy, fnSlot, "vfn", fnPtr)
 
         // arguments: errPtr, obj, real args…, out
-        List<long> argAddrs = new List<long>()
+        List<pointer> argAddrs = new List<pointer>()
         fly.mem.Ptr err = cge.getErrPtr()
         argAddrs.add(err.addr)
         argAddrs.add(objPtr.addr)

@@ -7,7 +7,7 @@ import fly.runtime
 // Ownership: push deep-clones owned values (string); pop transfers ownership to the
 // caller (returns a fresh value and releases the slot); free releases live elements.
 public class Stack<T> {
-    long items
+    pointer items
     int len
     int cap
     int stride
@@ -28,7 +28,7 @@ public class Stack<T> {
         if this.len >= this.cap {
             int newcap = this.cap * 2
             if newcap == 0 { newcap = 8 }
-            long ni = 0
+            pointer ni = 0
             if this.items == 0 {
                 fly.runtime.mem_alloc(newcap * this.stride, ni)
             } else {

@@ -267,7 +267,7 @@ public class CodeGenExpr : SemaVisitor {
         this.llvm.int64TypeInContext(this.cgm.getCtx(), i64)
         fly.mem.Ptr lenC
         this.llvm.constInt(i64, len, false, lenC)
-        List<long> fields = new List<long>()
+        List<pointer> fields = new List<pointer>()
         fields.add(g.addr)
         fields.add(lenC.addr)
         fly.mem.Ptr strTy = this.cgm.getStringTy()

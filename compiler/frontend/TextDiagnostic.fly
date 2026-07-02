@@ -24,7 +24,7 @@ import fly.mem
 // `fly.str` is baked into the compiler binary so new helpers there don't link —
 // so the byte is built locally via the same intrinsics fly.os.io.writeNL uses.
 public string lineFeed() {
-    long buf = fly.mem.alloc(1)
+    pointer buf = fly.mem.alloc(1)
     fly.mem.writeByte(buf, 0, 10)
     fly.str.fromBytes(buf, 1, out)
 }
@@ -34,7 +34,7 @@ public string lineFeed() {
 // string) and `\"` is stored RAW as backslash+quote, so JSON structural quotes
 // must be built byte-wise.
 public string quoteChar() {
-    long buf = fly.mem.alloc(1)
+    pointer buf = fly.mem.alloc(1)
     fly.mem.writeByte(buf, 0, 34)
     fly.str.fromBytes(buf, 1, out)
 }
@@ -42,7 +42,7 @@ public string quoteChar() {
 // backslashChar — a string holding a single `\` byte (0x5C), built byte-wise for
 // the same reason as quoteChar (a literal `"\\"` is two raw chars, not one).
 public string backslashChar() {
-    long buf = fly.mem.alloc(1)
+    pointer buf = fly.mem.alloc(1)
     fly.mem.writeByte(buf, 0, 92)
     fly.str.fromBytes(buf, 1, out)
 }

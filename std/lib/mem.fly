@@ -3,16 +3,16 @@ namespace fly.mem
 import fly.llvm
 import fly.runtime
 
-// Ptr — raw memory address wrapper (void* equivalent). `addr` is `ptrsize`
+// Ptr — raw memory address wrapper (void* equivalent). `addr` is `pointer`
 // (pointer-sized, Rust-style): 64-bit on a 64-bit target, 32-bit on a 32-bit
 // target. When generics are available, Ptr will carry a type parameter <T>
 // and fromPtr<T>() will reconstruct a typed instance from the address.
 public struct Ptr {
-    ptrsize addr
+    pointer addr
 }
 
-// Wrap a raw address as a Ptr. Addresses are `ptrsize` (pointer-sized).
-public Ptr toPtr(const ptrsize addr) {
+// Wrap a raw address as a Ptr. Addresses are `pointer` (pointer-sized).
+public Ptr toPtr(const pointer addr) {
     out.addr = addr
 }
 
@@ -23,72 +23,86 @@ public long ulongToLong(const ulong v) {
     fly.llvm.ulongToLong(v, out)
 }
 
-public void copy(const ptrsize dst, const ptrsize src, const ptrsize size) {
+public void copy(const pointer dst, const pointer src, const pointer size) {
     fly.llvm.memcpy(dst, src, size)
 }
 
-public void move(const ptrsize dst, const ptrsize src, const ptrsize size) {
+public void move(const pointer dst, const pointer src, const pointer size) {
     fly.llvm.memmove(dst, src, size)
 }
 
-public void zero(const ptrsize dst, const ptrsize size) {
+public void zero(const pointer dst, const pointer size) {
     fly.llvm.memset(dst, 0, size)
 }
 
-public ptrsize alloc(const ptrsize size) {
+public pointer alloc(const pointer size) {
     fly.runtime.mem_alloc(size, out)
 }
 
-public void free(const ptrsize ptr, const ptrsize size) {
+public void free(const pointer ptr, const pointer size) {
     fly.runtime.mem_free(ptr, size)
 }
 
 // Null-address check: returns true when ptr is 0 (unset).
-public bool isNull(const ptrsize ptr) {
+public bool isNull(const pointer ptr) {
     out = ptr == 0
 }
 
 // Resize a previous alloc; returns new address (may differ from ptr).
-public ptrsize realloc(const ptrsize ptr, const ptrsize newSize) {
+public pointer realloc(const pointer ptr, const pointer newSize) {
     fly.runtime.mem_realloc(ptr, newSize, out)
 }
 
 // Raw memory comparison (C memcmp semantics).
 // Returns 0 if equal, <0 if a<b, >0 if a>b.
-public int compare(const ptrsize a, const ptrsize b, const ptrsize size) {
+public int compare(const pointer a, const pointer b, const pointer size) {
     fly.llvm.memcmp(a, b, size, out)
 }
 
-// Typed reads — addresses are ptrsize; offset is always in bytes.
-public byte readByte(const ptrsize ptr, const int offset) {
+// Typed reads — addresses are pointer; offset is always in bytes.
+public byte readByte(const pointer ptr, const int offset) {
     fly.llvm.ptrByteAt(ptr, offset, out)
 }
 
-public short readShort(const ptrsize ptr, const int offset) {
+public short readShort(const pointer ptr, const int offset) {
     fly.llvm.ptrReadShort(ptr, offset, out)
 }
 
-public int readInt(const ptrsize ptr, const int offset) {
+public int readInt(const pointer ptr, const int offset) {
     fly.llvm.ptrReadInt(ptr, offset, out)
 }
 
-public long readLong(const ptrsize ptr, const int offset) {
+public long readLong(const pointer ptr, const int offset) {
     fly.llvm.ptrReadLong(ptr, offset, out)
 }
 
-// Typed writes — addresses are ptrsize; offset is always in bytes.
-public void writeByte(const ptrsize ptr, const int offset, const byte val) {
+// Typed writes — addresses are pointer; offset is always in bytes.
+public void writeByte(const pointer ptr, const int offset, const byte val) {
     fly.llvm.ptrPokeByte(ptr, offset, val)
 }
 
-public void writeShort(const ptrsize ptr, const int offset, const short val) {
+public void writeShort(const pointer ptr, const int offset, const short val) {
     fly.llvm.ptrPokeShort(ptr, offset, val)
 }
 
-public void writeInt(const ptrsize ptr, const int offset, const int val) {
+public void writeInt(const pointer ptr, const int offset, const int val) {
     fly.llvm.ptrPokeInt(ptr, offset, val)
 }
 
-public void writeLong(const ptrsize ptr, const int offset, const long val) {
+public void writeLong(const pointer ptr, const int offset, const long val) {
+    fly.llvm.ptrPokeLong(ptr, offset, val)
+}
+
+// Pointer-sized read/write — for storing raw addresses inside buffers. Same
+// backing storage as read/writeLong (8 bytes on a 64-bit target) but typed
+// `pointer` so that addresses read out of / written into memory stay
+// pointer-sized end to end, without being laundered through `long`.
+public pointer readPtr(const pointer ptr, const int offset) {
+    long v = 0
+    fly.llvm.ptrReadLong(ptr, offset, v)
+    out = v
+}
+
+public void writePtr(const pointer ptr, const int offset, const pointer val) {
     fly.llvm.ptrPokeLong(ptr, offset, val)
 }

@@ -18,7 +18,7 @@ public string hostTripleStr() {
     LLVM llvm = new LLVM()
     fly.mem.Ptr tp = fly.mem.toPtr(0)
     llvm.getDefaultTargetTriple(tp)
-    long p = fly.mem.ulongToLong(tp.addr)
+    pointer p = tp.addr
     if p == 0 { out = ""  return }
 
     byte zero = 0

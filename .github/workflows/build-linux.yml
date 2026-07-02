@@ -10,9 +10,9 @@ on:
   workflow_dispatch:
 
 env:
-  # Bootstrap compiler release. Bump to the first release that ships the
-  # executable-path stdlib resolution fix (fly Driver.cpp getMainExecutable);
-  # until then the absolute $FLY below keeps older releases working in CI.
+  # Bootstrap compiler release. Must ship the ptrsize header-gen fix (fly
+  # Frontend.cpp typeStr) so the `--lib` std build emits a valid mem.fly.h;
+  # older releases drop the ptrsize type and produce a header that crashes on load.
   FLY_VERSION: "0.13.7"
 
 jobs:
@@ -46,5 +46,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact.outputs.artifact_name }}
-          path: build/linux
+          # Both dirs: the artifact root is their common ancestor (build/), so it
+          # preserves the bin/ + lib/ layout the release archive needs.
+          path: |
+            build/bin
+            build/lib
+          if-no-files-found: error
           overwrite: true

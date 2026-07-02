@@ -18,9 +18,9 @@ import fly.str
 // buffer and pass its ADDRESS as a Ptr arg (a long is never cloned), giving the C
 // side a real, terminated C string. The buffer outlives the (synchronous) call;
 // it leaks, which is fine for the one-shot compiler.
-public long cbuf(const string s) {
+public pointer cbuf(const string s) {
     int n = fly.str.len(s)
-    long buf = fly.mem.alloc(n + 1)
+    pointer buf = fly.mem.alloc(n + 1)
     byte b = 0
     int i = 0
     while i < n {
@@ -1369,15 +1369,15 @@ public class LLVM {
     // out-pointer, then copy the written value into `target.addr`. `ok` carries the
     // raw LLVMBool return (true = FAILURE); callers should test `target.addr != 0`.
     public void getTargetFromTriple(const string triple, fly.mem.Ptr target, bool ok) {
-        long buf = fly.mem.alloc(8)
-        fly.mem.writeLong(buf, 0, 0)
+        pointer buf = fly.mem.alloc(8)
+        fly.mem.writePtr(buf, 0, 0)
         Ptr3Args a = new Ptr3Args()
         a.a = fly.mem.toPtr(cbuf(triple))   // const char* Triple (NUL-terminated)
         a.b = fly.mem.toPtr(buf)            // LLVMTargetRef* T  (out-pointer buffer)
         // a.c stays null → char** Err = NULL
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMGetTargetFromTriple", a, ok)
-        target.addr = fly.mem.readLong(buf, 0)
+        target.addr = fly.mem.readPtr(buf, 0)
         fly.mem.free(buf, 8)
     }
 

@@ -58,7 +58,7 @@ public class CodeGenModule {
         llvm.int32TypeInContext(c, i32)
         fly.mem.Ptr p1 = this.types.ptrType()
         fly.mem.Ptr p2 = this.types.ptrType()
-        List<long> efields = new List<long>()
+        List<pointer> efields = new List<pointer>()
         efields.add(i32.addr)
         efields.add(p1.addr)
         efields.add(p2.addr)
@@ -72,7 +72,7 @@ public class CodeGenModule {
         fly.mem.Ptr sp = this.types.ptrType()
         fly.mem.Ptr i64s
         llvm.int64TypeInContext(c, i64s)
-        List<long> sfields = new List<long>()
+        List<pointer> sfields = new List<pointer>()
         sfields.add(sp.addr)
         sfields.add(i64s.addr)
         this.cg.structSetBodyN(st, sfields, false)
@@ -92,7 +92,7 @@ public class CodeGenModule {
         if this.freeFn.addr == 0 {
             fly.mem.Ptr voidTy
             llvm.voidTypeInContext(this.ctx, voidTy)
-            List<long> ps = new List<long>()
+            List<pointer> ps = new List<pointer>()
             fly.mem.Ptr p = this.types.ptrType()
             ps.add(p.addr)
             fly.mem.Ptr fty
@@ -102,7 +102,7 @@ public class CodeGenModule {
             llvm.addFunction(this.module, "free", fty, f)
             this.freeFn = f
         }
-        List<long> args = new List<long>()
+        List<pointer> args = new List<pointer>()
         args.add(objPtr.addr)
         fly.mem.Ptr cv
         this.cg.buildCallN(this.builder, this.freeFnTy, this.freeFn, args, "", cv)
@@ -230,7 +230,7 @@ public class CodeGenModule {
         LLVM llvm = this.cg.getLLVM()
         fly.mem.Ptr i32
         llvm.int32TypeInContext(this.ctx, i32)
-        List<long> noParams = new List<long>()
+        List<pointer> noParams = new List<pointer>()
         fly.mem.Ptr wTy
         this.cg.functionTypeN(i32, noParams, false, wTy)
         fly.mem.Ptr w
@@ -248,7 +248,7 @@ public class CodeGenModule {
         llvm.constInt(i32, 0, true, zero)
         llvm.buildStore(this.builder, zero, codePtr)
 
-        List<long> callArgs = new List<long>()
+        List<pointer> callArgs = new List<pointer>()
         callArgs.add(errSlot.addr)
 
         SemaType rt = mainFn.getReturnType()
@@ -291,7 +291,7 @@ public class CodeGenModule {
         fly.mem.Ptr voidTy
         llvm.voidTypeInContext(this.ctx, voidTy)
 
-        List<long> ptypes = new List<long>()
+        List<pointer> ptypes = new List<pointer>()
         fly.mem.Ptr errPtr = this.types.ptrType()
         ptypes.add(errPtr.addr)
         List<SemaParam> params = fn.getParams()
@@ -412,7 +412,7 @@ public class CodeGenModule {
         LLVM llvm = this.cg.getLLVM()
         llvm.setTarget(this.module, ti.getTripleStr())
         llvm.setDataLayout(this.module, ti.getDataLayout())
-        // Make ptrsize lowering follow this target's pointer width.
+        // Make pointer lowering follow this target's pointer width.
         this.types.setTargetInfo(ti)
     }
 

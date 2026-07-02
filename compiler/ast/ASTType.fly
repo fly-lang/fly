@@ -25,7 +25,7 @@ public enum ASTBuiltinTypeKind {
     TYPE_USHORT,
     TYPE_UINT,
     TYPE_ULONG,
-    TYPE_PTRSIZE,
+    TYPE_POINTER,
     TYPE_FLOAT,
     TYPE_DOUBLE,
     TYPE_COMPLEX,

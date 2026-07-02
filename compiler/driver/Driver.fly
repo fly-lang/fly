@@ -364,8 +364,8 @@ public class Driver {
 
     // argAt — read argv[i] from the StringArray's 16-byte {ptr,len} slots.
     public string argAt(const fly.os.env.StringArray args, const int i) {
-        long base = args.items
-        long ptr = fly.mem.readLong(base, i * 16)
+        pointer base = args.items
+        pointer ptr = fly.mem.readPtr(base, i * 16)
         int len = fly.mem.readInt(base, i * 16 + 8)
         string s = ""
         fly.str.fromBytes(ptr, len, s)

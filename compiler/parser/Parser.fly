@@ -349,7 +349,7 @@ public class Parser {
         out = this.curIsKw("void") || this.curIsKw("bool") || this.curIsKw("byte")
            || this.curIsKw("short") || this.curIsKw("ushort") || this.curIsKw("int")
            || this.curIsKw("uint") || this.curIsKw("long") || this.curIsKw("ulong")
-           || this.curIsKw("ptrsize")
+           || this.curIsKw("pointer")
            || this.curIsKw("float") || this.curIsKw("double") || this.curIsKw("complex")
            || this.curIsKw("string") || this.curIsKw("error")
     }
@@ -365,7 +365,7 @@ public class Parser {
         if this.curIsKw("uint")   { this.bump()  out = ASTBuilder.CreateUIntType(loc)    return }
         if this.curIsKw("long")   { this.bump()  out = ASTBuilder.CreateLongType(loc)    return }
         if this.curIsKw("ulong")  { this.bump()  out = ASTBuilder.CreateULongType(loc)   return }
-        if this.curIsKw("ptrsize") { this.bump()  out = ASTBuilder.CreatePtrSizeType(loc) return }
+        if this.curIsKw("pointer") { this.bump()  out = ASTBuilder.CreatePtrSizeType(loc) return }
         if this.curIsKw("float")  { this.bump()  out = ASTBuilder.CreateFloatType(loc)   return }
         if this.curIsKw("double") { this.bump()  out = ASTBuilder.CreateDoubleType(loc)  return }
         if this.curIsKw("complex"){ this.bump()  out = ASTBuilder.CreateComplexType(loc) return }

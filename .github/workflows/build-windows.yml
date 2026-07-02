@@ -10,16 +10,10 @@ on:
   workflow_dispatch:
 
 env:
-  # Bootstrap compiler release. Bump to the first release that ships the
-  # executable-path stdlib resolution fix (fly Driver.cpp getMainExecutable);
-  # until then the absolute $FLY below keeps older releases working in CI.
+  # Bootstrap compiler release. Must ship the ptrsize header-gen fix (fly
+  # Frontend.cpp typeStr) so the `--lib` std build emits a valid mem.fly.h;
+  # older releases drop the ptrsize type and produce a header that crashes on load.
   FLY_VERSION: "0.13.7"
-  # LLVM the self-host compiler links against. We use the project's own LLVM
-  # build (fly-lang/llvm-project release) rather than the stock LLVM installer:
-  # only that build ships an LLVM-C.dll exporting the per-target LLVMInitialize*
-  # symbols the compiler references (the official/choco LLVM-C.dll omits them).
-  # This mirrors Linux, where apt's full libLLVM-20.so exports everything.
-  LLVM_VERSION: "20.1.8"
 
 jobs:
 
@@ -40,7 +34,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build/llvm
-          key: fly-llvm-${{ env.LLVM_VERSION }}-win-x64
+          # Version pin lives in ci/windows/install_prerequisites.ps1 ($LLVM_VERSION);
+          # keep this key in sync when bumping it so a new LLVM invalidates the cache.
+          key: fly-llvm-20.1.8-win-x64
 
       # Fetch + configure LLVM (link lib + runtime DLL, aliased to LLVM-20.lib on
       # LIB/PATH) and the bootstrap fly compiler ($FLY / PATH). Single source of
@@ -74,5 +70,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact.outputs.artifact_name }}
-          path: build/windows
+          # Both dirs: the artifact root is their common ancestor (build/), so it
+          # preserves the bin/ + lib/ layout the release archive needs.
+          path: |
+            build/bin
+            build/lib
+          if-no-files-found: error
           overwrite: true

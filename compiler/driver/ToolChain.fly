@@ -122,7 +122,7 @@ public class ToolChain {
     // ── runLinker — exec `prog` (fallback `alt`) with the built ArgList. Returns
     // true on a 0 exit code. Replaces the in-process lld::*::link(args) call;
     // resolves the binary against $PATH first (execve needs a full path).
-    public bool runLinker(const string prog, const string alt, const long h) {
+    public bool runLinker(const string prog, const string alt, const pointer h) {
         string p = this.resolveProg(prog)
         if fly.str.isEmpty(p) { p = this.resolveProg(alt) }
         if fly.str.isEmpty(p) {
@@ -156,7 +156,7 @@ public class ToolChain {
 
     // ── LinkLinux — the core (cpp:793-1019) ───────────────────────────────────
     public bool LinkLinux(const string inFilesSemi, const string outFile, const FrontendOptions frontendOpts) {
-        long h = fly.os.proc.argsNew()
+        pointer h = fly.os.proc.argsNew()
 
         if fly.str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
             fly.os.proc.argsAdd(h, fly.str.concat("-L", this.codeGenOpts.getToolchainLibDir()))
@@ -338,7 +338,7 @@ public class ToolChain {
 
     // ── LinkDarwin (cpp:749-791) ──────────────────────────────────────────────
     public bool LinkDarwin(const string inFilesSemi, const string outFile) {
-        long h = fly.os.proc.argsNew()
+        pointer h = fly.os.proc.argsNew()
         fly.os.proc.argsAdd(h, "-e")
         fly.os.proc.argsAdd(h, "_main")
         fly.os.proc.argsAdd(h, "-o")
@@ -372,7 +372,7 @@ public class ToolChain {
 
     // ── LinkWindows (cpp:499-608) — structural; SDK discovery stubbed ─────────
     public bool LinkWindows(const string inFilesSemi, const string outFile) {
-        long h = fly.os.proc.argsNew()
+        pointer h = fly.os.proc.argsNew()
         fly.os.proc.argsAdd(h, fly.str.concat(fly.str.concat("/out:", outFile), ".exe"))
 
         if fly.str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {

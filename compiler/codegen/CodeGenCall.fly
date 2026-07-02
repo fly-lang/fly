@@ -31,7 +31,7 @@ public class CodeGenCall {
         fly.mem.Ptr fnTy = fn.getLlvmFnType()
         fly.mem.Ptr fnVal = fn.getLlvmFn()
 
-        List<long> argAddrs = new List<long>()
+        List<pointer> argAddrs = new List<pointer>()
 
         // (1) error pointer — forward the current function's param-0 handler.
         fly.mem.Ptr err = cge.getErrPtr()

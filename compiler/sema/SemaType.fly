@@ -31,7 +31,7 @@ public enum SemaIntTypeKind {
     TYPE_SHORT,   // 15 (signed)
     TYPE_INT,     // 31 (signed)
     TYPE_LONG,    // 63 (signed)
-    TYPE_PTRSIZE  // pointer-sized (unsigned); rank 64, lowered to ptr width
+    TYPE_POINTER  // pointer-sized (unsigned); rank 64, lowered to ptr width
 }
 
 public enum SemaFloatTypeKind {
