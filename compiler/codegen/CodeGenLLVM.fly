@@ -13,8 +13,8 @@ import fly.data.List
 // handle, so we pack the handle ADDRESSES into a contiguous heap buffer (one
 // 8-byte slot each) and pass the buffer address as the array pointer.
 //
-// Marshalling takes a `List<pointer>` of handle addresses (`ptr.addr`), NOT a
-// `List<fly.mem.Ptr>`: a generic List of value structs does not round-trip in the
+// Marshalling takes a `List<pointer>` of handle addresses (`ptr`), NOT a
+// `List<pointer>`: a generic List of value structs does not round-trip in the
 // self-host containers (only class handles and primitives do), whereas List<pointer>
 // works. All single-handle LLVM ops go straight through getLLVM().
 // ─────────────────────────────────────────────────────────────────────────────
@@ -53,59 +53,59 @@ public class CodeGenLLVM {
     }
 
     // functionTypeN — LLVMFunctionType over a marshalled parameter-type array.
-    public void functionTypeN(const fly.mem.Ptr retTy, const List<pointer> paramAddrs, const bool varArg, fly.mem.Ptr ty) {
+    public void functionTypeN(const pointer retTy, const List<pointer> paramAddrs, const bool varArg, pointer ty) {
         int n = paramAddrs.size()
         pointer buf = this.packAddrs(paramAddrs)
-        fly.mem.Ptr arr = fly.mem.toPtr(buf)
+        pointer arr = buf
         this.llvm.functionType(retTy, arr, n, varArg, ty)
         this.freeBuf(buf, n)
     }
 
     // structSetBodyN — LLVMStructSetBody over a marshalled element-type array.
-    public void structSetBodyN(const fly.mem.Ptr structTy, const List<pointer> elemAddrs, const bool packed) {
+    public void structSetBodyN(const pointer structTy, const List<pointer> elemAddrs, const bool packed) {
         int n = elemAddrs.size()
         pointer buf = this.packAddrs(elemAddrs)
-        fly.mem.Ptr arr = fly.mem.toPtr(buf)
+        pointer arr = buf
         this.llvm.structSetBody(structTy, arr, n, packed)
         this.freeBuf(buf, n)
     }
 
     // buildCallN — LLVMBuildCall2 over a marshalled argument-value array.
-    public void buildCallN(const fly.mem.Ptr b, const fly.mem.Ptr fnTy, const fly.mem.Ptr fn, const List<pointer> argAddrs, const string name, fly.mem.Ptr v) {
+    public void buildCallN(const pointer b, const pointer fnTy, const pointer fn, const List<pointer> argAddrs, const string name, pointer v) {
         int n = argAddrs.size()
         pointer buf = this.packAddrs(argAddrs)
-        fly.mem.Ptr arr = fly.mem.toPtr(buf)
+        pointer arr = buf
         this.llvm.buildCall2(b, fnTy, fn, arr, n, name, v)
         this.freeBuf(buf, n)
     }
 
     // constArrayN — LLVMConstArray over a marshalled element-value array.
-    public void constArrayN(const fly.mem.Ptr elemTy, const List<pointer> valAddrs, fly.mem.Ptr v) {
+    public void constArrayN(const pointer elemTy, const List<pointer> valAddrs, pointer v) {
         int n = valAddrs.size()
         pointer buf = this.packAddrs(valAddrs)
-        fly.mem.Ptr arr = fly.mem.toPtr(buf)
+        pointer arr = buf
         this.llvm.constArray(elemTy, arr, n, v)
         this.freeBuf(buf, n)
     }
 
     // constNamedStructN — a constant of a named struct type over marshalled fields.
-    public void constNamedStructN(const fly.mem.Ptr structTy, const List<pointer> valAddrs, fly.mem.Ptr v) {
+    public void constNamedStructN(const pointer structTy, const List<pointer> valAddrs, pointer v) {
         int n = valAddrs.size()
         pointer buf = this.packAddrs(valAddrs)
-        fly.mem.Ptr arr = fly.mem.toPtr(buf)
+        pointer arr = buf
         this.llvm.constNamedStruct(structTy, arr, n, v)
         this.freeBuf(buf, n)
     }
 
     // globalString — emit a private constant `[N x i8]` global holding `bytes`
     // (null-terminated) and return the global (an `i8*` under opaque pointers).
-    public fly.mem.Ptr globalString(const fly.mem.Ptr mod, const fly.mem.Ptr ctx, const string bytes) {
+    public pointer globalString(const pointer mod, const pointer ctx, const string bytes) {
         int n = fly.str.len(bytes)
-        fly.mem.Ptr strConst
+        pointer strConst
         this.llvm.constStringInContext(ctx, bytes, n, true, strConst)
-        fly.mem.Ptr arrTy
+        pointer arrTy
         this.llvm.typeOf(strConst, arrTy)
-        fly.mem.Ptr g
+        pointer g
         this.llvm.addGlobal(mod, arrTy, ".str", g)
         this.llvm.setInitializer(g, strConst)
         this.llvm.setGlobalConstant(g, true)
@@ -113,10 +113,10 @@ public class CodeGenLLVM {
     }
 
     // buildGEP2N — LLVMBuildGEP2 over a marshalled index-value array.
-    public void buildGEP2N(const fly.mem.Ptr b, const fly.mem.Ptr ty, const fly.mem.Ptr ptr, const List<pointer> idxAddrs, const string name, fly.mem.Ptr v) {
+    public void buildGEP2N(const pointer b, const pointer ty, const pointer ptr, const List<pointer> idxAddrs, const string name, pointer v) {
         int n = idxAddrs.size()
         pointer buf = this.packAddrs(idxAddrs)
-        fly.mem.Ptr arr = fly.mem.toPtr(buf)
+        pointer arr = buf
         this.llvm.buildGEP2(b, ty, ptr, arr, n, name, v)
         this.freeBuf(buf, n)
     }

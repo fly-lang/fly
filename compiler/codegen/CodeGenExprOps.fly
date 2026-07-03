@@ -20,8 +20,8 @@ public class CodeGenExprOps {
     public static void assign(const CodeGenExpr cge, const SemaBinary node) {
         SemaExpr left = node.getLeft()
         SemaExpr right = node.getRight()
-        fly.mem.Ptr rhs = cge.gen(right)
-        fly.mem.Ptr addr = cge.genAddr(left)
+        pointer rhs = cge.gen(right)
+        pointer addr = cge.genAddr(left)
         LLVM llvm = cge.getLLVM()
         llvm.buildStore(cge.getBuilder(), rhs, addr)
         node.setLlvmValue(rhs)
@@ -31,15 +31,15 @@ public class CodeGenExprOps {
     public static void arith(const CodeGenExpr cge, const SemaBinary node, const ASTBinaryKind k) {
         SemaExpr left = node.getLeft()
         SemaExpr right = node.getRight()
-        fly.mem.Ptr l = cge.gen(left)
-        fly.mem.Ptr r = cge.gen(right)
+        pointer l = cge.gen(left)
+        pointer r = cge.gen(right)
         LLVM llvm = cge.getLLVM()
-        fly.mem.Ptr b = cge.getBuilder()
+        pointer b = cge.getBuilder()
         bool isF = false
         SemaType t = node.getType()
         if t != null { isF = t.isFloat() }
 
-        fly.mem.Ptr v
+        pointer v
         if k == ASTBinaryKind.OP_BINARY_ARITH_ADD {
             if isF { llvm.buildFAdd(b, l, r, "add", v) } else { llvm.buildAdd(b, l, r, "add", v) }
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_SUB {
@@ -68,15 +68,15 @@ public class CodeGenExprOps {
     public static void compare(const CodeGenExpr cge, const SemaBinary node, const ASTBinaryKind k) {
         SemaExpr left = node.getLeft()
         SemaExpr right = node.getRight()
-        fly.mem.Ptr l = cge.gen(left)
-        fly.mem.Ptr r = cge.gen(right)
+        pointer l = cge.gen(left)
+        pointer r = cge.gen(right)
         LLVM llvm = cge.getLLVM()
-        fly.mem.Ptr b = cge.getBuilder()
+        pointer b = cge.getBuilder()
         bool isF = false
         SemaType lt = left.getType()
         if lt != null { isF = lt.isFloat() }
 
-        fly.mem.Ptr v
+        pointer v
         if isF {
             llvm.buildFCmp(b, fcmpPred(k), l, r, "cmp", v)
         } else {
@@ -91,27 +91,27 @@ public class CodeGenExprOps {
         ASTUnaryKind k = ua.getOpKind()
         SemaExpr e = node.getExpr()
         LLVM llvm = cge.getLLVM()
-        fly.mem.Ptr b = cge.getBuilder()
+        pointer b = cge.getBuilder()
 
         if k == ASTUnaryKind.OP_UNARY_NOT_LOG {
-            fly.mem.Ptr val = cge.gen(e)
-            fly.mem.Ptr ty = cge.lowerType(node.getType())
-            fly.mem.Ptr one
+            pointer val = cge.gen(e)
+            pointer ty = cge.lowerType(node.getType())
+            pointer one
             llvm.constInt(ty, 1, false, one)
-            fly.mem.Ptr v
+            pointer v
             llvm.buildXor(b, val, one, "not", v)
             node.setLlvmValue(v)
             return
         }
 
         // increment / decrement: load, +/- 1, store back; result is new or old value.
-        fly.mem.Ptr addr = cge.genAddr(e)
-        fly.mem.Ptr ty = cge.lowerType(e.getType())
-        fly.mem.Ptr old
+        pointer addr = cge.genAddr(e)
+        pointer ty = cge.lowerType(e.getType())
+        pointer old
         llvm.buildLoad2(b, ty, addr, "ld", old)
-        fly.mem.Ptr one
+        pointer one
         llvm.constInt(ty, 1, true, one)
-        fly.mem.Ptr nv
+        pointer nv
         bool incr = k == ASTUnaryKind.OP_UNARY_PRE_INCR || k == ASTUnaryKind.OP_UNARY_POST_INCR
         if incr { llvm.buildAdd(b, old, one, "inc", nv) } else { llvm.buildSub(b, old, one, "dec", nv) }
         llvm.buildStore(b, nv, addr)
@@ -122,14 +122,14 @@ public class CodeGenExprOps {
     // cast — numeric conversions (int↔int width, int↔float, float↔float).
     public static void cast(const CodeGenExpr cge, const SemaCast node) {
         SemaExpr e = node.getExpr()
-        fly.mem.Ptr val = cge.gen(e)
+        pointer val = cge.gen(e)
         SemaType from = e.getType()
         SemaType to = node.getToType()
         LLVM llvm = cge.getLLVM()
-        fly.mem.Ptr b = cge.getBuilder()
-        fly.mem.Ptr toTy = cge.lowerType(to)
+        pointer b = cge.getBuilder()
+        pointer toTy = cge.lowerType(to)
 
-        fly.mem.Ptr v = val
+        pointer v = val
         bool fromF = false
         bool toF = false
         if from != null { fromF = from.isFloat() }
@@ -163,31 +163,31 @@ public class CodeGenExprOps {
     // loads it. Each arm is gen'd in its own block so side effects stay guarded.
     public static void ternary(const CodeGenExpr cge, const SemaTernary node) {
         LLVM llvm = cge.getLLVM()
-        fly.mem.Ptr b = cge.getBuilder()
-        fly.mem.Ptr ty = cge.lowerType(node.getType())
-        fly.mem.Ptr slot
+        pointer b = cge.getBuilder()
+        pointer ty = cge.lowerType(node.getType())
+        pointer slot
         llvm.buildAlloca(b, ty, "tern.slot", slot)
 
-        fly.mem.Ptr cv = cge.gen(node.getCond())
-        fly.mem.Ptr thenBB = cge.newBlock("tern.then")
-        fly.mem.Ptr elseBB = cge.newBlock("tern.else")
-        fly.mem.Ptr mergeBB = cge.newBlock("tern.end")
-        fly.mem.Ptr cbr
+        pointer cv = cge.gen(node.getCond())
+        pointer thenBB = cge.newBlock("tern.then")
+        pointer elseBB = cge.newBlock("tern.else")
+        pointer mergeBB = cge.newBlock("tern.end")
+        pointer cbr
         llvm.buildCondBr(b, cv, thenBB, elseBB, cbr)
         cge.setTerminated(true)
 
         cge.position(thenBB)
-        fly.mem.Ptr tv = cge.gen(node.getTrueExpr())
+        pointer tv = cge.gen(node.getTrueExpr())
         llvm.buildStore(cge.getBuilder(), tv, slot)
         cge.br(mergeBB)
 
         cge.position(elseBB)
-        fly.mem.Ptr fv = cge.gen(node.getFalseExpr())
+        pointer fv = cge.gen(node.getFalseExpr())
         llvm.buildStore(cge.getBuilder(), fv, slot)
         cge.br(mergeBB)
 
         cge.position(mergeBB)
-        fly.mem.Ptr loaded
+        pointer loaded
         llvm.buildLoad2(cge.getBuilder(), ty, slot, "ternv", loaded)
         node.setLlvmValue(loaded)
     }

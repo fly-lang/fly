@@ -40,7 +40,12 @@ public class ResolverType {
         if names.size() > 0 {
             ASTName last = names.get(names.size() - 1)
             Registry reg = r.getReg()
-            Symbol sym = reg.LookupNamedType(last.getName(), r.getCurrentScope())
+            // A dotted name (pointer) resolves via the namespace path — no import
+            // needed. Fall back to a scope lookup of the last component (unqualified
+            // types, or names brought into scope by an import).
+            Symbol sym = null
+            if names.size() > 1 { sym = reg.LookupQualifiedType(names) }
+            if sym == null { sym = reg.LookupNamedType(last.getName(), r.getCurrentScope()) }
             if sym != null { t = sym.getTypeRef() }
         }
 

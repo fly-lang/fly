@@ -25,9 +25,11 @@ public class SemaFunctionBase : SemaNode {
     List<SemaLocalVar> localVars
     SemaError errorHandler
     bool fallible
+    bool fromHeader          // declared in a preloaded .fly.h (external — no body emitted)
+    Symbol declSymbol        // the module-scope FUNCTION symbol (param types filled in the signature phase)
     SemaBlockStmt body
-    fly.mem.Ptr llvmFn       // CodeGen back-pointer: the LLVM function (null until codegen'd)
-    fly.mem.Ptr llvmFnType   // CodeGen back-pointer: the LLVM function type
+    pointer llvmFn       // CodeGen back-pointer: the LLVM function (null until codegen'd)
+    pointer llvmFnType   // CodeGen back-pointer: the LLVM function type
 
     public SemaFunctionBase(const ASTFunction funcAst, const SemaKind kind, const SymbolTable scope) {
         super(kind)
@@ -37,14 +39,15 @@ public class SemaFunctionBase : SemaNode {
         this.localVars = new List<SemaLocalVar>()
         this.namespaceName = ""
         this.fallible = false
-        this.llvmFn = fly.mem.toPtr(0)
-        this.llvmFnType = fly.mem.toPtr(0)
+        this.fromHeader = false
+        this.llvmFn = 0
+        this.llvmFnType = 0
     }
 
-    public fly.mem.Ptr getLlvmFn() { out = this.llvmFn }
-    public void setLlvmFn(const fly.mem.Ptr f) { this.llvmFn = f }
-    public fly.mem.Ptr getLlvmFnType() { out = this.llvmFnType }
-    public void setLlvmFnType(const fly.mem.Ptr t) { this.llvmFnType = t }
+    public pointer getLlvmFn() { out = this.llvmFn }
+    public void setLlvmFn(const pointer f) { this.llvmFn = f }
+    public pointer getLlvmFnType() { out = this.llvmFnType }
+    public void setLlvmFnType(const pointer t) { this.llvmFnType = t }
 
     public SemaFunctionBase asFunctionBase() { out = this }
 
@@ -63,6 +66,10 @@ public class SemaFunctionBase : SemaNode {
     public void setErrorHandler(const SemaError errorHandler) { this.errorHandler = errorHandler }
     public bool isFallible() { out = this.fallible }
     public void setFallible(const bool fallible) { this.fallible = fallible }
+    public bool isFromHeader() { out = this.fromHeader }
+    public void setFromHeader(const bool fromHeader) { this.fromHeader = fromHeader }
+    public Symbol getDeclSymbol() { out = this.declSymbol }
+    public void setDeclSymbol(const Symbol declSymbol) { this.declSymbol = declSymbol }
     public SemaBlockStmt getBody() { out = this.body }
     public void setBody(const SemaBlockStmt body) { this.body = body }
 

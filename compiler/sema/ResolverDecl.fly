@@ -18,7 +18,35 @@ public class ResolverDecl {
         SemaModule mod = r.getCurrentModule()
         SymbolTable fnScope = r.getCurrentScope()
         SemaFunction fn = SemaBuilder.CreateFunction(mod, fnScope, node)
-        r.setCurrentFunctionBase(fn)
+        fn.setFromHeader(r.isCurrentModuleHeader())
+        fn.setNamespaceName(r.currentNsFlat())   // for mangling → matches fly_std_lib.a
+        r.exitScope()
+
+        // Register the function SYMBOL now (name only). Its param/return TYPES are
+        // resolved later in the signature phase (resolveSignature), after EVERY module
+        // has been visited and imports resolved — so a qualified cross-namespace param
+        // or return type (e.g. fly.os.env.StringArray in path.fly.h) resolves no matter
+        // the header visit order. Overload lookup (which reads the symbol's param types)
+        // only runs during body resolution, which is strictly after the signature phase.
+        Symbol sym = new Symbol(node.getName(), SymbolKind.FUNCTION, fn)
+        fn.setDeclSymbol(sym)
+        r.addSymbol(sym)
+        r.registerInNamespace(sym)        // publish for same-namespace sibling files
+
+        // queue the body for resolution in phase 2
+        Registry reg = r.getReg()
+        reg.addBody(fn)
+    }
+
+    // resolveSignature — resolve a free function's params + return type + synthetic
+    // 'out' param, then publish the param types on its symbol for overload lookup.
+    // Runs in the signature phase (after every module is visited + imports resolved),
+    // so qualified cross-namespace signature types resolve regardless of visit order.
+    public static void resolveSignature(const Resolver r, const SemaFunctionBase fb) {
+        r.resetCurrents()
+        r.setCurrentFunctionBase(fb)
+        r.setCurrentScope(fb.getSymbols())
+        ASTFunction node = fb.getAST()
 
         // explicit params
         List<ASTParam> params = node.getParams()
@@ -26,39 +54,30 @@ public class ResolverDecl {
         while i < params.size() {
             ASTParam p = params.get(i)
             p.accept(r)
-            fn.addParam(r.getCurrentParam())
+            fb.addParam(r.getCurrentParam())
             i = i + 1
         }
 
         // return type → resolve + add the synthetic 'out' param (out-param model),
         // but NOT for a `void` return — a void function has no out value, so the
-        // signature is just (errPtr, params…). (Constructors have a null return type
-        // and never reach here.)
+        // signature is just (errPtr, params…).
         ASTType rt = node.getReturnType()
         if rt != null {
             rt.accept(r)
             SemaType rtt = r.getCurrentType()
-            fn.setReturnType(rtt)
+            fb.setReturnType(rtt)
             bool isVoidRet = false
             if rtt != null { isVoidRet = rtt.isVoid() }
             if isVoidRet == false {
                 List<ASTModifier> noMods = new List<ASTModifier>()
                 ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rt, "out", noMods, null)
                 outAst.accept(r)
-                fn.addParam(r.getCurrentParam())
+                fb.addParam(r.getCurrentParam())
             }
         }
 
-        // function symbol (signature carried for overload lookup) in module scope
-        Symbol sym = new Symbol(node.getName(), SymbolKind.FUNCTION, fn)
-        sym.setParamTypes(fn.getParamTypes())
-        r.exitScope()
-        r.addSymbol(sym)
-        r.registerInNamespace(sym)        // publish for same-namespace sibling files
-
-        // queue the body for resolution in phase 2
-        Registry reg = r.getReg()
-        reg.addBody(fn)
+        Symbol sym = fb.getDeclSymbol()
+        if sym != null { sym.setParamTypes(fb.getParamTypes()) }
     }
 
     // resolveBody — resolve a function/method body against its own scope.

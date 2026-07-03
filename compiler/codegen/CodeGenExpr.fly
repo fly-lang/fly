@@ -31,12 +31,12 @@ public class CodeGenExpr : SemaVisitor {
 
     CodeGenModule cgm
     LLVM llvm
-    fly.mem.Ptr builder
+    pointer builder
     bool addrMode
     bool terminated            // current block already has a terminator?
-    fly.mem.Ptr breakTarget    // innermost loop/switch exit block
-    fly.mem.Ptr continueTarget // innermost loop post block
-    fly.mem.Ptr errPtr         // current function's error-handler pointer (LLVM param 0)
+    pointer breakTarget    // innermost loop/switch exit block
+    pointer continueTarget // innermost loop post block
+    pointer errPtr         // current function's error-handler pointer (LLVM param 0)
 
     public CodeGenExpr(const CodeGenModule cgm) {
         this.cgm = cgm
@@ -45,71 +45,71 @@ public class CodeGenExpr : SemaVisitor {
         this.builder = cgm.getBuilder()
         this.addrMode = false
         this.terminated = false
-        this.breakTarget = fly.mem.toPtr(0)
-        this.continueTarget = fly.mem.toPtr(0)
-        this.errPtr = fly.mem.toPtr(0)
+        this.breakTarget = 0
+        this.continueTarget = 0
+        this.errPtr = 0
     }
-    public fly.mem.Ptr getErrPtr() { out = this.errPtr }
-    public void setErrPtr(const fly.mem.Ptr p) { this.errPtr = p }
+    public pointer getErrPtr() { out = this.errPtr }
+    public void setErrPtr(const pointer p) { this.errPtr = p }
 
     public CodeGenModule getCgm() { out = this.cgm }
     public LLVM getLLVM() { out = this.llvm }
-    public fly.mem.Ptr getBuilder() { out = this.builder }
+    public pointer getBuilder() { out = this.builder }
     public bool isAddrMode() { out = this.addrMode }
 
     // ── basic-block / control-flow helpers ────────────────────────────────────
     public bool isTerminated() { out = this.terminated }
     public void setTerminated(const bool t) { this.terminated = t }
-    public fly.mem.Ptr getBreakTarget() { out = this.breakTarget }
-    public void setBreakTarget(const fly.mem.Ptr b) { this.breakTarget = b }
-    public fly.mem.Ptr getContinueTarget() { out = this.continueTarget }
-    public void setContinueTarget(const fly.mem.Ptr b) { this.continueTarget = b }
+    public pointer getBreakTarget() { out = this.breakTarget }
+    public void setBreakTarget(const pointer b) { this.breakTarget = b }
+    public pointer getContinueTarget() { out = this.continueTarget }
+    public void setContinueTarget(const pointer b) { this.continueTarget = b }
 
     // position the builder at the end of a block and clear the terminated flag.
-    public void position(const fly.mem.Ptr bb) {
+    public void position(const pointer bb) {
         this.llvm.positionBuilderAtEnd(this.builder, bb)
         this.terminated = false
     }
 
     // newBlock — append a fresh basic block to the current function.
-    public fly.mem.Ptr newBlock(const string name) {
-        fly.mem.Ptr cur
+    public pointer newBlock(const string name) {
+        pointer cur
         this.llvm.getInsertBlock(this.builder, cur)
-        fly.mem.Ptr fn
+        pointer fn
         this.llvm.getBasicBlockParent(cur, fn)
-        fly.mem.Ptr bb
+        pointer bb
         this.llvm.appendBasicBlockInContext(this.cgm.getCtx(), fn, name, bb)
         out = bb
     }
 
     // br — branch to dest if the current block isn't already terminated.
-    public void br(const fly.mem.Ptr dest) {
+    public void br(const pointer dest) {
         if this.terminated == false {
-            fly.mem.Ptr v
+            pointer v
             this.llvm.buildBr(this.builder, dest, v)
             this.terminated = true
         }
     }
 
     // type helpers (avoid chaining cgm.getTypes().lowerType(...) on a call result)
-    public fly.mem.Ptr lowerType(const SemaType t) {
+    public pointer lowerType(const SemaType t) {
         CodeGenType ct = this.cgm.getTypes()
         out = ct.lowerType(t)
     }
-    public fly.mem.Ptr ptrType() {
+    public pointer ptrType() {
         CodeGenType ct = this.cgm.getTypes()
         out = ct.ptrType()
     }
 
     // gen — codegen an expression as an rvalue, returning its LLVM value.
-    public fly.mem.Ptr gen(const SemaExpr e) {
+    public pointer gen(const SemaExpr e) {
         this.addrMode = false
         e.accept(this)
         out = e.getLlvmValue()
     }
 
     // genAddr — codegen an expression as an lvalue, returning its storage address.
-    public fly.mem.Ptr genAddr(const SemaExpr e) {
+    public pointer genAddr(const SemaExpr e) {
         this.addrMode = true
         e.accept(this)
         this.addrMode = false
@@ -133,9 +133,9 @@ public class CodeGenExpr : SemaVisitor {
             int j = 0
             while j < allocs.size() {
                 SemaLocalVar v = allocs.get(j)
-                fly.mem.Ptr alloca = v.getLlvmAlloca()
-                fly.mem.Ptr ty = this.lowerType(v.getType())
-                fly.mem.Ptr objPtr
+                pointer alloca = v.getLlvmAlloca()
+                pointer ty = this.lowerType(v.getType())
+                pointer objPtr
                 this.llvm.buildLoad2(this.builder, ty, alloca, "freeld", objPtr)
                 this.cgm.freeHandle(objPtr)
                 j = j + 1
@@ -156,30 +156,30 @@ public class CodeGenExpr : SemaVisitor {
 
     // ── value expressions ─────────────────────────────────────────────────────
     public void visit(const SemaIntValue node) {
-        fly.mem.Ptr ty = this.lowerType(node.getType())
+        pointer ty = this.lowerType(node.getType())
         long v = parseLong(node.getValue())
-        fly.mem.Ptr c
+        pointer c
         this.llvm.constInt(ty, v, true, c)
         node.setLlvmValue(c)
     }
     public void visit(const SemaBoolValue node) {
-        fly.mem.Ptr ty = this.lowerType(node.getType())
+        pointer ty = this.lowerType(node.getType())
         long v = 0
         if node.getValue() { v = 1 }
-        fly.mem.Ptr c
+        pointer c
         this.llvm.constInt(ty, v, false, c)
         node.setLlvmValue(c)
     }
     public void visit(const SemaFloatValue node) {
-        fly.mem.Ptr ty = this.lowerType(node.getType())
+        pointer ty = this.lowerType(node.getType())
         double d = parseDouble(node.getValue())
-        fly.mem.Ptr c
+        pointer c
         this.llvm.constReal(ty, d, c)
         node.setLlvmValue(c)
     }
     public void visit(const SemaNullValue node) {
-        fly.mem.Ptr ty = this.ptrType()
-        fly.mem.Ptr c
+        pointer ty = this.ptrType()
+        pointer c
         this.llvm.constPointerNull(ty, c)
         node.setLlvmValue(c)
     }
@@ -192,12 +192,12 @@ public class CodeGenExpr : SemaVisitor {
     public void visit(const SemaError node) { this.genVarAccess(node) }
 
     public void genVarAccess(const SemaVar v) {
-        fly.mem.Ptr addr = v.getLlvmAlloca()
+        pointer addr = v.getLlvmAlloca()
         if this.addrMode {
             v.setLlvmValue(addr)
         } else {
-            fly.mem.Ptr ty = this.lowerType(v.getType())
-            fly.mem.Ptr loaded
+            pointer ty = this.lowerType(v.getType())
+            pointer loaded
             this.llvm.buildLoad2(this.builder, ty, addr, "ld", loaded)
             v.setLlvmValue(loaded)
         }
@@ -234,18 +234,18 @@ public class CodeGenExpr : SemaVisitor {
 
     // ── enums (each entry is its integer index, lowered to i32) ───────────────
     public void visit(const SemaEnumEntry node) {
-        fly.mem.Ptr ty = this.lowerType(node.getType())
+        pointer ty = this.lowerType(node.getType())
         long idx = node.getIndex()
-        fly.mem.Ptr c
+        pointer c
         this.llvm.constInt(ty, idx, true, c)
         node.setLlvmValue(c)
     }
     public void visit(const SemaEnumAccessor node) {
         SemaEnumEntry e = node.getEntry()
-        fly.mem.Ptr ty = this.lowerType(node.getType())
+        pointer ty = this.lowerType(node.getType())
         long idx = 0
         if e != null { idx = e.getIndex() }
-        fly.mem.Ptr c
+        pointer c
         this.llvm.constInt(ty, idx, true, c)
         node.setLlvmValue(c)
     }
@@ -262,16 +262,16 @@ public class CodeGenExpr : SemaVisitor {
         string val = node.getValue()
         int len = fly.str.len(val)
         CodeGenLLVM cg = this.cgm.getCg()
-        fly.mem.Ptr g = cg.globalString(this.cgm.getModule(), this.cgm.getCtx(), val)
-        fly.mem.Ptr i64
+        pointer g = cg.globalString(this.cgm.getModule(), this.cgm.getCtx(), val)
+        pointer i64
         this.llvm.int64TypeInContext(this.cgm.getCtx(), i64)
-        fly.mem.Ptr lenC
+        pointer lenC
         this.llvm.constInt(i64, len, false, lenC)
         List<pointer> fields = new List<pointer>()
-        fields.add(g.addr)
-        fields.add(lenC.addr)
-        fly.mem.Ptr strTy = this.cgm.getStringTy()
-        fly.mem.Ptr sv
+        fields.add(g)
+        fields.add(lenC)
+        pointer strTy = this.cgm.getStringTy()
+        pointer sv
         cg.constNamedStructN(strTy, fields, sv)
         node.setLlvmValue(sv)
     }

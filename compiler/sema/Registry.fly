@@ -170,6 +170,54 @@ public class Registry {
         out = firstOf(scope.lookupTypeInParents(name))
     }
 
+    // LookupQualifiedType — resolve a dotted type name (e.g. `pointer`) by walking
+    // the namespace path (all names but the last) via nsByPath, then looking the final
+    // name up directly in that namespace's own symbols. Returns null for a single-name
+    // (unqualified) type or when the namespace/type is absent. This makes qualified
+    // type references resolve WITHOUT an `import` (as generated .fly.h headers require,
+    // since GenerateHeader strips imports).
+    public Symbol LookupQualifiedType(const List<ASTName> names) {
+        int last = names.size() - 1
+        if last < 1 { out = null  return }
+        string path = "ns"
+        int i = 0
+        while i < last {
+            string pd = fly.str.concat(path, ".")
+            string pn = fly.str.concat(pd, names.get(i).getName())
+            path = pn
+            i = i + 1
+        }
+        if this.nsByPath.has(path) == false { out = null  return }
+        SemaNameSpace ns = this.nsByPath.get(path)
+        out = firstOf(ns.getSymbols().lookup(names.get(last).getName()))
+    }
+
+    // lookupNameSpaceByStrings — like lookupNameSpaceByNames but keyed off a plain
+    // string list (the flattened receiver of a qualified call fly.os.io.printLn).
+    public SemaNameSpace lookupNameSpaceByStrings(const List<string> names) {
+        if names.size() == 0 { out = null  return }
+        string path = "ns"
+        int i = 0
+        while i < names.size() {
+            string pd = fly.str.concat(path, ".")
+            string pn = fly.str.concat(pd, names.get(i))
+            path = pn
+            i = i + 1
+        }
+        SemaNameSpace r = null
+        if this.nsByPath.has(path) { r = this.nsByPath.get(path) }
+        out = r
+    }
+
+    // LookupFunctionInNamespace — overload-resolve `fnName` against the functions
+    // registered in the namespace `nsNames` (fly.os.io). Null if the namespace or a
+    // matching overload is absent. Enables a qualified call without an import.
+    public Symbol LookupFunctionInNamespace(const List<string> nsNames, const string fnName, const List<SemaType> argTypes) {
+        SemaNameSpace ns = this.lookupNameSpaceByStrings(nsNames)
+        if ns == null { out = null  return }
+        out = this.LookupFunction(fnName, argTypes, ns.getSymbols())
+    }
+
     public Symbol LookupName(const string name, const SymbolTable scope) {
         out = firstOf(scope.lookupInParents(name))
     }

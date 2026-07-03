@@ -24,14 +24,14 @@ public class CodeGenStmt {
     public static void decl(const CodeGenExpr cge, const SemaDeclStmt node) {
         SemaLocalVar v = node.getVar()
         LLVM llvm = cge.getLLVM()
-        fly.mem.Ptr b = cge.getBuilder()
-        fly.mem.Ptr ty = cge.lowerType(v.getType())
-        fly.mem.Ptr alloca
+        pointer b = cge.getBuilder()
+        pointer ty = cge.lowerType(v.getType())
+        pointer alloca
         llvm.buildAlloca(b, ty, "lv", alloca)
         v.setLlvmAlloca(alloca)
         SemaExpr init = node.getExpr()
         if init != null {
-            fly.mem.Ptr iv = cge.gen(init)
+            pointer iv = cge.gen(init)
             llvm.buildStore(b, iv, alloca)
         }
     }
@@ -41,16 +41,16 @@ public class CodeGenStmt {
     public static void ret(const CodeGenExpr cge, const SemaReturnStmt node) {
         if cge.isTerminated() { return }
         SemaExpr e = node.getExpr()
-        if e != null { fly.mem.Ptr ignore = cge.gen(e) }
+        if e != null { pointer ignore = cge.gen(e) }
         LLVM llvm = cge.getLLVM()
-        fly.mem.Ptr r
+        pointer r
         llvm.buildRetVoid(cge.getBuilder(), r)
         cge.setTerminated(true)
     }
 
     // ifStmt — cond/then, an elsif chain, and an optional else, merging at ifcont.
     public static void ifStmt(const CodeGenExpr cge, const SemaIfStmt node) {
-        fly.mem.Ptr mergeBB = cge.newBlock("ifcont")
+        pointer mergeBB = cge.newBlock("ifcont")
         emitIfChain(cge, node.getCond(), node.getThen(), node.getElsif(), 0, node.getElse(), mergeBB)
         cge.position(mergeBB)
     }
@@ -59,13 +59,13 @@ public class CodeGenStmt {
     // level: condBr(cond → then, next); then → merge; next holds the rest.
     public static void emitIfChain(const CodeGenExpr cge, const SemaExpr cond, const SemaStmt thenS,
                                    const List<SemaRuleStmt> elsifs, const int idx,
-                                   const SemaStmt elseS, const fly.mem.Ptr mergeBB) {
+                                   const SemaStmt elseS, const pointer mergeBB) {
         LLVM llvm = cge.getLLVM()
-        fly.mem.Ptr b = cge.getBuilder()
-        fly.mem.Ptr cv = cge.gen(cond)
-        fly.mem.Ptr thenBB = cge.newBlock("then")
-        fly.mem.Ptr nextBB = cge.newBlock("else")
-        fly.mem.Ptr cbr
+        pointer b = cge.getBuilder()
+        pointer cv = cge.gen(cond)
+        pointer thenBB = cge.newBlock("then")
+        pointer nextBB = cge.newBlock("else")
+        pointer cbr
         llvm.buildCondBr(b, cv, thenBB, nextBB, cbr)
         cge.setTerminated(true)
 
@@ -88,7 +88,7 @@ public class CodeGenStmt {
     // verify-condition-at-end flag (body runs before the first cond check).
     public static void loopStmt(const CodeGenExpr cge, const SemaLoopStmt node) {
         LLVM llvm = cge.getLLVM()
-        fly.mem.Ptr b = cge.getBuilder()
+        pointer b = cge.getBuilder()
 
         List<SemaStmt> init = node.getInit()
         int i = 0
@@ -98,10 +98,10 @@ public class CodeGenStmt {
             i = i + 1
         }
 
-        fly.mem.Ptr condBB = cge.newBlock("loopcond")
-        fly.mem.Ptr bodyBB = cge.newBlock("loopbody")
-        fly.mem.Ptr postBB = cge.newBlock("looppost")
-        fly.mem.Ptr exitBB = cge.newBlock("loopexit")
+        pointer condBB = cge.newBlock("loopcond")
+        pointer bodyBB = cge.newBlock("loopbody")
+        pointer postBB = cge.newBlock("looppost")
+        pointer exitBB = cge.newBlock("loopexit")
 
         bool atEnd = node.hasVerifyConditionAtEnd()
         if atEnd { cge.br(bodyBB) } else { cge.br(condBB) }
@@ -110,8 +110,8 @@ public class CodeGenStmt {
         cge.position(condBB)
         SemaExpr cond = node.getCond()
         if cond != null {
-            fly.mem.Ptr cv = cge.gen(cond)
-            fly.mem.Ptr cbr
+            pointer cv = cge.gen(cond)
+            pointer cbr
             llvm.buildCondBr(b, cv, bodyBB, exitBB, cbr)
             cge.setTerminated(true)
         } else {
@@ -119,8 +119,8 @@ public class CodeGenStmt {
         }
 
         // body (save/restore enclosing break/continue targets)
-        fly.mem.Ptr savedBreak = cge.getBreakTarget()
-        fly.mem.Ptr savedCont = cge.getContinueTarget()
+        pointer savedBreak = cge.getBreakTarget()
+        pointer savedCont = cge.getContinueTarget()
         cge.setBreakTarget(exitBB)
         cge.setContinueTarget(postBB)
         cge.position(bodyBB)
@@ -147,29 +147,29 @@ public class CodeGenStmt {
     // switchStmt — buildSwitch over the selector; one block per case; break exits.
     public static void switchStmt(const CodeGenExpr cge, const SemaSwitchStmt node) {
         LLVM llvm = cge.getLLVM()
-        fly.mem.Ptr b = cge.getBuilder()
+        pointer b = cge.getBuilder()
 
-        fly.mem.Ptr sel = cge.gen(node.getExpr())
+        pointer sel = cge.gen(node.getExpr())
         List<SemaRuleStmt> cases = node.getCases()
         int n = cases.size()
 
-        fly.mem.Ptr exitBB = cge.newBlock("swexit")
-        fly.mem.Ptr defaultBB = exitBB
+        pointer exitBB = cge.newBlock("swexit")
+        pointer defaultBB = exitBB
         SemaStmt defS = node.getDefault()
         if defS != null { defaultBB = cge.newBlock("swdefault") }
 
-        fly.mem.Ptr sw
+        pointer sw
         llvm.buildSwitch(b, sel, defaultBB, n, sw)
         cge.setTerminated(true)
 
-        fly.mem.Ptr savedBreak = cge.getBreakTarget()
+        pointer savedBreak = cge.getBreakTarget()
         cge.setBreakTarget(exitBB)
 
         int i = 0
         while i < n {
             SemaRuleStmt r = cases.get(i)
-            fly.mem.Ptr onVal = cge.gen(r.getExpr())
-            fly.mem.Ptr caseBB = cge.newBlock("swcase")
+            pointer onVal = cge.gen(r.getExpr())
+            pointer caseBB = cge.newBlock("swcase")
             llvm.addCase(sw, onVal, caseBB)
             cge.position(caseBB)
             SemaStmt cs = r.getStmt()

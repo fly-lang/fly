@@ -30,11 +30,32 @@ $STD = "std/lib"
 New-Item -ItemType Directory -Force $OUT | Out-Null
 New-Item -ItemType Directory -Force $LIB | Out-Null
 
-# Invoke the bootstrap compiler via $FLY (default: `fly` on PATH). CI sets FLY to
-# an absolute path: released binaries derive their stdlib dir from the executable
-# path, and a bare `fly` resolved from a cwd containing a `fly/` directory fails
-# that lookup. A path-qualified value sidesteps it. See ../fly Driver.cpp.
+# Invoke the bootstrap compiler via $FLY (default: `fly` on PATH). The compiler
+# derives its stdlib dir from its own executable path (argv[0]), and a bare name
+# breaks that lookup - so a path-less $FLY is resolved through PATH into an
+# absolute path here. See ../fly Driver.cpp.
 $FLY = if ($env:FLY) { $env:FLY } else { "fly" }
+if ($FLY -notmatch '[\\/]') {
+    $resolved = Get-Command $FLY -CommandType Application -ErrorAction SilentlyContinue |
+                Select-Object -First 1
+    if (-not $resolved) {
+        Write-Host "error: bootstrap compiler '$FLY' not found on PATH."
+        Write-Host "       Set FLY to the bootstrap compiler, e.g.:"
+        Write-Host "       `$env:FLY = 'C:\path\to\fly\build\bin\fly.exe'"
+        exit 1
+    }
+    $FLY = $resolved.Source
+}
+if (-not (Test-Path $FLY -PathType Leaf)) {
+    Write-Host "error: FLY='$FLY' is not an executable file."
+    exit 1
+}
+if (-not (Test-Path (Join-Path (Split-Path $FLY -Parent) '..\lib') -PathType Container)) {
+    Write-Host "error: no lib\ directory next to '$FLY' (expected <exe_dir>\..\lib"
+    Write-Host "       with llvm.fly.h, runtime.fly.h, fly_runtime_lib.lib)."
+    Write-Host "       Point FLY at a built bootstrap compiler, e.g. fly\build\bin\fly.exe."
+    exit 1
+}
 
 function Assert-LastExit($what) {
     if ($LASTEXITCODE -ne 0) { throw "$what failed: $FLY exited with code $LASTEXITCODE" }

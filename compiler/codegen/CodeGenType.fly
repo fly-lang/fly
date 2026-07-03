@@ -19,18 +19,18 @@ import fly.str
 public class CodeGenType {
 
     CodeGenLLVM cg
-    fly.mem.Ptr ctx
-    fly.mem.Ptr stringTy       // the module's `%string` named struct (set by CodeGenModule)
+    pointer ctx
+    pointer stringTy       // the module's `%string` named struct (set by CodeGenModule)
     TargetInfo targetInfo      // set via configureTarget; null → default 64-bit pointers
 
-    public CodeGenType(const CodeGenLLVM cg, const fly.mem.Ptr ctx) {
+    public CodeGenType(const CodeGenLLVM cg, const pointer ctx) {
         this.cg = cg
         this.ctx = ctx
-        this.stringTy = fly.mem.toPtr(0)
+        this.stringTy = 0
         this.targetInfo = null
     }
 
-    public void setStringTy(const fly.mem.Ptr t) { this.stringTy = t }
+    public void setStringTy(const pointer t) { this.stringTy = t }
 
     // setTargetInfo — supply the active target so pointer lowers to its pointer
     // width. Called by CodeGenModule.configureTarget before lowering.
@@ -43,9 +43,9 @@ public class CodeGenType {
         out = this.targetInfo.getPointerWidth()
     }
 
-    public fly.mem.Ptr lowerType(const SemaType t) {
+    public pointer lowerType(const SemaType t) {
         LLVM llvm = this.cg.getLLVM()
-        fly.mem.Ptr r
+        pointer r
         if t.isVoid() {
             llvm.voidTypeInContext(this.ctx, r)
         } elsif t.isBool() {
@@ -82,7 +82,7 @@ public class CodeGenType {
             // class / array / error → opaque pointer
             r = this.ptrType()
         }
-        // No caching on t.llvmType: a fly.mem.Ptr value-struct field does NOT reliably
+        // No caching on t.llvmType: a pointer value-struct field does NOT reliably
         // round-trip here (returns garbage), and LLVM interns scalar types anyway, so
         // recomputing is both correct and cheap.
         out = r
@@ -90,11 +90,11 @@ public class CodeGenType {
 
     // ptrType — the opaque `ptr` type (LLVM 20). All Fly params are passed by
     // pointer, and class/string handles are pointers, so this is used widely.
-    public fly.mem.Ptr ptrType() {
+    public pointer ptrType() {
         LLVM llvm = this.cg.getLLVM()
-        fly.mem.Ptr i8
+        pointer i8
         llvm.int8TypeInContext(this.ctx, i8)
-        fly.mem.Ptr p
+        pointer p
         llvm.pointerType(i8, 0, p)
         out = p
     }

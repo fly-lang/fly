@@ -17,19 +17,19 @@ public class SemaVar : SemaExpr {
 
     ASTVar varAst
     bool constant
-    fly.mem.Ptr llvmAlloca   // CodeGen back-pointer: the var's stack slot (null until codegen'd)
+    pointer llvmAlloca   // CodeGen back-pointer: the var's stack slot (null until codegen'd)
 
     public SemaVar(const ASTVar varAst, const SemaKind kind, const SemaType type) {
         super(kind, type)
         this.varAst = varAst
         this.constant = false
-        this.llvmAlloca = fly.mem.toPtr(0)
+        this.llvmAlloca = 0
     }
 
     public ASTVar getAST() { out = this.varAst }
     public string getName() { out = this.varAst.getName() }
     public bool isConstant() { out = this.constant }
     public void setConstant(const bool constant) { this.constant = constant }
-    public fly.mem.Ptr getLlvmAlloca() { out = this.llvmAlloca }
-    public void setLlvmAlloca(const fly.mem.Ptr a) { this.llvmAlloca = a }
+    public pointer getLlvmAlloca() { out = this.llvmAlloca }
+    public void setLlvmAlloca(const pointer a) { this.llvmAlloca = a }
 }

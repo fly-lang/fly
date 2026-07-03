@@ -41,6 +41,7 @@ public class SemaClassType : SemaType {
     bool abstractFlag
     bool finalFlag
     bool resolvedFlag
+    bool fromHeader          // declared in a preloaded .fly.h (external — no bodies/vtable emitted)
     SemaClassKind classKind
     List<SemaClassType> baseClasses
     SemaClassInstance thisInstance
@@ -56,8 +57,8 @@ public class SemaClassType : SemaType {
     List<SemaClassType> specializationList   // ordered specializations (Map has no iteration; for codegen)
     SemaClassType genericTemplate
     string mangledName
-    fly.mem.Ptr llvmStructType   // CodeGen back-pointer: the LLVM struct type (null until codegen'd)
-    fly.mem.Ptr llvmVTable       // CodeGen back-pointer: the LLVM vtable global (null until codegen'd)
+    pointer llvmStructType   // CodeGen back-pointer: the LLVM struct type (null until codegen'd)
+    pointer llvmVTable       // CodeGen back-pointer: the LLVM vtable global (null until codegen'd)
 
     public SemaClassType(const ASTClass classAst, const SemaModule module, const SymbolTable symbols) {
         super(SemaKind.TYPE_CLASS, classAst.getName())
@@ -70,6 +71,7 @@ public class SemaClassType : SemaType {
         this.abstractFlag = false
         this.finalFlag = false
         this.resolvedFlag = false
+        this.fromHeader = false
         this.baseClasses = new List<SemaClassType>()
         this.attributes = new Map<string, SemaClassAttribute>()
         this.attributeList = new List<SemaClassAttribute>()
@@ -80,8 +82,8 @@ public class SemaClassType : SemaType {
         this.specializations = new Map<string, SemaClassType>()
         this.specializationList = new List<SemaClassType>()
         this.mangledName = ""
-        this.llvmStructType = fly.mem.toPtr(0)
-        this.llvmVTable = fly.mem.toPtr(0)
+        this.llvmStructType = 0
+        this.llvmVTable = 0
         ASTClassKind ak = classAst.getClassKind()
         SemaClassKind sk = SemaClassKind.CLASS
         if ak == ASTClassKind.INTERFACE { sk = SemaClassKind.INTERFACE }
@@ -108,6 +110,8 @@ public class SemaClassType : SemaType {
     public void setFinal(const bool finalFlag) { this.finalFlag = finalFlag }
     public bool isResolved() { out = this.resolvedFlag }
     public void setResolved(const bool resolvedFlag) { this.resolvedFlag = resolvedFlag }
+    public bool isFromHeader() { out = this.fromHeader }
+    public void setFromHeader(const bool fromHeader) { this.fromHeader = fromHeader }
     public SemaClassKind getClassKind() { out = this.classKind }
     public SemaClassInstance getThis() { out = this.thisInstance }
     public void setThis(const SemaClassInstance thisInstance) { this.thisInstance = thisInstance }
@@ -128,10 +132,10 @@ public class SemaClassType : SemaType {
     public void addSpecialization(const SemaClassType spec) { this.specializationList.add(spec) }
     public string getMangledName() { out = this.mangledName }
     public void setMangledName(const string mangledName) { this.mangledName = mangledName }
-    public fly.mem.Ptr getLlvmStructType() { out = this.llvmStructType }
-    public void setLlvmStructType(const fly.mem.Ptr t) { this.llvmStructType = t }
-    public fly.mem.Ptr getLlvmVTable() { out = this.llvmVTable }
-    public void setLlvmVTable(const fly.mem.Ptr t) { this.llvmVTable = t }
+    public pointer getLlvmStructType() { out = this.llvmStructType }
+    public void setLlvmStructType(const pointer t) { this.llvmStructType = t }
+    public pointer getLlvmVTable() { out = this.llvmVTable }
+    public void setLlvmVTable(const pointer t) { this.llvmVTable = t }
 
     // addAttribute / addMethod — append to Nodes and index by name. Overloaded
     // methods collapse to one map entry per name (as in C++); the ordered Nodes

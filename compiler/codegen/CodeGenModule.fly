@@ -27,92 +27,92 @@ public class CodeGenModule {
 
     CodeGenLLVM cg
     CodeGenType types
-    fly.mem.Ptr ctx
-    fly.mem.Ptr module
-    fly.mem.Ptr builder
-    fly.mem.Ptr errorTy        // the `%error = { i32 code, ptr str, ptr obj }` named struct
-    fly.mem.Ptr stringTy       // the `%string = { i8* ptr, i64 size }` named struct
-    fly.mem.Ptr freeFn         // lazily-declared `void @free(ptr)` (libc); null until first use
-    fly.mem.Ptr freeFnTy       // its function type
+    pointer ctx
+    pointer module
+    pointer builder
+    pointer errorTy        // the `%error = { i32 code, ptr str, ptr obj }` named struct
+    pointer stringTy       // the `%string = { i8* ptr, i64 size }` named struct
+    pointer freeFn         // lazily-declared `void @free(ptr)` (libc); null until first use
+    pointer freeFnTy       // its function type
 
     public CodeGenModule(const string name) {
         this.cg = new CodeGenLLVM()
         LLVM llvm = this.cg.getLLVM()
-        fly.mem.Ptr c
+        pointer c
         llvm.contextCreate(c)
         this.ctx = c
-        fly.mem.Ptr m
+        pointer m
         llvm.moduleCreateWithNameInContext(name, c, m)
         this.module = m
-        fly.mem.Ptr b
+        pointer b
         llvm.createBuilderInContext(c, b)
         this.builder = b
         this.types = new CodeGenType(this.cg, this.ctx)
 
         // %error = { i32 code, ptr str, ptr obj } — the shared error struct that
         // every function receives by pointer (param 0) and `fail` writes into.
-        fly.mem.Ptr et
+        pointer et
         llvm.structCreateNamed(c, "error", et)
         this.errorTy = et
-        fly.mem.Ptr i32
+        pointer i32
         llvm.int32TypeInContext(c, i32)
-        fly.mem.Ptr p1 = this.types.ptrType()
-        fly.mem.Ptr p2 = this.types.ptrType()
+        pointer p1 = this.types.ptrType()
+        pointer p2 = this.types.ptrType()
         List<pointer> efields = new List<pointer>()
-        efields.add(i32.addr)
-        efields.add(p1.addr)
-        efields.add(p2.addr)
+        efields.add(i32)
+        efields.add(p1)
+        efields.add(p2)
         this.cg.structSetBodyN(et, efields, false)
 
         // %string = { i8* ptr, i64 size } — the string value type (a literal is a
         // global byte array + a constant { ptr, len } of this type).
-        fly.mem.Ptr st
+        pointer st
         llvm.structCreateNamed(c, "string", st)
         this.stringTy = st
-        fly.mem.Ptr sp = this.types.ptrType()
-        fly.mem.Ptr i64s
+        pointer sp = this.types.ptrType()
+        pointer i64s
         llvm.int64TypeInContext(c, i64s)
         List<pointer> sfields = new List<pointer>()
-        sfields.add(sp.addr)
-        sfields.add(i64s.addr)
+        sfields.add(sp)
+        sfields.add(i64s)
         this.cg.structSetBodyN(st, sfields, false)
         this.types.setStringTy(st)
 
-        this.freeFn = fly.mem.toPtr(0)
-        this.freeFnTy = fly.mem.toPtr(0)
+        this.freeFn = 0
+        this.freeFnTy = 0
     }
 
-    public fly.mem.Ptr getErrorTy() { out = this.errorTy }
-    public fly.mem.Ptr getStringTy() { out = this.stringTy }
+    public pointer getErrorTy() { out = this.errorTy }
+    public pointer getStringTy() { out = this.stringTy }
 
     // freeHandle — emit `free(objPtr)` (libc), lazily declaring `void @free(ptr)`.
     // Used by Stage-7 scope-exit cleanup of owned heap class handles.
-    public void freeHandle(const fly.mem.Ptr objPtr) {
+    public void freeHandle(const pointer objPtr) {
         LLVM llvm = this.cg.getLLVM()
-        if this.freeFn.addr == 0 {
-            fly.mem.Ptr voidTy
+        if this.freeFn == 0 {
+            pointer voidTy
             llvm.voidTypeInContext(this.ctx, voidTy)
             List<pointer> ps = new List<pointer>()
-            fly.mem.Ptr p = this.types.ptrType()
-            ps.add(p.addr)
-            fly.mem.Ptr fty
+            pointer p = this.types.ptrType()
+            ps.add(p)
+            pointer fty
             this.cg.functionTypeN(voidTy, ps, false, fty)
             this.freeFnTy = fty
-            fly.mem.Ptr f
+            pointer f
             llvm.addFunction(this.module, "free", fty, f)
             this.freeFn = f
         }
         List<pointer> args = new List<pointer>()
-        args.add(objPtr.addr)
-        fly.mem.Ptr cv
+        args.add(objPtr)
+        pointer cv
         this.cg.buildCallN(this.builder, this.freeFnTy, this.freeFn, args, "", cv)
     }
 
     public CodeGenLLVM getCg() { out = this.cg }
     public CodeGenType getTypes() { out = this.types }
-    public fly.mem.Ptr getCtx() { out = this.ctx }
-    public fly.mem.Ptr getModule() { out = this.module }
-    public fly.mem.Ptr getBuilder() { out = this.builder }
+    public pointer getCtx() { out = this.ctx }
+    public pointer getModule() { out = this.module }
+    public pointer getBuilder() { out = this.builder }
 
     // generate — declarations first (class structs, free-function + method
     // signatures, vtables) so any reference resolves, then all bodies. Methods come
@@ -147,29 +147,34 @@ public class CodeGenModule {
             }
             cm = cm + 1
         }
-        // 1d) vtables (need method fn handles)
+        // 1d) vtables (need method fn handles). A header-origin class's vtable lives
+        // in the linked archive — skip its definition here (declarations only).
         int cv = 0
         while cv < classes.size() {
-            CodeGenClass.buildVTable(this, classes.get(cv))
+            SemaClassType cvc = classes.get(cv)
+            if cvc.isFromHeader() == false { CodeGenClass.buildVTable(this, cvc) }
             cv = cv + 1
         }
 
-        // 2a) free-function bodies
+        // 2a) free-function bodies. Header-origin functions are external (defined in
+        // the linked archive) — declared above (1b) but not defined here.
         int j = 0
         while j < bodies.size() {
             SemaFunctionBase fn2 = bodies.get(j)
-            if this.isMethod(fn2) == false { this.genBody(fn2) }
+            if this.isMethod(fn2) == false && fn2.isFromHeader() == false { this.genBody(fn2) }
             j = j + 1
         }
-        // 2b) method bodies
+        // 2b) method bodies — skip header-origin classes (defined in the archive).
         int cb = 0
         while cb < classes.size() {
             SemaClassType cls2 = classes.get(cb)
-            List<SemaClassMethod> ms2 = cls2.getMethodList()
-            int bi = 0
-            while bi < ms2.size() {
-                CodeGenClass.genMethodBody(this, cls2, ms2.get(bi))
-                bi = bi + 1
+            if cls2.isFromHeader() == false {
+                List<SemaClassMethod> ms2 = cls2.getMethodList()
+                int bi = 0
+                while bi < ms2.size() {
+                    CodeGenClass.genMethodBody(this, cls2, ms2.get(bi))
+                    bi = bi + 1
+                }
             }
             cb = cb + 1
         }
@@ -228,48 +233,48 @@ public class CodeGenModule {
     // the wrapper returns the Fly main's `out`, not the error code.)
     public void emitMainWrapper(const SemaFunctionBase mainFn) {
         LLVM llvm = this.cg.getLLVM()
-        fly.mem.Ptr i32
+        pointer i32
         llvm.int32TypeInContext(this.ctx, i32)
         List<pointer> noParams = new List<pointer>()
-        fly.mem.Ptr wTy
+        pointer wTy
         this.cg.functionTypeN(i32, noParams, false, wTy)
-        fly.mem.Ptr w
+        pointer w
         llvm.addFunction(this.module, "main", wTy, w)
-        fly.mem.Ptr entry
+        pointer entry
         llvm.appendBasicBlockInContext(this.ctx, w, "entry", entry)
         llvm.positionBuilderAtEnd(this.builder, entry)
 
         // %error err = { 0, null, null }
-        fly.mem.Ptr errSlot
+        pointer errSlot
         llvm.buildAlloca(this.builder, this.errorTy, "err", errSlot)
-        fly.mem.Ptr codePtr
+        pointer codePtr
         llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 0, "ecode", codePtr)
-        fly.mem.Ptr zero
+        pointer zero
         llvm.constInt(i32, 0, true, zero)
         llvm.buildStore(this.builder, zero, codePtr)
 
         List<pointer> callArgs = new List<pointer>()
-        callArgs.add(errSlot.addr)
+        callArgs.add(errSlot)
 
         SemaType rt = mainFn.getReturnType()
         bool nonVoid = false
         if rt != null { nonVoid = rt.isVoid() == false }
-        fly.mem.Ptr outSlot = fly.mem.toPtr(0)
+        pointer outSlot = 0
         if nonVoid {
-            fly.mem.Ptr oty = this.types.lowerType(rt)
+            pointer oty = this.types.lowerType(rt)
             llvm.buildAlloca(this.builder, oty, "mret", outSlot)
-            callArgs.add(outSlot.addr)
+            callArgs.add(outSlot)
         }
 
-        fly.mem.Ptr fnTy = mainFn.getLlvmFnType()
-        fly.mem.Ptr fnVal = mainFn.getLlvmFn()
-        fly.mem.Ptr cv
+        pointer fnTy = mainFn.getLlvmFnType()
+        pointer fnVal = mainFn.getLlvmFn()
+        pointer cv
         this.cg.buildCallN(this.builder, fnTy, fnVal, callArgs, "", cv)
 
-        fly.mem.Ptr retVal
+        pointer retVal
         if nonVoid {
-            fly.mem.Ptr oty2 = this.types.lowerType(rt)
-            fly.mem.Ptr loaded
+            pointer oty2 = this.types.lowerType(rt)
+            pointer loaded
             llvm.buildLoad2(this.builder, oty2, outSlot, "mres", loaded)
             int rk = 32
             if rt != null { rk = rt.getRank() }
@@ -279,7 +284,7 @@ public class CodeGenModule {
         } else {
             llvm.constInt(i32, 0, true, retVal)
         }
-        fly.mem.Ptr r
+        pointer r
         llvm.buildRet(this.builder, retVal, r)
     }
 
@@ -288,26 +293,26 @@ public class CodeGenModule {
     public void declareFunction(const SemaFunctionBase fn) {
         LLVM llvm = this.cg.getLLVM()
 
-        fly.mem.Ptr voidTy
+        pointer voidTy
         llvm.voidTypeInContext(this.ctx, voidTy)
 
         List<pointer> ptypes = new List<pointer>()
-        fly.mem.Ptr errPtr = this.types.ptrType()
-        ptypes.add(errPtr.addr)
+        pointer errPtr = this.types.ptrType()
+        ptypes.add(errPtr)
         List<SemaParam> params = fn.getParams()
         int i = 0
         while i < params.size() {
-            fly.mem.Ptr pp = this.types.ptrType()
-            ptypes.add(pp.addr)
+            pointer pp = this.types.ptrType()
+            ptypes.add(pp)
             i = i + 1
         }
 
-        fly.mem.Ptr fnTy
+        pointer fnTy
         this.cg.functionTypeN(voidTy, ptypes, false, fnTy)
         fn.setLlvmFnType(fnTy)
 
         string name = this.mangle(fn)
-        fly.mem.Ptr f
+        pointer f
         llvm.addFunction(this.module, name, fnTy, f)
         fn.setLlvmFn(f)
     }
@@ -317,9 +322,9 @@ public class CodeGenModule {
     // body (via the CodeGenExpr visitor) + ret void.
     public void genBody(const SemaFunctionBase fn) {
         LLVM llvm = this.cg.getLLVM()
-        fly.mem.Ptr f = fn.getLlvmFn()
+        pointer f = fn.getLlvmFn()
 
-        fly.mem.Ptr entry
+        pointer entry
         llvm.appendBasicBlockInContext(this.ctx, f, "entry", entry)
         llvm.positionBuilderAtEnd(this.builder, entry)
 
@@ -327,14 +332,14 @@ public class CodeGenModule {
         int i = 0
         while i < params.size() {
             SemaParam pm = params.get(i)
-            fly.mem.Ptr arg
+            pointer arg
             llvm.getParam(f, i + 1, arg)
             pm.setLlvmAlloca(arg)
             i = i + 1
         }
 
         CodeGenExpr cge = new CodeGenExpr(this)
-        fly.mem.Ptr errParam
+        pointer errParam
         llvm.getParam(f, 0, errParam)
         cge.setErrPtr(errParam)
         SemaBlockStmt body = fn.getBody()
@@ -345,7 +350,7 @@ public class CodeGenModule {
         // close the final block with ret void unless the body already terminated it
         // (e.g. an explicit `return` as the last statement).
         if cge.isTerminated() == false {
-            fly.mem.Ptr ret
+            pointer ret
             llvm.buildRetVoid(this.builder, ret)
         }
     }
@@ -359,7 +364,11 @@ public class CodeGenModule {
         string nm = fn.getName()
         string ns = fn.getNamespaceName()
         // Build via fresh temps then reassign (never `r = concat(r, …)` in one
-        // statement — that self-reassignment corrupts the string).
+        // statement — that self-reassignment corrupts the string). A non-empty
+        // namespace is `<len><ns>` exactly like the reference CodeGenHelper::Mangle, so
+        // a qualified std call resolves against the fly_std_lib.a symbol; the empty-ns
+        // case keeps the `0` length prefix (self-consistent; no archive symbol is
+        // namespace-less, so this never has to match the reference).
         string r1 = str.concat("_F", str.convert(str.len(ns)))
         string r2 = str.concat(r1, ns)
         string r3 = str.concat(r2, str.convert(str.len(nm)))
@@ -367,31 +376,46 @@ public class CodeGenModule {
         List<SemaParam> params = fn.getParams()
         int i = 0
         while i < params.size() {
-            SemaParam p = params.get(i)
-            string rsep = str.concat(r, "_")
-            string rnext = str.concat(rsep, this.typeCode(p.getType()))
-            r = rnext
+            string c = str.concat(r, this.mangleType(params.get(i).getType()))
+            r = c
             i = i + 1
         }
         out = r
     }
 
-    // typeCode — one-letter mangling code for a parameter type.
-    public string typeCode(const SemaType t) {
-        if t == null { out = "v"  return }
-        if t.isVoid() { out = "v"  return }
-        if t.isBool() { out = "b"  return }
-        if t.isInteger() {
-            int rk = t.getRank()
-            if rk <= 8 { out = "c" } elsif rk <= 16 { out = "s" } elsif rk <= 32 { out = "i" } else { out = "l" }
+    // mangleType — parameter type code, 1:1 with the reference CodeGenHelper::Mangle
+    // (each code carries its own leading '_'): builtins map by name; a class is
+    // `_C<Name>`, an enum `_E<Name>`, an array `_A<elem>`.
+    public string mangleType(const SemaType t) {
+        if t == null { out = ""  return }
+        SemaKind k = t.getKind()
+        if k == SemaKind.TYPE_ARRAY {
+            SemaArrayType at = t.asArray()
+            out = str.concat("_A", this.mangleType(at.getElementType()))
             return
         }
-        if t.isFloat() {
-            int rk = t.getRank()
-            if rk <= 32 { out = "f" } else { out = "d" }
-            return
-        }
-        out = "p"
+        if k == SemaKind.TYPE_ENUM  { out = str.concat("_E", t.getName())  return }
+        if k == SemaKind.TYPE_CLASS { out = str.concat("_C", t.getName())  return }
+        out = this.builtinCode(t.getName())
+    }
+
+    // builtinCode — the reference's MangleTypeMap (name → code, with leading '_').
+    public string builtinCode(const string n) {
+        if str.equals(n, "bool")    { out = "_b"   return }
+        if str.equals(n, "byte")    { out = "_y"   return }
+        if str.equals(n, "short")   { out = "_s"   return }
+        if str.equals(n, "ushort")  { out = "_us"  return }
+        if str.equals(n, "int")     { out = "_i"   return }
+        if str.equals(n, "uint")    { out = "_ui"  return }
+        if str.equals(n, "long")    { out = "_l"   return }
+        if str.equals(n, "ulong")   { out = "_ul"  return }
+        if str.equals(n, "pointer") { out = "_pz"  return }
+        if str.equals(n, "float")   { out = "_f"   return }
+        if str.equals(n, "double")  { out = "_d"   return }
+        if str.equals(n, "void")    { out = "_v"   return }
+        if str.equals(n, "string")  { out = "_Ss"  return }
+        if str.equals(n, "error")   { out = "_e"   return }
+        out = ""
     }
 
     public void verify(bool ok) {
@@ -431,24 +455,24 @@ public class CodeGenModule {
         string triple = ti.getTripleStr()
 
         // Look up the LLVMTargetRef for the triple (out-pointer + status).
-        fly.mem.Ptr target = fly.mem.toPtr(0)
+        pointer target = 0
         bool tok = false
         llvm.getTargetFromTriple(triple, target, tok)
-        if target.addr == 0 {
+        if target == 0 {
             ok = false
             return
         }
 
         // LLVMCodeGenLevelDefault=2, LLVMRelocPIC=2, LLVMCodeModelDefault=0.
-        fly.mem.Ptr tm = fly.mem.toPtr(0)
+        pointer tm = 0
         llvm.createTargetMachine(target, triple, "", "", 2, 2, 0, tm)
-        if tm.addr == 0 {
+        if tm == 0 {
             ok = false
             return
         }
 
         // Use the machine's exact data layout (matches the reference compiler).
-        fly.mem.Ptr dl = fly.mem.toPtr(0)
+        pointer dl = 0
         llvm.createTargetDataLayout(tm, dl)
         llvm.setModuleDataLayout(this.module, dl)
 

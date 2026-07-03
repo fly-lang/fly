@@ -10,6 +10,10 @@ import fly.compiler.target.*
 import fly.compiler.driver.FrontendOptions
 import fly.data.*
 import fly.os.io
+import fly.os.fs
+import fly.os.path
+import fly.mem
+import fly.llvm
 import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -80,7 +84,15 @@ public class Frontend {
         DiagnosticOptions opts = new DiagnosticOptions()
         TextDiagnosticPrinter printer = new TextDiagnosticPrinter()
         DiagnosticsEngine diags = new DiagnosticsEngine(opts, printer, sm)
+        // Preload stdlib/package headers (.fly.h) so `import fly.os.io` etc. resolve
+        // against the declarations in <exe>/../lib (auto-discovered into stdLibDir) and
+        // any -L dir. Headers are added BEFORE the entry module; their namespaces get
+        // registered by Sema so imports find them. Header-origin symbols are tagged
+        // fromHeader and declared (external) but not defined by codegen — they link
+        // against fly_std_lib.a.
+        //
         List<ASTModule> mods = new List<ASTModule>()
+        this.loadLibHeaders(fo, mods)
         mods.add(m)
         SemaContext ctx = new SemaContext(diags)
         List<SemaModule> resModules = ctx.Resolve(mods, fo.getTestMode())
@@ -140,6 +152,64 @@ public class Frontend {
             this.outputFile = outPath
         }
         out = 0
+    }
+
+    // loadLibHeaders — parse every `.fly.h` under the stdlib dir (auto-discovered
+    // <exe>/../lib) and each -L dir into a header ASTModule, appended to `mods` ahead
+    // of the entry module. Mirrors fly/compiler/Frontend/Frontend.cpp::LoadLibHeaders.
+    // Header modules carry the declarations that let a user program's `import fly.*`
+    // resolve; their symbols are tagged fromHeader (by the Resolver) and linked from
+    // fly_std_lib.a rather than defined. No-op when no lib dirs are configured.
+    public void loadLibHeaders(const FrontendOptions fo, List<ASTModule> mods) {
+        string stdDir = fo.getStdLibDir()
+        if fly.str.isEmpty(stdDir) == false {
+            this.loadHeadersFromDir(stdDir, mods)
+        }
+        int nd = fo.libDirCount()
+        int di = 0
+        while di < nd {
+            string d = fo.libDirAt(di)
+            if fly.str.isEmpty(d) == false { this.loadHeadersFromDir(d, mods) }
+            di = di + 1
+        }
+    }
+
+    // loadHeadersFromDir — walk one directory, parse each `*.fly.h` as a header module.
+    public void loadHeadersFromDir(const string dir, List<ASTModule> mods) {
+        if fly.os.path.isDir(dir) == false { return }
+        fly.os.fs.DirEntries de = fly.os.fs.dirRead(dir)
+        pointer items = de.items
+        if items == 0 { return }
+
+        // DirEntry stride is 56 bytes: name.ptr at +0 (i64), name.size at +8 (i32).
+        // Read via readPtr/readInt with byte offsets (the Driver.argAt pattern) — no
+        // pointer arithmetic locals.
+        long lenL = (long)de.len
+        int n = 0
+        fly.llvm.longToInt(lenL, n)
+
+        int i = 0
+        while i < n {
+            int off = i * 56
+            pointer namePtr = fly.mem.readPtr(items, off)
+            int nameLen = fly.mem.readInt(items, off + 8)
+            string name = ""
+            fly.str.fromBytes(namePtr, nameLen, name)
+
+            if fly.str.endsWith(name, ".fly.h") {
+                string full = fly.os.path.join(dir, name)
+                string src = fly.os.fs.readStr(full)
+                if fly.str.isEmpty(src) == false {
+                    Parser hp = new Parser(src)
+                    ASTModule hm = hp.parseModule(name)
+                    if hp.isSuccess() {
+                        hm.setHeader(true)
+                        mods.add(hm)
+                    }
+                }
+            }
+            i = i + 1
+        }
     }
 
     // printDiags — dump every stored parser message to stderr.

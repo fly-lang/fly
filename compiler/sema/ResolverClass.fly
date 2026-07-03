@@ -24,6 +24,7 @@ public class ResolverClass {
         SemaModule mod = r.getCurrentModule()
         SymbolTable clsScope = r.getCurrentScope()
         SemaClassType cls = SemaBuilder.CreateClass(mod, clsScope, node)
+        cls.setFromHeader(r.isCurrentModuleHeader())
 
         // Register generic type parameters (e.g. T in Wrapper<T>) as CLASS symbols in
         // the class scope so member types resolve T to the SemaTypeParam. Each

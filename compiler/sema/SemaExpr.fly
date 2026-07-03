@@ -18,12 +18,12 @@ public class SemaExpr : SemaNode {
     SemaExpr child
     SemaExpr parent
     SemaType type
-    fly.mem.Ptr llvmValue   // CodeGen back-pointer: the LLVM value (null until codegen'd)
+    pointer llvmValue   // CodeGen back-pointer: the LLVM value (null until codegen'd)
 
     public SemaExpr(const SemaKind kind, const SemaType type) {
         super(kind)
         this.type = type
-        this.llvmValue = fly.mem.toPtr(0)
+        this.llvmValue = 0
     }
 
     public SemaType getType() { out = this.type }
@@ -33,8 +33,8 @@ public class SemaExpr : SemaNode {
     // overrides to return `this`). Used to spot `new` initializers for alloc tracking.
     public SemaCall asCall() { out = null }
 
-    public fly.mem.Ptr getLlvmValue() { out = this.llvmValue }
-    public void setLlvmValue(const fly.mem.Ptr v) { this.llvmValue = v }
+    public pointer getLlvmValue() { out = this.llvmValue }
+    public void setLlvmValue(const pointer v) { this.llvmValue = v }
 
     public SemaExpr getParent() { out = this.parent }
     public SemaExpr getChild() { out = this.child }
