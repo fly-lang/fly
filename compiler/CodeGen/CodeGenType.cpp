@@ -52,12 +52,12 @@ void CodeGenType::GenType(SemaIntType &Sema) {
 			case SemaIntTypeKind::TYPE_LONG:
 				T = CodeGen::Int64Ty;
 				break;
-			// pointer is pointer-sized. The reference only emits for the host
-			// (x86_64), where the pointer width is 64 — use the always-initialised
-			// Int64Ty (IntPtrTy can be null at type-gen time). The target-variable
-			// lowering lives in the self-host compiler.
+			// pointer is pointer-sized: its width follows the chosen target's
+			// pointer width (i64 on 64-bit targets, i32 on 32-bit targets). Derive
+			// it from the module datalayout rather than the static IntPtrTy, which
+			// can still be null at type-gen time.
 			case SemaIntTypeKind::TYPE_POINTER:
-				T = CodeGen::Int64Ty;
+				T = CGM->getModule()->getDataLayout().getIntPtrType(CGM->getLLVMCtx());
 				break;
 		}
 	}

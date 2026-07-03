@@ -171,6 +171,14 @@ void CodeGenStdLibCLang::BuildCArgsFromArgsStruct(
             }
             CArg   = Builder->CreateIntToPtr(Addr, llvm::PointerType::getUnqual(CGM->LLVMCtx));
             CArgTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+        } else if (Attr->getType()->getKind() == SemaKind::TYPE_INTEGER &&
+                   static_cast<SemaIntType *>(Attr->getType())->getIntKind() ==
+                       SemaIntTypeKind::TYPE_POINTER) {
+            // A `pointer` field carries a raw C address as an integer. Pass it as a
+            // real pointer arg (null 0 → IntToPtr(0) = C null), reproducing the ABI
+            // the former fly.mem.Ptr class-field marshalling produced.
+            CArg   = Builder->CreateIntToPtr(FieldVal, llvm::PointerType::getUnqual(CGM->LLVMCtx));
+            CArgTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
         } else {
             CArg   = FieldVal;
             CArgTy = FieldTy;
@@ -294,8 +302,16 @@ void CodeGenStdLibCLang::GenBridgeMethodCall(SemaCall *Sema) {
         switch (OutTy->getKind()) {
             case SemaKind::TYPE_INTEGER: {
                 auto *IT = static_cast<SemaIntType *>(OutTy);
-                CRetTy = (IT->getIntKind() == SemaIntTypeKind::TYPE_LONG)
-                             ? CodeGen::Int64Ty : CodeGen::Int32Ty;
+                if (IT->getIntKind() == SemaIntTypeKind::TYPE_POINTER) {
+                    // A `pointer` out receives a C pointer return. Size the C
+                    // return type as the target pointer-width integer so the
+                    // scalar-store path writes it straight into the out var
+                    // (both are the target intptr width — a no-op cast).
+                    CRetTy = CGM->Module->getDataLayout().getIntPtrType(CGM->LLVMCtx);
+                } else {
+                    CRetTy = (IT->getIntKind() == SemaIntTypeKind::TYPE_LONG)
+                                 ? CodeGen::Int64Ty : CodeGen::Int32Ty;
+                }
                 break;
             }
             case SemaKind::TYPE_FLOAT: {

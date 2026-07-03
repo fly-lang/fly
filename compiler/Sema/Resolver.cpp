@@ -1599,8 +1599,20 @@ void Resolver::visit(ASTMember &AST) {
 		return;
 	}
 
+	// `ClassName.member`: normally ClassName resolves to the CLASS type symbol. But
+	// when ClassName is the ENCLOSING class, the identifier resolves to the class's
+	// constructor instead (same name, shadows the type in class scope) — normalize
+	// that to the class so `Store.g` inside a Store method works like `Other.g`.
+	SemaClassType *ParentSema = nullptr;
 	if (ParentSymbol->getKind() == SymbolKind::CLASS) {
-		SemaClassType *ParentSema = static_cast<SemaClassType *>(ParentSymbol->getRef());
+		ParentSema = static_cast<SemaClassType *>(ParentSymbol->getRef());
+	} else if (ParentSymbol->getRef() &&
+	           ParentSymbol->getRef()->getKind() == SemaKind::METHOD &&
+	           static_cast<SemaClassMethod *>(ParentSymbol->getRef())->isConstructor()) {
+		ParentSema = static_cast<SemaClassMethod *>(ParentSymbol->getRef())->getClass();
+	}
+
+	if (ParentSema) {
 
 		// Feature 5b: BaseClass.field inside a derived class instance method →
 		// resolve as an instance access through 'this', navigating to the embedded base.

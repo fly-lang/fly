@@ -206,6 +206,11 @@ namespace fly {
 
     	CodeGenError *CurrentErrorHandler = nullptr;
 
+    	// Set while emitting a fly.runtime C-ABI function whose LLVM return type is a
+    	// value (its out param): a bare `return` must `ret load(out)`, not `ret void`.
+    	llvm::Value *CABIReturnPtr = nullptr;
+    	llvm::Type  *CABIReturnTy  = nullptr;
+
     	llvm::BasicBlock *CurrentHandleBB = nullptr;
 
     	llvm::BasicBlock *CurrentSafeBB = nullptr;

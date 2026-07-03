@@ -1,31 +1,33 @@
-/*===-- runtime/Linux/Proc.c - Process control via exit_group ---------===*/
+/*===-- runtime/Linux/Proc.c - Process control via libc ---------------===*/
 
 #include "../Runtime.h"
-#include "Syscall.h"
+
+/* libc (forward-declared under -nostdinc). */
+extern void _exit(int status);
+extern int  fork(void);
+extern int  execve(const char *path, char *const argv[], char *const envp[]);
+extern int  waitpid(int pid, int *status, int options);
+extern char **environ;
 
 FLY_NORETURN void proc_exit(i32 code)
 {
-    __syscall1(SYS_exit_group, (long)code);
+    _exit((int)code);
     FLY_UNREACHABLE();
 }
 
-/* Inherited environment (libc symbol, no <unistd.h> needed). */
-extern char **environ;
-
 i32 proc_exec(const char *path, char *const argv[])
 {
-    long pid = __syscall1(SYS_fork, 0);   /* extra arg ignored by the kernel */
+    int pid = fork();
     if (pid < 0)
         return -1;
     if (pid == 0) {
         /* Child: replace the image. execve returns only on failure. */
-        __syscall3(SYS_execve, (long)path, (long)argv, (long)environ);
-        proc_exit(127);
+        execve(path, argv, environ);
+        _exit(127);
     }
     /* Parent: wait for the child and decode its status. */
     int status = 0;
-    long r = __syscall4(SYS_wait4, pid, (long)&status, 0, 0);
-    if (r < 0)
+    if (waitpid(pid, &status, 0) < 0)
         return -1;
     if ((status & 0x7f) == 0)               /* WIFEXITED  */
         return (i32)((status >> 8) & 0xff); /* WEXITSTATUS */

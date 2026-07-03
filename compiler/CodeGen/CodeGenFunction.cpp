@@ -18,7 +18,9 @@
 #include "CodeGen/CodeGen.h"
 #include "CodeGen/CodeGenError.h"
 #include "CodeGen/CodeGenModule.h"
+#include "CodeGen/CodeGenVar.h"
 #include "Sema/SemaFunction.h"
+#include "Sema/SemaBlockStmt.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Function.h"
@@ -30,14 +32,41 @@
 
 using namespace fly;
 
+bool CodeGenFunction::isCABIRuntime(SemaFunction *Sema) {
+    // A fly.runtime function with a real (non-empty) body is emitted as an
+    // unmangled C symbol. Empty-body fly.runtime entries are pure externs
+    // (libc/libm) and are never defined here — see CodeGenModule::visit.
+    return Sema->getNamespaceName() == "fly_runtime" &&
+           Sema->getBody() && !Sema->getBody()->isEmpty();
+}
+
 CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool isExternal) :
     CodeGenFunctionBase(CGM, Sema), isExternal(isExternal), isMain(isMainFunction(Sema)) {
 
 	// Set Id
 	// Id = toIdentifier(Sema);
 
+    isCABI = !isMain && isCABIRuntime(Sema);
+
     // Generate Params Types
-    if (isMain) {
+    if (isCABI) {
+        // C-ABI: const params by value (in order); first non-const param becomes the
+        // return value; no error param. Mirrors the fly.runtime call-site convention
+        // in CodeGenStdLibRuntime::GenCall.
+        for (auto *Param : Sema->getParams()) {
+            if (!Param->getType()) continue;
+            Param->getType()->accept(*CGM);
+            if (!Param->getType()->getCodeGen()) continue;
+            llvm::Type *ValTy = Param->getType()->getCodeGen()->getType();
+            if (Param->isConstant()) {
+                ParamTypes.push_back(ValTy);           // by value
+            } else if (CABIOutParam == nullptr) {
+                CABIOutParam = Param;                   // first non-const -> return
+            }
+        }
+        RetType = CABIOutParam ? CABIOutParam->getType()->getCodeGen()->getType()
+                               : CodeGen::VoidTy;
+    } else if (isMain) {
         RetType = CodeGen::Int32Ty;
         // Always expose argc/argv so env_init() can store them for fly.os.env*
         ParamTypes.push_back(CodeGen::Int32Ty);                           // int argc
@@ -79,8 +108,10 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
     // Create LLVM Function
     FnType = llvm::FunctionType::get(RetType, ParamTypes, false);
 
-    // Set Name: main() is the C entry point and must not be mangled
-	std::string Name = isMain ? "main" : CodeGenHelper::Mangle(Sema);
+    // Set Name: main() is the C entry point and must not be mangled; C-ABI runtime
+    // functions export their exact (unmangled) name so fly.runtime call sites resolve.
+	std::string Name = (isMain || isCABI) ? std::string(Sema->getName()) : CodeGenHelper::Mangle(Sema);
+	if (isMain) Name = "main";
     Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
 
     // Set Linkage
@@ -96,6 +127,17 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
 void CodeGenFunction::GenBody() {
     FLY_DEBUG_SCOPE("CodeGenFunction", "GenBody");
     setInsertPoint();
+
+    // Only C-ABI runtime functions return-by-value; reset so a bare `return` in a
+    // normal function still emits `ret void`.
+    CGM->CABIReturnPtr = nullptr;
+    CGM->CABIReturnTy  = nullptr;
+
+    if (isCABI) {
+        GenCABIBody();
+        return;
+    }
+
     GenDebugSubprogram();
 
 	// Store in Function Error Handler
@@ -163,6 +205,61 @@ void CodeGenFunction::GenBody() {
     } else {
     	CheckReturnVoid();
     }
+}
+
+// Emit a fly.runtime C-ABI body: incoming by-value args are copied into param
+// allocas; the first non-const param is a fresh local returned by value at the end.
+void CodeGenFunction::GenCABIBody() {
+    // Local error context so any error-referencing call in the body still works.
+    Sema->getErrorHandler()->accept(*CGM);
+    CodeGenError *CGE = Sema->getErrorHandler()->getCodeGen();
+    llvm::AllocaInst *ErrStruct = CGM->Builder->CreateAlloca(CodeGen::ErrorTy, nullptr, "rt_err");
+    CGM->Builder->CreateStore(ErrStruct, CGE->getPointer());
+    CGE->Init();
+    CGM->CurrentErrorHandler = CGE;
+
+    // Give every param a stack slot; store incoming by-value args for const params.
+    size_t ArgIdx = 0;
+    for (auto *Param : Sema->getParams()) {
+        Param->accept(*CGM);
+        llvm::Type *ValTy = Param->getType()->getCodeGen()->getType();
+        llvm::AllocaInst *Slot = CGM->Builder->CreateAlloca(ValTy);
+        Param->getCodeGen()->setPointer(Slot);
+        if (Param->isConstant()) {
+            CGM->Builder->CreateStore(Fn->getArg(ArgIdx), Slot);
+            ++ArgIdx;
+        }
+    }
+
+    // Make bare `return` statements yield the out param by value.
+    if (CABIOutParam) {
+        CGM->CABIReturnPtr = CABIOutParam->getCodeGen()->getPointer();
+        CGM->CABIReturnTy  = CABIOutParam->getType()->getCodeGen()->getType();
+    }
+
+    // Local variables.
+    for (auto &LocalVar : Sema->getLocalVars()) {
+        LocalVar->accept(*CGM);
+        LocalVar->getCodeGen()->Alloca();
+    }
+
+    // Body.
+    if (Sema->getBody())
+        Sema->getBody()->accept(*CGM);
+
+    // Return the (first non-const) out param by value, or void.
+    if (!CGM->Builder->GetInsertBlock()->getTerminator()) {
+        if (CABIOutParam) {
+            llvm::Type *RetTy = CABIOutParam->getType()->getCodeGen()->getType();
+            llvm::Value *Val = CGM->Builder->CreateLoad(RetTy, CABIOutParam->getCodeGen()->getPointer());
+            CGM->Builder->CreateRet(Val);
+        } else {
+            CGM->Builder->CreateRetVoid();
+        }
+    }
+
+    CGM->CABIReturnPtr = nullptr;
+    CGM->CABIReturnTy  = nullptr;
 }
 
 bool CodeGenFunction::isMainFunction(SemaFunction *Sema) {

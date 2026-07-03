@@ -106,8 +106,12 @@ void CodeGenExpr::GenExpr(SemaIntValue *Sema) {
 			break;
 		case SemaIntTypeKind::TYPE_ULONG:
 		case SemaIntTypeKind::TYPE_LONG:
-		case SemaIntTypeKind::TYPE_POINTER:
 			V = llvm::ConstantInt::get(CGM->LLVMCtx, Sema->getValue().trunc(64));
+			break;
+		// pointer literals truncate to the target pointer width (i32 on 32-bit).
+		case SemaIntTypeKind::TYPE_POINTER:
+			V = llvm::ConstantInt::get(CGM->LLVMCtx, Sema->getValue().trunc(
+				CGM->Module->getDataLayout().getPointerSizeInBits()));
 			break;
 	}
 }
@@ -591,10 +595,23 @@ SemaExpr *Ref = Sema->getRef();
 		SemaClassAttribute *Attr = static_cast<SemaClassAttribute *>(Ref);
 
 		// Static attributes are backed by a GlobalVariable — use it directly,
-		// no need to generate the parent or compute a GEP.
+		// no need to generate the parent or compute a GEP. Resolve it by name from
+		// the declaring class so a duplicate attribute node (whose own CodeGenVar
+		// pointer may be unset — e.g. a static method referencing its own class's
+		// field) still lands on the one canonical global.
 		if (Attr->isStatic()) {
-			Sema->setCodeGen(Attr->getCodeGen());
-			V = Attr->getCodeGen()->getPointer();
+			llvm::GlobalVariable *GV = nullptr;
+			if (Attr->getClass().getCodeGen())
+				GV = Attr->getClass().getCodeGen()->GetStaticFieldGlobal(Attr);
+			if (GV) {
+				CodeGenVar *CGV = new CodeGenVar(CGM, Attr, GV->getValueType());
+				CGV->setPointer(GV);
+				Sema->setCodeGen(CGV);
+				V = GV;
+			} else {
+				Sema->setCodeGen(Attr->getCodeGen());
+				V = Attr->getCodeGen() ? Attr->getCodeGen()->getPointer() : nullptr;
+			}
 			return;
 		}
 
@@ -658,7 +675,7 @@ void CodeGenExpr::GenExpr(SemaCast *Sema) {
 	SemaType *ToType = Sema->getToType(); // Sema->getType() == ToType
 
 	// Helper: map SemaIntTypeKind to LLVM integer type
-	auto intLLVMType = [](SemaIntTypeKind k) -> llvm::Type * {
+	auto intLLVMType = [this](SemaIntTypeKind k) -> llvm::Type * {
 		switch (k) {
 			case SemaIntTypeKind::TYPE_BYTE:                 return CodeGen::Int8Ty;
 			case SemaIntTypeKind::TYPE_SHORT:
@@ -667,7 +684,9 @@ void CodeGenExpr::GenExpr(SemaCast *Sema) {
 			case SemaIntTypeKind::TYPE_UINT:                 return CodeGen::Int32Ty;
 			case SemaIntTypeKind::TYPE_LONG:
 			case SemaIntTypeKind::TYPE_ULONG:                return CodeGen::Int64Ty;
-			case SemaIntTypeKind::TYPE_POINTER:              return CodeGen::Int64Ty;
+			// pointer is target pointer-width (i32 on 32-bit targets).
+			case SemaIntTypeKind::TYPE_POINTER:
+				return CGM->Module->getDataLayout().getIntPtrType(CGM->LLVMCtx);
 			default:                                         return CodeGen::Int32Ty;
 		}
 	};
@@ -1567,13 +1586,25 @@ llvm::Value *CodeGenExpr::ConvertToInteger(llvm::Value *V, SemaIntType *Ty) {
 
 			case SemaIntTypeKind::TYPE_ULONG:
 			case SemaIntTypeKind::TYPE_LONG:
-			case SemaIntTypeKind::TYPE_POINTER:
 				if (V->getType() == CodeGen::Int8Ty || V->getType() == CodeGen::Int16Ty || V->getType() == CodeGen::Int32Ty) {
 					return Ty->isSigned() ? Builder->CreateSExt(V, CodeGen::Int64Ty) :
 						   Builder->CreateZExt(V, CodeGen::Int64Ty);
 				}
-				// V is already i64 — no conversion needed (covers long/ulong/pointer on the host)
+				// V is already i64 — no conversion needed (covers long/ulong on the host)
 				return V;
+
+			// pointer is target pointer-width: widen, truncate, or pass through to match it.
+			case SemaIntTypeKind::TYPE_POINTER: {
+				llvm::Type *PtrIntTy = CGM->Module->getDataLayout().getIntPtrType(CGM->LLVMCtx);
+				unsigned Dst = PtrIntTy->getIntegerBitWidth();
+				unsigned Src = V->getType()->getIntegerBitWidth();
+				if (Src < Dst)
+					return Ty->isSigned() ? Builder->CreateSExt(V, PtrIntTy) :
+						   Builder->CreateZExt(V, PtrIntTy);
+				if (Src > Dst)
+					return Builder->CreateTrunc(V, PtrIntTy);
+				return V;
+			}
 		}
 	}
 
@@ -1595,9 +1626,15 @@ llvm::Value *CodeGenExpr::ConvertToInteger(llvm::Value *V, SemaIntType *Ty) {
 
 			case SemaIntTypeKind::TYPE_ULONG:
 			case SemaIntTypeKind::TYPE_LONG:
-			case SemaIntTypeKind::TYPE_POINTER:
 				return Ty->isSigned() ? Builder->CreateFPToSI(V, CodeGen::Int64Ty) :
 					   Builder->CreateFPToUI(V, CodeGen::Int64Ty);
+
+			// pointer is target pointer-width.
+			case SemaIntTypeKind::TYPE_POINTER: {
+				llvm::Type *PtrIntTy = CGM->Module->getDataLayout().getIntPtrType(CGM->LLVMCtx);
+				return Ty->isSigned() ? Builder->CreateFPToSI(V, PtrIntTy) :
+					   Builder->CreateFPToUI(V, PtrIntTy);
+			}
 		}
 	}
 

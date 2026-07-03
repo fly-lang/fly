@@ -441,11 +441,29 @@ void CodeGenClass::CreateAttributes() {
 			// Check if the ClassAttribute is a static attribute
 			CodeGenVar *CGV;
 			if (Attribute->isStatic()) {
-				llvm::Value *ParentPointer = new llvm::GlobalVariable(
-					*CGM->Module, AttrType, Sema->isConstant(),
-					llvm::GlobalValue::ExternalLinkage, nullptr);
+				// A static field is backed by a single named GlobalVariable, resolved
+				// by name (get-or-create) so this is idempotent and every reference
+				// finds the same global. Define it here (once) with a constant
+				// initializer from the field's literal default, else zero.
+				llvm::GlobalVariable *GV = GetStaticFieldGlobal(Attribute);
+				if (!GV->hasInitializer()) {
+					llvm::Constant *Init = llvm::Constant::getNullValue(AttrType);
+					if (Attribute->getInitExpr() &&
+					    Attribute->getInitExpr()->getKind() == SemaKind::VALUE) {
+						Attribute->getInitExpr()->accept(*CGM);
+						if (Attribute->getInitExpr()->getCodeGen()) {
+							if (auto *C = llvm::dyn_cast_or_null<llvm::Constant>(
+							        Attribute->getInitExpr()->getCodeGen()->getValue()))
+								if (C->getType() == AttrType)
+									Init = C;
+						}
+					}
+					GV->setInitializer(Init);
+					GV->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+					GV->setConstant(false);
+				}
 				CGV = new CodeGenVar(CGM, Attribute, AttrType);
-				CGV->setPointer(ParentPointer);
+				CGV->setPointer(GV);
 			} else {
 				// Create CodeGenVar for Attribute
 				CGV = new CodeGenVar(CGM, Attribute, AttrType, BodyType.size());
@@ -576,6 +594,17 @@ llvm::PointerType *CodeGenClass::getTypePtr() {
 
 llvm::GlobalVariable *CodeGenClass::getVTable() {
 	return VTable;
+}
+
+llvm::GlobalVariable *CodeGenClass::GetStaticFieldGlobal(SemaClassAttribute *Attr) {
+	// Field LLVM type — reference-type (non-struct class) fields are heap pointers.
+	Attr->getType()->accept(*CGM);
+	llvm::Type *T = Attr->getType()->getCodeGen()->getType();
+	if (Attr->getType()->isClass() &&
+	    static_cast<SemaClassType *>(Attr->getType())->getClassKind() != SemaClassKind::STRUCT)
+		T = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+	std::string Name = Id + "." + std::string(Attr->getName());
+	return llvm::cast<llvm::GlobalVariable>(CGM->Module->getOrInsertGlobal(Name, T));
 }
 
 llvm::Function *CodeGenClass::getInitConstructor() {

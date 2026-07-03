@@ -1,7 +1,5 @@
 namespace fly.bridge
 
-import fly.mem
-
 // Args — base struct for C function argument packs.
 // Extend this struct with fields matching the C function parameters in order:
 //   struct OpenArgs : fly.bridge.Args { string filename }
@@ -23,5 +21,5 @@ public class CLang {
     public void call(string sym, const Args args, float out) {}
     public void call(string sym, const Args args, double out) {}
     public void call(string sym, const Args args, bool out) {}
-    public void call(string sym, const Args args, fly.mem.Ptr out) {}
+    public void call(string sym, const Args args, pointer out) {}
 }
