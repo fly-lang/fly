@@ -1,9 +1,11 @@
 ##===-- runtime/CMakeLists.txt - Fly minimal runtime library ----------===##
 #
-# Builds 'Runtime' as a static library with no libc dependency.
-# Platform subdirectories add sources and compile flags.
+# Builds 'Runtime' (fly_runtime_lib.a) as a static library. OS access is via
+# extern-C calls to the platform C library (resolved when a Fly program links
+# -lc/-lm/-lpthread). Platform subdirectories add sources and compile flags.
 #
-#   src/Runtime/Linux/  — Linux x86-64          (syscall ABI)
+#   src/Runtime/Linux/  — Linux x86-64          (libc: open/read/stat/uname/…,
+#                                                pthread, futex via syscall())
 #   src/Runtime/Windows/— Windows x64           (Win32/NT API)
 #   src/Runtime/macOS/  — macOS AArch64/x86-64  (libSystem / __ulock)
 #
@@ -69,23 +71,21 @@ else()
 endif()
 
 ######################################
-# Runtime test (freestanding C)
+# Runtime test (libc-linked C)
 ######################################
 
 add_executable(fly_runtime_test test/RuntimeTest.c)
 
 target_include_directories(fly_runtime_test PRIVATE ${CMAKE_SOURCE_DIR}/runtime)
 
+# The runtime reaches the OS through libc/libSystem/Win32 (open/read/write/stat/
+# pthread_create/…). thread_spawn calls pthread_create, which needs the CRT to
+# have initialised libc + TLS, so the test links as a normal program (CRT entry
+# via main), NOT freestanding.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_compile_options(fly_runtime_test PRIVATE
-            -ffreestanding -nostdinc -fno-stack-protector -fno-builtin)
-    # mem_alloc is backed by malloc; link libc but supply our own _start entry point.
-    target_link_options(fly_runtime_test PRIVATE -nostartfiles -Wl,-e,_start)
-    target_link_libraries(fly_runtime_test PRIVATE c m)
+    target_link_libraries(fly_runtime_test PRIVATE c m pthread)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    target_compile_options(fly_runtime_test PRIVATE
-            -ffreestanding -fno-stack-protector -fno-builtin)
-    target_link_options(fly_runtime_test PRIVATE -lSystem)
+    target_link_libraries(fly_runtime_test PRIVATE System)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     if(MSVC)
         target_compile_options(fly_runtime_test PRIVATE /GS-)

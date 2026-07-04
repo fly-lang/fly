@@ -1,11 +1,9 @@
 /*===-- test/RuntimeTest.c - Cross-platform runtime smoke test ------------===
  *
- * Exercises all four runtime primitives without libc.
- *
- * Entry point:
- *   Linux   — _start  (freestanding, no CRT)
- *   macOS   — main    (linked against -lSystem which provides crt1.o)
- *   Windows — main    (CRT provides mainCRTStartup)
+ * Exercises the runtime primitives. The runtime reaches the OS via libc/libSystem/
+ * Win32 (open/read/write/stat/pthread_create/…), so the test links as a normal
+ * program whose CRT initialises libc (thread_spawn → pthread_create needs it).
+ * Entry point is `main` on all platforms (the CRT provides the real _start).
  *
  * Expected stdout:
  *   fly runtime ok
@@ -132,15 +130,8 @@ static void run_tests(void)
     proc_exit(0);
 }
 
-/* ── platform entry points ──────────────────────────────────────────────── */
-
-#if defined(__linux__)
-
-void _start(void) __attribute__((noreturn));
-void _start(void) { run_tests(); __builtin_unreachable(); }
-
-#else
+/* ── entry point ─────────────────────────────────────────────────────────── */
+/* Normal CRT entry on every platform: the C startup initialises libc (malloc
+ * arena, pthread/TLS) that the runtime now depends on. */
 
 int main(void) { run_tests(); return 0; }
-
-#endif

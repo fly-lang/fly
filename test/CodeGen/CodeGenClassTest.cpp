@@ -567,7 +567,7 @@ namespace {
                           "\n"
                           "@error = external constant %error\n"
                           "@vtable.TestClass = constant [2 x ptr] [ptr null, ptr @TestClass_F9TestClass]\n"
-                          "@0 = external global i32\n"
+                          "@TestClass.a = linkonce_odr global i32 0\n"
                           "\n"
                           "define linkonce_odr ptr @TestClass.init_ctor(ptr %0) {\n"
                           "entry:\n"
@@ -594,9 +594,9 @@ namespace {
                           "  %2 = alloca i32, align 4\n"
                           "  store ptr %0, ptr %1, align 8\n"
                           // TestClass.a = 2
-                          "  store i32 2, ptr @0, align 4\n"
+                          "  store i32 2, ptr @TestClass.a, align 4\n"
                           // int x = TestClass.a
-                          "  %3 = load i32, ptr @0, align 4\n"
+                          "  %3 = load i32, ptr @TestClass.a, align 4\n"
                           "  store i32 %3, ptr %2, align 4\n"
                           "  ret void\n"
                           "}\n"

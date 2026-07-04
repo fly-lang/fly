@@ -115,7 +115,11 @@ static std::string paramStr(const ASTParam *P) {
 static std::string funcSignatureStr(const ASTFunction *F) {
     std::string sig = "public ";
     const std::string ret = typeStr(F->getReturnType());
+    // Always emit a return type: a void return has an empty/null type, but the
+    // generated header must be explicit (the self-host parser rejects a function with
+    // no return type). Mirrors the method-signature path.
     if (!ret.empty()) sig += ret + " ";
+    else sig += "void ";
     sig += F->getName().str() + "(";
     bool first = true;
     for (const auto *P : F->getParams()) {

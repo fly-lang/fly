@@ -26,6 +26,7 @@ namespace llvm {
 namespace fly {
 
     class SemaClassType;
+    class SemaClassAttribute;
     class ASTClass;
 
     struct BaseType {
@@ -110,6 +111,11 @@ namespace fly {
         llvm::PointerType *getTypePtr();
 
         llvm::GlobalVariable * getVTable();
+
+        // Get-or-create the single named GlobalVariable backing a static field
+        // (name = "<classId>.<attr>"). Deterministic by name so every reference —
+        // even from a duplicate attribute node — resolves to the same global.
+        llvm::GlobalVariable *GetStaticFieldGlobal(SemaClassAttribute *Attr);
 
         llvm::Function *getInitConstructor();
 

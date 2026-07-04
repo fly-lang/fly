@@ -3,26 +3,6 @@ namespace fly.mem
 import fly.llvm
 import fly.runtime
 
-// Ptr — raw memory address wrapper (void* equivalent). `addr` is `pointer`
-// (pointer-sized, Rust-style): 64-bit on a 64-bit target, 32-bit on a 32-bit
-// target. When generics are available, Ptr will carry a type parameter <T>
-// and fromPtr<T>() will reconstruct a typed instance from the address.
-public struct Ptr {
-    pointer addr
-}
-
-// Wrap a raw address as a Ptr. Addresses are `pointer` (pointer-sized).
-public Ptr toPtr(const pointer addr) {
-    out.addr = addr
-}
-
-// ulongToLong — reinterpret an unsigned 64-bit value (e.g. a raw address) as a
-// signed long, bit-preserving. Wraps the LLVM intrinsic so non-std code can do
-// the cast without calling fly.llvm directly.
-public long ulongToLong(const ulong v) {
-    fly.llvm.ulongToLong(v, out)
-}
-
 public void copy(const pointer dst, const pointer src, const pointer size) {
     fly.llvm.memcpy(dst, src, size)
 }

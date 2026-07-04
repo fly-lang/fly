@@ -189,7 +189,7 @@ llvm::DIType *CodeGenModule::GetOrCreateDIType(SemaType *Ty) {
             case SemaIntTypeKind::TYPE_LONG:
                 DIT = DBuilder->createBasicType("long",   64, llvm::dwarf::DW_ATE_signed);   break;
             case SemaIntTypeKind::TYPE_POINTER:
-                DIT = DBuilder->createBasicType("pointer", 64, llvm::dwarf::DW_ATE_unsigned); break;
+                DIT = DBuilder->createBasicType("pointer", PtrBits, llvm::dwarf::DW_ATE_unsigned); break;
         }
     } else if (Ty->isFloat()) {
         auto *FT = static_cast<SemaFloatType *>(Ty);
@@ -462,6 +462,11 @@ void CodeGenModule::visit(SemaFunction &Sema) {
 	// Generic template functions are never code-generated directly;
 	// only their concrete specializations (which have no TypeParams) produce LLVM IR.
 	if (Sema.isGeneric())
+		return;
+	// Empty-body fly.runtime entries are pure externs (libc/libm resolved at link);
+	// never emit a definition for them — call sites lower to `call @name` directly.
+	if (Sema.getNamespaceName() == "fly_runtime" &&
+	    (!Sema.getBody() || Sema.getBody()->isEmpty()))
 		return;
 	CurrentFunction = &Sema;
 	if (Sema.getCodeGen() == nullptr) {
@@ -866,7 +871,12 @@ void CodeGenModule::visit(SemaReturnStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaReturnStmt)");
 	EmitDebugLocation(Sema.getAST()->getLocation());
 	EmitAllocCleanup(AllocCleanupStack.size());
-	Builder->CreateRetVoid();
+	// In a fly.runtime C-ABI function a bare `return` yields the out param by value.
+	if (CABIReturnTy) {
+		Builder->CreateRet(Builder->CreateLoad(CABIReturnTy, CABIReturnPtr));
+	} else {
+		Builder->CreateRetVoid();
+	}
 }
 
 void CodeGenModule::visit(SemaIfStmt &Sema) {

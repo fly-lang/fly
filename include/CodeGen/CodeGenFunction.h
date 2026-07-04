@@ -16,6 +16,7 @@
 namespace fly {
 
     class SemaFunction;
+    class SemaParam;
     class CodeGenModule;
 
     class CodeGenFunction : public CodeGenFunctionBase {
@@ -24,9 +25,17 @@ namespace fly {
 
         bool isMain;
 
+        // C-ABI runtime function: a fly.runtime-namespace function with a real body,
+        // emitted as an unmangled C symbol (no error param, const params by value,
+        // first non-const param -> return value) to match the fly.runtime call-site ABI.
+        bool isCABI = false;
+        SemaParam *CABIOutParam = nullptr;
+
         std::string toIdentifier(SemaFunction *Function);
 
         void GenMainArgs();
+
+        void GenCABIBody();
 
     public:
         CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool isExternal = false);
@@ -34,6 +43,9 @@ namespace fly {
         void GenBody() override;
 
         static bool isMainFunction(SemaFunction *Sema);
+
+        // True for a fly.runtime function with a non-empty body (emitted as a C-ABI symbol).
+        static bool isCABIRuntime(SemaFunction *Sema);
     };
 }
 

@@ -39,6 +39,24 @@ static bool isNumericGroup(const SemaType *T) {
     return T->isBool() || T->isInteger() || T->isFloat();
 }
 
+// Actual bit width of an integer kind. The SemaIntTypeKind ordinals encode width
+// only approximately (signed = width-1), so comparing ordinals wrongly flags a
+// same-width signed↔unsigned reinterpret (e.g. ulong→long) as narrowing. Compare
+// true widths instead: a same-width sign change loses no bits.
+static unsigned intBitWidth(SemaIntTypeKind K) {
+    switch (K) {
+        case SemaIntTypeKind::TYPE_BYTE:                              return 8;
+        case SemaIntTypeKind::TYPE_SHORT:
+        case SemaIntTypeKind::TYPE_USHORT:                           return 16;
+        case SemaIntTypeKind::TYPE_INT:
+        case SemaIntTypeKind::TYPE_UINT:                             return 32;
+        case SemaIntTypeKind::TYPE_LONG:
+        case SemaIntTypeKind::TYPE_ULONG:
+        case SemaIntTypeKind::TYPE_POINTER:                         return 64;
+    }
+    return 64;
+}
+
 // Returns true when From is assignable / castable to To via inheritance rules.
 // Handles class sub-typing and enum derivation; returns false for all other kinds.
 static bool isCompatibleByInheritance(SemaType *From, SemaType *To) {
@@ -104,8 +122,9 @@ void SemaValidator::CheckCast(SemaExpr *From, SemaExpr *To) {
 		} else if (FromType->isInteger() && ToType->isInteger()) {
 			SemaIntType *FromInt = static_cast<SemaIntType *>(FromType);
 			SemaIntType *ToInt   = static_cast<SemaIntType *>(ToType);
-			if (static_cast<unsigned>(FromInt->getIntKind()) >
-			    static_cast<unsigned>(ToInt->getIntKind()))
+			// Only a true width reduction can lose data; a same-width signed↔
+			// unsigned reinterpret (ulong→long, uint→int) is bit-preserving.
+			if (intBitWidth(FromInt->getIntKind()) > intBitWidth(ToInt->getIntKind()))
 				Diag(diag::warn_sema_cast_lossy)
 					<< FromType->getName() << ToType->getName();
 		}

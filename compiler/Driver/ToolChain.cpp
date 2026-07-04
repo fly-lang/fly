@@ -777,6 +777,10 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
         CmdArgs.push_back(DarwinRuntimeLib.c_str());
     }
 
+    // libSystem provides all of libc/libm/pthread/atomic plus the __ulock_* and
+    // _NSGet* symbols the Fly runtime (runtime-macos.fly) calls on macOS.
+    CmdArgs.push_back("-lSystem");
+
     // Libraries required by CLang compile-time bridge calls
     for (const auto &LibFlag : CodeGenOpts.LinkerOptions)
         CmdArgs.push_back(LibFlag);
@@ -974,6 +978,11 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
 
     CmdArgs.push_back("-lc");
     CmdArgs.push_back("-lm"); // math functions (sin, cos, sqrt, etc.) from fly.math
+    // The fly.runtime C runtime uses libc extern calls (open/read/write/stat/uname/
+    // fork/execve/clock_gettime/…) plus pthread_create for thread_spawn; -lpthread
+    // is a stub on glibc >= 2.34 but kept for older libc. (futex uses libc syscall();
+    // the i32 atomics are inlined compiler builtins, so no -latomic is needed.)
+    CmdArgs.push_back("-lpthread");
 
     // Libraries required by CLang compile-time bridge calls
     for (const auto &LibFlag : CodeGenOpts.LinkerOptions)

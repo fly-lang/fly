@@ -1,18 +1,19 @@
-/*===-- runtime/Linux/Env.c - Environment primitives via Linux syscalls ---===*/
+/*===-- runtime/Linux/Env.c - Environment primitives via libc -----------===*/
 
 #include "../Runtime.h"
-#include "Syscall.h"
 
-/* libc symbols used for environment access (no <stdlib.h> needed) */
+/* libc symbols used for environment access (forward-declared under -nostdinc) */
 extern char **environ;
 extern char  *getenv(const char *name);
 extern int    setenv(const char *name, const char *value, int overwrite);
 extern int    unsetenv(const char *name);
 extern usize  strlen(const char *s);
-extern char  *strcpy(char *dst, const char *src);
 extern char  *strchr(const char *s, int c);
+extern char  *getcwd(char *buf, usize size);
+extern int    chdir(const char *path);
+extern i64    readlink(const char *path, char *buf, usize bufsiz);
 
-/* Linux uname struct (x86-64) */
+/* Linux uname struct (x86-64) — matches glibc `struct utsname` (65-byte fields) */
 typedef struct {
     char sysname[65];
     char nodename[65];
@@ -21,6 +22,7 @@ typedef struct {
     char machine[65];
     char domainname[65];
 } linux_utsname_t;
+extern int uname(linux_utsname_t *buf);
 
 /* Argv storage — populated by env_init() called from the fly runtime entry */
 static int    g_argc = 0;
@@ -34,16 +36,14 @@ void env_init(int argc, char **argv)
 
 i32 env_getcwd(char *buf, usize cap)
 {
-    long r = __syscall2(SYS_getcwd, (long)buf, (long)cap);
-    if (r <= 0) return -1;
-    /* r includes the null terminator; return path length without it */
-    return (i32)(r - 1);
+    char *p = getcwd(buf, cap);
+    if (!p) return -1;
+    return (i32)strlen(buf);
 }
 
 i32 env_chdir(const char *path)
 {
-    long r = __syscall1(SYS_chdir, (long)path);
-    return (r == 0) ? 0 : -1;
+    return (chdir(path) == 0) ? 0 : -1;
 }
 
 i32 env_get(const char *key, char *buf, usize size)
@@ -102,8 +102,7 @@ void env_all_get(i32 idx, char *key_buf, usize key_size,
 i32 env_hostname(char *buf, usize size)
 {
     linux_utsname_t u;
-    long r = __syscall1(SYS_uname, (long)&u);
-    if (r < 0) { if (size > 0) buf[0] = '\0'; return -1; }
+    if (uname(&u) != 0) { if (size > 0) buf[0] = '\0'; return -1; }
     usize len = strlen(u.nodename);
     if (len >= size) len = size - 1;
     usize i;
@@ -112,13 +111,12 @@ i32 env_hostname(char *buf, usize size)
     return (i32)len;
 }
 
-/* env_arch / env_kernel / env_kernelversion — host details from a uname(2) syscall
+/* env_arch / env_kernel / env_kernelversion — host details from uname(3)
  * (machine / release / version), same copy-into-buf contract as env_hostname. */
 i32 env_arch(char *buf, usize size)
 {
     linux_utsname_t u;
-    long r = __syscall1(SYS_uname, (long)&u);
-    if (r < 0) { if (size > 0) buf[0] = '\0'; return -1; }
+    if (uname(&u) != 0) { if (size > 0) buf[0] = '\0'; return -1; }
     usize len = strlen(u.machine);
     if (len >= size) len = size - 1;
     usize i;
@@ -130,8 +128,7 @@ i32 env_arch(char *buf, usize size)
 i32 env_kernel(char *buf, usize size)
 {
     linux_utsname_t u;
-    long r = __syscall1(SYS_uname, (long)&u);
-    if (r < 0) { if (size > 0) buf[0] = '\0'; return -1; }
+    if (uname(&u) != 0) { if (size > 0) buf[0] = '\0'; return -1; }
     usize len = strlen(u.release);
     if (len >= size) len = size - 1;
     usize i;
@@ -143,8 +140,7 @@ i32 env_kernel(char *buf, usize size)
 i32 env_kernelversion(char *buf, usize size)
 {
     linux_utsname_t u;
-    long r = __syscall1(SYS_uname, (long)&u);
-    if (r < 0) { if (size > 0) buf[0] = '\0'; return -1; }
+    if (uname(&u) != 0) { if (size > 0) buf[0] = '\0'; return -1; }
     usize len = strlen(u.version);
     if (len >= size) len = size - 1;
     usize i;
@@ -153,15 +149,13 @@ i32 env_kernelversion(char *buf, usize size)
     return (i32)len;
 }
 
-/* env_exe_path — absolute path of the running executable via readlink(2) on
- * /proc/self/exe. Independent of argv[0]/$PATH; the Fly equivalent of
- * std::env::current_exe (cf. getMainExecutable in the C++ driver). readlink does
- * not NUL-terminate, so reserve a byte and add the terminator ourselves. */
+/* env_exe_path — absolute path of the running executable via readlink(3) on
+ * /proc/self/exe. Independent of argv[0]/$PATH. readlink does not NUL-terminate,
+ * so reserve a byte and add the terminator ourselves. */
 i32 env_exe_path(char *buf, usize size)
 {
     if (size == 0) return -1;
-    long r = __syscall3(SYS_readlink, (long)"/proc/self/exe",
-                        (long)buf, (long)(size - 1u));
+    i64 r = readlink("/proc/self/exe", buf, size - 1u);
     if (r < 0) { buf[0] = '\0'; return -1; }
     buf[(usize)r] = '\0';
     return (i32)r;
