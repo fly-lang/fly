@@ -430,6 +430,36 @@ public class Parser {
     // ── ParseFunction ─────────────────────────────────────────────────────────
     public ASTFunction parseFunction(const List<ASTModifier> mods) {
         SourceLocation loc = this.curLoc()
+        // bridge-header style (llvm.fly.h / runtime.fly.h): `public name(params)`
+        // or `public name<T>(params)` — a bare IDENT whose declaration reaches
+        // `(` with no name in between declares a VOID function with the return
+        // type omitted. Without this the whole header module fails to parse and
+        // is silently dropped (fly.llvm was never registered, V4).
+        if this.cur.kind == TokenKind.IDENT {
+            bool headerFn = this.nxtIsPunct("(")
+            if headerFn == false {
+                if this.nxtIsPunct("<") {
+                    // `name<…>(` = generic header fn; `Name<…> ident` = return type
+                    if this.genericDeclAhead() == false { headerFn = true }
+                }
+            }
+            if headerFn {
+                string hn = this.curText()
+                this.bump()
+                List<ASTType> htp = new List<ASTType>()
+                if this.curIsPunct("<") { htp = this.parseTypeParams() }
+                List<ASTParam> hparams = this.parseParams()
+                ASTBlockStmt hbody = null
+                if this.curIsPunct("{") { hbody = this.parseBlock() }
+                ASTFunction hf = ASTBuilder.CreateFunction(this.module, loc, hn, mods, hparams, hbody)
+                hf.setReturnType(ASTBuilder.CreateVoidType(loc))
+                List<ASTType> hftp = hf.getTypeParams()
+                int hti = 0
+                while hti < htp.size() { hftp.add(htp.get(hti))  hti = hti + 1 }
+                out = hf
+                return
+            }
+        }
         ASTType retType = this.parseType()
         string nm = ""
         if this.curIsNamePart() { nm = this.curText()  this.bump() }
@@ -531,7 +561,7 @@ public class Parser {
     // transferStmts — move parsed init/post statements into the loop node.
     public void transferStmts(const ASTBlockStmt src, const ASTLoopStmt dst, const bool isInit) {
         List<ASTStmt> c = src.getContent()
-        int n = c.size()
+        int n = (int)c.size()
         int i = 0
         while i < n {
             ASTStmt st = c.get(i)

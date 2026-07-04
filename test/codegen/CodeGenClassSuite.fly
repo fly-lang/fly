@@ -53,7 +53,7 @@ suite CodeGenClassSuite {
             string ir = cgIR("public class Point { int x  int y  public Point(int a, int b) { this.x = a  this.y = b }  public int sum() { out = this.x + this.y } }  int main() { Point p = new Point(40, 2)  int s = p.sum()  out = s }")
             assert.assertTrue(fly.str.contains(ir, "@malloc"), 21)
             assert.assertTrue(fly.str.contains(ir, "store ptr @vtable..Point"), 22)
-            assert.assertTrue(fly.str.contains(ir, "call void @Point__"), 23)
+            assert.assertTrue(fly.str.contains(ir, "call void @Point_F0"), 23)
         }
     }
 

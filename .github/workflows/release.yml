@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g. 1.0.0)'
-        required: true
+        description: 'Override version (default: read from compiler/basic/Version.fly)'
+        required: false
         type: string
 
 env:
@@ -31,8 +31,13 @@ jobs:
         id: version
         shell: bash
         run: |
+          # Single source of truth: compiler/basic/Version.fly (like fly/'s
+          # CMakeLists.txt FLY_VERSION). The dispatch input is an optional override.
           VERSION="${{ inputs.version }}"
-          [ -n "$VERSION" ] || { echo "ERROR: version input is required"; exit 1; }
+          if [ -z "$VERSION" ]; then
+            VERSION=$(grep -oEm1 '"[0-9]+\.[0-9]+\.[0-9]+"' compiler/basic/Version.fly | tr -d '"')
+          fi
+          [ -n "$VERSION" ] || { echo "ERROR: no version input and compiler/basic/Version.fly is unparsable"; exit 1; }
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Resolved version: $VERSION"
 

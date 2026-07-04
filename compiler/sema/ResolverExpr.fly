@@ -3,6 +3,8 @@ namespace fly.compiler.sema
 import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.basic.*
+import fly.data.List
+import fly.str as s
 
 // ResolverExpr — expression resolution companion. Sets r.currentExpr.
 public class ResolverExpr {
@@ -50,6 +52,15 @@ public class ResolverExpr {
                     }
                 }
             }
+        } else {
+            // comparisons and logic yield BOOL (the CreateBinary default is the
+            // left operand's type, which broke overload matching on args like
+            // `assertTrue(x >= 0, tag)` — audit V4). Assignments keep the default
+            // (the assignee's type).
+            ASTBinaryKind bk = node.getBinaryKind()
+            if bk != ASTBinaryKind.OP_BINARY_ASSIGN {
+                b.setType(SemaBuiltin.getBoolType())
+            }
         }
         r.setCurrentExpr(b)
     }
@@ -81,6 +92,9 @@ public class ResolverExpr {
         ASTExpr e = node.getExpr()
         e.accept(r)
         SemaExpr from = r.getCurrentExpr()
+        // an unresolved inner expr already reported its diagnostic — building a
+        // cast around null would segfault codegen (gen on a null expr)
+        if from == null { r.setCurrentExpr(null)  return }
         ASTType tt = node.getToType()
         tt.accept(r)
         SemaType toType = r.getCurrentType()
@@ -94,6 +108,40 @@ public class ResolverExpr {
     public static void member(const Resolver r, const ASTMember node) {
         ASTExpr parent = node.getParent()
         if parent == null { r.setCurrentExpr(null)  return }
+
+        // `super.attr` (audit V4): read an INHERITED field through the current
+        // method's `this` — the attribute is looked up from the FIRST base up the
+        // chain (never the current class). Flat object layout means the base
+        // field lives at the same slot, so codegen needs no receiver adjustment.
+        ASTIdentifier suid = parent.asIdentifier()
+        if suid != null {
+            if parent.getParent() == null {
+                if s.equals(suid.getName(), "super") {
+                    SemaClassType scls = r.getCurrentClass()
+                    if scls != null {
+                        List<SemaClassType> sbases = scls.getBaseClasses()
+                        if sbases.size() > 0 {
+                            SemaClassType sbase = sbases.get(0)
+                            SemaClassAttribute sattr = sbase.LookupAttribute(node.getName())
+                            if sattr == null {
+                                r.diagStr(node.getLoc(), DiagID.err_sema_unknown_member, node.getName())
+                                r.setCurrentExpr(null)
+                                return
+                            }
+                            Registry sreg = r.getReg()
+                            Symbol tsym = sreg.LookupName("this", r.getCurrentScope())
+                            SemaExpr thisE = null
+                            if tsym != null { thisE = tsym.getExprRef() }
+                            SemaMember smem = SemaBuilder.CreateMemberVar(node, sattr, thisE)
+                            r.setCurrentExpr(smem)
+                            return
+                        }
+                    }
+                    r.setCurrentExpr(null)
+                    return
+                }
+            }
+        }
 
         // Enum entry access `EnumName.ENTRY`: the parent is a bare identifier naming
         // an enum TYPE (not a value), so resolve it as a named type first — this also
@@ -123,6 +171,34 @@ public class ResolverExpr {
         if pe == null { r.setCurrentExpr(null)  return }
         SemaType pt = pe.getType()
         if pt == null { r.setCurrentExpr(null)  return }
+
+        // Enum property access: `<entry-or-enum-var>.value` (int, the 1-based
+        // index) / `.name` (string). Builds SemaEnumAccessor with exactly one of
+        // {entry, var} set — mirrors the reference's SemaEnumAccessor model.
+        SemaEnumType pen = pt.asEnum()
+        if pen != null {
+            bool accName = s.equals(node.getName(), "name")
+            bool accValue = s.equals(node.getName(), "value")
+            if accName || accValue {
+                SemaEnumEntry accEntry = pe.asEnumEntry()
+                SemaType accTy = SemaBuiltin.getStringType()
+                if accValue { accTy = SemaBuiltin.getIntType() }
+                // var slot stays null: codegen reads NON-entry receivers through
+                // the accessor's parent expr (narrowing to SemaVar would need a
+                // new base virtual — the bootstrap mis-dispatches those)
+                SemaEnumAccessor acc = new SemaEnumAccessor(pen, accEntry, null, accName, accTy)
+                // non-literal receivers (locals, params, field chains like
+                // `this.kind`) travel as the accessor's parent expr; codegen
+                // gens the parent for the runtime i32 value
+                if accEntry == null { acc.setParent(pe) }
+                r.setCurrentExpr(acc)
+                return
+            }
+            r.diagStr(node.getLoc(), DiagID.err_sema_unknown_member, node.getName())
+            r.setCurrentExpr(null)
+            return
+        }
+
         SemaClassType pcls = pt.asClass()
         if pcls == null { r.setCurrentExpr(null)  return }
         SemaClassAttribute attr = pcls.LookupAttribute(node.getName())

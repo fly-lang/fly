@@ -39,7 +39,7 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
         this.messages.add(diag.getMessage())
     }
 
-    public int count() { out = this.levels.size() }
+    public int count() { out = (int)this.levels.size() }
 
     // jsonEscape — escape `\` then `"` so messages embed safely in JSON strings
     // (the search/replacement patterns are built from real bytes, since `"\\"` /
@@ -71,7 +71,7 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
     // this compiler (see the formatMessage note in basic/Diagnostic.fly).
     public string toJson() {
         string res = "["
-        int n = this.levels.size()
+        int n = (int)this.levels.size()
         int i = 0
         while i < n {
             string sep = ""
@@ -95,7 +95,7 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
     // toText — one `level: file:line:col: message` line per diagnostic.
     public string toText() {
         string res = ""
-        int n = this.levels.size()
+        int n = (int)this.levels.size()
         int i = 0
         while i < n {
             string loc = fly.str.concat(this.files.get(i),

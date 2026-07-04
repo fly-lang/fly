@@ -6,11 +6,13 @@ import fly.runtime
 // Stack<T> — LIFO over a growable buffer, the Fly analog of C++ std::stack<T>.
 // Ownership: push deep-clones owned values (string); pop transfers ownership to the
 // caller (returns a fresh value and releases the slot); free releases live elements.
+// Sizes and indices are `pointer` (the Fly usize); len==0 guards make the
+// top-of-stack decrements unsigned-safe.
 public class Stack<T> {
     pointer items
-    int len
-    int cap
-    int stride
+    pointer len
+    pointer cap
+    pointer stride
 
     public Stack() {
         this.items = 0
@@ -26,7 +28,7 @@ public class Stack<T> {
             this.stride = s
         }
         if this.len >= this.cap {
-            int newcap = this.cap * 2
+            pointer newcap = this.cap * 2
             if newcap == 0 { newcap = 8 }
             pointer ni = 0
             if this.items == 0 {
@@ -47,7 +49,7 @@ public class Stack<T> {
             out = def
             return
         }
-        int newlen = this.len - 1
+        pointer newlen = this.len - 1
         fly.llvm.slotReadT(this.items, newlen * this.stride, out)
         T probe
         fly.llvm.slotFreeT(this.items, newlen * this.stride, probe)
@@ -60,7 +62,7 @@ public class Stack<T> {
             out = def
             return
         }
-        int top = this.len - 1
+        pointer top = this.len - 1
         fly.llvm.slotReadT(this.items, top * this.stride, out)
     }
 
@@ -68,13 +70,13 @@ public class Stack<T> {
         out = this.len == 0
     }
 
-    public int size() {
+    public pointer size() {
         out = this.len
     }
 
     public void free() {
         T probe
-        int i = 0
+        pointer i = 0
         while i < this.len {
             fly.llvm.slotFreeT(this.items, i * this.stride, probe)
             i = i + 1

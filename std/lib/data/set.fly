@@ -7,12 +7,14 @@ import fly.runtime
 // C++ std::unordered_set<T>. Keys are hashed with slotHashT and compared with
 // slotCmpT (lexicographic for string). Ownership: add deep-clones owned keys
 // (string); remove/free release them. flags: 0=empty, 1=occupied, 2=tombstone.
+// Sizes, capacities, strides and bucket cursors are `pointer` (the Fly usize);
+// hashes stay `int` (i32); the tombstone slot uses an explicit bool (no -1).
 public class Set<T> {
     pointer keys
     pointer flags
-    int count
-    int cap
-    int stride
+    pointer count
+    pointer cap
+    pointer stride
 
     public Set() {
         this.keys = 0
@@ -39,14 +41,14 @@ public class Set<T> {
             this.cap = 8
         }
         if this.count * 4 >= this.cap * 3 {
-            int newcap = this.cap * 2
+            pointer newcap = this.cap * 2
             pointer nkeys = 0
             fly.runtime.mem_alloc(newcap * this.stride, nkeys)
             pointer nflags = 0
             fly.runtime.mem_alloc(newcap, nflags)
             fly.llvm.memset(nflags, 0, newcap)
             T probe
-            int ri = 0
+            pointer ri = 0
             while ri < this.cap {
                 byte rfl = 0
                 fly.llvm.ptrByteAt(this.flags, ri, rfl)
@@ -54,18 +56,18 @@ public class Set<T> {
                     int rh = 0
                     fly.llvm.slotHashAtT(this.keys, ri * this.stride, probe, rh)
                     if rh < 0 { rh = 0 - rh }
-                    int rb = rh & (newcap - 1)
+                    pointer rb = rh & (newcap - 1)
                     byte rnfl = 0
                     fly.llvm.ptrByteAt(nflags, rb, rnfl)
                     while rnfl != 0 {
                         rb = (rb + 1) & (newcap - 1)
                         fly.llvm.ptrByteAt(nflags, rb, rnfl)
                     }
-                    long soff = ri * this.stride
-                    long doff = rb * this.stride
+                    pointer soff = ri * this.stride
+                    pointer doff = rb * this.stride
                     pointer src = this.keys + soff
                     pointer dst = nkeys + doff
-                    long nb = this.stride
+                    pointer nb = this.stride
                     fly.llvm.memcpy(dst, src, nb)
                     fly.llvm.ptrPokeByte(nflags, rb, 1)
                 }
@@ -80,9 +82,10 @@ public class Set<T> {
         int ph = 0
         fly.llvm.slotHashT(key, ph)
         if ph < 0 { ph = 0 - ph }
-        int b = ph & (this.cap - 1)
-        int ts = 0 - 1
-        int probed = 0
+        pointer b = ph & (this.cap - 1)
+        bool hasTs = false
+        pointer ts = 0
+        pointer probed = 0
         bool done = false
         while probed < this.cap {
             byte fl = 0
@@ -97,10 +100,13 @@ public class Set<T> {
             }
             if done == false {
                 if fl == 2 {
-                    if ts < 0 { ts = b }
+                    if hasTs == false {
+                        ts = b
+                        hasTs = true
+                    }
                 }
                 if fl == 0 {
-                    if ts >= 0 { b = ts }
+                    if hasTs { b = ts }
                     fly.llvm.slotPokeT(this.keys, b * this.stride, key)
                     fly.llvm.ptrPokeByte(this.flags, b, 1)
                     this.count = this.count + 1
@@ -114,7 +120,7 @@ public class Set<T> {
             }
         }
         if done == false {
-            if ts >= 0 {
+            if hasTs {
                 fly.llvm.slotPokeT(this.keys, ts * this.stride, key)
                 fly.llvm.ptrPokeByte(this.flags, ts, 1)
                 this.count = this.count + 1
@@ -130,8 +136,8 @@ public class Set<T> {
         int hh = 0
         fly.llvm.slotHashT(key, hh)
         if hh < 0 { hh = 0 - hh }
-        int b = hh & (this.cap - 1)
-        int probed = 0
+        pointer b = hh & (this.cap - 1)
+        pointer probed = 0
         bool found = false
         while probed < this.cap {
             byte fl = 0
@@ -161,8 +167,8 @@ public class Set<T> {
         int rh = 0
         fly.llvm.slotHashT(key, rh)
         if rh < 0 { rh = 0 - rh }
-        int b = rh & (this.cap - 1)
-        int probed = 0
+        pointer b = rh & (this.cap - 1)
+        pointer probed = 0
         while probed < this.cap {
             byte fl = 0
             fly.llvm.ptrByteAt(this.flags, b, fl)
@@ -188,14 +194,14 @@ public class Set<T> {
         }
     }
 
-    public int size() {
+    public pointer size() {
         out = this.count
     }
 
     public void free() {
         if this.keys != 0 {
             T probe
-            int i = 0
+            pointer i = 0
             while i < this.cap {
                 byte fl = 0
                 fly.llvm.ptrByteAt(this.flags, i, fl)

@@ -6,13 +6,16 @@ import fly.runtime
 // Deque<T> — double-ended queue over a power-of-two circular buffer, the Fly analog
 // of C++ std::deque<T>. Ownership: pushes deep-clone owned values (string); pops
 // transfer ownership to the caller; free releases live elements.
+// Sizes, cursors and indices are `pointer` (the Fly usize). head/tail wrap with
+// `& (cap - 1)` over power-of-two capacities, so `(head - 1) & (cap - 1)` stays
+// correct under unsigned wraparound (0-1 ≡ 2^64-1, masked back to cap-1).
 public class Deque<T> {
     pointer items
-    int head
-    int tail
-    int len
-    int cap
-    int stride
+    pointer head
+    pointer tail
+    pointer len
+    pointer cap
+    pointer stride
 
     public Deque() {
         this.items = 0
@@ -36,17 +39,17 @@ public class Deque<T> {
             this.cap = 8
         }
         if this.len >= this.cap {
-            int newcap = this.cap * 2
+            pointer newcap = this.cap * 2
             pointer ni = 0
             fly.runtime.mem_alloc(newcap * this.stride, ni)
-            int gi = 0
+            pointer gi = 0
             while gi < this.len {
-                int idx = (this.head + gi) & (this.cap - 1)
-                long soff = idx * this.stride
-                long doff = gi * this.stride
+                pointer idx = (this.head + gi) & (this.cap - 1)
+                pointer soff = idx * this.stride
+                pointer doff = gi * this.stride
                 pointer src = this.items + soff
                 pointer dst = ni + doff
-                long nb = this.stride
+                pointer nb = this.stride
                 fly.llvm.memcpy(dst, src, nb)
                 gi = gi + 1
             }
@@ -74,17 +77,17 @@ public class Deque<T> {
             this.cap = 8
         }
         if this.len >= this.cap {
-            int newcap = this.cap * 2
+            pointer newcap = this.cap * 2
             pointer ni = 0
             fly.runtime.mem_alloc(newcap * this.stride, ni)
-            int gi = 0
+            pointer gi = 0
             while gi < this.len {
-                int idx = (this.head + gi) & (this.cap - 1)
-                long soff = idx * this.stride
-                long doff = gi * this.stride
+                pointer idx = (this.head + gi) & (this.cap - 1)
+                pointer soff = idx * this.stride
+                pointer doff = gi * this.stride
                 pointer src = this.items + soff
                 pointer dst = ni + doff
-                long nb = this.stride
+                pointer nb = this.stride
                 fly.llvm.memcpy(dst, src, nb)
                 gi = gi + 1
             }
@@ -94,7 +97,7 @@ public class Deque<T> {
             this.tail = this.len
             this.cap = newcap
         }
-        int newhead = (this.head - 1) & (this.cap - 1)
+        pointer newhead = (this.head - 1) & (this.cap - 1)
         fly.llvm.slotPokeT(this.items, newhead * this.stride, val)
         this.head = newhead
         this.len = this.len + 1
@@ -119,7 +122,7 @@ public class Deque<T> {
             out = def
             return
         }
-        int newtail = (this.tail - 1) & (this.cap - 1)
+        pointer newtail = (this.tail - 1) & (this.cap - 1)
         fly.llvm.slotReadT(this.items, newtail * this.stride, out)
         T probe
         fly.llvm.slotFreeT(this.items, newtail * this.stride, probe)
@@ -142,7 +145,7 @@ public class Deque<T> {
             out = def
             return
         }
-        int last = (this.tail - 1) & (this.cap - 1)
+        pointer last = (this.tail - 1) & (this.cap - 1)
         fly.llvm.slotReadT(this.items, last * this.stride, out)
     }
 
@@ -150,15 +153,15 @@ public class Deque<T> {
         out = this.len == 0
     }
 
-    public int size() {
+    public pointer size() {
         out = this.len
     }
 
     public void free() {
         T probe
-        int i = 0
+        pointer i = 0
         while i < this.len {
-            int idx = (this.head + i) & (this.cap - 1)
+            pointer idx = (this.head + i) & (this.cap - 1)
             fly.llvm.slotFreeT(this.items, idx * this.stride, probe)
             i = i + 1
         }

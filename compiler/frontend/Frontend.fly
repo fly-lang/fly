@@ -105,12 +105,18 @@ public class Frontend {
         // 3) codegen + verify
         this.trace("generating code")
         CodeGenModule cgm = new CodeGenModule(name)
+        cgm.setCodeGenOpts(this.ci.getCodeGenOptions())
         cgm.configureTarget(ti)
         cgm.generate(reg)
         bool ok = false
         cgm.verify(ok)
         if ok == false {
             fly.os.io.printErrLn("error: backend module verification failed")
+            // reason via a second verify, consumed DIRECTLY as a call argument
+            // (binding the returned string to a method-frame local double-frees
+            // under the bootstrap — the trace() arg pattern is safe)
+            bool ok2 = false
+            fly.os.io.printErrLn(cgm.verifyMsg(ok2))
             out = 1
             return
         }

@@ -1,0 +1,257 @@
+namespace fly.compiler.codegen
+
+import fly.compiler.sema.*
+import fly.compiler.codegen.CodeGenModule
+import fly.compiler.codegen.CodeGenLLVM
+import fly.compiler.codegen.CodeGenType
+import fly.compiler.codegen.CodeGenExpr
+import fly.compiler.codegen.CodeGenClass
+import llvm.api.*
+import fly.data.List
+import fly.str
+import fly.os.io
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenBridge — compile-time interception of the fly.bridge.CLang FFI, a port
+// of fly/compiler/CodeGen/CodeGenStdLibCLang.cpp. `libc.call("strlen", args, n)`
+// never dispatches to the archive stub: the codegen reads the SYMBOL from the
+// string literal, marshals the Args-struct fields into C arguments, emits a
+// direct C call and stores the C return into the out param. The constructor
+// `new CLang("libm.so")` registers the normalized `-lm` linker flag.
+//
+// Marshalling (reference ABI):
+//   string  → fresh malloc(len+1) NUL-terminated copy (Fly strings aren't
+//             NUL-terminated; C reads one past the end) — leaks per call, by design
+//   pointer → inttoptr to a real C pointer (0 → C NULL)
+//   numbers/bool → by value with their lowered type
+// C return type from the out param: long/ulong/pointer → i64, other ints → i32,
+// bool → i32 + trunc, float/double by kind; 2-arg variant → void.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenBridge {
+
+    public CodeGenBridge() { }
+
+    // isCLangClass — is `cls` fly.bridge.CLang? Name + FLAT full-namespace check
+    // (SemaNameSpace nodes hold only the leaf segment; classNsFlat rebuilds the
+    // dotted path flattened with '_'). No downcasts, no new virtuals.
+    public static bool isCLangClass(const SemaClassType cls) {
+        if cls == null { out = false  return }
+        if fly.str.equals(cls.getName(), "CLang") == false { out = false  return }
+        out = fly.str.equals(SemaBuilder.classNsFlat(cls), "fly_bridge")
+    }
+
+    // isBridgeCall — `<CLang instance>.call(…)`: intercept instead of dispatching
+    // to the archive stub (which is an empty body).
+    public static bool isBridgeCall(const SemaCall node) {
+        SemaFunctionBase fn = node.getFunction()
+        if fn == null { out = false  return }
+        if fly.str.equals(fn.getName(), "call") == false { out = false  return }
+        SemaExpr parent = node.getParent()
+        if parent == null { out = false  return }
+        SemaType pt = parent.getType()
+        if pt == null { out = false  return }
+        out = CodeGenBridge.isCLangClass(pt.asClass())
+    }
+
+    // captureCtorLib — after genNew generated the ctor args of `new CLang(lib)`,
+    // register the linker flag when lib is a compile-time string literal (the
+    // gen of arg 0 recorded its text in cge.lastStrLit).
+    public static void captureCtorLib(const CodeGenExpr cge, const SemaCall node) {
+        List<SemaExpr> args = node.getArgs()
+        if args.size() == 0 { return }
+        SemaExpr a0 = args.get(0)
+        if a0.getKind() != SemaKind.VALUE { return }
+        SemaType t0 = a0.getType()
+        if t0 == null { return }
+        if t0.isString() == false { return }
+        string lib = cge.getLastStrLit()
+        if fly.str.isEmpty(lib) { return }
+        CodeGenModule cgm = cge.getCgm()
+        cgm.addLinkerOption(CodeGenBridge.normalizeLibFlag(lib))
+    }
+
+    // normalizeLibFlag — library string → linker flag (reference rules):
+    // absolute path as-is; `.a` archive → -l:<name>; else strip the extension
+    // and the `lib` prefix → -l<name> ("libm.so.6" → "-lm").
+    public static string normalizeLibFlag(const string lib) {
+        if fly.str.startsWith(lib, "/") { out = lib  return }
+        if fly.str.endsWith(lib, ".a") { out = fly.str.concat("-l:", lib)  return }
+        string name = lib
+        int dot = fly.str.indexOf(name, ".")
+        if dot >= 0 { name = fly.str.substring(name, 0, dot) }
+        if fly.str.startsWith(name, "lib") {
+            int L = fly.str.len(name)
+            name = fly.str.substring(name, 3, L)
+        }
+        out = fly.str.concat("-l", name)
+    }
+
+    // genCall — emit the direct C call for `<CLang>.call(sym, args [, out])`.
+    public static void genCall(const CodeGenExpr cge, const SemaCall node) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        CodeGenType types = cgm.getTypes()
+        List<SemaExpr> args = node.getArgs()
+
+        if args.size() < 2 {
+            fly.os.io.printErrLn("error: CLang.call needs (sym, args[, out])")
+            node.setLlvmValue(0)
+            return
+        }
+
+        // 0) the C symbol must be a compile-time string literal
+        SemaExpr symE = args.get(0)
+        if symE.getKind() != SemaKind.VALUE {
+            fly.os.io.printErrLn("error: CLang.call symbol must be a string literal")
+            node.setLlvmValue(0)
+            return
+        }
+        pointer symV = cge.gen(symE)             // records the text in lastStrLit
+        string sym = cge.getLastStrLit()
+
+        // 1) marshal the Args-struct fields (base fields first — struct layout order)
+        SemaExpr argsE = args.get(1)
+        pointer argsPtr = cge.gen(argsE)
+        SemaType at = argsE.getType()
+        SemaClassType acls = at.asClass()
+        if acls == null {
+            fly.os.io.printErrLn("error: CLang.call args must be an Args struct")
+            node.setLlvmValue(0)
+            return
+        }
+        CodeGenClass.declareStruct(cgm, acls)
+        pointer structTy = acls.getLlvmStructType()
+        pointer ptrTy = types.ptrType()
+        pointer i64t
+        llvm.int64TypeInContext(cgm.getCtx(), i64t)
+        pointer i8t
+        llvm.int8TypeInContext(cgm.getCtx(), i8t)
+
+        List<SemaClassAttribute> attrs = CodeGenClass.allAttributes(acls)
+        List<pointer> cargs = new List<pointer>()
+        List<pointer> cargTys = new List<pointer>()
+        int i = 0
+        while i < attrs.size() {
+            SemaClassAttribute a = attrs.get(i)
+            SemaType ft = a.getType()
+            pointer fty = types.lowerType(ft)
+            pointer fp
+            llvm.buildStructGEP2(b, structTy, argsPtr, i, "barg", fp)
+            pointer fv
+            llvm.buildLoad2(b, fty, fp, "bfv", fv)
+            if ft.isString() {
+                // NUL-terminated heap copy for the C side
+                pointer sp
+                llvm.buildExtractValue(b, fv, 0, "bsp", sp)
+                pointer sz
+                llvm.buildExtractValue(b, fv, 1, "bss", sz)
+                pointer szW
+                llvm.buildZExt(b, sz, i64t, "bsw", szW)
+                pointer one64
+                llvm.constInt(i64t, 1, false, one64)
+                pointer allocSz
+                llvm.buildAdd(b, szW, one64, "bsz", allocSz)
+                pointer buf = cgm.emitMalloc(allocSz)
+                pointer mcv
+                llvm.buildMemCpy(b, buf, sp, szW, mcv)
+                List<pointer> ni = new List<pointer>()
+                ni.add(szW)
+                pointer nulP
+                cg.buildGEP2N(b, i8t, buf, ni, "bnul", nulP)
+                pointer zeroB
+                llvm.constInt(i8t, 0, false, zeroB)
+                llvm.buildStore(b, zeroB, nulP)
+                cargs.add(buf)
+                cargTys.add(ptrTy)
+            } elsif ft.isInteger() {
+                if fly.str.equals(ft.getName(), "pointer") {
+                    // raw C address carried as an integer → real pointer arg
+                    pointer pv
+                    llvm.buildIntToPtr(b, fv, ptrTy, "bpp", pv)
+                    cargs.add(pv)
+                    cargTys.add(ptrTy)
+                } else {
+                    cargs.add(fv)
+                    cargTys.add(fty)
+                }
+            } else {
+                cargs.add(fv)
+                cargTys.add(fty)
+            }
+            i = i + 1
+        }
+
+        // 2) C return type from the out param's type
+        bool isVoid = args.size() == 2
+        bool isBool = false
+        int retW = 0
+        pointer retTy
+        SemaExpr outE = null
+        if isVoid {
+            llvm.voidTypeInContext(cgm.getCtx(), retTy)
+        } else {
+            outE = args.get(2)
+            SemaType ot = outE.getType()
+            if ot.isBool() {
+                llvm.int32TypeInContext(cgm.getCtx(), retTy)
+                isBool = true
+            } elsif ot.isFloat() {
+                if ot.getRank() >= 64 {
+                    llvm.doubleTypeInContext(cgm.getCtx(), retTy)
+                } else {
+                    llvm.floatTypeInContext(cgm.getCtx(), retTy)
+                }
+            } else {
+                // integers incl. `pointer` (long/ulong/pointer rank ≥ 63 → i64)
+                if ot.getRank() >= 63 {
+                    retTy = i64t
+                    retW = 64
+                } else {
+                    llvm.int32TypeInContext(cgm.getCtx(), retTy)
+                    retW = 32
+                }
+            }
+        }
+
+        // 3) declare (or reuse) the C symbol and call it
+        pointer fnDecl
+        llvm.getNamedFunction(cgm.getModule(), sym, fnDecl)
+        pointer fty2
+        cg.functionTypeN(retTy, cargTys, false, fty2)
+        if fnDecl == 0 {
+            llvm.addFunction(cgm.getModule(), sym, fty2, fnDecl)
+        }
+        string resName = "bcr"
+        if isVoid { resName = "" }
+        pointer cres
+        cg.buildCallN(b, fty2, fnDecl, cargs, resName, cres)
+
+        if isVoid {
+            node.setLlvmValue(0)
+            return
+        }
+
+        // 4) store the C result into the out param (width-adjust / bool-trunc)
+        pointer sv = cres
+        SemaType ot2 = outE.getType()
+        if isBool {
+            pointer i1t
+            llvm.int1TypeInContext(cgm.getCtx(), i1t)
+            llvm.buildTrunc(b, cres, i1t, "bbt", sv)
+        } elsif retW > 0 {
+            int dw = cge.numWidth(ot2)
+            pointer dty = cge.lowerType(ot2)
+            if dw < retW {
+                llvm.buildTrunc(b, cres, dty, "bwt", sv)
+            } elsif dw > retW {
+                llvm.buildSExt(b, cres, dty, "bwx", sv)
+            }
+        }
+        pointer addr = cge.genAddr(outE)
+        llvm.buildStore(b, sv, addr)
+        node.setLlvmValue(cres)
+    }
+}

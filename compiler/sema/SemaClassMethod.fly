@@ -37,6 +37,8 @@ public class SemaClassMethod : SemaFunctionBase {
         this.finalFlag = false
     }
 
+    public SemaClassMethod asClassMethod() { out = this }
+
     public SemaClassType getClass() { out = this.classType }
     public SemaClassInstance getThis() { out = this.thisInstance }
     public bool isConstructor() { out = this.ctorFlag }

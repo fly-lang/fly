@@ -33,6 +33,12 @@ jobs:
         run: chmod +x ./ci/linux/install_prerequisites.sh && ./ci/linux/install_prerequisites.sh
 
       - name: Build self-host compiler
+        # FLY_BUNDLE_LLVM=1 ships a self-contained toolchain (Rust-style): one shared
+        # libLLVM.so in lib/, with `fly` + a small `ld.lld` linking against it via
+        # RUNPATH $ORIGIN/../lib. The release needs neither system libLLVM nor a system
+        # linker; LLVM is stored once (tarball ~half a full-static build). See build_compiler.sh.
+        env:
+          FLY_BUNDLE_LLVM: "1"
         run: chmod +x ./ci/linux/build_compiler.sh && ./ci/linux/build_compiler.sh
 
       - name: Test self-host compiler

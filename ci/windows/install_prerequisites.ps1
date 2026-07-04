@@ -50,15 +50,22 @@ $flyExe   = Join-Path $flyBin 'fly.exe'
 # We only need two files from the ~900 MB LLVM artifact: LLVM-C.lib (the link
 # import lib) and LLVM-C.dll (loaded at runtime). Skip the download when both are
 # already present - the local equivalent of the CI cache hit.
-if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.dll")) {
+# For a self-contained release (FLY_BUNDLE_LLVM=1) the build also needs the fork
+# LLVM's STATIC archives + headers + llvm-config/clang to link a small `fly-lld.exe`
+# (lld's C++ deps aren't exported by the C-API DLL). Pull the whole llvm/lib +
+# llvm/include tree and the tools in that case; otherwise just the two runtime files.
+$bundle = ($env:FLY_BUNDLE_LLVM -eq '1')
+$llvmInc = Join-Path $buildDir 'llvm\include'
+$needStatic = $bundle -and -not (Test-Path (Join-Path $llvmLib 'lldCOFF.lib'))
+if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.dll") -or $needStatic) {
     $url = "https://github.com/fly-lang/llvm-project/releases/download/v$LLVM_VERSION-win-x64/llvm-$LLVM_VERSION-win-x64.zip"
     New-Item -ItemType Directory -Force $llvmLib, $llvmBin | Out-Null
     $zipPath = Join-Path $buildDir 'llvm.zip'
     Invoke-WebRequest -Uri $url -OutFile $zipPath
-    # Extract only LLVM-C.lib and LLVM-C.dll; the full archive is huge.
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
     try {
+        # Always: the two runtime files the plain build links against.
         foreach ($want in @(
             @{ entry = 'llvm/lib/LLVM-C.lib'; out = (Join-Path $llvmLib 'LLVM-C.lib') },
             @{ entry = 'llvm/bin/LLVM-C.dll'; out = (Join-Path $llvmBin 'LLVM-C.dll') }
@@ -66,6 +73,21 @@ if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.
             $e = $zip.GetEntry($want.entry)
             if (-not $e) { throw "missing $($want.entry) in LLVM archive" }
             [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, $want.out, $true)
+        }
+        # Bundle build: also the static dev tree (llvm/lib/*.lib, llvm/include/**,
+        # and llvm-config/clang from llvm/bin) so build_compiler.ps1 can build fly-lld.
+        if ($needStatic) {
+            Write-Host "extracting LLVM static dev tree for FLY_BUNDLE_LLVM ..."
+            foreach ($e in $zip.Entries) {
+                $n = $e.FullName
+                $take = ($n -like 'llvm/lib/*.lib') -or ($n -like 'llvm/include/*') `
+                    -or ($n -eq 'llvm/bin/llvm-config.exe') -or ($n -eq 'llvm/bin/clang++.exe') `
+                    -or ($n -eq 'llvm/bin/clang.exe')
+                if (-not $take -or $e.Length -eq 0) { continue }
+                $dest = Join-Path $buildDir ($n -replace '/', '\')
+                New-Item -ItemType Directory -Force (Split-Path $dest -Parent) | Out-Null
+                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, $dest, $true)
+            }
         }
     } finally { $zip.Dispose() }
     Remove-Item $zipPath

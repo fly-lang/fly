@@ -18,7 +18,7 @@ import fly.str
 // formatMessage — substitute %0..%9 placeholders in a description with args[i].
 public string formatMessage(const string desc, const List<string> args) {
     string res = desc
-    int n = args.size()
+    int n = (int)args.size()
     int i = 0
     while i < n {
         string ph = fly.str.concat("%", fly.str.convert(i))
@@ -122,7 +122,7 @@ public class StoringDiagnosticConsumer : DiagnosticConsumer {
         elsif level == DiagLevel.Warning { this.warnings = this.warnings + 1 }
     }
 
-    public int count() { out = this.messages.size() }
+    public int count() { out = (int)this.messages.size() }
     public string getMessage(const int i) { out = this.messages.get(i) }
     public int errorCount() { out = this.errors }
     public int warningCount() { out = this.warnings }

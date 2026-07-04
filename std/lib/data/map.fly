@@ -8,14 +8,19 @@ import fly.runtime
 // Ownership: keys and values each follow the C++/Rust model independently — owned
 // values (string) are cloned on insert and freed on update/remove/free; trivial
 // values are copied; handles are borrowed. flags: 0=empty, 1=occupied, 2=tombstone.
+//
+// Sizes, capacities, strides and bucket cursors are `pointer` (the Fly usize).
+// Hashes stay `int` (slotHashT/slotHashAtT emit i32); a bucket index is the
+// non-negative hash masked with the power-of-two capacity, so mixing is safe.
+// The tombstone slot is tracked with an explicit bool (unsigned has no -1).
 public class Map<K, V> {
     pointer keys
     pointer vals
     pointer flags
-    int count
-    int cap
-    int kstride
-    int vstride
+    pointer count
+    pointer cap
+    pointer kstride
+    pointer vstride
 
     public Map() {
         this.keys = 0
@@ -50,7 +55,7 @@ public class Map<K, V> {
             this.cap = 8
         }
         if this.count * 4 >= this.cap * 3 {
-            int newcap = this.cap * 2
+            pointer newcap = this.cap * 2
             pointer nkeys = 0
             fly.runtime.mem_alloc(newcap * this.kstride, nkeys)
             pointer nvals = 0
@@ -59,7 +64,7 @@ public class Map<K, V> {
             fly.runtime.mem_alloc(newcap, nflags)
             fly.llvm.memset(nflags, 0, newcap)
             K kprobe
-            int ri = 0
+            pointer ri = 0
             while ri < this.cap {
                 byte rfl = 0
                 fly.llvm.ptrByteAt(this.flags, ri, rfl)
@@ -67,24 +72,24 @@ public class Map<K, V> {
                     int rh = 0
                     fly.llvm.slotHashAtT(this.keys, ri * this.kstride, kprobe, rh)
                     if rh < 0 { rh = 0 - rh }
-                    int rb = rh & (newcap - 1)
+                    pointer rb = rh & (newcap - 1)
                     byte rnfl = 0
                     fly.llvm.ptrByteAt(nflags, rb, rnfl)
                     while rnfl != 0 {
                         rb = (rb + 1) & (newcap - 1)
                         fly.llvm.ptrByteAt(nflags, rb, rnfl)
                     }
-                    long ksoff = ri * this.kstride
-                    long kdoff = rb * this.kstride
+                    pointer ksoff = ri * this.kstride
+                    pointer kdoff = rb * this.kstride
                     pointer ksrc = this.keys + ksoff
                     pointer kdst = nkeys + kdoff
-                    long knb = this.kstride
+                    pointer knb = this.kstride
                     fly.llvm.memcpy(kdst, ksrc, knb)
-                    long vsoff = ri * this.vstride
-                    long vdoff = rb * this.vstride
+                    pointer vsoff = ri * this.vstride
+                    pointer vdoff = rb * this.vstride
                     pointer vsrc = this.vals + vsoff
                     pointer vdst = nvals + vdoff
-                    long vnb = this.vstride
+                    pointer vnb = this.vstride
                     fly.llvm.memcpy(vdst, vsrc, vnb)
                     fly.llvm.ptrPokeByte(nflags, rb, 1)
                 }
@@ -101,9 +106,10 @@ public class Map<K, V> {
         int ph = 0
         fly.llvm.slotHashT(key, ph)
         if ph < 0 { ph = 0 - ph }
-        int b = ph & (this.cap - 1)
-        int ts = 0 - 1
-        int probed = 0
+        pointer b = ph & (this.cap - 1)
+        bool hasTs = false
+        pointer ts = 0
+        pointer probed = 0
         bool done = false
         while probed < this.cap {
             byte fl = 0
@@ -121,10 +127,13 @@ public class Map<K, V> {
             }
             if done == false {
                 if fl == 2 {
-                    if ts < 0 { ts = b }
+                    if hasTs == false {
+                        ts = b
+                        hasTs = true
+                    }
                 }
                 if fl == 0 {
-                    if ts >= 0 { b = ts }
+                    if hasTs { b = ts }
                     fly.llvm.slotPokeT(this.keys, b * this.kstride, key)
                     fly.llvm.slotPokeT(this.vals, b * this.vstride, val)
                     fly.llvm.ptrPokeByte(this.flags, b, 1)
@@ -139,7 +148,7 @@ public class Map<K, V> {
             }
         }
         if done == false {
-            if ts >= 0 {
+            if hasTs {
                 fly.llvm.slotPokeT(this.keys, ts * this.kstride, key)
                 fly.llvm.slotPokeT(this.vals, ts * this.vstride, val)
                 fly.llvm.ptrPokeByte(this.flags, ts, 1)
@@ -153,8 +162,8 @@ public class Map<K, V> {
             int gh = 0
             fly.llvm.slotHashT(key, gh)
             if gh < 0 { gh = 0 - gh }
-            int b = gh & (this.cap - 1)
-            int probed = 0
+            pointer b = gh & (this.cap - 1)
+            pointer probed = 0
             while probed < this.cap {
                 byte fl = 0
                 fly.llvm.ptrByteAt(this.flags, b, fl)
@@ -187,8 +196,8 @@ public class Map<K, V> {
         int hh = 0
         fly.llvm.slotHashT(key, hh)
         if hh < 0 { hh = 0 - hh }
-        int b = hh & (this.cap - 1)
-        int probed = 0
+        pointer b = hh & (this.cap - 1)
+        pointer probed = 0
         bool found = false
         while probed < this.cap {
             byte fl = 0
@@ -218,8 +227,8 @@ public class Map<K, V> {
         int rh = 0
         fly.llvm.slotHashT(key, rh)
         if rh < 0 { rh = 0 - rh }
-        int b = rh & (this.cap - 1)
-        int probed = 0
+        pointer b = rh & (this.cap - 1)
+        pointer probed = 0
         while probed < this.cap {
             byte fl = 0
             fly.llvm.ptrByteAt(this.flags, b, fl)
@@ -247,7 +256,7 @@ public class Map<K, V> {
         }
     }
 
-    public int size() {
+    public pointer size() {
         out = this.count
     }
 
@@ -255,7 +264,7 @@ public class Map<K, V> {
         if this.keys != 0 {
             K kprobe
             V vprobe
-            int i = 0
+            pointer i = 0
             while i < this.cap {
                 byte fl = 0
                 fly.llvm.ptrByteAt(this.flags, i, fl)

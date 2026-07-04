@@ -82,14 +82,54 @@ Assert-LastExit "std --lib build"
 # -- 3) Build the compiler executable LINKING our fly_std_lib.lib. Run a copy of
 #       the bootstrap from build/bin so <exe>/../lib == build/lib: auto-discovery
 #       then loads our headers and links fly_std_lib.lib + the runtime lib. -------
-Copy-Item $FLY "$OUT/flyc.exe"
-& "$OUT/flyc.exe" compiler/Fly.fly `
+Copy-Item $FLY "$OUT/fly.exe"
+& "$OUT/fly.exe" compiler/Fly.fly `
     --src-dir compiler `
     -o fly --out-dir $OUT
 Assert-LastExit "compiler build"
 
-# -- 4) Cleanup: bin/ ships only the executable (drop the bootstrap copy + objects).
-Remove-Item "$OUT/flyc.exe" -Force -ErrorAction SilentlyContinue
+# -- 3b) Optional SELF-CONTAINED bundle (Rust-style), gated on FLY_BUNDLE_LLVM=1.
+#        The release then needs neither system LLVM nor a system linker.
+#        Windows differs from Linux: no rpath is needed — the loader searches the
+#        EXE's own directory for DLLs first, so copying LLVM-C.dll next to fly.exe
+#        makes it self-contained. The linker `fly-lld.exe` is our own single-flavor
+#        LLD driver (ci/linux/lld_driver.cpp → COFF on _WIN32), built against the
+#        fork LLVM's static archives (lld's C++ deps aren't in the C-API DLL).
+#        NOTE: validated in CI only (no local Windows here); the clang link line
+#        below is a first cut and may need CI iteration on the exact lib set.
+if ($env:FLY_BUNDLE_LLVM -eq '1') {
+    $llvmRoot = Resolve-Path (Join-Path (Split-Path $FLY -Parent) '..\..\llvm') -ErrorAction SilentlyContinue
+    if (-not $llvmRoot) { $llvmRoot = (Resolve-Path 'build\llvm' -ErrorAction SilentlyContinue) }
+    if (-not $llvmRoot) { throw "FLY_BUNDLE_LLVM=1: build\llvm (fork LLVM tree) not found; run install_prerequisites.ps1" }
+    $llvmRoot = $llvmRoot.Path
+
+    # 1) fly.exe self-contained for LLVM: copy the shared LLVM-C.dll next to it.
+    Write-Host "bundling LLVM-C.dll into $OUT ..."
+    Copy-Item (Join-Path $llvmRoot 'bin\LLVM-C.dll') "$OUT/LLVM-C.dll" -Force
+
+    # 2) Build fly-lld.exe (COFF) from the shared driver. Uses llvm-config from the
+    #    fork tree to enumerate the static archives (like the Linux build); links
+    #    lld's COFF+Common static libs + LLVM static libs. clang++ drives the link.
+    $llvmConfig = Join-Path $llvmRoot 'bin\llvm-config.exe'
+    $clang = (Get-Command clang++ -ErrorAction SilentlyContinue).Source
+    if (-not $clang) { $clang = Join-Path $llvmRoot 'bin\clang++.exe' }
+    if ((Test-Path $llvmConfig) -and (Test-Path $clang) -and (Test-Path (Join-Path $llvmRoot 'lib\lldCOFF.lib'))) {
+        Write-Host "building $OUT/fly-lld.exe (lld static, LLVM dynamic) ..."
+        $llvmLibs = (& $llvmConfig --link-static --libs all).Split(' ') | Where-Object { $_ -and ($_ -notmatch 'olly') }
+        & $clang ci/linux/lld_driver.cpp -std=c++17 `
+            "-I$(Join-Path $llvmRoot 'include')" `
+            "-L$(Join-Path $llvmRoot 'lib')" -llldCOFF -llldCommon `
+            @llvmLibs (& $llvmConfig --link-static --system-libs).Split(' ') `
+            -o "$OUT/fly-lld.exe"
+        Assert-LastExit "fly-lld build"
+    } else {
+        Write-Host "warning: fly-lld.exe not built (missing llvm-config/clang/lld static libs in $llvmRoot);"
+        Write-Host "         the released fly.exe will fall back to a system linker (lld-link/link)."
+    }
+}
+
+# -- 4) Cleanup: bin/ ships the executable (+ bundled DLL/linker); drop only the
+#        intermediate objects. The bootstrap copy was overwritten in place by -o.
 Remove-Item "$OUT/*.o" -Force -ErrorAction SilentlyContinue
 
 Write-Host "fly -> $OUT/fly"

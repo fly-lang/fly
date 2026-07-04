@@ -39,37 +39,38 @@ public int compare(const pointer a, const pointer b, const pointer size) {
     fly.llvm.memcmp(a, b, size, out)
 }
 
-// Typed reads — addresses are pointer; offset is always in bytes.
-public byte readByte(const pointer ptr, const int offset) {
+// Typed reads — addresses are pointer; offset is in bytes, `pointer`-typed
+// (the Fly usize) so it can address the whole buffer.
+public byte readByte(const pointer ptr, const pointer offset) {
     fly.llvm.ptrByteAt(ptr, offset, out)
 }
 
-public short readShort(const pointer ptr, const int offset) {
+public short readShort(const pointer ptr, const pointer offset) {
     fly.llvm.ptrReadShort(ptr, offset, out)
 }
 
-public int readInt(const pointer ptr, const int offset) {
+public int readInt(const pointer ptr, const pointer offset) {
     fly.llvm.ptrReadInt(ptr, offset, out)
 }
 
-public long readLong(const pointer ptr, const int offset) {
+public long readLong(const pointer ptr, const pointer offset) {
     fly.llvm.ptrReadLong(ptr, offset, out)
 }
 
-// Typed writes — addresses are pointer; offset is always in bytes.
-public void writeByte(const pointer ptr, const int offset, const byte val) {
+// Typed writes — addresses are pointer; offset is in bytes, `pointer`-typed.
+public void writeByte(const pointer ptr, const pointer offset, const byte val) {
     fly.llvm.ptrPokeByte(ptr, offset, val)
 }
 
-public void writeShort(const pointer ptr, const int offset, const short val) {
+public void writeShort(const pointer ptr, const pointer offset, const short val) {
     fly.llvm.ptrPokeShort(ptr, offset, val)
 }
 
-public void writeInt(const pointer ptr, const int offset, const int val) {
+public void writeInt(const pointer ptr, const pointer offset, const int val) {
     fly.llvm.ptrPokeInt(ptr, offset, val)
 }
 
-public void writeLong(const pointer ptr, const int offset, const long val) {
+public void writeLong(const pointer ptr, const pointer offset, const long val) {
     fly.llvm.ptrPokeLong(ptr, offset, val)
 }
 
@@ -77,12 +78,12 @@ public void writeLong(const pointer ptr, const int offset, const long val) {
 // backing storage as read/writeLong (8 bytes on a 64-bit target) but typed
 // `pointer` so that addresses read out of / written into memory stay
 // pointer-sized end to end, without being laundered through `long`.
-public pointer readPtr(const pointer ptr, const int offset) {
+public pointer readPtr(const pointer ptr, const pointer offset) {
     long v = 0
     fly.llvm.ptrReadLong(ptr, offset, v)
     out = v
 }
 
-public void writePtr(const pointer ptr, const int offset, const pointer val) {
+public void writePtr(const pointer ptr, const pointer offset, const pointer val) {
     fly.llvm.ptrPokeLong(ptr, offset, val)
 }

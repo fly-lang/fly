@@ -7,11 +7,13 @@ import fly.runtime
 // analog of C++ std::map<K,V>. Keys are ordered with slotCmpT (signed for integers,
 // lexicographic for string). Each node is [ key | val | left(8) | right(8) ].
 // Ownership: put clones owned key/value; remove/free release them.
+// Sizes, strides and node-field offsets are `pointer` (the Fly usize).
+// The iterative-free stack decrements only under `while top > 0` (unsigned-safe).
 public class Tree<K, V> {
     pointer root
-    int count
-    int kstride
-    int vstride
+    pointer count
+    pointer kstride
+    pointer vstride
 
     public Tree() {
         this.root = 0
@@ -29,10 +31,10 @@ public class Tree<K, V> {
             fly.llvm.slotSizeT(val, vs)
             this.vstride = vs
         }
-        int valOff = this.kstride
-        int leftOff = this.kstride + this.vstride
-        int rightOff = leftOff + 8
-        int nodeSize = rightOff + 8
+        pointer valOff = this.kstride
+        pointer leftOff = this.kstride + this.vstride
+        pointer rightOff = leftOff + 8
+        pointer nodeSize = rightOff + 8
         if this.root == 0 {
             pointer node = 0
             fly.runtime.mem_alloc(nodeSize, node)
@@ -91,9 +93,9 @@ public class Tree<K, V> {
     }
 
     public V get(const K key) {
-        int valOff = this.kstride
-        int leftOff = this.kstride + this.vstride
-        int rightOff = leftOff + 8
+        pointer valOff = this.kstride
+        pointer leftOff = this.kstride + this.vstride
+        pointer rightOff = leftOff + 8
         pointer cur = this.root
         bool done = false
         while done == false {
@@ -117,8 +119,8 @@ public class Tree<K, V> {
     }
 
     public bool has(const K key) {
-        int leftOff = this.kstride + this.vstride
-        int rightOff = leftOff + 8
+        pointer leftOff = this.kstride + this.vstride
+        pointer rightOff = leftOff + 8
         pointer cur = this.root
         bool found = false
         bool done = false
@@ -142,10 +144,10 @@ public class Tree<K, V> {
     }
 
     public void remove(const K key) {
-        int valOff = this.kstride
-        int leftOff = this.kstride + this.vstride
-        int rightOff = leftOff + 8
-        int nodeSize = rightOff + 8
+        pointer valOff = this.kstride
+        pointer leftOff = this.kstride + this.vstride
+        pointer rightOff = leftOff + 8
+        pointer nodeSize = rightOff + 8
         pointer cur = this.root
         pointer parent = 0
         bool isLeft = false
@@ -225,8 +227,8 @@ public class Tree<K, V> {
             V vprobe
             fly.llvm.slotFreeT(cur, 0, kprobe)
             fly.llvm.slotFreeT(cur, valOff, vprobe)
-            long kbytes = this.kstride
-            long vbytes = this.vstride
+            pointer kbytes = this.kstride
+            pointer vbytes = this.vstride
             pointer ksrc = succ
             pointer vsrc = succ + valOff
             pointer vdst = cur + valOff
@@ -244,20 +246,20 @@ public class Tree<K, V> {
         }
     }
 
-    public int size() {
+    public pointer size() {
         out = this.count
     }
 
     public void free() {
-        int valOff = this.kstride
-        int leftOff = this.kstride + this.vstride
-        int rightOff = leftOff + 8
-        int nodeSize = rightOff + 8
+        pointer valOff = this.kstride
+        pointer leftOff = this.kstride + this.vstride
+        pointer rightOff = leftOff + 8
+        pointer nodeSize = rightOff + 8
         if this.root != 0 {
-            int stkCap = this.count + 1
+            pointer stkCap = this.count + 1
             pointer stk = 0
             fly.runtime.mem_alloc(stkCap * 8, stk)
-            int top = 0
+            pointer top = 0
             fly.llvm.ptrPokeLong(stk, 0, this.root)
             top = 1
             while top > 0 {

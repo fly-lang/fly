@@ -37,6 +37,7 @@ public class Registry {
     List<SemaFunctionBase> bodies
     List<SemaClassType> classes           // pending member resolution (typed; avoids SemaNode downcast)
     Map<string, SemaNameSpace> nsByPath   // dotted path → namespace (avoids ref downcast)
+    Map<string, SemaFunction> genericFns  // generic fn TEMPLATES by name (typed; avoids downcast)
 
     public Registry(const DiagnosticsEngine diags) {
         this.diags = diags
@@ -48,6 +49,7 @@ public class Registry {
         bool ok = this.globalScope.insert(nsSym)
         this.modules = new List<SemaModule>()
         this.bodies = new List<SemaFunctionBase>()
+        this.genericFns = new Map<string, SemaFunction>()
         this.classes = new List<SemaClassType>()
         this.nsByPath = new Map<string, SemaNameSpace>()
     }
@@ -68,6 +70,15 @@ public class Registry {
     public List<SemaModule> getModules() { out = this.modules }
     public void addBody(const SemaFunctionBase fb) { this.bodies.add(fb) }
     public List<SemaFunctionBase> getBodies() { out = this.bodies }
+
+    // generic function TEMPLATES, registered TYPED at declaration time so call
+    // resolution can specialize without a SemaFunctionBase→SemaFunction downcast
+    // (new narrowing virtuals mis-dispatch under the bootstrap — audit V4).
+    public void addGenericFn(const SemaFunction fn) { this.genericFns.put(fn.getName(), fn) }
+    public SemaFunction lookupGenericFn(const string name) {
+        if this.genericFns.has(name) { out = this.genericFns.get(name)  return }
+        out = null
+    }
     public void addClass(const SemaClassType cls) { this.classes.add(cls) }
     public List<SemaClassType> getClasses() { out = this.classes }
 
@@ -177,7 +188,7 @@ public class Registry {
     // type references resolve WITHOUT an `import` (as generated .fly.h headers require,
     // since GenerateHeader strips imports).
     public Symbol LookupQualifiedType(const List<ASTName> names) {
-        int last = names.size() - 1
+        int last = (int)names.size() - 1
         if last < 1 { out = null  return }
         string path = "ns"
         int i = 0

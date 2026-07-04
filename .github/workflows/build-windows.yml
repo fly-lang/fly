@@ -46,10 +46,19 @@ jobs:
       # cached files are present and wires up the env via $GITHUB_ENV/$GITHUB_PATH
       # in CI. Run it locally to reproduce this.
       - name: Install prerequisites (LLVM + fly)
+        # FLY_BUNDLE_LLVM=1 also pulls the LLVM static dev tree so the build can link
+        # a bundled fly-lld.exe (self-contained toolchain — see build_compiler.ps1).
+        env:
+          FLY_BUNDLE_LLVM: "1"
         shell: pwsh
         run: .\ci\windows\install_prerequisites.ps1
 
       - name: Build self-host compiler
+        # FLY_BUNDLE_LLVM=1 ships a self-contained toolchain: LLVM-C.dll copied next to
+        # fly.exe (loader finds it in the exe dir — no rpath needed) + a bundled
+        # fly-lld.exe, so the release needs neither system LLVM nor a system linker.
+        env:
+          FLY_BUNDLE_LLVM: "1"
         shell: pwsh
         run: .\ci\windows\build_compiler.ps1
 

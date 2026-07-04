@@ -159,7 +159,7 @@ public class ASTBuilder {
         if parent != null {
             call.setParent(parent)
         }
-        int n = args.size()
+        int n = (int)args.size()
         int i = 0
         while i < n {
             ASTExpr e = args.get(i)

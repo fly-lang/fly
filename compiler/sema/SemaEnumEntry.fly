@@ -20,6 +20,8 @@ public class SemaEnumEntry : SemaExpr {
         this.index = 0
     }
 
+    public SemaEnumEntry asEnumEntry() { out = this }
+
     public string getName() { out = this.entryAst.getName() }
     public long getIndex() { out = this.index }
     public void setIndex(const long index) { this.index = index }

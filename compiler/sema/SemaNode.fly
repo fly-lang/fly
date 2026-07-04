@@ -34,4 +34,8 @@ public class SemaNode {
     // SemaClassMethod) overrides it to return `this`. Lets call resolution recover
     // the callee's return type/params uniformly for functions and methods.
     public SemaFunctionBase asFunctionBase() { out = null }
+
+    // asEnumEntry — narrow to SemaEnumEntry (enum accessor resolution + the
+    // names-table builder, which walks SemaEnumType.getNodes() as SemaNode).
+    public SemaEnumEntry asEnumEntry() { out = null }
 }

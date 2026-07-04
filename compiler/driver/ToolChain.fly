@@ -121,9 +121,27 @@ public class ToolChain {
 
     // ── runLinker — exec `prog` (fallback `alt`) with the built ArgList. Returns
     // true on a 0 exit code. Replaces the in-process lld::*::link(args) call;
-    // resolves the binary against $PATH first (execve needs a full path).
+    // resolves the binary against $PATH (execve needs a full path).
+    //
+    // A `fly-lld` bundled next to the fly executable (<exe_dir>/fly-lld, or
+    // fly-lld.exe on Windows — the linker the release ships) is preferred over the
+    // host's PATH, so a machine with no system linker can still link. Falls back to
+    // the system linker (prog then alt) when no bundled copy sits beside the binary
+    // (the dev build). The bundled fly-lld is our own single-flavor LLD driver, so
+    // it takes the same args on every platform (no flavor dispatch by name).
     public bool runLinker(const string prog, const string alt, const pointer h) {
-        string p = this.resolveProg(prog)
+        string p = ""
+        string exe = fly.os.env.exePath()
+        if fly.str.isEmpty(exe) == false {
+            string dir = fly.os.path.dirname(exe)
+            string bundled = fly.os.path.join(dir, "fly-lld")
+            if fly.os.fs.exists(bundled) { p = bundled }
+            else {
+                string bundledExe = fly.os.path.join(dir, "fly-lld.exe")
+                if fly.os.fs.exists(bundledExe) { p = bundledExe }
+            }
+        }
+        if fly.str.isEmpty(p) { p = this.resolveProg(prog) }
         if fly.str.isEmpty(p) { p = this.resolveProg(alt) }
         if fly.str.isEmpty(p) {
             fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: linker not found: ", prog), fly.str.concat(" / ", alt)))

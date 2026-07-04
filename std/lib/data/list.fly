@@ -9,14 +9,18 @@ import fly.runtime
 // insert and freed on removal/clear/free; trivial values are copied; class/array
 // handles are stored as-is (the pointee's lifetime stays with the caller).
 //
+// Sizes and indices are `pointer` (the Fly usize: pointer-width unsigned, i64 on
+// x86-64) so a container can address every representable element. Negative
+// indices cannot exist; out-of-range is the single unsigned `idx < len` check.
+//
 // NOTE: methods are deliberately self-contained (no internal this.method() calls)
 // — generic method templates that are referenced internally get emitted with an
 // unresolved body, so helpers are inlined instead.
 public class List<T> {
     pointer items
-    int len
-    int cap
-    int stride
+    pointer len
+    pointer cap
+    pointer stride
 
     public List() {
         this.items = 0
@@ -32,7 +36,7 @@ public class List<T> {
             this.stride = s
         }
         if this.len >= this.cap {
-            int newcap = this.cap * 2
+            pointer newcap = this.cap * 2
             if newcap == 0 { newcap = 8 }
             pointer ni = 0
             if this.items == 0 {
@@ -47,42 +51,38 @@ public class List<T> {
         this.len = this.len + 1
     }
 
-    public T get(const int idx) {
-        if idx >= 0 {
-            if idx < this.len {
-                fly.llvm.slotReadT(this.items, idx * this.stride, out)
-                return
-            }
+    public T get(const pointer idx) {
+        if idx < this.len {
+            fly.llvm.slotReadT(this.items, idx * this.stride, out)
+            return
         }
         // out of bounds → default-initialized T (0 / empty string / null)
         T def
         out = def
     }
 
-    public void set(const int idx, const T val) {
-        if idx < 0 { return }
+    public void set(const pointer idx, const T val) {
         if idx >= this.len { return }
         T probe
         fly.llvm.slotFreeT(this.items, idx * this.stride, probe)
         fly.llvm.slotPokeT(this.items, idx * this.stride, val)
     }
 
-    public int size() {
+    public pointer size() {
         out = this.len
     }
 
-    public void remove(const int idx) {
-        if idx < 0 { return }
+    public void remove(const pointer idx) {
         if idx >= this.len { return }
         T probe
         fly.llvm.slotFreeT(this.items, idx * this.stride, probe)
-        int rest = this.len - idx - 1
+        pointer rest = this.len - idx - 1
         if rest > 0 {
-            long dstoff = idx * this.stride
-            long srcoff = (idx + 1) * this.stride
+            pointer dstoff = idx * this.stride
+            pointer srcoff = (idx + 1) * this.stride
             pointer dst = this.items + dstoff
             pointer src = this.items + srcoff
-            long nbytes = rest * this.stride
+            pointer nbytes = rest * this.stride
             fly.llvm.memmove(dst, src, nbytes)
         }
         this.len = this.len - 1
@@ -90,7 +90,7 @@ public class List<T> {
 
     public void clear() {
         T probe
-        int i = 0
+        pointer i = 0
         while i < this.len {
             fly.llvm.slotFreeT(this.items, i * this.stride, probe)
             i = i + 1
@@ -100,7 +100,7 @@ public class List<T> {
 
     public void free() {
         T probe
-        int i = 0
+        pointer i = 0
         while i < this.len {
             fly.llvm.slotFreeT(this.items, i * this.stride, probe)
             i = i + 1

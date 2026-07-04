@@ -135,6 +135,16 @@ struct Ptr3StrArgs : Args {
     string s
 }
 
+// Ptr4StrArgs: four ptr fields then a string — gives C args [a, b, c, d, s]
+// Use for functions like LLVMBuildSelect(B, If, Then, Else, Name)
+struct Ptr4StrArgs : Args {
+    pointer a
+    pointer b
+    pointer c
+    pointer d
+    string s
+}
+
 struct Ptr3IntArgs : Args {
     pointer a
     pointer b
@@ -148,6 +158,22 @@ struct Ptr3IntStrArgs : Args {
     pointer c
     int n
     string s
+}
+
+struct Ptr2IntStrArgs : Args {
+    pointer a
+    pointer b
+    int n
+    string s
+}
+
+struct MemCpyArgs : Args {
+    pointer b
+    pointer dst
+    int dstAlign
+    pointer src
+    int srcAlign
+    pointer size
 }
 
 // 4 ptrs + int + string, e.g. LLVMBuildCall2(B, FnTy, Fn, Args, NumArgs, Name)
@@ -1024,6 +1050,18 @@ public class LLVM {
         lib.call("LLVMBuildFCmp", a, v)
     }
 
+    // LLVMBuildSelect(B, If, Then, Else, Name) — ternary select instruction
+    public void buildSelect(const pointer b, const pointer ifV, const pointer thenV, const pointer elseV, const string name, pointer v) {
+        Ptr4StrArgs a = new Ptr4StrArgs()
+        a.a = b
+        a.b = ifV
+        a.c = thenV
+        a.d = elseV
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildSelect", a, v)
+    }
+
     // ── Build — memory ────────────────────────────────────────────────────────
 
     public void buildAlloca(const pointer b, const pointer ty, const string name, pointer v) {
@@ -1117,10 +1155,20 @@ public class LLVM {
         lib.call("LLVMBuildStructGEP2", a, v)
     }
 
-    // NOTE: buildMemCpy was removed — it silently dropped DstAlign/SrcAlign/Size
-    // (LLVMBuildMemCpy is a 6-arg call; the wrapper passed 3), which would corrupt
-    // memory the moment it gained a caller. Re-add with a full 6-field Args struct
-    // when memcpy lowering is actually needed.
+    // buildMemCpy — full 6-arg LLVMBuildMemCpy(B, Dst, DstAlign, Src, SrcAlign,
+    // Size). (An earlier 3-arg wrapper dropped the aligns + size and was removed;
+    // this one marshals every argument.)
+    public void buildMemCpy(const pointer b, const pointer dst, const pointer src, const pointer size, pointer v) {
+        MemCpyArgs a = new MemCpyArgs()
+        a.b = b
+        a.dst = dst
+        a.dstAlign = 1
+        a.src = src
+        a.srcAlign = 1
+        a.size = size
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildMemCpy", a, v)
+    }
 
     // ── Build — casts ─────────────────────────────────────────────────────────
 
@@ -1212,6 +1260,36 @@ public class LLVM {
         a.s = name
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMBuildBitCast", a, v)
+    }
+
+    public void buildExtractValue(const pointer b, const pointer agg, const int index, const string name, pointer v) {
+        Ptr2IntStrArgs a = new Ptr2IntStrArgs()
+        a.a = b
+        a.b = agg
+        a.n = index
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildExtractValue", a, v)
+    }
+
+    public void buildPtrToInt(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = val
+        a.c = destTy
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildPtrToInt", a, v)
+    }
+
+    public void buildIntToPtr(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = val
+        a.c = destTy
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildIntToPtr", a, v)
     }
 
     public void buildPointerCast(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {

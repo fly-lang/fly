@@ -36,10 +36,10 @@ public class TextDiagnosticBuffer : DiagnosticConsumer {
     // flushTo — replay every buffered diagnostic to another consumer (the C++
     // FlushDiagnostics drives a DiagnosticsEngine; we forward the stored Diagnostics'
     // rendered text). Kept minimal: replays nothing structurally, callers read lists.
-    public int errorCount()   { out = this.errors.size() }
-    public int warningCount() { out = this.warnings.size() }
-    public int noteCount()    { out = this.notes.size() }
-    public int count()        { out = this.all.size() }
+    public int errorCount()   { out = (int)this.errors.size() }
+    public int warningCount() { out = (int)this.warnings.size() }
+    public int noteCount()    { out = (int)this.notes.size() }
+    public int count()        { out = (int)this.all.size() }
     public string getError(const int i)   { out = this.errors.get(i) }
     public string getWarning(const int i) { out = this.warnings.get(i) }
     public string getNote(const int i)    { out = this.notes.get(i) }

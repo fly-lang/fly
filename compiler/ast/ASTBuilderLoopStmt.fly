@@ -25,7 +25,7 @@ public class ASTBuilderLoopStmt {
     }
     public ASTBuilderLoopStmt setInit(const ASTBlockStmt blockStmt) {
         List<ASTStmt> content = blockStmt.getContent()
-        int n = content.size()
+        int n = (int)content.size()
         int i = 0
         while i < n {
             ASTStmt s = content.get(i)
@@ -36,7 +36,7 @@ public class ASTBuilderLoopStmt {
     }
     public ASTBuilderLoopStmt setPost(const ASTBlockStmt blockStmt) {
         List<ASTStmt> content = blockStmt.getContent()
-        int n = content.size()
+        int n = (int)content.size()
         int i = 0
         while i < n {
             ASTStmt s = content.get(i)

@@ -56,7 +56,7 @@ public class Driver {
         bool showTimers = false         // --ftime-report
         bool emitBc = false             // --emit-bc (no bitcode emitter → IR fallback)
 
-        int n = args.count
+        int n = (int)args.count
         int i = 1                       // skip argv[0] (program name)
         while i < n {
             string a = this.argAt(args, i)
@@ -388,9 +388,10 @@ public class Driver {
         fly.os.io.printErrLn("  --help          display this help")
     }
 
-    // printVersion — the --version text.
+    // printVersion — the --version text. The version number lives in ONE place:
+    // compiler/basic/Version.fly (release.yml greps it from there too).
     public void printVersion() {
-        fly.os.io.printErrLn("fly 0.14.0 (self-host)")
+        fly.os.io.printErrLn(fly.str.concat(fly.str.concat("fly version ", flyVersion()), " (https://flylang.org)"))
     }
 
     // applyOutDir — prefix a RELATIVE output path with outDir (absolute paths and
