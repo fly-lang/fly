@@ -16,6 +16,7 @@ public class ASTMember : ASTExpr {
     }
 
     public string getName() { out = this.name }
+    public ASTMember asMember() { out = this }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

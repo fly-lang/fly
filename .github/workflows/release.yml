@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g. 0.14.0)'
+        description: 'Release version (e.g. 1.0.0)'
         required: true
         type: string
 
@@ -57,13 +57,15 @@ jobs:
 
       - name: Package Linux
         run: |
-          cd linux
-          tar -czvf ../fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }} *
+          cd build/linux
+          # download-artifact@v4 drops the Unix executable bit; restore it.
+          chmod +x bin/*
+          tar -czvf "$GITHUB_WORKSPACE/fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}" *
 
       - name: Package Windows
         run: |
-          cd windows
-          zip -r ../fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }} *
+          cd build/windows
+          zip -r "$GITHUB_WORKSPACE/fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }}" *
 
       - name: Verify artifacts
         run: |

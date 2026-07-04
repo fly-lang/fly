@@ -16,7 +16,7 @@ public void byteAt(const string s, const int i, byte out) {
 }
 
 // fromBytes — build a string value from a raw buffer pointer + byte length.
-public void fromBytes(const long ptr, const int size, string out) {
+public void fromBytes(const pointer ptr, const int size, string out) {
     fly.llvm.strMake(ptr, size, out)
 }
 

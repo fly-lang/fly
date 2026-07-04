@@ -56,9 +56,14 @@ public class Resolver : ASTVisitor {
     int outVarCounter
     SemaError currentErrorHandler
 
+    // true while visiting a preloaded .fly.h module: its functions/classes are
+    // tagged fromHeader so codegen declares (external) but does not define them.
+    bool currentModuleIsHeader
+
     public Resolver(const Registry reg, const bool testMode) {
         this.reg = reg
         this.testMode = testMode
+        this.currentModuleIsHeader = false
         // Seed the scope chain at the Registry's global scope so the first
         // enterScope() (per module) pushes a module scope beneath it.
         this.currentScope = reg.getGlobalScope()
@@ -91,6 +96,32 @@ public class Resolver : ASTVisitor {
 
     // ── accessors for companions ────────────────────────────────────────────
     public Registry getReg() { out = this.reg }
+    public bool isCurrentModuleHeader() { out = this.currentModuleIsHeader }
+
+    // currentNsFlat — the current module's namespace flattened with '_' (fly.os.io →
+    // "fly_os_io"), for function mangling (matches the reference CodeGenHelper::FlattenNS
+    // so std symbols resolve against fly_std_lib.a). Empty for the default namespace.
+    public string currentNsFlat() {
+        SemaModule m = this.currentModule
+        if m == null { out = ""  return }
+        ASTModule am = m.getAST()
+        if am == null { out = ""  return }
+        ASTNameSpace ns = am.getNameSpace()
+        if ns == null { out = ""  return }
+        List<ASTName> names = ns.getNames()
+        string r = ""
+        int i = 0
+        while i < names.size() {
+            if i == 0 {
+                r = names.get(i).getName()
+            } else {
+                string t = fly.str.concat(r, "_")
+                r = fly.str.concat(t, names.get(i).getName())
+            }
+            i = i + 1
+        }
+        out = r
+    }
     public SymbolTable getCurrentScope() { out = this.currentScope }
     public void setCurrentScope(const SymbolTable s) { this.currentScope = s }
     public SemaModule getCurrentModule() { out = this.currentModule }
@@ -189,6 +220,20 @@ public class Resolver : ASTVisitor {
             mi = mi + 1
         }
 
+        // Phase A' — resolve every FREE function's signature (params + return) now that
+        // all namespaces are registered and imports are done, so a qualified
+        // cross-namespace param/return type resolves regardless of module visit order.
+        // Method signatures are resolved with their class in Phase B below.
+        List<SemaFunctionBase> sigFns = this.reg.getBodies()
+        int fi = 0
+        while fi < sigFns.size() {
+            SemaFunctionBase fb = sigFns.get(fi)
+            if fb.getKind() != SemaKind.METHOD {
+                ResolverDecl.resolveSignature(this, fb)
+            }
+            fi = fi + 1
+        }
+
         List<SemaClassType> classes = this.reg.getClasses()
         int ci = 0
         while ci < classes.size() {
@@ -210,6 +255,7 @@ public class Resolver : ASTVisitor {
     public void visit(const ASTModule node) {
         if node.isVisited() == false {
             node.setVisited(true)
+            this.currentModuleIsHeader = node.isHeader()
             this.enterScope()
             this.currentModule = new SemaModule(node, this.currentScope)
             this.reg.addModule(this.currentModule)
@@ -227,6 +273,7 @@ public class Resolver : ASTVisitor {
                 i = i + 1
             }
             this.exitScope()
+            this.currentModuleIsHeader = false
         }
     }
 
@@ -328,8 +375,17 @@ public class Resolver : ASTVisitor {
     public void visit(const ASTBoolValue node) { this.currentExpr = SemaBuilder.CreateBoolValue(node) }
     public void visit(const ASTNumberValue node) { this.currentExpr = SemaBuilder.CreateNumberValue(node) }
     public void visit(const ASTStringValue node) { this.currentExpr = SemaBuilder.CreateStringValue(node) }
-    public void visit(const ASTArrayValue node) { }
-    public void visit(const ASTStructValue node) { }
+    // Array/struct literals have no Sema lowering yet. The empty visits used to
+    // leave the PREVIOUS expression in currentExpr (stale-expression substitution,
+    // silently wrong bindings) — diagnose and clear instead.
+    public void visit(const ASTArrayValue node) {
+        this.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "array literals")
+        this.currentExpr = null
+    }
+    public void visit(const ASTStructValue node) {
+        this.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "struct literals")
+        this.currentExpr = null
+    }
     public void visit(const ASTNullValue node) { this.currentExpr = SemaBuilder.CreateNullValue(node) }
     public void visit(const ASTUnsetValue node) { this.currentExpr = SemaBuilder.CreateUnsetValue(node) }
 }

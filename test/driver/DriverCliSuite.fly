@@ -1,0 +1,53 @@
+namespace fly.compiler.driver.test.cli
+
+import fly.compiler.driver.*
+import fly.compiler.basic.*
+import fly.str
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DriverCliSuite — audit item T4: Driver CLI helpers (parseUInt, emitExt,
+// applyOutDir, defaultOut, missingValue — the B14a diagnostic).
+//
+// NOTE: driving Driver.run() in-process (building a StringArray argv) is BLOCKED
+// by a reference-compiler parser limitation: a namespace-qualified type does not
+// parse in a local declaration or function return type, and a qualified `new`
+// (new fly.os.env.StringArray()) derails suite parsing — with --src-dir it hangs
+// the compiler outright. The end-to-end CLI error paths (--lib/--header exit 1,
+// second positional rejected, missing option values) are exercised by the audit's
+// manual repros; move them here if/when the bootstrap accepts qualified types.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite DriverCliSuite {
+
+    void helperTest() {
+        case "parseUInt: digits parse, junk falls back to the default": {
+            Driver d = new Driver()
+            assert.assertEqI(d.parseUInt("42", 0), 42, 20)
+            assert.assertEqI(d.parseUInt("bogus", 7), 7, 21)
+            assert.assertEqI(d.parseUInt("", 3), 3, 22)
+        }
+        case "emitExt maps emit modes to extensions": {
+            Driver d = new Driver()
+            assert.assertStr(d.emitExt(0), ".ll", 30)
+            assert.assertStr(d.emitExt(1), ".o", 31)
+            assert.assertStr(d.emitExt(2), ".s", 32)
+            assert.assertStr(d.emitExt(3), "", 33)
+        }
+        case "applyOutDir prefixes relative paths only": {
+            Driver d = new Driver()
+            assert.assertStr(d.applyOutDir("/out", "rel.ll"), "/out/rel.ll", 40)
+            assert.assertStr(d.applyOutDir("/out", "/abs.ll"), "/abs.ll", 41)
+            assert.assertStr(d.applyOutDir("", "rel.ll"), "rel.ll", 42)
+        }
+        case "defaultOut swaps or appends the extension": {
+            Driver d = new Driver()
+            assert.assertStr(d.defaultOut("foo.fly", ".o"), "foo.o", 45)
+            assert.assertStr(d.defaultOut("bar.txt", ".s"), "bar.txt.s", 46)
+        }
+        case "missingValue (B14a) reports and returns 1": {
+            Driver d = new Driver()
+            assert.assertEqI(d.missingValue("-o"), 1, 50)
+        }
+    }
+}

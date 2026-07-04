@@ -13,7 +13,7 @@ import fly.runtime
 // — generic method templates that are referenced internally get emitted with an
 // unresolved body, so helpers are inlined instead.
 public class List<T> {
-    long items
+    pointer items
     int len
     int cap
     int stride
@@ -34,7 +34,7 @@ public class List<T> {
         if this.len >= this.cap {
             int newcap = this.cap * 2
             if newcap == 0 { newcap = 8 }
-            long ni = 0
+            pointer ni = 0
             if this.items == 0 {
                 fly.runtime.mem_alloc(newcap * this.stride, ni)
             } else {
@@ -80,8 +80,8 @@ public class List<T> {
         if rest > 0 {
             long dstoff = idx * this.stride
             long srcoff = (idx + 1) * this.stride
-            long dst = this.items + dstoff
-            long src = this.items + srcoff
+            pointer dst = this.items + dstoff
+            pointer src = this.items + srcoff
             long nbytes = rest * this.stride
             fly.llvm.memmove(dst, src, nbytes)
         }

@@ -13,7 +13,7 @@ import fly.assert
 // functionTypeN and asserts the module verifies. No direct C++ analog — this is
 // the self-host's bridge-marshalling workaround.
 //
-// NOTE: this drives the LLVM C API + fly.mem.Ptr directly; that must live in a
+// NOTE: this drives the LLVM C API + pointer directly; that must live in a
 // top-level free function (`buildAddVerifies`), not a suite method, or the
 // reference --test backend SIGSEGVs.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -23,31 +23,31 @@ import fly.assert
 public bool buildAddVerifies() {
     CodeGenLLVM cg = new CodeGenLLVM()
     LLVM llvm = cg.getLLVM()
-    fly.mem.Ptr ctx
+    pointer ctx
     llvm.contextCreate(ctx)
-    fly.mem.Ptr mod
+    pointer mod
     llvm.moduleCreateWithNameInContext("m", ctx, mod)
-    fly.mem.Ptr i32
+    pointer i32
     llvm.int32TypeInContext(ctx, i32)
     List<long> params = new List<long>()
-    params.add(i32.addr)
-    params.add(i32.addr)
-    fly.mem.Ptr fnTy
+    params.add(i32)
+    params.add(i32)
+    pointer fnTy
     cg.functionTypeN(i32, params, false, fnTy)
-    fly.mem.Ptr fn
+    pointer fn
     llvm.addFunction(mod, "add", fnTy, fn)
-    fly.mem.Ptr entry
+    pointer entry
     llvm.appendBasicBlockInContext(ctx, fn, "entry", entry)
-    fly.mem.Ptr b
+    pointer b
     llvm.createBuilderInContext(ctx, b)
     llvm.positionBuilderAtEnd(b, entry)
-    fly.mem.Ptr a0
+    pointer a0
     llvm.getParam(fn, 0, a0)
-    fly.mem.Ptr a1
+    pointer a1
     llvm.getParam(fn, 1, a1)
-    fly.mem.Ptr sum
+    pointer sum
     llvm.buildAdd(b, a0, a1, "sum", sum)
-    fly.mem.Ptr ret
+    pointer ret
     llvm.buildRet(b, sum, ret)
     bool ok = false
     llvm.verifyModule(mod, ok)

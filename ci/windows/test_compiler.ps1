@@ -34,9 +34,31 @@ New-Item -ItemType Directory -Force $OUT | Out-Null
 # the error path.
 New-Item -ItemType Directory -Force "$($PWD.Drive.Root)tmp\cg" | Out-Null
 
-# Bootstrap compiler: $FLY (default `fly`). CI passes an absolute path - see the
-# note in build_compiler.ps1 (executable-path stdlib discovery / bare-name trap).
+# Bootstrap compiler: $FLY (default `fly`). The compiler derives its stdlib dir
+# from its own executable path (argv[0]), and a bare name breaks that lookup -
+# so a path-less $FLY is resolved through PATH into an absolute path here.
 $FLY = if ($env:FLY) { $env:FLY } else { "fly" }
+if ($FLY -notmatch '[\\/]') {
+    $resolved = Get-Command $FLY -CommandType Application -ErrorAction SilentlyContinue |
+                Select-Object -First 1
+    if (-not $resolved) {
+        Write-Host "error: bootstrap compiler '$FLY' not found on PATH."
+        Write-Host "       Set FLY to the bootstrap compiler, e.g.:"
+        Write-Host "       `$env:FLY = 'C:\path\to\fly\build\bin\fly.exe'"
+        exit 1
+    }
+    $FLY = $resolved.Source
+}
+if (-not (Test-Path $FLY -PathType Leaf)) {
+    Write-Host "error: FLY='$FLY' is not an executable file."
+    exit 1
+}
+if (-not (Test-Path (Join-Path (Split-Path $FLY -Parent) '..\lib') -PathType Container)) {
+    Write-Host "error: no lib\ directory next to '$FLY' (expected <exe_dir>\..\lib"
+    Write-Host "       with llvm.fly.h, runtime.fly.h, fly_runtime_lib.lib)."
+    Write-Host "       Point FLY at a built bootstrap compiler, e.g. fly\build\bin\fly.exe."
+    exit 1
+}
 
 $pass = 0
 $fail = 0
@@ -66,6 +88,33 @@ foreach ($suite in $suites) {
         $pass++
     } else {
         Write-Host "  RUN  FAIL     $name (exit $LASTEXITCODE)"
+        Get-Content -Tail 5 $run | ForEach-Object { "      $_" }
+        $fail++
+    }
+}
+
+# -- std library tests (std/test/*_test.fly, main()-style; mirrors fly/std/test) --
+$stdTests = Get-ChildItem -Recurse -Filter *_test.fly std/test | Sort-Object FullName
+foreach ($t in $stdTests) {
+    $name = $t.BaseName
+    $bin = "$OUT/std_$name.exe"
+    $log = "$OUT/_std_$name.log"
+    $run = "$OUT/_std_$name.run"
+
+    & $FLY $t.FullName -o "std_$name" --out-dir $OUT -L $STD *> $log
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  COMPILE FAIL  std/$name (exit $LASTEXITCODE)"
+        Get-Content -Tail 3 $log | ForEach-Object { "      $_" }
+        $fail++
+        continue
+    }
+
+    & $bin *> $run
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  PASS          std/$name"
+        $pass++
+    } else {
+        Write-Host "  RUN  FAIL     std/$name (exit $LASTEXITCODE)"
         Get-Content -Tail 5 $run | ForEach-Object { "      $_" }
         $fail++
     }

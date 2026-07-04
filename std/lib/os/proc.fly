@@ -21,23 +21,23 @@ import fly.mem
 // plain long/string/int.
 //
 // Usage:
-//     long a = fly.os.proc.argsNew()
+//     pointer a = fly.os.proc.argsNew()
 //     fly.os.proc.argsAdd(a, "-o")
 //     fly.os.proc.argsAdd(a, "out")
 //     int rc = fly.os.proc.exec("cc", a)   // a may be 0 for no extra args
 //     fly.os.proc.argsFree(a)
 
 // ArgList heap layout (16 bytes):
-//   [0..7]   long items   — char** buffer holding 'count' C-string pointers
+//   [0..7]   pointer items   — char** buffer holding 'count' C-string pointers
 //   [8..11]  int  count   — number of args currently stored
 //   [12..15] int  cap     — capacity of 'items' (in pointer slots)
 
 // Copy a Fly string into a fresh null-terminated C-string buffer.
-private long strToCstr(const string src) {
+private pointer strToCstr(const string src) {
     int size = 0
     fly.llvm.strSize(src, size)
     int cap = size + 1
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(cap, buf)
     int i = 0
     while i < size {
@@ -51,63 +51,63 @@ private long strToCstr(const string src) {
 }
 
 // argsNew — allocate an empty ArgList; returns its handle.
-public long argsNew() {
-    long h = 0
+public pointer argsNew() {
+    pointer h = 0
     fly.runtime.mem_alloc(16, h)
     int cap = 4
-    long items = 0
+    pointer items = 0
     fly.runtime.mem_alloc(cap * 8, items)
-    fly.mem.writeLong(h, 0, items)
+    fly.mem.writePtr(h, 0, items)
     fly.mem.writeInt(h, 8, 0)
     fly.mem.writeInt(h, 12, cap)
     out = h
 }
 
 // argsAdd — append a copy of 'a' to the ArgList, growing if needed.
-public void argsAdd(const long h, const string a) {
+public void argsAdd(const pointer h, const string a) {
     if h == 0 { return }
-    long items = fly.mem.readLong(h, 0)
+    pointer items = fly.mem.readPtr(h, 0)
     int count = fly.mem.readInt(h, 8)
     int cap = fly.mem.readInt(h, 12)
     if count == cap {
         int newCap = cap * 2
-        long bigger = 0
+        pointer bigger = 0
         fly.runtime.mem_realloc(items, newCap * 8, bigger)
         items = bigger
-        fly.mem.writeLong(h, 0, items)
+        fly.mem.writePtr(h, 0, items)
         fly.mem.writeInt(h, 12, newCap)
     }
-    long cs = strToCstr(a)
-    fly.mem.writeLong(items, count * 8, cs)
+    pointer cs = strToCstr(a)
+    fly.mem.writePtr(items, count * 8, cs)
     fly.mem.writeInt(h, 8, count + 1)
 }
 
 // exec — spawn 'path' with argv[0]=path followed by the ArgList args (h may be
 // 0 for none), inheriting the environment, and wait for it. Returns the child
 // exit code (0..255), 128+signo if killed by a signal, or -1 on spawn failure.
-public int exec(const string path, const long h) {
+public int exec(const string path, const pointer h) {
     int count = 0
-    long items = 0
+    pointer items = 0
     if h != 0 {
-        items = fly.mem.readLong(h, 0)
+        items = fly.mem.readPtr(h, 0)
         count = fly.mem.readInt(h, 8)
     }
 
     // argv = [ path, args..., NULL ] → (count + 2) pointer slots.
     int slots = count + 2
-    long argv = 0
+    pointer argv = 0
     fly.runtime.mem_alloc(slots * 8, argv)
 
-    long cpath = strToCstr(path)
-    fly.mem.writeLong(argv, 0, cpath)
+    pointer cpath = strToCstr(path)
+    fly.mem.writePtr(argv, 0, cpath)
 
     int i = 0
     while i < count {
-        long cs = fly.mem.readLong(items, i * 8)
-        fly.mem.writeLong(argv, (i + 1) * 8, cs)
+        pointer cs = fly.mem.readPtr(items, i * 8)
+        fly.mem.writePtr(argv, (i + 1) * 8, cs)
         i = i + 1
     }
-    fly.mem.writeLong(argv, (count + 1) * 8, 0)
+    fly.mem.writePtr(argv, (count + 1) * 8, 0)
 
     int code = 0
     fly.runtime.proc_exec(cpath, argv, code)
@@ -126,13 +126,13 @@ public int run(const string path) {
 }
 
 // argsFree — release an ArgList and every C-string it owns.
-public void argsFree(const long h) {
+public void argsFree(const pointer h) {
     if h == 0 { return }
-    long items = fly.mem.readLong(h, 0)
+    pointer items = fly.mem.readPtr(h, 0)
     int count = fly.mem.readInt(h, 8)
     int i = 0
     while i < count {
-        long cs = fly.mem.readLong(items, i * 8)
+        pointer cs = fly.mem.readPtr(items, i * 8)
         if cs != 0 { fly.runtime.mem_free(cs, 0) }
         i = i + 1
     }

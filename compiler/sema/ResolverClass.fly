@@ -24,6 +24,7 @@ public class ResolverClass {
         SemaModule mod = r.getCurrentModule()
         SymbolTable clsScope = r.getCurrentScope()
         SemaClassType cls = SemaBuilder.CreateClass(mod, clsScope, node)
+        cls.setFromHeader(r.isCurrentModuleHeader())
 
         // Register generic type parameters (e.g. T in Wrapper<T>) as CLASS symbols in
         // the class scope so member types resolve T to the SemaTypeParam. Each
@@ -491,8 +492,9 @@ public class ResolverClass {
     // register an entry symbol in the enum scope.
     public static void enumEntry(const Resolver r, const ASTEnumEntry node) {
         SemaEnumType en = r.getCurrentEnum()
+        // CreateEnumEntry already registers the entry on the enum (addEntry);
+        // adding it again here duplicated every entry in enum.getNodes().
         SemaEnumEntry entry = SemaBuilder.CreateEnumEntry(en, node)
-        en.addEntry(entry)
         Symbol sym = new Symbol(node.getName(), SymbolKind.ENUM_ENTRY, entry)
         r.addSymbol(sym)
     }

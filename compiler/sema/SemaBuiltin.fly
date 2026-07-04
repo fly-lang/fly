@@ -31,7 +31,7 @@ public class SemaBuiltin {
     public static SemaIntType getIntType()    { out = new SemaIntType(SemaIntTypeKind.TYPE_INT, "int") }
     public static SemaIntType getULongType()  { out = new SemaIntType(SemaIntTypeKind.TYPE_ULONG, "ulong") }
     public static SemaIntType getLongType()   { out = new SemaIntType(SemaIntTypeKind.TYPE_LONG, "long") }
-    public static SemaIntType getPtrSizeType() { out = new SemaIntType(SemaIntTypeKind.TYPE_PTRSIZE, "ptrsize") }
+    public static SemaIntType getPtrSizeType() { out = new SemaIntType(SemaIntTypeKind.TYPE_POINTER, "pointer") }
     public static SemaFloatType getFloatType()  { out = new SemaFloatType(SemaFloatTypeKind.TYPE_FLOAT, "float") }
     public static SemaFloatType getDoubleType() { out = new SemaFloatType(SemaFloatTypeKind.TYPE_DOUBLE, "double") }
     public static SemaComplexType getComplexType() { out = new SemaComplexType() }

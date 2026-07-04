@@ -41,13 +41,13 @@ public void initTargetForArch(const LLVM llvm, const Arch a) {
 public int targetMachineCheck(const string triple, const Arch a) {
     LLVM llvm = new LLVM()
     initTargetForArch(llvm, a)
-    fly.mem.Ptr target = fly.mem.toPtr(0)
+    pointer target = 0
     bool ok = false
     llvm.getTargetFromTriple(triple, target, ok)
-    if target.addr == 0 { out = 0  return }
-    fly.mem.Ptr tm = fly.mem.toPtr(0)
+    if target == 0 { out = 0  return }
+    pointer tm = 0
     // LLVMCodeGenLevelDefault=2, LLVMRelocPIC=2, LLVMCodeModelDefault=0.
     llvm.createTargetMachine(target, triple, "", "", 2, 2, 0, tm)
-    if tm.addr == 0 { out = 2  return }
+    if tm == 0 { out = 2  return }
     out = 1
 }

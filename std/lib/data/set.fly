@@ -8,8 +8,8 @@ import fly.runtime
 // slotCmpT (lexicographic for string). Ownership: add deep-clones owned keys
 // (string); remove/free release them. flags: 0=empty, 1=occupied, 2=tombstone.
 public class Set<T> {
-    long keys
-    long flags
+    pointer keys
+    pointer flags
     int count
     int cap
     int stride
@@ -29,9 +29,9 @@ public class Set<T> {
             this.stride = s
         }
         if this.keys == 0 {
-            long nk = 0
+            pointer nk = 0
             fly.runtime.mem_alloc(8 * this.stride, nk)
-            long nf = 0
+            pointer nf = 0
             fly.runtime.mem_alloc(8, nf)
             fly.llvm.memset(nf, 0, 8)
             this.keys = nk
@@ -40,9 +40,9 @@ public class Set<T> {
         }
         if this.count * 4 >= this.cap * 3 {
             int newcap = this.cap * 2
-            long nkeys = 0
+            pointer nkeys = 0
             fly.runtime.mem_alloc(newcap * this.stride, nkeys)
-            long nflags = 0
+            pointer nflags = 0
             fly.runtime.mem_alloc(newcap, nflags)
             fly.llvm.memset(nflags, 0, newcap)
             T probe
@@ -63,8 +63,8 @@ public class Set<T> {
                     }
                     long soff = ri * this.stride
                     long doff = rb * this.stride
-                    long src = this.keys + soff
-                    long dst = nkeys + doff
+                    pointer src = this.keys + soff
+                    pointer dst = nkeys + doff
                     long nb = this.stride
                     fly.llvm.memcpy(dst, src, nb)
                     fly.llvm.ptrPokeByte(nflags, rb, 1)

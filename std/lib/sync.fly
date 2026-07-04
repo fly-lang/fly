@@ -5,26 +5,26 @@ import fly.llvm
 
 // ── internal helpers ──────────────────────────────────────────────────────────
 
-private void atomicLoad(const long p, int out) {
+private void atomicLoad(const pointer p, int out) {
     fly.runtime.atomic_load_i32(p, out)
 }
 
-private void atomicStore(const long p, const int v) {
+private void atomicStore(const pointer p, const int v) {
     fly.runtime.atomic_store_i32(p, v)
 }
 
-private void atomicCas(const long p, const int expected, const int desired, int out) {
+private void atomicCas(const pointer p, const int expected, const int desired, int out) {
     fly.runtime.atomic_cas_i32(p, expected, desired, out)
 }
 
-private void atomicAdd(const long p, const int delta, int out) {
+private void atomicAdd(const pointer p, const int delta, int out) {
     fly.runtime.atomic_fetch_add_i32(p, delta, out)
 }
 
 // Allocate a zero-initialised 4-byte heap slot; return its address.
-private long newI32() {
+private pointer newI32() {
     ulong four = 4
-    long p = 0
+    pointer p = 0
     fly.runtime.mem_alloc(four, p)
     fly.llvm.memset(p, 0, four)
     out = p
@@ -37,7 +37,7 @@ public struct Thread {
 }
 
 // spawn starts fn(arg) in a new thread. stack=0 uses the default (1 MB).
-public Thread spawnThread(const long fn, const long arg, const ulong stack) {
+public Thread spawnThread(const pointer fn, const pointer arg, const ulong stack) {
     ulong sz = stack
     if sz == 0 { sz = 1048576 }
     int t = 0
@@ -49,7 +49,7 @@ public Thread spawnThread(const long fn, const long arg, const ulong stack) {
 // Heap i32 state: 0=unlocked  1=locked
 
 public struct Mutex {
-    long ptr
+    pointer ptr
 }
 
 public Mutex newMutex() {
@@ -87,8 +87,8 @@ public bool mutexTryLock(Mutex m) {
 // waiters: queued writer count
 
 public struct RWMutex {
-    long state_ptr
-    long waiters_ptr
+    pointer state_ptr
+    pointer waiters_ptr
 }
 
 public RWMutex newRWMutex() {
@@ -153,7 +153,7 @@ public void rwmutexWunlock(RWMutex rw) {
 // ── WaitGroup ─────────────────────────────────────────────────────────────────
 
 public struct WaitGroup {
-    long ptr
+    pointer ptr
 }
 
 public WaitGroup newWaitGroup() {
@@ -195,7 +195,7 @@ public void wgWait(WaitGroup wg) {
 // Usage: if fly.sync.onceAcquire(o) { doInit(); fly.sync.onceRelease(o) }
 
 public struct Once {
-    long ptr
+    pointer ptr
 }
 
 public Once newOnce() {
@@ -238,11 +238,11 @@ public void onceRelease(Once o) {
 // ── Semaphore ─────────────────────────────────────────────────────────────────
 
 public struct Semaphore {
-    long ptr
+    pointer ptr
 }
 
 public Semaphore newSemaphore(const int initial) {
-    long p = fly.sync.newI32()
+    pointer p = fly.sync.newI32()
     fly.sync.atomicStore(p, initial)
     out.ptr = p
 }

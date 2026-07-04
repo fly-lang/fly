@@ -122,7 +122,7 @@ public class ToolChain {
     // ── runLinker — exec `prog` (fallback `alt`) with the built ArgList. Returns
     // true on a 0 exit code. Replaces the in-process lld::*::link(args) call;
     // resolves the binary against $PATH first (execve needs a full path).
-    public bool runLinker(const string prog, const string alt, const long h) {
+    public bool runLinker(const string prog, const string alt, const pointer h) {
         string p = this.resolveProg(prog)
         if fly.str.isEmpty(p) { p = this.resolveProg(alt) }
         if fly.str.isEmpty(p) {
@@ -145,6 +145,11 @@ public class ToolChain {
         }
         if this.t.isWindowsMSVC() {
             out = this.LinkWindows(inFilesSemi, outFileName)
+        } elsif this.t.isOSWindows() {
+            // windows-gnu/mingw would otherwise fall through to the ELF linker
+            // with COFF objects — fail honestly instead.
+            fly.os.io.printErrLn(fly.str.concat("error: unsupported Windows environment for linking (only -msvc is supported): ", this.t.getTriple()))
+            out = false
         } elsif this.t.isOSDarwin() {
             out = this.LinkDarwin(inFilesSemi, outFileName)
         } else {
@@ -156,7 +161,7 @@ public class ToolChain {
 
     // ── LinkLinux — the core (cpp:793-1019) ───────────────────────────────────
     public bool LinkLinux(const string inFilesSemi, const string outFile, const FrontendOptions frontendOpts) {
-        long h = fly.os.proc.argsNew()
+        pointer h = fly.os.proc.argsNew()
 
         if fly.str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
             fly.os.proc.argsAdd(h, fly.str.concat("-L", this.codeGenOpts.getToolchainLibDir()))
@@ -275,11 +280,15 @@ public class ToolChain {
             j = j + 1
         }
 
-        // fly_std_lib.a then libfly_runtime
-        string stdLib = this.GetStdLibPath()
-        if fly.str.isEmpty(stdLib) == false { fly.os.proc.argsAdd(h, stdLib) }
-        string rtLib = this.GetRuntimeLibPath()
-        if fly.str.isEmpty(rtLib) == false { fly.os.proc.argsAdd(h, rtLib) }
+        // fly_std_lib.a then libfly_runtime — required: linking without them only
+        // surfaces later as cryptic undefined-symbol errors from ld.
+        if this.requireFlyArchives() == false {
+            fly.os.proc.argsFree(h)
+            out = false
+            return
+        }
+        fly.os.proc.argsAdd(h, this.GetStdLibPath())
+        fly.os.proc.argsAdd(h, this.GetRuntimeLibPath())
 
         // -L for every path in the list
         int np = segCount(pathList)
@@ -331,6 +340,8 @@ public class ToolChain {
         bool ok = false
         if this.t.isOSBinFormatELF() {
             ok = this.runLinker("ld.lld", "ld", h)
+        } else {
+            fly.os.io.printErrLn(fly.str.concat("error: unsupported object format for target ", this.t.getTriple()))
         }
         fly.os.proc.argsFree(h)
         out = ok
@@ -338,7 +349,7 @@ public class ToolChain {
 
     // ── LinkDarwin (cpp:749-791) ──────────────────────────────────────────────
     public bool LinkDarwin(const string inFilesSemi, const string outFile) {
-        long h = fly.os.proc.argsNew()
+        pointer h = fly.os.proc.argsNew()
         fly.os.proc.argsAdd(h, "-e")
         fly.os.proc.argsAdd(h, "_main")
         fly.os.proc.argsAdd(h, "-o")
@@ -352,10 +363,13 @@ public class ToolChain {
         int i = 0
         while i < ni { fly.os.proc.argsAdd(h, segAt(inFilesSemi, i))  i = i + 1 }
 
-        string stdLib = this.GetStdLibPath()
-        if fly.str.isEmpty(stdLib) == false { fly.os.proc.argsAdd(h, stdLib) }
-        string rtLib = this.GetRuntimeLibPath()
-        if fly.str.isEmpty(rtLib) == false { fly.os.proc.argsAdd(h, rtLib) }
+        if this.requireFlyArchives() == false {
+            fly.os.proc.argsFree(h)
+            out = false
+            return
+        }
+        fly.os.proc.argsAdd(h, this.GetStdLibPath())
+        fly.os.proc.argsAdd(h, this.GetRuntimeLibPath())
 
         string lo = this.codeGenOpts.getLinkerOptions()
         int nl = segCount(lo)
@@ -365,6 +379,8 @@ public class ToolChain {
         bool ok = false
         if this.t.isOSBinFormatMachO() {
             ok = this.runLinker("ld64.lld", "ld", h)
+        } else {
+            fly.os.io.printErrLn(fly.str.concat("error: unsupported object format for target ", this.t.getTriple()))
         }
         fly.os.proc.argsFree(h)
         out = ok
@@ -372,7 +388,7 @@ public class ToolChain {
 
     // ── LinkWindows (cpp:499-608) — structural; SDK discovery stubbed ─────────
     public bool LinkWindows(const string inFilesSemi, const string outFile) {
-        long h = fly.os.proc.argsNew()
+        pointer h = fly.os.proc.argsNew()
         fly.os.proc.argsAdd(h, fly.str.concat(fly.str.concat("/out:", outFile), ".exe"))
 
         if fly.str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
@@ -393,10 +409,13 @@ public class ToolChain {
         int i = 0
         while i < ni { fly.os.proc.argsAdd(h, segAt(inFilesSemi, i))  i = i + 1 }
 
-        string stdLib = this.GetStdLibPath()
-        if fly.str.isEmpty(stdLib) == false { fly.os.proc.argsAdd(h, stdLib) }
-        string rtLib = this.GetRuntimeLibPath()
-        if fly.str.isEmpty(rtLib) == false { fly.os.proc.argsAdd(h, rtLib) }
+        if this.requireFlyArchives() == false {
+            fly.os.proc.argsFree(h)
+            out = false
+            return
+        }
+        fly.os.proc.argsAdd(h, this.GetStdLibPath())
+        fly.os.proc.argsAdd(h, this.GetRuntimeLibPath())
 
         // -lNAME → NAME.lib
         string lo = this.codeGenOpts.getLinkerOptions()
@@ -416,6 +435,8 @@ public class ToolChain {
         bool ok = false
         if this.t.isOSBinFormatCOFF() {
             ok = this.runLinker("lld-link", "link", h)
+        } else {
+            fly.os.io.printErrLn(fly.str.concat("error: unsupported object format for target ", this.t.getTriple()))
         }
         fly.os.proc.argsFree(h)
         out = ok
@@ -572,12 +593,38 @@ public class ToolChain {
         string usrLibArch = fly.os.path.join("/usr/lib", multiarch)
         if fly.os.fs.exists(usrLibArch) { list = segAppend(list, usrLibArch) }
 
-        // GCC versioned dir (libgcc_eh.a etc.). The C++ scans the directory; the
-        // self-host probes the common version directories under it.
+        // GCC dir (libgcc_eh.a etc.). The C++ scans the directory for the newest
+        // version subdir; the self-host appends the base dir plus a fixed probe of
+        // the common major-version subdirs (where libgcc*/crt* actually live).
         string gccBase = fly.os.path.join("/usr/lib/gcc", multiarch)
-        if fly.os.fs.exists(gccBase) { list = segAppend(list, gccBase) }
+        if fly.os.fs.exists(gccBase) {
+            list = segAppend(list, gccBase)
+            int gv = 15
+            while gv >= 9 {
+                string vdir = fly.os.path.join(gccBase, fly.str.convert(gv))
+                if fly.os.fs.exists(vdir) { list = segAppend(list, vdir) }
+                gv = gv - 1
+            }
+        }
 
         out = list
+    }
+
+    // requireFlyArchives — both Fly archives must resolve before linking; report
+    // which one is missing and where it was looked for (a silent skip surfaces
+    // later as undefined `fly_*` symbols from the linker with no hint).
+    public bool requireFlyArchives() {
+        bool ok = true
+        string base = this.codeGenOpts.getRuntimeLibDir()
+        if fly.str.isEmpty(this.GetStdLibPath()) {
+            fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: fly_std_lib archive not found under '", base), "' (set --runtime-lib-dir)"))
+            ok = false
+        }
+        if fly.str.isEmpty(this.GetRuntimeLibPath()) {
+            fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: fly_runtime_lib archive not found under '", base), "' (set --runtime-lib-dir)"))
+            ok = false
+        }
+        out = ok
     }
 
     // GetStdLibPath / GetRuntimeLibPath — locate the Fly archives under runtimeLibDir.

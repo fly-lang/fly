@@ -10,10 +10,12 @@ on:
   workflow_dispatch:
 
 env:
-  # Bootstrap compiler release. Bump to the first release that ships the
-  # executable-path stdlib resolution fix (fly Driver.cpp getMainExecutable);
-  # until then the absolute $FLY below keeps older releases working in CI.
-  FLY_VERSION: "0.13.7"
+  # Bootstrap compiler release. Must ship the ptrsize→pointer rename: the
+  # bootstrap's BAKED std shadows -L, and 0.13.7's CLang.call overloads still
+  # take fly.mem.Ptr — every `lib.call(…, pointerOut)` in LLVMApi.fly is then
+  # ambiguous and the whole tree fails to compile. 0.13.8 must be cut from the
+  # current fly/ reference (which also carries the header-gen and codegen fixes).
+  FLY_VERSION: "0.13.8"
 
 jobs:
 
@@ -46,5 +48,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact.outputs.artifact_name }}
-          path: build/linux
+          # Both dirs: the artifact root is their common ancestor (build/), so it
+          # preserves the bin/ + lib/ layout the release archive needs.
+          path: |
+            build/bin
+            build/lib
+          if-no-files-found: error
           overwrite: true

@@ -4,7 +4,7 @@ import fly.bridge.*
 import fly.mem
 import fly.str
 
-// All LLVM handles are fly.mem.Ptr (opaque C pointer wrappers).
+// All LLVM handles are pointer (opaque C pointer wrappers).
 // On Linux: libLLVM-20.so   On Windows: LLVM-C.dll
 // Instantiate LLVM once and reuse it across the compilation unit.
 
@@ -18,9 +18,9 @@ import fly.str
 // buffer and pass its ADDRESS as a Ptr arg (a long is never cloned), giving the C
 // side a real, terminated C string. The buffer outlives the (synchronous) call;
 // it leaks, which is fine for the one-shot compiler.
-public long cbuf(const string s) {
+public pointer cbuf(const string s) {
     int n = fly.str.len(s)
-    long buf = fly.mem.alloc(n + 1)
+    pointer buf = fly.mem.alloc(n + 1)
     byte b = 0
     int i = 0
     while i < n {
@@ -38,114 +38,114 @@ public long cbuf(const string s) {
 struct NoArgs  : Args {}
 
 struct Ptr1Args : Args {
-    fly.mem.Ptr a
+    pointer a
 }
 
 struct Ptr2Args : Args {
-    fly.mem.Ptr a
-    fly.mem.Ptr b
+    pointer a
+    pointer b
 }
 
 struct Ptr3Args : Args {
-    fly.mem.Ptr a
-    fly.mem.Ptr b
-    fly.mem.Ptr c
+    pointer a
+    pointer b
+    pointer c
 }
 
 struct Ptr4Args : Args {
-    fly.mem.Ptr a
-    fly.mem.Ptr b
-    fly.mem.Ptr c
-    fly.mem.Ptr d
+    pointer a
+    pointer b
+    pointer c
+    pointer d
 }
 
 struct PtrStrArgs : Args {
-    fly.mem.Ptr a
+    pointer a
     string s
 }
 
 struct PtrStrPtrArgs : Args {
-    fly.mem.Ptr a
+    pointer a
     string s
-    fly.mem.Ptr b
+    pointer b
 }
 
 struct PtrIntArgs : Args {
-    fly.mem.Ptr a
+    pointer a
     int n
 }
 
 struct PtrLongArgs : Args {
-    fly.mem.Ptr a
+    pointer a
     long n
 }
 
 struct PtrPtrIntArgs : Args {
-    fly.mem.Ptr a
-    fly.mem.Ptr b
+    pointer a
+    pointer b
     int n
 }
 
 struct PtrPtrIntIntArgs : Args {
-    fly.mem.Ptr a
-    fly.mem.Ptr b
+    pointer a
+    pointer b
     int n
     int p
 }
 
 struct PtrPtrLongArgs : Args {
-    fly.mem.Ptr a
-    fly.mem.Ptr b
+    pointer a
+    pointer b
     long n
 }
 
 struct PtrIntPtr2StrArgs : Args {
-    fly.mem.Ptr a
+    pointer a
     int n
-    fly.mem.Ptr b
-    fly.mem.Ptr c
+    pointer b
+    pointer c
     string s
 }
 
 struct PtrIntPtrArgs : Args {
-    fly.mem.Ptr a
+    pointer a
     int n
-    fly.mem.Ptr b
+    pointer b
 }
 
 struct StrPtrArgs : Args {
     string s
-    fly.mem.Ptr a
+    pointer a
 }
 
 // Ptr2StrArgs: two ptr fields THEN a string — gives C args [a, b, s] = (ptr, ptr, string)
 // Use for functions like LLVMAppendBasicBlockInContext(C, Fn, Name)
 struct Ptr2StrArgs : Args {
-    fly.mem.Ptr a
-    fly.mem.Ptr b
+    pointer a
+    pointer b
     string s
 }
 
 // Ptr3StrArgs: three ptr fields then a string — gives C args [a, b, c, s] = (ptr, ptr, ptr, string)
 // Use for functions like LLVMBuildAdd(B, LHS, RHS, Name)
 struct Ptr3StrArgs : Args {
-    fly.mem.Ptr a
-    fly.mem.Ptr b
-    fly.mem.Ptr c
+    pointer a
+    pointer b
+    pointer c
     string s
 }
 
 struct Ptr3IntArgs : Args {
-    fly.mem.Ptr a
-    fly.mem.Ptr b
-    fly.mem.Ptr c
+    pointer a
+    pointer b
+    pointer c
     int n
 }
 
 struct Ptr3IntStrArgs : Args {
-    fly.mem.Ptr a
-    fly.mem.Ptr b
-    fly.mem.Ptr c
+    pointer a
+    pointer b
+    pointer c
     int n
     string s
 }
@@ -153,20 +153,20 @@ struct Ptr3IntStrArgs : Args {
 // 4 ptrs + int + string, e.g. LLVMBuildCall2(B, FnTy, Fn, Args, NumArgs, Name)
 // and LLVMBuildGEP2(B, Ty, Ptr, Indices, NumIndices, Name).
 struct Ptr4IntStrArgs : Args {
-    fly.mem.Ptr a
-    fly.mem.Ptr b
-    fly.mem.Ptr c
-    fly.mem.Ptr d
+    pointer a
+    pointer b
+    pointer c
+    pointer d
     int n
     string s
 }
 
 // 4 ptrs + int, e.g. LLVMBuildMemSet(B, Ptr, Val, Len, Align).
 struct Ptr4IntArgs : Args {
-    fly.mem.Ptr a
-    fly.mem.Ptr b
-    fly.mem.Ptr c
-    fly.mem.Ptr d
+    pointer a
+    pointer b
+    pointer c
+    pointer d
     int n
 }
 
@@ -188,27 +188,27 @@ struct LongArgs : Args {
 }
 
 struct PtrLongIntArgs : Args {
-    fly.mem.Ptr a
+    pointer a
     long n
     int p
 }
 
 struct PtrDoubleArgs : Args {
-    fly.mem.Ptr a
+    pointer a
     double d
 }
 
 // PtrStrIntArgs: ptr + string + int — gives C args (ptr, str_ptr, str_len, n).
 // Used for functions like LLVMConstStringInContext where the 4th arg is an int flag.
 struct PtrStrIntArgs : Args {
-    fly.mem.Ptr a
+    pointer a
     string s
     int n
 }
 
 // ptr + string + 2 ints, e.g. LLVMConstStringInContext(Ctx, Str, Length, DontNull)
 struct PtrStrIntIntArgs : Args {
-    fly.mem.Ptr a
+    pointer a
     string s
     int n
     int m
@@ -219,10 +219,10 @@ struct PtrStrIntIntArgs : Args {
 // The three C strings are passed as Ptr-to-NUL-buffer (see cbuf) rather than Fly
 // `string` fields, which would lose the terminator on assignment.
 struct CreateTMArgs : Args {
-    fly.mem.Ptr target
-    fly.mem.Ptr triple
-    fly.mem.Ptr cpu
-    fly.mem.Ptr features
+    pointer target
+    pointer triple
+    pointer cpu
+    pointer features
     int level
     int reloc
     int codeModel
@@ -231,11 +231,11 @@ struct CreateTMArgs : Args {
 // LLVMTargetMachineEmitToFile(TM, M, Filename, FileType, char** Err).
 // `filename` is a Ptr-to-NUL-buffer; `err` stays null (char** NULL).
 struct EmitFileArgs : Args {
-    fly.mem.Ptr tm
-    fly.mem.Ptr mod
-    fly.mem.Ptr filename
+    pointer tm
+    pointer mod
+    pointer filename
     int emitType
-    fly.mem.Ptr err
+    pointer err
 }
 
 // ── LLVM wrapper ──────────────────────────────────────────────────────────────
@@ -249,6 +249,15 @@ public class LLVM {
 
     // Note: LLVMInitializeAll* are static inline wrappers not exported from libLLVM-20.so.
     // Use target-specific init functions instead (x86_64 is the primary bootstrap target).
+    //
+    // WHY every wrapper in this class re-creates `new CLang(...)` and passes the
+    // symbol as a literal (audit O1/O2): the bridge is a compile-time intrinsic in
+    // the bootstrap — `call()` requires the symbol to be a STRING LITERAL at each
+    // call site, and the CLang instance is tracked by LOCAL-variable identity.
+    // Caching the instance in a class field compiles but the interception does not
+    // fire: the calls silently resolve to the empty stub methods (verified by
+    // spike). So neither a shared `this.lib` field nor a table-driven init loop is
+    // expressible until the bootstrap propagates the mapping to field assignments.
     public void initializeAllTargetInfos() {
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMInitializeX86TargetInfo", new NoArgs())
@@ -416,26 +425,26 @@ public class LLVM {
 
     // ── Context ───────────────────────────────────────────────────────────────
 
-    public void contextCreate(fly.mem.Ptr ctx) {
+    public void contextCreate(pointer ctx) {
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMContextCreate", new NoArgs(), ctx)
     }
 
-    public void contextDispose(const fly.mem.Ptr ctx) {
+    public void contextDispose(const pointer ctx) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMContextDispose", a)
     }
 
-    public void getGlobalContext(fly.mem.Ptr ctx) {
+    public void getGlobalContext(pointer ctx) {
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMGetGlobalContext", new NoArgs(), ctx)
     }
 
     // ── Module ────────────────────────────────────────────────────────────────
 
-    public void moduleCreateWithNameInContext(const string name, const fly.mem.Ptr ctx, fly.mem.Ptr mod) {
+    public void moduleCreateWithNameInContext(const string name, const pointer ctx, pointer mod) {
         StrPtrArgs a = new StrPtrArgs()
         a.s = name
         a.a = ctx
@@ -443,43 +452,63 @@ public class LLVM {
         lib.call("LLVMModuleCreateWithNameInContext", a, mod)
     }
 
-    public void disposeModule(const fly.mem.Ptr mod) {
+    public void disposeModule(const pointer mod) {
         Ptr1Args a = new Ptr1Args()
         a.a = mod
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMDisposeModule", a)
     }
 
-    public void setDataLayout(const fly.mem.Ptr mod, const string layout) {
+    public void setDataLayout(const pointer mod, const string layout) {
         Ptr2Args a = new Ptr2Args()
         a.a = mod
-        a.b = fly.mem.toPtr(cbuf(layout))
+        a.b = cbuf(layout)
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMSetDataLayout", a)
     }
 
-    public void setTarget(const fly.mem.Ptr mod, const string triple) {
+    public void setTarget(const pointer mod, const string triple) {
         Ptr2Args a = new Ptr2Args()
         a.a = mod
-        a.b = fly.mem.toPtr(cbuf(triple))
+        a.b = cbuf(triple)
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMSetTarget", a)
     }
 
-    public void printModuleToFile(const fly.mem.Ptr mod, const string filename) {
+    public void printModuleToFile(const pointer mod, const string filename) {
         // LLVMPrintModuleToFile(M, Filename, char **ErrorMessage). Filename must be a
         // NUL-terminated C string (cbuf), and ErrorMessage must be a real pointer —
         // pass NULL. Omitting it leaves a garbage register that LLVM writes through on
         // the error path → SIGSEGV. Mirrors verifyModule's null-out-param pattern.
         Ptr3Args a = new Ptr3Args()
         a.a = mod
-        a.b = fly.mem.toPtr(cbuf(filename))
-        a.c = fly.mem.toPtr(0)
+        a.b = cbuf(filename)
+        a.c = 0
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMPrintModuleToFile", a)
     }
 
-    public void writeBitcodeToFile(const fly.mem.Ptr mod, const string path) {
+    // printModuleToFileChecked — like printModuleToFile, but surfaces the LLVMBool
+    // result (true = FAILURE → ok=false). ErrorMessage gets a REAL char** buffer:
+    // LLVM writes through it on the error path, so NULL would segfault exactly
+    // when we want to report the failure.
+    public void printModuleToFileChecked(const pointer mod, const string filename, bool ok) {
+        pointer buf = fly.mem.alloc(8)
+        fly.mem.writePtr(buf, 0, 0)
+        Ptr3Args a = new Ptr3Args()
+        a.a = mod
+        a.b = cbuf(filename)
+        a.c = buf
+        CLang lib = new CLang("libLLVM-20.so")
+        bool failed = false
+        lib.call("LLVMPrintModuleToFile", a, failed)
+        pointer mp = fly.mem.readPtr(buf, 0)
+        if mp != 0 { this.disposeMessage(mp) }
+        fly.mem.free(buf, 8)
+        if failed { ok = false } else { ok = true }
+    }
+
+    public void writeBitcodeToFile(const pointer mod, const string path) {
         PtrStrArgs a = new PtrStrArgs()
         a.a = mod
         a.s = path
@@ -487,57 +516,91 @@ public class LLVM {
         lib.call("LLVMWriteBitcodeToFile", a)
     }
 
-    public void verifyModule(const fly.mem.Ptr mod, bool ok) {
+    public void verifyModule(const pointer mod, bool ok) {
         // LLVMVerifyModule(M, LLVMReturnStatusAction=2, NULL) returns 1=broken, 0=valid.
         // Negate to get the "is valid" semantics expected by callers.
         PtrIntPtrArgs vargs = new PtrIntPtrArgs()
         vargs.a = mod
         vargs.n = 2
-        vargs.b = fly.mem.toPtr(0)
+        vargs.b = 0
         CLang lib = new CLang("libLLVM-20.so")
         bool broken = false
         lib.call("LLVMVerifyModule", vargs, broken)
         if broken == false { ok = true } else { ok = false }
     }
 
+    // verifyModuleMsg — like verifyModule, but also RETURNS LLVM's failure reason
+    // ("" when the module is valid). Passes a real char** out-buffer (Ptr-buffer
+    // idiom, like getTargetFromTriple), reads the heap C string back to the NUL
+    // and disposes it. The reason travels via the return value, not a string
+    // out-param (param writes skip the clone-on-store path → double free).
+    public string verifyModuleMsg(const pointer mod, bool ok) {
+        pointer buf = fly.mem.alloc(8)
+        fly.mem.writePtr(buf, 0, 0)
+        PtrIntPtrArgs vargs = new PtrIntPtrArgs()
+        vargs.a = mod
+        vargs.n = 2
+        vargs.b = buf
+        CLang lib = new CLang("libLLVM-20.so")
+        bool broken = false
+        lib.call("LLVMVerifyModule", vargs, broken)
+        pointer mp = fly.mem.readPtr(buf, 0)
+        fly.mem.free(buf, 8)
+        if broken == false { ok = true } else { ok = false }
+        out = ""
+        if mp != 0 {
+            byte zero = 0
+            int len = 0
+            byte c = fly.mem.readByte(mp, len)
+            while c != zero {
+                len = len + 1
+                c = fly.mem.readByte(mp, len)
+            }
+            string s = ""
+            fly.str.fromBytes(mp, len, s)
+            this.disposeMessage(mp)
+            out = s
+        }
+    }
+
     // ── Types — integer ───────────────────────────────────────────────────────
 
-    public void int1TypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+    public void int1TypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMInt1TypeInContext", a, ty)
     }
 
-    public void int8TypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+    public void int8TypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMInt8TypeInContext", a, ty)
     }
 
-    public void int16TypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+    public void int16TypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMInt16TypeInContext", a, ty)
     }
 
-    public void int32TypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+    public void int32TypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMInt32TypeInContext", a, ty)
     }
 
-    public void int64TypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+    public void int64TypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMInt64TypeInContext", a, ty)
     }
 
-    public void intTypeInContext(const fly.mem.Ptr ctx, const int bits, fly.mem.Ptr ty) {
+    public void intTypeInContext(const pointer ctx, const int bits, pointer ty) {
         PtrIntArgs a = new PtrIntArgs()
         a.a = ctx
         a.n = bits
@@ -547,14 +610,14 @@ public class LLVM {
 
     // ── Types — float ─────────────────────────────────────────────────────────
 
-    public void floatTypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+    public void floatTypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMFloatTypeInContext", a, ty)
     }
 
-    public void doubleTypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+    public void doubleTypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
         CLang lib = new CLang("libLLVM-20.so")
@@ -563,14 +626,14 @@ public class LLVM {
 
     // ── Types — other ─────────────────────────────────────────────────────────
 
-    public void voidTypeInContext(const fly.mem.Ptr ctx, fly.mem.Ptr ty) {
+    public void voidTypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMVoidTypeInContext", a, ty)
     }
 
-    public void pointerType(const fly.mem.Ptr elemTy, const int addrSpace, fly.mem.Ptr ty) {
+    public void pointerType(const pointer elemTy, const int addrSpace, pointer ty) {
         PtrIntArgs a = new PtrIntArgs()
         a.a = elemTy
         a.n = addrSpace
@@ -578,7 +641,7 @@ public class LLVM {
         lib.call("LLVMPointerType", a, ty)
     }
 
-    public void arrayType(const fly.mem.Ptr elemTy, const int count, fly.mem.Ptr ty) {
+    public void arrayType(const pointer elemTy, const int count, pointer ty) {
         PtrIntArgs a = new PtrIntArgs()
         a.a = elemTy
         a.n = count
@@ -586,7 +649,7 @@ public class LLVM {
         lib.call("LLVMArrayType", a, ty)
     }
 
-    public void functionType(const fly.mem.Ptr retTy, const fly.mem.Ptr paramTypes, const int paramCount, const bool isVarArg, fly.mem.Ptr ty) {
+    public void functionType(const pointer retTy, const pointer paramTypes, const int paramCount, const bool isVarArg, pointer ty) {
         // LLVMFunctionType(ReturnType, ParamTypes, ParamCount, IsVarArg)
         PtrPtrIntIntArgs a = new PtrPtrIntIntArgs()
         a.a = retTy
@@ -597,7 +660,7 @@ public class LLVM {
         lib.call("LLVMFunctionType", a, ty)
     }
 
-    public void structTypeInContext(const fly.mem.Ptr ctx, const fly.mem.Ptr elemTypes, const int elemCount, const bool packed, fly.mem.Ptr ty) {
+    public void structTypeInContext(const pointer ctx, const pointer elemTypes, const int elemCount, const bool packed, pointer ty) {
         // LLVMStructTypeInContext(Ctx, ElementTypes, ElementCount, Packed)
         PtrPtrIntIntArgs a = new PtrPtrIntIntArgs()
         a.a = ctx
@@ -608,7 +671,7 @@ public class LLVM {
         lib.call("LLVMStructTypeInContext", a, ty)
     }
 
-    public void structCreateNamed(const fly.mem.Ptr ctx, const string name, fly.mem.Ptr ty) {
+    public void structCreateNamed(const pointer ctx, const string name, pointer ty) {
         PtrStrArgs a = new PtrStrArgs()
         a.a = ctx
         a.s = name
@@ -616,7 +679,7 @@ public class LLVM {
         lib.call("LLVMStructCreateNamed", a, ty)
     }
 
-    public void structSetBody(const fly.mem.Ptr ty, const fly.mem.Ptr elemTypes, const int elemCount, const bool packed) {
+    public void structSetBody(const pointer ty, const pointer elemTypes, const int elemCount, const bool packed) {
         // LLVMStructSetBody(StructTy, ElementTypes, ElementCount, Packed=0)
         PtrPtrIntIntArgs a = new PtrPtrIntIntArgs()
         a.a = ty
@@ -629,7 +692,7 @@ public class LLVM {
 
     // ── Functions ─────────────────────────────────────────────────────────────
 
-    public void addFunction(const fly.mem.Ptr mod, const string name, const fly.mem.Ptr fnTy, fly.mem.Ptr fn) {
+    public void addFunction(const pointer mod, const string name, const pointer fnTy, pointer fn) {
         PtrStrPtrArgs a = new PtrStrPtrArgs()
         a.a = mod
         a.s = name
@@ -638,7 +701,7 @@ public class LLVM {
         lib.call("LLVMAddFunction", a, fn)
     }
 
-    public void getNamedFunction(const fly.mem.Ptr mod, const string name, fly.mem.Ptr fn) {
+    public void getNamedFunction(const pointer mod, const string name, pointer fn) {
         PtrStrArgs a = new PtrStrArgs()
         a.a = mod
         a.s = name
@@ -646,7 +709,7 @@ public class LLVM {
         lib.call("LLVMGetNamedFunction", a, fn)
     }
 
-    public void getParam(const fly.mem.Ptr fn, const int index, fly.mem.Ptr param) {
+    public void getParam(const pointer fn, const int index, pointer param) {
         PtrIntArgs a = new PtrIntArgs()
         a.a = fn
         a.n = index
@@ -654,7 +717,7 @@ public class LLVM {
         lib.call("LLVMGetParam", a, param)
     }
 
-    public void setValueName2(const fly.mem.Ptr val, const string name) {
+    public void setValueName2(const pointer val, const string name) {
         PtrStrArgs a = new PtrStrArgs()
         a.a = val
         a.s = name
@@ -662,7 +725,7 @@ public class LLVM {
         lib.call("LLVMSetValueName2", a)
     }
 
-    public void setLinkage(const fly.mem.Ptr val, const int linkage) {
+    public void setLinkage(const pointer val, const int linkage) {
         PtrIntArgs a = new PtrIntArgs()
         a.a = val
         a.n = linkage
@@ -670,7 +733,7 @@ public class LLVM {
         lib.call("LLVMSetLinkage", a)
     }
 
-    public void setVisibility(const fly.mem.Ptr val, const int visibility) {
+    public void setVisibility(const pointer val, const int visibility) {
         PtrIntArgs a = new PtrIntArgs()
         a.a = val
         a.n = visibility
@@ -678,7 +741,7 @@ public class LLVM {
         lib.call("LLVMSetVisibility", a)
     }
 
-    public void typeOf(const fly.mem.Ptr val, fly.mem.Ptr ty) {
+    public void typeOf(const pointer val, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = val
         CLang lib = new CLang("libLLVM-20.so")
@@ -687,7 +750,7 @@ public class LLVM {
 
     // ── Basic blocks ──────────────────────────────────────────────────────────
 
-    public void appendBasicBlockInContext(const fly.mem.Ptr ctx, const fly.mem.Ptr fn, const string name, fly.mem.Ptr bb) {
+    public void appendBasicBlockInContext(const pointer ctx, const pointer fn, const string name, pointer bb) {
         // LLVMAppendBasicBlockInContext(C, Fn, Name) → needs [ptr, ptr, string] C arg order
         Ptr2StrArgs a = new Ptr2StrArgs()
         a.a = ctx
@@ -697,14 +760,14 @@ public class LLVM {
         lib.call("LLVMAppendBasicBlockInContext", a, bb)
     }
 
-    public void getInsertBlock(const fly.mem.Ptr builder, fly.mem.Ptr bb) {
+    public void getInsertBlock(const pointer builder, pointer bb) {
         Ptr1Args a = new Ptr1Args()
         a.a = builder
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMGetInsertBlock", a, bb)
     }
 
-    public void getBasicBlockParent(const fly.mem.Ptr bb, fly.mem.Ptr fn) {
+    public void getBasicBlockParent(const pointer bb, pointer fn) {
         Ptr1Args a = new Ptr1Args()
         a.a = bb
         CLang lib = new CLang("libLLVM-20.so")
@@ -713,21 +776,21 @@ public class LLVM {
 
     // ── Builder ───────────────────────────────────────────────────────────────
 
-    public void createBuilderInContext(const fly.mem.Ptr ctx, fly.mem.Ptr builder) {
+    public void createBuilderInContext(const pointer ctx, pointer builder) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMCreateBuilderInContext", a, builder)
     }
 
-    public void disposeBuilder(const fly.mem.Ptr builder) {
+    public void disposeBuilder(const pointer builder) {
         Ptr1Args a = new Ptr1Args()
         a.a = builder
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMDisposeBuilder", a)
     }
 
-    public void positionBuilderAtEnd(const fly.mem.Ptr builder, const fly.mem.Ptr bb) {
+    public void positionBuilderAtEnd(const pointer builder, const pointer bb) {
         Ptr2Args a = new Ptr2Args()
         a.a = builder
         a.b = bb
@@ -735,7 +798,7 @@ public class LLVM {
         lib.call("LLVMPositionBuilderAtEnd", a)
     }
 
-    public void positionBuilderBefore(const fly.mem.Ptr builder, const fly.mem.Ptr instr) {
+    public void positionBuilderBefore(const pointer builder, const pointer instr) {
         Ptr2Args a = new Ptr2Args()
         a.a = builder
         a.b = instr
@@ -745,7 +808,7 @@ public class LLVM {
 
     // ── Build — arithmetic ────────────────────────────────────────────────────
 
-    public void buildAdd(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildAdd(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -755,7 +818,7 @@ public class LLVM {
         lib.call("LLVMBuildAdd", a, v)
     }
 
-    public void buildSub(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildSub(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -765,7 +828,7 @@ public class LLVM {
         lib.call("LLVMBuildSub", a, v)
     }
 
-    public void buildMul(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildMul(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -775,7 +838,7 @@ public class LLVM {
         lib.call("LLVMBuildMul", a, v)
     }
 
-    public void buildSDiv(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildSDiv(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -785,7 +848,7 @@ public class LLVM {
         lib.call("LLVMBuildSDiv", a, v)
     }
 
-    public void buildUDiv(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildUDiv(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -795,7 +858,7 @@ public class LLVM {
         lib.call("LLVMBuildUDiv", a, v)
     }
 
-    public void buildSRem(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildSRem(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -805,7 +868,17 @@ public class LLVM {
         lib.call("LLVMBuildSRem", a, v)
     }
 
-    public void buildFAdd(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildURem(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildURem", a, v)
+    }
+
+    public void buildFAdd(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -815,7 +888,7 @@ public class LLVM {
         lib.call("LLVMBuildFAdd", a, v)
     }
 
-    public void buildFSub(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildFSub(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -825,7 +898,7 @@ public class LLVM {
         lib.call("LLVMBuildFSub", a, v)
     }
 
-    public void buildFMul(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildFMul(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -835,7 +908,7 @@ public class LLVM {
         lib.call("LLVMBuildFMul", a, v)
     }
 
-    public void buildFDiv(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildFDiv(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -845,7 +918,7 @@ public class LLVM {
         lib.call("LLVMBuildFDiv", a, v)
     }
 
-    public void buildNeg(const fly.mem.Ptr b, const fly.mem.Ptr v, const string name, fly.mem.Ptr result) {
+    public void buildNeg(const pointer b, const pointer v, const string name, pointer result) {
         Ptr2StrArgs a = new Ptr2StrArgs()
         a.a = b
         a.b = v
@@ -854,7 +927,7 @@ public class LLVM {
         lib.call("LLVMBuildNeg", a, result)
     }
 
-    public void buildFNeg(const fly.mem.Ptr b, const fly.mem.Ptr v, const string name, fly.mem.Ptr result) {
+    public void buildFNeg(const pointer b, const pointer v, const string name, pointer result) {
         Ptr2StrArgs a = new Ptr2StrArgs()
         a.a = b
         a.b = v
@@ -865,7 +938,7 @@ public class LLVM {
 
     // ── Build — bitwise ───────────────────────────────────────────────────────
 
-    public void buildAnd(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildAnd(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -875,7 +948,7 @@ public class LLVM {
         lib.call("LLVMBuildAnd", a, v)
     }
 
-    public void buildOr(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildOr(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -885,7 +958,7 @@ public class LLVM {
         lib.call("LLVMBuildOr", a, v)
     }
 
-    public void buildXor(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildXor(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -895,7 +968,7 @@ public class LLVM {
         lib.call("LLVMBuildXor", a, v)
     }
 
-    public void buildShl(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildShl(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -905,7 +978,7 @@ public class LLVM {
         lib.call("LLVMBuildShl", a, v)
     }
 
-    public void buildLShr(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildLShr(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -915,7 +988,7 @@ public class LLVM {
         lib.call("LLVMBuildLShr", a, v)
     }
 
-    public void buildAShr(const fly.mem.Ptr b, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildAShr(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = lhs
@@ -928,7 +1001,7 @@ public class LLVM {
     // ── Build — comparison ────────────────────────────────────────────────────
 
     // predicate: LLVMIntPredicate enum (e.g. LLVMIntEQ=32, LLVMIntNE=33, LLVMIntSLT=38, etc.)
-    public void buildICmp(const fly.mem.Ptr b, const int pred, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildICmp(const pointer b, const int pred, const pointer lhs, const pointer rhs, const string name, pointer v) {
         PtrIntPtr2StrArgs a = new PtrIntPtr2StrArgs()
         a.a = b
         a.n = pred
@@ -940,7 +1013,7 @@ public class LLVM {
     }
 
     // predicate: LLVMRealPredicate enum
-    public void buildFCmp(const fly.mem.Ptr b, const int pred, const fly.mem.Ptr lhs, const fly.mem.Ptr rhs, const string name, fly.mem.Ptr v) {
+    public void buildFCmp(const pointer b, const int pred, const pointer lhs, const pointer rhs, const string name, pointer v) {
         PtrIntPtr2StrArgs a = new PtrIntPtr2StrArgs()
         a.a = b
         a.n = pred
@@ -953,7 +1026,7 @@ public class LLVM {
 
     // ── Build — memory ────────────────────────────────────────────────────────
 
-    public void buildAlloca(const fly.mem.Ptr b, const fly.mem.Ptr ty, const string name, fly.mem.Ptr v) {
+    public void buildAlloca(const pointer b, const pointer ty, const string name, pointer v) {
         // LLVMBuildAlloca(B, Ty, Name) = (ptr, ptr, string)
         Ptr2StrArgs a = new Ptr2StrArgs()
         a.a = b
@@ -963,7 +1036,7 @@ public class LLVM {
         lib.call("LLVMBuildAlloca", a, v)
     }
 
-    public void buildLoad2(const fly.mem.Ptr b, const fly.mem.Ptr ty, const fly.mem.Ptr ptr, const string name, fly.mem.Ptr v) {
+    public void buildLoad2(const pointer b, const pointer ty, const pointer ptr, const string name, pointer v) {
         // LLVMBuildLoad2(B, Ty, Ptr, Name) = (ptr, ptr, ptr, string) → use Ptr3 + store name in 4th
         // We use Ptr3Args which gives [b, ty, ptr] as C args 0-2; name (4th arg) is missing but LLVM accepts "" gracefully.
         Ptr3StrArgs a = new Ptr3StrArgs()
@@ -975,7 +1048,7 @@ public class LLVM {
         lib.call("LLVMBuildLoad2", a, v)
     }
 
-    public void buildStore(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr ptr) {
+    public void buildStore(const pointer b, const pointer val, const pointer ptr) {
         Ptr3Args a = new Ptr3Args()
         a.a = b
         a.b = val
@@ -984,7 +1057,7 @@ public class LLVM {
         lib.call("LLVMBuildStore", a)
     }
 
-    public void buildGEP2(const fly.mem.Ptr b, const fly.mem.Ptr ty, const fly.mem.Ptr ptr, const fly.mem.Ptr indices, const int numIndices, const string name, fly.mem.Ptr v) {
+    public void buildGEP2(const pointer b, const pointer ty, const pointer ptr, const pointer indices, const int numIndices, const string name, pointer v) {
         // LLVMBuildGEP2(B, Ty, Ptr, Indices, NumIndices, Name) — must pass NumIndices
         // and Name (the old Ptr4Args dropped them → garbage index-count + name).
         Ptr4IntStrArgs a = new Ptr4IntStrArgs()
@@ -1000,7 +1073,7 @@ public class LLVM {
 
     // buildMalloc — LLVMBuildMalloc(B, Ty, Name): allocates sizeof(Ty) on the heap
     // (LLVM computes the size + auto-declares @malloc) and returns the typed ptr.
-    public void buildMalloc(const fly.mem.Ptr b, const fly.mem.Ptr ty, const string name, fly.mem.Ptr v) {
+    public void buildMalloc(const pointer b, const pointer ty, const string name, pointer v) {
         Ptr2StrArgs a = new Ptr2StrArgs()
         a.a = b
         a.b = ty
@@ -1011,7 +1084,7 @@ public class LLVM {
 
     // sizeOf — LLVMSizeOf(Ty): an i64 constant (ConstantExpr) of Ty's ABI size,
     // usable as the Len operand of buildMemSet.
-    public void sizeOf(const fly.mem.Ptr ty, fly.mem.Ptr v) {
+    public void sizeOf(const pointer ty, pointer v) {
         Ptr1Args a = new Ptr1Args()
         a.a = ty
         CLang lib = new CLang("libLLVM-20.so")
@@ -1021,7 +1094,7 @@ public class LLVM {
     // buildMemSet — LLVMBuildMemSet(B, Ptr, Val, Len, Align): fill Len bytes at Ptr
     // with the i8 Val. Align 0 = unspecified. Used to zero a fresh malloc so fields
     // the constructor does not assign are deterministic (Windows heap is garbage).
-    public void buildMemSet(const fly.mem.Ptr b, const fly.mem.Ptr ptr, const fly.mem.Ptr val, const fly.mem.Ptr len, const int align, fly.mem.Ptr v) {
+    public void buildMemSet(const pointer b, const pointer ptr, const pointer val, const pointer len, const int align, pointer v) {
         Ptr4IntArgs a = new Ptr4IntArgs()
         a.a = b
         a.b = ptr
@@ -1032,7 +1105,7 @@ public class LLVM {
         lib.call("LLVMBuildMemSet", a, v)
     }
 
-    public void buildStructGEP2(const fly.mem.Ptr b, const fly.mem.Ptr ty, const fly.mem.Ptr ptr, const int idx, const string name, fly.mem.Ptr v) {
+    public void buildStructGEP2(const pointer b, const pointer ty, const pointer ptr, const int idx, const string name, pointer v) {
         // LLVMBuildStructGEP2(B, Ty, Pointer, Idx, Name) = (ptr, ptr, ptr, int, string)
         Ptr3IntStrArgs a = new Ptr3IntStrArgs()
         a.a = b
@@ -1044,18 +1117,14 @@ public class LLVM {
         lib.call("LLVMBuildStructGEP2", a, v)
     }
 
-    public void buildMemCpy(const fly.mem.Ptr b, const fly.mem.Ptr dst, const int dstAlign, const fly.mem.Ptr src, const int srcAlign, const fly.mem.Ptr size, fly.mem.Ptr v) {
-        Ptr3Args a = new Ptr3Args()
-        a.a = b
-        a.b = dst
-        a.c = src
-        CLang lib = new CLang("libLLVM-20.so")
-        lib.call("LLVMBuildMemCpy", a, v)
-    }
+    // NOTE: buildMemCpy was removed — it silently dropped DstAlign/SrcAlign/Size
+    // (LLVMBuildMemCpy is a 6-arg call; the wrapper passed 3), which would corrupt
+    // memory the moment it gained a caller. Re-add with a full 6-field Args struct
+    // when memcpy lowering is actually needed.
 
     // ── Build — casts ─────────────────────────────────────────────────────────
 
-    public void buildTrunc(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+    public void buildTrunc(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = val
@@ -1065,7 +1134,7 @@ public class LLVM {
         lib.call("LLVMBuildTrunc", a, v)
     }
 
-    public void buildZExt(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+    public void buildZExt(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = val
@@ -1075,7 +1144,7 @@ public class LLVM {
         lib.call("LLVMBuildZExt", a, v)
     }
 
-    public void buildSExt(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+    public void buildSExt(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = val
@@ -1085,7 +1154,7 @@ public class LLVM {
         lib.call("LLVMBuildSExt", a, v)
     }
 
-    public void buildFPToSI(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+    public void buildFPToSI(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = val
@@ -1095,7 +1164,7 @@ public class LLVM {
         lib.call("LLVMBuildFPToSI", a, v)
     }
 
-    public void buildSIToFP(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+    public void buildSIToFP(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = val
@@ -1105,7 +1174,17 @@ public class LLVM {
         lib.call("LLVMBuildSIToFP", a, v)
     }
 
-    public void buildFPExt(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+    public void buildUIToFP(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = val
+        a.c = destTy
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildUIToFP", a, v)
+    }
+
+    public void buildFPExt(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = val
@@ -1115,7 +1194,7 @@ public class LLVM {
         lib.call("LLVMBuildFPExt", a, v)
     }
 
-    public void buildFPTrunc(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+    public void buildFPTrunc(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = val
@@ -1125,7 +1204,7 @@ public class LLVM {
         lib.call("LLVMBuildFPTrunc", a, v)
     }
 
-    public void buildBitCast(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+    public void buildBitCast(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = val
@@ -1135,7 +1214,7 @@ public class LLVM {
         lib.call("LLVMBuildBitCast", a, v)
     }
 
-    public void buildPointerCast(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr destTy, const string name, fly.mem.Ptr v) {
+    public void buildPointerCast(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = val
@@ -1147,7 +1226,7 @@ public class LLVM {
 
     // ── Build — control flow ──────────────────────────────────────────────────
 
-    public void buildRet(const fly.mem.Ptr b, const fly.mem.Ptr val, fly.mem.Ptr v) {
+    public void buildRet(const pointer b, const pointer val, pointer v) {
         Ptr2Args a = new Ptr2Args()
         a.a = b
         a.b = val
@@ -1155,14 +1234,14 @@ public class LLVM {
         lib.call("LLVMBuildRet", a, v)
     }
 
-    public void buildRetVoid(const fly.mem.Ptr b, fly.mem.Ptr v) {
+    public void buildRetVoid(const pointer b, pointer v) {
         Ptr1Args a = new Ptr1Args()
         a.a = b
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMBuildRetVoid", a, v)
     }
 
-    public void buildBr(const fly.mem.Ptr b, const fly.mem.Ptr dest, fly.mem.Ptr v) {
+    public void buildBr(const pointer b, const pointer dest, pointer v) {
         Ptr2Args a = new Ptr2Args()
         a.a = b
         a.b = dest
@@ -1170,7 +1249,7 @@ public class LLVM {
         lib.call("LLVMBuildBr", a, v)
     }
 
-    public void buildCondBr(const fly.mem.Ptr b, const fly.mem.Ptr cond, const fly.mem.Ptr thenBB, const fly.mem.Ptr elseBB, fly.mem.Ptr v) {
+    public void buildCondBr(const pointer b, const pointer cond, const pointer thenBB, const pointer elseBB, pointer v) {
         Ptr4Args a = new Ptr4Args()
         a.a = b
         a.b = cond
@@ -1180,7 +1259,7 @@ public class LLVM {
         lib.call("LLVMBuildCondBr", a, v)
     }
 
-    public void buildSwitch(const fly.mem.Ptr b, const fly.mem.Ptr val, const fly.mem.Ptr defaultBB, const int numCases, fly.mem.Ptr v) {
+    public void buildSwitch(const pointer b, const pointer val, const pointer defaultBB, const int numCases, pointer v) {
         // LLVMBuildSwitch(B, V, Else, NumCases) = (ptr, ptr, ptr, int)
         Ptr3IntArgs a = new Ptr3IntArgs()
         a.a = b
@@ -1191,7 +1270,7 @@ public class LLVM {
         lib.call("LLVMBuildSwitch", a, v)
     }
 
-    public void addCase(const fly.mem.Ptr switchInstr, const fly.mem.Ptr onVal, const fly.mem.Ptr dest) {
+    public void addCase(const pointer switchInstr, const pointer onVal, const pointer dest) {
         Ptr3Args a = new Ptr3Args()
         a.a = switchInstr
         a.b = onVal
@@ -1200,7 +1279,7 @@ public class LLVM {
         lib.call("LLVMAddCase", a)
     }
 
-    public void buildPhi(const fly.mem.Ptr b, const fly.mem.Ptr ty, const string name, fly.mem.Ptr v) {
+    public void buildPhi(const pointer b, const pointer ty, const string name, pointer v) {
         // LLVMBuildPhi(B, Ty, Name) = (ptr, ptr, string)
         Ptr2StrArgs a = new Ptr2StrArgs()
         a.a = b
@@ -1210,18 +1289,14 @@ public class LLVM {
         lib.call("LLVMBuildPhi", a, v)
     }
 
-    public void addIncoming(const fly.mem.Ptr phi, const fly.mem.Ptr vals, const fly.mem.Ptr blocks, const int count) {
-        Ptr3Args a = new Ptr3Args()
-        a.a = phi
-        a.b = vals
-        a.c = blocks
-        CLang lib = new CLang("libLLVM-20.so")
-        lib.call("LLVMAddIncoming", a)
-    }
+    // NOTE: addIncoming was removed — it silently dropped `count` (LLVMAddIncoming
+    // is a 4-arg call; the wrapper passed 3, leaving Count as garbage). Phi is not
+    // emitted anywhere (ternary lowers via an alloca slot); re-add with a
+    // Ptr3IntArgs-style struct if phi nodes become necessary.
 
     // ── Build — call ──────────────────────────────────────────────────────────
 
-    public void buildCall2(const fly.mem.Ptr b, const fly.mem.Ptr fnTy, const fly.mem.Ptr fn, const fly.mem.Ptr args, const int numArgs, const string name, fly.mem.Ptr v) {
+    public void buildCall2(const pointer b, const pointer fnTy, const pointer fn, const pointer args, const int numArgs, const string name, pointer v) {
         // LLVMBuildCall2(B, FnTy, Fn, Args, NumArgs, Name) — must pass NumArgs and
         // Name (the old Ptr4Args dropped them → garbage arg-count + name).
         Ptr4IntStrArgs a = new Ptr4IntStrArgs()
@@ -1235,7 +1310,7 @@ public class LLVM {
         lib.call("LLVMBuildCall2", a, v)
     }
 
-    public void buildUnreachable(const fly.mem.Ptr b, fly.mem.Ptr v) {
+    public void buildUnreachable(const pointer b, pointer v) {
         Ptr1Args a = new Ptr1Args()
         a.a = b
         CLang lib = new CLang("libLLVM-20.so")
@@ -1244,7 +1319,7 @@ public class LLVM {
 
     // ── Constants ─────────────────────────────────────────────────────────────
 
-    public void constInt(const fly.mem.Ptr intTy, const long val, const bool signExtend, fly.mem.Ptr v) {
+    public void constInt(const pointer intTy, const long val, const bool signExtend, pointer v) {
         // LLVMConstInt(IntTy, N, SignExtend) = (ptr, long, int)
         PtrLongIntArgs a = new PtrLongIntArgs()
         a.a = intTy
@@ -1254,7 +1329,7 @@ public class LLVM {
         lib.call("LLVMConstInt", a, v)
     }
 
-    public void constReal(const fly.mem.Ptr realTy, const double val, fly.mem.Ptr v) {
+    public void constReal(const pointer realTy, const double val, pointer v) {
         // LLVMConstReal(RealTy, N) = (ptr, double)
         PtrDoubleArgs a = new PtrDoubleArgs()
         a.a = realTy
@@ -1263,21 +1338,21 @@ public class LLVM {
         lib.call("LLVMConstReal", a, v)
     }
 
-    public void constNull(const fly.mem.Ptr ty, fly.mem.Ptr v) {
+    public void constNull(const pointer ty, pointer v) {
         Ptr1Args a = new Ptr1Args()
         a.a = ty
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMConstNull", a, v)
     }
 
-    public void constPointerNull(const fly.mem.Ptr ty, fly.mem.Ptr v) {
+    public void constPointerNull(const pointer ty, pointer v) {
         Ptr1Args a = new Ptr1Args()
         a.a = ty
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMConstPointerNull", a, v)
     }
 
-    public void constStringInContext(const fly.mem.Ptr ctx, const string str, const int length, const bool nullTerminated, fly.mem.Ptr v) {
+    public void constStringInContext(const pointer ctx, const string str, const int length, const bool nullTerminated, pointer v) {
         // LLVMConstStringInContext(Ctx, Str, Length, DontNullTerminate). Length is
         // explicit (Fly strings aren't null-terminated C strings); DontNull=0 ADDS a
         // terminator. The old 1-int variant dropped Length → empty [0 x i8].
@@ -1290,7 +1365,7 @@ public class LLVM {
         lib.call("LLVMConstStringInContext", a, v)
     }
 
-    public void constStructInContext(const fly.mem.Ptr ctx, const fly.mem.Ptr vals, const int numVals, const bool packed, fly.mem.Ptr v) {
+    public void constStructInContext(const pointer ctx, const pointer vals, const int numVals, const bool packed, pointer v) {
         PtrPtrIntArgs a = new PtrPtrIntArgs()
         a.a = ctx
         a.b = vals
@@ -1299,7 +1374,7 @@ public class LLVM {
         lib.call("LLVMConstStructInContext", a, v)
     }
 
-    public void constArray(const fly.mem.Ptr elemTy, const fly.mem.Ptr vals, const int numVals, fly.mem.Ptr v) {
+    public void constArray(const pointer elemTy, const pointer vals, const int numVals, pointer v) {
         PtrPtrIntArgs a = new PtrPtrIntArgs()
         a.a = elemTy
         a.b = vals
@@ -1311,7 +1386,7 @@ public class LLVM {
     // constNamedStruct — LLVMConstNamedStruct(StructTy, ConstantVals, Count): a
     // constant of a NAMED struct type (unlike LLVMConstStruct which makes an
     // anonymous literal-struct constant that wouldn't match a %name alloca).
-    public void constNamedStruct(const fly.mem.Ptr structTy, const fly.mem.Ptr vals, const int numVals, fly.mem.Ptr v) {
+    public void constNamedStruct(const pointer structTy, const pointer vals, const int numVals, pointer v) {
         PtrPtrIntArgs a = new PtrPtrIntArgs()
         a.a = structTy
         a.b = vals
@@ -1322,7 +1397,7 @@ public class LLVM {
 
     // ── Global variables ──────────────────────────────────────────────────────
 
-    public void addGlobal(const fly.mem.Ptr mod, const fly.mem.Ptr ty, const string name, fly.mem.Ptr v) {
+    public void addGlobal(const pointer mod, const pointer ty, const string name, pointer v) {
         // LLVMAddGlobal(M, Ty, Name) = (ptr, ptr, string)
         Ptr2StrArgs a = new Ptr2StrArgs()
         a.a = mod
@@ -1332,7 +1407,7 @@ public class LLVM {
         lib.call("LLVMAddGlobal", a, v)
     }
 
-    public void getNamedGlobal(const fly.mem.Ptr mod, const string name, fly.mem.Ptr v) {
+    public void getNamedGlobal(const pointer mod, const string name, pointer v) {
         PtrStrArgs a = new PtrStrArgs()
         a.a = mod
         a.s = name
@@ -1340,7 +1415,7 @@ public class LLVM {
         lib.call("LLVMGetNamedGlobal", a, v)
     }
 
-    public void setInitializer(const fly.mem.Ptr global, const fly.mem.Ptr val) {
+    public void setInitializer(const pointer global, const pointer val) {
         Ptr2Args a = new Ptr2Args()
         a.a = global
         a.b = val
@@ -1348,7 +1423,7 @@ public class LLVM {
         lib.call("LLVMSetInitializer", a)
     }
 
-    public void setGlobalConstant(const fly.mem.Ptr global, const bool isConst) {
+    public void setGlobalConstant(const pointer global, const bool isConst) {
         PtrIntArgs a = new PtrIntArgs()
         a.a = global
         if isConst { a.n = 1 } else { a.n = 0 }
@@ -1358,7 +1433,7 @@ public class LLVM {
 
     // ── Target machine ────────────────────────────────────────────────────────
 
-    public void getDefaultTargetTriple(fly.mem.Ptr triple) {
+    public void getDefaultTargetTriple(pointer triple) {
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMGetDefaultTargetTriple", new NoArgs(), triple)
     }
@@ -1366,29 +1441,29 @@ public class LLVM {
     // getTargetFromTriple — look up the LLVMTargetRef for `triple`. The C function
     // writes the target through a `LLVMTargetRef*` out-pointer and returns a status
     // (0 = success). We give it an 8-byte buffer (via the Ptr-buffer idiom) for the
-    // out-pointer, then copy the written value into `target.addr`. `ok` carries the
-    // raw LLVMBool return (true = FAILURE); callers should test `target.addr != 0`.
-    public void getTargetFromTriple(const string triple, fly.mem.Ptr target, bool ok) {
-        long buf = fly.mem.alloc(8)
-        fly.mem.writeLong(buf, 0, 0)
+    // out-pointer, then copy the written value into `target`. `ok` carries the
+    // raw LLVMBool return (true = FAILURE); callers should test `target != 0`.
+    public void getTargetFromTriple(const string triple, pointer target, bool ok) {
+        pointer buf = fly.mem.alloc(8)
+        fly.mem.writePtr(buf, 0, 0)
         Ptr3Args a = new Ptr3Args()
-        a.a = fly.mem.toPtr(cbuf(triple))   // const char* Triple (NUL-terminated)
-        a.b = fly.mem.toPtr(buf)            // LLVMTargetRef* T  (out-pointer buffer)
+        a.a = cbuf(triple)   // const char* Triple (NUL-terminated)
+        a.b = buf            // LLVMTargetRef* T  (out-pointer buffer)
         // a.c stays null → char** Err = NULL
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMGetTargetFromTriple", a, ok)
-        target.addr = fly.mem.readLong(buf, 0)
+        target = fly.mem.readPtr(buf, 0)
         fly.mem.free(buf, 8)
     }
 
     // createTargetMachine — full 7-argument marshalling (the old stub dropped all
     // but `target`). The TM pointer is the C return value, captured into `tm`.
-    public void createTargetMachine(const fly.mem.Ptr target, const string triple, const string cpu, const string features, const int optLevel, const int reloc, const int codeModel, fly.mem.Ptr tm) {
+    public void createTargetMachine(const pointer target, const string triple, const string cpu, const string features, const int optLevel, const int reloc, const int codeModel, pointer tm) {
         CreateTMArgs a = new CreateTMArgs()
         a.target = target
-        a.triple = fly.mem.toPtr(cbuf(triple))
-        a.cpu = fly.mem.toPtr(cbuf(cpu))
-        a.features = fly.mem.toPtr(cbuf(features))
+        a.triple = cbuf(triple)
+        a.cpu = cbuf(cpu)
+        a.features = cbuf(features)
         a.level = optLevel
         a.reloc = reloc
         a.codeModel = codeModel
@@ -1396,21 +1471,21 @@ public class LLVM {
         lib.call("LLVMCreateTargetMachine", a, tm)
     }
 
-    public void disposeTargetMachine(const fly.mem.Ptr tm) {
+    public void disposeTargetMachine(const pointer tm) {
         Ptr1Args a = new Ptr1Args()
         a.a = tm
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMDisposeTargetMachine", a)
     }
 
-    public void createTargetDataLayout(const fly.mem.Ptr tm, fly.mem.Ptr dl) {
+    public void createTargetDataLayout(const pointer tm, pointer dl) {
         Ptr1Args a = new Ptr1Args()
         a.a = tm
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMCreateTargetDataLayout", a, dl)
     }
 
-    public void setModuleDataLayout(const fly.mem.Ptr mod, const fly.mem.Ptr dl) {
+    public void setModuleDataLayout(const pointer mod, const pointer dl) {
         Ptr2Args a = new Ptr2Args()
         a.a = mod
         a.b = dl
@@ -1421,25 +1496,25 @@ public class LLVM {
     // targetMachineEmitToFile — emit `mod` to `filename` (emitType 0=assembly,
     // 1=object). The old stub dropped `filename`; this passes all four args plus a
     // null `char** ErrorMessage`. `ok` is the raw LLVMBool return (true = FAILURE).
-    public void targetMachineEmitToFile(const fly.mem.Ptr tm, const fly.mem.Ptr mod, const string filename, const int emitType, bool ok) {
+    public void targetMachineEmitToFile(const pointer tm, const pointer mod, const string filename, const int emitType, bool ok) {
         EmitFileArgs a = new EmitFileArgs()
         a.tm = tm
         a.mod = mod
-        a.filename = fly.mem.toPtr(cbuf(filename))
+        a.filename = cbuf(filename)
         a.emitType = emitType
-        a.err = fly.mem.toPtr(0)
+        a.err = 0
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMTargetMachineEmitToFile", a, ok)
     }
 
     // ── Pass manager ──────────────────────────────────────────────────────────
 
-    public void createPassManager(fly.mem.Ptr pm) {
+    public void createPassManager(pointer pm) {
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMCreatePassManager", new NoArgs(), pm)
     }
 
-    public void runPassManager(const fly.mem.Ptr pm, const fly.mem.Ptr mod, bool changed) {
+    public void runPassManager(const pointer pm, const pointer mod, bool changed) {
         Ptr2Args a = new Ptr2Args()
         a.a = pm
         a.b = mod
@@ -1447,7 +1522,7 @@ public class LLVM {
         lib.call("LLVMRunPassManager", a, changed)
     }
 
-    public void disposePassManager(const fly.mem.Ptr pm) {
+    public void disposePassManager(const pointer pm) {
         Ptr1Args a = new Ptr1Args()
         a.a = pm
         CLang lib = new CLang("libLLVM-20.so")
@@ -1463,7 +1538,7 @@ public class LLVM {
         lib.call("LLVMLookupIntrinsicID", a, id)
     }
 
-    public void getIntrinsicDeclaration(const fly.mem.Ptr mod, const int id, const fly.mem.Ptr paramTypes, const int paramCount, fly.mem.Ptr fn) {
+    public void getIntrinsicDeclaration(const pointer mod, const int id, const pointer paramTypes, const int paramCount, pointer fn) {
         PtrPtrIntArgs a = new PtrPtrIntArgs()
         a.a = mod
         a.b = paramTypes
@@ -1474,21 +1549,21 @@ public class LLVM {
 
     // ── Utility ───────────────────────────────────────────────────────────────
 
-    public void disposeMessage(const fly.mem.Ptr msg) {
+    public void disposeMessage(const pointer msg) {
         Ptr1Args a = new Ptr1Args()
         a.a = msg
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMDisposeMessage", a)
     }
 
-    public void isNull(const fly.mem.Ptr val, bool result) {
+    public void isNull(const pointer val, bool result) {
         Ptr1Args a = new Ptr1Args()
         a.a = val
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMIsNull", a, result)
     }
 
-    public void isUndef(const fly.mem.Ptr val, bool result) {
+    public void isUndef(const pointer val, bool result) {
         Ptr1Args a = new Ptr1Args()
         a.a = val
         CLang lib = new CLang("libLLVM-20.so")

@@ -24,8 +24,9 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Bootstrap compiler release used to compile the self-host sources.
-FLY_VERSION="${FLY_VERSION:-0.13.7}"
+# Bootstrap compiler release used to compile the std --lib archive + the self-host
+# sources. Must ship the ptrsize header-gen fix (fly Frontend.cpp typeStr).
+FLY_VERSION="${FLY_VERSION:-0.13.8}"
 
 BUILD_DIR="$ROOT/build"
 FLY_DIR="$BUILD_DIR/bootstrap"

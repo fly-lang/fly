@@ -7,7 +7,7 @@ import fly.runtime
 // of C++ std::deque<T>. Ownership: pushes deep-clone owned values (string); pops
 // transfer ownership to the caller; free releases live elements.
 public class Deque<T> {
-    long items
+    pointer items
     int head
     int tail
     int len
@@ -30,22 +30,22 @@ public class Deque<T> {
             this.stride = s
         }
         if this.items == 0 {
-            long a0 = 0
+            pointer a0 = 0
             fly.runtime.mem_alloc(8 * this.stride, a0)
             this.items = a0
             this.cap = 8
         }
         if this.len >= this.cap {
             int newcap = this.cap * 2
-            long ni = 0
+            pointer ni = 0
             fly.runtime.mem_alloc(newcap * this.stride, ni)
             int gi = 0
             while gi < this.len {
                 int idx = (this.head + gi) & (this.cap - 1)
                 long soff = idx * this.stride
                 long doff = gi * this.stride
-                long src = this.items + soff
-                long dst = ni + doff
+                pointer src = this.items + soff
+                pointer dst = ni + doff
                 long nb = this.stride
                 fly.llvm.memcpy(dst, src, nb)
                 gi = gi + 1
@@ -68,22 +68,22 @@ public class Deque<T> {
             this.stride = s
         }
         if this.items == 0 {
-            long a0 = 0
+            pointer a0 = 0
             fly.runtime.mem_alloc(8 * this.stride, a0)
             this.items = a0
             this.cap = 8
         }
         if this.len >= this.cap {
             int newcap = this.cap * 2
-            long ni = 0
+            pointer ni = 0
             fly.runtime.mem_alloc(newcap * this.stride, ni)
             int gi = 0
             while gi < this.len {
                 int idx = (this.head + gi) & (this.cap - 1)
                 long soff = idx * this.stride
                 long doff = gi * this.stride
-                long src = this.items + soff
-                long dst = ni + doff
+                pointer src = this.items + soff
+                pointer dst = ni + doff
                 long nb = this.stride
                 fly.llvm.memcpy(dst, src, nb)
                 gi = gi + 1

@@ -18,12 +18,27 @@ public class ResolverCall {
     // attach args / parent / out-var.
     public static void call(const Resolver r, const ASTCall node) {
         SymbolTable savedScope = r.getCurrentScope()
-
-        // receiver of an instance method call, resolved in the caller's scope
+        ASTCallKind ck = node.getCallKind()
         ASTExpr parent = node.getParent()
+
+        // Namespace-qualified free-function call `fly.os.io.printLn(...)`: if the
+        // receiver is a pure name path that names a registered namespace, resolve the
+        // function IN that namespace — do NOT resolve the path as a value expression
+        // (which would fail with "cannot find 'fly' in this scope"). Detected first so
+        // the value-receiver path below is skipped for namespace calls.
+        List<string> nsPath = null
+        if parent != null && ck != ASTCallKind.CALL_NEW {
+            List<string> cand = ResolverCall.flattenNsPath(parent)
+            if cand != null {
+                if r.getReg().lookupNameSpaceByStrings(cand) != null { nsPath = cand }
+            }
+        }
+
+        // receiver of an instance method call, resolved in the caller's scope (skipped
+        // for a namespace-qualified call)
         SemaExpr parentExpr = null
         SemaType parentType = null
-        if parent != null {
+        if parent != null && nsPath == null {
             parent.accept(r)
             parentExpr = r.getCurrentExpr()
             if parentExpr != null { parentType = parentExpr.getType() }
@@ -46,10 +61,11 @@ public class ResolverCall {
             i = i + 1
         }
 
-        ASTCallKind ck = node.getCallKind()
         SemaCall sema = null
         if ck == ASTCallKind.CALL_NEW {
             sema = ResolverCall.resolveNew(r, node, savedScope, argTypes)
+        } elsif nsPath != null {
+            sema = ResolverCall.resolveNamespaceCall(r, node, nsPath, argTypes)
         } elsif parentType != null {
             sema = ResolverCall.resolveMethodCall(r, node, parentType, argTypes)
         } else {
@@ -57,10 +73,12 @@ public class ResolverCall {
         }
 
         if sema == null {
-            // Suppress a cascade error when the receiver itself failed to resolve
-            // (it already reported its own diagnostic).
+            // Suppress a cascade error only when a VALUE receiver failed to resolve
+            // (it already reported its own diagnostic). A namespace-qualified call
+            // (nsPath != null) has no value receiver — a missing function there IS a
+            // real error, so don't suppress it.
             bool parentFailed = false
-            if parent != null {
+            if parent != null && nsPath == null {
                 if parentExpr == null { parentFailed = true }
             }
             if parentFailed == false {
@@ -86,6 +104,46 @@ public class ResolverCall {
         Registry reg = r.getReg()
         Symbol sym = reg.LookupFunction(node.getName(), argTypes, scope)
         out = ResolverCall.makeCall(node, sym)
+    }
+
+    // resolveNamespaceCall — free function looked up in the namespace `nsPath`
+    // (the flattened receiver, e.g. [fly, os, io]). No receiver value is attached.
+    public static SemaCall resolveNamespaceCall(const Resolver r, const ASTCall node, const List<string> nsPath, const List<SemaType> argTypes) {
+        Registry reg = r.getReg()
+        Symbol sym = reg.LookupFunctionInNamespace(nsPath, node.getName(), argTypes)
+        out = ResolverCall.makeCall(node, sym)
+    }
+
+    // flattenNsPath — if `e` is a pure identifier/member chain (a.b.c with no calls
+    // or other expressions), return the dotted names as a string list; else null. Used
+    // to detect a namespace-path call receiver before resolving it as a value.
+    public static List<string> flattenNsPath(const ASTExpr e) {
+        if e == null { out = null  return }
+        ASTExprKind k = e.getExprKind()
+        if k == ASTExprKind.EXPR_IDENTIFIER {
+            ASTIdentifier id = e.asIdentifier()
+            ASTExpr par = e.getParent()
+            if par == null {
+                List<string> r0 = new List<string>()
+                r0.add(id.getName())
+                out = r0
+                return
+            }
+            List<string> pre = ResolverCall.flattenNsPath(par)
+            if pre == null { out = null  return }
+            pre.add(id.getName())
+            out = pre
+            return
+        }
+        if k == ASTExprKind.EXPR_MEMBER {
+            ASTMember m = e.asMember()
+            List<string> pre = ResolverCall.flattenNsPath(e.getParent())
+            if pre == null { out = null  return }
+            pre.add(m.getName())
+            out = pre
+            return
+        }
+        out = null
     }
 
     // resolveMethodCall — instance method, looked up in the receiver's class scope
@@ -139,7 +197,14 @@ public class ResolverCall {
         List<ASTType> typeArgsAst = node.getTypeArgs()
         if typeArgsAst.size() > 0 {
             SemaClassType spec = ResolverType.instantiate(r, tt, typeArgsAst)
-            if spec != null { cls = spec }
+            if spec == null {
+                // keeping the raw generic template used to reach genNew with a
+                // null LLVM struct type → crash inside libLLVM
+                r.diagStr(node.getLoc(), DiagID.err_sema_bad_type_args, node.getName())
+                out = null
+                return
+            }
+            cls = spec
         }
         SymbolTable cscope = cls.getSymbols()
         Symbol csym = reg.LookupFunction(node.getName(), argTypes, cscope)

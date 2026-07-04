@@ -27,15 +27,15 @@ public class CodeGenCall {
     public static void call(const CodeGenExpr cge, const SemaCall node) {
         SemaFunctionBase fn = node.getFunction()
         LLVM llvm = cge.getLLVM()
-        fly.mem.Ptr b = cge.getBuilder()
-        fly.mem.Ptr fnTy = fn.getLlvmFnType()
-        fly.mem.Ptr fnVal = fn.getLlvmFn()
+        pointer b = cge.getBuilder()
+        pointer fnTy = fn.getLlvmFnType()
+        pointer fnVal = fn.getLlvmFn()
 
-        List<long> argAddrs = new List<long>()
+        List<pointer> argAddrs = new List<pointer>()
 
         // (1) error pointer — forward the current function's param-0 handler.
-        fly.mem.Ptr err = cge.getErrPtr()
-        argAddrs.add(err.addr)
+        pointer err = cge.getErrPtr()
+        argAddrs.add(err)
 
         // The resolver appends the synthetic out var to getArgs() (so it is the
         // LAST element when the call returns non-void); it must be passed by
@@ -46,37 +46,52 @@ public class CodeGenCall {
         int realCount = args.size()
         if hasOut { realCount = realCount - 1 }
 
-        // (2) actual arguments — fresh temp per arg, store the rvalue, pass &temp.
+        // (2) actual arguments — fresh temp per arg, store the rvalue, pass &temp. The
+        // uniform convention passes every operand BY POINTER, so the temp must have the
+        // PARAM type, not the arg's: a narrower integer arg (int literal → long param)
+        // is sext/trunc'd to the param type first, else the callee reads a wrong-sized
+        // slot. Non-integer or exactly-matching args are stored as-is.
+        List<SemaParam> calleeParams = fn.getParams()
         int i = 0
         while i < realCount {
             SemaExpr a = args.get(i)
-            fly.mem.Ptr av = cge.gen(a)
-            fly.mem.Ptr aty = cge.lowerType(a.getType())
-            fly.mem.Ptr tmp
+            pointer av = cge.gen(a)
+            SemaType aTy = a.getType()
+            SemaType pTy = aTy
+            if i < calleeParams.size() {
+                SemaType cpt = calleeParams.get(i).getType()
+                if cpt != null { pTy = cpt }
+            }
+            // bring the arg to the param's numeric type (coerce compares lowered
+            // WIDTHS, so same-width rank pairs like int/uint don't emit bogus
+            // same-type sext/trunc; it also covers int→float params)
+            pointer storeVal = cge.coerce(av, aTy, pTy)
+            pointer aty = cge.lowerType(pTy)
+            pointer tmp
             llvm.buildAlloca(b, aty, "arg", tmp)
-            llvm.buildStore(b, av, tmp)
-            argAddrs.add(tmp.addr)
+            llvm.buildStore(b, storeVal, tmp)
+            argAddrs.add(tmp)
             i = i + 1
         }
 
         // (3) out pointer for a non-void return.
-        fly.mem.Ptr outPtr = fly.mem.toPtr(0)
+        pointer outPtr = 0
         if hasOut {
-            fly.mem.Ptr oty = cge.lowerType(outVar.getType())
+            pointer oty = cge.lowerType(outVar.getType())
             llvm.buildAlloca(b, oty, "callout", outPtr)
             outVar.setLlvmAlloca(outPtr)
-            argAddrs.add(outPtr.addr)
+            argAddrs.add(outPtr)
         }
 
         CodeGenModule m = cge.getCgm()
         CodeGenLLVM cg = m.getCg()
-        fly.mem.Ptr callV
+        pointer callV
         cg.buildCallN(b, fnTy, fnVal, argAddrs, "", callV)
 
         // the call's rvalue is the out slot reloaded (void calls produce nothing).
         if hasOut {
-            fly.mem.Ptr oty2 = cge.lowerType(outVar.getType())
-            fly.mem.Ptr loaded
+            pointer oty2 = cge.lowerType(outVar.getType())
+            pointer loaded
             llvm.buildLoad2(b, oty2, outPtr, "callres", loaded)
             node.setLlvmValue(loaded)
         }

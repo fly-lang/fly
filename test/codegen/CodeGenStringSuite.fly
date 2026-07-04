@@ -27,7 +27,7 @@ import fly.llvm
 
 // dquote — a one-character string containing a double-quote (byte 34).
 public string dquote() {
-    long buf = fly.mem.alloc(1)
+    pointer buf = fly.mem.alloc(1)
     byte q = 34
     fly.llvm.strPoke(buf, 0, q)
     string s = ""
