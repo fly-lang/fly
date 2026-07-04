@@ -4,9 +4,11 @@ import fly.compiler.sema.*
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenModule
 import fly.compiler.codegen.CodeGenLLVM
+import fly.compiler.codegen.CodeGenIntrinsics
 import llvm.api.*
 import fly.mem
 import fly.data.List
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenCall — lower a SemaCall to the uniform calling convention (from the
@@ -26,6 +28,19 @@ public class CodeGenCall {
 
     public static void call(const CodeGenExpr cge, const SemaCall node) {
         SemaFunctionBase fn = node.getFunction()
+
+        // fly.llvm.* calls lower to INLINE IR (no archive symbol exists) and
+        // fly.runtime.* to DIRECT C calls — mirrors the reference's
+        // CodeGenStdLibLLVM / CodeGenStdLibRuntime dispatch (audit V4 fase 2).
+        if fly.str.equals(fn.getNamespaceName(), "fly_llvm") {
+            CodeGenIntrinsics.genLLVM(cge, node)
+            return
+        }
+        if fly.str.equals(fn.getNamespaceName(), "fly_runtime") {
+            CodeGenIntrinsics.genRuntime(cge, node)
+            return
+        }
+
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         pointer fnTy = fn.getLlvmFnType()
@@ -43,7 +58,7 @@ public class CodeGenCall {
         List<SemaExpr> args = node.getArgs()
         SemaLocalVar outVar = node.getOutVar()
         bool hasOut = outVar != null
-        int realCount = args.size()
+        int realCount = (int)args.size()
         if hasOut { realCount = realCount - 1 }
 
         // (2) actual arguments — fresh temp per arg, store the rvalue, pass &temp. The
@@ -55,30 +70,67 @@ public class CodeGenCall {
         int i = 0
         while i < realCount {
             SemaExpr a = args.get(i)
-            pointer av = cge.gen(a)
-            SemaType aTy = a.getType()
-            SemaType pTy = aTy
+
+            // Writable (non-const) param + variable arg: pass the ORIGINAL
+            // storage address, so callee writes reach the caller's variable —
+            // multi-out functions like math.divmod(q, r) depend on it (audit V4;
+            // mirrors the reference's addArgs output-param fast-path).
+            bool passedDirect = false
             if i < calleeParams.size() {
-                SemaType cpt = calleeParams.get(i).getType()
-                if cpt != null { pTy = cpt }
+                SemaParam cp = calleeParams.get(i)
+                if cp.isConstant() == false {
+                    if a.isVarExpr() {
+                        pointer addr = cge.genAddr(a)
+                        argAddrs.add(addr)
+                        passedDirect = true
+                    }
+                }
             }
-            // bring the arg to the param's numeric type (coerce compares lowered
-            // WIDTHS, so same-width rank pairs like int/uint don't emit bogus
-            // same-type sext/trunc; it also covers int→float params)
-            pointer storeVal = cge.coerce(av, aTy, pTy)
-            pointer aty = cge.lowerType(pTy)
-            pointer tmp
-            llvm.buildAlloca(b, aty, "arg", tmp)
-            llvm.buildStore(b, storeVal, tmp)
-            argAddrs.add(tmp)
+            if passedDirect == false {
+                pointer av = cge.gen(a)
+                SemaType aTy = a.getType()
+                SemaType pTy = aTy
+                if i < calleeParams.size() {
+                    SemaType cpt = calleeParams.get(i).getType()
+                    if cpt != null { pTy = cpt }
+                }
+                // bring the arg to the param's numeric type (coerce compares lowered
+                // WIDTHS, so same-width rank pairs like int/uint don't emit bogus
+                // same-type sext/trunc; it also covers int→float params)
+                pointer storeVal = cge.coerce(av, aTy, pTy)
+                pointer aty = cge.lowerType(pTy)
+                pointer tmp
+                llvm.buildAlloca(b, aty, "arg", tmp)
+                llvm.buildStore(b, storeVal, tmp)
+                argAddrs.add(tmp)
+            }
             i = i + 1
         }
 
-        // (3) out pointer for a non-void return.
+        // (3) out pointer for a non-void return. For a CLASS-kind result the
+        // reference convention is: the out slot holds a POINTER to storage the
+        // callee writes through — STRUCT results get a stack pre-allocation,
+        // CLASS/INTERFACE results a heap one (mirrors addArgs; without it the
+        // archive callee writes through garbage → segfault, audit V4 fase 2).
         pointer outPtr = 0
         if hasOut {
-            pointer oty = cge.lowerType(outVar.getType())
+            SemaType ot = outVar.getType()
+            pointer oty = cge.lowerType(ot)
             llvm.buildAlloca(b, oty, "callout", outPtr)
+            SemaClassType oc = null
+            if ot != null { oc = ot.asClass() }
+            if oc != null {
+                pointer sty = oc.getLlvmStructType()
+                if sty != 0 {
+                    pointer target
+                    if oc.getClassKind() == SemaClassKind.STRUCT {
+                        llvm.buildAlloca(b, sty, "outobj", target)
+                    } else {
+                        llvm.buildMalloc(b, sty, "outobj", target)
+                    }
+                    llvm.buildStore(b, target, outPtr)
+                }
+            }
             outVar.setLlvmAlloca(outPtr)
             argAddrs.add(outPtr)
         }

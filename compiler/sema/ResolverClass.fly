@@ -240,7 +240,7 @@ public class ResolverClass {
             }
             i = i + 1
         }
-        out = seen.size()
+        out = (int)seen.size()
     }
 
     // hasOwnMethod — cls declares its own (non-ctor) method named `name`, resolving a

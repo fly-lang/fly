@@ -89,8 +89,43 @@ public class SemaBuilder {
         out = spec
     }
 
+    // CreateFunctionSpecialization — get-or-create the monomorphized SemaFunction
+    // for a generic template + concrete type args (audit V4; mirrors the
+    // reference). The spec scope rebinds each T → its concrete type and shares
+    // the template's ASTFunction; memoized on the template by mangle key. The
+    // spec is NEVER fromHeader — its body is monomorphized locally even when the
+    // template came from a .fly.h.
     public static SemaFunction CreateFunctionSpecialization(const SemaFunction template, const List<SemaType> typeArgs, const SymbolTable symbols) {
-        out = null
+        string key = buildMangleKey(template.getName(), typeArgs)
+        Map<string, SemaFunction> specs = template.getSpecializations()
+        if specs.has(key) { out = specs.get(key)  return }
+
+        SymbolTable tplScope = template.getSymbols()
+        SymbolTable parent = tplScope.getParent()
+        SymbolTable specScope = new SymbolTable(parent)
+
+        List<SemaTypeParam> tps = template.getTypeParams()
+        int i = 0
+        while i < tps.size() {
+            if i < typeArgs.size() {
+                SemaTypeParam tp = tps.get(i)
+                SemaType ta = typeArgs.get(i)
+                Symbol psym = new Symbol(tp.getName(), SymbolKind.CLASS, ta)
+                psym.setTypeRef(ta)
+                bool ok = specScope.insert(psym)
+            }
+            i = i + 1
+        }
+
+        ASTFunction tast = template.getAST()
+        SemaFunction spec = new SemaFunction(tast, specScope)
+        spec.setMangledName(key)
+        spec.setGenericTemplate(template)
+        spec.setNamespaceName(template.getNamespaceName())
+        spec.setModule(template.getModule())
+        spec.setVisibility(template.getVisibility())
+        specs.put(key, spec)
+        out = spec
     }
 
     public static SemaClassAttribute CreateClassAttribute(const SemaClassType cls, const ASTAttribute ast, const SemaType type) {
@@ -104,11 +139,41 @@ public class SemaBuilder {
         out = attr
     }
 
+    // classNsFlat — the class's module namespace flattened with '_' (fly.os.io →
+    // "fly_os_io"), mirroring Resolver.currentNsFlat. Methods must carry it for
+    // mangling: header-class methods/ctors otherwise mangle with an empty
+    // namespace and never match the archive symbols (audit V4 fase 2).
+    public static string classNsFlat(const SemaClassType cls) {
+        SemaModule m = cls.getModule()
+        if m == null { out = ""  return }
+        ASTModule am = m.getAST()
+        if am == null { out = ""  return }
+        ASTNameSpace ns = am.getNameSpace()
+        if ns == null { out = ""  return }
+        // join ALL the path segments with '_' (SemaNameSpace.getName() is only
+        // the LAST segment — "io", not "fly_os_io")
+        List<ASTName> names = ns.getNames()
+        string r = ""
+        int i = 0
+        while i < names.size() {
+            if i == 0 {
+                r = names.get(i).getName()
+            } else {
+                string t = fly.str.concat(r, "_")
+                r = fly.str.concat(t, names.get(i).getName())
+            }
+            i = i + 1
+        }
+        out = r
+    }
+
     public static SemaClassMethod CreateDefaultConstructor(const SemaClassType cls, const SymbolTable scope) {
         ASTClass ac = cls.getAST()
         ASTMethod ast = ASTBuilder.CreateDefaultConstructor(ac)
         SemaClassInstance thisInst = cls.getThis()
-        out = new SemaClassMethod(ast, cls, thisInst, true, scope)
+        SemaClassMethod dm = new SemaClassMethod(ast, cls, thisInst, true, scope)
+        dm.setNamespaceName(SemaBuilder.classNsFlat(cls))
+        out = dm
     }
 
     public static SemaClassMethod CreateClassMethod(const SemaClassType cls, const ASTMethod ast, const SymbolTable scope) {
@@ -118,6 +183,7 @@ public class SemaBuilder {
         bool isCtor = fly.str.equals(an, cn)
         SemaClassInstance thisInst = cls.getThis()
         SemaClassMethod meth = new SemaClassMethod(ast, cls, thisInst, isCtor, scope)
+        meth.setNamespaceName(SemaBuilder.classNsFlat(cls))
         meth.setVisibility(mods.getVisibility())
         meth.setStatic(mods.isStatic())
         meth.setFinal(mods.isFinal())
@@ -134,10 +200,12 @@ public class SemaBuilder {
     }
 
     public static SemaEnumEntry CreateEnumEntry(const SemaEnumType en, const ASTEnumEntry ast) {
-        SemaIntType it = SemaBuiltin.getIntType()
-        SemaEnumEntry entry = new SemaEnumEntry(ast, it)
+        // the entry's type is the ENUM itself (as in the reference): overloads
+        // with enum params must match, and `entry.value/.name` accessor
+        // resolution keys off pt.asEnum(). Enums still lower to i32 in codegen.
+        SemaEnumEntry entry = new SemaEnumEntry(ast, en)
         Map<string, SemaEnumEntry> es = en.getEntries()
-        int sz = es.size()
+        int sz = (int)es.size()
         entry.setIndex(sz + 1)
         en.addEntry(entry)
         out = entry
@@ -145,7 +213,7 @@ public class SemaBuilder {
 
     public static SemaEnumList CreateEnumList(const SemaEnumType en) {
         Map<string, SemaEnumEntry> es = en.getEntries()
-        long size = es.size()
+        long size = (long)es.size()
         SemaArrayType arrayType = SemaBuiltin.CreateArrayType(en, size)
         out = new SemaEnumList(en, arrayType)
     }
@@ -175,7 +243,12 @@ public class SemaBuilder {
     }
 
     public static SemaMember CreateMemberVar(const ASTMember ast, const SemaExpr ref, const SemaExpr parent) {
-        out = new SemaMember(ast, ref, parent, null)
+        // the member expr carries the referenced attribute's type (it used to be
+        // null, which broke chained accesses like `this.kind.value` and starved
+        // the codegen coercion of the field's type)
+        SemaType t = null
+        if ref != null { t = ref.getType() }
+        out = new SemaMember(ast, ref, parent, t)
     }
 
     public static SemaError CreateErrorHandler() {
@@ -188,18 +261,24 @@ public class SemaBuilder {
         out = call
     }
 
+    // The operand exprs may be NULL after an upstream resolution error (the
+    // resolver keeps going to report more diagnostics): guard the type probes or
+    // the whole compile segfaults instead of exiting with the errors (audit V2).
     public static SemaUnary CreateUnary(const ASTUnary ast, const SemaExpr expr) {
-        SemaType t = expr.getType()
+        SemaType t = null
+        if expr != null { t = expr.getType() }
         out = new SemaUnary(ast, expr, t)
     }
 
     public static SemaBinary CreateBinary(const ASTBinary ast, const SemaExpr left, const SemaExpr right) {
-        SemaType t = left.getType()
+        SemaType t = null
+        if left != null { t = left.getType() }
         out = new SemaBinary(ast, left, right, t)
     }
 
     public static SemaTernary CreateTernary(const ASTTernary ast, const SemaExpr cond, const SemaExpr trueExpr, const SemaExpr falseExpr) {
-        SemaType t = trueExpr.getType()
+        SemaType t = null
+        if trueExpr != null { t = trueExpr.getType() }
         out = new SemaTernary(ast, cond, trueExpr, falseExpr, t)
     }
 
@@ -219,7 +298,33 @@ public class SemaBuilder {
             SemaType ft = SemaBuiltin.getDoubleType()
             v = new SemaFloatValue(ast, ft, raw)
         } else {
+            // integer literals that don't fit i32 are typed LONG: an i32 constant
+            // would silently truncate (e.g. durationFormatNsec(5405000000000)).
+            // Decimal-only magnitude scan; the accumulator is capped so absurdly
+            // long digit strings can't overflow it.
+            bool wide = false
+            bool allDigits = true
+            long acc = 0
+            int L = fly.str.len(raw)
+            int di = 0
+            while di < L {
+                byte db = 0
+                fly.str.byteAt(raw, di, db)
+                int dc = db
+                if dc < 48 || dc > 57 { allDigits = false }
+                else {
+                    if acc < 3000000000 {
+                        long dv = dc - 48
+                        acc = acc * 10 + dv
+                    }
+                }
+                di = di + 1
+            }
+            if allDigits {
+                if acc > 2147483647 { wide = true }
+            }
             SemaType it = SemaBuiltin.getIntType()
+            if wide { it = SemaBuiltin.getLongType() }
             v = new SemaIntValue(ast, it, raw)
         }
         out = v
@@ -241,7 +346,7 @@ public class SemaBuilder {
     }
 
     public static SemaArrayValue CreateArrayValue(const ASTArrayValue ast, const SemaType type, const List<SemaValue> values) {
-        long size = values.size()
+        long size = (long)values.size()
         SemaArrayType arrayType = SemaBuiltin.CreateArrayType(type, size)
         SemaArrayValue v = new SemaArrayValue(ast, arrayType)
         int i = 0

@@ -1,0 +1,12 @@
+namespace fly.compiler.basic
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Version — the SINGLE source of truth for the self-host compiler version,
+// mirroring the reference's CMakeLists.txt FLY_VERSION model. Consumed by:
+//   - Driver.printVersion()  (the `fly --version` output)
+//   - .github/workflows/release.yml, which greps the quoted x.y.z from the
+//     flyVersion line below to tag the release without a manual input.
+// Bump the version here and ONLY here; keep the line's shape stable.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public string flyVersion() { out = "0.14.2" }

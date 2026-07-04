@@ -31,7 +31,7 @@ public class PartialDiagnostic {
     // emitWith — replay this captured diagnostic through an engine.
     public void emitWith(const DiagnosticsEngine engine) {
         DiagnosticBuilder b = engine.report(this.loc, this.id)
-        int n = this.args.size()
+        int n = (int)this.args.size()
         int i = 0
         while i < n {
             b.addStr(this.args.get(i))

@@ -59,7 +59,14 @@ public class ResolverStmt {
                 if ic.isNew() {
                     SemaType vt = slv.getType()
                     if vt != null {
-                        if vt.asClass() != null { blk.addAlloc(slv) }
+                        SemaClassType vc = vt.asClass()
+                        if vc != null {
+                            // STRUCTs are stack objects (alloca): freeing them at
+                            // scope exit would call free() on a stack pointer
+                            if vc.getClassKind() != SemaClassKind.STRUCT {
+                                blk.addAlloc(slv)
+                            }
+                        }
                     }
                 }
             }

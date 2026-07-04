@@ -308,6 +308,38 @@ public class Resolver : ASTVisitor {
             if imp.isWildcard() {
                 SemaNameSpace target = this.reg.lookupNameSpaceByNames(imp.getNames())
                 if target != null { this.injectAll(target.getSymbols(), modScope) }
+            } else {
+                // Java-style single-symbol import (`import fly.os.io.FileWriter`,
+                // audit V4): when the LAST segment names a symbol in the namespace
+                // formed by the leading segments, inject that symbol (all its
+                // overloads) into the module scope. A plain namespace import
+                // (`import fly.os.io`) matches nothing here — its calls resolve
+                // through the V3 prefix expansion instead.
+                List<ASTName> inames = imp.getNames()
+                if inames.size() > 1 {
+                    List<ASTName> head = new List<ASTName>()
+                    int k = 0
+                    while k < inames.size() - 1 { head.add(inames.get(k))  k = k + 1 }
+                    SemaNameSpace pns = this.reg.lookupNameSpaceByNames(head)
+                    if pns != null {
+                        ASTName lastN = inames.get(inames.size() - 1)
+                        SymbolTable psyms = pns.getSymbols()
+                        List<Symbol> found = psyms.lookupInParents(lastN.getName())
+                        if found != null {
+                            int fi2 = 0
+                            while fi2 < found.size() {
+                                Symbol fs = found.get(fi2)
+                                // never inject NAMESPACE symbols: `import fly.llvm`
+                                // would put "llvm" in scope and shadow the V3
+                                // short-prefix expansion of `llvm.strSize(…)`
+                                if fs.getKind() != SymbolKind.NAMESPACE {
+                                    bool ok3 = modScope.insert(fs)
+                                }
+                                fi2 = fi2 + 1
+                            }
+                        }
+                    }
+                }
             }
             i = i + 1
         }

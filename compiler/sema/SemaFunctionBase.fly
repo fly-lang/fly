@@ -67,6 +67,10 @@ public class SemaFunctionBase : SemaNode {
     public bool isFallible() { out = this.fallible }
     public void setFallible(const bool fallible) { this.fallible = fallible }
     public bool isFromHeader() { out = this.fromHeader }
+
+    // asClassMethod — narrow to SemaClassMethod (null on the base; the method
+    // subclass overrides). Used by body resolution to restore the class context.
+    public SemaClassMethod asClassMethod() { out = null }
     public void setFromHeader(const bool fromHeader) { this.fromHeader = fromHeader }
     public Symbol getDeclSymbol() { out = this.declSymbol }
     public void setDeclSymbol(const Symbol declSymbol) { this.declSymbol = declSymbol }
@@ -78,7 +82,7 @@ public class SemaFunctionBase : SemaNode {
     // function symbols can be matched by signature from a Symbol ref.
     public List<SemaType> getParamTypes() {
         List<SemaType> r = new List<SemaType>()
-        int n = this.params.size()
+        int n = (int)this.params.size()
         int explicitCount = n
         // Drop the trailing synthetic 'out' param of a non-void function. Guard with
         // nested ifs: Fly's `&&` does NOT short-circuit, so a single condition would

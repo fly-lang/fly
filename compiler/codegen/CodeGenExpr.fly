@@ -37,6 +37,7 @@ public class CodeGenExpr : SemaVisitor {
     pointer breakTarget    // innermost loop/switch exit block
     pointer continueTarget // innermost loop post block
     pointer errPtr         // current function's error-handler pointer (LLVM param 0)
+    string lastStrLit      // text of the last string LITERAL gen'd (bridge symbol capture)
 
     public CodeGenExpr(const CodeGenModule cgm) {
         this.cgm = cgm
@@ -48,7 +49,12 @@ public class CodeGenExpr : SemaVisitor {
         this.breakTarget = 0
         this.continueTarget = 0
         this.errPtr = 0
+        this.lastStrLit = ""
     }
+    // getLastStrLit — the compile-time text of the most recently gen'd string
+    // literal: lets the CLang bridge read `call("strlen", …)`'s symbol without a
+    // SemaStringValue downcast (none exists) or a new base virtual (vtable-shift).
+    public string getLastStrLit() { out = this.lastStrLit }
     public pointer getErrPtr() { out = this.errPtr }
     public void setErrPtr(const pointer p) { this.errPtr = p }
 
@@ -314,14 +320,65 @@ public class CodeGenExpr : SemaVisitor {
         this.llvm.constInt(ty, idx, true, c)
         node.setLlvmValue(c)
     }
+    // enum property access — mirrors the reference's GenExpr(SemaEnumAccessor):
+    //   .value on a literal entry  → constant i32 index
+    //   .value on a variable/chain → the receiver's loaded i32 (the enum IS its value)
+    //   .name  on a literal entry  → constant %string
+    //   .name  on a variable/chain → load from the enum's names table by value
     public void visit(const SemaEnumAccessor node) {
         SemaEnumEntry e = node.getEntry()
-        pointer ty = this.lowerType(node.getType())
-        long idx = 0
-        if e != null { idx = e.getIndex() }
-        pointer c
-        this.llvm.constInt(ty, idx, true, c)
-        node.setLlvmValue(c)
+        CodeGenLLVM cg = this.cgm.getCg()
+
+        if node.isName() == false {
+            if e != null {
+                pointer ty = this.lowerType(node.getType())
+                pointer c
+                this.llvm.constInt(ty, e.getIndex(), true, c)
+                node.setLlvmValue(c)
+            } else {
+                pointer rv = this.gen(node.getParent())
+                node.setLlvmValue(rv)
+            }
+            return
+        }
+
+        pointer strTy = this.cgm.getStringTy()
+        pointer i32n
+        this.llvm.int32TypeInContext(this.cgm.getCtx(), i32n)
+        if e != null {
+            string nm = e.getName()
+            pointer g = cg.globalString(this.cgm.getModule(), this.cgm.getCtx(), nm)
+            pointer lenC
+            this.llvm.constInt(i32n, fly.str.len(nm), false, lenC)
+            List<pointer> fields = new List<pointer>()
+            fields.add(g)
+            fields.add(lenC)
+            pointer sv
+            cg.constNamedStructN(strTy, fields, sv)
+            node.setLlvmValue(sv)
+            return
+        }
+
+        // runtime name: GEP into the per-enum names table by the loaded value
+        pointer idx = this.gen(node.getParent())
+        SemaEnumType en = node.getEnumType()
+        pointer table = this.cgm.enumNamesTable(en)
+        List<SemaNode> ens = en.getNodes()
+        int n = (int)ens.size()
+        pointer arrTy
+        this.llvm.arrayType(strTy, n + 1, arrTy)
+        pointer i32t
+        this.llvm.int32TypeInContext(this.cgm.getCtx(), i32t)
+        pointer zero
+        this.llvm.constInt(i32t, 0, false, zero)
+        List<pointer> idxs = new List<pointer>()
+        idxs.add(zero)
+        idxs.add(idx)
+        pointer slot
+        cg.buildGEP2N(this.builder, arrTy, table, idxs, "enname", slot)
+        pointer loaded
+        this.llvm.buildLoad2(this.builder, strTy, slot, "ennm", loaded)
+        node.setLlvmValue(loaded)
     }
 
     // ── error handling ────────────────────────────────────────────────────────
@@ -334,13 +391,14 @@ public class CodeGenExpr : SemaVisitor {
     // string literal → a private `[N x i8]` global + a constant %string { ptr, len }.
     public void visit(const SemaStringValue node) {
         string val = node.getValue()
+        this.lastStrLit = val
         int len = fly.str.len(val)
         CodeGenLLVM cg = this.cgm.getCg()
         pointer g = cg.globalString(this.cgm.getModule(), this.cgm.getCtx(), val)
-        pointer i64
-        this.llvm.int64TypeInContext(this.cgm.getCtx(), i64)
+        pointer i32len
+        this.llvm.int32TypeInContext(this.cgm.getCtx(), i32len)
         pointer lenC
-        this.llvm.constInt(i64, len, false, lenC)
+        this.llvm.constInt(i32len, len, false, lenC)
         List<pointer> fields = new List<pointer>()
         fields.add(g)
         fields.add(lenC)

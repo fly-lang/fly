@@ -96,11 +96,11 @@ public class BufReader : Reader {
     // Raw pointer to the internal read-ahead buffer.
     pointer buf_ptr
     // Number of bytes currently buffered.
-    int buf_fill
+    pointer buf_fill
     // Total capacity of the internal buffer.
-    int buf_cap
+    pointer buf_cap
     // Current read position within the buffer.
-    int pos
+    pointer pos
 
     // read delegates to the inner Reader via vtable dispatch.
     public long read(Buf buf, const ulong n) {
@@ -116,9 +116,9 @@ public class BufWriter : Writer {
     // Raw pointer to the internal write buffer.
     pointer buf_ptr
     // Number of bytes currently buffered.
-    int buf_fill
+    pointer buf_fill
     // Total capacity of the internal buffer.
-    int buf_cap
+    pointer buf_cap
 
     // write delegates to the inner Writer via vtable dispatch.
     public long write(Buf buf, const ulong n) {
@@ -156,40 +156,39 @@ public Writer fileWriter(const int fd) {
 // readAll reads from r until EOF and returns all data in a freshly allocated Buf.
 // Grows the buffer exponentially to amortise allocations.
 public Buf readAll(Reader r) {
-    int cap = 4096
+    // byte counts are ulong end to end (Buf.size/cap and read()'s n are ulong)
+    ulong cap = 4096
     pointer buf = 0
     fly.runtime.mem_alloc(cap, buf)
-    int total = 0
+    ulong total = 0
     bool done = false
     while done == false {
-        int avail = cap - total
+        ulong avail = cap - total
         pointer tmp = 0
         fly.runtime.mem_alloc(avail, tmp)
         Buf chunk = new Buf()
         chunk.ptr = tmp
         chunk.size = 0
-        ulong avail_u = avail
-        chunk.cap = avail_u
+        chunk.cap = avail
         long nread = 0
-        nread = r.read(chunk, avail_u)
+        nread = r.read(chunk, avail)
         if nread == 0 {
             done = true
         } else {
-            int nread_int = 0
-            fly.llvm.longToInt(nread, nread_int)
-            int i = 0
-            while i < nread_int {
+            ulong got = nread
+            ulong i = 0
+            while i < got {
                 byte b = 0
                 fly.llvm.ptrByteAt(tmp, i, b)
                 fly.llvm.strPoke(buf, total + i, b)
                 i = i + 1
             }
-            total = total + nread_int
+            total = total + got
             if total >= cap {
-                int newcap = cap * 2
+                ulong newcap = cap * 2
                 pointer newbuf = 0
                 fly.runtime.mem_alloc(newcap, newbuf)
-                int j = 0
+                ulong j = 0
                 while j < total {
                     byte bb = 0
                     fly.llvm.ptrByteAt(buf, j, bb)

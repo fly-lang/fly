@@ -13,7 +13,8 @@ import fly.mem
 import fly.llvm
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CodeGenStringSuite — string literal lowering: `string` = %string { ptr, i64 };
+// CodeGenStringSuite — string literal lowering: `string` = %string { ptr, i32 }
+// (the size field is i32 in the REFERENCE ABI — archive strings carry an i32 len);
 // a literal becomes a private [N x i8] global + a constant { ptr, len }. Faithful
 // port of fly/test/CodeGen/CodeGenStringTest.cpp (CGDefaultStringLocalVar /
 // CGDefaultStringLocalVarAssignValue — the literal cases).
@@ -62,7 +63,7 @@ suite CodeGenStringSuite {
             string c = fly.str.concat(b, Q)
             string src = fly.str.concat(c, " }")
             string ir = cgIR(src)
-            assert.assertTrue(fly.str.contains(ir, "%string = type { ptr, i64 }"), 11)
+            assert.assertTrue(fly.str.contains(ir, "%string = type { ptr, i32 }"), 11)
             assert.assertTrue(fly.str.contains(ir, "hello"), 12)
         }
     }

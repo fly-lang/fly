@@ -2,6 +2,7 @@ namespace fly.compiler.codegen
 
 import fly.compiler.sema.*
 import fly.compiler.target.*
+import fly.compiler.basic.CodeGenOptions
 import fly.compiler.codegen.CodeGenLLVM
 import fly.compiler.codegen.CodeGenType
 import fly.compiler.codegen.CodeGenExpr
@@ -9,6 +10,7 @@ import fly.compiler.codegen.CodeGenClass
 import llvm.api.*
 import fly.mem
 import fly.data.List
+import fly.data.Map
 import fly.str
 import fly.os.io
 
@@ -32,11 +34,16 @@ public class CodeGenModule {
     pointer module
     pointer builder
     pointer errorTy        // the `%error = { i32 code, ptr str, ptr obj }` named struct
-    pointer stringTy       // the `%string = { i8* ptr, i64 size }` named struct
+    pointer stringTy       // the `%string = { ptr, i32 size }` named struct (REFERENCE ABI:
+                           // archive strings carry an i32 length — reading i64 pulls garbage)
     pointer freeFn         // lazily-declared `void @free(ptr)` (libc); null until first use
     pointer freeFnTy       // its function type
+    Map<string, int> ifaceBases   // interface name → global vtable slot base (V4)
+    CodeGenOptions codeGenOpts    // linker flags sink (CLang bridge); null in unit tests
 
     public CodeGenModule(const string name) {
+        this.ifaceBases = new Map<string, int>()
+        this.codeGenOpts = null
         this.cg = new CodeGenLLVM()
         LLVM llvm = this.cg.getLLVM()
         pointer c
@@ -71,16 +78,29 @@ public class CodeGenModule {
         llvm.structCreateNamed(c, "string", st)
         this.stringTy = st
         pointer sp = this.types.ptrType()
-        pointer i64s
-        llvm.int64TypeInContext(c, i64s)
+        pointer i32s
+        llvm.int32TypeInContext(c, i32s)
         List<pointer> sfields = new List<pointer>()
         sfields.add(sp)
-        sfields.add(i64s)
+        sfields.add(i32s)
         this.cg.structSetBodyN(st, sfields, false)
         this.types.setStringTy(st)
 
         this.freeFn = 0
         this.freeFnTy = 0
+    }
+
+    public void setCodeGenOpts(const CodeGenOptions o) { this.codeGenOpts = o }
+    // addLinkerOption — register a `-l` flag for the ToolChain link (deduplicated
+    // by the ";flag;" segment check). No-op when no options sink is wired.
+    public void addLinkerOption(const string flag) {
+        if this.codeGenOpts != null {
+            string cur = this.codeGenOpts.getLinkerOptions()
+            string probe = fly.str.concat(";", fly.str.concat(flag, ";"))
+            if fly.str.contains(cur, probe) == false {
+                this.codeGenOpts.addLinkerOption(flag)
+            }
+        }
     }
 
     public pointer getErrorTy() { out = this.errorTy }
@@ -123,17 +143,45 @@ public class CodeGenModule {
         List<SemaFunctionBase> bodies = reg.getBodies()
         List<SemaClassType> classes = this.concreteClasses(reg)
 
+        // 0) interface dispatch bases (audit V4): the flat object model has ONE
+        // vtable per object, so an interface method must sit at the SAME index in
+        // every implementing class's vtable. Each interface gets a module-global
+        // slot region PAST every class's own method slots; buildVTable places the
+        // implementations there and interface-typed calls index by these bases.
+        int maxOwn = 0
+        int mc = 0
+        while mc < classes.size() {
+            List<SemaClassMethod> vms = CodeGenClass.vmethods(classes.get(mc))
+            if vms.size() > maxOwn { maxOwn = (int)vms.size() }
+            mc = mc + 1
+        }
+        List<SemaClassType> allCls = reg.getClasses()
+        int accBase = 1 + maxOwn
+        int ic = 0
+        while ic < allCls.size() {
+            SemaClassType icls = allCls.get(ic)
+            if icls.getClassKind() == SemaClassKind.INTERFACE {
+                this.ifaceBases.put(icls.getName(), accBase)
+                List<SemaClassMethod> ims = CodeGenClass.vmethods(icls)
+                accBase = accBase + (int)ims.size()
+            }
+            ic = ic + 1
+        }
+
         // 1a) class struct types
         int c = 0
         while c < classes.size() {
             CodeGenClass.declareStruct(this, classes.get(c))
             c = c + 1
         }
-        // 1b) free-function signatures
+        // 1b) free-function signatures. Generic TEMPLATES are skipped — only
+        // their monomorphized specializations (concrete signatures) are emitted.
         int i = 0
         while i < bodies.size() {
             SemaFunctionBase fn = bodies.get(i)
-            if this.isMethod(fn) == false { this.declareFunction(fn) }
+            if this.isMethod(fn) == false {
+                if this.hasTypeParamSignature(fn) == false { this.declareFunction(fn) }
+            }
             i = i + 1
         }
         // 1c) method signatures (typed via methodList)
@@ -150,19 +198,27 @@ public class CodeGenModule {
         }
         // 1d) vtables (need method fn handles). A header-origin class's vtable lives
         // in the linked archive — skip its definition here (declarations only).
+        // STRUCTs have no vtable at all (reference ABI).
         int cv = 0
         while cv < classes.size() {
             SemaClassType cvc = classes.get(cv)
-            if cvc.isFromHeader() == false { CodeGenClass.buildVTable(this, cvc) }
+            if cvc.isFromHeader() == false {
+                if cvc.getClassKind() != SemaClassKind.STRUCT {
+                    CodeGenClass.buildVTable(this, cvc)
+                }
+            }
             cv = cv + 1
         }
 
         // 2a) free-function bodies. Header-origin functions are external (defined in
-        // the linked archive) — declared above (1b) but not defined here.
+        // the linked archive) — declared above (1b) but not defined here. Generic
+        // TEMPLATES have TYPE_PARAM signatures and are never emitted.
         int j = 0
         while j < bodies.size() {
             SemaFunctionBase fn2 = bodies.get(j)
-            if this.isMethod(fn2) == false && fn2.isFromHeader() == false { this.genBody(fn2) }
+            if this.isMethod(fn2) == false && fn2.isFromHeader() == false {
+                if this.hasTypeParamSignature(fn2) == false { this.genBody(fn2) }
+            }
             j = j + 1
         }
         // 2b) method bodies — skip header-origin classes (defined in the archive).
@@ -189,6 +245,27 @@ public class CodeGenModule {
     // function). Avoids a SemaFunctionBase → SemaClassMethod downcast.
     public bool isMethod(const SemaFunctionBase fn) {
         out = fn.getKind() == SemaKind.METHOD
+    }
+
+    // hasTypeParamSignature — true for a generic TEMPLATE: some param or the
+    // return type is still an unbound TYPE_PARAM (a specialization has all
+    // concrete types). Kind-based — no SemaFunction downcast needed.
+    public bool hasTypeParamSignature(const SemaFunctionBase fn) {
+        List<SemaParam> ps = fn.getParams()
+        int i = 0
+        while i < ps.size() {
+            SemaParam p = ps.get(i)
+            SemaType t = p.getType()
+            if t != null {
+                if t.getKind() == SemaKind.TYPE_PARAM { out = true  return }
+            }
+            i = i + 1
+        }
+        SemaType rt = fn.getReturnType()
+        if rt != null {
+            if rt.getKind() == SemaKind.TYPE_PARAM { out = true  return }
+        }
+        out = false
     }
 
     // concreteClasses — the classes to codegen: a generic TEMPLATE (Wrapper<T>) emits
@@ -227,23 +304,46 @@ public class CodeGenModule {
         out = null
     }
 
-    // emitMainWrapper — `i32 @main()` C entry: alloca a dummy error slot + an out
-    // slot, call the uniform Fly main, return its int result (or 0 for void main).
-    // A real `%error` struct is alloca'd + zero-initialised and passed as the error
-    // pointer so `fail`/`handle` inside the program work. (Runtime-free: no env_init;
-    // the wrapper returns the Fly main's `out`, not the error code.)
+    // emitMainWrapper — `i32 @main(i32 argc, ptr argv)` C entry: forwards
+    // argc/argv to the runtime's env_init (so fly.os.env args*/exePath work),
+    // allocas an error + out slot, calls the uniform Fly main and returns its int
+    // result (or 0 for void main). A real `%error` struct is alloca'd +
+    // zero-initialised and passed as the error pointer so `fail`/`handle` work.
     public void emitMainWrapper(const SemaFunctionBase mainFn) {
         LLVM llvm = this.cg.getLLVM()
         pointer i32
         llvm.int32TypeInContext(this.ctx, i32)
-        List<pointer> noParams = new List<pointer>()
+        pointer pty = this.types.ptrType()
+        List<pointer> mainParams = new List<pointer>()
+        mainParams.add(i32)                     // int argc
+        mainParams.add(pty)                     // char **argv
         pointer wTy
-        this.cg.functionTypeN(i32, noParams, false, wTy)
+        this.cg.functionTypeN(i32, mainParams, false, wTy)
         pointer w
         llvm.addFunction(this.module, "main", wTy, w)
         pointer entry
         llvm.appendBasicBlockInContext(this.ctx, w, "entry", entry)
         llvm.positionBuilderAtEnd(this.builder, entry)
+
+        // env_init(argc, argv) — the runtime stores them for fly.os.env* (audit V4)
+        pointer voidTy
+        llvm.voidTypeInContext(this.ctx, voidTy)
+        List<pointer> eiParams = new List<pointer>()
+        eiParams.add(i32)
+        eiParams.add(pty)
+        pointer eiTy
+        this.cg.functionTypeN(voidTy, eiParams, false, eiTy)
+        pointer eiFn
+        llvm.addFunction(this.module, "env_init", eiTy, eiFn)
+        pointer argcV
+        llvm.getParam(w, 0, argcV)
+        pointer argvV
+        llvm.getParam(w, 1, argvV)
+        List<pointer> eiArgs = new List<pointer>()
+        eiArgs.add(argcV)
+        eiArgs.add(argvV)
+        pointer eiCall
+        this.cg.buildCallN(this.builder, eiTy, eiFn, eiArgs, "", eiCall)
 
         // %error err = { 0, null, null }
         pointer errSlot
@@ -399,6 +499,32 @@ public class CodeGenModule {
         out = r
     }
 
+    // mangleMethod — like mangle but EXCLUDES the trailing synthetic out param:
+    // the reference does not mangle it for class METHODS (archive symbol
+    // `FileWriter_F9fly_os_io5write_CBuf_ul` for `long write(Buf, ulong)`), while
+    // free functions DO carry it (`_F8fly_math3sin_d_d`).
+    public string mangleMethod(const SemaFunctionBase fn) {
+        string nm = fn.getName()
+        string ns = fn.getNamespaceName()
+        string r1 = str.concat("_F", str.convert(str.len(ns)))
+        string r2 = str.concat(r1, ns)
+        string r3 = str.concat(r2, str.convert(str.len(nm)))
+        string r = str.concat(r3, nm)
+        List<SemaParam> params = fn.getParams()
+        int n = (int)params.size()
+        SemaType rt = fn.getReturnType()
+        if rt != null {
+            if rt.isVoid() == false { n = n - 1 }
+        }
+        int i = 0
+        while i < n {
+            string c = str.concat(r, this.mangleType(params.get(i).getType()))
+            r = c
+            i = i + 1
+        }
+        out = r
+    }
+
     // mangleType — parameter type code, 1:1 with the reference CodeGenHelper::Mangle
     // (each code carries its own leading '_'): builtins map by name; a class is
     // `_C<Name>`, an enum `_E<Name>`, an array `_A<elem>`.
@@ -432,6 +558,110 @@ public class CodeGenModule {
         if str.equals(n, "string")  { out = "_Ss"  return }
         if str.equals(n, "error")   { out = "_e"   return }
         out = ""
+    }
+
+    // ifaceSlot — the module-global vtable slot of interface method `fn`:
+    // the interface's base region + the method's index within the interface.
+    public int ifaceSlot(const SemaClassType iface, const SemaFunctionBase fn) {
+        int base = 0
+        if this.ifaceBases.has(iface.getName()) { base = this.ifaceBases.get(iface.getName()) }
+        List<SemaClassMethod> ims = CodeGenClass.vmethods(iface)
+        int idx = CodeGenClass.indexOfMethodName(ims, fn.getName())
+        if idx < 0 { idx = 0 }
+        out = base + idx
+    }
+
+    // ifaceBase — the slot base for an interface name (0 = unknown).
+    public int ifaceBase(const string name) {
+        if this.ifaceBases.has(name) { out = this.ifaceBases.get(name)  return }
+        out = 0
+    }
+
+    // emitMalloc — `call ptr @malloc(i64 size)` with a RUNTIME size value
+    // (buildMalloc is type-sized only). Declares malloc on first use.
+    public pointer emitMalloc(const pointer sizeV) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer mfn
+        llvm.getNamedFunction(this.module, "malloc", mfn)
+        pointer i64t
+        llvm.int64TypeInContext(this.ctx, i64t)
+        pointer pty = this.types.ptrType()
+        List<pointer> mp = new List<pointer>()
+        mp.add(i64t)
+        pointer mty
+        this.cg.functionTypeN(pty, mp, false, mty)
+        if mfn == 0 {
+            llvm.addFunction(this.module, "malloc", mty, mfn)
+        }
+        List<pointer> margs = new List<pointer>()
+        margs.add(sizeV)
+        pointer r
+        this.cg.buildCallN(this.builder, mty, mfn, margs, "hmal", r)
+        out = r
+    }
+
+    // enumNamesTable — lazily create (or fetch) the per-enum constant global
+    // `[N+1 x %string]` of entry names: slot 0 is the undefined entry (""), each
+    // entry sits at its 1-based index. Backs `.name` on enum VARIABLES (a literal
+    // entry's .name folds to a constant instead) — mirrors the reference's
+    // CodeGenEnum names table.
+    public pointer enumNamesTable(const SemaEnumType en) {
+        LLVM llvm = this.cg.getLLVM()
+        string tname = fly.str.concat("enum.names.", en.getName())
+        pointer existing
+        llvm.getNamedGlobal(this.module, tname, existing)
+        if existing != 0 { out = existing  return }
+
+        pointer i32len
+        llvm.int32TypeInContext(this.ctx, i32len)
+        List<SemaNode> nodes = en.getNodes()
+        int n = (int)nodes.size()
+
+        // pre-fill every slot with the empty string, then place entries by index
+        List<pointer> vals = new List<pointer>()
+        int k = 0
+        while k <= n {
+            pointer eg = this.cg.globalString(this.module, this.ctx, "")
+            pointer el
+            llvm.constInt(i32len, 0, false, el)
+            List<pointer> ef = new List<pointer>()
+            ef.add(eg)
+            ef.add(el)
+            pointer es
+            this.cg.constNamedStructN(this.stringTy, ef, es)
+            vals.add(es)
+            k = k + 1
+        }
+        int i = 0
+        while i < n {
+            SemaNode nd = nodes.get(i)
+            SemaEnumEntry e = nd.asEnumEntry()
+            if e != null {
+                string nm = e.getName()
+                pointer g = this.cg.globalString(this.module, this.ctx, nm)
+                pointer lenC
+                llvm.constInt(i32len, fly.str.len(nm), false, lenC)
+                List<pointer> fs = new List<pointer>()
+                fs.add(g)
+                fs.add(lenC)
+                pointer sv
+                this.cg.constNamedStructN(this.stringTy, fs, sv)
+                int slot = (int)e.getIndex()
+                if slot >= 0 {
+                    if slot <= n { vals.set(slot, sv) }
+                }
+            }
+            i = i + 1
+        }
+        pointer init
+        this.cg.constArrayN(this.stringTy, vals, init)
+        pointer arrTy
+        llvm.arrayType(this.stringTy, n + 1, arrTy)
+        pointer g2
+        llvm.addGlobal(this.module, arrTy, tname, g2)
+        llvm.setInitializer(g2, init)
+        llvm.setGlobalConstant(g2, true)
+        out = g2
     }
 
     public void verify(bool ok) {

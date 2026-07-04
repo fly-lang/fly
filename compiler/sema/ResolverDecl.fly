@@ -22,6 +22,21 @@ public class ResolverDecl {
         fn.setNamespaceName(r.currentNsFlat())   // for mangling → matches fly_std_lib.a
         r.exitScope()
 
+        // Generic TEMPLATE: record its type params (declaration order — needed
+        // for inference) and register it typed for call-site monomorphization.
+        List<ASTType> gtp = node.getTypeParams()
+        if gtp.size() > 0 {
+            int gi = 0
+            while gi < gtp.size() {
+                ASTType gt = gtp.get(gi)
+                ASTTypeParam gp = gt.asTypeParam()
+                if gp != null { fn.addTypeParam(new SemaTypeParam(gp.getName())) }
+                gi = gi + 1
+            }
+            Registry regg = r.getReg()
+            regg.addGenericFn(fn)
+        }
+
         // Register the function SYMBOL now (name only). Its param/return TYPES are
         // resolved later in the signature phase (resolveSignature), after EVERY module
         // has been visited and imports resolved — so a qualified cross-namespace param
@@ -47,6 +62,35 @@ public class ResolverDecl {
         r.setCurrentFunctionBase(fb)
         r.setCurrentScope(fb.getSymbols())
         ASTFunction node = fb.getAST()
+
+        // Generic FUNCTION type params (`T identity<T>(T v)`): register each as a
+        // type symbol in the function's own scope so `T` resolves to a
+        // SemaTypeParam during signature resolution — otherwise every generic
+        // header function (fly.llvm slot*T) poisons the compile with
+        // "unknown type 'T'" (audit V4 fase 2). Call-site monomorphization is a
+        // separate step.
+        List<ASTType> ftps = node.getTypeParams()
+        int fti = 0
+        while fti < ftps.size() {
+            ASTType ftt = ftps.get(fti)
+            ASTTypeParam ftp = ftt.asTypeParam()
+            if ftp != null {
+                // a SPECIALIZATION's scope already binds T → its concrete type
+                // (CreateFunctionSpecialization) — never shadow it with a fresh
+                // SemaTypeParam; only the TEMPLATE gets one
+                SymbolTable fscope = fb.getSymbols()
+                List<Symbol> already = fscope.lookupInParents(ftp.getName())
+                bool have = false
+                if already != null { if already.size() > 0 { have = true } }
+                if have == false {
+                    SemaTypeParam fsp = new SemaTypeParam(ftp.getName())
+                    Symbol fpsym = new Symbol(ftp.getName(), SymbolKind.CLASS, fsp)
+                    fpsym.setTypeRef(fsp)
+                    bool fok = fscope.insert(fpsym)
+                }
+            }
+            fti = fti + 1
+        }
 
         // explicit params
         List<ASTParam> params = node.getParams()
@@ -80,10 +124,15 @@ public class ResolverDecl {
         if sym != null { sym.setParamTypes(fb.getParamTypes()) }
     }
 
-    // resolveBody — resolve a function/method body against its own scope.
+    // resolveBody — resolve a function/method body against its own scope. The
+    // class context is restored for METHOD bodies (Phase C runs after
+    // resolveClassType cleared it): `super`/`super.x` resolution needs it.
     public static void resolveBody(const Resolver r, const SemaFunctionBase fb) {
         r.setCurrentFunctionBase(fb)
         r.setCurrentScope(fb.getSymbols())
+        SemaClassMethod m = fb.asClassMethod()
+        if m != null { r.setCurrentClass(m.getClass()) }
+        else { r.setCurrentClass(null) }
         ASTFunction af = fb.getAST()
         ASTBlockStmt body = af.getBody()
         if body != null {

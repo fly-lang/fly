@@ -33,12 +33,19 @@ FLY_DIR="$BUILD_DIR/bootstrap"
 FLY_BIN="$FLY_DIR/bin/fly"
 
 # --- LLVM 20 (system) --------------------------------------------------------
-# On Linux the compiler links apt's full libLLVM-20.so, which exports every
-# symbol the generated code references. Install only if missing and apt-get is
-# available (Ubuntu/Debian CI); on other distros install the equivalent yourself.
+# `llvm-20-dev` provides both libLLVM-20.so (dynamic default) and the ~200 static
+# component archives + llvm-config-20. The release build (FLY_STATIC_LLVM=1) links
+# the static archives via clang so the shipped `fly` needs no system libLLVM at
+# runtime; the default dev build links libLLVM-20.so dynamically. Install only if
+# missing and apt-get is available (Ubuntu/Debian CI); on other distros install
+# the equivalent (llvm-20 static libs + clang) yourself.
 if ! command -v llvm-config-20 >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
     sudo apt-get update
-    sudo apt-get install -y llvm-20-dev libllvm20 lld-20 clang-20
+    # liblld-20-dev: lld headers + static archives (liblldELF.a/liblldCommon.a) so
+    # the release build (FLY_BUNDLE_LLVM=1) can link a small ld.lld it ships in the
+    # tarball (lld static, LLVM dynamic against the bundled libLLVM.so) — the shipped
+    # toolchain then needs neither system libLLVM nor a system linker.
+    sudo apt-get install -y llvm-20-dev libllvm20 lld-20 liblld-20-dev clang-20
 fi
 
 # --- Download fly binary -----------------------------------------------------

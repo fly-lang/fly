@@ -37,6 +37,13 @@ public class CodeGenStmt {
             pointer iv = cge.gen(init)
             iv = cge.coerce(iv, init.getType(), v.getType())
             llvm.buildStore(b, iv, alloca)
+        } else {
+            // no initializer → DEFAULT-initialize (0 / null / empty struct):
+            // `T def  out = def` in the std templates relies on it, and an
+            // uninitialized alloca is stack garbage (audit V4)
+            pointer zv
+            llvm.constNull(ty, zv)
+            llvm.buildStore(b, zv, alloca)
         }
     }
 
@@ -155,7 +162,7 @@ public class CodeGenStmt {
 
         pointer sel = cge.gen(node.getExpr())
         List<SemaRuleStmt> cases = node.getCases()
-        int n = cases.size()
+        int n = (int)cases.size()
 
         pointer exitBB = cge.newBlock("swexit")
         pointer defaultBB = exitBB
