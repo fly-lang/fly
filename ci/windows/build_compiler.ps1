@@ -121,16 +121,28 @@ if ($env:FLY_BUNDLE_LLVM -eq '1') {
     # 2) Build fly-lld.exe (COFF) from the shared driver. Uses llvm-config from the
     #    fork tree to enumerate the static archives (like the Linux build); links
     #    lld's COFF+Common static libs + LLVM static libs. clang++ drives the link.
+    #    llvm-config on Windows emits libraries MSVC-style ("psapi.lib", "LLVMCore.lib")
+    #    — but clang++ (a GNU-style driver) treats a bare "foo.lib" as an INPUT FILE
+    #    and fails to open it. Convert each bare "foo.lib" token to "-lfoo" so clang++
+    #    SEARCHES for it (LLVM libs under -L, Windows SDK libs via clang's MSVC
+    #    detection); leave absolute paths and existing -l/-L flags untouched. This is
+    #    the Windows/Linux link-name difference the CLang bridge also handles.
+    function ConvertTo-LinkFlags([string]$s) {
+        $s.Split(' ') | Where-Object { $_ } | ForEach-Object {
+            if ($_ -match '^[A-Za-z0-9_.+-]+\.lib$') { '-l' + ($_ -replace '\.lib$', '') } else { $_ }
+        }
+    }
     $llvmConfig = Join-Path $llvmRoot 'bin\llvm-config.exe'
     $clang = (Get-Command clang++ -ErrorAction SilentlyContinue).Source
     if (-not $clang) { $clang = Join-Path $llvmRoot 'bin\clang++.exe' }
     if ((Test-Path $llvmConfig) -and (Test-Path $clang) -and (Test-Path (Join-Path $llvmRoot 'lib\lldCOFF.lib'))) {
         Write-Host "building $OUT/fly-lld.exe (lld static, LLVM dynamic) ..."
-        $llvmLibs = (& $llvmConfig --link-static --libs all).Split(' ') | Where-Object { $_ -and ($_ -notmatch 'olly') }
+        $llvmLibs = ConvertTo-LinkFlags ((& $llvmConfig --link-static --libs all) -join ' ') | Where-Object { $_ -notmatch 'olly' }
+        $sysLibs  = ConvertTo-LinkFlags ((& $llvmConfig --link-static --system-libs) -join ' ')
         & $clang ci/linux/lld_driver.cpp -std=c++17 `
             "-I$(Join-Path $llvmRoot 'include')" `
             "-L$(Join-Path $llvmRoot 'lib')" -llldCOFF -llldCommon `
-            @llvmLibs (& $llvmConfig --link-static --system-libs).Split(' ') `
+            @llvmLibs @sysLibs `
             -o "$OUT/fly-lld.exe"
         Assert-LastExit "fly-lld build"
     } else {
