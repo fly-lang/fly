@@ -58,7 +58,10 @@ for suite in $(find test -name '*Suite.fly' | sort); do
     bin="$OUT/test_$name"
     if ! "$FLY" "$suite" --test --src-dir compiler -o "test_$name" --out-dir "$OUT" -L "$STD" >"$OUT/_$name.log" 2>&1; then
         echo "  COMPILE FAIL  $name"
-        grep -iE 'error|broken|abort' "$OUT/_$name.log" | head -3 | sed 's/^/      /'
+        # match real diagnostics ('error:'), not the substring "error" inside
+        # warnings like 'errorHandler'; -m3 instead of |head avoids the
+        # "grep: write error: Broken pipe" noise on every failure
+        grep -m3 -E 'error:|broken|abort' "$OUT/_$name.log" | sed 's/^/      /'
         fail=$((fail + 1))
         continue
     fi
@@ -81,7 +84,7 @@ for t in $(find std/test -name '*_test.fly' | sort); do
     bin="$OUT/std_$name"
     if ! "$FLY" "$t" -o "std_$name" --out-dir "$OUT" -L "$STD" >"$OUT/_std_$name.log" 2>&1; then
         echo "  COMPILE FAIL  std/$name"
-        grep -iE 'error|broken|abort' "$OUT/_std_$name.log" | head -3 | sed 's/^/      /'
+        grep -m3 -E 'error:|broken|abort' "$OUT/_std_$name.log" | sed 's/^/      /'
         fail=$((fail + 1))
         continue
     fi
