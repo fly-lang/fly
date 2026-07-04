@@ -25,6 +25,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Put the MSVC toolchain + Windows SDK on LIB/INCLUDE/PATH for the whole job.
+      # The self-contained build (FLY_BUNDLE_LLVM=1) links a bundled fly-lld.exe with
+      # clang++, which then needs the SDK import libs (psapi.lib, ws2_32.lib, …) that
+      # a plain pwsh shell does not expose. amd64 matches the x86_64 target.
+      - name: Set up MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
       # The released fly.exe statically embeds LLVM + LLD (it links in-process via
       # lld::coff::link), so no external lld-link/clang is needed. What IS needed
       # is an LLVM import lib + runtime DLL for the program fly builds, because the

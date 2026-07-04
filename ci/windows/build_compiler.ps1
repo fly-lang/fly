@@ -144,7 +144,14 @@ if ($env:FLY_BUNDLE_LLVM -eq '1') {
             "-L$(Join-Path $llvmRoot 'lib')" -llldCOFF -llldCommon `
             @llvmLibs @sysLibs `
             -o "$OUT/fly-lld.exe"
-        Assert-LastExit "fly-lld build"
+        # Non-fatal: bundling the linker is best-effort. If the clang link fails
+        # (SDK/toolchain quirks that only surface on the runner), ship fly.exe +
+        # LLVM-C.dll anyway — ToolChain.fly then falls back to a system lld-link/link.
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "warning: fly-lld.exe link failed (exit $LASTEXITCODE); shipping without a"
+            Write-Host "         bundled linker — fly.exe falls back to a system lld-link/link."
+            Remove-Item "$OUT/fly-lld.exe" -Force -ErrorAction SilentlyContinue
+        }
     } else {
         Write-Host "warning: fly-lld.exe not built (missing llvm-config/clang/lld static libs in $llvmRoot);"
         Write-Host "         the released fly.exe will fall back to a system linker (lld-link/link)."
