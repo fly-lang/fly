@@ -15,11 +15,10 @@ import fly.str
 // Driver — CLI front of the self-host compiler, a 1:1 port of the core of
 // fly/compiler/Driver/Driver.cpp (option parsing + Execute orchestration). Reads
 // the command line, loads the input `.fly`, and runs the Frontend, returning a
-// process exit code. Output is LLVM IR (`.ll`) — linking/object emission need a
-// process-exec/target-machine path the self-host doesn't have yet (the user links
-// the .ll with clang, as the milestone harness does).
+// process exit code. The DEFAULT action links an executable (Frontend emits a
+// temp object → ToolChain drives ld.lld); --emit-ll/-c/-S select emit-only modes.
 //
-//   fly <file.fly> [--emit-ll] [-o out.ll] [--no-output]
+//   fly <file.fly> [-o out] [--emit-ll|-c|-S] [--no-output] [options]
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class Driver {
@@ -63,16 +62,16 @@ public class Driver {
             string a = this.argAt(args, i)
             if fly.str.equals(a, "-o") {
                 i = i + 1
-                if i < n { outPath = this.argAt(args, i) }
+                if i < n { outPath = this.argAt(args, i) } else { out = this.missingValue(a)  return }
             } elsif fly.str.equals(a, "--out-dir") {
                 i = i + 1
-                if i < n { outDir = this.argAt(args, i) }
+                if i < n { outDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
             } elsif fly.str.equals(a, "--target") {
                 i = i + 1
-                if i < n { targetTriple = this.argAt(args, i) }
+                if i < n { targetTriple = this.argAt(args, i) } else { out = this.missingValue(a)  return }
             } elsif fly.str.equals(a, "--target-cpu") {
                 i = i + 1
-                if i < n { targetCpu = this.argAt(args, i) }
+                if i < n { targetCpu = this.argAt(args, i) } else { out = this.missingValue(a)  return }
             } elsif fly.str.equals(a, "-c") {
                 emitMode = 1
             } elsif fly.str.equals(a, "-S") {
@@ -85,21 +84,28 @@ public class Driver {
                 emitBc = true
             } elsif fly.str.equals(a, "--mcmodel") {
                 i = i + 1
-                if i < n { codeModel = this.argAt(args, i) }
+                if i < n { codeModel = this.argAt(args, i) } else { out = this.missingValue(a)  return }
             } elsif fly.str.equals(a, "--mthread-model") {
                 i = i + 1
-                if i < n { threadModel = this.argAt(args, i) }
+                if i < n { threadModel = this.argAt(args, i) } else { out = this.missingValue(a)  return }
             } elsif fly.str.equals(a, "--jobs") || fly.str.equals(a, "-j") {
                 i = i + 1
-                if i < n { jobs = this.parseUInt(this.argAt(args, i), 0) }
+                if i < n { jobs = this.parseUInt(this.argAt(args, i), 0) } else { out = this.missingValue(a)  return }
             } elsif fly.str.equals(a, "--stats-file") {
                 i = i + 1
-                if i < n { statsFile = this.argAt(args, i) }
+                if i < n { statsFile = this.argAt(args, i) } else { out = this.missingValue(a)  return }
             } elsif fly.str.equals(a, "--src-dir") {
                 i = i + 1
-                if i < n { srcDirs = fly.str.concat(srcDirs, fly.str.concat(this.argAt(args, i), ";")) }
+                if i < n {
+                    // distinct temp: `x = concat(x, …)` self-aliases (documented
+                    // string gotcha) — the 2nd --src-dir would corrupt the list
+                    string sdNew = fly.str.concat(srcDirs, fly.str.concat(this.argAt(args, i), ";"))
+                    srcDirs = sdNew
+                } else { out = this.missingValue(a)  return }
             } elsif fly.str.equals(a, "--working-dir") {
-                i = i + 1                 // accepted (FileSystemOptions, out of scope) — consumed, not stored
+                i = i + 1                 // value consumed; FileSystemOptions not ported
+                if i >= n { out = this.missingValue(a)  return }
+                fly.os.io.printErrLn("warning: --working-dir is accepted but not implemented; paths resolve against the current directory")
             } elsif fly.str.equals(a, "--debug") {
                 verbose = true
                 debugSymbols = true
@@ -125,13 +131,17 @@ public class Driver {
                 optLevel = this.parseUInt(lvl, 0)
             } elsif fly.str.equals(a, "--runtime-lib-dir") {
                 i = i + 1
-                if i < n { runtimeLibDir = this.argAt(args, i) }
+                if i < n { runtimeLibDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
             } elsif fly.str.equals(a, "-L") {
                 i = i + 1
-                if i < n { toolchainLibDir = this.argAt(args, i) }
+                if i < n { toolchainLibDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
             } elsif fly.str.equals(a, "--link-lib") {
                 i = i + 1
-                if i < n { linkLibs = fly.str.concat(linkLibs, fly.str.concat(fly.str.concat("-l", this.argAt(args, i)), ";")) }
+                if i < n {
+                    // distinct temp — same self-alias gotcha as --src-dir above
+                    string llNew = fly.str.concat(linkLibs, fly.str.concat(fly.str.concat("-l", this.argAt(args, i)), ";"))
+                    linkLibs = llNew
+                } else { out = this.missingValue(a)  return }
             } elsif fly.str.equals(a, "--shared") {
                 isShared = true
             } elsif fly.str.equals(a, "-static") {
@@ -158,12 +168,26 @@ public class Driver {
                 fly.os.io.printErrLn(fly.str.concat("warning: ignoring unknown option ", a))
             } else {
                 if fly.str.isEmpty(input) { input = a }
+                else {
+                    // a second positional was previously dropped in silence
+                    fly.os.io.printErrLn(fly.str.concat("error: multiple input files are not supported (extra input: ", fly.str.concat(a, ")")))
+                    out = 1
+                    return
+                }
             }
             i = i + 1
         }
 
         if fly.str.isEmpty(input) {
             this.printUsage()
+            out = 1
+            return
+        }
+
+        // --lib / --header: archiver + header generator are not ported. They used
+        // to silently produce only a .o and exit 0 — fail honestly instead.
+        if createLibrary || createHeader {
+            fly.os.io.printErrLn("error: --lib / --header are not yet supported by the self-host compiler (library archiving + header generation)")
             out = 1
             return
         }
@@ -202,8 +226,12 @@ public class Driver {
         string effTriple = targetTriple
         if fly.str.isEmpty(effTriple) { effTriple = "x86_64-unknown-linux-gnu" }
 
+        // note only when IR emission is still the effective mode (a later -c/-S
+        // overrides emitMode and the note would then be misleading)
         if emitBc {
-            fly.os.io.printErrLn("note: --emit-bc: bitcode emission unsupported, emitting LLVM IR")
+            if emitMode == 0 {
+                fly.os.io.printErrLn("note: --emit-bc: bitcode emission unsupported, emitting LLVM IR")
+            }
         }
 
         // Build the CompilerInstance (the C++ Driver::Execute model): bundle the
@@ -219,11 +247,13 @@ public class Driver {
         cgo.setOptLevel(optLevel)
         cgo.setJobs(jobs)
         if fly.str.isEmpty(codeModel) == false { cgo.setCodeModel(codeModel) }
-        // Thread model: default posix; warn on anything but posix/single (as the C++ does).
+        // Thread model: default posix; an invalid value warns AND falls back to
+        // posix (it used to be applied anyway, with an unprefixed message).
         string effThread = threadModel
         if fly.str.isEmpty(effThread) { effThread = "posix" }
         if fly.str.equals(effThread, "posix") == false && fly.str.equals(effThread, "single") == false {
-            fly.os.io.printErrLn(fly.str.concat("invalid thread model: ", effThread))
+            fly.os.io.printErrLn(fly.str.concat(fly.str.concat("warning: invalid thread model '", effThread), "', falling back to posix"))
+            effThread = "posix"
         }
         cgo.setThreadModel(effThread)
         if isShared { cgo.setRelocationModel("pic") }
@@ -263,7 +293,12 @@ public class Driver {
         if emitMode == 3 && noOutput == false {
             string tempObj = fly.str.concat(finalPath, ".o")
             int rc = fe.execute(tempObj, false)
-            if rc != 0 { out = rc  return }
+            if rc != 0 {
+                // don't leave a partially-written temp object behind on failure
+                if fly.os.fs.exists(tempObj) { fly.os.fs.delete(tempObj) }
+                out = rc
+                return
+            }
             out = this.linkExecutable(ci, fe.getOutputFile())
             return
         }
@@ -291,6 +326,12 @@ public class Driver {
         if emitMode == 2 { out = ".s"  return }
         if emitMode == 3 { out = ""    return }   // executable: no extension
         out = ".ll"
+    }
+
+    // missingValue — report a value-taking option used without its value.
+    public int missingValue(const string opt) {
+        fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: option '", opt), "' requires a value"))
+        out = 1
     }
 
     // parseUInt — parse a non-negative decimal string; non-digits/empty → dflt.
@@ -321,8 +362,8 @@ public class Driver {
         fly.os.io.printErrLn("  --emit-bc       produce bitcode (falls back to LLVM IR)")
         fly.os.io.printErrLn("  -c              produce an object file (.o)")
         fly.os.io.printErrLn("  -S              produce target assembly (.s)")
-        fly.os.io.printErrLn("  --lib           produce a library (emit object + header)")
-        fly.os.io.printErrLn("  --header        generate a header file")
+        fly.os.io.printErrLn("  --lib           produce a library (NOT YET SUPPORTED)")
+        fly.os.io.printErrLn("  --header        generate a header file (NOT YET SUPPORTED)")
         fly.os.io.printErrLn("  --runtime-lib-dir <dir>  dir holding fly_std_lib.a / fly_runtime_lib.a")
         fly.os.io.printErrLn("  -L <dir>             extra linker search directory")
         fly.os.io.printErrLn("  --src-dir <dir>      source search dir for import resolution")

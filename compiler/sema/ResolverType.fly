@@ -55,6 +55,17 @@ public class ResolverType {
         if targs.size() > 0 {
             SemaClassType spec = ResolverType.instantiate(r, t, targs)
             if spec != null { r.setCurrentType(spec)  return }
+            // Type args were written but no specialization exists (non-generic
+            // base, arity mismatch, or unresolved arg). Falling through with the
+            // raw template used to codegen a null struct type → libLLVM crash.
+            if t != null {
+                if names.size() > 0 {
+                    ASTName last2 = names.get(names.size() - 1)
+                    r.diagStr(node.getLoc(), DiagID.err_sema_bad_type_args, last2.getName())
+                }
+                r.setCurrentType(null)
+                return
+            }
         }
 
         // A named type that resolved to nothing is an unknown type.

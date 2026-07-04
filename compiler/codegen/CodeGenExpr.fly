@@ -101,6 +101,80 @@ public class CodeGenExpr : SemaVisitor {
         out = ct.ptrType()
     }
 
+    // ── numeric coercion (shared by decl/assign/arith/compare/args/ternary) ────
+    // The resolver computes promoted RESULT types but never inserts operand casts,
+    // so every consumer of a gen'd value must bring it to the expected numeric
+    // type itself. These three helpers centralise that (mirrors the reference's
+    // CodeGenExpr::ConvertNumber).
+
+    // numWidth — lowered bit width for a numeric rank. Ranks encode width AND
+    // signedness (odd = signed of the next even width: short 15→i16, int 31→i32,
+    // long 63→i64), so rank comparison alone would emit same-width sext/trunc.
+    public int numWidth(const SemaType t) {
+        int w = t.getRank()
+        if w % 2 == 1 { w = w + 1 }
+        out = w
+    }
+
+    // isUnsignedInt — integer with an even rank (byte/ushort/uint/ulong/pointer).
+    public bool isUnsignedInt(const SemaType t) {
+        bool r = false
+        if t != null {
+            if t.isInteger() {
+                if t.getRank() % 2 == 0 { r = true }
+            }
+        }
+        out = r
+    }
+
+    // coerce — bring `val` (typed `from`) to numeric type `to`: zext/sext/trunc
+    // for integer width changes (extension follows the SOURCE signedness),
+    // si/uitofp for int→float, fpext/fptrunc for float widths, fptosi for
+    // float→int. Anything non-numeric (or already the right width) is unchanged.
+    public pointer coerce(const pointer val, const SemaType from, const SemaType to) {
+        pointer r = val
+        if val == 0 { out = r  return }
+        if from == null { out = r  return }
+        if to == null { out = r  return }
+        if from.isNumber() == false { out = r  return }
+        if to.isNumber() == false { out = r  return }
+        bool ff = from.isFloat()
+        bool tf = to.isFloat()
+        pointer destTy = this.lowerType(to)
+        if ff {
+            if tf {
+                if to.getRank() > from.getRank() {
+                    this.llvm.buildFPExt(this.builder, val, destTy, "cofpx", r)
+                } elsif to.getRank() < from.getRank() {
+                    this.llvm.buildFPTrunc(this.builder, val, destTy, "cofpt", r)
+                }
+            } else {
+                this.llvm.buildFPToSI(this.builder, val, destTy, "cofsi", r)
+            }
+        } else {
+            if tf {
+                if this.isUnsignedInt(from) {
+                    this.llvm.buildUIToFP(this.builder, val, destTy, "couif", r)
+                } else {
+                    this.llvm.buildSIToFP(this.builder, val, destTy, "cosif", r)
+                }
+            } else {
+                int fw = this.numWidth(from)
+                int tw = this.numWidth(to)
+                if tw > fw {
+                    if this.isUnsignedInt(from) {
+                        this.llvm.buildZExt(this.builder, val, destTy, "cozx", r)
+                    } else {
+                        this.llvm.buildSExt(this.builder, val, destTy, "cosx", r)
+                    }
+                } elsif tw < fw {
+                    this.llvm.buildTrunc(this.builder, val, destTy, "cotr", r)
+                }
+            }
+        }
+        out = r
+    }
+
     // gen — codegen an expression as an rvalue, returning its LLVM value.
     public pointer gen(const SemaExpr e) {
         this.addrMode = false
@@ -278,7 +352,28 @@ public class CodeGenExpr : SemaVisitor {
     public void visit(const SemaComplexValue node) { }
     public void visit(const SemaArrayValue node) { }
     public void visit(const SemaStructValue node) { }
-    public void visit(const SemaUnsetValue node) { }
+    // unset — lower to a typed zero. The empty visit left llvmValue = 0, and a
+    // null handle reaching buildStore/buildRet crashes inside libLLVM.
+    public void visit(const SemaUnsetValue node) {
+        SemaType t = node.getType()
+        pointer c = 0
+        if t != null {
+            if t.isFloat() {
+                pointer fty = this.lowerType(t)
+                this.llvm.constReal(fty, 0.0, c)
+            } elsif t.isNumber() || t.isBool() || t.isEnum() {
+                pointer ity = this.lowerType(t)
+                this.llvm.constInt(ity, 0, false, c)
+            } else {
+                pointer pty = this.ptrType()
+                this.llvm.constPointerNull(pty, c)
+            }
+        } else {
+            pointer pty2 = this.ptrType()
+            this.llvm.constPointerNull(pty2, c)
+        }
+        node.setLlvmValue(c)
+    }
     public void visit(const SemaLoopInStmt node) { }
     public void visit(const SemaDeleteStmt node) { }
     public void visit(const SemaCaseStmt node) { }

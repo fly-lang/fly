@@ -137,7 +137,14 @@ public class Frontend {
             string outPath = fo.getOutputFile()
             this.trace(fly.str.concat("emitting ", outPath))
             if action == 0 {
-                cgm.emitIR(outPath)
+                // check the write result: a missing/read-only output dir used to
+                // exit 0 with no .ll produced
+                bool iok = cgm.emitIRChecked(outPath)
+                if iok == false {
+                    fly.os.io.printErrLn(fly.str.concat("error: cannot write LLVM IR to ", outPath))
+                    out = 1
+                    return
+                }
             } else {
                 int fileType = 1                       // object
                 if action == 2 { fileType = 0 }        // assembly

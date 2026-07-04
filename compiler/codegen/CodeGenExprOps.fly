@@ -16,18 +16,25 @@ public class CodeGenExprOps {
 
     public CodeGenExprOps() { }
 
-    // assign — store the RHS rvalue into the LHS lvalue (its storage address).
+    // assign — store the RHS rvalue into the LHS lvalue (its storage address),
+    // coercing the value to the assignee's type (an int literal stored into a
+    // long/pointer/double slot must be widened, or the store writes 4 of 8 bytes).
     public static void assign(const CodeGenExpr cge, const SemaBinary node) {
         SemaExpr left = node.getLeft()
         SemaExpr right = node.getRight()
         pointer rhs = cge.gen(right)
+        rhs = cge.coerce(rhs, right.getType(), left.getType())
         pointer addr = cge.genAddr(left)
         LLVM llvm = cge.getLLVM()
         llvm.buildStore(cge.getBuilder(), rhs, addr)
         node.setLlvmValue(rhs)
     }
 
-    // arith — +, -, *, /, %, &, |, ^, <<, >> (int or float by result type).
+    // arith — +, -, *, /, %, &, |, ^, <<, >> (int or float by result type). Both
+    // operands are coerced to the node's promoted type first (the resolver only
+    // sets the RESULT type; without the casts `long + intLiteral` emits a mixed
+    // i64/i32 instruction and module verification fails). div/rem/shr follow the
+    // operand signedness like the reference (udiv/urem/lshr for unsigned).
     public static void arith(const CodeGenExpr cge, const SemaBinary node, const ASTBinaryKind k) {
         SemaExpr left = node.getLeft()
         SemaExpr right = node.getRight()
@@ -35,9 +42,12 @@ public class CodeGenExprOps {
         pointer r = cge.gen(right)
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
-        bool isF = false
         SemaType t = node.getType()
+        bool isF = false
         if t != null { isF = t.isFloat() }
+        l = cge.coerce(l, left.getType(), t)
+        r = cge.coerce(r, right.getType(), t)
+        bool uns = cge.isUnsignedInt(t)
 
         pointer v
         if k == ASTBinaryKind.OP_BINARY_ARITH_ADD {
@@ -47,9 +57,11 @@ public class CodeGenExprOps {
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_MUL {
             if isF { llvm.buildFMul(b, l, r, "mul", v) } else { llvm.buildMul(b, l, r, "mul", v) }
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_DIV {
-            if isF { llvm.buildFDiv(b, l, r, "div", v) } else { llvm.buildSDiv(b, l, r, "div", v) }
+            if isF { llvm.buildFDiv(b, l, r, "div", v) }
+            elsif uns { llvm.buildUDiv(b, l, r, "div", v) }
+            else { llvm.buildSDiv(b, l, r, "div", v) }
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_MOD {
-            llvm.buildSRem(b, l, r, "rem", v)
+            if uns { llvm.buildURem(b, l, r, "rem", v) } else { llvm.buildSRem(b, l, r, "rem", v) }
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_AND {
             llvm.buildAnd(b, l, r, "and", v)
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_OR {
@@ -59,12 +71,16 @@ public class CodeGenExprOps {
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_SHIFT_L {
             llvm.buildShl(b, l, r, "shl", v)
         } else {
-            llvm.buildAShr(b, l, r, "shr", v)
+            if uns { llvm.buildLShr(b, l, r, "shr", v) } else { llvm.buildAShr(b, l, r, "shr", v) }
         }
         node.setLlvmValue(v)
     }
 
-    // compare — ==, !=, <, <=, >, >= → i1 via ICmp (int) or FCmp (float).
+    // compare — ==, !=, <, <=, >, >= → i1 via ICmp (int) or FCmp (float). The
+    // comparison type is the rank-promotion of the two operand types (the node's
+    // own type stays the left operand's — see ResolverExpr); both operands are
+    // coerced to it, and the integer predicate follows its signedness (unsigned
+    // for byte/ushort/uint/ulong/pointer, like the reference).
     public static void compare(const CodeGenExpr cge, const SemaBinary node, const ASTBinaryKind k) {
         SemaExpr left = node.getLeft()
         SemaExpr right = node.getRight()
@@ -72,15 +88,30 @@ public class CodeGenExprOps {
         pointer r = cge.gen(right)
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
-        bool isF = false
         SemaType lt = left.getType()
-        if lt != null { isF = lt.isFloat() }
+        SemaType rt = right.getType()
+
+        // rank promotion of the two operand types (numeric operands only)
+        SemaType common = lt
+        if lt != null {
+            if rt != null {
+                if lt.isNumber() {
+                    if rt.isNumber() {
+                        if rt.getRank() > lt.getRank() { common = rt }
+                        l = cge.coerce(l, lt, common)
+                        r = cge.coerce(r, rt, common)
+                    }
+                }
+            }
+        }
+        bool isF = false
+        if common != null { isF = common.isFloat() }
 
         pointer v
         if isF {
             llvm.buildFCmp(b, fcmpPred(k), l, r, "cmp", v)
         } else {
-            llvm.buildICmp(b, icmpPred(k), l, r, "cmp", v)
+            llvm.buildICmp(b, icmpPred(k, cge.isUnsignedInt(common)), l, r, "cmp", v)
         }
         node.setLlvmValue(v)
     }
@@ -177,12 +208,16 @@ public class CodeGenExprOps {
         cge.setTerminated(true)
 
         cge.position(thenBB)
-        pointer tv = cge.gen(node.getTrueExpr())
+        SemaExpr te = node.getTrueExpr()
+        pointer tv = cge.gen(te)
+        tv = cge.coerce(tv, te.getType(), node.getType())
         llvm.buildStore(cge.getBuilder(), tv, slot)
         cge.br(mergeBB)
 
         cge.position(elseBB)
-        pointer fv = cge.gen(node.getFalseExpr())
+        SemaExpr fe = node.getFalseExpr()
+        pointer fv = cge.gen(fe)
+        fv = cge.coerce(fv, fe.getType(), node.getType())
         llvm.buildStore(cge.getBuilder(), fv, slot)
         cge.br(mergeBB)
 
@@ -193,14 +228,22 @@ public class CodeGenExprOps {
     }
 }
 
-// LLVM IntPredicate codes (signed comparisons).
-public int icmpPred(const ASTBinaryKind k) {
+// LLVM IntPredicate codes. EQ/NE are sign-agnostic; the relational predicates
+// pick the unsigned (34-37) or signed (38-41) family from the comparison type.
+public int icmpPred(const ASTBinaryKind k, const bool uns) {
     if k == ASTBinaryKind.OP_BINARY_COMPARE_EQ  { out = 32  return }
     if k == ASTBinaryKind.OP_BINARY_COMPARE_NE  { out = 33  return }
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { out = 38  return }
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { out = 39  return }
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { out = 40  return }
-    out = 41   // LTE
+    if uns {
+        if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { out = 34  return }   // UGT
+        if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { out = 35  return }   // UGE
+        if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { out = 36  return }   // ULT
+        out = 37   // ULE
+        return
+    }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { out = 38  return }   // SGT
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { out = 39  return }   // SGE
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { out = 40  return }   // SLT
+    out = 41   // SLE
 }
 
 // LLVM RealPredicate codes (ordered comparisons).

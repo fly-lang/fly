@@ -62,16 +62,10 @@ public class CodeGenCall {
                 SemaType cpt = calleeParams.get(i).getType()
                 if cpt != null { pTy = cpt }
             }
-            // widen/narrow an integer arg to the param's integer type
-            pointer storeVal = av
-            if aTy != null && pTy != null {
-                if aTy.isInteger() && pTy.isInteger() {
-                    int fr = aTy.getRank()
-                    int tr = pTy.getRank()
-                    if tr > fr { llvm.buildSExt(b, av, cge.lowerType(pTy), "argext", storeVal) }
-                    elsif tr < fr { llvm.buildTrunc(b, av, cge.lowerType(pTy), "argtr", storeVal) }
-                }
-            }
+            // bring the arg to the param's numeric type (coerce compares lowered
+            // WIDTHS, so same-width rank pairs like int/uint don't emit bogus
+            // same-type sext/trunc; it also covers int→float params)
+            pointer storeVal = cge.coerce(av, aTy, pTy)
             pointer aty = cge.lowerType(pTy)
             pointer tmp
             llvm.buildAlloca(b, aty, "arg", tmp)

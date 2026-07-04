@@ -197,7 +197,14 @@ public class ResolverCall {
         List<ASTType> typeArgsAst = node.getTypeArgs()
         if typeArgsAst.size() > 0 {
             SemaClassType spec = ResolverType.instantiate(r, tt, typeArgsAst)
-            if spec != null { cls = spec }
+            if spec == null {
+                // keeping the raw generic template used to reach genNew with a
+                // null LLVM struct type → crash inside libLLVM
+                r.diagStr(node.getLoc(), DiagID.err_sema_bad_type_args, node.getName())
+                out = null
+                return
+            }
+            cls = spec
         }
         SymbolTable cscope = cls.getSymbols()
         Symbol csym = reg.LookupFunction(node.getName(), argTypes, cscope)

@@ -72,6 +72,29 @@ for suite in $(find test -name '*Suite.fly' | sort); do
     fi
 done
 
+# ── std library tests ────────────────────────────────────────────────────────
+# std/test/*_test.fly are main()-style programs (mirrors of fly/std/test, run
+# there by ctest). They exercise std/lib via -L; no --src-dir/--test needed.
+# Without this loop they are orphans — nothing in CI ever ran them.
+for t in $(find std/test -name '*_test.fly' | sort); do
+    name=$(basename "$t" .fly)
+    bin="$OUT/std_$name"
+    if ! "$FLY" "$t" -o "std_$name" --out-dir "$OUT" -L "$STD" >"$OUT/_std_$name.log" 2>&1; then
+        echo "  COMPILE FAIL  std/$name"
+        grep -iE 'error|broken|abort' "$OUT/_std_$name.log" | head -3 | sed 's/^/      /'
+        fail=$((fail + 1))
+        continue
+    fi
+    if "$bin" >"$OUT/_std_$name.run" 2>&1; then
+        echo "  PASS          std/$name"
+        pass=$((pass + 1))
+    else
+        echo "  RUN  FAIL     std/$name (exit $?)"
+        tail -5 "$OUT/_std_$name.run" | sed 's/^/      /'
+        fail=$((fail + 1))
+    fi
+done
+
 echo "─────────────────────────────────────────────"
 echo "  $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

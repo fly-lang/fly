@@ -375,8 +375,17 @@ public class Resolver : ASTVisitor {
     public void visit(const ASTBoolValue node) { this.currentExpr = SemaBuilder.CreateBoolValue(node) }
     public void visit(const ASTNumberValue node) { this.currentExpr = SemaBuilder.CreateNumberValue(node) }
     public void visit(const ASTStringValue node) { this.currentExpr = SemaBuilder.CreateStringValue(node) }
-    public void visit(const ASTArrayValue node) { }
-    public void visit(const ASTStructValue node) { }
+    // Array/struct literals have no Sema lowering yet. The empty visits used to
+    // leave the PREVIOUS expression in currentExpr (stale-expression substitution,
+    // silently wrong bindings) — diagnose and clear instead.
+    public void visit(const ASTArrayValue node) {
+        this.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "array literals")
+        this.currentExpr = null
+    }
+    public void visit(const ASTStructValue node) {
+        this.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "struct literals")
+        this.currentExpr = null
+    }
     public void visit(const ASTNullValue node) { this.currentExpr = SemaBuilder.CreateNullValue(node) }
     public void visit(const ASTUnsetValue node) { this.currentExpr = SemaBuilder.CreateUnsetValue(node) }
 }

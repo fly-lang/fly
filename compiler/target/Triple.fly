@@ -79,6 +79,7 @@ public class Triple {
     public bool isWindowsMSVC() {
         out = fly.str.equals(this.os, "windows") && fly.str.equals(this.env, "msvc")
     }
+    public bool isOSWindows() { out = fly.str.equals(this.os, "windows") }
     public bool isAndroid()  { out = fly.str.contains(this.env, "android") }
     public bool isOSIAMCU()  { out = fly.str.equals(this.os, "elfiamcu") }
     public bool isVE()       { out = this.arch == Arch.VE }

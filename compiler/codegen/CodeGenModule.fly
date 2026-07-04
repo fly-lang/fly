@@ -10,6 +10,7 @@ import llvm.api.*
 import fly.mem
 import fly.data.List
 import fly.str
+import fly.os.io
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenModule — owns the LLVM context/module/builder and drives lowering of the
@@ -276,11 +277,26 @@ public class CodeGenModule {
             pointer oty2 = this.types.lowerType(rt)
             pointer loaded
             llvm.buildLoad2(this.builder, oty2, outSlot, "mres", loaded)
-            int rk = 32
-            if rt != null { rk = rt.getRank() }
-            if rk < 32 { llvm.buildSExt(this.builder, loaded, i32, "mext", retVal) }
-            elsif rk > 32 { llvm.buildTrunc(this.builder, loaded, i32, "mtr", retVal) }
-            else { retVal = loaded }
+            // bring the Fly return to the C `int`: compare lowered WIDTHS, not
+            // ranks (int has rank 31 — a rank compare would emit an invalid
+            // same-width sext for the most common `int main`). bool (i1) and the
+            // unsigned families zext; signed sext; wider truncs.
+            retVal = loaded
+            if rt != null {
+                if rt.isBool() {
+                    llvm.buildZExt(this.builder, loaded, i32, "mext", retVal)
+                } elsif rt.isInteger() {
+                    int rk = rt.getRank()
+                    int w = rk
+                    if w % 2 == 1 { w = w + 1 }
+                    if w < 32 {
+                        if rk % 2 == 0 { llvm.buildZExt(this.builder, loaded, i32, "mext", retVal) }
+                        else { llvm.buildSExt(this.builder, loaded, i32, "mext", retVal) }
+                    } elsif w > 32 {
+                        llvm.buildTrunc(this.builder, loaded, i32, "mtr", retVal)
+                    }
+                }
+            }
         } else {
             llvm.constInt(i32, 0, true, retVal)
         }
@@ -423,9 +439,28 @@ public class CodeGenModule {
         llvm.verifyModule(this.module, ok)
     }
 
+    // verifyMsg — verify + LLVM's failure reason (empty when the module is valid).
+    // NOTE: safe to bind from a FREE-FUNCTION frame (the test suites' cgIR); the
+    // Frontend method frame cannot hold the returned string without tripping a
+    // bootstrap double-free on scope exit, so the driver path still reports the
+    // generic message only (see Frontend.execute).
+    public string verifyMsg(bool ok) {
+        LLVM llvm = this.cg.getLLVM()
+        string m = llvm.verifyModuleMsg(this.module, ok)
+        out = m
+    }
+
     public void emitIR(const string filename) {
         LLVM llvm = this.cg.getLLVM()
         llvm.printModuleToFile(this.module, filename)
+    }
+
+    // emitIRChecked — emitIR + the write result (false = file could not be written).
+    public bool emitIRChecked(const string filename) {
+        LLVM llvm = this.cg.getLLVM()
+        bool ok = false
+        llvm.printModuleToFileChecked(this.module, filename, ok)
+        out = ok
     }
 
     // configureTarget — stamp the LLVM module with the target triple + data layout

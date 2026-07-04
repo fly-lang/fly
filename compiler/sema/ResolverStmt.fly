@@ -2,6 +2,7 @@ namespace fly.compiler.sema
 
 import fly.compiler.sema.*
 import fly.compiler.ast.*
+import fly.compiler.basic.*
 import fly.data.List
 
 // ResolverStmt — statement resolution companion. Statements append themselves to
@@ -203,8 +204,12 @@ public class ResolverStmt {
         if blk != null { blk.addContent(slp) }
     }
 
-    // loop-in — `for item in list { … }`.
+    // loop-in — `for item in list { … }`. Resolved for the node model, but the
+    // codegen visit is still empty: without this diagnostic the whole loop (and
+    // its side effects) silently vanished from the emitted module.
     public static void loopInStmt(const Resolver r, const ASTLoopInStmt node) {
+        r.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "for-in loops")
+
         ASTExpr item = node.getItem()
         item.accept(r)
         SemaExpr itemE = r.getCurrentExpr()
@@ -253,7 +258,12 @@ public class ResolverStmt {
         r.exitHandle()
     }
 
+    // delete — the parser rejects `delete` today, so this only fires for AST
+    // built programmatically; diagnose (the codegen visit is empty — a silent
+    // no-op would leak and skip the intended destruction).
     public static void deleteStmt(const Resolver r, const ASTDeleteStmt node) {
+        r.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "delete statements")
+
         ASTExpr e = node.getExpr()
         e.accept(r)
         SemaExpr re = r.getCurrentExpr()

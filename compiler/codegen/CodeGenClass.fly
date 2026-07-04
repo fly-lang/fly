@@ -399,7 +399,12 @@ public class CodeGenClass {
             if str.equals(m.getName(), name) { out = i  return }
             i = i + 1
         }
-        out = 0 - 1
+        // -1 sentinel built through an int var: a literal `0 - 1` fold is typed
+        // i8 by the bootstrap and this value feeds vtable slot layout (methodSlot
+        // / vmethods `if slot >= 0`) — a mis-widened 255 would index out of bounds.
+        int notFound = 0
+        notFound = notFound - 1
+        out = notFound
     }
 
     // className — the disambiguating name: a generic specialization carries a mangled

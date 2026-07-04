@@ -249,6 +249,15 @@ public class LLVM {
 
     // Note: LLVMInitializeAll* are static inline wrappers not exported from libLLVM-20.so.
     // Use target-specific init functions instead (x86_64 is the primary bootstrap target).
+    //
+    // WHY every wrapper in this class re-creates `new CLang(...)` and passes the
+    // symbol as a literal (audit O1/O2): the bridge is a compile-time intrinsic in
+    // the bootstrap — `call()` requires the symbol to be a STRING LITERAL at each
+    // call site, and the CLang instance is tracked by LOCAL-variable identity.
+    // Caching the instance in a class field compiles but the interception does not
+    // fire: the calls silently resolve to the empty stub methods (verified by
+    // spike). So neither a shared `this.lib` field nor a table-driven init loop is
+    // expressible until the bootstrap propagates the mapping to field assignments.
     public void initializeAllTargetInfos() {
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMInitializeX86TargetInfo", new NoArgs())
@@ -479,6 +488,26 @@ public class LLVM {
         lib.call("LLVMPrintModuleToFile", a)
     }
 
+    // printModuleToFileChecked — like printModuleToFile, but surfaces the LLVMBool
+    // result (true = FAILURE → ok=false). ErrorMessage gets a REAL char** buffer:
+    // LLVM writes through it on the error path, so NULL would segfault exactly
+    // when we want to report the failure.
+    public void printModuleToFileChecked(const pointer mod, const string filename, bool ok) {
+        pointer buf = fly.mem.alloc(8)
+        fly.mem.writePtr(buf, 0, 0)
+        Ptr3Args a = new Ptr3Args()
+        a.a = mod
+        a.b = cbuf(filename)
+        a.c = buf
+        CLang lib = new CLang("libLLVM-20.so")
+        bool failed = false
+        lib.call("LLVMPrintModuleToFile", a, failed)
+        pointer mp = fly.mem.readPtr(buf, 0)
+        if mp != 0 { this.disposeMessage(mp) }
+        fly.mem.free(buf, 8)
+        if failed { ok = false } else { ok = true }
+    }
+
     public void writeBitcodeToFile(const pointer mod, const string path) {
         PtrStrArgs a = new PtrStrArgs()
         a.a = mod
@@ -498,6 +527,40 @@ public class LLVM {
         bool broken = false
         lib.call("LLVMVerifyModule", vargs, broken)
         if broken == false { ok = true } else { ok = false }
+    }
+
+    // verifyModuleMsg — like verifyModule, but also RETURNS LLVM's failure reason
+    // ("" when the module is valid). Passes a real char** out-buffer (Ptr-buffer
+    // idiom, like getTargetFromTriple), reads the heap C string back to the NUL
+    // and disposes it. The reason travels via the return value, not a string
+    // out-param (param writes skip the clone-on-store path → double free).
+    public string verifyModuleMsg(const pointer mod, bool ok) {
+        pointer buf = fly.mem.alloc(8)
+        fly.mem.writePtr(buf, 0, 0)
+        PtrIntPtrArgs vargs = new PtrIntPtrArgs()
+        vargs.a = mod
+        vargs.n = 2
+        vargs.b = buf
+        CLang lib = new CLang("libLLVM-20.so")
+        bool broken = false
+        lib.call("LLVMVerifyModule", vargs, broken)
+        pointer mp = fly.mem.readPtr(buf, 0)
+        fly.mem.free(buf, 8)
+        if broken == false { ok = true } else { ok = false }
+        out = ""
+        if mp != 0 {
+            byte zero = 0
+            int len = 0
+            byte c = fly.mem.readByte(mp, len)
+            while c != zero {
+                len = len + 1
+                c = fly.mem.readByte(mp, len)
+            }
+            string s = ""
+            fly.str.fromBytes(mp, len, s)
+            this.disposeMessage(mp)
+            out = s
+        }
     }
 
     // ── Types — integer ───────────────────────────────────────────────────────
@@ -805,6 +868,16 @@ public class LLVM {
         lib.call("LLVMBuildSRem", a, v)
     }
 
+    public void buildURem(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = lhs
+        a.c = rhs
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildURem", a, v)
+    }
+
     public void buildFAdd(const pointer b, const pointer lhs, const pointer rhs, const string name, pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
@@ -1044,14 +1117,10 @@ public class LLVM {
         lib.call("LLVMBuildStructGEP2", a, v)
     }
 
-    public void buildMemCpy(const pointer b, const pointer dst, const int dstAlign, const pointer src, const int srcAlign, const pointer size, pointer v) {
-        Ptr3Args a = new Ptr3Args()
-        a.a = b
-        a.b = dst
-        a.c = src
-        CLang lib = new CLang("libLLVM-20.so")
-        lib.call("LLVMBuildMemCpy", a, v)
-    }
+    // NOTE: buildMemCpy was removed — it silently dropped DstAlign/SrcAlign/Size
+    // (LLVMBuildMemCpy is a 6-arg call; the wrapper passed 3), which would corrupt
+    // memory the moment it gained a caller. Re-add with a full 6-field Args struct
+    // when memcpy lowering is actually needed.
 
     // ── Build — casts ─────────────────────────────────────────────────────────
 
@@ -1103,6 +1172,16 @@ public class LLVM {
         a.s = name
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMBuildSIToFP", a, v)
+    }
+
+    public void buildUIToFP(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {
+        Ptr3StrArgs a = new Ptr3StrArgs()
+        a.a = b
+        a.b = val
+        a.c = destTy
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildUIToFP", a, v)
     }
 
     public void buildFPExt(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {
@@ -1210,14 +1289,10 @@ public class LLVM {
         lib.call("LLVMBuildPhi", a, v)
     }
 
-    public void addIncoming(const pointer phi, const pointer vals, const pointer blocks, const int count) {
-        Ptr3Args a = new Ptr3Args()
-        a.a = phi
-        a.b = vals
-        a.c = blocks
-        CLang lib = new CLang("libLLVM-20.so")
-        lib.call("LLVMAddIncoming", a)
-    }
+    // NOTE: addIncoming was removed — it silently dropped `count` (LLVMAddIncoming
+    // is a 4-arg call; the wrapper passed 3, leaving Count as garbage). Phi is not
+    // emitted anywhere (ternary lowers via an alloca slot); re-add with a
+    // Ptr3IntArgs-style struct if phi nodes become necessary.
 
     // ── Build — call ──────────────────────────────────────────────────────────
 

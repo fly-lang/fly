@@ -80,4 +80,28 @@ suite ToolChainSuite {
             assert.assertStr(segAt(lst, 1), "libfly_runtime.a", 32)
         }
     }
+
+    void archiveGuardTest() {
+        case "B13: missing fly archives are reported before linking": {
+            CodeGenOptions o = new CodeGenOptions()
+            o.setRuntimeLibDir("/nonexistent-fly-libdir")
+            ToolChain tc = new ToolChain(null, tripleParse("x86_64-unknown-linux-gnu"), o)
+            assert.assertFalse(tc.requireFlyArchives(), 40)
+            assert.assertStr(tc.GetStdLibPath(), "", 41)
+            assert.assertStr(tc.GetRuntimeLibPath(), "", 42)
+        }
+    }
+
+    void windowsRoutingTest() {
+        case "B12: isOSWindows separates msvc from gnu environments": {
+            Triple msvc = tripleParse("x86_64-pc-windows-msvc")
+            assert.assertTrue(msvc.isOSWindows(), 50)
+            assert.assertTrue(msvc.isWindowsMSVC(), 51)
+            Triple mingw = tripleParse("x86_64-w64-windows-gnu")
+            assert.assertTrue(mingw.isOSWindows(), 52)
+            assert.assertFalse(mingw.isWindowsMSVC(), 53)
+            Triple lin = tripleParse("x86_64-unknown-linux-gnu")
+            assert.assertFalse(lin.isOSWindows(), 54)
+        }
+    }
 }

@@ -93,6 +93,33 @@ foreach ($suite in $suites) {
     }
 }
 
+# -- std library tests (std/test/*_test.fly, main()-style; mirrors fly/std/test) --
+$stdTests = Get-ChildItem -Recurse -Filter *_test.fly std/test | Sort-Object FullName
+foreach ($t in $stdTests) {
+    $name = $t.BaseName
+    $bin = "$OUT/std_$name.exe"
+    $log = "$OUT/_std_$name.log"
+    $run = "$OUT/_std_$name.run"
+
+    & $FLY $t.FullName -o "std_$name" --out-dir $OUT -L $STD *> $log
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  COMPILE FAIL  std/$name (exit $LASTEXITCODE)"
+        Get-Content -Tail 3 $log | ForEach-Object { "      $_" }
+        $fail++
+        continue
+    }
+
+    & $bin *> $run
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  PASS          std/$name"
+        $pass++
+    } else {
+        Write-Host "  RUN  FAIL     std/$name (exit $LASTEXITCODE)"
+        Get-Content -Tail 5 $run | ForEach-Object { "      $_" }
+        $fail++
+    }
+}
+
 Write-Host "---------------------------------------------"
 Write-Host "  $pass passed, $fail failed"
 exit $(if ($fail -eq 0) { 0 } else { 1 })

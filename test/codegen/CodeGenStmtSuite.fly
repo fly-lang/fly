@@ -17,8 +17,8 @@ import fly.str
 // continue. The pipeline runs in the top-level free function `cgIR` (a suite
 // method driving codegen SIGSEGVs the reference --test backend).
 //
-// DEFERRED (reference cases not yet supported): CGFor (C-style for), CGForIn
-// (for-in / iterables) — needs SemaLoopInStmt codegen + arrays.
+// DEFERRED (reference cases not yet supported): CGForIn (for-in / iterables) —
+// needs SemaLoopInStmt codegen + arrays. CGFor (C-style for) is covered below.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public string cgIR(const string src) {
@@ -61,6 +61,14 @@ suite CodeGenStmtSuite {
             assert.assertTrue(fly.str.contains(ir, "loopbody"), 22)
             assert.assertTrue(fly.str.contains(ir, "loopexit"), 23)
             assert.assertTrue(fly.str.contains(ir, "looppost"), 24)
+        }
+        case "C-style for → init store + loop blocks + post increment (CGFor)": {
+            string ir = cgIR("int sum5() { int acc = 0  for int i = 0; i < 5; i++ { acc = acc + i }  out = acc }")
+            assert.assertTrue(fly.str.contains(ir, "loopcond"), 25)
+            assert.assertTrue(fly.str.contains(ir, "loopbody"), 26)
+            assert.assertTrue(fly.str.contains(ir, "looppost"), 27)
+            assert.assertTrue(fly.str.contains(ir, "icmp slt i32"), 28)
+            assert.assertTrue(fly.str.contains(ir, "add i32"), 29)
         }
     }
 
