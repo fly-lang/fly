@@ -423,9 +423,14 @@ void CodeGenClass::CreateAttributes() {
 	if (!Sema->getAttributes().empty() &&
 		(Sema->getClassKind() == SemaClassKind::CLASS || Sema->getClassKind() == SemaClassKind::STRUCT)) {
 
-		// add var to the type
-		for (auto &AttributeEntry : Sema->getAttributes()) {
-			SemaClassAttribute *Attribute = AttributeEntry.getValue();
+		// add var to the type — iterate Nodes (DECLARATION order), not the
+		// Attributes StringMap: the struct layout must match the field order
+		// GenerateHeader emits into .fly.h (external consumers compute offsets
+		// from the header), and StringMap iteration is name-hash order.
+		for (SemaNode *Node : Sema->getNodes()) {
+			if (Node->getKind() != SemaKind::ATTRIBUTE)
+				continue;
+			SemaClassAttribute *Attribute = static_cast<SemaClassAttribute *>(Node);
 			Attribute->getType()->accept(*CGM);
 			llvm::Type *AttrType = Attribute->getType()->getCodeGen()->getType();
 

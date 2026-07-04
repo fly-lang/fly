@@ -339,14 +339,17 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                         "\n"
                         "@error = external constant %error\n"
                         "\n"
+                        // BaseStruct fields are CREATED in order b, a → declaration-order
+                        // layout is b@0, a@1 (NOT name order); init stores iterate the
+                        // Attributes StringMap (a first → index 1)
                         "define linkonce_odr ptr @BaseStruct.init_ctor(ptr %0) {\n"
                         "entry:\n"
                         "  %1 = alloca ptr, align 8\n"
                         "  store ptr %0, ptr %1, align 8\n"
                         "  %2 = load ptr, ptr %1, align 8\n"
-                        "  %3 = getelementptr inbounds %BaseStruct, ptr %2, i32 0, i32 0\n"
+                        "  %3 = getelementptr inbounds %BaseStruct, ptr %2, i32 0, i32 1\n"
                         "  store i32 0, ptr %3, align 4\n"
-                        "  %4 = getelementptr inbounds %BaseStruct, ptr %2, i32 0, i32 1\n"
+                        "  %4 = getelementptr inbounds %BaseStruct, ptr %2, i32 0, i32 0\n"
                         "  store i32 0, ptr %4, align 4\n"
                         "  ret ptr %2\n"
                         "}\n"
@@ -372,9 +375,10 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                         "  %5 = call ptr @MyStruct.init_ctor(ptr %4)\n"
                         "  store ptr %5, ptr %2, align 8\n"
                         "  %6 = load ptr, ptr %2, align 8\n"
-                        // m.a = 1: two-level GEP — MyStruct→BaseStruct(index 0)→a(index 0)
+                        // m.a = 1: two-level GEP — MyStruct→BaseStruct(index 0)→a(index 1,
+                        // declaration order: b was created first)
                         "  %7 = getelementptr inbounds %MyStruct, ptr %6, i32 0, i32 0\n"
-                        "  %8 = getelementptr inbounds %BaseStruct, ptr %7, i32 0, i32 0\n"
+                        "  %8 = getelementptr inbounds %BaseStruct, ptr %7, i32 0, i32 1\n"
                         "  store i32 1, ptr %8, align 4\n"
                         // m.b = 2: direct GEP — MyStruct→b(index 1)
                         "  %9 = getelementptr inbounds %MyStruct, ptr %6, i32 0, i32 1\n"
