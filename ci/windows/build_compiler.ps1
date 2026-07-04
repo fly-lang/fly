@@ -82,11 +82,22 @@ Assert-LastExit "std --lib build"
 # -- 3) Build the compiler executable LINKING our fly_std_lib.lib. Run a copy of
 #       the bootstrap from build/bin so <exe>/../lib == build/lib: auto-discovery
 #       then loads our headers and links fly_std_lib.lib + the runtime lib. -------
+# The bootstrap copy runs as build/bin/fly.exe but writes its output to a STAGING
+# dir (not build/bin), then we move it into place: a process can't overwrite its
+# own running executable — on Windows the running .exe is locked, so writing
+# build/bin/fly.exe from a process running as build/bin/fly.exe fails with
+# "permission denied" (lld-link). build/bin/fly.exe still resolves <exe>/../lib to
+# build/lib as required.
+$STAGE = "build/stage"
+Remove-Item $STAGE -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force $STAGE | Out-Null
 Copy-Item $FLY "$OUT/fly.exe"
 & "$OUT/fly.exe" compiler/Fly.fly `
     --src-dir compiler `
-    -o fly --out-dir $OUT
+    -o fly --out-dir $STAGE
 Assert-LastExit "compiler build"
+Remove-Item "$OUT/fly.exe" -Force -ErrorAction SilentlyContinue  # bootstrap done — drop the copy
+Move-Item "$STAGE/fly.exe" "$OUT/fly.exe" -Force                 # install the built compiler
 
 # -- 3b) Optional SELF-CONTAINED bundle (Rust-style), gated on FLY_BUNDLE_LLVM=1.
 #        The release then needs neither system LLVM nor a system linker.
@@ -128,8 +139,9 @@ if ($env:FLY_BUNDLE_LLVM -eq '1') {
     }
 }
 
-# -- 4) Cleanup: bin/ ships the executable (+ bundled DLL/linker); drop only the
-#        intermediate objects. The bootstrap copy was overwritten in place by -o.
+# -- 4) Cleanup: bin/ ships the executable (+ bundled DLL/linker); drop the staging
+#        dir and any intermediate objects.
+Remove-Item $STAGE -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item "$OUT/*.o" -Force -ErrorAction SilentlyContinue
 
 Write-Host "fly -> $OUT/fly"

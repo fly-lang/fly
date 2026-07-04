@@ -76,12 +76,20 @@ cp "$BLIB/llvm.fly.h" "$BLIB/runtime.fly.h" "$BLIB/fly_runtime_lib.a" "$LIB/"
 #       loads our generated headers and links fly_std_lib.a + fly_runtime_lib.a.
 #       --src-dir indexes the whole fly.compiler graph from the entry's imports;
 #       each `main` is in its own namespace so only the entry's becomes the C entry.
+# The bootstrap copy runs as build/bin/fly, but writes its output to a STAGING dir
+# (not build/bin) — a process can't overwrite its own running executable: harmless
+# on Linux (replaces the inode) but a hard "permission denied" on Windows (the
+# running .exe is locked). build/bin/fly still resolves <exe>/../lib to build/lib.
 cp "$FLY" "$OUT/fly"
+STAGE="build/stage"
+rm -rf "$STAGE"
+mkdir -p "$STAGE"
 "$OUT/fly" compiler/Fly.fly \
     --src-dir compiler \
-    -o fly --out-dir "$OUT"
-# The src-dir build emits ONE combined object "$OUT/Fly.fly.o" then links it into
-# "$OUT/fly" (dynamically against system libLLVM via the -lLLVM-20 bridge flag).
+    -o fly --out-dir "$STAGE"
+rm -f "$OUT/fly"                 # bootstrap done (no longer running) — drop the copy
+# The staged build emitted ONE combined object "$STAGE/Fly.fly.o" and linked it into
+# "$STAGE/fly" (dynamically against system libLLVM via the -lLLVM-20 bridge flag).
 
 # ── 3b) Optional SELF-CONTAINED bundle (Rust-style). With FLY_BUNDLE_LLVM=1 the
 #       release ships ONE shared libLLVM.so in lib/, and both `fly` and a small
@@ -99,7 +107,7 @@ if [ "${FLY_BUNDLE_LLVM:-0}" = "1" ]; then
         echo "error: FLY_BUNDLE_LLVM=1 needs clang++ and llvm-config (install llvm-20-dev + clang)." >&2
         exit 1
     fi
-    OBJ="$OUT/Fly.fly.o"
+    OBJ="$STAGE/Fly.fly.o"
     if [ ! -f "$OBJ" ]; then
         echo "error: expected combined object '$OBJ' from the src-dir build." >&2
         exit 1
@@ -153,10 +161,14 @@ if [ "${FLY_BUNDLE_LLVM:-0}" = "1" ]; then
         -L"$LLVM_LIBDIR" -lLLVM-20 -Wl,-rpath,'$ORIGIN/../lib' \
         $("$LLVM_CONFIG" --link-static --system-libs) \
         -o "$OUT/fly-lld"
+else
+    # Plain build: install the staged compiler as-is (dynamic against system libLLVM).
+    cp "$STAGE/fly" "$OUT/fly"
 fi
 
-# ── 4) Cleanup: bin/ ships only the executable "$OUT/fly" (drop intermediate
-#       objects; the bootstrap copy was overwritten in place by the -o output).
+# ── 4) Cleanup: bin/ ships the executable "$OUT/fly" (+ any bundled libLLVM/fly-lld);
+#       drop the staging dir and any intermediate objects.
+rm -rf "$STAGE"
 rm -f "$OUT"/*.o
 
 echo "fly -> $OUT/fly"
