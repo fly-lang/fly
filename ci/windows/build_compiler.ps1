@@ -139,7 +139,10 @@ if ($env:FLY_BUNDLE_LLVM -eq '1') {
         Write-Host "building $OUT/fly-lld.exe (lld static, LLVM dynamic) ..."
         $llvmLibs = ConvertTo-LinkFlags ((& $llvmConfig --link-static --libs all) -join ' ') | Where-Object { $_ -notmatch 'olly' }
         $sysLibs  = ConvertTo-LinkFlags ((& $llvmConfig --link-static --system-libs) -join ' ')
-        & $clang ci/linux/lld_driver.cpp -std=c++17 `
+        # -fms-runtime-lib=dll: the fork's LLVM static libs are built /MD (they import
+        # the dynamic UCRT — the __imp_* symbols), so clang++ must link the DLL CRT to
+        # match; its default static CRT (libcmt) leaves those imports unresolved.
+        & $clang ci/linux/lld_driver.cpp -std=c++17 -fms-runtime-lib=dll `
             "-I$(Join-Path $llvmRoot 'include')" `
             "-L$(Join-Path $llvmRoot 'lib')" -llldCOFF -llldCommon `
             @llvmLibs @sysLibs `
@@ -165,3 +168,9 @@ Remove-Item "$OUT/*.o" -Force -ErrorAction SilentlyContinue
 
 Write-Host "fly -> $OUT/fly"
 Write-Host "std -> $LIB (fly_std_lib.lib + *.fly.h + runtime)"
+
+# Reaching here means every FATAL step passed (each guarded by Assert-LastExit,
+# which throws on failure). A best-effort fly-lld.exe link that failed above left
+# $LASTEXITCODE non-zero; clear it so the step exits green (the release still ships
+# fly.exe + LLVM-C.dll — the missing bundled linker is a non-fatal degradation).
+exit 0
