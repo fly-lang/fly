@@ -9,6 +9,7 @@ import fly.data.*
 import fly.assert
 import fly.os.fs
 import fly.str
+import fly.test.util.*
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenExprSuite — expression lowering (values, arithmetic, comparison, cast,
@@ -25,28 +26,19 @@ import fly.str
 
 // cgIR — parse → resolve → codegen → verify → return the emitted LLVM IR text.
 // Codes 91/92 flag a parse / verify failure in the shared helper.
-public string cgIR(const string src) {
-    Parser p = new Parser(src)
-    ASTModule m = p.parseModule("t")
-    assert.assertTrue(p.isSuccess(), 91)
-    List<ASTModule> mods = new List<ASTModule>()
-    mods.add(m)
-    SemaContext ctx = new SemaContext(null)
-    List<SemaModule> res = ctx.Resolve(mods, false)
-    CodeGenModule cgm = new CodeGenModule("t")
-    cgm.generate(ctx.getReg())
-    bool ok = false
-    cgm.verify(ok)
-    assert.assertTrue(ok, 92)
-    cgm.emitIR("/tmp/cg/suite.ll")
-    out = fly.os.fs.readStr("/tmp/cg/suite.ll")
-}
+
 
 suite CodeGenExprSuite {
 
     void arithTest() {
         case "integer add / sub / mul / sdiv / srem": {
-            string ir = cgIR("int f(const int a, const int b) { out = a + b }  int g(const int a, const int b) { out = a - b }  int h(const int a, const int b) { out = a * b }  int d(const int a, const int b) { out = a / b }  int r(const int a, const int b) { out = a % b }")
+            string ir = cgIR("
+                int f(const int a, const int b) { out = a + b }
+                int g(const int a, const int b) { out = a - b }
+                int h(const int a, const int b) { out = a * b }
+                int d(const int a, const int b) { out = a / b }
+                int r(const int a, const int b) { out = a % b }
+            ")
             assert.assertTrue(fly.str.contains(ir, "add i32"), 11)
             assert.assertTrue(fly.str.contains(ir, "sub i32"), 12)
             assert.assertTrue(fly.str.contains(ir, "mul i32"), 13)
@@ -61,7 +53,11 @@ suite CodeGenExprSuite {
 
     void compareTest() {
         case "signed comparisons → icmp": {
-            string ir = cgIR("bool gt(const int a, const int b) { out = a > b }  bool eq(const int a, const int b) { out = a == b }  bool le(const int a, const int b) { out = a <= b }")
+            string ir = cgIR("
+                bool gt(const int a, const int b) { out = a > b }
+                bool eq(const int a, const int b) { out = a == b }
+                bool le(const int a, const int b) { out = a <= b }
+            ")
             assert.assertTrue(fly.str.contains(ir, "icmp sgt i32"), 21)
             assert.assertTrue(fly.str.contains(ir, "icmp eq i32"), 22)
             assert.assertTrue(fly.str.contains(ir, "icmp sle i32"), 23)

@@ -12,6 +12,8 @@ import fly.assert
 // resolution records an error. A valid program records none (no false positives).
 // ─────────────────────────────────────────────────────────────────────────────
 
+
+
 suite DiagnosticsSuite {
 
     void unresolvedIdentifierTest() {
@@ -91,7 +93,12 @@ suite DiagnosticsSuite {
 
     void noFalsePositiveTest() {
         case "a well-formed program reports no errors": {
-            Parser p = new Parser("public class P { public int x  public int get() { out = this.x } }  int use(const P p) { out = p.get() }")
+            Parser p = new Parser("
+                public class P { public int x
+                    public int get() { out = this.x }
+                }
+                int use(const P p) { out = p.get() }
+            ")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 30)
 
@@ -106,7 +113,11 @@ suite DiagnosticsSuite {
 
     void diamondAmbiguityTest() {
         case "ambiguous inherited default method is reported": {
-            Parser p = new Parser("public interface A { int foo() { out = 1 } }  public interface B { int foo() { out = 2 } }  public class D : A, B { }")
+            Parser p = new Parser("
+                public interface A { int foo() { out = 1 } }
+                public interface B { int foo() { out = 2 } }
+                public class D : A, B { }
+            ")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 70)
 
@@ -121,7 +132,11 @@ suite DiagnosticsSuite {
 
     void diamondResolvedTest() {
         case "overriding the conflicting method resolves the diamond": {
-            Parser p = new Parser("public interface A { int foo() { out = 1 } }  public interface B { int foo() { out = 2 } }  public class D : A, B { public int foo() { out = 3 } }")
+            Parser p = new Parser("
+                public interface A { int foo() { out = 1 } }
+                public interface B { int foo() { out = 2 } }
+                public class D : A, B { public int foo() { out = 3 } }
+            ")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 80)
 

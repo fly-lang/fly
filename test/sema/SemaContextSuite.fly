@@ -14,6 +14,8 @@ import fly.assert
 // supports), the Registry, SemaBuilder and the Resolver companions.
 // ─────────────────────────────────────────────────────────────────────────────
 
+
+
 suite SemaContextSuite {
 
     // Resolve a single function with a typed param, a return type, and a local
@@ -251,7 +253,14 @@ suite SemaContextSuite {
     // new + instance method call + member access (this.x) resolve end-to-end.
     void resolveNewAndMethodCallTest() {
         case "new + method call + member access resolve": {
-            Parser p = new Parser("public class Box { public int x  public int get() { out = this.x } }  int useBox() { Box b = new Box()  int v = b.get() }")
+            Parser p = new Parser("
+                public class Box { public int x
+                    public int get() { out = this.x }
+                }
+                int useBox() { Box b = new Box()
+                    int v = b.get()
+                }
+            ")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 90)
 

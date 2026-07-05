@@ -12,11 +12,18 @@ import fly.assert
 // specialization's get() returns int, not the type parameter.
 // ─────────────────────────────────────────────────────────────────────────────
 
+
+
 suite GenericsSuite {
 
     void monomorphizeTest() {
         case "generic class instantiates with T bound to a concrete type": {
-            Parser p = new Parser("public class Wrapper<T> { T value  public T get() { out = this.value } }  int useW(const Wrapper<int> w) { out = w.get() }")
+            Parser p = new Parser("
+                public class Wrapper<T> { T value
+                    public T get() { out = this.value }
+                }
+                int useW(const Wrapper<int> w) { out = w.get() }
+            ")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
 

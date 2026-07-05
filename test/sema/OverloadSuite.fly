@@ -13,11 +13,19 @@ import fly.assert
 // succeed, synthesizing an out-var).
 // ─────────────────────────────────────────────────────────────────────────────
 
+
+
 suite OverloadSuite {
 
     void overloadByTypeTest() {
         case "each call resolves to the matching overload by argument type": {
-            Parser p = new Parser("int f(const int n) { out = n }  bool f(const bool b) { out = b }  void use() { int a = f(3)  bool c = f(true) }")
+            Parser p = new Parser("
+                int f(const int n) { out = n }
+                bool f(const bool b) { out = b }
+                void use() { int a = f(3)
+                    bool c = f(true)
+                }
+            ")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
 

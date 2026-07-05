@@ -11,6 +11,7 @@ import fly.os.fs
 import fly.str
 import fly.mem
 import fly.llvm
+import fly.test.util.*
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenStringSuite — string literal lowering: `string` = %string { ptr, i32 }
@@ -25,33 +26,6 @@ import fly.llvm
 // DEFERRED (needs the string runtime / fly.llvm intrinsic lowering): CGString-
 // ConcatNonConst / CGStringConcatConst / CGStringReassignConcat.
 // ─────────────────────────────────────────────────────────────────────────────
-
-// dquote — a one-character string containing a double-quote (byte 34).
-public string dquote() {
-    pointer buf = fly.mem.alloc(1)
-    byte q = 34
-    fly.llvm.strPoke(buf, 0, q)
-    string s = ""
-    fly.llvm.strMake(buf, 1, s)
-    out = s
-}
-
-public string cgIR(const string src) {
-    Parser p = new Parser(src)
-    ASTModule m = p.parseModule("t")
-    assert.assertTrue(p.isSuccess(), 91)
-    List<ASTModule> mods = new List<ASTModule>()
-    mods.add(m)
-    SemaContext ctx = new SemaContext(null)
-    List<SemaModule> res = ctx.Resolve(mods, false)
-    CodeGenModule cgm = new CodeGenModule("t")
-    cgm.generate(ctx.getReg())
-    bool ok = false
-    cgm.verify(ok)
-    assert.assertTrue(ok, 92)
-    cgm.emitIR("/tmp/cg/suite.ll")
-    out = fly.os.fs.readStr("/tmp/cg/suite.ll")
-}
 
 suite CodeGenStringSuite {
 

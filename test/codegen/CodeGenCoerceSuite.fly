@@ -9,6 +9,7 @@ import fly.data.*
 import fly.assert
 import fly.os.fs
 import fly.str
+import fly.test.util.*
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenCoerceSuite — numeric operand coercion (audit findings B1/B2/B3).
@@ -21,23 +22,7 @@ import fly.str
 // caught B2 in the wild.
 // ─────────────────────────────────────────────────────────────────────────────
 
-public string cgIR(const string src) {
-    Parser p = new Parser(src)
-    ASTModule m = p.parseModule("t")
-    assert.assertTrue(p.isSuccess(), 91)
-    List<ASTModule> mods = new List<ASTModule>()
-    mods.add(m)
-    SemaContext ctx = new SemaContext(null)
-    List<SemaModule> res = ctx.Resolve(mods, false)
-    CodeGenModule cgm = new CodeGenModule("t")
-    cgm.generate(ctx.getReg())
-    bool ok = false
-    string vmsg = cgm.verifyMsg(ok)
-    assert.assertStr(vmsg, "", 93)
-    assert.assertTrue(ok, 92)
-    cgm.emitIR("/tmp/cg/coerce.ll")
-    out = fly.os.fs.readStr("/tmp/cg/coerce.ll")
-}
+
 
 suite CodeGenCoerceSuite {
 
@@ -80,7 +65,13 @@ suite CodeGenCoerceSuite {
             assert.assertTrue(fly.str.contains(ir, "icmp ugt"), 31)
         }
         case "B3: uint relational compare is unsigned, int stays signed": {
-            string ir = cgIR("bool f(const uint a, const uint b, const int c, const int d) { bool r = false  if a < b { r = true }  if c < d { r = false }  out = r }")
+            string ir = cgIR("
+                bool f(const uint a, const uint b, const int c, const int d) { bool r = false
+                    if a < b { r = true }
+                    if c < d { r = false }
+                    out = r
+                }
+            ")
             assert.assertTrue(fly.str.contains(ir, "icmp ult i32"), 32)
             assert.assertTrue(fly.str.contains(ir, "icmp slt i32"), 33)
         }

@@ -9,6 +9,7 @@ import fly.data.*
 import fly.assert
 import fly.os.fs
 import fly.str
+import fly.test.util.*
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenStmtSuite — statement / control-flow lowering. Faithful port of
@@ -21,28 +22,18 @@ import fly.str
 // needs SemaLoopInStmt codegen + arrays. CGFor (C-style for) is covered below.
 // ─────────────────────────────────────────────────────────────────────────────
 
-public string cgIR(const string src) {
-    Parser p = new Parser(src)
-    ASTModule m = p.parseModule("t")
-    assert.assertTrue(p.isSuccess(), 91)
-    List<ASTModule> mods = new List<ASTModule>()
-    mods.add(m)
-    SemaContext ctx = new SemaContext(null)
-    List<SemaModule> res = ctx.Resolve(mods, false)
-    CodeGenModule cgm = new CodeGenModule("t")
-    cgm.generate(ctx.getReg())
-    bool ok = false
-    cgm.verify(ok)
-    assert.assertTrue(ok, 92)
-    cgm.emitIR("/tmp/cg/suite.ll")
-    out = fly.os.fs.readStr("/tmp/cg/suite.ll")
-}
+
 
 suite CodeGenStmtSuite {
 
     void ifTest() {
         case "if / elsif / else → conditional branches + merge block": {
-            string ir = cgIR("int classify(const int n) { int r = 0  if n > 10 { r = 2 } elsif n > 0 { r = 1 } else { r = 0 }  out = r }")
+            string ir = cgIR("
+                int classify(const int n) { int r = 0
+                    if n > 10 { r = 2 } elsif n > 0 { r = 1 } else { r = 0 }
+                    out = r
+                }
+            ")
             assert.assertTrue(fly.str.contains(ir, "br i1"), 11)
             assert.assertTrue(fly.str.contains(ir, "then"), 12)
             assert.assertTrue(fly.str.contains(ir, "ifcont"), 13)
@@ -56,7 +47,17 @@ suite CodeGenStmtSuite {
 
     void loopTest() {
         case "while with break/continue → loop blocks + back-edge": {
-            string ir = cgIR("int sumTo(const int n) { int acc = 0  int i = 0  while i < n { i = i + 1  if i == 3 { continue }  if i > 100 { break }  acc = acc + i }  out = acc }")
+            string ir = cgIR("
+                int sumTo(const int n) { int acc = 0
+                    int i = 0
+                    while i < n { i = i + 1
+                        if i == 3 { continue }
+                        if i > 100 { break }
+                        acc = acc + i
+                    }
+                    out = acc
+                }
+            ")
             assert.assertTrue(fly.str.contains(ir, "loopcond"), 21)
             assert.assertTrue(fly.str.contains(ir, "loopbody"), 22)
             assert.assertTrue(fly.str.contains(ir, "loopexit"), 23)
@@ -74,7 +75,15 @@ suite CodeGenStmtSuite {
 
     void switchTest() {
         case "switch → llvm switch + case/default blocks": {
-            string ir = cgIR("int pick(const int k) { int r = 0  switch k { case 1: r = 10  case 2: r = 20  default: r = 99 }  out = r }")
+            string ir = cgIR("
+                int pick(const int k) { int r = 0
+                    switch k { case 1: r = 10
+                        case 2: r = 20
+                        default: r = 99
+                    }
+                    out = r
+                }
+            ")
             assert.assertTrue(fly.str.contains(ir, "switch i32"), 31)
             assert.assertTrue(fly.str.contains(ir, "swdefault"), 32)
         }
@@ -89,7 +98,18 @@ suite CodeGenStmtSuite {
 
     void forInTest() {
         case "for-in desugars to an indexed loop over size()/get(pointer)": {
-            string ir = cgIR("class Seq { public int a  public Seq() { this.a = 5 }  public pointer size() { out = 2 }  public int get(const pointer i) { out = this.a } }  int total() { Seq q = new Seq()  int acc = 0  for v in q { acc = acc + v }  out = acc }")
+            string ir = cgIR("
+                class Seq { public int a
+                    public Seq() { this.a = 5 }
+                    public pointer size() { out = 2 }
+                    public int get(const pointer i) { out = this.a }
+                }
+                int total() { Seq q = new Seq()
+                    int acc = 0
+                    for v in q { acc = acc + v }
+                    out = acc
+                }
+            ")
             assert.assertTrue(fly.str.contains(ir, "loopcond"), 61)
             assert.assertTrue(fly.str.contains(ir, "looppost"), 62)         // increment in POST (continue-safe)
             assert.assertTrue(fly.str.contains(ir, "icmp ult i64"), 63)     // pointer index vs size()
@@ -99,7 +119,16 @@ suite CodeGenStmtSuite {
 
     void inlineFormsTest() {
         case "inline if/while bodies + for multi-init/post (doc 9.3/9.5)": {
-            string ir = cgIR("int f() { int v = 1  if (v == 1) v = 2  int c = 0  while c < 3 c = c + 1  int acc = 0  for int i = 0, int j = 10; i < j; i++, j-- { acc = acc + 1 }  out = v + c + acc }")
+            string ir = cgIR("
+                int f() { int v = 1
+                    if (v == 1) v = 2
+                    int c = 0
+                    while c < 3 c = c + 1
+                    int acc = 0
+                    for int i = 0, int j = 10; i < j; i++, j-- { acc = acc + 1 }
+                    out = v + c + acc
+                }
+            ")
             assert.assertTrue(fly.str.contains(ir, "ifcont"), 51)
             assert.assertTrue(fly.str.contains(ir, "loopcond"), 52)
             assert.assertTrue(fly.str.contains(ir, "looppost"), 53)

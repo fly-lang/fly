@@ -1,0 +1,65 @@
+namespace fly.test.util
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.mem
+import fly.llvm
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TestUtil — helpers shared by every compiler test suite (import fly.test.util.*),
+// compiled alongside each suite via `--src-dir test/util` (see ci/*/test_compiler).
+// Replaces the per-suite copies of cgIR/resolveSrc/dquote.
+//
+// Assert tags reserved by these helpers: 91 (parse), 93 (module verify).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// cgIR — parse + resolve + codegen `src`, assert the module verifies (printing
+// the verifier message on failure), and return the emitted LLVM IR text.
+public string cgIR(const string src) {
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 91)
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(null)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    CodeGenModule cgm = new CodeGenModule("t")
+    cgm.generate(ctx.getReg())
+    bool ok = false
+    string vmsg = cgm.verifyMsg(ok)
+    assert.assertStr(vmsg, "", 93)
+    cgm.emitIR("/tmp/cg/suite.ll")
+    out = fly.os.fs.readStr("/tmp/cg/suite.ll")
+}
+
+// resolveSrc — parse + resolve, returning whether any sema error was recorded.
+// `tag` is the assert code for a PARSE failure (the source must at least parse).
+public bool resolveSrc(const string src, const int tag) {
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), tag)
+    DiagnosticsEngine diags = p.getDiags()
+    List<ASTModule> modules = new List<ASTModule>()
+    modules.add(m)
+    SemaContext ctx = new SemaContext(diags)
+    List<SemaModule> resolved = ctx.Resolve(modules, false)
+    out = diags.hasErrorOccurred()
+}
+
+// dquote — a one-character string containing a double quote (byte 34); string
+// literals keep escapes raw, so the quote byte is built at runtime.
+public string dquote() {
+    pointer buf = fly.mem.alloc(1)
+    byte q = 34
+    fly.llvm.strPoke(buf, 0, q)
+    string s = ""
+    fly.llvm.strMake(buf, 1, s)
+    out = s
+}

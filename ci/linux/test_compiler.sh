@@ -56,7 +56,7 @@ fail=0
 for suite in $(find test -name '*Suite.fly' | sort); do
     name=$(basename "$suite" .fly)
     bin="$OUT/test_$name"
-    if ! "$FLY" "$suite" --test --src-dir compiler -o "test_$name" --out-dir "$OUT" -L "$STD" >"$OUT/_$name.log" 2>&1; then
+    if ! "$FLY" "$suite" --test --src-dir compiler --src-dir test/util -o "test_$name" --out-dir "$OUT" -L "$STD" >"$OUT/_$name.log" 2>&1; then
         echo "  COMPILE FAIL  $name"
         # match real diagnostics ('error:'), not the substring "error" inside
         # warnings like 'errorHandler'; -m3 instead of |head avoids the

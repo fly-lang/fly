@@ -4,6 +4,7 @@ import fly.compiler.parser.*
 import fly.compiler.sema.*
 import fly.data.*
 import fly.assert
+import fly.test.util.*
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DiagnosticsNegativeSuite — audit item T3: bad-input programs whose errors the
@@ -15,19 +16,6 @@ import fly.assert
 // violations have no sema check in the self-host yet — they are tracked as a
 // follow-up gap, not asserted here.
 // ─────────────────────────────────────────────────────────────────────────────
-
-// resolveSrc — parse + resolve, returning whether any sema error was recorded.
-public bool resolveSrc(const string src, const int tag) {
-    Parser p = new Parser(src)
-    ASTModule m = p.parseModule("t")
-    assert.assertTrue(p.isSuccess(), tag)
-    DiagnosticsEngine diags = p.getDiags()
-    List<ASTModule> modules = new List<ASTModule>()
-    modules.add(m)
-    SemaContext ctx = new SemaContext(diags)
-    List<SemaModule> resolved = ctx.Resolve(modules, false)
-    out = diags.hasErrorOccurred()
-}
 
 suite DiagnosticsNegativeSuite {
 
