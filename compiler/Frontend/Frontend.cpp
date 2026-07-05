@@ -379,12 +379,11 @@ bool Frontend::Execute() {
         }
     }
 
-    // Resolve import-based source dependencies ONLY when --src-dir is given. This is
-    // a deliberate opt-in: dependency pulling is never implicit, so explicit/per-file
-    // invocations (e.g. flyp's single-source per-target builds) compile exactly the
-    // sources they were handed, and the user keeps full control over composition.
-    if (!CI.getFrontendOptions().SrcDirs.empty())
-        ResolveSourceDeps(*Builder);
+    // Resolve import-based source dependencies. A fly project is compiled from its
+    // root directory: sources are discovered from the CURRENT directory by default,
+    // and a single --src-dir overrides that root. The directory walk inside is lazy —
+    // programs whose imports are all served by lib headers (std-only) never scan.
+    ResolveSourceDeps(*Builder);
 
     // Parse remaining explicit input files (multi-file CLI mode, unchanged).
     for (size_t i = 1; i < AllInputs.size(); ++i) {
@@ -609,31 +608,31 @@ void Frontend::ResolveSourceDeps(ASTBuilder &Builder) {
     FLY_DEBUG_SCOPE("Frontend", "ResolveSourceDeps");
     FrontendOptions &FO = CI.getFrontendOptions();
 
-    // Collect source search dirs: explicit --src-dir, or the entry file's parent dir.
+    // The project source root: the current directory by default, overridden by a
+    // single --src-dir.
     llvm::SmallVector<std::string, 4> Dirs = FO.SrcDirs;
-    if (Dirs.empty()) {
-        std::string parent = llvm::sys::path::parent_path(FO.getInputFiles()[0]).str();
-        Dirs.push_back(parent.empty() ? "." : parent);
-    }
+    if (Dirs.empty())
+        Dirs.push_back(".");
 
-    // Build namespace → [path] map from all .fly files in the source dirs.
+    // Namespaces already served by parsed HEADER modules (.fly.h from the stdlib
+    // and -L dirs): their symbols link from compiled archives — never pull their
+    // sources, even when a source tree with the same namespaces is in reach.
+    llvm::StringSet<> HeaderNs;
+    for (auto *M : ASTModules)
+        if (M->isHeader() && M->getNameSpace()) {
+            std::string ns;
+            for (const auto *N : M->getNameSpace()->getNames()) {
+                if (!ns.empty()) ns += ".";
+                ns += N->getName().str();
+            }
+            HeaderNs.insert(ns);
+        }
+
+    // Namespace → [path] map, built LAZILY: the recursive walk only happens when an
+    // import actually needs project sources, so std-only programs never pay for it.
     std::map<std::string, std::vector<std::string>> NsToFiles;
     llvm::StringSet<> KnownFiles; // files already parsed (entry + headers)
-    for (const auto *M : ASTModules)
-        KnownFiles.insert(llvm::sys::path::filename(M->getFile()->getFileName()));
-
-    std::error_code EC;
-    for (const auto &Dir : Dirs) {
-        for (llvm::sys::fs::recursive_directory_iterator I(Dir, EC), E;
-             I != E && !EC; I.increment(EC)) {
-            const std::string &Path = I->path();
-            llvm::StringRef PathRef(Path);
-            if (!PathRef.ends_with(".fly") || PathRef.ends_with(".fly.h")) continue;
-            if (KnownFiles.count(llvm::sys::path::filename(Path))) continue;
-            std::string ns = extractFileNamespace(Path);
-            if (!ns.empty()) NsToFiles[ns].push_back(Path);
-        }
-    }
+    bool Scanned = false;
 
     // BFS: for each parsed module, resolve its imports to source files and parse them.
     // ParseFile appends to ASTModules, so newly added modules are visited in turn.
@@ -644,6 +643,39 @@ void Frontend::ResolveSourceDeps(ASTBuilder &Builder) {
             if (N->getKind() != ASTKind::AST_IMPORT) continue;
             auto *Imp = static_cast<ASTImport *>(N);
             std::string ns = importNamespace(Imp);
+
+            // Header-served import (matched as-is, or — for plain `Namespace.Symbol`
+            // imports — via a parent namespace): nothing to pull from source.
+            bool HeaderServed = HeaderNs.count(ns) > 0;
+            if (!HeaderServed && !Imp->isWildcard()) {
+                std::string parent = ns;
+                while (!HeaderServed) {
+                    auto dot = parent.rfind('.');
+                    if (dot == std::string::npos) break;
+                    parent = parent.substr(0, dot);
+                    HeaderServed = HeaderNs.count(parent) > 0;
+                }
+            }
+            if (HeaderServed) continue;
+
+            if (!Scanned) {
+                Scanned = true;
+                for (const auto *PM : ASTModules)
+                    KnownFiles.insert(llvm::sys::path::filename(PM->getFile()->getFileName()));
+                std::error_code EC;
+                for (const auto &Dir : Dirs) {
+                    for (llvm::sys::fs::recursive_directory_iterator I2(Dir, EC), E2;
+                         I2 != E2 && !EC; I2.increment(EC)) {
+                        const std::string &Path = I2->path();
+                        llvm::StringRef PathRef(Path);
+                        if (!PathRef.ends_with(".fly") || PathRef.ends_with(".fly.h")) continue;
+                        if (KnownFiles.count(llvm::sys::path::filename(Path))) continue;
+                        std::string fns = extractFileNamespace(Path);
+                        if (!fns.empty()) NsToFiles[fns].push_back(Path);
+                    }
+                }
+            }
+
             auto it = NsToFiles.find(ns);
             // A plain/alias import is `Namespace.Symbol` (e.g. `import fly.compiler.ast.ASTNode`):
             // its trailing component is the imported class/enum/function name, NOT a namespace

@@ -142,7 +142,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     app.add_option("--stats-file",  StatsFile,    "Filename to write statistics to");
     app.add_option("--working-dir", WorkingDir,   "Resolve file paths relative to the specified directory");
     app.add_option("-L",            LibDirs,      "Add <dir> to the library search path for namespace resolution")->allow_extra_args(false);
-    app.add_option("--src-dir",     SrcDirs,      "Add <dir> to the source search path for import-based dependency discovery")->allow_extra_args(false);
+    app.add_option("--src-dir",     SrcDirs,      "Project source root for import-based dependency discovery (default: current directory)")->allow_extra_args(false);
     app.add_option("--out-dir",     OutDirOpt,    "Directory for all generated build outputs (created if missing)");
     app.add_option("--link-lib",   LinkLibs,     "Link against external C library NAME (passed as -lNAME to the linker)")->allow_extra_args(false);
 
@@ -317,7 +317,14 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         FrontendOpts->LibDirs.push_back(D);
     }
 
-    // Source search dirs (--src-dir) for import-based dependency discovery
+    // Source root (--src-dir) for import-based dependency discovery. The project
+    // root defaults to the current directory (resolution always runs); --src-dir
+    // overrides that root and is therefore meaningful at most ONCE.
+    if (SrcDirs.size() > 1) {
+        llvm::errs() << "error: --src-dir may be specified only once\n";
+        doExecute = false;
+        return;
+    }
     for (const auto &D : SrcDirs) {
         FLY_DEBUG_MSG("Set --src-dir=" << D);
         FrontendOpts->SrcDirs.push_back(D);

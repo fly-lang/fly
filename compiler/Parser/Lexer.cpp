@@ -1385,8 +1385,9 @@ bool Lexer::LexStringLiteral(Token &Result, const char *CurPtr,
         if (C == '\\')
             C = getAndAdvanceChar(CurPtr, Result);
 
-        if (C == '\n' || C == '\r' ||             // Newline.
-            (C == 0 && CurPtr - 1 == BufferEnd)) {  // End of file.
+        // Newlines are ALLOWED inside string literals (multi-line strings, raw
+        // like every other escape) — only EOF terminates an unclosed literal.
+        if (C == 0 && CurPtr - 1 == BufferEnd) {  // End of file.
             if (!isLexingRawMode())
                 Diag(BufferPtr, diag::err_parser_string_not_terminated);
             FormTokenWithChars(Result, CurPtr - 1, Kind);
