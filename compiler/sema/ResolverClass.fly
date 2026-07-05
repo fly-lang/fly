@@ -296,6 +296,7 @@ public class ResolverClass {
     public static void resolveBaseClasses(const Resolver r, const SemaClassType cls) {
         ASTClass ac = cls.getAST()
         List<ASTType> bases = ac.getBases()
+        int concreteBases = 0
         int i = 0
         while i < bases.size() {
             ASTType bt = bases.get(i)
@@ -306,6 +307,15 @@ public class ResolverClass {
             if bc != null {
                 ResolverClass.resolveClassType(r, bc)
                 cls.addBaseClass(bc)
+                // single inheritance (Reference 6.1): at most ONE non-interface
+                // base — the layout/vtable flatten only the first one, so a second
+                // concrete base would silently lose its members.
+                if bc.getClassKind() != SemaClassKind.INTERFACE {
+                    concreteBases = concreteBases + 1
+                    if concreteBases > 1 {
+                        r.diagStr(ac.getLoc(), DiagID.err_sema_multiple_inheritance, cls.getName())
+                    }
+                }
             }
             i = i + 1
         }

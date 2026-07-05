@@ -345,7 +345,7 @@ public class CodeGenModule {
         pointer eiCall
         this.cg.buildCallN(this.builder, eiTy, eiFn, eiArgs, "", eiCall)
 
-        // %error err = { 0, null, null }
+        // %error err = { 0, null, null } — zero ALL three fields (reference parity)
         pointer errSlot
         llvm.buildAlloca(this.builder, this.errorTy, "err", errSlot)
         pointer codePtr
@@ -353,6 +353,14 @@ public class CodeGenModule {
         pointer zero
         llvm.constInt(i32, 0, true, zero)
         llvm.buildStore(this.builder, zero, codePtr)
+        pointer nullP
+        llvm.constPointerNull(pty, nullP)
+        pointer strPtr0
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 1, "estr", strPtr0)
+        llvm.buildStore(this.builder, nullP, strPtr0)
+        pointer objPtr0
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 2, "eobj", objPtr0)
+        llvm.buildStore(this.builder, nullP, objPtr0)
 
         List<pointer> callArgs = new List<pointer>()
         callArgs.add(errSlot)
@@ -400,8 +408,26 @@ public class CodeGenModule {
         } else {
             llvm.constInt(i32, 0, true, retVal)
         }
-        pointer r
-        llvm.buildRet(this.builder, retVal, r)
+        // exit code = error.code when main leaves an UNHANDLED failure behind
+        // (doc 9.7.6); otherwise the Fly return value (or 0 for void main).
+        pointer cp2
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 0, "ecode", cp2)
+        pointer codeV
+        llvm.buildLoad2(this.builder, i32, cp2, "mcode", codeV)
+        pointer isFail
+        llvm.buildICmp(this.builder, 33, codeV, zero, "mfail", isFail)   // NE
+        pointer errBB
+        llvm.appendBasicBlockInContext(this.ctx, w, "mainerr", errBB)
+        pointer okBB
+        llvm.appendBasicBlockInContext(this.ctx, w, "mainok", okBB)
+        pointer cb
+        llvm.buildCondBr(this.builder, isFail, errBB, okBB, cb)
+        llvm.positionBuilderAtEnd(this.builder, errBB)
+        pointer r1
+        llvm.buildRet(this.builder, codeV, r1)
+        llvm.positionBuilderAtEnd(this.builder, okBB)
+        pointer r2
+        llvm.buildRet(this.builder, retVal, r2)
     }
 
     // declareFunction — build the LLVM signature only (void return; hidden error
@@ -458,6 +484,15 @@ public class CodeGenModule {
         pointer errParam
         llvm.getParam(f, 0, errParam)
         cge.setErrPtr(errParam)
+        // per-function `lasterr` slot backing the implicit `error` variable
+        pointer i32le
+        llvm.int32TypeInContext(this.ctx, i32le)
+        pointer leSlot
+        llvm.buildAlloca(this.builder, i32le, "lasterr", leSlot)
+        pointer leZero
+        llvm.constInt(i32le, 0, true, leZero)
+        llvm.buildStore(this.builder, leZero, leSlot)
+        cge.setLastErrPtr(leSlot)
         SemaBlockStmt body = fn.getBody()
         if body != null {
             body.accept(cge)

@@ -156,6 +156,10 @@ public class CodeGenStmt {
     }
 
     // switchStmt — buildSwitch over the selector; one block per case; break exits.
+    // A case with NO statements (Sema marks it with a null block) FALLS THROUGH to
+    // the next case (or default/exit) — doc 9.4; a case with statements implicitly
+    // breaks to swexit. Case blocks are pre-created so a fall-through can branch
+    // forward to the next case's block.
     public static void switchStmt(const CodeGenExpr cge, const SemaSwitchStmt node) {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
@@ -176,21 +180,38 @@ public class CodeGenStmt {
         pointer savedBreak = cge.getBreakTarget()
         cge.setBreakTarget(exitBB)
 
+        // pre-create every case block and register the labels
         SemaExpr selE = node.getExpr()
-        int i = 0
-        while i < n {
-            SemaRuleStmt r = cases.get(i)
-            SemaExpr caseE = r.getExpr()
+        List<pointer> caseBBs = new List<pointer>()
+        int pi = 0
+        while pi < n {
+            SemaRuleStmt pr = cases.get(pi)
+            SemaExpr caseE = pr.getExpr()
             pointer onVal = cge.gen(caseE)
             // case labels must match the selector's integer width (switch on a
             // long with int case literals would otherwise mix i64/i32)
             onVal = cge.coerce(onVal, caseE.getType(), selE.getType())
             pointer caseBB = cge.newBlock("swcase")
             llvm.addCase(sw, onVal, caseBB)
+            caseBBs.add(caseBB)
+            pi = pi + 1
+        }
+
+        int i = 0
+        while i < n {
+            SemaRuleStmt r = cases.get(i)
+            pointer caseBB = caseBBs.get(i)
             cge.position(caseBB)
             SemaStmt cs = r.getStmt()
-            if cs != null { cs.accept(cge) }
-            cge.br(exitBB)
+            if cs != null {
+                cs.accept(cge)
+                cge.br(exitBB)
+            } else {
+                // empty case: fall through to the NEXT case body (or default/exit)
+                pointer nextBB = defaultBB
+                if i + 1 < n { nextBB = caseBBs.get(i + 1) }
+                cge.br(nextBB)
+            }
             i = i + 1
         }
 

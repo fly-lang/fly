@@ -70,7 +70,10 @@ public enum DiagID {
     err_sema_abstract_not_implemented,
     err_sema_diamond_ambiguous,
     err_sema_bad_type_args,
-    err_sema_not_supported
+    err_sema_not_supported,
+    err_sema_error_var_read,
+    err_sema_multiple_inheritance,
+    err_sema_forin_not_iterable
 }
 
 // getDiagClass — the class column for a diagnostic id.
@@ -140,5 +143,8 @@ public string getDescription(const DiagID id) {
     if id == DiagID.err_sema_diamond_ambiguous { out = "member '%0' is inherited ambiguously from multiple base classes of '%1'" return }
     if id == DiagID.err_sema_bad_type_args { out = "invalid type arguments for '%0': wrong argument count, not a generic type, or unresolved argument" return }
     if id == DiagID.err_sema_not_supported { out = "%0 are not yet supported by the self-host compiler" return }
+    if id == DiagID.err_sema_error_var_read { out = "'%0' has type 'error' and cannot be read; test the implicit 'error' variable after a handle block instead" return }
+    if id == DiagID.err_sema_multiple_inheritance { out = "class '%0' extends multiple classes; only one base class (plus interfaces) is allowed" return }
+    if id == DiagID.err_sema_forin_not_iterable { out = "for-in requires a collection with 'size()' and 'get(index)' methods; type '%0' does not provide them" return }
     out = "unknown diagnostic"
 }

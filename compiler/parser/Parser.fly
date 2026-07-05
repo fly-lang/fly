@@ -536,10 +536,19 @@ public class Parser {
             return
         }
         ASTLoopStmt s = new ASTLoopStmt(loc)
+        // init: one or more comma-separated declarations/assignments
+        // (`for int i = 0, int j = 10; ...`) — doc 9.5
         ASTBlockStmt initBlock = ASTBuilder.CreateBlockStmt(loc)
         if this.curIsPunct(";") == false {
             if this.looksLikeDecl() { this.parseDecl(initBlock) }
             else { this.parseExprStmt(initBlock) }
+            bool goInit = this.curIsPunct(",")
+            while goInit {
+                this.bump()
+                if this.looksLikeDecl() { this.parseDecl(initBlock) }
+                else { this.parseExprStmt(initBlock) }
+                goInit = this.curIsPunct(",")
+            }
         }
         this.transferStmts(initBlock, s, true)
         this.expectPunct(";")
@@ -548,12 +557,19 @@ public class Parser {
             s.setExpr(cond)
         }
         this.expectPunct(";")
+        // post: one or more comma-separated expressions (`...; i++, j--`)
         ASTBlockStmt postBlock = ASTBuilder.CreateBlockStmt(loc)
         if this.curIsPunct("{") == false {
             this.parseExprStmt(postBlock)
+            bool goPost = this.curIsPunct(",")
+            while goPost {
+                this.bump()
+                this.parseExprStmt(postBlock)
+                goPost = this.curIsPunct(",")
+            }
         }
         this.transferStmts(postBlock, s, false)
-        ASTBlockStmt body = this.parseBlock()
+        ASTBlockStmt body = this.parseBlockOrStmt()
         s.setLoop(body)
         block.addContent(s)
     }
@@ -647,6 +663,18 @@ public class Parser {
         }
     }
 
+    // ── parseBlockOrStmt — `{ ... }` or a single inline statement wrapped in a
+    // fresh block (doc: `if (cond) doSomething()`, `while cond doSomething()`). ──
+    public ASTBlockStmt parseBlockOrStmt() {
+        if this.curIsPunct("{") {
+            out = this.parseBlock()
+            return
+        }
+        ASTBlockStmt b = ASTBuilder.CreateBlockStmt(this.curLoc())
+        this.parseStmt(b)
+        out = b
+    }
+
     // ── handle: `handle { body }` ─────────────────────────────────────────────
     public void parseHandle(const ASTBlockStmt block) {
         SourceLocation loc = this.curLoc()
@@ -677,7 +705,7 @@ public class Parser {
         ASTIfStmt s = new ASTIfStmt(loc)
         ASTExpr cond = this.parseExpr()
         s.setExpr(cond)
-        ASTBlockStmt body = this.parseBlock()
+        ASTBlockStmt body = this.parseBlockOrStmt()
         s.setStmt(body)
         // elsif*
         bool go = true
@@ -688,7 +716,7 @@ public class Parser {
                 ASTRuleStmt er = new ASTRuleStmt(eloc, ASTStmtKind.STMT_IF)
                 ASTExpr ec = this.parseExpr()
                 er.setExpr(ec)
-                ASTBlockStmt eb = this.parseBlock()
+                ASTBlockStmt eb = this.parseBlockOrStmt()
                 er.setStmt(eb)
                 s.addElsif(er)
             } else {
@@ -697,7 +725,7 @@ public class Parser {
         }
         if this.curIsKw("else") {
             this.bump()
-            ASTBlockStmt elseb = this.parseBlock()
+            ASTBlockStmt elseb = this.parseBlockOrStmt()
             s.setElse(elseb)
         }
         block.addContent(s)
@@ -709,7 +737,7 @@ public class Parser {
         ASTLoopStmt s = new ASTLoopStmt(loc)
         ASTExpr cond = this.parseExpr()
         s.setExpr(cond)
-        ASTBlockStmt body = this.parseBlock()
+        ASTBlockStmt body = this.parseBlockOrStmt()
         s.setLoop(body)
         block.addContent(s)
     }

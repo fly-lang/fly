@@ -37,6 +37,8 @@ public class CodeGenExpr : SemaVisitor {
     pointer breakTarget    // innermost loop/switch exit block
     pointer continueTarget // innermost loop post block
     pointer errPtr         // current function's error-handler pointer (LLVM param 0)
+    pointer lastErrPtr     // alloca i32: code of the LAST handle block (implicit `error` var)
+    pointer handleSafe     // innermost handle's continuation block (0 = not in a handle)
     string lastStrLit      // text of the last string LITERAL gen'd (bridge symbol capture)
 
     public CodeGenExpr(const CodeGenModule cgm) {
@@ -49,8 +51,14 @@ public class CodeGenExpr : SemaVisitor {
         this.breakTarget = 0
         this.continueTarget = 0
         this.errPtr = 0
+        this.lastErrPtr = 0
+        this.handleSafe = 0
         this.lastStrLit = ""
     }
+    public pointer getLastErrPtr() { out = this.lastErrPtr }
+    public void setLastErrPtr(const pointer p) { this.lastErrPtr = p }
+    public pointer getHandleSafe() { out = this.handleSafe }
+    public void setHandleSafe(const pointer b) { this.handleSafe = b }
     // getLastStrLit — the compile-time text of the most recently gen'd string
     // literal: lets the CLang bridge read `call("strlen", …)`'s symbol without a
     // SemaStringValue downcast (none exists) or a new base virtual (vtable-shift).
@@ -269,7 +277,19 @@ public class CodeGenExpr : SemaVisitor {
     public void visit(const SemaLocalVar node) { this.genVarAccess(node) }
     public void visit(const SemaClassInstance node) { this.genVarAccess(node) }
     public void visit(const SemaClassAttribute node) { this.genVarAccess(node) }
-    public void visit(const SemaError node) { this.genVarAccess(node) }
+    // the implicit `error` variable: true when the LAST handle block recorded a
+    // failure (lasterr != 0). handle blocks update the per-function lasterr slot.
+    public void visit(const SemaError node) {
+        pointer i32t
+        this.llvm.int32TypeInContext(this.cgm.getCtx(), i32t)
+        pointer lv
+        this.llvm.buildLoad2(this.builder, i32t, this.lastErrPtr, "lerr", lv)
+        pointer zero
+        this.llvm.constInt(i32t, 0, true, zero)
+        pointer cmp
+        this.llvm.buildICmp(this.builder, 33, lv, zero, "eset", cmp)   // NE
+        node.setLlvmValue(cmp)
+    }
 
     public void genVarAccess(const SemaVar v) {
         pointer addr = v.getLlvmAlloca()

@@ -255,6 +255,15 @@ public class CodeGenClass {
         pointer errParam
         llvm.getParam(f, 0, errParam)
         cge.setErrPtr(errParam)
+        // per-function `lasterr` slot backing the implicit `error` variable
+        pointer i32le
+        llvm.int32TypeInContext(cgm.getCtx(), i32le)
+        pointer leSlot
+        llvm.buildAlloca(cgm.getBuilder(), i32le, "lasterr", leSlot)
+        pointer leZero
+        llvm.constInt(i32le, 0, true, leZero)
+        llvm.buildStore(cgm.getBuilder(), leZero, leSlot)
+        cge.setLastErrPtr(leSlot)
 
         // `this` is passed by value (the object pointer); store it into its own slot.
         pointer thisParam

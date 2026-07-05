@@ -21,7 +21,9 @@ public class CodeGenError {
 
     public CodeGenError() { }
 
-    // fail — write the error struct (code / str / obj by operand type) and ret void.
+    // fail — write the error struct (code / str / obj by operand type), then:
+    // inside a handle block, jump to the handle's continuation ("safe") block;
+    // otherwise return early (the failing callee returns; the caller continues).
     public static void emitFail(const CodeGenExpr cge, const SemaFailStmt node) {
         if cge.isTerminated() { return }
         LLVM llvm = cge.getLLVM()
@@ -32,13 +34,27 @@ public class CodeGenError {
 
         SemaExpr first = node.getFirst()
         SemaExpr second = node.getSecond()
+        SemaExpr third = node.getThird()
         bool wroteCode = false
         if first != null {
             writeField(cge, errTy, errPtr, first)
             SemaType ft = first.getType()
             if ft != null { wroteCode = isCodeField(ft) }
         }
-        if second != null { writeField(cge, errTy, errPtr, second) }
+        if second != null {
+            writeField(cge, errTy, errPtr, second)
+            if wroteCode == false {
+                SemaType st = second.getType()
+                if st != null { wroteCode = isCodeField(st) }
+            }
+        }
+        if third != null {
+            writeField(cge, errTy, errPtr, third)
+            if wroteCode == false {
+                SemaType tt = third.getType()
+                if tt != null { wroteCode = isCodeField(tt) }
+            }
+        }
 
         // A failure with no integer code still signals "failed": default code = 1.
         if wroteCode == false {
@@ -51,9 +67,20 @@ public class CodeGenError {
             llvm.buildStore(b, one, cp)
         }
 
-        pointer r
-        llvm.buildRetVoid(b, r)
-        cge.setTerminated(true)
+        pointer safe = cge.getHandleSafe()
+        if safe != 0 {
+            // fail inside the handle's own frame: skip the rest of the block
+            cge.br(safe)
+        } else {
+            pointer r
+            llvm.buildRetVoid(b, r)
+            cge.setTerminated(true)
+        }
+        // statements after a fail are unreachable, but the visitor still emits
+        // them: park the builder in a fresh block so they don't land after the
+        // terminator (the block itself gets closed by the surrounding flow).
+        pointer deadBB = cge.newBlock("afterfail")
+        cge.position(deadBB)
     }
 
     // writeField — store one fail operand into its slot: int/enum/bool → code (0),
@@ -80,26 +107,43 @@ public class CodeGenError {
         out = false
     }
 
-    // handle — run the guarded block, then clear the error code (consume it) so it
-    // does not propagate past the handled region.
+    // handle — run the guarded block and UPDATE the implicit `error` variable:
+    //   1. clear the struct code before the block (a fresh capture window)
+    //   2. run the block; a direct `fail` inside it jumps to the "safe" block
+    //   3. lasterr = struct.code (what `error` reads); struct.code = 0 (consume,
+    //      so a handled failure never propagates to the caller)
     public static void emitHandle(const CodeGenExpr cge, const SemaHandleStmt node) {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         CodeGenModule cgm = cge.getCgm()
+        pointer errTy = cgm.getErrorTy()
+        pointer errPtr = cge.getErrPtr()
+        pointer i32
+        llvm.int32TypeInContext(cgm.getCtx(), i32)
+        pointer zero
+        llvm.constInt(i32, 0, true, zero)
 
+        // 1) fresh window: clear the code before the guarded block
+        pointer cp0
+        llvm.buildStructGEP2(b, errTy, errPtr, 0, "ecode", cp0)
+        llvm.buildStore(b, zero, cp0)
+
+        // 2) run the block; direct fails jump to `handle.safe`
+        pointer safeBB = cge.newBlock("handle.safe")
+        pointer savedSafe = cge.getHandleSafe()
+        cge.setHandleSafe(safeBB)
         SemaBlockStmt block = node.getHandle()
         if block != null { block.accept(cge) }
+        cge.setHandleSafe(savedSafe)
+        cge.br(safeBB)
+        cge.position(safeBB)
 
-        if cge.isTerminated() == false {
-            pointer errTy = cgm.getErrorTy()
-            pointer errPtr = cge.getErrPtr()
-            pointer i32
-            llvm.int32TypeInContext(cgm.getCtx(), i32)
-            pointer zero
-            llvm.constInt(i32, 0, true, zero)
-            pointer cp
-            llvm.buildStructGEP2(b, errTy, errPtr, 0, "ecode", cp)
-            llvm.buildStore(b, zero, cp)
-        }
+        // 3) error := struct.code ; struct.code = 0
+        pointer cp1
+        llvm.buildStructGEP2(b, errTy, errPtr, 0, "ecode", cp1)
+        pointer codeV
+        llvm.buildLoad2(b, i32, cp1, "hcode", codeV)
+        llvm.buildStore(b, codeV, cge.getLastErrPtr())
+        llvm.buildStore(b, zero, cp1)
     }
 }

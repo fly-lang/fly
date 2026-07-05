@@ -54,6 +54,7 @@ public class Resolver : ASTVisitor {
     int switchDepth
     int handleDepth
     int outVarCounter
+    int forInCounter
     SemaError currentErrorHandler
 
     // true while visiting a preloaded .fly.h module: its functions/classes are
@@ -71,6 +72,7 @@ public class Resolver : ASTVisitor {
         this.switchDepth = 0
         this.handleDepth = 0
         this.outVarCounter = 0
+        this.forInCounter = 0
     }
 
     // nextOutName — a fresh "__out_N" name for a call's synthetic return variable.
@@ -79,6 +81,14 @@ public class Resolver : ASTVisitor {
         this.outVarCounter = this.outVarCounter + 1
         string t = fly.str.concat("__out_", n)
         out = t
+    }
+
+    // nextForInName — synthetic name for the desugared for-in hoist/index locals
+    // (same convention as __out_N).
+    public string nextForInName() {
+        string n = fly.str.convert(this.forInCounter)
+        this.forInCounter = this.forInCounter + 1
+        out = fly.str.concat("__forin_", n)
     }
 
     // ── control-flow nesting ──────────────────────────────────────────────────

@@ -3,22 +3,23 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTStmt
+import fly.compiler.ast.ASTBlockStmt
 import fly.compiler.ast.ASTStmtKind
 import fly.compiler.ast.ASTVisitor
 
 public class ASTCaseStmt : ASTStmt {
 
     ASTExpr expr
-    ASTStmt stmt
+    ASTBlockStmt stmt
 
     public ASTCaseStmt(const SourceLocation loc) {
         super(loc, ASTStmtKind.STMT_CASE)
     }
 
     public ASTExpr getExpr() { out = this.expr }
-    public ASTStmt getStmt() { out = this.stmt }
+    public ASTBlockStmt getStmt() { out = this.stmt }
     public void setExpr(const ASTExpr expr) { this.expr = expr }
-    public void setStmt(const ASTStmt stmt) { this.stmt = stmt }
+    public void setStmt(const ASTBlockStmt stmt) { this.stmt = stmt }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

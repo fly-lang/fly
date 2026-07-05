@@ -181,11 +181,21 @@ public class ParserExpr {
             out = ParserExpr.parseLiteral(p)
             return
         }
+        // `error` in an EXPRESSION is the implicit error variable of the current
+        // function ("was the last handle block's code non-zero?") — `if (error)`.
+        // As a TYPE it only appears in declarations, which never reach parsePrimary.
+        if p.curIsKw("error") {
+            p.bump()
+            out = ASTBuilder.CreateIdentifier(loc, "error", null)
+            return
+        }
         if p.curIsPunct("(") {
             p.bump()
             // C-style cast to a builtin type: `(int)x` — unambiguous because a builtin
             // type keyword followed by ')' cannot be a parenthesized expression.
-            if p.curIsBuiltinType() && p.nxtIsPunct(")") {
+            // EXCEPT `(error)`: that is the parenthesized implicit error variable
+            // (`if (error)`), never a cast — nothing casts TO the error type.
+            if p.curIsBuiltinType() && p.nxtIsPunct(")") && p.curIsKw("error") == false {
                 ASTType castTy = p.parseBuiltinType()
                 p.expectPunct(")")
                 ASTExpr operand = ParserExpr.parseUnary(p)

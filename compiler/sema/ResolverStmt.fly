@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.basic.*
 import fly.data.List
+import fly.str as s
 
 // ResolverStmt — statement resolution companion. Statements append themselves to
 // r.currentSemaBlock; a completed block is published via r.lastBlock.
@@ -161,9 +162,16 @@ public class ResolverStmt {
             ASTExpr ce = c.getExpr()
             ce.accept(r)
             SemaExpr cExpr = r.getCurrentExpr()
-            ASTStmt cs = c.getStmt()
-            SemaBlockStmt cBlk = ResolverStmt.resolveBlock(r, cs)
-            ssw.addCase(cExpr, cBlk)
+            ASTBlockStmt cs = c.getStmt()
+            // A case with NO statements falls through to the next case (doc 9.4):
+            // mark it with a null block so codegen branches to the next case body.
+            List<ASTStmt> cc = cs.getContent()
+            if cc.size() == 0 {
+                ssw.addCase(cExpr, null)
+            } else {
+                SemaBlockStmt cBlk = ResolverStmt.resolveBlock(r, cs)
+                ssw.addCase(cExpr, cBlk)
+            }
             i = i + 1
         }
 
@@ -211,27 +219,136 @@ public class ResolverStmt {
         if blk != null { blk.addContent(slp) }
     }
 
-    // loop-in — `for item in list { … }`. Resolved for the node model, but the
-    // codegen visit is still empty: without this diagnostic the whole loop (and
-    // its side effects) silently vanished from the emitted module.
+    // loop-in — `for item in coll { body }`, DESUGARED here to an indexed loop
+    // so the existing SemaLoopStmt codegen handles everything:
+    //
+    //   for CollT __forin_a = coll, pointer __forin_b ; __forin_b < __forin_a.size()
+    //       ; __forin_b = __forin_b + 1 {
+    //       ElemT item = __forin_a.get(__forin_b)
+    //       <body>
+    //   }
+    //
+    // Duck-typed contract: the collection type must expose size() and get(index);
+    // the element type is get's RETURN type (concrete on monomorphized specs, so
+    // List<T> yields T). The collection expression is resolved exactly ONCE
+    // (hoisted into __forin_a). The increment lives in the loop POST, so
+    // `continue` re-tests the condition only after advancing — correct semantics.
+    // `item` is a per-iteration copy (value semantics via get()).
     public static void loopInStmt(const Resolver r, const ASTLoopInStmt node) {
-        r.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "for-in loops")
+        SourceLocation loc = node.getLoc()
 
-        ASTExpr item = node.getItem()
-        item.accept(r)
-        SemaExpr itemE = r.getCurrentExpr()
+        // 1) resolve the collection; derive the element type from get()
         ASTExpr lst = node.getList()
         lst.accept(r)
         SemaExpr listE = r.getCurrentExpr()
+        if listE == null { return }
+        SemaType lt = listE.getType()
+        SemaClassType cls = null
+        if lt != null { cls = lt.asClass() }
+        if cls == null {
+            string tn = "unknown"
+            if lt != null { tn = lt.getName() }
+            r.diagStr(loc, DiagID.err_sema_forin_not_iterable, tn)
+            return
+        }
+        SemaClassMethod getM = cls.LookupMethod("get")
+        SemaClassMethod sizeM = cls.LookupMethod("size")
+        if getM == null || sizeM == null {
+            r.diagStr(loc, DiagID.err_sema_forin_not_iterable, cls.getName())
+            return
+        }
+        // get must take an INDEX (pointer) — a keyed get (Map.get(K key)) is not
+        // positional iteration; accepting it would silently iterate wrong.
+        bool idxOk = false
+        List<SemaParam> gps = getM.getParams()
+        if gps.size() > 0 {
+            SemaParam gp0 = gps.get(0)
+            SemaType gpt = gp0.getType()
+            if gpt != null {
+                if s.equals(gpt.getName(), "pointer") { idxOk = true }
+            }
+        }
+        if idxOk == false {
+            r.diagStr(loc, DiagID.err_sema_forin_not_iterable, cls.getName())
+            return
+        }
+        SemaType elemT = getM.getReturnType()
 
+        ASTIdentifier itemId = node.getItem().asIdentifier()
+        if itemId == null {
+            r.diagStr(loc, DiagID.err_sema_forin_not_iterable, cls.getName())
+            return
+        }
+        string itemName = itemId.getName()
+
+        string xsName = r.nextForInName()
+        string ivName = r.nextForInName()
+        List<ASTModifier> noMods = new List<ASTModifier>()
+
+        SemaLoopStmt slp = SemaBuilder.CreateLoopStmt(node, false)
         r.enterLoop()
-        ASTStmt body = node.getStmt()
-        SemaBlockStmt bodyBlk = ResolverStmt.resolveBlock(r, body)
-        r.exitLoop()
+        r.enterScope()
 
-        SemaLoopInStmt slpin = SemaBuilder.CreateLoopInStmt(node, itemE, listE, bodyBlk)
+        // 2) init: CollT __forin_a = <resolved collection expr>  (hoist)
+        ASTLocalVar xsAst = ASTBuilder.CreateLocalVar(loc, ASTBuilder.CreatePtrSizeType(loc), xsName, noMods)
+        SemaLocalVar xsVar = SemaBuilder.CreateLocalVar(xsAst, lt)
+        Symbol xsSym = new Symbol(xsName, SymbolKind.LOCAL_VAR, xsVar)
+        xsSym.setExprRef(xsVar)
+        r.addSymbol(xsSym)
+        SemaDeclStmt xsDecl = SemaBuilder.CreateDeclStmt(node, xsVar, listE)
+        slp.addInit(xsDecl)
+
+        // 3) init: pointer __forin_b  (no initializer → zero-initialized)
+        ASTLocalVar ivAst = ASTBuilder.CreateLocalVar(loc, ASTBuilder.CreatePtrSizeType(loc), ivName, noMods)
+        SemaLocalVar ivVar = SemaBuilder.CreateLocalVar(ivAst, SemaBuiltin.getPtrSizeType())
+        Symbol ivSym = new Symbol(ivName, SymbolKind.LOCAL_VAR, ivVar)
+        ivSym.setExprRef(ivVar)
+        r.addSymbol(ivSym)
+        SemaDeclStmt ivDecl = SemaBuilder.CreateDeclStmt(node, ivVar, null)
+        slp.addInit(ivDecl)
+
+        // 4) cond: __forin_b < __forin_a.size()   (synthetic AST, resolved normally)
+        List<ASTExpr> noArgs = new List<ASTExpr>()
+        ASTExpr sizeCall = ASTBuilder.CreateCall(loc, "size", noArgs, ASTCallKind.CALL_DIRECT, ASTBuilder.CreateIdentifier(loc, xsName, null))
+        ASTExpr condAst = ASTBuilder.CreateBinary(loc, ASTBinaryKind.OP_BINARY_COMPARE_LT, ASTBuilder.CreateIdentifier(loc, ivName, null), sizeCall)
+        condAst.accept(r)
+        slp.setCond(r.getCurrentExpr())
+
+        // 5) item: ElemT <item> = __forin_a.get(__forin_b) — registered BEFORE the
+        //    body resolves so the body's references find it in scope
+        ASTLocalVar itAst = ASTBuilder.CreateLocalVar(loc, ASTBuilder.CreatePtrSizeType(loc), itemName, noMods)
+        SemaLocalVar itVar = SemaBuilder.CreateLocalVar(itAst, elemT)
+        Symbol itSym = new Symbol(itemName, SymbolKind.LOCAL_VAR, itVar)
+        itSym.setExprRef(itVar)
+        r.addSymbol(itSym)
+        List<ASTExpr> getArgs = new List<ASTExpr>()
+        getArgs.add(ASTBuilder.CreateIdentifier(loc, ivName, null))
+        ASTExpr getCall = ASTBuilder.CreateCall(loc, "get", getArgs, ASTCallKind.CALL_DIRECT, ASTBuilder.CreateIdentifier(loc, xsName, null))
+        getCall.accept(r)
+        SemaDeclStmt itDecl = SemaBuilder.CreateDeclStmt(node, itVar, r.getCurrentExpr())
+
+        // 6) body: [ itemDecl, <original body> ] (nested block — codegen recurses)
+        SemaBlockStmt bodyBlk = ResolverStmt.resolveBlock(r, node.getStmt())
+        SemaBlockStmt wrap = SemaBuilder.CreateBlockStmt(null)
+        wrap.addContent(itDecl)
+        wrap.addContent(bodyBlk)
+        slp.setBody(wrap)
+
+        // 7) post: __forin_b = __forin_b + 1
+        ASTExprStmt postStmt = new ASTExprStmt(loc)
+        ASTExpr incr = ASTBuilder.CreateBinary(loc, ASTBinaryKind.OP_BINARY_ARITH_ADD, ASTBuilder.CreateIdentifier(loc, ivName, null), ASTBuilder.CreateNumberValue(loc, "1"))
+        postStmt.setExpr(ASTBuilder.CreateBinary(loc, ASTBinaryKind.OP_BINARY_ASSIGN, ASTBuilder.CreateIdentifier(loc, ivName, null), incr))
+        List<ASTStmt> postList = new List<ASTStmt>()
+        postList.add(postStmt)
+        SemaBlockStmt postCap = ResolverStmt.captureStmts(r, postList)
+        List<SemaStmt> postC = postCap.getContent()
+        int j = 0
+        while j < postC.size() { slp.addPost(postC.get(j))  j = j + 1 }
+
+        r.exitScope()
+        r.exitLoop()
         SemaBlockStmt blk = r.getCurrentSemaBlock()
-        if blk != null { blk.addContent(slpin) }
+        if blk != null { blk.addContent(slp) }
     }
 
     // fail — sets the enclosing function fallible when not inside a handle block.

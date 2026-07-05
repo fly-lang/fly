@@ -14,11 +14,30 @@ public class ResolverExpr {
     // identifier — resolve a name to the variable it references (via the symbol's
     // exprRef). Function/type identifiers and member chains come later.
     public static void identifier(const Resolver r, const ASTIdentifier node) {
+        // The implicit `error` variable: reads as bool ("did the last handle
+        // block record a failure?"). handle blocks update it automatically.
+        if s.equals(node.getName(), "error") {
+            SemaError eref = new SemaError(null)
+            eref.setType(SemaBuiltin.getBoolType())
+            r.setCurrentExpr(eref)
+            return
+        }
         Registry reg = r.getReg()
         Symbol sym = reg.LookupName(node.getName(), r.getCurrentScope())
         SemaExpr e = null
         if sym != null {
             e = sym.getExprRef()
+            // A user-declared `error`-typed variable cannot be read as a value
+            // (its state lives in the hidden per-function struct): point the
+            // user at the implicit `error` variable instead.
+            if e != null {
+                SemaType et = e.getType()
+                if et != null {
+                    if et.isError() {
+                        r.diagStr(node.getLoc(), DiagID.err_sema_error_var_read, node.getName())
+                    }
+                }
+            }
         } else {
             r.diagStr(node.getLoc(), DiagID.err_sema_unresolved_identifier, node.getName())
         }
