@@ -391,7 +391,7 @@ public class Driver {
     // printVersion — the --version text. The version number lives in ONE place:
     // compiler/basic/Version.fly (release.yml greps it from there too).
     public void printVersion() {
-        fly.os.io.printErrLn(fly.str.concat(fly.str.concat("fly version ", flyVersion()), " (https://flylang.org)"))
+        fly.os.io.printLn(fly.str.concat(fly.str.concat("fly version ", flyVersion()), " (https://flylang.org)"))
     }
 
     // applyOutDir — prefix a RELATIVE output path with outDir (absolute paths and
