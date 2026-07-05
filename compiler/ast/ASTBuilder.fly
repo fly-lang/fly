@@ -44,6 +44,7 @@ public class ASTBuilder {
     public static ASTImport CreateImport(const ASTModule module, const SourceLocation loc, const List<ASTName> names, const List<ASTName> alias, const bool wildcard) {
         ASTImport imp = new ASTImport(loc, names, alias, wildcard)
         module.addNode(imp)
+        module.addImport(imp)
         out = imp
     }
 

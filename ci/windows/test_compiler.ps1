@@ -2,8 +2,9 @@
 # test_compiler.ps1 - run every test/**/*Suite.fly against the compiler sources,
 # without flyp (Windows). PowerShell port of test_compiler.sh.
 #
-# Single-file build: each suite is the entry, and `--src-dir compiler --src-dir test/util` resolves
-# the whole `fly.compiler` dependency graph from its imports into one module.
+# Single-file build: each suite is the entry; source discovery is implicit (a fly
+# project compiles from the CURRENT directory - the repo root here), pulling only
+# what the import graph references (std stays archive-linked via the -L pass).
 # `--test` builds in test mode; `--out-dir` sends the executable and its
 # intermediate objects into $OUT; the resulting executable is then run.
 # No file list, no concatenation.
@@ -69,7 +70,7 @@ foreach ($suite in $suites) {
     $log = "$OUT/_$name.log"
     $run = "$OUT/_$name.run"
 
-    & $FLY $suite.FullName --test --src-dir compiler --src-dir test/util -o "test_$name" --out-dir $OUT -L $STD *> $log
+    & $FLY $suite.FullName --test -o "test_$name" --out-dir $OUT -L $STD *> $log
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  COMPILE FAIL  $name (exit $LASTEXITCODE)"
         # Match real diagnostics (`error:`), not the substring "error" inside

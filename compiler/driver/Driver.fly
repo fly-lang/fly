@@ -46,7 +46,13 @@ public class Driver {
         string codeModel = ""           // --mcmodel
         string threadModel = ""         // --mthread-model
         string statsFile = ""           // --stats-file
-        string srcDirs = ";"            // --src-dir (accumulated)
+        string srcDirs = ";"            // --src-dir (single override of the cwd default)
+        // sdNew/llNew are FUNCTION-scope on purpose: a string declared inside a
+        // loop-repeated block leaves a STALE pointer in its slot after the block's
+        // scope-exit free; a later return unwinding that same block then frees it
+        // AGAIN (double free — reference codegen bug, probed 2026-07-05).
+        string sdNew = ""
+        string llNew = ""
         int jobs = 0                    // --jobs / -j
         int optLevel = 0                // -O<n>
         bool debugSymbols = false       // --debug-symbols / --debug
@@ -96,12 +102,18 @@ public class Driver {
                 if i < n { statsFile = this.argAt(args, i) } else { out = this.missingValue(a)  return }
             } elsif fly.str.equals(a, "--src-dir") {
                 i = i + 1
-                if i < n {
-                    // distinct temp: `x = concat(x, …)` self-aliases (documented
-                    // string gotcha) — the 2nd --src-dir would corrupt the list
-                    string sdNew = fly.str.concat(srcDirs, fly.str.concat(this.argAt(args, i), ";"))
-                    srcDirs = sdNew
-                } else { out = this.missingValue(a)  return }
+                if i >= n { out = this.missingValue(a)  return }
+                // The project source root defaults to the current directory;
+                // --src-dir overrides it, so it is meaningful at most ONCE.
+                if fly.str.equals(srcDirs, ";") == false {
+                    fly.os.io.printErrLn("error: --src-dir may be specified only once")
+                    out = 1
+                    return
+                }
+                // distinct temp: `x = concat(x, …)` self-aliases (documented
+                // string gotcha)
+                sdNew = fly.str.concat(srcDirs, fly.str.concat(this.argAt(args, i), ";"))
+                srcDirs = sdNew
             } elsif fly.str.equals(a, "--working-dir") {
                 i = i + 1                 // value consumed; FileSystemOptions not ported
                 if i >= n { out = this.missingValue(a)  return }
@@ -139,7 +151,7 @@ public class Driver {
                 i = i + 1
                 if i < n {
                     // distinct temp — same self-alias gotcha as --src-dir above
-                    string llNew = fly.str.concat(linkLibs, fly.str.concat(fly.str.concat("-l", this.argAt(args, i)), ";"))
+                    llNew = fly.str.concat(linkLibs, fly.str.concat(fly.str.concat("-l", this.argAt(args, i)), ";"))
                     linkLibs = llNew
                 } else { out = this.missingValue(a)  return }
             } elsif fly.str.equals(a, "--shared") {
@@ -366,7 +378,7 @@ public class Driver {
         fly.os.io.printErrLn("  --header        generate a header file (NOT YET SUPPORTED)")
         fly.os.io.printErrLn("  --runtime-lib-dir <dir>  dir holding fly_std_lib.a / fly_runtime_lib.a")
         fly.os.io.printErrLn("  -L <dir>             extra linker search directory")
-        fly.os.io.printErrLn("  --src-dir <dir>      source search dir for import resolution")
+        fly.os.io.printErrLn("  --src-dir <dir>      project source root for import resolution (default: current dir)")
         fly.os.io.printErrLn("  --link-lib <name>    link native library (-lname)")
         fly.os.io.printErrLn("  -static / --shared / -pie   link mode flags")
         fly.os.io.printErrLn("  -O<n>                optimisation level 0..3")

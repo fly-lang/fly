@@ -13,12 +13,16 @@ public class ASTModule : ASTNode {
     string name
     bool header
     List<ASTNode> nodes
+    // Imports also kept as a TYPED list: consumers that only need the import graph
+    // (Frontend.resolveSourceDeps) read it without an ASTNode → ASTImport downcast.
+    List<ASTImport> imports
 
     public ASTModule(const SourceLocation loc, const string name) {
         super(ASTKind.MODULE, loc)
         this.name = name
         this.header = false
         this.nodes = new List<ASTNode>()
+        this.imports = new List<ASTImport>()
     }
 
     public bool isHeader() { out = this.header }
@@ -28,6 +32,8 @@ public class ASTModule : ASTNode {
     public void setNameSpace(const ASTNameSpace nameSpace) { this.nameSpace = nameSpace }
     public List<ASTNode> getNodes() { out = this.nodes }
     public void addNode(const ASTNode node) { this.nodes.add(node) }
+    public List<ASTImport> getImports() { out = this.imports }
+    public void addImport(const ASTImport imp) { this.imports.add(imp) }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

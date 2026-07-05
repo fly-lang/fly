@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
 # test.sh — run every test/**/*Suite.fly against the compiler sources, without
-# flyp. Single-file build: each suite is the entry, and `--src-dir compiler`
-# resolves the whole `fly.compiler` dependency graph from its imports into one
-# module. `--test` builds in test mode; `--out-dir` sends the executable and its
-# intermediate objects into $OUT; the resulting executable is then run.
-# No file list, no concatenation.
+# flyp. Single-file build: each suite is the entry; source discovery is implicit
+# (a fly project compiles from the CURRENT directory — the repo root here), so the
+# import graph pulls fly.compiler.*, fly.test.util, … into one module while std
+# namespaces stay archive-linked (the -L pass registers them first). `--test`
+# builds in test mode; `--out-dir` sends the executable and its intermediate
+# objects into $OUT; the resulting executable is then run.
 # ─────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 # Scripts live in ci/linux/; operate from the project root (two levels up).
@@ -56,7 +57,7 @@ fail=0
 for suite in $(find test -name '*Suite.fly' | sort); do
     name=$(basename "$suite" .fly)
     bin="$OUT/test_$name"
-    if ! "$FLY" "$suite" --test --src-dir compiler --src-dir test/util -o "test_$name" --out-dir "$OUT" -L "$STD" >"$OUT/_$name.log" 2>&1; then
+    if ! "$FLY" "$suite" --test -o "test_$name" --out-dir "$OUT" -L "$STD" >"$OUT/_$name.log" 2>&1; then
         echo "  COMPILE FAIL  $name"
         # match real diagnostics ('error:'), not the substring "error" inside
         # warnings like 'errorHandler'; -m3 instead of |head avoids the
