@@ -102,9 +102,8 @@ rm -f "$OUT/fly"                 # bootstrap done (no longer running) — drop t
 #       system libLLVM; the release workflow sets FLY_BUNDLE_LLVM=1.
 if [ "${FLY_BUNDLE_LLVM:-0}" = "1" ]; then
     CXX="$(command -v clang++-20 || command -v clang++ || true)"
-    LLVM_CONFIG="$(command -v llvm-config-20 || command -v llvm-config || true)"
-    if [ -z "$CXX" ] || [ -z "$LLVM_CONFIG" ]; then
-        echo "error: FLY_BUNDLE_LLVM=1 needs clang++ and llvm-config (install llvm-20-dev + clang)." >&2
+    if [ -z "$CXX" ]; then
+        echo "error: FLY_BUNDLE_LLVM=1 needs clang++ (install clang)." >&2
         exit 1
     fi
     OBJ="$STAGE/Fly.fly.o"
@@ -112,11 +111,28 @@ if [ "${FLY_BUNDLE_LLVM:-0}" = "1" ]; then
         echo "error: expected combined object '$OBJ' from the src-dir build." >&2
         exit 1
     fi
-    LLVM_LIBDIR="$("$LLVM_CONFIG" --libdir)"
+
+    # LLVM for the BUNDLE: the fork LLVM tree (build/llvm) that install_prerequisites.sh
+    # fetched. Its libLLVM.so is built LLVM_ENABLE_LIBXML2=OFF (in fact with NO external
+    # deps at all), so the shipped release loads on any host. NO apt fallback: apt's
+    # libLLVM drags libxml2/libzstd and would reintroduce the portability gap. The lld
+    # static archives + headers come from the same fork tree.
+    FORK_LLVM="build/llvm"
+    if [ ! -f "$FORK_LLVM/lib/libLLVM.so" ]; then
+        echo "error: fork LLVM (libxml2-off shared libLLVM.so) not found at $FORK_LLVM/." >&2
+        echo "       Run: FLY_BUNDLE_LLVM=1 ci/linux/install_prerequisites.sh" >&2
+        exit 1
+    fi
+    LLVM_LIBDIR="$FORK_LLVM/lib"
+    LLD_INC="$FORK_LLVM/include"
+    LLD_LIBDIR="$FORK_LLVM/lib"
+    LLVM_LINK="-lLLVM"
+    LLVM_SOFILE="$FORK_LLVM/lib/libLLVM.so"
+    echo "bundle: using fork LLVM tree ($FORK_LLVM, libxml2 OFF)"
 
     # 1) Bundle ONE libLLVM.so into lib/ under its SONAME (== the DT_NEEDED the
     #    binaries below record), so RUNPATH resolution finds this copy.
-    LLVM_SO="$(readlink -f "$LLVM_LIBDIR/libLLVM-20.so")"
+    LLVM_SO="$(readlink -f "$LLVM_SOFILE")"
     SONAME="$(readelf -d "$LLVM_SO" | sed -n 's/.*Library soname: \[\(.*\)\].*/\1/p')"
     if [ -z "$SONAME" ]; then
         echo "error: could not read libLLVM SONAME from '$LLVM_SO'." >&2
@@ -125,41 +141,37 @@ if [ "${FLY_BUNDLE_LLVM:-0}" = "1" ]; then
     echo "bundling $SONAME into $LIB ..."
     cp "$LLVM_SO" "$LIB/$SONAME"
 
+    # lld's static archives directly reference the compression libs (deflate/…) that
+    # libLLVM.so itself links, and llvm-config here can't report them cleanly (dylib
+    # build). Derive exactly what the bundled .so NEEDs so fly-lld resolves them;
+    # libc/libstdc++/libm/libgcc come from clang++.
+    LLD_SYSLIBS=""
+    for _l in z zstd tinfo edit ffi; do
+        readelf -d "$LLVM_SO" | grep -q "lib${_l}\.so" && LLD_SYSLIBS="$LLD_SYSLIBS -l${_l}"
+    done
+
     # 2) fly: dynamic link against the bundled libLLVM via rpath (clang++ supplies
     #    crt/libc). $ORIGIN is bin/, so $ORIGIN/../lib is the bundled lib dir.
     echo "linking $OUT/fly against bundled libLLVM (rpath) ..."
     "$CXX" "$OBJ" \
         "$LIB/fly_std_lib.a" "$LIB/fly_runtime_lib.a" \
-        -L"$LLVM_LIBDIR" -lLLVM-20 -Wl,-rpath,'$ORIGIN/../lib' \
+        -L"$LLVM_LIBDIR" $LLVM_LINK -Wl,-rpath,'$ORIGIN/../lib' \
         -o "$OUT/fly"
 
-    # 3) Bundle a small `fly-lld` beside the binary so the toolchain needs no
-    #    system linker either: a tiny LLD driver (ci/linux/lld_driver.cpp, ELF
-    #    flavor here) with lld's own code STATIC (liblld*.a) but LLVM DYNAMIC
-    #    (shared with fly via the same bundled libLLVM + rpath). ToolChain.fly
-    #    prefers <exe_dir>/fly-lld.
-    #    lld headers/archives come from liblld-20-dev (CI); local dev without that
-    #    package falls back to the bootstrap's own LLVM build tree (<bootstrap>/../llvm).
-    LLD_INC="$("$LLVM_CONFIG" --includedir)"
-    LLD_LIBDIR="$LLVM_LIBDIR"
+    # 3) Bundle a small `fly-lld`: a tiny LLD driver (ci/linux/lld_driver.cpp, ELF
+    #    flavor) with lld's own code STATIC (liblld*.a) but LLVM DYNAMIC (shared
+    #    with fly via the same bundled libLLVM + rpath). ToolChain.fly prefers
+    #    <exe_dir>/fly-lld, so the toolchain needs no system linker either.
     if [ ! -f "$LLD_LIBDIR/liblldELF.a" ]; then
-        BOOT_LLVM="$(cd "$(dirname "$FLY")/../llvm" 2>/dev/null && pwd || true)"
-        if [ -n "$BOOT_LLVM" ] && [ -f "$BOOT_LLVM/lib/liblldELF.a" ]; then
-            LLD_INC="$BOOT_LLVM/include"
-            LLD_LIBDIR="$BOOT_LLVM/lib"
-        fi
-    fi
-    if [ ! -f "$LLD_LIBDIR/liblldELF.a" ]; then
-        echo "error: liblldELF.a not found; install liblld-20-dev (or point FLY at a" >&2
-        echo "       bootstrap whose ../llvm tree holds the lld static archives)." >&2
+        echo "error: liblldELF.a not found in the fork LLVM tree ($LLD_LIBDIR)." >&2
         exit 1
     fi
     echo "linking $OUT/fly-lld (lld static, LLVM dynamic, rpath) ..."
     "$CXX" ci/linux/lld_driver.cpp -std=c++17 \
         -I"$LLD_INC" \
         -L"$LLD_LIBDIR" -llldELF -llldCommon \
-        -L"$LLVM_LIBDIR" -lLLVM-20 -Wl,-rpath,'$ORIGIN/../lib' \
-        $("$LLVM_CONFIG" --link-static --system-libs) \
+        -L"$LLVM_LIBDIR" $LLVM_LINK -Wl,-rpath,'$ORIGIN/../lib' \
+        $LLD_SYSLIBS \
         -o "$OUT/fly-lld"
 else
     # Plain build: install the staged compiler as-is (dynamic against system libLLVM).
