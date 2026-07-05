@@ -265,21 +265,41 @@ namespace {
         EXPECT_TRUE(exists("sfb_dep_src/main.a"));
     }
 
-    // Without --src-dir the sibling is NOT pulled in implicitly: the unresolved
-    // call makes compilation fail. This is the guarantee that flyp's per-target
-    // single-source builds never absorb neighbouring files.
-    TEST_F(SingleFileBuildTest, WithoutSrcDirNoImplicitDependencyPull) {
-        const std::string dir = "sfb_dep_nopull";
+    // Without --src-dir the project root defaults to the CURRENT directory: the
+    // sibling namespace is discovered recursively from cwd and pulled in — a fly
+    // project compiles implicitly from where the compiler is launched.
+    TEST_F(SingleFileBuildTest, DefaultSrcDirIsCurrentDirectory) {
+        const std::string dir = "sfb_dep_default";
         writeDepProject(*this, dir, dir + "/main.fly");
 
-        const char *argv[] = {"fly", "sfb_dep_nopull/main.fly", "--lib",
-                              "-o", "sfb_dep_nopull/main.a"};
-        track("sfb_dep_nopull/main.a");
-        track("sfb_dep_nopull/main.fly.h");
+        const char *argv[] = {"fly", "sfb_dep_default/main.fly", "--lib",
+                              "-o", "sfb_dep_default/main.a"};
+        track("sfb_dep_default/main.a");
+        track("sfb_dep_default/main.fly.h");
+        track("sfb_dep_default/util.fly.h");
         Driver drv(argv);
         drv.BuildCompilerInstance();
-        // dep.util.helper is unresolved (no source pulled, no header on -L).
-        EXPECT_FALSE(drv.Execute());
+        // dep.util is discovered from the default root (cwd) and pulled in.
+        EXPECT_TRUE(drv.Execute());
+        EXPECT_TRUE(exists("sfb_dep_default/main.a"));
+    }
+
+    // --src-dir overrides the default root and is meaningful at most once:
+    // a second occurrence is a driver error and nothing is built.
+    TEST_F(SingleFileBuildTest, SrcDirGivenTwiceIsAnError) {
+        const std::string dir = "sfb_dep_twice";
+        writeDepProject(*this, dir, dir + "/main.fly");
+        track("sfb_dep_twice/main.a");
+        track("sfb_dep_twice/main.fly.h");
+        track("sfb_dep_twice/util.fly.h");
+
+        const char *argv[] = {"fly", "sfb_dep_twice/main.fly", "--lib",
+                              "--src-dir", "sfb_dep_twice", "--src-dir", ".",
+                              "-o", "sfb_dep_twice/main.a"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        drv.Execute();   // no-op: the option error stops the driver
+        EXPECT_FALSE(exists("sfb_dep_twice/main.a"));
     }
 
     // ── --out-dir: every build artifact lands under the given directory ─────────
