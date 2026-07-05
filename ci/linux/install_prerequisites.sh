@@ -32,20 +32,38 @@ BUILD_DIR="$ROOT/build"
 FLY_DIR="$BUILD_DIR/bootstrap"
 FLY_BIN="$FLY_DIR/bin/fly"
 
-# --- LLVM 20 (system) --------------------------------------------------------
-# `llvm-20-dev` provides both libLLVM-20.so (dynamic default) and the ~200 static
-# component archives + llvm-config-20. The release build (FLY_STATIC_LLVM=1) links
-# the static archives via clang so the shipped `fly` needs no system libLLVM at
-# runtime; the default dev build links libLLVM-20.so dynamically. Install only if
-# missing and apt-get is available (Ubuntu/Debian CI); on other distros install
-# the equivalent (llvm-20 static libs + clang) yourself.
+# --- LLVM 20 (system, apt) — dev build + object emit -------------------------
+# apt's LLVM is used only by the DEFAULT dev build and by step 3 of the release
+# build (the bootstrap links the throwaway staging fly via -lLLVM-20 while emitting
+# the combined object). `llvm-20-dev`+`libllvm20` give libLLVM-20.so; `lld-20` the
+# linker; `clang` drives the bundle relink. The RELEASE artifact itself never links
+# apt's libLLVM — that comes from the fork tree below (libxml2 OFF). Install only if
+# missing and apt-get is available (Ubuntu/Debian CI); on other distros install the
+# equivalent yourself.
 if ! command -v llvm-config-20 >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
     sudo apt-get update
-    # liblld-20-dev: lld headers + static archives (liblldELF.a/liblldCommon.a) so
-    # the release build (FLY_BUNDLE_LLVM=1) can link a small ld.lld it ships in the
-    # tarball (lld static, LLVM dynamic against the bundled libLLVM.so) — the shipped
-    # toolchain then needs neither system libLLVM nor a system linker.
-    sudo apt-get install -y llvm-20-dev libllvm20 lld-20 liblld-20-dev clang-20
+    sudo apt-get install -y llvm-20-dev libllvm20 lld-20 clang-20
+fi
+
+# --- Fork LLVM (libxml2 OFF, shared libLLVM.so) — release build only ----------
+# apt's libLLVM.so drags libxml2/libzstd/… as external deps; on a host whose
+# libxml2 soname differs (e.g. libxml2.so.16 vs .2) the bundled release fails to
+# load. The fork build (fly-lang/llvm-project: LLVM_BUILD_LLVM_DYLIB=ON +
+# LLVM_ENABLE_LIBXML2=OFF) ships a libLLVM.so with NO external deps, so a release
+# that bundles IT runs anywhere. Fetched only for the self-contained build
+# (FLY_BUNDLE_LLVM=1); ~950 MB, so cache build/llvm in CI. build_compiler.sh's
+# bundle branch links + ships this libLLVM.so (and builds fly-lld against it).
+LLVM_VERSION="${LLVM_VERSION:-20.1.8}"
+FORK_LLVM="$BUILD_DIR/llvm"
+if [ "${FLY_BUNDLE_LLVM:-0}" = "1" ] && [ ! -f "$FORK_LLVM/lib/libLLVM.so" ]; then
+    url="https://github.com/fly-lang/llvm-project/releases/download/v${LLVM_VERSION}-linux-x86_64/llvm-${LLVM_VERSION}-x86_64-linux-gnu.tar.gz"
+    mkdir -p "$BUILD_DIR"
+    curl -fsSL "$url" -o "$BUILD_DIR/fork-llvm.tar.gz"
+    # Extract only what the bundle needs (the shared libLLVM.so, the lld static
+    # archives, and the lld/LLVM headers) — ~200 MB vs ~4 GB for the full tree.
+    tar -xzf "$BUILD_DIR/fork-llvm.tar.gz" -C "$BUILD_DIR" --wildcards \
+        'llvm/lib/libLLVM.so*' 'llvm/lib/liblld*.a' llvm/include   # → $BUILD_DIR/llvm/
+    rm -f "$BUILD_DIR/fork-llvm.tar.gz"
 fi
 
 # --- Download fly binary -----------------------------------------------------

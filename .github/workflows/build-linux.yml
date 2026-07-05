@@ -25,11 +25,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Install LLVM 20 (apt) + the bootstrap fly compiler ($FLY / PATH). Single
-      # source of truth shared with local builds: it self-skips work already done
-      # and wires up the env via $GITHUB_ENV/$GITHUB_PATH in CI. Run it locally to
-      # reproduce this.
+      # Cache the fork LLVM tree (build/llvm, ~950 MB): install_prerequisites.sh
+      # fetches it for FLY_BUNDLE_LLVM builds (libLLVM.so with libxml2 OFF, so the
+      # bundled release loads on any host). Keep the key in sync with $LLVM_VERSION
+      # in the script when bumping LLVM.
+      - name: Cache fork LLVM (libxml2-off dylib)
+        uses: actions/cache@v4
+        with:
+          path: build/llvm
+          key: fly-llvm-20.1.8-linux-x86_64-dylib
+
+      # Install LLVM 20 (apt, for the dev build + object emit) + the fork LLVM dylib
+      # (bundled into the release) + the bootstrap fly compiler ($FLY / PATH). Single
+      # source of truth shared with local builds: it self-skips work already done and
+      # wires up the env via $GITHUB_ENV/$GITHUB_PATH in CI. FLY_BUNDLE_LLVM=1 triggers
+      # the fork LLVM download. Run it locally to reproduce this.
       - name: Install prerequisites (LLVM + fly)
+        env:
+          FLY_BUNDLE_LLVM: "1"
         run: chmod +x ./ci/linux/install_prerequisites.sh && ./ci/linux/install_prerequisites.sh
 
       - name: Build self-host compiler
