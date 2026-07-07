@@ -124,11 +124,10 @@ ASTModule *Parser::ParseHeader() {
     // Mark as a header module so CodeGen and CompilableModules checks skip it.
     Module->setHeader(true);
 
-    // Skip leading import statements (present in .fly source files, absent in .fly.h).
+    // Leading import statements (rare — imports normally follow the namespace).
+    // Parse them into the module so cross-namespace type refs in the header resolve.
     while (ContinueParse && Tok.is(tok::kw_import)) {
-        ConsumeToken(); // consume 'import'
-        while (Tok.isNot(tok::eof) && !Tok.isAtStartOfLine())
-            ConsumeToken();
+        ParseImport();
     }
 
     // Parse optional namespace declaration
@@ -145,11 +144,11 @@ ASTModule *Parser::ParseHeader() {
             continue;
         }
 
-        // Skip import statements that follow the namespace (e.g. in .fly source files)
+        // Import statements following the namespace: parse them into the module so
+        // the header's cross-namespace type references (bases, field/param types)
+        // resolve, exactly as they do from the .fly source.
         if (Tok.is(tok::kw_import)) {
-            ConsumeToken(); // consume 'import'
-            while (Tok.isNot(tok::eof) && !Tok.isAtStartOfLine())
-                ConsumeToken();
+            ParseImport();
             continue;
         }
 
@@ -903,10 +902,18 @@ bool Parser::isType(std::optional<Token> &NexTok) {
         int Depth = 1;
         bool Valid = true;
         while (Probe && Depth > 0) {
+            // The lexer fuses runs of '<' / '>' into '<<' / '>>' / '>>=' tokens, so a
+            // nested type-arg list closes on a fused token; count each '>' / '<' the
+            // token carries (e.g. '>>' closes two levels) rather than one per token.
             if (Probe->is(tok::less)) {
                 ++Depth;
-            } else if (Probe->is(tok::greater)) {
-                if (--Depth == 0) break;
+            } else if (Probe->is(tok::lessless)) {
+                Depth += 2;
+            } else if (Probe->is(tok::greater) || Probe->is(tok::greaterequal)) {
+                if (--Depth <= 0) break;
+            } else if (Probe->is(tok::greatergreater) || Probe->is(tok::greatergreaterequal)) {
+                Depth -= 2;
+                if (Depth <= 0) break;
             } else if (!Probe->isAnyIdentifier() && !Probe->isKeyword() &&
                        !Probe->is(tok::comma) && !Probe->is(tok::period)) {
                 Valid = false;
@@ -1550,11 +1557,7 @@ llvm::SmallVector<ASTType *, 4> Parser::ParseTypeArguments() {
             break;
         }
     }
-    if (Tok.is(tok::greater)) {
-        ConsumeToken(); // consume '>'
-    } else {
-        Diag(Tok, diag::err_parser_expected_greater);
-    }
+    ConsumeGreater(); // consume one '>' (splitting a fused '>>' for nested generics)
     return Args;
 }
 
@@ -1580,11 +1583,7 @@ llvm::SmallVector<ASTTypeParam *, 4> Parser::ParseTypeParams() {
             break;
         }
     }
-    if (Tok.is(tok::greater)) {
-        ConsumeToken(); // consume '>'
-    } else {
-        Diag(Tok, diag::err_parser_expected_greater);
-    }
+    ConsumeGreater(); // consume one '>' (splitting a fused '>>' for nested generics)
     return Params;
 }
 
@@ -1690,6 +1689,34 @@ SourceLocation Parser::ConsumeToken() {
     PrevTokLocation = Tok.getLocation();
     Lex.Lex(Tok);
     return PrevTokLocation;
+}
+
+/**
+ * ConsumeGreater - Consume ONE '>' closing a generic type-argument / type-param
+ * list. The lexer fuses a run of '>' into '>>' / '>>=' tokens; nested generics
+ * (List<List<int>>) therefore end on a fused token. A lone '>' advances normally;
+ * a fused token is split IN PLACE — its kind becomes the remainder and its start is
+ * shifted one char past the peeled '>', so the leftover '>' / '>=' / '=' becomes the
+ * current token for the enclosing list or following expression (the lexer already
+ * advanced past the whole fused token, so the real next token is lexed only when the
+ * final lone '>' is consumed). Mirrors Clang's ParseGreaterThanInTemplateList.
+ */
+void Parser::ConsumeGreater() {
+    FLY_DEBUG_SCOPE("Parser", "ConsumeGreater");
+    switch (Tok.getKind()) {
+        case tok::greater:
+            ConsumeToken();
+            return;
+        case tok::greatergreater:       Tok.setKind(tok::greater);      break; // '>>'  -> '>'
+        case tok::greatergreaterequal:  Tok.setKind(tok::greaterequal); break; // '>>=' -> '>='
+        case tok::greaterequal:         Tok.setKind(tok::equal);        break; // '>='  -> '='
+        default:
+            Diag(Tok, diag::err_parser_expected_greater);
+            return;
+    }
+    // Peeled one '>' off a fused token: shift the start past it and shrink the length.
+    Tok.setLocation(Tok.getLocation().getLocWithOffset(1));
+    Tok.setLength(Tok.getLength() - 1);
 }
 
 /**

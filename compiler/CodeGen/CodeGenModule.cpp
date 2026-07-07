@@ -445,7 +445,17 @@ void CodeGenModule::visit(SemaClassType &Sema) {
 		// Phase 2 (Build()) find the already-constructed CodeGen instead of recursing.
 		CodeGenClass *CGC = new CodeGenClass(this, &Sema, isExternal);
 		Sema.setCodeGen(CGC);
-		CGC->Build();
+		// Build() emits the class's methods / init_ctor and repositions the IR builder
+		// (SetInsertPoint) to do so. A class can be built LAZILY — first referenced
+		// while ANOTHER function's body is mid-generation (common in a layered build
+		// where a generic specialization or a sibling class is first hit inside a
+		// driver method). Save and restore the current insert point around Build() so
+		// that in-progress body does not get another function's instructions appended
+		// to it ("Referring to an instruction in another function" / missing terminator).
+		{
+			llvm::IRBuilderBase::InsertPointGuard IPGuard(*Builder);
+			CGC->Build();
+		}
 	}
 }
 

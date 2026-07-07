@@ -128,6 +128,14 @@ void CodeGenFunction::GenBody() {
     FLY_DEBUG_SCOPE("CodeGenFunction", "GenBody");
     setInsertPoint();
 
+    // A generic function specialization (e.g. fly.llvm.slotFreeT<ASTName>) is emitted
+    // in every module/archive that instantiates it; downgrade its DEFINITION to weak
+    // (mergeable) linkage to avoid duplicate-symbol errors at link. main / C-ABI /
+    // regular functions are never specializations, so they keep external linkage; and
+    // declaration-only references never reach GenBody, so they stay valid external.
+    if (Fn && static_cast<SemaFunction *>(Sema)->getGenericTemplate() != nullptr)
+        Fn->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+
     // Only C-ABI runtime functions return-by-value; reset so a bare `return` in a
     // normal function still emits `ret void`.
     CGM->CABIReturnPtr = nullptr;

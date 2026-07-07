@@ -735,9 +735,10 @@ void Resolver::visit(ASTNamedType &AST) {
 	Symbol *Sym = Reg.LookupNamedType(AST, Scope, /*SuppressError=*/InHeader);
 	if (!Sym) {
 		if (InHeader && CurrentClass && AST.getNames().size() == 1 && AST.getTypeArgs().empty()) {
-			// Unknown single-name type inside a header class body: treat as an implicit
-			// generic type parameter (e.g. T stripped from "class Wrapper<T>" by formatter).
-			// Register it as a TypeParam so Wrapper<int> etc. instantiate correctly.
+			// A single-name type inside a header class body that resolves to a type
+			// parameter ALREADY declared on this class (e.g. T in `class Wrapper<T>`).
+			// Header generation keeps the `<T>` and those params are pre-registered
+			// (see visit(ASTClass)), so a genuine type param is found here.
 			llvm::StringRef TypeName = AST.getNames()[0]->getName();
 			for (auto *TP : CurrentClass->TypeParams) {
 				if (TP->getName() == TypeName.str()) {
@@ -745,11 +746,11 @@ void Resolver::visit(ASTNamedType &AST) {
 					return;
 				}
 			}
-			SemaTypeParam *SP = new SemaTypeParam(TypeName);
-			CurrentClass->TypeParams.push_back(SP);
-			Symbol *TPSym = new Symbol(TypeName.str(), SymbolKind::CLASS, SP);
-			CurrentClass->getSymbols()->insert(TPSym);
-			CurrentType = SP;
+			// Otherwise this is a FORWARD REFERENCE to another header type not yet
+			// resolved in this pass — NOT an implicit type parameter. Do NOT invent a
+			// TypeParam (that would wrongly mark this non-generic class as generic and
+			// break every later use, e.g. `SemaExpr getParent()`). Leave it unresolved;
+			// header type diagnostics are suppressed and the symbol links from the archive.
 			return;
 		}
 		if (!InHeader)

@@ -220,6 +220,16 @@ private:
     /// Consume the current token.
     SourceLocation ConsumeToken();
 
+    /// Consume a single '>' that closes one generic type-argument (or type-param)
+    /// list. The lexer greedily fuses a run of '>' into '>>' / '>>=' tokens, and
+    /// generic specialization nests without limit (List<List<List<int>>>). Rather
+    /// than requiring spaces ('> >'), this peels ONE '>' off whatever token is
+    /// current: a lone '>' is consumed normally; a fused token is split IN PLACE
+    /// keeping the remainder ('>>' -> '>', '>>=' -> '>=', '>=' -> '='). Called once
+    /// per nesting level, so repeated calls drain any-length run. A missing '>'
+    /// reports err_parser_expected_greater. Mirrors Clang's ParseGreaterThanInTemplateList.
+    void ConsumeGreater();
+
     /// Check if the token is a parenthesis.
     bool isTokenParen() const;
 

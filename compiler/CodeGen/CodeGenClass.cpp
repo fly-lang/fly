@@ -190,9 +190,16 @@ void CodeGenClass::CreateVTable() {
 		if (IsExternal) {
 			VTable = nullptr;
 		} else {
+			// A generic specialization (e.g. List<string>) is emitted in every module
+			// AND every library archive that instantiates it, so its vtable must be a
+			// mergeable weak symbol; regular classes keep strong external linkage.
+			llvm::GlobalValue::LinkageTypes VTLinkage =
+				Sema->getGenericTemplate() != nullptr
+					? llvm::GlobalValue::LinkOnceODRLinkage
+					: llvm::GlobalValue::ExternalLinkage;
 			VTable = new llvm::GlobalVariable(
 				*CGM->Module, ArrayOfInt8Ptr, true,
-				llvm::GlobalValue::ExternalLinkage, ArrayValue, VTableName);
+				VTLinkage, ArrayValue, VTableName);
 		}
 	}
 }
@@ -291,9 +298,15 @@ llvm::GlobalVariable *CodeGenClass::BuildPerBaseVTable(SemaClassType *Base, uint
 	// Disambiguate the same base appearing at multiple offsets (e.g. diamond).
 	if (CGM->getModule()->getNamedGlobal(BaseVTableName))
 		BaseVTableName += "." + std::to_string(byteOffset);
+	// Weak (mergeable) linkage for a specialization's per-base vtable, matching the
+	// primary vtable above — avoids duplicate-symbol errors across archives/objects.
+	llvm::GlobalValue::LinkageTypes BaseVTLinkage =
+		Sema->getGenericTemplate() != nullptr
+			? llvm::GlobalValue::LinkOnceODRLinkage
+			: llvm::GlobalValue::ExternalLinkage;
 	return new llvm::GlobalVariable(
 		*CGM->Module, ArrayTy, true,
-		llvm::GlobalValue::ExternalLinkage, ArrayVal, BaseVTableName);
+		BaseVTLinkage, ArrayVal, BaseVTableName);
 }
 
 // CollectTransitiveBaseVTables — recurse into Base's own bases. For any whose
