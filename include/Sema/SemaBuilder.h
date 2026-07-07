@@ -122,6 +122,10 @@ namespace fly {
     	    llvm::SmallVector<SemaType *, 4> TypeArgs,
     	    SymbolTable *Symbols);
 
+    	// Clear the process-global specialization caches. Called once per compilation
+    	// (SemaContext::Resolve) so in-process runs (e.g. the test suite) start fresh.
+    	static void ClearSpecializationCaches();
+
     	static SemaClassAttribute *CreateClassAttribute(SemaClassType &Class, ASTAttribute &AST, SemaType *Type);
 
     	static SemaClassMethod *CreateDefaultConstructor(SemaClassType *Class, SymbolTable* Scope);

@@ -328,9 +328,15 @@ void CodeGenModule::GenerateDeclarations(SemaModule &Sema) {
 
 void CodeGenModule::GenerateBodies() {
     FLY_DEBUG_SCOPE("CodeGenModule", "GenerateBodies");
-    // Generate Function Bodies in a second pass
-	for (auto &FB : Functions) {
-		FB->accept(*this);
+    // Generate Function Bodies in a second pass. Index-based (NOT range-based): a
+    // generic class first referenced inside a body is built LAZILY here, and its
+    // Build() appends the spec's methods to `Functions` (CodeGenClass.cpp:144). A
+    // range-based loop would miss those appended methods (stale end iterator / realloc)
+    // → their bodies never emit, leaving the vtable's method slot an undefined
+    // declaration ("undefined symbol List_..._4List.N"). Re-checking size() each step
+    // drains the queue, including work discovered mid-pass.
+	for (size_t i = 0; i < Functions.size(); ++i) {
+		Functions[i]->accept(*this);
 	}
 }
 

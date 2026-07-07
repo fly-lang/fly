@@ -111,6 +111,27 @@ static std::string buildMangleKey(const std::string &BaseName,
 	return Key;
 }
 
+// GLOBAL specialization caches — canonicalize ONE specialization per
+// (namespace, template, type-args) across ALL template instances. The per-`Template`
+// `Specializations` map fails when the same generic (e.g. fly.data.List) resolves to
+// DIFFERENT `SemaClassType`/`SemaFunction` objects depending on which symbol table is
+// active (header-consumed compiler lib vs driver source): each builds its own
+// `List<Symbol>` spec → two CodeGenClass → two `llvm::Function::Create` with identical
+// mangled names → LLVM `.200`/`.400` rename → a vtable references the copy whose body
+// was never emitted → link error. Keyed by `namespace|mangleKey`. Cleared per
+// compilation (SemaContext::Resolve) so in-process test runs don't carry stale pointers.
+static llvm::StringMap<SemaClassType *> GlobalClassSpecializations;
+static llvm::StringMap<SemaFunction *>  GlobalFunctionSpecializations;
+
+static std::string qualifiedSpecKey(const std::string &NsName, const std::string &Key) {
+	return NsName + "|" + Key;
+}
+
+void SemaBuilder::ClearSpecializationCaches() {
+	GlobalClassSpecializations.clear();
+	GlobalFunctionSpecializations.clear();
+}
+
 SemaImport *SemaBuilder::CreateImport(SemaModule &Module, ASTImport &AST) {
 	FLY_DEBUG_SCOPE("SemaBuilder", "CreateImport");
 
@@ -165,10 +186,12 @@ SemaClassType *SemaBuilder::CreateSpecialization(SemaClassType *Template,
                                                   SymbolTable *Symbols) {
 	FLY_DEBUG_SCOPE("SemaBuilder", "CreateSpecialization");
 
-	// Build mangle key and check cache
+	// Build mangle key and check the GLOBAL cache (canonical across template instances)
 	std::string Key = buildMangleKey(std::string(Template->getName()), TypeArgs);
-	auto It = Template->Specializations.find(Key);
-	if (It != Template->Specializations.end())
+	SemaNameSpace *NS = Template->getModule().getNameSpace();
+	std::string QKey = qualifiedSpecKey(NS ? std::string(NS->getName()) : std::string(), Key);
+	auto It = GlobalClassSpecializations.find(QKey);
+	if (It != GlobalClassSpecializations.end())
 		return It->second;
 
 	// Create a fresh scope whose parent is the template scope's parent (module scope),
@@ -193,8 +216,9 @@ SemaClassType *SemaBuilder::CreateSpecialization(SemaClassType *Template,
 	Spec->ClassKind     = Template->ClassKind;
 	Spec->This          = new SemaClassInstance(Spec);
 
-	// Cache before returning (prevents infinite recursion if T appears in its own body)
-	Template->Specializations[Key] = Spec;
+	// Cache before returning (prevents infinite recursion if T appears in its own body).
+	// Store in the GLOBAL cache so every template instance shares this one canonical spec.
+	GlobalClassSpecializations[QKey] = Spec;
 
 	return Spec;
 }
@@ -205,10 +229,11 @@ SemaFunction *SemaBuilder::CreateFunctionSpecialization(
     SymbolTable *Symbols) {
 	FLY_DEBUG_SCOPE("SemaBuilder", "CreateFunctionSpecialization");
 
-	// Build mangle key and check cache
+	// Build mangle key and check the GLOBAL cache (canonical across template instances)
 	std::string Key = buildMangleKey(std::string(Template->getAST().getName()), TypeArgs);
-	auto It = Template->Specializations.find(Key);
-	if (It != Template->Specializations.end())
+	std::string QKey = qualifiedSpecKey(std::string(Template->getNamespaceName()), Key);
+	auto It = GlobalFunctionSpecializations.find(QKey);
+	if (It != GlobalFunctionSpecializations.end())
 		return It->second;
 
 	// Create spec scope with T→concrete type bindings; parent = template scope's parent (module scope)
@@ -227,8 +252,8 @@ SemaFunction *SemaBuilder::CreateFunctionSpecialization(
 	Spec->setVisibility(Template->getVisibility());
 	Spec->setNamespaceName(Template->getNamespaceName());
 
-	// Cache before returning
-	Template->Specializations[Key] = Spec;
+	// Cache before returning — GLOBAL so every template instance shares this canonical spec.
+	GlobalFunctionSpecializations[QKey] = Spec;
 
 	return Spec;
 }
