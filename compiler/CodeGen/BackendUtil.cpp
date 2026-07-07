@@ -839,14 +839,6 @@ void EmitAssemblyHelper::EmitAssembly(BackendActionKind Action,
 
     // Now that we have all of the passes ready, run them.
     {
-        // TEMP DIAGNOSTIC: verify the module before optimizing so malformed IR is
-        // reported precisely rather than crashing inside a pass (e.g. always-inline).
-        std::string VerErr;
-        llvm::raw_string_ostream VerOS(VerErr);
-        if (llvm::verifyModule(*TheModule, &VerOS)) {
-            llvm::errs() << "=== FLY PRE-OPT MODULE VERIFY FAILED ===\n" << VerErr
-                         << "\n=== END VERIFY ===\n";
-        }
         llvm::PrettyStackTraceString CrashInfo("Optimizer");
         MPM.run(*TheModule, MAM);
     }

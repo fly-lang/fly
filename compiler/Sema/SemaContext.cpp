@@ -11,6 +11,7 @@
 
 #include "AST/ASTModule.h"
 #include "Sema/Resolver.h"
+#include "Sema/SemaBuilder.h"
 
 #include <Basic/Debug.h>
 #include <Sema/Registry.h>
@@ -29,6 +30,10 @@ SemaContext::~SemaContext() {
 llvm::SmallVector<SemaModule *, 8> SemaContext::Resolve(llvm::SmallVector<ASTModule *, 8> &Modules,
                                                           bool TestMode) {
 	FLY_DEBUG_SCOPE("Sema", "Resolve");
+
+	// Fresh generic-specialization caches for this compilation (they are process-global
+	// to canonicalize across template instances; clear so in-process runs don't leak).
+	SemaBuilder::ClearSpecializationCaches();
 
 	// Create the Resolver with AST Modules
 	Resolver R(Diags, *Reg, TestMode);
