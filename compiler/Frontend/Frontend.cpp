@@ -12,6 +12,8 @@
 #include "AST/ASTAttribute.h"
 #include "AST/ASTBuilder.h"
 #include "AST/ASTClass.h"
+#include "AST/ASTEnum.h"
+#include "AST/ASTEnumEntry.h"
 #include "AST/ASTFunction.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTMethod.h"
@@ -191,6 +193,35 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags,
         OS << "\n\n";
     }
 
+    // Imports: a header's public API can reference types from OTHER namespaces (a
+    // class implementing an interface from another namespace, a field/param of a
+    // foreign type). Those short names only resolve if the module's imports are
+    // present, so emit them here — ParseHeader consumes them (it used to skip
+    // imports back when generated headers carried none).
+    for (const auto *Node : M->getNodes()) {
+        if (Node->getKind() != ASTKind::AST_IMPORT) continue;
+        const auto *Imp = static_cast<const ASTImport *>(Node);
+        OS << "import ";
+        bool first = true;
+        for (const auto *N : Imp->getNames()) {
+            if (!first) OS << ".";
+            OS << N->getName();
+            first = false;
+        }
+        if (Imp->isWildcard()) OS << ".*";
+        if (!Imp->getAlias().empty()) {
+            OS << " as ";
+            bool af = true;
+            for (const auto *A : Imp->getAlias()) {
+                if (!af) OS << ".";
+                OS << A->getName();
+                af = false;
+            }
+        }
+        OS << "\n";
+    }
+    OS << "\n";
+
     // Public struct declarations (must precede interface/class/function declarations)
     for (const auto *Node : M->getNodes()) {
         if (Node->getKind() != ASTKind::AST_CLASS) continue;
@@ -296,6 +327,27 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags,
             }
         }
         OS << "}\n\n";
+    }
+
+    // Public enum declarations — enum types (e.g. SemaKind) are referenced as
+    // field/param types elsewhere, so their names must be declared and importable.
+    for (const auto *Node : M->getNodes()) {
+        if (Node->getKind() != ASTKind::AST_ENUM) continue;
+        const auto *E = static_cast<const ASTEnum *>(Node);
+        bool isPublic = false;
+        for (auto *Mod : E->getModifiers())
+            if (Mod->getModifierKind() == ASTModifierKind::MOD_PUBLIC)
+                isPublic = true;
+        if (!isPublic) continue;
+        OS << "public enum " << E->getName() << " {\n";
+        bool first = true;
+        for (const auto *Child : E->getNodes()) {
+            const auto *Entry = static_cast<const ASTEnumEntry *>(Child);
+            if (!first) OS << ",\n";
+            OS << "    " << Entry->getName();
+            first = false;
+        }
+        OS << "\n}\n\n";
     }
 
     // Public function signatures

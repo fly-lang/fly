@@ -88,6 +88,9 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
 	// Only concrete methods get an LLVM function — interface methods and abstract methods are blueprints only
 	SemaClassMethod *ClassMethodSema = static_cast<SemaClassMethod *>(Sema);
 	if (Class->getClassKind() != SemaClassKind::INTERFACE && !ClassMethodSema->isAbstract()) {
+		// Created with external linkage; a generic specialization's DEFINITION is
+		// downgraded to weak (LinkOnceODR) in GenBody() so declaration-only references
+		// (no body) keep valid external linkage. See GenBody().
 		Fn = llvm::Function::Create(FnType, llvm::GlobalValue::ExternalLinkage, Name, CGM->getModule());
 	}
 }
@@ -110,6 +113,14 @@ void CodeGenClassMethod::GenBody() {
 		// Interface methods and abstract methods are blueprints — no body
 		return;
 	}
+
+	// This method reaches GenBody, so it IS a definition. A generic specialization
+	// (e.g. List<string>) is emitted in every module/archive that instantiates it, so
+	// downgrade its methods to weak (mergeable) linkage to avoid duplicate-symbol
+	// errors at link. Declaration-only references never reach here, so they keep the
+	// valid external linkage set at creation.
+	if (Fn && Class->getGenericTemplate() != nullptr)
+		Fn->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
 
     setInsertPoint();
     GenDebugSubprogram();
