@@ -1,0 +1,903 @@
+namespace fly.compiler.parser
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Parser — recursive descent over the token stream, building the inheritance AST
+// (ASTModule/ASTNameSpace/ASTImport/ASTClass/ASTEnum/ASTFunction/ASTType/ASTStmt/
+// ASTExpr …). Ported method-for-method from fly/compiler/Parser (Parser.cpp,
+// ParserClass/Enum/Function/Expr.cpp). The C++ creates nodes through ASTBuilder;
+// here nodes are created with their public constructors + setters/adders (the
+// bootstrap equivalent, since ASTBuilder is not ported). Token spellings are
+// matched by routing through the Lexer (the source owner).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// binPrec — binary operator precedence (higher binds tighter; 0 = not binary).
+public int binPrec(const string p) {
+    if p == "||" { out = 2 return }
+    if p == "&&" { out = 3 return }
+    if p == "==" || p == "!=" { out = 4 return }
+    if p == "<" || p == "<=" || p == ">" || p == ">=" { out = 5 return }
+    if p == "|" { out = 6 return }
+    if p == "^" { out = 7 return }
+    if p == "&" { out = 8 return }
+    if p == "<<" || p == ">>" { out = 9 return }
+    if p == "+" || p == "-" { out = 10 return }
+    if p == "*" || p == "/" || p == "%" { out = 11 return }
+    out = 0
+}
+
+// binKindFor — the ASTBinaryKind for a binary operator spelling.
+public ASTBinaryKind binKindFor(const string p) {
+    if p == "||" { out = ASTBinaryKind.OP_BINARY_LOGIC_OR  return }
+    if p == "&&" { out = ASTBinaryKind.OP_BINARY_LOGIC_AND return }
+    if p == "==" { out = ASTBinaryKind.OP_BINARY_COMPARE_EQ  return }
+    if p == "!=" { out = ASTBinaryKind.OP_BINARY_COMPARE_NE  return }
+    if p == "<"  { out = ASTBinaryKind.OP_BINARY_COMPARE_LT  return }
+    if p == "<=" { out = ASTBinaryKind.OP_BINARY_COMPARE_LTE return }
+    if p == ">"  { out = ASTBinaryKind.OP_BINARY_COMPARE_GT  return }
+    if p == ">=" { out = ASTBinaryKind.OP_BINARY_COMPARE_GTE return }
+    if p == "|"  { out = ASTBinaryKind.OP_BINARY_ARITH_OR  return }
+    if p == "^"  { out = ASTBinaryKind.OP_BINARY_ARITH_XOR return }
+    if p == "&"  { out = ASTBinaryKind.OP_BINARY_ARITH_AND return }
+    if p == "<<" { out = ASTBinaryKind.OP_BINARY_ARITH_SHIFT_L return }
+    if p == ">>" { out = ASTBinaryKind.OP_BINARY_ARITH_SHIFT_R return }
+    if p == "+"  { out = ASTBinaryKind.OP_BINARY_ARITH_ADD return }
+    if p == "-"  { out = ASTBinaryKind.OP_BINARY_ARITH_SUB return }
+    if p == "*"  { out = ASTBinaryKind.OP_BINARY_ARITH_MUL return }
+    if p == "/"  { out = ASTBinaryKind.OP_BINARY_ARITH_DIV return }
+    out = ASTBinaryKind.OP_BINARY_ARITH_MOD
+}
+
+// punctDiag — the diagnostic id for a missing/expected punctuator spelling.
+public DiagID punctDiag(const string p) {
+    if p == "{" { out = DiagID.err_parser_expected_lbrace return }
+    if p == ">" { out = DiagID.err_parser_expected_greater return }
+    if p == ")" { out = DiagID.err_parser_right_paren return }
+    if p == "]" { out = DiagID.err_parser_unclosed_bracket return }
+    if p == "}" { out = DiagID.err_parser_unclosed_bracket return }
+    out = DiagID.err_parser_syntax_error
+}
+
+public class Parser {
+    Lexer lx
+    SourceManager sm
+    Token cur
+    Token nxt
+    List<Token> pending      // lookahead buffer: tokens probed past `nxt`, re-served by bump()
+    DiagnosticsEngine diags
+    StoringDiagnosticConsumer sink
+    ASTModule module
+
+    public Parser(const string src) {
+        this.lx = new Lexer(src)
+        this.sm = new SourceManager("<input>", src)
+        this.sink = new StoringDiagnosticConsumer()
+        DiagnosticOptions opts = new DiagnosticOptions()
+        this.diags = new DiagnosticsEngine(opts, this.sink, this.sm)
+        this.pending = new List<Token>()
+        this.cur = this.lx.next()
+        this.nxt = this.lx.next()
+    }
+
+    // ── token cursor ──────────────────────────────────────────────────────────
+    public void bump() {
+        this.cur = this.nxt
+        if this.pending.size() > 0 {
+            this.nxt = this.pending.get(0)
+            this.pending.remove(0)
+        } else {
+            this.nxt = this.lx.next()
+        }
+    }
+
+    // nextRaw — pull the next raw token, draining the pending buffer first so a
+    // lookahead scan and normal bumping share one stream.
+    public Token nextRaw() {
+        if this.pending.size() > 0 {
+            Token t = this.pending.get(0)
+            this.pending.remove(0)
+            out = t
+        } else {
+            out = this.lx.next()
+        }
+    }
+
+    // genericDeclAhead — with cur=identifier and nxt='<', probe forward over a
+    // balanced `<…>` and report whether an identifier follows the closing '>'
+    // (i.e. `Name<…> name` is a declaration, not a `Name < …` comparison). All
+    // probed tokens are pushed into `pending` so the stream is left untouched.
+    public bool genericDeclAhead() {
+        List<Token> scanned = new List<Token>()
+        int depth = 1
+        bool isDecl = false
+        bool go = true
+        while go {
+            Token t = this.nextRaw()
+            scanned.add(t)
+            if t.isEof() {
+                go = false
+            } else {
+                string tx = this.lx.tokenText(t)
+                if t.kind == TokenKind.PUNCT {
+                    // Balance `<…>` char-by-char, like matching parentheses: a fused
+                    // token contributes its whole leading run of `<` (open) or `>`
+                    // (close) — `<<`=+2, `>>`=-2, `>>=`=-2 — so nesting of any depth is
+                    // counted correctly. The list closes when the balance hits 0.
+                    int opens = this.leadingRun(tx, 60)
+                    if opens > 0 {
+                        depth = depth + opens
+                    } else {
+                        int closes = this.leadingRun(tx, 62)
+                        if closes > 0 {
+                            depth = depth - closes
+                            if depth <= 0 {
+                                Token after = this.nextRaw()
+                                scanned.add(after)
+                                if after.kind == TokenKind.IDENT { isDecl = true }
+                                go = false
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        int i = 0
+        while i < scanned.size() {
+            this.pending.add(scanned.get(i))
+            i = i + 1
+        }
+        out = isDecl
+    }
+
+    // parenCondIsWrapped — cur is '('; probe the balanced (…) and report whether the
+    // token right after the matching ')' opens a block ('{'). That means the ENTIRE
+    // condition/header was written `(…)`, which Fly forbids — conditions are paren-less
+    // (`if x > 0 {`, not `if (x > 0) {`). A sub-expression paren like `if (a + b) > c`
+    // is NOT wrapped: after its ')' comes '>', not '{'. A cast `if (int)x == 0` is not
+    // wrapped either: after ')' comes 'x'. nxt is inspected in place; tokens pulled past
+    // it are pushed into `pending` so the stream is left untouched.
+    public bool parenCondIsWrapped() {
+        int depth = 1
+        // nxt is the first token inside the '('; account for it before scanning past it.
+        if this.nxt.kind == TokenKind.PUNCT {
+            string nx = this.lx.tokenText(this.nxt)
+            if fly.str.equals(nx, "(")      { depth = depth + 1 }
+            elsif fly.str.equals(nx, ")")   { depth = depth - 1 }
+        }
+        bool wrapped = false
+        List<Token> scanned = new List<Token>()
+        bool go = depth > 0
+        while go {
+            Token t = this.nextRaw()
+            scanned.add(t)
+            if t.isEof() {
+                go = false
+            } else {
+                string tx = this.lx.tokenText(t)
+                if t.kind == TokenKind.PUNCT && fly.str.equals(tx, "(") { depth = depth + 1 }
+                elsif t.kind == TokenKind.PUNCT && fly.str.equals(tx, ")") {
+                    depth = depth - 1
+                    if depth <= 0 { go = false }
+                }
+            }
+        }
+        if depth <= 0 {
+            Token after = this.nextRaw()
+            scanned.add(after)
+            if after.kind == TokenKind.PUNCT && fly.str.equals(this.lx.tokenText(after), "{") { wrapped = true }
+        }
+        int i = 0
+        while i < scanned.size() {
+            this.pending.add(scanned.get(i))
+            i = i + 1
+        }
+        out = wrapped
+    }
+
+    // reportWrappedCond — if the current condition/header begins with '(' and that '('
+    // wraps the whole thing (matching ')' immediately before the block '{'), report the
+    // paren-less-condition error. Called at each control-structure condition site.
+    public void reportWrappedCond() {
+        if this.curIsPunct("(") && this.parenCondIsWrapped() {
+            this.reportErr(DiagID.err_parser_paren_wrapped_cond)
+        }
+    }
+    public bool curIsEof() { out = this.cur.isEof() }
+    public string curText() { out = this.lx.tokenText(this.cur) }
+    public SourceLocation curLoc() { out = slGetFileLoc(this.cur.offset()) }
+    public int curLine() { out = this.sm.getLineNumber(this.cur.getLoc()) }
+    public int curCol()  { out = this.sm.getColumnNumber(this.cur.getLoc()) }
+
+    // curKind / curIs — bridge the pragmatic Lexer's coarse token to the fine-grained
+    // TokenKind set, so parse methods can test precise kinds 1:1 with the C++ parser's
+    // Tok.is(tok::…). Keywords/punctuators resolve via the spelling tables.
+    public TokenKind curKind() {
+        if this.cur.kind == TokenKind.IDENT   { out = TokenKind.identifier       return }
+        if this.cur.kind == TokenKind.KEYWORD { out = getKeywordKind(this.curText()) return }
+        if this.cur.kind == TokenKind.PUNCT   { out = getPunctKind(this.curText())   return }
+        if this.cur.kind == TokenKind.NUMBER  { out = TokenKind.numeric_constant   return }
+        if this.cur.kind == TokenKind.STRING  { out = TokenKind.string_literal      return }
+        if this.cur.kind == TokenKind.CHAR    { out = TokenKind.char_constant       return }
+        if this.cur.kind == TokenKind.EOF     { out = TokenKind.eof                 return }
+        out = TokenKind.unknown
+    }
+    public bool curIs(const TokenKind k) { out = this.curKind() == k }
+
+    public bool curIsIdent() { out = this.cur.kind == TokenKind.IDENT }
+    // Coarse token-kind predicates used by the ParserExpr companion (no direct `cur` field access).
+    public bool curIsNumber()   { out = this.cur.kind == TokenKind.NUMBER }
+    public bool curIsStringLit(){ out = this.cur.kind == TokenKind.STRING }
+    public bool curIsAnyPunct() { out = this.cur.kind == TokenKind.PUNCT }
+    public bool curIsKw(const string w) {
+        out = this.cur.kind == TokenKind.KEYWORD && fly.str.equals(this.lx.tokenText(this.cur), w)
+    }
+    public bool curIsPunct(const string p) {
+        out = this.cur.kind == TokenKind.PUNCT && fly.str.equals(this.lx.tokenText(this.cur), p)
+    }
+    public bool nxtIsPunct(const string p) {
+        out = this.nxt.kind == TokenKind.PUNCT && fly.str.equals(this.lx.tokenText(this.nxt), p)
+    }
+    public bool nxtIsKw(const string w) {
+        out = this.nxt.kind == TokenKind.KEYWORD && fly.str.equals(this.lx.tokenText(this.nxt), w)
+    }
+    // startsExpr — true if the current token can begin an expression.
+    public bool startsExpr() {
+        out = this.curIsNamePart()
+           || this.cur.kind == TokenKind.NUMBER || this.cur.kind == TokenKind.STRING
+           || this.cur.kind == TokenKind.CHAR
+           || this.curIsPunct("(") || this.curIsPunct("!")
+           || this.curIsPunct("++") || this.curIsPunct("--")
+           || this.curIsPunct("-")
+    }
+    // A name component: a plain identifier OR a keyword used as a name (e.g. 'string').
+    public bool curIsNamePart() {
+        out = this.cur.kind == TokenKind.IDENT || this.cur.kind == TokenKind.KEYWORD
+    }
+
+    // ── diagnostics ───────────────────────────────────────────────────────────
+    // Errors flow through the real DiagnosticsEngine (id-based, rendered line:col),
+    // replacing the former ad-hoc hadError/errMsg.
+    public bool isSuccess() { out = this.diags.hasErrorOccurred() == false }
+    public bool hadErr() { out = this.diags.hasErrorOccurred() }
+    public DiagnosticsEngine getDiags() { out = this.diags }
+    public StoringDiagnosticConsumer getSink() { out = this.sink }
+    public ASTModule getModule() { out = this.module }
+
+    public void reportErr(const DiagID id) {
+        DiagnosticBuilder b = this.diags.report(this.curLoc(), id)
+        b.emit()
+    }
+    public void reportErrStr(const DiagID id, const string arg) {
+        DiagnosticBuilder b = this.diags.report(this.curLoc(), id)
+        b.addStr(arg)
+        b.emit()
+    }
+    public void expectPunct(const string p) {
+        if this.curIsPunct(p) { this.bump() }
+        else { this.reportErr(punctDiag(p)) }
+    }
+    // leadingRun — number of leading bytes equal to `ch` (62 '>', 60 '<') in a token's
+    // text, so a greedily-fused angle run (`>>`, `>>=`, `<<`) is measured char-by-char
+    // rather than matched against fixed spellings.
+    public int leadingRun(const string s, const int ch) {
+        int n = 0
+        int len = fly.str.len(s)
+        bool go = true
+        while go && n < len {
+            byte b = 0
+            fly.str.byteAt(s, n, b)
+            int bv = (int)b
+            if bv == ch { n = n + 1 } else { go = false }
+        }
+        out = n
+    }
+
+    // closeTypeArgs — consume exactly ONE `>` CHARACTER that closes one type-argument
+    // (or type-param) list. The lexer greedily fuses a run of `>` into `>>`/`>>=`
+    // tokens, and generic specialization nests without limit (List<List<List<int>>>>>);
+    // rather than special-casing `>>`/`>>>`, we peel a single `>` off whatever token is
+    // current — advance if it is a lone `>`, else split it IN PLACE keeping the
+    // remainder (`>>`→`>`, `>>=`→`>=`). Called once per nesting level, so repeated calls
+    // drain any-length run. A missing `>` is an unbalanced `<…>` → the usual error.
+    public void closeTypeArgs() {
+        string t = this.curText()
+        if this.cur.kind == TokenKind.PUNCT && this.leadingRun(t, 62) > 0 {
+            if fly.str.len(t) == 1 {
+                this.bump()
+            } else {
+                int s = this.cur.offset()
+                this.cur = new Token(TokenKind.PUNCT, slGetFileLoc(s + 1), s + 1, s + fly.str.len(t))
+            }
+            return
+        }
+        this.reportErr(punctDiag(">"))
+    }
+    public void expectKw(const string w) {
+        if this.curIsKw(w) { this.bump() }
+        else { this.reportErr(DiagID.err_parser_syntax_error) }
+    }
+
+    // ── ParseModule ───────────────────────────────────────────────────────────
+    public ASTModule parseModule(const string name) {
+        ASTModule m = ASTBuilder.CreateModule(this.curLoc(), name)
+        this.module = m
+        bool namespaceSeen = false
+        bool go = true
+        while go {
+            if this.curIsEof() {
+                go = false
+            } elsif this.curIsKw("namespace") {
+                if namespaceSeen {
+                    this.reportErr(DiagID.err_parser_multiple_namespace)
+                    go = false
+                } else {
+                    ASTNameSpace ns = this.parseNameSpace()
+                    namespaceSeen = true
+                }
+            } else {
+                this.parseNode(m)
+                if this.hadErr() { go = false }
+            }
+        }
+        out = m
+    }
+
+    // ── ParseNameSpace / ParseNames ───────────────────────────────────────────
+    public ASTNameSpace parseNameSpace() {
+        SourceLocation loc = this.curLoc()
+        this.expectKw("namespace")
+        List<ASTName> names = this.parseNames()
+        out = ASTBuilder.CreateNameSpace(this.module, loc, names)
+    }
+
+    // parseNames — `ident (. ident)*`. Stops at `.*` (wildcard, left for the caller).
+    public List<ASTName> parseNames() {
+        List<ASTName> names = new List<ASTName>()
+        bool go = true
+        while go {
+            if this.curIsNamePart() {
+                SourceLocation loc = this.curLoc()
+                string nm = this.curText()
+                ASTName n = ASTBuilder.CreateName(nm, loc)
+                names.add(n)
+                this.bump()
+                if this.curIsPunct(".") {
+                    if this.nxtIsPunct("*") { go = false }
+                    else { this.bump() }
+                } else {
+                    go = false
+                }
+            } else {
+                this.reportErr(DiagID.err_parser_identifier_expected)
+                go = false
+            }
+        }
+        out = names
+    }
+
+    // ── ParseImport ───────────────────────────────────────────────────────────
+    public ASTImport parseImport() {
+        SourceLocation loc = this.curLoc()
+        this.expectKw("import")
+        List<ASTName> names = this.parseNames()
+        List<ASTName> alias = new List<ASTName>()
+        bool wildcard = false
+        // wildcard: '.' '*'
+        if this.curIsPunct(".") && this.nxtIsPunct("*") {
+            this.bump()
+            this.bump()
+            wildcard = true
+        }
+        // alias: 'as' name
+        if this.curIsKw("as") {
+            this.bump()
+            if this.curIsNamePart() {
+                ASTName a = ASTBuilder.CreateName(this.curText(), this.curLoc())
+                alias.add(a)
+                this.bump()
+            } else {
+                this.reportErr(DiagID.err_parser_identifier_expected)
+            }
+        }
+        out = ASTBuilder.CreateImport(this.module, loc, names, alias, wildcard)
+    }
+
+    // ── ParseModifiers ────────────────────────────────────────────────────────
+    public List<ASTModifier> parseModifiers() {
+        List<ASTModifier> mods = new List<ASTModifier>()
+        bool go = true
+        while go {
+            SourceLocation loc = this.curLoc()
+            if this.curIsKw("public")       { mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_PUBLIC))    this.bump() }
+            elsif this.curIsKw("private")   { mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_PRIVATE))   this.bump() }
+            elsif this.curIsKw("protected") { mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_PROTECTED)) this.bump() }
+            elsif this.curIsKw("const")     { mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_CONSTANT))  this.bump() }
+            elsif this.curIsKw("static")    { mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_STATIC))    this.bump() }
+            elsif this.curIsKw("abstract")  { mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_ABSTRACT))  this.bump() }
+            elsif this.curIsKw("final")     { mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_FINAL))     this.bump() }
+            else { go = false }
+        }
+        out = mods
+    }
+
+    // ── ParseNode (top-level declaration dispatch) ───────────────────────────
+    public void parseNode(const ASTModule m) {
+        // Nodes self-register into `this.module` via ASTBuilder.Create*.
+        if this.curIsKw("import") {
+            ASTImport imp = this.parseImport()
+            return
+        }
+        List<ASTModifier> mods = this.parseModifiers()
+        if this.curIsKw("class") || this.curIsKw("interface") || this.curIsKw("struct") || this.curIsKw("suite") {
+            ASTClass c = this.parseClass(mods)
+            return
+        }
+        if this.curIsKw("enum") {
+            ASTEnum e = this.parseEnum(mods)
+            return
+        }
+        // Otherwise a function: <ReturnType> name ( params ) { body }
+        ASTFunction f = this.parseFunction(mods)
+    }
+
+    // ── ParseType ─────────────────────────────────────────────────────────────
+    public bool curIsBuiltinType() {
+        out = this.curIsKw("void") || this.curIsKw("bool") || this.curIsKw("byte")
+           || this.curIsKw("short") || this.curIsKw("ushort") || this.curIsKw("int")
+           || this.curIsKw("uint") || this.curIsKw("long") || this.curIsKw("ulong")
+           || this.curIsKw("pointer")
+           || this.curIsKw("float") || this.curIsKw("double") || this.curIsKw("complex")
+           || this.curIsKw("string") || this.curIsKw("error")
+    }
+
+    public ASTType parseBuiltinType() {
+        SourceLocation loc = this.curLoc()
+        if this.curIsKw("void")   { this.bump()  out = ASTBuilder.CreateVoidType(loc)    return }
+        if this.curIsKw("bool")   { this.bump()  out = ASTBuilder.CreateBoolType(loc)    return }
+        if this.curIsKw("byte")   { this.bump()  out = ASTBuilder.CreateByteType(loc)    return }
+        if this.curIsKw("short")  { this.bump()  out = ASTBuilder.CreateShortType(loc)   return }
+        if this.curIsKw("ushort") { this.bump()  out = ASTBuilder.CreateUShortType(loc)  return }
+        if this.curIsKw("int")    { this.bump()  out = ASTBuilder.CreateIntType(loc)     return }
+        if this.curIsKw("uint")   { this.bump()  out = ASTBuilder.CreateUIntType(loc)    return }
+        if this.curIsKw("long")   { this.bump()  out = ASTBuilder.CreateLongType(loc)    return }
+        if this.curIsKw("ulong")  { this.bump()  out = ASTBuilder.CreateULongType(loc)   return }
+        if this.curIsKw("pointer") { this.bump()  out = ASTBuilder.CreatePtrSizeType(loc) return }
+        if this.curIsKw("float")  { this.bump()  out = ASTBuilder.CreateFloatType(loc)   return }
+        if this.curIsKw("double") { this.bump()  out = ASTBuilder.CreateDoubleType(loc)  return }
+        if this.curIsKw("complex"){ this.bump()  out = ASTBuilder.CreateComplexType(loc) return }
+        if this.curIsKw("string") { this.bump()  out = ASTBuilder.CreateStringType(loc)  return }
+        this.bump()
+        out = ASTBuilder.CreateErrorType(loc)
+    }
+
+    public ASTType parseType() {
+        SourceLocation loc = this.curLoc()
+        ASTType t = null
+        if this.curIsBuiltinType() {
+            t = this.parseBuiltinType()
+        } elsif this.curIsNamePart() {
+            List<ASTName> names = this.parseNames()
+            ASTNamedType nt = new ASTNamedType(loc, names)
+            if this.curIsPunct("<") {
+                this.bump()
+                bool go = true
+                while go {
+                    ASTType ta = this.parseType()
+                    nt.addTypeArg(ta)
+                    if this.curIsPunct(",") { this.bump() }
+                    else { go = false }
+                }
+                this.closeTypeArgs()
+            }
+            t = nt
+        } else {
+            this.reportErr(DiagID.err_parser_invalid_type)
+            out = null
+            return
+        }
+        // Array suffix: T[ size? ]
+        bool ga = true
+        while ga {
+            if this.curIsPunct("[") {
+                SourceLocation aloc = this.curLoc()
+                this.bump()
+                ASTExpr size = null
+                if this.curIsPunct("]") == false {
+                    size = this.parseExpr()
+                }
+                this.expectPunct("]")
+                t = ASTBuilder.CreateArrayType(aloc, t, size)
+            } else {
+                ga = false
+            }
+        }
+        out = t
+    }
+
+    // ── ParseParams ───────────────────────────────────────────────────────────
+    // ── ParseTypeParams ───────────────────────────────────────────────────────
+    // Generic type parameter declarations: `<T, U : Bound>`. The bound is parsed
+    // ── ParseTypeParams / ParseParams ─────────────────────────────────────────
+    // Delegated to the ParserFunction companion (ParserFunction.fly), mirroring
+    // fly/compiler/Parser/ParserFunction.cpp.
+    public List<ASTType> parseTypeParams() { out = ParserFunction.parseTypeParams(this) }
+    public List<ASTParam> parseParams() { out = ParserFunction.parseParams(this) }
+
+    // ── ParseFunction ─────────────────────────────────────────────────────────
+    public ASTFunction parseFunction(const List<ASTModifier> mods) {
+        SourceLocation loc = this.curLoc()
+        // bridge-header style (llvm.fly.h / runtime.fly.h): `public name(params)`
+        // or `public name<T>(params)` — a bare IDENT whose declaration reaches
+        // `(` with no name in between declares a VOID function with the return
+        // type omitted. Without this the whole header module fails to parse and
+        // is silently dropped (fly.llvm was never registered, V4).
+        if this.cur.kind == TokenKind.IDENT {
+            bool headerFn = this.nxtIsPunct("(")
+            if headerFn == false {
+                if this.nxtIsPunct("<") {
+                    // `name<…>(` = generic header fn; `Name<…> ident` = return type
+                    if this.genericDeclAhead() == false { headerFn = true }
+                }
+            }
+            if headerFn {
+                string hn = this.curText()
+                this.bump()
+                List<ASTType> htp = new List<ASTType>()
+                if this.curIsPunct("<") { htp = this.parseTypeParams() }
+                List<ASTParam> hparams = this.parseParams()
+                ASTBlockStmt hbody = null
+                if this.curIsPunct("{") { hbody = this.parseBlock() }
+                ASTFunction hf = ASTBuilder.CreateFunction(this.module, loc, hn, mods, hparams, hbody)
+                hf.setReturnType(ASTBuilder.CreateVoidType(loc))
+                List<ASTType> hftp = hf.getTypeParams()
+                int hti = 0
+                while hti < htp.size() { hftp.add(htp.get(hti))  hti = hti + 1 }
+                out = hf
+                return
+            }
+        }
+        ASTType retType = this.parseType()
+        string nm = ""
+        if this.curIsNamePart() { nm = this.curText()  this.bump() }
+        else { this.reportErr(DiagID.err_parser_identifier_expected)  out = null  return }
+        // generic type parameters: `T identity<T>(...)`
+        List<ASTType> typeParams = new List<ASTType>()
+        if this.curIsPunct("<") { typeParams = this.parseTypeParams() }
+        List<ASTParam> params = this.parseParams()
+        ASTBlockStmt body = null
+        if this.curIsPunct("{") { body = this.parseBlock() }
+        ASTFunction f = ASTBuilder.CreateFunction(this.module, loc, nm, mods, params, body)
+        f.setReturnType(retType)
+        List<ASTType> ftp = f.getTypeParams()
+        int ti = 0
+        while ti < typeParams.size() { ftp.add(typeParams.get(ti))  ti = ti + 1 }
+        out = f
+    }
+
+    // ── ParseClass ────────────────────────────────────────────────────────────
+    // parseClass — delegated to the ParserClass companion (ParserClass.fly).
+    public ASTClass parseClass(const List<ASTModifier> mods) { out = ParserClass.parse(this, mods) }
+
+    // parseClassMember — a constructor, method, or attribute.
+    public void parseClassMember(const ASTClass c, const string className) { ParserClass.parseMember(this, c, className) }
+
+    // ── ParseEnum ─────────────────────────────────────────────────────────────
+    // parseEnum — delegated to the ParserEnum companion (ParserEnum.fly).
+    public ASTEnum parseEnum(const List<ASTModifier> mods) { out = ParserEnum.parse(this, mods) }
+
+    // ── ParseBlock / ParseStmt ───────────────────────────────────────────────
+    public ASTBlockStmt parseBlock() {
+        SourceLocation loc = this.curLoc()
+        ASTBlockStmt block = ASTBuilder.CreateBlockStmt(loc)
+        this.expectPunct("{")
+        bool go = this.curIsPunct("}") == false && this.hadErr() == false
+        while go {
+            this.parseStmt(block)
+            if this.curIsPunct("}") || this.curIsEof() || this.hadErr() { go = false }
+        }
+        this.expectPunct("}")
+        out = block
+    }
+
+    public void parseStmt(const ASTBlockStmt block) {
+        if this.curIsKw("return")   { this.parseReturn(block)   return }
+        if this.curIsKw("if")       { this.parseIf(block)       return }
+        if this.curIsKw("while")    { this.parseWhile(block)    return }
+        if this.curIsKw("for")      { this.parseFor(block)      return }
+        if this.curIsKw("switch")   { this.parseSwitch(block)   return }
+        if this.curIsKw("fail")     { this.parseFail(block)     return }
+        if this.curIsKw("handle")   { this.parseHandle(block)   return }
+        if this.curIsKw("test")     { this.parseTest(block)     return }
+        if this.curIsKw("break")    { ASTBreakStmt b = ASTBuilder.CreateBreakStmt(block, this.curLoc())  this.bump()  return }
+        if this.curIsKw("continue") { ASTContinueStmt cs = ASTBuilder.CreateContinueStmt(block, this.curLoc())  this.bump()  return }
+        if this.curIsPunct("{")     { ASTBlockStmt inner = this.parseBlock()  block.addContent(inner)  return }
+        // declaration (Type name ...) vs expression statement
+        if this.looksLikeDecl() { this.parseDecl(block)  return }
+        this.parseExprStmt(block)
+    }
+
+    // ── for: C-style `for init; cond; post { }` or for-in `for x in coll { }` ──
+    public void parseFor(const ASTBlockStmt block) {
+        SourceLocation loc = this.curLoc()
+        this.expectKw("for")
+        // A wrapped header — `for (x in l) {` or `for (init; cond; post) {` — is rejected:
+        // Fly for-headers are paren-less, like the other control structures.
+        this.reportWrappedCond()
+        // for-in: `ident in expr { body }`
+        if this.curIsIdent() && this.nxtIsKw("in") {
+            ASTExpr item = ASTBuilder.CreateIdentifier(this.curLoc(), this.curText(), null)
+            this.bump()
+            this.bump()
+            ASTExpr lst = this.parseExpr()
+            ASTBlockStmt inBody = this.parseBlock()
+            ASTLoopInStmt li = new ASTLoopInStmt(loc, item, lst, inBody)
+            block.addContent(li)
+            return
+        }
+        ASTLoopStmt s = new ASTLoopStmt(loc)
+        // init: one or more comma-separated declarations/assignments
+        // (`for int i = 0, int j = 10; ...`) — doc 9.5
+        ASTBlockStmt initBlock = ASTBuilder.CreateBlockStmt(loc)
+        if this.curIsPunct(";") == false {
+            if this.looksLikeDecl() { this.parseDecl(initBlock) }
+            else { this.parseExprStmt(initBlock) }
+            bool goInit = this.curIsPunct(",")
+            while goInit {
+                this.bump()
+                if this.looksLikeDecl() { this.parseDecl(initBlock) }
+                else { this.parseExprStmt(initBlock) }
+                goInit = this.curIsPunct(",")
+            }
+        }
+        this.transferStmts(initBlock, s, true)
+        this.expectPunct(";")
+        if this.curIsPunct(";") == false {
+            ASTExpr cond = this.parseExpr()
+            s.setExpr(cond)
+        }
+        this.expectPunct(";")
+        // post: one or more comma-separated expressions (`...; i++, j--`)
+        ASTBlockStmt postBlock = ASTBuilder.CreateBlockStmt(loc)
+        if this.curIsPunct("{") == false {
+            this.parseExprStmt(postBlock)
+            bool goPost = this.curIsPunct(",")
+            while goPost {
+                this.bump()
+                this.parseExprStmt(postBlock)
+                goPost = this.curIsPunct(",")
+            }
+        }
+        this.transferStmts(postBlock, s, false)
+        ASTBlockStmt body = this.parseBlockOrStmt()
+        s.setLoop(body)
+        block.addContent(s)
+    }
+
+    // transferStmts — move parsed init/post statements into the loop node.
+    public void transferStmts(const ASTBlockStmt src, const ASTLoopStmt dst, const bool isInit) {
+        List<ASTStmt> c = src.getContent()
+        int n = (int)c.size()
+        int i = 0
+        while i < n {
+            ASTStmt st = c.get(i)
+            if isInit { dst.addInit(st) } else { dst.addPost(st) }
+            i = i + 1
+        }
+    }
+
+    // ── switch: `switch e { case v: stmts break  default: stmts }` ────────────
+    public void parseSwitch(const ASTBlockStmt block) {
+        SourceLocation loc = this.curLoc()
+        this.expectKw("switch")
+        ASTSwitchStmt s = new ASTSwitchStmt(loc)
+        this.reportWrappedCond()
+        ASTExpr disc = this.parseExpr()
+        s.setExpr(disc)
+        this.expectPunct("{")
+        bool sawDefault = false
+        bool go = this.curIsPunct("}") == false && this.hadErr() == false
+        while go {
+            if this.curIsKw("case") {
+                SourceLocation cloc = this.curLoc()
+                this.bump()
+                ASTExpr cv = this.parseExpr()
+                this.expectPunct(":")
+                ASTCaseStmt c = new ASTCaseStmt(cloc)
+                c.setExpr(cv)
+                ASTBlockStmt cbody = ASTBuilder.CreateBlockStmt(cloc)
+                this.parseCaseBody(cbody)
+                c.setStmt(cbody)
+                s.addCase(c)
+            } elsif this.curIsKw("default") {
+                if sawDefault { this.reportErr(DiagID.err_parser_syntax_default_error) }
+                sawDefault = true
+                this.bump()
+                this.expectPunct(":")
+                ASTBlockStmt dbody = ASTBuilder.CreateBlockStmt(this.curLoc())
+                this.parseCaseBody(dbody)
+                s.setDefault(dbody)
+            } else {
+                go = false
+            }
+            if this.curIsPunct("}") || this.curIsEof() || this.hadErr() { go = false }
+        }
+        this.expectPunct("}")
+        block.addContent(s)
+    }
+
+    // parseCaseBody — statements up to the next case/default/'}'.
+    public void parseCaseBody(const ASTBlockStmt body) {
+        bool go = this.curIsPunct("}") == false && this.curIsKw("case") == false
+               && this.curIsKw("default") == false && this.hadErr() == false
+        while go {
+            if this.curIsKw("break") {
+                ASTBreakStmt b = ASTBuilder.CreateBreakStmt(body, this.curLoc())
+                this.bump()
+            } else {
+                this.parseStmt(body)
+            }
+            if this.curIsPunct("}") || this.curIsKw("case") || this.curIsKw("default")
+               || this.curIsEof() || this.hadErr() { go = false }
+        }
+    }
+
+    // ── fail: `fail [code [, msg [, cause]]]` ─────────────────────────────────
+    public void parseFail(const ASTBlockStmt block) {
+        SourceLocation loc = this.curLoc()
+        this.expectKw("fail")
+        ASTFailStmt s = ASTBuilder.CreateFailStmt(block, loc)
+        if this.startsExpr() {
+            ASTExpr e1 = this.parseExpr()
+            s.setFirstExpr(e1)
+            if this.curIsPunct(",") {
+                this.bump()
+                ASTExpr e2 = this.parseExpr()
+                s.setSecondExpr(e2)
+                if this.curIsPunct(",") {
+                    this.bump()
+                    ASTExpr e3 = this.parseExpr()
+                    s.setThirdExpr(e3)
+                    if this.curIsPunct(",") { this.reportErr(DiagID.err_parser_fail_too_many_expr) }
+                }
+            }
+        }
+    }
+
+    // ── parseBlockOrStmt — `{ ... }` or a single inline statement wrapped in a
+    // fresh block (doc: `if cond doSomething()`, `while cond doSomething()`). ──
+    public ASTBlockStmt parseBlockOrStmt() {
+        if this.curIsPunct("{") {
+            out = this.parseBlock()
+            return
+        }
+        ASTBlockStmt b = ASTBuilder.CreateBlockStmt(this.curLoc())
+        this.parseStmt(b)
+        out = b
+    }
+
+    // ── handle: `handle { body }` ─────────────────────────────────────────────
+    public void parseHandle(const ASTBlockStmt block) {
+        SourceLocation loc = this.curLoc()
+        this.expectKw("handle")
+        ASTBlockStmt body = this.parseBlock()
+        ASTHandleStmt s = ASTBuilder.CreateHandleStmt(block, loc, body)
+    }
+
+    // ── test: `test { body }` ─────────────────────────────────────────────────
+    public void parseTest(const ASTBlockStmt block) {
+        SourceLocation loc = this.curLoc()
+        this.expectKw("test")
+        ASTTestStmt s = new ASTTestStmt(loc)
+        ASTBlockStmt body = this.parseBlock()
+        s.setBody(body)
+        block.addContent(s)
+    }
+
+    public void parseReturn(const ASTBlockStmt block) {
+        SourceLocation loc = this.curLoc()
+        this.expectKw("return")
+        ASTReturnStmt r = ASTBuilder.CreateReturnStmt(block, loc)
+    }
+
+    public void parseIf(const ASTBlockStmt block) {
+        SourceLocation loc = this.curLoc()
+        this.expectKw("if")
+        ASTIfStmt s = new ASTIfStmt(loc)
+        this.reportWrappedCond()
+        ASTExpr cond = this.parseExpr()
+        s.setExpr(cond)
+        ASTBlockStmt body = this.parseBlockOrStmt()
+        s.setStmt(body)
+        // elsif*
+        bool go = true
+        while go {
+            if this.curIsKw("elsif") {
+                SourceLocation eloc = this.curLoc()
+                this.bump()
+                ASTRuleStmt er = new ASTRuleStmt(eloc, ASTStmtKind.STMT_IF)
+                this.reportWrappedCond()
+                ASTExpr ec = this.parseExpr()
+                er.setExpr(ec)
+                ASTBlockStmt eb = this.parseBlockOrStmt()
+                er.setStmt(eb)
+                s.addElsif(er)
+            } else {
+                go = false
+            }
+        }
+        if this.curIsKw("else") {
+            this.bump()
+            ASTBlockStmt elseb = this.parseBlockOrStmt()
+            s.setElse(elseb)
+        }
+        block.addContent(s)
+    }
+
+    public void parseWhile(const ASTBlockStmt block) {
+        SourceLocation loc = this.curLoc()
+        this.expectKw("while")
+        ASTLoopStmt s = new ASTLoopStmt(loc)
+        this.reportWrappedCond()
+        ASTExpr cond = this.parseExpr()
+        s.setExpr(cond)
+        ASTBlockStmt body = this.parseBlockOrStmt()
+        s.setLoop(body)
+        block.addContent(s)
+    }
+
+    // looksLikeDecl — a statement that begins a local-var declaration: a type
+    // (builtin keyword, or `Ident name`) followed by a name.
+    public bool looksLikeDecl() {
+        if this.curIsBuiltinType() { out = true  return }
+        if this.curIsIdent() {
+            if this.nxt.kind == TokenKind.IDENT { out = true  return }
+            // generic-typed decl `Name<…> name` — probe past the angle brackets.
+            if this.nxtIsPunct("<") { out = this.genericDeclAhead()  return }
+        }
+        out = false
+    }
+
+    public void parseDecl(const ASTBlockStmt block) {
+        SourceLocation loc = this.curLoc()
+        // `error x` is not a declaration: a handle never binds a named variable, so
+        // `error e2 handle { }` (a stray error-typed local + a bare handle) is rejected.
+        if this.curIsKw("error") {
+            this.reportErr(DiagID.err_parser_error_type_not_declarable)
+        }
+        ASTType ty = this.parseType()
+        string nm = ""
+        if this.curIsNamePart() { nm = this.curText()  this.bump() }
+        else { this.reportErr(DiagID.err_parser_identifier_expected)  return }
+        List<ASTModifier> nomods = new List<ASTModifier>()
+        ASTLocalVar lv = ASTBuilder.CreateLocalVar(loc, ty, nm, nomods)
+        ASTDeclStmt d = ASTBuilder.CreateDeclStmt(block, loc, lv)
+        if this.curIsPunct("=") {
+            this.bump()
+            ASTExpr init = this.parseExpr()
+            d.setExpr(init)
+        }
+    }
+
+    public void parseExprStmt(const ASTBlockStmt block) {
+        SourceLocation loc = this.curLoc()
+        ASTExpr e = this.parseExpr()
+        ASTExprStmt s = ASTBuilder.CreateExprStmt(block, loc)
+        s.setExpr(e)
+    }
+
+    // ── ParseExpr ─────────────────────────────────────────────────────────────
+    // Expression parsing lives in the ParserExpr companion (ParserExpr.fly), mirroring
+    // fly/compiler/Parser/ParserExpr.cpp. ParserExpr uses STATIC methods threading `this`
+    // (no stored Parser field) to avoid the Parser<->companion instance cycle that crashes
+    // codegen (task #11).
+    public ASTExpr parseExpr() { out = ParserExpr.parse(this) }
+}
+
+// newParser — convenience factory.
+public Parser newParser(const string src) {
+    out = new Parser(src)
+}

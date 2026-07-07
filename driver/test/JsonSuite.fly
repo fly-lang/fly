@@ -1,0 +1,58 @@
+namespace fly.driver.test
+
+import fly.driver.*
+
+import fly.driver.test.util.*
+import fly.assert
+import fly.str
+
+// Exercises the JSON reader used by the registry fetcher. TOML-style: `mkJson`
+// turns a `|`-placeholder template into JSON with real double quotes.
+
+suite JsonSuite {
+
+    void arrayTest() {
+        case "version string array": {
+            string src = mkJson("[ |1.0.0|, |1.1.0|, |2.0.0| ]")
+            int err = 0
+            fly.driver.JsonValue v = fly.driver.jsonParse(src, err)
+            assert.assertEqI(err, 0, 1)
+            assert.assertTrue(v.isArray(), 2)
+            assert.assertEqI(v.size(), 3, 3)
+            assert.assertStr(v.at(0).asString(), "1.0.0", 4)
+            assert.assertStr(v.at(2).asString(), "2.0.0", 5)
+        }
+    }
+
+    void objectTest() {
+        case "object with mixed values": {
+            string src = mkJson("{ |name|: |mylib|, |latest|: |1.2.0|, |yanked|: false, |downloads|: 42 }")
+            int err = 0
+            fly.driver.JsonValue v = fly.driver.jsonParse(src, err)
+            assert.assertEqI(err, 0, 10)
+            assert.assertTrue(v.isObject(), 11)
+            assert.assertStr(v.get("name").asString(), "mylib", 12)
+            assert.assertStr(v.get("latest").asString(), "1.2.0", 13)
+            assert.assertTrue(v.has("yanked"), 14)
+            assert.assertFalse(v.get("yanked").asBool(), 15)
+            assert.assertTrue(v.get("downloads").isNumber(), 16)
+            assert.assertStr(v.get("downloads").asString(), "42", 17)
+        }
+    }
+
+    void nestedTest() {
+        case "nested object + array + null": {
+            string src = mkJson("{ |pkg|: { |versions|: [ |0.1.0|, |0.2.0| ], |repo|: null } }")
+            int err = 0
+            fly.driver.JsonValue v = fly.driver.jsonParse(src, err)
+            assert.assertEqI(err, 0, 20)
+            fly.driver.JsonValue pkg = v.get("pkg")
+            assert.assertTrue(pkg.isObject(), 21)
+            fly.driver.JsonValue vers = pkg.get("versions")
+            assert.assertTrue(vers.isArray(), 22)
+            assert.assertEqI(vers.size(), 2, 23)
+            assert.assertStr(vers.at(1).asString(), "0.2.0", 24)
+            assert.assertTrue(pkg.get("repo").isNull(), 25)
+        }
+    }
+}

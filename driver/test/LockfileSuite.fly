@@ -1,0 +1,75 @@
+namespace fly.driver.test
+
+import fly.driver.*
+
+import fly.assert
+import fly.os.fs
+import fly.str
+
+// Round-trips a Lockfile: build → serialize/write → readLock → verify. Exercises
+// the writer and the [[package]] array-of-tables reader (via the toml reader).
+
+suite LockfileSuite {
+
+    void roundTripTest() {
+        case "write then read fly.lock": {
+            Lockfile lf = new Lockfile()
+            lf.setTomlChecksum("sha256:deadbeef")
+            lf.setFlyVersion("0.14.0")
+
+            LockedPackage a = new LockedPackage()
+            a.setName("liba")
+            a.setVersion("1.2.0")
+            a.setSource("git+https://host/A.git")
+            a.setRev("abc123")
+            a.setTag("v1.2.0")
+            a.setChecksum("sha256:aaaa")
+            a.addDep("libb 2.0.0")
+            lf.addPackage(a)
+
+            LockedPackage b = new LockedPackage()
+            b.setName("libb")
+            b.setVersion("2.0.0")
+            b.setSource("registry+libb")
+            b.setRev("2.0.0")
+            b.setChecksum("sha256:bbbb")
+            lf.addPackage(b)
+
+            fly.os.fs.dirCreateAll("/tmp/flylocktest", 493)
+            lf.write("/tmp/flylocktest/fly.lock")
+
+            int err = 0
+            Lockfile lf2 = readLock("/tmp/flylocktest/fly.lock", err)
+            assert.assertEqI(err, 0, 1)
+            assert.assertStr(lf2.getTomlChecksum(), "sha256:deadbeef", 2)
+            assert.assertEqI(lf2.packageCount(), 2, 3)
+
+            LockedPackage pa = lf2.find("liba")
+            assert.assertTrue(pa != null, 4)
+            assert.assertStr(pa.getVersion(), "1.2.0", 5)
+            assert.assertStr(pa.getSource(), "git+https://host/A.git", 6)
+            assert.assertStr(pa.getTag(), "v1.2.0", 7)
+            assert.assertEqI(pa.depCount(), 1, 8)
+            assert.assertStr(pa.depAt(0), "libb 2.0.0", 9)
+
+            LockedPackage pb = lf2.find("libb")
+            assert.assertStr(pb.getSource(), "registry+libb", 10)
+            assert.assertEqI(pb.depCount(), 0, 11)
+        }
+
+        case "isStale on missing checksum": {
+            Lockfile lf = new Lockfile()
+            assert.assertTrue(lf.isStale("nonexistent.toml"), 12)
+        }
+        case "missing file → empty lockfile": {
+            int err = 0
+            Lockfile lf = readLock("/nonexistent/path/fly.lock", err)
+            assert.assertEqI(err, 0, 13)
+            assert.assertEqI(lf.packageCount(), 0, 14)
+        }
+        case "find returns null for missing package": {
+            Lockfile lf = new Lockfile()
+            assert.assertTrue(lf.find("missing") == null, 15)
+        }
+    }
+}

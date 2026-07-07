@@ -1,0 +1,483 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.compiler.basic.*
+import fly.data.List
+import fly.str
+import fly.os.io
+
+// ResolverCall — call resolution companion (decomposed into small helpers; the C++
+// visit(ASTCall) is ~530 lines). Stage-6 scope: exact-match resolution of a free
+// function `f(a)`, an instance method `obj.m(a)`, and a constructor `new C(a)`,
+// with synthetic out-var creation for non-void returns. Overload ranking is
+// Stage 7; super-calls and generic instantiation are Stage 8.
+public class ResolverCall {
+
+    public ResolverCall() { }
+
+    // call — visit(ASTCall): resolve receiver + args, dispatch by call kind, then
+    // attach args / parent / out-var.
+    public static void call(const Resolver r, const ASTCall node) {
+        SymbolTable savedScope = r.getCurrentScope()
+        ASTCallKind ck = node.getCallKind()
+        ASTExpr parent = node.getParent()
+
+        // super forms (audit V4): `super(args)` = base-constructor call inside a
+        // ctor; `super.m(args)` = NON-virtual call of the base implementation.
+        // Detected before receiver resolution — `super` is not a value.
+        bool superCtor = false
+        if parent == null { superCtor = fly.str.equals(node.getName(), "super") }
+        bool superRecv = false
+        if parent != null {
+            ASTIdentifier spid = parent.asIdentifier()
+            if spid != null {
+                if parent.getParent() == null {
+                    superRecv = fly.str.equals(spid.getName(), "super")
+                }
+            }
+        }
+
+        // Namespace-qualified free-function call `fly.os.io.printLn(...)`: if the
+        // receiver is a pure name path that names a registered namespace, resolve the
+        // function IN that namespace — do NOT resolve the path as a value expression
+        // (which would fail with "cannot find 'fly' in this scope"). Detected first so
+        // the value-receiver path below is skipped for namespace calls.
+        List<string> nsPath = null
+        if parent != null && ck != ASTCallKind.CALL_NEW && superRecv == false {
+            List<string> cand = ResolverCall.flattenNsPath(parent)
+            if cand != null {
+                if r.getReg().lookupNameSpaceByStrings(cand) != null { nsPath = cand }
+                // Short/aliased namespace prefix (audit V3): `assert.f(…)` after
+                // `import fly.assert`, or `s.f(…)` after `import fly.str as s` —
+                // expand the first segment through the module's imports. A value
+                // in scope with the same name wins (checked inside the helper).
+                if nsPath == null { nsPath = ResolverCall.expandNsPath(r, cand) }
+                // First segment names a (prefix) namespace like `fly` in
+                // `fly.io.println(…)` — even when the fuller path is NOT a registered
+                // namespace, this is a namespace-qualified call, not a value receiver.
+                // Route it to the namespace lookup so a missing function reports
+                // "no function named X" instead of silently compiling to a no-op. A
+                // value/local shadowing the name wins (LookupName returns that first).
+                if nsPath == null {
+                    if cand.size() > 0 {
+                        Symbol ns0 = r.getReg().LookupName(cand.get(0), r.getCurrentScope())
+                        if ns0 != null {
+                            if ns0.getKind() == SymbolKind.NAMESPACE { nsPath = cand }
+                        }
+                    }
+                }
+            }
+        }
+
+        // receiver of an instance method call, resolved in the caller's scope (skipped
+        // for a namespace-qualified call and for `super.` receivers). Snapshot the
+        // error count around the receiver resolution so a receiver that fails SILENTLY
+        // (a namespace name used as a value, e.g. `fly.io` — resolves to null with no
+        // diagnostic) is not mistaken for one that already reported its own error.
+        SemaExpr parentExpr = null
+        SemaType parentType = null
+        bool parentDiagnosed = false
+        if parent != null && nsPath == null && superRecv == false {
+            DiagnosticsEngine pde = r.getReg().getDiags()
+            int errsBefore = 0
+            if pde != null { errsBefore = pde.getNumErrors() }
+            parent.accept(r)
+            parentExpr = r.getCurrentExpr()
+            if parentExpr != null { parentType = parentExpr.getType() }
+            if pde != null { parentDiagnosed = pde.getNumErrors() > errsBefore }
+        }
+
+        // arguments (resolved exprs + their types), in the caller's scope
+        List<ASTArg> astArgs = node.getArgs()
+        List<SemaExpr> argExprs = new List<SemaExpr>()
+        List<SemaType> argTypes = new List<SemaType>()
+        int i = 0
+        while i < astArgs.size() {
+            ASTArg a = astArgs.get(i)
+            ASTNode ae = a.getExpr()
+            ae.accept(r)
+            SemaExpr ax = r.getCurrentExpr()
+            argExprs.add(ax)
+            SemaType at = null
+            if ax != null { at = ax.getType() }
+            argTypes.add(at)
+            i = i + 1
+        }
+
+        SemaCall sema = null
+        if ck == ASTCallKind.CALL_NEW {
+            sema = ResolverCall.resolveNew(r, node, savedScope, argTypes)
+        } elsif superCtor || superRecv {
+            sema = ResolverCall.resolveSuper(r, node, superCtor, argTypes)
+        } elsif nsPath != null {
+            sema = ResolverCall.resolveNamespaceCall(r, node, nsPath, argTypes)
+        } elsif parentType != null {
+            sema = ResolverCall.resolveMethodCall(r, node, parentType, argTypes)
+        } else {
+            sema = ResolverCall.resolveFunctionCall(r, node, savedScope, argTypes)
+        }
+
+        if sema == null {
+            // Suppress a cascade error only when a VALUE receiver failed to resolve
+            // AND it already reported its own diagnostic. A namespace-qualified call
+            // (nsPath != null) has no value receiver — a missing function there IS a
+            // real error. And a receiver that failed SILENTLY (e.g. `fly.io`, a
+            // namespace name used as a value) reported nothing, so the call must still
+            // surface as unresolved rather than compile to a silent no-op.
+            bool parentFailed = false
+            if parent != null && nsPath == null {
+                if parentExpr == null {
+                    if parentDiagnosed { parentFailed = true }
+                }
+            }
+            if parentFailed == false {
+                r.diagStr(node.getLoc(), DiagID.err_sema_function_not_found, node.getName())
+            }
+            r.setCurrentScope(savedScope)
+            r.setCurrentExpr(null)
+            return
+        }
+
+        int j = 0
+        while j < argExprs.size() { sema.addArg(argExprs.get(j))  j = j + 1 }
+        if parentExpr != null { sema.setParent(parentExpr) }
+
+        ResolverCall.synthOutVar(r, node, sema)
+        sema.setErrorHandler(r.getCurrentErrorHandler())
+        r.setCurrentScope(savedScope)
+        r.setCurrentExpr(sema)
+    }
+
+    // resolveSuper — `super(args)` resolves the FIRST base class's constructor;
+    // `super.m(args)` resolves `m` from the first base up the chain. The receiver
+    // is the current method's `this` and the call is marked super → codegen
+    // dispatches DIRECT (no vtable), so the base implementation always runs.
+    public static SemaCall resolveSuper(const Resolver r, const ASTCall node, const bool ctorForm, const List<SemaType> argTypes) {
+        SemaClassType cls = r.getCurrentClass()
+        if cls == null { out = null  return }
+        List<SemaClassType> bases = cls.getBaseClasses()
+        if bases.size() == 0 { out = null  return }
+        SemaClassType base = bases.get(0)
+        Registry reg = r.getReg()
+        Symbol sym = null
+        if ctorForm {
+            SymbolTable bscope = base.getSymbols()
+            sym = reg.LookupFunction(base.getName(), argTypes, bscope)
+        } else {
+            sym = ResolverCall.lookupMethodInHierarchy(reg, base, node.getName(), argTypes)
+        }
+        SemaCall sc = ResolverCall.makeCall(node, sym)
+        if sc == null { out = null  return }
+        sc.setSuper(true)
+        Symbol tsym = reg.LookupName("this", r.getCurrentScope())
+        if tsym != null {
+            SemaExpr thisE = tsym.getExprRef()
+            if thisE != null { sc.setParent(thisE) }
+        }
+        out = sc
+    }
+
+    // resolveFunctionCall — free function, looked up in the caller scope; when the
+    // overload lookup fails, a generic TEMPLATE of that name is monomorphized.
+    public static SemaCall resolveFunctionCall(const Resolver r, const ASTCall node, const SymbolTable scope, const List<SemaType> argTypes) {
+        Registry reg = r.getReg()
+        Symbol sym = reg.LookupFunction(node.getName(), argTypes, scope)
+        if sym == null {
+            out = ResolverCall.resolveGenericCall(r, node, argTypes)
+            return
+        }
+        out = ResolverCall.makeCall(node, sym)
+    }
+
+    // resolveNamespaceCall — free function looked up in the namespace `nsPath`
+    // (the flattened receiver, e.g. [fly, os, io]). No receiver value is attached.
+    public static SemaCall resolveNamespaceCall(const Resolver r, const ASTCall node, const List<string> nsPath, const List<SemaType> argTypes) {
+        Registry reg = r.getReg()
+        Symbol sym = reg.LookupFunctionInNamespace(nsPath, node.getName(), argTypes)
+        if sym == null {
+            out = ResolverCall.resolveGenericCall(r, node, argTypes)
+            return
+        }
+        out = ResolverCall.makeCall(node, sym)
+    }
+
+    // substTypeParam — when the caller sits inside an enclosing SPECIALIZATION
+    // (class or function), an argument's type may still be the enclosing
+    // template's TypeParam; map it to the concrete binding via the current scope
+    // chain (the spec scope holds T → concrete).
+    public static SemaType substTypeParam(const Resolver r, const SemaType t) {
+        if t == null { out = t  return }
+        if t.getKind() != SemaKind.TYPE_PARAM { out = t  return }
+        SymbolTable sc = r.getCurrentScope()
+        if sc == null { out = t  return }
+        List<Symbol> syms = sc.lookupInParents(t.getName())
+        if syms != null {
+            if syms.size() > 0 {
+                Symbol s0 = syms.get(0)
+                SemaType conc = s0.getTypeRef()
+                if conc != null {
+                    if conc.getKind() != SemaKind.TYPE_PARAM { out = conc  return }
+                }
+            }
+        }
+        out = t
+    }
+
+    // resolveGenericCall — monomorphize a generic TEMPLATE for this call: infer
+    // each type param from the argument types (declaration order), get-or-create
+    // the specialization, resolve its signature once and queue its body for
+    // phase-C resolution + codegen (audit V4; mirrors the reference).
+    public static SemaCall resolveGenericCall(const Resolver r, const ASTCall node, const List<SemaType> argTypes) {
+        Registry reg = r.getReg()
+        SemaFunction tpl = reg.lookupGenericFn(node.getName())
+        if tpl == null { out = null  return }
+
+        List<SemaParam> tparams = tpl.getParams()
+        List<SemaTypeParam> tps = tpl.getTypeParams()
+        List<SemaType> inferred = new List<SemaType>()
+        int pi = 0
+        while pi < tps.size() {
+            SemaTypeParam tp = tps.get(pi)
+            SemaType bound = null
+            int aj = 0
+            while aj < tparams.size() {
+                if aj < argTypes.size() {
+                    SemaParam pj = tparams.get(aj)
+                    SemaType pt = pj.getType()
+                    if pt != null {
+                        if pt.getKind() == SemaKind.TYPE_PARAM {
+                            if fly.str.equals(pt.getName(), tp.getName()) {
+                                if bound == null {
+                                    bound = ResolverCall.substTypeParam(r, argTypes.get(aj))
+                                }
+                            }
+                        }
+                    }
+                }
+                aj = aj + 1
+            }
+            if bound == null { out = null  return }
+            inferred.add(bound)
+            pi = pi + 1
+        }
+
+        SemaFunction spec = SemaBuilder.CreateFunctionSpecialization(tpl, inferred, r.getCurrentScope())
+        if spec == null { out = null  return }
+
+        // first use: resolve the spec's signature (params/return with T bound)
+        // and queue its body. resolveSignature resets the resolution context —
+        // save/restore everything the enclosing call resolution still needs.
+        List<SemaParam> sparams = spec.getParams()
+        if sparams.size() == 0 {
+            SymbolTable savedScope = r.getCurrentScope()
+            SemaClassType savedClass = r.getCurrentClass()
+            SemaEnumType savedEnum = r.getCurrentEnum()
+            SemaFunctionBase savedFn = r.getCurrentFunction()
+            SemaBlockStmt savedBlock = r.getCurrentSemaBlock()
+            SemaError savedEH = r.getCurrentErrorHandler()
+
+            ResolverDecl.resolveSignature(r, spec)
+            reg.addBody(spec)
+
+            r.setCurrentScope(savedScope)
+            r.setCurrentClass(savedClass)
+            r.setCurrentEnum(savedEnum)
+            r.setCurrentFunctionBase(savedFn)
+            r.setCurrentSemaBlock(savedBlock)
+            r.setCurrentErrorHandler(savedEH)
+        }
+
+        out = SemaBuilder.CreateCall(node, spec.getReturnType(), spec)
+    }
+
+    // expandNsPath — resolve a SHORT namespace prefix through the current module's
+    // imports (Java-style semantics, mirroring the reference): the first segment
+    // of `cand` must equal an import's alias — or, for unaliased imports, its LAST
+    // path segment (`import fly.assert` → `assert`). On a match, the import's full
+    // path replaces the first segment and the result must name a registered
+    // namespace. Returns null when nothing matches, or when the first segment
+    // resolves as a VALUE in the current scope (locals shadow namespace prefixes).
+    public static List<string> expandNsPath(const Resolver r, const List<string> cand) {
+        if cand == null { out = null  return }
+        if cand.size() == 0 { out = null  return }
+        SemaModule mod = r.getCurrentModule()
+        if mod == null { out = null  return }
+        string head = cand.get(0)
+        Registry reg = r.getReg()
+        // only VALUE symbols shadow a namespace prefix (a stray NAMESPACE/TYPE
+        // symbol named like the prefix must not block `llvm.strSize(…)`)
+        Symbol shadow = reg.LookupName(head, r.getCurrentScope())
+        if shadow != null {
+            SymbolKind sk = shadow.getKind()
+            if sk == SymbolKind.VAR { out = null  return }
+            if sk == SymbolKind.LOCAL_VAR { out = null  return }
+            if sk == SymbolKind.PARAM { out = null  return }
+            if sk == SymbolKind.ATTRIBUTE { out = null  return }
+        }
+
+        List<SemaImport> imps = mod.getImports()
+        int i = 0
+        while i < imps.size() {
+            SemaImport imp = imps.get(i)
+            List<ASTName> names = imp.getNames()
+            if names != null {
+                if names.size() > 0 {
+                    // match key: the alias when present, else the last path segment
+                    string key = ""
+                    List<ASTName> alias = imp.getTarget()
+                    if alias != null {
+                        if alias.size() > 0 {
+                            ASTName a0 = alias.get(alias.size() - 1)
+                            key = a0.getName()
+                        }
+                    }
+                    if fly.str.isEmpty(key) {
+                        ASTName lastN = names.get(names.size() - 1)
+                        key = lastN.getName()
+                    }
+                    if fly.str.equals(key, head) {
+                        List<string> full = new List<string>()
+                        int k = 0
+                        while k < names.size() {
+                            ASTName nn = names.get(k)
+                            full.add(nn.getName())
+                            k = k + 1
+                        }
+                        int t2 = 1
+                        while t2 < cand.size() { full.add(cand.get(t2))  t2 = t2 + 1 }
+                        if reg.lookupNameSpaceByStrings(full) != null { out = full  return }
+                    }
+                }
+            }
+            i = i + 1
+        }
+        out = null
+    }
+
+    // flattenNsPath — if `e` is a pure identifier/member chain (a.b.c with no calls
+    // or other expressions), return the dotted names as a string list; else null. Used
+    // to detect a namespace-path call receiver before resolving it as a value.
+    public static List<string> flattenNsPath(const ASTExpr e) {
+        if e == null { out = null  return }
+        ASTExprKind k = e.getExprKind()
+        if k == ASTExprKind.EXPR_IDENTIFIER {
+            ASTIdentifier id = e.asIdentifier()
+            ASTExpr par = e.getParent()
+            if par == null {
+                List<string> r0 = new List<string>()
+                r0.add(id.getName())
+                out = r0
+                return
+            }
+            List<string> pre = ResolverCall.flattenNsPath(par)
+            if pre == null { out = null  return }
+            pre.add(id.getName())
+            out = pre
+            return
+        }
+        if k == ASTExprKind.EXPR_MEMBER {
+            ASTMember m = e.asMember()
+            List<string> pre = ResolverCall.flattenNsPath(e.getParent())
+            if pre == null { out = null  return }
+            pre.add(m.getName())
+            out = pre
+            return
+        }
+        out = null
+    }
+
+    // resolveMethodCall — instance method, looked up in the receiver's class scope
+    // and then up the inheritance chain (so inherited methods resolve too).
+    public static SemaCall resolveMethodCall(const Resolver r, const ASTCall node, const SemaType parentType, const List<SemaType> argTypes) {
+        SemaClassType cls = parentType.asClass()
+        if cls == null { out = null  return }
+        Registry reg = r.getReg()
+        Symbol sym = ResolverCall.lookupMethodInHierarchy(reg, cls, node.getName(), argTypes)
+        out = ResolverCall.makeCall(node, sym)
+    }
+
+    // lookupMethodInHierarchy — try the class's own scope, then recurse into base
+    // classes (depth-first, first base wins). Returns null if nowhere defines it.
+    public static Symbol lookupMethodInHierarchy(const Registry reg, const SemaClassType cls, const string name, const List<SemaType> argTypes) {
+        SymbolTable cscope = cls.getSymbols()
+        Symbol sym = reg.LookupFunction(name, argTypes, cscope)
+        if sym != null { out = sym  return }
+        List<SemaClassType> bases = cls.getBaseClasses()
+        int i = 0
+        while i < bases.size() {
+            SemaClassType base = bases.get(i)
+            Symbol s = ResolverCall.lookupMethodInHierarchy(reg, base, name, argTypes)
+            if s != null { out = s  return }
+            i = i + 1
+        }
+        out = null
+    }
+
+    // makeCall — build a SemaCall from a resolved function/method symbol (the ref is
+    // recovered as a SemaFunctionBase without a downcast).
+    public static SemaCall makeCall(const ASTCall node, const Symbol sym) {
+        if sym == null { out = null  return }
+        SemaNode ref = sym.getRef()
+        SemaFunctionBase fn = ref.asFunctionBase()
+        if fn == null { out = null  return }
+        out = SemaBuilder.CreateCall(node, fn.getReturnType(), fn)
+    }
+
+    // resolveNew — `new C(args)`: resolve the class type then its matching ctor (the
+    // call's type IS the class).
+    public static SemaCall resolveNew(const Resolver r, const ASTCall node, const SymbolTable scope, const List<SemaType> argTypes) {
+        Registry reg = r.getReg()
+        Symbol tsym = reg.LookupNamedType(node.getName(), scope)
+        if tsym == null { out = null  return }
+        SemaType tt = tsym.getTypeRef()
+        if tt == null { out = null  return }
+        SemaClassType cls = tt.asClass()
+        if cls == null { out = null  return }
+        // Generic instantiation: new Wrapper<int>() — swap to the specialization.
+        List<ASTType> typeArgsAst = node.getTypeArgs()
+        if typeArgsAst.size() > 0 {
+            SemaClassType spec = ResolverType.instantiate(r, tt, typeArgsAst)
+            if spec == null {
+                // keeping the raw generic template used to reach genNew with a
+                // null LLVM struct type → crash inside libLLVM
+                r.diagStr(node.getLoc(), DiagID.err_sema_bad_type_args, node.getName())
+                out = null
+                return
+            }
+            cls = spec
+        }
+        // Header STRUCTS are plain stack objects (alloca + zero); header CLASSES
+        // follow the reference protocol in codegen (malloc + <Id>.init_ctor from
+        // the archive + mangled ctor) — both constructible now (audit V4 fase 2).
+        SymbolTable cscope = cls.getSymbols()
+        Symbol csym = reg.LookupFunction(node.getName(), argTypes, cscope)
+        if csym == null { out = null  return }
+        SemaNode ref = csym.getRef()
+        SemaFunctionBase ctor = ref.asFunctionBase()
+        if ctor == null { out = null  return }
+        out = SemaBuilder.CreateCall(node, cls, ctor)
+    }
+
+    // synthOutVar — a non-void return is delivered through a synthetic "__out_N"
+    // local passed as the hidden out argument; register it on the enclosing function.
+    public static void synthOutVar(const Resolver r, const ASTCall node, const SemaCall sema) {
+        SemaFunctionBase fn = sema.getFunction()
+        if fn == null { return }
+        SemaType rt = fn.getReturnType()
+        if rt == null { return }
+        if rt.isVoid() { return }
+        SemaFunctionBase cf = r.getCurrentFunction()
+        if cf == null { return }
+        ASTFunction fa = fn.getAST()
+        ASTType rtAst = fa.getReturnType()
+        if rtAst == null { return }
+        string outName = r.nextOutName()
+        List<ASTModifier> noMods = new List<ASTModifier>()
+        ASTLocalVar outAst = ASTBuilder.CreateLocalVar(node.getLoc(), rtAst, outName, noMods)
+        SemaLocalVar outVar = SemaBuilder.CreateLocalVar(outAst, rt)
+        cf.addLocalVar(outVar)
+        sema.addArg(outVar)
+        sema.setOutVar(outVar)
+    }
+}

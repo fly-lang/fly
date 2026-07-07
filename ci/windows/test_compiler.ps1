@@ -63,7 +63,7 @@ if (-not (Test-Path (Join-Path (Split-Path $FLY -Parent) '..\lib') -PathType Con
 
 $pass = 0
 $fail = 0
-$suites = Get-ChildItem -Recurse -Filter *Suite.fly test | Sort-Object FullName
+$suites = Get-ChildItem -Recurse -Filter *Suite.fly compiler/test, driver/test | Sort-Object FullName
 foreach ($suite in $suites) {
     $name = $suite.BaseName
     $bin = "$OUT/test_$name.exe"

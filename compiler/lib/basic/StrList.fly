@@ -1,0 +1,42 @@
+namespace fly.compiler.basic
+
+import fly.str
+
+// StrList — helpers for a ";"-delimited string list (";a;b;" → a, b), the encoding
+// used where a real List<string> is avoided (fly.data.List stores long). Shared by
+// FrontendOptions (its list-valued options) and ToolChain (input/path lists). Only
+// fresh substrings of the immutable source are taken (never `x = substring(x,…)`,
+// which the self-host miscompiles).
+
+// segCount — number of elements in the ";"-delimited list.
+public int segCount(const string s) { out = fly.str.count(s, ";") - 1 }
+
+// segAt — the element at index `idx`.
+public string segAt(const string s, const int idx) {
+    int from = 1
+    int seg = 0
+    string result = ""
+    bool go = true
+    while go {
+        string tail = fly.str.substring(s, from, fly.str.len(s))
+        int rel = fly.str.indexOf(tail, ";")
+        if rel < 0 {
+            go = false
+        } else {
+            int end = from + rel
+            if seg == idx {
+                result = fly.str.substring(s, from, end)
+                go = false
+            } else {
+                seg = seg + 1
+                from = end + 1
+            }
+        }
+    }
+    out = result
+}
+
+// segAppend — append `v` to a ";"-delimited list.
+public string segAppend(const string s, const string v) {
+    out = fly.str.concat(s, fly.str.concat(v, ";"))
+}

@@ -1,0 +1,35 @@
+namespace fly.driver.test
+
+import fly.driver.*
+
+import fly.assert
+
+// Port of the Cache::parse_url cases from MVSResolverTest.cpp.
+
+suite CacheSuite {
+
+    void parseUrlTest() {
+        case "https url": {
+            UrlParts u = parseUrl("https://github.com/example/mylib.git")
+            assert.assertStr(u.getHost(), "github.com", 1)
+            assert.assertStr(u.getOwner(), "example", 2)
+            assert.assertStr(u.getRepo(), "mylib", 3)
+        }
+        case "ssh url": {
+            UrlParts u = parseUrl("git@github.com:example/mylib.git")
+            assert.assertStr(u.getHost(), "github.com", 4)
+            assert.assertStr(u.getOwner(), "example", 5)
+            assert.assertStr(u.getRepo(), "mylib", 6)
+        }
+        case "no .git suffix": {
+            UrlParts u = parseUrl("https://github.com/example/mylib")
+            assert.assertStr(u.getRepo(), "mylib", 7)
+        }
+        case "git protocol": {
+            UrlParts u = parseUrl("git://host.org/o/r.git")
+            assert.assertStr(u.getHost(), "host.org", 8)
+            assert.assertStr(u.getOwner(), "o", 9)
+            assert.assertStr(u.getRepo(), "r", 10)
+        }
+    }
+}

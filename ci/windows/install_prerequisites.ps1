@@ -47,17 +47,13 @@ $flyExe   = Join-Path $flyBin 'fly.exe'
 # === LLVM ====================================================================
 
 # --- Download LLVM (fly-lang build) ------------------------------------------
-# We only need two files from the ~900 MB LLVM artifact: LLVM-C.lib (the link
-# import lib) and LLVM-C.dll (loaded at runtime). Skip the download when both are
-# already present - the local equivalent of the CI cache hit.
-# For a self-contained release (FLY_BUNDLE_LLVM=1) the build also needs the fork
-# LLVM's STATIC archives + headers + llvm-config/clang to link a small `fly-lld.exe`
-# (lld's C++ deps aren't exported by the C-API DLL). Pull the whole llvm/lib +
-# llvm/include tree and the tools in that case; otherwise just the two runtime files.
-$bundle = ($env:FLY_BUNDLE_LLVM -eq '1')
-$llvmInc = Join-Path $buildDir 'llvm\include'
-$needStatic = $bundle -and -not (Test-Path (Join-Path $llvmLib 'lldCOFF.lib'))
-if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.dll") -or $needStatic) {
+# From the ~900 MB fork LLVM artifact we need only three files: LLVM-C.lib (the
+# link import lib), LLVM-C.dll (loaded at runtime), and lld-link.exe (the COFF
+# linker the self-contained release bundles). The fork already builds lld-link.exe,
+# so — mirroring Linux, which bundles the fork's ld.lld — the release ships it
+# verbatim and NO C++ compiler builds a custom linker downstream. Skip the download
+# when all three are present (the local equivalent of a CI cache hit).
+if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.dll") -or -not (Test-Path "$llvmBin\lld-link.exe")) {
     $url = "https://github.com/fly-lang/llvm-project/releases/download/v$LLVM_VERSION-win-x64/llvm-$LLVM_VERSION-win-x64.zip"
     New-Item -ItemType Directory -Force $llvmLib, $llvmBin | Out-Null
     $zipPath = Join-Path $buildDir 'llvm.zip'
@@ -65,29 +61,14 @@ if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
     try {
-        # Always: the two runtime files the plain build links against.
         foreach ($want in @(
-            @{ entry = 'llvm/lib/LLVM-C.lib'; out = (Join-Path $llvmLib 'LLVM-C.lib') },
-            @{ entry = 'llvm/bin/LLVM-C.dll'; out = (Join-Path $llvmBin 'LLVM-C.dll') }
+            @{ entry = 'llvm/lib/LLVM-C.lib';   out = (Join-Path $llvmLib 'LLVM-C.lib') },
+            @{ entry = 'llvm/bin/LLVM-C.dll';   out = (Join-Path $llvmBin 'LLVM-C.dll') },
+            @{ entry = 'llvm/bin/lld-link.exe'; out = (Join-Path $llvmBin 'lld-link.exe') }
         )) {
             $e = $zip.GetEntry($want.entry)
             if (-not $e) { throw "missing $($want.entry) in LLVM archive" }
             [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, $want.out, $true)
-        }
-        # Bundle build: also the static dev tree (llvm/lib/*.lib, llvm/include/**,
-        # and llvm-config/clang from llvm/bin) so build_compiler.ps1 can build fly-lld.
-        if ($needStatic) {
-            Write-Host "extracting LLVM static dev tree for FLY_BUNDLE_LLVM ..."
-            foreach ($e in $zip.Entries) {
-                $n = $e.FullName
-                $take = ($n -like 'llvm/lib/*.lib') -or ($n -like 'llvm/include/*') `
-                    -or ($n -eq 'llvm/bin/llvm-config.exe') -or ($n -eq 'llvm/bin/clang++.exe') `
-                    -or ($n -eq 'llvm/bin/clang.exe')
-                if (-not $take -or $e.Length -eq 0) { continue }
-                $dest = Join-Path $buildDir ($n -replace '/', '\')
-                New-Item -ItemType Directory -Force (Split-Path $dest -Parent) | Out-Null
-                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, $dest, $true)
-            }
         }
     } finally { $zip.Dispose() }
     Remove-Item $zipPath
@@ -95,7 +76,7 @@ if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.
 
 # --- Configure LLVM for the linker -------------------------------------------
 # The self-host compiler declares its backend as `libLLVM-20.so` (see
-# compiler/codegen/LLVMApi.fly); on Windows the toolchain maps that to the link
+# compiler/lib/codegen/LLVMApi.fly); on Windows the toolchain maps that to the link
 # name `LLVM-20.lib`. Alias LLVM-C.lib -> LLVM-20.lib: it is the import lib for
 # LLVM-C.dll, which (in the fly-lang build) exports every symbol the generated
 # code references, incl. the per-target LLVMInitialize* functions. A copy avoids

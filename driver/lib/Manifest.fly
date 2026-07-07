@@ -1,0 +1,729 @@
+namespace fly.driver
+
+import fly.data.List
+import fly.str
+import fly.os.fs
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Manifest — the fly.toml package manifest, ported from the C++ reference
+// (fly/tools/flyp/manifest/Manifest.{h,cpp}). Covers [package], [targets],
+// [test], [dependencies]/[dev-dependencies], [repo], [profiles], [hooks],
+// [link], [workspace] + name/version validation + serialization back to TOML.
+//
+// Map-like sections (deps/repos/profiles) are stored as ordered Lists of entry
+// classes (Fly's Map has no key iteration, and we need both lookup and order).
+// parseManifest returns errOut != 0 on a malformed/invalid manifest (the Fly
+// equivalent of the C++ `throw`): 201 invalid name, 202 invalid version,
+// 203 missing name/version, else the the toml reader parser code.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// A git/path/registry dependency. refKind: 0=Tag 1=Branch 2=Rev.
+public class GitDep {
+    string gitUrl
+    int refKind
+    string refValue
+    string path
+    string registryName
+    string pkgName
+    string versionReq
+
+    public GitDep() {
+        this.gitUrl = ""
+        this.refKind = 0
+        this.refValue = ""
+        this.path = ""
+        this.registryName = ""
+        this.pkgName = ""
+        this.versionReq = ""
+    }
+
+    public string getGitUrl()     { out = this.gitUrl }
+    public int getRefKind()       { out = this.refKind }
+    public string getRefValue()   { out = this.refValue }
+    public string getPath()       { out = this.path }
+    public string getRegistryName() { out = this.registryName }
+    public string getPkgName()    { out = this.pkgName }
+    public string getVersionReq() { out = this.versionReq }
+
+    public void setGitUrl(const string v)     { this.gitUrl = v }
+    public void setRef(const int k, const string v) { this.refKind = k  this.refValue = v }
+    public void setPath(const string v)       { this.path = v }
+    public void setRegistry(const string r, const string pkg, const string ver) {
+        this.registryName = r
+        this.pkgName = pkg
+        this.versionReq = ver
+    }
+
+    public bool isPathDep()     { out = fly.str.isEmpty(this.path) == false }
+    public bool isRegistryDep() { out = fly.str.isEmpty(this.registryName) == false }
+    public bool isGitDep()      { out = fly.str.isEmpty(this.gitUrl) == false }
+}
+
+// A build profile (opt-level etc.).
+public class BuildProfile {
+    int optLevel
+    bool debugInfo
+    bool assertions
+    bool lto
+    bool strip
+
+    public BuildProfile() {
+        this.optLevel = 0
+        this.debugInfo = true
+        this.assertions = true
+        this.lto = false
+        this.strip = false
+    }
+
+    public int getOptLevel()   { out = this.optLevel }
+    public bool getDebugInfo() { out = this.debugInfo }
+    public bool getAssertions() { out = this.assertions }
+    public bool getLto()       { out = this.lto }
+    public bool getStrip()     { out = this.strip }
+    public void setOptLevel(const int v)   { this.optLevel = v }
+    public void setDebugInfo(const bool v) { this.debugInfo = v }
+    public void setAssertions(const bool v) { this.assertions = v }
+    public void setLto(const bool v)       { this.lto = v }
+    public void setStrip(const bool v)     { this.strip = v }
+}
+
+// A build target: `key = { path, name?, lib? }`. No `lib` = bin.
+public class Target {
+    string key
+    string name
+    string path
+    string lib
+
+    public Target(const string k, const string nm, const string p, const string lb) {
+        this.key = k
+        this.name = nm
+        this.path = p
+        this.lib = lb
+    }
+
+    public string getKey()  { out = this.key }
+    public string getName() { out = this.name }
+    public string getPath() { out = this.path }
+    public string getLib()  { out = this.lib }
+    public bool isLib()     { out = fly.str.isEmpty(this.lib) == false }
+    public bool isBin()     { out = fly.str.isEmpty(this.lib) }
+}
+
+// [test] — suite-based test configuration.
+public class TestConfig {
+    List<string> suites
+    bool parallel
+    bool failFast
+
+    public TestConfig() {
+        this.suites = new List<string>()
+        this.parallel = false
+        this.failFast = false
+    }
+
+    public void addSuite(const string s)  { this.suites.add(s) }
+    public int suiteCount()               { out = (int)this.suites.size() }
+    public string suiteAt(const int idx)  { out = this.suites.get(idx) }
+    public bool getParallel()             { out = this.parallel }
+    public bool getFailFast()             { out = this.failFast }
+    public void setParallel(const bool v) { this.parallel = v }
+    public void setFailFast(const bool v) { this.failFast = v }
+}
+
+// Ordered name→GitDep entry (dependencies / dev-dependencies).
+public class DepEntry {
+    string name
+    GitDep dep
+    public DepEntry(const string n, const GitDep d) { this.name = n  this.dep = d }
+    public string getName() { out = this.name }
+    public GitDep getDep()  { out = this.dep }
+}
+
+// Ordered name→string entry (repo aliases).
+public class StrEntry {
+    string name
+    string value
+    public StrEntry(const string n, const string v) { this.name = n  this.value = v }
+    public string getName()  { out = this.name }
+    public string getValue() { out = this.value }
+}
+
+// Ordered name→BuildProfile entry.
+public class ProfileEntry {
+    string name
+    BuildProfile prof
+    public ProfileEntry(const string n, const BuildProfile p) { this.name = n  this.prof = p }
+    public string getName()      { out = this.name }
+    public BuildProfile getProf() { out = this.prof }
+}
+
+// The parsed manifest.
+public class Manifest {
+    string name
+    string version
+    string description
+    string license
+    string flyVersion
+    string homepage
+    string repository
+    string defaultRegistry
+    List<string> authors
+    List<Target> targets
+    TestConfig tst                 // `test` is a reserved keyword
+    List<DepEntry> deps
+    List<DepEntry> devDeps
+    List<StrEntry> repos
+    List<ProfileEntry> profiles
+    List<string> linkLibs
+    List<string> wsMembers         // workspace members (empty = not a workspace root)
+    bool isWorkspace
+    string preBuild
+    string postBuild
+
+    public Manifest() {
+        this.name = ""
+        this.version = ""
+        this.description = ""
+        this.license = ""
+        this.flyVersion = ""
+        this.homepage = ""
+        this.repository = ""
+        this.defaultRegistry = ""
+        this.authors = new List<string>()
+        this.targets = new List<Target>()
+        this.tst = new TestConfig()
+        this.deps = new List<DepEntry>()
+        this.devDeps = new List<DepEntry>()
+        this.repos = new List<StrEntry>()
+        this.profiles = new List<ProfileEntry>()
+        this.linkLibs = new List<string>()
+        this.wsMembers = new List<string>()
+        this.isWorkspace = false
+        this.preBuild = ""
+        this.postBuild = ""
+    }
+
+    public string getName()        { out = this.name }
+    public string getVersion()     { out = this.version }
+    public string getDescription() { out = this.description }
+    public string getLicense()     { out = this.license }
+    public string getFlyVersion()  { out = this.flyVersion }
+    public string getHomepage()    { out = this.homepage }
+    public string getRepository()  { out = this.repository }
+    public string getDefaultRegistry() { out = this.defaultRegistry }
+    public void setName(const string v)        { this.name = v }
+    public void setVersion(const string v)     { this.version = v }
+    public void setDescription(const string v) { this.description = v }
+    public void setLicense(const string v)     { this.license = v }
+    public void setFlyVersion(const string v)  { this.flyVersion = v }
+    public void setHomepage(const string v)    { this.homepage = v }
+    public void setRepository(const string v)  { this.repository = v }
+    public void setDefaultRegistry(const string v) { this.defaultRegistry = v }
+
+    public void addAuthor(const string a)   { this.authors.add(a) }
+    public int authorCount()                { out = (int)this.authors.size() }
+    public string authorAt(const int idx)   { out = this.authors.get(idx) }
+
+    public void addTarget(const Target t)   { this.targets.add(t) }
+    public int targetCount()                { out = (int)this.targets.size() }
+    public Target targetAt(const int idx)   { out = this.targets.get(idx) }
+
+    public TestConfig getTest()             { out = this.tst }
+
+    public void addLinkLib(const string l)  { this.linkLibs.add(l) }
+    public int linkLibCount()               { out = (int)this.linkLibs.size() }
+    public string linkLibAt(const int idx)  { out = this.linkLibs.get(idx) }
+
+    public bool isWorkspaceRoot()           { out = this.isWorkspace }
+    public void addMember(const string m)   { this.wsMembers.add(m)  this.isWorkspace = true }
+    public int memberCount()                { out = (int)this.wsMembers.size() }
+    public string memberAt(const int idx)   { out = this.wsMembers.get(idx) }
+
+    public void setHooks(const string pre, const string post) { this.preBuild = pre  this.postBuild = post }
+    public string getPreBuild()  { out = this.preBuild }
+    public string getPostBuild() { out = this.postBuild }
+
+    // dependency access (ordered, linear lookup)
+    public void addDep(const string n, const GitDep d)    { this.deps.add(new DepEntry(n, d)) }
+    public void addDevDep(const string n, const GitDep d) { this.devDeps.add(new DepEntry(n, d)) }
+    public int depCount()                { out = (int)this.deps.size() }
+    public DepEntry depAt(const int idx) { out = this.deps.get(idx) }
+    public int devDepCount()                { out = (int)this.devDeps.size() }
+    public DepEntry devDepAt(const int idx) { out = this.devDeps.get(idx) }
+
+    public bool hasDep(const string n) {
+        int i = 0
+        while i < this.deps.size() {
+            DepEntry e = this.deps.get(i)
+            if fly.str.equals(e.getName(), n) { out = true  return }
+            i = i + 1
+        }
+        out = false
+    }
+    public GitDep getDep(const string n) {
+        int i = 0
+        while i < this.deps.size() {
+            DepEntry e = this.deps.get(i)
+            if fly.str.equals(e.getName(), n) { out = e.getDep()  return }
+            i = i + 1
+        }
+        out = null
+    }
+
+    // repo aliases
+    public void addRepo(const string n, const string url) { this.repos.add(new StrEntry(n, url)) }
+    public int repoCount()                 { out = (int)this.repos.size() }
+    public StrEntry repoAt(const int idx)  { out = this.repos.get(idx) }
+    public string getRepo(const string n) {
+        int i = 0
+        while i < this.repos.size() {
+            StrEntry e = this.repos.get(i)
+            if fly.str.equals(e.getName(), n) { out = e.getValue()  return }
+            i = i + 1
+        }
+        out = ""
+    }
+
+    // profiles
+    public void addProfile(const string n, const BuildProfile p) { this.profiles.add(new ProfileEntry(n, p)) }
+    public int profileCount()                   { out = (int)this.profiles.size() }
+    public ProfileEntry profileAt(const int idx) { out = this.profiles.get(idx) }
+    public bool hasProfile(const string n) {
+        int i = 0
+        while i < this.profiles.size() {
+            ProfileEntry e = this.profiles.get(i)
+            if fly.str.equals(e.getName(), n) { out = true  return }
+            i = i + 1
+        }
+        out = false
+    }
+    public BuildProfile getProfile(const string n) {
+        int i = 0
+        while i < this.profiles.size() {
+            ProfileEntry e = this.profiles.get(i)
+            if fly.str.equals(e.getName(), n) { out = e.getProf()  return }
+            i = i + 1
+        }
+        out = null
+    }
+
+    // removeDep — drop a dependency (and dev-dependency) by name.
+    public bool removeDep(const string name) {
+        bool found = false
+        List<DepEntry> keep = new List<DepEntry>()
+        int i = 0
+        while i < this.deps.size() {
+            DepEntry e = this.deps.get(i)
+            if fly.str.equals(e.getName(), name) { found = true } else { keep.add(e) }
+            i = i + 1
+        }
+        this.deps = keep
+        List<DepEntry> keepDev = new List<DepEntry>()
+        int j = 0
+        while j < this.devDeps.size() {
+            DepEntry e = this.devDeps.get(j)
+            if fly.str.equals(e.getName(), name) { found = true } else { keepDev.add(e) }
+            j = j + 1
+        }
+        this.devDeps = keepDev
+        out = found
+    }
+
+    // depLine — `name = { ... }` for one dependency (mirrors Manifest.cpp dep_str).
+    public string depLine(const string n, const GitDep d, const string q) {
+        string body = ""
+        if d.isPathDep() {
+            body = fly.str.concat("path = ", fly.str.concat(q, fly.str.concat(d.getPath(), q)))
+        } elsif d.isRegistryDep() {
+            body = fly.str.concat("registry = ", fly.str.concat(q, fly.str.concat(d.getRegistryName(), q)))
+            body = fly.str.concat(body, fly.str.concat(", version = ", fly.str.concat(q, fly.str.concat(d.getVersionReq(), q))))
+            if fly.str.equals(d.getPkgName(), n) == false {
+                body = fly.str.concat(body, fly.str.concat(", name = ", fly.str.concat(q, fly.str.concat(d.getPkgName(), q))))
+            }
+        } else {
+            body = fly.str.concat("git = ", fly.str.concat(q, fly.str.concat(d.getGitUrl(), q)))
+            string refk = "tag"
+            if d.getRefKind() == 1 { refk = "branch" }
+            if d.getRefKind() == 2 { refk = "rev" }
+            body = fly.str.concat(body, fly.str.concat(", ", fly.str.concat(refk, fly.str.concat(" = ", fly.str.concat(q, fly.str.concat(d.getRefValue(), q))))))
+        }
+        out = fly.str.concat(n, fly.str.concat(" = { ", fly.str.concat(body, " }")))
+    }
+
+    // serialize — the fly.toml text (package + targets + dependencies). Enough for
+    // add/remove round-trips; profiles/repo/hooks/workspace are re-emitted only if
+    // present. Real newlines via fly.driver.nl(), quotes via dq().
+    public string serialize() {
+        string q = fly.driver.dq()
+        string nl = fly.driver.nl()
+        string s = fly.str.concat("[package]", nl)
+        s = fly.str.concat(s, this.kvLine("name        = ", this.name, q, nl))
+        s = fly.str.concat(s, this.kvLine("version     = ", this.version, q, nl))
+        if fly.str.isEmpty(this.description) == false { s = fly.str.concat(s, this.kvLine("description = ", this.description, q, nl)) }
+        if fly.str.isEmpty(this.license) == false     { s = fly.str.concat(s, this.kvLine("license     = ", this.license, q, nl)) }
+        if fly.str.isEmpty(this.flyVersion) == false  { s = fly.str.concat(s, this.kvLine("fly-version = ", this.flyVersion, q, nl)) }
+        if fly.str.isEmpty(this.homepage) == false    { s = fly.str.concat(s, this.kvLine("homepage    = ", this.homepage, q, nl)) }
+        if fly.str.isEmpty(this.repository) == false   { s = fly.str.concat(s, this.kvLine("repository  = ", this.repository, q, nl)) }
+
+        if this.targets.size() > 0 {
+            s = fly.str.concat(s, fly.str.concat(nl, fly.str.concat("[targets]", nl)))
+            int i = 0
+            while i < this.targets.size() {
+                Target t = this.targets.get(i)
+                string line = fly.str.concat(t.getKey(), " = { path = ")
+                line = fly.str.concat(line, fly.str.concat(q, fly.str.concat(t.getPath(), q)))
+                if fly.str.equals(t.getName(), t.getKey()) == false {
+                    line = fly.str.concat(line, fly.str.concat(", name = ", fly.str.concat(q, fly.str.concat(t.getName(), q))))
+                }
+                if t.isLib() {
+                    line = fly.str.concat(line, fly.str.concat(", lib = ", fly.str.concat(q, fly.str.concat(t.getLib(), q))))
+                }
+                line = fly.str.concat(line, " }")
+                s = fly.str.concat(s, fly.str.concat(line, nl))
+                i = i + 1
+            }
+        }
+        if this.deps.size() > 0 {
+            s = fly.str.concat(s, fly.str.concat(nl, fly.str.concat("[dependencies]", nl)))
+            int i = 0
+            while i < this.deps.size() {
+                DepEntry e = this.deps.get(i)
+                s = fly.str.concat(s, fly.str.concat(this.depLine(e.getName(), e.getDep(), q), nl))
+                i = i + 1
+            }
+        }
+        if this.devDeps.size() > 0 {
+            s = fly.str.concat(s, fly.str.concat(nl, fly.str.concat("[dev-dependencies]", nl)))
+            int i = 0
+            while i < this.devDeps.size() {
+                DepEntry e = this.devDeps.get(i)
+                s = fly.str.concat(s, fly.str.concat(this.depLine(e.getName(), e.getDep(), q), nl))
+                i = i + 1
+            }
+        }
+        out = s
+    }
+
+    public string kvLine(const string prefix, const string value, const string q, const string nl) {
+        out = fly.str.concat(prefix, fly.str.concat(q, fly.str.concat(value, fly.str.concat(q, nl))))
+    }
+
+    // save — write serialize() to fly.toml in the current directory.
+    public void save() {
+        fly.os.fs.writeStr("fly.toml", this.serialize(), 420)
+    }
+}
+
+// ── validation (hand-rolled; the C++ uses std::regex) ─────────────────────────
+
+// nameValid — non-empty, all chars in [a-z0-9_-].
+public bool nameValid(const string s) {
+    int n = fly.str.len(s)
+    if n == 0 { out = false  return }
+    int i = 0
+    while i < n {
+        byte bb = 0
+        fly.str.byteAt(s, i, bb)
+        int c = bb
+        bool lower = c >= 97 && c <= 122
+        bool digit = c >= 48 && c <= 57
+        bool other = c == 45 || c == 95
+        if lower == false && digit == false && other == false { out = false  return }
+        i = i + 1
+    }
+    out = true
+}
+
+// versionValid — exactly digits '.' digits '.' digits (MAJOR.MINOR.PATCH).
+public bool versionValid(const string s) {
+    int n = fly.str.len(s)
+    int i = 0
+    int dots = 0
+    int digitsInGroup = 0
+    while i < n {
+        byte bb = 0
+        fly.str.byteAt(s, i, bb)
+        int c = bb
+        if c >= 48 && c <= 57 {
+            digitsInGroup = digitsInGroup + 1
+        } elsif c == 46 {
+            if digitsInGroup == 0 { out = false  return }
+            dots = dots + 1
+            digitsInGroup = 0
+        } else {
+            out = false
+            return
+        }
+        i = i + 1
+    }
+    out = dots == 2 && digitsInGroup > 0
+}
+
+// ── parse ─────────────────────────────────────────────────────────────────────
+
+// defaultProfile — the built-in defaults (release lowers debug-info/assertions,
+// raises opt-level); everything else keeps the debug defaults (Manifest.cpp:51-58).
+public BuildProfile defaultProfile(const string name) {
+    BuildProfile p = new BuildProfile()
+    if fly.str.equals(name, "release") {
+        p.setOptLevel(3)
+        p.setDebugInfo(false)
+        p.setAssertions(false)
+    }
+    out = p
+}
+
+
+
+
+
+
+
+// parseManifest — parse a fly.toml source string into a Manifest.
+public Manifest parseManifest(const string src, int errOut) {
+    Manifest m = new Manifest()
+    int perr = 0
+    fly.driver.TomlValue root = fly.driver.tomlParse(src, perr)
+    if perr != 0 { errOut = perr  out = m  return }
+
+    // [package]
+    if root.has("package") {
+        fly.driver.TomlValue pkg = root.get("package")
+        m.setName(pkg.getStr("name", ""))
+        m.setVersion(pkg.getStr("version", ""))
+        m.setDescription(pkg.getStr("description", ""))
+        m.setLicense(pkg.getStr("license", ""))
+        m.setFlyVersion(pkg.getStr("fly-version", ""))
+        m.setHomepage(pkg.getStr("homepage", ""))
+        m.setRepository(pkg.getStr("repository", ""))
+        m.setDefaultRegistry(pkg.getStr("registry", ""))
+        if pkg.has("authors") {
+            fly.driver.TomlValue au = pkg.get("authors")
+            if au.isArray() {
+                int i = 0
+                while i < au.size() {
+                    fly.driver.TomlValue e = au.at(i)
+                    if e.isStr() { m.addAuthor(e.asStr()) }
+                    i = i + 1
+                }
+            }
+        }
+    }
+
+    // [repo]
+    if root.has("repo") {
+        fly.driver.TomlValue rt = root.get("repo")
+        if rt.isTable() {
+            int i = 0
+            while i < rt.keyCount() {
+                string k = rt.keyAt(i)
+                fly.driver.TomlValue v = rt.get(k)
+                if v.isStr() { m.addRepo(k, v.asStr()) }
+                i = i + 1
+            }
+        }
+    }
+
+    // [workspace] (parsed before [package] validation)
+    if root.has("workspace") {
+        fly.driver.TomlValue ws = root.get("workspace")
+        if ws.has("members") {
+            fly.driver.TomlValue mem = ws.get("members")
+            if mem.isArray() {
+                int i = 0
+                while i < mem.size() {
+                    fly.driver.TomlValue e = mem.at(i)
+                    if e.isStr() { m.addMember(e.asStr()) }
+                    i = i + 1
+                }
+            }
+        }
+    }
+
+    // validation: name+version required for non-workspace manifests
+    if m.isWorkspaceRoot() == false {
+        if fly.str.isEmpty(m.getName())    { errOut = 203  out = m  return }
+        if fly.str.isEmpty(m.getVersion()) { errOut = 203  out = m  return }
+        if nameValid(m.getName()) == false    { errOut = 201  out = m  return }
+        if versionValid(m.getVersion()) == false { errOut = 202  out = m  return }
+    }
+
+    // [targets]
+    if root.has("targets") {
+        fly.driver.TomlValue tgts = root.get("targets")
+        if tgts.isTable() {
+            int i = 0
+            while i < tgts.keyCount() {
+                string k = tgts.keyAt(i)
+                fly.driver.TomlValue t = tgts.get(k)
+                if t.isTable() {
+                    string tpath = t.getStr("path", "")
+                    if fly.str.isEmpty(tpath) == false {
+                        m.addTarget(new Target(k, t.getStr("name", k), tpath, t.getStr("lib", "")))
+                    }
+                }
+                i = i + 1
+            }
+        }
+    }
+
+    // [hooks]
+    if root.has("hooks") {
+        fly.driver.TomlValue h = root.get("hooks")
+        m.setHooks(h.getStr("pre-build", ""), h.getStr("post-build", ""))
+    }
+
+    // [link]
+    if root.has("link") {
+        fly.driver.TomlValue lnk = root.get("link")
+        if lnk.has("libs") {
+            fly.driver.TomlValue libs = lnk.get("libs")
+            if libs.isArray() {
+                int i = 0
+                while i < libs.size() {
+                    fly.driver.TomlValue e = libs.at(i)
+                    if e.isStr() { m.addLinkLib(e.asStr()) }
+                    i = i + 1
+                }
+            }
+        }
+    }
+
+    // [test]
+    if root.has("test") {
+        fly.driver.TomlValue tc = root.get("test")
+        if tc.has("suites") {
+            fly.driver.TomlValue su = tc.get("suites")
+            if su.isArray() {
+                TestConfig tconf = m.getTest()
+                int i = 0
+                while i < su.size() {
+                    fly.driver.TomlValue e = su.at(i)
+                    if e.isStr() { tconf.addSuite(e.asStr()) }
+                    i = i + 1
+                }
+            }
+        }
+        TestConfig tc2 = m.getTest()
+        tc2.setParallel(tc.getBool("parallel", false))
+        tc2.setFailFast(tc.getBool("fail_fast", false))
+    }
+
+    // [dependencies] / [dev-dependencies] — inlined (NOT extracted into a helper:
+    // a free function taking a class parameter crashes the reference compiler when
+    // toml.fly and this module are pulled together via --src-dir; methods and
+    // string-param free functions are fine, so the two loops are duplicated inline).
+    if root.has("dependencies") {
+        fly.driver.TomlValue d = root.get("dependencies")
+        if d.isTable() {
+            int i = 0
+            while i < d.keyCount() {
+                string k = d.keyAt(i)
+                fly.driver.TomlValue v = d.get(k)
+                if v.isTable() {
+                    GitDep g = new GitDep()
+                    string dpath = v.getStr("path", "")
+                    string dreg = v.getStr("registry", "")
+                    string dgit = v.getStr("git", "")
+                    if fly.str.isEmpty(dpath) == false {
+                        g.setPath(dpath)
+                    } elsif fly.str.isEmpty(dreg) == false {
+                        g.setRegistry(dreg, v.getStr("name", k), v.getStr("version", "*"))
+                    } elsif fly.str.isEmpty(dgit) == false {
+                        g.setGitUrl(dgit)
+                        string dtag = v.getStr("tag", "")
+                        string dbr = v.getStr("branch", "")
+                        string drev = v.getStr("rev", "")
+                        if fly.str.isEmpty(dtag) == false {
+                            g.setRef(0, dtag)
+                        } elsif fly.str.isEmpty(dbr) == false {
+                            g.setRef(1, dbr)
+                        } elsif fly.str.isEmpty(drev) == false {
+                            g.setRef(2, drev)
+                        } else {
+                            errOut = 205
+                            out = m
+                            return
+                        }
+                    } else {
+                        errOut = 204
+                        out = m
+                        return
+                    }
+                    m.addDep(k, g)
+                }
+                i = i + 1
+            }
+        }
+    }
+    if root.has("dev-dependencies") {
+        fly.driver.TomlValue d = root.get("dev-dependencies")
+        if d.isTable() {
+            int i = 0
+            while i < d.keyCount() {
+                string k = d.keyAt(i)
+                fly.driver.TomlValue v = d.get(k)
+                if v.isTable() {
+                    GitDep g = new GitDep()
+                    string dpath = v.getStr("path", "")
+                    string dreg = v.getStr("registry", "")
+                    string dgit = v.getStr("git", "")
+                    if fly.str.isEmpty(dpath) == false {
+                        g.setPath(dpath)
+                    } elsif fly.str.isEmpty(dreg) == false {
+                        g.setRegistry(dreg, v.getStr("name", k), v.getStr("version", "*"))
+                    } elsif fly.str.isEmpty(dgit) == false {
+                        g.setGitUrl(dgit)
+                        string dtag = v.getStr("tag", "")
+                        string dbr = v.getStr("branch", "")
+                        string drev = v.getStr("rev", "")
+                        if fly.str.isEmpty(dtag) == false {
+                            g.setRef(0, dtag)
+                        } elsif fly.str.isEmpty(dbr) == false {
+                            g.setRef(1, dbr)
+                        } elsif fly.str.isEmpty(drev) == false {
+                            g.setRef(2, drev)
+                        } else {
+                            errOut = 205
+                            out = m
+                            return
+                        }
+                    } else {
+                        errOut = 204
+                        out = m
+                        return
+                    }
+                    m.addDevDep(k, g)
+                }
+                i = i + 1
+            }
+        }
+    }
+
+    // [profiles] (+ default debug/release)
+    if root.has("profiles") {
+        fly.driver.TomlValue pt = root.get("profiles")
+        if pt.isTable() {
+            int i = 0
+            while i < pt.keyCount() {
+                string k = pt.keyAt(i)
+                fly.driver.TomlValue v = pt.get(k)
+                if v.isTable() {
+                    BuildProfile bp = defaultProfile(k)
+                    bp.setOptLevel((int)v.getInt("opt-level", (long)bp.getOptLevel()))
+                    bp.setDebugInfo(v.getBool("debug-info", bp.getDebugInfo()))
+                    bp.setAssertions(v.getBool("assertions", bp.getAssertions()))
+                    bp.setLto(v.getBool("lto", bp.getLto()))
+                    bp.setStrip(v.getBool("strip", bp.getStrip()))
+                    m.addProfile(k, bp)
+                }
+                i = i + 1
+            }
+        }
+    }
+    if m.hasProfile("debug") == false   { m.addProfile("debug", defaultProfile("debug")) }
+    if m.hasProfile("release") == false { m.addProfile("release", defaultProfile("release")) }
+
+    errOut = 0
+    out = m
+}

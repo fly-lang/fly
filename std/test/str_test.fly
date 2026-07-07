@@ -145,4 +145,17 @@ void main() {
     assert.assertStr(s, "-1", 192)
     s = str.convert(2147483647)
     assert.assertStr(s, "2147483647", 193)
+
+    // ── string ==/!= operator (codegen: size check + memcmp, not icmp %string) ──
+    string sa = "hello"
+    string sb = "hello"
+    string sc = "world"
+    string sd = "hell"
+    if sa == sb { } else { assert.errExit(200) }        // equal
+    if sa == sc { assert.errExit(201) }                 // same length, differ
+    if sa != sc { } else { assert.errExit(202) }        // !=
+    if sa == sd { assert.errExit(203) }                 // different length (prefix)
+    if "" == "" { } else { assert.errExit(204) }        // both empty
+    if sa == "" { assert.errExit(205) }                 // non-empty vs empty
+    if "hello" == sa { } else { assert.errExit(206) }   // literal vs variable
 }

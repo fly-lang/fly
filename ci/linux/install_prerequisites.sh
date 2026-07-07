@@ -32,39 +32,37 @@ BUILD_DIR="$ROOT/build"
 FLY_DIR="$BUILD_DIR/bootstrap"
 FLY_BIN="$FLY_DIR/bin/fly"
 
-# --- LLVM 20 (system, apt) — dev build + object emit -------------------------
-# apt's LLVM is used only by the DEFAULT dev build and by step 3 of the release
-# build (the bootstrap links the throwaway staging fly via -lLLVM-20 while emitting
-# the combined object). `llvm-20-dev`+`libllvm20` give libLLVM-20.so; `lld-20` the
-# linker; `clang` drives the bundle relink. The RELEASE artifact itself never links
-# apt's libLLVM — that comes from the fork tree below (libxml2 OFF). Install only if
-# missing and apt-get is available (Ubuntu/Debian CI); on other distros install the
-# equivalent yourself.
-if ! command -v llvm-config-20 >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
-    sudo apt-get update
-    sudo apt-get install -y llvm-20-dev libllvm20 lld-20 clang-20
-fi
-
-# --- Fork LLVM (libxml2 OFF, shared libLLVM.so) — release build only ----------
-# apt's libLLVM.so drags libxml2/libzstd/… as external deps; on a host whose
-# libxml2 soname differs (e.g. libxml2.so.16 vs .2) the bundled release fails to
-# load. The fork build (fly-lang/llvm-project: LLVM_BUILD_LLVM_DYLIB=ON +
-# LLVM_ENABLE_LIBXML2=OFF) ships a libLLVM.so with NO external deps, so a release
-# that bundles IT runs anywhere. Fetched only for the self-contained build
-# (FLY_BUNDLE_LLVM=1); ~950 MB, so cache build/llvm in CI. build_compiler.sh's
-# bundle branch links + ships this libLLVM.so (and builds fly-lld against it).
+# --- LLVM 20 (fly-lang/llvm-project fork, downloaded — NO system package manager) --
+# Mirrors ci/windows/install_prerequisites.ps1: the LLVM the self-host compiler links
+# against comes from the project's OWN LLVM build (fly-lang/llvm-project release), NOT
+# apt. apt's libLLVM.so drags libxml2/libzstd/… as external deps; on a host whose
+# libxml2 soname differs (e.g. libxml2.so.16 vs .2) the bundled release fails to load.
+# The fork build (LLVM_BUILD_LLVM_DYLIB=ON + LLVM_ENABLE_LIBXML2=OFF) ships a libLLVM.so
+# with NO external deps, plus lld (ld.lld) and llvm-config. It does NOT ship clang, so
+# the FLY_BUNDLE_LLVM relink uses the host C++ driver (clang++ or g++, see build_compiler.sh).
+# The tarball is ~1 GB; cache build/llvm in CI. Always fetched (dev + release use the fork
+# now); the bundle build additionally needs the lld static archives + LLVM/lld headers.
 LLVM_VERSION="${LLVM_VERSION:-20.1.8}"
 FORK_LLVM="$BUILD_DIR/llvm"
-if [ "${FLY_BUNDLE_LLVM:-0}" = "1" ] && [ ! -f "$FORK_LLVM/lib/libLLVM.so" ]; then
+NEED_STATIC=0
+[ "${FLY_BUNDLE_LLVM:-0}" = "1" ] && [ ! -f "$FORK_LLVM/lib/liblldELF.a" ] && NEED_STATIC=1
+if [ ! -f "$FORK_LLVM/lib/libLLVM.so" ] || [ "$NEED_STATIC" = "1" ]; then
     url="https://github.com/fly-lang/llvm-project/releases/download/v${LLVM_VERSION}-linux-x86_64/llvm-${LLVM_VERSION}-x86_64-linux-gnu.tar.gz"
     mkdir -p "$BUILD_DIR"
-    curl -fsSL "$url" -o "$BUILD_DIR/fork-llvm.tar.gz"
-    # Extract only what the bundle needs (the shared libLLVM.so, the lld static
-    # archives, and the lld/LLVM headers) — ~200 MB vs ~4 GB for the full tree.
-    tar -xzf "$BUILD_DIR/fork-llvm.tar.gz" -C "$BUILD_DIR" --wildcards \
-        'llvm/lib/libLLVM.so*' 'llvm/lib/liblld*.a' llvm/include   # → $BUILD_DIR/llvm/
-    rm -f "$BUILD_DIR/fork-llvm.tar.gz"
+    tarball="$BUILD_DIR/fork-llvm.tar.gz"
+    [ -f "$tarball" ] || curl -fsSL "$url" -o "$tarball"
+    # Always: the shared libLLVM.so (link + runtime), the lld linker and llvm-config.
+    # Bundle also: the lld static archives + LLVM/lld headers (build_compiler.sh links
+    # a small fly-lld against them).
+    paths="llvm/lib/libLLVM.so* llvm/bin/ld.lld llvm/bin/lld llvm/bin/llvm-config"
+    [ "${FLY_BUNDLE_LLVM:-0}" = "1" ] && paths="$paths llvm/lib/liblld*.a llvm/include"
+    # shellcheck disable=SC2086
+    tar -xzf "$tarball" -C "$BUILD_DIR" --wildcards $paths   # → $BUILD_DIR/llvm/
+    rm -f "$tarball"
 fi
+# The codegen bridge emits `-lLLVM-20` (see compiler/lib/codegen/LLVMApi.fly); the fork
+# ships the shared lib as `libLLVM.so`, so alias it to the `libLLVM-20.so` link name.
+[ -e "$FORK_LLVM/lib/libLLVM-20.so" ] || ln -sf libLLVM.so "$FORK_LLVM/lib/libLLVM-20.so"
 
 # --- Download fly binary -----------------------------------------------------
 # Skip if already present (local convenience; a fresh CI runner never has it).
@@ -81,13 +79,25 @@ fi
 # Use an absolute $FLY path (not a bare `fly` on PATH): released compilers derive
 # their stdlib dir from the executable path; a bare name resolved from a cwd that
 # contains a `fly/`-like dir breaks that lookup. build/test scripts honour $FLY.
+#
+# The fork LLVM replaces apt: put its bin on PATH (ld.lld, llvm-config) and its lib
+# dir on LIBRARY_PATH (so the `-lLLVM-20` link finds libLLVM-20.so) and LD_LIBRARY_PATH
+# (so the dynamically-linked staged `fly` loads libLLVM.so.20.1 at run time). The
+# self-contained release re-links against the fork tree with an explicit rpath, so this
+# only matters for the plain dev build and for the intermediate staged link.
 if [ -n "${GITHUB_ENV:-}" ]; then
-    echo "FLY=$FLY_BIN"  >> "$GITHUB_ENV"
-    echo "$FLY_DIR/bin"  >> "$GITHUB_PATH"
+    echo "FLY=$FLY_BIN"                                >> "$GITHUB_ENV"
+    echo "$FLY_DIR/bin"                                >> "$GITHUB_PATH"
+    echo "$FORK_LLVM/bin"                              >> "$GITHUB_PATH"
+    echo "LIBRARY_PATH=$FORK_LLVM/lib:${LIBRARY_PATH:-}"       >> "$GITHUB_ENV"
+    echo "LD_LIBRARY_PATH=$FORK_LLVM/lib:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
 else
     export FLY="$FLY_BIN"
-    export PATH="$FLY_DIR/bin:$PATH"
+    export PATH="$FLY_DIR/bin:$FORK_LLVM/bin:$PATH"
+    export LIBRARY_PATH="$FORK_LLVM/lib:${LIBRARY_PATH:-}"
+    export LD_LIBRARY_PATH="$FORK_LLVM/lib:${LD_LIBRARY_PATH:-}"
     echo "Prerequisites configured for this session:"
     echo "  fly $FLY_VERSION -> FLY = $FLY_BIN ; PATH += $FLY_DIR/bin"
+    echo "  LLVM $LLVM_VERSION (fork) -> PATH += $FORK_LLVM/bin ; LIBRARY_PATH/LD_LIBRARY_PATH += $FORK_LLVM/lib"
     echo "Note: source this script (. ./ci/linux/install_prerequisites.sh) for FLY/PATH to persist before running ./ci/linux/build_compiler.sh"
 fi

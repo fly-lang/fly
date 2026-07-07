@@ -1,0 +1,482 @@
+namespace fly.compiler.frontend
+
+import fly.compiler.frontend.*
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.compiler.target.*
+import fly.data.*
+import fly.os.io
+import fly.os.fs
+import fly.os.path
+import fly.mem
+import fly.llvm
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Frontend — drives a compilation through the self-host pipeline reading all of
+// its state from a CompilerInstance, a 1:1 port of fly/compiler/Frontend/
+// Frontend.cpp::Execute() onto the CI model (superseding driver/Frontend.fly):
+//   parse → resolve → codegen → emit, then expose the emitted artifact via
+//   getOutputFile() so the Driver can hand it to the ToolChain.
+//
+// Diagnostics: Sema errors flow through the CI's DiagnosticsEngine into a
+// TextDiagnosticPrinter (caret + source line + ^~~, via the Phase-C renderer).
+// Parser errors are still surfaced as the parser's stored "line:col: …" messages
+// (the Parser owns its own sink and doesn't carry a SourceManager for carets yet).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class Frontend {
+
+    CompilerInstance ci
+    string outputFile     // the emitted artifact (object for link mode, else .ll/.o/.s)
+
+    public Frontend(const CompilerInstance ci) {
+        this.ci = ci
+        this.outputFile = ""
+    }
+
+    public string getOutputFile() { out = this.outputFile }
+
+    // trace — verbose phase log to stderr (only when FrontendOptions.verbose).
+    public void trace(const string msg) {
+        FrontendOptions fo = this.ci.getFrontendOptions()
+        if fo.getVerbose() {
+            fly.os.io.printErrLn(fly.str.concat("fly: ", msg))
+        }
+    }
+
+    // execute — run the pipeline for the CI's source buffer. `objPath` is where a
+    // link-mode object is written (the per-input artifact); for direct-emit modes
+    // (.ll/.o/.s) the output goes to FrontendOptions.outputFile. `noOutput` type-
+    // checks only. Returns 0 on success, 1 on the first failing phase.
+    public int execute(const string objPath, const bool noOutput) {
+        FrontendOptions fo = this.ci.getFrontendOptions()
+        TargetOptions topts = this.ci.getTargetOptions()
+        SourceManager sm = this.ci.getSourceManager()
+        string name = sm.getFilename()
+        string src = sm.getBufferData()
+
+        // 0) select target — fail fast on an unsupported arch.
+        TargetInfo ti = targetInfoCreate(topts)
+        if ti.isValid() == false {
+            fly.os.io.printErrLn(fly.str.concat("error: unsupported target: ", topts.getTriple()))
+            out = 1
+            return
+        }
+
+        // 1) parse
+        this.trace("parsing")
+        Parser p = new Parser(src)
+        ASTModule m = p.parseModule(name)
+        if p.isSuccess() == false {
+            this.printDiags(p.getSink())
+            out = 1
+            return
+        }
+
+        // 2) resolve — route Sema diagnostics through a TextDiagnosticPrinter so real
+        // errors render carets (the CI's SourceManager supplies the source line).
+        this.trace("resolving")
+        DiagnosticOptions opts = new DiagnosticOptions()
+        TextDiagnosticPrinter printer = new TextDiagnosticPrinter()
+        DiagnosticsEngine diags = new DiagnosticsEngine(opts, printer, sm)
+        // Preload stdlib/package headers (.fly.h) so `import fly.os.io` etc. resolve
+        // against the declarations in <exe>/../lib (auto-discovered into stdLibDir) and
+        // any -L dir. Headers are added BEFORE the entry module; their namespaces get
+        // registered by Sema so imports find them. Header-origin symbols are tagged
+        // fromHeader and declared (external) but not defined by codegen — they link
+        // against fly_std_lib.a.
+        //
+        List<ASTModule> mods = new List<ASTModule>()
+        this.loadLibHeaders(fo, mods)
+        mods.add(m)
+        // 2b) Import-based source discovery (port of Frontend.cpp::ResolveSourceDeps).
+        // A fly project is compiled from its root: the CURRENT directory by default,
+        // overridden by a single --src-dir. Runs BEFORE Sema so pulled modules resolve
+        // together with the entry. The directory walk inside is lazy — programs whose
+        // imports are all served by lib headers (std-only) never scan.
+        bool depsOk = this.resolveSourceDeps(fo, mods)
+        if depsOk == false {
+            out = 1
+            return
+        }
+        SemaContext ctx = new SemaContext(diags)
+        List<SemaModule> resModules = ctx.Resolve(mods, fo.getTestMode())
+        if diags.hasErrorOccurred() {
+            out = 1
+            return
+        }
+        Registry reg = ctx.getReg()
+
+        // 3) codegen + verify
+        this.trace("generating code")
+        CodeGenModule cgm = new CodeGenModule(name)
+        cgm.setCodeGenOpts(this.ci.getCodeGenOptions())
+        cgm.configureTarget(ti)
+        cgm.generate(reg)
+        bool ok = false
+        cgm.verify(ok)
+        if ok == false {
+            fly.os.io.printErrLn("error: backend module verification failed")
+            // reason via a second verify, consumed DIRECTLY as a call argument
+            // (binding the returned string to a method-frame local double-frees
+            // under the bootstrap — the trace() arg pattern is safe)
+            bool ok2 = false
+            fly.os.io.printErrLn(cgm.verifyMsg(ok2))
+            out = 1
+            return
+        }
+
+        // 4) emit — for link mode (action 3) write an object to objPath and record it
+        // as the output artifact; otherwise emit directly to FrontendOptions.output.
+        if noOutput {
+            this.outputFile = ""
+            out = 0
+            return
+        }
+        int action = fo.getBackendAction()
+        if action == 3 {
+            this.trace(fly.str.concat("emitting ", objPath))
+            bool eok = false
+            cgm.emitObjectOrAsm(ti, objPath, 1, eok)     // 1 = object
+            if eok == false {
+                fly.os.io.printErrLn("error: object emission failed")
+                out = 1
+                return
+            }
+            this.outputFile = objPath
+        } else {
+            string outPath = fo.getOutputFile()
+            this.trace(fly.str.concat("emitting ", outPath))
+            if action == 0 {
+                // check the write result: a missing/read-only output dir used to
+                // exit 0 with no .ll produced
+                bool iok = cgm.emitIRChecked(outPath)
+                if iok == false {
+                    fly.os.io.printErrLn(fly.str.concat("error: cannot write LLVM IR to ", outPath))
+                    out = 1
+                    return
+                }
+            } else {
+                int fileType = 1                       // object
+                if action == 2 { fileType = 0 }        // assembly
+                bool eok = false
+                cgm.emitObjectOrAsm(ti, outPath, fileType, eok)
+                if eok == false {
+                    fly.os.io.printErrLn("error: object/assembly emission failed")
+                    out = 1
+                    return
+                }
+            }
+            this.outputFile = outPath
+        }
+        out = 0
+    }
+
+    // loadLibHeaders — parse every `.fly.h` under the stdlib dir (auto-discovered
+    // <exe>/../lib) and each -L dir into a header ASTModule, appended to `mods` ahead
+    // of the entry module. Mirrors fly/compiler/Frontend/Frontend.cpp::LoadLibHeaders.
+    // Header modules carry the declarations that let a user program's `import fly.*`
+    // resolve; their symbols are tagged fromHeader (by the Resolver) and linked from
+    // fly_std_lib.a rather than defined. No-op when no lib dirs are configured.
+    public void loadLibHeaders(const FrontendOptions fo, List<ASTModule> mods) {
+        string stdDir = fo.getStdLibDir()
+        if fly.str.isEmpty(stdDir) == false {
+            this.loadHeadersFromDir(stdDir, mods)
+        }
+        int nd = fo.libDirCount()
+        int di = 0
+        while di < nd {
+            string d = fo.libDirAt(di)
+            if fly.str.isEmpty(d) == false { this.loadHeadersFromDir(d, mods) }
+            di = di + 1
+        }
+    }
+
+    // loadHeadersFromDir — walk one directory, parse each `*.fly.h` as a header module.
+    public void loadHeadersFromDir(const string dir, List<ASTModule> mods) {
+        if fly.os.path.isDir(dir) == false { return }
+        fly.os.fs.DirEntries de = fly.os.fs.dirRead(dir)
+        pointer items = de.items
+        if items == 0 { return }
+
+        // DirEntry stride is 56 bytes: name.ptr at +0 (i64), name.size at +8 (i32).
+        // Read via readPtr/readInt with byte offsets (the Driver.argAt pattern) — no
+        // pointer arithmetic locals.
+        long lenL = (long)de.len
+        int n = 0
+        fly.llvm.longToInt(lenL, n)
+
+        int i = 0
+        while i < n {
+            int off = i * 56
+            pointer namePtr = fly.mem.readPtr(items, off)
+            int nameLen = fly.mem.readInt(items, off + 8)
+            string name = ""
+            fly.str.fromBytes(namePtr, nameLen, name)
+
+            if fly.str.endsWith(name, ".fly.h") {
+                string full = fly.os.path.join(dir, name)
+                string src = fly.os.fs.readStr(full)
+                if fly.str.isEmpty(src) == false {
+                    Parser hp = new Parser(src)
+                    ASTModule hm = hp.parseModule(name)
+                    if hp.isSuccess() {
+                        hm.setHeader(true)
+                        mods.add(hm)
+                    }
+                }
+            }
+            i = i + 1
+        }
+    }
+
+    // ── resolveSourceDeps — port of fly/compiler/Frontend/Frontend.cpp::
+    // ResolveSourceDeps. BFS-walks the parsed modules' imports and parses each
+    // matching project source into `mods` (which grows, so pulled modules' own
+    // imports are visited in turn). The namespace → file map comes from a RECURSIVE
+    // walk of the project root (cwd by default, --src-dir overrides) run LAZILY:
+    // only when an import is not already served by a header module (.fly.h from the
+    // stdlib/-L dirs) — header namespaces link from archives, and std-only programs
+    // never pay for the walk.
+    public bool resolveSourceDeps(const FrontendOptions fo, List<ASTModule> mods) {
+        // namespace → file map as parallel lists (source trees are small enough
+        // that a linear scan beats hauling in a Map here)
+        List<string> mapNs = new List<string>()
+        List<string> mapPath = new List<string>()
+        // basenames of modules already parsed (entry + headers + pulled): never twice
+        List<string> known = new List<string>()
+        // namespaces provided by header modules: never pulled from source
+        List<string> headerNs = new List<string>()
+        int mi = 0
+        while mi < mods.size() {
+            ASTModule mm = mods.get(mi)
+            known.add(fly.os.path.basename(mm.getName()))
+            if mm.isHeader() {
+                ASTNameSpace hns = mm.getNameSpace()
+                if hns != null { headerNs.add(this.joinNames(hns.getNames())) }
+            }
+            mi = mi + 1
+        }
+
+        // BFS: consumed namespaces are remembered so each is pulled exactly once.
+        bool scanned = false
+        List<string> doneNs = new List<string>()
+        int bi = 0
+        while bi < mods.size() {
+            ASTModule cur = mods.get(bi)
+            List<ASTImport> imps = cur.getImports()
+            int ii = 0
+            while ii < imps.size() {
+                ASTImport imp = imps.get(ii)
+                string ns = this.joinNames(imp.getNames())
+
+                // Header-served import (matched as-is, or — for plain
+                // `Namespace.Symbol` imports — via a parent namespace): the symbols
+                // link from archives, nothing to pull.
+                bool headerServed = this.listHas(headerNs, ns)
+                if headerServed == false && imp.isWildcard() == false {
+                    string hcand = this.dropLastSegment(ns)
+                    while fly.str.isEmpty(hcand) == false {
+                        if this.listHas(headerNs, hcand) { headerServed = true  break }
+                        string hcand2 = this.dropLastSegment(hcand)
+                        hcand = hcand2
+                    }
+                }
+
+                if headerServed == false {
+                    // First import that needs project sources: build the map now.
+                    if scanned == false {
+                        scanned = true
+                        int sd = fo.srcDirCount()
+                        if sd == 0 {
+                            this.scanSrcDir(".", mapNs, mapPath, known)
+                        } else {
+                            int di = 0
+                            while di < sd {
+                                string d = fo.srcDirAt(di)
+                                if fly.str.isEmpty(d) == false { this.scanSrcDir(d, mapNs, mapPath, known) }
+                                di = di + 1
+                            }
+                        }
+                    }
+                    // A plain/alias import is `Namespace.Symbol`: its last component
+                    // is the symbol, not a namespace segment. Fall back to the
+                    // closest parent that IS a mapped namespace (cpp: drop-last loop).
+                    if imp.isWildcard() == false && this.listHas(mapNs, ns) == false {
+                        string cand = this.dropLastSegment(ns)
+                        while fly.str.isEmpty(cand) == false {
+                            if this.listHas(mapNs, cand) { break }
+                            string cand2 = this.dropLastSegment(cand)
+                            cand = cand2
+                        }
+                        if fly.str.isEmpty(cand) == false { ns = cand }
+                    }
+                    if this.listHas(doneNs, ns) == false {
+                        doneNs.add(ns)
+                        bool pok = this.pullNamespace(ns, mapNs, mapPath, known, mods)
+                        if pok == false {
+                            out = false
+                            return
+                        }
+                    }
+                }
+                ii = ii + 1
+            }
+            bi = bi + 1
+        }
+        out = true
+    }
+
+    // pullNamespace — parse every mapped source file of `ns` and append it to mods.
+    public bool pullNamespace(const string ns, const List<string> mapNs, const List<string> mapPath, List<string> known, List<ASTModule> mods) {
+        int k = 0
+        while k < mapNs.size() {
+            if fly.str.equals(mapNs.get(k), ns) {
+                string p = mapPath.get(k)
+                string base = fly.os.path.basename(p)
+                if this.listHas(known, base) == false {
+                    known.add(base)
+                    this.trace(fly.str.concat("resolved import → ", p))
+                    string src = fly.os.fs.readStr(p)
+                    Parser dp = new Parser(src)
+                    ASTModule dm = dp.parseModule(p)
+                    if dp.isSuccess() == false {
+                        this.printDiags(dp.getSink())
+                        out = false
+                        return
+                    }
+                    mods.add(dm)
+                }
+            }
+            k = k + 1
+        }
+        out = true
+    }
+
+    // scanSrcDir — recursive walk: map every `*.fly` (never `*.fly.h`) under dir by
+    // its declared namespace. Files whose basename is already a parsed module (the
+    // entry itself, typically) are skipped. Same DirEntry-stride read pattern as
+    // loadHeadersFromDir.
+    public void scanSrcDir(const string dir, List<string> mapNs, List<string> mapPath, const List<string> known) {
+        if fly.os.path.isDir(dir) == false { return }
+        fly.os.fs.DirEntries de = fly.os.fs.dirRead(dir)
+        pointer items = de.items
+        if items == 0 { return }
+        long lenL = (long)de.len
+        int n = 0
+        fly.llvm.longToInt(lenL, n)
+        int i = 0
+        while i < n {
+            int off = i * 56
+            pointer namePtr = fly.mem.readPtr(items, off)
+            int nameLen = fly.mem.readInt(items, off + 8)
+            string entry = ""
+            fly.str.fromBytes(namePtr, nameLen, entry)
+            string full = fly.os.path.join(dir, entry)
+            if fly.os.path.isDir(full) {
+                this.scanSrcDir(full, mapNs, mapPath, known)
+            } elsif fly.str.endsWith(entry, ".fly") {
+                if this.listHas(known, entry) == false {
+                    string ns = this.extractNs(full)
+                    if fly.str.isEmpty(ns) == false {
+                        mapNs.add(ns)
+                        mapPath.add(full)
+                    }
+                }
+            }
+            i = i + 1
+        }
+    }
+
+    // extractNs — "namespace foo.bar" from the first non-comment, non-blank line
+    // (mirror of Frontend.cpp::extractFileNamespace). Empty when the file has no
+    // namespace declaration: such files are never import-resolvable.
+    public string extractNs(const string path) {
+        string src = fly.os.fs.readStr(path)
+        int n = fly.str.len(src)
+        int pos = 0
+        while pos < n {
+            int e = pos
+            while e < n {
+                byte c = 0
+                fly.str.byteAt(src, e, c)
+                if c == 10 { break }
+                e = e + 1
+            }
+            string line = fly.str.trim(fly.str.substring(src, pos, e))
+            pos = e + 1
+            if fly.str.isEmpty(line) { continue }
+            if fly.str.startsWith(line, "/") { continue }
+            if fly.str.startsWith(line, "*") { continue }
+            if fly.str.startsWith(line, "namespace ") {
+                string rest = fly.str.trim(fly.str.substring(line, 10, fly.str.len(line)))
+                int sp = fly.str.indexOf(rest, " ")
+                if sp >= 0 {
+                    out = fly.str.substring(rest, 0, sp)
+                    return
+                }
+                out = rest
+                return
+            }
+            // first significant line is not a namespace declaration → no namespace
+            out = ""
+            return
+        }
+        out = ""
+    }
+
+    // joinNames — "fly.compiler.ast" from a name list (import or namespace).
+    public string joinNames(const List<ASTName> names) {
+        string res = ""
+        int i = 0
+        while i < names.size() {
+            ASTName an = names.get(i)
+            if i > 0 {
+                string acc = fly.str.concat(res, ".")
+                res = acc
+            }
+            string acc2 = fly.str.concat(res, an.getName())
+            res = acc2
+            i = i + 1
+        }
+        out = res
+    }
+
+    // dropLastSegment — "a.b.c" → "a.b"; "" when no dot remains.
+    public string dropLastSegment(const string ns) {
+        int dot = fly.str.lastIndexOf(ns, ".")
+        if dot < 0 {
+            out = ""
+            return
+        }
+        out = fly.str.substring(ns, 0, dot)
+    }
+
+    // listHas — linear membership test over a List<string>.
+    public bool listHas(const List<string> xs, const string v) {
+        int i = 0
+        while i < xs.size() {
+            if fly.str.equals(xs.get(i), v) {
+                out = true
+                return
+            }
+            i = i + 1
+        }
+        out = false
+    }
+
+    // printDiags — dump every stored parser message to stderr.
+    public void printDiags(const StoringDiagnosticConsumer sink) {
+        int n = sink.count()
+        int i = 0
+        while i < n {
+            string msg = sink.getMessage(i)
+            fly.os.io.printErrLn(msg)
+            i = i + 1
+        }
+    }
+}

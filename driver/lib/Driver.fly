@@ -1,0 +1,566 @@
+namespace fly.driver
+
+import fly.driver.*
+import fly.compiler.frontend.*
+import fly.compiler.basic.*
+import fly.compiler.target.*
+import fly.os.env
+import fly.os.fs
+import fly.os.io
+import fly.os.path
+import fly.mem
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// main — the self-host `fly` entry point. The binary IS the driver: it reads the
+// command line and hands off to Driver.run (which dispatches compile vs package
+// mode). Lives here (with the driver) so `compiler/` stays a pure library with no
+// entry. NOTE: an `int main()` entry and a `fail` inside main both miscompile in
+// the reference toolchain ("Broken function"), so this is a `void main()` that sets
+// the process exit status explicitly via fly.os.env.exit(code) (→ proc_exit).
+// ─────────────────────────────────────────────────────────────────────────────
+void main() {
+    fly.os.env.StringArray args = fly.os.env.argsGet()
+    Driver d = new Driver()
+    int code = d.run(args)
+    fly.os.env.exit(code)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Driver — CLI front of the self-host compiler, a 1:1 port of the core of
+// fly/compiler/Driver/Driver.cpp (option parsing + Execute orchestration). Reads
+// the command line, loads the input `.fly`, and runs the Frontend, returning a
+// process exit code. The DEFAULT action links an executable (Frontend emits a
+// temp object → ToolChain drives ld.lld); --emit-ll/-c/-S select emit-only modes.
+//
+//   fly <file.fly> [-o out] [--emit-ll|-c|-S] [--no-output] [options]
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class Driver {
+
+    public Driver() { }
+
+    public int run(const fly.os.env.StringArray args) {
+        string input = ""
+        string outPath = ""
+        string outDir = ""
+        string targetTriple = ""
+        string targetCpu = ""
+        string runtimeLibDir = ""       // --runtime-lib-dir: holds fly_std_lib.a / fly_runtime_lib.a
+        string stdLibDir = ""           // auto-discovered <install>/lib: stdlib .fly source
+        string toolchainLibDir = ""     // -L: extra linker search dir
+        string linkLibs = ";"           // ";-lfoo;" native [link] deps
+        int emitMode = 3                // 0=.ll 1=.o 2=.s 3=link(executable, default)
+        bool isStatic = false
+        bool isShared = false
+        bool isPie = false
+        bool noOutput = false
+        bool verbose = false
+        bool testMode = false
+        // new option state mirroring fly/compiler/Driver/Driver.cpp::BuildOptions
+        string codeModel = ""           // --mcmodel
+        string threadModel = ""         // --mthread-model
+        string statsFile = ""           // --stats-file
+        string srcDirs = ";"            // --src-dir (single override of the cwd default)
+        // sdNew/llNew are FUNCTION-scope on purpose: a string declared inside a
+        // loop-repeated block leaves a STALE pointer in its slot after the block's
+        // scope-exit free; a later return unwinding that same block then frees it
+        // AGAIN (double free — reference codegen bug, probed 2026-07-05).
+        string sdNew = ""
+        string llNew = ""
+        int jobs = 0                    // --jobs / -j
+        int optLevel = 0                // -O<n>
+        bool debugSymbols = false       // --debug-symbols / --debug
+        bool createLibrary = false      // --lib
+        bool createHeader = false       // --header / --lib
+        bool showStats = false          // --print-stats
+        bool showTimers = false         // --ftime-report
+        bool emitBc = false             // --emit-bc (no bitcode emitter → IR fallback)
+
+        int n = (int)args.count
+        int i = 1                       // skip argv[0] (program name)
+        while i < n {
+            string a = this.argAt(args, i)
+            if fly.str.equals(a, "-o") {
+                i = i + 1
+                if i < n { outPath = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--out-dir") {
+                i = i + 1
+                if i < n { outDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--target") {
+                i = i + 1
+                if i < n { targetTriple = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--target-cpu") {
+                i = i + 1
+                if i < n { targetCpu = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "-c") {
+                emitMode = 1
+            } elsif fly.str.equals(a, "-S") {
+                emitMode = 2
+            } elsif fly.str.equals(a, "--emit-ll") {
+                emitMode = 0
+            } elsif fly.str.equals(a, "--emit-bc") {
+                // No bitcode emitter in the self-host CodeGenModule → emit IR + a note.
+                emitMode = 0
+                emitBc = true
+            } elsif fly.str.equals(a, "--mcmodel") {
+                i = i + 1
+                if i < n { codeModel = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--mthread-model") {
+                i = i + 1
+                if i < n { threadModel = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--jobs") || fly.str.equals(a, "-j") {
+                i = i + 1
+                if i < n { jobs = this.parseUInt(this.argAt(args, i), 0) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--stats-file") {
+                i = i + 1
+                if i < n { statsFile = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--src-dir") {
+                i = i + 1
+                if i >= n { out = this.missingValue(a)  return }
+                // The project source root defaults to the current directory;
+                // --src-dir overrides it, so it is meaningful at most ONCE.
+                if fly.str.equals(srcDirs, ";") == false {
+                    fly.os.io.printErrLn("error: --src-dir may be specified only once")
+                    out = 1
+                    return
+                }
+                // distinct temp: `x = concat(x, …)` self-aliases (documented
+                // string gotcha)
+                sdNew = fly.str.concat(srcDirs, fly.str.concat(this.argAt(args, i), ";"))
+                srcDirs = sdNew
+            } elsif fly.str.equals(a, "--working-dir") {
+                i = i + 1                 // value consumed; FileSystemOptions not ported
+                if i >= n { out = this.missingValue(a)  return }
+                fly.os.io.printErrLn("warning: --working-dir is accepted but not implemented; paths resolve against the current directory")
+            } elsif fly.str.equals(a, "--debug") {
+                verbose = true
+                debugSymbols = true
+            } elsif fly.str.equals(a, "--debug-symbols") {
+                debugSymbols = true
+            } elsif fly.str.equals(a, "--header") {
+                createHeader = true
+            } elsif fly.str.equals(a, "--lib") {
+                createLibrary = true
+                createHeader = true
+                emitMode = 1              // a library is built from an object, not linked
+            } elsif fly.str.equals(a, "--print-stats") {
+                showStats = true
+            } elsif fly.str.equals(a, "--ftime-report") {
+                showTimers = true
+            } elsif fly.str.startsWith(a, "-O") {
+                // -O<n> (attached) or "-O <n>" (separate).
+                string lvl = fly.str.substring(a, 2, fly.str.len(a))
+                if fly.str.isEmpty(lvl) {
+                    i = i + 1
+                    if i < n { lvl = this.argAt(args, i) }
+                }
+                optLevel = this.parseUInt(lvl, 0)
+            } elsif fly.str.equals(a, "--runtime-lib-dir") {
+                i = i + 1
+                if i < n { runtimeLibDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "-L") {
+                i = i + 1
+                if i < n { toolchainLibDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--link-lib") {
+                i = i + 1
+                if i < n {
+                    // distinct temp — same self-alias gotcha as --src-dir above
+                    llNew = fly.str.concat(linkLibs, fly.str.concat(fly.str.concat("-l", this.argAt(args, i)), ";"))
+                    linkLibs = llNew
+                } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--shared") {
+                isShared = true
+            } elsif fly.str.equals(a, "-static") {
+                isStatic = true
+            } elsif fly.str.equals(a, "-pie") {
+                isPie = true
+            } elsif fly.str.equals(a, "--no-output") {
+                noOutput = true
+            } elsif fly.str.equals(a, "--test") {
+                testMode = true
+            } elsif fly.str.equals(a, "-v") || fly.str.equals(a, "--verbose") {
+                verbose = true
+            } elsif fly.str.equals(a, "-w") || fly.str.equals(a, "--no-warning") {
+                // accepted (no-op): diagnostics are only printed on failure today.
+            } elsif fly.str.equals(a, "--help") || fly.str.equals(a, "-help") {
+                this.printUsage()
+                out = 0
+                return
+            } elsif fly.str.equals(a, "--version") || fly.str.equals(a, "-version") {
+                this.printVersion()
+                out = 0
+                return
+            } elsif fly.str.startsWith(a, "-") {
+                fly.os.io.printErrLn(fly.str.concat("warning: ignoring unknown option ", a))
+            } else {
+                if fly.str.isEmpty(input) {
+                    input = a
+                    // Package mode: if the first positional is a fly.toml subcommand,
+                    // hand the FULL argv to runPackage (fly.toml mode) and stop compile
+                    // parsing. Detecting it here (on the loop's `a`, which already reads
+                    // argv correctly) avoids the 0.13.8 miscompiles that reading argv[1]
+                    // before the loop triggered.
+                    bool firstIsPkg = fly.str.equals(a, "init")
+                    if fly.str.equals(a, "build")  { firstIsPkg = true }
+                    if fly.str.equals(a, "run")    { firstIsPkg = true }
+                    if fly.str.equals(a, "test")   { firstIsPkg = true }
+                    if fly.str.equals(a, "clean")  { firstIsPkg = true }
+                    if fly.str.equals(a, "lock")   { firstIsPkg = true }
+                    if fly.str.equals(a, "add")    { firstIsPkg = true }
+                    if fly.str.equals(a, "remove") { firstIsPkg = true }
+                    if fly.str.equals(a, "why")    { firstIsPkg = true }
+                    if firstIsPkg {
+                        out = this.runPackage(args)
+                        return
+                    }
+                }
+                else {
+                    // a second positional was previously dropped in silence
+                    fly.os.io.printErrLn(fly.str.concat("error: multiple input files are not supported (extra input: ", fly.str.concat(a, ")")))
+                    out = 1
+                    return
+                }
+            }
+            i = i + 1
+        }
+
+        if fly.str.isEmpty(input) {
+            this.printUsage()
+            out = 1
+            return
+        }
+
+        // --lib / --header: archiver + header generator are not ported. They used
+        // to silently produce only a .o and exit 0 — fail honestly instead.
+        if createLibrary || createHeader {
+            fly.os.io.printErrLn("error: --lib / --header are not yet supported by the self-host compiler (library archiving + header generation)")
+            out = 1
+            return
+        }
+
+        // Auto-discover the stdlib/runtime dir relative to the running compiler
+        // binary (<install>/bin/fly → <install>/lib), mirroring
+        // fly/compiler/Driver/Driver.cpp (StdLibDir + RuntimeLibDir). Resolves the
+        // real executable path (not argv[0]) via fly.os.env.exePath(), so a
+        // bare-name PATH invocation still works. An explicit --runtime-lib-dir
+        // takes precedence for the archives.
+        if fly.str.isEmpty(runtimeLibDir) || fly.str.isEmpty(stdLibDir) {
+            string exe = fly.os.env.exePath()
+            if fly.str.isEmpty(exe) == false {
+                string binDir = fly.os.path.dirname(exe)
+                string instDir = fly.os.path.dirname(binDir)
+                string cand = fly.os.path.join(instDir, "lib")
+                if fly.os.path.isDir(cand) {
+                    if fly.str.isEmpty(runtimeLibDir) { runtimeLibDir = cand }
+                    if fly.str.isEmpty(stdLibDir) { stdLibDir = cand }
+                }
+            }
+        }
+
+        string src = fly.os.fs.readStr(input)
+        if fly.str.isEmpty(src) {
+            fly.os.io.printErrLn(fly.str.concat("error: cannot read input file: ", input))
+            out = 1
+            return
+        }
+
+        string basePath = outPath
+        if fly.str.isEmpty(basePath) { basePath = this.defaultOut(input, this.emitExt(emitMode)) }
+        string finalPath = this.applyOutDir(outDir, basePath)
+        string name = this.moduleName(input)
+
+        string effTriple = targetTriple
+        if fly.str.isEmpty(effTriple) { effTriple = "x86_64-unknown-linux-gnu" }
+
+        // note only when IR emission is still the effective mode (a later -c/-S
+        // overrides emitMode and the note would then be misleading)
+        if emitBc {
+            if emitMode == 0 {
+                fly.os.io.printErrLn("note: --emit-bc: bitcode emission unsupported, emitting LLVM IR")
+            }
+        }
+
+        // Build the CompilerInstance (the C++ Driver::Execute model): bundle the
+        // Frontend/CodeGen/Target options + the source buffer, then run the Frontend.
+        // Mirrors fly/compiler/Driver/Driver.cpp::BuildOptions option plumbing.
+        CodeGenOptions cgo = new CodeGenOptions()
+        cgo.setRuntimeLibDir(runtimeLibDir)
+        cgo.setToolchainLibDir(toolchainLibDir)
+        cgo.setStatic(isStatic)
+        cgo.setShared(isShared)
+        cgo.setPie(isPie)
+        cgo.setDebugSymbols(debugSymbols)
+        cgo.setOptLevel(optLevel)
+        cgo.setJobs(jobs)
+        if fly.str.isEmpty(codeModel) == false { cgo.setCodeModel(codeModel) }
+        // Thread model: default posix; an invalid value warns AND falls back to
+        // posix (it used to be applied anyway, with an unprefixed message).
+        string effThread = threadModel
+        if fly.str.isEmpty(effThread) { effThread = "posix" }
+        if fly.str.equals(effThread, "posix") == false && fly.str.equals(effThread, "single") == false {
+            fly.os.io.printErrLn(fly.str.concat(fly.str.concat("warning: invalid thread model '", effThread), "', falling back to posix"))
+            effThread = "posix"
+        }
+        cgo.setThreadModel(effThread)
+        if isShared { cgo.setRelocationModel("pic") }
+        int nl = segCount(linkLibs)
+        int li = 0
+        while li < nl { cgo.addLinkerOption(segAt(linkLibs, li))  li = li + 1 }
+
+        TargetOptions topts = new TargetOptions(effTriple)
+        if fly.str.isEmpty(targetCpu) == false { topts.setCPU(targetCpu) }
+        if fly.str.isEmpty(codeModel) == false { topts.setCodeModel(codeModel) }
+
+        FrontendOptions fo = new FrontendOptions(finalPath)
+        fo.setVerbose(verbose)
+        fo.setTestMode(testMode)
+        fo.setCreateShared(isShared)
+        fo.setCreateLibrary(createLibrary)
+        fo.setCreateHeader(createHeader)
+        fo.setShowStats(showStats)
+        fo.setShowTimers(showTimers)
+        fo.setStatsFile(statsFile)
+        fo.setOutDir(outDir)
+        fo.setBackendAction(emitMode)
+        if fly.str.isEmpty(toolchainLibDir) == false { fo.addLibDir(toolchainLibDir) }
+        if fly.str.isEmpty(stdLibDir) == false { fo.setStdLibDir(stdLibDir) }
+        int sd = segCount(srcDirs)
+        int sdi = 0
+        while sdi < sd { fo.addSrcDir(segAt(srcDirs, sdi))  sdi = sdi + 1 }
+
+        CompilerInstance ci = new CompilerInstance(null, fo, cgo, topts)
+        ci.createFileManager()
+        ci.createSourceManager(name, src)
+        Frontend fe = new Frontend(ci)
+
+        // Link mode (default): the Frontend emits a temp object, then the ToolChain
+        // links it into an executable — mirrors Driver.cpp::Execute (Frontend emits
+        // objects → ToolChain.BuildOutput).
+        if emitMode == 3 && noOutput == false {
+            string tempObj = fly.str.concat(finalPath, ".o")
+            int rc = fe.execute(tempObj, false)
+            if rc != 0 {
+                // don't leave a partially-written temp object behind on failure
+                if fly.os.fs.exists(tempObj) { fly.os.fs.delete(tempObj) }
+                out = rc
+                return
+            }
+            out = this.linkExecutable(ci, fe.getOutputFile())
+            return
+        }
+
+        // Emit-only modes (.ll / .o / .s, or --no-output).
+        out = fe.execute("", noOutput)
+    }
+
+    // linkExecutable — construct a ToolChain from the CompilerInstance and link
+    // `objFile` into the FrontendOptions output (the C++ Driver::Execute
+    // ToolChain.BuildOutput path). Cleans up the intermediate object.
+    public int linkExecutable(const CompilerInstance ci, const string objFile) {
+        TargetOptions topts = ci.getTargetOptions()
+        Triple tr = tripleParse(topts.getTriple())
+        ToolChain tc = new ToolChain(null, tr, ci.getCodeGenOptions())
+        string inFiles = fly.str.concat(";", fly.str.concat(objFile, ";"))
+        bool ok = tc.BuildOutput(inFiles, ci.getFrontendOptions())
+        if fly.os.fs.exists(objFile) { fly.os.fs.delete(objFile) }
+        if ok { out = 0 } else { out = 1 }
+    }
+
+    // emitExt — output extension for an emit mode (0=.ll, 1=.o, 2=.s, 3=link/exe).
+    public string emitExt(const int emitMode) {
+        if emitMode == 1 { out = ".o"  return }
+        if emitMode == 2 { out = ".s"  return }
+        if emitMode == 3 { out = ""    return }   // executable: no extension
+        out = ".ll"
+    }
+
+    // missingValue — report a value-taking option used without its value.
+    public int missingValue(const string opt) {
+        fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: option '", opt), "' requires a value"))
+        out = 1
+    }
+
+    // parseUInt — parse a non-negative decimal string; non-digits/empty → dflt.
+    public int parseUInt(const string s, const int dflt) {
+        int len = fly.str.len(s)
+        if len == 0 { out = dflt  return }
+        int acc = 0
+        int i = 0
+        while i < len {
+            byte b = 0
+            fly.str.byteAt(s, i, b)
+            int c = b
+            if c < 48 || c > 57 { out = dflt  return }
+            acc = acc * 10 + (c - 48)
+            i = i + 1
+        }
+        out = acc
+    }
+
+    // printUsage — the --help / no-input usage text.
+    public void printUsage() {
+        fly.os.io.printErrLn("usage: fly <file.fly> [options]")
+        fly.os.io.printErrLn("options:")
+        fly.os.io.printErrLn("  -o <file>       write output to <file>")
+        fly.os.io.printErrLn("  --out-dir <dir> directory for generated outputs")
+        fly.os.io.printErrLn("  (default)       link an executable via ToolChain")
+        fly.os.io.printErrLn("  --emit-ll       produce LLVM IR (.ll)")
+        fly.os.io.printErrLn("  --emit-bc       produce bitcode (falls back to LLVM IR)")
+        fly.os.io.printErrLn("  -c              produce an object file (.o)")
+        fly.os.io.printErrLn("  -S              produce target assembly (.s)")
+        fly.os.io.printErrLn("  --lib           produce a library (NOT YET SUPPORTED)")
+        fly.os.io.printErrLn("  --header        generate a header file (NOT YET SUPPORTED)")
+        fly.os.io.printErrLn("  --runtime-lib-dir <dir>  dir holding fly_std_lib.a / fly_runtime_lib.a")
+        fly.os.io.printErrLn("  -L <dir>             extra linker search directory")
+        fly.os.io.printErrLn("  --src-dir <dir>      project source root for import resolution (default: current dir)")
+        fly.os.io.printErrLn("  --link-lib <name>    link native library (-lname)")
+        fly.os.io.printErrLn("  -static / --shared / -pie   link mode flags")
+        fly.os.io.printErrLn("  -O<n>                optimisation level 0..3")
+        fly.os.io.printErrLn("  -j, --jobs <n>       LLVM parallelism (0 = auto)")
+        fly.os.io.printErrLn("  --mcmodel <m>        memory code model")
+        fly.os.io.printErrLn("  --mthread-model <m>  thread model (posix|single)")
+        fly.os.io.printErrLn("  --target <triple>    target triple (default: x86_64-unknown-linux-gnu)")
+        fly.os.io.printErrLn("  --target-cpu <cpu>   target CPU (default: generic)")
+        fly.os.io.printErrLn("  --no-output     type-check only, produce no output")
+        fly.os.io.printErrLn("  --test          compile in test mode (test {} blocks)")
+        fly.os.io.printErrLn("  --debug         verbose + emit debug symbols")
+        fly.os.io.printErrLn("  --debug-symbols emit DWARF debug symbols")
+        fly.os.io.printErrLn("  --print-stats   print performance metrics")
+        fly.os.io.printErrLn("  --ftime-report  show per-action timers")
+        fly.os.io.printErrLn("  --stats-file <f>  write statistics to <f>")
+        fly.os.io.printErrLn("  -v, --verbose   log each compilation phase")
+        fly.os.io.printErrLn("  -w, --no-warning  suppress warnings")
+        fly.os.io.printErrLn("  --version       print version")
+        fly.os.io.printErrLn("  --help          display this help")
+    }
+
+    // printVersion — the --version text. The version number lives in ONE place:
+    // compiler/basic/Version.fly (release.yml greps it from there too).
+    public void printVersion() {
+        fly.os.io.printLn(fly.str.concat(fly.str.concat("fly version ", flyVersion()), " (https://flylang.org)"))
+    }
+
+    // applyOutDir — prefix a RELATIVE output path with outDir (absolute paths and
+    // an empty outDir are returned unchanged). The dir must already exist (the
+    // self-host has no mkdir yet).
+    public string applyOutDir(const string outDir, const string outPath) {
+        if fly.str.isEmpty(outDir) { out = outPath  return }
+        if fly.str.startsWith(outPath, "/") { out = outPath  return }
+        string slash = fly.str.concat(outDir, "/")
+        out = fly.str.concat(slash, outPath)
+    }
+
+    // argAt — read argv[i] from the StringArray's 16-byte {ptr,len} slots.
+    public string argAt(const fly.os.env.StringArray args, const int i) {
+        pointer base = args.items
+        pointer ptr = fly.mem.readPtr(base, i * 16)
+        int len = fly.mem.readInt(base, i * 16 + 8)
+        string s = ""
+        fly.str.fromBytes(ptr, len, s)
+        out = s
+    }
+
+    // ── Package mode (fly.toml) ───────────────────────────────────────────────
+    // Formerly class Flyp (fly/tools/flyp/Flyp.cpp). runPackage is invoked from run()
+    // when argv[1] is a fly.toml subcommand; it dispatches the network-free core
+    // commands (dependency/registry ones report "not yet ported").
+
+    // flagValue — value following `--name` in argv, or "" if absent.
+    public string flagValue(const fly.os.env.StringArray args, const int n, const string flag) {
+        int i = 2
+        while i < n {
+            if fly.str.equals(this.argAt(args, i), flag) {
+                if i + 1 < n { out = this.argAt(args, i + 1)  return }
+            }
+            i = i + 1
+        }
+        out = ""
+    }
+
+    // hasFlag — true if `flag` appears anywhere in argv.
+    public bool hasFlag(const fly.os.env.StringArray args, const int n, const string flag) {
+        int i = 2
+        while i < n {
+            if fly.str.equals(this.argAt(args, i), flag) { out = true  return }
+            i = i + 1
+        }
+        out = false
+    }
+
+    // profileOf — --release → "release", else --profile VALUE, else "".
+    public string profileOf(const fly.os.env.StringArray args, const int n) {
+        if this.hasFlag(args, n, "--release") { out = "release"  return }
+        out = this.flagValue(args, n, "--profile")
+    }
+
+    // runPackage — dispatch a fly.toml subcommand to fly.driver.
+    public int runPackage(const fly.os.env.StringArray args) {
+        int n = (int)args.count
+        if n < 2 {
+            fly.os.io.printLn("usage: fly <version|init|build|run|test|clean|cache|add|remove|lock|why|...>")
+            out = 1
+            return
+        }
+        string cmd = this.argAt(args, 1)
+
+        if fly.str.equals(cmd, "version") {
+            out = fly.driver.cmdVersion()
+        } elsif fly.str.equals(cmd, "init") {
+            out = fly.driver.cmdInit(this.flagValue(args, n, "--name"), this.flagValue(args, n, "--version"))
+        } elsif fly.str.equals(cmd, "build") {
+            out = fly.driver.cmdBuild(this.profileOf(args, n), this.flagValue(args, n, "--target"))
+        } elsif fly.str.equals(cmd, "run") {
+            out = fly.driver.cmdRun(this.profileOf(args, n), this.flagValue(args, n, "--bin"))
+        } elsif fly.str.equals(cmd, "test") {
+            out = fly.driver.cmdTest(this.profileOf(args, n))
+        } elsif fly.str.equals(cmd, "clean") {
+            out = fly.driver.cmdClean(this.profileOf(args, n))
+        } elsif fly.str.equals(cmd, "lock") {
+            out = fly.driver.cmdLock()
+        } elsif fly.str.equals(cmd, "add") {
+            string depName = ""
+            if n >= 3 { depName = this.argAt(args, 2) }
+            out = fly.driver.cmdAdd(depName, this.flagValue(args, n, "--git"),
+                    this.flagValue(args, n, "--tag"), this.flagValue(args, n, "--branch"),
+                    this.flagValue(args, n, "--rev"), this.hasFlag(args, n, "--dev"))
+        } elsif fly.str.equals(cmd, "remove") {
+            string depName = ""
+            if n >= 3 { depName = this.argAt(args, 2) }
+            out = fly.driver.cmdRemove(depName)
+        } elsif fly.str.equals(cmd, "why") {
+            string depName = ""
+            if n >= 3 { depName = this.argAt(args, 2) }
+            out = fly.driver.cmdWhy(depName)
+        } else {
+            out = fly.driver.cmdNotPorted(cmd)
+        }
+    }
+
+    // defaultOut — `<input>.fly` → `<input>.ll` (default IR extension). Kept as a
+    // 1-arg overload for callers/tests that only want the IR path.
+    public string defaultOut(const string input) {
+        out = this.defaultOut(input, ".ll")
+    }
+
+    // defaultOut — `<input>.fly` → `<input><ext>`, else append `<ext>`.
+    public string defaultOut(const string input, const string ext) {
+        if fly.str.endsWith(input, ".fly") {
+            int L = fly.str.len(input)
+            string base = fly.str.substring(input, 0, L - 4)
+            out = fly.str.concat(base, ext)
+        } else {
+            out = fly.str.concat(input, ext)
+        }
+    }
+
+    // moduleName — the input path minus a trailing `.fly` extension.
+    public string moduleName(const string input) {
+        if fly.str.endsWith(input, ".fly") {
+            int L = fly.str.len(input)
+            out = fly.str.substring(input, 0, L - 4)
+        } else {
+            out = input
+        }
+    }
+}

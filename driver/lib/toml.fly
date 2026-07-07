@@ -1,0 +1,471 @@
+namespace fly.driver
+
+import fly.data.Map
+import fly.data.List
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// toml — a small, read-only TOML reader for the subset the fly package manager
+// needs (fly.toml / fly.lock). It lives in driver/lib (NOT std/lib) on purpose:
+// compiled into the fly binary's own source graph, its generic-container
+// instantiations (Map<string,TomlValue>) never enter the shared std archive that
+// the compiler links — which is where an identical monomorphized helper (slotPokeT
+// for string keys) would clash with the compiler's own copy. Recursive-descent,
+// single-pass over the source bytes. Structure ported from CPython's
+// tomllib/_parser.py, reduced to the fly.toml subset (see below).
+//
+// SUPPORTED: comments '#', single-level tables `[section]`, arrays of tables
+// `[[section]]`, `key = value`, basic strings "…" (with \" and \\ escapes),
+// integers (optional sign), booleans, arrays `[…]`, inline tables `{…}`, and
+// hyphenated bare keys (opt-level, fly-version).
+//
+// NOT supported (never appears in a fly.toml): dotted keys `a.b`, nested table
+// headers `[a.b]`, multiline/literal strings, floats, dates, and non-decimal or
+// underscore-separated integers. A non-`"`-escape (\n \t \u …) is a hard error —
+// fly.toml values (names, versions, paths, URLs, SPDX ids, globs) never use them.
+//
+// Value model: Fly has no tagged union, so a node is a class with an int `kind`
+// tag plus one populated field. Tables use Map<string, TomlValue>, arrays use
+// List<TomlValue> (both hold TomlValue handles — the self-referential generic
+// instantiation is verified to compile).
+//
+// Errors use `fail <code>`: `parse` fails with the parser's error code, so a
+// caller guards with `handle { … }` / `if (error)`.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// kind: 0=string 1=integer 2=boolean 3=array 4=table
+public class TomlValue {
+    int kind
+    string s
+    long i
+    bool b
+    List<TomlValue> arr
+    Map<string, TomlValue> table
+    // Insertion order of table keys: Map has no key iteration, so a table records
+    // its keys here as they are inserted, exposed via keyCount()/keyAt(). Needed to
+    // enumerate tables with arbitrary keys (e.g. [targets]).
+    List<string> order
+
+    public TomlValue(const int k) {
+        this.kind = k
+    }
+
+    public int getKind()  { out = this.kind }
+    public bool isStr()   { out = this.kind == 0 }
+    public bool isInt()   { out = this.kind == 1 }
+    public bool isBool()  { out = this.kind == 2 }
+    public bool isArray() { out = this.kind == 3 }
+    public bool isTable() { out = this.kind == 4 }
+
+    public string asStr()  { out = this.s }
+    public long   asInt()  { out = this.i }
+    public bool   asBool() { out = this.b }
+
+    public void setStr(const string v) { this.s = v }
+    public void setInt(const long v)   { this.i = v }
+    public void setBool(const bool v)  { this.b = v }
+
+    public void initTable() {
+        this.table = new Map<string, TomlValue>()
+        this.order = new List<string>()
+    }
+    public void initArray() { this.arr = new List<TomlValue>() }
+
+    // ── table access ─────────────────────────────────────────────────────────
+    public bool has(const string key)       { out = this.table.has(key) }
+    public TomlValue get(const string key)   { out = this.table.get(key) }
+    public void put(const string key, const TomlValue v) {
+        if this.table.has(key) == false { this.order.add(key) }
+        this.table.put(key, v)
+    }
+    // key enumeration (insertion order)
+    public int keyCount()                   { out = (int)this.order.size() }
+    public string keyAt(const int idx)      { out = this.order.get(idx) }
+
+    // ── array access ─────────────────────────────────────────────────────────
+    public void add(const TomlValue v)      { this.arr.add(v) }
+    public int size()                        { out = (int)this.arr.size() }
+    public TomlValue at(const int idx)       { out = this.arr.get(idx) }
+
+    // ── typed field lookups with a default (scalar fields of a table) ─────────
+    public string getStr(const string key, const string def) {
+        if this.table.has(key) {
+            TomlValue v = this.table.get(key)
+            if v.isStr() { out = v.asStr()  return }
+        }
+        out = def
+    }
+    public long getInt(const string key, const long def) {
+        if this.table.has(key) {
+            TomlValue v = this.table.get(key)
+            if v.isInt() { out = v.asInt()  return }
+        }
+        out = def
+    }
+    public bool getBool(const string key, const bool def) {
+        if this.table.has(key) {
+            TomlValue v = this.table.get(key)
+            if v.isBool() { out = v.asBool()  return }
+        }
+        out = def
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TomlParser — the recursive-descent parser. All logic lives in methods (a class
+// method must not call a same-file free function under the bootstrap), and the
+// public `parse` free function only constructs a parser and calls a method.
+// EOF is the sentinel 256 (bytes are 0..255), matching the std lexer convention.
+// ─────────────────────────────────────────────────────────────────────────────
+public class TomlParser {
+    string src
+    int n
+    int pos
+    int err        // 0 = ok; otherwise a diagnostic code (10x)
+
+    public TomlParser(const string source) {
+        this.src = source
+        this.n = fly.str.len(source)
+        this.pos = 0
+        this.err = 0
+    }
+
+    public bool failed() { out = this.err != 0 }
+    public int errCode() { out = this.err }
+
+    // ── byte cursor ──────────────────────────────────────────────────────────
+    public int cur() {
+        if this.pos >= this.n { out = 256  return }
+        byte b = 0
+        fly.str.byteAt(this.src, this.pos, b)
+        out = b
+    }
+    public int peekAt(const int off) {
+        int p = this.pos + off
+        if p >= this.n { out = 256  return }
+        byte b = 0
+        fly.str.byteAt(this.src, p, b)
+        out = b
+    }
+
+    // ── character classes ────────────────────────────────────────────────────
+    public bool isWs(const int c)    { out = (c == 32) || (c == 9) }
+    public bool isNl(const int c)    { out = (c == 10) || (c == 13) }
+    public bool isDigit(const int c) { out = (c >= 48) && (c <= 57) }
+    public bool isBareKey(const int c) {
+        bool lower = (c >= 97) && (c <= 122)
+        bool upper = (c >= 65) && (c <= 90)
+        bool digit = (c >= 48) && (c <= 57)
+        out = lower || upper || digit || (c == 45) || (c == 95)
+    }
+
+    // ── trivia ───────────────────────────────────────────────────────────────
+    // inline whitespace only (spaces/tabs): within a line
+    public void skipInlineWs() {
+        while this.isWs(this.cur()) { this.pos = this.pos + 1 }
+    }
+    // whitespace, newlines and full comment lines: between statements / array elems
+    public void skipTrivia() {
+        bool go = true
+        while go {
+            int c = this.cur()
+            if this.isWs(c) || this.isNl(c) {
+                this.pos = this.pos + 1
+            } elsif c == 35 {                                   // '#'
+                while this.cur() != 256 && this.isNl(this.cur()) == false {
+                    this.pos = this.pos + 1
+                }
+            } else {
+                go = false
+            }
+        }
+    }
+
+    // ── document ─────────────────────────────────────────────────────────────
+    public TomlValue parseDocument() {
+        TomlValue root = new TomlValue(4)
+        root.initTable()
+        TomlValue current = root
+        this.skipTrivia()
+        while this.cur() != 256 && this.err == 0 {
+            if this.cur() == 91 {                               // '['
+                current = this.parseHeader(root)
+            } else {
+                this.parseKeyVal(current)
+            }
+            this.skipTrivia()
+        }
+        out = root
+    }
+
+    // `[name]` → a fresh table put on root; `[[name]]` → append a table to root's
+    // array `name`. Returns the table subsequent key/values are written into.
+    public TomlValue parseHeader(const TomlValue root) {
+        this.pos = this.pos + 1                                 // consume '['
+        bool aot = false
+        if this.cur() == 91 { aot = true  this.pos = this.pos + 1 }
+        this.skipInlineWs()
+        string name = this.parseBareKey()
+        this.skipInlineWs()
+        if this.cur() == 93 { this.pos = this.pos + 1 } else { this.err = 101  out = root  return }
+        if aot {
+            if this.cur() == 93 { this.pos = this.pos + 1 } else { this.err = 102  out = root  return }
+        }
+        if aot {
+            TomlValue arr = null
+            if root.has(name) {
+                arr = root.get(name)
+            } else {
+                arr = new TomlValue(3)
+                arr.initArray()
+                root.put(name, arr)
+            }
+            TomlValue t = new TomlValue(4)
+            t.initTable()
+            arr.add(t)
+            out = t
+        } else {
+            TomlValue t = new TomlValue(4)
+            t.initTable()
+            root.put(name, t)
+            out = t
+        }
+    }
+
+    public string parseBareKey() {
+        int start = this.pos
+        while this.isBareKey(this.cur()) { this.pos = this.pos + 1 }
+        out = fly.str.substring(this.src, start, this.pos)
+    }
+
+    public void parseKeyVal(const TomlValue tbl) {
+        string key = this.parseBareKey()
+        if fly.str.isEmpty(key) { this.err = 112  return }
+        this.skipInlineWs()
+        if this.cur() == 61 { this.pos = this.pos + 1 } else { this.err = 103  return }  // '='
+        this.skipInlineWs()
+        TomlValue v = this.parseValue()
+        if this.err != 0 { return }
+        tbl.put(key, v)
+    }
+
+    // ── values ───────────────────────────────────────────────────────────────
+    public TomlValue parseValue() {
+        int c = this.cur()
+        if c == 34 {                                            // '"'
+            out = this.parseBasicString()
+        } elsif c == 91 {                                       // '['
+            out = this.parseArray()
+        } elsif c == 123 {                                      // '{'
+            out = this.parseInlineTable()
+        } elsif c == 116 || c == 102 {                      // 't' | 'f'
+            out = this.parseBool()
+        } elsif this.isDigit(c) || c == 45 || c == 43 {     // digit | '-' | '+'
+            out = this.parseInt()
+        } else {
+            this.err = 104
+            out = new TomlValue(0)
+        }
+    }
+
+    public TomlValue parseBasicString() {
+        this.pos = this.pos + 1                                 // opening quote
+        int start = this.pos
+        bool hasEsc = false
+        bool scan = true
+        while scan {
+            int c = this.cur()
+            if c == 256 {
+                this.err = 105
+                scan = false
+            } elsif c == 92 {                                   // '\' — skip the pair
+                hasEsc = true
+                this.pos = this.pos + 2
+            } elsif c == 34 {                                   // closing quote
+                scan = false
+            } else {
+                this.pos = this.pos + 1
+            }
+        }
+        TomlValue v = new TomlValue(0)
+        if this.err != 0 { out = v  return }
+        string raw = fly.str.substring(this.src, start, this.pos)
+        this.pos = this.pos + 1                                 // consume closing quote
+        string val = raw
+        if hasEsc {
+            string un = this.unescape(raw)
+            val = un
+            if this.err != 0 { out = v  return }
+        }
+        v.setStr(val)
+        out = v
+    }
+
+    // Resolve \" and \\ by copying the literal char straight from the source; any
+    // other escape is unsupported (not used in fly.toml) and is a hard error.
+    public string unescape(const string raw) {
+        int m = fly.str.len(raw)
+        string res = ""
+        int i = 0
+        int seg = 0
+        bool go = true
+        while go && i < m {
+            byte bb = 0
+            fly.str.byteAt(raw, i, bb)
+            int c = bb
+            if c == 92 {
+                string part = fly.str.substring(raw, seg, i)
+                string r2 = fly.str.concat(res, part)
+                res = r2
+                int e = 0
+                if i + 1 < m {
+                    byte nb = 0
+                    fly.str.byteAt(raw, i + 1, nb)
+                    e = nb
+                }
+                if e == 34 || e == 92 {
+                    string ch = fly.str.substring(raw, i + 1, i + 2)
+                    string r3 = fly.str.concat(res, ch)
+                    res = r3
+                    i = i + 2
+                    seg = i
+                } else {
+                    this.err = 106
+                    go = false
+                }
+            } else {
+                i = i + 1
+            }
+        }
+        if this.err != 0 { out = res  return }
+        string tail = fly.str.substring(raw, seg, m)
+        string r4 = fly.str.concat(res, tail)
+        res = r4
+        out = res
+    }
+
+    public TomlValue parseArray() {
+        this.pos = this.pos + 1                                 // '['
+        TomlValue arr = new TomlValue(3)
+        arr.initArray()
+        bool go = true
+        while go {
+            this.skipTrivia()
+            int c = this.cur()
+            if c == 256 {
+                this.err = 107
+                go = false
+            } elsif c == 93 {                                   // ']'
+                this.pos = this.pos + 1
+                go = false
+            } else {
+                TomlValue el = this.parseValue()
+                if this.err != 0 {
+                    go = false
+                } else {
+                    arr.add(el)
+                    this.skipTrivia()
+                    int d = this.cur()
+                    if d == 44 {                                // ','
+                        this.pos = this.pos + 1
+                    } elsif d == 93 {                           // ']'
+                        this.pos = this.pos + 1
+                        go = false
+                    } else {
+                        this.err = 108
+                        go = false
+                    }
+                }
+            }
+        }
+        out = arr
+    }
+
+    public TomlValue parseInlineTable() {
+        this.pos = this.pos + 1                                 // '{'
+        TomlValue t = new TomlValue(4)
+        t.initTable()
+        this.skipInlineWs()
+        if this.cur() == 125 {                                  // '}' — empty
+            this.pos = this.pos + 1
+            out = t
+            return
+        }
+        bool go = true
+        while go {
+            this.skipInlineWs()
+            this.parseKeyVal(t)
+            if this.err != 0 {
+                go = false
+            } else {
+                this.skipInlineWs()
+                int c = this.cur()
+                if c == 44 {                                    // ','
+                    this.pos = this.pos + 1
+                } elsif c == 125 {                              // '}'
+                    this.pos = this.pos + 1
+                    go = false
+                } else {
+                    this.err = 109
+                    go = false
+                }
+            }
+        }
+        out = t
+    }
+
+    public TomlValue parseBool() {
+        TomlValue v = new TomlValue(2)
+        if this.matchWord("true") {
+            v.setBool(true)
+            this.pos = this.pos + 4
+        } elsif this.matchWord("false") {
+            v.setBool(false)
+            this.pos = this.pos + 5
+        } else {
+            this.err = 110
+        }
+        out = v
+    }
+
+    public bool matchWord(const string w) {
+        int wl = fly.str.len(w)
+        if this.pos + wl > this.n { out = false  return }
+        string sub = fly.str.substring(this.src, this.pos, this.pos + wl)
+        out = fly.str.equals(sub, w)
+    }
+
+    public TomlValue parseInt() {
+        bool neg = false
+        int c = this.cur()
+        if c == 45 { neg = true  this.pos = this.pos + 1 }
+        elsif c == 43 { this.pos = this.pos + 1 }
+        long val = 0
+        bool any = false
+        while this.isDigit(this.cur()) {
+            int d = this.cur()
+            long dig = d - 48
+            long nv = val * 10 + dig
+            val = nv
+            this.pos = this.pos + 1
+            any = true
+        }
+        TomlValue v = new TomlValue(1)
+        if any == false { this.err = 111  out = v  return }
+        if neg { long ng = 0 - val  val = ng }
+        v.setInt(val)
+        out = v
+    }
+}
+
+// parse — read a TOML source string into a root table (kind=4). `errOut` is set
+// to 0 on success or the parser's diagnostic code (10x) on malformed input; on
+// error the returned root holds whatever was parsed so far. (No `fail` here: the
+// out-param error report is the std idiom — see fly.str.byteAt — and keeps `parse`
+// usable without a surrounding `handle`.)
+public TomlValue tomlParse(const string src, int errOut) {
+    TomlParser p = new TomlParser(src)
+    TomlValue doc = p.parseDocument()
+    errOut = p.errCode()
+    out = doc
+}

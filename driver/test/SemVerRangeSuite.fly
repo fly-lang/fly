@@ -1,0 +1,138 @@
+namespace fly.driver.test
+
+import fly.driver.*
+
+import fly.assert
+
+// Port of fly/tools/flyp/test/SemVerRangeTest.cpp — SemVer range matching.
+// rangeMatchesStr(range, version) mirrors the gtest `matches(...)` helper.
+
+suite SemVerRangeSuite {
+
+    void anyAndExactTest() {
+        case "* / empty match everything": {
+            assert.assertTrue(rangeMatchesStr("*", "1.0.0"), 1)
+            assert.assertTrue(rangeMatchesStr("*", "0.0.1"), 2)
+            assert.assertTrue(rangeMatchesStr("*", "99.99.99"), 3)
+            assert.assertTrue(rangeMatchesStr("", "1.0.0"), 4)
+        }
+        case "exact match": {
+            assert.assertTrue(rangeMatchesStr("1.2.3", "1.2.3"), 5)
+            assert.assertFalse(rangeMatchesStr("1.2.3", "1.2.4"), 6)
+            assert.assertFalse(rangeMatchesStr("1.2.3", "1.2.2"), 7)
+            assert.assertFalse(rangeMatchesStr("1.2.3", "2.0.0"), 8)
+        }
+        case "exact with leading v": {
+            assert.assertTrue(rangeMatchesStr("v1.2.3", "1.2.3"), 9)
+            assert.assertTrue(rangeMatchesStr("v1.2.3", "v1.2.3"), 10)
+        }
+    }
+
+    void caretTest() {
+        case "^ major non-zero → >=x,<major+1": {
+            assert.assertTrue(rangeMatchesStr("^1.2.3", "1.2.3"), 11)
+            assert.assertTrue(rangeMatchesStr("^1.2.3", "1.2.4"), 12)
+            assert.assertTrue(rangeMatchesStr("^1.2.3", "1.9.9"), 13)
+            assert.assertFalse(rangeMatchesStr("^1.2.3", "1.2.2"), 14)
+            assert.assertFalse(rangeMatchesStr("^1.2.3", "2.0.0"), 15)
+            assert.assertFalse(rangeMatchesStr("^1.2.3", "0.9.9"), 16)
+        }
+        case "^ major zero minor non-zero → <0.minor+1": {
+            assert.assertTrue(rangeMatchesStr("^0.2.3", "0.2.3"), 17)
+            assert.assertTrue(rangeMatchesStr("^0.2.3", "0.2.9"), 18)
+            assert.assertFalse(rangeMatchesStr("^0.2.3", "0.3.0"), 19)
+            assert.assertFalse(rangeMatchesStr("^0.2.3", "0.2.2"), 20)
+            assert.assertFalse(rangeMatchesStr("^0.2.3", "1.0.0"), 21)
+        }
+        case "^ major/minor zero → <0.0.patch+1": {
+            assert.assertTrue(rangeMatchesStr("^0.0.3", "0.0.3"), 22)
+            assert.assertFalse(rangeMatchesStr("^0.0.3", "0.0.4"), 23)
+            assert.assertFalse(rangeMatchesStr("^0.0.3", "0.0.2"), 24)
+        }
+    }
+
+    void tildeTest() {
+        case "~ full → >=x,<minor+1": {
+            assert.assertTrue(rangeMatchesStr("~1.2.3", "1.2.3"), 25)
+            assert.assertTrue(rangeMatchesStr("~1.2.3", "1.2.9"), 26)
+            assert.assertFalse(rangeMatchesStr("~1.2.3", "1.3.0"), 27)
+            assert.assertFalse(rangeMatchesStr("~1.2.3", "1.2.2"), 28)
+            assert.assertFalse(rangeMatchesStr("~1.2.3", "2.0.0"), 29)
+        }
+        case "~ minor-only → >=x.0,<minor+1": {
+            assert.assertTrue(rangeMatchesStr("~1.2", "1.2.0"), 30)
+            assert.assertTrue(rangeMatchesStr("~1.2", "1.2.9"), 31)
+            assert.assertFalse(rangeMatchesStr("~1.2", "1.3.0"), 32)
+            assert.assertFalse(rangeMatchesStr("~1.2", "1.1.9"), 33)
+        }
+        case "~ major-only → >=x.0.0,<major+1": {
+            assert.assertTrue(rangeMatchesStr("~1", "1.0.0"), 34)
+            assert.assertTrue(rangeMatchesStr("~1", "1.9.9"), 35)
+            assert.assertFalse(rangeMatchesStr("~1", "2.0.0"), 36)
+            assert.assertFalse(rangeMatchesStr("~1", "0.9.9"), 37)
+        }
+    }
+
+    void comparisonsTest() {
+        case ">= and >": {
+            assert.assertTrue(rangeMatchesStr(">=1.2.0", "1.2.0"), 38)
+            assert.assertTrue(rangeMatchesStr(">=1.2.0", "2.0.0"), 39)
+            assert.assertFalse(rangeMatchesStr(">=1.2.0", "1.1.9"), 40)
+            assert.assertTrue(rangeMatchesStr(">1.2.0", "1.2.1"), 41)
+            assert.assertFalse(rangeMatchesStr(">1.2.0", "1.2.0"), 42)
+        }
+        case "<= and <": {
+            assert.assertTrue(rangeMatchesStr("<=2.0.0", "2.0.0"), 43)
+            assert.assertTrue(rangeMatchesStr("<=2.0.0", "1.9.9"), 44)
+            assert.assertFalse(rangeMatchesStr("<=2.0.0", "2.0.1"), 45)
+            assert.assertTrue(rangeMatchesStr("<2.0.0", "1.9.9"), 46)
+            assert.assertFalse(rangeMatchesStr("<2.0.0", "2.0.0"), 47)
+        }
+    }
+
+    void combinedTest() {
+        case "comma = AND": {
+            assert.assertTrue(rangeMatchesStr(">=1.0.0,<2.0.0", "1.5.0"), 48)
+            assert.assertTrue(rangeMatchesStr(">=1.0.0,<2.0.0", "1.0.0"), 49)
+            assert.assertFalse(rangeMatchesStr(">=1.0.0,<2.0.0", "2.0.0"), 50)
+            assert.assertFalse(rangeMatchesStr(">=1.0.0,<2.0.0", "0.9.9"), 51)
+        }
+        case "AND with spaces": {
+            assert.assertTrue(rangeMatchesStr(">=1.0.0, <2.0.0", "1.5.0"), 52)
+            assert.assertFalse(rangeMatchesStr(">=1.0.0, <2.0.0", "2.0.0"), 53)
+        }
+        case "three constraints": {
+            assert.assertTrue(rangeMatchesStr(">=1.0.0,<2.0.0,<1.9.0", "1.5.0"), 54)
+            assert.assertFalse(rangeMatchesStr(">=1.0.0,<2.0.0,<1.9.0", "1.9.0"), 55)
+            assert.assertTrue(rangeMatchesStr(">=1.0.0,<=1.9.9", "1.9.9"), 56)
+            assert.assertFalse(rangeMatchesStr(">=1.0.0,<=1.9.9", "2.0.0"), 57)
+        }
+    }
+
+    void wildcardShorthandTest() {
+        case "1.x / 1.*": {
+            assert.assertTrue(rangeMatchesStr("1.x", "1.0.0"), 58)
+            assert.assertTrue(rangeMatchesStr("1.x", "1.9.9"), 59)
+            assert.assertFalse(rangeMatchesStr("1.x", "2.0.0"), 60)
+            assert.assertFalse(rangeMatchesStr("1.x", "0.9.9"), 61)
+            assert.assertTrue(rangeMatchesStr("1.*", "1.5.0"), 62)
+            assert.assertFalse(rangeMatchesStr("1.*", "2.0.0"), 63)
+        }
+    }
+
+    void isAnyAndEdgesTest() {
+        case "isAny": {
+            assert.assertTrue(rangeParse("*").isAny(), 64)
+            assert.assertTrue(rangeParse("").isAny(), 65)
+            assert.assertFalse(rangeParse("^1.0.0").isAny(), 66)
+            assert.assertFalse(rangeParse(">=1.0.0").isAny(), 67)
+        }
+        case "zero + large versions": {
+            assert.assertTrue(rangeMatchesStr(">=0.0.0", "0.0.0"), 68)
+            assert.assertTrue(rangeMatchesStr("^0.0.1", "0.0.1"), 69)
+            assert.assertFalse(rangeMatchesStr("^0.0.1", "0.0.2"), 70)
+            assert.assertTrue(rangeMatchesStr("^10.20.30", "10.99.0"), 71)
+            assert.assertFalse(rangeMatchesStr("^10.20.30", "11.0.0"), 72)
+        }
+    }
+}

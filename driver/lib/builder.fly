@@ -1,0 +1,178 @@
+namespace fly.driver
+
+import fly.str
+import fly.os.env
+import fly.os.path
+import fly.os.fs
+import fly.os.io
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Builder — invoke the fly compiler to build a manifest's targets. Port of
+// fly/tools/flyp/builder/Builder.{h,cpp}, simplified: SEQUENTIAL (the C++ builds
+// targets on a thread pool; Fly has no easy threading here), and without the
+// incremental-fingerprint cache (always rebuilds). Compiler calls go through the
+// shell (the shell helpers) so we can `cd` into the output dir like the C++ does.
+// Lockfile-based -L include paths are a follow-up (needs the Lockfile port).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class Builder {
+    Manifest manifest
+    string profile
+    bool isTest
+    string targetTriple
+    string flyBinary
+
+    public Builder(const Manifest m, const string prof, const bool testMode) {
+        this.manifest = m
+        this.profile = prof
+        this.isTest = testMode
+        this.targetTriple = ""
+        this.flyBinary = ""
+    }
+
+    public void setTargetTriple(const string t) { this.targetTriple = t }
+
+    // getFlyBinary — resolve lazily (a constructor cannot call a method here).
+    public string getFlyBinary() {
+        if fly.str.isEmpty(this.flyBinary) { this.flyBinary = this.resolveFly() }
+        out = this.flyBinary
+    }
+
+    // resolveFly — FLY_COMPILER env override, else the running binary ITSELF: the
+    // package commands run inside the `fly` compiler, so exePath() is the compiler and
+    // they self-exec it in compile mode. Bare `fly` on PATH is the last resort.
+    public string resolveFly() {
+        string env = fly.os.env.get("FLY_COMPILER")
+        if fly.str.isEmpty(env) == false { out = env  return }
+        string self = fly.os.env.exePath()
+        if fly.str.isEmpty(self) == false { out = self  return }
+        out = "fly"
+    }
+
+    // outDir — ABSOLUTE target/<profile>[/<triple>] or target/test. Absolute so
+    // the `cd out_dir` in invokeFly does not break relative source/output paths.
+    public string outDir() {
+        string rel = "target"
+        if this.isTest {
+            rel = fly.os.path.join(rel, "test")
+        } else {
+            rel = fly.os.path.join(rel, this.profile)
+            if fly.str.isEmpty(this.targetTriple) == false {
+                rel = fly.os.path.join(rel, this.targetTriple)
+            }
+        }
+        out = fly.os.path.absolute(rel)
+    }
+
+    // profileFlags — "-O<n> [--debug-symbols]" from the active profile.
+    public string profileFlags() {
+        int opt = 0
+        bool dbg = true
+        if this.manifest.hasProfile(this.profile) {
+            BuildProfile bp = this.manifest.getProfile(this.profile)
+            opt = bp.getOptLevel()
+            dbg = bp.getDebugInfo()
+        }
+        string f = fly.str.concat("-O", fly.str.convert(opt))
+        if dbg { f = fly.str.concat(f, " --debug-symbols") }
+        out = f
+    }
+
+    // linkFlags — "--link-lib=<name>" for each [link] lib.
+    public string linkFlags() {
+        string f = ""
+        int i = 0
+        while i < this.manifest.linkLibCount() {
+            string one = fly.str.concat(" --link-lib=", fly.driver.shellQuote(this.manifest.linkLibAt(i)))
+            f = fly.str.concat(f, one)
+            i = i + 1
+        }
+        out = f
+    }
+
+    // invokeFly — cd into out_dir and run: fly <profile-flags> <link-flags>
+    // [--target=..] [--test] -o <output> <source>. Returns true on exit 0.
+    public bool invokeFly(const string source, const string output, const string extra) {
+        string od = this.outDir()
+        fly.os.fs.dirCreateAll(od, 493)
+        string cmd = fly.str.concat("cd ", fly.driver.shellQuote(od))
+        cmd = fly.str.concat(cmd, " && ")
+        cmd = fly.str.concat(cmd, fly.driver.shellQuote(this.getFlyBinary()))
+        cmd = fly.str.concat(cmd, " ")
+        cmd = fly.str.concat(cmd, this.profileFlags())
+        cmd = fly.str.concat(cmd, this.linkFlags())
+        if fly.str.isEmpty(this.targetTriple) == false {
+            cmd = fly.str.concat(cmd, fly.str.concat(" --target=", fly.driver.shellQuote(this.targetTriple)))
+        }
+        if fly.str.isEmpty(extra) == false {
+            cmd = fly.str.concat(cmd, fly.str.concat(" ", extra))
+        }
+        cmd = fly.str.concat(cmd, fly.str.concat(" -o ", fly.driver.shellQuote(output)))
+        cmd = fly.str.concat(cmd, fly.str.concat(" ", fly.driver.shellQuote(source)))
+        fly.os.io.printLn(fly.str.concat("  fly ", source))
+        int rc = fly.driver.runShell(cmd)
+        out = rc == 0
+    }
+
+    // buildTarget — build one [targets] entry (bin or lib).
+    public bool buildTarget(const string key) {
+        int idx = 0
+        Target t = null
+        while idx < this.manifest.targetCount() {
+            Target cand = this.manifest.targetAt(idx)
+            if fly.str.equals(cand.getKey(), key) { t = cand }
+            idx = idx + 1
+        }
+        if t == null {
+            fly.os.io.printErrLn(fly.str.concat("error: no [targets] entry named ", key))
+            out = false
+            return
+        }
+        string src = fly.os.path.absolute(t.getPath())
+        if t.isLib() {
+            bool ok = true
+            string lib = t.getLib()
+            if fly.str.equals(lib, "dynamic") || fly.str.equals(lib, "both") {
+                string o = fly.str.concat(this.outDir(), fly.str.concat("/lib", fly.str.concat(t.getName(), ".so")))
+                ok = this.invokeFly(src, o, "--shared")
+                if ok == false { out = false  return }
+            }
+            if fly.str.equals(lib, "dynamic") == false {
+                string o = fly.str.concat(this.outDir(), fly.str.concat("/lib", fly.str.concat(t.getName(), ".a")))
+                ok = this.invokeFly(src, o, "--lib")
+            }
+            out = ok
+        } else {
+            string o = fly.str.concat(this.outDir(), fly.str.concat("/", t.getName()))
+            out = this.invokeFly(src, o, "")
+        }
+    }
+
+    // buildAll — build every target sequentially; false if any fails.
+    public bool buildAll() {
+        bool allOk = true
+        int i = 0
+        while i < this.manifest.targetCount() {
+            Target t = this.manifest.targetAt(i)
+            if this.buildTarget(t.getKey()) == false { allOk = false }
+            i = i + 1
+        }
+        out = allOk
+    }
+
+    // runTarget — build a bin target then execute it. Returns the child exit code
+    // (or a negative build-failure marker mapped to 1).
+    public int runTarget(const string key) {
+        if this.buildTarget(key) == false { out = 1  return }
+        int idx = 0
+        Target t = null
+        while idx < this.manifest.targetCount() {
+            Target cand = this.manifest.targetAt(idx)
+            if fly.str.equals(cand.getKey(), key) { t = cand }
+            idx = idx + 1
+        }
+        if t == null { out = 1  return }
+        string bin = fly.str.concat(this.outDir(), fly.str.concat("/", t.getName()))
+        out = fly.driver.runShell(fly.driver.shellQuote(bin))
+    }
+}

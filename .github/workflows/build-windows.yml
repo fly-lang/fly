@@ -10,11 +10,8 @@ on:
   workflow_dispatch:
 
 env:
-  # Bootstrap compiler release. Must ship the ptrsize→pointer rename: the
-  # bootstrap's BAKED std shadows -L, and 0.13.7's CLang.call overloads still
-  # take fly.mem.Ptr — every `lib.call(…, pointerOut)` in LLVMApi.fly is then
-  # ambiguous and the whole tree fails to compile. 0.13.8 must be cut from the
-  # current fly/ reference (which also carries the header-gen and codegen fixes).
+  # Bootstrap compiler release used to compile the std --lib archive + the
+  # self-host sources. 0.13.8 is cut from the current fly/ reference.
   FLY_VERSION: "0.13.8"
 
 jobs:
@@ -26,9 +23,9 @@ jobs:
       - uses: actions/checkout@v4
 
       # Put the MSVC toolchain + Windows SDK on LIB/INCLUDE/PATH for the whole job.
-      # The self-contained build (FLY_BUNDLE_LLVM=1) links a bundled fly-lld.exe with
-      # clang++, which then needs the SDK import libs (psapi.lib, ws2_32.lib, …) that
-      # a plain pwsh shell does not expose. amd64 matches the x86_64 target.
+      # The bootstrap links fly.exe in-process (lld::coff::link) and needs the SDK
+      # import libs (kernel32.lib, ws2_32.lib, …) on %LIB%, which a plain pwsh shell
+      # does not expose. amd64 matches the x86_64 target.
       - name: Set up MSVC developer environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -55,8 +52,9 @@ jobs:
       # cached files are present and wires up the env via $GITHUB_ENV/$GITHUB_PATH
       # in CI. Run it locally to reproduce this.
       - name: Install prerequisites (LLVM + fly)
-        # FLY_BUNDLE_LLVM=1 also pulls the LLVM static dev tree so the build can link
-        # a bundled fly-lld.exe (self-contained toolchain — see build_compiler.ps1).
+        # Downloads LLVM-C.lib/.dll + the fork's lld-link.exe (the bundled COFF linker
+        # — no C++ compiler builds a custom one). FLY_BUNDLE_LLVM=1 keeps parity with
+        # the release build (see build_compiler.ps1).
         env:
           FLY_BUNDLE_LLVM: "1"
         shell: pwsh
@@ -64,13 +62,16 @@ jobs:
 
       - name: Build self-host compiler
         # FLY_BUNDLE_LLVM=1 ships a self-contained toolchain: LLVM-C.dll copied next to
-        # fly.exe (loader finds it in the exe dir — no rpath needed) + a bundled
-        # fly-lld.exe, so the release needs neither system LLVM nor a system linker.
+        # fly.exe (loader finds it in the exe dir — no rpath needed) + the fork's
+        # lld-link.exe, so the release needs neither system LLVM nor a system linker.
         env:
           FLY_BUNDLE_LLVM: "1"
         shell: pwsh
         run: .\ci\windows\build_compiler.ps1
 
+      # flyp is now merged into the single `fly` binary (driver package mode); its
+      # unit suites live in driver/test and run under test_compiler.ps1 below. The
+      # ci\windows\*_tools_flyp.ps1 scripts are kept for the future lsp/registry port.
       - name: Test self-host compiler
         # Non-blocking: a subset of codegen suites is non-deterministically
         # unstable on the x86_64-pc-windows-msvc target (a bootstrap-compiler bug,
