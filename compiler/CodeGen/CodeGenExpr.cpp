@@ -832,9 +832,13 @@ void CodeGenExpr::GenExpr(SemaBinary *Sema) {
 	SemaExpr *Right = Sema->getRight();
 	ASTBinaryKind OpKind = Binary.getBinaryKind();
 
-	// Generate Left and Right CodeGen Expressions
+	// Generate the Left CodeGen Expression. The Right operand is generated eagerly
+	// here for every operation EXCEPT the logical &&/|| — those short-circuit, so
+	// Right must be emitted lazily inside the conditional branch (GenBinaryLogic),
+	// otherwise its side effects run unconditionally (e.g. `a && f()` always calls f).
 	Left->accept(*CGM);
-	Right->accept(*CGM);
+	if (!Binary.isLogic())
+		Right->accept(*CGM);
 
 	// Generate Binary Operation
 	if (Binary.isArith()) {
@@ -1219,38 +1223,45 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKin
             llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", FromBB->getParent());
             llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "and", FromBB->getParent());
 
-            // From Branch
+            // From Branch: only evaluate E2 when E1 is true (short-circuit).
             Builder->CreateCondBr(V1, LeftBB, RightBB);
 
-            // Left Branch
+            // Left Branch: E2 is emitted HERE, guarded by V1, so its side effects
+            // only run when E1 is true. E2 may itself add blocks, so the PHI edge
+            // is the block E2 actually ended in, not LeftBB.
             Builder->SetInsertPoint(LeftBB);
+            E2->accept(*CGM);
             llvm::Value *V2 = ConvertToBool(E2->getCodeGen()->getValue());
+            llvm::BasicBlock *V2BB = Builder->GetInsertBlock();
             Builder->CreateBr(RightBB);
 
             // Right Branch
             Builder->SetInsertPoint(RightBB);
             llvm::PHINode *Phi = Builder->CreatePHI(CodeGen::BoolTy, 2);
             Phi->addIncoming(llvm::ConstantInt::get(CodeGen::BoolTy, false, false), FromBB);
-            Phi->addIncoming(V2, LeftBB);
+            Phi->addIncoming(V2, V2BB);
             return Phi;
         }
         case ASTBinaryKind::OP_BINARY_LOGIC_OR: {
             llvm::BasicBlock *LeftBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", FromBB->getParent());
             llvm::BasicBlock *RightBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "or", FromBB->getParent());
 
-            // From Branch
+            // From Branch: only evaluate E2 when E1 is false (short-circuit).
             Builder->CreateCondBr(V1, RightBB, LeftBB);
 
-            // Left Branch
+            // Left Branch: E2 is emitted HERE, guarded by !V1, so its side effects
+            // only run when E1 is false. Capture E2's actual end block for the PHI.
             Builder->SetInsertPoint(LeftBB);
+            E2->accept(*CGM);
             llvm::Value *V2 = ConvertToBool(E2->getCodeGen()->getValue());
+            llvm::BasicBlock *V2BB = Builder->GetInsertBlock();
             Builder->CreateBr(RightBB);
 
             // Right Branch
             Builder->SetInsertPoint(RightBB);
             llvm::PHINode *Phi = Builder->CreatePHI(CodeGen::BoolTy, 2);
             Phi->addIncoming(llvm::ConstantInt::get(CodeGen::BoolTy, true, false), FromBB);
-            Phi->addIncoming(V2, LeftBB);
+            Phi->addIncoming(V2, V2BB);
             return Phi;
         }
     }
