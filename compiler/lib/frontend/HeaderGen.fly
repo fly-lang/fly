@@ -1,0 +1,379 @@
+namespace fly.compiler.frontend
+
+import fly.compiler.ast.*
+import fly.data.List
+import fly.os.fs
+import fly.os.path
+import fly.str
+import fly.os.io
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HeaderGen — writes a `.fly.h` declaration file for the PUBLIC API of a module,
+// so a later compilation can `import` its namespace and link the archive. A 1:1
+// port of fly/compiler/Frontend/Frontend.cpp::GenerateHeader (+ typeStr / paramStr
+// / funcSignatureStr). Emitted per ENTRY module by Frontend.execute in --lib/--header
+// mode. Newlines are built via lineFeed() (Fly string literals keep escapes RAW).
+//
+// A module that declares GENERIC classes emits its FULL SOURCE as the header
+// (ParseHeader detects `<T>` and keeps the bodies for monomorphization) — a
+// declaration-only stub cannot carry the method bodies the specializer needs.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class HeaderGen {
+
+    public HeaderGen() { }
+
+    // typeStr — a type printed as it appears in source: a builtin keyword, or a
+    // qualified `A.B.C` name preserving generic args `<X, Y>`. Empty for void/complex/
+    // error (callers emit an explicit `void` where a return type is required).
+    public static string typeStr(const ASTType t) {
+        if t == null { out = ""  return }
+        if t.getTypeKind() == ASTTypeKind.TYPE_BUILTIN {
+            ASTBuiltinType bt = t.asBuiltinType()
+            ASTBuiltinTypeKind k = bt.getBuiltinKind()
+            if k == ASTBuiltinTypeKind.TYPE_BOOL    { out = "bool"    return }
+            if k == ASTBuiltinTypeKind.TYPE_BYTE    { out = "byte"    return }
+            if k == ASTBuiltinTypeKind.TYPE_SHORT   { out = "short"   return }
+            if k == ASTBuiltinTypeKind.TYPE_INT     { out = "int"     return }
+            if k == ASTBuiltinTypeKind.TYPE_LONG    { out = "long"    return }
+            if k == ASTBuiltinTypeKind.TYPE_USHORT  { out = "ushort"  return }
+            if k == ASTBuiltinTypeKind.TYPE_UINT    { out = "uint"    return }
+            if k == ASTBuiltinTypeKind.TYPE_ULONG   { out = "ulong"   return }
+            if k == ASTBuiltinTypeKind.TYPE_POINTER { out = "pointer" return }
+            if k == ASTBuiltinTypeKind.TYPE_FLOAT   { out = "float"   return }
+            if k == ASTBuiltinTypeKind.TYPE_DOUBLE  { out = "double"  return }
+            if k == ASTBuiltinTypeKind.TYPE_STRING  { out = "string"  return }
+            out = ""
+            return
+        }
+        if t.getTypeKind() == ASTTypeKind.TYPE_NAMED {
+            ASTNamedType nt = t.asNamedType()
+            string name = ""
+            List<ASTName> names = nt.getNames()
+            int i = 0
+            while i < names.size() {
+                if i > 0 { name = fly.str.concat(name, ".") }
+                name = fly.str.concat(name, names.get(i).getName())
+                i = i + 1
+            }
+            List<ASTType> targs = nt.getTypeArgs()
+            if targs.size() > 0 {
+                name = fly.str.concat(name, "<")
+                int j = 0
+                while j < targs.size() {
+                    if j > 0 { name = fly.str.concat(name, ", ") }
+                    name = fly.str.concat(name, HeaderGen.typeStr(targs.get(j)))
+                    j = j + 1
+                }
+                name = fly.str.concat(name, ">")
+            }
+            out = name
+            return
+        }
+        out = ""
+    }
+
+    // paramStr — `[const ]<type> <name>`.
+    public static string paramStr(const ASTParam p) {
+        string s = ""
+        if HeaderGen.hasModifier(p.getModifiers(), ASTModifierKind.MOD_CONSTANT) {
+            s = "const "
+        }
+        s = fly.str.concat(s, HeaderGen.typeStr(p.getType()))
+        s = fly.str.concat(s, " ")
+        s = fly.str.concat(s, p.getName())
+        out = s
+    }
+
+    // paramListStr — `p0, p1, …` for a function/method signature.
+    public static string paramListStr(const List<ASTParam> params) {
+        string s = ""
+        int i = 0
+        while i < params.size() {
+            if i > 0 { s = fly.str.concat(s, ", ") }
+            s = fly.str.concat(s, HeaderGen.paramStr(params.get(i)))
+            i = i + 1
+        }
+        out = s
+    }
+
+    // hasModifier — true if the list carries the given modifier (public / const).
+    public static bool hasModifier(const List<ASTModifier> mods, const ASTModifierKind want) {
+        int i = 0
+        while i < mods.size() {
+            if mods.get(i).getModifierKind() == want { out = true  return }
+            i = i + 1
+        }
+        out = false
+    }
+
+    // stripFlySuffix — `foo/bar.fly` → `foo/bar` (the module stem).
+    public static string stripFlySuffix(const string name) {
+        if fly.str.endsWith(name, ".fly") {
+            out = fly.str.substring(name, 0, fly.str.len(name) - 4)
+            return
+        }
+        out = name
+    }
+
+    // headerPath — where the `.fly.h` lands: flat in outDir (--lib), else next to source.
+    public static string headerPath(const string stem, const string outDir) {
+        if fly.str.isEmpty(outDir) {
+            out = fly.str.concat(stem, ".fly.h")
+            return
+        }
+        string base = fly.os.path.basename(stem)
+        out = fly.os.path.join(outDir, fly.str.concat(base, ".fly.h"))
+    }
+
+    // generate — write the header for `m` into `outDir`. Returns the path, or "" on
+    // failure. Mirrors GenerateHeader's node walk (namespace, imports, structs,
+    // interfaces, classes, enums, functions) + the generic-class full-source fallback.
+    public static string generate(const ASTModule m, const string outDir) {
+        string stem = HeaderGen.stripFlySuffix(m.getName())
+        string hpath = HeaderGen.headerPath(stem, outDir)
+
+        // Generic classes → header IS the full source (bodies needed for monomorphization).
+        if HeaderGen.hasGenericClass(m) {
+            string srcPath = fly.str.concat(stem, ".fly")
+            string src = fly.os.fs.readStr(srcPath)
+            if fly.str.isEmpty(src) { out = ""  return }
+            fly.os.fs.writeStr(hpath, src, 420)
+            out = hpath
+            return
+        }
+
+        string lf = lineFeed()
+        string h = ""
+
+        // namespace
+        ASTNameSpace ns = m.getNameSpace()
+        if ns != null {
+            h = fly.str.concat(h, "namespace ")
+            List<ASTName> nn = ns.getNames()
+            int i = 0
+            while i < nn.size() {
+                if i > 0 { h = fly.str.concat(h, ".") }
+                h = fly.str.concat(h, nn.get(i).getName())
+                i = i + 1
+            }
+            h = fly.str.concat(h, lf)
+            h = fly.str.concat(h, lf)
+        }
+
+        // imports (a header's public API may reference foreign-namespace types)
+        List<ASTImport> imps = m.getImports()
+        int ii = 0
+        while ii < imps.size() {
+            ASTImport imp = imps.get(ii)
+            h = fly.str.concat(h, "import ")
+            List<ASTName> inames = imp.getNames()
+            int k = 0
+            while k < inames.size() {
+                if k > 0 { h = fly.str.concat(h, ".") }
+                h = fly.str.concat(h, inames.get(k).getName())
+                k = k + 1
+            }
+            if imp.isWildcard() { h = fly.str.concat(h, ".*") }
+            List<ASTName> al = imp.getAlias()
+            if al.size() > 0 {
+                h = fly.str.concat(h, " as ")
+                int a = 0
+                while a < al.size() {
+                    if a > 0 { h = fly.str.concat(h, ".") }
+                    h = fly.str.concat(h, al.get(a).getName())
+                    a = a + 1
+                }
+            }
+            h = fly.str.concat(h, lf)
+            ii = ii + 1
+        }
+        h = fly.str.concat(h, lf)
+
+        List<ASTNode> nodes = m.getNodes()
+
+        // public structs (before interfaces/classes that use them)
+        h = fly.str.concat(h, HeaderGen.emitClasses(nodes, ASTClassKind.STRUCT, lf))
+        // public interfaces (before classes that implement them)
+        h = fly.str.concat(h, HeaderGen.emitClasses(nodes, ASTClassKind.INTERFACE, lf))
+        // public classes
+        h = fly.str.concat(h, HeaderGen.emitClasses(nodes, ASTClassKind.CLASS, lf))
+
+        // public enums
+        int ei = 0
+        while ei < nodes.size() {
+            ASTEnum e = nodes.get(ei).asEnum()
+            if e != null {
+                if HeaderGen.hasModifier(e.getModifiers(), ASTModifierKind.MOD_PUBLIC) {
+                    h = fly.str.concat(h, "public enum ")
+                    h = fly.str.concat(h, e.getName())
+                    h = fly.str.concat(h, " {")
+                    h = fly.str.concat(h, lf)
+                    List<ASTNode> entries = e.getNodes()
+                    int en = 0
+                    while en < entries.size() {
+                        ASTEnumEntry ent = entries.get(en).asEnumEntry()
+                        if ent != null {
+                            if en > 0 {
+                                h = fly.str.concat(h, ",")
+                                h = fly.str.concat(h, lf)
+                            }
+                            h = fly.str.concat(h, "    ")
+                            h = fly.str.concat(h, ent.getName())
+                        }
+                        en = en + 1
+                    }
+                    h = fly.str.concat(h, lf)
+                    h = fly.str.concat(h, "}")
+                    h = fly.str.concat(h, lf)
+                    h = fly.str.concat(h, lf)
+                }
+            }
+            ei = ei + 1
+        }
+
+        // public free functions
+        int fi = 0
+        while fi < nodes.size() {
+            ASTNode nd = nodes.get(fi)
+            ASTFunction f = nd.asFunction()
+            if f != null {
+                if f.getFunctionKind() == ASTFunctionKind.F_FUNCTION {
+                    if HeaderGen.hasModifier(f.getModifiers(), ASTModifierKind.MOD_PUBLIC) {
+                        h = fly.str.concat(h, HeaderGen.funcSig(f))
+                        h = fly.str.concat(h, lf)
+                    }
+                }
+            }
+            fi = fi + 1
+        }
+
+        fly.os.fs.writeStr(hpath, h, 420)
+        out = hpath
+    }
+
+    // emitClasses — all public classes of one kind (STRUCT / INTERFACE / CLASS),
+    // rendered in declaration order. Structs list fields; interfaces list method
+    // signatures (no body); classes list all fields + public method stubs `{}`.
+    public static string emitClasses(const List<ASTNode> nodes, const ASTClassKind kind, const string lf) {
+        string h = ""
+        int i = 0
+        while i < nodes.size() {
+            ASTClass c = nodes.get(i).asClass()
+            if c != null {
+                if c.getClassKind() == kind {
+                    if HeaderGen.hasModifier(c.getModifiers(), ASTModifierKind.MOD_PUBLIC) {
+                        if kind == ASTClassKind.STRUCT {
+                            h = fly.str.concat(h, "public struct ")
+                        } elsif kind == ASTClassKind.INTERFACE {
+                            h = fly.str.concat(h, "public interface ")
+                        } else {
+                            h = fly.str.concat(h, "public class ")
+                        }
+                        h = fly.str.concat(h, c.getName())
+                        // bases (classes only, but harmless elsewhere): ` : A, B`
+                        List<ASTType> bases = c.getBases()
+                        int b = 0
+                        while b < bases.size() {
+                            if b == 0 { h = fly.str.concat(h, " : ") }
+                            else { h = fly.str.concat(h, ", ") }
+                            h = fly.str.concat(h, HeaderGen.typeStr(bases.get(b)))
+                            b = b + 1
+                        }
+                        h = fly.str.concat(h, " {")
+                        h = fly.str.concat(h, lf)
+                        h = fly.str.concat(h, HeaderGen.emitMembers(c, kind, lf))
+                        h = fly.str.concat(h, "}")
+                        h = fly.str.concat(h, lf)
+                        h = fly.str.concat(h, lf)
+                    }
+                }
+            }
+            i = i + 1
+        }
+        out = h
+    }
+
+    // emitMembers — a class/interface/struct body. STRUCT: fields only. INTERFACE:
+    // method signatures (return type + name + params, no body, no `public`). CLASS:
+    // every field (private too, for a matching object layout) + public method stubs.
+    public static string emitMembers(const ASTClass c, const ASTClassKind kind, const string lf) {
+        string h = ""
+        List<ASTNode> members = c.getNodes()
+        int i = 0
+        while i < members.size() {
+            ASTNode mem = members.get(i)
+            ASTVar v = mem.asVar()
+            ASTFunction meth = mem.asFunction()
+            if v != null {
+                if kind != ASTClassKind.INTERFACE {
+                    string fty = HeaderGen.typeStr(v.getType())
+                    if fly.str.isEmpty(fty) == false {
+                        h = fly.str.concat(h, "    ")
+                        h = fly.str.concat(h, fty)
+                        h = fly.str.concat(h, " ")
+                        h = fly.str.concat(h, v.getName())
+                        h = fly.str.concat(h, lf)
+                    }
+                }
+            } elsif meth != null {
+                if kind == ASTClassKind.INTERFACE {
+                    // signature only (interface methods have no modifiers/body)
+                    string ret = HeaderGen.typeStr(meth.getReturnType())
+                    h = fly.str.concat(h, "    ")
+                    if fly.str.isEmpty(ret) { h = fly.str.concat(h, "void ") }
+                    else { h = fly.str.concat(h, ret)  h = fly.str.concat(h, " ") }
+                    h = fly.str.concat(h, meth.getName())
+                    h = fly.str.concat(h, "(")
+                    h = fly.str.concat(h, HeaderGen.paramListStr(meth.getParams()))
+                    h = fly.str.concat(h, ")")
+                    h = fly.str.concat(h, lf)
+                } else {
+                    if HeaderGen.hasModifier(meth.getModifiers(), ASTModifierKind.MOD_PUBLIC) {
+                        bool isCtor = fly.str.equals(meth.getName(), c.getName())
+                        h = fly.str.concat(h, "    public ")
+                        if isCtor == false {
+                            string ret = HeaderGen.typeStr(meth.getReturnType())
+                            if fly.str.isEmpty(ret) { h = fly.str.concat(h, "void ") }
+                            else { h = fly.str.concat(h, ret)  h = fly.str.concat(h, " ") }
+                        }
+                        h = fly.str.concat(h, meth.getName())
+                        h = fly.str.concat(h, "(")
+                        h = fly.str.concat(h, HeaderGen.paramListStr(meth.getParams()))
+                        h = fly.str.concat(h, ") {}")
+                        h = fly.str.concat(h, lf)
+                    }
+                }
+            }
+            i = i + 1
+        }
+        out = h
+    }
+
+    // funcSig — `public [<ret>|void] <name>(<params>)` for a free function.
+    public static string funcSig(const ASTFunction f) {
+        string s = "public "
+        string ret = HeaderGen.typeStr(f.getReturnType())
+        if fly.str.isEmpty(ret) { s = fly.str.concat(s, "void ") }
+        else { s = fly.str.concat(s, ret)  s = fly.str.concat(s, " ") }
+        s = fly.str.concat(s, f.getName())
+        s = fly.str.concat(s, "(")
+        s = fly.str.concat(s, HeaderGen.paramListStr(f.getParams()))
+        s = fly.str.concat(s, ")")
+        out = s
+    }
+
+    // hasGenericClass — true if any class in the module carries type params (<T>).
+    public static bool hasGenericClass(const ASTModule m) {
+        List<ASTNode> nodes = m.getNodes()
+        int i = 0
+        while i < nodes.size() {
+            ASTClass c = nodes.get(i).asClass()
+            if c != null {
+                if c.getTypeParams().size() > 0 { out = true  return }
+            }
+            i = i + 1
+        }
+        out = false
+    }
+}

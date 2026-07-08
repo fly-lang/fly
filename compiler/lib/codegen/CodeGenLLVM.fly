@@ -109,6 +109,10 @@ public class CodeGenLLVM {
         this.llvm.addGlobal(mod, arrTy, ".str", g)
         this.llvm.setInitializer(g, strConst)
         this.llvm.setGlobalConstant(g, true)
+        // PRIVATE linkage (9): each module owns its `.str` literals. Without it they are
+        // external and COLLIDE when two self-host objects link (e.g. a program + the
+        // self-host-built fly_std_lib.a: `duplicate symbol .str`).
+        this.llvm.setLinkage(g, 9)
         out = g
     }
 

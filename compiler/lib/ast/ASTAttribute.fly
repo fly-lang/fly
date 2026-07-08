@@ -14,4 +14,7 @@ public class ASTAttribute : ASTVar {
     }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
+    // Direct override (see ASTMethod.asFunction): a base virtual dispatches reliably
+    // only when the leaf re-declares it; the inherited ASTVar.asVar mis-dispatches.
+    public ASTVar asVar() { out = this }
 }

@@ -40,6 +40,10 @@ public class CodeGenExpr : SemaVisitor {
     pointer lastErrPtr     // alloca i32: code of the LAST handle block (implicit `error` var)
     pointer handleSafe     // innermost handle's continuation block (0 = not in a handle)
     string lastStrLit      // text of the last string LITERAL gen'd (bridge symbol capture)
+    pointer outSlot        // class-return: the `out` param's slot (a ptr to the return
+                           // slot). Its stored value is the RETURNED heap handle, which
+                           // must NOT be freed at scope exit (ownership escapes). 0 = the
+                           // function does not return a class (free every owned handle).
 
     public CodeGenExpr(const CodeGenModule cgm) {
         this.cgm = cgm
@@ -54,6 +58,27 @@ public class CodeGenExpr : SemaVisitor {
         this.lastErrPtr = 0
         this.handleSafe = 0
         this.lastStrLit = ""
+        this.outSlot = 0
+    }
+    public void setOutSlot(const pointer p) { this.outSlot = p }
+    // bindOutSlot — if the function returns a CLASS/INTERFACE handle, record its synthetic
+    // `out` param's slot so scope-exit cleanup can spare the returned handle. Called after
+    // the param allocas are bound. No-op for void/struct/primitive returns.
+    public void bindOutSlot(const List<SemaParam> params) {
+        int i = 0
+        while i < params.size() {
+            SemaParam p = params.get(i)
+            if fly.str.equals(p.getName(), "out") {
+                SemaType pt = p.getType()
+                if pt != null {
+                    SemaClassType pc = pt.asClass()
+                    if pc != null {
+                        if pc.getClassKind() != SemaClassKind.STRUCT { this.outSlot = p.getLlvmAlloca() }
+                    }
+                }
+            }
+            i = i + 1
+        }
     }
     public pointer getLastErrPtr() { out = this.lastErrPtr }
     public void setLastErrPtr(const pointer p) { this.lastErrPtr = p }
@@ -218,6 +243,15 @@ public class CodeGenExpr : SemaVisitor {
         // follow-up; the milestone programs fall through.)
         if this.terminated == false {
             List<SemaLocalVar> allocs = node.getAllocs()
+            // The RETURNED heap handle escapes: `C mk(){ C c=new C() out=c }` stores c into
+            // the out slot and must NOT free it (else the caller gets a dangling pointer —
+            // e.g. fly.os.io.fileWriter → printLn crashed). For a class-returning function,
+            // load the out slot's value and free every owned handle EXCEPT that one.
+            pointer outVal = 0
+            if this.outSlot != 0 {
+                pointer ptrTy = this.ptrType()
+                this.llvm.buildLoad2(this.builder, ptrTy, this.outSlot, "retv", outVal)
+            }
             int j = 0
             while j < allocs.size() {
                 SemaLocalVar v = allocs.get(j)
@@ -225,7 +259,20 @@ public class CodeGenExpr : SemaVisitor {
                 pointer ty = this.lowerType(v.getType())
                 pointer objPtr
                 this.llvm.buildLoad2(this.builder, ty, alloca, "freeld", objPtr)
-                this.cgm.freeHandle(objPtr)
+                if this.outSlot != 0 {
+                    pointer cmp
+                    this.llvm.buildICmp(this.builder, 33, objPtr, outVal, "retcmp", cmp)  // NE
+                    pointer freeBB = this.newBlock("free.do")
+                    pointer skipBB = this.newBlock("free.skip")
+                    pointer cbr
+                    this.llvm.buildCondBr(this.builder, cmp, freeBB, skipBB, cbr)
+                    this.position(freeBB)
+                    this.cgm.freeHandle(objPtr)
+                    this.br(skipBB)
+                    this.position(skipBB)
+                } else {
+                    this.cgm.freeHandle(objPtr)
+                }
                 j = j + 1
             }
         }
@@ -276,7 +323,7 @@ public class CodeGenExpr : SemaVisitor {
     public void visit(const SemaParam node) { this.genVarAccess(node) }
     public void visit(const SemaLocalVar node) { this.genVarAccess(node) }
     public void visit(const SemaClassInstance node) { this.genVarAccess(node) }
-    public void visit(const SemaClassAttribute node) { this.genVarAccess(node) }
+    public void visit(const SemaClassAttribute node) { this.genAttrAccess(node) }
     // the implicit `error` variable: true when the LAST handle block recorded a
     // failure (lasterr != 0). handle blocks update the per-function lasterr slot.
     public void visit(const SemaError node) {
@@ -303,12 +350,43 @@ public class CodeGenExpr : SemaVisitor {
         }
     }
 
+    // genAttrAccess — a BARE instance-field reference (`fd` for `this.fd`, no explicit
+    // `this.`). Unlike a local/param, an attribute has no alloca: its storage is a field
+    // of the current method's `this`. Load `this` (its instance slot, set in
+    // genMethodBody), GEP the field, then load/return the address. Mirrors the reference
+    // GenExpr(SemaClassAttribute). (Own fields only; inherited bare fields resolve
+    // through the declaring class's `this`, valid under the flat object layout.)
+    public void genAttrAccess(const SemaClassAttribute a) {
+        SemaClassType cls = a.getClass()
+        SemaClassInstance ti = cls.getThis()
+        pointer thisSlot = ti.getLlvmAlloca()
+        pointer ptrTy = this.ptrType()
+        pointer thisPtr
+        this.llvm.buildLoad2(this.builder, ptrTy, thisSlot, "this", thisPtr)
+        pointer structTy = cls.getLlvmStructType()
+        int idx = CodeGenClass.fieldIndex(cls, a.getName())
+        pointer fldPtr
+        this.llvm.buildStructGEP2(this.builder, structTy, thisPtr, idx, "fld", fldPtr)
+        if this.addrMode {
+            a.setLlvmValue(fldPtr)
+        } else {
+            pointer fty = this.lowerType(a.getType())
+            pointer loaded
+            this.llvm.buildLoad2(this.builder, fty, fldPtr, "fldv", loaded)
+            a.setLlvmValue(loaded)
+        }
+    }
+
     // ── binary ────────────────────────────────────────────────────────────────
     public void visit(const SemaBinary node) {
         ASTBinary ba = node.getAST()
         ASTBinaryKind k = ba.getBinaryKind()
         if k == ASTBinaryKind.OP_BINARY_ASSIGN {
             CodeGenExprOps.assign(this, node)
+        } elsif k == ASTBinaryKind.OP_BINARY_LOGIC_AND {
+            CodeGenExprOps.logic(this, node, k)
+        } elsif k == ASTBinaryKind.OP_BINARY_LOGIC_OR {
+            CodeGenExprOps.logic(this, node, k)
         } elsif ba.isArith() {
             CodeGenExprOps.arith(this, node, k)
         } else {

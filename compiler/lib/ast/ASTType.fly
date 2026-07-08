@@ -47,6 +47,10 @@ public class ASTType : ASTNode {
     // asTypeParam — narrow to ASTTypeParam without a downcast: the base returns
     // null; ASTTypeParam overrides it to return `this`.
     public ASTTypeParam asTypeParam() { out = null }
+    // asBuiltinType / asNamedType — same narrowing pattern, used by the header generator
+    // to print a type (builtin keyword vs qualified name + generic args).
+    public ASTBuiltinType asBuiltinType() { out = null }
+    public ASTNamedType asNamedType() { out = null }
 }
 
 public class ASTBuiltinType : ASTType {
@@ -59,6 +63,7 @@ public class ASTBuiltinType : ASTType {
     }
 
     public ASTBuiltinTypeKind getBuiltinKind() { out = this.builtinKind }
+    public ASTBuiltinType asBuiltinType() { out = this }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }
@@ -77,6 +82,7 @@ public class ASTNamedType : ASTType {
     public List<ASTName> getNames() { out = this.names }
     public List<ASTType> getTypeArgs() { out = this.typeArgs }
     public void addTypeArg(const ASTType t) { this.typeArgs.add(t) }
+    public ASTNamedType asNamedType() { out = this }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

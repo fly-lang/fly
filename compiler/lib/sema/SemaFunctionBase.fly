@@ -71,6 +71,10 @@ public class SemaFunctionBase : SemaNode {
     // asClassMethod — narrow to SemaClassMethod (null on the base; the method
     // subclass overrides). Used by body resolution to restore the class context.
     public SemaClassMethod asClassMethod() { out = null }
+    // asFunction — narrow to SemaFunction (a free function). Null on the base +
+    // SemaClassMethod; SemaFunction overrides to `this`. Codegen uses it to detect a
+    // generic-function specialization (getGenericTemplate != null) for weak linkage.
+    public SemaFunction asFunction() { out = null }
     public void setFromHeader(const bool fromHeader) { this.fromHeader = fromHeader }
     public Symbol getDeclSymbol() { out = this.declSymbol }
     public void setDeclSymbol(const Symbol declSymbol) { this.declSymbol = declSymbol }

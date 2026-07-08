@@ -44,6 +44,8 @@ public class ASTFunction : ASTNode {
     public void setReturnType(const ASTType returnType) { this.returnType = returnType }
     public List<ASTType> getReturnTypes() { out = this.returnTypes }
     public void setReturnTypes(const List<ASTType> returnTypes) { this.returnTypes = returnTypes }
+    public ASTFunction asFunction() { out = this }
+    public ASTFunctionKind getFunctionKind() { out = this.functionKind }
     public ASTBlockStmt getBody() { out = this.body }
     public void setBody(const ASTBlockStmt body) { this.body = body }
 

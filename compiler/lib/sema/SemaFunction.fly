@@ -51,6 +51,7 @@ public class SemaFunction : SemaFunctionBase {
 
     public SemaFunction getGenericTemplate() { out = this.genericTemplate }
     public void setGenericTemplate(const SemaFunction t) { this.genericTemplate = t }
+    public SemaFunction asFunction() { out = this }
     public Map<string, SemaFunction> getSpecializations() { out = this.specializations }
     public string getMangledName() { out = this.mangledName }
     public void setMangledName(const string mangledName) { this.mangledName = mangledName }

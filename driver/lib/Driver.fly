@@ -50,6 +50,8 @@ public class Driver {
         string stdLibDir = ""           // auto-discovered <install>/lib: stdlib .fly source
         string toolchainLibDir = ""     // -L: extra linker search dir
         string linkLibs = ";"           // ";-lfoo;" native [link] deps
+        string libInputs = ";"          // ";lib1.a;lib2.a;" — .a/.lib positional inputs to link
+        string srcInputs = ";"          // ";a.fly;b.fly;" — .fly source inputs (multi-file for --lib)
         int emitMode = 3                // 0=.ll 1=.o 2=.s 3=link(executable, default)
         bool isStatic = false
         bool isShared = false
@@ -196,6 +198,7 @@ public class Driver {
             } else {
                 if fly.str.isEmpty(input) {
                     input = a
+                    srcInputs = segAppend(srcInputs, a)
                     // Package mode: if the first positional is a fly.toml subcommand,
                     // hand the FULL argv to runPackage (fly.toml mode) and stop compile
                     // parsing. Detecting it here (on the loop's `a`, which already reads
@@ -215,11 +218,17 @@ public class Driver {
                         return
                     }
                 }
+                elsif fly.str.endsWith(a, ".a") || fly.str.endsWith(a, ".lib") {
+                    // A .a/.lib positional is a LIBRARY to LINK (e.g. the compiler archive
+                    // when building the driver), not a source to compile — collect it and
+                    // hand it to the linker alongside the emitted object.
+                    libInputs = segAppend(libInputs, a)
+                }
                 else {
-                    // a second positional was previously dropped in silence
-                    fly.os.io.printErrLn(fly.str.concat("error: multiple input files are not supported (extra input: ", fly.str.concat(a, ")")))
-                    out = 1
-                    return
+                    // A second+ SOURCE positional: collected for a multi-file build. Only
+                    // --lib (library) mode consumes >1 source (they merge into one object);
+                    // validated after the parse loop for the non-lib single-file case.
+                    srcInputs = segAppend(srcInputs, a)
                 }
             }
             i = i + 1
@@ -231,12 +240,17 @@ public class Driver {
             return
         }
 
-        // --lib / --header: archiver + header generator are not ported. They used
-        // to silently produce only a .o and exit 0 — fail honestly instead.
-        if createLibrary || createHeader {
-            fly.os.io.printErrLn("error: --lib / --header are not yet supported by the self-host compiler (library archiving + header generation)")
-            out = 1
-            return
+        // Multiple .fly sources are only allowed in library mode (--lib/--header), where
+        // they merge into one object + one set of headers. A plain compile takes one file.
+        int srcCount = segCount(srcInputs)
+        if srcCount > 1 {
+            if createLibrary == false {
+                if createHeader == false {
+                    fly.os.io.printErrLn(fly.str.concat("error: multiple input files require --lib (extra input: ", fly.str.concat(segAt(srcInputs, 1), ")")))
+                    out = 1
+                    return
+                }
+            }
         }
 
         // Auto-discover the stdlib/runtime dir relative to the running compiler
@@ -323,6 +337,11 @@ public class Driver {
         fo.setStatsFile(statsFile)
         fo.setOutDir(outDir)
         fo.setBackendAction(emitMode)
+        // Register every .fly source input; the Frontend parses each into its own module
+        // and merges them (multi-file --lib) — the single-file path uses inputAt(0).
+        int ni = segCount(srcInputs)
+        int nii = 0
+        while nii < ni { fo.addInputFile(segAt(srcInputs, nii))  nii = nii + 1 }
         if fly.str.isEmpty(toolchainLibDir) == false { fo.addLibDir(toolchainLibDir) }
         if fly.str.isEmpty(stdLibDir) == false { fo.setStdLibDir(stdLibDir) }
         int sd = segCount(srcDirs)
@@ -333,6 +352,18 @@ public class Driver {
         ci.createFileManager()
         ci.createSourceManager(name, src)
         Frontend fe = new Frontend(ci)
+
+        // Library mode (--lib / --header): compile every input into ONE merged object
+        // (written to the -o path) and emit a `.fly.h` per public module. The archive
+        // itself (fly_*.a) is built by the ci script's `ar` over that object — the
+        // compiler produces object + headers, mirroring `fly/`'s Frontend GenerateHeader
+        // + Archiver split. Frontend.execute merges fo.inputFiles and, when
+        // fo.getCreateHeader() is set, generates the headers after resolution.
+        if createLibrary || createHeader {
+            fo.setBackendAction(1)                      // emit an object (not link)
+            out = fe.execute("", false)
+            return
+        }
 
         // Link mode (default): the Frontend emits a temp object, then the ToolChain
         // links it into an executable — mirrors Driver.cpp::Execute (Frontend emits
@@ -346,7 +377,7 @@ public class Driver {
                 out = rc
                 return
             }
-            out = this.linkExecutable(ci, fe.getOutputFile())
+            out = this.linkExecutable(ci, fe.getOutputFile(), libInputs)
             return
         }
 
@@ -357,11 +388,20 @@ public class Driver {
     // linkExecutable — construct a ToolChain from the CompilerInstance and link
     // `objFile` into the FrontendOptions output (the C++ Driver::Execute
     // ToolChain.BuildOutput path). Cleans up the intermediate object.
-    public int linkExecutable(const CompilerInstance ci, const string objFile) {
+    public int linkExecutable(const CompilerInstance ci, const string objFile, const string libInputs) {
         TargetOptions topts = ci.getTargetOptions()
         Triple tr = tripleParse(topts.getTriple())
         ToolChain tc = new ToolChain(null, tr, ci.getCodeGenOptions())
+        // Link inputs = the emitted object, followed by any .a/.lib positionals the user
+        // passed (e.g. the compiler archive when building the driver). BuildOutput links
+        // every .a/.lib input it finds in this ";"-delimited list.
         string inFiles = fly.str.concat(";", fly.str.concat(objFile, ";"))
+        int lc = segCount(libInputs)
+        int li = 0
+        while li < lc {
+            inFiles = segAppend(inFiles, segAt(libInputs, li))
+            li = li + 1
+        }
         bool ok = tc.BuildOutput(inFiles, ci.getFrontendOptions())
         if fly.os.fs.exists(objFile) { fly.os.fs.delete(objFile) }
         if ok { out = 0 } else { out = 1 }

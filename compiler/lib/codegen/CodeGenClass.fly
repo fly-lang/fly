@@ -151,6 +151,48 @@ public class CodeGenClass {
     }
 
     // buildVTable — emit `@vtable.<ns>.<Class> = constant [N x ptr] [null, m0, …]`.
+    // emitInitCtor — define `ptr <Id>.init_ctor(ptr obj)`: zero the instance then store
+    // the vtable at slot 0, returning obj. The reference emits this per class; a program
+    // constructing a HEADER class (a non-generic std class via its .fly.h stub) CALLS it
+    // (genNew), so fly_std_lib.a must DEFINE it — else `undefined symbol <Id>.init_ctor`.
+    // LinkOnceODR (weak) so a program that also compiles the class doesn't collide.
+    public static void emitInitCtor(const CodeGenModule cgm, const SemaClassType cls) {
+        CodeGenLLVM cg = cgm.getCg()
+        LLVM llvm = cg.getLLVM()
+        pointer b = cgm.getBuilder()
+        pointer ptrTy = cgm.getTypes().ptrType()
+        string icName = str.concat(refClassId(cls), ".init_ctor")
+        List<pointer> ps = new List<pointer>()
+        ps.add(ptrTy)
+        pointer fty
+        cg.functionTypeN(ptrTy, ps, false, fty)
+        pointer fn
+        llvm.getNamedFunction(cgm.getModule(), icName, fn)
+        if fn == 0 { llvm.addFunction(cgm.getModule(), icName, fty, fn) }
+        llvm.setLinkage(fn, 3)
+
+        pointer entry
+        llvm.appendBasicBlockInContext(cgm.getCtx(), fn, "entry", entry)
+        llvm.positionBuilderAtEnd(b, entry)
+        pointer obj
+        llvm.getParam(fn, 0, obj)
+        pointer structTy = cls.getLlvmStructType()
+        pointer i8Ty
+        llvm.int8TypeInContext(cgm.getCtx(), i8Ty)
+        pointer zeroVal
+        llvm.constInt(i8Ty, 0, false, zeroVal)
+        pointer szVal
+        llvm.sizeOf(structTy, szVal)
+        pointer memsetV
+        llvm.buildMemSet(b, obj, zeroVal, szVal, 0, memsetV)
+        pointer vtSlot
+        llvm.buildStructGEP2(b, structTy, obj, 0, "vtslot", vtSlot)
+        pointer vtable = cls.getLlvmVTable()
+        llvm.buildStore(b, vtable, vtSlot)
+        pointer ret
+        llvm.buildRet(b, obj, ret)
+    }
+
     public static void buildVTable(const CodeGenModule cgm, const SemaClassType cls) {
         CodeGenLLVM cg = cgm.getCg()
         LLVM llvm = cg.getLLVM()
@@ -207,6 +249,9 @@ public class CodeGenClass {
         llvm.addGlobal(cgm.getModule(), arrTy, vtableName(cls), g)
         llvm.setInitializer(g, init)
         llvm.setGlobalConstant(g, true)
+        // A generic-class specialization's vtable is emitted per-object; weak linkage
+        // (LinkOnceODR = 3) merges duplicates across a program + fly_std_lib.a.
+        if cls.getGenericTemplate() != null { llvm.setLinkage(g, 3) }
         cls.setLlvmVTable(g)
     }
 
@@ -247,6 +292,12 @@ public class CodeGenClass {
         pointer b = cgm.getBuilder()
         pointer f = m.getLlvmFn()
 
+        // Methods (incl. the constructor) of a GENERIC-CLASS specialization (List<string>,
+        // Map<string,int>, …) can be emitted by multiple self-host objects (a program AND
+        // fly_std_lib.a). Weak linkage (LinkOnceODR = 3) merges the duplicates. Mirrors the
+        // reference weak-linkage fix; keyed on the class being a specialization.
+        if cls.getGenericTemplate() != null { llvm.setLinkage(f, 3) }
+
         pointer entry
         llvm.appendBasicBlockInContext(cgm.getCtx(), f, "entry", entry)
         llvm.positionBuilderAtEnd(b, entry)
@@ -281,9 +332,30 @@ public class CodeGenClass {
             SemaParam pm = params.get(i)
             pointer arg
             llvm.getParam(f, i + 2, arg)
-            pm.setLlvmAlloca(arg)
+            // CONST CLASS/INTERFACE handle params arrive BY VALUE (like `this`); bind
+            // them through a fresh local slot so body loads read the handle, not *handle.
+            // STRUCTs (value aggregates) and everything else keep the incoming pointer as
+            // storage. Mirrors CodeGenModule.genBody + the reference ABI (see CodeGenCall).
+            SemaType pty = pm.getType()
+            bool byValueHandle = false
+            if pm.isConstant() {
+                SemaClassType pcls = null
+                if pty != null { pcls = pty.asClass() }
+                if pcls != null {
+                    if pcls.getClassKind() != SemaClassKind.STRUCT { byValueHandle = true }
+                }
+            }
+            if byValueHandle {
+                pointer pslot
+                llvm.buildAlloca(b, ptrTy, "pval", pslot)
+                llvm.buildStore(b, arg, pslot)
+                pm.setLlvmAlloca(pslot)
+            } else {
+                pm.setLlvmAlloca(arg)
+            }
             i = i + 1
         }
+        cge.bindOutSlot(params)
 
         SemaBlockStmt body = m.getBody()
         if body != null { body.accept(cge) }
@@ -391,17 +463,36 @@ public class CodeGenClass {
                 // slot the callee reads as i64 (audit V4)
                 SemaType aTy = a.getType()
                 SemaType pTy = aTy
+                bool cpConst = false
                 if i < cparams.size() {
                     SemaParam cp = cparams.get(i)
                     SemaType cpt = cp.getType()
                     if cpt != null { pTy = cpt }
+                    cpConst = cp.isConstant()
                 }
-                pointer cvv = cge.coerce(av, aTy, pTy)
-                pointer aty = cge.lowerType(pTy)
-                pointer tmp
-                llvm.buildAlloca(b, aty, "arg", tmp)
-                llvm.buildStore(b, cvv, tmp)
-                argAddrs.add(tmp)
+                // A CONST CLASS/INTERFACE handle ctor arg is passed BY VALUE (the handle),
+                // matching the reference ABI — the same rule as CodeGenCall. Passing it by
+                // &temp made the archive ctor (e.g. Frontend(CompilerInstance)) store the
+                // temp's ADDRESS as `this.ci` → later virtual dispatch jumped to garbage.
+                // STRUCTs and non-const params keep the by-pointer path.
+                SemaClassType pcls = null
+                if pTy != null { pcls = pTy.asClass() }
+                bool byValHandle = false
+                if cpConst {
+                    if pcls != null {
+                        if pcls.getClassKind() != SemaClassKind.STRUCT { byValHandle = true }
+                    }
+                }
+                if byValHandle {
+                    argAddrs.add(av)
+                } else {
+                    pointer cvv = cge.coerce(av, aTy, pTy)
+                    pointer aty = cge.lowerType(pTy)
+                    pointer tmp
+                    llvm.buildAlloca(b, aty, "arg", tmp)
+                    llvm.buildStore(b, cvv, tmp)
+                    argAddrs.add(tmp)
+                }
                 i = i + 1
             }
             pointer cty = ctor.getLlvmFnType()
@@ -520,17 +611,34 @@ public class CodeGenClass {
                 pointer av = cge.gen(a)
                 SemaType aTy = a.getType()
                 SemaType pTy = aTy
+                bool mpConst = false
                 if i < mParams.size() {
                     SemaParam mp2 = mParams.get(i)
                     SemaType mpt = mp2.getType()
                     if mpt != null { pTy = mpt }
+                    mpConst = mp2.isConstant()
                 }
-                pointer sv = cge.coerce(av, aTy, pTy)
-                pointer aty = cge.lowerType(pTy)
-                pointer tmp
-                llvm.buildAlloca(b, aty, "arg", tmp)
-                llvm.buildStore(b, sv, tmp)
-                argAddrs.add(tmp)
+                // A CONST CLASS/INTERFACE handle arg goes BY VALUE (the handle), matching
+                // the reference ABI (same rule as CodeGenCall/genNew). STRUCTs and
+                // non-const params keep the by-pointer path.
+                SemaClassType mpcls = null
+                if pTy != null { mpcls = pTy.asClass() }
+                bool mByVal = false
+                if mpConst {
+                    if mpcls != null {
+                        if mpcls.getClassKind() != SemaClassKind.STRUCT { mByVal = true }
+                    }
+                }
+                if mByVal {
+                    argAddrs.add(av)
+                } else {
+                    pointer sv = cge.coerce(av, aTy, pTy)
+                    pointer aty = cge.lowerType(pTy)
+                    pointer tmp
+                    llvm.buildAlloca(b, aty, "arg", tmp)
+                    llvm.buildStore(b, sv, tmp)
+                    argAddrs.add(tmp)
+                }
             }
             i = i + 1
         }

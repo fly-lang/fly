@@ -153,6 +153,80 @@ public class Parser {
         out = isDecl
     }
 
+    // qualifiedDeclAhead — cur is an identifier and nxt is '.', so this begins a
+    // dotted name `A.B.C…`. Probe the whole qualified name (optionally `A.B.C<…>`)
+    // and report whether a plain identifier (the variable name) follows it — i.e.
+    // `fly.os.env.StringArray args` is a DECLARATION, whereas `fly.os.env.argsGet()`
+    // (a call) or `fly.data.foo` (a namespaced value) is not. Mirrors the dotted-name
+    // branch of the reference Parser::isType. Probed tokens are restored into `pending`.
+    public bool qualifiedDeclAhead() {
+        List<Token> scanned = new List<Token>()
+        bool isDecl = false
+        // cur is the first segment; nxt is '.'. Probing starts at the token after
+        // nxt, which must be an identifier segment. `expectDot` alternates between
+        // "expecting a '.'-or-end after a segment" and "expecting a segment ident".
+        bool expectDot = false
+        bool go = true
+        while go {
+            Token t = this.nextRaw()
+            scanned.add(t)
+            if t.isEof() {
+                go = false
+            } elsif expectDot == false {
+                if t.kind == TokenKind.IDENT { expectDot = true }
+                else { go = false }   // '.' not followed by an identifier → malformed
+            } else {
+                string tx = this.lx.tokenText(t)
+                if t.kind == TokenKind.PUNCT && fly.str.equals(tx, ".") {
+                    expectDot = false   // chain continues; next must be an identifier
+                } elsif t.kind == TokenKind.IDENT {
+                    isDecl = true       // `…Segment name` → the var name follows
+                    go = false
+                } elsif t.kind == TokenKind.PUNCT && this.leadingRun(tx, 60) > 0 {
+                    // `…Segment<…>` — a qualified generic type; balance the angle
+                    // brackets, then a trailing identifier means a declaration.
+                    int depth = this.leadingRun(tx, 60)
+                    bool ga = true
+                    while ga {
+                        Token gt = this.nextRaw()
+                        scanned.add(gt)
+                        if gt.isEof() {
+                            ga = false
+                        } else {
+                            string gx = this.lx.tokenText(gt)
+                            if gt.kind == TokenKind.PUNCT {
+                                int op = this.leadingRun(gx, 60)
+                                if op > 0 {
+                                    depth = depth + op
+                                } else {
+                                    int cl = this.leadingRun(gx, 62)
+                                    if cl > 0 {
+                                        depth = depth - cl
+                                        if depth <= 0 {
+                                            Token after = this.nextRaw()
+                                            scanned.add(after)
+                                            if after.kind == TokenKind.IDENT { isDecl = true }
+                                            ga = false
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    go = false
+                } else {
+                    go = false   // '(' / '=' / operator → expression, not a declaration
+                }
+            }
+        }
+        int i = 0
+        while i < scanned.size() {
+            this.pending.add(scanned.get(i))
+            i = i + 1
+        }
+        out = isDecl
+    }
+
     // parenCondIsWrapped — cur is '('; probe the balanced (…) and report whether the
     // token right after the matching ')' opens a block ('{'). That means the ENTIRE
     // condition/header was written `(…)`, which Fly forbids — conditions are paren-less
@@ -561,6 +635,16 @@ public class Parser {
             }
         }
         ASTType retType = this.parseType()
+        // multi-return: `T1, T2 name(...)` (assigned via out[0], out[1], …). Collect the
+        // comma-separated types; for >1, ONLY setReturnTypes so getReturnType() stays
+        // void — matching the reference (a header then prints `void name(...)`).
+        List<ASTType> retTypes = new List<ASTType>()
+        retTypes.add(retType)
+        while this.curIsPunct(",") {
+            this.bump()
+            ASTType rtn = this.parseType()
+            retTypes.add(rtn)
+        }
         string nm = ""
         if this.curIsNamePart() { nm = this.curText()  this.bump() }
         else { this.reportErr(DiagID.err_parser_identifier_expected)  out = null  return }
@@ -571,7 +655,8 @@ public class Parser {
         ASTBlockStmt body = null
         if this.curIsPunct("{") { body = this.parseBlock() }
         ASTFunction f = ASTBuilder.CreateFunction(this.module, loc, nm, mods, params, body)
-        f.setReturnType(retType)
+        if retTypes.size() == 1 { f.setReturnType(retType) }
+        else { f.setReturnTypes(retTypes) }
         List<ASTType> ftp = f.getTypeParams()
         int ti = 0
         while ti < typeParams.size() { ftp.add(typeParams.get(ti))  ti = ti + 1 }
@@ -857,6 +942,8 @@ public class Parser {
             if this.nxt.kind == TokenKind.IDENT { out = true  return }
             // generic-typed decl `Name<…> name` — probe past the angle brackets.
             if this.nxtIsPunct("<") { out = this.genericDeclAhead()  return }
+            // qualified-type decl `A.B.C name` (or `A.B.C<…> name`) — probe the chain.
+            if this.nxtIsPunct(".") { out = this.qualifiedDeclAhead()  return }
         }
         out = false
     }
@@ -884,6 +971,30 @@ public class Parser {
 
     public void parseExprStmt(const ASTBlockStmt block) {
         SourceLocation loc = this.curLoc()
+        // Multi-return assignment: `out[N] = expr` → rewrite to `__out_N = expr` at parse
+        // time (the reference's trick). The resolver creates one __out_i param per declared
+        // return type; each assignment then stores through its out pointer like a single
+        // return does. Detected by `out` + `[` (out is the implicit return, never a normal var).
+        if this.curIsIdent() {
+            if fly.str.equals(this.curText(), "out") {
+                if this.nxtIsPunct("[") {
+                    this.bump()                       // 'out'  → cur = '['
+                    this.bump()                       // '['    → cur = N
+                    string numStr = this.curText()
+                    this.bump()                       // N      → cur = ']'
+                    this.expectPunct("]")
+                    string outName = fly.str.concat("__out_", numStr)
+                    ASTExpr lhs = ASTBuilder.CreateIdentifier(loc, outName, null)
+                    SourceLocation oploc = this.curLoc()
+                    this.expectPunct("=")
+                    ASTExpr rhs = this.parseExpr()
+                    ASTExpr assign = ASTBuilder.CreateBinary(oploc, ASTBinaryKind.OP_BINARY_ASSIGN, lhs, rhs)
+                    ASTExprStmt sm = ASTBuilder.CreateExprStmt(block, loc)
+                    sm.setExpr(assign)
+                    return
+                }
+            }
+        }
         ASTExpr e = this.parseExpr()
         ASTExprStmt s = ASTBuilder.CreateExprStmt(block, loc)
         s.setExpr(e)

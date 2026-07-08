@@ -28,6 +28,7 @@ public class ASTEnum : ASTNode {
     public string getName() { out = this.name }
     public List<ASTType> getBases() { out = this.bases }
     public void addNode(const ASTNode node) { this.nodes.add(node) }
+    public ASTEnum asEnum() { out = this }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

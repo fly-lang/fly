@@ -90,19 +90,43 @@ public class CodeGenCall {
                 pointer av = cge.gen(a)
                 SemaType aTy = a.getType()
                 SemaType pTy = aTy
+                bool cpConst = false
                 if i < calleeParams.size() {
-                    SemaType cpt = calleeParams.get(i).getType()
+                    SemaParam cp2 = calleeParams.get(i)
+                    SemaType cpt = cp2.getType()
                     if cpt != null { pTy = cpt }
+                    cpConst = cp2.isConstant()
                 }
-                // bring the arg to the param's numeric type (coerce compares lowered
-                // WIDTHS, so same-width rank pairs like int/uint don't emit bogus
-                // same-type sext/trunc; it also covers int→float params)
-                pointer storeVal = cge.coerce(av, aTy, pTy)
-                pointer aty = cge.lowerType(pTy)
-                pointer tmp
-                llvm.buildAlloca(b, aty, "arg", tmp)
-                llvm.buildStore(b, storeVal, tmp)
-                argAddrs.add(tmp)
+                // Reference ABI: a CONST CLASS/INTERFACE handle (a heap pointer) is passed
+                // BY VALUE — the handle itself in the register — NOT wrapped in a temp.
+                // Mirrors fly/ CodeGenExpr::addArgs, which pushes an already-pointer value
+                // directly and only allocas non-pointer values. Passing a handle by &temp
+                // made an archive callee store the temp's ADDRESS (a stack ptr) where the
+                // handle belongs → later virtual dispatch jumped to garbage. STRUCTs are
+                // value aggregates (they lower to ptr too, but are NOT heap handles) and
+                // stay on the by-pointer path, as do non-const params (so callee writes
+                // reach the caller). Mirrors the callee split in CodeGenModule.genBody.
+                SemaClassType pcls = null
+                if pTy != null { pcls = pTy.asClass() }
+                bool byValHandle = false
+                if cpConst {
+                    if pcls != null {
+                        if pcls.getClassKind() != SemaClassKind.STRUCT { byValHandle = true }
+                    }
+                }
+                if byValHandle {
+                    argAddrs.add(av)
+                } else {
+                    // bring the arg to the param's numeric type (coerce compares lowered
+                    // WIDTHS, so same-width rank pairs like int/uint don't emit bogus
+                    // same-type sext/trunc; it also covers int→float params)
+                    pointer storeVal = cge.coerce(av, aTy, pTy)
+                    pointer aty = cge.lowerType(pTy)
+                    pointer tmp
+                    llvm.buildAlloca(b, aty, "arg", tmp)
+                    llvm.buildStore(b, storeVal, tmp)
+                    argAddrs.add(tmp)
+                }
             }
             i = i + 1
         }

@@ -118,6 +118,22 @@ public class ResolverDecl {
                 outAst.accept(r)
                 fb.addParam(r.getCurrentParam())
             }
+        } else {
+            // Multi-return: one synthetic `__out_i` param per declared return type (the
+            // function stays void at the ABI level; `out[i] = …` — rewritten by the parser
+            // to `__out_i = …` — stores through each out pointer). Mirrors the reference.
+            List<ASTType> rts = node.getReturnTypes()
+            int ri = 0
+            while ri < rts.size() {
+                ASTType rti = rts.get(ri)
+                rti.accept(r)
+                List<ASTModifier> noMods = new List<ASTModifier>()
+                string on = fly.str.concat("__out_", fly.str.convert(ri))
+                ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rti, on, noMods, null)
+                outAst.accept(r)
+                fb.addParam(r.getCurrentParam())
+                ri = ri + 1
+            }
         }
 
         Symbol sym = fb.getDeclSymbol()

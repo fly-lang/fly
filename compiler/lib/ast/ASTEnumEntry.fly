@@ -23,6 +23,7 @@ public class ASTEnumEntry : ASTExpr {
     public string getName() { out = this.name }
     public uint getIndex() { out = this.index }
     public void setIndex(const uint index) { this.index = index }
+    public ASTEnumEntry asEnumEntry() { out = this }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

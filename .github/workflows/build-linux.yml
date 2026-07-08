@@ -10,9 +10,9 @@ on:
   workflow_dispatch:
 
 env:
-  # Bootstrap compiler release used to compile the std --lib archive + the
-  # self-host sources. 0.13.8 is cut from the current fly/ reference (it carries
-  # the header-gen/codegen fixes the self-host tree needs).
+  # stage0 bootstrap release (compiles the stage-1 compiler; see the stage map
+  # below). 0.13.8 is cut from the current fly/ reference — it must carry the
+  # header-gen/codegen fixes the self-host tree relies on.
   FLY_VERSION: "0.13.8"
 
 jobs:
@@ -43,20 +43,41 @@ jobs:
           FLY_BUNDLE_LLVM: "1"
         run: chmod +x ./ci/linux/install_prerequisites.sh && ./ci/linux/install_prerequisites.sh
 
-      # Compile compiler/lib into the static compiler library fly_compiler_lib.a
-      # (+ *.fly.h headers). compiler/ is a pure library — no entry.
-      - name: Build compiler library
-        run: chmod +x ./ci/linux/build_compiler.sh && ./ci/linux/build_compiler.sh
+      # ── Rust-style staged bootstrap (see ci/linux/stagelib.sh) ───────────────
+      # stage0  the downloaded 0.13.8 bootstrap (build/bootstrap) + its precompiled lib
+      # stage1  stage0 builds runtime, std and the compiler FROM IN-TREE SOURCES
+      #         into build/stage1 (build-only) and links a first bin/fly. The
+      #         compiler is built against the in-tree std headers so its symbol
+      #         references match the std the final binary links. The std SHIPS
+      #         from this stage (reference class ABI — a self-host-built std would
+      #         break header consumers of classes with interface bases).
+      # stage2  that bin/fly rebuilds the runtime and the driver into the shipped
+      #         build/bin + build/lib (the self-hosting fixpoint check). The
+      #         compiler lib stays stage0-built, like Rust's beta-built rustc.
+      # FLY_BUNDLE_LLVM=1 ships a self-contained toolchain: libLLVM.so in lib/,
+      # fly + ld.lld resolving it via RUNPATH $ORIGIN/../lib.
 
-      # Build the driver (driver/lib + entry driver/lib/Driver.fly) and LINK the compiler
-      # library + std + runtime + libLLVM into the final bin/fly. FLY_BUNDLE_LLVM=1 ships
-      # a self-contained toolchain (Rust-style): one shared libLLVM.so in lib/, with
-      # `fly` + a small `ld.lld` linking against it via RUNPATH $ORIGIN/../lib. The
-      # release needs neither system libLLVM nor a system linker. See build_driver.sh.
-      - name: Build driver / link fly
+      - name: Build runtime (stage 1)
+        run: chmod +x ./ci/linux/*.sh && STAGE=1 ./ci/linux/build_runtime.sh
+
+      - name: Build std (stage 1)
+        run: STAGE=1 ./ci/linux/build_std.sh
+
+      - name: Build compiler (stage 1)
+        run: ./ci/linux/build_compiler.sh
+
+      - name: Link fly (stage 1)
         env:
           FLY_BUNDLE_LLVM: "1"
-        run: chmod +x ./ci/linux/build_driver.sh && ./ci/linux/build_driver.sh
+        run: STAGE=1 ./ci/linux/build_driver.sh
+
+      - name: Build runtime (stage 2)
+        run: STAGE=2 ./ci/linux/build_runtime.sh
+
+      - name: Link fly (stage 2)
+        env:
+          FLY_BUNDLE_LLVM: "1"
+        run: STAGE=2 ./ci/linux/build_driver.sh
 
       # Compiler unit suites (compiler/test only).
       - name: Test self-host compiler

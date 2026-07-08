@@ -281,7 +281,110 @@ public class CodeGenIntrinsics {
             return
         }
 
+        // memcmp(a, b, size, out) → out = memcmp(a, b, size). a/b are `pointer` (Fly
+        // usize) addresses → inttoptr; size widened to i64; the i32 result → int out.
+        if fly.str.equals(bn, "memcmp") {
+            pointer ptrTy = cge.ptrType()
+            pointer av = cge.gen(args.get(0))
+            pointer ap
+            llvm.buildIntToPtr(b, av, ptrTy, "a2p", ap)
+            pointer bv = cge.gen(args.get(1))
+            pointer bp
+            llvm.buildIntToPtr(b, bv, ptrTy, "b2p", bp)
+            SemaExpr szE = args.get(2)
+            pointer szv = CodeGenIntrinsics.extendToI64(cge, cge.gen(szE), szE.getType())
+            pointer rv = CodeGenIntrinsics.emitMemcmp(cge, ap, bp, szv)
+            CodeGenIntrinsics.storeIntOut(cge, rv, 32, args.get(3))
+            return
+        }
+
+        // ── Math intrinsics → `llvm.<name>.f64` (double math) / `llvm.<name>.i64`
+        //    (integer bit ops). N double inputs, result stored through the trailing
+        //    `out` param. Mirrors fly/ CodeGenStdLibLLVM's generic-intrinsic fallback
+        //    (fmin→minnum, fmax→maxnum name mapping). ─────────────────────────────────
+        if CodeGenIntrinsics.nameIn(bn, ";fabs;ceil;cos;exp;exp2;floor;log;log10;log2;round;sin;sqrt;tan;trunc;") {
+            CodeGenIntrinsics.floatMath(cge, node, bn, 1)
+            return
+        }
+        if fly.str.equals(bn, "fmin") { CodeGenIntrinsics.floatMath(cge, node, "minnum", 2)  return }
+        if fly.str.equals(bn, "fmax") { CodeGenIntrinsics.floatMath(cge, node, "maxnum", 2)  return }
+        if CodeGenIntrinsics.nameIn(bn, ";pow;copysign;") { CodeGenIntrinsics.floatMath(cge, node, bn, 2)  return }
+        if fly.str.equals(bn, "fma") { CodeGenIntrinsics.floatMath(cge, node, "fma", 3)  return }
+        if CodeGenIntrinsics.nameIn(bn, ";ctlz;cttz;") { CodeGenIntrinsics.intCount(cge, node, bn, true)  return }
+        if fly.str.equals(bn, "ctpop") { CodeGenIntrinsics.intCount(cge, node, "ctpop", false)  return }
+
         fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: fly.llvm.", bn), " is not yet supported by the self-host compiler"))
+    }
+
+    // nameIn — membership in a ";a;b;c;" list.
+    public static bool nameIn(const string name, const string list) {
+        out = fly.str.contains(list, fly.str.concat(";", fly.str.concat(name, ";")))
+    }
+
+    // floatMath — `fly.llvm.<name>(a[, b[, c]], out)` → `out = llvm.<llvmName>.f64(a…)`.
+    // `argc` double inputs precede the trailing out param (index argc).
+    public static void floatMath(const CodeGenExpr cge, const SemaCall node, const string llvmName, const int argc) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        List<SemaExpr> args = node.getArgs()
+        pointer dbl
+        llvm.doubleTypeInContext(cgm.getCtx(), dbl)
+        List<pointer> inArgs = new List<pointer>()
+        List<pointer> ptys = new List<pointer>()
+        int i = 0
+        while i < argc {
+            inArgs.add(cge.gen(args.get(i)))
+            ptys.add(dbl)
+            i = i + 1
+        }
+        string iname = fly.str.concat("llvm.", fly.str.concat(llvmName, ".f64"))
+        pointer fty
+        cg.functionTypeN(dbl, ptys, false, fty)
+        pointer fn
+        llvm.getNamedFunction(cgm.getModule(), iname, fn)
+        if fn == 0 { llvm.addFunction(cgm.getModule(), iname, fty, fn) }
+        pointer rv
+        cg.buildCallN(b, fty, fn, inArgs, "", rv)
+        pointer addr = cge.genAddr(args.get(argc))
+        llvm.buildStore(b, rv, addr)
+    }
+
+    // intCount — `fly.llvm.<name>(n, out)` → `out = llvm.<name>.i64(n[, false])`. ctlz/
+    // cttz take an extra i1 is_zero_undef (always false); ctpop does not. `n` is widened
+    // to i64; the i64 result is stored (width-adjusted) into the int out param.
+    public static void intCount(const CodeGenExpr cge, const SemaCall node, const string name, const bool zeroUndef) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        List<SemaExpr> args = node.getArgs()
+        pointer i64t
+        llvm.int64TypeInContext(cgm.getCtx(), i64t)
+        SemaExpr nE = args.get(0)
+        pointer nv = CodeGenIntrinsics.extendToI64(cge, cge.gen(nE), nE.getType())
+        List<pointer> inArgs = new List<pointer>()
+        inArgs.add(nv)
+        List<pointer> ptys = new List<pointer>()
+        ptys.add(i64t)
+        if zeroUndef {
+            pointer i1t
+            llvm.int1TypeInContext(cgm.getCtx(), i1t)
+            pointer fV
+            llvm.constInt(i1t, 0, false, fV)
+            inArgs.add(fV)
+            ptys.add(i1t)
+        }
+        string iname = fly.str.concat("llvm.", fly.str.concat(name, ".i64"))
+        pointer fty
+        cg.functionTypeN(i64t, ptys, false, fty)
+        pointer fn
+        llvm.getNamedFunction(cgm.getModule(), iname, fn)
+        if fn == 0 { llvm.addFunction(cgm.getModule(), iname, fty, fn) }
+        pointer rv
+        cg.buildCallN(b, fty, fn, inArgs, "", rv)
+        CodeGenIntrinsics.storeIntOut(cge, rv, 64, args.get(1))
     }
 
     // genRuntime — `fly.runtime.X(args…)` lowers to a DIRECT C call `@X` with the

@@ -10,8 +10,8 @@ on:
   workflow_dispatch:
 
 env:
-  # Bootstrap compiler release used to compile the std --lib archive + the
-  # self-host sources. 0.13.8 is cut from the current fly/ reference.
+  # stage0 bootstrap release (compiles the stage-1 world; see the stage map
+  # below). 0.13.8 is cut from the current fly/ reference.
   FLY_VERSION: "0.13.8"
 
 jobs:
@@ -60,14 +60,60 @@ jobs:
         shell: pwsh
         run: .\ci\windows\install_prerequisites.ps1
 
-      - name: Build self-host compiler
-        # FLY_BUNDLE_LLVM=1 ships a self-contained toolchain: LLVM-C.dll copied next to
-        # fly.exe (loader finds it in the exe dir — no rpath needed) + the fork's
-        # lld-link.exe, so the release needs neither system LLVM nor a system linker.
+      # ── Rust-style staged bootstrap (see ci/windows/stagelib.ps1; mirrors the
+      #    Linux pipeline in ci/linux/) ─────────────────────────────────────────
+      # stage0  the downloaded 0.13.8 bootstrap (build\bootstrap) + its precompiled lib
+      # stage1  stage0 builds runtime(seed), std and the compiler FROM IN-TREE
+      #         SOURCES into build\stage1 (build-only) and links a first fly.exe.
+      #         The std SHIPS from this stage (reference class ABI).
+      # stage2  that fly.exe rebuilds the driver into the shipped build\bin +
+      #         build\lib (the self-hosting fixpoint check). The compiler lib stays
+      #         stage0-built, like Rust's beta-built rustc.
+      # FLY_BUNDLE_LLVM=1 ships a self-contained toolchain: LLVM-C.dll + the fork's
+      # lld-link.exe next to fly.exe (the loader searches the exe dir — no rpath).
+
+      - name: Build runtime (stage 1)
+        shell: pwsh
         env:
-          FLY_BUNDLE_LLVM: "1"
+          STAGE: "1"
+        run: .\ci\windows\build_runtime.ps1
+
+      - name: Build std (stage 1)
+        shell: pwsh
+        env:
+          STAGE: "1"
+        run: .\ci\windows\build_std.ps1
+
+      - name: Build compiler (stage 1)
         shell: pwsh
         run: .\ci\windows\build_compiler.ps1
+
+      - name: Link fly (stage 1)
+        shell: pwsh
+        env:
+          STAGE: "1"
+          FLY_BUNDLE_LLVM: "1"
+        run: .\ci\windows\build_driver.ps1
+
+      # Installs the runtime seeds (fly_runtime_lib.lib + runtime.fly.h +
+      # llvm.fly.h) from build\stage1\lib into the shipped build\lib.
+      - name: Build runtime (stage 2)
+        shell: pwsh
+        env:
+          STAGE: "2"
+        run: .\ci\windows\build_runtime.ps1
+
+      # Stage 2 is non-blocking while the self-host Windows link path is being
+      # validated in CI (no local Windows): the stage-1 fly.exe is already a
+      # complete artifact, and build_driver.ps1 installs atomically — on failure
+      # bin\fly.exe keeps the stage-1 binary. Tighten once green.
+      - name: Link fly (stage 2)
+        continue-on-error: true
+        shell: pwsh
+        env:
+          STAGE: "2"
+          FLY_BUNDLE_LLVM: "1"
+        run: .\ci\windows\build_driver.ps1
 
       # flyp is now merged into the single `fly` binary (driver package mode); its
       # unit suites live in driver/test and run under test_compiler.ps1 below. The

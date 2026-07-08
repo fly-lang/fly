@@ -25,6 +25,7 @@ public class ASTVar : ASTNode {
     public ASTType getType() { out = this.type }
     public string getName() { out = this.name }
     public List<ASTModifier> getModifiers() { out = this.modifiers }
+    public ASTVar asVar() { out = this }
     public ASTExpr getExpr() { out = this.expr }
     public void setExpr(const ASTExpr expr) { this.expr = expr }
 }

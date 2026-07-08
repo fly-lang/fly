@@ -15,4 +15,8 @@ public class ASTMethod : ASTFunction {
     }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
+    // Direct override (not just inherited from ASTFunction): a virtual added to a base
+    // is reliably dispatched only when each LEAF re-declares it — an inherited override
+    // across two levels (ASTMethod : ASTFunction : ASTNode) mis-dispatches to the base.
+    public ASTFunction asFunction() { out = this }
 }

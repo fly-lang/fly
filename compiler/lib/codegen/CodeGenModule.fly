@@ -205,6 +205,8 @@ public class CodeGenModule {
             if cvc.isFromHeader() == false {
                 if cvc.getClassKind() != SemaClassKind.STRUCT {
                     CodeGenClass.buildVTable(this, cvc)
+                    // define <Id>.init_ctor so downstream header-class `new` can link it
+                    CodeGenClass.emitInitCtor(this, cvc)
                 }
             }
             cv = cv + 1
@@ -466,21 +468,53 @@ public class CodeGenModule {
         LLVM llvm = this.cg.getLLVM()
         pointer f = fn.getLlvmFn()
 
+        // A generic-function specialization (e.g. fly.llvm.slotSizeT<int>) can be emitted
+        // by MULTIPLE self-host objects (a user program AND fly_std_lib.a). Weak linkage
+        // (LinkOnceODR = 3) merges the duplicates instead of colliding at link time.
+        SemaFunction sfn = fn.asFunction()
+        if sfn != null {
+            if sfn.getGenericTemplate() != null { llvm.setLinkage(f, 3) }
+        }
+
         pointer entry
         llvm.appendBasicBlockInContext(this.ctx, f, "entry", entry)
         llvm.positionBuilderAtEnd(this.builder, entry)
 
         List<SemaParam> params = fn.getParams()
+        pointer ptrTy = this.types.ptrType()
         int i = 0
         while i < params.size() {
             SemaParam pm = params.get(i)
             pointer arg
             llvm.getParam(f, i + 1, arg)
-            pm.setLlvmAlloca(arg)
+            // A CONST CLASS/INTERFACE handle param is passed BY VALUE — `arg` IS the
+            // handle, not a pointer to it (reference ABI; see CodeGenCall). Bind it via a
+            // fresh local slot holding the handle (exactly how `this` is bound) so body
+            // loads read the handle, not *handle. STRUCTs (value aggregates) and every
+            // other param (non-pointer, or non-const by-reference) keep the incoming
+            // pointer as their storage — a load through it yields the value.
+            SemaType pty = pm.getType()
+            bool byValueHandle = false
+            if pm.isConstant() {
+                SemaClassType pcls = null
+                if pty != null { pcls = pty.asClass() }
+                if pcls != null {
+                    if pcls.getClassKind() != SemaClassKind.STRUCT { byValueHandle = true }
+                }
+            }
+            if byValueHandle {
+                pointer pslot
+                llvm.buildAlloca(this.builder, ptrTy, "pval", pslot)
+                llvm.buildStore(this.builder, arg, pslot)
+                pm.setLlvmAlloca(pslot)
+            } else {
+                pm.setLlvmAlloca(arg)
+            }
             i = i + 1
         }
 
         CodeGenExpr cge = new CodeGenExpr(this)
+        cge.bindOutSlot(params)
         pointer errParam
         llvm.getParam(f, 0, errParam)
         cge.setErrPtr(errParam)

@@ -67,14 +67,41 @@ public class Frontend {
             return
         }
 
-        // 1) parse
+        // 1) parse — each input file into its OWN module. Library mode (--lib) merges
+        // several source files into one object; a plain compile has a single input. When
+        // no input-file list is set (in-process callers), fall back to the CI's one buffer.
         this.trace("parsing")
-        Parser p = new Parser(src)
-        ASTModule m = p.parseModule(name)
-        if p.isSuccess() == false {
-            this.printDiags(p.getSink())
-            out = 1
-            return
+        List<ASTModule> entryMods = new List<ASTModule>()
+        int inCount = fo.inputCount()
+        if inCount <= 0 {
+            Parser p = new Parser(src)
+            ASTModule m = p.parseModule(name)
+            if p.isSuccess() == false {
+                this.printDiags(p.getSink())
+                out = 1
+                return
+            }
+            entryMods.add(m)
+        } else {
+            int ei = 0
+            while ei < inCount {
+                string ipath = fo.inputAt(ei)
+                string isrc = fly.os.fs.readStr(ipath)
+                if fly.str.isEmpty(isrc) {
+                    fly.os.io.printErrLn(fly.str.concat("error: cannot read input file: ", ipath))
+                    out = 1
+                    return
+                }
+                Parser pk = new Parser(isrc)
+                ASTModule mk = pk.parseModule(ipath)
+                if pk.isSuccess() == false {
+                    this.printDiags(pk.getSink())
+                    out = 1
+                    return
+                }
+                entryMods.add(mk)
+                ei = ei + 1
+            }
         }
 
         // 2) resolve — route Sema diagnostics through a TextDiagnosticPrinter so real
@@ -90,9 +117,22 @@ public class Frontend {
         // fromHeader and declared (external) but not defined by codegen — they link
         // against fly_std_lib.a.
         //
+        // Namespaces PROVIDED by the entry sources (the --lib files). Their `.fly.h`
+        // in the lib dir must NOT be loaded: the source is the definition, and a header
+        // declaring the same functions would collide (LLVM renames the definition to a
+        // `.N` symbol, leaving the bare name undefined → unlinkable archive).
+        List<string> entryNs = new List<string>()
+        int ens = 0
+        while ens < entryMods.size() {
+            ASTNameSpace ns0 = entryMods.get(ens).getNameSpace()
+            if ns0 != null { entryNs.add(this.joinNames(ns0.getNames())) }
+            ens = ens + 1
+        }
+
         List<ASTModule> mods = new List<ASTModule>()
-        this.loadLibHeaders(fo, mods)
-        mods.add(m)
+        this.loadLibHeaders(fo, mods, entryNs)
+        int emi = 0
+        while emi < entryMods.size() { mods.add(entryMods.get(emi))  emi = emi + 1 }
         // 2b) Import-based source discovery (port of Frontend.cpp::ResolveSourceDeps).
         // A fly project is compiled from its root: the CURRENT directory by default,
         // overridden by a single --src-dir. Runs BEFORE Sema so pulled modules resolve
@@ -111,12 +151,24 @@ public class Frontend {
         }
         Registry reg = ctx.getReg()
 
+        // 2c) headers (--lib / --header): emit a `.fly.h` per ENTRY module now that
+        // resolution has run (return/field/param types are known). Ports the reference
+        // Frontend GenerateHeader; the archive is built by the ci script over the object.
+        if fo.getCreateHeader() {
+            int hgi = 0
+            while hgi < entryMods.size() {
+                HeaderGen.generate(entryMods.get(hgi), fo.getOutDir())
+                hgi = hgi + 1
+            }
+        }
+
         // 3) codegen + verify
         this.trace("generating code")
         CodeGenModule cgm = new CodeGenModule(name)
         cgm.setCodeGenOpts(this.ci.getCodeGenOptions())
         cgm.configureTarget(ti)
         cgm.generate(reg)
+        bool dbgIR = cgm.emitIRChecked("/home/marco/.claude/jobs/b8fc44fa/tmp/dbg.ll")
         bool ok = false
         cgm.verify(ok)
         if ok == false {
@@ -182,22 +234,24 @@ public class Frontend {
     // Header modules carry the declarations that let a user program's `import fly.*`
     // resolve; their symbols are tagged fromHeader (by the Resolver) and linked from
     // fly_std_lib.a rather than defined. No-op when no lib dirs are configured.
-    public void loadLibHeaders(const FrontendOptions fo, List<ASTModule> mods) {
+    public void loadLibHeaders(const FrontendOptions fo, List<ASTModule> mods, const List<string> skipNs) {
         string stdDir = fo.getStdLibDir()
         if fly.str.isEmpty(stdDir) == false {
-            this.loadHeadersFromDir(stdDir, mods)
+            this.loadHeadersFromDir(stdDir, mods, skipNs)
         }
         int nd = fo.libDirCount()
         int di = 0
         while di < nd {
             string d = fo.libDirAt(di)
-            if fly.str.isEmpty(d) == false { this.loadHeadersFromDir(d, mods) }
+            if fly.str.isEmpty(d) == false { this.loadHeadersFromDir(d, mods, skipNs) }
             di = di + 1
         }
     }
 
     // loadHeadersFromDir — walk one directory, parse each `*.fly.h` as a header module.
-    public void loadHeadersFromDir(const string dir, List<ASTModule> mods) {
+    // A header whose namespace is in `skipNs` (provided by an entry source in --lib mode)
+    // is dropped, so the source definition isn't shadowed by a colliding declaration.
+    public void loadHeadersFromDir(const string dir, List<ASTModule> mods, const List<string> skipNs) {
         if fly.os.path.isDir(dir) == false { return }
         fly.os.fs.DirEntries de = fly.os.fs.dirRead(dir)
         pointer items = de.items
@@ -225,8 +279,14 @@ public class Frontend {
                     Parser hp = new Parser(src)
                     ASTModule hm = hp.parseModule(name)
                     if hp.isSuccess() {
-                        hm.setHeader(true)
-                        mods.add(hm)
+                        // skip a header whose namespace is built from source (--lib entry)
+                        ASTNameSpace hns = hm.getNameSpace()
+                        string hnsStr = ""
+                        if hns != null { hnsStr = this.joinNames(hns.getNames()) }
+                        if this.listHas(skipNs, hnsStr) == false {
+                            hm.setHeader(true)
+                            mods.add(hm)
+                        }
                     }
                 }
             }
