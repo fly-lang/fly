@@ -38,26 +38,21 @@ FLY_BIN="$FLY_DIR/bin/fly"
 # apt. apt's libLLVM.so drags libxml2/libzstd/… as external deps; on a host whose
 # libxml2 soname differs (e.g. libxml2.so.16 vs .2) the bundled release fails to load.
 # The fork build (LLVM_BUILD_LLVM_DYLIB=ON + LLVM_ENABLE_LIBXML2=OFF) ships a libLLVM.so
-# with NO external deps, plus lld (ld.lld) and llvm-config. It does NOT ship clang, so
-# the FLY_BUNDLE_LLVM relink uses the host C++ driver (clang++ or g++, see build_compiler.sh).
-# The tarball is ~1 GB; cache build/llvm in CI. Always fetched (dev + release use the fork
-# now); the bundle build additionally needs the lld static archives + LLVM/lld headers.
+# with NO external deps plus the prebuilt lld. The build needs exactly two pieces:
+# lib/libLLVM.so* (link + runtime + bundle) and bin/ld.lld→lld (the linker
+# build_driver.sh invokes and the bundle ships verbatim). The tarball is ~1 GB;
+# cache build/llvm in CI (bump the workflow cache key when this file list changes —
+# a cache saved with an older list would otherwise pass the check below forever).
 LLVM_VERSION="${LLVM_VERSION:-20.1.8}"
 FORK_LLVM="$BUILD_DIR/llvm"
-NEED_STATIC=0
-[ "${FLY_BUNDLE_LLVM:-0}" = "1" ] && [ ! -f "$FORK_LLVM/lib/liblldELF.a" ] && NEED_STATIC=1
-if [ ! -f "$FORK_LLVM/lib/libLLVM.so" ] || [ "$NEED_STATIC" = "1" ]; then
+if [ ! -f "$FORK_LLVM/lib/libLLVM.so" ] || [ ! -x "$FORK_LLVM/bin/ld.lld" ]; then
     url="https://github.com/fly-lang/llvm-project/releases/download/v${LLVM_VERSION}-linux-x86_64/llvm-${LLVM_VERSION}-x86_64-linux-gnu.tar.gz"
     mkdir -p "$BUILD_DIR"
     tarball="$BUILD_DIR/fork-llvm.tar.gz"
     [ -f "$tarball" ] || curl -fsSL "$url" -o "$tarball"
-    # Always: the shared libLLVM.so (link + runtime), the lld linker and llvm-config.
-    # Bundle also: the lld static archives + LLVM/lld headers (build_compiler.sh links
-    # a small fly-lld against them).
-    paths="llvm/lib/libLLVM.so* llvm/bin/ld.lld llvm/bin/lld llvm/bin/llvm-config"
-    [ "${FLY_BUNDLE_LLVM:-0}" = "1" ] && paths="$paths llvm/lib/liblld*.a llvm/include"
     # shellcheck disable=SC2086
-    tar -xzf "$tarball" -C "$BUILD_DIR" --wildcards $paths   # → $BUILD_DIR/llvm/
+    tar -xzf "$tarball" -C "$BUILD_DIR" --wildcards \
+        "llvm/lib/libLLVM.so*" "llvm/bin/ld.lld" "llvm/bin/lld"   # → $BUILD_DIR/llvm/
     rm -f "$tarball"
 fi
 # The codegen bridge emits `-lLLVM-20` (see compiler/lib/codegen/LLVMApi.fly); the fork
