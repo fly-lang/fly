@@ -32,8 +32,10 @@ if [ "$STAGE" = "1" ]; then
     FLY="$S1/bin/fly"
     LIB="$S1/lib"
 else
-    FLY="${FLY:-build/bin/fly}"
-    case "$FLY" in */*) ;; *) FLY="$(command -v "$FLY" || true)";; esac
+    # Stage 2 ALWAYS runs the stage-1 output — $FLY is deliberately ignored: in CI
+    # install_prerequisites.sh exports FLY=<stage0 bootstrap> job-wide ($GITHUB_ENV),
+    # and honoring it here would silently rerun the bootstrap as "stage 2".
+    FLY=build/bin/fly
     [ -x "$FLY" ] || { echo "error: stage-1 fly '$FLY' not found — run the stage-1 builds first." >&2; exit 1; }
     SEED="$S1/lib"
     LIB=build/lib

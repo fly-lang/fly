@@ -43,8 +43,11 @@ if ($STAGE -eq '1') {
     $FLY = "$S1/bin/fly.exe"
     $LIB = "$S1/lib"
 } else {
-    $FLY = Resolve-Fly $(if ($env:FLY) { $env:FLY } else { 'build/bin/fly.exe' })
-    if (-not $FLY -or -not (Test-Path $FLY -PathType Leaf)) {
+    # Stage 2 ALWAYS runs the stage-1 output - $env:FLY is deliberately ignored: in
+    # CI install_prerequisites.ps1 exports FLY=<stage0 bootstrap> job-wide
+    # ($GITHUB_ENV), and honoring it here would silently rerun the bootstrap.
+    $FLY = 'build/bin/fly.exe'
+    if (-not (Test-Path $FLY -PathType Leaf)) {
         Write-Host "error: stage-1 fly 'build\bin\fly.exe' not found - run the stage-1 builds first."; exit 1
     }
     $SEED = "$S1/lib"
