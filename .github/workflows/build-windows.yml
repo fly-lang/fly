@@ -115,17 +115,30 @@ jobs:
           FLY_BUNDLE_LLVM: "1"
         run: .\ci\windows\build_driver.ps1
 
-      # flyp is now merged into the single `fly` binary (driver package mode); its
-      # unit suites live in driver/test and run under test_compiler.ps1 below. The
-      # ci\windows\*_tools_flyp.ps1 scripts are kept for the future lsp/registry port.
+      # Test steps mirror ci/linux (test_compiler / test_driver / test_runtime /
+      # test_std). Non-blocking: a subset of codegen suites is non-deterministically
+      # unstable on the x86_64-pc-windows-msvc target (a bootstrap-compiler bug,
+      # not the scripts). The build artifact is still produced/uploaded and the
+      # full suite results show in the log. Make strict again once stable.
       - name: Test self-host compiler
-        # Non-blocking: a subset of codegen suites is non-deterministically
-        # unstable on the x86_64-pc-windows-msvc target (a bootstrap-compiler bug,
-        # not the scripts). The build artifact is still produced/uploaded and the
-        # full suite results show in the log. Make strict again once stable.
         continue-on-error: true
         shell: pwsh
         run: .\ci\windows\test_compiler.ps1
+
+      - name: Test driver
+        continue-on-error: true
+        shell: pwsh
+        run: .\ci\windows\test_driver.ps1
+
+      - name: Test runtime
+        continue-on-error: true
+        shell: pwsh
+        run: .\ci\windows\test_runtime.ps1
+
+      - name: Test std
+        continue-on-error: true
+        shell: pwsh
+        run: .\ci\windows\test_std.ps1
 
       - name: Set artifact name
         id: artifact

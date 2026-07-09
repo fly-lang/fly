@@ -23,17 +23,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Cache the fork LLVM tree (build/llvm: libLLVM.so + ld.lld, ~330 MB):
-      # install_prerequisites.sh fetches it (libxml2-OFF dylib, so the bundled
-      # release loads on any host). Bump the key suffix when the script's extracted
-      # file list changes AND when bumping $LLVM_VERSION — a stale cache passes the
-      # script's completeness check and is never re-saved (actions/cache saves on
-      # miss only). -v2: added bin/ld.lld + bin/lld to the cached tree.
+      # Cache the fork LLVM tree (build/llvm, ~950 MB): install_prerequisites.sh
+      # fetches it for FLY_BUNDLE_LLVM builds (libLLVM.so with libxml2 OFF, so the
+      # bundled release loads on any host). Keep the key in sync with $LLVM_VERSION
+      # in the script when bumping LLVM, and bump the -vN suffix whenever the
+      # script's extracted file list changes: a stale cache passes the script's
+      # completeness check and actions/cache never re-saves an existing key.
+      # (-v3: the original key's cache predates bin/ld.lld in the extracted tree.)
       - name: Cache fork LLVM (libxml2-off dylib)
         uses: actions/cache@v4
         with:
           path: build/llvm
-          key: fly-llvm-20.1.8-linux-x86_64-dylib-v2
+          key: fly-llvm-20.1.8-linux-x86_64-dylib-v3
 
       # Install LLVM 20 (apt, for the dev build + object emit) + the fork LLVM dylib
       # (bundled into the release) + the bootstrap fly compiler ($FLY / PATH). Single
