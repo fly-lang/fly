@@ -11,15 +11,22 @@ public class ASTCaseStmt : ASTStmt {
 
     ASTExpr expr
     ASTBlockStmt stmt
+    // Suite test-case label ("" for switch cases). The parser records the string
+    // literal's text here because ASTExpr has no value downcast (adding one as a
+    // base virtual would shift every expr vtable — same reason as lastStrLit).
+    string label
 
     public ASTCaseStmt(const SourceLocation loc) {
         super(loc, ASTStmtKind.STMT_CASE)
+        this.label = ""
     }
 
     public ASTExpr getExpr() { out = this.expr }
     public ASTBlockStmt getStmt() { out = this.stmt }
+    public string getLabel() { out = this.label }
     public void setExpr(const ASTExpr expr) { this.expr = expr }
     public void setStmt(const ASTBlockStmt stmt) { this.stmt = stmt }
+    public void setLabel(const string label) { this.label = label }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

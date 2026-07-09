@@ -44,26 +44,56 @@ public class ResolverCall {
         // (which would fail with "cannot find 'fly' in this scope"). Detected first so
         // the value-receiver path below is skipped for namespace calls.
         List<string> nsPath = null
+        SemaClassType staticCls = null
         if parent != null && ck != ASTCallKind.CALL_NEW && superRecv == false {
             List<string> cand = ResolverCall.flattenNsPath(parent)
             if cand != null {
-                if r.getReg().lookupNameSpaceByStrings(cand) != null { nsPath = cand }
-                // Short/aliased namespace prefix (audit V3): `assert.f(…)` after
-                // `import fly.assert`, or `s.f(…)` after `import fly.str as s` —
-                // expand the first segment through the module's imports. A value
-                // in scope with the same name wins (checked inside the helper).
-                if nsPath == null { nsPath = ResolverCall.expandNsPath(r, cand) }
-                // First segment names a (prefix) namespace like `fly` in
-                // `fly.io.println(…)` — even when the fuller path is NOT a registered
-                // namespace, this is a namespace-qualified call, not a value receiver.
-                // Route it to the namespace lookup so a missing function reports
-                // "no function named X" instead of silently compiling to a no-op. A
-                // value/local shadowing the name wins (LookupName returns that first).
-                if nsPath == null {
-                    if cand.size() > 0 {
-                        Symbol ns0 = r.getReg().LookupName(cand.get(0), r.getCurrentScope())
-                        if ns0 != null {
-                            if ns0.getKind() == SymbolKind.NAMESPACE { nsPath = cand }
+                // A VALUE symbol (local/param/field) named like the FIRST segment
+                // shadows every namespace interpretation (reference parity): with
+                // `LLVM llvm` in scope, `llvm.initX86()` is a method call even
+                // though a source-pulled `namespace llvm.api` registers the root
+                // namespace `llvm`. Same kind set as expandNsPath's own guard.
+                bool valueShadows = false
+                if cand.size() > 0 {
+                    Symbol sv = r.getReg().LookupName(cand.get(0), r.getCurrentScope())
+                    if sv != null {
+                        SymbolKind svk = sv.getKind()
+                        if svk == SymbolKind.VAR { valueShadows = true }
+                        if svk == SymbolKind.LOCAL_VAR { valueShadows = true }
+                        if svk == SymbolKind.PARAM { valueShadows = true }
+                        if svk == SymbolKind.ATTRIBUTE { valueShadows = true }
+                    }
+                }
+                if valueShadows == false {
+                    // STATIC method call `ClassName.m(args)`: the sole receiver
+                    // segment names a class/type in scope. Resolved before the
+                    // namespace/value paths (a class name is not a value; without
+                    // this branch it dies with err_sema_type_not_a_value).
+                    if cand.size() == 1 {
+                        Symbol ts = r.getReg().LookupNamedType(cand.get(0), r.getCurrentScope())
+                        if ts != null {
+                            SemaType tt = ts.getTypeRef()
+                            if tt != null { staticCls = tt.asClass() }
+                        }
+                    }
+                    if staticCls == null {
+                        if r.getReg().lookupNameSpaceByStrings(cand) != null { nsPath = cand }
+                        // Short/aliased namespace prefix (audit V3): `assert.f(…)` after
+                        // `import fly.assert`, or `s.f(…)` after `import fly.str as s` —
+                        // expand the first segment through the module's imports.
+                        if nsPath == null { nsPath = ResolverCall.expandNsPath(r, cand) }
+                        // First segment names a (prefix) namespace like `fly` in
+                        // `fly.io.println(…)` — even when the fuller path is NOT a registered
+                        // namespace, this is a namespace-qualified call, not a value receiver.
+                        // Route it to the namespace lookup so a missing function reports
+                        // "no function named X" instead of silently compiling to a no-op.
+                        if nsPath == null {
+                            if cand.size() > 0 {
+                                Symbol ns0 = r.getReg().LookupName(cand.get(0), r.getCurrentScope())
+                                if ns0 != null {
+                                    if ns0.getKind() == SymbolKind.NAMESPACE { nsPath = cand }
+                                }
+                            }
                         }
                     }
                 }
@@ -78,7 +108,7 @@ public class ResolverCall {
         SemaExpr parentExpr = null
         SemaType parentType = null
         bool parentDiagnosed = false
-        if parent != null && nsPath == null && superRecv == false {
+        if parent != null && nsPath == null && staticCls == null && superRecv == false {
             DiagnosticsEngine pde = r.getReg().getDiags()
             int errsBefore = 0
             if pde != null { errsBefore = pde.getNumErrors() }
@@ -100,7 +130,14 @@ public class ResolverCall {
             SemaExpr ax = r.getCurrentExpr()
             argExprs.add(ax)
             SemaType at = null
-            if ax != null { at = ax.getType() }
+            if ax != null {
+                at = ax.getType()
+                // Stage-7 escape marking: a variable passed as an argument may be
+                // RETAINED by the callee (lf.addPackage(p), list.add(p)) — the
+                // scope-exit cleanup must not free it (a freed-then-reused handle
+                // segfaulted LockfileSuite on the next virtual dispatch).
+                if ax.isVarExpr() { ax.setEscaped(true) }
+            }
             argTypes.add(at)
             i = i + 1
         }
@@ -110,6 +147,11 @@ public class ResolverCall {
             sema = ResolverCall.resolveNew(r, node, savedScope, argTypes)
         } elsif superCtor || superRecv {
             sema = ResolverCall.resolveSuper(r, node, superCtor, argTypes)
+        } elsif staticCls != null {
+            // static: method in the class scope, NO receiver attached — codegen
+            // recognizes the receiver-less method call and passes a null `this`.
+            Symbol ssym = ResolverCall.lookupMethodInHierarchy(r.getReg(), staticCls, node.getName(), argTypes)
+            sema = ResolverCall.makeCall(node, ssym)
         } elsif nsPath != null {
             sema = ResolverCall.resolveNamespaceCall(r, node, nsPath, argTypes)
         } elsif parentType != null {
@@ -192,9 +234,31 @@ public class ResolverCall {
 
     // resolveNamespaceCall — free function looked up in the namespace `nsPath`
     // (the flattened receiver, e.g. [fly, os, io]). No receiver value is attached.
+    // A path whose LAST segment names a CLASS in the parent namespace is a
+    // qualified STATIC method call (`one.api.Tool.gen(…)`) — resolved in that
+    // class's scope, still receiver-less (codegen passes a null `this`).
     public static SemaCall resolveNamespaceCall(const Resolver r, const ASTCall node, const List<string> nsPath, const List<SemaType> argTypes) {
         Registry reg = r.getReg()
         Symbol sym = reg.LookupFunctionInNamespace(nsPath, node.getName(), argTypes)
+        if sym == null && nsPath.size() > 1 {
+            List<string> parentNs = new List<string>()
+            int pi = 0
+            while pi < nsPath.size() - 1 { parentNs.add(nsPath.get(pi))  pi = pi + 1 }
+            SemaNameSpace pns = reg.lookupNameSpaceByStrings(parentNs)
+            if pns != null {
+                string clsName = nsPath.get(nsPath.size() - 1)
+                Symbol ts = reg.LookupNamedType(clsName, pns.getSymbols())
+                if ts != null {
+                    SemaType tt = ts.getTypeRef()
+                    if tt != null {
+                        SemaClassType qcls = tt.asClass()
+                        if qcls != null {
+                            sym = ResolverCall.lookupMethodInHierarchy(reg, qcls, node.getName(), argTypes)
+                        }
+                    }
+                }
+            }
+        }
         if sym == null {
             out = ResolverCall.resolveGenericCall(r, node, argTypes)
             return

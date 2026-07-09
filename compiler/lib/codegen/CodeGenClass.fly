@@ -228,7 +228,9 @@ public class CodeGenClass {
                 int im = 0
                 while im < ims.size() {
                     SemaClassMethod idecl = ims.get(im)
-                    int own = indexOfMethodName(ms, idecl.getName())
+                    // match the implementation by FULL SIGNATURE — by name the
+                    // overloaded visitor methods all hit the same slot
+                    int own = indexOfMethodSig(ms, idecl)
                     if own >= 0 {
                         SemaClassMethod impl = ms.get(own)
                         pointer ifn = impl.getLlvmFn()
@@ -748,7 +750,7 @@ public class CodeGenClass {
     // in-place), so a base-typed dispatch and a derived object agree on the slot.
     public static int methodSlot(const SemaClassType cls, const SemaFunctionBase fn) {
         List<SemaClassMethod> ms = vmethods(cls)
-        int slot = indexOfMethodName(ms, fn.getName())
+        int slot = indexOfMethodSig(ms, fn)
         if slot >= 0 { out = slot + 1  return }
         out = 1
     }
@@ -788,7 +790,9 @@ public class CodeGenClass {
         while j < own.size() {
             SemaClassMethod m = own.get(j)
             if m.isConstructor() == false {
-                int slot = indexOfMethodName(r, m.getName())
+                // an OVERRIDE has the same full signature; a same-name OVERLOAD
+                // (visit(A)/visit(B)) gets its OWN slot
+                int slot = indexOfMethodSig(r, m)
                 if slot >= 0 { r.set(slot, m) } else { r.add(m) }
             }
             j = j + 1
@@ -806,6 +810,45 @@ public class CodeGenClass {
         // -1 sentinel built through an int var: a literal `0 - 1` fold is typed
         // i8 by the bootstrap and this value feeds vtable slot layout (methodSlot
         // / vmethods `if slot >= 0`) — a mis-widened 255 would index out of bounds.
+        int notFound = 0
+        notFound = notFound - 1
+        out = notFound
+    }
+
+    // sameSignature — overload-aware method identity: same name AND same parameter
+    // type list, compared by type NAME (the synthetic out param is part of the list
+    // and matches naturally). NAME-ONLY matching collapsed the ~50 `visit(...)`
+    // overloads of the AST/Sema visitors into one vtable slot, so a stage-3
+    // compiler (compiled by the self-host) dispatched every visit to the LAST
+    // overload — empty resolution, wrong probes, visitor segfaults.
+    public static bool sameSignature(const SemaFunctionBase a, const SemaFunctionBase b) {
+        if str.equals(a.getName(), b.getName()) == false { out = false  return }
+        List<SemaParam> pa = a.getParams()
+        List<SemaParam> pb = b.getParams()
+        if pa.size() != pb.size() { out = false  return }
+        int i = 0
+        while i < pa.size() {
+            SemaType ta = pa.get(i).getType()
+            SemaType tb = pb.get(i).getType()
+            string na = ""
+            string nb = ""
+            if ta != null { na = ta.getName() }
+            if tb != null { nb = tb.getName() }
+            if str.equals(na, nb) == false { out = false  return }
+            i = i + 1
+        }
+        out = true
+    }
+
+    // indexOfMethodSig — position of the method matching `probe`'s full signature
+    // (same -1 sentinel discipline as indexOfMethodName).
+    public static int indexOfMethodSig(const List<SemaClassMethod> ms, const SemaFunctionBase probe) {
+        int i = 0
+        while i < ms.size() {
+            SemaClassMethod m = ms.get(i)
+            if sameSignature(m, probe) { out = i  return }
+            i = i + 1
+        }
         int notFound = 0
         notFound = notFound - 1
         out = notFound

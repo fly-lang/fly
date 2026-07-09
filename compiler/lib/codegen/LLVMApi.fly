@@ -1509,6 +1509,25 @@ public class LLVM {
         lib.call("LLVMSetGlobalConstant", a)
     }
 
+    public void setThreadLocal(const pointer global, const bool isThreadLocal) {
+        // LLVMSetThreadLocal(GlobalVar, IsThreadLocal LLVMBool) = (ptr, int)
+        PtrIntArgs a = new PtrIntArgs()
+        a.a = global
+        if isThreadLocal { a.n = 1 } else { a.n = 0 }
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMSetThreadLocal", a)
+    }
+
+    // constIntToPtr — LLVMConstIntToPtr(ConstantVal, ToType): a constant pointer
+    // from an integer constant (the test-context sentinel `inttoptr(i64 1)`).
+    public void constIntToPtr(const pointer constVal, const pointer toType, pointer v) {
+        Ptr2Args a = new Ptr2Args()
+        a.a = constVal
+        a.b = toType
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMConstIntToPtr", a, v)
+    }
+
     // ── Target machine ────────────────────────────────────────────────────────
 
     public void getDefaultTargetTriple(pointer triple) {

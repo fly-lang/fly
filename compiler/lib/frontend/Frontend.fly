@@ -168,7 +168,6 @@ public class Frontend {
         cgm.setCodeGenOpts(this.ci.getCodeGenOptions())
         cgm.configureTarget(ti)
         cgm.generate(reg)
-        bool dbgIR = cgm.emitIRChecked("/home/marco/.claude/jobs/b8fc44fa/tmp/dbg.ll")
         bool ok = false
         cgm.verify(ok)
         if ok == false {

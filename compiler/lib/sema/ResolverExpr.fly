@@ -94,6 +94,12 @@ public class ResolverExpr {
             ASTBinaryKind bk = node.getBinaryKind()
             if bk != ASTBinaryKind.OP_BINARY_ASSIGN {
                 b.setType(SemaBuiltin.getBoolType())
+            } else {
+                // Stage-7 escape marking: an assigned-away variable (`this.f = p`,
+                // `x = p`, `out = p`) escapes its scope — never free it at exit.
+                if right != null {
+                    if right.isVarExpr() { right.setEscaped(true) }
+                }
             }
         }
         r.setCurrentExpr(b)

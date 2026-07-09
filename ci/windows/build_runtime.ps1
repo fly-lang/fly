@@ -1,6 +1,8 @@
 # -----------------------------------------------------------------------------
-# build_runtime.ps1 - stage the Fly runtime for Windows (see stagelib.ps1 for the
-# stage map). PowerShell counterpart of ci/linux/build_runtime.sh.
+# build_runtime.ps1 - stage the Fly runtime for Windows into build\stage$STAGE\lib.
+# PowerShell counterpart of ci/linux/build_runtime.sh; see stage1.ps1 for the
+# stage map. Run with STAGE=1 (seeds from the stage0 lib) or STAGE=2 (seeds
+# from the stage1 lib).
 #
 # On Windows the runtime is SEED-ONLY for now: the bootstrap's fly_runtime_lib.lib
 # (Windows C primitives + the reference-built Fly member) plus llvm.fly.h and
@@ -13,11 +15,16 @@
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
-. .\ci\windows\stagelib.ps1
+
+# -- Stage plumbing: pick the in/out dirs from $STAGE. -------------------------
+$STAGE = if ($env:STAGE) { $env:STAGE } else { '1' }
+$LIB = "build/stage$STAGE/lib"
+New-Item -ItemType Directory -Force $LIB | Out-Null
+$SEED = if ($STAGE -eq '1') { 'build/stage0/lib' } else { 'build/stage1/lib' }
 
 foreach ($f in 'llvm.fly.h', 'runtime.fly.h', 'fly_runtime_lib.lib') {
     if (-not (Test-Path "$SEED/$f")) {
-        Write-Host "error: seed '$SEED\$f' missing - run the previous stage first (or set FLY to a valid stage0)."
+        Write-Host "error: seed '$SEED\$f' missing - run the previous stage first (stage0.ps1 / stage1.ps1)."
         exit 1
     }
     Copy-Item "$SEED/$f" $LIB/ -Force

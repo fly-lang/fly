@@ -22,7 +22,7 @@ $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
 
 # Scratch for per-suite test binaries/logs; under build/ but separate from
-# build/bin so it doesn't sit next to the release artifact.
+# the stage dirs so it doesn't sit next to the release artifact.
 $OUT = "build/test"
 $STD = "std/lib"
 New-Item -ItemType Directory -Force $OUT | Out-Null
@@ -32,25 +32,24 @@ New-Item -ItemType Directory -Force $OUT | Out-Null
 # /tmp/cg => <drive>:\tmp\cg. Create it up front.
 New-Item -ItemType Directory -Force "$($PWD.Drive.Root)tmp\cg" | Out-Null
 
-# Bootstrap compiler: $FLY (default `fly`). The compiler derives its stdlib dir
-# from its own executable path, and a bare name breaks that lookup - so a
-# path-less $FLY is resolved through PATH into an absolute path here.
-$FLY = if ($env:FLY) { $env:FLY } else { "fly" }
+# Compiler under test: $FLY (default: the stage2 self-host fly - the artifact
+# that ships; its --test system was ported from the reference). Resolved to an
+# absolute path for the argv[0]-based stdlib lookup.
+$FLY = if ($env:FLY) { $env:FLY } else { "build/stage2/bin/fly.exe" }
 if ($FLY -notmatch '[\\/]') {
     $resolved = Get-Command $FLY -CommandType Application -ErrorAction SilentlyContinue |
                 Select-Object -First 1
     if (-not $resolved) {
-        Write-Host "error: bootstrap compiler '$FLY' not found on PATH."
-        Write-Host "       Set FLY to the bootstrap compiler, e.g.:"
-        Write-Host "       `$env:FLY = 'C:\path\to\fly\build\bin\fly.exe'"
+        Write-Host "error: compiler '$FLY' not found on PATH."
         exit 1
     }
     $FLY = $resolved.Source
 }
 if (-not (Test-Path $FLY -PathType Leaf)) {
-    Write-Host "error: FLY='$FLY' is not an executable file."
+    Write-Host "error: FLY='$FLY' is not an executable file - run ci\windows\stage2.ps1 first (or set `$env:FLY)."
     exit 1
 }
+$FLY = (Resolve-Path $FLY).Path
 
 $pass = 0
 $fail = 0

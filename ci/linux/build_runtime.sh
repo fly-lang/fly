@@ -1,24 +1,39 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# build_runtime.sh — build the Fly runtime from runtime/lib/runtime.fly.
-# Run with STAGE=1 (stage0 compiler) or STAGE=2 (self-host); see stagelib.sh.
+# build_runtime.sh — build the Fly runtime from runtime/lib/runtime.fly into
+# build/stage$STAGE/lib. Run with STAGE=1 (the stage0 bootstrap compiles) or
+# STAGE=2 (the stage1 fly recompiles); see stage1.sh for the stage map.
 #
 # The runtime is Fly layered over C primitives (mem_alloc, copyCStr, …) whose .c
-# sources live only in the reference repo — the two seeds taken from $SEED are
-# llvm.fly.h (generated bridge header, no source here) and the runtime archive
-# (for its C members; the Fly member is REPLACED by this build).
+# sources live only in the reference repo — the two seeds taken from the previous
+# stage's lib are llvm.fly.h (generated bridge header, no source here) and the
+# runtime archive (for its C members; the Fly member is REPLACED by this build).
 # Output: $LIB/fly_runtime_lib.a + runtime.fly.h.
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-. ci/linux/stagelib.sh
+
+# ── Stage plumbing: pick the compiler and the in/out dirs from $STAGE. ────────
+STAGE="${STAGE:-1}"
+LIB="build/stage$STAGE/lib"; mkdir -p "$LIB"
+if [ "$STAGE" = "1" ]; then
+    SEED=build/stage0/lib               # seeds come from the bootstrap's precompiled lib
+    FLY=build/stage1/bin/fly0           # stage0 hardlink: <exe>/../lib → build/stage1/lib
+    [ -x build/stage0/bin/fly ] || { echo "error: stage0 compiler missing — run ci/linux/stage0.sh first." >&2; exit 1; }
+    mkdir -p build/stage1/bin
+    ln -f build/stage0/bin/fly "$FLY" 2>/dev/null || cp -f build/stage0/bin/fly "$FLY"
+else
+    SEED=build/stage1/lib               # seeds come from the stage1 build
+    FLY=build/stage1/bin/fly            # the fly linked by stage1
+    [ -x "$FLY" ] || { echo "error: stage1 fly '$FLY' not found — run ci/linux/stage1.sh first." >&2; exit 1; }
+fi
 
 T=build/tmp_runtime
 rm -rf "$T"; mkdir -p "$T"
 AR="${AR:-ar}"
 
 # stage seeds (refreshed every run so a stale lib never wins)
-[ -f "$SEED/llvm.fly.h" ] && [ -f "$SEED/fly_runtime_lib.a" ] || { echo "error: seeds missing in $SEED — run the previous stage first (or set FLY to a valid stage0)." >&2; exit 1; }
+[ -f "$SEED/llvm.fly.h" ] && [ -f "$SEED/fly_runtime_lib.a" ] || { echo "error: seeds missing in $SEED — run the previous stage first." >&2; exit 1; }
 cp -f "$SEED/llvm.fly.h" "$LIB/"
 cp -f "$SEED/fly_runtime_lib.a" "$LIB/"
 

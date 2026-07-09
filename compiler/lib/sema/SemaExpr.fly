@@ -19,15 +19,24 @@ public class SemaExpr : SemaNode {
     SemaExpr parent
     SemaType type
     pointer llvmValue   // CodeGen back-pointer: the LLVM value (null until codegen'd)
+    bool escapedFlag    // Stage-7 alloc tracking: this value ESCAPED its scope (was
+                        // passed as a call argument or assigned away) — scope-exit
+                        // cleanup must not free it. Lives on the base as a plain
+                        // field (a narrowing virtual would trip the vtable-shift
+                        // gotcha above); only SemaLocalVars in a block's alloc list
+                        // are ever consulted.
 
     public SemaExpr(const SemaKind kind, const SemaType type) {
         super(kind)
         this.type = type
         this.llvmValue = 0
+        this.escapedFlag = false
     }
 
     public SemaType getType() { out = this.type }
     public void setType(const SemaType type) { this.type = type }
+    public bool isEscaped() { out = this.escapedFlag }
+    public void setEscaped(const bool e) { this.escapedFlag = e }
 
     // asCall — narrow to SemaCall without a downcast (null on the base; SemaCall
     // overrides to return `this`). Used to spot `new` initializers for alloc tracking.

@@ -106,6 +106,7 @@ public class Resolver : ASTVisitor {
 
     // ── accessors for companions ────────────────────────────────────────────
     public Registry getReg() { out = this.reg }
+    public bool isTestMode() { out = this.testMode }
     public bool isCurrentModuleHeader() { out = this.currentModuleIsHeader }
 
     // currentNsFlat — the current module's namespace flattened with '_' (fly.os.io →
@@ -403,8 +404,8 @@ public class Resolver : ASTVisitor {
     public void visit(const ASTSwitchStmt node) { ResolverStmt.switchStmt(this, node) }
     public void visit(const ASTLoopStmt node) { ResolverStmt.loopStmt(this, node) }
     public void visit(const ASTLoopInStmt node) { ResolverStmt.loopInStmt(this, node) }
-    public void visit(const ASTTestStmt node) { }
-    public void visit(const ASTCaseStmt node) { }
+    public void visit(const ASTTestStmt node) { ResolverStmt.testStmt(this, node) }
+    public void visit(const ASTCaseStmt node) { ResolverStmt.caseStmt(this, node) }
 
     // ── expressions ──────────────────────────────────────────────────────────
     public void visit(const ASTIdentifier node) { ResolverExpr.identifier(this, node) }

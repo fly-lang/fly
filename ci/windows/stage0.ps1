@@ -1,16 +1,17 @@
 # -----------------------------------------------------------------------------
-# install_prerequisites.ps1 - fetch and configure everything the self-host
-# compiler build needs on Windows: the LLVM the compiler links against, and the
-# bootstrap `fly` compiler that compiles the self-host sources.
+# stage0.ps1 - set up stage 0 of the staged bootstrap on Windows:
 #
-# Single source of truth for the "Install LLVM (fly-lang build)" and "Download
-# fly binary" steps of .github/workflows/build-windows.yml, so a local build
-# reproduces CI exactly. The workflow calls this script; run it yourself to do
-# the same locally.
+#   * the fork LLVM pieces (fly-lang/llvm-project release) -> build\llvm
+#     LLVM-C.lib (link import lib) + LLVM-C.dll (runtime) + lld-link.exe (the
+#     COFF linker the release bundles). No package manager; the MSVC toolchain
+#     + Windows SDK come from ilammy/msvc-dev-cmd in the workflow.
+#   * the bootstrap `fly` 0.13.8 release -> build\stage0 (bin\ + precompiled lib\)
 #
-# Local use: dot-source it so LIB/PATH/FLY persist in your shell, then build:
-#     . .\ci\windows\install_prerequisites.ps1
-#     .\ci\windows\build_compiler.ps1
+# stage1.ps1 / stage2.ps1 build on top of these (see the stage map in stage1.ps1).
+#
+# Local use: dot-source it so LIB/PATH persist in your shell:
+#     . .\ci\windows\stage0.ps1
+#     .\ci\windows\stage1.ps1; .\ci\windows\stage2.ps1
 #
 # In CI ($GITHUB_ENV set) it appends to $GITHUB_ENV / $GITHUB_PATH instead of the
 # process environment - auto-detected below.
@@ -21,26 +22,22 @@ $ErrorActionPreference = 'Stop'
 # LLVM the self-host compiler links against: the project's own LLVM build
 # (fly-lang/llvm-project release) rather than the stock LLVM installer. Only that
 # build ships an LLVM-C.dll exporting the per-target LLVMInitialize* symbols the
-# generated code references (the official/choco LLVM-C.dll omits them). This
-# mirrors Linux, where apt's full libLLVM-20.so exports everything.
-#
-# Bootstrap compiler release used to compile the self-host sources.
+# generated code references (the official/choco LLVM-C.dll omits them).
 #
 # The literals below are the source of truth; CI may override via env so this
-# stays in sync with the cache key (same pattern as $FLY in build_compiler.ps1).
+# stays in sync with the cache key.
 $LLVM_VERSION = if ($env:LLVM_VERSION) { $env:LLVM_VERSION } else { "20.1.8" }
 $FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.8" }
 
 # Resolve everything against the PROJECT ROOT (this script lives in ci\windows\,
 # two levels down) so the downloads land next to the build regardless of the
 # caller's cwd, and without changing it (this script is dot-sourced locally). All
-# prerequisites go under build\ (alongside the build\bin output, so a single dir
-# is disposable): LLVM in build\llvm, the bootstrap compiler in build\bootstrap.
+# prerequisites go under build\: LLVM in build\llvm, the bootstrap in build\stage0.
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $buildDir = Join-Path $repoRoot 'build'
 $llvmLib  = Join-Path $buildDir 'llvm\lib'
 $llvmBin  = Join-Path $buildDir 'llvm\bin'
-$flyDir   = Join-Path $buildDir 'bootstrap'
+$flyDir   = Join-Path $buildDir 'stage0'
 $flyBin   = Join-Path $flyDir 'bin'
 $flyExe   = Join-Path $flyBin 'fly.exe'
 
@@ -49,10 +46,8 @@ $flyExe   = Join-Path $flyBin 'fly.exe'
 # --- Download LLVM (fly-lang build) ------------------------------------------
 # From the ~900 MB fork LLVM artifact we need only three files: LLVM-C.lib (the
 # link import lib), LLVM-C.dll (loaded at runtime), and lld-link.exe (the COFF
-# linker the self-contained release bundles). The fork already builds lld-link.exe,
-# so — mirroring Linux, which bundles the fork's ld.lld — the release ships it
-# verbatim and NO C++ compiler builds a custom linker downstream. Skip the download
-# when all three are present (the local equivalent of a CI cache hit).
+# linker the self-contained release bundles). Skip the download when all three
+# are present (the local equivalent of a CI cache hit).
 if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.dll") -or -not (Test-Path "$llvmBin\lld-link.exe")) {
     $url = "https://github.com/fly-lang/llvm-project/releases/download/v$LLVM_VERSION-win-x64/llvm-$LLVM_VERSION-win-x64.zip"
     New-Item -ItemType Directory -Force $llvmLib, $llvmBin | Out-Null
@@ -79,11 +74,10 @@ if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.
 # compiler/lib/codegen/LLVMApi.fly); on Windows the toolchain maps that to the link
 # name `LLVM-20.lib`. Alias LLVM-C.lib -> LLVM-20.lib: it is the import lib for
 # LLVM-C.dll, which (in the fly-lang build) exports every symbol the generated
-# code references, incl. the per-target LLVMInitialize* functions. A copy avoids
-# symlink privilege gotchas.
+# code references. A copy avoids symlink privilege gotchas.
 Copy-Item "$llvmLib\LLVM-C.lib" "$llvmLib\LLVM-20.lib" -Force
 
-# === fly bootstrap ===========================================================
+# === fly bootstrap (stage 0) =================================================
 
 # --- Download fly binary ------------------------------------------------------
 # Skip if already present (local convenience; a fresh CI runner never has it).
@@ -99,22 +93,15 @@ if (-not (Test-Path $flyExe)) {
 # === Environment =============================================================
 # The toolchain propagates %LIB% as /libpath: entries to lld-link, so put the
 # LLVM lib dir on LIB; put its bin on PATH so LLVM-C.dll loads at runtime.
-#
-# Use an absolute $FLY path (not a bare `fly` on PATH): released compilers derive
-# their stdlib dir from the executable path, and a bare name resolved from a cwd
-# containing this `fly\` directory breaks that lookup. build_compiler.ps1 /
-# test_compiler.ps1 honour $FLY.
+# The build/test scripts derive their compiler from $env:STAGE (see stage1.ps1 /
+# stage2.ps1) - no $FLY export needed.
 if ($env:GITHUB_ENV) {
     "LIB=$llvmLib;$env:LIB" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-    "FLY=$flyExe"           | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
     $llvmBin | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-    $flyBin  | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 } else {
     $env:LIB  = "$llvmLib;$env:LIB"
-    $env:FLY  = $flyExe
-    $env:PATH = "$llvmBin;$flyBin;$env:PATH"
-    Write-Host "Prerequisites configured for this session:"
+    $env:PATH = "$llvmBin;$env:PATH"
+    Write-Host "stage0 ready:"
+    Write-Host "  fly  $FLY_VERSION   -> $flyExe"
     Write-Host "  LLVM $LLVM_VERSION  -> LIB += $llvmLib ; PATH += $llvmBin"
-    Write-Host "  fly  $FLY_VERSION   -> FLY  = $flyExe ; PATH += $flyBin"
-    Write-Host "Note: dot-source this script (. .\ci\windows\install_prerequisites.ps1) for LIB/PATH/FLY to persist in your shell before running .\ci\windows\build_compiler.ps1"
 }

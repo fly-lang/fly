@@ -146,9 +146,26 @@ public class ResolverDecl {
     public static void resolveBody(const Resolver r, const SemaFunctionBase fb) {
         r.setCurrentFunctionBase(fb)
         r.setCurrentScope(fb.getSymbols())
+        // Restore the body's OWNER module: currentModule otherwise still points at
+        // the LAST visited module (a discovery-pulled one), so expandNsPath would
+        // read the wrong module's imports and `assert.f(…)`-style alias prefixes
+        // in the entry would not resolve. Methods reach it via their class.
         SemaClassMethod m = fb.asClassMethod()
-        if m != null { r.setCurrentClass(m.getClass()) }
-        else { r.setCurrentClass(null) }
+        if m != null {
+            r.setCurrentClass(m.getClass())
+            SemaClassType mc = m.getClass()
+            if mc != null {
+                SemaModule cm = mc.getModule()
+                if cm != null { r.setCurrentModule(cm) }
+            }
+        } else {
+            r.setCurrentClass(null)
+            SemaFunction ff = fb.asFunction()
+            if ff != null {
+                SemaModule fm = ff.getModule()
+                if fm != null { r.setCurrentModule(fm) }
+            }
+        }
         ASTFunction af = fb.getAST()
         ASTBlockStmt body = af.getBody()
         if body != null {

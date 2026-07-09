@@ -697,6 +697,7 @@ public class Parser {
         if this.curIsKw("fail")     { this.parseFail(block)     return }
         if this.curIsKw("handle")   { this.parseHandle(block)   return }
         if this.curIsKw("test")     { this.parseTest(block)     return }
+        if this.curIsKw("case")     { this.parseSuiteCase(block)  return }
         if this.curIsKw("break")    { ASTBreakStmt b = ASTBuilder.CreateBreakStmt(block, this.curLoc())  this.bump()  return }
         if this.curIsKw("continue") { ASTContinueStmt cs = ASTBuilder.CreateContinueStmt(block, this.curLoc())  this.bump()  return }
         if this.curIsPunct("{")     { ASTBlockStmt inner = this.parseBlock()  block.addContent(inner)  return }
@@ -880,6 +881,36 @@ public class Parser {
         ASTBlockStmt body = this.parseBlock()
         s.setBody(body)
         block.addContent(s)
+    }
+
+    // ── case: standalone `case "label": { body }` — a suite test-case step
+    // (reference ParseSuiteCase; distinct from the switch case parsing). Valid
+    // only inside a suite test-method: Sema validates the context. The label
+    // must be a string literal; the body is an optional block-or-statement
+    // (empty when the next token is the following `case` or the closing `}`). ──
+    public void parseSuiteCase(const ASTBlockStmt block) {
+        SourceLocation loc = this.curLoc()
+        this.expectKw("case")
+
+        if this.curIsStringLit() == false {
+            this.reportErr(DiagID.err_parser_syntax_error)
+            return
+        }
+        // Record the label's text (curText of the STRING token, cooked) before the
+        // expression parse consumes it — Sema has no ASTExpr → string-value downcast.
+        string label = this.curText()
+        ASTExpr labelExpr = this.parseExpr()
+
+        this.expectPunct(":")
+
+        ASTBlockStmt body = null
+        if this.curIsPunct("}") == false && this.curIsKw("case") == false {
+            body = this.parseBlockOrStmt()
+        } else {
+            body = ASTBuilder.CreateBlockStmt(this.curLoc())
+        }
+        ASTCaseStmt c = ASTBuilder.CreateCaseStmt(block, loc, labelExpr, body)
+        c.setLabel(label)
     }
 
     public void parseReturn(const ASTBlockStmt block) {

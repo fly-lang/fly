@@ -301,6 +301,7 @@ public class Driver {
         CodeGenOptions cgo = new CodeGenOptions()
         cgo.setRuntimeLibDir(runtimeLibDir)
         cgo.setToolchainLibDir(toolchainLibDir)
+        cgo.setTestMode(testMode)
         cgo.setStatic(isStatic)
         cgo.setShared(isShared)
         cgo.setPie(isPie)

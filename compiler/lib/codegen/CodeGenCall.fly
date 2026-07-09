@@ -52,6 +52,18 @@ public class CodeGenCall {
         pointer err = cge.getErrPtr()
         argAddrs.add(err)
 
+        // (1b) a RECEIVER-LESS class-method call (a static `ClassName.m(args)`,
+        // or a bare same-class helper call) still targets the method ABI
+        // `void (errPtr, this, params…)` — fill the `this` slot with null
+        // (a static/suite-helper body never dereferences it).
+        SemaClassMethod scm = fn.asClassMethod()
+        if scm != null {
+            pointer thisPty = cge.ptrType()
+            pointer nullThis
+            llvm.constPointerNull(thisPty, nullThis)
+            argAddrs.add(nullThis)
+        }
+
         // The resolver appends the synthetic out var to getArgs() (so it is the
         // LAST element when the call returns non-void); it must be passed by
         // pointer, NOT gen'd as a value. So gen only the leading `realCount` args.

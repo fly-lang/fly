@@ -14,36 +14,35 @@ set -uo pipefail
 # Scripts live in ci/linux/; operate from the project root (two levels up).
 cd "$(dirname "$0")/../.."
 
-# Scratch for per-test binaries/logs; under build/ but separate from build/bin.
+# Scratch for per-test binaries/logs; under build/ but outside the stage dirs.
 OUT=build/test
 STD=std/lib
 mkdir -p "$OUT"
 
-# Bootstrap compiler: $FLY (default `fly`). The compiler derives its stdlib dir
-# from its own executable path (argv[0]), and a bare name breaks that lookup —
-# so a slash-less $FLY is resolved through PATH into an absolute path here.
-FLY="${FLY:-fly}"
+# Compiler under test: $FLY (default: the stage2 self-host fly — the artifact
+# that ships). The compiler derives its stdlib dir from its own executable path
+# (argv[0]), so the value is resolved to an absolute path here (a slash-less
+# override is resolved through PATH).
+FLY="${FLY:-build/stage2/bin/fly}"
 case "$FLY" in
-    */*) ;;  # already a path — keep as given
+    /*) ;;                    # absolute — keep as given
+    */*) FLY="$PWD/$FLY" ;;   # relative — anchor to the repo root
     *)
         FLY_RESOLVED="$(command -v "$FLY" || true)"
         if [ -z "$FLY_RESOLVED" ]; then
-            echo "error: bootstrap compiler '$FLY' not found on PATH." >&2
-            echo "       Set FLY to the bootstrap compiler, e.g.:" >&2
-            echo "       FLY=/path/to/fly/build/bin/fly $0" >&2
+            echo "error: compiler '$FLY' not found on PATH." >&2
             exit 1
         fi
         FLY="$FLY_RESOLVED"
         ;;
 esac
 if [ ! -x "$FLY" ]; then
-    echo "error: FLY='$FLY' is not an executable file." >&2
+    echo "error: FLY='$FLY' is not an executable file — run ci/linux/stage2.sh first (or set FLY)." >&2
     exit 1
 fi
 if [ ! -d "$(dirname "$FLY")/../lib" ]; then
     echo "error: no lib/ directory next to '$FLY' (expected <exe_dir>/../lib" >&2
     echo "       with llvm.fly.h, runtime.fly.h, fly_runtime_lib.a)." >&2
-    echo "       Point FLY at a built bootstrap compiler, e.g. fly/build/bin/fly." >&2
     exit 1
 fi
 

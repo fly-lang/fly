@@ -255,23 +255,29 @@ public class CodeGenExpr : SemaVisitor {
             int j = 0
             while j < allocs.size() {
                 SemaLocalVar v = allocs.get(j)
-                pointer alloca = v.getLlvmAlloca()
-                pointer ty = this.lowerType(v.getType())
-                pointer objPtr
-                this.llvm.buildLoad2(this.builder, ty, alloca, "freeld", objPtr)
-                if this.outSlot != 0 {
-                    pointer cmp
-                    this.llvm.buildICmp(this.builder, 33, objPtr, outVal, "retcmp", cmp)  // NE
-                    pointer freeBB = this.newBlock("free.do")
-                    pointer skipBB = this.newBlock("free.skip")
-                    pointer cbr
-                    this.llvm.buildCondBr(this.builder, cmp, freeBB, skipBB, cbr)
-                    this.position(freeBB)
-                    this.cgm.freeHandle(objPtr)
-                    this.br(skipBB)
-                    this.position(skipBB)
-                } else {
-                    this.cgm.freeHandle(objPtr)
+                // ESCAPED handles (passed as a call argument or assigned away —
+                // see the Stage-7 escape marking in ResolverCall/ResolverExpr)
+                // may be retained elsewhere: freeing them here left dangling
+                // handles inside containers (LockfileSuite segfault).
+                if v.isEscaped() == false {
+                    pointer alloca = v.getLlvmAlloca()
+                    pointer ty = this.lowerType(v.getType())
+                    pointer objPtr
+                    this.llvm.buildLoad2(this.builder, ty, alloca, "freeld", objPtr)
+                    if this.outSlot != 0 {
+                        pointer cmp
+                        this.llvm.buildICmp(this.builder, 33, objPtr, outVal, "retcmp", cmp)  // NE
+                        pointer freeBB = this.newBlock("free.do")
+                        pointer skipBB = this.newBlock("free.skip")
+                        pointer cbr
+                        this.llvm.buildCondBr(this.builder, cmp, freeBB, skipBB, cbr)
+                        this.position(freeBB)
+                        this.cgm.freeHandle(objPtr)
+                        this.br(skipBB)
+                        this.position(skipBB)
+                    } else {
+                        this.cgm.freeHandle(objPtr)
+                    }
                 }
                 j = j + 1
             }
@@ -532,8 +538,71 @@ public class CodeGenExpr : SemaVisitor {
     }
     public void visit(const SemaLoopInStmt node) { }
     public void visit(const SemaDeleteStmt node) { }
-    public void visit(const SemaCaseStmt node) { }
-    public void visit(const SemaTestStmt node) { }
+
+    // case — a suite test case: a labelled `case.<label>` basic block that falls
+    // through to the next statement (sequential, no dispatch), with its OWN fresh
+    // zeroed %error installed for the body so failures don't bleed across cases
+    // (reference CodeGenModule::visit(SemaCaseStmt)).
+    public void visit(const SemaCaseStmt node) {
+        string label = node.getLabel()
+        pointer bb = this.newBlock(fly.str.concat("case.", label))
+        this.br(bb)
+        this.position(bb)
+
+        pointer errTy = this.cgm.getErrorTy()
+        pointer caseErr
+        this.llvm.buildAlloca(this.builder, errTy, fly.str.concat("case_err.", label), caseErr)
+        pointer i32
+        this.llvm.int32TypeInContext(this.cgm.getCtx(), i32)
+        pointer zero
+        this.llvm.constInt(i32, 0, true, zero)
+        pointer codeP
+        this.llvm.buildStructGEP2(this.builder, errTy, caseErr, 0, "ecode", codeP)
+        this.llvm.buildStore(this.builder, zero, codeP)
+        pointer pty = this.ptrType()
+        pointer nullP
+        this.llvm.constPointerNull(pty, nullP)
+        pointer strP
+        this.llvm.buildStructGEP2(this.builder, errTy, caseErr, 1, "estr", strP)
+        this.llvm.buildStore(this.builder, nullP, strP)
+        pointer objP
+        this.llvm.buildStructGEP2(this.builder, errTy, caseErr, 2, "eobj", objP)
+        this.llvm.buildStore(this.builder, nullP, objP)
+
+        pointer savedErr = this.errPtr
+        this.errPtr = caseErr
+        SemaBlockStmt body = node.getBody()
+        if body != null { body.accept(this) }
+        this.errPtr = savedErr
+    }
+
+    // test — an inline `test {}` block, gated at RUN TIME on the thread-local
+    // test-context pointer being non-null (the suite runner / --test main holds
+    // it open; a production binary leaves it null, so the body is skipped).
+    // Mirrors the reference CodeGenModule::visit(SemaTestStmt); the Resolver
+    // already stripped the statement entirely when not compiling under --test.
+    public void visit(const SemaTestStmt node) {
+        pointer tls = this.cgm.getTestCtxPtr()
+        pointer pty = this.ptrType()
+        pointer ctxV
+        this.llvm.buildLoad2(this.builder, pty, tls, "test_ctx", ctxV)
+        pointer nullP
+        this.llvm.constPointerNull(pty, nullP)
+        pointer isNull
+        this.llvm.buildICmp(this.builder, 32, ctxV, nullP, "ctx_isnull", isNull)   // EQ
+
+        pointer bodyBB = this.newBlock("testbody")
+        pointer mergeBB = this.newBlock("testmerge")
+        pointer cb
+        this.llvm.buildCondBr(this.builder, isNull, mergeBB, bodyBB, cb)
+        this.terminated = true
+
+        this.position(bodyBB)
+        SemaBlockStmt body = node.getBody()
+        if body != null { body.accept(this) }
+        this.br(mergeBB)
+        this.position(mergeBB)
+    }
 }
 
 // ── literal parsing helpers (free functions; intrinsic byte access) ─────────────

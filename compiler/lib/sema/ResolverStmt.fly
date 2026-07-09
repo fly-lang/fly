@@ -382,6 +382,52 @@ public class ResolverStmt {
         r.exitHandle()
     }
 
+    // test — inline `test { body }`: STRIPPED entirely when not compiling in test
+    // mode (zero IR); otherwise the body resolves in its own scope/block into a
+    // SemaTestStmt (reference Resolver::visit(ASTTestStmt)).
+    public static void testStmt(const Resolver r, const ASTTestStmt node) {
+        if r.isTestMode() == false { return }
+        ASTBlockStmt bodyAst = node.getBody()
+        if bodyAst == null { return }
+        SemaBlockStmt body = ResolverStmt.resolveBlock(r, bodyAst)
+        SemaTestStmt st = new SemaTestStmt(node)
+        st.setBody(body)
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        if blk != null { blk.addContent(st) }
+    }
+
+    // case — standalone `case "label": { body }`: only valid inside a suite
+    // method whose name ends with "Test" (reference Resolver::visit(ASTCaseStmt)).
+    // The label was recorded by the parser on the AST node; the body resolves in
+    // its own scope/block into a SemaCaseStmt.
+    public static void caseStmt(const Resolver r, const ASTCaseStmt node) {
+        bool inSuiteTest = false
+        SemaClassType cc = r.getCurrentClass()
+        SemaFunctionBase cf = r.getCurrentFunction()
+        if cc != null {
+            if cf != null {
+                if cc.getClassKind() == SemaClassKind.SUITE {
+                    if s.endsWith(cf.getName(), "Test") { inSuiteTest = true }
+                }
+            }
+        }
+        if inSuiteTest == false {
+            r.diag(node.getLoc(), DiagID.err_parser_syntax_error)
+            return
+        }
+
+        SemaBlockStmt body = null
+        ASTBlockStmt bodyAst = node.getStmt()
+        if bodyAst != null {
+            body = ResolverStmt.resolveBlock(r, bodyAst)
+        } else {
+            body = SemaBuilder.CreateBlockStmt(null)
+        }
+        SemaCaseStmt sc = new SemaCaseStmt(node, node.getLabel(), body)
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        if blk != null { blk.addContent(sc) }
+    }
+
     // delete — the parser rejects `delete` today, so this only fires for AST
     // built programmatically; diagnose (the codegen visit is empty — a silent
     // no-op would leak and skip the intended destruction).
