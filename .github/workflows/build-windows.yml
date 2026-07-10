@@ -2,6 +2,12 @@ name: Build Windows
 
 on:
   workflow_call:
+    inputs:
+      debug_symbols:
+        description: '"1" embeds DWARF (crash → source line); "0" for lean release artifacts.'
+        required: false
+        type: string
+        default: "1"
   push:
     paths-ignore:
       - '.github/workflows/**'
@@ -18,6 +24,12 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    # Emit DWARF into the stage-1 build (stage0 honours --debug-symbols; the
+    # self-host does not yet) so a crash symbolizes to a source line via
+    # llvm-symbolizer. release.yml passes debug_symbols="0" for lean artifacts;
+    # plain push / workflow_dispatch default to "1".
+    env:
+      FLY_DEBUG_SYMBOLS: ${{ inputs.debug_symbols == '0' && '0' || '1' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -93,9 +105,27 @@ jobs:
       # scripts). The build artifact is still produced/uploaded and the full suite
       # results show in the log. Make strict again once stable.
       - name: Test self-host compiler
+        id: test_compiler
         continue-on-error: false
         shell: pwsh
         run: .\ci\windows\test_compiler.ps1
+
+      # Windows mirror of build-linux.yml's gdb "Backtrace on Crash": if a suite
+      # faulted (heap corruption / access violation), re-run the crash-prone
+      # suites under ProcDump and symbolize each fly.exe frame with
+      # llvm-symbolizer against the DWARF the debug build embeds -> fly source
+      # function:line. Runs whether or not the test step is continue-on-error.
+      - name: Backtrace on Crash
+        if: always() && steps.test_compiler.outcome == 'failure'
+        shell: pwsh
+        run: .\ci\windows\backtrace_on_crash.ps1
+
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.test_compiler.outcome == 'failure'
+        with:
+          name: windows-crashdumps
+          path: build/crashdumps
+          if-no-files-found: ignore
 
       - name: Test driver
         continue-on-error: false

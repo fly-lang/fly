@@ -55,16 +55,17 @@ Get-ChildItem "$CDIR/*.fly.h", "$LIB/*.fly.h" -ErrorAction SilentlyContinue | Fo
 $D = "build/stage$STAGE/driver"
 Remove-Item $D -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $D | Out-Null
-Write-Host "stage${STAGE}: compiling driver ..."
+$DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
+Write-Host "stage${STAGE}: compiling driver ...$(if ($DBG) { ' (+debug-symbols)' })"
 if ($STAGE -eq '1') {
     # stage0 reference: no -c; the in-process link may fail (tolerated), the
     # per-source object is emitted first.
     & $FLY driver/lib/Driver.fly "$CDIR/fly_compiler_lib.lib" --src-dir driver/lib -L $CDIR `
-        -o fly --out-dir $D > "$D/emit.log" 2>&1
+        @DBG -o fly --out-dir $D > "$D/emit.log" 2>&1
 } else {
     # self-host: -c emits a clean object, no link attempt.
     & $FLY driver/lib/Driver.fly --src-dir driver/lib -L $CDIR `
-        -c -o Driver --out-dir $D > "$D/emit.log" 2>&1
+        @DBG -c -o Driver --out-dir $D > "$D/emit.log" 2>&1
 }
 $OBJ = @("$D/Driver", "$D/Driver.fly.o", "$D/Driver.fly.obj") | Where-Object { Test-Path $_ } | Select-Object -First 1
 $PRELINKED = Test-Path "$D/fly.exe"   # stage-1 in-process link may have succeeded

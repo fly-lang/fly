@@ -11,11 +11,18 @@ env:
 
 jobs:
 
+  # Release artifacts ship WITHOUT debug symbols (lean): pass debug_symbols="0"
+  # so the build workflows skip --debug-symbols / DWARF. Plain pushes and
+  # workflow_dispatch of the build workflows still default to "1" for debugging.
   build-linux:
     uses: ./.github/workflows/build-linux.yml
+    with:
+      debug_symbols: "0"
 
   build-windows:
     uses: ./.github/workflows/build-windows.yml
+    with:
+      debug_symbols: "0"
 
   release:
     needs: [build-linux, build-windows]

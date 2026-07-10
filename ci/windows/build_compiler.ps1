@@ -45,8 +45,11 @@ New-Item -ItemType Directory -Force $CDIR | Out-Null
 $FILES = Get-ChildItem -Recurse compiler/lib -Filter '*.fly' |
     Where-Object { $_.Name -like '*.fly' -and $_.Name -notlike '*.fly.h' } |
     Sort-Object FullName | ForEach-Object { $_.FullName }
-Write-Host "stage1: compiling $($FILES.Count) compiler/lib files ..."
-& $FLY --lib -o "$CDIR/fly_compiler_lib" @FILES
+# FLY_DEBUG_SYMBOLS=1 → emit DWARF into the archive (llvm-symbolizer/gdb resolve
+# the self-host crash to a source line; the self-host emits none, but stage0 does).
+$DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
+Write-Host "stage1: compiling $($FILES.Count) compiler/lib files ...$(if ($DBG) { ' (+debug-symbols)' })"
+& $FLY --lib @DBG -o "$CDIR/fly_compiler_lib" @FILES
 Assert-LastExit 'compiler --lib build'
 
 # headers (nested `>>` spaced so re-reads lex them)

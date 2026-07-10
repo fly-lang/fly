@@ -37,17 +37,19 @@ done
 # Kept in build/stage$STAGE/driver (with emit.log) for link_fly.sh + debugging.
 D="build/stage$STAGE/driver"
 rm -rf "$D"; mkdir -p "$D"
-echo "stage$STAGE: compiling driver ..."
+# FLY_DEBUG_SYMBOLS=1 → emit DWARF so a self-host crash symbolizes to a source line.
+DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
+echo "stage$STAGE: compiling driver ...${DBG:+ (+debug-symbols)}"
 if [ "$STAGE" = "1" ]; then
     # stage0 reference: no -c — its in-process link fails on the LLVM C-API
     # symbols (resolved only by -lLLVM at link time) but emits the object first.
     "$FLY" driver/lib/Driver.fly "$CDIR/fly_compiler_lib.a" --src-dir driver/lib -L "$CDIR" \
-        -o fly --out-dir "$D" > "$D/emit.log" 2>&1 || true
+        $DBG -o fly --out-dir "$D" > "$D/emit.log" 2>&1 || true
     OBJ="$D/Driver.fly.o"
 else
     # self-host: -c emits a clean object, no link attempt.
     "$FLY" driver/lib/Driver.fly --src-dir driver/lib -L "$CDIR" \
-        -c -o Driver --out-dir "$D" > "$D/emit.log" 2>&1 || true
+        $DBG -c -o Driver --out-dir "$D" > "$D/emit.log" 2>&1 || true
     OBJ="$D/Driver"
 fi
 if [ ! -f "$OBJ" ]; then

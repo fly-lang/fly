@@ -62,8 +62,9 @@ $FILES = @(
     "$STD/os/proc.fly"
 )
 
-Write-Host "stage${STAGE}: compiling $($FILES.Count) std files ..."
-& $FLY --lib -o "$T/fly_std_lib" @FILES
+$DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
+Write-Host "stage${STAGE}: compiling $($FILES.Count) std files ...$(if ($DBG) { ' (+debug-symbols)' })"
+& $FLY --lib @DBG -o "$T/fly_std_lib" @FILES
 Assert-LastExit 'std --lib build'
 Move-Item "$T/fly_std_lib.lib" "$LIB/fly_std_lib.lib" -Force
 

@@ -25,8 +25,11 @@ ln -f build/stage0/bin/fly "$FLY" 2>/dev/null || cp -f build/stage0/bin/fly "$FL
 mkdir -p "$CDIR"
 
 mapfile -t FILES < <(find compiler/lib -name '*.fly' | sort)
-echo "stage1: compiling ${#FILES[@]} compiler/lib files ..."
-"$FLY" --lib -o "$CDIR/fly_compiler_lib" "${FILES[@]}"
+# FLY_DEBUG_SYMBOLS=1 → emit DWARF into the archive so a self-host crash
+# symbolizes to a source line (gdb/valgrind/llvm-symbolizer).
+DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
+echo "stage1: compiling ${#FILES[@]} compiler/lib files ...${DBG:+ (+debug-symbols)}"
+"$FLY" --lib $DBG -o "$CDIR/fly_compiler_lib" "${FILES[@]}"
 
 # headers (nested `>>` spaced so re-reads lex them; idempotent)
 for h in "$CDIR"/*.fly.h; do

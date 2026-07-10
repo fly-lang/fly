@@ -48,17 +48,19 @@ done
 # --src-dir $T (an empty dir): the same-namespace source scan would otherwise pull
 # runtime-macos.fly / runtime-windows.fly (same `namespace fly.runtime`) into this
 # Linux build — three definitions of every C-ABI symbol, wrong-platform code.
-echo "stage$STAGE: compiling runtime/lib/runtime.fly ..."
+# FLY_DEBUG_SYMBOLS=1 → emit DWARF so a self-host crash symbolizes to a source line.
+DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
+echo "stage$STAGE: compiling runtime/lib/runtime.fly ...${DBG:+ (+debug-symbols)}"
 if [ "$STAGE" = "1" ]; then
     # stage0 reference: --lib emits the archive itself; merge its member(s) in.
-    "$FLY" --lib -o "$T/fly_runtime_lib" --src-dir "$T" runtime/lib/runtime.fly
+    "$FLY" --lib $DBG -o "$T/fly_runtime_lib" --src-dir "$T" runtime/lib/runtime.fly
     for m in $("$AR" t "$T/fly_runtime_lib.a"); do
         (cd "$T" && "$AR" x fly_runtime_lib.a "$m")
         "$AR" r "$LIB/fly_runtime_lib.a" "$T/$m"
     done
 else
     # self-host: --lib emits one merged object; add it.
-    "$FLY" --lib -o fly_runtime_lib --out-dir "$T" --src-dir "$T" runtime/lib/runtime.fly
+    "$FLY" --lib $DBG -o fly_runtime_lib --out-dir "$T" --src-dir "$T" runtime/lib/runtime.fly
     [ -f "$T/fly_runtime_lib" ] || { echo "error: runtime object not emitted." >&2; exit 1; }
     "$AR" r "$LIB/fly_runtime_lib.a" "$T/fly_runtime_lib"
 fi

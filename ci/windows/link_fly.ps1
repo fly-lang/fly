@@ -54,6 +54,11 @@ if ($PRELINKED) {
         Write-Host "error: %LIB% is empty - run from an MSVC developer environment (CI: ilammy/msvc-dev-cmd)."; exit 1
     }
     Write-Host "stage${STAGE}: linking fly.exe (fork lld-link) ..."
+    # FLY_DEBUG_SYMBOLS=1 → keep the DWARF sections (.debug_*) the debug build
+    # emitted in the final PE (lld-link drops them otherwise); llvm-symbolizer
+    # then maps a crash address to a source line. /debug:dwarf, NOT /debug (the
+    # latter would synthesize a PDB from CodeView, which fly does not emit).
+    $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '/debug:dwarf' }
     # Weak symbols (generic specializations, vtables, init_ctors) are emitted
     # with a COMDAT (selection Any) by both compilers, so lld-link dedups them
     # natively on COFF — no /force:multiple needed. NOTE: this requires a
@@ -61,7 +66,7 @@ if ($PRELINKED) {
     # bootstrap emits comdat-less weak defs and this link dies on duplicates.
     & $lldLink "/out:$OUT/fly.exe" $OBJ "$CDIR/fly_compiler_lib.lib" `
         "$LIB/fly_std_lib.lib" "$LIB/fly_runtime_lib.lib" (Join-Path $llvmRoot 'lib\LLVM-C.lib') `
-        /defaultlib:libcmt /defaultlib:synchronization /defaultlib:kernel32
+        @DBG /defaultlib:libcmt /defaultlib:synchronization /defaultlib:kernel32
     Assert-LastExit 'driver link'
 }
 

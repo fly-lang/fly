@@ -2,6 +2,12 @@ name: Build Linux
 
 on:
   workflow_call:
+    inputs:
+      debug_symbols:
+        description: '"1" embeds DWARF (crash → source line); "0" for lean release artifacts.'
+        required: false
+        type: string
+        default: "1"
   push:
     paths-ignore:
       - '.github/workflows/**'
@@ -19,6 +25,12 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-latest
+    # Emit DWARF into the stage-1 build (stage0 honours --debug-symbols; the
+    # self-host does not yet) so a crash symbolizes via gdb/valgrind/llvm-symbolizer.
+    # release.yml passes debug_symbols="0" for lean artifacts; plain push /
+    # workflow_dispatch default to "1".
+    env:
+      FLY_DEBUG_SYMBOLS: ${{ inputs.debug_symbols == '0' && '0' || '1' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -78,6 +90,20 @@ jobs:
       # Compiler unit suites (compiler/test only).
       - name: Test self-host compiler
         run: ./ci/linux/test_compiler.sh
+
+      # Diagnostic (non-blocking): run the self-host under Valgrind memcheck to
+      # catch the DOUBLE-FREE that the Windows heap aborts on
+      # (Frontend.resolveSourceDeps, 0xC0000374) but glibc silently tolerates
+      # here. Valgrind flags the invalid free regardless and prints the
+      # symbolized alloc + both free stacks (needs FLY_DEBUG_SYMBOLS=1, the
+      # default on push/dispatch). If it is clean, the bug is Windows-codegen
+      # -specific. Also runnable locally: ./ci/linux/valgrind_check.sh
+      - name: Valgrind memcheck (double-free hunt)
+        if: always()
+        continue-on-error: true
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq valgrind
+          ./ci/linux/valgrind_check.sh
 
       # Driver + package-manager unit suites (driver/test): CLI parsing,
       # Manifest/toml, lockfile, semver/MVS resolver, registry, ToolChain,
