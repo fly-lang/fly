@@ -1,0 +1,298 @@
+namespace fly.driver
+
+import fly.data.Map
+import fly.data.List
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// json — a small recursive-descent JSON reader, modelled on the TOML parser
+// (the toml reader). Used by the registry fetcher to read package metadata / version
+// lists. Supports objects, arrays, strings (with \" \\ \/ escapes), numbers,
+// true/false/null. A control-char escape (\n \t \u …) is a hard error — registry
+// payloads (versions, urls, hashes) never use them, and Fly literals keep escapes
+// raw so they cannot be synthesised anyway.
+//
+// kind: 0=null 1=bool 2=number 3=string 4=array 5=object
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class JsonValue {
+    int kind
+    bool b
+    double num
+    string s
+    List<JsonValue> arr
+    Map<string, JsonValue> obj
+    List<string> order          // object key insertion order (Map has no iteration)
+
+    public JsonValue(const int k) { this.kind = k }
+
+    public int getKind()   { out = this.kind }
+    public bool isNull()   { out = this.kind == 0 }
+    public bool isBool()   { out = this.kind == 1 }
+    public bool isNumber() { out = this.kind == 2 }
+    public bool isString() { out = this.kind == 3 }
+    public bool isArray()  { out = this.kind == 4 }
+    public bool isObject() { out = this.kind == 5 }
+
+    public bool asBool()     { out = this.b }
+    public double asNumber() { out = this.num }
+    public string asString() { out = this.s }
+
+    public void setBool(const bool v)   { this.b = v }
+    public void setNumber(const double v) { this.num = v }
+    public void setString(const string v) { this.s = v }
+
+    public void initArray()  { this.arr = new List<JsonValue>() }
+    public void initObject() {
+        this.obj = new Map<string, JsonValue>()
+        this.order = new List<string>()
+    }
+
+    // array access
+    public void add(const JsonValue v)     { this.arr.add(v) }
+    public int size()                       { out = (int)this.arr.size() }
+    public JsonValue at(const int idx)      { out = this.arr.get(idx) }
+
+    // object access
+    public void put(const string key, const JsonValue v) {
+        if this.obj.has(key) == false { this.order.add(key) }
+        this.obj.put(key, v)
+    }
+    public bool has(const string key)       { out = this.obj.has(key) }
+    public JsonValue get(const string key)  { out = this.obj.get(key) }
+    public int keyCount()                   { out = (int)this.order.size() }
+    public string keyAt(const int idx)      { out = this.order.get(idx) }
+}
+
+// ── JsonParser — recursive descent, all methods (EOF sentinel 256) ────────────
+public class JsonParser {
+    string src
+    int n
+    int pos
+    int err        // 0 = ok; else a diagnostic code (30x)
+
+    public JsonParser(const string source) {
+        this.src = source
+        this.n = fly.str.len(source)
+        this.pos = 0
+        this.err = 0
+    }
+
+    public bool failed() { out = this.err != 0 }
+    public int errCode() { out = this.err }
+
+    public int cur() {
+        if this.pos >= this.n { out = 256  return }
+        byte b = 0
+        fly.str.byteAt(this.src, this.pos, b)
+        out = b
+    }
+    public int peekAt(const int off) {
+        int p = this.pos + off
+        if p >= this.n { out = 256  return }
+        byte b = 0
+        fly.str.byteAt(this.src, p, b)
+        out = b
+    }
+
+    public bool isWs(const int c)    { out = c == 32 || c == 9 || c == 10 || c == 13 }
+    public bool isDigit(const int c) { out = c >= 48 && c <= 57 }
+
+    public void skipWs() {
+        while this.isWs(this.cur()) { this.pos = this.pos + 1 }
+    }
+
+    public bool matchWord(const string w) {
+        int wl = fly.str.len(w)
+        if this.pos + wl > this.n { out = false  return }
+        string sub = fly.str.substring(this.src, this.pos, this.pos + wl)
+        out = fly.str.equals(sub, w)
+    }
+
+    // parseValue — dispatch on the first non-ws byte.
+    public JsonValue parseValue() {
+        this.skipWs()
+        int c = this.cur()
+        if c == 123 {                                  // '{'
+            out = this.parseObject()
+        } elsif c == 91 {                              // '['
+            out = this.parseArray()
+        } elsif c == 34 {                              // '"'
+            out = this.parseString()
+        } elsif c == 116 {                             // 't'
+            JsonValue v = new JsonValue(1)
+            if this.matchWord("true") { v.setBool(true)  this.pos = this.pos + 4 } else { this.err = 301 }
+            out = v
+        } elsif c == 102 {                             // 'f'
+            JsonValue v = new JsonValue(1)
+            if this.matchWord("false") { v.setBool(false)  this.pos = this.pos + 5 } else { this.err = 301 }
+            out = v
+        } elsif c == 110 {                             // 'n'
+            JsonValue v = new JsonValue(0)
+            if this.matchWord("null") { this.pos = this.pos + 4 } else { this.err = 301 }
+            out = v
+        } elsif this.isDigit(c) || c == 45 {           // number (digit or '-')
+            out = this.parseNumber()
+        } else {
+            this.err = 302
+            out = new JsonValue(0)
+        }
+    }
+
+    // parseString — a JSON string value (kind=3).
+    public JsonValue parseString() {
+        string s = this.parseRawString()
+        JsonValue v = new JsonValue(3)
+        v.setString(s)
+        out = v
+    }
+
+    // parseRawString — consume "..." → the decoded string (\" \\ \/ only).
+    public string parseRawString() {
+        this.pos = this.pos + 1                        // opening quote
+        int start = this.pos
+        bool hasEsc = false
+        bool scan = true
+        while scan {
+            int c = this.cur()
+            if c == 256 { this.err = 303  scan = false }
+            elsif c == 92 { hasEsc = true  this.pos = this.pos + 2 }   // '\' pair
+            elsif c == 34 { scan = false }                            // closing '"'
+            else { this.pos = this.pos + 1 }
+        }
+        if this.err != 0 { out = ""  return }
+        string raw = fly.str.substring(this.src, start, this.pos)
+        this.pos = this.pos + 1                        // consume closing quote
+        if hasEsc == false { out = raw  return }
+        out = this.unescape(raw)
+    }
+
+    // unescape — resolve \" \\ \/ from the source; other escapes are unsupported.
+    public string unescape(const string raw) {
+        int m = fly.str.len(raw)
+        string res = ""
+        int i = 0
+        int seg = 0
+        bool go = true
+        while go && i < m {
+            byte bb = 0
+            fly.str.byteAt(raw, i, bb)
+            int c = bb
+            if c == 92 {
+                string part = fly.str.substring(raw, seg, i)
+                string r2 = fly.str.concat(res, part)
+                res = r2
+                int e = 0
+                if i + 1 < m {
+                    byte nb = 0
+                    fly.str.byteAt(raw, i + 1, nb)
+                    e = nb
+                }
+                if e == 34 || e == 92 || e == 47 {     // \" \\ \/
+                    string ch = fly.str.substring(raw, i + 1, i + 2)
+                    string r3 = fly.str.concat(res, ch)
+                    res = r3
+                    i = i + 2
+                    seg = i
+                } else {
+                    this.err = 304
+                    go = false
+                }
+            } else {
+                i = i + 1
+            }
+        }
+        if this.err != 0 { out = res  return }
+        string tail = fly.str.substring(raw, seg, m)
+        string r4 = fly.str.concat(res, tail)
+        res = r4
+        out = res
+    }
+
+    // parseNumber — a JSON number → double (int/frac/exp accepted loosely).
+    public JsonValue parseNumber() {
+        int start = this.pos
+        if this.cur() == 45 { this.pos = this.pos + 1 }       // '-'
+        while this.isDigit(this.cur()) { this.pos = this.pos + 1 }
+        if this.cur() == 46 {                                 // '.'
+            this.pos = this.pos + 1
+            while this.isDigit(this.cur()) { this.pos = this.pos + 1 }
+        }
+        int ec = this.cur()
+        if ec == 101 || ec == 69 {                            // 'e' | 'E'
+            this.pos = this.pos + 1
+            int sc = this.cur()
+            if sc == 43 || sc == 45 { this.pos = this.pos + 1 }
+            while this.isDigit(this.cur()) { this.pos = this.pos + 1 }
+        }
+        string numStr = fly.str.substring(this.src, start, this.pos)
+        JsonValue v = new JsonValue(2)
+        // std has no string→double; keep the raw text (asString() returns it) —
+        // registry payloads only use numbers as text (versions are strings).
+        v.setString(numStr)
+        v.setNumber(0.0)
+        out = v
+    }
+
+    // parseArray — [ value, value, ... ]
+    public JsonValue parseArray() {
+        this.pos = this.pos + 1                               // '['
+        JsonValue arr = new JsonValue(4)
+        arr.initArray()
+        this.skipWs()
+        if this.cur() == 93 { this.pos = this.pos + 1  out = arr  return }   // ']' empty
+        bool go = true
+        while go {
+            JsonValue el = this.parseValue()
+            if this.err != 0 { go = false } else {
+                arr.add(el)
+                this.skipWs()
+                int c = this.cur()
+                if c == 44 { this.pos = this.pos + 1 }         // ','
+                elsif c == 93 { this.pos = this.pos + 1  go = false }   // ']'
+                else { this.err = 305  go = false }
+            }
+        }
+        out = arr
+    }
+
+    // parseObject — { "key": value, ... }
+    public JsonValue parseObject() {
+        this.pos = this.pos + 1                               // '{'
+        JsonValue o = new JsonValue(5)
+        o.initObject()
+        this.skipWs()
+        if this.cur() == 125 { this.pos = this.pos + 1  out = o  return }   // '}' empty
+        bool go = true
+        while go {
+            this.skipWs()
+            if this.cur() != 34 { this.err = 306  go = false } else {
+                string key = this.parseRawString()
+                if this.err != 0 { go = false } else {
+                    this.skipWs()
+                    if this.cur() == 58 { this.pos = this.pos + 1 } else { this.err = 307  go = false }
+                    if this.err == 0 {
+                        JsonValue val = this.parseValue()
+                        if this.err != 0 { go = false } else {
+                            o.put(key, val)
+                            this.skipWs()
+                            int c = this.cur()
+                            if c == 44 { this.pos = this.pos + 1 }         // ','
+                            elsif c == 125 { this.pos = this.pos + 1  go = false }  // '}'
+                            else { this.err = 308  go = false }
+                        }
+                    }
+                }
+            }
+        }
+        out = o
+    }
+}
+
+// parse — JSON source → root JsonValue. `errOut` is 0 on success, else a 30x code.
+public JsonValue jsonParse(const string src, int errOut) {
+    JsonParser p = new JsonParser(src)
+    JsonValue v = p.parseValue()
+    errOut = p.errCode()
+    out = v
+}

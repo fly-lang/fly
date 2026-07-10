@@ -1,0 +1,147 @@
+namespace fly.driver.test
+
+import fly.driver.*
+
+import fly.driver.test.util.*
+import fly.data.List
+import fly.assert
+import fly.str
+
+// Port of the SemVer + MVSResolver portions of fly/tools/flyp/test/MVSResolverTest.cpp.
+// (The Cache::parse_url cases belong with the fetcher port.) The C++ lambda fetchers
+// become ManifestFetcher subclasses below.
+
+// Leaf fetcher: every package is a flat manifest with no transitive deps.
+public class LeafFetcher : ManifestFetcher {
+    public LeafFetcher() { }
+    public Manifest fetch(const string name, const GitDep dep) {
+        Manifest m = new Manifest()
+        m.setName(name)
+        m.setVersion("1.0.0")
+        out = m
+    }
+}
+
+// libB pulls libA v2.0.0 (same URL); everything else is a leaf.
+public class MaxVerFetcher : ManifestFetcher {
+    public MaxVerFetcher() { }
+    public Manifest fetch(const string name, const GitDep dep) {
+        Manifest m = new Manifest()
+        m.setName(name)
+        m.setVersion("1.0.0")
+        if fly.str.equals(name, "libB") {
+            m.addDep("libA", tagDep("https://host/A.git", "v2.0.0"))
+        }
+        out = m
+    }
+}
+
+// libB pulls libA from a DIFFERENT URL → E001 conflict.
+public class ConflictFetcher : ManifestFetcher {
+    public ConflictFetcher() { }
+    public Manifest fetch(const string name, const GitDep dep) {
+        Manifest m = new Manifest()
+        m.setName(name)
+        m.setVersion("1.0.0")
+        if fly.str.equals(name, "libB") {
+            m.addDep("libA", tagDep("https://DIFFERENT-HOST/A.git", "v1.0.0"))
+        }
+        out = m
+    }
+}
+
+// Always returns null (fetch failure / no deps).
+public class NullFetcher : ManifestFetcher {
+    public NullFetcher() { }
+    public Manifest fetch(const string name, const GitDep dep) { out = null }
+}
+
+suite MVSResolverSuite {
+
+    void semverBasicsTest() {
+        case "SemVer parse + str + compare": {
+            SemVer a = semverParse("v1.2.3")
+            assert.assertEqI(a.getMajor(), 1, 1)
+            assert.assertEqI(a.getMinor(), 2, 2)
+            assert.assertEqI(a.getPatch(), 3, 3)
+            SemVer z = semverParse("not-a-version")
+            assert.assertEqI(z.getMajor(), 0, 4)
+            assert.assertStr(semverParse("v3.14.15").str(), "3.14.15", 5)
+            assert.assertTrue(semverParse("v1.0.0").lt(semverParse("v2.0.0")), 6)
+            assert.assertTrue(semverParse("v1.2.3").eq(semverParse("1.2.3")), 7)
+        }
+    }
+
+    void singleDepTest() {
+        case "single tag dep resolves to its version": {
+            MVSResolver r = new MVSResolver(false)
+            Manifest root = new Manifest()
+            root.setName("root")
+            root.setVersion("0.1.0")
+            root.addDep("libA", tagDep("https://host/A.git", "v1.0.0"))
+            LeafFetcher f = new LeafFetcher()
+            List<ResolvedPackage> res = r.resolve(root, f)
+            assert.assertTrue(r.errorsEmpty(), 10)
+            assert.assertEqL((long)res.size(), 1, 11)
+            ResolvedPackage rp = r.findResolved(res, "libA")
+            assert.assertStr(rp.getVersion(), "1.0.0", 12)
+        }
+    }
+
+    void maxVersionTest() {
+        case "MVS picks the highest required version": {
+            MVSResolver r = new MVSResolver(false)
+            Manifest root = new Manifest()
+            root.setName("root")
+            root.setVersion("0.1.0")
+            root.addDep("libA", tagDep("https://host/A.git", "v1.0.0"))
+            root.addDep("libB", tagDep("https://host/B.git", "v1.0.0"))
+            MaxVerFetcher f = new MaxVerFetcher()
+            List<ResolvedPackage> res = r.resolve(root, f)
+            assert.assertTrue(r.errorsEmpty(), 20)
+            ResolvedPackage a = r.findResolved(res, "libA")
+            assert.assertStr(a.getVersion(), "2.0.0", 21)
+        }
+    }
+
+    void conflictTest() {
+        case "conflicting URLs → E001, empty result": {
+            MVSResolver r = new MVSResolver(false)
+            Manifest root = new Manifest()
+            root.setName("root")
+            root.setVersion("0.1.0")
+            root.addDep("libA", tagDep("https://host1/A.git", "v1.0.0"))
+            root.addDep("libB", tagDep("https://host2/B.git", "v1.0.0"))
+            ConflictFetcher f = new ConflictFetcher()
+            List<ResolvedPackage> res = r.resolve(root, f)
+            assert.assertFalse(r.errorsEmpty(), 30)
+            assert.assertEqL((long)res.size(), 0, 31)
+            assert.assertTrue(r.errorAt(0).getIsConflict(), 32)
+        }
+    }
+
+    void edgeCasesTest() {
+        case "no deps → empty, no error": {
+            MVSResolver r = new MVSResolver(false)
+            Manifest root = new Manifest()
+            root.setName("root")
+            root.setVersion("0.1.0")
+            NullFetcher f = new NullFetcher()
+            List<ResolvedPackage> res = r.resolve(root, f)
+            assert.assertTrue(r.errorsEmpty(), 40)
+            assert.assertEqL((long)res.size(), 0, 41)
+        }
+        case "fetch failure still resolves the constraint (no resolver error)": {
+            MVSResolver r = new MVSResolver(false)
+            Manifest root = new Manifest()
+            root.setName("root")
+            root.setVersion("0.1.0")
+            root.addDep("libX", tagDep("https://host/X.git", "v9.9.9"))
+            NullFetcher f = new NullFetcher()
+            List<ResolvedPackage> res = r.resolve(root, f)
+            assert.assertTrue(r.errorsEmpty(), 42)
+            assert.assertEqL((long)res.size(), 1, 43)
+            assert.assertTrue(r.findResolved(res, "libX") != null, 44)
+        }
+    }
+}

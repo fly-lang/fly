@@ -1,0 +1,211 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.data.*
+import fly.str
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DiagnosticsSuite — the Resolver reports semantic errors. The Parser's
+// DiagnosticsEngine (over the same SourceManager) is reused for Sema, so a
+// syntactically-valid but semantically-malformed program parses cleanly yet
+// resolution records an error. A valid program records none (no false positives).
+// ─────────────────────────────────────────────────────────────────────────────
+
+
+
+suite DiagnosticsSuite {
+
+    void unresolvedIdentifierTest() {
+        case "use of an undefined variable is reported": {
+            Parser p = new Parser("int f() { out = nope }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 1)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred(), 2)
+        }
+    }
+
+    void unknownTypeTest() {
+        case "a parameter of an unknown type is reported": {
+            Parser p = new Parser("void f(const NoSuchType x) { }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 10)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred(), 11)
+        }
+    }
+
+    void unknownMemberTest() {
+        case "access to a non-existent field is reported": {
+            Parser p = new Parser("public class C { public int x }  int f(const C c) { out = c.nope }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 20)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred(), 21)
+        }
+    }
+
+    void namespacedCallUnresolvedTest() {
+        case "a namespace-qualified call to a missing function is an error, not a silent no-op": {
+            Parser p = new Parser("namespace demo  void g() { }  void f() { demo.missing.h() }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 30)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred(), 31)
+            StoringDiagnosticConsumer sink = p.getSink()
+            assert.assertTrue(fly.str.contains(sink.getMessage(0), "'h'"), 32)
+        }
+        case "a namespace name used as a bare value is rejected (not a silent null)": {
+            Parser p = new Parser("namespace demo  void g() { }  int f() { int x = demo  out = x }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 33)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred(), 34)
+            StoringDiagnosticConsumer sink = p.getSink()
+            assert.assertTrue(fly.str.contains(sink.getMessage(0), "namespace"), 35)
+        }
+        case "a type/class name used as a bare value is rejected": {
+            Parser p = new Parser("public class C { public int x }  int f() { int y = C  out = y }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 36)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred(), 37)
+            StoringDiagnosticConsumer sink = p.getSink()
+            assert.assertTrue(fly.str.contains(sink.getMessage(0), "type name"), 38)
+        }
+        case "a function name used as a bare value is rejected": {
+            Parser p = new Parser("int g() { out = 1 }  int f() { int y = g  out = y }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 39)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred(), 44)
+            StoringDiagnosticConsumer sink = p.getSink()
+            assert.assertTrue(fly.str.contains(sink.getMessage(0), "function"), 45)
+        }
+    }
+
+    void unimplementedAbstractTest() {
+        case "concrete class missing an inherited interface method is reported": {
+            Parser p = new Parser("public interface Shape { int area() }  public class Bad : Shape { }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 40)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred(), 41)
+        }
+    }
+
+    void implementedAbstractOkTest() {
+        case "concrete class implementing the interface method is clean": {
+            Parser p = new Parser("public interface Shape { int area() }  public class Good : Shape { public int area() { out = 4 } }")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 50)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred() == false, 51)
+        }
+    }
+
+    void noFalsePositiveTest() {
+        case "a well-formed program reports no errors": {
+            Parser p = new Parser("
+                public class P { public int x
+                    public int get() { out = this.x }
+                }
+                int use(const P p) { out = p.get() }
+            ")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 30)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred() == false, 31)
+        }
+    }
+
+    void diamondAmbiguityTest() {
+        case "ambiguous inherited default method is reported": {
+            Parser p = new Parser("
+                public interface A { int foo() { out = 1 } }
+                public interface B { int foo() { out = 2 } }
+                public class D : A, B { }
+            ")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 70)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred(), 71)
+        }
+    }
+
+    void diamondResolvedTest() {
+        case "overriding the conflicting method resolves the diamond": {
+            Parser p = new Parser("
+                public interface A { int foo() { out = 1 } }
+                public interface B { int foo() { out = 2 } }
+                public class D : A, B { public int foo() { out = 3 } }
+            ")
+            ASTModule m = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 80)
+
+            DiagnosticsEngine diags = p.getDiags()
+            List<ASTModule> modules = new List<ASTModule>()
+            modules.add(m)
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertTrue(diags.hasErrorOccurred() == false, 81)
+        }
+    }
+}

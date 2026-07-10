@@ -1,0 +1,27 @@
+namespace fly.driver.test
+
+import fly.driver.*
+
+import fly.assert
+import fly.str
+
+// Offline-testable parts of the registry fetcher (isExact + exact resolveVersion).
+// Networked listVersions/fetch/publish need a live registry.
+
+suite RegistrySuite {
+
+    void exactTest() {
+        case "isExact classification": {
+            RegistryFetcher rf = new RegistryFetcher(new Cache())
+            assert.assertTrue(rf.isExact("1.2.3"), 1)
+            assert.assertTrue(rf.isExact("v1.2.3"), 2)
+            assert.assertFalse(rf.isExact("^1.2.3"), 3)
+            assert.assertFalse(rf.isExact(">=1.0.0"), 4)
+            assert.assertFalse(rf.isExact("1.2"), 5)
+        }
+        case "resolveVersion normalises an exact req without network": {
+            RegistryFetcher rf = new RegistryFetcher(new Cache())
+            assert.assertStr(rf.resolveVersion("http://x", "pkg", "v2.5.9"), "2.5.9", 6)
+        }
+    }
+}

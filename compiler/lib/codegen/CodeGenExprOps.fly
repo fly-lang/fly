@@ -1,0 +1,472 @@
+namespace fly.compiler.codegen
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.compiler.codegen.CodeGenExpr
+import llvm.api.*
+import fly.mem
+import fly.data.List
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenExprOps — static companions for the larger binary/unary/cast operators,
+// threading the CodeGenExpr visitor (cge) so the monolithic visit(SemaBinary) stays
+// small (the "Broken function" codegen bug bites large many-branch methods).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenExprOps {
+
+    public CodeGenExprOps() { }
+
+    // assign — store the RHS rvalue into the LHS lvalue (its storage address),
+    // coercing the value to the assignee's type (an int literal stored into a
+    // long/pointer/double slot must be widened, or the store writes 4 of 8 bytes).
+    public static void assign(const CodeGenExpr cge, const SemaBinary node) {
+        SemaExpr left = node.getLeft()
+        SemaExpr right = node.getRight()
+        pointer rhs = cge.gen(right)
+        rhs = cge.coerce(rhs, right.getType(), left.getType())
+        pointer addr = cge.genAddr(left)
+        LLVM llvm = cge.getLLVM()
+        llvm.buildStore(cge.getBuilder(), rhs, addr)
+        node.setLlvmValue(rhs)
+    }
+
+    // arith — +, -, *, /, %, &, |, ^, <<, >> (int or float by result type). Both
+    // operands are coerced to the node's promoted type first (the resolver only
+    // sets the RESULT type; without the casts `long + intLiteral` emits a mixed
+    // i64/i32 instruction and module verification fails). div/rem/shr follow the
+    // operand signedness like the reference (udiv/urem/lshr for unsigned).
+    public static void arith(const CodeGenExpr cge, const SemaBinary node, const ASTBinaryKind k) {
+        SemaExpr left = node.getLeft()
+        SemaExpr right = node.getRight()
+        // string + string → CONCAT (a fresh malloc'd buffer), not an integer `add`.
+        // The `+` operator IS Fly string concatenation (fly.str.concat is `out = a + b`);
+        // without this the arith path emits `add %string` → invalid IR. Mirrors the
+        // reference GenBinaryArith → GenStringConcat dispatch.
+        if k == ASTBinaryKind.OP_BINARY_ARITH_ADD {
+            SemaType lts = left.getType()
+            SemaType rts = right.getType()
+            if lts != null {
+                if rts != null {
+                    if lts.isString() {
+                        if rts.isString() {
+                            CodeGenExprOps.stringConcat(cge, node)
+                            return
+                        }
+                    }
+                }
+            }
+        }
+        pointer l = cge.gen(left)
+        pointer r = cge.gen(right)
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        SemaType t = node.getType()
+        bool isF = false
+        if t != null { isF = t.isFloat() }
+        l = cge.coerce(l, left.getType(), t)
+        r = cge.coerce(r, right.getType(), t)
+        bool uns = cge.isUnsignedInt(t)
+
+        pointer v
+        if k == ASTBinaryKind.OP_BINARY_ARITH_ADD {
+            if isF { llvm.buildFAdd(b, l, r, "add", v) } else { llvm.buildAdd(b, l, r, "add", v) }
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_SUB {
+            if isF { llvm.buildFSub(b, l, r, "sub", v) } else { llvm.buildSub(b, l, r, "sub", v) }
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_MUL {
+            if isF { llvm.buildFMul(b, l, r, "mul", v) } else { llvm.buildMul(b, l, r, "mul", v) }
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_DIV {
+            if isF { llvm.buildFDiv(b, l, r, "div", v) }
+            elsif uns { llvm.buildUDiv(b, l, r, "div", v) }
+            else { llvm.buildSDiv(b, l, r, "div", v) }
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_MOD {
+            if uns { llvm.buildURem(b, l, r, "rem", v) } else { llvm.buildSRem(b, l, r, "rem", v) }
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_AND {
+            llvm.buildAnd(b, l, r, "and", v)
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_OR {
+            llvm.buildOr(b, l, r, "or", v)
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_XOR {
+            llvm.buildXor(b, l, r, "xor", v)
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_SHIFT_L {
+            llvm.buildShl(b, l, r, "shl", v)
+        } else {
+            if uns { llvm.buildLShr(b, l, r, "shr", v) } else { llvm.buildAShr(b, l, r, "shr", v) }
+        }
+        node.setLlvmValue(v)
+    }
+
+    // logic — && / || with C-style SHORT-CIRCUIT evaluation: the right operand is
+    // evaluated only when the left does not already decide the result (`&&`: left
+    // true; `||`: left false). Both operands may have side effects, so eager
+    // evaluation is wrong (it made `a && f()` always call f()). Lowered as branches
+    // merging through an i1 slot — buildPhi has no addIncoming binding here (see
+    // ternary/stringEq). Mirrors the reference GenBinary LOGIC_AND/OR.
+    public static void logic(const CodeGenExpr cge, const SemaBinary node, const ASTBinaryKind k) {
+        SemaExpr left = node.getLeft()
+        SemaExpr right = node.getRight()
+        LLVM llvm = cge.getLLVM()
+        SemaType bt = node.getType()
+        pointer i1ty = cge.lowerType(bt)
+
+        pointer slot
+        llvm.buildAlloca(cge.getBuilder(), i1ty, "logic.slot", slot)
+
+        // Evaluate the left operand and seed the slot with it: on a short-circuit the
+        // merge reads the left value (`&&`→false, `||`→true); otherwise the RHS block
+        // overwrites it. gen(left) may itself branch, so re-read the builder after.
+        pointer lv = cge.gen(left)
+        lv = cge.coerce(lv, left.getType(), bt)
+        llvm.buildStore(cge.getBuilder(), lv, slot)
+
+        pointer rhsBB = cge.newBlock("logic.rhs")
+        pointer mergeBB = cge.newBlock("logic.end")
+        pointer cbr
+        // `&&`: left true → evaluate RHS, else merge. `||`: left true → merge, else RHS.
+        if k == ASTBinaryKind.OP_BINARY_LOGIC_AND {
+            llvm.buildCondBr(cge.getBuilder(), lv, rhsBB, mergeBB, cbr)
+        } else {
+            llvm.buildCondBr(cge.getBuilder(), lv, mergeBB, rhsBB, cbr)
+        }
+        cge.setTerminated(true)
+
+        cge.position(rhsBB)
+        pointer rv = cge.gen(right)
+        rv = cge.coerce(rv, right.getType(), bt)
+        llvm.buildStore(cge.getBuilder(), rv, slot)
+        cge.br(mergeBB)
+
+        cge.position(mergeBB)
+        pointer loaded
+        llvm.buildLoad2(cge.getBuilder(), i1ty, slot, "logicv", loaded)
+        node.setLlvmValue(loaded)
+    }
+
+    // stringConcat — `a + b` on two %string values → a fresh malloc'd buffer holding
+    // the concatenation, wrapped in a new %string {ptr, i32 size}. Ports the reference
+    // GenStringConcat: extract (ptr,size) from each, total = s1+s2, malloc(total),
+    // memcpy both halves, build the result struct. The buffer is owned (freed on scope
+    // exit / overwrite by the string-ownership logic, like any fresh string).
+    public static void stringConcat(const CodeGenExpr cge, const SemaBinary node) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        pointer ctx = cgm.getCtx()
+
+        pointer v1 = cge.gen(node.getLeft())
+        pointer v2 = cge.gen(node.getRight())
+        pointer p1
+        llvm.buildExtractValue(b, v1, 0, "s1p", p1)
+        pointer sz1
+        llvm.buildExtractValue(b, v1, 1, "s1s", sz1)
+        pointer p2
+        llvm.buildExtractValue(b, v2, 0, "s2p", p2)
+        pointer sz2
+        llvm.buildExtractValue(b, v2, 1, "s2s", sz2)
+
+        // total size (i32 field width) + i64 extensions for malloc/memcpy
+        pointer total
+        llvm.buildAdd(b, sz1, sz2, "stot", total)
+        pointer i64t
+        llvm.int64TypeInContext(ctx, i64t)
+        pointer totalExt
+        llvm.buildZExt(b, total, i64t, "stotx", totalExt)
+        pointer sz1Ext
+        llvm.buildZExt(b, sz1, i64t, "s1x", sz1Ext)
+        pointer sz2Ext
+        llvm.buildZExt(b, sz2, i64t, "s2x", sz2Ext)
+
+        pointer buf = cgm.emitMalloc(totalExt)
+        pointer mc1
+        llvm.buildMemCpy(b, buf, p1, sz1Ext, mc1)
+        // buf2 = buf + sz1  (i8 GEP)
+        pointer i8t
+        llvm.int8TypeInContext(ctx, i8t)
+        CodeGenLLVM cg = cgm.getCg()
+        List<pointer> gidx = new List<pointer>()
+        gidx.add(sz1Ext)
+        pointer buf2
+        cg.buildGEP2N(b, i8t, buf, gidx, "sbuf2", buf2)
+        pointer mc2
+        llvm.buildMemCpy(b, buf2, p2, sz2Ext, mc2)
+
+        // result %string { buf, total }
+        pointer strTy = cgm.getStringTy()
+        pointer slot
+        llvm.buildAlloca(b, strTy, "scc", slot)
+        pointer f0
+        llvm.buildStructGEP2(b, strTy, slot, 0, "sccp", f0)
+        llvm.buildStore(b, buf, f0)
+        pointer f1
+        llvm.buildStructGEP2(b, strTy, slot, 1, "sccs", f1)
+        llvm.buildStore(b, total, f1)
+        pointer sval
+        llvm.buildLoad2(b, strTy, slot, "sccv", sval)
+        node.setLlvmValue(sval)
+    }
+
+    // compare — ==, !=, <, <=, >, >= → i1 via ICmp (int) or FCmp (float). The
+    // comparison type is the rank-promotion of the two operand types (the node's
+    // own type stays the left operand's — see ResolverExpr); both operands are
+    // coerced to it, and the integer predicate follows its signedness (unsigned
+    // for byte/ushort/uint/ulong/pointer, like the reference).
+    public static void compare(const CodeGenExpr cge, const SemaBinary node, const ASTBinaryKind k) {
+        SemaExpr left = node.getLeft()
+        SemaExpr right = node.getRight()
+        pointer l = cge.gen(left)
+        pointer r = cge.gen(right)
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        SemaType lt = left.getType()
+        SemaType rt = right.getType()
+
+        // String ==/!= : icmp on the %string aggregate is invalid IR. Compare the
+        // sizes, and only when they match memcmp the bytes; merge through a bool slot
+        // (buildPhi has no addIncoming binding — see ternary). Mirrors the reference
+        // GenBinaryCompare string path.
+        if lt != null {
+            if rt != null {
+                if lt.isString() {
+                    if rt.isString() {
+                        CodeGenExprOps.stringEq(cge, node, k, l, r)
+                        return
+                    }
+                }
+            }
+        }
+
+        // rank promotion of the two operand types (numeric operands only)
+        SemaType common = lt
+        if lt != null {
+            if rt != null {
+                if lt.isNumber() {
+                    if rt.isNumber() {
+                        if rt.getRank() > lt.getRank() { common = rt }
+                        l = cge.coerce(l, lt, common)
+                        r = cge.coerce(r, rt, common)
+                    }
+                }
+            }
+        }
+        bool isF = false
+        if common != null { isF = common.isFloat() }
+
+        pointer v
+        if isF {
+            llvm.buildFCmp(b, fcmpPred(k), l, r, "cmp", v)
+        } else {
+            llvm.buildICmp(b, icmpPred(k, cge.isUnsignedInt(common)), l, r, "cmp", v)
+        }
+        node.setLlvmValue(v)
+    }
+
+    // stringEq — lower a string `==` / `!=` (l, r are the gen'd %string values).
+    // Compare the i32 size fields; only when equal call memcmp on the byte pointers.
+    // A bool alloca merges the two paths (buildPhi lacks an addIncoming binding).
+    public static void stringEq(const CodeGenExpr cge, const SemaBinary node, const ASTBinaryKind k, const pointer l, const pointer r) {
+        LLVM llvm = cge.getLLVM()
+        CodeGenModule cgm = cge.getCgm()
+        pointer ctx = cgm.getCtx()
+        pointer b = cge.getBuilder()
+
+        pointer i1t
+        llvm.int1TypeInContext(ctx, i1t)
+        pointer i32t
+        llvm.int32TypeInContext(ctx, i32t)
+        pointer i64t
+        llvm.int64TypeInContext(ctx, i64t)
+
+        // size fields (%string index 1, i32) and their equality
+        pointer size1
+        llvm.buildExtractValue(b, l, 1, "s1size", size1)
+        pointer size2
+        llvm.buildExtractValue(b, r, 1, "s2size", size2)
+        pointer sizesEq
+        llvm.buildICmp(b, 32, size1, size2, "sizeseq", sizesEq)
+
+        // bool result slot, then branch on the size check
+        pointer slot
+        llvm.buildAlloca(b, i1t, "streq.slot", slot)
+        pointer dataBB = cge.newBlock("str.data.cmp")
+        pointer diffBB = cge.newBlock("str.size.diff")
+        pointer endBB  = cge.newBlock("str.cmp.end")
+        pointer cbr
+        llvm.buildCondBr(b, sizesEq, dataBB, diffBB, cbr)
+        cge.setTerminated(true)
+
+        // sizes differ → not equal
+        cge.position(diffBB)
+        pointer falseC
+        llvm.constInt(i1t, 0, false, falseC)
+        llvm.buildStore(cge.getBuilder(), falseC, slot)
+        cge.br(endBB)
+
+        // sizes match → memcmp the raw bytes (index 0 = ptr)
+        cge.position(dataBB)
+        pointer p1
+        llvm.buildExtractValue(cge.getBuilder(), l, 0, "s1ptr", p1)
+        pointer p2
+        llvm.buildExtractValue(cge.getBuilder(), r, 0, "s2ptr", p2)
+        pointer sizeExt
+        llvm.buildZExt(cge.getBuilder(), size1, i64t, "sizeext", sizeExt)
+        pointer mres = cgm.emitMemcmp(p1, p2, sizeExt)
+        pointer zero
+        llvm.constInt(i32t, 0, false, zero)
+        pointer dataEq
+        llvm.buildICmp(cge.getBuilder(), 32, mres, zero, "dataeq", dataEq)
+        llvm.buildStore(cge.getBuilder(), dataEq, slot)
+        cge.br(endBB)
+
+        // merge: load the equality result, invert for `!=`
+        cge.position(endBB)
+        pointer eq
+        llvm.buildLoad2(cge.getBuilder(), i1t, slot, "streq", eq)
+        if k == ASTBinaryKind.OP_BINARY_COMPARE_NE {
+            pointer one
+            llvm.constInt(i1t, 1, false, one)
+            pointer neq
+            llvm.buildXor(cge.getBuilder(), eq, one, "strne", neq)
+            node.setLlvmValue(neq)
+            return
+        }
+        node.setLlvmValue(eq)
+    }
+
+    // unary — logical not + pre/post increment/decrement.
+    public static void unary(const CodeGenExpr cge, const SemaUnary node) {
+        ASTUnary ua = node.getAST()
+        ASTUnaryKind k = ua.getOpKind()
+        SemaExpr e = node.getExpr()
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+
+        if k == ASTUnaryKind.OP_UNARY_NOT_LOG {
+            pointer val = cge.gen(e)
+            pointer ty = cge.lowerType(node.getType())
+            pointer one
+            llvm.constInt(ty, 1, false, one)
+            pointer v
+            llvm.buildXor(b, val, one, "not", v)
+            node.setLlvmValue(v)
+            return
+        }
+
+        // increment / decrement: load, +/- 1, store back; result is new or old value.
+        pointer addr = cge.genAddr(e)
+        pointer ty = cge.lowerType(e.getType())
+        pointer old
+        llvm.buildLoad2(b, ty, addr, "ld", old)
+        pointer one
+        llvm.constInt(ty, 1, true, one)
+        pointer nv
+        bool incr = k == ASTUnaryKind.OP_UNARY_PRE_INCR || k == ASTUnaryKind.OP_UNARY_POST_INCR
+        if incr { llvm.buildAdd(b, old, one, "inc", nv) } else { llvm.buildSub(b, old, one, "dec", nv) }
+        llvm.buildStore(b, nv, addr)
+        bool post = k == ASTUnaryKind.OP_UNARY_POST_INCR || k == ASTUnaryKind.OP_UNARY_POST_DECR
+        if post { node.setLlvmValue(old) } else { node.setLlvmValue(nv) }
+    }
+
+    // cast — numeric conversions (int↔int width, int↔float, float↔float).
+    public static void cast(const CodeGenExpr cge, const SemaCast node) {
+        SemaExpr e = node.getExpr()
+        pointer val = cge.gen(e)
+        SemaType from = e.getType()
+        SemaType to = node.getToType()
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer toTy = cge.lowerType(to)
+
+        pointer v = val
+        bool fromF = false
+        bool toF = false
+        if from != null { fromF = from.isFloat() }
+        if to != null { toF = to.isFloat() }
+
+        if fromF {
+            if toF {
+                if to.getRank() >= from.getRank() { llvm.buildFPExt(b, val, toTy, "fpext", v) }
+                else { llvm.buildFPTrunc(b, val, toTy, "fptrunc", v) }
+            } else {
+                llvm.buildFPToSI(b, val, toTy, "fptosi", v)
+            }
+        } else {
+            if toF {
+                llvm.buildSIToFP(b, val, toTy, "sitofp", v)
+            } else {
+                // int → int: widen (sext) or narrow (trunc) by rank
+                int fr = 0
+                int tr = 0
+                if from != null { fr = from.getRank() }
+                if to != null { tr = to.getRank() }
+                if tr > fr { llvm.buildSExt(b, val, toTy, "sext", v) }
+                elsif tr < fr { llvm.buildTrunc(b, val, toTy, "trunc", v) }
+            }
+        }
+        node.setLlvmValue(v)
+    }
+
+    // ternary — cond ? a : b, lowered to a result alloca + cond/then/else/merge
+    // blocks (the api has no buildSelect): each arm stores into the slot; merge
+    // loads it. Each arm is gen'd in its own block so side effects stay guarded.
+    public static void ternary(const CodeGenExpr cge, const SemaTernary node) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer ty = cge.lowerType(node.getType())
+        pointer slot
+        llvm.buildAlloca(b, ty, "tern.slot", slot)
+
+        pointer cv = cge.gen(node.getCond())
+        pointer thenBB = cge.newBlock("tern.then")
+        pointer elseBB = cge.newBlock("tern.else")
+        pointer mergeBB = cge.newBlock("tern.end")
+        pointer cbr
+        llvm.buildCondBr(b, cv, thenBB, elseBB, cbr)
+        cge.setTerminated(true)
+
+        cge.position(thenBB)
+        SemaExpr te = node.getTrueExpr()
+        pointer tv = cge.gen(te)
+        tv = cge.coerce(tv, te.getType(), node.getType())
+        llvm.buildStore(cge.getBuilder(), tv, slot)
+        cge.br(mergeBB)
+
+        cge.position(elseBB)
+        SemaExpr fe = node.getFalseExpr()
+        pointer fv = cge.gen(fe)
+        fv = cge.coerce(fv, fe.getType(), node.getType())
+        llvm.buildStore(cge.getBuilder(), fv, slot)
+        cge.br(mergeBB)
+
+        cge.position(mergeBB)
+        pointer loaded
+        llvm.buildLoad2(cge.getBuilder(), ty, slot, "ternv", loaded)
+        node.setLlvmValue(loaded)
+    }
+}
+
+// LLVM IntPredicate codes. EQ/NE are sign-agnostic; the relational predicates
+// pick the unsigned (34-37) or signed (38-41) family from the comparison type.
+public int icmpPred(const ASTBinaryKind k, const bool uns) {
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_EQ  { out = 32  return }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_NE  { out = 33  return }
+    if uns {
+        if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { out = 34  return }   // UGT
+        if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { out = 35  return }   // UGE
+        if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { out = 36  return }   // ULT
+        out = 37   // ULE
+        return
+    }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { out = 38  return }   // SGT
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { out = 39  return }   // SGE
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { out = 40  return }   // SLT
+    out = 41   // SLE
+}
+
+// LLVM RealPredicate codes (ordered comparisons).
+public int fcmpPred(const ASTBinaryKind k) {
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_EQ  { out = 1  return }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_NE  { out = 6  return }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { out = 2  return }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { out = 3  return }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { out = 4  return }
+    out = 5   // OLE
+}

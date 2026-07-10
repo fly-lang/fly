@@ -1,0 +1,199 @@
+namespace fly.driver
+
+import fly.data.List
+import fly.str
+import fly.os.fs
+import fly.os.io
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RegistryFetcher — download a package from a REST registry into the cache. Port of
+// fly/tools/flyp/fetcher/RegistryFetcher.{h,cpp}. HTTP goes through the system
+// `curl` (the shell helpers); registry JSON (the /v1/<pkg> version list) is parsed with
+// the json reader. Version selection reuses the semver range matcher (the resolver).
+// All methods (this module pulls the manifest reader → the toml reader).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class RegistryFetcher {
+    fly.driver.Cache cache
+
+    public RegistryFetcher(const fly.driver.Cache c) { this.cache = c }
+
+    // ── HTTP (via curl) ───────────────────────────────────────────────────────
+    public string httpGet(const string url) {
+        out = fly.driver.capture(fly.str.concat("curl -fsSL ", fly.driver.shellQuote(url)))
+    }
+    public bool httpDownload(const string url, const string dest) {
+        string cmd = fly.str.concat("curl -fsSL -o ",
+                     fly.str.concat(fly.driver.shellQuote(dest),
+                     fly.str.concat(" ", fly.driver.shellQuote(url))))
+        out = fly.driver.runShell(fly.str.concat(cmd, " 2>/dev/null")) == 0
+    }
+    public bool httpPostFile(const string url, const string file, const string token) {
+        string cmd = "curl -fsSL -X POST -H 'Content-Type: application/octet-stream'"
+        if fly.str.isEmpty(token) == false {
+            cmd = fly.str.concat(cmd, fly.str.concat(" -H 'Authorization: Bearer ", fly.str.concat(token, "'")))
+        }
+        cmd = fly.str.concat(cmd, fly.str.concat(" --data-binary @", fly.driver.shellQuote(file)))
+        cmd = fly.str.concat(cmd, fly.str.concat(" ", fly.driver.shellQuote(url)))
+        out = fly.driver.runShell(fly.str.concat(cmd, " 2>/dev/null")) == 0
+    }
+
+    // ── version listing / resolution ──────────────────────────────────────────
+
+    // listVersions — GET <registry>/v1/<pkg> → JSON array → the version strings.
+    public List<string> listVersions(const string registryUrl, const string pkg) {
+        List<string> vers = new List<string>()
+        string url = fly.str.concat(registryUrl, fly.str.concat("/v1/", pkg))
+        string body = this.httpGet(url)
+        int e = 0
+        fly.driver.JsonValue v = fly.driver.jsonParse(body, e)
+        if e != 0 { out = vers  return }
+        if v.isArray() == false { out = vers  return }
+        int i = 0
+        while i < v.size() {
+            fly.driver.JsonValue el = v.at(i)
+            if el.isString() {
+                string s = el.asString()
+                if fly.str.isEmpty(s) == false {
+                    byte b0 = 0
+                    fly.str.byteAt(s, 0, b0)
+                    int c = b0
+                    if c >= 48 && c <= 57 { vers.add(s) }   // starts with a digit
+                }
+            }
+            i = i + 1
+        }
+        out = vers
+    }
+
+    // resolveVersion — exact req → normalised; else max version satisfying the
+    // range. Returns "" if nothing matches (caller reports the error).
+    public string resolveVersion(const string registryUrl, const string pkg, const string req) {
+        // exact "v?d.d.d" → normalise
+        if this.isExact(req) {
+            SemVer sv = semverParse(req)
+            out = sv.str()
+            return
+        }
+        List<string> vers = this.listVersions(registryUrl, pkg)
+        SemVerRange range = rangeParse(req)
+        SemVer best = new SemVer(0, 0, 0)
+        string bestStr = ""
+        int i = 0
+        while i < vers.size() {
+            string vstr = vers.get(i)
+            SemVer sv = semverParse(vstr)
+            if range.matches(sv) {
+                if fly.str.isEmpty(bestStr) || sv.gt(best) {
+                    best = sv
+                    bestStr = vstr
+                }
+            }
+            i = i + 1
+        }
+        out = bestStr
+    }
+
+    // isExact — v?DIGITS.DIGITS.DIGITS (no range operators).
+    public bool isExact(const string s) {
+        int n = fly.str.len(s)
+        if n == 0 { out = false  return }
+        int i = 0
+        byte b0 = 0
+        fly.str.byteAt(s, 0, b0)
+        if b0 == 118 || b0 == 86 { i = 1 }      // leading v/V
+        int dots = 0
+        int digits = 0
+        while i < n {
+            byte bb = 0
+            fly.str.byteAt(s, i, bb)
+            int c = bb
+            if c >= 48 && c <= 57 { digits = digits + 1 }
+            elsif c == 46 {
+                if digits == 0 { out = false  return }
+                dots = dots + 1
+                digits = 0
+            } else { out = false  return }
+            i = i + 1
+        }
+        out = dots == 2 && digits > 0
+    }
+
+    // ── fetch ─────────────────────────────────────────────────────────────────
+
+    // fetch — resolve+download a registry package into the cache. ok=false with an
+    // error message on any failure.
+    public FetchResult fetch(const string alias, const GitDep dep, const string registryUrl) {
+        FetchResult r = new FetchResult()
+        string pkg = dep.getPkgName()
+        if fly.str.isEmpty(pkg) { pkg = alias }
+
+        string version = this.resolveVersion(registryUrl, pkg, dep.getVersionReq())
+        if fly.str.isEmpty(version) {
+            r.setError(fly.str.concat("registry: no version of ", fly.str.concat(pkg, fly.str.concat(" satisfies ", dep.getVersionReq()))))
+            out = r
+            return
+        }
+
+        string key = fly.str.concat(pkg, fly.str.concat("/", version))
+        if this.cache.has(registryUrl, key) {
+            string entry = this.cache.entryPath(registryUrl, key)
+            this.fill(r, version, entry)
+            out = r
+            return
+        }
+
+        // download tarball → extract → clean up
+        this.cache.prepare(registryUrl, key)
+        string entry = this.cache.entryPath(registryUrl, key)
+        string durl = fly.str.concat(registryUrl, fly.str.concat("/v1/",
+                      fly.str.concat(pkg, fly.str.concat("/", fly.str.concat(version, "/download")))))
+        string tarball = fly.str.concat(entry, fly.str.concat("/", fly.str.concat(pkg,
+                         fly.str.concat("-", fly.str.concat(version, ".tar.gz")))))
+        if this.httpDownload(durl, tarball) == false {
+            r.setError(fly.str.concat("registry: download failed for ", pkg))
+            out = r
+            return
+        }
+        string extract = fly.str.concat("tar -xzf ", fly.str.concat(fly.driver.shellQuote(tarball),
+                         fly.str.concat(" -C ", fly.driver.shellQuote(entry))))
+        fly.driver.runShell(fly.str.concat(extract, " 2>/dev/null"))
+        fly.driver.runShell(fly.str.concat("rm -f ", fly.driver.shellQuote(tarball)))
+        this.fill(r, version, entry)
+        out = r
+    }
+
+    // fill — populate a FetchResult from a cache entry (rev==version for registry).
+    public void fill(FetchResult r, const string version, const string entry) {
+        r.setRev(version)
+        r.setVersion(version)
+        r.setLocalPath(entry)
+        string tomlPath = fly.str.concat(entry, "/fly.toml")
+        if fly.os.fs.exists(tomlPath) {
+            r.setChecksum(fly.driver.sha256File(tomlPath))
+        }
+        r.setOk(true)
+    }
+
+    // publish — POST a tarball to <registry>/v1/<pkg>/<version>.
+    public bool publish(const string pkg, const string version, const string tarball, const string registryUrl, const string token) {
+        string url = fly.str.concat(registryUrl, fly.str.concat("/v1/",
+                     fly.str.concat(pkg, fly.str.concat("/", version))))
+        out = this.httpPostFile(url, tarball, token)
+    }
+
+    // readManifest — parse <entry>/fly.toml. errOut: 1 = missing, else parser code.
+    public Manifest readManifest(const string alias, const string entry, int errOut) {
+        string tomlPath = fly.str.concat(entry, "/fly.toml")
+        if fly.os.fs.exists(tomlPath) == false {
+            errOut = 1
+            out = new Manifest()
+            return
+        }
+        string src = fly.os.fs.readStr(tomlPath)
+        int e = 0
+        Manifest m = parseManifest(src, e)
+        errOut = e
+        out = m
+    }
+}

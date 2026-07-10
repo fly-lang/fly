@@ -10,11 +10,9 @@ on:
   workflow_dispatch:
 
 env:
-  # Bootstrap compiler release. Must ship the ptrsize→pointer rename: the
-  # bootstrap's BAKED std shadows -L, and 0.13.7's CLang.call overloads still
-  # take fly.mem.Ptr — every `lib.call(…, pointerOut)` in LLVMApi.fly is then
-  # ambiguous and the whole tree fails to compile. 0.13.8 must be cut from the
-  # current fly/ reference (which also carries the header-gen and codegen fixes).
+  # stage0 bootstrap release (compiles the stage-1 world; see the stage map
+  # below). 0.13.8 is cut from the current fly/ reference — it must carry the
+  # header-gen/codegen fixes the self-host tree relies on.
   FLY_VERSION: "0.13.8"
 
 jobs:
@@ -25,37 +23,80 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Cache the fork LLVM tree (build/llvm, ~950 MB): install_prerequisites.sh
-      # fetches it for FLY_BUNDLE_LLVM builds (libLLVM.so with libxml2 OFF, so the
-      # bundled release loads on any host). Keep the key in sync with $LLVM_VERSION
-      # in the script when bumping LLVM.
+      # Cache the fork LLVM tree (build/llvm, ~950 MB): stage0.sh fetches it
+      # (libLLVM.so with libxml2 OFF so the bundled release loads on any host,
+      # ld.lld, and the compiler-rt builtins linked into every fly-produced
+      # executable — no apt LLVM anywhere). Keep the key in sync with
+      # $LLVM_VERSION in the script when bumping LLVM, and bump the -vN suffix
+      # whenever the script's extracted file list changes: a stale cache passes
+      # the script's completeness check and actions/cache never re-saves an
+      # existing key. (-v4: adds llvm/lib/clang — the compiler-rt builtins.)
       - name: Cache fork LLVM (libxml2-off dylib)
         uses: actions/cache@v4
         with:
           path: build/llvm
-          key: fly-llvm-20.1.8-linux-x86_64-dylib
+          key: fly-llvm-20.1.8-linux-x86_64-dylib-v4
 
-      # Install LLVM 20 (apt, for the dev build + object emit) + the fork LLVM dylib
-      # (bundled into the release) + the bootstrap fly compiler ($FLY / PATH). Single
-      # source of truth shared with local builds: it self-skips work already done and
-      # wires up the env via $GITHUB_ENV/$GITHUB_PATH in CI. FLY_BUNDLE_LLVM=1 triggers
-      # the fork LLVM download. Run it locally to reproduce this.
-      - name: Install prerequisites (LLVM + fly)
+      # ── Rust-style staged bootstrap (see ci/linux/stage1.sh) ─────────────────
+      # stage0  ci/linux/stage0.sh: the downloaded 0.13.8 bootstrap compiler +
+      #         its precompiled lib → build/stage0, and the fork LLVM →
+      #         build/llvm (libLLVM + ld.lld + compiler-rt; NO system packages).
+      # stage1  ci/linux/stage1.sh: stage0 builds runtime, std, compiler and
+      #         driver FROM IN-TREE SOURCES and links the first self-host fly,
+      #         all into build/stage1 (build-only). The compiler is built
+      #         against the in-tree std headers so its symbol references match
+      #         the std the final binary links.
+      # stage2  ci/linux/stage2.sh: build/stage1/bin/fly rebuilds the runtime
+      #         and the driver into the SHIPPED build/stage2 (the self-hosting
+      #         fixpoint check). The std ships from stage1 (reference class
+      #         ABI) and the compiler lib stays stage0-built, like Rust's
+      #         beta-built rustc.
+      # FLY_BUNDLE_LLVM=1 ships a self-contained toolchain: libLLVM.so in lib/,
+      # fly + ld.lld resolving it via RUNPATH $ORIGIN/../lib.
+
+      - name: Stage 0 (bootstrap fly + fork LLVM)
         env:
           FLY_BUNDLE_LLVM: "1"
-        run: chmod +x ./ci/linux/install_prerequisites.sh && ./ci/linux/install_prerequisites.sh
+        run: chmod +x ./ci/linux/*.sh && ./ci/linux/stage0.sh
 
-      - name: Build self-host compiler
-        # FLY_BUNDLE_LLVM=1 ships a self-contained toolchain (Rust-style): one shared
-        # libLLVM.so in lib/, with `fly` + a small `ld.lld` linking against it via
-        # RUNPATH $ORIGIN/../lib. The release needs neither system libLLVM nor a system
-        # linker; LLVM is stored once (tarball ~half a full-static build). See build_compiler.sh.
+      - name: Stage 1 (bootstrap builds the self-host)
         env:
           FLY_BUNDLE_LLVM: "1"
-        run: chmod +x ./ci/linux/build_compiler.sh && ./ci/linux/build_compiler.sh
+        run: ./ci/linux/stage1.sh
 
+      - name: Stage 2 (self-host rebuilds the shipped artifacts)
+        env:
+          FLY_BUNDLE_LLVM: "1"
+        run: ./ci/linux/stage2.sh
+
+      # ── Tests, after stage 2: EVERYTHING compiles and runs with
+      #    build/stage2/bin/fly — the artifact that ships is exercised
+      #    end-to-end (the --test system is ported to the self-host; all
+      #    suites are green under it). The FLY defaults live in the test
+      #    scripts themselves (override with FLY=… to test another build). ─────
+
+      # Compiler unit suites (compiler/test only).
       - name: Test self-host compiler
-        run: chmod +x ./ci/linux/test_compiler.sh && ./ci/linux/test_compiler.sh
+        run: ./ci/linux/test_compiler.sh
+
+      # Driver + package-manager unit suites (driver/test): CLI parsing,
+      # Manifest/toml, lockfile, semver/MVS resolver, registry, ToolChain,
+      # cache/checksum/json. flyp is merged into the single `fly` binary
+      # (driver package mode), so its suites live in driver/test; the
+      # ci/linux/*_tools_flyp.sh scripts are kept for the future lsp/registry port.
+      - name: Test driver
+        run: ./ci/linux/test_driver.sh
+
+      # Runtime unit tests (runtime/test) — the fly.runtime libc/libm FFI backend.
+      # Currently empty (exercised indirectly by the std/os suites); the step is kept
+      # so runtime/test/*_test.fly are picked up as soon as they're added.
+      - name: Test runtime
+        run: ./ci/linux/test_runtime.sh
+
+      # Standard library tests (std/test/*_test.fly): str, math, data structures,
+      # os.* (env/fs/io/path/time), mem, generics, inheritance/override/super.
+      - name: Test std
+        run: ./ci/linux/test_std.sh
 
       - name: Set artifact name
         id: artifact
@@ -67,10 +108,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact.outputs.artifact_name }}
-          # Both dirs: the artifact root is their common ancestor (build/), so it
-          # preserves the bin/ + lib/ layout the release archive needs.
+          # Both dirs: the artifact root is their common ancestor (build/stage2),
+          # so it preserves the bin/ + lib/ layout the release archive needs.
           path: |
-            build/bin
-            build/lib
+            build/stage2/bin
+            build/stage2/lib
           if-no-files-found: error
           overwrite: true

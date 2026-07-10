@@ -1,0 +1,34 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTBase
+import fly.compiler.ast.ASTKind
+import fly.compiler.ast.ASTVisitor
+
+public class ASTNode : ASTBase {
+
+    bool visited
+
+    public ASTNode(const ASTKind kind, const SourceLocation loc) {
+        super(kind, loc)
+        this.visited = false
+    }
+
+    public bool isVisited() { out = this.visited }
+    public void setVisited(const bool visited) { this.visited = visited }
+
+    // as* — typed downcasts (Fly has no `(T)expr` value cast). The base returns null;
+    // each concrete node overrides its own to `this`. Used by the header generator to
+    // walk a `List<ASTNode>` (module/class/enum children) by kind. Mirrors SemaType.asClass().
+    public ASTClass asClass() { out = null }
+    public ASTEnum asEnum() { out = null }
+    public ASTFunction asFunction() { out = null }
+    public ASTVar asVar() { out = null }
+    public ASTEnumEntry asEnumEntry() { out = null }
+
+    // accept — virtual visitor dispatch. Concrete leaf nodes override this with
+    // `v.visit(this)`; this base no-op lets a base-typed node (ASTExpr/ASTStmt/
+    // ASTType) be dispatched polymorphically (skip-level overrides are routed via
+    // transitive per-base vtables in the codegen).
+    public void accept(const ASTVisitor v) { }
+}

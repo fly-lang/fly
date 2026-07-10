@@ -1,0 +1,1075 @@
+namespace fly.compiler.codegen
+
+import fly.compiler.sema.*
+import fly.compiler.target.*
+import fly.compiler.basic.CodeGenOptions
+import fly.compiler.codegen.CodeGenLLVM
+import fly.compiler.codegen.CodeGenType
+import fly.compiler.codegen.CodeGenExpr
+import fly.compiler.codegen.CodeGenClass
+import llvm.api.*
+import fly.mem
+import fly.data.List
+import fly.data.Map
+import fly.str
+import fly.os.io
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenModule — owns the LLVM context/module/builder and drives lowering of the
+// resolved SemaModule tree. Function calling convention (from the reference
+// compiler): every Fly function lowers to an LLVM function returning VOID whose
+// params are all pointers — first a hidden error-handler pointer, then each Fly
+// parameter (the synthetic trailing `out` for a non-void return is already in the
+// Sema params list). The body stores the result into the out pointer and `ret`s.
+//
+// Stage 1 emits only the function SHELL (signature + entry + ret void); the body
+// (expressions/statements) lands in Stages 2–3.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenModule {
+
+    CodeGenLLVM cg
+    CodeGenType types
+    pointer ctx
+    pointer module
+    pointer builder
+    pointer errorTy        // the `%error = { i32 code, ptr str, ptr obj }` named struct
+    pointer stringTy       // the `%string = { ptr, i32 size }` named struct (REFERENCE ABI:
+                           // archive strings carry an i32 length — reading i64 pulls garbage)
+    pointer freeFn         // lazily-declared `void @free(ptr)` (libc); null until first use
+    pointer freeFnTy       // its function type
+    Map<string, int> ifaceBases   // interface name → global vtable slot base (V4)
+    CodeGenOptions codeGenOpts    // linker flags sink (CLang bridge); null in unit tests
+
+    public CodeGenModule(const string name) {
+        this.ifaceBases = new Map<string, int>()
+        this.codeGenOpts = null
+        this.cg = new CodeGenLLVM()
+        LLVM llvm = this.cg.getLLVM()
+        pointer c
+        llvm.contextCreate(c)
+        this.ctx = c
+        pointer m
+        llvm.moduleCreateWithNameInContext(name, c, m)
+        this.module = m
+        pointer b
+        llvm.createBuilderInContext(c, b)
+        this.builder = b
+        this.types = new CodeGenType(this.cg, this.ctx)
+
+        // %error = { i32 code, ptr str, ptr obj } — the shared error struct that
+        // every function receives by pointer (param 0) and `fail` writes into.
+        pointer et
+        llvm.structCreateNamed(c, "error", et)
+        this.errorTy = et
+        pointer i32
+        llvm.int32TypeInContext(c, i32)
+        pointer p1 = this.types.ptrType()
+        pointer p2 = this.types.ptrType()
+        List<pointer> efields = new List<pointer>()
+        efields.add(i32)
+        efields.add(p1)
+        efields.add(p2)
+        this.cg.structSetBodyN(et, efields, false)
+
+        // %string = { i8* ptr, i64 size } — the string value type (a literal is a
+        // global byte array + a constant { ptr, len } of this type).
+        pointer st
+        llvm.structCreateNamed(c, "string", st)
+        this.stringTy = st
+        pointer sp = this.types.ptrType()
+        pointer i32s
+        llvm.int32TypeInContext(c, i32s)
+        List<pointer> sfields = new List<pointer>()
+        sfields.add(sp)
+        sfields.add(i32s)
+        this.cg.structSetBodyN(st, sfields, false)
+        this.types.setStringTy(st)
+
+        this.freeFn = 0
+        this.freeFnTy = 0
+    }
+
+    public void setCodeGenOpts(const CodeGenOptions o) { this.codeGenOpts = o }
+    // addLinkerOption — register a `-l` flag for the ToolChain link (deduplicated
+    // by the ";flag;" segment check). No-op when no options sink is wired.
+    public void addLinkerOption(const string flag) {
+        if this.codeGenOpts != null {
+            string cur = this.codeGenOpts.getLinkerOptions()
+            string probe = fly.str.concat(";", fly.str.concat(flag, ";"))
+            if fly.str.contains(cur, probe) == false {
+                this.codeGenOpts.addLinkerOption(flag)
+            }
+        }
+    }
+
+    public pointer getErrorTy() { out = this.errorTy }
+    public pointer getStringTy() { out = this.stringTy }
+
+    // setWeakComdat — attach a COMDAT (selection Any, name = `name`) to a weak
+    // (LinkOnceODR) definition. COFF has no weak definitions: lld-link dedups
+    // ONLY comdat sections, so a bare linkonce_odr is a plain external there
+    // and duplicates at link (the Windows stage-1 wall). Legal and harmless on
+    // ELF. Callers pass the symbol name they created the value with (reading it
+    // back via LLVMGetValueName2 needs a method-frame fromBytes string — the
+    // bootstrap double-frees those); a collision-renamed `.N` duplicate thus
+    // joins its base symbol's comdat group, which merges it all the same.
+    public void setWeakComdat(const pointer gv, const string name) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer c
+        llvm.getOrInsertComdat(this.module, name, c)
+        llvm.setComdat(gv, c)
+    }
+
+    // freeHandle — emit `free(objPtr)` (libc), lazily declaring `void @free(ptr)`.
+    // Used by Stage-7 scope-exit cleanup of owned heap class handles.
+    public void freeHandle(const pointer objPtr) {
+        LLVM llvm = this.cg.getLLVM()
+        if this.freeFn == 0 {
+            pointer voidTy
+            llvm.voidTypeInContext(this.ctx, voidTy)
+            List<pointer> ps = new List<pointer>()
+            pointer p = this.types.ptrType()
+            ps.add(p)
+            pointer fty
+            this.cg.functionTypeN(voidTy, ps, false, fty)
+            this.freeFnTy = fty
+            pointer f
+            llvm.addFunction(this.module, "free", fty, f)
+            this.freeFn = f
+        }
+        List<pointer> args = new List<pointer>()
+        args.add(objPtr)
+        pointer cv
+        this.cg.buildCallN(this.builder, this.freeFnTy, this.freeFn, args, "", cv)
+    }
+
+    public CodeGenLLVM getCg() { out = this.cg }
+    public CodeGenType getTypes() { out = this.types }
+    public pointer getCtx() { out = this.ctx }
+    public pointer getModule() { out = this.module }
+    public pointer getBuilder() { out = this.builder }
+
+    // generate — declarations first (class structs, free-function + method
+    // signatures, vtables) so any reference resolves, then all bodies. Methods come
+    // typed from each class's methodList (no downcast); free functions are the
+    // non-METHOD entries of getBodies() (methods are in bodies too).
+    public void generate(const Registry reg) {
+        List<SemaFunctionBase> bodies = reg.getBodies()
+        List<SemaClassType> classes = this.concreteClasses(reg)
+
+        // 0) interface dispatch bases (audit V4): the flat object model has ONE
+        // vtable per object, so an interface method must sit at the SAME index in
+        // every implementing class's vtable. Each interface gets a module-global
+        // slot region PAST every class's own method slots; buildVTable places the
+        // implementations there and interface-typed calls index by these bases.
+        int maxOwn = 0
+        int mc = 0
+        while mc < classes.size() {
+            List<SemaClassMethod> vms = CodeGenClass.vmethods(classes.get(mc))
+            if vms.size() > maxOwn { maxOwn = (int)vms.size() }
+            mc = mc + 1
+        }
+        List<SemaClassType> allCls = reg.getClasses()
+        int accBase = 1 + maxOwn
+        int ic = 0
+        while ic < allCls.size() {
+            SemaClassType icls = allCls.get(ic)
+            if icls.getClassKind() == SemaClassKind.INTERFACE {
+                this.ifaceBases.put(icls.getName(), accBase)
+                List<SemaClassMethod> ims = CodeGenClass.vmethods(icls)
+                accBase = accBase + (int)ims.size()
+            }
+            ic = ic + 1
+        }
+
+        // 1a) class struct types
+        int c = 0
+        while c < classes.size() {
+            CodeGenClass.declareStruct(this, classes.get(c))
+            c = c + 1
+        }
+        // 1b) free-function signatures. Generic TEMPLATES are skipped — only
+        // their monomorphized specializations (concrete signatures) are emitted.
+        int i = 0
+        while i < bodies.size() {
+            SemaFunctionBase fn = bodies.get(i)
+            if this.isMethod(fn) == false {
+                if this.hasTypeParamSignature(fn) == false { this.declareFunction(fn) }
+            }
+            i = i + 1
+        }
+        // 1c) method signatures (typed via methodList)
+        int cm = 0
+        while cm < classes.size() {
+            SemaClassType cls = classes.get(cm)
+            List<SemaClassMethod> ms = cls.getMethodList()
+            int mi = 0
+            while mi < ms.size() {
+                CodeGenClass.declareMethod(this, cls, ms.get(mi))
+                mi = mi + 1
+            }
+            cm = cm + 1
+        }
+        // 1d) vtables (need method fn handles). A header-origin class's vtable lives
+        // in the linked archive — skip its definition here (declarations only).
+        // STRUCTs have no vtable at all (reference ABI). SUITEs neither (reference
+        // EmitSuite parity): never instantiated, their methods are called directly
+        // by the test runner — and the init_ctor NAME (`<lastNsSeg>.<Class>.init_ctor`)
+        // would collide with LLVM's reserved intrinsic namespace for a suite living
+        // in a namespace ending in `.llvm` ("llvm intrinsics cannot be defined!").
+        int cv = 0
+        while cv < classes.size() {
+            SemaClassType cvc = classes.get(cv)
+            if cvc.isFromHeader() == false {
+                if cvc.getClassKind() != SemaClassKind.STRUCT {
+                    if cvc.getClassKind() != SemaClassKind.SUITE {
+                        CodeGenClass.buildVTable(this, cvc)
+                        // define <Id>.init_ctor so downstream header-class `new` can link it
+                        CodeGenClass.emitInitCtor(this, cvc)
+                    }
+                }
+            }
+            cv = cv + 1
+        }
+
+        // 2a) free-function bodies. Header-origin functions are external (defined in
+        // the linked archive) — declared above (1b) but not defined here. Generic
+        // TEMPLATES have TYPE_PARAM signatures and are never emitted.
+        int j = 0
+        while j < bodies.size() {
+            SemaFunctionBase fn2 = bodies.get(j)
+            if this.isMethod(fn2) == false && fn2.isFromHeader() == false {
+                if this.hasTypeParamSignature(fn2) == false { this.genBody(fn2) }
+            }
+            j = j + 1
+        }
+        // 2b) method bodies — skip header-origin classes (defined in the archive).
+        int cb = 0
+        while cb < classes.size() {
+            SemaClassType cls2 = classes.get(cb)
+            if cls2.isFromHeader() == false {
+                List<SemaClassMethod> ms2 = cls2.getMethodList()
+                int bi = 0
+                while bi < ms2.size() {
+                    CodeGenClass.genMethodBody(this, cls2, ms2.get(bi))
+                    bi = bi + 1
+                }
+            }
+            cb = cb + 1
+        }
+
+        // Entry-point emission — exactly ONE `@main` per module:
+        //   * SUITE(s) present → the implicit test runner (reference EmitSuite).
+        //     A `main` that discovery pulled in alongside (the driver suites pull
+        //     driver/lib/Driver.fly) stays an ordinary mangled function — wrapping
+        //     it would run the pulled program instead of the tests.
+        //   * otherwise a Fly `main` gets the C wrapper.
+        List<SemaClassType> suites = this.suiteClasses(classes)
+        SemaFunctionBase mainFn = this.findMain(bodies)
+        if suites.size() > 0 {
+            this.emitTestMain(suites)
+        } elsif mainFn != null {
+            this.emitMainWrapper(mainFn)
+        }
+    }
+
+    // suiteClasses — the SUITE classes this module defines (header-origin suites
+    // are archive-defined elsewhere and never get a runner here).
+    public List<SemaClassType> suiteClasses(const List<SemaClassType> classes) {
+        List<SemaClassType> result = new List<SemaClassType>()
+        int i = 0
+        while i < classes.size() {
+            SemaClassType cls = classes.get(i)
+            if cls.getClassKind() == SemaClassKind.SUITE {
+                if cls.isFromHeader() == false { result.add(cls) }
+            }
+            i = i + 1
+        }
+        out = result
+    }
+
+    // getTestCtxPtr — the thread-local `__fly_test_ctx_ptr` gate that inline
+    // `test {}` blocks null-check at run time (reference GetOrCreateTestCtxPtr).
+    // Always emitted as a LinkOnceODR DEFINITION (null initializer) so every
+    // object that references it can also stand alone — the linker merges the
+    // duplicates (the reference's declaration-only branch can leave the symbol
+    // undefined when a test{} block links without any suite).
+    public pointer getTestCtxPtr() {
+        LLVM llvm = this.cg.getLLVM()
+        pointer existing
+        llvm.getNamedGlobal(this.module, "__fly_test_ctx_ptr", existing)
+        if existing != 0 { out = existing  return }
+        pointer pty = this.types.ptrType()
+        pointer g
+        llvm.addGlobal(this.module, pty, "__fly_test_ctx_ptr", g)
+        llvm.setThreadLocal(g, true)
+        pointer nullP
+        llvm.constPointerNull(pty, nullP)
+        llvm.setInitializer(g, nullP)
+        llvm.setLinkage(g, 3)
+        this.setWeakComdat(g, "__fly_test_ctx_ptr")
+        out = g
+    }
+
+    // testCtxSentinel — the non-null `inttoptr(i64 1)` stored into the TLS gate
+    // while tests run (reference EmitSuite sentinel).
+    public pointer testCtxSentinel() {
+        LLVM llvm = this.cg.getLLVM()
+        pointer i64t
+        llvm.int64TypeInContext(this.ctx, i64t)
+        pointer one
+        llvm.constInt(i64t, 1, false, one)
+        pointer pty = this.types.ptrType()
+        pointer s
+        llvm.constIntToPtr(one, pty, s)
+        out = s
+    }
+
+    // emitTestMain — the implicit test entry for a SUITE compilation (reference
+    // EmitSuite): `i32 @main(i32 argc, ptr argv)` that, per suite, calls
+    // setup() → every *Test method (SOURCE order — the reference iterates its
+    // StringMap in hash order; source order is deterministic and intentional) →
+    // teardown(). Suite methods follow the normal method ABI
+    // `void (errPtr, this, params…)`: the shared zeroed %error is arg 0, `this`
+    // and any params are null (suites have no instance state). The TLS test gate
+    // holds the sentinel while the tests run. Always `ret 0`: the failure
+    // protocol is fly.assert's proc_exit(code) mid-run (reference parity).
+    // Divergences from the reference, both deliberate: argc/argv + env_init are
+    // forwarded like emitMainWrapper (suites may read fly.os.env), and MULTIPLE
+    // suites in one module share this single runner instead of colliding on a
+    // second @main definition.
+    public void emitTestMain(const List<SemaClassType> suites) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer i32
+        llvm.int32TypeInContext(this.ctx, i32)
+        pointer pty = this.types.ptrType()
+        List<pointer> mainParams = new List<pointer>()
+        mainParams.add(i32)                     // int argc
+        mainParams.add(pty)                     // char **argv
+        pointer wTy
+        this.cg.functionTypeN(i32, mainParams, false, wTy)
+        pointer w
+        llvm.addFunction(this.module, "main", wTy, w)
+        pointer entry
+        llvm.appendBasicBlockInContext(this.ctx, w, "entry", entry)
+        llvm.positionBuilderAtEnd(this.builder, entry)
+
+        // env_init(argc, argv) — as in emitMainWrapper
+        pointer voidTy
+        llvm.voidTypeInContext(this.ctx, voidTy)
+        List<pointer> eiParams = new List<pointer>()
+        eiParams.add(i32)
+        eiParams.add(pty)
+        pointer eiTy
+        this.cg.functionTypeN(voidTy, eiParams, false, eiTy)
+        pointer eiFn
+        llvm.addFunction(this.module, "env_init", eiTy, eiFn)
+        pointer argcV
+        llvm.getParam(w, 0, argcV)
+        pointer argvV
+        llvm.getParam(w, 1, argvV)
+        List<pointer> eiArgs = new List<pointer>()
+        eiArgs.add(argcV)
+        eiArgs.add(argvV)
+        pointer eiCall
+        this.cg.buildCallN(this.builder, eiTy, eiFn, eiArgs, "", eiCall)
+
+        // %error suite_err = { 0, null, null } — shared by setup/teardown/tests
+        // (each `case` swaps in its own fresh handler; see visit(SemaCaseStmt)).
+        pointer errSlot
+        llvm.buildAlloca(this.builder, this.errorTy, "suite_err", errSlot)
+        pointer codePtr
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 0, "ecode", codePtr)
+        pointer zero
+        llvm.constInt(i32, 0, true, zero)
+        llvm.buildStore(this.builder, zero, codePtr)
+        pointer nullP
+        llvm.constPointerNull(pty, nullP)
+        pointer strPtr0
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 1, "estr", strPtr0)
+        llvm.buildStore(this.builder, nullP, strPtr0)
+        pointer objPtr0
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 2, "eobj", objPtr0)
+        llvm.buildStore(this.builder, nullP, objPtr0)
+
+        // TLS gate: non-null sentinel while the tests run
+        pointer tls = this.getTestCtxPtr()
+        pointer sentinel = this.testCtxSentinel()
+        llvm.buildStore(this.builder, sentinel, tls)
+
+        int si = 0
+        while si < suites.size() {
+            SemaClassType sut = suites.get(si)   // `suite` is a keyword
+            // classify by name convention: setup / teardown / *Test (source order)
+            List<SemaClassMethod> ms = sut.getMethodList()
+            SemaClassMethod setupM = null
+            SemaClassMethod teardownM = null
+            List<SemaClassMethod> testMs = new List<SemaClassMethod>()
+            int mi = 0
+            while mi < ms.size() {
+                SemaClassMethod m = ms.get(mi)
+                string nm = m.getName()
+                if str.equals(nm, "setup") { setupM = m }
+                elsif str.equals(nm, "teardown") { teardownM = m }
+                elsif str.endsWith(nm, "Test") { testMs.add(m) }
+                mi = mi + 1
+            }
+
+            if setupM != null { this.emitSuiteMethodCall(setupM, errSlot, nullP) }
+            int ti = 0
+            while ti < testMs.size() {
+                this.emitSuiteMethodCall(testMs.get(ti), errSlot, nullP)
+                ti = ti + 1
+            }
+            if teardownM != null { this.emitSuiteMethodCall(teardownM, errSlot, nullP) }
+            si = si + 1
+        }
+
+        // clear the TLS gate, then exit clean — a failed assertion never gets here
+        llvm.buildStore(this.builder, nullP, tls)
+        pointer r0
+        llvm.buildRet(this.builder, zero, r0)
+    }
+
+    // emitSuiteMethodCall — `call m(errSlot, null this, null…)` (method ABI; the
+    // reference CallMethod passes the shared handler as arg 0 and null for the rest).
+    public void emitSuiteMethodCall(const SemaClassMethod m, const pointer errSlot, const pointer nullP) {
+        pointer fn = m.getLlvmFn()
+        pointer fnTy = m.getLlvmFnType()
+        if fn == 0 { return }
+        List<pointer> args = new List<pointer>()
+        args.add(errSlot)                       // errPtr
+        args.add(nullP)                         // this — never dereferenced
+        List<SemaParam> params = m.getParams()
+        int i = 0
+        while i < params.size() {
+            args.add(nullP)
+            i = i + 1
+        }
+        pointer cv
+        this.cg.buildCallN(this.builder, fnTy, fn, args, "", cv)
+    }
+
+    // isMethod — a body whose kind is METHOD (handled via its class, not as a free
+    // function). Avoids a SemaFunctionBase → SemaClassMethod downcast.
+    public bool isMethod(const SemaFunctionBase fn) {
+        out = fn.getKind() == SemaKind.METHOD
+    }
+
+    // hasTypeParamSignature — true for a generic TEMPLATE: some param or the
+    // return type is still an unbound TYPE_PARAM (a specialization has all
+    // concrete types). Kind-based — no SemaFunction downcast needed.
+    public bool hasTypeParamSignature(const SemaFunctionBase fn) {
+        List<SemaParam> ps = fn.getParams()
+        int i = 0
+        while i < ps.size() {
+            SemaParam p = ps.get(i)
+            SemaType t = p.getType()
+            if t != null {
+                if t.getKind() == SemaKind.TYPE_PARAM { out = true  return }
+            }
+            i = i + 1
+        }
+        SemaType rt = fn.getReturnType()
+        if rt != null {
+            if rt.getKind() == SemaKind.TYPE_PARAM { out = true  return }
+        }
+        out = false
+    }
+
+    // concreteClasses — the classes to codegen: a generic TEMPLATE (Wrapper<T>) emits
+    // no IR (its members reference the type param T); instead each of its concrete
+    // specializations (Wrapper<int>, …) is emitted. Specializations live on the
+    // template's specialization list, not in the registry.
+    public List<SemaClassType> concreteClasses(const Registry reg) {
+        List<SemaClassType> classes = reg.getClasses()
+        List<SemaClassType> result = new List<SemaClassType>()
+        int i = 0
+        while i < classes.size() {
+            SemaClassType cls = classes.get(i)
+            if cls.isGeneric() {
+                List<SemaClassType> specs = cls.getSpecializationList()
+                int s = 0
+                while s < specs.size() {
+                    result.add(specs.get(s))
+                    s = s + 1
+                }
+            } else {
+                result.add(cls)
+            }
+            i = i + 1
+        }
+        out = result
+    }
+
+    // findMain — the (first) top-level function named `main`.
+    public SemaFunctionBase findMain(const List<SemaFunctionBase> bodies) {
+        int i = 0
+        while i < bodies.size() {
+            SemaFunctionBase fn = bodies.get(i)
+            if str.equals(fn.getName(), "main") { out = fn  return }
+            i = i + 1
+        }
+        out = null
+    }
+
+    // emitMainWrapper — `i32 @main(i32 argc, ptr argv)` C entry: forwards
+    // argc/argv to the runtime's env_init (so fly.os.env args*/exePath work),
+    // allocas an error + out slot, calls the uniform Fly main and returns its int
+    // result (or 0 for void main). A real `%error` struct is alloca'd +
+    // zero-initialised and passed as the error pointer so `fail`/`handle` work.
+    public void emitMainWrapper(const SemaFunctionBase mainFn) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer i32
+        llvm.int32TypeInContext(this.ctx, i32)
+        pointer pty = this.types.ptrType()
+        List<pointer> mainParams = new List<pointer>()
+        mainParams.add(i32)                     // int argc
+        mainParams.add(pty)                     // char **argv
+        pointer wTy
+        this.cg.functionTypeN(i32, mainParams, false, wTy)
+        pointer w
+        llvm.addFunction(this.module, "main", wTy, w)
+        pointer entry
+        llvm.appendBasicBlockInContext(this.ctx, w, "entry", entry)
+        llvm.positionBuilderAtEnd(this.builder, entry)
+
+        // env_init(argc, argv) — the runtime stores them for fly.os.env* (audit V4)
+        pointer voidTy
+        llvm.voidTypeInContext(this.ctx, voidTy)
+        List<pointer> eiParams = new List<pointer>()
+        eiParams.add(i32)
+        eiParams.add(pty)
+        pointer eiTy
+        this.cg.functionTypeN(voidTy, eiParams, false, eiTy)
+        pointer eiFn
+        llvm.addFunction(this.module, "env_init", eiTy, eiFn)
+        pointer argcV
+        llvm.getParam(w, 0, argcV)
+        pointer argvV
+        llvm.getParam(w, 1, argvV)
+        List<pointer> eiArgs = new List<pointer>()
+        eiArgs.add(argcV)
+        eiArgs.add(argvV)
+        pointer eiCall
+        this.cg.buildCallN(this.builder, eiTy, eiFn, eiArgs, "", eiCall)
+
+        // %error err = { 0, null, null } — zero ALL three fields (reference parity)
+        pointer errSlot
+        llvm.buildAlloca(this.builder, this.errorTy, "err", errSlot)
+        pointer codePtr
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 0, "ecode", codePtr)
+        pointer zero
+        llvm.constInt(i32, 0, true, zero)
+        llvm.buildStore(this.builder, zero, codePtr)
+        pointer nullP
+        llvm.constPointerNull(pty, nullP)
+        pointer strPtr0
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 1, "estr", strPtr0)
+        llvm.buildStore(this.builder, nullP, strPtr0)
+        pointer objPtr0
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 2, "eobj", objPtr0)
+        llvm.buildStore(this.builder, nullP, objPtr0)
+
+        // --test with an EXPLICIT main: hold the TLS test gate open for the whole
+        // run so the program's inline `test {}` blocks execute (doc 10.2; the
+        // suite runner in emitTestMain does the same around its method calls).
+        bool inTestMode = false
+        if this.codeGenOpts != null { inTestMode = this.codeGenOpts.getTestMode() }
+        pointer tls = 0
+        if inTestMode {
+            tls = this.getTestCtxPtr()
+            pointer sentinel = this.testCtxSentinel()
+            llvm.buildStore(this.builder, sentinel, tls)
+        }
+
+        List<pointer> callArgs = new List<pointer>()
+        callArgs.add(errSlot)
+
+        SemaType rt = mainFn.getReturnType()
+        bool nonVoid = false
+        if rt != null { nonVoid = rt.isVoid() == false }
+        pointer outSlot = 0
+        if nonVoid {
+            pointer oty = this.types.lowerType(rt)
+            llvm.buildAlloca(this.builder, oty, "mret", outSlot)
+            callArgs.add(outSlot)
+        }
+
+        pointer fnTy = mainFn.getLlvmFnType()
+        pointer fnVal = mainFn.getLlvmFn()
+        pointer cv
+        this.cg.buildCallN(this.builder, fnTy, fnVal, callArgs, "", cv)
+
+        if inTestMode { llvm.buildStore(this.builder, nullP, tls) }
+
+        pointer retVal
+        if nonVoid {
+            pointer oty2 = this.types.lowerType(rt)
+            pointer loaded
+            llvm.buildLoad2(this.builder, oty2, outSlot, "mres", loaded)
+            // bring the Fly return to the C `int`: compare lowered WIDTHS, not
+            // ranks (int has rank 31 — a rank compare would emit an invalid
+            // same-width sext for the most common `int main`). bool (i1) and the
+            // unsigned families zext; signed sext; wider truncs.
+            retVal = loaded
+            if rt != null {
+                if rt.isBool() {
+                    llvm.buildZExt(this.builder, loaded, i32, "mext", retVal)
+                } elsif rt.isInteger() {
+                    int rk = rt.getRank()
+                    int w = rk
+                    if w % 2 == 1 { w = w + 1 }
+                    if w < 32 {
+                        if rk % 2 == 0 { llvm.buildZExt(this.builder, loaded, i32, "mext", retVal) }
+                        else { llvm.buildSExt(this.builder, loaded, i32, "mext", retVal) }
+                    } elsif w > 32 {
+                        llvm.buildTrunc(this.builder, loaded, i32, "mtr", retVal)
+                    }
+                }
+            }
+        } else {
+            llvm.constInt(i32, 0, true, retVal)
+        }
+        // exit code = error.code when main leaves an UNHANDLED failure behind
+        // (doc 9.7.6); otherwise the Fly return value (or 0 for void main).
+        pointer cp2
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 0, "ecode", cp2)
+        pointer codeV
+        llvm.buildLoad2(this.builder, i32, cp2, "mcode", codeV)
+        pointer isFail
+        llvm.buildICmp(this.builder, 33, codeV, zero, "mfail", isFail)   // NE
+        pointer errBB
+        llvm.appendBasicBlockInContext(this.ctx, w, "mainerr", errBB)
+        pointer okBB
+        llvm.appendBasicBlockInContext(this.ctx, w, "mainok", okBB)
+        pointer cb
+        llvm.buildCondBr(this.builder, isFail, errBB, okBB, cb)
+        llvm.positionBuilderAtEnd(this.builder, errBB)
+        pointer r1
+        llvm.buildRet(this.builder, codeV, r1)
+        llvm.positionBuilderAtEnd(this.builder, okBB)
+        pointer r2
+        llvm.buildRet(this.builder, retVal, r2)
+    }
+
+    // declareFunction — build the LLVM signature only (void return; hidden error
+    // ptr + one `ptr` per Fly param incl. the synthetic out). No body.
+    public void declareFunction(const SemaFunctionBase fn) {
+        LLVM llvm = this.cg.getLLVM()
+
+        pointer voidTy
+        llvm.voidTypeInContext(this.ctx, voidTy)
+
+        List<pointer> ptypes = new List<pointer>()
+        pointer errPtr = this.types.ptrType()
+        ptypes.add(errPtr)
+        List<SemaParam> params = fn.getParams()
+        int i = 0
+        while i < params.size() {
+            pointer pp = this.types.ptrType()
+            ptypes.add(pp)
+            i = i + 1
+        }
+
+        pointer fnTy
+        this.cg.functionTypeN(voidTy, ptypes, false, fnTy)
+        fn.setLlvmFnType(fnTy)
+
+        string name = this.mangle(fn)
+        pointer f
+        llvm.addFunction(this.module, name, fnTy, f)
+        fn.setLlvmFn(f)
+    }
+
+    // genBody — entry block + prologue (each Fly param's storage IS its pointer
+    // arg, at LLVM index i+1 since index 0 is the hidden error ptr) + the resolved
+    // body (via the CodeGenExpr visitor) + ret void.
+    public void genBody(const SemaFunctionBase fn) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer f = fn.getLlvmFn()
+
+        // A generic-function specialization (e.g. fly.llvm.slotSizeT<int>) can be emitted
+        // by MULTIPLE self-host objects (a user program AND fly_std_lib.a). Weak linkage
+        // (LinkOnceODR = 3) merges the duplicates instead of colliding at link time.
+        SemaFunction sfn = fn.asFunction()
+        if sfn != null {
+            if sfn.getGenericTemplate() != null {
+                llvm.setLinkage(f, 3)
+                this.setWeakComdat(f, this.mangle(fn))
+            }
+        }
+
+        pointer entry
+        llvm.appendBasicBlockInContext(this.ctx, f, "entry", entry)
+        llvm.positionBuilderAtEnd(this.builder, entry)
+
+        List<SemaParam> params = fn.getParams()
+        pointer ptrTy = this.types.ptrType()
+        int i = 0
+        while i < params.size() {
+            SemaParam pm = params.get(i)
+            pointer arg
+            llvm.getParam(f, i + 1, arg)
+            // A CONST CLASS/INTERFACE handle param is passed BY VALUE — `arg` IS the
+            // handle, not a pointer to it (reference ABI; see CodeGenCall). Bind it via a
+            // fresh local slot holding the handle (exactly how `this` is bound) so body
+            // loads read the handle, not *handle. STRUCTs (value aggregates) and every
+            // other param (non-pointer, or non-const by-reference) keep the incoming
+            // pointer as their storage — a load through it yields the value.
+            SemaType pty = pm.getType()
+            bool byValueHandle = false
+            if pm.isConstant() {
+                SemaClassType pcls = null
+                if pty != null { pcls = pty.asClass() }
+                if pcls != null {
+                    if pcls.getClassKind() != SemaClassKind.STRUCT { byValueHandle = true }
+                }
+            }
+            if byValueHandle {
+                pointer pslot
+                llvm.buildAlloca(this.builder, ptrTy, "pval", pslot)
+                llvm.buildStore(this.builder, arg, pslot)
+                pm.setLlvmAlloca(pslot)
+            } else {
+                pm.setLlvmAlloca(arg)
+            }
+            i = i + 1
+        }
+
+        CodeGenExpr cge = new CodeGenExpr(this)
+        cge.bindOutSlot(params)
+        pointer errParam
+        llvm.getParam(f, 0, errParam)
+        cge.setErrPtr(errParam)
+        // per-function `lasterr` slot backing the implicit `error` variable
+        pointer i32le
+        llvm.int32TypeInContext(this.ctx, i32le)
+        pointer leSlot
+        llvm.buildAlloca(this.builder, i32le, "lasterr", leSlot)
+        pointer leZero
+        llvm.constInt(i32le, 0, true, leZero)
+        llvm.buildStore(this.builder, leZero, leSlot)
+        cge.setLastErrPtr(leSlot)
+        SemaBlockStmt body = fn.getBody()
+        if body != null {
+            body.accept(cge)
+        }
+
+        // close the final block with ret void unless the body already terminated it
+        // (e.g. an explicit `return` as the last statement).
+        if cge.isTerminated() == false {
+            pointer ret
+            llvm.buildRetVoid(this.builder, ret)
+        }
+    }
+
+    // mangle — `_F<nslen><ns><namelen><name>(_<paramcode>)*` (the synthetic out is
+    // a param, so it is encoded too). Mirrors the reference scheme closely enough to
+    // be unique per overload; declareFunction and the call site both mangle the same
+    // node, so the symbol always matches. The Fly `main` is mangled like any other
+    // function — the real C entry is the separate `@main` wrapper.
+    public string mangle(const SemaFunctionBase fn) {
+        string nm = fn.getName()
+        string ns = fn.getNamespaceName()
+        // Build via fresh temps then reassign (never `r = concat(r, …)` in one
+        // statement — that self-reassignment corrupts the string). A non-empty
+        // namespace is `<len><ns>` exactly like the reference CodeGenHelper::Mangle, so
+        // a qualified std call resolves against the fly_std_lib.a symbol; the empty-ns
+        // case keeps the `0` length prefix (self-consistent; no archive symbol is
+        // namespace-less, so this never has to match the reference).
+        string r1 = str.concat("_F", str.convert(str.len(ns)))
+        string r2 = str.concat(r1, ns)
+        string r3 = str.concat(r2, str.convert(str.len(nm)))
+        string r = str.concat(r3, nm)
+        List<SemaParam> params = fn.getParams()
+        int i = 0
+        while i < params.size() {
+            string c = str.concat(r, this.mangleType(params.get(i).getType()))
+            r = c
+            i = i + 1
+        }
+        out = r
+    }
+
+    // mangleMethod — like mangle but EXCLUDES the trailing synthetic out param:
+    // the reference does not mangle it for class METHODS (archive symbol
+    // `FileWriter_F9fly_os_io5write_CBuf_ul` for `long write(Buf, ulong)`), while
+    // free functions DO carry it (`_F8fly_math3sin_d_d`).
+    public string mangleMethod(const SemaFunctionBase fn) {
+        string nm = fn.getName()
+        string ns = fn.getNamespaceName()
+        string r1 = str.concat("_F", str.convert(str.len(ns)))
+        string r2 = str.concat(r1, ns)
+        string r3 = str.concat(r2, str.convert(str.len(nm)))
+        string r = str.concat(r3, nm)
+        List<SemaParam> params = fn.getParams()
+        int n = (int)params.size()
+        SemaType rt = fn.getReturnType()
+        if rt != null {
+            if rt.isVoid() == false { n = n - 1 }
+        }
+        int i = 0
+        while i < n {
+            string c = str.concat(r, this.mangleType(params.get(i).getType()))
+            r = c
+            i = i + 1
+        }
+        out = r
+    }
+
+    // mangleType — parameter type code, 1:1 with the reference CodeGenHelper::Mangle
+    // (each code carries its own leading '_'): builtins map by name; a class is
+    // `_C<Name>`, an enum `_E<Name>`, an array `_A<elem>`.
+    public string mangleType(const SemaType t) {
+        if t == null { out = ""  return }
+        SemaKind k = t.getKind()
+        if k == SemaKind.TYPE_ARRAY {
+            SemaArrayType at = t.asArray()
+            out = str.concat("_A", this.mangleType(at.getElementType()))
+            return
+        }
+        if k == SemaKind.TYPE_ENUM  { out = str.concat("_E", t.getName())  return }
+        if k == SemaKind.TYPE_CLASS { out = str.concat("_C", t.getName())  return }
+        out = this.builtinCode(t.getName())
+    }
+
+    // builtinCode — the reference's MangleTypeMap (name → code, with leading '_').
+    public string builtinCode(const string n) {
+        if str.equals(n, "bool")    { out = "_b"   return }
+        if str.equals(n, "byte")    { out = "_y"   return }
+        if str.equals(n, "short")   { out = "_s"   return }
+        if str.equals(n, "ushort")  { out = "_us"  return }
+        if str.equals(n, "int")     { out = "_i"   return }
+        if str.equals(n, "uint")    { out = "_ui"  return }
+        if str.equals(n, "long")    { out = "_l"   return }
+        if str.equals(n, "ulong")   { out = "_ul"  return }
+        if str.equals(n, "pointer") { out = "_pz"  return }
+        if str.equals(n, "float")   { out = "_f"   return }
+        if str.equals(n, "double")  { out = "_d"   return }
+        if str.equals(n, "void")    { out = "_v"   return }
+        if str.equals(n, "string")  { out = "_Ss"  return }
+        if str.equals(n, "error")   { out = "_e"   return }
+        out = ""
+    }
+
+    // ifaceSlot — the module-global vtable slot of interface method `fn`:
+    // the interface's base region + the method's index within the interface.
+    public int ifaceSlot(const SemaClassType iface, const SemaFunctionBase fn) {
+        int base = 0
+        if this.ifaceBases.has(iface.getName()) { base = this.ifaceBases.get(iface.getName()) }
+        List<SemaClassMethod> ims = CodeGenClass.vmethods(iface)
+        // FULL-SIGNATURE index: name-only collapsed every visitor overload to
+        // slot 0 of the region
+        int idx = CodeGenClass.indexOfMethodSig(ims, fn)
+        if idx < 0 { idx = 0 }
+        out = base + idx
+    }
+
+    // ifaceBase — the slot base for an interface name (0 = unknown).
+    public int ifaceBase(const string name) {
+        if this.ifaceBases.has(name) { out = this.ifaceBases.get(name)  return }
+        out = 0
+    }
+
+    // emitMalloc — `call ptr @malloc(i64 size)` with a RUNTIME size value
+    // (buildMalloc is type-sized only). Declares malloc on first use.
+    public pointer emitMalloc(const pointer sizeV) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer mfn
+        llvm.getNamedFunction(this.module, "malloc", mfn)
+        pointer i64t
+        llvm.int64TypeInContext(this.ctx, i64t)
+        pointer pty = this.types.ptrType()
+        List<pointer> mp = new List<pointer>()
+        mp.add(i64t)
+        pointer mty
+        this.cg.functionTypeN(pty, mp, false, mty)
+        if mfn == 0 {
+            llvm.addFunction(this.module, "malloc", mty, mfn)
+        }
+        List<pointer> margs = new List<pointer>()
+        margs.add(sizeV)
+        pointer r
+        this.cg.buildCallN(this.builder, mty, mfn, margs, "hmal", r)
+        out = r
+    }
+
+    // emitMemcmp — `call i32 @memcmp(ptr, ptr, i64 size)`; declares memcmp on first
+    // use. Backs string equality lowering (compare bytes after the sizes match).
+    public pointer emitMemcmp(const pointer p1, const pointer p2, const pointer sizeV) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer mfn
+        llvm.getNamedFunction(this.module, "memcmp", mfn)
+        pointer i32t
+        llvm.int32TypeInContext(this.ctx, i32t)
+        pointer i64t
+        llvm.int64TypeInContext(this.ctx, i64t)
+        pointer pty = this.types.ptrType()
+        List<pointer> mp = new List<pointer>()
+        mp.add(pty)
+        mp.add(pty)
+        mp.add(i64t)
+        pointer mty
+        this.cg.functionTypeN(i32t, mp, false, mty)
+        if mfn == 0 {
+            llvm.addFunction(this.module, "memcmp", mty, mfn)
+        }
+        List<pointer> margs = new List<pointer>()
+        margs.add(p1)
+        margs.add(p2)
+        margs.add(sizeV)
+        pointer r
+        this.cg.buildCallN(this.builder, mty, mfn, margs, "memcmp", r)
+        out = r
+    }
+
+    // enumNamesTable — lazily create (or fetch) the per-enum constant global
+    // `[N+1 x %string]` of entry names: slot 0 is the undefined entry (""), each
+    // entry sits at its 1-based index. Backs `.name` on enum VARIABLES (a literal
+    // entry's .name folds to a constant instead) — mirrors the reference's
+    // CodeGenEnum names table.
+    public pointer enumNamesTable(const SemaEnumType en) {
+        LLVM llvm = this.cg.getLLVM()
+        string tname = fly.str.concat("enum.names.", en.getName())
+        pointer existing
+        llvm.getNamedGlobal(this.module, tname, existing)
+        if existing != 0 { out = existing  return }
+
+        pointer i32len
+        llvm.int32TypeInContext(this.ctx, i32len)
+        List<SemaNode> nodes = en.getNodes()
+        int n = (int)nodes.size()
+
+        // pre-fill every slot with the empty string, then place entries by index
+        List<pointer> vals = new List<pointer>()
+        int k = 0
+        while k <= n {
+            pointer eg = this.cg.globalString(this.module, this.ctx, "")
+            pointer el
+            llvm.constInt(i32len, 0, false, el)
+            List<pointer> ef = new List<pointer>()
+            ef.add(eg)
+            ef.add(el)
+            pointer es
+            this.cg.constNamedStructN(this.stringTy, ef, es)
+            vals.add(es)
+            k = k + 1
+        }
+        int i = 0
+        while i < n {
+            SemaNode nd = nodes.get(i)
+            SemaEnumEntry e = nd.asEnumEntry()
+            if e != null {
+                string nm = e.getName()
+                pointer g = this.cg.globalString(this.module, this.ctx, nm)
+                pointer lenC
+                llvm.constInt(i32len, fly.str.len(nm), false, lenC)
+                List<pointer> fs = new List<pointer>()
+                fs.add(g)
+                fs.add(lenC)
+                pointer sv
+                this.cg.constNamedStructN(this.stringTy, fs, sv)
+                int slot = (int)e.getIndex()
+                if slot >= 0 {
+                    if slot <= n { vals.set(slot, sv) }
+                }
+            }
+            i = i + 1
+        }
+        pointer init
+        this.cg.constArrayN(this.stringTy, vals, init)
+        pointer arrTy
+        llvm.arrayType(this.stringTy, n + 1, arrTy)
+        pointer g2
+        llvm.addGlobal(this.module, arrTy, tname, g2)
+        llvm.setInitializer(g2, init)
+        llvm.setGlobalConstant(g2, true)
+        out = g2
+    }
+
+    public void verify(bool ok) {
+        LLVM llvm = this.cg.getLLVM()
+        llvm.verifyModule(this.module, ok)
+    }
+
+    // verifyMsg — verify + LLVM's failure reason (empty when the module is valid).
+    // NOTE: safe to bind from a FREE-FUNCTION frame (the test suites' cgIR); the
+    // Frontend method frame cannot hold the returned string without tripping a
+    // bootstrap double-free on scope exit, so the driver path still reports the
+    // generic message only (see Frontend.execute).
+    public string verifyMsg(bool ok) {
+        LLVM llvm = this.cg.getLLVM()
+        string m = llvm.verifyModuleMsg(this.module, ok)
+        out = m
+    }
+
+    public void emitIR(const string filename) {
+        LLVM llvm = this.cg.getLLVM()
+        llvm.printModuleToFile(this.module, filename)
+    }
+
+    // emitIRChecked — emitIR + the write result (false = file could not be written).
+    public bool emitIRChecked(const string filename) {
+        LLVM llvm = this.cg.getLLVM()
+        bool ok = false
+        llvm.printModuleToFileChecked(this.module, filename, ok)
+        out = ok
+    }
+
+    // configureTarget — stamp the LLVM module with the target triple + data layout
+    // from `ti` (mirrors fly/compiler/CodeGen/CodeGenModule.cpp setTargetTriple /
+    // setDataLayout). After this the emitted .ll carries `target triple` and
+    // `target datalayout` lines; before, the module had neither.
+    public void configureTarget(const TargetInfo ti) {
+        LLVM llvm = this.cg.getLLVM()
+        llvm.setTarget(this.module, ti.getTripleStr())
+        llvm.setDataLayout(this.module, ti.getDataLayout())
+        // Make pointer lowering follow this target's pointer width.
+        this.types.setTargetInfo(ti)
+    }
+
+    // emitObjectOrAsm — emit `this.module` to `filename` as an object (fileType 1)
+    // or assembly (fileType 0) via an LLVM TargetMachine. Mirrors the reference
+    // compiler's BackendUtil path: look up the target, build a TargetMachine,
+    // override the module data layout with the machine's exact layout, then emit.
+    // Sets `ok` = true on success. Requires the X86 backend to be registered.
+    public void emitObjectOrAsm(const TargetInfo ti, const string filename, const int fileType, bool ok) {
+        LLVM llvm = this.cg.getLLVM()
+
+        // Register the backend for the requested arch (dispatch on the triple).
+        Triple tr = ti.getTriple()
+        initTargetForArch(llvm, tr.getArch())
+
+        string triple = ti.getTripleStr()
+
+        // Look up the LLVMTargetRef for the triple (out-pointer + status).
+        pointer target = 0
+        bool tok = false
+        llvm.getTargetFromTriple(triple, target, tok)
+        if target == 0 {
+            ok = false
+            return
+        }
+
+        // LLVMCodeGenLevelDefault=2, LLVMRelocPIC=2, LLVMCodeModelDefault=0.
+        pointer tm = 0
+        llvm.createTargetMachine(target, triple, "", "", 2, 2, 0, tm)
+        if tm == 0 {
+            ok = false
+            return
+        }
+
+        // Use the machine's exact data layout (matches the reference compiler).
+        pointer dl = 0
+        llvm.createTargetDataLayout(tm, dl)
+        llvm.setModuleDataLayout(this.module, dl)
+
+        // Emit. targetMachineEmitToFile returns the raw LLVMBool (true = FAILURE).
+        bool emitFail = false
+        llvm.targetMachineEmitToFile(tm, this.module, filename, fileType, emitFail)
+        llvm.disposeTargetMachine(tm)
+        ok = emitFail == false
+    }
+}

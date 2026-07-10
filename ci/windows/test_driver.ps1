@@ -1,35 +1,26 @@
 # -----------------------------------------------------------------------------
-# test_compiler.ps1 - run every compiler/test/**/*Suite.fly (Windows).
-# PowerShell port of test_compiler.sh.
+# test_driver.ps1 - run every driver/test/**/*Suite.fly (the driver + package
+# manager unit suites: CLI parsing, Manifest/toml, lockfile, semver/MVS resolver,
+# registry, ToolChain, cache/checksum/json). PowerShell port of test_driver.sh.
 #
-# Single-file build: each suite is the entry; source discovery is implicit (a fly
-# project compiles from the CURRENT directory - the repo root here), pulling only
-# what the import graph references (std stays archive-linked via the -L pass).
-# `--test` builds in test mode; `--out-dir` sends the executable and its
-# intermediate objects into $OUT; the resulting executable is then run.
+# Single-file build: each suite is the entry; source discovery is implicit (the
+# import graph pulls fly.driver.* AND fly.compiler.* source into one module while
+# std namespaces stay archive-linked via the -L pass). `--test` builds in test
+# mode; the executable is then run.
 #
-# Scope: ONLY compiler/test. Driver, std and runtime suites run in their own
-# scripts (test_driver.ps1 / test_std.ps1 / test_runtime.ps1), mirroring Linux.
+# Scope: ONLY driver/test. Compiler, std and runtime suites run in their own
+# scripts, mirroring Linux.
 # -----------------------------------------------------------------------------
-
-# Keep $LASTEXITCODE the sole arbiter of pass/fail (like bash `if ! "$FLY"`):
-# don't let a native command's stderr or non-zero exit raise a terminating error
-# that would abort the loop before the summary.
 $ErrorActionPreference = 'Continue'
 $PSNativeCommandUseErrorActionPreference = $false
-
-# Scripts live in ci\windows\; operate from the project root (two levels up).
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
 
-# Scratch for per-suite test binaries/logs; under build/ but separate from
-# the stage dirs so it doesn't sit next to the release artifact.
 $OUT = "build/test"
 $STD = "std/lib"
 New-Item -ItemType Directory -Force $OUT | Out-Null
 
-# CodeGen/target suites emit IR/objects to /tmp/cg and read them back. On native
-# Windows a leading-`/` path resolves to the current drive root, so
-# /tmp/cg => <drive>:\tmp\cg. Create it up front.
+# CodeGen/target paths (pulled transitively via fly.compiler.*) may emit IR to
+# /tmp/cg => <drive>:\tmp\cg on Windows. Create it up front.
 New-Item -ItemType Directory -Force "$($PWD.Drive.Root)tmp\cg" | Out-Null
 
 # Compiler under test: $FLY (default: the stage2 self-host fly - the artifact
@@ -53,7 +44,7 @@ $FLY = (Resolve-Path $FLY).Path
 
 $pass = 0
 $fail = 0
-$suites = Get-ChildItem -Recurse -Filter *Suite.fly compiler/test | Sort-Object FullName
+$suites = Get-ChildItem -Recurse -Filter *Suite.fly driver/test | Sort-Object FullName
 foreach ($suite in $suites) {
     $name = $suite.BaseName
     $bin = "$OUT/test_$name.exe"
@@ -63,8 +54,6 @@ foreach ($suite in $suites) {
     & $FLY $suite.FullName --test -o "test_$name" --out-dir $OUT -L $STD *> $log
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  COMPILE FAIL  $name (exit $LASTEXITCODE)"
-        # Match real diagnostics (`error:`), not the substring "error" inside
-        # warnings like 'errorHandler'. If nothing matches, show the log tail.
         $hits = Select-String -Path $log -Pattern 'error:|broken|abort' | Select-Object -First 3
         if ($hits) { $hits | ForEach-Object { "      $($_.Line)" } }
         else { Get-Content -Tail 3 $log | ForEach-Object { "      $_" } }

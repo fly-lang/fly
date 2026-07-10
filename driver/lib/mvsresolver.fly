@@ -1,0 +1,277 @@
+namespace fly.driver
+
+import fly.data.List
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MVSResolver — Minimal Version Selection over the dependency graph.
+// Port of fly/tools/flyp/resolver/{MVSResolver,DependencyGraph}.{h,cpp}.
+//
+// The C++ `FetchManifestFn` std::function callback becomes an abstract
+// ManifestFetcher class with a virtual fetch(name, dep) → Manifest (null = not
+// found); test mocks subclass it. std::map<name,…> → ordered Lists with linear
+// lookup (small graphs). SemVer/semverParse come from semver.fly (same namespace).
+//
+// NB: everything is a METHOD, never a free function returning a class with an
+// out-param — that pattern crashes the reference when toml.fly is pulled in too.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// A single dependency constraint seen by the resolver.
+public class Constraint {
+    string name
+    string requirer
+    fly.driver.GitDep dep
+    SemVer semver
+
+    public Constraint(const string n, const string req, const fly.driver.GitDep d, const SemVer sv) {
+        this.name = n
+        this.requirer = req
+        this.dep = d
+        this.semver = sv
+    }
+    public string getName()     { out = this.name }
+    public string getRequirer() { out = this.requirer }
+    public fly.driver.GitDep getDep() { out = this.dep }
+    public SemVer getSemver()   { out = this.semver }
+}
+
+// A resolved package (final selection).
+public class ResolvedPackage {
+    string name
+    string version
+    string gitUrl
+    int refKind
+    string refValue
+
+    public ResolvedPackage(const string n, const string v, const string url, const int rk, const string rv) {
+        this.name = n
+        this.version = v
+        this.gitUrl = url
+        this.refKind = rk
+        this.refValue = rv
+    }
+    public string getName()    { out = this.name }
+    public string getVersion() { out = this.version }
+    public string getGitUrl()  { out = this.gitUrl }
+    public int getRefKind()    { out = this.refKind }
+    public string getRefValue() { out = this.refValue }
+}
+
+// A resolution error. isConflict = E001 (conflicting URLs / refs).
+public class ResolveError {
+    bool isConflict
+    string package
+
+    public ResolveError(const bool conflict, const string pkg) {
+        this.isConflict = conflict
+        this.package = pkg
+    }
+    public bool getIsConflict() { out = this.isConflict }
+    public string getPackage()  { out = this.package }
+}
+
+// One constraint group: all constraints recorded for a package name.
+public class ConstraintGroup {
+    string name
+    List<Constraint> constraints
+    public ConstraintGroup(const string n) { this.name = n  this.constraints = new List<Constraint>() }
+    public string getName() { out = this.name }
+    public void add(const Constraint c) { this.constraints.add(c) }
+    public int count() { out = (int)this.constraints.size() }
+    public Constraint at(const int i) { out = this.constraints.get(i) }
+}
+
+// A BFS queue entry.
+public class QueueEntry {
+    string name
+    fly.driver.GitDep dep
+    string requirer
+    string reqVer
+    public QueueEntry(const string n, const fly.driver.GitDep d, const string req, const string rv) {
+        this.name = n
+        this.dep = d
+        this.requirer = req
+        this.reqVer = rv
+    }
+    public string getName() { out = this.name }
+    public fly.driver.GitDep getDep() { out = this.dep }
+    public string getRequirer() { out = this.requirer }
+    public string getReqVer() { out = this.reqVer }
+}
+
+// ── ManifestFetcher — the fetch callback as a virtual interface ───────────────
+// Subclass and override fetch to return a package's manifest (null = not found).
+public class ManifestFetcher {
+    public ManifestFetcher() { }
+    public fly.driver.Manifest fetch(const string name, const fly.driver.GitDep dep) {
+        out = null
+    }
+}
+
+// ── MVSResolver ───────────────────────────────────────────────────────────────
+public class MVSResolver {
+    bool includeDev
+    List<ResolveError> errors
+    List<ConstraintGroup> groups     // per-package constraint lists (ordered)
+    List<string> visited
+    List<QueueEntry> queue
+
+    public MVSResolver(const bool dev) {
+        this.includeDev = dev
+        this.errors = new List<ResolveError>()
+        this.groups = new List<ConstraintGroup>()
+        this.visited = new List<string>()
+        this.queue = new List<QueueEntry>()
+    }
+
+    public int errorCount()              { out = (int)this.errors.size() }
+    public bool errorsEmpty()            { out = this.errors.size() == 0 }
+    public ResolveError errorAt(const int i) { out = this.errors.get(i) }
+
+    // groupFor — find or create the constraint group for a package name.
+    public ConstraintGroup groupFor(const string name) {
+        int i = 0
+        while i < this.groups.size() {
+            ConstraintGroup g = this.groups.get(i)
+            if fly.str.equals(g.getName(), name) { out = g  return }
+            i = i + 1
+        }
+        ConstraintGroup ng = new ConstraintGroup(name)
+        this.groups.add(ng)
+        out = ng
+    }
+
+    public bool isVisited(const string name) {
+        int i = 0
+        while i < this.visited.size() {
+            if fly.str.equals(this.visited.get(i), name) { out = true  return }
+            i = i + 1
+        }
+        out = false
+    }
+
+    // enqueue — record a constraint + edge; queue the package if new.
+    public void enqueue(const string pkgName, const fly.driver.GitDep dep, const string requirer, const string reqVer) {
+        SemVer sv = new SemVer(0, 0, 0)
+        if dep.getRefKind() == 0 {                         // Tag → parse semver
+            sv = semverParse(dep.getRefValue())
+        }
+        Constraint c = new Constraint(pkgName, requirer, dep, sv)
+        ConstraintGroup g = this.groupFor(pkgName)
+        g.add(c)
+        if this.isVisited(pkgName) == false {
+            this.visited.add(pkgName)
+            this.queue.add(new QueueEntry(pkgName, dep, requirer, reqVer))
+        }
+    }
+
+    // select — pick the constraint to resolve for a package (max semver among
+    // tags; branch/rev must agree; differing URLs → E001). null on conflict.
+    public Constraint select(const string name, const ConstraintGroup grp) {
+        int n = grp.count()
+        if n == 0 { out = null  return }
+
+        string url = grp.at(0).getDep().getGitUrl()
+        int i = 0
+        while i < n {
+            if fly.str.equals(grp.at(i).getDep().getGitUrl(), url) == false {
+                this.errors.add(new ResolveError(true, name))
+                out = null
+                return
+            }
+            i = i + 1
+        }
+
+        Constraint best = null
+        int j = 0
+        while j < n {
+            Constraint c = grp.at(j)
+            if c.getDep().getRefKind() == 0 {              // Tag
+                if best == null { best = c }
+                elsif c.getSemver().gt(best.getSemver()) { best = c }
+            } else {
+                // branch/rev: must agree with an existing non-tag best
+                if best != null {
+                    bool bestIsTag = best.getDep().getRefKind() == 0
+                    bool sameVal = fly.str.equals(best.getDep().getRefValue(), c.getDep().getRefValue())
+                    if bestIsTag == false && sameVal == false {
+                        this.errors.add(new ResolveError(true, name))
+                        out = null
+                        return
+                    }
+                }
+                if best == null { best = c }
+            }
+            j = j + 1
+        }
+        out = best
+    }
+
+    // resolve — run MVS from a root manifest using `fetcher`. Returns the list of
+    // resolved packages (empty when a conflict was recorded).
+    public List<ResolvedPackage> resolve(const fly.driver.Manifest root, const ManifestFetcher fetcher) {
+        // seed from root deps (+ dev deps when includeDev)
+        int di = 0
+        while di < root.depCount() {
+            fly.driver.DepEntry e = root.depAt(di)
+            this.enqueue(e.getName(), e.getDep(), "root", root.getVersion())
+            di = di + 1
+        }
+        if this.includeDev {
+            int dj = 0
+            while dj < root.devDepCount() {
+                fly.driver.DepEntry e = root.devDepAt(dj)
+                this.enqueue(e.getName(), e.getDep(), "root", root.getVersion())
+                dj = dj + 1
+            }
+        }
+
+        // BFS over the queue
+        int head = 0
+        while head < this.queue.size() {
+            QueueEntry entry = this.queue.get(head)
+            head = head + 1
+            fly.driver.Manifest child = fetcher.fetch(entry.getName(), entry.getDep())
+            if child != null {
+                int ci = 0
+                while ci < child.depCount() {
+                    fly.driver.DepEntry ce = child.depAt(ci)
+                    this.enqueue(ce.getName(), ce.getDep(), entry.getName(), child.getVersion())
+                    ci = ci + 1
+                }
+            }
+        }
+
+        List<ResolvedPackage> resolved = new List<ResolvedPackage>()
+        if this.errors.size() != 0 { out = resolved  return }
+
+        int gi = 0
+        while gi < this.groups.size() {
+            ConstraintGroup g = this.groups.get(gi)
+            Constraint sel = this.select(g.getName(), g)
+            if sel != null {
+                fly.driver.GitDep d = sel.getDep()
+                resolved.add(new ResolvedPackage(g.getName(), sel.getSemver().str(),
+                                                 d.getGitUrl(), d.getRefKind(), d.getRefValue()))
+            }
+            gi = gi + 1
+        }
+        if this.errors.size() != 0 {
+            List<ResolvedPackage> empty = new List<ResolvedPackage>()
+            out = empty
+            return
+        }
+        out = resolved
+    }
+
+    // find a resolved package by name in a result list (test convenience).
+    public ResolvedPackage findResolved(const List<ResolvedPackage> res, const string name) {
+        int i = 0
+        while i < res.size() {
+            ResolvedPackage r = res.get(i)
+            if fly.str.equals(r.getName(), name) { out = r  return }
+            i = i + 1
+        }
+        out = null
+    }
+}

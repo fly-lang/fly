@@ -10,11 +10,8 @@ on:
   workflow_dispatch:
 
 env:
-  # Bootstrap compiler release. Must ship the ptrsize→pointer rename: the
-  # bootstrap's BAKED std shadows -L, and 0.13.7's CLang.call overloads still
-  # take fly.mem.Ptr — every `lib.call(…, pointerOut)` in LLVMApi.fly is then
-  # ambiguous and the whole tree fails to compile. 0.13.8 must be cut from the
-  # current fly/ reference (which also carries the header-gen and codegen fixes).
+  # stage0 bootstrap release (compiles the stage-1 world; see the stage map
+  # below). 0.13.8 is cut from the current fly/ reference.
   FLY_VERSION: "0.13.8"
 
 jobs:
@@ -26,9 +23,9 @@ jobs:
       - uses: actions/checkout@v4
 
       # Put the MSVC toolchain + Windows SDK on LIB/INCLUDE/PATH for the whole job.
-      # The self-contained build (FLY_BUNDLE_LLVM=1) links a bundled fly-lld.exe with
-      # clang++, which then needs the SDK import libs (psapi.lib, ws2_32.lib, …) that
-      # a plain pwsh shell does not expose. amd64 matches the x86_64 target.
+      # The bootstrap links fly.exe in-process (lld::coff::link) and needs the SDK
+      # import libs (kernel32.lib, ws2_32.lib, …) on %LIB%, which a plain pwsh shell
+      # does not expose. amd64 matches the x86_64 target.
       - name: Set up MSVC developer environment
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -37,48 +34,83 @@ jobs:
       # The released fly.exe statically embeds LLVM + LLD (it links in-process via
       # lld::coff::link), so no external lld-link/clang is needed. What IS needed
       # is an LLVM import lib + runtime DLL for the program fly builds, because the
-      # self-host compiler calls the LLVM C API. We only need two files from the
-      # ~900 MB LLVM artifact: LLVM-C.lib (the link import lib) and LLVM-C.dll
-      # (loaded at runtime); cache them across runs keyed on the LLVM version.
+      # self-host compiler calls the LLVM C API. We only need three files from the
+      # ~900 MB LLVM artifact: LLVM-C.lib (link import lib), LLVM-C.dll (loaded at
+      # runtime) and lld-link.exe (the bundled COFF linker); cache them across runs
+      # keyed on the LLVM version.
       - name: Cache LLVM (fly-lang build)
         id: llvm-cache
         uses: actions/cache@v4
         with:
           path: build/llvm
-          # Version pin lives in ci/windows/install_prerequisites.ps1 ($LLVM_VERSION);
-          # keep this key in sync when bumping it so a new LLVM invalidates the cache.
+          # Version pin lives in ci/windows/stage0.ps1 ($LLVM_VERSION); keep this
+          # key in sync when bumping it so a new LLVM invalidates the cache.
           key: fly-llvm-20.1.8-win-x64
 
-      # Fetch + configure LLVM (link lib + runtime DLL, aliased to LLVM-20.lib on
-      # LIB/PATH) and the bootstrap fly compiler ($FLY / PATH). Single source of
-      # truth shared with local builds: it self-skips the LLVM download when the
-      # cached files are present and wires up the env via $GITHUB_ENV/$GITHUB_PATH
-      # in CI. Run it locally to reproduce this.
-      - name: Install prerequisites (LLVM + fly)
-        # FLY_BUNDLE_LLVM=1 also pulls the LLVM static dev tree so the build can link
-        # a bundled fly-lld.exe (self-contained toolchain — see build_compiler.ps1).
+      # ── Rust-style staged bootstrap (see ci/windows/stage1.ps1; mirrors the
+      #    Linux pipeline in ci/linux/) ─────────────────────────────────────────
+      # stage0  ci/windows/stage0.ps1: the downloaded 0.13.8 bootstrap compiler +
+      #         its precompiled lib → build\stage0, and the fork LLVM pieces
+      #         (LLVM-C.lib/.dll + lld-link.exe) → build\llvm. No package manager.
+      # stage1  ci/windows/stage1.ps1: stage0 builds runtime(seed), std, compiler
+      #         and driver FROM IN-TREE SOURCES and links the first fly.exe, all
+      #         into build\stage1 (build-only). The std ships from this stage
+      #         (reference class ABI).
+      # stage2  ci/windows/stage2.ps1: build\stage1\bin\fly.exe rebuilds the
+      #         driver into the SHIPPED build\stage2 (the self-hosting fixpoint
+      #         check). The compiler lib stays stage0-built, like Rust's
+      #         beta-built rustc. While the self-host Windows link path is being
+      #         validated in CI, a stage-2 failure falls back to shipping the
+      #         stage1 artifacts (warning in the log) — the artifact layout is
+      #         always complete.
+      # FLY_BUNDLE_LLVM=1 ships a self-contained toolchain: LLVM-C.dll + the
+      # fork's lld-link.exe next to fly.exe (the loader searches the exe dir —
+      # no rpath on Windows).
+
+      - name: Stage 0 (bootstrap fly + fork LLVM)
         env:
           FLY_BUNDLE_LLVM: "1"
         shell: pwsh
-        run: .\ci\windows\install_prerequisites.ps1
+        run: .\ci\windows\stage0.ps1
 
-      - name: Build self-host compiler
-        # FLY_BUNDLE_LLVM=1 ships a self-contained toolchain: LLVM-C.dll copied next to
-        # fly.exe (loader finds it in the exe dir — no rpath needed) + a bundled
-        # fly-lld.exe, so the release needs neither system LLVM nor a system linker.
+      - name: Stage 1 (bootstrap builds the self-host)
+        shell: pwsh
         env:
           FLY_BUNDLE_LLVM: "1"
-        shell: pwsh
-        run: .\ci\windows\build_compiler.ps1
+        run: .\ci\windows\stage1.ps1
 
+      - name: Stage 2 (self-host rebuilds the shipped artifacts)
+        shell: pwsh
+        env:
+          FLY_BUNDLE_LLVM: "1"
+        run: .\ci\windows\stage2.ps1
+
+      # ── Tests, after stage 2: everything compiles and runs with
+      #    build\stage2\bin\fly.exe (mirrors Linux; the --test system is ported
+      #    to the self-host). The FLY defaults live in the test scripts.
+      # Non-blocking: a subset of codegen suites is non-deterministically unstable
+      # on the x86_64-pc-windows-msvc target (a bootstrap-compiler bug, not the
+      # scripts). The build artifact is still produced/uploaded and the full suite
+      # results show in the log. Make strict again once stable.
       - name: Test self-host compiler
-        # Non-blocking: a subset of codegen suites is non-deterministically
-        # unstable on the x86_64-pc-windows-msvc target (a bootstrap-compiler bug,
-        # not the scripts). The build artifact is still produced/uploaded and the
-        # full suite results show in the log. Make strict again once stable.
         continue-on-error: true
         shell: pwsh
         run: .\ci\windows\test_compiler.ps1
+
+      - name: Test driver
+        continue-on-error: true
+        shell: pwsh
+        run: .\ci\windows\test_driver.ps1
+
+      - name: Test runtime
+        continue-on-error: true
+        shell: pwsh
+        run: .\ci\windows\test_runtime.ps1
+
+      - name: Test std
+        continue-on-error: true
+        shell: pwsh
+        run: .\ci\windows\test_std.ps1
 
       - name: Set artifact name
         id: artifact
@@ -90,10 +122,10 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact.outputs.artifact_name }}
-          # Both dirs: the artifact root is their common ancestor (build/), so it
-          # preserves the bin/ + lib/ layout the release archive needs.
+          # Both dirs: the artifact root is their common ancestor (build/stage2),
+          # so it preserves the bin/ + lib/ layout the release archive needs.
           path: |
-            build/bin
-            build/lib
+            build/stage2/bin
+            build/stage2/lib
           if-no-files-found: error
           overwrite: true

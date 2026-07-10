@@ -1,0 +1,102 @@
+namespace fly.compiler.codegen.test.coerce
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+import fly.test.util.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenCoerceSuite — numeric operand coercion (audit findings B1/B2/B3).
+// The resolver computes promoted RESULT types but inserts no operand casts, so
+// codegen must equalise widths itself (CodeGenExpr.coerce). Regressions covered:
+//   B1  decl-init: `long x = 0` stored i32 into an i64 alloca (upper half garbage)
+//   B2  binops:    `x - 1` / `x > 3` on long emitted mixed i64/i32 → verify failed
+//   B3  compares:  always-signed predicates for pointer/uint/ulong
+// Every case also runs module verification (cgIR asserts it), which is what
+// caught B2 in the wild.
+// ─────────────────────────────────────────────────────────────────────────────
+
+
+
+suite CodeGenCoerceSuite {
+
+    void declInitTest() {
+        case "B1: int literal into a long decl stores all 8 bytes": {
+            string ir = cgIR("long f() { long x = 0  out = x }")
+            assert.assertTrue(fly.str.contains(ir, "store i64 0"), 11)
+            assert.assertFalse(fly.str.contains(ir, "store i32 0, ptr %lv"), 12)
+        }
+        case "B1: int literal into a double decl converts to fp": {
+            string ir = cgIR("double f() { double d = 1  out = d }")
+            assert.assertTrue(fly.str.contains(ir, "store double"), 13)
+        }
+    }
+
+    void binopTest() {
+        case "B2: long - intLiteral emits a pure i64 sub (module verifies)": {
+            string ir = cgIR("long f(const long a) { out = a - 1 }")
+            assert.assertTrue(fly.str.contains(ir, "sub i64"), 21)
+        }
+        case "B2: long > intLiteral emits a pure i64 icmp": {
+            string ir = cgIR("bool f(const long a) { bool r = false  if a > 3 { r = true }  out = r }")
+            assert.assertTrue(fly.str.contains(ir, "icmp sgt i64"), 22)
+        }
+        case "int + long promotes the int operand (sext) to i64": {
+            string ir = cgIR("long f(const int a, const long b) { out = a + b }")
+            assert.assertTrue(fly.str.contains(ir, "sext i32"), 23)
+            assert.assertTrue(fly.str.contains(ir, "add i64"), 24)
+        }
+        case "int + double converts the int side (sitofp) to fp": {
+            string ir = cgIR("double f(const int a, const double b) { out = a + b }")
+            assert.assertTrue(fly.str.contains(ir, "sitofp"), 25)
+            assert.assertTrue(fly.str.contains(ir, "fadd double"), 26)
+        }
+    }
+
+    void signednessTest() {
+        case "B3: pointer relational compare is unsigned": {
+            string ir = cgIR("bool f(const pointer a, const pointer b) { bool r = false  if a > b { r = true }  out = r }")
+            assert.assertTrue(fly.str.contains(ir, "icmp ugt"), 31)
+        }
+        case "B3: uint relational compare is unsigned, int stays signed": {
+            string ir = cgIR("
+                bool f(const uint a, const uint b, const int c, const int d) { bool r = false
+                    if a < b { r = true }
+                    if c < d { r = false }
+                    out = r
+                }
+            ")
+            assert.assertTrue(fly.str.contains(ir, "icmp ult i32"), 32)
+            assert.assertTrue(fly.str.contains(ir, "icmp slt i32"), 33)
+        }
+        case "division/remainder follow signedness (udiv/urem vs sdiv/srem)": {
+            string ir = cgIR("ulong f(const ulong a, const ulong b) { out = a / b + a % b }")
+            assert.assertTrue(fly.str.contains(ir, "udiv i64"), 34)
+            assert.assertTrue(fly.str.contains(ir, "urem i64"), 35)
+            string ir2 = cgIR("int g(const int a, const int b) { out = a / b + a % b }")
+            assert.assertTrue(fly.str.contains(ir2, "sdiv i32"), 36)
+            assert.assertTrue(fly.str.contains(ir2, "srem i32"), 37)
+        }
+    }
+
+    void assignAndCallTest() {
+        case "assignment widens the RHS to the assignee's width": {
+            string ir = cgIR("long f(const int a) { long x = 5  x = a  out = x }")
+            assert.assertTrue(fly.str.contains(ir, "sext i32"), 41)
+        }
+        case "int arg widens to a long param at the call site": {
+            string ir = cgIR("long callee(const long v) { out = v }  long caller() { out = callee(7) }")
+            assert.assertTrue(fly.str.contains(ir, "store i64"), 42)
+        }
+        case "switch on a long coerces its int case labels to i64": {
+            string ir = cgIR("int f(const long k) { int r = 0  switch k { case 1: r = 10  default: r = 99 }  out = r }")
+            assert.assertTrue(fly.str.contains(ir, "switch i64"), 43)
+        }
+    }
+}

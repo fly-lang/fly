@@ -1,0 +1,40 @@
+namespace fly.compiler.codegen.test.generics
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+import fly.test.util.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenGenericsSuite — generics: a generic TEMPLATE emits no IR; each concrete
+// specialization is emitted with a mangled name (Wrapper<int> → %.Wrapper_int,
+// @Wrapper_int__…). No direct C++ analog in fly/test/CodeGen (generics codegen is
+// exercised through the self-host monomorphization path).
+// ─────────────────────────────────────────────────────────────────────────────
+
+
+
+suite CodeGenGenericsSuite {
+
+    void specializationTest() {
+        case "Wrapper<int> specialization emitted with a mangled name": {
+            string ir = cgIR("
+                public class Wrapper<T> { T value
+                    public Wrapper(const T v) { this.value = v }
+                    public T get() { out = this.value }
+                }
+                int main() { Wrapper<int> w = new Wrapper<int>(42)
+                    out = w.get()
+                }
+            ")
+            assert.assertTrue(fly.str.contains(ir, "%.Wrapper_int = type { ptr, i32 }"), 11)
+            assert.assertTrue(fly.str.contains(ir, "@Wrapper_int_F0"), 12)
+        }
+    }
+}

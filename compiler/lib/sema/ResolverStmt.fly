@@ -1,0 +1,472 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.compiler.basic.*
+import fly.data.List
+import fly.str as s
+
+// ResolverStmt — statement resolution companion. Statements append themselves to
+// r.currentSemaBlock; a completed block is published via r.lastBlock.
+public class ResolverStmt {
+
+    public ResolverStmt() { }
+
+    // block — visit(ASTBlockStmt): a new scope + SemaBlockStmt populated by its
+    // statements. The previous currentSemaBlock is restored; the finished block is
+    // left in r.lastBlock for the caller (function body / control-flow stmt).
+    public static void block(const Resolver r, const ASTBlockStmt node) {
+        r.enterScope()
+        SemaBlockStmt blk = SemaBuilder.CreateBlockStmt(node)
+        SemaBlockStmt prev = r.getCurrentSemaBlock()
+        r.setCurrentSemaBlock(blk)
+        List<ASTStmt> content = node.getContent()
+        int i = 0
+        while i < content.size() {
+            ASTStmt s = content.get(i)
+            s.accept(r)
+            i = i + 1
+        }
+        r.setCurrentSemaBlock(prev)
+        r.setLastBlock(blk)
+        r.exitScope()
+    }
+
+    // decl — a local variable declaration, registered in the current scope.
+    public static void decl(const Resolver r, const ASTDeclStmt node) {
+        ASTLocalVar lv = node.getLocalVar()
+        lv.accept(r)
+        SemaLocalVar slv = r.getCurrentLocalVar()
+        Symbol sym = new Symbol(lv.getName(), SymbolKind.LOCAL_VAR, slv)
+        sym.setExprRef(slv)
+        r.addSymbol(sym)
+        SemaExpr init = null
+        ASTExpr ie = node.getExpr()
+        if ie != null {
+            ie.accept(r)
+            init = r.getCurrentExpr()
+        }
+        SemaDeclStmt ds = SemaBuilder.CreateDeclStmt(node, slv, init)
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        blk.addContent(ds)
+
+        // Alloc tracking (Stage 7): a `C x = new C(...)` binds an owned heap class
+        // handle — register it for free at this scope's exit. (Conservative: only
+        // direct new-into-local; escape analysis / smart-pointer ownership is the
+        // soundness follow-up.)
+        if init != null {
+            SemaCall ic = init.asCall()
+            if ic != null {
+                if ic.isNew() {
+                    SemaType vt = slv.getType()
+                    if vt != null {
+                        SemaClassType vc = vt.asClass()
+                        if vc != null {
+                            // STRUCTs are stack objects (alloca): freeing them at
+                            // scope exit would call free() on a stack pointer
+                            if vc.getClassKind() != SemaClassKind.STRUCT {
+                                blk.addAlloc(slv)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public static void expr(const Resolver r, const ASTExprStmt node) {
+        SemaExpr se = null
+        ASTExpr e = node.getExpr()
+        if e != null {
+            e.accept(r)
+            se = r.getCurrentExpr()
+        }
+        SemaExprStmt es = SemaBuilder.CreateExprStmt(node, se)
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        blk.addContent(es)
+    }
+
+    public static void ret(const Resolver r, const ASTReturnStmt node) {
+        SemaReturnStmt rs = SemaBuilder.CreateReturnStmt(node, null)
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        blk.addContent(rs)
+    }
+
+    // captureStmts — resolve a flat list of statements (loop init/post) into a
+    // throwaway block, restoring the previous currentSemaBlock afterwards.
+    public static SemaBlockStmt captureStmts(const Resolver r, const List<ASTStmt> stmts) {
+        SemaBlockStmt cap = SemaBuilder.CreateBlockStmt(null)
+        SemaBlockStmt prev = r.getCurrentSemaBlock()
+        r.setCurrentSemaBlock(cap)
+        int i = 0
+        while i < stmts.size() {
+            ASTStmt s = stmts.get(i)
+            s.accept(r)
+            i = i + 1
+        }
+        r.setCurrentSemaBlock(prev)
+        out = cap
+    }
+
+    // resolveBlock — accept an ASTBlockStmt (its block() leaves the finished
+    // SemaBlockStmt in r.lastBlock) and return that captured block.
+    public static SemaBlockStmt resolveBlock(const Resolver r, const ASTStmt blockAst) {
+        blockAst.accept(r)
+        out = r.getLastBlock()
+    }
+
+    // if — condition + then block (from ASTRuleStmt base) + elsif chain + else.
+    public static void ifStmt(const Resolver r, const ASTIfStmt node) {
+        ASTExpr condAst = node.getExpr()
+        condAst.accept(r)
+        SemaExpr cond = r.getCurrentExpr()
+        ASTStmt thenAst = node.getStmt()
+        SemaBlockStmt thenBlk = ResolverStmt.resolveBlock(r, thenAst)
+        SemaIfStmt sif = SemaBuilder.CreateIfStmt(node, cond, thenBlk)
+
+        List<ASTRuleStmt> elsifs = node.getElsif()
+        int i = 0
+        while i < elsifs.size() {
+            ASTRuleStmt e = elsifs.get(i)
+            ASTExpr ec = e.getExpr()
+            ec.accept(r)
+            SemaExpr ecExpr = r.getCurrentExpr()
+            ASTStmt eStmt = e.getStmt()
+            SemaBlockStmt eBlk = ResolverStmt.resolveBlock(r, eStmt)
+            sif.addElsif(ecExpr, eBlk)
+            i = i + 1
+        }
+
+        ASTStmt elseAst = node.getElse()
+        if elseAst != null {
+            SemaBlockStmt elseBlk = ResolverStmt.resolveBlock(r, elseAst)
+            sif.setElse(elseBlk)
+        }
+
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        if blk != null { blk.addContent(sif) }
+    }
+
+    // switch — selector + case rules + optional default.
+    public static void switchStmt(const Resolver r, const ASTSwitchStmt node) {
+        ASTExpr se = node.getExpr()
+        se.accept(r)
+        SemaExpr sExpr = r.getCurrentExpr()
+        SemaSwitchStmt ssw = SemaBuilder.CreateSwitchStmt(node, sExpr)
+        r.enterSwitch()
+
+        List<ASTCaseStmt> cases = node.getCases()
+        int i = 0
+        while i < cases.size() {
+            ASTCaseStmt c = cases.get(i)
+            ASTExpr ce = c.getExpr()
+            ce.accept(r)
+            SemaExpr cExpr = r.getCurrentExpr()
+            ASTBlockStmt cs = c.getStmt()
+            // A case with NO statements falls through to the next case (doc 9.4):
+            // mark it with a null block so codegen branches to the next case body.
+            List<ASTStmt> cc = cs.getContent()
+            if cc.size() == 0 {
+                ssw.addCase(cExpr, null)
+            } else {
+                SemaBlockStmt cBlk = ResolverStmt.resolveBlock(r, cs)
+                ssw.addCase(cExpr, cBlk)
+            }
+            i = i + 1
+        }
+
+        ASTStmt def = node.getDefault()
+        if def != null {
+            SemaBlockStmt dBlk = ResolverStmt.resolveBlock(r, def)
+            ssw.setDefault(dBlk)
+        }
+
+        r.exitSwitch()
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        if blk != null { blk.addContent(ssw) }
+    }
+
+    // loop — init / condition / body / post, all sharing one loop scope.
+    public static void loopStmt(const Resolver r, const ASTLoopStmt node) {
+        SemaLoopStmt slp = SemaBuilder.CreateLoopStmt(node, false)
+        r.enterLoop()
+        r.enterScope()
+
+        List<ASTStmt> init = node.getInit()
+        SemaBlockStmt initCap = ResolverStmt.captureStmts(r, init)
+        List<SemaStmt> initC = initCap.getContent()
+        int i = 0
+        while i < initC.size() { slp.addInit(initC.get(i))  i = i + 1 }
+
+        ASTExpr ce = node.getExpr()
+        SemaExpr cond = null
+        if ce != null { ce.accept(r)  cond = r.getCurrentExpr() }
+        slp.setCond(cond)
+
+        ASTStmt body = node.getLoop()
+        SemaBlockStmt bodyBlk = ResolverStmt.resolveBlock(r, body)
+        slp.setBody(bodyBlk)
+
+        List<ASTStmt> post = node.getPost()
+        SemaBlockStmt postCap = ResolverStmt.captureStmts(r, post)
+        List<SemaStmt> postC = postCap.getContent()
+        int j = 0
+        while j < postC.size() { slp.addPost(postC.get(j))  j = j + 1 }
+
+        r.exitScope()
+        r.exitLoop()
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        if blk != null { blk.addContent(slp) }
+    }
+
+    // loop-in — `for item in coll { body }`, DESUGARED here to an indexed loop
+    // so the existing SemaLoopStmt codegen handles everything:
+    //
+    //   for CollT __forin_a = coll, pointer __forin_b ; __forin_b < __forin_a.size()
+    //       ; __forin_b = __forin_b + 1 {
+    //       ElemT item = __forin_a.get(__forin_b)
+    //       <body>
+    //   }
+    //
+    // Duck-typed contract: the collection type must expose size() and get(index);
+    // the element type is get's RETURN type (concrete on monomorphized specs, so
+    // List<T> yields T). The collection expression is resolved exactly ONCE
+    // (hoisted into __forin_a). The increment lives in the loop POST, so
+    // `continue` re-tests the condition only after advancing — correct semantics.
+    // `item` is a per-iteration copy (value semantics via get()).
+    public static void loopInStmt(const Resolver r, const ASTLoopInStmt node) {
+        SourceLocation loc = node.getLoc()
+
+        // 1) resolve the collection; derive the element type from get()
+        ASTExpr lst = node.getList()
+        lst.accept(r)
+        SemaExpr listE = r.getCurrentExpr()
+        if listE == null { return }
+        SemaType lt = listE.getType()
+        SemaClassType cls = null
+        if lt != null { cls = lt.asClass() }
+        if cls == null {
+            string tn = "unknown"
+            if lt != null { tn = lt.getName() }
+            r.diagStr(loc, DiagID.err_sema_forin_not_iterable, tn)
+            return
+        }
+        SemaClassMethod getM = cls.LookupMethod("get")
+        SemaClassMethod sizeM = cls.LookupMethod("size")
+        if getM == null || sizeM == null {
+            r.diagStr(loc, DiagID.err_sema_forin_not_iterable, cls.getName())
+            return
+        }
+        // get must take an INDEX (pointer) — a keyed get (Map.get(K key)) is not
+        // positional iteration; accepting it would silently iterate wrong.
+        bool idxOk = false
+        List<SemaParam> gps = getM.getParams()
+        if gps.size() > 0 {
+            SemaParam gp0 = gps.get(0)
+            SemaType gpt = gp0.getType()
+            if gpt != null {
+                if s.equals(gpt.getName(), "pointer") { idxOk = true }
+            }
+        }
+        if idxOk == false {
+            r.diagStr(loc, DiagID.err_sema_forin_not_iterable, cls.getName())
+            return
+        }
+        SemaType elemT = getM.getReturnType()
+
+        ASTIdentifier itemId = node.getItem().asIdentifier()
+        if itemId == null {
+            r.diagStr(loc, DiagID.err_sema_forin_not_iterable, cls.getName())
+            return
+        }
+        string itemName = itemId.getName()
+
+        string xsName = r.nextForInName()
+        string ivName = r.nextForInName()
+        List<ASTModifier> noMods = new List<ASTModifier>()
+
+        SemaLoopStmt slp = SemaBuilder.CreateLoopStmt(node, false)
+        r.enterLoop()
+        r.enterScope()
+
+        // 2) init: CollT __forin_a = <resolved collection expr>  (hoist)
+        ASTLocalVar xsAst = ASTBuilder.CreateLocalVar(loc, ASTBuilder.CreatePtrSizeType(loc), xsName, noMods)
+        SemaLocalVar xsVar = SemaBuilder.CreateLocalVar(xsAst, lt)
+        Symbol xsSym = new Symbol(xsName, SymbolKind.LOCAL_VAR, xsVar)
+        xsSym.setExprRef(xsVar)
+        r.addSymbol(xsSym)
+        SemaDeclStmt xsDecl = SemaBuilder.CreateDeclStmt(node, xsVar, listE)
+        slp.addInit(xsDecl)
+
+        // 3) init: pointer __forin_b  (no initializer → zero-initialized)
+        ASTLocalVar ivAst = ASTBuilder.CreateLocalVar(loc, ASTBuilder.CreatePtrSizeType(loc), ivName, noMods)
+        SemaLocalVar ivVar = SemaBuilder.CreateLocalVar(ivAst, SemaBuiltin.getPtrSizeType())
+        Symbol ivSym = new Symbol(ivName, SymbolKind.LOCAL_VAR, ivVar)
+        ivSym.setExprRef(ivVar)
+        r.addSymbol(ivSym)
+        SemaDeclStmt ivDecl = SemaBuilder.CreateDeclStmt(node, ivVar, null)
+        slp.addInit(ivDecl)
+
+        // 4) cond: __forin_b < __forin_a.size()   (synthetic AST, resolved normally)
+        List<ASTExpr> noArgs = new List<ASTExpr>()
+        ASTExpr sizeCall = ASTBuilder.CreateCall(loc, "size", noArgs, ASTCallKind.CALL_DIRECT, ASTBuilder.CreateIdentifier(loc, xsName, null))
+        ASTExpr condAst = ASTBuilder.CreateBinary(loc, ASTBinaryKind.OP_BINARY_COMPARE_LT, ASTBuilder.CreateIdentifier(loc, ivName, null), sizeCall)
+        condAst.accept(r)
+        slp.setCond(r.getCurrentExpr())
+
+        // 5) item: ElemT <item> = __forin_a.get(__forin_b) — registered BEFORE the
+        //    body resolves so the body's references find it in scope
+        ASTLocalVar itAst = ASTBuilder.CreateLocalVar(loc, ASTBuilder.CreatePtrSizeType(loc), itemName, noMods)
+        SemaLocalVar itVar = SemaBuilder.CreateLocalVar(itAst, elemT)
+        Symbol itSym = new Symbol(itemName, SymbolKind.LOCAL_VAR, itVar)
+        itSym.setExprRef(itVar)
+        r.addSymbol(itSym)
+        List<ASTExpr> getArgs = new List<ASTExpr>()
+        getArgs.add(ASTBuilder.CreateIdentifier(loc, ivName, null))
+        ASTExpr getCall = ASTBuilder.CreateCall(loc, "get", getArgs, ASTCallKind.CALL_DIRECT, ASTBuilder.CreateIdentifier(loc, xsName, null))
+        getCall.accept(r)
+        SemaDeclStmt itDecl = SemaBuilder.CreateDeclStmt(node, itVar, r.getCurrentExpr())
+
+        // 6) body: [ itemDecl, <original body> ] (nested block — codegen recurses)
+        SemaBlockStmt bodyBlk = ResolverStmt.resolveBlock(r, node.getStmt())
+        SemaBlockStmt wrap = SemaBuilder.CreateBlockStmt(null)
+        wrap.addContent(itDecl)
+        wrap.addContent(bodyBlk)
+        slp.setBody(wrap)
+
+        // 7) post: __forin_b = __forin_b + 1
+        ASTExprStmt postStmt = new ASTExprStmt(loc)
+        ASTExpr incr = ASTBuilder.CreateBinary(loc, ASTBinaryKind.OP_BINARY_ARITH_ADD, ASTBuilder.CreateIdentifier(loc, ivName, null), ASTBuilder.CreateNumberValue(loc, "1"))
+        postStmt.setExpr(ASTBuilder.CreateBinary(loc, ASTBinaryKind.OP_BINARY_ASSIGN, ASTBuilder.CreateIdentifier(loc, ivName, null), incr))
+        List<ASTStmt> postList = new List<ASTStmt>()
+        postList.add(postStmt)
+        SemaBlockStmt postCap = ResolverStmt.captureStmts(r, postList)
+        List<SemaStmt> postC = postCap.getContent()
+        int j = 0
+        while j < postC.size() { slp.addPost(postC.get(j))  j = j + 1 }
+
+        r.exitScope()
+        r.exitLoop()
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        if blk != null { blk.addContent(slp) }
+    }
+
+    // fail — sets the enclosing function fallible when not inside a handle block.
+    public static void failStmt(const Resolver r, const ASTFailStmt node) {
+        SemaFunctionBase fn = r.getCurrentFunction()
+        if fn == null { return }
+        if r.getHandleDepth() == 0 { fn.setFallible(true) }
+        SemaFailStmt sf = SemaBuilder.CreateFailStmt(node)
+        ASTExpr first = node.getFirstExpr()
+        if first != null { first.accept(r)  sf.setFirst(r.getCurrentExpr()) }
+        ASTExpr second = node.getSecondExpr()
+        if second != null { second.accept(r)  sf.setSecond(r.getCurrentExpr()) }
+        ASTExpr third = node.getThirdExpr()
+        if third != null { third.accept(r)  sf.setThird(r.getCurrentExpr()) }
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        if blk != null { blk.addContent(sf) }
+    }
+
+    // handle — guards a captured body region with a fresh error handler.
+    public static void handleStmt(const Resolver r, const ASTHandleStmt node) {
+        r.enterHandle()
+        SemaError eh = SemaBuilder.CreateErrorHandler()
+        r.setCurrentErrorHandler(eh)
+        SemaHandleStmt sh = SemaBuilder.CreateHandleStmt(node)
+        sh.setErrorHandler(eh)
+        ASTBlockStmt hb = node.getHandle()
+        SemaBlockStmt hblk = ResolverStmt.resolveBlock(r, hb)
+        sh.setHandle(hblk)
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        if blk != null { blk.addContent(sh) }
+        r.exitHandle()
+    }
+
+    // test — inline `test { body }`: STRIPPED entirely when not compiling in test
+    // mode (zero IR); otherwise the body resolves in its own scope/block into a
+    // SemaTestStmt (reference Resolver::visit(ASTTestStmt)).
+    public static void testStmt(const Resolver r, const ASTTestStmt node) {
+        if r.isTestMode() == false { return }
+        ASTBlockStmt bodyAst = node.getBody()
+        if bodyAst == null { return }
+        SemaBlockStmt body = ResolverStmt.resolveBlock(r, bodyAst)
+        SemaTestStmt st = new SemaTestStmt(node)
+        st.setBody(body)
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        if blk != null { blk.addContent(st) }
+    }
+
+    // case — standalone `case "label": { body }`: only valid inside a suite
+    // method whose name ends with "Test" (reference Resolver::visit(ASTCaseStmt)).
+    // The label was recorded by the parser on the AST node; the body resolves in
+    // its own scope/block into a SemaCaseStmt.
+    public static void caseStmt(const Resolver r, const ASTCaseStmt node) {
+        bool inSuiteTest = false
+        SemaClassType cc = r.getCurrentClass()
+        SemaFunctionBase cf = r.getCurrentFunction()
+        if cc != null {
+            if cf != null {
+                if cc.getClassKind() == SemaClassKind.SUITE {
+                    if s.endsWith(cf.getName(), "Test") { inSuiteTest = true }
+                }
+            }
+        }
+        if inSuiteTest == false {
+            r.diag(node.getLoc(), DiagID.err_parser_syntax_error)
+            return
+        }
+
+        SemaBlockStmt body = null
+        ASTBlockStmt bodyAst = node.getStmt()
+        if bodyAst != null {
+            body = ResolverStmt.resolveBlock(r, bodyAst)
+        } else {
+            body = SemaBuilder.CreateBlockStmt(null)
+        }
+        SemaCaseStmt sc = new SemaCaseStmt(node, node.getLabel(), body)
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        if blk != null { blk.addContent(sc) }
+    }
+
+    // delete — the parser rejects `delete` today, so this only fires for AST
+    // built programmatically; diagnose (the codegen visit is empty — a silent
+    // no-op would leak and skip the intended destruction).
+    public static void deleteStmt(const Resolver r, const ASTDeleteStmt node) {
+        r.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "delete statements")
+
+        ASTExpr e = node.getExpr()
+        e.accept(r)
+        SemaExpr re = r.getCurrentExpr()
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        if blk != null {
+            if re != null {
+                SemaDeleteStmt sd = SemaBuilder.CreateDeleteStmt(node, re)
+                blk.addContent(sd)
+            }
+        }
+    }
+
+    public static void breakStmt(const Resolver r, const ASTBreakStmt node) {
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        if blk != null {
+            SemaBreakStmt sb = SemaBuilder.CreateBreakStmt(node)
+            blk.addContent(sb)
+        }
+    }
+
+    public static void continueStmt(const Resolver r, const ASTContinueStmt node) {
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        if blk != null {
+            SemaContinueStmt sc = SemaBuilder.CreateContinueStmt(node)
+            blk.addContent(sc)
+        }
+    }
+
+    // rule — a bare conditional rule: resolve its expression and statement.
+    public static void ruleStmt(const Resolver r, const ASTRuleStmt node) {
+        ASTExpr e = node.getExpr()
+        if e != null { e.accept(r) }
+        ASTStmt s = node.getStmt()
+        if s != null { s.accept(r) }
+    }
+}

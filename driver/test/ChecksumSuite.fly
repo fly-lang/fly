@@ -1,0 +1,24 @@
+namespace fly.driver.test
+
+import fly.driver.*
+
+import fly.assert
+import fly.str
+
+// Verifies the sha256 helper against canonical SHA-256 test vectors.
+
+suite ChecksumSuite {
+
+    void sha256Test() {
+        case "sha256 abc": {
+            string h = fly.driver.sha256String("abc")
+            bool ok = fly.str.equals(h, "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+            assert.assertTrue(ok, 1)
+        }
+        case "sha256 empty": {
+            string h = fly.driver.sha256String("")
+            bool ok = fly.str.equals(h, "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+            assert.assertTrue(ok, 2)
+        }
+    }
+}

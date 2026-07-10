@@ -1,0 +1,44 @@
+namespace fly.compiler.codegen.test.str
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+import fly.mem
+import fly.llvm
+import fly.test.util.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenStringSuite — string literal lowering: `string` = %string { ptr, i32 }
+// (the size field is i32 in the REFERENCE ABI — archive strings carry an i32 len);
+// a literal becomes a private [N x i8] global + a constant { ptr, len }. Faithful
+// port of fly/test/CodeGen/CodeGenStringTest.cpp (CGDefaultStringLocalVar /
+// CGDefaultStringLocalVarAssignValue — the literal cases).
+//
+// Fly keeps string escapes RAW (`"a\"b"` stays `a\"b`), so the inner program's
+// quote is built at runtime via fly.llvm.strPoke + strMake (`dquote`).
+//
+// DEFERRED (needs the string runtime / fly.llvm intrinsic lowering): CGString-
+// ConcatNonConst / CGStringConcatConst / CGStringReassignConcat.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite CodeGenStringSuite {
+
+    void literalTest() {
+        case "string literal → %string type + private byte global": {
+            string Q = dquote()
+            string a = fly.str.concat("void main() { string s = ", Q)
+            string b = fly.str.concat(a, "hello")
+            string c = fly.str.concat(b, Q)
+            string src = fly.str.concat(c, " }")
+            string ir = cgIR(src)
+            assert.assertTrue(fly.str.contains(ir, "%string = type { ptr, i32 }"), 11)
+            assert.assertTrue(fly.str.contains(ir, "hello"), 12)
+        }
+    }
+}

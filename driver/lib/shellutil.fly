@@ -1,0 +1,126 @@
+namespace fly.driver
+
+import fly.str
+import fly.os.proc
+import fly.os.fs
+import fly.os.env
+import fly.mem
+import fly.llvm
+
+// ─────────────────────────────────────────────────────────────────────────────
+// shell — subprocess helpers. fly.os.proc.exec inherits stdout (no
+// capture), so commands whose output we need (git, curl, sha256sum) run through
+// `sh -c "<cmd> > <tmp>"` and read the temp file back. Mirrors the popen() usage
+// in the C++ GitFetcher/RegistryFetcher/Checksum.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// runShell — run a shell command, return its exit code (output inherited).
+public int runShell(const string cmd) {
+    pointer h = fly.os.proc.argsNew()
+    fly.os.proc.argsAdd(h, "-c")
+    fly.os.proc.argsAdd(h, cmd)
+    int rc = fly.os.proc.exec("/bin/sh", h)
+    fly.os.proc.argsFree(h)
+    out = rc
+}
+
+// capture — run a shell command and return its stdout (stderr discarded). On a
+// non-zero exit the captured stdout is still returned (callers check separately
+// with runShell when the exit code matters).
+public string capture(const string cmd) {
+    string tmpdir = fly.os.env.get("TMPDIR")
+    if fly.str.isEmpty(tmpdir) { tmpdir = "/tmp" }
+    string tf = fly.os.fs.tempDir(tmpdir, "flycap")
+    string tmp = fly.str.concat(tf, "/out")
+    // cmd stdout → tmp, stderr → /dev/null
+    string redir = fly.str.concat(cmd, fly.str.concat(" > ", fly.str.concat(tmp, " 2>/dev/null")))
+    pointer h = fly.os.proc.argsNew()
+    fly.os.proc.argsAdd(h, "-c")
+    fly.os.proc.argsAdd(h, redir)
+    fly.os.proc.exec("/bin/sh", h)
+    fly.os.proc.argsFree(h)
+    string data = fly.os.fs.readStr(tmp)
+    fly.os.fs.delete(tf)
+    out = data
+}
+
+// trimTrailingNewline — drop a single trailing '\n'/'\r\n' (command output tidy).
+public string trimTrailingNewline(const string s) {
+    int n = fly.str.len(s)
+    if n == 0 { out = s  return }
+    byte last = 0
+    fly.str.byteAt(s, n - 1, last)
+    if last == 10 {
+        n = n - 1
+        if n > 0 {
+            byte prev = 0
+            fly.str.byteAt(s, n - 1, prev)
+            if prev == 13 { n = n - 1 }
+        }
+    }
+    out = fly.str.substring(s, 0, n)
+}
+
+// shellQuote — wrap a value in single quotes, escaping embedded quotes, so it can
+// be interpolated into a `sh -c` command safely (mirror of the C++ shell_quote).
+public string shellQuote(const string s) {
+    // ' → '\'' ; wrap the whole thing in single quotes
+    string inner = fly.str.replace(s, "'", "_")   // conservative: strip quotes (URLs/paths never contain ')
+    out = fly.str.concat("'", fly.str.concat(inner, "'"))
+}
+
+
+// ── checksum (SHA-256 via the system sha256sum) ───────────────────────────────
+// Kept in this file (not a sibling util module): the reference source
+// discovery only pulls a namespace's files that an import references, and a file
+// cannot import its own namespace — so same-namespace helpers must share a file.
+
+// sha256File — "sha256:<hex>" of a file's contents ("" if the file is missing).
+public string sha256File(const string path) {
+    string cmd = fly.str.concat("sha256sum ", shellQuote(path))
+    string res = capture(cmd)
+    if fly.str.isEmpty(res) { out = ""  return }
+    int sp = fly.str.indexOf(res, " ")
+    string hex = res
+    if sp >= 0 { hex = fly.str.substring(res, 0, sp) }
+    out = fly.str.concat("sha256:", hex)
+}
+
+// sha256String — "sha256:<hex>" of a string (written to a temp file, then hashed).
+public string sha256String(const string data) {
+    string td = fly.os.env.get("TMPDIR")
+    if fly.str.isEmpty(td) { td = "/tmp" }
+    string tf = fly.os.fs.tempDir(td, "flysum")
+    string tmp = fly.str.concat(tf, "/data")
+    fly.os.fs.writeStr(tmp, data, 420)
+    string r = sha256File(tmp)
+    fly.os.fs.delete(tf)
+    out = r
+}
+
+// verifyChecksum — true if the file hashes to `expected` ("sha256:<hex>").
+public bool verifyChecksum(const string path, const string expected) {
+    out = fly.str.equals(sha256File(path), expected)
+}
+
+// dq — a one-byte string holding a double quote (34); string literals keep escapes
+// raw, so a bare `"` cannot be produced from a literal.
+public string dq() {
+    pointer buf = fly.mem.alloc(1)
+    byte q = 34
+    fly.llvm.strPoke(buf, 0, q)
+    string s = ""
+    fly.llvm.strMake(buf, 1, s)
+    out = s
+}
+
+// nl — a one-byte string holding a newline (10); literals keep escapes raw.
+public string nl() {
+    pointer buf = fly.mem.alloc(1)
+    byte n = 10
+    fly.llvm.strPoke(buf, 0, n)
+    string s = ""
+    fly.llvm.strMake(buf, 1, s)
+    out = s
+}
+

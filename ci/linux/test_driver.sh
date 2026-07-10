@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# test_compiler.sh — run every compiler/test/**/*Suite.fly against the compiler
-# sources, without flyp. Single-file build: each suite is the entry; source
-# discovery is implicit (a fly project compiles from the CURRENT directory — the
-# repo root here), so the import graph pulls fly.compiler.*, fly.test.util, … into
-# one module while std namespaces stay archive-linked (the -L pass registers them
-# first). `--test` builds in test mode; `--out-dir` sends the executable and its
-# intermediate objects into $OUT; the resulting executable is then run.
+# test_driver.sh — run every driver/test/**/*Suite.fly (the driver + package
+# manager unit suites: CLI parsing, Manifest/toml, lockfile, semver/MVS resolver,
+# registry, ToolChain, cache/checksum/json). Single-file build: each suite is the
+# entry; source discovery is implicit (a fly project compiles from the CURRENT
+# directory — the repo root here), so the import graph pulls fly.driver.* AND
+# fly.compiler.* source into one module while std namespaces stay archive-linked
+# (the -L pass registers them first). `--test` builds in test mode; `--out-dir`
+# sends the executable + intermediate objects into $OUT; the executable is then run.
 #
-# Scope: ONLY compiler/test (the compiler's own unit suites). The std, driver, and
-# flyp suites run in their own scripts — see the note at the bottom of this file.
+# The suites live in namespace fly.driver.test(.cli) — a DIFFERENT namespace from
+# driver/lib/Driver.fly (fly.driver), so the suite's generated `--test` main is the
+# C entry and Driver.fly's own `main` is pulled in as an ordinary (mangled, unused)
+# function — no symbol clash.
+#
+# Scope: ONLY driver/test. The compiler, std, and flyp suites run in their own
+# scripts (test_compiler.sh / test_std.sh / test_tools_flyp.sh).
 # ─────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 # Scripts live in ci/linux/; operate from the project root (two levels up).
@@ -21,10 +27,8 @@ OUT=build/test
 STD=std/lib
 mkdir -p "$OUT"
 
-# CodeGen/target suites emit IR/objects to /tmp/cg and read them back (e.g.
-# cgm.emitIR("/tmp/cg/suite.ll")). The directory must exist before they run —
-# otherwise the LLVM file open fails and LLVMPrintModuleToFile/EmitToFile crash
-# on the error path. Create it up front so a fresh checkout/CI runner passes.
+# CodeGen/target paths (pulled transitively via fly.compiler.*) may emit IR/objects
+# to /tmp/cg; create it up front so the file open never fails on a fresh runner.
 mkdir -p /tmp/cg
 
 # Compiler under test: $FLY (default: the stage2 self-host fly — the artifact
@@ -57,7 +61,7 @@ fi
 
 pass=0
 fail=0
-for suite in $(find compiler/test -name '*Suite.fly' | sort); do
+for suite in $(find driver/test -name '*Suite.fly' | sort); do
     name=$(basename "$suite" .fly)
     bin="$OUT/test_$name"
     if ! "$FLY" "$suite" --test -o "test_$name" --out-dir "$OUT" -L "$STD" >"$OUT/_$name.log" 2>&1; then
@@ -78,11 +82,6 @@ for suite in $(find compiler/test -name '*Suite.fly' | sort); do
         fail=$((fail + 1))
     fi
 done
-
-# Sibling test scripts run the other targets as separate workflow steps:
-#   test_std.sh        — std/test/*_test.fly (std library)
-#   test_driver.sh     — driver/test/*Suite.fly (driver + package manager)
-#   test_tools_flyp.sh — tools/flyp/test/*Suite.fly
 
 echo "─────────────────────────────────────────────"
 echo "  $pass passed, $fail failed"

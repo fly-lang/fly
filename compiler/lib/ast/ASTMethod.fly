@@ -1,0 +1,22 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTFunction
+import fly.compiler.ast.ASTFunctionKind
+import fly.compiler.ast.ASTModifier
+import fly.compiler.ast.ASTParam
+import fly.compiler.ast.ASTVisitor
+import fly.data.List
+
+public class ASTMethod : ASTFunction {
+
+    public ASTMethod(const SourceLocation loc, const List<ASTModifier> modifiers, const string name, const List<ASTParam> params) {
+        super(loc, modifiers, name, params, ASTFunctionKind.F_METHOD)
+    }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
+    // Direct override (not just inherited from ASTFunction): a virtual added to a base
+    // is reliably dispatched only when each LEAF re-declares it — an inherited override
+    // across two levels (ASTMethod : ASTFunction : ASTNode) mis-dispatches to the base.
+    public ASTFunction asFunction() { out = this }
+}

@@ -1,0 +1,377 @@
+namespace fly.driver
+
+import fly.data.List
+import fly.str
+import fly.os.fs
+import fly.os.io
+import fly.os.path
+import fly.os.env
+
+// ─────────────────────────────────────────────────────────────────────────────
+// commands — the subcommand implementations. Port of the network-free core
+// of fly/tools/flyp/cli/Commands.cpp: init, version, build, run, test, clean.
+// The dependency/registry commands (add/remove/update/lock/why/deploy/…) need the
+// GitFetcher + RegistryFetcher(JSON) + Lockfile + resolver wiring and print a
+// "not yet ported" notice for now.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// loadManifest — read ./fly.toml, parse it. errOut: 2 = missing, else parser code.
+public Manifest loadManifest(int errOut) {
+    if fly.os.fs.exists("fly.toml") == false {
+        errOut = 2
+        out = new Manifest()
+        return
+    }
+    string src = fly.os.fs.readStr("fly.toml")
+    int e = 0
+    Manifest m = parseManifest(src, e)
+    errOut = e
+    out = m
+}
+
+public int cmdVersion() {
+    fly.os.io.printLn("fly 0.14.0")
+    out = 0
+}
+
+// cmdInit — scaffold fly.toml + src/main.fly in the given dir (cwd if name empty).
+public int cmdInit(const string nameArg, const string versionArg) {
+    string name = nameArg
+    if fly.str.isEmpty(name) { name = "my-project" }
+    string ver = versionArg
+    if fly.str.isEmpty(ver) { ver = "0.1.0" }
+
+    if fly.os.fs.exists("fly.toml") {
+        fly.os.io.printErrLn("error: fly.toml already exists")
+        out = 3
+        return
+    }
+    fly.os.fs.dirCreateAll("src", 493)
+
+    // src/main.fly — a valid Fly hello-world (void main + fly.os.io). Real
+    // newlines come from a MULTI-LINE literal (Fly keeps `\n` escapes raw); the
+    // `Q` placeholder becomes a double quote via dq()+replace.
+    string q = fly.driver.dq()
+    string progTpl = "namespace app
+
+import fly.os.io
+
+void main() {
+    fly.os.io.printLn(QHello, world!Q)
+}
+"
+    fly.os.fs.writeStr("src/main.fly", fly.str.replace(progTpl, "Q", q), 420)
+
+    // fly.toml (name/version substituted as N/V placeholders)
+    string tomlTpl = "[package]
+name = QNQ
+version = QVQ
+fly-version = Q0.14.0Q
+
+[targets]
+N = { path = Qsrc/main.flyQ }
+
+[test]
+suites = [ Qsrc/**/*Suite.flyQ ]
+"
+    string t1 = fly.str.replace(tomlTpl, "N", name)
+    string t2 = fly.str.replace(t1, "V", ver)
+    fly.os.fs.writeStr("fly.toml", fly.str.replace(t2, "Q", q), 420)
+
+    fly.os.io.printLn(fly.str.concat("Created fly.toml + src/main.fly for ", name))
+    out = 0
+}
+
+// cmdBuild — read the manifest, build all targets (or one with `targetKey`).
+public int cmdBuild(const string profile, const string targetKey) {
+    int e = 0
+    Manifest m = loadManifest(e)
+    if e != 0 {
+        fly.os.io.printErrLn("error: no fly.toml in the current directory")
+        out = e
+        return
+    }
+    string prof = profile
+    if fly.str.isEmpty(prof) { prof = "debug" }
+    Builder b = new Builder(m, prof, false)
+    bool ok = false
+    if fly.str.isEmpty(targetKey) {
+        ok = b.buildAll()
+    } else {
+        ok = b.buildTarget(targetKey)
+    }
+    if ok { out = 0 } else { out = 1 }
+}
+
+// cmdRun — build a bin target then execute it.
+public int cmdRun(const string profile, const string binKey) {
+    int e = 0
+    Manifest m = loadManifest(e)
+    if e != 0 { fly.os.io.printErrLn("error: no fly.toml")  out = e  return }
+    string prof = profile
+    if fly.str.isEmpty(prof) { prof = "debug" }
+    string key = binKey
+    if fly.str.isEmpty(key) && m.targetCount() > 0 {
+        key = m.targetAt(0).getKey()
+    }
+    Builder b = new Builder(m, prof, false)
+    out = b.runTarget(key)
+}
+
+// cmdTest — compile each *Suite.fly (via a shell glob) with --test and run it.
+public int cmdTest(const string profile) {
+    int e = 0
+    Manifest m = loadManifest(e)
+    if e != 0 { fly.os.io.printErrLn("error: no fly.toml")  out = e  return }
+    string prof = profile
+    if fly.str.isEmpty(prof) { prof = "debug" }
+    Builder b = new Builder(m, prof, true)
+
+    // resolve suite files by shelling `find` over the src tree
+    string list = fly.driver.capture("find . -name '*Suite.fly' 2>/dev/null | sort")
+    if fly.str.isEmpty(fly.str.trim(list)) {
+        fly.os.io.printLn("no test suites found (*Suite.fly)")
+        out = 0
+        return
+    }
+    int failures = 0
+    int start = 0
+    int n = fly.str.len(list)
+    int i = 0
+    while i <= n {
+        bool atEnd = i == n
+        bool nl = false
+        if atEnd == false {
+            byte bb = 0
+            fly.str.byteAt(list, i, bb)
+            if bb == 10 { nl = true }
+        }
+        if atEnd || nl {
+            string sf = fly.str.trim(fly.str.substring(list, start, i))
+            if fly.str.isEmpty(sf) == false {
+                string base = fly.os.path.basename(sf)
+                string stem = fly.os.path.stem(base)
+                string outp = fly.str.concat(b.outDir(), fly.str.concat("/", stem))
+                fly.os.fs.dirCreateAll(b.outDir(), 493)
+                if b.invokeFly(fly.os.path.absolute(sf), outp, "--test") {
+                    int rc = fly.driver.runShell(fly.driver.shellQuote(outp))
+                    if rc == 0 {
+                        fly.os.io.printLn(fly.str.concat("  PASS  ", stem))
+                    } else {
+                        fly.os.io.printLn(fly.str.concat("  FAIL  ", stem))
+                        failures = failures + 1
+                    }
+                } else {
+                    fly.os.io.printLn(fly.str.concat("  COMPILE FAIL  ", stem))
+                    failures = failures + 1
+                }
+            }
+            start = i + 1
+        }
+        i = i + 1
+    }
+    if failures == 0 { out = 0 } else { out = 1 }
+}
+
+// cmdClean — remove build artifacts (all of target/, or target/<profile>).
+public int cmdClean(const string profile) {
+    if fly.str.isEmpty(profile) {
+        fly.driver.runShell("rm -rf target")
+    } else {
+        fly.driver.runShell(fly.str.concat("rm -rf ", fly.str.concat("target/", profile)))
+    }
+    fly.os.io.printLn("cleaned build artifacts")
+    out = 0
+}
+
+// ── dependency resolution + locking ──────────────────────────────────────────
+
+// RealFetcher — the resolver's fetch callback, backed by the git + registry
+// fetchers. Records each fetched package's FetchResult (rev/checksum) so do_lock
+// can build the lockfile, and any fetch error. Subclass of ManifestFetcher.
+public class RealFetcher : ManifestFetcher {
+    Manifest root
+    Cache cache
+    GitFetcher git
+    RegistryFetcher reg
+    List<string> resNames
+    List<FetchResult> resList
+    List<string> errors
+
+    public RealFetcher(const Manifest r) {
+        this.root = r
+        this.cache = new Cache()
+        this.git = new GitFetcher(this.cache)
+        this.reg = new RegistryFetcher(this.cache)
+        this.resNames = new List<string>()
+        this.resList = new List<FetchResult>()
+        this.errors = new List<string>()
+    }
+
+    public int errorCount() { out = (int)this.errors.size() }
+    public string errorAt(const int i) { out = this.errors.get(i) }
+
+    public FetchResult resultFor(const string name) {
+        int i = 0
+        while i < this.resNames.size() {
+            if fly.str.equals(this.resNames.get(i), name) { out = this.resList.get(i)  return }
+            i = i + 1
+        }
+        out = null
+    }
+
+    public Manifest fetch(const string name, const GitDep dep) {
+        FetchResult fr = null
+        if dep.isRegistryDep() {
+            string url = this.root.getRepo(dep.getRegistryName())
+            if fly.str.isEmpty(url) {
+                this.errors.add(fly.str.concat("unknown registry alias '", fly.str.concat(dep.getRegistryName(), "' (declare it in [repo])")))
+                out = null
+                return
+            }
+            fr = this.reg.fetch(name, dep, url)
+        } else {
+            fr = this.git.fetch(name, dep)
+        }
+        if fr.getOk() == false {
+            this.errors.add(fr.getErrMsg())
+            out = null
+            return
+        }
+        this.resNames.add(name)
+        this.resList.add(fr)
+        int e = 0
+        Manifest m = this.git.readManifest(name, fr.getLocalPath(), e)
+        if e != 0 {
+            this.errors.add(fly.str.concat("no fly.toml in fetched package '", fly.str.concat(name, "'")))
+            out = null
+            return
+        }
+        out = m
+    }
+}
+
+// doLock — resolve the manifest's deps, write fly.lock. Returns 0 on success.
+public int doLock(const Manifest root, const string tomlPath) {
+    RealFetcher fetcher = new RealFetcher(root)
+    MVSResolver resolver = new MVSResolver(false)
+    List<ResolvedPackage> resolved = resolver.resolve(root, fetcher)
+
+    if resolver.errorsEmpty() == false || fetcher.errorCount() > 0 {
+        int i = 0
+        while i < resolver.errorCount() {
+            ResolveError re = resolver.errorAt(i)
+            fly.os.io.printErrLn(fly.str.concat("error: version conflict for ", re.getPackage()))
+            i = i + 1
+        }
+        int j = 0
+        while j < fetcher.errorCount() {
+            fly.os.io.printErrLn(fly.str.concat("error: ", fetcher.errorAt(j)))
+            j = j + 1
+        }
+        out = 1
+        return
+    }
+
+    Lockfile lf = new Lockfile()
+    lf.setFlyVersion("0.14.0")
+    lf.setTomlChecksum(fly.driver.sha256File(tomlPath))
+    int k = 0
+    while k < resolved.size() {
+        ResolvedPackage rp = resolved.get(k)
+        LockedPackage p = new LockedPackage()
+        p.setName(rp.getName())
+        p.setVersion(rp.getVersion())
+        if fly.str.isEmpty(rp.getGitUrl()) {
+            p.setSource(fly.str.concat("registry+", fly.str.concat(rp.getName(), fly.str.concat("/", rp.getVersion()))))
+        } else {
+            p.setSource(fly.str.concat("git+", rp.getGitUrl()))
+        }
+        if rp.getRefKind() == 0 { p.setTag(rp.getRefValue()) }
+        FetchResult fr = fetcher.resultFor(rp.getName())
+        if fr != null {
+            p.setRev(fr.getRev())
+            p.setChecksum(fr.getChecksum())
+        }
+        lf.addPackage(p)
+        k = k + 1
+    }
+    lf.write("fly.lock")
+    fly.os.io.printLn("  wrote fly.lock")
+    out = 0
+}
+
+// cmdLock — resolve + write fly.lock.
+public int cmdLock() {
+    int e = 0
+    Manifest m = loadManifest(e)
+    if e != 0 { fly.os.io.printErrLn("error: no fly.toml")  out = e  return }
+    out = doLock(m, "fly.toml")
+}
+
+// cmdAdd — add a dependency to fly.toml then re-lock.
+public int cmdAdd(const string name, const string gitUrl, const string tag, const string branch, const string rev, const bool dev) {
+    int e = 0
+    Manifest m = loadManifest(e)
+    if e != 0 { fly.os.io.printErrLn("error: no fly.toml")  out = e  return }
+
+    int refs = 0
+    if fly.str.isEmpty(tag) == false { refs = refs + 1 }
+    if fly.str.isEmpty(branch) == false { refs = refs + 1 }
+    if fly.str.isEmpty(rev) == false { refs = refs + 1 }
+    if refs != 1 {
+        fly.os.io.printErrLn("error: specify exactly one of --tag, --branch, or --rev")
+        out = 3
+        return
+    }
+    GitDep d = new GitDep()
+    d.setGitUrl(gitUrl)
+    if fly.str.isEmpty(tag) == false { d.setRef(0, tag) }
+    elsif fly.str.isEmpty(branch) == false { d.setRef(1, branch) }
+    else { d.setRef(2, rev) }
+
+    if dev { m.addDevDep(name, d) } else { m.addDep(name, d) }
+    m.save()
+    fly.os.io.printLn(fly.str.concat("added ", fly.str.concat(name, " to fly.toml")))
+    out = doLock(m, "fly.toml")
+}
+
+// cmdRemove — drop a dependency from fly.toml then re-lock.
+public int cmdRemove(const string name) {
+    int e = 0
+    Manifest m = loadManifest(e)
+    if e != 0 { fly.os.io.printErrLn("error: no fly.toml")  out = e  return }
+    if m.removeDep(name) == false {
+        fly.os.io.printErrLn(fly.str.concat("error: '", fly.str.concat(name, "' is not a dependency")))
+        out = 1
+        return
+    }
+    m.save()
+    fly.os.io.printLn(fly.str.concat("removed ", fly.str.concat(name, " from fly.toml")))
+    out = doLock(m, "fly.toml")
+}
+
+// cmdWhy — report a package's presence in the resolved graph (simplified: the
+// DependencyGraph 'why' chains are a follow-up).
+public int cmdWhy(const string name) {
+    int e = 0
+    Manifest m = loadManifest(e)
+    if e != 0 { fly.os.io.printErrLn("error: no fly.toml")  out = e  return }
+    int le = 0
+    Lockfile lf = readLock("fly.lock", le)
+    LockedPackage p = lf.find(name)
+    if p == null {
+        fly.os.io.printLn(fly.str.concat(name, " is not a locked dependency of this project."))
+        out = 1
+        return
+    }
+    fly.os.io.printLn(fly.str.concat(name, fly.str.concat(" ", fly.str.concat(p.getVersion(), fly.str.concat(" (", fly.str.concat(p.getSource(), ")"))))))
+    out = 0
+}
+
+// cmdNotPorted — placeholder for the still-unported commands (update/upgrade/
+// deploy/vendor/search/publish/workspace/doctor).
+public int cmdNotPorted(const string name) {
+    fly.os.io.printErrLn(fly.str.concat(name, ": not yet ported to fly"))
+    out = 2
+}

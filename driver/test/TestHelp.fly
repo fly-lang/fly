@@ -1,0 +1,49 @@
+namespace fly.driver.test.util
+
+import fly.driver.*
+
+import fly.str
+import fly.mem
+import fly.llvm
+
+// Test helpers for the driver package suites. Kept in a separate file (same namespace
+// fly.driver.test) so suite METHODS can call them: a class method must not call a
+// free function declared in its OWN file, but a cross-file call is fine.
+
+// dq — a one-byte string holding a double quote (34). String literals keep escapes
+// raw in the reference, so `"` cannot be produced from a literal; build it directly.
+public string dq() {
+    pointer buf = fly.mem.alloc(1)
+    byte q = 34
+    fly.llvm.strPoke(buf, 0, q)
+    string s = ""
+    fly.llvm.strMake(buf, 1, s)
+    out = s
+}
+
+// mkToml — turn a `|`-placeholder template (real newlines, `|` where a `"` goes)
+// into valid TOML by replacing every `|` with a double quote. Lets a suite write
+// readable multi-line TOML without embedding quotes in the Fly source.
+public string mkToml(const string tpl) {
+    out = fly.str.replace(tpl, "|", dq())
+}
+
+// mkJson — same placeholder trick for JSON test payloads.
+public string mkJson(const string tpl) {
+    out = fly.str.replace(tpl, "|", dq())
+}
+
+// tagDep / branchDep — build a git GitDep (free functions returning a class with
+// only string params are safe; class params in free functions are not).
+public GitDep tagDep(const string url, const string tag) {
+    GitDep d = new GitDep()
+    d.setGitUrl(url)
+    d.setRef(0, tag)
+    out = d
+}
+public GitDep branchDep(const string url, const string branch) {
+    GitDep d = new GitDep()
+    d.setGitUrl(url)
+    d.setRef(1, branch)
+    out = d
+}
