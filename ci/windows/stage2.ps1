@@ -3,7 +3,8 @@
 # the fly built by stage1 (build\stage1\bin\fly.exe) produces the SHIPPED
 # artifacts into build\stage2 - what CI uploads and the release packages.
 #
-#   runtime   re-seeded from stage1 (the Windows Fly-member rebuild is a follow-up)
+#   runtime   recompiled by the stage1 fly (self-hosting fixpoint check; mirrors
+#             ci/linux/stage2.sh now that build_runtime.ps1 rebuilds from source)
 #   std       COPIED from stage1: the shipped std must keep the reference class
 #             ABI (see build_std.ps1) - a self-host std would break header
 #             consumers of classes with interface bases.

@@ -93,22 +93,22 @@ jobs:
       # scripts). The build artifact is still produced/uploaded and the full suite
       # results show in the log. Make strict again once stable.
       - name: Test self-host compiler
-        continue-on-error: true
+        continue-on-error: false
         shell: pwsh
         run: .\ci\windows\test_compiler.ps1
 
       - name: Test driver
-        continue-on-error: true
+        continue-on-error: false
         shell: pwsh
         run: .\ci\windows\test_driver.ps1
 
       - name: Test runtime
-        continue-on-error: true
+        continue-on-error: false
         shell: pwsh
         run: .\ci\windows\test_runtime.ps1
 
       - name: Test std
-        continue-on-error: true
+        continue-on-error: false
         shell: pwsh
         run: .\ci\windows\test_std.ps1
 
