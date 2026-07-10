@@ -132,6 +132,29 @@ llvm::SmallVector<llvm::Module *, 8> &CodeGenTest::getModules() {
 }
 
 // Get LLVM IR output from a module
+// stripComdats — normalize COMDAT artifacts out of printed IR so the golden
+// strings stay comdat-agnostic: drop the `$sym = comdat any` declaration lines
+// (with the preceding blank line the printer adds) and the ` comdat` marker on
+// weak definitions/globals. Comdat emission itself is asserted directly on the
+// module (see the COMDAT checks in CGClassAttributes).
+static void stripComdats(std::string &out) {
+    // `$…` lines appear only as comdat declarations at the top level
+    size_t pos = 0;
+    while ((pos = out.find("\n$", pos)) != std::string::npos) {
+        size_t eol = out.find('\n', pos + 1);
+        if (eol == std::string::npos) break;
+        size_t start = pos;
+        if (start >= 1 && out[start - 1] == '\n')
+            --start; // also eat the blank separator line before the block
+        out.erase(start, eol - start);
+    }
+    // definition marker: `) comdat {` / global suffix: `, comdat`
+    while ((pos = out.find(") comdat {")) != std::string::npos)
+        out.erase(pos + 1, 7);
+    while ((pos = out.find(", comdat\n")) != std::string::npos)
+        out.erase(pos, 8);
+}
+
 std::string CodeGenTest::getOutput(llvm::Module *M) {
     testing::internal::CaptureStdout();
     verifyModule(*M);
@@ -141,6 +164,7 @@ std::string CodeGenTest::getOutput(llvm::Module *M) {
     out.erase(0, out.find("\n") + 1); // skip source_filename
     out.erase(0, out.find("\n") + 1); // skip target datalayout
     out.erase(0, out.find("\n") + 1); // skip target triple
+    stripComdats(out);
     return out;
 }
 
@@ -151,6 +175,8 @@ std::string CodeGenTest::getOutput(SymbolTableList<Function> &Functions) {
         verifyFunction(F);
         F.print(llvm::outs());
     }
-    return testing::internal::GetCapturedStdout();
+    std::string out = testing::internal::GetCapturedStdout();
+    stripComdats(out);
+    return out;
 }
 

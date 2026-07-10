@@ -137,6 +137,15 @@ namespace {
                         "declare void @free(ptr)\n"
                         "\n"
                         "attributes #0 = { nocallback nofree nounwind willreturn memory(argmem: write) }\n");
+
+        // COMDAT: every weak (linkonce_odr) definition must sit in a comdat named
+        // after itself — COFF has no weak definitions, lld-link dedups ONLY comdat
+        // sections, so without it Windows links die on duplicate symbols. getOutput
+        // strips comdat markers from the golden IR above; assert them here directly.
+        llvm::Function *IC = M->getFunction("TestClass.init_ctor");
+        ASSERT_NE(IC, nullptr);
+        ASSERT_NE(IC->getComdat(), nullptr);
+        EXPECT_EQ(IC->getComdat()->getName(), "TestClass.init_ctor");
     }
 
 	TEST_F(CodeGenTest, CGClassGetterMethod) {

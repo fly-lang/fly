@@ -118,9 +118,12 @@ void CodeGenClassMethod::GenBody() {
 	// (e.g. List<string>) is emitted in every module/archive that instantiates it, so
 	// downgrade its methods to weak (mergeable) linkage to avoid duplicate-symbol
 	// errors at link. Declaration-only references never reach here, so they keep the
-	// valid external linkage set at creation.
-	if (Fn && Class->getGenericTemplate() != nullptr)
+	// valid external linkage set at creation. The COMDAT makes the dedup work on
+	// COFF too (lld-link merges comdats only; see CodeGenFunction::GenBody).
+	if (Fn && Class->getGenericTemplate() != nullptr) {
 		Fn->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+		Fn->setComdat(CGM->getModule()->getOrInsertComdat(Fn->getName()));
+	}
 
     setInsertPoint();
     GenDebugSubprogram();
