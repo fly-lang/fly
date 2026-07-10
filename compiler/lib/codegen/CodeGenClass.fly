@@ -170,6 +170,7 @@ public class CodeGenClass {
         llvm.getNamedFunction(cgm.getModule(), icName, fn)
         if fn == 0 { llvm.addFunction(cgm.getModule(), icName, fty, fn) }
         llvm.setLinkage(fn, 3)
+        cgm.setWeakComdat(fn, icName)
 
         pointer entry
         llvm.appendBasicBlockInContext(cgm.getCtx(), fn, "entry", entry)
@@ -253,7 +254,11 @@ public class CodeGenClass {
         llvm.setGlobalConstant(g, true)
         // A generic-class specialization's vtable is emitted per-object; weak linkage
         // (LinkOnceODR = 3) merges duplicates across a program + fly_std_lib.a.
-        if cls.getGenericTemplate() != null { llvm.setLinkage(g, 3) }
+        // The comdat makes the dedup real on COFF too (no weak defs there).
+        if cls.getGenericTemplate() != null {
+            llvm.setLinkage(g, 3)
+            cgm.setWeakComdat(g, vtableName(cls))
+        }
         cls.setLlvmVTable(g)
     }
 
@@ -297,8 +302,12 @@ public class CodeGenClass {
         // Methods (incl. the constructor) of a GENERIC-CLASS specialization (List<string>,
         // Map<string,int>, …) can be emitted by multiple self-host objects (a program AND
         // fly_std_lib.a). Weak linkage (LinkOnceODR = 3) merges the duplicates. Mirrors the
-        // reference weak-linkage fix; keyed on the class being a specialization.
-        if cls.getGenericTemplate() != null { llvm.setLinkage(f, 3) }
+        // reference weak-linkage fix; keyed on the class being a specialization. The
+        // comdat makes the dedup real on COFF too (no weak defs there).
+        if cls.getGenericTemplate() != null {
+            llvm.setLinkage(f, 3)
+            cgm.setWeakComdat(f, methodMangle(cgm, cls, m))
+        }
 
         pointer entry
         llvm.appendBasicBlockInContext(cgm.getCtx(), f, "entry", entry)

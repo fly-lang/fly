@@ -1493,6 +1493,28 @@ public class LLVM {
         lib.call("LLVMGetNamedGlobal", a, v)
     }
 
+    // ── Comdat (COFF weak-symbol dedup) ───────────────────────────────────────
+
+    // getOrInsertComdat — LLVMGetOrInsertComdat(M, Name): the module's comdat for
+    // `name` (created on first use; default selection kind Any).
+    public void getOrInsertComdat(const pointer mod, const string name, pointer c) {
+        PtrStrArgs a = new PtrStrArgs()
+        a.a = mod
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMGetOrInsertComdat", a, c)
+    }
+
+    // setComdat — LLVMSetComdat(GlobalObject, Comdat).
+    public void setComdat(const pointer val, const pointer comdat) {
+        Ptr2Args a = new Ptr2Args()
+        a.a = val
+        a.b = comdat
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMSetComdat", a)
+    }
+
+
     public void setInitializer(const pointer global, const pointer val) {
         Ptr2Args a = new Ptr2Args()
         a.a = global

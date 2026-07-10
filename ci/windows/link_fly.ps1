@@ -54,6 +54,11 @@ if ($PRELINKED) {
         Write-Host "error: %LIB% is empty - run from an MSVC developer environment (CI: ilammy/msvc-dev-cmd)."; exit 1
     }
     Write-Host "stage${STAGE}: linking fly.exe (fork lld-link) ..."
+    # Weak symbols (generic specializations, vtables, init_ctors) are emitted
+    # with a COMDAT (selection Any) by both compilers, so lld-link dedups them
+    # natively on COFF — no /force:multiple needed. NOTE: this requires a
+    # bootstrap 0.13.8 cut AFTER the COMDAT fix in fly/ CodeGen; an older
+    # bootstrap emits comdat-less weak defs and this link dies on duplicates.
     & $lldLink "/out:$OUT/fly.exe" $OBJ "$CDIR/fly_compiler_lib.lib" `
         "$LIB/fly_std_lib.lib" "$LIB/fly_runtime_lib.lib" (Join-Path $llvmRoot 'lib\LLVM-C.lib') `
         /defaultlib:libcmt /defaultlib:synchronization /defaultlib:kernel32
