@@ -193,6 +193,7 @@ void CodeGenClass::CreateVTable() {
 			// A generic specialization (e.g. List<string>) is emitted in every module
 			// AND every library archive that instantiates it, so its vtable must be a
 			// mergeable weak symbol; regular classes keep strong external linkage.
+			// COMDAT: COFF dedups only comdat sections (no weak definitions there).
 			llvm::GlobalValue::LinkageTypes VTLinkage =
 				Sema->getGenericTemplate() != nullptr
 					? llvm::GlobalValue::LinkOnceODRLinkage
@@ -200,6 +201,8 @@ void CodeGenClass::CreateVTable() {
 			VTable = new llvm::GlobalVariable(
 				*CGM->Module, ArrayOfInt8Ptr, true,
 				VTLinkage, ArrayValue, VTableName);
+			if (Sema->getGenericTemplate() != nullptr)
+				VTable->setComdat(CGM->getModule()->getOrInsertComdat(VTable->getName()));
 		}
 	}
 }
@@ -300,13 +303,17 @@ llvm::GlobalVariable *CodeGenClass::BuildPerBaseVTable(SemaClassType *Base, uint
 		BaseVTableName += "." + std::to_string(byteOffset);
 	// Weak (mergeable) linkage for a specialization's per-base vtable, matching the
 	// primary vtable above — avoids duplicate-symbol errors across archives/objects.
+	// COMDAT for COFF dedup, as for the primary vtable.
 	llvm::GlobalValue::LinkageTypes BaseVTLinkage =
 		Sema->getGenericTemplate() != nullptr
 			? llvm::GlobalValue::LinkOnceODRLinkage
 			: llvm::GlobalValue::ExternalLinkage;
-	return new llvm::GlobalVariable(
+	auto *BaseVT = new llvm::GlobalVariable(
 		*CGM->Module, ArrayTy, true,
 		BaseVTLinkage, ArrayVal, BaseVTableName);
+	if (Sema->getGenericTemplate() != nullptr)
+		BaseVT->setComdat(CGM->getModule()->getOrInsertComdat(BaseVT->getName()));
+	return BaseVT;
 }
 
 // CollectTransitiveBaseVTables — recurse into Base's own bases. For any whose
@@ -478,6 +485,8 @@ void CodeGenClass::CreateAttributes() {
 					}
 					GV->setInitializer(Init);
 					GV->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+					// COMDAT so the static field's weak definition dedups on COFF too
+					GV->setComdat(CGM->getModule()->getOrInsertComdat(GV->getName()));
 					GV->setConstant(false);
 				}
 				CGV = new CodeGenVar(CGM, Attribute, AttrType);
@@ -506,6 +515,9 @@ void CodeGenClass::CreateInitConstructor() {
 		? llvm::GlobalValue::ExternalLinkage
 		: llvm::GlobalValue::LinkOnceODRLinkage;
 	InitConstructor = llvm::Function::Create(FnType, Linkage, CtorId, CGM->getModule());
+	// COMDAT so the weak init_ctor dedups on COFF too (COFF has no weak defs)
+	if (!IsExternal)
+		InitConstructor->setComdat(CGM->getModule()->getOrInsertComdat(CtorId));
 }
 
 void CodeGenClass::GenInitConstructorBody() {

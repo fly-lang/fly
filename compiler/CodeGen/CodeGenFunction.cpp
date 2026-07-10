@@ -133,8 +133,13 @@ void CodeGenFunction::GenBody() {
     // (mergeable) linkage to avoid duplicate-symbol errors at link. main / C-ABI /
     // regular functions are never specializations, so they keep external linkage; and
     // declaration-only references never reach GenBody, so they stay valid external.
-    if (Fn && static_cast<SemaFunction *>(Sema)->getGenericTemplate() != nullptr)
+    // The COMDAT (selection Any) makes the weak semantics real on COFF too: Windows
+    // has no weak definitions — lld-link dedups ONLY comdat sections, so a bare
+    // linkonce_odr there is a plain external and duplicates at link.
+    if (Fn && static_cast<SemaFunction *>(Sema)->getGenericTemplate() != nullptr) {
         Fn->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
+        Fn->setComdat(CGM->getModule()->getOrInsertComdat(Fn->getName()));
+    }
 
     // Only C-ABI runtime functions return-by-value; reset so a bare `return` in a
     // normal function still emits `ret void`.
