@@ -933,6 +933,17 @@ llvm::Value *CodeGenExpr::GenStringConcat(SemaExpr *E1, SemaExpr *E2) {
 llvm::Value *CodeGenExpr::GenStringHeapCopy(SemaStringValue *Sema) {
 	llvm::StringRef Str = Sema->getValue();
 	uint32_t Size = Str.size();
+	// Empty string owns no heap: return {null, 0} instead of malloc(0)+memcpy.
+	// free(null) at scope exit is a no-op (see CodeGenVar), so aliasing "" can
+	// never double-free — and "" never touches the allocator. Matches Rust (an
+	// empty String does not allocate) and C++ SSO (empty is inline).
+	if (Size == 0) {
+		llvm::Value *Empty = llvm::UndefValue::get(CodeGen::StringTy);
+		Empty = Builder->CreateInsertValue(Empty,
+			llvm::ConstantPointerNull::get(llvm::PointerType::getUnqual(CGM->LLVMCtx)), 0);
+		Empty = Builder->CreateInsertValue(Empty, llvm::ConstantInt::get(CodeGen::Int32Ty, 0), 1);
+		return Empty;
+	}
 	llvm::Constant *GlobalPtr = Builder->CreateGlobalStringPtr(Str);
 	llvm::Value *SizeVal = llvm::ConstantInt::get(CodeGen::Int32Ty, Size);
 	llvm::Value *SizeExt = Builder->CreateZExt(SizeVal, CodeGen::IntPtrTy, "str_size_ext");
@@ -958,18 +969,39 @@ llvm::Value *CodeGenExpr::GenStringClone(llvm::Value *StrVal) {
 	// so each owner can free() its own buffer (no aliasing → no double free).
 	llvm::Value *SrcPtr  = Builder->CreateExtractValue(StrVal, 0, "clone_src_ptr");
 	llvm::Value *Size    = Builder->CreateExtractValue(StrVal, 1, "clone_size");
-	llvm::Value *SizeExt = Builder->CreateZExt(Size, CodeGen::IntPtrTy, "clone_size_ext");
 
+	// Empty string owns no heap: clone {*, 0} to {null, 0} WITHOUT calling malloc,
+	// so an empty clone never allocates and its free() at scope exit is a no-op
+	// (no double-free on aliasing). Only Size>0 malloc-copies. Guard with a branch
+	// (not select) so malloc is skipped entirely when empty.
+	llvm::PointerType *PtrTy = llvm::PointerType::getUnqual(CGM->LLVMCtx);
+	llvm::Value *NullPtr = llvm::ConstantPointerNull::get(PtrTy);
+	llvm::Value *IsEmpty = Builder->CreateICmpEQ(
+		Size, llvm::ConstantInt::get(CodeGen::Int32Ty, 0), "clone_is_empty");
+
+	llvm::Function *Fn = Builder->GetInsertBlock()->getParent();
+	llvm::BasicBlock *EntryBB = Builder->GetInsertBlock();
+	llvm::BasicBlock *AllocBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "clone.alloc", Fn);
+	llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "clone.merge", Fn);
+	Builder->CreateCondBr(IsEmpty, MergeBB, AllocBB);
+
+	Builder->SetInsertPoint(AllocBB);
+	llvm::Value *SizeExt = Builder->CreateZExt(Size, CodeGen::IntPtrTy, "clone_size_ext");
 	llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
 		"malloc",
-		llvm::FunctionType::get(
-			llvm::PointerType::getUnqual(CGM->LLVMCtx),
-			{CodeGen::IntPtrTy}, false));
+		llvm::FunctionType::get(PtrTy, {CodeGen::IntPtrTy}, false));
 	llvm::Value *HeapPtr = Builder->CreateCall(MallocFn, {SizeExt}, "str_clone");
 	Builder->CreateMemCpy(HeapPtr, llvm::MaybeAlign(), SrcPtr, llvm::MaybeAlign(), SizeExt);
+	Builder->CreateBr(MergeBB);
+	llvm::BasicBlock *AllocEndBB = Builder->GetInsertBlock();
+
+	Builder->SetInsertPoint(MergeBB);
+	llvm::PHINode *Ptr = Builder->CreatePHI(PtrTy, 2, "clone_ptr");
+	Ptr->addIncoming(NullPtr, EntryBB);
+	Ptr->addIncoming(HeapPtr, AllocEndBB);
 
 	llvm::Value *Result = llvm::UndefValue::get(CodeGen::StringTy);
-	Result = Builder->CreateInsertValue(Result, HeapPtr, 0);
+	Result = Builder->CreateInsertValue(Result, Ptr, 0);
 	Result = Builder->CreateInsertValue(Result, Size, 1);
 	return Result;
 }

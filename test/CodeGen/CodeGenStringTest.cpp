@@ -82,7 +82,9 @@ namespace {
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-    	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\nentry:\n  %1 = alloca ptr, align 8\n  %2 = alloca %string, align 8\n  store %string zeroinitializer, ptr %2, align 8\n  store ptr %0, ptr %1, align 8\n  %str_heap = call ptr @malloc(i64 0)\n  call void @llvm.memcpy.p0.p0.i64(ptr %str_heap, ptr @1, i64 0, i1 false)\n  %3 = insertvalue %string undef, ptr %str_heap, 0\n  %4 = insertvalue %string %3, i32 0, 1\n  store %string %4, ptr %2, align 8\n  %5 = load %string, ptr %2, align 8\n  %hs_ptr = extractvalue %string %5, 0\n  call void @free(ptr %hs_ptr)\n  ret void\n}\ndeclare ptr @malloc(i64)\n; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)\ndeclare void @llvm.memcpy.p0.p0.i64(ptr noalias nocapture writeonly, ptr noalias nocapture readonly, i64, i1 immarg) #0\ndeclare void @free(ptr)\n");
+    	// Empty string owns no heap: GenStringHeapCopy returns {null, 0} (folded to
+    	// zeroinitializer) instead of malloc(0)+memcpy(0). See CodeGenExpr.cpp.
+    	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\nentry:\n  %1 = alloca ptr, align 8\n  %2 = alloca %string, align 8\n  store %string zeroinitializer, ptr %2, align 8\n  store ptr %0, ptr %1, align 8\n  store %string zeroinitializer, ptr %2, align 8\n  %3 = load %string, ptr %2, align 8\n  %hs_ptr = extractvalue %string %3, 0\n  call void @free(ptr %hs_ptr)\n  ret void\n}\ndeclare void @free(ptr)\n");
      }
 
 	TEST_F(CodeGenTest, CGDefaultStringLocalVarAssignValue) {

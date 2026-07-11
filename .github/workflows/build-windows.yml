@@ -49,6 +49,30 @@ jobs:
         working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}
         run: ctest -C ${{env.BUILD_TYPE}} --output-on-failure
 
+      # Windows mirror of build-linux.yml's gdb "Backtrace on Crash": on a test
+      # failure, re-run the gtest binary under cdb so an access violation / heap
+      # corruption (0xC0000374) prints a full stack instead of a bare exit code.
+      # --gtest_catch_exceptions=0 lets the fault reach the debugger (like the
+      # Linux step). Symbols come from fly_test.pdb next to the exe - build with
+      # RelWithDebInfo (release branches already do) for source-level frames;
+      # a plain Release build still yields module+offset frames.
+      - name: Backtrace on Crash
+        if: failure()
+        working-directory: ${{github.workspace}}\${{env.BUILD_DIR}}
+        shell: pwsh
+        run: |
+          $cdb = "${env:ProgramFiles(x86)}\Windows Kits\10\Debuggers\x64\cdb.exe"
+          if (-not (Test-Path $cdb)) {
+            choco install windbg -y --no-progress
+            $cdb = (Get-ChildItem 'C:\Program Files*\Windows Kits\10\Debuggers\x64\cdb.exe' -ErrorAction SilentlyContinue |
+                    Select-Object -First 1).FullName
+          }
+          $exe = Get-ChildItem -Recurse -Filter fly_test.exe | Select-Object -First 1
+          if (-not $cdb -or -not $exe) { Write-Host "cdb or fly_test.exe not found; skipping backtrace."; exit 0 }
+          Write-Host "Backtrace for $($exe.FullName) under $cdb"
+          & $cdb -g -G -c "g; .echo === LAST EVENT ===; .lastevent; .echo === ALL THREADS ===; ~*kv 64; q" `
+            $exe.FullName --gtest_catch_exceptions=0
+
       - name: Capture build info
         id: info
         shell: pwsh
