@@ -82,8 +82,9 @@ namespace {
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
-    	// Empty string owns no heap: GenStringHeapCopy returns {null, 0} (folded to
-    	// zeroinitializer) instead of malloc(0)+memcpy(0). See CodeGenExpr.cpp.
+    	// Empty-string optimization (GenStringHeapCopy): "" stores a zeroinitializer
+    	// %string — NO malloc(0)/memcpy — so the null data ptr can never double-free
+    	// (the Windows heap aborts on it; free(null) at scope exit is a legal no-op).
     	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\nentry:\n  %1 = alloca ptr, align 8\n  %2 = alloca %string, align 8\n  store %string zeroinitializer, ptr %2, align 8\n  store ptr %0, ptr %1, align 8\n  store %string zeroinitializer, ptr %2, align 8\n  %3 = load %string, ptr %2, align 8\n  %hs_ptr = extractvalue %string %3, 0\n  call void @free(ptr %hs_ptr)\n  ret void\n}\ndeclare void @free(ptr)\n");
      }
 
