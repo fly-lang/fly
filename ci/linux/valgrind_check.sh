@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# valgrind_check.sh — run the self-host fly under Valgrind (memcheck) on
-# crash-prone compiler suites to catch the DOUBLE-FREE / invalid-free that the
-# Windows heap aborts on (0xC0000374 in Frontend.resolveSourceDeps) but which
-# glibc silently tolerates on Linux. Valgrind flags the invalid free regardless
-# and prints, all symbolized, the three stacks that pin the bug:
-#   * where it is being freed the SECOND time,
-#   * where it was freed the FIRST time,
-#   * where the block was allocated.
-# If Valgrind is CLEAN, the double-free is Windows-codegen-specific (not a source
-# ownership bug). Build with FLY_DEBUG_SYMBOLS=1 for File.fly:line frames.
+# valgrind_check.sh — run the self-host fly under Valgrind (memcheck) over the
+# whole test corpus to catch double-free / invalid-free / use-after-free bugs
+# (the owned-string aliasing class the Windows heap aborts on with 0xC0000374
+# but glibc silently tolerates on Linux). Valgrind flags each one and prints,
+# all symbolized (needs FLY_DEBUG_SYMBOLS=1), the offending stacks — for a
+# double-free: the second free, the first free, and the allocation site.
+#
+# By default it sweeps EVERY test suite for a full safety net:
+#   compiler/test/**/*Suite.fly   driver/test/**/*Suite.fly   (compiled with --test)
+#   std/test/*_test.fly           runtime/test/*_test.fly     (main()-style progs)
+# The memory bug is in the COMPILER while it compiles each test (e.g. the
+# resolveSourceDeps string double-free), so Valgrind wraps the fly COMPILE.
 #
 # Runnable locally (./ci/linux/valgrind_check.sh) and from build-linux.yml.
-# Env: FLY=<compiler> (default build/stage1/bin/fly), VG_SUITES="a.fly b.fly …".
-# Exit: 0 = clean, 1 = a memory error was found (the interesting case).
+# Env: FLY=<compiler> (default build/stage1/bin/fly); VG_SUITES="a.fly b.fly …"
+#      to scope it; VG_LIMIT=N to cap how many suites run (0 = all).
+# Exit: 0 = clean, 1 = at least one suite tripped memcheck. NOTE: a full sweep
+#       under Valgrind is slow (the compiler runs libLLVM) — expect minutes.
 # ─────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 cd "$(dirname "$0")/../.."
@@ -31,35 +35,57 @@ fi
 
 OUT=build/vgcheck; mkdir -p "$OUT"
 STD=std/lib
-# Suites seen faulting on Windows; the first that trips memcheck is enough.
-SUITES="${VG_SUITES:-compiler/test/sema/SemaNodeSuite.fly compiler/test/sema/SymbolTableSuite.fly compiler/test/sema/SemaTypeSuite.fly compiler/test/parser/LexerEdgeSuite.fly}"
+LIMIT="${VG_LIMIT:-0}"
 
-found=0
+# Collect every test file (or honour a VG_SUITES override).
+if [ -n "${VG_SUITES:-}" ]; then
+    SUITES="$VG_SUITES"
+else
+    SUITES="$(
+        { find compiler/test -name '*Suite.fly'
+          find driver/test   -name '*Suite.fly' 2>/dev/null
+          find std/test      -name '*_test.fly' 2>/dev/null
+          find runtime/test  -name '*_test.fly' 2>/dev/null
+        } | sort )"
+fi
+
+count=$(printf '%s\n' $SUITES | grep -c . || true)
+echo "valgrind: sweeping ${count} test suites under memcheck (FLY=$FLY)"
+
+total=0
+bad=0
+badlist=""
 for suite in $SUITES; do
     [ -f "$suite" ] || continue
+    if [ "$LIMIT" -gt 0 ] && [ "$total" -ge "$LIMIT" ]; then break; fi
+    total=$((total + 1))
     name="$(basename "$suite" .fly)"
     log="$OUT/vg_${name}.txt"
-    echo "== valgrind memcheck: $name =="
-    valgrind --tool=memcheck --error-exitcode=42 --num-callers=40 \
-             --track-origins=yes --read-inline-info=yes --read-var-info=yes \
-             "$FLY" "$suite" --test -o "t_${name}" --out-dir "$OUT" -L "$STD" \
+    # *Suite.fly (compiler/driver) need --test; *_test.fly (std/runtime) are main() progs.
+    testflag=""
+    case "$suite" in *Suite.fly) testflag="--test" ;; esac
+
+    printf '  [%d/%d] %s ... ' "$total" "$count" "$name"
+    valgrind --tool=memcheck --error-exitcode=42 --leak-check=no --num-callers=40 \
+             --track-origins=yes --read-inline-info=yes \
+             "$FLY" "$suite" $testflag -o "t_${name}" --out-dir "$OUT" -L "$STD" \
              > "$OUT/_${name}.out" 2> "$log" || true
 
     if grep -qE 'Invalid free|Mismatched free|Invalid read|Invalid write' "$log"; then
-        echo "  >>> MEMORY ERROR in ${name} — the double-free the Windows heap aborts on:"
-        # Print the invalid-free block: the second-free, first-free ('free'd')
-        # and allocation ('alloc'd') stacks are all in the ~40 lines that follow.
+        bad=$((bad + 1))
+        badlist="${badlist} ${name}"
+        echo "MEMORY ERROR"
+        echo "  ┌─ $suite ─────────────────────────────────────────────"
+        # The double-free's three stacks (2nd free / 1st free / alloc) live in the
+        # ~60 lines from the first error to the ERROR SUMMARY.
         awk '/Invalid free|Mismatched free|Invalid read|Invalid write/{p=1} p{print} /ERROR SUMMARY/{exit}' "$log" \
-            | sed 's/^/    /' | head -90
-        found=1
-        break
+            | sed 's/^/  │ /' | head -70
+        echo "  └──────────────────────────────────────────────────────"
+    else
+        echo "ok"
     fi
-    grep -E 'ERROR SUMMARY' "$log" | sed 's/^/  /'
 done
 
-if [ "$found" -eq 0 ]; then
-    echo "valgrind: no invalid/double free detected on these suites."
-    echo "          → the double-free is NOT reproducible on Linux; it is Windows-codegen-specific."
-    exit 0
-fi
-exit 1
+echo "─────────────────────────────────────────────"
+echo "valgrind: ${total} suites checked, ${bad} with memory errors${badlist:+ →${badlist}}"
+[ "$bad" -eq 0 ] && exit 0 || exit 1

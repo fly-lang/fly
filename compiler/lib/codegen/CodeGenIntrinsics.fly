@@ -792,6 +792,41 @@ public class CodeGenIntrinsics {
         llvm.buildExtractValue(b, val, 0, "csp", srcP)
         pointer szV
         llvm.buildExtractValue(b, val, 1, "css", szV)
+        pointer strTy = cgm.getStringTy()
+        pointer slot
+        llvm.buildAlloca(b, strTy, "cslt", slot)
+
+        // Empty string owns no heap: store {null, 0} and skip malloc entirely, so
+        // an empty clone never allocates. Aligns with the reference GenStringClone
+        // and the "empty = {null,0}, no heap" model (free(null) is a no-op).
+        pointer i32t
+        llvm.int32TypeInContext(cgm.getCtx(), i32t)
+        pointer zero32
+        llvm.constInt(i32t, 0, false, zero32)
+        pointer isEmpty
+        llvm.buildICmp(b, 32, szV, zero32, "cempty", isEmpty)   // 32 = EQ
+        pointer emptyBB = cge.newBlock("clone.empty")
+        pointer allocBB = cge.newBlock("clone.alloc")
+        pointer mergeBB = cge.newBlock("clone.merge")
+        pointer cbr
+        llvm.buildCondBr(b, isEmpty, emptyBB, allocBB, cbr)
+        cge.setTerminated(true)
+
+        // empty → {null, 0}
+        cge.position(emptyBB)
+        pointer pty = cge.ptrType()
+        pointer nullP
+        llvm.constPointerNull(pty, nullP)
+        pointer f0e
+        llvm.buildStructGEP2(b, strTy, slot, 0, "cf0e", f0e)
+        llvm.buildStore(b, nullP, f0e)
+        pointer f1e
+        llvm.buildStructGEP2(b, strTy, slot, 1, "cf1e", f1e)
+        llvm.buildStore(b, szV, f1e)
+        cge.br(mergeBB)
+
+        // non-empty → malloc + memcpy
+        cge.position(allocBB)
         pointer i64c
         llvm.int64TypeInContext(cgm.getCtx(), i64c)
         pointer szW
@@ -799,15 +834,15 @@ public class CodeGenIntrinsics {
         pointer heapP = cgm.emitMalloc(szW)
         pointer msv
         llvm.buildMemCpy(b, heapP, srcP, szW, msv)
-        pointer strTy = cgm.getStringTy()
-        pointer slot
-        llvm.buildAlloca(b, strTy, "cslt", slot)
         pointer f0
         llvm.buildStructGEP2(b, strTy, slot, 0, "cf0", f0)
         llvm.buildStore(b, heapP, f0)
         pointer f1
         llvm.buildStructGEP2(b, strTy, slot, 1, "cf1", f1)
         llvm.buildStore(b, szV, f1)
+        cge.br(mergeBB)
+
+        cge.position(mergeBB)
         pointer res
         llvm.buildLoad2(b, strTy, slot, "cres", res)
         out = res

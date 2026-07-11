@@ -91,14 +91,15 @@ jobs:
       - name: Test self-host compiler
         run: ./ci/linux/test_compiler.sh
 
-      # Diagnostic (non-blocking): run the self-host under Valgrind memcheck to
-      # catch the DOUBLE-FREE that the Windows heap aborts on
-      # (Frontend.resolveSourceDeps, 0xC0000374) but glibc silently tolerates
-      # here. Valgrind flags the invalid free regardless and prints the
-      # symbolized alloc + both free stacks (needs FLY_DEBUG_SYMBOLS=1, the
-      # default on push/dispatch). If it is clean, the bug is Windows-codegen
-      # -specific. Also runnable locally: ./ci/linux/valgrind_check.sh
-      - name: Valgrind memcheck (double-free hunt)
+      # Diagnostic (non-blocking): sweep EVERY test suite (compiler, driver, std,
+      # runtime) under Valgrind memcheck to catch double-free / use-after-free
+      # bugs — the owned-string aliasing class the Windows heap aborts on
+      # (e.g. Frontend.resolveSourceDeps, 0xC0000374) but glibc silently tolerates
+      # here. Valgrind flags each invalid free and prints the symbolized alloc +
+      # both free stacks (needs FLY_DEBUG_SYMBOLS=1, the default on push/dispatch).
+      # Slow (the compiler runs libLLVM per suite); scope with VG_SUITES / VG_LIMIT.
+      # Also runnable locally: ./ci/linux/valgrind_check.sh
+      - name: Valgrind memcheck (all suites)
         if: always()
         continue-on-error: true
         run: |

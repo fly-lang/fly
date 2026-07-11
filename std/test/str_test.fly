@@ -158,4 +158,49 @@ void main() {
     if "" == "" { } else { assert.errExit(204) }        // both empty
     if sa == "" { assert.errExit(205) }                 // non-empty vs empty
     if "hello" == sa { } else { assert.errExit(206) }   // literal vs variable
+
+    // ── owned-string reassignment must DEEP-COPY, not alias (double-free) ───────
+    // A `string` is a value struct {ptr, size} whose ptr is heap-owned and freed
+    // at scope exit. Assigning one owned string to another (`a = b`) must clone
+    // the buffer so each owns an independent block; if it aliases, both free the
+    // SAME block at scope exit — a double-free the Windows heap aborts on
+    // (0xC0000374) and Valgrind flags on Linux (ci/linux/valgrind_check.sh).
+    // Regression for the resolveSourceDeps double-free: an outer-scope var
+    // reassigned from an inner local inside a nested loop, shrinking to "".
+
+    // (a) reassign an outer var from an inner local, in a loop, down to empty
+    //     (mirrors dropLastSegment): the original must stay intact.
+    string dotted = "a.b.c.d.e"
+    string cur = dotted
+    while str.isEmpty(cur) == false {
+        int dot = str.lastIndexOf(cur, ".")
+        string next = ""
+        if dot >= 0 { next = str.substring(cur, 0, dot) }
+        cur = next                                       // outer `cur` = inner `next` (lvalue → clone)
+    }
+    assert.assertStr(dotted, "a.b.c.d.e", 210)           // untouched by cur's reassignments
+    assert.assertEqI(str.len(cur), 0, 211)               // cur shrank to ""
+
+    // (b) independence: after `dst = src`, reassigning src must NOT disturb dst
+    //     (if dst aliased src, reassigning src frees the shared buffer → dst
+    //      dangles, then a second free at scope exit).
+    string src = "keepme"
+    string dst = "temp"
+    dst = src                                            // lvalue RHS → must deep-clone
+    src = "changed"
+    assert.assertStr(dst, "keepme", 212)
+    assert.assertStr(src, "changed", 213)
+
+    // (c) stress the alloc/free path so any aliasing surfaces as a crash /
+    //     Valgrind error rather than staying latent: many nested-scope
+    //     reassignments of an outer var from an inner local.
+    int it = 0
+    string acc = "seed"
+    while it < 64 {
+        string tmp = str.concat(acc, "x")
+        acc = tmp                                        // outer `acc` = inner `tmp`, in a loop
+        acc = str.substring(acc, 0, 4)                   // keep it bounded ("seedx" → "seed")
+        it = it + 1
+    }
+    assert.assertStr(acc, "seed", 214)
 }
