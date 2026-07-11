@@ -582,10 +582,27 @@ public class LLVM {
                 len = len + 1
                 c = fly.mem.readByte(mp, len)
             }
-            string s = ""
-            fly.str.fromBytes(mp, len, s)
+            // COPY the message into a buffer the string OWNS: strMake is
+            // zero-copy, so wrapping `mp` directly makes the local alias LLVM's
+            // buffer — disposeMessage + the scope-exit string free then free the
+            // same block twice (the CodeGen suites aborted exactly there once
+            // the self-host started freeing local strings at scope exit). The
+            // copy also keeps dispose on LLVM's own allocator (Windows CRTs
+            // differ between LLVM-C.dll and the program).
+            if len > 0 {
+                pointer copy = fly.mem.alloc(len)
+                int i = 0
+                byte b = 0
+                while i < len {
+                    b = fly.mem.readByte(mp, i)
+                    fly.mem.writeByte(copy, i, b)
+                    i = i + 1
+                }
+                string s = ""
+                fly.llvm.strMake(copy, len, s)
+                out = s
+            }
             this.disposeMessage(mp)
-            out = s
         }
     }
 
