@@ -72,6 +72,17 @@ public class ResolverStmt {
                 }
             }
         }
+
+        // A string LOCAL owns a heap buffer under clone-on-store (its decl clones a
+        // borrowed RHS / moves an owned temp / defaults to {null,0}) → register it for
+        // scope-exit free. Independent of the initializer (an uninitialized string is
+        // {null,0}, free(null) is a no-op). Escaped ones (assigned away / passed to a
+        // call / returned) are skipped by the isEscaped() gate in the cleanup, so they
+        // leak rather than double-free — the conservative-but-safe choice.
+        SemaType svt = slv.getType()
+        if svt != null {
+            if svt.isString() { blk.addAlloc(slv) }
+        }
     }
 
     public static void expr(const Resolver r, const ASTExprStmt node) {

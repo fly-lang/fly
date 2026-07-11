@@ -97,8 +97,18 @@ public class ResolverExpr {
             } else {
                 // Stage-7 escape marking: an assigned-away variable (`this.f = p`,
                 // `x = p`, `out = p`) escapes its scope — never free it at exit.
+                // EXCEPTION (clone-on-store): a STRING RHS is deep-copied by the assign
+                // (CodeGenExprOps.assign → cloneIfString), so `a = b` does NOT alias b's
+                // buffer — b stays solely owned and is safe to free at scope exit.
+                // Marking it escaped would needlessly leak it. Only non-string assigns
+                // (class handles, which truly alias the same object) must escape.
                 if right != null {
-                    if right.isVarExpr() { right.setEscaped(true) }
+                    if right.isVarExpr() {
+                        SemaType rvt = right.getType()
+                        bool rIsStr = false
+                        if rvt != null { rIsStr = rvt.isString() }
+                        if rIsStr == false { right.setEscaped(true) }
+                    }
                 }
             }
         }

@@ -260,6 +260,26 @@ public class CodeGenExpr : SemaVisitor {
                 // may be retained elsewhere: freeing them here left dangling
                 // handles inside containers (LockfileSuite segfault).
                 if v.isEscaped() == false {
+                    SemaType vty = v.getType()
+                    bool isStr = false
+                    if vty != null { isStr = vty.isString() }
+                    if isStr {
+                        // String local: free its owned heap buffer (field 0 of the
+                        // {ptr,size} struct). Under clone-on-store it owns the buffer
+                        // uniquely; a returned string was CLONED into the out slot
+                        // (value semantics), so freeing the local never touches the
+                        // caller's copy — no out-slot compare needed (unlike class
+                        // handles below). free(null) covers the empty {null,0} case.
+                        pointer salloca = v.getLlvmAlloca()
+                        pointer strTy2 = this.cgm.getStringTy()
+                        pointer sval2
+                        this.llvm.buildLoad2(this.builder, strTy2, salloca, "sfreeld", sval2)
+                        pointer sptr2
+                        this.llvm.buildExtractValue(this.builder, sval2, 0, "sfreep", sptr2)
+                        this.cgm.freeHandle(sptr2)
+                        j = j + 1
+                        continue
+                    }
                     pointer alloca = v.getLlvmAlloca()
                     pointer ty = this.lowerType(v.getType())
                     pointer objPtr

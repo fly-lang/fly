@@ -3,6 +3,7 @@ namespace fly.compiler.codegen
 import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.codegen.CodeGenExpr
+import fly.compiler.codegen.CodeGenIntrinsics
 import llvm.api.*
 import fly.mem
 import fly.data.List
@@ -36,6 +37,13 @@ public class CodeGenStmt {
         if init != null {
             pointer iv = cge.gen(init)
             iv = cge.coerce(iv, init.getType(), v.getType())
+            // clone-on-store: a borrowed string RHS is deep-copied so this local owns
+            // an independent buffer (the invariant that lets each owner free exactly
+            // once); an owned temp (concat, flagged ownedStrTemp) is MOVED as-is —
+            // cloning it would double-allocate. cloneIfString no-ops for non-strings.
+            if init.isOwnedStrTemp() == false {
+                iv = CodeGenIntrinsics.cloneIfString(cge, iv, v.getType())
+            }
             llvm.buildStore(b, iv, alloca)
         } else {
             // no initializer → DEFAULT-initialize (0 / null / empty struct):

@@ -136,7 +136,17 @@ public class ResolverCall {
                 // RETAINED by the callee (lf.addPackage(p), list.add(p)) — the
                 // scope-exit cleanup must not free it (a freed-then-reused handle
                 // segfaulted LockfileSuite on the next virtual dispatch).
-                if ax.isVarExpr() { ax.setEscaped(true) }
+                // EXCEPTION (clone-on-store): a STRING cannot be retained by the callee —
+                // every store path that KEEPS a string CLONES it (decl, assign,
+                // slotPokeT/slotReadT), so the callee holds an independent copy and the
+                // caller's buffer stays solely its own → safe to free at scope exit.
+                // (A runtime/FFI that stashed the raw ptr would break this; the Linux
+                // Valgrind sweep is the backstop before this is trusted broadly.)
+                if ax.isVarExpr() {
+                    bool axStr = false
+                    if at != null { axStr = at.isString() }
+                    if axStr == false { ax.setEscaped(true) }
+                }
             }
             argTypes.add(at)
             i = i + 1

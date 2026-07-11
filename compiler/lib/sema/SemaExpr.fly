@@ -25,18 +25,27 @@ public class SemaExpr : SemaNode {
                         // field (a narrowing virtual would trip the vtable-shift
                         // gotcha above); only SemaLocalVars in a block's alloc list
                         // are ever consulted.
+    bool ownedStrTemp   // CodeGen marker: gen'ing this expr produced a FRESH OWNED
+                        // heap string buffer (only string-concat sets it). A consumer
+                        // that copies the bytes out (the enclosing concat) frees it
+                        // here to avoid leaking the intermediate. A plain field, same
+                        // rationale as escapedFlag (no narrowing virtual). NOT set by
+                        // borrowed producers (var/param/literal/getter) → never freed.
 
     public SemaExpr(const SemaKind kind, const SemaType type) {
         super(kind)
         this.type = type
         this.llvmValue = 0
         this.escapedFlag = false
+        this.ownedStrTemp = false
     }
 
     public SemaType getType() { out = this.type }
     public void setType(const SemaType type) { this.type = type }
     public bool isEscaped() { out = this.escapedFlag }
     public void setEscaped(const bool e) { this.escapedFlag = e }
+    public bool isOwnedStrTemp() { out = this.ownedStrTemp }
+    public void setOwnedStrTemp(const bool o) { this.ownedStrTemp = o }
 
     // asCall — narrow to SemaCall without a downcast (null on the base; SemaCall
     // overrides to return `this`). Used to spot `new` initializers for alloc tracking.
