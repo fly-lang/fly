@@ -442,8 +442,9 @@ public class ToolChain {
     // ── LinkWindowsGNU — link a PE/COFF exe against the bundled mingw/UCRT sysroot
     // (llvm-mingw), needing NO Visual Studio. Mirrors the fork's fly-lang bootstrap
     // link: `ld.lld -m i386pep` with the mingw CRT startup objects + import libs +
-    // compiler-rt builtins + the __chkstk/_fltused compat shim. The sysroot ships
-    // in the release next to fly.exe (<exe_dir>/mingw); x86_64 only for now.
+    // compiler-rt builtins. The gnu triple makes LLVM emit `___chkstk_ms` (resolved
+    // from the builtins archive) and no `_fltused`, so no CRT-glue shim is needed.
+    // The sysroot ships in the release next to fly.exe (<exe_dir>/mingw); x86_64 only.
     public bool LinkWindowsGNU(const string inFilesSemi, const string outFile) {
         string sysroot = this.getMingwSysrootDir()
         if fly.str.isEmpty(sysroot) {
@@ -464,11 +465,10 @@ public class ToolChain {
             fly.os.proc.argsAdd(h, fly.str.concat("-L", this.codeGenOpts.getToolchainLibDir()))
         }
 
-        // CRT startup + the compat shim (__chkstk → ___chkstk_ms, _fltused).
+        // CRT startup objects. `___chkstk_ms` (large-frame stack probe) resolves
+        // from the compiler-rt builtins archive added below — no compat shim.
         fly.os.proc.argsAdd(h, fly.os.path.join(slib, "crt2.o"))
         fly.os.proc.argsAdd(h, fly.os.path.join(slib, "crtbegin.o"))
-        string compat = fly.os.path.join(sysroot, "fly_gnu_compat.o")
-        if fly.os.fs.exists(compat) { fly.os.proc.argsAdd(h, compat) }
 
         // User objects.
         int ni = segCount(inFilesSemi)

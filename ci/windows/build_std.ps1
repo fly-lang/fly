@@ -64,7 +64,7 @@ $FILES = @(
 )
 
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
-Write-Host "stage${STAGE}: compiling $($FILES.Count) std files (codegen '$(if ($script:FLY_CODEGEN) { $script:FLY_CODEGEN } else { 'msvc(default)' })', link mingw) ...$(if ($DBG) { ' (+debug-symbols)' })"
+Write-Host "stage${STAGE}: compiling $($FILES.Count) std files (codegen gnu, link mingw) ...$(if ($DBG) { ' (+debug-symbols)' })"
 & $FLY --lib @DBG @FLY_TARGET_ARGS -o "$T/fly_std_lib" @FILES
 Assert-LastExit 'std --lib build'
 # gnu target emits a `.a` archive; keep the `.lib` name the build references.

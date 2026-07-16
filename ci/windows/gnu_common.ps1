@@ -18,25 +18,16 @@
 # when full-gnu CODEGEN is enabled, for compilation too.
 $script:FLY_WIN_TARGET = 'x86_64-w64-windows-gnu'
 
-# CODEGEN target vs LINK environment. The link is ALWAYS mingw/UCRT (no MSVC
-# toolchain needed). Codegen is a separate axis:
-#   * 'gnu' (DEFAULT) → compile with $FLY_WIN_TARGET (fully-gnu, Rust-gnullvm-style,
-#     the faithful "replace MSVC" target). Produces a pure-UCRT fly.exe (imports
-#     only api-ms-win-crt-* + kernel32 + LLVM-C.dll). __chkstk/_fltused come from
-#     the compat shim (stage0/self-host emit those MSVC-isms even for the gnu
-#     triple). VERIFIED working end-to-end 2026-07-16 (the earlier "hang" was the
-#     scanToken runtime bug, now fixed — NOT a codegen issue).
-#   * 'msvc' (the "pivot" fallback) → compile with fly's DEFAULT host triple
-#     (x86_64-pc-windows-msvc); still LINKS with the mingw/UCRT sysroot (on x64
-#     MSVC codegen is link-compatible: same UCRT, same SEH/.pdata-.xdata unwind).
-#     Also VERIFIED working; kept as a safety net since stage0's msvc codegen is
-#     its more-trodden path.
-# Override via env FLY_CODEGEN=msvc. $FLY_TARGET_ARGS is spliced into each stage0
-# compile (@FLY_TARGET_ARGS) — `--target <triple>` for gnu, empty for msvc.
-$script:FLY_CODEGEN = if ($env:FLY_CODEGEN) { $env:FLY_CODEGEN } else { 'gnu' }
-# Always pass an EXPLICIT --target so the build never depends on the driver's
-# default (which is now windows-gnu on Windows): 'msvc' pins the MSVC triple.
-$script:FLY_TARGET_ARGS = if ($script:FLY_CODEGEN -eq 'msvc') { @('--target', 'x86_64-pc-windows-msvc') } else { @('--target', $script:FLY_WIN_TARGET) }
+# CODEGEN and LINK are both pure gnu/UCRT — no MSVC anywhere. Fly compiles with
+# $FLY_WIN_TARGET (x86_64-w64-windows-gnu, Rust-gnullvm-style). LLVM's X86 backend
+# then emits the GNU stack-probe `___chkstk_ms` (provided by compiler-rt builtins)
+# and NO `_fltused` marker, so the mingw sysroot satisfies the link on its own —
+# no CRT-glue shim is needed. The old MSVC codegen path (compile as
+# x86_64-pc-windows-msvc), which DID need such a shim because it emits `__chkstk`
+# + `_fltused`, has been removed: it was the last MSVC-ism in the pipeline.
+# $FLY_TARGET_ARGS is spliced into each compile (@FLY_TARGET_ARGS) as an EXPLICIT
+# --target so the build never silently depends on the driver's default.
+$script:FLY_TARGET_ARGS = @('--target', $script:FLY_WIN_TARGET)
 
 # llvm-mingw release the sysroot is cut from (mstorsjo/llvm-mingw). Keep in sync
 # with the CI cache key. UCRT + x86_64.
@@ -55,10 +46,6 @@ $script:GNU_builtinsDir = Join-Path $script:GNU_sysroot 'builtins'
 $script:GNU_lldLink     = Join-Path $script:GNU_llvmBin 'lld-link.exe'
 $script:GNU_ldLld       = Join-Path $script:GNU_llvmBin 'ld.lld.exe'
 $script:GNU_builtinsLib = Join-Path $script:GNU_builtinsDir 'libclang_rt.builtins-x86_64.a'
-# Vendored CRT-glue: __chkstk (→ ___chkstk_ms) + _fltused, which fly's MSVC-style
-# codegen references even for the gnu triple but the mingw sysroot doesn't provide.
-# Source + regen recipe in ci\windows\fly_gnu_compat.c. Committed next to it.
-$script:GNU_compatObj   = Join-Path $PSScriptRoot 'fly_gnu_compat.o'
 
 # Ensure build\llvm\bin\ld.lld.exe exists (a copy of the fork lld-link.exe). The
 # GNU-flavour driver is the same binary; the copy lets us fork it by that name.
@@ -84,7 +71,7 @@ function Get-MingwLinkParts {
     $L = $script:GNU_sysrootLib
     return @{
         LibDirs = @("-L$L", "-L$script:GNU_builtinsDir")
-        Pre     = @((Join-Path $L 'crt2.o'), (Join-Path $L 'crtbegin.o'), $script:GNU_compatObj)
+        Pre     = @((Join-Path $L 'crt2.o'), (Join-Path $L 'crtbegin.o'))
         # -lmingw32 brackets the builtins archive; the Win32 import libs follow.
         Post    = @(
             '-lmingw32', $script:GNU_builtinsLib, '-lmoldname', '-lmingwex', '-lmsvcrt',

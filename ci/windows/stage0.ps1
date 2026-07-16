@@ -110,8 +110,6 @@ if (-not (Test-MingwSysroot)) {
         }
     } finally { $mz.Dispose() }
     if (-not $env:MINGW_ZIP -and (Test-Path (Join-Path $buildDir 'mingw.zip'))) { Remove-Item (Join-Path $buildDir 'mingw.zip') }
-    # the vendored CRT-glue shim (__chkstk/_fltused) ships inside the sysroot
-    Copy-Item (Join-Path $PSScriptRoot 'fly_gnu_compat.o') (Join-Path $script:GNU_sysroot 'fly_gnu_compat.o') -Force
 }
 Install-LdLld                                  # build\llvm\bin\ld.lld.exe (fork lld, GNU flavour)
 

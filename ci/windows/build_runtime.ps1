@@ -66,7 +66,7 @@ $T = 'build/tmp_runtime'
 Remove-Item $T -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $T | Out-Null
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
-Write-Host "stage${STAGE}: compiling runtime/lib/runtime-windows.fly (codegen '$(if ($script:FLY_CODEGEN) { $script:FLY_CODEGEN } else { 'msvc(default)' })', link mingw) ...$(if ($DBG) { ' (+debug-symbols)' })"
+Write-Host "stage${STAGE}: compiling runtime/lib/runtime-windows.fly (codegen gnu, link mingw) ...$(if ($DBG) { ' (+debug-symbols)' })"
 & $FLY --lib @DBG @FLY_TARGET_ARGS -o "$T/fly_runtime_lib" -L $LIB --src-dir $T runtime/lib/runtime-windows.fly
 Assert-LastExit 'runtime --lib build'
 # stage0 --lib emits a `.a`/`.lib` ARCHIVE; the self-host emits ONE merged OBJECT
