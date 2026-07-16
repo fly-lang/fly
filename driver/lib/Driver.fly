@@ -284,8 +284,18 @@ public class Driver {
         string finalPath = this.applyOutDir(outDir, basePath)
         string name = this.moduleName(input)
 
+        // Default target = the HOST (compile for where fly runs). Windows targets
+        // the gnu/UCRT env (the self-contained mingw toolchain fly ships), NOT the
+        // host's -msvc triple; every other host defaults to Linux. Cross-compile
+        // with an explicit --target.
         string effTriple = targetTriple
-        if fly.str.isEmpty(effTriple) { effTriple = "x86_64-unknown-linux-gnu" }
+        if fly.str.isEmpty(effTriple) {
+            if fly.str.equals(fly.os.env.osname(), "windows") {
+                effTriple = "x86_64-w64-windows-gnu"
+            } else {
+                effTriple = "x86_64-unknown-linux-gnu"
+            }
+        }
 
         // note only when IR emission is still the effective mode (a later -c/-S
         // overrides emitMode and the note would then be misleading)
@@ -461,7 +471,7 @@ public class Driver {
         fly.os.io.printErrLn("  -j, --jobs <n>       LLVM parallelism (0 = auto)")
         fly.os.io.printErrLn("  --mcmodel <m>        memory code model")
         fly.os.io.printErrLn("  --mthread-model <m>  thread model (posix|single)")
-        fly.os.io.printErrLn("  --target <triple>    target triple (default: x86_64-unknown-linux-gnu)")
+        fly.os.io.printErrLn("  --target <triple>    target triple (default: the host; Windows → x86_64-w64-windows-gnu)")
         fly.os.io.printErrLn("  --target-cpu <cpu>   target CPU (default: generic)")
         fly.os.io.printErrLn("  --no-output     type-check only, produce no output")
         fly.os.io.printErrLn("  --test          compile in test mode (test {} blocks)")

@@ -34,7 +34,9 @@ $script:FLY_WIN_TARGET = 'x86_64-w64-windows-gnu'
 # Override via env FLY_CODEGEN=msvc. $FLY_TARGET_ARGS is spliced into each stage0
 # compile (@FLY_TARGET_ARGS) — `--target <triple>` for gnu, empty for msvc.
 $script:FLY_CODEGEN = if ($env:FLY_CODEGEN) { $env:FLY_CODEGEN } else { 'gnu' }
-$script:FLY_TARGET_ARGS = if ($script:FLY_CODEGEN -eq 'msvc') { @() } else { @('--target', $script:FLY_WIN_TARGET) }
+# Always pass an EXPLICIT --target so the build never depends on the driver's
+# default (which is now windows-gnu on Windows): 'msvc' pins the MSVC triple.
+$script:FLY_TARGET_ARGS = if ($script:FLY_CODEGEN -eq 'msvc') { @('--target', 'x86_64-pc-windows-msvc') } else { @('--target', $script:FLY_WIN_TARGET) }
 
 # llvm-mingw release the sysroot is cut from (mstorsjo/llvm-mingw). Keep in sync
 # with the CI cache key. UCRT + x86_64.
