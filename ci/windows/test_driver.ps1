@@ -15,6 +15,13 @@ $ErrorActionPreference = 'Continue'
 $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
 
+# The driver pulls fly.compiler.* → codegen, so these test executables import
+# LLVM-C.dll (the LLVM C API). They run from $OUT, not next to the DLL, so put the
+# LLVM bin dir on PATH for the run step — else they abort at startup with
+# STATUS_DLL_NOT_FOUND (0xC0000135). build/llvm/bin is populated by stage0.
+$llvmBin = Join-Path (Get-Location) 'build\llvm\bin'
+if (Test-Path (Join-Path $llvmBin 'LLVM-C.dll')) { $env:PATH = "$llvmBin;$env:PATH" }
+
 $OUT = "build/test"
 $STD = "std/lib"
 New-Item -ItemType Directory -Force $OUT | Out-Null

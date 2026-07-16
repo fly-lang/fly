@@ -411,9 +411,9 @@ public void dirDelete(const string path) {
 // Regular files are unlinked; subdirectories are recursed into first.
 public void dirDeleteAll(const string path) {
     pointer cpath = strToCstr(path)
-    int fd = 0
-    fly.runtime.fs_open(cpath, 0, 0, fd)
-    if fd < 0 { return }
+    pointer dh = 0
+    fly.runtime.dir_open(cpath, dh)
+    if dh == 0 { return }
 
     int bufsize = 4096
     pointer dbuf = 0
@@ -422,7 +422,7 @@ public void dirDeleteAll(const string path) {
     bool done = false
     while done == false {
         int nbytes = 0
-        fly.runtime.fs_getdents(fd, dbuf, bufsize, nbytes)
+        fly.runtime.dir_read(dh, dbuf, bufsize, nbytes)
         if nbytes <= 0 {
             done = true
         } else {
@@ -502,7 +502,7 @@ public void dirDeleteAll(const string path) {
         }
     }
 
-    fly.runtime.fs_close(fd)
+    fly.runtime.dir_close(dh)
     int ret2 = 0
     fly.runtime.fs_rmdir(cpath, ret2)
 }

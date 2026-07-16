@@ -21,6 +21,13 @@ $PSNativeCommandUseErrorActionPreference = $false
 # Scripts live in ci\windows\; operate from the project root (two levels up).
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
 
+# The CodeGen/Target suites link the LLVM C API, so their test executables import
+# LLVM-C.dll. They run from $OUT, not next to the DLL, so put the LLVM bin dir on
+# PATH for the run step — else they abort at startup with STATUS_DLL_NOT_FOUND
+# (0xC0000135). build/llvm/bin is populated by stage0.
+$llvmBin = Join-Path (Get-Location) 'build\llvm\bin'
+if (Test-Path (Join-Path $llvmBin 'LLVM-C.dll')) { $env:PATH = "$llvmBin;$env:PATH" }
+
 # Scratch for per-suite test binaries/logs; under build/ but separate from
 # the stage dirs so it doesn't sit next to the release artifact.
 $OUT = "build/test"

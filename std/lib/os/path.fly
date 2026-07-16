@@ -658,10 +658,9 @@ public fly.os.env.StringArray glob(const string pattern) {
     fly.llvm.strMake(pat_buf, pat_len, name_pat)
 
     pointer cdir = strToCstr(dir_str)
-    int oflags = 65536
-    int fd = 0
-    fly.runtime.fs_open(cdir, oflags, 0, fd)
-    if fd < 0 {
+    pointer dh = 0
+    fly.runtime.dir_open(cdir, dh)
+    if dh == 0 {
         out.items = 0
         out.count = 0
         return
@@ -681,7 +680,7 @@ public fly.os.env.StringArray glob(const string pattern) {
     bool done = false
     while done == false {
         int nread = 0
-        fly.runtime.fs_getdents(fd, gbuf, gbuf_cap, nread)
+        fly.runtime.dir_read(dh, gbuf, gbuf_cap, nread)
         if nread <= 0 {
             done = true
         } else {
@@ -780,7 +779,7 @@ public fly.os.env.StringArray glob(const string pattern) {
         }
     }
 
-    fly.runtime.fs_close(fd)
+    fly.runtime.dir_close(dh)
     out.items = arr
     out.count = count
 }
@@ -855,9 +854,9 @@ public int globCount(const string pattern) {
     fly.llvm.strMake(pat_buf, pat_len, name_pat)
 
     pointer cdir = strToCstr(dir_str)
-    int fd = 0
-    fly.runtime.fs_open(cdir, 65536, 0, fd)
-    if fd < 0 {
+    pointer dh = 0
+    fly.runtime.dir_open(cdir, dh)
+    if dh == 0 {
         out = 0
         return
     }
@@ -871,7 +870,7 @@ public int globCount(const string pattern) {
 
     while done == false {
         int nread = 0
-        fly.runtime.fs_getdents(fd, gbuf, gbuf_cap, nread)
+        fly.runtime.dir_read(dh, gbuf, gbuf_cap, nread)
         if nread <= 0 {
             done = true
         } else {
@@ -926,7 +925,7 @@ public int globCount(const string pattern) {
         }
     }
 
-    fly.runtime.fs_close(fd)
+    fly.runtime.dir_close(dh)
     out = count
 }
 

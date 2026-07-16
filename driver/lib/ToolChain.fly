@@ -494,11 +494,20 @@ public class ToolChain {
         fly.os.proc.argsAdd(h, this.GetStdLibPath())
         fly.os.proc.argsAdd(h, this.GetRuntimeLibPath())
 
-        // User -l options pass through (mingw resolves `-lNAME` → libNAME.a).
+        // User -l options pass through (mingw resolves `-lNAME` → libNAME.a), EXCEPT
+        // -lc / -lm: those are POSIX, the mingw/UCRT CRT ships no libc.a/libm.a, and
+        // their symbols (strlen, sin, …) come from -lmsvcrt/-lmingwex linked below.
+        // A C-bridge program that names libc.so.6 (→ -lc) must still link on Windows.
         string lo = this.codeGenOpts.getLinkerOptions()
         int nl = segCount(lo)
         int li = 0
-        while li < nl { fly.os.proc.argsAdd(h, segAt(lo, li))  li = li + 1 }
+        while li < nl {
+            string opt = segAt(lo, li)
+            if fly.str.equals(opt, "-lc") == false && fly.str.equals(opt, "-lm") == false {
+                fly.os.proc.argsAdd(h, opt)
+            }
+            li = li + 1
+        }
 
         // mingw import libs + compiler-rt builtins (libmingw32 brackets the group).
         fly.os.proc.argsAdd(h, "-lmingw32")
