@@ -464,6 +464,16 @@ public class ToolChain {
         if fly.str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
             fly.os.proc.argsAdd(h, fly.str.concat("-L", this.codeGenOpts.getToolchainLibDir()))
         }
+        // LLVM import-lib dir, so programs using the LLVM C-API (the compiler's own
+        // CodeGen/Target test suites reference `libLLVM-20.so` → `-lLLVM-20`) link.
+        // Windows has no system LLVM (on Linux `-lLLVM-20` resolves from the
+        // apt-installed system libdir enumerated by CreatePathList); here it lives
+        // next to fly.exe (release) or in build/llvm/lib (dev). Skipped if absent —
+        // ordinary user programs don't reference LLVM.
+        string llvmLibDir = this.getLLVMLibDir()
+        if fly.str.isEmpty(llvmLibDir) == false {
+            fly.os.proc.argsAdd(h, fly.str.concat("-L", llvmLibDir))
+        }
 
         // CRT startup objects. `___chkstk_ms` (large-frame stack probe) resolves
         // from the compiler-rt builtins archive added below — no compat shim.
@@ -529,6 +539,29 @@ public class ToolChain {
             if fly.os.fs.exists(s1) { out = s1  return }
             string build = fly.os.path.dirname(fly.os.path.dirname(dir))
             string s2 = fly.os.path.join(build, "mingw")
+            if fly.os.fs.exists(s2) { out = s2  return }
+        }
+        out = ""
+    }
+
+    // getLLVMLibDir — locate the dir holding the LLVM import lib (LLVM-20.lib, the
+    // stage0 alias of LLVM-C.lib) so `-lLLVM-20` (emitted for codegen-using
+    // programs) resolves on Windows, where there is no system LLVM. Probe order
+    // mirrors getMingwSysrootDir: FLY_LLVM_LIB_DIR, then <exe_dir>/llvm/lib
+    // (release bundle), then <exe_dir>/../../llvm/lib (dev: build/stage$STAGE/bin →
+    // build/llvm/lib). "" if none found (ordinary programs don't need LLVM).
+    public string getLLVMLibDir() {
+        string env = fly.os.env.get("FLY_LLVM_LIB_DIR")
+        if fly.str.isEmpty(env) == false {
+            if fly.os.fs.exists(env) { out = env  return }
+        }
+        string exe = fly.os.env.exePath()
+        if fly.str.isEmpty(exe) == false {
+            string dir = fly.os.path.dirname(exe)
+            string s1 = fly.os.path.join(fly.os.path.join(dir, "llvm"), "lib")
+            if fly.os.fs.exists(s1) { out = s1  return }
+            string build = fly.os.path.dirname(fly.os.path.dirname(dir))
+            string s2 = fly.os.path.join(fly.os.path.join(build, "llvm"), "lib")
             if fly.os.fs.exists(s2) { out = s2  return }
         }
         out = ""
