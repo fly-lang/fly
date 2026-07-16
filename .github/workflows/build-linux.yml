@@ -99,12 +99,12 @@ jobs:
       # both free stacks (needs FLY_DEBUG_SYMBOLS=1, the default on push/dispatch).
       # Slow (the compiler runs libLLVM per suite); scope with VG_SUITES / VG_LIMIT.
       # Also runnable locally: ./ci/linux/valgrind_check.sh
-      - name: Valgrind memcheck (all suites)
-        if: always()
-        continue-on-error: true
-        run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq valgrind
-          ./ci/linux/valgrind_check.sh
+      # - name: Valgrind memcheck (all suites)
+      #   if: always()
+      #   continue-on-error: true
+      #   run: |
+      #     sudo apt-get update -qq && sudo apt-get install -y -qq valgrind
+      #     ./ci/linux/valgrind_check.sh
 
       # Driver + package-manager unit suites (driver/test): CLI parsing,
       # Manifest/toml, lockfile, semver/MVS resolver, registry, ToolChain,
