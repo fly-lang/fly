@@ -181,7 +181,7 @@ public string dirname(const string path) {
     while i < size {
         byte b = 0
         fly.llvm.strByteAt(path, i, b)
-        if b == 47 { last_slash = i }
+        if b == 47 || b == 92 { last_slash = i }     // '/' or '\' (Windows paths)
         i = i + 1
     }
     int len = 0

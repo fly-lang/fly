@@ -34,22 +34,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Put the MSVC toolchain + Windows SDK on LIB/INCLUDE/PATH for the whole job.
-      # The bootstrap links fly.exe in-process (lld::coff::link) and needs the SDK
-      # import libs (kernel32.lib, ws2_32.lib, …) on %LIB%, which a plain pwsh shell
-      # does not expose. amd64 matches the x86_64 target.
-      - name: Set up MSVC developer environment
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: amd64
+      # NO Visual Studio / Windows SDK: the Windows toolchain targets
+      # x86_64-w64-windows-gnu (UCRT) and links with the fork's own lld (as ld.lld)
+      # against the bundled mingw sysroot — see ci/windows/gnu_common.ps1. That is
+      # the whole point of this pipeline, so there is no ilammy/msvc-dev-cmd step.
 
-      # The released fly.exe statically embeds LLVM + LLD (it links in-process via
-      # lld::coff::link), so no external lld-link/clang is needed. What IS needed
-      # is an LLVM import lib + runtime DLL for the program fly builds, because the
-      # self-host compiler calls the LLVM C API. We only need three files from the
-      # ~900 MB LLVM artifact: LLVM-C.lib (link import lib), LLVM-C.dll (loaded at
-      # runtime) and lld-link.exe (the bundled COFF linker); cache them across runs
-      # keyed on the LLVM version.
+      # fly needs three files from the ~900 MB fork LLVM artifact: LLVM-C.lib (link
+      # import lib), LLVM-C.dll (loaded at runtime; the self-host calls the LLVM C
+      # API) and lld-link.exe (the fork linker, also used as ld.lld). Cache them.
       - name: Cache LLVM (fly-lang build)
         id: llvm-cache
         uses: actions/cache@v4
@@ -58,6 +50,17 @@ jobs:
           # Version pin lives in ci/windows/stage0.ps1 ($LLVM_VERSION); keep this
           # key in sync when bumping it so a new LLVM invalidates the cache.
           key: fly-llvm-20.1.8-win-x64
+
+      # The mingw/UCRT sysroot (import libs + CRT startup + compiler-rt builtins)
+      # that fly links against — no Visual Studio. stage0.ps1 fetches it from
+      # mstorsjo/llvm-mingw into build/mingw (~62 MB). Cache keyed on MINGW_VERSION
+      # (ci/windows/gnu_common.ps1); bump both together.
+      - name: Cache mingw/UCRT sysroot (llvm-mingw)
+        id: mingw-cache
+        uses: actions/cache@v4
+        with:
+          path: build/mingw
+          key: fly-mingw-20260616-ucrt-x64
 
       # ── Rust-style staged bootstrap (see ci/windows/stage1.ps1; mirrors the
       #    Linux pipeline in ci/linux/) ─────────────────────────────────────────
@@ -75,9 +78,10 @@ jobs:
       #         validated in CI, a stage-2 failure falls back to shipping the
       #         stage1 artifacts (warning in the log) — the artifact layout is
       #         always complete.
-      # FLY_BUNDLE_LLVM=1 ships a self-contained toolchain: LLVM-C.dll + the
-      # fork's lld-link.exe next to fly.exe (the loader searches the exe dir —
-      # no rpath on Windows).
+      # FLY_BUNDLE_LLVM=1 ships a self-contained toolchain next to fly.exe:
+      # LLVM-C.dll (loaded at runtime), ld.lld.exe (the linker fly forks) and the
+      # mingw/UCRT sysroot (mingw\ — import libs + CRT + builtins fly links against).
+      # No Visual Studio needed to build OR to use fly on Windows.
 
       - name: Stage 0 (bootstrap fly + fork LLVM)
         env:
@@ -101,7 +105,7 @@ jobs:
       #    build\stage2\bin\fly.exe (mirrors Linux; the --test system is ported
       #    to the self-host). The FLY defaults live in the test scripts.
       # Non-blocking: a subset of codegen suites is non-deterministically unstable
-      # on the x86_64-pc-windows-msvc target (a bootstrap-compiler bug, not the
+      # on the x86_64-w64-windows-gnu target (a bootstrap-compiler bug, not the
       # scripts). The build artifact is still produced/uploaded and the full suite
       # results show in the log. Make strict again once stable.
       - name: Test self-host compiler

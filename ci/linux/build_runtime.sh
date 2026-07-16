@@ -31,6 +31,7 @@ fi
 T=build/tmp_runtime
 rm -rf "$T"; mkdir -p "$T"
 AR="${AR:-ar}"
+OBJCOPY="${OBJCOPY:-objcopy}"
 
 # stage seeds (refreshed every run so a stale lib never wins)
 [ -f "$SEED/llvm.fly.h" ] && [ -f "$SEED/fly_runtime_lib.a" ] || { echo "error: seeds missing in $SEED — run the previous stage first." >&2; exit 1; }
@@ -56,12 +57,19 @@ if [ "$STAGE" = "1" ]; then
     "$FLY" --lib $DBG -o "$T/fly_runtime_lib" --src-dir "$T" runtime/lib/runtime.fly
     for m in $("$AR" t "$T/fly_runtime_lib.a"); do
         (cd "$T" && "$AR" x fly_runtime_lib.a "$m")
+        # WEAKEN the fresh Fly runtime member: it redefines the C-ABI symbols
+        # (mem_alloc, fs_*, …) that the kept seed `.c.o` C primitives also provide.
+        # As a weak member the seed's strong defs win (no duplicate-symbol error);
+        # the Fly-only symbols it uniquely provides (e.g. dir_open) are still used.
+        # (stage0 emits these STRONG; the self-host already emits weak C-ABI wrappers.)
+        "$OBJCOPY" --weaken "$T/$m"
         "$AR" r "$LIB/fly_runtime_lib.a" "$T/$m"
     done
 else
-    # self-host: --lib emits one merged object; add it.
+    # self-host: --lib emits one merged object; add it (weakened, as above).
     "$FLY" --lib $DBG -o fly_runtime_lib --out-dir "$T" --src-dir "$T" runtime/lib/runtime.fly
     [ -f "$T/fly_runtime_lib" ] || { echo "error: runtime object not emitted." >&2; exit 1; }
+    "$OBJCOPY" --weaken "$T/fly_runtime_lib"
     "$AR" r "$LIB/fly_runtime_lib.a" "$T/fly_runtime_lib"
 fi
 "$AR" s "$LIB/fly_runtime_lib.a"

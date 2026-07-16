@@ -11,6 +11,7 @@
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
+. "$PSScriptRoot\gnu_common.ps1"
 
 # -- Stage plumbing (STAGE 1 only - see header). -------------------------------
 $STAGE = if ($env:STAGE) { $env:STAGE } else { '1' }
@@ -63,10 +64,13 @@ $FILES = @(
 )
 
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
-Write-Host "stage${STAGE}: compiling $($FILES.Count) std files ...$(if ($DBG) { ' (+debug-symbols)' })"
-& $FLY --lib @DBG -o "$T/fly_std_lib" @FILES
+Write-Host "stage${STAGE}: compiling $($FILES.Count) std files (codegen '$(if ($script:FLY_CODEGEN) { $script:FLY_CODEGEN } else { 'msvc(default)' })', link mingw) ...$(if ($DBG) { ' (+debug-symbols)' })"
+& $FLY --lib @DBG @FLY_TARGET_ARGS -o "$T/fly_std_lib" @FILES
 Assert-LastExit 'std --lib build'
-Move-Item "$T/fly_std_lib.lib" "$LIB/fly_std_lib.lib" -Force
+# gnu target emits a `.a` archive; keep the `.lib` name the build references.
+$emitted = if (Test-Path "$T/fly_std_lib.lib") { "$T/fly_std_lib.lib" } else { "$T/fly_std_lib.a" }
+if (-not (Test-Path $emitted)) { Write-Host "error: std archive not emitted."; exit 1 }
+Move-Item $emitted "$LIB/fly_std_lib.lib" -Force
 
 # headers (nested `>>` spaced so re-reads lex them)
 $hdrs = 0

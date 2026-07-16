@@ -18,6 +18,7 @@
 # -----------------------------------------------------------------------------
 
 $ErrorActionPreference = 'Stop'
+. "$PSScriptRoot\gnu_common.ps1"        # $FLY_WIN_TARGET, sysroot paths, Install-LdLld, MINGW_VERSION
 
 # LLVM the self-host compiler links against: the project's own LLVM build
 # (fly-lang/llvm-project release) rather than the stock LLVM installer. Only that
@@ -76,6 +77,43 @@ if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.
 # LLVM-C.dll, which (in the fly-lang build) exports every symbol the generated
 # code references. A copy avoids symlink privilege gotchas.
 Copy-Item "$llvmLib\LLVM-C.lib" "$llvmLib\LLVM-20.lib" -Force
+
+# === mingw / UCRT sysroot (mstorsjo/llvm-mingw) ==============================
+# The self-contained Windows toolchain links user programs AND fly.exe itself
+# against llvm-mingw's UCRT import libs + CRT startup objects + compiler-rt
+# builtins — NO Visual Studio, NO Windows SDK. From the ~190 MB llvm-mingw release
+# we keep only x86_64-w64-mingw32/lib/ (~62 MB) + libclang_rt.builtins-x86_64.a,
+# staged under build\mingw (cache it in CI keyed on $MINGW_VERSION). The linker is
+# the fork's own lld invoked as ld.lld (GNU flavour) — provisioned by Install-LdLld,
+# no extra download. Set $env:MINGW_ZIP to a local zip to skip the download.
+if (-not (Test-MingwSysroot)) {
+    New-Item -ItemType Directory -Force $script:GNU_sysrootLib, $script:GNU_builtinsDir | Out-Null
+    $mzip = if ($env:MINGW_ZIP) { $env:MINGW_ZIP } else {
+        $u = "https://github.com/mstorsjo/llvm-mingw/releases/download/$script:MINGW_VERSION/llvm-mingw-$script:MINGW_VERSION-ucrt-x86_64.zip"
+        $z = Join-Path $buildDir 'mingw.zip'
+        Invoke-WebRequest -Uri $u -OutFile $z
+        $z
+    }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $mz = [System.IO.Compression.ZipFile]::OpenRead($mzip)
+    try {
+        foreach ($e in $mz.Entries) {
+            if ($e.FullName.EndsWith('/')) { continue }
+            if ($e.FullName -match '/x86_64-w64-mingw32/lib/(.+)$') {
+                $dest = Join-Path $script:GNU_sysrootLib $matches[1]
+                $dd = Split-Path $dest -Parent
+                if (-not (Test-Path $dd)) { New-Item -ItemType Directory -Force $dd | Out-Null }
+                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, $dest, $true)
+            } elseif ($e.FullName -match '/lib/clang/[0-9]+/lib/windows/libclang_rt\.builtins-x86_64\.a$') {
+                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, $script:GNU_builtinsLib, $true)
+            }
+        }
+    } finally { $mz.Dispose() }
+    if (-not $env:MINGW_ZIP -and (Test-Path (Join-Path $buildDir 'mingw.zip'))) { Remove-Item (Join-Path $buildDir 'mingw.zip') }
+    # the vendored CRT-glue shim (__chkstk/_fltused) ships inside the sysroot
+    Copy-Item (Join-Path $PSScriptRoot 'fly_gnu_compat.o') (Join-Path $script:GNU_sysroot 'fly_gnu_compat.o') -Force
+}
+Install-LdLld                                  # build\llvm\bin\ld.lld.exe (fork lld, GNU flavour)
 
 # === fly bootstrap (stage 0) =================================================
 

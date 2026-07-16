@@ -525,9 +525,9 @@ public DirEntries dirRead(const string path) {
     out.cap = 0
 
     pointer cpath = strToCstr(path)
-    int fd = 0
-    fly.runtime.fs_open(cpath, 0, 0, fd)
-    if fd < 0 { return }
+    pointer dh = 0
+    fly.runtime.dir_open(cpath, dh)
+    if dh == 0 { return }
 
     ulong cap = 16
     ulong stride = 56
@@ -542,7 +542,7 @@ public DirEntries dirRead(const string path) {
     bool done = false
     while done == false {
         int nbytes = 0
-        fly.runtime.fs_getdents(fd, dbuf, bufsize, nbytes)
+        fly.runtime.dir_read(dh, dbuf, bufsize, nbytes)
         if nbytes <= 0 {
             done = true
         } else {
@@ -662,7 +662,7 @@ public DirEntries dirRead(const string path) {
         }
     }
 
-    fly.runtime.fs_close(fd)
+    fly.runtime.dir_close(dh)
     out.items = items
     out.len = count
     out.cap = cap

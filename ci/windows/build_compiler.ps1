@@ -10,6 +10,7 @@
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
+. "$PSScriptRoot\gnu_common.ps1"
 
 # -- Stage plumbing (STAGE forced to 1 - see header). --------------------------
 $LIB = 'build/stage1/lib'
@@ -48,9 +49,14 @@ $FILES = Get-ChildItem -Recurse compiler/lib -Filter '*.fly' |
 # FLY_DEBUG_SYMBOLS=1 → emit DWARF into the archive (llvm-symbolizer/gdb resolve
 # the self-host crash to a source line; the self-host emits none, but stage0 does).
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
-Write-Host "stage1: compiling $($FILES.Count) compiler/lib files ...$(if ($DBG) { ' (+debug-symbols)' })"
-& $FLY --lib @DBG -o "$CDIR/fly_compiler_lib" @FILES
+Write-Host "stage1: compiling $($FILES.Count) compiler/lib files (codegen '$(if ($script:FLY_CODEGEN) { $script:FLY_CODEGEN } else { 'msvc(default)' })', link mingw) ...$(if ($DBG) { ' (+debug-symbols)' })"
+& $FLY --lib @DBG @FLY_TARGET_ARGS -o "$CDIR/fly_compiler_lib" @FILES
 Assert-LastExit 'compiler --lib build'
+# gnu target emits a `.a` archive; keep the `.lib` name the build references. Always
+# overwrite (a stale `.lib` left beside a fresh `.a` would silently link old code).
+if (Test-Path "$CDIR/fly_compiler_lib.a") {
+    Move-Item "$CDIR/fly_compiler_lib.a" "$CDIR/fly_compiler_lib.lib" -Force
+}
 
 # headers (nested `>>` spaced so re-reads lex them)
 Get-ChildItem "$CDIR/*.fly.h" | ForEach-Object { Split-GenericClosers $_.FullName }

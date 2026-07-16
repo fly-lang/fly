@@ -240,7 +240,11 @@ public class CodeGenModule {
         while j < bodies.size() {
             SemaFunctionBase fn2 = bodies.get(j)
             if this.isMethod(fn2) == false && fn2.isFromHeader() == false {
-                if this.hasTypeParamSignature(fn2) == false { this.genBody(fn2) }
+                if this.hasTypeParamSignature(fn2) == false {
+                    this.genBody(fn2)
+                    // fly.runtime functions also export an unmangled C-ABI entry.
+                    if this.isRuntimeCABIDef(fn2) { this.emitRuntimeCABIWrapper(fn2) }
+                }
             }
             j = j + 1
         }
@@ -762,6 +766,118 @@ public class CodeGenModule {
         if cge.isTerminated() == false {
             pointer ret
             llvm.buildRetVoid(this.builder, ret)
+        }
+    }
+
+    // isRuntimeCABIDef — a `fly.runtime` function with a REAL body (not an empty-body
+    // FFI extern). These need an unmangled C-ABI entry emitted alongside the mangled
+    // impl (see emitRuntimeCABIWrapper); empty-body externs lower to `call @name`.
+    public bool isRuntimeCABIDef(const SemaFunctionBase fn) {
+        if fly.str.equals(fn.getNamespaceName(), "fly_runtime") == false { out = false  return }
+        SemaBlockStmt body = fn.getBody()
+        if body == null { out = false  return }
+        out = body.isEmpty() == false
+    }
+
+    // emitRuntimeCABIWrapper — the self-host emits every function with the mangled,
+    // by-reference Fly ABI (hidden error ptr + one ptr per param). But `fly.runtime`
+    // functions are the runtime's C-ABI boundary: call sites (CodeGenIntrinsics.
+    // genRuntime) invoke them as flat `@name(const-params-by-value) -> firstNonConst`.
+    // So for each non-empty runtime function ALSO emit an unmangled C-ABI entry that
+    // marshals to the mangled impl. WEAK/LinkOnceODR + COMDAT so it does NOT collide
+    // with a C-primitive definition of the same symbol kept in the seed archive on
+    // platforms that recompile the runtime over the seed (Linux); where the self-host
+    // is the sole provider (Windows), the weak def is simply used.
+    public void emitRuntimeCABIWrapper(const SemaFunctionBase fn) {
+        LLVM llvm = this.cg.getLLVM()
+        CodeGenExpr cge = new CodeGenExpr(this)
+        List<SemaParam> params = fn.getParams()
+
+        // C signature: const params by value; first non-const → return type.
+        pointer retTy
+        llvm.voidTypeInContext(this.ctx, retTy)
+        int outIdx = 0 - 1
+        List<pointer> cptys = new List<pointer>()
+        int i = 0
+        while i < params.size() {
+            SemaParam p = params.get(i)
+            if p.isConstant() {
+                cptys.add(cge.lowerType(p.getType()))
+            } else {
+                if outIdx < 0 { outIdx = i  retTy = cge.lowerType(p.getType()) }
+            }
+            i = i + 1
+        }
+        pointer cty
+        this.cg.functionTypeN(retTy, cptys, false, cty)
+        string cname = fn.getName()
+        pointer wfn
+        llvm.getNamedFunction(this.module, cname, wfn)
+        if wfn == 0 { llvm.addFunction(this.module, cname, cty, wfn) }
+        llvm.setLinkage(wfn, 3)                     // LinkOnceODR (weak)
+        this.setWeakComdat(wfn, cname)
+
+        pointer entry
+        llvm.appendBasicBlockInContext(this.ctx, wfn, "entry", entry)
+        llvm.positionBuilderAtEnd(this.builder, entry)
+
+        // %error err = { 0, null, null } — the impl takes a hidden error ptr.
+        pointer errSlot
+        llvm.buildAlloca(this.builder, this.errorTy, "err", errSlot)
+        pointer i32t
+        llvm.int32TypeInContext(this.ctx, i32t)
+        pointer ecode
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 0, "ec", ecode)
+        pointer z32
+        llvm.constInt(i32t, 0, true, z32)
+        llvm.buildStore(this.builder, z32, ecode)
+        pointer pty0 = this.types.ptrType()
+        pointer enull
+        llvm.constPointerNull(pty0, enull)
+        pointer estr
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 1, "es", estr)
+        llvm.buildStore(this.builder, enull, estr)
+        pointer eobj
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 2, "eo", eobj)
+        llvm.buildStore(this.builder, enull, eobj)
+
+        // A slot per Fly param (the impl wants every param by reference). Const params
+        // receive the incoming by-value arg; the out param's slot is written by the impl.
+        List<pointer> callArgs = new List<pointer>()
+        callArgs.add(errSlot)
+        pointer outSlot
+        outSlot = 0
+        int cIdx = 0
+        int k = 0
+        while k < params.size() {
+            SemaParam pm = params.get(k)
+            pointer slot
+            llvm.buildAlloca(this.builder, cge.lowerType(pm.getType()), "a", slot)
+            if pm.isConstant() {
+                pointer av
+                llvm.getParam(wfn, cIdx, av)
+                llvm.buildStore(this.builder, av, slot)
+                cIdx = cIdx + 1
+            } else {
+                if k == outIdx { outSlot = slot }
+            }
+            callArgs.add(slot)
+            k = k + 1
+        }
+
+        pointer implTy = fn.getLlvmFnType()
+        pointer implFn = fn.getLlvmFn()
+        pointer rv
+        this.cg.buildCallN(this.builder, implTy, implFn, callArgs, "", rv)
+
+        if outIdx >= 0 {
+            pointer outv
+            llvm.buildLoad2(this.builder, retTy, outSlot, "rv", outv)
+            pointer r
+            llvm.buildRet(this.builder, outv, r)
+        } else {
+            pointer r
+            llvm.buildRetVoid(this.builder, r)
         }
     }
 

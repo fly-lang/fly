@@ -15,6 +15,7 @@
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
+. "$PSScriptRoot\gnu_common.ps1"
 
 # -- Stage plumbing: everything comes from the stage dirs. ---------------------
 $STAGE = if ($env:STAGE) { $env:STAGE } else { '1' }
@@ -48,33 +49,41 @@ if ($PRELINKED) {
 } else {
     $llvmRoot = if (Test-Path 'build/llvm') { (Resolve-Path 'build/llvm').Path } else { $null }
     if (-not $llvmRoot) { Write-Host "error: build\llvm (fork LLVM) not found - run ci\windows\stage0.ps1."; exit 1 }
-    $lldLink = Join-Path $llvmRoot 'bin\lld-link.exe'
-    if (-not (Test-Path $lldLink)) { Write-Host "error: $lldLink not found."; exit 1 }
-    if (-not $env:LIB) {
-        Write-Host "error: %LIB% is empty - run from an MSVC developer environment (CI: ilammy/msvc-dev-cmd)."; exit 1
+    Install-LdLld                     # provision build\llvm\bin\ld.lld.exe (fork lld, GNU flavour)
+    if (-not (Test-MingwSysroot)) {
+        Write-Host "error: mingw/UCRT sysroot missing under build\mingw - run ci\windows\stage0.ps1."; exit 1
     }
-    Write-Host "stage${STAGE}: linking fly.exe (fork lld-link) ..."
-    # FLY_DEBUG_SYMBOLS=1 → keep the DWARF sections (.debug_*) the debug build
-    # emitted in the final PE (lld-link drops them otherwise); llvm-symbolizer
-    # then maps a crash address to a source line. /debug:dwarf, NOT /debug (the
-    # latter would synthesize a PDB from CodeView, which fly does not emit).
-    $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '/debug:dwarf' }
-    # Weak symbols (generic specializations, vtables, init_ctors) are emitted
-    # with a COMDAT (selection Any) by both compilers, so lld-link dedups them
-    # natively on COFF — no /force:multiple needed. NOTE: this requires a
-    # bootstrap 0.13.8 cut AFTER the COMDAT fix in fly/ CodeGen; an older
-    # bootstrap emits comdat-less weak defs and this link dies on duplicates.
-    & $lldLink "/out:$OUT/fly.exe" $OBJ "$CDIR/fly_compiler_lib.lib" `
-        "$LIB/fly_std_lib.lib" "$LIB/fly_runtime_lib.lib" (Join-Path $llvmRoot 'lib\LLVM-C.lib') `
-        @DBG /defaultlib:libcmt /defaultlib:synchronization /defaultlib:kernel32
+    $llvmC = Join-Path $llvmRoot 'lib\LLVM-C.lib'
+    if (-not (Test-Path $llvmC)) { Write-Host "error: $llvmC not found."; exit 1 }
+
+    Write-Host "stage${STAGE}: linking fly.exe (fork ld.lld, mingw/UCRT) ..."
+    # gnu/mingw link: ld.lld -m i386pep with the mingw CRT startup objects + import
+    # libs (from build\mingw) instead of the MSVC CRT. No %LIB% / vcvars needed.
+    # ld.lld keeps .debug_* sections by default, so FLY_DEBUG_SYMBOLS needs no
+    # extra link flag (the objects carry DWARF iff they were built with it).
+    # Weak symbols (generic specializations, vtables, init_ctors) carry a COMDAT
+    # (selection Any), so ld.lld dedups them natively — no --allow-multiple-definition.
+    $parts = Get-MingwLinkParts
+    $args = @('-m', 'i386pep') + $parts.LibDirs + $parts.Pre + @(
+        $OBJ, "$CDIR/fly_compiler_lib.lib", "$LIB/fly_std_lib.lib", "$LIB/fly_runtime_lib.lib", $llvmC
+    ) + $parts.Post + @('-o', "$OUT/fly.exe")
+    & $script:GNU_ldLld @args
     Assert-LastExit 'driver link'
 }
 
-# -- Bundle (FLY_BUNDLE_LLVM=1): LLVM-C.dll + lld-link.exe next to fly.exe. -------
+# -- Bundle (FLY_BUNDLE_LLVM=1): LLVM-C.dll (loaded at runtime) + ld.lld.exe (the
+#    linker fly forks to link USER programs in mingw mode) next to fly.exe. The
+#    mingw/UCRT sysroot itself is shipped by the release packaging (see task list).
 if ($env:FLY_BUNDLE_LLVM -eq '1') {
     $llvmRoot = (Resolve-Path 'build/llvm').Path
+    Install-LdLld
     Copy-Item (Join-Path $llvmRoot 'bin\LLVM-C.dll') "$OUT/LLVM-C.dll" -Force
-    Copy-Item (Join-Path $llvmRoot 'bin\lld-link.exe') "$OUT/lld-link.exe" -Force
+    Copy-Item $script:GNU_ldLld "$OUT/ld.lld.exe" -Force
+    # Ship the mingw/UCRT sysroot next to fly.exe so it links USER programs with no
+    # external toolchain (ToolChain.getMingwSysrootDir → <exe_dir>/mingw). Copy once.
+    if ((Test-Path 'build/mingw') -and -not (Test-Path "$OUT/mingw/lib/crt2.o")) {
+        Copy-Item 'build/mingw' "$OUT/mingw" -Recurse -Force
+    }
 }
 
 Write-Host "stage${STAGE}: fly -> $OUT/fly.exe (libs from $LIB)"

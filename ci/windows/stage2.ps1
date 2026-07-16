@@ -48,7 +48,8 @@ if (-not $ok) {
     # bin\ + lib\ layout even when the self-host rebuild fails.
     Write-Host "warning: stage2 self-host rebuild FAILED - shipping the stage1 artifacts instead."
     New-Item -ItemType Directory -Force build/stage2/bin, build/stage2/lib | Out-Null
-    Get-ChildItem build/stage1/bin/* -Exclude fly0.exe | ForEach-Object { Copy-Item $_.FullName build/stage2/bin/ -Force }
+    # -Recurse so the bundled mingw\ sysroot directory copies with its contents.
+    Get-ChildItem build/stage1/bin/* -Exclude fly0.exe | ForEach-Object { Copy-Item $_.FullName build/stage2/bin/ -Recurse -Force }
     Get-ChildItem build/stage1/lib/* | ForEach-Object { Copy-Item $_.FullName build/stage2/lib/ -Force }
 }
 

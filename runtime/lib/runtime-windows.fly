@@ -39,6 +39,7 @@ public void ExitProcess(const int code) {}
 public void CreateThread(const pointer attrs, const ulong stack, const pointer start, const pointer param, const int flags, const pointer threadId, pointer out) {}
 public void CloseHandle(const pointer h, int out) {}
 public void CreateProcessA(const pointer app, const pointer cmd, const pointer pa, const pointer ta, const int inherit, const int flags, const pointer env, const pointer cwd, const pointer si, const pointer pi, int out) {}
+public void GetLastError(int out) {}
 public void WaitForSingleObject(const pointer h, const int ms, int out) {}
 public void GetExitCodeProcess(const pointer h, const pointer code, int out) {}
 // futex
@@ -53,6 +54,7 @@ public void __atomic_fetch_add_4(const pointer ptr, const int val, const int mem
 // filesystem (Win32)
 public void GetFileAttributesExA(const pointer path, const int level, const pointer info, int out) {}
 public void FindFirstFileA(const pointer path, const pointer data, pointer out) {}
+public void FindNextFileA(const pointer h, const pointer data, int out) {}
 public void FindClose(const pointer h, int out) {}
 public void CreateDirectoryA(const pointer path, const pointer sa, int out) {}
 public void RemoveDirectoryA(const pointer path, int out) {}
@@ -310,6 +312,106 @@ public void fs_readlink(const pointer path, const pointer buf, const ulong size,
 // Directory enumeration is UNSUPPORTED without static dir-fd state (see header).
 public void fs_getdents(const int fd, const pointer buf, const ulong size, int out) {
     out = 0 - 1
+}
+
+// ── Directory enumeration (dir_open/dir_read/dir_close) ───────────────────────
+// The int-fd + getdents protocol is POSIX-only; Windows enumerates via FindFirst/
+// FindNextFile which need a 64-bit HANDLE + iteration state. Since Fly has no
+// working static storage, the state lives in a malloc'd CONTEXT the handle points
+// at (mirrors the pointer-handle API in runtime.fly). Context layout:
+//   @0  HANDLE h (8B, from FindFirstFileA)   @8  int hasPending (1 = @16 holds an
+//   un-emitted entry)                        @16 WIN32_FIND_DATAA (320B; the entry)
+// dir_read converts each pending WIN32_FIND_DATAA into a linux_dirent64 record the
+// std `dirRead` already parses: d_reclen@16 (u16), d_type@18, d_name@19 (NUL-term).
+// "." / ".." are emitted like any entry — the std layer skips them.
+public void dir_open(const pointer path, pointer out) {
+    ulong plen = 0
+    fly.runtime.strlen(path, plen)
+    int pl = 0
+    fly.llvm.longToInt((long)plen, pl)
+    pointer pat = 0                                     // pattern = path + "\*" + NUL
+    fly.runtime.mem_alloc(pl + 3, pat)
+    int k = 0
+    while k < pl {
+        byte b = 0
+        fly.llvm.ptrByteAt(path, k, b)
+        fly.llvm.ptrPokeByte(pat, k, b)
+        k = k + 1
+    }
+    fly.llvm.ptrPokeByte(pat, pl, 92)                  // '\'
+    fly.llvm.ptrPokeByte(pat, pl + 1, 42)              // '*'
+    fly.llvm.ptrPokeByte(pat, pl + 2, 0)
+    pointer ctx = 0
+    fly.runtime.mem_alloc(340, ctx)
+    pointer data = ctx + 16
+    pointer h = 0
+    fly.runtime.FindFirstFileA(pat, data, h)
+    fly.runtime.free(pat)
+    pointer inv = 0
+    inv = inv - 1
+    if h == inv { fly.runtime.mem_free(ctx, 340)  out = 0  return }
+    fly.llvm.ptrPokeLong(ctx, 0, h)                    // store the HANDLE (pointer, no cast)
+    fly.llvm.ptrPokeInt(ctx, 8, 1)                     // hasPending
+    out = ctx
+}
+public void dir_read(const pointer ctx, const pointer buf, const ulong size, int out) {
+    int szi = 0
+    fly.llvm.longToInt((long)size, szi)
+    int written = 0
+    bool go = true
+    while go {
+        int hasPending = 0
+        fly.llvm.ptrReadInt(ctx, 8, hasPending)
+        if hasPending == 0 { go = false } else {
+            pointer namePtr = ctx + 60                 // cFileName @ WIN32_FIND_DATAA+44
+            ulong nlen = 0
+            fly.runtime.strlen(namePtr, nlen)
+            int name_len = 0
+            fly.llvm.longToInt((long)nlen, name_len)
+            int reclen = 19 + name_len + 1
+            if written + reclen > szi { go = false } else {
+                pointer rec = buf + written
+                fly.llvm.ptrPokeLong(rec, 0, 0)        // d_ino
+                fly.llvm.ptrPokeLong(rec, 8, 0)        // d_off
+                int rlo = reclen & 255
+                int rhi = reclen / 256
+                fly.llvm.ptrPokeByte(rec, 16, (byte)rlo)   // d_reclen lo/hi (u16)
+                fly.llvm.ptrPokeByte(rec, 17, (byte)rhi)
+                int attr = 0
+                fly.llvm.ptrReadInt(ctx, 16, attr)     // dwFileAttributes
+                byte dt = 8                            // DT_REG
+                int isdir = attr & 16
+                if isdir != 0 { dt = 4 }               // DT_DIR
+                fly.llvm.ptrPokeByte(rec, 18, dt)      // d_type
+                int j = 0
+                while j < name_len {
+                    byte nb = 0
+                    fly.llvm.ptrByteAt(namePtr, j, nb)
+                    fly.llvm.ptrPokeByte(rec, 19 + j, nb)
+                    j = j + 1
+                }
+                fly.llvm.ptrPokeByte(rec, 19 + name_len, 0)
+                written = written + reclen
+                long hl = 0                            // advance into the pending slot
+                fly.llvm.ptrReadLong(ctx, 0, hl)
+                pointer h = 0
+                h = hl
+                int nok = 0
+                fly.runtime.FindNextFileA(h, namePtr - 44, nok)
+                if nok == 0 { fly.llvm.ptrPokeInt(ctx, 8, 0) } else { fly.llvm.ptrPokeInt(ctx, 8, 1) }
+            }
+        }
+    }
+    out = written
+}
+public void dir_close(const pointer ctx) {
+    long hl = 0
+    fly.llvm.ptrReadLong(ctx, 0, hl)
+    pointer h = 0
+    h = hl
+    int rc = 0
+    fly.runtime.FindClose(h, rc)
+    fly.runtime.mem_free(ctx, 340)
 }
 
 // ── Time — FILETIME / QueryPerformanceCounter ────────────────────────────────
@@ -572,6 +674,12 @@ public void env_args_count(int out) {
 public void env_args_fill(const pointer arr_base, const int count) {
     pointer cl = 0
     fly.runtime.GetCommandLineA(cl)
+    // scanToken writes its 3 outputs [tokstart@0, toklen@4, nextpos@8] through this
+    // scratch buffer — a fly.runtime function may return only ONE value (the C-ABI
+    // convention: const params by value, first non-const → return), so a 3-out
+    // signature would silently drop toklen/nextpos and loop forever.
+    pointer tok = 0
+    fly.runtime.malloc(12, tok)
     int idx = 0
     int i = 0
     bool go = true
@@ -580,9 +688,12 @@ public void env_args_fill(const pointer arr_base, const int count) {
         fly.llvm.ptrByteAt(cl, i, b)
         if b == 0 { go = false } else {
             if b == 32 { i = i + 1 } else {
+                scanToken(cl, i, tok)
                 int tokstart = 0
+                fly.llvm.ptrReadInt(tok, 0, tokstart)
                 int toklen = 0
-                scanToken(cl, i, tokstart, toklen, i)
+                fly.llvm.ptrReadInt(tok, 4, toklen)
+                fly.llvm.ptrReadInt(tok, 8, i)          // nextpos
                 if idx < count {
                     pointer tp = cl + tokstart
                     fillSlotLen(arr_base, idx, tp, toklen)
@@ -591,9 +702,12 @@ public void env_args_fill(const pointer arr_base, const int count) {
             }
         }
     }
+    fly.runtime.free(tok)
 }
 // countArgs / scanToken share the same simple tokenizer.
 private void countArgs(const pointer cl, int out) {
+    pointer tok = 0
+    fly.runtime.malloc(12, tok)
     int n = 0
     int i = 0
     bool go = true
@@ -602,18 +716,22 @@ private void countArgs(const pointer cl, int out) {
         fly.llvm.ptrByteAt(cl, i, b)
         if b == 0 { go = false } else {
             if b == 32 { i = i + 1 } else {
-                int ts = 0
-                int tl = 0
-                scanToken(cl, i, ts, tl, i)
+                scanToken(cl, i, tok)
+                fly.llvm.ptrReadInt(tok, 8, i)          // nextpos — MUST advance i
                 n = n + 1
             }
         }
     }
+    fly.runtime.free(tok)
     out = n
 }
-// scanToken — starting at `pos` (non-space), emit token [tokstart,toklen) and the
-// position after it in `nextpos`. A leading '"' starts a quoted span.
-private void scanToken(const pointer cl, const int pos, int tokstart, int toklen, int nextpos) {
+// scanToken — starting at `pos` (non-space), write the token bounds through `out3`:
+// [tokstart@0, toklen@4, nextpos@8]. A leading '"' starts a quoted span. All params
+// are const (out3 is written-through) so this stays a ZERO-return C-ABI function —
+// a multi-out signature is not expressible in the fly.runtime calling convention.
+private void scanToken(const pointer cl, const int pos, const pointer out3) {
+    int tokstart = 0
+    int toklen = 0
     int i = pos
     byte first = 0
     fly.llvm.ptrByteAt(cl, i, first)
@@ -640,7 +758,9 @@ private void scanToken(const pointer cl, const int pos, int tokstart, int toklen
         }
         toklen = i - tokstart
     }
-    nextpos = i
+    fly.llvm.ptrPokeInt(out3, 0, tokstart)
+    fly.llvm.ptrPokeInt(out3, 4, toklen)
+    fly.llvm.ptrPokeInt(out3, 8, i)                     // nextpos
 }
 // env_init — accessors are stateless; kept as a defined no-op.
 public void env_init(const int argc, const pointer argv) {
@@ -677,7 +797,13 @@ public void proc_exec(const pointer path, const pointer argv, int out) {
     fly.runtime.malloc(8192, cmd)
     int p = 0
     fly.llvm.ptrPokeByte(cmd, p, 34)  p = p + 1        // '"'
-    appendCStr(cmd, p, path, p)
+    // arg0 (exe): '/'→'\' normalised. Use a DISTINCT out var `aend` then `p = aend`
+    // — reusing `p` as both the pos arg and the out arg (appendCStrPath(cmd,p,path,p))
+    // makes the compiler cache `p` for the next statement BEFORE the out-param
+    // update, so the closing quote lands at the stale offset and clobbers arg0.
+    int aend = p
+    appendCStrPath(cmd, p, path, aend)
+    p = aend
     fly.llvm.ptrPokeByte(cmd, p, 34)  p = p + 1        // '"'
     int i = 1
     bool go = true
@@ -686,7 +812,9 @@ public void proc_exec(const pointer path, const pointer argv, int out) {
         fly.llvm.ptrReadLong(argv, i * 8, a)
         if a == 0 { go = false } else {
             fly.llvm.ptrPokeByte(cmd, p, 32)  p = p + 1
-            appendCStr(cmd, p, a, p)
+            int cend = p
+            appendCStr(cmd, p, a, cend)
+            p = cend
             i = i + 1
         }
     }
@@ -736,6 +864,26 @@ private void appendCStr(const pointer buf, const int pos, const pointer src, int
         byte b = 0
         fly.llvm.ptrByteAt(src, i, b)
         if b == 0 { go = false } else {
+            fly.llvm.ptrPokeByte(buf, p, b)
+            p = p + 1
+            i = i + 1
+        }
+    }
+    nextpos = p
+}
+// appendCStrPath — like appendCStr but normalises '/' → '\' while copying. Used for
+// the executable path (arg0): CreateProcessA fails to resolve an app path that
+// mixes separators (fly.os.path.join emits '/', exePath yields '\'), so the exe
+// must be pure-backslash. Args keep '/' (the linker accepts either).
+private void appendCStrPath(const pointer buf, const int pos, const pointer src, int nextpos) {
+    int p = pos
+    int i = 0
+    bool go = true
+    while go {
+        byte b = 0
+        fly.llvm.ptrByteAt(src, i, b)
+        if b == 0 { go = false } else {
+            if b == 47 { b = 92 }                       // '/' → '\'
             fly.llvm.ptrPokeByte(buf, p, b)
             p = p + 1
             i = i + 1

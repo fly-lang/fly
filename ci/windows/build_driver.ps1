@@ -15,6 +15,7 @@
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
+. "$PSScriptRoot\gnu_common.ps1"
 
 # -- Stage plumbing: pick the compiler and the in/out dirs from $STAGE. --------
 $STAGE = if ($env:STAGE) { $env:STAGE } else { '1' }
@@ -59,13 +60,13 @@ $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
 Write-Host "stage${STAGE}: compiling driver ...$(if ($DBG) { ' (+debug-symbols)' })"
 if ($STAGE -eq '1') {
     # stage0 reference: no -c; the in-process link may fail (tolerated), the
-    # per-source object is emitted first.
+    # per-source object is emitted first. --target keeps the object gnu COFF.
     & $FLY driver/lib/Driver.fly "$CDIR/fly_compiler_lib.lib" --src-dir driver/lib -L $CDIR `
-        @DBG -o fly --out-dir $D > "$D/emit.log" 2>&1
+        @DBG @FLY_TARGET_ARGS -o fly --out-dir $D > "$D/emit.log" 2>&1
 } else {
     # self-host: -c emits a clean object, no link attempt.
     & $FLY driver/lib/Driver.fly --src-dir driver/lib -L $CDIR `
-        @DBG -c -o Driver --out-dir $D > "$D/emit.log" 2>&1
+        @DBG @FLY_TARGET_ARGS -c -o Driver --out-dir $D > "$D/emit.log" 2>&1
 }
 $OBJ = @("$D/Driver", "$D/Driver.fly.o", "$D/Driver.fly.obj") | Where-Object { Test-Path $_ } | Select-Object -First 1
 $PRELINKED = Test-Path "$D/fly.exe"   # stage-1 in-process link may have succeeded

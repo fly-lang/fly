@@ -140,10 +140,9 @@ public class ToolChain {
         if this.t.isWindowsMSVC() {
             out = this.LinkWindows(inFilesSemi, outFileName)
         } elsif this.t.isOSWindows() {
-            // windows-gnu/mingw would otherwise fall through to the ELF linker
-            // with COFF objects — fail honestly instead.
-            fly.os.io.printErrLn(fly.str.concat("error: unsupported Windows environment for linking (only -msvc is supported): ", this.t.getTriple()))
-            out = false
+            // windows-gnu / gnullvm: link against the bundled mingw/UCRT sysroot
+            // (no Visual Studio needed).
+            out = this.LinkWindowsGNU(inFilesSemi, outFileName)
         } elsif this.t.isOSDarwin() {
             out = this.LinkDarwin(inFilesSemi, outFileName)
         } else {
@@ -439,6 +438,101 @@ public class ToolChain {
     // Windows VS/SDK discovery needs COM + registry — not portable. Stubs.
     public bool getUniversalCRTLibraryPath() { out = false }
     public bool getWindowsSDKLibraryPath()   { out = false }
+
+    // ── LinkWindowsGNU — link a PE/COFF exe against the bundled mingw/UCRT sysroot
+    // (llvm-mingw), needing NO Visual Studio. Mirrors the fork's fly-lang bootstrap
+    // link: `ld.lld -m i386pep` with the mingw CRT startup objects + import libs +
+    // compiler-rt builtins + the __chkstk/_fltused compat shim. The sysroot ships
+    // in the release next to fly.exe (<exe_dir>/mingw); x86_64 only for now.
+    public bool LinkWindowsGNU(const string inFilesSemi, const string outFile) {
+        string sysroot = this.getMingwSysrootDir()
+        if fly.str.isEmpty(sysroot) {
+            fly.os.io.printErrLn("error: mingw/UCRT sysroot not found (expected <fly_dir>/mingw; set FLY_MINGW_SYSROOT)")
+            out = false
+            return
+        }
+        string slib = fly.os.path.join(sysroot, "lib")
+        string builtinsDir = fly.os.path.join(sysroot, "builtins")
+        string builtinsLib = fly.os.path.join(builtinsDir, "libclang_rt.builtins-x86_64.a")
+
+        pointer h = fly.os.proc.argsNew()
+        fly.os.proc.argsAdd(h, "-m")
+        fly.os.proc.argsAdd(h, "i386pep")                       // x86_64 PE emulation
+        fly.os.proc.argsAdd(h, fly.str.concat("-L", slib))
+        fly.os.proc.argsAdd(h, fly.str.concat("-L", builtinsDir))
+        if fly.str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
+            fly.os.proc.argsAdd(h, fly.str.concat("-L", this.codeGenOpts.getToolchainLibDir()))
+        }
+
+        // CRT startup + the compat shim (__chkstk → ___chkstk_ms, _fltused).
+        fly.os.proc.argsAdd(h, fly.os.path.join(slib, "crt2.o"))
+        fly.os.proc.argsAdd(h, fly.os.path.join(slib, "crtbegin.o"))
+        string compat = fly.os.path.join(sysroot, "fly_gnu_compat.o")
+        if fly.os.fs.exists(compat) { fly.os.proc.argsAdd(h, compat) }
+
+        // User objects.
+        int ni = segCount(inFilesSemi)
+        int i = 0
+        while i < ni { fly.os.proc.argsAdd(h, segAt(inFilesSemi, i))  i = i + 1 }
+
+        // The Fly std + runtime archives.
+        if this.requireFlyArchives() == false {
+            fly.os.proc.argsFree(h)
+            out = false
+            return
+        }
+        fly.os.proc.argsAdd(h, this.GetStdLibPath())
+        fly.os.proc.argsAdd(h, this.GetRuntimeLibPath())
+
+        // User -l options pass through (mingw resolves `-lNAME` → libNAME.a).
+        string lo = this.codeGenOpts.getLinkerOptions()
+        int nl = segCount(lo)
+        int li = 0
+        while li < nl { fly.os.proc.argsAdd(h, segAt(lo, li))  li = li + 1 }
+
+        // mingw import libs + compiler-rt builtins (libmingw32 brackets the group).
+        fly.os.proc.argsAdd(h, "-lmingw32")
+        if fly.os.fs.exists(builtinsLib) { fly.os.proc.argsAdd(h, builtinsLib) }
+        fly.os.proc.argsAdd(h, "-lmoldname")
+        fly.os.proc.argsAdd(h, "-lmingwex")
+        fly.os.proc.argsAdd(h, "-lmsvcrt")
+        fly.os.proc.argsAdd(h, "-ladvapi32")
+        fly.os.proc.argsAdd(h, "-lshell32")
+        fly.os.proc.argsAdd(h, "-luser32")
+        fly.os.proc.argsAdd(h, "-lkernel32")
+        fly.os.proc.argsAdd(h, "-lsynchronization")
+        fly.os.proc.argsAdd(h, "-lmingw32")
+        fly.os.proc.argsAdd(h, fly.os.path.join(slib, "crtend.o"))
+
+        fly.os.proc.argsAdd(h, "-o")
+        fly.os.proc.argsAdd(h, fly.str.concat(outFile, ".exe"))
+
+        // Already dispatched here via isOSWindows() → PE/COFF; ld.lld picks the GNU
+        // flavour from argv[0] and `-m i386pep` selects x86_64 PE.
+        bool ok = this.runLinker("ld.lld", "ld", h)
+        fly.os.proc.argsFree(h)
+        out = ok
+    }
+
+    // getMingwSysrootDir — locate the bundled mingw/UCRT sysroot: FLY_MINGW_SYSROOT,
+    // else <exe_dir>/mingw (release layout), else <exe_dir>/../../mingw (dev build:
+    // build/stage$STAGE/bin → build/mingw). "" if none found.
+    public string getMingwSysrootDir() {
+        string env = fly.os.env.get("FLY_MINGW_SYSROOT")
+        if fly.str.isEmpty(env) == false {
+            if fly.os.fs.exists(env) { out = env  return }
+        }
+        string exe = fly.os.env.exePath()
+        if fly.str.isEmpty(exe) == false {
+            string dir = fly.os.path.dirname(exe)
+            string s1 = fly.os.path.join(dir, "mingw")
+            if fly.os.fs.exists(s1) { out = s1  return }
+            string build = fly.os.path.dirname(fly.os.path.dirname(dir))
+            string s2 = fly.os.path.join(build, "mingw")
+            if fly.os.fs.exists(s2) { out = s2  return }
+        }
+        out = ""
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

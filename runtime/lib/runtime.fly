@@ -51,7 +51,10 @@ public void waitpid(const int pid, const pointer status, const int options, int 
 public void pthread_create(const pointer thread, const pointer attr, const pointer start, const pointer arg, int out) {}
 // futex via libc's syscall() wrapper (@syscall). One fixed arity (number + 5 args);
 // SYS_futex ignores the trailing args it doesn't use.
-public void syscall(const long n, const long a1, const long a2, const long a3, const long a4, const long a5, long out) {}
+// Raw syscall(2). Address-carrying args are `pointer` (a1/a4/a5 = uaddr/timeout/
+// uaddr2 for SYS_futex); a2/a3 are integer values. Pointer and long share the
+// register ABI, so mixing matches the C variadic `long` prototype.
+public void syscall(const long n, const pointer a1, const long a2, const long a3, const pointer a4, const pointer a5, long out) {}
 // atomics via libatomic (-latomic)
 public void __atomic_load_4(const pointer ptr, const int memorder, int out) {}
 public void __atomic_store_4(const pointer ptr, const int val, const int memorder) {}
@@ -166,6 +169,34 @@ public void fs_getdents(const int fd, const pointer buf, const ulong size, int o
     long r = 0
     fly.runtime.getdents64(fd, buf, size, r)
     fly.llvm.longToInt(r, out)
+}
+
+// ── Directory enumeration (dir_open/dir_read/dir_close) ────────────────────────
+// A pointer-handle iterator abstraction so the std `dirRead` is platform-neutral:
+// the handle is an opaque malloc'd context (0 = failure), NOT an int fd — Windows
+// needs a 64-bit FindFirstFile HANDLE + state (see runtime-windows.fly). On POSIX
+// the context just holds the dir fd; dir_read fills linux_dirent64 records.
+public void dir_open(const pointer path, pointer out) {
+    int fd = 0
+    fly.runtime.open(path, 0, 0, fd)
+    if fd < 0 { out = 0  return }
+    pointer ctx = 0
+    fly.runtime.mem_alloc(4, ctx)
+    fly.llvm.ptrPokeInt(ctx, 0, fd)
+    out = ctx
+}
+public void dir_read(const pointer ctx, const pointer buf, const ulong size, int out) {
+    int fd = 0
+    fly.llvm.ptrReadInt(ctx, 0, fd)
+    long r = 0
+    fly.runtime.getdents64(fd, buf, size, r)
+    fly.llvm.longToInt(r, out)
+}
+public void dir_close(const pointer ctx) {
+    int fd = 0
+    fly.llvm.ptrReadInt(ctx, 0, fd)
+    fly.runtime.fs_close(fd)
+    fly.runtime.mem_free(ctx, 4)
 }
 
 // stat helpers — glibc `struct stat` (x86-64) matches the kernel layout used by the
@@ -597,17 +628,15 @@ public void thread_spawn(const pointer fn, const pointer arg, const ulong stackS
 
 // futex via the libc syscall() wrapper (SYS_futex = 202; FUTEX_WAIT=0, FUTEX_WAKE=1).
 public void futex_wait(const pointer addr, const int expected) {
-    long a = (long)addr
     long e = expected
     long r = 0
-    fly.runtime.syscall(202, a, 0, e, 0, 0, r)
+    fly.runtime.syscall(202, addr, 0, e, 0, 0, r)      // a1 = uaddr (pointer, no cast)
 }
 
 public void futex_wake(const pointer addr, const int count, int out) {
-    long a = (long)addr
     long c = count
     long r = 0
-    fly.runtime.syscall(202, a, 1, c, 0, 0, r)
+    fly.runtime.syscall(202, addr, 1, c, 0, 0, r)      // a1 = uaddr (pointer, no cast)
     fly.llvm.longToInt(r, out)
 }
 
