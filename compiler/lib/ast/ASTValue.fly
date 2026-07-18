@@ -76,6 +76,7 @@ public class ASTStringValue : ASTValue {
     }
 
     public string getValue() { out = this.value }
+    public ASTStringValue asStringValue() { out = this }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }
@@ -91,6 +92,7 @@ public class ASTArrayValue : ASTValue {
 
     public List<ASTExpr> getValues() { out = this.values }
     public void setValues(const List<ASTExpr> v) { this.values = v }
+    public ASTArrayValue asArrayValue() { out = this }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

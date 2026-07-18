@@ -5,16 +5,14 @@ import fly.str
 import fly.os.fs
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Manifest — the fly.toml package manifest, ported from the C++ reference
-// (fly/tools/flyp/manifest/Manifest.{h,cpp}). Covers [package], [targets],
-// [test], [dependencies]/[dev-dependencies], [repo], [profiles], [hooks],
-// [link], [workspace] + name/version validation + serialization back to TOML.
+// Manifest — the in-memory package manifest model. It is populated by
+// FlyManifestReader (flymanifest.fly) from the Fly-native `Manifest.fly` — a class
+// extending fly.meta.Manifest, parsed by the compiler's own parser — and serialized
+// back to `Manifest.fly` by serialize()/save(). There is no TOML: the manifest IS
+// Fly source, one language and one parser.
 //
 // Map-like sections (deps/repos/profiles) are stored as ordered Lists of entry
 // classes (Fly's Map has no key iteration, and we need both lookup and order).
-// parseManifest returns errOut != 0 on a malformed/invalid manifest (the Fly
-// equivalent of the C++ `throw`): 201 invalid name, 202 invalid version,
-// 203 missing name/version, else the the toml reader parser code.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // A git/path/registry dependency. refKind: 0=Tag 1=Branch 2=Rev.
@@ -329,88 +327,110 @@ public class Manifest {
         out = found
     }
 
-    // depLine — `name = { ... }` for one dependency (mirrors Manifest.cpp dep_str).
-    public string depLine(const string n, const GitDep d, const string q) {
-        string body = ""
-        if d.isPathDep() {
-            body = fly.str.concat("path = ", fly.str.concat(q, fly.str.concat(d.getPath(), q)))
-        } elsif d.isRegistryDep() {
-            body = fly.str.concat("registry = ", fly.str.concat(q, fly.str.concat(d.getRegistryName(), q)))
-            body = fly.str.concat(body, fly.str.concat(", version = ", fly.str.concat(q, fly.str.concat(d.getVersionReq(), q))))
-            if fly.str.equals(d.getPkgName(), n) == false {
-                body = fly.str.concat(body, fly.str.concat(", name = ", fly.str.concat(q, fly.str.concat(d.getPkgName(), q))))
-            }
-        } else {
-            body = fly.str.concat("git = ", fly.str.concat(q, fly.str.concat(d.getGitUrl(), q)))
-            string refk = "tag"
-            if d.getRefKind() == 1 { refk = "branch" }
-            if d.getRefKind() == 2 { refk = "rev" }
-            body = fly.str.concat(body, fly.str.concat(", ", fly.str.concat(refk, fly.str.concat(" = ", fly.str.concat(q, fly.str.concat(d.getRefValue(), q))))))
-        }
-        out = fly.str.concat(n, fly.str.concat(" = { ", fly.str.concat(body, " }")))
-    }
 
-    // serialize — the fly.toml text (package + targets + dependencies). Enough for
-    // add/remove round-trips; profiles/repo/hooks/workspace are re-emitted only if
-    // present. Real newlines via fly.driver.nl(), quotes via dq().
+    // serialize — the Manifest.fly source: a class extending fly.meta.Manifest, read
+    // back by FlyManifestReader. Emits package scalars, authors/linkLibs (string[]),
+    // dependencies/dev-dependencies (positional `new Dependency(...)`) and targets.
+    // Real newlines via fly.driver.nl(), quotes via dq().
     public string serialize() {
         string q = fly.driver.dq()
         string nl = fly.driver.nl()
-        string s = fly.str.concat("[package]", nl)
-        s = fly.str.concat(s, this.kvLine("name        = ", this.name, q, nl))
-        s = fly.str.concat(s, this.kvLine("version     = ", this.version, q, nl))
-        if fly.str.isEmpty(this.description) == false { s = fly.str.concat(s, this.kvLine("description = ", this.description, q, nl)) }
-        if fly.str.isEmpty(this.license) == false     { s = fly.str.concat(s, this.kvLine("license     = ", this.license, q, nl)) }
-        if fly.str.isEmpty(this.flyVersion) == false  { s = fly.str.concat(s, this.kvLine("fly-version = ", this.flyVersion, q, nl)) }
-        if fly.str.isEmpty(this.homepage) == false    { s = fly.str.concat(s, this.kvLine("homepage    = ", this.homepage, q, nl)) }
-        if fly.str.isEmpty(this.repository) == false   { s = fly.str.concat(s, this.kvLine("repository  = ", this.repository, q, nl)) }
-
-        if this.targets.size() > 0 {
-            s = fly.str.concat(s, fly.str.concat(nl, fly.str.concat("[targets]", nl)))
-            int i = 0
-            while i < this.targets.size() {
-                Target t = this.targets.get(i)
-                string line = fly.str.concat(t.getKey(), " = { path = ")
-                line = fly.str.concat(line, fly.str.concat(q, fly.str.concat(t.getPath(), q)))
-                if fly.str.equals(t.getName(), t.getKey()) == false {
-                    line = fly.str.concat(line, fly.str.concat(", name = ", fly.str.concat(q, fly.str.concat(t.getName(), q))))
-                }
-                if t.isLib() {
-                    line = fly.str.concat(line, fly.str.concat(", lib = ", fly.str.concat(q, fly.str.concat(t.getLib(), q))))
-                }
-                line = fly.str.concat(line, " }")
-                s = fly.str.concat(s, fly.str.concat(line, nl))
-                i = i + 1
-            }
-        }
-        if this.deps.size() > 0 {
-            s = fly.str.concat(s, fly.str.concat(nl, fly.str.concat("[dependencies]", nl)))
-            int i = 0
-            while i < this.deps.size() {
-                DepEntry e = this.deps.get(i)
-                s = fly.str.concat(s, fly.str.concat(this.depLine(e.getName(), e.getDep(), q), nl))
-                i = i + 1
-            }
-        }
-        if this.devDeps.size() > 0 {
-            s = fly.str.concat(s, fly.str.concat(nl, fly.str.concat("[dev-dependencies]", nl)))
-            int i = 0
-            while i < this.devDeps.size() {
-                DepEntry e = this.devDeps.get(i)
-                s = fly.str.concat(s, fly.str.concat(this.depLine(e.getName(), e.getDep(), q), nl))
-                i = i + 1
-            }
-        }
+        string s = fly.str.concat("namespace pkg.manifest", nl)
+        s = fly.str.concat(s, fly.str.concat("import fly.meta.*", nl))
+        s = fly.str.concat(s, nl)
+        s = fly.str.concat(s, fly.str.concat("class Manifest : fly.meta.Manifest {", nl))
+        s = fly.str.concat(s, this.scalarField("name", this.name, q, nl))
+        s = fly.str.concat(s, this.scalarField("version", this.version, q, nl))
+        if fly.str.isEmpty(this.description) == false { s = fly.str.concat(s, this.scalarField("description", this.description, q, nl)) }
+        if fly.str.isEmpty(this.license) == false     { s = fly.str.concat(s, this.scalarField("license", this.license, q, nl)) }
+        if fly.str.isEmpty(this.flyVersion) == false  { s = fly.str.concat(s, this.scalarField("flyVersion", this.flyVersion, q, nl)) }
+        if fly.str.isEmpty(this.homepage) == false    { s = fly.str.concat(s, this.scalarField("homepage", this.homepage, q, nl)) }
+        if fly.str.isEmpty(this.repository) == false  { s = fly.str.concat(s, this.scalarField("repository", this.repository, q, nl)) }
+        if fly.str.isEmpty(this.defaultRegistry) == false { s = fly.str.concat(s, this.scalarField("registry", this.defaultRegistry, q, nl)) }
+        if this.authors.size() > 0   { s = fly.str.concat(s, this.strArray("string[] authors", this.authors, q, nl)) }
+        if this.linkLibs.size() > 0  { s = fly.str.concat(s, this.strArray("string[] linkLibs", this.linkLibs, q, nl)) }
+        if this.deps.size() > 0      { s = fly.str.concat(s, this.depArray("dependencies", this.deps, q, nl)) }
+        if this.devDeps.size() > 0   { s = fly.str.concat(s, this.depArray("devDependencies", this.devDeps, q, nl)) }
+        if this.targets.size() > 0   { s = fly.str.concat(s, this.targetArray(this.targets, q, nl)) }
+        s = fly.str.concat(s, fly.str.concat("}", nl))
         out = s
     }
 
-    public string kvLine(const string prefix, const string value, const string q, const string nl) {
-        out = fly.str.concat(prefix, fly.str.concat(q, fly.str.concat(value, fly.str.concat(q, nl))))
+    // scalarField — `  string <name> = "<val>"`.
+    string scalarField(const string name, const string val, const string q, const string nl) {
+        out = fly.str.concat("  string ", fly.str.concat(name, fly.str.concat(" = ", fly.str.concat(q, fly.str.concat(val, fly.str.concat(q, nl))))))
     }
 
-    // save — write serialize() to fly.toml in the current directory.
+    // strArray — `  <decl> = { "a", "b" }`.
+    string strArray(const string decl, const List<string> items, const string q, const string nl) {
+        string a = fly.str.concat("  ", fly.str.concat(decl, " = { "))
+        int i = 0
+        while i < items.size() {
+            if i > 0 { a = fly.str.concat(a, ", ") }
+            a = fly.str.concat(a, fly.str.concat(q, fly.str.concat(items.get(i), q)))
+            i = i + 1
+        }
+        out = fly.str.concat(a, fly.str.concat(" }", nl))
+    }
+
+    // depArray — `  Dependency[] <field> = { new Dependency(...), ... }`.
+    string depArray(const string field, const List<DepEntry> ds, const string q, const string nl) {
+        string a = fly.str.concat("  Dependency[] ", fly.str.concat(field, " = { "))
+        int i = 0
+        while i < ds.size() {
+            if i > 0 { a = fly.str.concat(a, ", ") }
+            DepEntry e = ds.get(i)
+            a = fly.str.concat(a, this.depNew(e.getName(), e.getDep(), q))
+            i = i + 1
+        }
+        out = fly.str.concat(a, fly.str.concat(" }", nl))
+    }
+
+    // depNew — new Dependency(name, version, registry, git, tag, branch, rev, path).
+    string depNew(const string name, const GitDep g, const string q) {
+        string tag = ""
+        string br = ""
+        string rev = ""
+        if fly.str.isEmpty(g.getGitUrl()) == false {
+            if g.getRefKind() == 0 { tag = g.getRefValue() }
+            elsif g.getRefKind() == 1 { br = g.getRefValue() }
+            else { rev = g.getRefValue() }
+        }
+        string s = fly.str.concat("new Dependency(", this.qc(name, q))
+        s = fly.str.concat(s, this.qc(g.getVersionReq(), q))
+        s = fly.str.concat(s, this.qc(g.getRegistryName(), q))
+        s = fly.str.concat(s, this.qc(g.getGitUrl(), q))
+        s = fly.str.concat(s, this.qc(tag, q))
+        s = fly.str.concat(s, this.qc(br, q))
+        s = fly.str.concat(s, this.qc(rev, q))
+        s = fly.str.concat(s, fly.str.concat(q, fly.str.concat(g.getPath(), q)))
+        out = fly.str.concat(s, ")")
+    }
+
+    // targetArray — `  Target[] targets = { new Target("name", "path", "lib"), ... }`.
+    string targetArray(const List<Target> ts, const string q, const string nl) {
+        string a = "  Target[] targets = { "
+        int i = 0
+        while i < ts.size() {
+            if i > 0 { a = fly.str.concat(a, ", ") }
+            Target t = ts.get(i)
+            string tn = fly.str.concat("new Target(", this.qc(t.getName(), q))
+            tn = fly.str.concat(tn, this.qc(t.getPath(), q))
+            tn = fly.str.concat(tn, fly.str.concat(q, fly.str.concat(t.getLib(), fly.str.concat(q, ")"))))
+            a = fly.str.concat(a, tn)
+            i = i + 1
+        }
+        out = fly.str.concat(a, fly.str.concat(" }", nl))
+    }
+
+    // qc — a quoted value followed by ", " (a comma-separated arg).
+    string qc(const string v, const string q) {
+        out = fly.str.concat(q, fly.str.concat(v, fly.str.concat(q, ", ")))
+    }
+
+    // save — write serialize() to Manifest.fly in the current directory.
     public void save() {
-        fly.os.fs.writeStr("fly.toml", this.serialize(), 420)
+        fly.os.fs.writeStr("Manifest.fly", this.serialize(), 420)
     }
 }
 
@@ -471,259 +491,4 @@ public BuildProfile defaultProfile(const string name) {
         p.setAssertions(false)
     }
     out = p
-}
-
-
-
-
-
-
-
-// parseManifest — parse a fly.toml source string into a Manifest.
-public Manifest parseManifest(const string src, int errOut) {
-    Manifest m = new Manifest()
-    int perr = 0
-    fly.driver.TomlValue root = fly.driver.tomlParse(src, perr)
-    if perr != 0 { errOut = perr  out = m  return }
-
-    // [package]
-    if root.has("package") {
-        fly.driver.TomlValue pkg = root.get("package")
-        m.setName(pkg.getStr("name", ""))
-        m.setVersion(pkg.getStr("version", ""))
-        m.setDescription(pkg.getStr("description", ""))
-        m.setLicense(pkg.getStr("license", ""))
-        m.setFlyVersion(pkg.getStr("fly-version", ""))
-        m.setHomepage(pkg.getStr("homepage", ""))
-        m.setRepository(pkg.getStr("repository", ""))
-        m.setDefaultRegistry(pkg.getStr("registry", ""))
-        if pkg.has("authors") {
-            fly.driver.TomlValue au = pkg.get("authors")
-            if au.isArray() {
-                int i = 0
-                while i < au.size() {
-                    fly.driver.TomlValue e = au.at(i)
-                    if e.isStr() { m.addAuthor(e.asStr()) }
-                    i = i + 1
-                }
-            }
-        }
-    }
-
-    // [repo]
-    if root.has("repo") {
-        fly.driver.TomlValue rt = root.get("repo")
-        if rt.isTable() {
-            int i = 0
-            while i < rt.keyCount() {
-                string k = rt.keyAt(i)
-                fly.driver.TomlValue v = rt.get(k)
-                if v.isStr() { m.addRepo(k, v.asStr()) }
-                i = i + 1
-            }
-        }
-    }
-
-    // [workspace] (parsed before [package] validation)
-    if root.has("workspace") {
-        fly.driver.TomlValue ws = root.get("workspace")
-        if ws.has("members") {
-            fly.driver.TomlValue mem = ws.get("members")
-            if mem.isArray() {
-                int i = 0
-                while i < mem.size() {
-                    fly.driver.TomlValue e = mem.at(i)
-                    if e.isStr() { m.addMember(e.asStr()) }
-                    i = i + 1
-                }
-            }
-        }
-    }
-
-    // validation: name+version required for non-workspace manifests
-    if m.isWorkspaceRoot() == false {
-        if fly.str.isEmpty(m.getName())    { errOut = 203  out = m  return }
-        if fly.str.isEmpty(m.getVersion()) { errOut = 203  out = m  return }
-        if nameValid(m.getName()) == false    { errOut = 201  out = m  return }
-        if versionValid(m.getVersion()) == false { errOut = 202  out = m  return }
-    }
-
-    // [targets]
-    if root.has("targets") {
-        fly.driver.TomlValue tgts = root.get("targets")
-        if tgts.isTable() {
-            int i = 0
-            while i < tgts.keyCount() {
-                string k = tgts.keyAt(i)
-                fly.driver.TomlValue t = tgts.get(k)
-                if t.isTable() {
-                    string tpath = t.getStr("path", "")
-                    if fly.str.isEmpty(tpath) == false {
-                        m.addTarget(new Target(k, t.getStr("name", k), tpath, t.getStr("lib", "")))
-                    }
-                }
-                i = i + 1
-            }
-        }
-    }
-
-    // [hooks]
-    if root.has("hooks") {
-        fly.driver.TomlValue h = root.get("hooks")
-        m.setHooks(h.getStr("pre-build", ""), h.getStr("post-build", ""))
-    }
-
-    // [link]
-    if root.has("link") {
-        fly.driver.TomlValue lnk = root.get("link")
-        if lnk.has("libs") {
-            fly.driver.TomlValue libs = lnk.get("libs")
-            if libs.isArray() {
-                int i = 0
-                while i < libs.size() {
-                    fly.driver.TomlValue e = libs.at(i)
-                    if e.isStr() { m.addLinkLib(e.asStr()) }
-                    i = i + 1
-                }
-            }
-        }
-    }
-
-    // [test]
-    if root.has("test") {
-        fly.driver.TomlValue tc = root.get("test")
-        if tc.has("suites") {
-            fly.driver.TomlValue su = tc.get("suites")
-            if su.isArray() {
-                TestConfig tconf = m.getTest()
-                int i = 0
-                while i < su.size() {
-                    fly.driver.TomlValue e = su.at(i)
-                    if e.isStr() { tconf.addSuite(e.asStr()) }
-                    i = i + 1
-                }
-            }
-        }
-        TestConfig tc2 = m.getTest()
-        tc2.setParallel(tc.getBool("parallel", false))
-        tc2.setFailFast(tc.getBool("fail_fast", false))
-    }
-
-    // [dependencies] / [dev-dependencies] — inlined (NOT extracted into a helper:
-    // a free function taking a class parameter crashes the reference compiler when
-    // toml.fly and this module are pulled together via --src-dir; methods and
-    // string-param free functions are fine, so the two loops are duplicated inline).
-    if root.has("dependencies") {
-        fly.driver.TomlValue d = root.get("dependencies")
-        if d.isTable() {
-            int i = 0
-            while i < d.keyCount() {
-                string k = d.keyAt(i)
-                fly.driver.TomlValue v = d.get(k)
-                if v.isTable() {
-                    GitDep g = new GitDep()
-                    string dpath = v.getStr("path", "")
-                    string dreg = v.getStr("registry", "")
-                    string dgit = v.getStr("git", "")
-                    if fly.str.isEmpty(dpath) == false {
-                        g.setPath(dpath)
-                    } elsif fly.str.isEmpty(dreg) == false {
-                        g.setRegistry(dreg, v.getStr("name", k), v.getStr("version", "*"))
-                    } elsif fly.str.isEmpty(dgit) == false {
-                        g.setGitUrl(dgit)
-                        string dtag = v.getStr("tag", "")
-                        string dbr = v.getStr("branch", "")
-                        string drev = v.getStr("rev", "")
-                        if fly.str.isEmpty(dtag) == false {
-                            g.setRef(0, dtag)
-                        } elsif fly.str.isEmpty(dbr) == false {
-                            g.setRef(1, dbr)
-                        } elsif fly.str.isEmpty(drev) == false {
-                            g.setRef(2, drev)
-                        } else {
-                            errOut = 205
-                            out = m
-                            return
-                        }
-                    } else {
-                        errOut = 204
-                        out = m
-                        return
-                    }
-                    m.addDep(k, g)
-                }
-                i = i + 1
-            }
-        }
-    }
-    if root.has("dev-dependencies") {
-        fly.driver.TomlValue d = root.get("dev-dependencies")
-        if d.isTable() {
-            int i = 0
-            while i < d.keyCount() {
-                string k = d.keyAt(i)
-                fly.driver.TomlValue v = d.get(k)
-                if v.isTable() {
-                    GitDep g = new GitDep()
-                    string dpath = v.getStr("path", "")
-                    string dreg = v.getStr("registry", "")
-                    string dgit = v.getStr("git", "")
-                    if fly.str.isEmpty(dpath) == false {
-                        g.setPath(dpath)
-                    } elsif fly.str.isEmpty(dreg) == false {
-                        g.setRegistry(dreg, v.getStr("name", k), v.getStr("version", "*"))
-                    } elsif fly.str.isEmpty(dgit) == false {
-                        g.setGitUrl(dgit)
-                        string dtag = v.getStr("tag", "")
-                        string dbr = v.getStr("branch", "")
-                        string drev = v.getStr("rev", "")
-                        if fly.str.isEmpty(dtag) == false {
-                            g.setRef(0, dtag)
-                        } elsif fly.str.isEmpty(dbr) == false {
-                            g.setRef(1, dbr)
-                        } elsif fly.str.isEmpty(drev) == false {
-                            g.setRef(2, drev)
-                        } else {
-                            errOut = 205
-                            out = m
-                            return
-                        }
-                    } else {
-                        errOut = 204
-                        out = m
-                        return
-                    }
-                    m.addDevDep(k, g)
-                }
-                i = i + 1
-            }
-        }
-    }
-
-    // [profiles] (+ default debug/release)
-    if root.has("profiles") {
-        fly.driver.TomlValue pt = root.get("profiles")
-        if pt.isTable() {
-            int i = 0
-            while i < pt.keyCount() {
-                string k = pt.keyAt(i)
-                fly.driver.TomlValue v = pt.get(k)
-                if v.isTable() {
-                    BuildProfile bp = defaultProfile(k)
-                    bp.setOptLevel((int)v.getInt("opt-level", (long)bp.getOptLevel()))
-                    bp.setDebugInfo(v.getBool("debug-info", bp.getDebugInfo()))
-                    bp.setAssertions(v.getBool("assertions", bp.getAssertions()))
-                    bp.setLto(v.getBool("lto", bp.getLto()))
-                    bp.setStrip(v.getBool("strip", bp.getStrip()))
-                    m.addProfile(k, bp)
-                }
-                i = i + 1
-            }
-        }
-    }
-    if m.hasProfile("debug") == false   { m.addProfile("debug", defaultProfile("debug")) }
-    if m.hasProfile("release") == false { m.addProfile("release", defaultProfile("release")) }
-
-    errOut = 0
-    out = m
 }

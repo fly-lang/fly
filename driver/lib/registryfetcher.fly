@@ -168,7 +168,7 @@ public class RegistryFetcher {
         r.setRev(version)
         r.setVersion(version)
         r.setLocalPath(entry)
-        string tomlPath = fly.str.concat(entry, "/fly.toml")
+        string tomlPath = fly.str.concat(entry, "/Manifest.fly")
         if fly.os.fs.exists(tomlPath) {
             r.setChecksum(fly.driver.sha256File(tomlPath))
         }
@@ -182,17 +182,18 @@ public class RegistryFetcher {
         out = this.httpPostFile(url, tarball, token)
     }
 
-    // readManifest — parse <entry>/fly.toml. errOut: 1 = missing, else parser code.
+    // readManifest — parse <entry>/Manifest.fly. errOut: 1 = missing, else parser code.
     public Manifest readManifest(const string alias, const string entry, int errOut) {
-        string tomlPath = fly.str.concat(entry, "/fly.toml")
-        if fly.os.fs.exists(tomlPath) == false {
+        string mpath = fly.str.concat(entry, "/Manifest.fly")
+        if fly.os.fs.exists(mpath) == false {
             errOut = 1
             out = new Manifest()
             return
         }
-        string src = fly.os.fs.readStr(tomlPath)
+        string src = fly.os.fs.readStr(mpath)
         int e = 0
-        Manifest m = parseManifest(src, e)
+        FlyManifestReader r = new FlyManifestReader()
+        Manifest m = r.read(src, e)
         errOut = e
         out = m
     }

@@ -1,0 +1,204 @@
+namespace fly.driver
+
+import fly.str
+import fly.data.*
+import fly.compiler.parser.*
+import fly.compiler.ast.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FlyManifestReader — the Fly-native manifest loader. It parses a project's
+// `Manifest.fly` (a class extending fly.meta.Manifest) with the COMPILER'S OWN
+// parser and walks the resulting AST to extract the declarative package data into
+// the driver `Manifest` model — no TOML, one language, one parser. Parse-only:
+// no Sema, no codegen, so it reads the manifest without resolving/compiling it.
+// Mirrors HeaderGen's declarative AST walk.
+//
+// Field names below match the fly.meta.Manifest schema. Object collections use
+// array literals of `new T(...)` with POSITIONAL string args (interim, until
+// struct-literals land):
+//   dependencies = { new Dependency("bar", "^1.2"), ... }   // (name, version)
+//   targets      = { new Target("app", "src/main.fly", "") } // (name, path, lib)
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class FlyManifestReader {
+
+    public FlyManifestReader() { }
+
+    // read — parse `src` (a Manifest.fly) and extract it into a Manifest. errOut:
+    // 0 = ok, 210 = parse error, 211 = no class extends fly.meta.Manifest.
+    public Manifest read(const string src, int errOut) {
+        Parser p = new Parser(src)
+        ASTModule mod = p.parseModule("Manifest")
+        if p.isSuccess() == false {
+            errOut = 210
+            out = new Manifest()
+            return
+        }
+        ASTClass mc = this.findManifestClass(mod)
+        if mc == null {
+            errOut = 211
+            out = new Manifest()
+            return
+        }
+        Manifest m = new Manifest()
+        this.readManifestClass(mc, m)
+        errOut = 0
+        out = m
+    }
+
+    // findManifestClass — the first top-level class whose base list names `Manifest`.
+    ASTClass findManifestClass(const ASTModule mod) {
+        List<ASTNode> nodes = mod.getNodes()
+        int i = 0
+        while i < nodes.size() {
+            ASTClass c = nodes.get(i).asClass()
+            if c != null {
+                if this.extendsManifest(c) { out = c  return }
+            }
+            i = i + 1
+        }
+        out = null
+    }
+
+    bool extendsManifest(const ASTClass c) {
+        List<ASTType> bases = c.getBases()
+        int i = 0
+        while i < bases.size() {
+            ASTNamedType nt = bases.get(i).asNamedType()
+            if nt != null {
+                List<ASTName> names = nt.getNames()
+                if names.size() > 0 {
+                    string last = names.get(names.size() - 1).getName()
+                    if fly.str.equals(last, "Manifest") { out = true  return }
+                }
+            }
+            i = i + 1
+        }
+        out = false
+    }
+
+    void readManifestClass(const ASTClass c, const Manifest m) {
+        List<ASTNode> members = c.getNodes()
+        int i = 0
+        while i < members.size() {
+            ASTVar v = members.get(i).asVar()
+            if v != null { this.readField(v, m) }
+            i = i + 1
+        }
+    }
+
+    void readField(const ASTVar v, const Manifest m) {
+        string name = v.getName()
+        ASTExpr init = v.getExpr()
+        if init == null { return }
+        // [package] scalars
+        if fly.str.equals(name, "name")        { m.setName(this.strOf(init))         return }
+        if fly.str.equals(name, "version")     { m.setVersion(this.strOf(init))      return }
+        if fly.str.equals(name, "description") { m.setDescription(this.strOf(init))  return }
+        if fly.str.equals(name, "license")     { m.setLicense(this.strOf(init))      return }
+        if fly.str.equals(name, "flyVersion")  { m.setFlyVersion(this.strOf(init))   return }
+        if fly.str.equals(name, "homepage")    { m.setHomepage(this.strOf(init))     return }
+        if fly.str.equals(name, "repository")  { m.setRepository(this.strOf(init))   return }
+        if fly.str.equals(name, "registry")    { m.setDefaultRegistry(this.strOf(init)) return }
+        // string arrays
+        if fly.str.equals(name, "authors")  { this.readStrArray(init, m, 0)  return }
+        if fly.str.equals(name, "linkLibs") { this.readStrArray(init, m, 1)  return }
+        // object arrays (array of `new T(...)`)
+        if fly.str.equals(name, "dependencies")    { this.readDeps(init, m, false)  return }
+        if fly.str.equals(name, "devDependencies") { this.readDeps(init, m, true)   return }
+        if fly.str.equals(name, "targets")         { this.readTargets(init, m)      return }
+    }
+
+    // strOf — the string value of a scalar initializer ("" if not a string literal).
+    string strOf(const ASTExpr e) {
+        ASTStringValue sv = e.asStringValue()
+        if sv != null { out = sv.getValue() } else { out = "" }
+    }
+
+    // readStrArray — a `{"a", "b"}` initializer; kind 0 = authors, 1 = linkLibs.
+    void readStrArray(const ASTExpr e, const Manifest m, const int kind) {
+        ASTArrayValue arr = e.asArrayValue()
+        if arr == null { return }
+        List<ASTExpr> vals = arr.getValues()
+        int i = 0
+        while i < vals.size() {
+            string s = this.strOf(vals.get(i))
+            if kind == 0 { m.addAuthor(s) } else { m.addLinkLib(s) }
+            i = i + 1
+        }
+    }
+
+    // readDeps — `{ new Dependency(name, version, registry, git, tag, branch, rev,
+    // path), ... }`. Positional args (fly.meta.Dependency field order); trailing args
+    // may be omitted and default to "". The dep kind is inferred: path > git > registry.
+    void readDeps(const ASTExpr e, const Manifest m, const bool dev) {
+        ASTArrayValue arr = e.asArrayValue()
+        if arr == null { return }
+        List<ASTExpr> vals = arr.getValues()
+        int i = 0
+        while i < vals.size() {
+            ASTCall call = vals.get(i).asCall()
+            if call != null {
+                List<ASTArg> args = call.getArgs()
+                string dn = ""
+                string dv = "*"
+                string dreg = ""
+                string dgit = ""
+                string dtag = ""
+                string dbr = ""
+                string drev = ""
+                string dpath = ""
+                if args.size() > 0 { dn = this.argStr(args, 0) }
+                if args.size() > 1 { dv = this.argStr(args, 1) }
+                if args.size() > 2 { dreg = this.argStr(args, 2) }
+                if args.size() > 3 { dgit = this.argStr(args, 3) }
+                if args.size() > 4 { dtag = this.argStr(args, 4) }
+                if args.size() > 5 { dbr = this.argStr(args, 5) }
+                if args.size() > 6 { drev = this.argStr(args, 6) }
+                if args.size() > 7 { dpath = this.argStr(args, 7) }
+                GitDep g = new GitDep()
+                if fly.str.isEmpty(dpath) == false {
+                    g.setPath(dpath)
+                } elsif fly.str.isEmpty(dgit) == false {
+                    g.setGitUrl(dgit)
+                    if fly.str.isEmpty(dtag) == false { g.setRef(0, dtag) }
+                    elsif fly.str.isEmpty(dbr) == false { g.setRef(1, dbr) }
+                    elsif fly.str.isEmpty(drev) == false { g.setRef(2, drev) }
+                } else {
+                    g.setRegistry(dreg, dn, dv)
+                }
+                if dev { m.addDevDep(dn, g) } else { m.addDep(dn, g) }
+            }
+            i = i + 1
+        }
+    }
+
+    // readTargets — `{ new Target("name", "path", "lib"), ... }`.
+    void readTargets(const ASTExpr e, const Manifest m) {
+        ASTArrayValue arr = e.asArrayValue()
+        if arr == null { return }
+        List<ASTExpr> vals = arr.getValues()
+        int i = 0
+        while i < vals.size() {
+            ASTCall call = vals.get(i).asCall()
+            if call != null {
+                List<ASTArg> args = call.getArgs()
+                string tn = ""
+                string tp = ""
+                string tl = ""
+                if args.size() > 0 { tn = this.argStr(args, 0) }
+                if args.size() > 1 { tp = this.argStr(args, 1) }
+                if args.size() > 2 { tl = this.argStr(args, 2) }
+                m.addTarget(new Target(tn, tn, tp, tl))
+            }
+            i = i + 1
+        }
+    }
+
+    // argStr — the string value of the idx-th call argument.
+    string argStr(const List<ASTArg> args, const int idx) {
+        ASTNode e = args.get(idx).getExpr()
+        ASTStringValue sv = e.asStringValue()
+        if sv != null { out = sv.getValue() } else { out = "" }
+    }
+}

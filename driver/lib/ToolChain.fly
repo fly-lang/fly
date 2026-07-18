@@ -27,7 +27,11 @@ import fly.str
 //   • The external Archiver (CreateLibrary path, Archiver.cpp — not in scope) is
 //     stubbed: BuildOutput's library branch returns false.
 //   • Diag.Report (location-less toolchain errors) → fly.os.io.printErrLn.
-//   • FLY_LLVM_VERSION_MAJOR / FLY_LLVM_DIR → "20" + system /usr/lib/llvm-20 paths.
+//   • FLY_LLVM_VERSION_MAJOR / FLY_LLVM_DIR (read by the C++ reference) are NOT read
+//     by the self-host: llvmMajor() is hardcoded "20" and the LLVM lib dir is fixed
+//     (getLLVMLibDir / system /usr/lib/llvm-20). The Windows sysroot / LLVM-lib
+//     overrides are CLI flags (--mingw-sysroot / --llvm-lib-dir), NOT env vars — the
+//     compiler takes no env config; the ci scripts pass the flags.
 //
 // SmallVector<std::string> CmdArgs → a fly.os.proc ArgList handle, accumulated
 // with argsAdd and run with exec (the program name is exec's `path`, not arg 0).
@@ -448,7 +452,7 @@ public class ToolChain {
     public bool LinkWindowsGNU(const string inFilesSemi, const string outFile) {
         string sysroot = this.getMingwSysrootDir()
         if fly.str.isEmpty(sysroot) {
-            fly.os.io.printErrLn("error: mingw/UCRT sysroot not found (expected <fly_dir>/mingw; set FLY_MINGW_SYSROOT)")
+            fly.os.io.printErrLn("error: mingw/UCRT sysroot not found (expected <fly_dir>/mingw; pass --mingw-sysroot <dir>)")
             out = false
             return
         }
@@ -456,6 +460,11 @@ public class ToolChain {
         string builtinsDir = fly.os.path.join(sysroot, "builtins")
         string builtinsLib = fly.os.path.join(builtinsDir, "libclang_rt.builtins-x86_64.a")
 
+        // NOTE: -static / --shared / -pie are NOT honored here — this path always links
+        // a console .exe (crt2.o startup). Those link modes are implemented only on the
+        // ELF/Linux path (see the -shared/-static/-pie handling above). In particular
+        // --shared cannot produce a DLL on Windows yet; it links as an exe and fails if
+        // the inputs have no main.
         pointer h = fly.os.proc.argsNew()
         fly.os.proc.argsAdd(h, "-m")
         fly.os.proc.argsAdd(h, "i386pep")                       // x86_64 PE emulation
@@ -533,13 +542,14 @@ public class ToolChain {
         out = ok
     }
 
-    // getMingwSysrootDir — locate the bundled mingw/UCRT sysroot: FLY_MINGW_SYSROOT,
-    // else <exe_dir>/mingw (release layout), else <exe_dir>/../../mingw (dev build:
-    // build/stage$STAGE/bin → build/mingw). "" if none found.
+    // getMingwSysrootDir — locate the bundled mingw/UCRT sysroot: the --mingw-sysroot
+    // override, else <exe_dir>/mingw (release layout), else <exe_dir>/../../mingw (dev
+    // build: build/stage$STAGE/bin → build/mingw). "" if none found. The compiler is
+    // driven only by CLI flags — no env var here; the ci scripts pass the flag.
     public string getMingwSysrootDir() {
-        string env = fly.os.env.get("FLY_MINGW_SYSROOT")
-        if fly.str.isEmpty(env) == false {
-            if fly.os.fs.exists(env) { out = env  return }
+        string ovr = this.codeGenOpts.getMingwSysrootDir()
+        if fly.str.isEmpty(ovr) == false {
+            if fly.os.fs.exists(ovr) { out = ovr  return }
         }
         string exe = fly.os.env.exePath()
         if fly.str.isEmpty(exe) == false {
@@ -556,13 +566,13 @@ public class ToolChain {
     // getLLVMLibDir — locate the dir holding the LLVM import lib (LLVM-20.lib, the
     // stage0 alias of LLVM-C.lib) so `-lLLVM-20` (emitted for codegen-using
     // programs) resolves on Windows, where there is no system LLVM. Probe order
-    // mirrors getMingwSysrootDir: FLY_LLVM_LIB_DIR, then <exe_dir>/llvm/lib
+    // mirrors getMingwSysrootDir: the --llvm-lib-dir override, then <exe_dir>/llvm/lib
     // (release bundle), then <exe_dir>/../../llvm/lib (dev: build/stage$STAGE/bin →
     // build/llvm/lib). "" if none found (ordinary programs don't need LLVM).
     public string getLLVMLibDir() {
-        string env = fly.os.env.get("FLY_LLVM_LIB_DIR")
-        if fly.str.isEmpty(env) == false {
-            if fly.os.fs.exists(env) { out = env  return }
+        string ovr = this.codeGenOpts.getLlvmLibDir()
+        if fly.str.isEmpty(ovr) == false {
+            if fly.os.fs.exists(ovr) { out = ovr  return }
         }
         string exe = fly.os.env.exePath()
         if fly.str.isEmpty(exe) == false {

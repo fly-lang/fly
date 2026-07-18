@@ -38,12 +38,18 @@ public class Builder {
         out = this.flyBinary
     }
 
-    // resolveFly — FLY_COMPILER env override, else the running binary ITSELF: the
-    // package commands run inside the `fly` compiler, so exePath() is the compiler and
-    // they self-exec it in compile mode. Bare `fly` on PATH is the last resort.
+    // resolveFly — FLYLANG_BIN (the DIRECTORY holding the fly binary) → <dir>/fly[.exe];
+    // else the running binary ITSELF (package commands run inside the `fly` compiler, so
+    // exePath() is the compiler and they self-exec it in compile mode); else bare `fly`
+    // on PATH as the last resort.
     public string resolveFly() {
-        string env = fly.os.env.get("FLY_COMPILER")
-        if fly.str.isEmpty(env) == false { out = env  return }
+        string binDir = fly.os.env.get("FLYLANG_BIN")
+        if fly.str.isEmpty(binDir) == false {
+            string exe = "fly"
+            if fly.str.equals(fly.os.env.osname(), "windows") { exe = "fly.exe" }
+            out = fly.os.path.join(binDir, exe)
+            return
+        }
         string self = fly.os.env.exePath()
         if fly.str.isEmpty(self) == false { out = self  return }
         out = "fly"
@@ -101,6 +107,13 @@ public class Builder {
         cmd = fly.str.concat(cmd, " ")
         cmd = fly.str.concat(cmd, this.profileFlags())
         cmd = fly.str.concat(cmd, this.linkFlags())
+        // FLYLANG_LIB — directory holding the fly libraries (fly_std_lib.a /
+        // fly_runtime_lib.a). Passed to the compiler as --runtime-lib-dir; when unset
+        // the compiler auto-detects <exe>/../lib.
+        string libDir = fly.os.env.get("FLYLANG_LIB")
+        if fly.str.isEmpty(libDir) == false {
+            cmd = fly.str.concat(cmd, fly.str.concat(" --runtime-lib-dir ", fly.driver.shellQuote(libDir)))
+        }
         if fly.str.isEmpty(this.targetTriple) == false {
             cmd = fly.str.concat(cmd, fly.str.concat(" --target=", fly.driver.shellQuote(this.targetTriple)))
         }

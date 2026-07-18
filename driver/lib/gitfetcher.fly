@@ -17,7 +17,7 @@ public class FetchResult {
     string rev          // full 40-char commit hash
     string version      // semver from tag, else "0.0.0"
     string localPath    // cache entry directory
-    string checksum     // sha256: of the fly.toml inside
+    string checksum     // sha256: of the Manifest.fly inside
     bool ok             // false on failure (Fly has no exceptions here)
     string errMsg
 
@@ -129,7 +129,7 @@ public class GitFetcher {
         int arc = fly.driver.runShell(arch)
         fly.driver.runShell(fly.str.concat("rm -rf ", fly.driver.shellQuote(bare)))
 
-        string tomlPath = fly.str.concat(entry, "/fly.toml")
+        string tomlPath = fly.str.concat(entry, "/Manifest.fly")
         if arc != 0 || fly.os.fs.exists(tomlPath) == false {
             // fallback: full clone into the entry
             fly.driver.runShell(fly.str.concat("rm -rf ", fly.driver.shellQuote(entry)))
@@ -151,9 +151,9 @@ public class GitFetcher {
         out = r
     }
 
-    // tomlChecksum — sha256 of <entry>/fly.toml (or "sha256:" if absent).
+    // tomlChecksum — sha256 of <entry>/Manifest.fly (or "sha256:" if absent).
     public string tomlChecksum(const string entry) {
-        string tomlPath = fly.str.concat(entry, "/fly.toml")
+        string tomlPath = fly.str.concat(entry, "/Manifest.fly")
         if fly.os.fs.exists(tomlPath) {
             out = fly.driver.sha256File(tomlPath)
         } else {
@@ -161,18 +161,19 @@ public class GitFetcher {
         }
     }
 
-    // readManifest — parse <entry>/fly.toml. `errOut`: 1 = no fly.toml, else the
+    // readManifest — parse <entry>/Manifest.fly. `errOut`: 1 = no Manifest.fly, else the
     // manifest parser code.
     public Manifest readManifest(const string name, const string entry, int errOut) {
-        string tomlPath = fly.str.concat(entry, "/fly.toml")
-        if fly.os.fs.exists(tomlPath) == false {
+        string mpath = fly.str.concat(entry, "/Manifest.fly")
+        if fly.os.fs.exists(mpath) == false {
             errOut = 1
             out = new Manifest()
             return
         }
-        string src = fly.os.fs.readStr(tomlPath)
+        string src = fly.os.fs.readStr(mpath)
         int e = 0
-        Manifest m = parseManifest(src, e)
+        FlyManifestReader r = new FlyManifestReader()
+        Manifest m = r.read(src, e)
         errOut = e
         out = m
     }

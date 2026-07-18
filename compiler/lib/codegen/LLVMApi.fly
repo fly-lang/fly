@@ -255,7 +255,8 @@ struct CreateTMArgs : Args {
 }
 
 // LLVMTargetMachineEmitToFile(TM, M, Filename, FileType, char** Err).
-// `filename` is a Ptr-to-NUL-buffer; `err` stays null (char** NULL).
+// `filename` is a Ptr-to-NUL-buffer; `err` is a live char** slot (LLVM writes the
+// failure message through it — a NULL there would segfault on the error path).
 struct EmitFileArgs : Args {
     pointer tm
     pointer mod
@@ -1630,17 +1631,27 @@ public class LLVM {
     }
 
     // targetMachineEmitToFile — emit `mod` to `filename` (emitType 0=assembly,
-    // 1=object). The old stub dropped `filename`; this passes all four args plus a
-    // null `char** ErrorMessage`. `ok` is the raw LLVMBool return (true = FAILURE).
+    // 1=object). Passes all four args plus a REAL `char** ErrorMessage`. `ok` is the
+    // raw LLVMBool return (true = FAILURE).
+    //
+    // ErrorMessage MUST be a live char** slot: on the write-error path (e.g. the
+    // output directory does not exist, or a mangled path) LLVM does
+    // `*ErrorMessage = strdup(msg)`, so a NULL here segfaults exactly when we should
+    // be reporting the failure. Mirrors printModuleToFileChecked.
     public void targetMachineEmitToFile(const pointer tm, const pointer mod, const string filename, const int emitType, bool ok) {
+        pointer errBuf = fly.mem.alloc(8)
+        fly.mem.writePtr(errBuf, 0, 0)
         EmitFileArgs a = new EmitFileArgs()
         a.tm = tm
         a.mod = mod
         a.filename = cbuf(filename)
         a.emitType = emitType
-        a.err = 0
+        a.err = errBuf
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMTargetMachineEmitToFile", a, ok)
+        pointer mp = fly.mem.readPtr(errBuf, 0)
+        if mp != 0 { this.disposeMessage(mp) }
+        fly.mem.free(errBuf, 8)
     }
 
     // ── Pass manager ──────────────────────────────────────────────────────────

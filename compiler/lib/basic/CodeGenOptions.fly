@@ -37,6 +37,8 @@ public class CodeGenOptions {
     string codeModel          // CodeModel (-mcmodel)
     string runtimeLibDir      // RuntimeLibDir
     string toolchainLibDir    // ToolchainLibDir
+    string mingwSysrootDir    // MingwSysrootDir (--mingw-sysroot; Windows link)
+    string llvmLibDir         // LlvmLibDir (--llvm-lib-dir; Windows LLVM-C link)
     string coverageDataFile   // CoverageDataFile
     string coverageNotesFile  // CoverageNotesFile
     string profileFilterFiles // ProfileFilterFiles
@@ -104,6 +106,8 @@ public class CodeGenOptions {
         this.codeModel = ""
         this.runtimeLibDir = ""
         this.toolchainLibDir = ""
+        this.mingwSysrootDir = ""
+        this.llvmLibDir = ""
         this.coverageDataFile = ""
         this.coverageNotesFile = ""
         this.profileFilterFiles = ""
@@ -185,6 +189,10 @@ public class CodeGenOptions {
     public void setRuntimeLibDir(const string d)   { this.runtimeLibDir = d }
     public string getToolchainLibDir() { out = this.toolchainLibDir }
     public void setToolchainLibDir(const string d) { this.toolchainLibDir = d }
+    public string getMingwSysrootDir() { out = this.mingwSysrootDir }
+    public void setMingwSysrootDir(const string d) { this.mingwSysrootDir = d }
+    public string getLlvmLibDir()      { out = this.llvmLibDir }
+    public void setLlvmLibDir(const string d)      { this.llvmLibDir = d }
     public string getCoverageDataFile()  { out = this.coverageDataFile }
     public void setCoverageDataFile(const string s) { this.coverageDataFile = s }
     public string getCoverageNotesFile() { out = this.coverageNotesFile }

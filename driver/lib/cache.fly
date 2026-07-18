@@ -75,9 +75,11 @@ public class Cache {
     string root
 
     public Cache() {
-        string flyHome = fly.os.env.get("FLY_HOME")
-        if fly.str.isEmpty(flyHome) == false {
-            this.root = fly.os.path.join(flyHome, "cache")
+        // FLYLANG_CACHE — the package cache directory itself; else the OS-standard
+        // default ~/.fly/cache (HOME is an OS convention, not a fly config knob).
+        string flyCache = fly.os.env.get("FLYLANG_CACHE")
+        if fly.str.isEmpty(flyCache) == false {
+            this.root = flyCache
         } else {
             string home = fly.os.env.get("HOME")
             string dotfly = fly.os.path.join(home, ".fly")

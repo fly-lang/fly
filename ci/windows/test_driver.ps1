@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 # test_driver.ps1 - run every driver/test/**/*Suite.fly (the driver + package
-# manager unit suites: CLI parsing, Manifest/toml, lockfile, semver/MVS resolver,
+# manager unit suites: CLI parsing, Manifest.fly reader, lockfile, semver/MVS resolver,
 # registry, ToolChain, cache/checksum/json). PowerShell port of test_driver.sh.
 #
 # Single-file build: each suite is the entry; source discovery is implicit (the

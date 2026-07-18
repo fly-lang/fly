@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
 # test_driver.sh — run every driver/test/**/*Suite.fly (the driver + package
-# manager unit suites: CLI parsing, Manifest/toml, lockfile, semver/MVS resolver,
+# manager unit suites: CLI parsing, Manifest.fly reader, lockfile, semver/MVS resolver,
 # registry, ToolChain, cache/checksum/json). Single-file build: each suite is the
 # entry; source discovery is implicit (a fly project compiles from the CURRENT
 # directory — the repo root here), so the import graph pulls fly.driver.* AND

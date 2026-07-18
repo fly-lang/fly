@@ -15,16 +15,18 @@ import fly.os.env
 // "not yet ported" notice for now.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// loadManifest — read ./fly.toml, parse it. errOut: 2 = missing, else parser code.
+// loadManifest — read ./Manifest.fly (a class extending fly.meta.Manifest) with the
+// compiler's own parser. errOut: 0 ok, 2 = missing, else the reader code (210/211).
 public Manifest loadManifest(int errOut) {
-    if fly.os.fs.exists("fly.toml") == false {
+    if fly.os.fs.exists("Manifest.fly") == false {
         errOut = 2
         out = new Manifest()
         return
     }
-    string src = fly.os.fs.readStr("fly.toml")
+    string src = fly.os.fs.readStr("Manifest.fly")
     int e = 0
-    Manifest m = parseManifest(src, e)
+    FlyManifestReader r = new FlyManifestReader()
+    Manifest m = r.read(src, e)
     errOut = e
     out = m
 }
@@ -41,8 +43,8 @@ public int cmdInit(const string nameArg, const string versionArg) {
     string ver = versionArg
     if fly.str.isEmpty(ver) { ver = "0.1.0" }
 
-    if fly.os.fs.exists("fly.toml") {
-        fly.os.io.printErrLn("error: fly.toml already exists")
+    if fly.os.fs.exists("Manifest.fly") {
+        fly.os.io.printErrLn("error: Manifest.fly already exists")
         out = 3
         return
     }
@@ -62,23 +64,24 @@ void main() {
 "
     fly.os.fs.writeStr("src/main.fly", fly.str.replace(progTpl, "Q", q), 420)
 
-    // fly.toml (name/version substituted as N/V placeholders)
-    string tomlTpl = "[package]
-name = QNQ
-version = QVQ
-fly-version = Q0.14.0Q
+    // Manifest.fly — a class extending fly.meta.Manifest. Placeholders: %N% = name,
+    // %V% = version, Q = double-quote (dq()+replace). %N%/%V% are delimited so they
+    // don't collide with field names like `flyVersion`.
+    string manTpl = "namespace pkg.manifest
+import fly.meta.*
 
-[targets]
-N = { path = Qsrc/main.flyQ }
-
-[test]
-suites = [ Qsrc/**/*Suite.flyQ ]
+class Manifest : fly.meta.Manifest {
+    string name = Q%N%Q
+    string version = Q%V%Q
+    string flyVersion = Q0.14.0Q
+    Target[] targets = { new Target(Q%N%Q, Qsrc/main.flyQ, QQ) }
+}
 "
-    string t1 = fly.str.replace(tomlTpl, "N", name)
-    string t2 = fly.str.replace(t1, "V", ver)
-    fly.os.fs.writeStr("fly.toml", fly.str.replace(t2, "Q", q), 420)
+    string t1 = fly.str.replace(manTpl, "%N%", name)
+    string t2 = fly.str.replace(t1, "%V%", ver)
+    fly.os.fs.writeStr("Manifest.fly", fly.str.replace(t2, "Q", q), 420)
 
-    fly.os.io.printLn(fly.str.concat("Created fly.toml + src/main.fly for ", name))
+    fly.os.io.printLn(fly.str.concat("Created Manifest.fly + src/main.fly for ", name))
     out = 0
 }
 
@@ -87,7 +90,7 @@ public int cmdBuild(const string profile, const string targetKey) {
     int e = 0
     Manifest m = loadManifest(e)
     if e != 0 {
-        fly.os.io.printErrLn("error: no fly.toml in the current directory")
+        fly.os.io.printErrLn("error: no Manifest.fly in the current directory")
         out = e
         return
     }
@@ -107,7 +110,7 @@ public int cmdBuild(const string profile, const string targetKey) {
 public int cmdRun(const string profile, const string binKey) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no fly.toml")  out = e  return }
+    if e != 0 { fly.os.io.printErrLn("error: no Manifest.fly")  out = e  return }
     string prof = profile
     if fly.str.isEmpty(prof) { prof = "debug" }
     string key = binKey
@@ -122,7 +125,7 @@ public int cmdRun(const string profile, const string binKey) {
 public int cmdTest(const string profile) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no fly.toml")  out = e  return }
+    if e != 0 { fly.os.io.printErrLn("error: no Manifest.fly")  out = e  return }
     string prof = profile
     if fly.str.isEmpty(prof) { prof = "debug" }
     Builder b = new Builder(m, prof, true)
@@ -243,7 +246,7 @@ public class RealFetcher : ManifestFetcher {
         int e = 0
         Manifest m = this.git.readManifest(name, fr.getLocalPath(), e)
         if e != 0 {
-            this.errors.add(fly.str.concat("no fly.toml in fetched package '", fly.str.concat(name, "'")))
+            this.errors.add(fly.str.concat("no Manifest.fly in fetched package '", fly.str.concat(name, "'")))
             out = null
             return
         }
@@ -251,7 +254,7 @@ public class RealFetcher : ManifestFetcher {
     }
 }
 
-// doLock — resolve the manifest's deps, write fly.lock. Returns 0 on success.
+// doLock — resolve the manifest's deps, write Lock.fly. Returns 0 on success.
 public int doLock(const Manifest root, const string tomlPath) {
     RealFetcher fetcher = new RealFetcher(root)
     MVSResolver resolver = new MVSResolver(false)
@@ -296,24 +299,24 @@ public int doLock(const Manifest root, const string tomlPath) {
         lf.addPackage(p)
         k = k + 1
     }
-    lf.write("fly.lock")
-    fly.os.io.printLn("  wrote fly.lock")
+    lf.write("Lock.fly")
+    fly.os.io.printLn("  wrote Lock.fly")
     out = 0
 }
 
-// cmdLock — resolve + write fly.lock.
+// cmdLock — resolve + write Lock.fly.
 public int cmdLock() {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no fly.toml")  out = e  return }
-    out = doLock(m, "fly.toml")
+    if e != 0 { fly.os.io.printErrLn("error: no Manifest.fly")  out = e  return }
+    out = doLock(m, "Manifest.fly")
 }
 
 // cmdAdd — add a dependency to fly.toml then re-lock.
 public int cmdAdd(const string name, const string gitUrl, const string tag, const string branch, const string rev, const bool dev) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no fly.toml")  out = e  return }
+    if e != 0 { fly.os.io.printErrLn("error: no Manifest.fly")  out = e  return }
 
     int refs = 0
     if fly.str.isEmpty(tag) == false { refs = refs + 1 }
@@ -332,23 +335,23 @@ public int cmdAdd(const string name, const string gitUrl, const string tag, cons
 
     if dev { m.addDevDep(name, d) } else { m.addDep(name, d) }
     m.save()
-    fly.os.io.printLn(fly.str.concat("added ", fly.str.concat(name, " to fly.toml")))
-    out = doLock(m, "fly.toml")
+    fly.os.io.printLn(fly.str.concat("added ", fly.str.concat(name, " to Manifest.fly")))
+    out = doLock(m, "Manifest.fly")
 }
 
 // cmdRemove — drop a dependency from fly.toml then re-lock.
 public int cmdRemove(const string name) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no fly.toml")  out = e  return }
+    if e != 0 { fly.os.io.printErrLn("error: no Manifest.fly")  out = e  return }
     if m.removeDep(name) == false {
         fly.os.io.printErrLn(fly.str.concat("error: '", fly.str.concat(name, "' is not a dependency")))
         out = 1
         return
     }
     m.save()
-    fly.os.io.printLn(fly.str.concat("removed ", fly.str.concat(name, " from fly.toml")))
-    out = doLock(m, "fly.toml")
+    fly.os.io.printLn(fly.str.concat("removed ", fly.str.concat(name, " from Manifest.fly")))
+    out = doLock(m, "Manifest.fly")
 }
 
 // cmdWhy — report a package's presence in the resolved graph (simplified: the
@@ -356,9 +359,9 @@ public int cmdRemove(const string name) {
 public int cmdWhy(const string name) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no fly.toml")  out = e  return }
+    if e != 0 { fly.os.io.printErrLn("error: no Manifest.fly")  out = e  return }
     int le = 0
-    Lockfile lf = readLock("fly.lock", le)
+    Lockfile lf = readLock("Lock.fly", le)
     LockedPackage p = lf.find(name)
     if p == null {
         fly.os.io.printLn(fly.str.concat(name, " is not a locked dependency of this project."))

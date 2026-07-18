@@ -40,6 +40,10 @@ suite DriverCliSuite {
             assert.assertStr(d.applyOutDir("/out", "rel.ll"), "/out/rel.ll", 40)
             assert.assertStr(d.applyOutDir("/out", "/abs.ll"), "/abs.ll", 41)
             assert.assertStr(d.applyOutDir("", "rel.ll"), "rel.ll", 42)
+            // Windows absolute paths must NOT be prefixed (would mangle into an
+            // invalid "<dir>/C:/…" the object emitter crashes on): drive-absolute
+            // "X:/…" and root "/…"/"\…" forms are returned unchanged.
+            assert.assertStr(d.applyOutDir("/out", "C:/abs.o"), "C:/abs.o", 43)
         }
         case "defaultOut swaps or appends the extension": {
             Driver d = new Driver()

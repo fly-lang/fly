@@ -49,6 +49,8 @@ public class Driver {
         string runtimeLibDir = ""       // --runtime-lib-dir: holds fly_std_lib.a / fly_runtime_lib.a
         string stdLibDir = ""           // auto-discovered <install>/lib: stdlib .fly source
         string toolchainLibDir = ""     // -L: extra linker search dir
+        string mingwSysrootDir = ""     // --mingw-sysroot: mingw/UCRT sysroot (Windows link)
+        string llvmLibDir = ""          // --llvm-lib-dir: dir holding LLVM-20.lib (Windows LLVM-C link)
         string linkLibs = ";"           // ";-lfoo;" native [link] deps
         string libInputs = ";"          // ";lib1.a;lib2.a;" — .a/.lib positional inputs to link
         string srcInputs = ";"          // ";a.fly;b.fly;" — .fly source inputs (multi-file for --lib)
@@ -161,6 +163,12 @@ public class Driver {
             } elsif fly.str.equals(a, "--runtime-lib-dir") {
                 i = i + 1
                 if i < n { runtimeLibDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--mingw-sysroot") {
+                i = i + 1
+                if i < n { mingwSysrootDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--llvm-lib-dir") {
+                i = i + 1
+                if i < n { llvmLibDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
             } elsif fly.str.equals(a, "-L") {
                 i = i + 1
                 if i < n { toolchainLibDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
@@ -184,7 +192,9 @@ public class Driver {
             } elsif fly.str.equals(a, "-v") || fly.str.equals(a, "--verbose") {
                 verbose = true
             } elsif fly.str.equals(a, "-w") || fly.str.equals(a, "--no-warning") {
-                // accepted (no-op): diagnostics are only printed on failure today.
+                // accepted (no-op): the self-host compiler emits no DiagnosticsEngine
+                // warnings, and the driver's own `warning:` lines are unconditional
+                // printErrLn — there is nothing to suppress today.
             } elsif fly.str.equals(a, "--help") || fly.str.equals(a, "-help") {
                 this.printUsage()
                 out = 0
@@ -311,6 +321,8 @@ public class Driver {
         CodeGenOptions cgo = new CodeGenOptions()
         cgo.setRuntimeLibDir(runtimeLibDir)
         cgo.setToolchainLibDir(toolchainLibDir)
+        cgo.setMingwSysrootDir(mingwSysrootDir)
+        cgo.setLlvmLibDir(llvmLibDir)
         cgo.setTestMode(testMode)
         cgo.setStatic(isStatic)
         cgo.setShared(isShared)
@@ -320,7 +332,9 @@ public class Driver {
         cgo.setJobs(jobs)
         if fly.str.isEmpty(codeModel) == false { cgo.setCodeModel(codeModel) }
         // Thread model: default posix; an invalid value warns AND falls back to
-        // posix (it used to be applied anyway, with an unprefixed message).
+        // posix (it used to be applied anyway, with an unprefixed message). NOTE: the
+        // value is validated and stored on CodeGenOptions but the LLVM-C backend never
+        // reads it — --mthread-model is inert beyond this validation today.
         string effThread = threadModel
         if fly.str.isEmpty(effThread) { effThread = "posix" }
         if fly.str.equals(effThread, "posix") == false && fly.str.equals(effThread, "single") == false {
@@ -364,15 +378,23 @@ public class Driver {
         ci.createSourceManager(name, src)
         Frontend fe = new Frontend(ci)
 
-        // Library mode (--lib / --header): compile every input into ONE merged object
-        // (written to the -o path) and emit a `.fly.h` per public module. The archive
-        // itself (fly_*.a) is built by the ci script's `ar` over that object — the
-        // compiler produces object + headers, mirroring `fly/`'s Frontend GenerateHeader
-        // + Archiver split. Frontend.execute merges fo.inputFiles and, when
+        // Library mode (--lib): compile every input into ONE merged object (written to
+        // the -o path) AND emit a `.fly.h` per public module. The archive itself
+        // (fly_*.a) is built by the ci script's `ar` over that object — the compiler
+        // produces object + headers, mirroring `fly/`'s Frontend GenerateHeader +
+        // Archiver split. Frontend.execute merges fo.inputFiles and, when
         // fo.getCreateHeader() is set, generates the headers after resolution.
-        if createLibrary || createHeader {
-            fo.setBackendAction(1)                      // emit an object (not link)
+        if createLibrary {
+            fo.setBackendAction(1)                      // a library is built from an object, not linked
             out = fe.execute("", false)
+            return
+        }
+        // Header-only mode (--header, without --lib): the `.fly.h` headers are the sole
+        // artifact — no object. HeaderGen runs before codegen in Frontend.execute, so
+        // `noOutput = true` lets the headers be written while the object emission is
+        // skipped. (--lib sets both flags; this branch is reached only for a bare --header.)
+        if createHeader {
+            out = fe.execute("", true)
             return
         }
 
@@ -460,28 +482,30 @@ public class Driver {
         fly.os.io.printErrLn("  --emit-bc       produce bitcode (falls back to LLVM IR)")
         fly.os.io.printErrLn("  -c              produce an object file (.o)")
         fly.os.io.printErrLn("  -S              produce target assembly (.s)")
-        fly.os.io.printErrLn("  --lib           produce a library (NOT YET SUPPORTED)")
-        fly.os.io.printErrLn("  --header        generate a header file (NOT YET SUPPORTED)")
+        fly.os.io.printErrLn("  --lib           compile inputs into one merged object + a .fly.h per public module")
+        fly.os.io.printErrLn("  --header        generate a .fly.h header file (no object)")
         fly.os.io.printErrLn("  --runtime-lib-dir <dir>  dir holding fly_std_lib.a / fly_runtime_lib.a")
+        fly.os.io.printErrLn("  --mingw-sysroot <dir>  mingw/UCRT sysroot for Windows linking (default: <exe>/mingw)")
+        fly.os.io.printErrLn("  --llvm-lib-dir <dir>   dir holding LLVM-20.lib for LLVM-C programs (default: <exe>/llvm/lib)")
         fly.os.io.printErrLn("  -L <dir>             extra linker search directory")
         fly.os.io.printErrLn("  --src-dir <dir>      project source root for import resolution (default: current dir)")
         fly.os.io.printErrLn("  --link-lib <name>    link native library (-lname)")
-        fly.os.io.printErrLn("  -static / --shared / -pie   link mode flags")
+        fly.os.io.printErrLn("  -static / --shared / -pie   link mode flags (ELF/Linux targets; ignored by the Windows linker)")
         fly.os.io.printErrLn("  -O<n>                optimisation level 0..3")
         fly.os.io.printErrLn("  -j, --jobs <n>       LLVM parallelism (0 = auto)")
         fly.os.io.printErrLn("  --mcmodel <m>        memory code model")
-        fly.os.io.printErrLn("  --mthread-model <m>  thread model (posix|single)")
+        fly.os.io.printErrLn("  --mthread-model <m>  thread model posix|single (validated only; not applied by the backend)")
         fly.os.io.printErrLn("  --target <triple>    target triple (default: the host; Windows → x86_64-w64-windows-gnu)")
         fly.os.io.printErrLn("  --target-cpu <cpu>   target CPU (default: generic)")
         fly.os.io.printErrLn("  --no-output     type-check only, produce no output")
         fly.os.io.printErrLn("  --test          compile in test mode (test {} blocks)")
-        fly.os.io.printErrLn("  --debug         verbose + emit debug symbols")
-        fly.os.io.printErrLn("  --debug-symbols emit DWARF debug symbols")
-        fly.os.io.printErrLn("  --print-stats   print performance metrics")
-        fly.os.io.printErrLn("  --ftime-report  show per-action timers")
-        fly.os.io.printErrLn("  --stats-file <f>  write statistics to <f>")
+        fly.os.io.printErrLn("  --debug         verbose logging (+ request DWARF; self-host codegen emits none yet)")
+        fly.os.io.printErrLn("  --debug-symbols request DWARF debug symbols (self-host codegen does not emit them yet)")
+        fly.os.io.printErrLn("  --print-stats   accepted; not yet implemented (no output)")
+        fly.os.io.printErrLn("  --ftime-report  accepted; not yet implemented (no output)")
+        fly.os.io.printErrLn("  --stats-file <f>  accepted; not yet implemented (no file written)")
         fly.os.io.printErrLn("  -v, --verbose   log each compilation phase")
-        fly.os.io.printErrLn("  -w, --no-warning  suppress warnings")
+        fly.os.io.printErrLn("  -w, --no-warning  accepted; the compiler emits no warnings to suppress")
         fly.os.io.printErrLn("  --version       print version")
         fly.os.io.printErrLn("  --help          display this help")
     }
@@ -495,9 +519,25 @@ public class Driver {
     // applyOutDir — prefix a RELATIVE output path with outDir (absolute paths and
     // an empty outDir are returned unchanged). The dir must already exist (the
     // self-host has no mkdir yet).
+    //
+    // "Absolute" must cover Windows too: the self-host runs on Windows, where a
+    // leading-'/'-only test wrongly treats "C:\out\x" as relative and mangles it into
+    // "<outDir>/C:\out\x" — an invalid path the object emitter then crashes writing.
+    // So recognize POSIX ("/…"), drive-absolute ("X:…") and root/UNC ("\…") forms.
     public string applyOutDir(const string outDir, const string outPath) {
         if fly.str.isEmpty(outDir) { out = outPath  return }
-        if fly.str.startsWith(outPath, "/") { out = outPath  return }
+        int L = fly.str.len(outPath)
+        if L >= 1 {
+            byte b0 = 0
+            fly.str.byteAt(outPath, 0, b0)
+            if b0 == 47 { out = outPath  return }        // '/'  POSIX absolute
+            if b0 == 92 { out = outPath  return }        // '\'  Windows root / UNC
+            if L >= 2 {
+                byte b1 = 0
+                fly.str.byteAt(outPath, 1, b1)
+                if b1 == 58 { out = outPath  return }     // 'X:' Windows drive-absolute
+            }
+        }
         string slash = fly.str.concat(outDir, "/")
         out = fly.str.concat(slash, outPath)
     }
@@ -507,8 +547,24 @@ public class Driver {
         pointer base = args.items
         pointer ptr = fly.mem.readPtr(base, i * 16)
         int len = fly.mem.readInt(base, i * 16 + 8)
+        // Copy the bytes into an OWNED buffer. `fromBytes`/`strMake` would only ALIAS
+        // the argv buffer (owned by the StringArray, not by this string), and the
+        // string model frees that alias at scope exit → use-after-free of the argv
+        // slot. A later read of the SAME index then returns garbage — classically a
+        // ";..."-list alloc (srcInputs/libInputs start ";") reuses the freed slot, so
+        // `clean` read after the arg loop comes back ";clea" (";"+"clea", last byte
+        // dropped) and `why` → ";wh". Owning our own copy makes every read safe.
+        pointer buf = 0
+        fly.runtime.mem_alloc(len, buf)
+        int j = 0
+        while j < len {
+            byte b = 0
+            fly.llvm.ptrByteAt(ptr, j, b)
+            fly.llvm.ptrPokeByte(buf, j, b)
+            j = j + 1
+        }
         string s = ""
-        fly.str.fromBytes(ptr, len, s)
+        fly.llvm.strMake(buf, len, s)
         out = s
     }
 
