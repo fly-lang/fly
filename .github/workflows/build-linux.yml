@@ -87,13 +87,36 @@ jobs:
       #    suites are green under it). The FLY defaults live in the test
       #    scripts themselves (override with FLY=… to test another build). ─────
 
+      # Test order: runtime → std → compiler → driver (bottom-up: the runtime
+      # underpins std, which the compiler + driver both build on, so a failure is
+      # reported at the lowest broken layer first).
+
+      # Runtime unit tests (runtime/test) — the fly.runtime libc/libm FFI backend,
+      # exercised by the per-platform Runtime*Suite.fly (suite/case, --test; the
+      # harness runs only the host platform's suite).
+      - name: Test runtime
+        run: ./ci/linux/test_runtime.sh
+
+      # Standard library tests (std/test/*_test.fly): str, math, data structures,
+      # os.* (env/fs/io/path/time), mem, generics, inheritance/override/super.
+      - name: Test std
+        run: ./ci/linux/test_std.sh
+
       # Compiler unit suites (compiler/test only).
       - name: Test self-host compiler
         run: ./ci/linux/test_compiler.sh
 
-      # Diagnostic (non-blocking): sweep EVERY test suite (compiler, driver, std,
-      # runtime) under Valgrind memcheck to catch double-free / use-after-free
-      # bugs — the owned-string aliasing class the Windows heap aborts on
+      # Driver + package-manager unit suites (driver/test): CLI parsing,
+      # Manifest/lockfile, semver/MVS resolver, registry, ToolChain,
+      # cache/checksum/json. flyp is merged into the single `fly` binary
+      # (driver package mode), so its suites live in driver/test; the
+      # ci/linux/*_tools_flyp.sh scripts are kept for the future lsp/registry port.
+      - name: Test driver
+        run: ./ci/linux/test_driver.sh
+
+      # Diagnostic (non-blocking): sweep EVERY test suite (runtime, std, compiler,
+      # driver) under Valgrind memcheck to catch double-free / use-after-free bugs
+      # — the owned-string aliasing class the Windows heap aborts on
       # (e.g. Frontend.resolveSourceDeps, 0xC0000374) but glibc silently tolerates
       # here. Valgrind flags each invalid free and prints the symbolized alloc +
       # both free stacks (needs FLY_DEBUG_SYMBOLS=1, the default on push/dispatch).
@@ -105,25 +128,6 @@ jobs:
       #   run: |
       #     sudo apt-get update -qq && sudo apt-get install -y -qq valgrind
       #     ./ci/linux/valgrind_check.sh
-
-      # Driver + package-manager unit suites (driver/test): CLI parsing,
-      # Manifest/toml, lockfile, semver/MVS resolver, registry, ToolChain,
-      # cache/checksum/json. flyp is merged into the single `fly` binary
-      # (driver package mode), so its suites live in driver/test; the
-      # ci/linux/*_tools_flyp.sh scripts are kept for the future lsp/registry port.
-      - name: Test driver
-        run: ./ci/linux/test_driver.sh
-
-      # Runtime unit tests (runtime/test) — the fly.runtime libc/libm FFI backend.
-      # Currently empty (exercised indirectly by the std/os suites); the step is kept
-      # so runtime/test/*_test.fly are picked up as soon as they're added.
-      - name: Test runtime
-        run: ./ci/linux/test_runtime.sh
-
-      # Standard library tests (std/test/*_test.fly): str, math, data structures,
-      # os.* (env/fs/io/path/time), mem, generics, inheritance/override/super.
-      - name: Test std
-        run: ./ci/linux/test_std.sh
 
       - name: Set artifact name
         id: artifact

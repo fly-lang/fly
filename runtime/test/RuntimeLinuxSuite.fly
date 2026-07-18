@@ -234,11 +234,14 @@ suite RuntimeLinuxSuite {
 
     // ── proc_exec: spawn a child + the error path ─────────────────────────────
     void procTest() {
-        case "exec a bogus path returns -1": {
+        case "exec a bogus path: fork ok, execv fails, child exits 127": {
+            // POSIX: fork succeeds, the child's execv of a missing binary fails and
+            // the runtime exits it with 127 (WEXITSTATUS). (Windows CreateProcessA
+            // fails up front → -1; that variant is asserted in RuntimeWindowsSuite.)
             pointer h = fly.os.proc.argsNew()
-            int rc = fly.os.proc.exec("rt_linux_no_such_program_zzz.exe", h)
+            int rc = fly.os.proc.exec("rt_linux_no_such_program_zzz", h)
             fly.os.proc.argsFree(h)
-            assert.assertEqI(rc, 0 - 1, 101)
+            assert.assertEqI(rc, 127, 101)
         }
     }
 }

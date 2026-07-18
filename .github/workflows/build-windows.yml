@@ -104,6 +104,19 @@ jobs:
       # ── Tests, after stage 2: everything compiles and runs with
       #    build\stage2\bin\fly.exe (mirrors Linux; the --test system is ported
       #    to the self-host). The FLY defaults live in the test scripts.
+      # Test order: runtime → std → compiler → driver (bottom-up: the runtime
+      # underpins std, which the compiler + driver both build on, so a failure is
+      # reported at the lowest broken layer first).
+      - name: Test runtime
+        continue-on-error: false
+        shell: pwsh
+        run: .\ci\windows\test_runtime.ps1
+
+      - name: Test std
+        continue-on-error: false
+        shell: pwsh
+        run: .\ci\windows\test_std.ps1
+
       # Non-blocking: a subset of codegen suites is non-deterministically unstable
       # on the x86_64-w64-windows-gnu target (a bootstrap-compiler bug, not the
       # scripts). The build artifact is still produced/uploaded and the full suite
@@ -135,16 +148,6 @@ jobs:
         continue-on-error: false
         shell: pwsh
         run: .\ci\windows\test_driver.ps1
-
-      - name: Test runtime
-        continue-on-error: false
-        shell: pwsh
-        run: .\ci\windows\test_runtime.ps1
-
-      - name: Test std
-        continue-on-error: false
-        shell: pwsh
-        run: .\ci\windows\test_std.ps1
 
       - name: Set artifact name
         id: artifact
