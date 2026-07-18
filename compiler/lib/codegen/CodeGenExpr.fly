@@ -532,7 +532,7 @@ public class CodeGenExpr : SemaVisitor {
         node.setLlvmValue(sv)
     }
     public void visit(const SemaComplexValue node) { }
-    public void visit(const SemaArrayValue node) { }
+    public void visit(const SemaArrayValue node) { CodeGenArray.arrayValue(this, node) }
     public void visit(const SemaStructValue node) { }
     // unset — lower to a typed zero. The empty visit left llvmValue = 0, and a
     // null handle reaching buildStore/buildRet crashes inside libLLVM.
@@ -556,7 +556,7 @@ public class CodeGenExpr : SemaVisitor {
         }
         node.setLlvmValue(c)
     }
-    public void visit(const SemaLoopInStmt node) { }
+    public void visit(const SemaLoopInStmt node) { CodeGenArray.loopIn(this, node) }
     public void visit(const SemaDeleteStmt node) { }
 
     // case — a suite test case: a labelled `case.<label>` basic block that falls

@@ -207,6 +207,12 @@ public class Driver {
                 fly.os.io.printErrLn(fly.str.concat("warning: ignoring unknown option ", a))
             } else {
                 if fly.str.isEmpty(input) {
+                    // `fly version` is an alias of `fly --version` (same output).
+                    if fly.str.equals(a, "version") {
+                        this.printVersion()
+                        out = 0
+                        return
+                    }
                     input = a
                     srcInputs = segAppend(srcInputs, a)
                     // Package mode: if the first positional is a fly.toml subcommand,

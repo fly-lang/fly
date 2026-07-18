@@ -15,15 +15,27 @@ import fly.os.env
 // "not yet ported" notice for now.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// loadManifest — read ./Manifest.fly (a class extending fly.meta.Manifest) with the
-// compiler's own parser. errOut: 0 ok, 2 = missing, else the reader code (210/211).
+// manifestPath — the project manifest in the current directory: `Manifest.fly`
+// (canonical) or its lowercase alias `manifest.fly`. Empty string if neither
+// exists. Every package command reads the manifest through this so both spellings
+// are accepted uniformly.
+public string manifestPath() {
+    if fly.os.fs.exists("Manifest.fly") { out = "Manifest.fly"  return }
+    if fly.os.fs.exists("manifest.fly") { out = "manifest.fly"  return }
+    out = ""
+}
+
+// loadManifest — read ./Manifest.fly (or ./manifest.fly), a class extending
+// fly.meta.Manifest, with the compiler's own parser. errOut: 0 ok, 2 = missing,
+// else the reader code (210 parse error / 211 no fly.meta.Manifest class).
 public Manifest loadManifest(int errOut) {
-    if fly.os.fs.exists("Manifest.fly") == false {
+    string path = manifestPath()
+    if fly.str.isEmpty(path) {
         errOut = 2
         out = new Manifest()
         return
     }
-    string src = fly.os.fs.readStr("Manifest.fly")
+    string src = fly.os.fs.readStr(path)
     int e = 0
     FlyManifestReader r = new FlyManifestReader()
     Manifest m = r.read(src, e)
@@ -43,8 +55,8 @@ public int cmdInit(const string nameArg, const string versionArg) {
     string ver = versionArg
     if fly.str.isEmpty(ver) { ver = "0.1.0" }
 
-    if fly.os.fs.exists("Manifest.fly") {
-        fly.os.io.printErrLn("error: Manifest.fly already exists")
+    if fly.str.isEmpty(manifestPath()) == false {
+        fly.os.io.printErrLn(fly.str.concat("error: ", fly.str.concat(manifestPath(), " already exists")))
         out = 3
         return
     }
@@ -90,7 +102,7 @@ public int cmdBuild(const string profile, const string targetKey) {
     int e = 0
     Manifest m = loadManifest(e)
     if e != 0 {
-        fly.os.io.printErrLn("error: no Manifest.fly in the current directory")
+        fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly in the current directory (a class extending fly.meta.Manifest)")
         out = e
         return
     }
@@ -110,7 +122,7 @@ public int cmdBuild(const string profile, const string targetKey) {
 public int cmdRun(const string profile, const string binKey) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no Manifest.fly")  out = e  return }
+    if e != 0 { fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
     string prof = profile
     if fly.str.isEmpty(prof) { prof = "debug" }
     string key = binKey
@@ -125,7 +137,7 @@ public int cmdRun(const string profile, const string binKey) {
 public int cmdTest(const string profile) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no Manifest.fly")  out = e  return }
+    if e != 0 { fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
     string prof = profile
     if fly.str.isEmpty(prof) { prof = "debug" }
     Builder b = new Builder(m, prof, true)
@@ -308,15 +320,15 @@ public int doLock(const Manifest root, const string tomlPath) {
 public int cmdLock() {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no Manifest.fly")  out = e  return }
-    out = doLock(m, "Manifest.fly")
+    if e != 0 { fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
+    out = doLock(m, manifestPath())
 }
 
 // cmdAdd — add a dependency to fly.toml then re-lock.
 public int cmdAdd(const string name, const string gitUrl, const string tag, const string branch, const string rev, const bool dev) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no Manifest.fly")  out = e  return }
+    if e != 0 { fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
 
     int refs = 0
     if fly.str.isEmpty(tag) == false { refs = refs + 1 }
@@ -336,14 +348,14 @@ public int cmdAdd(const string name, const string gitUrl, const string tag, cons
     if dev { m.addDevDep(name, d) } else { m.addDep(name, d) }
     m.save()
     fly.os.io.printLn(fly.str.concat("added ", fly.str.concat(name, " to Manifest.fly")))
-    out = doLock(m, "Manifest.fly")
+    out = doLock(m, manifestPath())
 }
 
 // cmdRemove — drop a dependency from fly.toml then re-lock.
 public int cmdRemove(const string name) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no Manifest.fly")  out = e  return }
+    if e != 0 { fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
     if m.removeDep(name) == false {
         fly.os.io.printErrLn(fly.str.concat("error: '", fly.str.concat(name, "' is not a dependency")))
         out = 1
@@ -351,7 +363,7 @@ public int cmdRemove(const string name) {
     }
     m.save()
     fly.os.io.printLn(fly.str.concat("removed ", fly.str.concat(name, " from Manifest.fly")))
-    out = doLock(m, "Manifest.fly")
+    out = doLock(m, manifestPath())
 }
 
 // cmdWhy — report a package's presence in the resolved graph (simplified: the
@@ -359,7 +371,7 @@ public int cmdRemove(const string name) {
 public int cmdWhy(const string name) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no Manifest.fly")  out = e  return }
+    if e != 0 { fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
     int le = 0
     Lockfile lf = readLock("Lock.fly", le)
     LockedPackage p = lf.find(name)

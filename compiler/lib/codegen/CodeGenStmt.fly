@@ -30,6 +30,26 @@ public class CodeGenStmt {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         pointer ty = cge.lowerType(v.getType())
+
+        // Native array: alloca %array, then store the literal value or a {null,0}
+        // default. (String/scalar clone-on-store below does not apply to arrays.)
+        SemaType vt = v.getType()
+        if vt != null {
+            if vt.isArray() {
+                pointer aalloca
+                llvm.buildAlloca(b, ty, "arr", aalloca)
+                v.setLlvmAlloca(aalloca)
+                SemaExpr ainit = node.getExpr()
+                if ainit != null {
+                    pointer av = cge.gen(ainit)
+                    llvm.buildStore(b, av, aalloca)
+                } else {
+                    CodeGenArray.storeDefault(cge, aalloca, vt.asArray())
+                }
+                return
+            }
+        }
+
         pointer alloca
         llvm.buildAlloca(b, ty, "lv", alloca)
         v.setLlvmAlloca(alloca)

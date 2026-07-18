@@ -4,7 +4,7 @@
 # stage map.
 #
 # Windows targets x86_64-w64-windows-gnu (llvm-mingw / UCRT), so the runtime is
-# COMPILED FROM runtime/lib/runtime-windows.fly with the stage0 reference compiler
+# COMPILED FROM runtime/lib/RuntimeWindows.fly with the stage0 reference compiler
 # for that triple — NOT copied from the MSVC seed. stage0 emits the runtime as
 # flat C-ABI, unmangled symbols with NO MSVCRT/OLDNAMES directive (CRT-neutral),
 # which is exactly what links against the mingw/UCRT sysroot. (The self-host
@@ -61,13 +61,13 @@ $llvmHdr = 'build/stage0/lib/llvm.fly.h'
 if (-not (Test-Path $llvmHdr)) { Write-Host "error: $llvmHdr missing - run stage0.ps1 first."; exit 1 }
 Copy-Item $llvmHdr "$LIB/llvm.fly.h" -Force
 
-# -- Compile runtime-windows.fly → fly_runtime_lib.lib (gnu triple). -----------
+# -- Compile RuntimeWindows.fly → fly_runtime_lib.lib (gnu triple). ------------
 $T = 'build/tmp_runtime'
 Remove-Item $T -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $T | Out-Null
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
-Write-Host "stage${STAGE}: compiling runtime/lib/runtime-windows.fly (codegen gnu, link mingw) ...$(if ($DBG) { ' (+debug-symbols)' })"
-& $FLY --lib @DBG @FLY_TARGET_ARGS -o "$T/fly_runtime_lib" -L $LIB --src-dir $T runtime/lib/runtime-windows.fly
+Write-Host "stage${STAGE}: compiling runtime/lib/RuntimeWindows.fly (codegen gnu, link mingw) ...$(if ($DBG) { ' (+debug-symbols)' })"
+& $FLY --lib @DBG @FLY_TARGET_ARGS -o "$T/fly_runtime_lib" -L $LIB --src-dir $T runtime/lib/RuntimeWindows.fly
 Assert-LastExit 'runtime --lib build'
 # stage0 --lib emits a `.a`/`.lib` ARCHIVE; the self-host emits ONE merged OBJECT
 # (`fly_runtime_lib`, no extension). Both go to `fly_runtime_lib.lib` — ld.lld links
@@ -76,9 +76,9 @@ $emitted = @("$T/fly_runtime_lib.lib", "$T/fly_runtime_lib.a", "$T/fly_runtime_l
 if (-not $emitted) { Write-Host "error: runtime library not emitted."; exit 1 }
 Move-Item $emitted "$LIB/fly_runtime_lib.lib" -Force
 
-# runtime.fly.h — std/compiler compile against this. stage0 names the header after
-# the source (runtime-windows.fly.h); canonicalise to runtime.fly.h.
-$genHdr = "$T/runtime-windows.fly.h"
+# runtime.fly.h — std/compiler compile against this. The compiler names the header
+# after the source (RuntimeWindows.fly.h); canonicalise to runtime.fly.h.
+$genHdr = "$T/RuntimeWindows.fly.h"
 if (Test-Path $genHdr) {
     Split-GenericClosers $genHdr
     Copy-Item $genHdr "$LIB/runtime.fly.h" -Force

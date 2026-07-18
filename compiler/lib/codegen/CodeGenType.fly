@@ -21,16 +21,19 @@ public class CodeGenType {
     CodeGenLLVM cg
     pointer ctx
     pointer stringTy       // the module's `%string` named struct (set by CodeGenModule)
+    pointer arrayTy        // the module's `%array { ptr, i64 }` named struct
     TargetInfo targetInfo      // set via configureTarget; null → default 64-bit pointers
 
     public CodeGenType(const CodeGenLLVM cg, const pointer ctx) {
         this.cg = cg
         this.ctx = ctx
         this.stringTy = 0
+        this.arrayTy = 0
         this.targetInfo = null
     }
 
     public void setStringTy(const pointer t) { this.stringTy = t }
+    public void setArrayTy(const pointer t) { this.arrayTy = t }
 
     // setTargetInfo — supply the active target so pointer lowers to its pointer
     // width. Called by CodeGenModule.configureTarget before lowering.
@@ -78,8 +81,11 @@ public class CodeGenType {
         } elsif t.isString() {
             // string = the %string { ptr, i64 } value struct
             r = this.stringTy
+        } elsif t.isArray() {
+            // T[] = the %array { ptr data, i64 len } value struct
+            r = this.arrayTy
         } else {
-            // class / array / error → opaque pointer
+            // class / error → opaque pointer
             r = this.ptrType()
         }
         // No caching on t.llvmType: a pointer value-struct field does NOT reliably

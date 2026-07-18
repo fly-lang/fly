@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# test_runtime.sh — run every runtime/test/*_test.fly. These are main()-style
-# programs exercising the Fly runtime (fly.runtime: the libc/libm FFI backend +
-# the fly.os wrappers over it). Each is a standalone program compiled against the
-# std + runtime archives via -L (no --test / --src-dir); the executable is run and
-# must exit 0 (fly.assert.* exit non-zero with the failing code).
+# test_runtime.sh — run every runtime/test/*Suite.fly. These are `suite`/`case`
+# programs (compiled with --test) exercising the Fly runtime (fly.runtime: the
+# libc/libm FFI backend + the fly.os wrappers over it). Each is compiled against
+# the std + runtime archives via -L; the executable is run and must exit 0
+# (fly.assert.* exit non-zero with the failing code).
 #
-# runtime/test is currently empty (the runtime is exercised indirectly by the
-# std/os suites in test_std.sh); this script runs 0 tests today but picks up any
-# *_test.fly added under runtime/test. Scope: ONLY runtime/test.
+# The runtime is platform-specific (fly.runtime.* links the HOST runtime), so this
+# runs ONLY the host suite: it SKIPS foreign-platform suites (RuntimeWindows* /
+# RuntimeMacos*) so RuntimeLinuxSuite is what runs on Linux.
 # ─────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 # Scripts live in ci/linux/; operate from the project root (two levels up).
@@ -49,11 +49,13 @@ fi
 pass=0
 fail=0
 found=0
-for t in $(find runtime/test -name '*_test.fly' 2>/dev/null | sort); do
-    found=$((found + 1))
+for t in $(find runtime/test -name '*Suite.fly' 2>/dev/null | sort); do
     name=$(basename "$t" .fly)
+    # Skip foreign-platform suites (their osname/arch assertions target another OS).
+    case "$name" in *Windows*|*Macos*) continue ;; esac
+    found=$((found + 1))
     bin="$OUT/rt_$name"
-    if ! "$FLY" "$t" -o "rt_$name" --out-dir "$OUT" -L "$STD" >"$OUT/_rt_$name.log" 2>&1; then
+    if ! "$FLY" "$t" --test -o "rt_$name" --out-dir "$OUT" -L "$STD" >"$OUT/_rt_$name.log" 2>&1; then
         echo "  COMPILE FAIL  $name"
         grep -m3 -E 'error:|broken|abort' "$OUT/_rt_$name.log" | sed 's/^/      /'
         fail=$((fail + 1))
@@ -71,7 +73,7 @@ done
 
 echo "─────────────────────────────────────────────"
 if [ "$found" -eq 0 ]; then
-    echo "  no runtime/test/*_test.fly found (runtime exercised via std/os suites)"
+    echo "  no runtime/test/*Suite.fly found for this platform"
 fi
 echo "  $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

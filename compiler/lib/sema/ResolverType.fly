@@ -111,6 +111,14 @@ public class ResolverType {
         ASTType et = node.getElementType()
         et.accept(r)
         SemaType el = r.getCurrentType()
-        r.setCurrentType(SemaBuiltin.CreateArrayType(el, 0))
+        SemaArrayType at = SemaBuiltin.CreateArrayType(el, 0)
+        // Carry the size expression through to codegen (`T[N]` default-init). The
+        // compile-time `size` stays 0: codegen reads the expr, not a constant.
+        ASTExpr se = node.getSizeExpr()
+        if se != null {
+            se.accept(r)
+            at.setSizeExpr(r.getCurrentExpr())
+        }
+        r.setCurrentType(at)
     }
 }

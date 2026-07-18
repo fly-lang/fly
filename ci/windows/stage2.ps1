@@ -4,7 +4,7 @@
 # artifacts into build\stage2 - what CI uploads and the release packages.
 #
 #   runtime   re-seeded from stage1 (the Windows Fly-member rebuild is gated on
-#             runtime-windows.fly running cleanly on Windows - see build_runtime.ps1)
+#             RuntimeWindows.fly running cleanly on Windows - see build_runtime.ps1)
 #   std       COPIED from stage1: the shipped std must keep the reference class
 #             ABI (see build_std.ps1) - a self-host std would break header
 #             consumers of classes with interface bases.

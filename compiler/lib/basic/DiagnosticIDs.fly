@@ -78,7 +78,9 @@ public enum DiagID {
     err_sema_type_not_a_value,
     err_sema_function_not_a_value,
     err_sema_multiple_inheritance,
-    err_sema_forin_not_iterable
+    err_sema_forin_not_iterable,
+    err_sema_array_element_mismatch,
+    err_sema_cannot_infer_array_type
 }
 
 // getDiagClass — the class column for a diagnostic id.
@@ -156,5 +158,7 @@ public string getDescription(const DiagID id) {
     if id == DiagID.err_sema_function_not_a_value { out = "'%0' is a function, not a value; call it with '%0(...)' (Fly has no function values)" return }
     if id == DiagID.err_sema_multiple_inheritance { out = "class '%0' extends multiple classes; only one base class (plus interfaces) is allowed" return }
     if id == DiagID.err_sema_forin_not_iterable { out = "for-in requires a collection with 'size()' and 'get(index)' methods; type '%0' does not provide them" return }
+    if id == DiagID.err_sema_array_element_mismatch { out = "array element of type '%0' does not match the array's element type" return }
+    if id == DiagID.err_sema_cannot_infer_array_type { out = "cannot infer the element type of an empty array literal; annotate the target (e.g. 'int[] a = {}')" return }
     out = "unknown diagnostic"
 }

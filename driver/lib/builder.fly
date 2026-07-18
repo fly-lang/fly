@@ -5,6 +5,7 @@ import fly.os.env
 import fly.os.path
 import fly.os.fs
 import fly.os.io
+import fly.os.proc
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Builder — invoke the fly compiler to build a manifest's targets. Port of
@@ -96,34 +97,50 @@ public class Builder {
         out = f
     }
 
-    // invokeFly — cd into out_dir and run: fly <profile-flags> <link-flags>
-    // [--target=..] [--test] -o <output> <source>. Returns true on exit 0.
+    // invokeFly — run: fly <profile-flags> <link-flags> [--runtime-lib-dir <dir>]
+    // [--target=..] [extra] -o <output> <source>. Execs the compiler DIRECTLY (no
+    // shell): `source` and `output` are already ABSOLUTE (buildTarget), so no `cd`
+    // is needed — and `/bin/sh -c` does not exist on Windows (CreateProcessA maps
+    // `/bin/sh`→`\bin\sh`, absent → exit 127). Direct exec also needs no shellQuote
+    // (each arg is passed verbatim, never re-parsed by a shell). Returns true on exit 0.
     public bool invokeFly(const string source, const string output, const string extra) {
-        string od = this.outDir()
-        fly.os.fs.dirCreateAll(od, 493)
-        string cmd = fly.str.concat("cd ", fly.driver.shellQuote(od))
-        cmd = fly.str.concat(cmd, " && ")
-        cmd = fly.str.concat(cmd, fly.driver.shellQuote(this.getFlyBinary()))
-        cmd = fly.str.concat(cmd, " ")
-        cmd = fly.str.concat(cmd, this.profileFlags())
-        cmd = fly.str.concat(cmd, this.linkFlags())
-        // FLYLANG_LIB — directory holding the fly libraries (fly_std_lib.a /
-        // fly_runtime_lib.a). Passed to the compiler as --runtime-lib-dir; when unset
-        // the compiler auto-detects <exe>/../lib.
+        fly.os.fs.dirCreateAll(this.outDir(), 493)
+
+        pointer h = fly.os.proc.argsNew()
+        // profile: -O<n> [--debug-symbols]
+        int opt = 0
+        bool dbg = true
+        if this.manifest.hasProfile(this.profile) {
+            BuildProfile bp = this.manifest.getProfile(this.profile)
+            opt = bp.getOptLevel()
+            dbg = bp.getDebugInfo()
+        }
+        fly.os.proc.argsAdd(h, fly.str.concat("-O", fly.str.convert(opt)))
+        if dbg { fly.os.proc.argsAdd(h, "--debug-symbols") }
+        // [link].libs → --link-lib=<name>
+        int i = 0
+        while i < this.manifest.linkLibCount() {
+            fly.os.proc.argsAdd(h, fly.str.concat("--link-lib=", this.manifest.linkLibAt(i)))
+            i = i + 1
+        }
+        // FLYLANG_LIB — directory holding fly_std_lib.a / fly_runtime_lib.a (else the
+        // compiler auto-detects <exe>/../lib).
         string libDir = fly.os.env.get("FLYLANG_LIB")
         if fly.str.isEmpty(libDir) == false {
-            cmd = fly.str.concat(cmd, fly.str.concat(" --runtime-lib-dir ", fly.driver.shellQuote(libDir)))
+            fly.os.proc.argsAdd(h, "--runtime-lib-dir")
+            fly.os.proc.argsAdd(h, libDir)
         }
         if fly.str.isEmpty(this.targetTriple) == false {
-            cmd = fly.str.concat(cmd, fly.str.concat(" --target=", fly.driver.shellQuote(this.targetTriple)))
+            fly.os.proc.argsAdd(h, fly.str.concat("--target=", this.targetTriple))
         }
-        if fly.str.isEmpty(extra) == false {
-            cmd = fly.str.concat(cmd, fly.str.concat(" ", extra))
-        }
-        cmd = fly.str.concat(cmd, fly.str.concat(" -o ", fly.driver.shellQuote(output)))
-        cmd = fly.str.concat(cmd, fly.str.concat(" ", fly.driver.shellQuote(source)))
+        if fly.str.isEmpty(extra) == false { fly.os.proc.argsAdd(h, extra) }
+        fly.os.proc.argsAdd(h, "-o")
+        fly.os.proc.argsAdd(h, output)
+        fly.os.proc.argsAdd(h, source)
+
         fly.os.io.printLn(fly.str.concat("  fly ", source))
-        int rc = fly.driver.runShell(cmd)
+        int rc = fly.os.proc.exec(this.getFlyBinary(), h)
+        fly.os.proc.argsFree(h)
         out = rc == 0
     }
 

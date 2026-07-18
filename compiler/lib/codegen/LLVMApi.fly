@@ -1173,6 +1173,18 @@ public class LLVM {
         lib.call("LLVMBuildStructGEP2", a, v)
     }
 
+    public void buildInsertValue(const pointer b, const pointer agg, const pointer elt, const int idx, const string name, pointer v) {
+        // LLVMBuildInsertValue(B, AggVal, EltVal, Index, Name) = (ptr, ptr, ptr, int, string)
+        Ptr3IntStrArgs a = new Ptr3IntStrArgs()
+        a.a = b
+        a.b = agg
+        a.c = elt
+        a.n = idx
+        a.s = name
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildInsertValue", a, v)
+    }
+
     // buildMemCpy — full 6-arg LLVMBuildMemCpy(B, Dst, DstAlign, Src, SrcAlign,
     // Size). (An earlier 3-arg wrapper dropped the aligns + size and was removed;
     // this one marshals every argument.)

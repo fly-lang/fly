@@ -260,6 +260,43 @@ public class ResolverExpr {
         SemaMember mem = SemaBuilder.CreateMemberVar(node, attr, pe)
         r.setCurrentExpr(mem)
     }
+
+    // arrayValue — resolve an array literal `{e0, e1, ...}`. The element type is
+    // taken from the threaded expected type (`T[] a = {...}` → element T), which
+    // also gives an empty `{}` a type; otherwise it is inferred from the first
+    // element. A resolved element whose type differs from the expected element
+    // type is a diagnostic. An empty literal with no expected type cannot infer.
+    public static void arrayValue(const Resolver r, const ASTArrayValue node) {
+        SemaType expectedEl = null
+        SemaType exp = r.getExpectedType()
+        if exp != null {
+            SemaArrayType ea = exp.asArray()
+            if ea != null { expectedEl = ea.getElementType() }
+        }
+        List<ASTExpr> asts = node.getValues()
+        List<SemaExpr> vals = new List<SemaExpr>()
+        SemaType elemT = expectedEl
+        int i = 0
+        while i < asts.size() {
+            ASTExpr ae = asts.get(i)
+            SemaType saved = r.getExpectedType()
+            r.setExpectedType(expectedEl)       // propagate for nested arrays
+            ae.accept(r)
+            r.setExpectedType(saved)
+            SemaExpr ev = r.getCurrentExpr()
+            if ev != null {
+                vals.add(ev)
+                if elemT == null { elemT = ev.getType() }
+            }
+            i = i + 1
+        }
+        if elemT == null {
+            r.diag(node.getLoc(), DiagID.err_sema_cannot_infer_array_type)
+            r.setCurrentExpr(null)
+            return
+        }
+        r.setCurrentExpr(SemaBuilder.CreateArrayValue(node, elemT, vals))
+    }
 }
 
 // promoteNumberTypes — rank-based widening (1:1 with C++ Resolver::PromoteNumberTypes):

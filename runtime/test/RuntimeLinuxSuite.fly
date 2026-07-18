@@ -1,0 +1,244 @@
+import fly.mem
+import fly.runtime
+import fly.os.fs
+import fly.os.env
+import fly.os.proc
+import fly.str
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RuntimeLinuxSuite — exhaustive coverage of the Linux runtime (fly.runtime,
+// backed by RuntimeLinux.fly: Win32 + UCRT). Suite/case form, compiled with
+// --test. Each category *Test method groups related primitives; each case does a
+// round-trip (write → read back → assert) and cleans up its temp state. The
+// portable primitives (mem/atomic/str_slot/time/fs/env/io) are shared across all
+// three platforms; the Windows-specific expectations (osname=="linux",
+// arch from uname) are asserted here. Runs ONLY on linux (fly.runtime.*
+// links the host runtime).
+//
+// Test rules: `case` only in a *Test method; NO `this.<method>()` in a suite;
+// never call proc_exit/errExit on a success path.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite RuntimeLinuxSuite {
+
+    // ── memory: mem_alloc / mem_free / mem_realloc ────────────────────────────
+    void memTest() {
+        case "alloc / isNull / free": {
+            pointer p = fly.mem.alloc(32)
+            assert.assertFalse(fly.mem.isNull(p), 1)
+            fly.mem.free(p, 32)
+            assert.assertTrue(fly.mem.isNull(0), 2)
+        }
+        case "byte/short/int/long read-write round-trip": {
+            pointer p = fly.mem.alloc(32)
+            fly.mem.writeByte(p, 0, 200)
+            fly.mem.writeShort(p, 2, 12345)
+            fly.mem.writeInt(p, 4, 0 - 678)
+            fly.mem.writeLong(p, 8, 9000000000)
+            assert.assertEqI((int)fly.mem.readByte(p, 0) & 255, 200, 3)
+            assert.assertEqI((int)fly.mem.readShort(p, 2) & 65535, 12345, 4)
+            assert.assertEqI(fly.mem.readInt(p, 4), 0 - 678, 5)
+            assert.assertEqL(fly.mem.readLong(p, 8), 9000000000, 6)
+            fly.mem.free(p, 32)
+        }
+        case "realloc grow preserves data; shrink": {
+            pointer p = fly.mem.alloc(8)
+            fly.mem.writeInt(p, 0, 424242)
+            p = fly.mem.realloc(p, 64)
+            assert.assertEqI(fly.mem.readInt(p, 0), 424242, 7)
+            p = fly.mem.realloc(p, 4)
+            assert.assertEqI(fly.mem.readInt(p, 0), 424242, 8)
+            fly.mem.free(p, 4)
+        }
+        case "copy + compare + zero": {
+            pointer a = fly.mem.alloc(16)
+            pointer b = fly.mem.alloc(16)
+            fly.mem.writeLong(a, 0, 111)
+            fly.mem.writeLong(a, 8, 222)
+            fly.mem.copy(b, a, 16)
+            assert.assertEqI(fly.mem.compare(a, b, 16), 0, 9)
+            fly.mem.zero(b, 16)
+            assert.assertEqL(fly.mem.readLong(b, 0), 0, 10)
+            fly.mem.free(a, 16)
+            fly.mem.free(b, 16)
+        }
+    }
+
+    // ── atomics: atomic_load/store/cas/fetch_add_i32 ──────────────────────────
+    void atomicTest() {
+        case "store / load": {
+            pointer w = fly.mem.alloc(4)
+            fly.runtime.atomic_store_i32(w, 42)
+            int v = 0
+            fly.runtime.atomic_load_i32(w, v)
+            assert.assertEqI(v, 42, 21)
+            fly.mem.free(w, 4)
+        }
+        case "fetch_add returns old, updates word": {
+            pointer w = fly.mem.alloc(4)
+            fly.runtime.atomic_store_i32(w, 10)
+            int old = 0
+            fly.runtime.atomic_fetch_add_i32(w, 5, old)
+            assert.assertEqI(old, 10, 22)
+            int nv = 0
+            fly.runtime.atomic_load_i32(w, nv)
+            assert.assertEqI(nv, 15, 23)
+            fly.mem.free(w, 4)
+        }
+        case "cas success then failure": {
+            pointer w = fly.mem.alloc(4)
+            fly.runtime.atomic_store_i32(w, 7)
+            int seen = 0
+            fly.runtime.atomic_cas_i32(w, 7, 100, seen)
+            assert.assertEqI(seen, 7, 24)
+            int after = 0
+            fly.runtime.atomic_load_i32(w, after)
+            assert.assertEqI(after, 100, 25)
+            fly.runtime.atomic_cas_i32(w, 999, 200, seen)
+            int after2 = 0
+            fly.runtime.atomic_load_i32(w, after2)
+            assert.assertEqI(after2, 100, 26)
+            fly.mem.free(w, 4)
+        }
+    }
+
+    // ── string slots: str_slot_set / str_slot_ptr / str_slot_size ─────────────
+    void strSlotTest() {
+        case "set then read ptr + size back": {
+            pointer arr = fly.mem.alloc(48)       // 3 slots × 16 bytes
+            pointer buf = fly.mem.alloc(8)        // a real buffer to reference
+            fly.runtime.str_slot_set(arr, 0, buf, 5)
+            fly.runtime.str_slot_set(arr, 2, buf, 7)
+            pointer rp = 0
+            fly.runtime.str_slot_ptr(arr, 0, rp)
+            assert.assertTrue(rp == buf, 31)
+            int sz = 0
+            fly.runtime.str_slot_size(arr, 0, sz)
+            assert.assertEqI(sz, 5, 32)
+            fly.runtime.str_slot_size(arr, 2, sz)
+            assert.assertEqI(sz, 7, 33)
+            fly.mem.free(buf, 8)
+            fly.mem.free(arr, 48)
+        }
+    }
+
+    // ── time: time_now_ns / time_mono_ns / time_sleep ─────────────────────────
+    void timeTest() {
+        case "now_ns positive": {
+            long t = 0
+            fly.runtime.time_now_ns(t)
+            assert.assertTrue(t > 0, 41)
+        }
+        case "mono_ns monotonic (t2 >= t1)": {
+            long t1 = 0
+            long t2 = 0
+            fly.runtime.time_mono_ns(t1)
+            fly.runtime.time_mono_ns(t2)
+            assert.assertTrue(t2 >= t1, 42)
+        }
+        case "sleep advances the monotonic clock": {
+            long a = 0
+            long b = 0
+            fly.runtime.time_mono_ns(a)
+            fly.runtime.time_sleep(0, 2000000)    // 2 ms
+            fly.runtime.time_mono_ns(b)
+            assert.assertTrue(b > a, 43)
+        }
+    }
+
+    // ── filesystem: fs_* via the fly.os.fs wrapper (temp dir, torn down) ───────
+    void fsTest() {
+        case "dir + file lifecycle round-trip": {
+            string dir = "rt_linux_fs_dir"
+            fly.os.fs.dirCreateAll(dir, 493)
+            assert.assertTrue(fly.os.fs.exists(dir), 51)
+            assert.assertTrue(fly.os.fs.isDir(dir), 52)
+            assert.assertFalse(fly.os.fs.exists("rt_linux_nope_xyz"), 53)
+
+            string f = "rt_linux_fs_dir/a.txt"
+            fly.os.fs.writeStr(f, "hello fly!", 420)
+            assert.assertTrue(fly.os.fs.isFile(f), 54)
+            assert.assertStr(fly.os.fs.readStr(f), "hello fly!", 55)
+            if fly.os.fs.size(f) != 10 { assert.errExit(56) }
+
+            fly.os.fs.appendStr(f, "++!", 420)
+            if fly.os.fs.size(f) != 13 { assert.errExit(57) }
+            fly.os.fs.truncate(f, 5)
+            if fly.os.fs.size(f) != 5 { assert.errExit(58) }
+            fly.os.fs.chmod(f, 384)
+
+            string c = "rt_linux_fs_dir/b.txt"
+            fly.os.fs.copy(f, c)
+            assert.assertTrue(fly.os.fs.exists(c), 59)
+            string m = "rt_linux_fs_dir/c.txt"
+            fly.os.fs.move(c, m)
+            assert.assertTrue(fly.os.fs.exists(m), 60)
+            assert.assertFalse(fly.os.fs.exists(c), 61)
+
+            fly.os.fs.dirDeleteAll(dir)
+            assert.assertFalse(fly.os.fs.exists(dir), 62)
+        }
+        case "read a nonexistent file returns empty": {
+            string s = fly.os.fs.readStr("rt_linux_definitely_absent_9z")
+            assert.assertTrue(fly.str.isEmpty(s), 63)
+        }
+    }
+
+    // ── directory listing: dir_open/read/close via fs.dirRead ─────────────────
+    void dirTest() {
+        case "dirRead sees the files created": {
+            string dir = "rt_linux_dir_list"
+            fly.os.fs.dirCreateAll(dir, 493)
+            fly.os.fs.writeStr("rt_linux_dir_list/one.txt", "1", 420)
+            fly.os.fs.writeStr("rt_linux_dir_list/two.txt", "2", 420)
+            fly.os.fs.DirEntries de = fly.os.fs.dirRead(dir)
+            if de.len < 2 { assert.errExit(71) }
+            fly.os.fs.dirDeleteAll(dir)
+        }
+    }
+
+    // ── environment: env_osname/get/set/delete/getcwd/args/host/arch/exe ──────
+    void envTest() {
+        case "osname is windows": {
+            assert.assertStr(fly.os.env.osname(), "linux", 81)
+        }
+        case "set / get / delete round-trip": {
+            fly.os.env.set("FLY_RT_WIN_VAR", "abc123")
+            assert.assertStr(fly.os.env.get("FLY_RT_WIN_VAR"), "abc123", 82)
+            fly.os.env.delete("FLY_RT_WIN_VAR")
+            assert.assertStr(fly.os.env.get("FLY_RT_WIN_VAR"), "", 83)
+        }
+        case "cwd / args / hostname / arch / exe non-empty": {
+            assert.assertNotEmpty(fly.os.env.cwdGet(), 84)
+            fly.os.env.StringArray a = fly.os.env.argsGet()
+            assert.assertTrue((int)a.count > 0, 85)
+            assert.assertNotEmpty(fly.os.env.hostname(), 86)
+            assert.assertNotEmpty(fly.os.env.arch(), 87)
+            assert.assertNotEmpty(fly.os.env.exePath(), 88)
+        }
+    }
+
+    // ── io_write: bytes written == count ──────────────────────────────────────
+    void ioTest() {
+        case "io_write returns the byte count": {
+            pointer buf = fly.mem.alloc(2)
+            fly.mem.writeByte(buf, 0, 46)     // '.'
+            fly.mem.writeByte(buf, 1, 10)     // newline
+            long n = 0
+            fly.runtime.io_write(1, buf, 2, n)
+            assert.assertEqL(n, 2, 91)
+            fly.mem.free(buf, 2)
+        }
+    }
+
+    // ── proc_exec: spawn a child + the error path ─────────────────────────────
+    void procTest() {
+        case "exec a bogus path returns -1": {
+            pointer h = fly.os.proc.argsNew()
+            int rc = fly.os.proc.exec("rt_linux_no_such_program_zzz.exe", h)
+            fly.os.proc.argsFree(h)
+            assert.assertEqI(rc, 0 - 1, 101)
+        }
+    }
+}

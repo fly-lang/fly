@@ -1,0 +1,176 @@
+namespace fly.driver.test.manifest
+
+import fly.driver.*
+import fly.compiler.basic.*
+import fly.str
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ManifestSuite — exhaustive coverage of the Fly-native package manifest: the
+// FlyManifestReader parses a `Manifest.fly` (a class extending fly.meta.Manifest)
+// with the compiler's own parser and walks the AST into the driver Manifest model.
+// Every field is exercised: [package] scalars, the string[] arrays (authors,
+// linkLibs), and the object[] arrays (targets, dependencies). Plus the error
+// paths (no manifest class → 211, parse error → 210) and the FlyLockReader.
+//
+// Source strings need REAL double quotes; the self-host lexer keeps `\"` raw, so
+// quotes are built at runtime via fly.driver.dq(). qq() wraps a value in quotes;
+// nl() is a real newline. Free helpers (not `this.` methods — a suite method
+// calling this.<method>() has no valid receiver).
+// ─────────────────────────────────────────────────────────────────────────────
+
+string qq(const string v) { out = fly.str.concat(fly.driver.dq(), fly.str.concat(v, fly.driver.dq())) }
+string nlc(const string s) { out = fly.str.concat(s, fly.driver.nl()) }
+
+// fullManifestSrc — a Manifest.fly exercising every declarable field.
+string fullManifestSrc() {
+    string s = nlc("namespace app")
+    s = fly.str.concat(s, nlc("import fly.meta.*"))
+    s = fly.str.concat(s, nlc("class AppManifest : fly.meta.Manifest {"))
+    s = fly.str.concat(s, nlc(fly.str.concat("  string name = ", qq("myapp"))))
+    s = fly.str.concat(s, nlc(fly.str.concat("  string version = ", qq("1.2.3"))))
+    s = fly.str.concat(s, nlc(fly.str.concat("  string description = ", qq("a test app"))))
+    s = fly.str.concat(s, nlc(fly.str.concat("  string license = ", qq("MIT"))))
+    s = fly.str.concat(s, nlc(fly.str.concat("  string flyVersion = ", qq("0.14.0"))))
+    s = fly.str.concat(s, nlc(fly.str.concat("  string homepage = ", qq("https://example.com"))))
+    s = fly.str.concat(s, nlc(fly.str.concat("  string repository = ", qq("https://git.example.com/myapp"))))
+    s = fly.str.concat(s, nlc(fly.str.concat("  string registry = ", qq("central"))))
+    // string[] authors = {"alice", "bob"}
+    string au = fly.str.concat("  string[] authors = { ", fly.str.concat(qq("alice"), fly.str.concat(", ", qq("bob"))))
+    s = fly.str.concat(s, nlc(fly.str.concat(au, " }")))
+    // string[] linkLibs = {"m", "pthread"}
+    string ll = fly.str.concat("  string[] linkLibs = { ", fly.str.concat(qq("m"), fly.str.concat(", ", qq("pthread"))))
+    s = fly.str.concat(s, nlc(fly.str.concat(ll, " }")))
+    // Target[] targets = { new Target("app","src/main.fly",""), new Target("mylib","src/lib.fly","static") }
+    string t1 = fly.str.concat("new Target(", fly.str.concat(qq("app"), fly.str.concat(", ", fly.str.concat(qq("src/main.fly"), fly.str.concat(", ", qq(""))))))
+    t1 = fly.str.concat(t1, ")")
+    string t2 = fly.str.concat("new Target(", fly.str.concat(qq("mylib"), fly.str.concat(", ", fly.str.concat(qq("src/lib.fly"), fly.str.concat(", ", qq("static"))))))
+    t2 = fly.str.concat(t2, ")")
+    string tg = fly.str.concat("  Target[] targets = { ", fly.str.concat(t1, fly.str.concat(", ", fly.str.concat(t2, " }"))))
+    s = fly.str.concat(s, nlc(tg))
+    // Dependency[] dependencies = { new Dependency("bar", "^1.2") }
+    string d1 = fly.str.concat("new Dependency(", fly.str.concat(qq("bar"), fly.str.concat(", ", qq("^1.2"))))
+    d1 = fly.str.concat(d1, ")")
+    string dp = fly.str.concat("  Dependency[] dependencies = { ", fly.str.concat(d1, " }"))
+    s = fly.str.concat(s, nlc(dp))
+    s = fly.str.concat(s, "}")
+    out = s
+}
+
+suite ManifestSuite {
+
+    void scalarsTest() {
+        case "reads every [package] scalar": {
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read(fullManifestSrc(), e)
+            assert.assertEqI(e, 0, 1)
+            assert.assertStr(m.getName(), "myapp", 2)
+            assert.assertStr(m.getVersion(), "1.2.3", 3)
+            assert.assertStr(m.getDescription(), "a test app", 4)
+            assert.assertStr(m.getLicense(), "MIT", 5)
+            assert.assertStr(m.getFlyVersion(), "0.14.0", 6)
+            assert.assertStr(m.getHomepage(), "https://example.com", 7)
+            assert.assertStr(m.getRepository(), "https://git.example.com/myapp", 8)
+            assert.assertStr(m.getDefaultRegistry(), "central", 9)
+        }
+    }
+
+    void stringArrayTest() {
+        case "reads authors and linkLibs string arrays": {
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read(fullManifestSrc(), e)
+            assert.assertEqI(m.authorCount(), 2, 11)
+            assert.assertStr(m.authorAt(0), "alice", 12)
+            assert.assertStr(m.authorAt(1), "bob", 13)
+            assert.assertEqI(m.linkLibCount(), 2, 14)
+            assert.assertStr(m.linkLibAt(0), "m", 15)
+            assert.assertStr(m.linkLibAt(1), "pthread", 16)
+        }
+    }
+
+    void targetTest() {
+        case "reads targets object array (bin + lib)": {
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read(fullManifestSrc(), e)
+            assert.assertEqI(m.targetCount(), 2, 21)
+            Target t0 = m.targetAt(0)
+            assert.assertStr(t0.getName(), "app", 22)
+            assert.assertStr(t0.getPath(), "src/main.fly", 23)
+            assert.assertTrue(t0.isBin(), 24)
+            Target t1 = m.targetAt(1)
+            assert.assertStr(t1.getName(), "mylib", 25)
+            assert.assertStr(t1.getLib(), "static", 26)
+            assert.assertTrue(t1.isLib(), 27)
+        }
+    }
+
+    void dependencyTest() {
+        case "reads dependencies object array": {
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read(fullManifestSrc(), e)
+            assert.assertEqI(m.depCount(), 1, 31)
+            DepEntry d0 = m.depAt(0)
+            assert.assertStr(d0.getName(), "bar", 32)
+            GitDep g = d0.getDep()
+            // no explicit [repo] alias → default-registry dep: registryName stays
+            // empty (isRegistryDep() flags an ALIAS, not the kind), but the package
+            // name + version requirement are recorded.
+            assert.assertStr(g.getPkgName(), "bar", 33)
+            assert.assertStr(g.getVersionReq(), "^1.2", 34)
+            assert.assertFalse(g.isGitDep(), 35)
+            assert.assertFalse(g.isPathDep(), 36)
+        }
+    }
+
+    void errorTest() {
+        case "no class extending Manifest → 211": {
+            string src = nlc("namespace x")
+            src = fly.str.concat(src, nlc("class NotAManifest {"))
+            src = fly.str.concat(src, nlc(fly.str.concat("  string name = ", qq("z"))))
+            src = fly.str.concat(src, "}")
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read(src, e)
+            assert.assertEqI(e, 211, 41)
+        }
+        case "parse error → 210": {
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read("namespace x  class C : Manifest { @@@ }", e)
+            assert.assertEqI(e, 210, 42)
+        }
+    }
+
+    void lockTest() {
+        case "FlyLockReader round-trips a Lock.fly": {
+            string s = nlc("namespace pkg.lock")
+            s = fly.str.concat(s, nlc("import fly.meta.*"))
+            s = fly.str.concat(s, nlc("class Lockfile : fly.meta.Lockfile {"))
+            s = fly.str.concat(s, nlc(fly.str.concat("  string flyVersion = ", qq("0.14.0"))))
+            s = fly.str.concat(s, nlc(fly.str.concat("  string checksum = ", qq("abc123"))))
+            string p1 = fly.str.concat("new LockedPackage(", qq("bar"))
+            p1 = fly.str.concat(p1, fly.str.concat(", ", qq("1.2.3")))
+            p1 = fly.str.concat(p1, fly.str.concat(", ", qq("registry+default")))
+            p1 = fly.str.concat(p1, fly.str.concat(", ", qq("")))
+            p1 = fly.str.concat(p1, fly.str.concat(", ", qq("")))
+            p1 = fly.str.concat(p1, fly.str.concat(", ", qq("deadbeef")))
+            p1 = fly.str.concat(p1, ")")
+            s = fly.str.concat(s, nlc(fly.str.concat("  LockedPackage[] packages = { ", fly.str.concat(p1, " }"))))
+            s = fly.str.concat(s, "}")
+
+            int e = 0
+            FlyLockReader lr = new FlyLockReader()
+            Lockfile lf = lr.read(s, e)
+            assert.assertEqI(e, 0, 51)
+            assert.assertEqI(lf.packageCount(), 1, 52)
+            LockedPackage p = lf.packageAt(0)
+            assert.assertStr(p.getName(), "bar", 53)
+            assert.assertStr(p.getVersion(), "1.2.3", 54)
+            assert.assertStr(p.getChecksum(), "deadbeef", 55)
+        }
+    }
+}

@@ -318,7 +318,7 @@ public void fs_getdents(const int fd, const pointer buf, const ulong size, int o
 // The int-fd + getdents protocol is POSIX-only; Windows enumerates via FindFirst/
 // FindNextFile which need a 64-bit HANDLE + iteration state. Since Fly has no
 // working static storage, the state lives in a malloc'd CONTEXT the handle points
-// at (mirrors the pointer-handle API in runtime.fly). Context layout:
+// at (mirrors the pointer-handle API in RuntimeLinux.fly). Context layout:
 //   @0  HANDLE h (8B, from FindFirstFileA)   @8  int hasPending (1 = @16 holds an
 //   un-emitted entry)                        @16 WIN32_FIND_DATAA (320B; the entry)
 // dir_read converts each pending WIN32_FIND_DATAA into a linux_dirent64 record the

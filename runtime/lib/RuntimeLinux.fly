@@ -174,7 +174,7 @@ public void fs_getdents(const int fd, const pointer buf, const ulong size, int o
 // ── Directory enumeration (dir_open/dir_read/dir_close) ────────────────────────
 // A pointer-handle iterator abstraction so the std `dirRead` is platform-neutral:
 // the handle is an opaque malloc'd context (0 = failure), NOT an int fd — Windows
-// needs a 64-bit FindFirstFile HANDLE + state (see runtime-windows.fly). On POSIX
+// needs a 64-bit FindFirstFile HANDLE + state (see RuntimeWindows.fly). On POSIX
 // the context just holds the dir fd; dir_read fills linux_dirent64 records.
 public void dir_open(const pointer path, pointer out) {
     int fd = 0

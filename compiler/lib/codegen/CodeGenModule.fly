@@ -36,6 +36,7 @@ public class CodeGenModule {
     pointer errorTy        // the `%error = { i32 code, ptr str, ptr obj }` named struct
     pointer stringTy       // the `%string = { ptr, i32 size }` named struct (REFERENCE ABI:
                            // archive strings carry an i32 length — reading i64 pulls garbage)
+    pointer arrayTy        // the `%array = { ptr data, i64 len }` named struct (native arrays)
     pointer freeFn         // lazily-declared `void @free(ptr)` (libc); null until first use
     pointer freeFnTy       // its function type
     Map<string, int> ifaceBases   // interface name → global vtable slot base (V4)
@@ -86,6 +87,20 @@ public class CodeGenModule {
         this.cg.structSetBodyN(st, sfields, false)
         this.types.setStringTy(st)
 
+        // %array = { ptr data, i64 len } — the native array value type (fat pointer):
+        // field 0 = heap data buffer (null when empty), field 1 = element count.
+        pointer at
+        llvm.structCreateNamed(c, "array", at)
+        this.arrayTy = at
+        pointer ap = this.types.ptrType()
+        pointer i64a
+        llvm.int64TypeInContext(c, i64a)
+        List<pointer> afields = new List<pointer>()
+        afields.add(ap)
+        afields.add(i64a)
+        this.cg.structSetBodyN(at, afields, false)
+        this.types.setArrayTy(at)
+
         this.freeFn = 0
         this.freeFnTy = 0
     }
@@ -105,6 +120,7 @@ public class CodeGenModule {
 
     public pointer getErrorTy() { out = this.errorTy }
     public pointer getStringTy() { out = this.stringTy }
+    public pointer getArrayTy() { out = this.arrayTy }
 
     // setWeakComdat — attach a COMDAT (selection Any, name = `name`) to a weak
     // (LinkOnceODR) definition. COFF has no weak definitions: lld-link dedups

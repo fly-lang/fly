@@ -345,7 +345,7 @@ public class SemaBuilder {
         out = new SemaStringValue(ast, t)
     }
 
-    public static SemaArrayValue CreateArrayValue(const ASTArrayValue ast, const SemaType type, const List<SemaValue> values) {
+    public static SemaArrayValue CreateArrayValue(const ASTArrayValue ast, const SemaType type, const List<SemaExpr> values) {
         long size = (long)values.size()
         SemaArrayType arrayType = SemaBuiltin.CreateArrayType(type, size)
         SemaArrayValue v = new SemaArrayValue(ast, arrayType)

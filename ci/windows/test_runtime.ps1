@@ -1,12 +1,12 @@
 # -----------------------------------------------------------------------------
-# test_runtime.ps1 - run every runtime/test/*_test.fly (Windows). PowerShell port
-# of test_runtime.sh. These are main()-style programs exercising the Fly runtime
-# (fly.runtime + the fly.os wrappers). Each is compiled against the std + runtime
-# archives via -L; the executable must exit 0.
+# test_runtime.ps1 - run every runtime/test/*Suite.fly (Windows). PowerShell port
+# of test_runtime.sh. These are `suite`/`case` programs (compiled with --test)
+# exercising the Fly runtime (fly.runtime + the fly.os wrappers). Each is compiled
+# against the std + runtime archives via -L; the executable must exit 0.
 #
-# runtime/test is currently empty (the runtime is exercised indirectly by the
-# std/os suites); this script runs 0 tests today but picks up any *_test.fly
-# added under runtime/test. Scope: ONLY runtime/test, mirroring Linux.
+# The runtime is platform-specific (fly.runtime.* links the HOST runtime), so this
+# runs ONLY the host suite: it SKIPS foreign-platform suites (RuntimeLinux* /
+# RuntimeMacos*) so RuntimeWindowsSuite is what runs on Windows.
 # -----------------------------------------------------------------------------
 $ErrorActionPreference = 'Continue'
 $PSNativeCommandUseErrorActionPreference = $false
@@ -35,15 +35,18 @@ $FLY = (Resolve-Path $FLY).Path
 $pass = 0
 $fail = 0
 $found = 0
-$tests = @(Get-ChildItem -Recurse -Filter *_test.fly runtime/test -ErrorAction SilentlyContinue | Sort-Object FullName)
+$tests = @(Get-ChildItem -Recurse -Filter *Suite.fly runtime/test -ErrorAction SilentlyContinue | Sort-Object FullName)
 foreach ($t in $tests) {
-    $found++
     $name = $t.BaseName
+    # Skip foreign-platform suites: their osname/arch assertions target another OS
+    # and would fail against the Windows runtime linked here.
+    if ($name -match 'Linux|Macos') { continue }
+    $found++
     $bin = "$OUT/rt_$name.exe"
     $log = "$OUT/_rt_$name.log"
     $run = "$OUT/_rt_$name.run"
 
-    & $FLY $t.FullName -o "rt_$name" --out-dir $OUT -L $STD *> $log
+    & $FLY $t.FullName --test -o "rt_$name" --out-dir $OUT -L $STD *> $log
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  COMPILE FAIL  $name (exit $LASTEXITCODE)"
         $hits = Select-String -Path $log -Pattern 'error:|broken|abort' | Select-Object -First 3
@@ -66,7 +69,7 @@ foreach ($t in $tests) {
 
 Write-Host ([string]::new([char]0x2500, 45))
 if ($found -eq 0) {
-    Write-Host "  no runtime/test/*_test.fly found (runtime exercised via std/os suites)"
+    Write-Host "  no runtime/test/*Suite.fly found for this platform"
 }
 Write-Host "  $pass passed, $fail failed"
 if ($fail -eq 0) { exit 0 } else { exit 1 }

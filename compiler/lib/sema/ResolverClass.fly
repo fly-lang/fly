@@ -368,7 +368,9 @@ public class ResolverClass {
 
         ASTExpr ie = node.getExpr()
         if ie != null {
+            r.setExpectedType(t)            // so `T[] xs = {...}` types the literal
             ie.accept(r)
+            r.setExpectedType(null)
             attr.setInitExpr(r.getCurrentExpr())
         }
 
