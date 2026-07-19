@@ -1,0 +1,102 @@
+namespace fly.driver.test.builder
+
+import fly.driver.*
+import fly.compiler.basic.*
+import fly.os.fs
+import fly.os.env
+import fly.str
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BuilderSuite — exercises the `fly build` flow DIRECTLY (loadManifest → Builder →
+// buildAll → invokeFly → compile a real target), the same path cmdBuild takes,
+// but WITHOUT going through Driver.run. `fly build` crashes with a stack overflow
+// (heap corruption) only when this path is reached via Driver.run's arg loop
+// (which corrupts the heap first); called directly it must work. So this suite is
+// both real coverage of the Builder AND a diagnostic isolating the crash to
+// Driver.run (if BuilderSuite passes while `fly build` crashes, the fault is in
+// Driver.run, not the reader/Builder).
+//
+// Real quotes for the generated Manifest.fly come from fly.driver.dq() (the lexer
+// keeps `\"` raw). Free helpers, not `this.` methods (suite `this` is invalid).
+// ─────────────────────────────────────────────────────────────────────────────
+
+string qb(const string v) { out = fly.str.concat(fly.driver.dq(), fly.str.concat(v, fly.driver.dq())) }
+
+suite BuilderSuite {
+
+    void outDirTest() {
+        case "outDir is target/<profile> and target/test": {
+            Manifest m = new Manifest()
+            Builder b = new Builder(m, "debug", false)
+            assert.assertTrue(fly.str.contains(b.outDir(), "target"), 1)
+            assert.assertTrue(fly.str.contains(b.outDir(), "debug"), 2)
+            Builder bt = new Builder(m, "debug", true)
+            assert.assertTrue(fly.str.contains(bt.outDir(), "test"), 3)
+        }
+        case "buildTarget on a missing key returns false": {
+            Manifest m = new Manifest()
+            Builder b = new Builder(m, "debug", false)
+            assert.assertFalse(b.buildTarget("no_such_target"), 4)
+        }
+    }
+
+    void buildFlowTest() {
+        case "loadManifest + buildAll compiles a target (bypasses Driver.run)": {
+            string repo = fly.os.env.cwdGet()
+            // Builder.resolveFly reads FLYLANG_BIN (the dir holding fly[.exe]); point
+            // it at the shipped compiler so invokeFly execs the real fly, not this test.
+            fly.os.env.set("FLYLANG_BIN", fly.str.concat(repo, "/build/stage2/bin"))
+
+            string proj = "bld_suite_proj"
+            fly.os.fs.dirCreateAll(fly.str.concat(proj, "/src"), 493)
+
+            // Manifest.fly with one bin target -> a trivial (import-free) source, so
+            // it links against the auto-discovered runtime with no extra -L.
+            string man = "namespace pkg.manifest"
+            man = fly.str.concat(man, fly.driver.nl())
+            man = fly.str.concat(man, "import fly.meta.*")
+            man = fly.str.concat(man, fly.driver.nl())
+            man = fly.str.concat(man, "class Manifest : fly.meta.Manifest {")
+            man = fly.str.concat(man, fly.driver.nl())
+            man = fly.str.concat(man, fly.str.concat("  string name = ", qb("hello")))
+            man = fly.str.concat(man, fly.driver.nl())
+            man = fly.str.concat(man, fly.str.concat("  string version = ", qb("0.1.0")))
+            man = fly.str.concat(man, fly.driver.nl())
+            string tgt = fly.str.concat("  Target[] targets = { new Target(", qb("hello"))
+            tgt = fly.str.concat(tgt, fly.str.concat(", ", qb("src/main.fly")))
+            tgt = fly.str.concat(tgt, fly.str.concat(", ", qb("")))
+            tgt = fly.str.concat(tgt, ") }")
+            man = fly.str.concat(man, tgt)
+            man = fly.str.concat(man, fly.driver.nl())
+            man = fly.str.concat(man, "}")
+            fly.os.fs.writeStr(fly.str.concat(proj, "/Manifest.fly"), man, 420)
+
+            string src = fly.str.concat("namespace app", fly.driver.nl())
+            src = fly.str.concat(src, "void main() { }")
+            fly.os.fs.writeStr(fly.str.concat(proj, "/src/main.fly"), src, 420)
+
+            // Enter the project so loadManifest reads ./Manifest.fly (CWD-relative).
+            fly.os.env.cwdSet(proj)
+
+            int e = 0
+            Manifest m = fly.driver.loadManifest(e)
+            assert.assertEqI(e, 0, 11)                 // reader parsed the manifest (no crash)
+            assert.assertEqI(m.targetCount(), 1, 12)   // the targets array was read
+            assert.assertStr(m.getName(), "hello", 13)
+
+            Builder b = new Builder(m, "debug", false)
+            bool ok = b.buildAll()                     // execs fly to compile src/main.fly
+            assert.assertTrue(ok, 14)
+            // the emitted binary (Windows appends .exe; POSIX doesn't)
+            bool built = fly.os.fs.exists("target/debug/hello.exe")
+            if built == false { built = fly.os.fs.exists("target/debug/hello") }
+            assert.assertTrue(built, 15)
+
+            // restore + clean up
+            fly.os.env.cwdSet(repo)
+            fly.os.fs.dirDeleteAll(proj)
+            fly.os.env.delete("FLYLANG_BIN")
+        }
+    }
+}

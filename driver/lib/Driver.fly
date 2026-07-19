@@ -213,13 +213,10 @@ public class Driver {
                         out = 0
                         return
                     }
-                    input = a
-                    srcInputs = segAppend(srcInputs, a)
-                    // Package mode: if the first positional is a fly.toml subcommand,
-                    // hand the FULL argv to runPackage (fly.toml mode) and stop compile
-                    // parsing. Detecting it here (on the loop's `a`, which already reads
-                    // argv correctly) avoids the 0.13.8 miscompiles that reading argv[1]
-                    // before the loop triggered.
+                    // Package mode: if the first positional is a subcommand, hand the
+                    // FULL argv to runPackage and stop compile parsing. Checked BEFORE
+                    // `input`/`srcInputs` are touched so the package path never runs the
+                    // compile-mode string bookkeeping (segAppend etc.).
                     bool firstIsPkg = fly.str.equals(a, "init")
                     if fly.str.equals(a, "build")  { firstIsPkg = true }
                     if fly.str.equals(a, "run")    { firstIsPkg = true }
@@ -233,6 +230,8 @@ public class Driver {
                         out = this.runPackage(args)
                         return
                     }
+                    input = a
+                    srcInputs = segAppend(srcInputs, a)
                 }
                 elsif fly.str.endsWith(a, ".a") || fly.str.endsWith(a, ".lib") {
                     // A .a/.lib positional is a LIBRARY to LINK (e.g. the compiler archive
