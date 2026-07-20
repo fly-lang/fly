@@ -121,6 +121,11 @@ class CodeGen {
 
         std::string getOutputFileName(StringRef BaseInput);
 
+        /// Canonical file extension for a backend action (".ll", ".bc", ".s", ".o";
+        /// empty for Backend_EmitNothing). Single source of truth: both the derived
+        /// per-file names and the extension appended to an extension-less -o use it.
+        static llvm::StringRef getOutputExtension(BackendActionKind Action);
+
         void Emit(llvm::Module *M, llvm::StringRef OutName);
 
         static TargetInfo* CreateTargetInfo(DiagnosticsEngine &Diags,

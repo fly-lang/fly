@@ -9,6 +9,7 @@
 
 #include "TestUtils.h"
 #include "Basic/Archiver.h"
+#include "Driver/Driver.h"
 #include "Basic/DiagnosticIDs.h"
 #include "Frontend/Frontend.h"
 #include "Frontend/FrontendOptions.h"
@@ -513,6 +514,115 @@ namespace {
             });
         EXPECT_NE(out.find("\"error\""), std::string::npos);
         EXPECT_NE(out.find("\"note\""),  std::string::npos);
+    }
+
+    // ─── Generated header signatures (funcSignatureStr) ──────────────────────
+    //
+    // GenerateHeader() writes the public API of a module as a .fly.h that another
+    // module compiles against. The signature text is the whole contract: a return
+    // type dropped here becomes a call the consumer builds with the wrong number of
+    // arguments for the archive symbol's real ABI (errPtr, params…, __out_0…N).
+    // Multi-return is the case that matters, because the ABI and the written syntax
+    // diverge the most: `int, int f(int, int)` is really f(int, int, int, int).
+
+    class HeaderGenTest : public ::testing::Test {
+    public:
+        const char *srcName = "hdrgen.fly";
+
+        // Compile SRC with --header and return the generated header text.
+        // --no-output keeps this at the frontend: the header is what is under test,
+        // and skipping the backend means no LLVM target has to be registered.
+        std::string genHeader(const char *Src) {
+            { std::ofstream f(srcName); f << Src; }
+            const char *argv[] = {"fly", srcName, "--header", "--no-output"};
+            Driver drv(argv);
+            drv.BuildCompilerInstance();
+            const bool ok = drv.Execute();
+            EXPECT_TRUE(ok);
+            std::ifstream h("hdrgen.fly.h");
+            std::string text((std::istreambuf_iterator<char>(h)),
+                              std::istreambuf_iterator<char>());
+            return text;
+        }
+
+        void TearDown() override {
+            remove(srcName);
+            remove("hdrgen.fly.h");
+        }
+    };
+
+    TEST_F(HeaderGenTest, VoidFunction) {
+        const std::string h = genHeader("namespace hg\n\npublic void nothing() {\n}\n");
+        EXPECT_NE(h.find("public void nothing()"), std::string::npos) << h;
+    }
+
+    TEST_F(HeaderGenTest, SingleReturn) {
+        const std::string h = genHeader(
+            "namespace hg\n\npublic int single(const int a) {\n    out = a\n}\n");
+        EXPECT_NE(h.find("public int single(const int a)"), std::string::npos) << h;
+    }
+
+    // A multi-return signature must keep EVERY type. Collapsing it to the first one
+    // (or to void) is what made the declaration unusable by any consumer.
+    TEST_F(HeaderGenTest, MultiReturnTwoTypes) {
+        const std::string h = genHeader(
+            "namespace hg\n\npublic int,int divmod(const int a, const int b) {\n"
+            "    out[0] = a / b\n    out[1] = a % b\n}\n");
+        EXPECT_NE(h.find("public int, int divmod(const int a, const int b)"),
+                  std::string::npos) << h;
+        // Never degraded to a single return or to void.
+        EXPECT_EQ(h.find("public int divmod"),  std::string::npos) << h;
+        EXPECT_EQ(h.find("public void divmod"), std::string::npos) << h;
+    }
+
+    TEST_F(HeaderGenTest, MultiReturnThreeMixedTypes) {
+        const std::string h = genHeader(
+            "namespace hg\n\npublic int,string,bool triple(const int n) {\n"
+            "    out[0] = n\n    out[1] = \"\"\n    out[2] = true\n}\n");
+        EXPECT_NE(h.find("public int, string, bool triple(const int n)"),
+                  std::string::npos) << h;
+    }
+
+    // A named type after the comma takes a different lookahead path than a builtin
+    // one, on both the writing and the reading side (the parser has to tell
+    // "Box name(" apart from a single-return "Box name"). fly.os.fs.tempFile is the
+    // real instance of this shape: `string, File`.
+    TEST_F(HeaderGenTest, MultiReturnWithNamedType) {
+        const std::string h = genHeader(
+            "namespace hg\n\npublic struct Box {\n    int v\n}\n\n"
+            "public int,Box mixed(const int n) {\n"
+            "    out[0] = n\n    out[1] = new Box()\n}\n");
+        EXPECT_NE(h.find("public int, Box mixed(const int n)"),
+                  std::string::npos) << h;
+    }
+
+    // const is part of the contract (a non-const param is writable, i.e. an output),
+    // so it must survive into the header exactly as written.
+    TEST_F(HeaderGenTest, ParamConstnessPreserved) {
+        const std::string h = genHeader(
+            "namespace hg\n\npublic int mixed(const int a, int b, const string s) {\n"
+            "    out = a\n}\n");
+        EXPECT_NE(h.find("public int mixed(const int a, int b, const string s)"),
+                  std::string::npos) << h;
+    }
+
+    // Generic arguments must be preserved: a bare `List` parameter is not
+    // instantiable, so dropping <string> breaks resolution at the call site.
+    TEST_F(HeaderGenTest, GenericTypeArgsPreserved) {
+        const std::string h = genHeader(
+            "namespace hg\n\nimport fly.data.List\n\n"
+            "public List<string> generic(const int n) {\n"
+            "    out = new List<string>()\n}\n");
+        EXPECT_NE(h.find("public List<string> generic(const int n)"),
+                  std::string::npos) << h;
+    }
+
+    // Only the public API belongs in a header.
+    TEST_F(HeaderGenTest, PrivateFunctionOmitted) {
+        const std::string h = genHeader(
+            "namespace hg\n\npublic void shown() {\n}\n\nvoid hidden() {\n}\n");
+        EXPECT_NE(h.find("shown"),  std::string::npos) << h;
+        EXPECT_EQ(h.find("hidden"), std::string::npos) << h;
     }
 
 } // anonymous namespace

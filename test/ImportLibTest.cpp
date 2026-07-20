@@ -81,6 +81,71 @@ void main() {
         EXPECT_TRUE(drv.Execute());
     }
 
+    // Round-trip a MULTI-RETURN function through a generated header: emit the .fly.h
+    // with --header, then compile a consumer that only sees that header.
+    //
+    // This is the pair of steps that has to agree. What the header spells
+    // (`int, int divmod(const int, const int)`) is not the ABI: the Resolver lowers
+    // the extra returns into trailing __out_N params, so the callable signature is
+    // divmod(int, int, int, int). ParseHeader used to record only the first return
+    // type, leaving the declaration with no return types at all — the consumer then
+    // saw a plain divmod(int, int) and no call could ever match it. Emitting the
+    // signature correctly is not enough; reading it back has to reconstruct the ABI.
+    TEST_F(ImportLibTest, MultiReturnThroughGeneratedHeader) {
+        const char *libDir   = "tmp_mrlib";
+        const char *libSrc   = "tmp_mrlib/mrlib.fly";
+        const char *libHdr   = "tmp_mrlib/mrlib.fly.h";
+        const char *userFile = "tmp_mr_main.fly";
+
+        llvm::sys::fs::create_directory(libDir);
+        { std::ofstream f(libSrc);
+          f << "namespace mr\n\n"
+               "public int,int divmod(const int a, const int b) {\n"
+               "    out[0] = a / b\n"
+               "    out[1] = a % b\n"
+               "}\n"; }
+
+        // Step 1: generate the header. --no-output keeps this at the frontend —
+        // the header is the artifact under test, and no backend target is needed.
+        {
+            const char *argv[] = {"fly", libSrc, "--header", "--no-output", "--out-dir", libDir};
+            Driver drv(argv);
+            drv.BuildCompilerInstance();
+            ASSERT_TRUE(drv.Execute());
+        }
+        ASSERT_TRUE(std::ifstream(libHdr).good());
+
+        // The header must carry both return types…
+        {
+            std::ifstream h(libHdr);
+            std::string text((std::istreambuf_iterator<char>(h)),
+                              std::istreambuf_iterator<char>());
+            EXPECT_NE(text.find("int, int divmod"), std::string::npos) << text;
+        }
+
+        // Step 2: a consumer that sees ONLY the header. The outputs are passed as
+        // trailing arguments — the lowered form the archive symbol actually exposes.
+        { std::ofstream f(userFile);
+          f << "import mr\n\n"
+               "void main() {\n"
+               "    int q = 0\n"
+               "    int r = 0\n"
+               "    mr.divmod(17, 5, q, r)\n"
+               "}\n"; }
+
+        const char *argv[] = {"fly", "-no-output", "-L", libDir, userFile};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        const bool ok = drv.Execute();
+
+        remove(userFile);
+        remove(libHdr);
+        remove(libSrc);
+        llvm::sys::fs::remove(libDir);
+
+        EXPECT_TRUE(ok);
+    }
+
     // Verify that -L <dir> makes the namespace in that dir available for import.
     // We create a temporary lib dir with a source file declaring "namespace ext.lib",
     // then compile a user file that imports "ext.lib" — it should succeed.

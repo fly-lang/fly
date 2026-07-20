@@ -120,17 +120,22 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     app.add_flag("--test",          TestMode,    "Compile in test mode (enables test {} blocks)");
     app.add_flag("-v,--verbose",    Verbose,     "Show commands to run and use verbose output");
     app.add_flag("-w,--no-warning", NoWarnings,  "Suppress all warnings");
-    app.add_flag("--emit-ll",       EmitLL,      "Produce LLVM IR output");
-    app.add_flag("--emit-bc",       EmitBC,      "Produce bitcode output");
-    app.add_flag("--emit-as",       EmitAS,      "Produce assembly output");
-    app.add_flag("--no-output",     NoOutput,    "Produce no output");
+    // Output format: WHAT the backend produces. Default is an object file.
+    app.add_flag("--emit-ll",       EmitLL,      "Produce LLVM IR output (.ll)");
+    app.add_flag("--emit-bc",       EmitBC,      "Produce bitcode output (.bc)");
+    app.add_flag("--emit-as",       EmitAS,      "Produce assembly output (.s)");
+    // Compilation stage: HOW FAR to go. Default is to link.
+    app.add_flag("--no-output",     NoOutput,    "Parse and analyse only, produce no output");
+    app.add_flag("-c",              CompileOnly, "Compile only, do not link");
     app.add_flag("--header",        HeaderGen,   "Generate header file");
     app.add_flag("--print-stats",   PrintStats,  "Print performance metrics and statistics");
     app.add_flag("--ftime-report",  FtimeReport, "Show timers for individual actions");
 
     app.add_option("-o",            OutputFile,   "Write output to <file>");
-    app.add_flag("--lib",           OutputLib,    "Produce a library archive (.a/.lib)");
-    app.add_flag("--shared",        OutputShared, "Produce a shared library (.so/.dylib/.dll)");
+    // Linked-artifact shape: what the LINK step produces. Independent of the format
+    // above — combining these with --emit-* is a diagnosed error, never an override.
+    app.add_flag("--lib,--lib-static",      OutputLib,    "Produce a static library (.a/.lib)");
+    app.add_flag("--lib-dyn,--lib-dynamic", OutputShared, "Produce a dynamic library (.so/.dylib/.dll)");
     app.add_option("--log-file",    LogFile,      "Log diagnostics to <file>");
     app.add_option("--log-format",  LogFormat,    "Log format: txt (default) or json")->check(CLI::IsMember({"txt", "json"}));
     app.add_option("--mcmodel",     McModel,      "Set memory code model");
@@ -365,10 +370,12 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         FrontendOpts->Verbose = true;
     }
 
-    // Output file
+    // Output file. -o is valid for the emit actions too: it names the single emitted
+    // artifact (.ll/.bc/.s) and makes the Frontend lower every input into ONE module so
+    // cross-file references resolve. Only --no-output, which emits nothing, conflicts.
     if (!OutputFile.empty()) {
-        if (EmitLL || EmitBC || EmitAS || NoOutput) {
-            llvm::errs() << "cannot specify -o when not emit object files\n";
+        if (NoOutput) {
+            llvm::errs() << "cannot specify -o with --no-output\n";
             doExecute = false;
             return;
         }
@@ -398,19 +405,51 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         FrontendOpts->ShowTimers = true;
     }
 
-    // Backend emit action
+    // ── Option model: three independent axes ──────────────────────────────────
+    //   FORMAT  --emit-ll | --emit-bc | --emit-as | (default: object)
+    //   STAGE   --no-output (emit nothing) | -c (emit, don't link) | (default: link)
+    //   SHAPE   --lib/--lib-static | --lib-dyn/--lib-dynamic — what the LINK produces
+    //
+    // No axis silently rewrites another: an incompatible request is diagnosed here
+    // rather than resolved by precedence. --lib used to overwrite the format, so
+    // `fly --emit-ll --lib x.fly` handed back an object file to someone who asked
+    // for IR, without a word.
+    const bool WantsLibrary = OutputLib || OutputShared;
+    const bool NonObjFormat = EmitLL || EmitBC || EmitAS;
+
+    if (OutputLib && OutputShared) {
+        llvm::errs() << "cannot specify both --lib and --lib-dyn\n";
+        doExecute = false;
+        return;
+    }
+    if (WantsLibrary && NonObjFormat) {
+        llvm::errs() << "cannot specify --lib/--lib-dyn with --emit-ll/--emit-bc/--emit-as\n";
+        doExecute = false;
+        return;
+    }
+    if (WantsLibrary && (CompileOnly || NoOutput)) {
+        llvm::errs() << "cannot specify --lib/--lib-dyn with -c or --no-output\n";
+        doExecute = false;
+        return;
+    }
+
+    // FORMAT. Clearing the output file when -o is absent is what selects PER-FILE
+    // emission (one artifact per input); with -o all inputs are lowered into ONE
+    // module so cross-file references resolve. That is the module-count axis and is
+    // deliberately independent of the link decision made below.
+    const bool HasExplicitOutput = !OutputFile.empty();
     if (EmitLL) {
         FLY_DEBUG_MSG("Set -emit-ll");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitLL;
-        FrontendOpts->setOutputFile("");
+        if (!HasExplicitOutput) FrontendOpts->setOutputFile("");
     } else if (EmitBC) {
         FLY_DEBUG_MSG("Set -emit-bc");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitBC;
-        FrontendOpts->setOutputFile("");
+        if (!HasExplicitOutput) FrontendOpts->setOutputFile("");
     } else if (EmitAS) {
         FLY_DEBUG_MSG("Set -emit-as");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitAssembly;
-        FrontendOpts->setOutputFile("");
+        if (!HasExplicitOutput) FrontendOpts->setOutputFile("");
     } else if (NoOutput) {
         FLY_DEBUG_MSG("Set -no-output");
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitNothing;
@@ -419,33 +458,40 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         FrontendOpts->BackendAction = BackendActionKind::Backend_EmitObj;
     }
 
-    // Library
+    // STAGE. Linking is an explicit decision recorded once, not something re-derived
+    // downstream from "the output file happens to be non-empty". Only object code can
+    // be linked, so any other format stops at the artifact (as -c does).
+    FrontendOpts->LinkStep = !CompileOnly && !NoOutput &&
+        FrontendOpts->BackendAction == BackendActionKind::Backend_EmitObj;
+    if (CompileOnly)
+        FLY_DEBUG_MSG("Set -c: compile only, no link");
+
+    // SHAPE of the linked artifact. These no longer touch BackendAction — an
+    // incompatible combination was rejected above.
     if (OutputLib) {
         FrontendOpts->CreateLibrary = true;
-        FrontendOpts->BackendAction = BackendActionKind::Backend_EmitObj;
         FrontendOpts->CreateHeader  = true;
+        FLY_DEBUG_MSG("Set --lib: producing static library");
     } else if (OutputShared) {
         FrontendOpts->CreateSharedLib       = true;
         CodeGenOpts->Shared                 = true;
         CodeGenOpts->RelocationModel        = llvm::Reloc::PIC_;
-        FrontendOpts->BackendAction         = BackendActionKind::Backend_EmitObj;
         FrontendOpts->CreateHeader          = true;
-        FLY_DEBUG_MSG("Set --shared: producing shared library with PIC");
+        FLY_DEBUG_MSG("Set --lib-dyn: producing dynamic library with PIC");
     }
 
     // Auto-detect / auto-name output for the quick single-file CLI mode: one source
     // file AND no explicit -o. AutoDetectOutputType() infers the type from the AST
     // (main → exe; suite or main+--test → test exe; otherwise lib) and auto-names the
-    // output. --lib / --shared are still honoured there (they force a library even
+    // output. --lib / --lib-dyn are still honoured there (they force a library even
     // with a main); only the auto-naming applies.
     //
     // The -o guard is deliberate: every explicit invocation that already knows its
-    // output (notably flyp's per-target builds, which always pass -o + an explicit
-    // type flag) keeps full control and is never reinterpreted here. The emit/no-output
-    // guard keeps --emit-ll/-bc/-as and --no-output from triggering a link step.
+    // output (a build that passes -o plus an explicit type flag) keeps full control and
+    // is never reinterpreted here. Requiring LinkStep covers the rest: there is nothing
+    // to auto-name when the build stops at a .ll/.bc/.s, at -c, or at --no-output.
     // Multi-file builds also keep the explicit behaviour.
-    if (InputFiles.size() == 1 && OutputFile.empty()
-        && !EmitLL && !EmitBC && !EmitAS && !NoOutput) {
+    if (InputFiles.size() == 1 && OutputFile.empty() && FrontendOpts->LinkStep) {
         FrontendOpts->AutoDetectOutput = true;
         FLY_DEBUG_MSG("Set AutoDetectOutput (single input file, no -o, object backend)");
     }
@@ -524,7 +570,12 @@ bool Driver::Execute() {
         Frontend Front(*CI);
         Success = Front.Execute();
 
-        if (Success && !CI->getFrontendOptions().getOutputFile().empty()) {
+        // Link when the stage asked for it (see the option model in BuildOptions).
+        // An empty output file still means there is nothing to name the linked
+        // artifact — that is the historical "compile only" spelling, which -c now
+        // expresses explicitly.
+        const FrontendOptions &FO = CI->getFrontendOptions();
+        if (Success && FO.LinkStep && !FO.getOutputFile().empty()) {
             std::unique_ptr<TargetInfo> TI(TargetInfo::CreateTargetInfo(
                 CI->getDiagnostics(), CI->getTargetOptions()));
             const llvm::Triple &T = TI->getTriple();

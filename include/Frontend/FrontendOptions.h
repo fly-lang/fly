@@ -42,14 +42,20 @@ namespace fly {
         /// Relative output paths are written under this dir; absolute paths are unchanged.
         std::string OutDir;
 
-        /// True when a single input file was passed without --lib/--shared:
+        /// True when a single input file was passed without --lib/--lib-dyn:
         /// the output type is inferred from the parsed AST (main/suite/lib).
         bool AutoDetectOutput = false;
 
-        /// Generate Library
+        /// True when the driver must run a link step after the backend. Set once by
+        /// the Driver from the requested stage: -c, --no-output and every non-object
+        /// format clear it. It is NOT inferred from the output file name — doing that
+        /// is how a .ll once reached the linker ("unknown file type").
+        bool LinkStep = true;
+
+        /// Generate a static library (--lib / --lib-static)
         bool CreateLibrary = false;
 
-        /// Generate Shared Library (.so/.dylib/.dll)
+        /// Generate a dynamic library (--lib-dyn / --lib-dynamic)
         bool CreateSharedLib = false;
 
         /// Generate Header

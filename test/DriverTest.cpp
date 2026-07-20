@@ -215,41 +215,197 @@ namespace {
         deleteTestFile(testFile);
     }
 
+    // ─── Explicit -o with an emit action ──────────────────────────────────────
+    // -o is VALID together with --emit-ll/-bc/-as: it names the single emitted
+    // artifact, and a non-empty output file is what makes the Frontend lower every
+    // input into one module so cross-file references resolve.
+
+    TEST_F(DriverTest, ExplicitOutputWithEmitLL) {
+        ASSERT_TRUE(createTestFile(testFile));
+
+        const char *argv[] = {"fly", testFile, "-emit-ll", "-o", "out.ll"};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        EXPECT_EQ(CI.getFrontendOptions().BackendAction, BackendActionKind::Backend_EmitLL);
+        EXPECT_EQ(CI.getFrontendOptions().getOutputFile(), "out.ll");
+
+        deleteTestFile(testFile);
+    }
+
+    TEST_F(DriverTest, ExplicitOutputWithEmitBC) {
+        ASSERT_TRUE(createTestFile(testFile));
+
+        const char *argv[] = {"fly", testFile, "-emit-bc", "-o", "out.bc"};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        EXPECT_EQ(CI.getFrontendOptions().BackendAction, BackendActionKind::Backend_EmitBC);
+        EXPECT_EQ(CI.getFrontendOptions().getOutputFile(), "out.bc");
+
+        deleteTestFile(testFile);
+    }
+
+    TEST_F(DriverTest, ExplicitOutputWithEmitAS) {
+        ASSERT_TRUE(createTestFile(testFile));
+
+        const char *argv[] = {"fly", testFile, "-emit-as", "-o", "out.s"};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        EXPECT_EQ(CI.getFrontendOptions().BackendAction, BackendActionKind::Backend_EmitAssembly);
+        EXPECT_EQ(CI.getFrontendOptions().getOutputFile(), "out.s");
+
+        deleteTestFile(testFile);
+    }
+
+    // ─── The three option axes ────────────────────────────────────────────────
+    // FORMAT (--emit-*) / STAGE (-c, --no-output) / SHAPE (--lib, --lib-dyn) are
+    // independent: none of them may quietly rewrite another. LinkStep records the
+    // stage decision once so nothing downstream has to re-derive it.
+
+    TEST_F(DriverTest, DefaultStageLinks) {
+        ASSERT_TRUE(createTestFile(testFile));
+
+        const char *argv[] = {"fly", testFile};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        EXPECT_TRUE(CI.getFrontendOptions().LinkStep);
+
+        deleteTestFile(testFile);
+    }
+
+    TEST_F(DriverTest, CompileOnlyStopsBeforeLink) {
+        ASSERT_TRUE(createTestFile(testFile));
+
+        const char *argv[] = {"fly", testFile, "-c"};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        // -c changes only the STAGE: the format stays the default object file.
+        EXPECT_EQ(CI.getFrontendOptions().BackendAction, BackendActionKind::Backend_EmitObj);
+        EXPECT_FALSE(CI.getFrontendOptions().LinkStep);
+
+        deleteTestFile(testFile);
+    }
+
+    TEST_F(DriverTest, NonObjectFormatStopsBeforeLink) {
+        ASSERT_TRUE(createTestFile(testFile));
+
+        const char *argv[] = {"fly", testFile, "-emit-ll", "-o", "out.ll"};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        // Even with -o naming a real artifact, a .ll must never reach the linker.
+        EXPECT_FALSE(CI.getFrontendOptions().LinkStep);
+
+        deleteTestFile(testFile);
+    }
+
+    TEST_F(DriverTest, NoOutputStopsBeforeLink) {
+        ASSERT_TRUE(createTestFile(testFile));
+
+        const char *argv[] = {"fly", testFile, "-no-output"};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        EXPECT_FALSE(CI.getFrontendOptions().LinkStep);
+
+        deleteTestFile(testFile);
+    }
+
+    TEST_F(DriverTest, LibStaticAlias) {
+        ASSERT_TRUE(createTestFile(testFile));
+
+        const char *argv[] = {"fly", testFile, "--lib-static", "-o", "out"};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        EXPECT_TRUE(CI.getFrontendOptions().CreateLibrary);
+        EXPECT_FALSE(CI.getFrontendOptions().CreateSharedLib);
+        EXPECT_EQ(CI.getFrontendOptions().BackendAction, BackendActionKind::Backend_EmitObj);
+        EXPECT_TRUE(CI.getFrontendOptions().LinkStep);
+
+        deleteTestFile(testFile);
+    }
+
+    TEST_F(DriverTest, LibDynAlias) {
+        ASSERT_TRUE(createTestFile(testFile));
+
+        const char *argv[] = {"fly", testFile, "--lib-dyn", "-o", "out"};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        EXPECT_TRUE(CI.getFrontendOptions().CreateSharedLib);
+        EXPECT_FALSE(CI.getFrontendOptions().CreateLibrary);
+        EXPECT_TRUE(CI.getFrontendOptions().LinkStep);
+
+        deleteTestFile(testFile);
+    }
+
+    TEST_F(DriverTest, LibDynamicLongAlias) {
+        ASSERT_TRUE(createTestFile(testFile));
+
+        const char *argv[] = {"fly", testFile, "--lib-dynamic", "-o", "out"};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        EXPECT_TRUE(CI.getFrontendOptions().CreateSharedLib);
+
+        deleteTestFile(testFile);
+    }
+
+    // --shared was the pre-0.13.9 spelling and is gone: the dynamic library is
+    // requested with --lib-dyn / --lib-dynamic only. It must be rejected as an
+    // unknown option rather than silently swallowed as an input file name.
+    TEST_F(DriverTest, SharedFlagIsGone) {
+        ASSERT_TRUE(createTestFile(testFile));
+
+        const char *argv[] = {"fly", testFile, "--shared", "-o", "out"};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        EXPECT_TRUE(driver.Execute());
+        EXPECT_FALSE(CI.getFrontendOptions().CreateSharedLib);
+
+        deleteTestFile(testFile);
+    }
+
+    // ─── Axis conflicts are diagnosed, never resolved by precedence ───────────
+    // Each of these used to be a silent override: --lib rewrote the format, so a
+    // request for IR came back as an object file without a word.
+
+    TEST_F(DriverTest, LibWithEmitLLIsRejected) {
+        ASSERT_TRUE(createTestFile(testFile));
+
+        const char *argv[] = {"fly", testFile, "--lib", "-emit-ll", "-o", "out.ll"};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        EXPECT_TRUE(driver.Execute());  // rejected cleanly, no crash
+        // The driver bailed out before applying either axis.
+        EXPECT_NE(CI.getFrontendOptions().BackendAction, BackendActionKind::Backend_EmitLL);
+        EXPECT_FALSE(CI.getFrontendOptions().CreateLibrary);
+
+        deleteTestFile(testFile);
+    }
+
+    TEST_F(DriverTest, LibWithCompileOnlyIsRejected) {
+        ASSERT_TRUE(createTestFile(testFile));
+
+        const char *argv[] = {"fly", testFile, "--lib", "-c", "-o", "out"};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        EXPECT_TRUE(driver.Execute());
+        EXPECT_FALSE(CI.getFrontendOptions().CreateLibrary);
+
+        deleteTestFile(testFile);
+    }
+
+    TEST_F(DriverTest, LibWithLibDynIsRejected) {
+        ASSERT_TRUE(createTestFile(testFile));
+
+        const char *argv[] = {"fly", testFile, "--lib", "--lib-dyn", "-o", "out"};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        EXPECT_TRUE(driver.Execute());
+        EXPECT_FALSE(CI.getFrontendOptions().CreateLibrary);
+        EXPECT_FALSE(CI.getFrontendOptions().CreateSharedLib);
+
+        deleteTestFile(testFile);
+    }
+
     // ─── Output conflict detection ────────────────────────────────────────────
-
-    TEST_F(DriverTest, OutputConflictWithEmitLL) {
-        ASSERT_TRUE(createTestFile(testFile));
-
-        const char *argv[] = {"fly", testFile, "-emit-ll", "-o", "out.o"};
-        Driver driver(argv);
-        driver.BuildCompilerInstance();
-        // -o is incompatible with -emit-ll → doExecute=false → Execute() returns true
-        EXPECT_TRUE(driver.Execute());
-
-        deleteTestFile(testFile);
-    }
-
-    TEST_F(DriverTest, OutputConflictWithEmitBC) {
-        ASSERT_TRUE(createTestFile(testFile));
-
-        const char *argv[] = {"fly", testFile, "-emit-bc", "-o", "out.o"};
-        Driver driver(argv);
-        driver.BuildCompilerInstance();
-        EXPECT_TRUE(driver.Execute());
-
-        deleteTestFile(testFile);
-    }
-
-    TEST_F(DriverTest, OutputConflictWithEmitAS) {
-        ASSERT_TRUE(createTestFile(testFile));
-
-        const char *argv[] = {"fly", testFile, "-emit-as", "-o", "out.o"};
-        Driver driver(argv);
-        driver.BuildCompilerInstance();
-        EXPECT_TRUE(driver.Execute());
-
-        deleteTestFile(testFile);
-    }
+    // --no-output emits nothing, so naming an output makes no sense: still rejected.
 
     TEST_F(DriverTest, OutputConflictWithNoOutput) {
         ASSERT_TRUE(createTestFile(testFile));

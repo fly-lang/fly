@@ -10,8 +10,8 @@
 // Covers the single-file build feature added to the driver/frontend:
 //   * output-type auto-detection from the entry AST (main → exe; suite or
 //     main+--test → test exe; otherwise lib), with auto-naming;
-//   * --lib/--shared forcing a library even when a main() is present;
-//   * the gating that keeps explicit/per-target builds (notably flyp's) untouched:
+//   * --lib/--lib-dyn forcing a library even when a main() is present;
+//   * the gating that keeps explicit builds (caller-owned output) untouched:
 //       - auto-detect only with a single input AND no -o AND an object backend;
 //       - import-based dependency pulling ONLY with an explicit --src-dir.
 //
@@ -103,7 +103,7 @@ namespace {
     }
 
     // Explicit -o means the caller already owns the output: auto-detect off.
-    // This is what keeps flyp's per-target builds (always -o) from being reinterpreted.
+    // This is what keeps explicit builds (which always pass -o) from being reinterpreted.
     TEST_F(SingleFileBuildTest, ExplicitOutputDisablesAutoDetect) {
         writeFile("sfb_gate.fly", "namespace demo\nvoid main() {}\n");
         const char *argv[] = {"fly", "sfb_gate.fly", "-o", "sfb_gate_out"};

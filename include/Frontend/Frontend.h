@@ -52,6 +52,12 @@ namespace fly {
 
         llvm::SmallVector<std::string, 4> OutputFiles;
 
+        /// True when ResolveSourceDeps() pulled in modules that were NOT listed on the
+        /// command line (imports resolved from --src-dir / the project root). Those
+        /// modules reference each other, so they must be lowered into a single
+        /// llvm::Module — see the SingleModule decision in Execute().
+        bool PulledSourceDeps = false;
+
         /// The frontend timer group.
         std::unique_ptr<llvm::TimerGroup> FrontendTimerGroup;
 

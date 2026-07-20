@@ -146,29 +146,27 @@ void CodeGen::InitializeTypes(llvm::LLVMContext &LLVMCtx, TargetInfo &Target) {
     ComplexTy = llvm::StructType::create(LLVMCtx, ComplexFields, "complex");
 }
 
+llvm::StringRef CodeGen::getOutputExtension(BackendActionKind Action) {
+    switch (Action) {
+        case Backend_EmitNothing:   return "";
+        case Backend_EmitLL:        return ".ll";
+        case Backend_EmitBC:        return ".bc";
+        case Backend_EmitAssembly:  return ".s";
+        case Backend_EmitObj:       return ".o";
+    }
+    llvm_unreachable("Invalid backend action!");
+}
+
 std::string CodeGen::getOutputFileName(llvm::StringRef BaseInput) {
     FLY_DEBUG_SCOPE("CodeGen", "getOutputFileName");
-    StringRef FileName = llvm::sys::path::filename(BaseInput);
-    std::string Name = FileName.str();//.substr(0,FileName.size()-4/* sizeof('.fly') = 4 */).str();
-    switch (ActionKind) {
-        case Backend_EmitNothing:
-            FLY_DEBUG_MSG("return ''");
-            return "";
-        case Backend_EmitLL:
-            FLY_DEBUG_MSG("return " << Name + ".ll");
-            return Name + ".ll";
-        case Backend_EmitBC:
-            FLY_DEBUG_MSG("return " << Name + ".bc");
-            return Name + ".bc";
-        case Backend_EmitAssembly:
-            FLY_DEBUG_MSG("return " << Name + ".s");
-            return Name + ".s";
-        case Backend_EmitObj:
-            FLY_DEBUG_MSG("return " << Name + ".o");
-            return Name + ".o";
+    if (ActionKind == Backend_EmitNothing) {
+        FLY_DEBUG_MSG("return ''");
+        return "";
     }
-
-    llvm_unreachable("Invalid backend action!");
+    StringRef FileName = llvm::sys::path::filename(BaseInput);
+    std::string Name = FileName.str() + getOutputExtension(ActionKind).str();
+    FLY_DEBUG_MSG("return " << Name);
+    return Name;
 }
 
 std::string str(llvm::Module *M) {

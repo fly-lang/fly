@@ -74,23 +74,27 @@ bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, Fr
     llvm::SmallVector<const char *, 4> Args = {"fly"};
     const std::string OutFileName = FrontendOpts.getOutputFile();
 
+    // A generated .fly.h is a standalone artifact, never an input to the archiver or
+    // the linker. Only the archive path used to filter it, so every linking build that
+    // also emitted a header (--lib-dyn, or --header alongside a normal link) handed
+    // lld the .fly.h and died with "unknown file type".
+    llvm::SmallVector<std::string, 4> ObjFiles;
+    for (const auto &F : InFiles)
+        if (!llvm::StringRef(F).ends_with(".fly.h"))
+            ObjFiles.push_back(F);
+
     // Select right options format by platform (Win or others)
     if (FrontendOpts.CreateLibrary) {
         std::string LibPath = OutFileName;
         if (llvm::sys::path::extension(LibPath).empty())
             LibPath += T.isWindowsMSVCEnvironment() ? ".lib" : ".a";
-        // Only archive object files; .fly.h headers stay as standalone files.
-        llvm::SmallVector<std::string, 4> ObjFiles;
-        for (const auto &F : InFiles)
-            if (!llvm::StringRef(F).ends_with(".fly.h"))
-                ObjFiles.push_back(F);
         Archiver Library(Diag, LibPath);
         return Library.CreateLib(ObjFiles);
     } else {
         if (T.isWindowsMSVCEnvironment()) {
             // Merge user-supplied .lib/.a files (e.g. fly_lib.lib) into the
             // input list so they reach the linker — same as LinkLinux does.
-            llvm::SmallVector<std::string, 4> AllFiles = InFiles;
+            llvm::SmallVector<std::string, 4> AllFiles = ObjFiles;
             for (const auto &Input : FrontendOpts.getInputFiles()) {
                 llvm::StringRef Ext = llvm::sys::path::extension(Input);
                 if (Ext == ".lib" || Ext == ".a")
@@ -98,9 +102,9 @@ bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, Fr
             }
             return LinkWindows(AllFiles, OutFileName);
         } else if (T.isOSDarwin()) {
-            return LinkDarwin(InFiles, OutFileName);
+            return LinkDarwin(ObjFiles, OutFileName);
         } else {
-            return LinkLinux(InFiles, OutFileName, FrontendOpts);
+            return LinkLinux(ObjFiles, OutFileName, FrontendOpts);
         }
     }
 
@@ -501,9 +505,22 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     llvm::SmallVector<std::string, 16> CmdArgs;
     CmdArgs.push_back("lld-link");
 
-    // Out file
-    std::string Out = "/out:" + OutFile + ".exe";
+    // Out file. A dynamic library (--lib-dyn) is a .dll produced with /dll — which also
+    // yields its import .lib; anything else is an .exe. Without /dll lld-link stops at
+    // "subsystem must be defined", which is why a dynamic library never linked on
+    // Windows (the flag was spelled --shared before 0.13.9):
+    // LinkLinux honours CodeGenOpts.Shared (-shared) but this path never did.
+    // The extension is appended only when -o did not carry one, so `-o app` gives
+    // app.exe while `-o app.exe` is not turned into app.exe.exe. Same rule as the
+    // archive path and as the emit path in the Frontend.
+    const bool BuildDll = CodeGenOpts.Shared;
+    std::string OutPath = OutFile;
+    if (llvm::sys::path::extension(OutPath).empty())
+        OutPath += BuildDll ? ".dll" : ".exe";
+    std::string Out = "/out:" + OutPath;
     CmdArgs.push_back(Out.c_str());
+    if (BuildDll)
+        CmdArgs.push_back("/dll");
 
     // Toolchain LLVM lib dir, auto-discovered as <fly_bin>/../llvm/lib.
     // Lets native [link] deps (e.g. LLVM-20.lib) resolve without a manual LIB setup.
