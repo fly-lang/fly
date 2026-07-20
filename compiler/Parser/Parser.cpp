@@ -172,8 +172,14 @@ ASTModule *Parser::ParseHeader() {
         //   2. named single return:        "File name(...)"
         //   3. builtin multi-return:       "string, string name(...)"
         //   4. mixed multi-return:         "string, File name(...)"
-        // For multi-return we consume all type tokens but only record the first.
+        // Multi-return records EVERY type: the Resolver lowers them into the
+        // __out_N params that make up the real ABI, and it drives that off
+        // getReturnTypes(). Keeping only the first (as this did) left the function
+        // with neither a return type nor return types — a plain void declaration
+        // with just the written params — so `string, string split(const string)`
+        // came back as `split(string)` and no caller could ever match it.
         ASTType *HeaderRetType = nullptr;
+        SmallVector<ASTType *, 4> HeaderRetTypes;
         bool isMultiReturn = false;
         if (isBuiltinType(Tok) || isNamedReturnType()) {
             std::optional<Token> LA = Lexer::findNextToken(Tok.getLocation(), SourceMgr);
@@ -191,12 +197,13 @@ ASTModule *Parser::ParseHeader() {
                 LA = N;
             }
             if (LA && LA->is(tok::comma)) {
-                // Multi-return: consume all "T," pairs, record only the first type.
+                // Multi-return: consume all "T," pairs, keeping every type.
                 isMultiReturn = true;
                 HeaderRetType = ParseType();
+                HeaderRetTypes.push_back(HeaderRetType);
                 while (Tok.is(tok::comma)) {
                     ConsumeToken(); // consume ','
-                    ParseType();    // consume the next type; result discarded
+                    HeaderRetTypes.push_back(ParseType());
                 }
             } else if (LA && (LA->isAnyIdentifier() || LA->is(tok::l_paren))) {
                 HeaderRetType = ParseType();
@@ -238,9 +245,12 @@ ASTModule *Parser::ParseHeader() {
         }
 
         // Set return type from leading keyword (new syntax), if any and non-void.
-        // Multi-return functions leave ReturnType unset (void) since the Resolver
-        // creates individual __out_N params at the call level.
-        if (HeaderRetType && !isMultiReturn) {
+        // Multi-return leaves ReturnType unset and hands the Resolver the full list
+        // instead: it is what creates the individual __out_N params, mirroring how
+        // ParseFunction treats a multi-return definition.
+        if (isMultiReturn) {
+            Function->setReturnTypes(HeaderRetTypes);
+        } else if (HeaderRetType) {
             bool IsVoid = HeaderRetType->getTypeKind() == ASTTypeKind::TYPE_BUILTIN &&
                           static_cast<ASTBuiltinType *>(HeaderRetType)->getBuiltinKind() == ASTBuiltinTypeKind::TYPE_VOID;
             if (!IsVoid) {

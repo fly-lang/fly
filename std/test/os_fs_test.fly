@@ -89,4 +89,21 @@ void main() {
     fs.dirDeleteAll(test_dir)
     b = fs.exists(test_dir)
     assert.assertFalse(b, 110)
+
+    // ── tempFile: NOT covered here, deliberately ──────────────────────────────
+    // fly.os.fs.tempFile is the only multi-return function in this namespace, and
+    // the only one anywhere with a MIXED type list (`string, File`). Writing a test
+    // for it surfaced two defects that have nothing to do with the caller side:
+    //
+    //   1. it never appends its unique suffix — `tempFile(".", "flytmp_", …)`
+    //      returns "./flytmp_" verbatim, so a second call always collides with the
+    //      first file and burns all 10000 attempts;
+    //   2. the returned File does not carry the descriptor back: the success path
+    //      runs (the name IS returned) yet the caller's File still reports an
+    //      invalid fd — a struct out-parameter that does not reach the caller.
+    //
+    // Asserting either one would freeze broken behaviour into the suite, and
+    // working around them would hide the defects. The signature side of the mixed
+    // multi-return IS covered, at the header level, by
+    // FrontendTest's HeaderGenTest.MultiReturnWithNamedType.
 }

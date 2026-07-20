@@ -346,6 +346,21 @@ namespace {
         deleteTestFile(testFile);
     }
 
+    // --shared was the pre-0.13.9 spelling and is gone: the dynamic library is
+    // requested with --lib-dyn / --lib-dynamic only. It must be rejected as an
+    // unknown option rather than silently swallowed as an input file name.
+    TEST_F(DriverTest, SharedFlagIsGone) {
+        ASSERT_TRUE(createTestFile(testFile));
+
+        const char *argv[] = {"fly", testFile, "--shared", "-o", "out"};
+        Driver driver(argv);
+        CompilerInstance &CI = driver.BuildCompilerInstance();
+        EXPECT_TRUE(driver.Execute());
+        EXPECT_FALSE(CI.getFrontendOptions().CreateSharedLib);
+
+        deleteTestFile(testFile);
+    }
+
     // ─── Axis conflicts are diagnosed, never resolved by precedence ───────────
     // Each of these used to be a silent override: --lib rewrote the format, so a
     // request for IR came back as an object file without a word.

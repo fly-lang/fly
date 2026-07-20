@@ -135,8 +135,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     // Linked-artifact shape: what the LINK step produces. Independent of the format
     // above — combining these with --emit-* is a diagnosed error, never an override.
     app.add_flag("--lib,--lib-static",      OutputLib,    "Produce a static library (.a/.lib)");
-    app.add_flag("--lib-dyn,--lib-dynamic,--shared",
-                                            OutputShared, "Produce a dynamic library (.so/.dylib/.dll)");
+    app.add_flag("--lib-dyn,--lib-dynamic", OutputShared, "Produce a dynamic library (.so/.dylib/.dll)");
     app.add_option("--log-file",    LogFile,      "Log diagnostics to <file>");
     app.add_option("--log-format",  LogFormat,    "Log format: txt (default) or json")->check(CLI::IsMember({"txt", "json"}));
     app.add_option("--mcmodel",     McModel,      "Set memory code model");

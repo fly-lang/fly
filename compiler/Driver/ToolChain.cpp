@@ -507,7 +507,8 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
 
     // Out file. A dynamic library (--lib-dyn) is a .dll produced with /dll — which also
     // yields its import .lib; anything else is an .exe. Without /dll lld-link stops at
-    // "subsystem must be defined", which is why --shared never worked on Windows:
+    // "subsystem must be defined", which is why a dynamic library never linked on
+    // Windows (the flag was spelled --shared before 0.13.9):
     // LinkLinux honours CodeGenOpts.Shared (-shared) but this path never did.
     // The extension is appended only when -o did not carry one, so `-o app` gives
     // app.exe while `-o app.exe` is not turned into app.exe.exe. Same rule as the

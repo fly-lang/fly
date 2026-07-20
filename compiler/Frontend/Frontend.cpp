@@ -121,7 +121,23 @@ static std::string funcSignatureStr(const ASTFunction *F) {
     // generated header must be explicit (the self-host parser rejects a function with
     // no return type). Mirrors the method-signature path.
     if (!ret.empty()) sig += ret + " ";
-    else sig += "void ";
+    else {
+        // MULTI-RETURN (`A,B f(x)`): getReturnType() is null, but collapsing that to
+        // `void` here DROPS the extra returns. A header consumer would then build the
+        // call with too few arguments for the archive symbol's real ABI
+        // (errPtr, params…, __out_0, …, __out_N) and crash in the backend.
+        std::string multi;
+        bool firstRT = true;
+        for (const auto *RT : F->getReturnTypes()) {
+            const std::string s = typeStr(RT);
+            if (s.empty()) continue;
+            if (!firstRT) multi += ", ";
+            multi += s;
+            firstRT = false;
+        }
+        if (!multi.empty()) sig += multi + " ";
+        else sig += "void ";
+    }
     sig += F->getName().str() + "(";
     bool first = true;
     for (const auto *P : F->getParams()) {
@@ -141,7 +157,7 @@ static std::string funcSignatureStr(const ASTFunction *F) {
 // LoadLibHeaders falls through to load it directly.
 static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags,
                                    llvm::StringRef OutDir = "") {
-    // When OutDir is set (--lib / --shared), write the header flat into OutDir
+    // When OutDir is set (--lib / --lib-dyn), write the header flat into OutDir
     // so it lands alongside the archive rather than next to the source file.
     auto makeHeaderPath = [&](llvm::StringRef stem) -> std::string {
         if (OutDir.empty())
@@ -413,7 +429,7 @@ bool Frontend::Execute() {
     }
 
     // Auto-detect output type from the entry file's AST (single-file build with no
-    // --lib/--shared). May set CreateLibrary/TestMode and auto-name the output.
+    // --lib/--lib-dyn). May set CreateLibrary/TestMode and auto-name the output.
     if (CI.getFrontendOptions().AutoDetectOutput && !ASTModules.empty())
         AutoDetectOutputType(ASTModules.back());
 
@@ -625,7 +641,7 @@ void Frontend::AutoDetectOutputType(ASTModule *M) {
     std::string stem = llvm::sys::path::stem(
         llvm::sys::path::filename(FO.getInputFiles()[0])).str();
 
-    // Forced library (--lib/--shared): keep the library behaviour set by the Driver,
+    // Forced library (--lib/--lib-dyn): keep the library behaviour set by the Driver,
     // even when a main() is present. Only auto-name the output (ToolChain appends the
     // platform extension: .a/.lib for static, .so/.dylib/.dll for shared).
     if (FO.CreateLibrary || FO.CreateSharedLib) {

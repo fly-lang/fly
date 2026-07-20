@@ -10,7 +10,7 @@
 // Covers the single-file build feature added to the driver/frontend:
 //   * output-type auto-detection from the entry AST (main → exe; suite or
 //     main+--test → test exe; otherwise lib), with auto-naming;
-//   * --lib/--shared forcing a library even when a main() is present;
+//   * --lib/--lib-dyn forcing a library even when a main() is present;
 //   * the gating that keeps explicit builds (caller-owned output) untouched:
 //       - auto-detect only with a single input AND no -o AND an object backend;
 //       - import-based dependency pulling ONLY with an explicit --src-dir.

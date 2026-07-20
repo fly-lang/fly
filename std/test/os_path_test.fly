@@ -57,6 +57,30 @@ void main() {
     s = path.dirname("baz.fly")
     assert.assertStr(s, ".", 57)
 
+    // ── split / splitExt: the MULTI-RETURN pair ───────────────────────────────
+    // Outputs are passed as trailing arguments — that is the lowered ABI the
+    // compiler actually exposes, and the form a consumer of the generated .fly.h
+    // has to be able to build. These two were the only multi-return functions in
+    // fly.os.path and had no coverage at all.
+    string sdir = ""
+    string sbase = ""
+    path.split("/foo/bar/baz.fly", sdir, sbase)
+    assert.assertStr(sdir, "/foo/bar", 58)
+    assert.assertStr(sbase, "baz.fly", 59)
+
+    string sstem = ""
+    string sext = ""
+    path.splitExt("foo.fly", sstem, sext)
+    assert.assertStr(sstem, "foo", 71)
+    assert.assertStr(sext, ".fly", 72)
+
+    // No extension: the stem is the whole name and the extension is empty.
+    string nstem = ""
+    string next = ""
+    path.splitExt("foo", nstem, next)
+    assert.assertStr(nstem, "foo", 73)
+    assert.assertStr(next, "", 74)
+
     n = path.compCount("/foo/bar/baz")
     assert.assertEqI(n, 3, 60)
     n = path.compCount("a/b")
