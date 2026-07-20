@@ -469,10 +469,22 @@ bool Frontend::Execute() {
         for (auto *SM : SemaModules)
             if (!SM->getAST().isHeader())
                 CompilableModules.push_back(SM);
-        // A single explicit -o output means a single linked artifact (lib/shared/exe):
-        // lower all input files into one module so cross-file references resolve.
-        // Without -o, each file is emitted to its own .ll/.bc/.s/.o.
-        bool SingleModule = !CI.getFrontendOptions().getOutputFile().empty();
+        const BackendActionKind Action = CI.getFrontendOptions().BackendAction;
+        const bool IsEmitAction = Action == BackendActionKind::Backend_EmitLL ||
+                                  Action == BackendActionKind::Backend_EmitBC ||
+                                  Action == BackendActionKind::Backend_EmitAssembly;
+        const std::string &ExplicitOut = CI.getFrontendOptions().getOutputFile();
+
+        // A single explicit -o output means a single artifact: lower all input files into
+        // one module so cross-file references resolve. Without -o, each file is emitted to
+        // its own .ll/.bc/.s/.o.
+        //
+        // An emit action (--emit-ll/-bc/-as) that pulled dependency modules through
+        // imports (--src-dir / project root) MUST also use the single-module path even
+        // without -o: those modules reference each other, and per-file lowering leaves a
+        // call to a sibling module's function as a bodyless stub whose CodeGen is null
+        // (crash). Explicitly listed inputs with no resolved deps keep per-file emission.
+        bool SingleModule = !ExplicitOut.empty() || (IsEmitAction && PulledSourceDeps);
         llvm::SmallVector<llvm::Module *, 8> Modules = CG.GenerateModules(CompilableModules, SingleModule);
 
         // Emit code base on BackendActionKind
@@ -481,7 +493,24 @@ bool Frontend::Execute() {
             // M->getName() is the source filename (e.g. "main.fly"); getOutputFileName
             // turns it into "main.fly.o" / "main.fly.ll" etc. Redirect under --out-dir
             // when set, and pass the resolved path to Emit so it lands there.
-            std::string OutFile = underOutDir(OutDir, CG.getOutputFileName(M->getName()));
+            //
+            // -o names the artifact of the LAST stage actually performed. When there is
+            // no link step (--emit-ll/-bc/-as or -c) that stage is this one, so write
+            // straight to it — the path was already resolved under --out-dir above. When
+            // linking, -o belongs to the linked artifact and the intermediate object
+            // keeps its derived name.
+            //
+            // -o needs no extension: the one implied by the format is appended when
+            // absent, so `--emit-ll -o out` writes out.ll and `-c -o out` writes out.o.
+            // An extension the user did spell out is left alone (`-o out.txt` stays
+            // out.txt) — same rule --lib has always followed for the archive name.
+            const bool NamesThisArtifact =
+                !CI.getFrontendOptions().LinkStep && !ExplicitOut.empty();
+            std::string OutFile = NamesThisArtifact
+                                      ? ExplicitOut
+                                      : underOutDir(OutDir, CG.getOutputFileName(M->getName()));
+            if (NamesThisArtifact && llvm::sys::path::extension(OutFile).empty())
+                OutFile += CodeGen::getOutputExtension(Action).str();
             CG.Emit(M, OutFile);
             if (!OutFile.empty())
                 OutputFiles.push_back(OutFile);
@@ -669,6 +698,14 @@ void Frontend::ResolveSourceDeps(ASTBuilder &Builder) {
     // Namespaces already served by parsed HEADER modules (.fly.h from the stdlib
     // and -L dirs): their symbols link from compiled archives — never pull their
     // sources, even when a source tree with the same namespaces is in reach.
+    // Files the command line already lists. ResolveSourceDeps runs BEFORE the remaining
+    // explicit inputs are parsed, so an import can resolve to a file the user listed
+    // anyway: pulling one of those is NOT a hidden dependency, and must not switch an
+    // emit build to the combined-module path (the user asked for per-file emission).
+    llvm::StringSet<> ExplicitInputs;
+    for (const auto &In : FO.getInputFiles())
+        ExplicitInputs.insert(llvm::sys::path::filename(In));
+
     llvm::StringSet<> HeaderNs;
     for (auto *M : ASTModules)
         if (M->isHeader() && M->getNameSpace()) {
@@ -752,6 +789,11 @@ void Frontend::ResolveSourceDeps(ASTBuilder &Builder) {
                 Diags.getClient()->BeginSourceFile();
                 ParseFile(Builder, Path);
                 Diags.getClient()->EndSourceFile();
+                // A module the command line did NOT list was pulled in: it and the
+                // importer reference each other, so they cannot be lowered per-file.
+                // A file the user listed anyway keeps the explicit per-file behaviour.
+                if (!ExplicitInputs.count(Fname))
+                    PulledSourceDeps = true;
             }
             // Done with this namespace; avoid re-processing it for other modules.
             NsToFiles.erase(it);

@@ -51,8 +51,10 @@ namespace fly {
         std::vector<std::string> LinkLibs;  // --link-lib flags: external C libs to link (-lNAME)
         std::string OutDirOpt;              // --out-dir: directory for all generated build outputs
         std::string OutputFile;
-        bool OutputLib    = false;
-        bool OutputShared = false;
+        // Linked-artifact shape (an axis of its own: it says what the LINK step
+        // produces, never what the backend emits — see BuildOptions()).
+        bool OutputLib    = false;  // --lib / --lib-static:  static archive
+        bool OutputShared = false;  // --lib-dyn / --lib-dynamic: shared library
         std::string LogFile;
         std::string LogFormat;
         std::string WorkingDir;
@@ -70,7 +72,8 @@ namespace fly {
         bool EmitLL       = false;
         bool EmitBC       = false;
         bool EmitAS       = false;
-        bool NoOutput     = false;
+        bool NoOutput     = false;  // --no-output: parse/analyse only, emit nothing
+        bool CompileOnly  = false;  // -c: emit the artifact, stop before linking
         bool HeaderGen    = false;
         bool PrintStats   = false;
         bool FtimeReport  = false;

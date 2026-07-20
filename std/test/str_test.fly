@@ -135,6 +135,26 @@ void main() {
     s = str.replace("abc", "xyz", "Z")
     assert.assertStr(s, "abc", 182)
 
+    // ── replace: ADJACENT matches ─────────────────────────────────────────────
+    // The cases above all have matches separated by other bytes, so they passed
+    // even while the occurrence count advanced one byte too far after a hit and
+    // skipped any match starting right where the previous one ended. Undercounting
+    // occurrences mis-sizes the destination buffer:
+    //   - a LONGER replacement makes it too small → the write loop runs past the
+    //     allocation (heap overflow);
+    //   - a SHORTER one makes it too large → the tail keeps uninitialised bytes.
+    // Every case below has back-to-back matches, which is what exercises that.
+    s = str.replace("aa", "a", "bb")
+    assert.assertStr(s, "bbbb", 183)
+    s = str.replace("aaaa", "aa", "c")
+    assert.assertStr(s, "cc", 184)
+    s = str.replace("aaab", "a", "")
+    assert.assertStr(s, "b", 185)
+    s = str.replace("aa", "a", "b")
+    assert.assertStr(s, "bb", 186)
+    s = str.replace("xaayaa", "aa", "ZZZ")
+    assert.assertStr(s, "xZZZyZZZ", 187)
+
     // ── convert ───────────────────────────────────────────────────────────────
     s = str.convert(0)
     assert.assertStr(s, "0", 190)

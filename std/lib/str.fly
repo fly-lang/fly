@@ -446,11 +446,16 @@ public string replace(const string src, const string from, const string to) {
                 }
                 cj = cj + 1
             }
+            // Advance by |from| on a hit and by 1 otherwise — never both, or
+            // ADJACENT matches get skipped and `occ` undercounts. The write loop
+            // below replaces every match, so an undercount makes newSize too
+            // large and strMake trails uninitialized bytes. Mirrors count().
             if cm {
                 occ = occ + 1
                 ci = ci + fs
+            } else {
+                ci = ci + 1
             }
-            ci = ci + 1
         }
     }
     int newSize = ss + occ * (ts - fs)
