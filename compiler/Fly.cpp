@@ -54,10 +54,11 @@ int main(int Argc, const char **Argv) {
 
     Driver TheDriver(Args);
     CompilerInstance &CI = TheDriver.BuildCompilerInstance();
-    bool Result = !TheDriver.Execute();
+    bool Success = TheDriver.Execute();
 
     // Shutdown after execution
     llvm::llvm_shutdown();
 
-    return Result;
+    // --suite propagates the executed suite's exit code (0 when unused).
+    return Success ? TheDriver.getRunExitCode() : 1;
 }

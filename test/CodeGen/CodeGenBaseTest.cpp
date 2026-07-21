@@ -1598,10 +1598,22 @@ namespace {
                         "  call void @env_init(i32 %0, ptr %1)\n"
                         "  %7 = getelementptr inbounds %error, ptr %3, i32 0, i32 0\n"
                         "  %8 = load i32, ptr %7, align 4\n"
+                        "  %9 = icmp ne i32 %8, 0\n"
+                        "  br i1 %9, label %err, label %exit\n"
+                        "\n"
+                        "err:                                              ; preds = %entry\n"
+                        "  %10 = getelementptr inbounds %error, ptr %3, i32 0, i32 1\n"
+                        "  %11 = load ptr, ptr %10, align 8\n"
+                        "  call void @err_print(i32 %8, ptr %11)\n"
+                        "  br label %exit\n"
+                        "\n"
+                        "exit:                                             ; preds = %err, %entry\n"
                         "  ret i32 %8\n"
                         "}\n"
                         "\n"
-                        "declare void @env_init(i32, ptr)\n");
+                        "declare void @env_init(i32, ptr)\n"
+                        "\n"
+                        "declare void @err_print(i32, ptr)\n");
     }
 
     TEST_F(CodeGenTest, CGFuncCallWithParams) {

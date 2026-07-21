@@ -24,6 +24,7 @@
 #include "AST/ASTEnum.h"
 #include "AST/ASTExpr.h"
 #include "AST/ASTFunction.h"
+#include "AST/ASTHandleStmt.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTImport.h"
 #include "AST/ASTModule.h"
@@ -762,6 +763,14 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 		ASTLocalVar *LocalVar = ASTBuilder::CreateLocalVar(Loc, T, Name, Modifiers);
 		Identifier = ASTBuilder::CreateIdentifier(LocalVar);
 
+		// Error-handle binding: "error err handle { ... }". The declared var IS
+		// the handle's error handler — no separate DeclStmt is created.
+		if (Tok.is(tok::kw_handle) && T->getTypeKind() == ASTTypeKind::TYPE_BUILTIN &&
+			static_cast<ASTBuiltinType *>(T)->getBuiltinKind() == ASTBuiltinTypeKind::TYPE_ERROR) {
+			ParseHandleStmt(Parent, LocalVar);
+			return;
+		}
+
 		// Check for initialization: "Type name = expr"
 		if (isAssignOperator(Tok)) {
 			ASTDeclStmt *DeclStmt = ASTBuilder::CreateDeclStmt(Parent, Tok.getLocation(), LocalVar);
@@ -1411,7 +1420,7 @@ void Parser::ParseForStmt(ASTBlockStmt *Parent) {
     ParseBlockOrStmt(LoopBlock);
 }
 
-void Parser::ParseHandleStmt(ASTBlockStmt *Parent) {
+void Parser::ParseHandleStmt(ASTBlockStmt *Parent, ASTLocalVar *ErrorVar) {
 	FLY_DEBUG_SCOPE("Parser", "ParseHandleStmt");
     assert(Tok.is(tok::kw_handle) && "Token is handle keyword");
 
@@ -1422,7 +1431,8 @@ void Parser::ParseHandleStmt(ASTBlockStmt *Parent) {
     // Parse statement between braces
     ASTBlockStmt *HandleBlock = ASTBuilder::CreateBlockStmt(HandleLoc);
     ParseBlockOrStmt(HandleBlock);
-    ASTBuilder::CreateHandleStmt(Parent, HandleLoc, HandleBlock);
+    ASTHandleStmt *Stmt = ASTBuilder::CreateHandleStmt(Parent, HandleLoc, HandleBlock);
+    Stmt->setErrorVar(ErrorVar);
 }
 
 void Parser::ParseFailStmt(ASTBlockStmt *Parent) {

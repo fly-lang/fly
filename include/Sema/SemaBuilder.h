@@ -151,6 +151,9 @@ namespace fly {
 
 		static SemaError * CreateErrorHandler();
 
+		// Named form: the handler wraps the "error err handle" declared var.
+		static SemaError * CreateErrorHandler(ASTVar *AST);
+
     	static SemaCall *CreateCall(ASTCall &Call, SemaType *Type, SemaFunctionBase *Function);
 
     	static SemaUnary *CreateUnary(ASTUnary &AST, SemaExpr *Expr);

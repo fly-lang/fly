@@ -1,5 +1,5 @@
 ######################################
-# flyp-registry unit tests
+# fly-registry unit tests
 ######################################
 add_executable(registry_test RegistryHandlerTest.cpp)
 

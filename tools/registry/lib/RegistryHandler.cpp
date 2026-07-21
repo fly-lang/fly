@@ -7,7 +7,7 @@
 #include <sstream>
 #include <vector>
 
-namespace flyp::registry {
+namespace fly::registry {
 
 // ── Response ──────────────────────────────────────────────────────────────────
 
@@ -235,4 +235,4 @@ Response RegistryHandler::handle(const Request& req) const {
     return {400, "text/plain", "bad request"};
 }
 
-} // namespace flyp::registry
+} // namespace fly::registry

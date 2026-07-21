@@ -392,6 +392,13 @@ SemaError *SemaBuilder::CreateErrorHandler() {
 	return Sema;
 }
 
+SemaError *SemaBuilder::CreateErrorHandler(ASTVar *AST) {
+	FLY_DEBUG_SCOPE("SemaBuilder", "CreateErrorHandler");
+
+	SemaError * Sema = new SemaError(AST);
+	return Sema;
+}
+
 SemaUnary *SemaBuilder::CreateUnary(ASTUnary &AST, SemaExpr *Expr) {
 	FLY_DEBUG_SCOPE("SemaBuilder", "CreateUnary");
 

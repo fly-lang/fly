@@ -65,24 +65,41 @@ llvm::StoreInst *CodeGenError::StoreInt(llvm::Value *Val) {
 }
 
 llvm::StoreInst *CodeGenError::StoreString(llvm::Value *Val) {
-    // Extract the ptr field from the string struct { i8*, i32 }
+    // Extract ptr and size from the string struct { i8*, i32 }
     llvm::Value *Ptr = CGM->Builder->CreateExtractValue(Val, 0);
+    llvm::Value *Size = CGM->Builder->CreateExtractValue(Val, 1);
     this->Store(Ptr);
+
+    // The error struct carries only the pointer, so the message must be a
+    // NUL-terminated C string (err_print's contract) and must outlive the
+    // failing function's locals (fail frees them via EmitAllocCleanup).
+    // Copy it into a fresh malloc'd buffer with a terminator: malloc(size+1),
+    // memcpy, buf[size] = 0. Leaked by design — the error path ends the run.
+    llvm::Value *SizeExt = CGM->Builder->CreateZExt(Size, CodeGen::IntPtrTy, "err_msg_size");
+    llvm::Value *BufSize = CGM->Builder->CreateAdd(SizeExt,
+        llvm::ConstantInt::get(CodeGen::IntPtrTy, 1), "err_buf_size");
+    llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
+        "malloc",
+        llvm::FunctionType::get(
+            llvm::PointerType::getUnqual(CGM->LLVMCtx),
+            {CodeGen::IntPtrTy}, false));
+    llvm::Value *Buf = CGM->Builder->CreateCall(MallocFn, {BufSize}, "err_msg");
+    CGM->Builder->CreateMemCpy(Buf, llvm::MaybeAlign(), Ptr, llvm::MaybeAlign(), SizeExt);
+    llvm::Value *End = CGM->Builder->CreateGEP(CodeGen::Int8Ty, Buf, SizeExt, "err_msg_end");
+    CGM->Builder->CreateStore(llvm::ConstantInt::get(CodeGen::Int8Ty, 0), End);
+
     // Error: {errorInt: i32, errorPointer: *i8, errorObject: *i8}
     llvm::Value *One = llvm::ConstantInt::get(CodeGen::Int32Ty, 1);
     llvm::Value *ErrorVar = Load();
     llvm::Value *ValuePtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {CodeGen::Zero, One});
-    return CGM->Builder->CreateStore(Ptr, ValuePtr);
+    return CGM->Builder->CreateStore(Buf, ValuePtr);
 }
 
 llvm::StoreInst *CodeGenError::StoreObject(llvm::Value *Val) {
     // Error: {errorInt: i32, errorString: ptr, errorObject: ptr}
-    // Set field 0 = 1 so callers detect an error via the integer field
-    llvm::Value *ErrorVar = Load();
-    llvm::Value *IntPtr = CGM->Builder->CreateInBoundsGEP(T, ErrorVar, {CodeGen::Zero, CodeGen::Zero});
-    CGM->Builder->CreateStore(llvm::ConstantInt::get(CodeGen::Int32Ty, 1), IntPtr);
-
-    // Store the object pointer at field 2
+    // The integer field is NOT touched here: visit(SemaFailStmt) defaults it
+    // to 1 when no explicit code is given, and must not clobber an explicit
+    // one (`fail 404, new Ctx()` keeps 404).
     llvm::Value *Two = llvm::ConstantInt::get(CodeGen::Int32Ty, 2);
     llvm::Value *ValuePtr = CGM->Builder->CreateInBoundsGEP(T, getValue(), {CodeGen::Zero, Two});
     return CGM->Builder->CreateStore(Val, ValuePtr);

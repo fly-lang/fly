@@ -29,6 +29,14 @@ ASTBlockStmt* ASTHandleStmt::getHandle() const {
     return Handle;
 }
 
+ASTLocalVar *ASTHandleStmt::getErrorVar() const {
+    return ErrorVar;
+}
+
+void ASTHandleStmt::setErrorVar(ASTLocalVar *V) {
+    ErrorVar = V;
+}
+
 
 
 std::string ASTHandleStmt::str() const {

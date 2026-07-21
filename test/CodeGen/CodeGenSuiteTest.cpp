@@ -103,8 +103,15 @@ TEST_F(CodeGenTest, CGSuiteImplicitMain) {
     // At least one suite method function must be present
     EXPECT_TRUE(output.find("MinimalSuite") != std::string::npos);
 
-    // main() must return 0
-    EXPECT_TRUE(output.find("ret i32 0") != std::string::npos);
+    // Pass/fail counters drive the report and the exit code:
+    // main() returns zext(failed != 0) — 0 all-pass, 1 otherwise.
+    EXPECT_TRUE(output.find("@__fly_suite_total") != std::string::npos);
+    EXPECT_TRUE(output.find("@__fly_suite_failed") != std::string::npos);
+    EXPECT_TRUE(output.find("zext i1") != std::string::npos);
+
+    // Report goes through the runtime helpers
+    EXPECT_TRUE(output.find("suite_begin") != std::string::npos);
+    EXPECT_TRUE(output.find("suite_end") != std::string::npos);
 }
 
 // ---------------------------------------------------------------------------
@@ -130,9 +137,12 @@ TEST_F(CodeGenTest, CGSuiteTestMethodCaseBlocks) {
     EXPECT_TRUE(output.find("case.positive") != std::string::npos);
     EXPECT_TRUE(output.find("case.negative") != std::string::npos);
 
-    // Each case block allocates its own fresh error handler
-    EXPECT_TRUE(output.find("case_err.positive") != std::string::npos);
-    EXPECT_TRUE(output.find("case_err.negative") != std::string::npos);
+    // Each case reports its outcome at a dedicated end block and consumes the
+    // shared error struct there (per-case isolation)
+    EXPECT_TRUE(output.find("case.end.positive") != std::string::npos);
+    EXPECT_TRUE(output.find("case.end.negative") != std::string::npos);
+    EXPECT_TRUE(output.find("suite_case_begin") != std::string::npos);
+    EXPECT_TRUE(output.find("suite_case_result") != std::string::npos);
 }
 
 // ---------------------------------------------------------------------------
@@ -189,9 +199,10 @@ TEST_F(CodeGenTest, CGSuiteNoSetupNoTeardown) {
     Generate();
     std::string output = getOutput(getModules()[0]);
 
-    // main() must still be valid
+    // main() must still be valid: exit code derived from the failed counter
     EXPECT_TRUE(output.find("define i32 @main()") != std::string::npos);
-    EXPECT_TRUE(output.find("ret i32 0") != std::string::npos);
+    EXPECT_TRUE(output.find("@__fly_suite_failed") != std::string::npos);
+    EXPECT_TRUE(output.find("zext i1") != std::string::npos);
 
     // No mention of setup or teardown
     EXPECT_EQ(output.find("_F5setup"),    std::string::npos);

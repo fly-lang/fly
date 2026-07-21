@@ -1,4 +1,4 @@
-# End-to-end test: compile a Fly program with --debug and verify that
+# End-to-end test: compile a Fly program with --debug-symbols and verify that
 # llvm-dwarfdump reports valid DWARF info (compile unit, variables, line info).
 #
 # Supports Windows (PowerShell 5.1+).
@@ -52,7 +52,7 @@ try {
 
 # ── Fly source ─────────────────────────────────────────────────────────────────
 $Source = @"
-main() {
+void main() {
     int a = 10
     int b = 20
     int c = a + b
@@ -61,8 +61,9 @@ main() {
 Set-Content -Path "$Work\dbg_test.fly" -Value $Source -Encoding UTF8
 
 # ── Compile with debug symbols ─────────────────────────────────────────────────
-# Redirect stderr: --debug also enables DebugLog which produces massive compiler output.
-$compileOut = & $FlyBin --debug "$Work\dbg_test.fly" $FlyStd -o "$Work\dbg_test.exe" 2>$null
+# --debug-symbols emits DWARF without the verbose DebugLog that --debug adds,
+# so stderr stays readable and is worth showing on failure.
+$compileOut = & $FlyBin --debug-symbols "$Work\dbg_test.fly" $FlyStd -o "$Work\dbg_test.exe" 2>&1
 if ($LASTEXITCODE -ne 0) {
     Write-Host "FAIL: compilation failed"
     Write-Host $compileOut

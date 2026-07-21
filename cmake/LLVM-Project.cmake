@@ -74,6 +74,14 @@ if(MSVC)
                 COMMAND "${_vswhere}" -latest -property installationPath
                 OUTPUT_VARIABLE _vs_install_path
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
+            # -latest ignores prerelease installs (e.g. VS Insiders); retry
+            # including them when no release install was found.
+            if(NOT _vs_install_path)
+                execute_process(
+                    COMMAND "${_vswhere}" -latest -prerelease -property installationPath
+                    OUTPUT_VARIABLE _vs_install_path
+                    OUTPUT_STRIP_TRAILING_WHITESPACE)
+            endif()
         endif()
         # Fallback to VSINSTALLDIR env var if vswhere is not available
         if(NOT _vs_install_path AND DEFINED ENV{VSINSTALLDIR})

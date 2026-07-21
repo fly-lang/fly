@@ -13,16 +13,16 @@ target_include_directories(registry_lib PUBLIC
 )
 
 ######################################
-# flyp-registry — server executable
+# fly-registry — server executable
 ######################################
-add_executable(flyp-registry FlypRegistry.cpp)
+add_executable(fly-registry FlyRegistry.cpp)
 
-target_link_libraries(flyp-registry PRIVATE
+target_link_libraries(fly-registry PRIVATE
     registry_lib
     CLI11::CLI11
 )
 
-set_target_properties(flyp-registry PROPERTIES
+set_target_properties(fly-registry PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY             "${CMAKE_BINARY_DIR}/bin"
     RUNTIME_OUTPUT_DIRECTORY_DEBUG       "${CMAKE_BINARY_DIR}/bin"
     RUNTIME_OUTPUT_DIRECTORY_RELEASE     "${CMAKE_BINARY_DIR}/bin"
@@ -30,7 +30,7 @@ set_target_properties(flyp-registry PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL  "${CMAKE_BINARY_DIR}/bin"
 )
 
-install(TARGETS flyp-registry RUNTIME DESTINATION bin)
+install(TARGETS fly-registry RUNTIME DESTINATION bin)
 
 ######################################
 # Tests

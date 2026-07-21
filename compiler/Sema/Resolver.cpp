@@ -84,6 +84,7 @@
 #include <Sema/SemaEnumEntry.h>
 #include <Sema/SemaEnumList.h>
 #include <Sema/SemaEnumAccessor.h>
+#include <Sema/SemaError.h>
 #include <Sema/SemaFunction.h>
 #include <Sema/SemaLocalVar.h>
 #include <Sema/SemaParam.h>
@@ -1063,7 +1064,17 @@ void Resolver::visit(ASTHandleStmt &AST) {
 	ASTHandleStmt *ParentHandle = CurrentHandleStmt;
 	CurrentHandleStmt = &AST;
 
-	CurrentErrorHandler = SemaBuilder::CreateErrorHandler();
+	if (AST.getErrorVar() != nullptr) {
+		// Named form "error err handle { ... }": the declared var IS the
+		// handler. Register it in the enclosing scope (not the body scope) so
+		// it stays visible after the block for `if (err)` checks.
+		CurrentErrorHandler = SemaBuilder::CreateErrorHandler(AST.getErrorVar());
+		Symbol *Sym = new Symbol(AST.getErrorVar()->getName(), SymbolKind::LOCAL_VAR, CurrentErrorHandler);
+		AST.getErrorVar()->setSymbol(Sym);
+		addSymbol(Sym);
+	} else {
+		CurrentErrorHandler = SemaBuilder::CreateErrorHandler();
+	}
 
 	// Create SemaHandleStmt and set error handler on it
 	SemaHandleStmt *SemaStmt = SemaBuilder::CreateHandleStmt(&AST);

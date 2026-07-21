@@ -1,4 +1,4 @@
-// flyp-registry — minimal REST package registry for Fly
+// fly-registry — minimal REST package registry for Fly
 //
 // API:
 //   GET  /v1/{name}                    → JSON array of available versions
@@ -8,7 +8,7 @@
 //   GET  /v1/search?q={query}          → JSON array of matching package names
 //
 // Usage:
-//   flyp-registry [--storage DIR] [--port PORT] [--host HOST]
+//   fly-registry [--storage DIR] [--port PORT] [--host HOST]
 
 #include "include/RegistryHandler.h"
 
@@ -39,9 +39,9 @@
 #  define CLOSE_SOCK   close
 #endif
 
-using flyp::registry::Request;
-using flyp::registry::Response;
-using flyp::registry::RegistryHandler;
+using fly::registry::Request;
+using fly::registry::Response;
+using fly::registry::RegistryHandler;
 
 // ── HTTP parser ───────────────────────────────────────────────────────────────
 
@@ -116,7 +116,7 @@ static void handle_connection(sock_t client, const RegistryHandler& handler) {
 // ── main ─────────────────────────────────────────────────────────────────────
 
 int main(int argc, char** argv) {
-    CLI::App app{"flyp-registry — Fly package registry server"};
+    CLI::App app{"fly-registry — Fly package registry server"};
 
     std::string storage_str;
     int         port  = 5000;
@@ -124,35 +124,35 @@ int main(int argc, char** argv) {
     std::string token;
 
     app.add_option("--storage", storage_str,
-        "Directory to store packages (default: ~/.flyp/registry)");
+        "Directory to store packages (default: ~/.fly/registry)");
     app.add_option("--port,-p", port, "Port to listen on (default: 5000)");
     app.add_option("--host",    host, "Host to bind to (default: 0.0.0.0)");
     app.add_option("--token",   token,
         "API key required for publish (POST) operations.\n"
-        "Can also be set via FLYP_REGISTRY_TOKEN environment variable.\n"
+        "Can also be set via FLY_REGISTRY_TOKEN environment variable.\n"
         "Read operations (GET) are always public.");
     CLI11_PARSE(app, argc, argv);
 
     // Environment variable fallback.
     if (token.empty()) {
-        const char* env = std::getenv("FLYP_REGISTRY_TOKEN");
+        const char* env = std::getenv("FLY_REGISTRY_TOKEN");
         if (env && *env) token = env;
     }
 
     std::filesystem::path storage;
     if (storage_str.empty()) {
-        const char* home = std::getenv("FLYP_HOME");
+        const char* home = std::getenv("FLY_HOME");
         storage = home && *home
             ? std::filesystem::path(home) / "registry"
             : std::filesystem::path(std::getenv("HOME") ? std::getenv("HOME") : ".")
-              / ".flyp" / "registry";
+              / ".fly" / "registry";
     } else {
         storage = storage_str;
     }
 
     RegistryHandler handler(storage, token);
 
-    std::cout << "flyp-registry\n"
+    std::cout << "fly-registry\n"
               << "  storage : " << storage.string() << "\n"
               << "  listen  : " << host << ":" << port << "\n"
               << "  auth    : " << (token.empty() ? "disabled" : "Bearer token") << "\n\n";

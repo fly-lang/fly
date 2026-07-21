@@ -833,6 +833,22 @@ void CodeGenModule::visit(SemaBlockStmt &Sema) {
 
 	for (SemaStmt *Stmt : Sema.getContent()) {
 		Stmt->accept(*this);
+
+		// Inside a suite `case` body: fail-fast on the first recorded error —
+		// after every statement check the shared error struct and jump to the
+		// case end as soon as its code is non-zero.
+		if (CurrentCaseEndBB && CurrentErrorHandler &&
+		    Builder->GetInsertBlock() && !Builder->GetInsertBlock()->getTerminator()) {
+			llvm::Function *Fn = Builder->GetInsertBlock()->getParent();
+			llvm::Value *ErrV = CurrentErrorHandler->getValue();
+			llvm::Value *CodePtr = Builder->CreateInBoundsGEP(CG.ErrorTy, ErrV, {CG.Zero, CG.Zero});
+			llvm::Value *Code = Builder->CreateLoad(CG.Int32Ty, CodePtr);
+			llvm::BasicBlock *ContBB = llvm::BasicBlock::Create(LLVMCtx, "case.chk", Fn);
+			Builder->CreateCondBr(
+				Builder->CreateICmpNE(Code, llvm::ConstantInt::get(CG.Int32Ty, 0)),
+				CurrentCaseEndBB, ContBB);
+			Builder->SetInsertPoint(ContBB);
+		}
 	}
 
 	if (DBuilder && !DebugScopeStack.empty())
@@ -901,8 +917,7 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 
 	// If Block - use Sema condition expression
-	Sema.getCond()->accept(*this);
-	llvm::Value *IfCond = Sema.getCond()->getCodeGen()->getValue();
+	llvm::Value *IfCond = EmitCondition(Sema.getCond());
 	llvm::BasicBlock *IfBB = llvm::BasicBlock::Create(LLVMCtx, "ifthen", Fn);
 
 	// Create End block
@@ -939,8 +954,7 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 				}
 				SemaRuleStmt ElsifSema = Sema.getElsif()[i];
 				Builder->SetInsertPoint(ElsifBB);
-				ElsifSema.Expr->accept(*this);
-				llvm::Value *ElsifCond = ElsifSema.Expr->getCodeGen()->getValue();
+				llvm::Value *ElsifCond = EmitCondition(ElsifSema.Expr);
 				Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
 
 				Builder->SetInsertPoint(ElsifThenBB);
@@ -986,8 +1000,7 @@ void CodeGenModule::visit(SemaIfStmt &Sema) {
 				}
 				SemaRuleStmt ElsifSema = Sema.getElsif()[i];
 				Builder->SetInsertPoint(ElsifBB);
-				ElsifSema.Expr->accept(*this);
-				llvm::Value *ElsifCond = ElsifSema.Expr->getCodeGen()->getValue();
+				llvm::Value *ElsifCond = EmitCondition(ElsifSema.Expr);
 				Builder->CreateCondBr(ElsifCond, ElsifThenBB, NextElsifBB);
 
 				Builder->SetInsertPoint(ElsifThenBB);
@@ -1112,8 +1125,7 @@ void CodeGenModule::visit(SemaLoopStmt &Sema) {
 
 		// Create Condition using Sema
 		Builder->SetInsertPoint(CondBB);
-		Sema.getCond()->accept(*this);
-		llvm::Value *Cond = Sema.getCond()->getCodeGen()->getValue();
+		llvm::Value *Cond = EmitCondition(Sema.getCond());
 		Builder->CreateCondBr(Cond, LoopBB, EndBB);
 	} else {
 		Builder->CreateBr(LoopBB);
@@ -1322,14 +1334,20 @@ void CodeGenModule::visit(SemaFailStmt &Sema) {
 	if (Sema.getFirst() == nullptr) {
 		CurrentErrorHandler->StoreInt(llvm::ConstantInt::get(CG.Int32Ty, 1));
 	} else {
-		StoreFail(Sema.getFirst(), CurrentErrorHandler);
+		bool HasCode = StoreFail(Sema.getFirst(), CurrentErrorHandler);
 
 		if (Sema.getSecond()) {
-			StoreFail(Sema.getSecond(), CurrentErrorHandler);
+			HasCode |= StoreFail(Sema.getSecond(), CurrentErrorHandler);
 
 			if (Sema.getThird()) {
-				StoreFail(Sema.getThird(), CurrentErrorHandler);
+				HasCode |= StoreFail(Sema.getThird(), CurrentErrorHandler);
 			}
+		}
+
+		// `fail "msg"` / `fail obj` carry no explicit code: default it to 1 so
+		// the error is detectable via the integer field (and main's exit code).
+		if (!HasCode) {
+			CurrentErrorHandler->StoreInt(llvm::ConstantInt::get(CG.Int32Ty, 1));
 		}
 	}
 
@@ -1352,6 +1370,13 @@ void CodeGenModule::visit(SemaHandleStmt &Sema) {
 	Sema.getErrorHandler()->accept(*this);
 	CurrentErrorHandler = Sema.getErrorHandler()->getCodeGen();
 
+	// The handle scope needs its own %error struct: allocate and zero it, and
+	// point the handler at it. Without this the handler slot stays
+	// uninitialized and any fail inside the handle writes through garbage.
+	llvm::AllocaInst *HandleErr = Builder->CreateAlloca(CodeGen::ErrorTy, nullptr, "handle_err");
+	Builder->CreateStore(HandleErr, CurrentErrorHandler->getPointer());
+	CurrentErrorHandler->Init();
+
 	// Save parent handle statement for nested handles
 	llvm::BasicBlock *ParentHandleBB = CurrentHandleBB;
 	llvm::BasicBlock *ParentSafeBB = CurrentSafeBB;
@@ -1370,6 +1395,12 @@ void CodeGenModule::visit(SemaHandleStmt &Sema) {
 		Sema.getHandle()->accept(*this);
 	}
 
+	// A body without a direct fail falls through to the safe block; a direct
+	// fail already terminated with its own br to safe.
+	if (!Builder->GetInsertBlock()->getTerminator()) {
+		Builder->CreateBr(CurrentSafeBB);
+	}
+
 	// Generate in Safe Block
 	Builder->SetInsertPoint(CurrentSafeBB);
 
@@ -1381,7 +1412,20 @@ void CodeGenModule::visit(SemaHandleStmt &Sema) {
 
 
 
-void CodeGenModule::StoreFail(SemaExpr *Expr, CodeGenError *CGE) {
+llvm::Value *CodeGenModule::EmitCondition(SemaExpr *Expr) {
+	Expr->accept(*this);
+	llvm::Value *V = Expr->getCodeGen()->getValue();
+	if (Expr->getType()->isError()) {
+		// `if (err)`: the error var evaluates to the %error struct pointer;
+		// the condition is its integer code field != 0.
+		llvm::Value *CodePtr = Builder->CreateInBoundsGEP(CG.ErrorTy, V, {CG.Zero, CG.Zero});
+		llvm::Value *Code = Builder->CreateLoad(CG.Int32Ty, CodePtr);
+		V = Builder->CreateICmpNE(Code, llvm::ConstantInt::get(CG.Int32Ty, 0), "err_set");
+	}
+	return V;
+}
+
+bool CodeGenModule::StoreFail(SemaExpr *Expr, CodeGenError *CGE) {
 	Expr->accept(*this);
 	llvm::Value *Value = Expr->getCodeGen()->getValue();
 	if (Expr->getType()->isBool()) {
@@ -1412,13 +1456,17 @@ void CodeGenModule::StoreFail(SemaExpr *Expr, CodeGenError *CGE) {
 		// If BitWidth == 32, no conversion needed
 
 		CGE->StoreInt(Int32Value);
+		return true;
 	} else if (Expr->getType()->isString()) {
 		CGE->StoreString(Value);
+		return false;
 	} else if (Expr->getType()->isClass()) {
 		CGE->StoreObject(Value);
+		return false;
 	} else if (Expr->getType()->isEnum()) {
 		CGE->StoreInt(Value);
 	}
+	return true;
 }
 
 
@@ -1453,9 +1501,42 @@ static bool isSuiteSetup(llvm::StringRef N)    { return N == "setup"; }
 static bool isSuiteTeardown(llvm::StringRef N) { return N == "teardown"; }
 static bool isSuiteTestMethod(llvm::StringRef N) { return N.ends_with("Test"); }
 
+// The suite runner reports its own progress through the runtime helpers
+// suite_begin/suite_method/suite_case_begin/suite_case_result/suite_step_fail/
+// suite_end (runtime/platform/Suite.c), so a caller only has to run the binary:
+// exit code 0 = all cases passed, 1 = at least one failure. Failed asserts
+// `fail` into the shared error struct; each case zeroes it on entry and
+// reports+consumes it on exit (per-case isolation), so the run CONTINUES after
+// a failing case and the summary counts every case.
+
+// Per-module i32 counters updated by visit(SemaCaseStmt) and read by the
+// implicit main() for the final summary.
+static llvm::GlobalVariable *GetOrCreateSuiteCounter(llvm::Module *M, llvm::LLVMContext &Ctx,
+                                                     const char *Name) {
+    if (auto *Existing = M->getNamedGlobal(Name))
+        return Existing;
+    auto *I32Ty = llvm::Type::getInt32Ty(Ctx);
+    return new llvm::GlobalVariable(*M, I32Ty, /*isConstant=*/false,
+                                    llvm::GlobalValue::InternalLinkage,
+                                    llvm::ConstantInt::get(I32Ty, 0), Name);
+}
+
+static void EmitCounterIncr(llvm::IRBuilder<> *B, llvm::LLVMContext &Ctx,
+                            llvm::GlobalVariable *GV) {
+    auto *I32Ty = llvm::Type::getInt32Ty(Ctx);
+    llvm::Value *V = B->CreateLoad(I32Ty, GV);
+    B->CreateStore(B->CreateAdd(V, llvm::ConstantInt::get(I32Ty, 1)), GV);
+}
+
 void CodeGenModule::EmitSuite(SemaClassType &Sema) {
     FLY_DEBUG_SCOPE_MSG("CodeGenModule", "EmitSuite",
                         "Suite: " + Sema.getAST().getName().str());
+
+    // --suite <Name>: when set, only the named suite gets the implicit main()
+    // (allows several suites in one compilation without duplicate mains).
+    const std::string SuiteName = Sema.getAST().getName().str();
+    if (!CGOpts.SuiteName.empty() && CGOpts.SuiteName != SuiteName)
+        return;
 
     // Emit the TLS context pointer as a definition in this module
     GetOrCreateTestCtxPtr(Module, LLVMCtx, /*IsDefinition=*/true);
@@ -1463,12 +1544,12 @@ void CodeGenModule::EmitSuite(SemaClassType &Sema) {
     // Classify suite methods by name convention
     SemaClassMethod *SetupM    = nullptr;
     SemaClassMethod *TeardownM = nullptr;
-    llvm::SmallVector<SemaClassMethod *, 8> TestMethods;
+    llvm::SmallVector<std::pair<std::string, SemaClassMethod *>, 8> TestMethods;
 
     for (auto &[Name, M] : Sema.getMethods()) {
         if (isSuiteSetup(Name))        SetupM = M;
         else if (isSuiteTeardown(Name)) TeardownM = M;
-        else if (isSuiteTestMethod(Name)) TestMethods.push_back(M);
+        else if (isSuiteTestMethod(Name)) TestMethods.push_back({std::string(Name), M});
     }
 
     // Suite methods are SemaClassMethod but CodeGenClass::Build() is never called for SUITE.
@@ -1488,7 +1569,7 @@ void CodeGenModule::EmitSuite(SemaClassType &Sema) {
 
     EnsureCompiled(SetupM);
     EnsureCompiled(TeardownM);
-    for (auto *M : TestMethods) EnsureCompiled(M);
+    for (auto &[Name, M] : TestMethods) EnsureCompiled(M);
 
     // Helper to get the LLVM function from a SemaClassMethod
     auto GetFn = [](SemaClassMethod *M) -> llvm::Function * {
@@ -1496,20 +1577,35 @@ void CodeGenModule::EmitSuite(SemaClassType &Sema) {
         return M->getCodeGen()->getFunction();
     };
 
-    // Build implicit main(): int main() { setup(); test1(); ...; teardown(); return 0; }
+    // Build implicit main():
+    //   suite_begin; setup; (per method: suite_method + call + escaped-error
+    //   check); teardown; suite_end; ret failed != 0
     auto *Int32Ty = llvm::Type::getInt32Ty(LLVMCtx);
     auto *PtrTy   = llvm::PointerType::getUnqual(LLVMCtx);
     auto *NullPtr = llvm::ConstantPointerNull::get(PtrTy);
+    auto *Zero32  = llvm::ConstantInt::get(Int32Ty, 0);
     auto *MainTy  = llvm::FunctionType::get(Int32Ty, /*isVarArg=*/false);
     auto *MainFn  = llvm::Function::Create(MainTy, llvm::GlobalValue::ExternalLinkage, "main", Module);
     auto *EntryBB = llvm::BasicBlock::Create(LLVMCtx, "entry", MainFn);
     Builder->SetInsertPoint(EntryBB);
 
-    // Allocate and initialise a shared error handler for this suite's main().
-    // Each test-method case receives its own fresh alloca (see visit(SemaCaseStmt));
-    // setup/teardown/helpers receive this one as their first argument.
-    llvm::Value *ErrAlloca = Builder->CreateAlloca(PtrTy, nullptr, "suite_err");
-    Builder->CreateStore(NullPtr, ErrAlloca);
+    // The shared %error struct: setup/teardown/test-methods receive its address
+    // as their hidden first argument. Cases zero it on entry and consume it on
+    // exit, so anything left after a method call escaped outside every case.
+    llvm::AllocaInst *SuiteErr = Builder->CreateAlloca(CodeGen::ErrorTy, nullptr, "suite_err");
+    auto ErrField = [&](unsigned Idx) {
+        return Builder->CreateInBoundsGEP(CodeGen::ErrorTy, SuiteErr,
+            {Zero32, llvm::ConstantInt::get(Int32Ty, Idx)});
+    };
+    auto ZeroErr = [&]() {
+        Builder->CreateStore(Zero32, ErrField(0));
+        Builder->CreateStore(NullPtr, ErrField(1));
+        Builder->CreateStore(NullPtr, ErrField(2));
+    };
+    ZeroErr();
+
+    llvm::GlobalVariable *TotalGV  = GetOrCreateSuiteCounter(Module, LLVMCtx, "__fly_suite_total");
+    llvm::GlobalVariable *FailedGV = GetOrCreateSuiteCounter(Module, LLVMCtx, "__fly_suite_failed");
 
     llvm::GlobalVariable *TLSPtr = GetOrCreateTestCtxPtr(Module, LLVMCtx, /*IsDefinition=*/false);
     // Set TLS ptr to a non-null sentinel (address 1) before tests run
@@ -1517,24 +1613,100 @@ void CodeGenModule::EmitSuite(SemaClassType &Sema) {
         llvm::ConstantInt::get(llvm::Type::getInt64Ty(LLVMCtx), 1), PtrTy);
     Builder->CreateStore(Sentinel, TLSPtr);
 
-    // Helper: call a suite method passing the error handler as arg 0, null for this + extras
+    // Runtime report helpers
+    llvm::FunctionCallee BeginFn = Module->getOrInsertFunction(
+        "suite_begin", llvm::FunctionType::get(CG.VoidTy, {PtrTy}, false));
+    llvm::FunctionCallee MethodFn = Module->getOrInsertFunction(
+        "suite_method", llvm::FunctionType::get(CG.VoidTy, {PtrTy}, false));
+    llvm::FunctionCallee StepFailFn = Module->getOrInsertFunction(
+        "suite_step_fail", llvm::FunctionType::get(CG.VoidTy, {PtrTy, Int32Ty, PtrTy}, false));
+    llvm::FunctionCallee EndFn = Module->getOrInsertFunction(
+        "suite_end", llvm::FunctionType::get(CG.VoidTy, {PtrTy, Int32Ty, Int32Ty}, false));
+
+    // Helper: call a suite method passing the error struct as arg 0, null for this + extras
     auto CallMethod = [&](SemaClassMethod *M) {
         auto *Fn = GetFn(M);
         if (!Fn) return;
         llvm::SmallVector<llvm::Value *, 4> Args;
         size_t numParams = Fn->getFunctionType()->getNumParams();
-        if (numParams >= 1) Args.push_back(ErrAlloca); // error handler
+        if (numParams >= 1) Args.push_back(SuiteErr); // error handler
         for (size_t i = 1; i < numParams; ++i) Args.push_back(NullPtr); // this + extras
         Builder->CreateCall(Fn->getFunctionType(), Fn, Args);
     };
 
-    CallMethod(SetupM);
-    for (auto *M : TestMethods) CallMethod(M);
-    CallMethod(TeardownM);
+    // Helper: after a setup/teardown/method call, report+count an error that
+    // escaped outside every case, then clear it. CountAsCase also bumps the
+    // total so the summary stays consistent.
+    auto CheckEscaped = [&](llvm::StringRef Label, bool CountAsCase) {
+        llvm::Value *Code = Builder->CreateLoad(Int32Ty, ErrField(0));
+        llvm::Value *HasErr = Builder->CreateICmpNE(Code, Zero32);
+        llvm::BasicBlock *FailBB = llvm::BasicBlock::Create(LLVMCtx, "step.fail", MainFn);
+        llvm::BasicBlock *ContBB = llvm::BasicBlock::Create(LLVMCtx, "step.cont", MainFn);
+        Builder->CreateCondBr(HasErr, FailBB, ContBB);
+        Builder->SetInsertPoint(FailBB);
+        llvm::Value *Msg = Builder->CreateLoad(PtrTy, ErrField(1));
+        Builder->CreateCall(StepFailFn,
+            {Builder->CreateGlobalStringPtr(Label, "suitelbl"), Code, Msg});
+        EmitCounterIncr(Builder, LLVMCtx, FailedGV);
+        if (CountAsCase)
+            EmitCounterIncr(Builder, LLVMCtx, TotalGV);
+        ZeroErr();
+        Builder->CreateBr(ContBB);
+        Builder->SetInsertPoint(ContBB);
+    };
+
+    Builder->CreateCall(BeginFn, {Builder->CreateGlobalStringPtr(SuiteName, "suitename")});
+
+    // Teardown ALWAYS runs, even when setup fails and the methods are skipped.
+    llvm::BasicBlock *TeardownBB = llvm::BasicBlock::Create(LLVMCtx, "suite.teardown", MainFn);
+
+    if (SetupM) {
+        CallMethod(SetupM);
+        // setup failure: report it, skip every test-method, still run teardown
+        llvm::Value *Code = Builder->CreateLoad(Int32Ty, ErrField(0));
+        llvm::BasicBlock *FailBB = llvm::BasicBlock::Create(LLVMCtx, "setup.fail", MainFn);
+        llvm::BasicBlock *ContBB = llvm::BasicBlock::Create(LLVMCtx, "setup.ok", MainFn);
+        Builder->CreateCondBr(Builder->CreateICmpNE(Code, Zero32), FailBB, ContBB);
+        Builder->SetInsertPoint(FailBB);
+        llvm::Value *Msg = Builder->CreateLoad(PtrTy, ErrField(1));
+        Builder->CreateCall(StepFailFn,
+            {Builder->CreateGlobalStringPtr("setup", "suitelbl"), Code, Msg});
+        EmitCounterIncr(Builder, LLVMCtx, FailedGV);
+        EmitCounterIncr(Builder, LLVMCtx, TotalGV);
+        ZeroErr();
+        Builder->CreateBr(TeardownBB);
+        Builder->SetInsertPoint(ContBB);
+    }
+
+    // --test <Method>: run only the matching test-method ("<f>" or "<f>Test")
+    for (auto &[Name, M] : TestMethods) {
+        if (!CGOpts.TestFilter.empty() &&
+            Name != CGOpts.TestFilter && Name != CGOpts.TestFilter + "Test")
+            continue;
+        Builder->CreateCall(MethodFn, {Builder->CreateGlobalStringPtr(Name, "suitemethod")});
+        CallMethod(M);
+        CheckEscaped("body", /*CountAsCase=*/true);
+    }
+
+    Builder->CreateBr(TeardownBB);
+    Builder->SetInsertPoint(TeardownBB);
+
+    if (TeardownM) {
+        CallMethod(TeardownM);
+        CheckEscaped("teardown", /*CountAsCase=*/false);
+    }
+
+    llvm::Value *TotalV  = Builder->CreateLoad(Int32Ty, TotalGV);
+    llvm::Value *FailedV = Builder->CreateLoad(Int32Ty, FailedGV);
+    Builder->CreateCall(EndFn,
+        {Builder->CreateGlobalStringPtr(SuiteName, "suitename"), TotalV, FailedV});
 
     // Clear TLS ptr after all tests
     Builder->CreateStore(NullPtr, TLSPtr);
-    Builder->CreateRet(llvm::ConstantInt::get(Int32Ty, 0));
+
+    // Exit 0 when every case passed, 1 otherwise (codes are in the report)
+    Builder->CreateRet(Builder->CreateZExt(
+        Builder->CreateICmpNE(FailedV, Zero32), Int32Ty));
 }
 
 void CodeGenModule::visit(SemaTestStmt &Sema) {
@@ -1581,19 +1753,70 @@ void CodeGenModule::visit(SemaCaseStmt &Sema) {
 
     Builder->SetInsertPoint(CaseBB);
 
-    // Each case gets a fresh, isolated error handler so assertions are independent.
+    auto *Int32Ty = llvm::Type::getInt32Ty(LLVMCtx);
     auto *PtrTy   = llvm::PointerType::getUnqual(LLVMCtx);
     auto *NullPtr = llvm::ConstantPointerNull::get(PtrTy);
-    llvm::Value *CaseErrPtr = Builder->CreateAlloca(PtrTy, nullptr,
-                                                    "case_err." + Sema.getLabel());
-    Builder->CreateStore(NullPtr, CaseErrPtr);
+    auto *Zero32  = llvm::ConstantInt::get(Int32Ty, 0);
 
-    CodeGenError *SavedErr = CurrentErrorHandler;
-    auto *CaseErrCG = new CodeGenError(this, nullptr, CaseErrPtr);
-    CurrentErrorHandler = CaseErrCG;
+    // Print "    <label> ..." — the result (or a crash) completes the line.
+    llvm::FunctionCallee CaseBeginFn = Module->getOrInsertFunction(
+        "suite_case_begin", llvm::FunctionType::get(CG.VoidTy, {PtrTy}, false));
+    Builder->CreateCall(CaseBeginFn,
+        {Builder->CreateGlobalStringPtr(Sema.getLabel(), "caselbl")});
+
+    // Per-case isolation: zero the shared error struct on entry. The handler
+    // is the method's own (the suite main's %error passed as arg 0), so a fail
+    // in any callee lands here and is consumed at case end.
+    auto ZeroErr = [&]() {
+        llvm::Value *ErrV = CurrentErrorHandler->getValue();
+        Builder->CreateStore(Zero32,
+            Builder->CreateInBoundsGEP(CG.ErrorTy, ErrV, {Zero32, Zero32}));
+        Builder->CreateStore(NullPtr,
+            Builder->CreateInBoundsGEP(CG.ErrorTy, ErrV,
+                {Zero32, llvm::ConstantInt::get(Int32Ty, 1)}));
+        Builder->CreateStore(NullPtr,
+            Builder->CreateInBoundsGEP(CG.ErrorTy, ErrV,
+                {Zero32, llvm::ConstantInt::get(Int32Ty, 2)}));
+    };
+    ZeroErr();
+    EmitCounterIncr(Builder, LLVMCtx,
+        GetOrCreateSuiteCounter(Module, LLVMCtx, "__fly_suite_total"));
+
+    // Fail-fast per case: visit(SemaBlockStmt) checks the error struct after
+    // every statement while CurrentCaseEndBB is set, so the FIRST failure
+    // jumps to case end and later statements of the case never run.
+    llvm::BasicBlock *CaseEndBB =
+        llvm::BasicBlock::Create(LLVMCtx, "case.end." + Sema.getLabel(), Fn);
+    llvm::BasicBlock *SavedCaseEnd = CurrentCaseEndBB;
+    CurrentCaseEndBB = CaseEndBB;
 
     Sema.getBody()->accept(*this);
 
-    CurrentErrorHandler = SavedErr;
-    delete CaseErrCG;
+    CurrentCaseEndBB = SavedCaseEnd;
+    if (!Builder->GetInsertBlock()->getTerminator())
+        Builder->CreateBr(CaseEndBB);
+
+    // Case end: report the outcome, count a failure, clear the error.
+    Builder->SetInsertPoint(CaseEndBB);
+    llvm::Value *EndErrV = CurrentErrorHandler->getValue();
+    llvm::Value *Code = Builder->CreateLoad(Int32Ty,
+        Builder->CreateInBoundsGEP(CG.ErrorTy, EndErrV, {Zero32, Zero32}));
+    llvm::Value *Msg = Builder->CreateLoad(PtrTy,
+        Builder->CreateInBoundsGEP(CG.ErrorTy, EndErrV,
+            {Zero32, llvm::ConstantInt::get(Int32Ty, 1)}));
+    llvm::FunctionCallee CaseResultFn = Module->getOrInsertFunction(
+        "suite_case_result", llvm::FunctionType::get(CG.VoidTy, {Int32Ty, PtrTy}, false));
+    Builder->CreateCall(CaseResultFn, {Code, Msg});
+
+    llvm::BasicBlock *FailBB = llvm::BasicBlock::Create(LLVMCtx, "case.fail." + Sema.getLabel(), Fn);
+    llvm::BasicBlock *ContBB = llvm::BasicBlock::Create(LLVMCtx, "case.cont." + Sema.getLabel(), Fn);
+    Builder->CreateCondBr(Builder->CreateICmpNE(Code, Zero32), FailBB, ContBB);
+
+    Builder->SetInsertPoint(FailBB);
+    EmitCounterIncr(Builder, LLVMCtx,
+        GetOrCreateSuiteCounter(Module, LLVMCtx, "__fly_suite_failed"));
+    ZeroErr();
+    Builder->CreateBr(ContBB);
+
+    Builder->SetInsertPoint(ContBB);
 }

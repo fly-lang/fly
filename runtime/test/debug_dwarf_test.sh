@@ -1,5 +1,5 @@
 #!/bin/bash
-# End-to-end test: compile a Fly program with --debug and verify that
+# End-to-end test: compile a Fly program with --debug-symbols and verify that
 # llvm-dwarfdump reports valid DWARF info (compile unit, variables, line info).
 #
 # Supports Linux and macOS.
@@ -50,8 +50,9 @@ void main() {
 FLY
 
 # ── Compile with debug symbols ─────────────────────────────────────────────────
-# Redirect stderr: --debug also enables DebugLog which produces massive compiler output.
-"$FLY_BIN" --debug "$WORK/dbg_test.fly" "$FLY_STD" -o "$WORK/dbg_test" 2>/dev/null
+# --debug-symbols emits DWARF without the verbose DebugLog that --debug adds,
+# so compile diagnostics stay visible in the test log.
+"$FLY_BIN" --debug-symbols "$WORK/dbg_test.fly" "$FLY_STD" -o "$WORK/dbg_test"
 echo "Compile: OK"
 
 # ── DWARF content assertions ───────────────────────────────────────────────────
