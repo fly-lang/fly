@@ -1,0 +1,36 @@
+import fly.str
+import fly.assert
+
+// Integration test for the unhandled-error contract:
+//   - a handled failure never reaches main (exit stays clean for that part)
+//   - an unhandled failure reaches main, which prints
+//     "error <code>: <message>" to stderr and exits with <code>.
+// ctest matches the stderr line (fly_error_fly_test) and the non-zero exit
+// (fly_error_exit_fly_test), so this binary MUST end with the fail below.
+
+void failWith(const int code, const string msg) {
+    fail code, msg
+}
+
+void handledPart() {
+    error err handle {
+        failWith(7, "handled, must not be printed")
+    }
+    if (err) {
+        // expected: the handle intercepted the callee failure
+    } else {
+        // handle failed to record the error — abort with a distinct code
+        assert.errExit(90)
+    }
+}
+
+void main() {
+    handledPart()
+
+    // Computed (heap, non-NUL-terminated) message: exercises the
+    // NUL-terminated copy made by fail's codegen.
+    string msg = str.concat("boom ", "got 5")
+    failWith(42, msg)
+    // NOT unreachable: callee fail does not unwind. main's epilogue prints
+    // the recorded error and exits 42.
+}

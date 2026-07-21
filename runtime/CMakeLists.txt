@@ -59,6 +59,11 @@ target_include_directories(FlyRuntime PUBLIC
     "${CMAKE_SOURCE_DIR}/runtime"
 )
 
+# ── Platform-independent sources ─────────────────────────────────────────────
+# Err.c and Suite.c only call io_write(), so one implementation serves every
+# platform.
+target_sources(FlyRuntime PRIVATE platform/Err.c platform/Suite.c)
+
 # ── Platform dispatch ────────────────────────────────────────────────────────
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_subdirectory(platform/Linux)
@@ -104,7 +109,11 @@ set_tests_properties(fly_runtime_test PROPERTIES PASS_REGULAR_EXPRESSION "fly ru
 # LLDB debug integration test
 ######################################
 
-find_program(LLVM_DWARFDUMP        NAMES llvm-dwarfdump llvm-dwarfdump-20 llvm-dwarfdump-19 llvm-dwarfdump-18)
+# The precompiled fork LLVM (cmake/LLVM-Project.cmake) unpacks into
+# ${CMAKE_BINARY_DIR}/llvm and ships llvm-dwarfdump, so the test never has to
+# depend on a system-wide LLVM install; PATH remains the fallback.
+find_program(LLVM_DWARFDUMP        NAMES llvm-dwarfdump llvm-dwarfdump-20 llvm-dwarfdump-19 llvm-dwarfdump-18
+        HINTS "${CMAKE_BINARY_DIR}/llvm/bin")
 
 if(MSVC)
     set(_fly_std_lib "${CMAKE_BINARY_DIR}/lib/fly_std_lib.lib")

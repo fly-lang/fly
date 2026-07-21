@@ -120,6 +120,11 @@ static void run_tests(void)
     /* 2b. Process exec (spawn an external command, check exit code) */
     test_proc();
 
+    /* 2c. Error reporting — writes "error -42: probe message" / "error 7" to
+     * STDERR; smoke-checks formatting (sign, digits, NULL msg) and linkage. */
+    err_print(-42, "probe message");
+    err_print(7, (const char *)0);
+
     /* 3. Thread + futex */
     tid t = thread_spawn(thread_fn, (void *)"thread: hello from thread\n", 65536);
     if (t <= 0) fail("FAIL: thread_spawn failed\n");

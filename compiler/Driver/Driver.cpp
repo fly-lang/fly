@@ -117,7 +117,8 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     app.add_flag("--version", showVersion, "Print version information");
     app.add_flag("--debug",         debugFlag,   "Print debug messages");
     app.add_flag("--debug-symbols", DebugSymbols,"Emit DWARF debug information (no verbose logging)");
-    app.add_flag("--test",          TestMode,    "Compile in test mode (enables test {} blocks)");
+    app.add_option("--test",        TestFilter,  "Compile in test mode (enables test {} blocks); with --suite, the optional value runs only the named test-method")->expected(0, 1);
+    app.add_option("--suite",       SuiteName,   "Build the suite test executable and run it (fly exits with the run's code); the optional value selects one suite by name. Put input files BEFORE this option, or use --suite=Name")->expected(0, 1);
     app.add_flag("-v,--verbose",    Verbose,     "Show commands to run and use verbose output");
     app.add_flag("-w,--no-warning", NoWarnings,  "Suppress all warnings");
     // Output format: WHAT the backend produces. Default is an object file.
@@ -164,6 +165,11 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
         }
         return;
     }
+
+    // --test and --suite take an optional value, so presence is tracked via
+    // count(): a bare --test still means "compile in test mode".
+    TestMode = app.count("--test") > 0;
+    SuiteRun = app.count("--suite") > 0;
 
     // Collect positional (input) files from unmatched args.
     // Unknown --flags in remaining are reported as errors.
@@ -532,6 +538,15 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     if (TestMode) {
         FLY_DEBUG_MSG("Set --test: compiling in test mode");
         CodeGenOpts->TestMode = true;
+        CodeGenOpts->TestFilter = TestFilter;
+    }
+
+    // Suite run: test mode + suite/method selection; the run happens in Execute()
+    if (SuiteRun) {
+        FLY_DEBUG_MSG("Set --suite: test mode, run after build");
+        CodeGenOpts->TestMode = true;
+        CodeGenOpts->SuiteName = SuiteName;
+        CodeGenOpts->TestFilter = TestFilter;
     }
 
     // CodeGen options
@@ -594,6 +609,26 @@ bool Driver::Execute() {
                         CI->getDiagnostics().Report(diag::err_drv_archive) << EC.message();
                         return false;
                     }
+                }
+            }
+
+            // --suite: run the produced suite binary; its exit code becomes
+            // fly's own exit code (see Fly.cpp / getRunExitCode).
+            if (Success && SuiteRun) {
+                llvm::SmallString<256> ExePath(FO.getOutputFile());
+                if (T.isOSWindows() &&
+                    !llvm::StringRef(ExePath).ends_with_insensitive(".exe"))
+                    ExePath += ".exe";
+                llvm::sys::fs::make_absolute(ExePath);
+                std::string ErrMsg;
+                llvm::SmallVector<llvm::StringRef, 1> RunArgs = {ExePath.str()};
+                RunExitCode = llvm::sys::ExecuteAndWait(ExePath, RunArgs,
+                    /*Env=*/std::nullopt, /*Redirects=*/{}, /*SecondsToWait=*/0,
+                    /*MemoryLimit=*/0, &ErrMsg);
+                if (RunExitCode < 0) {
+                    llvm::errs() << "error: cannot run suite binary '" << ExePath
+                                 << "': " << ErrMsg << "\n";
+                    Success = false;
                 }
             }
         }

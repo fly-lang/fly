@@ -15,12 +15,17 @@
 namespace fly {
 
     class ASTIdentifier;
+    class ASTLocalVar;
 
     class ASTHandleStmt : public ASTStmt {
 
         friend class ASTBuilder;
 
         ASTBlockStmt *Handle = nullptr;
+
+        // "error err handle { ... }": the declared var bound to this handle's
+        // error handler. Null for the anonymous "handle { ... }" form.
+        ASTLocalVar *ErrorVar = nullptr;
 
         explicit ASTHandleStmt(const SourceLocation &Loc);
 
@@ -30,6 +35,9 @@ namespace fly {
 
         ASTBlockStmt* getHandle() const;
 
+        ASTLocalVar *getErrorVar() const;
+
+        void setErrorVar(ASTLocalVar *V);
 
         std::string str() const override;
     };

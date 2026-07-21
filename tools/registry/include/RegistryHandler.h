@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace flyp::registry {
+namespace fly::registry {
 
 struct Request {
     std::string method;
@@ -76,4 +76,4 @@ private:
     static std::string json_string_array(const std::vector<std::string>& vec);
 };
 
-} // namespace flyp::registry
+} // namespace fly::registry

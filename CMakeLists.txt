@@ -126,5 +126,5 @@ add_subdirectory(test)
 # fly-lsp language server
 add_subdirectory(tools/lsp)
 
-# flyp-registry REST registry server
+# fly-registry REST registry server
 add_subdirectory(tools/registry)

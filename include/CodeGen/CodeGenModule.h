@@ -215,6 +215,10 @@ namespace fly {
 
     	llvm::BasicBlock *CurrentSafeBB = nullptr;
 
+    	// Non-null while generating a suite `case` body: target of the
+    	// fail-fast checks emitted after every statement (see visit(SemaBlockStmt)).
+    	llvm::BasicBlock *CurrentCaseEndBB = nullptr;
+
         CodeGenModule(CodeGen &CG, DiagnosticsEngine &Diags, StringRef Name, llvm::LLVMContext &LLVMCtx,
                       TargetInfo &Target, CodeGenOptions &CGOpts, SourceManager *SM = nullptr);
 
@@ -330,7 +334,13 @@ namespace fly {
         // Called from visit(SemaClassType) when ClassKind == SUITE
         void EmitSuite(SemaClassType &Sema);
 
-    	void StoreFail(SemaExpr *Expr, CodeGenError * CGE);
+    	// Returns true when the expression wrote the integer code field, so
+    	// visit(SemaFailStmt) can default it to 1 otherwise.
+    	bool StoreFail(SemaExpr *Expr, CodeGenError * CGE);
+
+    	// Evaluate a condition expression to an i1. An `error`-typed condition
+    	// (`if (err)`) is true when an error is recorded (error.code != 0).
+    	llvm::Value *EmitCondition(SemaExpr *Expr);
 
 
     	std::string toIdentifier(llvm::StringRef Name, SemaNameSpace *NameSpace);

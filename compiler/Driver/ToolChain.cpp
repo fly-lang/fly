@@ -522,6 +522,14 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     if (BuildDll)
         CmdArgs.push_back("/dll");
 
+    // Fly emits DWARF only (DIBuilder, never CodeView), so plain /debug would ask
+    // lld-link for a PDB it cannot build from these objects. /debug:dwarf keeps the
+    // .debug_* sections in the PE instead of discarding them (lld-link's default);
+    // symbolize with llvm-symbolizer, not cdb. Mirrors LinkLinux, where ld.lld
+    // keeps DWARF without any flag.
+    if (CodeGenOpts.DebugSymbols)
+        CmdArgs.push_back("/debug:dwarf");
+
     // Toolchain LLVM lib dir, auto-discovered as <fly_bin>/../llvm/lib.
     // Lets native [link] deps (e.g. LLVM-20.lib) resolve without a manual LIB setup.
     if (!CodeGenOpts.ToolchainLibDir.empty())

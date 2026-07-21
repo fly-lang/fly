@@ -70,6 +70,37 @@ void *mem_realloc(void *ptr, usize new_size);
  * Returns the number of bytes written, or a negative value on error. */
 i64 io_write(i32 fd, const void *buf, usize count);
 
+/* ── Error reporting ─────────────────────────────────────────────────────── */
+
+/* Print "error <code>: <msg>\n" — or "error <code>\n" when 'msg' is NULL or
+ * empty — to STDERR. 'msg' must be NUL-terminated. Called by the
+ * compiler-generated main() epilogue when the program terminates with an
+ * unhandled error; the process exit code is 'code' itself. */
+void err_print(i32 code, const char *msg);
+
+/* ── Suite runner report (compiler-generated suite main() only) ──────────── */
+
+/* Print "suite <name>" — the run header. */
+void suite_begin(const char *name);
+
+/* Print "  <name>" — a test-method header. */
+void suite_method(const char *name);
+
+/* Print "    <label> ..." WITHOUT a newline: the case result (or a crash)
+ * completes the line, so the last printed text names the running case. */
+void suite_case_begin(const char *label);
+
+/* Complete a case line: " ok" when code == 0, otherwise
+ * " FAIL(<code>): <msg>" (msg may be NULL). */
+void suite_case_result(i32 code, const char *msg);
+
+/* One-shot failure line for setup/teardown/method-body failures:
+ * "    <label> ... FAIL(<code>): <msg>". */
+void suite_step_fail(const char *label, i32 code, const char *msg);
+
+/* Print "suite <name>: <total> cases, <passed> passed, <failed> failed". */
+void suite_end(const char *name, i32 total, i32 failed);
+
 /* ── Process ─────────────────────────────────────────────────────────────── */
 
 /* Terminate all threads in the process with 'code' as the exit status.

@@ -1,0 +1,19 @@
+import fly.assert
+
+// End-to-end fixture for the suite runner failure path: the first case fails
+// with a consultable message, the SECOND case must still run (no abort), the
+// summary counts 1 failed and the binary exits 1. ctest matches both the
+// FAIL line and the summary line.
+
+suite FailSuite {
+    void teardown() { }
+
+    void checkTest() {
+        case "boom": {
+            assert.assertEqI(1, 2, 42)
+        }
+        case "still runs": {
+            assert.assertTrue(true, 2)
+        }
+    }
+}

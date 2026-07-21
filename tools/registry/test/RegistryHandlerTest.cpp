@@ -5,7 +5,7 @@
 #include <fstream>
 #include <string>
 
-namespace flyp::registry::test {
+namespace fly::registry::test {
 
 // ── Test fixture ──────────────────────────────────────────────────────────────
 
@@ -443,4 +443,4 @@ TEST_F(RegistryHandlerAuthTest, Response401ContainsHint) {
     EXPECT_NE(resp.body.find("Bearer"), std::string::npos);
 }
 
-} // namespace flyp::registry::test
+} // namespace fly::registry::test

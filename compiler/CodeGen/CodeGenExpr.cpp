@@ -1410,6 +1410,32 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool Free
 		}
 	}
 
+	// A STRUCT assigned to a PARAMETER is copied THROUGH the parameter pointer,
+	// into the storage the caller owns — not stored over that pointer. Every struct
+	// parameter arrives by pointer: its slot holds the caller's address (the call
+	// site passes &callerSlot for a variable argument, and for the synthetic `out`
+	// it allocates the result object and passes &slot). Overwriting the pointer
+	// leaves the caller's storage untouched AND hands every caller the same
+	// callee-frame address, so two live results alias: a second
+	// `fs.tempFile(dir, pat, name, file)` silently clobbered the first `File`,
+	// leaking its descriptor and making its file undeletable. Writing through the
+	// pointer is also what makes a non-const parameter an output parameter.
+	if (E1->getKind() == SemaKind::PARAM_VAR && E1->getType()->isClass()) {
+		SemaClassType *LC = static_cast<SemaClassType *>(E1->getType());
+		if (LC->getClassKind() == SemaClassKind::STRUCT) {
+			llvm::StructType *StructTy = LC->getCodeGen() ? LC->getCodeGen()->getType() : nullptr;
+			if (StructTy && V2) {
+				llvm::Value *Slot = static_cast<CodeGenVar *>(E1CodeGen)->getPointer();
+				llvm::Value *Dest = Builder->CreateLoad(
+					llvm::PointerType::getUnqual(CGM->LLVMCtx), Slot, "outdst");
+				const llvm::DataLayout &DL = CGM->Module->getDataLayout();
+				Builder->CreateMemCpy(Dest, llvm::MaybeAlign(), V2, llvm::MaybeAlign(),
+				                      DL.getTypeAllocSize(StructTy));
+				return V2;
+			}
+		}
+	}
+
 	// Upcast a derived class to a base/interface lvalue: store the base-subobject
 	// pointer so the variable's later dispatch uses the right vtable.
 	V2 = adjustToBaseSubobject(V2, E2->getType(), E1->getType());

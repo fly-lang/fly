@@ -416,6 +416,10 @@ bool SemaValidator::CheckUnary(ASTUnary &AST, SemaExpr *Expr) {
 bool SemaValidator::CheckCondition(const SourceLocation &Loc, SemaExpr *Expr) {
 	if (!Expr || !Expr->getType())
 		return false;
+	// `if (err)` on an error variable is the documented way to test whether a
+	// handle recorded a failure: true when the error's integer code != 0.
+	if (Expr->getType()->isError())
+		return true;
 	if (!CheckConvertibleTypes(Expr->getType(), SemaBuiltin::getBoolType())) {
 		Diag(Loc, diag::err_sema_condition_not_bool) << Expr->getType()->getName();
 		return false;

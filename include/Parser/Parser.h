@@ -26,6 +26,7 @@ namespace fly {
     class ASTFunction;
     class ASTArrayValue;
     class ASTBlockStmt;
+    class ASTLocalVar;
     class ASTCall;
     class ASTStmt;
     class ASTIfStmt;
@@ -166,8 +167,9 @@ private:
     /// Parse a for statement.
     void ParseForStmt(ASTBlockStmt *Parent);
 
-    /// Parse a handle statement.
-    void ParseHandleStmt(ASTBlockStmt *Parent);
+    /// Parse a handle statement. ErrorVar is the declared var of the
+    /// "error err handle { ... }" form (null for the anonymous form).
+    void ParseHandleStmt(ASTBlockStmt *Parent, ASTLocalVar *ErrorVar = nullptr);
 
     /// Parse a fail statement.
     void ParseFailStmt(ASTBlockStmt *Parent);

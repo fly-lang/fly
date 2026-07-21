@@ -137,3 +137,63 @@ endmacro()
 foreach(_test str math os_env os_path os_fs os_time os_io mem data generics enum cast override super interface deepinherit supermember)
     add_fly_std_test(${_test})
 endforeach()
+
+# ── Unhandled-error contract test ─────────────────────────────────────────────
+# error_test.fly ends with an unhandled `fail 42, <computed message>`: main
+# must print "error 42: boom got 5" to stderr and exit 42, so it cannot use
+# add_fly_std_test's exit-0 add_test. Two ctest entries on the same binary:
+# one matches the printed error line, the other requires the non-zero exit.
+add_custom_command(
+    OUTPUT  ${CMAKE_BINARY_DIR}/error_test_fly
+    COMMAND $<TARGET_FILE:fly>
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/error_test.fly
+            ${FLY_LIB_OUTPUT}
+            -o ${CMAKE_BINARY_DIR}/error_test_fly
+    DEPENDS fly fly_std_lib FlyRuntime
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/error_test.fly
+    COMMENT "Compiling error_test.fly"
+    VERBATIM
+)
+add_custom_target(error_test_fly_bin ALL
+    DEPENDS ${CMAKE_BINARY_DIR}/error_test_fly)
+add_test(NAME fly_error_fly_test
+    COMMAND ${CMAKE_BINARY_DIR}/error_test_fly)
+set_tests_properties(fly_error_fly_test PROPERTIES
+    PASS_REGULAR_EXPRESSION "error 42: boom got 5")
+add_test(NAME fly_error_exit_fly_test
+    COMMAND ${CMAKE_BINARY_DIR}/error_test_fly)
+set_tests_properties(fly_error_exit_fly_test PROPERTIES WILL_FAIL TRUE)
+
+# ── Suite runner end-to-end tests ─────────────────────────────────────────────
+# DemoSuite: all cases pass → exit 0, summary "3 cases, 3 passed, 0 failed".
+# FailSuite: one case fails → the FAIL line carries code+message, the later
+# case still runs, the summary counts the failure, and the binary exits 1
+# (regex-based ctest entries ignore the exit code by design).
+foreach(_suite Demo Fail)
+    add_custom_command(
+        OUTPUT  ${CMAKE_BINARY_DIR}/${_suite}Suite_fly
+        COMMAND $<TARGET_FILE:fly>
+                ${CMAKE_CURRENT_SOURCE_DIR}/test/${_suite}Suite.fly
+                ${FLY_LIB_OUTPUT}
+                --test
+                -o ${CMAKE_BINARY_DIR}/${_suite}Suite_fly
+        DEPENDS fly fly_std_lib FlyRuntime
+                ${CMAKE_CURRENT_SOURCE_DIR}/test/${_suite}Suite.fly
+        COMMENT "Compiling ${_suite}Suite.fly"
+        VERBATIM
+    )
+    add_custom_target(${_suite}Suite_fly_bin ALL
+        DEPENDS ${CMAKE_BINARY_DIR}/${_suite}Suite_fly)
+endforeach()
+
+add_test(NAME fly_demo_suite_test COMMAND ${CMAKE_BINARY_DIR}/DemoSuite_fly)
+set_tests_properties(fly_demo_suite_test PROPERTIES
+    PASS_REGULAR_EXPRESSION "suite DemoSuite: 3 cases, 3 passed, 0 failed")
+
+add_test(NAME fly_fail_suite_test COMMAND ${CMAKE_BINARY_DIR}/FailSuite_fly)
+set_tests_properties(fly_fail_suite_test PROPERTIES
+    PASS_REGULAR_EXPRESSION "boom \\.\\.\\. FAIL\\(42\\): assertEqI: got 1, expected 2")
+
+add_test(NAME fly_fail_suite_summary_test COMMAND ${CMAKE_BINARY_DIR}/FailSuite_fly)
+set_tests_properties(fly_fail_suite_summary_test PROPERTIES
+    PASS_REGULAR_EXPRESSION "suite FailSuite: 2 cases, 1 passed, 1 failed")

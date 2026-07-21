@@ -208,13 +208,31 @@ void CodeGenFunction::GenBody() {
     // if is Main check error and return right exit code
     if (isMain) {
         llvm::Value *Zero32 = llvm::ConstantInt::get(CodeGen::Int32Ty, 0);
+        llvm::Value *One32 = llvm::ConstantInt::get(CodeGen::Int32Ty, 1);
         // take return value from error struct
         CodeGenError *CGE = Sema->getErrorHandler()->getCodeGen();
         llvm::Value * ErrorHandler = CGE->getValue();
         llvm::Value *ErrorVal = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorHandler, {Zero32, Zero32});
-        // llvm::Value *Ret = CGM->Builder->CreateICmpNE(BuiErrorVal->, Zero32);
-        // main() will return 0 if ok or 1 on error
-        CGM->Builder->CreateRet(CGM->Builder->CreateLoad(CodeGen::Int32Ty, ErrorVal));
+        llvm::Value *Code = CGM->Builder->CreateLoad(CodeGen::Int32Ty, ErrorVal);
+
+        // An unhandled error reached main: print it to stderr via the runtime
+        // (err_print), then exit with the error code itself. No error → 0.
+        llvm::BasicBlock *ErrBB  = llvm::BasicBlock::Create(CGM->LLVMCtx, "err", Fn);
+        llvm::BasicBlock *ExitBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "exit", Fn);
+        CGM->Builder->CreateCondBr(CGM->Builder->CreateICmpNE(Code, Zero32), ErrBB, ExitBB);
+
+        CGM->Builder->SetInsertPoint(ErrBB);
+        llvm::Value *MsgPtr = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorHandler, {Zero32, One32});
+        llvm::Value *Msg = CGM->Builder->CreateLoad(llvm::PointerType::getUnqual(CGM->LLVMCtx), MsgPtr);
+        llvm::FunctionCallee ErrPrintFn = CGM->Module->getOrInsertFunction(
+            "err_print",
+            llvm::FunctionType::get(CodeGen::VoidTy,
+                {CodeGen::Int32Ty, llvm::PointerType::getUnqual(CGM->LLVMCtx)}, false));
+        CGM->Builder->CreateCall(ErrPrintFn, {Code, Msg});
+        CGM->Builder->CreateBr(ExitBB);
+
+        CGM->Builder->SetInsertPoint(ExitBB);
+        CGM->Builder->CreateRet(Code);
     } else {
     	CheckReturnVoid();
     }
