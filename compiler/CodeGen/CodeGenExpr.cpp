@@ -61,6 +61,23 @@
 
 using namespace fly;
 
+// Create a temporary slot in the function's ENTRY block. An alloca emitted at
+// the current insert point becomes a DYNAMIC stack allocation when the point is
+// inside a loop or past a call: LLVM lowers it to a runtime `sub rsp` (+ stack
+// probe), the frame creeps at every iteration and the probe/argument register
+// dance around it miscompiled by-ref argument copies (observed as garbage
+// receivers/strings inside Lexer.byteAt at STAGE=0). An entry-block alloca is a
+// fixed frame slot: allocated once, reused per call, no runtime rsp traffic.
+static llvm::AllocaInst *CreateEntryAlloca(llvm::IRBuilder<> *Builder, llvm::Type *Ty) {
+	llvm::BasicBlock *BB = Builder->GetInsertBlock();
+	llvm::Function *Fn = BB ? BB->getParent() : nullptr;
+	if (!Fn || Fn->empty())
+		return Builder->CreateAlloca(Ty);
+	llvm::BasicBlock &Entry = Fn->getEntryBlock();
+	llvm::IRBuilder<> TmpB(&Entry, Entry.getFirstInsertionPt());
+	return TmpB.CreateAlloca(Ty);
+}
+
 CodeGenExpr::CodeGenExpr(CodeGenModule *CGM) : CodeGenBase(), CGM(CGM), Builder(CGM->getBuilder()) {
 	FLY_DEBUG_SCOPE("CodeGenExpr", "CodeGenExpr");
 }
@@ -161,6 +178,18 @@ void CodeGenExpr::GenExpr(SemaStructValue *Sema) {
 					llvm::Value *FieldPtr = Builder->CreateStructGEP(StructLLVMType, Alloca, FieldIdx);
 					FieldVal->accept(*CGM);
 					llvm::Value *Val = FieldVal->getCodeGen()->getValue();
+					// The store must match the FIELD's width: with literals typed
+					// int (CreateNumberValue), an int value stored into a byte
+					// field would clobber the adjacent fields, and a narrow value
+					// stored into a long field would leave its upper bytes unset.
+					llvm::Type *ElemTy = StructLLVMType->getElementType(FieldIdx);
+					if (Val && Val->getType() != ElemTy &&
+					    Val->getType()->isIntegerTy() && ElemTy->isIntegerTy()) {
+						bool SrcSigned = true;
+						if (FieldVal->getType() && FieldVal->getType()->isInteger())
+							SrcSigned = static_cast<SemaIntType *>(FieldVal->getType())->isSigned();
+						Val = Builder->CreateIntCast(Val, ElemTy, SrcSigned);
+					}
 					Builder->CreateStore(Val, FieldPtr);
 				}
 			}
@@ -1035,6 +1064,20 @@ llvm::Value *CodeGenExpr::GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKin
 		EffectiveType = Type2;
 	}
 
+	// Safety net: Resolver::PromoteTypes may have rewritten an operand's SEMA
+	// type after its value was emitted at the original width — ranks then agree
+	// while the IR types don't (see the integer-compare path). Reconcile on the
+	// actual IR widths, widening the narrower value with its own signedness.
+	if (V1 && V2 && V1->getType() != V2->getType() &&
+	    V1->getType()->isIntegerTy() && V2->getType()->isIntegerTy()) {
+		bool S1 = !Type1->isInteger() || static_cast<SemaIntType *>(Type1)->isSigned();
+		bool S2 = !Type2->isInteger() || static_cast<SemaIntType *>(Type2)->isSigned();
+		if (V1->getType()->getIntegerBitWidth() < V2->getType()->getIntegerBitWidth())
+			V1 = Builder->CreateIntCast(V1, V2->getType(), S1);
+		else
+			V2 = Builder->CreateIntCast(V2, V1->getType(), S2);
+	}
+
 	// Choose float vs integer instructions based on effective type
 	bool IsFloat = EffectiveType->isFloat();
 	bool IsUnsignedInt = !IsFloat && EffectiveType->isInteger() &&
@@ -1171,6 +1214,19 @@ llvm::Value *CodeGenExpr::GenBinaryCompare(SemaExpr *E1, ASTBinaryKind OperatorK
 			V2 = ConvertToInteger(V2, IntType1); // Promote V2
 		} else if (IntType1->getRank() < IntType2->getRank()) {
 			V1 = ConvertToInteger(V1, IntType2); // Promote V1
+		}
+
+		// Safety net: Resolver::PromoteTypes may have rewritten an operand's SEMA
+		// type after its value was emitted at the original width (e.g. the literal
+		// expr `0 - 5` emitted i32 but promoted to long) — ranks then agree while
+		// the IR types don't, and the verifier rejects the icmp. Reconcile on the
+		// actual IR widths, widening the narrower value with its own signedness.
+		if (V1->getType() != V2->getType() &&
+		    V1->getType()->isIntegerTy() && V2->getType()->isIntegerTy()) {
+			if (V1->getType()->getIntegerBitWidth() < V2->getType()->getIntegerBitWidth())
+				V1 = Builder->CreateIntCast(V1, V2->getType(), IntType1->isSigned());
+			else
+				V2 = Builder->CreateIntCast(V2, V1->getType(), IntType2->isSigned());
 		}
 
         bool Signed = IntType1->isSigned() || IntType2->isSigned();
@@ -1386,11 +1442,31 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool Free
 	if (E1->getType()->isNumber() && E2->getType()->isNumber()) {
 		SemaNumberType *Type1 = static_cast<SemaNumberType *>(E1->getType());
 		SemaNumberType *Type2 = static_cast<SemaNumberType *>(E2->getType());
+		bool Src2Signed = !Type2->isInteger() || static_cast<SemaIntType *>(Type2)->isSigned();
 
 		// Promotion rules: convert Type1 or Type2 to the max type
 		if (Type1->getRank() > Type2->getRank()) {
-			bool Src2Signed = !Type2->isInteger() || static_cast<SemaIntType *>(Type2)->isSigned();
 			V2 = ConvertNumber(V2, Type1, Src2Signed); // Implicit conversion
+		} else if (Type1->getRank() < Type2->getRank() &&
+		           Type1->isInteger() && V2->getType()->isIntegerTy()) {
+			// NARROWING store: the value must be truncated to the destination
+			// slot's width. With literals typed int (CreateNumberValue), a
+			// `byte b = 0` otherwise stores 4 bytes into the 1-byte slot and
+			// clobbers the adjacent stack slots (observed: the enclosing loop's
+			// counter was zeroed every iteration → infinite loop in fly.str).
+			// Sema already validated the assignment (constant-narrowing check).
+			llvm::Type *DestTy = nullptr;
+			switch (static_cast<SemaIntType *>(Type1)->getIntKind()) {
+				case SemaIntTypeKind::TYPE_BYTE:   DestTy = CodeGen::Int8Ty;  break;
+				case SemaIntTypeKind::TYPE_SHORT:
+				case SemaIntTypeKind::TYPE_USHORT: DestTy = CodeGen::Int16Ty; break;
+				case SemaIntTypeKind::TYPE_INT:
+				case SemaIntTypeKind::TYPE_UINT:   DestTy = CodeGen::Int32Ty; break;
+				case SemaIntTypeKind::TYPE_LONG:
+				case SemaIntTypeKind::TYPE_ULONG:  DestTy = CodeGen::Int64Ty; break;
+			}
+			if (DestTy && DestTy != V2->getType())
+				V2 = Builder->CreateIntCast(V2, DestTy, Src2Signed);
 		}
 	}
 	// Bridge: when storing a CLang instance into a variable, propagate the
@@ -1537,7 +1613,7 @@ void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &A
 			// the slot), so hand it a temp slot holding the adjusted pointer. A const
 			// param takes the pointer by value, so pass it directly.
 			if (!Params[i]->isConstant()) {
-				llvm::AllocaInst *Tmp = Builder->CreateAlloca(V->getType());
+				llvm::AllocaInst *Tmp = CreateEntryAlloca(Builder, V->getType());
 				Builder->CreateStore(V, Tmp);
 				V = Tmp;
 			}
@@ -1585,7 +1661,7 @@ void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &A
 				}
 			}
 
-			llvm::AllocaInst *TmpAlloca = Builder->CreateAlloca(ExpectedType);
+			llvm::AllocaInst *TmpAlloca = CreateEntryAlloca(Builder, ExpectedType);
 			Builder->CreateStore(V, TmpAlloca);
 			V = TmpAlloca;
 		}

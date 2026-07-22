@@ -1697,17 +1697,20 @@ namespace {
                         "\n"
                         "define void @_F4func(ptr %0) {\n"
                         "entry:\n"
-                        "  %1 = alloca ptr, align 8\n"
-                        "  %2 = alloca i32, align 4\n"
+                        // The by-ref argument's temp slot is hoisted to the entry
+                        // block (CreateEntryAlloca): a fixed frame slot, not a
+                        // dynamic alloca at the call site.
+                        "  %1 = alloca i32, align 4\n"
+                        "  %2 = alloca ptr, align 8\n"
                         "  %3 = alloca i32, align 4\n"
-                        "  store ptr %0, ptr %1, align 8\n"
-                        "  store i32 0, ptr %2, align 4\n"
+                        "  %4 = alloca i32, align 4\n"
+                        "  store ptr %0, ptr %2, align 8\n"
                         "  store i32 0, ptr %3, align 4\n"
-                        "  %4 = load ptr, ptr %1, align 8\n"
-                        "  %5 = load i32, ptr %2, align 4\n"
-                        "  %6 = alloca i32, align 4\n"
-                        "  store i32 %5, ptr %6, align 4\n"
-                        "  call void @_F4test_i_i(ptr %4, ptr %6, ptr %3)\n"
+                        "  store i32 0, ptr %4, align 4\n"
+                        "  %5 = load ptr, ptr %2, align 8\n"
+                        "  %6 = load i32, ptr %3, align 4\n"
+                        "  store i32 %6, ptr %1, align 4\n"
+                        "  call void @_F4test_i_i(ptr %5, ptr %1, ptr %4)\n"
                         "  ret void\n"
                         "}\n");
     }

@@ -152,6 +152,7 @@ DIAG(err_parser_conflict_params, CLASS_ERROR, (unsigned)diag::Severity::Error, "
 DIAG(err_parser_return_with_value, CLASS_ERROR, (unsigned)diag::Severity::Error, "'return' cannot carry a value; use 'out = expr' to set the return value, and bare 'return' to exit early", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_missing_return_type, CLASS_ERROR, (unsigned)diag::Severity::Error, "function or method declaration is missing a return type; use 'void' for functions that do not return a value (e.g. 'void main()')", 0, SFINAE_Suppress, false, true, 0)
 DIAG(err_parser_expected_greater, CLASS_ERROR, (unsigned)diag::Severity::Error, "unclosed type argument list: expected '>' to close the generic type arguments", 0, SFINAE_Suppress, false, true, 0)
+DIAG(err_parser_expected_lparen, CLASS_ERROR, (unsigned)diag::Severity::Error, "expected '(' to open the parameter list", 0, SFINAE_Suppress, false, true, 0)
 
 // Sema
 DIAG(err_sema_duplicate_identity, CLASS_ERROR, (unsigned)diag::Severity::Error, "type '%0' is already defined in this namespace; each type name must be unique", 0, SFINAE_Suppress, false, true, 0)
@@ -235,4 +236,11 @@ DIAG(err_codegen_generate_header, CLASS_ERROR, (unsigned)diag::Severity::Error, 
 // Fatal Invalid Compiler Behavior
 DIAG(fatal_too_many_errors, CLASS_ERROR, (unsigned)diag::Severity::Fatal, "too many errors emitted, stopping now", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_invalid_behavior, CLASS_ERROR, (unsigned)diag::Severity::Fatal, "internal compiler error: unexpected state reached — this is a bug, please report it", 0, SFINAE_Suppress, false, true, 0)
+
+// Frontend: directory-mode input discovery (appended at the END of this file:
+// entries are enum-ordered, and inserting mid-file shifts every later diag ID)
+DIAG(err_fe_no_sources, CLASS_ERROR, (unsigned)diag::Severity::Error, "no .fly source files found in source directory '%0'", 0, SFINAE_SubstitutionFailure, false, true, 0)
+DIAG(err_fe_no_main, CLASS_ERROR, (unsigned)diag::Severity::Error, "no main() function found in source directory '%0'", 0, SFINAE_SubstitutionFailure, false, true, 0)
+DIAG(err_fe_multiple_main, CLASS_ERROR, (unsigned)diag::Severity::Error, "multiple main() functions found in source directory '%0': %1", 0, SFINAE_SubstitutionFailure, false, true, 0)
+DIAG(err_fe_suite_not_found, CLASS_ERROR, (unsigned)diag::Severity::Error, "suite '%0' not found in source directory '%1'", 0, SFINAE_SubstitutionFailure, false, true, 0)
 

@@ -755,7 +755,9 @@ void Resolver::visit(ASTNamedType &AST) {
 			return;
 		}
 		if (!InHeader)
-			Diag(AST.getLocation(), diag::err_sema_unknown_type) << AST.str();
+			// Print the user-visible qualified name, not the AST node dump
+			// (the dump leaked internals like "ASTNamedType{Location=…}").
+			Diag(AST.getLocation(), diag::err_sema_unknown_type) << Helper::Flatten(AST.getNames());
 		return;
 	}
 	SemaType *Sema = static_cast<SemaType *>(Sym->getRef());
@@ -942,9 +944,19 @@ void Resolver::visit(ASTDeclStmt &AST) {
 		DeclExpr = CurrentExpr;
 	}
 
-	// Type check: initializer must be compatible with declared type
+	// Type check: initializer must be compatible with declared type.
+	// The parser models `byte b = 0` as a BINARY ASSIGN expr (`b = 0`), so the
+	// node here is the assignment, not the initializer: check against the
+	// RIGHT operand — the actual value — or a literal that fits the target
+	// (CheckAssignment's constant-narrowing) is never recognized as such.
 	if (LocalVar && DeclExpr && LocalVar->getType()) {
-		Validator->CheckAssignment(LV->getLocation(), LocalVar->getType(), DeclExpr);
+		SemaExpr *InitExpr = DeclExpr;
+		if (DeclExpr->getKind() == SemaKind::BINARY &&
+		    static_cast<SemaBinary *>(DeclExpr)->getAST().isAssign()) {
+			SemaExpr *Rhs = static_cast<SemaBinary *>(DeclExpr)->getRight();
+			if (Rhs) InitExpr = Rhs;
+		}
+		Validator->CheckAssignment(LV->getLocation(), LocalVar->getType(), InitExpr);
 	}
 
 	// Check for array without size expression or initialization expression

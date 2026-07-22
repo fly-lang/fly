@@ -403,10 +403,16 @@ bool Frontend::Execute() {
     if (CI.getFrontendOptions().ShowStats)
         llvm::EnableStatistics(false);
 
-    // Check if Input Files not empty
+    // Directory mode (the CLI): no explicit inputs exist — discover them from the
+    // source root. API users (tests, LSP) that pass explicit inputs skip this; an
+    // empty input list without DiscoverInputs stays the historical error.
     if (CI.getFrontendOptions().getInputFiles().empty()) {
-        Diags.Report(SourceLocation(), diag::note_fe_no_input_process);
-        return false;
+        if (!CI.getFrontendOptions().DiscoverInputs) {
+            Diags.Report(SourceLocation(), diag::note_fe_no_input_process);
+            return false;
+        }
+        if (!DiscoverInputs())
+            return false;
     }
 
     // Parse input files
@@ -421,17 +427,20 @@ bool Frontend::Execute() {
 
     const auto &AllInputs = CI.getFrontendOptions().getInputFiles();
 
-    // Parse the entry file (first input) before auto-detection / dep-resolution.
-    {
+    // Parse every input file (the discovered entry set, or the API caller's list)
+    // BEFORE dependency resolution, so the lazy source scan inside
+    // ResolveSourceDeps already knows them all and never re-parses one as a dep.
+    const size_t EntryIdx = ASTModules.size();
+    for (const auto &In : AllInputs) {
         Diags.getClient()->BeginSourceFile();
-        ParseFile(*Builder, AllInputs[0]);
+        ParseFile(*Builder, In);
         Diags.getClient()->EndSourceFile();
     }
 
-    // Auto-detect output type from the entry file's AST (single-file build with no
-    // --lib/--lib-dyn). May set CreateLibrary/TestMode and auto-name the output.
-    if (CI.getFrontendOptions().AutoDetectOutput && !ASTModules.empty())
-        AutoDetectOutputType(ASTModules.back());
+    // Auto-detect output type from the entry file's AST (linking build with no -o).
+    // May set CreateLibrary/TestMode and auto-name the output.
+    if (CI.getFrontendOptions().AutoDetectOutput && ASTModules.size() > EntryIdx)
+        AutoDetectOutputType(ASTModules[EntryIdx]);
 
     // --out-dir: create the directory and resolve the final artifact (-o or
     // auto-named) under it, so ToolChain and the header-dir derivation pick it up.
@@ -453,13 +462,6 @@ bool Frontend::Execute() {
     // programs whose imports are all served by lib headers (std-only) never scan.
     ResolveSourceDeps(*Builder);
 
-    // Parse remaining explicit input files (multi-file CLI mode, unchanged).
-    for (size_t i = 1; i < AllInputs.size(); ++i) {
-        Diags.getClient()->BeginSourceFile();
-        ParseFile(*Builder, AllInputs[i]);
-        Diags.getClient()->EndSourceFile();
-    }
-
 	// Parse files, create AST, build Semantics checker
 	SemaContext *S = new SemaContext(Diags);
 
@@ -469,7 +471,12 @@ bool Frontend::Execute() {
     // after Execute() returns (used by the LSP server and other tools).
 	SemaModules = S->Resolve(ASTModules, CI.getCodeGenOptions().TestMode);
 
-    if (!SemaModules.empty()) {
+    // Never lower modules that carry parse/sema errors: a failed resolution
+    // leaves null types/symbols behind and CodeGen dereferences them — the
+    // compiler crashed (0xC0000005) AFTER the diagnostics were printed. The
+    // errors are the outcome; skip the backend and exit non-zero (see the
+    // getNumErrors() return below).
+    if (!SemaModules.empty() && !Diags.hasErrorOccurred()) {
 
         // Create LLVM Context (must outlive all modules)
         llvm::LLVMContext LLVMCtx;
@@ -638,8 +645,11 @@ void Frontend::AutoDetectOutputType(ASTModule *M) {
     FrontendOptions &FO = CI.getFrontendOptions();
     bool testMode = CI.getCodeGenOptions().TestMode; // set by --test flag
     bool hasOutput = !FO.getOutputFile().empty();
-    std::string stem = llvm::sys::path::stem(
-        llvm::sys::path::filename(FO.getInputFiles()[0])).str();
+    // Discovery picks the stem when it knows a better name than the entry file's
+    // (the suite name, or the source-root directory for library/multi-suite builds).
+    std::string stem = FO.DefaultOutputStem.empty()
+        ? llvm::sys::path::stem(llvm::sys::path::filename(FO.getInputFiles()[0])).str()
+        : FO.DefaultOutputStem;
 
     // Forced library (--lib/--lib-dyn): keep the library behaviour set by the Driver,
     // even when a main() is present. Only auto-name the output (ToolChain appends the
@@ -781,40 +791,213 @@ void Frontend::ResolveSourceDeps(ASTBuilder &Builder) {
                 }
             }
 
-            auto it = NsToFiles.find(ns);
+            // Namespaces to pull: the imported one plus every DESCENDANT namespace
+            // (an `import my` / `import my.*` must discover my.utils from source —
+            // in directory mode nothing else brings those files in). Header-served
+            // descendants stay with their archives.
+            llvm::SmallVector<std::string, 4> MatchNs;
+            if (NsToFiles.count(ns))
+                MatchNs.push_back(ns);
+            const std::string Prefix = ns + ".";
+            for (const auto &Entry : NsToFiles)
+                if (llvm::StringRef(Entry.first).starts_with(Prefix) &&
+                    !HeaderNs.count(Entry.first))
+                    MatchNs.push_back(Entry.first);
             // A plain/alias import is `Namespace.Symbol` (e.g. `import fly.compiler.ast.ASTNode`):
             // its trailing component is the imported class/enum/function name, NOT a namespace
             // component, so the joined path is not a declared namespace. Fall back to the parent
             // namespace (drop the last component) so the namespace's source files still get pulled
             // in. Wildcard imports already carry the bare namespace, so skip them here.
-            if (it == NsToFiles.end() && !Imp->isWildcard()) {
+            if (MatchNs.empty() && !Imp->isWildcard()) {
                 std::string parent = ns;
-                while (it == NsToFiles.end()) {
+                while (MatchNs.empty()) {
                     auto dot = parent.rfind('.');
                     if (dot == std::string::npos) break;
                     parent = parent.substr(0, dot);
-                    it = NsToFiles.find(parent);
+                    if (NsToFiles.count(parent))
+                        MatchNs.push_back(parent);
                 }
             }
-            if (it == NsToFiles.end()) continue;
-            for (const auto &Path : it->second) {
-                llvm::StringRef Fname = llvm::sys::path::filename(Path);
-                if (KnownFiles.count(Fname)) continue;
-                KnownFiles.insert(Fname);
-                FLY_DEBUG_MSG("Resolved import '" << ns << "' → " << Path);
-                Diags.getClient()->BeginSourceFile();
-                ParseFile(Builder, Path);
-                Diags.getClient()->EndSourceFile();
-                // A module the command line did NOT list was pulled in: it and the
-                // importer reference each other, so they cannot be lowered per-file.
-                // A file the user listed anyway keeps the explicit per-file behaviour.
-                if (!ExplicitInputs.count(Fname))
-                    PulledSourceDeps = true;
+            if (MatchNs.empty()) continue;
+            for (const auto &MN : MatchNs) {
+                auto it = NsToFiles.find(MN);
+                for (const auto &Path : it->second) {
+                    llvm::StringRef Fname = llvm::sys::path::filename(Path);
+                    if (KnownFiles.count(Fname)) continue;
+                    KnownFiles.insert(Fname);
+                    FLY_DEBUG_MSG("Resolved import '" << ns << "' → " << Path);
+                    Diags.getClient()->BeginSourceFile();
+                    ParseFile(Builder, Path);
+                    Diags.getClient()->EndSourceFile();
+                    // A module the command line did NOT list was pulled in: it and the
+                    // importer reference each other, so they cannot be lowered per-file.
+                    // A file the user listed anyway keeps the explicit per-file behaviour.
+                    if (!ExplicitInputs.count(Fname))
+                        PulledSourceDeps = true;
+                }
+                // Done with this namespace; avoid re-processing it for other modules.
+                NsToFiles.erase(it);
             }
-            // Done with this namespace; avoid re-processing it for other modules.
-            NsToFiles.erase(it);
         }
     }
+}
+
+// Token-level scan of a .fly file for its TOP-LEVEL declarations: a `main`
+// identifier followed by `(` at brace depth 0 is the program entry point, and
+// `suite <Name>` at depth 0 declares a test suite. The real Lexer is used (it
+// resolves keywords and skips comments/strings), but nothing is parsed — class
+// methods named main sit at depth >= 1 and are never mistaken for the entry.
+static void ScanTopLevelDecls(SourceManager &SM, const std::string &Path,
+                              bool &HasMain,
+                              llvm::SmallVectorImpl<std::string> &Suites) {
+    HasMain = false;
+    auto MBOrErr = llvm::MemoryBuffer::getFile(Path);
+    if (!MBOrErr)
+        return;
+    const llvm::MemoryBuffer *MB = MBOrErr.get().get();
+    const FileID FID = SM.createFileID(std::move(MBOrErr.get()));
+    Lexer Lex(FID, MB, SM);
+
+    unsigned Depth = 0;
+    bool PrevIsMain = false, PrevIsSuiteKw = false;
+    Token Tok;
+    while (true) {
+        Lex.Lex(Tok);
+        if (Tok.is(tok::eof))
+            break;
+        if (Tok.is(tok::l_brace)) {
+            ++Depth;
+            PrevIsMain = PrevIsSuiteKw = false;
+            continue;
+        }
+        if (Tok.is(tok::r_brace)) {
+            if (Depth) --Depth;
+            PrevIsMain = PrevIsSuiteKw = false;
+            continue;
+        }
+        if (Depth != 0) {
+            PrevIsMain = PrevIsSuiteKw = false;
+            continue;
+        }
+        if (PrevIsSuiteKw && Tok.is(tok::identifier))
+            Suites.push_back(Tok.getIdentifierInfo()->getName().str());
+        if (PrevIsMain && Tok.is(tok::l_paren))
+            HasMain = true;
+        PrevIsSuiteKw = Tok.is(tok::kw_suite);
+        PrevIsMain = Tok.is(tok::identifier) &&
+                     Tok.getIdentifierInfo()->getName() == "main";
+    }
+}
+
+bool Frontend::DiscoverInputs() {
+    FLY_DEBUG_SCOPE("Frontend", "DiscoverInputs");
+    FrontendOptions &FO = CI.getFrontendOptions();
+    const CodeGenOptions &CGO = CI.getCodeGenOptions();
+    const std::string Root = FO.SrcDirs.empty() ? std::string(".") : FO.SrcDirs[0];
+
+    // Every .fly source under the root (recursive; .fly.h are headers, not inputs).
+    // Sorted so the entry order — and with it module order and output naming — is
+    // deterministic across filesystems.
+    std::vector<std::string> Files;
+    std::error_code EC;
+    for (llvm::sys::fs::recursive_directory_iterator I(Root, EC), E;
+         I != E && !EC; I.increment(EC)) {
+        llvm::StringRef P(I->path());
+        if (P.ends_with(".fly"))
+            Files.push_back(I->path());
+    }
+    std::sort(Files.begin(), Files.end());
+    if (Files.empty()) {
+        Diags.Report(diag::err_fe_no_sources) << Root;
+        return false;
+    }
+
+    // The source-root directory name, for outputs that no single file can name
+    // (whole-directory library, multi-suite test executable). "." resolves to the
+    // actual directory the build runs in.
+    auto RootStem = [&Root]() {
+        llvm::SmallString<256> Abs(Root);
+        llvm::sys::fs::make_absolute(Abs);
+        llvm::sys::path::remove_dots(Abs, /*remove_dot_dot=*/true);
+        return std::string(llvm::sys::path::filename(Abs));
+    };
+
+    // Library builds compile the whole directory (the directory IS the library),
+    // and so do the non-linking stages (--no-output, -c, --emit-*): with no
+    // executable to produce there is no entry point to choose. main()/suite
+    // selection below only exists to pick what gets linked.
+    if (FO.CreateLibrary || FO.CreateSharedLib || !FO.LinkStep) {
+        for (const auto &F : Files)
+            FO.addInputFile(F.c_str());
+        FO.DefaultOutputStem = RootStem();
+        return true;
+    }
+
+    // Scan the top-level declarations of every source.
+    llvm::SmallVector<std::string, 8> MainFiles;
+    std::vector<std::pair<std::string, std::string>> SuiteDecls; // (suite, file)
+    for (const auto &F : Files) {
+        bool HasMain = false;
+        llvm::SmallVector<std::string, 4> Suites;
+        ScanTopLevelDecls(CI.getSourceManager(), F, HasMain, Suites);
+        if (HasMain)
+            MainFiles.push_back(F);
+        for (const auto &S : Suites)
+            SuiteDecls.emplace_back(S, F);
+        FLY_DEBUG_MSG("Scanned " << F << ": main=" << HasMain
+                                 << " suites=" << Suites.size());
+    }
+
+    // Test mode (--test / --suite): the suites are the entry points.
+    if (CGO.TestMode) {
+        if (!CGO.SuiteName.empty()) {
+            llvm::StringSet<> Chosen;
+            for (const auto &SD : SuiteDecls)
+                if (SD.first == CGO.SuiteName)
+                    Chosen.insert(SD.second);
+            if (Chosen.empty()) {
+                Diags.Report(diag::err_fe_suite_not_found) << CGO.SuiteName << Root;
+                return false;
+            }
+            for (const auto &F : Files)
+                if (Chosen.count(F))
+                    FO.addInputFile(F.c_str());
+            FO.DefaultOutputStem = CGO.SuiteName;
+            return true;
+        }
+        if (!SuiteDecls.empty()) {
+            llvm::StringSet<> SuiteFiles;
+            for (const auto &SD : SuiteDecls)
+                SuiteFiles.insert(SD.second);
+            for (const auto &F : Files)
+                if (SuiteFiles.count(F))
+                    FO.addInputFile(F.c_str());
+            FO.DefaultOutputStem = SuiteDecls.size() == 1 ? SuiteDecls[0].first
+                                                          : RootStem();
+            return true;
+        }
+        // No suite anywhere: fall through to main() — a main compiled with --test
+        // is the historical "test executable running its test {} blocks".
+    }
+
+    // Executable build: exactly one top-level main() under the root.
+    if (MainFiles.empty()) {
+        Diags.Report(diag::err_fe_no_main) << Root;
+        return false;
+    }
+    if (MainFiles.size() > 1) {
+        std::string List;
+        for (const auto &F : MainFiles) {
+            if (!List.empty())
+                List += ", ";
+            List += F;
+        }
+        Diags.Report(diag::err_fe_multiple_main) << Root << List;
+        return false;
+    }
+    FO.addInputFile(MainFiles[0].c_str());
+    // DefaultOutputStem stays empty: the executable is named after the main file.
+    return true;
 }
 
 /**

@@ -201,6 +201,12 @@ ASTExpr *ParserExpr::Parse(ASTExpr *Left) {
 
 
 ASTExpr * ParserExpr::ParseIdentifierOrCall(ASTExpr *Parent) {
+	// Guard: keywords after '.' are allowed (they carry an IdentifierInfo), but
+	// a token with NO identifier info (number, punctuation) crashed here.
+	if (!P->Tok.getIdentifierInfo()) {
+		P->Diag(P->Tok.getLocation(), diag::err_parser_identifier_expected);
+		return nullptr;
+	}
 	llvm::StringRef Name = P->Tok.getIdentifierInfo()->getName();
 	const SourceLocation &Loc =P->Tok.getLocation() ;
 	P->ConsumeToken();
@@ -398,7 +404,11 @@ ASTTernary *ParserExpr::ParseTernaryExpr(ASTExpr *ConditionExpr) {
     ASTExpr* TrueExpr = PET.Parse();  // Parse the true expression
 
     if (P->Tok.isNot(tok::colon)) {
-        throw P->Diag(P->Tok.getLocation(), diag::err_parser_ternary_expr);
+        // Was `throw P->Diag(...)`: the only throw in the compiler with NO
+        // matching catch anywhere — a malformed ternary killed the process via
+        // std::terminate (0xE06D7363). Diagnose and recover instead.
+        P->Diag(P->Tok.getLocation(), diag::err_parser_ternary_expr);
+        return nullptr;
     }
 
     const SourceLocation &FalseOpLoc = P->ConsumeToken();  // Consume ':'
@@ -539,6 +549,12 @@ ASTCall *ParserExpr::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, 
 			break;
 		}
 
+		// A truncated file must not spin waiting for ')'.
+		if (P->Tok.is(tok::eof)) {
+			P->Diag(P->Tok.getLocation(), diag::err_parser_expected_comma_or_rparen);
+			break;
+		}
+
 		// Parse a parameter
 		ParserExpr PE(P);
 		ASTExpr *Arg = PE.Parse();
@@ -558,8 +574,11 @@ ASTCall *ParserExpr::ParseCall(const SourceLocation &Loc, llvm::StringRef Name, 
 			P->ConsumeParen();
 			break; // End of parameter List
 		} else {
-			// Handle error: Unexpected token
+			// Handle error: Unexpected token. MUST bail out: staying in the loop
+			// without consuming re-diagnosed the same token forever (the parser
+			// hung compiling a malformed argument list).
 			P->Diag(P->Tok.getLocation(), diag::err_parser_expected_comma_or_rparen);
+			break;
 		}
 	}
 

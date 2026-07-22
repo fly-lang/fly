@@ -1,5 +1,5 @@
 //===--------------------------------------------------------------------------------------------------------------===//
-// test/SingleFileBuildTest.cpp - single-file build: auto-detect + import dep graph
+// test/SingleFileBuildTest.cpp - directory build: input discovery + auto-detect
 //
 // Part of the Fly Project https://flylang.org
 // Under the Apache License v2.0 see LICENSE for details.
@@ -7,18 +7,20 @@
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 //
-// Covers the single-file build feature added to the driver/frontend:
-//   * output-type auto-detection from the entry AST (main → exe; suite or
-//     main+--test → test exe; otherwise lib), with auto-naming;
+// Covers the directory-based build feature of the driver/frontend:
+//   * input discovery from the source root (--src-dir, default: cwd):
+//       - executable: the single file declaring main() (0 or >1 → error);
+//       - test mode:  the files declaring suites (--suite Name selects one);
+//       - --lib/--lib-dyn and non-linking stages: the whole directory;
+//   * output-type auto-detection from the entry AST with auto-naming (entry
+//     file stem, suite name, or source-root name), gated on "no -o + link";
 //   * --lib/--lib-dyn forcing a library even when a main() is present;
-//   * the gating that keeps explicit builds (caller-owned output) untouched:
-//       - auto-detect only with a single input AND no -o AND an object backend;
-//       - import-based dependency pulling ONLY with an explicit --src-dir.
+//   * import-based dependency pulling from the same source root.
 //
-// Gate assertions read FrontendOptions::AutoDetectOutput right after
-// BuildCompilerInstance() (set in Driver::BuildOptions, before any codegen), so
-// they need no link step. Behavioural cases run a full Execute() and inspect the
-// resolved options / produced artifacts.
+// Gate assertions read FrontendOptions right after BuildCompilerInstance() (set
+// in Driver::BuildOptions, before any codegen), so they need no link step.
+// Behavioural cases run a full Execute() and inspect the resolved options /
+// produced artifacts.
 //
 //===--------------------------------------------------------------------------------------------------------------===//
 
@@ -59,6 +61,12 @@ namespace {
             Cleanup.push_back(Path);
         }
 
+        // Create a source directory for one test, registering it for cleanup.
+        void makeDir(const std::string &Dir) {
+            llvm::sys::fs::create_directory(Dir);
+            CleanupDirs.push_back(Dir);
+        }
+
         // Mark an expected output artifact for cleanup (don't assume it exists).
         void track(const std::string &Path) { Cleanup.push_back(Path); }
 
@@ -93,20 +101,17 @@ namespace {
 
     // ── Gate tests (no link; assert the AutoDetectOutput flag) ──────────────────
 
-    // Single input file, no -o, object backend → auto-detect is enabled.
-    TEST_F(SingleFileBuildTest, AutoDetectEnabledForSingleFile) {
-        writeFile("sfb_gate.fly", "namespace demo\npublic void f() {}\n");
-        const char *argv[] = {"fly", "sfb_gate.fly"};
+    // No -o on a linking build → auto-detect is enabled.
+    TEST_F(SingleFileBuildTest, AutoDetectEnabledByDefault) {
+        const char *argv[] = {"fly"};
         Driver drv(argv);
         CompilerInstance &CI = drv.BuildCompilerInstance();
         EXPECT_TRUE(CI.getFrontendOptions().AutoDetectOutput);
     }
 
     // Explicit -o means the caller already owns the output: auto-detect off.
-    // This is what keeps explicit builds (which always pass -o) from being reinterpreted.
     TEST_F(SingleFileBuildTest, ExplicitOutputDisablesAutoDetect) {
-        writeFile("sfb_gate.fly", "namespace demo\nvoid main() {}\n");
-        const char *argv[] = {"fly", "sfb_gate.fly", "-o", "sfb_gate_out"};
+        const char *argv[] = {"fly", "-o", "sfb_gate_out"};
         Driver drv(argv);
         CompilerInstance &CI = drv.BuildCompilerInstance();
         EXPECT_FALSE(CI.getFrontendOptions().AutoDetectOutput);
@@ -114,58 +119,57 @@ namespace {
 
     // Emit backends produce intermediates and must never trigger a link step.
     TEST_F(SingleFileBuildTest, EmitLlDisablesAutoDetect) {
-        writeFile("sfb_gate.fly", "namespace demo\nvoid main() {}\n");
-        const char *argv[] = {"fly", "--emit-ll", "sfb_gate.fly"};
+        const char *argv[] = {"fly", "--emit-ll"};
         Driver drv(argv);
         CompilerInstance &CI = drv.BuildCompilerInstance();
         EXPECT_FALSE(CI.getFrontendOptions().AutoDetectOutput);
     }
 
     TEST_F(SingleFileBuildTest, NoOutputDisablesAutoDetect) {
-        writeFile("sfb_gate.fly", "namespace demo\nvoid main() {}\n");
-        const char *argv[] = {"fly", "--no-output", "sfb_gate.fly"};
+        const char *argv[] = {"fly", "--no-output"};
         Driver drv(argv);
         CompilerInstance &CI = drv.BuildCompilerInstance();
         EXPECT_FALSE(CI.getFrontendOptions().AutoDetectOutput);
     }
 
-    // More than one explicit input keeps the classic explicit-build behaviour.
-    TEST_F(SingleFileBuildTest, MultipleFilesDisableAutoDetect) {
-        writeFile("sfb_a.fly", "namespace demo\npublic void a() {}\n");
-        writeFile("sfb_b.fly", "namespace demo\npublic void b() {}\n");
-        const char *argv[] = {"fly", "sfb_a.fly", "sfb_b.fly"};
+    // ── Input discovery (full Execute) ──────────────────────────────────────────
+
+    // An executable build needs exactly one main(): none under the root → error.
+    TEST_F(SingleFileBuildTest, NoMainIsAnError) {
+        const std::string dir = "sfb_nomain_src";
+        makeDir(dir);
+        writeFile(dir + "/sfb_lib.fly", "namespace demo\npublic int answer() { out = 42 }\n");
+        const char *argv[] = {"fly", "--src-dir", "sfb_nomain_src"};
         Driver drv(argv);
-        CompilerInstance &CI = drv.BuildCompilerInstance();
-        EXPECT_FALSE(CI.getFrontendOptions().AutoDetectOutput);
+        drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
     }
 
-    // ── Output-type detection (full Execute) ────────────────────────────────────
-
-    // No main, no suite → static library + header, auto-named from the file stem.
-    TEST_F(SingleFileBuildTest, AutoDetectLibraryWhenNoMainNoSuite) {
-        writeFile("sfb_lib.fly", "namespace demo\npublic int answer() { out = 42 }\n");
-        track(libName("sfb_lib"));
-        track("sfb_lib.fly.h");
-        const char *argv[] = {"fly", "sfb_lib.fly"};
+    // Two files declaring main() under the same root → error, nothing built.
+    TEST_F(SingleFileBuildTest, MultipleMainsIsAnError) {
+        const std::string dir = "sfb_twomains_src";
+        makeDir(dir);
+        writeFile(dir + "/a.fly", "namespace demo\nvoid main() {}\n");
+        writeFile(dir + "/b.fly", "namespace demo2\nvoid main() {}\n");
+        track(exeName("a"));
+        track(exeName("b"));
+        const char *argv[] = {"fly", "--src-dir", "sfb_twomains_src"};
         Driver drv(argv);
-        CompilerInstance &CI = drv.BuildCompilerInstance();
-        bool ok = drv.Execute();
-
-        EXPECT_TRUE(ok);
-        EXPECT_TRUE(CI.getFrontendOptions().CreateLibrary);
-        EXPECT_TRUE(CI.getFrontendOptions().CreateHeader);
-        EXPECT_FALSE(CI.getCodeGenOptions().TestMode);
-        EXPECT_EQ(CI.getFrontendOptions().getOutputFile(), "sfb_lib");
-        EXPECT_TRUE(exists(libName("sfb_lib")));
-        EXPECT_TRUE(exists("sfb_lib.fly.h"));
+        drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
+        EXPECT_FALSE(exists(exeName("a")));
+        EXPECT_FALSE(exists(exeName("b")));
     }
 
-    // void main() and no library flag → executable, auto-named, not test mode.
+    // void main() and no library flag → executable, auto-named from the file
+    // declaring main(), not test mode.
     TEST_F(SingleFileBuildTest, AutoDetectExecutableFromMain) {
-        writeFile("sfb_exe.fly", "namespace demo\nvoid main() {}\n");
+        const std::string dir = "sfb_exe_src";
+        makeDir(dir);
+        writeFile(dir + "/sfb_exe.fly", "namespace demo\nvoid main() {}\n");
         track(exeName("sfb_exe"));
         track("sfb_exe.fly.o"); // intermediate object (kept on the exe/test path)
-        const char *argv[] = {"fly", "sfb_exe.fly"};
+        const char *argv[] = {"fly", "--src-dir", "sfb_exe_src"};
         Driver drv(argv);
         CompilerInstance &CI = drv.BuildCompilerInstance();
         bool ok = drv.Execute();
@@ -177,26 +181,36 @@ namespace {
         EXPECT_TRUE(exists(exeName("sfb_exe")));
     }
 
-    // --lib forces a library even when a main() exists (no executable produced).
+    // --lib compiles the whole directory into an archive named after the source
+    // root, even when a main() exists (no executable produced).
     TEST_F(SingleFileBuildTest, LibFlagOverridesMain) {
-        writeFile("sfb_ovr.fly", "namespace demo\nvoid main() {}\npublic int v() { out = 1 }\n");
+        const std::string dir = "sfb_ovr";
+        makeDir(dir);
+        writeFile(dir + "/sfb_ovr.fly", "namespace demo\nvoid main() {}\npublic int v() { out = 1 }\n");
         track(libName("sfb_ovr"));
         track("sfb_ovr.fly.h");
-        const char *argv[] = {"fly", "sfb_ovr.fly", "--lib"};
+        const char *argv[] = {"fly", "--lib", "--src-dir", "sfb_ovr"};
         Driver drv(argv);
         CompilerInstance &CI = drv.BuildCompilerInstance();
         bool ok = drv.Execute();
 
         EXPECT_TRUE(ok);
         EXPECT_TRUE(CI.getFrontendOptions().CreateLibrary);
+        // Auto-named after the source-root directory.
+        EXPECT_EQ(CI.getFrontendOptions().getOutputFile(), "sfb_ovr");
         EXPECT_TRUE(exists(libName("sfb_ovr")));
-        EXPECT_FALSE(exists(exeName("sfb_ovr"))); // not linked as an executable
+        // Not linked as an executable. On Linux the executable name has no
+        // extension, so it collides with the SOURCE DIRECTORY's name — require
+        // a regular file, not mere path existence.
+        EXPECT_FALSE(llvm::sys::fs::is_regular_file(exeName("sfb_ovr")));
     }
 
-    // A suite (test methods named *Test) → test mode is enabled automatically,
-    // without an explicit --test flag.
-    TEST_F(SingleFileBuildTest, AutoDetectTestFromSuite) {
-        writeFile("sfb_suite.fly",
+    // --test discovers the suite (no main() needed): test mode on, executable
+    // auto-named after the SUITE, not after the file.
+    TEST_F(SingleFileBuildTest, TestModeDiscoversSuite) {
+        const std::string dir = "sfb_suite_src";
+        makeDir(dir);
+        writeFile(dir + "/sfb_suite.fly",
                   "import fly.assert\n\n"
                   "suite SfbSuite {\n"
                   "    void answerTest() {\n"
@@ -205,9 +219,10 @@ namespace {
                   "        }\n"
                   "    }\n"
                   "}\n");
-        track(exeName("sfb_suite"));
+        track(exeName("SfbSuite"));
         track("sfb_suite.fly.o");
-        const char *argv[] = {"fly", "sfb_suite.fly", "-L", FLY_LIB_FLY_DIR};
+        const char *argv[] = {"fly", "--test", "--src-dir", "sfb_suite_src",
+                              "-L", FLY_LIB_FLY_DIR};
         Driver drv(argv);
         CompilerInstance &CI = drv.BuildCompilerInstance();
         bool ok = drv.Execute();
@@ -215,14 +230,19 @@ namespace {
         EXPECT_TRUE(ok);
         EXPECT_TRUE(CI.getCodeGenOptions().TestMode);
         EXPECT_FALSE(CI.getFrontendOptions().CreateLibrary);
+        EXPECT_EQ(CI.getFrontendOptions().getOutputFile(), "SfbSuite");
+        EXPECT_TRUE(exists(exeName("SfbSuite")));
     }
 
-    // main() + --test → test executable (test mode on, still an executable).
+    // main() + --test and no suite anywhere → test executable from main().
     TEST_F(SingleFileBuildTest, MainPlusTestFlagIsTestMode) {
-        writeFile("sfb_maintest.fly", "namespace demo\nvoid main() {}\n");
+        const std::string dir = "sfb_maintest_src";
+        makeDir(dir);
+        writeFile(dir + "/sfb_maintest.fly", "namespace demo\nvoid main() {}\n");
         track(exeName("sfb_maintest"));
         track("sfb_maintest.fly.o");
-        const char *argv[] = {"fly", "sfb_maintest.fly", "--test", "-L", FLY_LIB_FLY_DIR};
+        const char *argv[] = {"fly", "--test", "--src-dir", "sfb_maintest_src",
+                              "-L", FLY_LIB_FLY_DIR};
         Driver drv(argv);
         CompilerInstance &CI = drv.BuildCompilerInstance();
         bool ok = drv.Execute();
@@ -230,34 +250,83 @@ namespace {
         EXPECT_TRUE(ok);
         EXPECT_TRUE(CI.getCodeGenOptions().TestMode);
         EXPECT_FALSE(CI.getFrontendOptions().CreateLibrary);
+        EXPECT_EQ(CI.getFrontendOptions().getOutputFile(), "sfb_maintest");
+    }
+
+    // --suite Name: the named suite is discovered from the source root, built and
+    // RUN — fly's success includes the suite binary exiting 0.
+    TEST_F(SingleFileBuildTest, SuiteByNameIsDiscoveredAndRun) {
+        const std::string dir = "sfb_named_src";
+        makeDir(dir);
+        writeFile(dir + "/first.fly",
+                  "import fly.assert\n\n"
+                  "suite SfbFirst {\n"
+                  "    void okTest() {\n"
+                  "        case \"ok\": {\n"
+                  "            assert.assertTrue(1 > 0, 1)\n"
+                  "        }\n"
+                  "    }\n"
+                  "}\n");
+        writeFile(dir + "/second.fly",
+                  "import fly.assert\n\n"
+                  "suite SfbSecond {\n"
+                  "    void okTest() {\n"
+                  "        case \"ok\": {\n"
+                  "            assert.assertTrue(2 > 1, 1)\n"
+                  "        }\n"
+                  "    }\n"
+                  "}\n");
+        track(exeName("SfbSecond"));
+        track("second.fly.o");
+        const char *argv[] = {"fly", "--suite", "SfbSecond",
+                              "--src-dir", "sfb_named_src", "-L", FLY_LIB_FLY_DIR};
+        Driver drv(argv);
+        CompilerInstance &CI = drv.BuildCompilerInstance();
+        bool ok = drv.Execute();
+
+        EXPECT_TRUE(ok);
+        EXPECT_EQ(drv.getRunExitCode(), 0);
+        // Only the file declaring SfbSecond was compiled, named after the suite.
+        EXPECT_EQ(CI.getFrontendOptions().getOutputFile(), "SfbSecond");
+        EXPECT_TRUE(exists(exeName("SfbSecond")));
+        EXPECT_FALSE(exists(exeName("SfbFirst")));
+    }
+
+    // --suite with a name no file declares → error.
+    TEST_F(SingleFileBuildTest, SuiteNotFoundIsAnError) {
+        const std::string dir = "sfb_nosuite_src";
+        makeDir(dir);
+        writeFile(dir + "/only.fly", "namespace demo\nvoid main() {}\n");
+        const char *argv[] = {"fly", "--suite", "Missing",
+                              "--src-dir", "sfb_nosuite_src", "-L", FLY_LIB_FLY_DIR};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
     }
 
     // ── Import dependency graph (--src-dir) ─────────────────────────────────────
 
     // Helper: lay down a tiny two-file project where the entry imports a sibling
     // namespace via a wildcard import and calls one of its functions.
-    static void writeDepProject(SingleFileBuildTest &T, const std::string &dir,
-                                const std::string &entry) {
+    static void writeDepProject(SingleFileBuildTest &T, const std::string &dir) {
         llvm::sys::fs::create_directory(dir);
         T.CleanupDirs.push_back(dir);
         T.writeFile(dir + "/util.fly",
                     "namespace dep.util\n\npublic int helper() { out = 41 }\n");
-        T.writeFile(entry,
+        T.writeFile(dir + "/main.fly",
                     "namespace dep\n\nimport dep.util.*\n\n"
                     "public int compute() { out = helper() + 1 }\n");
     }
 
-    // With --src-dir the entry's import is resolved to the sibling source and the
-    // whole graph compiles into one library.
+    // --lib compiles the whole root (entry + sibling) into one archive at -o.
     TEST_F(SingleFileBuildTest, SrcDirResolvesImportedDependency) {
         const std::string dir = "sfb_dep_src";
-        writeDepProject(*this, dir, dir + "/main.fly");
+        writeDepProject(*this, dir);
         track(dir + "/main.a");
         track(dir + "/main.fly.h");
         track(dir + "/util.fly.h");
 
-        const char *argv[] = {"fly", "sfb_dep_src/main.fly",
-                              "--lib", "--src-dir", "sfb_dep_src",
+        const char *argv[] = {"fly", "--lib", "--src-dir", "sfb_dep_src",
                               "-o", "sfb_dep_src/main.a"};
         Driver drv(argv);
         drv.BuildCompilerInstance();
@@ -265,35 +334,14 @@ namespace {
         EXPECT_TRUE(exists("sfb_dep_src/main.a"));
     }
 
-    // Without --src-dir the project root defaults to the CURRENT directory: the
-    // sibling namespace is discovered recursively from cwd and pulled in — a fly
-    // project compiles implicitly from where the compiler is launched.
-    TEST_F(SingleFileBuildTest, DefaultSrcDirIsCurrentDirectory) {
-        const std::string dir = "sfb_dep_default";
-        writeDepProject(*this, dir, dir + "/main.fly");
-
-        const char *argv[] = {"fly", "sfb_dep_default/main.fly", "--lib",
-                              "-o", "sfb_dep_default/main.a"};
-        track("sfb_dep_default/main.a");
-        track("sfb_dep_default/main.fly.h");
-        track("sfb_dep_default/util.fly.h");
-        Driver drv(argv);
-        drv.BuildCompilerInstance();
-        // dep.util is discovered from the default root (cwd) and pulled in.
-        EXPECT_TRUE(drv.Execute());
-        EXPECT_TRUE(exists("sfb_dep_default/main.a"));
-    }
-
     // --src-dir overrides the default root and is meaningful at most once:
     // a second occurrence is a driver error and nothing is built.
     TEST_F(SingleFileBuildTest, SrcDirGivenTwiceIsAnError) {
         const std::string dir = "sfb_dep_twice";
-        writeDepProject(*this, dir, dir + "/main.fly");
+        writeDepProject(*this, dir);
         track("sfb_dep_twice/main.a");
-        track("sfb_dep_twice/main.fly.h");
-        track("sfb_dep_twice/util.fly.h");
 
-        const char *argv[] = {"fly", "sfb_dep_twice/main.fly", "--lib",
+        const char *argv[] = {"fly", "--lib",
                               "--src-dir", "sfb_dep_twice", "--src-dir", ".",
                               "-o", "sfb_dep_twice/main.a"};
         Driver drv(argv);
@@ -304,30 +352,36 @@ namespace {
 
     // ── --out-dir: every build artifact lands under the given directory ─────────
 
-    // No main/suite + --out-dir → library archive AND header go into the dir,
+    // --lib + --out-dir → library archive AND headers go into the dir,
     // nothing is left in the CWD.
     TEST_F(SingleFileBuildTest, OutDirRedirectsAutoLibrary) {
+        const std::string src = "sfb_odlib_src";
         const std::string dir = "sfb_od_lib";
+        makeDir(src);
         CleanupDirs.push_back(dir);
-        writeFile("sfb_odlib.fly", "namespace demo\npublic int answer() { out = 42 }\n");
-        const char *argv[] = {"fly", "sfb_odlib.fly", "--out-dir", dir.c_str()};
+        writeFile(src + "/sfb_odlib.fly", "namespace demo\npublic int answer() { out = 42 }\n");
+        const char *argv[] = {"fly", "--lib", "--src-dir", "sfb_odlib_src",
+                              "--out-dir", dir.c_str()};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         bool ok = drv.Execute();
 
         EXPECT_TRUE(ok);
-        EXPECT_TRUE(exists(dir + "/" + libName("sfb_odlib")));
+        // Archive auto-named after the source root; headers named per module.
+        EXPECT_TRUE(exists(dir + "/" + libName("sfb_odlib_src")));
         EXPECT_TRUE(exists(dir + "/sfb_odlib.fly.h"));
-        EXPECT_FALSE(exists(libName("sfb_odlib")));  // not in the CWD
+        EXPECT_FALSE(exists(libName("sfb_odlib_src")));  // not in the CWD
         EXPECT_FALSE(exists("sfb_odlib.fly.h"));
     }
 
     // void main() + --out-dir → executable produced inside the dir, not in the CWD.
     TEST_F(SingleFileBuildTest, OutDirRedirectsExecutable) {
+        const std::string src = "sfb_odexe_src";
         const std::string dir = "sfb_od_exe";
+        makeDir(src);
         CleanupDirs.push_back(dir);
-        writeFile("sfb_odexe.fly", "namespace demo\nvoid main() {}\n");
-        const char *argv[] = {"fly", "sfb_odexe.fly", "--out-dir", dir.c_str()};
+        writeFile(src + "/sfb_odexe.fly", "namespace demo\nvoid main() {}\n");
+        const char *argv[] = {"fly", "--src-dir", "sfb_odexe_src", "--out-dir", dir.c_str()};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         bool ok = drv.Execute();
@@ -341,10 +395,13 @@ namespace {
     // Emit backend (--emit-ll) + --out-dir → the .ll lands in the dir, no link step,
     // and auto-detect stays off (no executable produced).
     TEST_F(SingleFileBuildTest, OutDirRedirectsEmitLl) {
+        const std::string src = "sfb_odll_src";
         const std::string dir = "sfb_od_ll";
+        makeDir(src);
         CleanupDirs.push_back(dir);
-        writeFile("sfb_odll.fly", "namespace demo\nvoid main() {}\n");
-        const char *argv[] = {"fly", "--emit-ll", "sfb_odll.fly", "--out-dir", dir.c_str()};
+        writeFile(src + "/sfb_odll.fly", "namespace demo\nvoid main() {}\n");
+        const char *argv[] = {"fly", "--emit-ll", "--src-dir", "sfb_odll_src",
+                              "--out-dir", dir.c_str()};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         bool ok = drv.Execute();
@@ -358,11 +415,13 @@ namespace {
     // Explicit --lib -o foo.a together with --out-dir → the archive is resolved under
     // the dir (build/foo.a); the per-module header also lands there.
     TEST_F(SingleFileBuildTest, OutDirWithExplicitOutput) {
+        const std::string src = "sfb_odo_src";
         const std::string dir = "sfb_od_o";
+        makeDir(src);
         CleanupDirs.push_back(dir);
-        writeFile("sfb_odo.fly", "namespace demo\npublic int v() { out = 1 }\n");
-        const char *argv[] = {"fly", "sfb_odo.fly", "--lib", "-o", "foo.a",
-                              "--out-dir", dir.c_str()};
+        writeFile(src + "/sfb_odo.fly", "namespace demo\npublic int v() { out = 1 }\n");
+        const char *argv[] = {"fly", "--lib", "-o", "foo.a",
+                              "--src-dir", "sfb_odo_src", "--out-dir", dir.c_str()};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         bool ok = drv.Execute();

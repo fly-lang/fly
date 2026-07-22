@@ -178,13 +178,15 @@ namespace {
     	llvm::Module *M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
+    	// The memset length is i32: the size literal is typed int (CreateNumberValue
+    	// types every in-range literal as int, no more minimal byte/short widths).
     	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
                         "entry:\n"
                         "  %1 = alloca ptr, align 8\n"
                         "  %2 = alloca %array, align 8\n"
                         "  store ptr %0, ptr %1, align 8\n"
                         "  %3 = call ptr @malloc(i64 12)\n"
-                        "  call void @llvm.memset.p0.i8(ptr %3, i8 0, i8 12, i1 false)\n"
+                        "  call void @llvm.memset.p0.i32(ptr %3, i8 0, i32 12, i1 false)\n"
                         "  %4 = getelementptr inbounds nuw %array, ptr %2, i32 0, i32 0\n"
                         "  store ptr %3, ptr %4, align 8\n"
                         "  %5 = getelementptr inbounds nuw %array, ptr %2, i32 0, i32 1\n"
@@ -193,7 +195,7 @@ namespace {
                         "}\n"
                         "declare ptr @malloc(i64)\n"
                         "; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: write)\n"
-                        "declare void @llvm.memset.p0.i8(ptr nocapture writeonly, i8, i8, i1 immarg) #0\n");
+                        "declare void @llvm.memset.p0.i32(ptr nocapture writeonly, i8, i32, i1 immarg) #0\n");
     }
 
     TEST_F(CodeGenTest, CGArrayLocalVarAssignValues) {

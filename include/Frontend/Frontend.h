@@ -72,6 +72,18 @@ namespace fly {
 
         bool Execute();
 
+        /// Directory mode (FrontendOptions::DiscoverInputs): populate the input
+        /// files from the source root (--src-dir, default: current directory) by
+        /// scanning the top-level declarations of every .fly file under it:
+        ///   - library builds (--lib/--lib-dyn) and non-linking stages
+        ///     (--no-output, -c, --emit-*): every source file;
+        ///   - test mode (--test/--suite) on a linking build: the files declaring
+        ///     suites — only the one declaring CodeGenOptions::SuiteName when set —
+        ///     falling back to main() when the root declares no suite at all;
+        ///   - otherwise: the single file declaring main() (0 or >1 is an error).
+        /// Reports a diagnostic and returns false when discovery fails.
+        bool DiscoverInputs();
+
         void ParseFile(ASTBuilder &Builder, const std::string &FileName);
 
         /// Infer the output type (executable / test executable / library) from the

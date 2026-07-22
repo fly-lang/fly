@@ -45,7 +45,6 @@ namespace fly {
         std::string ResourceDir;
 
         // ── Parsed option values ──────────────────────────────────────────────
-        std::vector<std::string> InputFiles;
         std::vector<std::string> LibDirs;
         std::vector<std::string> SrcDirs;   // --src-dir flags: source search paths for import-based dep discovery
         std::vector<std::string> LinkLibs;  // --link-lib flags: external C libs to link (-lNAME)

@@ -95,7 +95,7 @@ TEST_F(CodeGenTest, CGSuiteImplicitMain) {
     EXPECT_TRUE(output.find("@__fly_test_ctx_ptr") != std::string::npos);
 
     // Implicit main() must be emitted
-    EXPECT_TRUE(output.find("define i32 @main()") != std::string::npos);
+    EXPECT_TRUE(output.find("define i32 @main(i32 %0, ptr %1)") != std::string::npos);
 
     // Error handler alloca in main()
     EXPECT_TRUE(output.find("suite_err") != std::string::npos);
@@ -165,7 +165,7 @@ TEST_F(CodeGenTest, CGSuiteSetupTeardownCallOrder) {
     Generate();
     std::string output = getOutput(getModules()[0]);
 
-    EXPECT_TRUE(output.find("define i32 @main()") != std::string::npos);
+    EXPECT_TRUE(output.find("define i32 @main(i32 %0, ptr %1)") != std::string::npos);
 
     // Sentinel store (TLS set to non-null) comes before method calls
     EXPECT_TRUE(output.find("store ptr inttoptr") != std::string::npos);
@@ -200,7 +200,7 @@ TEST_F(CodeGenTest, CGSuiteNoSetupNoTeardown) {
     std::string output = getOutput(getModules()[0]);
 
     // main() must still be valid: exit code derived from the failed counter
-    EXPECT_TRUE(output.find("define i32 @main()") != std::string::npos);
+    EXPECT_TRUE(output.find("define i32 @main(i32 %0, ptr %1)") != std::string::npos);
     EXPECT_TRUE(output.find("@__fly_suite_failed") != std::string::npos);
     EXPECT_TRUE(output.find("zext i1") != std::string::npos);
 

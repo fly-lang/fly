@@ -52,11 +52,13 @@ void main() {
 
     class ImportLibTest : public ::testing::Test {
     public:
-        const char *mainfly = "main.fly";
+        // Directory mode: the source under test lives in a dedicated subdirectory.
+        const char *srcDir = "implib_src";
 
         void SetUpWithSource(const char *Src) {
             DebugLog = false;
-            { std::ofstream f(mainfly); f << Src; }
+            llvm::sys::fs::create_directory(srcDir);
+            { std::ofstream f(std::string(srcDir) + "/main.fly"); f << Src; }
             llvm::InitializeAllTargetInfos();
             llvm::InitializeAllTargets();
             llvm::InitializeAllTargetMCs();
@@ -65,17 +67,17 @@ void main() {
         }
 
         ~ImportLibTest() override {
-            remove(mainfly);
+            llvm::sys::fs::remove_directories(srcDir);
             llvm::outs().flush();
         }
 
         static void deleteFile(const char *path) { remove(path); }
     };
 
-    // Compiles main.fly with -no-output; stdlib headers loaded implicitly.
+    // Compiles the source dir with -no-output; stdlib headers loaded implicitly.
     TEST_F(ImportLibTest, ImportFlyLib) {
     	SetUpWithSource(FlyStringMainSource);
-        const char *argv[] = {"fly", "-no-output", mainfly};
+        const char *argv[] = {"fly", "-no-output", "--src-dir", srcDir};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         EXPECT_TRUE(drv.Execute());
@@ -95,9 +97,11 @@ void main() {
         const char *libDir   = "tmp_mrlib";
         const char *libSrc   = "tmp_mrlib/mrlib.fly";
         const char *libHdr   = "tmp_mrlib/mrlib.fly.h";
-        const char *userFile = "tmp_mr_main.fly";
+        const char *userDir  = "tmp_mr_main";
+        const char *userFile = "tmp_mr_main/main.fly";
 
         llvm::sys::fs::create_directory(libDir);
+        llvm::sys::fs::create_directory(userDir);
         { std::ofstream f(libSrc);
           f << "namespace mr\n\n"
                "public int,int divmod(const int a, const int b) {\n"
@@ -108,7 +112,7 @@ void main() {
         // Step 1: generate the header. --no-output keeps this at the frontend —
         // the header is the artifact under test, and no backend target is needed.
         {
-            const char *argv[] = {"fly", libSrc, "--header", "--no-output", "--out-dir", libDir};
+            const char *argv[] = {"fly", "--header", "--no-output", "--src-dir", libDir, "--out-dir", libDir};
             Driver drv(argv);
             drv.BuildCompilerInstance();
             ASSERT_TRUE(drv.Execute());
@@ -133,15 +137,13 @@ void main() {
                "    mr.divmod(17, 5, q, r)\n"
                "}\n"; }
 
-        const char *argv[] = {"fly", "-no-output", "-L", libDir, userFile};
+        const char *argv[] = {"fly", "-no-output", "-L", libDir, "--src-dir", userDir};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         const bool ok = drv.Execute();
 
-        remove(userFile);
-        remove(libHdr);
-        remove(libSrc);
-        llvm::sys::fs::remove(libDir);
+        llvm::sys::fs::remove_directories(userDir);
+        llvm::sys::fs::remove_directories(libDir);
 
         EXPECT_TRUE(ok);
     }
@@ -151,22 +153,23 @@ void main() {
     // then compile a user file that imports "ext.lib" — it should succeed.
     TEST_F(ImportLibTest, LibDirFlag) {
         // Create a temporary lib directory with one .fly source file
-        const char *libDir  = "tmp_libdir";
-        const char *libFile = "tmp_libdir/mylib.fly";
-        const char *userFile = "tmp_libdir_main.fly";
+        const char *libDir   = "tmp_libdir";
+        const char *libFile  = "tmp_libdir/mylib.fly";
+        const char *userDir  = "tmp_libdir_main";
+        const char *userFile = "tmp_libdir_main/main.fly";
 
         llvm::sys::fs::create_directory(libDir);
+        llvm::sys::fs::create_directory(userDir);
         { std::ofstream f(libFile);  f << "namespace ext.lib\npublic void libFunc() {}\n"; }
         { std::ofstream f(userFile); f << "import ext.lib\nvoid main() { ext.lib.libFunc() }\n"; }
 
-        const char *argv[] = {"fly", "-no-output", "-L", libDir, userFile};
+        const char *argv[] = {"fly", "-no-output", "-L", libDir, "--src-dir", userDir};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         bool ok = drv.Execute();
 
-        remove(libFile);
-        remove(userFile);
-        llvm::sys::fs::remove(libDir);
+        llvm::sys::fs::remove_directories(userDir);
+        llvm::sys::fs::remove_directories(libDir);
 
         EXPECT_TRUE(ok);
     }
@@ -178,25 +181,24 @@ void main() {
         const char *flyFile   = "tmp_warn_libdir/mylib.fly";
         const char *flyHFile  = "tmp_warn_libdir/mylib.fly.h";  // silently skipped
         const char *txtFile   = "tmp_warn_libdir/README.txt";   // triggers warning
-        const char *userFile  = "tmp_warn_libdir_main.fly";
+        const char *userDir   = "tmp_warn_libdir_main";
+        const char *userFile  = "tmp_warn_libdir_main/main.fly";
 
         llvm::sys::fs::create_directory(libDir);
+        llvm::sys::fs::create_directory(userDir);
         { std::ofstream f(flyFile);  f << "namespace warn.lib\npublic void warnFunc() {}\n"; }
         { std::ofstream f(flyHFile); f << "namespace warn.lib\npublic void warnFunc()\n"; }
         { std::ofstream f(txtFile);  f << "this is a readme\n"; }
         { std::ofstream f(userFile); f << "import warn.lib\nvoid main() { warn.lib.warnFunc() }\n"; }
 
-        const char *argv[] = {"fly", "-no-output", "-L", libDir, userFile};
+        const char *argv[] = {"fly", "-no-output", "-L", libDir, "--src-dir", userDir};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         // Compilation succeeds (warning does not abort)
         bool ok = drv.Execute();
 
-        remove(flyFile);
-        remove(flyHFile);
-        remove(txtFile);
-        remove(userFile);
-        llvm::sys::fs::remove(libDir);
+        llvm::sys::fs::remove_directories(userDir);
+        llvm::sys::fs::remove_directories(libDir);
 
         EXPECT_TRUE(ok);
     }
@@ -208,7 +210,7 @@ void main() {
         const char *llMainFile = "main.fly.ll";
         deleteFile(llMainFile);
 
-        const char *argv[] = {"fly", "-emit-ll", mainfly};
+        const char *argv[] = {"fly", "-emit-ll", "--src-dir", srcDir};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         ASSERT_TRUE(drv.Execute());
