@@ -62,8 +62,9 @@ Set-Content -Path "$Work\dbg_test.fly" -Value $Source -Encoding UTF8
 
 # ── Compile with debug symbols ─────────────────────────────────────────────────
 # --debug-symbols emits DWARF without the verbose DebugLog that --debug adds,
-# so stderr stays readable and is worth showing on failure.
-$compileOut = & $FlyBin --debug-symbols "$Work\dbg_test.fly" $FlyStd -o "$Work\dbg_test.exe" 2>&1
+# so stderr stays readable and is worth showing on failure. fly compiles the
+# WORK directory (--src-dir); fly_std_lib/runtime auto-link from <bin>\..\lib.
+$compileOut = & $FlyBin --debug-symbols --src-dir "$Work" -o "$Work\dbg_test.exe" 2>&1
 if ($LASTEXITCODE -ne 0) {
     Write-Host "FAIL: compilation failed"
     Write-Host $compileOut

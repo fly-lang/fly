@@ -527,27 +527,29 @@ namespace {
 
     class HeaderGenTest : public ::testing::Test {
     public:
-        const char *srcName = "hdrgen.fly";
+        const char *srcDir  = "hdrgen_src";
+        const char *srcName = "hdrgen_src/hdrgen.fly";
 
-        // Compile SRC with --header and return the generated header text.
+        // Compile the source dir with --header and return the generated header text.
         // --no-output keeps this at the frontend: the header is what is under test,
         // and skipping the backend means no LLVM target has to be registered.
         std::string genHeader(const char *Src) {
+            llvm::sys::fs::create_directory(srcDir);
             { std::ofstream f(srcName); f << Src; }
-            const char *argv[] = {"fly", srcName, "--header", "--no-output"};
+            const char *argv[] = {"fly", "--header", "--no-output", "--src-dir", srcDir};
             Driver drv(argv);
             drv.BuildCompilerInstance();
             const bool ok = drv.Execute();
             EXPECT_TRUE(ok);
-            std::ifstream h("hdrgen.fly.h");
+            // With no --out-dir the header is written next to its source.
+            std::ifstream h("hdrgen_src/hdrgen.fly.h");
             std::string text((std::istreambuf_iterator<char>(h)),
                               std::istreambuf_iterator<char>());
             return text;
         }
 
         void TearDown() override {
-            remove(srcName);
-            remove("hdrgen.fly.h");
+            llvm::sys::fs::remove_directories(srcDir);
         }
     };
 

@@ -49,6 +49,12 @@ llvm::SmallVector<ASTParam *, 8> ParserFunction::ParseParams(Parser *P) {
             break;
         }
 
+        // A truncated file must not spin waiting for ')'.
+        if (P->Tok.is(tok::eof)) {
+            P->Diag(P->Tok.getLocation(), diag::err_parser_expected_comma_or_rparen);
+            break;
+        }
+
         // Parse a parameter
         ASTParam *Param = ParseParam(P);
         if (Param == nullptr) {
@@ -67,8 +73,11 @@ llvm::SmallVector<ASTParam *, 8> ParserFunction::ParseParams(Parser *P) {
             P->ConsumeParen();
             break; // End of parameter list
         } else {
-            // Handle error: Unexpected token
+            // Handle error: Unexpected token. MUST bail out: staying in the loop
+            // without consuming re-diagnosed the same token forever (the parser
+            // hung compiling a malformed param list).
             P->Diag(P->Tok.getLocation(), diag::err_parser_expected_comma_or_rparen);
+            break;
         }
     }
 
@@ -92,7 +101,14 @@ ASTParam *ParserFunction::ParseParam(Parser *P) {
         return nullptr;
     }
 
-    // Var Name
+    // Var Name. Guard the identifier: in error recovery the token after a
+    // parsed type can be anything (a number, '%', '(' …) and getIdentifierInfo()
+    // is null there — dereferencing it crashed the compiler (0xC0000005) after
+    // the diagnostics were already printed.
+    if (!P->Tok.isAnyIdentifier()) {
+        P->Diag(P->Tok.getLocation(), diag::err_parser_invalid_param);
+        return nullptr;
+    }
     const StringRef Name = P->Tok.getIdentifierInfo()->getName();
     const SourceLocation &Loc = P->ConsumeToken();
 

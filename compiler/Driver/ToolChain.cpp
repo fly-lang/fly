@@ -69,6 +69,23 @@ bool BuildLib() {
     return false;
 }
 
+// External package archives to link: every .a/.lib sitting at the top level of a
+// -L directory. A -L dir is a fly package dir by contract (its .fly.h headers are
+// already loaded for namespace resolution); with no positional inputs on the CLI,
+// this is how a package's compiled archive reaches the linker.
+static void CollectLibDirArchives(const FrontendOptions &FrontendOpts,
+                                  llvm::SmallVectorImpl<std::string> &Libs) {
+    for (const auto &Dir : FrontendOpts.LibDirs) {
+        std::error_code EC;
+        for (llvm::sys::fs::directory_iterator I(Dir, EC), E; I != E && !EC;
+             I.increment(EC)) {
+            const llvm::StringRef Ext = llvm::sys::path::extension(I->path());
+            if (Ext == ".a" || Ext == ".lib")
+                Libs.push_back(I->path());
+        }
+    }
+}
+
 bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, FrontendOptions &FrontendOpts) {
     FLY_DEBUG_SCOPE_MSG("ToolChain", "BuildOutput", "Output=" << FrontendOpts.getOutputFile());
     llvm::SmallVector<const char *, 4> Args = {"fly"};
@@ -92,14 +109,10 @@ bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, Fr
         return Library.CreateLib(ObjFiles);
     } else {
         if (T.isWindowsMSVCEnvironment()) {
-            // Merge user-supplied .lib/.a files (e.g. fly_lib.lib) into the
-            // input list so they reach the linker — same as LinkLinux does.
+            // Merge external package archives (-L dirs) into the input list so
+            // they reach the linker — same as LinkLinux does.
             llvm::SmallVector<std::string, 4> AllFiles = ObjFiles;
-            for (const auto &Input : FrontendOpts.getInputFiles()) {
-                llvm::StringRef Ext = llvm::sys::path::extension(Input);
-                if (Ext == ".lib" || Ext == ".a")
-                    AllFiles.push_back(Input);
-            }
+            CollectLibDirArchives(FrontendOpts, AllFiles);
             return LinkWindows(AllFiles, OutFileName);
         } else if (T.isOSDarwin()) {
             return LinkDarwin(ObjFiles, OutFileName);
@@ -615,7 +628,16 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     // On POSIX these arrive as "-lNAME"; lld-link expects "NAME.lib" instead.
     for (const auto &LibFlag : CodeGenOpts.LinkerOptions) {
         if (LibFlag.size() > 2 && LibFlag[0] == '-' && LibFlag[1] == 'l') {
-            std::string WinLib = LibFlag.substr(2) + ".lib";
+            std::string Name = LibFlag.substr(2);
+            // POSIX C-runtime hints (CLang bridge "libc.so.6"/"libm.so"/pthread)
+            // have no <name>.lib counterpart here: the UCRT already provides
+            // those symbols and is linked via /defaultlib, so skip them instead
+            // of emitting a nonexistent c.lib/m.lib.
+            if (Name == "c" || Name == "m" || Name == "pthread") {
+                FLY_DEBUG_MSG("LinkLib skipped (UCRT-provided)=" << Name);
+                continue;
+            }
+            std::string WinLib = Name + ".lib";
             FLY_DEBUG_MSG("LinkLib=" << WinLib);
             CmdArgs.push_back(WinLib);
         } else {
@@ -966,12 +988,13 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
         CmdArgs.push_back(ObjFile);
     }
 
-    // Add user library inputs (.a / .lib passed on the command line)
-    for (const auto &Input : FrontendOpts.getInputFiles()) {
-        const llvm::StringRef Ext = llvm::sys::path::extension(Input);
-        if (Ext == ".a" || Ext == ".lib") {
-            FLY_DEBUG_MSG("UserLib=" << Input);
-            CmdArgs.push_back(Input);
+    // Add external package archives (.a / .lib found in -L directories)
+    {
+        llvm::SmallVector<std::string, 4> UserLibs;
+        CollectLibDirArchives(FrontendOpts, UserLibs);
+        for (const auto &Lib : UserLibs) {
+            FLY_DEBUG_MSG("UserLib=" << Lib);
+            CmdArgs.push_back(Lib);
         }
     }
 

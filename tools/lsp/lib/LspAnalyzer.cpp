@@ -149,11 +149,12 @@ std::vector<LspDiagnostic> LspAnalyzer::compile(
         targetInit = true;
     }
 
-    // Build argv: fly --no-output file1 file2 ...
+    // The CLI has no positional inputs (fly compiles a source directory), so the
+    // Driver only resolves the options; the files under analysis are handed to
+    // the Frontend explicitly below — explicit inputs skip directory discovery.
     std::vector<const char *> argv;
     argv.push_back("fly");
     argv.push_back("--no-output");
-    for (const auto &f : files) argv.push_back(f.c_str());
 
     driver_.reset();
     frontend_.reset();
@@ -162,6 +163,8 @@ std::vector<LspDiagnostic> LspAnalyzer::compile(
     driver_   = std::make_unique<Driver>(
                     llvm::ArrayRef<const char *>(argv.data(), argv.size()));
     CompilerInstance &ci = driver_->BuildCompilerInstance();
+    for (const auto &f : files)
+        ci.getFrontendOptions().addInputFile(f.c_str());
     SM_ = &ci.getSourceManager();
 
     // Install our capturing consumer before Execute() so every diagnostic

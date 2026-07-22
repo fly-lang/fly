@@ -29,7 +29,13 @@ ParserEnum::ParserEnum(Parser *P, llvm::SmallVector<ASTModifier *, 8> &Modifiers
 
     P->ConsumeToken();
 
-    // Parse class name
+    // Parse enum name — guard: on a non-identifier (`enum 1 {`, garbled
+    // recovery) getIdentifierInfo() is null and dereferencing it crashed.
+    if (!P->Tok.isAnyIdentifier()) {
+        P->Diag(P->Tok, diag::err_parser_identifier_expected);
+        Success = false;
+        return;
+    }
     llvm::StringRef EnumName = P->Tok.getIdentifierInfo()->getName();
     const SourceLocation ClassLoc = P->Tok.getLocation();
     P->ConsumeToken();

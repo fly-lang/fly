@@ -43,7 +43,12 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bo
     }
     P->ConsumeToken();
 
-    // Parse class name
+    // Parse class name — guard: on a non-identifier (`class 1 {`, garbled
+    // recovery) getIdentifierInfo() is null and dereferencing it crashed.
+    if (!P->Tok.isAnyIdentifier()) {
+        P->Diag(P->Tok, diag::err_parser_identifier_expected);
+        return;
+    }
     llvm::StringRef ClassName = P->Tok.getIdentifierInfo()->getName();
     const SourceLocation ClassLoc = P->Tok.getLocation();
     P->ConsumeToken();
@@ -110,6 +115,14 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bo
                     if (AfterName && AfterName->is(tok::l_paren)) {
                         // Method with return type
                         ASTType *RetType = P->ParseType();
+                        // Guard: ParseType can consume differently than the
+                        // lookahead assumed; a non-identifier here has a null
+                        // getIdentifierInfo() and dereferencing it crashed.
+                        if (!P->Tok.isAnyIdentifier()) {
+                            P->Diag(P->Tok, diag::err_parser_identifier_expected);
+                            Continue = false;
+                            continue;
+                        }
                         const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
                         const SourceLocation &Loc = P->Tok.getLocation();
                         P->ConsumeToken();
@@ -153,6 +166,14 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bo
                     std::optional<Token> AfterName = Lexer::findNextToken(TNext->getLocation(), P->SourceMgr);
                     if (AfterName && AfterName->is(tok::l_paren)) {
                         ASTType *RetType = P->ParseType(); // consumes the full type name
+                        // Guard: ParseType can consume differently than the
+                        // lookahead assumed; a non-identifier here has a null
+                        // getIdentifierInfo() and dereferencing it crashed.
+                        if (!P->Tok.isAnyIdentifier()) {
+                            P->Diag(P->Tok, diag::err_parser_identifier_expected);
+                            Continue = false;
+                            continue;
+                        }
                         const StringRef &Name = P->Tok.getIdentifierInfo()->getName();
                         const SourceLocation &Loc = P->Tok.getLocation();
                         P->ConsumeToken();

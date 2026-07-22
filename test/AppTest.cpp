@@ -6,22 +6,17 @@
 // Thank you to LLVM Project https://llvm.org/
 //
 //===--------------------------------------------------------------------------------------------------------------===//
+//
+// The CLI is directory-based: every test keeps its sources in a dedicated
+// subdirectory and points fly at it with --src-dir. The entry (main.fly) is
+// discovered there; utils.fly is pulled in through its import.
+//
+//===--------------------------------------------------------------------------------------------------------------===//
 
 #include "TestUtils.h"
 #include "Driver/Driver.h"
-#include "AST/ASTBuilder.h"
-#include "AST/ASTClass.h"
-#include "AST/ASTEnum.h"
-#include "AST/ASTEnumEntry.h"
-#include "AST/ASTFunction.h"
-#include "AST/ASTImport.h"
-#include "AST/ASTModule.h"
-#include "AST/ASTAttribute.h"
-#include "AST/ASTParam.h"
-#include "AST/ASTNameSpace.h"
 #include "Frontend/InputFile.h"
-#include "Parser/Parser.h"
-#include "Sema/SemaContext.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/TargetParser/Host.h"
 #include "gtest/gtest.h"
@@ -32,7 +27,7 @@ extern bool DebugLog;
 namespace {
     using namespace fly;
 
-    // ─── Source strings (mirror the Sources/*.fly files) ─────────────────────
+    // ─── Source strings ──────────────────────────────────────────────────────
 
     // Library module: namespace utils with a public function
     static constexpr const char *UtilsAppSource = R"(
@@ -86,43 +81,18 @@ void main() {
 }
 )";
 
-    // ─── Sources for the "emit with resolved imports" regression ──────────────
-    // The dependency is NOT listed on the command line: it is discovered from the
-    // import via --src-dir. The entry instantiates a CLASS defined there and calls a
-    // method on it — the cross-module class reference that per-file lowering cannot
-    // resolve (the sibling module's CodeGen is null → crash).
-
-    static constexpr const char *DepLibSource = R"(
-namespace deplib
-
-public class Greeter {
-    int n
-
-    public void bump() {
-    }
-}
-)";
-
-    static constexpr const char *DepMainSource = R"(
-import deplib.Greeter
-
-void main() {
-    Greeter g = new Greeter()
-    g.bump()
-}
-)";
-
     // ─── Driver-level fixture ─────────────────────────────────────────────────
 
     class AppTest : public ::testing::Test {
     public:
-        const char *mainfly  = "main.fly";
-        const char *utilsfly = "utils.fly";
+        // Each test compiles this directory (entry: main.fly, dep: utils.fly).
+        const char *srcDir = "app_src";
 
         AppTest() {
             DebugLog = false;
-            { std::ofstream f(mainfly);  f << MainAppSource; }
-            { std::ofstream f(utilsfly); f << UtilsAppSource; }
+            llvm::sys::fs::create_directory(srcDir);
+            { std::ofstream f(std::string(srcDir) + "/main.fly");  f << MainAppSource; }
+            { std::ofstream f(std::string(srcDir) + "/utils.fly"); f << UtilsAppSource; }
             llvm::InitializeAllTargetInfos();
             llvm::InitializeAllTargets();
             llvm::InitializeAllTargetMCs();
@@ -131,15 +101,13 @@ void main() {
         }
 
         ~AppTest() override {
-            remove(mainfly);
-            remove(utilsfly);
-            // Every test shares this working directory, and --src-dir defaults to "."
-            // — so a .fly left behind here would take part in the NEXT test's import
-            // resolution, pulling an extra dependency and silently turning a per-file
-            // emit into a combined one. Sweep the derived artifacts too: a test that
-            // fails midway must not make the following ones fail as well.
+            llvm::sys::fs::remove_directories(srcDir);
+            // Derived artifacts land in the CWD (named from the module basename):
+            // sweep them so a test that fails midway cannot poison the next one.
             remove("main.fly.o");
             remove("utils.fly.o");
+            remove("main.fly.ll");
+            remove("utils.fly.ll");
             llvm::outs().flush();
         }
 
@@ -156,19 +124,22 @@ void main() {
     }
 
     TEST_F(AppTest, NoOutput) {
-        const char *argv[] = {"fly", "-no-output", mainfly, utilsfly};
+        const char *argv[] = {"fly", "-no-output", "--src-dir", srcDir};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         EXPECT_TRUE(drv.Execute());
     }
 
     // ─── Driver: emit formats ─────────────────────────────────────────────────
+    // A non-linking stage compiles the whole directory: every source is an
+    // explicit input, so without -o each file gets its own artifact (per-file
+    // emission, exactly as the old multi-file CLI behaved).
 
     TEST_F(AppTest, EmitLL) {
         deleteFile("main.fly.ll");
         deleteFile("utils.fly.ll");
 
-        const char *argv[] = {"fly", "-emit-ll", mainfly, utilsfly};
+        const char *argv[] = {"fly", "-emit-ll", "--src-dir", srcDir};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         ASSERT_TRUE(drv.Execute());
@@ -184,7 +155,7 @@ void main() {
         deleteFile("main.fly.bc");
         deleteFile("utils.fly.bc");
 
-        const char *argv[] = {"fly", "-emit-bc", mainfly, utilsfly};
+        const char *argv[] = {"fly", "-emit-bc", "--src-dir", srcDir};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         ASSERT_TRUE(drv.Execute());
@@ -200,7 +171,7 @@ void main() {
         deleteFile("main.fly.s");
         deleteFile("utils.fly.s");
 
-        const char *argv[] = {"fly", "-emit-as", mainfly, utilsfly};
+        const char *argv[] = {"fly", "-emit-as", "--src-dir", srcDir};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         ASSERT_TRUE(drv.Execute());
@@ -212,55 +183,27 @@ void main() {
         deleteFile("utils.fly.s");
     }
 
-    // Regression: --emit-ll on a source whose imports are resolved from --src-dir.
-    // The dependency module is pulled in by ResolveSourceDeps, so it is NOT an
-    // explicitly listed input. Before the fix an emit action always forced per-file
-    // lowering, so the cross-module class reference had a null CodeGen and the
-    // compiler segfaulted; now such a build is lowered into ONE module.
-    TEST_F(AppTest, EmitLLWithResolvedImports) {
-        const char *depmain = "depmain.fly";
-        const char *deplib  = "deplib.fly";
-        { std::ofstream f(depmain); f << DepMainSource; }
-        { std::ofstream f(deplib);  f << DepLibSource; }
+    // Explicit -o with an emit action: the single combined artifact is written
+    // exactly there.
+    TEST_F(AppTest, EmitLLWithExplicitOutput) {
         deleteFile("out.ll");
-        deleteFile("depmain.fly.ll");
-        deleteFile("deplib.fly.ll");
 
-        // (a) explicit -o: one combined .ll written exactly there
-        {
-            const char *argv[] = {"fly", depmain, "--src-dir", ".", "-emit-ll", "-o", "out.ll"};
-            Driver drv(argv);
-            drv.BuildCompilerInstance();
-            ASSERT_TRUE(drv.Execute());
-            EXPECT_TRUE(std::ifstream("out.ll").good());
-        }
-
-        // (b) no -o: still ONE combined module. Assert on the COUNT rather than on which
-        // file it is named after (that follows module order): exactly one .ll must exist,
-        // never one per file — two would mean the per-file path was taken.
-        {
-            const char *argv[] = {"fly", depmain, "--src-dir", ".", "-emit-ll"};
-            Driver drv(argv);
-            drv.BuildCompilerInstance();
-            ASSERT_TRUE(drv.Execute());
-            const bool MainLL = std::ifstream("depmain.fly.ll").good();
-            const bool LibLL  = std::ifstream("deplib.fly.ll").good();
-            EXPECT_TRUE(MainLL || LibLL);   // something was emitted
-            EXPECT_FALSE(MainLL && LibLL);  // but combined, not one per file
-        }
+        const char *argv[] = {"fly", "-emit-ll", "--src-dir", srcDir, "-o", "out.ll"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        ASSERT_TRUE(drv.Execute());
+        EXPECT_TRUE(std::ifstream("out.ll").good());
 
         deleteFile("out.ll");
-        deleteFile("depmain.fly.ll");
-        deleteFile("deplib.fly.ll");
-        remove(depmain);
-        remove(deplib);
     }
 
-    TEST_F(AppTest, EmitObj) {
+    // ─── Compile only (-c): per-file objects, no link ─────────────────────────
+
+    TEST_F(AppTest, CompileOnlyEmitsPerFileObjects) {
         deleteFile("main.fly.o");
         deleteFile("utils.fly.o");
 
-        const char *argv[] = {"fly", mainfly, utilsfly};
+        const char *argv[] = {"fly", "-c", "--src-dir", srcDir};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         ASSERT_TRUE(drv.Execute());
@@ -272,13 +215,59 @@ void main() {
         deleteFile("utils.fly.o");
     }
 
-    TEST_F(AppTest, EmitOut) {
-    	DebugLog = true;
-        deleteFile("out");
-        deleteFile("main.fly.o");
-        deleteFile("utils.fly.o");
+    // -c stops after the object file even when -o names an artifact: one combined
+    // object, no link.
+    TEST_F(AppTest, CompileOnlyWithOutput) {
+        deleteFile("combined.o");
+        deleteFile("combined");
+        deleteFile("combined.exe");
 
-        const char *argv[] = {"fly", mainfly, utilsfly, "-o", "out"};
+        const char *argv[] = {"fly", "-c", "-o", "combined.o", "--src-dir", srcDir};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        ASSERT_TRUE(drv.Execute());
+
+        EXPECT_TRUE(std::ifstream("combined.o").good());
+        EXPECT_FALSE(std::ifstream("combined").good());
+        EXPECT_FALSE(std::ifstream("combined.exe").good());
+
+        deleteFile("combined.o");
+    }
+
+    // -o carries no extension: the one implied by the chosen format is appended.
+    // `--emit-ll -o out` → out.ll, `-c -o out` → out.o. An extension the user spelled
+    // out is respected instead (covered by CompileOnlyWithOutput).
+    TEST_F(AppTest, OutputExtensionIsAppended) {
+        deleteFile("extless.ll");
+        deleteFile("extless.o");
+
+        {
+            const char *argv[] = {"fly", "-emit-ll", "-o", "extless", "--src-dir", srcDir};
+            Driver drv(argv);
+            drv.BuildCompilerInstance();
+            ASSERT_TRUE(drv.Execute());
+            EXPECT_TRUE(std::ifstream("extless.ll").good());
+        }
+        {
+            const char *argv[] = {"fly", "-c", "-o", "extless", "--src-dir", srcDir};
+            Driver drv(argv);
+            drv.BuildCompilerInstance();
+            ASSERT_TRUE(drv.Execute());
+            EXPECT_TRUE(std::ifstream("extless.o").good());
+        }
+
+        deleteFile("extless.ll");
+        deleteFile("extless.o");
+    }
+
+    // ─── Link step ────────────────────────────────────────────────────────────
+
+    TEST_F(AppTest, EmitOut) {
+        deleteFile("out");
+        deleteFile("out.exe");
+        deleteFile("main.fly.o");
+
+        const char *argv[] = {"fly", "--src-dir", srcDir, "-o", "out"};
         Driver drv(argv);
         CompilerInstance &CI = drv.BuildCompilerInstance();
         ASSERT_TRUE(drv.Execute());
@@ -294,69 +283,46 @@ void main() {
         }
 
         deleteFile("main.fly.o");
-        deleteFile("utils.fly.o");
     }
 
-    // -c stops after the object file even when -o names an artifact. Before -c
-    // existed, "compile only" could be expressed only by OMITTING -o, so asking for
-    // one combined object without linking it was impossible.
-    TEST_F(AppTest, CompileOnlyWithOutput) {
-        deleteFile("combined.o");
-        deleteFile("combined");
-        deleteFile("combined.exe");
+    // No -o: the executable is auto-named after the file declaring main().
+    TEST_F(AppTest, AutoNamedExecutable) {
+        deleteFile("main");
+        deleteFile("main.exe");
+        deleteFile("main.fly.o");
 
-        const char *argv[] = {"fly", mainfly, utilsfly, "-c", "-o", "combined.o"};
+        const char *argv[] = {"fly", "--src-dir", srcDir};
         Driver drv(argv);
-        drv.BuildCompilerInstance();
+        CompilerInstance &CI = drv.BuildCompilerInstance();
         ASSERT_TRUE(drv.Execute());
 
-        EXPECT_TRUE(std::ifstream("combined.o").good());
-        EXPECT_FALSE(std::ifstream("combined").good());
-        EXPECT_FALSE(std::ifstream("combined.exe").good());
-
-        deleteFile("combined.o");
-    }
-
-    // -o carries no extension: the one implied by the chosen format is appended.
-    // `--emit-ll -o out` → out.ll, `-c -o out` → out.o. An extension the user spelled
-    // out is respected instead (covered by CompileOnlyWithOutput, which passes -o
-    // combined.o and gets exactly that).
-    TEST_F(AppTest, OutputExtensionIsAppended) {
-        deleteFile("extless.ll");
-        deleteFile("extless.o");
-
-        {
-            const char *argv[] = {"fly", mainfly, utilsfly, "-emit-ll", "-o", "extless"};
-            Driver drv(argv);
-            drv.BuildCompilerInstance();
-            ASSERT_TRUE(drv.Execute());
-            EXPECT_TRUE(std::ifstream("extless.ll").good());
-        }
-        {
-            const char *argv[] = {"fly", mainfly, utilsfly, "-c", "-o", "extless"};
-            Driver drv(argv);
-            drv.BuildCompilerInstance();
-            ASSERT_TRUE(drv.Execute());
-            EXPECT_TRUE(std::ifstream("extless.o").good());
+        const llvm::Triple &T = TargetInfo::CreateTargetInfo(
+            CI.getDiagnostics(), CI.getTargetOptions())->getTriple();
+        if (T.isWindowsMSVCEnvironment()) {
+            EXPECT_TRUE(std::ifstream("main.exe").good());
+            deleteFile("main.exe");
+        } else {
+            EXPECT_TRUE(std::ifstream("main").good());
+            deleteFile("main");
         }
 
-        deleteFile("extless.ll");
-        deleteFile("extless.o");
+        deleteFile("main.fly.o");
     }
 
     // Regression: --lib-dyn (and --header alongside any link) also emits a .fly.h.
     // Only the archive path filtered it out, so the linker received the header and
     // failed with "unknown file type" — broken since before 0.13.8.
     TEST_F(AppTest, DynamicLibraryDoesNotLinkHeader) {
-        const char *libfly = "dynlib.fly";
-        { std::ofstream f(libfly); f << UtilsAppSource; }
+        const char *libDir = "dynlib_src";
+        llvm::sys::fs::create_directory(libDir);
+        { std::ofstream f(std::string(libDir) + "/dynlib.fly"); f << UtilsAppSource; }
 
-        const char *argv[] = {"fly", libfly, "--lib-dyn", "-o", "dynout"};
+        const char *argv[] = {"fly", "--lib-dyn", "-o", "dynout", "--src-dir", libDir};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         const bool ok = drv.Execute();
 
-        remove(libfly);
+        llvm::sys::fs::remove_directories(libDir);
         deleteFile("dynlib.fly.o");
         deleteFile("dynlib.fly.h");
         deleteFile("dynout.so");
@@ -369,16 +335,17 @@ void main() {
 
     // ─── main(string[] args) ──────────────────────────────────────────────────
 
-    // Verify that main(string[] args) compiles without errors.
+    // Verify that main() with args via fly.os.env compiles without errors.
     TEST_F(AppTest, MainWithArgs) {
-        const char *argsfly = "main_args.fly";
-        { std::ofstream f(argsfly); f << MainArgsSource; }
+        const char *argsDir = "args_src";
+        llvm::sys::fs::create_directory(argsDir);
+        { std::ofstream f(std::string(argsDir) + "/main_args.fly"); f << MainArgsSource; }
 
-        const char *argv[] = {"fly", "-no-output", argsfly};
+        const char *argv[] = {"fly", "-no-output", "--src-dir", argsDir};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         bool ok = drv.Execute();
-        remove(argsfly);
+        llvm::sys::fs::remove_directories(argsDir);
         EXPECT_TRUE(ok);
     }
 
@@ -386,16 +353,17 @@ void main() {
     //   - C entry-point signature:  define i32 @main(i32 %0, ptr %1)
     //   - env_init call to make argc/argv available via fly.os.env.argsGet()
     TEST_F(AppTest, MainWithArgsEmitLL) {
-        const char *argsfly = "main_args.fly";
+        const char *argsDir = "args_src";
         const char *argsll  = "main_args.fly.ll";
+        llvm::sys::fs::create_directory(argsDir);
         deleteFile(argsll);
-        { std::ofstream f(argsfly); f << MainArgsSource; }
+        { std::ofstream f(std::string(argsDir) + "/main_args.fly"); f << MainArgsSource; }
 
-        const char *argv[] = {"fly", "-emit-ll", argsfly};
+        const char *argv[] = {"fly", "-emit-ll", "--src-dir", argsDir};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         bool ok = drv.Execute();
-        remove(argsfly);
+        llvm::sys::fs::remove_directories(argsDir);
         ASSERT_TRUE(ok);
         ASSERT_TRUE(std::ifstream(argsll).good());
 

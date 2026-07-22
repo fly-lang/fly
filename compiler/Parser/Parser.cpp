@@ -84,6 +84,13 @@ ASTModule *Parser::ParseModule() {
     // Start with Parse (recursively))
     while (ContinueParse && Tok.isNot(tok::eof)) {
 
+        // Watchdog: error recovery must always make progress. Remember where
+        // this round starts; if ParseNode returns with the SAME token in place
+        // every further round would spin on it forever (this hung the compiler
+        // on malformed suites), so force-consume below.
+        const SourceLocation WatchdogLoc = Tok.getLocation();
+        const tok::TokenKind WatchdogKind = Tok.getKind();
+
 	    // Parse a NameSpace
     	if (Tok.is(tok::kw_namespace)) {
     		if (NamespaceSeen) {
@@ -108,6 +115,13 @@ ASTModule *Parser::ParseModule() {
     		NonNamespaceSeen = true;
     		ParseNode();
     	}
+
+        // Watchdog trip: no token was consumed this round — skip the stuck
+        // token (its error has already been diagnosed by the failed parse).
+        if (ContinueParse && Tok.isNot(tok::eof) &&
+            Tok.getLocation() == WatchdogLoc && Tok.getKind() == WatchdogKind) {
+            SkipAnyToken();
+        }
     }
 
     return Module;
@@ -271,12 +285,16 @@ void Parser::SkipBraceBlock() {
     do {
         if (isBlockStart())       ++Depth;
         else if (isBlockEnd())    --Depth;
-        if (isTokenBrace())               ConsumeBrace(BracketCount);
-        else if (isTokenParen())          ConsumeParen();
-        else if (isTokenBracket())        ConsumeBracket();
-        else if (isTokenStringLiteral())  ConsumeStringToken();
-        else                              ConsumeToken();
+        SkipAnyToken();
     } while (Depth > 0 && Tok.isNot(tok::eof));
+}
+
+void Parser::SkipAnyToken() {
+    if (isTokenBrace())               ConsumeBrace(BracketCount);
+    else if (isTokenParen())          ConsumeParen();
+    else if (isTokenBracket())        ConsumeBracket();
+    else if (isTokenStringLiteral())  ConsumeStringToken();
+    else                              ConsumeToken();
 }
 
 bool Parser::isSuccess() {
@@ -581,7 +599,14 @@ ASTFunction *Parser::ParseFunction(SmallVector<ASTModifier *, 8> &Modifiers) {
 		TypeParams = ParseTypeParams();
 	}
 
-	// Parse Params
+	// Parse Params. In Release the l_paren assert inside ParseParams is compiled
+	// out, so guard here: error-recovery paths reach this point with an arbitrary
+	// token (e.g. a statement keyword after a botched declaration) and consuming
+	// it as '(' derailed the parse.
+	if (!Tok.is(tok::l_paren)) {
+		Diag(Tok, diag::err_parser_expected_lparen);
+		return nullptr;
+	}
 	SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(this);
 
 	// Create Function
@@ -647,7 +672,17 @@ void Parser::ParseBlock(ASTBlockStmt *Block) {
     		return;
     	}
 
+        // Watchdog: several ParseStmt error paths diagnose and return WITHOUT
+        // consuming the offending token; looping on it forever hung the
+        // compiler on malformed blocks. If a round makes no progress, skip the
+        // stuck token (already diagnosed) and keep going.
+        const SourceLocation WatchdogLoc = Tok.getLocation();
+        const tok::TokenKind WatchdogKind = Tok.getKind();
     	ParseStmt(Block);
+        if (Tok.isNot(tok::eof) &&
+            Tok.getLocation() == WatchdogLoc && Tok.getKind() == WatchdogKind) {
+            SkipAnyToken();
+        }
     }
 }
 
@@ -754,7 +789,13 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 		// Parse: int x; | NS.Type x; | Vector<Int> y; | MyClass[] arr; | MyNS.MyClass obj = foo();
 		ASTType *T = ParseType();
 
-		// Extract variable name
+		// Extract variable name — guard: ParseType can consume differently than
+		// the isVarDecl lookahead assumed (error recovery); a non-identifier
+		// here has a null getIdentifierInfo() and dereferencing it crashed.
+		if (!T || !Tok.isAnyIdentifier()) {
+			Diag(Tok, diag::err_parser_identifier_expected);
+			return;
+		}
 		llvm::StringRef Name = Tok.getIdentifierInfo()->getName();
 		const SourceLocation &Loc = Tok.getLocation();
 		ConsumeToken();
@@ -1649,11 +1690,20 @@ bool Parser::isNamedReturnType() {
 std::optional<Token> Parser::findTokenAfterTypeArgs(SourceLocation LessLoc) {
     FLY_DEBUG_SCOPE("Parser", "findTokenAfterTypeArgs");
     // Caller positions us at the opening '<'.
+    // This is a heuristic LOOKAHEAD (each findNextToken builds a fresh Lexer —
+    // it is expensive) and a genuine type-argument list is short. Cap the scan:
+    // without the cap, a '<' that is really a comparison (`while i < 40 {`)
+    // made the scan walk to EOF — quadratic during error recovery, which
+    // looked like a compiler hang on malformed files.
+    int Budget = 64;
     int Depth = 1;
     SourceLocation Loc = LessLoc;
-    while (true) {
+    while (Budget-- > 0) {
         std::optional<Token> T = Lexer::findNextToken(Loc, SourceMgr);
         if (!T || T->is(tok::eof)) return std::nullopt;
+        // A lookahead that fails to advance (a location inside a split fused
+        // token or a string literal) would otherwise scan forever.
+        if (T->getLocation() == Loc) return std::nullopt;
         if (T->is(tok::less)) {
             Depth += 1;
         } else if (T->is(tok::lessless)) {
@@ -1669,6 +1719,7 @@ std::optional<Token> Parser::findTokenAfterTypeArgs(SourceLocation LessLoc) {
         }
         Loc = T->getLocation();
     }
+    return std::nullopt;
 }
 
 bool Parser::isArrayType(Token &Tok) {

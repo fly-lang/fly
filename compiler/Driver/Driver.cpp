@@ -118,7 +118,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     app.add_flag("--debug",         debugFlag,   "Print debug messages");
     app.add_flag("--debug-symbols", DebugSymbols,"Emit DWARF debug information (no verbose logging)");
     app.add_option("--test",        TestFilter,  "Compile in test mode (enables test {} blocks); with --suite, the optional value runs only the named test-method")->expected(0, 1);
-    app.add_option("--suite",       SuiteName,   "Build the suite test executable and run it (fly exits with the run's code); the optional value selects one suite by name. Put input files BEFORE this option, or use --suite=Name")->expected(0, 1);
+    app.add_option("--suite",       SuiteName,   "Build the suite test executable and run it (fly exits with the run's code); the optional value selects one suite by name, discovered from the source directory")->expected(0, 1);
     app.add_flag("-v,--verbose",    Verbose,     "Show commands to run and use verbose output");
     app.add_flag("-w,--no-warning", NoWarnings,  "Suppress all warnings");
     // Output format: WHAT the backend produces. Default is an object file.
@@ -148,11 +148,13 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     app.add_option("--stats-file",  StatsFile,    "Filename to write statistics to");
     app.add_option("--working-dir", WorkingDir,   "Resolve file paths relative to the specified directory");
     app.add_option("-L",            LibDirs,      "Add <dir> to the library search path for namespace resolution")->allow_extra_args(false);
-    app.add_option("--src-dir",     SrcDirs,      "Project source root for import-based dependency discovery (default: current directory)")->allow_extra_args(false);
+    app.add_option("--src-dir",     SrcDirs,      "Source root directory: inputs and import-based dependencies are discovered here (default: current directory)")->allow_extra_args(false);
     app.add_option("--out-dir",     OutDirOpt,    "Directory for all generated build outputs (created if missing)");
     app.add_option("--link-lib",   LinkLibs,     "Link against external C library NAME (passed as -lNAME to the linker)")->allow_extra_args(false);
 
-    // Remaining non-option args become input files.
+    // No positional arguments exist: fly compiles a source DIRECTORY (--src-dir,
+    // default: current directory), never named files. Extras are kept only to be
+    // diagnosed with a dedicated message below.
     app.allow_extras(true);
 
     try {
@@ -171,16 +173,20 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     TestMode = app.count("--test") > 0;
     SuiteRun = app.count("--suite") > 0;
 
-    // Collect positional (input) files from unmatched args.
-    // Unknown --flags in remaining are reported as errors.
+    // Unknown --flags are reported as such; any other positional is rejected —
+    // sources are not named on the command line, they are discovered from the
+    // source directory.
     for (const auto &r : app.remaining()) {
         if (!r.empty() && r[0] == '-') {
             llvm::errs() << "error: unknown option: " << r << "\n";
             llvm::errs() << "Use '" << Path << " --help' for a complete list of options.\n";
-            doExecute = false;
-            return;
+        } else {
+            llvm::errs() << "error: unexpected argument '" << r
+                         << "': fly compiles a source directory, use --src-dir <dir>"
+                            " (default: current directory)\n";
         }
-        InputFiles.push_back(r);
+        doExecute = false;
+        return;
     }
 
     if (debugFlag) {
@@ -266,7 +272,6 @@ Driver::CreateDiagnostics(IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts) {
             Logger->setLogFormat(LogDiagnosticPrinter::LogFormat::Json);
         {
             LogDiagnosticPrinter::InvocationInfo Info;
-            Info.InputFiles   = InputFiles;
             Info.Target       = Target;
             Info.TargetCpu    = TargetCpu;
             Info.McModel      = McModel;
@@ -311,16 +316,10 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
 
     if (!doExecute) return;
 
-    // Input files
-    if (InputFiles.empty()) {
-        llvm::errs() << "no input files\n";
-        doExecute = false;
-        return;
-    }
-    for (const auto &F : InputFiles) {
-        FLY_DEBUG_MSG("Set input=" << F);
-        FrontendOpts->addInputFile(F.c_str());
-    }
+    // Directory mode: the Frontend discovers the input files from the source root
+    // (--src-dir, default: current directory) — main() for executables, suite
+    // declarations in test mode, every source for --lib/--lib-dyn.
+    FrontendOpts->DiscoverInputs = true;
 
     // Library search dirs (-L)
     for (const auto &D : LibDirs) {
@@ -486,20 +485,20 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         FLY_DEBUG_MSG("Set --lib-dyn: producing dynamic library with PIC");
     }
 
-    // Auto-detect / auto-name output for the quick single-file CLI mode: one source
-    // file AND no explicit -o. AutoDetectOutputType() infers the type from the AST
-    // (main → exe; suite or main+--test → test exe; otherwise lib) and auto-names the
-    // output. --lib / --lib-dyn are still honoured there (they force a library even
-    // with a main); only the auto-naming applies.
+    // Auto-detect / auto-name the output when no explicit -o was given on a linking
+    // build. AutoDetectOutputType() infers the type from the entry AST (main → exe;
+    // suite or main+--test → test exe; otherwise lib) and auto-names the output —
+    // from the entry file's stem, or from the stem discovery chose (suite name /
+    // source-root name). --lib / --lib-dyn are still honoured there (they force a
+    // library even with a main); only the auto-naming applies.
     //
-    // The -o guard is deliberate: every explicit invocation that already knows its
-    // output (a build that passes -o plus an explicit type flag) keeps full control and
-    // is never reinterpreted here. Requiring LinkStep covers the rest: there is nothing
-    // to auto-name when the build stops at a .ll/.bc/.s, at -c, or at --no-output.
-    // Multi-file builds also keep the explicit behaviour.
-    if (InputFiles.size() == 1 && OutputFile.empty() && FrontendOpts->LinkStep) {
+    // The -o guard is deliberate: an invocation that already knows its output keeps
+    // full control and is never reinterpreted. Requiring LinkStep covers the rest:
+    // there is nothing to auto-name when the build stops at a .ll/.bc/.s, at -c, or
+    // at --no-output.
+    if (OutputFile.empty() && FrontendOpts->LinkStep) {
         FrontendOpts->AutoDetectOutput = true;
-        FLY_DEBUG_MSG("Set AutoDetectOutput (single input file, no -o, object backend)");
+        FLY_DEBUG_MSG("Set AutoDetectOutput (no -o, object backend)");
     }
 
     // Header generator
@@ -626,8 +625,16 @@ bool Driver::Execute() {
                     /*Env=*/std::nullopt, /*Redirects=*/{}, /*SecondsToWait=*/0,
                     /*MemoryLimit=*/0, &ErrMsg);
                 if (RunExitCode < 0) {
-                    llvm::errs() << "error: cannot run suite binary '" << ExePath
-                                 << "': " << ErrMsg << "\n";
+                    // -1 = could not be executed at all; -2 = the child crashed
+                    // or was killed. ErrMsg can be EMPTY for a crashing child on
+                    // Windows, so always surface which case and the code.
+                    llvm::errs() << "error: suite binary '" << ExePath
+                                 << (RunExitCode == -1 ? "' could not be executed"
+                                                       : "' terminated abnormally (crash)")
+                                 << " (code " << RunExitCode << ")";
+                    if (!ErrMsg.empty())
+                        llvm::errs() << ": " << ErrMsg;
+                    llvm::errs() << "\n";
                     Success = false;
                 }
             }

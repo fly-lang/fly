@@ -51,8 +51,9 @@ FLY
 
 # ── Compile with debug symbols ─────────────────────────────────────────────────
 # --debug-symbols emits DWARF without the verbose DebugLog that --debug adds,
-# so compile diagnostics stay visible in the test log.
-"$FLY_BIN" --debug-symbols "$WORK/dbg_test.fly" "$FLY_STD" -o "$WORK/dbg_test"
+# so compile diagnostics stay visible in the test log. fly compiles the WORK
+# directory (--src-dir); fly_std_lib/runtime are auto-linked from <bin>/../lib.
+"$FLY_BIN" --debug-symbols --src-dir "$WORK" -o "$WORK/dbg_test"
 echo "Compile: OK"
 
 # ── DWARF content assertions ───────────────────────────────────────────────────

@@ -489,17 +489,17 @@ SemaValue * SemaBuilder::CreateNumberValue(ASTNumberValue &AST) {
 			: Value.getActiveBits() + 1;
 
 		// Infer Type based on MinBits, but keep the Value at its original bit width.
-		// Positive decimal literals follow signed-type convention (same as C/Rust):
-		// a value that fits in int is typed as int, not uint.
+		// A literal that fits in int IS int (same as C/Rust and the 0.14 self-host):
+		// minimal-width typing (byte/short) made literal arithmetic run at the
+		// narrow width — `0 - 1` was byte-byte, wrapped to 0xFF in i8, and reached
+		// an int parameter zero-extended as 255. Assignments to narrower types
+		// still convert at emit time, so `byte b = 5` keeps working.
 		SemaIntType *Type = nullptr;
 		if (Value.isNegative()) {
-			if (MinBits <= 16) Type = SemaBuiltin::getShortType();
-			else if (MinBits <= 32) Type = SemaBuiltin::getIntType();
+			if (MinBits <= 32) Type = SemaBuiltin::getIntType();
 			else Type = SemaBuiltin::getLongType();
 		} else {
-			if (MinBits <= 8)       Type = SemaBuiltin::getByteType();
-			else if (MinBits <= 16) Type = SemaBuiltin::getShortType();
-			else if (MinBits <= 32) Type = SemaBuiltin::getIntType();
+			if (MinBits <= 32)      Type = SemaBuiltin::getIntType();
 			else if (MinBits <= 64) Type = SemaBuiltin::getLongType();
 			else                    Type = SemaBuiltin::getULongType();
 		}

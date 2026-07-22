@@ -1584,10 +1584,20 @@ void CodeGenModule::EmitSuite(SemaClassType &Sema) {
     auto *PtrTy   = llvm::PointerType::getUnqual(LLVMCtx);
     auto *NullPtr = llvm::ConstantPointerNull::get(PtrTy);
     auto *Zero32  = llvm::ConstantInt::get(Int32Ty, 0);
-    auto *MainTy  = llvm::FunctionType::get(Int32Ty, /*isVarArg=*/false);
+    auto *MainTy  = llvm::FunctionType::get(Int32Ty, {Int32Ty, PtrTy}, /*isVarArg=*/false);
     auto *MainFn  = llvm::Function::Create(MainTy, llvm::GlobalValue::ExternalLinkage, "main", Module);
     auto *EntryBB = llvm::BasicBlock::Create(LLVMCtx, "entry", MainFn);
     Builder->SetInsertPoint(EntryBB);
+
+    // Mirror the user-main path (CodeGenFunction::GenBody): store argc/argv via
+    // env_init() so fly.os.env* (argsGet & co.) also work inside suite cases —
+    // without this a suite binary saw an empty argv.
+    {
+        llvm::FunctionCallee EnvInitFn = Module->getOrInsertFunction(
+            "env_init",
+            llvm::FunctionType::get(CodeGen::VoidTy, {Int32Ty, PtrTy}, false));
+        Builder->CreateCall(EnvInitFn, {MainFn->getArg(0), MainFn->getArg(1)});
+    }
 
     // The shared %error struct: setup/teardown/test-methods receive its address
     // as their hidden first argument. Cases zero it on entry and consume it on

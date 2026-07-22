@@ -42,8 +42,19 @@ namespace fly {
         /// Relative output paths are written under this dir; absolute paths are unchanged.
         std::string OutDir;
 
-        /// True when a single input file was passed without --lib/--lib-dyn:
-        /// the output type is inferred from the parsed AST (main/suite/lib).
+        /// True when the driver runs in directory mode: the command line carries no
+        /// source files and the Frontend discovers the inputs from the source root
+        /// (--src-dir, default: current directory) — the file declaring main(), the
+        /// files declaring suites (test mode), or every source (library builds).
+        bool DiscoverInputs = false;
+
+        /// Output stem chosen by input discovery (the suite name, or the source-root
+        /// directory name for library/multi-suite builds). When empty, auto-naming
+        /// falls back to the entry file's stem.
+        std::string DefaultOutputStem;
+
+        /// True when no -o was passed on a linking build: the output type is
+        /// inferred from the entry module's AST (main/suite/lib) and auto-named.
         bool AutoDetectOutput = false;
 
         /// True when the driver must run a link step after the backend. Set once by

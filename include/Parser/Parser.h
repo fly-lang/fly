@@ -270,6 +270,10 @@ private:
     /// Skip a brace-delimited block, tracking nesting depth.
     void SkipBraceBlock();
 
+    /// Skip the current token whatever its kind — dispatches to the specific
+    /// consume method special tokens require. Error-recovery helper.
+    void SkipAnyToken();
+
     /// Consume a string token.
     SourceLocation ConsumeStringToken();
 

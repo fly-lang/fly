@@ -317,6 +317,28 @@ bool SemaValidator::CheckAssignment(const SourceLocation &Loc, SemaType *LhsType
 		if (!RhsType || !RhsType->isNumber()) { diagnose(); return false; }
 		if (static_cast<SemaNumberType *>(LhsType)->getRank() <
 		    static_cast<SemaNumberType *>(RhsType)->getRank()) {
+			// Integer LITERALS are typed int/long by default, so `byte b = 5`
+			// is formally a narrowing — but a CONSTANT that fits the target's
+			// range still assigns (matching the self-host). Only out-of-range
+			// constants and non-constant expressions are narrowing errors.
+			if (RhsExpr->getKind() == SemaKind::VALUE &&
+			    static_cast<SemaNumberType *>(LhsType)->isInteger() &&
+			    static_cast<SemaNumberType *>(RhsType)->isInteger()) {
+				const llvm::APInt Val = static_cast<SemaIntValue *>(RhsExpr)->getValue();
+				SemaIntType *LhsInt = static_cast<SemaIntType *>(LhsType);
+				unsigned Bits;
+				switch (LhsInt->getIntKind()) {
+					case SemaIntTypeKind::TYPE_BYTE:    Bits = 8;  break;
+					case SemaIntTypeKind::TYPE_SHORT:
+					case SemaIntTypeKind::TYPE_USHORT:  Bits = 16; break;
+					case SemaIntTypeKind::TYPE_INT:
+					case SemaIntTypeKind::TYPE_UINT:    Bits = 32; break;
+					default:                            Bits = 64; break;
+				}
+				const bool Fits = LhsInt->isSigned() ? Val.isSignedIntN(Bits)
+				                                     : (!Val.isNegative() && Val.isIntN(Bits));
+				if (Fits) return true;
+			}
 			diagnose(); return false;
 		}
 		return true;

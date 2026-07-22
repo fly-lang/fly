@@ -34,16 +34,14 @@
 #   fly.data         lib/data/set.fly
 #   fly.data         lib/data/tree.fly
 #
-# Tests live in test/:
-#   test/str_test.fly        — Fly-native tests for fly.str
-#   test/math_test.fly       — Fly-native tests for fly.math
-#   test/os_env_test.fly     — Fly-native tests for fly.os.env
-#   test/os_path_test.fly    — Fly-native tests for fly.os.path
-#   test/os_fs_test.fly      — Fly-native tests for fly.os.fs
-#   test/os_time_test.fly    — Fly-native tests for fly.os.time
-#   test/os_io_test.fly      — Fly-native tests for fly.os.io
-#   test/mem_test.fly        — Fly-native tests for fly.mem
-#   test/data_test.fly       — Fly-native tests for fly.data.*
+# Tests live in test/, ONE DIRECTORY PER PROGRAM (fly compiles a source
+# directory: the entry — main() or suite — is discovered from --src-dir):
+#   test/str/str_test.fly    — Fly-native tests for fly.str
+#   test/math/math_test.fly  — Fly-native tests for fly.math
+#   ... (one subdir per namespace test)
+#   test/demo/DemoSuite.fly  — suite-runner e2e (all pass)
+#   test/fail/FailSuite.fly  — suite-runner e2e (one failure)
+#   test/error/error_test.fly — unhandled-error contract
 #
 
 # ── FlyLib: empty INTERFACE target (kept for compiler/CMakeLists.txt compat) ──
@@ -96,12 +94,13 @@ else()
 endif()
 
 # fly_std_lib depends on FLY_H_HEADERS_DST so headers are in build/lib/ before
-# fly tries to load them during stdlib compilation.
+# fly tries to load them during stdlib compilation. The whole std/lib directory
+# is the library: fly discovers every source under --src-dir.
 add_custom_command(
     OUTPUT  ${FLY_LIB_OUTPUT} ${FLY_H_HEADERS_DST}
     COMMAND $<TARGET_FILE:fly>
             --lib -o ${FLY_LIB_STEM}
-            ${FLY_LIB_SOURCES}
+            --src-dir ${CMAKE_CURRENT_SOURCE_DIR}/lib
     DEPENDS fly ${FLY_LIB_SOURCES} fly_runtime_lib_headers
     COMMENT "Compiling Fly standard library namespaces"
     VERBATIM
@@ -116,15 +115,16 @@ install(FILES "${FLY_LIB_OUTPUT}" DESTINATION lib)
 # Native Fly tests for each stdlib namespace.
 # Each binary exits 0 on success, non-zero with the failing assertion code.
 
+# The std archive is not passed explicitly: fly auto-links fly_std_lib and the
+# runtime from <bin>/../lib (their .fly.h headers resolve the imports too).
 macro(add_fly_std_test name)
     add_custom_command(
         OUTPUT  ${CMAKE_BINARY_DIR}/${name}_test_fly
         COMMAND $<TARGET_FILE:fly>
-                ${CMAKE_CURRENT_SOURCE_DIR}/test/${name}_test.fly
-                ${FLY_LIB_OUTPUT}
+                --src-dir ${CMAKE_CURRENT_SOURCE_DIR}/test/${name}
                 -o ${CMAKE_BINARY_DIR}/${name}_test_fly
         DEPENDS fly fly_std_lib FlyRuntime
-                ${CMAKE_CURRENT_SOURCE_DIR}/test/${name}_test.fly
+                ${CMAKE_CURRENT_SOURCE_DIR}/test/${name}/${name}_test.fly
         COMMENT "Compiling ${name}_test.fly"
         VERBATIM
     )
@@ -146,11 +146,10 @@ endforeach()
 add_custom_command(
     OUTPUT  ${CMAKE_BINARY_DIR}/error_test_fly
     COMMAND $<TARGET_FILE:fly>
-            ${CMAKE_CURRENT_SOURCE_DIR}/test/error_test.fly
-            ${FLY_LIB_OUTPUT}
+            --src-dir ${CMAKE_CURRENT_SOURCE_DIR}/test/error
             -o ${CMAKE_BINARY_DIR}/error_test_fly
     DEPENDS fly fly_std_lib FlyRuntime
-            ${CMAKE_CURRENT_SOURCE_DIR}/test/error_test.fly
+            ${CMAKE_CURRENT_SOURCE_DIR}/test/error/error_test.fly
     COMMENT "Compiling error_test.fly"
     VERBATIM
 )
@@ -169,16 +168,17 @@ set_tests_properties(fly_error_exit_fly_test PROPERTIES WILL_FAIL TRUE)
 # FailSuite: one case fails → the FAIL line carries code+message, the later
 # case still runs, the summary counts the failure, and the binary exits 1
 # (regex-based ctest entries ignore the exit code by design).
-foreach(_suite Demo Fail)
+foreach(_pair "Demo;demo" "Fail;fail")
+    list(GET _pair 0 _suite)
+    list(GET _pair 1 _dir)
     add_custom_command(
         OUTPUT  ${CMAKE_BINARY_DIR}/${_suite}Suite_fly
         COMMAND $<TARGET_FILE:fly>
-                ${CMAKE_CURRENT_SOURCE_DIR}/test/${_suite}Suite.fly
-                ${FLY_LIB_OUTPUT}
                 --test
+                --src-dir ${CMAKE_CURRENT_SOURCE_DIR}/test/${_dir}
                 -o ${CMAKE_BINARY_DIR}/${_suite}Suite_fly
         DEPENDS fly fly_std_lib FlyRuntime
-                ${CMAKE_CURRENT_SOURCE_DIR}/test/${_suite}Suite.fly
+                ${CMAKE_CURRENT_SOURCE_DIR}/test/${_dir}/${_suite}Suite.fly
         COMMENT "Compiling ${_suite}Suite.fly"
         VERBATIM
     )
