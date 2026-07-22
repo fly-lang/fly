@@ -199,7 +199,10 @@ namespace {
         // Auto-named after the source-root directory.
         EXPECT_EQ(CI.getFrontendOptions().getOutputFile(), "sfb_ovr");
         EXPECT_TRUE(exists(libName("sfb_ovr")));
-        EXPECT_FALSE(exists(exeName("sfb_ovr"))); // not linked as an executable
+        // Not linked as an executable. On Linux the executable name has no
+        // extension, so it collides with the SOURCE DIRECTORY's name — require
+        // a regular file, not mere path existence.
+        EXPECT_FALSE(llvm::sys::fs::is_regular_file(exeName("sfb_ovr")));
     }
 
     // --test discovers the suite (no main() needed): test mode on, executable
