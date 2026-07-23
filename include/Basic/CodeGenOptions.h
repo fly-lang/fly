@@ -156,10 +156,13 @@ public:
   /// as <fly_bin>/../lib (same as StdLibDir).
   std::string RuntimeLibDir;
 
-  /// Toolchain library directory (LLVM import/static libs: LLVM-20.lib,
-  /// LLVM-C.lib, …) — auto-discovered by the Driver as <fly_bin>/../llvm/lib
-  /// (relative-to-binary). Added to the linker search path so native deps
-  /// declared in [link] resolve without a manual LIB setup.
+  /// Toolchain LLVM library directory (libLLVM-20.so / LLVM-20.lib), set by
+  /// the Driver: the --llvm-lib-dir override, else probed relative to the fly
+  /// binary — <exe_dir>/llvm/lib (release bundle), <exe_dir>/../llvm/lib (this
+  /// repo's build tree: build/bin → build/llvm/lib), then <exe_dir>/../../llvm/lib
+  /// (staged bootstrap: build/stage0/bin → build/llvm/lib). Added to the linker
+  /// search path (-L / /libpath:) so programs using the LLVM C-API link against
+  /// the fork LLVM without a system install. Empty when none exists.
   std::string ToolchainLibDir;
 
   /// The filename with path we use for coverage data files. The runtime

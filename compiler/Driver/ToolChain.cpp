@@ -543,8 +543,9 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     if (CodeGenOpts.DebugSymbols)
         CmdArgs.push_back("/debug:dwarf");
 
-    // Toolchain LLVM lib dir, auto-discovered as <fly_bin>/../llvm/lib.
-    // Lets native [link] deps (e.g. LLVM-20.lib) resolve without a manual LIB setup.
+    // Toolchain LLVM lib dir (--llvm-lib-dir override or probed exe-relative by
+    // the Driver). Lets native LLVM deps (e.g. LLVM-20.lib) resolve without a
+    // manual LIB setup.
     if (!CodeGenOpts.ToolchainLibDir.empty())
         CmdArgs.push_back("/libpath:" + CodeGenOpts.ToolchainLibDir);
 
@@ -559,6 +560,9 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     // auto-link it — link it explicitly. Mirrors runtime/CMakeLists.txt.
     CmdArgs.push_back("/defaultlib:synchronization");
     CmdArgs.push_back("/defaultlib:kernel32");
+    // ntdll: the 0.14 runtime's env_kernel*/RtlGetVersion — needed when this
+    // toolchain (as the seed) links programs against that runtime archive.
+    CmdArgs.push_back("/defaultlib:ntdll");
 
     // Check the environment first, since that's probably the user telling us
     // what they want to use.
@@ -846,7 +850,11 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
     llvm::SmallVector<std::string, 16> CmdArgs;
     CmdArgs.push_back("ld");
 
-    // Toolchain LLVM lib dir, auto-discovered as <fly_bin>/../llvm/lib.
+    // Toolchain LLVM lib dir (--llvm-lib-dir override or probed exe-relative by
+    // the Driver), so programs that use the LLVM C-API (the compiler's own
+    // CodeGen/Target test suites reference libLLVM-20.so → -lLLVM-20) link
+    // against the fork LLVM without a system install. Empty for ordinary
+    // programs on a host without the bundle layout — then nothing is added.
     if (!CodeGenOpts.ToolchainLibDir.empty())
         CmdArgs.push_back("-L" + CodeGenOpts.ToolchainLibDir);
 
