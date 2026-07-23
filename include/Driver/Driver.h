@@ -29,6 +29,12 @@ namespace fly {
         // Can go ahead with execute phase
         bool doExecute = true;
 
+        // A command-line error occurred (unknown option, unexpected positional,
+        // conflicting options): Execute() is a no-op that returns FAILURE, so the
+        // process exits 1 — matching the self-host driver. --help/--version also
+        // clear doExecute but are not errors and keep exit 0.
+        bool HadOptionError = false;
+
         /// The name the driver was invoked as.
         std::string Name;
 
@@ -48,6 +54,7 @@ namespace fly {
         std::vector<std::string> LibDirs;
         std::vector<std::string> SrcDirs;   // --src-dir flags: source search paths for import-based dep discovery
         std::vector<std::string> LinkLibs;  // --link-lib flags: external C libs to link (-lNAME)
+        std::string LlvmLibDir;             // --llvm-lib-dir: dir holding the LLVM libs (libLLVM-20.so / LLVM-20.lib)
         std::string OutDirOpt;              // --out-dir: directory for all generated build outputs
         std::string OutputFile;
         // Linked-artifact shape (an axis of its own: it says what the LINK step

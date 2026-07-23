@@ -64,8 +64,8 @@ namespace {
         const char *argv[] = {"fly", "--unknown-opt"};
         Driver driver(argv);
         driver.BuildCompilerInstance();
-        // doExecute=false after unknown option → Execute() returns true (no crash)
-        EXPECT_TRUE(driver.Execute());
+        // A CLI error is a FAILURE: Execute() is a no-op returning false → exit 1.
+        EXPECT_FALSE(driver.Execute());
     }
 
     // Positional arguments are rejected: sources are never named on the command
@@ -74,8 +74,8 @@ namespace {
         const char *argv[] = {"fly", "file1.fly"};
         Driver driver(argv);
         CompilerInstance &CI = driver.BuildCompilerInstance();
-        // doExecute=false → Execute() returns true without compiling anything.
-        EXPECT_TRUE(driver.Execute());
+        // A CLI error is a FAILURE (exit 1); nothing was compiled.
+        EXPECT_FALSE(driver.Execute());
         EXPECT_TRUE(CI.getFrontendOptions().getInputFiles().empty());
     }
 
@@ -286,14 +286,14 @@ namespace {
         EXPECT_TRUE(CI.getFrontendOptions().CreateSharedLib);
     }
 
-    // --shared was the pre-0.13.9 spelling and is gone: the dynamic library is
+    // --shared was an old spelling and is gone: the dynamic library is
     // requested with --lib-dyn / --lib-dynamic only. It must be rejected as an
-    // unknown option.
+    // unknown option (a CLI error → Execute() false, exit 1).
     TEST_F(DriverTest, SharedFlagIsGone) {
         const char *argv[] = {"fly", "--shared", "-o", "out"};
         Driver driver(argv);
         CompilerInstance &CI = driver.BuildCompilerInstance();
-        EXPECT_TRUE(driver.Execute());
+        EXPECT_FALSE(driver.Execute());
         EXPECT_FALSE(CI.getFrontendOptions().CreateSharedLib);
     }
 
@@ -305,7 +305,7 @@ namespace {
         const char *argv[] = {"fly", "--lib", "-emit-ll", "-o", "out.ll"};
         Driver driver(argv);
         CompilerInstance &CI = driver.BuildCompilerInstance();
-        EXPECT_TRUE(driver.Execute());  // rejected cleanly, no crash
+        EXPECT_FALSE(driver.Execute());  // rejected cleanly: a CLI error → exit 1
         // The driver bailed out before applying either axis.
         EXPECT_NE(CI.getFrontendOptions().BackendAction, BackendActionKind::Backend_EmitLL);
         EXPECT_FALSE(CI.getFrontendOptions().CreateLibrary);
@@ -315,7 +315,7 @@ namespace {
         const char *argv[] = {"fly", "--lib", "-c", "-o", "out"};
         Driver driver(argv);
         CompilerInstance &CI = driver.BuildCompilerInstance();
-        EXPECT_TRUE(driver.Execute());
+        EXPECT_FALSE(driver.Execute());
         EXPECT_FALSE(CI.getFrontendOptions().CreateLibrary);
     }
 
@@ -323,19 +323,20 @@ namespace {
         const char *argv[] = {"fly", "--lib", "--lib-dyn", "-o", "out"};
         Driver driver(argv);
         CompilerInstance &CI = driver.BuildCompilerInstance();
-        EXPECT_TRUE(driver.Execute());
+        EXPECT_FALSE(driver.Execute());
         EXPECT_FALSE(CI.getFrontendOptions().CreateLibrary);
         EXPECT_FALSE(CI.getFrontendOptions().CreateSharedLib);
     }
 
     // ─── Output conflict detection ────────────────────────────────────────────
-    // --no-output emits nothing, so naming an output makes no sense: still rejected.
+    // --no-output emits nothing, so naming an output makes no sense: rejected as
+    // a CLI error (Execute() false → exit 1).
 
     TEST_F(DriverTest, OutputConflictWithNoOutput) {
         const char *argv[] = {"fly", "-no-output", "-o", "out.o"};
         Driver driver(argv);
         driver.BuildCompilerInstance();
-        EXPECT_TRUE(driver.Execute());
+        EXPECT_FALSE(driver.Execute());
     }
 
     // ─── Stats / timers ───────────────────────────────────────────────────────

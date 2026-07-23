@@ -151,6 +151,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     app.add_option("--src-dir",     SrcDirs,      "Source root directory: inputs and import-based dependencies are discovered here (default: current directory)")->allow_extra_args(false);
     app.add_option("--out-dir",     OutDirOpt,    "Directory for all generated build outputs (created if missing)");
     app.add_option("--link-lib",   LinkLibs,     "Link against external C library NAME (passed as -lNAME to the linker)")->allow_extra_args(false);
+    app.add_option("--llvm-lib-dir", LlvmLibDir, "Directory holding the LLVM libraries (libLLVM-20.so / LLVM-20.lib) for programs using the LLVM C-API (default: probed next to the fly binary)");
 
     // No positional arguments exist: fly compiles a source DIRECTORY (--src-dir,
     // default: current directory), never named files. Extras are kept only to be
@@ -164,6 +165,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
             llvm::errs() << "error: " << e.what() << "\n";
             llvm::errs() << "Use '" << Path << " --help' for a complete list of options.\n";
             doExecute = false;
+            HadOptionError = true;
         }
         return;
     }
@@ -186,6 +188,7 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
                             " (default: current directory)\n";
         }
         doExecute = false;
+        HadOptionError = true;
         return;
     }
 
@@ -333,6 +336,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     if (SrcDirs.size() > 1) {
         llvm::errs() << "error: --src-dir may be specified only once\n";
         doExecute = false;
+        HadOptionError = true;
         return;
     }
     for (const auto &D : SrcDirs) {
@@ -361,6 +365,34 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         }
     }
 
+    // LLVM lib dir → linker search path (-L / /libpath:), so programs that use
+    // the LLVM C-API (the compiler's own CodeGen/Target suites reference
+    // libLLVM-20.so → -lLLVM-20) link against the fork LLVM without a system
+    // install. Probe order mirrors the self-host ToolChain.getLLVMLibDir():
+    // the --llvm-lib-dir override, then <exe_dir>/llvm/lib (release bundle),
+    // then <exe_dir>/../llvm/lib (this repo's build tree: build/bin →
+    // build/llvm/lib), then <exe_dir>/../../llvm/lib (staged bootstrap:
+    // build/stage0/bin → build/llvm/lib). Left empty when none exists —
+    // ordinary user programs don't reference LLVM.
+    {
+        namespace fs = std::filesystem;
+        std::error_code ec;
+        if (!LlvmLibDir.empty() && fs::is_directory(LlvmLibDir, ec)) {
+            CodeGenOpts->ToolchainLibDir = LlvmLibDir;
+        } else {
+            for (const fs::path &Candidate : {fs::path(Dir) / "llvm" / "lib",
+                                              fs::path(Dir) / ".." / "llvm" / "lib",
+                                              fs::path(Dir) / ".." / ".." / "llvm" / "lib"}) {
+                auto canon = fs::canonical(Candidate, ec);
+                if (!ec && fs::is_directory(canon, ec)) {
+                    CodeGenOpts->ToolchainLibDir = canon.string();
+                    FLY_DEBUG_MSG("Set ToolchainLibDir=" << CodeGenOpts->ToolchainLibDir);
+                    break;
+                }
+            }
+        }
+    }
+
     // External C libraries to link (--link-lib NAME → -lNAME in linker flags)
     for (const auto &Lib : LinkLibs) {
         std::string Flag = "-l" + Lib;
@@ -382,6 +414,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         if (NoOutput) {
             llvm::errs() << "cannot specify -o with --no-output\n";
             doExecute = false;
+            HadOptionError = true;
             return;
         }
         FLY_DEBUG_MSG("Set -o=" << OutputFile);
@@ -425,16 +458,19 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     if (OutputLib && OutputShared) {
         llvm::errs() << "cannot specify both --lib and --lib-dyn\n";
         doExecute = false;
+        HadOptionError = true;
         return;
     }
     if (WantsLibrary && NonObjFormat) {
         llvm::errs() << "cannot specify --lib/--lib-dyn with --emit-ll/--emit-bc/--emit-as\n";
         doExecute = false;
+        HadOptionError = true;
         return;
     }
     if (WantsLibrary && (CompileOnly || NoOutput)) {
         llvm::errs() << "cannot specify --lib/--lib-dyn with -c or --no-output\n";
         doExecute = false;
+        HadOptionError = true;
         return;
     }
 
@@ -578,6 +614,11 @@ void Driver::printVersion(bool full) {
 
 bool Driver::Execute() {
     FLY_DEBUG_SCOPE("Driver", "Execute");
+    // A command-line error is a FAILURE (exit 1) even though nothing executes —
+    // matching the self-host driver. --help/--version stay a successful no-op.
+    if (HadOptionError)
+        return false;
+
     bool Success = true;
 
     if (doExecute) {

@@ -791,18 +791,24 @@ void Frontend::ResolveSourceDeps(ASTBuilder &Builder) {
                 }
             }
 
-            // Namespaces to pull: the imported one plus every DESCENDANT namespace
-            // (an `import my` / `import my.*` must discover my.utils from source —
-            // in directory mode nothing else brings those files in). Header-served
-            // descendants stay with their archives.
+            // Namespaces to pull: the imported one, or — ONLY when no file
+            // declares that exact namespace — its DESCENDANTS (an `import my` /
+            // `import my.*` must discover my.utils from source; in directory mode
+            // nothing else brings those files in). When the exact namespace IS
+            // declared, its files alone are the import's meaning: pulling
+            // descendants too would drag sibling trees in (e.g. the compiler's
+            // own `fly.compiler.codegen.*` TEST suites into a compiler build).
+            // Header-served descendants stay with their archives either way.
             llvm::SmallVector<std::string, 4> MatchNs;
-            if (NsToFiles.count(ns))
+            if (NsToFiles.count(ns)) {
                 MatchNs.push_back(ns);
-            const std::string Prefix = ns + ".";
-            for (const auto &Entry : NsToFiles)
-                if (llvm::StringRef(Entry.first).starts_with(Prefix) &&
-                    !HeaderNs.count(Entry.first))
-                    MatchNs.push_back(Entry.first);
+            } else {
+                const std::string Prefix = ns + ".";
+                for (const auto &Entry : NsToFiles)
+                    if (llvm::StringRef(Entry.first).starts_with(Prefix) &&
+                        !HeaderNs.count(Entry.first))
+                        MatchNs.push_back(Entry.first);
+            }
             // A plain/alias import is `Namespace.Symbol` (e.g. `import fly.compiler.ast.ASTNode`):
             // its trailing component is the imported class/enum/function name, NOT a namespace
             // component, so the joined path is not a declared namespace. Fall back to the parent
@@ -922,11 +928,8 @@ bool Frontend::DiscoverInputs() {
         return std::string(llvm::sys::path::filename(Abs));
     };
 
-    // Library builds compile the whole directory (the directory IS the library),
-    // and so do the non-linking stages (--no-output, -c, --emit-*): with no
-    // executable to produce there is no entry point to choose. main()/suite
-    // selection below only exists to pick what gets linked.
-    if (FO.CreateLibrary || FO.CreateSharedLib || !FO.LinkStep) {
+    // Library builds compile the whole directory: the directory IS the library.
+    if (FO.CreateLibrary || FO.CreateSharedLib) {
         for (const auto &F : Files)
             FO.addInputFile(F.c_str());
         FO.DefaultOutputStem = RootStem();
@@ -948,8 +951,10 @@ bool Frontend::DiscoverInputs() {
                                  << " suites=" << Suites.size());
     }
 
-    // Test mode (--test / --suite): the suites are the entry points.
-    if (CGO.TestMode) {
+    // Test mode (--test / --suite) on a linking build: the suites are the entry
+    // points. Non-linking test-mode builds fall through to the main()/whole-dir
+    // rules below (compiling suites to objects needs no suite selection).
+    if (CGO.TestMode && FO.LinkStep) {
         if (!CGO.SuiteName.empty()) {
             llvm::StringSet<> Chosen;
             for (const auto &SD : SuiteDecls)
@@ -980,8 +985,18 @@ bool Frontend::DiscoverInputs() {
         // is the historical "test executable running its test {} blocks".
     }
 
-    // Executable build: exactly one top-level main() under the root.
+    // One top-level main() under the root selects the entry (its import closure
+    // pulls the rest) — for the non-linking stages too, so `-c --src-dir <proj>`
+    // compiles the PROGRAM, not every stray test source in the tree. With no
+    // main at all, a non-linking build has no entry to choose and compiles the
+    // whole directory; a linking build has nothing to link.
     if (MainFiles.empty()) {
+        if (!FO.LinkStep) {
+            for (const auto &F : Files)
+                FO.addInputFile(F.c_str());
+            FO.DefaultOutputStem = RootStem();
+            return true;
+        }
         Diags.Report(diag::err_fe_no_main) << Root;
         return false;
     }

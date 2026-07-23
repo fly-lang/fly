@@ -346,7 +346,8 @@ namespace {
                               "-o", "sfb_dep_twice/main.a"};
         Driver drv(argv);
         drv.BuildCompilerInstance();
-        drv.Execute();   // no-op: the option error stops the driver
+        // The option error stops the driver AND is a failure (exit 1).
+        EXPECT_FALSE(drv.Execute());
         EXPECT_FALSE(exists("sfb_dep_twice/main.a"));
     }
 

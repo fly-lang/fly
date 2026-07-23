@@ -131,9 +131,9 @@ void main() {
     }
 
     // ─── Driver: emit formats ─────────────────────────────────────────────────
-    // A non-linking stage compiles the whole directory: every source is an
-    // explicit input, so without -o each file gets its own artifact (per-file
-    // emission, exactly as the old multi-file CLI behaved).
+    // The single main() selects the entry even on a non-linking stage; utils.fly
+    // is PULLED through the import, so emit builds lower everything into ONE
+    // module: exactly one artifact, named after the entry, never one per file.
 
     TEST_F(AppTest, EmitLL) {
         deleteFile("main.fly.ll");
@@ -145,10 +145,9 @@ void main() {
         ASSERT_TRUE(drv.Execute());
 
         EXPECT_TRUE(std::ifstream("main.fly.ll").good());
-        EXPECT_TRUE(std::ifstream("utils.fly.ll").good());
+        EXPECT_FALSE(std::ifstream("utils.fly.ll").good());
 
         deleteFile("main.fly.ll");
-        deleteFile("utils.fly.ll");
     }
 
     TEST_F(AppTest, EmitBC) {
@@ -161,10 +160,9 @@ void main() {
         ASSERT_TRUE(drv.Execute());
 
         EXPECT_TRUE(std::ifstream("main.fly.bc").good());
-        EXPECT_TRUE(std::ifstream("utils.fly.bc").good());
+        EXPECT_FALSE(std::ifstream("utils.fly.bc").good());
 
         deleteFile("main.fly.bc");
-        deleteFile("utils.fly.bc");
     }
 
     TEST_F(AppTest, EmitAS) {
@@ -177,10 +175,9 @@ void main() {
         ASSERT_TRUE(drv.Execute());
 
         EXPECT_TRUE(std::ifstream("main.fly.s").good());
-        EXPECT_TRUE(std::ifstream("utils.fly.s").good());
+        EXPECT_FALSE(std::ifstream("utils.fly.s").good());
 
         deleteFile("main.fly.s");
-        deleteFile("utils.fly.s");
     }
 
     // Explicit -o with an emit action: the single combined artifact is written
