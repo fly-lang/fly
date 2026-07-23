@@ -315,6 +315,17 @@ public class ToolChain {
             k = k + 1
         }
 
+        // LLVM lib dir, so programs using the LLVM C-API (the compiler's own
+        // CodeGen/Target test suites reference `libLLVM-20.so` → `-lLLVM-20`)
+        // link. With the fork LLVM there is no apt/system libLLVM anywhere:
+        // it lives next to fly (release bundle) or in build/llvm/lib (dev) —
+        // same probe as LinkWindowsGNU. Skipped if absent: ordinary user
+        // programs don't reference LLVM.
+        string llvmLibDir = this.getLLVMLibDir()
+        if fly.str.isEmpty(llvmLibDir) == false {
+            fly.os.proc.argsAdd(h, fly.str.concat("-L", llvmLibDir))
+        }
+
         if isStatic || isStaticPIE { fly.os.proc.argsAdd(h, "--start-group") }
 
         fly.os.proc.argsAdd(h, "-lc")

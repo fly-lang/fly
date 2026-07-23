@@ -409,6 +409,17 @@ public class CodeGenExpr : SemaVisitor {
         if this.addrMode {
             a.setLlvmValue(fldPtr)
         } else {
+            SemaType at = a.getType()
+            SemaClassType ac = at.asClass()
+            if ac != null {
+                if ac.getClassKind() == SemaClassKind.STRUCT {
+                    // STRUCT field: inline aggregate (CodeGenClass.fieldLlvmType);
+                    // the slot address IS the struct value — same rule as
+                    // CodeGenClass.member.
+                    a.setLlvmValue(fldPtr)
+                    return
+                }
+            }
             pointer fty = this.lowerType(a.getType())
             pointer loaded
             this.llvm.buildLoad2(this.builder, fty, fldPtr, "fldv", loaded)

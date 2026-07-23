@@ -67,7 +67,7 @@ public class CodeGenClass {
             int oi = 0
             while oi < own.size() {
                 SemaClassAttribute oa = own.get(oi)
-                pointer ofty = types.lowerType(oa.getType())
+                pointer ofty = fieldLlvmType(cgm, oa.getType())
                 fieldTys.add(ofty)
                 oi = oi + 1
             }
@@ -76,12 +76,30 @@ public class CodeGenClass {
             int i = 0
             while i < attrs.size() {
                 SemaClassAttribute a = attrs.get(i)
-                pointer fty = types.lowerType(a.getType())
+                pointer fty = fieldLlvmType(cgm, a.getType())
                 fieldTys.add(fty)
                 i = i + 1
             }
         }
         cg.structSetBodyN(st, fieldTys, false)
+    }
+
+    // fieldLlvmType — the LLVM type a FIELD slot uses. A STRUCT-kind field is laid
+    // out INLINE (reference ABI: %Holder = { ptr, %Point }); lowerType would give
+    // the opaque pointer used for struct VALUES, and a ptr-sized slot can only
+    // hold a pointer to storage the object does not own (the assignment's stack
+    // clone — dead on return, the WrapperSuite/Linux garbage reads). Everything
+    // else lowers as usual (class handles stay opaque pointers).
+    public static pointer fieldLlvmType(const CodeGenModule cgm, const SemaType t) {
+        SemaClassType fc = t.asClass()
+        if fc != null {
+            if fc.getClassKind() == SemaClassKind.STRUCT {
+                declareStruct(cgm, fc)
+                out = fc.getLlvmStructType()
+                return
+            }
+        }
+        out = cgm.getTypes().lowerType(t)
     }
 
     // nonStructBaseCount — subobject slots a HEADER class's own fields sit after.
@@ -712,6 +730,18 @@ public class CodeGenClass {
             node.setLlvmValue(fldPtr)
         } else {
             SemaClassAttribute a = cls.LookupAttribute(fname)
+            SemaType at = a.getType()
+            SemaClassType ac = at.asClass()
+            if ac != null {
+                if ac.getClassKind() == SemaClassKind.STRUCT {
+                    // STRUCT field: the aggregate lives INLINE in the object
+                    // (fieldLlvmType) and a struct VALUE is a pointer to its
+                    // storage — the slot address IS the value; loading would
+                    // read the first field bytes as a pointer.
+                    node.setLlvmValue(fldPtr)
+                    return
+                }
+            }
             pointer fty = cge.lowerType(a.getType())
             pointer loaded
             llvm.buildLoad2(b, fty, fldPtr, "fldv", loaded)

@@ -42,6 +42,9 @@ public class CodeGenExprOps {
         // silently clobbered `f1`. Handled before the generic clone-on-store below,
         // which copies for the assignee rather than for the caller.
         if CodeGenExprOps.assignStructOut(cge, left, rhs) { node.setLlvmValue(rhs)  return }
+        // A STRUCT written to a class/struct FIELD is copied INTO the field's
+        // inline storage (fields lay structs inline — CodeGenClass.fieldLlvmType).
+        if CodeGenExprOps.assignStructField(cge, left, rhs) { node.setLlvmValue(rhs)  return }
         // Same clone-on-store rule for STRUCTs (see CodeGenStmt.decl): value
         // types, so the assignee gets its own aggregate instead of aliasing the
         // RHS storage. cloneIfStruct no-ops for CLASS handles and scalars.
@@ -109,6 +112,39 @@ public class CodeGenExprOps {
         llvm.sizeOf(sty, szV)
         pointer mcv
         llvm.buildMemCpy(b, dest, rhs, szV, mcv)
+        out = true
+    }
+
+    // assignStructField — assigning a STRUCT to a class/struct FIELD (obj.f = v or
+    // bare `f = v` in a method) copies the aggregate INTO the field's inline slot
+    // (structs are laid out inline in objects — CodeGenClass.fieldLlvmType). The
+    // generic path below would clone-and-STORE A POINTER over the inline slot: the
+    // pointee is the assigner's stack clone, dead when the method returns, so a
+    // later read of the field copied garbage (the Linux WrapperSuite failures).
+    // False (nothing emitted) for every other assignee.
+    public static bool assignStructField(const CodeGenExpr cge, const SemaExpr left, const pointer rhs) {
+        if left == null { out = false  return }
+        SemaKind k = left.getKind()
+        if k != SemaKind.MEMBER {
+            if k != SemaKind.ATTRIBUTE { out = false  return }
+        }
+        SemaType lt = left.getType()
+        if lt == null { out = false  return }
+        SemaClassType lc = lt.asClass()
+        if lc == null { out = false  return }
+        if lc.getClassKind() != SemaClassKind.STRUCT { out = false  return }
+        pointer sty = lc.getLlvmStructType()
+        if sty == 0 { out = false  return }
+        if rhs == 0 { out = false  return }
+        pointer slot = cge.genAddr(left)
+        if slot == 0 { out = false  return }
+
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer szV
+        llvm.sizeOf(sty, szV)
+        pointer mcv
+        llvm.buildMemCpy(b, slot, rhs, szV, mcv)
         out = true
     }
 
