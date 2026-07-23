@@ -1,0 +1,420 @@
+import fly.assert
+import fly.str
+import fly.data.Set
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SetSuite — exhaustive coverage of fly.data.Set<T> (std/lib/data/set.fly), an
+// open-addressing hash set with tombstones (the Fly analog of C++
+// std::unordered_set<T>). Same table machinery as Map minus the value array, so
+// the same branch list applies:
+//
+//   add()     stride-init; first-alloc (keys == 0 → cap 8); the REHASH block
+//             (count*4 >= cap*3), which re-probes live keys and drops tombstones;
+//             the "already present" path (dedup — count must NOT move); insert
+//             into a flag-0 slot; insert reusing the first tombstone (hasTs);
+//             linear probing past colliding keys
+//   has()     hit, miss ending on flag 0, miss probing over tombstones, and the
+//             keys == 0 early out
+//   remove()  hit → tombstone + count--, miss, keys == 0 early out
+//   size() / free() — populated and never-used
+//
+// Capacity is a power of two starting at 8, so keys 8 apart share a bucket.
+//
+// Assert codes: 1xx empty, 2xx basics, 3xx collisions, 4xx tombstones,
+// 5xx rehash, 6xx strings, 7xx element kinds.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite SetSuite {
+
+    // ── the never-used set: keys == 0 on every path ──────────────────────────
+    void emptyTest() {
+        case "fresh set": {
+            Set<long> s = new Set<long>()
+            assert.assertEqI(s.size(), 0, 101)
+            s.free()
+        }
+        case "has / remove before any add": {
+            Set<long> s = new Set<long>()
+            assert.assertFalse(s.has(42), 102)
+            s.remove(42)
+            assert.assertEqI(s.size(), 0, 103)
+            s.free()
+        }
+        case "free on a never-used set": {
+            Set<long> s = new Set<long>()
+            s.free()
+            assert.assertEqI(s.size(), 0, 104)
+        }
+        case "emptied set still answers misses": {
+            Set<long> s = new Set<long>()
+            s.add(1)
+            s.remove(1)
+            assert.assertEqI(s.size(), 0, 105)
+            assert.assertFalse(s.has(1), 106)
+            s.free()
+        }
+    }
+
+    // ── add / has / remove and the dedup contract ────────────────────────────
+    void basicTest() {
+        case "add then has": {
+            Set<long> s = new Set<long>()
+            s.add(10)
+            s.add(20)
+            s.add(30)
+            assert.assertEqI(s.size(), 3, 201)
+            assert.assertTrue(s.has(10), 202)
+            assert.assertTrue(s.has(20), 203)
+            assert.assertTrue(s.has(30), 204)
+            assert.assertFalse(s.has(99), 205)
+            s.free()
+        }
+        case "adding an existing key does not grow the set": {
+            Set<long> s = new Set<long>()
+            s.add(10)
+            s.add(20)
+            s.add(10)
+            s.add(10)
+            assert.assertEqI(s.size(), 2, 206)
+            assert.assertTrue(s.has(10), 207)
+            s.free()
+        }
+        case "remove a present and a missing key": {
+            Set<long> s = new Set<long>()
+            s.add(10)
+            s.add(20)
+            s.remove(20)
+            assert.assertFalse(s.has(20), 208)
+            assert.assertEqI(s.size(), 1, 209)
+            s.remove(20)                              // already gone
+            s.remove(4321)                            // never present
+            assert.assertEqI(s.size(), 1, 210)
+            assert.assertTrue(s.has(10), 211)
+            s.free()
+        }
+        case "zero is a real member": {
+            Set<long> s = new Set<long>()
+            s.add(0)
+            assert.assertTrue(s.has(0), 212)
+            assert.assertEqI(s.size(), 1, 213)
+            s.remove(0)
+            assert.assertFalse(s.has(0), 214)
+            s.free()
+        }
+        case "negative keys hash to a non-negative bucket": {
+            Set<long> s = new Set<long>()
+            s.add(0 - 1)
+            s.add(0 - 5555)
+            assert.assertTrue(s.has(0 - 1), 215)
+            assert.assertTrue(s.has(0 - 5555), 216)
+            assert.assertFalse(s.has(0 - 2), 217)
+            s.remove(0 - 1)
+            assert.assertFalse(s.has(0 - 1), 218)
+            assert.assertEqI(s.size(), 1, 219)
+            s.free()
+        }
+    }
+
+    // ── linear probing over colliding keys ───────────────────────────────────
+    void collisionTest() {
+        case "keys sharing a bucket chain forward": {
+            Set<long> s = new Set<long>()
+            s.add(8)
+            s.add(16)
+            s.add(24)
+            assert.assertEqI(s.size(), 3, 301)
+            assert.assertTrue(s.has(8), 302)
+            assert.assertTrue(s.has(16), 303)
+            assert.assertTrue(s.has(24), 304)
+            s.free()
+        }
+        case "dedup inside a probe chain": {
+            Set<long> s = new Set<long>()
+            s.add(8)
+            s.add(16)
+            s.add(16)                                 // found at chain position 1
+            assert.assertEqI(s.size(), 2, 305)
+            s.free()
+        }
+        case "remove the head of a chain keeps the tail reachable": {
+            Set<long> s = new Set<long>()
+            s.add(8)
+            s.add(16)
+            s.add(24)
+            s.remove(8)
+            assert.assertFalse(s.has(8), 306)
+            assert.assertTrue(s.has(16), 307)         // probes over the tombstone
+            assert.assertTrue(s.has(24), 308)
+            assert.assertEqI(s.size(), 2, 309)
+            s.free()
+        }
+        case "miss whose probe chain crosses a tombstone": {
+            Set<long> s = new Set<long>()
+            s.add(8)
+            s.add(16)
+            s.remove(8)
+            assert.assertFalse(s.has(32), 310)
+            s.free()
+        }
+    }
+
+    // ── tombstones ───────────────────────────────────────────────────────────
+    void tombstoneTest() {
+        case "re-add after remove reuses the tombstone": {
+            Set<long> s = new Set<long>()
+            s.add(5)
+            s.remove(5)
+            assert.assertEqI(s.size(), 0, 401)
+            s.add(5)
+            assert.assertEqI(s.size(), 1, 402)
+            assert.assertTrue(s.has(5), 403)
+            s.free()
+        }
+        case "insert reuses the FIRST tombstone on the chain": {
+            Set<long> s = new Set<long>()
+            s.add(8)
+            s.add(16)
+            s.remove(8)
+            s.add(32)                                 // same bucket as 8 and 16
+            assert.assertEqI(s.size(), 2, 404)
+            assert.assertTrue(s.has(32), 405)
+            assert.assertTrue(s.has(16), 406)
+            assert.assertFalse(s.has(8), 407)
+            s.free()
+        }
+        case "repeated add/remove of the same key": {
+            Set<long> s = new Set<long>()
+            int i = 0
+            while i < 30 {
+                s.add(7)
+                assert.assertEqI(s.size(), 1, 408)
+                s.remove(7)
+                assert.assertEqI(s.size(), 0, 409)
+                i = i + 1
+            }
+            assert.assertFalse(s.has(7), 410)
+            s.free()
+        }
+        case "churn leaves only the live keys": {
+            Set<long> s = new Set<long>()
+            long k = 0
+            while k < 24 {
+                s.add(k)
+                k = k + 1
+            }
+            k = 0
+            while k < 24 {
+                if (k % 2) == 0 { s.remove(k) }
+                k = k + 1
+            }
+            assert.assertEqI(s.size(), 12, 411)
+            long bad = 0 - 1
+            k = 0
+            while k < 24 {
+                if (k % 2) == 0 {
+                    if s.has(k) { bad = k }
+                } else {
+                    if s.has(k) == false { bad = k }
+                }
+                k = k + 1
+            }
+            assert.assertEqL(bad, 0 - 1, 412)
+            s.free()
+        }
+    }
+
+    // ── rehash ───────────────────────────────────────────────────────────────
+    void rehashTest() {
+        case "grow across several rehashes": {
+            Set<long> s = new Set<long>()
+            long i = 0
+            while i < 200 {
+                s.add(i)
+                i = i + 1
+            }
+            assert.assertEqI(s.size(), 200, 501)
+            long bad = 0 - 1
+            i = 0
+            while i < 200 {
+                if s.has(i) == false { bad = i }
+                i = i + 1
+            }
+            assert.assertEqL(bad, 0 - 1, 502)
+            assert.assertFalse(s.has(200), 503)
+            s.free()
+        }
+        case "rehash drops tombstones and keeps live keys": {
+            Set<long> s = new Set<long>()
+            long i = 0
+            while i < 120 {
+                s.add(i)
+                if (i % 3) == 0 { s.remove(i) }
+                i = i + 1
+            }
+            assert.assertEqI(s.size(), 80, 504)
+            long bad = 0 - 1
+            i = 0
+            while i < 120 {
+                if (i % 3) == 0 {
+                    if s.has(i) { bad = i }
+                } else {
+                    if s.has(i) == false { bad = i }
+                }
+                i = i + 1
+            }
+            assert.assertEqL(bad, 0 - 1, 505)
+            s.free()
+        }
+        case "colliding keys survive a rehash": {
+            Set<long> s = new Set<long>()
+            long i = 0
+            while i < 40 {
+                s.add(i * 8)
+                i = i + 1
+            }
+            assert.assertEqI(s.size(), 40, 506)
+            long bad = 0 - 1
+            i = 0
+            while i < 40 {
+                if s.has(i * 8) == false { bad = i }
+                i = i + 1
+            }
+            assert.assertEqL(bad, 0 - 1, 507)
+            s.free()
+        }
+        case "dedup still holds after a rehash": {
+            Set<long> s = new Set<long>()
+            long i = 0
+            while i < 50 {
+                s.add(i)
+                i = i + 1
+            }
+            i = 0
+            while i < 50 {
+                s.add(i)                              // all duplicates
+                i = i + 1
+            }
+            assert.assertEqI(s.size(), 50, 508)
+            s.free()
+        }
+        case "remove everything after a rehash": {
+            Set<long> s = new Set<long>()
+            long i = 0
+            while i < 60 {
+                s.add(i)
+                i = i + 1
+            }
+            i = 0
+            while i < 60 {
+                s.remove(i)
+                i = i + 1
+            }
+            assert.assertEqI(s.size(), 0, 509)
+            s.add(1)                                  // reuses a tombstone
+            assert.assertEqI(s.size(), 1, 510)
+            assert.assertTrue(s.has(1), 511)
+            s.free()
+        }
+    }
+
+    // ── string members: hashing, comparison, ownership ───────────────────────
+    void stringTest() {
+        case "add / has / remove with string keys": {
+            Set<string> s = new Set<string>()
+            s.add("red")
+            s.add("green")
+            assert.assertEqI(s.size(), 2, 601)
+            assert.assertTrue(s.has("red"), 602)
+            assert.assertFalse(s.has("blue"), 603)
+            s.remove("red")
+            assert.assertFalse(s.has("red"), 604)
+            assert.assertEqI(s.size(), 1, 605)
+            s.free()
+        }
+        case "dedup compares by content, not identity": {
+            Set<string> s = new Set<string>()
+            string built = str.concat("re", "d")
+            s.add("red")
+            s.add(built)                              // same content → dedup
+            assert.assertEqI(s.size(), 1, 606)
+            assert.assertTrue(s.has(built), 607)
+            assert.assertStr(built, "red", 608)       // source intact
+            s.free()
+        }
+        case "empty string is a usable member": {
+            Set<string> s = new Set<string>()
+            s.add("")
+            assert.assertTrue(s.has(""), 609)
+            assert.assertEqI(s.size(), 1, 610)
+            s.add("")
+            assert.assertEqI(s.size(), 1, 611)
+            s.remove("")
+            assert.assertFalse(s.has(""), 612)
+            s.free()
+        }
+        case "remove then re-add a string key": {
+            Set<string> s = new Set<string>()
+            s.add("alpha")
+            s.remove("alpha")
+            s.add("alpha")                            // tombstone reuse + reclone
+            assert.assertEqI(s.size(), 1, 613)
+            assert.assertTrue(s.has("alpha"), 614)
+            s.remove("missing")
+            assert.assertEqI(s.size(), 1, 615)
+            s.free()
+        }
+        case "string members survive a rehash": {
+            Set<string> s = new Set<string>()
+            int i = 0
+            while i < 60 {
+                s.add(str.concat("k", str.convert(i)))
+                i = i + 1
+            }
+            assert.assertEqI(s.size(), 60, 616)
+            int bad = 0 - 1
+            i = 0
+            while i < 60 {
+                if s.has(str.concat("k", str.convert(i))) == false { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 617)
+            assert.assertFalse(s.has("k60"), 618)
+            s.free()                                  // frees all 60 clones
+        }
+    }
+
+    // ── other element kinds ──────────────────────────────────────────────────
+    void elementKindTest() {
+        case "Set<int>": {
+            Set<int> s = new Set<int>()
+            s.add(1)
+            s.add(2)
+            s.add(1)
+            assert.assertEqI(s.size(), 2, 701)
+            assert.assertTrue(s.has(2), 702)
+            assert.assertFalse(s.has(3), 703)
+            s.free()
+        }
+        case "Set<bool> collapses to at most two members": {
+            Set<bool> s = new Set<bool>()
+            s.add(true)
+            s.add(true)
+            assert.assertEqI(s.size(), 1, 704)
+            s.add(false)
+            assert.assertEqI(s.size(), 2, 705)
+            assert.assertTrue(s.has(true), 706)
+            assert.assertTrue(s.has(false), 707)
+            s.free()
+        }
+        case "Set<pointer>": {
+            Set<pointer> s = new Set<pointer>()
+            s.add(4096)
+            s.add(8192)
+            s.add(4096)
+            assert.assertEqI(s.size(), 2, 708)
+            assert.assertTrue(s.has(8192), 709)
+            assert.assertFalse(s.has(1), 710)
+            s.free()
+        }
+    }
+}

@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 # link_fly.ps1 - link fly.exe for the current stage: the driver object
-# (build_driver.ps1) + fly_compiler_lib.lib + std + runtime + LLVM-C ->
+# (build_compiler.ps1, compiler merged in) + std + runtime + LLVM-C ->
 # build\stage$STAGE\bin\fly.exe. PowerShell port of ci/linux/link_fly.sh.
 #
 # External link = the fork's lld-link.exe (COFF), mirroring the reference
@@ -32,10 +32,7 @@ function Assert-LastExit($what) {
 $OBJ = "$D/Driver.o"
 $PRELINKED = Test-Path "$D/fly.exe"
 if (-not $PRELINKED -and -not (Test-Path $OBJ)) {
-    Write-Host "error: $D\Driver.o missing - run build_driver.ps1 first."; exit 1
-}
-if (-not (Test-Path "$CDIR/fly_compiler_lib.lib")) {
-    Write-Host "error: $CDIR\fly_compiler_lib.lib missing - run build_compiler.ps1 first."; exit 1
+    Write-Host "error: $D\Driver.o missing - run build_compiler.ps1 first."; exit 1
 }
 if (-not (Test-Path "$LIB/fly_std_lib.lib") -or -not (Test-Path "$LIB/fly_runtime_lib.lib")) {
     Write-Host "error: std/runtime missing in $LIB - run build_runtime.ps1 + build_std.ps1 first."; exit 1
@@ -63,9 +60,12 @@ if ($PRELINKED) {
     # extra link flag (the objects carry DWARF iff they were built with it).
     # Weak symbols (generic specializations, vtables, init_ctors) carry a COMDAT
     # (selection Any), so ld.lld dedups them natively — no --allow-multiple-definition.
+    # MONOLITHIC: the compiler is inside $OBJ (compiled from source by build_compiler),
+    # NOT a separate fly_compiler_lib.lib archive - this avoids the linker COMDAT-dedup
+    # of the compiler's generic instantiations that caused the `fly build` UAF crash.
     $parts = Get-MingwLinkParts
     $args = @('-m', 'i386pep') + $parts.LibDirs + $parts.Pre + @(
-        $OBJ, "$CDIR/fly_compiler_lib.lib", "$LIB/fly_std_lib.lib", "$LIB/fly_runtime_lib.lib", $llvmC
+        $OBJ, "$LIB/fly_std_lib.lib", "$LIB/fly_runtime_lib.lib", $llvmC
     ) + $parts.Post + @('-o', "$OUT/fly.exe")
     & $script:GNU_ldLld @args
     Assert-LastExit 'driver link'

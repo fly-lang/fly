@@ -7,9 +7,10 @@
 # all symbolized (needs FLY_DEBUG_SYMBOLS=1), the offending stacks — for a
 # double-free: the second free, the first free, and the allocation site.
 #
-# By default it sweeps EVERY test suite for a full safety net:
-#   compiler/test/**/*Suite.fly   driver/test/**/*Suite.fly   (compiled with --test)
-#   std/test/*_test.fly           runtime/test/*_test.fly     (main()-style progs)
+# By default it sweeps EVERY test suite for a full safety net — all three trees
+# are now `suite`/`case` programs compiled with --test:
+#   compiler/test/**/*Suite.fly (incl. driver)
+#   std/test/**/*Suite.fly        runtime/test/*Suite.fly
 # The memory bug is in the COMPILER while it compiles each test (e.g. the
 # resolveSourceDeps string double-free), so Valgrind wraps the fly COMPILE.
 #
@@ -43,9 +44,8 @@ if [ -n "${VG_SUITES:-}" ]; then
 else
     SUITES="$(
         { find compiler/test -name '*Suite.fly'
-          find driver/test   -name '*Suite.fly' 2>/dev/null
-          find std/test      -name '*_test.fly' 2>/dev/null
-          find runtime/test  -name '*_test.fly' 2>/dev/null
+          find std/test      -name '*Suite.fly' 2>/dev/null
+          find runtime/test  -name '*Suite.fly' 2>/dev/null
         } | sort )"
 fi
 
@@ -61,14 +61,28 @@ for suite in $SUITES; do
     total=$((total + 1))
     name="$(basename "$suite" .fly)"
     log="$OUT/vg_${name}.txt"
-    # *Suite.fly (compiler/driver) need --test; *_test.fly (std/runtime) are main() progs.
-    testflag=""
-    case "$suite" in *Suite.fly) testflag="--test" ;; esac
+    # DIRECTORY CLI (the self-host fly): no positional — a *Suite.fly is selected
+    # by name via --suite=<Name> (fly also RUNS the built suite once, natively:
+    # valgrind has no --trace-children, so only the COMPILE is memchecked, as
+    # before); a plain main()-style VG_SUITES override compiles its directory.
+    # The source root is the suite's OWN tree: suite names repeat across trees
+    # (e.g. ManifestSuite exists in both compiler/test and std/test).
+    case "$suite" in
+        compiler/*) SRCROOT=compiler ;;
+        std/*)      SRCROOT=std ;;
+        runtime/*)  SRCROOT=runtime/test ;;
+        *)          SRCROOT="$(dirname "$suite")" ;;
+    esac
+    if case "$suite" in *Suite.fly) true ;; *) false ;; esac; then
+        FLY_ARGS=(--suite="$name" --src-dir "$SRCROOT" -o "t_${name}" --out-dir "$OUT" -L "$STD")
+    else
+        FLY_ARGS=(--src-dir "$(dirname "$suite")" -o "t_${name}" --out-dir "$OUT" -L "$STD")
+    fi
 
     printf '  [%d/%d] %s ... ' "$total" "$count" "$name"
     valgrind --tool=memcheck --error-exitcode=42 --leak-check=no --num-callers=40 \
              --track-origins=yes --read-inline-info=yes \
-             "$FLY" "$suite" $testflag -o "t_${name}" --out-dir "$OUT" -L "$STD" \
+             "$FLY" "${FLY_ARGS[@]}" \
              > "$OUT/_${name}.out" 2> "$log" || true
 
     if grep -qE 'Invalid free|Mismatched free|Invalid read|Invalid write' "$log"; then

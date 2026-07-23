@@ -1,0 +1,194 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// InterfaceSuite — interface polymorphism: dispatch through an interface-typed
+// value must reach the IMPLEMENTER's method, not slot 0 of the vtable.
+//
+// The dispatch surface is covered from every direction a caller can produce:
+//   * an interface-typed local assigned from a concrete instance,
+//   * a `const` interface parameter and a non-const one,
+//   * an interface returned from a function,
+//   * a class that BOTH extends a base class AND implements an interface
+//     (Fly allows one base struct/class plus interfaces),
+//   * a class implementing TWO interfaces, so the two method tables coexist,
+//   * a two-level class chain where only the base declares the implementation.
+//
+// Assert codes: 1xx direct calls, 2xx interface variables, 3xx parameters and
+// returns, 4xx multiple interfaces, 5xx inherited implementations.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface Shape { int sides() }
+
+interface Named { int tag() }
+
+class Node {
+    int id
+    public Node(const int i) { this.id = i }
+    public int getId() { out = this.id }
+}
+
+class Box : Node, Shape {
+    public Box(const int i) { super(i) }
+    public int sides() { out = 4 }
+}
+
+class Tri : Node, Shape {
+    public Tri(const int i) { super(i) }
+    public int sides() { out = 3 }
+}
+
+// Implements two interfaces at once.
+class Tagged : Node, Shape, Named {
+    public Tagged(const int i) { super(i) }
+    public int sides() { out = 6 }
+    public int tag() { out = 99 }
+}
+
+// Only the base implements Shape; the derived class inherits it.
+class Derived : Box {
+    public Derived(const int i) { super(i) }
+}
+
+// The derived class overrides the inherited implementation.
+class Overriding : Box {
+    public Overriding(const int i) { super(i) }
+    public int sides() { out = 8 }
+}
+
+int viaConst(const Shape s) { out = s.sides() }
+int viaParam(Shape s)       { out = s.sides() }
+int tagOf(const Named n)    { out = n.tag() }
+
+Shape makeShape(const bool box) {
+    if box {
+        out = new Box(1)
+    } else {
+        out = new Tri(2)
+    }
+}
+
+suite InterfaceSuite {
+
+    // ── calls on the concrete type ───────────────────────────────────────────
+    void directTest() {
+        case "the implementer's own method": {
+            Box b = new Box(10)
+            Tri t = new Tri(20)
+            assert.assertEqI(b.sides(), 4, 101)
+            assert.assertEqI(t.sides(), 3, 102)
+        }
+        case "the base class method reached via super": {
+            Box b = new Box(10)
+            assert.assertEqI(b.getId(), 10, 103)
+            Tri t = new Tri(20)
+            assert.assertEqI(t.getId(), 20, 104)
+        }
+    }
+
+    // ── through an interface-typed variable ──────────────────────────────────
+    void variableTest() {
+        case "each instance dispatches to its own implementation": {
+            Box b = new Box(10)
+            Tri t = new Tri(20)
+            Shape sb = b
+            Shape st = t
+            assert.assertEqI(sb.sides(), 4, 201)
+            assert.assertEqI(st.sides(), 3, 202)
+        }
+        case "reassigning the interface variable switches implementations": {
+            Shape s = new Box(1)
+            assert.assertEqI(s.sides(), 4, 203)
+            s = new Tri(2)
+            assert.assertEqI(s.sides(), 3, 204)
+        }
+        case "repeated dispatch is stable": {
+            Shape s = new Tri(1)
+            int bad = 0 - 1
+            int i = 0
+            while i < 50 {
+                if s.sides() != 3 { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 205)
+        }
+    }
+
+    // ── through parameters and return values ─────────────────────────────────
+    void parameterTest() {
+        case "a const interface parameter": {
+            Box b = new Box(10)
+            Tri t = new Tri(20)
+            assert.assertEqI(viaConst(b), 4, 301)
+            assert.assertEqI(viaConst(t), 3, 302)
+        }
+        case "a non-const interface parameter": {
+            Box b = new Box(10)
+            Tri t = new Tri(20)
+            assert.assertEqI(viaParam(b), 4, 303)
+            assert.assertEqI(viaParam(t), 3, 304)
+        }
+        case "an interface-typed local passed on as a parameter": {
+            Shape s = new Tri(1)
+            assert.assertEqI(viaConst(s), 3, 305)
+            assert.assertEqI(viaParam(s), 3, 306)
+        }
+        case "an interface returned from a function": {
+            Shape a = makeShape(true)
+            assert.assertEqI(a.sides(), 4, 307)
+            Shape b = makeShape(false)
+            assert.assertEqI(b.sides(), 3, 308)
+        }
+        case "a returned interface passed straight into a parameter": {
+            assert.assertEqI(viaConst(makeShape(true)), 4, 309)
+            assert.assertEqI(viaConst(makeShape(false)), 3, 310)
+        }
+    }
+
+    // ── a class implementing two interfaces ──────────────────────────────────
+    void multipleInterfaceTest() {
+        case "both interface methods dispatch correctly": {
+            Tagged t = new Tagged(5)
+            assert.assertEqI(t.sides(), 6, 401)
+            assert.assertEqI(t.tag(), 99, 402)
+            assert.assertEqI(t.getId(), 5, 403)         // and the base class method
+        }
+        case "the same instance seen through each interface": {
+            Tagged t = new Tagged(5)
+            Shape s = t
+            Named n = t
+            assert.assertEqI(s.sides(), 6, 404)
+            assert.assertEqI(n.tag(), 99, 405)
+        }
+        case "through parameters of each interface type": {
+            Tagged t = new Tagged(5)
+            assert.assertEqI(viaConst(t), 6, 406)
+            assert.assertEqI(tagOf(t), 99, 407)
+        }
+    }
+
+    // ── implementations reached through class inheritance ────────────────────
+    void inheritedTest() {
+        case "a derived class inherits its base's implementation": {
+            Derived d = new Derived(7)
+            assert.assertEqI(d.sides(), 4, 501)
+            assert.assertEqI(d.getId(), 7, 502)
+        }
+        case "the inherited implementation dispatches through the interface": {
+            Derived d = new Derived(7)
+            Shape s = d
+            assert.assertEqI(s.sides(), 4, 503)
+            assert.assertEqI(viaConst(d), 4, 504)
+        }
+        case "a derived class can override the inherited implementation": {
+            Overriding o = new Overriding(8)
+            assert.assertEqI(o.sides(), 8, 505)
+            Shape s = o
+            assert.assertEqI(s.sides(), 8, 506)         // most-derived wins
+            assert.assertEqI(viaConst(o), 8, 507)
+        }
+        case "the base is unaffected by the derived override": {
+            Box b = new Box(1)
+            assert.assertEqI(b.sides(), 4, 508)
+        }
+    }
+}

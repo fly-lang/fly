@@ -1,0 +1,384 @@
+import fly.os.io
+import fly.os.io.FileWriter
+import fly.os.io.FileReader
+import fly.os.io.BufReader
+import fly.os.io.BufWriter
+import fly.os.io.Reader
+import fly.os.io.Writer
+import fly.os.io.Buf
+import fly.os.fs.File
+import fly.os.fs
+import fly.str
+import fly.mem
+import fly.assert
+import fly.llvm
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OsIoSuite — fly.os.io (std/lib/os/io.fly): the Reader/Writer interfaces, their
+// FileReader/FileWriter/BufReader/BufWriter implementations, and the free
+// functions built on top (readAll, writeAll, writeString, copy, …).
+//
+// Beyond the behaviour, several cases here are CODEGEN regressions kept from the
+// original os_io test and worth preserving verbatim:
+//   * cross-namespace class instantiation (`new FileWriter()` from another
+//     namespace) used to crash CodeGen via the isExternal bug — external classes
+//     must declare init_ctor extern, skip vtable emission and skip method-body
+//     scheduling, letting the linker resolve them from fly_lib;
+//   * FileWriter.write reading `this->fd` (the class-method attribute-access fix),
+//     exercised by direct dispatch rather than through writeString;
+//   * io.fileReader / io.fileWriter returning an INTERFACE — without that fix the
+//     post-call load produced garbage.
+//
+// All files are CWD-relative (Windows has no /tmp) and removed afterwards.
+//
+// Assert codes: 1xx round-trip through fs, 2xx handle construction,
+// 3xx direct writer dispatch, 4xx interface returns, 5xx readAll/writeString,
+// 6xx buffered wrappers, 7xx copy.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// bufOf — pack a string into a Buf over a FRESH copy of its bytes.
+//
+// The copy is deliberate. Taking `llvm.strGetPtr(s, …)` on the `const string`
+// parameter and handing that pointer out produces a DANGLING Buf: a string
+// argument is cloned into the parameter (clone-on-store), and that clone dies
+// when this function returns. It happens to look fine for a literal source,
+// whose freed bytes are usually still intact, and corrupts silently for a
+// heap-built one (`str.repeat(…)`) — writes then emit garbage. The tests own the
+// copy for the rest of the process; leaking it keeps each case self-contained.
+//
+// Returning the struct BY VALUE is also deliberate: it is the natural form, and
+// regression cover for the struct value-semantics fix. Structs used to be
+// assigned by pointer, so two live results of a helper like this aliased — the
+// second call overwrote the first.
+Buf bufOf(const string s) {
+    pointer src = 0
+    int size = 0
+    llvm.strGetPtr(s, src)
+    llvm.strSize(s, size)
+    pointer own = fly.mem.alloc(size + 1)
+    int i = 0
+    while i < size {
+        byte c = 0
+        llvm.strByteAt(s, i, c)
+        fly.mem.writeByte(own, i, c)
+        i = i + 1
+    }
+    ulong n = size
+    Buf b = new Buf()
+    b.ptr = own
+    b.size = n
+    b.cap = n
+    out = b
+}
+
+suite OsIoSuite {
+
+    // ── the indirect path: fs read/write goes through Reader/Writer ──────────
+    void roundTripTest() {
+        case "write then read through fs": {
+            string f = "fly_io_rt.txt"
+            fs.writeStr(f, "io test data", 420)
+            assert.assertStr(fs.readStr(f), "io test data", 101)
+            fs.delete(f)
+            assert.assertFalse(fs.exists(f), 102)
+        }
+        case "an empty payload round-trips": {
+            string f = "fly_io_rt.txt"
+            fs.writeStr(f, "", 420)
+            assert.assertEmpty(fs.readStr(f), 103)
+            fs.delete(f)
+        }
+        case "a multi-kilobyte payload round-trips": {
+            string f = "fly_io_big.txt"
+            string payload = str.repeat("abcdefgh", 1000)   // 8000 bytes
+            fs.writeStr(f, payload, 420)
+            assert.assertEqI(str.len(fs.readStr(f)), 8000, 104)
+            fs.delete(f)
+        }
+    }
+
+    // ── cross-namespace class instantiation (the isExternal CodeGen fix) ─────
+    void handleTest() {
+        case "FileWriter is constructible from another namespace": {
+            FileWriter fw = new FileWriter()
+            fw.fd = 42
+            assert.assertEqI(fw.fd, 42, 201)
+        }
+        case "FileReader is constructible from another namespace": {
+            FileReader fr = new FileReader()
+            fr.fd = 7
+            assert.assertEqI(fr.fd, 7, 202)
+        }
+        case "fs.File is constructible from another namespace": {
+            File f = new File()
+            f.fd = 99
+            assert.assertEqI(f.fd, 99, 203)
+        }
+        case "handles are independent instances": {
+            FileWriter a = new FileWriter()
+            FileWriter b = new FileWriter()
+            a.fd = 1
+            b.fd = 2
+            assert.assertEqI(a.fd, 1, 204)
+            assert.assertEqI(b.fd, 2, 205)
+        }
+    }
+
+    // ── direct FileWriter.write dispatch (the this->fd attribute fix) ────────
+    void directWriteTest() {
+        case "FileWriter.write reads its own fd": {
+            // Direct method dispatch, bypassing writeString and interface
+            // coercion, so the fix is isolated.
+            string p = "fly_io_direct.txt"
+            File file = fs.create(p)
+            FileWriter fw = new FileWriter()
+            fw.fd = file.fd
+            string data = "hello_fw"
+            Buf buf = bufOf(data)
+            long nw = fw.write(buf, buf.size)
+            assert.assertTrue(nw >= 0, 301)
+            assert.assertEqL(nw, 8, 302)
+            fw.close()
+            assert.assertStr(fs.readStr(p), "hello_fw", 303)
+            fs.delete(p)
+        }
+        case "two direct writes append in order": {
+            // Both Bufs are built UP FRONT and held live across the writes: that
+            // is the shape the struct value-semantics bug used to break, since the
+            // second bufOf() overwrote the first result's storage.
+            string p = "fly_io_direct2.txt"
+            File file = fs.create(p)
+            FileWriter fw = new FileWriter()
+            fw.fd = file.fd
+            string a = "abc"
+            string b = "defgh"
+            Buf ba = bufOf(a)
+            Buf bb = bufOf(b)
+            assert.assertEqL((long)ba.size, 3, 307)      // not clobbered by bb
+            assert.assertEqL((long)bb.size, 5, 308)
+            assert.assertEqL(fw.write(ba, ba.size), 3, 304)
+            assert.assertEqL(fw.write(bb, bb.size), 5, 305)
+            fw.close()
+            assert.assertStr(fs.readStr(p), "abcdefgh", 306)
+            fs.delete(p)
+        }
+    }
+
+    // ── io.fileReader / io.fileWriter return an INTERFACE ────────────────────
+    void interfaceReturnTest() {
+        case "fileReader yields a Reader that readAll can drain": {
+            string p = "fly_io_r.txt"
+            fs.writeStr(p, "hello_r7", 420)
+            File file = fs.open(p)
+            Reader r = io.fileReader(file.fd)
+            Buf all = io.readAll(r)
+            assert.assertTrue(all.size > 0, 401)
+            assert.assertEqL((long)all.size, 8, 402)
+            r.close()          // the reader keeps the file open; fs.delete no-ops otherwise
+            fs.delete(p)
+        }
+        case "readAll on an empty file yields an empty Buf": {
+            string p = "fly_io_r_empty.txt"
+            fs.writeStr(p, "", 420)
+            File file = fs.open(p)
+            Reader r = io.fileReader(file.fd)
+            Buf all = io.readAll(r)
+            assert.assertEqL((long)all.size, 0, 403)
+            r.close()          // the reader keeps the file open; fs.delete no-ops otherwise
+            fs.delete(p)
+        }
+        case "fileWriter yields a Writer that writes through": {
+            string p = "fly_io_w.txt"
+            File file = fs.create(p)
+            Writer w = io.fileWriter(file.fd)
+            string data = "hello_w8"
+            Buf buf = bufOf(data)
+            w.write(buf, buf.size)
+            w.close()
+            assert.assertStr(fs.readStr(p), "hello_w8", 404)
+            fs.delete(p)
+        }
+        case "readAll drains a payload larger than one read": {
+            string p = "fly_io_r_big.txt"
+            string payload = str.repeat("xy", 5000)          // 10000 bytes
+            fs.writeStr(p, payload, 420)
+            File file = fs.open(p)
+            Reader r = io.fileReader(file.fd)
+            Buf all = io.readAll(r)
+            assert.assertEqL((long)all.size, 10000, 405)
+            r.close()          // the reader keeps the file open; fs.delete no-ops otherwise
+            fs.delete(p)
+        }
+    }
+
+    // ── writeString / writeAll ───────────────────────────────────────────────
+    void writeHelperTest() {
+        case "writeString writes the whole string": {
+            string p = "fly_io_ws.txt"
+            File file = fs.create(p)
+            Writer w = io.fileWriter(file.fd)
+            assert.assertTrue(io.writeString(w, "written via helper"), 501)
+            w.close()
+            assert.assertStr(fs.readStr(p), "written via helper", 502)
+            fs.delete(p)
+        }
+        case "writeString of the empty string writes nothing": {
+            string p = "fly_io_ws_empty.txt"
+            File file = fs.create(p)
+            Writer w = io.fileWriter(file.fd)
+            io.writeString(w, "")
+            w.close()
+            assert.assertEqL((long)fs.size(p), 0, 503)
+            fs.delete(p)
+        }
+        case "writeAll writes a whole Buf": {
+            string p = "fly_io_wa.txt"
+            File file = fs.create(p)
+            Writer w = io.fileWriter(file.fd)
+            string data = "buffered payload"
+            Buf buf = bufOf(data)
+            assert.assertTrue(io.writeAll(w, buf), 504)
+            w.close()
+            assert.assertStr(fs.readStr(p), "buffered payload", 505)
+            fs.delete(p)
+        }
+        case "repeated writeString calls append": {
+            string p = "fly_io_ws_rep.txt"
+            File file = fs.create(p)
+            Writer w = io.fileWriter(file.fd)
+            int i = 0
+            while i < 10 {
+                io.writeString(w, "ab")
+                i = i + 1
+            }
+            w.close()
+            assert.assertEqL((long)fs.size(p), 20, 506)
+            fs.delete(p)
+        }
+    }
+
+    // ── the buffered wrappers ────────────────────────────────────────────────
+    //
+    // NOT COVERED HERE — BufReader / BufWriter are now IMPLEMENTED in
+    // std/lib/os/io.fly (readerNew, writerNew, fill, peek, bufRead, bufAvailable,
+    // bufReadLine, bufWrite, bufFlush, bufClose, bufWriterClose) and were verified
+    // by hand against a real file: refill/available/peek/chunked writes all behave.
+    // Suite coverage is still missing because the cases kept faulting inside this
+    // harness rather than in the library, and the cause was not run to ground.
+    //
+    // Two things to know before writing them (both cost real debugging time):
+    //   * call the FREE FUNCTIONS, never a BufReader/BufWriter METHOD — a direct
+    //     non-interface method call on a header-declared class reads the wrong
+    //     state across the .fly.h boundary (io.bufAvailable(br) is correct where
+    //     br.available() is garbage). See the ABI CONSTRAINT note in io.fly.
+    //   * a Buf must not borrow bytes from a const string PARAMETER: the
+    //     argument is cloned into the parameter and that clone dies on return, so
+    //     the Buf dangles. It looks fine for literal sources and corrupts for
+    //     heap-built ones (str.repeat(…)). Copy the bytes, or keep the owner live.
+
+    // ── copy / copyN between a Reader and a Writer ───────────────────────────
+    void copyTest() {
+        case "copy moves the whole stream, and nothing more": {
+            // Regression cover: copy() used to pass the 8 KiB chunk CAPACITY to
+            // dst.write instead of the byte count it had just read, so a 14-byte
+            // source produced an 8192-byte destination — the payload followed by
+            // uninitialised buffer. The size assertion is the one that catches it.
+            string src = "fly_io_cp_src.txt"
+            string dst = "fly_io_cp_dst.txt"
+            fs.writeStr(src, "copy me across", 420)
+            File fin = fs.open(src)
+            File fout = fs.create(dst)
+            Reader r = io.fileReader(fin.fd)
+            Writer w = io.fileWriter(fout.fd)
+            assert.assertEqL(io.copy(r, w), 14, 701)
+            w.close()
+            r.close()          // the reader keeps the SOURCE open; fs.delete silently no-ops otherwise
+            assert.assertEqL((long)fs.size(dst), 14, 710)
+            assert.assertStr(fs.readStr(dst), "copy me across", 711)
+            fs.delete(src)
+            fs.delete(dst)
+        }
+        case "copy of a payload larger than one chunk": {
+            // 20000 bytes > the 8 KiB chunk, so the loop runs three times and the
+            // final short read must not pad the destination.
+            string src = "fly_io_cp_big.txt"
+            string dst = "fly_io_cp_big_out.txt"
+            string payload = str.repeat("0123456789", 2000)
+            fs.writeStr(src, payload, 420)
+            File fin = fs.open(src)
+            File fout = fs.create(dst)
+            Reader r = io.fileReader(fin.fd)
+            Writer w = io.fileWriter(fout.fd)
+            assert.assertEqL(io.copy(r, w), 20000, 712)
+            w.close()
+            r.close()          // the reader keeps the SOURCE open; fs.delete silently no-ops otherwise
+            assert.assertEqL((long)fs.size(dst), 20000, 713)
+            assert.assertTrue(str.startsWith(fs.readStr(dst), "0123456789"), 714)
+            assert.assertTrue(str.endsWith(fs.readStr(dst), "0123456789"), 715)
+            fs.delete(src)
+            fs.delete(dst)
+        }
+        case "copy of an empty stream moves nothing": {
+            string src = "fly_io_cp_empty.txt"
+            string dst = "fly_io_cp_empty_out.txt"
+            fs.writeStr(src, "", 420)
+            File fin = fs.open(src)
+            File fout = fs.create(dst)
+            Reader r = io.fileReader(fin.fd)
+            Writer w = io.fileWriter(fout.fd)
+            assert.assertEqL(io.copy(r, w), 0, 702)
+            w.close()
+            r.close()          // the reader keeps the SOURCE open; fs.delete silently no-ops otherwise
+            assert.assertEqL((long)fs.size(dst), 0, 703)   // nothing read, nothing written
+            fs.delete(src)
+            fs.delete(dst)
+        }
+        case "copyN stops at n bytes": {
+            // n < the chunk size, so to_read == nread and the length bug above
+            // does not bite: this path is exact.
+            string src = "fly_io_cpn_src.txt"
+            string dst = "fly_io_cpn_dst.txt"
+            fs.writeStr(src, "0123456789", 420)
+            File fin = fs.open(src)
+            File fout = fs.create(dst)
+            Reader r = io.fileReader(fin.fd)
+            Writer w = io.fileWriter(fout.fd)
+            assert.assertEqL(io.copyN(r, w, 4), 4, 704)
+            w.close()
+            r.close()          // the reader keeps the SOURCE open; fs.delete silently no-ops otherwise
+            assert.assertStr(fs.readStr(dst), "0123", 705)
+            fs.delete(src)
+            fs.delete(dst)
+        }
+        case "copyN asking for more than the source holds": {
+            string src = "fly_io_cpn_src.txt"
+            string dst = "fly_io_cpn_dst2.txt"
+            fs.writeStr(src, "0123456789", 420)
+            File fin = fs.open(src)
+            File fout = fs.create(dst)
+            Reader r = io.fileReader(fin.fd)
+            Writer w = io.fileWriter(fout.fd)
+            assert.assertEqL(io.copyN(r, w, 10), 10, 706)
+            w.close()
+            r.close()          // the reader keeps the SOURCE open; fs.delete silently no-ops otherwise
+            assert.assertStr(fs.readStr(dst), "0123456789", 707)
+            fs.delete(src)
+            fs.delete(dst)
+        }
+        case "copyN of zero bytes": {
+            string src = "fly_io_cpn_src.txt"
+            string dst = "fly_io_cpn_dst3.txt"
+            fs.writeStr(src, "0123456789", 420)
+            File fin = fs.open(src)
+            File fout = fs.create(dst)
+            Reader r = io.fileReader(fin.fd)
+            Writer w = io.fileWriter(fout.fd)
+            assert.assertEqL(io.copyN(r, w, 0), 0, 708)
+            w.close()
+            r.close()          // the reader keeps the SOURCE open; fs.delete silently no-ops otherwise
+            assert.assertEqL((long)fs.size(dst), 0, 709)
+            fs.delete(src)
+            fs.delete(dst)
+        }
+    }
+}

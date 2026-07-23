@@ -1,0 +1,632 @@
+import fly.assert
+import fly.str
+import fly.data.Tree
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TreeSuite — exhaustive coverage of fly.data.Tree<K,V> (std/lib/data/tree.fly),
+// an ordered map over an UNBALANCED binary search tree (the Fly analog of C++
+// std::map<K,V>). A node is [ key | val | left(8) | right(8) ]; slotCmpT orders
+// keys (signed for integers, lexicographic for string).
+//
+// Every branch is reached. The delicate one is remove(), which has three shapes
+// times two link-back directions times the root special case:
+//
+//   left == 0            → splice in the right child   (leaf and right-only)
+//   right == 0           → splice in the left child    (left-only)
+//   two children         → copy the in-order successor's raw key/val bytes into
+//                          the node, then unlink the successor. Sub-cases:
+//                            succParent == cur  (successor is cur's right child;
+//                                                relink through rightOff)
+//                            succParent != cur  (successor found by descending
+//                                                left; relink through leftOff,
+//                                                and its own right child must
+//                                                survive)
+//   parent == 0          → the removed node was the root: this.root is rewritten
+//   isLeft true / false  → the parent link updated is left or right
+//   found == false       → missing key, and the empty tree (root == 0)
+//
+// put() covers: first node (root == 0), descend-left insert, descend-right
+// insert, and update-in-place (frees the old value, count unchanged).
+// free() covers: a populated tree (iterative stack sized count+1) and a
+// never-used tree (root == 0, so no stack is allocated).
+//
+// Assert codes: 1xx empty, 2xx put/get, 3xx remove shapes, 4xx root removal,
+// 5xx bulk, 6xx string keys, 7xx string values, 8xx kinds.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite TreeSuite {
+
+    // ── the never-used tree: root == 0 on every path ─────────────────────────
+    void emptyTest() {
+        case "fresh tree": {
+            Tree<long, long> t = new Tree<long, long>()
+            assert.assertEqI(t.size(), 0, 101)
+            t.free()
+        }
+        case "get / has / remove before any put": {
+            Tree<long, long> t = new Tree<long, long>()
+            assert.assertEqL(t.get(5), 0, 102)
+            assert.assertFalse(t.has(5), 103)
+            t.remove(5)                                // root == 0 → found false
+            assert.assertEqI(t.size(), 0, 104)
+            t.free()
+        }
+        case "free on a never-used tree allocates no stack": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.free()
+            assert.assertEqI(t.size(), 0, 105)
+        }
+        case "emptied tree still answers misses": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(1, 10)
+            t.remove(1)
+            assert.assertEqI(t.size(), 0, 106)
+            assert.assertFalse(t.has(1), 107)
+            assert.assertEqL(t.get(1), 0, 108)
+            t.free()
+        }
+    }
+
+    // ── put / get / has ──────────────────────────────────────────────────────
+    void putGetTest() {
+        case "first put creates the root": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            assert.assertEqI(t.size(), 1, 201)
+            assert.assertEqL(t.get(5), 50, 202)
+            assert.assertTrue(t.has(5), 203)
+            t.free()
+        }
+        case "descend left and right on insert": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.put(3, 30)                               // left of root
+            t.put(7, 70)                               // right of root
+            t.put(1, 10)                               // left-left
+            t.put(4, 40)                               // left-right
+            t.put(6, 60)                               // right-left
+            t.put(9, 90)                               // right-right
+            assert.assertEqI(t.size(), 7, 204)
+            assert.assertEqL(t.get(1), 10, 205)
+            assert.assertEqL(t.get(4), 40, 206)
+            assert.assertEqL(t.get(6), 60, 207)
+            assert.assertEqL(t.get(9), 90, 208)
+            t.free()
+        }
+        case "get / has on a missing key": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.put(3, 30)
+            assert.assertEqL(t.get(99), 0, 209)        // falls off the right
+            assert.assertEqL(t.get(0 - 99), 0, 210)    // falls off the left
+            assert.assertFalse(t.has(4), 211)
+            t.free()
+        }
+        case "put on an existing key updates in place": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.put(3, 30)
+            t.put(3, 333)                              // at depth 1
+            t.put(5, 555)                              // at the root
+            assert.assertEqI(t.size(), 2, 212)
+            assert.assertEqL(t.get(3), 333, 213)
+            assert.assertEqL(t.get(5), 555, 214)
+            t.free()
+        }
+        case "negative and zero keys order correctly": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(0, 1)
+            t.put(0 - 10, 2)
+            t.put(10, 3)
+            t.put(0 - 5, 4)
+            assert.assertEqI(t.size(), 4, 215)
+            assert.assertEqL(t.get(0), 1, 216)
+            assert.assertEqL(t.get(0 - 10), 2, 217)
+            assert.assertEqL(t.get(10), 3, 218)
+            assert.assertEqL(t.get(0 - 5), 4, 219)
+            assert.assertFalse(t.has(0 - 1), 220)
+            t.free()
+        }
+        case "degenerate ascending insert builds a right spine": {
+            Tree<long, long> t = new Tree<long, long>()
+            long i = 0
+            while i < 30 {
+                t.put(i, i * 2)
+                i = i + 1
+            }
+            assert.assertEqI(t.size(), 30, 221)
+            assert.assertEqL(t.get(0), 0, 222)
+            assert.assertEqL(t.get(29), 58, 223)
+            t.free()
+        }
+    }
+
+    // ── remove: every shape, both link directions ────────────────────────────
+    void removeShapeTest() {
+        case "leaf, linked from the parent's left": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.put(3, 30)
+            t.put(7, 70)
+            t.remove(3)
+            assert.assertFalse(t.has(3), 301)
+            assert.assertEqI(t.size(), 2, 302)
+            assert.assertTrue(t.has(5), 303)
+            assert.assertTrue(t.has(7), 304)
+            t.free()
+        }
+        case "leaf, linked from the parent's right": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.put(3, 30)
+            t.put(7, 70)
+            t.remove(7)
+            assert.assertFalse(t.has(7), 305)
+            assert.assertEqI(t.size(), 2, 306)
+            assert.assertTrue(t.has(3), 307)
+            t.free()
+        }
+        case "right child only (left == 0 branch)": {
+            // 3 has no left child and right child 4.
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.put(3, 30)
+            t.put(7, 70)
+            t.put(4, 40)
+            t.remove(3)
+            assert.assertFalse(t.has(3), 308)
+            assert.assertEqI(t.size(), 3, 309)
+            assert.assertEqL(t.get(4), 40, 310)        // 4 spliced into 5.left
+            assert.assertEqL(t.get(5), 50, 311)
+            assert.assertEqL(t.get(7), 70, 312)
+            t.free()
+        }
+        case "left child only, from the parent's left (right == 0 branch)": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.put(3, 30)
+            t.put(7, 70)
+            t.put(2, 20)
+            t.remove(3)
+            assert.assertFalse(t.has(3), 313)
+            assert.assertEqI(t.size(), 3, 314)
+            assert.assertEqL(t.get(2), 20, 315)        // 2 spliced into 5.left
+            t.free()
+        }
+        case "left child only, from the parent's right": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.put(7, 70)
+            t.put(6, 60)
+            t.remove(7)
+            assert.assertFalse(t.has(7), 316)
+            assert.assertEqI(t.size(), 2, 317)
+            assert.assertEqL(t.get(6), 60, 318)        // 6 spliced into 5.right
+            t.free()
+        }
+        case "right child only, from the parent's right": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.put(7, 70)
+            t.put(8, 80)
+            t.remove(7)
+            assert.assertFalse(t.has(7), 319)
+            assert.assertEqI(t.size(), 2, 320)
+            assert.assertEqL(t.get(8), 80, 321)
+            t.free()
+        }
+        case "two children, successor is the right child (succParent == cur)": {
+            // 3 has left 2 and right 4; 4 has no left child, so succ == 4 and the
+            // relink goes through succParent(3).right.
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.put(3, 30)
+            t.put(2, 20)
+            t.put(4, 40)
+            t.remove(3)
+            assert.assertFalse(t.has(3), 322)
+            assert.assertEqI(t.size(), 3, 323)
+            assert.assertEqL(t.get(4), 40, 324)        // successor took 3's place
+            assert.assertEqL(t.get(2), 20, 325)
+            assert.assertEqL(t.get(5), 50, 326)
+            t.free()
+        }
+        case "two children, successor found by descending left (succParent != cur)": {
+            // 10 has left 6, right 20; 20's left spine is 15 → 12, and 12 is a
+            // leaf, so succ == 12 with succParent == 15: relink via leftOff.
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(10, 100)
+            t.put(6, 60)
+            t.put(20, 200)
+            t.put(15, 150)
+            t.put(12, 120)
+            t.put(30, 300)
+            t.remove(10)
+            assert.assertFalse(t.has(10), 327)
+            assert.assertEqI(t.size(), 5, 328)
+            assert.assertEqL(t.get(12), 120, 329)      // successor now at the root
+            assert.assertEqL(t.get(6), 60, 330)
+            assert.assertEqL(t.get(15), 150, 331)
+            assert.assertEqL(t.get(20), 200, 332)
+            assert.assertEqL(t.get(30), 300, 333)
+            t.free()
+        }
+        case "two children, the successor itself has a right child": {
+            // succ == 12 and 12.right == 13: the relink must reattach 13 under
+            // succParent(15).left or 13 is leaked and unreachable.
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(10, 100)
+            t.put(6, 60)
+            t.put(20, 200)
+            t.put(15, 150)
+            t.put(12, 120)
+            t.put(13, 130)
+            t.remove(10)
+            assert.assertFalse(t.has(10), 334)
+            assert.assertEqI(t.size(), 5, 335)
+            assert.assertEqL(t.get(12), 120, 336)
+            assert.assertEqL(t.get(13), 130, 337)      // survived the relink
+            assert.assertEqL(t.get(15), 150, 338)
+            assert.assertEqL(t.get(6), 60, 339)
+            assert.assertEqL(t.get(20), 200, 340)
+            t.free()
+        }
+        case "two children, removing a non-root node": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(50, 1)
+            t.put(20, 2)
+            t.put(10, 3)
+            t.put(30, 4)
+            t.put(25, 5)
+            t.remove(20)                               // succ = 25, succParent = 30
+            assert.assertFalse(t.has(20), 341)
+            assert.assertEqI(t.size(), 4, 342)
+            assert.assertEqL(t.get(25), 5, 343)
+            assert.assertEqL(t.get(10), 3, 344)
+            assert.assertEqL(t.get(30), 4, 345)
+            assert.assertEqL(t.get(50), 1, 346)
+            t.free()
+        }
+        case "removing a missing key is a no-op": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.put(3, 30)
+            t.remove(999)                              // falls off the right
+            t.remove(0 - 999)                          // falls off the left
+            t.remove(4)                                // dead-ends mid-tree
+            assert.assertEqI(t.size(), 2, 347)
+            assert.assertTrue(t.has(5), 348)
+            assert.assertTrue(t.has(3), 349)
+            t.free()
+        }
+    }
+
+    // ── removing the root in each shape (parent == 0) ────────────────────────
+    void removeRootTest() {
+        case "root is a leaf": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.remove(5)
+            assert.assertEqI(t.size(), 0, 401)
+            assert.assertFalse(t.has(5), 402)
+            t.put(9, 90)                               // tree is reusable
+            assert.assertEqI(t.size(), 1, 403)
+            assert.assertEqL(t.get(9), 90, 404)
+            t.free()
+        }
+        case "root has only a right child": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.put(7, 70)
+            t.remove(5)
+            assert.assertEqI(t.size(), 1, 405)
+            assert.assertEqL(t.get(7), 70, 406)        // 7 became the root
+            assert.assertFalse(t.has(5), 407)
+            t.free()
+        }
+        case "root has only a left child": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.put(3, 30)
+            t.remove(5)
+            assert.assertEqI(t.size(), 1, 408)
+            assert.assertEqL(t.get(3), 30, 409)        // 3 became the root
+            assert.assertFalse(t.has(5), 410)
+            t.free()
+        }
+        case "root has two children": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.put(3, 30)
+            t.put(7, 70)
+            t.put(1, 10)
+            t.put(4, 40)
+            t.remove(5)
+            assert.assertFalse(t.has(5), 411)
+            assert.assertEqI(t.size(), 4, 412)
+            assert.assertEqL(t.get(7), 70, 413)        // succ 7 took the root
+            assert.assertEqL(t.get(3), 30, 414)
+            assert.assertEqL(t.get(1), 10, 415)
+            assert.assertEqL(t.get(4), 40, 416)
+            t.free()
+        }
+        case "remove every key down to empty, then refill": {
+            Tree<long, long> t = new Tree<long, long>()
+            t.put(5, 50)
+            t.put(3, 30)
+            t.put(7, 70)
+            t.put(1, 10)
+            t.put(4, 40)
+            t.put(6, 60)
+            t.put(9, 90)
+            long k = 1
+            while k < 10 {
+                t.remove(k)
+                k = k + 1
+            }
+            assert.assertEqI(t.size(), 0, 417)
+            assert.assertFalse(t.has(5), 418)
+            t.put(42, 420)
+            assert.assertEqI(t.size(), 1, 419)
+            assert.assertEqL(t.get(42), 420, 420)
+            t.free()
+        }
+    }
+
+    // ── bulk behaviour and free() over a real tree ───────────────────────────
+    void bulkTest() {
+        case "many keys inserted in a scattered order": {
+            Tree<long, long> t = new Tree<long, long>()
+            long i = 0
+            while i < 100 {
+                long k = (i * 37) % 101                // hits every residue once
+                t.put(k, k * 3)
+                i = i + 1
+            }
+            assert.assertEqI(t.size(), 100, 501)
+            long bad = 0 - 1
+            i = 0
+            while i < 100 {
+                long k = (i * 37) % 101
+                if t.get(k) != k * 3 { bad = k }
+                i = i + 1
+            }
+            assert.assertEqL(bad, 0 - 1, 502)
+            t.free()                                   // stack sized count+1
+        }
+        case "interleaved insert and remove": {
+            Tree<long, long> t = new Tree<long, long>()
+            long i = 0
+            while i < 60 {
+                t.put(i, i)
+                if (i % 3) == 0 { t.remove(i / 3) }
+                i = i + 1
+            }
+            long bad = 0 - 2
+            i = 0
+            while i < 20 {
+                if t.has(i) { bad = i }                // 0..19 were all removed
+                i = i + 1
+            }
+            assert.assertEqL(bad, 0 - 2, 503)
+            assert.assertEqI(t.size(), 40, 504)
+            assert.assertEqL(t.get(59), 59, 505)
+            t.free()
+        }
+        case "free after partial removal": {
+            Tree<long, long> t = new Tree<long, long>()
+            long i = 0
+            while i < 40 {
+                t.put((i * 17) % 41, i)
+                i = i + 1
+            }
+            i = 0
+            while i < 40 {
+                if (i % 2) == 0 { t.remove(i) }
+                i = i + 1
+            }
+            t.free()                                   // stack must fit the rest
+        }
+        case "degenerate spine frees cleanly": {
+            Tree<long, long> t = new Tree<long, long>()
+            long i = 50
+            while i > 0 {
+                t.put(i, i)                            // strictly descending
+                i = i - 1
+            }
+            assert.assertEqI(t.size(), 50, 506)
+            assert.assertEqL(t.get(1), 1, 507)
+            assert.assertEqL(t.get(50), 50, 508)
+            t.free()
+        }
+    }
+
+    // ── string keys: lexicographic ordering and key ownership ────────────────
+    void stringKeyTest() {
+        case "lexicographic ordering": {
+            Tree<string, int> t = new Tree<string, int>()
+            t.put("banana", 2)
+            t.put("apple", 1)
+            t.put("cherry", 3)
+            assert.assertEqI(t.size(), 3, 601)
+            assert.assertEqI(t.get("apple"), 1, 602)
+            assert.assertEqI(t.get("banana"), 2, 603)
+            assert.assertEqI(t.get("cherry"), 3, 604)
+            assert.assertTrue(t.has("banana"), 605)
+            assert.assertFalse(t.has("durian"), 606)
+            assert.assertEqI(t.get("durian"), 0, 607)
+            t.free()
+        }
+        case "prefixes order before their extensions": {
+            Tree<string, int> t = new Tree<string, int>()
+            t.put("app", 1)
+            t.put("apple", 2)
+            t.put("applesauce", 3)
+            t.put("ap", 4)
+            assert.assertEqI(t.size(), 4, 608)
+            assert.assertEqI(t.get("ap"), 4, 609)
+            assert.assertEqI(t.get("app"), 1, 610)
+            assert.assertEqI(t.get("apple"), 2, 611)
+            assert.assertEqI(t.get("applesauce"), 3, 612)
+            assert.assertFalse(t.has("appl"), 613)
+            t.free()
+        }
+        case "update by content, not identity": {
+            Tree<string, int> t = new Tree<string, int>()
+            string built = str.concat("app", "le")
+            t.put(built, 1)
+            t.put("apple", 11)                         // update via a literal
+            assert.assertEqI(t.size(), 1, 614)
+            assert.assertEqI(t.get(built), 11, 615)
+            assert.assertStr(built, "apple", 616)      // source intact
+            t.free()
+        }
+        case "empty string is a usable key": {
+            Tree<string, int> t = new Tree<string, int>()
+            t.put("", 5)
+            t.put("a", 6)
+            assert.assertEqI(t.size(), 2, 617)
+            assert.assertTrue(t.has(""), 618)
+            assert.assertEqI(t.get(""), 5, 619)
+            t.remove("")
+            assert.assertFalse(t.has(""), 620)
+            assert.assertEqI(t.get("a"), 6, 621)
+            t.free()
+        }
+        case "remove string keys in every shape": {
+            Tree<string, int> t = new Tree<string, int>()
+            t.put("m", 1)
+            t.put("d", 2)
+            t.put("t", 3)
+            t.put("b", 4)
+            t.put("f", 5)
+            t.put("e", 6)
+            t.remove("b")                              // leaf
+            assert.assertFalse(t.has("b"), 622)
+            t.remove("f")                              // left child only ("e")
+            assert.assertFalse(t.has("f"), 623)
+            assert.assertEqI(t.get("e"), 6, 624)
+            t.remove("m")                              // root, two children
+            assert.assertFalse(t.has("m"), 625)
+            assert.assertEqI(t.size(), 3, 626)
+            assert.assertEqI(t.get("d"), 2, 627)
+            assert.assertEqI(t.get("t"), 3, 628)
+            t.free()
+        }
+        case "many string keys": {
+            Tree<string, int> t = new Tree<string, int>()
+            int i = 0
+            while i < 60 {
+                t.put(str.concat("key", str.convert(i)), i)
+                i = i + 1
+            }
+            assert.assertEqI(t.size(), 60, 629)
+            int bad = 0 - 1
+            i = 0
+            while i < 60 {
+                if t.get(str.concat("key", str.convert(i))) != i { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 630)
+            t.free()
+        }
+    }
+
+    // ── string values: clone on put, freed on update/remove/free ─────────────
+    void stringValueTest() {
+        case "put clones the value, source stays intact": {
+            Tree<int, string> t = new Tree<int, string>()
+            string built = str.concat("foo", "bar")
+            t.put(1, built)
+            t.put(2, "baz")
+            assert.assertStr(t.get(1), "foobar", 701)
+            assert.assertStr(t.get(2), "baz", 702)
+            assert.assertStr(built, "foobar", 703)
+            t.free()
+        }
+        case "get returns a clone that outlives the tree": {
+            Tree<int, string> t = new Tree<int, string>()
+            t.put(1, "kept")
+            string a = t.get(1)
+            assert.assertStr(a, "kept", 704)
+            t.free()
+            assert.assertStr(a, "kept", 705)
+        }
+        case "update frees the old value": {
+            Tree<int, string> t = new Tree<int, string>()
+            t.put(1, "old")
+            t.put(1, "new")
+            assert.assertEqI(t.size(), 1, 706)
+            assert.assertStr(t.get(1), "new", 707)
+            assert.assertStrNe(t.get(1), "old", 708)
+            t.free()
+        }
+        case "missing key yields the empty string": {
+            Tree<int, string> t = new Tree<int, string>()
+            t.put(1, "here")
+            assert.assertEmpty(t.get(2), 709)
+            t.free()
+        }
+        case "the two-children remove moves the successor's value": {
+            // cur's own key/val are freed and the successor's bytes are MOVED in,
+            // so the moved value must not be double-freed by the later free().
+            Tree<int, string> t = new Tree<int, string>()
+            t.put(5, "five")
+            t.put(3, "three")
+            t.put(8, "eight")
+            t.put(7, "seven")
+            t.put(9, "nine")
+            t.remove(5)                                // succ = 7
+            assert.assertEqI(t.size(), 4, 710)
+            assert.assertStr(t.get(7), "seven", 711)
+            assert.assertStr(t.get(3), "three", 712)
+            assert.assertStr(t.get(8), "eight", 713)
+            assert.assertStr(t.get(9), "nine", 714)
+            assert.assertEmpty(t.get(5), 715)
+            t.free()
+        }
+        case "Tree<string,string> frees both sides": {
+            Tree<string, string> t = new Tree<string, string>()
+            t.put("m", "mike")
+            t.put("d", "delta")
+            t.put("t", "tango")
+            t.put("d", "dienst")                       // frees the old value
+            assert.assertEqI(t.size(), 3, 716)
+            assert.assertStr(t.get("d"), "dienst", 717)
+            t.remove("t")                              // frees key AND value
+            assert.assertEqI(t.size(), 2, 718)
+            assert.assertEmpty(t.get("t"), 719)
+            t.free()
+        }
+    }
+
+    // ── other key/value kinds ────────────────────────────────────────────────
+    void mixedKindTest() {
+        case "Tree<int,bool>": {
+            Tree<int, bool> t = new Tree<int, bool>()
+            t.put(1, true)
+            t.put(2, false)
+            assert.assertTrue(t.get(1), 801)
+            assert.assertFalse(t.get(2), 802)
+            assert.assertTrue(t.has(2), 803)
+            assert.assertFalse(t.get(3), 804)          // default V
+            t.free()
+        }
+        case "Tree<int,double>": {
+            Tree<int, double> t = new Tree<int, double>()
+            t.put(1, 1.5)
+            t.put(2, 0.0 - 2.5)
+            assert.assertApprox(t.get(1), 1.5, 805)
+            assert.assertApprox(t.get(2), 0.0 - 2.5, 806)
+            assert.assertApprox(t.get(3), 0.0, 807)
+            t.free()
+        }
+        case "Tree<int,pointer>": {
+            Tree<int, pointer> t = new Tree<int, pointer>()
+            t.put(1, 4096)
+            assert.assertEqP(t.get(1), 4096, 808)
+            assert.assertNull(t.get(2), 809)
+            t.free()
+        }
+    }
+}

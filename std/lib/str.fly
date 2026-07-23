@@ -446,11 +446,16 @@ public string replace(const string src, const string from, const string to) {
                 }
                 cj = cj + 1
             }
+            // Advance by |from| on a hit and by 1 otherwise — never both, or
+            // ADJACENT matches get skipped and `occ` undercounts. The write loop
+            // below replaces every match, so an undercount makes newSize too
+            // large and strMake trails uninitialized bytes. Mirrors count().
             if cm {
                 occ = occ + 1
                 ci = ci + fs
+            } else {
+                ci = ci + 1
             }
-            ci = ci + 1
         }
     }
     int newSize = ss + occ * (ts - fs)
@@ -523,6 +528,56 @@ public string convert(const int src) {
         len = len + 1
     }
     // Reverse in-place using ptrByteAt to read from raw long pointer
+    int lo = 0
+    int hi = len - 1
+    while lo < hi {
+        byte bl = 0
+        byte bh = 0
+        fly.llvm.ptrByteAt(tmp, lo, bl)
+        fly.llvm.ptrByteAt(tmp, hi, bh)
+        fly.llvm.strPoke(tmp, lo, bh)
+        fly.llvm.strPoke(tmp, hi, bl)
+        lo = lo + 1
+        hi = hi - 1
+    }
+    long buf = 0
+    fly.runtime.mem_alloc(len, buf)
+    int i = 0
+    while i < len {
+        byte bb = 0
+        fly.llvm.ptrByteAt(tmp, i, bb)
+        fly.llvm.strPoke(buf, i, bb)
+        i = i + 1
+    }
+    fly.llvm.strMake(buf, len, out)
+}
+
+// convertL — decimal string of a 64-bit long (convert() is int-only; the assert
+// helpers need this for assertEqL). Same digits-then-reverse shape as convert.
+public string convertL(const long src) {
+    long n = src
+    if n == 0 {
+        long zbuf = 0
+        fly.runtime.mem_alloc(1, zbuf)
+        fly.llvm.strPoke(zbuf, 0, 48)
+        fly.llvm.strMake(zbuf, 1, out)
+        return
+    }
+    bool neg = n < 0
+    if neg { n = 0 - n }
+    long tmp = 0
+    fly.runtime.mem_alloc(24, tmp)
+    int len = 0
+    while n > 0 {
+        int digit = (int)(n - (n / 10) * 10)
+        fly.llvm.strPoke(tmp, len, 48 + digit)
+        len = len + 1
+        n = n / 10
+    }
+    if neg {
+        fly.llvm.strPoke(tmp, len, 45)
+        len = len + 1
+    }
     int lo = 0
     int hi = len - 1
     while lo < hi {

@@ -23,7 +23,6 @@ export STAGE=1
 ./ci/linux/build_runtime.sh
 ./ci/linux/build_std.sh
 ./ci/linux/build_compiler.sh
-./ci/linux/build_driver.sh
 ./ci/linux/link_fly.sh
 
 echo "stage1: done — build/stage1/bin/fly"

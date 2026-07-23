@@ -193,6 +193,11 @@ public class ResolverCall {
 
         int j = 0
         while j < argExprs.size() { sema.addArg(argExprs.get(j))  j = j + 1 }
+        // DEFAULT PARAMETERS — the lookup may have accepted a callee that declares
+        // more params than this call supplies (Registry.defaultsMatch); append the
+        // missing defaults BEFORE synthOutVar so the argument list stays in ABI
+        // order (params…, out slots…) and codegen needs no change.
+        ResolverCall.addDefaultArgs(r, sema, (int)argExprs.size())
         if parentExpr != null { sema.setParent(parentExpr) }
 
         ResolverCall.synthOutVar(r, node, sema)
@@ -362,7 +367,7 @@ public class ResolverCall {
             r.setCurrentErrorHandler(savedEH)
         }
 
-        out = SemaBuilder.CreateCall(node, spec.getReturnType(), spec)
+        out = SemaBuilder.CreateCall(node, ResolverCall.callResultType(spec), spec)
     }
 
     // expandNsPath — resolve a SHORT namespace prefix through the current module's
@@ -495,7 +500,25 @@ public class ResolverCall {
         SemaNode ref = sym.getRef()
         SemaFunctionBase fn = ref.asFunctionBase()
         if fn == null { out = null  return }
-        out = SemaBuilder.CreateCall(node, fn.getReturnType(), fn)
+        out = SemaBuilder.CreateCall(node, ResolverCall.callResultType(fn), fn)
+    }
+
+    // callResultType — the type a call EXPRESSION carries. A multi-return callee
+    // has no single returnType, but its call still yields a value: the FIRST
+    // declared return (`int q = divmod(17, 5)` binds out[0]). Without this the
+    // expression is untyped, so using the call as an argument fails to match any
+    // overload. The first return type is the first synthetic trailing out param.
+    public static SemaType callResultType(const SemaFunctionBase fn) {
+        SemaType rt = fn.getReturnType()
+        if rt != null { out = rt  return }
+        int nOut = fn.getOutParamCount()
+        if nOut == 0 { out = null  return }
+        List<SemaParam> ps = fn.getParams()
+        int firstOut = (int)ps.size() - nOut
+        if firstOut < 0 { out = null  return }
+        SemaParam op = ps.get(firstOut)
+        if op == null { out = null  return }
+        out = op.getType()
     }
 
     // resolveNew — `new C(args)`: resolve the class type then its matching ctor (the
@@ -533,25 +556,116 @@ public class ResolverCall {
         out = SemaBuilder.CreateCall(node, cls, ctor)
     }
 
-    // synthOutVar — a non-void return is delivered through a synthetic "__out_N"
-    // local passed as the hidden out argument; register it on the enclosing function.
+    // synthOutVar — a non-void return is delivered through synthetic "__out_N"
+    // locals passed as the hidden trailing out arguments; register them on the
+    // enclosing function. A single return contributes one; an `A,B,…` MULTI-RETURN
+    // contributes one per declared type, and the callee's ABI requires every one of
+    // them — passing fewer leaves the call short of its LLVM signature.
+    // getOutVar() is set to the FIRST, which is the call's rvalue (`int q = divmod(…)`
+    // binds out[0], per the language reference).
     public static void synthOutVar(const Resolver r, const ASTCall node, const SemaCall sema) {
         SemaFunctionBase fn = sema.getFunction()
         if fn == null { return }
-        SemaType rt = fn.getReturnType()
-        if rt == null { return }
-        if rt.isVoid() { return }
         SemaFunctionBase cf = r.getCurrentFunction()
         if cf == null { return }
         ASTFunction fa = fn.getAST()
-        ASTType rtAst = fa.getReturnType()
-        if rtAst == null { return }
+        if fa == null { return }
+
+        SemaType rt = fn.getReturnType()
+        if rt != null {
+            if rt.isVoid() { return }
+            ASTType rtAst = fa.getReturnType()
+            if rtAst == null { return }
+            SemaLocalVar ov = ResolverCall.makeOutVar(r, node, cf, rtAst, rt)
+            if ov == null { return }
+            sema.addArg(ov)
+            sema.addOutVar(ov)
+            sema.setOutVar(ov)
+            return
+        }
+
+        // Multi-return: the resolved out types are the trailing synthetic params of
+        // the callee, and their AST types are the declared return types.
+        int nOut = fn.getOutParamCount()
+        if nOut == 0 { return }
+        List<SemaParam> ps = fn.getParams()
+        // FULL call form — `f(x, va, vb)` already passes the out slots, so there is
+        // nothing to synthesize and the results land in the caller's own variables
+        // (CodeGenCall passes a non-const variable argument BY ADDRESS). Detected by
+        // arity: the args already cover the whole lowered signature.
+        int given = (int)sema.getArgs().size()
+        int total = (int)ps.size()
+        if given == total { return }
+        List<ASTType> rts = fa.getReturnTypes()
+        if rts.size() != nOut { return }
+        int firstOut = (int)ps.size() - nOut
+        if firstOut < 0 { return }
+        int i = 0
+        while i < nOut {
+            SemaParam op = ps.get(firstOut + i)
+            if op == null { return }
+            SemaLocalVar ov = ResolverCall.makeOutVar(r, node, cf, rts.get(i), op.getType())
+            if ov == null { return }
+            sema.addArg(ov)
+            sema.addOutVar(ov)
+            if i == 0 { sema.setOutVar(ov) }
+            i = i + 1
+        }
+    }
+
+    // addDefaultArgs — append the default value of every DECLARED parameter this call
+    // did not supply, so the lowered call carries a full argument list.
+    //
+    // The declared arity comes from the AST (fa.getParams()): the resolved
+    // SemaFunctionBase.getParams() also holds the SYNTHETIC out params, so counting
+    // there overshoots by one for any non-void callee (by N for a multi-return) and
+    // the loop would land on an out slot.
+    //
+    // Each default is resolved FRESH per call site, in the CALLEE's own scope — never
+    // the caller's (a default naming an earlier param or a callee-visible symbol must
+    // bind where it was written), and never a shared Sema node aliased across call
+    // sites. A param without a default stops the fill-in: the lookup only accepts a
+    // call whose missing params ALL have one, so this is defensive.
+    public static void addDefaultArgs(const Resolver r, const SemaCall sema, const int given) {
+        SemaFunctionBase fn = sema.getFunction()
+        if fn == null { return }
+        ASTFunction fa = fn.getAST()
+        if fa == null { return }
+        List<ASTParam> dps = fa.getParams()
+        if dps == null { return }
+        int np = (int)dps.size()
+        if given >= np { return }
+        SymbolTable savedScope = r.getCurrentScope()
+        SemaExpr savedExpr = r.getCurrentExpr()
+        r.setCurrentScope(fn.getSymbols())
+        bool go = true
+        int i = given
+        while i < np && go {
+            ASTParam dp = dps.get(i)
+            ASTExpr dv = null
+            if dp != null { dv = dp.getExpr() }
+            if dv == null {
+                go = false
+            } else {
+                dv.accept(r)
+                SemaExpr dx = r.getCurrentExpr()
+                if dx == null { go = false } else { sema.addArg(dx) }
+            }
+            i = i + 1
+        }
+        r.setCurrentScope(savedScope)
+        r.setCurrentExpr(savedExpr)
+    }
+
+    // makeOutVar — one synthetic "__out_N" local of the given AST/resolved type,
+    // registered on the enclosing function so codegen allocas it.
+    public static SemaLocalVar makeOutVar(const Resolver r, const ASTCall node, const SemaFunctionBase cf, const ASTType tyAst, const SemaType ty) {
+        if tyAst == null { out = null  return }
         string outName = r.nextOutName()
         List<ASTModifier> noMods = new List<ASTModifier>()
-        ASTLocalVar outAst = ASTBuilder.CreateLocalVar(node.getLoc(), rtAst, outName, noMods)
-        SemaLocalVar outVar = SemaBuilder.CreateLocalVar(outAst, rt)
-        cf.addLocalVar(outVar)
-        sema.addArg(outVar)
-        sema.setOutVar(outVar)
+        ASTLocalVar outAst = ASTBuilder.CreateLocalVar(node.getLoc(), tyAst, outName, noMods)
+        SemaLocalVar v = SemaBuilder.CreateLocalVar(outAst, ty)
+        cf.addLocalVar(v)
+        out = v
     }
 }

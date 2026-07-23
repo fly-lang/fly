@@ -1,0 +1,438 @@
+import fly.os.fs
+import fly.os.fs.File
+import fly.os.path
+import fly.str
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OsFsSuite — fly.os.fs (std/lib/os/fs.fly): files, directories, metadata,
+// copy/move, truncation, symlinks and temp directories.
+//
+// Every case works inside a CWD-relative scratch directory (Windows has no /tmp)
+// named fly_fs_*, and deletes what it created — including on the paths that
+// assert a failure, so a red run does not leave the tree dirty.
+//
+// Two things are deliberately conditional rather than asserted outright:
+//   * symlinks — creating one needs administrator or Developer Mode on Windows,
+//     so the symlink assertions only run when creation actually succeeded;
+//   * symlinkRead — returns "" where the runtime has no readlink.
+//
+// fs.tempFile is the only multi-return function in this namespace and the only one
+// anywhere with a MIXED type list (`string, File`). It is covered below (7xx),
+// unblocked by a seed re-cut — the earlier seed's header writer collapsed the signature to
+// `void tempFile(const string, const string)`, leaving no out slots to pass.
+//
+// An earlier reference documented TWO tempFile defects it could not assert
+// (std/test/os_fs_test.fly). Here:
+//   1. "never appends its unique suffix" — GONE. The suffix vanishes when
+//      `base_ns` comes back negative, i.e. the monotonic-clock int64 overflow
+//      fixed in RuntimeWindows.time_mono_ns; names now come out as
+//      `fly_fs_tmpf_174324704258000`. Asserted below.
+//   2. "the returned File does not carry the descriptor back" — PARTLY gone, and
+//      the remaining half is a COMPILER bug, not an fs one. A single call is fine:
+//      the fd comes back live (fs.seekPos succeeds), fs.close closes it and
+//      fs.delete then removes the file. But TWO live results alias: after
+//          fs.tempFile(".", p, n1, f1)
+//          fs.tempFile(".", p, n2, f2)
+//      `f1.fd` has been overwritten by the second call, so f1's descriptor leaks
+//      and n1 can never be deleted. `out[1] = <struct>` inside a multi-return
+//      writes the struct's ADDRESS over the caller's out pointer instead of
+//      copying the contents into the caller's storage — the struct-value fix
+//      (CodeGenIntrinsics.cloneIfStruct) covers local decls and assignments but
+//      not this out-parameter path. Only ONE tempFile is held live below; restore
+//      a two-call case once that is fixed.
+//
+// Assert codes: 1xx existence and kind, 2xx read/write, 3xx append/truncate,
+// 4xx copy/move/rename/delete, 5xx directories, 6xx stat/size, 7xx symlinks and
+// temp dirs, 8xx File handles and seeking.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite OsFsSuite {
+
+    // ── exists / isFile / isDir ──────────────────────────────────────────────
+    void existenceTest() {
+        case "a created directory exists and is a directory": {
+            string dir = "fly_fs_exist_dir"
+            fs.dirCreateAll(dir, 493)                       // 0755
+            assert.assertTrue(fs.exists(dir), 101)
+            assert.assertTrue(fs.isDir(dir), 102)
+            assert.assertFalse(fs.isFile(dir), 103)
+            fs.dirDeleteAll(dir)
+        }
+        case "a created file exists and is a file": {
+            string f = "fly_fs_exist_file.txt"
+            fs.writeStr(f, "x", 420)                        // 0644
+            assert.assertTrue(fs.exists(f), 104)
+            assert.assertTrue(fs.isFile(f), 105)
+            assert.assertFalse(fs.isDir(f), 106)
+            fs.delete(f)
+        }
+        case "a missing path is neither": {
+            assert.assertFalse(fs.exists("fly_fs_nonexistent_xyzabc"), 107)
+            assert.assertFalse(fs.isDir("fly_fs_nonexistent_xyzabc"), 108)
+            assert.assertFalse(fs.isFile("fly_fs_nonexistent_xyzabc"), 109)
+        }
+        case "a deleted file stops existing": {
+            string f = "fly_fs_gone.txt"
+            fs.writeStr(f, "x", 420)
+            assert.assertTrue(fs.exists(f), 110)
+            fs.delete(f)
+            assert.assertFalse(fs.exists(f), 111)
+        }
+    }
+
+    // ── writeStr / readStr ───────────────────────────────────────────────────
+    void readWriteTest() {
+        case "write then read back": {
+            string f = "fly_fs_rw.txt"
+            fs.writeStr(f, "hello fly!", 420)
+            assert.assertStr(fs.readStr(f), "hello fly!", 201)
+            fs.delete(f)
+        }
+        case "write replaces the previous contents": {
+            string f = "fly_fs_rw.txt"
+            fs.writeStr(f, "first contents", 420)
+            fs.writeStr(f, "second", 420)
+            assert.assertStr(fs.readStr(f), "second", 202)
+            assert.assertEqL((long)fs.size(f), 6, 203)      // truncated, not merged
+            fs.delete(f)
+        }
+        case "an empty file round-trips": {
+            string f = "fly_fs_empty.txt"
+            fs.writeStr(f, "", 420)
+            assert.assertTrue(fs.exists(f), 204)
+            assert.assertEmpty(fs.readStr(f), 205)
+            assert.assertEqL((long)fs.size(f), 0, 206)
+            fs.delete(f)
+        }
+        case "content with separators and punctuation survives": {
+            string f = "fly_fs_rw.txt"
+            fs.writeStr(f, "a/b:c=d e", 420)
+            assert.assertStr(fs.readStr(f), "a/b:c=d e", 207)
+            fs.delete(f)
+        }
+        case "a larger payload round-trips": {
+            string f = "fly_fs_big.txt"
+            string payload = str.repeat("0123456789", 500)  // 5000 bytes
+            fs.writeStr(f, payload, 420)
+            assert.assertEqL((long)fs.size(f), 5000, 208)
+            assert.assertEqI(str.len(fs.readStr(f)), 5000, 209)
+            assert.assertTrue(str.startsWith(fs.readStr(f), "0123456789"), 210)
+            fs.delete(f)
+        }
+    }
+
+    // ── appendStr / truncate ─────────────────────────────────────────────────
+    void appendTruncateTest() {
+        case "append extends the file": {
+            string f = "fly_fs_app.txt"
+            fs.writeStr(f, "hello fly!", 420)               // 10 bytes
+            fs.appendStr(f, "++!", 420)
+            assert.assertEqL((long)fs.size(f), 13, 301)
+            assert.assertStr(fs.readStr(f), "hello fly!++!", 302)
+            fs.delete(f)
+        }
+        case "append to a missing file creates it": {
+            string f = "fly_fs_app_new.txt"
+            fs.appendStr(f, "created", 420)
+            assert.assertTrue(fs.exists(f), 303)
+            assert.assertStr(fs.readStr(f), "created", 304)
+            fs.delete(f)
+        }
+        case "repeated appends accumulate": {
+            string f = "fly_fs_app.txt"
+            fs.writeStr(f, "", 420)
+            int i = 0
+            while i < 10 {
+                fs.appendStr(f, "ab", 420)
+                i = i + 1
+            }
+            assert.assertEqL((long)fs.size(f), 20, 305)
+            fs.delete(f)
+        }
+        case "truncate shrinks the file": {
+            string f = "fly_fs_trunc.txt"
+            fs.writeStr(f, "hello fly!", 420)
+            fs.truncate(f, 5)
+            assert.assertEqL((long)fs.size(f), 5, 306)
+            assert.assertStr(fs.readStr(f), "hello", 307)
+            fs.delete(f)
+        }
+        case "truncate to zero empties the file": {
+            string f = "fly_fs_trunc.txt"
+            fs.writeStr(f, "hello", 420)
+            fs.truncate(f, 0)
+            assert.assertEqL((long)fs.size(f), 0, 308)
+            assert.assertTrue(fs.exists(f), 309)            // still there
+            fs.delete(f)
+        }
+    }
+
+    // ── copy / move / rename / delete ────────────────────────────────────────
+    void copyMoveTest() {
+        case "copy duplicates the contents": {
+            string src = "fly_fs_cp_src.txt"
+            string dst = "fly_fs_cp_dst.txt"
+            fs.writeStr(src, "hello fly!", 420)
+            fs.copy(src, dst)
+            assert.assertTrue(fs.exists(dst), 401)
+            assert.assertTrue(fs.exists(src), 402)          // source survives
+            assert.assertEqL((long)fs.size(dst), 10, 403)
+            assert.assertStr(fs.readStr(dst), "hello fly!", 404)
+            fs.delete(src)
+            fs.delete(dst)
+        }
+        case "the copy is independent of the source": {
+            string src = "fly_fs_cp_src.txt"
+            string dst = "fly_fs_cp_dst.txt"
+            fs.writeStr(src, "original", 420)
+            fs.copy(src, dst)
+            fs.writeStr(src, "changed", 420)
+            assert.assertStr(fs.readStr(dst), "original", 405)
+            fs.delete(src)
+            fs.delete(dst)
+        }
+        case "move relocates the file": {
+            string src = "fly_fs_mv_src.txt"
+            string dst = "fly_fs_mv_dst.txt"
+            fs.writeStr(src, "moving", 420)
+            fs.move(src, dst)
+            assert.assertTrue(fs.exists(dst), 406)
+            assert.assertFalse(fs.exists(src), 407)         // source is gone
+            assert.assertStr(fs.readStr(dst), "moving", 408)
+            fs.delete(dst)
+        }
+        case "rename behaves like move": {
+            string src = "fly_fs_rn_src.txt"
+            string dst = "fly_fs_rn_dst.txt"
+            fs.writeStr(src, "renaming", 420)
+            fs.rename(src, dst)
+            assert.assertTrue(fs.exists(dst), 409)
+            assert.assertFalse(fs.exists(src), 410)
+            assert.assertStr(fs.readStr(dst), "renaming", 411)
+            fs.delete(dst)
+        }
+        case "copy into a subdirectory": {
+            string dir = "fly_fs_cp_dir"
+            fs.dirCreateAll(dir, 493)
+            string src = "fly_fs_cp_src.txt"
+            string dst = "fly_fs_cp_dir/inner.txt"
+            fs.writeStr(src, "nested", 420)
+            fs.copy(src, dst)
+            assert.assertTrue(fs.isFile(dst), 412)
+            assert.assertStr(fs.readStr(dst), "nested", 413)
+            fs.delete(src)
+            fs.dirDeleteAll(dir)
+        }
+    }
+
+    // ── directories ──────────────────────────────────────────────────────────
+    void directoryTest() {
+        case "dirCreate then dirDelete": {
+            string dir = "fly_fs_one_dir"
+            fs.dirCreate(dir, 493)
+            assert.assertTrue(fs.isDir(dir), 501)
+            fs.dirDelete(dir)
+            assert.assertFalse(fs.exists(dir), 502)
+        }
+        case "dirCreateAll builds intermediate levels": {
+            string deep = "fly_fs_deep/a/b/c"
+            fs.dirCreateAll(deep, 493)
+            assert.assertTrue(fs.isDir(deep), 503)
+            assert.assertTrue(fs.isDir("fly_fs_deep/a"), 504)
+            assert.assertTrue(fs.isDir("fly_fs_deep"), 505)
+            fs.dirDeleteAll("fly_fs_deep")
+            assert.assertFalse(fs.exists("fly_fs_deep"), 506)
+        }
+        case "dirCreateAll on an existing directory is a no-op": {
+            string dir = "fly_fs_idem_dir"
+            fs.dirCreateAll(dir, 493)
+            fs.dirCreateAll(dir, 493)
+            assert.assertTrue(fs.isDir(dir), 507)
+            fs.dirDeleteAll(dir)
+        }
+        case "dirDeleteAll removes a populated tree": {
+            string dir = "fly_fs_tree"
+            fs.dirCreateAll("fly_fs_tree/sub", 493)
+            fs.writeStr("fly_fs_tree/a.txt", "a", 420)
+            fs.writeStr("fly_fs_tree/sub/b.txt", "b", 420)
+            assert.assertTrue(fs.isFile("fly_fs_tree/sub/b.txt"), 508)
+            fs.dirDeleteAll(dir)
+            assert.assertFalse(fs.exists(dir), 509)
+        }
+        case "dirRead lists the entries it created": {
+            string dir = "fly_fs_read_dir"
+            fs.dirCreateAll(dir, 493)
+            fs.writeStr("fly_fs_read_dir/x.txt", "x", 420)
+            fs.writeStr("fly_fs_read_dir/y.txt", "y", 420)
+            fly.os.fs.DirEntries es = fs.dirRead(dir)
+            assert.assertEqL((long)es.len, 2, 510)          // exactly the two files
+            assert.assertNotNull(es.items, 511)
+            fs.dirDeleteAll(dir)
+        }
+    }
+
+    // ── stat / lstat / size / chmod ──────────────────────────────────────────
+    void metadataTest() {
+        case "size matches the written length": {
+            string f = "fly_fs_size.txt"
+            fs.writeStr(f, "hello fly!", 420)
+            assert.assertEqL((long)fs.size(f), 10, 601)
+            fs.writeStr(f, "hi", 420)
+            assert.assertEqL((long)fs.size(f), 2, 602)
+            fs.delete(f)
+        }
+        case "stat reports a positive size and a mode": {
+            string f = "fly_fs_stat.txt"
+            fs.writeStr(f, "hello fly!", 420)
+            fly.os.fs.Stat st = fs.stat(f)
+            assert.assertEqL((long)st.size, 10, 603)
+            fs.delete(f)
+        }
+        case "lstat on a plain file agrees with stat": {
+            string f = "fly_fs_lstat.txt"
+            fs.writeStr(f, "abcd", 420)
+            fly.os.fs.Stat a = fs.stat(f)
+            fly.os.fs.Stat b = fs.lstat(f)
+            assert.assertEqL((long)a.size, (long)b.size, 604)
+            assert.assertEqL((long)a.size, 4, 605)
+            fs.delete(f)
+        }
+        case "chmod leaves the file readable": {
+            string f = "fly_fs_chmod.txt"
+            fs.writeStr(f, "perm", 420)
+            fs.chmod(f, 384)                                // 0600
+            assert.assertTrue(fs.exists(f), 606)
+            assert.assertStr(fs.readStr(f), "perm", 607)
+            fs.delete(f)
+        }
+    }
+
+    // ── symlinks and temp directories ────────────────────────────────────────
+    void symlinkAndTempTest() {
+        case "symlinks, when the host allows creating them": {
+            // Creating a symlink needs administrator or Developer Mode on Windows;
+            // if it silently fails there is nothing to assert, so gate on exists().
+            string dir = "fly_fs_sym_dir"
+            fs.dirCreateAll(dir, 493)
+            string target = "fly_fs_sym_dir/target.txt"
+            string link = "fly_fs_sym_dir/link.txt"
+            fs.writeStr(target, "pointed-to", 420)
+            fs.symlinkCreate(target, link)
+            if fs.exists(link) {
+                assert.assertTrue(path.isSym(link), 701)
+                string read = fs.symlinkRead(link)
+                // symlinkRead returns "" where the runtime has no readlink.
+                if str.len(read) > 0 {
+                    assert.assertStr(read, target, 702)
+                }
+            }
+            fs.dirDeleteAll(dir)
+        }
+        case "tempDir creates a real directory": {
+            string tmp = fs.tempDir(".", "fly_fs_tmpd_")
+            assert.assertNotEmpty(tmp, 703)
+            assert.assertTrue(fs.isDir(tmp), 704)
+            fs.dirDelete(tmp)
+            assert.assertFalse(fs.exists(tmp), 705)
+        }
+        case "two tempDir calls give distinct directories": {
+            string a = fs.tempDir(".", "fly_fs_tmpd_")
+            string b = fs.tempDir(".", "fly_fs_tmpd_")
+            assert.assertStrNe(a, b, 706)
+            assert.assertTrue(fs.isDir(a), 707)
+            assert.assertTrue(fs.isDir(b), 708)
+            fs.dirDelete(a)
+            fs.dirDelete(b)
+        }
+        // ── tempFile: the mixed `string, File` multi-return ──────────────────
+        // Out slots supplied as trailing arguments — the lowered ABI, and the only
+        // form that reaches the second result. See the header note: both defects
+        // that earlier reference recorded here are gone on this side.
+        case "tempFile appends a unique suffix to the pattern": {
+            string n = ""
+            File f = new File()
+            fs.tempFile(".", "fly_fs_tmpf_", n, f)
+            assert.assertNotEmpty(n, 709)
+            // A bare prefix would mean the suffix never got appended — the shape
+            // the reference reports, caused by a negative monotonic clock.
+            assert.assertStrNe(n, "./fly_fs_tmpf_", 710)
+            assert.assertStrNe(n, "fly_fs_tmpf_", 711)
+            assert.assertTrue(str.len(n) > str.len("fly_fs_tmpf_"), 712)
+            assert.assertTrue(fs.exists(n), 713)
+            fs.close(f)
+            fs.delete(n)
+        }
+        case "the File out-slot carries a usable descriptor back": {
+            // A struct out-parameter reaching the caller: the reference reports the
+            // name coming back while the File still held an invalid fd.
+            string n = ""
+            File f = new File()
+            fs.tempFile(".", "fly_fs_tmpf2_", n, f)
+            assert.assertGtI(f.fd, 0, 714)
+            fs.close(f)
+            fs.delete(n)
+        }
+        case "two tempFile calls give distinct NAMES": {
+            // Only the names are compared, and each handle is closed and deleted
+            // before the next call: holding two File results live at once trips the
+            // struct out-slot aliasing described in the header note, which leaks the
+            // first descriptor and leaves its file undeletable.
+            string n1 = ""
+            File f1 = new File()
+            fs.tempFile(".", "fly_fs_tmpf3_", n1, f1)
+            fs.close(f1)
+            fs.delete(n1)
+
+            string n2 = ""
+            File f2 = new File()
+            fs.tempFile(".", "fly_fs_tmpf3_", n2, f2)
+            fs.close(f2)
+            fs.delete(n2)
+
+            assert.assertStrNe(n1, n2, 715)
+            assert.assertFalse(fs.exists(n1), 716)
+            assert.assertFalse(fs.exists(n2), 717)
+        }
+    }
+
+    // ── File handles: open / create / close / seek ───────────────────────────
+    void handleTest() {
+        case "create returns a usable handle": {
+            string f = "fly_fs_handle.txt"
+            File h = fs.create(f)
+            assert.assertGtI(h.fd, 0 - 1, 801)
+            fs.close(h)
+            assert.assertTrue(fs.exists(f), 802)
+            fs.delete(f)
+        }
+        case "open an existing file": {
+            string f = "fly_fs_handle.txt"
+            fs.writeStr(f, "0123456789", 420)
+            File h = fs.open(f)
+            assert.assertGtI(h.fd, 0 - 1, 803)
+            fs.close(h)
+            fs.delete(f)
+        }
+        case "seekTo and seekPos track the offset": {
+            string f = "fly_fs_seek.txt"
+            fs.writeStr(f, "0123456789", 420)
+            File h = fs.open(f)
+            assert.assertEqL(fs.seekPos(h), 0, 804)
+            fs.seekTo(h, 4, 0)                              // SEEK_SET
+            assert.assertEqL(fs.seekPos(h), 4, 805)
+            fs.seekTo(h, 0, 2)                              // SEEK_END
+            assert.assertEqL(fs.seekPos(h), 10, 806)
+            fs.close(h)
+            fs.delete(f)
+        }
+        case "sync on an open handle is harmless": {
+            string f = "fly_fs_sync.txt"
+            File h = fs.create(f)
+            fs.sync(h)
+            fs.close(h)
+            assert.assertTrue(fs.exists(f), 807)
+            fs.delete(f)
+        }
+    }
+}

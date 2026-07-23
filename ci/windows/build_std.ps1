@@ -54,18 +54,11 @@ $T = 'build/tmp_std'
 Remove-Item $T -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $T | Out-Null
 $STD = 'std/lib'
-$FILES = @(
-    "$STD/assert.fly"; "$STD/str.fly"; "$STD/math.fly"
-    "$STD/os/time.fly"; "$STD/os/env.fly"; "$STD/os/path.fly"; "$STD/os/io.fly"; "$STD/os/fs.fly"
-    "$STD/sync.fly"; "$STD/mem.fly"; "$STD/bridge/clang.fly"
-    "$STD/data/list.fly"; "$STD/data/stack.fly"; "$STD/data/queue.fly"; "$STD/data/deque.fly"
-    "$STD/data/map.fly"; "$STD/data/set.fly"; "$STD/data/tree.fly"; "$STD/data/wrapper.fly"
-    "$STD/os/proc.fly"
-)
 
+# DIRECTORY CLI: --lib compiles the whole --src-dir — std/lib IS the library.
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
-Write-Host "stage${STAGE}: compiling $($FILES.Count) std files (codegen gnu, link mingw) ...$(if ($DBG) { ' (+debug-symbols)' })"
-& $FLY --lib @DBG @FLY_TARGET_ARGS -o "$T/fly_std_lib" @FILES
+Write-Host "stage${STAGE}: compiling std/lib (codegen gnu, link mingw) ...$(if ($DBG) { ' (+debug-symbols)' })"
+& $FLY --lib @DBG @FLY_TARGET_ARGS -o "$T/fly_std_lib" --src-dir $STD
 Assert-LastExit 'std --lib build'
 # gnu target emits a `.a` archive; keep the `.lib` name the build references.
 $emitted = if (Test-Path "$T/fly_std_lib.lib") { "$T/fly_std_lib.lib" } else { "$T/fly_std_lib.a" }

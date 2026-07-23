@@ -1,0 +1,461 @@
+import fly.meta.Dependency
+import fly.meta.Target
+import fly.meta.Profile
+import fly.meta.TestConfig
+import fly.meta.Registry
+import fly.meta.Workspace
+import fly.meta.Hooks
+import fly.meta.Manifest
+import fly.meta.LockedPackage
+import fly.meta.Lockfile
+import fly.str
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ManifestSuite — fly.meta (std/lib/meta/Manifest.fly), the Fly-native package
+// manifest schema. This module had no test at all before.
+//
+// The classes are pure data: fields, no methods, no initializers. So what there
+// is to verify is exactly what the package manager depends on — that the shape
+// compiles and round-trips from another namespace:
+//   * every class is constructible and every field is readable and writable,
+//   * the `string` fields default to empty and behave as owned values,
+//   * the `string[]` and object-array fields (Target[], Dependency[], …) accept
+//     native array literals and iterate back in order,
+//   * nested single-object fields (test / workspace / hooks) hold live handles,
+//   * a fully populated Manifest — the shape a real project's Manifest.fly
+//     produces — survives being built and read back field by field,
+//   * the same for Lockfile / LockedPackage.
+//
+// Array fields are read with `for x in arr`: Fly arrays support literals and
+// for-in, but NOT subscripting (`arr[i]`) or `.length` — that is reference
+// parity, not an omission here.
+//
+// This is the schema's compile-and-shape contract: if a field is renamed,
+// retyped or dropped, this suite stops compiling, which is the point.
+//
+// Assert codes: 1xx leaf classes, 2xx arrays, 3xx nested objects,
+// 4xx a full Manifest, 5xx the lockfile.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// joinAll — concatenate every element of a string array with "|" separators, so
+// a whole array's contents can be asserted in one assertStr despite there being
+// no way to index it.
+string joinAll(const string[] parts) {
+    string acc = ""
+    for p in parts {
+        acc = str.concat(acc, p)
+        acc = str.concat(acc, "|")
+    }
+    out = acc
+}
+
+suite ManifestSuite {
+
+    // ── the leaf record classes ──────────────────────────────────────────────
+    void leafTest() {
+        case "Dependency covers all three source kinds": {
+            Dependency reg = new Dependency()
+            reg.name = "serde"
+            reg.version = "^1.2.0"
+            reg.registry = "crates"
+            assert.assertStr(reg.name, "serde", 101)
+            assert.assertStr(reg.version, "^1.2.0", 102)
+            assert.assertStr(reg.registry, "crates", 103)
+            assert.assertEmpty(reg.git, 104)             // unset fields stay empty
+            assert.assertEmpty(reg.path, 105)
+
+            Dependency git = new Dependency()
+            git.name = "flyjson"
+            git.git = "https://example.invalid/flyjson.git"
+            git.tag = "v0.3.1"
+            assert.assertStr(git.git, "https://example.invalid/flyjson.git", 106)
+            assert.assertStr(git.tag, "v0.3.1", 107)
+            assert.assertEmpty(git.branch, 108)
+            assert.assertEmpty(git.rev, 109)
+
+            Dependency local = new Dependency()
+            local.name = "sibling"
+            local.path = "../sibling"
+            assert.assertStr(local.path, "../sibling", 110)
+            assert.assertEmpty(local.version, 111)
+        }
+        case "Target distinguishes a binary from a library": {
+            Target bin = new Target()
+            bin.name = "fly"
+            bin.path = "src/main.fly"
+            bin.lib = ""                                 // "" == executable
+            assert.assertStr(bin.name, "fly", 112)
+            assert.assertStr(bin.path, "src/main.fly", 113)
+            assert.assertEmpty(bin.lib, 114)
+
+            Target lib = new Target()
+            lib.name = "flycore"
+            lib.path = "src/lib.fly"
+            lib.lib = "static"
+            assert.assertStr(lib.lib, "static", 115)
+        }
+        case "Profile mixes an int with several bools": {
+            Profile p = new Profile()
+            p.name = "release"
+            p.optLevel = 3
+            p.debugInfo = false
+            p.assertions = false
+            p.lto = true
+            p.strip = true
+            assert.assertStr(p.name, "release", 116)
+            assert.assertEqI(p.optLevel, 3, 117)
+            assert.assertFalse(p.debugInfo, 118)
+            assert.assertFalse(p.assertions, 119)
+            assert.assertTrue(p.lto, 120)
+            assert.assertTrue(p.strip, 121)
+        }
+        case "a defaulted Profile": {
+            Profile p = new Profile()
+            assert.assertEmpty(p.name, 122)
+            assert.assertEqI(p.optLevel, 0, 123)
+            assert.assertFalse(p.debugInfo, 124)
+            assert.assertFalse(p.lto, 125)
+        }
+        case "Registry": {
+            Registry r = new Registry()
+            r.name = "default"
+            r.url = "https://registry.invalid/index"
+            assert.assertStr(r.name, "default", 126)
+            assert.assertStr(r.url, "https://registry.invalid/index", 127)
+        }
+        case "Hooks": {
+            Hooks h = new Hooks()
+            h.preBuild = "echo before"
+            h.postBuild = "echo after"
+            assert.assertStr(h.preBuild, "echo before", 128)
+            assert.assertStr(h.postBuild, "echo after", 129)
+            Hooks empty = new Hooks()
+            assert.assertEmpty(empty.preBuild, 130)
+            assert.assertEmpty(empty.postBuild, 131)
+        }
+        case "fields are writable more than once": {
+            Target t = new Target()
+            t.name = "first"
+            t.name = "second"
+            assert.assertStr(t.name, "second", 132)
+            assert.assertStrNe(t.name, "first", 133)
+        }
+        case "two records are independent": {
+            Dependency a = new Dependency()
+            Dependency b = new Dependency()
+            a.name = "one"
+            b.name = "two"
+            assert.assertStr(a.name, "one", 134)
+            assert.assertStr(b.name, "two", 135)
+        }
+    }
+
+    // ── array-typed fields ───────────────────────────────────────────────────
+    void arrayTest() {
+        case "a string[] field takes an array literal and iterates in order": {
+            Workspace w = new Workspace()
+            w.members = {"core", "cli", "tests"}
+            assert.assertStr(joinAll(w.members), "core|cli|tests|", 201)
+        }
+        case "an empty string[] iterates zero times": {
+            // An empty literal needs an annotated target to infer its element
+            // type, so it goes through a declared local rather than straight into
+            // the field.
+            string[] none = {}
+            Workspace w = new Workspace()
+            w.members = none
+            int n = 0
+            for m in w.members {
+                n = n + 1
+            }
+            assert.assertEqI(n, 0, 202)
+            assert.assertEmpty(joinAll(w.members), 203)
+        }
+        case "a single-element string[]": {
+            Workspace w = new Workspace()
+            w.members = {"only"}
+            assert.assertStr(joinAll(w.members), "only|", 204)
+        }
+        case "TestConfig mixes a string[] with bools": {
+            TestConfig t = new TestConfig()
+            t.suites = {"std/test/*Suite.fly", "compiler/test/*Suite.fly"}
+            t.parallel = false
+            t.failFast = true
+            assert.assertStr(joinAll(t.suites),
+                             "std/test/*Suite.fly|compiler/test/*Suite.fly|", 205)
+            assert.assertFalse(t.parallel, 206)
+            assert.assertTrue(t.failFast, 207)
+        }
+        case "an object-array field holds live handles": {
+            Manifest m = new Manifest()
+            Target a = new Target()
+            a.name = "fly"
+            Target b = new Target()
+            b.name = "flyp"
+            m.targets = {a, b}
+            string names = ""
+            for t in m.targets {
+                names = str.concat(names, t.name)
+                names = str.concat(names, "|")
+            }
+            assert.assertStr(names, "fly|flyp|", 208)
+            // The elements are handles, so mutating the original shows through.
+            a.name = "flyc"
+            string after = ""
+            for t in m.targets {
+                after = str.concat(after, t.name)
+                after = str.concat(after, "|")
+            }
+            assert.assertStr(after, "flyc|flyp|", 209)
+        }
+        case "a Dependency[] field": {
+            Manifest m = new Manifest()
+            Dependency d0 = new Dependency()
+            d0.name = "alpha"
+            d0.version = "1.0.0"
+            Dependency d1 = new Dependency()
+            d1.name = "beta"
+            d1.version = "2.0.0"
+            m.dependencies = {d0, d1}
+            string seen = ""
+            int n = 0
+            for d in m.dependencies {
+                seen = str.concat(seen, str.concat(d.name, str.concat("@", d.version)))
+                seen = str.concat(seen, "|")
+                n = n + 1
+            }
+            assert.assertEqI(n, 2, 210)
+            assert.assertStr(seen, "alpha@1.0.0|beta@2.0.0|", 211)
+        }
+        case "dependencies and devDependencies are separate slots": {
+            Manifest m = new Manifest()
+            Dependency runtime = new Dependency()
+            runtime.name = "runtime-dep"
+            Dependency dev = new Dependency()
+            dev.name = "dev-dep"
+            m.dependencies = {runtime}
+            m.devDependencies = {dev}
+            string a = ""
+            for d in m.dependencies { a = str.concat(a, d.name) }
+            string b = ""
+            for d in m.devDependencies { b = str.concat(b, d.name) }
+            assert.assertStr(a, "runtime-dep", 212)
+            assert.assertStr(b, "dev-dep", 213)
+        }
+        case "a Profile[] and a Registry[] on the same manifest": {
+            Manifest m = new Manifest()
+            Profile dbg = new Profile()
+            dbg.name = "debug"
+            dbg.optLevel = 0
+            Profile rel = new Profile()
+            rel.name = "release"
+            rel.optLevel = 3
+            m.profiles = {dbg, rel}
+            Registry r = new Registry()
+            r.name = "default"
+            m.repositories = {r}
+            int levels = 0
+            for p in m.profiles {
+                levels = levels + p.optLevel
+            }
+            assert.assertEqI(levels, 3, 214)
+            string regs = ""
+            for reg in m.repositories { regs = str.concat(regs, reg.name) }
+            assert.assertStr(regs, "default", 215)
+        }
+    }
+
+    // ── nested single-object fields ──────────────────────────────────────────
+    void nestedTest() {
+        case "the test / workspace / hooks slots hold live objects": {
+            Manifest m = new Manifest()
+            TestConfig t = new TestConfig()
+            t.parallel = true
+            t.failFast = false
+            m.test = t
+            assert.assertTrue(m.test.parallel, 301)
+            assert.assertFalse(m.test.failFast, 302)
+
+            Workspace w = new Workspace()
+            w.members = {"a"}
+            m.workspace = w
+            assert.assertStr(joinAll(m.workspace.members), "a|", 303)
+
+            Hooks h = new Hooks()
+            h.preBuild = "prep"
+            m.hooks = h
+            assert.assertStr(m.hooks.preBuild, "prep", 304)
+        }
+        case "a nested object is a handle, not a copy": {
+            Manifest m = new Manifest()
+            Hooks h = new Hooks()
+            h.preBuild = "before"
+            m.hooks = h
+            h.preBuild = "changed"
+            assert.assertStr(m.hooks.preBuild, "changed", 305)
+        }
+        case "writing through the manifest's own reference": {
+            Manifest m = new Manifest()
+            TestConfig t = new TestConfig()
+            m.test = t
+            m.test.parallel = true
+            assert.assertTrue(t.parallel, 306)
+        }
+    }
+
+    // ── a fully populated Manifest ───────────────────────────────────────────
+    void fullManifestTest() {
+        case "every [package] field round-trips": {
+            Manifest m = new Manifest()
+            m.name = "fly"
+            m.version = "0.14.3"
+            m.description = "The Fly programming language"
+            m.license = "Apache-2.0"
+            m.flyVersion = "0.14"
+            m.homepage = "https://flylang.org"
+            m.repository = "https://github.com/fly-lang/fly"
+            m.registry = "default"
+            m.authors = {"Marco", "Contributors"}
+            assert.assertStr(m.name, "fly", 401)
+            assert.assertStr(m.version, "0.14.3", 402)
+            assert.assertStr(m.description, "The Fly programming language", 403)
+            assert.assertStr(m.license, "Apache-2.0", 404)
+            assert.assertStr(m.flyVersion, "0.14", 405)
+            assert.assertStr(m.homepage, "https://flylang.org", 406)
+            assert.assertStr(m.repository, "https://github.com/fly-lang/fly", 407)
+            assert.assertStr(m.registry, "default", 408)
+            assert.assertStr(joinAll(m.authors), "Marco|Contributors|", 409)
+        }
+        case "a manifest with every sub-section filled in": {
+            Manifest m = new Manifest()
+            m.name = "demo"
+            m.version = "1.0.0"
+
+            Target t = new Target()
+            t.name = "demo"
+            t.path = "src/main.fly"
+            t.lib = ""
+            m.targets = {t}
+
+            Dependency d = new Dependency()
+            d.name = "flyjson"
+            d.version = "^0.3"
+            m.dependencies = {d}
+
+            Profile p = new Profile()
+            p.name = "debug"
+            p.optLevel = 0
+            p.debugInfo = true
+            p.assertions = true
+            m.profiles = {p}
+
+            Registry r = new Registry()
+            r.name = "default"
+            r.url = "https://registry.invalid"
+            m.repositories = {r}
+
+            m.linkLibs = {"m", "pthread"}
+
+            TestConfig tc = new TestConfig()
+            tc.suites = {"std/test/*Suite.fly"}
+            tc.parallel = false
+            tc.failFast = false
+            m.test = tc
+
+            // Read the whole shape back.
+            assert.assertStr(m.name, "demo", 410)
+            for tt in m.targets {
+                assert.assertStr(tt.path, "src/main.fly", 411)
+                assert.assertEmpty(tt.lib, 412)
+            }
+            for dd in m.dependencies {
+                assert.assertStr(dd.name, "flyjson", 413)
+                assert.assertStr(dd.version, "^0.3", 414)
+            }
+            for pp in m.profiles {
+                assert.assertStr(pp.name, "debug", 415)
+                assert.assertEqI(pp.optLevel, 0, 416)
+                assert.assertTrue(pp.debugInfo, 417)
+            }
+            for rr in m.repositories {
+                assert.assertStr(rr.url, "https://registry.invalid", 418)
+            }
+            assert.assertStr(joinAll(m.linkLibs), "m|pthread|", 419)
+            assert.assertStr(joinAll(m.test.suites), "std/test/*Suite.fly|", 420)
+            assert.assertFalse(m.test.parallel, 421)
+        }
+        case "an empty manifest has empty strings throughout": {
+            Manifest m = new Manifest()
+            assert.assertEmpty(m.name, 422)
+            assert.assertEmpty(m.version, 423)
+            assert.assertEmpty(m.description, 424)
+            assert.assertEmpty(m.flyVersion, 425)
+        }
+        case "two manifests are independent": {
+            Manifest a = new Manifest()
+            Manifest b = new Manifest()
+            a.name = "one"
+            b.name = "two"
+            assert.assertStr(a.name, "one", 426)
+            assert.assertStr(b.name, "two", 427)
+        }
+    }
+
+    // ── the lockfile schema ──────────────────────────────────────────────────
+    void lockfileTest() {
+        case "LockedPackage fields": {
+            LockedPackage p = new LockedPackage()
+            p.name = "flyjson"
+            p.version = "0.3.1"
+            p.source = "registry+default"
+            p.rev = "abc123"
+            p.tag = "v0.3.1"
+            p.checksum = "sha256-deadbeef"
+            p.dependencies = {"alpha 1.0.0", "beta 2.0.0"}
+            assert.assertStr(p.name, "flyjson", 501)
+            assert.assertStr(p.version, "0.3.1", 502)
+            assert.assertStr(p.source, "registry+default", 503)
+            assert.assertStr(p.rev, "abc123", 504)
+            assert.assertStr(p.tag, "v0.3.1", 505)
+            assert.assertStr(p.checksum, "sha256-deadbeef", 506)
+            assert.assertStr(joinAll(p.dependencies), "alpha 1.0.0|beta 2.0.0|", 507)
+        }
+        case "a git-sourced LockedPackage": {
+            LockedPackage p = new LockedPackage()
+            p.name = "sibling"
+            p.source = "git+https://example.invalid/sibling.git"
+            p.rev = "0123456789abcdef"
+            assert.assertTrue(str.startsWith(p.source, "git+"), 508)
+            assert.assertEmpty(p.tag, 509)
+        }
+        case "a Lockfile holding several packages": {
+            Lockfile lf = new Lockfile()
+            lf.flyVersion = "0.14.3"
+            lf.checksum = "sha256-manifest"
+            LockedPackage a = new LockedPackage()
+            a.name = "alpha"
+            a.version = "1.0.0"
+            LockedPackage b = new LockedPackage()
+            b.name = "beta"
+            b.version = "2.0.0"
+            lf.packages = {a, b}
+            assert.assertStr(lf.flyVersion, "0.14.3", 510)
+            assert.assertStr(lf.checksum, "sha256-manifest", 511)
+            string seen = ""
+            int n = 0
+            for pkg in lf.packages {
+                seen = str.concat(seen, str.concat(pkg.name, str.concat("@", pkg.version)))
+                seen = str.concat(seen, "|")
+                n = n + 1
+            }
+            assert.assertEqI(n, 2, 512)
+            assert.assertStr(seen, "alpha@1.0.0|beta@2.0.0|", 513)
+        }
+        case "an empty Lockfile": {
+            Lockfile lf = new Lockfile()
+            assert.assertEmpty(lf.flyVersion, 514)
+            assert.assertEmpty(lf.checksum, 515)
+        }
+    }
+}

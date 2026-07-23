@@ -1,0 +1,189 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OverrideSuite — method overriding and virtual dispatch.
+//
+// The distinction under test is static-type dispatch (the compiler knows the
+// exact class) versus dynamic dispatch through a base-typed reference (the
+// vtable must select the MOST-DERIVED implementation). Both are exercised for:
+//   * a one-level override,
+//   * a two-level chain where the middle class overrides and the leaf does not
+//     (the leaf must inherit the middle's override, not the root's),
+//   * a two-level chain where both override,
+//   * a non-overridden method, which every level must share,
+//   * dispatch through a parameter and through a returned base reference,
+//   * a base method that calls an overridden one on `this` — the callee must
+//     resolve to the derived override.
+//
+// Assert codes: 1xx static dispatch, 2xx dynamic dispatch, 3xx deep chains,
+// 4xx parameters and returns, 5xx self-calls.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class Shape {
+    public Shape() {}
+    public int sides() { out = 0 }
+    public int corners() { out = this.sides() }      // calls the overridable one
+    public int family() { out = 1 }                  // never overridden
+}
+
+class Square : Shape {
+    public Square() {}
+    public int sides() { out = 4 }
+}
+
+class Triangle : Shape {
+    public Triangle() {}
+    public int sides() { out = 3 }
+}
+
+// Two levels: Middle overrides, Leaf does NOT (it must inherit Middle's).
+class Middle : Shape {
+    public Middle() {}
+    public int sides() { out = 5 }
+}
+
+class Leaf : Middle {
+    public Leaf() {}
+}
+
+// Two levels where both override.
+class Deep : Middle {
+    public Deep() {}
+    public int sides() { out = 7 }
+}
+
+int sidesOf(const Shape s) { out = s.sides() }
+
+Shape pick(const int which) {
+    if which == 0 {
+        out = new Square()
+    } elsif which == 1 {
+        out = new Triangle()
+    } else {
+        out = new Shape()
+    }
+}
+
+suite OverrideSuite {
+
+    // ── static-type dispatch ─────────────────────────────────────────────────
+    void staticTest() {
+        case "each class calls its own implementation": {
+            Square sq = new Square()
+            Triangle tr = new Triangle()
+            Shape sh = new Shape()
+            assert.assertEqI(sq.sides(), 4, 101)
+            assert.assertEqI(tr.sides(), 3, 102)
+            assert.assertEqI(sh.sides(), 0, 103)
+        }
+        case "a non-overridden method is shared by every level": {
+            assert.assertEqI(new Shape().family(), 1, 104)
+            assert.assertEqI(new Square().family(), 1, 105)
+            assert.assertEqI(new Leaf().family(), 1, 106)
+        }
+    }
+
+    // ── dynamic dispatch through a base reference ────────────────────────────
+    void dynamicTest() {
+        case "a base reference picks the most-derived override": {
+            Square sq = new Square()
+            Triangle tr = new Triangle()
+            Shape a = sq
+            Shape b = tr
+            assert.assertEqI(a.sides(), 4, 201)
+            assert.assertEqI(b.sides(), 3, 202)
+        }
+        case "reassigning the base reference switches implementations": {
+            Shape s = new Square()
+            assert.assertEqI(s.sides(), 4, 203)
+            s = new Triangle()
+            assert.assertEqI(s.sides(), 3, 204)
+            s = new Shape()
+            assert.assertEqI(s.sides(), 0, 205)
+        }
+        case "the base instance is unaffected by any override": {
+            Shape sh = new Shape()
+            Shape sq = new Square()
+            assert.assertEqI(sh.sides(), 0, 206)
+            assert.assertEqI(sq.sides(), 4, 207)
+            assert.assertEqI(sh.sides(), 0, 208)
+        }
+        case "repeated dispatch is stable": {
+            Shape s = new Triangle()
+            int bad = 0 - 1
+            int i = 0
+            while i < 50 {
+                if s.sides() != 3 { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 209)
+        }
+    }
+
+    // ── two-level chains ─────────────────────────────────────────────────────
+    void chainTest() {
+        case "a leaf inherits the middle class's override": {
+            Leaf l = new Leaf()
+            assert.assertEqI(l.sides(), 5, 301)          // Middle's, not Shape's
+            Shape s = l
+            assert.assertEqI(s.sides(), 5, 302)
+            Middle m = l
+            assert.assertEqI(m.sides(), 5, 303)
+        }
+        case "a leaf that overrides again wins over the middle": {
+            Deep d = new Deep()
+            assert.assertEqI(d.sides(), 7, 304)
+            Shape s = d
+            assert.assertEqI(s.sides(), 7, 305)
+            Middle m = d
+            assert.assertEqI(m.sides(), 7, 306)
+        }
+        case "the middle class keeps its own implementation": {
+            Middle m = new Middle()
+            assert.assertEqI(m.sides(), 5, 307)
+            Shape s = m
+            assert.assertEqI(s.sides(), 5, 308)
+        }
+    }
+
+    // ── through parameters and return values ─────────────────────────────────
+    void indirectTest() {
+        case "dispatch through a base-typed parameter": {
+            assert.assertEqI(sidesOf(new Square()), 4, 401)
+            assert.assertEqI(sidesOf(new Triangle()), 3, 402)
+            assert.assertEqI(sidesOf(new Shape()), 0, 403)
+            assert.assertEqI(sidesOf(new Leaf()), 5, 404)
+            assert.assertEqI(sidesOf(new Deep()), 7, 405)
+        }
+        case "dispatch through a returned base reference": {
+            assert.assertEqI(pick(0).sides(), 4, 406)
+            assert.assertEqI(pick(1).sides(), 3, 407)
+            assert.assertEqI(pick(2).sides(), 0, 408)
+        }
+        case "a returned reference stored, then dispatched": {
+            Shape s = pick(0)
+            assert.assertEqI(s.sides(), 4, 409)
+            assert.assertEqI(sidesOf(s), 4, 410)
+        }
+    }
+
+    // ── a base method calling an overridden one on `this` ────────────────────
+    void selfCallTest() {
+        case "the base method sees the derived override": {
+            // Shape.corners() calls this.sides(); on a Square that must be 4.
+            assert.assertEqI(new Shape().corners(), 0, 501)
+            assert.assertEqI(new Square().corners(), 4, 502)
+            assert.assertEqI(new Triangle().corners(), 3, 503)
+        }
+        case "the self-call resolves through a base reference too": {
+            Shape s = new Square()
+            assert.assertEqI(s.corners(), 4, 504)
+            s = new Triangle()
+            assert.assertEqI(s.corners(), 3, 505)
+        }
+        case "the self-call works down a two-level chain": {
+            assert.assertEqI(new Leaf().corners(), 5, 506)
+            assert.assertEqI(new Deep().corners(), 7, 507)
+        }
+    }
+}

@@ -113,11 +113,24 @@ suite RuntimeWindowsSuite {
             pointer rp = 0
             fly.runtime.str_slot_ptr(arr, 0, rp)
             assert.assertTrue(rp == buf, 31)
-            int sz = 0
-            fly.runtime.str_slot_size(arr, 0, sz)
-            assert.assertEqI(sz, 5, 32)
-            fly.runtime.str_slot_size(arr, 2, sz)
-            assert.assertEqI(sz, 7, 33)
+            // A DISTINCT out variable per read, deliberately. Reusing one across
+            // two fly.runtime.* out-calls miscompiled under an earlier reference seed:
+            // the second write lands (an `if sz != 7` sees it) but a call that
+            // takes the variable as an ARGUMENT still reads the first value, so
+            // `assertEqI(sz, 7, 33)` compared 5 against 7. Minimal repro:
+            //     int sz = 0
+            //     fly.runtime.str_slot_size(arr, 0, sz)
+            //     assert.assertEqI(sz, 5, 10)   // ok
+            //     fly.runtime.str_slot_size(arr, 2, sz)
+            //     assert.assertEqI(sz, 7, 11)   // reads 5
+            // The self-host compiles the reused form correctly; this shape works
+            // under both, which is what the STAGE=0/1/2 passes need.
+            int sz0 = 0
+            fly.runtime.str_slot_size(arr, 0, sz0)
+            assert.assertEqI(sz0, 5, 32)
+            int sz2 = 0
+            fly.runtime.str_slot_size(arr, 2, sz2)
+            assert.assertEqI(sz2, 7, 33)
             fly.mem.free(buf, 8)
             fly.mem.free(arr, 48)
         }

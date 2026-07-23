@@ -364,8 +364,13 @@ public class Frontend {
                     }
                     // A plain/alias import is `Namespace.Symbol`: its last component
                     // is the symbol, not a namespace segment. Fall back to the
-                    // closest parent that IS a mapped namespace (cpp: drop-last loop).
-                    if imp.isWildcard() == false && this.listHas(mapNs, ns) == false {
+                    // closest parent that IS a mapped namespace (cpp: drop-last loop)
+                    // — but only when neither the namespace itself NOR any of its
+                    // DESCENDANTS is mapped (an `import my` finding my.utils below
+                    // must not be rewritten away).
+                    bool exactHit = this.listHas(mapNs, ns)
+                    bool descHit = this.hasDescendant(mapNs, ns)
+                    if imp.isWildcard() == false && exactHit == false && descHit == false {
                         string cand = this.dropLastSegment(ns)
                         while fly.str.isEmpty(cand) == false {
                             if this.listHas(mapNs, cand) { break }
@@ -380,6 +385,34 @@ public class Frontend {
                         if pok == false {
                             out = false
                             return
+                        }
+                    }
+                    // ONLY when no file declares the exact namespace, pull its
+                    // DESCENDANTS (`import my` / `import my.*` must discover
+                    // my.utils from source — port of the reference descendant
+                    // pull). When the exact namespace IS declared, its files
+                    // alone are the import's meaning: pulling descendants too
+                    // would drag sibling trees in (e.g. the compiler's own
+                    // `fly.compiler.codegen.*` TEST suites into a compiler
+                    // build). Header-served descendants stay with their archives.
+                    if this.listHas(mapNs, ns) == false {
+                        string pfx = fly.str.concat(ns, ".")
+                        int dnk = 0
+                        while dnk < mapNs.size() {
+                            string cns = mapNs.get(dnk)
+                            if fly.str.startsWith(cns, pfx) {
+                                if this.listHas(headerNs, cns) == false {
+                                    if this.listHas(doneNs, cns) == false {
+                                        doneNs.add(cns)
+                                        bool pok2 = this.pullNamespace(cns, mapNs, mapPath, known, mods)
+                                        if pok2 == false {
+                                            out = false
+                                            return
+                                        }
+                                    }
+                                }
+                            }
+                            dnk = dnk + 1
                         }
                     }
                 }
@@ -513,6 +546,20 @@ public class Frontend {
             return
         }
         out = fly.str.substring(ns, 0, dot)
+    }
+
+    // hasDescendant — true when any list entry starts with `ns` + ".".
+    public bool hasDescendant(const List<string> xs, const string ns) {
+        string pfx = fly.str.concat(ns, ".")
+        int i = 0
+        while i < xs.size() {
+            if fly.str.startsWith(xs.get(i), pfx) {
+                out = true
+                return
+            }
+            i = i + 1
+        }
+        out = false
     }
 
     // listHas — linear membership test over a List<string>.

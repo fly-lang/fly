@@ -55,7 +55,7 @@ $MODNAME = [IO.Path]::GetFileNameWithoutExtension($TARGET)   # 'foo' - the modul
 # A fly-compiled target loads LLVM-C.dll (pulled via fly.compiler.*). Put
 # build/llvm/bin on PATH so both it and cdb launching the target find the DLL
 # (else Windows pops a STATUS_DLL_NOT_FOUND dialog and the run hangs). Mirrors
-# test_driver.ps1 / test_compiler.ps1.
+# test_compiler.ps1.
 $llvmBin = Join-Path (Get-Location) 'build\llvm\bin'
 if (Test-Path (Join-Path $llvmBin 'LLVM-C.dll')) { $env:PATH = "$llvmBin;$env:PATH" }
 

@@ -1200,6 +1200,22 @@ public class LLVM {
         lib.call("LLVMBuildMemCpy", a, v)
     }
 
+    // buildMemMove — LLVMBuildMemMove(B, Dst, DstAlign, Src, SrcAlign, Size).
+    // Same ABI as LLVMBuildMemCpy (reuses MemCpyArgs) but lowers to llvm.memmove,
+    // which is DEFINED for OVERLAPPING ranges (memcpy is UB on overlap — the shift
+    // in List.remove / Map rehash / deque etc. overlaps by one element).
+    public void buildMemMove(const pointer b, const pointer dst, const pointer src, const pointer size, pointer v) {
+        MemCpyArgs a = new MemCpyArgs()
+        a.b = b
+        a.dst = dst
+        a.dstAlign = 1
+        a.src = src
+        a.srcAlign = 1
+        a.size = size
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildMemMove", a, v)
+    }
+
     // ── Build — casts ─────────────────────────────────────────────────────────
 
     public void buildTrunc(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {

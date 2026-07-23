@@ -25,7 +25,7 @@ cp -f build/stage1/lib/*.fly.h build/stage2/lib/
 echo "stage2: std -> build/stage2/lib (copied from stage1, reference ABI)"
 
 ./ci/linux/build_runtime.sh
-./ci/linux/build_driver.sh
+./ci/linux/build_compiler.sh
 ./ci/linux/link_fly.sh
 
 echo "stage2: done — build/stage2/bin/fly"

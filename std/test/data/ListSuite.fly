@@ -1,0 +1,348 @@
+import fly.assert
+import fly.str
+import fly.data.List
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ListSuite — exhaustive coverage of fly.data.List<T> (std/lib/data/list.fly),
+// the Fly analog of C++ std::vector<T>. Every branch of every method is hit:
+//
+//   add()     stride-init, first-alloc (items == 0 → mem_alloc), grow
+//             (mem_realloc), no-grow fast path
+//   get()     in range; idx == len; idx far past len; "negative" index (an int
+//             -1 widens to the unsigned pointer max → out of range) → default T
+//   set()     in range (frees the old slot); idx >= len → no-op
+//   remove()  first (memmove), middle (memmove), last (rest == 0, no memmove),
+//             idx >= len → no-op
+//   clear()   frees every live slot, keeps the buffer for reuse
+//   free()    on a populated list, and on a never-used one (items == 0)
+//
+// plus the ownership model per element kind: `string` is deep-cloned on insert
+// and freed on set/remove/clear/free; trivial values are copied; class handles
+// are borrowed (the pointee outlives the list).
+//
+// Assert codes: 1xx access, 2xx mutate, 3xx grow, 4xx clear, 5xx string
+// ownership, 6xx element kinds.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Element used to prove class handles are stored as-is, not cloned: mutating
+// through the original handle must be visible through the one read back.
+class Cell {
+    int v
+    public Cell(const int v) { this.v = v }
+}
+
+suite ListSuite {
+
+    // ── construction + element access ────────────────────────────────────────
+    void accessTest() {
+        case "fresh list is empty": {
+            List<long> l = new List<long>()
+            assert.assertEqI(l.size(), 0, 101)
+            l.free()
+        }
+        case "free on a never-used list is a no-op": {
+            // items == 0 → free() must not call mem_free on a null buffer.
+            List<long> l = new List<long>()
+            l.free()
+            assert.assertEqI(l.size(), 0, 102)
+        }
+        case "get in range": {
+            List<long> l = new List<long>()
+            l.add(10)
+            l.add(20)
+            l.add(30)
+            assert.assertEqI(l.size(), 3, 103)
+            assert.assertEqL(l.get(0), 10, 104)
+            assert.assertEqL(l.get(1), 20, 105)
+            assert.assertEqL(l.get(2), 30, 106)
+            l.free()
+        }
+        case "get out of bounds yields default T": {
+            List<long> l = new List<long>()
+            l.add(10)
+            assert.assertEqL(l.get(1), 0, 107)        // exactly at len
+            assert.assertEqL(l.get(99), 0, 108)       // far past len
+            int neg = 0 - 1                            // widens to pointer max
+            assert.assertEqL(l.get(neg), 0, 109)
+            l.free()
+        }
+        case "get out of bounds on an empty list": {
+            // len == 0 and items == 0: the `idx < len` guard must reject before
+            // any load from the null buffer.
+            List<long> l = new List<long>()
+            assert.assertEqL(l.get(0), 0, 110)
+            l.free()
+        }
+    }
+
+    // ── set / remove, including the no-op guards ─────────────────────────────
+    void mutateTest() {
+        case "set in range": {
+            List<long> l = new List<long>()
+            l.add(10)
+            l.add(20)
+            l.set(0, 11)
+            l.set(1, 21)
+            assert.assertEqL(l.get(0), 11, 201)
+            assert.assertEqL(l.get(1), 21, 202)
+            assert.assertEqI(l.size(), 2, 203)
+            l.free()
+        }
+        case "set out of range is a no-op": {
+            List<long> l = new List<long>()
+            l.add(10)
+            l.set(1, 99)                               // idx == len
+            l.set(500, 99)                             // far past len
+            assert.assertEqI(l.size(), 1, 204)
+            assert.assertEqL(l.get(0), 10, 205)
+            l.free()
+        }
+        case "remove first shifts the tail": {
+            List<long> l = new List<long>()
+            l.add(10)
+            l.add(20)
+            l.add(30)
+            l.remove(0)
+            assert.assertEqI(l.size(), 2, 206)
+            assert.assertEqL(l.get(0), 20, 207)
+            assert.assertEqL(l.get(1), 30, 208)
+            l.free()
+        }
+        case "remove middle shifts the tail": {
+            List<long> l = new List<long>()
+            l.add(10)
+            l.add(20)
+            l.add(30)
+            l.remove(1)
+            assert.assertEqI(l.size(), 2, 209)
+            assert.assertEqL(l.get(0), 10, 210)
+            assert.assertEqL(l.get(1), 30, 211)
+            l.free()
+        }
+        case "remove last skips the memmove": {
+            // rest == 0 → the shift block is not entered.
+            List<long> l = new List<long>()
+            l.add(10)
+            l.add(20)
+            l.remove(1)
+            assert.assertEqI(l.size(), 1, 212)
+            assert.assertEqL(l.get(0), 10, 213)
+            assert.assertEqL(l.get(1), 0, 214)
+            l.free()
+        }
+        case "remove out of range is a no-op": {
+            List<long> l = new List<long>()
+            l.add(10)
+            l.remove(1)                                // idx == len
+            l.remove(400)
+            assert.assertEqI(l.size(), 1, 215)
+            assert.assertEqL(l.get(0), 10, 216)
+            l.free()
+        }
+        case "remove down to empty, then reuse": {
+            List<long> l = new List<long>()
+            l.add(1)
+            l.add(2)
+            l.remove(0)
+            l.remove(0)
+            assert.assertEqI(l.size(), 0, 217)
+            l.add(42)
+            assert.assertEqI(l.size(), 1, 218)
+            assert.assertEqL(l.get(0), 42, 219)
+            l.free()
+        }
+    }
+
+    // ── growth: first alloc, then repeated realloc doublings ─────────────────
+    void growTest() {
+        case "grow across two doublings": {
+            // cap goes 0 → 8 (mem_alloc) → 16 → 32 → 64 (mem_realloc), so both
+            // allocation branches run and the realloc must preserve the prefix.
+            List<long> l = new List<long>()
+            long i = 0
+            while i < 40 {
+                l.add(i * 3)
+                i = i + 1
+            }
+            assert.assertEqI(l.size(), 40, 301)
+            assert.assertEqL(l.get(0), 0, 302)         // survived every realloc
+            assert.assertEqL(l.get(7), 21, 303)        // last of the first block
+            assert.assertEqL(l.get(8), 24, 304)        // first past it
+            assert.assertEqL(l.get(39), 117, 305)
+            l.free()
+        }
+        case "every grown element is intact": {
+            List<int> l = new List<int>()
+            int i = 0
+            while i < 100 {
+                l.add(i)
+                i = i + 1
+            }
+            assert.assertEqI(l.size(), 100, 306)
+            int bad = 0 - 1
+            i = 0
+            while i < 100 {
+                if l.get(i) != i { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 307)
+            l.free()
+        }
+        case "remove after growth keeps order": {
+            List<int> l = new List<int>()
+            int i = 0
+            while i < 20 {
+                l.add(i)
+                i = i + 1
+            }
+            l.remove(0)
+            assert.assertEqI(l.size(), 19, 308)
+            assert.assertEqI(l.get(0), 1, 309)
+            assert.assertEqI(l.get(18), 19, 310)
+            l.free()
+        }
+    }
+
+    // ── clear: frees elements, keeps the buffer ──────────────────────────────
+    void clearTest() {
+        case "clear then reuse the buffer": {
+            List<long> l = new List<long>()
+            l.add(1)
+            l.add(2)
+            l.add(3)
+            l.clear()
+            assert.assertEqI(l.size(), 0, 401)
+            assert.assertEqL(l.get(0), 0, 402)
+            l.add(9)
+            assert.assertEqI(l.size(), 1, 403)
+            assert.assertEqL(l.get(0), 9, 404)
+            l.free()
+        }
+        case "clear on an empty list": {
+            List<long> l = new List<long>()
+            l.clear()
+            assert.assertEqI(l.size(), 0, 405)
+            l.clear()
+            assert.assertEqI(l.size(), 0, 406)
+            l.free()
+        }
+        case "clear frees string elements": {
+            List<string> ls = new List<string>()
+            ls.add("alpha")
+            ls.add("beta")
+            ls.clear()
+            assert.assertEqI(ls.size(), 0, 407)
+            ls.add("gamma")
+            assert.assertStr(ls.get(0), "gamma", 408)
+            ls.free()
+        }
+    }
+
+    // ── ownership: List<string> clones in, clones out, frees on removal ──────
+    void stringOwnershipTest() {
+        case "add clones, source stays intact": {
+            List<string> ls = new List<string>()
+            string built = str.concat("foo", "bar")
+            ls.add(built)                              // deep clone into the slot
+            ls.add("baz")                              // literal → heap copy
+            assert.assertEqI(ls.size(), 2, 501)
+            assert.assertStr(ls.get(0), "foobar", 502)
+            assert.assertStr(ls.get(1), "baz", 503)
+            assert.assertStr(built, "foobar", 504)     // source untouched
+            ls.free()
+        }
+        case "get returns a fresh clone each time": {
+            List<string> ls = new List<string>()
+            ls.add("shared")
+            string a = ls.get(0)
+            string b = ls.get(0)
+            assert.assertStr(a, "shared", 505)
+            assert.assertStr(b, "shared", 506)
+            ls.free()                                  // a and b must stay valid
+            assert.assertStr(a, "shared", 507)
+            assert.assertStr(b, "shared", 508)
+        }
+        case "set frees the old element": {
+            List<string> ls = new List<string>()
+            ls.add("old")
+            ls.set(0, "new")
+            assert.assertStr(ls.get(0), "new", 509)
+            assert.assertStrNe(ls.get(0), "old", 510)
+            ls.free()
+        }
+        case "remove frees the element and shifts": {
+            List<string> ls = new List<string>()
+            ls.add("one")
+            ls.add("two")
+            ls.add("three")
+            ls.remove(0)
+            assert.assertEqI(ls.size(), 2, 511)
+            assert.assertStr(ls.get(0), "two", 512)
+            assert.assertStr(ls.get(1), "three", 513)
+            ls.remove(1)                               // last: no memmove
+            assert.assertEqI(ls.size(), 1, 514)
+            assert.assertStr(ls.get(0), "two", 515)
+            ls.free()
+        }
+        case "out-of-range get yields the empty string": {
+            List<string> ls = new List<string>()
+            ls.add("only")
+            assert.assertEmpty(ls.get(1), 516)
+            assert.assertEmpty(ls.get(77), 517)
+            ls.free()
+        }
+        case "string list grows across reallocs": {
+            List<string> ls = new List<string>()
+            int i = 0
+            while i < 20 {
+                ls.add(str.concat("item", str.convert(i)))
+                i = i + 1
+            }
+            assert.assertEqI(ls.size(), 20, 518)
+            assert.assertStr(ls.get(0), "item0", 519)
+            assert.assertStr(ls.get(19), "item19", 520)
+            ls.free()
+        }
+    }
+
+    // ── other element kinds: trivial copies and borrowed class handles ───────
+    void elementKindTest() {
+        case "List<int> trivial copy": {
+            List<int> li = new List<int>()
+            int src = 7
+            li.add(src)
+            src = 8                                    // copy, not a reference
+            assert.assertEqI(li.get(0), 7, 601)
+            li.free()
+        }
+        case "List<bool>": {
+            List<bool> lb = new List<bool>()
+            lb.add(true)
+            lb.add(false)
+            assert.assertTrue(lb.get(0), 602)
+            assert.assertFalse(lb.get(1), 603)
+            assert.assertFalse(lb.get(2), 604)         // default T is false
+            lb.free()
+        }
+        case "List<double>": {
+            List<double> ld = new List<double>()
+            ld.add(1.5)
+            ld.add(0.0 - 2.25)
+            assert.assertApprox(ld.get(0), 1.5, 605)
+            assert.assertApprox(ld.get(1), 0.0 - 2.25, 606)
+            assert.assertApprox(ld.get(2), 0.0, 607)   // default T is 0.0
+            ld.free()
+        }
+        case "class handles are borrowed, not cloned": {
+            List<Cell> lc = new List<Cell>()
+            Cell c = new Cell(1)
+            lc.add(c)
+            c.v = 99                                   // visible through the list
+            Cell got = lc.get(0)
+            assert.assertEqI(got.v, 99, 608)
+            assert.assertEqI(lc.size(), 1, 609)
+            lc.free()
+            assert.assertEqI(c.v, 99, 610)             // pointee outlives the list
+        }
+    }
+}

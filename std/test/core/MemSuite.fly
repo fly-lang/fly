@@ -1,0 +1,420 @@
+import fly.mem
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MemSuite — coverage of every export of fly.mem (std/lib/mem.fly), the thin
+// typed wrapper over the runtime allocator and the LLVM mem intrinsics:
+//
+//   alloc / free / realloc / isNull
+//   copy (memcpy) / move (memmove) / zero (memset) / compare (memcmp)
+//   readByte  readShort  readInt  readLong  readPtr
+//   writeByte writeShort writeInt writeLong writePtr
+//
+// The functions are branchless pass-throughs, so "full coverage" here means
+// exercising the semantics that callers rely on and that a codegen regression
+// would silently break: sign handling on each width, offsets addressing the
+// whole buffer, realloc preserving the prefix in both directions, memmove
+// tolerating overlap in BOTH directions (where memcpy may not), and memcmp's
+// three-way result.
+//
+// Addresses are `pointer` throughout — never `long` (see the fly.mem header).
+//
+// Assert codes: 1xx alloc lifecycle, 2xx byte/short widths, 3xx int/long widths,
+// 4xx pointer slots, 5xx bulk ops, 6xx compare, 7xx realloc.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite MemSuite {
+
+    // ── alloc / free / isNull ────────────────────────────────────────────────
+    void allocTest() {
+        case "alloc returns a usable non-null block": {
+            pointer p = fly.mem.alloc(32)
+            assert.assertFalse(fly.mem.isNull(p), 101)
+            assert.assertNotNull(p, 102)
+            fly.mem.writeInt(p, 0, 123)
+            assert.assertEqI(fly.mem.readInt(p, 0), 123, 103)
+            fly.mem.free(p, 32)
+        }
+        case "isNull identifies the null address": {
+            assert.assertTrue(fly.mem.isNull(0), 104)
+            pointer p = fly.mem.alloc(8)
+            assert.assertFalse(fly.mem.isNull(p), 105)
+            fly.mem.free(p, 8)
+        }
+        case "a one-byte allocation": {
+            pointer p = fly.mem.alloc(1)
+            assert.assertNotNull(p, 106)
+            fly.mem.writeByte(p, 0, 255)
+            assert.assertEqI((int)fly.mem.readByte(p, 0) & 255, 255, 107)
+            fly.mem.free(p, 1)
+        }
+        case "repeated alloc/free churn": {
+            int i = 0
+            while i < 200 {
+                pointer p = fly.mem.alloc(64)
+                assert.assertNotNull(p, 108)
+                fly.mem.writeLong(p, 56, i)
+                assert.assertEqL(fly.mem.readLong(p, 56), i, 109)
+                fly.mem.free(p, 64)
+                i = i + 1
+            }
+        }
+        case "several live blocks are independent": {
+            pointer a = fly.mem.alloc(16)
+            pointer b = fly.mem.alloc(16)
+            fly.mem.writeLong(a, 0, 1111)
+            fly.mem.writeLong(b, 0, 2222)
+            assert.assertEqL(fly.mem.readLong(a, 0), 1111, 110)
+            assert.assertEqL(fly.mem.readLong(b, 0), 2222, 111)
+            assert.assertNeP(a, b, 112)
+            fly.mem.free(a, 16)
+            fly.mem.free(b, 16)
+        }
+    }
+
+    // ── byte and short: width, sign, offsets ─────────────────────────────────
+    void narrowWidthTest() {
+        case "byte round-trip across the value range": {
+            pointer p = fly.mem.alloc(4)
+            fly.mem.writeByte(p, 0, 0)
+            fly.mem.writeByte(p, 1, 1)
+            fly.mem.writeByte(p, 2, 127)
+            fly.mem.writeByte(p, 3, 255)              // top of the u8 range
+            assert.assertEqI((int)fly.mem.readByte(p, 0) & 255, 0, 201)
+            assert.assertEqI((int)fly.mem.readByte(p, 1) & 255, 1, 202)
+            assert.assertEqI((int)fly.mem.readByte(p, 2) & 255, 127, 203)
+            // byte widens to int with sign extension — mask before comparing.
+            assert.assertEqI((int)fly.mem.readByte(p, 3) & 255, 255, 204)
+            fly.mem.free(p, 4)
+        }
+        case "byte writes do not disturb their neighbours": {
+            pointer p = fly.mem.alloc(4)
+            fly.mem.zero(p, 4)
+            fly.mem.writeByte(p, 2, 200)
+            assert.assertEqI((int)fly.mem.readByte(p, 0) & 255, 0, 205)
+            assert.assertEqI((int)fly.mem.readByte(p, 1) & 255, 0, 206)
+            assert.assertEqI((int)fly.mem.readByte(p, 2) & 255, 200, 207)
+            assert.assertEqI((int)fly.mem.readByte(p, 3) & 255, 0, 208)
+            fly.mem.free(p, 4)
+        }
+        case "short round-trip, positive and negative": {
+            pointer p = fly.mem.alloc(8)
+            fly.mem.writeShort(p, 0, 12345)
+            fly.mem.writeShort(p, 2, 0)
+            fly.mem.writeShort(p, 4, 32767)
+            fly.mem.writeShort(p, 6, (short)(0 - 32768))
+            assert.assertEqI((int)fly.mem.readShort(p, 0), 12345, 209)
+            assert.assertEqI((int)fly.mem.readShort(p, 2), 0, 210)
+            assert.assertEqI((int)fly.mem.readShort(p, 4), 32767, 211)
+            assert.assertEqI((int)fly.mem.readShort(p, 6), 0 - 32768, 212)
+            fly.mem.free(p, 8)
+        }
+        case "short and byte views of the same bytes agree": {
+            pointer p = fly.mem.alloc(2)
+            fly.mem.writeShort(p, 0, 258)             // 0x0102, little-endian
+            assert.assertEqI((int)fly.mem.readByte(p, 0) & 255, 2, 213)
+            assert.assertEqI((int)fly.mem.readByte(p, 1) & 255, 1, 214)
+            fly.mem.free(p, 2)
+        }
+    }
+
+    // ── int and long: width, sign, offsets ───────────────────────────────────
+    void wideWidthTest() {
+        case "int round-trip, positive and negative": {
+            pointer p = fly.mem.alloc(16)
+            fly.mem.writeInt(p, 0, 0)
+            fly.mem.writeInt(p, 4, 0 - 678)
+            fly.mem.writeInt(p, 8, 2147483647)
+            fly.mem.writeInt(p, 12, 0 - 2147483647)
+            assert.assertEqI(fly.mem.readInt(p, 0), 0, 301)
+            assert.assertEqI(fly.mem.readInt(p, 4), 0 - 678, 302)
+            assert.assertEqI(fly.mem.readInt(p, 8), 2147483647, 303)
+            assert.assertEqI(fly.mem.readInt(p, 12), 0 - 2147483647, 304)
+            fly.mem.free(p, 16)
+        }
+        case "long round-trip, positive and negative": {
+            pointer p = fly.mem.alloc(24)
+            fly.mem.writeLong(p, 0, 9000000000)
+            fly.mem.writeLong(p, 8, 0 - 9000000000)
+            fly.mem.writeLong(p, 16, 0)
+            assert.assertEqL(fly.mem.readLong(p, 0), 9000000000, 305)
+            assert.assertEqL(fly.mem.readLong(p, 8), 0 - 9000000000, 306)
+            assert.assertEqL(fly.mem.readLong(p, 16), 0, 307)
+            fly.mem.free(p, 24)
+        }
+        case "int and byte views of the same bytes agree": {
+            pointer p = fly.mem.alloc(4)
+            fly.mem.writeInt(p, 0, 16909060)          // 0x01020304, little-endian
+            assert.assertEqI((int)fly.mem.readByte(p, 0) & 255, 4, 308)
+            assert.assertEqI((int)fly.mem.readByte(p, 1) & 255, 3, 309)
+            assert.assertEqI((int)fly.mem.readByte(p, 2) & 255, 2, 310)
+            assert.assertEqI((int)fly.mem.readByte(p, 3) & 255, 1, 311)
+            fly.mem.free(p, 4)
+        }
+        case "long and int views of the same bytes agree": {
+            pointer p = fly.mem.alloc(8)
+            fly.mem.writeLong(p, 0, 4294967296)       // 1 << 32
+            assert.assertEqI(fly.mem.readInt(p, 0), 0, 312)
+            assert.assertEqI(fly.mem.readInt(p, 4), 1, 313)
+            fly.mem.free(p, 8)
+        }
+        case "offsets address the whole buffer": {
+            pointer p = fly.mem.alloc(800)
+            long i = 0
+            while i < 100 {
+                fly.mem.writeLong(p, i * 8, i * 3)
+                i = i + 1
+            }
+            long bad = 0 - 1
+            i = 0
+            while i < 100 {
+                if fly.mem.readLong(p, i * 8) != i * 3 { bad = i }
+                i = i + 1
+            }
+            assert.assertEqL(bad, 0 - 1, 314)
+            fly.mem.free(p, 800)
+        }
+    }
+
+    // ── readPtr / writePtr: addresses stay pointer-sized end to end ──────────
+    void pointerSlotTest() {
+        case "store and load an address": {
+            pointer slot = fly.mem.alloc(8)
+            pointer target = fly.mem.alloc(16)
+            fly.mem.writePtr(slot, 0, target)
+            assert.assertEqP(fly.mem.readPtr(slot, 0), target, 401)
+            assert.assertNotNull(fly.mem.readPtr(slot, 0), 402)
+            fly.mem.free(target, 16)
+            fly.mem.free(slot, 8)
+        }
+        case "a null address round-trips": {
+            pointer slot = fly.mem.alloc(8)
+            fly.mem.writePtr(slot, 0, 0)
+            assert.assertNull(fly.mem.readPtr(slot, 0), 403)
+            assert.assertTrue(fly.mem.isNull(fly.mem.readPtr(slot, 0)), 404)
+            fly.mem.free(slot, 8)
+        }
+        case "an array of address slots": {
+            pointer table = fly.mem.alloc(80)
+            pointer blocks = fly.mem.alloc(160)
+            pointer i = 0
+            while i < 10 {
+                fly.mem.writePtr(table, i * 8, blocks + i * 16)
+                i = i + 1
+            }
+            bool ok = true
+            i = 0
+            while i < 10 {
+                if fly.mem.readPtr(table, i * 8) != blocks + i * 16 { ok = false }
+                i = i + 1
+            }
+            assert.assertTrue(ok, 405)
+            fly.mem.free(blocks, 160)
+            fly.mem.free(table, 80)
+        }
+        case "writePtr and writeLong share the same 8-byte slot": {
+            pointer p = fly.mem.alloc(8)
+            fly.mem.writePtr(p, 0, 4096)
+            assert.assertEqL(fly.mem.readLong(p, 0), 4096, 406)
+            fly.mem.writeLong(p, 0, 8192)
+            assert.assertEqP(fly.mem.readPtr(p, 0), 8192, 407)
+            fly.mem.free(p, 8)
+        }
+    }
+
+    // ── copy / move / zero ───────────────────────────────────────────────────
+    void bulkTest() {
+        case "copy between disjoint blocks": {
+            pointer a = fly.mem.alloc(16)
+            pointer b = fly.mem.alloc(16)
+            fly.mem.writeLong(a, 0, 111)
+            fly.mem.writeLong(a, 8, 222)
+            fly.mem.copy(b, a, 16)
+            assert.assertEqL(fly.mem.readLong(b, 0), 111, 501)
+            assert.assertEqL(fly.mem.readLong(b, 8), 222, 502)
+            assert.assertEqI(fly.mem.compare(a, b, 16), 0, 503)
+            fly.mem.free(a, 16)
+            fly.mem.free(b, 16)
+        }
+        case "copy of zero bytes is a no-op": {
+            pointer a = fly.mem.alloc(8)
+            pointer b = fly.mem.alloc(8)
+            fly.mem.writeLong(b, 0, 77)
+            fly.mem.copy(b, a, 0)
+            assert.assertEqL(fly.mem.readLong(b, 0), 77, 504)
+            fly.mem.free(a, 8)
+            fly.mem.free(b, 8)
+        }
+        case "move forwards over an overlapping range": {
+            // Shift [0..7] up by one byte inside one block — the destination
+            // starts INSIDE the source, which a naive forward copy would smear.
+            pointer p = fly.mem.alloc(9)
+            int i = 0
+            while i < 8 {
+                fly.mem.writeByte(p, i, (byte)(i + 1))
+                i = i + 1
+            }
+            fly.mem.move(p + 1, p, 8)
+            assert.assertEqI((int)fly.mem.readByte(p, 1) & 255, 1, 505)
+            assert.assertEqI((int)fly.mem.readByte(p, 4) & 255, 4, 506)
+            assert.assertEqI((int)fly.mem.readByte(p, 8) & 255, 8, 507)
+            fly.mem.free(p, 9)
+        }
+        case "move backwards over an overlapping range": {
+            pointer p = fly.mem.alloc(9)
+            int i = 0
+            while i < 9 {
+                fly.mem.writeByte(p, i, (byte)i)
+                i = i + 1
+            }
+            fly.mem.move(p, p + 1, 8)                 // shift down by one
+            assert.assertEqI((int)fly.mem.readByte(p, 0) & 255, 1, 508)
+            assert.assertEqI((int)fly.mem.readByte(p, 3) & 255, 4, 509)
+            assert.assertEqI((int)fly.mem.readByte(p, 7) & 255, 8, 510)
+            fly.mem.free(p, 9)
+        }
+        case "move between disjoint blocks behaves like copy": {
+            pointer a = fly.mem.alloc(16)
+            pointer b = fly.mem.alloc(16)
+            fly.mem.writeLong(a, 0, 555)
+            fly.mem.writeLong(a, 8, 666)
+            fly.mem.move(b, a, 16)
+            assert.assertEqI(fly.mem.compare(a, b, 16), 0, 511)
+            fly.mem.free(a, 16)
+            fly.mem.free(b, 16)
+        }
+        case "zero clears a whole block, and a slice of one": {
+            pointer p = fly.mem.alloc(16)
+            fly.mem.writeLong(p, 0, 111)
+            fly.mem.writeLong(p, 8, 222)
+            fly.mem.zero(p, 16)
+            assert.assertEqL(fly.mem.readLong(p, 0), 0, 512)
+            assert.assertEqL(fly.mem.readLong(p, 8), 0, 513)
+            fly.mem.writeLong(p, 0, 111)
+            fly.mem.writeLong(p, 8, 222)
+            fly.mem.zero(p, 8)                        // first half only
+            assert.assertEqL(fly.mem.readLong(p, 0), 0, 514)
+            assert.assertEqL(fly.mem.readLong(p, 8), 222, 515)
+            fly.mem.zero(p, 0)                        // no-op
+            assert.assertEqL(fly.mem.readLong(p, 8), 222, 516)
+            fly.mem.free(p, 16)
+        }
+    }
+
+    // ── compare: the three-way memcmp result ─────────────────────────────────
+    void compareTest() {
+        case "equal blocks compare 0": {
+            pointer a = fly.mem.alloc(8)
+            pointer b = fly.mem.alloc(8)
+            fly.mem.writeLong(a, 0, 42)
+            fly.mem.writeLong(b, 0, 42)
+            assert.assertEqI(fly.mem.compare(a, b, 8), 0, 601)
+            assert.assertEqI(fly.mem.compare(a, a, 8), 0, 602)
+            fly.mem.free(a, 8)
+            fly.mem.free(b, 8)
+        }
+        case "a < b and b > a": {
+            pointer a = fly.mem.alloc(4)
+            pointer b = fly.mem.alloc(4)
+            fly.mem.zero(a, 4)
+            fly.mem.zero(b, 4)
+            fly.mem.writeByte(a, 0, 1)
+            fly.mem.writeByte(b, 0, 2)
+            assert.assertTrue(fly.mem.compare(a, b, 4) < 0, 603)
+            assert.assertTrue(fly.mem.compare(b, a, 4) > 0, 604)
+            fly.mem.free(a, 4)
+            fly.mem.free(b, 4)
+        }
+        case "compare stops at the given size": {
+            pointer a = fly.mem.alloc(4)
+            pointer b = fly.mem.alloc(4)
+            fly.mem.zero(a, 4)
+            fly.mem.zero(b, 4)
+            fly.mem.writeByte(a, 3, 9)                // differ only past the window
+            assert.assertEqI(fly.mem.compare(a, b, 3), 0, 605)
+            assert.assertTrue(fly.mem.compare(a, b, 4) > 0, 606)
+            fly.mem.free(a, 4)
+            fly.mem.free(b, 4)
+        }
+        case "a zero-length compare is always equal": {
+            pointer a = fly.mem.alloc(4)
+            pointer b = fly.mem.alloc(4)
+            fly.mem.writeInt(a, 0, 1)
+            fly.mem.writeInt(b, 0, 2)
+            assert.assertEqI(fly.mem.compare(a, b, 0), 0, 607)
+            fly.mem.free(a, 4)
+            fly.mem.free(b, 4)
+        }
+        case "the first differing byte decides": {
+            pointer a = fly.mem.alloc(8)
+            pointer b = fly.mem.alloc(8)
+            fly.mem.zero(a, 8)
+            fly.mem.zero(b, 8)
+            fly.mem.writeByte(a, 0, 5)
+            fly.mem.writeByte(b, 0, 5)
+            fly.mem.writeByte(a, 1, 1)
+            fly.mem.writeByte(b, 1, 9)
+            fly.mem.writeByte(a, 2, 99)               // later bytes must not matter
+            assert.assertTrue(fly.mem.compare(a, b, 8) < 0, 608)
+            fly.mem.free(a, 8)
+            fly.mem.free(b, 8)
+        }
+    }
+
+    // ── realloc: grow and shrink, prefix preserved ───────────────────────────
+    void reallocTest() {
+        case "grow preserves the prefix": {
+            pointer p = fly.mem.alloc(8)
+            fly.mem.writeInt(p, 0, 424242)
+            fly.mem.writeInt(p, 4, 111)
+            p = fly.mem.realloc(p, 64)
+            assert.assertNotNull(p, 701)
+            assert.assertEqI(fly.mem.readInt(p, 0), 424242, 702)
+            assert.assertEqI(fly.mem.readInt(p, 4), 111, 703)
+            fly.mem.writeInt(p, 60, 7)                // the new tail is usable
+            assert.assertEqI(fly.mem.readInt(p, 60), 7, 704)
+            fly.mem.free(p, 64)
+        }
+        case "shrink preserves the surviving prefix": {
+            pointer p = fly.mem.alloc(64)
+            fly.mem.writeInt(p, 0, 424242)
+            p = fly.mem.realloc(p, 4)
+            assert.assertNotNull(p, 705)
+            assert.assertEqI(fly.mem.readInt(p, 0), 424242, 706)
+            fly.mem.free(p, 4)
+        }
+        case "repeated doubling keeps the whole prefix": {
+            pointer p = fly.mem.alloc(8)
+            fly.mem.writeLong(p, 0, 987654321)
+            pointer cap = 8
+            int i = 0
+            while i < 8 {
+                cap = cap * 2
+                p = fly.mem.realloc(p, cap)
+                assert.assertEqL(fly.mem.readLong(p, 0), 987654321, 707)
+                i = i + 1
+            }
+            // Fill the grown block and read it all back.
+            long j = 0
+            while j < 100 {
+                fly.mem.writeLong(p, j * 8, j)
+                j = j + 1
+            }
+            long bad = 0 - 1
+            j = 0
+            while j < 100 {
+                if fly.mem.readLong(p, j * 8) != j { bad = j }
+                j = j + 1
+            }
+            assert.assertEqL(bad, 0 - 1, 708)
+            fly.mem.free(p, cap)
+        }
+        case "realloc to the same size is harmless": {
+            pointer p = fly.mem.alloc(16)
+            fly.mem.writeLong(p, 0, 321)
+            p = fly.mem.realloc(p, 16)
+            assert.assertEqL(fly.mem.readLong(p, 0), 321, 709)
+            fly.mem.free(p, 16)
+        }
+    }
+}

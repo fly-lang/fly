@@ -1,0 +1,537 @@
+import fly.assert
+import fly.str
+import fly.data.Map
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MapSuite — exhaustive coverage of fly.data.Map<K,V> (std/lib/data/map.fly), an
+// open-addressing hash map with tombstones (the Fly analog of C++
+// std::unordered_map<K,V>). flags: 0 = empty, 1 = occupied, 2 = tombstone.
+// Every branch is reached:
+//
+//   put()     stride-init; first-alloc (keys == 0 → cap 8); the REHASH block
+//             (count*4 >= cap*3) which re-probes live entries into a fresh table
+//             and drops tombstones; update-in-place of an existing key (old value
+//             freed); insert into a flag-0 slot; insert that REUSES the first
+//             tombstone seen on the probe chain (hasTs); linear probing past
+//             colliding keys
+//   get()     hit, miss terminating on a flag-0 slot, miss probing over
+//             tombstones, and the keys == 0 (never-used map) early out
+//   has()     the same three paths
+//   remove()  hit → tombstone + count--, miss, keys == 0 early out
+//   size() / free() — free() on a populated map and on a never-used one
+//
+// Capacity is a power of two starting at 8, so keys 8 apart collide: {8,16,24,32}
+// all hash to the same bucket once the identity-ish int hash is masked.
+//
+// Assert codes: 1xx empty, 2xx basics, 3xx collisions, 4xx tombstones,
+// 5xx rehash, 6xx string keys, 7xx string values, 8xx mixed kinds.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite MapSuite {
+
+    // ── the never-used map: keys == 0 on every path ──────────────────────────
+    void emptyTest() {
+        case "fresh map": {
+            Map<long, long> m = new Map<long, long>()
+            assert.assertEqI(m.size(), 0, 101)
+            m.free()
+        }
+        case "get / has / remove before any put": {
+            // keys == 0: each method must early-out instead of probing a null table.
+            Map<long, long> m = new Map<long, long>()
+            assert.assertEqL(m.get(1), 0, 102)
+            assert.assertFalse(m.has(1), 103)
+            m.remove(1)
+            assert.assertEqI(m.size(), 0, 104)
+            m.free()
+        }
+        case "free on a never-used map": {
+            Map<long, long> m = new Map<long, long>()
+            m.free()
+            assert.assertEqI(m.size(), 0, 105)
+        }
+        case "emptied map still answers misses": {
+            Map<long, long> m = new Map<long, long>()
+            m.put(1, 10)
+            m.remove(1)
+            assert.assertEqI(m.size(), 0, 106)
+            assert.assertFalse(m.has(1), 107)
+            assert.assertEqL(m.get(1), 0, 108)
+            m.free()
+        }
+    }
+
+    // ── put / get / has / remove on distinct keys ────────────────────────────
+    void basicTest() {
+        case "put then get": {
+            Map<long, long> m = new Map<long, long>()
+            m.put(1, 100)
+            m.put(2, 200)
+            m.put(3, 300)
+            assert.assertEqI(m.size(), 3, 201)
+            assert.assertEqL(m.get(1), 100, 202)
+            assert.assertEqL(m.get(2), 200, 203)
+            assert.assertEqL(m.get(3), 300, 204)
+            m.free()
+        }
+        case "has distinguishes present from absent": {
+            Map<long, long> m = new Map<long, long>()
+            m.put(1, 100)
+            assert.assertTrue(m.has(1), 205)
+            assert.assertFalse(m.has(2), 206)         // miss ends on a flag-0 slot
+            m.free()
+        }
+        case "get on a missing key yields default V": {
+            Map<long, long> m = new Map<long, long>()
+            m.put(1, 100)
+            assert.assertEqL(m.get(99), 0, 207)
+            m.free()
+        }
+        case "put on an existing key updates in place": {
+            Map<long, long> m = new Map<long, long>()
+            m.put(1, 100)
+            m.put(2, 200)
+            m.put(2, 999)
+            assert.assertEqI(m.size(), 2, 208)        // count unchanged
+            assert.assertEqL(m.get(2), 999, 209)
+            assert.assertEqL(m.get(1), 100, 210)
+            m.free()
+        }
+        case "remove a present and a missing key": {
+            Map<long, long> m = new Map<long, long>()
+            m.put(1, 100)
+            m.put(2, 200)
+            m.remove(2)
+            assert.assertFalse(m.has(2), 211)
+            assert.assertEqI(m.size(), 1, 212)
+            m.remove(2)                               // already gone: no-op
+            m.remove(1234)                            // never present: no-op
+            assert.assertEqI(m.size(), 1, 213)
+            assert.assertTrue(m.has(1), 214)
+            m.free()
+        }
+        case "zero key and zero value are real entries": {
+            Map<long, long> m = new Map<long, long>()
+            m.put(0, 0)
+            assert.assertTrue(m.has(0), 215)
+            assert.assertEqI(m.size(), 1, 216)
+            assert.assertEqL(m.get(0), 0, 217)        // indistinguishable from a miss by value...
+            m.remove(0)
+            assert.assertFalse(m.has(0), 218)         // ...but has() tells them apart
+            m.free()
+        }
+        case "negative keys hash to a non-negative bucket": {
+            // slotHashT can return a negative i32; put/get/has/remove all fold it
+            // with `if h < 0 { h = 0 - h }` before masking.
+            Map<long, long> m = new Map<long, long>()
+            m.put(0 - 1, 11)
+            m.put(0 - 7777, 22)
+            assert.assertEqL(m.get(0 - 1), 11, 219)
+            assert.assertEqL(m.get(0 - 7777), 22, 220)
+            assert.assertTrue(m.has(0 - 1), 221)
+            m.remove(0 - 1)
+            assert.assertFalse(m.has(0 - 1), 222)
+            assert.assertEqI(m.size(), 1, 223)
+            m.free()
+        }
+    }
+
+    // ── linear probing over colliding keys ───────────────────────────────────
+    void collisionTest() {
+        case "keys sharing a bucket chain forward": {
+            // 8/16/24 all mask to the same bucket at cap 8; staying at 3 entries
+            // keeps count*4 < cap*3 so no rehash intervenes.
+            Map<long, long> m = new Map<long, long>()
+            m.put(8, 80)
+            m.put(16, 160)
+            m.put(24, 240)
+            assert.assertEqI(m.size(), 3, 301)
+            assert.assertEqL(m.get(8), 80, 302)
+            assert.assertEqL(m.get(16), 160, 303)
+            assert.assertEqL(m.get(24), 240, 304)
+            m.free()
+        }
+        case "update the middle of a probe chain": {
+            Map<long, long> m = new Map<long, long>()
+            m.put(8, 80)
+            m.put(16, 160)
+            m.put(24, 240)
+            m.put(16, 999)
+            assert.assertEqI(m.size(), 3, 305)
+            assert.assertEqL(m.get(16), 999, 306)
+            assert.assertEqL(m.get(8), 80, 307)
+            assert.assertEqL(m.get(24), 240, 308)
+            m.free()
+        }
+        case "remove the head of a chain keeps the tail reachable": {
+            // The removed slot becomes a tombstone (flag 2), NOT empty — get/has
+            // for 16 and 24 must probe straight over it.
+            Map<long, long> m = new Map<long, long>()
+            m.put(8, 80)
+            m.put(16, 160)
+            m.put(24, 240)
+            m.remove(8)
+            assert.assertFalse(m.has(8), 309)
+            assert.assertEqL(m.get(16), 160, 310)
+            assert.assertEqL(m.get(24), 240, 311)
+            assert.assertEqI(m.size(), 2, 312)
+            m.free()
+        }
+        case "miss whose probe chain crosses a tombstone": {
+            Map<long, long> m = new Map<long, long>()
+            m.put(8, 80)
+            m.put(16, 160)
+            m.remove(8)
+            assert.assertFalse(m.has(32), 313)        // walks tombstone, then flag 0
+            assert.assertEqL(m.get(32), 0, 314)
+            m.free()
+        }
+    }
+
+    // ── tombstones: creation, reuse, and the count bookkeeping ───────────────
+    void tombstoneTest() {
+        case "re-put after remove reuses the tombstone": {
+            Map<long, long> m = new Map<long, long>()
+            m.put(5, 50)
+            m.remove(5)
+            assert.assertEqI(m.size(), 0, 401)
+            m.put(5, 55)
+            assert.assertEqI(m.size(), 1, 402)        // count back to 1, not 2
+            assert.assertEqL(m.get(5), 55, 403)
+            assert.assertTrue(m.has(5), 404)
+            m.free()
+        }
+        case "insert reuses the FIRST tombstone on the chain": {
+            // 8 and 16 collide; removing 8 leaves a tombstone ahead of 16. Putting
+            // 32 (same bucket) must land in that tombstone, not past 16.
+            Map<long, long> m = new Map<long, long>()
+            m.put(8, 80)
+            m.put(16, 160)
+            m.remove(8)
+            m.put(32, 320)
+            assert.assertEqI(m.size(), 2, 405)
+            assert.assertEqL(m.get(32), 320, 406)
+            assert.assertEqL(m.get(16), 160, 407)
+            assert.assertFalse(m.has(8), 408)
+            m.free()
+        }
+        case "repeated add/remove of the same key": {
+            Map<long, long> m = new Map<long, long>()
+            int i = 0
+            while i < 30 {
+                m.put(7, i)
+                assert.assertEqI(m.size(), 1, 409)
+                m.remove(7)
+                assert.assertEqI(m.size(), 0, 410)
+                i = i + 1
+            }
+            assert.assertFalse(m.has(7), 411)
+            m.free()
+        }
+        case "churn leaves only the live keys": {
+            Map<long, long> m = new Map<long, long>()
+            long k = 0
+            while k < 24 {
+                m.put(k, k * 10)
+                k = k + 1
+            }
+            k = 0
+            while k < 24 {
+                if (k % 2) == 0 { m.remove(k) }
+                k = k + 1
+            }
+            assert.assertEqI(m.size(), 12, 412)
+            long bad = 0 - 1
+            k = 0
+            while k < 24 {
+                if (k % 2) == 0 {
+                    if m.has(k) { bad = k }
+                } else {
+                    if m.get(k) != k * 10 { bad = k }
+                }
+                k = k + 1
+            }
+            assert.assertEqL(bad, 0 - 1, 413)
+            m.free()
+        }
+    }
+
+    // ── rehash: the load-factor grow, with and without tombstones ────────────
+    void rehashTest() {
+        case "grow across several rehashes": {
+            // cap 8 → 16 → 32 → 64 → 128 as count*4 reaches cap*3.
+            Map<long, long> m = new Map<long, long>()
+            long i = 0
+            while i < 200 {
+                m.put(i, i * 7)
+                i = i + 1
+            }
+            assert.assertEqI(m.size(), 200, 501)
+            long bad = 0 - 1
+            i = 0
+            while i < 200 {
+                if m.get(i) != i * 7 { bad = i }
+                i = i + 1
+            }
+            assert.assertEqL(bad, 0 - 1, 502)
+            assert.assertFalse(m.has(200), 503)
+            m.free()
+        }
+        case "rehash drops tombstones and keeps live entries": {
+            // Interleaved removes leave tombstones behind; the rehash loop copies
+            // only flag-1 slots, so the survivors must all still resolve.
+            Map<long, long> m = new Map<long, long>()
+            long i = 0
+            while i < 120 {
+                m.put(i, i + 1000)
+                if (i % 3) == 0 { m.remove(i) }
+                i = i + 1
+            }
+            assert.assertEqI(m.size(), 80, 504)
+            long bad = 0 - 1
+            i = 0
+            while i < 120 {
+                if (i % 3) == 0 {
+                    if m.has(i) { bad = i }
+                } else {
+                    if m.get(i) != i + 1000 { bad = i }
+                }
+                i = i + 1
+            }
+            assert.assertEqL(bad, 0 - 1, 505)
+            m.free()
+        }
+        case "colliding keys survive a rehash": {
+            // Every key is a multiple of 8, so they pile into one chain at every
+            // capacity — the rehash re-probes them into the larger table.
+            Map<long, long> m = new Map<long, long>()
+            long i = 0
+            while i < 40 {
+                m.put(i * 8, i)
+                i = i + 1
+            }
+            assert.assertEqI(m.size(), 40, 506)
+            long bad = 0 - 1
+            i = 0
+            while i < 40 {
+                if m.get(i * 8) != i { bad = i }
+                i = i + 1
+            }
+            assert.assertEqL(bad, 0 - 1, 507)
+            m.free()
+        }
+        case "update after rehash": {
+            Map<long, long> m = new Map<long, long>()
+            long i = 0
+            while i < 50 {
+                m.put(i, i)
+                i = i + 1
+            }
+            m.put(7, 777)
+            m.put(49, 999)
+            assert.assertEqI(m.size(), 50, 508)
+            assert.assertEqL(m.get(7), 777, 509)
+            assert.assertEqL(m.get(49), 999, 510)
+            m.free()
+        }
+        case "remove everything after a rehash": {
+            Map<long, long> m = new Map<long, long>()
+            long i = 0
+            while i < 60 {
+                m.put(i, i)
+                i = i + 1
+            }
+            i = 0
+            while i < 60 {
+                m.remove(i)
+                i = i + 1
+            }
+            assert.assertEqI(m.size(), 0, 511)
+            assert.assertFalse(m.has(0), 512)
+            m.put(1, 1)                               // reuses a tombstone
+            assert.assertEqI(m.size(), 1, 513)
+            assert.assertEqL(m.get(1), 1, 514)
+            m.free()
+        }
+    }
+
+    // ── string keys: hashing, comparison, and key ownership ──────────────────
+    void stringKeyTest() {
+        case "put / get / has with string keys": {
+            Map<string, int> m = new Map<string, int>()
+            m.put("ada", 36)
+            m.put("grace", 45)
+            assert.assertEqI(m.size(), 2, 602)
+            assert.assertEqI(m.get("ada"), 36, 603)
+            assert.assertEqI(m.get("grace"), 45, 604)
+            assert.assertTrue(m.has("ada"), 605)
+            assert.assertFalse(m.has("nope"), 606)
+            assert.assertEqI(m.get("nope"), 0, 607)
+            m.free()
+        }
+        case "string key update keeps one entry": {
+            Map<string, int> m = new Map<string, int>()
+            m.put("ada", 36)
+            m.put("ada", 99)
+            assert.assertEqI(m.size(), 1, 608)
+            assert.assertEqI(m.get("ada"), 99, 609)
+            m.free()
+        }
+        case "equal-content keys built at runtime match": {
+            // Compares by content (slotCmpT), not by pointer identity.
+            Map<string, int> m = new Map<string, int>()
+            string built = str.concat("ad", "a")
+            m.put(built, 7)
+            assert.assertTrue(m.has("ada"), 610)
+            assert.assertEqI(m.get("ada"), 7, 611)
+            m.put("ada", 8)                           // update via a literal
+            assert.assertEqI(m.size(), 1, 612)
+            assert.assertEqI(m.get(built), 8, 613)
+            assert.assertStr(built, "ada", 614)       // source intact
+            m.free()
+        }
+        case "string key remove and reuse": {
+            Map<string, int> m = new Map<string, int>()
+            m.put("ada", 36)
+            m.put("grace", 45)
+            m.remove("ada")
+            assert.assertFalse(m.has("ada"), 615)
+            assert.assertEqI(m.size(), 1, 616)
+            m.put("ada", 1)                           // tombstone reuse
+            assert.assertEqI(m.size(), 2, 617)
+            assert.assertEqI(m.get("ada"), 1, 618)
+            m.remove("missing")                       // no-op
+            assert.assertEqI(m.size(), 2, 619)
+            m.free()
+        }
+        case "empty string is a usable key": {
+            Map<string, int> m = new Map<string, int>()
+            m.put("", 5)
+            assert.assertTrue(m.has(""), 620)
+            assert.assertEqI(m.get(""), 5, 621)
+            assert.assertEqI(m.size(), 1, 622)
+            m.remove("")
+            assert.assertFalse(m.has(""), 623)
+            m.free()
+        }
+        case "string keys survive a rehash": {
+            Map<string, int> m = new Map<string, int>()
+            int i = 0
+            while i < 60 {
+                m.put(str.concat("k", str.convert(i)), i)
+                i = i + 1
+            }
+            assert.assertEqI(m.size(), 60, 624)
+            int bad = 0 - 1
+            i = 0
+            while i < 60 {
+                if m.get(str.concat("k", str.convert(i))) != i { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 625)
+            assert.assertFalse(m.has("k60"), 626)
+            m.free()
+        }
+    }
+
+    // ── string values: clone on put, fresh clone on get, freed on update ─────
+    void stringValueTest() {
+        case "put clones the value, source stays intact": {
+            Map<int, string> m = new Map<int, string>()
+            string built = str.concat("foo", "bar")
+            m.put(1, built)
+            m.put(2, "baz")
+            assert.assertStr(m.get(1), "foobar", 701)
+            assert.assertStr(m.get(2), "baz", 702)
+            assert.assertStr(built, "foobar", 703)
+            m.free()
+        }
+        case "get returns a clone that outlives the map": {
+            Map<int, string> m = new Map<int, string>()
+            m.put(1, "kept")
+            string a = m.get(1)
+            string b = m.get(1)
+            assert.assertStr(a, "kept", 704)
+            assert.assertStr(b, "kept", 705)
+            m.free()
+            assert.assertStr(a, "kept", 706)
+            assert.assertStr(b, "kept", 707)
+        }
+        case "update frees the old value": {
+            Map<int, string> m = new Map<int, string>()
+            m.put(1, "old")
+            m.put(1, "new")
+            assert.assertEqI(m.size(), 1, 708)
+            assert.assertStr(m.get(1), "new", 709)
+            assert.assertStrNe(m.get(1), "old", 710)
+            m.free()
+        }
+        case "missing key yields the empty string": {
+            Map<int, string> m = new Map<int, string>()
+            m.put(1, "here")
+            assert.assertEmpty(m.get(2), 711)
+            m.free()
+        }
+        case "remove frees the value; string values survive a rehash": {
+            Map<int, string> m = new Map<int, string>()
+            int i = 0
+            while i < 60 {
+                m.put(i, str.concat("v", str.convert(i)))
+                i = i + 1
+            }
+            assert.assertEqI(m.size(), 60, 712)
+            assert.assertStr(m.get(0), "v0", 713)
+            assert.assertStr(m.get(59), "v59", 714)
+            m.remove(0)
+            assert.assertEmpty(m.get(0), 715)
+            assert.assertEqI(m.size(), 59, 716)
+            m.free()                                  // frees the 59 still live
+        }
+    }
+
+    // ── both sides owned, plus other key/value kinds ─────────────────────────
+    void mixedKindTest() {
+        case "Map<string,string> frees both sides": {
+            Map<string, string> m = new Map<string, string>()
+            m.put("alpha", "one")
+            m.put("beta", "two")
+            m.put("alpha", "uno")                     // frees the old value only
+            assert.assertEqI(m.size(), 2, 801)
+            assert.assertStr(m.get("alpha"), "uno", 802)
+            assert.assertStr(m.get("beta"), "two", 803)
+            m.remove("beta")                          // frees key AND value
+            assert.assertEqI(m.size(), 1, 804)
+            assert.assertEmpty(m.get("beta"), 805)
+            m.free()
+        }
+        case "Map<int,bool>": {
+            Map<int, bool> m = new Map<int, bool>()
+            m.put(1, true)
+            m.put(2, false)
+            assert.assertTrue(m.get(1), 806)
+            assert.assertFalse(m.get(2), 807)
+            // A stored `false` and a miss both read back as false, so only has()
+            // can tell them apart — that is what makes it the real assertion here.
+            assert.assertFalse(m.get(3), 808)         // default V
+            assert.assertTrue(m.has(2), 809)
+            assert.assertFalse(m.has(3), 815)
+            m.free()
+        }
+        case "Map<int,double>": {
+            Map<int, double> m = new Map<int, double>()
+            m.put(1, 1.5)
+            m.put(2, 0.0 - 2.5)
+            assert.assertApprox(m.get(1), 1.5, 810)
+            assert.assertApprox(m.get(2), 0.0 - 2.5, 811)
+            assert.assertApprox(m.get(3), 0.0, 812)
+            m.free()
+        }
+        case "Map<int,pointer>": {
+            Map<int, pointer> m = new Map<int, pointer>()
+            m.put(1, 4096)
+            assert.assertEqP(m.get(1), 4096, 813)
+            assert.assertNull(m.get(2), 814)
+            m.free()
+        }
+    }
+}

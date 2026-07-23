@@ -1,66 +1,89 @@
 # -----------------------------------------------------------------------------
-# build_compiler.ps1 - build the compiler library from compiler/lib sources into
-# build\stage1\compiler (fly_compiler_lib.lib + one .fly.h per module; build-only,
-# never shipped). PowerShell port of ci/linux/build_compiler.sh. STAGE 1 ONLY:
-# the self-host cannot yet compile its own sources. Requires build_runtime.ps1 +
-# build_std.ps1 (stage 1) first - the compiler is compiled against the IN-TREE
-# std/runtime headers so its symbol references match the std the final binary
-# links. See stage1.ps1 for the stage map.
+# build_compiler.ps1 - compile the compiler (monolithic: the whole compiler + the
+# driver, entry compiler/lib/driver/Driver.fly) into a
+# merged object at build\stage$STAGE\driver; link_fly.ps1 then links fly.exe.
+# PowerShell port of ci/linux/build_compiler.sh; see stage1.ps1 for the stage map.
+#
+#   STAGE=1  stage0 compiles the driver; its in-process link usually fails on
+#            the LLVM C-API symbols (no auto -lLLVM when LLVMApi is
+#            header-consumed) but emits the object first. If it DOES succeed,
+#            the prelinked fly.exe is kept for link_fly.ps1 to install.
+#   STAGE=2  the stage-1 fly.exe recompiles the driver with -c (clean object).
+#
+# MONOLITHIC: the compiler is compiled from source INTO this object (`--src-dir .`),
+# not linked as a static archive - see the note by the compile step below.
 # -----------------------------------------------------------------------------
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
 . "$PSScriptRoot\gnu_common.ps1"
 
-# -- Stage plumbing (STAGE forced to 1 - see header). --------------------------
-$LIB = 'build/stage1/lib'
+# -- Stage plumbing: pick the compiler and the in/out dirs from $STAGE. --------
+$STAGE = if ($env:STAGE) { $env:STAGE } else { '1' }
+$LIB = "build/stage$STAGE/lib"
 $CDIR = 'build/stage1/compiler'
-New-Item -ItemType Directory -Force build/stage1/bin | Out-Null
-if (-not (Test-Path 'build/stage0/bin/fly.exe' -PathType Leaf)) {
-    Write-Host "error: stage0 compiler missing - run ci\windows\stage0.ps1 first."; exit 1
-}
-# Hardlink the stage0 compiler as fly0.exe so <exe>\..\lib = build\stage1\lib.
-$fly0 = (Resolve-Path 'build/stage0/bin/fly.exe').Path
-$FLY = 'build/stage1/bin/fly0.exe'
-Remove-Item $FLY -Force -ErrorAction SilentlyContinue
-try { New-Item -ItemType HardLink -Path $FLY -Target $fly0 -ErrorAction Stop | Out-Null }
-catch { Copy-Item $fly0 $FLY -Force }
-
-function Assert-LastExit($what) {
-    if ($LASTEXITCODE -ne 0) { throw "$what failed (exit $LASTEXITCODE)" }
-}
-function Split-GenericClosers($file) {
-    $c = Get-Content $file -Raw
-    while ($c -match '>>') { $c = $c -replace '>>', '> >' }
-    Set-Content $file $c -NoNewline
+if ($STAGE -eq '1') {
+    if (-not (Test-Path 'build/stage0/bin/fly.exe' -PathType Leaf)) {
+        Write-Host "error: stage0 compiler missing - run ci\windows\stage0.ps1 first."; exit 1
+    }
+    # Hardlink the stage0 compiler as fly0.exe so <exe>\..\lib = build\stage1\lib.
+    New-Item -ItemType Directory -Force build/stage1/bin | Out-Null
+    $fly0 = (Resolve-Path 'build/stage0/bin/fly.exe').Path
+    $FLY = 'build/stage1/bin/fly0.exe'
+    Remove-Item $FLY -Force -ErrorAction SilentlyContinue
+    try { New-Item -ItemType HardLink -Path $FLY -Target $fly0 -ErrorAction Stop | Out-Null }
+    catch { Copy-Item $fly0 $FLY -Force }
+} else {
+    $FLY = 'build/stage1/bin/fly.exe'
+    if (-not (Test-Path $FLY -PathType Leaf)) {
+        Write-Host "error: stage1 fly '$FLY' not found - run ci\windows\stage1.ps1 first."; exit 1
+    }
 }
 
-if (-not (Test-Path "$LIB/fly_std_lib.lib")) {
-    Write-Host "error: std missing in $LIB - run build_runtime.ps1 + build_std.ps1 (stage 1) first."
+if (-not (Test-Path "$LIB/fly_std_lib.lib") -or -not (Test-Path "$LIB/fly_runtime_lib.lib")) {
+    Write-Host "error: std/runtime missing in $LIB - run build_runtime.ps1 + build_std.ps1 first."; exit 1
+}
+
+# MONOLITHIC build: the compiler is compiled FROM SOURCE into the driver object
+# (`--src-dir .` resolves fly.compiler.* from compiler/lib source; std stays an
+# external archive). There is NO fly_compiler_lib.lib static archive anymore.
+# Rationale: as a static lib, the compiler's GENERIC INSTANTIATIONS (List<ASTNode>
+# ...) were COMDAT-deduped by the linker against the driver's own copies, causing
+# a use-after-free of a parsed module's List fields (the `fly build` Windows crash,
+# root-caused 2026-07-19). Merging the compiler in removes the cross-archive dedup.
+# The driver is always source (never a header).
+Get-ChildItem "$LIB/*.fly.h" -ErrorAction SilentlyContinue | ForEach-Object {
+    if (Select-String -Path $_.FullName -Pattern 'namespace fly.driver' -Quiet) { Remove-Item $_.FullName -Force }
+}
+
+# -- Emit the merged driver+compiler object. ------------------------------------
+# Kept in build\stage$STAGE\driver (with emit.log) for link_fly.ps1 + debugging.
+$D = "build/stage$STAGE/driver"
+Remove-Item $D -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force $D | Out-Null
+$DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
+Write-Host "stage${STAGE}: compiling driver + compiler (monolithic, from source) ...$(if ($DBG) { ' (+debug-symbols)' })"
+# DIRECTORY CLI (seed and self-host alike): no positional — the entry (the
+# single main(), compiler/lib/driver/Driver.fly) is discovered from --src-dir
+# and its import closure pulls the whole compiler.
+if ($STAGE -eq '1') {
+    # stage0 reference: no -c; the in-process link may fail (tolerated), the
+    # per-source object is emitted first. --target keeps the object gnu COFF.
+    & $FLY --src-dir . `
+        @DBG @FLY_TARGET_ARGS -o fly --out-dir $D > "$D/emit.log" 2>&1
+} else {
+    # self-host: -c emits a clean object, no link attempt.
+    & $FLY --src-dir . `
+        @DBG @FLY_TARGET_ARGS -c -o Driver --out-dir $D > "$D/emit.log" 2>&1
+}
+$OBJ = @("$D/Driver", "$D/Driver.fly.o", "$D/Driver.fly.obj") | Where-Object { Test-Path $_ } | Select-Object -First 1
+$PRELINKED = Test-Path "$D/fly.exe"   # stage-1 in-process link may have succeeded
+if (-not $OBJ -and -not $PRELINKED) {
+    Write-Host "error: driver object not emitted; see $D\emit.log:"
+    Get-Content "$D/emit.log" | Select-String 'error:' | Select-Object -First 5 | ForEach-Object { Write-Host "      $_" }
     exit 1
 }
-New-Item -ItemType Directory -Force $CDIR | Out-Null
+if ($OBJ) { Move-Item $OBJ "$D/Driver.o" -Force }
 
-# -Filter '*.fly' can also match '*.fly.h' on Windows (8.3 short-name quirk):
-# guard with an exact -like check.
-$FILES = Get-ChildItem -Recurse compiler/lib -Filter '*.fly' |
-    Where-Object { $_.Name -like '*.fly' -and $_.Name -notlike '*.fly.h' } |
-    Sort-Object FullName | ForEach-Object { $_.FullName }
-# FLY_DEBUG_SYMBOLS=1 → emit DWARF into the archive (llvm-symbolizer/gdb resolve
-# the self-host crash to a source line; the self-host emits none, but stage0 does).
-$DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
-Write-Host "stage1: compiling $($FILES.Count) compiler/lib files (codegen gnu, link mingw) ...$(if ($DBG) { ' (+debug-symbols)' })"
-& $FLY --lib @DBG @FLY_TARGET_ARGS -o "$CDIR/fly_compiler_lib" @FILES
-Assert-LastExit 'compiler --lib build'
-# gnu target emits a `.a` archive; keep the `.lib` name the build references. Always
-# overwrite (a stale `.lib` left beside a fresh `.a` would silently link old code).
-if (Test-Path "$CDIR/fly_compiler_lib.a") {
-    Move-Item "$CDIR/fly_compiler_lib.a" "$CDIR/fly_compiler_lib.lib" -Force
-}
-
-# headers (nested `>>` spaced so re-reads lex them)
-Get-ChildItem "$CDIR/*.fly.h" | ForEach-Object { Split-GenericClosers $_.FullName }
-
-$hdrs = (Get-ChildItem "$CDIR/*.fly.h").Count
-Write-Host "stage1: compiler -> $CDIR/fly_compiler_lib.lib (+ $hdrs *.fly.h)"
+Write-Host "stage${STAGE}: driver -> $D/$(if ($PRELINKED) { 'fly.exe (prelinked)' } else { 'Driver.o' })"
 exit 0

@@ -559,9 +559,9 @@ public class CodeGenClass {
         bool direct = false
         if node.isSuper() { direct = true }
         if cls.getClassKind() == SemaClassKind.STRUCT { direct = true }
-        if cls.isFromHeader() {
-            if cls.getClassKind() != SemaClassKind.INTERFACE { direct = true }
-        }
+        // (removed) header CLASS → direct workaround: the self-host vtable now
+        // includes constructors (reference numbering), so an archive-built class
+        // vtable is index-compatible → dispatch through it like a native class.
         pointer fnPtr
         if direct {
             fnPtr = fn.getLlvmFn()
@@ -798,7 +798,12 @@ public class CodeGenClass {
         int j = 0
         while j < own.size() {
             SemaClassMethod m = own.get(j)
-            if m.isConstructor() == false {
+            if m.isConstructor() {
+                // reference parity: constructors occupy their own vtable slot in
+                // declaration order (never override) so the self-host layout is
+                // index-compatible with an archive-built (reference) vtable.
+                r.add(m)
+            } else {
                 // an OVERRIDE has the same full signature; a same-name OVERLOAD
                 // (visit(A)/visit(B)) gets its OWN slot
                 int slot = indexOfMethodSig(r, m)

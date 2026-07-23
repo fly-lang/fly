@@ -21,7 +21,7 @@ $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
 $env:STAGE = '1'
 
-foreach ($step in 'build_runtime', 'build_std', 'build_compiler', 'build_driver', 'link_fly') {
+foreach ($step in 'build_runtime', 'build_std', 'build_compiler', 'link_fly') {
     & ".\ci\windows\$step.ps1"
     if ($LASTEXITCODE -ne 0) { Write-Host "error: $step.ps1 failed (exit $LASTEXITCODE)"; exit 1 }
 }

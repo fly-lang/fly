@@ -5,7 +5,8 @@
 #   • the fork LLVM toolchain (fly-lang/llvm-project release) → build/llvm
 #     libLLVM.so + ld.lld + llvm-config + compiler-rt builtins. NO system
 #     package manager: everything the build needs comes from this tarball.
-#   • the bootstrap `fly` 0.13.8 release → build/stage0 (bin/ + precompiled lib/)
+#   • the pinned bootstrap `fly` release ($FLY_VERSION below) → build/stage0
+#     (bin/ + precompiled lib/)
 #
 # stage1.sh / stage2.sh build on top of these (see the stage map in stage1.sh).
 #
@@ -29,7 +30,7 @@ ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Bootstrap compiler release used to compile the std --lib archive + the self-host
 # sources. Must ship the ptrsize header-gen fix (fly Frontend.cpp typeStr).
-FLY_VERSION="${FLY_VERSION:-0.13.8}"
+FLY_VERSION="${FLY_VERSION:-0.13.10}"
 
 BUILD_DIR="$ROOT/build"
 STAGE0_DIR="$BUILD_DIR/stage0"
@@ -78,7 +79,7 @@ if [ ! -f "$RT_BUILTINS" ]; then
     [ "$SOURCED" -eq 0 ] && exit 1 || return 1
 fi
 
-# Both ToolChains (self-host driver/lib/ToolChain.fly and the bootstrap's C++ one)
+# Both ToolChains (self-host compiler/lib/driver/ToolChain.fly and the bootstrap's C++ one)
 # probe /usr/lib/llvm-20 for libclang_rt.builtins. On a host without an LLVM 20
 # install, point that path at the fork tree (this replaces the old apt install).
 if [ ! -e "/usr/lib/llvm-${LLVM_VERSION%%.*}" ]; then

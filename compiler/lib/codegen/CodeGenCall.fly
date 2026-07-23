@@ -70,8 +70,14 @@ public class CodeGenCall {
         List<SemaExpr> args = node.getArgs()
         SemaLocalVar outVar = node.getOutVar()
         bool hasOut = outVar != null
-        int realCount = (int)args.size()
-        if hasOut { realCount = realCount - 1 }
+        // A MULTI-RETURN callee carries one synthetic out slot per declared return
+        // type, so drop all of them — subtracting a fixed 1 would gen the surplus
+        // out vars as ordinary value args and leave the call short of the callee's
+        // LLVM signature (which crashes inside libLLVM at buildCall).
+        List<SemaLocalVar> outVars = node.getOutVars()
+        int outCount = (int)outVars.size()
+        if hasOut { if outCount == 0 { outCount = 1 } }
+        int realCount = (int)args.size() - outCount
 
         // (2) actual arguments — fresh temp per arg, store the rvalue, pass &temp. The
         // uniform convention passes every operand BY POINTER, so the temp must have the
@@ -148,27 +154,37 @@ public class CodeGenCall {
         // callee writes through — STRUCT results get a stack pre-allocation,
         // CLASS/INTERFACE results a heap one (mirrors addArgs; without it the
         // archive callee writes through garbage → segfault, audit V4 fase 2).
+        // One slot per synthetic out var, in declaration order; the FIRST is the
+        // call's rvalue. Multi-return passes several, so this loops.
         pointer outPtr = 0
         if hasOut {
-            SemaType ot = outVar.getType()
-            pointer oty = cge.lowerType(ot)
-            llvm.buildAlloca(b, oty, "callout", outPtr)
-            SemaClassType oc = null
-            if ot != null { oc = ot.asClass() }
-            if oc != null {
-                pointer sty = oc.getLlvmStructType()
-                if sty != 0 {
-                    pointer target
-                    if oc.getClassKind() == SemaClassKind.STRUCT {
-                        llvm.buildAlloca(b, sty, "outobj", target)
-                    } else {
-                        llvm.buildMalloc(b, sty, "outobj", target)
+            int oi = 0
+            while oi < outCount {
+                SemaLocalVar ov = outVar
+                if oi < outVars.size() { ov = outVars.get(oi) }
+                SemaType ot = ov.getType()
+                pointer oty = cge.lowerType(ot)
+                pointer slot
+                llvm.buildAlloca(b, oty, "callout", slot)
+                SemaClassType oc = null
+                if ot != null { oc = ot.asClass() }
+                if oc != null {
+                    pointer sty = oc.getLlvmStructType()
+                    if sty != 0 {
+                        pointer target
+                        if oc.getClassKind() == SemaClassKind.STRUCT {
+                            llvm.buildAlloca(b, sty, "outobj", target)
+                        } else {
+                            llvm.buildMalloc(b, sty, "outobj", target)
+                        }
+                        llvm.buildStore(b, target, slot)
                     }
-                    llvm.buildStore(b, target, outPtr)
                 }
+                ov.setLlvmAlloca(slot)
+                argAddrs.add(slot)
+                if oi == 0 { outPtr = slot }
+                oi = oi + 1
             }
-            outVar.setLlvmAlloca(outPtr)
-            argAddrs.add(outPtr)
         }
 
         CodeGenModule m = cge.getCgm()

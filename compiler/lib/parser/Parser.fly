@@ -637,7 +637,12 @@ public class Parser {
         ASTType retType = this.parseType()
         // multi-return: `T1, T2 name(...)` (assigned via out[0], out[1], …). Collect the
         // comma-separated types; for >1, ONLY setReturnTypes so getReturnType() stays
-        // void — matching the reference (a header then prints `void name(...)`).
+        // void — the Resolver lowers the list into the __out_N params that make up the
+        // real ABI, and it drives that off getReturnTypes(). (The header writer used to
+        // collapse such a signature to `void name(...)`, which dropped the out slots and
+        // left no caller able to match it; both writers now print the full list. Same
+        // parse path serves sources and headers here, so the reference's separate ParseHeader
+        // fix — which kept only the FIRST type — has no counterpart to port.)
         List<ASTType> retTypes = new List<ASTType>()
         retTypes.add(retType)
         while this.curIsPunct(",") {

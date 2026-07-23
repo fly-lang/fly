@@ -64,6 +64,10 @@ public class CodeGenStmt {
             if init.isOwnedStrTemp() == false {
                 iv = CodeGenIntrinsics.cloneIfString(cge, iv, v.getType())
             }
+            // Same clone-on-store rule for STRUCTs: they are value types, so the
+            // local must get its own aggregate rather than a pointer into the
+            // initializer's storage. cloneIfStruct no-ops for everything else.
+            iv = CodeGenIntrinsics.cloneIfStruct(cge, iv, v.getType())
             llvm.buildStore(b, iv, alloca)
         } else {
             // no initializer → DEFAULT-initialize (0 / null / empty struct):

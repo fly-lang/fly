@@ -1,0 +1,314 @@
+import fly.os.path
+import fly.os.fs
+import fly.os.env
+import fly.str
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OsPathSuite — fly.os.path (std/lib/os/path.fly): path construction, splitting,
+// normalisation, relative paths, the glob matcher, and the filesystem-touching
+// predicates.
+//
+// The suite drives each function through its branches: join's four separator
+// combinations, normalize's "." / ".." / repeated-separator / root cases,
+// basename & dirname & ext & stem on paths with and without a directory or an
+// extension, rel when the target is below / beside / above the base, and the
+// glob matcher's `*`, `?`, literal and empty-pattern paths.
+//
+// Everything that touches the filesystem uses CWD-relative names (Windows has no
+// /tmp) prefixed fly_path_, and cleans up after itself. Path *string* functions
+// are exercised with forward slashes, which both hosts accept.
+//
+// Assert codes: 1xx join, 2xx split/basename/dirname, 3xx ext/stem,
+// 4xx normalize, 5xx absolute/isAbsolute/isRelative, 6xx rel,
+// 7xx components, 8xx match, 9xx filesystem predicates and glob.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite OsPathSuite {
+
+    // ── join / joinN ─────────────────────────────────────────────────────────
+    void joinTest() {
+        case "join inserts exactly one separator": {
+            assert.assertStr(path.join("/foo", "bar"), "/foo/bar", 101)
+            assert.assertStr(path.join("/foo/", "bar"), "/foo/bar", 102)   // trailing sep
+            assert.assertStr(path.join("/foo", "/bar"), "/foo/bar", 103)   // leading sep
+        }
+        case "join drops only one of two adjacent separators": {
+            // Pinned as-is: join strips a separator from ONE side, so a trailing
+            // sep on the base plus a leading sep on the component leaves a double
+            // separator. normalize() is what collapses it.
+            assert.assertStr(path.join("/foo/", "/bar"), "/foo//bar", 104)
+            assert.assertStr(path.normalize(path.join("/foo/", "/bar")), "/foo/bar", 112)
+        }
+        case "join with an empty operand": {
+            assert.assertStr(path.join("", "bar"), "bar", 105)
+            assert.assertEmpty(path.join("", ""), 107)
+            // An empty component still gets the separator: the "does the component
+            // already start with one?" check is skipped when the component is
+            // empty, so the result is the base with a trailing separator.
+            assert.assertStr(path.join("foo", ""), "foo/", 106)
+            assert.assertStr(path.join("foo/", ""), "foo/", 113)
+        }
+        case "join on relative bases": {
+            assert.assertStr(path.join("foo", "bar"), "foo/bar", 108)
+            assert.assertStr(path.join(".", "bar"), "./bar", 109)
+            assert.assertStr(path.join("a/b", "c/d"), "a/b/c/d", 110)
+        }
+        case "join chains": {
+            assert.assertStr(path.join(path.join("/a", "b"), "c"), "/a/b/c", 111)
+        }
+    }
+
+    // ── basename / dirname / split ───────────────────────────────────────────
+    void splitTest() {
+        case "basename": {
+            assert.assertStr(path.basename("/foo/bar/baz.fly"), "baz.fly", 201)
+            assert.assertStr(path.basename("baz.fly"), "baz.fly", 202)     // no directory
+            assert.assertStr(path.basename("/foo/bar"), "bar", 203)
+            assert.assertStr(path.basename("a/b/c"), "c", 204)
+        }
+        case "dirname": {
+            assert.assertStr(path.dirname("/foo/bar/baz.fly"), "/foo/bar", 205)
+            assert.assertStr(path.dirname("baz.fly"), ".", 206)            // no directory
+            assert.assertStr(path.dirname("a/b"), "a", 207)
+        }
+        // ── split: the MULTI-RETURN pair ─────────────────────────────────────
+        // The outputs go in as TRAILING ARGUMENTS — that is the lowered ABI the
+        // compiler exposes, and the form a consumer of the generated .fly.h has to
+        // be able to build. Unblocked by a seed re-cut: its header writer keeps
+        // the full `string, string` signature, where 0.13.8 collapsed it to `void`
+        // and left no out slots to pass.
+        case "split returns dirname and basename together": {
+            string sdir = ""
+            string sbase = ""
+            path.split("/foo/bar/baz.fly", sdir, sbase)
+            assert.assertStr(sdir, "/foo/bar", 208)
+            assert.assertStr(sbase, "baz.fly", 209)
+        }
+        case "split agrees with dirname/basename": {
+            string d2 = ""
+            string b2 = ""
+            path.split("a/b/c", d2, b2)
+            assert.assertStr(d2, path.dirname("a/b/c"), 210)
+            assert.assertStr(b2, path.basename("a/b/c"), 211)
+        }
+        case "split of a bare name has no directory": {
+            string d3 = ""
+            string b3 = ""
+            path.split("baz.fly", d3, b3)
+            assert.assertStr(d3, ".", 212)
+            assert.assertStr(b3, "baz.fly", 213)
+        }
+    }
+
+    // ── ext / stem / splitExt ────────────────────────────────────────────────
+    void extTest() {
+        case "ext": {
+            assert.assertStr(path.ext("foo.fly"), ".fly", 301)
+            assert.assertEmpty(path.ext("foo"), 302)                       // no extension
+            assert.assertStr(path.ext("/a/b/foo.tar.gz"), ".gz", 303)      // last one wins
+            assert.assertStr(path.ext("a.b/c.d"), ".d", 304)               // dot in a dir
+        }
+        case "stem": {
+            assert.assertStr(path.stem("foo.fly"), "foo", 305)
+            assert.assertStr(path.stem("foo"), "foo", 306)
+            assert.assertStr(path.stem("/a/b/foo.fly"), "foo", 307)
+            assert.assertStr(path.stem("foo.tar.gz"), "foo.tar", 308)
+        }
+        case "splitExt returns stem and extension together": {
+            string sstem = ""
+            string sext = ""
+            path.splitExt("foo.fly", sstem, sext)
+            assert.assertStr(sstem, "foo", 311)
+            assert.assertStr(sext, ".fly", 312)
+        }
+        case "splitExt with no extension leaves it empty": {
+            string nstem = ""
+            string next = ""
+            path.splitExt("foo", nstem, next)
+            assert.assertStr(nstem, "foo", 313)
+            assert.assertEmpty(next, 314)
+        }
+        case "splitExt agrees with stem/ext on a full path": {
+            string p2 = "/a/b/foo.tar.gz"
+            string s2 = ""
+            string e2 = ""
+            path.splitExt(p2, s2, e2)
+            assert.assertStr(e2, path.ext(p2), 315)
+            assert.assertStr(s2, path.stem(p2), 316)
+        }
+        case "stem and ext reconstruct the basename": {
+            string base = path.basename("/a/b/report.txt")
+            assert.assertStr(str.concat(path.stem("/a/b/report.txt"),
+                                        path.ext("/a/b/report.txt")), base, 317)
+        }
+    }
+
+    // ── normalize ────────────────────────────────────────────────────────────
+    void normalizeTest() {
+        case "collapses repeated separators and resolves ..": {
+            assert.assertStr(path.normalize("/a//b/../c"), "/a/c", 401)
+            assert.assertStr(path.normalize("/a/b/.."), "/a", 402)
+        }
+        case "drops . components": {
+            assert.assertStr(path.normalize("/a/./b"), "/a/b", 403)
+            assert.assertStr(path.normalize("./a"), "a", 404)
+        }
+        case "leaves an already-normal path alone": {
+            assert.assertStr(path.normalize("a/b/c"), "a/b/c", 405)
+            assert.assertStr(path.normalize("/a/b/c"), "/a/b/c", 406)
+        }
+        case "the root normalises to itself": {
+            assert.assertStr(path.normalize("/"), "/", 407)
+        }
+        case "normalize is idempotent": {
+            assert.assertStr(path.normalize(path.normalize("/a//b/../c")),
+                             path.normalize("/a//b/../c"), 408)
+            assert.assertStr(path.normalize(path.normalize("a/./b//c")),
+                             path.normalize("a/./b//c"), 409)
+        }
+        case "normalizeInPlace matches normalize": {
+            string p = "/a//b/../c"
+            path.normalizeInPlace(p)
+            assert.assertStr(p, "/a/c", 410)
+        }
+    }
+
+    // ── absolute / isAbsolute / isRelative ───────────────────────────────────
+    void absoluteTest() {
+        case "an already-absolute path is returned unchanged": {
+            assert.assertStr(path.absolute("/already/abs"), "/already/abs", 501)
+        }
+        case "a relative path is resolved against the cwd": {
+            string a = path.absolute(".")
+            assert.assertNotEmpty(a, 502)
+            assert.assertStr(a, path.absolute("."), 503)      // deterministic
+            assert.assertGtI(str.len(a), 1, 512)
+            // NOTE: isAbsolute() only recognises a leading '/', so it reports
+            // false for the `C:\...` form absolute() returns on Windows. Asserted
+            // per-platform rather than unconditionally.
+            if str.equals(fly.os.env.osname(), "windows") == false {
+                assert.assertTrue(path.isAbsolute(a), 513)
+            }
+        }
+        case "isAbsolute and isRelative are complementary": {
+            assert.assertTrue(path.isAbsolute("/a/b"), 504)
+            assert.assertFalse(path.isRelative("/a/b"), 505)
+            assert.assertTrue(path.isRelative("a/b"), 506)
+            assert.assertFalse(path.isAbsolute("a/b"), 507)
+            assert.assertTrue(path.isRelative("./a"), 508)
+            assert.assertTrue(path.isRelative(".."), 509)
+        }
+        case "the empty path is relative": {
+            assert.assertFalse(path.isAbsolute(""), 510)
+            assert.assertTrue(path.isRelative(""), 511)
+        }
+    }
+
+    // ── rel ──────────────────────────────────────────────────────────────────
+    void relTest() {
+        case "target below the base": {
+            assert.assertStr(path.rel("/a/b", "/a/b/c"), "c", 601)
+            assert.assertStr(path.rel("/a", "/a/b/c"), "b/c", 602)
+        }
+        case "target beside the base": {
+            assert.assertStr(path.rel("/a/b", "/a/d"), "../d", 603)
+            assert.assertStr(path.rel("/a/b/c", "/a/b/d"), "../d", 604)
+        }
+        case "target above the base": {
+            assert.assertStr(path.rel("/a/b/c", "/a"), "../..", 605)
+        }
+        case "identical base and target": {
+            assert.assertStr(path.rel("/a/b", "/a/b"), ".", 606)
+        }
+    }
+
+    // ── comp / compCount ─────────────────────────────────────────────────────
+    void componentTest() {
+        case "compCount": {
+            assert.assertEqI(path.compCount("/foo/bar/baz"), 3, 701)
+            assert.assertEqI(path.compCount("a/b"), 2, 702)
+            assert.assertEqI(path.compCount("a"), 1, 703)
+            assert.assertEqI(path.compCount(""), 0, 704)
+        }
+        case "comp agrees with compCount": {
+            fly.os.env.StringArray c = path.comp("/foo/bar/baz")
+            assert.assertEqI(c.count, path.compCount("/foo/bar/baz"), 705)
+            assert.assertEqI(c.count, 3, 706)
+        }
+        case "sep is a separator byte": {
+            int s = (int)path.sep() & 255
+            bool known = s == 47 || s == 92                    // '/' or '\'
+            assert.assertTrue(known, 707)
+        }
+    }
+
+    // ── match: the glob matcher ──────────────────────────────────────────────
+    void matchTest() {
+        case "* matches a run of characters": {
+            assert.assertTrue(path.match("*.fly", "test.fly"), 801)
+            assert.assertFalse(path.match("*.fly", "test.go"), 802)
+            assert.assertTrue(path.match("foo*", "foobar"), 803)
+            assert.assertTrue(path.match("*", "anything"), 804)
+            assert.assertTrue(path.match("*", ""), 805)
+            assert.assertTrue(path.match("a*c", "abbbc"), 806)
+            assert.assertFalse(path.match("a*c", "abbbd"), 807)
+        }
+        case "? matches exactly one character": {
+            assert.assertTrue(path.match("fo?", "foo"), 808)
+            assert.assertFalse(path.match("fo?", "fo"), 809)     // needs one more
+            assert.assertFalse(path.match("fo?", "fooo"), 810)   // one too many
+            assert.assertTrue(path.match("???", "abc"), 811)
+        }
+        case "literal patterns": {
+            assert.assertTrue(path.match("exact", "exact"), 812)
+            assert.assertFalse(path.match("exact", "exacts"), 813)
+            assert.assertFalse(path.match("exact", "exac"), 814)
+            assert.assertTrue(path.match("", ""), 815)
+            assert.assertFalse(path.match("", "x"), 816)
+        }
+        case "mixed wildcards": {
+            assert.assertTrue(path.match("*.?ly", "test.fly"), 817)
+            assert.assertTrue(path.match("t*t.fly", "test.fly"), 818)
+            assert.assertTrue(path.match("**", "anything"), 819)
+        }
+    }
+
+    // ── isFile / isDir / isSym / glob (these touch the filesystem) ───────────
+    void filesystemTest() {
+        case "isDir and isFile on a real directory and file": {
+            string dir = "fly_path_fs_dir"
+            fs.dirCreateAll(dir, 493)
+            string file = "fly_path_fs_dir/f.txt"
+            fs.writeStr(file, "x", 420)
+            assert.assertTrue(path.isDir(dir), 901)
+            assert.assertFalse(path.isFile(dir), 902)
+            assert.assertTrue(path.isFile(file), 903)
+            assert.assertFalse(path.isDir(file), 904)
+            fs.dirDeleteAll(dir)
+        }
+        case "the predicates are false for a missing path": {
+            assert.assertFalse(path.isFile("fly_path_definitely_missing_xyz"), 905)
+            assert.assertFalse(path.isDir("fly_path_definitely_missing_xyz"), 906)
+            assert.assertFalse(path.isSym("fly_path_definitely_missing_xyz"), 907)
+        }
+        case "isSym is false for a plain directory": {
+            assert.assertFalse(path.isSym("."), 908)
+        }
+        case "globCount finds the matching files": {
+            fs.writeStr("fly_path_glob_a.txt", "a", 420)
+            fs.writeStr("fly_path_glob_b.txt", "b", 420)
+            assert.assertGtI(path.globCount("./fly_path_glob_*.txt"), 1, 909)
+            assert.assertEqI(path.globCount("./fly_path_glob_nomatch_*.txt"), 0, 910)
+            fs.delete("fly_path_glob_a.txt")
+            fs.delete("fly_path_glob_b.txt")
+        }
+        case "glob agrees with globCount": {
+            fs.writeStr("fly_path_glob_c.txt", "c", 420)
+            fly.os.env.StringArray hits = path.glob("./fly_path_glob_c*.txt")
+            assert.assertEqI(hits.count, path.globCount("./fly_path_glob_c*.txt"), 911)
+            assert.assertGtI(hits.count, 0, 912)
+            fs.delete("fly_path_glob_c.txt")
+        }
+    }
+}

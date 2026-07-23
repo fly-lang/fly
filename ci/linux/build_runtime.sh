@@ -46,15 +46,17 @@ for m in $("$AR" t "$LIB/fly_runtime_lib.a"); do
     case "$m" in *.c.o) ;; *) "$AR" d "$LIB/fly_runtime_lib.a" "$m" ;; esac
 done
 
-# --src-dir $T (an empty dir): the same-namespace source scan would otherwise pull
-# RuntimeMacos.fly / RuntimeWindows.fly (same `namespace fly.runtime`) into this
-# Linux build — three definitions of every C-ABI symbol, wrong-platform code.
+# DIRECTORY CLI: --lib compiles the whole --src-dir; the one runtime source is
+# STAGED into the temp dir so exactly that file is the library (its
+# same-namespace siblings RuntimeMacos/RuntimeWindows must stay out — pulling
+# them in would define every C-ABI symbol three times with wrong-platform code).
 # FLY_DEBUG_SYMBOLS=1 → emit DWARF so a self-host crash symbolizes to a source line.
 DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
 echo "stage$STAGE: compiling runtime/lib/RuntimeLinux.fly ...${DBG:+ (+debug-symbols)}"
+cp -f runtime/lib/RuntimeLinux.fly "$T/RuntimeLinux.fly"
 if [ "$STAGE" = "1" ]; then
     # stage0 reference: --lib emits the archive itself; merge its member(s) in.
-    "$FLY" --lib $DBG -o "$T/fly_runtime_lib" --src-dir "$T" runtime/lib/RuntimeLinux.fly
+    "$FLY" --lib $DBG -o "$T/fly_runtime_lib" --src-dir "$T"
     for m in $("$AR" t "$T/fly_runtime_lib.a"); do
         (cd "$T" && "$AR" x fly_runtime_lib.a "$m")
         # WEAKEN the fresh Fly runtime member: it redefines the C-ABI symbols
@@ -67,7 +69,7 @@ if [ "$STAGE" = "1" ]; then
     done
 else
     # self-host: --lib emits one merged object; add it (weakened, as above).
-    "$FLY" --lib $DBG -o fly_runtime_lib --out-dir "$T" --src-dir "$T" runtime/lib/RuntimeLinux.fly
+    "$FLY" --lib $DBG -o fly_runtime_lib --out-dir "$T" --src-dir "$T"
     [ -f "$T/fly_runtime_lib" ] || { echo "error: runtime object not emitted." >&2; exit 1; }
     "$OBJCOPY" --weaken "$T/fly_runtime_lib"
     "$AR" r "$LIB/fly_runtime_lib.a" "$T/fly_runtime_lib"

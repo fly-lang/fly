@@ -33,6 +33,19 @@ public class CodeGenExprOps {
         if right.isOwnedStrTemp() == false {
             rhs = CodeGenIntrinsics.cloneIfString(cge, rhs, left.getType())
         }
+        // A STRUCT written to a synthetic OUT param must be copied THROUGH the out
+        // pointer, into the storage the caller pre-allocated — not stored over that
+        // pointer. The out slot holds the caller's address (CodeGenCall allocas an
+        // "outobj" and passes &slot); overwriting it with the callee's own local
+        // leaves the caller's storage untouched and hands every caller the same
+        // frame address, so two live results alias — a second `fs.tempFile(…, f2)`
+        // silently clobbered `f1`. Handled before the generic clone-on-store below,
+        // which copies for the assignee rather than for the caller.
+        if CodeGenExprOps.assignStructOut(cge, left, rhs) { node.setLlvmValue(rhs)  return }
+        // Same clone-on-store rule for STRUCTs (see CodeGenStmt.decl): value
+        // types, so the assignee gets its own aggregate instead of aliasing the
+        // RHS storage. cloneIfStruct no-ops for CLASS handles and scalars.
+        rhs = CodeGenIntrinsics.cloneIfStruct(cge, rhs, left.getType())
         pointer addr = cge.genAddr(left)
         LLVM llvm = cge.getLLVM()
         // free-old-on-reassign: a string LOCAL owns its current buffer (clone-on-store
@@ -55,6 +68,48 @@ public class CodeGenExprOps {
         }
         llvm.buildStore(cge.getBuilder(), rhs, addr)
         node.setLlvmValue(rhs)
+    }
+
+    // assignStructOut — assigning a STRUCT to a PARAMETER copies the aggregate into
+    // the storage the caller owns, and reports the assignment done. False (and
+    // nothing emitted) for every other assignee, so the ordinary store path runs.
+    //
+    // Every struct parameter is passed BY POINTER: its slot holds the caller's
+    // address (CodeGenCall passes &callerSlot for a variable argument, and for the
+    // synthetic out it allocas an "outobj" and passes &slot). Storing over that
+    // pointer would leave the caller's storage untouched AND hand every caller the
+    // same callee-frame address, which is what made two live results alias — a
+    // second `fs.tempFile(…, f2)` silently clobbered `f1`. Writing THROUGH the
+    // pointer is also what makes a non-const parameter an output parameter.
+    //
+    // The name is deliberately not consulted: `asVar()` mis-dispatches to null
+    // through a SemaExpr reference for a live SemaParam (the vtable-shift gotcha
+    // documented on SemaExpr.isVarExpr), so the kind + type + genAddr are the only
+    // dispatch-free facts available here.
+    public static bool assignStructOut(const CodeGenExpr cge, const SemaExpr left, const pointer rhs) {
+        if left == null { out = false  return }
+        if left.getKind() != SemaKind.PARAM_VAR { out = false  return }
+        SemaType lt = left.getType()
+        if lt == null { out = false  return }
+        SemaClassType lc = lt.asClass()
+        if lc == null { out = false  return }
+        if lc.getClassKind() != SemaClassKind.STRUCT { out = false  return }
+        pointer sty = lc.getLlvmStructType()
+        if sty == 0 { out = false  return }
+        if rhs == 0 { out = false  return }
+        pointer slot = cge.genAddr(left)
+        if slot == 0 { out = false  return }
+
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        // The slot holds the caller's storage address; load it, then copy into it.
+        pointer dest
+        llvm.buildLoad2(b, cge.ptrType(), slot, "outdst", dest)
+        pointer szV
+        llvm.sizeOf(sty, szV)
+        pointer mcv
+        llvm.buildMemCpy(b, dest, rhs, szV, mcv)
+        out = true
     }
 
     // arith — +, -, *, /, %, &, |, ^, <<, >> (int or float by result type). Both

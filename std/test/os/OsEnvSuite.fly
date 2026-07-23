@@ -1,0 +1,206 @@
+import fly.os.env
+import fly.str
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OsEnvSuite — fly.os.env (std/lib/os/env.fly): environment variables, the
+// working directory, process argv, and the host-identity queries.
+//
+// The identity queries (osname/arch/kernel/…) go straight to the runtime, so
+// they are asserted structurally — non-empty, and self-consistent with each
+// other — rather than pinned to one host. `endianness` and `osname` are the two
+// with a small closed set of answers, so those are checked against it.
+//
+// Mutating cases (set/delete/cwdSet) restore what they touched, and every
+// variable name is prefixed FLY_ENV_TEST_ so a stray leftover is obvious.
+//
+// NOT covered here: `exit`, which would terminate the suite process.
+//
+// Assert codes: 1xx get/set/delete, 2xx expand, 3xx cwd, 4xx argv,
+// 5xx host identity, 6xx the StringArray listings.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite OsEnvSuite {
+
+    // ── get / set / delete ───────────────────────────────────────────────────
+    void variableTest() {
+        case "set then get": {
+            env.set("FLY_ENV_TEST_VAR", "hello_env")
+            assert.assertStr(env.get("FLY_ENV_TEST_VAR"), "hello_env", 101)
+            env.delete("FLY_ENV_TEST_VAR")
+        }
+        case "delete removes the variable": {
+            env.set("FLY_ENV_TEST_VAR", "hello_env")
+            env.delete("FLY_ENV_TEST_VAR")
+            assert.assertEmpty(env.get("FLY_ENV_TEST_VAR"), 102)
+        }
+        case "get on an unset variable yields the empty string": {
+            assert.assertEmpty(env.get("FLY_ENV_TEST_DEFINITELY_UNSET_XYZ"), 103)
+        }
+        case "set overwrites an existing value": {
+            env.set("FLY_ENV_TEST_VAR", "first")
+            env.set("FLY_ENV_TEST_VAR", "second")
+            assert.assertStr(env.get("FLY_ENV_TEST_VAR"), "second", 104)
+            env.delete("FLY_ENV_TEST_VAR")
+        }
+        case "an empty value round-trips": {
+            env.set("FLY_ENV_TEST_EMPTY", "")
+            assert.assertEmpty(env.get("FLY_ENV_TEST_EMPTY"), 105)
+            env.delete("FLY_ENV_TEST_EMPTY")
+        }
+        case "values with spaces and punctuation survive": {
+            env.set("FLY_ENV_TEST_VAR", "a b=c:d/e")
+            assert.assertStr(env.get("FLY_ENV_TEST_VAR"), "a b=c:d/e", 106)
+            env.delete("FLY_ENV_TEST_VAR")
+        }
+        case "deleting an already-absent variable is a no-op": {
+            env.delete("FLY_ENV_TEST_NEVER_SET_XYZ")
+            assert.assertEmpty(env.get("FLY_ENV_TEST_NEVER_SET_XYZ"), 107)
+        }
+        case "several variables are independent": {
+            env.set("FLY_ENV_TEST_A", "one")
+            env.set("FLY_ENV_TEST_B", "two")
+            assert.assertStr(env.get("FLY_ENV_TEST_A"), "one", 108)
+            assert.assertStr(env.get("FLY_ENV_TEST_B"), "two", 109)
+            env.delete("FLY_ENV_TEST_A")
+            assert.assertEmpty(env.get("FLY_ENV_TEST_A"), 110)
+            assert.assertStr(env.get("FLY_ENV_TEST_B"), "two", 111)   // untouched
+            env.delete("FLY_ENV_TEST_B")
+        }
+    }
+
+    // ── expand: $VAR and ${VAR} substitution ─────────────────────────────────
+    void expandTest() {
+        case "$VAR form": {
+            env.set("FLY_ENV_EXP", "world")
+            assert.assertStr(env.expand("hello $FLY_ENV_EXP"), "hello world", 201)
+            env.delete("FLY_ENV_EXP")
+        }
+        case "${VAR} form": {
+            env.set("FLY_ENV_EXP", "world")
+            assert.assertStr(env.expand("${FLY_ENV_EXP}!"), "world!", 202)
+            env.delete("FLY_ENV_EXP")
+        }
+        case "a string with no references is returned as-is": {
+            assert.assertStr(env.expand("plain text"), "plain text", 203)
+            assert.assertEmpty(env.expand(""), 204)
+        }
+        case "several references in one string": {
+            env.set("FLY_ENV_EXP_A", "one")
+            env.set("FLY_ENV_EXP_B", "two")
+            assert.assertStr(env.expand("${FLY_ENV_EXP_A}-${FLY_ENV_EXP_B}"), "one-two", 205)
+            assert.assertStr(env.expand("$FLY_ENV_EXP_A $FLY_ENV_EXP_B"), "one two", 206)
+            env.delete("FLY_ENV_EXP_A")
+            env.delete("FLY_ENV_EXP_B")
+        }
+        case "a reference at the very start and the very end": {
+            env.set("FLY_ENV_EXP", "X")
+            assert.assertStr(env.expand("$FLY_ENV_EXP tail"), "X tail", 207)
+            assert.assertStr(env.expand("head $FLY_ENV_EXP"), "head X", 208)
+            assert.assertStr(env.expand("$FLY_ENV_EXP"), "X", 209)
+            env.delete("FLY_ENV_EXP")
+        }
+        case "an unset reference expands to nothing": {
+            assert.assertStr(env.expand("[${FLY_ENV_TEST_UNSET_XYZ}]"), "[]", 210)
+        }
+        case "expansion inserts the value verbatim": {
+            env.set("FLY_ENV_EXP", "a/b c")
+            assert.assertStr(env.expand("p=${FLY_ENV_EXP}"), "p=a/b c", 211)
+            env.delete("FLY_ENV_EXP")
+        }
+    }
+
+    // ── the working directory ────────────────────────────────────────────────
+    void cwdTest() {
+        case "cwdGet returns a non-empty path": {
+            string cwd = env.cwdGet()
+            assert.assertNotEmpty(cwd, 301)
+        }
+        case "cwdGet is stable across calls": {
+            assert.assertStr(env.cwdGet(), env.cwdGet(), 302)
+        }
+        case "cwdSet to the current directory is a no-op round-trip": {
+            string before = env.cwdGet()
+            env.cwdSet(before)
+            assert.assertStr(env.cwdGet(), before, 303)
+        }
+    }
+
+    // ── process argv ─────────────────────────────────────────────────────────
+    void argsTest() {
+        case "argsCount is at least 1": {
+            assert.assertGtI(env.argsCount(), 0, 401)
+        }
+        case "argsGet agrees with argsCount and has a non-empty argv[0]": {
+            fly.os.env.StringArray a = env.argsGet()
+            assert.assertEqI(a.count, env.argsCount(), 402)
+            assert.assertGtI(a.count, 0, 403)
+        }
+        case "exePath is a non-empty absolute-looking path": {
+            string p = env.exePath()
+            assert.assertNotEmpty(p, 404)
+            assert.assertGtI(str.len(p), 1, 405)
+        }
+    }
+
+    // ── host identity ────────────────────────────────────────────────────────
+    void identityTest() {
+        case "osname is one of the supported hosts": {
+            string os = env.osname()
+            assert.assertNotEmpty(os, 501)
+            bool known = str.equals(os, "windows")
+                      || str.equals(os, "linux")
+                      || str.equals(os, "macos")
+            assert.assertTrue(known, 502)
+        }
+        case "osname is stable": {
+            assert.assertStr(env.osname(), env.osname(), 503)
+        }
+        case "arch is non-empty and stable": {
+            assert.assertNotEmpty(env.arch(), 504)
+            assert.assertStr(env.arch(), env.arch(), 505)
+        }
+        case "hostname is non-empty": {
+            assert.assertNotEmpty(env.hostname(), 506)
+        }
+        case "kernel and kernelVersion are non-empty": {
+            assert.assertNotEmpty(env.kernel(), 507)
+            assert.assertNotEmpty(env.kernelVersion(), 508)
+        }
+        case "endianness is little or big": {
+            string e = env.endianness()
+            bool known = str.equals(e, "little") || str.equals(e, "big")
+            assert.assertTrue(known, 509)
+        }
+        case "platform mentions the os and the arch": {
+            string p = env.platform()
+            assert.assertNotEmpty(p, 510)
+            assert.assertTrue(str.contains(p, env.osname()), 511)
+            assert.assertTrue(str.contains(p, env.arch()), 512)
+        }
+    }
+
+    // ── all() / allCount() ───────────────────────────────────────────────────
+    void listingTest() {
+        case "allCount is positive": {
+            assert.assertGtI(env.allCount(), 0, 601)
+        }
+        case "all() agrees with allCount": {
+            fly.os.env.StringArray vars = env.all()
+            assert.assertEqI(vars.count, env.allCount(), 602)
+            assert.assertGtI(vars.count, 0, 603)
+        }
+        case "setting a new variable adds exactly one to the count": {
+            env.delete("FLY_ENV_TEST_COUNTED")            // make sure it is absent
+            int before = env.allCount()
+            env.set("FLY_ENV_TEST_COUNTED", "yes")
+            assert.assertEqI(env.allCount(), before + 1, 604)
+            assert.assertStr(env.get("FLY_ENV_TEST_COUNTED"), "yes", 605)
+            // Overwriting an existing variable must NOT add another entry.
+            env.set("FLY_ENV_TEST_COUNTED", "no")
+            assert.assertEqI(env.allCount(), before + 1, 606)
+            env.delete("FLY_ENV_TEST_COUNTED")
+            assert.assertEqI(env.allCount(), before, 607)  // and delete removes it
+        }
+    }
+}

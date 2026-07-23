@@ -1,0 +1,178 @@
+import fly.str
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EnumSuite — enum declarations and their entry accessors.
+//
+// An entry exposes `.value` (its 1-BASED index; 0 is reserved for the
+// undefined/default entry) and `.name` (its declared identifier). Both are
+// reached two different ways, and the two paths compile differently:
+//   * on a literal — `Color.RED.value` — folded at compile time;
+//   * on a variable — `c.name` — a runtime lookup in the generated names table.
+//
+// Also covered: assignment and reassignment of enum variables, equality between
+// entries, an enum-typed field on a class, an enum-typed parameter, and the
+// default value of an unassigned enum variable.
+//
+// Assert codes: 1xx literal accessors, 2xx variable accessors, 3xx comparison
+// and flow, 4xx enums as members and parameters, 5xx a second enum type.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum Color { RED, GREEN, BLUE }
+
+enum Status { PENDING, ACTIVE, DONE, FAILED }
+
+class Tagged {
+    Color c
+    int n
+    public Tagged(const Color c, const int n) { this.c = c  this.n = n }
+    public Color kind() { out = this.c }
+    public int nameLen() { out = str.len(this.c.name) }
+}
+
+int rank(const Status s) { out = s.value }
+
+suite EnumSuite {
+
+    // ── accessors on a literal entry ─────────────────────────────────────────
+    void literalTest() {
+        case "value is the 1-based index": {
+            assert.assertEqI(Color.RED.value, 1, 101)
+            assert.assertEqI(Color.GREEN.value, 2, 102)
+            assert.assertEqI(Color.BLUE.value, 3, 103)
+        }
+        case "name is the declared identifier": {
+            assert.assertStr(Color.RED.name, "RED", 104)
+            assert.assertStr(Color.GREEN.name, "GREEN", 105)
+            assert.assertStr(Color.BLUE.name, "BLUE", 106)
+        }
+        case "values are consecutive and names are distinct": {
+            assert.assertEqI(Color.GREEN.value - Color.RED.value, 1, 107)
+            assert.assertEqI(Color.BLUE.value - Color.GREEN.value, 1, 108)
+            assert.assertStrNe(Color.RED.name, Color.GREEN.name, 109)
+        }
+    }
+
+    // ── accessors on a variable (the runtime names table) ────────────────────
+    void variableTest() {
+        case "value through a variable": {
+            Color c = Color.GREEN
+            assert.assertEqI(c.value, 2, 201)
+        }
+        case "name through a variable": {
+            Color c = Color.GREEN
+            assert.assertStr(c.name, "GREEN", 202)
+        }
+        case "reassignment updates both accessors": {
+            Color c = Color.GREEN
+            c = Color.BLUE
+            assert.assertStr(c.name, "BLUE", 203)
+            assert.assertEqI(c.value, 3, 204)
+            c = Color.RED
+            assert.assertStr(c.name, "RED", 205)
+            assert.assertEqI(c.value, 1, 206)
+        }
+        case "a variable agrees with the literal it was assigned": {
+            Color c = Color.BLUE
+            assert.assertEqI(c.value, Color.BLUE.value, 207)
+            assert.assertStr(c.name, Color.BLUE.name, 208)
+        }
+        case "copying an enum variable copies the entry": {
+            Color a = Color.GREEN
+            Color b = a
+            a = Color.RED
+            assert.assertStr(b.name, "GREEN", 209)      // b is unaffected
+            assert.assertStr(a.name, "RED", 210)
+        }
+    }
+
+    // ── comparison and control flow ──────────────────────────────────────────
+    void comparisonTest() {
+        case "entries compare equal to themselves": {
+            Color a = Color.GREEN
+            Color b = Color.GREEN
+            assert.assertTrue(a.value == b.value, 301)
+            assert.assertTrue(a.value == Color.GREEN.value, 302)
+        }
+        case "different entries compare unequal": {
+            Color a = Color.GREEN
+            assert.assertFalse(a.value == Color.RED.value, 303)
+            assert.assertTrue(a.value != Color.BLUE.value, 304)
+        }
+        case "an enum drives an if / elsif chain": {
+            Color c = Color.BLUE
+            int picked = 0
+            if c.value == Color.RED.value {
+                picked = 10
+            } elsif c.value == Color.GREEN.value {
+                picked = 20
+            } else {
+                picked = 30
+            }
+            assert.assertEqI(picked, 30, 305)
+        }
+        case "iterating the value range hits every name": {
+            // Values are 1..3, so a loop over them must see each declared name.
+            int seen = 0
+            int v = 1
+            while v <= 3 {
+                if v == Color.RED.value { seen = seen + 1 }
+                if v == Color.GREEN.value { seen = seen + 1 }
+                if v == Color.BLUE.value { seen = seen + 1 }
+                v = v + 1
+            }
+            assert.assertEqI(seen, 3, 306)
+        }
+    }
+
+    // ── enums as class members and as parameters ─────────────────────────────
+    void memberTest() {
+        case "an enum-typed field round-trips through a constructor": {
+            Tagged t = new Tagged(Color.BLUE, 7)
+            assert.assertEqI(t.kind().value, 3, 401)
+            assert.assertEqI(t.n, 7, 402)
+        }
+        case "a field's name is readable inside a method": {
+            Tagged t = new Tagged(Color.GREEN, 1)
+            assert.assertEqI(t.nameLen(), 5, 403)       // "GREEN"
+            Tagged r = new Tagged(Color.RED, 1)
+            assert.assertEqI(r.nameLen(), 3, 404)       // "RED"
+        }
+        case "an enum-typed parameter": {
+            assert.assertEqI(rank(Status.PENDING), 1, 405)
+            assert.assertEqI(rank(Status.FAILED), 4, 406)
+            Status s = Status.DONE
+            assert.assertEqI(rank(s), 3, 407)
+        }
+        case "an enum field can be reassigned": {
+            Tagged t = new Tagged(Color.RED, 0)
+            t.c = Color.BLUE
+            assert.assertStr(t.kind().name, "BLUE", 408)
+        }
+    }
+
+    // ── a second enum type in the same unit ──────────────────────────────────
+    void secondEnumTest() {
+        case "Status has its own independent numbering": {
+            assert.assertEqI(Status.PENDING.value, 1, 501)
+            assert.assertEqI(Status.ACTIVE.value, 2, 502)
+            assert.assertEqI(Status.DONE.value, 3, 503)
+            assert.assertEqI(Status.FAILED.value, 4, 504)
+        }
+        case "Status names": {
+            assert.assertStr(Status.PENDING.name, "PENDING", 505)
+            assert.assertStr(Status.FAILED.name, "FAILED", 506)
+        }
+        case "two enums sharing an index stay distinct types": {
+            // Both have an entry with value 1, but they name different things.
+            assert.assertEqI(Color.RED.value, Status.PENDING.value, 507)
+            assert.assertStrNe(Color.RED.name, Status.PENDING.name, 508)
+        }
+        case "a variable of the second enum": {
+            Status s = Status.ACTIVE
+            assert.assertStr(s.name, "ACTIVE", 509)
+            s = Status.DONE
+            assert.assertEqI(s.value, 3, 510)
+        }
+    }
+}

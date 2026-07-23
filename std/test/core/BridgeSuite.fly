@@ -1,0 +1,84 @@
+import fly.bridge.*
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BridgeSuite — fly.bridge.clang (std/lib/bridge/clang.fly), the C FFI bridge.
+//
+// `CLang.call` is declared as a family of empty-bodied overloads, one per return
+// kind; codegen special-cases the call site and emits a direct call to the named
+// C symbol, packing the `Args`-derived struct's fields as the arguments in
+// declaration order. So there is no Fly-level logic to branch through — this is
+// a compile-and-link + calling-convention smoke test, and its real value is
+// proving the bridge still resolves symbols and marshals arguments after a
+// codegen or toolchain change (notably the Windows gnullvm/UCRT path).
+//
+// Only symbols present in every libc/UCRT are used, and the `lib` string is a
+// static-link hint, not a dlopen path.
+//
+// Assert codes: 1xx string arguments, 2xx numeric arguments.
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct StrlenArgs : Args {
+    string s
+}
+
+struct AbsArgs : Args {
+    int v
+}
+
+suite BridgeSuite {
+
+    // ── a string argument, long result ───────────────────────────────────────
+    void stringArgTest() {
+        case "strlen through the bridge": {
+            StrlenArgs args = new StrlenArgs()
+            args.s = "hello"
+            CLang libc = new CLang("libc.so.6")
+            long len = 0
+            libc.call("strlen", args, len)
+            assert.assertEqL(len, 5, 101)
+        }
+        case "strlen of the empty string": {
+            StrlenArgs args = new StrlenArgs()
+            args.s = ""
+            CLang libc = new CLang("libc.so.6")
+            long len = 0
+            libc.call("strlen", args, len)
+            assert.assertEqL(len, 0, 102)
+        }
+        case "the same handle serves repeated calls": {
+            CLang libc = new CLang("libc.so.6")
+            StrlenArgs args = new StrlenArgs()
+            long len = 0
+            args.s = "a"
+            libc.call("strlen", args, len)
+            assert.assertEqL(len, 1, 103)
+            args.s = "abcdefghij"
+            libc.call("strlen", args, len)
+            assert.assertEqL(len, 10, 104)
+        }
+    }
+
+    // ── a numeric argument, int result ───────────────────────────────────────
+    void numericArgTest() {
+        case "abs through the bridge": {
+            AbsArgs args = new AbsArgs()
+            args.v = 0 - 7
+            CLang libc = new CLang("libc.so.6")
+            int r = 0
+            libc.call("abs", args, r)
+            assert.assertEqI(r, 7, 201)
+        }
+        case "abs of a non-negative value": {
+            AbsArgs args = new AbsArgs()
+            args.v = 7
+            CLang libc = new CLang("libc.so.6")
+            int r = 0
+            libc.call("abs", args, r)
+            assert.assertEqI(r, 7, 202)
+            args.v = 0
+            libc.call("abs", args, r)
+            assert.assertEqI(r, 0, 203)
+        }
+    }
+}

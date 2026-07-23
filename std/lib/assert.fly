@@ -1,21 +1,31 @@
 namespace fly.assert
 
 import fly.llvm
-import fly.runtime
+import fly.str
+
+// Assertion helpers. On failure every assert does `fail code, <message>`: the
+// error is recorded in the caller's error struct and — when unhandled — reaches
+// main(), which prints "error <code>: <message>" to stderr and exits with <code>.
+// A passing assertion does nothing.
+//
+// NOTE: fail is not stack unwinding — execution continues after a failed assert,
+// and a later failing assert overwrites the recorded error (the reported failure
+// is the LAST one). The suite runner isolates errors per-case; in plain
+// main()-based tests keep asserts independent. Mirrors the reference.
 
 public void errExit(const int code) {
-    fly.runtime.proc_exit(code)
+    fail code, "errExit"
 }
 
 public void assertEqI(const int got, const int exp, const int code) {
     if got != exp {
-        fly.runtime.proc_exit(code)
+        fail code, "assertEqI: got " + str.convert(got) + ", expected " + str.convert(exp)
     }
 }
 
 public void assertEqL(const long got, const long exp, const int code) {
     if got != exp {
-        fly.runtime.proc_exit(code)
+        fail code, "assertEqL: got " + str.convertL(got) + ", expected " + str.convertL(exp)
     }
 }
 
@@ -24,21 +34,23 @@ public void assertStr(const string got, const string exp, const int code) {
     int en = 0
     fly.llvm.strSize(got, gn)
     fly.llvm.strSize(exp, en)
-    if gn != en {
-        fly.runtime.proc_exit(code)
-        return
-    }
-    int i = 0
-    while i < gn {
-        byte gb = 0
-        byte eb = 0
-        fly.llvm.strByteAt(got, i, gb)
-        fly.llvm.strByteAt(exp, i, eb)
-        if gb != eb {
-            fly.runtime.proc_exit(code)
-            return
+    bool eq = gn == en
+    if eq {
+        int i = 0
+        while i < gn {
+            byte gb = 0
+            byte eb = 0
+            fly.llvm.strByteAt(got, i, gb)
+            fly.llvm.strByteAt(exp, i, eb)
+            if gb != eb {
+                eq = false
+                i = gn
+            }
+            i = i + 1
         }
-        i = i + 1
+    }
+    if eq == false {
+        fail code, "assertStr: got " + got + ", expected " + exp
     }
 }
 
@@ -46,25 +58,103 @@ public void assertNotEmpty(const string s, const int code) {
     int n = 0
     fly.llvm.strSize(s, n)
     if n == 0 {
-        fly.runtime.proc_exit(code)
+        fail code, "assertNotEmpty: string is empty"
     }
 }
 
 public void assertTrue(const bool b, const int code) {
     if b == false {
-        fly.runtime.proc_exit(code)
+        fail code, "assertTrue: condition is false"
     }
 }
 
 public void assertFalse(const bool b, const int code) {
     if b {
-        fly.runtime.proc_exit(code)
+        fail code, "assertFalse: condition is true"
     }
 }
 
 public void assertGtI(const int got, const int threshold, const int code) {
     if got <= threshold {
-        fly.runtime.proc_exit(code)
+        fail code, "assertGtI: got " + str.convert(got) + ", expected > " + str.convert(threshold)
+    }
+}
+
+// ── negative / pointer forms ─────────────────────────────────────────────────
+// Counterparts to the assertEq*/assertStr family above, plus the `pointer`
+// (Fly usize) form used when comparing container sizes and raw addresses. A
+// pointer's value is not printed (no pointer→decimal cast); the message names
+// the check.
+
+public void assertNeI(const int got, const int notExp, const int code) {
+    if got == notExp {
+        fail code, "assertNeI: got " + str.convert(got) + ", expected != " + str.convert(notExp)
+    }
+}
+
+public void assertNeL(const long got, const long notExp, const int code) {
+    if got == notExp {
+        fail code, "assertNeL: got " + str.convertL(got) + ", expected != " + str.convertL(notExp)
+    }
+}
+
+public void assertEqP(const pointer got, const pointer exp, const int code) {
+    if got != exp {
+        fail code, "assertEqP: pointers differ"
+    }
+}
+
+public void assertNeP(const pointer got, const pointer notExp, const int code) {
+    if got == notExp {
+        fail code, "assertNeP: pointers are equal"
+    }
+}
+
+public void assertNull(const pointer p, const int code) {
+    if p != 0 {
+        fail code, "assertNull: pointer is not null"
+    }
+}
+
+public void assertNotNull(const pointer p, const int code) {
+    if p == 0 {
+        fail code, "assertNotNull: pointer is null"
+    }
+}
+
+// assertStrNe — inverse of assertStr: fails when the two strings are equal.
+// Differing lengths already prove inequality; otherwise a single differing byte
+// is enough, so the scan stops as soon as one is found.
+public void assertStrNe(const string got, const string notExp, const int code) {
+    int gn = 0
+    int en = 0
+    fly.llvm.strSize(got, gn)
+    fly.llvm.strSize(notExp, en)
+    bool eq = gn == en
+    if eq {
+        int i = 0
+        while i < gn {
+            byte gb = 0
+            byte eb = 0
+            fly.llvm.strByteAt(got, i, gb)
+            fly.llvm.strByteAt(notExp, i, eb)
+            if gb != eb {
+                eq = false
+                i = gn
+            }
+            i = i + 1
+        }
+    }
+    if eq {
+        fail code, "assertStrNe: both strings are " + got
+    }
+}
+
+public void assertEmpty(const string s, const int code) {
+    int n = 0
+    fly.llvm.strSize(s, n)
+    if n != 0 {
+        fail code, "assertEmpty: string is not empty: " + s
     }
 }
 
@@ -73,7 +163,7 @@ public void assertApprox(const double got, const double exp, const int code) {
     if diff < 0.0 { diff = 0.0 - diff }
     double eps = 0.000000001
     if diff > eps {
-        fly.runtime.proc_exit(code)
+        fail code, "assertApprox: values differ beyond 1e-9"
     }
 }
 
@@ -81,6 +171,6 @@ public void assertApproxEps(const double got, const double exp, const double eps
     double diff = got - exp
     if diff < 0.0 { diff = 0.0 - diff }
     if diff > eps {
-        fly.runtime.proc_exit(code)
+        fail code, "assertApproxEps: values differ beyond epsilon"
     }
 }

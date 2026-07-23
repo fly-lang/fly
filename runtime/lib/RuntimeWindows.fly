@@ -79,6 +79,9 @@ public void GetEnvironmentStringsA(pointer out) {}
 public void FreeEnvironmentStringsA(const pointer block, int out) {}
 public void GetComputerNameA(const pointer buf, const pointer size, int out) {}
 public void GetVersion(int out) {}
+// ntdll (-lntdll): the compat-shim-free version query — GetVersion lies (6.2/9200)
+// on modern Windows without a manifest. Takes RTL_OSVERSIONINFOW*, returns NTSTATUS.
+public void RtlGetVersion(const pointer info, int out) {}
 public void GetModuleFileNameA(const pointer mod, const pointer buf, const int n, int out) {}
 public void GetCommandLineA(pointer out) {}
 public void strlen(const pointer s, ulong out) {}
@@ -439,7 +442,19 @@ public void time_mono_ns(long out) {
     long f = 0
     fly.llvm.ptrReadLong(cnt, 0, c)
     fly.llvm.ptrReadLong(freq, 0, f)
-    if f == 0 { out = 0 - 1 } else { out = c * 1000000000 / f }
+    // Split into whole seconds + remainder before scaling: `c * 1000000000 / f`
+    // OVERFLOWS int64 once the QPC counter passes ~9.2e9 — about 15 minutes of
+    // uptime at the usual 10 MHz frequency — and the wrapped result flips sign
+    // roughly every 15 minutes after that. Here `q` is the uptime in seconds
+    // (q * 1e9 stays well inside int64 for any plausible uptime) and `r` is below
+    // f, so `r * 1e9` is bounded by f * 1e9.
+    if f == 0 {
+        out = 0 - 1
+    } else {
+        long q = c / f
+        long r = c - q * f
+        out = q * 1000000000 + r * 1000000000 / f
+    }
     fly.runtime.free(cnt)
     fly.runtime.free(freq)
 }
@@ -537,54 +552,40 @@ public void env_arch(const pointer buf, const ulong size, int out) {
     copyCStr(src, buf, size, out)
     fly.runtime.free(src)
 }
-// kernel = "major.minor" from GetVersion(); kernelversion = build number.
+// kernel = "major.minor", kernelversion = build number — from ntdll's
+// RtlGetVersion (GetVersion is compat-shimmed to 6.2/9200 on modern Windows).
+//
+// The decimal formatting is INLINE in both functions on purpose: under this
+// module's flat C-ABI emission, an INTERNAL fly-to-fly call that follows a
+// ptrPokeByte store is miscompiled away (probed 2026-07-23: `appendUint; poke
+// '.'; appendUint` ran only the first call, while `appendUint; appendUint` ran
+// both — pokeInt-then-call is fine, extern calls are fine). Keeping every store
+// and digit loop in ONE frame sidesteps the whole class.
 public void env_kernel(const pointer buf, const ulong size, int out) {
-    int v = 0
-    fly.runtime.GetVersion(v)
-    int major = v & 255
-    int sh = v >> 8
-    int minor = sh & 255
-    int p = 0
-    appendUint(buf, size, p, major, p)
-    fly.llvm.ptrPokeByte(buf, p, (byte)46)             // '.'
-    p = p + 1
-    appendUint(buf, size, p, minor, p)
-    fly.llvm.ptrPokeByte(buf, p, (byte)0)
-    out = p
-}
-public void env_kernelversion(const pointer buf, const ulong size, int out) {
-    int v = 0
-    fly.runtime.GetVersion(v)
-    int build = 0
-    if v >= 0 {
-        int sh = v >> 16
-        build = sh & 65535
-    }
-    int p = 0
-    appendUint(buf, size, p, build, p)
-    fly.llvm.ptrPokeByte(buf, p, (byte)0)
-    out = p
-}
-// appendUint — write decimal `v` into buf starting at `pos`; returns new pos in `out`.
-private void appendUint(const pointer buf, const ulong size, const int pos, const int v, int out) {
+    pointer v3 = 0
+    fly.runtime.malloc(12, v3)
+    versionInfo(v3)
+    int major = 0
+    fly.llvm.ptrReadInt(v3, 0, major)
+    int minor = 0
+    fly.llvm.ptrReadInt(v3, 4, minor)
+    fly.runtime.free(v3)
     pointer tmp = 0
     fly.runtime.malloc(16, tmp)
+    int p = 0
+    // major digits (reversed into tmp, copied back; always at least "0")
     int n = 0
-    int x = v
-    if x == 0 {
-        fly.llvm.ptrPokeByte(tmp, 0, (byte)48)
-        n = 1
-    } else {
-        while x > 0 {
-            int q = x / 10
-            int d = x - q * 10
-            byte db = (byte)(48 + d)
-            fly.llvm.ptrPokeByte(tmp, n, db)
-            n = n + 1
-            x = q
-        }
+    int x = major
+    bool more = true
+    while more {
+        int q = x / 10
+        int d = x - q * 10
+        byte db = (byte)(48 + d)
+        fly.llvm.ptrPokeByte(tmp, n, db)
+        n = n + 1
+        x = q
+        if x <= 0 { more = false }
     }
-    int p = pos
     int i = n - 1
     while i >= 0 {
         byte b = 0
@@ -593,8 +594,103 @@ private void appendUint(const pointer buf, const ulong size, const int pos, cons
         p = p + 1
         i = i - 1
     }
+    fly.llvm.ptrPokeByte(buf, p, (byte)46)             // '.'
+    p = p + 1
+    // minor digits
+    n = 0
+    x = minor
+    more = true
+    while more {
+        int q2 = x / 10
+        int d2 = x - q2 * 10
+        byte db2 = (byte)(48 + d2)
+        fly.llvm.ptrPokeByte(tmp, n, db2)
+        n = n + 1
+        x = q2
+        if x <= 0 { more = false }
+    }
+    i = n - 1
+    while i >= 0 {
+        byte b2 = 0
+        fly.llvm.ptrReadByte(tmp, i, b2)
+        fly.llvm.ptrPokeByte(buf, p, b2)
+        p = p + 1
+        i = i - 1
+    }
+    fly.llvm.ptrPokeByte(buf, p, (byte)0)
     out = p
     fly.runtime.free(tmp)
+}
+public void env_kernelversion(const pointer buf, const ulong size, int out) {
+    pointer v3 = 0
+    fly.runtime.malloc(12, v3)
+    versionInfo(v3)
+    int build = 0
+    fly.llvm.ptrReadInt(v3, 8, build)
+    fly.runtime.free(v3)
+    pointer tmp = 0
+    fly.runtime.malloc(16, tmp)
+    int p = 0
+    int n = 0
+    int x = build
+    bool more = true
+    while more {
+        int q = x / 10
+        int d = x - q * 10
+        byte db = (byte)(48 + d)
+        fly.llvm.ptrPokeByte(tmp, n, db)
+        n = n + 1
+        x = q
+        if x <= 0 { more = false }
+    }
+    int i = n - 1
+    while i >= 0 {
+        byte b = 0
+        fly.llvm.ptrReadByte(tmp, i, b)
+        fly.llvm.ptrPokeByte(buf, p, b)
+        p = p + 1
+        i = i - 1
+    }
+    fly.llvm.ptrPokeByte(buf, p, (byte)0)
+    out = p
+    fly.runtime.free(tmp)
+}
+// versionInfo — the host version as [major@0, minor@4, build@8], written through
+// `v3` (12 bytes). Queries ntdll's RtlGetVersion (RTL_OSVERSIONINFOW: size@0,
+// major@4, minor@8, build@12, platform@16, WCHAR csd[128] — 276 bytes total);
+// falls back to GetVersion's compat values when it fails. Write-through pointer
+// on purpose: a non-const out param is not expressible in the fly.runtime
+// calling convention (see scanToken).
+private void versionInfo(const pointer v3) {
+    pointer info = 0
+    fly.runtime.malloc(276, info)
+    zeroMem(info, 276)
+    fly.llvm.ptrPokeInt(info, 0, 276)
+    int st = 0
+    fly.runtime.RtlGetVersion(info, st)
+    if st == 0 {
+        int ma = 0
+        fly.llvm.ptrReadInt(info, 4, ma)
+        int mi = 0
+        fly.llvm.ptrReadInt(info, 8, mi)
+        int bu = 0
+        fly.llvm.ptrReadInt(info, 12, bu)
+        fly.llvm.ptrPokeInt(v3, 0, ma)
+        fly.llvm.ptrPokeInt(v3, 4, mi)
+        fly.llvm.ptrPokeInt(v3, 8, bu)
+    } else {
+        int v = 0
+        fly.runtime.GetVersion(v)
+        int major = v & 255
+        int sh = v >> 8
+        int minor = sh & 255
+        int sh2 = v >> 16
+        int build = sh2 & 65535
+        fly.llvm.ptrPokeInt(v3, 0, major)
+        fly.llvm.ptrPokeInt(v3, 4, minor)
+        fly.llvm.ptrPokeInt(v3, 8, build)
+    }
+    fly.runtime.free(info)
 }
 public void env_osname(const pointer buf, const ulong size, int out) {
     pointer src = 0
@@ -958,4 +1054,156 @@ public void str_slot_ptr(const pointer arr_base, const int idx, pointer out) {
 public void str_slot_size(const pointer arr_base, const int idx, int out) {
     int off = idx * 16
     fly.llvm.ptrReadInt(arr_base, off + 8, out)
+}
+
+// ── Error / suite-runner reporting ───────────────────────────────────────────
+// Mirrors the reference runtime/platform/{Err,Suite}.c. Called ONLY by
+// compiler-generated code: err_print by main's epilogue for an unhandled
+// error, suite_* by the implicit main() of a `suite` binary.
+
+// Write the NUL-terminated C string at s to fd (no-op for null/empty).
+private void wrCStr(const int fd, const pointer s) {
+    if s == 0 { return }
+    int n = 0
+    bool go = true
+    while go {
+        byte b = 0
+        fly.llvm.ptrByteAt(s, n, b)
+        if b == 0 { go = false } else { n = n + 1 }
+    }
+    if n == 0 { return }
+    long w = 0
+    fly.runtime.io_write(fd, s, (ulong)n, w)
+}
+
+// Write a string literal to fd.
+private void wrLit(const int fd, const string s) {
+    pointer p = 0
+    toCStr(s, p)
+    wrCStr(fd, p)
+    fly.runtime.free(p)
+}
+
+// Write a single newline to fd (Fly string literals keep escapes raw).
+private void wrNl(const int fd) {
+    pointer p = 0
+    fly.runtime.malloc(1, p)
+    fly.llvm.ptrPokeByte(p, 0, 10)
+    long w = 0
+    fly.runtime.io_write(fd, p, 1, w)
+    fly.runtime.free(p)
+}
+
+// Write v in decimal to fd.
+private void wrDec(const int fd, const int v) {
+    pointer buf = 0
+    fly.runtime.malloc(12, buf)
+    int mag = v
+    bool neg = v < 0
+    if neg { mag = 0 - mag }
+    int len = 0
+    int t = mag
+    if t == 0 { len = 1 } else {
+        while t > 0 {
+            len = len + 1
+            t = t / 10
+        }
+    }
+    int pos = len
+    if neg { pos = pos + 1 }
+    int i = pos - 1
+    t = mag
+    if t == 0 {
+        fly.llvm.ptrPokeByte(buf, i, 48)
+    } else {
+        while t > 0 {
+            int d = t - (t / 10) * 10
+            fly.llvm.ptrPokeByte(buf, i, 48 + d)
+            i = i - 1
+            t = t / 10
+        }
+    }
+    if neg { fly.llvm.ptrPokeByte(buf, 0, 45) }
+    long w = 0
+    fly.runtime.io_write(fd, buf, (ulong)pos, w)
+    fly.runtime.free(buf)
+}
+
+// " FAIL(<code>)[: <msg>]" + newline — shared tail of a failed case/step line.
+private void wrFail(const int code, const pointer msg) {
+    wrLit(1, " FAIL(")
+    wrDec(1, code)
+    wrLit(1, ")")
+    if msg != 0 {
+        byte b0 = 0
+        fly.llvm.ptrByteAt(msg, 0, b0)
+        if b0 != 0 {
+            wrLit(1, ": ")
+            wrCStr(1, msg)
+        }
+    }
+    wrNl(1)
+}
+
+// Print "error <code>[: <msg>]" to stderr — unhandled error reaching main().
+public void err_print(const int code, const pointer msg) {
+    wrLit(2, "error ")
+    wrDec(2, code)
+    if msg != 0 {
+        byte b0 = 0
+        fly.llvm.ptrByteAt(msg, 0, b0)
+        if b0 != 0 {
+            wrLit(2, ": ")
+            wrCStr(2, msg)
+        }
+    }
+    wrNl(2)
+}
+
+public void suite_begin(const pointer name) {
+    wrLit(1, "suite ")
+    wrCStr(1, name)
+    wrNl(1)
+}
+
+public void suite_method(const pointer name) {
+    wrLit(1, "  ")
+    wrCStr(1, name)
+    wrNl(1)
+}
+
+// No newline: the case result (or a crash) completes the line.
+public void suite_case_begin(const pointer label) {
+    wrLit(1, "    ")
+    wrCStr(1, label)
+    wrLit(1, " ...")
+}
+
+public void suite_case_result(const int code, const pointer msg) {
+    if code == 0 {
+        wrLit(1, " ok")
+        wrNl(1)
+        return
+    }
+    wrFail(code, msg)
+}
+
+public void suite_step_fail(const pointer label, const int code, const pointer msg) {
+    wrLit(1, "    ")
+    wrCStr(1, label)
+    wrLit(1, " ...")
+    wrFail(code, msg)
+}
+
+public void suite_end(const pointer name, const int total, const int failed) {
+    wrLit(1, "suite ")
+    wrCStr(1, name)
+    wrLit(1, ": ")
+    wrDec(1, total)
+    wrLit(1, " cases, ")
+    wrDec(1, total - failed)
+    wrLit(1, " passed, ")
+    wrDec(1, failed)
+    wrLit(1, " failed")
+    wrNl(1)
 }

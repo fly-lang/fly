@@ -1,0 +1,238 @@
+import fly.assert
+import fly.str
+import fly.data.Stack
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StackSuite — exhaustive coverage of fly.data.Stack<T> (std/lib/data/stack.fly),
+// a LIFO over a contiguous buffer (the Fly analog of C++ std::stack<T>). Branches:
+//
+//   push()    stride-init, first-alloc (items == 0 → mem_alloc), grow
+//             (mem_realloc doubling), no-grow fast path
+//   pop()     non-empty (reads, frees the slot, decrements) and empty → default T
+//   peek()    non-empty (no ownership transfer) and empty → default T
+//   isEmpty() / size() across every transition
+//   free()    on a populated stack and on a never-used one (items == 0)
+//
+// Ownership: push deep-clones owned values (string); pop transfers ownership to
+// the caller; free releases whatever is still live.
+//
+// Assert codes: 1xx empty, 2xx LIFO, 3xx growth, 4xx string ownership, 5xx kinds.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite StackSuite {
+
+    // ── the empty stack: every accessor must be safe ─────────────────────────
+    void emptyTest() {
+        case "fresh stack": {
+            Stack<long> s = new Stack<long>()
+            assert.assertEqI(s.size(), 0, 101)
+            assert.assertTrue(s.isEmpty(), 102)
+            s.free()
+        }
+        case "pop / peek on empty yield default T": {
+            // items == 0: both guards must return before touching the buffer.
+            Stack<long> s = new Stack<long>()
+            assert.assertEqL(s.pop(), 0, 103)
+            assert.assertEqL(s.peek(), 0, 104)
+            assert.assertEqI(s.size(), 0, 105)
+            s.free()
+        }
+        case "free on a never-used stack": {
+            Stack<long> s = new Stack<long>()
+            s.free()
+            assert.assertEqI(s.size(), 0, 106)
+        }
+        case "drained stack behaves like a fresh one": {
+            Stack<long> s = new Stack<long>()
+            s.push(1)
+            assert.assertEqL(s.pop(), 1, 107)
+            assert.assertTrue(s.isEmpty(), 108)
+            assert.assertEqL(s.pop(), 0, 109)
+            assert.assertEqL(s.peek(), 0, 110)
+            s.free()
+        }
+    }
+
+    // ── LIFO ordering and the size/isEmpty transitions ───────────────────────
+    void lifoTest() {
+        case "push then peek does not consume": {
+            Stack<long> s = new Stack<long>()
+            s.push(1)
+            s.push(2)
+            s.push(3)
+            assert.assertEqI(s.size(), 3, 201)
+            assert.assertEqL(s.peek(), 3, 202)
+            assert.assertEqL(s.peek(), 3, 203)      // peek is idempotent
+            assert.assertEqI(s.size(), 3, 204)
+            s.free()
+        }
+        case "pop returns in reverse push order": {
+            Stack<long> s = new Stack<long>()
+            s.push(1)
+            s.push(2)
+            s.push(3)
+            assert.assertEqL(s.pop(), 3, 205)
+            assert.assertEqL(s.pop(), 2, 206)
+            assert.assertFalse(s.isEmpty(), 207)
+            assert.assertEqL(s.pop(), 1, 208)
+            assert.assertTrue(s.isEmpty(), 209)
+            s.free()
+        }
+        case "interleaved push and pop": {
+            Stack<long> s = new Stack<long>()
+            s.push(10)
+            s.push(20)
+            assert.assertEqL(s.pop(), 20, 210)
+            s.push(30)
+            assert.assertEqL(s.peek(), 30, 211)
+            assert.assertEqL(s.pop(), 30, 212)
+            assert.assertEqL(s.pop(), 10, 213)
+            assert.assertEqI(s.size(), 0, 214)
+            s.free()
+        }
+        case "reuse after full drain": {
+            Stack<long> s = new Stack<long>()
+            s.push(1)
+            s.pop()
+            s.push(2)
+            assert.assertEqI(s.size(), 1, 215)
+            assert.assertEqL(s.peek(), 2, 216)
+            s.free()
+        }
+    }
+
+    // ── growth across doublings ──────────────────────────────────────────────
+    void growTest() {
+        case "grow past the initial capacity": {
+            // cap 0 → 8 (mem_alloc) → 16 → 32 → 64 (mem_realloc).
+            Stack<long> s = new Stack<long>()
+            long i = 0
+            while i < 40 {
+                s.push(i)
+                i = i + 1
+            }
+            assert.assertEqI(s.size(), 40, 301)
+            assert.assertEqL(s.peek(), 39, 302)
+            s.free()
+        }
+        case "every grown element pops back in order": {
+            Stack<int> s = new Stack<int>()
+            int i = 0
+            while i < 50 {
+                s.push(i)
+                i = i + 1
+            }
+            int bad = 0 - 1
+            i = 49
+            while i >= 0 {
+                if s.pop() != i { bad = i }
+                i = i - 1
+            }
+            assert.assertEqI(bad, 0 - 1, 303)
+            assert.assertTrue(s.isEmpty(), 304)
+            s.free()
+        }
+        case "grow, drain, grow again": {
+            Stack<int> s = new Stack<int>()
+            int i = 0
+            while i < 20 {
+                s.push(i)
+                i = i + 1
+            }
+            while s.isEmpty() == false {
+                s.pop()
+            }
+            assert.assertEqI(s.size(), 0, 305)
+            i = 0
+            while i < 20 {
+                s.push(i * 2)
+                i = i + 1
+            }
+            assert.assertEqI(s.size(), 20, 306)
+            assert.assertEqI(s.peek(), 38, 307)
+            s.free()
+        }
+    }
+
+    // ── ownership: Stack<string> ─────────────────────────────────────────────
+    void stringOwnershipTest() {
+        case "push clones, source stays intact": {
+            Stack<string> s = new Stack<string>()
+            string built = str.concat("foo", "bar")
+            s.push(built)
+            s.push("baz")
+            assert.assertEqI(s.size(), 2, 401)
+            assert.assertStr(s.peek(), "baz", 402)
+            assert.assertStr(built, "foobar", 403)
+            s.free()
+        }
+        case "pop transfers ownership to the caller": {
+            Stack<string> s = new Stack<string>()
+            s.push("first")
+            s.push("second")
+            string top = s.pop()
+            assert.assertStr(top, "second", 404)
+            s.free()                                  // must not invalidate `top`
+            assert.assertStr(top, "second", 405)
+        }
+        case "peek yields a fresh clone": {
+            Stack<string> s = new Stack<string>()
+            s.push("only")
+            string a = s.peek()
+            string b = s.peek()
+            assert.assertStr(a, "only", 406)
+            assert.assertStr(b, "only", 407)
+            assert.assertEqI(s.size(), 1, 408)
+            s.free()
+            assert.assertStr(a, "only", 409)
+        }
+        case "empty pop/peek yield the empty string": {
+            Stack<string> s = new Stack<string>()
+            assert.assertEmpty(s.pop(), 410)
+            assert.assertEmpty(s.peek(), 411)
+            s.free()
+        }
+        case "string stack grows and frees the remainder": {
+            Stack<string> s = new Stack<string>()
+            int i = 0
+            while i < 20 {
+                s.push(str.concat("s", str.convert(i)))
+                i = i + 1
+            }
+            assert.assertEqI(s.size(), 20, 412)
+            assert.assertStr(s.pop(), "s19", 413)
+            assert.assertStr(s.peek(), "s18", 414)
+            s.free()                                  // frees the 19 still live
+        }
+    }
+
+    // ── other element kinds ──────────────────────────────────────────────────
+    void elementKindTest() {
+        case "Stack<bool>": {
+            Stack<bool> s = new Stack<bool>()
+            s.push(true)
+            s.push(false)
+            assert.assertFalse(s.pop(), 501)
+            assert.assertTrue(s.pop(), 502)
+            assert.assertFalse(s.pop(), 503)          // default T
+            s.free()
+        }
+        case "Stack<double>": {
+            Stack<double> s = new Stack<double>()
+            s.push(2.5)
+            s.push(0.0 - 1.25)
+            assert.assertApprox(s.pop(), 0.0 - 1.25, 504)
+            assert.assertApprox(s.pop(), 2.5, 505)
+            assert.assertApprox(s.pop(), 0.0, 506)    // default T
+            s.free()
+        }
+        case "Stack<pointer>": {
+            Stack<pointer> s = new Stack<pointer>()
+            s.push(4096)
+            assert.assertEqP(s.peek(), 4096, 507)
+            assert.assertEqP(s.pop(), 4096, 508)
+            assert.assertNull(s.pop(), 509)           // default T
+            s.free()
+        }
+    }
+}

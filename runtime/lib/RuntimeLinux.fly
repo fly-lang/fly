@@ -685,3 +685,155 @@ public void str_slot_size(const pointer arr_base, const int idx, int out) {
     int off = idx * 16
     fly.llvm.ptrReadInt(arr_base, off + 8, out)
 }
+
+// ── Error / suite-runner reporting ───────────────────────────────────────────
+// Mirrors the reference runtime/platform/{Err,Suite}.c. Called ONLY by
+// compiler-generated code: err_print by main's epilogue for an unhandled
+// error, suite_* by the implicit main() of a `suite` binary.
+
+// Write the NUL-terminated C string at s to fd (no-op for null/empty).
+private void wrCStr(const int fd, const pointer s) {
+    if s == 0 { return }
+    int n = 0
+    bool go = true
+    while go {
+        byte b = 0
+        fly.llvm.ptrByteAt(s, n, b)
+        if b == 0 { go = false } else { n = n + 1 }
+    }
+    if n == 0 { return }
+    long w = 0
+    fly.runtime.io_write(fd, s, (ulong)n, w)
+}
+
+// Write a string literal to fd.
+private void wrLit(const int fd, const string s) {
+    pointer p = 0
+    toCStr(s, p)
+    wrCStr(fd, p)
+    fly.runtime.free(p)
+}
+
+// Write a single newline to fd (Fly string literals keep escapes raw).
+private void wrNl(const int fd) {
+    pointer p = 0
+    fly.runtime.malloc(1, p)
+    fly.llvm.ptrPokeByte(p, 0, 10)
+    long w = 0
+    fly.runtime.io_write(fd, p, 1, w)
+    fly.runtime.free(p)
+}
+
+// Write v in decimal to fd.
+private void wrDec(const int fd, const int v) {
+    pointer buf = 0
+    fly.runtime.malloc(12, buf)
+    int mag = v
+    bool neg = v < 0
+    if neg { mag = 0 - mag }
+    int len = 0
+    int t = mag
+    if t == 0 { len = 1 } else {
+        while t > 0 {
+            len = len + 1
+            t = t / 10
+        }
+    }
+    int pos = len
+    if neg { pos = pos + 1 }
+    int i = pos - 1
+    t = mag
+    if t == 0 {
+        fly.llvm.ptrPokeByte(buf, i, 48)
+    } else {
+        while t > 0 {
+            int d = t - (t / 10) * 10
+            fly.llvm.ptrPokeByte(buf, i, 48 + d)
+            i = i - 1
+            t = t / 10
+        }
+    }
+    if neg { fly.llvm.ptrPokeByte(buf, 0, 45) }
+    long w = 0
+    fly.runtime.io_write(fd, buf, (ulong)pos, w)
+    fly.runtime.free(buf)
+}
+
+// " FAIL(<code>)[: <msg>]" + newline — shared tail of a failed case/step line.
+private void wrFail(const int code, const pointer msg) {
+    wrLit(1, " FAIL(")
+    wrDec(1, code)
+    wrLit(1, ")")
+    if msg != 0 {
+        byte b0 = 0
+        fly.llvm.ptrByteAt(msg, 0, b0)
+        if b0 != 0 {
+            wrLit(1, ": ")
+            wrCStr(1, msg)
+        }
+    }
+    wrNl(1)
+}
+
+// Print "error <code>[: <msg>]" to stderr — unhandled error reaching main().
+public void err_print(const int code, const pointer msg) {
+    wrLit(2, "error ")
+    wrDec(2, code)
+    if msg != 0 {
+        byte b0 = 0
+        fly.llvm.ptrByteAt(msg, 0, b0)
+        if b0 != 0 {
+            wrLit(2, ": ")
+            wrCStr(2, msg)
+        }
+    }
+    wrNl(2)
+}
+
+public void suite_begin(const pointer name) {
+    wrLit(1, "suite ")
+    wrCStr(1, name)
+    wrNl(1)
+}
+
+public void suite_method(const pointer name) {
+    wrLit(1, "  ")
+    wrCStr(1, name)
+    wrNl(1)
+}
+
+// No newline: the case result (or a crash) completes the line.
+public void suite_case_begin(const pointer label) {
+    wrLit(1, "    ")
+    wrCStr(1, label)
+    wrLit(1, " ...")
+}
+
+public void suite_case_result(const int code, const pointer msg) {
+    if code == 0 {
+        wrLit(1, " ok")
+        wrNl(1)
+        return
+    }
+    wrFail(code, msg)
+}
+
+public void suite_step_fail(const pointer label, const int code, const pointer msg) {
+    wrLit(1, "    ")
+    wrCStr(1, label)
+    wrLit(1, " ...")
+    wrFail(code, msg)
+}
+
+public void suite_end(const pointer name, const int total, const int failed) {
+    wrLit(1, "suite ")
+    wrCStr(1, name)
+    wrLit(1, ": ")
+    wrDec(1, total)
+    wrLit(1, " cases, ")
+    wrDec(1, total - failed)
+    wrLit(1, " passed, ")
+    wrDec(1, failed)
+    wrLit(1, " failed")
+    wrNl(1)
+}

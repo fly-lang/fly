@@ -5,7 +5,8 @@
 #     LLVM-C.lib (link import lib) + LLVM-C.dll (runtime) + lld-link.exe (the
 #     COFF linker the release bundles). No package manager; the MSVC toolchain
 #     + Windows SDK come from ilammy/msvc-dev-cmd in the workflow.
-#   * the bootstrap `fly` 0.13.8 release -> build\stage0 (bin\ + precompiled lib\)
+#   * the pinned bootstrap `fly` release ($FLY_VERSION below) -> build\stage0
+#     (bin\ + precompiled lib\)
 #
 # stage1.ps1 / stage2.ps1 build on top of these (see the stage map in stage1.ps1).
 #
@@ -28,7 +29,7 @@ $ErrorActionPreference = 'Stop'
 # The literals below are the source of truth; CI may override via env so this
 # stays in sync with the cache key.
 $LLVM_VERSION = if ($env:LLVM_VERSION) { $env:LLVM_VERSION } else { "20.1.8" }
-$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.8" }
+$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.10" }
 
 # Resolve everything against the PROJECT ROOT (this script lives in ci\windows\,
 # two levels down) so the downloads land next to the build regardless of the

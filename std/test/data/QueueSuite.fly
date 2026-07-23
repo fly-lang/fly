@@ -1,0 +1,292 @@
+import fly.assert
+import fly.str
+import fly.data.Queue
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QueueSuite — exhaustive coverage of fly.data.Queue<T> (std/lib/data/queue.fly),
+// FIFO over a power-of-two circular buffer (the Fly analog of C++ std::queue<T>).
+// The interesting branches are all about the ring:
+//
+//   enqueue()  stride-init, first-alloc (items == 0), the grow path — which must
+//              linearise a WRAPPED live range via `(head + gi) & (cap - 1)` and
+//              reset head = 0 / tail = len — and the no-grow fast path where the
+//              tail itself wraps with `(tail + 1) & (cap - 1)`
+//   dequeue()  non-empty (read, free the slot, advance head with wraparound) and
+//              empty → default T
+//   peek()     non-empty and empty → default T
+//   free()     with a wrapped live range, and on a never-used queue (items == 0)
+//
+// Capacity starts at 8, so "enqueue 8, dequeue 5, enqueue 8" is what forces a
+// grow while head != 0 — the case a straight-line test never reaches.
+//
+// Assert codes: 1xx empty, 2xx FIFO, 3xx wraparound, 4xx growth, 5xx strings,
+// 6xx element kinds.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite QueueSuite {
+
+    // ── the empty queue ──────────────────────────────────────────────────────
+    void emptyTest() {
+        case "fresh queue": {
+            Queue<long> q = new Queue<long>()
+            assert.assertEqI(q.size(), 0, 101)
+            assert.assertTrue(q.isEmpty(), 102)
+            q.free()
+        }
+        case "dequeue / peek on empty yield default T": {
+            Queue<long> q = new Queue<long>()
+            assert.assertEqL(q.dequeue(), 0, 103)
+            assert.assertEqL(q.peek(), 0, 104)
+            assert.assertEqI(q.size(), 0, 105)
+            q.free()
+        }
+        case "free on a never-used queue": {
+            Queue<long> q = new Queue<long>()
+            q.free()
+            assert.assertEqI(q.size(), 0, 106)
+        }
+        case "drained queue behaves like a fresh one": {
+            Queue<long> q = new Queue<long>()
+            q.enqueue(1)
+            assert.assertEqL(q.dequeue(), 1, 107)
+            assert.assertTrue(q.isEmpty(), 108)
+            assert.assertEqL(q.dequeue(), 0, 109)
+            assert.assertEqL(q.peek(), 0, 110)
+            q.free()
+        }
+    }
+
+    // ── FIFO ordering ────────────────────────────────────────────────────────
+    void fifoTest() {
+        case "peek does not consume": {
+            Queue<long> q = new Queue<long>()
+            q.enqueue(100)
+            q.enqueue(200)
+            assert.assertEqI(q.size(), 2, 201)
+            assert.assertEqL(q.peek(), 100, 202)
+            assert.assertEqL(q.peek(), 100, 203)
+            assert.assertEqI(q.size(), 2, 204)
+            q.free()
+        }
+        case "dequeue returns in enqueue order": {
+            Queue<long> q = new Queue<long>()
+            q.enqueue(100)
+            q.enqueue(200)
+            q.enqueue(300)
+            assert.assertEqL(q.dequeue(), 100, 205)
+            assert.assertEqL(q.dequeue(), 200, 206)
+            assert.assertFalse(q.isEmpty(), 207)
+            assert.assertEqL(q.dequeue(), 300, 208)
+            assert.assertTrue(q.isEmpty(), 209)
+            q.free()
+        }
+        case "interleaved enqueue and dequeue": {
+            Queue<long> q = new Queue<long>()
+            q.enqueue(1)
+            q.enqueue(2)
+            assert.assertEqL(q.dequeue(), 1, 210)
+            q.enqueue(3)
+            assert.assertEqL(q.peek(), 2, 211)
+            assert.assertEqL(q.dequeue(), 2, 212)
+            assert.assertEqL(q.dequeue(), 3, 213)
+            assert.assertEqI(q.size(), 0, 214)
+            q.free()
+        }
+    }
+
+    // ── the ring: tail and head wrapping without a grow ──────────────────────
+    void wrapTest() {
+        case "tail wraps past the end of the buffer": {
+            // Keep len <= 8 so no grow happens, but push the cursors right around
+            // the ring several times: `(tail + 1) & (cap - 1)` must wrap to 0.
+            Queue<int> q = new Queue<int>()
+            int i = 0
+            while i < 6 {
+                q.enqueue(i)
+                i = i + 1
+            }
+            int bad = 0 - 1
+            int n = 0
+            while n < 30 {
+                int got = q.dequeue()
+                if got != n { bad = n }
+                q.enqueue(n + 6)
+                n = n + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 301)
+            assert.assertEqI(q.size(), 6, 302)
+            assert.assertEqI(q.peek(), 30, 303)
+            q.free()                                  // live range straddles the wrap
+        }
+        case "free with a wrapped live range": {
+            Queue<int> q = new Queue<int>()
+            int i = 0
+            while i < 8 {
+                q.enqueue(i)
+                i = i + 1
+            }
+            i = 0
+            while i < 6 {
+                q.dequeue()
+                i = i + 1
+            }
+            q.enqueue(100)
+            q.enqueue(101)
+            q.enqueue(102)                            // head = 6, tail = 3: wrapped
+            assert.assertEqI(q.size(), 5, 304)
+            assert.assertEqI(q.peek(), 6, 305)
+            q.free()
+        }
+    }
+
+    // ── growth, including the hard case: grow while head != 0 ────────────────
+    void growTest() {
+        case "grow with a wrapped head relinearises the ring": {
+            // 8 in, 5 out → head = 5. Eight more enqueues cross the cap: the grow
+            // loop must copy from `(head + gi) & (cap - 1)` and reset head/tail.
+            Queue<int> q = new Queue<int>()
+            int i = 0
+            while i < 8 {
+                q.enqueue(i)
+                i = i + 1
+            }
+            i = 0
+            while i < 5 {
+                q.dequeue()
+                i = i + 1
+            }
+            assert.assertEqI(q.size(), 3, 401)
+            i = 0
+            while i < 8 {
+                q.enqueue(100 + i)
+                i = i + 1
+            }
+            assert.assertEqI(q.size(), 11, 402)
+            // Survivors of the pre-grow ring come out first, in order.
+            assert.assertEqI(q.dequeue(), 5, 403)
+            assert.assertEqI(q.dequeue(), 6, 404)
+            assert.assertEqI(q.dequeue(), 7, 405)
+            i = 0
+            int bad = 0 - 1
+            while i < 8 {
+                if q.dequeue() != 100 + i { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 406)
+            assert.assertTrue(q.isEmpty(), 407)
+            q.free()
+        }
+        case "grow from a non-wrapped ring": {
+            // head stays 0: cap 8 → 16 → 32 → 64 with a straight copy.
+            Queue<int> q = new Queue<int>()
+            int i = 0
+            while i < 40 {
+                q.enqueue(i)
+                i = i + 1
+            }
+            assert.assertEqI(q.size(), 40, 408)
+            assert.assertEqI(q.peek(), 0, 409)
+            int bad = 0 - 1
+            i = 0
+            while i < 40 {
+                if q.dequeue() != i { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 410)
+            q.free()
+        }
+        case "repeated grow with repeated wraps": {
+            Queue<int> q = new Queue<int>()
+            int i = 0
+            while i < 100 {
+                q.enqueue(i)
+                if (i % 3) == 0 { q.dequeue() }
+                i = i + 1
+            }
+            assert.assertEqI(q.size(), 66, 411)
+            assert.assertEqI(q.peek(), 34, 412)
+            q.free()
+        }
+    }
+
+    // ── ownership: Queue<string> ─────────────────────────────────────────────
+    void stringOwnershipTest() {
+        case "enqueue clones, source stays intact": {
+            Queue<string> q = new Queue<string>()
+            string built = str.concat("foo", "bar")
+            q.enqueue(built)
+            q.enqueue("baz")
+            assert.assertEqI(q.size(), 2, 501)
+            assert.assertStr(q.peek(), "foobar", 502)
+            assert.assertStr(built, "foobar", 503)
+            q.free()
+        }
+        case "dequeue transfers ownership to the caller": {
+            Queue<string> q = new Queue<string>()
+            q.enqueue("first")
+            q.enqueue("second")
+            string head = q.dequeue()
+            assert.assertStr(head, "first", 504)
+            q.free()
+            assert.assertStr(head, "first", 505)
+        }
+        case "empty dequeue/peek yield the empty string": {
+            Queue<string> q = new Queue<string>()
+            assert.assertEmpty(q.dequeue(), 506)
+            assert.assertEmpty(q.peek(), 507)
+            q.free()
+        }
+        case "string queue grows over a wrapped ring": {
+            Queue<string> q = new Queue<string>()
+            int i = 0
+            while i < 8 {
+                q.enqueue(str.concat("a", str.convert(i)))
+                i = i + 1
+            }
+            i = 0
+            while i < 5 {
+                q.dequeue()
+                i = i + 1
+            }
+            i = 0
+            while i < 8 {
+                q.enqueue(str.concat("b", str.convert(i)))
+                i = i + 1
+            }
+            assert.assertEqI(q.size(), 11, 508)
+            assert.assertStr(q.dequeue(), "a5", 509)
+            assert.assertStr(q.peek(), "a6", 510)
+            q.free()
+        }
+    }
+
+    // ── other element kinds ──────────────────────────────────────────────────
+    void elementKindTest() {
+        case "Queue<bool>": {
+            Queue<bool> q = new Queue<bool>()
+            q.enqueue(true)
+            q.enqueue(false)
+            assert.assertTrue(q.dequeue(), 601)
+            assert.assertFalse(q.dequeue(), 602)
+            assert.assertFalse(q.dequeue(), 603)      // default T
+            q.free()
+        }
+        case "Queue<double>": {
+            Queue<double> q = new Queue<double>()
+            q.enqueue(3.5)
+            q.enqueue(0.0 - 0.5)
+            assert.assertApprox(q.dequeue(), 3.5, 604)
+            assert.assertApprox(q.dequeue(), 0.0 - 0.5, 605)
+            assert.assertApprox(q.dequeue(), 0.0, 606)
+            q.free()
+        }
+        case "Queue<pointer>": {
+            Queue<pointer> q = new Queue<pointer>()
+            q.enqueue(8192)
+            assert.assertEqP(q.peek(), 8192, 607)
+            assert.assertEqP(q.dequeue(), 8192, 608)
+            assert.assertNull(q.dequeue(), 609)
+            q.free()
+        }
+    }
+}

@@ -1,0 +1,335 @@
+import fly.assert
+import fly.str
+import fly.data.Wrapper
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GenericsSuite — generic type arguments and generic constructs, i.e. the
+// monomorphization machinery:
+//   * Wrapper<T> over every usable primitive, over `string` (an OWNED value, so
+//     each get() must clone — no aliasing, no double free) and over a user class
+//     (a handle, so mutations through the original are visible);
+//   * generic free functions — identity<T>, and pickMax<T> which has a body
+//     LOCAL and a nested block, exercising per-specialization re-resolution of
+//     method-body locals across several instantiations;
+//   * a two-type-parameter generic class, Pair<A,B>, with independent A/B
+//     monomorphization and mixed type combinations;
+//   * a generic class instantiated at the same type argument twice, which must
+//     share one specialization without cross-talk;
+//   * nesting a generic inside a generic.
+//
+// NOT USABLE as generic type arguments, and therefore not covered: `char` and
+// array types `T[]` (both fail to parse inside <...>), and `float` / `uint`
+// (mis-typed in codegen). This mirrors the note on the original generics test.
+//
+// Assert codes: 1xx integral Wrapper, 2xx floating point, 3xx string ownership,
+// 4xx class handles, 5xx generic functions, 6xx Pair, 7xx sharing and nesting.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// The simplest generic: returns its argument unchanged.
+T identity<T>(T v) {
+    out = v
+}
+
+// A generic function with a LOCAL and a NESTED block.
+T pickMax<T>(const T a, const T b) {
+    T r = a
+    if b > a {
+        r = b
+    }
+    out = r
+}
+
+// Two independent type parameters.
+public class Pair<A, B> {
+    A a
+    B b
+    public Pair(const A x, const B y) {
+        this.a = x
+        this.b = y
+    }
+    public A first() { out = this.a }
+    public B second() { out = this.b }
+    public void setFirst(const A x) { this.a = x }
+    public void setSecond(const B y) { this.b = y }
+}
+
+// A user class used as a generic type argument (handle semantics).
+public class Point {
+    public int x
+    public int y
+    public Point(const int px, const int py) {
+        this.x = px
+        this.y = py
+    }
+}
+
+suite GenericsSuite {
+
+    // ── Wrapper<T> over the integral types ───────────────────────────────────
+    void integralTest() {
+        case "int": {
+            Wrapper<int> w = new Wrapper<int>(42)
+            assert.assertEqI(w.get(), 42, 101)
+            w.set(100)
+            assert.assertEqI(w.get(), 100, 102)
+            w.set(0 - 7)
+            assert.assertEqI(w.get(), 0 - 7, 103)
+        }
+        case "bool": {
+            Wrapper<bool> w = new Wrapper<bool>(true)
+            assert.assertTrue(w.get(), 104)
+            w.set(false)
+            assert.assertFalse(w.get(), 105)
+        }
+        case "long": {
+            Wrapper<long> w = new Wrapper<long>(9999)
+            assert.assertEqL(w.get(), 9999, 106)
+            w.set(1234567890)
+            assert.assertEqL(w.get(), 1234567890, 107)
+            w.set(0 - 9000000000)
+            assert.assertEqL(w.get(), 0 - 9000000000, 108)
+        }
+        case "byte": {
+            Wrapper<byte> w = new Wrapper<byte>(7)
+            assert.assertEqI((int)w.get() & 255, 7, 109)
+            w.set(200)
+            assert.assertEqI((int)w.get() & 255, 200, 110)
+        }
+        case "short": {
+            Wrapper<short> w = new Wrapper<short>(1234)
+            assert.assertEqI((int)w.get(), 1234, 111)
+            w.set((short)(0 - 1234))
+            assert.assertEqI((int)w.get(), 0 - 1234, 112)
+        }
+        case "ulong": {
+            Wrapper<ulong> w = new Wrapper<ulong>(9000000000)
+            assert.assertEqL((long)w.get(), 9000000000, 113)
+        }
+        case "pointer": {
+            Wrapper<pointer> w = new Wrapper<pointer>(4096)
+            assert.assertEqP(w.get(), 4096, 114)
+            w.set(0)
+            assert.assertNull(w.get(), 115)
+        }
+        case "instantiations at different types are independent": {
+            Wrapper<int> wi = new Wrapper<int>(1)
+            Wrapper<long> wl = new Wrapper<long>(2)
+            Wrapper<bool> wb = new Wrapper<bool>(true)
+            wi.set(10)
+            assert.assertEqI(wi.get(), 10, 116)
+            assert.assertEqL(wl.get(), 2, 117)
+            assert.assertTrue(wb.get(), 118)
+        }
+    }
+
+    // ── Wrapper<double> ──────────────────────────────────────────────────────
+    void floatingTest() {
+        case "double": {
+            Wrapper<double> w = new Wrapper<double>(3.5)
+            assert.assertApprox(w.get(), 3.5, 201)
+            w.set(2.25)
+            assert.assertApprox(w.get(), 2.25, 202)
+            w.set(0.0 - 1.5)
+            assert.assertApprox(w.get(), 0.0 - 1.5, 203)
+            w.set(0.0)
+            assert.assertApprox(w.get(), 0.0, 204)
+        }
+    }
+
+    // ── Wrapper<string>: an OWNED value through monomorphization ─────────────
+    void stringTest() {
+        case "a literal payload": {
+            Wrapper<string> w = new Wrapper<string>("hello")
+            assert.assertStr(w.get(), "hello", 301)
+            w.set("world")
+            assert.assertStr(w.get(), "world", 302)
+        }
+        case "each get() clones — reading twice is safe": {
+            string built = str.concat("foo", "bar")
+            Wrapper<string> w = new Wrapper<string>(built)
+            string a = w.get()
+            string b = w.get()
+            assert.assertStr(a, b, 303)
+            assert.assertStr(a, "foobar", 304)
+            assert.assertStr(built, "foobar", 305)     // the source is intact
+        }
+        case "a read-out copy is stable across a later set()": {
+            Wrapper<string> w = new Wrapper<string>("first")
+            string held = w.get()
+            w.set("second")
+            assert.assertStr(held, "first", 306)
+            assert.assertStr(w.get(), "second", 307)
+        }
+        case "the empty string": {
+            Wrapper<string> w = new Wrapper<string>("")
+            assert.assertEmpty(w.get(), 308)
+            w.set("x")
+            assert.assertStr(w.get(), "x", 309)
+        }
+        case "many set/get cycles do not leak or alias": {
+            Wrapper<string> w = new Wrapper<string>("seed")
+            int i = 0
+            while i < 50 {
+                w.set(str.concat("v", str.convert(i)))
+                i = i + 1
+            }
+            assert.assertStr(w.get(), "v49", 310)
+        }
+    }
+
+    // ── Wrapper<Point>: a class instance as a type argument (handle) ─────────
+    void classArgumentTest() {
+        case "the wrapped handle refers to the same object": {
+            Point pt = new Point(3, 4)
+            Wrapper<Point> w = new Wrapper<Point>(pt)
+            Point got = w.get()
+            assert.assertEqI(got.x, 3, 401)
+            assert.assertEqI(got.y, 4, 402)
+        }
+        case "mutations through the original are visible": {
+            Point pt = new Point(3, 4)
+            Wrapper<Point> w = new Wrapper<Point>(pt)
+            pt.x = 30
+            assert.assertEqI(w.get().x, 30, 403)
+        }
+        case "mutations through the wrapper are visible outside": {
+            Point pt = new Point(3, 4)
+            Wrapper<Point> w = new Wrapper<Point>(pt)
+            w.get().y = 40
+            assert.assertEqI(pt.y, 40, 404)
+        }
+        case "set swaps the referenced object": {
+            Point a = new Point(1, 1)
+            Point b = new Point(2, 2)
+            Wrapper<Point> w = new Wrapper<Point>(a)
+            assert.assertEqI(w.get().x, 1, 405)
+            w.set(b)
+            assert.assertEqI(w.get().x, 2, 406)
+            assert.assertEqI(a.x, 1, 407)              // the old object is untouched
+        }
+    }
+
+    // ── generic free functions ───────────────────────────────────────────────
+    void functionTest() {
+        case "identity over several type arguments": {
+            assert.assertEqI(identity(42), 42, 501)
+            assert.assertTrue(identity(true), 502)
+            assert.assertEqL(identity(5000000000), 5000000000, 503)
+            assert.assertApprox(identity(6.5), 6.5, 504)
+            assert.assertStr(identity("zzz"), "zzz", 505)
+        }
+        case "identity preserves negatives and zero": {
+            assert.assertEqI(identity(0), 0, 506)
+            assert.assertEqI(identity(0 - 5), 0 - 5, 507)
+            assert.assertApprox(identity(0.0), 0.0, 508)
+            assert.assertEmpty(identity(""), 509)
+        }
+        case "pickMax over several numeric specializations": {
+            assert.assertEqI(pickMax(3, 9), 9, 510)
+            assert.assertEqI(pickMax(9, 3), 9, 511)
+            assert.assertEqI(pickMax(4, 4), 4, 512)     // the ties keep `a`
+            assert.assertApprox(pickMax(1.5, 2.5), 2.5, 513)
+            assert.assertApprox(pickMax(2.5, 1.5), 2.5, 514)
+            assert.assertEqL(pickMax(5000000000, 1), 5000000000, 515)
+        }
+        case "pickMax with negatives": {
+            assert.assertEqI(pickMax(0 - 3, 0 - 9), 0 - 3, 516)
+            assert.assertEqI(pickMax(0 - 3, 2), 2, 517)
+        }
+        case "a generic function called in a loop": {
+            int bad = 0 - 1
+            int i = 0
+            while i < 50 {
+                if identity(i) != i { bad = i }
+                if pickMax(i, i + 1) != i + 1 { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 518)
+        }
+    }
+
+    // ── Pair<A,B>: two independent type parameters ───────────────────────────
+    void pairTest() {
+        case "int and string": {
+            Pair<int, string> p = new Pair<int, string>(7, "hi")
+            assert.assertEqI(p.first(), 7, 601)
+            assert.assertStr(p.second(), "hi", 602)
+        }
+        case "string and int, the mirror combination": {
+            Pair<string, int> p = new Pair<string, int>("key", 9)
+            assert.assertStr(p.first(), "key", 603)
+            assert.assertEqI(p.second(), 9, 604)
+        }
+        case "long and double": {
+            Pair<long, double> p = new Pair<long, double>(42, 3.5)
+            assert.assertEqL(p.first(), 42, 605)
+            assert.assertApprox(p.second(), 3.5, 606)
+        }
+        case "both parameters at the same type": {
+            Pair<int, int> p = new Pair<int, int>(1, 2)
+            assert.assertEqI(p.first(), 1, 607)
+            assert.assertEqI(p.second(), 2, 608)
+        }
+        case "setters touch only their own slot": {
+            Pair<int, string> p = new Pair<int, string>(7, "hi")
+            p.setFirst(70)
+            assert.assertEqI(p.first(), 70, 609)
+            assert.assertStr(p.second(), "hi", 610)
+            p.setSecond("bye")
+            assert.assertStr(p.second(), "bye", 611)
+            assert.assertEqI(p.first(), 70, 612)
+        }
+        case "a class handle as a type parameter": {
+            Point pt = new Point(5, 6)
+            Pair<Point, int> p = new Pair<Point, int>(pt, 1)
+            assert.assertEqI(p.first().x, 5, 613)
+            pt.x = 50
+            assert.assertEqI(p.first().x, 50, 614)
+        }
+    }
+
+    // ── shared specializations and nesting ───────────────────────────────────
+    void specializationTest() {
+        case "two instances of the same specialization are independent": {
+            Wrapper<int> a = new Wrapper<int>(1)
+            Wrapper<int> b = new Wrapper<int>(2)
+            a.set(10)
+            assert.assertEqI(a.get(), 10, 701)
+            assert.assertEqI(b.get(), 2, 702)
+        }
+        case "the same Pair specialization used twice": {
+            Pair<int, string> a = new Pair<int, string>(1, "a")
+            Pair<int, string> b = new Pair<int, string>(2, "b")
+            a.setFirst(11)
+            assert.assertEqI(a.first(), 11, 703)
+            assert.assertEqI(b.first(), 2, 704)
+            assert.assertStr(a.second(), "a", 705)
+            assert.assertStr(b.second(), "b", 706)
+        }
+        case "a generic nested inside a generic": {
+            Wrapper<int> inner = new Wrapper<int>(5)
+            Wrapper<Wrapper<int> > outer = new Wrapper<Wrapper<int> >(inner)
+            assert.assertEqI(outer.get().get(), 5, 707)
+            inner.set(6)
+            assert.assertEqI(outer.get().get(), 6, 708)
+        }
+        case "a Pair holding a Wrapper": {
+            Wrapper<int> w = new Wrapper<int>(3)
+            Pair<Wrapper<int>, string> p = new Pair<Wrapper<int>, string>(w, "tag")
+            assert.assertEqI(p.first().get(), 3, 709)
+            assert.assertStr(p.second(), "tag", 710)
+            w.set(4)
+            assert.assertEqI(p.first().get(), 4, 711)
+        }
+        case "many instances of one specialization in a loop": {
+            int bad = 0 - 1
+            int i = 0
+            while i < 50 {
+                Wrapper<int> w = new Wrapper<int>(i)
+                if w.get() != i { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 712)
+        }
+    }
+}

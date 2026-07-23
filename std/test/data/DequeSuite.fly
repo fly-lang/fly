@@ -1,0 +1,365 @@
+import fly.assert
+import fly.str
+import fly.data.Deque
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DequeSuite — exhaustive coverage of fly.data.Deque<T> (std/lib/data/deque.fly),
+// a double-ended queue over a power-of-two circular buffer (the Fly analog of
+// C++ std::deque<T>). Branches, all of them ring arithmetic:
+//
+//   pushBack()   stride-init, first-alloc, grow (linearise a wrapped range),
+//                tail advance `(tail + 1) & (cap - 1)`
+//   pushFront()  the same three, then `newhead = (head - 1) & (cap - 1)` — on a
+//                fresh deque head is 0, so this relies on UNSIGNED wraparound
+//                (0 - 1 ≡ 2^64-1, masked back to cap-1)
+//   popFront()   / popBack() / peekFront() / peekBack(): non-empty and empty
+//                (→ default T); popBack recomputes `(tail - 1) & (cap - 1)`
+//   isEmpty() / size()
+//   free()       with a wrapped live range, and on a never-used deque
+//
+// Growth is triggered separately from pushBack and from pushFront, because the
+// two copies of the grow block are distinct code paths.
+//
+// Assert codes: 1xx empty, 2xx both ends, 3xx wraparound, 4xx growth,
+// 5xx strings, 6xx element kinds.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite DequeSuite {
+
+    // ── the empty deque ──────────────────────────────────────────────────────
+    void emptyTest() {
+        case "fresh deque": {
+            Deque<long> d = new Deque<long>()
+            assert.assertEqI(d.size(), 0, 101)
+            assert.assertTrue(d.isEmpty(), 102)
+            d.free()
+        }
+        case "pop / peek on empty yield default T": {
+            Deque<long> d = new Deque<long>()
+            assert.assertEqL(d.popFront(), 0, 103)
+            assert.assertEqL(d.popBack(), 0, 104)
+            assert.assertEqL(d.peekFront(), 0, 105)
+            assert.assertEqL(d.peekBack(), 0, 106)
+            assert.assertEqI(d.size(), 0, 107)
+            d.free()
+        }
+        case "free on a never-used deque": {
+            Deque<long> d = new Deque<long>()
+            d.free()
+            assert.assertEqI(d.size(), 0, 108)
+        }
+        case "drained deque behaves like a fresh one": {
+            Deque<long> d = new Deque<long>()
+            d.pushBack(1)
+            assert.assertEqL(d.popFront(), 1, 109)
+            assert.assertTrue(d.isEmpty(), 110)
+            assert.assertEqL(d.popBack(), 0, 111)
+            assert.assertEqL(d.peekBack(), 0, 112)
+            d.free()
+        }
+    }
+
+    // ── pushing and popping at both ends ─────────────────────────────────────
+    void bothEndsTest() {
+        case "pushBack then popFront is FIFO": {
+            Deque<long> d = new Deque<long>()
+            d.pushBack(10)
+            d.pushBack(20)
+            d.pushBack(30)
+            assert.assertEqI(d.size(), 3, 201)
+            assert.assertEqL(d.popFront(), 10, 202)
+            assert.assertEqL(d.popFront(), 20, 203)
+            assert.assertEqL(d.popFront(), 30, 204)
+            d.free()
+        }
+        case "pushBack then popBack is LIFO": {
+            Deque<long> d = new Deque<long>()
+            d.pushBack(10)
+            d.pushBack(20)
+            assert.assertEqL(d.popBack(), 20, 205)
+            assert.assertEqL(d.popBack(), 10, 206)
+            assert.assertTrue(d.isEmpty(), 207)
+            d.free()
+        }
+        case "pushFront reverses the front order": {
+            Deque<long> d = new Deque<long>()
+            d.pushFront(1)
+            d.pushFront(2)
+            d.pushFront(3)
+            assert.assertEqL(d.popFront(), 3, 208)
+            assert.assertEqL(d.popFront(), 2, 209)
+            assert.assertEqL(d.popFront(), 1, 210)
+            d.free()
+        }
+        case "pushFront then popBack is FIFO": {
+            Deque<long> d = new Deque<long>()
+            d.pushFront(1)
+            d.pushFront(2)
+            d.pushFront(3)
+            assert.assertEqL(d.popBack(), 1, 211)
+            assert.assertEqL(d.popBack(), 2, 212)
+            assert.assertEqL(d.popBack(), 3, 213)
+            d.free()
+        }
+        case "peek at both ends does not consume": {
+            Deque<long> d = new Deque<long>()
+            d.pushBack(10)
+            d.pushBack(20)
+            d.pushFront(5)
+            assert.assertEqI(d.size(), 3, 214)
+            assert.assertEqL(d.peekFront(), 5, 215)
+            assert.assertEqL(d.peekBack(), 20, 216)
+            assert.assertEqL(d.peekFront(), 5, 217)
+            assert.assertEqI(d.size(), 3, 218)
+            d.free()
+        }
+        case "single element is both front and back": {
+            Deque<long> d = new Deque<long>()
+            d.pushBack(42)
+            assert.assertEqL(d.peekFront(), 42, 219)
+            assert.assertEqL(d.peekBack(), 42, 220)
+            assert.assertEqL(d.popBack(), 42, 221)
+            assert.assertTrue(d.isEmpty(), 222)
+            d.free()
+        }
+    }
+
+    // ── the ring: unsigned wraparound with no grow ───────────────────────────
+    void wrapTest() {
+        case "pushFront on a fresh deque wraps head to cap-1": {
+            // head = 0 → (0 - 1) & 7 = 7. The element lands at the last slot and
+            // must still read back as the front.
+            Deque<long> d = new Deque<long>()
+            d.pushFront(7)
+            assert.assertEqI(d.size(), 1, 301)
+            assert.assertEqL(d.peekFront(), 7, 302)
+            assert.assertEqL(d.peekBack(), 7, 303)
+            d.pushBack(8)                             // tail is 0: wraps forward
+            assert.assertEqL(d.peekFront(), 7, 304)
+            assert.assertEqL(d.peekBack(), 8, 305)
+            assert.assertEqL(d.popFront(), 7, 306)
+            assert.assertEqL(d.popFront(), 8, 307)
+            d.free()
+        }
+        case "alternating pushes straddle the wrap": {
+            // Fills the ring from both directions: slots 5,6,7,0,1,2 in order.
+            Deque<int> d = new Deque<int>()
+            d.pushBack(0)
+            d.pushFront(0 - 1)
+            d.pushBack(1)
+            d.pushFront(0 - 2)
+            d.pushBack(2)
+            d.pushFront(0 - 3)
+            assert.assertEqI(d.size(), 6, 308)
+            int bad = 0 - 99
+            int expect = 0 - 3
+            while expect < 3 {
+                if d.popFront() != expect { bad = expect }
+                expect = expect + 1
+            }
+            assert.assertEqI(bad, 0 - 99, 309)
+            assert.assertTrue(d.isEmpty(), 310)
+            d.free()
+        }
+        case "rotate around the ring many times": {
+            Deque<int> d = new Deque<int>()
+            int i = 0
+            while i < 6 {
+                d.pushBack(i)
+                i = i + 1
+            }
+            int bad = 0 - 1
+            int n = 0
+            while n < 30 {
+                int got = d.popFront()
+                if got != n { bad = n }
+                d.pushBack(n + 6)
+                n = n + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 311)
+            assert.assertEqI(d.size(), 6, 312)
+            assert.assertEqI(d.peekFront(), 30, 313)
+            assert.assertEqI(d.peekBack(), 35, 314)
+            d.free()
+        }
+        case "free with a wrapped live range": {
+            Deque<int> d = new Deque<int>()
+            d.pushFront(1)                            // slot 7
+            d.pushFront(2)                            // slot 6
+            d.pushBack(3)                             // slot 0
+            d.pushBack(4)                             // slot 1
+            assert.assertEqI(d.size(), 4, 315)
+            assert.assertEqI(d.peekFront(), 2, 316)
+            assert.assertEqI(d.peekBack(), 4, 317)
+            d.free()
+        }
+    }
+
+    // ── growth from each end ─────────────────────────────────────────────────
+    void growTest() {
+        case "grow triggered by pushBack": {
+            Deque<int> d = new Deque<int>()
+            int i = 0
+            while i < 40 {
+                d.pushBack(i)
+                i = i + 1
+            }
+            assert.assertEqI(d.size(), 40, 401)
+            assert.assertEqI(d.peekFront(), 0, 402)
+            assert.assertEqI(d.peekBack(), 39, 403)
+            int bad = 0 - 1
+            i = 0
+            while i < 40 {
+                if d.popFront() != i { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 404)
+            d.free()
+        }
+        case "grow triggered by pushFront": {
+            // Every push wraps head backwards, so the live range is wrapped when
+            // the grow block runs — the copy loop must linearise it correctly.
+            Deque<int> d = new Deque<int>()
+            int i = 0
+            while i < 40 {
+                d.pushFront(i)
+                i = i + 1
+            }
+            assert.assertEqI(d.size(), 40, 405)
+            assert.assertEqI(d.peekFront(), 39, 406)
+            assert.assertEqI(d.peekBack(), 0, 407)
+            int bad = 0 - 1
+            i = 39
+            while i >= 0 {
+                if d.popFront() != i { bad = i }
+                i = i - 1
+            }
+            assert.assertEqI(bad, 0 - 1, 408)
+            d.free()
+        }
+        case "grow with a wrapped range from mixed pushes": {
+            Deque<int> d = new Deque<int>()
+            d.pushFront(0 - 1)
+            d.pushFront(0 - 2)
+            d.pushFront(0 - 3)                        // head = 5
+            int i = 0
+            while i < 20 {
+                d.pushBack(i)
+                i = i + 1
+            }
+            assert.assertEqI(d.size(), 23, 409)
+            assert.assertEqI(d.popFront(), 0 - 3, 410)
+            assert.assertEqI(d.popFront(), 0 - 2, 411)
+            assert.assertEqI(d.popFront(), 0 - 1, 412)
+            assert.assertEqI(d.popFront(), 0, 413)
+            assert.assertEqI(d.peekBack(), 19, 414)
+            d.free()
+        }
+        case "grow, drain, grow again from the other end": {
+            Deque<int> d = new Deque<int>()
+            int i = 0
+            while i < 20 {
+                d.pushBack(i)
+                i = i + 1
+            }
+            while d.isEmpty() == false {
+                d.popBack()
+            }
+            assert.assertEqI(d.size(), 0, 415)
+            i = 0
+            while i < 20 {
+                d.pushFront(i)
+                i = i + 1
+            }
+            assert.assertEqI(d.size(), 20, 416)
+            assert.assertEqI(d.peekFront(), 19, 417)
+            assert.assertEqI(d.peekBack(), 0, 418)
+            d.free()
+        }
+    }
+
+    // ── ownership: Deque<string> ─────────────────────────────────────────────
+    void stringOwnershipTest() {
+        case "pushes clone, sources stay intact": {
+            Deque<string> d = new Deque<string>()
+            string a = str.concat("foo", "bar")
+            string b = str.concat("baz", "qux")
+            d.pushBack(a)
+            d.pushFront(b)
+            assert.assertEqI(d.size(), 2, 501)
+            assert.assertStr(d.peekFront(), "bazqux", 502)
+            assert.assertStr(d.peekBack(), "foobar", 503)
+            assert.assertStr(a, "foobar", 504)
+            assert.assertStr(b, "bazqux", 505)
+            d.free()
+        }
+        case "pops transfer ownership to the caller": {
+            Deque<string> d = new Deque<string>()
+            d.pushBack("front")
+            d.pushBack("back")
+            string f = d.popFront()
+            string k = d.popBack()
+            assert.assertStr(f, "front", 506)
+            assert.assertStr(k, "back", 507)
+            d.free()
+            assert.assertStr(f, "front", 508)
+            assert.assertStr(k, "back", 509)
+        }
+        case "empty pops/peeks yield the empty string": {
+            Deque<string> d = new Deque<string>()
+            assert.assertEmpty(d.popFront(), 510)
+            assert.assertEmpty(d.popBack(), 511)
+            assert.assertEmpty(d.peekFront(), 512)
+            assert.assertEmpty(d.peekBack(), 513)
+            d.free()
+        }
+        case "string deque grows from the front": {
+            Deque<string> d = new Deque<string>()
+            int i = 0
+            while i < 20 {
+                d.pushFront(str.concat("s", str.convert(i)))
+                i = i + 1
+            }
+            assert.assertEqI(d.size(), 20, 514)
+            assert.assertStr(d.peekFront(), "s19", 515)
+            assert.assertStr(d.peekBack(), "s0", 516)
+            assert.assertStr(d.popFront(), "s19", 517)
+            d.free()                                  // frees the 19 still live
+        }
+    }
+
+    // ── other element kinds ──────────────────────────────────────────────────
+    void elementKindTest() {
+        case "Deque<bool>": {
+            Deque<bool> d = new Deque<bool>()
+            d.pushBack(true)
+            d.pushFront(false)
+            assert.assertFalse(d.popFront(), 601)
+            assert.assertTrue(d.popBack(), 602)
+            assert.assertFalse(d.popFront(), 603)     // default T
+            d.free()
+        }
+        case "Deque<double>": {
+            Deque<double> d = new Deque<double>()
+            d.pushBack(1.25)
+            d.pushFront(0.0 - 4.5)
+            assert.assertApprox(d.peekFront(), 0.0 - 4.5, 604)
+            assert.assertApprox(d.peekBack(), 1.25, 605)
+            assert.assertApprox(d.popBack(), 1.25, 606)
+            assert.assertApprox(d.popBack(), 0.0 - 4.5, 607)
+            assert.assertApprox(d.popBack(), 0.0, 608)
+            d.free()
+        }
+        case "Deque<pointer>": {
+            Deque<pointer> d = new Deque<pointer>()
+            d.pushBack(1024)
+            d.pushFront(2048)
+            assert.assertEqP(d.peekFront(), 2048, 609)
+            assert.assertEqP(d.peekBack(), 1024, 610)
+            assert.assertEqP(d.popFront(), 2048, 611)
+            assert.assertEqP(d.popFront(), 1024, 612)
+            assert.assertNull(d.popFront(), 613)
+            d.free()
+        }
+    }
+}

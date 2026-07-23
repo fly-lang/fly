@@ -25,6 +25,11 @@ public class CodeGenOptions {
     bool isStatic
     bool isShared
     bool testMode
+    // --suite [Name] / --test [Method] filters (reference CodeGenOpts parity).
+    // Empty = no filter. suiteName restricts which SUITE gets the implicit main();
+    // testFilter restricts which *Test method inside it runs.
+    string suiteName
+    string testFilter
     bool rdynamic
     bool pie
     bool staticPie
@@ -96,6 +101,8 @@ public class CodeGenOptions {
         this.isStatic = false
         this.isShared = false
         this.testMode = false
+        this.suiteName = ""
+        this.testFilter = ""
         this.rdynamic = false
         this.pie = false
         this.staticPie = false
@@ -167,6 +174,10 @@ public class CodeGenOptions {
     public void setShared(const bool b) { this.isShared = b }
     public bool getTestMode()     { out = this.testMode }
     public void setTestMode(const bool b) { this.testMode = b }
+    public string getSuiteName()  { out = this.suiteName }
+    public void setSuiteName(const string s) { this.suiteName = s }
+    public string getTestFilter() { out = this.testFilter }
+    public void setTestFilter(const string s) { this.testFilter = s }
     public bool getRDynamic()     { out = this.rdynamic }
     public void setRDynamic(const bool b) { this.rdynamic = b }
     public bool getPIE()          { out = this.pie }

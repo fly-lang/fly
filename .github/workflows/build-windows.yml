@@ -17,8 +17,8 @@ on:
 
 env:
   # stage0 bootstrap release (compiles the stage-1 world; see the stage map
-  # below). 0.13.8 is cut from the current fly/ reference.
-  FLY_VERSION: "0.13.8"
+  # below). Cut from the current fly/ reference; the version pin is THIS variable.
+  FLY_VERSION: "0.13.10"
 
 jobs:
 
@@ -64,7 +64,7 @@ jobs:
 
       # ── Rust-style staged bootstrap (see ci/windows/stage1.ps1; mirrors the
       #    Linux pipeline in ci/linux/) ─────────────────────────────────────────
-      # stage0  ci/windows/stage0.ps1: the downloaded 0.13.8 bootstrap compiler +
+      # stage0  ci/windows/stage0.ps1: the downloaded bootstrap compiler ($FLY_VERSION) +
       #         its precompiled lib → build\stage0, and the fork LLVM pieces
       #         (LLVM-C.lib/.dll + lld-link.exe) → build\llvm. No package manager.
       # stage1  ci/windows/stage1.ps1: stage0 builds runtime(seed), std, compiler
@@ -89,11 +89,39 @@ jobs:
         shell: pwsh
         run: .\ci\windows\stage0.ps1
 
+      # ── Stage-0 pass: the suites under the pinned REFERENCE seed that stage0 just
+      #    downloaded, with its own bundled runtime/std. A failure here is a
+      #    SOURCE-level problem, caught before a self-host build is spent on it.
+      #    Every stage links the SAME fork LLVM (stage0 exported it).
+      #    Non-blocking for now: a known set still faults under the reference.
+      - name: Test stage 0 (reference compiler)
+        continue-on-error: true
+        shell: pwsh
+        env:
+          STAGE: '0'
+        run: |
+          .\ci\windows\test_runtime.ps1
+          .\ci\windows\test_std.ps1
+          .\ci\windows\test_compiler.ps1
+
       - name: Stage 1 (bootstrap builds the self-host)
         shell: pwsh
         env:
           FLY_BUNDLE_LLVM: "1"
         run: .\ci\windows\stage1.ps1
+
+      # ── Stage-1 pass: the suites under the self-host stage1 just built WITH the
+      #    reference. A suite that passed at STAGE=0 and fails here indicts the
+      #    self-host codegen. Non-blocking for now: a known set still fails.
+      - name: Test stage 1 (self-host built by the reference)
+        continue-on-error: true
+        shell: pwsh
+        env:
+          STAGE: '1'
+        run: |
+          .\ci\windows\test_runtime.ps1
+          .\ci\windows\test_std.ps1
+          .\ci\windows\test_compiler.ps1
 
       - name: Stage 2 (self-host rebuilds the shipped artifacts)
         shell: pwsh
@@ -101,20 +129,25 @@ jobs:
           FLY_BUNDLE_LLVM: "1"
         run: .\ci\windows\stage2.ps1
 
-      # ── Tests, after stage 2: everything compiles and runs with
-      #    build\stage2\bin\fly.exe (mirrors Linux; the --test system is ported
-      #    to the self-host). The FLY defaults live in the test scripts.
+      # ── Stage-2 pass: the suites under the self-host stage2 just built WITH the
+      # self-host — the shipped fixpoint artifact. A suite that passed at STAGE=1
+      # and fails here indicts stage2 codegen. These stay BLOCKING: this is what
+      # users get.
       # Test order: runtime → std → compiler → driver (bottom-up: the runtime
       # underpins std, which the compiler + driver both build on, so a failure is
       # reported at the lowest broken layer first).
       - name: Test runtime
         continue-on-error: false
         shell: pwsh
+        env:
+          STAGE: '2'
         run: .\ci\windows\test_runtime.ps1
 
       - name: Test std
         continue-on-error: false
         shell: pwsh
+        env:
+          STAGE: '2'
         run: .\ci\windows\test_std.ps1
 
       # Non-blocking: a subset of codegen suites is non-deterministically unstable
@@ -125,6 +158,8 @@ jobs:
         id: test_compiler
         continue-on-error: false
         shell: pwsh
+        env:
+          STAGE: '2'
         run: .\ci\windows\test_compiler.ps1
 
       # Windows mirror of build-linux.yml's gdb "Backtrace on Crash": if a suite
@@ -143,11 +178,6 @@ jobs:
           name: windows-crashdumps
           path: build/crashdumps
           if-no-files-found: ignore
-
-      - name: Test driver
-        continue-on-error: false
-        shell: pwsh
-        run: .\ci\windows\test_driver.ps1
 
       - name: Set artifact name
         id: artifact

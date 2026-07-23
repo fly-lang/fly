@@ -1,0 +1,222 @@
+import fly.str
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MultiReturnSuite — functions declaring several return types (`A,B f(x)`), the
+// out-param model's N-slot form. Per the language reference a multi-return
+// function writes out[0], out[1], … and a call site binds the FIRST value.
+//
+// Regression cover for the multi-return call fix. Three separate defects had to
+// be corrected before a single one of these could run:
+//   * SemaFunctionBase.getParamTypes() dropped exactly ONE synthetic trailing out
+//     param, but a multi-return callee carries N — so the declaration's own
+//     signature never matched its call and every call reported "no function
+//     matches" (arity mismatch);
+//   * once that resolved, the call site synthesised no out vars at all (it keyed
+//     off getReturnType(), which is null for multi-return), so codegen emitted a
+//     call short of the callee's LLVM signature and crashed inside libLLVM;
+//   * a multi-return call used as an ARGUMENT had no type, so it matched no
+//     overload — the call expression now takes the first return type.
+//
+// Assert codes: 1xx two values, 2xx three+ values, 3xx call-expression typing.
+// ─────────────────────────────────────────────────────────────────────────────
+
+int,int divmod(const int a, const int b) {
+    out[0] = a / b
+    out[1] = a % b
+}
+
+string,string splitPair() {
+    out[0] = "left"
+    out[1] = "right"
+}
+
+string,string,int triple() {
+    out[0] = "alpha"
+    out[1] = "beta"
+    out[2] = 7
+}
+
+struct Box { int a  int b }
+
+// A multi-return whose result is a STRUCT: the out slot holds the CALLER's storage
+// address, so the assignment has to copy through it. Storing over the pointer
+// instead left every caller pointing at the same callee frame, and two live
+// results aliased.
+string,Box boxed(const int v) {
+    out[0] = "n"
+    Box t = new Box()
+    t.a = v
+    t.b = v * 10
+    out[1] = t
+}
+
+Box justBox(const int v) {
+    Box t = new Box()
+    t.a = v
+    t.b = v * 10
+    out = t
+}
+
+long,long,long,long quad(const long n) {
+    out[0] = n
+    out[1] = n * 2
+    out[2] = n * 3
+    out[3] = n * 4
+}
+
+// A multi-return function that itself CALLS one.
+int,int viaInner(const int a) {
+    int q = divmod(a, 3)
+    out[0] = q
+    out[1] = q + 1
+}
+
+suite MultiReturnSuite {
+
+    void twoValueTest() {
+        case "binds the first return value": {
+            int q = divmod(17, 5)
+            assert.assertEqI(q, 3, 101)
+        }
+        case "repeated calls stay independent": {
+            int a = divmod(20, 3)
+            int b = divmod(9, 2)
+            assert.assertEqI(a, 6, 102)
+            assert.assertEqI(b, 4, 103)
+            assert.assertEqI(divmod(100, 7), 14, 104)
+        }
+        case "exact division and a zero remainder path": {
+            assert.assertEqI(divmod(12, 4), 3, 105)
+            assert.assertEqI(divmod(0, 5), 0, 106)
+        }
+        case "two strings": {
+            string l = splitPair()
+            assert.assertStr(l, "left", 107)
+        }
+    }
+
+    void manyValueTest() {
+        case "three values of mixed type": {
+            string a = triple()
+            assert.assertStr(a, "alpha", 201)
+        }
+        case "four values": {
+            long n = quad(5)
+            assert.assertEqL(n, 5, 202)
+        }
+        case "a multi-return function calling another": {
+            int v = viaInner(9)
+            assert.assertEqI(v, 3, 203)
+        }
+    }
+
+    // ── the FULL call form: out slots supplied by the caller ─────────────────
+    // `f(x, va, vb)` is the only way to reach the second and later results — the
+    // short form binds out[0] and drops the rest. The trailing arguments are the
+    // caller's own variables and the callee writes straight into them (a non-const
+    // variable argument is passed BY ADDRESS). This is the form the reference
+    // uses in its own std tests.
+    void fullFormTest() {
+        case "both results land in the caller's variables": {
+            int q = 0
+            int r = 0
+            divmod(17, 5, q, r)
+            assert.assertEqI(q, 3, 401)
+            assert.assertEqI(r, 2, 402)
+        }
+        case "the remainder is genuinely the second slot": {
+            int q2 = 0
+            int r2 = 0
+            divmod(20, 3, q2, r2)
+            assert.assertEqI(q2, 6, 403)
+            assert.assertEqI(r2, 2, 404)
+        }
+        case "three slots, mixed types": {
+            string a = ""
+            string b = ""
+            int n = 0
+            triple(a, b, n)
+            assert.assertStr(a, "alpha", 405)
+            assert.assertStr(b, "beta", 406)
+            assert.assertEqI(n, 7, 407)
+        }
+        case "four slots": {
+            long w = 0
+            long x = 0
+            long y = 0
+            long z = 0
+            quad(5, w, x, y, z)
+            assert.assertEqL(w, 5, 408)
+            assert.assertEqL(x, 10, 409)
+            assert.assertEqL(y, 15, 410)
+            assert.assertEqL(z, 20, 411)
+        }
+        case "reusing the same variables across calls": {
+            int q3 = 0
+            int r3 = 0
+            divmod(9, 2, q3, r3)
+            assert.assertEqI(q3, 4, 412)
+            assert.assertEqI(r3, 1, 413)
+            divmod(100, 7, q3, r3)
+            assert.assertEqI(q3, 14, 414)
+            assert.assertEqI(r3, 2, 415)
+        }
+        case "two live STRUCT out-slots stay independent": {
+            // The regression: the second call used to clobber the first result,
+            // because `out[i] = <struct>` overwrote the caller's out POINTER
+            // instead of copying into the storage it points at. In the std this
+            // shape leaked a file descriptor (see OsFsSuite's tempFile note).
+            string n1 = ""
+            Box b1 = new Box()
+            boxed(1, n1, b1)
+            int a1 = b1.a
+            string n2 = ""
+            Box b2 = new Box()
+            boxed(2, n2, b2)
+            assert.assertEqI(a1, 1, 418)
+            assert.assertEqI(b1.a, 1, 419)        // not clobbered by the 2nd call
+            assert.assertEqI(b1.b, 10, 420)
+            assert.assertEqI(b2.a, 2, 421)
+            assert.assertEqI(b2.b, 20, 422)
+        }
+        case "the same holds for a SINGLE-return struct": {
+            Box x = justBox(3)
+            Box y = justBox(4)
+            assert.assertEqI(x.a, 3, 423)
+            assert.assertEqI(x.b, 30, 424)
+            assert.assertEqI(y.a, 4, 425)
+        }
+        case "both forms of the same function coexist": {
+            int only = divmod(17, 5)          // short: binds out[0]
+            int q4 = 0
+            int r4 = 0
+            divmod(17, 5, q4, r4)             // full: both slots
+            assert.assertEqI(only, q4, 416)
+            assert.assertEqI(r4, 2, 417)
+        }
+    }
+
+    void callExprTest() {
+        case "used directly as a call argument": {
+            // The call expression must carry the FIRST return type, or it matches
+            // no overload of assertEqI.
+            assert.assertEqI(divmod(20, 3), 6, 301)
+        }
+        case "used in arithmetic": {
+            int r = divmod(17, 5) + 10
+            assert.assertEqI(r, 13, 302)
+        }
+        case "used in a comparison": {
+            assert.assertTrue(divmod(17, 5) == 3, 303)
+            assert.assertFalse(divmod(17, 5) == 4, 304)
+        }
+        case "nested as the argument of another multi-return call": {
+            int v = divmod(divmod(100, 7), 2)
+            assert.assertEqI(v, 7, 305)
+        }
+        case "a string multi-return feeds a string function": {
+            assert.assertEqI(str.len(splitPair()), 4, 306)
+        }
+    }
+}
