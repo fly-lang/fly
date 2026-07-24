@@ -55,7 +55,7 @@ if [ ! -f "$FORK_LLVM/lib/libLLVM.so" ] || [ ! -f "$RT_BUILTINS" ] || [ "$NEED_S
     # Atomic download (.part + mv, with retries): an interrupted curl must never
     # leave a truncated tarball that a rerun would mistake for the real one.
     if [ ! -f "$tarball" ]; then
-        curl -fSL --retry 3 --retry-all-errors -o "$tarball.part" "$url"
+        curl -fSL --retry 6 --retry-delay 15 --retry-all-errors -o "$tarball.part" "$url"
         mv -f "$tarball.part" "$tarball"
     fi
     # Always: the shared libLLVM.so (link + runtime), the lld linker, llvm-config
@@ -92,7 +92,7 @@ fi
 if [ ! -x "$FLY_BIN" ]; then
     url="https://github.com/fly-lang/fly/releases/download/v${FLY_VERSION}/fly-${FLY_VERSION}-linux-x86_64.tar.gz"
     mkdir -p "$STAGE0_DIR"
-    curl -fsSL --retry 3 --retry-all-errors "$url" -o "$BUILD_DIR/fly.tar.gz"
+    curl -fsSL --retry 6 --retry-delay 15 --retry-all-errors "$url" -o "$BUILD_DIR/fly.tar.gz"
     tar -xzf "$BUILD_DIR/fly.tar.gz" -C "$STAGE0_DIR"
     rm -f "$BUILD_DIR/fly.tar.gz"
     chmod +x "$FLY_BIN"

@@ -54,7 +54,7 @@ if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.
     $url = "https://github.com/fly-lang/llvm-project/releases/download/v$LLVM_VERSION-win-x64/llvm-$LLVM_VERSION-win-x64.zip"
     New-Item -ItemType Directory -Force $llvmLib, $llvmBin | Out-Null
     $zipPath = Join-Path $buildDir 'llvm.zip'
-    Invoke-WebRequest -Uri $url -OutFile $zipPath
+    Invoke-WebRequest -Uri $url -OutFile $zipPath -MaximumRetryCount 6 -RetryIntervalSec 15
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
     try {
@@ -92,7 +92,7 @@ if (-not (Test-MingwSysroot)) {
     $mzip = if ($env:MINGW_ZIP) { $env:MINGW_ZIP } else {
         $u = "https://github.com/mstorsjo/llvm-mingw/releases/download/$script:MINGW_VERSION/llvm-mingw-$script:MINGW_VERSION-ucrt-x86_64.zip"
         $z = Join-Path $buildDir 'mingw.zip'
-        Invoke-WebRequest -Uri $u -OutFile $z
+        Invoke-WebRequest -Uri $u -OutFile $z -MaximumRetryCount 6 -RetryIntervalSec 15
         $z
     }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -122,7 +122,7 @@ if (-not (Test-Path $flyExe)) {
     $url = "https://github.com/fly-lang/fly/releases/download/v$FLY_VERSION/fly-$FLY_VERSION-win-x64.zip"
     New-Item -ItemType Directory -Force $buildDir | Out-Null
     $zipPath = Join-Path $buildDir 'fly.zip'
-    Invoke-WebRequest -Uri $url -OutFile $zipPath
+    Invoke-WebRequest -Uri $url -OutFile $zipPath -MaximumRetryCount 6 -RetryIntervalSec 15
     Expand-Archive $zipPath -DestinationPath $flyDir -Force
     Remove-Item $zipPath
 }
