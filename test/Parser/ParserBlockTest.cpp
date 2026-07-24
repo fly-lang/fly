@@ -432,4 +432,32 @@ TEST_F(ParserTest, LoopInStmt) {
 	ASTBlockStmt *LoopStmt = As<ASTBlockStmt>(ForInBlock->getStmt());
 	EXPECT_TRUE(LoopStmt->isEmpty());
 }
+
+TEST_F(ParserTest, UnterminatedBlockCommentIsError) {
+	// An unterminated /* comment swallows the rest of the file in the lexer
+	// (raw mode, no lexer diagnostic): the parser must still error because
+	// main's '{' never gets its '}'. The self-host already rejects this.
+	llvm::StringRef str = (
+		"namespace t\n"
+		"\n"
+		"void main() {\n"
+		"    int x = 1\n"
+		"    /* never closed\n"
+		"    if x == 1 { }\n"
+		"}\n");
+	Parse("UnterminatedBlockCommentIsError", str);
+	EXPECT_TRUE(HasErrorOccurred());
+}
+
+TEST_F(ParserTest, UnclosedBlockAtEofIsError) {
+	// A file that simply ends inside an open block (no comment involved)
+	// must also be rejected.
+	llvm::StringRef str = (
+		"namespace t\n"
+		"\n"
+		"void main() {\n"
+		"    int x = 1\n");
+	Parse("UnclosedBlockAtEofIsError", str);
+	EXPECT_TRUE(HasErrorOccurred());
+}
 }

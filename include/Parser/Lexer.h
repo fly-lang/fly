@@ -581,16 +581,6 @@ namespace fly {
         char getCharAndSizeSlow(const char *Ptr, unsigned &Size,
                                 Token *Tok = nullptr);
 
-        /// getEscapedNewLineSize - Return the size of the specified escaped newline,
-        /// or 0 if it is not an escaped newline. P[-1] is known to be a "\" on entry
-        /// to this function.
-        static unsigned getEscapedNewLineSize(const char *P);
-
-        /// SkipEscapedNewLines - If P points to an escaped newline (or a series of
-        /// them), skip over them and return the first non-escaped-newline found,
-        /// otherwise return P.
-        static const char *SkipEscapedNewLines(const char *P);
-
         /// getCharAndSizeSlowNoWarn - Same as getCharAndSizeSlow, but never emits a
         /// diagnostic.
         static char getCharAndSizeSlowNoWarn(const char *Ptr, unsigned &Size);

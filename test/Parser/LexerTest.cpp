@@ -198,4 +198,37 @@ namespace {
 
         CheckTokens(toks, exps);
     }
+
+    TEST_F(LexerTest, NoLineSplicing) {
+        // Fly has no line-splicing: a backslash before a newline is never a
+        // line continuation.
+
+        // A trailing backslash does NOT continue a line comment onto the next
+        // line; the token on the next line must survive.
+        {
+            auto toks = Lex("// comment ending with a backslash \\\nx");
+            ASSERT_EQ((size_t) 2, toks.size());
+            EXPECT_EQ(tok::comment, toks[0].getKind());
+            EXPECT_EQ(tok::identifier, toks[1].getKind());
+        }
+
+        // A backslash-newline between the terminating * and / does NOT end a
+        // block comment; only a literal */ does.
+        {
+            auto toks = Lex("/* a *\\\n/ x */ y");
+            ASSERT_EQ((size_t) 2, toks.size());
+            EXPECT_EQ(tok::comment, toks[0].getKind());
+            EXPECT_EQ(tok::identifier, toks[1].getKind());
+        }
+
+        // Outside comments a backslash-newline is not a continuation either:
+        // the backslash is a stray (unknown) token.
+        {
+            auto toks = Lex("a \\\nb");
+            ASSERT_EQ((size_t) 3, toks.size());
+            EXPECT_EQ(tok::identifier, toks[0].getKind());
+            EXPECT_EQ(tok::unknown, toks[1].getKind());
+            EXPECT_EQ(tok::identifier, toks[2].getKind());
+        }
+    }
 } // anonymous namespace

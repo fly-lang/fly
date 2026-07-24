@@ -892,6 +892,10 @@ void Resolver::visit(ASTExprStmt &AST) {
 	CurrentStmt = &AST;
 	ASTExpr *Expr = AST.getExpr();
 
+	// Parser error recovery can leave an ExprStmt without an expression
+	if (Expr == nullptr)
+		return;
+
 	Expr->accept(*this);
 	SemaExpr *ResolvedExpr = CurrentExpr;
 
@@ -1129,6 +1133,10 @@ void Resolver::visit(ASTDeleteStmt &AST) {
 	CurrentStmt = &AST;
 	ASTExpr * Expr = AST.getExpr();
 
+	// Parser error recovery can leave a DeleteStmt without an expression
+	if (Expr == nullptr)
+		return;
+
 	Expr->accept(*this);
 	SemaExpr *ResolvedExpr = CurrentExpr;
 
@@ -1232,10 +1240,13 @@ void Resolver::visit(ASTIfStmt &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTIfStmt)");
 	CurrentStmt = &AST;
 
-	// Resolve condition
-	AST.getExpr()->accept(*this);
-	SemaExpr *CondExpr = CurrentExpr;
-	Validator->CheckCondition(AST.getExpr()->getLocation(), CondExpr);
+	// Resolve condition (null after parser error recovery: already diagnosed)
+	SemaExpr *CondExpr = nullptr;
+	if (AST.getExpr()) {
+		AST.getExpr()->accept(*this);
+		CondExpr = CurrentExpr;
+		Validator->CheckCondition(AST.getExpr()->getLocation(), CondExpr);
+	}
 
 	// Resolve then block — use a temporary capture block
 	SemaBlockStmt *SavedBlock = CurrentSemaBlock;
@@ -1253,9 +1264,12 @@ void Resolver::visit(ASTIfStmt &AST) {
 
 	// Elsif Blocks
 	for (ASTRuleStmt *Elsif : AST.getElsif()) {
-		Elsif->getExpr()->accept(*this);
-		SemaExpr *ElsifExpr = CurrentExpr;
-		Validator->CheckCondition(Elsif->getExpr()->getLocation(), ElsifExpr);
+		SemaExpr *ElsifExpr = nullptr;
+		if (Elsif->getExpr()) {
+			Elsif->getExpr()->accept(*this);
+			ElsifExpr = CurrentExpr;
+			Validator->CheckCondition(Elsif->getExpr()->getLocation(), ElsifExpr);
+		}
 
 		// Capture elsif body
 		SemaBlockStmt *ElsifCapture = SemaBuilder::CreateBlockStmt(nullptr);
@@ -1293,9 +1307,12 @@ void Resolver::visit(ASTSwitchStmt &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTSwitchStmt)");
 	CurrentStmt = &AST;
 
-	// Switch Variable
-	AST.getExpr()->accept(*this);
-	SemaExpr *SwitchExpr = CurrentExpr;
+	// Switch Variable (null after parser error recovery: already diagnosed)
+	SemaExpr *SwitchExpr = nullptr;
+	if (AST.getExpr()) {
+		AST.getExpr()->accept(*this);
+		SwitchExpr = CurrentExpr;
+	}
 	SemaType * CaseType = SwitchExpr ? SwitchExpr->getType() : nullptr;
 
 	// Create SemaSwitchStmt
@@ -1307,8 +1324,11 @@ void Resolver::visit(ASTSwitchStmt &AST) {
 
 	// Case Blocks
 	for (ASTCaseStmt *Case : AST.getCases()) {
-		Case->getExpr()->accept(*this);
-		SemaExpr *CaseExpr = CurrentExpr;
+		SemaExpr *CaseExpr = nullptr;
+		if (Case->getExpr()) {
+			Case->getExpr()->accept(*this);
+			CaseExpr = CurrentExpr;
+		}
 		if (CaseExpr && CaseType) CaseExpr->setType(CaseType);
 
 		// Capture case body
@@ -1326,7 +1346,7 @@ void Resolver::visit(ASTSwitchStmt &AST) {
 		if (!CaseContent.empty()) {
 			SemaKind LastKind = CaseContent.back()->getKind();
 			if (LastKind != SemaKind::STMT_BREAK && LastKind != SemaKind::STMT_RETURN &&
-			    LastKind != SemaKind::STMT_FAIL) {
+			    LastKind != SemaKind::STMT_FAIL && Case->getExpr()) {
 				Diag(Case->getExpr()->getLocation(), diag::warn_sema_switch_fallthrough);
 			}
 		}
@@ -1461,6 +1481,10 @@ void Resolver::visit(ASTLoopStmt &AST) {
 void Resolver::visit(ASTLoopInStmt &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTLoopInStmt)");
 	CurrentStmt = &AST;
+
+	// Parser error recovery can leave item/list null (already diagnosed)
+	if (AST.getItem() == nullptr || AST.getList() == nullptr)
+		return;
 
 	AST.getItem()->accept(*this);
 	SemaExpr *ItemExpr = CurrentExpr;
@@ -2276,8 +2300,12 @@ void Resolver::visit(ASTCall &AST) {
 void Resolver::visit(ASTUnary &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTUnaryOp)");
 
-	// Resolve Expr
+	// Resolve Expr (null operand only from parser error recovery: already diagnosed)
 	ASTExpr *Expr = AST.getExpr();
+	if (Expr == nullptr) {
+		CurrentExpr = nullptr;
+		return;
+	}
 	Expr->accept(*this);
 	SemaExpr *ResolvedExpr = CurrentExpr;
 
@@ -2291,6 +2319,12 @@ void Resolver::visit(ASTUnary &AST) {
 
 void Resolver::visit(ASTBinary &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTBinaryOp)");
+
+	// Null operands only from parser error recovery (already diagnosed)
+	if (AST.getLeftExpr() == nullptr || AST.getRightExpr() == nullptr) {
+		CurrentExpr = nullptr;
+		return;
+	}
 
 	// For a plain '=' whose LHS is a bare identifier the variable is written but
 	// not read.  Set InAssignLHS so visit(ASTIdentifier) can skip the read-mark.
@@ -2334,6 +2368,13 @@ void Resolver::visit(ASTBinary &AST) {
 void Resolver::visit(ASTTernary &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTTernaryOp)");
 
+	// Null children only from parser error recovery (already diagnosed)
+	if (AST.getConditionExpr() == nullptr || AST.getTrueExpr() == nullptr ||
+	    AST.getFalseExpr() == nullptr) {
+		CurrentExpr = nullptr;
+		return;
+	}
+
 	// Resolve Condition Expr
 	AST.getConditionExpr()->accept(*this);
 	SemaExpr *Cond = CurrentExpr;
@@ -2370,6 +2411,12 @@ void Resolver::visit(ASTTernary &AST) {
 
 void Resolver::visit(ASTCast &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTCast)");
+
+	// Null operand only from parser error recovery (already diagnosed)
+	if (AST.getExpr() == nullptr || AST.getToType() == nullptr) {
+		CurrentExpr = nullptr;
+		return;
+	}
 
 	// Resolve the expression being cast
 	AST.getExpr()->accept(*this);

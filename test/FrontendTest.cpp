@@ -244,6 +244,29 @@ namespace {
         remove(path);
     }
 
+    // Regression: an unknown token inside an expression ('\') was diagnosed but
+    // the parser still built an ASTBinary with a null RHS — Sema then crashed
+    // with an access violation AFTER the diagnostic. Execute must return false
+    // (error reported) without crashing.
+    TEST_F(FrontendTest, ExecuteWithMalformedExprRecovers) {
+        const char *path = "tmp_frontend_badexpr.fly";
+        {
+            std::ofstream ofs(path);
+            ofs << "namespace t\n"
+                   "\n"
+                   "void main() {\n"
+                   "    int x = 1 + \\ 2\n"
+                   "    if x == 3 { }\n"
+                   "}\n";
+        }
+        CI->getFrontendOptions().addInputFile(path);
+        CI->getFrontendOptions().BackendAction = BackendActionKind::Backend_EmitNothing;
+        Frontend Front(*CI);
+        bool result = Front.Execute();
+        EXPECT_FALSE(result);
+        remove(path);
+    }
+
     TEST_F(FrontendTest, ExecuteWithUnknownExtension) {
         const char *path = "tmp_frontend_test.txt";
         {
