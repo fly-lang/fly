@@ -33,6 +33,11 @@ public class FrontendOptions {
     bool showStats       // ShowStats (--print-stats)
     bool showTimers      // ShowTimers (--ftime-report)
     string statsFile     // StatsFile (--stats-file)
+    string logFile       // (--log-file) — diagnostics log destination, "" = off.
+                         // The reference keeps these on DiagnosticOptions; the
+                         // self-host builds DiagnosticOptions inside Frontend, so
+                         // FrontendOptions is the carrier.
+    string logFormat     // (--log-format) "txt" | "json", default txt
 
     public FrontendOptions(const string outputFile) {
         this.inputFiles = ";"
@@ -54,6 +59,8 @@ public class FrontendOptions {
         this.showStats = false
         this.showTimers = false
         this.statsFile = ""
+        this.logFile = ""
+        this.logFormat = "txt"
     }
 
     public string getOutputFile()   { out = this.outputFile }
@@ -96,6 +103,10 @@ public class FrontendOptions {
     public void setShowTimers(const bool b) { this.showTimers = b }
     public string getStatsFile()    { out = this.statsFile }
     public void setStatsFile(const string f) { this.statsFile = f }
+    public string getLogFile()      { out = this.logFile }
+    public void setLogFile(const string f) { this.logFile = f }
+    public string getLogFormat()    { out = this.logFormat }
+    public void setLogFormat(const string f) { this.logFormat = f }
 
     // ── LibDirs (-L) ──
     public void addLibDir(const string d) { this.libDirs = segAppend(this.libDirs, d) }

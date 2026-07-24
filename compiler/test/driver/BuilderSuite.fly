@@ -40,6 +40,32 @@ suite BuilderSuite {
             Builder b = new Builder(m, "debug", false)
             assert.assertFalse(b.buildTarget("no_such_target"), 4)
         }
+        case "built-in release profile gives -O3 without debug symbols": {
+            // Regression: with no [profiles] in the manifest, `--release` used to
+            // fall back to the debug defaults (-O0 --debug-symbols).
+            Manifest m = new Manifest()
+            Builder br = new Builder(m, "release", false)
+            assert.assertStr(br.profileFlags(), "-O3", 7)
+            Builder bd = new Builder(m, "debug", false)
+            assert.assertStr(bd.profileFlags(), "-O0 --debug-symbols", 8)
+        }
+        case "a manifest-declared profile overrides the built-in": {
+            Manifest m = new Manifest()
+            BuildProfile p = new BuildProfile()
+            p.setOptLevel(2)
+            m.addProfile("release", p)
+            Builder b = new Builder(m, "release", false)
+            assert.assertStr(b.profileFlags(), "-O2 --debug-symbols", 9)
+        }
+        case "lib passes use --lib-dyn / --lib (never the removed --shared)": {
+            // Regression: buildTarget once passed `--shared`, which the driver
+            // dropped — under the unknown-option hard error every dynamic lib
+            // build would fail. The flag contract is pinned here.
+            Manifest m = new Manifest()
+            Builder b = new Builder(m, "debug", false)
+            assert.assertStr(b.libShapeFlag(true), "--lib-dyn", 5)
+            assert.assertStr(b.libShapeFlag(false), "--lib", 6)
+        }
     }
 
     void buildFlowTest() {

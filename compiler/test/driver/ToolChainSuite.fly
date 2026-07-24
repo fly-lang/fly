@@ -93,6 +93,14 @@ suite ToolChainSuite {
         }
     }
 
+    void llvmProbeTest() {
+        case "llvmLibDirCandidates probes exe, parent and grandparent (reference order)": {
+            ToolChain tc = tcFor("x86_64-unknown-linux-gnu")
+            string lst = tc.llvmLibDirCandidates("/opt/fly/bin")
+            assert.assertStr(lst, "/opt/fly/bin/llvm/lib;/opt/fly/llvm/lib;/opt/llvm/lib", 60)
+        }
+    }
+
     void windowsRoutingTest() {
         case "B12: isOSWindows separates msvc from gnu environments": {
             Triple msvc = tripleParse("x86_64-pc-windows-msvc")

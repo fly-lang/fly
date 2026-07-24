@@ -3,6 +3,9 @@ namespace fly.driver.test.manifest
 import fly.driver.*
 import fly.compiler.basic.*
 import fly.str
+import fly.os.fs
+import fly.os.env
+import fly.os.path
 import fly.assert
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -171,6 +174,35 @@ suite ManifestSuite {
             assert.assertStr(p.getName(), "bar", 53)
             assert.assertStr(p.getVersion(), "1.2.3", 54)
             assert.assertStr(p.getChecksum(), "deadbeef", 55)
+        }
+    }
+
+    void initVersionTest() {
+        case "cmdInit stamps the CURRENT compiler version as flyVersion": {
+            // Regression: the scaffold template hardcoded "0.14.0" while the
+            // compiler was 0.14.4. Compared against flyVersion() itself (not a
+            // literal) so the case never goes stale on a version bump.
+            string repo = fly.os.env.cwdGet()
+            string tmp = fly.os.env.get("TMPDIR")
+            if fly.str.isEmpty(tmp) { tmp = fly.os.env.get("TEMP") }
+            if fly.str.isEmpty(tmp) { tmp = "/tmp" }
+            string proj = fly.os.path.join(tmp, "man_suite_init")
+            fly.os.fs.dirDeleteAll(proj)
+            fly.os.fs.dirCreateAll(proj, 493)
+            fly.os.env.cwdSet(proj)
+
+            int rc = fly.driver.cmdInit("initapp", "0.1.0")
+            int e = 0
+            Manifest m = fly.driver.loadManifest(e)
+            string stamped = m.getFlyVersion()
+
+            // restore + clean up BEFORE asserting (a failing assert aborts the case)
+            fly.os.env.cwdSet(repo)
+            fly.os.fs.dirDeleteAll(proj)
+
+            assert.assertEqI(rc, 0, 60)
+            assert.assertEqI(e, 0, 61)
+            assert.assertStr(stamped, flyVersion(), 62)
         }
     }
 }

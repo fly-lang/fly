@@ -63,6 +63,15 @@ suite FrontendOptionsSuite {
             assert.assertStr(fo.getOutDir(), "/tmp/build", 37)
             assert.assertStr(fo.getStatsFile(), "stats.txt", 38)
         }
+        case "log-file / log-format fields (--log-file, --log-format)": {
+            FrontendOptions fo = new FrontendOptions("a")
+            assert.assertStr(fo.getLogFile(), "", 60)
+            assert.assertStr(fo.getLogFormat(), "txt", 61)   // default format
+            fo.setLogFile("diag.log")
+            fo.setLogFormat("json")
+            assert.assertStr(fo.getLogFile(), "diag.log", 62)
+            assert.assertStr(fo.getLogFormat(), "json", 63)
+        }
     }
 
     void inputsTest() {

@@ -44,4 +44,39 @@ suite LexerEdgeSuite {
             assert.assertTrue(t.kind == TokenKind.UNKNOWN, 7)
         }
     }
+
+    // Fly has no line-splicing: a backslash before a newline is never a line
+    // continuation. The literals below embed a real newline; \\ is two raw
+    // backslash bytes (string escapes are kept raw).
+    void noSpliceTest() {
+        case "line comment trailing backslash does not continue": {
+            Lexer lx = newLexer("// c \\
+x")
+            Token t = lx.next()
+            assert.assertTrue(t.kind == TokenKind.IDENT, 8)
+            assert.assertStr(lx.tokenText(t), "x", 9)
+            Token e = lx.next()
+            assert.assertTrue(e.kind == TokenKind.EOF, 10)
+        }
+        case "block comment ends only at literal star-slash": {
+            Lexer lx = newLexer("/* b *\\
+/ z */ w")
+            Token t = lx.next()
+            assert.assertStr(lx.tokenText(t), "w", 11)
+            Token e = lx.next()
+            assert.assertTrue(e.kind == TokenKind.EOF, 12)
+        }
+        case "backslash outside comment is a stray token": {
+            Lexer lx = newLexer("a \\
+b")
+            Token t1 = lx.next()
+            assert.assertStr(lx.tokenText(t1), "a", 13)
+            Token t2 = lx.next()
+            assert.assertTrue(t2.kind == TokenKind.UNKNOWN, 14)
+            Token t3 = lx.next()
+            assert.assertTrue(t3.kind == TokenKind.UNKNOWN, 15)
+            Token t4 = lx.next()
+            assert.assertStr(lx.tokenText(t4), "b", 16)
+        }
+    }
 }

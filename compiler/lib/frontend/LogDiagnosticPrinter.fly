@@ -32,11 +32,20 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
     }
 
     public void handleDiagnostic(const Diagnostic diag) {
-        this.levels.add(diagLevelName(diag.getLevel()))
-        this.files.add(diag.getFilename())
-        this.lines.add(fly.str.convert(diag.getLine()))
-        this.cols.add(fly.str.convert(diag.getColumn()))
-        this.messages.add(diag.getMessage())
+        this.add(diagLevelName(diag.getLevel()), diag.getFilename(),
+                 fly.str.convert(diag.getLine()), fly.str.convert(diag.getColumn()),
+                 diag.getMessage())
+    }
+
+    // add — record one entry directly. Used by handleDiagnostic and by the
+    // Frontend for PARSER errors, which bypass the DiagnosticsEngine (they are
+    // pre-rendered strings; line/col arrive as already-formatted text).
+    public void add(const string level, const string file, const string line, const string col, const string message) {
+        this.levels.add(level)
+        this.files.add(file)
+        this.lines.add(line)
+        this.cols.add(col)
+        this.messages.add(message)
     }
 
     public int count() { out = (int)this.levels.size() }
@@ -90,6 +99,39 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
             i = i + 1
         }
         out = fly.str.concat(res, "]")
+    }
+
+    // toTextReport — the full text log written to --log-file: an `inputs:` /
+    // `output:` header (when non-empty), a `---` separator, then toText().
+    // Reduced port of the reference LogDiagnosticPrinter::EndSourceFile text shape.
+    public string toTextReport(const string inputs, const string output) {
+        string res = ""
+        if fly.str.isEmpty(inputs) == false {
+            string l1 = fly.str.concat("inputs: ", fly.str.concat(inputs, lineFeed()))
+            string a1 = fly.str.concat(res, l1)
+            res = a1
+        }
+        if fly.str.isEmpty(output) == false {
+            string l2 = fly.str.concat("output: ", fly.str.concat(output, lineFeed()))
+            string a2 = fly.str.concat(res, l2)
+            res = a2
+        }
+        string sep = fly.str.concat("---", lineFeed())
+        string a3 = fly.str.concat(res, sep)
+        out = fly.str.concat(a3, this.toText())
+    }
+
+    // toJsonReport — the full JSON log written to --log-file:
+    // {"inputs":"..","output":"..","diagnostics":[…]} (reference plist reduced;
+    // the `options` block is omitted in this minimal port).
+    public string toJsonReport(const string inputs, const string output) {
+        string p1 = this.jstr("inputs", this.jsonEscape(inputs))
+        string p2 = this.jstr("output", this.jsonEscape(output))
+        string q = quoteChar()
+        string dk = fly.str.concat(q, fly.str.concat("diagnostics", fly.str.concat(q, ":")))
+        string body = fly.str.concat(p1, fly.str.concat(",", fly.str.concat(p2,
+                      fly.str.concat(",", fly.str.concat(dk, this.toJson())))))
+        out = fly.str.concat("{", fly.str.concat(body, "}"))
     }
 
     // toText — one `level: file:line:col: message` line per diagnostic.

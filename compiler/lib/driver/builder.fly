@@ -78,17 +78,23 @@ public class Builder {
         out = fly.os.path.absolute(rel)
     }
 
+    // activeProfile — the profile driving this build: a profile declared in the
+    // manifest wins; otherwise the BUILT-IN defaults (defaultProfile) apply, so
+    // `fly build --release` gives -O3/no-debug even when the manifest declares
+    // no [profiles] at all (it used to fall back to the debug defaults).
+    public BuildProfile activeProfile() {
+        if this.manifest.hasProfile(this.profile) {
+            out = this.manifest.getProfile(this.profile)
+            return
+        }
+        out = fly.driver.defaultProfile(this.profile)
+    }
+
     // profileFlags — "-O<n> [--debug-symbols]" from the active profile.
     public string profileFlags() {
-        int opt = 0
-        bool dbg = true
-        if this.manifest.hasProfile(this.profile) {
-            BuildProfile bp = this.manifest.getProfile(this.profile)
-            opt = bp.getOptLevel()
-            dbg = bp.getDebugInfo()
-        }
-        string f = fly.str.concat("-O", fly.str.convert(opt))
-        if dbg { f = fly.str.concat(f, " --debug-symbols") }
+        BuildProfile bp = this.activeProfile()
+        string f = fly.str.concat("-O", fly.str.convert(bp.getOptLevel()))
+        if bp.getDebugInfo() { f = fly.str.concat(f, " --debug-symbols") }
         out = f
     }
 
@@ -114,16 +120,10 @@ public class Builder {
         fly.os.fs.dirCreateAll(this.outDir(), 493)
 
         pointer h = fly.os.proc.argsNew()
-        // profile: -O<n> [--debug-symbols]
-        int opt = 0
-        bool dbg = true
-        if this.manifest.hasProfile(this.profile) {
-            BuildProfile bp = this.manifest.getProfile(this.profile)
-            opt = bp.getOptLevel()
-            dbg = bp.getDebugInfo()
-        }
-        fly.os.proc.argsAdd(h, fly.str.concat("-O", fly.str.convert(opt)))
-        if dbg { fly.os.proc.argsAdd(h, "--debug-symbols") }
+        // profile: -O<n> [--debug-symbols] — same source of truth as profileFlags()
+        BuildProfile bp = this.activeProfile()
+        fly.os.proc.argsAdd(h, fly.str.concat("-O", fly.str.convert(bp.getOptLevel())))
+        if bp.getDebugInfo() { fly.os.proc.argsAdd(h, "--debug-symbols") }
         // [link].libs → --link-lib=<name>
         int i = 0
         while i < this.manifest.linkLibCount() {
@@ -273,6 +273,15 @@ public class Builder {
 
     // buildTarget — build one [targets] entry (bin or lib); skip when the
     // fingerprint matches and the artifacts exist (unless --force).
+    // libShapeFlag — the compile-mode SHAPE flag for a lib target's build pass.
+    // The dynamic pass MUST use --lib-dyn: the old `--shared` spelling is gone
+    // from the driver and would now be a hard unknown-option error. Extracted so
+    // BuilderSuite can pin the contract.
+    public string libShapeFlag(const bool dynamicPass) {
+        if dynamicPass { out = "--lib-dyn"  return }
+        out = "--lib"
+    }
+
     public bool buildTarget(const string key) {
         int idx = 0
         Target t = null
@@ -301,11 +310,11 @@ public class Builder {
             string lib = t.getLib()
             if fly.str.equals(lib, "dynamic") || fly.str.equals(lib, "both") {
                 string so = fly.str.concat(this.outDir(), fly.str.concat("/lib", fly.str.concat(t.getName(), ".so")))
-                ok = this.invokeFly(src, so, "--shared")
+                ok = this.invokeFly(src, so, this.libShapeFlag(true))
             }
             if ok && (fly.str.equals(lib, "dynamic") == false) {
                 string ar = fly.str.concat(this.outDir(), fly.str.concat("/lib", fly.str.concat(t.getName(), ".a")))
-                ok = this.invokeFly(src, ar, "--lib")
+                ok = this.invokeFly(src, ar, this.libShapeFlag(false))
             }
         } else {
             string o = fly.str.concat(this.outDir(), fly.str.concat("/", t.getName()))

@@ -18,13 +18,12 @@ import fly.assert
 // second positional rejected, missing option values) are exercised by the audit's
 // manual repros; move them here if/when the bootstrap accepts qualified types.
 //
-// NOTE 2: this suite does not RUN yet — like every driver suite it hits the known
-// self-host residual where compiling a program that heavily uses the compiler
-// overflows the stack (0xC00000FD). The option-model cases below were instead
+// NOTE 2: the 0xC00000FD stack-overflow residual that used to keep the driver
+// suites from running is FIXED (buildAlloca now hoists to the entry block); this
+// suite runs under test_compiler at STAGE=1/2. The option-model cases were also
 // verified end-to-end against the built fly.exe: each of the four conflicts exits
 // 1 with its message, and `-o` with --emit-ll/--emit-as, `-c` without a link, and
-// the default link each produce the right artifact. They will run as written once
-// the residual is fixed.
+// the default link each produce the right artifact.
 // ─────────────────────────────────────────────────────────────────────────────
 
 suite DriverCliSuite {
@@ -42,6 +41,7 @@ suite DriverCliSuite {
             assert.assertStr(d.emitExt(1), ".o", 31)
             assert.assertStr(d.emitExt(2), ".s", 32)
             assert.assertStr(d.emitExt(3), "", 33)
+            assert.assertStr(d.emitExt(4), ".bc", 34)
         }
         case "applyOutDir prefixes relative paths only": {
             Driver d = new Driver()
@@ -61,6 +61,41 @@ suite DriverCliSuite {
         case "missingValue (B14a) reports and returns 1": {
             Driver d = new Driver()
             assert.assertEqI(d.missingValue("-o"), 1, 50)
+        }
+        case "normalizeArg: single-dash long options gain the -- spelling": {
+            Driver d = new Driver()
+            assert.assertStr(d.normalizeArg("-debug"), "--debug", 65)
+            assert.assertStr(d.normalizeArg("-emit-ll"), "--emit-ll", 66)
+            assert.assertStr(d.normalizeArg("-static"), "--static", 67)
+            assert.assertStr(d.normalizeArg("-help"), "--help", 68)
+        }
+        case "normalizeArg: shorts, attached-value shorts and -- pass through": {
+            Driver d = new Driver()
+            assert.assertStr(d.normalizeArg("-o"), "-o", 70)
+            assert.assertStr(d.normalizeArg("-O2"), "-O2", 71)
+            assert.assertStr(d.normalizeArg("-j4"), "-j4", 72)
+            assert.assertStr(d.normalizeArg("-L/x"), "-L/x", 73)
+            assert.assertStr(d.normalizeArg("-Ifoo"), "-Ifoo", 74)
+            assert.assertStr(d.normalizeArg("--debug"), "--debug", 75)
+            assert.assertStr(d.normalizeArg("-S"), "-S", 76)
+            assert.assertStr(d.normalizeArg("-c"), "-c", 77)
+            assert.assertStr(d.normalizeArg("build"), "build", 78)
+        }
+        case "validLogFormat accepts txt|json only": {
+            Driver d = new Driver()
+            assert.assertTrue(d.validLogFormat("txt"), 55)
+            assert.assertTrue(d.validLogFormat("json"), 56)
+            assert.assertFalse(d.validLogFormat("xml"), 57)
+            assert.assertFalse(d.validLogFormat(""), 58)
+        }
+        case "eqValue extracts the value of an --opt=value token": {
+            // The `=`-forms the Builder emits (--target=, --link-lib=) and the
+            // filter forms (--test=, --suite=) all go through eqValue.
+            Driver d = new Driver()
+            assert.assertStr(d.eqValue("--target=x86_64-w64-windows-gnu"), "x86_64-w64-windows-gnu", 51)
+            assert.assertStr(d.eqValue("--link-lib=ntdll"), "ntdll", 52)
+            assert.assertStr(d.eqValue("--suite="), "", 53)
+            assert.assertStr(d.eqValue("--suite"), "", 54)
         }
     }
 
@@ -87,11 +122,12 @@ suite DriverCliSuite {
             assert.assertFalse(d.linkStepFor(false, true, 1), 102)
         }
         case "a non-object format never links": {
-            // Only object code can be linked, so .ll and .s stop at the artifact
+            // Only object code can be linked, so .ll/.s/.bc stop at the artifact
             // exactly as -c does — no silent link of something unlinkable.
             Driver d = new Driver()
             assert.assertFalse(d.linkStepFor(false, false, 0), 103)
             assert.assertFalse(d.linkStepFor(false, false, 2), 104)
+            assert.assertFalse(d.linkStepFor(false, false, 4), 106)
         }
         case "-c and --no-output together still do not link": {
             Driver d = new Driver()
@@ -130,6 +166,7 @@ suite DriverCliSuite {
             assert.assertEqI(d.axisError(true, false, 0, false, false, true), 2, 121)
             assert.assertEqI(d.axisError(true, false, 2, false, false, true), 2, 122)
             assert.assertEqI(d.axisError(false, true, 0, false, false, true), 2, 123)
+            assert.assertEqI(d.axisError(true, false, 4, false, false, true), 2, 138)
         }
         case "a library with -c or --no-output is rejected": {
             Driver d = new Driver()

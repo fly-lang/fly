@@ -543,6 +543,19 @@ public class LLVM {
         lib.call("LLVMWriteBitcodeToFile", a)
     }
 
+    // writeBitcodeToFileChecked — writeBitcodeToFile + the write result:
+    // LLVMWriteBitcodeToFile returns 0 on success, nonzero when the file
+    // cannot be written. ok = true on success.
+    public void writeBitcodeToFileChecked(const pointer mod, const string path, bool ok) {
+        PtrStrArgs a = new PtrStrArgs()
+        a.a = mod
+        a.s = path
+        CLang lib = new CLang("libLLVM-20.so")
+        int rc = 0
+        lib.call("LLVMWriteBitcodeToFile", a, rc)
+        ok = rc == 0
+    }
+
     public void verifyModule(const pointer mod, bool ok) {
         // LLVMVerifyModule(M, LLVMReturnStatusAction=2, NULL) returns 1=broken, 0=valid.
         // Negate to get the "is valid" semantics expected by callers.

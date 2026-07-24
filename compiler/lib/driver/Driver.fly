@@ -106,6 +106,8 @@ public class Driver {
         string codeModel = ""           // --mcmodel
         string threadModel = ""         // --mthread-model
         string statsFile = ""           // --stats-file
+        string logFile = ""             // --log-file (diagnostics log; "" = off)
+        string logFormat = "txt"        // --log-format txt|json
         string srcDirs = ";"            // --src-dir (single override of the cwd default)
         // sdNew/llNew are FUNCTION-scope on purpose: a string declared inside a
         // loop-repeated block leaves a STALE pointer in its slot after the block's
@@ -120,12 +122,11 @@ public class Driver {
         bool createHeader = false       // --header / --lib
         bool showStats = false          // --print-stats
         bool showTimers = false         // --ftime-report
-        bool emitBc = false             // --emit-bc (no bitcode emitter → IR fallback)
 
         int n = (int)args.count
         int i = 1                       // skip argv[0] (program name)
         while i < n {
-            string a = this.argAt(args, i)
+            string a = this.normalizeArg(this.argAt(args, i))
             if fly.str.equals(a, "-o") {
                 i = i + 1
                 if i < n { outPath = this.argAt(args, i) } else { out = this.missingValue(a)  return }
@@ -135,6 +136,10 @@ public class Driver {
             } elsif fly.str.equals(a, "--target") {
                 i = i + 1
                 if i < n { targetTriple = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.startsWith(a, "--target=") {
+                // `=`-form: the Builder (invokeFly) emits --target=<triple> as a
+                // single argv token — accept it like --suite=/--test= below.
+                targetTriple = this.eqValue(a)
             } elsif fly.str.equals(a, "--target-cpu") {
                 i = i + 1
                 if i < n { targetCpu = this.argAt(args, i) } else { out = this.missingValue(a)  return }
@@ -146,9 +151,7 @@ public class Driver {
             } elsif fly.str.equals(a, "--emit-ll") {
                 emitFormat = 0
             } elsif fly.str.equals(a, "--emit-bc") {
-                // No bitcode emitter in the self-host CodeGenModule → emit IR + a note.
-                emitFormat = 0
-                emitBc = true
+                emitFormat = 4
             } elsif fly.str.equals(a, "--mcmodel") {
                 i = i + 1
                 if i < n { codeModel = this.argAt(args, i) } else { out = this.missingValue(a)  return }
@@ -161,6 +164,19 @@ public class Driver {
             } elsif fly.str.equals(a, "--stats-file") {
                 i = i + 1
                 if i < n { statsFile = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--log-file") {
+                i = i + 1
+                if i < n { logFile = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--log-format") {
+                i = i + 1
+                if i >= n { out = this.missingValue(a)  return }
+                logFormat = this.argAt(args, i)
+                // mirror of the reference CLI11 IsMember({"txt","json"}) check
+                if this.validLogFormat(logFormat) == false {
+                    fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: invalid --log-format '", logFormat), "' (expected txt or json)"))
+                    out = 1
+                    return
+                }
             } elsif fly.str.equals(a, "--src-dir") {
                 i = i + 1
                 if i >= n { out = this.missingValue(a)  return }
@@ -221,15 +237,21 @@ public class Driver {
                     llNew = fly.str.concat(linkLibs, fly.str.concat(fly.str.concat("-l", this.argAt(args, i)), ";"))
                     linkLibs = llNew
                 } else { out = this.missingValue(a)  return }
+            } elsif fly.str.startsWith(a, "--link-lib=") {
+                // `=`-form emitted by the Builder — same handling as the two-arg
+                // spelling above (distinct temp: self-alias gotcha).
+                llNew = fly.str.concat(linkLibs, fly.str.concat(fly.str.concat("-l", this.eqValue(a)), ";"))
+                linkLibs = llNew
             } elsif fly.str.equals(a, "--lib-dyn") || fly.str.equals(a, "--lib-dynamic") {
                 // `--shared` was an old spelling and is GONE: it now falls
                 // through to the unknown-option branch rather than quietly building
                 // a dynamic library.
                 isShared = true
                 createHeader = true
-            } elsif fly.str.equals(a, "-static") {
+            } elsif fly.str.equals(a, "-static") || fly.str.equals(a, "--static") {
+                // normalizeArg turns `-static` into `--static`; both spellings stay valid
                 isStatic = true
-            } elsif fly.str.equals(a, "-pie") {
+            } elsif fly.str.equals(a, "-pie") || fly.str.equals(a, "--pie") {
                 isPie = true
             } elsif fly.str.equals(a, "--no-output") {
                 noOutput = true
@@ -237,14 +259,14 @@ public class Driver {
                 testMode = true
             } elsif fly.str.startsWith(a, "--test=") {
                 testMode = true
-                testFilter = fly.str.substring(a, 7, fly.str.len(a))
+                testFilter = this.eqValue(a)
             } elsif fly.str.equals(a, "--suite") {
                 testMode = true
                 suiteRun = true
             } elsif fly.str.startsWith(a, "--suite=") {
                 testMode = true
                 suiteRun = true
-                suiteName = fly.str.substring(a, 8, fly.str.len(a))
+                suiteName = this.eqValue(a)
             } elsif fly.str.equals(a, "-v") || fly.str.equals(a, "--verbose") {
                 verbose = true
             } elsif fly.str.equals(a, "-w") || fly.str.equals(a, "--no-warning") {
@@ -260,7 +282,13 @@ public class Driver {
                 out = 0
                 return
             } elsif fly.str.startsWith(a, "-") {
-                fly.os.io.printErrLn(fly.str.concat("warning: ignoring unknown option ", a))
+                // Reference parity (Driver.cpp remaining-args loop): an unknown
+                // option is a hard ERROR, not a warning — a typo must not be
+                // silently ignored.
+                fly.os.io.printErrLn(fly.str.concat("error: unknown option: ", a))
+                fly.os.io.printErrLn("Use 'fly --help' for a complete list of options.")
+                out = 1
+                return
             } else {
                 // `fly version` is an alias of `fly --version` (same output).
                 if fly.str.equals(a, "version") {
@@ -381,14 +409,6 @@ public class Driver {
             }
         }
 
-        // note only when IR emission is still the effective format (a later -S
-        // overrides it and the note would then be misleading)
-        if emitBc {
-            if emitFormat == 0 {
-                fly.os.io.printErrLn("note: --emit-bc: bitcode emission unsupported, emitting LLVM IR")
-            }
-        }
-
         // Build the CompilerInstance (the C++ Driver::Execute model): bundle the
         // Frontend/CodeGen/Target options + the source buffer, then run the Frontend.
         // Mirrors fly/compiler/Driver/Driver.cpp::BuildOptions option plumbing.
@@ -436,6 +456,8 @@ public class Driver {
         fo.setShowStats(showStats)
         fo.setShowTimers(showTimers)
         fo.setStatsFile(statsFile)
+        fo.setLogFile(logFile)
+        fo.setLogFormat(logFormat)
         fo.setOutDir(outDir)
         // BackendAction 3 is the LINK spelling: the Frontend emits a temp object to
         // the path execute() is given and the driver links it. Otherwise the format
@@ -468,11 +490,15 @@ public class Driver {
             out = fe.execute("", false)
             return
         }
-        // Header-only mode (--header, without --lib): the `.fly.h` headers are the sole
-        // artifact — no object. HeaderGen runs before codegen in Frontend.execute, so
-        // `noOutput = true` lets the headers be written while the object emission is
-        // skipped. (--lib sets both flags; this branch is reached only for a bare --header.)
-        if createHeader {
+        // Header-only mode (--header, without --lib/--lib-dyn): the `.fly.h` headers
+        // are the sole artifact — no object. HeaderGen runs before codegen in
+        // Frontend.execute, so `noOutput = true` lets the headers be written while the
+        // object emission is skipped. --lib-dyn also sets createHeader but must NOT
+        // stop here: it falls through to the link step below, which emits the object
+        // and links the dynamic library (its headers come from the same
+        // fo.getCreateHeader() inside execute). This branch used to swallow --lib-dyn
+        // and return after the headers, so no .so/.dll was ever produced.
+        if createHeader && (isShared == false) {
             out = fe.execute("", true)
             return
         }
@@ -762,12 +788,50 @@ public class Driver {
         if ok { out = 0 } else { out = 1 }
     }
 
-    // emitExt — output extension for an emit mode (0=.ll, 1=.o, 2=.s, 3=link/exe).
+    // emitExt — output extension for an emit mode (0=.ll, 1=.o, 2=.s, 3=link/exe, 4=.bc).
     public string emitExt(const int emitMode) {
         if emitMode == 1 { out = ".o"  return }
         if emitMode == 2 { out = ".s"  return }
         if emitMode == 3 { out = ""    return }   // executable: no extension
+        if emitMode == 4 { out = ".bc" return }
         out = ".ll"
+    }
+
+    // normalizeArg — reference Driver.cpp normaliseDashes: a single-dash LONG
+    // option (-debug, -emit-ll, -help, …) is accepted as its `--` spelling.
+    // Excluded: true shorts (len ≤ 2) and the attached-value shorts -o -O -j -L -I
+    // (-O2, -Lfoo must stay single-dash).
+    public string normalizeArg(const string a) {
+        int n = fly.str.len(a)
+        if n <= 2 { out = a  return }
+        byte b0 = 0
+        fly.str.byteAt(a, 0, b0)
+        if b0 != 45 { out = a  return }        // not an option token
+        byte b1 = 0
+        fly.str.byteAt(a, 1, b1)
+        int c1 = b1 & 255                       // byte→int sign-extends: mask
+        if c1 == 45 { out = a  return }         // already --long
+        if c1 == 111 { out = a  return }        // o
+        if c1 == 79 { out = a  return }         // O
+        if c1 == 106 { out = a  return }        // j
+        if c1 == 76 { out = a  return }         // L
+        if c1 == 73 { out = a  return }         // I
+        out = fly.str.concat("-", a)
+    }
+
+    // validLogFormat — --log-format accepts txt|json only (reference IsMember).
+    public bool validLogFormat(const string f) {
+        out = fly.str.equals(f, "txt") || fly.str.equals(f, "json")
+    }
+
+    // eqValue — the value after the '=' of an `--opt=value` token ("" when
+    // nothing follows the '='). Every `=`-form branch (--test=, --suite=,
+    // --target=, --link-lib=) uses it, so the option spellings can never drift
+    // from hand-counted substring offsets.
+    public string eqValue(const string a) {
+        int eq = fly.str.indexOf(a, "=")
+        if eq < 0 { out = ""  return }
+        out = fly.str.substring(a, eq + 1, fly.str.len(a))
     }
 
     // missingValue — report a value-taking option used without its value.
@@ -838,7 +902,7 @@ public class Driver {
         fly.os.io.printErrLn("  --out-dir <dir> directory for generated outputs")
         fly.os.io.printErrLn("format (WHAT the backend produces; default: an object file):")
         fly.os.io.printErrLn("  --emit-ll       produce LLVM IR (.ll)")
-        fly.os.io.printErrLn("  --emit-bc       produce bitcode (falls back to LLVM IR)")
+        fly.os.io.printErrLn("  --emit-bc       produce LLVM bitcode (.bc)")
         fly.os.io.printErrLn("  --emit-as, -S   produce target assembly (.s)")
         fly.os.io.printErrLn("stage (HOW FAR to go; default: link):")
         fly.os.io.printErrLn("  -c              compile only, do not link")
@@ -866,9 +930,11 @@ public class Driver {
         fly.os.io.printErrLn("  --suite[=Name]  build the suite test exe AND run it (fly exits with the run's code); with a value, only that suite")
         fly.os.io.printErrLn("  --debug         verbose logging (+ request DWARF; self-host codegen emits none yet)")
         fly.os.io.printErrLn("  --debug-symbols request DWARF debug symbols (self-host codegen does not emit them yet)")
-        fly.os.io.printErrLn("  --print-stats   accepted; not yet implemented (no output)")
+        fly.os.io.printErrLn("  --print-stats   print compilation statistics to stderr")
         fly.os.io.printErrLn("  --ftime-report  accepted; not yet implemented (no output)")
-        fly.os.io.printErrLn("  --stats-file <f>  accepted; not yet implemented (no file written)")
+        fly.os.io.printErrLn("  --stats-file <f>  write compilation statistics (JSON) to <f>")
+        fly.os.io.printErrLn("  --log-file <f>  log diagnostics to <f>")
+        fly.os.io.printErrLn("  --log-format <fmt>  diagnostics log format: txt (default) or json")
         fly.os.io.printErrLn("  -v, --verbose   log each compilation phase")
         fly.os.io.printErrLn("  -w, --no-warning  accepted; the compiler emits no warnings to suppress")
         fly.os.io.printErrLn("  --version       print version")

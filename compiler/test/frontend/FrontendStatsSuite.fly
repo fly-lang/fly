@@ -1,0 +1,44 @@
+namespace fly.compiler.frontend.test.stats
+
+import fly.compiler.frontend.*
+import fly.assert
+import fly.str
+
+// Phase: --print-stats / --stats-file — the Frontend compilation counters and
+// their JSON payload. The counters are incremented by the pipeline (entry parse,
+// import pull, header load, directory walks); here the pure surface is pinned:
+// zero-initialisation, the statsJson() shape, and the inputsJoined() header
+// helper shared with --log-file.
+
+suite FrontendStatsSuite {
+
+    void statsTest() {
+        case "counters start at zero and statsJson has the fixed keys": {
+            Frontend fe = new Frontend(null)
+            assert.assertEqI(fe.getStatInputFiles(), 0, 1)
+            assert.assertEqI(fe.getStatDepModules(), 0, 2)
+            assert.assertEqI(fe.getStatHeaderModules(), 0, 3)
+            assert.assertEqI(fe.getStatDirsScanned(), 0, 4)
+            string js = fe.statsJson()
+            assert.assertTrue(fly.str.startsWith(js, "{"), 5)
+            assert.assertTrue(fly.str.endsWith(js, "}"), 6)
+            string q = quoteChar()
+            string k1 = fly.str.concat(q, fly.str.concat("input-files", fly.str.concat(q, ":0")))
+            assert.assertTrue(fly.str.contains(js, k1), 7)
+            string k2 = fly.str.concat(q, fly.str.concat("dep-modules", fly.str.concat(q, ":0")))
+            assert.assertTrue(fly.str.contains(js, k2), 8)
+            string k3 = fly.str.concat(q, fly.str.concat("header-modules", fly.str.concat(q, ":0")))
+            assert.assertTrue(fly.str.contains(js, k3), 9)
+            string k4 = fly.str.concat(q, fly.str.concat("dirs-scanned", fly.str.concat(q, ":0")))
+            assert.assertTrue(fly.str.contains(js, k4), 10)
+        }
+        case "inputsJoined joins the input list with spaces": {
+            Frontend fe = new Frontend(null)
+            FrontendOptions fo = new FrontendOptions("prog")
+            assert.assertStr(fe.inputsJoined(fo), "", 20)
+            fo.addInputFile("a.fly")
+            fo.addInputFile("b.fly")
+            assert.assertStr(fe.inputsJoined(fo), "a.fly b.fly", 21)
+        }
+    }
+}

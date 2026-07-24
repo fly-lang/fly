@@ -6,6 +6,7 @@ import fly.os.fs
 import fly.os.io
 import fly.os.path
 import fly.os.env
+import fly.compiler.basic.*
 
 // ─────────────────────────────────────────────────────────────────────────────
 // commands — the subcommand implementations. Port of the network-free core
@@ -44,7 +45,8 @@ public Manifest loadManifest(int errOut) {
 }
 
 public int cmdVersion() {
-    fly.os.io.printLn("fly 0.14.0")
+    // Same single source of truth as `fly --version` (Version.fly).
+    fly.os.io.printLn(fly.str.concat("fly ", flyVersion()))
     out = 0
 }
 
@@ -77,21 +79,23 @@ void main() {
     fly.os.fs.writeStr("src/main.fly", fly.str.replace(progTpl, "Q", q), 420)
 
     // Manifest.fly — a class extending fly.meta.Manifest. Placeholders: %N% = name,
-    // %V% = version, Q = double-quote (dq()+replace). %N%/%V% are delimited so they
-    // don't collide with field names like `flyVersion`.
+    // %V% = version, %F% = the current compiler version (the toolchain the project
+    // is scaffolded for), Q = double-quote (dq()+replace). The placeholders are
+    // delimited so they don't collide with field names like `flyVersion`.
     string manTpl = "namespace pkg.manifest
 import fly.meta.*
 
 class Manifest : fly.meta.Manifest {
     string name = Q%N%Q
     string version = Q%V%Q
-    string flyVersion = Q0.14.0Q
+    string flyVersion = Q%F%Q
     Target[] targets = { new Target(Q%N%Q, Qsrc/main.flyQ, QQ) }
 }
 "
     string t1 = fly.str.replace(manTpl, "%N%", name)
     string t2 = fly.str.replace(t1, "%V%", ver)
-    fly.os.fs.writeStr("Manifest.fly", fly.str.replace(t2, "Q", q), 420)
+    string t3 = fly.str.replace(t2, "%F%", flyVersion())
+    fly.os.fs.writeStr("Manifest.fly", fly.str.replace(t3, "Q", q), 420)
 
     fly.os.io.printLn(fly.str.concat("Created Manifest.fly + src/main.fly for ", name))
     out = 0
@@ -317,7 +321,7 @@ public int doLock(const Manifest root, const string tomlPath) {
     }
 
     Lockfile lf = new Lockfile()
-    lf.setFlyVersion("0.14.0")
+    lf.setFlyVersion(flyVersion())
     lf.setTomlChecksum(fly.driver.sha256File(tomlPath))
     int k = 0
     while k < resolved.size() {

@@ -32,11 +32,29 @@ public class Frontend {
 
     CompilerInstance ci
     string outputFile     // the emitted artifact (object for link mode, else .ll/.o/.s)
+    LogDiagnosticPrinter logger   // --log-file collector; null when logging is off
+    // --print-stats / --stats-file counters. The reference prints the FileManager
+    // cache counters; the self-host reads files directly, so the honest numbers
+    // live here: what was parsed, pulled, loaded and walked.
+    int statInputFiles    // entry sources parsed
+    int statDepModules    // project modules pulled via imports
+    int statHeaderModules // .fly.h header modules loaded
+    int statDirsScanned   // directories walked (header + source discovery)
 
     public Frontend(const CompilerInstance ci) {
         this.ci = ci
         this.outputFile = ""
+        this.logger = null
+        this.statInputFiles = 0
+        this.statDepModules = 0
+        this.statHeaderModules = 0
+        this.statDirsScanned = 0
     }
+
+    public int getStatInputFiles()    { out = this.statInputFiles }
+    public int getStatDepModules()    { out = this.statDepModules }
+    public int getStatHeaderModules() { out = this.statHeaderModules }
+    public int getStatDirsScanned()   { out = this.statDirsScanned }
 
     public string getOutputFile() { out = this.outputFile }
 
@@ -52,7 +70,55 @@ public class Frontend {
     // link-mode object is written (the per-input artifact); for direct-emit modes
     // (.ll/.o/.s) the output goes to FrontendOptions.outputFile. `noOutput` type-
     // checks only. Returns 0 on success, 1 on the first failing phase.
+    //
+    // Thin wrapper over executeImpl: the body has many early returns, so the
+    // --log-file flush needs a single point AFTER the pipeline — here.
     public int execute(const string objPath, const bool noOutput) {
+        FrontendOptions wfo = this.ci.getFrontendOptions()
+        if fly.str.isEmpty(wfo.getLogFile()) == false {
+            this.logger = new LogDiagnosticPrinter()
+        }
+        int rc = this.executeImpl(objPath, noOutput)
+        this.flushLog(wfo)
+        if wfo.getShowStats() { this.printStats() }
+        if fly.str.isEmpty(wfo.getStatsFile()) == false { this.writeStatsFile(wfo.getStatsFile()) }
+        out = rc
+    }
+
+    // printStats — the --print-stats block, on stderr (reference PrintStats shape,
+    // with the numbers the self-host can honestly produce — see the field note).
+    public void printStats() {
+        fly.os.io.printErrLn("*** Compilation Stats:")
+        fly.os.io.printErrLn(fly.str.concat(fly.str.convert(this.statInputFiles),
+                             fly.str.concat(" input files parsed, ",
+                             fly.str.concat(fly.str.convert(this.statDepModules), " dependency modules pulled."))))
+        fly.os.io.printErrLn(fly.str.concat(fly.str.convert(this.statHeaderModules),
+                             fly.str.concat(" header modules loaded, ",
+                             fly.str.concat(fly.str.convert(this.statDirsScanned), " directories scanned."))))
+    }
+
+    // statsJson — the --stats-file payload (fixed keys, numeric values).
+    public string statsJson() {
+        string q = quoteChar()
+        string p1 = fly.str.concat(q, fly.str.concat("input-files", fly.str.concat(q, fly.str.concat(":", fly.str.convert(this.statInputFiles)))))
+        string p2 = fly.str.concat(q, fly.str.concat("dep-modules", fly.str.concat(q, fly.str.concat(":", fly.str.convert(this.statDepModules)))))
+        string p3 = fly.str.concat(q, fly.str.concat("header-modules", fly.str.concat(q, fly.str.concat(":", fly.str.convert(this.statHeaderModules)))))
+        string p4 = fly.str.concat(q, fly.str.concat("dirs-scanned", fly.str.concat(q, fly.str.concat(":", fly.str.convert(this.statDirsScanned)))))
+        string body = fly.str.concat(p1, fly.str.concat(",", fly.str.concat(p2,
+                      fly.str.concat(",", fly.str.concat(p3, fly.str.concat(",", p4))))))
+        out = fly.str.concat("{", fly.str.concat(body, "}"))
+    }
+
+    // writeStatsFile — write statsJson() to the --stats-file path; failure warns
+    // and is non-fatal (reference warn_fe_unable_to_open_stats_file).
+    public void writeStatsFile(const string path) {
+        fly.os.fs.writeStr(path, this.statsJson(), 420)
+        if fly.os.fs.exists(path) == false {
+            fly.os.io.printErrLn(fly.str.concat(fly.str.concat("warning: unable to open statistics output file '", path), "'"))
+        }
+    }
+
+    public int executeImpl(const string objPath, const bool noOutput) {
         FrontendOptions fo = this.ci.getFrontendOptions()
         TargetOptions topts = this.ci.getTargetOptions()
         SourceManager sm = this.ci.getSourceManager()
@@ -82,6 +148,7 @@ public class Frontend {
                 return
             }
             entryMods.add(m)
+            this.statInputFiles = this.statInputFiles + 1
         } else {
             int ei = 0
             while ei < inCount {
@@ -100,6 +167,7 @@ public class Frontend {
                     return
                 }
                 entryMods.add(mk)
+                this.statInputFiles = this.statInputFiles + 1
                 ei = ei + 1
             }
         }
@@ -109,7 +177,13 @@ public class Frontend {
         this.trace("resolving")
         DiagnosticOptions opts = new DiagnosticOptions()
         TextDiagnosticPrinter printer = new TextDiagnosticPrinter()
-        DiagnosticsEngine diags = new DiagnosticsEngine(opts, printer, sm)
+        // --log-file: chain the stderr printer with the log collector so every
+        // Sema diagnostic reaches both (reference ChainedDiagnosticConsumer).
+        DiagnosticConsumer consumer = printer
+        if this.logger != null {
+            consumer = new ChainedDiagnosticConsumer(printer, this.logger)
+        }
+        DiagnosticsEngine diags = new DiagnosticsEngine(opts, consumer, sm)
         // Preload stdlib/package headers (.fly.h) so `import fly.os.io` etc. resolve
         // against the declarations in <exe>/../lib (auto-discovered into stdLibDir) and
         // any -L dir. Headers are added BEFORE the entry module; their namespaces get
@@ -211,6 +285,14 @@ public class Frontend {
                     out = 1
                     return
                 }
+            } elsif action == 4 {
+                // real LLVM bitcode (--emit-bc), reference Backend_EmitBC
+                bool bok = cgm.emitBitcodeChecked(outPath)
+                if bok == false {
+                    fly.os.io.printErrLn(fly.str.concat("error: cannot write LLVM bitcode to ", outPath))
+                    out = 1
+                    return
+                }
             } else {
                 int fileType = 1                       // object
                 if action == 2 { fileType = 0 }        // assembly
@@ -252,6 +334,7 @@ public class Frontend {
     // is dropped, so the source definition isn't shadowed by a colliding declaration.
     public void loadHeadersFromDir(const string dir, List<ASTModule> mods, const List<string> skipNs) {
         if fly.os.path.isDir(dir) == false { return }
+        this.statDirsScanned = this.statDirsScanned + 1
         fly.os.fs.DirEntries de = fly.os.fs.dirRead(dir)
         pointer items = de.items
         if items == 0 { return }
@@ -285,6 +368,7 @@ public class Frontend {
                         if this.listHas(skipNs, hnsStr) == false {
                             hm.setHeader(true)
                             mods.add(hm)
+                            this.statHeaderModules = this.statHeaderModules + 1
                         }
                     }
                 }
@@ -442,6 +526,7 @@ public class Frontend {
                         return
                     }
                     mods.add(dm)
+                    this.statDepModules = this.statDepModules + 1
                 }
             }
             k = k + 1
@@ -455,6 +540,7 @@ public class Frontend {
     // loadHeadersFromDir.
     public void scanSrcDir(const string dir, List<string> mapNs, List<string> mapPath, const List<string> known) {
         if fly.os.path.isDir(dir) == false { return }
+        this.statDirsScanned = this.statDirsScanned + 1
         fly.os.fs.DirEntries de = fly.os.fs.dirRead(dir)
         pointer items = de.items
         if items == 0 { return }
@@ -575,14 +661,56 @@ public class Frontend {
         out = false
     }
 
-    // printDiags — dump every stored parser message to stderr.
+    // printDiags — dump every stored parser message to stderr. When --log-file is
+    // active the messages are also collected: parser diagnostics bypass the
+    // DiagnosticsEngine (pre-rendered "line:col: …" strings), so file/line/col
+    // arrive embedded in the message and the structured fields stay "0".
     public void printDiags(const StoringDiagnosticConsumer sink) {
         int n = sink.count()
         int i = 0
         while i < n {
             string msg = sink.getMessage(i)
             fly.os.io.printErrLn(msg)
+            if this.logger != null {
+                this.logger.add("error", "", "0", "0", msg)
+            }
             i = i + 1
+        }
+    }
+
+    // inputsJoined — the input file list as one space-separated string (for the
+    // --log-file report header).
+    public string inputsJoined(const FrontendOptions fo) {
+        string res = ""
+        int n = fo.inputCount()
+        int i = 0
+        while i < n {
+            string sep = ""
+            if i > 0 { sep = " " }
+            string acc = fly.str.concat(res, fly.str.concat(sep, fo.inputAt(i)))
+            res = acc
+            i = i + 1
+        }
+        out = res
+    }
+
+    // flushLog — write the collected diagnostics to --log-file in the requested
+    // format. Nothing is written when logging is off or no diagnostic was seen
+    // (reference EndSourceFile early-out); an unwritable path warns and the
+    // compilation result stands (reference warn_fe_cc_log_diagnostics_failure).
+    public void flushLog(const FrontendOptions fo) {
+        if this.logger == null { return }
+        if this.logger.count() == 0 { return }
+        string path = fo.getLogFile()
+        string text = ""
+        if fly.str.equals(fo.getLogFormat(), "json") {
+            text = this.logger.toJsonReport(this.inputsJoined(fo), fo.getOutputFile())
+        } else {
+            text = this.logger.toTextReport(this.inputsJoined(fo), fo.getOutputFile())
+        }
+        fly.os.fs.writeStr(path, text, 420)
+        if fly.os.fs.exists(path) == false {
+            fly.os.io.printErrLn(fly.str.concat(fly.str.concat("warning: unable to open log file '", path), "'"))
         }
     }
 }

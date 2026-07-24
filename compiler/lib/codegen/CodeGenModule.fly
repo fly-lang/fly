@@ -1408,6 +1408,15 @@ public class CodeGenModule {
         out = ok
     }
 
+    // emitBitcodeChecked — write the module as LLVM bitcode (.bc); false when the
+    // file could not be written. Mirrors the reference Backend_EmitBC action.
+    public bool emitBitcodeChecked(const string filename) {
+        LLVM llvm = this.cg.getLLVM()
+        bool ok = false
+        llvm.writeBitcodeToFileChecked(this.module, filename, ok)
+        out = ok
+    }
+
     // configureTarget — stamp the LLVM module with the target triple + data layout
     // from `ti` (mirrors fly/compiler/CodeGen/CodeGenModule.cpp setTargetTriple /
     // setDataLayout). After this the emitted .ll carries `target triple` and

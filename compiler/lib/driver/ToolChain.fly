@@ -510,7 +510,14 @@ public class ToolChain {
         // artifact .dll, matching what LinkWindows does with /dll (reference parity).
         bool buildDll = this.codeGenOpts.getShared()
         pointer h = fly.os.proc.argsNew()
-        if buildDll { fly.os.proc.argsAdd(h, "--shared") }
+        if buildDll {
+            fly.os.proc.argsAdd(h, "--shared")
+            // x86_64 PE DLL entry: dllcrt2.o defines DllMainCRTStartup (no
+            // underscore); ld's --shared default is the i386 `_`-prefixed
+            // spelling, so name it explicitly (what mingw gcc does with -e).
+            fly.os.proc.argsAdd(h, "--entry")
+            fly.os.proc.argsAdd(h, "DllMainCRTStartup")
+        }
         fly.os.proc.argsAdd(h, "-m")
         fly.os.proc.argsAdd(h, "i386pep")                       // x86_64 PE emulation
         fly.os.proc.argsAdd(h, fly.str.concat("-L", slib))
@@ -531,7 +538,14 @@ public class ToolChain {
 
         // CRT startup objects. `___chkstk_ms` (large-frame stack probe) resolves
         // from the compiler-rt builtins archive added below — no compat shim.
-        fly.os.proc.argsAdd(h, fly.os.path.join(slib, "crt2.o"))
+        // A DLL uses the DLL entry stub (dllcrt2.o, DllMainCRTStartup): crt2.o is
+        // the console-exe stub whose startup calls main/WinMain, which a library
+        // does not have.
+        if buildDll {
+            fly.os.proc.argsAdd(h, fly.os.path.join(slib, "dllcrt2.o"))
+        } else {
+            fly.os.proc.argsAdd(h, fly.os.path.join(slib, "crt2.o"))
+        }
         fly.os.proc.argsAdd(h, fly.os.path.join(slib, "crtbegin.o"))
 
         // User objects.
@@ -617,12 +631,26 @@ public class ToolChain {
         out = ""
     }
 
+    // llvmLibDirCandidates — the probe list relative to the fly binary's dir, as
+    // a ";"-separated list in probe order (reference Driver.cpp: <exe>/llvm/lib,
+    // <exe>/../llvm/lib, <exe>/../../llvm/lib). Pure, so ToolChainSuite can pin
+    // the order without touching the filesystem.
+    public string llvmLibDirCandidates(const string exeDir) {
+        string s1 = fly.os.path.join(fly.os.path.join(exeDir, "llvm"), "lib")
+        string parent = fly.os.path.dirname(exeDir)
+        string s2 = fly.os.path.join(fly.os.path.join(parent, "llvm"), "lib")
+        string build = fly.os.path.dirname(parent)
+        string s3 = fly.os.path.join(fly.os.path.join(build, "llvm"), "lib")
+        out = fly.str.concat(s1, fly.str.concat(";", fly.str.concat(s2, fly.str.concat(";", s3))))
+    }
+
     // getLLVMLibDir — locate the dir holding the LLVM import lib (LLVM-20.lib, the
     // stage0 alias of LLVM-C.lib) so `-lLLVM-20` (emitted for codegen-using
     // programs) resolves on Windows, where there is no system LLVM. Probe order
-    // mirrors getMingwSysrootDir: the --llvm-lib-dir override, then <exe_dir>/llvm/lib
-    // (release bundle), then <exe_dir>/../../llvm/lib (dev: build/stage$STAGE/bin →
-    // build/llvm/lib). "" if none found (ordinary programs don't need LLVM).
+    // mirrors the reference Driver.cpp: the --llvm-lib-dir override, then
+    // <exe_dir>/llvm/lib (release bundle), <exe_dir>/../llvm/lib, and
+    // <exe_dir>/../../llvm/lib (dev: build/stage$STAGE/bin → build/llvm/lib).
+    // "" if none found (ordinary programs don't need LLVM).
     public string getLLVMLibDir() {
         string ovr = this.codeGenOpts.getLlvmLibDir()
         if fly.str.isEmpty(ovr) == false {
@@ -630,12 +658,20 @@ public class ToolChain {
         }
         string exe = fly.os.env.exePath()
         if fly.str.isEmpty(exe) == false {
-            string dir = fly.os.path.dirname(exe)
-            string s1 = fly.os.path.join(fly.os.path.join(dir, "llvm"), "lib")
-            if fly.os.fs.exists(s1) { out = s1  return }
-            string build = fly.os.path.dirname(fly.os.path.dirname(dir))
-            string s2 = fly.os.path.join(fly.os.path.join(build, "llvm"), "lib")
-            if fly.os.fs.exists(s2) { out = s2  return }
+            string rest = this.llvmLibDirCandidates(fly.os.path.dirname(exe))
+            while fly.str.isEmpty(rest) == false {
+                string cand = rest
+                int sep = fly.str.indexOf(rest, ";")
+                if sep >= 0 {
+                    cand = fly.str.substring(rest, 0, sep)
+                    // distinct temp: `x = substring(x, …)` would self-alias
+                    string tail = fly.str.substring(rest, sep + 1, fly.str.len(rest))
+                    rest = tail
+                } else {
+                    rest = ""
+                }
+                if fly.os.fs.exists(cand) { out = cand  return }
+            }
         }
         out = ""
     }
