@@ -37,6 +37,8 @@ public class CodeGenExpr : SemaVisitor {
     pointer breakTarget    // innermost loop/switch exit block
     pointer continueTarget // innermost loop post block
     pointer errPtr         // current function's error-handler pointer (LLVM param 0)
+    pointer caseEndBB      // inside a suite `case`: the end block a fail jumps to
+                           // after any statement (fail-fast per case). 0 = not in a case.
     pointer lastErrPtr     // alloca i32: code of the LAST handle block (implicit `error` var)
     pointer handleSafe     // innermost handle's continuation block (0 = not in a handle)
     string lastStrLit      // text of the last string LITERAL gen'd (bridge symbol capture)
@@ -55,6 +57,7 @@ public class CodeGenExpr : SemaVisitor {
         this.breakTarget = 0
         this.continueTarget = 0
         this.errPtr = 0
+        this.caseEndBB = 0
         this.lastErrPtr = 0
         this.handleSafe = 0
         this.lastStrLit = ""
@@ -236,6 +239,16 @@ public class CodeGenExpr : SemaVisitor {
         while i < content.size() {
             SemaStmt s = content.get(i)
             s.accept(this)
+            // Fail-fast per case: inside a suite `case`, if a statement left an
+            // error in the case's slot, jump to the case end so later statements
+            // never run (reference: visit(SemaBlockStmt) checks after each stmt
+            // while CurrentCaseEndBB is set). Only the FIRST failure of the case
+            // is reported.
+            if this.caseEndBB != 0 {
+                if this.terminated == false {
+                    this.emitCaseFailFast()
+                }
+            }
             i = i + 1
         }
         // Stage 7: on fall-through, free this scope's owned heap class handles. (A
@@ -260,6 +273,26 @@ public class CodeGenExpr : SemaVisitor {
                 // may be retained elsewhere: freeing them here left dangling
                 // handles inside containers (LockfileSuite segfault).
                 if v.isEscaped() == false {
+                    SemaType vty = v.getType()
+                    bool isStr = false
+                    if vty != null { isStr = vty.isString() }
+                    if isStr {
+                        // String local: free its owned heap buffer (field 0 of the
+                        // {ptr,size} struct). Under clone-on-store it owns the buffer
+                        // uniquely; a returned string was CLONED into the out slot
+                        // (value semantics), so freeing the local never touches the
+                        // caller's copy — no out-slot compare needed (unlike class
+                        // handles below). free(null) covers the empty {null,0} case.
+                        pointer salloca = v.getLlvmAlloca()
+                        pointer strTy2 = this.cgm.getStringTy()
+                        pointer sval2
+                        this.llvm.buildLoad2(this.builder, strTy2, salloca, "sfreeld", sval2)
+                        pointer sptr2
+                        this.llvm.buildExtractValue(this.builder, sval2, 0, "sfreep", sptr2)
+                        this.cgm.freeHandle(sptr2)
+                        j = j + 1
+                        continue
+                    }
                     pointer alloca = v.getLlvmAlloca()
                     pointer ty = this.lowerType(v.getType())
                     pointer objPtr
@@ -376,6 +409,17 @@ public class CodeGenExpr : SemaVisitor {
         if this.addrMode {
             a.setLlvmValue(fldPtr)
         } else {
+            SemaType at = a.getType()
+            SemaClassType ac = at.asClass()
+            if ac != null {
+                if ac.getClassKind() == SemaClassKind.STRUCT {
+                    // STRUCT field: inline aggregate (CodeGenClass.fieldLlvmType);
+                    // the slot address IS the struct value — same rule as
+                    // CodeGenClass.member.
+                    a.setLlvmValue(fldPtr)
+                    return
+                }
+            }
             pointer fty = this.lowerType(a.getType())
             pointer loaded
             this.llvm.buildLoad2(this.builder, fty, fldPtr, "fldv", loaded)
@@ -512,7 +556,7 @@ public class CodeGenExpr : SemaVisitor {
         node.setLlvmValue(sv)
     }
     public void visit(const SemaComplexValue node) { }
-    public void visit(const SemaArrayValue node) { }
+    public void visit(const SemaArrayValue node) { CodeGenArray.arrayValue(this, node) }
     public void visit(const SemaStructValue node) { }
     // unset — lower to a typed zero. The empty visit left llvmValue = 0, and a
     // null handle reaching buildStore/buildRet crashes inside libLLVM.
@@ -536,44 +580,107 @@ public class CodeGenExpr : SemaVisitor {
         }
         node.setLlvmValue(c)
     }
-    public void visit(const SemaLoopInStmt node) { }
+    public void visit(const SemaLoopInStmt node) { CodeGenArray.loopIn(this, node) }
     public void visit(const SemaDeleteStmt node) { }
 
-    // case — a suite test case: a labelled `case.<label>` basic block that falls
-    // through to the next statement (sequential, no dispatch), with its OWN fresh
-    // zeroed %error installed for the body so failures don't bleed across cases
-    // (reference CodeGenModule::visit(SemaCaseStmt)).
+    // emitCaseFailFast — called after each statement of a case body: if the case's
+    // %error slot holds a code, branch to the case end (skipping the rest). Else
+    // continue in a fresh block. Assumes this.caseEndBB != 0 and this.errPtr is the
+    // case slot.
+    public void emitCaseFailFast() {
+        pointer errTy = this.cgm.getErrorTy()
+        pointer i32
+        this.llvm.int32TypeInContext(this.cgm.getCtx(), i32)
+        pointer zero
+        this.llvm.constInt(i32, 0, true, zero)
+        pointer codeP
+        this.llvm.buildStructGEP2(this.builder, errTy, this.errPtr, 0, "ffc", codeP)
+        pointer code
+        this.llvm.buildLoad2(this.builder, i32, codeP, "ffcode", code)
+        pointer hasErr
+        this.llvm.buildICmp(this.builder, 33, code, zero, "ffhas", hasErr)   // NE
+        pointer cont = this.newBlock("case.ffcont")
+        pointer cbr
+        this.llvm.buildCondBr(this.builder, hasErr, this.caseEndBB, cont, cbr)
+        this.terminated = true
+        this.position(cont)
+    }
+
+    // case — a suite test case: `suite_case_begin(label)`, then the body run under
+    // the METHOD's error handler (this.errPtr) with per-statement fail-fast
+    // (this.caseEndBB), then `suite_case_result(code, msg)` and, on failure, bump
+    // __fly_suite_failed. __fly_suite_total is bumped up front. Mirrors the
+    // reference CodeGenModule::visit(SemaCaseStmt): the case uses the method's
+    // handler (the shared suite %error passed as arg 0) — zeroed on entry, consumed
+    // on exit — so a `fail` reached through an assert call OR written directly in
+    // the case body both land in it. A direct `fail` returns from the method (its
+    // RetVoid) before the case-end report; the runner's CheckEscaped then reports
+    // it as a "body" failure — matching the reference.
     public void visit(const SemaCaseStmt node) {
         string label = node.getLabel()
         pointer bb = this.newBlock(fly.str.concat("case.", label))
         this.br(bb)
         this.position(bb)
 
-        pointer errTy = this.cgm.getErrorTy()
-        pointer caseErr
-        this.llvm.buildAlloca(this.builder, errTy, fly.str.concat("case_err.", label), caseErr)
         pointer i32
         this.llvm.int32TypeInContext(this.cgm.getCtx(), i32)
         pointer zero
         this.llvm.constInt(i32, 0, true, zero)
-        pointer codeP
-        this.llvm.buildStructGEP2(this.builder, errTy, caseErr, 0, "ecode", codeP)
-        this.llvm.buildStore(this.builder, zero, codeP)
         pointer pty = this.ptrType()
-        pointer nullP
-        this.llvm.constPointerNull(pty, nullP)
-        pointer strP
-        this.llvm.buildStructGEP2(this.builder, errTy, caseErr, 1, "estr", strP)
-        this.llvm.buildStore(this.builder, nullP, strP)
-        pointer objP
-        this.llvm.buildStructGEP2(this.builder, errTy, caseErr, 2, "eobj", objP)
-        this.llvm.buildStore(this.builder, nullP, objP)
 
-        pointer savedErr = this.errPtr
-        this.errPtr = caseErr
+        // suite_case_begin(label) — prints "    <label> ...", no newline.
+        List<pointer> lblTy = new List<pointer>()
+        lblTy.add(pty)
+        List<pointer> beginArgs = new List<pointer>()
+        beginArgs.add(this.cgm.cstr(label))
+        this.cgm.callVoidRt("suite_case_begin", lblTy, beginArgs)
+
+        // Per-case isolation: zero the METHOD's error slot on entry (fresh window).
+        pointer errTy = this.cgm.getErrorTy()
+        pointer errSlot = this.errPtr
+        this.cgm.zeroErrSlot(errSlot)
+        this.cgm.incrSuiteCounter(this.cgm.suiteCounter("__fly_suite_total"))
+
+        // Run the body under the fail-fast target (this.errPtr stays the method slot).
+        pointer endBB = this.newBlock(fly.str.concat("case.end.", label))
+        pointer savedEnd = this.caseEndBB
+        this.caseEndBB = endBB
         SemaBlockStmt body = node.getBody()
         if body != null { body.accept(this) }
-        this.errPtr = savedErr
+        this.caseEndBB = savedEnd
+        this.br(endBB)
+        this.position(endBB)
+
+        // Report the outcome: suite_case_result(code, msg).
+        pointer endCodeP
+        this.llvm.buildStructGEP2(this.builder, errTy, errSlot, 0, "endc", endCodeP)
+        pointer endCode
+        this.llvm.buildLoad2(this.builder, i32, endCodeP, "endcode", endCode)
+        pointer endMsgP
+        this.llvm.buildStructGEP2(this.builder, errTy, errSlot, 1, "endm", endMsgP)
+        pointer endMsg
+        this.llvm.buildLoad2(this.builder, pty, endMsgP, "endmsg", endMsg)
+        List<pointer> resTy = new List<pointer>()
+        resTy.add(i32)
+        resTy.add(pty)
+        List<pointer> resArgs = new List<pointer>()
+        resArgs.add(endCode)
+        resArgs.add(endMsg)
+        this.cgm.callVoidRt("suite_case_result", resTy, resArgs)
+
+        // On failure, count it and clear the slot before the next case.
+        pointer hasErr
+        this.llvm.buildICmp(this.builder, 33, endCode, zero, "endne", hasErr)   // NE
+        pointer failBB = this.newBlock(fly.str.concat("case.fail.", label))
+        pointer contBB = this.newBlock(fly.str.concat("case.cont.", label))
+        pointer cbr
+        this.llvm.buildCondBr(this.builder, hasErr, failBB, contBB, cbr)
+        this.terminated = true
+        this.position(failBB)
+        this.cgm.incrSuiteCounter(this.cgm.suiteCounter("__fly_suite_failed"))
+        this.cgm.zeroErrSlot(errSlot)
+        this.br(contBB)
+        this.position(contBB)
     }
 
     // test — an inline `test {}` block, gated at RUN TIME on the thread-local

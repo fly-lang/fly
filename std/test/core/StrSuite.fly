@@ -1,0 +1,496 @@
+import fly.str
+import fly.mem
+import fly.assert
+
+// asciiChar — a one-byte string for a given ASCII code. Fly string literals keep
+// escapes RAW (`"\t"` is the two chars backslash+t, NOT a tab — see the note in
+// compiler/lib/frontend/TextDiagnostic.fly), so the whitespace bytes the trim
+// tests need have to be built byte-wise.
+string asciiChar(const int code) {
+    pointer buf = fly.mem.alloc(1)
+    fly.mem.writeByte(buf, 0, (byte)code)
+    fly.str.fromBytes(buf, 1, out)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// StrSuite — exhaustive coverage of fly.str (std/lib/str.fly): all 22 exports,
+// each driven through its edge cases (empty inputs, needle longer than the
+// haystack, not-found, boundaries, overlapping matches) so every branch of every
+// function is taken.
+//
+// Several behaviours here are deliberately asymmetric and are PINNED as-is —
+// they are the reference compiler's semantics, not oversights to "fix" in a test:
+//   indexOf(s, "")      →  0        contains(s, "")  →  true
+//   lastIndexOf(s, "")  → -1        count(s, "")     →  0
+//   replace(s, "", to)  →  s        count is NON-OVERLAPPING (advances by |from|)
+//
+// The last two methods cover the `string` ==/!= operator (codegen emits a size
+// check plus memcmp, not a pointer compare) and the owned-string deep-copy
+// contract that the whole std leans on — a regression there shows up as a
+// double-free (0xC0000374 on Windows, a Valgrind error on Linux).
+//
+// Assert codes: 1xx query, 2xx search, 3xx case/trim, 4xx slice/build,
+// 5xx replace, 6xx convert, 7xx operators, 8xx ownership.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite StrSuite {
+
+    // ── len / isEmpty / byteAt / fromBytes ───────────────────────────────────
+    void queryTest() {
+        case "len": {
+            assert.assertEqI(str.len("hello"), 5, 101)
+            assert.assertEqI(str.len(""), 0, 102)
+            assert.assertEqI(str.len(" "), 1, 103)
+            // Escapes are raw: this literal really is 4 chars (a, \, t, b).
+            assert.assertEqI(str.len("a\tb"), 4, 104)
+            assert.assertEqI(str.len(asciiChar(9)), 1, 126)
+        }
+        case "three byte-built strings held at once stay distinct": {
+            // Guards the trim cases below, which build their whitespace this way:
+            // if the three results aliased, those tests would still pass by
+            // accident (every byte is trimmable), so the bytes are checked here.
+            string tab = asciiChar(9)
+            string lf = asciiChar(10)
+            string cr = asciiChar(13)
+            byte b = 0
+            str.byteAt(tab, 0, b)
+            assert.assertEqI((int)b & 255, 9, 127)
+            str.byteAt(lf, 0, b)
+            assert.assertEqI((int)b & 255, 10, 128)
+            str.byteAt(cr, 0, b)
+            assert.assertEqI((int)b & 255, 13, 129)
+        }
+        case "isEmpty": {
+            assert.assertTrue(str.isEmpty(""), 105)
+            assert.assertFalse(str.isEmpty("x"), 106)
+            assert.assertFalse(str.isEmpty(" "), 107)
+        }
+        case "equals compares content": {
+            assert.assertTrue(str.equals("abc", "abc"), 108)
+            assert.assertFalse(str.equals("abc", "ABC"), 109)
+            assert.assertFalse(str.equals("abc", "abcd"), 110)   // length differs
+            assert.assertFalse(str.equals("abc", "abd"), 111)    // last byte differs
+            assert.assertTrue(str.equals("", ""), 112)
+            assert.assertFalse(str.equals("", "a"), 113)
+        }
+        case "equalsIgnoreCase folds only ASCII letters": {
+            assert.assertTrue(str.equalsIgnoreCase("Hello", "HELLO"), 114)
+            assert.assertTrue(str.equalsIgnoreCase("hello", "hello"), 115)
+            assert.assertFalse(str.equalsIgnoreCase("abc", "xyz"), 116)
+            assert.assertFalse(str.equalsIgnoreCase("abc", "ab"), 117)   // early size guard
+            assert.assertTrue(str.equalsIgnoreCase("", ""), 118)
+            assert.assertTrue(str.equalsIgnoreCase("A1-b", "a1-B"), 119) // digits/punct pass through
+            assert.assertFalse(str.equalsIgnoreCase("a", "b"), 120)      // first byte differs
+        }
+        case "byteAt reads individual bytes": {
+            byte b = 0
+            str.byteAt("ABC", 0, b)
+            assert.assertEqI((int)b & 255, 65, 121)
+            str.byteAt("ABC", 2, b)
+            assert.assertEqI((int)b & 255, 67, 122)
+        }
+        case "fromBytes round-trips a raw buffer": {
+            // fromBytes (strMake) takes OWNERSHIP of the buffer — the resulting
+            // string frees it at scope exit, so the caller must NOT free it too.
+            pointer p = fly.mem.alloc(3)
+            fly.mem.writeByte(p, 0, 102)                  // 'f'
+            fly.mem.writeByte(p, 1, 108)                  // 'l'
+            fly.mem.writeByte(p, 2, 121)                  // 'y'
+            string s = ""
+            str.fromBytes(p, 3, s)
+            assert.assertStr(s, "fly", 123)
+            assert.assertEqI(str.len(s), 3, 124)
+        }
+        case "fromBytes with a zero length yields the empty string": {
+            pointer q = fly.mem.alloc(1)
+            fly.mem.writeByte(q, 0, 65)
+            string empty = "x"
+            str.fromBytes(q, 0, empty)
+            assert.assertEmpty(empty, 125)
+        }
+    }
+
+    // ── startsWith / endsWith / indexOf / lastIndexOf / contains / count ─────
+    void searchTest() {
+        case "startsWith": {
+            assert.assertTrue(str.startsWith("hello world", "hello"), 201)
+            assert.assertFalse(str.startsWith("hello world", "world"), 202)
+            assert.assertTrue(str.startsWith("hello", ""), 203)       // empty prefix
+            assert.assertTrue(str.startsWith("hello", "hello"), 204)  // whole string
+            assert.assertFalse(str.startsWith("hi", "hello"), 205)    // prefix too long
+            assert.assertFalse(str.startsWith("hello", "hallo"), 206) // differs mid-way
+            assert.assertTrue(str.startsWith("", ""), 207)
+        }
+        case "endsWith": {
+            assert.assertTrue(str.endsWith("hello world", "world"), 208)
+            assert.assertFalse(str.endsWith("hello world", "hello"), 209)
+            assert.assertTrue(str.endsWith("hello", ""), 210)         // empty suffix
+            assert.assertTrue(str.endsWith("hello", "hello"), 211)
+            assert.assertFalse(str.endsWith("hi", "hello"), 212)      // suffix too long
+            assert.assertFalse(str.endsWith("hello", "hellp"), 213)
+            assert.assertTrue(str.endsWith("", ""), 214)
+        }
+        case "indexOf finds the first match": {
+            assert.assertEqI(str.indexOf("hello world", "world"), 6, 215)
+            assert.assertEqI(str.indexOf("hello world", "hello"), 0, 216)
+            assert.assertEqI(str.indexOf("abab", "ab"), 0, 217)
+            assert.assertEqI(str.indexOf("abab", "ba"), 1, 218)
+            assert.assertEqI(str.indexOf("hello", "o"), 4, 219)       // last position
+        }
+        case "indexOf misses": {
+            assert.assertEqI(str.indexOf("hello world", "xyz"), 0 - 1, 220)
+            assert.assertEqI(str.indexOf("hi", "hello"), 0 - 1, 221)  // needle too long
+            assert.assertEqI(str.indexOf("", "a"), 0 - 1, 222)
+            assert.assertEqI(str.indexOf("aaab", "aac"), 0 - 1, 223)  // near-miss
+        }
+        case "indexOf with an empty needle is 0": {
+            assert.assertEqI(str.indexOf("hello", ""), 0, 224)
+            assert.assertEqI(str.indexOf("", ""), 0, 225)
+        }
+        case "lastIndexOf finds the final match": {
+            assert.assertEqI(str.lastIndexOf("abcabc", "bc"), 4, 226)
+            assert.assertEqI(str.lastIndexOf("abcabc", "ab"), 3, 227)
+            assert.assertEqI(str.lastIndexOf("abcabc", "abc"), 3, 228)
+            assert.assertEqI(str.lastIndexOf("aaaa", "a"), 3, 229)
+            assert.assertEqI(str.lastIndexOf("a.b.c", "."), 3, 230)
+            assert.assertEqI(str.lastIndexOf("hello", "hello"), 0, 231)
+        }
+        case "lastIndexOf misses, and an empty needle is -1": {
+            // Deliberately asymmetric with indexOf — pinned, not a typo.
+            assert.assertEqI(str.lastIndexOf("hello", ""), 0 - 1, 232)
+            assert.assertEqI(str.lastIndexOf("hi", "hello"), 0 - 1, 233)
+            assert.assertEqI(str.lastIndexOf("hello", "z"), 0 - 1, 234)
+            assert.assertEqI(str.lastIndexOf("", "a"), 0 - 1, 235)
+        }
+        case "contains": {
+            assert.assertTrue(str.contains("hello world", "world"), 236)
+            assert.assertTrue(str.contains("hello world", "o w"), 237)
+            assert.assertFalse(str.contains("hello world", "xyz"), 238)
+            assert.assertFalse(str.contains("hi", "hello"), 239)      // needle too long
+            assert.assertTrue(str.contains("hello", ""), 240)         // empty needle
+            assert.assertTrue(str.contains("", ""), 241)
+            assert.assertFalse(str.contains("", "a"), 242)
+        }
+        case "count is non-overlapping": {
+            assert.assertEqI(str.count("abcabcabc", "abc"), 3, 243)
+            assert.assertEqI(str.count("aaa", "a"), 3, 244)
+            assert.assertEqI(str.count("aaa", "aa"), 1, 245)          // advances by |from|
+            assert.assertEqI(str.count("aaaa", "aa"), 2, 246)
+            assert.assertEqI(str.count("abc", "xyz"), 0, 247)
+            assert.assertEqI(str.count("hello", "hello"), 1, 248)
+        }
+        case "count degenerate inputs": {
+            assert.assertEqI(str.count("abc", ""), 0, 249)            // empty needle
+            assert.assertEqI(str.count("hi", "hello"), 0, 250)        // needle too long
+            assert.assertEqI(str.count("", "a"), 0, 251)
+        }
+    }
+
+    // ── toUpper / toLower / trim / trimLeft / trimRight ──────────────────────
+    void caseAndTrimTest() {
+        case "toUpper": {
+            assert.assertStr(str.toUpper("hello"), "HELLO", 301)
+            assert.assertStr(str.toUpper("Hello World"), "HELLO WORLD", 302)
+            assert.assertStr(str.toUpper("ABC"), "ABC", 303)          // already upper
+            assert.assertStr(str.toUpper("a1-z"), "A1-Z", 304)        // non-letters pass through
+            assert.assertEmpty(str.toUpper(""), 305)
+        }
+        case "toLower": {
+            assert.assertStr(str.toLower("WORLD"), "world", 306)
+            assert.assertStr(str.toLower("Hello World"), "hello world", 307)
+            assert.assertStr(str.toLower("abc"), "abc", 308)
+            assert.assertStr(str.toLower("A1-Z"), "a1-z", 309)
+            assert.assertEmpty(str.toLower(""), 310)
+        }
+        case "trim both ends": {
+            assert.assertStr(str.trim("  hello  "), "hello", 311)
+            assert.assertStr(str.trim("hello"), "hello", 312)         // nothing to trim
+            assert.assertEmpty(str.trim(""), 313)
+            // trim recognises exactly four bytes: space, tab, LF, CR.
+            string tab = asciiChar(9)
+            string lf = asciiChar(10)
+            string cr = asciiChar(13)
+            string padded = str.concat(str.concat(tab, lf), str.concat(" hi ", str.concat(cr, lf)))
+            assert.assertStr(str.trim(padded), "hi", 314)
+            assert.assertStr(str.trim("  a"), "a", 315)               // left only
+            assert.assertStr(str.trim("a  "), "a", 316)               // right only
+            assert.assertStr(str.trim(" a b "), "a b", 317)           // inner ws kept
+        }
+        case "trim on all-whitespace collapses to empty": {
+            assert.assertEmpty(str.trim(" "), 318)
+            assert.assertEmpty(str.trim("     "), 319)
+            string ws = str.concat(str.concat(asciiChar(9), asciiChar(13)),
+                                   str.concat(asciiChar(10), " "))
+            assert.assertEmpty(str.trim(ws), 320)
+            assert.assertEmpty(str.trimLeft(ws), 331)
+            assert.assertEmpty(str.trimRight(ws), 332)
+        }
+        case "trimLeft": {
+            assert.assertStr(str.trimLeft("  hello  "), "hello  ", 321)
+            assert.assertStr(str.trimLeft("hello"), "hello", 322)
+            assert.assertStr(str.trimLeft("hello  "), "hello  ", 323)
+            assert.assertEmpty(str.trimLeft("   "), 324)
+            assert.assertEmpty(str.trimLeft(""), 325)
+        }
+        case "trimRight": {
+            assert.assertStr(str.trimRight("  hello  "), "  hello", 326)
+            assert.assertStr(str.trimRight("hello"), "hello", 327)
+            assert.assertStr(str.trimRight("  hello"), "  hello", 328)
+            assert.assertEmpty(str.trimRight("   "), 329)
+            assert.assertEmpty(str.trimRight(""), 330)
+        }
+    }
+
+    // ── substring / concat / repeat ──────────────────────────────────────────
+    void sliceAndBuildTest() {
+        case "substring in range": {
+            assert.assertStr(str.substring("hello world", 6, 11), "world", 401)
+            assert.assertStr(str.substring("hello world", 0, 5), "hello", 402)
+            assert.assertStr(str.substring("abc", 1, 2), "b", 403)
+            assert.assertStr(str.substring("abc", 0, 3), "abc", 404)  // whole string
+        }
+        case "substring clamps out-of-range bounds": {
+            assert.assertStr(str.substring("abc", 0, 99), "abc", 405) // end > size
+            assert.assertStr(str.substring("abc", 0 - 5, 2), "ab", 406) // start < 0
+            assert.assertEmpty(str.substring("abc", 2, 2), 407)       // start == end
+            assert.assertEmpty(str.substring("abc", 2, 1), 408)       // start > end
+            assert.assertEmpty(str.substring("abc", 99, 99), 409)     // both past the end
+            assert.assertEmpty(str.substring("", 0, 5), 410)
+        }
+        case "concat": {
+            assert.assertStr(str.concat("hello ", "world"), "hello world", 411)
+            assert.assertStr(str.concat("", "abc"), "abc", 412)
+            assert.assertStr(str.concat("abc", ""), "abc", 413)
+            assert.assertEmpty(str.concat("", ""), 414)
+        }
+        case "concat chains and keeps sources intact": {
+            string a = "one"
+            string b = "two"
+            string ab = str.concat(a, b)
+            assert.assertStr(ab, "onetwo", 415)
+            assert.assertStr(a, "one", 416)
+            assert.assertStr(b, "two", 417)
+            assert.assertStr(str.concat(ab, "three"), "onetwothree", 418)
+        }
+        case "repeat": {
+            assert.assertStr(str.repeat("ab", 3), "ababab", 419)
+            assert.assertStr(str.repeat("x", 1), "x", 420)
+            assert.assertStr(str.repeat("abc", 2), "abcabc", 421)
+        }
+        case "repeat degenerate counts and inputs": {
+            assert.assertEmpty(str.repeat("abc", 0), 422)
+            assert.assertEmpty(str.repeat("abc", 0 - 1), 423)         // count <= 0
+            assert.assertEmpty(str.repeat("", 5), 424)                // size == 0
+            assert.assertEmpty(str.repeat("", 0), 425)
+        }
+        case "repeat a long run": {
+            string s = str.repeat("ab", 100)
+            assert.assertEqI(str.len(s), 200, 426)
+            assert.assertTrue(str.startsWith(s, "abab"), 427)
+            assert.assertTrue(str.endsWith(s, "abab"), 428)
+            assert.assertEqI(str.count(s, "ab"), 100, 429)
+        }
+    }
+
+    // ── replace ──────────────────────────────────────────────────────────────
+    void replaceTest() {
+        case "replace every occurrence": {
+            assert.assertStr(str.replace("aabbaa", "aa", "X"), "XbbX", 501)
+            assert.assertStr(str.replace("hello world", "world", "fly"), "hello fly", 502)
+            assert.assertStr(str.replace("aaa", "a", "b"), "bbb", 503)
+        }
+        case "replace with no match returns the source": {
+            assert.assertStr(str.replace("abc", "xyz", "Z"), "abc", 504)
+            assert.assertStr(str.replace("abc", "abcd", "Z"), "abc", 505)  // from longer
+            assert.assertEmpty(str.replace("", "a", "b"), 506)
+        }
+        case "replace shrinks, grows, and keeps length": {
+            assert.assertStr(str.replace("aaa", "a", ""), "", 507)         // to empty: shrink
+            assert.assertStr(str.replace("axaxa", "a", ""), "xx", 527)
+            assert.assertStr(str.replace("abc", "b", "XYZ"), "aXYZc", 508) // grow
+            assert.assertStr(str.replace("abc", "b", "B"), "aBc", 509)     // same length
+            assert.assertStr(str.replace("a-b-c", "-", "::"), "a::b::c", 510)
+        }
+        case "replace the whole string, and the head/tail": {
+            assert.assertStr(str.replace("abc", "abc", "z"), "z", 511)
+            assert.assertStr(str.replace("abcabc", "abc", "z"), "zz", 512)
+            assert.assertStr(str.replace("abc-abc", "abc", "z"), "z-z", 528)
+            assert.assertStr(str.replace("xabc", "abc", "z"), "xz", 513)
+            assert.assertStr(str.replace("abcx", "abc", "z"), "zx", 514)
+        }
+        case "replace with an empty needle returns the source": {
+            // fs == 0 short-circuits — pinned behaviour.
+            assert.assertStr(str.replace("abc", "", "Z"), "abc", 515)
+            assert.assertEmpty(str.replace("", "", "Z"), 516)
+        }
+        case "replace is non-overlapping, like count": {
+            assert.assertStr(str.replace("aaa", "aa", "b"), "ba", 517)
+            assert.assertStr(str.replace("aaaa", "aa", "xy"), "xyxy", 518) // adjacent, ts == fs
+        }
+        case "adjacent matches with a length change": {
+            // Regression cover for the occurrence-counter off-by-one: the counter
+            // used to advance by |from| AND then by 1 after a hit, so adjacent
+            // matches were undercounted while the write loop replaced all of them
+            // — newSize came out too large and the result trailed garbage bytes.
+            assert.assertStr(str.replace("aaaa", "aa", "b"), "bb", 520)
+            assert.assertEqI(str.len(str.replace("aaaa", "aa", "b")), 2, 521)
+            assert.assertEmpty(str.replace("aaa", "a", ""), 522)
+            assert.assertStr(str.replace("abcabc", "abc", "z"), "zz", 523)
+            assert.assertStr(str.replace("abab", "ab", "z"), "zz", 524)
+            assert.assertStr(str.replace("aaaaaa", "aa", "b"), "bbb", 525)
+            assert.assertStr(str.replace("abab", "ab", "xyz"), "xyzxyz", 526)  // grow
+        }
+        case "adjacent matches, cases carried over from the reference": {
+            // Undercounting occurrences mis-sizes the destination buffer in BOTH
+            // directions: a LONGER replacement makes it too small, so the write loop
+            // runs past the allocation (heap overflow); a SHORTER one makes it too
+            // large, so the tail keeps uninitialised bytes. These are the reference's
+            // own cases (std/test/str_test.fly, codes 183-187) kept in step.
+            assert.assertStr(str.replace("aa", "a", "bb"), "bbbb", 540)      // grow
+            assert.assertStr(str.replace("aaaa", "aa", "c"), "cc", 541)      // shrink
+            assert.assertStr(str.replace("aaab", "a", ""), "b", 542)         // to empty
+            assert.assertStr(str.replace("aa", "a", "b"), "bb", 543)         // same width
+            assert.assertStr(str.replace("xaayaa", "aa", "ZZZ"), "xZZZyZZZ", 544)
+        }
+        case "replace a substring by itself is identity": {
+            assert.assertStr(str.replace("hello", "l", "l"), "hello", 519)
+        }
+    }
+
+    // ── convert ──────────────────────────────────────────────────────────────
+    void convertTest() {
+        case "zero and small positives": {
+            assert.assertStr(str.convert(0), "0", 601)
+            assert.assertStr(str.convert(1), "1", 602)
+            assert.assertStr(str.convert(9), "9", 603)
+            assert.assertStr(str.convert(10), "10", 604)
+            assert.assertStr(str.convert(42), "42", 605)
+        }
+        case "negatives": {
+            assert.assertStr(str.convert(0 - 1), "-1", 606)
+            assert.assertStr(str.convert(0 - 42), "-42", 607)
+            assert.assertStr(str.convert(0 - 100), "-100", 608)
+        }
+        case "int extremes": {
+            assert.assertStr(str.convert(2147483647), "2147483647", 609)
+            assert.assertStr(str.convert(0 - 2147483647), "-2147483647", 610)
+            assert.assertStr(str.convert(1000000), "1000000", 611)
+        }
+        case "digit-boundary values": {
+            assert.assertStr(str.convert(99), "99", 612)
+            assert.assertStr(str.convert(100), "100", 613)
+            assert.assertStr(str.convert(1001), "1001", 614)          // interior zeros
+            assert.assertStr(str.convert(1000), "1000", 615)          // trailing zeros
+        }
+        case "convert composes with the other helpers": {
+            string s = str.concat("n=", str.convert(0 - 7))
+            assert.assertStr(s, "n=-7", 616)
+            assert.assertEqI(str.len(str.convert(12345)), 5, 617)
+            assert.assertTrue(str.startsWith(str.convert(0 - 5), "-"), 618)
+        }
+        case "round-trip through the search helpers": {
+            int bad = 0 - 1
+            int i = 0
+            while i < 100 {
+                string s = str.convert(i)
+                if str.contains(str.concat("[", str.concat(s, "]")), s) == false { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 619)
+        }
+    }
+
+    // ── the string ==/!= operator (size check + memcmp, not a pointer compare) ─
+    void operatorTest() {
+        case "equal and unequal literals": {
+            string sa = "hello"
+            string sb = "hello"
+            string sc = "world"
+            string sd = "hell"
+            assert.assertTrue(sa == sb, 701)
+            assert.assertFalse(sa == sc, 702)         // same length, differing bytes
+            assert.assertTrue(sa != sc, 703)
+            assert.assertFalse(sa == sd, 704)         // different length (prefix)
+            assert.assertTrue(sa != sd, 705)
+        }
+        case "empty operands": {
+            string e = ""
+            assert.assertTrue(e == "", 706)
+            assert.assertFalse("hello" == e, 707)
+            assert.assertTrue("hello" != e, 708)
+        }
+        case "literal versus variable, either way round": {
+            string sa = "hello"
+            assert.assertTrue("hello" == sa, 709)
+            assert.assertTrue(sa == "hello", 710)
+            assert.assertFalse("Hello" == sa, 711)    // case-sensitive
+        }
+        case "operator agrees with str.equals on built strings": {
+            string built = str.concat("hel", "lo")
+            assert.assertTrue(built == "hello", 712)
+            assert.assertTrue(str.equals(built, "hello"), 713)
+            assert.assertFalse(built != "hello", 714)
+        }
+    }
+
+    // ── owned-string assignment must DEEP-COPY, not alias ────────────────────
+    // A `string` is a value struct {ptr, size} whose ptr is heap-owned and freed
+    // at scope exit. If `a = b` aliased the buffer, both would free the SAME
+    // block — a double-free the Windows heap aborts on (0xC0000374) and Valgrind
+    // flags on Linux. Regression cover for the resolveSourceDeps double-free.
+    void ownershipTest() {
+        case "outer var reassigned from an inner local, in a loop": {
+            // Mirrors dropLastSegment: shrink a dotted path down to "".
+            string dotted = "a.b.c.d.e"
+            string cur = dotted
+            while str.isEmpty(cur) == false {
+                int dot = str.lastIndexOf(cur, ".")
+                string next = ""
+                if dot >= 0 { next = str.substring(cur, 0, dot) }
+                cur = next                            // lvalue RHS → must clone
+            }
+            assert.assertStr(dotted, "a.b.c.d.e", 801)   // source untouched
+            assert.assertEqI(str.len(cur), 0, 802)
+        }
+        case "after dst = src, reassigning src leaves dst intact": {
+            string src = "keepme"
+            string dst = "temp"
+            dst = src
+            src = "changed"
+            assert.assertStr(dst, "keepme", 803)
+            assert.assertStr(src, "changed", 804)
+        }
+        case "repeated nested-scope reassignment stresses alloc/free": {
+            int it = 0
+            string acc = "seed"
+            while it < 64 {
+                string tmp = str.concat(acc, "x")
+                acc = tmp                             // outer = inner local, in a loop
+                acc = str.substring(acc, 0, 4)        // keep it bounded
+                it = it + 1
+            }
+            assert.assertStr(acc, "seed", 805)
+        }
+        case "transform results are independent of their sources": {
+            string base = "Hello"
+            string up = str.toUpper(base)
+            string low = str.toLower(base)
+            string trimmed = str.trim(str.concat("  ", base))
+            assert.assertStr(base, "Hello", 806)
+            assert.assertStr(up, "HELLO", 807)
+            assert.assertStr(low, "hello", 808)
+            assert.assertStr(trimmed, "Hello", 809)
+        }
+        case "chained transforms over many iterations": {
+            int i = 0
+            string s = "abc"
+            while i < 50 {
+                s = str.toUpper(s)
+                s = str.toLower(s)
+                s = str.replace(s, "abc", "abc")
+                i = i + 1
+            }
+            assert.assertStr(s, "abc", 810)
+        }
+    }
+}

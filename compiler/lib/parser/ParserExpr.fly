@@ -208,6 +208,13 @@ public class ParserExpr {
             out = e
             return
         }
+        // array literal: `{ e0, e1, ... }` (elements are any expression, so
+        // `{ new Dep(...), ... }` works too). Unambiguous in expression position —
+        // a block `{` is only a statement, never a primary.
+        if p.curIsPunct("{") {
+            out = ParserExpr.parseArrayLiteral(p)
+            return
+        }
         // identifier, or call `name(...)`
         if p.curIsNamePart() {
             string nm = p.curText()
@@ -221,6 +228,26 @@ public class ParserExpr {
         }
         p.reportErr(DiagID.err_parser_expr_expected_primary)
         out = ASTBuilder.CreateNullValue(loc)
+    }
+
+    // parseArrayLiteral — `{ expr (, expr)* }` → ASTArrayValue. A trailing comma and
+    // the empty `{}` are accepted.
+    public static ASTExpr parseArrayLiteral(const Parser p) {
+        SourceLocation loc = p.curLoc()
+        p.expectPunct("{")
+        List<ASTExpr> elems = new List<ASTExpr>()
+        bool go = p.curIsPunct("}") == false && p.hadErr() == false
+        while go {
+            ASTExpr e = ParserExpr.parse(p)
+            elems.add(e)
+            if p.curIsPunct(",") {
+                p.bump()
+                if p.curIsPunct("}") { go = false }
+            } else { go = false }
+            if p.hadErr() { go = false }
+        }
+        p.expectPunct("}")
+        out = ASTBuilder.CreateArrayValue(loc, elems)
     }
 
     public static ASTExpr parseNew(const Parser p) {

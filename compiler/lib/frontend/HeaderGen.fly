@@ -86,6 +86,20 @@ public class HeaderGen {
     }
 
     // paramListStr — `p0, p1, …` for a function/method signature.
+    // returnTypeListStr — `A, B, C` for a multi-return declaration; "" when the
+    // function has no extra return types (the ordinary single/void case).
+    public static string returnTypeListStr(const List<ASTType> rts) {
+        if rts == null { out = ""  return }
+        string s = ""
+        int i = 0
+        while i < rts.size() {
+            if i > 0 { s = fly.str.concat(s, ", ") }
+            s = fly.str.concat(s, HeaderGen.typeStr(rts.get(i)))
+            i = i + 1
+        }
+        out = s
+    }
+
     public static string paramListStr(const List<ASTParam> params) {
         string s = ""
         int i = 0
@@ -350,11 +364,19 @@ public class HeaderGen {
         out = h
     }
 
-    // funcSig — `public [<ret>|void] <name>(<params>)` for a free function.
+    // funcSig — `public [<ret>|<A,B,…>|void] <name>(<params>)` for a free function.
     public static string funcSig(const ASTFunction f) {
         string s = "public "
         string ret = HeaderGen.typeStr(f.getReturnType())
-        if fly.str.isEmpty(ret) { s = fly.str.concat(s, "void ") }
+        if fly.str.isEmpty(ret) {
+            // MULTI-RETURN: getReturnType() is null but the function still returns
+            // `A,B,…`. Emitting plain `void` here loses the extra returns, so a
+            // header consumer builds a call with too few arguments for the archive
+            // symbol's real ABI (errPtr, params…, __out_0, …, __out_N).
+            string multi = HeaderGen.returnTypeListStr(f.getReturnTypes())
+            if fly.str.isEmpty(multi) { s = fly.str.concat(s, "void ") }
+            else { s = fly.str.concat(s, multi)  s = fly.str.concat(s, " ") }
+        }
         else { s = fly.str.concat(s, ret)  s = fly.str.concat(s, " ") }
         s = fly.str.concat(s, f.getName())
         s = fly.str.concat(s, "(")

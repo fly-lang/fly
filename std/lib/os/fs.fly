@@ -115,10 +115,19 @@ private string pathJoin(const string base, const string comp) {
     fly.llvm.strMake(buf, total, out)
 }
 
-// Populate all Stat fields from raw mode bits and file size.
-private Stat fillStatMode(const int fmode, const long fsize) {
+// Populate all Stat fields from raw mode bits, file size and the modification
+// time as total nanoseconds since the Unix epoch (fs_mtime/fs_lmtime encoding;
+// <= 0 means unavailable and leaves both mtime fields 0).
+private Stat fillStatMode(const int fmode, const long fsize, const long mtimeNs) {
     out.size = fsize
     out.mode = fmode
+    out.mtime_sec = 0
+    out.mtime_nsec = 0
+    if mtimeNs > 0 {
+        long msec = mtimeNs / 1000000000
+        out.mtime_sec = msec
+        out.mtime_nsec = mtimeNs - msec * 1000000000
+    }
     int ftype = fmode / 4096
     int ftype16 = ftype - (ftype / 16) * 16
     out.is_file = 0
@@ -244,7 +253,9 @@ public Stat stat(const string path) {
     }
     long fsize = 0
     fly.runtime.fs_size(cpath, fsize)
-    out = fillStatMode(fmode, fsize)
+    long fmtime = 0
+    fly.runtime.fs_mtime(cpath, fmtime)
+    out = fillStatMode(fmode, fsize, fmtime)
 }
 
 // lstat returns file metadata for path, reporting the symlink itself rather
@@ -259,7 +270,9 @@ public Stat lstat(const string path) {
     }
     long fsize = 0
     fly.runtime.fs_lsize(cpath, fsize)
-    out = fillStatMode(fmode, fsize)
+    long fmtime = 0
+    fly.runtime.fs_lmtime(cpath, fmtime)
+    out = fillStatMode(fmode, fsize, fmtime)
 }
 
 // size returns the byte size of the file at path.
@@ -411,9 +424,9 @@ public void dirDelete(const string path) {
 // Regular files are unlinked; subdirectories are recursed into first.
 public void dirDeleteAll(const string path) {
     pointer cpath = strToCstr(path)
-    int fd = 0
-    fly.runtime.fs_open(cpath, 0, 0, fd)
-    if fd < 0 { return }
+    pointer dh = 0
+    fly.runtime.dir_open(cpath, dh)
+    if dh == 0 { return }
 
     int bufsize = 4096
     pointer dbuf = 0
@@ -422,7 +435,7 @@ public void dirDeleteAll(const string path) {
     bool done = false
     while done == false {
         int nbytes = 0
-        fly.runtime.fs_getdents(fd, dbuf, bufsize, nbytes)
+        fly.runtime.dir_read(dh, dbuf, bufsize, nbytes)
         if nbytes <= 0 {
             done = true
         } else {
@@ -502,7 +515,7 @@ public void dirDeleteAll(const string path) {
         }
     }
 
-    fly.runtime.fs_close(fd)
+    fly.runtime.dir_close(dh)
     int ret2 = 0
     fly.runtime.fs_rmdir(cpath, ret2)
 }
@@ -525,9 +538,9 @@ public DirEntries dirRead(const string path) {
     out.cap = 0
 
     pointer cpath = strToCstr(path)
-    int fd = 0
-    fly.runtime.fs_open(cpath, 0, 0, fd)
-    if fd < 0 { return }
+    pointer dh = 0
+    fly.runtime.dir_open(cpath, dh)
+    if dh == 0 { return }
 
     ulong cap = 16
     ulong stride = 56
@@ -542,7 +555,7 @@ public DirEntries dirRead(const string path) {
     bool done = false
     while done == false {
         int nbytes = 0
-        fly.runtime.fs_getdents(fd, dbuf, bufsize, nbytes)
+        fly.runtime.dir_read(dh, dbuf, bufsize, nbytes)
         if nbytes <= 0 {
             done = true
         } else {
@@ -662,7 +675,7 @@ public DirEntries dirRead(const string path) {
         }
     }
 
-    fly.runtime.fs_close(fd)
+    fly.runtime.dir_close(dh)
     out.items = items
     out.len = count
     out.cap = cap

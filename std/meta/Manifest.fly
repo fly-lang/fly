@@ -1,0 +1,117 @@
+namespace fly.meta
+
+// ─────────────────────────────────────────────────────────────────────────────
+// fly.meta — the Fly-native package manifest schema. These classes model, as
+// plain Fly data, everything a `fly.toml` used to hold: a project's `Manifest.fly`
+// declares an `fly.meta.Manifest` (with literal field initializers) and the
+// package manager reads it by parsing the .fly source and walking the AST — no
+// TOML, one language, one parser.
+//
+// Every class here mirrors one `fly.toml` object; lists become native arrays
+// (`T[]`). Fields carry no initializers (the schema only declares the shape); the
+// values live in each project's own Manifest.fly.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Dependency — one [dependencies] / [dev-dependencies] entry. Holds every kind of
+// dependency source; the relevant fields are set per kind:
+//   • registry dep → name + version (+ optional registry alias)
+//   • git dep      → name + git + one of {tag, branch, rev}
+//   • path dep     → name + path
+public class Dependency {
+    string name         // dependency name (was the [dependencies] table key)
+    string version      // semver requirement, e.g. "^1.2.0" (registry deps)
+    string registry     // registry alias (from [repo]); empty = default registry
+    string git          // git URL (git deps)
+    string tag          // git tag  ref (git deps; one of tag/branch/rev)
+    string branch       // git branch ref
+    string rev          // git commit ref
+    string path         // local path (path deps)
+}
+
+// Target — one [targets.*] entry: a compilable unit (binary or library).
+public class Target {
+    string name         // output name (was the [targets] table key)
+    string path         // source file, e.g. "src/main.fly"
+    string lib          // "" = executable; "static" | "dynamic" | "both" = library
+}
+
+// Profile — one [profiles.*] entry: build settings for a named profile
+// (e.g. "debug", "release").
+public class Profile {
+    string name         // profile name (was the [profiles] table key)
+    int    optLevel     // -O<n>
+    bool   debugInfo    // emit debug symbols
+    bool   assertions   // keep assertions
+    bool   lto          // link-time optimisation
+    bool   strip        // strip the output
+}
+
+// TestConfig — the [test] table.
+public class TestConfig {
+    string[] suites     // test suite globs / paths
+    bool     parallel   // run suites in parallel
+    bool     failFast   // stop at the first failing suite
+}
+
+// Registry — one [repo] entry: a named alias for a registry/index URL.
+public class Registry {
+    string name         // alias (was the [repo] table key)
+    string url          // registry/index URL
+}
+
+// Workspace — the [workspace] table.
+public class Workspace {
+    string[] members    // member package directories
+}
+
+// Hooks — the [hooks] table: shell commands run around the build.
+public class Hooks {
+    string preBuild     // pre-build command
+    string postBuild    // post-build command
+}
+
+// Manifest — the project root ([package] plus every sub-section). This is the
+// class a project's Manifest.fly declares and populates with literal initializers.
+public class Manifest {
+    // [package]
+    string   name           // package name  ([a-z0-9_-])
+    string   version        // package version (MAJOR.MINOR.PATCH)
+    string   description
+    string   license
+    string   flyVersion     // required fly toolchain version ([package].fly-version)
+    string   homepage
+    string   repository
+    string   registry       // default registry alias ([package].registry)
+    string[] authors         // [package].authors
+
+    // sub-sections (lists → native arrays; single tables → single objects)
+    Target[]     targets          // [targets.*]
+    Dependency[] dependencies     // [dependencies]
+    Dependency[] devDependencies  // [dev-dependencies]
+    Profile[]    profiles         // [profiles.*]
+    Registry[]   repositories     // [repo]
+    string[]     linkLibs         // [link].libs
+    TestConfig   test             // [test]
+    Workspace    workspace        // [workspace]
+    Hooks        hooks            // [hooks]
+}
+
+// LockedPackage — one resolved dependency in a Lock.fly (machine-generated).
+public class LockedPackage {
+    string   name
+    string   version
+    string   source          // "git+<url>" | "registry+<name>"
+    string   rev
+    string   tag
+    string   checksum
+    string[] dependencies    // "<name> <version>" entries
+}
+
+// Lockfile — the resolved dependency lock. A project's Lock.fly declares an
+// fly.meta.Lockfile and the tool round-trips it with the same parser as the
+// manifest. Machine-generated: "do not edit".
+public class Lockfile {
+    string          flyVersion
+    string          checksum     // checksum of the project's Manifest.fly
+    LockedPackage[] packages
+}

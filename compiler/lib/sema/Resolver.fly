@@ -61,6 +61,11 @@ public class Resolver : ASTVisitor {
     // tagged fromHeader so codegen declares (external) but does not define them.
     bool currentModuleIsHeader
 
+    // Target type threaded into an initializer / assignment RHS so an array
+    // literal `{...}` can take its element type from the declared `T[]` (and so an
+    // empty `{}` gets a type). Set around the RHS resolution and reset to null.
+    SemaType currentExpectedType
+
     public Resolver(const Registry reg, const bool testMode) {
         this.reg = reg
         this.testMode = testMode
@@ -73,6 +78,7 @@ public class Resolver : ASTVisitor {
         this.handleDepth = 0
         this.outVarCounter = 0
         this.forInCounter = 0
+        this.currentExpectedType = null
     }
 
     // nextOutName — a fresh "__out_N" name for a call's synthetic return variable.
@@ -146,6 +152,8 @@ public class Resolver : ASTVisitor {
     public void setCurrentFunctionBase(const SemaFunctionBase f) { this.currentFunction = f }
     public SemaExpr getCurrentExpr() { out = this.currentExpr }
     public void setCurrentExpr(const SemaExpr e) { this.currentExpr = e }
+    public SemaType getExpectedType() { out = this.currentExpectedType }
+    public void setExpectedType(const SemaType t) { this.currentExpectedType = t }
     public SemaType getCurrentType() { out = this.currentType }
     public void setCurrentType(const SemaType t) { this.currentType = t }
     public SemaVar getCurrentVar() { out = this.currentVar }
@@ -418,13 +426,10 @@ public class Resolver : ASTVisitor {
     public void visit(const ASTBoolValue node) { this.currentExpr = SemaBuilder.CreateBoolValue(node) }
     public void visit(const ASTNumberValue node) { this.currentExpr = SemaBuilder.CreateNumberValue(node) }
     public void visit(const ASTStringValue node) { this.currentExpr = SemaBuilder.CreateStringValue(node) }
-    // Array/struct literals have no Sema lowering yet. The empty visits used to
-    // leave the PREVIOUS expression in currentExpr (stale-expression substitution,
-    // silently wrong bindings) — diagnose and clear instead.
-    public void visit(const ASTArrayValue node) {
-        this.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "array literals")
-        this.currentExpr = null
-    }
+    // Array literals resolve via ResolverExpr (kept a one-liner: large method
+    // bodies inside a visit trip a self-host codegen bug). Struct literals are
+    // still unsupported.
+    public void visit(const ASTArrayValue node) { ResolverExpr.arrayValue(this, node) }
     public void visit(const ASTStructValue node) {
         this.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "struct literals")
         this.currentExpr = null

@@ -43,7 +43,9 @@ public class ResolverStmt {
         SemaExpr init = null
         ASTExpr ie = node.getExpr()
         if ie != null {
+            r.setExpectedType(slv.getType())    // so `T[] a = {...}` types the literal
             ie.accept(r)
+            r.setExpectedType(null)
             init = r.getCurrentExpr()
         }
         SemaDeclStmt ds = SemaBuilder.CreateDeclStmt(node, slv, init)
@@ -71,6 +73,17 @@ public class ResolverStmt {
                     }
                 }
             }
+        }
+
+        // A string LOCAL owns a heap buffer under clone-on-store (its decl clones a
+        // borrowed RHS / moves an owned temp / defaults to {null,0}) → register it for
+        // scope-exit free. Independent of the initializer (an uninitialized string is
+        // {null,0}, free(null) is a no-op). Escaped ones (assigned away / passed to a
+        // call / returned) are skipped by the isEscaped() gate in the cleanup, so they
+        // leak rather than double-free — the conservative-but-safe choice.
+        SemaType svt = slv.getType()
+        if svt != null {
+            if svt.isString() { blk.addAlloc(slv) }
         }
     }
 
@@ -243,6 +256,17 @@ public class ResolverStmt {
         SemaExpr listE = r.getCurrentExpr()
         if listE == null { return }
         SemaType lt = listE.getType()
+
+        // A native array `T[]` iterates directly (no get()/size() methods) via a
+        // dedicated SemaLoopInStmt lowered by CodeGenArray.loopIn.
+        if lt != null {
+            SemaArrayType arrT = lt.asArray()
+            if arrT != null {
+                ResolverStmt.loopInArray(r, node, listE, arrT)
+                return
+            }
+        }
+
         SemaClassType cls = null
         if lt != null { cls = lt.asClass() }
         if cls == null {
@@ -348,6 +372,41 @@ public class ResolverStmt {
         r.exitScope()
         r.exitLoop()
         SemaBlockStmt blk = r.getCurrentSemaBlock()
+        if blk != null { blk.addContent(slp) }
+    }
+
+    // loopInArray — `for item in arr` over a native `T[]`. The item local is
+    // declared ONCE in the enclosing block (its alloca is reused each iteration),
+    // then a SemaLoopInStmt (lowered by CodeGenArray.loopIn) drives index/load/store.
+    public static void loopInArray(const Resolver r, const ASTLoopInStmt node, const SemaExpr listE, const SemaArrayType at) {
+        SourceLocation loc = node.getLoc()
+        ASTIdentifier itemId = node.getItem().asIdentifier()
+        if itemId == null {
+            r.diagStr(loc, DiagID.err_sema_forin_not_iterable, "array")
+            return
+        }
+        string itemName = itemId.getName()
+        SemaType elemT = at.getElementType()
+
+        SemaBlockStmt blk = r.getCurrentSemaBlock()
+        r.enterLoop()
+        r.enterScope()
+
+        List<ASTModifier> noMods = new List<ASTModifier>()
+        ASTLocalVar itAst = ASTBuilder.CreateLocalVar(loc, ASTBuilder.CreatePtrSizeType(loc), itemName, noMods)
+        SemaLocalVar itVar = SemaBuilder.CreateLocalVar(itAst, elemT)
+        Symbol itSym = new Symbol(itemName, SymbolKind.LOCAL_VAR, itVar)
+        itSym.setExprRef(itVar)
+        r.addSymbol(itSym)
+        SemaDeclStmt itDecl = SemaBuilder.CreateDeclStmt(node, itVar, null)
+        if blk != null { blk.addContent(itDecl) }
+
+        SemaBlockStmt bodyBlk = ResolverStmt.resolveBlock(r, node.getStmt())
+
+        r.exitScope()
+        r.exitLoop()
+
+        SemaLoopInStmt slp = SemaBuilder.CreateLoopInStmt(node, itVar, listE, bodyBlk)
         if blk != null { blk.addContent(slp) }
     }
 

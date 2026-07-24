@@ -35,23 +35,18 @@ fi
 T=build/tmp_std
 rm -rf "$T"; mkdir -p "$T"
 STD=std/lib
-FILES=(
-    "$STD/assert.fly" "$STD/str.fly" "$STD/math.fly"
-    "$STD/os/time.fly" "$STD/os/env.fly" "$STD/os/path.fly" "$STD/os/io.fly" "$STD/os/fs.fly"
-    "$STD/sync.fly" "$STD/mem.fly" "$STD/bridge/clang.fly"
-    "$STD/data/list.fly" "$STD/data/stack.fly" "$STD/data/queue.fly" "$STD/data/deque.fly"
-    "$STD/data/map.fly" "$STD/data/set.fly" "$STD/data/tree.fly" "$STD/data/wrapper.fly"
-    "$STD/os/proc.fly"
-)
 
-echo "stage$STAGE: compiling ${#FILES[@]} std files ..."
+# DIRECTORY CLI: --lib compiles the whole --src-dir — std/lib IS the library.
+# FLY_DEBUG_SYMBOLS=1 → emit DWARF so a self-host crash symbolizes to a source line.
+DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
+echo "stage$STAGE: compiling std/lib ...${DBG:+ (+debug-symbols)}"
 if [ "$STAGE" = "1" ]; then
     # stage0 reference: --lib emits the archive itself.
-    "$FLY" --lib -o "$T/fly_std_lib" "${FILES[@]}"
+    "$FLY" --lib $DBG -o "$T/fly_std_lib" --src-dir "$STD"
     mv -f "$T/fly_std_lib.a" "$LIB/fly_std_lib.a"
 else
     # self-host: --lib emits one merged object; archive it.
-    "$FLY" --lib -o fly_std_lib --out-dir "$T" "${FILES[@]}"
+    "$FLY" --lib $DBG -o fly_std_lib --out-dir "$T" --src-dir "$STD"
     [ -f "$T/fly_std_lib" ] || { echo "error: std object not emitted." >&2; exit 1; }
     rm -f "$LIB/fly_std_lib.a"
     "${AR:-ar}" rcs "$LIB/fly_std_lib.a" "$T/fly_std_lib"

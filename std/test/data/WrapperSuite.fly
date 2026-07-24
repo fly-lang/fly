@@ -1,0 +1,194 @@
+import fly.assert
+import fly.str
+import fly.data.Wrapper
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WrapperSuite — coverage of fly.data.Wrapper<T> (std/lib/data/wrapper.fly), the
+// minimal single-slot generic box. It has no branches, so full coverage is its
+// three members (constructor, get, set) instantiated over every type kind the
+// generic machinery has to handle: trivial scalars, `string` (an owned value),
+// `pointer`, a class handle, and a struct.
+//
+// It is also the smallest place to pin down the container-independent semantics
+// the other data suites lean on: get() hands back a value, not an alias, so
+// mutating the source afterwards must not disturb the box.
+//
+// Assert codes: 1xx scalars, 2xx string, 3xx handles and structs.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class Node {
+    int v
+    public Node(const int v) { this.v = v }
+}
+
+struct Point {
+    int x
+    int y
+}
+
+suite WrapperSuite {
+
+    // ── scalar payloads ──────────────────────────────────────────────────────
+    void scalarTest() {
+        case "int: construct, get, set": {
+            Wrapper<int> w = new Wrapper<int>(42)
+            assert.assertEqI(w.get(), 42, 101)
+            w.set(0 - 7)
+            assert.assertEqI(w.get(), 0 - 7, 102)
+            assert.assertEqI(w.get(), 0 - 7, 103)      // get is not destructive
+        }
+        case "int: constructed from a variable, copied not aliased": {
+            int src = 5
+            Wrapper<int> w = new Wrapper<int>(src)
+            src = 9
+            assert.assertEqI(w.get(), 5, 104)
+        }
+        case "long": {
+            Wrapper<long> w = new Wrapper<long>(9000000000)
+            assert.assertEqL(w.get(), 9000000000, 105)
+            w.set(0)
+            assert.assertEqL(w.get(), 0, 106)
+        }
+        case "bool": {
+            Wrapper<bool> w = new Wrapper<bool>(true)
+            assert.assertTrue(w.get(), 107)
+            w.set(false)
+            assert.assertFalse(w.get(), 108)
+        }
+        case "double": {
+            Wrapper<double> w = new Wrapper<double>(1.25)
+            assert.assertApprox(w.get(), 1.25, 109)
+            w.set(0.0 - 3.5)
+            assert.assertApprox(w.get(), 0.0 - 3.5, 110)
+        }
+        case "byte": {
+            Wrapper<byte> w = new Wrapper<byte>(200)
+            assert.assertEqI((int)w.get() & 255, 200, 111)
+            w.set(0)
+            assert.assertEqI((int)w.get() & 255, 0, 112)
+        }
+        case "repeated set keeps only the last value": {
+            Wrapper<int> w = new Wrapper<int>(0)
+            int i = 0
+            while i < 50 {
+                w.set(i)
+                i = i + 1
+            }
+            assert.assertEqI(w.get(), 49, 113)
+        }
+    }
+
+    // ── string payload ───────────────────────────────────────────────────────
+    void stringTest() {
+        case "construct from a literal": {
+            Wrapper<string> w = new Wrapper<string>("hello")
+            assert.assertStr(w.get(), "hello", 201)
+            assert.assertStr(w.get(), "hello", 202)
+        }
+        case "construct from a runtime-built string": {
+            string built = str.concat("foo", "bar")
+            Wrapper<string> w = new Wrapper<string>(built)
+            assert.assertStr(w.get(), "foobar", 203)
+            assert.assertStr(built, "foobar", 204)     // source intact
+        }
+        case "set replaces the payload": {
+            Wrapper<string> w = new Wrapper<string>("old")
+            w.set("new")
+            assert.assertStr(w.get(), "new", 205)
+            assert.assertStrNe(w.get(), "old", 206)
+        }
+        case "empty string payload": {
+            Wrapper<string> w = new Wrapper<string>("")
+            assert.assertEmpty(w.get(), 207)
+            w.set("filled")
+            assert.assertStr(w.get(), "filled", 208)
+            w.set("")
+            assert.assertEmpty(w.get(), 209)
+        }
+        case "a wrapped string can be read into a local": {
+            Wrapper<string> w = new Wrapper<string>("kept")
+            string a = w.get()
+            string b = w.get()
+            assert.assertStr(a, "kept", 210)
+            assert.assertStr(b, "kept", 211)
+            w.set("changed")
+            assert.assertStr(a, "kept", 212)           // the read-out copy is stable
+            assert.assertStr(w.get(), "changed", 213)
+        }
+    }
+
+    // ── handles, pointers and structs ────────────────────────────────────────
+    void referenceTest() {
+        case "pointer payload": {
+            Wrapper<pointer> w = new Wrapper<pointer>(4096)
+            assert.assertEqP(w.get(), 4096, 301)
+            assert.assertNotNull(w.get(), 302)
+            w.set(0)
+            assert.assertNull(w.get(), 303)
+        }
+        case "class handle is borrowed, not cloned": {
+            Node n = new Node(1)
+            Wrapper<Node> w = new Wrapper<Node>(n)
+            n.v = 99                                   // visible through the box
+            Node got = w.get()
+            assert.assertEqI(got.v, 99, 304)
+            got.v = 7                                  // and back again
+            assert.assertEqI(n.v, 7, 305)
+        }
+        case "set swaps the referenced object": {
+            Node a = new Node(1)
+            Node b = new Node(2)
+            Wrapper<Node> w = new Wrapper<Node>(a)
+            assert.assertEqI(w.get().v, 1, 306)
+            w.set(b)
+            assert.assertEqI(w.get().v, 2, 307)
+            assert.assertEqI(a.v, 1, 308)              // the old object is untouched
+        }
+        case "struct payload is copied by value": {
+            Point p = new Point()
+            p.x = 1
+            p.y = 2
+            Wrapper<Point> w = new Wrapper<Point>(p)
+            Point got = w.get()
+            assert.assertEqI(got.x, 1, 309)
+            assert.assertEqI(got.y, 2, 310)
+        }
+        case "a struct assignment copies, it does not alias": {
+            // Structs are VALUE types: `b = a` must snapshot a's contents, so a
+            // later write through `a` is invisible to `b`. This used to alias —
+            // the assignment stored the pointer instead of copying the aggregate.
+            Point a = new Point()
+            a.x = 1
+            a.y = 2
+            Point b = a
+            a.x = 99
+            assert.assertEqI(b.x, 1, 313)
+            assert.assertEqI(b.y, 2, 314)
+            assert.assertEqI(a.x, 99, 315)
+        }
+        case "reassignment through a struct variable also copies": {
+            Point a = new Point()
+            a.x = 1
+            Point b = new Point()
+            b.x = 7
+            b = a
+            a.x = 42
+            assert.assertEqI(b.x, 1, 316)
+        }
+        case "a struct read out of a wrapper is independent of the source": {
+            Point p = new Point()
+            p.x = 5
+            Wrapper<Point> w = new Wrapper<Point>(p)
+            Point got = w.get()
+            p.x = 50
+            assert.assertEqI(got.x, 5, 317)
+        }
+        case "nested wrapper": {
+            Wrapper<int> inner = new Wrapper<int>(5)
+            Wrapper<Wrapper<int> > outer = new Wrapper<Wrapper<int> >(inner)
+            assert.assertEqI(outer.get().get(), 5, 311)
+            inner.set(6)
+            assert.assertEqI(outer.get().get(), 6, 312)
+        }
+    }
+}

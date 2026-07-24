@@ -51,8 +51,10 @@ public class ParserFunction {
             else { p.reportErr(DiagID.err_parser_invalid_param) }
             ASTParam param = ASTBuilder.CreateParam(loc, ty, nm, pmods, null)
             params.add(param)
-            // default value: '= expr' (parsed, kept on the var by Sema later)
-            if p.curIsPunct("=") { p.bump()  ASTExpr dv = p.parseExpr() }
+            // default value: `= expr`, kept on the param (ASTVar.expr). Overload
+            // lookup accepts a call that omits it (Registry.defaultsMatch) and the
+            // resolver appends it to the argument list (ResolverCall.addDefaultArgs).
+            if p.curIsPunct("=") { p.bump()  ASTExpr dv = p.parseExpr()  param.setExpr(dv) }
             if p.curIsPunct(",") { p.bump() }
             else { go = false }
         }

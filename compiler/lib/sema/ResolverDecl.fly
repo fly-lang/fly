@@ -117,6 +117,7 @@ public class ResolverDecl {
                 ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rt, "out", noMods, null)
                 outAst.accept(r)
                 fb.addParam(r.getCurrentParam())
+                fb.setOutParamCount(1)
             }
         } else {
             // Multi-return: one synthetic `__out_i` param per declared return type (the
@@ -134,6 +135,9 @@ public class ResolverDecl {
                 fb.addParam(r.getCurrentParam())
                 ri = ri + 1
             }
+            // Record ALL of them: getParamTypes() must drop every synthetic slot,
+            // not just one, or a `A,B f(x)` call never matches its own signature.
+            fb.setOutParamCount((int)rts.size())
         }
 
         Symbol sym = fb.getDeclSymbol()

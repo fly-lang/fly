@@ -106,15 +106,19 @@ public class SemaStringValue : SemaValue {
 
 public class SemaArrayValue : SemaValue {
 
-    List<SemaValue> values
+    // Elements are held as SemaExpr (SemaValue *is* a SemaExpr), not SemaValue:
+    // the resolver produces SemaExpr for each element and there is no
+    // SemaExpr→SemaValue downcast. The literal cases (numbers/strings/bools) are
+    // SemaValue subtypes, so codegen still sees constant values.
+    List<SemaExpr> values
 
     public SemaArrayValue(const ASTArrayValue ast, const SemaType type) {
         super(ast, type)
-        this.values = new List<SemaValue>()
+        this.values = new List<SemaExpr>()
     }
 
-    public List<SemaValue> getValues() { out = this.values }
-    public void addValue(const SemaValue v) { this.values.add(v) }
+    public List<SemaExpr> getValues() { out = this.values }
+    public void addValue(const SemaExpr v) { this.values.add(v) }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }
 

@@ -117,8 +117,11 @@ public class CodeGenIntrinsics {
             return
         }
         if fly.str.equals(bn, "memcpy") || fly.str.equals(bn, "memmove") {
-            // both lower to a memcpy intrinsic (element ranges in the containers
-            // never overlap in the shift patterns used); dst/src are raw addresses
+            // memmove lowers to llvm.memmove (OVERLAP-SAFE); memcpy to llvm.memcpy.
+            // The shift in List.remove / Map rehash / deque / set OVERLAPS by one
+            // element, so memmove MUST NOT become memcpy (UB). This was the self-host
+            // large-compile heap corruption (ASan: memcpy-param-overlap in
+            // List<Token>.remove via Parser.bump). dst/src are raw addresses.
             List<SemaParam> mcp = fn.getParams()
             pointer dR = cge.gen(args.get(0))
             pointer sR = cge.gen(args.get(1))
@@ -132,7 +135,11 @@ public class CodeGenIntrinsics {
             SemaParam mcp2 = mcp.get(2)
             nV = cge.coerce(nV, nce.getType(), mcp2.getType())
             pointer mcr
-            llvm.buildMemCpy(b, dP, sP, nV, mcr)
+            if fly.str.equals(bn, "memmove") {
+                llvm.buildMemMove(b, dP, sP, nV, mcr)
+            } else {
+                llvm.buildMemCpy(b, dP, sP, nV, mcr)
+            }
             return
         }
         if fly.str.equals(bn, "longToInt") {
@@ -780,6 +787,33 @@ public class CodeGenIntrinsics {
         out = rf
     }
 
+    // cloneIfStruct — copy a STRUCT value into fresh stack storage so the
+    // assignee owns an independent aggregate. A struct lowers to a POINTER to its
+    // storage, so a plain store would make `b = a` alias a's storage: mutating one
+    // would be visible through the other, and a struct-returning function would
+    // hand every caller the SAME slot (its own frame's local), so two live results
+    // would collide. Structs are VALUE types (language reference §11), hence the
+    // memcpy. No-op for every other type — including CLASS handles, which are
+    // reference types and must keep aliasing.
+    public static pointer cloneIfStruct(const CodeGenExpr cge, const pointer val, const SemaType t) {
+        if t == null { out = val  return }
+        SemaClassType ct = t.asClass()
+        if ct == null { out = val  return }
+        if ct.getClassKind() != SemaClassKind.STRUCT { out = val  return }
+        pointer sty = ct.getLlvmStructType()
+        if sty == 0 { out = val  return }
+        if val == 0 { out = val  return }
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer slot
+        llvm.buildAlloca(b, sty, "sclone", slot)
+        pointer szV
+        llvm.sizeOf(sty, szV)
+        pointer mcv
+        llvm.buildMemCpy(b, slot, val, szV, mcv)
+        out = slot
+    }
+
     // cloneIfString — deep-clone a %string value into a fresh malloc'd buffer so
     // each owner frees independently (no aliasing). No-op for other types.
     public static pointer cloneIfString(const CodeGenExpr cge, const pointer val, const SemaType t) {
@@ -792,6 +826,41 @@ public class CodeGenIntrinsics {
         llvm.buildExtractValue(b, val, 0, "csp", srcP)
         pointer szV
         llvm.buildExtractValue(b, val, 1, "css", szV)
+        pointer strTy = cgm.getStringTy()
+        pointer slot
+        llvm.buildAlloca(b, strTy, "cslt", slot)
+
+        // Empty string owns no heap: store {null, 0} and skip malloc entirely, so
+        // an empty clone never allocates. Aligns with the reference GenStringClone
+        // and the "empty = {null,0}, no heap" model (free(null) is a no-op).
+        pointer i32t
+        llvm.int32TypeInContext(cgm.getCtx(), i32t)
+        pointer zero32
+        llvm.constInt(i32t, 0, false, zero32)
+        pointer isEmpty
+        llvm.buildICmp(b, 32, szV, zero32, "cempty", isEmpty)   // 32 = EQ
+        pointer emptyBB = cge.newBlock("clone.empty")
+        pointer allocBB = cge.newBlock("clone.alloc")
+        pointer mergeBB = cge.newBlock("clone.merge")
+        pointer cbr
+        llvm.buildCondBr(b, isEmpty, emptyBB, allocBB, cbr)
+        cge.setTerminated(true)
+
+        // empty → {null, 0}
+        cge.position(emptyBB)
+        pointer pty = cge.ptrType()
+        pointer nullP
+        llvm.constPointerNull(pty, nullP)
+        pointer f0e
+        llvm.buildStructGEP2(b, strTy, slot, 0, "cf0e", f0e)
+        llvm.buildStore(b, nullP, f0e)
+        pointer f1e
+        llvm.buildStructGEP2(b, strTy, slot, 1, "cf1e", f1e)
+        llvm.buildStore(b, szV, f1e)
+        cge.br(mergeBB)
+
+        // non-empty → malloc + memcpy
+        cge.position(allocBB)
         pointer i64c
         llvm.int64TypeInContext(cgm.getCtx(), i64c)
         pointer szW
@@ -799,15 +868,15 @@ public class CodeGenIntrinsics {
         pointer heapP = cgm.emitMalloc(szW)
         pointer msv
         llvm.buildMemCpy(b, heapP, srcP, szW, msv)
-        pointer strTy = cgm.getStringTy()
-        pointer slot
-        llvm.buildAlloca(b, strTy, "cslt", slot)
         pointer f0
         llvm.buildStructGEP2(b, strTy, slot, 0, "cf0", f0)
         llvm.buildStore(b, heapP, f0)
         pointer f1
         llvm.buildStructGEP2(b, strTy, slot, 1, "cf1", f1)
         llvm.buildStore(b, szV, f1)
+        cge.br(mergeBB)
+
+        cge.position(mergeBB)
         pointer res
         llvm.buildLoad2(b, strTy, slot, "cres", res)
         out = res

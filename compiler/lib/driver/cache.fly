@@ -1,0 +1,117 @@
+namespace fly.driver
+
+import fly.str
+import fly.os.env
+import fly.os.path
+import fly.os.fs
+import fly.os.io
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cache — the ~/.fly/cache/<host>/<owner>/<repo>/<rev40>/ store.
+// Port of fly/tools/flyp/fetcher/Cache.{h,cpp}. parse_url is hand-rolled (no
+// std::regex): it splits a git URL into host/owner/repo for the directory layout.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// The host/owner/repo triple of a git URL (Fly has no tuples).
+public class UrlParts {
+    string host
+    string owner
+    string repo
+    public UrlParts(const string h, const string o, const string r) {
+        this.host = h
+        this.owner = o
+        this.repo = r
+    }
+    public string getHost()  { out = this.host }
+    public string getOwner() { out = this.owner }
+    public string getRepo()  { out = this.repo }
+}
+
+// parseUrl — split a git URL into host/owner/repo. Handles https://, http://,
+// git:// and git@host:owner/repo, strips a trailing .git (Cache.cpp:26-56).
+public UrlParts parseUrl(const string gitUrl) {
+    string url = gitUrl
+    // git@host:owner/repo → host/owner/repo
+    if fly.str.startsWith(url, "git@") {
+        string rest = fly.str.substring(url, 4, fly.str.len(url))
+        int colon = fly.str.indexOf(rest, ":")
+        if colon >= 0 {
+            string h = fly.str.substring(rest, 0, colon)
+            string tail = fly.str.substring(rest, colon + 1, fly.str.len(rest))
+            string j = fly.str.concat(h, "/")
+            url = fly.str.concat(j, tail)
+        }
+    } elsif fly.str.startsWith(url, "https://") {
+        url = fly.str.substring(url, 8, fly.str.len(url))
+    } elsif fly.str.startsWith(url, "http://") {
+        url = fly.str.substring(url, 7, fly.str.len(url))
+    } elsif fly.str.startsWith(url, "git://") {
+        url = fly.str.substring(url, 6, fly.str.len(url))
+    }
+    // strip trailing .git
+    if fly.str.endsWith(url, ".git") {
+        url = fly.str.substring(url, 0, fly.str.len(url) - 4)
+    }
+    // split host/owner/repo on '/'
+    int p1 = fly.str.indexOf(url, "/")
+    string host = url
+    string rest = ""
+    if p1 >= 0 {
+        host = fly.str.substring(url, 0, p1)
+        rest = fly.str.substring(url, p1 + 1, fly.str.len(url))
+    }
+    int p2 = fly.str.indexOf(rest, "/")
+    string owner = rest
+    string repo = rest
+    if p2 >= 0 {
+        owner = fly.str.substring(rest, 0, p2)
+        repo = fly.str.substring(rest, p2 + 1, fly.str.len(rest))
+    }
+    out = new UrlParts(host, owner, repo)
+}
+
+// The cache directory manager.
+public class Cache {
+    string root
+
+    public Cache() {
+        // FLYLANG_CACHE — the package cache directory itself; else the OS-standard
+        // default ~/.fly/cache (HOME is an OS convention, not a fly config knob).
+        string flyCache = fly.os.env.get("FLYLANG_CACHE")
+        if fly.str.isEmpty(flyCache) == false {
+            this.root = flyCache
+        } else {
+            string home = fly.os.env.get("HOME")
+            string dotfly = fly.os.path.join(home, ".fly")
+            this.root = fly.os.path.join(dotfly, "cache")
+        }
+        fly.os.fs.dirCreateAll(this.root, 493)      // 0755
+    }
+
+    public string getRoot() { out = this.root }
+
+    // entryPath — <root>/<host>/<owner>/<repo>/<rev40>
+    public string entryPath(const string gitUrl, const string rev40) {
+        UrlParts u = parseUrl(gitUrl)
+        string a = fly.os.path.join(this.root, u.getHost())
+        string b = fly.os.path.join(a, u.getOwner())
+        string c = fly.os.path.join(b, u.getRepo())
+        out = fly.os.path.join(c, rev40)
+    }
+
+    public bool has(const string gitUrl, const string rev40) {
+        out = fly.os.fs.isDir(this.entryPath(gitUrl, rev40))
+    }
+
+    public void prepare(const string gitUrl, const string rev40) {
+        fly.os.fs.dirCreateAll(this.entryPath(gitUrl, rev40), 493)
+    }
+
+    public void clean() {
+        if fly.os.fs.isDir(this.root) {
+            fly.os.fs.delete(this.root)
+            fly.os.fs.dirCreateAll(this.root, 493)
+            fly.os.io.printLn(fly.str.concat("Cache cleared: ", this.root))
+        }
+    }
+}

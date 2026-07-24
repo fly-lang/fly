@@ -5,7 +5,8 @@
 #   • the fork LLVM toolchain (fly-lang/llvm-project release) → build/llvm
 #     libLLVM.so + ld.lld + llvm-config + compiler-rt builtins. NO system
 #     package manager: everything the build needs comes from this tarball.
-#   • the bootstrap `fly` 0.13.8 release → build/stage0 (bin/ + precompiled lib/)
+#   • the pinned bootstrap `fly` release ($FLY_VERSION below) → build/stage0
+#     (bin/ + precompiled lib/)
 #
 # stage1.sh / stage2.sh build on top of these (see the stage map in stage1.sh).
 #
@@ -29,7 +30,7 @@ ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Bootstrap compiler release used to compile the std --lib archive + the self-host
 # sources. Must ship the ptrsize header-gen fix (fly Frontend.cpp typeStr).
-FLY_VERSION="${FLY_VERSION:-0.13.8}"
+FLY_VERSION="${FLY_VERSION:-0.13.10}"
 
 BUILD_DIR="$ROOT/build"
 STAGE0_DIR="$BUILD_DIR/stage0"
@@ -54,7 +55,7 @@ if [ ! -f "$FORK_LLVM/lib/libLLVM.so" ] || [ ! -f "$RT_BUILTINS" ] || [ "$NEED_S
     # Atomic download (.part + mv, with retries): an interrupted curl must never
     # leave a truncated tarball that a rerun would mistake for the real one.
     if [ ! -f "$tarball" ]; then
-        curl -fSL --retry 3 --retry-all-errors -o "$tarball.part" "$url"
+        curl -fSL --retry 6 --retry-delay 15 --retry-all-errors -o "$tarball.part" "$url"
         mv -f "$tarball.part" "$tarball"
     fi
     # Always: the shared libLLVM.so (link + runtime), the lld linker, llvm-config
@@ -78,7 +79,7 @@ if [ ! -f "$RT_BUILTINS" ]; then
     [ "$SOURCED" -eq 0 ] && exit 1 || return 1
 fi
 
-# Both ToolChains (self-host driver/lib/ToolChain.fly and the bootstrap's C++ one)
+# Both ToolChains (self-host compiler/lib/driver/ToolChain.fly and the bootstrap's C++ one)
 # probe /usr/lib/llvm-20 for libclang_rt.builtins. On a host without an LLVM 20
 # install, point that path at the fork tree (this replaces the old apt install).
 if [ ! -e "/usr/lib/llvm-${LLVM_VERSION%%.*}" ]; then
@@ -91,7 +92,7 @@ fi
 if [ ! -x "$FLY_BIN" ]; then
     url="https://github.com/fly-lang/fly/releases/download/v${FLY_VERSION}/fly-${FLY_VERSION}-linux-x86_64.tar.gz"
     mkdir -p "$STAGE0_DIR"
-    curl -fsSL --retry 3 --retry-all-errors "$url" -o "$BUILD_DIR/fly.tar.gz"
+    curl -fsSL --retry 6 --retry-delay 15 --retry-all-errors "$url" -o "$BUILD_DIR/fly.tar.gz"
     tar -xzf "$BUILD_DIR/fly.tar.gz" -C "$STAGE0_DIR"
     rm -f "$BUILD_DIR/fly.tar.gz"
     chmod +x "$FLY_BIN"

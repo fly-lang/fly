@@ -1,0 +1,251 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SuperSuite — `super(...)`: a derived constructor invoking its single
+// base-class constructor.
+//
+// Two properties matter and are both pinned here:
+//   * the base fields really are initialised by the super call, and
+//   * `super(...)` need NOT be the first statement — a derived field may be
+//     written before it, and that write must survive the base construction.
+//
+// Also covered: a base constructor whose arguments are computed expressions, a
+// derived class that adds no fields, a base with a default-valued parameter, and
+// a two-level chain where each level calls its own immediate base.
+//
+// Deep (>2 level) chains and `super.member` access are covered by
+// DeepInheritSuite and SuperMemberSuite respectively.
+//
+// Assert codes: 1xx super first, 2xx super later, 3xx argument forms,
+// 4xx chains and shapes, 5xx default parameter values.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class Base {
+    int k
+    int v
+    public Base(const int a, const int b) { this.k = a  this.v = b }
+    public int sum() { out = this.k + this.v }
+    public int first() { out = this.k }
+}
+
+class Add : Base {
+    int e
+    public Add(const int a, const int b, const int c) {
+        super(a, b)                  // super first
+        this.e = c
+    }
+    public int r() { out = this.sum() + this.e }
+}
+
+class Mul : Base {
+    int e
+    public Mul(const int a, const int b, const int c) {
+        this.e = c                   // super need NOT come first
+        super(a, b)
+    }
+    public int r() { out = this.sum() * this.e }
+}
+
+// Several statements before super, including one that reads the field it set.
+class Late : Base {
+    int e
+    int f
+    public Late(const int a, const int b, const int c) {
+        this.e = c
+        this.f = this.e * 2
+        super(a, b)
+    }
+    public int r() { out = this.sum() + this.e + this.f }
+}
+
+// A derived class that adds no fields of its own.
+class Plain : Base {
+    public Plain(const int a, const int b) { super(a, b) }
+}
+
+// ── default parameter values ─────────────────────────────────────────────────
+// A free function, a method and a constructor, each with defaulted trailing
+// params: omitting an argument uses the default, supplying one overrides it.
+
+int addDef(const int a, const int b = 100) { out = a + b }
+
+// Every parameter defaulted → constructible with NO arguments, which also means
+// this class needs no separately declared no-arg constructor.
+class Defaulted : Base {
+    int e
+    public Defaulted(const int a = 5, const int b = 6, const int c = 7) {
+        super(a, b)
+        this.e = c
+    }
+    public int r() { out = this.sum() + this.e }
+    // a defaulted METHOD param, on a class that also has a defaulted ctor
+    public int scaled(const int k = 3) { out = this.r() * k }
+}
+
+// Reaching the base defaults THROUGH super: `super()` takes all three,
+// `super(a)` overrides only the first.
+class SuperAllDefault : Defaulted {
+    int g
+    public SuperAllDefault(const int d) {
+        super()
+        this.g = d
+    }
+    public int total() { out = this.r() + this.g }
+}
+
+class SuperPartialDefault : Defaulted {
+    public SuperPartialDefault(const int a) { super(a) }
+}
+
+// Two levels, each calling its own immediate base.
+class Level2 : Add {
+    int g
+    public Level2(const int a, const int b, const int c, const int d) {
+        super(a, b, c)
+        this.g = d
+    }
+    public int total() { out = this.r() + this.g }
+}
+
+suite SuperSuite {
+
+    // ── super as the first statement ─────────────────────────────────────────
+    void superFirstTest() {
+        case "base fields are set through super": {
+            Add ad = new Add(2, 3, 10)
+            assert.assertEqI(ad.sum(), 5, 101)
+            assert.assertEqI(ad.first(), 2, 102)
+        }
+        case "the derived field is set after super": {
+            Add ad = new Add(2, 3, 10)
+            assert.assertEqI(ad.r(), 15, 103)          // sum 5 + e 10
+        }
+        case "several instances stay independent": {
+            Add a = new Add(1, 1, 1)
+            Add b = new Add(2, 2, 2)
+            assert.assertEqI(a.r(), 3, 104)            // 2 + 1
+            assert.assertEqI(b.r(), 6, 105)            // 4 + 2
+        }
+    }
+
+    // ── super after a derived-field write ────────────────────────────────────
+    void superLaterTest() {
+        case "a field written before super survives": {
+            Mul mu = new Mul(2, 3, 10)
+            assert.assertEqI(mu.sum(), 5, 201)
+            assert.assertEqI(mu.r(), 50, 202)          // sum 5 * e 10
+        }
+        case "several pre-super statements, one reading the other": {
+            Late l = new Late(2, 3, 4)
+            assert.assertEqI(l.sum(), 5, 203)          // base still initialised
+            assert.assertEqI(l.r(), 17, 204)           // 5 + e 4 + f 8
+        }
+        case "pre-super writes are per-instance": {
+            Mul a = new Mul(1, 1, 3)
+            Mul b = new Mul(1, 1, 5)
+            assert.assertEqI(a.r(), 6, 205)            // 2 * 3
+            assert.assertEqI(b.r(), 10, 206)           // 2 * 5
+        }
+    }
+
+    // ── the shape of the super arguments ─────────────────────────────────────
+    void argumentTest() {
+        case "computed arguments": {
+            int x = 2
+            Add ad = new Add(x + 1, x * 4, 0)
+            assert.assertEqI(ad.first(), 3, 301)
+            assert.assertEqI(ad.sum(), 11, 302)        // 3 + 8
+        }
+        case "zero and negative arguments": {
+            Add z = new Add(0, 0, 0)
+            assert.assertEqI(z.sum(), 0, 303)
+            assert.assertEqI(z.r(), 0, 304)
+            Add n = new Add(0 - 2, 0 - 3, 1)
+            assert.assertEqI(n.sum(), 0 - 5, 305)
+            assert.assertEqI(n.r(), 0 - 4, 306)
+        }
+        case "arguments derived from other fields and locals": {
+            int a = 4
+            int b = a + 1
+            Mul m = new Mul(a, b, a)
+            assert.assertEqI(m.sum(), 9, 307)          // 4 + 5
+            assert.assertEqI(m.r(), 36, 308)           // 9 * 4
+        }
+    }
+
+    // ── derived shapes and chains ────────────────────────────────────────────
+    void shapeTest() {
+        case "a derived class that adds no fields": {
+            Plain p = new Plain(4, 6)
+            assert.assertEqI(p.sum(), 10, 401)
+            assert.assertEqI(p.first(), 4, 402)
+        }
+        case "a two-level chain initialises every level": {
+            Level2 l = new Level2(1, 2, 3, 4)
+            assert.assertEqI(l.sum(), 3, 403)          // Base:   1 + 2
+            assert.assertEqI(l.r(), 6, 404)            // Add:    3 + 3
+            assert.assertEqI(l.total(), 10, 405)       // Level2: 6 + 4
+        }
+        case "a base reference sees the super-initialised fields": {
+            Base b = new Add(7, 8, 0)
+            assert.assertEqI(b.sum(), 15, 406)
+            assert.assertEqI(b.first(), 7, 407)
+        }
+        case "many instances constructed in a loop": {
+            int bad = 0 - 1
+            int i = 0
+            while i < 50 {
+                Add a = new Add(i, i, i)
+                if a.r() != i * 3 { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 408)
+        }
+    }
+
+    // ── default parameter values ─────────────────────────────────────────────
+    void defaultParamTest() {
+        case "a free function default applies when the argument is omitted": {
+            assert.assertEqI(addDef(5), 105, 501)
+            assert.assertEqI(addDef(5, 2), 7, 502)     // explicit wins
+        }
+        case "a constructor default applies to a direct construction": {
+            Defaulted d = new Defaulted()              // 5, 6, 7
+            assert.assertEqI(d.sum(), 11, 503)
+            assert.assertEqI(d.r(), 18, 504)           // sum 11 + e 7
+        }
+        case "an explicit constructor argument overrides the default": {
+            Defaulted one = new Defaulted(1)           // 1, 6, 7
+            assert.assertEqI(one.sum(), 7, 505)
+            assert.assertEqI(one.r(), 14, 506)
+            Defaulted two = new Defaulted(1, 2)        // 1, 2, 7
+            assert.assertEqI(two.sum(), 3, 507)
+            assert.assertEqI(two.r(), 10, 508)
+            Defaulted all = new Defaulted(1, 2, 3)     // nothing defaulted
+            assert.assertEqI(all.sum(), 3, 509)
+            assert.assertEqI(all.r(), 6, 510)
+        }
+        case "a method default applies and is overridable": {
+            Defaulted d = new Defaulted()              // r() == 18
+            assert.assertEqI(d.scaled(), 54, 511)      // 18 * 3
+            assert.assertEqI(d.scaled(2), 36, 512)     // 18 * 2
+        }
+        case "super() reaches the base defaults": {
+            SuperAllDefault s = new SuperAllDefault(4)
+            assert.assertEqI(s.sum(), 11, 513)         // Base:  5 + 6
+            assert.assertEqI(s.r(), 18, 514)           // + e 7
+            assert.assertEqI(s.total(), 22, 515)       // + g 4
+        }
+        case "super(a) overrides only the leading base parameter": {
+            SuperPartialDefault s = new SuperPartialDefault(1)
+            assert.assertEqI(s.sum(), 7, 516)          // 1 + default 6
+            assert.assertEqI(s.r(), 14, 517)           // + default e 7
+        }
+        case "defaulted instances stay independent": {
+            Defaulted a = new Defaulted()
+            Defaulted b = new Defaulted(0, 0, 0)
+            assert.assertEqI(a.r(), 18, 518)
+            assert.assertEqI(b.r(), 0, 519)
+        }
+    }
+}

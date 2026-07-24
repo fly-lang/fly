@@ -1,0 +1,196 @@
+import fly.os.proc
+import fly.os.env
+import fly.os.fs
+import fly.mem
+import fly.str
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OsProcSuite — fly.os.proc (std/lib/os/proc.fly): the ArgList builder and the
+// exec/run process spawner. This module had no test at all before.
+//
+// The ArgList is a hand-rolled growable array behind an opaque `pointer` handle
+// — [ items(8) | count(4) | cap(4) ] with an initial capacity of 4 — so the
+// cases push past the doubling boundary and read the header fields back through
+// fly.mem to prove the growth bookkeeping.
+//
+// Spawning is the platform-sensitive part. The one thing that is portable and
+// worth pinning is that spawning a path that does not exist FAILS, but the code
+// differs by host (memory `runtime-tests-and-rename`): Windows returns -1
+// (CreateProcessA refuses up front) while POSIX returns 127 (fork succeeds, then
+// the child exits 127). Asserted per-platform. Successful spawns use the host's
+// own shell/echo so no fixture binary is needed.
+//
+// Assert codes: 1xx ArgList lifecycle, 2xx growth, 3xx spawn failure,
+// 4xx successful spawn.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite OsProcSuite {
+
+    // ── argsNew / argsAdd / argsFree ─────────────────────────────────────────
+    void argListTest() {
+        case "argsNew returns a handle with an empty list": {
+            pointer h = proc.argsNew()
+            assert.assertNotNull(h, 101)
+            assert.assertEqI(fly.mem.readInt(h, 8), 0, 102)      // count
+            assert.assertEqI(fly.mem.readInt(h, 12), 4, 103)     // initial cap
+            assert.assertNotNull(fly.mem.readPtr(h, 0), 104)     // items
+            proc.argsFree(h)
+        }
+        case "argsAdd bumps the count": {
+            pointer h = proc.argsNew()
+            proc.argsAdd(h, "one")
+            assert.assertEqI(fly.mem.readInt(h, 8), 1, 105)
+            proc.argsAdd(h, "two")
+            assert.assertEqI(fly.mem.readInt(h, 8), 2, 106)
+            proc.argsFree(h)
+        }
+        case "each argument is stored as its own C-string": {
+            pointer h = proc.argsNew()
+            proc.argsAdd(h, "abc")
+            pointer items = fly.mem.readPtr(h, 0)
+            pointer cs = fly.mem.readPtr(items, 0)
+            assert.assertNotNull(cs, 107)
+            assert.assertEqI((int)fly.mem.readByte(cs, 0) & 255, 97, 108)   // 'a'
+            assert.assertEqI((int)fly.mem.readByte(cs, 2) & 255, 99, 109)   // 'c'
+            assert.assertEqI((int)fly.mem.readByte(cs, 3) & 255, 0, 110)    // NUL
+            proc.argsFree(h)
+        }
+        case "an empty argument is a lone NUL": {
+            pointer h = proc.argsNew()
+            proc.argsAdd(h, "")
+            pointer items = fly.mem.readPtr(h, 0)
+            pointer cs = fly.mem.readPtr(items, 0)
+            assert.assertNotNull(cs, 111)
+            assert.assertEqI((int)fly.mem.readByte(cs, 0) & 255, 0, 112)
+            assert.assertEqI(fly.mem.readInt(h, 8), 1, 113)
+            proc.argsFree(h)
+        }
+        case "the null handle is tolerated everywhere": {
+            proc.argsAdd(0, "ignored")            // early return, no crash
+            proc.argsFree(0)
+            assert.assertTrue(true, 114)
+        }
+        case "two ArgLists are independent": {
+            pointer a = proc.argsNew()
+            pointer b = proc.argsNew()
+            proc.argsAdd(a, "one")
+            assert.assertEqI(fly.mem.readInt(a, 8), 1, 115)
+            assert.assertEqI(fly.mem.readInt(b, 8), 0, 116)
+            proc.argsFree(a)
+            proc.argsFree(b)
+        }
+    }
+
+    // ── growth past the initial capacity of 4 ────────────────────────────────
+    void growthTest() {
+        case "the fifth argument doubles the capacity": {
+            pointer h = proc.argsNew()
+            proc.argsAdd(h, "a")
+            proc.argsAdd(h, "b")
+            proc.argsAdd(h, "c")
+            proc.argsAdd(h, "d")
+            assert.assertEqI(fly.mem.readInt(h, 12), 4, 201)     // still at cap
+            proc.argsAdd(h, "e")
+            assert.assertEqI(fly.mem.readInt(h, 8), 5, 202)
+            assert.assertEqI(fly.mem.readInt(h, 12), 8, 203)     // doubled
+            proc.argsFree(h)
+        }
+        case "repeated doubling keeps every argument": {
+            pointer h = proc.argsNew()
+            int i = 0
+            while i < 40 {
+                proc.argsAdd(h, str.concat("arg", str.convert(i)))
+                i = i + 1
+            }
+            assert.assertEqI(fly.mem.readInt(h, 8), 40, 204)
+            assert.assertGtI(fly.mem.readInt(h, 12), 39, 205)    // cap grew to fit
+            // Every slot must still hold a live C-string, including the first,
+            // which survived several reallocs of the items array.
+            pointer items = fly.mem.readPtr(h, 0)
+            bool allSet = true
+            i = 0
+            while i < 40 {
+                if fly.mem.isNull(fly.mem.readPtr(items, i * 8)) { allSet = false }
+                i = i + 1
+            }
+            assert.assertTrue(allSet, 206)
+            pointer first = fly.mem.readPtr(items, 0)
+            assert.assertEqI((int)fly.mem.readByte(first, 0) & 255, 97, 207)   // 'a'
+            proc.argsFree(h)
+        }
+        case "a fresh list after a freed one": {
+            pointer h = proc.argsNew()
+            proc.argsAdd(h, "x")
+            proc.argsFree(h)
+            pointer h2 = proc.argsNew()
+            assert.assertEqI(fly.mem.readInt(h2, 8), 0, 208)
+            proc.argsFree(h2)
+        }
+    }
+
+    // ── spawning something that cannot be executed ───────────────────────────
+    void spawnFailureTest() {
+        case "run of a missing path fails": {
+            int code = proc.run("fly_proc_definitely_missing_xyzabc")
+            assert.assertNeI(code, 0, 301)
+            // Windows: CreateProcessA refuses up front → -1.
+            // POSIX:   fork succeeds, the child exec fails and exits 127.
+            if str.equals(env.osname(), "windows") {
+                assert.assertEqI(code, 0 - 1, 302)
+            } else {
+                assert.assertEqI(code, 127, 303)
+            }
+        }
+        case "exec of a missing path fails the same way": {
+            pointer h = proc.argsNew()
+            proc.argsAdd(h, "--version")
+            int code = proc.exec("fly_proc_definitely_missing_xyzabc", h)
+            assert.assertNeI(code, 0, 304)
+            proc.argsFree(h)
+        }
+        case "exec with a null ArgList still fails on a missing path": {
+            assert.assertNeI(proc.exec("fly_proc_definitely_missing_xyzabc", 0), 0, 305)
+        }
+        case "exec of a directory fails": {
+            fs.dirCreateAll("fly_proc_dir", 493)
+            assert.assertNeI(proc.run("fly_proc_dir"), 0, 306)
+            fs.dirDeleteAll("fly_proc_dir")
+        }
+    }
+
+    // ── spawning the real compiler under test ────────────────────────────────
+    void spawnSuccessTest() {
+        case "the running executable can be spawned and exits cleanly": {
+            // env.exePath() is this very test binary. Re-running it executes the
+            // whole suite again in a child, which must also exit 0 — a genuine
+            // end-to-end spawn without needing a fixture program, and a cheap
+            // self-consistency check on the suite itself.
+            //
+            // The recursion is stopped by a marker variable: the child sees it set
+            // and skips this case, so exactly one extra process is created.
+            string marker = env.get("FLY_PROC_SUITE_CHILD")
+            if str.isEmpty(marker) {
+                env.set("FLY_PROC_SUITE_CHILD", "1")
+                string self = env.exePath()
+                assert.assertNotEmpty(self, 401)
+                assert.assertEqI(proc.run(self), 0, 402)
+                env.delete("FLY_PROC_SUITE_CHILD")
+            }
+        }
+        case "exec passes arguments to the child": {
+            // Same trick, with an ArgList: the child ignores argv but the spawn
+            // path with a populated argv must still succeed.
+            string marker = env.get("FLY_PROC_SUITE_CHILD")
+            if str.isEmpty(marker) {
+                env.set("FLY_PROC_SUITE_CHILD", "1")
+                pointer h = proc.argsNew()
+                proc.argsAdd(h, "ignored-a")
+                proc.argsAdd(h, "ignored-b")
+                assert.assertEqI(proc.exec(env.exePath(), h), 0, 403)
+                proc.argsFree(h)
+                env.delete("FLY_PROC_SUITE_CHILD")
+            }
+        }
+    }
+}

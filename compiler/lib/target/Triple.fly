@@ -87,10 +87,11 @@ public class Triple {
     public bool isThumb()    { out = false }   // self-host has no separate thumb arch token
     public bool isAArch64()  { out = this.arch == Arch.AARCH64 || this.arch == Arch.AARCH64_BE }
     public bool isArmBigEndian() { out = this.arch == Arch.ARMEB }
-    // Object format: ELF unless Darwin (Mach-O) or Windows (COFF).
-    public bool isOSBinFormatELF()   { out = this.isOSDarwin() == false && this.isWindowsMSVC() == false }
+    // Object format: ELF unless Darwin (Mach-O) or Windows (COFF). ALL Windows
+    // environments (msvc AND gnu/gnullvm) emit PE/COFF, not just -msvc.
+    public bool isOSBinFormatELF()   { out = this.isOSDarwin() == false && this.isOSWindows() == false }
     public bool isOSBinFormatMachO() { out = this.isOSDarwin() }
-    public bool isOSBinFormatCOFF()  { out = this.isWindowsMSVC() }
+    public bool isOSBinFormatCOFF()  { out = this.isOSWindows() }
     // x32 ABI (32-bit pointers on x86_64). env == "gnux32".
     public bool isX32()      { out = fly.str.equals(this.env, "gnux32") }
 

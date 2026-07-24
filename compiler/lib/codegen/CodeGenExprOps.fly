@@ -3,6 +3,7 @@ namespace fly.compiler.codegen
 import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.codegen.CodeGenExpr
+import fly.compiler.codegen.CodeGenIntrinsics
 import llvm.api.*
 import fly.mem
 import fly.data.List
@@ -25,10 +26,126 @@ public class CodeGenExprOps {
         SemaExpr right = node.getRight()
         pointer rhs = cge.gen(right)
         rhs = cge.coerce(rhs, right.getType(), left.getType())
+        // clone-on-store (see CodeGenStmt.decl): clone a borrowed string RHS so the LHS
+        // owns an independent buffer, MOVE an owned temp. The RHS is fully materialized
+        // (into its own buffer) HERE, before the old buffer is freed below — so even a
+        // self-referential `s = s + "x"` is safe (the concat already copied s's bytes).
+        if right.isOwnedStrTemp() == false {
+            rhs = CodeGenIntrinsics.cloneIfString(cge, rhs, left.getType())
+        }
+        // A STRUCT written to a synthetic OUT param must be copied THROUGH the out
+        // pointer, into the storage the caller pre-allocated — not stored over that
+        // pointer. The out slot holds the caller's address (CodeGenCall allocas an
+        // "outobj" and passes &slot); overwriting it with the callee's own local
+        // leaves the caller's storage untouched and hands every caller the same
+        // frame address, so two live results alias — a second `fs.tempFile(…, f2)`
+        // silently clobbered `f1`. Handled before the generic clone-on-store below,
+        // which copies for the assignee rather than for the caller.
+        if CodeGenExprOps.assignStructOut(cge, left, rhs) { node.setLlvmValue(rhs)  return }
+        // A STRUCT written to a class/struct FIELD is copied INTO the field's
+        // inline storage (fields lay structs inline — CodeGenClass.fieldLlvmType).
+        if CodeGenExprOps.assignStructField(cge, left, rhs) { node.setLlvmValue(rhs)  return }
+        // Same clone-on-store rule for STRUCTs (see CodeGenStmt.decl): value
+        // types, so the assignee gets its own aggregate instead of aliasing the
+        // RHS storage. cloneIfStruct no-ops for CLASS handles and scalars.
+        rhs = CodeGenIntrinsics.cloneIfStruct(cge, rhs, left.getType())
         pointer addr = cge.genAddr(left)
         LLVM llvm = cge.getLLVM()
+        // free-old-on-reassign: a string LOCAL owns its current buffer (clone-on-store
+        // gives it a unique owner), so free that buffer before overwriting — otherwise
+        // each reassignment leaks the previous value. Restricted to LOCAL_VAR: a
+        // parameter's initial buffer is BORROWED from the caller (freeing it would
+        // double-free), and field/element buffers belong to their container's lifetime.
+        // free(null) covers the {null,0} default before the first real assignment.
+        SemaType lt = left.getType()
+        if lt != null {
+            if lt.isString() {
+                if left.getKind() == SemaKind.LOCAL_VAR {
+                    pointer oldv
+                    llvm.buildLoad2(cge.getBuilder(), cge.getCgm().getStringTy(), addr, "oldstr", oldv)
+                    pointer oldp
+                    llvm.buildExtractValue(cge.getBuilder(), oldv, 0, "oldstrp", oldp)
+                    cge.getCgm().freeHandle(oldp)
+                }
+            }
+        }
         llvm.buildStore(cge.getBuilder(), rhs, addr)
         node.setLlvmValue(rhs)
+    }
+
+    // assignStructOut — assigning a STRUCT to a PARAMETER copies the aggregate into
+    // the storage the caller owns, and reports the assignment done. False (and
+    // nothing emitted) for every other assignee, so the ordinary store path runs.
+    //
+    // Every struct parameter is passed BY POINTER: its slot holds the caller's
+    // address (CodeGenCall passes &callerSlot for a variable argument, and for the
+    // synthetic out it allocas an "outobj" and passes &slot). Storing over that
+    // pointer would leave the caller's storage untouched AND hand every caller the
+    // same callee-frame address, which is what made two live results alias — a
+    // second `fs.tempFile(…, f2)` silently clobbered `f1`. Writing THROUGH the
+    // pointer is also what makes a non-const parameter an output parameter.
+    //
+    // The name is deliberately not consulted: `asVar()` mis-dispatches to null
+    // through a SemaExpr reference for a live SemaParam (the vtable-shift gotcha
+    // documented on SemaExpr.isVarExpr), so the kind + type + genAddr are the only
+    // dispatch-free facts available here.
+    public static bool assignStructOut(const CodeGenExpr cge, const SemaExpr left, const pointer rhs) {
+        if left == null { out = false  return }
+        if left.getKind() != SemaKind.PARAM_VAR { out = false  return }
+        SemaType lt = left.getType()
+        if lt == null { out = false  return }
+        SemaClassType lc = lt.asClass()
+        if lc == null { out = false  return }
+        if lc.getClassKind() != SemaClassKind.STRUCT { out = false  return }
+        pointer sty = lc.getLlvmStructType()
+        if sty == 0 { out = false  return }
+        if rhs == 0 { out = false  return }
+        pointer slot = cge.genAddr(left)
+        if slot == 0 { out = false  return }
+
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        // The slot holds the caller's storage address; load it, then copy into it.
+        pointer dest
+        llvm.buildLoad2(b, cge.ptrType(), slot, "outdst", dest)
+        pointer szV
+        llvm.sizeOf(sty, szV)
+        pointer mcv
+        llvm.buildMemCpy(b, dest, rhs, szV, mcv)
+        out = true
+    }
+
+    // assignStructField — assigning a STRUCT to a class/struct FIELD (obj.f = v or
+    // bare `f = v` in a method) copies the aggregate INTO the field's inline slot
+    // (structs are laid out inline in objects — CodeGenClass.fieldLlvmType). The
+    // generic path below would clone-and-STORE A POINTER over the inline slot: the
+    // pointee is the assigner's stack clone, dead when the method returns, so a
+    // later read of the field copied garbage (the Linux WrapperSuite failures).
+    // False (nothing emitted) for every other assignee.
+    public static bool assignStructField(const CodeGenExpr cge, const SemaExpr left, const pointer rhs) {
+        if left == null { out = false  return }
+        SemaKind k = left.getKind()
+        if k != SemaKind.MEMBER {
+            if k != SemaKind.ATTRIBUTE { out = false  return }
+        }
+        SemaType lt = left.getType()
+        if lt == null { out = false  return }
+        SemaClassType lc = lt.asClass()
+        if lc == null { out = false  return }
+        if lc.getClassKind() != SemaClassKind.STRUCT { out = false  return }
+        pointer sty = lc.getLlvmStructType()
+        if sty == 0 { out = false  return }
+        if rhs == 0 { out = false  return }
+        pointer slot = cge.genAddr(left)
+        if slot == 0 { out = false  return }
+
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer szV
+        llvm.sizeOf(sty, szV)
+        pointer mcv
+        llvm.buildMemCpy(b, slot, rhs, szV, mcv)
+        out = true
     }
 
     // arith — +, -, *, /, %, &, |, ^, <<, >> (int or float by result type). Both
@@ -178,6 +295,12 @@ public class CodeGenExprOps {
         pointer buf = cgm.emitMalloc(totalExt)
         pointer mc1
         llvm.buildMemCpy(b, buf, p1, sz1Ext, mc1)
+        // The left operand's bytes are now copied into `buf`. If that operand was
+        // itself an owned temporary (a nested concat), its buffer is dead here —
+        // free it (end of the full-expression) instead of leaking it. See
+        // freeOwnedConcatTemp: only a string-typed BINARY qualifies (fresh malloc,
+        // never aliased); vars/literals/getters are borrowed and left untouched.
+        CodeGenExprOps.freeOwnedConcatTemp(cgm, node.getLeft(), p1)
         // buf2 = buf + sz1  (i8 GEP)
         pointer i8t
         llvm.int8TypeInContext(ctx, i8t)
@@ -188,6 +311,8 @@ public class CodeGenExprOps {
         cg.buildGEP2N(b, i8t, buf, gidx, "sbuf2", buf2)
         pointer mc2
         llvm.buildMemCpy(b, buf2, p2, sz2Ext, mc2)
+        // Same for the right operand's temporary (e.g. a + (b + c)).
+        CodeGenExprOps.freeOwnedConcatTemp(cgm, node.getRight(), p2)
 
         // result %string { buf, total }
         pointer strTy = cgm.getStringTy()
@@ -202,6 +327,27 @@ public class CodeGenExprOps {
         pointer sval
         llvm.buildLoad2(b, strTy, slot, "sccv", sval)
         node.setLlvmValue(sval)
+        // Mark this result as a fresh OWNED heap buffer so an enclosing concat can
+        // free it once it has copied the bytes out (see freeOwnedConcatTemp).
+        node.setOwnedStrTemp(true)
+    }
+
+    // freeOwnedConcatTemp — free a concat operand's buffer once its bytes have been
+    // copied into the enclosing concat, so nested `a + b + c + …` does not leak one
+    // heap buffer per intermediate. Frees ONLY an operand flagged ownedStrTemp — set
+    // exclusively by stringConcat, i.e. a fresh emitMalloc'd, unnamed, non-aliased
+    // rvalue. Everything else is BORROWED and left untouched:
+    //   - var-refs / params  → someone else's live buffer,
+    //   - string literals     → {rodata, len} (non-owning),
+    //   - getter call results → a field's buffer owned by the object,
+    //   - a string ASSIGN operand `(a = b) + c` → the flag is off (assign copies the
+    //     RHS struct, it is not a fresh buffer) so b's live buffer is never freed.
+    // Call results in general wait for clone-on-store (a callee may retain the arg,
+    // so freeing here would dangle). free(null) covers the empty {null,0} operand.
+    public static void freeOwnedConcatTemp(const CodeGenModule cgm, const SemaExpr e, const pointer bufPtr) {
+        if e == null { return }
+        if e.isOwnedStrTemp() == false { return }
+        cgm.freeHandle(bufPtr)
     }
 
     // compare — ==, !=, <, <=, >, >= → i1 via ICmp (int) or FCmp (float). The

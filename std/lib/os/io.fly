@@ -89,9 +89,26 @@ public class FileWriter : Writer {
     }
 }
 
-// BufReader wraps an inner Reader with a fixed-size read-ahead buffer.
-// Minimal pass-through implementation: delegates directly to inner.
-// Full buffering (fill/peek) is a future enhancement.
+// BufReader wraps an inner Reader with a fixed-size read-ahead buffer, so a
+// caller doing many small reads hits the OS once per bufferful.
+//
+// Constructed through readerNew() below rather than a constructor, matching
+// fileReader()/fileWriter(): callers in other namespaces then need no qualified
+// `new`.
+//
+// ABI CONSTRAINT — call the FREE FUNCTIONS (readerNew, fill, peek, bufRead,
+// bufAvailable, bufReadLine, bufClose), NOT these methods, from outside
+// fly.os.io. Invoking a NON-INTERFACE method of a header-declared class across
+// the .fly.h boundary reads the wrong state: `io.readerNew(...)` then
+// `br.available()` yields garbage, while the identical call made through
+// `io.bufAvailable(br)` — which runs inside the archive — is correct. Handles and
+// field reads survive the boundary intact, and so does INTERFACE dispatch (the
+// Reader.read/close pair, the same path FileReader relies on); it is specifically
+// the direct non-virtual method call that breaks. This is the "classes with
+// interface bases across the header boundary" fragility that ci/*/build_std
+// already warns about, and it is why the shipped std must stay the stage-1
+// (reference-ABI) build. The wrappers below keep every such call inside the
+// archive, so the API is usable today.
 public class BufReader : Reader {
     // Raw pointer to the internal read-ahead buffer.
     pointer buf_ptr
@@ -101,17 +118,103 @@ public class BufReader : Reader {
     pointer buf_cap
     // Current read position within the buffer.
     pointer pos
+    // The wrapped stream every refill pulls from.
+    Reader inner
 
-    // read delegates to the inner Reader via vtable dispatch.
-    public long read(Buf buf, const ulong n) {
+    // refill — pull one bufferful from the inner Reader, replacing whatever is
+    // left (only called once the cursor reached buf_fill). Returns the byte count
+    // now buffered; 0 means EOF.
+    public long refill() {
+        if this.buf_ptr == 0 { out = 0  return }
+        Buf tmp = new Buf()
+        ulong capu = this.buf_cap
+        tmp.ptr = this.buf_ptr
+        tmp.size = 0
+        tmp.cap = capu
+        long got = 0
+        got = this.inner.read(tmp, capu)
+        if got <= 0 {
+            this.buf_fill = 0
+            this.pos = 0
+            out = 0
+            return
+        }
+        this.buf_fill = got
+        this.pos = 0
+        out = got
     }
 
-    // close delegates to the inner Reader.
+    // available — buffered bytes not yet handed to the caller.
+    public pointer available() {
+        out = this.buf_fill - this.pos
+    }
+
+    // bufAt — address of the next unread byte. Lets peek() hand back a Buf that
+    // BORROWS the internal storage instead of copying it.
+    public pointer bufAt() {
+        out = this.buf_ptr + this.pos
+    }
+
+    // takeByte — consume exactly one buffered byte. The caller must have checked
+    // available() (or refilled) first; on an empty buffer it yields 0.
+    public void takeByte(byte b) {
+        if this.pos >= this.buf_fill { b = 0  return }
+        fly.llvm.ptrByteAt(this.buf_ptr, this.pos, b)
+        this.pos = this.pos + 1
+    }
+
+    // read — serve up to n bytes from the internal buffer, refilling once if it is
+    // exhausted. A short read is normal: callers loop until 0 (EOF).
+    public long read(Buf buf, const ulong n) {
+        if this.buf_ptr == 0 { out = 0  return }
+        if this.pos >= this.buf_fill {
+            Buf tmp = new Buf()
+            ulong capu = this.buf_cap
+            tmp.ptr = this.buf_ptr
+            tmp.size = 0
+            tmp.cap = capu
+            long got = 0
+            got = this.inner.read(tmp, capu)
+            if got <= 0 {
+                buf.size = 0
+                out = 0
+                return
+            }
+            this.buf_fill = got
+            this.pos = 0
+        }
+        pointer take = n
+        pointer avail = this.buf_fill - this.pos
+        if avail < take { take = avail }
+        if take == 0 {
+            buf.size = 0
+            out = 0
+            return
+        }
+        pointer src = this.buf_ptr + this.pos
+        fly.llvm.memcpy(buf.ptr, src, take)
+        this.pos = this.pos + take
+        ulong taken = take
+        buf.size = taken
+        long r = (long)take
+        out = r
+    }
+
+    // close — release the internal buffer, then close the inner Reader.
     public void close() {
+        if this.buf_ptr != 0 {
+            fly.runtime.mem_free(this.buf_ptr, this.buf_cap)
+            this.buf_ptr = 0
+            this.buf_fill = 0
+            this.buf_cap = 0
+            this.pos = 0
+        }
+        this.inner.close()
     }
 }
 
-// BufWriter wraps an inner Writer with a fixed-size write buffer.
+// BufWriter wraps an inner Writer with a fixed-size write buffer. Built by
+// writerNew() below; see the note on BufReader.
 public class BufWriter : Writer {
     // Raw pointer to the internal write buffer.
     pointer buf_ptr
@@ -119,17 +222,76 @@ public class BufWriter : Writer {
     pointer buf_fill
     // Total capacity of the internal buffer.
     pointer buf_cap
+    // The wrapped stream every flush drains into.
+    Writer inner
 
-    // write delegates to the inner Writer via vtable dispatch.
+    // write — append n bytes, draining to the inner Writer whenever the buffer
+    // fills. A payload larger than the buffer is chunked rather than truncated, so
+    // the caller never has to know the buffer size.
     public long write(Buf buf, const ulong n) {
+        if this.buf_ptr == 0 { out = 0  return }
+        pointer left = n
+        pointer off = 0
+        while left > 0 {
+            pointer room = this.buf_cap - this.buf_fill
+            if room == 0 {
+                // Inlined drain: a this.flush() call from another method of the
+                // same class is avoided here, as the containers do with helpers.
+                Buf outb = new Buf()
+                ulong fill = this.buf_fill
+                outb.ptr = this.buf_ptr
+                outb.size = fill
+                outb.cap = fill
+                this.inner.write(outb, fill)
+                this.buf_fill = 0
+                room = this.buf_cap
+            }
+            pointer take = left
+            if room < take { take = room }
+            pointer dst = this.buf_ptr + this.buf_fill
+            pointer src = buf.ptr + off
+            fly.llvm.memcpy(dst, src, take)
+            this.buf_fill = this.buf_fill + take
+            off = off + take
+            left = left - take
+        }
+        long r = (long)n
+        out = r
     }
 
-    // flush delegates to the inner Writer.
+    // flush — drain the buffer into the inner Writer, then flush that too.
     public void flush() {
+        if this.buf_ptr == 0 { return }
+        if this.buf_fill > 0 {
+            Buf outb = new Buf()
+            ulong fill = this.buf_fill
+            outb.ptr = this.buf_ptr
+            outb.size = fill
+            outb.cap = fill
+            this.inner.write(outb, fill)
+            this.buf_fill = 0
+        }
+        this.inner.flush()
     }
 
-    // close delegates to the inner Writer.
+    // close — flush whatever is pending, release the buffer, close the inner
+    // Writer. Dropping buffered bytes on close would be the classic footgun.
     public void close() {
+        if this.buf_ptr != 0 {
+            if this.buf_fill > 0 {
+                Buf outb = new Buf()
+                ulong fill = this.buf_fill
+                outb.ptr = this.buf_ptr
+                outb.size = fill
+                outb.cap = fill
+                this.inner.write(outb, fill)
+                this.buf_fill = 0
+            }
+            fly.runtime.mem_free(this.buf_ptr, this.buf_cap)
+            this.buf_ptr = 0
+            this.buf_cap = 0
+        }
+        this.inner.close()
     }
 }
 
@@ -356,37 +518,130 @@ public bool writeString(Writer w, const string s) {
     out = written >= 0
 }
 
-// readerNew wraps inner in a BufReader with an internal buffer of cap bytes.
+// readerNew wraps inner in a BufReader with an internal buffer of cap bytes
+// (cap 0 → a 4 KiB default).
 public BufReader readerNew(Reader inner, const ulong cap) {
+    pointer want = cap
+    if want == 0 { want = 4096 }
+    pointer p = 0
+    fly.runtime.mem_alloc(want, p)
+    BufReader r = new BufReader()
+    r.buf_ptr = p
+    r.buf_fill = 0
+    r.buf_cap = want
+    r.pos = 0
+    r.inner = inner
+    out = r
 }
 
-// peek returns up to n bytes from the BufReader without consuming them.
-// Stub pending compiler fix.
+// peek returns up to n bytes from the BufReader WITHOUT consuming them. The
+// returned Buf BORROWS the reader's internal storage: it is valid only until the
+// next read/fill/close and must not be freed by the caller. A short result (or
+// size 0 at EOF) is normal — peek never spans more than one bufferful.
 public Buf peek(BufReader r, const ulong n) {
+    if r.available() == 0 { r.refill() }
+    pointer take = n
+    pointer avail = r.available()
+    if avail < take { take = avail }
+    ulong taken = take
+    out.ptr = r.bufAt()
+    out.size = taken
+    out.cap = taken
 }
 
-// bufReadLine reads a line from a BufReader using its internal buffer.
-// Stub pending compiler fix.
-public string bufReadLine(BufReader r) {
-}
-
-// fill refills the BufReader's internal buffer from its inner Reader.
-// Stub pending compiler fix.
+// fill refills the BufReader's internal buffer from its inner Reader once the
+// buffered bytes have all been consumed. A no-op while data is still pending.
 public void fill(BufReader r) {
+    if r.available() == 0 { r.refill() }
 }
 
-// writerNew wraps inner in a BufWriter with an internal buffer of cap bytes.
+// bufReadLine reads one newline-terminated line from a BufReader, returning it
+// WITHOUT the trailing LF (a trailing CR is dropped too, so CRLF input works).
+// Returns "" at EOF. Spans refills, so a line may exceed the buffer size.
+public string bufReadLine(BufReader r) {
+    pointer cap = 128
+    pointer acc = 0
+    fly.runtime.mem_alloc(cap, acc)
+    pointer len = 0
+    bool done = false
+    while done == false {
+        if r.available() == 0 {
+            if r.refill() == 0 { done = true }
+        }
+        if done == false {
+            byte b = 0
+            r.takeByte(b)
+            if b == 10 {
+                done = true
+            } else {
+                if len == cap {
+                    pointer bigger = 0
+                    fly.runtime.mem_realloc(acc, cap * 2, bigger)
+                    acc = bigger
+                    cap = cap * 2
+                }
+                fly.llvm.ptrPokeByte(acc, len, b)
+                len = len + 1
+            }
+        }
+    }
+    // Drop a CR left by CRLF line endings.
+    if len > 0 {
+        byte last = 0
+        fly.llvm.ptrByteAt(acc, len - 1, last)
+        if last == 13 { len = len - 1 }
+    }
+    int n = (int)len
+    fly.llvm.strMake(acc, n, out)
+}
+
+// writerNew wraps inner in a BufWriter with an internal buffer of cap bytes
+// (cap 0 → a 4 KiB default).
 public BufWriter writerNew(Writer inner, const ulong cap) {
+    pointer want = cap
+    if want == 0 { want = 4096 }
+    pointer p = 0
+    fly.runtime.mem_alloc(want, p)
+    BufWriter w = new BufWriter()
+    w.buf_ptr = p
+    w.buf_fill = 0
+    w.buf_cap = want
+    w.inner = inner
+    out = w
 }
 
-// bufWrite writes buf into the BufWriter's internal buffer, flushing as needed.
-// Stub pending compiler fix.
+// bufWrite writes the valid bytes of buf into the BufWriter, flushing to the
+// inner Writer as the internal buffer fills.
 public void bufWrite(BufWriter w, Buf buf) {
+    w.write(buf, buf.size)
 }
 
-// bufFlush flushes the BufWriter's internal buffer to its inner Writer.
-// Stub pending compiler fix.
+// bufFlush drains the BufWriter's internal buffer into its inner Writer.
 public void bufFlush(BufWriter w) {
+    w.flush()
+}
+
+// bufRead — read up to n bytes from a BufReader into buf. Free-function form of
+// BufReader.read; see the ABI note on BufReader for why callers outside this
+// namespace must use these wrappers rather than the methods.
+public long bufRead(BufReader r, Buf buf, const ulong n) {
+    out = r.read(buf, n)
+}
+
+// bufAvailable — bytes currently buffered and not yet consumed.
+public ulong bufAvailable(BufReader r) {
+    out = (ulong)r.available()
+}
+
+// bufClose — release the read-ahead buffer and close the inner Reader.
+public void bufClose(BufReader r) {
+    r.close()
+}
+
+// bufWriterClose — flush anything pending, release the buffer, close the inner
+// Writer. Always prefer this over dropping the writer: buffered bytes would be lost.
+public void bufWriterClose(BufWriter w) {
+    w.close()
 }
 
 // copy copies all bytes from Reader src to Writer dst using an 8 KiB chunk buffer.
@@ -409,8 +664,12 @@ public long copy(Reader src, Writer dst) {
             done = true
         } else {
             chunk.size = nread
+            // Write exactly what was read. Passing the chunk CAPACITY here would
+            // emit the whole 8 KiB buffer, padding the destination with whatever
+            // uninitialized bytes follow the payload.
+            ulong nread_u = nread
             long nwritten = 0
-            nwritten = dst.write(chunk, chunk_sz_u)
+            nwritten = dst.write(chunk, nread_u)
             if nwritten < 0 { done = true }
             total = total + nread
         }
@@ -444,11 +703,13 @@ public long copyN(Reader src, Writer dst, const ulong n) {
                 done = true
             } else {
                 chunk.size = nread
+                // Write what was read, not what was requested: a short read must
+                // not emit the untouched tail of the chunk buffer.
+                ulong nread_u = nread
                 long nwritten = 0
-                nwritten = dst.write(chunk, to_read)
+                nwritten = dst.write(chunk, nread_u)
                 if nwritten < 0 { done = true }
                 total = total + nread
-                ulong nread_u = nread
                 remaining = remaining - nread_u
             }
         }

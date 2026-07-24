@@ -1,0 +1,1106 @@
+namespace fly.driver
+
+import fly.driver.*
+import fly.compiler.frontend.*
+import fly.compiler.basic.*
+import fly.compiler.parser.*
+import fly.compiler.target.*
+import fly.os.env
+import fly.os.proc
+import fly.os.fs
+import fly.os.io
+import fly.os.path
+import fly.mem
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// main — the self-host `fly` entry point. The binary IS the driver: it reads the
+// command line and hands off to Driver.run (which dispatches compile vs package
+// mode). Lives here (with the driver) so `compiler/` stays a pure library with no
+// entry. NOTE: an `int main()` entry and a `fail` inside main both miscompile in
+// the reference toolchain ("Broken function"), so this is a `void main()` that sets
+// the process exit status explicitly via fly.os.env.exit(code) (→ proc_exit).
+// ─────────────────────────────────────────────────────────────────────────────
+void main() {
+    fly.os.env.StringArray args = fly.os.env.argsGet()
+    Driver d = new Driver()
+    int code = d.run(args)
+    fly.os.env.exit(code)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Driver — CLI front of the self-host compiler, a 1:1 port of the core of
+// fly/compiler/Driver/Driver.cpp (option parsing + Execute orchestration). Reads
+// the command line, loads the input `.fly`, and runs the Frontend, returning a
+// process exit code. The DEFAULT action links an executable (Frontend emits a
+// temp object → ToolChain drives ld.lld).
+//
+// Options follow the reference THREE-AXIS model — see the block in run():
+//   FORMAT  --emit-ll | --emit-bc | --emit-as/-S | (default: object)
+//   STAGE   --no-output | -c | (default: link)
+//   SHAPE   --lib/--lib-static | --lib-dyn/--lib-dynamic
+//
+//   fly [--src-dir <dir>] [-o out] [--emit-ll|--emit-as] [-c|--no-output] [options]
+//
+// DIRECTORY MODE (mirror of the reference): there are NO positional source
+// files — the inputs are discovered from the source root. See discoverInputs.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class Driver {
+
+    // Output stem chosen by input discovery (the suite name, or the source-root
+    // directory name). Empty → the output is named after the entry file.
+    string discStem
+    // Walk accumulators (fields, not locals: the BFS loop hands its helper ONLY
+    // scalar arguments — every string argument at a call site inside a loop
+    // costs a dynamic call-site alloca under the pinned seed's codegen, and a
+    // repo-sized walk overflows the stack; see collectFlySources).
+    string discFiles
+    string discPending
+
+    public Driver() {
+        this.discStem = ""
+        this.discFiles = ";"
+        this.discPending = ";"
+    }
+
+    public int run(const fly.os.env.StringArray args) {
+        string input = ""
+        string outPath = ""
+        string outDir = ""
+        string targetTriple = ""
+        string targetCpu = ""
+        string runtimeLibDir = ""       // --runtime-lib-dir: holds fly_std_lib.a / fly_runtime_lib.a
+        string stdLibDir = ""           // auto-discovered <install>/lib: stdlib .fly source
+        string toolchainLibDir = ""     // -L: extra linker search dir
+        string mingwSysrootDir = ""     // --mingw-sysroot: mingw/UCRT sysroot (Windows link)
+        string llvmLibDir = ""          // --llvm-lib-dir: dir holding LLVM-20.lib (Windows LLVM-C link)
+        string linkLibs = ";"           // ";-lfoo;" native [link] deps
+        string libInputs = ";"          // ";lib1.a;lib2.a;" — package archives from the -L dir
+        string srcInputs = ";"          // ";a.fly;b.fly;" — the DISCOVERED .fly inputs
+        // ── Option model: three INDEPENDENT axes (ported from the reference) ─────────
+        //   FORMAT  --emit-ll | --emit-bc | --emit-as/-S | (default: object)
+        //   STAGE   --no-output (emit nothing) | -c (emit, don't link) | (default: link)
+        //   SHAPE   --lib/--lib-static | --lib-dyn/--lib-dynamic — what the LINK produces
+        // No axis silently rewrites another: an incompatible request is DIAGNOSED
+        // below, never resolved by precedence. `--lib` used to force the format, so
+        // `fly --emit-ll --lib x.fly` handed back an object to someone who asked for
+        // IR, without a word. `-c` likewise used to mean "emit an object" (a FORMAT)
+        // rather than "stop before linking" (a STAGE).
+        int emitFormat = 1              // 0=.ll 1=.o 2=.s
+        bool compileOnly = false        // -c: emit the artifact, stop before linking
+        bool isStatic = false
+        bool isShared = false           // --lib-dyn: dynamic library (also sets PIC)
+        bool isPie = false
+        bool noOutput = false
+        bool verbose = false
+        bool testMode = false
+        // --suite [Name] builds the suite exe AND runs it, fly exiting with the
+        // run's code; --test [Method] filters to one test-method. Both take an
+        // OPTIONAL value via the `=` form (`--suite=Name`, `--test=Method`) —
+        // clean for a hand-parser, matching the reference's "or use --suite=Name".
+        bool suiteRun = false
+        string suiteName = ""
+        string testFilter = ""
+        // new option state mirroring fly/compiler/Driver/Driver.cpp::BuildOptions
+        string codeModel = ""           // --mcmodel
+        string threadModel = ""         // --mthread-model
+        string statsFile = ""           // --stats-file
+        string logFile = ""             // --log-file (diagnostics log; "" = off)
+        string logFormat = "txt"        // --log-format txt|json
+        string srcDirs = ";"            // --src-dir (single override of the cwd default)
+        // sdNew/llNew are FUNCTION-scope on purpose: a string declared inside a
+        // loop-repeated block leaves a STALE pointer in its slot after the block's
+        // scope-exit free; a later return unwinding that same block then frees it
+        // AGAIN (double free — reference codegen bug, probed 2026-07-05).
+        string sdNew = ""
+        string llNew = ""
+        int jobs = 0                    // --jobs / -j
+        int optLevel = 0                // -O<n>
+        bool debugSymbols = false       // --debug-symbols / --debug
+        bool createLibrary = false      // --lib
+        bool createHeader = false       // --header / --lib
+        bool showStats = false          // --print-stats
+        bool showTimers = false         // --ftime-report
+
+        int n = (int)args.count
+        int i = 1                       // skip argv[0] (program name)
+        while i < n {
+            string a = this.normalizeArg(this.argAt(args, i))
+            if fly.str.equals(a, "-o") {
+                i = i + 1
+                if i < n { outPath = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--out-dir") {
+                i = i + 1
+                if i < n { outDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--target") {
+                i = i + 1
+                if i < n { targetTriple = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.startsWith(a, "--target=") {
+                // `=`-form: the Builder (invokeFly) emits --target=<triple> as a
+                // single argv token — accept it like --suite=/--test= below.
+                targetTriple = this.eqValue(a)
+            } elsif fly.str.equals(a, "--target-cpu") {
+                i = i + 1
+                if i < n { targetCpu = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "-c") {
+                // STAGE, not format: emit the artifact and stop before the link.
+                compileOnly = true
+            } elsif fly.str.equals(a, "-S") || fly.str.equals(a, "--emit-as") {
+                emitFormat = 2
+            } elsif fly.str.equals(a, "--emit-ll") {
+                emitFormat = 0
+            } elsif fly.str.equals(a, "--emit-bc") {
+                emitFormat = 4
+            } elsif fly.str.equals(a, "--mcmodel") {
+                i = i + 1
+                if i < n { codeModel = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--mthread-model") {
+                i = i + 1
+                if i < n { threadModel = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--jobs") || fly.str.equals(a, "-j") {
+                i = i + 1
+                if i < n { jobs = this.parseUInt(this.argAt(args, i), 0) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--stats-file") {
+                i = i + 1
+                if i < n { statsFile = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--log-file") {
+                i = i + 1
+                if i < n { logFile = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--log-format") {
+                i = i + 1
+                if i >= n { out = this.missingValue(a)  return }
+                logFormat = this.argAt(args, i)
+                // mirror of the reference CLI11 IsMember({"txt","json"}) check
+                if this.validLogFormat(logFormat) == false {
+                    fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: invalid --log-format '", logFormat), "' (expected txt or json)"))
+                    out = 1
+                    return
+                }
+            } elsif fly.str.equals(a, "--src-dir") {
+                i = i + 1
+                if i >= n { out = this.missingValue(a)  return }
+                // The project source root defaults to the current directory;
+                // --src-dir overrides it, so it is meaningful at most ONCE.
+                if fly.str.equals(srcDirs, ";") == false {
+                    fly.os.io.printErrLn("error: --src-dir may be specified only once")
+                    out = 1
+                    return
+                }
+                // distinct temp: `x = concat(x, …)` self-aliases (documented
+                // string gotcha)
+                sdNew = fly.str.concat(srcDirs, fly.str.concat(this.argAt(args, i), ";"))
+                srcDirs = sdNew
+            } elsif fly.str.equals(a, "--working-dir") {
+                i = i + 1                 // value consumed; FileSystemOptions not ported
+                if i >= n { out = this.missingValue(a)  return }
+                fly.os.io.printErrLn("warning: --working-dir is accepted but not implemented; paths resolve against the current directory")
+            } elsif fly.str.equals(a, "--debug") {
+                verbose = true
+                debugSymbols = true
+            } elsif fly.str.equals(a, "--debug-symbols") {
+                debugSymbols = true
+            } elsif fly.str.equals(a, "--header") {
+                createHeader = true
+            } elsif fly.str.equals(a, "--lib") || fly.str.equals(a, "--lib-static") {
+                // SHAPE only — it no longer touches the format axis.
+                createLibrary = true
+                createHeader = true
+            } elsif fly.str.equals(a, "--print-stats") {
+                showStats = true
+            } elsif fly.str.equals(a, "--ftime-report") {
+                showTimers = true
+            } elsif fly.str.startsWith(a, "-O") {
+                // -O<n> (attached) or "-O <n>" (separate).
+                string lvl = fly.str.substring(a, 2, fly.str.len(a))
+                if fly.str.isEmpty(lvl) {
+                    i = i + 1
+                    if i < n { lvl = this.argAt(args, i) }
+                }
+                optLevel = this.parseUInt(lvl, 0)
+            } elsif fly.str.equals(a, "--runtime-lib-dir") {
+                i = i + 1
+                if i < n { runtimeLibDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--mingw-sysroot") {
+                i = i + 1
+                if i < n { mingwSysrootDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--llvm-lib-dir") {
+                i = i + 1
+                if i < n { llvmLibDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "-L") {
+                i = i + 1
+                if i < n { toolchainLibDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+            } elsif fly.str.equals(a, "--link-lib") {
+                i = i + 1
+                if i < n {
+                    // distinct temp — same self-alias gotcha as --src-dir above
+                    llNew = fly.str.concat(linkLibs, fly.str.concat(fly.str.concat("-l", this.argAt(args, i)), ";"))
+                    linkLibs = llNew
+                } else { out = this.missingValue(a)  return }
+            } elsif fly.str.startsWith(a, "--link-lib=") {
+                // `=`-form emitted by the Builder — same handling as the two-arg
+                // spelling above (distinct temp: self-alias gotcha).
+                llNew = fly.str.concat(linkLibs, fly.str.concat(fly.str.concat("-l", this.eqValue(a)), ";"))
+                linkLibs = llNew
+            } elsif fly.str.equals(a, "--lib-dyn") || fly.str.equals(a, "--lib-dynamic") {
+                // `--shared` was an old spelling and is GONE: it now falls
+                // through to the unknown-option branch rather than quietly building
+                // a dynamic library.
+                isShared = true
+                createHeader = true
+            } elsif fly.str.equals(a, "-static") || fly.str.equals(a, "--static") {
+                // normalizeArg turns `-static` into `--static`; both spellings stay valid
+                isStatic = true
+            } elsif fly.str.equals(a, "-pie") || fly.str.equals(a, "--pie") {
+                isPie = true
+            } elsif fly.str.equals(a, "--no-output") {
+                noOutput = true
+            } elsif fly.str.equals(a, "--test") {
+                testMode = true
+            } elsif fly.str.startsWith(a, "--test=") {
+                testMode = true
+                testFilter = this.eqValue(a)
+            } elsif fly.str.equals(a, "--suite") {
+                testMode = true
+                suiteRun = true
+            } elsif fly.str.startsWith(a, "--suite=") {
+                testMode = true
+                suiteRun = true
+                suiteName = this.eqValue(a)
+            } elsif fly.str.equals(a, "-v") || fly.str.equals(a, "--verbose") {
+                verbose = true
+            } elsif fly.str.equals(a, "-w") || fly.str.equals(a, "--no-warning") {
+                // accepted (no-op): the self-host compiler emits no DiagnosticsEngine
+                // warnings, and the driver's own `warning:` lines are unconditional
+                // printErrLn — there is nothing to suppress today.
+            } elsif fly.str.equals(a, "--help") || fly.str.equals(a, "-help") {
+                this.printUsage()
+                out = 0
+                return
+            } elsif fly.str.equals(a, "--version") || fly.str.equals(a, "-version") {
+                this.printVersion()
+                out = 0
+                return
+            } elsif fly.str.startsWith(a, "-") {
+                // Reference parity (Driver.cpp remaining-args loop): an unknown
+                // option is a hard ERROR, not a warning — a typo must not be
+                // silently ignored.
+                fly.os.io.printErrLn(fly.str.concat("error: unknown option: ", a))
+                fly.os.io.printErrLn("Use 'fly --help' for a complete list of options.")
+                out = 1
+                return
+            } else {
+                // `fly version` is an alias of `fly --version` (same output).
+                if fly.str.equals(a, "version") {
+                    this.printVersion()
+                    out = 0
+                    return
+                }
+                // Package mode: if the first positional is a subcommand, hand the
+                // FULL argv to runPackage and stop compile parsing.
+                bool firstIsPkg = fly.str.equals(a, "init")
+                if fly.str.equals(a, "build")  { firstIsPkg = true }
+                if fly.str.equals(a, "run")    { firstIsPkg = true }
+                if fly.str.equals(a, "test")   { firstIsPkg = true }
+                if fly.str.equals(a, "clean")  { firstIsPkg = true }
+                if fly.str.equals(a, "lock")   { firstIsPkg = true }
+                if fly.str.equals(a, "add")    { firstIsPkg = true }
+                if fly.str.equals(a, "remove") { firstIsPkg = true }
+                if fly.str.equals(a, "why")    { firstIsPkg = true }
+                if firstIsPkg {
+                    out = this.runPackage(args)
+                    return
+                }
+                // No positional inputs exist: fly compiles a source DIRECTORY
+                // (--src-dir, default: current directory), never named files —
+                // mirror of the reference directory-mode CLI.
+                fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: unexpected argument '", a), "': fly compiles a source directory, use --src-dir <dir> (default: current directory)"))
+                out = 1
+                return
+            }
+            i = i + 1
+        }
+
+        // ── Axis conflicts: diagnosed, never resolved by precedence ───────────
+        // The rules live in axisError()/linkStepFor() so DriverCliSuite can test
+        // them directly (the reference tests the same rules through BuildOptions,
+        // which the self-host cannot drive in-process — see the suite's note).
+        bool hasOutPath = fly.str.isEmpty(outPath) == false
+        int axisErr = this.axisError(createLibrary, isShared, emitFormat, compileOnly, noOutput, hasOutPath)
+        if axisErr != 0 {
+            fly.os.io.printErrLn(this.axisErrorText(axisErr))
+            out = 1
+            return
+        }
+        bool linkStep = this.linkStepFor(compileOnly, noOutput, emitFormat)
+
+        // ── Input discovery (directory mode) ──────────────────────────────────
+        // The inputs are discovered from the source root (--src-dir, default cwd):
+        //   --lib/--lib-dyn        → every source (the directory IS the library)
+        //   test mode + link       → the files declaring suites (--suite=Name
+        //                            selects one; none declared → fall back to main)
+        //   otherwise              → the single file declaring main() (its import
+        //                            closure pulls the rest); >1 mains = error;
+        //                            0 mains on a NON-linking build = whole dir.
+        // Mirror of the reference Frontend::DiscoverInputs.
+        string discRoot = "."
+        if segCount(srcDirs) > 0 { discRoot = segAt(srcDirs, 0) }
+        string discovered = this.discoverInputs(discRoot, createLibrary || isShared, testMode, linkStep, suiteName)
+        if fly.str.isEmpty(discovered) {
+            out = 1
+            return
+        }
+        srcInputs = discovered
+        input = segAt(discovered, 0)
+
+        // Auto-discover the stdlib/runtime dir relative to the running compiler
+        // binary (<install>/bin/fly → <install>/lib), mirroring
+        // fly/compiler/Driver/Driver.cpp (StdLibDir + RuntimeLibDir). Resolves the
+        // real executable path (not argv[0]) via fly.os.env.exePath(), so a
+        // bare-name PATH invocation still works. An explicit --runtime-lib-dir
+        // takes precedence for the archives.
+        if fly.str.isEmpty(runtimeLibDir) || fly.str.isEmpty(stdLibDir) {
+            string exe = fly.os.env.exePath()
+            if fly.str.isEmpty(exe) == false {
+                string binDir = fly.os.path.dirname(exe)
+                string instDir = fly.os.path.dirname(binDir)
+                string cand = fly.os.path.join(instDir, "lib")
+                if fly.os.path.isDir(cand) {
+                    if fly.str.isEmpty(runtimeLibDir) { runtimeLibDir = cand }
+                    if fly.str.isEmpty(stdLibDir) { stdLibDir = cand }
+                }
+            }
+        }
+
+        string src = fly.os.fs.readStr(input)
+        if fly.str.isEmpty(src) {
+            fly.os.io.printErrLn(fly.str.concat("error: cannot read input file: ", input))
+            out = 1
+            return
+        }
+
+        string basePath = outPath
+        // The artifact extension follows the FORMAT, except when the build links —
+        // an executable carries no extension here (the ToolChain adds .exe/.dll).
+        string artExt = this.emitExt(emitFormat)
+        if linkStep { artExt = "" }
+        if fly.str.isEmpty(basePath) {
+            // Discovery may have chosen a better stem than the entry file's
+            // (the suite name, or the source-root directory for --lib).
+            if fly.str.isEmpty(this.discStem) == false {
+                basePath = fly.str.concat(this.discStem, artExt)
+            } else {
+                basePath = this.defaultOut(input, artExt)
+            }
+        }
+        string finalPath = this.applyOutDir(outDir, basePath)
+        string name = this.moduleName(input)
+
+        // Default target = the HOST (compile for where fly runs). Windows targets
+        // the gnu/UCRT env (the self-contained mingw toolchain fly ships), NOT the
+        // host's -msvc triple; every other host defaults to Linux. Cross-compile
+        // with an explicit --target.
+        string effTriple = targetTriple
+        if fly.str.isEmpty(effTriple) {
+            if fly.str.equals(fly.os.env.osname(), "windows") {
+                effTriple = "x86_64-w64-windows-gnu"
+            } else {
+                effTriple = "x86_64-unknown-linux-gnu"
+            }
+        }
+
+        // Build the CompilerInstance (the C++ Driver::Execute model): bundle the
+        // Frontend/CodeGen/Target options + the source buffer, then run the Frontend.
+        // Mirrors fly/compiler/Driver/Driver.cpp::BuildOptions option plumbing.
+        CodeGenOptions cgo = new CodeGenOptions()
+        cgo.setRuntimeLibDir(runtimeLibDir)
+        cgo.setToolchainLibDir(toolchainLibDir)
+        cgo.setMingwSysrootDir(mingwSysrootDir)
+        cgo.setLlvmLibDir(llvmLibDir)
+        cgo.setTestMode(testMode)
+        cgo.setSuiteName(suiteName)
+        cgo.setTestFilter(testFilter)
+        cgo.setStatic(isStatic)
+        cgo.setShared(isShared)
+        cgo.setPie(isPie)
+        cgo.setDebugSymbols(debugSymbols)
+        cgo.setOptLevel(optLevel)
+        cgo.setJobs(jobs)
+        if fly.str.isEmpty(codeModel) == false { cgo.setCodeModel(codeModel) }
+        // Thread model: default posix; an invalid value warns AND falls back to
+        // posix (it used to be applied anyway, with an unprefixed message). NOTE: the
+        // value is validated and stored on CodeGenOptions but the LLVM-C backend never
+        // reads it — --mthread-model is inert beyond this validation today.
+        string effThread = threadModel
+        if fly.str.isEmpty(effThread) { effThread = "posix" }
+        if fly.str.equals(effThread, "posix") == false && fly.str.equals(effThread, "single") == false {
+            fly.os.io.printErrLn(fly.str.concat(fly.str.concat("warning: invalid thread model '", effThread), "', falling back to posix"))
+            effThread = "posix"
+        }
+        cgo.setThreadModel(effThread)
+        if isShared { cgo.setRelocationModel("pic") }
+        int nl = segCount(linkLibs)
+        int li = 0
+        while li < nl { cgo.addLinkerOption(segAt(linkLibs, li))  li = li + 1 }
+
+        TargetOptions topts = new TargetOptions(effTriple)
+        if fly.str.isEmpty(targetCpu) == false { topts.setCPU(targetCpu) }
+        if fly.str.isEmpty(codeModel) == false { topts.setCodeModel(codeModel) }
+
+        FrontendOptions fo = new FrontendOptions(finalPath)
+        fo.setVerbose(verbose)
+        fo.setTestMode(testMode)
+        fo.setCreateShared(isShared)
+        fo.setCreateLibrary(createLibrary)
+        fo.setCreateHeader(createHeader)
+        fo.setShowStats(showStats)
+        fo.setShowTimers(showTimers)
+        fo.setStatsFile(statsFile)
+        fo.setLogFile(logFile)
+        fo.setLogFormat(logFormat)
+        fo.setOutDir(outDir)
+        // BackendAction 3 is the LINK spelling: the Frontend emits a temp object to
+        // the path execute() is given and the driver links it. Otherwise the format
+        // axis selects the artifact written straight to the output file.
+        if linkStep { fo.setBackendAction(3) } else { fo.setBackendAction(emitFormat) }
+        // Register every .fly source input; the Frontend parses each into its own module
+        // and merges them (multi-file --lib) — the single-file path uses inputAt(0).
+        int ni = segCount(srcInputs)
+        int nii = 0
+        while nii < ni { fo.addInputFile(segAt(srcInputs, nii))  nii = nii + 1 }
+        if fly.str.isEmpty(toolchainLibDir) == false { fo.addLibDir(toolchainLibDir) }
+        if fly.str.isEmpty(stdLibDir) == false { fo.setStdLibDir(stdLibDir) }
+        int sd = segCount(srcDirs)
+        int sdi = 0
+        while sdi < sd { fo.addSrcDir(segAt(srcDirs, sdi))  sdi = sdi + 1 }
+
+        CompilerInstance ci = new CompilerInstance(null, fo, cgo, topts)
+        ci.createFileManager()
+        ci.createSourceManager(name, src)
+        Frontend fe = new Frontend(ci)
+
+        // Library mode (--lib): compile every input into ONE merged object (written to
+        // the -o path) AND emit a `.fly.h` per public module. The archive itself
+        // (fly_*.a) is built by the ci script's `ar` over that object — the compiler
+        // produces object + headers, mirroring `fly/`'s Frontend GenerateHeader +
+        // Archiver split. Frontend.execute merges fo.inputFiles and, when
+        // fo.getCreateHeader() is set, generates the headers after resolution.
+        if createLibrary {
+            fo.setBackendAction(1)                      // a library is built from an object, not linked
+            out = fe.execute("", false)
+            return
+        }
+        // Header-only mode (--header, without --lib/--lib-dyn): the `.fly.h` headers
+        // are the sole artifact — no object. HeaderGen runs before codegen in
+        // Frontend.execute, so `noOutput = true` lets the headers be written while the
+        // object emission is skipped. --lib-dyn also sets createHeader but must NOT
+        // stop here: it falls through to the link step below, which emits the object
+        // and links the dynamic library (its headers come from the same
+        // fo.getCreateHeader() inside execute). This branch used to swallow --lib-dyn
+        // and return after the headers, so no .so/.dll was ever produced.
+        if createHeader && (isShared == false) {
+            out = fe.execute("", true)
+            return
+        }
+
+        // Link mode (default): the Frontend emits a temp object, then the ToolChain
+        // links it into an executable (or a .so/.dll for --lib-dyn) — mirrors
+        // Driver.cpp::Execute (Frontend emits objects → ToolChain.BuildOutput).
+        if linkStep {
+            // External package archives to link: every .a/.lib at the top level of
+            // the -L dir (positional archive inputs are gone with the directory
+            // CLI). Mirrors the reference ToolChain::CollectLibDirArchives.
+            libInputs = this.scanLibDirArchives(toolchainLibDir)
+            string tempObj = fly.str.concat(finalPath, ".o")
+            int rc = fe.execute(tempObj, false)
+            if rc != 0 {
+                // don't leave a partially-written temp object behind on failure
+                if fly.os.fs.exists(tempObj) { fly.os.fs.delete(tempObj) }
+                out = rc
+                return
+            }
+            int lrc = this.linkExecutable(ci, fe.getOutputFile(), libInputs)
+            // --suite: after a clean link, RUN the suite binary and adopt its exit
+            // code as fly's own (reference Driver::Execute SuiteRun path). This is
+            // what lets a test script be just `fly Suite.fly --suite`.
+            if suiteRun {
+                if lrc == 0 { out = this.runSuiteBinary(finalPath)  return }
+            }
+            out = lrc
+            return
+        }
+
+        // Emit-only modes (.ll / .o / .s, or --no-output).
+        out = fe.execute("", noOutput)
+    }
+
+    // ── Input discovery (directory mode) ──────────────────────────────────────
+    // Mirror of the reference Frontend::DiscoverInputs — see the call site in
+    // run() for the selection rules. Returns the ";"-list of inputs, or "" after
+    // reporting an error. Sets this.discStem when discovery knows a better output
+    // stem than the entry file's (suite name / source-root name).
+    public string discoverInputs(const string root, const bool wantLib, const bool wantTest, const bool wantLink, const string suiteSel) {
+        this.discStem = ""
+        string sorted = this.collectFlySources(root)
+        if segCount(sorted) <= 0 {
+            fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: no .fly source files found in source directory '", root), "'"))
+            out = ""
+            return
+        }
+
+        // Library build: the whole directory IS the library.
+        if wantLib {
+            this.discStem = this.rootStem(root)
+            out = sorted
+            return
+        }
+
+        // Scan the top-level declarations of every source.
+        string mains = ";"          // files declaring a top-level main()
+        string suiteFiles = ";"     // files declaring at least one suite
+        string chosen = ";"         // files declaring the suite named `suiteSel`
+        string allSuites = ";"      // every declared suite name
+        int n = segCount(sorted)
+        int i = 0
+        while i < n {
+            string f = segAt(sorted, i)
+            string fsrc = fly.os.fs.readStr(f)
+            if fly.str.isEmpty(fsrc) == false {
+                string decls = scanTopLevelDecls(fsrc)
+                if fly.str.equals(segAt(decls, 0), "1") {
+                    mains = segAppend(mains, f)
+                }
+                int ds = segCount(decls)
+                if ds > 1 {
+                    suiteFiles = segAppend(suiteFiles, f)
+                    int k = 1
+                    while k < ds {
+                        string sn = segAt(decls, k)
+                        allSuites = segAppend(allSuites, sn)
+                        if fly.str.isEmpty(suiteSel) == false {
+                            if fly.str.equals(sn, suiteSel) {
+                                chosen = segAppend(chosen, f)
+                            }
+                        }
+                        k = k + 1
+                    }
+                }
+            }
+            i = i + 1
+        }
+
+        // Test mode on a linking build: the suites are the entry points.
+        if wantTest && wantLink {
+            if fly.str.isEmpty(suiteSel) == false {
+                if segCount(chosen) <= 0 {
+                    fly.os.io.printErrLn(fly.str.concat(fly.str.concat(fly.str.concat("error: suite '", suiteSel), "' not found in source directory '"), fly.str.concat(root, "'")))
+                    out = ""
+                    return
+                }
+                this.discStem = suiteSel
+                out = chosen
+                return
+            }
+            if segCount(suiteFiles) > 0 {
+                if segCount(allSuites) == 1 {
+                    this.discStem = segAt(allSuites, 0)
+                } else {
+                    this.discStem = this.rootStem(root)
+                }
+                out = suiteFiles
+                return
+            }
+            // No suite anywhere: fall through to main() (main + --test test exe).
+        }
+
+        // One top-level main() selects the entry (its import closure pulls the
+        // rest) — for the non-linking stages too, so `-c --src-dir <proj>`
+        // compiles the PROGRAM, not every stray test source in the tree.
+        int mc = segCount(mains)
+        if mc > 1 {
+            string list = this.segJoin(mains)
+            fly.os.io.printErrLn(fly.str.concat(fly.str.concat(fly.str.concat("error: multiple main() functions found in source directory '", root), "': "), list))
+            out = ""
+            return
+        }
+        if mc == 1 {
+            out = mains
+            return
+        }
+        // No main: a non-linking build compiles the whole directory; a linking
+        // build has nothing to link.
+        if wantLink == false {
+            this.discStem = this.rootStem(root)
+            out = sorted
+            return
+        }
+        fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: no main() function found in source directory '", root), "'"))
+        out = ""
+    }
+
+    // collectFlySources — walk `root` and return every `*.fly` under it (never
+    // `*.fly.h`) as a ";"-list, in the filesystem's per-directory order (breadth
+    // first). ITERATIVE on purpose, with a ";"-list worklist of pending dirs and
+    // only segAppend/segAt string ops:
+    //   - a string-returning RECURSION hands back the caller's own buffer when a
+    //     subtree adds nothing, and `acc = f(acc)` then self-aliases (the
+    //     documented `x = concat(x, …)` gotcha, generalized);
+    //   - a List<string> accumulator drops entries past its growth boundary
+    //     (fly.data.List stores long — see the StrList.fly note).
+    // The per-entry work lives in scanOneDirAt, called with a SCALAR index only:
+    // every string argument at a call site inside this loop would cost a dynamic
+    // call-site alloca under the pinned seed's codegen, and a repo-sized walk
+    // (build/ has tens of thousands of entries) overflows the stack. The helper's
+    // frame — which does carry those temps, bounded per directory — dies at
+    // every return.
+    public string collectFlySources(const string root) {
+        this.discFiles = ";"
+        this.discPending = segAppend(";", root)
+        int qi = 0
+        while qi < segCount(this.discPending) {
+            this.scanOneDirAt(qi)
+            qi = qi + 1
+        }
+        out = this.discFiles
+    }
+
+    // scanOneDirAt — scan the qi-th pending directory: enqueue its subdirectories
+    // on discPending, append its *.fly files to discFiles. Same DirEntry-stride
+    // read pattern as Frontend.scanSrcDir.
+    public void scanOneDirAt(const int qi) {
+        string dir = segAt(this.discPending, qi)
+        if fly.os.path.isDir(dir) == false { return }
+        fly.os.fs.DirEntries de = fly.os.fs.dirRead(dir)
+        pointer items = de.items
+        if items == 0 { return }
+        long lenL = (long)de.len
+        int n = 0
+        fly.llvm.longToInt(lenL, n)
+        int i = 0
+        while i < n {
+            int off = i * 56
+            pointer namePtr = fly.mem.readPtr(items, off)
+            int nameLen = fly.mem.readInt(items, off + 8)
+            string entry = ""
+            fly.str.fromBytes(namePtr, nameLen, entry)
+            string full = fly.os.path.join(dir, entry)
+            if fly.os.path.isDir(full) {
+                this.discPending = segAppend(this.discPending, full)
+            } elsif fly.str.endsWith(entry, ".fly") {
+                this.discFiles = segAppend(this.discFiles, full)
+            }
+            i = i + 1
+        }
+    }
+
+    // scanLibDirArchives — every .a/.lib at the TOP level of the -L dir, as link
+    // inputs (";"-list). A -L dir is a fly package dir by contract; with no
+    // positional inputs this is how a package's archive reaches the linker.
+    public string scanLibDirArchives(const string dir) {
+        string acc = ";"
+        if fly.str.isEmpty(dir) { out = acc  return }
+        if fly.os.path.isDir(dir) == false { out = acc  return }
+        fly.os.fs.DirEntries de = fly.os.fs.dirRead(dir)
+        pointer items = de.items
+        if items == 0 { out = acc  return }
+        long lenL = (long)de.len
+        int n = 0
+        fly.llvm.longToInt(lenL, n)
+        int i = 0
+        while i < n {
+            int off = i * 56
+            pointer namePtr = fly.mem.readPtr(items, off)
+            int nameLen = fly.mem.readInt(items, off + 8)
+            string entry = ""
+            fly.str.fromBytes(namePtr, nameLen, entry)
+            if fly.str.endsWith(entry, ".a") || fly.str.endsWith(entry, ".lib") {
+                string full = fly.os.path.join(dir, entry)
+                string a2 = segAppend(acc, full)
+                acc = a2
+            }
+            i = i + 1
+        }
+        out = acc
+    }
+
+    // rootStem — the source-root directory name for auto-named outputs; "" for
+    // the cwd default ("."), which falls back to entry-file naming.
+    public string rootStem(const string root) {
+        if fly.str.equals(root, ".") { out = ""  return }
+        out = fly.os.path.basename(root)
+    }
+
+    // segJoin — ";a;b;" → "a, b" (for error messages).
+    public string segJoin(const string xs) {
+        string res = ""
+        int n = segCount(xs)
+        int i = 0
+        while i < n {
+            if i > 0 {
+                string r2 = fly.str.concat(res, ", ")
+                res = r2
+            }
+            string r3 = fly.str.concat(res, segAt(xs, i))
+            res = r3
+            i = i + 1
+        }
+        out = res
+    }
+
+    // runSuiteBinary — launch the just-linked suite executable and return its exit
+    // code. `base` is the -o path without the platform extension (link mode leaves
+    // it bare); Windows names the artifact `<base>.exe`, others `<base>`. Matches
+    // the ToolChain's own extension rule and the reference's ExePath handling.
+    public int runSuiteBinary(const string base) {
+        string exe = base
+        if fly.str.equals(fly.os.env.osname(), "windows") {
+            if fly.str.endsWith(base, ".exe") == false {
+                exe = fly.str.concat(base, ".exe")
+            }
+        }
+        if fly.os.fs.exists(exe) == false {
+            fly.os.io.printErrLn(fly.str.concat("error: cannot run suite binary: ", exe))
+            out = 1
+            return
+        }
+        out = fly.os.proc.run(exe)
+    }
+
+    // linkExecutable — construct a ToolChain from the CompilerInstance and link
+    // `objFile` into the FrontendOptions output (the C++ Driver::Execute
+    // ToolChain.BuildOutput path). Cleans up the intermediate object.
+    public int linkExecutable(const CompilerInstance ci, const string objFile, const string libInputs) {
+        TargetOptions topts = ci.getTargetOptions()
+        Triple tr = tripleParse(topts.getTriple())
+        ToolChain tc = new ToolChain(null, tr, ci.getCodeGenOptions())
+        // Link inputs = the emitted object, followed by any .a/.lib positionals the user
+        // passed (e.g. the compiler archive when building the driver). BuildOutput links
+        // every .a/.lib input it finds in this ";"-delimited list.
+        string inFiles = fly.str.concat(";", fly.str.concat(objFile, ";"))
+        int lc = segCount(libInputs)
+        int li = 0
+        while li < lc {
+            inFiles = segAppend(inFiles, segAt(libInputs, li))
+            li = li + 1
+        }
+        bool ok = tc.BuildOutput(inFiles, ci.getFrontendOptions())
+        if fly.os.fs.exists(objFile) { fly.os.fs.delete(objFile) }
+        if ok { out = 0 } else { out = 1 }
+    }
+
+    // emitExt — output extension for an emit mode (0=.ll, 1=.o, 2=.s, 3=link/exe, 4=.bc).
+    public string emitExt(const int emitMode) {
+        if emitMode == 1 { out = ".o"  return }
+        if emitMode == 2 { out = ".s"  return }
+        if emitMode == 3 { out = ""    return }   // executable: no extension
+        if emitMode == 4 { out = ".bc" return }
+        out = ".ll"
+    }
+
+    // normalizeArg — reference Driver.cpp normaliseDashes: a single-dash LONG
+    // option (-debug, -emit-ll, -help, …) is accepted as its `--` spelling.
+    // Excluded: true shorts (len ≤ 2) and the attached-value shorts -o -O -j -L -I
+    // (-O2, -Lfoo must stay single-dash).
+    public string normalizeArg(const string a) {
+        int n = fly.str.len(a)
+        if n <= 2 { out = a  return }
+        byte b0 = 0
+        fly.str.byteAt(a, 0, b0)
+        if b0 != 45 { out = a  return }        // not an option token
+        byte b1 = 0
+        fly.str.byteAt(a, 1, b1)
+        int c1 = b1 & 255                       // byte→int sign-extends: mask
+        if c1 == 45 { out = a  return }         // already --long
+        if c1 == 111 { out = a  return }        // o
+        if c1 == 79 { out = a  return }         // O
+        if c1 == 106 { out = a  return }        // j
+        if c1 == 76 { out = a  return }         // L
+        if c1 == 73 { out = a  return }         // I
+        out = fly.str.concat("-", a)
+    }
+
+    // validLogFormat — --log-format accepts txt|json only (reference IsMember).
+    public bool validLogFormat(const string f) {
+        out = fly.str.equals(f, "txt") || fly.str.equals(f, "json")
+    }
+
+    // eqValue — the value after the '=' of an `--opt=value` token ("" when
+    // nothing follows the '='). Every `=`-form branch (--test=, --suite=,
+    // --target=, --link-lib=) uses it, so the option spellings can never drift
+    // from hand-counted substring offsets.
+    public string eqValue(const string a) {
+        int eq = fly.str.indexOf(a, "=")
+        if eq < 0 { out = ""  return }
+        out = fly.str.substring(a, eq + 1, fly.str.len(a))
+    }
+
+    // missingValue — report a value-taking option used without its value.
+    public int missingValue(const string opt) {
+        fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: option '", opt), "' requires a value"))
+        out = 1
+    }
+
+    // parseUInt — parse a non-negative decimal string; non-digits/empty → dflt.
+    public int parseUInt(const string s, const int dflt) {
+        int len = fly.str.len(s)
+        if len == 0 { out = dflt  return }
+        int acc = 0
+        int i = 0
+        while i < len {
+            byte b = 0
+            fly.str.byteAt(s, i, b)
+            int c = b
+            if c < 48 || c > 57 { out = dflt  return }
+            acc = acc * 10 + (c - 48)
+            i = i + 1
+        }
+        out = acc
+    }
+
+    // ── The three-axis option rules (reference Driver.cpp::BuildOptions) ─────────
+    // Kept as pure functions of the parsed flags: they are the single source of
+    // truth for run(), and DriverCliSuite exercises them without an argv.
+
+    // axisError — 0 when the combination is coherent, otherwise the conflict id:
+    //   1 --lib with --lib-dyn                 2 library with a non-object format
+    //   3 library with -c / --no-output        4 -o with --no-output
+    // Order matters: the most specific conflict is reported first.
+    public int axisError(const bool createLibrary, const bool isShared, const int emitFormat, const bool compileOnly, const bool noOutput, const bool hasOutPath) {
+        bool wantsLibrary = createLibrary || isShared
+        if createLibrary && isShared { out = 1  return }
+        if wantsLibrary && emitFormat != 1 { out = 2  return }
+        if wantsLibrary && (compileOnly || noOutput) { out = 3  return }
+        // -o names the single emitted artifact and is valid for every format; only
+        // --no-output, which emits nothing, has nothing to name.
+        if hasOutPath && noOutput { out = 4  return }
+        out = 0
+    }
+
+    public string axisErrorText(const int code) {
+        if code == 1 { out = "error: cannot specify both --lib and --lib-dyn"  return }
+        if code == 2 { out = "error: cannot specify --lib/--lib-dyn with --emit-ll/--emit-bc/--emit-as"  return }
+        if code == 3 { out = "error: cannot specify --lib/--lib-dyn with -c or --no-output"  return }
+        if code == 4 { out = "error: cannot specify -o with --no-output"  return }
+        out = ""
+    }
+
+    // linkStepFor — whether the build links. Decided ONCE, not re-derived
+    // downstream from "the output file happens to be non-empty". Only object code
+    // can be linked, so any other format stops at the artifact, exactly as -c does.
+    public bool linkStepFor(const bool compileOnly, const bool noOutput, const int emitFormat) {
+        out = compileOnly == false && noOutput == false && emitFormat == 1
+    }
+
+    // printUsage — the --help usage text.
+    public void printUsage() {
+        fly.os.io.printErrLn("usage: fly [options]")
+        fly.os.io.printErrLn("fly compiles a source DIRECTORY (--src-dir, default: current directory):")
+        fly.os.io.printErrLn("  the entry is discovered there — the file declaring main(), the suites in")
+        fly.os.io.printErrLn("  test mode (--suite[=Name]), or every source for --lib/--lib-dyn.")
+        fly.os.io.printErrLn("options:")
+        fly.os.io.printErrLn("  -o <file>       write output to <file>")
+        fly.os.io.printErrLn("  --out-dir <dir> directory for generated outputs")
+        fly.os.io.printErrLn("format (WHAT the backend produces; default: an object file):")
+        fly.os.io.printErrLn("  --emit-ll       produce LLVM IR (.ll)")
+        fly.os.io.printErrLn("  --emit-bc       produce LLVM bitcode (.bc)")
+        fly.os.io.printErrLn("  --emit-as, -S   produce target assembly (.s)")
+        fly.os.io.printErrLn("stage (HOW FAR to go; default: link):")
+        fly.os.io.printErrLn("  -c              compile only, do not link")
+        fly.os.io.printErrLn("  --no-output     parse and analyse only, produce no output")
+        fly.os.io.printErrLn("shape of the linked artifact:")
+        fly.os.io.printErrLn("  --lib, --lib-static      one merged object + a .fly.h per public module")
+        fly.os.io.printErrLn("  --lib-dyn, --lib-dynamic dynamic library (.so/.dylib/.dll), implies PIC")
+        fly.os.io.printErrLn("  --header        generate a .fly.h header file (no object)")
+        fly.os.io.printErrLn("  (these three axes are independent; combining them incompatibly is an error)")
+        fly.os.io.printErrLn("  --runtime-lib-dir <dir>  dir holding fly_std_lib.a / fly_runtime_lib.a")
+        fly.os.io.printErrLn("  --mingw-sysroot <dir>  mingw/UCRT sysroot for Windows linking (default: <exe>/mingw)")
+        fly.os.io.printErrLn("  --llvm-lib-dir <dir>   dir holding LLVM-20.lib for LLVM-C programs (default: <exe>/llvm/lib)")
+        fly.os.io.printErrLn("  -L <dir>             package dir: .fly.h headers resolve imports, its .a/.lib are linked")
+        fly.os.io.printErrLn("  --src-dir <dir>      source root: inputs and imports are discovered here (default: current dir)")
+        fly.os.io.printErrLn("  --link-lib <name>    link native library (-lname)")
+        fly.os.io.printErrLn("  -static / -pie       link mode flags (ELF/Linux targets; ignored by the Windows linker)")
+        fly.os.io.printErrLn("  -O<n>                optimisation level 0..3")
+        fly.os.io.printErrLn("  -j, --jobs <n>       LLVM parallelism (0 = auto)")
+        fly.os.io.printErrLn("  --mcmodel <m>        memory code model")
+        fly.os.io.printErrLn("  --mthread-model <m>  thread model posix|single (validated only; not applied by the backend)")
+        fly.os.io.printErrLn("  --target <triple>    target triple (default: the host; Windows → x86_64-w64-windows-gnu)")
+        fly.os.io.printErrLn("  --target-cpu <cpu>   target CPU (default: generic)")
+        fly.os.io.printErrLn("  --no-output     type-check only, produce no output")
+        fly.os.io.printErrLn("  --test[=Method] compile in test mode (test {} blocks + suites); with a value, run only that test-method")
+        fly.os.io.printErrLn("  --suite[=Name]  build the suite test exe AND run it (fly exits with the run's code); with a value, only that suite")
+        fly.os.io.printErrLn("  --debug         verbose logging (+ request DWARF; self-host codegen emits none yet)")
+        fly.os.io.printErrLn("  --debug-symbols request DWARF debug symbols (self-host codegen does not emit them yet)")
+        fly.os.io.printErrLn("  --print-stats   print compilation statistics to stderr")
+        fly.os.io.printErrLn("  --ftime-report  accepted; not yet implemented (no output)")
+        fly.os.io.printErrLn("  --stats-file <f>  write compilation statistics (JSON) to <f>")
+        fly.os.io.printErrLn("  --log-file <f>  log diagnostics to <f>")
+        fly.os.io.printErrLn("  --log-format <fmt>  diagnostics log format: txt (default) or json")
+        fly.os.io.printErrLn("  -v, --verbose   log each compilation phase")
+        fly.os.io.printErrLn("  -w, --no-warning  accepted; the compiler emits no warnings to suppress")
+        fly.os.io.printErrLn("  --version       print version")
+        fly.os.io.printErrLn("  --help          display this help")
+    }
+
+    // printVersion — the --version text. The version number lives in ONE place:
+    // compiler/basic/Version.fly (release.yml greps it from there too).
+    public void printVersion() {
+        fly.os.io.printLn(fly.str.concat(fly.str.concat("fly version ", flyVersion()), " (https://flylang.org)"))
+    }
+
+    // applyOutDir — prefix a RELATIVE output path with outDir (absolute paths and
+    // an empty outDir are returned unchanged). The dir must already exist (the
+    // self-host has no mkdir yet).
+    //
+    // "Absolute" must cover Windows too: the self-host runs on Windows, where a
+    // leading-'/'-only test wrongly treats "C:\out\x" as relative and mangles it into
+    // "<outDir>/C:\out\x" — an invalid path the object emitter then crashes writing.
+    // So recognize POSIX ("/…"), drive-absolute ("X:…") and root/UNC ("\…") forms.
+    public string applyOutDir(const string outDir, const string outPath) {
+        if fly.str.isEmpty(outDir) { out = outPath  return }
+        int L = fly.str.len(outPath)
+        if L >= 1 {
+            byte b0 = 0
+            fly.str.byteAt(outPath, 0, b0)
+            if b0 == 47 { out = outPath  return }        // '/'  POSIX absolute
+            if b0 == 92 { out = outPath  return }        // '\'  Windows root / UNC
+            if L >= 2 {
+                byte b1 = 0
+                fly.str.byteAt(outPath, 1, b1)
+                if b1 == 58 { out = outPath  return }     // 'X:' Windows drive-absolute
+            }
+        }
+        string slash = fly.str.concat(outDir, "/")
+        out = fly.str.concat(slash, outPath)
+    }
+
+    // argAt — read argv[i] from the StringArray's 16-byte {ptr,len} slots.
+    public string argAt(const fly.os.env.StringArray args, const int i) {
+        pointer base = args.items
+        pointer ptr = fly.mem.readPtr(base, i * 16)
+        int len = fly.mem.readInt(base, i * 16 + 8)
+        // Copy the bytes into an OWNED buffer. `fromBytes`/`strMake` would only ALIAS
+        // the argv buffer (owned by the StringArray, not by this string), and the
+        // string model frees that alias at scope exit → use-after-free of the argv
+        // slot. A later read of the SAME index then returns garbage — classically a
+        // ";..."-list alloc (srcInputs/libInputs start ";") reuses the freed slot, so
+        // `clean` read after the arg loop comes back ";clea" (";"+"clea", last byte
+        // dropped) and `why` → ";wh". Owning our own copy makes every read safe.
+        pointer buf = 0
+        fly.runtime.mem_alloc(len, buf)
+        int j = 0
+        while j < len {
+            byte b = 0
+            fly.llvm.ptrByteAt(ptr, j, b)
+            fly.llvm.ptrPokeByte(buf, j, b)
+            j = j + 1
+        }
+        string s = ""
+        fly.llvm.strMake(buf, len, s)
+        out = s
+    }
+
+    // ── Package mode (fly.toml) ───────────────────────────────────────────────
+    // Formerly class Flyp (fly/tools/flyp/Flyp.cpp). runPackage is invoked from run()
+    // when argv[1] is a fly.toml subcommand; it dispatches the network-free core
+    // commands (dependency/registry ones report "not yet ported").
+
+    // flagValue — value following `--name` in argv, or "" if absent.
+    public string flagValue(const fly.os.env.StringArray args, const int n, const string flag) {
+        int i = 2
+        while i < n {
+            if fly.str.equals(this.argAt(args, i), flag) {
+                if i + 1 < n { out = this.argAt(args, i + 1)  return }
+            }
+            i = i + 1
+        }
+        out = ""
+    }
+
+    // hasFlag — true if `flag` appears anywhere in argv.
+    public bool hasFlag(const fly.os.env.StringArray args, const int n, const string flag) {
+        int i = 2
+        while i < n {
+            if fly.str.equals(this.argAt(args, i), flag) { out = true  return }
+            i = i + 1
+        }
+        out = false
+    }
+
+    // profileOf — --release → "release", else --profile VALUE, else "".
+    public string profileOf(const fly.os.env.StringArray args, const int n) {
+        if this.hasFlag(args, n, "--release") { out = "release"  return }
+        out = this.flagValue(args, n, "--profile")
+    }
+
+    // runPackage — dispatch a fly.toml subcommand to fly.driver.
+    public int runPackage(const fly.os.env.StringArray args) {
+        int n = (int)args.count
+        if n < 2 {
+            fly.os.io.printLn("usage: fly <version|init|build|run|test|clean|cache|add|remove|lock|why|...>")
+            out = 1
+            return
+        }
+        string cmd = this.argAt(args, 1)
+
+        if fly.str.equals(cmd, "version") {
+            out = fly.driver.cmdVersion()
+        } elsif fly.str.equals(cmd, "init") {
+            out = fly.driver.cmdInit(this.flagValue(args, n, "--name"), this.flagValue(args, n, "--version"))
+        } elsif fly.str.equals(cmd, "build") {
+            out = fly.driver.cmdBuild(this.profileOf(args, n), this.flagValue(args, n, "--target"),
+                    this.hasFlag(args, n, "--force"))
+        } elsif fly.str.equals(cmd, "run") {
+            out = fly.driver.cmdRun(this.profileOf(args, n), this.flagValue(args, n, "--bin"),
+                    this.hasFlag(args, n, "--force"))
+        } elsif fly.str.equals(cmd, "test") {
+            out = fly.driver.cmdTest(this.profileOf(args, n), this.hasFlag(args, n, "--force"))
+        } elsif fly.str.equals(cmd, "clean") {
+            out = fly.driver.cmdClean(this.profileOf(args, n))
+        } elsif fly.str.equals(cmd, "lock") {
+            out = fly.driver.cmdLock()
+        } elsif fly.str.equals(cmd, "add") {
+            string depName = ""
+            if n >= 3 { depName = this.argAt(args, 2) }
+            out = fly.driver.cmdAdd(depName, this.flagValue(args, n, "--git"),
+                    this.flagValue(args, n, "--tag"), this.flagValue(args, n, "--branch"),
+                    this.flagValue(args, n, "--rev"), this.hasFlag(args, n, "--dev"))
+        } elsif fly.str.equals(cmd, "remove") {
+            string depName = ""
+            if n >= 3 { depName = this.argAt(args, 2) }
+            out = fly.driver.cmdRemove(depName)
+        } elsif fly.str.equals(cmd, "why") {
+            string depName = ""
+            if n >= 3 { depName = this.argAt(args, 2) }
+            out = fly.driver.cmdWhy(depName)
+        } else {
+            out = fly.driver.cmdNotPorted(cmd)
+        }
+    }
+
+    // defaultOut — `<input>.fly` → `<input>.ll` (default IR extension). Kept as a
+    // 1-arg overload for callers/tests that only want the IR path.
+    public string defaultOut(const string input) {
+        out = this.defaultOut(input, ".ll")
+    }
+
+    // defaultOut — `<input>.fly` → `<input><ext>`, else append `<ext>`.
+    public string defaultOut(const string input, const string ext) {
+        if fly.str.endsWith(input, ".fly") {
+            int L = fly.str.len(input)
+            string base = fly.str.substring(input, 0, L - 4)
+            out = fly.str.concat(base, ext)
+        } else {
+            out = fly.str.concat(input, ext)
+        }
+    }
+
+    // moduleName — the input path minus a trailing `.fly` extension.
+    public string moduleName(const string input) {
+        if fly.str.endsWith(input, ".fly") {
+            int L = fly.str.len(input)
+            out = fly.str.substring(input, 0, L - 4)
+        } else {
+            out = input
+        }
+    }
+}

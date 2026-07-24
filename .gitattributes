@@ -1,0 +1,8 @@
+# Shell scripts run under bash (Linux / CI) — they MUST have LF line endings, or
+# the shebang breaks with `env: 'bash\r': No such file or directory`. Force LF so a
+# Windows checkout (or an autocrlf clone) never introduces CRLF into them.
+*.sh text eol=lf
+ci/linux/** text eol=lf
+
+# Windows PowerShell scripts are fine either way; leave them native.
+*.ps1 text

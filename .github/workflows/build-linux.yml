@@ -2,6 +2,12 @@ name: Build Linux
 
 on:
   workflow_call:
+    inputs:
+      debug_symbols:
+        description: '"1" embeds DWARF (crash → source line); "0" for lean release artifacts.'
+        required: false
+        type: string
+        default: "1"
   push:
     paths-ignore:
       - '.github/workflows/**'
@@ -11,14 +17,20 @@ on:
 
 env:
   # stage0 bootstrap release (compiles the stage-1 world; see the stage map
-  # below). 0.13.8 is cut from the current fly/ reference — it must carry the
+  # below). The seed is cut from the current fly/ reference — it must carry the
   # header-gen/codegen fixes the self-host tree relies on.
-  FLY_VERSION: "0.13.8"
+  FLY_VERSION: "0.13.10"
 
 jobs:
 
   build-linux:
     runs-on: ubuntu-latest
+    # Emit DWARF into the stage-1 build (stage0 honours --debug-symbols; the
+    # self-host does not yet) so a crash symbolizes via gdb/valgrind/llvm-symbolizer.
+    # release.yml passes debug_symbols="0" for lean artifacts; plain push /
+    # workflow_dispatch default to "1".
+    env:
+      FLY_DEBUG_SYMBOLS: ${{ inputs.debug_symbols == '0' && '0' || '1' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -38,7 +50,7 @@ jobs:
           key: fly-llvm-20.1.8-linux-x86_64-dylib-v4
 
       # ── Rust-style staged bootstrap (see ci/linux/stage1.sh) ─────────────────
-      # stage0  ci/linux/stage0.sh: the downloaded 0.13.8 bootstrap compiler +
+      # stage0  ci/linux/stage0.sh: the downloaded bootstrap compiler ($FLY_VERSION) +
       #         its precompiled lib → build/stage0, and the fork LLVM →
       #         build/llvm (libLLVM + ld.lld + compiler-rt; NO system packages).
       # stage1  ci/linux/stage1.sh: stage0 builds runtime, std, compiler and
@@ -59,10 +71,36 @@ jobs:
           FLY_BUNDLE_LLVM: "1"
         run: chmod +x ./ci/linux/*.sh && ./ci/linux/stage0.sh
 
+      # ── Stage-0 pass: the suites under the pinned REFERENCE seed that stage0 just
+      #    downloaded, with its own bundled runtime/std. A failure here is a
+      #    SOURCE-level problem, caught before a self-host build is spent on it.
+      #    Every stage links the SAME fork LLVM (stage0 exported it).
+      #    Non-blocking for now: a known set still faults under the reference.
+      - name: Test stage 0 (reference compiler)
+        continue-on-error: true
+        env:
+          STAGE: "0"
+        run: |
+          ./ci/linux/test_runtime.sh
+          ./ci/linux/test_std.sh
+          ./ci/linux/test_compiler.sh
+
       - name: Stage 1 (bootstrap builds the self-host)
         env:
           FLY_BUNDLE_LLVM: "1"
         run: ./ci/linux/stage1.sh
+
+      # ── Stage-1 pass: the suites under the self-host stage1 just built WITH the
+      #    reference. A suite that passed at STAGE=0 and fails here indicts the
+      #    self-host codegen. Non-blocking for now: a known set still fails.
+      - name: Test stage 1 (self-host built by the reference)
+        continue-on-error: true
+        env:
+          STAGE: "1"
+        run: |
+          ./ci/linux/test_runtime.sh
+          ./ci/linux/test_std.sh
+          ./ci/linux/test_compiler.sh
 
       - name: Stage 2 (self-host rebuilds the shipped artifacts)
         env:
@@ -75,28 +113,54 @@ jobs:
       #    suites are green under it). The FLY defaults live in the test
       #    scripts themselves (override with FLY=… to test another build). ─────
 
-      # Compiler unit suites (compiler/test only).
-      - name: Test self-host compiler
-        run: ./ci/linux/test_compiler.sh
+      # ── Stage-2 pass: the suites under the self-host stage2 just built WITH the
+      # self-host — the shipped fixpoint artifact. A suite that passed at STAGE=1
+      # and fails here indicts stage2 codegen. These stay BLOCKING: this is what
+      # users get.
+      # Test order: runtime → std → compiler → driver (bottom-up: the runtime
+      # underpins std, which the compiler + driver both build on, so a failure is
+      # reported at the lowest broken layer first).
 
-      # Driver + package-manager unit suites (driver/test): CLI parsing,
-      # Manifest/toml, lockfile, semver/MVS resolver, registry, ToolChain,
-      # cache/checksum/json. flyp is merged into the single `fly` binary
-      # (driver package mode), so its suites live in driver/test; the
-      # ci/linux/*_tools_flyp.sh scripts are kept for the future lsp/registry port.
-      - name: Test driver
-        run: ./ci/linux/test_driver.sh
-
-      # Runtime unit tests (runtime/test) — the fly.runtime libc/libm FFI backend.
-      # Currently empty (exercised indirectly by the std/os suites); the step is kept
-      # so runtime/test/*_test.fly are picked up as soon as they're added.
+      # Runtime unit tests (runtime/test) — the fly.runtime libc/libm FFI backend,
+      # exercised by the per-platform Runtime*Suite.fly (suite/case, --test; the
+      # harness runs only the host platform's suite).
       - name: Test runtime
+        env:
+          STAGE: "2"
         run: ./ci/linux/test_runtime.sh
 
-      # Standard library tests (std/test/*_test.fly): str, math, data structures,
-      # os.* (env/fs/io/path/time), mem, generics, inheritance/override/super.
+      # Standard library suites (std/test/**/*Suite.fly, run with --test):
+      # data/ containers, core/ str+math+mem+bridge, os/ env+fs+io+path+time+proc,
+      # lang/ casts+enums+generics+interfaces+override/super, meta/ manifest schema.
       - name: Test std
+        env:
+          STAGE: "2"
         run: ./ci/linux/test_std.sh
+
+      # Compiler unit suites - now INCLUDES the driver + package-manager suites
+      # under compiler/test/driver (CLI parsing, Manifest/lockfile, semver/MVS
+      # resolver, registry, ToolChain, cache/checksum/json): the driver is
+      # compiled INTO the compiler monolithically, so there is no separate
+      # test_driver step anymore.
+      - name: Test self-host compiler
+        env:
+          STAGE: "2"
+        run: ./ci/linux/test_compiler.sh
+
+      # Diagnostic (non-blocking): sweep EVERY test suite (runtime, std, compiler,
+      # driver) under Valgrind memcheck to catch double-free / use-after-free bugs
+      # — the owned-string aliasing class the Windows heap aborts on
+      # (e.g. Frontend.resolveSourceDeps, 0xC0000374) but glibc silently tolerates
+      # here. Valgrind flags each invalid free and prints the symbolized alloc +
+      # both free stacks (needs FLY_DEBUG_SYMBOLS=1, the default on push/dispatch).
+      # Slow (the compiler runs libLLVM per suite); scope with VG_SUITES / VG_LIMIT.
+      # Also runnable locally: ./ci/linux/valgrind_check.sh
+      # - name: Valgrind memcheck (all suites)
+      #   if: always()
+      #   continue-on-error: true
+      #   run: |
+      #     sudo apt-get update -qq && sudo apt-get install -y -qq valgrind
+      #     ./ci/linux/valgrind_check.sh
 
       - name: Set artifact name
         id: artifact

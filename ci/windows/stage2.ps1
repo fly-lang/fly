@@ -3,7 +3,8 @@
 # the fly built by stage1 (build\stage1\bin\fly.exe) produces the SHIPPED
 # artifacts into build\stage2 - what CI uploads and the release packages.
 #
-#   runtime   re-seeded from stage1 (the Windows Fly-member rebuild is a follow-up)
+#   runtime   re-seeded from stage1 (the Windows Fly-member rebuild is gated on
+#             RuntimeWindows.fly running cleanly on Windows - see build_runtime.ps1)
 #   std       COPIED from stage1: the shipped std must keep the reference class
 #             ABI (see build_std.ps1) - a self-host std would break header
 #             consumers of classes with interface bases.
@@ -33,7 +34,7 @@ Write-Host "stage2: std -> build\stage2\lib (copied from stage1, reference ABI)"
 
 $ok = $true
 try {
-    foreach ($step in 'build_runtime', 'build_driver', 'link_fly') {
+    foreach ($step in 'build_runtime', 'build_compiler', 'link_fly') {
         & ".\ci\windows\$step.ps1"
         if ($LASTEXITCODE -ne 0) { Write-Host "stage2: $step.ps1 failed (exit $LASTEXITCODE)"; $ok = $false; break }
     }
@@ -47,7 +48,8 @@ if (-not $ok) {
     # bin\ + lib\ layout even when the self-host rebuild fails.
     Write-Host "warning: stage2 self-host rebuild FAILED - shipping the stage1 artifacts instead."
     New-Item -ItemType Directory -Force build/stage2/bin, build/stage2/lib | Out-Null
-    Get-ChildItem build/stage1/bin/* -Exclude fly0.exe | ForEach-Object { Copy-Item $_.FullName build/stage2/bin/ -Force }
+    # -Recurse so the bundled mingw\ sysroot directory copies with its contents.
+    Get-ChildItem build/stage1/bin/* -Exclude fly0.exe | ForEach-Object { Copy-Item $_.FullName build/stage2/bin/ -Recurse -Force }
     Get-ChildItem build/stage1/lib/* | ForEach-Object { Copy-Item $_.FullName build/stage2/lib/ -Force }
 }
 

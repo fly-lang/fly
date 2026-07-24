@@ -1,0 +1,177 @@
+namespace fly.compiler.codegen
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.compiler.codegen.CodeGenExpr
+import fly.compiler.codegen.CodeGenModule
+import fly.compiler.codegen.CodeGenLLVM
+import llvm.api.*
+import fly.data.List
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenArray — lowering for native arrays. Representation (mirrors the C++
+// reference): `%array = { ptr data, i64 len }`, a fat pointer — field 0 is the
+// heap data buffer (null when empty), field 1 the element count. Static
+// companions keep each CodeGenExpr.visit() a one-liner (large visit bodies trip
+// the self-host "Broken function" codegen bug).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenArray {
+
+    public CodeGenArray() { }
+
+    // arrayValue — an array literal `{e0, e1, ...}` as a %array struct VALUE:
+    //   empty  → { null, 0 }        (no allocation)
+    //   n > 0  → malloc(n*sizeof(elem)); store each element; { data, n }
+    // BOTH fields are written (unlike the reference, which omits len for literals —
+    // that would make literal-array for-in read a garbage length).
+    public static void arrayValue(const CodeGenExpr cge, const SemaArrayValue node) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        pointer ctx = cgm.getCtx()
+        pointer arrTy = cge.lowerType(node.getType())
+        pointer i64t
+        llvm.int64TypeInContext(ctx, i64t)
+        pointer ptrTy = cge.ptrType()
+
+        SemaArrayType at = node.getType().asArray()
+        pointer elemLL = cge.lowerType(at.getElementType())
+        List<SemaExpr> vals = node.getValues()
+        int n = (int)vals.size()
+
+        pointer dataPtr
+        pointer lenV
+        if n == 0 {
+            llvm.constNull(ptrTy, dataPtr)
+            llvm.constInt(i64t, 0, false, lenV)
+        } else {
+            pointer elemSz
+            llvm.sizeOf(elemLL, elemSz)
+            pointer nConst
+            llvm.constInt(i64t, (long)n, false, nConst)
+            pointer total
+            llvm.buildMul(b, nConst, elemSz, "arrbytes", total)
+            dataPtr = cgm.emitMalloc(total)
+            int i = 0
+            while i < n {
+                SemaExpr el = vals.get(i)
+                pointer ev = cge.gen(el)
+                ev = cge.coerce(ev, el.getType(), at.getElementType())
+                pointer idxC
+                llvm.constInt(i64t, (long)i, false, idxC)
+                List<pointer> idxs = new List<pointer>()
+                idxs.add(idxC)
+                pointer elemPtr
+                cg.buildGEP2N(b, elemLL, dataPtr, idxs, "arrelem", elemPtr)
+                llvm.buildStore(b, ev, elemPtr)
+                i = i + 1
+            }
+            llvm.constInt(i64t, (long)n, false, lenV)
+        }
+        // assemble { data, len } via two insertvalue on a null aggregate
+        pointer base
+        llvm.constNull(arrTy, base)
+        pointer s1
+        llvm.buildInsertValue(b, base, dataPtr, 0, "arr.d", s1)
+        pointer sv
+        llvm.buildInsertValue(b, s1, lenV, 1, "arr.l", sv)
+        node.setLlvmValue(sv)
+    }
+
+    // storeDefault — an array local with no initializer. Emits {null,0} for both
+    // `T[]` and `T[N]`. (A sized `T[N]` that mallocs N zero-initialised elements is
+    // a follow-up; an empty array is memory-safe — for-in over it iterates zero
+    // times and nothing dereferences the null data without a prior store.)
+    public static void storeDefault(const CodeGenExpr cge, const pointer alloca, const SemaArrayType at) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer arrTy = cge.lowerType(at)
+        pointer zero
+        llvm.constNull(arrTy, zero)
+        llvm.buildStore(b, zero, alloca)
+    }
+
+    // loopIn — `for item in arr` over a native array. Loads {data, len} from the
+    // array struct, then an index loop `i < len` storing `data[i]` into the item
+    // local (allocated once, pre-loop, by the SemaDeclStmt the resolver emitted).
+    public static void loopIn(const CodeGenExpr cge, const SemaLoopInStmt node) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        pointer ctx = cgm.getCtx()
+        pointer i64t
+        llvm.int64TypeInContext(ctx, i64t)
+        pointer ptrTy = cge.ptrType()
+
+        SemaExpr listE = node.getList()
+        pointer arrTy = cge.lowerType(listE.getType())
+        SemaArrayType at = listE.getType().asArray()
+        pointer elemLL = cge.lowerType(at.getElementType())
+
+        pointer arrPtr = cge.genAddr(listE)            // %array alloca
+        pointer itemAddr = cge.genAddr(node.getItem()) // item local's alloca
+
+        pointer f0
+        llvm.buildStructGEP2(b, arrTy, arrPtr, 0, "arrdata.p", f0)
+        pointer dataPtr
+        llvm.buildLoad2(b, ptrTy, f0, "arrdata", dataPtr)
+        pointer f1
+        llvm.buildStructGEP2(b, arrTy, arrPtr, 1, "arrlen.p", f1)
+        pointer sizeV
+        llvm.buildLoad2(b, i64t, f1, "arrlen", sizeV)
+
+        pointer idxA
+        llvm.buildAlloca(b, i64t, "forin.i", idxA)
+        pointer zero64
+        llvm.constInt(i64t, 0, false, zero64)
+        llvm.buildStore(b, zero64, idxA)
+
+        pointer condBB = cge.newBlock("forin.cond")
+        pointer bodyBB = cge.newBlock("forin.body")
+        pointer endBB = cge.newBlock("forin.end")
+
+        pointer savedBreak = cge.getBreakTarget()
+        pointer savedCont = cge.getContinueTarget()
+        cge.setBreakTarget(endBB)
+        cge.setContinueTarget(condBB)
+
+        cge.br(condBB)
+        cge.position(condBB)
+        pointer iCur
+        llvm.buildLoad2(b, i64t, idxA, "i", iCur)
+        pointer cmp
+        llvm.buildICmp(b, 40, iCur, sizeV, "forin.cmp", cmp)   // 40 = LLVMIntSLT
+        pointer cbr
+        llvm.buildCondBr(b, cmp, bodyBB, endBB, cbr)
+        cge.setTerminated(true)
+
+        cge.position(bodyBB)
+        pointer iBody
+        llvm.buildLoad2(b, i64t, idxA, "ib", iBody)
+        List<pointer> gidx = new List<pointer>()
+        gidx.add(iBody)
+        pointer elemPtr
+        cg.buildGEP2N(b, elemLL, dataPtr, gidx, "forin.elemp", elemPtr)
+        pointer elemVal
+        llvm.buildLoad2(b, elemLL, elemPtr, "forin.ev", elemVal)
+        llvm.buildStore(b, elemVal, itemAddr)
+        node.getBody().accept(cge)
+        if cge.isTerminated() == false {
+            pointer iNext0
+            llvm.buildLoad2(b, i64t, idxA, "in", iNext0)
+            pointer one64
+            llvm.constInt(i64t, 1, false, one64)
+            pointer iNext
+            llvm.buildAdd(b, iNext0, one64, "inx", iNext)
+            llvm.buildStore(b, iNext, idxA)
+            cge.br(condBB)
+        }
+
+        cge.setBreakTarget(savedBreak)
+        cge.setContinueTarget(savedCont)
+        cge.position(endBB)
+    }
+}

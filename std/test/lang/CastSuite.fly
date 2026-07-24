@@ -1,0 +1,145 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CastSuite — explicit C-style integer conversions, `(Type)x`, across every
+// width and signedness, in all three directions codegen has to distinguish:
+//
+//   widening        sext (signed source) / zext (unsigned source)
+//   narrowing       trunc — permitted, with a compiler warning
+//   same-width      a pure sign reinterpretation (no instruction)
+//
+// Narrowing results are the low bits of the source, so each case states the mask
+// it expects. Remember that `byte` is unsigned but widens to `int` with sign
+// extension in Fly, so byte comparisons mask with & 255.
+//
+// Assert codes: 1xx widening, 2xx narrowing, 3xx sign reinterpretation,
+// 4xx round-trips.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite CastSuite {
+
+    // ── widening ─────────────────────────────────────────────────────────────
+    void widenTest() {
+        case "byte to int": {
+            byte b = (byte)5
+            assert.assertEqI((int)b, 5, 101)
+            byte zero = (byte)0
+            assert.assertEqI((int)zero, 0, 102)
+        }
+        case "int to long": {
+            int i = 300
+            assert.assertEqL((long)i, 300, 103)
+            int neg = 0 - 300
+            assert.assertEqL((long)neg, 0 - 300, 104)      // sign-extended
+        }
+        case "short to int and to long": {
+            short s = (short)1234
+            assert.assertEqI((int)s, 1234, 105)
+            assert.assertEqL((long)s, 1234, 106)
+            short ns = (short)(0 - 1234)
+            assert.assertEqI((int)ns, 0 - 1234, 107)
+            assert.assertEqL((long)ns, 0 - 1234, 108)
+        }
+        case "byte to long skips a width": {
+            byte b = (byte)200
+            assert.assertEqL((long)b & 255, 200, 109)
+        }
+        case "int extremes widen exactly": {
+            int max = 2147483647
+            assert.assertEqL((long)max, 2147483647, 110)
+            int min = 0 - 2147483647
+            assert.assertEqL((long)min, 0 - 2147483647, 111)
+        }
+    }
+
+    // ── narrowing (trunc): keep the low bits ─────────────────────────────────
+    void narrowTest() {
+        case "long to byte keeps the low 8 bits": {
+            long big = 300                                  // 300 & 0xFF == 44
+            byte bb = (byte)big
+            assert.assertEqI((int)bb, 44, 201)
+        }
+        case "int to ushort keeps the low 16 bits": {
+            int v = 70000                                   // 70000 & 0xFFFF == 4464
+            ushort us = (ushort)v
+            assert.assertEqI((int)us, 4464, 202)
+        }
+        case "narrowing a value that already fits is exact": {
+            long small = 42
+            assert.assertEqI((int)(byte)small, 42, 203)
+            int fits = 1000
+            assert.assertEqI((int)(ushort)fits, 1000, 204)
+        }
+        case "narrowing exactly at the boundary": {
+            long b255 = 255
+            assert.assertEqI((int)(byte)b255 & 255, 255, 205)
+            long b256 = 256                                 // wraps to 0
+            assert.assertEqI((int)(byte)b256 & 255, 0, 206)
+            // ushort widens to int with SIGN extension, so 65535 reads back as
+            // -1 unless masked — the same trap as byte → int (& 255).
+            int u65535 = 65535
+            assert.assertEqI((int)(ushort)u65535 & 65535, 65535, 207)
+            assert.assertEqI((int)(ushort)u65535, 0 - 1, 211)
+            int u65536 = 65536                              // wraps to 0
+            assert.assertEqI((int)(ushort)u65536, 0, 208)
+        }
+        case "long to int drops the high word": {
+            long big = 4294967296 + 7                       // (1 << 32) + 7
+            assert.assertEqI((int)big, 7, 209)
+        }
+    }
+
+    // ── same-width sign reinterpretation ─────────────────────────────────────
+    void signTest() {
+        case "int to uint and back": {
+            uint u = (uint)300
+            assert.assertEqI((int)u, 300, 301)
+            int back = 7
+            uint ub = (uint)back
+            assert.assertEqI((int)ub, 7, 302)
+        }
+        case "long to ulong and back": {
+            long lv = 123456789
+            ulong ul = (ulong)lv
+            assert.assertEqL((long)ul, 123456789, 303)
+        }
+        case "a large positive long survives the ulong round-trip": {
+            long lv = 9000000000
+            ulong ul = (ulong)lv
+            assert.assertEqL((long)ul, 9000000000, 304)
+        }
+        case "short to ushort for a value in both ranges": {
+            short s = (short)1234
+            ushort us = (ushort)s
+            assert.assertEqI((int)us, 1234, 305)
+        }
+    }
+
+    // ── round-trips through a narrower type ──────────────────────────────────
+    void roundTripTest() {
+        case "values that fit survive a narrow-then-widen": {
+            int bad = 0 - 1
+            int i = 0
+            while i < 256 {
+                byte b = (byte)i
+                if ((int)b & 255) != i { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 401)
+        }
+        case "int to long to int is the identity": {
+            int bad = 0 - 1
+            int i = 0 - 100
+            while i < 100 {
+                if (int)(long)i != i { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 402)
+        }
+        case "a long chain of casts settles on the low bits": {
+            long v = 70000
+            assert.assertEqI((int)(ushort)v, 4464, 403)
+            assert.assertEqI((int)(byte)(ushort)v, 112, 404)   // 4464 & 0xFF
+        }
+    }
+}

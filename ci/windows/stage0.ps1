@@ -5,7 +5,8 @@
 #     LLVM-C.lib (link import lib) + LLVM-C.dll (runtime) + lld-link.exe (the
 #     COFF linker the release bundles). No package manager; the MSVC toolchain
 #     + Windows SDK come from ilammy/msvc-dev-cmd in the workflow.
-#   * the bootstrap `fly` 0.13.8 release -> build\stage0 (bin\ + precompiled lib\)
+#   * the pinned bootstrap `fly` release ($FLY_VERSION below) -> build\stage0
+#     (bin\ + precompiled lib\)
 #
 # stage1.ps1 / stage2.ps1 build on top of these (see the stage map in stage1.ps1).
 #
@@ -18,6 +19,7 @@
 # -----------------------------------------------------------------------------
 
 $ErrorActionPreference = 'Stop'
+. "$PSScriptRoot\gnu_common.ps1"        # $FLY_WIN_TARGET, sysroot paths, Install-LdLld, MINGW_VERSION
 
 # LLVM the self-host compiler links against: the project's own LLVM build
 # (fly-lang/llvm-project release) rather than the stock LLVM installer. Only that
@@ -27,7 +29,7 @@ $ErrorActionPreference = 'Stop'
 # The literals below are the source of truth; CI may override via env so this
 # stays in sync with the cache key.
 $LLVM_VERSION = if ($env:LLVM_VERSION) { $env:LLVM_VERSION } else { "20.1.8" }
-$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.8" }
+$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.10" }
 
 # Resolve everything against the PROJECT ROOT (this script lives in ci\windows\,
 # two levels down) so the downloads land next to the build regardless of the
@@ -52,7 +54,7 @@ if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.
     $url = "https://github.com/fly-lang/llvm-project/releases/download/v$LLVM_VERSION-win-x64/llvm-$LLVM_VERSION-win-x64.zip"
     New-Item -ItemType Directory -Force $llvmLib, $llvmBin | Out-Null
     $zipPath = Join-Path $buildDir 'llvm.zip'
-    Invoke-WebRequest -Uri $url -OutFile $zipPath
+    Invoke-WebRequest -Uri $url -OutFile $zipPath -MaximumRetryCount 6 -RetryIntervalSec 15
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
     try {
@@ -77,6 +79,41 @@ if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.
 # code references. A copy avoids symlink privilege gotchas.
 Copy-Item "$llvmLib\LLVM-C.lib" "$llvmLib\LLVM-20.lib" -Force
 
+# === mingw / UCRT sysroot (mstorsjo/llvm-mingw) ==============================
+# The self-contained Windows toolchain links user programs AND fly.exe itself
+# against llvm-mingw's UCRT import libs + CRT startup objects + compiler-rt
+# builtins — NO Visual Studio, NO Windows SDK. From the ~190 MB llvm-mingw release
+# we keep only x86_64-w64-mingw32/lib/ (~62 MB) + libclang_rt.builtins-x86_64.a,
+# staged under build\mingw (cache it in CI keyed on $MINGW_VERSION). The linker is
+# the fork's own lld invoked as ld.lld (GNU flavour) — provisioned by Install-LdLld,
+# no extra download. Set $env:MINGW_ZIP to a local zip to skip the download.
+if (-not (Test-MingwSysroot)) {
+    New-Item -ItemType Directory -Force $script:GNU_sysrootLib, $script:GNU_builtinsDir | Out-Null
+    $mzip = if ($env:MINGW_ZIP) { $env:MINGW_ZIP } else {
+        $u = "https://github.com/mstorsjo/llvm-mingw/releases/download/$script:MINGW_VERSION/llvm-mingw-$script:MINGW_VERSION-ucrt-x86_64.zip"
+        $z = Join-Path $buildDir 'mingw.zip'
+        Invoke-WebRequest -Uri $u -OutFile $z -MaximumRetryCount 6 -RetryIntervalSec 15
+        $z
+    }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $mz = [System.IO.Compression.ZipFile]::OpenRead($mzip)
+    try {
+        foreach ($e in $mz.Entries) {
+            if ($e.FullName.EndsWith('/')) { continue }
+            if ($e.FullName -match '/x86_64-w64-mingw32/lib/(.+)$') {
+                $dest = Join-Path $script:GNU_sysrootLib $matches[1]
+                $dd = Split-Path $dest -Parent
+                if (-not (Test-Path $dd)) { New-Item -ItemType Directory -Force $dd | Out-Null }
+                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, $dest, $true)
+            } elseif ($e.FullName -match '/lib/clang/[0-9]+/lib/windows/libclang_rt\.builtins-x86_64\.a$') {
+                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($e, $script:GNU_builtinsLib, $true)
+            }
+        }
+    } finally { $mz.Dispose() }
+    if (-not $env:MINGW_ZIP -and (Test-Path (Join-Path $buildDir 'mingw.zip'))) { Remove-Item (Join-Path $buildDir 'mingw.zip') }
+}
+Install-LdLld                                  # build\llvm\bin\ld.lld.exe (fork lld, GNU flavour)
+
 # === fly bootstrap (stage 0) =================================================
 
 # --- Download fly binary ------------------------------------------------------
@@ -85,7 +122,7 @@ if (-not (Test-Path $flyExe)) {
     $url = "https://github.com/fly-lang/fly/releases/download/v$FLY_VERSION/fly-$FLY_VERSION-win-x64.zip"
     New-Item -ItemType Directory -Force $buildDir | Out-Null
     $zipPath = Join-Path $buildDir 'fly.zip'
-    Invoke-WebRequest -Uri $url -OutFile $zipPath
+    Invoke-WebRequest -Uri $url -OutFile $zipPath -MaximumRetryCount 6 -RetryIntervalSec 15
     Expand-Archive $zipPath -DestinationPath $flyDir -Force
     Remove-Item $zipPath
 }

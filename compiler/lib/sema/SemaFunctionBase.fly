@@ -30,6 +30,7 @@ public class SemaFunctionBase : SemaNode {
     SemaBlockStmt body
     pointer llvmFn       // CodeGen back-pointer: the LLVM function (null until codegen'd)
     pointer llvmFnType   // CodeGen back-pointer: the LLVM function type
+    int outParamCount    // synthetic trailing out params: 0 (void), 1, or N (multi-return)
 
     public SemaFunctionBase(const ASTFunction funcAst, const SemaKind kind, const SymbolTable scope) {
         super(kind)
@@ -42,7 +43,15 @@ public class SemaFunctionBase : SemaNode {
         this.fromHeader = false
         this.llvmFn = 0
         this.llvmFnType = 0
+        this.outParamCount = 0
     }
+
+    // outParamCount — how many trailing params are the SYNTHETIC out slots of the
+    // out-param model, so getParamTypes() can drop exactly those. Set by
+    // ResolverDecl.resolveSignature / resolveMethodSignature as it appends them:
+    // 0 for void, 1 for a single return, N for `A,B,…` multi-return.
+    public int getOutParamCount() { out = this.outParamCount }
+    public void setOutParamCount(const int n) { this.outParamCount = n }
 
     public pointer getLlvmFn() { out = this.llvmFn }
     public void setLlvmFn(const pointer f) { this.llvmFn = f }
@@ -87,15 +96,8 @@ public class SemaFunctionBase : SemaNode {
     public List<SemaType> getParamTypes() {
         List<SemaType> r = new List<SemaType>()
         int n = (int)this.params.size()
-        int explicitCount = n
-        // Drop the trailing synthetic 'out' param of a non-void function. Guard with
-        // nested ifs: Fly's `&&` does NOT short-circuit, so a single condition would
-        // deref returnType.isVoid() even when returnType is null (e.g. a constructor).
-        if this.returnType != null {
-            if this.returnType.isVoid() == false {
-                if n > 0 { explicitCount = n - 1 }
-            }
-        }
+        int explicitCount = n - this.outParamCount
+        if explicitCount < 0 { explicitCount = 0 }
         int i = 0
         while i < explicitCount {
             SemaParam p = this.params.get(i)

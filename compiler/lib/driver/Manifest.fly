@@ -1,0 +1,494 @@
+namespace fly.driver
+
+import fly.data.List
+import fly.str
+import fly.os.fs
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Manifest — the in-memory package manifest model. It is populated by
+// FlyManifestReader (flymanifest.fly) from the Fly-native `Manifest.fly` — a class
+// extending fly.meta.Manifest, parsed by the compiler's own parser — and serialized
+// back to `Manifest.fly` by serialize()/save(). There is no TOML: the manifest IS
+// Fly source, one language and one parser.
+//
+// Map-like sections (deps/repos/profiles) are stored as ordered Lists of entry
+// classes (Fly's Map has no key iteration, and we need both lookup and order).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// A git/path/registry dependency. refKind: 0=Tag 1=Branch 2=Rev.
+public class GitDep {
+    string gitUrl
+    int refKind
+    string refValue
+    string path
+    string registryName
+    string pkgName
+    string versionReq
+
+    public GitDep() {
+        this.gitUrl = ""
+        this.refKind = 0
+        this.refValue = ""
+        this.path = ""
+        this.registryName = ""
+        this.pkgName = ""
+        this.versionReq = ""
+    }
+
+    public string getGitUrl()     { out = this.gitUrl }
+    public int getRefKind()       { out = this.refKind }
+    public string getRefValue()   { out = this.refValue }
+    public string getPath()       { out = this.path }
+    public string getRegistryName() { out = this.registryName }
+    public string getPkgName()    { out = this.pkgName }
+    public string getVersionReq() { out = this.versionReq }
+
+    public void setGitUrl(const string v)     { this.gitUrl = v }
+    public void setRef(const int k, const string v) { this.refKind = k  this.refValue = v }
+    public void setPath(const string v)       { this.path = v }
+    public void setRegistry(const string r, const string pkg, const string ver) {
+        this.registryName = r
+        this.pkgName = pkg
+        this.versionReq = ver
+    }
+
+    public bool isPathDep()     { out = fly.str.isEmpty(this.path) == false }
+    public bool isRegistryDep() { out = fly.str.isEmpty(this.registryName) == false }
+    public bool isGitDep()      { out = fly.str.isEmpty(this.gitUrl) == false }
+}
+
+// A build profile (opt-level etc.).
+public class BuildProfile {
+    int optLevel
+    bool debugInfo
+    bool assertions
+    bool lto
+    bool strip
+
+    public BuildProfile() {
+        this.optLevel = 0
+        this.debugInfo = true
+        this.assertions = true
+        this.lto = false
+        this.strip = false
+    }
+
+    public int getOptLevel()   { out = this.optLevel }
+    public bool getDebugInfo() { out = this.debugInfo }
+    public bool getAssertions() { out = this.assertions }
+    public bool getLto()       { out = this.lto }
+    public bool getStrip()     { out = this.strip }
+    public void setOptLevel(const int v)   { this.optLevel = v }
+    public void setDebugInfo(const bool v) { this.debugInfo = v }
+    public void setAssertions(const bool v) { this.assertions = v }
+    public void setLto(const bool v)       { this.lto = v }
+    public void setStrip(const bool v)     { this.strip = v }
+}
+
+// A build target: `key = { path, name?, lib? }`. No `lib` = bin.
+public class Target {
+    string key
+    string name
+    string path
+    string lib
+
+    public Target(const string k, const string nm, const string p, const string lb) {
+        this.key = k
+        this.name = nm
+        this.path = p
+        this.lib = lb
+    }
+
+    public string getKey()  { out = this.key }
+    public string getName() { out = this.name }
+    public string getPath() { out = this.path }
+    public string getLib()  { out = this.lib }
+    public bool isLib()     { out = fly.str.isEmpty(this.lib) == false }
+    public bool isBin()     { out = fly.str.isEmpty(this.lib) }
+}
+
+// [test] — suite-based test configuration.
+public class TestConfig {
+    List<string> suites
+    bool parallel
+    bool failFast
+
+    public TestConfig() {
+        this.suites = new List<string>()
+        this.parallel = false
+        this.failFast = false
+    }
+
+    public void addSuite(const string s)  { this.suites.add(s) }
+    public int suiteCount()               { out = (int)this.suites.size() }
+    public string suiteAt(const int idx)  { out = this.suites.get(idx) }
+    public bool getParallel()             { out = this.parallel }
+    public bool getFailFast()             { out = this.failFast }
+    public void setParallel(const bool v) { this.parallel = v }
+    public void setFailFast(const bool v) { this.failFast = v }
+}
+
+// Ordered name→GitDep entry (dependencies / dev-dependencies).
+public class DepEntry {
+    string name
+    GitDep dep
+    public DepEntry(const string n, const GitDep d) { this.name = n  this.dep = d }
+    public string getName() { out = this.name }
+    public GitDep getDep()  { out = this.dep }
+}
+
+// Ordered name→string entry (repo aliases).
+public class StrEntry {
+    string name
+    string value
+    public StrEntry(const string n, const string v) { this.name = n  this.value = v }
+    public string getName()  { out = this.name }
+    public string getValue() { out = this.value }
+}
+
+// Ordered name→BuildProfile entry.
+public class ProfileEntry {
+    string name
+    BuildProfile prof
+    public ProfileEntry(const string n, const BuildProfile p) { this.name = n  this.prof = p }
+    public string getName()      { out = this.name }
+    public BuildProfile getProf() { out = this.prof }
+}
+
+// The parsed manifest.
+public class Manifest {
+    string name
+    string version
+    string description
+    string license
+    string flyVersion
+    string homepage
+    string repository
+    string defaultRegistry
+    List<string> authors
+    List<Target> targets
+    TestConfig tst                 // `test` is a reserved keyword
+    List<DepEntry> deps
+    List<DepEntry> devDeps
+    List<StrEntry> repos
+    List<ProfileEntry> profiles
+    List<string> linkLibs
+    List<string> wsMembers         // workspace members (empty = not a workspace root)
+    bool isWorkspace
+    string preBuild
+    string postBuild
+
+    public Manifest() {
+        this.name = ""
+        this.version = ""
+        this.description = ""
+        this.license = ""
+        this.flyVersion = ""
+        this.homepage = ""
+        this.repository = ""
+        this.defaultRegistry = ""
+        this.authors = new List<string>()
+        this.targets = new List<Target>()
+        this.tst = new TestConfig()
+        this.deps = new List<DepEntry>()
+        this.devDeps = new List<DepEntry>()
+        this.repos = new List<StrEntry>()
+        this.profiles = new List<ProfileEntry>()
+        this.linkLibs = new List<string>()
+        this.wsMembers = new List<string>()
+        this.isWorkspace = false
+        this.preBuild = ""
+        this.postBuild = ""
+    }
+
+    public string getName()        { out = this.name }
+    public string getVersion()     { out = this.version }
+    public string getDescription() { out = this.description }
+    public string getLicense()     { out = this.license }
+    public string getFlyVersion()  { out = this.flyVersion }
+    public string getHomepage()    { out = this.homepage }
+    public string getRepository()  { out = this.repository }
+    public string getDefaultRegistry() { out = this.defaultRegistry }
+    public void setName(const string v)        { this.name = v }
+    public void setVersion(const string v)     { this.version = v }
+    public void setDescription(const string v) { this.description = v }
+    public void setLicense(const string v)     { this.license = v }
+    public void setFlyVersion(const string v)  { this.flyVersion = v }
+    public void setHomepage(const string v)    { this.homepage = v }
+    public void setRepository(const string v)  { this.repository = v }
+    public void setDefaultRegistry(const string v) { this.defaultRegistry = v }
+
+    public void addAuthor(const string a)   { this.authors.add(a) }
+    public int authorCount()                { out = (int)this.authors.size() }
+    public string authorAt(const int idx)   { out = this.authors.get(idx) }
+
+    public void addTarget(const Target t)   { this.targets.add(t) }
+    public int targetCount()                { out = (int)this.targets.size() }
+    public Target targetAt(const int idx)   { out = this.targets.get(idx) }
+
+    public TestConfig getTest()             { out = this.tst }
+
+    public void addLinkLib(const string l)  { this.linkLibs.add(l) }
+    public int linkLibCount()               { out = (int)this.linkLibs.size() }
+    public string linkLibAt(const int idx)  { out = this.linkLibs.get(idx) }
+
+    public bool isWorkspaceRoot()           { out = this.isWorkspace }
+    public void addMember(const string m)   { this.wsMembers.add(m)  this.isWorkspace = true }
+    public int memberCount()                { out = (int)this.wsMembers.size() }
+    public string memberAt(const int idx)   { out = this.wsMembers.get(idx) }
+
+    public void setHooks(const string pre, const string post) { this.preBuild = pre  this.postBuild = post }
+    public string getPreBuild()  { out = this.preBuild }
+    public string getPostBuild() { out = this.postBuild }
+
+    // dependency access (ordered, linear lookup)
+    public void addDep(const string n, const GitDep d)    { this.deps.add(new DepEntry(n, d)) }
+    public void addDevDep(const string n, const GitDep d) { this.devDeps.add(new DepEntry(n, d)) }
+    public int depCount()                { out = (int)this.deps.size() }
+    public DepEntry depAt(const int idx) { out = this.deps.get(idx) }
+    public int devDepCount()                { out = (int)this.devDeps.size() }
+    public DepEntry devDepAt(const int idx) { out = this.devDeps.get(idx) }
+
+    public bool hasDep(const string n) {
+        int i = 0
+        while i < this.deps.size() {
+            DepEntry e = this.deps.get(i)
+            if fly.str.equals(e.getName(), n) { out = true  return }
+            i = i + 1
+        }
+        out = false
+    }
+    public GitDep getDep(const string n) {
+        int i = 0
+        while i < this.deps.size() {
+            DepEntry e = this.deps.get(i)
+            if fly.str.equals(e.getName(), n) { out = e.getDep()  return }
+            i = i + 1
+        }
+        out = null
+    }
+
+    // repo aliases
+    public void addRepo(const string n, const string url) { this.repos.add(new StrEntry(n, url)) }
+    public int repoCount()                 { out = (int)this.repos.size() }
+    public StrEntry repoAt(const int idx)  { out = this.repos.get(idx) }
+    public string getRepo(const string n) {
+        int i = 0
+        while i < this.repos.size() {
+            StrEntry e = this.repos.get(i)
+            if fly.str.equals(e.getName(), n) { out = e.getValue()  return }
+            i = i + 1
+        }
+        out = ""
+    }
+
+    // profiles
+    public void addProfile(const string n, const BuildProfile p) { this.profiles.add(new ProfileEntry(n, p)) }
+    public int profileCount()                   { out = (int)this.profiles.size() }
+    public ProfileEntry profileAt(const int idx) { out = this.profiles.get(idx) }
+    public bool hasProfile(const string n) {
+        int i = 0
+        while i < this.profiles.size() {
+            ProfileEntry e = this.profiles.get(i)
+            if fly.str.equals(e.getName(), n) { out = true  return }
+            i = i + 1
+        }
+        out = false
+    }
+    public BuildProfile getProfile(const string n) {
+        int i = 0
+        while i < this.profiles.size() {
+            ProfileEntry e = this.profiles.get(i)
+            if fly.str.equals(e.getName(), n) { out = e.getProf()  return }
+            i = i + 1
+        }
+        out = null
+    }
+
+    // removeDep — drop a dependency (and dev-dependency) by name.
+    public bool removeDep(const string name) {
+        bool found = false
+        List<DepEntry> keep = new List<DepEntry>()
+        int i = 0
+        while i < this.deps.size() {
+            DepEntry e = this.deps.get(i)
+            if fly.str.equals(e.getName(), name) { found = true } else { keep.add(e) }
+            i = i + 1
+        }
+        this.deps = keep
+        List<DepEntry> keepDev = new List<DepEntry>()
+        int j = 0
+        while j < this.devDeps.size() {
+            DepEntry e = this.devDeps.get(j)
+            if fly.str.equals(e.getName(), name) { found = true } else { keepDev.add(e) }
+            j = j + 1
+        }
+        this.devDeps = keepDev
+        out = found
+    }
+
+
+    // serialize — the Manifest.fly source: a class extending fly.meta.Manifest, read
+    // back by FlyManifestReader. Emits package scalars, authors/linkLibs (string[]),
+    // dependencies/dev-dependencies (positional `new Dependency(...)`) and targets.
+    // Real newlines via fly.driver.nl(), quotes via dq().
+    public string serialize() {
+        string q = fly.driver.dq()
+        string nl = fly.driver.nl()
+        string s = fly.str.concat("namespace pkg.manifest", nl)
+        s = fly.str.concat(s, fly.str.concat("import fly.meta.*", nl))
+        s = fly.str.concat(s, nl)
+        s = fly.str.concat(s, fly.str.concat("class Manifest : fly.meta.Manifest {", nl))
+        s = fly.str.concat(s, this.scalarField("name", this.name, q, nl))
+        s = fly.str.concat(s, this.scalarField("version", this.version, q, nl))
+        if fly.str.isEmpty(this.description) == false { s = fly.str.concat(s, this.scalarField("description", this.description, q, nl)) }
+        if fly.str.isEmpty(this.license) == false     { s = fly.str.concat(s, this.scalarField("license", this.license, q, nl)) }
+        if fly.str.isEmpty(this.flyVersion) == false  { s = fly.str.concat(s, this.scalarField("flyVersion", this.flyVersion, q, nl)) }
+        if fly.str.isEmpty(this.homepage) == false    { s = fly.str.concat(s, this.scalarField("homepage", this.homepage, q, nl)) }
+        if fly.str.isEmpty(this.repository) == false  { s = fly.str.concat(s, this.scalarField("repository", this.repository, q, nl)) }
+        if fly.str.isEmpty(this.defaultRegistry) == false { s = fly.str.concat(s, this.scalarField("registry", this.defaultRegistry, q, nl)) }
+        if this.authors.size() > 0   { s = fly.str.concat(s, this.strArray("string[] authors", this.authors, q, nl)) }
+        if this.linkLibs.size() > 0  { s = fly.str.concat(s, this.strArray("string[] linkLibs", this.linkLibs, q, nl)) }
+        if this.deps.size() > 0      { s = fly.str.concat(s, this.depArray("dependencies", this.deps, q, nl)) }
+        if this.devDeps.size() > 0   { s = fly.str.concat(s, this.depArray("devDependencies", this.devDeps, q, nl)) }
+        if this.targets.size() > 0   { s = fly.str.concat(s, this.targetArray(this.targets, q, nl)) }
+        s = fly.str.concat(s, fly.str.concat("}", nl))
+        out = s
+    }
+
+    // scalarField — `  string <name> = "<val>"`.
+    string scalarField(const string name, const string val, const string q, const string nl) {
+        out = fly.str.concat("  string ", fly.str.concat(name, fly.str.concat(" = ", fly.str.concat(q, fly.str.concat(val, fly.str.concat(q, nl))))))
+    }
+
+    // strArray — `  <decl> = { "a", "b" }`.
+    string strArray(const string decl, const List<string> items, const string q, const string nl) {
+        string a = fly.str.concat("  ", fly.str.concat(decl, " = { "))
+        int i = 0
+        while i < items.size() {
+            if i > 0 { a = fly.str.concat(a, ", ") }
+            a = fly.str.concat(a, fly.str.concat(q, fly.str.concat(items.get(i), q)))
+            i = i + 1
+        }
+        out = fly.str.concat(a, fly.str.concat(" }", nl))
+    }
+
+    // depArray — `  Dependency[] <field> = { new Dependency(...), ... }`.
+    string depArray(const string field, const List<DepEntry> ds, const string q, const string nl) {
+        string a = fly.str.concat("  Dependency[] ", fly.str.concat(field, " = { "))
+        int i = 0
+        while i < ds.size() {
+            if i > 0 { a = fly.str.concat(a, ", ") }
+            DepEntry e = ds.get(i)
+            a = fly.str.concat(a, this.depNew(e.getName(), e.getDep(), q))
+            i = i + 1
+        }
+        out = fly.str.concat(a, fly.str.concat(" }", nl))
+    }
+
+    // depNew — new Dependency(name, version, registry, git, tag, branch, rev, path).
+    string depNew(const string name, const GitDep g, const string q) {
+        string tag = ""
+        string br = ""
+        string rev = ""
+        if fly.str.isEmpty(g.getGitUrl()) == false {
+            if g.getRefKind() == 0 { tag = g.getRefValue() }
+            elsif g.getRefKind() == 1 { br = g.getRefValue() }
+            else { rev = g.getRefValue() }
+        }
+        string s = fly.str.concat("new Dependency(", this.qc(name, q))
+        s = fly.str.concat(s, this.qc(g.getVersionReq(), q))
+        s = fly.str.concat(s, this.qc(g.getRegistryName(), q))
+        s = fly.str.concat(s, this.qc(g.getGitUrl(), q))
+        s = fly.str.concat(s, this.qc(tag, q))
+        s = fly.str.concat(s, this.qc(br, q))
+        s = fly.str.concat(s, this.qc(rev, q))
+        s = fly.str.concat(s, fly.str.concat(q, fly.str.concat(g.getPath(), q)))
+        out = fly.str.concat(s, ")")
+    }
+
+    // targetArray — `  Target[] targets = { new Target("name", "path", "lib"), ... }`.
+    string targetArray(const List<Target> ts, const string q, const string nl) {
+        string a = "  Target[] targets = { "
+        int i = 0
+        while i < ts.size() {
+            if i > 0 { a = fly.str.concat(a, ", ") }
+            Target t = ts.get(i)
+            string tn = fly.str.concat("new Target(", this.qc(t.getName(), q))
+            tn = fly.str.concat(tn, this.qc(t.getPath(), q))
+            tn = fly.str.concat(tn, fly.str.concat(q, fly.str.concat(t.getLib(), fly.str.concat(q, ")"))))
+            a = fly.str.concat(a, tn)
+            i = i + 1
+        }
+        out = fly.str.concat(a, fly.str.concat(" }", nl))
+    }
+
+    // qc — a quoted value followed by ", " (a comma-separated arg).
+    string qc(const string v, const string q) {
+        out = fly.str.concat(q, fly.str.concat(v, fly.str.concat(q, ", ")))
+    }
+
+    // save — write serialize() to Manifest.fly in the current directory.
+    public void save() {
+        fly.os.fs.writeStr("Manifest.fly", this.serialize(), 420)
+    }
+}
+
+// ── validation (hand-rolled; the C++ uses std::regex) ─────────────────────────
+
+// nameValid — non-empty, all chars in [a-z0-9_-].
+public bool nameValid(const string s) {
+    int n = fly.str.len(s)
+    if n == 0 { out = false  return }
+    int i = 0
+    while i < n {
+        byte bb = 0
+        fly.str.byteAt(s, i, bb)
+        int c = bb
+        bool lower = c >= 97 && c <= 122
+        bool digit = c >= 48 && c <= 57
+        bool other = c == 45 || c == 95
+        if lower == false && digit == false && other == false { out = false  return }
+        i = i + 1
+    }
+    out = true
+}
+
+// versionValid — exactly digits '.' digits '.' digits (MAJOR.MINOR.PATCH).
+public bool versionValid(const string s) {
+    int n = fly.str.len(s)
+    int i = 0
+    int dots = 0
+    int digitsInGroup = 0
+    while i < n {
+        byte bb = 0
+        fly.str.byteAt(s, i, bb)
+        int c = bb
+        if c >= 48 && c <= 57 {
+            digitsInGroup = digitsInGroup + 1
+        } elsif c == 46 {
+            if digitsInGroup == 0 { out = false  return }
+            dots = dots + 1
+            digitsInGroup = 0
+        } else {
+            out = false
+            return
+        }
+        i = i + 1
+    }
+    out = dots == 2 && digitsInGroup > 0
+}
+
+// ── parse ─────────────────────────────────────────────────────────────────────
+
+// defaultProfile — the built-in defaults (release lowers debug-info/assertions,
+// raises opt-level); everything else keeps the debug defaults (Manifest.cpp:51-58).
+public BuildProfile defaultProfile(const string name) {
+    BuildProfile p = new BuildProfile()
+    if fly.str.equals(name, "release") {
+        p.setOptLevel(3)
+        p.setDebugInfo(false)
+        p.setAssertions(false)
+    }
+    out = p
+}

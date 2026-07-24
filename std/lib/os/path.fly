@@ -181,7 +181,7 @@ public string dirname(const string path) {
     while i < size {
         byte b = 0
         fly.llvm.strByteAt(path, i, b)
-        if b == 47 { last_slash = i }
+        if b == 47 || b == 92 { last_slash = i }     // '/' or '\' (Windows paths)
         i = i + 1
     }
     int len = 0
@@ -297,7 +297,10 @@ public string, string splitExt(const string path) {
     out[1] = ext(path)
 }
 
-// isAbsolute returns true if path starts with a '/' separator.
+// isAbsolute returns true if path is absolute: a leading '/' (POSIX), a
+// leading '\' (Windows, rooted on the current drive), or a drive-letter
+// prefix ("X:" — second byte ':'), so absolute() never cwd-prefixes an
+// already-absolute Windows path.
 public bool isAbsolute(const string path) {
     int size = 0
     fly.llvm.strSize(path, size)
@@ -307,10 +310,24 @@ public bool isAbsolute(const string path) {
     }
     byte b = 0
     fly.llvm.strByteAt(path, 0, b)
-    out = b == 47
+    if b == 47 {
+        out = true
+        return
+    }
+    if b == 92 {
+        out = true
+        return
+    }
+    if size < 2 {
+        out = false
+        return
+    }
+    byte b1 = 0
+    fly.llvm.strByteAt(path, 1, b1)
+    out = b1 == 58
 }
 
-// isRelative returns true if path does not start with '/'.
+// isRelative returns true if path is not absolute (see isAbsolute).
 public bool isRelative(const string path) {
     bool abs = isAbsolute(path)
     out = abs == false
@@ -658,10 +675,9 @@ public fly.os.env.StringArray glob(const string pattern) {
     fly.llvm.strMake(pat_buf, pat_len, name_pat)
 
     pointer cdir = strToCstr(dir_str)
-    int oflags = 65536
-    int fd = 0
-    fly.runtime.fs_open(cdir, oflags, 0, fd)
-    if fd < 0 {
+    pointer dh = 0
+    fly.runtime.dir_open(cdir, dh)
+    if dh == 0 {
         out.items = 0
         out.count = 0
         return
@@ -681,7 +697,7 @@ public fly.os.env.StringArray glob(const string pattern) {
     bool done = false
     while done == false {
         int nread = 0
-        fly.runtime.fs_getdents(fd, gbuf, gbuf_cap, nread)
+        fly.runtime.dir_read(dh, gbuf, gbuf_cap, nread)
         if nread <= 0 {
             done = true
         } else {
@@ -780,7 +796,7 @@ public fly.os.env.StringArray glob(const string pattern) {
         }
     }
 
-    fly.runtime.fs_close(fd)
+    fly.runtime.dir_close(dh)
     out.items = arr
     out.count = count
 }
@@ -855,9 +871,9 @@ public int globCount(const string pattern) {
     fly.llvm.strMake(pat_buf, pat_len, name_pat)
 
     pointer cdir = strToCstr(dir_str)
-    int fd = 0
-    fly.runtime.fs_open(cdir, 65536, 0, fd)
-    if fd < 0 {
+    pointer dh = 0
+    fly.runtime.dir_open(cdir, dh)
+    if dh == 0 {
         out = 0
         return
     }
@@ -871,7 +887,7 @@ public int globCount(const string pattern) {
 
     while done == false {
         int nread = 0
-        fly.runtime.fs_getdents(fd, gbuf, gbuf_cap, nread)
+        fly.runtime.dir_read(dh, gbuf, gbuf_cap, nread)
         if nread <= 0 {
             done = true
         } else {
@@ -926,7 +942,7 @@ public int globCount(const string pattern) {
         }
     }
 
-    fly.runtime.fs_close(fd)
+    fly.runtime.dir_close(dh)
     out = count
 }
 

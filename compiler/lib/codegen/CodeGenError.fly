@@ -3,8 +3,10 @@ namespace fly.compiler.codegen
 import fly.compiler.sema.*
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenModule
+import fly.compiler.codegen.CodeGenLLVM
 import llvm.api.*
 import fly.mem
+import fly.data.List
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenError — `fail` / `handle` lowering over the shared `%error` struct
@@ -90,13 +92,49 @@ public class CodeGenError {
         pointer b = cge.getBuilder()
         pointer v = cge.gen(e)
         int idx = 2
+        bool isStr = false
         SemaType t = e.getType()
         if t != null {
-            if isCodeField(t) { idx = 0 } elsif t.isString() { idx = 1 }
+            if isCodeField(t) { idx = 0 } elsif t.isString() { idx = 1  isStr = true }
         }
         pointer fp
         llvm.buildStructGEP2(b, errTy, errPtr, idx, "efld", fp)
-        llvm.buildStore(b, v, fp)
+        if isStr {
+            // The str field is a char* the runtime helpers (err_print /
+            // suite_case_result) read until NUL — but a Fly string is {ptr,size}
+            // and is NOT NUL-terminated, so store a fresh NUL-terminated copy:
+            // malloc(size+1), memcpy, buf[size] = 0. Leaked by design — the error
+            // path ends the run. Mirrors the reference CodeGenError::StoreString.
+            CodeGenModule cgm = cge.getCgm()
+            CodeGenLLVM cg = cgm.getCg()
+            pointer srcP
+            llvm.buildExtractValue(b, v, 0, "efsp", srcP)
+            pointer szV
+            llvm.buildExtractValue(b, v, 1, "efsz", szV)
+            pointer i64t
+            llvm.int64TypeInContext(cgm.getCtx(), i64t)
+            pointer szW
+            llvm.buildZExt(b, szV, i64t, "efszw", szW)
+            pointer one64
+            llvm.constInt(i64t, 1, false, one64)
+            pointer bufSz
+            llvm.buildAdd(b, szW, one64, "efbufsz", bufSz)
+            pointer buf = cgm.emitMalloc(bufSz)
+            pointer mcr
+            llvm.buildMemCpy(b, buf, srcP, szW, mcr)
+            pointer i8t
+            llvm.int8TypeInContext(cgm.getCtx(), i8t)
+            List<pointer> gidx = new List<pointer>()
+            gidx.add(szW)
+            pointer endP
+            cg.buildGEP2N(b, i8t, buf, gidx, "efend", endP)
+            pointer z8
+            llvm.constInt(i8t, 0, false, z8)
+            llvm.buildStore(b, z8, endP)
+            llvm.buildStore(b, buf, fp)
+        } else {
+            llvm.buildStore(b, v, fp)
+        }
     }
 
     // isCodeField — operand types that land in the i32 code slot.

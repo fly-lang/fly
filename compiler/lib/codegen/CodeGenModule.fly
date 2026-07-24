@@ -36,6 +36,7 @@ public class CodeGenModule {
     pointer errorTy        // the `%error = { i32 code, ptr str, ptr obj }` named struct
     pointer stringTy       // the `%string = { ptr, i32 size }` named struct (REFERENCE ABI:
                            // archive strings carry an i32 length — reading i64 pulls garbage)
+    pointer arrayTy        // the `%array = { ptr data, i64 len }` named struct (native arrays)
     pointer freeFn         // lazily-declared `void @free(ptr)` (libc); null until first use
     pointer freeFnTy       // its function type
     Map<string, int> ifaceBases   // interface name → global vtable slot base (V4)
@@ -86,6 +87,20 @@ public class CodeGenModule {
         this.cg.structSetBodyN(st, sfields, false)
         this.types.setStringTy(st)
 
+        // %array = { ptr data, i64 len } — the native array value type (fat pointer):
+        // field 0 = heap data buffer (null when empty), field 1 = element count.
+        pointer at
+        llvm.structCreateNamed(c, "array", at)
+        this.arrayTy = at
+        pointer ap = this.types.ptrType()
+        pointer i64a
+        llvm.int64TypeInContext(c, i64a)
+        List<pointer> afields = new List<pointer>()
+        afields.add(ap)
+        afields.add(i64a)
+        this.cg.structSetBodyN(at, afields, false)
+        this.types.setArrayTy(at)
+
         this.freeFn = 0
         this.freeFnTy = 0
     }
@@ -105,6 +120,7 @@ public class CodeGenModule {
 
     public pointer getErrorTy() { out = this.errorTy }
     public pointer getStringTy() { out = this.stringTy }
+    public pointer getArrayTy() { out = this.arrayTy }
 
     // setWeakComdat — attach a COMDAT (selection Any, name = `name`) to a weak
     // (LinkOnceODR) definition. COFF has no weak definitions: lld-link dedups
@@ -240,7 +256,11 @@ public class CodeGenModule {
         while j < bodies.size() {
             SemaFunctionBase fn2 = bodies.get(j)
             if this.isMethod(fn2) == false && fn2.isFromHeader() == false {
-                if this.hasTypeParamSignature(fn2) == false { this.genBody(fn2) }
+                if this.hasTypeParamSignature(fn2) == false {
+                    this.genBody(fn2)
+                    // fly.runtime functions also export an unmangled C-ABI entry.
+                    if this.isRuntimeCABIDef(fn2) { this.emitRuntimeCABIWrapper(fn2) }
+                }
             }
             j = j + 1
         }
@@ -277,12 +297,20 @@ public class CodeGenModule {
     // suiteClasses — the SUITE classes this module defines (header-origin suites
     // are archive-defined elsewhere and never get a runner here).
     public List<SemaClassType> suiteClasses(const List<SemaClassType> classes) {
+        // --suite <Name>: keep only the named suite, so several suites can share a
+        // compilation without the runner colliding on them (reference EmitSuite's
+        // `CGOpts.SuiteName != SuiteName` early-return). Empty filter = every suite.
+        string want = ""
+        if this.codeGenOpts != null { want = this.codeGenOpts.getSuiteName() }
         List<SemaClassType> result = new List<SemaClassType>()
         int i = 0
         while i < classes.size() {
             SemaClassType cls = classes.get(i)
             if cls.getClassKind() == SemaClassKind.SUITE {
-                if cls.isFromHeader() == false { result.add(cls) }
+                if cls.isFromHeader() == false {
+                    if str.isEmpty(want) { result.add(cls) }
+                    elsif str.equals(cls.getName(), want) { result.add(cls) }
+                }
             }
             i = i + 1
         }
@@ -324,6 +352,149 @@ public class CodeGenModule {
         pointer s
         llvm.constIntToPtr(one, pty, s)
         out = s
+    }
+
+    // ── fail-based suite reporting (reference EmitSuite + Suite.c) ────────────
+    // The per-case counters are i32 module GLOBALS: a case increments them from
+    // inside its test-METHOD function, and the runner main() reads them back, so
+    // they must be shared across functions. LinkOnceODR + comdat so several
+    // objects can each define them and the linker merges the duplicates.
+
+    // suiteCounter — get-or-create the named i32 counter global (zero-initialised).
+    public pointer suiteCounter(const string name) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer existing
+        llvm.getNamedGlobal(this.module, name, existing)
+        if existing != 0 { out = existing  return }
+        pointer i32
+        llvm.int32TypeInContext(this.ctx, i32)
+        pointer g
+        llvm.addGlobal(this.module, i32, name, g)
+        pointer zero
+        llvm.constInt(i32, 0, true, zero)
+        llvm.setInitializer(g, zero)
+        llvm.setLinkage(g, 3)                    // LinkOnceODR
+        this.setWeakComdat(g, name)
+        out = g
+    }
+
+    // storeSuiteCounter — set the counter to a constant (reset to 0 per suite).
+    public void storeSuiteCounter(const pointer g, const int val) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer i32
+        llvm.int32TypeInContext(this.ctx, i32)
+        pointer v
+        llvm.constInt(i32, (long)val, true, v)
+        llvm.buildStore(this.builder, v, g)
+    }
+
+    // incrSuiteCounter — `*g = *g + 1`.
+    public void incrSuiteCounter(const pointer g) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer i32
+        llvm.int32TypeInContext(this.ctx, i32)
+        pointer cur
+        llvm.buildLoad2(this.builder, i32, g, "cval", cur)
+        pointer one
+        llvm.constInt(i32, 1, true, one)
+        pointer sum
+        llvm.buildAdd(this.builder, cur, one, "cinc", sum)
+        llvm.buildStore(this.builder, sum, g)
+    }
+
+    // loadSuiteCounter — read the counter's current i32 value.
+    public pointer loadSuiteCounter(const pointer g) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer i32
+        llvm.int32TypeInContext(this.ctx, i32)
+        pointer v
+        llvm.buildLoad2(this.builder, i32, g, "cload", v)
+        out = v
+    }
+
+    // callVoidRt — declare (get-or-add) and call a void C-ABI runtime function by
+    // flat name (suite_begin/method/case_begin/case_result/step_fail/end). The
+    // param types are given; args must match. Same flat-name convention as
+    // env_init / err_print.
+    public void callVoidRt(const string name, const List<pointer> paramTys, const List<pointer> args) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer voidTy
+        llvm.voidTypeInContext(this.ctx, voidTy)
+        pointer fnTy
+        this.cg.functionTypeN(voidTy, paramTys, false, fnTy)
+        pointer fn
+        llvm.getNamedFunction(this.module, name, fn)
+        if fn == 0 { llvm.addFunction(this.module, name, fnTy, fn) }
+        pointer cv
+        this.cg.buildCallN(this.builder, fnTy, fn, args, "", cv)
+    }
+
+    // cstr — a private `[N x i8]` constant for a runtime helper's `const char*`.
+    public pointer cstr(const string text) {
+        out = this.cg.globalString(this.module, this.ctx, text)
+    }
+
+    // errField — address of field `idx` of an %error slot (0=code, 1=str, 2=obj).
+    public pointer errField(const pointer errSlot, const int idx, const string name) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer p
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, idx, name, p)
+        out = p
+    }
+
+    // zeroErrSlot — reset an %error slot to { 0, null, null }.
+    public void zeroErrSlot(const pointer errSlot) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer i32
+        llvm.int32TypeInContext(this.ctx, i32)
+        pointer zero
+        llvm.constInt(i32, 0, true, zero)
+        pointer nullP
+        llvm.constPointerNull(this.types.ptrType(), nullP)
+        llvm.buildStore(this.builder, zero, this.errField(errSlot, 0, "ez0"))
+        llvm.buildStore(this.builder, nullP, this.errField(errSlot, 1, "ez1"))
+        llvm.buildStore(this.builder, nullP, this.errField(errSlot, 2, "ez2"))
+    }
+
+    // emitCheckEscaped — after a setup/teardown/method call, an error left in the
+    // slot escaped OUTSIDE every case (a `fail` in the method body itself, or a
+    // setup/teardown fail). Report it as a step failure, count it (also as a case
+    // when countAsCase), then clear it. Leaves the builder at the continuation.
+    // Mirrors the reference CheckEscaped lambda.
+    public void emitCheckEscaped(const pointer w, const pointer errSlot, const string label, const bool countAsCase, const pointer failedG, const pointer totalG) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer i32
+        llvm.int32TypeInContext(this.ctx, i32)
+        pointer zero
+        llvm.constInt(i32, 0, true, zero)
+        pointer code
+        llvm.buildLoad2(this.builder, i32, this.errField(errSlot, 0, "ecc"), "ecode", code)
+        pointer hasErr
+        llvm.buildICmp(this.builder, 33, code, zero, "eshas", hasErr)      // 33 = NE
+        pointer failBB
+        llvm.appendBasicBlockInContext(this.ctx, w, "step.fail", failBB)
+        pointer contBB
+        llvm.appendBasicBlockInContext(this.ctx, w, "step.cont", contBB)
+        pointer cbr
+        llvm.buildCondBr(this.builder, hasErr, failBB, contBB, cbr)
+        llvm.positionBuilderAtEnd(this.builder, failBB)
+        pointer msg
+        llvm.buildLoad2(this.builder, this.types.ptrType(), this.errField(errSlot, 1, "ecm"), "emsg", msg)
+        List<pointer> sfTys = new List<pointer>()
+        sfTys.add(this.types.ptrType())
+        sfTys.add(i32)
+        sfTys.add(this.types.ptrType())
+        List<pointer> sfArgs = new List<pointer>()
+        sfArgs.add(this.cstr(label))
+        sfArgs.add(code)
+        sfArgs.add(msg)
+        this.callVoidRt("suite_step_fail", sfTys, sfArgs)
+        this.incrSuiteCounter(failedG)
+        if countAsCase { this.incrSuiteCounter(totalG) }
+        this.zeroErrSlot(errSlot)
+        pointer brc
+        llvm.buildBr(this.builder, contBB, brc)
+        llvm.positionBuilderAtEnd(this.builder, contBB)
     }
 
     // emitTestMain — the implicit test entry for a SUITE compilation (reference
@@ -398,6 +569,15 @@ public class CodeGenModule {
         pointer sentinel = this.testCtxSentinel()
         llvm.buildStore(this.builder, sentinel, tls)
 
+        // Per-case counters (module globals; a case increments them from inside
+        // its test-method function, main reads them back) and a main-local
+        // `anyFailed` OR'd across every suite for the exit code.
+        pointer totalG = this.suiteCounter("__fly_suite_total")
+        pointer failedG = this.suiteCounter("__fly_suite_failed")
+        pointer anyFailed
+        llvm.buildAlloca(this.builder, i32, "any_failed", anyFailed)
+        llvm.buildStore(this.builder, zero, anyFailed)
+
         int si = 0
         while si < suites.size() {
             SemaClassType sut = suites.get(si)   // `suite` is a keyword
@@ -406,30 +586,128 @@ public class CodeGenModule {
             SemaClassMethod setupM = null
             SemaClassMethod teardownM = null
             List<SemaClassMethod> testMs = new List<SemaClassMethod>()
+            // --test <Method>: run only the named test-method. Matches the bare
+            // name or the name+"Test" form, so `--test foo` selects `fooTest`
+            // (reference EmitSuite's TestFilter check). Empty = every *Test method.
+            string tf = ""
+            if this.codeGenOpts != null { tf = this.codeGenOpts.getTestFilter() }
             int mi = 0
             while mi < ms.size() {
                 SemaClassMethod m = ms.get(mi)
                 string nm = m.getName()
                 if str.equals(nm, "setup") { setupM = m }
                 elsif str.equals(nm, "teardown") { teardownM = m }
-                elsif str.endsWith(nm, "Test") { testMs.add(m) }
+                elsif str.endsWith(nm, "Test") {
+                    if str.isEmpty(tf) { testMs.add(m) }
+                    elsif str.equals(nm, tf) { testMs.add(m) }
+                    elsif str.equals(nm, str.concat(tf, "Test")) { testMs.add(m) }
+                }
                 mi = mi + 1
             }
 
-            if setupM != null { this.emitSuiteMethodCall(setupM, errSlot, nullP) }
+            string suiteName = sut.getName()
+
+            // Per-suite report: reset the counters so suite_end shows THIS suite's
+            // numbers (the globals are cumulative across the call graph).
+            this.storeSuiteCounter(totalG, 0)
+            this.storeSuiteCounter(failedG, 0)
+
+            List<pointer> nameTy = new List<pointer>()
+            nameTy.add(this.types.ptrType())
+            List<pointer> beginArgs = new List<pointer>()
+            beginArgs.add(this.cstr(suiteName))
+            this.callVoidRt("suite_begin", nameTy, beginArgs)
+
+            // Teardown ALWAYS runs, even when setup fails and methods are skipped.
+            pointer teardownBB
+            llvm.appendBasicBlockInContext(this.ctx, w, "suite.teardown", teardownBB)
+
+            if setupM != null {
+                this.emitSuiteMethodCall(setupM, errSlot, nullP)
+                pointer sc
+                llvm.buildLoad2(this.builder, i32, this.errField(errSlot, 0, "scc"), "scode", sc)
+                pointer scHas
+                llvm.buildICmp(this.builder, 33, sc, zero, "schas", scHas)   // NE
+                pointer sFail
+                llvm.appendBasicBlockInContext(this.ctx, w, "setup.fail", sFail)
+                pointer sOk
+                llvm.appendBasicBlockInContext(this.ctx, w, "setup.ok", sOk)
+                pointer scbr
+                llvm.buildCondBr(this.builder, scHas, sFail, sOk, scbr)
+                llvm.positionBuilderAtEnd(this.builder, sFail)
+                pointer smsg
+                llvm.buildLoad2(this.builder, this.types.ptrType(), this.errField(errSlot, 1, "scm"), "smsg", smsg)
+                List<pointer> sfTys = new List<pointer>()
+                sfTys.add(this.types.ptrType())
+                sfTys.add(i32)
+                sfTys.add(this.types.ptrType())
+                List<pointer> sfArgs = new List<pointer>()
+                sfArgs.add(this.cstr("setup"))
+                sfArgs.add(sc)
+                sfArgs.add(smsg)
+                this.callVoidRt("suite_step_fail", sfTys, sfArgs)
+                this.incrSuiteCounter(failedG)
+                this.incrSuiteCounter(totalG)
+                this.zeroErrSlot(errSlot)
+                pointer sfbr
+                llvm.buildBr(this.builder, teardownBB, sfbr)      // setup failed → skip methods
+                llvm.positionBuilderAtEnd(this.builder, sOk)
+            }
+
             int ti = 0
             while ti < testMs.size() {
-                this.emitSuiteMethodCall(testMs.get(ti), errSlot, nullP)
+                SemaClassMethod tm = testMs.get(ti)
+                List<pointer> mArgs = new List<pointer>()
+                mArgs.add(this.cstr(tm.getName()))
+                this.callVoidRt("suite_method", nameTy, mArgs)
+                this.emitSuiteMethodCall(tm, errSlot, nullP)
+                this.emitCheckEscaped(w, errSlot, "body", true, failedG, totalG)
                 ti = ti + 1
             }
-            if teardownM != null { this.emitSuiteMethodCall(teardownM, errSlot, nullP) }
+
+            pointer tbr
+            llvm.buildBr(this.builder, teardownBB, tbr)
+            llvm.positionBuilderAtEnd(this.builder, teardownBB)
+
+            if teardownM != null {
+                this.emitSuiteMethodCall(teardownM, errSlot, nullP)
+                this.emitCheckEscaped(w, errSlot, "teardown", false, failedG, totalG)
+            }
+
+            // suite_end(name, total, failed)
+            pointer totalV = this.loadSuiteCounter(totalG)
+            pointer failedV = this.loadSuiteCounter(failedG)
+            List<pointer> endTys = new List<pointer>()
+            endTys.add(this.types.ptrType())
+            endTys.add(i32)
+            endTys.add(i32)
+            List<pointer> endArgs = new List<pointer>()
+            endArgs.add(this.cstr(suiteName))
+            endArgs.add(totalV)
+            endArgs.add(failedV)
+            this.callVoidRt("suite_end", endTys, endArgs)
+
+            // anyFailed |= (failed != 0)  — kept as 0/1
+            pointer sfNe
+            llvm.buildICmp(this.builder, 33, failedV, zero, "sfne", sfNe)    // NE
+            pointer sfZ
+            llvm.buildZExt(this.builder, sfNe, i32, "sfz", sfZ)
+            pointer af
+            llvm.buildLoad2(this.builder, i32, anyFailed, "afld", af)
+            pointer afOr
+            llvm.buildOr(this.builder, af, sfZ, "afor", afOr)
+            llvm.buildStore(this.builder, afOr, anyFailed)
+
             si = si + 1
         }
 
-        // clear the TLS gate, then exit clean — a failed assertion never gets here
+        // clear the TLS gate, then exit 1 if any case failed, 0 otherwise (the
+        // per-case codes live in the printed report — the exit is 0/1).
         llvm.buildStore(this.builder, nullP, tls)
+        pointer afFinal
+        llvm.buildLoad2(this.builder, i32, anyFailed, "affinal", afFinal)
         pointer r0
-        llvm.buildRet(this.builder, zero, r0)
+        llvm.buildRet(this.builder, afFinal, r0)
     }
 
     // emitSuiteMethodCall — `call m(errSlot, null this, null…)` (method ABI; the
@@ -765,6 +1043,118 @@ public class CodeGenModule {
         }
     }
 
+    // isRuntimeCABIDef — a `fly.runtime` function with a REAL body (not an empty-body
+    // FFI extern). These need an unmangled C-ABI entry emitted alongside the mangled
+    // impl (see emitRuntimeCABIWrapper); empty-body externs lower to `call @name`.
+    public bool isRuntimeCABIDef(const SemaFunctionBase fn) {
+        if fly.str.equals(fn.getNamespaceName(), "fly_runtime") == false { out = false  return }
+        SemaBlockStmt body = fn.getBody()
+        if body == null { out = false  return }
+        out = body.isEmpty() == false
+    }
+
+    // emitRuntimeCABIWrapper — the self-host emits every function with the mangled,
+    // by-reference Fly ABI (hidden error ptr + one ptr per param). But `fly.runtime`
+    // functions are the runtime's C-ABI boundary: call sites (CodeGenIntrinsics.
+    // genRuntime) invoke them as flat `@name(const-params-by-value) -> firstNonConst`.
+    // So for each non-empty runtime function ALSO emit an unmangled C-ABI entry that
+    // marshals to the mangled impl. WEAK/LinkOnceODR + COMDAT so it does NOT collide
+    // with a C-primitive definition of the same symbol kept in the seed archive on
+    // platforms that recompile the runtime over the seed (Linux); where the self-host
+    // is the sole provider (Windows), the weak def is simply used.
+    public void emitRuntimeCABIWrapper(const SemaFunctionBase fn) {
+        LLVM llvm = this.cg.getLLVM()
+        CodeGenExpr cge = new CodeGenExpr(this)
+        List<SemaParam> params = fn.getParams()
+
+        // C signature: const params by value; first non-const → return type.
+        pointer retTy
+        llvm.voidTypeInContext(this.ctx, retTy)
+        int outIdx = 0 - 1
+        List<pointer> cptys = new List<pointer>()
+        int i = 0
+        while i < params.size() {
+            SemaParam p = params.get(i)
+            if p.isConstant() {
+                cptys.add(cge.lowerType(p.getType()))
+            } else {
+                if outIdx < 0 { outIdx = i  retTy = cge.lowerType(p.getType()) }
+            }
+            i = i + 1
+        }
+        pointer cty
+        this.cg.functionTypeN(retTy, cptys, false, cty)
+        string cname = fn.getName()
+        pointer wfn
+        llvm.getNamedFunction(this.module, cname, wfn)
+        if wfn == 0 { llvm.addFunction(this.module, cname, cty, wfn) }
+        llvm.setLinkage(wfn, 3)                     // LinkOnceODR (weak)
+        this.setWeakComdat(wfn, cname)
+
+        pointer entry
+        llvm.appendBasicBlockInContext(this.ctx, wfn, "entry", entry)
+        llvm.positionBuilderAtEnd(this.builder, entry)
+
+        // %error err = { 0, null, null } — the impl takes a hidden error ptr.
+        pointer errSlot
+        llvm.buildAlloca(this.builder, this.errorTy, "err", errSlot)
+        pointer i32t
+        llvm.int32TypeInContext(this.ctx, i32t)
+        pointer ecode
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 0, "ec", ecode)
+        pointer z32
+        llvm.constInt(i32t, 0, true, z32)
+        llvm.buildStore(this.builder, z32, ecode)
+        pointer pty0 = this.types.ptrType()
+        pointer enull
+        llvm.constPointerNull(pty0, enull)
+        pointer estr
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 1, "es", estr)
+        llvm.buildStore(this.builder, enull, estr)
+        pointer eobj
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 2, "eo", eobj)
+        llvm.buildStore(this.builder, enull, eobj)
+
+        // A slot per Fly param (the impl wants every param by reference). Const params
+        // receive the incoming by-value arg; the out param's slot is written by the impl.
+        List<pointer> callArgs = new List<pointer>()
+        callArgs.add(errSlot)
+        pointer outSlot
+        outSlot = 0
+        int cIdx = 0
+        int k = 0
+        while k < params.size() {
+            SemaParam pm = params.get(k)
+            pointer slot
+            llvm.buildAlloca(this.builder, cge.lowerType(pm.getType()), "a", slot)
+            if pm.isConstant() {
+                pointer av
+                llvm.getParam(wfn, cIdx, av)
+                llvm.buildStore(this.builder, av, slot)
+                cIdx = cIdx + 1
+            } else {
+                if k == outIdx { outSlot = slot }
+            }
+            callArgs.add(slot)
+            k = k + 1
+        }
+
+        pointer implTy = fn.getLlvmFnType()
+        pointer implFn = fn.getLlvmFn()
+        pointer rv
+        this.cg.buildCallN(this.builder, implTy, implFn, callArgs, "", rv)
+
+        if outIdx >= 0 {
+            pointer outv
+            llvm.buildLoad2(this.builder, retTy, outSlot, "rv", outv)
+            pointer r
+            llvm.buildRet(this.builder, outv, r)
+        } else {
+            pointer r
+            llvm.buildRetVoid(this.builder, r)
+        }
+    }
+
     // mangle — `_F<nslen><ns><namelen><name>(_<paramcode>)*` (the synthetic out is
     // a param, so it is encoded too). Mirrors the reference scheme closely enough to
     // be unique per overload; declareFunction and the call site both mangle the same
@@ -1015,6 +1405,15 @@ public class CodeGenModule {
         LLVM llvm = this.cg.getLLVM()
         bool ok = false
         llvm.printModuleToFileChecked(this.module, filename, ok)
+        out = ok
+    }
+
+    // emitBitcodeChecked — write the module as LLVM bitcode (.bc); false when the
+    // file could not be written. Mirrors the reference Backend_EmitBC action.
+    public bool emitBitcodeChecked(const string filename) {
+        LLVM llvm = this.cg.getLLVM()
+        bool ok = false
+        llvm.writeBitcodeToFileChecked(this.module, filename, ok)
         out = ok
     }
 

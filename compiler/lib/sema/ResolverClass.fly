@@ -368,7 +368,9 @@ public class ResolverClass {
 
         ASTExpr ie = node.getExpr()
         if ie != null {
+            r.setExpectedType(t)            // so `T[] xs = {...}` types the literal
             ie.accept(r)
+            r.setExpectedType(null)
             attr.setInitExpr(r.getCurrentExpr())
         }
 
@@ -393,7 +395,13 @@ public class ResolverClass {
         string cn = cls.getName()
         if fly.str.equals(mn, cn) {
             List<ASTParam> ps0 = node.getParams()
-            if ps0.size() == 0 { cls.setDefaultConstructor(meth) }
+            // A ctor IS the default constructor when it is callable with NO
+            // arguments: no params, or every param carrying a default value.
+            // Recording it suppresses the synthesized no-arg ctor below
+            // (createDefaultConstructor) — that empty stub would otherwise win
+            // `new C()` on exact arity and leave the declared ctor (and its
+            // defaults, and its body) unrun.
+            if allParamsDefaulted(ps0) { cls.setDefaultConstructor(meth) }
         }
 
         r.setCurrentFunctionBase(meth)
@@ -419,7 +427,24 @@ public class ResolverClass {
                 ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rt, "out", noMods, null)
                 outAst.accept(r)
                 meth.addParam(r.getCurrentParam())
+                meth.setOutParamCount(1)
             }
+        } else {
+            // Multi-return METHOD: one synthetic `__out_i` per declared return type,
+            // mirroring ResolverDecl.resolveSignature for free functions.
+            List<ASTType> rts = node.getReturnTypes()
+            int ri = 0
+            while ri < rts.size() {
+                ASTType rti = rts.get(ri)
+                rti.accept(r)
+                List<ASTModifier> noMods = new List<ASTModifier>()
+                string on = fly.str.concat("__out_", fly.str.convert(ri))
+                ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rti, on, noMods, null)
+                outAst.accept(r)
+                meth.addParam(r.getCurrentParam())
+                ri = ri + 1
+            }
+            meth.setOutParamCount((int)rts.size())
         }
 
         // Link this method to the base method it overrides (skip constructors).
@@ -508,4 +533,19 @@ public class ResolverClass {
         Symbol sym = new Symbol(node.getName(), SymbolKind.ENUM_ENTRY, entry)
         r.addSymbol(sym)
     }
+}
+
+// allParamsDefaulted — true when a parameter list can be satisfied with NO
+// arguments: empty, or every param carrying a default value (ASTVar.expr, set by
+// ParserFunction.parseParams).
+public bool allParamsDefaulted(const List<ASTParam> ps) {
+    if ps == null { out = true  return }
+    int i = 0
+    while i < ps.size() {
+        ASTParam p = ps.get(i)
+        if p == null { out = false  return }
+        if p.getExpr() == null { out = false  return }
+        i = i + 1
+    }
+    out = true
 }

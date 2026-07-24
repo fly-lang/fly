@@ -1,0 +1,208 @@
+namespace fly.driver.test.cli
+
+import fly.driver.*
+
+import fly.compiler.basic.*
+import fly.str
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DriverCliSuite — audit item T4: Driver CLI helpers (parseUInt, emitExt,
+// applyOutDir, defaultOut, missingValue — the B14a diagnostic).
+//
+// NOTE: driving Driver.run() in-process (building a StringArray argv) is BLOCKED
+// by a reference-compiler parser limitation: a namespace-qualified type does not
+// parse in a local declaration or function return type, and a qualified `new`
+// (new fly.os.env.StringArray()) derails suite parsing — with --src-dir it hangs
+// the compiler outright. The end-to-end CLI error paths (--lib/--header exit 1,
+// second positional rejected, missing option values) are exercised by the audit's
+// manual repros; move them here if/when the bootstrap accepts qualified types.
+//
+// NOTE 2: the 0xC00000FD stack-overflow residual that used to keep the driver
+// suites from running is FIXED (buildAlloca now hoists to the entry block); this
+// suite runs under test_compiler at STAGE=1/2. The option-model cases were also
+// verified end-to-end against the built fly.exe: each of the four conflicts exits
+// 1 with its message, and `-o` with --emit-ll/--emit-as, `-c` without a link, and
+// the default link each produce the right artifact.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite DriverCliSuite {
+
+    void helperTest() {
+        case "parseUInt: digits parse, junk falls back to the default": {
+            Driver d = new Driver()
+            assert.assertEqI(d.parseUInt("42", 0), 42, 20)
+            assert.assertEqI(d.parseUInt("bogus", 7), 7, 21)
+            assert.assertEqI(d.parseUInt("", 3), 3, 22)
+        }
+        case "emitExt maps emit modes to extensions": {
+            Driver d = new Driver()
+            assert.assertStr(d.emitExt(0), ".ll", 30)
+            assert.assertStr(d.emitExt(1), ".o", 31)
+            assert.assertStr(d.emitExt(2), ".s", 32)
+            assert.assertStr(d.emitExt(3), "", 33)
+            assert.assertStr(d.emitExt(4), ".bc", 34)
+        }
+        case "applyOutDir prefixes relative paths only": {
+            Driver d = new Driver()
+            assert.assertStr(d.applyOutDir("/out", "rel.ll"), "/out/rel.ll", 40)
+            assert.assertStr(d.applyOutDir("/out", "/abs.ll"), "/abs.ll", 41)
+            assert.assertStr(d.applyOutDir("", "rel.ll"), "rel.ll", 42)
+            // Windows absolute paths must NOT be prefixed (would mangle into an
+            // invalid "<dir>/C:/…" the object emitter crashes on): drive-absolute
+            // "X:/…" and root "/…"/"\…" forms are returned unchanged.
+            assert.assertStr(d.applyOutDir("/out", "C:/abs.o"), "C:/abs.o", 43)
+        }
+        case "defaultOut swaps or appends the extension": {
+            Driver d = new Driver()
+            assert.assertStr(d.defaultOut("foo.fly", ".o"), "foo.o", 45)
+            assert.assertStr(d.defaultOut("bar.txt", ".s"), "bar.txt.s", 46)
+        }
+        case "missingValue (B14a) reports and returns 1": {
+            Driver d = new Driver()
+            assert.assertEqI(d.missingValue("-o"), 1, 50)
+        }
+        case "normalizeArg: single-dash long options gain the -- spelling": {
+            Driver d = new Driver()
+            assert.assertStr(d.normalizeArg("-debug"), "--debug", 65)
+            assert.assertStr(d.normalizeArg("-emit-ll"), "--emit-ll", 66)
+            assert.assertStr(d.normalizeArg("-static"), "--static", 67)
+            assert.assertStr(d.normalizeArg("-help"), "--help", 68)
+        }
+        case "normalizeArg: shorts, attached-value shorts and -- pass through": {
+            Driver d = new Driver()
+            assert.assertStr(d.normalizeArg("-o"), "-o", 70)
+            assert.assertStr(d.normalizeArg("-O2"), "-O2", 71)
+            assert.assertStr(d.normalizeArg("-j4"), "-j4", 72)
+            assert.assertStr(d.normalizeArg("-L/x"), "-L/x", 73)
+            assert.assertStr(d.normalizeArg("-Ifoo"), "-Ifoo", 74)
+            assert.assertStr(d.normalizeArg("--debug"), "--debug", 75)
+            assert.assertStr(d.normalizeArg("-S"), "-S", 76)
+            assert.assertStr(d.normalizeArg("-c"), "-c", 77)
+            assert.assertStr(d.normalizeArg("build"), "build", 78)
+        }
+        case "validLogFormat accepts txt|json only": {
+            Driver d = new Driver()
+            assert.assertTrue(d.validLogFormat("txt"), 55)
+            assert.assertTrue(d.validLogFormat("json"), 56)
+            assert.assertFalse(d.validLogFormat("xml"), 57)
+            assert.assertFalse(d.validLogFormat(""), 58)
+        }
+        case "eqValue extracts the value of an --opt=value token": {
+            // The `=`-forms the Builder emits (--target=, --link-lib=) and the
+            // filter forms (--test=, --suite=) all go through eqValue.
+            Driver d = new Driver()
+            assert.assertStr(d.eqValue("--target=x86_64-w64-windows-gnu"), "x86_64-w64-windows-gnu", 51)
+            assert.assertStr(d.eqValue("--link-lib=ntdll"), "ntdll", 52)
+            assert.assertStr(d.eqValue("--suite="), "", 53)
+            assert.assertStr(d.eqValue("--suite"), "", 54)
+        }
+    }
+
+    // ── The three-axis option model (ported from the reference DriverTest) ──────────
+    // FORMAT (--emit-ll/--emit-bc/--emit-as, default object) · STAGE (--no-output,
+    // -c, default link) · SHAPE (--lib/--lib-static, --lib-dyn/--lib-dynamic).
+    // The reference drives these through Driver::BuildOptions; the self-host cannot
+    // build an argv in-process (see the note above), so the rules themselves are
+    // exercised — they are what run() consults.
+    //
+    // emitFormat: 0=.ll 1=object 2=.s   axisError: 0=ok 1..4=the conflict id.
+
+    void stageAxisTest() {
+        case "the default stage links": {
+            Driver d = new Driver()
+            assert.assertTrue(d.linkStepFor(false, false, 1), 100)
+        }
+        case "-c stops before the link but still emits": {
+            Driver d = new Driver()
+            assert.assertFalse(d.linkStepFor(true, false, 1), 101)
+        }
+        case "--no-output stops before the link": {
+            Driver d = new Driver()
+            assert.assertFalse(d.linkStepFor(false, true, 1), 102)
+        }
+        case "a non-object format never links": {
+            // Only object code can be linked, so .ll/.s/.bc stop at the artifact
+            // exactly as -c does — no silent link of something unlinkable.
+            Driver d = new Driver()
+            assert.assertFalse(d.linkStepFor(false, false, 0), 103)
+            assert.assertFalse(d.linkStepFor(false, false, 2), 104)
+            assert.assertFalse(d.linkStepFor(false, false, 4), 106)
+        }
+        case "-c and --no-output together still do not link": {
+            Driver d = new Driver()
+            assert.assertFalse(d.linkStepFor(true, true, 1), 105)
+        }
+    }
+
+    void shapeAxisTest() {
+        case "a static library is a linking build": {
+            // --lib/--lib-static keep the object format and reach the link step;
+            // the SHAPE axis never rewrites the format (it used to).
+            Driver d = new Driver()
+            assert.assertEqI(d.axisError(true, false, 1, false, false, true), 0, 110)
+            assert.assertTrue(d.linkStepFor(false, false, 1), 111)
+        }
+        case "a dynamic library is a linking build": {
+            Driver d = new Driver()
+            assert.assertEqI(d.axisError(false, true, 1, false, false, true), 0, 112)
+        }
+        case "neither shape flag is fine": {
+            Driver d = new Driver()
+            assert.assertEqI(d.axisError(false, false, 1, false, false, true), 0, 113)
+        }
+    }
+
+    void axisConflictTest() {
+        case "--lib with --lib-dyn is rejected": {
+            Driver d = new Driver()
+            assert.assertEqI(d.axisError(true, true, 1, false, false, true), 1, 120)
+        }
+        case "a library with a non-object format is rejected": {
+            // The silent override this replaces: --lib rewrote the format, so
+            // `fly --emit-ll --lib x.fly` returned an object to someone who asked
+            // for IR, without a word.
+            Driver d = new Driver()
+            assert.assertEqI(d.axisError(true, false, 0, false, false, true), 2, 121)
+            assert.assertEqI(d.axisError(true, false, 2, false, false, true), 2, 122)
+            assert.assertEqI(d.axisError(false, true, 0, false, false, true), 2, 123)
+            assert.assertEqI(d.axisError(true, false, 4, false, false, true), 2, 138)
+        }
+        case "a library with -c or --no-output is rejected": {
+            Driver d = new Driver()
+            assert.assertEqI(d.axisError(true, false, 1, true, false, true), 3, 124)
+            assert.assertEqI(d.axisError(true, false, 1, false, true, false), 3, 125)
+            assert.assertEqI(d.axisError(false, true, 1, true, false, true), 3, 126)
+        }
+        case "-o with --no-output is rejected": {
+            Driver d = new Driver()
+            assert.assertEqI(d.axisError(false, false, 1, false, true, true), 4, 127)
+        }
+        case "-o with an emit format is ACCEPTED": {
+            // -o names the single emitted artifact; it used to be refused for
+            // everything but object output.
+            Driver d = new Driver()
+            assert.assertEqI(d.axisError(false, false, 0, false, false, true), 0, 128)
+            assert.assertEqI(d.axisError(false, false, 2, false, false, true), 0, 129)
+            assert.assertEqI(d.axisError(false, false, 1, true, false, true), 0, 130)
+        }
+        case "--no-output without -o is fine": {
+            Driver d = new Driver()
+            assert.assertEqI(d.axisError(false, false, 1, false, true, false), 0, 131)
+        }
+        case "the most specific conflict wins": {
+            // --lib --lib-dyn --emit-ll trips both rule 1 and rule 2; rule 1 is
+            // reported so the message names the flags actually in conflict.
+            Driver d = new Driver()
+            assert.assertEqI(d.axisError(true, true, 0, false, false, true), 1, 132)
+        }
+        case "every conflict id has a message": {
+            Driver d = new Driver()
+            assert.assertNotEmpty(d.axisErrorText(1), 133)
+            assert.assertNotEmpty(d.axisErrorText(2), 134)
+            assert.assertNotEmpty(d.axisErrorText(3), 135)
+            assert.assertNotEmpty(d.axisErrorText(4), 136)
+            assert.assertEmpty(d.axisErrorText(0), 137)
+        }
+    }
+}

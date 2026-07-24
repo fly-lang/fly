@@ -81,7 +81,15 @@ public class ParserClass {
             ASTMethod meth = ASTBuilder.CreateClassMethod(loc, c, nm, mmods, params, mbody)
             meth.setReturnType(ty)
         } else {
-            ASTAttribute attr = ASTBuilder.CreateClassAttribute(loc, c, ty, nm, mmods, null)
+            // Attribute, optionally with a field initializer: `Type name = expr`.
+            // Mirrors the local-var decl path (Parser.parseDecl); the reference
+            // parser did this too (ParserClass.cpp) — the self-host port dropped it.
+            ASTExpr init = null
+            if p.curIsPunct("=") {
+                p.bump()
+                init = p.parseExpr()
+            }
+            ASTAttribute attr = ASTBuilder.CreateClassAttribute(loc, c, ty, nm, mmods, init)
         }
     }
 }

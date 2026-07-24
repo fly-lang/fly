@@ -1,0 +1,171 @@
+namespace fly.compiler.parser
+import fly.compiler.basic.*
+import fly.str
+import fly.llvm
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DeclScan — byte-level scan of a source buffer for its TOP-LEVEL declarations,
+// the self-host mirror of the reference Frontend.cpp::ScanTopLevelDecls. The
+// directory-mode Driver runs it over EVERY source under the root, so it is a
+// raw byte scanner working on the string's pointer (fly.llvm.strGetPtr): no
+// Parser/Lexer objects, no per-token allocations — it allocates nothing but the
+// suite names it returns.
+//
+// It skips // and /* */ comments and "…"/'…' literals (a `void main()` inside a
+// string template is never mistaken for the entry), tracks brace depth, and at
+// depth 0 recognizes `main` followed by `(` (the program entry) and
+// `suite <Name>` (a test suite declaration). Class methods named main sit at
+// depth >= 1 and never match.
+//
+// History: the first version was contorted around four codegen landmines of the
+// then-pinned seed (memory: seed-0139-codegen-landmines). The probes were re-run
+// against the re-cut seed on 2026-07-23 and all pass, so this is the plain
+// helper-based shape again. One PARSER gotcha still applies: a condition may
+// not START with '(' — bind masked values to a variable before comparing.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// scanTopLevelDecls — scan `src` and return a ";"-delimited list whose FIRST
+// segment is "1" when the buffer declares a top-level main() ("0" otherwise),
+// followed by one segment per declared suite name, e.g. ";1;" or ";0;OsEnvSuite;".
+public string scanTopLevelDecls(const string src) {
+    pointer p = 0
+    fly.llvm.strGetPtr(src, p)
+    int n = 0
+    fly.llvm.strSize(src, n)
+    int i = 0
+    int depth = 0
+    bool hasMain = false
+    bool prevMain = false
+    bool prevSuite = false
+    string suites = ""
+    while i < n {
+        int c = declByteP(p, i)
+        if c == 47 && declPeekP(p, n, i + 1) == 47 {
+            i = declSkipLine(p, n, i + 2)
+        } elsif c == 47 && declPeekP(p, n, i + 1) == 42 {
+            i = declSkipBlock(p, n, i + 2)
+        } elsif c == 34 || c == 39 {
+            i = declSkipQuote(p, n, i + 1, c)
+        } elsif c == 123 {
+            depth = depth + 1
+            prevMain = false
+            prevSuite = false
+            i = i + 1
+        } elsif c == 125 {
+            if depth > 0 { depth = depth - 1 }
+            prevMain = false
+            prevSuite = false
+            i = i + 1
+        } elsif declIsIdentStart(c) {
+            int s = i
+            int e = declIdentEnd(p, n, i + 1)
+            i = e
+            if depth == 0 {
+                if prevSuite {
+                    // segAppend, never `x = concat(x, …)` (self-alias gotcha)
+                    string nm = fly.str.substring(src, s, e)
+                    suites = segAppend(suites, nm)
+                }
+                prevSuite = declWordIs(p, s, e, "suite")
+                prevMain = declWordIs(p, s, e, "main")
+            }
+        } elsif c == 40 {
+            // '(' directly after a top-level `main` identifier = the entry point
+            if depth == 0 && prevMain { hasMain = true }
+            prevMain = false
+            prevSuite = false
+            i = i + 1
+        } elsif c == 32 || c == 9 || c == 13 || c == 10 {
+            i = i + 1               // whitespace keeps the prev-identifier flags
+        } else {
+            prevMain = false
+            prevSuite = false
+            i = i + 1
+        }
+    }
+    string head = ";0;"
+    if hasMain { head = ";1;" }
+    out = fly.str.concat(head, suites)
+}
+
+// declSkipLine — from just past "//", return the index of the newline (or n).
+public int declSkipLine(const pointer p, const int n, const int from) {
+    int i = from
+    while i < n && declByteP(p, i) != 10 { i = i + 1 }
+    out = i
+}
+
+// declSkipBlock — from just past "/*", return the index just past "*/" (or n).
+public int declSkipBlock(const pointer p, const int n, const int from) {
+    int i = from
+    bool open = true
+    while open && i < n {
+        if declByteP(p, i) == 42 && declPeekP(p, n, i + 1) == 47 {
+            i = i + 2
+            open = false
+        } else {
+            i = i + 1
+        }
+    }
+    out = i
+}
+
+// declSkipQuote — from just past the opening delimiter `q`, return the index
+// just past the closing one (escape-aware, like the Lexer's lexQuoted).
+public int declSkipQuote(const pointer p, const int n, const int from, const int q) {
+    int i = from
+    bool open = true
+    while open && i < n {
+        int cc = declByteP(p, i)
+        if cc == 92 { i = i + 2 }
+        elsif cc == q { i = i + 1  open = false }
+        else { i = i + 1 }
+    }
+    out = i
+}
+
+// declIdentEnd — from the byte after an identifier head, return the index just
+// past the identifier's last body byte.
+public int declIdentEnd(const pointer p, const int n, const int from) {
+    int i = from
+    while i < n && declIsIdentBody(declByteP(p, i)) { i = i + 1 }
+    out = i
+}
+
+// declByteP — byte code at buffer offset i (caller guarantees i < len).
+public int declByteP(const pointer p, const int i) {
+    byte b = 0
+    fly.llvm.ptrByteAt(p, i, b)
+    out = b & 255
+}
+
+// declPeekP — byte code at offset i, or -1 past the end.
+public int declPeekP(const pointer p, const int n, const int i) {
+    if i >= n { out = 0 - 1  return }
+    out = declByteP(p, i)
+}
+
+// declIsIdentStart / declIsIdentBody — ASCII identifier character classes.
+public bool declIsIdentStart(const int c) {
+    out = (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c == 95
+}
+public bool declIsIdentBody(const int c) {
+    out = (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || (c >= 48 && c <= 57) || c == 95
+}
+
+// declWordIs — buffer[s..e) equals `w`, compared byte-wise without allocating.
+public bool declWordIs(const pointer p, const int s, const int e, const string w) {
+    int wl = fly.str.len(w)
+    if e - s != wl { out = false  return }
+    int k = 0
+    while k < wl {
+        byte wb = 0
+        fly.str.byteAt(w, k, wb)
+        // masked int compare; a condition may not START with '(' (parser gotcha)
+        int ai = declByteP(p, s + k)
+        int bi = wb & 255
+        if ai != bi { out = false  return }
+        k = k + 1
+    }
+    out = true
+}

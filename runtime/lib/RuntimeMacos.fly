@@ -1,0 +1,749 @@
+namespace fly.runtime
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fly runtime — macOS (arm64/x86-64) backend, over libSystem (Rust-style FFI).
+// Every OS interaction is an extern-C call to a libSystem symbol (macOS offers no
+// stable raw syscalls). Ported from fly/runtime/platform/macOS/*.c.
+//
+// NOTE: written and compile-checked on Linux; NOT runtime-tested on macOS (no SDK
+// available here). Differences from the Linux backend it mirrors:
+//   • struct stat layout: st_mode @ 4 (u16), st_size @ 96 (i64)
+//   • getdents → getdirentries64(fd, buf, size, *basep)
+//   • CLOCK_MONOTONIC = 6 (Linux: 1)
+//   • futex → __ulock_wait / __ulock_wake
+//   • argv/env via _NSGetArgc / _NSGetArgv / _NSGetEnviron (no globals, no /proc)
+//   • uname fields are 256 bytes each; exe path via _NSGetExecutablePath
+// Linked against libSystem (see ToolChain macOS link path).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── libSystem externs (empty body → pure `call @name`) ────────────────────────
+public void malloc(const ulong size, pointer out) {}
+public void free(const pointer ptr) {}
+public void realloc(const pointer ptr, const ulong size, pointer out) {}
+public void write(const int fd, const pointer buf, const ulong count, long out) {}
+public void read(const int fd, const pointer buf, const ulong count, long out) {}
+public void open(const pointer path, const int flags, const int mode, int out) {}
+public void close(const int fd, int out) {}
+public void lseek(const int fd, const long offset, const int whence, long out) {}
+public void mkdir(const pointer path, const int mode, int out) {}
+public void rmdir(const pointer path, int out) {}
+public void unlink(const pointer path, int out) {}
+public void rename(const pointer src, const pointer dst, int out) {}
+public void fsync(const int fd, int out) {}
+public void truncate(const pointer path, const long size, int out) {}
+public void chmod(const pointer path, const int mode, int out) {}
+public void symlink(const pointer target, const pointer link, int out) {}
+public void readlink(const pointer path, const pointer buf, const ulong size, long out) {}
+public void stat(const pointer path, const pointer buf, int out) {}
+public void lstat(const pointer path, const pointer buf, int out) {}
+public void getdirentries64(const int fd, const pointer buf, const ulong size, const pointer basep, long out) {}
+public void clock_gettime(const int clk, const pointer ts, int out) {}
+public void nanosleep(const pointer req, const pointer rem, int out) {}
+public void getcwd(const pointer buf, const ulong size, pointer out) {}
+public void chdir(const pointer path, int out) {}
+public void getenv(const pointer name, pointer out) {}
+public void setenv(const pointer name, const pointer val, const int overwrite, int out) {}
+public void unsetenv(const pointer name, int out) {}
+public void gethostname(const pointer buf, const ulong size, int out) {}
+public void uname(const pointer buf, int out) {}
+public void _exit(const int code) {}
+public void strlen(const pointer s, ulong out) {}
+public void _NSGetExecutablePath(const pointer buf, const pointer bufsize, int out) {}
+public void _NSGetArgc(pointer out) {}
+public void _NSGetArgv(pointer out) {}
+public void _NSGetEnviron(pointer out) {}
+// process / threads
+public void fork(int out) {}
+public void execv(const pointer path, const pointer argv, int out) {}
+public void waitpid(const int pid, const pointer status, const int options, int out) {}
+public void pthread_create(const pointer thread, const pointer attr, const pointer start, const pointer arg, int out) {}
+public void __ulock_wait(const int op, const pointer addr, const long value, const int timeout, int out) {}
+public void __ulock_wake(const int op, const pointer addr, const long wake, int out) {}
+// atomics (libSystem/compiler-rt)
+public void __atomic_load_4(const pointer ptr, const int memorder, int out) {}
+public void __atomic_store_4(const pointer ptr, const int val, const int memorder) {}
+public void __atomic_compare_exchange_4(const pointer ptr, const pointer expected, const int desired, const int wk, const int success, const int failure, bool out) {}
+public void __atomic_fetch_add_4(const pointer ptr, const int val, const int memorder, int out) {}
+// math (libSystem libm) — declaration-only externs (call @erf …)
+public void erf(const double x, double out) {}
+public void erfc(const double x, double out) {}
+public void tgamma(const double x, double out) {}
+public void asin(const double x, double out) {}
+public void acos(const double x, double out) {}
+public void atan(const double x, double out) {}
+public void atan2(const double y, const double x, double out) {}
+public void sinh(const double x, double out) {}
+public void cosh(const double x, double out) {}
+public void tanh(const double x, double out) {}
+public void hypot(const double x, const double y, double out) {}
+public void asinh(const double x, double out) {}
+public void acosh(const double x, double out) {}
+public void atanh(const double x, double out) {}
+
+// ── Memory ────────────────────────────────────────────────────────────────────
+public void mem_alloc(const ulong size, pointer out) {
+    ulong s = size
+    if s == 0 { s = 1 }
+    fly.runtime.malloc(s, out)
+}
+public void mem_free(const pointer ptr, const ulong size) {
+    fly.runtime.free(ptr)
+}
+public void mem_realloc(const pointer ptr, const ulong newSize, pointer out) {
+    ulong s = newSize
+    if s == 0 { s = 1 }
+    fly.runtime.realloc(ptr, s, out)
+}
+
+// ── I/O ─────────────────────────────────────────────────────────────────────
+public void io_write(const int fd, const pointer buf, const ulong count, long out) {
+    fly.runtime.write(fd, buf, count, out)
+}
+
+// ── Process ───────────────────────────────────────────────────────────────────
+public void proc_exit(const int code) {
+    fly.runtime._exit(code)
+}
+
+// ── Filesystem — thin libSystem wrappers ─────────────────────────────────────
+public void fs_open(const pointer path, const int flags, const int mode, int out) {
+    fly.runtime.open(path, flags, mode, out)
+}
+public void fs_close(const int fd) {
+    int r = 0
+    fly.runtime.close(fd, r)
+}
+public void fs_read(const int fd, const pointer buf, const ulong count, long out) {
+    fly.runtime.read(fd, buf, count, out)
+}
+public void fs_write(const int fd, const pointer buf, const ulong count, long out) {
+    fly.runtime.write(fd, buf, count, out)
+}
+public void fs_seek(const int fd, const long offset, const int whence, long out) {
+    fly.runtime.lseek(fd, offset, whence, out)
+}
+public void fs_mkdir(const pointer path, const int mode, int out) {
+    fly.runtime.mkdir(path, mode, out)
+}
+public void fs_rmdir(const pointer path, int out) {
+    fly.runtime.rmdir(path, out)
+}
+public void fs_unlink(const pointer path, int out) {
+    fly.runtime.unlink(path, out)
+}
+public void fs_rename(const pointer src, const pointer dst, int out) {
+    fly.runtime.rename(src, dst, out)
+}
+public void fs_fsync(const int fd, int out) {
+    fly.runtime.fsync(fd, out)
+}
+public void fs_truncate(const pointer path, const long size, int out) {
+    fly.runtime.truncate(path, size, out)
+}
+public void fs_chmod(const pointer path, const int mode, int out) {
+    fly.runtime.chmod(path, mode, out)
+}
+public void fs_symlink(const pointer target, const pointer link, int out) {
+    fly.runtime.symlink(target, link, out)
+}
+public void fs_readlink(const pointer path, const pointer buf, const ulong size, int out) {
+    long r = 0
+    fly.runtime.readlink(path, buf, size, r)
+    fly.llvm.longToInt(r, out)
+}
+public void fs_getdents(const int fd, const pointer buf, const ulong size, int out) {
+    pointer basep = 0
+    fly.runtime.malloc(8, basep)
+    fly.llvm.ptrPokeLong(basep, 0, 0)
+    long r = 0
+    fly.runtime.getdirentries64(fd, buf, size, basep, r)
+    fly.runtime.free(basep)
+    fly.llvm.longToInt(r, out)
+}
+
+// stat helpers — macOS struct stat: st_mode @ 4 (u16), st_size @ 96 (i64). Buffer 160 B.
+// st_mode is the low 16 bits of the i32 at offset 4 (st_mode | st_nlink<<16).
+public void fs_size(const pointer path, long out) {
+    pointer st = 0
+    fly.runtime.malloc(160, st)
+    int rc = 0
+    fly.runtime.stat(path, st, rc)
+    if rc < 0 { out = 0 - 1 } else { fly.llvm.ptrReadLong(st, 96, out) }
+    fly.runtime.free(st)
+}
+public void fs_mode(const pointer path, int out) {
+    pointer st = 0
+    fly.runtime.malloc(160, st)
+    int rc = 0
+    fly.runtime.stat(path, st, rc)
+    if rc < 0 { out = 0 - 1 } else {
+        int packed = 0
+        fly.llvm.ptrReadInt(st, 4, packed)
+        out = packed & 65535
+    }
+    fly.runtime.free(st)
+}
+public void fs_lsize(const pointer path, long out) {
+    pointer st = 0
+    fly.runtime.malloc(160, st)
+    int rc = 0
+    fly.runtime.lstat(path, st, rc)
+    if rc < 0 { out = 0 - 1 } else { fly.llvm.ptrReadLong(st, 96, out) }
+    fly.runtime.free(st)
+}
+public void fs_lmode(const pointer path, int out) {
+    pointer st = 0
+    fly.runtime.malloc(160, st)
+    int rc = 0
+    fly.runtime.lstat(path, st, rc)
+    if rc < 0 { out = 0 - 1 } else {
+        int packed = 0
+        fly.llvm.ptrReadInt(st, 4, packed)
+        out = packed & 65535
+    }
+    fly.runtime.free(st)
+}
+// mtime helpers — last-modification time as TOTAL NANOSECONDS since the Unix
+// epoch in one i64 (sec = out/1e9, nsec = out%1e9; splitting is the caller's
+// job so the primitive keeps a single out). st_mtimespec: tv_sec @ 48,
+// tv_nsec @ 56. -1 on a failed stat.
+public void fs_mtime(const pointer path, long out) {
+    pointer st = 0
+    fly.runtime.malloc(160, st)
+    int rc = 0
+    fly.runtime.stat(path, st, rc)
+    if rc < 0 { out = 0 - 1 } else {
+        long sec = 0
+        long nsec = 0
+        fly.llvm.ptrReadLong(st, 48, sec)
+        fly.llvm.ptrReadLong(st, 56, nsec)
+        out = sec * 1000000000 + nsec
+    }
+    fly.runtime.free(st)
+}
+public void fs_lmtime(const pointer path, long out) {
+    pointer st = 0
+    fly.runtime.malloc(160, st)
+    int rc = 0
+    fly.runtime.lstat(path, st, rc)
+    if rc < 0 { out = 0 - 1 } else {
+        long sec = 0
+        long nsec = 0
+        fly.llvm.ptrReadLong(st, 48, sec)
+        fly.llvm.ptrReadLong(st, 56, nsec)
+        out = sec * 1000000000 + nsec
+    }
+    fly.runtime.free(st)
+}
+
+// ── Time — clock_gettime (REALTIME=0, MONOTONIC=6) / nanosleep ───────────────
+// macos_timespec { i64 tv_sec @0, long tv_nsec @8 } (both 8 bytes on 64-bit).
+public void time_now_ns(long out) {
+    pointer ts = 0
+    fly.runtime.malloc(16, ts)
+    int rc = 0
+    fly.runtime.clock_gettime(0, ts, rc)
+    long sec = 0
+    long nsec = 0
+    fly.llvm.ptrReadLong(ts, 0, sec)
+    fly.llvm.ptrReadLong(ts, 8, nsec)
+    out = sec * 1000000000 + nsec
+    fly.runtime.free(ts)
+}
+public void time_mono_ns(long out) {
+    pointer ts = 0
+    fly.runtime.malloc(16, ts)
+    int rc = 0
+    fly.runtime.clock_gettime(6, ts, rc)
+    long sec = 0
+    long nsec = 0
+    fly.llvm.ptrReadLong(ts, 0, sec)
+    fly.llvm.ptrReadLong(ts, 8, nsec)
+    out = sec * 1000000000 + nsec
+    fly.runtime.free(ts)
+}
+public void time_sleep(const long sec, const long nsec) {
+    pointer ts = 0
+    fly.runtime.malloc(16, ts)
+    fly.llvm.ptrPokeLong(ts, 0, sec)
+    fly.llvm.ptrPokeLong(ts, 8, nsec)
+    int rc = 0
+    fly.runtime.nanosleep(ts, 0, rc)
+    fly.runtime.free(ts)
+}
+
+// ── Environment ──────────────────────────────────────────────────────────────
+// toCStr — Fly string → NUL-terminated C buffer.
+private void toCStr(const string s, pointer out) {
+    int n = 0
+    fly.llvm.strSize(s, n)
+    pointer src = 0
+    fly.llvm.strGetPtr(s, src)
+    pointer buf = 0
+    fly.runtime.malloc(n + 1, buf)
+    int i = 0
+    while i < n {
+        byte b = 0
+        fly.llvm.ptrByteAt(src, i, b)
+        fly.llvm.ptrPokeByte(buf, i, b)
+        i = i + 1
+    }
+    byte z = 0
+    fly.llvm.ptrPokeByte(buf, n, z)
+    out = buf
+}
+
+// copyCStr — copy the NUL-terminated C string at src into dst[0..cap); returns length.
+private void copyCStr(const pointer src, const pointer dst, const ulong cap, int out) {
+    long capL = 0
+    fly.llvm.ulongToLong(cap, capL)
+    int limit = 0
+    long capm1 = capL - 1
+    fly.llvm.longToInt(capm1, limit)
+    int i = 0
+    bool go = true
+    while go {
+        if i >= limit { go = false } else {
+            byte b = 0
+            fly.llvm.ptrByteAt(src, i, b)
+            if b == 0 { go = false } else {
+                fly.llvm.ptrPokeByte(dst, i, b)
+                i = i + 1
+            }
+        }
+    }
+    fly.llvm.ptrPokeByte(dst, i, 0)
+    out = i
+}
+
+public void env_chdir(const pointer path, int out) {
+    fly.runtime.chdir(path, out)
+}
+public void env_set(const pointer key, const pointer val, int out) {
+    fly.runtime.setenv(key, val, 1, out)
+}
+public void env_delete(const pointer key, int out) {
+    fly.runtime.unsetenv(key, out)
+}
+public void env_get(const pointer key, const pointer buf, const ulong size, int out) {
+    pointer val = 0
+    fly.runtime.getenv(key, val)
+    if val == 0 {
+        fly.llvm.ptrPokeByte(buf, 0, 0)
+        out = 0 - 1
+        return
+    }
+    copyCStr(val, buf, size, out)
+}
+public void env_getcwd(const pointer buf, const ulong cap, int out) {
+    pointer r = 0
+    fly.runtime.getcwd(buf, cap, r)
+    if r == 0 {
+        out = 0 - 1
+        return
+    }
+    ulong len = 0
+    fly.runtime.strlen(buf, len)
+    long lenL = 0
+    fly.llvm.ulongToLong(len, lenL)
+    fly.llvm.longToInt(lenL, out)
+}
+public void env_hostname(const pointer buf, const ulong size, int out) {
+    int rc = 0
+    fly.runtime.gethostname(buf, size, rc)
+    if rc != 0 {
+        fly.llvm.ptrPokeByte(buf, 0, 0)
+        out = 0 - 1
+        return
+    }
+    ulong len = 0
+    fly.runtime.strlen(buf, len)
+    long lenL = 0
+    fly.llvm.ulongToLong(len, lenL)
+    fly.llvm.longToInt(lenL, out)
+}
+
+// macOS struct utsname = 5 × 256-byte NUL-terminated fields:
+// sysname@0 nodename@256 release@512 version@768 machine@1024.
+private void unameField(const int offset, const pointer buf, const ulong size, int out) {
+    pointer u = 0
+    fly.runtime.malloc(1280, u)
+    int rc = 0
+    fly.runtime.uname(u, rc)
+    if rc != 0 {
+        fly.llvm.ptrPokeByte(buf, 0, 0)
+        out = 0 - 1
+        fly.runtime.free(u)
+        return
+    }
+    pointer field = u + offset
+    copyCStr(field, buf, size, out)
+    fly.runtime.free(u)
+}
+public void env_arch(const pointer buf, const ulong size, int out) {
+    unameField(1024, buf, size, out)
+}
+public void env_kernel(const pointer buf, const ulong size, int out) {
+    unameField(512, buf, size, out)
+}
+public void env_kernelversion(const pointer buf, const ulong size, int out) {
+    unameField(768, buf, size, out)
+}
+public void env_osname(const pointer buf, const ulong size, int out) {
+    pointer src = 0
+    toCStr("macos", src)
+    copyCStr(src, buf, size, out)
+    fly.runtime.free(src)
+}
+// env_exe_path — _NSGetExecutablePath(buf, &bufsize); returns 0 on success.
+public void env_exe_path(const pointer buf, const ulong size, int out) {
+    if size == 0 { out = 0 - 1  return }
+    pointer bufsize = 0
+    fly.runtime.malloc(4, bufsize)
+    int szi = 0
+    fly.llvm.longToInt((long)size, szi)
+    fly.llvm.ptrPokeInt(bufsize, 0, szi)
+    int rc = 0
+    fly.runtime._NSGetExecutablePath(buf, bufsize, rc)
+    fly.runtime.free(bufsize)
+    if rc != 0 {
+        fly.llvm.ptrPokeByte(buf, 0, 0)
+        out = 0 - 1
+        return
+    }
+    ulong len = 0
+    fly.runtime.strlen(buf, len)
+    long lenL = 0
+    fly.llvm.ulongToLong(len, lenL)
+    fly.llvm.longToInt(lenL, out)
+}
+
+// argv / env via the _NSGet* accessors (return pointers; no globals/env_init).
+private void nsArgv(pointer out) {
+    pointer pv = 0
+    fly.runtime._NSGetArgv(pv)     // pv = char*** (pointer to char**)
+    long v = 0
+    fly.llvm.ptrReadLong(pv, 0, v)
+    out = v
+}
+private void nsEnviron(pointer out) {
+    pointer pe = 0
+    fly.runtime._NSGetEnviron(pe)  // pe = char*** (pointer to char**)
+    long v = 0
+    fly.llvm.ptrReadLong(pe, 0, v)
+    out = v
+}
+public void env_args_count(int out) {
+    pointer pc = 0
+    fly.runtime._NSGetArgc(pc)     // pc = int*
+    fly.llvm.ptrReadInt(pc, 0, out)
+}
+public void env_args_fill(const pointer arr_base, const int count) {
+    pointer argv = 0
+    nsArgv(argv)
+    int i = 0
+    while i < count {
+        long entry = 0
+        fly.llvm.ptrReadLong(argv, i * 8, entry)
+        if entry == 0 { i = count } else {
+            fillSlotFromCStr(arr_base, i, entry)
+            i = i + 1
+        }
+    }
+}
+public void env_all_count(int out) {
+    pointer env = 0
+    nsEnviron(env)
+    int n = 0
+    bool go = true
+    while go {
+        long e = 0
+        fly.llvm.ptrReadLong(env, n * 8, e)
+        if e == 0 { go = false } else { n = n + 1 }
+    }
+    out = n
+}
+public void env_all_fill(const pointer arr_base, const int count) {
+    pointer env = 0
+    nsEnviron(env)
+    int i = 0
+    while i < count {
+        long entry = 0
+        fly.llvm.ptrReadLong(env, i * 8, entry)
+        if entry == 0 { i = count } else {
+            fillSlotFromCStr(arr_base, i, entry)
+            i = i + 1
+        }
+    }
+}
+// env_init — accessors need no stored state; kept as a defined no-op.
+public void env_init(const int argc, const pointer argv) {
+    int unused = argc
+}
+
+// fillSlotFromCStr — copy the NUL-terminated C string `cstr` into a fresh malloc'd
+// buffer and write it as slot `idx` of arr_base.
+private void fillSlotFromCStr(const pointer arr_base, const int idx, const pointer cstr) {
+    ulong len = 0
+    fly.runtime.strlen(cstr, len)
+    long lenL = 0
+    fly.llvm.ulongToLong(len, lenL)
+    int ilen = 0
+    fly.llvm.longToInt(lenL, ilen)
+    pointer dst = 0
+    fly.runtime.malloc(len + 1, dst)
+    int j = 0
+    while j < ilen {
+        byte b = 0
+        fly.llvm.ptrByteAt(cstr, j, b)
+        fly.llvm.ptrPokeByte(dst, j, b)
+        j = j + 1
+    }
+    fly.llvm.ptrPokeByte(dst, ilen, 0)
+    fly.runtime.str_slot_set(arr_base, idx, dst, ilen)
+}
+
+// ── Process / concurrency ─────────────────────────────────────────────────────
+public void proc_exec(const pointer path, const pointer argv, int out) {
+    int pid = 0
+    fly.runtime.fork(pid)
+    if pid < 0 { out = 0 - 1  return }
+    if pid == 0 {
+        int rc = 0
+        fly.runtime.execv(path, argv, rc)
+        fly.runtime._exit(127)
+    }
+    pointer status = 0
+    fly.runtime.malloc(4, status)
+    int r = 0
+    fly.runtime.waitpid(pid, status, 0, r)
+    if r < 0 { fly.runtime.free(status)  out = 0 - 1  return }
+    int st = 0
+    fly.llvm.ptrReadInt(status, 0, st)
+    fly.runtime.free(status)
+    int low = st & 127
+    if low == 0 {
+        int ex = st >> 8
+        out = ex & 255
+    } else {
+        out = 128 + low
+    }
+}
+public void thread_spawn(const pointer fn, const pointer arg, const ulong stackSize, int out) {
+    pointer th = 0
+    fly.runtime.malloc(8, th)
+    int rc = 0
+    fly.runtime.pthread_create(th, 0, fn, arg, rc)
+    if rc == 0 {
+        long t = 0
+        fly.llvm.ptrReadLong(th, 0, t)
+        fly.llvm.longToInt(t, out)
+    } else {
+        out = 0 - 1
+    }
+    fly.runtime.free(th)
+}
+// futex via __ulock (UL_COMPARE_AND_WAIT=1, ULF_WAKE_ALL=0x100).
+public void futex_wait(const pointer addr, const int expected) {
+    long e = expected
+    int r = 0
+    fly.runtime.__ulock_wait(1, addr, e, 0, r)
+}
+public void futex_wake(const pointer addr, const int count, int out) {
+    int r = 0
+    if count == 1 {
+        fly.runtime.__ulock_wake(1, addr, 0, r)
+        out = 1
+    } else {
+        fly.runtime.__ulock_wake(257, addr, 0, r)
+        out = count
+    }
+}
+public void atomic_load_i32(const pointer addr, int out) {
+    fly.runtime.__atomic_load_4(addr, 2, out)
+}
+public void atomic_store_i32(const pointer addr, const int val) {
+    fly.runtime.__atomic_store_4(addr, val, 3)
+}
+public void atomic_cas_i32(const pointer addr, const int expected, const int desired, int out) {
+    pointer exp = 0
+    fly.runtime.malloc(4, exp)
+    fly.llvm.ptrPokeInt(exp, 0, expected)
+    bool ok = false
+    fly.runtime.__atomic_compare_exchange_4(addr, exp, desired, 0, 4, 2, ok)
+    fly.llvm.ptrReadInt(exp, 0, out)
+    fly.runtime.free(exp)
+}
+public void atomic_fetch_add_i32(const pointer addr, const int delta, int out) {
+    fly.runtime.__atomic_fetch_add_4(addr, delta, 4, out)
+}
+
+// ── Fly string-array slot helpers ────────────────────────────────────────────
+public void str_slot_set(const pointer arr_base, const int idx, const pointer ptr, const int size) {
+    int off = idx * 16
+    fly.llvm.ptrPokeLong(arr_base, off, ptr)
+    fly.llvm.ptrPokeInt(arr_base, off + 8, size)
+    fly.llvm.ptrPokeInt(arr_base, off + 12, 0)
+}
+public void str_slot_ptr(const pointer arr_base, const int idx, pointer out) {
+    int off = idx * 16
+    long v = 0
+    fly.llvm.ptrReadLong(arr_base, off, v)
+    out = v
+}
+public void str_slot_size(const pointer arr_base, const int idx, int out) {
+    int off = idx * 16
+    fly.llvm.ptrReadInt(arr_base, off + 8, out)
+}
+
+// ── Error / suite-runner reporting ───────────────────────────────────────────
+// Mirrors the reference runtime/platform/{Err,Suite}.c. Called ONLY by
+// compiler-generated code: err_print by main's epilogue for an unhandled
+// error, suite_* by the implicit main() of a `suite` binary.
+
+// Write the NUL-terminated C string at s to fd (no-op for null/empty).
+private void wrCStr(const int fd, const pointer s) {
+    if s == 0 { return }
+    int n = 0
+    bool go = true
+    while go {
+        byte b = 0
+        fly.llvm.ptrByteAt(s, n, b)
+        if b == 0 { go = false } else { n = n + 1 }
+    }
+    if n == 0 { return }
+    long w = 0
+    fly.runtime.io_write(fd, s, (ulong)n, w)
+}
+
+// Write a string literal to fd.
+private void wrLit(const int fd, const string s) {
+    pointer p = 0
+    toCStr(s, p)
+    wrCStr(fd, p)
+    fly.runtime.free(p)
+}
+
+// Write a single newline to fd (Fly string literals keep escapes raw).
+private void wrNl(const int fd) {
+    pointer p = 0
+    fly.runtime.malloc(1, p)
+    fly.llvm.ptrPokeByte(p, 0, 10)
+    long w = 0
+    fly.runtime.io_write(fd, p, 1, w)
+    fly.runtime.free(p)
+}
+
+// Write v in decimal to fd.
+private void wrDec(const int fd, const int v) {
+    pointer buf = 0
+    fly.runtime.malloc(12, buf)
+    int mag = v
+    bool neg = v < 0
+    if neg { mag = 0 - mag }
+    int len = 0
+    int t = mag
+    if t == 0 { len = 1 } else {
+        while t > 0 {
+            len = len + 1
+            t = t / 10
+        }
+    }
+    int pos = len
+    if neg { pos = pos + 1 }
+    int i = pos - 1
+    t = mag
+    if t == 0 {
+        fly.llvm.ptrPokeByte(buf, i, 48)
+    } else {
+        while t > 0 {
+            int d = t - (t / 10) * 10
+            fly.llvm.ptrPokeByte(buf, i, 48 + d)
+            i = i - 1
+            t = t / 10
+        }
+    }
+    if neg { fly.llvm.ptrPokeByte(buf, 0, 45) }
+    long w = 0
+    fly.runtime.io_write(fd, buf, (ulong)pos, w)
+    fly.runtime.free(buf)
+}
+
+// " FAIL(<code>)[: <msg>]" + newline — shared tail of a failed case/step line.
+private void wrFail(const int code, const pointer msg) {
+    wrLit(1, " FAIL(")
+    wrDec(1, code)
+    wrLit(1, ")")
+    if msg != 0 {
+        byte b0 = 0
+        fly.llvm.ptrByteAt(msg, 0, b0)
+        if b0 != 0 {
+            wrLit(1, ": ")
+            wrCStr(1, msg)
+        }
+    }
+    wrNl(1)
+}
+
+// Print "error <code>[: <msg>]" to stderr — unhandled error reaching main().
+public void err_print(const int code, const pointer msg) {
+    wrLit(2, "error ")
+    wrDec(2, code)
+    if msg != 0 {
+        byte b0 = 0
+        fly.llvm.ptrByteAt(msg, 0, b0)
+        if b0 != 0 {
+            wrLit(2, ": ")
+            wrCStr(2, msg)
+        }
+    }
+    wrNl(2)
+}
+
+public void suite_begin(const pointer name) {
+    wrLit(1, "suite ")
+    wrCStr(1, name)
+    wrNl(1)
+}
+
+public void suite_method(const pointer name) {
+    wrLit(1, "  ")
+    wrCStr(1, name)
+    wrNl(1)
+}
+
+// No newline: the case result (or a crash) completes the line.
+public void suite_case_begin(const pointer label) {
+    wrLit(1, "    ")
+    wrCStr(1, label)
+    wrLit(1, " ...")
+}
+
+public void suite_case_result(const int code, const pointer msg) {
+    if code == 0 {
+        wrLit(1, " ok")
+        wrNl(1)
+        return
+    }
+    wrFail(code, msg)
+}
+
+public void suite_step_fail(const pointer label, const int code, const pointer msg) {
+    wrLit(1, "    ")
+    wrCStr(1, label)
+    wrLit(1, " ...")
+    wrFail(code, msg)
+}
+
+public void suite_end(const pointer name, const int total, const int failed) {
+    wrLit(1, "suite ")
+    wrCStr(1, name)
+    wrLit(1, ": ")
+    wrDec(1, total)
+    wrLit(1, " cases, ")
+    wrDec(1, total - failed)
+    wrLit(1, " passed, ")
+    wrDec(1, failed)
+    wrLit(1, " failed")
+    wrNl(1)
+}

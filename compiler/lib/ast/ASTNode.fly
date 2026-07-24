@@ -25,6 +25,11 @@ public class ASTNode : ASTBase {
     public ASTFunction asFunction() { out = null }
     public ASTVar asVar() { out = null }
     public ASTEnumEntry asEnumEntry() { out = null }
+    // Appended (kept last so existing vtable slots don't shift): expression/value
+    // downcasts used by declarative AST walkers (e.g. the fly.meta manifest reader).
+    public ASTStringValue asStringValue() { out = null }
+    public ASTArrayValue asArrayValue() { out = null }
+    public ASTCall asCall() { out = null }
 
     // accept — virtual visitor dispatch. Concrete leaf nodes override this with
     // `v.visit(this)`; this base no-op lets a base-typed node (ASTExpr/ASTStmt/

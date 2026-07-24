@@ -1,0 +1,199 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DeepInheritSuite — multi-level (3-4 deep) class inheritance.
+//
+// The property under test is that a deeply derived class can reach members
+// declared several levels up: fields of a great-grandparent, methods inherited
+// from an intermediate level, and an enum-typed field read by a root method —
+// all through implicit `this`, through an explicit reference, and through an
+// inherited method that itself reaches further up.
+//
+// Writes are covered as well as reads: a method on a deep class writing a
+// great-grandparent field must be visible to the root's own accessor, and vice
+// versa, which is what proves the single object layout is shared rather than
+// each level owning a copy.
+//
+// Assert codes: 1xx reads down the chain, 2xx writes, 3xx references and
+// dispatch, 4xx multiple instances and shapes.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum Kind { NONE, LEAF }
+
+class A {
+    Kind kind
+    int a
+    public A(const Kind k, const int x) { this.kind = k  this.a = x }
+    public int getA() { out = this.a }                       // root reads its own field
+    public int kindVal() { out = (int)this.kind.value }      // enum accessor on own field
+    public void setA(const int v) { this.a = v }
+}
+
+class B : A {
+    int b
+    public B(const Kind k, const int x, const int y) { super(k, x)  this.b = y }
+    public int getB() { out = this.b }
+    public int aPlusB() { out = this.a + this.b }            // reaches one level up
+}
+
+class C : B {
+    int c
+    public C(const Kind k, const int x, const int y, const int z) { super(k, x, y)  this.c = z }
+    // reaches a great-grandparent field (A.a) and a grandparent one (B.b)
+    public int reach() { out = this.a + this.b + this.c }
+    public void bumpA() { this.a = this.a + 100 }            // writes A.a from depth 3
+}
+
+class D : C {
+    int d
+    public D(const Kind k, const int x, const int y, const int z, const int w) {
+        super(k, x, y, z)  this.d = w
+    }
+    public int total() { out = this.reach() + this.d }       // inherited C.reach()
+    public int deepA() { out = this.a }                      // A.a from depth 4
+    public void bumpD() { this.d = this.d + 1 }
+}
+
+int reachOf(const C c) { out = c.reach() }
+int rootA(const A a) { out = a.getA() }
+
+suite DeepInheritSuite {
+
+    // ── reading members declared several levels up ───────────────────────────
+    void readTest() {
+        case "a root method called on the deepest class": {
+            D o = new D(Kind.LEAF, 1, 2, 3, 4)
+            assert.assertEqI(o.getA(), 1, 101)
+            assert.assertEqI(o.kindVal(), 2, 102)      // Kind.LEAF == 2
+        }
+        case "a root field read directly from depth 4": {
+            D o = new D(Kind.LEAF, 1, 2, 3, 4)
+            assert.assertEqI(o.deepA(), 1, 103)
+        }
+        case "an intermediate method reaching one level up": {
+            D o = new D(Kind.LEAF, 1, 2, 3, 4)
+            assert.assertEqI(o.getB(), 2, 104)
+            assert.assertEqI(o.aPlusB(), 3, 105)       // 1 + 2
+        }
+        case "a method reaching two levels up": {
+            D o = new D(Kind.LEAF, 1, 2, 3, 4)
+            assert.assertEqI(o.reach(), 6, 106)        // a + b + c = 1 + 2 + 3
+        }
+        case "an inherited method calling another inherited method": {
+            D o = new D(Kind.LEAF, 1, 2, 3, 4)
+            assert.assertEqI(o.total(), 10, 107)       // reach() 6 + d 4
+        }
+        case "every level's own constructor argument landed": {
+            D o = new D(Kind.LEAF, 10, 20, 30, 40)
+            assert.assertEqI(o.getA(), 10, 108)
+            assert.assertEqI(o.getB(), 20, 109)
+            assert.assertEqI(o.reach(), 60, 110)       // 10 + 20 + 30
+            assert.assertEqI(o.total(), 100, 111)
+        }
+    }
+
+    // ── writing members declared several levels up ───────────────────────────
+    void writeTest() {
+        case "a depth-3 method writes a root field": {
+            D o = new D(Kind.LEAF, 1, 2, 3, 4)
+            o.bumpA()
+            assert.assertEqI(o.getA(), 101, 201)
+            assert.assertEqI(o.reach(), 106, 202)      // 101 + 2 + 3
+            assert.assertEqI(o.total(), 110, 203)
+        }
+        case "a root method writes a field the deep methods read": {
+            D o = new D(Kind.LEAF, 1, 2, 3, 4)
+            o.setA(50)
+            assert.assertEqI(o.deepA(), 50, 204)
+            assert.assertEqI(o.reach(), 55, 205)       // 50 + 2 + 3
+            assert.assertEqI(o.aPlusB(), 52, 206)
+        }
+        case "writes at different depths are independent fields": {
+            D o = new D(Kind.LEAF, 1, 2, 3, 4)
+            o.bumpA()
+            o.bumpD()
+            assert.assertEqI(o.getA(), 101, 207)
+            assert.assertEqI(o.getB(), 2, 208)         // untouched
+            assert.assertEqI(o.total(), 111, 209)      // (101+2+3) + 5
+        }
+        case "repeated writes accumulate": {
+            D o = new D(Kind.LEAF, 0, 0, 0, 0)
+            int i = 0
+            while i < 10 {
+                o.bumpA()
+                i = i + 1
+            }
+            assert.assertEqI(o.getA(), 1000, 210)
+        }
+    }
+
+    // ── through references at each level ─────────────────────────────────────
+    void referenceTest() {
+        case "a deep instance seen as each of its bases": {
+            D o = new D(Kind.LEAF, 1, 2, 3, 4)
+            A asA = o
+            B asB = o
+            C asC = o
+            assert.assertEqI(asA.getA(), 1, 301)
+            assert.assertEqI(asB.aPlusB(), 3, 302)
+            assert.assertEqI(asC.reach(), 6, 303)
+        }
+        case "through parameters typed at each level": {
+            D o = new D(Kind.LEAF, 1, 2, 3, 4)
+            assert.assertEqI(rootA(o), 1, 304)
+            assert.assertEqI(reachOf(o), 6, 305)
+        }
+        case "a write through one reference is visible through another": {
+            D o = new D(Kind.LEAF, 1, 2, 3, 4)
+            A asA = o
+            asA.setA(9)
+            assert.assertEqI(o.deepA(), 9, 306)
+            C asC = o
+            assert.assertEqI(asC.reach(), 14, 307)     // 9 + 2 + 3
+        }
+        case "a mid-chain instance works on its own": {
+            C c = new C(Kind.NONE, 1, 2, 3)
+            assert.assertEqI(c.reach(), 6, 308)
+            assert.assertEqI(c.kindVal(), 1, 309)      // Kind.NONE == 1
+            assert.assertEqI(rootA(c), 1, 310)
+        }
+    }
+
+    // ── several instances, and each level standing alone ─────────────────────
+    void instanceTest() {
+        case "instances at different depths do not interfere": {
+            A a = new A(Kind.NONE, 1)
+            B b = new B(Kind.NONE, 2, 3)
+            C c = new C(Kind.LEAF, 4, 5, 6)
+            D d = new D(Kind.LEAF, 7, 8, 9, 10)
+            assert.assertEqI(a.getA(), 1, 401)
+            assert.assertEqI(b.aPlusB(), 5, 402)
+            assert.assertEqI(c.reach(), 15, 403)
+            assert.assertEqI(d.total(), 34, 404)       // (7+8+9) + 10
+        }
+        case "two deep instances stay separate": {
+            D x = new D(Kind.LEAF, 1, 1, 1, 1)
+            D y = new D(Kind.LEAF, 2, 2, 2, 2)
+            x.bumpA()
+            assert.assertEqI(x.getA(), 101, 405)
+            assert.assertEqI(y.getA(), 2, 406)
+            assert.assertEqI(y.total(), 8, 407)
+        }
+        case "many deep instances built in a loop": {
+            int bad = 0 - 1
+            int i = 0
+            while i < 50 {
+                D o = new D(Kind.LEAF, i, i, i, i)
+                if o.total() != i * 4 { bad = i }
+                i = i + 1
+            }
+            assert.assertEqI(bad, 0 - 1, 408)
+        }
+        case "the enum field survives the whole chain": {
+            D leaf = new D(Kind.LEAF, 0, 0, 0, 0)
+            D none = new D(Kind.NONE, 0, 0, 0, 0)
+            assert.assertEqI(leaf.kindVal(), 2, 409)
+            assert.assertEqI(none.kindVal(), 1, 410)
+        }
+    }
+}

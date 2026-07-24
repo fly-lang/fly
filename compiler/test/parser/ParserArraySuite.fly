@@ -1,0 +1,141 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.mem
+import fly.str
+import fly.assert
+
+// Array parsing — literals `{...}`, array types `T[]`/`T[N]`/`T[][]`, and field/
+// local initializers. Literal structure is read back through the `asArrayValue()`
+// downcast (base ASTNode returns null, ASTArrayValue overrides). Type/decl cases
+// are acceptance-only (`isSuccess`), mirroring the sibling parser suites. Mirrors
+// the reference ParserValueTest / ParserLocalVarTest coverage.
+
+// dq — a real double-quote char (the self-host lexer keeps `\"` raw, so string
+// literals inside a parsed source are built at runtime). Same trick as dquote().
+string dq() {
+    pointer buf = fly.mem.alloc(1)
+    byte q = 34
+    fly.llvm.strPoke(buf, 0, q)
+    string s = ""
+    fly.llvm.strMake(buf, 1, s)
+    out = s
+}
+
+suite ParserArraySuite {
+
+    void literalTest() {
+        case "empty {}": {
+            Parser p = new Parser("{}")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 1)
+            ASTArrayValue a = e.asArrayValue()
+            assert.assertTrue(a != null, 2)
+            assert.assertEqI(a.getValues().size(), 0, 3)
+        }
+        case "int elements {1,2,3}": {
+            Parser p = new Parser("{1, 2, 3}")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 4)
+            ASTArrayValue a = e.asArrayValue()
+            assert.assertTrue(a != null, 5)
+            assert.assertEqI(a.getValues().size(), 3, 6)
+        }
+        case "bool elements {true,false}": {
+            Parser p = new Parser("{true, false}")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 7)
+            ASTArrayValue a = e.asArrayValue()
+            assert.assertEqI(a.getValues().size(), 2, 8)
+        }
+        case "trailing comma {1,2,}": {
+            Parser p = new Parser("{1, 2,}")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 9)
+            ASTArrayValue a = e.asArrayValue()
+            assert.assertEqI(a.getValues().size(), 2, 10)
+        }
+    }
+
+    void nestedTest() {
+        case "nested {{1,2},{3,4}}": {
+            Parser p = new Parser("{{1, 2}, {3, 4}}")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 11)
+            ASTArrayValue a = e.asArrayValue()
+            assert.assertTrue(a != null, 12)
+            assert.assertEqI(a.getValues().size(), 2, 13)
+            ASTArrayValue row0 = a.getValues().get(0).asArrayValue()
+            assert.assertTrue(row0 != null, 14)
+            assert.assertEqI(row0.getValues().size(), 2, 15)
+        }
+    }
+
+    void objectElementsTest() {
+        case "array of new {new C()}": {
+            Parser p = new Parser("{new C(), new C()}")
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 16)
+            ASTArrayValue a = e.asArrayValue()
+            assert.assertEqI(a.getValues().size(), 2, 17)
+        }
+        case "string elements": {
+            string Q = dq()
+            // build:  {"a", "b", ""}
+            string src = fly.str.concat("{", fly.str.concat(Q, fly.str.concat("a", Q)))
+            src = fly.str.concat(src, ", ")
+            src = fly.str.concat(src, fly.str.concat(Q, fly.str.concat("b", Q)))
+            src = fly.str.concat(src, "}")
+            Parser p = new Parser(src)
+            ASTExpr e = p.parseExpr()
+            assert.assertTrue(p.isSuccess(), 18)
+            ASTArrayValue a = e.asArrayValue()
+            assert.assertEqI(a.getValues().size(), 2, 19)
+        }
+    }
+
+    void arrayTypeTest() {
+        case "T[] field decl": {
+            Parser p = new Parser("class C { int[] xs }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 20)
+        }
+        case "T[N] sized decl": {
+            Parser p = new Parser("void f() { int[3] a }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 21)
+        }
+        case "T[][] nested type": {
+            Parser p = new Parser("void f() { int[][] m }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 22)
+        }
+    }
+
+    void initTest() {
+        case "field init T[] xs = {1,2}": {
+            Parser p = new Parser("class C { int[] xs = {1, 2} }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 23)
+        }
+        case "local init int[] a = {1,2,3}": {
+            Parser p = new Parser("void f() { int[] a = {1, 2, 3} }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 24)
+        }
+        case "empty init int[] a = {}": {
+            Parser p = new Parser("void f() { int[] a = {} }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 25)
+        }
+    }
+
+    void forInParseTest() {
+        case "for x in a parses": {
+            Parser p = new Parser("void f() { int[] a = {1, 2, 3}  for x in a { } }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 26)
+        }
+    }
+}

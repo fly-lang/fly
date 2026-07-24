@@ -21,13 +21,22 @@ public class SemaCall : SemaExpr {
     bool isSuperFlag
     List<SemaExpr> args
     SemaLocalVar outVar
+    List<SemaLocalVar> outVars   // every synthetic out slot (multi-return has N)
 
     public SemaCall(const ASTCall callAst, const SemaType type) {
         super(SemaKind.CALL, type)
         this.callAst = callAst
         this.isSuperFlag = false
         this.args = new List<SemaExpr>()
+        this.outVars = new List<SemaLocalVar>()
     }
+
+    // outVars — the synthetic out locals appended to getArgs(), in order. Empty for
+    // a void call, one entry for a single return, N for an `A,B,…` multi-return.
+    // getOutVar() stays the FIRST of them: that is the call's rvalue, matching
+    // `int q = divmod(17, 5)` binding out[0].
+    public List<SemaLocalVar> getOutVars() { out = this.outVars }
+    public void addOutVar(const SemaLocalVar v) { this.outVars.add(v) }
 
     public SemaCall asCall() { out = this }
     public ASTCall getAST() { out = this.callAst }

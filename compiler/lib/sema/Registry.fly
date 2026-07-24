@@ -12,6 +12,8 @@ import fly.compiler.sema.SemaNode
 import fly.compiler.sema.SemaBuiltin
 import fly.compiler.basic.DiagnosticsEngine
 import fly.compiler.ast.ASTName
+import fly.compiler.ast.ASTFunction
+import fly.compiler.ast.ASTParam
 import fly.data.List
 import fly.data.Map
 import fly.str
@@ -264,6 +266,31 @@ public class Registry {
         List<Symbol> syms = scope.lookupInParents(name)
         if syms == null { out = null  return }
 
+        // Pass 0: MULTI-RETURN called with its out slots SUPPLIED. `A,B f(x)` can be
+        // invoked either way:
+        //   short  — `A v = f(x)`        the resolver synthesizes the out vars and
+        //                                the call's value is out[0];
+        //   full   — `f(x, va, vb)`      the caller passes its own variables as the
+        //                                trailing out arguments and reads them after.
+        // The full form is the ONLY way to reach the second and later results, so it
+        // has to resolve; getParamTypes() reports the EXPLICIT params, which is what
+        // makes the short form match, so the full arity is checked separately here
+        // against the lowered signature.
+        Symbol full = null
+        int fullCount = 0
+        int f0 = 0
+        while f0 < syms.size() {
+            Symbol s = syms.get(f0)
+            if s.getKind() == SymbolKind.FUNCTION {
+                if outArgsSupplied(s, types) {
+                    if full == null { full = s }
+                    fullCount = fullCount + 1
+                }
+            }
+            f0 = f0 + 1
+        }
+        if fullCount == 1 { out = full  return }
+
         // Pass 1: exact (inheritance-tolerant)
         Symbol exact = null
         int exactCount = 0
@@ -320,13 +347,122 @@ public class Registry {
             }
             j = j + 1
         }
-        out = promo
+        if promo != null { out = promo  return }
+
+        // Pass 3: DEFAULT PARAMETERS — last resort, so an overload that takes the
+        // supplied arity exactly always wins over one that would fall back on its
+        // defaults. A candidate declaring MORE params than the call supplies matches
+        // when every surplus param carries a default value and the leading prefix of
+        // its param types accepts the args.
+        Symbol def = null
+        int d = 0
+        while d < syms.size() {
+            Symbol s = syms.get(d)
+            if s.getKind() == SymbolKind.FUNCTION {
+                if defaultsMatch(s, types) {
+                    if def == null { def = s }
+                }
+            }
+            d = d + 1
+        }
+        out = def
     }
 }
 
 // ── overload type-compatibility predicates (param types vs argument types) ──────
 // Each compares a candidate's explicit parameter types `p` against call arg types
 // `a` (a null arg type is the `null`/unset literal, matching any class param).
+
+// outArgsSupplied — true when `types` is a call that passes a MULTI-RETURN
+// function's out slots explicitly: the arity matches the LOWERED signature
+// (explicit params + one slot per declared return) and every position is
+// compatible. Only multi-return functions qualify — a single-return `out` stays
+// synthetic, so `int f()` is never callable as `f(v)`.
+public bool outArgsSupplied(const Symbol s, const List<SemaType> types) {
+    SemaNode ref = s.getRef()
+    if ref == null { out = false  return }
+    SemaFunctionBase fn = ref.asFunctionBase()
+    if fn == null { out = false  return }
+    if fn.getOutParamCount() < 2 { out = false  return }
+    List<SemaParam> ps = fn.getParams()
+    if ps == null { out = false  return }
+    int np = (int)ps.size()
+    int na = (int)types.size()
+    if np != na { out = false  return }
+    int i = 0
+    while i < ps.size() {
+        SemaParam p = ps.get(i)
+        if p == null { out = false  return }
+        SemaType pt = p.getType()
+        SemaType at = types.get(i)
+        if pt == null { out = false  return }
+        bool ok = matchClassOrEqual(pt, at)
+        if ok == false {
+            if at != null {
+                if pt.isNumber() {
+                    if at.isNumber() { ok = true }
+                }
+            }
+        }
+        if ok == false { out = false  return }
+        i = i + 1
+    }
+    out = true
+}
+
+// defaultsMatch — true when candidate `s` declares MORE parameters than the call
+// supplies, every surplus parameter carries a default value, and the leading prefix
+// of its parameter types accepts the supplied argument types (promotion rules).
+//
+// The declared arity is read from getParamTypes() / the AST — NEVER from
+// SemaFunctionBase.getParams(), which also holds the SYNTHETIC out params appended
+// by resolveSignature (one for a non-void return, N for a multi-return). Counting
+// there would make every non-void candidate look like it had a trailing default.
+// The prefix is tested IN PLACE (no temporary List): this runs for every candidate
+// of every failed lookup.
+public bool defaultsMatch(const Symbol s, const List<SemaType> a) {
+    List<SemaType> p = s.getParamTypes()
+    if p == null { out = false  return }
+    int np = (int)p.size()
+    int na = (int)a.size()
+    if np <= na { out = false  return }
+    SemaNode ref = s.getRef()
+    if ref == null { out = false  return }
+    SemaFunctionBase fn = ref.asFunctionBase()
+    if fn == null { out = false  return }
+    ASTFunction fa = fn.getAST()
+    if fa == null { out = false  return }
+    List<ASTParam> dps = fa.getParams()
+    if dps == null { out = false  return }
+    int ndp = (int)dps.size()
+    if ndp != np { out = false  return }
+    // every param the call did not supply must have a default
+    int k = na
+    while k < np {
+        ASTParam dp = dps.get(k)
+        if dp == null { out = false  return }
+        if dp.getExpr() == null { out = false  return }
+        k = k + 1
+    }
+    // the supplied prefix must be compatible
+    int i = 0
+    while i < na {
+        SemaType pt = p.get(i)
+        SemaType at = a.get(i)
+        if pt == null { out = false  return }
+        bool ok = matchClassOrEqual(pt, at)
+        if ok == false {
+            if at != null {
+                if pt.isNumber() {
+                    if at.isNumber() { ok = true }
+                }
+            }
+        }
+        if ok == false { out = false  return }
+        i = i + 1
+    }
+    out = true
+}
 
 // typesMatchExact — arity + per-element: isEquals, or arg-class derived-or-equals
 // param-class. No numeric promotion (so int vs long overloads stay distinct).

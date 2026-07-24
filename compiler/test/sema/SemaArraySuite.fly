@@ -1,0 +1,63 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.data.*
+import fly.test.util.*
+import fly.assert
+
+// Array resolution — array literals type-check against the declared `T[]` element
+// type (threaded as the expected type), empty `{}` takes its type from context,
+// nested arrays resolve, sized `T[N]` declarations resolve, and native-array
+// for-in type-checks. Driven through resolveSrc (Parser → Sema), which returns
+// whether any error was reported.
+
+suite SemaArraySuite {
+
+    void literalTest() {
+        case "int[] a = {1,2,3} resolves": {
+            bool err = resolveSrc("void f() { int[] a = {1, 2, 3} }", 1)
+            assert.assertFalse(err, 11)
+        }
+        case "bool[] b = {true,false} resolves": {
+            bool err = resolveSrc("void f() { bool[] b = {true, false} }", 2)
+            assert.assertFalse(err, 12)
+        }
+        case "empty int[] a = {} resolves (typed context)": {
+            bool err = resolveSrc("void f() { int[] a = {} }", 3)
+            assert.assertFalse(err, 13)
+        }
+    }
+
+    void fieldTest() {
+        case "field init class C { int[] xs = {1,2} }": {
+            bool err = resolveSrc("class C { int[] xs = {1, 2} }", 4)
+            assert.assertFalse(err, 14)
+        }
+    }
+
+    void nestedTest() {
+        case "int[][] m = {{1,2},{3,4}} resolves": {
+            bool err = resolveSrc("void f() { int[][] m = {{1, 2}, {3, 4}} }", 5)
+            assert.assertFalse(err, 15)
+        }
+    }
+
+    void typeTest() {
+        case "sized int[3] a resolves": {
+            bool err = resolveSrc("void f() { int[3] a }", 6)
+            assert.assertFalse(err, 16)
+        }
+        case "unsized int[] a resolves": {
+            bool err = resolveSrc("void f() { int[] a }", 7)
+            assert.assertFalse(err, 17)
+        }
+    }
+
+    void forInTest() {
+        case "for x in a over int[] resolves": {
+            bool err = resolveSrc("void f() { int[] a = {1, 2, 3}  for x in a { } }", 8)
+            assert.assertFalse(err, 18)
+        }
+    }
+}
