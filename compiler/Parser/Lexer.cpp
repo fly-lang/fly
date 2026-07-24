@@ -517,13 +517,6 @@ unsigned Lexer::getTokenPrefixLength(SourceLocation TokStart, unsigned CharNo,
         PhysOffset += Size;
     }
 
-    // Final detail: if we end up on an escaped newline, we want to return the
-    // location of the actual byte of the token.  For example foo\<newline>bar
-    // advanced by 3 should return the location of b, not of \\.  One compounding
-    // detail of this is that the escape may be made by a trigraph.
-    if (!Lexer::isObviouslySimpleCharacter(*TokPtr))
-        PhysOffset += Lexer::SkipEscapedNewLines(TokPtr) - TokPtr;
-
     return PhysOffset;
 }
 
@@ -770,54 +763,6 @@ static char DecodeTrigraphChar(const char *CP, Lexer *L) {
     return Res;
 }
 
-/// getEscapedNewLineSize - Return the size of the specified escaped newline,
-/// or 0 if it is not an escaped newline. P[-1] is known to be a "\" or a
-/// trigraph equivalent on entry to this function.
-unsigned Lexer::getEscapedNewLineSize(const char *Ptr) {
-    unsigned Size = 0;
-    while (isWhitespace(Ptr[Size])) {
-        ++Size;
-
-        if (Ptr[Size - 1] != '\n' && Ptr[Size - 1] != '\r')
-            continue;
-
-        // If this is a \r\n or \n\r, skip the other half.
-        if ((Ptr[Size] == '\r' || Ptr[Size] == '\n') &&
-            Ptr[Size - 1] != Ptr[Size])
-            ++Size;
-
-        return Size;
-    }
-
-    // Not an escaped newline, must be a \t or something else.
-    return 0;
-}
-
-/// SkipEscapedNewLines - If P points to an escaped newline (or a series of
-/// them), skip over them and return the first non-escaped-newline found,
-/// otherwise return P.
-const char *Lexer::SkipEscapedNewLines(const char *P) {
-    while (true) {
-        const char *AfterEscape;
-        if (*P == '\\') {
-            AfterEscape = P + 1;
-        } else if (*P == '?') {
-            // If not a trigraph for escape, bail out.
-            if (P[1] != '?' || P[2] != '/')
-                return P;
-            // FIXME: Take LangOpts into account; the language might not
-            // support trigraphs.
-            AfterEscape = P + 3;
-        } else {
-            return P;
-        }
-
-        unsigned NewLineSize = Lexer::getEscapedNewLineSize(AfterEscape);
-        if (NewLineSize == 0) return P;
-        P = AfterEscape + NewLineSize;
-    }
-}
-
 std::optional<Token> Lexer::findNextToken(SourceLocation Loc, const SourceManager &SM) {
     Loc = Lexer::getLocForEndOfToken(Loc, 0, SM);
 
@@ -881,9 +826,6 @@ SourceLocation Lexer::findLocationAfterToken(
 ///   1. If currently at the start of a trigraph, we warn about the trigraph,
 ///      then either return the trigraph (skipping 3 chars) or the '?',
 ///      depending on whether trigraphs are enabled or not.
-///   2. If this is an escaped newline (potentially with whitespace between
-///      the backslash and newline), implicitly skip the newline and return
-///      the char after it.
 ///
 /// This handles the slow/uncommon case of the getCharAndSize method.  Here we
 /// know that we can accumulate into Size, and that we have already incremented
@@ -893,33 +835,12 @@ SourceLocation Lexer::findLocationAfterToken(
 /// be updated to match.
 char Lexer::getCharAndSizeSlow(const char *Ptr, unsigned &Size,
                                Token *Tok) {
-    // If we have a slash, look for an escaped newline.
+    // Fly has no line-splicing: a backslash followed by a newline is an
+    // ordinary backslash character, never a line continuation.
     if (Ptr[0] == '\\') {
         ++Size;
         ++Ptr;
         Slash:
-        // Common case, backslash-char where the char is not whitespace.
-        if (!isWhitespace(Ptr[0])) return '\\';
-
-        // See if we have optional whitespace characters between the slash and
-        // newline.
-        if (unsigned EscapedNewLineSize = getEscapedNewLineSize(Ptr)) {
-            // Remember that this token needs to be cleaned.
-            if (Tok) Tok->setFlag(Token::NeedsCleaning);
-
-            // Warn if there was whitespace between the backslash and newline.
-            if (Ptr[0] != '\n' && Ptr[0] != '\r' && Tok && !isLexingRawMode())
-                Diag(Ptr, diag::warn_lex_backslash_newline_space);
-
-            // Found backslash<whitespace><newline>.  Parse the char after it.
-            Size += EscapedNewLineSize;
-            Ptr += EscapedNewLineSize;
-
-            // Use slow version to accumulate a correct size field.
-            return getCharAndSizeSlow(Ptr, Size, Tok);
-        }
-
-        // Otherwise, this is not an escaped newline, just return the slash.
         return '\\';
     }
 
@@ -950,25 +871,12 @@ char Lexer::getCharAndSizeSlow(const char *Ptr, unsigned &Size,
 /// NOTE: When this method is updated, getCharAndSizeSlow (above) should
 /// be updated to match.
 char Lexer::getCharAndSizeSlowNoWarn(const char *Ptr, unsigned &Size) {
-    // If we have a slash, look for an escaped newline.
+    // Fly has no line-splicing: a backslash followed by a newline is an
+    // ordinary backslash character, never a line continuation.
     if (Ptr[0] == '\\') {
         ++Size;
         ++Ptr;
         Slash:
-        // Common case, backslash-char where the char is not whitespace.
-        if (!isWhitespace(Ptr[0])) return '\\';
-
-        // See if we have optional whitespace characters followed by a newline.
-        if (unsigned EscapedNewLineSize = getEscapedNewLineSize(Ptr)) {
-            // Found backslash<whitespace><newline>.  Parse the char after it.
-            Size += EscapedNewLineSize;
-            Ptr += EscapedNewLineSize;
-
-            // Use slow version to accumulate a correct size field.
-            return getCharAndSizeSlowNoWarn(Ptr, Size);
-        }
-
-        // Otherwise, this is not an escaped newline, just return the slash.
         return '\\';
     }
 
@@ -1551,73 +1459,16 @@ bool Lexer::SkipLineComment(Token &Result, const char *CurPtr,
                C != '\n' && C != '\r')  // Newline or DOS-style newline.
             C = *++CurPtr;
 
-        const char *NextLine = CurPtr;
-        if (C != 0) {
-            // We found a newline, see if it's escaped.
-            const char *EscapePtr = CurPtr - 1;
-            bool HasSpace = false;
-            while (isHorizontalWhitespace(*EscapePtr)) { // Skip whitespace.
-                --EscapePtr;
-                HasSpace = true;
-            }
-
-            if (*EscapePtr == '\\')
-                // Escaped newline.
-                CurPtr = EscapePtr;
-            else if (EscapePtr[0] == '/' && EscapePtr[-1] == '?' &&
-                     EscapePtr[-2] == '?')
-                // Trigraph-escaped newline.
-                CurPtr = EscapePtr - 2;
-            else
-                break; // This is a newline, we're done.
-
-            // If there was space between the backslash and newline, warn about it.
-            if (HasSpace && !isLexingRawMode())
-                Diag(EscapePtr, diag::warn_lex_backslash_newline_space);
-        }
-
-        // Otherwise, this is a hard case.  Fall back on getAndAdvanceChar to
-        // properly decode the character.  Read it in raw mode to avoid emitting
-        // diagnostics about things like trigraphs.  If we see an escaped newline,
-        // we'll handle it below.
-        const char *OldPtr = CurPtr;
-        bool OldRawMode = isLexingRawMode();
-        LexingRawMode = true;
-        C = getAndAdvanceChar(CurPtr, Result);
-        LexingRawMode = OldRawMode;
-
-        // If we only read only one character, then no special handling is needed.
-        // We're done and can skip forward to the newline.
-        if (C != 0 && CurPtr == OldPtr + 1) {
-            CurPtr = NextLine;
+        // A newline always terminates a line comment: Fly has no line-splicing,
+        // so a trailing backslash does not continue the comment onto the next
+        // line.
+        if (C != 0)
             break;
-        }
 
-        // If we read multiple characters, and one of those characters was a \r or
-        // \n, then we had an escaped newline within the comment.  Emit diagnostic
-        // unless the next line is also a // comment.
-        if (CurPtr != OldPtr + 1 && C != '/' &&
-            (CurPtr == BufferEnd + 1 || CurPtr[0] != '/')) {
-            for (; OldPtr != CurPtr; ++OldPtr)
-                if (OldPtr[0] == '\n' || OldPtr[0] == '\r') {
-                    // Okay, we found a // comment that ends in a newline, if the next
-                    // line is also a // comment, but has spaces, don't emit a diagnostic.
-                    if (isWhitespace(C)) {
-                        const char *ForwardPtr = CurPtr;
-                        while (isWhitespace(*ForwardPtr))  // Skip whitespace.
-                            ++ForwardPtr;
-                        if (ForwardPtr[0] == '/' && ForwardPtr[1] == '/')
-                            break;
-                    }
-
-                    break;
-                }
-        }
-
-        if (C == '\r' || C == '\n' || CurPtr == BufferEnd + 1) {
-            --CurPtr;
+        // C == 0: either the end of the buffer or an embedded null byte.
+        if (CurPtr == BufferEnd)
             break;
-        }
+        ++CurPtr; // Embedded null byte, skip it.
     }
 
     // Found but did not consume the newline.  Notify comment handlers about the
@@ -1654,65 +1505,6 @@ bool Lexer::SkipLineComment(Token &Result, const char *CurPtr,
     return false;
 }
 
-/// isBlockCommentEndOfEscapedNewLine - Return true if the specified newline
-/// character (either \\n or \\r) is part of an escaped newline sequence.  Issue
-/// a diagnostic if so.  We know that the newline is inside of a block comment.
-static bool isEndOfBlockCommentWithEscapedNewLine(const char *CurPtr,
-                                                  Lexer *L) {
-    assert(CurPtr[0] == '\n' || CurPtr[0] == '\r');
-
-    // Back up off the newline.
-    --CurPtr;
-
-    // If this is a two-character newline sequence, skip the other character.
-    if (CurPtr[0] == '\n' || CurPtr[0] == '\r') {
-        // \n\n or \r\r -> not escaped newline.
-        if (CurPtr[0] == CurPtr[1])
-            return false;
-        // \n\r or \r\n -> skip the newline.
-        --CurPtr;
-    }
-
-    // If we have horizontal whitespace, skip over it.  We allow whitespace
-    // between the slash and newline.
-    bool HasSpace = false;
-    while (isHorizontalWhitespace(*CurPtr) || *CurPtr == 0) {
-        --CurPtr;
-        HasSpace = true;
-    }
-
-    // If we have a slash, we know this is an escaped newline.
-    if (*CurPtr == '\\') {
-        if (CurPtr[-1] != '*') return false;
-    } else {
-        // It isn't a slash, is it the ?? / trigraph?
-        if (CurPtr[0] != '/' || CurPtr[-1] != '?' || CurPtr[-2] != '?' ||
-            CurPtr[-3] != '*')
-            return false;
-
-        // This is the trigraph ending the comment.  Emit a stern warning!
-        CurPtr -= 2;
-
-        // If no trigraphs are enabled, warn that we ignored this trigraph and
-        // ignore this * character.
-//        if (!L->isLexingRawMode())
-//            L->Diag(CurPtr, diag::warn_lex_trigraph_ignored_block_comment);
-//        return false;
-        if (!L->isLexingRawMode())
-            L->Diag(CurPtr, diag::warn_lex_trigraph_ends_block_comment);
-    }
-
-    // Warn about having an escaped newline between the */ characters.
-    if (!L->isLexingRawMode())
-        L->Diag(CurPtr, diag::warn_lex_escaped_newline_block_comment_end);
-
-    // If there was space between the backslash and newline, warn about it.
-    if (HasSpace && !L->isLexingRawMode())
-        L->Diag(CurPtr, diag::warn_lex_backslash_newline_space);
-
-    return true;
-}
-
 #ifdef __SSE2__
 
 #include <emmintrin.h>
@@ -1724,10 +1516,9 @@ static bool isEndOfBlockCommentWithEscapedNewLine(const char *CurPtr,
 
 /// We have just read from input the / and * characters that started a comment.
 /// Read until we find the * and / characters that terminate the comment.
-/// Note that we don't bother decoding trigraphs or escaped newlines in block
-/// comments, because they cannot cause the comment to end.  The only thing
-/// that can happen is the comment could end with an escaped newline between
-/// the terminating * and /.
+/// Note that we don't bother decoding trigraphs in block comments, because
+/// they cannot cause the comment to end: Fly has no line-splicing, so a block
+/// comment only ends at a literal */.
 ///
 /// If we're in KeepCommentMode or any CommentHandler has inserted
 /// some tokens, this will store the first token and return true.
@@ -1738,9 +1529,8 @@ bool Lexer::SkipBlockComment(Token &Result, const char *CurPtr,
     // optimization helps people who like to put a lot of * characters in their
     // comments.
 
-    // The first character we get with newlines and trigraphs skipped to handle
-    // the degenerate /*/ case below correctly if the * has an escaped newline
-    // after it.
+    // The first character we get with trigraphs skipped to handle the
+    // degenerate /*/ case below correctly.
     unsigned CharSize;
     unsigned char C = getCharAndSize(CurPtr, CharSize);
     CurPtr += CharSize;
@@ -1825,17 +1615,9 @@ bool Lexer::SkipBlockComment(Token &Result, const char *CurPtr,
             if (CurPtr[-2] == '*')  // We found the final */.  We're done!
                 break;
 
-            if ((CurPtr[-2] == '\n' || CurPtr[-2] == '\r')) {
-                if (isEndOfBlockCommentWithEscapedNewLine(CurPtr - 2, this)) {
-                    // We found the final */, though it had an escaped newline between the
-                    // * and /.  We're done!
-                    break;
-                }
-            }
             if (CurPtr[0] == '*' && CurPtr[1] != '/') {
                 // If this is a /* inside of the comment, emit a warning.  Don't do this
-                // if this is a /*/, which will end the comment.  This misses cases with
-                // embedded escaped newlines, but oh well.
+                // if this is a /*/, which will end the comment.
                 if (!isLexingRawMode())
                     Diag(CurPtr - 1, diag::warn_lex_nested_block_comment);
             }

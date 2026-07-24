@@ -172,8 +172,11 @@ ASTExpr *ParserExpr::Parse(ASTExpr *Left) {
 	if (Left == nullptr)
 		Left = ParsePrimary();
 
-	// Expr contains a binary or ternary operator
-	if (isBinaryOperator() || isTernaryOperator()) {
+	// Expr contains a binary or ternary operator.
+	// A null Left means the primary failed to parse (already diagnosed): an
+	// operator must not be applied to it — building an ASTBinary/ASTTernary
+	// with a null operand crashed Sema after the diagnostic.
+	if (Left != nullptr && (isBinaryOperator() || isTernaryOperator())) {
 
 		// Start with the lowest precedence
 		Precedence precedence = Precedence::LOWEST;
@@ -192,6 +195,11 @@ ASTExpr *ParserExpr::Parse(ASTExpr *Left) {
 				Left = ParseTernaryExpr(Left);  // Handle ternary operators
 			} else {
 				Left = ParseBinaryExpr(Left, OpTok, nextPrecedence);  // Handle binary expressions
+			}
+
+			// An operand failed to parse: stop chaining operators onto null
+			if (Left == nullptr) {
+				break;
 			}
 		}
 	}
@@ -309,6 +317,8 @@ ASTExpr *ParserExpr::ParsePrimary() {
 	if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
 
 		ASTExpr *Primary = ParseIdentifierOrCall();
+		if (Primary == nullptr)
+			return nullptr;
 
 		// parse function call, variable post increment/decrement or simple var
 		if (isUnaryPostOperator()) { // Ex. a++ or a--
@@ -325,6 +335,9 @@ ASTExpr *ParserExpr::ParsePrimary() {
 		ASTUnaryKind OpKind = toUnaryOpExprKind(Tok, false);
 		const SourceLocation &OpLoc = P->ConsumeToken();
 		ASTExpr* Primary = ParsePrimary();  // Parse the operand (recursively)
+		// Operand failed to parse (already diagnosed): don't build a unary on null
+		if (Primary == nullptr)
+			return nullptr;
 		return ASTBuilder::CreateUnary(OpLoc, OpKind, Primary);
 	}
 
@@ -348,6 +361,9 @@ ASTExpr *ParserExpr::ParsePrimary() {
 				P->Diag(P->Tok.getLocation(), diag::err_parser_expr_close_paren);
 			}
 			ASTExpr *Operand = ParsePrimary();   // cast binds tightly to the operand
+			// Operand failed to parse (already diagnosed): don't build a cast on null
+			if (Operand == nullptr)
+				return nullptr;
 			return ASTBuilder::CreateCast(Operand, ToType);
 		}
 
@@ -377,6 +393,11 @@ ASTBinary *ParserExpr::ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Precede
     // Parse the right-hand side of the binary expression
     ASTExpr* RightExpr = ParsePrimary();  // Parse the RHS (which may include parentheses)
 
+    // RHS failed to parse (already diagnosed): an ASTBinary with a null operand
+    // crashed Sema after the diagnostic — propagate the failure instead.
+    if (RightExpr == nullptr)
+        return nullptr;
+
     // Keep climbing the RHS while the next operator binds tighter than the current one.
     // A single `if` only absorbed one level; the `while` handles chains like
     // `x = a * a + b * b` where both `*` and `+` have higher precedence than `=`.
@@ -389,6 +410,8 @@ ASTBinary *ParserExpr::ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Precede
         if (!(nextPrecedence > precedence ||
               (nextPrecedence == precedence && isRightAssociative(OpToken)))) break;
         RightExpr = ParseBinaryExpr(RightExpr, NextTok, nextPrecedence);
+        if (RightExpr == nullptr)
+            return nullptr;
     }
 
     // Combine the left and right into a binary operation node
@@ -415,6 +438,11 @@ ASTTernary *ParserExpr::ParseTernaryExpr(ASTExpr *ConditionExpr) {
 
 	ParserExpr PEF(P);
     ASTExpr* FalseExpr = PEF.Parse();  // Parse the false expression
+
+    // Either branch failed to parse (already diagnosed): an ASTTernary with a
+    // null branch crashed Sema after the diagnostic — propagate the failure.
+    if (TrueExpr == nullptr || FalseExpr == nullptr)
+        return nullptr;
 
     return ASTBuilder::CreateTernary(ConditionExpr, TrueOpLoc, TrueExpr, FalseOpLoc, FalseExpr);
 }

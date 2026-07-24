@@ -653,8 +653,11 @@ void Parser::ParseBlock(ASTBlockStmt *Block) {
 
     while (true) {
 
-    	// End of File -> end of parsing
+    	// End of File with the block still open: the '{' never got its '}'.
+    	// This also catches an unterminated /* comment, which swallows the
+    	// rest of the file in the lexer (raw mode suppresses its own diag).
     	if (Tok.is(tok::eof)) {
+    		Diag(Tok.getLocation(), diag::err_parser_unclosed_bracket);
     		ConsumeToken();
     		return;
     	}
