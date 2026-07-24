@@ -297,7 +297,9 @@ public string trim(const string src) {
     int lo = 0
     int hi = size
     byte b = 0
-    fly.llvm.strByteAt(src, lo, b)
+    // guard the first read like trimLeft/trimRight: an EMPTY heap string may
+    // have no readable byte 0, and an unguarded strByteAt segfaults on it
+    if lo < hi { fly.llvm.strByteAt(src, lo, b) }
     while lo < hi && (b == 32 || b == 9 || b == 10 || b == 13) {
         lo = lo + 1
         if lo < hi { fly.llvm.strByteAt(src, lo, b) }

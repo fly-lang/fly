@@ -818,6 +818,20 @@ public class LLVM {
         lib.call("LLVMGetBasicBlockParent", a, fn)
     }
 
+    public void getEntryBasicBlock(const pointer fn, pointer bb) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = fn
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMGetEntryBasicBlock", a, bb)
+    }
+
+    public void getBasicBlockTerminator(const pointer bb, pointer term) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = bb
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMGetBasicBlockTerminator", a, term)
+    }
+
     // ── Builder ───────────────────────────────────────────────────────────────
 
     public void createBuilderInContext(const pointer ctx, pointer builder) {
@@ -1084,12 +1098,38 @@ public class LLVM {
 
     public void buildAlloca(const pointer b, const pointer ty, const string name, pointer v) {
         // LLVMBuildAlloca(B, Ty, Name) = (ptr, ptr, string)
+        //
+        // ENTRY-BLOCK PLACEMENT: an alloca at the current insert point becomes a
+        // DYNAMIC stack allocation when that point is inside a loop — LLVM lowers
+        // it to a runtime `sub rsp`, so every iteration grows the frame (the
+        // stage2 fly.exe overflowed the stack in scanTopLevelDecls scanning a
+        // large source: ~1 MB of call-site temps in one frame). Emit every alloca
+        // in the function's ENTRY block instead: a fixed frame slot, allocated
+        // once and reused per execution — mirroring the reference compiler's
+        // CreateEntryAlloca (CodeGenExpr.cpp) and its prologue AllocaLocalVars.
+        // Safe to restore with positionBuilderAtEnd: this codegen only ever
+        // appends at block ends (positionBuilderBefore is never used).
+        pointer cur = 0
+        this.getInsertBlock(b, cur)
+        pointer fn = 0
+        if cur != 0 { this.getBasicBlockParent(cur, fn) }
+        pointer entry = 0
+        if fn != 0 { this.getEntryBasicBlock(fn, entry) }
+        bool moved = false
+        if entry != 0 && entry != cur {
+            pointer term = 0
+            this.getBasicBlockTerminator(entry, term)
+            if term != 0 { this.positionBuilderBefore(b, term) }
+            else { this.positionBuilderAtEnd(b, entry) }
+            moved = true
+        }
         Ptr2StrArgs a = new Ptr2StrArgs()
         a.a = b
         a.b = ty
         a.s = name
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMBuildAlloca", a, v)
+        if moved { this.positionBuilderAtEnd(b, cur) }
     }
 
     public void buildLoad2(const pointer b, const pointer ty, const pointer ptr, const string name, pointer v) {

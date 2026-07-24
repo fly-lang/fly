@@ -297,7 +297,10 @@ public string, string splitExt(const string path) {
     out[1] = ext(path)
 }
 
-// isAbsolute returns true if path starts with a '/' separator.
+// isAbsolute returns true if path is absolute: a leading '/' (POSIX), a
+// leading '\' (Windows, rooted on the current drive), or a drive-letter
+// prefix ("X:" — second byte ':'), so absolute() never cwd-prefixes an
+// already-absolute Windows path.
 public bool isAbsolute(const string path) {
     int size = 0
     fly.llvm.strSize(path, size)
@@ -307,10 +310,24 @@ public bool isAbsolute(const string path) {
     }
     byte b = 0
     fly.llvm.strByteAt(path, 0, b)
-    out = b == 47
+    if b == 47 {
+        out = true
+        return
+    }
+    if b == 92 {
+        out = true
+        return
+    }
+    if size < 2 {
+        out = false
+        return
+    }
+    byte b1 = 0
+    fly.llvm.strByteAt(path, 1, b1)
+    out = b1 == 58
 }
 
-// isRelative returns true if path does not start with '/'.
+// isRelative returns true if path is not absolute (see isAbsolute).
 public bool isRelative(const string path) {
     bool abs = isAbsolute(path)
     out = abs == false

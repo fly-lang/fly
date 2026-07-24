@@ -4,6 +4,7 @@ import fly.driver.*
 import fly.compiler.basic.*
 import fly.os.fs
 import fly.os.env
+import fly.os.path
 import fly.str
 import fly.assert
 
@@ -46,15 +47,29 @@ suite BuilderSuite {
             string repo = fly.os.env.cwdGet()
             // Builder.resolveFly reads FLYLANG_BIN (the dir holding fly[.exe]); point
             // it at the shipped compiler so invokeFly execs the real fly, not this test.
-            // At STAGE=1 (CI runs these suites BEFORE stage2.sh) build/stage2 does not
-            // exist yet — fall back to the stage1 compiler so the flow still runs.
+            // CI runs these suites at every stage: prefer stage2, then stage1 (STAGE=1
+            // runs BEFORE stage2.ps1), then the stage0 seed (STAGE=0 runs BEFORE
+            // stage1.ps1, when only the downloaded bootstrap exists).
             string bin = fly.str.concat(repo, "/build/stage2/bin")
             bool have = fly.os.fs.exists(fly.str.concat(bin, "/fly"))
             if have == false { have = fly.os.fs.exists(fly.str.concat(bin, "/fly.exe")) }
-            if have == false { bin = fly.str.concat(repo, "/build/stage1/bin") }
+            if have == false {
+                bin = fly.str.concat(repo, "/build/stage1/bin")
+                have = fly.os.fs.exists(fly.str.concat(bin, "/fly"))
+                if have == false { have = fly.os.fs.exists(fly.str.concat(bin, "/fly.exe")) }
+            }
+            if have == false { bin = fly.str.concat(repo, "/build/stage0/bin") }
             fly.os.env.set("FLYLANG_BIN", bin)
 
-            string proj = "bld_suite_proj"
+            // The scratch project lives OUTSIDE the repo (OS temp dir): a leftover
+            // in the repo root would be picked up by the directory CLI's discovery
+            // (--src-dir . in build_compiler) and abort the monolithic stage1 build
+            // with "multiple main()".
+            string tmp = fly.os.env.get("TMPDIR")
+            if fly.str.isEmpty(tmp) { tmp = fly.os.env.get("TEMP") }
+            if fly.str.isEmpty(tmp) { tmp = "/tmp" }
+            string proj = fly.os.path.join(tmp, "bld_suite_proj")
+            fly.os.fs.dirDeleteAll(proj)     // stale leftover from a previous failed run
             fly.os.fs.dirCreateAll(fly.str.concat(proj, "/src"), 493)
 
             // Manifest.fly with one bin target -> a trivial (import-free) source, so
@@ -87,22 +102,113 @@ suite BuilderSuite {
 
             int e = 0
             Manifest m = fly.driver.loadManifest(e)
-            assert.assertEqI(e, 0, 11)                 // reader parsed the manifest (no crash)
-            assert.assertEqI(m.targetCount(), 1, 12)   // the targets array was read
-            assert.assertStr(m.getName(), "hello", 13)
+            int targets = m.targetCount()
+            string name = m.getName()
 
             Builder b = new Builder(m, "debug", false)
             bool ok = b.buildAll()                     // execs fly to compile src/main.fly
-            assert.assertTrue(ok, 14)
             // the emitted binary (Windows appends .exe; POSIX doesn't)
             bool built = fly.os.fs.exists("target/debug/hello.exe")
             if built == false { built = fly.os.fs.exists("target/debug/hello") }
-            assert.assertTrue(built, 15)
 
-            // restore + clean up
+            // restore + clean up BEFORE asserting: a failing assert aborts the
+            // case, and the scratch project must never survive a failed run
             fly.os.env.cwdSet(repo)
             fly.os.fs.dirDeleteAll(proj)
             fly.os.env.delete("FLYLANG_BIN")
+
+            assert.assertEqI(e, 0, 11)                 // reader parsed the manifest (no crash)
+            assert.assertEqI(targets, 1, 12)           // the targets array was read
+            assert.assertStr(name, "hello", 13)
+            assert.assertTrue(ok, 14)
+            assert.assertTrue(built, 15)
+        }
+    }
+
+    void incrementalTest() {
+        case "fingerprint cache: skip when fresh, rebuild on edit, --force": {
+            string repo = fly.os.env.cwdGet()
+            string bin = fly.str.concat(repo, "/build/stage2/bin")
+            bool have = fly.os.fs.exists(fly.str.concat(bin, "/fly"))
+            if have == false { have = fly.os.fs.exists(fly.str.concat(bin, "/fly.exe")) }
+            if have == false {
+                bin = fly.str.concat(repo, "/build/stage1/bin")
+                have = fly.os.fs.exists(fly.str.concat(bin, "/fly"))
+                if have == false { have = fly.os.fs.exists(fly.str.concat(bin, "/fly.exe")) }
+            }
+            if have == false { bin = fly.str.concat(repo, "/build/stage0/bin") }
+            fly.os.env.set("FLYLANG_BIN", bin)
+
+            string tmp = fly.os.env.get("TMPDIR")
+            if fly.str.isEmpty(tmp) { tmp = fly.os.env.get("TEMP") }
+            if fly.str.isEmpty(tmp) { tmp = "/tmp" }
+            string proj = fly.os.path.join(tmp, "bld_suite_incr")
+            fly.os.fs.dirDeleteAll(proj)
+            fly.os.fs.dirCreateAll(fly.str.concat(proj, "/src"), 493)
+
+            string man = "namespace pkg.manifest"
+            man = fly.str.concat(man, fly.driver.nl())
+            man = fly.str.concat(man, "import fly.meta.*")
+            man = fly.str.concat(man, fly.driver.nl())
+            man = fly.str.concat(man, "class Manifest : fly.meta.Manifest {")
+            man = fly.str.concat(man, fly.driver.nl())
+            man = fly.str.concat(man, fly.str.concat("  string name = ", qb("hello")))
+            man = fly.str.concat(man, fly.driver.nl())
+            man = fly.str.concat(man, fly.str.concat("  string version = ", qb("0.1.0")))
+            man = fly.str.concat(man, fly.driver.nl())
+            string tgt = fly.str.concat("  Target[] targets = { new Target(", qb("hello"))
+            tgt = fly.str.concat(tgt, fly.str.concat(", ", qb("src/main.fly")))
+            tgt = fly.str.concat(tgt, fly.str.concat(", ", qb("")))
+            tgt = fly.str.concat(tgt, ") }")
+            man = fly.str.concat(man, tgt)
+            man = fly.str.concat(man, fly.driver.nl())
+            man = fly.str.concat(man, "}")
+            fly.os.fs.writeStr(fly.str.concat(proj, "/Manifest.fly"), man, 420)
+
+            string src = fly.str.concat("namespace app", fly.driver.nl())
+            src = fly.str.concat(src, "void main() { }")
+            fly.os.fs.writeStr(fly.str.concat(proj, "/src/main.fly"), src, 420)
+
+            fly.os.env.cwdSet(proj)
+
+            int e = 0
+            Manifest m = fly.driver.loadManifest(e)
+            Builder b = new Builder(m, "debug", false)
+            Target t = m.targetAt(0)
+
+            bool ok1 = b.buildAll()                    // cold: compiles + saves fp
+            bool fpThere = fly.os.fs.exists("target/debug/.flyp/hello.fp")
+            // freshness via the direct API (no mtime flakiness)
+            string comp1 = b.computeFpFor(t)
+            bool fresh1 = b.isUpToDate(b.fpPath("hello"), comp1) && b.artifactsExist(t)
+            bool ok2 = b.buildTarget("hello")          // warm: takes the skip path
+
+            // edit the source → fingerprint must flip → rebuild → fresh again
+            string src2 = fly.str.concat("namespace app", fly.driver.nl())
+            src2 = fly.str.concat(src2, "void main() { int x = 1 }")
+            fly.os.fs.writeStr("src/main.fly", src2, 420)
+            string comp2 = b.computeFpFor(t)
+            bool fresh2 = b.isUpToDate(b.fpPath("hello"), comp2)
+            bool ok3 = b.buildAll()
+            string comp3 = b.computeFpFor(t)
+            bool fresh3 = b.isUpToDate(b.fpPath("hello"), comp3)
+
+            b.setForce(true)
+            bool ok4 = b.buildTarget("hello")          // force: recompiles anyway
+
+            fly.os.env.cwdSet(repo)
+            fly.os.fs.dirDeleteAll(proj)
+            fly.os.env.delete("FLYLANG_BIN")
+
+            assert.assertEqI(e, 0, 21)
+            assert.assertTrue(ok1, 22)
+            assert.assertTrue(fpThere, 23)
+            assert.assertTrue(fresh1, 24)              // cold build left a matching fp
+            assert.assertTrue(ok2, 25)                 // warm build succeeds via skip
+            assert.assertFalse(fresh2, 26)             // edit invalidated the fp
+            assert.assertTrue(ok3, 27)                 // rebuild after edit
+            assert.assertTrue(fresh3, 28)              // fresh again after rebuild
+            assert.assertTrue(ok4, 29)                 // --force still succeeds
         }
     }
 }

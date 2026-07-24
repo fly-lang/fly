@@ -237,6 +237,40 @@ public void fs_lmode(const pointer path, int out) {
     fly.runtime.free(st)
 }
 
+// mtime helpers — last-modification time as TOTAL NANOSECONDS since the Unix
+// epoch in one i64 (sec = out/1e9, nsec = out%1e9; splitting is the caller's
+// job so the primitive keeps a single out). st_mtim: tv_sec @ 88, tv_nsec @ 96.
+// -1 on a failed stat.
+public void fs_mtime(const pointer path, long out) {
+    pointer st = 0
+    fly.runtime.malloc(144, st)
+    int rc = 0
+    fly.runtime.stat(path, st, rc)
+    if rc < 0 { out = 0 - 1 } else {
+        long sec = 0
+        long nsec = 0
+        fly.llvm.ptrReadLong(st, 88, sec)
+        fly.llvm.ptrReadLong(st, 96, nsec)
+        out = sec * 1000000000 + nsec
+    }
+    fly.runtime.free(st)
+}
+
+public void fs_lmtime(const pointer path, long out) {
+    pointer st = 0
+    fly.runtime.malloc(144, st)
+    int rc = 0
+    fly.runtime.lstat(path, st, rc)
+    if rc < 0 { out = 0 - 1 } else {
+        long sec = 0
+        long nsec = 0
+        fly.llvm.ptrReadLong(st, 88, sec)
+        fly.llvm.ptrReadLong(st, 96, nsec)
+        out = sec * 1000000000 + nsec
+    }
+    fly.runtime.free(st)
+}
+
 // ── Time — clock_gettime / nanosleep (timespec { i64 sec@0, i64 nsec@8 }) ──────
 public void time_now_ns(long out) {
     pointer ts = 0

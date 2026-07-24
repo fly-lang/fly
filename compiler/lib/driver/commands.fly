@@ -98,7 +98,8 @@ class Manifest : fly.meta.Manifest {
 }
 
 // cmdBuild — read the manifest, build all targets (or one with `targetKey`).
-public int cmdBuild(const string profile, const string targetKey) {
+// `force` bypasses the incremental fingerprint cache (see Builder).
+public int cmdBuild(const string profile, const string targetKey, const bool force) {
     int e = 0
     Manifest m = loadManifest(e)
     if e != 0 {
@@ -109,6 +110,7 @@ public int cmdBuild(const string profile, const string targetKey) {
     string prof = profile
     if fly.str.isEmpty(prof) { prof = "debug" }
     Builder b = new Builder(m, prof, false)
+    b.setForce(force)
     bool ok = false
     if fly.str.isEmpty(targetKey) {
         ok = b.buildAll()
@@ -118,8 +120,9 @@ public int cmdBuild(const string profile, const string targetKey) {
     if ok { out = 0 } else { out = 1 }
 }
 
-// cmdRun — build a bin target then execute it.
-public int cmdRun(const string profile, const string binKey) {
+// cmdRun — build a bin target then execute it (the build step honours the
+// fingerprint cache; the run always executes).
+public int cmdRun(const string profile, const string binKey, const bool force) {
     int e = 0
     Manifest m = loadManifest(e)
     if e != 0 { fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
@@ -130,17 +133,23 @@ public int cmdRun(const string profile, const string binKey) {
         key = m.targetAt(0).getKey()
     }
     Builder b = new Builder(m, prof, false)
+    b.setForce(force)
     out = b.runTarget(key)
 }
 
 // cmdTest — compile each *Suite.fly (via a shell glob) with --test and run it.
-public int cmdTest(const string profile) {
+// The COMPILE step honours the fingerprint cache (a fresh suite exe is re-used);
+// the suite always RUNS. NOTE: a suite's fingerprint covers its whole directory
+// (that is what invokeFly's --src-dir compiles), so suites sharing a dir share
+// staleness triggers — conservative but correct.
+public int cmdTest(const string profile, const bool force) {
     int e = 0
     Manifest m = loadManifest(e)
     if e != 0 { fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
     string prof = profile
     if fly.str.isEmpty(prof) { prof = "debug" }
     Builder b = new Builder(m, prof, true)
+    b.setForce(force)
 
     // resolve suite files by shelling `find` over the src tree
     string list = fly.driver.capture("find . -name '*Suite.fly' 2>/dev/null | sort")
@@ -167,8 +176,27 @@ public int cmdTest(const string profile) {
                 string base = fly.os.path.basename(sf)
                 string stem = fly.os.path.stem(base)
                 string outp = fly.str.concat(b.outDir(), fly.str.concat("/", stem))
-                fly.os.fs.dirCreateAll(b.outDir(), 493)
-                if b.invokeFly(fly.os.path.absolute(sf), outp, "--test") {
+                // fingerprint gate: skip only the COMPILE of a fresh suite exe —
+                // the suite always RUNS. NOTE: suite case labels only parse in
+                // `*Test`-named suite methods; a bad suite is a COMPILE FAIL here.
+                string sfAbs = fly.os.path.absolute(sf)
+                string computed = b.computeFpForDir(fly.os.path.dirname(sfAbs), "test", stem)
+                string fpFile = b.fpPath(stem)
+                bool exeThere = fly.os.fs.exists(outp)
+                if exeThere == false { exeThere = fly.os.fs.exists(fly.str.concat(outp, ".exe")) }
+                bool fresh = false
+                if force == false {
+                    fresh = b.isUpToDate(fpFile, computed) && exeThere
+                }
+                bool compiled = true
+                if fresh {
+                    fly.os.io.printLn(fly.str.concat("  up-to-date ", stem))
+                } else {
+                    fly.os.fs.dirCreateAll(b.outDir(), 493)
+                    compiled = b.invokeFly(sfAbs, outp, "--test")
+                    if compiled { b.saveFp(fpFile, computed) }
+                }
+                if compiled {
                     int rc = fly.driver.runShell(fly.driver.shellQuote(outp))
                     if rc == 0 {
                         fly.os.io.printLn(fly.str.concat("  PASS  ", stem))

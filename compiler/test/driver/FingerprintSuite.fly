@@ -1,0 +1,116 @@
+namespace fly.driver.test.fingerprint
+
+import fly.driver.*
+import fly.os.fs
+import fly.os.env
+import fly.os.path
+import fly.str
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FingerprintSuite — pure tests for the incremental-build fingerprint
+// (fingerprint.fly): bytewise compare, deterministic compute, content change
+// detection, creation-order independence, relpath normalization. Scratch trees
+// live in the OS temp dir and are removed BEFORE the asserts (a failing assert
+// aborts the case; nothing must survive a failed run). Free helper functions,
+// never `this`, per suite convention.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// fpsTempDir — <OS temp>/<name>, mirroring BuilderSuite's temp resolution.
+string fpsTempDir(const string name) {
+    string tmp = fly.os.env.get("TMPDIR")
+    if fly.str.isEmpty(tmp) { tmp = fly.os.env.get("TEMP") }
+    if fly.str.isEmpty(tmp) { tmp = "/tmp" }
+    out = fly.os.path.join(tmp, name)
+}
+
+// fpsHeader — a fixed fake header ending with a newline, as compute expects.
+string fpsHeader() {
+    out = fly.str.concat("hdr test", fly.driver.nl())
+}
+
+// fpsCompute — one-shot compute with a fresh Fingerprint.
+string fpsCompute(const string dir) {
+    Fingerprint f = new Fingerprint()
+    out = f.compute(dir, fpsHeader())
+}
+
+suite FingerprintSuite {
+
+    void compareTest() {
+        case "fpStrCompare orders bytewise": {
+            assert.assertTrue(fly.driver.fpStrCompare("a", "b") < 0, 1)
+            assert.assertTrue(fly.driver.fpStrCompare("b", "a") > 0, 2)
+            assert.assertEqI(fly.driver.fpStrCompare("abc", "abc"), 0, 3)
+            assert.assertTrue(fly.driver.fpStrCompare("a", "ab") < 0, 4)   // prefix first
+            assert.assertTrue(fly.driver.fpStrCompare("Z", "a") < 0, 5)    // 90 < 97
+            assert.assertTrue(fly.driver.fpStrCompare("", "a") < 0, 6)
+        }
+    }
+
+    void computeTest() {
+        case "compute is deterministic and content-sensitive": {
+            string dir = fpsTempDir("fp_suite_dir")
+            fly.os.fs.dirDeleteAll(dir)
+            fly.os.fs.dirCreateAll(fly.os.path.join(dir, "sub"), 493)
+            fly.os.fs.writeStr(fly.os.path.join(dir, "a.fly"), "alpha", 420)
+            string sub = fly.os.path.join(dir, "sub")
+            fly.os.fs.writeStr(fly.os.path.join(sub, "b.fly"), "beta", 420)
+            fly.os.fs.writeStr(fly.os.path.join(dir, "note.txt"), "ignored", 420)
+
+            string fp1 = fpsCompute(dir)
+            string fp2 = fpsCompute(dir)                 // same tree, fresh object
+
+            // content change flips the fingerprint
+            fly.os.fs.writeStr(fly.os.path.join(dir, "a.fly"), "alpha2", 420)
+            string fp3 = fpsCompute(dir)
+
+            // added source flips it again
+            fly.os.fs.writeStr(fly.os.path.join(dir, "c.fly"), "gamma", 420)
+            string fp4 = fpsCompute(dir)
+
+            // non-.fly files are invisible
+            fly.os.fs.writeStr(fly.os.path.join(dir, "note2.txt"), "ignored too", 420)
+            string fp5 = fpsCompute(dir)
+
+            fly.os.fs.dirDeleteAll(dir)
+
+            assert.assertStr(fp1, fp2, 10)                                  // deterministic
+            assert.assertTrue(fly.str.startsWith(fp1, "hdr test"), 11)      // header kept
+            assert.assertTrue(fly.str.contains(fp1, "a.fly sha256:"), 12)
+            assert.assertTrue(fly.str.contains(fp1, "sub/b.fly sha256:"), 13)  // "/" relpath
+            assert.assertFalse(fly.str.contains(fp1, "note.txt"), 14)
+            assert.assertFalse(fly.str.equals(fp1, fp3), 15)                // content change
+            assert.assertFalse(fly.str.equals(fp3, fp4), 16)                // added file
+            assert.assertStr(fp4, fp5, 17)                                  // non-.fly inert
+        }
+        case "creation order does not matter; empty dir is header-only": {
+            string dirA = fpsTempDir("fp_suite_ord_a")
+            string dirB = fpsTempDir("fp_suite_ord_b")
+            string dirE = fpsTempDir("fp_suite_empty")
+            fly.os.fs.dirDeleteAll(dirA)
+            fly.os.fs.dirDeleteAll(dirB)
+            fly.os.fs.dirDeleteAll(dirE)
+            fly.os.fs.dirCreateAll(dirA, 493)
+            fly.os.fs.dirCreateAll(dirB, 493)
+            fly.os.fs.dirCreateAll(dirE, 493)
+            // same files, opposite creation order
+            fly.os.fs.writeStr(fly.os.path.join(dirA, "x.fly"), "xx", 420)
+            fly.os.fs.writeStr(fly.os.path.join(dirA, "y.fly"), "yy", 420)
+            fly.os.fs.writeStr(fly.os.path.join(dirB, "y.fly"), "yy", 420)
+            fly.os.fs.writeStr(fly.os.path.join(dirB, "x.fly"), "xx", 420)
+
+            string fpA = fpsCompute(dirA)
+            string fpB = fpsCompute(dirB)
+            string fpE = fpsCompute(dirE)
+            string wantE = fly.str.concat(fpsHeader(), fly.str.concat("files", fly.driver.nl()))
+
+            fly.os.fs.dirDeleteAll(dirA)
+            fly.os.fs.dirDeleteAll(dirB)
+            fly.os.fs.dirDeleteAll(dirE)
+
+            assert.assertStr(fpA, fpB, 20)     // filesystem order irrelevant
+            assert.assertStr(fpE, wantE, 21)   // zero sources: header + empty files section
+        }
+    }
+}

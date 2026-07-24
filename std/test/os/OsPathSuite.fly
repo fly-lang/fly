@@ -3,6 +3,8 @@ import fly.os.fs
 import fly.os.env
 import fly.str
 import fly.assert
+import fly.llvm
+import fly.runtime
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OsPathSuite — fly.os.path (std/lib/os/path.fly): path construction, splitting,
@@ -25,6 +27,17 @@ import fly.assert
 // ─────────────────────────────────────────────────────────────────────────────
 
 suite OsPathSuite {
+
+    // backslash — a one-byte "\" (92) built from its byte value: literals keep
+    // escapes raw, so a lone backslash cannot be written as a string literal.
+    string backslash() {
+        pointer buf = 0
+        fly.runtime.mem_alloc(1, buf)
+        fly.llvm.strPoke(buf, 0, 92)
+        string s = ""
+        fly.llvm.strMake(buf, 1, s)
+        out = s
+    }
 
     // ── join / joinN ─────────────────────────────────────────────────────────
     void joinTest() {
@@ -184,12 +197,9 @@ suite OsPathSuite {
             assert.assertNotEmpty(a, 502)
             assert.assertStr(a, path.absolute("."), 503)      // deterministic
             assert.assertGtI(str.len(a), 1, 512)
-            // NOTE: isAbsolute() only recognises a leading '/', so it reports
-            // false for the `C:\...` form absolute() returns on Windows. Asserted
-            // per-platform rather than unconditionally.
-            if str.equals(fly.os.env.osname(), "windows") == false {
-                assert.assertTrue(path.isAbsolute(a), 513)
-            }
+            // Holds on both hosts: "/..." on POSIX, "C:\..." on Windows (the
+            // drive-letter form is recognised as absolute too).
+            assert.assertTrue(path.isAbsolute(a), 513)
         }
         case "isAbsolute and isRelative are complementary": {
             assert.assertTrue(path.isAbsolute("/a/b"), 504)
@@ -202,6 +212,26 @@ suite OsPathSuite {
         case "the empty path is relative": {
             assert.assertFalse(path.isAbsolute(""), 510)
             assert.assertTrue(path.isRelative(""), 511)
+        }
+        case "Windows drive-letter and rooted forms are absolute": {
+            assert.assertTrue(path.isAbsolute("C:/Users"), 514)
+            assert.assertTrue(path.isAbsolute("C:"), 515)      // drive prefix alone
+            assert.assertFalse(path.isRelative("C:/Users"), 516)
+            string bs = backslash()
+            assert.assertTrue(path.isAbsolute(bs), 517)                   // "\"
+            assert.assertTrue(path.isAbsolute(str.concat(bs, "foo")), 518)  // "\foo"
+            string cwin = str.concat("C:", str.concat(bs, "Users"))
+            assert.assertTrue(path.isAbsolute(cwin), 519)                 // "C:\Users"
+            assert.assertFalse(path.isAbsolute("ab"), 520)     // second byte not ':'
+        }
+        case "absolute does not cwd-prefix a Windows-absolute path": {
+            string bs2 = backslash()
+            string win = str.concat("C:", str.concat(bs2, "Users"))
+            // Backslashes are opaque to normalize (only '/' separates), so the
+            // path comes back byte-identical — in particular with no cwd glued on.
+            assert.assertStr(path.absolute(win), win, 521)
+            // Forward-slash components after the drive still normalize.
+            assert.assertStr(path.absolute("C:/a/./b"), "C:/a/b", 522)
         }
     }
 

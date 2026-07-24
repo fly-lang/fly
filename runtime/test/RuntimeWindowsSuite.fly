@@ -196,6 +196,29 @@ suite RuntimeWindowsSuite {
             string s = fly.os.fs.readStr("rt_win_definitely_absent_9z")
             assert.assertTrue(fly.str.isEmpty(s), 63)
         }
+        case "fs_mtime / fs_lmtime return a positive epoch time": {
+            string f = "rt_win_mtime.txt"
+            fly.os.fs.writeStr(f, "m", 420)
+            // The primitive takes a C path: copy the Fly string + NUL terminator.
+            int len = fly.str.len(f)
+            pointer cp = fly.mem.alloc(len + 1)
+            int i = 0
+            while i < len {
+                byte b = 0
+                fly.str.byteAt(f, i, b)
+                fly.mem.writeByte(cp, i, b)
+                i = i + 1
+            }
+            fly.mem.writeByte(cp, len, 0)
+            long mt = 0
+            fly.runtime.fs_mtime(cp, mt)
+            assert.assertTrue(mt > 0, 64)
+            long lmt = 0
+            fly.runtime.fs_lmtime(cp, lmt)
+            assert.assertTrue(lmt > 0, 65)
+            fly.mem.free(cp, len + 1)
+            fly.os.fs.delete(f)
+        }
     }
 
     // ── directory listing: dir_open/read/close via fs.dirRead ─────────────────

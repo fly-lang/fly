@@ -10,9 +10,12 @@ import fly.os.proc
 // ─────────────────────────────────────────────────────────────────────────────
 // Builder — invoke the fly compiler to build a manifest's targets. Port of
 // fly/tools/flyp/builder/Builder.{h,cpp}, simplified: SEQUENTIAL (the C++ builds
-// targets on a thread pool; Fly has no easy threading here), and without the
-// incremental-fingerprint cache (always rebuilds). Compiler calls go through the
-// shell (the shell helpers) so we can `cd` into the output dir like the C++ does.
+// targets on a thread pool; Fly has no easy threading here). The C++'s
+// incremental-fingerprint cache IS ported (fingerprint.fly), upgraded: the
+// whole source tree is hashed (not just the entry file), the output artifacts
+// must still exist, and the compiler's own identity is part of the key. A
+// fresh target is skipped ("up-to-date <key>"); --force bypasses. Fingerprints
+// live in <outDir>/.flyp/<key>.fp — content hashes only, no mtimes.
 // Lockfile-based -L include paths are a follow-up (needs the Lockfile port).
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -22,6 +25,7 @@ public class Builder {
     bool isTest
     string targetTriple
     string flyBinary
+    bool force
 
     public Builder(const Manifest m, const string prof, const bool testMode) {
         this.manifest = m
@@ -29,9 +33,12 @@ public class Builder {
         this.isTest = testMode
         this.targetTriple = ""
         this.flyBinary = ""
+        this.force = false
     }
 
     public void setTargetTriple(const string t) { this.targetTriple = t }
+
+    public void setForce(const bool f) { this.force = f }
 
     // getFlyBinary — resolve lazily (a constructor cannot call a method here).
     public string getFlyBinary() {
@@ -148,7 +155,124 @@ public class Builder {
         out = rc == 0
     }
 
-    // buildTarget — build one [targets] entry (bin or lib).
+    // ── Incremental fingerprint cache ────────────────────────────────────────
+
+    // fpDir / fpPath — fingerprint files live under <outDir>/.flyp/<key>.fp, so
+    // debug/release (separate outDirs) are isolated for free and `fly clean`
+    // sweeps them with target/.
+    public string fpDir() { out = fly.os.path.join(this.outDir(), ".flyp") }
+
+    public string fpPath(const string key) {
+        out = fly.os.path.join(this.fpDir(), fly.str.concat(key, ".fp"))
+    }
+
+    // fpHeader — the non-source fingerprint fields (see fingerprint.fly for the
+    // format): compiler identity, target triple, profile flags, link flags,
+    // target kind+name, Lock.fly hash. Empty values print "-"/"none" so every
+    // line is non-empty and the shape is fixed. Ends with a newline, as
+    // Fingerprint.compute expects.
+    public string fpHeader(const string kind, const string name) {
+        string h = fly.str.concat("fly-fp 1", fly.driver.nl())
+        h = fly.str.concat(h, "compiler ")
+        h = fly.str.concat(h, fly.driver.fpCompilerId(this.getFlyBinary()))
+        h = fly.str.concat(h, fly.driver.nl())
+        string tr = this.targetTriple
+        if fly.str.isEmpty(tr) { tr = "-" }
+        h = fly.str.concat(h, fly.str.concat("triple ", tr))
+        h = fly.str.concat(h, fly.driver.nl())
+        h = fly.str.concat(h, fly.str.concat("profile ", this.profileFlags()))
+        h = fly.str.concat(h, fly.driver.nl())
+        // trim only a NON-empty string: the pinned seed's std has an unguarded
+        // first read in trim() that segfaults on an empty heap string (fixed
+        // in-tree, but this code must also run compiled against the seed).
+        string lk = "-"
+        string lkRaw = this.linkFlags()
+        if fly.str.isEmpty(lkRaw) == false {
+            string lkTrim = fly.str.trim(lkRaw)
+            if fly.str.isEmpty(lkTrim) == false { lk = lkTrim }
+        }
+        h = fly.str.concat(h, fly.str.concat("link ", lk))
+        h = fly.str.concat(h, fly.driver.nl())
+        h = fly.str.concat(h, fly.str.concat("kind ", fly.str.concat(kind, fly.str.concat(" ", name))))
+        h = fly.str.concat(h, fly.driver.nl())
+        // Lock.fly is cwd-relative: package commands run in the package root,
+        // same contract as loadManifest. Missing lock → "none" (and a lock
+        // appearing/disappearing flips the line → rebuild).
+        string lock = fly.driver.sha256File("Lock.fly")
+        if fly.str.isEmpty(lock) { lock = "none" }
+        h = fly.str.concat(h, fly.str.concat("lock ", lock))
+        h = fly.str.concat(h, fly.driver.nl())
+        out = h
+    }
+
+    // computeFpForDir — full fingerprint text for one source dir. Also used by
+    // cmdTest, which has suite files instead of Targets.
+    public string computeFpForDir(const string srcDir, const string kind, const string name) {
+        Fingerprint f = new Fingerprint()
+        out = f.compute(srcDir, this.fpHeader(kind, name))
+    }
+
+    // computeFpFor — fingerprint of a [targets] entry. The hashed dir is exactly
+    // what invokeFly passes as --src-dir: dirname of the target's source path.
+    public string computeFpFor(const Target t) {
+        string kind = "bin"
+        if t.isLib() {
+            string lib = t.getLib()
+            if fly.str.equals(lib, "dynamic") {
+                kind = "lib-dynamic"
+            } elsif fly.str.equals(lib, "both") {
+                kind = "lib-both"
+            } else {
+                kind = "lib-static"
+            }
+        }
+        string srcDir = fly.os.path.dirname(fly.os.path.absolute(t.getPath()))
+        out = this.computeFpForDir(srcDir, kind, t.getName())
+    }
+
+    // artifactsExist — every output the target produces is still on disk (a
+    // deleted artifact must rebuild even with a matching fingerprint). Mirrors
+    // buildTarget's outputs, including the deliberate lib<name>.so naming.
+    public bool artifactsExist(const Target t) {
+        string od = this.outDir()
+        if t.isLib() {
+            string lib = t.getLib()
+            bool ok = true
+            if fly.str.equals(lib, "dynamic") || fly.str.equals(lib, "both") {
+                string so = fly.str.concat(od, fly.str.concat("/lib", fly.str.concat(t.getName(), ".so")))
+                if fly.os.fs.exists(so) == false { ok = false }
+            }
+            if fly.str.equals(lib, "dynamic") == false {
+                string ar = fly.str.concat(od, fly.str.concat("/lib", fly.str.concat(t.getName(), ".a")))
+                if fly.os.fs.exists(ar) == false { ok = false }
+            }
+            out = ok
+        } else {
+            string bin = fly.str.concat(od, fly.str.concat("/", t.getName()))
+            bool have = fly.os.fs.exists(bin)
+            if have == false { have = fly.os.fs.exists(fly.str.concat(bin, ".exe")) }
+            out = have
+        }
+    }
+
+    // isUpToDate — stored fingerprint matches the computed one. A missing,
+    // unreadable or corrupted .fp reads as ""/garbage → mismatch → rebuild
+    // (never deleted; the next successful build overwrites it).
+    public bool isUpToDate(const string fpFile, const string computed) {
+        if fly.os.fs.exists(fpFile) == false { out = false  return }
+        string stored = fly.os.fs.readStr(fpFile)
+        out = fly.str.equals(stored, computed)
+    }
+
+    // saveFp — persist the fingerprint. Called ONLY after a successful build,
+    // so a failed build retries on the next run.
+    public void saveFp(const string fpFile, const string computed) {
+        fly.os.fs.dirCreateAll(this.fpDir(), 493)
+        fly.os.fs.writeStr(fpFile, computed, 420)
+    }
+
+    // buildTarget — build one [targets] entry (bin or lib); skip when the
+    // fingerprint matches and the artifacts exist (unless --force).
     public bool buildTarget(const string key) {
         int idx = 0
         Target t = null
@@ -162,24 +286,33 @@ public class Builder {
             out = false
             return
         }
+        string computed = this.computeFpFor(t)
+        string fpFile = this.fpPath(t.getKey())
+        if this.force == false {
+            if this.isUpToDate(fpFile, computed) && this.artifactsExist(t) {
+                fly.os.io.printLn(fly.str.concat("  up-to-date ", key))
+                out = true
+                return
+            }
+        }
         string src = fly.os.path.absolute(t.getPath())
+        bool ok = true
         if t.isLib() {
-            bool ok = true
             string lib = t.getLib()
             if fly.str.equals(lib, "dynamic") || fly.str.equals(lib, "both") {
-                string o = fly.str.concat(this.outDir(), fly.str.concat("/lib", fly.str.concat(t.getName(), ".so")))
-                ok = this.invokeFly(src, o, "--shared")
-                if ok == false { out = false  return }
+                string so = fly.str.concat(this.outDir(), fly.str.concat("/lib", fly.str.concat(t.getName(), ".so")))
+                ok = this.invokeFly(src, so, "--shared")
             }
-            if fly.str.equals(lib, "dynamic") == false {
-                string o = fly.str.concat(this.outDir(), fly.str.concat("/lib", fly.str.concat(t.getName(), ".a")))
-                ok = this.invokeFly(src, o, "--lib")
+            if ok && (fly.str.equals(lib, "dynamic") == false) {
+                string ar = fly.str.concat(this.outDir(), fly.str.concat("/lib", fly.str.concat(t.getName(), ".a")))
+                ok = this.invokeFly(src, ar, "--lib")
             }
-            out = ok
         } else {
             string o = fly.str.concat(this.outDir(), fly.str.concat("/", t.getName()))
-            out = this.invokeFly(src, o, "")
+            ok = this.invokeFly(src, o, "")
         }
+        if ok { this.saveFp(fpFile, computed) }
+        out = ok
     }
 
     // buildAll — build every target sequentially; false if any fails.

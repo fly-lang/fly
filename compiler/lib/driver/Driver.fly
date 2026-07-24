@@ -981,11 +981,13 @@ public class Driver {
         } elsif fly.str.equals(cmd, "init") {
             out = fly.driver.cmdInit(this.flagValue(args, n, "--name"), this.flagValue(args, n, "--version"))
         } elsif fly.str.equals(cmd, "build") {
-            out = fly.driver.cmdBuild(this.profileOf(args, n), this.flagValue(args, n, "--target"))
+            out = fly.driver.cmdBuild(this.profileOf(args, n), this.flagValue(args, n, "--target"),
+                    this.hasFlag(args, n, "--force"))
         } elsif fly.str.equals(cmd, "run") {
-            out = fly.driver.cmdRun(this.profileOf(args, n), this.flagValue(args, n, "--bin"))
+            out = fly.driver.cmdRun(this.profileOf(args, n), this.flagValue(args, n, "--bin"),
+                    this.hasFlag(args, n, "--force"))
         } elsif fly.str.equals(cmd, "test") {
-            out = fly.driver.cmdTest(this.profileOf(args, n))
+            out = fly.driver.cmdTest(this.profileOf(args, n), this.hasFlag(args, n, "--force"))
         } elsif fly.str.equals(cmd, "clean") {
             out = fly.driver.cmdClean(this.profileOf(args, n))
         } elsif fly.str.equals(cmd, "lock") {

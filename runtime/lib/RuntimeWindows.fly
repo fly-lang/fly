@@ -253,6 +253,44 @@ public void fs_lmode(const pointer path, int out) {
     }
     fly.runtime.free(ffd)
 }
+// mtime helpers — last-modification time as TOTAL NANOSECONDS since the Unix
+// epoch in one i64 (sec = out/1e9, nsec = out%1e9; splitting is the caller's
+// job so the primitive keeps a single out). Both info structs place
+// ftLastWriteTime at offset 20 (dwLowDateTime@20, dwHighDateTime@24): FILETIME
+// counts 100ns units since 1601-01-01; the 1601→1970 delta is 11644473600 s =
+// 116444736000000000 units. -1 on a failed lookup.
+private void winMtimeFromInfo(const pointer info, long out) {
+    int lo = 0
+    int hi = 0
+    fly.llvm.ptrReadInt(info, 20, lo)
+    fly.llvm.ptrReadInt(info, 24, hi)
+    long hiL = hi & 4294967295
+    long loL = lo & 4294967295
+    long ft = (hiL << 32) | loL
+    out = (ft - 116444736000000000) * 100
+}
+public void fs_mtime(const pointer path, long out) {
+    pointer info = 0
+    fly.runtime.malloc(40, info)
+    int ok = 0
+    fly.runtime.GetFileAttributesExA(path, 0, info, ok)
+    if ok == 0 { out = 0 - 1 } else { winMtimeFromInfo(info, out) }
+    fly.runtime.free(info)
+}
+public void fs_lmtime(const pointer path, long out) {
+    pointer ffd = 0
+    fly.runtime.malloc(320, ffd)
+    pointer h = 0
+    fly.runtime.FindFirstFileA(path, ffd, h)
+    pointer inv = 0
+    inv = inv - 1
+    if h == inv { out = 0 - 1 } else {
+        int rc = 0
+        fly.runtime.FindClose(h, rc)
+        winMtimeFromInfo(ffd, out)
+    }
+    fly.runtime.free(ffd)
+}
 public void fs_mkdir(const pointer path, const int mode, int out) {
     int ok = 0
     fly.runtime.CreateDirectoryA(path, 0, ok)

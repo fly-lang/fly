@@ -1,6 +1,8 @@
 import fly.os.fs
 import fly.os.fs.File
 import fly.os.path
+import fly.os.time
+import fly.os.time.Duration
 import fly.str
 import fly.assert
 
@@ -296,6 +298,38 @@ suite OsFsSuite {
             fly.os.fs.Stat b = fs.lstat(f)
             assert.assertEqL((long)a.size, (long)b.size, 604)
             assert.assertEqL((long)a.size, 4, 605)
+            fs.delete(f)
+        }
+        case "stat fills mtime for a fresh file": {
+            string f = "fly_fs_mtime.txt"
+            fs.writeStr(f, "mtime", 420)
+            fly.os.fs.Stat st = fs.stat(f)
+            long msec = (long)st.mtime_sec
+            long mnsec = (long)st.mtime_nsec
+            assert.assertTrue(msec > 0, 608)
+            assert.assertTrue(mnsec < 1000000000, 609)
+            fly.os.fs.Stat ls = fs.lstat(f)
+            long lsec = (long)ls.mtime_sec
+            assert.assertTrue(lsec > 0, 610)
+            fs.delete(f)
+        }
+        case "mtime advances across a spaced rewrite": {
+            string f = "fly_fs_mtime2.txt"
+            fs.writeStr(f, "one", 420)
+            fly.os.fs.Stat a = fs.stat(f)
+            long asec = (long)a.mtime_sec
+            long ansec = (long)a.mtime_nsec
+            long an = asec * 1000000000 + ansec
+            // 1.1 s: above any filesystem mtime granularity in the field.
+            Duration d = new Duration()
+            d.nsec = 1100000000
+            time.sleep(d)
+            fs.writeStr(f, "two!", 420)
+            fly.os.fs.Stat b = fs.stat(f)
+            long bsec = (long)b.mtime_sec
+            long bnsec = (long)b.mtime_nsec
+            long bn = bsec * 1000000000 + bnsec
+            assert.assertTrue(bn > an, 611)
             fs.delete(f)
         }
         case "chmod leaves the file readable": {
