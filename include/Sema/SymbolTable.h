@@ -41,6 +41,11 @@ namespace fly {
 
         bool insert(Symbol *Sym);
 
+        // Bind Sym in THIS scope, replacing any same-named entry instead of
+        // rejecting it as a duplicate. Only for compiler-synthesized rebindings
+        // (a bare `handle`'s implicit `__error`), never for user declarations.
+        void rebind(Symbol *Sym);
+
     	void addChild(SymbolTable *Child);
 
     	size_t size() const;

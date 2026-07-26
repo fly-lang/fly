@@ -92,6 +92,8 @@ ASTUnaryKind toUnaryOpExprKind(Token Tok, bool isPost) {
                 return ASTUnaryKind::OP_UNARY_PRE_DECR;
             case tok::exclaim:
                 return ASTUnaryKind::OP_UNARY_NOT_LOG;
+            case tok::minus:
+                return ASTUnaryKind::OP_UNARY_NEG;   // B007: unary minus
         }
     }
     assert(false && "Invalid Unary Token details");
@@ -313,6 +315,15 @@ ASTExpr *ParserExpr::ParsePrimary() {
         return ParseValue();
     }
 
+	// `error` in EXPRESSION position reads the implicit error variable a bare
+	// `handle { }` binds (B031, self-host parity): the keyword maps to the
+	// internal name "__error" the handle registered (a non-keyword name no
+	// user identifier can collide with).
+	if (P->Tok.is(tok::kw_error)) {
+		const SourceLocation &ErrLoc = P->ConsumeToken();
+		return ASTBuilder::CreateIdentifier(ErrLoc, "__error");
+	}
+
 	// Parse Identifier or Call
 	if (P->Tok.isAnyIdentifier()) { // Ex. a or a++ or func()
 
@@ -405,8 +416,23 @@ ASTBinary *ParserExpr::ParseBinaryExpr(ASTExpr *LeftExpr, Token OpToken, Precede
         Token NextTok = P->Tok;
         Precedence nextPrecedence = getPrecedence(NextTok);
         if (nextPrecedence == Precedence::LOWEST) break;
-        // Ternary '?' must be handled by the outer ParseExpr loop, not consumed here.
-        if (nextPrecedence == Precedence::TERNARY) break;
+        if (nextPrecedence == Precedence::TERNARY) {
+            // '?' binds TIGHTER than assignment (and only assignment): in
+            // `r = c ? 1 : 2` the ternary must fold into the '=' RHS here —
+            // deferring it to the outer ParseExpr loop wrapped the finished
+            // assignment as the ternary CONDITION ((r = c) ? 1 : 2), which
+            // Sema then rejected as "cannot assign a value of type 'bool'"
+            // for every value-producing ternary. For operators that bind
+            // tighter than '?' (`a + b ? …`) the outer loop still takes it,
+            // so the whole binary becomes the condition (flat table).
+            if (precedence < Precedence::TERNARY) {
+                RightExpr = ParseTernaryExpr(RightExpr);
+                if (RightExpr == nullptr)
+                    return nullptr;
+                continue;
+            }
+            break;
+        }
         if (!(nextPrecedence > precedence ||
               (nextPrecedence == precedence && isRightAssociative(OpToken)))) break;
         RightExpr = ParseBinaryExpr(RightExpr, NextTok, nextPrecedence);
@@ -462,7 +488,9 @@ bool ParserExpr::isNewOperator(Token &Tok) {
  */
 bool ParserExpr::isUnaryPreOperator(Token &Tok) {
     FLY_DEBUG_SCOPE("ParserExpr", "isUnaryPreOperator");
-    return Tok.isOneOf(tok::plusplus, tok::minusminus, tok::exclaim);
+    // tok::minus only reaches here in OPERAND position (binary `a - b` is
+    // consumed by the precedence loop after a left operand) — B007 unary minus.
+    return Tok.isOneOf(tok::plusplus, tok::minusminus, tok::exclaim, tok::minus);
 }
 
 /**
@@ -471,6 +499,11 @@ bool ParserExpr::isUnaryPreOperator(Token &Tok) {
  */
 bool ParserExpr::isUnaryPostOperator() {
     FLY_DEBUG_SCOPE("ParserExpr", "isUnaryPostOperator");
+    // Newlines are insignificant, so a `++`/`--` opening the NEXT line is a
+    // prefix statement of its own — it must never be eaten as the previous
+    // operand's postfix (B014 parity: `int a = 5` + `++a` parsed as `5++`).
+    if (P->Tok.isAtStartOfLine())
+        return false;
     return P->Tok.isOneOf(tok::plusplus, tok::minusminus);
 }
 
@@ -623,33 +656,60 @@ ASTValue *ParserExpr::ParseValues() {
 
     // Set Values Struct and Array for next
     bool isStruct = false;
-    llvm::StringMap<ASTValue *> StructValues;
-    llvm::SmallVector<ASTValue *, 8> ArrayValues;
+    llvm::StringMap<ASTExpr *> StructValues;
+    llvm::SmallVector<ASTExpr *, 8> ArrayValues;
 
-    // Parse array values Ex. {1, 2, 3}
+    // Parse array values Ex. {1, 2, 3}. Array elements are full EXPRESSIONS —
+    // `{(byte)200, a, x + 1}` — not just bare literals (B026): the old
+    // ParseValue-only path rejected a cast with "unexpected token 'l_paren'"
+    // and silently SWALLOWED identifier elements (mistaken for struct keys).
     while(P->Tok.isNot(tok::r_brace)) {
 
-        // if is Identifier -> struct
         if (P->Tok.isAnyIdentifier()) {
-            isStruct = true;
+            // `ident =` starts a STRUCT literal entry; a bare identifier is an
+            // array ELEMENT expression (continued via Parse(Left) so `a + 1`
+            // and friends work).
             const StringRef &Key = P->Tok.getIdentifierInfo()->getName();
+            const SourceLocation &IdLoc = P->Tok.getLocation();
             P->ConsumeToken();
 
             if (P->Tok.is(tok::equal)) {
-                // FIXME
+                isStruct = true;
                 P->ConsumeToken();
 
-                ASTValue *Value = ParseValue();
+                // The field VALUE is a full expression, exactly like an array
+                // element (B029 parity) — `{x = base + 1, y = (byte)n}`. A
+                // nested `{ … }` recurses through ParsePrimary's ParseValues.
+                ParserExpr PE(P);
+                ASTExpr *Value = PE.Parse();
                 if (Value) {
                     StructValues.insert(std::make_pair(Key, Value));
                 } else {
                     P->Diag(diag::err_parser_invalid_value) << P->Tok.getName();
                 }
+            } else {
+                ASTExpr *IdExpr = ASTBuilder::CreateIdentifier(IdLoc, Key);
+                ParserExpr PE(P);
+                ASTExpr *Elem = PE.Parse(IdExpr);
+                if (Elem) {
+                    ArrayValues.push_back(Elem);
+                } else {
+                    P->Diag(diag::err_parser_invalid_value) << P->Tok.getName();
+                }
             }
-        } else { // if is Value -> array
-            ASTValue *Value = ParseValue();
-            if (Value) {
-                ArrayValues.push_back(Value);
+        } else if (P->Tok.is(tok::l_brace)) {
+            // nested array/struct literal element
+            ASTValue *Nested = ParseValues();
+            if (Nested) {
+                ArrayValues.push_back(Nested);
+            } else {
+                P->Diag(diag::err_parser_invalid_value) << P->Tok.getName();
+            }
+        } else { // any other expression element (literal, cast, parenthesized, …)
+            ParserExpr PE(P);
+            ASTExpr *Elem = PE.Parse();
+            if (Elem) {
+                ArrayValues.push_back(Elem);
             } else {
                 P->Diag(diag::err_parser_invalid_value) << P->Tok.getName();
             }

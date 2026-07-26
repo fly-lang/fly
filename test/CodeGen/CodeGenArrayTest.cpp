@@ -70,6 +70,9 @@ namespace {
     	llvm::Module *M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
+    	// A bare DECLARATION (no initializer) takes StoreDefaultValue, which only
+    	// nulls the slot — unlike an assigned literal, which goes through
+    	// StoreArrayValue and writes both {data, size} fields (see the next test).
     	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
                         "entry:\n"
                         "  %1 = alloca ptr, align 8\n"
@@ -96,7 +99,7 @@ namespace {
     	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, nullptr);
     	ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, ArrayIntType, "k", EmptyModifiers);
     	ASTDeclStmt *DeclStmt_k = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_k);
-    	llvm::SmallVector<ASTValue *, 8> EmptyVals;
+    	llvm::SmallVector<ASTExpr *, 8> EmptyVals;
     	ASTArrayValue *EmptyArr = ASTBuilder::CreateArrayValue(SourceLoc, EmptyVals);
     	ASTIdentifier *kIdent = ASTBuilder::CreateIdentifier(LocalVar_k);
     	ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, kIdent, EmptyArr);
@@ -107,12 +110,18 @@ namespace {
     	llvm::Module *M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
+    	// The %array fat pointer is initialised in BOTH fields (B025): an empty
+    	// literal gets {data = null, size = 0}. Writing only the data pointer left
+    	// the size garbage, so every for-in over the variable read a random count.
     	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
                         "entry:\n"
                         "  %1 = alloca ptr, align 8\n"
                         "  %2 = alloca %array, align 8\n"
                         "  store ptr %0, ptr %1, align 8\n"
-                        "  store ptr null, ptr %2, align 8\n"
+                        "  %3 = getelementptr inbounds nuw %array, ptr %2, i32 0, i32 0\n"
+                        "  store ptr null, ptr %3, align 8\n"
+                        "  %4 = getelementptr inbounds nuw %array, ptr %2, i32 0, i32 1\n"
+                        "  store i32 0, ptr %4, align 4\n"
                         "  ret void\n"
                         "}\n");
     }
@@ -134,7 +143,7 @@ namespace {
     	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, Value_0);
     	ASTLocalVar *LocalVar_k = ASTBuilder::CreateLocalVar(SourceLoc, ArrayIntType, "k", EmptyModifiers);
     	ASTDeclStmt *DeclStmt_k = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar_k);
-    	llvm::SmallVector<ASTValue *, 8> EmptyVals;
+    	llvm::SmallVector<ASTExpr *, 8> EmptyVals;
     	ASTArrayValue *EmptyArr = ASTBuilder::CreateArrayValue(SourceLoc, EmptyVals);
     	ASTIdentifier *kIdent = ASTBuilder::CreateIdentifier(LocalVar_k);
     	ASTBinary *AssignExpr = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN, kIdent, EmptyArr);
@@ -145,12 +154,18 @@ namespace {
     	llvm::Module *M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
+    	// The %array fat pointer is initialised in BOTH fields (B025): an empty
+    	// literal gets {data = null, size = 0}. Writing only the data pointer left
+    	// the size garbage, so every for-in over the variable read a random count.
     	EXPECT_EQ(output, "define void @_F4func(ptr %0) {\n"
                         "entry:\n"
                         "  %1 = alloca ptr, align 8\n"
                         "  %2 = alloca %array, align 8\n"
                         "  store ptr %0, ptr %1, align 8\n"
-                        "  store ptr null, ptr %2, align 8\n"
+                        "  %3 = getelementptr inbounds nuw %array, ptr %2, i32 0, i32 0\n"
+                        "  store ptr null, ptr %3, align 8\n"
+                        "  %4 = getelementptr inbounds nuw %array, ptr %2, i32 0, i32 1\n"
+                        "  store i32 0, ptr %4, align 4\n"
                         "  ret void\n"
                         "}\n");
     }
@@ -215,7 +230,7 @@ namespace {
     	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, nullptr);
         ASTLocalVar *LocalVar = ASTBuilder::CreateLocalVar(SourceLoc, ArrayIntType, "a", EmptyModifiers);
         ASTDeclStmt *DeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar);
-    	llvm::SmallVector<ASTValue *, 8> Vals;
+    	llvm::SmallVector<ASTExpr *, 8> Vals;
         Vals.push_back(ASTBuilder::CreateNumberValue(SourceLoc, "1"));
     	Vals.push_back(ASTBuilder::CreateNumberValue(SourceLoc, "2"));
     	Vals.push_back(ASTBuilder::CreateNumberValue(SourceLoc, "3"));
@@ -241,6 +256,13 @@ namespace {
                         "  store i32 2, ptr %5, align 4\n"
                         "  %6 = getelementptr i32, ptr %3, i64 2\n"
                         "  store i32 3, ptr %6, align 4\n"
+                        // …then the variable's %array fat pointer is filled in with the
+                        // buffer AND its element count (B025) — the size field used to be
+                        // left uninitialised.
+                        "  %7 = getelementptr inbounds nuw %array, ptr %2, i32 0, i32 0\n"
+                        "  store ptr %3, ptr %7, align 8\n"
+                        "  %8 = getelementptr inbounds nuw %array, ptr %2, i32 0, i32 1\n"
+                        "  store i32 3, ptr %8, align 4\n"
                         "  ret void\n"
                         "}\n"
                         "declare ptr @malloc(i64)\n");
@@ -264,7 +286,7 @@ namespace {
     	ASTArrayType *ArrayIntType = ASTBuilder::CreateArrayType(SourceLoc, IntTypeRef, Value_3);
     	ASTLocalVar *LocalVar = ASTBuilder::CreateLocalVar(SourceLoc, ArrayIntType, "a", EmptyModifiers);
     	ASTDeclStmt *DeclStmt = ASTBuilder::CreateDeclStmt(Body, SourceLoc, LocalVar);
-    	llvm::SmallVector<ASTValue *, 8> Vals;
+    	llvm::SmallVector<ASTExpr *, 8> Vals;
     	Vals.push_back(ASTBuilder::CreateNumberValue(SourceLoc, "1"));
     	Vals.push_back(ASTBuilder::CreateNumberValue(SourceLoc, "2"));
     	Vals.push_back(ASTBuilder::CreateNumberValue(SourceLoc, "3"));
@@ -290,6 +312,13 @@ namespace {
                         "  store i32 2, ptr %5, align 4\n"
                         "  %6 = getelementptr i32, ptr %3, i64 2\n"
                         "  store i32 3, ptr %6, align 4\n"
+                        // …then the variable's %array fat pointer is filled in with the
+                        // buffer AND its element count (B025) — the size field used to be
+                        // left uninitialised.
+                        "  %7 = getelementptr inbounds nuw %array, ptr %2, i32 0, i32 0\n"
+                        "  store ptr %3, ptr %7, align 8\n"
+                        "  %8 = getelementptr inbounds nuw %array, ptr %2, i32 0, i32 1\n"
+                        "  store i32 3, ptr %8, align 4\n"
                         "  ret void\n"
                         "}\n"
                         "declare ptr @malloc(i64)\n");

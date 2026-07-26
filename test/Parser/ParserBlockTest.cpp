@@ -449,6 +449,28 @@ TEST_F(ParserTest, UnterminatedBlockCommentIsError) {
 	EXPECT_TRUE(HasErrorOccurred());
 }
 
+TEST_F(ParserTest, BareBlockIsAStatement) {
+	// A bare `{ … }` in statement position opens a nested scoping block. It used
+	// to fall through to expression parsing, where `{ r = 5 }` read as a STRUCT
+	// literal and the statements vanished (B021 root cause, reference side).
+	llvm::StringRef str = (
+		"void func() {\n"
+		"  int r = 0\n"
+		"  {\n"
+		"    r = 5\n"
+		"  }\n"
+		"}\n");
+	ASTModule *Module = Parse("BareBlockIsAStatement", str);
+	ASTBlockStmt *Body = As<ASTFunction>(Module->getNodes()[0])->getBody();
+
+	ASSERT_EQ(Body->getContent().size(), 2u);
+	auto *Nested = As<ASTBlockStmt>(Body->getContent()[1]);
+	ASSERT_NE(Nested, nullptr);
+	EXPECT_EQ(Nested->getContent().size(), 1u);
+	EXPECT_NE(As<ASTExprStmt>(Nested->getContent()[0]), nullptr);
+	EXPECT_FALSE(HasErrorOccurred());
+}
+
 TEST_F(ParserTest, UnclosedBlockAtEofIsError) {
 	// A file that simply ends inside an open block (no comment involved)
 	// must also be rejected.

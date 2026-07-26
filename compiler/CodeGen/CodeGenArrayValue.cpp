@@ -39,22 +39,37 @@ void CodeGenArrayValue::GenExpr(SemaArrayValue *Sema) {
 	// Get the element type from the array type
 	ArrayType->getElementType()->accept(*CGM);
 	ElementType = ArrayType->getElementType()->getCodeGen()->getType();
+	bool ElemIsArray = ArrayType->getElementType()->isArray();
 
-	// Generate values and store them for later use
+	// Generate values and store them for later use (elements are expressions)
 	Values.clear();
-	for (SemaValue *Value : Sema->getValues()) {
+	for (SemaExpr *Value : Sema->getValues()) {
 		Value->accept(*CGM);
 		llvm::Value *Val = Value->getCodeGen()->getValue();
+		// An INNER array literal materializes as a full %array fat-pointer
+		// VALUE {data, size}: its raw buffer pointer alone loses the size (and
+		// mis-strides the outer buffer) — iterating a nested literal crashed.
+		if (ElemIsArray) {
+			CodeGenArrayValue *InnerCG =
+				static_cast<CodeGenArrayValue *>(Value->getCodeGen());
+			llvm::Value *Cnt = llvm::ConstantInt::get(
+				CodeGen::IntTy, InnerCG->getValues().size());
+			llvm::Value *StructV = llvm::UndefValue::get(CodeGen::ArrayTy);
+			StructV = Builder->CreateInsertValue(StructV, Val, 0);
+			StructV = Builder->CreateInsertValue(StructV, Cnt, 1);
+			Val = StructV;
+		}
 		Values.push_back(Val);
 	}
 
-	// Calculate Space
-	llvm::Value* AllocSize = llvm::ConstantInt::get(CodeGen::IntPtrTy, 0);
+	// Calculate Space — from the SEMANTIC element type: for a nested array the
+	// stored element is the %array struct (16 bytes), while Values[0] used to
+	// report the raw pointer's 8 and undersize the buffer.
 	if (Values.size() > 0) {
 		llvm::Value* NumElements = llvm::ConstantInt::get(CodeGen::IntPtrTy, Values.size());
-		llvm::TypeSize SizeInBytes = CGM->getTarget().getDataLayout().getTypeAllocSize(Values[0]->getType());
+		llvm::TypeSize SizeInBytes = CGM->getTarget().getDataLayout().getTypeAllocSize(ElementType);
 		llvm::Value* ElementSize = llvm::ConstantInt::get(CodeGen::IntPtrTy, SizeInBytes.getFixedValue());
-		AllocSize = Builder->CreateMul(NumElements, ElementSize);
+		llvm::Value* AllocSize = Builder->CreateMul(NumElements, ElementSize);
 
 		// Call malloc to allocate memory for the array data
 		llvm::FunctionCallee MallocFn = CGM->getModule()->getOrInsertFunction(
@@ -64,11 +79,19 @@ void CodeGenArrayValue::GenExpr(SemaArrayValue *Sema) {
 				{CodeGen::IntPtrTy},
 				false));
 		V = Builder->CreateCall(MallocFn, {AllocSize});
+
+		// Fill the buffer HERE, self-contained: an inner literal must be fully
+		// materialized before the outer literal captures it — the old deferral
+		// to CodeGenVar::StoreArrayValue only ever ran for the TOP-level store,
+		// so inner buffers stayed unfilled.
+		for (size_t i = 0; i < Values.size(); i++) {
+			llvm::Value *Index = llvm::ConstantInt::get(CodeGen::IntPtrTy, i);
+			llvm::Value *ElemPtr = Builder->CreateGEP(ElementType, V, Index);
+			Builder->CreateStore(Values[i], ElemPtr);
+		}
 	} else {
 		V = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ElementType->getPointerTo()));
 	}
-
-	// Note: Element stores will be done in CodeGenVar::StoreArrayValue
 }
 
 void CodeGenArrayValue::GenExpr(SemaEnumList *Sema) {

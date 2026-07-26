@@ -42,8 +42,12 @@ CodeGenClass::CodeGenClass(CodeGenModule *CGM, SemaClassType *Sema, bool isExter
 	CodeGenVar *CGV = new CodeGenVar(CGM, Sema->getThis(), Type);
 	Sema->getThis()->setCodeGen(CGV);
 
-	// Create the Init Constructor Function signature (no body yet).
-	if (Sema->getClassKind() != SemaClassKind::INTERFACE && !Sema->isAbstract()) {
+	// Create the Init Constructor Function signature (no body yet). SUITEs skip
+	// it: the runner inits the instance inline, and the init_ctor NAME
+	// (`<Id>.init_ctor`) would collide with LLVM's reserved intrinsic namespace
+	// for a suite living in a namespace ending in `.llvm`.
+	if (Sema->getClassKind() != SemaClassKind::INTERFACE &&
+	    Sema->getClassKind() != SemaClassKind::SUITE && !Sema->isAbstract()) {
 		CreateInitConstructor();
 	}
 	// Phase 2 (Build()) must be called by visit(SemaClassType) after setCodeGen().
@@ -77,7 +81,8 @@ void CodeGenClass::FinishBuild() {
 	if (Sema->getClassKind() == SemaClassKind::CLASS) {
 		CreateBaseVTables();
 	}
-	if (Sema->getClassKind() != SemaClassKind::INTERFACE && !Sema->isAbstract()) {
+	if (Sema->getClassKind() != SemaClassKind::INTERFACE &&
+	    Sema->getClassKind() != SemaClassKind::SUITE && !Sema->isAbstract()) {
 		GenInitConstructorBody();
 	}
 }
@@ -203,6 +208,26 @@ void CodeGenClass::CreateVTable() {
 				VTLinkage, ArrayValue, VTableName);
 			if (Sema->getGenericTemplate() != nullptr)
 				VTable->setComdat(CGM->getModule()->getOrInsertComdat(VTable->getName()));
+		}
+	} else if (Sema->getClassKind() == SemaClassKind::SUITE) {
+		// SUITE (B018): no vtable slot — suites are final, every call dispatches
+		// statically — but EVERY method (helpers included, not just the
+		// setup/teardown/*Test set EmitSuite classifies) needs a CodeGen and a
+		// scheduled body, or `this.helper()` dereferences a null getCodeGen().
+		for (auto &Node : Sema->getNodes()) {
+			if (Node->getKind() != SemaKind::METHOD) {
+				continue;
+			}
+			SemaClassMethod *Method = static_cast<SemaClassMethod *>(Node);
+			if (Method->isConstructor()) // suites are runner-initialized, no ctor
+				continue;
+			if (Method->getCodeGen() == nullptr) {
+				CodeGenClassMethod *CG = new CodeGenClassMethod(CGM, Method, Type, 0);
+				Method->setCodeGen(CG);
+				if (!IsExternal) {
+					CGM->Functions.push_back(Method);
+				}
+			}
 		}
 	}
 }
@@ -439,9 +464,11 @@ void CodeGenClass::CreateBaseInfo(llvm::SmallVector<SemaClassType *, 4> BaseClas
 }
 
 void CodeGenClass::CreateAttributes() {
-	// Set CodeGen Attributes
+	// Set CodeGen Attributes (SUITE fields included — B018: suite methods
+	// read/write them through the runner-allocated instance)
 	if (!Sema->getAttributes().empty() &&
-		(Sema->getClassKind() == SemaClassKind::CLASS || Sema->getClassKind() == SemaClassKind::STRUCT)) {
+		(Sema->getClassKind() == SemaClassKind::CLASS || Sema->getClassKind() == SemaClassKind::STRUCT ||
+		 Sema->getClassKind() == SemaClassKind::SUITE)) {
 
 		// add var to the type — iterate Nodes (DECLARATION order), not the
 		// Attributes StringMap: the struct layout must match the field order

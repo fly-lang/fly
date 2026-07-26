@@ -509,4 +509,22 @@ namespace {
         EXPECT_FALSE(HasErrorOccurred());
     }
 
+    TEST_F(ParserTest, ValueStructExpressionValues) {
+        // A field VALUE is a full expression, like an array element — `{x = base + 1}`
+        // used to be rejected with "expected a literal value" (B029 parity).
+        llvm::StringRef src =
+            "void func(int base) {\n"
+            "  Type s = {x = base + 1, y = (byte)200}\n"
+            "}\n";
+        ASTModule *M = Parse("ValueStructExpressionValues", src);
+        auto *Body = As<ASTFunction>(M->getNodes()[0])->getBody();
+
+        auto *Val = As<ASTStructValue>(rhsValue(Body, 0));
+        ASSERT_TRUE(Val != nullptr);
+        EXPECT_EQ(Val->size(), 2u);
+        EXPECT_EQ(Val->getValues().find("x")->second->getExprKind(), ASTExprKind::EXPR_BINARY);
+        EXPECT_EQ(Val->getValues().find("y")->second->getExprKind(), ASTExprKind::EXPR_CAST);
+        EXPECT_FALSE(HasErrorOccurred());
+    }
+
 } // namespace

@@ -79,18 +79,25 @@ namespace {
                         "  ret ptr %2\n"
                         "}\n"
                         "\n"
+                        // The allocation is still unique-owned and freed at scope exit,
+                        // but the destination is a STRUCT, so B028 value semantics apply
+                        // on top: the variable holds its own entry-block copy (%1) rather
+                        // than aliasing the heap block. NOTE: that makes `unique` on a
+                        // struct effectively a no-op — malloc, copy out, free.
                         "define void @_F4func(ptr %0) {\n"
                         "entry:\n"
-                        "  %1 = alloca ptr, align 8\n"
+                        "  %1 = alloca %TestStruct, align 8\n"
                         "  %2 = alloca ptr, align 8\n"
-                        "  %3 = alloca %TestStruct, align 8\n"
-                        "  store ptr %3, ptr %2, align 8\n"
-                        "  store ptr %0, ptr %1, align 8\n"
-                        "  %4 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%TestStruct, ptr null, i32 1) to i64))\n"
-                        "  call void @llvm.memset.p0.i64(ptr %4, i8 0, i64 4, i1 false)\n"
-                        "  %5 = call ptr @TestStruct.init_ctor(ptr %4)\n"
-                        "  store ptr %5, ptr %2, align 8\n"
-                        "  call void @free(ptr %5)\n"
+                        "  %3 = alloca ptr, align 8\n"
+                        "  %4 = alloca %TestStruct, align 8\n"
+                        "  store ptr %4, ptr %3, align 8\n"
+                        "  store ptr %0, ptr %2, align 8\n"
+                        "  %5 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%TestStruct, ptr null, i32 1) to i64))\n"
+                        "  call void @llvm.memset.p0.i64(ptr %5, i8 0, i64 4, i1 false)\n"
+                        "  %6 = call ptr @TestStruct.init_ctor(ptr %5)\n"
+                        "  call void @llvm.memcpy.p0.p0.i64(ptr %1, ptr %6, i64 4, i1 false)\n"
+                        "  store ptr %1, ptr %3, align 8\n"
+                        "  call void @free(ptr %6)\n"
                         "  ret void\n"
                         "}\n"
                         "\n"
@@ -99,9 +106,13 @@ namespace {
                         "; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: write)\n"
                         "declare void @llvm.memset.p0.i64(ptr nocapture writeonly, i8, i64, i1 immarg) #0\n"
                         "\n"
+                        "; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)\n"
+                        "declare void @llvm.memcpy.p0.p0.i64(ptr noalias nocapture writeonly, ptr noalias nocapture readonly, i64, i1 immarg) #1\n"
+                        "\n"
                         "declare void @free(ptr)\n"
                         "\n"
-                        "attributes #0 = { nocallback nofree nounwind willreturn memory(argmem: write) }\n");
+                        "attributes #0 = { nocallback nofree nounwind willreturn memory(argmem: write) }\n"
+                        "attributes #1 = { nocallback nofree nounwind willreturn memory(argmem: readwrite) }\n");
     }
 
     /**
@@ -163,19 +174,24 @@ namespace {
                         "  ret ptr %2\n"
                         "}\n"
                         "\n"
+                        // Same as the eager case, one statement later: the declaration
+                        // zeroes the slot first, then the assignment copies the freshly
+                        // built object into the variable's own slot (%1) — B028.
                         "define void @_F4func(ptr %0) {\n"
                         "entry:\n"
-                        "  %1 = alloca ptr, align 8\n"
+                        "  %1 = alloca %TestStruct, align 8\n"
                         "  %2 = alloca ptr, align 8\n"
-                        "  %3 = alloca %TestStruct, align 8\n"
-                        "  store ptr %3, ptr %2, align 8\n"
-                        "  store ptr %0, ptr %1, align 8\n"
-                        "  store ptr null, ptr %2, align 8\n"
-                        "  %4 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%TestStruct, ptr null, i32 1) to i64))\n"
-                        "  call void @llvm.memset.p0.i64(ptr %4, i8 0, i64 4, i1 false)\n"
-                        "  %5 = call ptr @TestStruct.init_ctor(ptr %4)\n"
-                        "  store ptr %5, ptr %2, align 8\n"
-                        "  call void @free(ptr %5)\n"
+                        "  %3 = alloca ptr, align 8\n"
+                        "  %4 = alloca %TestStruct, align 8\n"
+                        "  store ptr %4, ptr %3, align 8\n"
+                        "  store ptr %0, ptr %2, align 8\n"
+                        "  store ptr null, ptr %3, align 8\n"
+                        "  %5 = call ptr @malloc(i64 ptrtoint (ptr getelementptr (%TestStruct, ptr null, i32 1) to i64))\n"
+                        "  call void @llvm.memset.p0.i64(ptr %5, i8 0, i64 4, i1 false)\n"
+                        "  %6 = call ptr @TestStruct.init_ctor(ptr %5)\n"
+                        "  call void @llvm.memcpy.p0.p0.i64(ptr %1, ptr %6, i64 4, i1 false)\n"
+                        "  store ptr %1, ptr %3, align 8\n"
+                        "  call void @free(ptr %6)\n"
                         "  ret void\n"
                         "}\n"
                         "\n"
@@ -184,9 +200,13 @@ namespace {
                         "; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: write)\n"
                         "declare void @llvm.memset.p0.i64(ptr nocapture writeonly, i8, i64, i1 immarg) #0\n"
                         "\n"
+                        "; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)\n"
+                        "declare void @llvm.memcpy.p0.p0.i64(ptr noalias nocapture writeonly, ptr noalias nocapture readonly, i64, i1 immarg) #1\n"
+                        "\n"
                         "declare void @free(ptr)\n"
                         "\n"
-                        "attributes #0 = { nocallback nofree nounwind willreturn memory(argmem: write) }\n");
+                        "attributes #0 = { nocallback nofree nounwind willreturn memory(argmem: write) }\n"
+                        "attributes #1 = { nocallback nofree nounwind willreturn memory(argmem: readwrite) }\n");
     }
 
     /**
@@ -238,25 +258,30 @@ namespace {
                         "  ret ptr %2\n"
                         "}\n"
                         "\n"
+                        // Refcount header, retain/release and the conditional free are
+                        // unchanged; only the destination store differs — B028 gives the
+                        // struct variable its own copy (%1) instead of the shared block.
                         "define void @_F4func(ptr %0) {\n"
                         "entry:\n"
-                        "  %1 = alloca ptr, align 8\n"
+                        "  %1 = alloca %TestStruct, align 8\n"
                         "  %2 = alloca ptr, align 8\n"
-                        "  %3 = alloca %TestStruct, align 8\n"
-                        "  store ptr %3, ptr %2, align 8\n"
-                        "  store ptr %0, ptr %1, align 8\n"
-                        "  %4 = call ptr @malloc(i64 ptrtoint (ptr getelementptr ({ i64, %TestStruct }, ptr null, i32 1) to i64))\n"
-                        "  call void @llvm.memset.p0.i64(ptr %4, i8 0, i64 16, i1 false)\n"
-                        "  store i64 1, ptr %4, align 8\n"
-                        "  %5 = getelementptr i8, ptr %4, i64 8\n"
-                        "  %6 = call ptr @TestStruct.init_ctor(ptr %5)\n"
-                        "  store ptr %6, ptr %2, align 8\n"
-                        "  %shrd_hdr = getelementptr i8, ptr %6, i64 -8\n"
+                        "  %3 = alloca ptr, align 8\n"
+                        "  %4 = alloca %TestStruct, align 8\n"
+                        "  store ptr %4, ptr %3, align 8\n"
+                        "  store ptr %0, ptr %2, align 8\n"
+                        "  %5 = call ptr @malloc(i64 ptrtoint (ptr getelementptr ({ i64, %TestStruct }, ptr null, i32 1) to i64))\n"
+                        "  call void @llvm.memset.p0.i64(ptr %5, i8 0, i64 16, i1 false)\n"
+                        "  store i64 1, ptr %5, align 8\n"
+                        "  %6 = getelementptr i8, ptr %5, i64 8\n"
+                        "  %7 = call ptr @TestStruct.init_ctor(ptr %6)\n"
+                        "  call void @llvm.memcpy.p0.p0.i64(ptr %1, ptr %7, i64 4, i1 false)\n"
+                        "  store ptr %1, ptr %3, align 8\n"
+                        "  %shrd_hdr = getelementptr i8, ptr %7, i64 -8\n"
                         "  %shrd_rc = load i64, ptr %shrd_hdr, align 8\n"
                         "  %shrd_rc1 = sub i64 %shrd_rc, 1\n"
                         "  store i64 %shrd_rc1, ptr %shrd_hdr, align 8\n"
-                        "  %7 = icmp eq i64 %shrd_rc1, 0\n"
-                        "  br i1 %7, label %shrd_free, label %shrd_done\n"
+                        "  %8 = icmp eq i64 %shrd_rc1, 0\n"
+                        "  br i1 %8, label %shrd_free, label %shrd_done\n"
                         "\n"
                         "shrd_free:                                        ; preds = %entry\n"
                         "  call void @free(ptr %shrd_hdr)\n"
@@ -271,9 +296,13 @@ namespace {
                         "; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: write)\n"
                         "declare void @llvm.memset.p0.i64(ptr nocapture writeonly, i8, i64, i1 immarg) #0\n"
                         "\n"
+                        "; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)\n"
+                        "declare void @llvm.memcpy.p0.p0.i64(ptr noalias nocapture writeonly, ptr noalias nocapture readonly, i64, i1 immarg) #1\n"
+                        "\n"
                         "declare void @free(ptr)\n"
                         "\n"
-                        "attributes #0 = { nocallback nofree nounwind willreturn memory(argmem: write) }\n");
+                        "attributes #0 = { nocallback nofree nounwind willreturn memory(argmem: write) }\n"
+                        "attributes #1 = { nocallback nofree nounwind willreturn memory(argmem: readwrite) }\n");
     }
 
     /**

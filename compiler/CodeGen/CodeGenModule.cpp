@@ -428,8 +428,17 @@ void CodeGenModule::visit(SemaEnumType &Sema) {
 void CodeGenModule::visit(SemaClassType &Sema) {
 	FLY_DEBUG_SCOPE_MSG("CodeGenModule", "visit(SemaClassType)", "Class: " + Sema.getAST().getName().str());
 
-	// Suites get their own codegen path: no vtable, emit implicit main()
+	// Suites get the REAL class build too (B018): their fields need CodeGen +
+	// a struct layout so suite methods can read/write them, and the runner can
+	// pass a real instance as `this`. CodeGenClass skips the init_ctor and the
+	// vtable slot for SUITE kind; then the suite-specific runner main follows.
 	if (Sema.getClassKind() == SemaClassKind::SUITE) {
+		if (Sema.getCodeGen() == nullptr) {
+			CodeGenClass *CGC = new CodeGenClass(this, &Sema, /*isExternal=*/false);
+			Sema.setCodeGen(CGC);
+			llvm::IRBuilderBase::InsertPointGuard IPGuard(*Builder);
+			CGC->Build();
+		}
 		EmitSuite(Sema);
 		return;
 	}
@@ -836,8 +845,11 @@ void CodeGenModule::visit(SemaBlockStmt &Sema) {
 
 		// Inside a suite `case` body: fail-fast on the first recorded error —
 		// after every statement check the shared error struct and jump to the
-		// case end as soon as its code is non-zero.
-		if (CurrentCaseEndBB && CurrentErrorHandler &&
+		// case end as soon as its code is non-zero. NOT inside a `handle`: there
+		// the error belongs to the handle, and jumping to the case end would
+		// report FAIL(<code>) for a failure the guarded block legitimately caught
+		// (B032 parity) — a guarded block runs to completion.
+		if (CurrentCaseEndBB && CurrentErrorHandler && CurrentHandleBB == nullptr &&
 		    Builder->GetInsertBlock() && !Builder->GetInsertBlock()->getTerminator()) {
 			llvm::Function *Fn = Builder->GetInsertBlock()->getParent();
 			llvm::Value *ErrV = CurrentErrorHandler->getValue();
@@ -899,6 +911,13 @@ void CodeGenModule::visit(SemaExprStmt &Sema) {
 	Sema.getExpr()->accept(*this);
 }
 
+// isMainEntry — true when the builder is inserting into the i32 C entry point:
+// `fail`/`return` there must go through EmitMainErrorExit, never `ret void`.
+static bool isMainEntry(llvm::IRBuilder<> *Builder) {
+	llvm::Function *Fn = Builder->GetInsertBlock()->getParent();
+	return Fn->getName() == "main" && Fn->getReturnType()->isIntegerTy(32);
+}
+
 void CodeGenModule::visit(SemaReturnStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaReturnStmt)");
 	EmitDebugLocation(Sema.getAST()->getLocation());
@@ -906,6 +925,10 @@ void CodeGenModule::visit(SemaReturnStmt &Sema) {
 	// In a fly.runtime C-ABI function a bare `return` yields the out param by value.
 	if (CABIReturnTy) {
 		Builder->CreateRet(Builder->CreateLoad(CABIReturnTy, CABIReturnPtr));
+	} else if (isMainEntry(Builder)) {
+		// A bare `return` directly inside main(): `ret void` would break the
+		// i32 entry point — exit through main's error/exit-code protocol.
+		EmitMainErrorExit(CurrentErrorHandler, Builder->GetInsertBlock()->getParent());
 	} else {
 		Builder->CreateRetVoid();
 	}
@@ -1030,8 +1053,11 @@ void CodeGenModule::visit(SemaSwitchStmt &Sema) {
 	// Create End Block
 	llvm::BasicBlock *EndBB = llvm::BasicBlock::Create(LLVMCtx, "endswitch", Fn);
 
-	// Push break target onto stack (switches don't have continue)
+	// Push break target onto stack (switches don't have continue). The cleanup
+	// depth must be pushed IN LOCKSTEP: visit(SemaBreakStmt) reads
+	// BreakCleanupDepth.back(), and a switch outside any loop left it empty.
 	BreakTargetStack.push_back(EndBB);
+	BreakCleanupDepth.push_back(AllocCleanupStack.size());
 
 	// Create Expression evaluator for Switch using Sema
 	Sema.getExpr()->accept(*this);
@@ -1040,6 +1066,11 @@ void CodeGenModule::visit(SemaSwitchStmt &Sema) {
 
 	// Create Cases
 	unsigned long Size = Sema.getCases().size();
+
+	// The default block is created up-front so the LAST open case body can
+	// fall THROUGH into it (source order: default follows the cases).
+	llvm::BasicBlock *DefaultBB = Sema.getDefault() ?
+		llvm::BasicBlock::Create(LLVMCtx, "default", Fn, EndBB) : nullptr;
 
 	llvm::BasicBlock *NextCaseBB = nullptr;
 	for (unsigned long i = 0; i < Size; i++) {
@@ -1053,26 +1084,34 @@ void CodeGenModule::visit(SemaSwitchStmt &Sema) {
 		Builder->SetInsertPoint(CaseBB);
 		CaseSema.Stmt->accept(*this);
 
-		// If there is a Next
+		// The body may already have terminated its block (`break` branches to
+		// endswitch; a return/fail emits its own ret) — appending the
+		// fallthrough branch then was a SECOND terminator in the block
+		// ("Terminator found in the middle of a basic block" abort). Only an
+		// OPEN body falls through — into the next case body (docs §9.4:
+		// exiting a case takes an explicit break), or to endswitch at the end.
 		if (i + 1 < Size) {
 			NextCaseBB = llvm::BasicBlock::Create(LLVMCtx, "case", Fn, EndBB);
-			Builder->CreateBr(NextCaseBB);
+			if (!Builder->GetInsertBlock()->getTerminator())
+				Builder->CreateBr(NextCaseBB);
 		} else {
-			Builder->CreateBr(EndBB);
+			if (!Builder->GetInsertBlock()->getTerminator())
+				Builder->CreateBr(DefaultBB ? DefaultBB : EndBB);
 		}
 	}
 
 	// Create Default
-	if (Sema.getDefault()) {
-		llvm::BasicBlock *DefaultBB = llvm::BasicBlock::Create(LLVMCtx, "default", Fn, EndBB);
+	if (DefaultBB) {
 		Inst->setDefaultDest(DefaultBB);
 		Builder->SetInsertPoint(DefaultBB);
 		Sema.getDefault()->accept(*this);
-		Builder->CreateBr(EndBB);
+		if (!Builder->GetInsertBlock()->getTerminator())
+			Builder->CreateBr(EndBB);
 	}
 
 	// Pop break target from stack
 	BreakTargetStack.pop_back();
+	BreakCleanupDepth.pop_back();
 
 	// Continue insertions into End Branch
 	Builder->SetInsertPoint(EndBB);
@@ -1233,11 +1272,15 @@ void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
 	llvm::BasicBlock *CondBB = llvm::BasicBlock::Create(LLVMCtx, "forin.cond", Fn);
 	llvm::BasicBlock *BodyBB = llvm::BasicBlock::Create(LLVMCtx, "forin.body", Fn);
+	llvm::BasicBlock *IncBB  = llvm::BasicBlock::Create(LLVMCtx, "forin.inc",  Fn);
 	llvm::BasicBlock *EndBB  = llvm::BasicBlock::Create(LLVMCtx, "forin.end",  Fn);
 
 	BreakTargetStack.push_back(EndBB);
 	BreakCleanupDepth.push_back(AllocCleanupStack.size());
-	ContinueTargetStack.push_back(CondBB);
+	// `continue` must land on the INCREMENT block, not the condition: jumping
+	// straight to the condition skipped idx++ and looped the same element
+	// forever.
+	ContinueTargetStack.push_back(IncBB);
 	ContinueCleanupDepth.push_back(AllocCleanupStack.size());
 
 	Builder->CreateBr(CondBB);
@@ -1267,7 +1310,13 @@ void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 	if (Sema.getBody())
 		Sema.getBody()->accept(*this);
 
-	// Increment index and back-edge
+	// The body may have terminated its block (break/return/fail): only an open
+	// body falls into the increment.
+	if (!Builder->GetInsertBlock()->getTerminator())
+		Builder->CreateBr(IncBB);
+
+	// Increment index and back-edge (continue lands here so idx still advances)
+	Builder->SetInsertPoint(IncBB);
 	llvm::Value *CurIdx = Builder->CreateLoad(CodeGen::IntTy, IndexAlloca);
 	llvm::Value *NextIdx = Builder->CreateAdd(CurIdx, llvm::ConstantInt::get(CodeGen::IntTy, 1));
 	Builder->CreateStore(NextIdx, IndexAlloca);
@@ -1327,6 +1376,38 @@ void CodeGenModule::visit(SemaContinueStmt &Sema) {
 	}
 }
 
+// EmitMainErrorExit — main()'s exit protocol: load error.code from the error
+// struct, print the unhandled error via err_print when the code is non-zero,
+// and return the code (docs §9.7.6: exit code = last unhandled error, 0 = clean).
+// Shared by the end-of-body epilogue (CodeGenFunction::GenBody) and by `fail`/
+// `return` statements emitted directly inside main: main is the i32 C entry
+// point, so the callee-style `ret void` those statements emit elsewhere would
+// break the function ("Function return type does not match operand type").
+void CodeGenModule::EmitMainErrorExit(CodeGenError *CGE, llvm::Function *Fn) {
+	llvm::Value *Zero32 = llvm::ConstantInt::get(CG.Int32Ty, 0);
+	llvm::Value *One32 = llvm::ConstantInt::get(CG.Int32Ty, 1);
+	llvm::Value *ErrorHandler = CGE->getValue();
+	llvm::Value *ErrorVal = Builder->CreateInBoundsGEP(CGE->getType(), ErrorHandler, {Zero32, Zero32});
+	llvm::Value *Code = Builder->CreateLoad(CG.Int32Ty, ErrorVal);
+
+	llvm::BasicBlock *ErrBB  = llvm::BasicBlock::Create(LLVMCtx, "err", Fn);
+	llvm::BasicBlock *ExitBB = llvm::BasicBlock::Create(LLVMCtx, "exit", Fn);
+	Builder->CreateCondBr(Builder->CreateICmpNE(Code, Zero32), ErrBB, ExitBB);
+
+	Builder->SetInsertPoint(ErrBB);
+	llvm::Value *MsgPtr = Builder->CreateInBoundsGEP(CGE->getType(), ErrorHandler, {Zero32, One32});
+	llvm::Value *Msg = Builder->CreateLoad(llvm::PointerType::getUnqual(LLVMCtx), MsgPtr);
+	llvm::FunctionCallee ErrPrintFn = Module->getOrInsertFunction(
+		"err_print",
+		llvm::FunctionType::get(llvm::Type::getVoidTy(LLVMCtx),
+			{CG.Int32Ty, llvm::PointerType::getUnqual(LLVMCtx)}, false));
+	Builder->CreateCall(ErrPrintFn, {Code, Msg});
+	Builder->CreateBr(ExitBB);
+
+	Builder->SetInsertPoint(ExitBB);
+	Builder->CreateRet(Code);
+}
+
 void CodeGenModule::visit(SemaFailStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaFailStmt)");
 	EmitDebugLocation(Sema.getAST()->getLocation());
@@ -1353,7 +1434,14 @@ void CodeGenModule::visit(SemaFailStmt &Sema) {
 
 	EmitAllocCleanup(AllocCleanupStack.size());
 	if (CurrentHandleBB == nullptr) {
-		Builder->CreateRetVoid();
+		// A bare `fail` returns to the caller — except directly inside main(),
+		// where `ret void` would break the i32 entry point: route it through
+		// the same protocol as main's epilogue (print + `ret i32 code`).
+		if (isMainEntry(Builder)) {
+			EmitMainErrorExit(CurrentErrorHandler, Builder->GetInsertBlock()->getParent());
+		} else {
+			Builder->CreateRetVoid();
+		}
 	} else {
 		Builder->CreateBr(CurrentSafeBB);
 	}
@@ -1412,15 +1500,20 @@ void CodeGenModule::visit(SemaHandleStmt &Sema) {
 
 
 
+llvm::Value *CodeGenModule::EmitErrorIsSet(llvm::Value *ErrPtr) {
+	// An error value is the %error struct POINTER; its truth is the integer
+	// code field != 0.
+	llvm::Value *CodePtr = Builder->CreateInBoundsGEP(CG.ErrorTy, ErrPtr, {CG.Zero, CG.Zero});
+	llvm::Value *Code = Builder->CreateLoad(CG.Int32Ty, CodePtr);
+	return Builder->CreateICmpNE(Code, llvm::ConstantInt::get(CG.Int32Ty, 0), "err_set");
+}
+
 llvm::Value *CodeGenModule::EmitCondition(SemaExpr *Expr) {
 	Expr->accept(*this);
 	llvm::Value *V = Expr->getCodeGen()->getValue();
 	if (Expr->getType()->isError()) {
-		// `if (err)`: the error var evaluates to the %error struct pointer;
-		// the condition is its integer code field != 0.
-		llvm::Value *CodePtr = Builder->CreateInBoundsGEP(CG.ErrorTy, V, {CG.Zero, CG.Zero});
-		llvm::Value *Code = Builder->CreateLoad(CG.Int32Ty, CodePtr);
-		V = Builder->CreateICmpNE(Code, llvm::ConstantInt::get(CG.Int32Ty, 0), "err_set");
+		// `if (err)`: test whether the handle recorded a failure.
+		V = EmitErrorIsSet(V);
 	}
 	return V;
 }
@@ -1552,13 +1645,16 @@ void CodeGenModule::EmitSuite(SemaClassType &Sema) {
         else if (isSuiteTestMethod(Name)) TestMethods.push_back({std::string(Name), M});
     }
 
-    // Suite methods are SemaClassMethod but CodeGenClass::Build() is never called for SUITE.
-    // We must create CodeGenClassMethod instances here so the methods get LLVM functions and
-    // their bodies are generated in the second pass (Functions vector).
-    // A minimal empty struct type stands in for the suite "this" pointer.
-    auto *SuiteStructTy = llvm::StructType::create(LLVMCtx,
-                              "suite." + Sema.getAST().getName().str());
-    SuiteStructTy->setBody({});  // empty — suite methods never dereference 'this'
+    // The REAL suite struct type (B018): built by CodeGenClass in
+    // visit(SemaClassType) — fields included, no vtable slot, no init_ctor.
+    // Falls back to an empty stand-in if the class build did not run.
+    llvm::StructType *SuiteStructTy =
+        Sema.getCodeGen() ? Sema.getCodeGen()->getType() : nullptr;
+    if (!SuiteStructTy) {
+        SuiteStructTy = llvm::StructType::create(LLVMCtx,
+                            "suite." + Sema.getAST().getName().str());
+        SuiteStructTy->setBody({});
+    }
 
     auto EnsureCompiled = [&](SemaClassMethod *M) {
         if (!M || M->getCodeGen()) return;
@@ -1603,6 +1699,17 @@ void CodeGenModule::EmitSuite(SemaClassType &Sema) {
     // as their hidden first argument. Cases zero it on entry and consume it on
     // exit, so anything left after a method call escaped outside every case.
     llvm::AllocaInst *SuiteErr = Builder->CreateAlloca(CodeGen::ErrorTy, nullptr, "suite_err");
+
+    // The REAL suite instance (B018): a zeroed stack object passed as `this`
+    // to setup/test-methods/teardown, so suite fields and helper calls work.
+    llvm::AllocaInst *SuiteThis = Builder->CreateAlloca(SuiteStructTy, nullptr, "suite_this");
+    if (SuiteStructTy->isSized()) {
+        const llvm::DataLayout &DL = Module->getDataLayout();
+        uint64_t SuiteSize = DL.getTypeAllocSize(SuiteStructTy);
+        if (SuiteSize > 0)
+            Builder->CreateMemSet(SuiteThis, llvm::ConstantInt::get(CodeGen::Int8Ty, 0),
+                                  SuiteSize, llvm::MaybeAlign());
+    }
     auto ErrField = [&](unsigned Idx) {
         return Builder->CreateInBoundsGEP(CodeGen::ErrorTy, SuiteErr,
             {Zero32, llvm::ConstantInt::get(Int32Ty, Idx)});
@@ -1633,14 +1740,16 @@ void CodeGenModule::EmitSuite(SemaClassType &Sema) {
     llvm::FunctionCallee EndFn = Module->getOrInsertFunction(
         "suite_end", llvm::FunctionType::get(CG.VoidTy, {PtrTy, Int32Ty, Int32Ty}, false));
 
-    // Helper: call a suite method passing the error struct as arg 0, null for this + extras
+    // Helper: call a suite method passing the error struct as arg 0 and the
+    // REAL suite instance as `this` (B018) — extras stay null.
     auto CallMethod = [&](SemaClassMethod *M) {
         auto *Fn = GetFn(M);
         if (!Fn) return;
         llvm::SmallVector<llvm::Value *, 4> Args;
         size_t numParams = Fn->getFunctionType()->getNumParams();
         if (numParams >= 1) Args.push_back(SuiteErr); // error handler
-        for (size_t i = 1; i < numParams; ++i) Args.push_back(NullPtr); // this + extras
+        if (numParams >= 2) Args.push_back(SuiteThis); // the suite instance
+        for (size_t i = 2; i < numParams; ++i) Args.push_back(NullPtr); // extras
         Builder->CreateCall(Fn->getFunctionType(), Fn, Args);
     };
 

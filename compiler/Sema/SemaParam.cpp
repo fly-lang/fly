@@ -19,6 +19,10 @@ SemaParam::SemaParam(ASTParam &AST, SemaType *Type) : SemaVar(&AST, SemaKind::PA
 
 }
 
+bool SemaParam::isSynthetic() const {
+	return Synthetic;
+}
+
 void SemaParam::accept(SemaVisitor &Visitor) {
 	Visitor.visit(*this);
 }

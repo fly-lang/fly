@@ -249,7 +249,10 @@ namespace {
                         "  %2 = alloca float, align 4\n"
                         "  store ptr %0, ptr %1, align 8\n"
                         "  store float 0.000000e+00, ptr %2, align 4\n"
-                        "  store double 1.000000e+00, ptr %2, align 8\n"
+                        // The literal is fptrunc'd to the slot's width: an 8-byte
+                        // `store double` into this 4-byte float slot wrote past it and
+                        // the variable read back 0.0.
+                        "  store float 1.000000e+00, ptr %2, align 4\n"
                         "  ret void\n"
                         "}\n");
     }
@@ -1312,6 +1315,9 @@ namespace {
     	llvm::Module * M = getModules()[0];
     	std::string output = getOutput(M->getFunctionList());
 
+        // C fallthrough (docs §9.4, B024): neither case body ends in `break`, so
+        // `case` falls into `case1` and the LAST open case falls into DEFAULT —
+        // which is why default is created up-front and emitted before the cases.
         EXPECT_EQ(output, "define void @_F4func_i(ptr %0, ptr %1) {\n"
                         "entry:\n"
                         "  %2 = alloca ptr, align 8\n"
@@ -1322,19 +1328,19 @@ namespace {
                         "    i32 2, label %case1\n"
                         "  ]\n"
                         "\n"
+                        "default:                                          ; preds = %entry, %case1\n"
+                        "  store i32 3, ptr %1, align 4\n"
+                        "  br label %endswitch\n"
+                        "\n"
                         "case:                                             ; preds = %entry\n"
                         "  store i32 1, ptr %1, align 4\n"
                         "  br label %case1\n"
                         "\n"
                         "case1:                                            ; preds = %entry, %case\n"
                         "  store i32 2, ptr %1, align 4\n"
-                        "  br label %endswitch\n"
+                        "  br label %default\n"
                         "\n"
-                        "default:                                          ; preds = %entry\n"
-                        "  store i32 3, ptr %1, align 4\n"
-                        "  br label %endswitch\n"
-                        "\n"
-                        "endswitch:                                        ; preds = %default, %case1\n"
+                        "endswitch:                                        ; preds = %default\n"
                         "  ret void\n"
                         "}\n");
     }
@@ -1525,33 +1531,42 @@ namespace {
         llvm::Module *M = getModules()[0];
         std::string output = getOutput(M->getFunctionList());
 
+        // B025: the loop ITEM is declared in the loop scope, so it gets its own
+        // alloca (%4) instead of resolving to the enclosing `item`; and the
+        // increment lives in its own forin.inc block, which is what `continue`
+        // targets — jumping straight to forin.cond skipped idx++ and spun forever
+        // on the same element.
         EXPECT_EQ(output, "define void @_F4func_A_i(ptr %0, ptr %1) {\n"
                         "entry:\n"
                         "  %2 = alloca ptr, align 8\n"
                         "  %3 = alloca i32, align 4\n"
+                        "  %4 = alloca i32, align 4\n"
                         "  store ptr %0, ptr %2, align 8\n"
                         "  store i32 0, ptr %3, align 4\n"
-                        "  %4 = getelementptr inbounds nuw %array, ptr %1, i32 0, i32 0\n"
-                        "  %5 = load ptr, ptr %4, align 8\n"
-                        "  %6 = getelementptr inbounds nuw %array, ptr %1, i32 0, i32 1\n"
-                        "  %7 = load i32, ptr %6, align 4\n"
+                        "  %5 = getelementptr inbounds nuw %array, ptr %1, i32 0, i32 0\n"
+                        "  %6 = load ptr, ptr %5, align 8\n"
+                        "  %7 = getelementptr inbounds nuw %array, ptr %1, i32 0, i32 1\n"
+                        "  %8 = load i32, ptr %7, align 4\n"
                         "  %forin.idx = alloca i32, align 4\n"
                         "  store i32 0, ptr %forin.idx, align 4\n"
                         "  br label %forin.cond\n"
                         "\n"
-                        "forin.cond:                                       ; preds = %forin.body, %entry\n"
+                        "forin.cond:                                       ; preds = %forin.inc, %entry\n"
                         "  %forin.i = load i32, ptr %forin.idx, align 4\n"
-                        "  %forin.cmp = icmp slt i32 %forin.i, %7\n"
+                        "  %forin.cmp = icmp slt i32 %forin.i, %8\n"
                         "  br i1 %forin.cmp, label %forin.body, label %forin.end\n"
                         "\n"
                         "forin.body:                                       ; preds = %forin.cond\n"
-                        "  %8 = load i32, ptr %forin.idx, align 4\n"
-                        "  %forin.elem = getelementptr i32, ptr %5, i32 %8\n"
-                        "  %9 = load i32, ptr %forin.elem, align 4\n"
-                        "  store i32 %9, ptr %3, align 4\n"
-                        "  %10 = load i32, ptr %forin.idx, align 4\n"
-                        "  %11 = add i32 %10, 1\n"
-                        "  store i32 %11, ptr %forin.idx, align 4\n"
+                        "  %9 = load i32, ptr %forin.idx, align 4\n"
+                        "  %forin.elem = getelementptr i32, ptr %6, i32 %9\n"
+                        "  %10 = load i32, ptr %forin.elem, align 4\n"
+                        "  store i32 %10, ptr %4, align 4\n"
+                        "  br label %forin.inc\n"
+                        "\n"
+                        "forin.inc:                                        ; preds = %forin.body\n"
+                        "  %11 = load i32, ptr %forin.idx, align 4\n"
+                        "  %12 = add i32 %11, 1\n"
+                        "  store i32 %12, ptr %forin.idx, align 4\n"
                         "  br label %forin.cond\n"
                         "\n"
                         "forin.end:                                        ; preds = %forin.cond\n"

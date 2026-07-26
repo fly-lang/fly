@@ -117,7 +117,7 @@ bool ASTArrayValue::empty() const {
     return Values.empty();
 }
 
-const llvm::SmallVector<ASTValue *, 8> &ASTArrayValue::getValues() const {
+const llvm::SmallVector<ASTExpr *, 8> &ASTArrayValue::getValues() const {
     return Values;
 }
 
@@ -153,7 +153,7 @@ bool ASTStructValue::empty() const {
     return Values.empty();
 }
 
-const llvm::StringMap<ASTValue *> &ASTStructValue::getValues() const {
+const llvm::StringMap<ASTExpr *> &ASTStructValue::getValues() const {
     return Values;
 }
 

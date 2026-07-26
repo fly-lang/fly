@@ -433,4 +433,56 @@ namespace {
         EXPECT_FALSE(exists("foo.a"));           // not in the CWD
     }
 
+    // ── return-convention synthetics vs a USER param named `out` ───────────────
+
+    // The hidden output params are recognized by the Resolver's Synthetic flag,
+    // not by their name. A void function whose LAST param the user called `out`
+    // (the runtime convention: strSize, mem_alloc, …) keeps it EXPLICIT, so a
+    // call supplying it still matches; matching on the name dropped it from the
+    // arity and every such call failed with "no overload accepts these arguments".
+    TEST_F(SingleFileBuildTest, UserParamNamedOutStaysExplicit) {
+        const std::string dir = "sfb_userout_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "void size(const string s, int out) {\n"
+                  "    out = 3\n"
+                  "}\n"
+                  "\n"
+                  "void main() {\n"
+                  "    int n = 0\n"
+                  "    size(\"abc\", n)\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_userout_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
+    // A multi-return callee accepts BOTH arities: the sugar `divmod(a, b)` that
+    // lets the Resolver synthesize the receivers, and the LOWERED form a .fly.h
+    // consumer must write, supplying the out slots itself. B033 fixed the first
+    // and broke the second; both are pinned here.
+    TEST_F(SingleFileBuildTest, MultiReturnAcceptsSugarAndLoweredForm) {
+        const std::string dir = "sfb_multiret_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "int, int divmod(const int a, const int b) {\n"
+                  "    out[0] = a / b\n"
+                  "    out[1] = a % b\n"
+                  "}\n"
+                  "\n"
+                  "void main() {\n"
+                  "    int q = 0\n"
+                  "    int r = 0\n"
+                  "    divmod(17, 5, q, r)\n"   // lowered: caller owns the slots
+                  "    q, r = divmod(17, 5)\n"  // sugar: receivers bound by name
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_multiret_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
 } // anonymous namespace

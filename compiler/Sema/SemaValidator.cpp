@@ -431,6 +431,13 @@ bool SemaValidator::CheckUnary(ASTUnary &AST, SemaExpr *Expr) {
 				return false;
 			}
 			return true;
+		case ASTUnaryKind::OP_UNARY_NEG:
+			if (!T->isNumber()) {
+				Diag(AST.getLocation(), diag::err_sema_unary_invalid_type)
+					<< "-" << T->getName();
+				return false;
+			}
+			return true;
 	}
 	return true;
 }

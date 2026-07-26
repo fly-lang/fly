@@ -171,7 +171,7 @@ void CodeGenExpr::GenExpr(SemaStructValue *Sema) {
 				StructSize, llvm::MaybeAlign());
 			for (auto &Entry : Sema->getValues()) {
 				llvm::StringRef FieldName = Entry.getKey();
-				SemaValue *FieldVal = Entry.getValue();
+				SemaExpr *FieldVal = Entry.getValue();
 				SemaClassAttribute *Attr = ClassType->LookupAttribute(FieldName);
 				if (Attr && Attr->getCodeGen()) {
 					size_t FieldIdx = Attr->getCodeGen()->getIndex();
@@ -503,9 +503,13 @@ void CodeGenExpr::GenExpr(SemaCall *Sema) {
     	addArgs(Sema, Args);
 
     	// Create the function pointer by vtable is polymorphic
-    	// or by the function pointer if is static
+    	// or by the function pointer if is static.
+    	// SUITE methods (B018) always dispatch statically: suites are final and
+    	// their struct has NO vtable slot — a vtable load would read a field (or
+    	// GEP past an empty struct) and call garbage.
     	llvm::Value * FuncPtr;
-    	if (Sema->getParent()) {
+    	if (Sema->getParent() &&
+    	    Method->getClass()->getClassKind() != SemaClassKind::SUITE) {
 
     		// Get the VTable pointer
     		// %as_base1 = bitcast %class.Derived* %d to %class.Base1*
@@ -816,30 +820,43 @@ void CodeGenExpr::GenExpr(SemaUnary *Sema) {
 
     switch (Unary.getOpKind()) {
 
+        // The ±1 constant takes the OPERAND's type: the old hardcoded i32 broke
+        // the function on a long operand (add i64, i32 fails the verifier).
         case ASTUnaryKind::OP_UNARY_PRE_INCR: {
-            llvm::Value *RHS = llvm::ConstantInt::get(CodeGen::Int32Ty, 1);
+            llvm::Value *RHS = llvm::ConstantInt::get(OldVal->getType(), 1);
             NewVal = Builder->CreateNSWAdd(OldVal, RHS);
             V = NewVal;
         } break;
         case ASTUnaryKind::OP_UNARY_POST_INCR: {
-            llvm::Value *RHS = llvm::ConstantInt::get(CodeGen::Int32Ty, 1);
+            llvm::Value *RHS = llvm::ConstantInt::get(OldVal->getType(), 1);
             NewVal = Builder->CreateNSWAdd(OldVal, RHS);
             V = OldVal;
         } break;
         case ASTUnaryKind::OP_UNARY_PRE_DECR: {
-            llvm::Value *RHS = llvm::ConstantInt::get(CodeGen::Int32Ty, -1, true);
+            llvm::Value *RHS = llvm::ConstantInt::get(OldVal->getType(), -1, true);
             NewVal = Builder->CreateNSWAdd(OldVal, RHS);
         	V = NewVal;
         } break;
         case ASTUnaryKind::OP_UNARY_POST_DECR: {
-            llvm::Value *RHS = llvm::ConstantInt::get(CodeGen::Int32Ty, -1, true);
+            llvm::Value *RHS = llvm::ConstantInt::get(OldVal->getType(), -1, true);
             NewVal = Builder->CreateNSWAdd(OldVal, RHS);
-        	V = NewVal;
+            // POSTFIX yields the OLD value — this read `V = NewVal`, so every
+            // `a--` used as an expression produced the decremented value
+            // (post-INCREMENT was already correct).
+            V = OldVal;
         } break;
         case ASTUnaryKind::OP_UNARY_NOT_LOG: {
 	        OldVal = Builder->CreateTrunc(OldVal, CodeGen::BoolTy);
         	OldVal = Builder->CreateXor(OldVal, true);
         	V = Builder->CreateZExt(OldVal, CodeGen::Int8Ty);
+        } break;
+        // B007: unary minus — a VALUE op (works on literals and expressions);
+        // fneg for floats, integer negation otherwise. Never sets NewVal.
+        case ASTUnaryKind::OP_UNARY_NEG: {
+            if (OldVal->getType()->isFloatingPointTy())
+                V = Builder->CreateFNeg(OldVal);
+            else
+                V = Builder->CreateNSWNeg(OldVal);
         } break;
     }
 
@@ -849,6 +866,26 @@ void CodeGenExpr::GenExpr(SemaUnary *Sema) {
 		 Sema->getExpr()->getKind() == SemaKind::PARAM_VAR ||
 		 Sema->getExpr()->getKind() == SemaKind::ATTRIBUTE)) {
 		static_cast<SemaVar *>(Sema->getExpr())->getCodeGen()->Store(NewVal);
+	}
+}
+
+// toCompoundArith — the arithmetic operation a compound assignment applies
+// before its store: `a += b` computes with OP_BINARY_ARITH_ADD, and so on.
+static ASTBinaryKind toCompoundArith(ASTBinaryKind Kind) {
+	switch (Kind) {
+		case ASTBinaryKind::OP_BINARY_ASSIGN_ADD:     return ASTBinaryKind::OP_BINARY_ARITH_ADD;
+		case ASTBinaryKind::OP_BINARY_ASSIGN_SUB:     return ASTBinaryKind::OP_BINARY_ARITH_SUB;
+		case ASTBinaryKind::OP_BINARY_ASSIGN_MUL:     return ASTBinaryKind::OP_BINARY_ARITH_MUL;
+		case ASTBinaryKind::OP_BINARY_ASSIGN_DIV:     return ASTBinaryKind::OP_BINARY_ARITH_DIV;
+		case ASTBinaryKind::OP_BINARY_ASSIGN_MOD:     return ASTBinaryKind::OP_BINARY_ARITH_MOD;
+		case ASTBinaryKind::OP_BINARY_ASSIGN_AND:     return ASTBinaryKind::OP_BINARY_ARITH_AND;
+		case ASTBinaryKind::OP_BINARY_ASSIGN_OR:      return ASTBinaryKind::OP_BINARY_ARITH_OR;
+		case ASTBinaryKind::OP_BINARY_ASSIGN_XOR:     return ASTBinaryKind::OP_BINARY_ARITH_XOR;
+		case ASTBinaryKind::OP_BINARY_ASSIGN_SHIFT_L: return ASTBinaryKind::OP_BINARY_ARITH_SHIFT_L;
+		case ASTBinaryKind::OP_BINARY_ASSIGN_SHIFT_R: return ASTBinaryKind::OP_BINARY_ARITH_SHIFT_R;
+		default:
+			assert(false && "not a compound assignment kind");
+			return ASTBinaryKind::OP_BINARY_ARITH_ADD;
 	}
 }
 
@@ -877,7 +914,26 @@ void CodeGenExpr::GenExpr(SemaBinary *Sema) {
 	} else if (Binary.isLogic()) {
 		V = GenBinaryLogic(Left, OpKind, Right);
 	} else if (Binary.isAssign()) {
-		V = GenBinaryAssign(Left, Right, Sema->isFreeLHSOnAssign());
+		// Compound assignment (a += b, a <<= b, …) lowers as `a = a <op> b`.
+		// The operator kind used to be DROPPED here — GenBinaryAssign stored the
+		// bare RHS, so `a += 5` silently behaved as `a = 5`.
+		if (OpKind != ASTBinaryKind::OP_BINARY_ASSIGN &&
+		    Left->getType() && Left->getType()->isNumber() &&
+		    Right->getType() && Right->getType()->isNumber()) {
+			llvm::Value *Computed = GenBinaryArith(Left, toCompoundArith(OpKind), Right);
+			// The computed value carries the operands' promoted width: bring it
+			// back to the DESTINATION's type before the store (a byte compound
+			// would otherwise store 4 bytes into the 1-byte slot).
+			llvm::Value *LeftVal = Left->getCodeGen() ? Left->getCodeGen()->getValue() : nullptr;
+			if (Computed && LeftVal && Computed->getType() != LeftVal->getType()) {
+				SemaNumberType *LTy = static_cast<SemaNumberType *>(Left->getType());
+				bool Signed = !LTy->isInteger() || static_cast<SemaIntType *>(LTy)->isSigned();
+				Computed = ConvertNumber(Computed, LTy, Signed);
+			}
+			V = GenBinaryAssign(Left, Right, Sema->isFreeLHSOnAssign(), Computed);
+		} else {
+			V = GenBinaryAssign(Left, Right, Sema->isFreeLHSOnAssign());
+		}
 	} else {
 		assert(0 && "Unknown Binary Operation");
 	}
@@ -885,11 +941,9 @@ void CodeGenExpr::GenExpr(SemaBinary *Sema) {
 
 
 void CodeGenExpr::GenExpr(SemaTernary *Sema) {
-	ASTTernary &Ternary = Sema->getAST();
-
 	llvm::BasicBlock *FromBB = Builder->GetInsertBlock();
 	Sema->getCond()->accept(*CGM);
-	llvm::Value *Cond = Sema->getCond()->getCodeGen()->getValue();
+	llvm::Value *Cond = ConvertToBool(Sema->getCond()->getCodeGen()->getValue());
 
 	// Create Blocks
 	llvm::BasicBlock *TrueBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "terntrue", FromBB->getParent());
@@ -899,26 +953,67 @@ void CodeGenExpr::GenExpr(SemaTernary *Sema) {
 	// Create Condition
 	Builder->CreateCondBr(Cond, TrueBB, FalseBB);
 
+	// The result carries the Sema-selected (promoted) type of the ARMS — the old
+	// code ConvertToBool'ed both arms into an i1 PHI, so every value-producing
+	// ternary yielded the condition's truthiness instead of the chosen arm.
+	SemaType *RTy = Sema->getType();
+	RTy->accept(*CGM);
+	llvm::Type *ResTy = RTy->getCodeGen()->getType();
+
 	// True Label
 	Builder->SetInsertPoint(TrueBB);
 	Sema->getTrueExpr()->accept(*CGM);
 	llvm::Value *True = Sema->getTrueExpr()->getCodeGen()->getValue();
-	llvm::Value *BoolTrue = ConvertToBool(True);
+	if (RTy->isNumber() && True->getType() != ResTy) {
+		SemaType *ArmTy = Sema->getTrueExpr()->getType();
+		bool Signed = !ArmTy->isNumber() || !static_cast<SemaNumberType *>(ArmTy)->isInteger() ||
+		              static_cast<SemaIntType *>(ArmTy)->isSigned();
+		True = ConvertNumber(True, static_cast<SemaNumberType *>(RTy), Signed);
+	}
+	// A STRING ternary must yield a buffer the destination can own and free. A
+	// literal arm's raw value points at a GLOBAL constant, so `string s = c ? "yes"
+	// : "no"` handed `s` a global to free() at scope exit → heap corruption. Each
+	// arm takes ownership inside its OWN branch, so laziness is preserved.
+	if (RTy->isString())
+		True = GenStringOwned(Sema->getTrueExpr(), True);
+	// An arm may emit its own blocks (nested ternary, short-circuit): the edge
+	// into EndBB leaves the CURRENT block, and that is the block the PHI must
+	// name — naming TrueBB/FalseBB broke the function on nested ternaries.
+	llvm::BasicBlock *TrueEndBB = Builder->GetInsertBlock();
 	Builder->CreateBr(EndBB);
 
 	// False Label
 	Builder->SetInsertPoint(FalseBB);
 	Sema->getFalseExpr()->accept(*CGM);
 	llvm::Value *False = Sema->getFalseExpr()->getCodeGen()->getValue();
-	llvm::Value *BoolFalse = ConvertToBool(False);
+	if (RTy->isNumber() && False->getType() != ResTy) {
+		SemaType *ArmTy = Sema->getFalseExpr()->getType();
+		bool Signed = !ArmTy->isNumber() || !static_cast<SemaNumberType *>(ArmTy)->isInteger() ||
+		              static_cast<SemaIntType *>(ArmTy)->isSigned();
+		False = ConvertNumber(False, static_cast<SemaNumberType *>(RTy), Signed);
+	}
+	if (RTy->isString())
+		False = GenStringOwned(Sema->getFalseExpr(), False);
+	llvm::BasicBlock *FalseEndBB = Builder->GetInsertBlock();
 	Builder->CreateBr(EndBB);
 
 	// End Label
 	Builder->SetInsertPoint(EndBB);
-	llvm::PHINode *Phi = Builder->CreatePHI(CodeGen::BoolTy, 2);
-	Phi->addIncoming(BoolTrue, TrueBB);
-	Phi->addIncoming(BoolFalse, FalseBB);
+	llvm::PHINode *Phi = Builder->CreatePHI(ResTy, 2);
+	Phi->addIncoming(True, TrueEndBB);
+	Phi->addIncoming(False, FalseEndBB);
 	V = Phi;
+}
+
+llvm::Value *CodeGenExpr::GenStringOwned(SemaExpr *E, llvm::Value *V) {
+	SemaKind K = E->getKind();
+	if (K == SemaKind::VALUE)
+		return GenStringHeapCopy(static_cast<SemaStringValue *>(E));
+	bool IsLValue = K == SemaKind::LOCAL_VAR || K == SemaKind::PARAM_VAR ||
+	                K == SemaKind::ERROR_VAR  || K == SemaKind::ATTRIBUTE ||
+	                K == SemaKind::INSTANCE_VAR || K == SemaKind::MEMBER;
+	// A CALL result or a concat is already a fresh, uniquely-owned buffer.
+	return IsLValue ? GenStringClone(V) : V;
 }
 
 llvm::Value *CodeGenExpr::GenStringConcat(SemaExpr *E1, SemaExpr *E2) {
@@ -1078,6 +1173,27 @@ llvm::Value *CodeGenExpr::GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKin
 			V2 = Builder->CreateIntCast(V2, V1->getType(), S2);
 	}
 
+	// Same safety net for FLOATING-POINT operands: a retyped fp literal can
+	// leave equal Sema ranks over mismatched IR widths (`f += 0.25` reached
+	// the fadd as float + double → broken function). Widen the narrower side;
+	// an integer value meeting an fp value converts with its own signedness.
+	if (V1 && V2 && V1->getType() != V2->getType()) {
+		if (V1->getType()->isFloatingPointTy() && V2->getType()->isFloatingPointTy()) {
+			if (V1->getType()->isFloatTy())
+				V1 = Builder->CreateFPExt(V1, V2->getType());
+			else
+				V2 = Builder->CreateFPExt(V2, V1->getType());
+		} else if (V1->getType()->isFloatingPointTy() && V2->getType()->isIntegerTy()) {
+			bool S2 = !Type2->isInteger() || static_cast<SemaIntType *>(Type2)->isSigned();
+			V2 = S2 ? Builder->CreateSIToFP(V2, V1->getType())
+			        : Builder->CreateUIToFP(V2, V1->getType());
+		} else if (V1->getType()->isIntegerTy() && V2->getType()->isFloatingPointTy()) {
+			bool S1 = !Type1->isInteger() || static_cast<SemaIntType *>(Type1)->isSigned();
+			V1 = S1 ? Builder->CreateSIToFP(V1, V2->getType())
+			        : Builder->CreateUIToFP(V1, V2->getType());
+		}
+	}
+
 	// Choose float vs integer instructions based on effective type
 	bool IsFloat = EffectiveType->isFloat();
 	bool IsUnsignedInt = !IsFloat && EffectiveType->isInteger() &&
@@ -1209,11 +1325,12 @@ llvm::Value *CodeGenExpr::GenBinaryCompare(SemaExpr *E1, ASTBinaryKind OperatorK
 		SemaIntType *IntType1 = static_cast<SemaIntType *>(E1->getType());
 		SemaIntType *IntType2 = static_cast<SemaIntType *>(E2->getType());
 
-		// Check if we need to promote one of the integers
+		// Check if we need to promote one of the integers (extension follows
+		// the PROMOTED VALUE's own signedness, not the destination's)
 		if (IntType1->getRank() > IntType2->getRank()) {
-			V2 = ConvertToInteger(V2, IntType1); // Promote V2
+			V2 = ConvertToInteger(V2, IntType1, IntType2->isSigned()); // Promote V2
 		} else if (IntType1->getRank() < IntType2->getRank()) {
-			V1 = ConvertToInteger(V1, IntType2); // Promote V1
+			V1 = ConvertToInteger(V1, IntType2, IntType1->isSigned()); // Promote V1
 		}
 
 		// Safety net: Resolver::PromoteTypes may have rewritten an operand's SEMA
@@ -1359,7 +1476,8 @@ llvm::Value *CodeGenExpr::GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKin
 	return nullptr;
 }
 
-llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool FreeOldLHS) {
+llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool FreeOldLHS,
+                                           llvm::Value *RhsOverride) {
 	// Validate E1 and E2 are not null
 	assert(E1 && "E1 is null");
 	assert(E2 && "E2 is null");
@@ -1399,20 +1517,8 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool Free
 		bool IsMember1 = K1 == SemaKind::MEMBER;
 		bool Const1 = IsVar1 && static_cast<SemaVar *>(E1)->isConstant();
 		if ((IsVar1 || IsMember1) && !Const1) {
-			SemaKind K2 = E2->getKind();
 			// Compute the new, independently-owned heap buffer for the destination.
-			llvm::Value *NewVal;
-			if (K2 == SemaKind::VALUE) {
-				NewVal = GenStringHeapCopy(static_cast<SemaStringValue *>(E2));
-			} else {
-				bool IsLValue2 = K2 == SemaKind::LOCAL_VAR || K2 == SemaKind::PARAM_VAR ||
-				                 K2 == SemaKind::ERROR_VAR  || K2 == SemaKind::ATTRIBUTE ||
-				                 K2 == SemaKind::INSTANCE_VAR || K2 == SemaKind::MEMBER;
-				// CALL/BINARY RHS already yields a fresh, uniquely-owned buffer; an
-				// lvalue RHS must be deep-cloned so the destination doesn't alias it.
-				NewVal = IsLValue2 ? GenStringClone(E2CodeGen->getValue())
-				                   : E2CodeGen->getValue();
-			}
+			llvm::Value *NewVal = GenStringOwned(E2, E2CodeGen->getValue());
 			// Reassignment (FreeOldLHS, set by the Resolver) frees the destination's
 			// PREVIOUS heap buffer — but only AFTER the new value is computed above,
 			// because the RHS may read this same variable (`s = concat(s, …)` /
@@ -1437,9 +1543,17 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool Free
 		}
 	}
 
-	llvm::Value *V2 = E2CodeGen->getValue();
+	// A compound assignment passes the already-computed `a <op> b`, brought to
+	// the destination's type by the caller — skip the promotion below for it.
+	llvm::Value *V2 = RhsOverride ? RhsOverride : E2CodeGen->getValue();
 
-	if (E1->getType()->isNumber() && E2->getType()->isNumber()) {
+	// `bool caught = error` reads the error's TRUTH, exactly like `if (err)`.
+	// The raw value is the %error struct pointer, so the bool slot's zext saw a
+	// pointer ("ZExt only operates on integer" → Broken function, ExecErrorSuite).
+	if (!RhsOverride && E1->getType()->isBool() && E2->getType() && E2->getType()->isError())
+		V2 = CGM->EmitErrorIsSet(V2);
+
+	if (!RhsOverride && E1->getType()->isNumber() && E2->getType()->isNumber()) {
 		SemaNumberType *Type1 = static_cast<SemaNumberType *>(E1->getType());
 		SemaNumberType *Type2 = static_cast<SemaNumberType *>(E2->getType());
 		bool Src2Signed = !Type2->isInteger() || static_cast<SemaIntType *>(Type2)->isSigned();
@@ -1467,6 +1581,19 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool Free
 			}
 			if (DestTy && DestTy != V2->getType())
 				V2 = Builder->CreateIntCast(V2, DestTy, Src2Signed);
+		} else if (Type1->isFloat()) {
+			// NARROWING fp store: `float f = <double expr>` must fptrunc — the raw
+			// 8-byte store writes the double's LOW WORD into the 4-byte f32 slot
+			// (1.5 stores as 0x00000000, the local reads back 0.0 — silent, since
+			// opaque-pointer stores pass the verifier). ConvertNumber routes through
+			// ConvertToFloat: FPCast for fp widths, sitofp/uitofp for an integer RHS
+			// (the equal-rank `float f = <int>` feed, otherwise reinterpreted raw).
+			// No-op when the value already matches the slot type.
+			llvm::Type *SlotTy =
+				static_cast<SemaFloatType *>(Type1)->getFloatKind() ==
+					SemaFloatTypeKind::TYPE_FLOAT ? CodeGen::FloatTy : CodeGen::DoubleTy;
+			if (V2->getType() != SlotTy)
+				V2 = ConvertNumber(V2, Type1, Src2Signed);
 		}
 	}
 	// Bridge: when storing a CLang instance into a variable, propagate the
@@ -1509,6 +1636,46 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool Free
 				                      DL.getTypeAllocSize(StructTy));
 				return V2;
 			}
+		}
+	}
+
+	// A STRUCT-typed class FIELD lives INLINE in the parent object
+	// (%Holder = { ptr, %Point }), so its slot IS the struct. Storing the source
+	// POINTER there overwrote the first fields with an address — every later read
+	// returned garbage (ExecClassSuite 401) — and made the field alias the
+	// assigning frame's object, dangling once that frame returned. Copy the bytes
+	// instead. Reads take the matching path in CodeGenVar::getValue().
+	if (E1CodeGen->isInlineStructSlot() && V2 && E1->getType()->isClass()) {
+		SemaClassType *LC = static_cast<SemaClassType *>(E1->getType());
+		llvm::StructType *StructTy = LC->getCodeGen() ? LC->getCodeGen()->getType() : nullptr;
+		if (StructTy) {
+			llvm::Value *Slot = static_cast<CodeGenVar *>(E1CodeGen)->getPointer();
+			const llvm::DataLayout &DL = CGM->Module->getDataLayout();
+			Builder->CreateMemCpy(Slot, llvm::MaybeAlign(), V2, llvm::MaybeAlign(),
+			                      DL.getTypeAllocSize(StructTy));
+			return V2;
+		}
+	}
+
+	// STRUCT value semantics for a LOCAL destination: `Pt b = a` must give `b`
+	// its OWN stack object holding the source's bytes — storing the source
+	// POINTER aliased the two variables (mutating b.x changed a.x, docs §6.6
+	// says structs are value types). The copy lands in an entry-block alloca
+	// (a fixed frame slot: an assignment inside a loop must not grow the stack
+	// per iteration). Struct PARAMS are handled above (copy through the caller's
+	// pointer); struct class FIELDS stay embedded by their own path.
+	if (E1->getKind() == SemaKind::LOCAL_VAR &&
+	    E1->getType()->isClass() && E2->getType() && E2->getType()->isClass() &&
+	    static_cast<SemaClassType *>(E1->getType())->getClassKind() == SemaClassKind::STRUCT &&
+	    static_cast<SemaClassType *>(E2->getType())->getClassKind() == SemaClassKind::STRUCT) {
+		SemaClassType *LC = static_cast<SemaClassType *>(E1->getType());
+		llvm::StructType *StructTy = LC->getCodeGen() ? LC->getCodeGen()->getType() : nullptr;
+		if (StructTy && V2) {
+			llvm::AllocaInst *Copy = CreateEntryAlloca(Builder, StructTy);
+			const llvm::DataLayout &DL = CGM->Module->getDataLayout();
+			Builder->CreateMemCpy(Copy, llvm::MaybeAlign(), V2, llvm::MaybeAlign(),
+			                      DL.getTypeAllocSize(StructTy));
+			V2 = Copy;
 		}
 	}
 
@@ -1603,6 +1770,41 @@ void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &A
 		}
 
 		ArgExpr->accept(*CGM);
+
+		// An ARRAY argument is the ADDRESS of its %array fat pointer {data, size} —
+		// the callee GEPs both fields out of it (same convention visit(SemaLoopInStmt)
+		// uses). getValue() instead loads the slot's first 8 bytes (the data pointer),
+		// which the callee re-read as {data, size}: a garbage pointer and a garbage
+		// size, so `sumOf({10,20,30})` faulted on the first element.
+		{
+			SemaKind AK = ArgExpr->getKind();
+			bool IsArrayLValue = ArgExpr->getType() && ArgExpr->getType()->isArray() &&
+				(AK == SemaKind::LOCAL_VAR || AK == SemaKind::PARAM_VAR ||
+				 AK == SemaKind::ATTRIBUTE || AK == SemaKind::INSTANCE_VAR);
+			if (IsArrayLValue) {
+				CodeGenVar *CGV = static_cast<SemaVar *>(ArgExpr)->getCodeGen();
+				if (CGV && CGV->getPointer()) {
+					Args.push_back(CGV->getPointer());
+					continue;
+				}
+			}
+
+			// An array LITERAL argument (`sumOf({1, 2, 3})`) has no slot: its
+			// codegen yields the raw malloc'd buffer. Wrap it in a temporary
+			// %array {data, size} and pass that address, same as a variable.
+			if (AK == SemaKind::VALUE && ArgExpr->getType() && ArgExpr->getType()->isArray()) {
+				CodeGenArrayValue *CGA = static_cast<CodeGenArrayValue *>(ArgExpr->getCodeGen());
+				llvm::AllocaInst *Tmp = CreateEntryAlloca(Builder, CodeGen::ArrayTy);
+				Builder->CreateStore(CGA->getValue(),
+					Builder->CreateStructGEP(CodeGen::ArrayTy, Tmp, 0));
+				Builder->CreateStore(
+					llvm::ConstantInt::get(CodeGen::IntTy, CGA->getValues().size()),
+					Builder->CreateStructGEP(CodeGen::ArrayTy, Tmp, 1));
+				Args.push_back(Tmp);
+				continue;
+			}
+		}
+
 		llvm::Value *V = ArgExpr->getCodeGen()->getValue();
 
 		// Upcast a derived class argument to a base/interface param: adjust the pointer
@@ -1700,14 +1902,17 @@ llvm::Value *CodeGenExpr::ConvertToBool(llvm::Value *V) {
 llvm::Value *CodeGenExpr::ConvertNumber(llvm::Value *V, SemaNumberType *Ty, bool IsSigned) {
 	// Promote V to Type Ty
 	if (Ty->isInteger()) {
-		V  = ConvertToInteger(V, static_cast<SemaIntType *>(Ty)); // Implicit conversion
+		V  = ConvertToInteger(V, static_cast<SemaIntType *>(Ty), IsSigned); // Implicit conversion
 	} else if (Ty->isFloat()) {
 		V = ConvertToFloat(V, static_cast<SemaFloatType *>(Ty), IsSigned); // Implicit conversion
 	}
 	return V;
 }
 
-llvm::Value *CodeGenExpr::ConvertToInteger(llvm::Value *V, SemaIntType *Ty) {
+llvm::Value *CodeGenExpr::ConvertToInteger(llvm::Value *V, SemaIntType *Ty, bool IsSigned) {
+	// WIDENING extends by the SOURCE's signedness (IsSigned): a byte/ushort
+	// value zero-extends no matter how signed the destination is — keying on
+	// the destination made `b == 200` sign-extend byte 200 to -56 (B010).
 	if (V->getType()->isIntegerTy()) {
 		switch (Ty->getIntKind()) {
 
@@ -1717,14 +1922,15 @@ llvm::Value *CodeGenExpr::ConvertToInteger(llvm::Value *V, SemaIntType *Ty) {
 			case SemaIntTypeKind::TYPE_USHORT:
 			case SemaIntTypeKind::TYPE_SHORT:
 				if (V->getType() == CodeGen::Int8Ty) {
-					return Builder->CreateZExt(V, CodeGen::Int16Ty);
+					return IsSigned ? Builder->CreateSExt(V, CodeGen::Int16Ty) :
+						   Builder->CreateZExt(V, CodeGen::Int16Ty);
 				}
 				return Builder->CreateTrunc(V, CodeGen::Int16Ty);
 
 			case SemaIntTypeKind::TYPE_UINT:
 			case SemaIntTypeKind::TYPE_INT:
 				if (V->getType() == CodeGen::Int8Ty || V->getType() == CodeGen::Int16Ty) {
-					return Ty->isSigned() ? Builder->CreateSExt(V, CodeGen::Int32Ty) :
+					return IsSigned ? Builder->CreateSExt(V, CodeGen::Int32Ty) :
 						   Builder->CreateZExt(V, CodeGen::Int32Ty);
 				}
 				return Builder->CreateTrunc(V, CodeGen::Int32Ty);
@@ -1732,7 +1938,7 @@ llvm::Value *CodeGenExpr::ConvertToInteger(llvm::Value *V, SemaIntType *Ty) {
 			case SemaIntTypeKind::TYPE_ULONG:
 			case SemaIntTypeKind::TYPE_LONG:
 				if (V->getType() == CodeGen::Int8Ty || V->getType() == CodeGen::Int16Ty || V->getType() == CodeGen::Int32Ty) {
-					return Ty->isSigned() ? Builder->CreateSExt(V, CodeGen::Int64Ty) :
+					return IsSigned ? Builder->CreateSExt(V, CodeGen::Int64Ty) :
 						   Builder->CreateZExt(V, CodeGen::Int64Ty);
 				}
 				// V is already i64 — no conversion needed (covers long/ulong on the host)
@@ -1744,7 +1950,7 @@ llvm::Value *CodeGenExpr::ConvertToInteger(llvm::Value *V, SemaIntType *Ty) {
 				unsigned Dst = PtrIntTy->getIntegerBitWidth();
 				unsigned Src = V->getType()->getIntegerBitWidth();
 				if (Src < Dst)
-					return Ty->isSigned() ? Builder->CreateSExt(V, PtrIntTy) :
+					return IsSigned ? Builder->CreateSExt(V, PtrIntTy) :
 						   Builder->CreateZExt(V, PtrIntTy);
 				if (Src > Dst)
 					return Builder->CreateTrunc(V, PtrIntTy);

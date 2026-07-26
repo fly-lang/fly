@@ -24,11 +24,19 @@ namespace fly {
         friend class Resolver;
         friend class SemaValidator;
 
+        // True only for the hidden output params the Resolver appends for the
+        // return convention ('out' / __out_N). Matching them by NAME broke every
+        // function whose USER-declared trailing param happens to be called `out`
+        // (the runtime convention: strSize, mem_alloc, …).
+        bool Synthetic = false;
+
         explicit SemaParam(ASTParam &AST, SemaType *Type);
 
     public:
 
         ~SemaParam() override = default;
+
+        bool isSynthetic() const;
 
         std::string str() const override;
 

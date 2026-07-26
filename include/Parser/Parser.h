@@ -174,6 +174,8 @@ private:
     /// Parse a fail statement.
     void ParseFailStmt(ASTBlockStmt *Parent);
 
+    void ParseMultiAssignStmt(ASTBlockStmt *Parent);
+
     /// Parse an inline test block: "test { ... }"
     void ParseTestStmt(ASTBlockStmt *Parent);
 

@@ -118,7 +118,7 @@ std::string SemaStringValue::str() const {
 SemaArrayValue::SemaArrayValue(ASTArrayValue &AST, SemaType *Type) : SemaValue(AST, Type) {
 }
 
-const llvm::SmallVector<SemaValue *, 8> &SemaArrayValue::getValues() const {
+const llvm::SmallVector<SemaExpr *, 8> &SemaArrayValue::getValues() const {
 	return Values;
 }
 
@@ -140,7 +140,7 @@ CodeGenArrayValue *SemaArrayValue::getCodeGen() const {
 SemaStructValue::SemaStructValue(ASTStructValue &AST, SemaType *Type) : SemaValue(AST, Type) {
 }
 
-const llvm::StringMap<SemaValue *> &SemaStructValue::getValues() const {
+const llvm::StringMap<SemaExpr *> &SemaStructValue::getValues() const {
 	return Values;
 }
 

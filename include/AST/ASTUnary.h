@@ -19,7 +19,8 @@ namespace fly {
         OP_UNARY_POST_INCR,
         OP_UNARY_PRE_DECR,
         OP_UNARY_POST_DECR,
-        OP_UNARY_NOT_LOG
+        OP_UNARY_NOT_LOG,
+        OP_UNARY_NEG
     };
 
     /**

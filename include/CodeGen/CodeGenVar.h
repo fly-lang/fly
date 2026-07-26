@@ -69,6 +69,8 @@ namespace fly {
 
         llvm::Value *getValue() override;
 
+        bool isInlineStructSlot() const override;
+
         size_t getIndex();
 
         llvm::Value *getPointer();

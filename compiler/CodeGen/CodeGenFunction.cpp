@@ -82,10 +82,11 @@ CodeGenFunction::CodeGenFunction(CodeGenModule *CGM, SemaFunction *Sema, bool is
         }
 
         // Functions that use the out-param convention have LLVM return type void;
-        // the user-declared return type is carried by the hidden 'out' pointer param.
+        // the user-declared return type is carried by the hidden 'out' pointer param
+        // (recognized by its Synthetic flag — a USER param may also be named `out`).
         if (RetType != CodeGen::VoidTy) {
             auto &Params = Sema->getParams();
-            if (!Params.empty() && Params.back()->getName() == "out")
+            if (!Params.empty() && Params.back()->isSynthetic())
                 RetType = CodeGen::VoidTy;
         }
 
@@ -205,34 +206,14 @@ void CodeGenFunction::GenBody() {
 		Sema->getBody()->accept(*CGM);
 	}
 
-    // if is Main check error and return right exit code
+    // if is Main check error and return right exit code (err_print + ret code —
+    // shared with `fail`/`return` emitted directly in main's body, which now
+    // terminate the block themselves via the same protocol: guard on the
+    // terminator so nothing is appended after their ret).
     if (isMain) {
-        llvm::Value *Zero32 = llvm::ConstantInt::get(CodeGen::Int32Ty, 0);
-        llvm::Value *One32 = llvm::ConstantInt::get(CodeGen::Int32Ty, 1);
-        // take return value from error struct
-        CodeGenError *CGE = Sema->getErrorHandler()->getCodeGen();
-        llvm::Value * ErrorHandler = CGE->getValue();
-        llvm::Value *ErrorVal = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorHandler, {Zero32, Zero32});
-        llvm::Value *Code = CGM->Builder->CreateLoad(CodeGen::Int32Ty, ErrorVal);
-
-        // An unhandled error reached main: print it to stderr via the runtime
-        // (err_print), then exit with the error code itself. No error → 0.
-        llvm::BasicBlock *ErrBB  = llvm::BasicBlock::Create(CGM->LLVMCtx, "err", Fn);
-        llvm::BasicBlock *ExitBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "exit", Fn);
-        CGM->Builder->CreateCondBr(CGM->Builder->CreateICmpNE(Code, Zero32), ErrBB, ExitBB);
-
-        CGM->Builder->SetInsertPoint(ErrBB);
-        llvm::Value *MsgPtr = CGM->Builder->CreateInBoundsGEP(CGE->getType(), ErrorHandler, {Zero32, One32});
-        llvm::Value *Msg = CGM->Builder->CreateLoad(llvm::PointerType::getUnqual(CGM->LLVMCtx), MsgPtr);
-        llvm::FunctionCallee ErrPrintFn = CGM->Module->getOrInsertFunction(
-            "err_print",
-            llvm::FunctionType::get(CodeGen::VoidTy,
-                {CodeGen::Int32Ty, llvm::PointerType::getUnqual(CGM->LLVMCtx)}, false));
-        CGM->Builder->CreateCall(ErrPrintFn, {Code, Msg});
-        CGM->Builder->CreateBr(ExitBB);
-
-        CGM->Builder->SetInsertPoint(ExitBB);
-        CGM->Builder->CreateRet(Code);
+        if (!CGM->Builder->GetInsertBlock()->getTerminator()) {
+            CGM->EmitMainErrorExit(Sema->getErrorHandler()->getCodeGen(), Fn);
+        }
     } else {
     	CheckReturnVoid();
     }
