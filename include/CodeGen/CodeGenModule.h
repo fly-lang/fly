@@ -234,6 +234,12 @@ namespace fly {
         void EmitSharedRetain(llvm::Value *DataPtr);
         void EmitSharedRelease(llvm::Value *DataPtr);
 
+        // Emit main()'s exit protocol (load error.code → err_print when non-zero →
+        // `ret i32 code`). Shared by the end-of-body epilogue and by `fail`/`return`
+        // statements emitted directly inside main, whose LLVM type is the i32 C
+        // entry point — a callee-style `ret void` there breaks the function.
+        void EmitMainErrorExit(CodeGenError *CGE, llvm::Function *Fn);
+
         llvm::Module *getModule() const;
 
         void FinalizeDebugInfo();
@@ -341,6 +347,9 @@ namespace fly {
     	// Evaluate a condition expression to an i1. An `error`-typed condition
     	// (`if (err)`) is true when an error is recorded (error.code != 0).
     	llvm::Value *EmitCondition(SemaExpr *Expr);
+
+    	// i1 "an error is recorded" from an %error struct pointer.
+    	llvm::Value *EmitErrorIsSet(llvm::Value *ErrPtr);
 
 
     	std::string toIdentifier(llvm::StringRef Name, SemaNameSpace *NameSpace);

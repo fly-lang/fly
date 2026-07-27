@@ -244,9 +244,9 @@ namespace fly {
 
         static ASTStringValue *CreateStringValue(const SourceLocation &Loc, llvm::StringRef Val);
 
-        static ASTArrayValue *CreateArrayValue(const SourceLocation &Loc, llvm::SmallVector<ASTValue *, 8> Values);
+        static ASTArrayValue *CreateArrayValue(const SourceLocation &Loc, llvm::SmallVector<ASTExpr *, 8> Values);
 
-        static ASTStructValue *CreateStructValue(const SourceLocation &Loc, llvm::StringMap<ASTValue *>);
+        static ASTStructValue *CreateStructValue(const SourceLocation &Loc, llvm::StringMap<ASTExpr *>);
 
         // Create Var
 

@@ -176,9 +176,9 @@ namespace fly {
 
     	static SemaStringValue *CreateStringValue(ASTStringValue &AST);
 
-    	static SemaArrayValue *CreateArrayValue(ASTArrayValue &AST, SemaType *Type, llvm::SmallVector<SemaValue *, 8> &Values) ;
+    	static SemaArrayValue *CreateArrayValue(ASTArrayValue &AST, SemaType *Type, llvm::SmallVector<SemaExpr *, 8> &Values) ;
 
-    	static SemaStructValue *CreateStructValue(ASTStructValue &AST, llvm::StringMap<SemaValue *> Values);
+    	static SemaStructValue *CreateStructValue(ASTStructValue &AST, llvm::StringMap<SemaExpr *> Values);
 
     	static SemaValue * CreateNullValue(ASTNullValue &AST);
 

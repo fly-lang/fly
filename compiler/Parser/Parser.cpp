@@ -703,6 +703,17 @@ void Parser::ParseBlock(ASTBlockStmt *Block) {
 void Parser::ParseStmt(ASTBlockStmt *Parent) {
 	FLY_DEBUG_SCOPE("Parser", "ParseStmt");
 
+	// ===== 0. NESTED SCOPING BLOCK =====
+	// A bare `{ … }` in STATEMENT position opens its own scope. Without this the
+	// brace fell through to expression parsing, where `{ r = 5 }` was read as a
+	// STRUCT LITERAL — the statements vanished (B021 root cause, reference side).
+	if (isBlockStart()) {
+		ASTBlockStmt *Nested = ASTBuilder::CreateBlockStmt(Parent, Tok.getLocation());
+		Parent->addContent(Nested);
+		ParseBlock(Nested);
+		return;
+	}
+
 	// ===== 1. CONTROL FLOW STATEMENTS =====
 	// These keywords start specific statement types that need dedicated parsing
 
@@ -774,10 +785,23 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 		return;
 	}
 
-	// Check for error handling: "Type name handle { ... }"
+	// Check for error handling: "handle { ... }" (the implicit error variable
+	// is synthesized inside ParseHandleStmt — B031)
 	if (Tok.is(tok::kw_handle)) {
 		ParseHandleStmt(Parent);
 		return;
+	}
+
+	// B027: multi-assignment `q, r = f(args)` — every receiver is an
+	// ALREADY-DECLARED variable and the call's return slots bind in order.
+	// `identifier ,` cannot begin any other legal statement, so the one-token
+	// lookahead commits without backtracking.
+	if (Tok.isAnyIdentifier()) {
+		std::optional<Token> MA = Lexer::findNextToken(Tok.getLocation(), SourceMgr);
+		if (MA && MA->is(tok::comma)) {
+			ParseMultiAssignStmt(Parent);
+			return;
+		}
 	}
 
 	// ===== 2. VARIABLE DECLARATIONS AND ASSIGNMENTS =====
@@ -889,6 +913,43 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 			Stmt->setExpr(Expr);
 		}
 	}
+}
+
+// ParseMultiAssignStmt — `q, r = f(args)` (B027, doc §5.4): the receivers are
+// ALREADY-DECLARED variables (no inline declaration) and the call's return
+// slots bind in order (q ← out[0], r ← out[1], …). The receiver NAMES ride on
+// the ASTCall; the resolver binds them as the hidden out arguments instead of
+// synthesizing locals, and verifies the count against the callee's out slots.
+void Parser::ParseMultiAssignStmt(ASTBlockStmt *Parent) {
+	FLY_DEBUG_SCOPE("Parser", "ParseMultiAssignStmt");
+	SourceLocation Loc = Tok.getLocation();
+	std::vector<std::string> Names;
+	Names.push_back(Tok.getIdentifierInfo()->getName().str());
+	ConsumeToken();
+	while (Tok.is(tok::comma)) {
+		ConsumeToken();
+		if (!Tok.isAnyIdentifier()) {
+			Diag(Tok, diag::err_parser_identifier_expected);
+			return;
+		}
+		Names.push_back(Tok.getIdentifierInfo()->getName().str());
+		ConsumeToken();
+	}
+	if (!Tok.is(tok::equal)) {
+		Diag(Tok, diag::err_parser_syntax_error);
+		return;
+	}
+	ConsumeToken();
+	ASTExpr *Expr = ParseExpr();
+	if (!Expr || Expr->getExprKind() != ASTExprKind::EXPR_CALL) {
+		Diag(Loc, diag::err_parser_multi_assign_call);
+		return;
+	}
+	ASTCall *Call = static_cast<ASTCall *>(Expr);
+	for (auto &N : Names)
+		Call->addMultiRecv(N);
+	ASTExprStmt *Stmt = ASTBuilder::CreateExprStmt(Parent, Loc);
+	Stmt->setExpr(Call);
 }
 
 bool Parser::isType(std::optional<Token> &NexTok) {
@@ -1256,12 +1317,21 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
 				if (Tok.is(tok::colon)) { // Parse a Block of Stmt
 					ConsumeToken();
 					SwitchBuilder->addCase(CaseLoc, Expr, CaseBlock);
-					if (Tok.isOneOf(tok::kw_case, tok::kw_default)) {
-						continue;
-					}
-					// Only parse statement if we're not at the end of the switch block
-					if (!Tok.is(tok::r_brace)) {
-						ParseBlockOrStmt(CaseBlock);
+					// A case body is EVERY statement up to the next `case`/`default`
+					// label or the switch's closing '}' — the docs' canonical
+					// multi-statement form. A single ParseBlockOrStmt parsed ONE
+					// statement, and the next line (`break` on its own) fell out of
+					// the switch loop as a cascade of syntax errors. An empty body
+					// (stacked labels) simply skips the loop.
+					while (Tok.isNot(tok::kw_case) && Tok.isNot(tok::kw_default) &&
+					       Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
+						SourceLocation Before = Tok.getLocation();
+						isBlockStart() ? ParseBlock(CaseBlock) : ParseStmt(CaseBlock);
+						if (Tok.getLocation() == Before) {
+							// no progress on a malformed statement: already
+							// diagnosed — bail out instead of spinning
+							return;
+						}
 					}
 				}
     		} else if (Tok.is(tok::kw_default)) {
@@ -1278,12 +1348,14 @@ void Parser::ParseSwitchStmt(ASTBlockStmt *Parent) {
 				if (Tok.is(tok::colon)) { // Parse a Block of Stmt
 					ConsumeToken();
 					SwitchBuilder->setDefault(SwitchLoc, DefaultBlock);
-					if (Tok.is(tok::kw_case)) {
-						continue;
-					}
-					// Only parse statement if we're not at the end of the switch block
-					if (!Tok.is(tok::r_brace)) {
-						ParseBlockOrStmt(DefaultBlock);
+					// Same multi-statement body rule as `case` above.
+					while (Tok.isNot(tok::kw_case) && Tok.isNot(tok::kw_default) &&
+					       Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
+						SourceLocation Before = Tok.getLocation();
+						isBlockStart() ? ParseBlock(DefaultBlock) : ParseStmt(DefaultBlock);
+						if (Tok.getLocation() == Before) {
+							return;
+						}
 					}
 				}
     		} else {
@@ -1471,6 +1543,18 @@ void Parser::ParseHandleStmt(ASTBlockStmt *Parent, ASTLocalVar *ErrorVar) {
     // Consume handle keyword
     const SourceLocation &HandleLoc = Tok.getLocation();
 	ConsumeToken();
+
+	// Bare `handle { … }` — the CANONICAL (self-host) form: synthesize the
+	// IMPLICIT error variable so `if error { … }` reads it afterwards (B031).
+	// It carries the internal name "__error" (the `error` KEYWORD in
+	// expression position maps to the same name — see ParsePrimary), which no
+	// user identifier can collide with. This reuses the whole named-form
+	// machinery downstream; the old null-ErrorVar path crashed the resolver.
+	if (ErrorVar == nullptr) {
+		llvm::SmallVector<ASTModifier *, 8> NoMods;
+		ASTType *ErrT = ASTBuilder::CreateErrorType(HandleLoc);
+		ErrorVar = ASTBuilder::CreateLocalVar(HandleLoc, ErrT, "__error", NoMods);
+	}
 
     // Parse statement between braces
     ASTBlockStmt *HandleBlock = ASTBuilder::CreateBlockStmt(HandleLoc);

@@ -174,7 +174,9 @@ namespace fly {
 		friend class Resolver;
 		friend class SemaValidator;
 
-		llvm::SmallVector<SemaValue *, 8> Values;
+		// Elements are resolved EXPRESSIONS (SemaValue is-a SemaExpr): casts,
+		// identifiers and arithmetic are valid array-literal elements (B026).
+		llvm::SmallVector<SemaExpr *, 8> Values;
 
 		explicit SemaArrayValue(ASTArrayValue &AST, SemaType *Type);
 
@@ -182,7 +184,7 @@ namespace fly {
 
 		~SemaArrayValue() override = default;
 
-		const llvm::SmallVector<SemaValue *, 8> &getValues() const;
+		const llvm::SmallVector<SemaExpr *, 8> &getValues() const;
 
 		std::string str() const override;
 
@@ -198,7 +200,9 @@ namespace fly {
 		friend class Resolver;
 		friend class SemaValidator;
 
-		llvm::StringMap<SemaValue *> Values;
+		// Field values are resolved EXPRESSIONS (SemaValue is-a SemaExpr), so a
+		// struct literal takes arithmetic, casts and identifiers (B029 parity).
+		llvm::StringMap<SemaExpr *> Values;
 
 		explicit SemaStructValue(ASTStructValue &AST, SemaType *Type);
 
@@ -206,7 +210,7 @@ namespace fly {
 
 		~SemaStructValue() override = default;
 
-		const llvm::StringMap<SemaValue *> &getValues() const;
+		const llvm::StringMap<SemaExpr *> &getValues() const;
 
 		std::string str() const override;
 

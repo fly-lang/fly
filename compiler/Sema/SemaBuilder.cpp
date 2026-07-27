@@ -569,7 +569,7 @@ SemaStringValue * SemaBuilder::CreateStringValue(ASTStringValue &AST) {
 	return V;
 }
 
-SemaArrayValue * SemaBuilder::CreateArrayValue(ASTArrayValue &AST, SemaType *Type, llvm::SmallVector<SemaValue *, 8> &Values) {
+SemaArrayValue * SemaBuilder::CreateArrayValue(ASTArrayValue &AST, SemaType *Type, llvm::SmallVector<SemaExpr *, 8> &Values) {
 	FLY_DEBUG_SCOPE("SemaBuilder", "CreateArrayValue");
 
 	uint64_t Size = Values.size();
@@ -579,7 +579,7 @@ SemaArrayValue * SemaBuilder::CreateArrayValue(ASTArrayValue &AST, SemaType *Typ
 	return V;
 }
 
-SemaStructValue * SemaBuilder::CreateStructValue(ASTStructValue &AST, llvm::StringMap<SemaValue *> Values) {
+SemaStructValue * SemaBuilder::CreateStructValue(ASTStructValue &AST, llvm::StringMap<SemaExpr *> Values) {
 	FLY_DEBUG_SCOPE("SemaBuilder", "CreateStructValue");
 
 	llvm::SmallVector<SemaType *, 8> Types;

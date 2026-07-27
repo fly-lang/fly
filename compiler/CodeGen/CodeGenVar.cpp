@@ -87,21 +87,19 @@ llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
 }
 
 llvm::Value *CodeGenVar::StoreArrayValue(CodeGenArrayValue *ArrayValue) {
+	// The literal fills its own buffer in CodeGenArrayValue::GenExpr (self-
+	// contained, so nested inner literals are materialized too). Here we only
+	// install the fat pointer into the variable's %array struct {data, size} —
+	// which was historically NEVER written (garbage size → for-in iterated
+	// zero times). An empty literal gets {null-ish buffer, 0}: the zero size
+	// makes the buffer irrelevant.
 	llvm::Value *ArrayPtr = ArrayValue->getValue();
-	const std::vector<llvm::Value *> &Values = ArrayValue->getValues();
-	if (!Values.empty()) {
-		// Store each value into the allocated array data
-		for (size_t i = 0; i < Values.size(); i++) {
-			llvm::Value *Index = llvm::ConstantInt::get(CodeGen::IntPtrTy, i);
-			llvm::Value *ElemPtr = CGM->Builder->CreateGEP(ArrayValue->getElementType(), ArrayPtr, Index);
-			CGM->Builder->CreateStore(Values[i], ElemPtr);
-		}
-		return ArrayPtr; // No need to return a store instruction for the array struct itself
-	}
-
-	// Store Null pointer
-	llvm::Value *NullPtr = llvm::Constant::getNullValue(CodeGen::ArrayTy->getPointerTo());
-	return CGM->Builder->CreateStore(NullPtr, getPointer());
+	llvm::Value *Slot = getPointer();
+	llvm::Value *DataField = CGM->Builder->CreateStructGEP(CodeGen::ArrayTy, Slot, 0);
+	CGM->Builder->CreateStore(ArrayPtr, DataField);
+	llvm::Value *SizeField = CGM->Builder->CreateStructGEP(CodeGen::ArrayTy, Slot, 1);
+	return CGM->Builder->CreateStore(
+		llvm::ConstantInt::get(CodeGen::IntTy, ArrayValue->getValues().size()), SizeField);
 }
 
 llvm::Value *CodeGenVar::getDefaultValue(llvm::Type *T) {
@@ -267,7 +265,28 @@ llvm::LoadInst *CodeGenVar::Load() {
     return this->LoadI;
 }
 
+bool CodeGenVar::isInlineStructSlot() const {
+    // Only a NON-STATIC class attribute is embedded in the parent object; a static
+    // one is a standalone global, and locals/params keep a pointer slot.
+    if (!Sema || Sema->getKind() != SemaKind::ATTRIBUTE)
+        return false;
+    if (static_cast<SemaClassAttribute *>(Sema)->isStatic())
+        return false;
+    if (!T || !T->isStructTy() || T == CodeGen::StringTy || T == CodeGen::ArrayTy)
+        return false;
+    // CreateAttributes embeds only STRUCT-kind types by value; class/interface
+    // fields were rewritten to a plain pointer there.
+    SemaType *Ty = Sema->getType();
+    return Ty && Ty->getKind() == SemaKind::TYPE_CLASS &&
+           static_cast<SemaClassType *>(Ty)->getClassKind() == SemaClassKind::STRUCT;
+}
+
 llvm::Value *CodeGenVar::getValue() {
+    // An inline struct field's slot IS the object: its address is the value.
+    // Loading it would read the first 8 bytes as if they were a pointer.
+    if (isInlineStructSlot())
+        return getPointer();
+
     // For class-type const parameters (passed by value in fly's calling convention):
     // StoreParams sets getPointer() to the raw function argument (not an alloca).
     // Load() would dereference through the argument pointer — one level too deep.

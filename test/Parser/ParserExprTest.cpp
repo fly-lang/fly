@@ -68,6 +68,29 @@ namespace {
         EXPECT_EQ(As<ASTIdentifier>(a4Unary->getExpr())->getName(), "a");
     }
 
+    TEST_F(ParserTest, PostfixNeverCrossesLines) {
+        // Newlines are insignificant, so a `++`/`--` opening the next line used to
+        // be eaten as the PREVIOUS operand's postfix: `int a = 5` + `++a` parsed as
+        // `5++`, leaving `a` to start a bogus declaration (B014 parity).
+        llvm::StringRef str = (
+                "void func() {\n"
+                "  int a = 5\n"
+                "  ++a\n"
+                "  --a\n"
+                "}\n");
+        ASTModule *Module = Parse("PostfixNeverCrossesLines", str);
+        ASTBlockStmt *Body = As<ASTFunction>(Module->getNodes()[0])->getBody();
+
+        ASSERT_EQ(Body->getContent().size(), 3u);
+        auto *Pre1 = As<ASTUnary>(As<ASTExprStmt>(Body->getContent()[1])->getExpr());
+        ASSERT_NE(Pre1, nullptr);
+        EXPECT_EQ(Pre1->getOpKind(), ASTUnaryKind::OP_UNARY_PRE_INCR);
+        auto *Pre2 = As<ASTUnary>(As<ASTExprStmt>(Body->getContent()[2])->getExpr());
+        ASSERT_NE(Pre2, nullptr);
+        EXPECT_EQ(Pre2->getOpKind(), ASTUnaryKind::OP_UNARY_PRE_DECR);
+        EXPECT_FALSE(HasErrorOccurred());
+    }
+
     TEST_F(ParserTest, CastExpr) {
         llvm::StringRef str = (
                 "void func(uint a, int b) {\n"
@@ -1167,11 +1190,20 @@ namespace {
         ASSERT_NE(ExprStmt, nullptr);
         ASSERT_NE(ExprStmt->getExpr(), nullptr);
 
-        // Check if target is TERNARY instead of BINARY
-        ASSERT_TRUE(ExprStmt->getExpr()->getExprKind() == ASTExprKind::EXPR_TERNARY);
-        // The parser might be creating: ASTExprStmt(expr=TERNARY)
-        // instead of: ASTExprStmt(expr=BINARY_ASSIGN(a, TERNARY))
-        ASTTernary *TernaryExpr = As<ASTTernary>(ExprStmt->getExpr());
+        // Assignment binds LOOSER than the ternary: the statement is
+        // BINARY_ASSIGN(a, TERNARY(a==1, 1, a)). It used to parse the other way
+        // round — the `=` was swallowed into the ternary's CONDITION, giving
+        // TERNARY((a = a==1), 1, a), which assigned the comparison's truth value
+        // and threw the selected arm away.
+        ASSERT_EQ(ExprStmt->getExpr()->getExprKind(), ASTExprKind::EXPR_BINARY);
+        ASTBinary *AssignExpr = As<ASTBinary>(ExprStmt->getExpr());
+        ASSERT_NE(AssignExpr, nullptr);
+        EXPECT_EQ(AssignExpr->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        EXPECT_EQ(As<ASTIdentifier>(AssignExpr->getLeftExpr())->getName(), "a");
+
+        // The assigned value is the whole ternary
+        ASSERT_EQ(AssignExpr->getRightExpr()->getExprKind(), ASTExprKind::EXPR_TERNARY);
+        ASTTernary *TernaryExpr = As<ASTTernary>(AssignExpr->getRightExpr());
         ASSERT_NE(TernaryExpr, nullptr);
 
         // Check ternary condition: a==1
@@ -1180,7 +1212,7 @@ namespace {
         EXPECT_EQ(ConditionExpr->getExprKind(), ASTExprKind::EXPR_BINARY);
         ASTBinary *CmpExpr = As<ASTBinary>(ConditionExpr);
         ASSERT_NE(CmpExpr, nullptr);
-        EXPECT_EQ(CmpExpr->getBinaryKind(), ASTBinaryKind::OP_BINARY_ASSIGN);
+        EXPECT_EQ(CmpExpr->getBinaryKind(), ASTBinaryKind::OP_BINARY_COMPARE_EQ);
 
         // Check true expression: 1
         ASTExpr *TrueExpr = TernaryExpr->getTrueExpr();

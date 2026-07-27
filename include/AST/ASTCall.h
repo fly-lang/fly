@@ -13,6 +13,8 @@
 #include "ASTExpr.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include <string>
+#include <vector>
 
 namespace fly {
 
@@ -41,6 +43,11 @@ namespace fly {
 
         llvm::SmallVector<ASTArg *, 8> Args;
 
+        // B027: `q, r = f(args)` — the parser records the receiver var NAMES
+        // here; the resolver binds them (in order) as the call's hidden out
+        // arguments instead of synthesizing locals. Empty for a plain call.
+        std::vector<std::string> MultiRecv;
+
         // Explicit type arguments for generic instantiation: new List<int>()
         llvm::SmallVector<ASTType *, 4> TypeArgs;
 
@@ -53,6 +60,9 @@ namespace fly {
         llvm::StringRef getName() const;
 
         llvm::SmallVector<ASTArg *, 8> getArgs() const;
+
+        void addMultiRecv(std::string Name) { MultiRecv.push_back(std::move(Name)); }
+        const std::vector<std::string> &getMultiRecv() const { return MultiRecv; }
 
         const llvm::SmallVector<ASTType *, 4> &getTypeArgs() const;
 

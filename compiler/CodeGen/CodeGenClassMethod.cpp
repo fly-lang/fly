@@ -48,10 +48,11 @@ CodeGenClassMethod::CodeGenClassMethod(CodeGenModule *CGM, SemaClassMethod *Sema
 			CGM->Diag(diag::err_codegen_invalid_type);
 			RetType = CodeGen::VoidTy;
 		}
-		// Methods using the out-param convention have LLVM return type void.
+		// Methods using the out-param convention have LLVM return type void
+		// (recognized by the Synthetic flag — a USER param may also be named `out`).
 		if (RetType != CodeGen::VoidTy) {
 			auto &Params = Sema->getParams();
-			if (!Params.empty() && Params.back()->getName() == "out")
+			if (!Params.empty() && Params.back()->isSynthetic())
 				RetType = CodeGen::VoidTy;
 		}
 	}
@@ -146,19 +147,10 @@ void CodeGenClassMethod::GenBody() {
     	// Store params starting at index 1 (after error handler)
     	StoreParams(1);
 
-    } else if (Class->getClassKind() == SemaClassKind::SUITE) {
-
-        // Suite methods: error handler in arg 0, dummy 'this' in arg 1 (never accessed),
-        // actual params start at arg 2.
-        // 'this' codegen is intentionally skipped — suites have no instance state.
-        unsigned const int ErrorHandlerArgIdx = 0;
-        unsigned const int StartArgIdx = 2;
-
-        AllocaLocalVars();
-        Sema->getErrorHandler()->getCodeGen()->StoreErrorHandler(Fn->getArg(ErrorHandlerArgIdx));
-        StoreParams(StartArgIdx);
-
     } else {
+        // SUITE methods take this path too (B018): arg 1 is the REAL instance the
+        // runner allocates in EmitSuite, so `this` and the attribute pointers must
+        // be wired up exactly like any other non-static class method.
 
     	// Alloca Class Instance Pointer
     	InstancePtr = CGM->Builder->CreateAlloca(ClassTypePtr);

@@ -85,6 +85,12 @@ bool SymbolTable::insert(Symbol *Sym) {
 	return true; // Insertion successful
 }
 
+void SymbolTable::rebind(Symbol *Sym) {
+	llvm::SmallVector<Symbol *, 8> &Entry = Table[Sym->Name];
+	Entry.clear();
+	Entry.push_back(Sym);
+}
+
 void SymbolTable::addChild(SymbolTable *Child) {
 	Children.push_back(Child);
 }

@@ -433,4 +433,148 @@ namespace {
         EXPECT_FALSE(exists("foo.a"));           // not in the CWD
     }
 
+    // ── return-convention synthetics vs a USER param named `out` ───────────────
+
+    // The hidden output params are recognized by the Resolver's Synthetic flag,
+    // not by their name. A void function whose LAST param the user called `out`
+    // (the runtime convention: strSize, mem_alloc, …) keeps it EXPLICIT, so a
+    // call supplying it still matches; matching on the name dropped it from the
+    // arity and every such call failed with "no overload accepts these arguments".
+    TEST_F(SingleFileBuildTest, UserParamNamedOutStaysExplicit) {
+        const std::string dir = "sfb_userout_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "void size(const string s, int out) {\n"
+                  "    out = 3\n"
+                  "}\n"
+                  "\n"
+                  "void main() {\n"
+                  "    int n = 0\n"
+                  "    size(\"abc\", n)\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_userout_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
+    // A multi-return callee accepts BOTH arities: the sugar `divmod(a, b)` that
+    // lets the Resolver synthesize the receivers, and the LOWERED form a .fly.h
+    // consumer must write, supplying the out slots itself. B033 fixed the first
+    // and broke the second; both are pinned here.
+    TEST_F(SingleFileBuildTest, MultiReturnAcceptsSugarAndLoweredForm) {
+        const std::string dir = "sfb_multiret_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "int, int divmod(const int a, const int b) {\n"
+                  "    out[0] = a / b\n"
+                  "    out[1] = a % b\n"
+                  "}\n"
+                  "\n"
+                  "void main() {\n"
+                  "    int q = 0\n"
+                  "    int r = 0\n"
+                  "    divmod(17, 5, q, r)\n"   // lowered: caller owns the slots
+                  "    q, r = divmod(17, 5)\n"  // sugar: receivers bound by name
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_multiret_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
+    // ── bad input is DIAGNOSED, never an internal compiler error ───────────────
+
+    // A malformed `new` (two identifiers) used to end the build on
+    // "internal compiler error: unexpected state reached". Semantic analysis ran
+    // on the AST the failed parse left behind, and a Resolver/Registry
+    // consistency check fired err_invalid_behavior — which is Severity::Fatal.
+    // The syntax errors are the outcome; assert we stop with ordinary errors and
+    // NO fatal, which is exactly what distinguishes a diagnosis from an ICE.
+    TEST_F(SingleFileBuildTest, MalformedNewIsDiagnosedNotICE) {
+        const std::string dir = "sfb_badnew_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "public class Box {\n"
+                  "    public int v\n"
+                  "}\n"
+                  "\n"
+                  "void main() {\n"
+                  "    Box b = new Foo Bar()\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_badnew_src"};
+        Driver drv(argv);
+        CompilerInstance &CI = drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
+
+        EXPECT_TRUE(CI.getDiagnostics().hasErrorOccurred())
+            << "the syntax error must still be reported";
+        EXPECT_FALSE(CI.getDiagnostics().hasFatalErrorOccurred())
+            << "a syntax error must not reach an internal compiler error";
+    }
+
+    // `main()` must be declared void (docs §5: the exit code comes from an
+    // unhandled `fail`, never from `out`). A declared return type made the
+    // Resolver append the synthetic `out` param, but CodeGenFunction builds main
+    // as the C entry point `i32 main(argc, argv)` and never allocates it — so
+    // `out = r` emitted `store i32 %8, <null operand!>` and aborted the backend
+    // with "Broken function" instead of being diagnosed. Exactly one error: the
+    // program is otherwise valid, so a second one would mean we broke something.
+    TEST_F(SingleFileBuildTest, MainWithReturnTypeIsRejected) {
+        const std::string dir = "sfb_mainret_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "int main() {\n"
+                  "    out = 7\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_mainret_src"};
+        Driver drv(argv);
+        CompilerInstance &CI = drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
+
+        EXPECT_EQ(CI.getDiagnostics().getNumErrors(), 1u)
+            << "expected only 'main() must be declared void'";
+        EXPECT_FALSE(CI.getDiagnostics().hasFatalErrorOccurred());
+    }
+
+    // The same rule for the multi-return form, which travels a separate path in
+    // the Resolver (getReturnTypes() rather than getReturnType()).
+    TEST_F(SingleFileBuildTest, MainWithMultiReturnIsRejected) {
+        const std::string dir = "sfb_mainmulti_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "int, int main() {\n"
+                  "    out[0] = 1\n"
+                  "    out[1] = 2\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_mainmulti_src"};
+        Driver drv(argv);
+        CompilerInstance &CI = drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
+
+        EXPECT_TRUE(CI.getDiagnostics().hasErrorOccurred());
+        EXPECT_FALSE(CI.getDiagnostics().hasFatalErrorOccurred());
+    }
+
+    // `void main()` stays valid — the guard must not reject the correct form.
+    TEST_F(SingleFileBuildTest, VoidMainStillAccepted) {
+        const std::string dir = "sfb_voidmain_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "void main() {\n"
+                  "    int a = 7\n"
+                  "    a = a + 1\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_voidmain_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
 } // anonymous namespace

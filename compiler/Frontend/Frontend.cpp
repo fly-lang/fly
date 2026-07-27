@@ -49,6 +49,15 @@
 using namespace fly;
 
 // Join a relative output path under OutDir; absolute paths and empty OutDir pass through.
+// DiscoverySkipsDir — directories the source walks NEVER descend into (B009):
+// hidden dot-dirs (.git, .flyp, .claude, …) and `build` (stage outputs carry
+// copied .fly sources — a stray one used to break root discovery with
+// "multiple main()"). The self-host mirrors the same rule
+// (fly.driver.discoverySkipsDir / Frontend.scanSrcDir).
+static bool DiscoverySkipsDir(llvm::StringRef Name) {
+    return Name.starts_with(".") || Name == "build";
+}
+
 static std::string underOutDir(llvm::StringRef OutDir, llvm::StringRef Path) {
     if (OutDir.empty() || Path.empty() || llvm::sys::path::is_absolute(Path))
         return Path.str();
@@ -469,7 +478,17 @@ bool Frontend::Execute() {
 
     // Resolve AST references; store on the member so getSemaModules() works
     // after Execute() returns (used by the LSP server and other tools).
-	SemaModules = S->Resolve(ASTModules, CI.getCodeGenOptions().TestMode);
+    //
+    // Only when the sources actually PARSED. Nothing but the parser has run yet,
+    // so an error here means a malformed AST: resolving one walks half-built
+    // identifier chains and null types until some Resolver/Registry consistency
+    // check fires err_invalid_behavior, and the build ends on "internal compiler
+    // error" instead of the syntax error the user needs to read (a plain typo,
+    // `new Foo Bar()`, was enough). The syntax errors ARE the outcome — skip
+    // semantic analysis, as the backend below is already skipped, and exit
+    // non-zero via getNumErrors().
+    if (!Diags.hasErrorOccurred())
+        SemaModules = S->Resolve(ASTModules, CI.getCodeGenOptions().TestMode);
 
     // Never lower modules that carry parse/sema errors: a failed resolution
     // leaves null types/symbols behind and CodeGen dereferences them — the
@@ -783,6 +802,11 @@ void Frontend::ResolveSourceDeps(ASTBuilder &Builder) {
                          I2 != E2 && !EC; I2.increment(EC)) {
                         const std::string &Path = I2->path();
                         llvm::StringRef PathRef(Path);
+                        if (llvm::sys::fs::is_directory(Path)) {
+                            if (DiscoverySkipsDir(llvm::sys::path::filename(Path)))
+                                I2.no_push();
+                            continue;
+                        }
                         if (!PathRef.ends_with(".fly") || PathRef.ends_with(".fly.h")) continue;
                         if (KnownFiles.count(llvm::sys::path::filename(Path))) continue;
                         std::string fns = extractFileNamespace(Path);
@@ -909,6 +933,11 @@ bool Frontend::DiscoverInputs() {
     for (llvm::sys::fs::recursive_directory_iterator I(Root, EC), E;
          I != E && !EC; I.increment(EC)) {
         llvm::StringRef P(I->path());
+        if (llvm::sys::fs::is_directory(P)) {
+            if (DiscoverySkipsDir(llvm::sys::path::filename(P)))
+                I.no_push();
+            continue;
+        }
         if (P.ends_with(".fly"))
             Files.push_back(I->path());
     }
@@ -1087,9 +1116,13 @@ void Frontend::LoadLibHeaders(ASTBuilder &Builder, const std::string &Dir,
         const std::string &Path = I->path();
         llvm::StringRef Filename = llvm::sys::path::filename(Path);
 
-        // Skip directories silently — the iterator descends into them automatically.
-        if (llvm::sys::fs::is_directory(Path))
+        // Skip directories silently — the iterator descends into them
+        // automatically, EXCEPT the B009 skip-list (dot-dirs and build/).
+        if (llvm::sys::fs::is_directory(Path)) {
+            if (DiscoverySkipsDir(Filename))
+                I.no_push();
             continue;
+        }
 
         // Prefer .fly.h over .fly when both exist in the same directory.
         // A .fly.h is a generated declaration-only header with no imports:

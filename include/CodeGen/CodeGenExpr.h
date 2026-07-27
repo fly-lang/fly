@@ -65,6 +65,11 @@ namespace fly {
 
     	virtual llvm::Value *getValue();
 
+    	// True only for a CodeGenVar backing a STRUCT-kind class field, which lives
+    	// INLINE in the parent object (%Holder = { ptr, %Point }). Such a slot IS
+    	// the struct, so it is read by address and written by memcpy.
+    	virtual bool isInlineStructSlot() const { return false; }
+
         void GenExpr(SemaVar *Sema);
 
         void GenExpr(SemaCall *Sema);
@@ -109,11 +114,21 @@ namespace fly {
 
         llvm::Value *GenStringClone(llvm::Value *StrVal);
 
+        // Turn E's string value into an INDEPENDENTLY-OWNED heap buffer: a literal
+        // is heap-copied, an lvalue is deep-cloned, and a CALL/concat result is
+        // already unique so it passes through.
+        llvm::Value *GenStringOwned(SemaExpr *E, llvm::Value *V);
+
         llvm::Value *GenBinaryCompare(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
         llvm::Value *GenBinaryLogic(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 
-        llvm::Value* GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool FreeOldLHS = false);
+        // RhsOverride: pre-computed value to store instead of E2's own value —
+        // used by compound assignments (`a += b` stores the computed `a + b`).
+        // The caller has already brought it to the destination's type, so the
+        // numeric promotion inside is skipped when it is set.
+        llvm::Value* GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool FreeOldLHS = false,
+                                     llvm::Value *RhsOverride = nullptr);
 
         // Upcast adjustment: when a class pointer V (static type FromType) flows into a
         // base/interface-typed slot (ToType), return the pointer to the base subobject so
@@ -126,7 +141,10 @@ namespace fly {
 
     	llvm::Value *ConvertNumber(llvm::Value *V, SemaNumberType *Ty, bool IsSigned = true);
 
-    	llvm::Value *ConvertToInteger(llvm::Value *V, SemaIntType *Ty);
+    	// IsSigned = the SOURCE value's signedness: widening extends by the
+    	// source (zext for byte/ushort/uint values, sext for signed ones) — the
+    	// destination's own signedness must not flip the extension (B010).
+    	llvm::Value *ConvertToInteger(llvm::Value *V, SemaIntType *Ty, bool IsSigned);
 
     	llvm::Value *ConvertToFloat(llvm::Value *V, SemaFloatType *Ty, bool IsSigned = true);
     };

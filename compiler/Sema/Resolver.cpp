@@ -195,11 +195,23 @@ void Resolver::visit(ASTFunction &AST) {
 	// Create Sema Function
 	CurrentFunction = SemaBuilder::CreateFunction(*CurrentModule, CurrentScope, AST);
 
-	// 'main' is the entry point: it takes no parameters
+	// 'main' is the entry point: it takes no parameters and returns nothing
+	// (docs §5.x — the exit code is the unhandled error's code, never `out`).
+	// A declared return type made the Resolver append the synthetic `out` param,
+	// but CodeGenFunction builds main as the C entry point `i32 main(argc, argv)`
+	// and never allocates that param — `out = expr` then stored through a null
+	// pointer and aborted the backend instead of being diagnosed here.
 	if (AST.getName() == "main") {
 		const auto &MainParams = AST.getParams();
 		if (!MainParams.empty()) {
 			Diag(AST.getLocation(), diag::err_sema_main_with_params);
+		}
+		ASTType *MainRet = AST.getReturnType();
+		bool DeclaresReturn = MainRet != nullptr &&
+			!(MainRet->getTypeKind() == ASTTypeKind::TYPE_BUILTIN &&
+			  static_cast<ASTBuiltinType *>(MainRet)->getBuiltinKind() == ASTBuiltinTypeKind::TYPE_VOID);
+		if (DeclaresReturn || !AST.getReturnTypes().empty()) {
+			Diag(AST.getLocation(), diag::err_sema_main_with_return);
 		}
 	}
 
@@ -502,6 +514,7 @@ void Resolver::visit(ASTMethod &AST) {
 			AST.getLocation(), AST.getReturnType(), "out", NoMods);
 		OutParam->accept(*this);
 		SemaParam *OutSemaParam = OutParam->getSymbol()->getRefAs<SemaParam>();
+		OutSemaParam->Synthetic = true;
 		Sema->addParam(OutSemaParam);
 		addSymbol(OutParam->getSymbol());
 	} else if (!AST.getReturnTypes().empty()) {
@@ -516,6 +529,7 @@ void Resolver::visit(ASTMethod &AST) {
 			ASTParam *OutParam = ASTBuilder::CreateParam(AST.getLocation(), RT, PName, NoMods);
 			OutParam->accept(*this);
 			SemaParam *OutSemaParam = OutParam->getSymbol()->getRefAs<SemaParam>();
+			OutSemaParam->Synthetic = true;
 			Sema->addParam(OutSemaParam);
 			addSymbol(OutParam->getSymbol());
 		}
@@ -1087,7 +1101,15 @@ void Resolver::visit(ASTHandleStmt &AST) {
 		CurrentErrorHandler = SemaBuilder::CreateErrorHandler(AST.getErrorVar());
 		Symbol *Sym = new Symbol(AST.getErrorVar()->getName(), SymbolKind::LOCAL_VAR, CurrentErrorHandler);
 		AST.getErrorVar()->setSymbol(Sym);
-		addSymbol(Sym);
+		// A bare `handle` opens a NEW error window, and the parser synthesizes a
+		// fresh "__error" for each one. insert() rejects the same name as a
+		// duplicate, so a second handle left `error` reading the FIRST window —
+		// a consumed failure looked unconsumed (ExecErrorSuite 321). The
+		// synthetic name rebinds; user-declared handlers keep duplicate checking.
+		if (AST.getErrorVar()->getName() == "__error")
+			CurrentScope->rebind(Sym);
+		else
+			addSymbol(Sym);
 	} else {
 		CurrentErrorHandler = SemaBuilder::CreateErrorHandler();
 	}
@@ -1101,8 +1123,21 @@ void Resolver::visit(ASTHandleStmt &AST) {
 	SemaBlockStmt *HandleCapture = SemaBuilder::CreateBlockStmt(nullptr);
 	CurrentSemaBlock = HandleCapture;
 	EnterScope();
+	// A `fail` inside the handle branches straight to the safe block, so the rest
+	// of the body is unreachable — resolving it emitted instructions after that
+	// terminator ("Terminator found in the middle of a basic block").
+	bool Terminated = false;
 	for (ASTStmt *Stmt : AST.getHandle()->getContent()) {
+		if (Terminated) {
+			Diag(Stmt->getLocation(), diag::warn_sema_unreachable_code);
+			break;
+		}
 		Stmt->accept(*this);
+		ASTStmtKind SK = Stmt->getStmtKind();
+		if (SK == ASTStmtKind::STMT_RETURN || SK == ASTStmtKind::STMT_FAIL ||
+		    SK == ASTStmtKind::STMT_BREAK  || SK == ASTStmtKind::STMT_CONTINUE) {
+			Terminated = true;
+		}
 	}
 	ExitScope();
 	CurrentSemaBlock = SavedBlock;
@@ -1486,21 +1521,62 @@ void Resolver::visit(ASTLoopInStmt &AST) {
 	if (AST.getItem() == nullptr || AST.getList() == nullptr)
 		return;
 
-	AST.getItem()->accept(*this);
-	SemaExpr *ItemExpr = CurrentExpr;
-    AST.getList()->accept(*this);
+	// Resolve the LIST first: the ITEM is not a reference to resolve — it is a
+	// fresh loop variable to DECLARE, typed from the list's element type.
+	// (Resolving it as an identifier made every for-in fail with
+	// "'x' is not defined in this scope".)
+	AST.getList()->accept(*this);
 	SemaExpr *ListExpr = CurrentExpr;
-	Validator->CheckLoopIn(AST.getList()->getLocation(), ListExpr);
+	if (!Validator->CheckLoopIn(AST.getList()->getLocation(), ListExpr))
+		return;
+
+	SemaType *ElemType =
+		static_cast<SemaArrayType *>(ListExpr->getType())->getElementType();
+
+	// The item must be a bare identifier: its name becomes the loop variable.
+	if (AST.getItem()->getExprKind() != ASTExprKind::EXPR_IDENTIFIER) {
+		Diag(AST.getItem()->getLocation(), diag::err_invalid_behavior);
+		return;
+	}
+	llvm::StringRef ItemName =
+		static_cast<ASTIdentifier *>(AST.getItem())->getName();
 
 	++LoopDepth;
 
-	// Loop Statement
-	AST.getStmt()->accept(*this);
+	// Loop scope: the item variable lives here, visible to the body only.
+	EnterScope();
+
+	// Declare the loop variable. The AST node carries a DUMMY type — the SEMA
+	// type is what drives codegen, same convention as the synthetic __out_N
+	// vars — and registers as a function local so GenBody allocas it.
+	llvm::SmallVector<ASTModifier *, 8> NoMods;
+	ASTLocalVar *ItemASTVar = ASTBuilder::CreateLocalVar(
+		AST.getLocation(), ASTBuilder::CreatePtrSizeType(AST.getLocation()),
+		ItemName, NoMods);
+	SyntheticOutVars.push_back(ItemASTVar); // take ownership
+	SemaLocalVar *ItemVar = SemaBuilder::CreateLocalVar(*ItemASTVar, ElemType);
+	CurrentFunction->addLocalVar(ItemVar);
+	Symbol *ItemSym = new Symbol(ItemName, SymbolKind::LOCAL_VAR, ItemVar);
+	ItemASTVar->setSymbol(ItemSym);
+	addSymbol(ItemSym);
+
+	// Capture the body into its OWN block: the old code resolved it into the
+	// ENCLOSING block, so the statements ran once OUTSIDE the loop and the
+	// SemaLoopInStmt was built with a null body (codegen emitted an empty loop).
+	SemaBlockStmt *SavedBlock = CurrentSemaBlock;
+	SemaBlockStmt *BodyCapture = SemaBuilder::CreateBlockStmt(nullptr);
+	CurrentSemaBlock = BodyCapture;
+	for (ASTStmt *Stmt : static_cast<ASTBlockStmt *>(AST.getStmt())->getContent()) {
+		Stmt->accept(*this);
+	}
+	CurrentSemaBlock = SavedBlock;
+
+	ExitScope();
 
 	--LoopDepth;
 
 	// Create SemaLoopInStmt and add to block
-	SemaLoopInStmt *SemaLoopIn = SemaBuilder::CreateLoopInStmt(&AST, ItemExpr, ListExpr, nullptr);
+	SemaLoopInStmt *SemaLoopIn = SemaBuilder::CreateLoopInStmt(&AST, ItemVar, ListExpr, BodyCapture);
 	if (CurrentSemaBlock) {
 		CurrentSemaBlock->addContent(SemaLoopIn);
 	}
@@ -2263,7 +2339,27 @@ void Resolver::visit(ASTCall &AST) {
 		// '__out_N' that receives the return value via the hidden out parameter.
 		// The function writes to it; the CodeGen loads it after the call to produce
 		// the expression value (enabling direct assignment and call chaining).
+		// B027: a multi-assignment can only target a MULTI-return callee — the
+		// single-return (and void) paths must reject stray receivers instead of
+		// silently ignoring them.
 		if (Sema->getFunction() &&
+		    !AST.getMultiRecv().empty() &&
+		    Sema->getFunction()->getAST().getReturnTypes().empty()) {
+			Diag(AST.getLocation(), diag::err_sema_multi_assign_arity) << AST.getName();
+		}
+
+		// LOWERED form: the caller already supplied the out slots as trailing
+		// arguments (`path.split(p, dir, base)` — what a .fly.h consumer must
+		// write, since the header exposes the archive symbol's real ABI). The
+		// argument list is then already complete; synthesizing receivers on top
+		// passed the callee N args too many ("Incorrect number of arguments").
+		bool CallerSuppliedOuts =
+			Sema->getFunction() &&
+			Sema->getArgs().size() == Sema->getFunction()->getParams().size() &&
+			Sema->getArgs().size() > 0;
+
+		if (!CallerSuppliedOuts &&
+		    Sema->getFunction() &&
 		    Sema->getFunction()->getReturnType() &&
 		    !Sema->getFunction()->getReturnType()->isVoid() &&
 		    CurrentFunction) {
@@ -2285,6 +2381,58 @@ void Resolver::visit(ASTCall &AST) {
 			// Add as a hidden last argument (by pointer, matching the 'out' param).
 			Sema->addArg(OutVar);
 			Sema->OutVar = OutVar;
+		} else if (!CallerSuppliedOuts && Sema->getFunction() && CurrentFunction &&
+		           !Sema->getFunction()->getAST().getReturnTypes().empty()) {
+			// MULTI-return: the callee carries one synthetic __out_i param per
+			// declared return type — synthesize a receiving local for EACH and
+			// append them as hidden args. This branch was missing: the call was
+			// emitted N arguments short of the callee's LLVM signature (and the
+			// expression had no type). The expression value is the FIRST slot
+			// (docs §5.4: the call site binds out[0]).
+			auto &FnAST = Sema->getFunction()->getAST();
+			auto &FnParams = Sema->getFunction()->getParams();
+			size_t NRet = FnAST.getReturnTypes().size();
+			if (FnParams.size() >= NRet) {
+				size_t FirstOut = FnParams.size() - NRet;
+				const std::vector<std::string> &Recv = AST.getMultiRecv();
+				if (!Recv.empty()) {
+					// B027 multi-assignment `q, r = f(x)`: bind the named
+					// ALREADY-DECLARED receivers as the hidden out arguments,
+					// in slot order — no synthesis. Count must match exactly.
+					if (Recv.size() != NRet) {
+						Diag(AST.getLocation(), diag::err_sema_multi_assign_arity) << AST.getName();
+					} else {
+						for (size_t i = 0; i < NRet; ++i) {
+							Symbol *RS = Reg.LookupName(Recv[i], CurrentScope);
+							SemaVar *RV = RS ? RS->getRefAs<SemaVar>() : nullptr;
+							if (!RV) {
+								Diag(AST.getLocation(), diag::err_sema_unresolved_identifier) << Recv[i];
+								break;
+							}
+							Sema->addArg(RV);
+							if (i == 0)
+								Sema->setType(FnParams[FirstOut]->getType());
+						}
+					}
+				} else {
+					for (size_t i = 0; i < NRet; ++i) {
+						SemaType *RetType = FnParams[FirstOut + i]->getType();
+						ASTType *RetASTType = FnAST.getReturnTypes()[i];
+						std::string OutName = "__out_" + std::to_string(OutVarCounter++);
+						llvm::SmallVector<ASTModifier *, 8> NoMods;
+						ASTLocalVar *OutASTVar = ASTBuilder::CreateLocalVar(
+							AST.getLocation(), RetASTType, OutName, NoMods);
+						SyntheticOutVars.push_back(OutASTVar); // take ownership
+						SemaLocalVar *OutVar = SemaBuilder::CreateLocalVar(*OutASTVar, RetType);
+						CurrentFunction->addLocalVar(OutVar); // CodeGen allocas it in GenBody()
+						Sema->addArg(OutVar);
+						if (i == 0) {
+							Sema->OutVar = OutVar;
+							Sema->setType(RetType);
+						}
+					}
+				}
+			}
 		}
 
 		// Set the Call Sema ErrorHandler
@@ -2459,9 +2607,10 @@ void Resolver::visit(ASTStringValue &AST) {
 void Resolver::visit(ASTArrayValue &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTArrayValue)");
 
-	// Resolve Values
+	// Resolve Values — elements are full EXPRESSIONS (casts, identifiers,
+	// arithmetic), not just bare literals (B026).
 	SemaType *ElementType = nullptr;
-	llvm::SmallVector<SemaValue *, 8> Values;
+	llvm::SmallVector<SemaExpr *, 8> Values;
 	for (auto Value : AST.getValues()) {
 		Value->accept(*this);
 		SemaExpr *ValueExpr = CurrentExpr;
@@ -2482,7 +2631,7 @@ void Resolver::visit(ASTArrayValue &AST) {
 		}
 
 		if (ValueExpr)
-			Values.push_back(static_cast<SemaValue *>(ValueExpr));
+			Values.push_back(ValueExpr);
 	}
 
 	// Determine Array Type from parent binary assignment's left side
@@ -2503,11 +2652,13 @@ void Resolver::visit(ASTArrayValue &AST) {
 void Resolver::visit(ASTStructValue &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTStructValue)");
 
-	llvm::StringMap<SemaValue *> Values;
+	// Field values are full expressions (B029 parity) — no downcast to SemaValue:
+	// `{x = base + 1}` resolves to a SemaBinary, not a literal.
+	llvm::StringMap<SemaExpr *> Values;
 	for (auto &Entry : AST.getValues()) {
 		Entry.second->accept(*this);
 		if (CurrentExpr)
-			Values.insert(std::make_pair(Entry.getKey(), static_cast<SemaValue *>(CurrentExpr)));
+			Values.insert(std::make_pair(Entry.getKey(), CurrentExpr));
 	}
 
 	SemaStructValue *Sema = SemaBuilder::CreateStructValue(AST, Values);
@@ -2734,10 +2885,8 @@ void Resolver::Resolve() {
 		bool BodyHasContent = ResolvedBody && !ResolvedBody->getContent().empty();
 		if (BodyHasContent && !IsFnSpec && !IsMethodSpec) {
 			for (SemaParam *P : UnmodifiedParams) {
-				if (P->getName() == "out")
-					continue; // synthetic single-return output parameter, never "const"
-				if (P->getName().starts_with("__out_"))
-					continue; // synthetic multi-return output parameter, never "const"
+				if (P->isSynthetic())
+					continue; // hidden return-convention output parameter, never "const"
 				// Class/interface/struct params: adding 'const' to any reference-type param
 				// changes the call-site ABI (passes actual object pointer instead of
 				// address-of-local alloca), while the function body still expects the extra
@@ -2871,6 +3020,7 @@ void Resolver::ResolveFunction(SemaFunction *Sema) {
 			AST.getLocation(), AST.getReturnType(), "out", NoMods);
 		OutParam->accept(*this);
 		SemaParam *OutSemaParam = OutParam->getSymbol()->getRefAs<SemaParam>();
+		OutSemaParam->Synthetic = true;
 		Sema->addParam(OutSemaParam);
 		addSymbol(OutParam->getSymbol()); // 'out' visible in body scope
 	} else if (!AST.getReturnTypes().empty()) {
@@ -2886,6 +3036,7 @@ void Resolver::ResolveFunction(SemaFunction *Sema) {
 			ASTParam *OutParam = ASTBuilder::CreateParam(AST.getLocation(), RT, PName, NoMods);
 			OutParam->accept(*this);
 			SemaParam *OutSemaParam = OutParam->getSymbol()->getRefAs<SemaParam>();
+			OutSemaParam->Synthetic = true;
 			Sema->addParam(OutSemaParam);
 			addSymbol(OutParam->getSymbol());
 		}

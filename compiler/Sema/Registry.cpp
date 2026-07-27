@@ -336,14 +336,44 @@ Symbol *Registry::LookupName(llvm::StringRef Name, SymbolTable *Scope) {
 	return (*Symbols)[0];
 }
 
-// Number of explicit (user-visible) parameters: excludes the hidden 'out' param
-// added by the Resolver when the function declares a return type.
+// Number of explicit (user-visible) parameters: excludes the hidden output
+// params the Resolver appended for the return convention — ONE 'out' for a
+// single return, __out_0..N-1 for a multi-return. The old ReturnType-based
+// check stripped only the single 'out' (a multi-return function keeps
+// ReturnType null), so every multi-return call failed the arity match and
+// reported "no overload accepts these arguments". Synthetics are recognized
+// by the SemaParam flag the Resolver stamps at synthesis time — matching the
+// NAME instead stripped USER params that happen to be called `out` (the
+// runtime convention: strSize, mem_alloc, …), breaking every call to them.
 static size_t ExplicitParamCount(SemaFunctionBase *Function) {
 	auto &Params = Function->getParams();
-	if (Params.empty()) return 0;
-	if (!Function->getReturnType()->isVoid())
-		return Params.size() - 1; // last param is the synthetic 'out'
-	return Params.size();
+	size_t N = Params.size();
+	while (N > 0 && Params[N - 1]->isSynthetic())
+		--N;
+	return N;
+}
+
+// Decide whether a call passing NArgs arguments can target this function, and
+// through how many leading params it must be type-checked (Count).
+//
+// TWO arities are legal for the same callee. `divmod(17, 5)` passes only the
+// EXPLICIT params and lets the Resolver synthesize the receiving locals. But a
+// consumer of a generated .fly.h has no such sugar and builds the LOWERED form
+// the archive symbol really exposes, supplying the out slots itself:
+// `divmod(17, 5, q, r)` / `path.split(p, dir, base)`. Before B033 the lowered
+// form matched because the synthetics were miscounted as explicit; stripping
+// them fixed the sugar and broke the lowered form. Accept both.
+static bool MatchArity(SemaFunctionBase *Function, size_t NArgs, size_t &Count) {
+	size_t Explicit = ExplicitParamCount(Function);
+	if (NArgs == Explicit) {
+		Count = Explicit;
+		return true;
+	}
+	if (NArgs == Function->getParams().size() && NArgs > Explicit) {
+		Count = NArgs; // lowered form: the caller supplied the out slots
+		return true;
+	}
+	return false;
 }
 
 Symbol *Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8> &Types, SymbolTable *Scope) {
@@ -364,16 +394,16 @@ Symbol *Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8
 
 		SemaFunctionBase *Function = static_cast<SemaFunctionBase *>(Sym->getRef());
 		llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
-		size_t ExplicitCount = ExplicitParamCount(Function);
 
-		// Check if the number of explicit parameters matches
-		if (ExplicitCount != Types.size()) {
+		// Check if the argument count fits (explicit form or lowered form)
+		size_t MatchCount = 0;
+		if (!MatchArity(Function, Types.size(), MatchCount)) {
 			continue;
 		}
 
 		// Check if all parameter types match
 		bool AllTypesMatch = true;
-		for (size_t i = 0; i < ExplicitCount; i++) {
+		for (size_t i = 0; i < MatchCount; i++) {
 			SemaType *ParamType = Params[i]->getType();
 			SemaType *ArgType = Types[i];
 
@@ -440,12 +470,12 @@ Symbol *Registry::LookupFunctionExact(llvm::StringRef Name, SmallVector<SemaType
 
 		SemaFunctionBase *Function = static_cast<SemaFunctionBase *>(Sym->getRef());
 		llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
-		size_t ExplicitCount = ExplicitParamCount(Function);
 
-		if (ExplicitCount != Types.size()) continue;
+		size_t MatchCount = 0;
+		if (!MatchArity(Function, Types.size(), MatchCount)) continue;
 
 		bool AllMatch = true;
-		for (size_t i = 0; i < ExplicitCount; i++) {
+		for (size_t i = 0; i < MatchCount; i++) {
 			if (!Params[i]->getType()->isEquals(Types[i])) {
 				AllMatch = false;
 				break;
@@ -458,9 +488,9 @@ Symbol *Registry::LookupFunctionExact(llvm::StringRef Name, SmallVector<SemaType
 
 static bool FunctionTypesMatchExact(SemaFunctionBase *Function, SmallVector<SemaType *, 8> &Types) {
 	llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
-	size_t ExplicitCount = ExplicitParamCount(Function);
-	if (ExplicitCount != Types.size()) return false;
-	for (size_t i = 0; i < ExplicitCount; i++) {
+	size_t MatchCount = 0;
+	if (!MatchArity(Function, Types.size(), MatchCount)) return false;
+	for (size_t i = 0; i < MatchCount; i++) {
 		SemaType *ParamType = Params[i]->getType();
 		SemaType *ArgType = Types[i];
 		// A null argument type is the `null`/unset literal: it matches any class param.
@@ -484,9 +514,9 @@ static bool FunctionTypesMatchExact(SemaFunctionBase *Function, SmallVector<Sema
 // derived / identical overload should win (C++ overload-ranking semantics).
 static bool FunctionTypesMatchStrict(SemaFunctionBase *Function, SmallVector<SemaType *, 8> &Types) {
 	llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
-	size_t ExplicitCount = ExplicitParamCount(Function);
-	if (ExplicitCount != Types.size()) return false;
-	for (size_t i = 0; i < ExplicitCount; i++) {
+	size_t MatchCount = 0;
+	if (!MatchArity(Function, Types.size(), MatchCount)) return false;
+	for (size_t i = 0; i < MatchCount; i++) {
 		SemaType *ParamType = Params[i]->getType();
 		SemaType *ArgType = Types[i];
 		if (!ArgType) { if (ParamType->isClass()) continue; return false; }
@@ -497,9 +527,9 @@ static bool FunctionTypesMatchStrict(SemaFunctionBase *Function, SmallVector<Sem
 
 static bool FunctionTypesMatch(SemaFunctionBase *Function, SmallVector<SemaType *, 8> &Types) {
 	llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
-	size_t ExplicitCount = ExplicitParamCount(Function);
-	if (ExplicitCount != Types.size()) return false;
-	for (size_t i = 0; i < ExplicitCount; i++) {
+	size_t MatchCount = 0;
+	if (!MatchArity(Function, Types.size(), MatchCount)) return false;
+	for (size_t i = 0; i < MatchCount; i++) {
 		SemaType *ParamType = Params[i]->getType();
 		SemaType *ArgType = Types[i];
 		// A null argument type is the `null`/unset literal: it matches any class param.

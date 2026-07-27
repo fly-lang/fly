@@ -125,7 +125,10 @@ namespace fly {
         friend class ASTBuilder;
         friend class Resolver;
 
-        llvm::SmallVector<ASTValue *, 8> Values;
+        // Elements are EXPRESSIONS (a literal is-an expression): array literals
+        // accept casts, identifiers and arithmetic — `{(byte)200, a + 1}` —
+        // not just bare values (B026).
+        llvm::SmallVector<ASTExpr *, 8> Values;
 
         explicit ASTArrayValue(const SourceLocation &Loc);
 
@@ -135,7 +138,7 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        const llvm::SmallVector<ASTValue *, 8> &getValues() const;
+        const llvm::SmallVector<ASTExpr *, 8> &getValues() const;
 
         size_t size() const;
 
@@ -152,7 +155,9 @@ namespace fly {
         friend class ASTBuilder;
         friend class Resolver;
 
-        llvm::StringMap<ASTValue *> Values;
+        // Field values are EXPRESSIONS, like array elements (B029 parity):
+        // `{x = base + 1}` is as valid as `{x = 1}`.
+        llvm::StringMap<ASTExpr *> Values;
 
         explicit ASTStructValue(const SourceLocation &Loc);
 
@@ -162,7 +167,7 @@ namespace fly {
 
         void accept(ASTVisitor& Visitor) override;
 
-        const llvm::StringMap<ASTValue *> &getValues() const;
+        const llvm::StringMap<ASTExpr *> &getValues() const;
 
         size_t size() const;
 

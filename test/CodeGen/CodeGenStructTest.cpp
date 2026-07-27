@@ -159,25 +159,35 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                         "  ret ptr %2\n"
                         "}\n"
                         "\n"
+                        // B028 value semantics: the variable gets its OWN entry-block
+                        // object (%1) memcpy'd from the ctor result, instead of storing
+                        // the ctor's stack pointer and aliasing it.
                         "define void @_F4func(ptr %0) {\n"
                         "entry:\n"
-                        "  %1 = alloca ptr, align 8\n"
+                        "  %1 = alloca %TestStruct, align 8\n"
                         "  %2 = alloca ptr, align 8\n"
-                        "  %3 = alloca %TestStruct, align 8\n"
-                        "  store ptr %3, ptr %2, align 8\n"
-                        "  %4 = alloca i32, align 4\n"
-                        "  store ptr %0, ptr %1, align 8\n"
-                        "  %5 = alloca %TestStruct, align 8\n"
-                        "  %6 = call ptr @TestStruct.init_ctor(ptr %5)\n"
-                        "  store ptr %6, ptr %2, align 8\n"
-                        "  %7 = load ptr, ptr %2, align 8\n"
-                        "  %8 = getelementptr inbounds %TestStruct, ptr %7, i32 0, i32 0\n"
-                        "  %9 = load i32, ptr %8, align 4\n"
-                        "  store i32 %9, ptr %4, align 4\n"
-                        "  %10 = getelementptr inbounds %TestStruct, ptr %7, i32 0, i32 0\n"
-                        "  store i32 2, ptr %10, align 4\n"
+                        "  %3 = alloca ptr, align 8\n"
+                        "  %4 = alloca %TestStruct, align 8\n"
+                        "  store ptr %4, ptr %3, align 8\n"
+                        "  %5 = alloca i32, align 4\n"
+                        "  store ptr %0, ptr %2, align 8\n"
+                        "  %6 = alloca %TestStruct, align 8\n"
+                        "  %7 = call ptr @TestStruct.init_ctor(ptr %6)\n"
+                        "  call void @llvm.memcpy.p0.p0.i64(ptr %1, ptr %7, i64 4, i1 false)\n"
+                        "  store ptr %1, ptr %3, align 8\n"
+                        "  %8 = load ptr, ptr %3, align 8\n"
+                        "  %9 = getelementptr inbounds %TestStruct, ptr %8, i32 0, i32 0\n"
+                        "  %10 = load i32, ptr %9, align 4\n"
+                        "  store i32 %10, ptr %5, align 4\n"
+                        "  %11 = getelementptr inbounds %TestStruct, ptr %8, i32 0, i32 0\n"
+                        "  store i32 2, ptr %11, align 4\n"
                         "  ret void\n"
-                        "}\n");
+                        "}\n"
+                        "\n"
+                        "; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)\n"
+                        "declare void @llvm.memcpy.p0.p0.i64(ptr noalias nocapture writeonly, ptr noalias nocapture readonly, i64, i1 immarg) #0\n"
+                        "\n"
+                        "attributes #0 = { nocallback nofree nounwind willreturn memory(argmem: readwrite) }\n");
     }
 
 	TEST_F(CodeGenTest, CGStructValueAssign) {
@@ -212,7 +222,7 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
         ASTIdentifier *testIdent = ASTBuilder::CreateIdentifier(TestVar);
 
         // Create struct value {a=1}
-        llvm::StringMap<ASTValue *> StructValues;
+        llvm::StringMap<ASTExpr *> StructValues;
         StructValues.insert(std::make_pair("a", ASTBuilder::CreateNumberValue(SourceLoc, "1")));
         ASTStructValue *structVal = ASTBuilder::CreateStructValue(SourceLoc, std::move(StructValues));
 
@@ -240,25 +250,33 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                         "  ret ptr %2\n"
                         "}\n"
                         "\n"
+                        // B028: the literal builds a temporary (%5), then the variable's
+                        // own entry-block object (%1) takes a COPY of it.
                         "define void @_F4func(ptr %0) {\n"
                         "entry:\n"
-                        "  %1 = alloca ptr, align 8\n"
+                        "  %1 = alloca %TestStruct, align 8\n"
                         "  %2 = alloca ptr, align 8\n"
-                        "  %3 = alloca %TestStruct, align 8\n"
-                        "  store ptr %3, ptr %2, align 8\n"
-                        "  store ptr %0, ptr %1, align 8\n"
+                        "  %3 = alloca ptr, align 8\n"
                         "  %4 = alloca %TestStruct, align 8\n"
-                        "  call void @llvm.memset.p0.i64(ptr %4, i8 0, i64 4, i1 false)\n"
-                        "  %5 = getelementptr inbounds nuw %TestStruct, ptr %4, i32 0, i32 0\n"
-                        "  store i32 1, ptr %5, align 4\n"
-                        "  store ptr %4, ptr %2, align 8\n"
+                        "  store ptr %4, ptr %3, align 8\n"
+                        "  store ptr %0, ptr %2, align 8\n"
+                        "  %5 = alloca %TestStruct, align 8\n"
+                        "  call void @llvm.memset.p0.i64(ptr %5, i8 0, i64 4, i1 false)\n"
+                        "  %6 = getelementptr inbounds nuw %TestStruct, ptr %5, i32 0, i32 0\n"
+                        "  store i32 1, ptr %6, align 4\n"
+                        "  call void @llvm.memcpy.p0.p0.i64(ptr %1, ptr %5, i64 4, i1 false)\n"
+                        "  store ptr %1, ptr %3, align 8\n"
                         "  ret void\n"
                         "}\n"
                         "\n"
                         "; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: write)\n"
                         "declare void @llvm.memset.p0.i64(ptr nocapture writeonly, i8, i64, i1 immarg) #0\n"
                         "\n"
-                        "attributes #0 = { nocallback nofree nounwind willreturn memory(argmem: write) }\n");
+                        "; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)\n"
+                        "declare void @llvm.memcpy.p0.p0.i64(ptr noalias nocapture writeonly, ptr noalias nocapture readonly, i64, i1 immarg) #1\n"
+                        "\n"
+                        "attributes #0 = { nocallback nofree nounwind willreturn memory(argmem: write) }\n"
+                        "attributes #1 = { nocallback nofree nounwind willreturn memory(argmem: readwrite) }\n");
     }
 
 
@@ -364,27 +382,36 @@ TEST_F(CodeGenTest, CGStructAssignVar) {
                         "  ret ptr %2\n"
                         "}\n"
                         "\n"
+                        // B028: the whole 12-byte object (base subobject included) is
+                        // copied into the variable's own entry-block slot (%1).
                         "define void @_F4func(ptr %0) {\n"
                         "entry:\n"
-                        "  %1 = alloca ptr, align 8\n"
+                        "  %1 = alloca %MyStruct, align 8\n"
                         "  %2 = alloca ptr, align 8\n"
-                        "  %3 = alloca %MyStruct, align 8\n"
-                        "  store ptr %3, ptr %2, align 8\n"
-                        "  store ptr %0, ptr %1, align 8\n"
+                        "  %3 = alloca ptr, align 8\n"
                         "  %4 = alloca %MyStruct, align 8\n"
-                        "  %5 = call ptr @MyStruct.init_ctor(ptr %4)\n"
-                        "  store ptr %5, ptr %2, align 8\n"
-                        "  %6 = load ptr, ptr %2, align 8\n"
+                        "  store ptr %4, ptr %3, align 8\n"
+                        "  store ptr %0, ptr %2, align 8\n"
+                        "  %5 = alloca %MyStruct, align 8\n"
+                        "  %6 = call ptr @MyStruct.init_ctor(ptr %5)\n"
+                        "  call void @llvm.memcpy.p0.p0.i64(ptr %1, ptr %6, i64 12, i1 false)\n"
+                        "  store ptr %1, ptr %3, align 8\n"
+                        "  %7 = load ptr, ptr %3, align 8\n"
                         // m.a = 1: two-level GEP — MyStruct→BaseStruct(index 0)→a(index 1,
                         // declaration order: b was created first)
-                        "  %7 = getelementptr inbounds %MyStruct, ptr %6, i32 0, i32 0\n"
-                        "  %8 = getelementptr inbounds %BaseStruct, ptr %7, i32 0, i32 1\n"
-                        "  store i32 1, ptr %8, align 4\n"
+                        "  %8 = getelementptr inbounds %MyStruct, ptr %7, i32 0, i32 0\n"
+                        "  %9 = getelementptr inbounds %BaseStruct, ptr %8, i32 0, i32 1\n"
+                        "  store i32 1, ptr %9, align 4\n"
                         // m.b = 2: direct GEP — MyStruct→b(index 1)
-                        "  %9 = getelementptr inbounds %MyStruct, ptr %6, i32 0, i32 1\n"
-                        "  store i32 2, ptr %9, align 4\n"
+                        "  %10 = getelementptr inbounds %MyStruct, ptr %7, i32 0, i32 1\n"
+                        "  store i32 2, ptr %10, align 4\n"
                         "  ret void\n"
-                        "}\n");
+                        "}\n"
+                        "\n"
+                        "; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)\n"
+                        "declare void @llvm.memcpy.p0.p0.i64(ptr noalias nocapture writeonly, ptr noalias nocapture readonly, i64, i1 immarg) #0\n"
+                        "\n"
+                        "attributes #0 = { nocallback nofree nounwind willreturn memory(argmem: readwrite) }\n");
     }
 
 } // anonymous namespace

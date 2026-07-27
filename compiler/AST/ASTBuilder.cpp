@@ -519,7 +519,7 @@ ASTStringValue *ASTBuilder::CreateStringValue(const SourceLocation &Loc, llvm::S
  * @param Loc
  * @return
  */
-ASTArrayValue *ASTBuilder::CreateArrayValue(const SourceLocation &Loc, llvm::SmallVector<ASTValue *, 8> Values) {
+ASTArrayValue *ASTBuilder::CreateArrayValue(const SourceLocation &Loc, llvm::SmallVector<ASTExpr *, 8> Values) {
 	FLY_DEBUG_SCOPE_MSG("ASTBuilder", "CreateArrayValue", "Loc=" << Loc.getRawEncoding());
 
 	ASTArrayValue *Array = new ASTArrayValue(Loc);
@@ -527,8 +527,8 @@ ASTArrayValue *ASTBuilder::CreateArrayValue(const SourceLocation &Loc, llvm::Sma
 	return Array;
 }
 
-ASTStructValue *ASTBuilder::CreateStructValue(const SourceLocation &Loc, llvm::StringMap<ASTValue *> Values) {
-	FLY_DEBUG_SCOPE_MSG("ASTBuilder", "CreateArrayValue", "Loc=" << Loc.getRawEncoding());
+ASTStructValue *ASTBuilder::CreateStructValue(const SourceLocation &Loc, llvm::StringMap<ASTExpr *> Values) {
+	FLY_DEBUG_SCOPE_MSG("ASTBuilder", "CreateStructValue", "Loc=" << Loc.getRawEncoding());
 
 	ASTStructValue *Struct = new ASTStructValue(Loc);
 	Struct->Values = std::move(Values);
