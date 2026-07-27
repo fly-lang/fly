@@ -362,10 +362,21 @@ static size_t ExplicitParamCount(SemaFunctionBase *Function) {
 // the archive symbol really exposes, supplying the out slots itself:
 // `divmod(17, 5, q, r)` / `path.split(p, dir, base)`. Before B033 the lowered
 // form matched because the synthetics were miscounted as explicit; stripping
-// them fixed the sugar and broke the lowered form. Accept both.
-static bool MatchArity(SemaFunctionBase *Function, size_t NArgs, size_t &Count) {
+// them fixed the sugar and broke the lowered form.
+//
+// They must NOT be tried together. Accepting both in one pass made an N-arg call
+// match an (N-1)-explicit overload's lowered form just as readily as the N-arg
+// overload meant for it — with two overloads of a value-returning function
+// (`defaultOut(input)` / `defaultOut(input, ext)`) the lowered reading won, the
+// second argument was bound as the out slot, and the compiler crashed in codegen.
+// So: EXPLICIT is the real signature and always wins; LOWERED is a fallback tried
+// only when no candidate matched explicitly (see the two passes in the lookups).
+enum class ArityPass { Explicit, Lowered };
+
+static bool MatchArity(SemaFunctionBase *Function, size_t NArgs, ArityPass Pass, size_t &Count) {
 	size_t Explicit = ExplicitParamCount(Function);
-	if (NArgs == Explicit) {
+	if (Pass == ArityPass::Explicit) {
+		if (NArgs != Explicit) return false;
 		Count = Explicit;
 		return true;
 	}
@@ -384,6 +395,11 @@ Symbol *Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8
 		return nullptr;
 	}
 
+	// Two passes over the candidates: every overload is offered its EXPLICIT
+	// signature first, and only if none of them fits is the lowered form tried.
+	// One combined pass let a lowered reading beat the overload actually meant
+	// for the call (see MatchArity).
+	for (ArityPass Pass : {ArityPass::Explicit, ArityPass::Lowered}) {
 	// Iterate through all symbols with this name to find the right function
 	for (Symbol *Sym : *Symbols) {
 
@@ -395,9 +411,9 @@ Symbol *Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8
 		SemaFunctionBase *Function = static_cast<SemaFunctionBase *>(Sym->getRef());
 		llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
 
-		// Check if the argument count fits (explicit form or lowered form)
+		// Check if the argument count fits for THIS pass
 		size_t MatchCount = 0;
-		if (!MatchArity(Function, Types.size(), MatchCount)) {
+		if (!MatchArity(Function, Types.size(), Pass, MatchCount)) {
 			continue;
 		}
 
@@ -456,10 +472,18 @@ Symbol *Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8
 			return Sym;
 		}
 	}
+	} // end arity passes
 
 	return nullptr;
 }
 
+// Exact signature lookup. Used to detect a DUPLICATE DECLARATION, so it compares
+// EXPLICIT signatures only and never considers the lowered form: "the caller may
+// supply the out slots" is a property of a call site, not of a declaration.
+// Letting it through made `pick(a)` — whose params are (a, out) — collide with the
+// signature of `pick(a, b)`, and the second overload of any value-returning
+// function was rejected as "already defined in this scope". That is what broke the
+// self-host's `defaultOut(input)` / `defaultOut(input, ext)` pair.
 Symbol *Registry::LookupFunctionExact(llvm::StringRef Name, SmallVector<SemaType *, 8> &Types, SymbolTable *Scope) {
 	if (Scope == nullptr) Scope = GlobalScope;
 	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookupInParents(Name);
@@ -472,7 +496,7 @@ Symbol *Registry::LookupFunctionExact(llvm::StringRef Name, SmallVector<SemaType
 		llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
 
 		size_t MatchCount = 0;
-		if (!MatchArity(Function, Types.size(), MatchCount)) continue;
+		if (!MatchArity(Function, Types.size(), ArityPass::Explicit, MatchCount)) continue;
 
 		bool AllMatch = true;
 		for (size_t i = 0; i < MatchCount; i++) {
@@ -486,10 +510,10 @@ Symbol *Registry::LookupFunctionExact(llvm::StringRef Name, SmallVector<SemaType
 	return nullptr;
 }
 
-static bool FunctionTypesMatchExact(SemaFunctionBase *Function, SmallVector<SemaType *, 8> &Types) {
+static bool FunctionTypesMatchExact(SemaFunctionBase *Function, SmallVector<SemaType *, 8> &Types, ArityPass Pass) {
 	llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
 	size_t MatchCount = 0;
-	if (!MatchArity(Function, Types.size(), MatchCount)) return false;
+	if (!MatchArity(Function, Types.size(), Pass, MatchCount)) return false;
 	for (size_t i = 0; i < MatchCount; i++) {
 		SemaType *ParamType = Params[i]->getType();
 		SemaType *ArgType = Types[i];
@@ -512,10 +536,10 @@ static bool FunctionTypesMatchExact(SemaFunctionBase *Function, SmallVector<Sema
 // never a derived→base upcast. Used to break ties when the (looser) exact pass
 // yields several candidates that differ only by inheritance distance — the most
 // derived / identical overload should win (C++ overload-ranking semantics).
-static bool FunctionTypesMatchStrict(SemaFunctionBase *Function, SmallVector<SemaType *, 8> &Types) {
+static bool FunctionTypesMatchStrict(SemaFunctionBase *Function, SmallVector<SemaType *, 8> &Types, ArityPass Pass) {
 	llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
 	size_t MatchCount = 0;
-	if (!MatchArity(Function, Types.size(), MatchCount)) return false;
+	if (!MatchArity(Function, Types.size(), Pass, MatchCount)) return false;
 	for (size_t i = 0; i < MatchCount; i++) {
 		SemaType *ParamType = Params[i]->getType();
 		SemaType *ArgType = Types[i];
@@ -525,10 +549,10 @@ static bool FunctionTypesMatchStrict(SemaFunctionBase *Function, SmallVector<Sem
 	return true;
 }
 
-static bool FunctionTypesMatch(SemaFunctionBase *Function, SmallVector<SemaType *, 8> &Types) {
+static bool FunctionTypesMatch(SemaFunctionBase *Function, SmallVector<SemaType *, 8> &Types, ArityPass Pass) {
 	llvm::SmallVector<SemaParam *, 8> &Params = Function->getParams();
 	size_t MatchCount = 0;
-	if (!MatchArity(Function, Types.size(), MatchCount)) return false;
+	if (!MatchArity(Function, Types.size(), Pass, MatchCount)) return false;
 	for (size_t i = 0; i < MatchCount; i++) {
 		SemaType *ParamType = Params[i]->getType();
 		SemaType *ArgType = Types[i];
@@ -570,12 +594,18 @@ llvm::SmallVector<Symbol *, 4> Registry::FindFunctionMatches(llvm::StringRef Nam
 	llvm::SmallVector<Symbol *, 8> *Symbols = Scope->lookupInParents(Name);
 	if (!Symbols) return {};
 
+	// The whole ranking below runs against the EXPLICIT signatures first; only if
+	// that yields no candidate at all is it repeated allowing the lowered form.
+	// Ranking the two arities together let a lowered reading of one overload
+	// outrank the overload actually written for the call.
+	for (ArityPass Pass : {ArityPass::Explicit, ArityPass::Lowered}) {
+
 	// First pass: prefer exact matches (no numeric promotion) to avoid ambiguity
 	// when multiple overloads differ only in numeric type (e.g. int vs long).
 	llvm::SmallVector<Symbol *, 4> ExactResult;
 	for (Symbol *Sym : *Symbols) {
 		if (Sym->getKind() != SymbolKind::FUNCTION) continue;
-		if (FunctionTypesMatchExact(static_cast<SemaFunctionBase *>(Sym->getRef()), Types))
+		if (FunctionTypesMatchExact(static_cast<SemaFunctionBase *>(Sym->getRef()), Types, Pass))
 			ExactResult.push_back(Sym);
 	}
 	// Tie-break: if several candidates passed the (inheritance-tolerant) exact
@@ -584,7 +614,7 @@ llvm::SmallVector<Symbol *, 4> Registry::FindFunctionMatches(llvm::StringRef Nam
 	if (ExactResult.size() > 1) {
 		llvm::SmallVector<Symbol *, 4> StrictResult;
 		for (Symbol *Sym : ExactResult) {
-			if (FunctionTypesMatchStrict(static_cast<SemaFunctionBase *>(Sym->getRef()), Types))
+			if (FunctionTypesMatchStrict(static_cast<SemaFunctionBase *>(Sym->getRef()), Types, Pass))
 				StrictResult.push_back(Sym);
 		}
 		if (StrictResult.size() == 1) return StrictResult;
@@ -595,8 +625,12 @@ llvm::SmallVector<Symbol *, 4> Registry::FindFunctionMatches(llvm::StringRef Nam
 	llvm::SmallVector<Symbol *, 4> Result;
 	for (Symbol *Sym : *Symbols) {
 		if (Sym->getKind() != SymbolKind::FUNCTION) continue;
-		if (FunctionTypesMatch(static_cast<SemaFunctionBase *>(Sym->getRef()), Types))
+		if (FunctionTypesMatch(static_cast<SemaFunctionBase *>(Sym->getRef()), Types, Pass))
 			Result.push_back(Sym);
 	}
-	return Result;
+	if (!Result.empty()) return Result;
+
+	} // end arity passes
+
+	return {};
 }

@@ -577,4 +577,61 @@ namespace {
         EXPECT_TRUE(drv.Execute());
     }
 
+    // ── the lowered call form must not leak into DECLARATION matching ──────────
+
+    // Two overloads of a value-returning method, differing only in arity. The
+    // synthetic `out` makes `pick(a)`'s param list (a, out) the same SHAPE as
+    // `pick(a, b)`'s explicit signature, so a duplicate-declaration check that
+    // accepts the lowered reading rejected the second overload as "already
+    // defined in this scope". That is a call-site notion, never a declaration
+    // one — this is the `defaultOut(input)` / `defaultOut(input, ext)` pair that
+    // stopped the self-host from building against the 0.13.11 seed.
+    TEST_F(SingleFileBuildTest, ArityOverloadsOfValueReturningMethod) {
+        const std::string dir = "sfb_ovl_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "public class C {\n"
+                  "    public C() { }\n"
+                  "    public string pick(const string a) {\n"
+                  "        out = this.pick(a, \".ll\")\n"
+                  "    }\n"
+                  "    public string pick(const string a, const string b) {\n"
+                  "        out = b\n"
+                  "    }\n"
+                  "}\n"
+                  "\n"
+                  "void main() {\n"
+                  "    C c = new C()\n"
+                  "    string s = c.pick(\"x\")\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_ovl_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
+    // An out slot is written through, so a trailing argument standing in for one
+    // must be addressable. `pick(1, 2)` against a value-returning `pick(a)` reads
+    // as "out = 2" and used to store into the literal — the call had no value and
+    // assigning it crashed the compiler. It must be an ordinary diagnostic.
+    TEST_F(SingleFileBuildTest, LoweredCallRejectsNonAddressableOutArg) {
+        const std::string dir = "sfb_lowlit_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "public int pick(const int a) {\n"
+                  "    out = a\n"
+                  "}\n"
+                  "\n"
+                  "void main() {\n"
+                  "    int s = pick(1, 2)\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_lowlit_src"};
+        Driver drv(argv);
+        CompilerInstance &CI = drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
+        EXPECT_FALSE(CI.getDiagnostics().hasFatalErrorOccurred());
+    }
+
 } // anonymous namespace

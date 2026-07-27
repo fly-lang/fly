@@ -2358,6 +2358,35 @@ void Resolver::visit(ASTCall &AST) {
 			Sema->getArgs().size() == Sema->getFunction()->getParams().size() &&
 			Sema->getArgs().size() > 0;
 
+		// An out slot is WRITTEN THROUGH, so each trailing argument standing in for
+		// one must be something addressable. `pick(1, 2)` on a `pick(a)` that returns
+		// a value reads as "a = 1, out = 2" and tries to store into the literal 2:
+		// the call then has no value, and assigning its result stored a null — the
+		// compiler crashed instead of complaining. Reject it here; a call that merely
+		// looks lowered because it has one argument too many now gets a diagnostic.
+		if (CallerSuppliedOuts) {
+			auto &CallArgs = Sema->getArgs();
+			size_t NExplicit = 0;
+			auto &CalleeParams = Sema->getFunction()->getParams();
+			while (NExplicit < CalleeParams.size() && !CalleeParams[NExplicit]->isSynthetic())
+				++NExplicit;
+			for (size_t i = NExplicit; i < CallArgs.size(); ++i) {
+				SemaExpr *A = CallArgs[i];
+				bool IsAddressable = false;
+				if (A) {
+					SemaKind K = A->getKind();
+					IsAddressable = K == SemaKind::LOCAL_VAR || K == SemaKind::PARAM_VAR ||
+					                K == SemaKind::ATTRIBUTE || K == SemaKind::INSTANCE_VAR ||
+					                K == SemaKind::MEMBER;
+				}
+				if (!IsAddressable) {
+					Diag(AST.getLocation(), diag::err_sema_wrong_args) << AST.getName();
+					CallerSuppliedOuts = false;
+					break;
+				}
+			}
+		}
+
 		if (!CallerSuppliedOuts &&
 		    Sema->getFunction() &&
 		    Sema->getFunction()->getReturnType() &&
