@@ -332,12 +332,23 @@ namespace {
     }
 
     // Uncaught, the failure carries the dedicated code the docs name: 2989 (0x0BAD).
+    //
+    // The value the PARENT observes is not the same on both systems, and that is the
+    // operating system's doing, not the compiler's: POSIX passes only the low 8 bits
+    // of the status through wait(), so 2989 arrives as 173. Windows keeps the full
+    // 32-bit value. `main` returns the same number either way — this expectation
+    // simply reads it back through whatever the platform preserves.
+#ifdef _WIN32
+        static constexpr int ExpectedBoundsExit = 2989;
+#else
+        static constexpr int ExpectedBoundsExit = 2989 & 0xFF;   // 173
+#endif
     TEST_F(ArrayMemoryTest, SubscriptOutOfRangeExitsWithItsOwnCode) {
         EXPECT_EQ(buildAndRun("boundscode",
                   "void main() {\n"
                   "    int[] k = {5, 6, 7}\n"
                   "    int bad = k[9]\n"
-                  "}\n"), 2989);
+                  "}\n"), ExpectedBoundsExit);
     }
 
     // A CAUGHT failure leaves the frame's locals alone: control resumes in the same
