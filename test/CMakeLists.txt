@@ -12,6 +12,7 @@ add_executable(fly_test
         ImportLibTest.cpp
         ImportTest.cpp
         SingleFileBuildTest.cpp
+        ArrayMemoryTest.cpp
         CodeGen/CodeGenTest.cpp
         CodeGen/CodeGenBaseTest.cpp
         CodeGen/CodeGenErrorTest.cpp

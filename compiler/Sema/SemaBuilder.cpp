@@ -51,6 +51,7 @@
 #include "Sema/SemaModule.h"
 #include "Sema/SemaTernary.h"
 #include "Sema/SemaType.h"
+#include "Sema/SemaArrayAccess.h"
 #include "Sema/SemaUnary.h"
 #include "Sema/SemaValue.h"
 #include "Sema/SymbolTable.h"
@@ -396,6 +397,13 @@ SemaError *SemaBuilder::CreateErrorHandler(ASTVar *AST) {
 	FLY_DEBUG_SCOPE("SemaBuilder", "CreateErrorHandler");
 
 	SemaError * Sema = new SemaError(AST);
+	return Sema;
+}
+
+SemaArrayAccess *SemaBuilder::CreateArrayAccess(ASTArrayAccess &AST, SemaExpr *Base, SemaExpr *Index, SemaType *Type) {
+	FLY_DEBUG_SCOPE("SemaBuilder", "CreateArrayAccess");
+
+	SemaArrayAccess *Sema = new SemaArrayAccess(AST, Base, Index, Type);
 	return Sema;
 }
 

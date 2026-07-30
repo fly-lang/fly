@@ -43,6 +43,7 @@
 #include "AST/ASTSwitchStmt.h"
 #include "AST/ASTTernary.h"
 #include "AST/ASTType.h"
+#include "AST/ASTArrayAccess.h"
 #include "AST/ASTUnary.h"
 #include "AST/ASTValue.h"
 #include "Basic/Debug.h"
@@ -64,6 +65,7 @@
 #include "Sema/SemaCall.h"
 #include "Sema/SemaSmartAlloc.h"
 #include "Sema/SemaStringAlloc.h"
+#include "Sema/SemaArrayAlloc.h"
 #include "Sema/SemaValidator.h"
 #include "Sema/SymbolTable.h"
 
@@ -89,6 +91,7 @@
 #include <Sema/SemaLocalVar.h>
 #include <Sema/SemaParam.h>
 #include <Sema/SemaBinary.h>
+#include <Sema/SemaArrayAccess.h>
 #include <Sema/SemaUnary.h>
 #include <Sema/SemaTernary.h>
 #include <Sema/SemaValue.h>
@@ -932,7 +935,10 @@ void Resolver::visit(ASTExprStmt &AST) {
 				    LK == SemaKind::ERROR_VAR || LK == SemaKind::ATTRIBUTE ||
 				    LK == SemaKind::INSTANCE_VAR)
 					LHSVar = static_cast<SemaVar *>(LHS);
-				if (LHSVar && LHSVar->getStringAlloc())
+				// Reassigning an owned slot must release what it held first — a heap
+				// string frees its buffer, an array drops one reference. Without this
+				// the previous buffer is simply forgotten and leaks.
+				if (LHSVar && (LHSVar->getStringAlloc() || LHSVar->getArrayAlloc()))
 					Bin->FreeLHSOnAssign = true;
 			}
 		}
@@ -982,6 +988,28 @@ void Resolver::visit(ASTDeclStmt &AST) {
 		SemaArrayType *ArrayType = static_cast<SemaArrayType *>(LocalVar->getType());
 		if (ArrayType->getSizeExpr() == nullptr && AST.getExpr() == nullptr) {
 			Diag(LV->getLocation(), diag::err_sema_array_size_missing);
+		}
+
+		// A SIZED array of objects is born full: codegen puts one `new C()` in every
+		// index, so the element must be constructible with no arguments. Say so here,
+		// at the declaration the programmer wrote, instead of letting CodeGen reach for
+		// a constructor that does not exist.
+		// In practice this catches INTERFACES: every class gets an implicit no-argument
+		// constructor when it does not declare one (CreateDefaultConstructor above), so
+		// `new C()` is always available — even for a class whose only written
+		// constructor takes arguments. Interfaces are excluded from that synthesis and
+		// so have nothing to build.
+		// Only the no-initializer form preallocates — `C[3] xs = {a, b, c}` takes its
+		// elements from the literal — and structs are values stored inline, with no
+		// construction of their own.
+		if (AST.getExpr() == nullptr && ArrayType->getElementType() &&
+		    ArrayType->getElementType()->isClass()) {
+			SemaClassType *ElemClass = static_cast<SemaClassType *>(ArrayType->getElementType());
+			if (ElemClass->getClassKind() != SemaClassKind::STRUCT &&
+			    ElemClass->getDefaultConstructor() == nullptr) {
+				Diag(LV->getLocation(), diag::err_sema_array_class_no_default_ctor)
+					<< ElemClass->getName();
+			}
 		}
 	}
 
@@ -1043,6 +1071,22 @@ void Resolver::visit(ASTDeclStmt &AST) {
 			CurrentSemaBlock->addAlloc(SA);
 			LocalVar->setAlloc(SA);
 		}
+	}
+
+	// Array variables own a reference-counted buffer: register a scope-exit release.
+	if (LocalVar && LocalVar->getType() && LocalVar->getType()->isArray() &&
+	    !LocalVar->isConstant() && CurrentSemaBlock) {
+		// EVERY non-const array local is an owner and gets a scope-exit release —
+		// including `int[] j = k`, which is safe now that binding an array lvalue
+		// RETAINS (CodeGenExpr::GenBinaryAssign). The two halves must stay together:
+		// registering without the retain frees one buffer twice, retaining without
+		// registering leaks it.
+		//   fresh literal / sized decl → the buffer arrives at 1, this owner releases it
+		//   another array lvalue       → retain makes it 2, both owners release
+		//   a call result              → the callee retained on our behalf, we release
+		SemaArrayAlloc *AA = new SemaArrayAlloc(LocalVar);
+		CurrentSemaBlock->addAlloc(AA);
+		LocalVar->setAlloc(AA);
 	}
 
 	// Create SemaDeclStmt and add to current block
@@ -2474,6 +2518,47 @@ void Resolver::visit(ASTCall &AST) {
 	}
 }
 
+void Resolver::visit(ASTArrayAccess &AST) {
+	FLY_DEBUG_SCOPE("Resolver", "visit(ASTArrayAccess)");
+
+	// Resolve both operands first (null only from parser error recovery)
+	ASTExpr *BaseAST = AST.getBase();
+	ASTExpr *IndexAST = AST.getIndex();
+	if (BaseAST == nullptr || IndexAST == nullptr) {
+		CurrentExpr = nullptr;
+		return;
+	}
+
+	BaseAST->accept(*this);
+	SemaExpr *Base = CurrentExpr;
+	IndexAST->accept(*this);
+	SemaExpr *Index = CurrentExpr;
+	if (Base == nullptr || Index == nullptr) {
+		CurrentExpr = nullptr;
+		return;
+	}
+
+	// Only an array can be subscripted, and the result is its ELEMENT type —
+	// that is what lets `int x = k[1]` type-check as an ordinary int.
+	SemaType *BaseType = Base->getType();
+	if (BaseType == nullptr || !BaseType->isArray()) {
+		Diag(AST.getLocation(), diag::err_sema_subscript_not_array)
+			<< (BaseType ? BaseType->getName() : "unknown");
+		CurrentExpr = nullptr;
+		return;
+	}
+	SemaType *IndexType = Index->getType();
+	if (IndexType == nullptr || !IndexType->isInteger()) {
+		Diag(AST.getLocation(), diag::err_sema_subscript_index_not_int)
+			<< (IndexType ? IndexType->getName() : "unknown");
+		CurrentExpr = nullptr;
+		return;
+	}
+
+	SemaType *ElementType = static_cast<SemaArrayType *>(BaseType)->getElementType();
+	CurrentExpr = SemaBuilder::CreateArrayAccess(AST, Base, Index, ElementType);
+}
+
 void Resolver::visit(ASTUnary &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTUnaryOp)");
 
@@ -3436,6 +3521,14 @@ void Resolver::CreateDefaultConstructor() {
 
 	// Add Method/Constructor
 	CurrentClass->addMethod(Sema); // Function Local var to be allocated
+
+	// …and record it AS the default constructor. The synthesized one is exactly the
+	// no-argument constructor the field is meant to name; leaving it unset made a
+	// class that declares no constructor at all look like a class with no way to be
+	// built with no arguments — which is the opposite of the truth. Only the explicit
+	// `C()` used to be registered (visit(ASTMethod)), so anything asking the question
+	// got the wrong answer for the commonest kind of class.
+	CurrentClass->setDefaultConstructor(Sema);
 
 	// Set current function
 	// CurrentFunction = Sema;

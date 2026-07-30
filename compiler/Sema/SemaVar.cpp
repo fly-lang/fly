@@ -10,6 +10,7 @@
 #include "Sema/SemaVar.h"
 #include "Sema/SemaSmartAlloc.h"
 #include "Sema/SemaStringAlloc.h"
+#include "Sema/SemaArrayAlloc.h"
 #include "Sema/SemaType.h"
 #include "Basic/Logger.h"
 #include <AST/ASTVar.h>
@@ -54,6 +55,12 @@ SemaSmartAlloc *SemaVar::getSmartAlloc() const {
 SemaStringAlloc *SemaVar::getStringAlloc() const {
 	if (Alloc && Alloc->getKind() == SemaAllocKind::STRING)
 		return static_cast<SemaStringAlloc *>(Alloc);
+	return nullptr;
+}
+
+SemaArrayAlloc *SemaVar::getArrayAlloc() const {
+	if (Alloc && Alloc->getKind() == SemaAllocKind::ARRAY)
+		return static_cast<SemaArrayAlloc *>(Alloc);
 	return nullptr;
 }
 

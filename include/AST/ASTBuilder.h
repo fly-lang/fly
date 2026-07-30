@@ -107,6 +107,7 @@ namespace fly {
 
     class ASTExpr;
 
+    class ASTArrayAccess;
     class ASTUnary;
     class ASTCast;
 
@@ -265,6 +266,8 @@ namespace fly {
          static ASTIdentifier *CreateIdentifier(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent = nullptr);
 
          static ASTMember *CreateMember(const SourceLocation &Loc, llvm::StringRef Name, ASTExpr *Parent);
+
+         static ASTArrayAccess *CreateArrayAccess(const SourceLocation &Loc, ASTExpr *Base, ASTExpr *Index);
 
          static ASTUnary *CreateUnary(const SourceLocation &Loc, ASTUnaryKind OpKind, ASTExpr *Expr);
 

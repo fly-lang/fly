@@ -44,6 +44,7 @@ namespace fly {
 	class SemaEnumAccessor;
 	class SemaMember;
 	class SemaCast;
+	class SemaArrayAccess;
 	class SemaUnary;
 	class SemaBinary;
 	class SemaTernary;
@@ -98,6 +99,8 @@ namespace fly {
 
         void GenExpr(SemaCast *Sema);
 
+        void GenExpr(SemaArrayAccess *Sema);
+
         void GenExpr(SemaUnary *Sema);
 
         void GenExpr(SemaBinary *Sema);
@@ -105,6 +108,12 @@ namespace fly {
         void GenExpr(SemaTernary *Sema);
 
     private:
+
+        // Bounds-check `Sema` and return the ADDRESS of the element. Shared by the
+        // read (load from it) and the write (store into it) so the check exists in
+        // exactly one place — two copies would be two chances for them to drift.
+        // Leaves the builder positioned in the in-range block.
+        llvm::Value *GenArrayElementPtr(SemaArrayAccess *Sema, llvm::Type *&ElemTy);
 
         llvm::Value *GenBinaryArith(SemaExpr *E1, ASTBinaryKind OperatorKind, SemaExpr *E2);
 

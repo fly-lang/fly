@@ -43,13 +43,14 @@ llvm::AllocaInst *CodeGenVar::Alloca() {
 	if (T == CodeGen::ArrayTy || T == CodeGen::StringTy) {
 		// Value-type structs: allocate the struct directly
 		this->Pointer = CGM->Builder->CreateAlloca(T);
-		// Zero-initialise a string slot ({null, 0}) at the point of allocation. An early
-		// `return` in a nested block runs the full scope cleanup, which frees every string
-		// local in the frame — including ones whose declaration the control flow has not
-		// reached yet. Without this, that cleanup loads an uninitialised slot and frees a
-		// garbage pointer; with it, the freed pointer is null (free(null) is a safe no-op).
-		if (T == CodeGen::StringTy)
-			CGM->Builder->CreateStore(llvm::Constant::getNullValue(CodeGen::StringTy), this->Pointer);
+		// Zero-initialise the slot ({null, 0}) at the point of allocation. An early
+		// `return` in a nested block runs the full scope cleanup, which releases every
+		// string and array local in the frame — including ones whose declaration the
+		// control flow has not reached yet. Without this, that cleanup loads an
+		// uninitialised slot and releases a garbage pointer; with it the pointer is
+		// null, which both the string free and the array release treat as a no-op.
+		// Arrays need this for exactly the reason strings always did.
+		CGM->Builder->CreateStore(llvm::Constant::getNullValue(T), this->Pointer);
 	} else if (T->isStructTy()) {
 		llvm::PointerType *PtrTy = T->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
 		this->Pointer = CGM->Builder->CreateAlloca(PtrTy);
@@ -136,7 +137,8 @@ llvm::StoreInst *CodeGenVar::StoreDefaultValue() {
 	// Check if this is a dynamic array (CodeGen::ArrayTy structure)
 	if (Ty->isArray()) {
 		SemaArrayType *ArrayTy = static_cast<SemaArrayType *>(Ty);
-		llvm::Type *ElementType = ArrayTy->getElementType()->getCodeGen()->getType();
+		// The STORAGE type, not the semantic one: an array of classes holds pointers.
+		llvm::Type *ElementType = CGM->GetArrayElementStorageType(ArrayTy->getElementType());
 
 		// Get the size from expression or constant
 		llvm::Value *Size = nullptr;
@@ -149,9 +151,16 @@ llvm::StoreInst *CodeGenVar::StoreDefaultValue() {
 				// Check if size is zero
 				llvm::APInt Int = static_cast<SemaIntValue *>(ArrayTy->getSizeExpr())->getValue();
 				if (Int == 0) {
-					// Size is zero, store null pointer
-					llvm::Value *NullPtr = llvm::Constant::getNullValue(CodeGen::ArrayTy->getPointerTo());
-					return CGM->Builder->CreateStore(NullPtr, getPointer());
+					// Zero elements: write BOTH fields of the fat pointer, data = null
+					// AND size = 0. Storing a null POINTER here covered only the first
+					// 8 bytes — the data field — and left `size` holding whatever the
+					// stack happened to contain, so a for-in over `int[0] k` read a
+					// garbage element count. It returned 0 in practice, but by luck,
+					// not because anything wrote it (B044). The whole-struct
+					// zeroinitializer writes both fields in one store, which is also
+					// what the self-host emits for every array declaration.
+					llvm::Value *EmptyArray = llvm::Constant::getNullValue(CodeGen::ArrayTy);
+					return CGM->Builder->CreateStore(EmptyArray, getPointer());
 				}
 			} else {
 				// Size is not a constant, need runtime check
@@ -184,32 +193,36 @@ llvm::StoreInst *CodeGenVar::StoreDefaultValue() {
 			CGM->Builder->SetInsertPoint(MallocBB);
 		}
 
-		// Use i8 0 for memset value
-		llvm::ConstantInt *ZeroInt8 = llvm::ConstantInt::get(CodeGen::Int8Ty, 0);
-
-		// Allocate array data in heap: malloc(Size * sizeof(ElementType))
+		// Allocate the array data as a reference-counted block: [i64 rc | Size*elem].
+		// EmitRCBufferAlloc mallocs, zeroes the whole block and returns the DATA
+		// pointer, so the fat pointer below still stores the payload address and every
+		// reader stays unchanged.
 		llvm::TypeSize ElemAllocSize = CGM->Module->getDataLayout().getTypeAllocSize(ElementType);
 		llvm::Value *ElemAllocSizeVal = llvm::ConstantInt::get(Size->getType(), ElemAllocSize.getFixedValue());
 		llvm::Value *TotalAllocSize = CGM->Builder->CreateMul(Size, ElemAllocSizeVal);
-		llvm::FunctionCallee MallocFn = CGM->Module->getOrInsertFunction(
-			"malloc",
-			llvm::FunctionType::get(
-				llvm::PointerType::getUnqual(CGM->LLVMCtx),
-				{CodeGen::IntPtrTy},
-				false));
-		llvm::Value *TotalAllocSizeCast = CGM->Builder->CreateIntCast(TotalAllocSize, CodeGen::IntPtrTy, false);
-		llvm::Value *DataPtr = CGM->Builder->CreateCall(MallocFn, {TotalAllocSizeCast});
+		llvm::Value *DataPtr = CGM->EmitRCBufferAlloc(TotalAllocSize);
 
-		// Zero-initialize the data array (TotalAllocSize already computed above)
-		CGM->Builder->CreateMemSet(DataPtr, ZeroInt8, TotalAllocSize, llvm::MaybeAlign());
+		// An array of classes is born with an instance at every index: the buffer of
+		// pointers on its own would be a row of nulls, and the first method call on one
+		// would dereference null. The instances are the PROGRAM's to free (§6.6) — the
+		// array only ever owns the buffer that points at them.
+		SemaType *ElemSemaType = ArrayTy->getElementType();
+		if (ElemSemaType && ElemSemaType->isClass() &&
+		    static_cast<SemaClassType *>(ElemSemaType)->getClassKind() != SemaClassKind::STRUCT) {
+			CGM->EmitArrayElementsNew(DataPtr, Size, static_cast<SemaClassType *>(ElemSemaType));
+		}
 
 		// Get pointer to field 0 (data pointer)
 		llvm::Value *Field0Ptr = CGM->Builder->CreateStructGEP(CodeGen::ArrayTy, this->Pointer, 0);
 		CGM->Builder->CreateStore(DataPtr, Field0Ptr);
 
-		// Get pointer to field 1 (dims)
+		// Get pointer to field 1 (size). Cast to the FIELD's own width: %array declares
+		// it `IntTy` (i32), and casting to IntPtrTy stored 8 bytes into a 4-byte field.
+		// It survived only because the struct's tail padding absorbed the overflow, and
+		// the readers (for-in, the subscript bounds check) load i32 and happen to get
+		// the right value on little-endian. Neither is a guarantee.
 		llvm::Value *Field1Ptr = CGM->Builder->CreateStructGEP(CodeGen::ArrayTy, this->Pointer, 1);
-		llvm::Value *DimsValue = CGM->Builder->CreateIntCast(Size, CodeGen::IntPtrTy, false);
+		llvm::Value *DimsValue = CGM->Builder->CreateIntCast(Size, CodeGen::IntTy, false);
 		CGM->Builder->CreateStore(DimsValue, Field1Ptr);
 
 		if (RuntimeCheck) {

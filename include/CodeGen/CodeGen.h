@@ -95,6 +95,11 @@ class CodeGen {
 
         static llvm::PointerType *ErrorPtrTy;
 
+        /// Error code raised by the array bounds check (B048 rule 6). A fixed,
+        /// documented value so a program can `handle` it and tell it apart from its
+        /// own `fail` codes; picked high to stay clear of application codes.
+        static constexpr uint32_t ArrayIndexOutOfBoundsCode = 0x0BAD;
+
         /// Array structure: { i8* data, size_t* dims, size_t rank }
         static llvm::StructType *ArrayTy;
 

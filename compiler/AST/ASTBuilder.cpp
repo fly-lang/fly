@@ -29,6 +29,7 @@
 #include "AST/ASTCast.h"
 #include "AST/ASTTernary.h"
 #include "AST/ASTType.h"
+#include "AST/ASTArrayAccess.h"
 #include "AST/ASTUnary.h"
 #include "AST/ASTValue.h"
 #include "AST/ASTVar.h"
@@ -617,6 +618,13 @@ ASTMember *ASTBuilder::CreateMember(const SourceLocation &Loc, llvm::StringRef N
 
 	ASTMember *Member = new ASTMember(Loc, Name, Parent);
 	return Member;
+}
+
+ASTArrayAccess *ASTBuilder::CreateArrayAccess(const SourceLocation &Loc, ASTExpr *Base, ASTExpr *Index) {
+	FLY_DEBUG_SCOPE_MSG("ASTBuilder", "CreateArrayAccess", "Loc=" << Loc.getRawEncoding());
+
+	ASTArrayAccess *Access = new ASTArrayAccess(Loc, Base, Index);
+	return Access;
 }
 
 ASTUnary *ASTBuilder::CreateUnary(const SourceLocation &Loc, ASTUnaryKind OpKind, ASTExpr *Expr) {

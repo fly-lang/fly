@@ -68,6 +68,7 @@ namespace fly {
 	// Expressions
 	class SemaExpr;
 	class SemaCall;
+	class SemaArrayAccess;
 	class SemaUnary;
 	class SemaBinary;
 	class SemaTernary;
@@ -130,6 +131,7 @@ namespace fly {
 		// Expressions
 		virtual void visit(SemaMember &Sema) = 0;
 		virtual void visit(SemaCall &Sema) = 0;
+		virtual void visit(SemaArrayAccess &Sema) = 0;
 		virtual void visit(SemaUnary &Sema) = 0;
 		virtual void visit(SemaBinary &Sema) = 0;
 		virtual void visit(SemaTernary &Sema) = 0;

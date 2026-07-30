@@ -1536,8 +1536,14 @@ namespace {
         // increment lives in its own forin.inc block, which is what `continue`
         // targets — jumping straight to forin.cond skipped idx++ and spun forever
         // on the same element.
+        // The index slot is allocated in the ENTRY block, ahead of everything else,
+        // not where the loop is emitted. At the loop's own insert point it becomes a
+        // dynamic stack allocation, and a for-in nested inside another loop then grew
+        // the frame once per outer iteration until the stack ran out — reproduced at
+        // half a million rounds with no arrays involved beyond the one being walked.
         EXPECT_EQ(output, "define void @_F4func_A_i(ptr %0, ptr %1) {\n"
                         "entry:\n"
+                        "  %forin.idx = alloca i32, align 4\n"
                         "  %2 = alloca ptr, align 8\n"
                         "  %3 = alloca i32, align 4\n"
                         "  %4 = alloca i32, align 4\n"
@@ -1547,7 +1553,6 @@ namespace {
                         "  %6 = load ptr, ptr %5, align 8\n"
                         "  %7 = getelementptr inbounds nuw %array, ptr %1, i32 0, i32 1\n"
                         "  %8 = load i32, ptr %7, align 4\n"
-                        "  %forin.idx = alloca i32, align 4\n"
                         "  store i32 0, ptr %forin.idx, align 4\n"
                         "  br label %forin.cond\n"
                         "\n"

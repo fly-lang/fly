@@ -23,6 +23,7 @@ namespace fly {
     class CodeGenVar;
     class SemaSmartAlloc;
     class SemaStringAlloc;
+    class SemaArrayAlloc;
 
     class SemaVar : public SemaExpr {
 
@@ -56,6 +57,7 @@ namespace fly {
 
     	SemaSmartAlloc *getSmartAlloc() const;
     	SemaStringAlloc *getStringAlloc() const;
+    	SemaArrayAlloc *getArrayAlloc() const;
 
     	CodeGenVar *getCodeGen() const override;
 

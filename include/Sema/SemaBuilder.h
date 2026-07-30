@@ -53,6 +53,7 @@ namespace fly {
 	class ASTUnsetValue;
 	class ASTMember;
 	class ASTCall;
+	class ASTArrayAccess;
 	class ASTUnary;
 	class ASTBinary;
 	class ASTTernary;
@@ -64,6 +65,7 @@ namespace fly {
 	class SemaValue;
 	class SemaCall;
 	class SemaComment;
+	class SemaArrayAccess;
 	class SemaUnary;
 	class SemaIntType;
 	class SemaFloatType;
@@ -155,6 +157,8 @@ namespace fly {
 		static SemaError * CreateErrorHandler(ASTVar *AST);
 
     	static SemaCall *CreateCall(ASTCall &Call, SemaType *Type, SemaFunctionBase *Function);
+
+    	static SemaArrayAccess *CreateArrayAccess(ASTArrayAccess &AST, SemaExpr *Base, SemaExpr *Index, SemaType *Type);
 
     	static SemaUnary *CreateUnary(ASTUnary &AST, SemaExpr *Expr);
 
