@@ -88,11 +88,15 @@ jobs:
           BRANCH="${{ github.ref_name }}"
           echo "artifact_name=windows-artifact-${BRANCH//\//-}" >> $GITHUB_OUTPUT
 
+      # The artifact IS the bootstrap seed: one compiler plus the std/runtime it
+      # links. fly.exe is named explicitly rather than globbed from bin\ — that
+      # directory also holds the test executable and the scratch binaries the
+      # suites leave behind, and a glob would ship them.
       - name: Stage release artifacts
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist\bin, dist\lib | Out-Null
-          Copy-Item ${{env.BUILD_DIR}}\bin\* dist\bin\ -ErrorAction SilentlyContinue
+          Copy-Item ${{env.BUILD_DIR}}\bin\fly.exe dist\bin\
           # Copy only the std-lib headers and archives, flat into dist\lib.
           # NB: PowerShell's $_.Extension on "clang.fly.h" is ".h", not ".fly.h",
           # so match on the full Name with -like '*.fly.h'. Copying the selected

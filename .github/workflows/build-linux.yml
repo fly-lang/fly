@@ -73,10 +73,14 @@ jobs:
           BRANCH="${{ github.ref_name }}"
           echo "artifact_name=linux-artifact-${BRANCH//\//-}" >> $GITHUB_OUTPUT
 
+      # The artifact IS the bootstrap seed: one compiler plus the std/runtime it
+      # links. `fly` is named explicitly rather than globbed from bin/ — that
+      # directory also holds the test executable and the scratch binaries the
+      # suites leave behind, and a glob would ship them.
       - name: Stage release artifacts
         run: |
           mkdir -p dist/bin dist/lib
-          cp ${{env.BUILD_DIR}}/bin/* dist/bin/ 2>/dev/null || true
+          cp ${{env.BUILD_DIR}}/bin/fly dist/bin/
           cp -r ${{env.BUILD_DIR}}/lib/. dist/lib/
           find dist/lib -type f ! \( -name "*.fly.h" -o -name "fly_std_lib.a" -o -name "fly_runtime_lib.a" \) -delete
 

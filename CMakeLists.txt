@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24.0)
 
 # Set the project version
-set(FLY_VERSION "0.13.12")
+set(FLY_VERSION "0.13.13")
 project(Fly VERSION ${FLY_VERSION} LANGUAGES C CXX ASM)
 
 #Fly config options
@@ -123,8 +123,8 @@ add_subdirectory(compiler)
 add_subdirectory(std)
 add_subdirectory(test)
 
-# fly-lsp language server
-add_subdirectory(tools/lsp)
-
-# fly-registry REST registry server
-add_subdirectory(tools/registry)
+# NOTE: this tree builds the BOOTSTRAP SEED and nothing else. The toolchain's
+# own programs — the fly-lsp language server and the fly-registry package
+# server — live in the self-hosted 0.14.x tree, written in Fly and built by the
+# compiler that ships. They were removed from here once that port was complete:
+# a seed only has to be able to compile the next stage.

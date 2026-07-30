@@ -81,7 +81,12 @@ jobs:
             fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}
             fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }}
           body: |
-            Fly ${{ steps.version.outputs.version }} Release
+            Fly ${{ steps.version.outputs.version }} — bootstrap seed
+
+            This is the C++ bootstrap compiler. Its only job is to build the
+            self-hosted 0.14.x toolchain (stage 0 of the staged bootstrap); the
+            language server, the package registry server and everything else a
+            user runs are produced by that toolchain, not by this archive.
 
             Built and tested on:
             - Linux: ${{ needs.build-linux.outputs.build_info }}
