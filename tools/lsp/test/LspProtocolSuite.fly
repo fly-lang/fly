@@ -1,0 +1,294 @@
+import fly.lsp.LspDiag
+import fly.lsp.uriToPath
+import fly.lsp.pathToUri
+import fly.lsp.mkPosition
+import fly.lsp.mkRange
+import fly.lsp.mkDiagnostic
+import fly.lsp.lfStr
+import fly.lsp.completionKindOf
+import fly.lsp.tokenTypeOf
+import fly.lsp.severityOfWord
+import fly.lsp.parseRendered
+import fly.compiler.sema.SymbolKind
+import fly.str
+import fly.mem
+import fly.json
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LspProtocolSuite — coverage of tools/lsp/lib/LspProtocol.fly. Port of the
+// reference's LspProtocolTest.cpp, plus the parts that only exist here
+// (parseRendered, the kind maps).
+//
+// Every public symbol of the module is exercised. The JSON builders return
+// fly.json node handles: each case serializes with json.write and asserts on
+// the text, which is exactly what goes on the wire, and frees the root — the
+// tree owns its children, so one freeValue per root is the whole contract.
+//
+// THE POSITION CONVERSION IS THE POINT of several cases: LSP is 0-based, the
+// compiler is 1-based, and mkPosition is the ONLY place that subtracts. An
+// off-by-one here is invisible in a screenshot and wrong in every editor.
+//
+// Assert codes: 1xx uri/path, 2xx positions/ranges, 3xx diagnostics,
+// 4xx kind maps, 5xx parseRendered, 6xx lfStr.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// jsonOf — serialize a node and free it; the text is what the assertion reads.
+string jsonOf(const pointer node) {
+    string s = fly.json.write(node)
+    fly.json.freeValue(node)
+    out = s
+}
+
+// intAt / intAt2 — read a number out of a serialized node by key (or nested
+// key path). Assertions go through the PARSED value rather than the text
+// because string literals keep escapes raw here, so an expected `{"line":0}`
+// cannot be written inline — and asserting on structure is the stronger check
+// anyway: it survives a change in key order or spacing.
+int intAt(const string json, const string key) {
+    int e = 0
+    pointer o = fly.json.parse(json, e)
+    int v = 0 - 999
+    if e == 0 {
+        pointer n = fly.json.get(o, key)
+        if n != 0 { v = fly.json.asInt(n) }
+    }
+    fly.json.freeValue(o)
+    out = v
+}
+
+int intAt2(const string json, const string outer, const string inner) {
+    int e = 0
+    pointer o = fly.json.parse(json, e)
+    int v = 0 - 999
+    if e == 0 {
+        pointer mid = fly.json.get(o, outer)
+        if mid != 0 {
+            pointer n = fly.json.get(mid, inner)
+            if n != 0 { v = fly.json.asInt(n) }
+        }
+    }
+    fly.json.freeValue(o)
+    out = v
+}
+
+int intAt3(const string json, const string a, const string b, const string c) {
+    int e = 0
+    pointer o = fly.json.parse(json, e)
+    int v = 0 - 999
+    if e == 0 {
+        pointer m1 = fly.json.get(o, a)
+        if m1 != 0 {
+            pointer m2 = fly.json.get(m1, b)
+            if m2 != 0 {
+                pointer n = fly.json.get(m2, c)
+                if n != 0 { v = fly.json.asInt(n) }
+            }
+        }
+    }
+    fly.json.freeValue(o)
+    out = v
+}
+
+// strAt — a string field by key, "" when absent.
+string strAt(const string json, const string key) {
+    int e = 0
+    pointer o = fly.json.parse(json, e)
+    string v = ""
+    if e == 0 {
+        pointer n = fly.json.get(o, key)
+        if n != 0 { if fly.json.isString(n) { v = fly.json.asString(n) } }
+    }
+    fly.json.freeValue(o)
+    out = v
+}
+
+// hasKey — is `key` present at the top level?
+bool hasKey(const string json, const string key) {
+    int e = 0
+    pointer o = fly.json.parse(json, e)
+    bool h = false
+    if e == 0 { h = fly.json.has(o, key) }
+    fly.json.freeValue(o)
+    out = h
+}
+
+suite LspProtocolSuite {
+
+    // ── uri ↔ path ───────────────────────────────────────────────────────────
+    void uriTest() {
+        case "a POSIX file URI loses its scheme and keeps its path": {
+            assert.assertStr(fly.lsp.uriToPath("file:///home/u/a.fly"), "/home/u/a.fly", 101)
+            assert.assertStr(fly.lsp.uriToPath("/home/u/a.fly"), "/home/u/a.fly", 102)
+            assert.assertEmpty(fly.lsp.uriToPath(""), 103)
+        }
+        case "a Windows URI is percent-decoded and loses the syntactic slash": {
+            // Real editors send file:///c%3A/x — the drive colon is escaped and
+            // the leading slash is URI syntax, not part of the path. Getting
+            // either wrong makes every Windows request miss its file.
+            assert.assertStr(fly.lsp.uriToPath("file:///c%3A/x/y.fly"), "c:/x/y.fly", 104)
+            assert.assertStr(fly.lsp.uriToPath("file:///C:/x/y.fly"), "C:/x/y.fly", 105)
+        }
+        case "pathToUri adds the scheme, and a drive path gets the extra slash": {
+            assert.assertStr(fly.lsp.pathToUri("/home/u/a.fly"), "file:///home/u/a.fly", 106)
+            assert.assertStr(fly.lsp.pathToUri("C:/x/y.fly"), "file:///C:/x/y.fly", 107)
+            // Backslashes are normalised: a URI never carries them.
+            assert.assertStr(fly.lsp.pathToUri("C:\\x\\y.fly"), "file:///C:/x/y.fly", 108)
+        }
+        case "path → uri → path round-trips on both platforms' shapes": {
+            string p1 = "/home/u/a.fly"
+            assert.assertStr(fly.lsp.uriToPath(fly.lsp.pathToUri(p1)), p1, 109)
+            string p2 = "C:/x/y.fly"
+            assert.assertStr(fly.lsp.uriToPath(fly.lsp.pathToUri(p2)), p2, 110)
+        }
+    }
+
+    // ── positions and ranges ─────────────────────────────────────────────────
+    void positionTest() {
+        case "1-based compiler coordinates become 0-based LSP ones": {
+            string p = jsonOf(fly.lsp.mkPosition(1, 1))
+            assert.assertEqI(intAt(p, "line"), 0, 201)
+            assert.assertEqI(intAt(p, "character"), 0, 202)
+            string p2 = jsonOf(fly.lsp.mkPosition(10, 5))
+            assert.assertEqI(intAt(p2, "line"), 9, 203)
+            assert.assertEqI(intAt(p2, "character"), 4, 204)
+        }
+        case "a zero coordinate clamps instead of going negative": {
+            // The compiler never emits 0, but a malformed location must not
+            // produce line:-1 — no client survives that.
+            string p = jsonOf(fly.lsp.mkPosition(0, 0))
+            assert.assertEqI(intAt(p, "line"), 0, 205)
+            assert.assertEqI(intAt(p, "character"), 0, 206)
+        }
+        case "mkRange spans one character at the given position": {
+            string r = jsonOf(fly.lsp.mkRange(3, 7))
+            assert.assertEqI(intAt2(r, "start", "line"), 2, 207)
+            assert.assertEqI(intAt2(r, "start", "character"), 6, 208)
+            assert.assertEqI(intAt2(r, "end", "line"), 2, 209)
+            assert.assertEqI(intAt2(r, "end", "character"), 7, 210)
+        }
+    }
+
+    // ── diagnostics ──────────────────────────────────────────────────────────
+    void diagnosticTest() {
+        case "a diagnostic carries range, severity, source and message": {
+            LspDiag d = new LspDiag(4, 5, 1, "boom", "a.fly")
+            string j = jsonOf(fly.lsp.mkDiagnostic(d))
+            assert.assertEqI(intAt(j, "severity"), 1, 301)
+            assert.assertStr(strAt(j, "source"), "fly", 302)
+            assert.assertStr(strAt(j, "message"), "boom", 303)
+            assert.assertEqI(intAt3(j, "range", "start", "line"), 3, 304)
+            assert.assertEqI(intAt3(j, "range", "start", "character"), 4, 305)
+            // `file` is internal bookkeeping — the URI travels in the
+            // publishDiagnostics params, never inside a diagnostic.
+            assert.assertFalse(hasKey(j, "file"), 306)
+            assert.assertFalse(fly.str.contains(j, "a.fly"), 307)
+        }
+        case "warning and hint severities pass through unchanged": {
+            assert.assertEqI(intAt(jsonOf(fly.lsp.mkDiagnostic(new LspDiag(1, 1, 2, "w", ""))),
+                "severity"), 2, 308)
+            assert.assertEqI(intAt(jsonOf(fly.lsp.mkDiagnostic(new LspDiag(1, 1, 3, "h", ""))),
+                "severity"), 3, 309)
+        }
+        case "a message containing a quote stays valid JSON": {
+            // An unescaped quote in a diagnostic corrupts the whole frame, and
+            // compiler messages DO quote identifiers ("no function named 'x'").
+            pointer qp = fly.mem.alloc(1)
+            fly.mem.writeByte(qp, 0, 34)
+            string q = ""
+            fly.str.fromBytes(qp, 1, q)
+            string msg = fly.str.concat("say ", fly.str.concat(q, "hi"))
+            string j = jsonOf(fly.lsp.mkDiagnostic(new LspDiag(1, 1, 1, msg, "")))
+            int e = 0
+            pointer parsed = fly.json.parse(j, e)
+            assert.assertEqI(e, 0, 310)
+            fly.json.freeValue(parsed)
+            // …and the message survives the round trip byte for byte.
+            assert.assertStr(strAt(j, "message"), msg, 311)
+        }
+    }
+
+    // ── kind maps ────────────────────────────────────────────────────────────
+    void kindMapTest() {
+        case "completion kinds match the LSP CompletionItemKind numbers": {
+            assert.assertEqI(fly.lsp.completionKindOf(SymbolKind.FUNCTION), 3, 401)
+            assert.assertEqI(fly.lsp.completionKindOf(SymbolKind.CLASS), 7, 402)
+            assert.assertEqI(fly.lsp.completionKindOf(SymbolKind.LOCAL_VAR), 6, 403)
+            assert.assertEqI(fly.lsp.completionKindOf(SymbolKind.PARAM), 6, 404)
+            assert.assertEqI(fly.lsp.completionKindOf(SymbolKind.ATTRIBUTE), 5, 405)
+            assert.assertEqI(fly.lsp.completionKindOf(SymbolKind.ENUM_ENTRY), 5, 406)
+            assert.assertEqI(fly.lsp.completionKindOf(SymbolKind.NAMESPACE), 9, 407)
+            assert.assertEqI(fly.lsp.completionKindOf(SymbolKind.VALUE), 1, 408)
+        }
+        case "token types match the legend the server advertises": {
+            // The order here IS the legend in onInitialize; a mismatch colours
+            // every token wrong, silently.
+            assert.assertEqI(fly.lsp.tokenTypeOf(SymbolKind.NAMESPACE), 0, 409)
+            assert.assertEqI(fly.lsp.tokenTypeOf(SymbolKind.CLASS), 1, 410)
+            assert.assertEqI(fly.lsp.tokenTypeOf(SymbolKind.FUNCTION), 2, 411)
+            assert.assertEqI(fly.lsp.tokenTypeOf(SymbolKind.LOCAL_VAR), 3, 412)
+            assert.assertEqI(fly.lsp.tokenTypeOf(SymbolKind.PARAM), 4, 413)
+            assert.assertEqI(fly.lsp.tokenTypeOf(SymbolKind.ATTRIBUTE), 5, 414)
+            assert.assertEqI(fly.lsp.tokenTypeOf(SymbolKind.ENUM_ENTRY), 6, 415)
+            assert.assertEqI(fly.lsp.tokenTypeOf(SymbolKind.TYPE), 7, 416)
+            assert.assertEqI(fly.lsp.tokenTypeOf(SymbolKind.ENUM), 7, 417)
+            // -1 means "emit no token" — the caller must skip it.
+            assert.assertEqI(fly.lsp.tokenTypeOf(SymbolKind.VALUE), 0 - 1, 418)
+        }
+        case "severity words map to LSP severities": {
+            assert.assertEqI(fly.lsp.severityOfWord("error"), 1, 419)
+            assert.assertEqI(fly.lsp.severityOfWord("fatal"), 1, 420)
+            assert.assertEqI(fly.lsp.severityOfWord("warning"), 2, 421)
+            assert.assertEqI(fly.lsp.severityOfWord("note"), 3, 422)
+            assert.assertEqI(fly.lsp.severityOfWord(""), 3, 423)
+        }
+    }
+
+    // ── parseRendered ────────────────────────────────────────────────────────
+    void parseRenderedTest() {
+        case "the engine's short form decodes into a structured diagnostic": {
+            // "line:col: level: message" is produced by exactly one function
+            // (DiagnosticsEngine.emitDiagnostic), which is what makes parsing it
+            // a contract rather than screen-scraping. This is how PARSE
+            // diagnostics are recovered — the Parser keeps only the rendered
+            // string.
+            LspDiag d = fly.lsp.parseRendered("12:34: error: something broke", "a.fly")
+            assert.assertTrue(d != null, 501)
+            assert.assertEqI(d.line, 12, 502)
+            assert.assertEqI(d.col, 34, 503)
+            assert.assertEqI(d.severity, 1, 504)
+            assert.assertStr(d.message, "something broke", 505)
+            assert.assertStr(d.file, "a.fly", 506)
+        }
+        case "warnings keep their severity and a message with colons survives": {
+            LspDiag w = fly.lsp.parseRendered("1:1: warning: a: b: c", "f")
+            assert.assertTrue(w != null, 507)
+            assert.assertEqI(w.severity, 2, 508)
+            // Only the FIRST ": " after the level ends the level word; the rest
+            // belongs to the message.
+            assert.assertStr(w.message, "a: b: c", 509)
+        }
+        case "anything not in that shape returns null, never a bogus diagnostic": {
+            assert.assertTrue(fly.lsp.parseRendered("", "f") == null, 510)
+            assert.assertTrue(fly.lsp.parseRendered("no numbers here", "f") == null, 511)
+            assert.assertTrue(fly.lsp.parseRendered("12", "f") == null, 512)
+            assert.assertTrue(fly.lsp.parseRendered("12:", "f") == null, 513)
+            assert.assertTrue(fly.lsp.parseRendered("12:34", "f") == null, 514)
+            assert.assertTrue(fly.lsp.parseRendered("12:34: nolevel", "f") == null, 515)
+            assert.assertTrue(fly.lsp.parseRendered("12:x: error: m", "f") == null, 516)
+        }
+    }
+
+    // ── lfStr ────────────────────────────────────────────────────────────────
+    void lfTest() {
+        case "lfStr is one real newline byte": {
+            string nl = fly.lsp.lfStr()
+            assert.assertEqI(fly.str.len(nl), 1, 601)
+            byte b = 0
+            fly.str.byteAt(nl, 0, b)
+            int c = b
+            c = c & 255
+            assert.assertEqI(c, 10, 602)
+        }
+    }
+}

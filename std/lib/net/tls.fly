@@ -1,0 +1,242 @@
+namespace fly.net.tls
+
+import fly.llvm
+import fly.runtime
+import fly.mem
+import fly.str
+import fly.net
+
+// ─────────────────────────────────────────────────────────────────────────────
+// fly.net.tls — TLS over a fly.net socket.
+//
+// AVAILABILITY IS A RUNTIME FACT, not a compile-time one. Ask tlsAvailable()
+// before relying on any of this:
+//   Linux   — a real backend (OpenSSL) when the program was built with --tls;
+//   Windows — a real backend (Schannel) when the program was built with --tls;
+//             fly.net.http's WinHttp path serves https without it;
+//   macOS   — false, and not merely unimplemented: Secure Transport's
+//             SSLSetIOFuncs REQUIRES two C callbacks into the transport, and Fly
+//             cannot produce a function pointer. The realistic route there is
+//             linking OpenSSL from Homebrew and reusing the Linux backend
+//             verbatim — configuration, not new code.
+//
+// Without --tls the link picks up a no-op stub instead of the real backend (see
+// runtime/lib/TlsStub.fly), so a program that never asked for TLS still links on
+// a machine with no libssl — and tlsAvailable() tells the truth rather than
+// failing mysteriously at handshake time.
+//
+// A connection is an opaque `pointer` handle, 0 = invalid. Handles rather than a
+// class for the usual std reason: a header-declared class does not survive the
+// archive boundary intact.
+//
+//   TlsConn heap layout (16 bytes):
+//     [0..7]  long    the underlying socket (closed by tlsClose)
+//     [8..15] pointer the runtime's backend context
+//
+// VERIFICATION IS ON BY DEFAULT and is a per-connection parameter — there is no
+// global switch, because Fly has no global storage. Turning it off accepts ANY
+// certificate and defeats the point of TLS; it exists only for talking to a host
+// with a self-signed certificate you already trust by other means.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Copy a Fly string into a fresh null-terminated C-string buffer. Duplicated per
+// the std convention rather than shared.
+private pointer strToCstr(const string src) {
+    int size = 0
+    fly.llvm.strSize(src, size)
+    int cap = size + 1
+    pointer buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    int i = 0
+    while i < size {
+        byte b = 0
+        fly.llvm.strByteAt(src, i, b)
+        fly.llvm.strPoke(buf, i, b)
+        i = i + 1
+    }
+    fly.llvm.strPoke(buf, size, 0)
+    out = buf
+}
+
+// tlsAvailable — true when a real TLS backend is linked into this program. When
+// false every connect below fails cleanly and nothing pretends otherwise.
+public bool tlsAvailable() {
+    int v = 0
+    fly.runtime.tls_available(v)
+    out = v != 0
+}
+
+// tlsWrap — put an already-connected socket into a TLS session. `sniHost` is sent
+// as the SNI server name AND, when `verify` is true, checked against the
+// certificate. Returns a connection handle, or 0 on failure — including when no
+// backend is linked.
+//
+// The socket becomes owned by the connection: tlsClose closes it.
+public pointer tlsWrap(const long sock, const string sniHost, const bool verify) {
+    if sock < 0 { out = 0  return }
+    pointer chost = 0
+    if fly.str.isEmpty(sniHost) == false { chost = strToCstr(sniHost) }
+    int v = 0
+    if verify { v = 1 }
+    pointer ctx = 0
+    fly.runtime.tls_connect(sock, chost, v, ctx)
+    if chost != 0 { fly.runtime.mem_free(chost, 0) }
+    if ctx == 0 { out = 0  return }
+    pointer c = 0
+    fly.runtime.mem_alloc(16, c)
+    fly.mem.writeLong(c, 0, sock)
+    fly.mem.writePtr(c, 8, ctx)
+    out = c
+}
+
+// tlsConnectOpts — resolve, connect and handshake in one call. `timeoutMs` > 0
+// bounds every later read; `verify` false accepts any certificate. Returns 0 on
+// any failure, having closed the socket it opened.
+public pointer tlsConnectOpts(const string host, const int port, const bool verify, const int timeoutMs) {
+    if tlsAvailable() == false { out = 0  return }
+    long s = fly.net.connectTo(host, port)
+    if s < 0 { out = 0  return }
+    if timeoutMs > 0 { fly.net.setRecvTimeout(s, timeoutMs) }
+    pointer c = tlsWrap(s, host, verify)
+    if c == 0 {
+        fly.net.close(s)
+        out = 0
+        return
+    }
+    out = c
+}
+
+// tlsConnect — tlsConnectOpts with certificate verification ON and no timeout.
+public pointer tlsConnect(const string host, const int port) {
+    out = tlsConnectOpts(host, port, true, 0)
+}
+
+// tlsSocket — the underlying socket, or -1 for a null handle. For poll sets;
+// reading or writing it directly would bypass the encryption.
+public long tlsSocket(const pointer c) {
+    if c == 0 { out = 0 - 1  return }
+    out = fly.mem.readLong(c, 0)
+}
+
+// tlsSend — ONE write attempt. Returns the byte count, which unlike a raw socket
+// is either all of `n` or an error: the record layer does not do short writes.
+// < 0 on error.
+public long tlsSend(const pointer c, const pointer buf, const int n) {
+    if c == 0 { out = 0 - 1  return }
+    pointer ctx = fly.mem.readPtr(c, 8)
+    long w = 0
+    fly.runtime.tls_send(ctx, buf, n, w)
+    out = w
+}
+
+// tlsSendStr — tlsSend over a string's bytes. An empty string succeeds without
+// touching the connection.
+public bool tlsSendStr(const pointer c, const string data) {
+    if c == 0 { out = false  return }
+    int n = fly.str.len(data)
+    if n == 0 { out = true  return }
+    pointer buf = strToCstr(data)
+    long w = tlsSend(c, buf, n)
+    fly.runtime.mem_free(buf, 0)
+    out = w == n
+}
+
+// tlsRecv — ONE blocking read of up to n bytes. > 0 bytes, 0 at a clean end of
+// session (the peer sent close_notify), < 0 on error or timeout.
+public long tlsRecv(const pointer c, const pointer buf, const int n) {
+    if c == 0 { out = 0 - 1  return }
+    pointer ctx = fly.mem.readPtr(c, 8)
+    long r = 0
+    fly.runtime.tls_recv(ctx, buf, n, r)
+    out = r
+}
+
+// tlsRecvStr — one read into a fresh string. Empty at end of session or on error.
+public string tlsRecvStr(const pointer c, const int max) {
+    if c == 0 || max <= 0 { out = ""  return }
+    pointer buf = 0
+    fly.runtime.mem_alloc(max, buf)
+    long got = tlsRecv(c, buf, max)
+    if got <= 0 {
+        fly.runtime.mem_free(buf, 0)
+        out = ""
+        return
+    }
+    int n = 0
+    fly.llvm.longToInt(got, n)
+    fly.llvm.strMake(buf, n, out)
+}
+
+// tlsRecvAll — read until the session ends, into one string. The buffer is
+// allocated once and doubled; concatenating per read would be quadratic. The
+// 64 MiB ceiling is a runaway guard, not a protocol limit.
+public string tlsRecvAll(const pointer c) {
+    if c == 0 { out = ""  return }
+    int limit = 67108864
+    int cap = 8192
+    pointer buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    int len = 0
+    bool go = true
+    while go {
+        if len >= limit { go = false } else {
+            if len >= cap {
+                int want = cap * 2
+                if want > limit { want = limit }
+                pointer bigger = 0
+                fly.runtime.mem_realloc(buf, want, bigger)
+                buf = bigger
+                cap = want
+            }
+            int room = cap - len
+            pointer at = buf + len
+            long got = tlsRecv(c, at, room)
+            if got <= 0 { go = false } else {
+                int adv = 0
+                fly.llvm.longToInt(got, adv)
+                len = len + adv
+            }
+        }
+    }
+    if len == 0 {
+        fly.runtime.mem_free(buf, 0)
+        out = ""
+        return
+    }
+    fly.llvm.strMake(buf, len, out)
+}
+
+// tlsLastError — the backend's raw error code for the last failed operation on
+// this connection, 0 when none. Not translated: the values are OpenSSL's.
+public int tlsLastError(const pointer c) {
+    if c == 0 { out = 0  return }
+    pointer ctx = fly.mem.readPtr(c, 8)
+    int e = 0
+    fly.runtime.tls_last_error(ctx, e)
+    out = e
+}
+
+// tlsClose — send close_notify, release the session AND close the socket. Safe on
+// a null handle, and idempotent in the sense that the handle is dead afterwards.
+public void tlsClose(const pointer c) {
+    if c == 0 { return }
+    pointer ctx = fly.mem.readPtr(c, 8)
+    if ctx != 0 {
+        fly.runtime.tls_shutdown(ctx)
+        fly.runtime.tls_free(ctx)
+    }
+    long s = fly.mem.readLong(c, 0)
+    fly.net.close(s)
+    fly.mem.writePtr(c, 8, 0)
+    fly.runtime.mem_free(c, 16)
+}
+
+// tlsFree — release the session WITHOUT closing the socket, for a caller that
+// wants to keep it. Safe on a null handle.
+public void tlsFree(const pointer c) {
+    if c == 0 { return }
+    pointer ctx = fly.mem.readPtr(c, 8)
+    if ctx != 0 { fly.runtime.tls_free(ctx) }
+    fly.mem.writePtr(c, 8, 0)
+    fly.runtime.mem_free(c, 16)
+}

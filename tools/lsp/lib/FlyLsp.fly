@@ -1,0 +1,15 @@
+import fly.os.io
+import fly.lsp.LspServer
+
+// fly-lsp — the Fly language server. Speaks LSP over stdio.
+//
+// The two setBinaryMode calls are load-bearing on Windows: a text-mode fd 0
+// collapses \r\n and stops at 0x1A, a text-mode fd 1 rewrites the frame
+// terminators — either alone permanently desyncs the Content-Length framing.
+// They are no-ops on POSIX.
+void main() {
+    fly.os.io.setBinaryMode(0)
+    fly.os.io.setBinaryMode(1)
+    LspServer server = new LspServer()
+    server.run()
+}

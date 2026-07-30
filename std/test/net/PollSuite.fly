@@ -1,0 +1,378 @@
+import fly.net
+import fly.str
+import fly.mem
+import fly.os.env
+import fly.os.time
+import fly.os.time.Time
+import fly.assert
+
+// skipSockets — see NetSuite; gates every case that opens a socket so a
+// sandboxed CI reports green-but-skipped instead of a wall of red.
+bool skipSockets() {
+    out = fly.str.isEmpty(fly.os.env.get("FLY_SKIP_NET_TESTS")) == false
+}
+
+// msSince — milliseconds between two monotonic readings.
+long msSince(const Time a, const Time b) {
+    long ds = b.sec - a.sec
+    long dn = b.nsec - a.nsec
+    out = ds * 1000 + dn / 1000000
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PollSuite — the fly.net poll set (std/lib/net/net.fly): watching several
+// sockets from one thread. The analogue of Python's selectors, C's pollfd array
+// and Java's Selector.
+//
+// WHAT THIS BAND IS REALLY TESTING is the translation layer in the runtime. The
+// Fly-side entry array is 16 bytes per entry on every platform, and each backend
+// converts it to the native one — POSIX pollfd is 8 bytes with a 32-bit fd,
+// WSAPOLLFD is 16 with a 64-bit SOCKET — while remapping the event bits, which
+// share no values at all (POSIX POLLIN=1/POLLOUT=4 vs Windows
+// POLLRDNORM=256/POLLWRNORM=16). A mistake in either direction shows up as
+// "nothing is ever ready" or "everything is always ready", so the cases below
+// deliberately assert BOTH a positive readiness AND a timeout with nothing
+// ready — one without the other would pass against a broken translation.
+//
+// Sockets come from the single-threaded loopback self-connect NetSuite
+// documents: connect() to a listening socket completes without an accept(),
+// so one thread can build a connected pair.
+//
+// Every wait uses a bounded timeout. An unbounded pollWait in a test would hang
+// the suite rather than fail it, because `fail` does not abort a case.
+//
+// Assert codes: 1xx set lifecycle, 2xx add/remove/set bookkeeping,
+// 3xx readiness, 4xx timeouts and errors.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite PollSuite {
+
+    // ── the set itself, no sockets involved ──────────────────────────────────
+    void lifecycleTest() {
+        case "a fresh set is empty": {
+            pointer ps = net.pollNew()
+            assert.assertNotNull(ps, 101)
+            assert.assertEqI(net.pollCount(ps), 0, 102)
+            net.pollFree(ps)
+        }
+        case "the event bits are the documented values": {
+            assert.assertEqI(net.pollRead(), 1, 103)
+            assert.assertEqI(net.pollWrite(), 2, 104)
+            assert.assertEqI(net.pollErr(), 4, 105)
+            assert.assertEqI(net.pollHup(), 8, 106)
+        }
+        case "every accessor tolerates a null set": {
+            assert.assertEqI(net.pollCount(0), 0, 107)
+            assert.assertEqI(net.pollAdd(0, 1, 1), 0 - 1, 108)
+            assert.assertFalse(net.pollSet(0, 0, 1), 109)
+            assert.assertFalse(net.pollRemove(0, 0), 110)
+            assert.assertEqL(net.pollSocketAt(0, 0), 0 - 1, 111)
+            assert.assertEqI(net.pollEventsAt(0, 0), 0, 112)
+            assert.assertEqI(net.pollRevents(0, 0), 0, 113)
+            assert.assertEqI(net.pollWait(0, 0), 0 - 1, 114)
+            net.pollFree(0)
+        }
+        case "waiting on an empty set is an immediate zero": {
+            // Nothing to watch is not an error, and must not block.
+            pointer ps = net.pollNew()
+            Time t0 = time.monotonic()
+            assert.assertEqI(net.pollWait(ps, 5000), 0, 115)
+            Time t1 = time.monotonic()
+            assert.assertTrue(msSince(t0, t1) < 1000, 116)
+            net.pollFree(ps)
+        }
+    }
+
+    // ── add / set / remove bookkeeping ───────────────────────────────────────
+    void bookkeepingTest() {
+        case "add returns the index and records the socket": {
+            if skipSockets() { assert.assertTrue(true, 201) } else {
+                pointer ps = net.pollNew()
+                long a = net.socket()
+                long b = net.socket()
+                assert.assertEqI(net.pollAdd(ps, a, net.pollRead()), 0, 201)
+                assert.assertEqI(net.pollAdd(ps, b, net.pollWrite()), 1, 202)
+                assert.assertEqI(net.pollCount(ps), 2, 203)
+                assert.assertEqL(net.pollSocketAt(ps, 0), a, 204)
+                assert.assertEqL(net.pollSocketAt(ps, 1), b, 205)
+                assert.assertEqI(net.pollEventsAt(ps, 1), net.pollWrite(), 206)
+                net.pollFree(ps)
+                net.close(a)
+                net.close(b)
+            }
+        }
+        case "adding a negative socket is refused": {
+            pointer ps = net.pollNew()
+            assert.assertEqI(net.pollAdd(ps, 0 - 1, 1), 0 - 1, 207)
+            assert.assertEqI(net.pollCount(ps), 0, 208)
+            net.pollFree(ps)
+        }
+        case "the set grows past its initial capacity of 8": {
+            if skipSockets() { assert.assertTrue(true, 209) } else {
+                pointer ps = net.pollNew()
+                long first = net.socket()
+                int i = 0
+                while i < 20 {
+                    net.pollAdd(ps, first, net.pollRead())
+                    i = i + 1
+                }
+                assert.assertEqI(net.pollCount(ps), 20, 209)
+                assert.assertEqL(net.pollSocketAt(ps, 19), first, 210)
+                net.pollFree(ps)
+                net.close(first)
+            }
+        }
+        case "set changes what an entry watches": {
+            if skipSockets() { assert.assertTrue(true, 211) } else {
+                pointer ps = net.pollNew()
+                long s = net.socket()
+                net.pollAdd(ps, s, net.pollRead())
+                assert.assertTrue(net.pollSet(ps, 0, net.pollWrite()), 211)
+                assert.assertEqI(net.pollEventsAt(ps, 0), net.pollWrite(), 212)
+                assert.assertFalse(net.pollSet(ps, 5, net.pollRead()), 213)
+                net.pollFree(ps)
+                net.close(s)
+            }
+        }
+        case "remove moves the LAST entry into the hole": {
+            // Indices are not stable across a removal; this pins that contract
+            // so nobody writes a forward loop that skips an entry.
+            if skipSockets() { assert.assertTrue(true, 214) } else {
+                pointer ps = net.pollNew()
+                long a = net.socket()
+                long b = net.socket()
+                long c = net.socket()
+                net.pollAdd(ps, a, net.pollRead())
+                net.pollAdd(ps, b, net.pollRead())
+                net.pollAdd(ps, c, net.pollRead())
+                assert.assertTrue(net.pollRemove(ps, 0), 214)
+                assert.assertEqI(net.pollCount(ps), 2, 215)
+                assert.assertEqL(net.pollSocketAt(ps, 0), c, 216)
+                assert.assertEqL(net.pollSocketAt(ps, 1), b, 217)
+                assert.assertFalse(net.pollRemove(ps, 9), 218)
+                net.pollFree(ps)
+                net.close(a)
+                net.close(b)
+                net.close(c)
+            }
+        }
+        case "out-of-range reads are neutral, not faults": {
+            pointer ps = net.pollNew()
+            assert.assertEqL(net.pollSocketAt(ps, 0), 0 - 1, 219)
+            assert.assertEqI(net.pollEventsAt(ps, 0), 0, 220)
+            assert.assertEqI(net.pollRevents(ps, 0), 0, 221)
+            assert.assertFalse(net.pollIsReady(ps, 0, net.pollRead()), 222)
+            net.pollFree(ps)
+        }
+    }
+
+    // ── readiness: the translation layer under test ──────────────────────────
+    void readinessTest() {
+        case "a socket with data pending reports read-ready": {
+            if skipSockets() { assert.assertTrue(true, 301) } else {
+                long srv = net.listenOn(net.loopback(), 0, 4)
+                int port = net.localPort(srv)
+                long cli = net.socket()
+                bool ok = net.connect(cli, net.loopback(), port)
+                assert.assertTrue(ok, 301)
+                if ok {
+                    long acc = net.accept(srv)
+                    net.sendStr(cli, "ping")
+
+                    pointer ps = net.pollNew()
+                    int idx = net.pollAdd(ps, acc, net.pollRead())
+                    assert.assertEqI(net.pollWait(ps, 3000), 1, 302)
+                    assert.assertTrue(net.pollIsReady(ps, idx, net.pollRead()), 303)
+                    // and the data really is there
+                    assert.assertStr(net.recvStr(acc, 16), "ping", 304)
+                    net.pollFree(ps)
+                    net.close(acc)
+                }
+                net.close(cli)
+                net.close(srv)
+            }
+        }
+        case "an idle socket reports nothing and the wait times out": {
+            // The negative half of the pair above. If the event translation were
+            // wrong in the "everything is ready" direction, only this case
+            // would catch it.
+            if skipSockets() { assert.assertTrue(true, 305) } else {
+                long srv = net.listenOn(net.loopback(), 0, 4)
+                int port = net.localPort(srv)
+                long cli = net.socket()
+                bool ok = net.connect(cli, net.loopback(), port)
+                assert.assertTrue(ok, 305)
+                if ok {
+                    long acc = net.accept(srv)
+                    pointer ps = net.pollNew()
+                    int idx = net.pollAdd(ps, acc, net.pollRead())
+                    Time t0 = time.monotonic()
+                    assert.assertEqI(net.pollWait(ps, 300), 0, 306)
+                    Time t1 = time.monotonic()
+                    long ms = msSince(t0, t1)
+                    assert.assertTrue(ms >= 100, 307)      // really waited
+                    assert.assertTrue(ms < 30000, 308)     // and came back
+                    assert.assertEqI(net.pollRevents(ps, idx), 0, 309)
+                    net.pollFree(ps)
+                    net.close(acc)
+                }
+                net.close(cli)
+                net.close(srv)
+            }
+        }
+        case "a fresh connected socket is write-ready immediately": {
+            if skipSockets() { assert.assertTrue(true, 310) } else {
+                long srv = net.listenOn(net.loopback(), 0, 4)
+                int port = net.localPort(srv)
+                long cli = net.socket()
+                bool ok = net.connect(cli, net.loopback(), port)
+                assert.assertTrue(ok, 310)
+                if ok {
+                    long acc = net.accept(srv)
+                    pointer ps = net.pollNew()
+                    int idx = net.pollAdd(ps, cli, net.pollWrite())
+                    assert.assertEqI(net.pollWait(ps, 3000), 1, 311)
+                    assert.assertTrue(net.pollIsReady(ps, idx, net.pollWrite()), 312)
+                    net.pollFree(ps)
+                    net.close(acc)
+                }
+                net.close(cli)
+                net.close(srv)
+            }
+        }
+        case "a listening socket with a pending connection is read-ready": {
+            // This is the accept-loop shape a server actually uses.
+            if skipSockets() { assert.assertTrue(true, 313) } else {
+                long srv = net.listenOn(net.loopback(), 0, 4)
+                int port = net.localPort(srv)
+
+                pointer idle = net.pollNew()
+                net.pollAdd(idle, srv, net.pollRead())
+                assert.assertEqI(net.pollWait(idle, 200), 0, 313)   // nobody yet
+                net.pollFree(idle)
+
+                long cli = net.socket()
+                bool ok = net.connect(cli, net.loopback(), port)
+                assert.assertTrue(ok, 314)
+                if ok {
+                    pointer ps = net.pollNew()
+                    int idx = net.pollAdd(ps, srv, net.pollRead())
+                    assert.assertEqI(net.pollWait(ps, 3000), 1, 315)
+                    assert.assertTrue(net.pollIsReady(ps, idx, net.pollRead()), 316)
+                    long acc = net.accept(srv)
+                    assert.assertTrue(acc >= 0, 317)
+                    net.pollFree(ps)
+                    net.close(acc)
+                }
+                net.close(cli)
+                net.close(srv)
+            }
+        }
+        case "only the ready socket of several is reported": {
+            // Two watched sockets, one with data: the count must be 1 and the
+            // right index must carry the bit. A stride mistake in the native
+            // array shows up here as the wrong entry lighting up.
+            if skipSockets() { assert.assertTrue(true, 318) } else {
+                long srv = net.listenOn(net.loopback(), 0, 4)
+                int port = net.localPort(srv)
+                long cliA = net.socket()
+                bool okA = net.connect(cliA, net.loopback(), port)
+                assert.assertTrue(okA, 318)
+                if okA {
+                    long accA = net.accept(srv)
+                    long cliB = net.socket()
+                    bool okB = net.connect(cliB, net.loopback(), port)
+                    assert.assertTrue(okB, 319)
+                    if okB {
+                        long accB = net.accept(srv)
+                        net.sendStr(cliB, "hello")
+
+                        pointer ps = net.pollNew()
+                        int iA = net.pollAdd(ps, accA, net.pollRead())
+                        int iB = net.pollAdd(ps, accB, net.pollRead())
+                        assert.assertEqI(net.pollWait(ps, 3000), 1, 320)
+                        assert.assertFalse(net.pollIsReady(ps, iA, net.pollRead()), 321)
+                        assert.assertTrue(net.pollIsReady(ps, iB, net.pollRead()), 322)
+                        net.pollFree(ps)
+                        net.close(accB)
+                        net.close(cliB)
+                    }
+                    net.close(accA)
+                }
+                net.close(cliA)
+                net.close(srv)
+            }
+        }
+        case "a closed peer wakes the wait rather than hanging it": {
+            // The platforms genuinely disagree on WHICH bit says "the peer is
+            // gone": POSIX marks the socket READABLE (the following recv returns
+            // 0), while Winsock sets POLLHUP and does NOT set POLLRDNORM. So the
+            // portable contract is "read OR hup OR err", and a caller that wants
+            // to detect EOF must attempt the read rather than trust one bit.
+            if skipSockets() { assert.assertTrue(true, 323) } else {
+                long srv = net.listenOn(net.loopback(), 0, 4)
+                int port = net.localPort(srv)
+                long cli = net.socket()
+                bool ok = net.connect(cli, net.loopback(), port)
+                assert.assertTrue(ok, 323)
+                if ok {
+                    long acc = net.accept(srv)
+                    net.close(cli)
+                    pointer ps = net.pollNew()
+                    int idx = net.pollAdd(ps, acc, net.pollRead())
+                    assert.assertTrue(net.pollWait(ps, 3000) >= 1, 324)
+                    int gone = net.pollRead() | net.pollHup() | net.pollErr()
+                    assert.assertTrue(net.pollIsReady(ps, idx, gone), 325)
+                    pointer buf = fly.mem.alloc(16)
+                    assert.assertEqL(net.recv(acc, buf, 16), 0, 326)   // EOF
+                    fly.mem.free(buf, 16)
+                    net.pollFree(ps)
+                    net.close(acc)
+                }
+                net.close(srv)
+            }
+        }
+    }
+
+    // ── timeouts and degenerate waits ────────────────────────────────────────
+    void timeoutTest() {
+        case "a zero timeout polls and returns at once": {
+            if skipSockets() { assert.assertTrue(true, 401) } else {
+                long srv = net.listenOn(net.loopback(), 0, 4)
+                pointer ps = net.pollNew()
+                net.pollAdd(ps, srv, net.pollRead())
+                Time t0 = time.monotonic()
+                assert.assertEqI(net.pollWait(ps, 0), 0, 401)
+                Time t1 = time.monotonic()
+                assert.assertTrue(msSince(t0, t1) < 1000, 402)
+                net.pollFree(ps)
+                net.close(srv)
+            }
+        }
+        case "revents is cleared between waits": {
+            // A stale revents would make a one-shot readiness look permanent.
+            if skipSockets() { assert.assertTrue(true, 403) } else {
+                long srv = net.listenOn(net.loopback(), 0, 4)
+                int port = net.localPort(srv)
+                long cli = net.socket()
+                bool ok = net.connect(cli, net.loopback(), port)
+                assert.assertTrue(ok, 403)
+                if ok {
+                    long acc = net.accept(srv)
+                    net.sendStr(cli, "x")
+                    pointer ps = net.pollNew()
+                    int idx = net.pollAdd(ps, acc, net.pollRead())
+                    assert.assertEqI(net.pollWait(ps, 3000), 1, 404)
+                    assert.assertTrue(net.pollIsReady(ps, idx, net.pollRead()), 405)
+                    net.recvStr(acc, 16)                       // drain it
+                    assert.assertEqI(net.pollWait(ps, 200), 0, 406)
+                    assert.assertEqI(net.pollRevents(ps, idx), 0, 407)
+                    net.pollFree(ps)
+                    net.close(acc)
+                }
+                net.close(cli)
+                net.close(srv)
+            }
+        }
+    }
+}

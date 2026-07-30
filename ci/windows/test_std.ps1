@@ -14,6 +14,11 @@
 # Scope: ONLY std/test. Compiler, driver and runtime suites run in their own
 # scripts, mirroring Linux.
 # -----------------------------------------------------------------------------
+# Optional SELECTOR (first argument, or $env:FLY_TEST_SUITE): a suite name, a
+# qualified ns.SuiteName, or a NAMESPACE (its whole subtree) — see
+# test_compiler.ps1. Empty = every std suite.
+param([string]$Suite = '')
+
 $ErrorActionPreference = 'Continue'
 $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
@@ -69,10 +74,92 @@ if (-not (Test-Path $FLY -PathType Leaf)) {
 }
 $FLY = (Resolve-Path $FLY).Path
 
+$tests = Get-ChildItem -Recurse -Filter *Suite.fly std/test | Sort-Object FullName
+
+# ── Selector ──────────────────────────────────────────────────────────────────
+# Same matching as the compiler's --suite=<sel> (bare name / ns.Name /
+# namespace subtree), so the per-suite loop filters identically.
+$SEL = if ($Suite) { $Suite } elseif ($env:FLY_TEST_SUITE) { $env:FLY_TEST_SUITE } else { '' }
+
+function Test-SuiteSelMatch([string]$file, [string]$name, [string]$sel) {
+    if (-not $sel) { return $true }
+    if ($name -eq $sel) { return $true }
+    $nsLine = Select-String -Path $file -Pattern '^namespace\s+([A-Za-z0-9_.]+)' | Select-Object -First 1
+    if (-not $nsLine) { return $false }             # namespace-less: bare name only
+    $ns = $nsLine.Matches[0].Groups[1].Value
+    if ($ns -eq $sel) { return $true }
+    if ("$ns.$name" -eq $sel) { return $true }
+    if ($ns.StartsWith("$sel.")) { return $true }
+    return $false
+}
+
+$selected = @($tests | Where-Object { Test-SuiteSelMatch $_.FullName $_.BaseName $SEL })
+if ($selected.Count -eq 0) {
+    Write-Host "error: no suite or namespace matches '$SEL' under std/test"
+    exit 1
+}
+
+# ── Run mode ──────────────────────────────────────────────────────────────────
+# ONE-SHOT (default for the self-host stages, like test_compiler.ps1): one bare
+# `--suite` build compiles the std tree ONCE into a single test binary running
+# all suites — unblocked by the B036 fix (identity-strong specialization keys).
+# Report lines are DEDUPED by suite name (worst result wins): OsProcSuite's
+# spawnSuccessTest re-runs the whole binary as a child BY DESIGN, so every
+# suite reports twice in the merged log. Per-suite loop kept for STAGE=0 (the
+# pinned seed) and FLY_TEST_PER_SUITE=1 (debugging).
+$oneShot = ($STAGE -ne '0') -and ($env:FLY_TEST_PER_SUITE -ne '1')
+
+if ($oneShot) {
+    $log = "$OUT/_std_oneshot.log"
+    if ($SEL) {
+        & $FLY --suite=$SEL --src-dir std -o std_all --out-dir $OUT -L $STD *> $log
+    } else {
+        & $FLY --suite --src-dir std -o std_all --out-dir $OUT -L $STD *> $log
+    }
+    $code = $LASTEXITCODE
+
+    # Dedup by suite name, keeping the WORST failure count (parent + self-spawn
+    # child both report every suite; a suite red in either run must stay red).
+    $reported = @{}
+    foreach ($m in (Select-String -Path $log -Pattern '^suite (\S+): (\d+) cases, (\d+) passed, (\d+) failed')) {
+        $name = $m.Matches[0].Groups[1].Value
+        $nfail = [int]$m.Matches[0].Groups[4].Value
+        if (-not $reported.ContainsKey($name) -or $nfail -gt $reported[$name]) { $reported[$name] = $nfail }
+    }
+    $pass = 0
+    $fail = 0
+    foreach ($name in ($reported.Keys | Sort-Object)) {
+        if ($reported[$name] -eq 0) { Write-Host "  PASS          $name"; $pass++ }
+        else { Write-Host "  RUN  FAIL     $name ($($reported[$name]) failed)"; $fail++ }
+    }
+
+    if ($reported.Count -eq 0) {
+        Write-Host "  COMPILE FAIL  (exit $code) - $log"
+        $hits = Select-String -Path $log -Pattern 'error:|broken|abort' | Select-Object -First 6
+        if ($hits) { $hits | ForEach-Object { "      $($_.Line)" } }
+        else { Get-Content -Tail 6 $log | ForEach-Object { "      $_" } }
+        exit 1
+    }
+
+    if ($fail -gt 0) {
+        Select-String -Path $log -Pattern 'FAIL\(' | Select-Object -First 12 |
+            ForEach-Object { "      $($_.Line)" }
+    }
+
+    # A crashing suite kills the shared runner: surface the suites left silent.
+    $missing = @($selected | Where-Object { -not $reported.ContainsKey($_.BaseName) })
+    foreach ($m2 in $missing) {
+        Write-Host "  NO REPORT     $($m2.BaseName) (run aborted before it? exit $code)"
+    }
+
+    Write-Host ([string]::new([char]0x2500, 45))
+    Write-Host "  $pass passed, $fail failed, $($missing.Count) unreported (one-shot, exit $code)"
+    if (($fail -eq 0) -and ($missing.Count -eq 0) -and ($code -eq 0)) { exit 0 } else { exit 1 }
+}
+
 $pass = 0
 $fail = 0
-$tests = Get-ChildItem -Recurse -Filter *Suite.fly std/test | Sort-Object FullName
-foreach ($t in $tests) {
+foreach ($t in $selected) {
     $name = $t.BaseName
     $log = "$OUT/_std_$name.log"
 

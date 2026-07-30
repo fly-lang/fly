@@ -52,6 +52,7 @@ public enum DiagID {
     err_parser_class_block_unclosed,
     err_parser_new_instance,
     err_parser_fail_too_many_expr,
+    err_parser_multi_assign_call,
     err_parser_namespace_not_first,
     err_parser_multiple_namespace,
     err_parser_unexpected_top_level_token,
@@ -80,7 +81,14 @@ public enum DiagID {
     err_sema_multiple_inheritance,
     err_sema_forin_not_iterable,
     err_sema_array_element_mismatch,
-    err_sema_cannot_infer_array_type
+    err_sema_cannot_infer_array_type,
+    err_sema_type_mismatch,
+    err_sema_multi_assign_arity,
+    err_sema_main_with_return,
+    err_sema_array_no_size_or_init,
+    err_sema_subscript_not_array,
+    err_sema_subscript_index_not_int,
+    err_sema_array_class_no_default_ctor
 }
 
 // getDiagClass — the class column for a diagnostic id.
@@ -132,6 +140,7 @@ public string getDescription(const DiagID id) {
     if id == DiagID.err_parser_class_block_unclosed { out = "unclosed class or struct body: missing '}'" return }
     if id == DiagID.err_parser_new_instance { out = "expected a class name after 'new'" return }
     if id == DiagID.err_parser_fail_too_many_expr { out = "'fail' accepts at most 3 expressions: (code, message, cause)" return }
+    if id == DiagID.err_parser_multi_assign_call { out = "the right side of a multi-assignment must be a function or method call" return }
     if id == DiagID.err_parser_namespace_not_first { out = "'namespace' must be the first declaration in a file" return }
     if id == DiagID.err_parser_multiple_namespace { out = "a file can contain only one 'namespace' declaration" return }
     if id == DiagID.err_parser_unexpected_top_level_token { out = "unexpected '%0' at top level; expected a function, class, enum, struct, or import declaration" return }
@@ -160,5 +169,12 @@ public string getDescription(const DiagID id) {
     if id == DiagID.err_sema_forin_not_iterable { out = "for-in requires a collection with 'size()' and 'get(index)' methods; type '%0' does not provide them" return }
     if id == DiagID.err_sema_array_element_mismatch { out = "array element of type '%0' does not match the array's element type" return }
     if id == DiagID.err_sema_cannot_infer_array_type { out = "cannot infer the element type of an empty array literal; annotate the target (e.g. 'int[] a = {}')" return }
+    if id == DiagID.err_sema_type_mismatch { out = "cannot assign a value of type '%0' to a variable of type '%1'" return }
+    if id == DiagID.err_sema_multi_assign_arity { out = "the receivers of the multi-assignment do not match the return values of '%0'" return }
+    if id == DiagID.err_sema_main_with_return { out = "'main()' must be declared 'void': the exit code comes from an unhandled 'fail', not from 'out'" return }
+    if id == DiagID.err_sema_array_no_size_or_init { out = "array declaration must specify either a size (e.g. 'int[10]') or an initializer (e.g. 'int[] = {1,2,3}')" return }
+    if id == DiagID.err_sema_subscript_not_array { out = "'%0' is not an array; only arrays can be indexed with '[]'" return }
+    if id == DiagID.err_sema_subscript_index_not_int { out = "the array subscript index must be an integer, not '%0'" return }
+    if id == DiagID.err_sema_array_class_no_default_ctor { out = "a sized array of '%0' cannot be created: every index would be built with '%0()', and '%0' has no constructor taking no arguments; use an array literal to supply the elements instead" return }
     out = "unknown diagnostic"
 }

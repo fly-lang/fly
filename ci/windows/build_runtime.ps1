@@ -96,6 +96,62 @@ if (Test-Path $genHdr) {
     }
 }
 
+# -- TLS stub -> fly_tls_stub.lib + TlsStub.fly.h ------------------------------
+#
+# The stub is built on EVERY platform and is ALWAYS linked. Its header carries the
+# canonical tls_* declarations that std/lib/net/tls.fly compiles against, so that
+# module builds even where there is no TLS backend at all (Windows today).
+#
+# It lives in a SEPARATE archive from fly_runtime_lib on purpose: a real backend
+# (runtime/lib/TlsSchannel.fly here, TlsOpenSSL.fly on Linux) defines the same
+# seven symbols and is linked AHEAD of this one under --tls, so archive lazy
+# extraction never pulls the stub member. Putting either half inside the main
+# runtime archive would defeat that, since the main member is always extracted.
+#
+# The header keeps its generated name (TlsStub.fly.h): loadHeadersFromDir parses
+# every *.fly.h in the lib dir regardless of name, and a namespace may legitimately
+# be split across two headers — probed before this was written.
+$T2 = 'build/tmp_tls'
+Remove-Item $T2 -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force $T2 | Out-Null
+Write-Host "stage${STAGE}: compiling runtime/lib/TlsStub.fly ..."
+Copy-Item runtime/lib/TlsStub.fly "$T2/TlsStub.fly" -Force
+& $FLY --lib @DBG @FLY_TARGET_ARGS -o "$T2/fly_tls_stub" -L $LIB --src-dir $T2
+Assert-LastExit 'tls stub --lib build'
+$emittedTls = @("$T2/fly_tls_stub.lib", "$T2/fly_tls_stub.a", "$T2/fly_tls_stub") | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $emittedTls) { Write-Host "error: tls stub library not emitted."; exit 1 }
+Move-Item $emittedTls "$LIB/fly_tls_stub.lib" -Force
+$tlsHdr = "$T2/TlsStub.fly.h"
+if (Test-Path $tlsHdr) {
+    Split-GenericClosers $tlsHdr
+    Copy-Item $tlsHdr "$LIB/TlsStub.fly.h" -Force
+} elseif (-not (Test-Path "$LIB/TlsStub.fly.h")) {
+    Write-Host "error: tls stub header not emitted."; exit 1
+}
+Remove-Item $T2 -Recurse -Force -ErrorAction SilentlyContinue
+
+# -- TLS backend -> fly_tls_lib.lib (Schannel, --tls only) ---------------------
+#
+# Schannel ships with Windows, so unlike OpenSSL there is no "is it installed?"
+# question — but this archive is STILL gated behind --tls, for two reasons: the
+# gate is what keeps the stub/real selection a pure link-order decision on every
+# platform, and it keeps -lsecur32 -lcrypt32 off the command line of every hello
+# world that never asked for TLS.
+#
+# The generated header is deliberately NOT copied: TlsStub.fly.h is the canonical
+# declaration of the tls_* primitives, and emitting both would declare the same
+# functions twice in namespace fly.runtime.
+Remove-Item $T2 -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Force $T2 | Out-Null
+Write-Host "stage${STAGE}: compiling runtime/lib/TlsSchannel.fly (real backend, --tls only) ..."
+Copy-Item runtime/lib/TlsSchannel.fly "$T2/TlsSchannel.fly" -Force
+& $FLY --lib @DBG @FLY_TARGET_ARGS -o "$T2/fly_tls_lib" -L $LIB --src-dir $T2
+Assert-LastExit 'tls backend --lib build'
+$emittedReal = @("$T2/fly_tls_lib.lib", "$T2/fly_tls_lib.a", "$T2/fly_tls_lib") | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $emittedReal) { Write-Host "error: tls backend library not emitted."; exit 1 }
+Move-Item $emittedReal "$LIB/fly_tls_lib.lib" -Force
+Remove-Item $T2 -Recurse -Force -ErrorAction SilentlyContinue
+
 Remove-Item $T -Recurse -Force -ErrorAction SilentlyContinue
-Write-Host "stage${STAGE}: runtime -> $LIB/fly_runtime_lib.lib (+ runtime.fly.h, llvm.fly.h)"
+Write-Host "stage${STAGE}: runtime -> $LIB/fly_runtime_lib.lib (+ runtime.fly.h, llvm.fly.h, fly_tls_stub.lib, fly_tls_lib.lib)"
 exit 0

@@ -30,7 +30,11 @@ ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Bootstrap compiler release used to compile the std --lib archive + the self-host
 # sources. Must ship the ptrsize header-gen fix (fly Frontend.cpp typeStr).
-FLY_VERSION="${FLY_VERSION:-0.13.10}"
+# 0.13.13 is the first seed carrying the array subscript `k[i]`, `C[N]`
+# declarations and reference-counted array buffers. It is what allows compiler/**,
+# std/** and runtime/** to USE that syntax: this binary compiles the whole tree at
+# stage 1, so nothing in it may outrun the seed.
+FLY_VERSION="${FLY_VERSION:-0.13.13}"
 
 BUILD_DIR="$ROOT/build"
 STAGE0_DIR="$BUILD_DIR/stage0"

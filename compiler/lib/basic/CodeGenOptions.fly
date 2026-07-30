@@ -34,6 +34,11 @@ public class CodeGenOptions {
     bool pie
     bool staticPie
     bool debugSymbols
+    // enableTls (--tls) — link the real TLS backend plus -lssl -lcrypto instead of
+    // the always-present no-op stub. Opt-in because `-lssl` needs the development
+    // symlink, so making it unconditional would break every link on a machine that
+    // has only the runtime package.
+    bool enableTls
 
     // ── scalars / strings ──
     int optLevel              // OptimizationLevel (-O)
@@ -107,6 +112,7 @@ public class CodeGenOptions {
         this.pie = false
         this.staticPie = false
         this.debugSymbols = false
+        this.enableTls = false
         this.optLevel = 0
         this.jobs = 0
         this.bbSections = ""
@@ -186,6 +192,8 @@ public class CodeGenOptions {
     public void setStaticPie(const bool b) { this.staticPie = b }
     public bool getDebugSymbols() { out = this.debugSymbols }
     public void setDebugSymbols(const bool b) { this.debugSymbols = b }
+    public bool getEnableTls() { out = this.enableTls }
+    public void setEnableTls(const bool b) { this.enableTls = b }
 
     // ── scalar / string accessors ──
     public int getOptLevel()      { out = this.optLevel }

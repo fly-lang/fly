@@ -29,7 +29,10 @@ $ErrorActionPreference = 'Stop'
 # The literals below are the source of truth; CI may override via env so this
 # stays in sync with the cache key.
 $LLVM_VERSION = if ($env:LLVM_VERSION) { $env:LLVM_VERSION } else { "20.1.8" }
-$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.10" }
+# 0.13.13 is the first seed carrying the array subscript `k[i]`, `C[N]`
+# declarations and reference-counted array buffers — the syntax the tree may use
+# is bounded by what THIS binary can parse, since it compiles everything at stage 1.
+$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.13" }
 
 # Resolve everything against the PROJECT ROOT (this script lives in ci\windows\,
 # two levels down) so the downloads land next to the build regardless of the

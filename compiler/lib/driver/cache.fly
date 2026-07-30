@@ -8,7 +8,7 @@ import fly.os.io
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Cache — the ~/.fly/cache/<host>/<owner>/<repo>/<rev40>/ store.
-// Port of fly/tools/flyp/fetcher/Cache.{h,cpp}. parse_url is hand-rolled (no
+// Port of the reference C++ package manager fetcher/Cache.{h,cpp}. parse_url is hand-rolled (no
 // std::regex): it splits a git URL into host/owner/repo for the directory layout.
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -48,9 +48,18 @@ suite SemaArraySuite {
             bool err = resolveSrc("void f() { int[3] a }", 6)
             assert.assertFalse(err, 16)
         }
-        case "unsized int[] a resolves": {
+        // B048 rule 2: `T[]` with NEITHER a size NOR an initializer is an ERROR.
+        // It has no length to give it, so it could only ever be an empty array that
+        // nothing can fill. This case used to assert the opposite — the self-host
+        // accepted it silently while the reference had always rejected it.
+        case "unsized int[] a without an initializer is rejected": {
             bool err = resolveSrc("void f() { int[] a }", 7)
-            assert.assertFalse(err, 17)
+            assert.assertTrue(err, 17)
+        }
+        // …but WITH an initializer it is fine: the literal supplies the length.
+        case "unsized int[] a with an initializer resolves": {
+            bool err = resolveSrc("void f() { int[] a = {1, 2} }", 18)
+            assert.assertFalse(err, 19)
         }
     }
 
@@ -58,6 +67,40 @@ suite SemaArraySuite {
         case "for x in a over int[] resolves": {
             bool err = resolveSrc("void f() { int[] a = {1, 2, 3}  for x in a { } }", 8)
             assert.assertFalse(err, 18)
+        }
+    }
+
+    // Subscript typing. `k[i]` takes the array's ELEMENT type, which is what lets
+    // it stand anywhere a value of that type is expected. A base that is not an
+    // array, or an index that is not an integer, is a DIAGNOSTIC rather than a
+    // codegen abort: a rejected subscript resolves to null, so nothing downstream
+    // tries to address a base it cannot reach.
+    void subscriptTest() {
+        case "k[1] on an int[] resolves": {
+            bool err = resolveSrc("void f() { int[] k = {1, 2}  int x = k[1] }", 20)
+            assert.assertFalse(err, 21)
+        }
+        case "the element type reaches the assignment check": {
+            // `string s = k[0]` on an int[] must be a type error — the proof that
+            // the subscript carries the ELEMENT type and not something looser.
+            bool err = resolveSrc("void f() { int[] k = {1, 2}  string s = k[0] }", 22)
+            assert.assertTrue(err, 23)
+        }
+        case "a nested row types as the inner array": {
+            bool err = resolveSrc("void f() { int[][] m = {{1}}  int x = m[0][0] }", 24)
+            assert.assertFalse(err, 25)
+        }
+        case "subscripting a non-array is rejected": {
+            bool err = resolveSrc("void f() { int n = 1  int x = n[0] }", 26)
+            assert.assertTrue(err, 27)
+        }
+        case "a non-integer index is rejected": {
+            bool err = resolveSrc("void f() { int[] k = {1}  bool b = true  int x = k[b] }", 28)
+            assert.assertTrue(err, 29)
+        }
+        case "writing through a subscript resolves": {
+            bool err = resolveSrc("void f() { int[] k = {1, 2}  k[0] = 9 }", 30)
+            assert.assertFalse(err, 31)
         }
     }
 }

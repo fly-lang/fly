@@ -9,13 +9,13 @@ import fly.os.proc
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Builder — invoke the fly compiler to build a manifest's targets. Port of
-// fly/tools/flyp/builder/Builder.{h,cpp}, simplified: SEQUENTIAL (the C++ builds
+// the reference C++ package manager builder/Builder.{h,cpp}, simplified: SEQUENTIAL (the C++ builds
 // targets on a thread pool; Fly has no easy threading here). The C++'s
 // incremental-fingerprint cache IS ported (fingerprint.fly), upgraded: the
 // whole source tree is hashed (not just the entry file), the output artifacts
 // must still exist, and the compiler's own identity is part of the key. A
 // fresh target is skipped ("up-to-date <key>"); --force bypasses. Fingerprints
-// live in <outDir>/.flyp/<key>.fp — content hashes only, no mtimes.
+// live in <outDir>/.fly/<key>.fp — content hashes only, no mtimes.
 // Lockfile-based -L include paths are a follow-up (needs the Lockfile port).
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -103,7 +103,11 @@ public class Builder {
         string f = ""
         int i = 0
         while i < this.manifest.linkLibCount() {
-            string one = fly.str.concat(" --link-lib=", fly.driver.shellQuote(this.manifest.linkLibAt(i)))
+            // No quoting: these flags go straight into an argv (invokeFly execs
+            // directly), never through a shell. shellQuote here was worse than
+            // useless — it replaced an apostrophe with an underscore, silently
+            // corrupting any library name containing one.
+            string one = fly.str.concat(" --link-lib=", this.manifest.linkLibAt(i))
             f = fly.str.concat(f, one)
             i = i + 1
         }
@@ -157,10 +161,14 @@ public class Builder {
 
     // ── Incremental fingerprint cache ────────────────────────────────────────
 
-    // fpDir / fpPath — fingerprint files live under <outDir>/.flyp/<key>.fp, so
+    // fpDir / fpPath — fingerprint files live under <outDir>/.fly/<key>.fp, so
     // debug/release (separate outDirs) are isolated for free and `fly clean`
     // sweeps them with target/.
-    public string fpDir() { out = fly.os.path.join(this.outDir(), ".flyp") }
+    //
+    // The leading dot is what keeps them out of the way: discoverySkipsDir
+    // refuses to descend into ANY dot-directory, so nothing here can ever be
+    // mistaken for a project source.
+    public string fpDir() { out = fly.os.path.join(this.outDir(), ".fly") }
 
     public string fpPath(const string key) {
         out = fly.os.path.join(this.fpDir(), fly.str.concat(key, ".fp"))
@@ -349,6 +357,8 @@ public class Builder {
         }
         if t == null { out = 1  return }
         string bin = fly.str.concat(this.outDir(), fly.str.concat("/", t.getName()))
-        out = fly.driver.runShell(fly.driver.shellQuote(bin))
+        // Direct spawn, not `sh -c`: the shell form is dead on Windows, and there
+        // is nothing here a shell was needed for.
+        out = fly.os.proc.run(bin)
     }
 }

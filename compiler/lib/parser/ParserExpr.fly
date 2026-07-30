@@ -30,6 +30,31 @@ public class ParserExpr {
             out = ASTBuilder.CreateBinary(oploc, ASTBinaryKind.OP_BINARY_ASSIGN, left, right)
             return
         }
+        // compound assignment `a += b` … `a >>= b` (B015, doc 8.4): right-
+        // associative like `=`; lowered as `a = a op b` in codegen.
+        if p.curIsAnyPunct() {
+            string cop = p.curText()
+            ASTBinaryKind ck = ASTBinaryKind.OP_BINARY_ASSIGN
+            bool isCompound = true
+            if cop == "+=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_ADD }
+            elsif cop == "-=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_SUB }
+            elsif cop == "*=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_MUL }
+            elsif cop == "/=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_DIV }
+            elsif cop == "%=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_MOD }
+            elsif cop == "&=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_AND }
+            elsif cop == "|=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_OR }
+            elsif cop == "^=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_XOR }
+            elsif cop == "<<=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_SHIFT_L }
+            elsif cop == ">>=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_SHIFT_R }
+            else { isCompound = false }
+            if isCompound {
+                SourceLocation oploc = p.curLoc()
+                p.bump()
+                ASTExpr right = ParserExpr.parseAssign(p)
+                out = ASTBuilder.CreateBinary(oploc, ck, left, right)
+                return
+            }
+        }
         out = left
     }
 
@@ -92,6 +117,16 @@ public class ParserExpr {
             out = ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_PRE_DECR, operand)
             return
         }
+        // unary minus (B007, doc Appendix B): `-x` in operand position only —
+        // binary `a - b` never reaches here (parseBin consumes it after a left
+        // operand), so there is no ambiguity.
+        if p.curIsPunct("-") {
+            SourceLocation loc = p.curLoc()
+            p.bump()
+            ASTExpr operand = ParserExpr.parseUnary(p)
+            out = ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_NEG, operand)
+            return
+        }
         out = ParserExpr.parsePostfix(p)
     }
 
@@ -112,19 +147,36 @@ public class ParserExpr {
                     ASTMember mem = ASTBuilder.CreateMember(loc, nm, e)
                     e = mem
                 }
+            } elsif p.curIsPunct("[") {
+                // Array subscript `base[index]`. It belongs INSIDE the suffix loop,
+                // not after it, so it chains in both directions: `m[i][j]` reads a
+                // nested array and `k[i].f` reaches a field of an element. (The
+                // reference parser cannot chain the second form — here it comes for
+                // free from the loop.)
+                SourceLocation sloc = p.curLoc()
+                p.bump()
+                ASTExpr idx = ParserExpr.parse(p)
+                p.expectPunct("]")
+                ASTArrayAccess acc = ASTBuilder.CreateArrayAccess(sloc, e, idx)
+                e = acc
             } else {
                 go = false
             }
         }
-        // postfix increment / decrement
-        if p.curIsPunct("++") {
-            SourceLocation ploc = p.curLoc()
-            p.bump()
-            e = ASTBuilder.CreateUnary(ploc, ASTUnaryKind.OP_UNARY_POST_INCR, e)
-        } elsif p.curIsPunct("--") {
-            SourceLocation ploc = p.curLoc()
-            p.bump()
-            e = ASTBuilder.CreateUnary(ploc, ASTUnaryKind.OP_UNARY_POST_DECR, e)
+        // postfix increment / decrement — SAME-LINE only: without the line gate
+        // the parse is greedy across newlines and eats the NEXT statement's
+        // prefix operator (`int a = 5` + `++a` parsed as `5++` then garbage —
+        // B014's real root cause; newlines are otherwise insignificant).
+        if p.curLine() == p.prevTokenLine() {
+            if p.curIsPunct("++") {
+                SourceLocation ploc = p.curLoc()
+                p.bump()
+                e = ASTBuilder.CreateUnary(ploc, ASTUnaryKind.OP_UNARY_POST_INCR, e)
+            } elsif p.curIsPunct("--") {
+                SourceLocation ploc = p.curLoc()
+                p.bump()
+                e = ASTBuilder.CreateUnary(ploc, ASTUnaryKind.OP_UNARY_POST_DECR, e)
+            }
         }
         out = e
     }
@@ -231,10 +283,16 @@ public class ParserExpr {
     }
 
     // parseArrayLiteral — `{ expr (, expr)* }` → ASTArrayValue. A trailing comma and
-    // the empty `{}` are accepted.
+    // the empty `{}` are accepted. `{ ident = expr, ... }` is a STRUCT literal
+    // (B029, mirroring the reference's ParseValues): ident + `=` can't begin an
+    // array element (assignment isn't a value), so the shape is unambiguous.
     public static ASTExpr parseArrayLiteral(const Parser p) {
         SourceLocation loc = p.curLoc()
         p.expectPunct("{")
+        if p.curIsIdent() && p.nxtIsPunct("=") {
+            out = ParserExpr.parseStructLiteral(p, loc)
+            return
+        }
         List<ASTExpr> elems = new List<ASTExpr>()
         bool go = p.curIsPunct("}") == false && p.hadErr() == false
         while go {
@@ -248,6 +306,30 @@ public class ParserExpr {
         }
         p.expectPunct("}")
         out = ASTBuilder.CreateArrayValue(loc, elems)
+    }
+
+    // parseStructLiteral — `name = expr (, name = expr)*` up to `}` (the opening
+    // `{` is already consumed). Pairs land in ASTStructValue's parallel lists.
+    public static ASTExpr parseStructLiteral(const Parser p, const SourceLocation loc) {
+        ASTStructValue st = ASTBuilder.CreateStructValue(loc)
+        bool go = p.curIsPunct("}") == false && p.hadErr() == false
+        while go {
+            string nm = ""
+            if p.curIsIdent() { nm = p.curText()  p.bump() }
+            else { p.reportErr(DiagID.err_parser_identifier_expected)  go = false }
+            if go {
+                p.expectPunct("=")
+                ASTExpr v = ParserExpr.parse(p)
+                st.addField(nm, v)
+                if p.curIsPunct(",") {
+                    p.bump()
+                    if p.curIsPunct("}") { go = false }
+                } else { go = false }
+            }
+            if p.hadErr() { go = false }
+        }
+        p.expectPunct("}")
+        out = st
     }
 
     public static ASTExpr parseNew(const Parser p) {

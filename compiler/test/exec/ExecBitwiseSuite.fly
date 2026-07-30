@@ -1,0 +1,97 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecBitwiseSuite — EXECUTED bitwise and shift semantics across widths
+// (bug-hunt Phase 1). Signed right shift must be arithmetic (sign-propagating),
+// unsigned right shift logical; left shifts reaching the sign bit wrap. NOTE:
+// bitwise NOT (~) is not in the documented operator set — probed separately.
+//
+// Assert codes: 1xx masks, 2xx shifts, 3xx signed shift semantics, 4xx longs,
+// 5xx variable shift amounts.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite ExecBitwiseSuite {
+
+    void maskTest() {
+        case "and or xor basic identities": {
+            int a = 202                                  // 11001010
+            assert.assertEqI(a & 15, 10, 101)
+            assert.assertEqI(a | 16, 218, 102)
+            assert.assertEqI(a ^ a, 0, 103)
+            assert.assertEqI(a ^ 0, 202, 104)
+        }
+        case "xor swap round-trip": {
+            int x = 123
+            int y = 456
+            x = x ^ y
+            y = x ^ y
+            x = x ^ y
+            assert.assertEqI(x, 456, 111)
+            assert.assertEqI(y, 123, 112)
+        }
+    }
+
+    void shiftTest() {
+        case "left shift multiplies by powers of two": {
+            int a = 3
+            assert.assertEqI(a << 1, 6, 201)
+            assert.assertEqI(a << 10, 3072, 202)
+        }
+        case "right shift divides by powers of two": {
+            int a = 3072
+            assert.assertEqI(a >> 10, 3, 211)
+            assert.assertEqI(a >> 1, 1536, 212)
+        }
+        case "shift into the sign bit goes negative": {
+            int one = 1
+            int r = one << 31
+            assert.assertEqI(r, 0 - 2147483647 - 1, 221) // int min
+        }
+    }
+
+    void signedShiftTest() {
+        case "right shift of a negative is arithmetic": {
+            int a = 0 - 8
+            assert.assertEqI(a >> 1, 0 - 4, 301)
+            assert.assertEqI(a >> 2, 0 - 2, 302)
+        }
+        case "arithmetic shift saturates at minus one": {
+            int a = 0 - 1
+            assert.assertEqI(a >> 16, 0 - 1, 311)        // sign bits fill in
+        }
+        case "unsigned right shift is logical": {
+            uint u = (uint)(0 - 8)                       // 0xFFFFFFF8
+            uint r = u >> 1
+            assert.assertEqL((long)r & 4294967295, 2147483644, 321)  // 0x7FFFFFFC
+        }
+    }
+
+    void longBitwiseTest() {
+        case "long masks above 32 bits": {
+            long one = 1
+            long bit40 = one << 40
+            assert.assertEqL(bit40, 1099511627776, 401)
+            long masked = bit40 | 255
+            assert.assertEqL(masked & 255, 255, 402)
+            assert.assertEqL(masked >> 40, 1, 403)
+        }
+        case "long arithmetic right shift of a negative": {
+            long a = 0 - 1099511627776                   // -(2^40)
+            assert.assertEqL(a >> 40, 0 - 1, 411)
+        }
+    }
+
+    void variableShiftTest() {
+        case "shift amount from a variable": {
+            int n = 5
+            int r = 1 << n
+            assert.assertEqI(r, 32, 501)
+            int m = 2
+            assert.assertEqI(r >> m, 8, 502)
+        }
+        case "shift amount from an expression": {
+            int r = 1 << 2 * 2                           // * tighter than << → 1 << 4
+            assert.assertEqI(r, 16, 511)
+        }
+    }
+}

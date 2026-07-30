@@ -44,30 +44,13 @@ if ($PRELINKED) {
     Write-Host "stage${STAGE}: using the prelinked fly.exe from $D"
     Copy-Item "$D/fly.exe" "$OUT/fly.exe" -Force
 } else {
-    $llvmRoot = if (Test-Path 'build/llvm') { (Resolve-Path 'build/llvm').Path } else { $null }
-    if (-not $llvmRoot) { Write-Host "error: build\llvm (fork LLVM) not found - run ci\windows\stage0.ps1."; exit 1 }
-    Install-LdLld                     # provision build\llvm\bin\ld.lld.exe (fork lld, GNU flavour)
-    if (-not (Test-MingwSysroot)) {
-        Write-Host "error: mingw/UCRT sysroot missing under build\mingw - run ci\windows\stage0.ps1."; exit 1
-    }
-    $llvmC = Join-Path $llvmRoot 'lib\LLVM-C.lib'
-    if (-not (Test-Path $llvmC)) { Write-Host "error: $llvmC not found."; exit 1 }
-
-    Write-Host "stage${STAGE}: linking fly.exe (fork ld.lld, mingw/UCRT) ..."
     # gnu/mingw link: ld.lld -m i386pep with the mingw CRT startup objects + import
     # libs (from build\mingw) instead of the MSVC CRT. No %LIB% / vcvars needed.
     # ld.lld keeps .debug_* sections by default, so FLY_DEBUG_SYMBOLS needs no
     # extra link flag (the objects carry DWARF iff they were built with it).
-    # Weak symbols (generic specializations, vtables, init_ctors) carry a COMDAT
-    # (selection Any), so ld.lld dedups them natively — no --allow-multiple-definition.
-    # MONOLITHIC: the compiler is inside $OBJ (compiled from source by build_compiler),
-    # NOT a separate fly_compiler_lib.lib archive - this avoids the linker COMDAT-dedup
-    # of the compiler's generic instantiations that caused the `fly build` UAF crash.
-    $parts = Get-MingwLinkParts
-    $args = @('-m', 'i386pep') + $parts.LibDirs + $parts.Pre + @(
-        $OBJ, "$LIB/fly_std_lib.lib", "$LIB/fly_runtime_lib.lib", $llvmC
-    ) + $parts.Post + @('-o', "$OUT/fly.exe")
-    & $script:GNU_ldLld @args
+    # The link itself lives in link_bin.ps1, shared with build_lsp.ps1.
+    Write-Host "stage${STAGE}: linking fly.exe (fork ld.lld, mingw/UCRT) ..."
+    & "$PSScriptRoot\link_bin.ps1" -Obj $OBJ -Out "$OUT/fly.exe" -WithLLVM
     Assert-LastExit 'driver link'
 }
 

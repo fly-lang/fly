@@ -9,8 +9,9 @@ import fly.assert
 //   same-width      a pure sign reinterpretation (no instruction)
 //
 // Narrowing results are the low bits of the source, so each case states the mask
-// it expects. Remember that `byte` is unsigned but widens to `int` with sign
-// extension in Fly, so byte comparisons mask with & 255.
+// it expects. Widening extends by the SOURCE's signedness (B010 rule): unsigned
+// sources (byte/ushort/uint) ZERO-extend, signed ones sign-extend — the `& 255`
+// masks below are neutral under zext and kept for defence in depth.
 //
 // Assert codes: 1xx widening, 2xx narrowing, 3xx sign reinterpretation,
 // 4xx round-trips.
@@ -75,11 +76,12 @@ suite CastSuite {
             assert.assertEqI((int)(byte)b255 & 255, 255, 205)
             long b256 = 256                                 // wraps to 0
             assert.assertEqI((int)(byte)b256 & 255, 0, 206)
-            // ushort widens to int with SIGN extension, so 65535 reads back as
-            // -1 unless masked — the same trap as byte → int (& 255).
+            // ushort is unsigned: widening back to int ZERO-extends (B010
+            // rule — extension follows the source's signedness), so 65535
+            // reads back as 65535, masked or not.
             int u65535 = 65535
             assert.assertEqI((int)(ushort)u65535 & 65535, 65535, 207)
-            assert.assertEqI((int)(ushort)u65535, 0 - 1, 211)
+            assert.assertEqI((int)(ushort)u65535, 65535, 211)
             int u65536 = 65536                              // wraps to 0
             assert.assertEqI((int)(ushort)u65536, 0, 208)
         }

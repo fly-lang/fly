@@ -7,7 +7,7 @@ import fly.data.List
 import fly.assert
 import fly.str
 
-// Port of the SemVer + MVSResolver portions of fly/tools/flyp/test/MVSResolverTest.cpp.
+// Port of the SemVer + MVSResolver portions of the reference C++ package manager test/MVSResolverTest.cpp.
 // (The Cache::parse_url cases belong with the fetcher port.) The C++ lambda fetchers
 // become ManifestFetcher subclasses below.
 

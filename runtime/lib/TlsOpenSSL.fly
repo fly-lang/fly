@@ -1,0 +1,218 @@
+namespace fly.runtime
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TLS — the real backend, OpenSSL (Linux). Built into fly_tls_lib.a and linked
+// ONLY when the build asks for it with --tls, ahead of fly_tls_stub.a, which then
+// never has its member extracted. See runtime/lib/TlsStub.fly for the whole
+// rationale; this file defines exactly the same seven symbols.
+//
+// ITS GENERATED HEADER IS DISCARDED by build_runtime: the canonical tls_*
+// declarations come from TlsStub, which exists on every platform. Emitting both
+// would declare the same functions twice in namespace fly.runtime.
+//
+// Every OpenSSL type here is an OPAQUE POINTER, so 1.1 vs 3.x is not an ABI
+// concern. The floor is OpenSSL 1.1.0 (2016): OPENSSL_init_ssl and SSL_set1_host
+// do not exist in 1.0.x. LibreSSL and BoringSSL are NOT supported — their
+// SSL_set1_host differs.
+//
+// TlsCtx heap layout (24 bytes):
+//   [0..7]   pointer ssl        SSL*
+//   [8..15]  pointer sslCtx     SSL_CTX*
+//   [16..19] int     lastError  the last SSL_get_error / verify result
+//   [20..23] (padding)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── libssl / libcrypto externs (empty body → pure `call @name`) ───────────────
+public void OPENSSL_init_ssl(const long opts, const pointer settings, int out) {}
+public void TLS_client_method(pointer out) {}
+public void SSL_CTX_new(const pointer method, pointer out) {}
+public void SSL_CTX_set_default_verify_paths(const pointer ctx, int out) {}
+public void SSL_CTX_free(const pointer ctx) {}
+public void SSL_new(const pointer ctx, pointer out) {}
+public void SSL_set_fd(const pointer ssl, const int fd, int out) {}
+// SSL_set_tlsext_host_name is a MACRO over SSL_ctrl, not an exported function:
+//   SSL_set_tlsext_host_name(ssl, host)
+//     ≡ SSL_ctrl(ssl, 55 /*SSL_CTRL_SET_TLSEXT_HOSTNAME*/, 0 /*host_name*/, host)
+public void SSL_ctrl(const pointer ssl, const int cmd, const long larg, const pointer parg, long out) {}
+public void SSL_set1_host(const pointer ssl, const pointer name, int out) {}
+public void SSL_set_verify(const pointer ssl, const int mode, const pointer cb) {}
+public void SSL_connect(const pointer ssl, int out) {}
+public void SSL_read(const pointer ssl, const pointer buf, const int n, int out) {}
+public void SSL_write(const pointer ssl, const pointer buf, const int n, int out) {}
+public void SSL_get_error(const pointer ssl, const int ret, int out) {}
+public void SSL_shutdown(const pointer ssl, int out) {}
+public void SSL_free(const pointer ssl) {}
+public void SSL_get_verify_result(const pointer ssl, long out) {}
+
+// The allocator, declared HERE rather than taken from runtime.fly.h. This file
+// declares namespace fly.runtime itself, and the self-host resolves a
+// fly.runtime.* call against the declarations in the current namespace before it
+// ever consults an imported header — so with no local declaration,
+// `fly.runtime.malloc` did not resolve and stage2 failed to build the backend
+// while stage1 (built by the C++ seed, which falls back to the header) passed.
+//
+// But it must NOT be malloc/free. The self-host emits a MANGLED THUNK DEFINITION
+// for every extern declared in namespace fly.runtime, so declaring a name the
+// main runtime also declares gives two archives the same definition — and the
+// link dies on a duplicate symbol the moment a program pulls both, which only a
+// --tls build does. OpenSSL's own allocator is the natural way out: this archive
+// already links libcrypto, and RuntimeLinux.fly does not declare these.
+//
+// CRYPTO_malloc/CRYPTO_free take the caller's file and line for OpenSSL's own
+// leak tracking; NULL and 0 are accepted and are what the macros pass in a
+// release build.
+public void CRYPTO_malloc(const ulong size, const pointer file, const int line, pointer out) {}
+public void CRYPTO_free(const pointer ptr, const pointer file, const int line) {}
+
+public void tls_available(int out) {
+    out = 1
+}
+
+// tls_connect — SSL_CTX_new → SSL_new → SSL_set_fd → SNI → verification →
+// SSL_connect. Returns a TlsCtx handle, or 0 on any failure.
+//
+// THE TWO CALLS THAT MAKE THIS REAL VERIFICATION, and are easy to omit:
+//   • SSL_CTX_set_default_verify_paths + SSL_set_verify(…, SSL_VERIFY_PEER)
+//     validate the certificate CHAIN;
+//   • SSL_set1_host validates that the certificate matches the HOSTNAME.
+// Chain validation alone accepts any valid certificate from any CA for any name,
+// which is textbook-broken TLS. Both, or the feature is security theatre.
+public void tls_connect(const long sock, const pointer sniHost, const int verify, pointer out) {
+    if sock < 0 { out = 0  return }
+    int irc = 0
+    fly.runtime.OPENSSL_init_ssl(0, 0, irc)
+    pointer method = 0
+    fly.runtime.TLS_client_method(method)
+    if method == 0 { out = 0  return }
+    pointer sslCtx = 0
+    fly.runtime.SSL_CTX_new(method, sslCtx)
+    if sslCtx == 0 { out = 0  return }
+    int vp = 0
+    fly.runtime.SSL_CTX_set_default_verify_paths(sslCtx, vp)
+    pointer ssl = 0
+    fly.runtime.SSL_new(sslCtx, ssl)
+    if ssl == 0 {
+        fly.runtime.SSL_CTX_free(sslCtx)
+        out = 0
+        return
+    }
+    int fd = 0
+    fly.llvm.longToInt(sock, fd)
+    int sf = 0
+    fly.runtime.SSL_set_fd(ssl, fd, sf)
+    if sf != 1 {
+        fly.runtime.SSL_free(ssl)
+        fly.runtime.SSL_CTX_free(sslCtx)
+        out = 0
+        return
+    }
+    if sniHost != 0 {
+        long sni = 0
+        fly.runtime.SSL_ctrl(ssl, 55, 0, sniHost, sni)      // SNI server name
+        if verify != 0 {
+            int hv = 0
+            fly.runtime.SSL_set1_host(ssl, sniHost, hv)     // HOSTNAME check
+        }
+    }
+    if verify != 0 {
+        fly.runtime.SSL_set_verify(ssl, 1, 0)               // SSL_VERIFY_PEER
+    }
+    int crc = 0
+    fly.runtime.SSL_connect(ssl, crc)
+    if crc != 1 {
+        int se = 0
+        fly.runtime.SSL_get_error(ssl, crc, se)
+        fly.runtime.SSL_free(ssl)
+        fly.runtime.SSL_CTX_free(sslCtx)
+        out = 0
+        return
+    }
+    if verify != 0 {
+        long vr = 0
+        fly.runtime.SSL_get_verify_result(ssl, vr)
+        if vr != 0 {                                        // X509_V_OK == 0
+            fly.runtime.SSL_free(ssl)
+            fly.runtime.SSL_CTX_free(sslCtx)
+            out = 0
+            return
+        }
+    }
+    pointer h = 0
+    fly.runtime.CRYPTO_malloc(24, 0, 0, h)
+    fly.llvm.ptrPokeLong(h, 0, ssl)
+    fly.llvm.ptrPokeLong(h, 8, sslCtx)
+    fly.llvm.ptrPokeInt(h, 16, 0)
+    out = h
+}
+
+public void tls_send(const pointer ctx, const pointer buf, const int n, long out) {
+    if ctx == 0 { out = 0 - 1  return }
+    long sslL = 0
+    fly.llvm.ptrReadLong(ctx, 0, sslL)
+    pointer ssl = 0
+    ssl = sslL
+    if ssl == 0 { out = 0 - 1  return }
+    int w = 0
+    fly.runtime.SSL_write(ssl, buf, n, w)
+    if w <= 0 {
+        int se = 0
+        fly.runtime.SSL_get_error(ssl, w, se)
+        fly.llvm.ptrPokeInt(ctx, 16, se)
+        out = 0 - 1
+        return
+    }
+    out = w
+}
+
+// tls_recv — a blocking socket plus no SSL_MODE_AUTO_RETRY fiddling makes this
+// behave like recv(). A non-positive return with SSL_ERROR_ZERO_RETURN (6) is a
+// CLEAN end of session, reported as 0; anything else is an error.
+public void tls_recv(const pointer ctx, const pointer buf, const int n, long out) {
+    if ctx == 0 { out = 0 - 1  return }
+    long sslL = 0
+    fly.llvm.ptrReadLong(ctx, 0, sslL)
+    pointer ssl = 0
+    ssl = sslL
+    if ssl == 0 { out = 0 - 1  return }
+    int r = 0
+    fly.runtime.SSL_read(ssl, buf, n, r)
+    if r > 0 { out = r  return }
+    int se = 0
+    fly.runtime.SSL_get_error(ssl, r, se)
+    fly.llvm.ptrPokeInt(ctx, 16, se)
+    if se == 6 { out = 0  return }                          // SSL_ERROR_ZERO_RETURN
+    out = 0 - 1
+}
+
+public void tls_shutdown(const pointer ctx) {
+    if ctx == 0 { return }
+    long sslL = 0
+    fly.llvm.ptrReadLong(ctx, 0, sslL)
+    pointer ssl = 0
+    ssl = sslL
+    if ssl == 0 { return }
+    int rc = 0
+    fly.runtime.SSL_shutdown(ssl, rc)
+}
+
+public void tls_free(const pointer ctx) {
+    if ctx == 0 { return }
+    long sslL = 0
+    fly.llvm.ptrReadLong(ctx, 0, sslL)
+    long ctxL = 0
+    fly.llvm.ptrReadLong(ctx, 8, ctxL)
+    pointer ssl = 0
+    ssl = sslL
+    pointer sslCtx = 0
+    sslCtx = ctxL
+    if ssl != 0 { fly.runtime.SSL_free(ssl) }
+    if sslCtx != 0 { fly.runtime.SSL_CTX_free(sslCtx) }
+    fly.llvm.ptrPokeLong(ctx, 0, 0)
+    fly.llvm.ptrPokeLong(ctx, 8, 0)
+    fly.runtime.CRYPTO_free(ctx, 0, 0)
+}
+
+public void tls_last_error(const pointer ctx, int out) {
+    if ctx == 0 { out = 0  return }
+    fly.llvm.ptrReadInt(ctx, 16, out)
+}

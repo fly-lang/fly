@@ -56,9 +56,30 @@ public void _NSGetEnviron(pointer out) {}
 public void fork(int out) {}
 public void execv(const pointer path, const pointer argv, int out) {}
 public void waitpid(const int pid, const pointer status, const int options, int out) {}
+public void dup2(const int oldfd, const int newfd, int out) {}
 public void pthread_create(const pointer thread, const pointer attr, const pointer start, const pointer arg, int out) {}
 public void __ulock_wait(const int op, const pointer addr, const long value, const int timeout, int out) {}
 public void __ulock_wake(const int op, const pointer addr, const long wake, int out) {}
+// sockets — all in libSystem, so no extra -l. socket()/accept() return a 32-bit
+// int, so these are `int out`, NOT `long out`.
+public void socket(const int af, const int type, const int proto, int out) {}
+public void bind(const int s, const pointer addr, const int len, int out) {}
+public void listen(const int s, const int backlog, int out) {}
+public void accept(const int s, const pointer addr, const pointer len, int out) {}
+public void connect(const int s, const pointer addr, const int len, int out) {}
+public void send(const int s, const pointer buf, const ulong n, const int flags, long out) {}
+public void recv(const int s, const pointer buf, const ulong n, const int flags, long out) {}
+public void sendto(const int s, const pointer buf, const ulong n, const int flags, const pointer addr, const int alen, long out) {}
+public void recvfrom(const int s, const pointer buf, const ulong n, const int flags, const pointer addr, const pointer alen, long out) {}
+public void shutdown(const int s, const int how, int out) {}
+public void setsockopt(const int s, const int level, const int opt, const pointer val, const int len, int out) {}
+public void getsockopt(const int s, const int level, const int opt, const pointer val, const pointer len, int out) {}
+public void getsockname(const int s, const pointer addr, const pointer len, int out) {}
+public void getpeername(const int s, const pointer addr, const pointer len, int out) {}
+public void gethostbyname(const pointer name, pointer out) {}
+public void gethostbyaddr(const pointer addr, const int len, const int type, pointer out) {}
+public void fcntl(const int fd, const int cmd, const int arg, int out) {}
+public void poll(const pointer fds, const int nfds, const int timeout, int out) {}
 // atomics (libSystem/compiler-rt)
 public void __atomic_load_4(const pointer ptr, const int memorder, int out) {}
 public void __atomic_store_4(const pointer ptr, const int val, const int memorder) {}
@@ -121,6 +142,11 @@ public void fs_write(const int fd, const pointer buf, const ulong count, long ou
 }
 public void fs_seek(const int fd, const long offset, const int whence, long out) {
     fly.runtime.lseek(fd, offset, whence, out)
+}
+// io_set_binary — a NO-OP on POSIX, reporting success. See RuntimeWindows.fly,
+// where it takes the fd out of the UCRT's TEXT mode.
+public void io_set_binary(const int fd, int out) {
+    out = 0
 }
 public void fs_mkdir(const pointer path, const int mode, int out) {
     fly.runtime.mkdir(path, mode, out)
@@ -504,6 +530,47 @@ private void fillSlotFromCStr(const pointer arr_base, const int idx, const point
 }
 
 // ── Process / concurrency ─────────────────────────────────────────────────────
+// proc_exec_redirect — proc_exec with the child's STDOUT redirected to outPath
+// (created/truncated), so a caller can capture a command's output with NO SHELL
+// involved. Returns the child exit code, 128+signo if signalled, -1 on failure.
+//
+// STDERR IS INHERITED, deliberately: a failing command's diagnostics should reach
+// the user rather than vanish into /dev/null as the old shell form sent them.
+//
+// The open flags are the BSD ones and DIFFER from Linux:
+// O_WRONLY|O_CREAT|O_TRUNC is 1|512|1024 = 1537 here, 1|64|512 = 577 there.
+public void proc_exec_redirect(const pointer path, const pointer argv, const pointer outPath, int out) {
+    int pid = 0
+    fly.runtime.fork(pid)
+    if pid < 0 { out = 0 - 1  return }
+    if pid == 0 {
+        int fd = 0
+        fly.runtime.open(outPath, 1537, 420, fd)
+        if fd < 0 { fly.runtime._exit(127) }
+        int d = 0
+        fly.runtime.dup2(fd, 1, d)
+        int cr = 0
+        fly.runtime.close(fd, cr)
+        int rc = 0
+        fly.runtime.execv(path, argv, rc)
+        fly.runtime._exit(127)
+    }
+    pointer status = 0
+    fly.runtime.malloc(4, status)
+    int r = 0
+    fly.runtime.waitpid(pid, status, 0, r)
+    if r < 0 { fly.runtime.free(status)  out = 0 - 1  return }
+    int st = 0
+    fly.llvm.ptrReadInt(status, 0, st)
+    fly.runtime.free(status)
+    int low = st & 127
+    if low == 0 {
+        int ex = st >> 8
+        out = ex & 255
+    } else {
+        out = 128 + low
+    }
+}
 public void proc_exec(const pointer path, const pointer argv, int out) {
     int pid = 0
     fly.runtime.fork(pid)
@@ -576,6 +643,658 @@ public void atomic_cas_i32(const pointer addr, const int expected, const int des
 }
 public void atomic_fetch_add_i32(const pointer addr, const int delta, int out) {
     fly.runtime.__atomic_fetch_add_4(addr, delta, 4, out)
+}
+
+// ── Networking — IPv4 TCP over the BSD sockets API ────────────────────────────
+//
+// Mirrors the Linux backend; see RuntimeLinux.fly for the full contract (socket
+// handles are `long` with a negative sentinel; addresses are packed host-order
+// ints; the sockaddr_in is poked byte-wise, so no htons/inet_addr).
+//
+// TWO macOS differences, and they are the two things most likely to be wrong
+// here since this file is compile-checked but not runtime-tested:
+//   • sockaddr_in carries sin_len at byte 0 — [0]=16, [1]=2 (sin_family is a u8)
+//     where Linux/Windows write [0]=2, [1]=0.
+//   • SOL_SOCKET=65535 and SO_REUSEADDR=4 (Linux: 1 and 2).
+// There is no MSG_NOSIGNAL either; SIGPIPE is suppressed per-socket with
+// SO_NOSIGPIPE (65535/4130) inside net_socket instead.
+
+public void net_init(int out) {
+    out = 0
+}
+
+// net_socket — a blocking IPv4 TCP socket with SIGPIPE suppressed; <0 on failure.
+public void net_socket(long out) {
+    int fd = 0
+    fly.runtime.socket(2, 1, 6, fd)                 // AF_INET, SOCK_STREAM, IPPROTO_TCP
+    if fd < 0 { out = 0 - 1  return }
+    pointer one = 0
+    fly.runtime.malloc(4, one)
+    fly.llvm.ptrPokeInt(one, 0, 1)
+    int rc = 0
+    fly.runtime.setsockopt(fd, 65535, 4130, one, 4, rc)   // SOL_SOCKET, SO_NOSIGPIPE
+    fly.runtime.free(one)
+    out = fd
+}
+
+public void net_close(const long s) {
+    if s < 0 { return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    int rc = 0
+    fly.runtime.close(fd, rc)
+}
+
+public void net_shutdown(const long s, const int how, int out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    int rc = 0
+    fly.runtime.shutdown(fd, how, rc)
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+public void net_reuseaddr(const long s, int out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    pointer one = 0
+    fly.runtime.malloc(4, one)
+    fly.llvm.ptrPokeInt(one, 0, 1)
+    int rc = 0
+    fly.runtime.setsockopt(fd, 65535, 4, one, 4, rc)      // SOL_SOCKET, SO_REUSEADDR
+    fly.runtime.free(one)
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+// ── Socket options ────────────────────────────────────────────────────────────
+//
+// BSD numbering, which macOS and Windows share and Linux does NOT:
+//   SOL_SOCKET=65535  SO_REUSEADDR=4  SO_KEEPALIVE=8  SO_BROADCAST=32
+//   SO_LINGER=128     SO_SNDBUF=4097  SO_RCVBUF=4098
+//   SO_SNDTIMEO=4101  SO_RCVTIMEO=4102  SO_ERROR=4103
+// Only IPPROTO_TCP=6 / TCP_NODELAY=1 agree with Linux.
+// O_NONBLOCK is 4 here, 2048 on Linux.
+//
+// See RuntimeLinux.fly for why setIntOpt is a helper and not six copies.
+
+private void setIntOpt(const long s, const int level, const int opt, const int val, int out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    pointer p = 0
+    fly.runtime.malloc(4, p)
+    fly.llvm.ptrPokeInt(p, 0, val)
+    int rc = 0
+    fly.runtime.setsockopt(fd, level, opt, p, 4, rc)
+    fly.runtime.free(p)
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+public void net_set_nodelay(const long s, const int on, int out) {
+    setIntOpt(s, 6, 1, on, out)
+}
+public void net_set_keepalive(const long s, const int on, int out) {
+    setIntOpt(s, 65535, 8, on, out)
+}
+public void net_set_broadcast(const long s, const int on, int out) {
+    setIntOpt(s, 65535, 32, on, out)
+}
+public void net_set_recvbuf(const long s, const int bytes, int out) {
+    setIntOpt(s, 65535, 4098, bytes, out)
+}
+public void net_set_sendbuf(const long s, const int bytes, int out) {
+    setIntOpt(s, 65535, 4097, bytes, out)
+}
+
+// setTimeout — macOS `struct timeval` is tv_sec i64@0 + tv_usec **i32**@8
+// (suseconds_t is 32-bit here, unlike Linux where it is 64-bit), so byte 12..15
+// is padding and must be zeroed rather than written as part of tv_usec.
+private void setTimeout(const long s, const int ms, const int opt, int out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    int msec = ms
+    if msec < 0 { msec = 0 }
+    long secs = msec / 1000
+    int usecs = (msec % 1000) * 1000
+    pointer tv = 0
+    fly.runtime.malloc(16, tv)
+    fly.llvm.ptrPokeLong(tv, 0, secs)
+    fly.llvm.ptrPokeInt(tv, 8, usecs)
+    fly.llvm.ptrPokeInt(tv, 12, 0)
+    int rc = 0
+    fly.runtime.setsockopt(fd, 65535, opt, tv, 16, rc)
+    fly.runtime.free(tv)
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+public void net_set_recv_timeout(const long s, const int ms, int out) {
+    setTimeout(s, ms, 4102, out)                    // SO_RCVTIMEO
+}
+public void net_set_send_timeout(const long s, const int ms, int out) {
+    setTimeout(s, ms, 4101, out)                    // SO_SNDTIMEO
+}
+
+// net_set_linger — BSD struct linger is two ints (8 bytes), like Linux; only
+// Windows narrows them to u_short.
+public void net_set_linger(const long s, const int on, const int sec, int out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    pointer lg = 0
+    fly.runtime.malloc(8, lg)
+    fly.llvm.ptrPokeInt(lg, 0, on)
+    fly.llvm.ptrPokeInt(lg, 4, sec)
+    int rc = 0
+    fly.runtime.setsockopt(fd, 65535, 128, lg, 8, rc)   // SOL_SOCKET, SO_LINGER
+    fly.runtime.free(lg)
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+public void net_set_nonblocking(const long s, const int on, int out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    int flags = 0
+    fly.runtime.fcntl(fd, 3, 0, flags)              // F_GETFL
+    if flags < 0 { out = 0 - 1  return }
+    // Subtraction, and a named temp for the test — see RuntimeLinux.fly.
+    int want = flags
+    int masked = flags & 4
+    if on != 0 {
+        want = flags | 4                            // O_NONBLOCK (BSD)
+    } elsif masked != 0 {
+        want = flags - 4
+    }
+    int rc = 0
+    fly.runtime.fcntl(fd, 4, want, rc)              // F_SETFL
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+public void net_sock_error(const long s, int out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    pointer v = 0
+    fly.runtime.malloc(4, v)
+    pointer vlen = 0
+    fly.runtime.malloc(4, vlen)
+    fly.llvm.ptrPokeInt(vlen, 0, 4)
+    fly.llvm.ptrPokeInt(v, 0, 0)
+    int rc = 0
+    fly.runtime.getsockopt(fd, 65535, 4103, v, vlen, rc)   // SOL_SOCKET, SO_ERROR
+    int val = 0
+    fly.llvm.ptrReadInt(v, 0, val)
+    fly.runtime.free(v)
+    fly.runtime.free(vlen)
+    if rc < 0 { out = 0 - 1 } else { out = val }
+}
+
+public void net_bind(const long s, const int addr, const int port, int out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    pointer sa = 0
+    fly.runtime.malloc(16, sa)
+    int z = 0
+    while z < 16 {
+        fly.llvm.ptrPokeByte(sa, z, 0)
+        z = z + 1
+    }
+    fly.llvm.ptrPokeByte(sa, 0, 16)                 // sin_len
+    fly.llvm.ptrPokeByte(sa, 1, 2)                  // sin_family = AF_INET (u8)
+    fly.llvm.ptrPokeByte(sa, 2, (byte)((port >> 8) & 255))
+    fly.llvm.ptrPokeByte(sa, 3, (byte)(port & 255))
+    fly.llvm.ptrPokeByte(sa, 4, (byte)((addr >> 24) & 255))
+    fly.llvm.ptrPokeByte(sa, 5, (byte)((addr >> 16) & 255))
+    fly.llvm.ptrPokeByte(sa, 6, (byte)((addr >> 8) & 255))
+    fly.llvm.ptrPokeByte(sa, 7, (byte)(addr & 255))
+    int rc = 0
+    fly.runtime.bind(fd, sa, 16, rc)
+    fly.runtime.free(sa)
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+public void net_listen(const long s, const int backlog, int out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    int rc = 0
+    fly.runtime.listen(fd, backlog, rc)
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+public void net_accept(const long s, long out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    int cfd = 0
+    fly.runtime.accept(fd, 0, 0, cfd)
+    if cfd < 0 { out = 0 - 1  return }
+    out = cfd
+}
+
+public void net_connect(const long s, const int addr, const int port, int out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    pointer sa = 0
+    fly.runtime.malloc(16, sa)
+    int z = 0
+    while z < 16 {
+        fly.llvm.ptrPokeByte(sa, z, 0)
+        z = z + 1
+    }
+    fly.llvm.ptrPokeByte(sa, 0, 16)                 // sin_len
+    fly.llvm.ptrPokeByte(sa, 1, 2)                  // sin_family = AF_INET (u8)
+    fly.llvm.ptrPokeByte(sa, 2, (byte)((port >> 8) & 255))
+    fly.llvm.ptrPokeByte(sa, 3, (byte)(port & 255))
+    fly.llvm.ptrPokeByte(sa, 4, (byte)((addr >> 24) & 255))
+    fly.llvm.ptrPokeByte(sa, 5, (byte)((addr >> 16) & 255))
+    fly.llvm.ptrPokeByte(sa, 6, (byte)((addr >> 8) & 255))
+    fly.llvm.ptrPokeByte(sa, 7, (byte)(addr & 255))
+    int rc = 0
+    fly.runtime.connect(fd, sa, 16, rc)
+    fly.runtime.free(sa)
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+public void net_send(const long s, const pointer buf, const int n, long out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    long sent = 0
+    fly.runtime.send(fd, buf, n, 0, sent)           // SIGPIPE handled by SO_NOSIGPIPE
+    out = sent
+}
+
+public void net_recv(const long s, const pointer buf, const int n, long out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    long got = 0
+    fly.runtime.recv(fd, buf, n, 0, got)
+    out = got
+}
+
+public void net_local_port(const long s, int out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    pointer sa = 0
+    fly.runtime.malloc(16, sa)
+    pointer alen = 0
+    fly.runtime.malloc(4, alen)
+    fly.llvm.ptrPokeInt(alen, 0, 16)
+    int rc = 0
+    fly.runtime.getsockname(fd, sa, alen, rc)
+    if rc < 0 {
+        fly.runtime.free(sa)
+        fly.runtime.free(alen)
+        out = 0 - 1
+        return
+    }
+    byte hi = 0
+    byte lo = 0
+    fly.llvm.ptrByteAt(sa, 2, hi)
+    fly.llvm.ptrByteAt(sa, 3, lo)
+    int h = hi & 255
+    int l = lo & 255
+    fly.runtime.free(sa)
+    fly.runtime.free(alen)
+    out = (h << 8) | l
+}
+
+// ── UDP datagrams ─────────────────────────────────────────────────────────────
+//
+// SOCK_DGRAM=2 and IPPROTO_UDP=17 on every platform. The only real difference
+// from the TCP path is that the destination travels WITH each datagram, so
+// net_send_to builds a sockaddr per call and net_recv_from reads one back.
+//
+// The sender is reported through a caller-provided 8-byte scratch, OUR layout:
+//   [0..3] int packed host-order address   [4..7] int port
+// One out-pointer instead of two out-params, matching the std rule that a
+// primitive has exactly one `out`.
+
+// net_socket_udp — a blocking IPv4 UDP socket; <0 on failure.
+public void net_socket_udp(long out) {
+    int fd = 0
+    fly.runtime.socket(2, 2, 17, fd)                // AF_INET, SOCK_DGRAM, IPPROTO_UDP
+    if fd < 0 { out = 0 - 1  return }
+    pointer one = 0
+    fly.runtime.malloc(4, one)
+    fly.llvm.ptrPokeInt(one, 0, 1)
+    int rc = 0
+    fly.runtime.setsockopt(fd, 65535, 4130, one, 4, rc)   // SOL_SOCKET, SO_NOSIGPIPE
+    fly.runtime.free(one)
+    out = fd
+}
+
+// net_send_to — one datagram to addr:port. Returns the bytes accepted, <0 on
+// error. A datagram is sent whole or not at all: there is no short write to loop
+// over, unlike the TCP path.
+public void net_send_to(const long s, const pointer buf, const int n, const int addr, const int port, long out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    pointer sa = 0
+    fly.runtime.malloc(16, sa)
+    int z = 0
+    while z < 16 {
+        fly.llvm.ptrPokeByte(sa, z, 0)
+        z = z + 1
+    }
+    fly.llvm.ptrPokeByte(sa, 0, 16)                 // sin_len
+    fly.llvm.ptrPokeByte(sa, 1, 2)                  // sin_family = AF_INET (u8)
+    fly.llvm.ptrPokeByte(sa, 2, (byte)((port >> 8) & 255))
+    fly.llvm.ptrPokeByte(sa, 3, (byte)(port & 255))
+    fly.llvm.ptrPokeByte(sa, 4, (byte)((addr >> 24) & 255))
+    fly.llvm.ptrPokeByte(sa, 5, (byte)((addr >> 16) & 255))
+    fly.llvm.ptrPokeByte(sa, 6, (byte)((addr >> 8) & 255))
+    fly.llvm.ptrPokeByte(sa, 7, (byte)(addr & 255))
+    long sent = 0
+    fly.runtime.sendto(fd, buf, n, 0, sa, 16, sent)         // SIGPIPE via SO_NOSIGPIPE
+    fly.runtime.free(sa)
+    out = sent
+}
+
+// net_recv_from — one datagram of up to n bytes, with the sender written into the
+// 8-byte `from` scratch. Returns the byte count, 0 for an empty datagram (which
+// is legal in UDP and is NOT end-of-stream), <0 on error or timeout.
+//
+// A datagram longer than n is TRUNCATED and the remainder discarded — that is
+// UDP semantics, not a bug to work around.
+public void net_recv_from(const long s, const pointer buf, const int n, const pointer from, long out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    pointer sa = 0
+    fly.runtime.malloc(16, sa)
+    pointer alen = 0
+    fly.runtime.malloc(4, alen)
+    fly.llvm.ptrPokeInt(alen, 0, 16)
+    long got = 0
+    fly.runtime.recvfrom(fd, buf, n, 0, sa, alen, got)
+    if got < 0 {
+        fly.runtime.free(sa)
+        fly.runtime.free(alen)
+        out = got
+        return
+    }
+    byte b0 = 0
+    byte b1 = 0
+    byte b2 = 0
+    byte b3 = 0
+    byte ph = 0
+    byte pl = 0
+    fly.llvm.ptrByteAt(sa, 4, b0)
+    fly.llvm.ptrByteAt(sa, 5, b1)
+    fly.llvm.ptrByteAt(sa, 6, b2)
+    fly.llvm.ptrByteAt(sa, 7, b3)
+    fly.llvm.ptrByteAt(sa, 2, ph)
+    fly.llvm.ptrByteAt(sa, 3, pl)
+    int i0 = b0 & 255
+    int i1 = b1 & 255
+    int i2 = b2 & 255
+    int i3 = b3 & 255
+    int hp = ph & 255
+    int lp = pl & 255
+    fly.llvm.ptrPokeInt(from, 0, (i0 << 24) | (i1 << 16) | (i2 << 8) | i3)
+    fly.llvm.ptrPokeInt(from, 4, (hp << 8) | lp)
+    fly.runtime.free(sa)
+    fly.runtime.free(alen)
+    out = got
+}
+
+// ── HTTPS: not served here ────────────────────────────────────────────────────
+//
+// Only Windows routes https through a whole-client API (WinHTTP), because it has
+// no generic TLS socket backend. See RuntimeLinux.fly for why the stubs exist.
+// Note that macOS has NO TLS at all today: Secure Transport needs C callbacks
+// Fly cannot produce, so both this and fly.net.tls report unavailable.
+public void net_https_available(int out) {
+    out = 0
+}
+
+public void net_https_request(const pointer verb, const pointer host, const int port,
+                             const pointer path, const pointer headers,
+                             const pointer bodyIn, const int bodyInLen,
+                             const pointer outPath, int out) {
+    out = 0 - 1
+}
+
+// ── Multiplexing, peer address and full DNS ──────────────────────────────────
+//
+// net_poll takes OUR OWN entry array — 16 bytes per entry, identical on every
+// platform — and translates it into the native one here:
+//
+//   Fly entry (16 B):  [0..7] long socket   [8..11] int events   [12..15] int revents
+//   POSIX pollfd (8 B): int fd@0, short events@4, short revents@6
+//   WSAPOLLFD  (16 B):  SOCKET fd@0 (8 bytes!), short events@8, short revents@10
+//
+// The event BITS differ too, so the Fly-level mask (1=read 2=write 4=err 8=hup)
+// is mapped in and out per backend. Keeping both the layout and the bits inside
+// the runtime is what lets std/lib/net/net.fly stay one portable source.
+//   macOS/BSD: POLLIN=1 POLLOUT=4 POLLERR=8 POLLHUP=16 POLLNVAL=32 — the same
+public void net_poll(const pointer entries, const int count, const int timeoutMs, int out) {
+    if count <= 0 { out = 0  return }
+    pointer fds = 0
+    fly.runtime.malloc(count * 8, fds)
+    int i = 0
+    while i < count {
+        long sv = 0
+        fly.llvm.ptrReadLong(entries, i * 16, sv)
+        int fd = 0
+        fly.llvm.longToInt(sv, fd)
+        int ev = 0
+        fly.llvm.ptrReadInt(entries, i * 16 + 8, ev)
+        int nev = 0
+        int rd = ev & 1
+        int wr = ev & 2
+        if rd != 0 { nev = nev | 1 }                 // POLLIN
+        if wr != 0 { nev = nev | 4 }                 // POLLOUT
+        fly.llvm.ptrPokeInt(fds, i * 8, fd)
+        fly.llvm.ptrPokeShort(fds, i * 8 + 4, (short)nev)
+        fly.llvm.ptrPokeShort(fds, i * 8 + 6, 0)
+        i = i + 1
+    }
+    int rc = 0
+    fly.runtime.poll(fds, count, timeoutMs, rc)
+    int j = 0
+    while j < count {
+        short rv = 0
+        fly.llvm.ptrReadShort(fds, j * 8 + 6, rv)
+        int rvi = rv
+        int nrv = rvi & 65535
+        int frv = 0
+        int m1 = nrv & 1
+        int m2 = nrv & 4
+        int m3 = nrv & 8
+        int m4 = nrv & 16
+        int m5 = nrv & 32
+        if m1 != 0 { frv = frv | 1 }
+        if m2 != 0 { frv = frv | 2 }
+        if m3 != 0 { frv = frv | 4 }
+        if m4 != 0 { frv = frv | 8 }
+        if m5 != 0 { frv = frv | 4 }                 // POLLNVAL folded into "error"
+        fly.llvm.ptrPokeInt(entries, j * 16 + 12, frv)
+        j = j + 1
+    }
+    fly.runtime.free(fds)
+    out = rc
+}
+
+// net_peer_addr / net_peer_port — who is on the other end of a connected
+// socket, via getpeername. 0 / -1 when the socket is not connected. Without
+// these a server can accept a connection but never learn who made it.
+public void net_peer_addr(const long s, int out) {
+    if s < 0 { out = 0  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    pointer sa = 0
+    fly.runtime.malloc(16, sa)
+    pointer alen = 0
+    fly.runtime.malloc(4, alen)
+    fly.llvm.ptrPokeInt(alen, 0, 16)
+    int rc = 0
+    fly.runtime.getpeername(fd, sa, alen, rc)
+    if rc < 0 {
+        fly.runtime.free(sa)
+        fly.runtime.free(alen)
+        out = 0
+        return
+    }
+    byte b0 = 0
+    byte b1 = 0
+    byte b2 = 0
+    byte b3 = 0
+    fly.llvm.ptrByteAt(sa, 4, b0)
+    fly.llvm.ptrByteAt(sa, 5, b1)
+    fly.llvm.ptrByteAt(sa, 6, b2)
+    fly.llvm.ptrByteAt(sa, 7, b3)
+    int i0 = b0 & 255
+    int i1 = b1 & 255
+    int i2 = b2 & 255
+    int i3 = b3 & 255
+    fly.runtime.free(sa)
+    fly.runtime.free(alen)
+    out = (i0 << 24) | (i1 << 16) | (i2 << 8) | i3
+}
+
+public void net_peer_port(const long s, int out) {
+    if s < 0 { out = 0 - 1  return }
+    int fd = 0
+    fly.llvm.longToInt(s, fd)
+    pointer sa = 0
+    fly.runtime.malloc(16, sa)
+    pointer alen = 0
+    fly.runtime.malloc(4, alen)
+    fly.llvm.ptrPokeInt(alen, 0, 16)
+    int rc = 0
+    fly.runtime.getpeername(fd, sa, alen, rc)
+    if rc < 0 {
+        fly.runtime.free(sa)
+        fly.runtime.free(alen)
+        out = 0 - 1
+        return
+    }
+    byte hi = 0
+    byte lo = 0
+    fly.llvm.ptrByteAt(sa, 2, hi)
+    fly.llvm.ptrByteAt(sa, 3, lo)
+    int h = hi & 255
+    int l = lo & 255
+    fly.runtime.free(sa)
+    fly.runtime.free(alen)
+    out = (h << 8) | l
+}
+
+// net_resolve_all — every A record for `host`, written as packed host-order ints
+// into a caller-provided buffer of `maxCount` slots. Returns the number written,
+// or -1 on failure. Walks hostent.h_addr_list past index 0, which net_resolve4
+// stops at; the list is NULL-terminated.
+public void net_resolve_all(const pointer host, const pointer buf, const int maxCount, int out) {
+    pointer he = 0
+    fly.runtime.gethostbyname(host, he)
+    if he == 0 { out = 0 - 1  return }
+    long lstl = 0
+    fly.llvm.ptrReadLong(he, 24, lstl)               // h_addr_list
+    pointer lst = 0
+    lst = lstl
+    if lst == 0 { out = 0 - 1  return }
+    int n = 0
+    bool go = true
+    while go {
+        if n >= maxCount { go = false } else {
+            long al = 0
+            fly.llvm.ptrReadLong(lst, n * 8, al)
+            pointer a = 0
+            a = al
+            if a == 0 { go = false } else {
+                byte b0 = 0
+                byte b1 = 0
+                byte b2 = 0
+                byte b3 = 0
+                fly.llvm.ptrByteAt(a, 0, b0)
+                fly.llvm.ptrByteAt(a, 1, b1)
+                fly.llvm.ptrByteAt(a, 2, b2)
+                fly.llvm.ptrByteAt(a, 3, b3)
+                int i0 = b0 & 255
+                int i1 = b1 & 255
+                int i2 = b2 & 255
+                int i3 = b3 & 255
+                int packed = (i0 << 24) | (i1 << 16) | (i2 << 8) | i3
+                fly.llvm.ptrPokeInt(buf, n * 4, packed)
+                n = n + 1
+            }
+        }
+    }
+    out = n
+}
+
+// net_reverse_dns — the host name for a packed IPv4, written NUL-free into buf.
+// Returns the byte length, or -1 when the address has no PTR record. AF_INET is
+// 2 and an IPv4 address is 4 bytes, on every platform.
+public void net_reverse_dns(const int addr, const pointer buf, const int cap, int out) {
+    pointer raw = 0
+    fly.runtime.malloc(4, raw)
+    fly.llvm.ptrPokeByte(raw, 0, (byte)((addr >> 24) & 255))
+    fly.llvm.ptrPokeByte(raw, 1, (byte)((addr >> 16) & 255))
+    fly.llvm.ptrPokeByte(raw, 2, (byte)((addr >> 8) & 255))
+    fly.llvm.ptrPokeByte(raw, 3, (byte)(addr & 255))
+    pointer he = 0
+    fly.runtime.gethostbyaddr(raw, 4, 2, he)
+    fly.runtime.free(raw)
+    if he == 0 { out = 0 - 1  return }
+    long nml = 0
+    fly.llvm.ptrReadLong(he, 0, nml)                 // h_name
+    pointer nm = 0
+    nm = nml
+    if nm == 0 { out = 0 - 1  return }
+    ulong len = 0
+    fly.runtime.strlen(nm, len)
+    int n = 0
+    fly.llvm.longToInt((long)len, n)
+    if n >= cap { n = cap - 1 }
+    if n < 0 { n = 0 }
+    int i = 0
+    while i < n {
+        byte b = 0
+        fly.llvm.ptrByteAt(nm, i, b)
+        fly.llvm.ptrPokeByte(buf, i, b)
+        i = i + 1
+    }
+    out = n
+}
+
+public void net_resolve4(const pointer host, int out) {
+    pointer he = 0
+    fly.runtime.gethostbyname(host, he)
+    if he == 0 { out = 0  return }
+    long lstl = 0
+    fly.llvm.ptrReadLong(he, 24, lstl)              // hostent.h_addr_list
+    pointer lst = 0
+    lst = lstl
+    if lst == 0 { out = 0  return }
+    long a0l = 0
+    fly.llvm.ptrReadLong(lst, 0, a0l)
+    pointer a0 = 0
+    a0 = a0l
+    if a0 == 0 { out = 0  return }
+    byte b0 = 0
+    byte b1 = 0
+    byte b2 = 0
+    byte b3 = 0
+    fly.llvm.ptrByteAt(a0, 0, b0)
+    fly.llvm.ptrByteAt(a0, 1, b1)
+    fly.llvm.ptrByteAt(a0, 2, b2)
+    fly.llvm.ptrByteAt(a0, 3, b3)
+    int i0 = b0 & 255
+    int i1 = b1 & 255
+    int i2 = b2 & 255
+    int i3 = b3 & 255
+    out = (i0 << 24) | (i1 << 16) | (i2 << 8) | i3
 }
 
 // ── Fly string-array slot helpers ────────────────────────────────────────────

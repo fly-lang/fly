@@ -29,8 +29,10 @@ suite GenericsSuite {
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
-            SemaContext ctx = new SemaContext(null)
+            DiagnosticsEngine diags = p.getDiags()
+            SemaContext ctx = new SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertFalse(diags.hasErrorOccurred(), 99)
 
             Registry reg = ctx.getReg()
             List<SemaClassType> classes = reg.getClasses()

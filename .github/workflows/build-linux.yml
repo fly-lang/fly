@@ -18,8 +18,9 @@ on:
 env:
   # stage0 bootstrap release (compiles the stage-1 world; see the stage map
   # below). The seed is cut from the current fly/ reference — it must carry the
-  # header-gen/codegen fixes the self-host tree relies on.
-  FLY_VERSION: "0.13.10"
+  # header-gen/codegen fixes the self-host tree relies on. 0.13.13 is the first
+  # one with the array subscript, `C[N]` declarations and refcounted arrays.
+  FLY_VERSION: "0.13.13"
 
 jobs:
 

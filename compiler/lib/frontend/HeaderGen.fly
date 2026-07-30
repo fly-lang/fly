@@ -46,6 +46,25 @@ public class HeaderGen {
             out = ""
             return
         }
+        // An ARRAY renders as `element[size]`, or `element[]` when the size is not
+        // a literal. Without this case an array-typed parameter, field or return
+        // came out as the EMPTY STRING and the generated .fly.h was unparseable —
+        // the same defect the reference carried until its own typeStr grew a
+        // TYPE_ARRAY case. The recursion covers `int[][]`.
+        if t.getTypeKind() == ASTTypeKind.TYPE_ARRAY {
+            ASTArrayType at = t.asArrayType()
+            if at == null { out = ""  return }
+            string elem = HeaderGen.typeStr(at.getElementType())
+            if fly.str.len(elem) == 0 { out = ""  return }
+            string sz = ""
+            ASTExpr se = at.getSizeExpr()
+            if se != null {
+                ASTNumberValue nv = se.asNumberValue()
+                if nv != null { sz = nv.getValue() }
+            }
+            out = fly.str.concat(elem, fly.str.concat("[", fly.str.concat(sz, "]")))
+            return
+        }
         if t.getTypeKind() == ASTTypeKind.TYPE_NAMED {
             ASTNamedType nt = t.asNamedType()
             string name = ""

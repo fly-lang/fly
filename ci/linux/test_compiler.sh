@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
 # test_compiler.sh — run every compiler/test/**/*Suite.fly against the compiler
-# sources, without flyp. Single-file build: each suite is the entry; source
+# sources, without a package manifest. Single-file build: each suite is the entry; source
 # discovery is implicit (a fly project compiles from the CURRENT directory — the
 # repo root here), so the import graph pulls fly.compiler.*, fly.test.util, … into
 # one module while std namespaces stay archive-linked (the -L pass registers them
@@ -11,7 +11,7 @@
 # intermediate objects into $OUT.
 #
 # Scope: ONLY compiler/test (the compiler's own unit suites). The std, driver, and
-# flyp suites run in their own scripts — see the note at the bottom of this file.
+# std and tool suites run in their own scripts — see the note at the bottom of this file.
 # ─────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 # Scripts live in ci/linux/; operate from the project root (two levels up).
@@ -86,18 +86,106 @@ if [ ! -d "$(dirname "$FLY")/../lib" ]; then
     exit 1
 fi
 
-pass=0
-fail=0
+# ── Selector (mirror of test_compiler.ps1) ────────────────────────────────────
+# Optional $1 (or $FLY_TEST_SUITE): a suite name, a qualified ns.SuiteName, or a
+# NAMESPACE — matched like the compiler's --suite=<sel> (a namespace selects its
+# whole subtree). Empty = every suite.
+SEL="${1:-${FLY_TEST_SUITE:-}}"
+
+suite_sel_match() {                      # $1=file $2=basename → 0 when selected
+    [ -z "$SEL" ] && return 0
+    [ "$2" = "$SEL" ] && return 0
+    ns=$(grep -m1 -E '^namespace +[A-Za-z0-9_.]+' "$1" | sed -E 's/^namespace +//;s/[^A-Za-z0-9_.].*$//')
+    [ -z "$ns" ] && return 1             # namespace-less: bare name only
+    [ "$ns" = "$SEL" ] && return 0
+    [ "$ns.$2" = "$SEL" ] && return 0
+    case "$ns" in "$SEL".*) return 0 ;; esac
+    return 1
+}
+
+selected=""
 for suite in $(find compiler/test -name '*Suite.fly' | sort); do
     name=$(basename "$suite" .fly)
+    if suite_sel_match "$suite" "$name"; then selected="$selected $suite"; fi
+done
+if [ -z "$(echo "$selected" | tr -d ' ')" ]; then
+    echo "error: no suite or namespace matches '$SEL' under compiler/test" >&2
+    exit 1
+fi
+
+# ── Run mode (mirror of test_compiler.ps1) ────────────────────────────────────
+# ONE-SHOT (default for the self-host stages): a single `--suite[=SEL]` build —
+# the tree compiles ONCE into one test binary running every selected suite.
+# Per-suite loop kept for STAGE=0 (the pinned seed predates the all-suites test
+# main and the namespace selector) and FLY_TEST_PER_SUITE=1 (debugging).
+if [ "$STAGE" != "0" ] && [ "${FLY_TEST_PER_SUITE:-}" != "1" ]; then
+    log="$OUT/_oneshot.log"
+    if [ -n "$SEL" ]; then
+        "$FLY" --suite="$SEL" --src-dir compiler -o test_all --out-dir "$OUT" -L "$STD" >"$log" 2>&1
+    else
+        "$FLY" --suite --src-dir compiler -o test_all --out-dir "$OUT" -L "$STD" >"$log" 2>&1
+    fi
+    code=$?
+
+    pass=0
+    fail=0
+    reported=""
+    # dedup by suite name keeping the WORST failure count (a self-spawning
+    # suite re-runs the binary as a child, duplicating every report line)
+    while IFS=' ' read -r name nfail; do
+        [ -z "$name" ] && continue
+        reported="$reported $name"
+        if [ "$nfail" = "0" ]; then
+            echo "  PASS          $name"
+            pass=$((pass + 1))
+        else
+            echo "  RUN  FAIL     $name ($nfail failed)"
+            fail=$((fail + 1))
+        fi
+    done < <(grep -E '^suite [A-Za-z0-9_]+: [0-9]+ cases, [0-9]+ passed, [0-9]+ failed' "$log" \
+             | sed -E 's/^suite ([A-Za-z0-9_]+):.*, ([0-9]+) failed$/\1 \2/' \
+             | sort -k1,1 -k2,2nr | sort -u -k1,1 || true)
+
+    if [ -z "$(echo "$reported" | tr -d ' ')" ]; then
+        # No report at all = the compile broke: show the diagnostics.
+        echo "  COMPILE FAIL  (exit $code) - $log"
+        grep -m6 -E 'error:|broken|abort' "$log" | sed 's/^/      /' || tail -6 "$log" | sed 's/^/      /'
+        exit 1
+    fi
+
+    if [ "$fail" -gt 0 ]; then
+        grep -m12 -E 'FAIL\(' "$log" | sed 's/^/      /' || true
+    fi
+
+    # Crash containment: a suite that dies kills the shared runner, so the
+    # suites after it never report. Surface them instead of undercounting.
+    missing=0
+    for suite in $selected; do
+        name=$(basename "$suite" .fly)
+        case " $reported " in
+            *" $name "*) ;;
+            *) echo "  NO REPORT     $name (run aborted before it? exit $code)"; missing=$((missing + 1)) ;;
+        esac
+    done
+
+    echo "─────────────────────────────────────────────"
+    echo "  $pass passed, $fail failed, $missing unreported (one-shot, exit $code)"
+    [ "$fail" -eq 0 ] && [ "$missing" -eq 0 ] && [ "$code" -eq 0 ]
+    exit $?
+fi
+
+pass=0
+fail=0
+for suite in $selected; do
+    name=$(basename "$suite" .fly)
     log="$OUT/_$name.log"
-    # One-shot: --suite compiles AND runs; fly's exit code is the run's code (or
-    # the compile failure). --suite stays LAST: its value is optional, so in the
-    # reference CLI a following positional would be swallowed as the suite name.
-    # DIRECTORY CLI (every stage): the suite is discovered by name from the
-    # compiler/ tree (suite names repeat across trees — ManifestSuite also
-    # exists in std/test — and compiler/ as the root keeps the driver/compiler
-    # imports resolving from source).
+    # One-shot per suite: --suite=Name compiles AND runs; fly's exit code is the
+    # run's code (or the compile failure). --suite stays LAST: its value is
+    # optional, so in the reference CLI a following positional would be
+    # swallowed as the suite name. DIRECTORY CLI (every stage): the suite is
+    # discovered by name from the compiler/ tree (suite names repeat across
+    # trees — ManifestSuite also exists in std/test — and compiler/ as the root
+    # keeps the driver/compiler imports resolving from source).
     if "$FLY" --suite="$name" --src-dir compiler -o "test_$name" --out-dir "$OUT" -L "$STD" >"$log" 2>&1; then
         echo "  PASS          $name"
         pass=$((pass + 1))

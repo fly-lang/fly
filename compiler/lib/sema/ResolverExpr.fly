@@ -89,10 +89,11 @@ public class ResolverExpr {
         } else {
             // comparisons and logic yield BOOL (the CreateBinary default is the
             // left operand's type, which broke overload matching on args like
-            // `assertTrue(x >= 0, tag)` — audit V4). Assignments keep the default
-            // (the assignee's type).
+            // `assertTrue(x >= 0, tag)` — audit V4). Assignments — plain AND
+            // compound (B015) — keep the default (the assignee's type).
             ASTBinaryKind bk = node.getBinaryKind()
-            if bk != ASTBinaryKind.OP_BINARY_ASSIGN {
+            bool assignish = bk == ASTBinaryKind.OP_BINARY_ASSIGN || node.isCompoundAssign()
+            if assignish == false {
                 b.setType(SemaBuiltin.getBoolType())
             } else {
                 // Stage-7 escape marking: an assigned-away variable (`this.f = p`,
@@ -102,12 +103,39 @@ public class ResolverExpr {
                 // buffer — b stays solely owned and is safe to free at scope exit.
                 // Marking it escaped would needlessly leak it. Only non-string assigns
                 // (class handles, which truly alias the same object) must escape.
+                // EXCEPTION 2 (reference counting): an ARRAY is not escaped either.
+                // Escaping suppresses the scope-exit release, and for a refcounted
+                // buffer that is precisely the wrong move — `out = xs` retains, so
+                // the release is what brings the count back down. Marking it escaped
+                // leaves the count permanently raised and NOTHING is ever freed: the
+                // whole scheme goes silently inert while every test stays green.
                 if right != null {
                     if right.isVarExpr() {
                         SemaType rvt = right.getType()
                         bool rIsStr = false
-                        if rvt != null { rIsStr = rvt.isString() }
-                        if rIsStr == false { right.setEscaped(true) }
+                        bool rIsArr = false
+                        if rvt != null { rIsStr = rvt.isString()  rIsArr = rvt.isArray() }
+                        if rIsStr == false {
+                            if rIsArr == false { right.setEscaped(true) }
+                        }
+                    }
+                }
+                // Assignment compatibility: the assignee's type must accept the RHS
+                if left != null {
+                    if right != null {
+                        checkAssignTypes(r, node.getOpLocation(), left.getType(), right.getType())
+                    }
+                }
+                // string `+=` (or any compound on strings) is UNDEFINED by the
+                // docs — reject rather than emit an integer op over %string.
+                if node.isCompoundAssign() {
+                    if left != null {
+                        SemaType clt = left.getType()
+                        if clt != null {
+                            if clt.isString() {
+                                r.diagStr(node.getOpLocation(), DiagID.err_sema_not_supported, "compound assignments on strings")
+                            }
+                        }
                     }
                 }
             }
@@ -121,6 +149,49 @@ public class ResolverExpr {
         SemaExpr inner = r.getCurrentExpr()
         SemaUnary u = SemaBuilder.CreateUnary(node, inner)
         r.setCurrentExpr(u)
+    }
+
+    // arrayAccess — `base[index]`. The base must be an array and the index an
+    // integer; the resulting expression takes the array's ELEMENT type, so
+    // `int x = k[1]` type-checks like any other int expression.
+    //
+    // A rejected subscript yields a null expression rather than a node of the
+    // wrong type: codegen would otherwise GEP through a base it cannot address,
+    // which is a backend abort instead of a diagnostic.
+    public static void arrayAccess(const Resolver r, const ASTArrayAccess node) {
+        ASTExpr be = node.getBase()
+        be.accept(r)
+        SemaExpr base = r.getCurrentExpr()
+        ASTExpr ie = node.getIndex()
+        ie.accept(r)
+        SemaExpr index = r.getCurrentExpr()
+        if base == null { r.setCurrentExpr(null)  return }
+        if index == null { r.setCurrentExpr(null)  return }
+
+        SemaType bt = base.getType()
+        SemaArrayType at = null
+        if bt != null { at = bt.asArray() }
+        if at == null {
+            string bn = "?"
+            if bt != null { bn = bt.getName() }
+            r.diagStr(node.getLoc(), DiagID.err_sema_subscript_not_array, bn)
+            r.setCurrentExpr(null)
+            return
+        }
+
+        SemaType it = index.getType()
+        bool intIndex = false
+        if it != null { intIndex = it.isInteger() }
+        if intIndex == false {
+            string inm = "?"
+            if it != null { inm = it.getName() }
+            r.diagStr(node.getLoc(), DiagID.err_sema_subscript_index_not_int, inm)
+            r.setCurrentExpr(null)
+            return
+        }
+
+        SemaArrayAccess acc = SemaBuilder.CreateArrayAccess(node, base, index, at.getElementType())
+        r.setCurrentExpr(acc)
     }
 
     public static void ternary(const Resolver r, const ASTTernary node) {
@@ -212,6 +283,24 @@ public class ResolverExpr {
                         r.setCurrentExpr(null)
                         return
                     }
+                    // STATIC field access `ClassName.field` (B030): the parent
+                    // names a class TYPE and the member is a static attribute —
+                    // build a receiver-less SemaMember carrying the attribute
+                    // (codegen reads/writes its module global). A NON-static
+                    // attribute through a type name falls through to the normal
+                    // path and its "type name, not a value" diagnostic.
+                    SemaClassType stc = tt.asClass()
+                    if stc != null {
+                        SemaClassAttribute sattr2 = stc.LookupAttribute(node.getName())
+                        if sattr2 != null {
+                            if sattr2.isStatic() {
+                                SemaMember sm2 = SemaBuilder.CreateMemberVar(node, sattr2, null)
+                                sm2.setStaticAttr(sattr2)
+                                r.setCurrentExpr(sm2)
+                                return
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -297,10 +386,86 @@ public class ResolverExpr {
         }
         r.setCurrentExpr(SemaBuilder.CreateArrayValue(node, elemT, vals))
     }
+
+    // structValue — `{name = expr, ...}` (B029): the target type comes from the
+    // EXPECTED type (decl initializer / nested struct field); each field name is
+    // looked up on the struct class, its expr resolved under the field's expected
+    // type, and the pair recorded in source order for codegen.
+    public static void structValue(const Resolver r, const ASTStructValue node) {
+        SemaType exp = r.getExpectedType()
+        SemaClassType ct = null
+        if exp != null { ct = exp.asClass() }
+        bool ok = false
+        if ct != null {
+            if ct.getClassKind() == SemaClassKind.STRUCT { ok = true }
+        }
+        if ok == false {
+            r.diagStr(node.getLoc(), DiagID.err_sema_not_supported,
+                      "struct literals without a struct-typed target (declare as 'T v = {...}')")
+            r.setCurrentExpr(null)
+            return
+        }
+        SemaStructValue sv = SemaBuilder.CreateStructValue(node, ct)
+        List<string> names = node.getNames()
+        List<ASTExpr> exprs = node.getExprs()
+        int i = 0
+        while i < names.size() {
+            string nm = names.get(i)
+            SemaClassAttribute a = ct.LookupAttribute(nm)
+            if a == null {
+                r.diagStr(node.getLoc(), DiagID.err_sema_unresolved_identifier, nm)
+            } else {
+                ASTExpr fe = exprs.get(i)
+                SemaType saved = r.getExpectedType()
+                r.setExpectedType(a.getType())
+                fe.accept(r)
+                r.setExpectedType(saved)
+                SemaExpr se = r.getCurrentExpr()
+                if se != null {
+                    checkAssignTypes(r, fe.getLoc(), a.getType(), se.getType())
+                    sv.addField(nm, se)
+                }
+            }
+            i = i + 1
+        }
+        r.setCurrentExpr(sv)
+    }
 }
 
 // promoteNumberTypes — rank-based widening (1:1 with C++ Resolver::PromoteNumberTypes):
 // the operand with the higher (or equal) rank wins.
 public SemaType promoteNumberTypes(const SemaType left, const SemaType right) {
     if left.getRank() >= right.getRank() { out = left } else { out = right }
+}
+
+// checkAssignTypes — kind-level assignment compatibility, the reference
+// SemaValidator::CheckAssignment minus its refinements (constant narrowing,
+// array element equality, class inheritance): those need value/subtype walks
+// the self-host will grow later; the KIND mismatches (string↔number etc.) are
+// the silent-miscompile class this guards. Used by the binary-assign resolution
+// and the decl-initializer check. A null side is skipped — an unresolved expr
+// (already diagnosed), or a null/unset literal, which carries no type — as are
+// generic type variables (substituted at monomorphization).
+public void checkAssignTypes(const Resolver r, const SourceLocation loc, const SemaType lhs, const SemaType rhs) {
+    if lhs == null { return }
+    if rhs == null { return }
+    if lhs.getKind() == SemaKind.TYPE_PARAM { return }
+    if rhs.getKind() == SemaKind.TYPE_PARAM { return }
+    bool ok = true
+    if lhs.isNumber() {
+        // class handles are pointer-sized: class → long/pointer stays legal
+        ok = rhs.isNumber() || rhs.isClass()
+    } elsif lhs.isString() {
+        ok = rhs.isString()
+    } elsif lhs.isArray() {
+        ok = rhs.isArray()
+    } elsif lhs.isClass() {
+        // integer → class is legal (pointer-sized slots, reference long→class)
+        ok = rhs.isClass() || rhs.isInteger()
+    } elsif lhs.isEnum() {
+        ok = rhs.isEnum() || rhs.isInteger()
+    }
+    if ok == false {
+        r.diagStr2(loc, DiagID.err_sema_type_mismatch, rhs.getName(), lhs.getName())
+    }
 }

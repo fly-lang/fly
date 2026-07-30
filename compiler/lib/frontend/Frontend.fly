@@ -58,6 +58,42 @@ public class Frontend {
 
     public string getOutputFile() { out = this.outputFile }
 
+    // checkTestFilter — true when `--test=<tf>` selects at least one *Test
+    // method among the suites this build runs (all of them, or only the
+    // --suite=<suiteSel> one). Matching mirrors emitTestMain: the bare name or
+    // the name+"Test" form. A build with no suites at all passes untouched
+    // (the method filter has no suite to apply to there).
+    public bool checkTestFilter(const Registry reg, const string suiteSel, const string tf) {
+        bool anySuite = false
+        bool anyMatch = false
+        List<SemaClassType> classes = reg.getClasses()
+        int i = 0
+        while i < classes.size() {
+            SemaClassType cls = classes.get(i)
+            if cls.getClassKind() == SemaClassKind.SUITE {
+                if cls.isFromHeader() == false {
+                    bool sel = cls.matchesSuiteSel(suiteSel)
+                    if sel {
+                        anySuite = true
+                        List<SemaClassMethod> ms = cls.getMethodList()
+                        int mi = 0
+                        while mi < ms.size() {
+                            string nm = ms.get(mi).getName()
+                            if fly.str.endsWith(nm, "Test") {
+                                if fly.str.equals(nm, tf) { anyMatch = true }
+                                elsif fly.str.equals(nm, fly.str.concat(tf, "Test")) { anyMatch = true }
+                            }
+                            mi = mi + 1
+                        }
+                    }
+                }
+            }
+            i = i + 1
+        }
+        if anySuite == false { out = true  return }
+        out = anyMatch
+    }
+
     // trace — verbose phase log to stderr (only when FrontendOptions.verbose).
     public void trace(const string msg) {
         FrontendOptions fo = this.ci.getFrontendOptions()
@@ -224,6 +260,22 @@ public class Frontend {
             return
         }
         Registry reg = ctx.getReg()
+
+        // --test=<Method> matching ZERO *Test methods across the suites this
+        // build runs is an error: a typo'd filter would otherwise report every
+        // suite "0 cases, 0 failed" and exit GREEN.
+        if fo.getTestMode() {
+            CodeGenOptions cgo0 = this.ci.getCodeGenOptions()
+            string tf0 = ""
+            if cgo0 != null { tf0 = cgo0.getTestFilter() }
+            if fly.str.isEmpty(tf0) == false {
+                if this.checkTestFilter(reg, cgo0.getSuiteName(), tf0) == false {
+                    fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: --test filter '", tf0), "' matches no test method in the selected suites"))
+                    out = 1
+                    return
+                }
+            }
+        }
 
         // 2c) headers (--lib / --header): emit a `.fly.h` per ENTRY module now that
         // resolution has run (return/field/param types are known). Ports the reference
@@ -556,7 +608,16 @@ public class Frontend {
             fly.str.fromBytes(namePtr, nameLen, entry)
             string full = fly.os.path.join(dir, entry)
             if fly.os.path.isDir(full) {
-                this.scanSrcDir(full, mapNs, mapPath, known)
+                // B009: hidden dot-dirs and build/ are never sources (mirror
+                // of the driver discovery walk — fly.driver.discoverySkipsDir).
+                bool skipDir = false
+                byte b0 = 0
+                fly.str.byteAt(entry, 0, b0)
+                if b0 == 46 { skipDir = true }
+                elsif fly.str.equals(entry, "build") { skipDir = true }
+                if skipDir == false {
+                    this.scanSrcDir(full, mapNs, mapPath, known)
+                }
             } elsif fly.str.endsWith(entry, ".fly") {
                 if this.listHas(known, entry) == false {
                     string ns = this.extractNs(full)

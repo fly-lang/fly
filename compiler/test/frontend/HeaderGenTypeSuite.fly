@@ -1,0 +1,64 @@
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.frontend.*
+import fly.data.*
+import fly.str
+import fly.assert
+
+// HeaderGen.typeStr — how a type is PRINTED into a generated .fly.h.
+//
+// The array case is the reason this suite exists: without it an array-typed
+// parameter, field or return rendered as the EMPTY STRING and the header came
+// back unparseable. Types are produced by Parser.parseType so the test exercises
+// the same nodes the header generator meets in a real build.
+
+// ts — parse `src` as a type and render it.
+string ts(const string src) {
+    Parser p = new Parser(src)
+    ASTType t = p.parseType()
+    out = HeaderGen.typeStr(t)
+}
+
+suite HeaderGenTypeSuite {
+
+    void builtinTest() {
+        case "builtins print as their keyword": {
+            assert.assertStr(ts("int"), "int", 1)
+            assert.assertStr(ts("string"), "string", 2)
+        }
+    }
+
+    void namedTest() {
+        case "a named type prints qualified": {
+            assert.assertStr(ts("fly.data.List"), "fly.data.List", 3)
+        }
+    }
+
+    void arrayTest() {
+        // Unsized: the length travels in the fat pointer, so `[]` is the whole
+        // truth for a parameter or a return.
+        case "int[] prints its brackets": {
+            assert.assertStr(ts("int[]"), "int[]", 11)
+        }
+        // Sized: the literal is kept, because a FIELD declared `int[3]` needs it —
+        // `int[]` with no initializer is rejected by Sema.
+        case "int[3] keeps the literal size": {
+            assert.assertStr(ts("int[3]"), "int[3]", 12)
+        }
+        case "nested int[][] recurses": {
+            assert.assertStr(ts("int[][]"), "int[][]", 13)
+        }
+        case "an array of a named type prints the element name": {
+            assert.assertStr(ts("fly.data.List[]"), "fly.data.List[]", 14)
+        }
+        case "a string array prints too": {
+            assert.assertStr(ts("string[2]"), "string[2]", 15)
+        }
+        // A non-literal size cannot be printed back, so the size is dropped rather
+        // than guessed — `[]` still parses, a wrong number would not.
+        case "a computed size degrades to []": {
+            assert.assertStr(ts("int[n]"), "int[]", 16)
+        }
+    }
+}

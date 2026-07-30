@@ -367,6 +367,65 @@ public Buf readAll(Reader r) {
     out.cap = cap
 }
 
+// readExact reads EXACTLY n bytes from r, looping over short reads, and returns
+// them in a freshly allocated Buf.
+//
+// Neither readAll nor a bare read() can frame a length-delimited message on a
+// stream that never ends: readAll waits for EOF, and read() is allowed to return
+// fewer bytes than asked for. The returned Buf's `size` is the only sentinel — a
+// size < n means EOF (or an error) arrived first, and a size of 0 with n > 0
+// means the stream was already finished.
+public Buf readExact(Reader r, const ulong n) {
+    ulong cap = n
+    if cap == 0 { cap = 1 }
+    pointer buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    ulong total = 0
+    bool done = false
+    while done == false {
+        if total >= n { done = true } else {
+            ulong want = n - total
+            pointer tmp = 0
+            fly.runtime.mem_alloc(want, tmp)
+            Buf chunk = new Buf()
+            chunk.ptr = tmp
+            chunk.size = 0
+            chunk.cap = want
+            long nread = 0
+            nread = r.read(chunk, want)
+            if nread <= 0 { done = true } else {
+                ulong got = nread
+                ulong i = 0
+                while i < got {
+                    byte b = 0
+                    fly.llvm.ptrByteAt(tmp, i, b)
+                    fly.llvm.strPoke(buf, total + i, b)
+                    i = i + 1
+                }
+                total = total + got
+            }
+            fly.runtime.mem_free(tmp, want)
+        }
+    }
+    out.ptr = buf
+    out.size = total
+    out.cap = cap
+}
+
+// setBinaryMode stops the platform CRT from translating this fd's bytes, and is
+// a NO-OP on POSIX where nothing is translated.
+//
+// On Windows the UCRT opens descriptors in TEXT mode: reads collapse \r\n into
+// \n and stop at a 0x1A byte, writes expand every \n into \r\n. Any byte-exact
+// protocol must call this on its fds first — the LSP's `Content-Length:\r\n\r\n`
+// framing is destroyed without it, and a binary file read is silently truncated.
+// Returns false on error.
+public bool setBinaryMode(const int fd) {
+    int rc = 0
+    fly.runtime.io_set_binary(fd, rc)
+    out = rc == 0
+}
+
 // readLine reads bytes from r one at a time until '\n' or EOF and returns the
 // line content (without the trailing newline) as a Fly string.
 public string readLine(Reader r) {

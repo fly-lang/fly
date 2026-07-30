@@ -26,6 +26,42 @@ public class CodeGenExprOps {
         SemaExpr right = node.getRight()
         pointer rhs = cge.gen(right)
         rhs = cge.coerce(rhs, right.getType(), left.getType())
+        // An ARRAY ELEMENT destination is settled HERE, ahead of clone-on-store.
+        // An element is a BORROW: the array owns its buffer and nothing else, and
+        // its release never walks the elements. Cloning a string into a slot would
+        // therefore hand the array a buffer nobody ever frees — so the value is
+        // stored as it comes. genAddr runs the bounds check and yields the element
+        // address, so a write is range-checked exactly like a read.
+        if left.getKind() == SemaKind.ARRAY_ACCESS {
+            pointer eaddr = cge.genAddr(left)
+            cge.getLLVM().buildStore(cge.getBuilder(), rhs, eaddr)
+            node.setLlvmValue(rhs)
+            return
+        }
+        // An ARRAY destination is reference counted: RETAIN the incoming buffer,
+        // RELEASE what the slot held, THEN store — in that order. Releasing first
+        // would drive `k = k` (and `k = f(k)`) through zero and free a buffer about
+        // to be stored straight back.
+        //
+        // The release is restricted to a LOCAL_VAR destination, for the same reason
+        // the string free-old is: a PARAMETER's slot is the CALLER's storage. For a
+        // synthetic `out` the caller allocas it without initialising it, so reading
+        // a "previous" buffer there would decrement whatever garbage was on the
+        // stack; for an ordinary array parameter the buffer is borrowed and belongs
+        // to the caller.
+        SemaType alt = left.getType()
+        if alt != null {
+            if alt.isArray() {
+                pointer aaddr = cge.genAddr(left)
+                CodeGenArray.retainValueIfLValue(cge, rhs, right)
+                if left.getKind() == SemaKind.LOCAL_VAR {
+                    CodeGenArray.emitRelease(cge, aaddr, alt.asArray())
+                }
+                cge.getLLVM().buildStore(cge.getBuilder(), rhs, aaddr)
+                node.setLlvmValue(rhs)
+                return
+            }
+        }
         // clone-on-store (see CodeGenStmt.decl): clone a borrowed string RHS so the LHS
         // owns an independent buffer, MOVE an owned temp. The RHS is fully materialized
         // (into its own buffer) HERE, before the old buffer is freed below — so even a
@@ -176,15 +212,23 @@ public class CodeGenExprOps {
         }
         pointer l = cge.gen(left)
         pointer r = cge.gen(right)
-        LLVM llvm = cge.getLLVM()
-        pointer b = cge.getBuilder()
         SemaType t = node.getType()
         bool isF = false
         if t != null { isF = t.isFloat() }
         l = cge.coerce(l, left.getType(), t)
         r = cge.coerce(r, right.getType(), t)
         bool uns = cge.isUnsignedInt(t)
+        pointer v = CodeGenExprOps.arithValues(cge, k, l, r, isF, uns)
+        node.setLlvmValue(v)
+    }
 
+    // arithValues — emit one arithmetic/bitwise/shift op over two ALREADY
+    // coerced values (shared by arith() and compoundAssign()).
+    public static pointer arithValues(const CodeGenExpr cge, const ASTBinaryKind k,
+                                      const pointer l, const pointer r,
+                                      const bool isF, const bool uns) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
         pointer v
         if k == ASTBinaryKind.OP_BINARY_ARITH_ADD {
             if isF { llvm.buildFAdd(b, l, r, "add", v) } else { llvm.buildAdd(b, l, r, "add", v) }
@@ -209,6 +253,59 @@ public class CodeGenExprOps {
         } else {
             if uns { llvm.buildLShr(b, l, r, "shr", v) } else { llvm.buildAShr(b, l, r, "shr", v) }
         }
+        out = v
+    }
+
+    // toArithKind — the arithmetic kind a compound assignment lowers through
+    // (`a += b` → OP_BINARY_ARITH_ADD), mirroring the reference toCompoundArith.
+    public static ASTBinaryKind toArithKind(const ASTBinaryKind ck) {
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_ADD { out = ASTBinaryKind.OP_BINARY_ARITH_ADD  return }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_SUB { out = ASTBinaryKind.OP_BINARY_ARITH_SUB  return }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_MUL { out = ASTBinaryKind.OP_BINARY_ARITH_MUL  return }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_DIV { out = ASTBinaryKind.OP_BINARY_ARITH_DIV  return }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_MOD { out = ASTBinaryKind.OP_BINARY_ARITH_MOD  return }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_AND { out = ASTBinaryKind.OP_BINARY_ARITH_AND  return }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_OR  { out = ASTBinaryKind.OP_BINARY_ARITH_OR   return }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_XOR { out = ASTBinaryKind.OP_BINARY_ARITH_XOR  return }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_SHIFT_L { out = ASTBinaryKind.OP_BINARY_ARITH_SHIFT_L  return }
+        out = ASTBinaryKind.OP_BINARY_ARITH_SHIFT_R
+    }
+
+    // compoundAssign — `a <op>= b` (B015) lowered as `a = a <op> b`: load the
+    // assignee, run the arithmetic in the PROMOTED type (so `i += 0.5` computes
+    // in double), bring the result back to the assignee's type and store it.
+    // The expression value is the stored result, like a plain assignment.
+    public static void compoundAssign(const CodeGenExpr cge, const SemaBinary node, const ASTBinaryKind ck) {
+        SemaExpr left = node.getLeft()
+        SemaExpr right = node.getRight()
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        SemaType lt = left.getType()
+        SemaType rt = right.getType()
+        SemaType at = lt
+        if lt != null {
+            if rt != null {
+                if lt.isNumber() {
+                    if rt.isNumber() {
+                        if rt.getRank() > lt.getRank() { at = rt }
+                    }
+                }
+            }
+        }
+        pointer addr = cge.genAddr(left)
+        pointer lty = cge.lowerType(lt)
+        pointer cur
+        llvm.buildLoad2(b, lty, addr, "cav", cur)
+        pointer l = cge.coerce(cur, lt, at)
+        pointer r = cge.gen(right)
+        r = cge.coerce(r, rt, at)
+        bool isF = false
+        if at != null { isF = at.isFloat() }
+        bool uns = cge.isUnsignedInt(at)
+        ASTBinaryKind ak = CodeGenExprOps.toArithKind(ck)
+        pointer v = CodeGenExprOps.arithValues(cge, ak, l, r, isF, uns)
+        v = cge.coerce(v, at, lt)
+        llvm.buildStore(cge.getBuilder(), v, addr)
         node.setLlvmValue(v)
     }
 
@@ -496,6 +593,20 @@ public class CodeGenExprOps {
             return
         }
 
+        // unary minus (B007): a VALUE op — no lvalue involved (works on
+        // literals and full expressions). fneg for floats, neg (0 - v) for ints.
+        if k == ASTUnaryKind.OP_UNARY_NEG {
+            pointer nval = cge.gen(e)
+            SemaType nt = node.getType()
+            bool isF = false
+            if nt != null { isF = nt.isFloat() }
+            pointer nv2
+            if isF { llvm.buildFNeg(b, nval, "neg", nv2) }
+            else { llvm.buildNeg(b, nval, "neg", nv2) }
+            node.setLlvmValue(nv2)
+            return
+        }
+
         // increment / decrement: load, +/- 1, store back; result is new or old value.
         pointer addr = cge.genAddr(e)
         pointer ty = cge.lowerType(e.getType())
@@ -536,15 +647,25 @@ public class CodeGenExprOps {
             }
         } else {
             if toF {
-                llvm.buildSIToFP(b, val, toTy, "sitofp", v)
+                // unsigned sources convert with uitofp (mirrors coerce)
+                if cge.isUnsignedInt(from) { llvm.buildUIToFP(b, val, toTy, "uitofp", v) }
+                else { llvm.buildSIToFP(b, val, toTy, "sitofp", v) }
             } else {
-                // int → int: widen (sext) or narrow (trunc) by rank
-                int fr = 0
-                int tr = 0
-                if from != null { fr = from.getRank() }
-                if to != null { tr = to.getRank() }
-                if tr > fr { llvm.buildSExt(b, val, toTy, "sext", v) }
-                elsif tr < fr { llvm.buildTrunc(b, val, toTy, "trunc", v) }
+                // int → int: compare lowered WIDTHS (ranks encode signedness in
+                // their parity: int 31 and uint 32 are both i32) and extend by
+                // the SOURCE's signedness, exactly like coerce — the old
+                // unconditional sext made `(int)aByte` sign-extend 200 to -56
+                // while the implicit coercions zext'ed (B010: the same value
+                // widened differently depending on the spelling).
+                int fw = 0
+                int tw = 0
+                if from != null { fw = cge.numWidth(from) }
+                if to != null { tw = cge.numWidth(to) }
+                if tw > fw {
+                    if cge.isUnsignedInt(from) { llvm.buildZExt(b, val, toTy, "zext", v) }
+                    else { llvm.buildSExt(b, val, toTy, "sext", v) }
+                }
+                elsif tw < fw { llvm.buildTrunc(b, val, toTy, "trunc", v) }
             }
         }
         node.setLlvmValue(v)

@@ -1,0 +1,106 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecPrecedenceSuite — EXECUTED checks of the precedence table (bug-hunt
+// Phase 1). The docs (Appendix B) specify ONE shared left-to-right level for
+// || && | & ^ << >> and the reference implements exactly that; since the B011
+// fix the self-host binPrec is FLAT too (the 3xx cases pin the flat values,
+// STAGE=0-arbitrated).
+//
+// Assert codes: 1xx arithmetic levels, 2xx shift placement, 3xx one-level
+// group, 4xx comparisons+ternary, 5xx short-circuit (B017 pins).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// FREE functions on purpose: a suite helper called through `this` AVs (B018).
+bool execPrecSideAnd() {
+    fail 7
+    out = true
+}
+
+bool execPrecSideOr() {
+    fail 9
+    out = true
+}
+
+suite ExecPrecedenceSuite {
+
+    void arithmeticLevelsTest() {
+        case "multiplicative binds tighter than additive": {
+            int r = 2 + 3 * 4
+            assert.assertEqI(r, 14, 101)
+            int s = (2 + 3) * 4
+            assert.assertEqI(s, 20, 102)
+        }
+        case "same level is left associative": {
+            int r = 10 - 2 - 3
+            assert.assertEqI(r, 5, 111)
+            int s = 100 / 10 / 2
+            assert.assertEqI(s, 5, 112)
+            int t = 2 * 3 % 4
+            assert.assertEqI(t, 2, 113)                  // (2*3) % 4
+        }
+    }
+
+    void shiftPlacementTest() {
+        case "shift is looser than addition": {
+            int r = 1 << 2 + 3
+            assert.assertEqI(r, 32, 201)                 // 1 << (2+3)
+            int s = 16 >> 1 + 1
+            assert.assertEqI(s, 4, 202)                  // 16 >> 2
+        }
+        case "shift is looser than multiplication": {
+            int r = 2 * 3 << 1
+            assert.assertEqI(r, 12, 211)                 // (2*3) << 1
+        }
+    }
+
+    void bitwiseOneLevelTest() {
+        case "or then and shares one level left-to-right": {
+            int r = 4 | 2 & 3
+            assert.assertEqI(r, 2, 301)                  // (4|2)&3 — flat table
+        }
+        case "or then xor shares one level": {
+            int r = 1 | 2 ^ 3
+            assert.assertEqI(r, 0, 311)                  // (1|2)^3
+        }
+        case "or then shift shares one level": {
+            int r = 1 | 8 >> 2
+            assert.assertEqI(r, 2, 321)                  // (1|8)>>2
+        }
+        case "logic or and and share the level too": {
+            bool r = true || false && false
+            assert.assertFalse(r, 331)                   // (true||false)&&false
+        }
+    }
+
+    void compareTernaryTest() {
+        case "additive binds tighter than equality": {
+            bool r = 1 + 2 == 3
+            assert.assertTrue(r, 401)
+        }
+        case "comparisons chain left to right into bool": {
+            bool r = 3 < 5 == true
+            assert.assertTrue(r, 411)                    // (3<5) == true
+        }
+        case "ternary is looser than the comparison": {
+            // the REFERENCE rejects this line (B013); the self-host follows
+            // the documented grouping (cond ? then : else) and yields 10
+            int r = 1 + 2 == 3 ? 10 : 20
+            assert.assertEqI(r, 10, 421)
+        }
+    }
+
+    void shortCircuitTest() {
+        // If short-circuit ever regressed, the helper's fail would run and the
+        // case-runner would report FAIL(7)/FAIL(9) on its own — the value
+        // asserts are enough.
+        case "false && call skips the call (B017)": {
+            bool r = false && execPrecSideAnd()
+            assert.assertFalse(r, 501)
+        }
+        case "true || call skips the call (B017)": {
+            bool r = true || execPrecSideOr()
+            assert.assertTrue(r, 511)
+        }
+    }
+}

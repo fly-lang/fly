@@ -203,7 +203,7 @@ suite BuilderSuite {
             Target t = m.targetAt(0)
 
             bool ok1 = b.buildAll()                    // cold: compiles + saves fp
-            bool fpThere = fly.os.fs.exists("target/debug/.flyp/hello.fp")
+            bool fpThere = fly.os.fs.exists("target/debug/.fly/hello.fp")
             // freshness via the direct API (no mtime flakiness)
             string comp1 = b.computeFpFor(t)
             bool fresh1 = b.isUpToDate(b.fpPath("hello"), comp1) && b.artifactsExist(t)

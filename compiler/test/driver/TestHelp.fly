@@ -28,11 +28,6 @@ public string mkToml(const string tpl) {
     out = fly.str.replace(tpl, "|", dq())
 }
 
-// mkJson — same placeholder trick for JSON test payloads.
-public string mkJson(const string tpl) {
-    out = fly.str.replace(tpl, "|", dq())
-}
-
 // tagDep / branchDep — build a git GitDep (free functions returning a class with
 // only string params are safe; class params in free functions are not).
 public GitDep tagDep(const string url, const string tag) {

@@ -17,7 +17,7 @@ import fly.str
 // compiled alongside each suite via `--src-dir test/util` (see ci/*/test_compiler).
 // Replaces the per-suite copies of cgIR/resolveSrc/dquote.
 //
-// Assert tags reserved by these helpers: 91 (parse), 93 (module verify).
+// Assert tags reserved by these helpers: 91 (parse), 92 (resolve), 93 (module verify).
 // ─────────────────────────────────────────────────────────────────────────────
 
 // cgIR — parse + resolve + codegen `src`, assert the module verifies (printing
@@ -26,10 +26,27 @@ public string cgIR(const string src) {
     Parser p = new Parser(src)
     ASTModule m = p.parseModule("t")
     assert.assertTrue(p.isSuccess(), 91)
+    // Resolve with a REAL engine, then refuse to lower a source that did not
+    // resolve. Passing `null` here swallowed every semantic error — r.diag()
+    // null-checks and returns quietly — so cgIR could not tell a bad source from
+    // a good one and carried a half-resolved AST into codegen. That was an access
+    // violation which killed the whole suite binary, taking every other case down
+    // with it, instead of one legible failure. ANY invalid input reproduced it,
+    // so each newly added diagnostic would have tripped over it again.
+    DiagnosticsEngine diags = p.getDiags()
     List<ASTModule> mods = new List<ASTModule>()
     mods.add(m)
-    SemaContext ctx = new SemaContext(null)
+    SemaContext ctx = new SemaContext(diags)
     List<SemaModule> res = ctx.Resolve(mods, false)
+    if diags.hasErrorOccurred() {
+        // Assign `out` BEFORE failing. `fail` does not unwind — the caller resumes
+        // and reads the out slot — so leaving it unset hands back an uninitialised
+        // string and the first fly.str call on it access-violates. That is how one
+        // invalid source used to take down the entire suite binary (every other
+        // case reported as "run aborted") instead of failing this one case.
+        out = ""
+        fail 92, "cgIR: source did not resolve"
+    }
     CodeGenModule cgm = new CodeGenModule("t")
     cgm.generate(ctx.getReg())
     bool ok = false

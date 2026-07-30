@@ -36,9 +36,9 @@ suite CodeGenClassSuite {
                     }
                     public int sum() { out = this.x + this.y }
                 }
-                int main() { Point p = new Point(40, 2)
+                void main() { Point p = new Point(40, 2)
                     int s = p.sum()
-                    out = s
+                    fail s
                 }
             ")
             assert.assertTrue(fly.str.contains(ir, "%.Point = type { ptr, i32, i32 }"), 11)
@@ -56,9 +56,9 @@ suite CodeGenClassSuite {
                     }
                     public int sum() { out = this.x + this.y }
                 }
-                int main() { Point p = new Point(40, 2)
+                void main() { Point p = new Point(40, 2)
                     int s = p.sum()
-                    out = s
+                    fail s
                 }
             ")
             assert.assertTrue(fly.str.contains(ir, "@malloc"), 21)
@@ -77,9 +77,9 @@ suite CodeGenClassSuite {
                     }
                     public int sum() { out = this.x + this.y }
                 }
-                int main() { Point p = new Point(40, 2)
+                void main() { Point p = new Point(40, 2)
                     int s = p.sum()
-                    out = s
+                    fail s
                 }
             ")
             assert.assertTrue(fly.str.contains(ir, "getelementptr inbounds nuw %.Point"), 31)
@@ -100,8 +100,8 @@ suite CodeGenClassSuite {
                     public int get() { out = this.v }
                 }
                 public Box makeBox(int n) { out = new Box(n) }
-                int main() { int r = makeBox(7).get()
-                    out = r
+                void main() { int r = makeBox(7).get()
+                    fail r
                 }
             ")
             assert.assertTrue(fly.str.contains(ir, "makeBox"), 41)            // receiver call emitted

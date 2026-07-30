@@ -1,0 +1,596 @@
+namespace fly.lsp
+
+import fly.str
+import fly.json
+import fly.data.List
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LspServer — request routing + main loop. Port of tools/lsp/LspServer.
+//
+// Lifecycle contract (LSP 3.x):
+//   • before `initialize`, every REQUEST gets error -32002 and every
+//     notification is dropped;
+//   • `shutdown` answers null and arms exit; `exit` ends the loop;
+//   • an unknown REQUEST gets -32601 — never silence, which would hang the
+//     client's pending promise. Unknown notifications are ignored by design.
+//
+// Document sync (reference parity, deliberate): didOpen/didChange RECOMPILE FROM
+// DISK and push diagnostics; the in-memory contentChanges text is not consulted.
+// The reference does the same — its analyzer compiles paths, not buffers. Wiring
+// an unsaved-buffer overlay through the compiler is the navigation phase's work.
+// didClose clears the file's diagnostics so a closed tab leaves no stale
+// squiggles behind.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class LspServer {
+    LspTransport transport
+    LspAnalyzer analyzer
+    bool initialized
+    bool exited
+    List<string> openFiles
+    string compiledPath          // which file the analyzer's nav state holds
+
+    public LspServer() {
+        this.transport = new LspTransport()
+        this.analyzer = new LspAnalyzer()
+        this.initialized = false
+        this.exited = false
+        this.openFiles = new List<string>()
+        this.compiledPath = ""
+    }
+
+    // run — blocks until exit or stdin closes.
+    public void run() {
+        while this.exited == false {
+            string body = this.transport.readMessage()
+            if fly.str.isEmpty(body) { this.exited = true } else {
+                this.dispatch(body)
+            }
+        }
+    }
+
+    void dispatch(const string body) {
+        int pe = 0
+        pointer msg = fly.json.parse(body, pe)
+        if pe != 0 { return }
+        if fly.json.isObject(msg) == false {
+            fly.json.freeValue(msg)
+            return
+        }
+
+        string method = ""
+        pointer mNode = fly.json.get(msg, "method")
+        if mNode != 0 { if fly.json.isString(mNode) { method = fly.json.asString(mNode) } }
+        if fly.str.isEmpty(method) {
+            fly.json.freeValue(msg)
+            return
+        }
+
+        // The id, kept as ITS OWN JSON TEXT so number/string/null all round-trip
+        // through the response without this file caring which it was.
+        bool isRequest = false
+        string idJson = "null"
+        pointer idNode = fly.json.get(msg, "id")
+        if idNode != 0 {
+            isRequest = true
+            idJson = fly.json.write(idNode)
+        }
+
+        if this.initialized == false {
+            if fly.str.equals(method, "initialize") == false {
+                if isRequest { this.transport.sendError(idJson, 0 - 32002, "Server not initialized") }
+                fly.json.freeValue(msg)
+                return
+            }
+        }
+
+        if fly.str.equals(method, "initialize") { this.onInitialize(idJson) }
+        elsif fly.str.equals(method, "initialized") { }
+        elsif fly.str.equals(method, "shutdown") { this.onShutdown(idJson) }
+        elsif fly.str.equals(method, "exit") { this.exited = true }
+        elsif fly.str.equals(method, "textDocument/didOpen") { this.onDidOpen(msg) }
+        elsif fly.str.equals(method, "textDocument/didChange") { this.onDidChange(msg) }
+        elsif fly.str.equals(method, "textDocument/didClose") { this.onDidClose(msg) }
+        elsif fly.str.equals(method, "textDocument/definition") { this.onDefinition(idJson, msg) }
+        elsif fly.str.equals(method, "textDocument/hover") { this.onHover(idJson, msg) }
+        elsif fly.str.equals(method, "textDocument/references") { this.onReferences(idJson, msg) }
+        elsif fly.str.equals(method, "textDocument/documentHighlight") { this.onDocumentHighlight(idJson, msg) }
+        elsif fly.str.equals(method, "textDocument/documentSymbol") { this.onDocumentSymbol(idJson, msg) }
+        elsif fly.str.equals(method, "textDocument/foldingRange") { this.onFoldingRange(idJson, msg) }
+        elsif fly.str.equals(method, "textDocument/completion") { this.onCompletion(idJson, msg) }
+        elsif fly.str.equals(method, "textDocument/signatureHelp") { this.onSignatureHelp(idJson, msg) }
+        elsif fly.str.equals(method, "textDocument/semanticTokens/full") { this.onSemanticTokens(idJson, msg) }
+        elsif fly.str.equals(method, "textDocument/inlayHint") { this.onInlayHint(idJson, msg) }
+        elsif fly.str.equals(method, "textDocument/typeDefinition") { this.onTypeDefinition(idJson, msg) }
+        elsif fly.str.equals(method, "textDocument/implementation") { this.onImplementation(idJson, msg) }
+        elsif fly.str.equals(method, "workspace/symbol") { this.onWorkspaceSymbol(idJson, msg) }
+        elsif isRequest {
+            this.transport.sendError(idJson, 0 - 32601,
+                fly.str.concat("Unknown method: ", method))
+        }
+        fly.json.freeValue(msg)
+    }
+
+    // extractPath — params.textDocument.uri → filesystem path, "" when absent.
+    string extractPath(const pointer msg) {
+        pointer params = fly.json.get(msg, "params")
+        if params == 0 { out = ""  return }
+        pointer td = fly.json.get(params, "textDocument")
+        if td == 0 { out = ""  return }
+        pointer uri = fly.json.get(td, "uri")
+        if uri == 0 { out = ""  return }
+        if fly.json.isString(uri) == false { out = ""  return }
+        out = fly.lsp.uriToPath(fly.json.asString(uri))
+    }
+
+    // ── lifecycle ────────────────────────────────────────────────────────────
+
+    void onInitialize(const string idJson) {
+        this.initialized = true
+        pointer caps = fly.json.newObject()
+        // 1 = full document sync. The capability list grows WITH the analyzer:
+        // everything declared here has a live handler below.
+        fly.json.put(caps, "textDocumentSync", fly.json.newInt(1))
+        fly.json.put(caps, "definitionProvider", fly.json.newBool(true))
+        fly.json.put(caps, "hoverProvider", fly.json.newBool(true))
+        fly.json.put(caps, "referencesProvider", fly.json.newBool(true))
+        fly.json.put(caps, "documentHighlightProvider", fly.json.newBool(true))
+        fly.json.put(caps, "documentSymbolProvider", fly.json.newBool(true))
+        fly.json.put(caps, "foldingRangeProvider", fly.json.newBool(true))
+        fly.json.put(caps, "workspaceSymbolProvider", fly.json.newBool(true))
+        fly.json.put(caps, "inlayHintProvider", fly.json.newBool(true))
+        fly.json.put(caps, "typeDefinitionProvider", fly.json.newBool(true))
+        fly.json.put(caps, "implementationProvider", fly.json.newBool(true))
+        pointer comp = fly.json.newObject()
+        pointer ctrig = fly.json.newArray()
+        fly.json.add(ctrig, fly.json.newString("."))
+        fly.json.put(comp, "triggerCharacters", ctrig)
+        fly.json.put(caps, "completionProvider", comp)
+        pointer sh = fly.json.newObject()
+        pointer strig = fly.json.newArray()
+        fly.json.add(strig, fly.json.newString("("))
+        fly.json.add(strig, fly.json.newString(","))
+        fly.json.put(sh, "triggerCharacters", strig)
+        fly.json.put(caps, "signatureHelpProvider", sh)
+        pointer sem = fly.json.newObject()
+        pointer legend = fly.json.newObject()
+        pointer tt = fly.json.newArray()
+        fly.json.add(tt, fly.json.newString("namespace"))
+        fly.json.add(tt, fly.json.newString("class"))
+        fly.json.add(tt, fly.json.newString("function"))
+        fly.json.add(tt, fly.json.newString("variable"))
+        fly.json.add(tt, fly.json.newString("parameter"))
+        fly.json.add(tt, fly.json.newString("property"))
+        fly.json.add(tt, fly.json.newString("enumMember"))
+        fly.json.add(tt, fly.json.newString("type"))
+        fly.json.put(legend, "tokenTypes", tt)
+        fly.json.put(legend, "tokenModifiers", fly.json.newArray())
+        fly.json.put(sem, "legend", legend)
+        fly.json.put(sem, "full", fly.json.newBool(true))
+        fly.json.put(caps, "semanticTokensProvider", sem)
+        pointer info = fly.json.newObject()
+        fly.json.put(info, "name", fly.json.newString("fly-lsp"))
+        fly.json.put(info, "version", fly.json.newString("0.2.0"))
+        pointer result = fly.json.newObject()
+        fly.json.put(result, "capabilities", caps)
+        fly.json.put(result, "serverInfo", info)
+        this.transport.sendResult(idJson, result)
+    }
+
+    void onShutdown(const string idJson) {
+        // Reference parity: shutdown already arms the exit — a client that never
+        // sends the final `exit` still lets the process end.
+        this.exited = true
+        this.transport.sendResult(idJson, 0)      // 0 → serialized as null
+    }
+
+    // ── document sync ────────────────────────────────────────────────────────
+
+    bool isOpen(const string path) {
+        int i = 0
+        bool found = false
+        while i < this.openFiles.size() {
+            if fly.str.equals(this.openFiles.get(i), path) { found = true  i = (int)this.openFiles.size() }
+            else { i = i + 1 }
+        }
+        out = found
+    }
+
+    void onDidOpen(const pointer msg) {
+        string path = this.extractPath(msg)
+        if fly.str.isEmpty(path) { return }
+        if this.isOpen(path) == false { this.openFiles.add(path) }
+        this.recompileAndPublish(path)
+    }
+
+    void onDidChange(const pointer msg) {
+        string path = this.extractPath(msg)
+        if fly.str.isEmpty(path) { return }
+        this.recompileAndPublish(path)
+    }
+
+    void onDidClose(const pointer msg) {
+        string path = this.extractPath(msg)
+        if fly.str.isEmpty(path) { return }
+        List<string> keep = new List<string>()
+        int i = 0
+        while i < this.openFiles.size() {
+            string f = this.openFiles.get(i)
+            if fly.str.equals(f, path) == false { keep.add(f) }
+            i = i + 1
+        }
+        this.openFiles = keep
+        // Clear the closed file's squiggles.
+        pointer params = fly.json.newObject()
+        fly.json.put(params, "uri", fly.json.newString(fly.lsp.pathToUri(path)))
+        fly.json.put(params, "diagnostics", fly.json.newArray())
+        this.transport.sendNotification("textDocument/publishDiagnostics", params)
+    }
+
+    void recompileAndPublish(const string triggerFile) {
+        List<LspDiag> diags = this.analyzer.compileFile(triggerFile)
+        this.compiledPath = triggerFile
+        pointer arr = fly.json.newArray()
+        int i = 0
+        while i < diags.size() {
+            fly.json.add(arr, fly.lsp.mkDiagnostic(diags.get(i)))
+            i = i + 1
+        }
+        pointer params = fly.json.newObject()
+        fly.json.put(params, "uri", fly.json.newString(fly.lsp.pathToUri(triggerFile)))
+        fly.json.put(params, "diagnostics", arr)
+        this.transport.sendNotification("textDocument/publishDiagnostics", params)
+    }
+
+    // ── navigation ───────────────────────────────────────────────────────────
+    //
+    // The analyzer holds ONE file's compile state. A request against another
+    // file recompiles first (cheap at editor scale, and identical to what a
+    // didOpen would have done) so navigation never answers from the wrong file.
+
+    void ensureCompiled(const string path) {
+        if fly.str.isEmpty(path) { return }
+        if fly.str.equals(path, this.compiledPath) { return }
+        List<LspDiag> ignored = this.analyzer.compileFile(path)
+        this.compiledPath = path
+    }
+
+    // extractLine/extractCol — params.position, converted to 1-based.
+    int extractLine(const pointer msg) {
+        pointer params = fly.json.get(msg, "params")
+        if params == 0 { out = 1  return }
+        pointer pos = fly.json.get(params, "position")
+        if pos == 0 { out = 1  return }
+        pointer l = fly.json.get(pos, "line")
+        if l == 0 { out = 1  return }
+        out = fly.json.asInt(l) + 1
+    }
+
+    int extractCol(const pointer msg) {
+        pointer params = fly.json.get(msg, "params")
+        if params == 0 { out = 1  return }
+        pointer pos = fly.json.get(params, "position")
+        if pos == 0 { out = 1  return }
+        pointer c = fly.json.get(pos, "character")
+        if c == 0 { out = 1  return }
+        out = fly.json.asInt(c) + 1
+    }
+
+    // mkLocation — {uri, range} for a 1-based site.
+    pointer mkLocation(const string file, const int line, const int col, const int len) {
+        pointer o = fly.json.newObject()
+        fly.json.put(o, "uri", fly.json.newString(fly.lsp.pathToUri(file)))
+        pointer r = fly.json.newObject()
+        fly.json.put(r, "start", fly.lsp.mkPosition(line, col))
+        fly.json.put(r, "end", fly.lsp.mkPosition(line, col + len))
+        fly.json.put(o, "range", r)
+        out = o
+    }
+
+    void onDefinition(const string idJson, const pointer msg) {
+        string path = this.extractPath(msg)
+        this.ensureCompiled(path)
+        LspTarget t = this.analyzer.findTargetAt(this.extractLine(msg), this.extractCol(msg))
+        if t.kind == 0 { this.transport.sendResult(idJson, 0)  return }
+        LspLoc loc = this.analyzer.declLocationOf(t)
+        if loc.ok == false { this.transport.sendResult(idJson, 0)  return }
+        this.transport.sendResult(idJson,
+            this.mkLocation(loc.file, loc.line, loc.col, fly.str.len(t.name)))
+    }
+
+    void onHover(const string idJson, const pointer msg) {
+        string path = this.extractPath(msg)
+        this.ensureCompiled(path)
+        LspTarget t = this.analyzer.findTargetAt(this.extractLine(msg), this.extractCol(msg))
+        string md = this.analyzer.hoverOf(t)
+        if fly.str.isEmpty(md) { this.transport.sendResult(idJson, 0)  return }
+        pointer contents = fly.json.newObject()
+        fly.json.put(contents, "kind", fly.json.newString("markdown"))
+        fly.json.put(contents, "value", fly.json.newString(md))
+        pointer result = fly.json.newObject()
+        fly.json.put(result, "contents", contents)
+        this.transport.sendResult(idJson, result)
+    }
+
+    void onReferences(const string idJson, const pointer msg) {
+        string path = this.extractPath(msg)
+        this.ensureCompiled(path)
+        LspTarget t = this.analyzer.findTargetAt(this.extractLine(msg), this.extractCol(msg))
+        pointer arr = fly.json.newArray()
+        if t.kind != 0 {
+            bool inclDecl = false
+            pointer params = fly.json.get(msg, "params")
+            if params != 0 {
+                pointer ctx = fly.json.get(params, "context")
+                if ctx != 0 {
+                    pointer f = fly.json.get(ctx, "includeDeclaration")
+                    if f != 0 { inclDecl = fly.json.asBool(f) }
+                }
+            }
+            if inclDecl {
+                LspLoc dl = this.analyzer.declLocationOf(t)
+                if dl.ok { fly.json.add(arr, this.mkLocation(dl.file, dl.line, dl.col, fly.str.len(t.name))) }
+            }
+            List<LspUse> uses = this.analyzer.collectUses(t.name)
+            int i = 0
+            while i < uses.size() {
+                LspUse u = uses.get(i)
+                fly.json.add(arr, this.mkLocation(path, u.line, u.col, u.len))
+                i = i + 1
+            }
+        }
+        this.transport.sendResult(idJson, arr)
+    }
+
+    void onDocumentHighlight(const string idJson, const pointer msg) {
+        string path = this.extractPath(msg)
+        this.ensureCompiled(path)
+        LspTarget t = this.analyzer.findTargetAt(this.extractLine(msg), this.extractCol(msg))
+        pointer arr = fly.json.newArray()
+        if t.kind != 0 {
+            List<LspUse> uses = this.analyzer.collectUses(t.name)
+            int i = 0
+            while i < uses.size() {
+                LspUse u = uses.get(i)
+                pointer h = fly.json.newObject()
+                pointer r = fly.json.newObject()
+                fly.json.put(r, "start", fly.lsp.mkPosition(u.line, u.col))
+                fly.json.put(r, "end", fly.lsp.mkPosition(u.line, u.col + u.len))
+                fly.json.put(h, "range", r)
+                fly.json.put(h, "kind", fly.json.newInt(2))     // Read
+                fly.json.add(arr, h)
+                i = i + 1
+            }
+        }
+        this.transport.sendResult(idJson, arr)
+    }
+
+    void onDocumentSymbol(const string idJson, const pointer msg) {
+        string path = this.extractPath(msg)
+        this.ensureCompiled(path)
+        List<LspSym> syms = this.analyzer.documentSymbols()
+        pointer arr = fly.json.newArray()
+        int i = 0
+        while i < syms.size() {
+            LspSym s = syms.get(i)
+            pointer o = fly.json.newObject()
+            fly.json.put(o, "name", fly.json.newString(s.name))
+            fly.json.put(o, "kind", fly.json.newInt(s.kind))
+            pointer r = fly.json.newObject()
+            fly.json.put(r, "start", fly.lsp.mkPosition(s.line, s.col))
+            fly.json.put(r, "end", fly.lsp.mkPosition(s.line, s.col + fly.str.len(s.name)))
+            fly.json.put(o, "range", r)
+            pointer r2 = fly.json.newObject()
+            fly.json.put(r2, "start", fly.lsp.mkPosition(s.line, s.col))
+            fly.json.put(r2, "end", fly.lsp.mkPosition(s.line, s.col + fly.str.len(s.name)))
+            fly.json.put(o, "selectionRange", r2)
+            fly.json.add(arr, o)
+            i = i + 1
+        }
+        this.transport.sendResult(idJson, arr)
+    }
+
+    void onFoldingRange(const string idJson, const pointer msg) {
+        string path = this.extractPath(msg)
+        this.ensureCompiled(path)
+        List<LspFold> folds = this.analyzer.foldingRanges()
+        pointer arr = fly.json.newArray()
+        int i = 0
+        while i < folds.size() {
+            LspFold f = folds.get(i)
+            pointer o = fly.json.newObject()
+            fly.json.put(o, "startLine", fly.json.newInt(f.startLine - 1))
+            fly.json.put(o, "endLine", fly.json.newInt(f.endLine - 1))
+            fly.json.add(arr, o)
+            i = i + 1
+        }
+        this.transport.sendResult(idJson, arr)
+    }
+
+    void onCompletion(const string idJson, const pointer msg) {
+        string path = this.extractPath(msg)
+        this.ensureCompiled(path)
+        List<LspSym> items = this.analyzer.completionsAt(this.extractLine(msg), this.extractCol(msg))
+        pointer arr = fly.json.newArray()
+        int i = 0
+        while i < items.size() {
+            LspSym s = items.get(i)
+            pointer o = fly.json.newObject()
+            fly.json.put(o, "label", fly.json.newString(s.name))
+            fly.json.put(o, "kind", fly.json.newInt(s.kind))
+            fly.json.put(o, "insertText", fly.json.newString(s.name))
+            fly.json.add(arr, o)
+            i = i + 1
+        }
+        this.transport.sendResult(idJson, arr)
+    }
+
+    void onSignatureHelp(const string idJson, const pointer msg) {
+        string path = this.extractPath(msg)
+        this.ensureCompiled(path)
+        LspSignature sig = this.analyzer.signatureAt(this.extractLine(msg), this.extractCol(msg))
+        if sig.ok == false { this.transport.sendResult(idJson, 0)  return }
+        pointer sio = fly.json.newObject()
+        fly.json.put(sio, "label", fly.json.newString(sig.label))
+        pointer ps = fly.json.newArray()
+        int i = 0
+        while i < sig.params.size() {
+            pointer po = fly.json.newObject()
+            fly.json.put(po, "label", fly.json.newString(sig.params.get(i)))
+            fly.json.add(ps, po)
+            i = i + 1
+        }
+        fly.json.put(sio, "parameters", ps)
+        pointer sigs = fly.json.newArray()
+        fly.json.add(sigs, sio)
+        pointer result = fly.json.newObject()
+        fly.json.put(result, "signatures", sigs)
+        fly.json.put(result, "activeSignature", fly.json.newInt(0))
+        fly.json.put(result, "activeParameter", fly.json.newInt(sig.active))
+        this.transport.sendResult(idJson, result)
+    }
+
+    void onSemanticTokens(const string idJson, const pointer msg) {
+        string path = this.extractPath(msg)
+        this.ensureCompiled(path)
+        List<LspSym> sorted = this.analyzer.semanticTokens()
+        // Sort by (line, col) — delta encoding requires it. In-place selection
+        // sort with get/set: editor files are small and the walk order is
+        // already nearly sorted.
+        int n = (int)sorted.size()
+        int i = 0
+        while i < n {
+            int best = i
+            int k = i + 1
+            while k < n {
+                LspSym a = sorted.get(k)
+                LspSym b = sorted.get(best)
+                bool less = a.line < b.line
+                if less == false { if a.line == b.line { less = a.col < b.col } }
+                if less { best = k }
+                k = k + 1
+            }
+            if best != i {
+                LspSym tmp = sorted.get(i)
+                sorted.set(i, sorted.get(best))
+                sorted.set(best, tmp)
+            }
+            i = i + 1
+        }
+        pointer data = fly.json.newArray()
+        int prevLine = 0
+        int prevCol = 0
+        int j = 0
+        while j < sorted.size() {
+            LspSym t = sorted.get(j)
+            int line0 = t.line - 1
+            int col0 = t.col - 1
+            int dLine = line0 - prevLine
+            int dCol = col0
+            if dLine == 0 { dCol = col0 - prevCol }
+            fly.json.add(data, fly.json.newInt(dLine))
+            fly.json.add(data, fly.json.newInt(dCol))
+            fly.json.add(data, fly.json.newInt(fly.str.len(t.name)))
+            fly.json.add(data, fly.json.newInt(t.kind))
+            fly.json.add(data, fly.json.newInt(0))
+            prevLine = line0
+            prevCol = col0
+            j = j + 1
+        }
+        pointer result = fly.json.newObject()
+        fly.json.put(result, "data", data)
+        this.transport.sendResult(idJson, result)
+    }
+
+    void onInlayHint(const string idJson, const pointer msg) {
+        string path = this.extractPath(msg)
+        this.ensureCompiled(path)
+        // The requested range, defaulting to "everything" when absent.
+        int startLine = 1
+        int endLine = 1000000
+        pointer params = fly.json.get(msg, "params")
+        if params != 0 {
+            pointer r = fly.json.get(params, "range")
+            if r != 0 {
+                pointer s = fly.json.get(r, "start")
+                if s != 0 {
+                    pointer sl = fly.json.get(s, "line")
+                    if sl != 0 { startLine = fly.json.asInt(sl) + 1 }
+                }
+                pointer e = fly.json.get(r, "end")
+                if e != 0 {
+                    pointer el = fly.json.get(e, "line")
+                    if el != 0 { endLine = fly.json.asInt(el) + 1 }
+                }
+            }
+        }
+        List<LspSym> hints = this.analyzer.inlayHints(startLine, endLine)
+        pointer arr = fly.json.newArray()
+        int i = 0
+        while i < hints.size() {
+            LspSym h = hints.get(i)
+            pointer o = fly.json.newObject()
+            fly.json.put(o, "position", fly.lsp.mkPosition(h.line, h.col))
+            fly.json.put(o, "label", fly.json.newString(h.name))
+            fly.json.put(o, "kind", fly.json.newInt(2))       // Parameter
+            fly.json.add(arr, o)
+            i = i + 1
+        }
+        this.transport.sendResult(idJson, arr)
+    }
+
+    void onTypeDefinition(const string idJson, const pointer msg) {
+        string path = this.extractPath(msg)
+        this.ensureCompiled(path)
+        LspTarget t = this.analyzer.findTargetAt(this.extractLine(msg), this.extractCol(msg))
+        if t.kind == 0 { this.transport.sendResult(idJson, 0)  return }
+        LspLoc loc = this.analyzer.typeDefinitionOf(t)
+        if loc.ok == false { this.transport.sendResult(idJson, 0)  return }
+        this.transport.sendResult(idJson,
+            this.mkLocation(loc.file, loc.line, loc.col, fly.str.len(t.varTypeName)))
+    }
+
+    void onImplementation(const string idJson, const pointer msg) {
+        // Reference parity: implementations are served as the symbol's
+        // references (LspServer.cpp delegates exactly the same way).
+        string path = this.extractPath(msg)
+        this.ensureCompiled(path)
+        LspTarget t = this.analyzer.findTargetAt(this.extractLine(msg), this.extractCol(msg))
+        pointer arr = fly.json.newArray()
+        if t.kind != 0 {
+            List<LspUse> uses = this.analyzer.collectUses(t.name)
+            int i = 0
+            while i < uses.size() {
+                LspUse u = uses.get(i)
+                fly.json.add(arr, this.mkLocation(path, u.line, u.col, u.len))
+                i = i + 1
+            }
+        }
+        this.transport.sendResult(idJson, arr)
+    }
+
+    void onWorkspaceSymbol(const string idJson, const pointer msg) {
+        string query = ""
+        pointer params = fly.json.get(msg, "params")
+        if params != 0 {
+            pointer q = fly.json.get(params, "query")
+            if q != 0 { if fly.json.isString(q) { query = fly.json.asString(q) } }
+        }
+        List<LspSym> syms = this.analyzer.workspaceSymbols(query)
+        pointer arr = fly.json.newArray()
+        int i = 0
+        while i < syms.size() {
+            LspSym s = syms.get(i)
+            pointer o = fly.json.newObject()
+            fly.json.put(o, "name", fly.json.newString(s.name))
+            fly.json.put(o, "kind", fly.json.newInt(s.kind))
+            fly.json.put(o, "location", this.mkLocation(s.file, s.line, s.col, fly.str.len(s.name)))
+            if fly.str.isEmpty(s.container) == false {
+                fly.json.put(o, "containerName", fly.json.newString(s.container))
+            }
+            fly.json.add(arr, o)
+            i = i + 1
+        }
+        this.transport.sendResult(idJson, arr)
+    }
+}

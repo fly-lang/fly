@@ -122,17 +122,26 @@ public class SemaArrayValue : SemaValue {
     public void accept(const SemaVisitor v) { v.visit(this) }
 }
 
+// SemaStructValue — resolved `{name = expr, ...}` struct literal (B029):
+// parallel name/expr lists in source order (Map has no key iteration, and
+// codegen needs to walk the pairs). The type is the target STRUCT class type.
 public class SemaStructValue : SemaValue {
 
-    Map<string, SemaValue> values
+    List<string> names
+    List<SemaExpr> exprs
 
     public SemaStructValue(const ASTStructValue ast, const SemaType type) {
         super(ast, type)
-        this.values = new Map<string, SemaValue>()
+        this.names = new List<string>()
+        this.exprs = new List<SemaExpr>()
     }
 
-    public Map<string, SemaValue> getValues() { out = this.values }
-    public void putValue(const string name, const SemaValue v) { this.values.put(name, v) }
+    public List<string> getNames() { out = this.names }
+    public List<SemaExpr> getExprs() { out = this.exprs }
+    public void addField(const string name, const SemaExpr v) {
+        this.names.add(name)
+        this.exprs.add(v)
+    }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }
 

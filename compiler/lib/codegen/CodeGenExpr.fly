@@ -243,10 +243,16 @@ public class CodeGenExpr : SemaVisitor {
             // error in the case's slot, jump to the case end so later statements
             // never run (reference: visit(SemaBlockStmt) checks after each stmt
             // while CurrentCaseEndBB is set). Only the FIRST failure of the case
-            // is reported.
+            // is reported. NOT inside a `handle` block: a callee fail there is
+            // the handle's to consume (emitHandle step 3), and jumping to the
+            // case end first would report a HANDLED error as a case failure —
+            // matching standalone semantics, where the handle block always runs
+            // to completion and the caught error never escapes.
             if this.caseEndBB != 0 {
                 if this.terminated == false {
-                    this.emitCaseFailFast()
+                    if this.handleSafe == 0 {
+                        this.emitCaseFailFast()
+                    }
                 }
             }
             i = i + 1
@@ -290,6 +296,20 @@ public class CodeGenExpr : SemaVisitor {
                         pointer sptr2
                         this.llvm.buildExtractValue(this.builder, sval2, 0, "sfreep", sptr2)
                         this.cgm.freeHandle(sptr2)
+                        j = j + 1
+                        continue
+                    }
+                    // Array local: drop ONE reference to its buffer. The block goes
+                    // back only when the count reaches zero, so two names over one
+                    // buffer release twice and free once. Handled here, before the
+                    // out-slot compare below: a returned array needs no such compare
+                    // because `out = xs` RETAINED it, so this release just undoes
+                    // this frame's own reference — the same reasoning as strings,
+                    // which are cloned into the out slot.
+                    bool isArr = false
+                    if vty != null { isArr = vty.isArray() }
+                    if isArr {
+                        CodeGenArray.emitRelease(this, v.getLlvmAlloca(), vty.asArray())
                         j = j + 1
                         continue
                     }
@@ -363,6 +383,9 @@ public class CodeGenExpr : SemaVisitor {
     public void visit(const SemaLocalVar node) { this.genVarAccess(node) }
     public void visit(const SemaClassInstance node) { this.genVarAccess(node) }
     public void visit(const SemaClassAttribute node) { this.genAttrAccess(node) }
+    // Subscript: the element ADDRESS in addrMode, the loaded element otherwise —
+    // one node, both directions (A6 fills CodeGenArray.arrayAccess in).
+    public void visit(const SemaArrayAccess node) { CodeGenArray.arrayAccess(this, node) }
     // the implicit `error` variable: true when the LAST handle block recorded a
     // failure (lasterr != 0). handle blocks update the per-function lasterr slot.
     public void visit(const SemaError node) {
@@ -433,6 +456,8 @@ public class CodeGenExpr : SemaVisitor {
         ASTBinaryKind k = ba.getBinaryKind()
         if k == ASTBinaryKind.OP_BINARY_ASSIGN {
             CodeGenExprOps.assign(this, node)
+        } elsif ba.isCompoundAssign() {
+            CodeGenExprOps.compoundAssign(this, node, k)
         } elsif k == ASTBinaryKind.OP_BINARY_LOGIC_AND {
             CodeGenExprOps.logic(this, node, k)
         } elsif k == ASTBinaryKind.OP_BINARY_LOGIC_OR {
@@ -557,7 +582,7 @@ public class CodeGenExpr : SemaVisitor {
     }
     public void visit(const SemaComplexValue node) { }
     public void visit(const SemaArrayValue node) { CodeGenArray.arrayValue(this, node) }
-    public void visit(const SemaStructValue node) { }
+    public void visit(const SemaStructValue node) { CodeGenClass.structValue(this, node) }
     // unset — lower to a typed zero. The empty visit left llvmValue = 0, and a
     // null handle reaching buildStore/buildRet crashes inside libLLVM.
     public void visit(const SemaUnsetValue node) {

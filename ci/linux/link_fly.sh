@@ -54,13 +54,8 @@ else
 fi
 
 echo "stage$STAGE: linking $OUT/fly ..."
-"$LLD" -pie --hash-style=gnu --eh-frame-hdr -m elf_x86_64 \
-    -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o "$OUT/fly" \
-    "$MULTIARCH/Scrt1.o" "$MULTIARCH/crti.o" "$GCCDIR/crtbeginS.o" \
-    -L"$FORK_LLVM/lib" -L"$GCCDIR" -L"$MULTIARCH" \
-    "$OBJ" "$LIB/fly_std_lib.a" "$LIB/fly_runtime_lib.a" \
-    -lLLVM -rpath "$RPATH" \
-    -lstdc++ -lm -lgcc_s -lgcc -lc \
-    "$GCCDIR/crtendS.o" "$MULTIARCH/crtn.o"
+# The link itself lives in link_bin.sh, shared with build_lsp.sh; RPATH is
+# passed through because only this script knows about the LLVM bundling mode.
+FLY_LINK_RPATH="$RPATH" ci/linux/link_bin.sh "$OBJ" "$OUT/fly" --with-llvm
 
 echo "stage$STAGE: fly -> $OUT/fly (libs from $LIB)"

@@ -8,6 +8,7 @@ import fly.os.io.Writer
 import fly.os.io.Buf
 import fly.os.fs.File
 import fly.os.fs
+import fly.os.env
 import fly.str
 import fly.mem
 import fly.assert
@@ -379,6 +380,102 @@ suite OsIoSuite {
             assert.assertEqL((long)fs.size(dst), 0, 709)
             fs.delete(src)
             fs.delete(dst)
+        }
+    }
+
+    // ── readExact / setBinaryMode ────────────────────────────────────────────
+    //
+    // readExact is what frames a length-delimited message on a stream that never
+    // reaches EOF — neither readAll (waits for EOF) nor read() (may return
+    // short) can do it. Its ONLY sentinel is the returned size, so every case
+    // here checks `size`, not a boolean.
+    void readExactTest() {
+        case "readExact returns exactly the requested prefix": {
+            string p = "fly_io_rx.txt"
+            fs.writeStr(p, "0123456789", 420)
+            File f = fs.open(p)
+            Reader r = io.fileReader(f.fd)
+            Buf b = io.readExact(r, 4)
+            assert.assertEqL((long)b.size, 4, 801)
+            byte b0 = 0
+            byte b3 = 0
+            fly.llvm.ptrByteAt(b.ptr, 0, b0)
+            fly.llvm.ptrByteAt(b.ptr, 3, b3)
+            assert.assertEqI(b0 & 255, 48, 802)
+            assert.assertEqI(b3 & 255, 51, 803)
+            r.close()
+            fs.delete(p)
+        }
+        case "a second readExact continues where the first stopped": {
+            string p = "fly_io_rx2.txt"
+            fs.writeStr(p, "0123456789", 420)
+            File f = fs.open(p)
+            Reader r = io.fileReader(f.fd)
+            Buf first = io.readExact(r, 4)
+            assert.assertEqL((long)first.size, 4, 804)
+            Buf second = io.readExact(r, 3)
+            assert.assertEqL((long)second.size, 3, 805)
+            byte s0 = 0
+            fly.llvm.ptrByteAt(second.ptr, 0, s0)
+            assert.assertEqI(s0 & 255, 52, 806)          // '4'
+            r.close()
+            fs.delete(p)
+        }
+        case "asking for more than there is reports the short size": {
+            string p = "fly_io_rx3.txt"
+            fs.writeStr(p, "abc", 420)
+            File f = fs.open(p)
+            Reader r = io.fileReader(f.fd)
+            Buf b = io.readExact(r, 100)
+            assert.assertEqL((long)b.size, 3, 807)
+            r.close()
+            fs.delete(p)
+        }
+        case "readExact at EOF and of zero bytes are both empty": {
+            string p = "fly_io_rx4.txt"
+            fs.writeStr(p, "xy", 420)
+            File f = fs.open(p)
+            Reader r = io.fileReader(f.fd)
+            Buf all = io.readExact(r, 2)
+            assert.assertEqL((long)all.size, 2, 808)
+            Buf past = io.readExact(r, 2)
+            assert.assertEqL((long)past.size, 0, 809)
+            Buf none = io.readExact(r, 0)
+            assert.assertEqL((long)none.size, 0, 810)
+            r.close()
+            fs.delete(p)
+        }
+        case "readExact spanning the whole file matches its bytes": {
+            string p = "fly_io_rx5.txt"
+            string payload = str.repeat("abcdefghij", 40)      // 400 bytes
+            fs.writeStr(p, payload, 420)
+            File f = fs.open(p)
+            Reader r = io.fileReader(f.fd)
+            Buf b = io.readExact(r, 400)
+            assert.assertEqL((long)b.size, 400, 811)
+            string got = ""
+            fly.llvm.strMake(b.ptr, 400, got)
+            assert.assertStr(got, payload, 812)
+            r.close()
+            fs.delete(p)
+        }
+        case "setBinaryMode succeeds on stdin and stdout": {
+            // A NO-OP on POSIX; on Windows it takes the fd out of the UCRT's
+            // TEXT mode. Either way it must report success — the LSP calls it
+            // on fd 0 and 1 before reading a single byte.
+            assert.assertTrue(io.setBinaryMode(0), 813)
+            assert.assertTrue(io.setBinaryMode(1), 814)
+        }
+        case "setBinaryMode on a closed descriptor fails on Windows only": {
+            // fd 9999 is never open. Windows' _setmode reports EBADF; POSIX has
+            // nothing to translate and the no-op still reports success, so this
+            // case pins the documented platform difference rather than a value.
+            bool r = io.setBinaryMode(9999)
+            if str.equals(env.osname(), "windows") {
+                assert.assertFalse(r, 815)
+            } else {
+                assert.assertTrue(r, 815)
+            }
         }
     }
 }

@@ -14,7 +14,10 @@ public enum ASTExprKind {
     EXPR_UNARY,
     EXPR_BINARY,
     EXPR_TERNARY,
-    EXPR_CAST
+    EXPR_CAST,
+    // Appended LAST on purpose: the enum's numbering is observable through the
+    // bootstrap, and inserting in the middle renumbers every kind after it.
+    EXPR_ARRAY_ACCESS
 }
 
 public class ASTExpr : ASTNode {

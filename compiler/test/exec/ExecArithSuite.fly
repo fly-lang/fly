@@ -1,0 +1,138 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecArithSuite — EXECUTED integer/float arithmetic semantics (bug-hunt
+// campaign, Phase 1). Unlike the CodeGen* suites this binary is compiled BY the
+// compiler under test and the expectations run natively: STAGE=0 validates them
+// against the reference seed (the oracle), STAGE=1/2 against the self-host — a
+// case passing at 0 and failing at 2 is a self-host codegen bug.
+//
+// Assert codes: 1xx division/modulo signs, 2xx unary minus, 3xx literal typing,
+// 4xx overflow wrap, 5xx float basics, 6xx float↔int casts.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite ExecArithSuite {
+
+    void divModSignTest() {
+        case "quotient truncates toward zero": {
+            int a = 7
+            int b = 2
+            assert.assertEqI(a / b, 3, 101)
+            int na = 0 - 7
+            assert.assertEqI(na / b, 0 - 3, 102)         // -7/2 = -3, not -4
+            int nb = 0 - 2
+            assert.assertEqI(a / nb, 0 - 3, 103)
+            assert.assertEqI(na / nb, 3, 104)
+        }
+        case "remainder takes the dividend's sign": {
+            int a = 7
+            int b = 3
+            assert.assertEqI(a % b, 1, 111)
+            int na = 0 - 7
+            assert.assertEqI(na % b, 0 - 1, 112)         // C-style srem
+            int nb = 0 - 3
+            assert.assertEqI(a % nb, 1, 113)
+            assert.assertEqI(na % nb, 0 - 1, 114)
+        }
+        case "long division mirrors int": {
+            long a = 9000000002
+            long b = 4
+            assert.assertEqL(a / b, 2250000000, 121)
+            long na = 0 - 9000000002
+            assert.assertEqL(na / b, 0 - 2250000000, 122)
+            assert.assertEqL(na % b, 0 - 2, 123)         // 9000000002 % 4 == 2
+        }
+    }
+
+    // NOTE: unary minus (`-5`, `-(a+1)`) is documented (§8.2) but REJECTED by
+    // both compilers — see BUGS.md B007 and probes/minimized/b007_unary_minus.fly.
+    // Negation is exercised through the `0 - x` idiom the stdlib itself uses.
+    void negationTest() {
+        case "zero-minus negation round-trips": {
+            int a = 9
+            int r = 0 - a
+            assert.assertEqI(0 - r, 9, 201)
+        }
+        case "negation distributes over addition": {
+            int a = 4
+            int r = 0 - (a + 1)
+            assert.assertEqI(r, 0 - 5, 211)
+        }
+    }
+
+    void literalTypingTest() {
+        case "literal above 2^31-1 carries into long": {
+            long big = 2147483648
+            assert.assertEqL(big, 2147483648, 301)
+        }
+        case "int extremes round-trip arithmetic": {
+            int max = 2147483647
+            assert.assertEqI(max - 1 + 1, 2147483647, 311)
+            int min = 0 - 2147483647 - 1
+            assert.assertEqI(min + 1 - 1, 0 - 2147483647 - 1, 312)
+        }
+        case "long extremes": {
+            long lmax = 9223372036854775807
+            assert.assertEqL(lmax - 1 + 1, 9223372036854775807, 321)
+        }
+    }
+
+    void overflowWrapTest() {
+        case "int max plus one wraps to int min": {
+            int max = 2147483647
+            int r = max + 1
+            assert.assertEqI(r, 0 - 2147483647 - 1, 401)
+        }
+        case "int min minus one wraps to int max": {
+            int min = 0 - 2147483647 - 1
+            int r = min - 1
+            assert.assertEqI(r, 2147483647, 402)
+        }
+        case "multiplication wraps modulo 2^32": {
+            int a = 65536
+            int r = a * a                                 // 2^32 wraps to 0
+            assert.assertEqI(r, 0, 403)
+        }
+    }
+
+    void floatBasicsTest() {
+        case "double arithmetic is exact on dyadic values": {
+            double a = 0.5
+            double b = 0.25
+            assert.assertApprox(a + b, 0.75, 501)
+            assert.assertApprox(a * b, 0.125, 502)
+            assert.assertApprox(a / b, 2.0, 503)
+        }
+        case "classic decimal drift stays within eps": {
+            double a = 0.1
+            double b = 0.2
+            assert.assertApproxEps(a + b, 0.3, 0.0000001, 511)
+        }
+        case "float narrows but keeps dyadic values": {
+            float f = 1.5
+            double d = (double)f
+            assert.assertApprox(d, 1.5, 521)
+        }
+    }
+
+    void floatIntCastTest() {
+        case "float to int truncates toward zero": {
+            double d = 3.9
+            assert.assertEqI((int)d, 3, 601)
+            double nd = 0.0 - 3.9
+            assert.assertEqI((int)nd, 0 - 3, 602)
+        }
+        case "int to float is exact for small ints": {
+            int a = 42
+            double d = (double)a
+            assert.assertApprox(d, 42.0, 611)
+            int na = 0 - 42
+            assert.assertApprox((double)na, 0.0 - 42.0, 612)
+        }
+        case "round-trip int through double": {
+            int a = 123456
+            int r = (int)((double)a)
+            assert.assertEqI(r, 123456, 621)
+        }
+    }
+}

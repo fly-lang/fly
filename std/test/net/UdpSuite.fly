@@ -1,0 +1,349 @@
+import fly.net
+import fly.str
+import fly.mem
+import fly.os.env
+import fly.assert
+import fly.llvm
+
+// skipSockets — see NetSuite; gates every case that opens a socket.
+bool skipSockets() {
+    out = fly.str.isEmpty(fly.os.env.get("FLY_SKIP_NET_TESTS")) == false
+}
+
+// blob — n bytes cycling 'a'..'z'.
+string blob(const int n) {
+    pointer buf = fly.mem.alloc(n)
+    int i = 0
+    while i < n {
+        fly.mem.writeByte(buf, i, (byte)(97 + (i % 26)))
+        i = i + 1
+    }
+    fly.str.fromBytes(buf, n, out)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UdpSuite — datagrams in fly.net (std/lib/net/net.fly): socketUdp, sendTo,
+// recvFrom and the sender scratch.
+//
+// EVERY receive here sets a RECEIVE TIMEOUT first. UDP does not guarantee
+// delivery, so a dropped datagram would otherwise block the case forever and
+// hang the suite instead of failing it — `fail` does not abort a case. Loopback
+// with single small datagrams does not actually drop, but the suite must not
+// depend on that being true. The timeout is Phase 1's setRecvTimeout doing
+// exactly the job it was added for.
+//
+// Everything runs on 127.0.0.1 with ephemeral ports read back via localPort(),
+// so nothing collides and nothing raises a Windows firewall prompt. Single
+// thread throughout: a datagram sent to a bound socket is buffered by the
+// kernel, so send-then-receive in one thread needs no concurrency at all — even
+// simpler than the TCP self-connect, since there is no handshake.
+//
+// Assert codes: 1xx socket + scratch lifecycle, 2xx round-trip,
+// 3xx UDP-specific semantics (truncation, empty datagrams, unordered/unbound),
+// 4xx options that only mean something for datagrams.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite UdpSuite {
+
+    // ── the socket and the sender scratch ────────────────────────────────────
+    void lifecycleTest() {
+        case "a datagram socket is a valid handle": {
+            if skipSockets() { assert.assertTrue(true, 101) } else {
+                long s = net.socketUdp()
+                assert.assertTrue(s >= 0, 101)
+                net.close(s)
+            }
+        }
+        case "a datagram socket binds and reports its port": {
+            if skipSockets() { assert.assertTrue(true, 102) } else {
+                long s = net.socketUdp()
+                assert.assertTrue(net.bind(s, net.loopback(), 0), 102)
+                assert.assertTrue(net.localPort(s) > 0, 103)
+                net.close(s)
+            }
+        }
+        case "the sender scratch starts empty and tolerates null": {
+            pointer f = net.fromNew()
+            assert.assertNotNull(f, 104)
+            assert.assertEqI(net.fromAddr(f), 0, 105)
+            assert.assertEqI(net.fromPort(f), 0, 106)
+            net.fromFree(f)
+            assert.assertEqI(net.fromAddr(0), 0, 107)
+            assert.assertEqI(net.fromPort(0), 0, 108)
+            net.fromFree(0)
+        }
+        case "the transfer calls reject a negative handle": {
+            assert.assertTrue(net.sendTo(0 - 1, 0, 0, net.loopback(), 9) < 0, 109)
+            assert.assertFalse(net.sendStrTo(0 - 1, "x", net.loopback(), 9), 110)
+            assert.assertTrue(net.recvFrom(0 - 1, 0, 0, 0) < 0, 111)
+            assert.assertEmpty(net.recvStrFrom(0 - 1, 16, 0), 112)
+        }
+        case "recvStrFrom with a non-positive size is empty": {
+            assert.assertEmpty(net.recvStrFrom(1, 0, 0), 113)
+        }
+    }
+
+    // ── round-trip ───────────────────────────────────────────────────────────
+    void roundTripTest() {
+        case "a datagram arrives with the sender's address and port": {
+            if skipSockets() { assert.assertTrue(true, 201) } else {
+                long srv = net.socketUdp()
+                assert.assertTrue(net.bind(srv, net.loopback(), 0), 201)
+                int sport = net.localPort(srv)
+                assert.assertTrue(net.setRecvTimeout(srv, 3000), 202)
+
+                long cli = net.socketUdp()
+                // Bind the client too, so its source port is known before the
+                // send rather than being assigned implicitly.
+                assert.assertTrue(net.bind(cli, net.loopback(), 0), 203)
+                int cport = net.localPort(cli)
+                assert.assertTrue(net.sendStrTo(cli, "ping", net.loopback(), sport), 204)
+
+                pointer from = net.fromNew()
+                assert.assertStr(net.recvStrFrom(srv, 64, from), "ping", 205)
+                assert.assertEqI(net.fromAddr(from), net.loopback(), 206)
+                assert.assertEqI(net.fromPort(from), cport, 207)
+                net.fromFree(from)
+
+                net.close(cli)
+                net.close(srv)
+            }
+        }
+        case "a reply goes back to the address the scratch reported": {
+            // The server-answers-the-client shape, which is the whole point of
+            // carrying the sender along with the datagram.
+            if skipSockets() { assert.assertTrue(true, 208) } else {
+                long srv = net.socketUdp()
+                net.bind(srv, net.loopback(), 0)
+                int sport = net.localPort(srv)
+                net.setRecvTimeout(srv, 3000)
+
+                long cli = net.socketUdp()
+                net.bind(cli, net.loopback(), 0)
+                net.setRecvTimeout(cli, 3000)
+                net.sendStrTo(cli, "who", net.loopback(), sport)
+
+                pointer from = net.fromNew()
+                assert.assertStr(net.recvStrFrom(srv, 64, from), "who", 208)
+                // Reply using ONLY what the scratch told us.
+                assert.assertTrue(net.sendStrTo(srv, "me", net.fromAddr(from), net.fromPort(from)), 209)
+                pointer back = net.fromNew()
+                assert.assertStr(net.recvStrFrom(cli, 64, back), "me", 210)
+                assert.assertEqI(net.fromPort(back), sport, 211)
+                net.fromFree(from)
+                net.fromFree(back)
+
+                net.close(cli)
+                net.close(srv)
+            }
+        }
+        case "several datagrams are received one per call": {
+            // Datagram boundaries are preserved — unlike a stream, two sends do
+            // NOT coalesce into one receive.
+            if skipSockets() { assert.assertTrue(true, 212) } else {
+                long srv = net.socketUdp()
+                net.bind(srv, net.loopback(), 0)
+                int sport = net.localPort(srv)
+                net.setRecvTimeout(srv, 3000)
+                long cli = net.socketUdp()
+                net.sendStrTo(cli, "aa", net.loopback(), sport)
+                net.sendStrTo(cli, "bbb", net.loopback(), sport)
+
+                pointer from = net.fromNew()
+                assert.assertStr(net.recvStrFrom(srv, 64, from), "aa", 212)
+                assert.assertStr(net.recvStrFrom(srv, 64, from), "bbb", 213)
+                net.fromFree(from)
+                net.close(cli)
+                net.close(srv)
+            }
+        }
+        case "sendTo over a raw buffer reports the byte count": {
+            if skipSockets() { assert.assertTrue(true, 214) } else {
+                long srv = net.socketUdp()
+                net.bind(srv, net.loopback(), 0)
+                int sport = net.localPort(srv)
+                net.setRecvTimeout(srv, 3000)
+                long cli = net.socketUdp()
+
+                string payload = blob(512)
+                pointer buf = fly.mem.alloc(512)
+                int i = 0
+                while i < 512 {
+                    byte b = 0
+                    fly.str.byteAt(payload, i, b)
+                    fly.mem.writeByte(buf, i, b)
+                    i = i + 1
+                }
+                assert.assertEqL(net.sendTo(cli, buf, 512, net.loopback(), sport), 512, 214)
+
+                pointer rbuf = fly.mem.alloc(512)
+                pointer from = net.fromNew()
+                assert.assertEqL(net.recvFrom(srv, rbuf, 512, from), 512, 215)
+                string got = ""
+                fly.llvm.strMake(rbuf, 512, got)
+                assert.assertStr(got, payload, 216)
+                net.fromFree(from)
+                fly.mem.free(buf, 512)
+                net.close(cli)
+                net.close(srv)
+            }
+        }
+    }
+
+    // ── the semantics UDP does not let us hide ───────────────────────────────
+    void semanticsTest() {
+        case "an oversized datagram loses its tail, and the two OSes say so differently": {
+            // The platforms disagree on how an undersized buffer is REPORTED:
+            //   POSIX  — recvfrom returns the TRUNCATED count (64 here);
+            //   Winsock — recvfrom FAILS with WSAEMSGSIZE, i.e. a negative count,
+            //             even though the first 64 bytes were copied in.
+            // What they agree on is that the tail is discarded, so the second
+            // receive finds nothing. A caller must therefore size the buffer to
+            // the protocol's maximum datagram rather than rely on either signal.
+            if skipSockets() { assert.assertTrue(true, 301) } else {
+                long srv = net.socketUdp()
+                net.bind(srv, net.loopback(), 0)
+                int sport = net.localPort(srv)
+                net.setRecvTimeout(srv, 500)
+                long cli = net.socketUdp()
+                net.sendStrTo(cli, blob(200), net.loopback(), sport)
+
+                pointer from = net.fromNew()
+                pointer buf = fly.mem.alloc(64)
+                long n = net.recvFrom(srv, buf, 64, from)
+                if str.equals(fly.os.env.osname(), "windows") {
+                    assert.assertTrue(n < 0, 301)
+                } else {
+                    assert.assertEqL(n, 64, 301)
+                }
+                // Either way the remaining 136 bytes are GONE, not queued for a
+                // second read: the next receive times out.
+                assert.assertTrue(net.recvFrom(srv, buf, 64, from) < 0, 302)
+                fly.mem.free(buf, 64)
+                net.fromFree(from)
+                net.close(cli)
+                net.close(srv)
+            }
+        }
+        case "an empty datagram is a real message, not end-of-stream": {
+            // recvFrom returning 0 means "empty datagram". On a stream socket the
+            // same 0 means EOF — the two are genuinely different and a caller
+            // must not treat them alike.
+            if skipSockets() { assert.assertTrue(true, 303) } else {
+                long srv = net.socketUdp()
+                net.bind(srv, net.loopback(), 0)
+                int sport = net.localPort(srv)
+                net.setRecvTimeout(srv, 3000)
+                long cli = net.socketUdp()
+                assert.assertTrue(net.sendStrTo(cli, "", net.loopback(), sport), 303)
+
+                pointer from = net.fromNew()
+                pointer buf = fly.mem.alloc(16)
+                assert.assertEqL(net.recvFrom(srv, buf, 16, from), 0, 304)
+                // and it really came from the client
+                assert.assertEqI(net.fromAddr(from), net.loopback(), 305)
+                fly.mem.free(buf, 16)
+                net.fromFree(from)
+                net.close(cli)
+                net.close(srv)
+            }
+        }
+        case "sending needs no bind — the source port is assigned on first send": {
+            if skipSockets() { assert.assertTrue(true, 306) } else {
+                long srv = net.socketUdp()
+                net.bind(srv, net.loopback(), 0)
+                int sport = net.localPort(srv)
+                net.setRecvTimeout(srv, 3000)
+
+                long cli = net.socketUdp()                 // never bound
+                assert.assertTrue(net.sendStrTo(cli, "hi", net.loopback(), sport), 306)
+                assert.assertTrue(net.localPort(cli) > 0, 307)   // now it has one
+
+                pointer from = net.fromNew()
+                assert.assertStr(net.recvStrFrom(srv, 16, from), "hi", 308)
+                assert.assertEqI(net.fromPort(from), net.localPort(cli), 309)
+                net.fromFree(from)
+                net.close(cli)
+                net.close(srv)
+            }
+        }
+        case "a receive with nothing pending times out rather than blocking": {
+            if skipSockets() { assert.assertTrue(true, 310) } else {
+                long srv = net.socketUdp()
+                net.bind(srv, net.loopback(), 0)
+                assert.assertTrue(net.setRecvTimeout(srv, 300), 310)
+                pointer from = net.fromNew()
+                pointer buf = fly.mem.alloc(16)
+                assert.assertTrue(net.recvFrom(srv, buf, 16, from) < 0, 311)
+                fly.mem.free(buf, 16)
+                net.fromFree(from)
+                net.close(srv)
+            }
+        }
+        case "a datagram to a port nobody bound is silently dropped": {
+            // UDP has no handshake, so the send SUCCEEDS even though nothing is
+            // listening — there is no connect() to fail. This is the single
+            // biggest behavioural difference from TCP for a caller to absorb.
+            if skipSockets() { assert.assertTrue(true, 312) } else {
+                long tmp = net.socketUdp()
+                net.bind(tmp, net.loopback(), 0)
+                int dead = net.localPort(tmp)
+                net.close(tmp)
+
+                long cli = net.socketUdp()
+                assert.assertTrue(net.sendStrTo(cli, "into the void", net.loopback(), dead), 312)
+                net.close(cli)
+            }
+        }
+    }
+
+    // ── options that only mean something for datagrams ───────────────────────
+    void optionTest() {
+        case "broadcast IS settable on a datagram socket, on every platform": {
+            // This is the positive case NetSuite 625 could not make: Winsock
+            // refuses SO_BROADCAST on a STREAM socket and accepts it here, so
+            // the two cases together pin the real rule rather than one platform's
+            // half of it.
+            if skipSockets() { assert.assertTrue(true, 401) } else {
+                long s = net.socketUdp()
+                assert.assertTrue(net.setBroadcast(s, true), 401)
+                assert.assertTrue(net.setBroadcast(s, false), 402)
+                net.close(s)
+            }
+        }
+        case "a datagram socket takes the same buffer and timeout options": {
+            if skipSockets() { assert.assertTrue(true, 403) } else {
+                long s = net.socketUdp()
+                assert.assertTrue(net.setRecvBuf(s, 65536), 403)
+                assert.assertTrue(net.setSendBuf(s, 65536), 404)
+                assert.assertTrue(net.setRecvTimeout(s, 250), 405)
+                assert.assertTrue(net.setNonBlocking(s, true), 406)
+                assert.assertEqI(net.sockError(s), 0, 407)
+                net.close(s)
+            }
+        }
+        case "a datagram socket can be watched by a poll set": {
+            if skipSockets() { assert.assertTrue(true, 408) } else {
+                long srv = net.socketUdp()
+                net.bind(srv, net.loopback(), 0)
+                int sport = net.localPort(srv)
+
+                pointer ps = net.pollNew()
+                int idx = net.pollAdd(ps, srv, net.pollRead())
+                assert.assertEqI(net.pollWait(ps, 200), 0, 408)      // nothing yet
+
+                long cli = net.socketUdp()
+                net.sendStrTo(cli, "poll me", net.loopback(), sport)
+                assert.assertEqI(net.pollWait(ps, 3000), 1, 409)
+                assert.assertTrue(net.pollIsReady(ps, idx, net.pollRead()), 410)
+
+                pointer from = net.fromNew()
+                assert.assertStr(net.recvStrFrom(srv, 32, from), "poll me", 411)
+                net.fromFree(from)
+                net.pollFree(ps)
+                net.close(cli)
+                net.close(srv)
+            }
+        }
+    }
+}

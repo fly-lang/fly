@@ -18,7 +18,9 @@ on:
 env:
   # stage0 bootstrap release (compiles the stage-1 world; see the stage map
   # below). Cut from the current fly/ reference; the version pin is THIS variable.
-  FLY_VERSION: "0.13.10"
+  # 0.13.13 is the first one with the array subscript, `C[N]` declarations and
+  # refcounted arrays.
+  FLY_VERSION: "0.13.13"
 
 jobs:
 

@@ -28,13 +28,22 @@ suite TargetHostEmitSuite {
             TargetInfo ti = targetInfoCreate(new TargetOptions(tri))
             if ti.isValid() == false { assert.assertTrue(true, 2)  return }
 
-            Parser p = new Parser("int main() { out = 0 }")
+            // `void main()`: a main that declares a return type is rejected now
+            // (the exit code comes from the error protocol, never from `out`), and
+            // this suite only needs SOME module to emit an object for.
+            Parser p = new Parser("void main() { }")
             ASTModule m = p.parseModule("hostemit")
             assert.assertTrue(p.isSuccess(), 3)
             List<ASTModule> mods = new List<ASTModule>()
             mods.add(m)
-            SemaContext ctx = new SemaContext(null)
+            // Resolve with a real engine and refuse to lower a source that did not
+            // resolve — this is a private copy of what cgIR does, and with `null`
+            // here an invalid source segfaulted the suite binary instead of failing
+            // the case (that is exactly how this one failed on Linux).
+            DiagnosticsEngine diags = p.getDiags()
+            SemaContext ctx = new SemaContext(diags)
             List<SemaModule> res = ctx.Resolve(mods, false)
+            assert.assertFalse(diags.hasErrorOccurred(), 4)
 
             CodeGenModule cgm = new CodeGenModule("hostemit")
             cgm.configureTarget(ti)

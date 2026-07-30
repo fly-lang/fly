@@ -81,9 +81,10 @@ public class SemaType : SemaNode {
     public bool isError()   { out = this.getKind() == SemaKind.TYPE_ERROR }
     public bool isVoid()    { out = this.getKind() == SemaKind.TYPE_VOID }
 
-    // isEquals — two types are equal iff they carry the same name. Guard the null
-    // check with an explicit `if`: Fly's `&&` does NOT short-circuit, so writing
-    // `other != null && s.equals(...)` would still evaluate other.getName() on null.
+    // isEquals — two types are equal iff they carry the same name. (Historical
+    // note: this used to guard with a nested `if` under the belief that `&&`
+    // does not short-circuit — B017 established that it DOES, on every
+    // compiler; the nested shape stays only because it is already written.)
     public bool isEquals(const SemaType other) {
         bool r = false
         if other != null {
@@ -159,7 +160,7 @@ public class SemaArrayType : SemaType {
 
     SemaType elementType
     long size
-    SemaNode sizeExpr   // a SemaExpr (typed as the base until exprs are ported)
+    SemaExpr sizeExpr   // `T[N]`: the resolved N, read by codegen to size the buffer
 
     public SemaArrayType(const SemaType elementType, const long size) {
         super(SemaKind.TYPE_ARRAY, "array")
@@ -171,8 +172,8 @@ public class SemaArrayType : SemaType {
     public SemaType getElementType() { out = this.elementType }
     public void setElementType(const SemaType elementType) { this.elementType = elementType }
     public long getSize() { out = this.size }
-    public SemaNode getSizeExpr() { out = this.sizeExpr }
-    public void setSizeExpr(const SemaNode sizeExpr) { this.sizeExpr = sizeExpr }
+    public SemaExpr getSizeExpr() { out = this.sizeExpr }
+    public void setSizeExpr(const SemaExpr sizeExpr) { this.sizeExpr = sizeExpr }
 }
 
 // SemaTypeParam — a generic type variable (T, U) with an optional upper bound.

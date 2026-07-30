@@ -75,7 +75,7 @@ function Get-MingwLinkParts {
         # -lmingw32 brackets the builtins archive; the Win32 import libs follow.
         Post    = @(
             '-lmingw32', $script:GNU_builtinsLib, '-lmoldname', '-lmingwex', '-lmsvcrt',
-            '-ladvapi32', '-lshell32', '-luser32', '-lkernel32', '-lntdll', '-lsynchronization', '-lmingw32',
+            '-ladvapi32', '-lshell32', '-luser32', '-lkernel32', '-lntdll', '-lws2_32', '-lwinhttp', '-lsynchronization', '-lmingw32',
             (Join-Path $L 'crtend.o')
         )
     }

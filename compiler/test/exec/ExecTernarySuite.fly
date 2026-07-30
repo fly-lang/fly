@@ -1,0 +1,99 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecTernarySuite — EXECUTED conditional-expression semantics (bug-hunt
+// Phase 1): selection, nesting/associativity, laziness of the arms, and
+// non-int value types. Conditions are bound to locals first where possible —
+// the bare `a == b ? x : y` form is B013 (reference rejects it) and is pinned
+// once in ExecPrecedenceSuite.
+//
+// Assert codes: 1xx selection, 2xx nesting, 3xx laziness, 4xx value types.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// FREE function on purpose: a suite helper called through `this` AVs (B018).
+int execTernaryArmed(const int v) {
+    fail 77
+    out = v
+}
+
+suite ExecTernarySuite {
+
+    void selectionTest() {
+        case "true picks the first arm": {
+            bool c = true
+            int r = c ? 1 : 2
+            assert.assertEqI(r, 1, 101)
+        }
+        case "false picks the second arm": {
+            bool c = false
+            int r = c ? 1 : 2
+            assert.assertEqI(r, 2, 111)
+        }
+        case "arms may be expressions": {
+            bool c = true
+            int a = 10
+            int r = c ? a * 2 : a * 3
+            assert.assertEqI(r, 20, 121)
+        }
+    }
+
+    void nestingTest() {
+        case "ternary in the else arm chains": {
+            int v = 3
+            bool is1 = v == 1
+            bool is2 = v == 2
+            int r = is1 ? 1 : (is2 ? 2 : 3)
+            assert.assertEqI(r, 3, 201)
+        }
+        case "ternary as a call argument": {
+            bool c = false
+            assert.assertEqI(c ? 5 : 6, 6, 211)
+        }
+    }
+
+    void lazinessTest() {
+        // If the unselected arm were evaluated, armed() would fail(77) and the
+        // case-runner would report FAIL(77) on its own.
+        case "unselected arm is not evaluated": {
+            bool c = true
+            int r = c ? 42 : execTernaryArmed(9)
+            assert.assertEqI(r, 42, 301)
+        }
+        case "selected arm alone runs": {
+            bool c = false
+            int r = c ? execTernaryArmed(9) : 43
+            assert.assertEqI(r, 43, 311)
+        }
+    }
+
+    void valueTypeTest() {
+        case "ternary over strings": {
+            bool c = true
+            string s = c ? "yes" : "no"
+            assert.assertStr(s, "yes", 401)
+        }
+        case "mixed-width arms promote to the wider type": {
+            bool c = false
+            long r = c ? 1 : 4294967296
+            // branch promotion (B020 fix): the result carries the WIDER arm type
+            assert.assertEqL(r, 4294967296, 411)
+        }
+        case "wider arm on the true side promotes too": {
+            bool c = true
+            long r = c ? 4294967296 : 1
+            assert.assertEqL(r, 4294967296, 421)
+        }
+        case "same-width long arms carry through": {
+            bool c = false
+            long a = 1
+            long b = 4294967296
+            long r = c ? a : b
+            assert.assertEqL(r, 4294967296, 412)
+        }
+        case "ternary over doubles": {
+            bool c = true
+            double d = c ? 0.5 : 0.25
+            assert.assertApprox(d, 0.5, 421)
+        }
+    }
+}

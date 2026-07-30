@@ -85,5 +85,50 @@ for h in "$T"/*.fly.h; do
     sed -E ':a;s/>>/> >/;ta' "$h" > "$LIB/runtime.fly.h"
 done
 
+# ── TLS: the always-linked stub, plus the real OpenSSL backend ────────────────
+#
+# TWO separate archives, and the separation is the whole design:
+#   fly_tls_stub.a  — built and linked on every platform; its header carries the
+#                     canonical tls_* declarations std/lib/net/tls.fly needs.
+#   fly_tls_lib.a   — the real OpenSSL implementation, linked ONLY under --tls,
+#                     AHEAD of the stub. Archive lazy extraction then means the
+#                     stub member is never pulled, with no duplicate symbol.
+# Its header is DISCARDED: emitting both would declare tls_* twice in fly.runtime.
+#
+# Neither goes inside fly_runtime_lib.a, because that archive's member is always
+# extracted — which would make `-lssl` mandatory for every program, breaking hello
+# world on any box without libssl-dev.
+T2=build/tmp_tls
+rm -rf "$T2"; mkdir -p "$T2"
+echo "stage$STAGE: compiling runtime/lib/TlsStub.fly ..."
+cp -f runtime/lib/TlsStub.fly "$T2/TlsStub.fly"
+if [ "$STAGE" = "1" ]; then
+    "$FLY" --lib $DBG -o "$T2/fly_tls_stub" -L "$LIB" --src-dir "$T2"
+else
+    "$FLY" --lib $DBG -o fly_tls_stub --out-dir "$T2" -L "$LIB" --src-dir "$T2"
+fi
+STUB=""
+for c in "$T2/fly_tls_stub.a" "$T2/fly_tls_stub"; do [ -f "$c" ] && { STUB="$c"; break; }; done
+[ -n "$STUB" ] || { echo "error: tls stub library not emitted." >&2; exit 1; }
+if [ "${STUB##*.}" = "a" ]; then cp -f "$STUB" "$LIB/fly_tls_stub.a"
+else "$AR" rcs "$LIB/fly_tls_stub.a" "$STUB"; fi
+[ -f "$T2/TlsStub.fly.h" ] && sed -E ':a;s/>>/> >/;ta' "$T2/TlsStub.fly.h" > "$LIB/TlsStub.fly.h"
+
+rm -rf "$T2"; mkdir -p "$T2"
+echo "stage$STAGE: compiling runtime/lib/TlsOpenSSL.fly (real backend, --tls only) ..."
+cp -f runtime/lib/TlsOpenSSL.fly "$T2/TlsOpenSSL.fly"
+if [ "$STAGE" = "1" ]; then
+    "$FLY" --lib $DBG -o "$T2/fly_tls_lib" -L "$LIB" --src-dir "$T2"
+else
+    "$FLY" --lib $DBG -o fly_tls_lib --out-dir "$T2" -L "$LIB" --src-dir "$T2"
+fi
+REALTLS=""
+for c in "$T2/fly_tls_lib.a" "$T2/fly_tls_lib"; do [ -f "$c" ] && { REALTLS="$c"; break; }; done
+[ -n "$REALTLS" ] || { echo "error: tls backend library not emitted." >&2; exit 1; }
+if [ "${REALTLS##*.}" = "a" ]; then cp -f "$REALTLS" "$LIB/fly_tls_lib.a"
+else "$AR" rcs "$LIB/fly_tls_lib.a" "$REALTLS"; fi
+# header deliberately NOT copied — TlsStub.fly.h is the canonical declaration
+rm -rf "$T2"
+
 rm -rf "$T"
-echo "stage$STAGE: runtime -> $LIB/fly_runtime_lib.a (+ runtime.fly.h)"
+echo "stage$STAGE: runtime -> $LIB/fly_runtime_lib.a (+ runtime.fly.h, fly_tls_stub.a, fly_tls_lib.a)"

@@ -306,6 +306,7 @@ public class ToolChain {
         }
         fly.os.proc.argsAdd(h, this.GetStdLibPath())
         fly.os.proc.argsAdd(h, this.GetRuntimeLibPath())
+        this.addTlsArchives(h, "-lssl", "-lcrypto")
 
         // -L for every path in the list
         int np = segCount(pathList)
@@ -398,6 +399,7 @@ public class ToolChain {
         }
         fly.os.proc.argsAdd(h, this.GetStdLibPath())
         fly.os.proc.argsAdd(h, this.GetRuntimeLibPath())
+        this.addTlsArchives(h, "-lssl", "-lcrypto")
 
         string lo = this.codeGenOpts.getLinkerOptions()
         int nl = segCount(lo)
@@ -438,6 +440,7 @@ public class ToolChain {
         fly.os.proc.argsAdd(h, "/defaultlib:libcmt")
         fly.os.proc.argsAdd(h, "/defaultlib:synchronization")
         fly.os.proc.argsAdd(h, "/defaultlib:kernel32")
+        fly.os.proc.argsAdd(h, "/defaultlib:ws2_32")   // Winsock (runtime net_*)
 
         // VS toolchain + UCRT + Windows SDK lib paths are discovered via COM/
         // registry in the C++ — not expressible in pure Fly, so stubbed (skipped).
@@ -457,6 +460,7 @@ public class ToolChain {
         }
         fly.os.proc.argsAdd(h, this.GetStdLibPath())
         fly.os.proc.argsAdd(h, this.GetRuntimeLibPath())
+        this.addTlsArchives(h, "secur32.lib", "crypt32.lib")
 
         // -lNAME → NAME.lib
         string lo = this.codeGenOpts.getLinkerOptions()
@@ -561,6 +565,7 @@ public class ToolChain {
         }
         fly.os.proc.argsAdd(h, this.GetStdLibPath())
         fly.os.proc.argsAdd(h, this.GetRuntimeLibPath())
+        this.addTlsArchives(h, "-lsecur32", "-lcrypt32")
 
         // User -l options pass through (mingw resolves `-lNAME` → libNAME.a), EXCEPT
         // -lc / -lm: those are POSIX, the mingw/UCRT CRT ships no libc.a/libm.a, and
@@ -588,6 +593,8 @@ public class ToolChain {
         fly.os.proc.argsAdd(h, "-luser32")
         fly.os.proc.argsAdd(h, "-lkernel32")
         fly.os.proc.argsAdd(h, "-lntdll")              // RtlGetVersion (runtime env_kernel*)
+        fly.os.proc.argsAdd(h, "-lws2_32")             // Winsock (runtime net_*)
+        fly.os.proc.argsAdd(h, "-lwinhttp")            // WinHTTP (runtime net_https_*)
         fly.os.proc.argsAdd(h, "-lsynchronization")
         fly.os.proc.argsAdd(h, "-lmingw32")
         fly.os.proc.argsAdd(h, fly.os.path.join(slib, "crtend.o"))
@@ -874,6 +881,76 @@ public class ToolChain {
         string p2 = fly.os.path.join(base, "fly_runtime_lib.lib")
         if fly.os.fs.exists(p2) { out = p2  return }
         out = ""
+    }
+
+    // GetTlsLibPath / GetTlsStubPath — the two TLS archives. "" when absent, which
+    // is tolerated: an older lib dir simply has no TLS.
+    //
+    // THE LINK ORDER IS THE WHOLE MECHANISM. Both archives define the same seven
+    // tls_* symbols, and archive lazy extraction resolves the conflict for free: a
+    // member is pulled only to satisfy a still-undefined symbol, so emitting the
+    // real archive FIRST means the stub member is never extracted — no duplicate
+    // symbol, no compiler support needed. Emit them the other way round and the
+    // stub silently wins.
+    //
+    // The stub is emitted ALWAYS so that a program which never asked for TLS still
+    // links on a machine with no libssl: appending `-lssl -lcrypto` unconditionally
+    // would break hello world wherever the development symlink is absent, which is
+    // a far worse regression than "TLS needs a flag".
+    public string GetTlsLibPath() {
+        string base = this.codeGenOpts.getRuntimeLibDir()
+        string p1 = fly.os.path.join(base, "fly_tls_lib.a")
+        if fly.os.fs.exists(p1) { out = p1  return }
+        string p2 = fly.os.path.join(base, "fly_tls_lib.lib")
+        if fly.os.fs.exists(p2) { out = p2  return }
+        out = ""
+    }
+
+    public string GetTlsStubPath() {
+        string base = this.codeGenOpts.getRuntimeLibDir()
+        string p1 = fly.os.path.join(base, "fly_tls_stub.a")
+        if fly.os.fs.exists(p1) { out = p1  return }
+        string p2 = fly.os.path.join(base, "fly_tls_stub.lib")
+        if fly.os.fs.exists(p2) { out = p2  return }
+        out = ""
+    }
+
+    // addTlsArchives — the real backend (only when --tls asked for it, and only
+    // where one exists) followed by the always-present stub.
+    //
+    // `dep1`/`dep2` are the SYSTEM libraries that backend needs, and they differ
+    // per platform: OpenSSL wants -lssl -lcrypto, Schannel wants -lsecur32
+    // -lcrypt32. They are passed in rather than chosen here because the caller is
+    // already the platform-specific link function, and hardcoding one pair made
+    // the Windows link ask for OpenSSL. They must follow the archive: the linker
+    // resolves left to right.
+    public void addTlsArchives(const pointer h, const string dep1, const string dep2) {
+        bool tookReal = false
+        if this.codeGenOpts.getEnableTls() {
+            string real = this.GetTlsLibPath()
+            if fly.str.isEmpty(real) == false {
+                fly.os.proc.argsAdd(h, real)
+                if fly.str.isEmpty(dep1) == false { fly.os.proc.argsAdd(h, dep1) }
+                if fly.str.isEmpty(dep2) == false { fly.os.proc.argsAdd(h, dep2) }
+                tookReal = true
+            }
+        }
+        // EITHER the real backend OR the stub — never both.
+        //
+        // This used to emit both and let archive lazy extraction pick: the real
+        // one first resolves every tls_* symbol, so the stub member is never
+        // pulled. That held only while the archives carried the plain C names
+        // alone. The self-host ALSO emits a mangled thunk per function, so from
+        // stage2 on both archives export the same two names for all seven
+        // primitives and the link dies on a duplicate symbol — a failure that
+        // needed a --tls build to see, which no CI job does.
+        //
+        // Choosing here is not a workaround, it is what the code always meant:
+        // the stub exists for builds with no backend.
+        if tookReal == false {
+            string stub = this.GetTlsStubPath()
+            if fly.str.isEmpty(stub) == false { fly.os.proc.argsAdd(h, stub) }
+        }
     }
 
     // GetCompilerRTBuiltinsPath — libclang_rt.builtins for the target. (cpp:1383)

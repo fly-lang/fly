@@ -38,10 +38,10 @@ suite CodeGenInheritanceSuite {
                     public int sound() { out = 7 }
                 }
                 int poke(Animal a) { out = a.sound() }
-                int main() { Dog d = new Dog()
+                void main() { Dog d = new Dog()
                     int s = poke(d)
                     int l = d.getLegs()
-                    out = s + l
+                    fail s + l
                 }
             ")
             assert.assertTrue(fly.str.contains(ir, "@vtable..Animal"), 11)
@@ -60,8 +60,8 @@ suite CodeGenInheritanceSuite {
                     public int sound() { out = 7 }
                 }
                 int poke(Animal a) { out = a.sound() }
-                int main() { Dog d = new Dog()
-                    out = poke(d)
+                void main() { Dog d = new Dog()
+                    fail poke(d)
                 }
             ")
             assert.assertTrue(fly.str.contains(ir, "getelementptr ptr"), 21)  // vtable slot GEP
@@ -92,7 +92,7 @@ suite CodeGenInheritanceSuite {
                     public Derived() { this.a = 10  this.c = 30 }
                     public int total() { out = this.a + this.b + this.c }
                 }
-                int main() { Derived d = new Derived()  out = d.total() }
+                void main() { Derived d = new Derived()  fail d.total() }
             ")
             // vtable(0) + a(1) + b(2)  — base itself.
             assert.assertTrue(fly.str.contains(ir, "%.Base = type { ptr, i32, i32 }"), 31)
@@ -111,7 +111,7 @@ suite CodeGenInheritanceSuite {
                     public Derived() { this.a = 10  this.c = 30 }
                     public int total() { out = this.a + this.b + this.c }
                 }
-                int main() { Derived d = new Derived()  out = d.total() }
+                void main() { Derived d = new Derived()  fail d.total() }
             ")
             // total() GEPs the inherited a/b AND own c directly on %.Derived at the
             // flat slots 1/2/3 — no base-subobject indirection. If fieldIndex regressed

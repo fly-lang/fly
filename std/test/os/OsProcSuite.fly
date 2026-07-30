@@ -27,6 +27,112 @@ import fly.assert
 
 suite OsProcSuite {
 
+    // ── execCapture ──────────────────────────────────────────────────────────
+    //
+    // exec() INHERITS stdout, so before execCapture there was no way to capture a
+    // command's output without a shell — and `sh -c` does not exist on Windows,
+    // which made every capture call site in the driver dead code there.
+    //
+    // NEVER USE env.exePath() AS THE SUBJECT HERE. Inside a suite that is the
+    // TEST BINARY, which takes no arguments and always runs every case, so
+    // spawning it forks a suite that forks a suite: the first attempt at these
+    // cases filled the machine with recursive processes rather than failing.
+    // The subject is instead the platform's own echo, which is trivially present
+    // and lets the captured CONTENT be asserted, not just its non-emptiness.
+    void execCaptureTest() {
+        case "the child's stdout is captured into the file": {
+            string outp = "fly_proc_cap1.txt"
+            fs.delete(outp)
+            pointer h = proc.argsNew()
+            string prog = "/bin/echo"
+            if str.equals(env.osname(), "windows") {
+                prog = "cmd.exe"
+                proc.argsAdd(h, "/c")
+                proc.argsAdd(h, "echo flycapture")
+            } else {
+                proc.argsAdd(h, "flycapture")
+            }
+            int rc = proc.execCapture(prog, h, outp)
+            proc.argsFree(h)
+            assert.assertEqI(rc, 0, 501)
+            assert.assertTrue(fs.exists(outp), 502)
+            // The content itself, which is what proves the redirect worked.
+            assert.assertTrue(str.contains(fs.readStr(outp), "flycapture"), 503)
+            fs.delete(outp)
+        }
+        case "the output file is TRUNCATED, not appended to": {
+            string outp = "fly_proc_cap2.txt"
+            fs.writeStr(outp, str.repeat("X", 5000), 420)
+            pointer h = proc.argsNew()
+            string prog = "/bin/echo"
+            if str.equals(env.osname(), "windows") {
+                prog = "cmd.exe"
+                proc.argsAdd(h, "/c")
+                proc.argsAdd(h, "echo short")
+            } else {
+                proc.argsAdd(h, "short")
+            }
+            proc.execCapture(prog, h, outp)
+            proc.argsFree(h)
+            string body = fs.readStr(outp)
+            // A stale 5000-byte prefix would survive if O_TRUNC / CREATE_ALWAYS
+            // were missing from the redirect.
+            assert.assertFalse(str.startsWith(body, "XXXXX"), 504)
+            assert.assertTrue(str.len(body) < 100, 505)
+            fs.delete(outp)
+        }
+        case "a nonexistent program fails, per platform": {
+            string outp = "fly_proc_cap3.txt"
+            fs.delete(outp)
+            int rc = proc.execCapture("fly_no_such_program_xyz", 0, outp)
+            // The same split exec() already documents: -1 from CreateProcessA on
+            // Windows, 127 from the forked child on POSIX.
+            if str.equals(env.osname(), "windows") {
+                assert.assertEqI(rc, 0 - 1, 506)
+            } else {
+                assert.assertEqI(rc, 127, 506)
+            }
+            fs.delete(outp)
+        }
+        case "a non-zero exit code is reported": {
+            if str.equals(env.osname(), "windows") {
+                string outp = "fly_proc_cap4.txt"
+                pointer h = proc.argsNew()
+                proc.argsAdd(h, "/c")
+                proc.argsAdd(h, "exit 3")
+                int rc = proc.execCapture("cmd.exe", h, outp)
+                proc.argsFree(h)
+                assert.assertEqI(rc, 3, 507)
+                fs.delete(outp)
+            } else {
+                string outp = "fly_proc_cap4.txt"
+                int rc = proc.execCapture("/bin/false", 0, outp)
+                assert.assertNeI(rc, 0, 507)
+                fs.delete(outp)
+            }
+        }
+        case "several arguments reach the child": {
+            string outp = "fly_proc_cap5.txt"
+            pointer h = proc.argsNew()
+            string prog = "/bin/echo"
+            if str.equals(env.osname(), "windows") {
+                prog = "cmd.exe"
+                proc.argsAdd(h, "/c")
+                proc.argsAdd(h, "echo one two")
+            } else {
+                proc.argsAdd(h, "one")
+                proc.argsAdd(h, "two")
+            }
+            int rc = proc.execCapture(prog, h, outp)
+            proc.argsFree(h)
+            assert.assertEqI(rc, 0, 508)
+            string body = fs.readStr(outp)
+            assert.assertTrue(str.contains(body, "one"), 509)
+            assert.assertTrue(str.contains(body, "two"), 510)
+            fs.delete(outp)
+        }
+    }
+
     // ── argsNew / argsAdd / argsFree ─────────────────────────────────────────
     void argListTest() {
         case "argsNew returns a handle with an empty list": {

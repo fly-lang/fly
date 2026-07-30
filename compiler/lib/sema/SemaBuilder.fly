@@ -251,6 +251,12 @@ public class SemaBuilder {
         out = new SemaMember(ast, ref, parent, t)
     }
 
+    // CreateArrayAccess — `base[index]`, typed as the array's ELEMENT type so the
+    // whole expression behaves like a value of that type everywhere else.
+    public static SemaArrayAccess CreateArrayAccess(const ASTArrayAccess ast, const SemaExpr base, const SemaExpr index, const SemaType elemType) {
+        out = new SemaArrayAccess(ast, base, index, elemType)
+    }
+
     public static SemaError CreateErrorHandler() {
         out = new SemaError(null)
     }
@@ -279,7 +285,37 @@ public class SemaBuilder {
     public static SemaTernary CreateTernary(const ASTTernary ast, const SemaExpr cond, const SemaExpr trueExpr, const SemaExpr falseExpr) {
         SemaType t = null
         if trueExpr != null { t = trueExpr.getType() }
+        // Numeric promotion of the branches: the result carries the WIDER type
+        // (float beats integer, ties keep the true branch). Typing from the
+        // true branch alone truncated the other arm (B020:
+        // `long r = c ? 1 : 4294967296` → 0); codegen coerces each arm to the
+        // node type, so sema just has to pick the right one.
+        if falseExpr != null {
+            t = selectWiderNumeric(t, falseExpr.getType())
+        }
         out = new SemaTernary(ast, cond, trueExpr, falseExpr, t)
+    }
+
+    // selectWiderNumeric — the branch type a mixed-width conditional carries:
+    // float family beats integer, otherwise the greater numeric width wins
+    // (rank rounded up to its even partner, as CodeGenExpr.numWidth does —
+    // parity only encodes signedness). Non-numeric or one-sided → keep `a`.
+    public static SemaType selectWiderNumeric(const SemaType a, const SemaType b) {
+        if a == null { out = b  return }
+        if b == null { out = a  return }
+        if a.isNumber() == false { out = a  return }
+        if b.isNumber() == false { out = a  return }
+        if a.isFloat() {
+            if b.isFloat() == false { out = a  return }
+        } else {
+            if b.isFloat() { out = b  return }
+        }
+        int aw = a.getRank()
+        if aw % 2 == 1 { aw = aw + 1 }
+        int bw = b.getRank()
+        if bw % 2 == 1 { bw = bw + 1 }
+        if bw > aw { out = b  return }
+        out = a
     }
 
     public static SemaCast CreateCast(const ASTCast ast, const SemaExpr expr, const SemaType toType) {
@@ -357,8 +393,8 @@ public class SemaBuilder {
         out = v
     }
 
-    public static SemaStructValue CreateStructValue(const ASTStructValue ast) {
-        out = new SemaStructValue(ast, null)
+    public static SemaStructValue CreateStructValue(const ASTStructValue ast, const SemaType type) {
+        out = new SemaStructValue(ast, type)
     }
 
     public static SemaValue CreateNullValue(const ASTNullValue ast) {
@@ -388,12 +424,49 @@ public class SemaBuilder {
 // buildMangleKey — a unique key "<base>_<argname><argname>…" for a generic
 // specialization, e.g. Wrapper<int> → "Wrapper_int". Type names are unique enough
 // to disambiguate specializations within a template's cache.
+// buildMangleKey — the memoization key AND mangled symbol stem of a generic
+// specialization. The key must encode the type-args' IDENTITY, not just their
+// simple names (B036): two same-NAME classes from different modules (legal —
+// e.g. a `struct Point` and a `class Point` in two default-namespace test
+// files) used to collapse onto ONE spec ("Wrapper_Point"), binding the second
+// instantiation to the first one's layout → garbage reads. Nested generic args
+// ("Wrapper_Wrapper") collapsed the same way. Class-kind args therefore
+// contribute their own mangled name (nested specs, recursion-safe) or their
+// simple name + a module discriminator (a byte-sum of the defining module's
+// path — stable within and across stages, cheap, and collision-safe enough for
+// same-name types, which are already rare).
 public string buildMangleKey(const string base, const List<SemaType> typeArgs) {
     string key = fly.str.concat(base, "_")
     int i = 0
     while i < typeArgs.size() {
         SemaType t = typeArgs.get(i)
         string tn = t.getName()
+        SemaClassType tc = t.asClass()
+        if tc != null {
+            string mm = tc.getMangledName()
+            if fly.str.isEmpty(mm) == false {
+                tn = mm
+            } else {
+                SemaModule tm = tc.getModule()
+                if tm != null {
+                    string mname = tm.getName()
+                    int h = 0
+                    int mn = fly.str.len(mname)
+                    int bi = 0
+                    while bi < mn {
+                        byte bb = 0
+                        fly.str.byteAt(mname, bi, bb)
+                        int bv = (int)bb & 255
+                        // modulo keeps h*31+255 < 2^31 (int math, no overflow)
+                        h = (h * 31 + bv) % 1000003
+                        bi = bi + 1
+                    }
+                    string t1 = fly.str.concat(tn, "$m")
+                    string t2 = fly.str.concat(t1, fly.str.convert(h))
+                    tn = t2
+                }
+            }
+        }
         string k2 = fly.str.concat(key, tn)
         key = k2
         i = i + 1

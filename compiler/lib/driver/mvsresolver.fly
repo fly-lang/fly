@@ -5,7 +5,7 @@ import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MVSResolver — Minimal Version Selection over the dependency graph.
-// Port of fly/tools/flyp/resolver/{MVSResolver,DependencyGraph}.{h,cpp}.
+// Port of the reference C++ package manager resolver/{MVSResolver,DependencyGraph}.{h,cpp}.
 //
 // The C++ `FetchManifestFn` std::function callback becomes an abstract
 // ManifestFetcher class with a virtual fetch(name, dep) → Manifest (null = not

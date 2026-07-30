@@ -1,0 +1,86 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecCompoundAssignSuite — EXECUTED compound assignment semantics (B015 fix;
+// doc 8.4): the full operator set on locals, width interactions, chaining with
+// plain assignment, and class-field assignees. Reinstated — the original batch-A
+// suite was withdrawn when the self-host parser rejected every compound token.
+//
+// Assert codes: 1xx arithmetic set, 2xx bitwise/shift set, 3xx width
+// interactions, 4xx fields/chaining.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class ExecCompBox {
+    int v
+    public ExecCompBox(const int start) { this.v = start }
+    public int read() { out = this.v }
+}
+
+suite ExecCompoundAssignSuite {
+
+    void arithmeticSetTest() {
+        case "+= -= *= /= %= chain to the C result": {
+            int a = 15
+            a -= 3            // 12
+            a *= 2            // 24
+            a /= 5            // 4
+            a += 1            // 5
+            a %= 3            // 2
+            assert.assertEqI(a, 2, 101)
+        }
+        case "+= is repeatable accumulation": {
+            int sum = 0
+            for int i = 1; i <= 4; i++ {
+                sum += i
+            }
+            assert.assertEqI(sum, 10, 111)
+        }
+    }
+
+    void bitwiseSetTest() {
+        case "&= |= ^= <<= >>= chain": {
+            int b = 6            // 0b0110
+            b &= 3               // 0b0010 = 2
+            b |= 8               // 0b1010 = 10
+            b ^= 12              // 0b0110 = 6
+            b <<= 2              // 24
+            b >>= 3              // 3
+            assert.assertEqI(b, 3, 201)
+        }
+        case ">>= on a negative int is arithmetic": {
+            int n = 0 - 16
+            n >>= 2
+            assert.assertEqI(n, 0 - 4, 211)
+        }
+    }
+
+    void widthTest() {
+        case "byte compound wraps in the byte width": {
+            byte w = (byte)200
+            w += (byte)100                               // 300 & 255 = 44
+            int wi = (int)w
+            assert.assertEqI(wi & 255, 44, 301)
+        }
+        case "long compound keeps 64-bit magnitude": {
+            long l = 4294967296
+            l += 1
+            l -= 2
+            assert.assertEqL(l, 4294967295, 311)
+        }
+    }
+
+    void fieldAndChainTest() {
+        case "compound on a class field": {
+            ExecCompBox box = new ExecCompBox(10)
+            box.v += 5
+            box.v *= 2
+            assert.assertEqI(box.read(), 30, 401)
+        }
+        case "compound result feeds later expressions": {
+            int a = 3
+            a += 4
+            int b = a * 10
+            assert.assertEqI(b, 70, 411)
+        }
+    }
+}

@@ -59,4 +59,8 @@ public interface SemaVisitor {
     public void visit(const SemaClassInstance node)
     public void visit(const SemaClassAttribute node)
     public void visit(const SemaError node)
+
+    // Appended LAST on purpose: this interface is a vtable, and inserting a
+    // method in the middle shifts every slot after it.
+    public void visit(const SemaArrayAccess node)
 }

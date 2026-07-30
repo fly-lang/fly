@@ -25,4 +25,10 @@ export STAGE=1
 ./ci/linux/build_compiler.sh
 ./ci/linux/link_fly.sh
 
+# The tools (fly-lsp, fly-registry) are built and tested at STAGE 2, not here —
+# see the tail of stage2.sh. They are PRODUCTS of the toolchain, so the compiler
+# that builds them should be the one that ships: stage2's fly, the self-hosting
+# fixpoint. Building them here would use the stage1 binary, which the seed
+# produced.
+
 echo "stage1: done — build/stage1/bin/fly"

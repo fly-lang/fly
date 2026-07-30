@@ -28,4 +28,23 @@ echo "stage2: std -> build/stage2/lib (copied from stage1, reference ABI)"
 ./ci/linux/build_compiler.sh
 ./ci/linux/link_fly.sh
 
+# ── the tools: built and tested with the compiler that just finished ─────────
+#
+# fly-lsp and fly-registry are PRODUCTS of the toolchain, not part of the
+# bootstrap: nothing downstream compiles against them, and --entry is a
+# self-host option the pinned seed rejects outright. They belong HERE rather
+# than in stage1 because the compiler that builds them should be the one that
+# ships — stage2's fly, built by stage1's self-host, i.e. the self-hosting
+# fixpoint. A tool built at stage1 would carry the seed-built compiler's
+# codegen, which is not what a user gets.
+#
+# They are part of the stage, not an opt-in extra: build/stage2/bin is what the
+# release packages verbatim, so a tool that is not built here does not ship, and
+# a tool failure here is a real failure of the artifact.
+./ci/linux/build_lsp.sh
+./ci/linux/test_lsp.sh
+./ci/linux/build_registry.sh
+./ci/linux/test_registry.sh
+./ci/linux/test_tools.sh
+
 echo "stage2: done — build/stage2/bin/fly"

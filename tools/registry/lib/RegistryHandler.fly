@@ -1,0 +1,451 @@
+namespace fly.registry
+
+import fly.str
+import fly.mem
+import fly.llvm
+import fly.json
+import fly.codec
+import fly.targz
+import fly.net.http
+import fly.os.fs
+import fly.os.path
+import fly.data.List
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RegistryHandler — the registry's core logic, no sockets. Port of
+// tools/registry/{include,lib}/RegistryHandler.{h,cpp}.
+//
+// API (unchanged from the reference, and exactly what the 0.14.x driver's
+// registryfetcher speaks):
+//   GET  /v1/{name}                    → JSON array of available versions
+//   GET  /v1/{name}/{version}          → package metadata
+//   GET  /v1/{name}/{version}/download → source tarball (.tar.gz)
+//   POST /v1/{name}/{version}          → upload a source tarball
+//   GET  /v1/search?q={query}          → JSON array of matching package names
+//
+// Two deliberate departures from the C++:
+//   • the metadata file is Manifest.fly — that is what a 0.14.x package tree
+//     carries and what readManifest() on the client side parses;
+//   • extraction is IN-PROCESS via fly.targz (the reference shells out to `tar`
+//     with a triple fallback of layouts — the exact dependency this codebase
+//     spent a phase deleting). gzip is therefore also VERIFIED (CRC + ISIZE):
+//     a truncated upload is rejected at publish instead of stored corrupt.
+//
+// And one hardening the reference lacks: {name} and {version} become FILESYSTEM
+// path segments, so both are validated (no separators, no '..', no leading
+// dot) — without this, `GET /v1/..%2f..%2fetc/passwd` walks out of the storage
+// directory. Rejected as 400.
+//
+// Storage layout (reference parity):
+//   <storage>/<name>/<version>.tar.gz          the published tarball
+//   <storage>/<name>/<version>/Manifest.fly    extracted metadata
+// ─────────────────────────────────────────────────────────────────────────────
+
+// RegResponse — status + content type + body; toHttp() serializes with
+// Connection: close, matching the reference's one-request-per-connection model.
+public class RegResponse {
+    public int status
+    public string contentType
+    public string body
+
+    public RegResponse(const int status, const string contentType, const string body) {
+        this.status = status
+        this.contentType = contentType
+        this.body = body
+    }
+
+    public string toHttp() {
+        out = fly.net.http.responseConn(this.status, this.contentType, "", false, this.body)
+    }
+}
+
+// safeSegment — a name/version usable as a single path component: non-empty,
+// no '/', '\', NUL, no leading '.', and not '..'.
+public bool safeSegment(const string s) {
+    int n = fly.str.len(s)
+    if n == 0 { out = false  return }
+    byte f = 0
+    fly.str.byteAt(s, 0, f)
+    int fi = f
+    fi = fi & 255
+    if fi == 46 { out = false  return }             // leading '.'
+    int i = 0
+    while i < n {
+        byte b = 0
+        fly.str.byteAt(s, i, b)
+        int c = b
+        c = c & 255
+        if c == 47 || c == 92 || c == 0 { out = false  return }
+        i = i + 1
+    }
+    out = true
+}
+
+// urlDecode — percent-decoding plus '+' → space (query-string convention; the
+// codec's percentDecode deliberately leaves '+' alone, so it is handled here).
+public string urlDecode(const string s) {
+    int e = 0
+    string dec = fly.codec.percentDecode(s, e)
+    if e != 0 { dec = s }
+    out = fly.str.replace(dec, "+", " ")
+}
+
+// jsonStringArray — ["a","b",…]. json.escape returns the BODY of the string
+// (no surrounding quotes), so the quotes are added here; they are built from
+// bytes because string literals keep escapes raw in this dialect.
+public string jsonStringArray(const List<string> xs) {
+    pointer qp = fly.mem.alloc(1)
+    fly.mem.writeByte(qp, 0, 34)
+    string q = ""
+    fly.str.fromBytes(qp, 1, q)
+    string s = "["
+    int i = 0
+    while i < xs.size() {
+        if i > 0 { s = fly.str.concat(s, ",") }
+        s = fly.str.concat(s, fly.str.concat(q,
+            fly.str.concat(fly.json.escape(xs.get(i)), q)))
+        i = i + 1
+    }
+    out = fly.str.concat(s, "]")
+}
+
+// strLess — byte-order comparison; fly.str has no compare().
+public bool strLess(const string a, const string b) {
+    int na = fly.str.len(a)
+    int nb = fly.str.len(b)
+    int n = na
+    if nb < n { n = nb }
+    int i = 0
+    while i < n {
+        byte ba = 0
+        byte bb = 0
+        fly.str.byteAt(a, i, ba)
+        fly.str.byteAt(b, i, bb)
+        int ca = ba
+        int cb = bb
+        ca = ca & 255
+        cb = cb & 255
+        if ca != cb { out = ca < cb  return }
+        i = i + 1
+    }
+    out = na < nb
+}
+
+// dirNames — the entry names of `dir`. DirEntry stride is 56 bytes with
+// name.ptr at +0 and name.size at +8 (the Frontend.loadHeadersFromDir pattern).
+// The bytes are COPIED before fromBytes, which takes ownership of what it is
+// given — handing it a pointer into the DirEntries array would free memory the
+// array still owns.
+public List<string> dirNames(const string dir) {
+    List<string> names = new List<string>()
+    fly.os.fs.DirEntries de = fly.os.fs.dirRead(dir)
+    pointer items = de.items
+    if items == 0 { out = names  return }
+    long lenL = (long)de.len
+    int n = 0
+    fly.llvm.longToInt(lenL, n)
+    int i = 0
+    while i < n {
+        int off = i * 56
+        pointer namePtr = fly.mem.readPtr(items, off)
+        int nameLen = fly.mem.readInt(items, off + 8)
+        if nameLen > 0 {
+            pointer cp = fly.mem.alloc(nameLen)
+            fly.mem.copy(cp, namePtr, nameLen)
+            string nm = ""
+            fly.str.fromBytes(cp, nameLen, nm)
+            names.add(nm)
+        }
+        i = i + 1
+    }
+    out = names
+}
+
+public class RegistryHandler {
+    string storage
+    string token
+
+    public RegistryHandler(const string storage, const string token) {
+        this.storage = storage
+        this.token = token
+        fly.os.fs.dirCreateAll(storage, 493)
+    }
+
+    public string getStorage() { out = this.storage }
+    public bool requiresAuth() { out = fly.str.isEmpty(this.token) == false }
+
+    // ── storage layout ───────────────────────────────────────────────────────
+
+    public string pkgDir(const string name) {
+        out = fly.os.path.join(this.storage, name)
+    }
+
+    public string tarballPath(const string name, const string version) {
+        out = fly.os.path.join(this.pkgDir(name), fly.str.concat(version, ".tar.gz"))
+    }
+
+    public string manifestPath(const string name, const string version) {
+        out = fly.os.path.join(fly.os.path.join(this.pkgDir(name), version), "Manifest.fly")
+    }
+
+    // ── auth ─────────────────────────────────────────────────────────────────
+
+    bool checkAuth(const string authHeader) {
+        if fly.str.isEmpty(this.token) { out = true  return }
+        if fly.str.startsWith(authHeader, "Bearer ") == false { out = false  return }
+        string got = fly.str.substring(authHeader, 7, fly.str.len(authHeader))
+        out = fly.str.equals(got, this.token)
+    }
+
+    // ── manifest extraction (in-process) ─────────────────────────────────────
+
+    // extractManifest — pull Manifest.fly out of the stored tarball into
+    // <storage>/<name>/<version>/Manifest.fly. Accepts the manifest at the
+    // archive root or exactly one directory deep ("pkg/Manifest.fly"), the two
+    // layouts real archives use. Quietly does nothing when absent — metadata
+    // then answers 404, same as the reference.
+    void extractManifest(const string name, const string version) {
+        string tb = this.tarballPath(name, version)
+        if fly.os.fs.exists(tb) == false { return }
+        string raw = fly.os.fs.readBytes(tb)
+        int ge = 0
+        string tarBytes = fly.targz.gunzip(raw, ge)
+        if ge != 0 { return }
+        pointer h = fly.targz.tarOpen(tarBytes)
+        if h == 0 { return }
+        string found = ""
+        bool go = true
+        while go {
+            if fly.targz.tarNext(h) == false { go = false } else {
+                if fly.targz.tarIsFile(h) {
+                    string nm = fly.targz.tarName(h)
+                    bool hit = fly.str.equals(nm, "Manifest.fly")
+                    if hit == false { hit = fly.str.equals(nm, "./Manifest.fly") }
+                    if hit == false {
+                        // one component deep: <dir>/Manifest.fly
+                        if fly.str.endsWith(nm, "/Manifest.fly") {
+                            int slashes = fly.str.count(nm, "/")
+                            if slashes == 1 { hit = true }
+                        }
+                    }
+                    if hit {
+                        found = fly.targz.tarData(h)
+                        go = false
+                    }
+                }
+            }
+        }
+        fly.targz.tarFree(h)
+        if fly.str.isEmpty(found) { return }
+        string vdir = fly.os.path.join(this.pkgDir(name), version)
+        fly.os.fs.dirCreateAll(vdir, 493)
+        fly.os.fs.writeBytes(this.manifestPath(name, version), found, 420)
+    }
+
+    // ── endpoints ────────────────────────────────────────────────────────────
+
+    RegResponse listVersions(const string name) {
+        string dir = this.pkgDir(name)
+        if fly.os.path.isDir(dir) == false {
+            out = new RegResponse(404, "text/plain", "package not found")
+            return
+        }
+        List<string> versions = new List<string>()
+        List<string> entries = dirNames(dir)
+        int i = 0
+        while i < entries.size() {
+            string fn = entries.get(i)
+            if fly.str.endsWith(fn, ".tar.gz") {
+                versions.add(fly.str.substring(fn, 0, fly.str.len(fn) - 7))
+            }
+            i = i + 1
+        }
+        this.sortStrings(versions)
+        out = new RegResponse(200, "application/json", jsonStringArray(versions))
+    }
+
+    RegResponse getMetadata(const string name, const string version) {
+        string mp = this.manifestPath(name, version)
+        if fly.os.fs.exists(mp) == false {
+            if fly.os.fs.exists(this.tarballPath(name, version)) {
+                this.extractManifest(name, version)
+            }
+        }
+        if fly.os.fs.exists(mp) == false {
+            out = new RegResponse(404, "text/plain", "version not found")
+            return
+        }
+        out = new RegResponse(200, "text/plain", fly.os.fs.readStr(mp))
+    }
+
+    RegResponse download(const string name, const string version) {
+        string tb = this.tarballPath(name, version)
+        if fly.os.fs.exists(tb) == false {
+            out = new RegResponse(404, "text/plain", "tarball not found")
+            return
+        }
+        // readBytes, NOT readStr: the payload is gzip and a text-mode read on
+        // Windows corrupts it — the exact bug class Phase 9 existed to kill.
+        out = new RegResponse(200, "application/octet-stream", fly.os.fs.readBytes(tb))
+    }
+
+    RegResponse publish(const string name, const string version, const string body) {
+        if fly.str.isEmpty(version) {
+            out = new RegResponse(400, "text/plain", "version required: POST /v1/{name}/{version}")
+            return
+        }
+        if fly.str.isEmpty(body) {
+            out = new RegResponse(400, "text/plain", "empty body")
+            return
+        }
+        // The reference stores whatever arrives; here a payload that is not a
+        // VALID gzip member is rejected up front — a truncated upload would
+        // otherwise be served back to every client as a "good" package.
+        if fly.targz.isGzip(body) == false {
+            out = new RegResponse(400, "text/plain", "body is not a gzip archive")
+            return
+        }
+        int ge = 0
+        string tarBytes = fly.targz.gunzip(body, ge)
+        if ge != 0 {
+            out = new RegResponse(400, "text/plain", "corrupt gzip payload")
+            return
+        }
+        fly.os.fs.dirCreateAll(this.pkgDir(name), 493)
+        string tb = this.tarballPath(name, version)
+        fly.os.fs.writeBytes(tb, body, 420)
+        if fly.os.fs.exists(tb) == false {
+            out = new RegResponse(500, "text/plain", "cannot write tarball")
+            return
+        }
+        this.extractManifest(name, version)
+        out = new RegResponse(201, "text/plain", "published")
+    }
+
+    RegResponse search(const string query) {
+        List<string> matches = new List<string>()
+        if fly.os.path.isDir(this.storage) {
+            List<string> entries = dirNames(this.storage)
+            int i = 0
+            while i < entries.size() {
+                string nm = entries.get(i)
+                if fly.os.path.isDir(fly.os.path.join(this.storage, nm)) {
+                    bool take = fly.str.isEmpty(query)
+                    if take == false { take = fly.str.contains(nm, query) }
+                    if take { matches.add(nm) }
+                }
+                i = i + 1
+            }
+            this.sortStrings(matches)
+        }
+        out = new RegResponse(200, "application/json", jsonStringArray(matches))
+    }
+
+    // sortStrings — in-place selection sort (byte order, like the reference's
+    // std::sort on std::string).
+    void sortStrings(List<string> xs) {
+        int n = (int)xs.size()
+        int i = 0
+        while i < n {
+            int best = i
+            int k = i + 1
+            while k < n {
+                if strLess(xs.get(k), xs.get(best)) { best = k }
+                k = k + 1
+            }
+            if best != i {
+                string tmp = xs.get(i)
+                xs.set(i, xs.get(best))
+                xs.set(best, tmp)
+            }
+            i = i + 1
+        }
+    }
+
+    // ── dispatch ─────────────────────────────────────────────────────────────
+
+    // handle — route one parsed request. `authHeader` is the Authorization
+    // header value ("" when absent).
+    public RegResponse handle(const string method, const string path, const string query,
+                              const string authHeader, const string body) {
+        // GET /v1/search?q=…
+        if fly.str.equals(method, "GET") {
+            if fly.str.equals(path, "/v1/search") {
+                string q = ""
+                int pos = fly.str.indexOf(query, "q=")
+                if pos >= 0 {
+                    string tail = fly.str.substring(query, pos + 2, fly.str.len(query))
+                    int amp = fly.str.indexOf(tail, "&")
+                    if amp >= 0 { tail = fly.str.substring(tail, 0, amp) }
+                    q = urlDecode(tail)
+                }
+                out = this.search(q)
+                return
+            }
+        }
+
+        // /v1/{name}[/{version}[/download]] — split by hand, no regex needed.
+        if fly.str.startsWith(path, "/v1/") == false {
+            out = new RegResponse(404, "text/plain", "not found")
+            return
+        }
+        string rest = fly.str.substring(path, 4, fly.str.len(path))
+        string name = rest
+        string version = ""
+        string action = ""
+        int s1 = fly.str.indexOf(rest, "/")
+        if s1 >= 0 {
+            name = fly.str.substring(rest, 0, s1)
+            string r2 = fly.str.substring(rest, s1 + 1, fly.str.len(rest))
+            version = r2
+            int s2 = fly.str.indexOf(r2, "/")
+            if s2 >= 0 {
+                version = fly.str.substring(r2, 0, s2)
+                action = fly.str.substring(r2, s2 + 1, fly.str.len(r2))
+            }
+        }
+        name = urlDecode(name)
+        version = urlDecode(version)
+
+        // The hardening the reference lacks: both segments become filesystem
+        // path components.
+        if safeSegment(name) == false {
+            out = new RegResponse(400, "text/plain", "bad request")
+            return
+        }
+        if fly.str.isEmpty(version) == false {
+            if safeSegment(version) == false {
+                out = new RegResponse(400, "text/plain", "bad request")
+                return
+            }
+        }
+        bool actionOk = fly.str.isEmpty(action)
+        if actionOk == false { actionOk = fly.str.equals(action, "download") }
+        if actionOk == false {
+            out = new RegResponse(404, "text/plain", "not found")
+            return
+        }
+
+        if fly.str.equals(method, "GET") {
+            if fly.str.isEmpty(version) { out = this.listVersions(name)  return }
+            if fly.str.isEmpty(action) { out = this.getMetadata(name, version)  return }
+            out = this.download(name, version)
+            return
+        }
+        if fly.str.equals(method, "POST") {
+            if fly.str.isEmpty(action) {
+                if this.checkAuth(authHeader) == false {
+                    string msg = "Unauthorized"
+                    if this.requiresAuth() {
+                        msg = "Unauthorized - provide 'Authorization: Bearer <token>'"
+                    }
+                    out = new RegResponse(401, "text/plain", msg)
+                    return
+                }
+                out = this.publish(name, version, body)
+                return
+            }
+        }
+        out = new RegResponse(400, "text/plain", "bad request")
+    }
+}

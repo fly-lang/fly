@@ -386,6 +386,7 @@ public class Resolver : ASTVisitor {
     public void visit(const ASTMethod node) { ResolverClass.method(this, node) }
     public void visit(const ASTEnum node) { ResolverClass.declareEnum(this, node) }
     public void visit(const ASTEnumEntry node) { ResolverClass.enumEntry(this, node) }
+    public void visit(const ASTArrayAccess node) { ResolverExpr.arrayAccess(this, node) }
     public void visit(const ASTComment node) { }
 
     public void visit(const ASTLocalVar node) { ResolverDecl.localVar(this, node) }
@@ -426,14 +427,10 @@ public class Resolver : ASTVisitor {
     public void visit(const ASTBoolValue node) { this.currentExpr = SemaBuilder.CreateBoolValue(node) }
     public void visit(const ASTNumberValue node) { this.currentExpr = SemaBuilder.CreateNumberValue(node) }
     public void visit(const ASTStringValue node) { this.currentExpr = SemaBuilder.CreateStringValue(node) }
-    // Array literals resolve via ResolverExpr (kept a one-liner: large method
-    // bodies inside a visit trip a self-host codegen bug). Struct literals are
-    // still unsupported.
+    // Array/struct literals resolve via ResolverExpr (kept one-liners: large
+    // method bodies inside a visit trip a self-host codegen bug).
     public void visit(const ASTArrayValue node) { ResolverExpr.arrayValue(this, node) }
-    public void visit(const ASTStructValue node) {
-        this.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "struct literals")
-        this.currentExpr = null
-    }
+    public void visit(const ASTStructValue node) { ResolverExpr.structValue(this, node) }
     public void visit(const ASTNullValue node) { this.currentExpr = SemaBuilder.CreateNullValue(node) }
     public void visit(const ASTUnsetValue node) { this.currentExpr = SemaBuilder.CreateUnsetValue(node) }
 }

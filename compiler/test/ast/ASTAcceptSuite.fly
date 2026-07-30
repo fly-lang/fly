@@ -66,6 +66,7 @@ public class AcceptProbe : ASTVisitor {
     public void visit(const ASTNullValue node) { this.last = "null" }
     public void visit(const ASTUnsetValue node) { this.last = "unset" }
     public void visit(const ASTEnumEntry node) { this.last = "enumEntry" }
+    public void visit(const ASTArrayAccess node) { this.last = "arrayAccess" }
 }
 
 suite ASTAcceptSuite {

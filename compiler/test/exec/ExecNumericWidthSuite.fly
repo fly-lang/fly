@@ -1,0 +1,105 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecNumericWidthSuite — EXECUTED width/signedness semantics (bug-hunt Phase 1).
+// Pins the B010 RULE: widening extends by the SOURCE's signedness — unsigned
+// sources (byte, ushort, uint) ZERO-extend everywhere, cast and comparison
+// alike; signed sources sign-extend. STAGE=0 = reference oracle (aligned by
+// the same fix), STAGE=1/2 = self-host.
+//
+// Assert codes: 1xx byte, 2xx ushort, 3xx short, 4xx uint/long, 5xx mixed
+// arithmetic.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite ExecNumericWidthSuite {
+
+    void byteTest() {
+        case "byte masks back to its unsigned value": {
+            byte b = (byte)200
+            assert.assertEqI((int)b & 255, 200, 101)
+        }
+        case "byte above 127 zero-extends when widened raw": {
+            byte b = (byte)200
+            assert.assertEqI((int)b, 200, 111)           // unsigned source → zext (B010)
+        }
+        case "byte comparison against its literal": {
+            byte b = (byte)200
+            bool same = b == 200
+            assert.assertTrue(same, 121)                 // comparison zexts too (B010)
+            byte small = (byte)5
+            bool ok = small == 5
+            assert.assertTrue(ok, 122)
+        }
+        case "byte wraps modulo 256 in arithmetic": {
+            byte b = (byte)250
+            byte r = (byte)(b + 10)
+            assert.assertEqI((int)r & 255, 4, 131)       // 260 & 255
+        }
+    }
+
+    void ushortTest() {
+        case "ushort masks back to its unsigned value": {
+            ushort u = (ushort)40000
+            assert.assertEqI((int)u & 65535, 40000, 201)
+        }
+        case "ushort above 32767 zero-extends when widened raw": {
+            ushort u = (ushort)40000
+            assert.assertEqI((int)u, 40000, 211)         // unsigned source → zext (B010)
+        }
+    }
+
+    void shortTest() {
+        case "short widens with proper sign extension": {
+            short s = (short)(0 - 2)
+            assert.assertEqI((int)s, 0 - 2, 301)
+            assert.assertEqL((long)s, 0 - 2, 302)
+        }
+        case "short positive round-trip": {
+            short s = (short)1234
+            assert.assertEqI((int)s, 1234, 311)
+        }
+    }
+
+    void uintLongTest() {
+        case "uint holds values above int max under mask": {
+            uint u = (uint)4000000000
+            assert.assertEqL((long)u & 4294967295, 4000000000, 401)
+        }
+        case "long to int truncates to the low 32 bits": {
+            long big = 4294967296 + 7                    // 2^32 + 7
+            int t = (int)big
+            assert.assertEqI(t, 7, 411)
+        }
+        case "int to long and back is identity": {
+            int a = 0 - 123456
+            assert.assertEqI((int)((long)a), 0 - 123456, 421)
+        }
+    }
+
+    void mixedArithTest() {
+        case "byte plus int computes in the wide type": {
+            byte b = (byte)10
+            int r = b + 1000
+            assert.assertEqI(r, 1010, 501)
+        }
+        case "short times int stays exact": {
+            short s = (short)300
+            int r = s * 1000
+            assert.assertEqI(r, 300000, 511)
+        }
+        case "int plus int wraps before widening to long": {
+            int a = 2000000000
+            long r = a + 2000000000
+            // both operands are int → the add wraps in 32 bits, THEN widens:
+            // 4000000000 - 2^32 = -294967296. A 4000000000 result would mean
+            // the assignment target retypes the literal — pin the C model.
+            assert.assertEqL(r, 0 - 294967296, 521)
+        }
+        case "int plus long operand widens the add itself": {
+            int a = 2000000000
+            long two = 2000000000
+            long r = a + two
+            assert.assertEqL(r, 4000000000, 522)         // i64 add, no wrap
+        }
+    }
+}

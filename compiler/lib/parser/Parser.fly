@@ -16,17 +16,17 @@ import fly.data.*
 // ─────────────────────────────────────────────────────────────────────────────
 
 // binPrec — binary operator precedence (higher binds tighter; 0 = not binary).
+// FLAT levels (doc Appendix B, mirroring the reference getPrecedence — B011):
+// logic, bitwise and shift share ONE left-to-right level, and equality shares
+// the relational level. The old table graduated them C-style, so `4|2&3` was 6
+// (C) instead of 2 (flat) and `true||false&&false` was true instead of false.
+// Assignment/ternary sit above this in parseAssign/parseTernary.
 public int binPrec(const string p) {
-    if p == "||" { out = 2 return }
-    if p == "&&" { out = 3 return }
-    if p == "==" || p == "!=" { out = 4 return }
-    if p == "<" || p == "<=" || p == ">" || p == ">=" { out = 5 return }
-    if p == "|" { out = 6 return }
-    if p == "^" { out = 7 return }
-    if p == "&" { out = 8 return }
-    if p == "<<" || p == ">>" { out = 9 return }
-    if p == "+" || p == "-" { out = 10 return }
-    if p == "*" || p == "/" || p == "%" { out = 11 return }
+    if p == "||" || p == "&&" || p == "|" || p == "^" || p == "&"
+       || p == "<<" || p == ">>" { out = 2 return }
+    if p == "==" || p == "!=" || p == "<" || p == "<=" || p == ">" || p == ">=" { out = 3 return }
+    if p == "+" || p == "-" { out = 4 return }
+    if p == "*" || p == "/" || p == "%" { out = 5 return }
     out = 0
 }
 
@@ -71,6 +71,8 @@ public class Parser {
     DiagnosticsEngine diags
     StoringDiagnosticConsumer sink
     ASTModule module
+    int prevLine             // line of the last CONSUMED token (0 before the first bump):
+                             // lets postfix ++/-- require same-line adjacency (B014)
 
     public Parser(const string src) {
         this.lx = new Lexer(src)
@@ -81,10 +83,12 @@ public class Parser {
         this.pending = new List<Token>()
         this.cur = this.lx.next()
         this.nxt = this.lx.next()
+        this.prevLine = 0
     }
 
     // ── token cursor ──────────────────────────────────────────────────────────
     public void bump() {
+        this.prevLine = this.curLine()
         this.cur = this.nxt
         if this.pending.size() > 0 {
             this.nxt = this.pending.get(0)
@@ -159,6 +163,65 @@ public class Parser {
     // `fly.os.env.StringArray args` is a DECLARATION, whereas `fly.os.env.argsGet()`
     // (a call) or `fly.data.foo` (a namespaced value) is not. Mirrors the dotted-name
     // branch of the reference Parser::isType. Probed tokens are restored into `pending`.
+    // bracketDeclAhead — cur is an identifier and nxt is '[', which is ambiguous:
+    // it starts either a DECLARATION of an array of a named type (`Cell[3] cs`,
+    // `Cell[] cs`) or an EXPRESSION statement subscripting a variable
+    // (`k[0] = 9`, `rows[i].use()`). The two are told apart by what follows the
+    // closing bracket run: an IDENTIFIER means a declaration — that identifier is
+    // the variable's name — and anything else means an expression.
+    //
+    // Consecutive groups form ONE run: `Cell[2][3] grid` closes the first ']' and
+    // finds another '[', so the balance restarts instead of deciding early.
+    // Subscripts nested INSIDE the brackets (`m[k[0]] = v`) are handled by the
+    // depth counter rather than by stopping at the first ']'.
+    //
+    // Every probed token is pushed back into `pending`: leaving one behind
+    // desynchronises the stream silently, which is far worse than a wrong answer.
+    public bool bracketDeclAhead() {
+        List<Token> scanned = new List<Token>()
+        int depth = 1
+        bool isDecl = false
+        bool go = true
+        while go {
+            Token t = this.nextRaw()
+            scanned.add(t)
+            if t.isEof() {
+                go = false
+            } else {
+                if t.kind == TokenKind.PUNCT {
+                    string tx = this.lx.tokenText(t)
+                    if tx == "[" {
+                        depth = depth + 1
+                    } elsif tx == "]" {
+                        depth = depth - 1
+                        if depth <= 0 {
+                            Token after = this.nextRaw()
+                            scanned.add(after)
+                            if after.kind == TokenKind.IDENT {
+                                isDecl = true
+                                go = false
+                            } else {
+                                bool more = false
+                                if after.kind == TokenKind.PUNCT {
+                                    if this.lx.tokenText(after) == "[" { more = true }
+                                }
+                                // another dimension → keep balancing; otherwise decided
+                                if more { depth = 1 }
+                                else { go = false }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        int i = 0
+        while i < scanned.size() {
+            this.pending.add(scanned.get(i))
+            i = i + 1
+        }
+        out = isDecl
+    }
+
     public bool qualifiedDeclAhead() {
         List<Token> scanned = new List<Token>()
         bool isDecl = false
@@ -284,6 +347,7 @@ public class Parser {
     public string curText() { out = this.lx.tokenText(this.cur) }
     public SourceLocation curLoc() { out = slGetFileLoc(this.cur.offset()) }
     public int curLine() { out = this.sm.getLineNumber(this.cur.getLoc()) }
+    public int prevTokenLine() { out = this.prevLine }
     public int curCol()  { out = this.sm.getColumnNumber(this.cur.getLoc()) }
 
     // curKind / curIs — bridge the pragmatic Lexer's coarse token to the fine-grained
@@ -706,6 +770,10 @@ public class Parser {
         if this.curIsKw("break")    { ASTBreakStmt b = ASTBuilder.CreateBreakStmt(block, this.curLoc())  this.bump()  return }
         if this.curIsKw("continue") { ASTContinueStmt cs = ASTBuilder.CreateContinueStmt(block, this.curLoc())  this.bump()  return }
         if this.curIsPunct("{")     { ASTBlockStmt inner = this.parseBlock()  block.addContent(inner)  return }
+        // multi-assignment `q, r = f(x)` (B027): `ident ,` cannot begin any
+        // other legal statement, so committing on the two-token lookahead is
+        // safe (no backtracking needed).
+        if this.curIsIdent() && this.nxtIsPunct(",") { this.parseMultiAssign(block)  return }
         // declaration (Type name ...) vs expression statement
         if this.looksLikeDecl() { this.parseDecl(block)  return }
         this.parseExprStmt(block)
@@ -971,8 +1039,10 @@ public class Parser {
     }
 
     // looksLikeDecl — a statement that begins a local-var declaration: a type
-    // (builtin keyword, or `Ident name`) followed by a name.
+    // (builtin keyword, or `Ident name`) followed by a name, optionally prefixed
+    // by `const` (B022).
     public bool looksLikeDecl() {
+        if this.curIsKw("const") { out = true  return }
         if this.curIsBuiltinType() { out = true  return }
         if this.curIsIdent() {
             if this.nxt.kind == TokenKind.IDENT { out = true  return }
@@ -980,12 +1050,23 @@ public class Parser {
             if this.nxtIsPunct("<") { out = this.genericDeclAhead()  return }
             // qualified-type decl `A.B.C name` (or `A.B.C<…> name`) — probe the chain.
             if this.nxtIsPunct(".") { out = this.qualifiedDeclAhead()  return }
+            // array-of-named-type decl `Cell[3] cs` — probe past the brackets. The
+            // same shape starts a subscript expression statement (`k[0] = 9`), so
+            // the probe, not the '[', is what decides.
+            if this.nxtIsPunct("[") { out = this.bracketDeclAhead()  return }
         }
         out = false
     }
 
     public void parseDecl(const ASTBlockStmt block) {
         SourceLocation loc = this.curLoc()
+        // `const T name` local (B022): harvest the modifier before the type —
+        // SemaBuilder.CreateLocalVar already reads it into setConstant.
+        List<ASTModifier> mods = new List<ASTModifier>()
+        if this.curIsKw("const") {
+            mods.add(ASTBuilder.CreateModifier(this.curLoc(), ASTModifierKind.MOD_CONSTANT))
+            this.bump()
+        }
         // `error x` is not a declaration: a handle never binds a named variable, so
         // `error e2 handle { }` (a stray error-typed local + a bare handle) is rejected.
         if this.curIsKw("error") {
@@ -995,14 +1076,87 @@ public class Parser {
         string nm = ""
         if this.curIsNamePart() { nm = this.curText()  this.bump() }
         else { this.reportErr(DiagID.err_parser_identifier_expected)  return }
-        List<ASTModifier> nomods = new List<ASTModifier>()
-        ASTLocalVar lv = ASTBuilder.CreateLocalVar(loc, ty, nm, nomods)
+        ASTLocalVar lv = ASTBuilder.CreateLocalVar(loc, ty, nm, mods)
         ASTDeclStmt d = ASTBuilder.CreateDeclStmt(block, loc, lv)
         if this.curIsPunct("=") {
             this.bump()
             ASTExpr init = this.parseExpr()
             d.setExpr(init)
         }
+    }
+
+    // parseMultiAssign — `q, r = f(args)` (B027, doc 5.4): every receiver is an
+    // ALREADY-DECLARED variable (no inline declaration); the call's return slots
+    // bind in order (q ← out[0], r ← out[1], …). Lowered AT PARSE TIME to the
+    // full call form `f(args, q, r)` — the out slots are trailing hidden params,
+    // and a non-const variable argument is passed BY ADDRESS — with the receiver
+    // count recorded on the call so the resolver can verify it matches the
+    // callee's out slots (a same-arity NON-multi-return overload must not match
+    // silently). The RHS must be a direct or member call.
+    public void parseMultiAssign(const ASTBlockStmt block) {
+        SourceLocation loc = this.curLoc()
+        List<string> names = new List<string>()
+        names.add(this.curText())
+        this.bump()
+        while this.curIsPunct(",") {
+            this.bump()
+            if this.curIsIdent() { names.add(this.curText())  this.bump() }
+            else { this.reportErr(DiagID.err_parser_identifier_expected)  return }
+        }
+        this.expectPunct("=")
+
+        // RHS: `name(args)` or a `a.b.name(args)` member chain — mirror of
+        // ParserExpr.parsePostfix, but the trailing segment MUST be a call.
+        if this.curIsNamePart() == false {
+            this.reportErr(DiagID.err_parser_multi_assign_call)
+            return
+        }
+        SourceLocation cloc = this.curLoc()
+        string nm = this.curText()
+        this.bump()
+        ASTCall call = null
+        if this.curIsPunct("(") {
+            call = ParserExpr.parseCallTail(this, cloc, nm, ASTCallKind.CALL_DIRECT, null)
+        } else {
+            ASTExpr recv = ASTBuilder.CreateIdentifier(cloc, nm, null)
+            bool go = this.curIsPunct(".")
+            while go {
+                this.bump()
+                SourceLocation mloc = this.curLoc()
+                if this.curIsNamePart() == false {
+                    this.reportErr(DiagID.err_parser_identifier_expected)
+                    return
+                }
+                string mn = this.curText()
+                this.bump()
+                if this.curIsPunct("(") {
+                    call = ParserExpr.parseCallTail(this, mloc, mn, ASTCallKind.CALL_DIRECT, recv)
+                    go = false
+                } else {
+                    recv = ASTBuilder.CreateMember(mloc, mn, recv)
+                    go = this.curIsPunct(".")
+                }
+            }
+        }
+        if call == null {
+            this.reportErr(DiagID.err_parser_multi_assign_call)
+            return
+        }
+
+        // Receivers become the trailing out arguments (full call form).
+        int idx = (int)call.getArgs().size()
+        int ni = 0
+        while ni < names.size() {
+            ASTExpr rid = ASTBuilder.CreateIdentifier(loc, names.get(ni), null)
+            ASTArg ra = new ASTArg(loc, rid, idx)
+            call.addArg(ra)
+            idx = idx + 1
+            ni = ni + 1
+        }
+        call.setMultiRecvCount((int)names.size())
+
+        ASTExprStmt s = ASTBuilder.CreateExprStmt(block, loc)
+        s.setExpr(call)
     }
 
     public void parseExprStmt(const ASTBlockStmt block) {

@@ -7,6 +7,7 @@ import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenBridge
 import fly.compiler.codegen.CodeGenLLVM
 import fly.compiler.codegen.CodeGenType
+import fly.compiler.codegen.CodeGenIntrinsics
 import llvm.api.*
 import fly.mem
 import fly.data.List
@@ -82,6 +83,31 @@ public class CodeGenClass {
             }
         }
         cg.structSetBodyN(st, fieldTys, false)
+
+        // STATIC attributes live in module GLOBALS (B030), zero-initialized; the
+        // handle rides the attribute's llvmAlloca slot (SemaVar). They also still
+        // occupy an instance slot above — wasted bytes, but keeping the layout
+        // untouched avoids re-threading fieldIndex/vtable math. RESIDUAL: a
+        // non-zero literal initializer is not folded yet (needs const-eval or a
+        // module ctor) — the global starts at zero.
+        List<SemaClassAttribute> ownAttrs = cls.getAttributeList()
+        int si = 0
+        while si < ownAttrs.size() {
+            SemaClassAttribute sa = ownAttrs.get(si)
+            if sa.isStatic() {
+                if sa.getLlvmAlloca() == 0 {
+                    pointer gty = fieldLlvmType(cgm, sa.getType())
+                    string gname = str.concat(sname, str.concat(".static.", sa.getName()))
+                    pointer g
+                    llvm.addGlobal(cgm.getModule(), gty, gname, g)
+                    pointer gzv
+                    llvm.constNull(gty, gzv)
+                    llvm.setInitializer(g, gzv)
+                    sa.setLlvmAlloca(g)
+                }
+            }
+            si = si + 1
+        }
     }
 
     // fieldLlvmType — the LLVM type a FIELD slot uses. A STRUCT-kind field is laid
@@ -392,6 +418,76 @@ public class CodeGenClass {
             pointer ret
             llvm.buildRetVoid(b, ret)
         }
+    }
+
+    // emitDefaultInstance — one `new C()` with NO arguments, returning the object
+    // pointer. The same sequence genNew performs, minus everything that only a
+    // written `new` needs (argument coercion, by-value handle params, struct
+    // stack allocation): a sized array of classes builds its elements with the
+    // no-argument constructor and nothing else.
+    //
+    // Returns 0 when the class cannot be instantiated — no materialized struct
+    // type, or no no-argument constructor. Sema rejects those at the declaration
+    // (err_sema_array_class_no_default_ctor), so reaching here means the program
+    // was already diagnosed and the caller simply emits nothing.
+    public static pointer emitDefaultInstance(const CodeGenExpr cge, const SemaClassType cls) {
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+
+        pointer structTy = cls.getLlvmStructType()
+        if structTy == 0 { out = 0  return }
+        SemaClassMethod ctor = cls.getDefaultConstructor()
+
+        pointer obj
+        llvm.buildMalloc(b, structTy, "anew.obj", obj)
+
+        if cls.isFromHeader() {
+            // Header classes follow the reference protocol: the archive-defined
+            // `<Id>.init_ctor` wires the vtable and the field defaults.
+            string icName = str.concat(refClassId(cls), ".init_ctor")
+            pointer icFn
+            llvm.getNamedFunction(cgm.getModule(), icName, icFn)
+            pointer ptrTy2 = cge.ptrType()
+            List<pointer> icParams = new List<pointer>()
+            icParams.add(ptrTy2)
+            pointer icTy
+            cg.functionTypeN(ptrTy2, icParams, false, icTy)
+            if icFn == 0 { llvm.addFunction(cgm.getModule(), icName, icTy, icFn) }
+            List<pointer> icArgs = new List<pointer>()
+            icArgs.add(obj)
+            pointer icV
+            cg.buildCallN(b, icTy, icFn, icArgs, "", icV)
+        } else {
+            // Zero the instance so fields the constructor leaves alone are
+            // deterministic (Windows malloc returns garbage, Linux zeroes).
+            pointer i8Ty
+            llvm.int8TypeInContext(cgm.getCtx(), i8Ty)
+            pointer zeroVal
+            llvm.constInt(i8Ty, 0, false, zeroVal)
+            pointer szVal
+            llvm.sizeOf(structTy, szVal)
+            pointer memsetV
+            llvm.buildMemSet(b, obj, zeroVal, szVal, 0, memsetV)
+            pointer vtSlot
+            llvm.buildStructGEP2(b, structTy, obj, 0, "anew.vtslot", vtSlot)
+            pointer vtable = cls.getLlvmVTable()
+            llvm.buildStore(b, vtable, vtSlot)
+        }
+
+        if ctor != null {
+            pointer cf = ctor.getLlvmFn()
+            if cf != 0 {
+                List<pointer> cargs = new List<pointer>()
+                cargs.add(cge.getErrPtr())
+                cargs.add(obj)
+                pointer cty = ctor.getLlvmFnType()
+                pointer cv
+                cg.buildCallN(b, cty, cf, cargs, "", cv)
+            }
+        }
+        out = obj
     }
 
     // genNew — `new C(args)`: malloc the struct, store the vtable pointer, run the
@@ -714,6 +810,24 @@ public class CodeGenClass {
         pointer b = cge.getBuilder()
         // Capture addrMode BEFORE gen(parent) — gen() resets it to rvalue mode.
         bool addr = cge.isAddrMode()
+        // STATIC field `ClassName.field` (B030): no receiver — the storage is
+        // the module global created at declareStruct (riding the attribute's
+        // llvmAlloca). addr mode hands out the global pointer for assignment.
+        SemaClassAttribute sattr = node.getStaticAttr()
+        if sattr != null {
+            SemaClassType scls = sattr.getClass()
+            if scls.getLlvmStructType() == 0 { declareStruct(cge.getCgm(), scls) }
+            pointer g = sattr.getLlvmAlloca()
+            if addr {
+                node.setLlvmValue(g)
+            } else {
+                pointer sfty = cge.lowerType(sattr.getType())
+                pointer sfv
+                llvm.buildLoad2(b, sfty, g, "sfld", sfv)
+                node.setLlvmValue(sfv)
+            }
+            return
+        }
         SemaExpr parent = node.getParent()
         pointer objPtr = cge.gen(parent)
         SemaType pt = parent.getType()
@@ -747,6 +861,62 @@ public class CodeGenClass {
             llvm.buildLoad2(b, fty, fldPtr, "fldv", loaded)
             node.setLlvmValue(loaded)
         }
+    }
+
+    // structValue — `{name = expr, ...}` literal (B029): fresh zeroed alloca of
+    // the struct type, one store per named field, and the SLOT POINTER is the
+    // value (a struct value is a pointer to its storage; the decl/assign path
+    // clones it via cloneIfStruct, keeping value semantics). Field stores follow
+    // the member() rules: inline STRUCT fields memcpy from the nested literal's
+    // slot, strings clone-on-store, scalars coerce to the field type.
+    public static void structValue(const CodeGenExpr cge, const SemaStructValue node) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        SemaType t = node.getType()
+        SemaClassType ct = t.asClass()
+        pointer sty = ct.getLlvmStructType()
+        pointer slot
+        llvm.buildAlloca(b, sty, "slit", slot)
+        pointer zv
+        llvm.constNull(sty, zv)
+        llvm.buildStore(b, zv, slot)
+
+        List<string> names = node.getNames()
+        List<SemaExpr> exprs = node.getExprs()
+        int i = 0
+        while i < names.size() {
+            string nm = names.get(i)
+            SemaExpr fe = exprs.get(i)
+            SemaClassAttribute a = ct.LookupAttribute(nm)
+            if a != null {
+                int idx = fieldIndex(ct, nm)
+                pointer fp
+                llvm.buildStructGEP2(b, sty, slot, idx, "slitf", fp)
+                pointer v = cge.gen(fe)
+                SemaType at = a.getType()
+                bool inlineStruct = false
+                SemaClassType ac = null
+                if at != null { ac = at.asClass() }
+                if ac != null {
+                    if ac.getClassKind() == SemaClassKind.STRUCT { inlineStruct = true }
+                }
+                if inlineStruct {
+                    pointer fsty = ac.getLlvmStructType()
+                    pointer szV
+                    llvm.sizeOf(fsty, szV)
+                    pointer mcv
+                    llvm.buildMemCpy(b, fp, v, szV, mcv)
+                } else {
+                    v = cge.coerce(v, fe.getType(), at)
+                    if fe.isOwnedStrTemp() == false {
+                        v = CodeGenIntrinsics.cloneIfString(cge, v, at)
+                    }
+                    llvm.buildStore(b, v, fp)
+                }
+            }
+            i = i + 1
+        }
+        node.setLlvmValue(slot)
     }
 
     // ── name + index helpers ──────────────────────────────────────────────────

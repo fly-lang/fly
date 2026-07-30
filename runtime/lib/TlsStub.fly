@@ -1,0 +1,74 @@
+namespace fly.runtime
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TLS — the UNIVERSAL half: the declarations plus a no-op implementation.
+//
+// This file is built on EVERY platform into fly_tls_stub.{a,lib} and is ALWAYS
+// linked. Its generated header is the canonical declaration of the tls_*
+// primitives, which is why the declarations live here and not in the real
+// backend: std/lib/net/tls.fly has to compile on every target, including the ones
+// with no TLS implementation at all.
+//
+// The real backend (runtime/lib/TlsOpenSSL.fly, Linux) defines exactly these
+// seven symbols and is linked BEFORE this archive when the build asks for TLS
+// with --tls. Archive semantics then do the selection: a member is extracted only
+// to resolve a symbol that is still undefined, so with the real archive present
+// the stub member is never pulled — no duplicate symbol, no compiler feature
+// needed, purely link order. (Verified with the fork's ld.lld before this was
+// written: real-then-stub links, the real one wins, and a program that never
+// mentions TLS does not pull either.)
+//
+// WHY NOT just add `-lssl -lcrypto` to every Linux link: that would break HELLO
+// WORLD on any machine without libssl-dev, since `-lssl` needs the development
+// symlink that the runtime package does not ship. A far worse regression than
+// "TLS needs a flag". And dlopen/dlsym is not an option either — Fly cannot call
+// through a function pointer.
+//
+// A caller checks tls_available() at RUNTIME and gets an honest answer: 0 here,
+// 1 from the real backend.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// tls_available — 1 when a real TLS backend is linked, 0 otherwise.
+public void tls_available(int out) {
+    out = 0
+}
+
+// tls_connect — wrap an already-connected socket in a TLS session and perform the
+// handshake. `sniHost` is the C string sent as the SNI server name AND verified
+// against the certificate; `verify` != 0 requires a valid chain and a matching
+// hostname. Returns an opaque context handle, or 0 on failure.
+public void tls_connect(const long sock, const pointer sniHost, const int verify, pointer out) {
+    out = 0
+}
+
+// tls_send — bytes written, < 0 on error.
+public void tls_send(const pointer ctx, const pointer buf, const int n, long out) {
+    out = 0 - 1
+}
+
+// tls_recv — bytes read, 0 at a clean end of session, < 0 on error.
+public void tls_recv(const pointer ctx, const pointer buf, const int n, long out) {
+    out = 0 - 1
+}
+
+// tls_shutdown — send the close_notify alert. Idempotent; ignores a null context.
+//
+// THE BODY IS NOT DECORATIVE. In this runtime an EMPTY body means EXTERN — that
+// is how every libc/Win32 binding here is declared — so `{}` would emit a
+// DECLARATION and the link would fail with "undefined symbol: tls_shutdown".
+// Every void primitive in this file therefore carries a real statement.
+public void tls_shutdown(const pointer ctx) {
+    if ctx == 0 { return }
+}
+
+// tls_free — release the session. Idempotent; ignores a null context. Does NOT
+// close the underlying socket, which belongs to the caller. (Non-empty body for
+// the same reason as tls_shutdown.)
+public void tls_free(const pointer ctx) {
+    if ctx == 0 { return }
+}
+
+// tls_last_error — the backend's last error code for this context, 0 when none.
+public void tls_last_error(const pointer ctx, int out) {
+    out = 0
+}

@@ -25,6 +25,14 @@ public class ResolverStmt {
         while i < content.size() {
             ASTStmt s = content.get(i)
             s.accept(r)
+            // A bare nested `{ }` block (scoping block, braced switch-case body)
+            // resolves into r.lastBlock but attaches itself NOWHERE — every other
+            // statement kind appends to currentSemaBlock in its own visit. Adopt
+            // it here, or its statements silently vanish (B021).
+            if s.getStmtKind() == ASTStmtKind.STMT_BLOCK {
+                SemaBlockStmt child = r.getLastBlock()
+                if child != null { blk.addContent(child) }
+            }
             i = i + 1
         }
         r.setCurrentSemaBlock(prev)
@@ -47,7 +55,53 @@ public class ResolverStmt {
             ie.accept(r)
             r.setExpectedType(null)
             init = r.getCurrentExpr()
+            // the initializer must be assignable to the declared type (the
+            // reference runs CheckAssignment here; parity for the kind level)
+            if init != null {
+                checkAssignTypes(r, ie.getLoc(), slv.getType(), init.getType())
+            }
         }
+        // `T[] k` with NEITHER a size NOR an initializer has no length to give it,
+        // so it can only ever be an empty array nobody can fill — the reference has
+        // always rejected it and B048 rule 2 makes that the agreed semantics. The
+        // self-host used to accept it silently and hand back {null, 0}.
+        if init == null {
+            SemaType dt = slv.getType()
+            if dt != null {
+                SemaArrayType dat = dt.asArray()
+                if dat != null {
+                    if dat.getSizeExpr() == null {
+                        r.diag(node.getLoc(), DiagID.err_sema_array_no_size_or_init)
+                    } else {
+                        // A SIZED array of objects is born full: codegen puts one
+                        // `new C()` in every index, so the element must be
+                        // constructible with no arguments. Say so at the
+                        // declaration rather than letting codegen reach for a
+                        // constructor that does not exist.
+                        //
+                        // In practice this catches INTERFACES: every class gets a
+                        // synthesized no-argument constructor when it declares none
+                        // (ResolverClass.declareClass), so `new C()` is always
+                        // available — even for a class whose only written
+                        // constructor takes arguments. Interfaces are excluded from
+                        // that synthesis and so have nothing to build. Only the
+                        // no-initializer form preallocates; `C[3] xs = {a, b, c}`
+                        // takes its elements from the literal.
+                        SemaType det = dat.getElementType()
+                        SemaClassType dec = null
+                        if det != null { dec = det.asClass() }
+                        if dec != null {
+                            if dec.getClassKind() != SemaClassKind.STRUCT {
+                                if dec.getDefaultConstructor() == null {
+                                    r.diagStr(node.getLoc(), DiagID.err_sema_array_class_no_default_ctor, dec.getName())
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         SemaDeclStmt ds = SemaBuilder.CreateDeclStmt(node, slv, init)
         SemaBlockStmt blk = r.getCurrentSemaBlock()
         blk.addContent(ds)
@@ -84,6 +138,13 @@ public class ResolverStmt {
         SemaType svt = slv.getType()
         if svt != null {
             if svt.isString() { blk.addAlloc(slv) }
+            // An ARRAY local is an OWNER of its reference-counted buffer: register
+            // it for a scope-exit release. Independent of the initializer, exactly
+            // like a string — an uninitialized array is {null,0} and the release is
+            // null-guarded. Binding another array retains (CodeGenStmt.decl /
+            // CodeGenExprOps.assign), so two names mean a count of two and two
+            // releases; the buffer goes back when the last one leaves.
+            if svt.isArray() { blk.addAlloc(slv) }
         }
     }
 

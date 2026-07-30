@@ -1,0 +1,459 @@
+import fly.lsp.LspAnalyzer
+import fly.lsp.LspDiag
+import fly.lsp.LspSym
+import fly.lsp.LspFold
+import fly.lsp.LspLoc
+import fly.lsp.LspSignature
+import fly.lsp.LspTarget
+import fly.lsp.LspUse
+import fly.lsp.lfStr
+import fly.lsp.navModeFind
+import fly.lsp.navModeCollect
+import fly.lsp.navModeCallAt
+import fly.lsp.navModeCalls
+import fly.str
+import fly.os.fs
+import fly.data.List
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LspAnalyzerSuite — coverage of tools/lsp/lib/LspAnalyzer.fly and, through it,
+// LspNav.fly. Port of the reference's LspAnalyzerTest.cpp + LspDocHighlightTest,
+// extended: the reference could only test the BEFORE-COMPILE behaviour (its
+// analyzer needs a full Driver), while this one compiles a real file on disk and
+// then asserts on real navigation results.
+//
+// The fixture is written once, in FIXTURE_LINES order, and every position in the
+// assertions is expressed in 1-BASED COMPILER coordinates — the same convention
+// the analyzer speaks. The 0-based LSP conversion belongs to LspProtocol and is
+// covered in its own suite.
+//
+//   1  import fly.str
+//   2
+//   3  int square(const int n) {
+//   4      out = n * n
+//   5  }
+//   6
+//   7  void main() {
+//   8      int base = 3
+//   9      int result = square(base)
+//  10      Point p = new Point()
+//  11      int px = p.getX()
+//  12      int py = p.x
+//  13  }
+//  14
+//  15  class Point {
+//  16      int x
+//  17      public Point() { this.x = 0 }
+//  18      public int getX() { out = this.x }
+//  19  }
+//
+// Assert codes: 1xx before-compile, 2xx compile/diagnostics, 3xx findTargetAt,
+// 4xx definition, 5xx hover, 6xx documentSymbols, 7xx folding, 8xx uses,
+// 9xx completion/signature/tokens/workspace, 10xx receiver typing + inlay/type.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Every fixture lives in its OWN directory. The analyzer sets the compile's
+// source root to the file's dirname, so a fixture written to the CWD would make
+// the root the whole repository — hundreds of unrelated modules pulled into the
+// compile, and hundreds of unrelated diagnostics. A real editor always sends an
+// absolute path, so a directory per fixture is the faithful shape too.
+string navFixtureDir() { out = "lsp_suite_fx_nav" }
+string navFixturePath() { out = "lsp_suite_fx_nav/nav.fly" }
+
+// writeNavFixture — the file above, written to CWD. Kept as one string so the
+// line numbers in the assertions are readable against the header comment.
+void writeNavFixture() {
+    string s = "import fly.str\n"
+    s = fly.str.concat(s, "\n")
+    s = fly.str.concat(s, "int square(const int n) {\n")
+    s = fly.str.concat(s, "    out = n * n\n")
+    s = fly.str.concat(s, "}\n")
+    s = fly.str.concat(s, "\n")
+    s = fly.str.concat(s, "void main() {\n")
+    s = fly.str.concat(s, "    int base = 3\n")
+    s = fly.str.concat(s, "    int result = square(base)\n")
+    s = fly.str.concat(s, "    Point p = new Point()\n")
+    s = fly.str.concat(s, "    int px = p.getX()\n")
+    s = fly.str.concat(s, "    int py = p.x\n")
+    s = fly.str.concat(s, "}\n")
+    s = fly.str.concat(s, "\n")
+    s = fly.str.concat(s, "class Point {\n")
+    s = fly.str.concat(s, "    int x\n")
+    s = fly.str.concat(s, "    public Point() { this.x = 0 }\n")
+    s = fly.str.concat(s, "    public int getX() { out = this.x }\n")
+    s = fly.str.concat(s, "}\n")
+    fly.os.fs.dirCreateAll(navFixtureDir(), 493)
+    // The literal "\n" above is TWO characters in this dialect (escapes are
+    // raw), so every one is replaced with a real newline byte here.
+    fly.os.fs.writeStr(navFixturePath(), fly.str.replace(s, "\n", fly.lsp.lfStr()), 420)
+}
+
+// compiled — an analyzer with the fixture already compiled, ready to query.
+LspAnalyzer compiled() {
+    writeNavFixture()
+    LspAnalyzer a = new LspAnalyzer()
+    List<LspDiag> d = a.compileFile(navFixturePath())
+    out = a
+}
+
+// symNamed — is `name` among the symbols, and with `kind`? -1 kind = any.
+bool symNamed(const List<LspSym> xs, const string name, const int kind) {
+    int i = 0
+    while i < xs.size() {
+        LspSym s = xs.get(i)
+        if fly.str.equals(s.name, name) {
+            if kind < 0 { out = true  return }
+            if s.kind == kind { out = true  return }
+        }
+        i = i + 1
+    }
+    out = false
+}
+
+suite LspAnalyzerSuite {
+
+    // ── before any compile ───────────────────────────────────────────────────
+    void beforeCompileTest() {
+        case "every query on a fresh analyzer answers empty, never garbage": {
+            // The reference's whole analyzer test file is this contract: an
+            // editor asks before the first didOpen, and must get nothing rather
+            // than a read of uninitialised state.
+            LspAnalyzer a = new LspAnalyzer()
+            LspTarget t = a.findTargetAt(1, 1)
+            assert.assertEqI(t.kind, 0, 101)
+            assert.assertEmpty(a.hoverOf(t), 102)
+            assert.assertFalse(a.declLocationOf(t).ok, 103)
+            assert.assertFalse(a.typeDefinitionOf(t).ok, 104)
+            assert.assertEqI((int)a.documentSymbols().size(), 0, 105)
+            assert.assertEqI((int)a.foldingRanges().size(), 0, 106)
+            assert.assertEqI((int)a.collectUses("x").size(), 0, 107)
+            assert.assertEqI((int)a.completionsAt(1, 1).size(), 0, 108)
+            assert.assertFalse(a.signatureAt(1, 1).ok, 109)
+            assert.assertEqI((int)a.semanticTokens().size(), 0, 110)
+            assert.assertEqI((int)a.workspaceSymbols("").size(), 0, 111)
+            assert.assertEqI((int)a.inlayHints(1, 100).size(), 0, 112)
+        }
+        case "a file that cannot be read reports an error, not a clean bill": {
+            // Answering "no diagnostics" for a missing file would show the user
+            // a green editor for a file that does not compile.
+            LspAnalyzer a = new LspAnalyzer()
+            List<LspDiag> d = a.compileFile("lsp_suite_absent_xyz.fly")
+            assert.assertEqI((int)d.size(), 1, 113)
+            assert.assertEqI(d.get(0).severity, 1, 114)
+        }
+    }
+
+    // ── compile + diagnostics ────────────────────────────────────────────────
+    void compileTest() {
+        case "a clean file produces no diagnostics": {
+            writeNavFixture()
+            LspAnalyzer a = new LspAnalyzer()
+            List<LspDiag> d = a.compileFile(navFixturePath())
+            assert.assertEqI((int)d.size(), 0, 201)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "a sema error is reported with its real position": {
+            string dir = "lsp_suite_fx_broken"
+            fly.os.fs.dirCreateAll(dir, 493)
+            string p = "lsp_suite_fx_broken/broken.fly"
+            string src = fly.str.replace("void main() {\n    nosuchfn(1)\n}\n", "\n", fly.lsp.lfStr())
+            fly.os.fs.writeStr(p, src, 420)
+            LspAnalyzer a = new LspAnalyzer()
+            List<LspDiag> d = a.compileFile(p)
+            assert.assertTrue(d.size() > 0, 202)
+            LspDiag first = d.get(0)
+            assert.assertEqI(first.severity, 1, 203)
+            assert.assertEqI(first.line, 2, 204)
+            assert.assertTrue(fly.str.contains(first.message, "nosuchfn"), 205)
+            fly.os.fs.dirDeleteAll(dir)
+        }
+        case "a PARSE error is recovered from the rendered form": {
+            // Parse diagnostics take the other path entirely (the Parser's own
+            // sink, re-parsed by parseRendered), so they need their own case.
+            string dir = "lsp_suite_fx_parse"
+            fly.os.fs.dirCreateAll(dir, 493)
+            string p = "lsp_suite_fx_parse/parse.fly"
+            fly.os.fs.writeStr(p, fly.str.replace("void main( {\n}\n", "\n", fly.lsp.lfStr()), 420)
+            LspAnalyzer a = new LspAnalyzer()
+            List<LspDiag> d = a.compileFile(p)
+            assert.assertTrue(d.size() > 0, 206)
+            assert.assertEqI(d.get(0).severity, 1, 207)
+            fly.os.fs.dirDeleteAll(dir)
+        }
+    }
+
+    // ── findTargetAt ─────────────────────────────────────────────────────────
+    void findTargetTest() {
+        case "the cursor on a call resolves to the function": {
+            LspAnalyzer a = compiled()
+            // line 9, "    int result = square(base)" — 'square' starts at col 18
+            LspTarget t = a.findTargetAt(9, 18)
+            assert.assertEqI(t.kind, 1, 301)
+            assert.assertStr(t.name, "square", 302)
+            assert.assertTrue(t.fn != null, 303)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "the cursor on a local resolves to a variable with its type": {
+            LspAnalyzer a = compiled()
+            // line 8, "    int base = 3" — 'base' starts at col 9
+            LspTarget t = a.findTargetAt(8, 9)
+            assert.assertEqI(t.kind, 2, 304)
+            assert.assertStr(t.name, "base", 305)
+            assert.assertStr(t.varTypeName, "int", 306)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "the cursor on whitespace or an unknown position finds nothing": {
+            LspAnalyzer a = compiled()
+            assert.assertEqI(a.findTargetAt(6, 1).kind, 0, 307)      // blank line
+            assert.assertEqI(a.findTargetAt(9999, 1).kind, 0, 308)   // past the end
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+    }
+
+    // ── definition ───────────────────────────────────────────────────────────
+    void definitionTest() {
+        case "a function call jumps to the declaration line": {
+            LspAnalyzer a = compiled()
+            LspLoc loc = a.declLocationOf(a.findTargetAt(9, 18))
+            assert.assertTrue(loc.ok, 401)
+            assert.assertEqI(loc.line, 3, 402)
+            assert.assertTrue(fly.str.contains(loc.file, "nav.fly"), 403)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "a local jumps to its own declaration, not to its uses": {
+            LspAnalyzer a = compiled()
+            // from the USE at line 9 back to the declaration at line 8
+            LspLoc loc = a.declLocationOf(a.findTargetAt(9, 25))
+            assert.assertTrue(loc.ok, 404)
+            assert.assertEqI(loc.line, 8, 405)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "a parameter jumps to the parameter list": {
+            LspAnalyzer a = compiled()
+            // line 4, "    out = n * n" — the first 'n' is at col 11
+            LspTarget t = a.findTargetAt(4, 11)
+            assert.assertEqI(t.kind, 2, 406)
+            LspLoc loc = a.declLocationOf(t)
+            assert.assertTrue(loc.ok, 407)
+            assert.assertEqI(loc.line, 3, 408)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+    }
+
+    // ── hover ────────────────────────────────────────────────────────────────
+    void hoverTest() {
+        case "hover on a function shows its resolved signature": {
+            LspAnalyzer a = compiled()
+            string md = a.hoverOf(a.findTargetAt(9, 18))
+            assert.assertTrue(fly.str.contains(md, "square"), 501)
+            assert.assertTrue(fly.str.contains(md, "int"), 502)
+            assert.assertTrue(fly.str.startsWith(md, "```fly"), 503)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "hover on a local shows (var) and the type": {
+            LspAnalyzer a = compiled()
+            string md = a.hoverOf(a.findTargetAt(8, 9))
+            assert.assertTrue(fly.str.contains(md, "(var)"), 504)
+            assert.assertTrue(fly.str.contains(md, "int base"), 505)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "hover on nothing is the empty string": {
+            LspAnalyzer a = compiled()
+            assert.assertEmpty(a.hoverOf(a.findTargetAt(6, 1)), 506)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+    }
+
+    // ── document symbols ─────────────────────────────────────────────────────
+    void documentSymbolTest() {
+        case "the outline lists functions, the class and its methods": {
+            LspAnalyzer a = compiled()
+            List<LspSym> syms = a.documentSymbols()
+            assert.assertTrue(symNamed(syms, "square", 12), 601)     // Function
+            assert.assertTrue(symNamed(syms, "main", 12), 602)
+            assert.assertTrue(symNamed(syms, "Point", 5), 603)       // Class
+            assert.assertTrue(symNamed(syms, "getX", 6), 604)        // Method
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "a method carries its class as the container": {
+            LspAnalyzer a = compiled()
+            List<LspSym> syms = a.documentSymbols()
+            int i = 0
+            bool found = false
+            while i < syms.size() {
+                LspSym s = syms.get(i)
+                if fly.str.equals(s.name, "getX") {
+                    assert.assertStr(s.container, "Point", 605)
+                    found = true
+                }
+                i = i + 1
+            }
+            assert.assertTrue(found, 606)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+    }
+
+    // ── folding ──────────────────────────────────────────────────────────────
+    void foldingTest() {
+        case "each function body folds from its header to its last statement": {
+            LspAnalyzer a = compiled()
+            List<LspFold> folds = a.foldingRanges()
+            assert.assertTrue(folds.size() > 0, 701)
+            bool sawSquare = false
+            int i = 0
+            while i < folds.size() {
+                LspFold f = folds.get(i)
+                if f.startLine == 3 { if f.endLine == 4 { sawSquare = true } }
+                // A fold that ends before it starts would collapse the wrong region.
+                assert.assertTrue(f.endLine > f.startLine, 702)
+                i = i + 1
+            }
+            assert.assertTrue(sawSquare, 703)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+    }
+
+    // ── uses (references / highlights) ───────────────────────────────────────
+    void usesTest() {
+        case "collectUses finds the declaration and every use of a name": {
+            LspAnalyzer a = compiled()
+            List<LspUse> uses = a.collectUses("base")
+            assert.assertEqI((int)uses.size(), 2, 801)
+            // Declaration first (line 8), then the argument (line 9).
+            assert.assertEqI(uses.get(0).line, 8, 802)
+            assert.assertEqI(uses.get(1).line, 9, 803)
+            // The range must cover the NAME, not the type that precedes it.
+            assert.assertEqI(uses.get(0).len, 4, 804)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "an unknown name has no uses": {
+            LspAnalyzer a = compiled()
+            assert.assertEqI((int)a.collectUses("nosuchname").size(), 0, 805)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "an empty name collects every use in the file": {
+            LspAnalyzer a = compiled()
+            assert.assertTrue(a.collectUses("").size() > 5, 806)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+    }
+
+    // ── completion / signature / tokens / workspace ──────────────────────────
+    void otherFeaturesTest() {
+        case "completion offers the locals of the enclosing function first": {
+            LspAnalyzer a = compiled()
+            List<LspSym> items = a.completionsAt(9, 5)
+            assert.assertTrue(symNamed(items, "base", 0 - 1), 901)
+            assert.assertTrue(symNamed(items, "square", 3), 902)     // Function
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "signatureHelp inside a call reports the signature and parameter": {
+            LspAnalyzer a = compiled()
+            // inside square(...) on line 9; the argument starts at col 25
+            LspSignature sig = a.signatureAt(9, 25)
+            assert.assertTrue(sig.ok, 903)
+            assert.assertTrue(fly.str.contains(sig.label, "square"), 904)
+            assert.assertTrue(sig.params.size() > 0, 905)
+            assert.assertEqI(sig.active, 0, 906)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "signatureHelp outside any call is not ok": {
+            LspAnalyzer a = compiled()
+            assert.assertFalse(a.signatureAt(8, 9).ok, 907)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "semantic tokens are produced and classified": {
+            LspAnalyzer a = compiled()
+            List<LspSym> toks = a.semanticTokens()
+            assert.assertTrue(toks.size() > 0, 908)
+            // Every emitted token must carry a legend index in range.
+            int i = 0
+            while i < toks.size() {
+                LspSym t = toks.get(i)
+                assert.assertTrue(t.kind >= 0, 909)
+                assert.assertTrue(t.kind <= 7, 910)
+                assert.assertTrue(t.line > 0, 911)
+                i = i + 1
+            }
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "workspace symbols match by substring and answer everything on empty": {
+            LspAnalyzer a = compiled()
+            assert.assertTrue(symNamed(a.workspaceSymbols("square"), "square", 0 - 1), 912)
+            assert.assertTrue(symNamed(a.workspaceSymbols("SQUA"), "square", 0 - 1), 913)
+            assert.assertTrue(a.workspaceSymbols("").size() > 0, 914)
+            assert.assertEqI((int)a.workspaceSymbols("zzz_no_such_symbol").size(), 0, 915)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+    }
+
+    // ── receiver typing, inlay hints, type definition ────────────────────────
+    void receiverTest() {
+        case "a method call through a receiver resolves to the method": {
+            LspAnalyzer a = compiled()
+            // line 11, "    int px = p.getX()" — 'getX' starts at col 16
+            LspTarget t = a.findTargetAt(11, 16)
+            assert.assertEqI(t.kind, 1, 1001)
+            assert.assertStr(t.name, "getX", 1002)
+            LspLoc loc = a.declLocationOf(t)
+            assert.assertTrue(loc.ok, 1003)
+            assert.assertEqI(loc.line, 18, 1004)
+            assert.assertTrue(fly.str.contains(a.hoverOf(t), "getX"), 1005)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "a field access through a receiver resolves to the field": {
+            LspAnalyzer a = compiled()
+            // line 12, "    int py = p.x" — 'x' is at col 16
+            LspTarget t = a.findTargetAt(12, 16)
+            assert.assertEqI(t.kind, 2, 1006)
+            assert.assertStr(t.name, "x", 1007)
+            assert.assertTrue(t.attr != null, 1008)
+            LspLoc loc = a.declLocationOf(t)
+            assert.assertTrue(loc.ok, 1009)
+            assert.assertEqI(loc.line, 16, 1010)
+            assert.assertTrue(fly.str.contains(a.hoverOf(t), "(field)"), 1011)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "typeDefinition of a class-typed variable lands on the class": {
+            LspAnalyzer a = compiled()
+            // line 10, "    Point p = new Point()" — 'p' is at col 11
+            LspTarget t = a.findTargetAt(10, 11)
+            assert.assertEqI(t.kind, 2, 1012)
+            LspLoc loc = a.typeDefinitionOf(t)
+            assert.assertTrue(loc.ok, 1013)
+            assert.assertEqI(loc.line, 15, 1014)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "typeDefinition of a builtin-typed variable answers nothing": {
+            // int has no declaration site; reference parity is to say so rather
+            // than invent one.
+            LspAnalyzer a = compiled()
+            assert.assertFalse(a.typeDefinitionOf(a.findTargetAt(8, 9)).ok, 1015)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "inlay hints name the arguments of a resolved call": {
+            LspAnalyzer a = compiled()
+            List<LspSym> hints = a.inlayHints(1, 100)
+            assert.assertTrue(hints.size() > 0, 1016)
+            bool sawN = false
+            int i = 0
+            while i < hints.size() {
+                LspSym h = hints.get(i)
+                if fly.str.equals(h.name, "n:") {
+                    if h.line == 9 { sawN = true }
+                }
+                // Every hint is a Parameter hint.
+                assert.assertEqI(h.kind, 2, 1017)
+                i = i + 1
+            }
+            assert.assertTrue(sawN, 1018)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+        case "a range that excludes the call excludes its hints": {
+            LspAnalyzer a = compiled()
+            assert.assertEqI((int)a.inlayHints(1, 5).size(), 0, 1019)
+            fly.os.fs.dirDeleteAll(navFixtureDir())
+        }
+    }
+}

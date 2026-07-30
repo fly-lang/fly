@@ -229,18 +229,20 @@ public class CodeGenModule {
         }
         // 1d) vtables (need method fn handles). A header-origin class's vtable lives
         // in the linked archive — skip its definition here (declarations only).
-        // STRUCTs have no vtable at all (reference ABI). SUITEs neither (reference
-        // EmitSuite parity): never instantiated, their methods are called directly
-        // by the test runner — and the init_ctor NAME (`<lastNsSeg>.<Class>.init_ctor`)
-        // would collide with LLVM's reserved intrinsic namespace for a suite living
-        // in a namespace ending in `.llvm` ("llvm intrinsics cannot be defined!").
+        // STRUCTs have no vtable at all (reference ABI). SUITEs get a vtable too
+        // (B018): the runner instantiates the suite and passes it as `this`, so
+        // helper-method dispatch and field access need the real object layout.
+        // Their init_ctor stays SKIPPED: its NAME (`<lastNsSeg>.<Class>.init_ctor`)
+        // would collide with LLVM's reserved intrinsic namespace for a suite in a
+        // namespace ending in `.llvm` — the runner inlines the init instead
+        // (memset + vtable store, the same sequence genNew emits).
         int cv = 0
         while cv < classes.size() {
             SemaClassType cvc = classes.get(cv)
             if cvc.isFromHeader() == false {
                 if cvc.getClassKind() != SemaClassKind.STRUCT {
+                    CodeGenClass.buildVTable(this, cvc)
                     if cvc.getClassKind() != SemaClassKind.SUITE {
-                        CodeGenClass.buildVTable(this, cvc)
                         // define <Id>.init_ctor so downstream header-class `new` can link it
                         CodeGenClass.emitInitCtor(this, cvc)
                     }
@@ -297,9 +299,11 @@ public class CodeGenModule {
     // suiteClasses — the SUITE classes this module defines (header-origin suites
     // are archive-defined elsewhere and never get a runner here).
     public List<SemaClassType> suiteClasses(const List<SemaClassType> classes) {
-        // --suite <Name>: keep only the named suite, so several suites can share a
-        // compilation without the runner colliding on them (reference EmitSuite's
-        // `CGOpts.SuiteName != SuiteName` early-return). Empty filter = every suite.
+        // --suite <sel>: keep only the selected suites — by bare name, by
+        // qualified ns.Name, or by NAMESPACE prefix (matchesSuiteSel), so
+        // several suites can share a compilation without the runner colliding
+        // on them (reference EmitSuite's early-return). Empty filter = every
+        // suite.
         string want = ""
         if this.codeGenOpts != null { want = this.codeGenOpts.getSuiteName() }
         List<SemaClassType> result = new List<SemaClassType>()
@@ -308,8 +312,7 @@ public class CodeGenModule {
             SemaClassType cls = classes.get(i)
             if cls.getClassKind() == SemaClassKind.SUITE {
                 if cls.isFromHeader() == false {
-                    if str.isEmpty(want) { result.add(cls) }
-                    elsif str.equals(cls.getName(), want) { result.add(cls) }
+                    if cls.matchesSuiteSel(want) { result.add(cls) }
                 }
             }
             i = i + 1
@@ -607,6 +610,34 @@ public class CodeGenModule {
 
             string suiteName = sut.getName()
 
+            // A REAL suite instance (B018): the runner used to pass this = null,
+            // so any field access or this.helper() call in a suite AV'd — while
+            // the Testing doc promises both. Mirror genNew's class path inline:
+            // stack object + zero fields + vtable in slot 0 (no init_ctor — see
+            // the vtable note in generate()). Falls back to null defensively if
+            // the suite struct was never materialized.
+            pointer suiteThis = nullP
+            pointer sstTy = sut.getLlvmStructType()
+            if sstTy != 0 {
+                pointer sinst
+                llvm.buildAlloca(this.builder, sstTy, "suite_this", sinst)
+                pointer i8z
+                llvm.int8TypeInContext(this.ctx, i8z)
+                pointer zb
+                llvm.constInt(i8z, 0, false, zb)
+                pointer ssz
+                llvm.sizeOf(sstTy, ssz)
+                pointer msv
+                llvm.buildMemSet(this.builder, sinst, zb, ssz, 0, msv)
+                pointer svt = sut.getLlvmVTable()
+                if svt != 0 {
+                    pointer svtSlot
+                    llvm.buildStructGEP2(this.builder, sstTy, sinst, 0, "svtslot", svtSlot)
+                    llvm.buildStore(this.builder, svt, svtSlot)
+                }
+                suiteThis = sinst
+            }
+
             // Per-suite report: reset the counters so suite_end shows THIS suite's
             // numbers (the globals are cumulative across the call graph).
             this.storeSuiteCounter(totalG, 0)
@@ -623,7 +654,7 @@ public class CodeGenModule {
             llvm.appendBasicBlockInContext(this.ctx, w, "suite.teardown", teardownBB)
 
             if setupM != null {
-                this.emitSuiteMethodCall(setupM, errSlot, nullP)
+                this.emitSuiteMethodCall(setupM, errSlot, suiteThis)
                 pointer sc
                 llvm.buildLoad2(this.builder, i32, this.errField(errSlot, 0, "scc"), "scode", sc)
                 pointer scHas
@@ -660,7 +691,7 @@ public class CodeGenModule {
                 List<pointer> mArgs = new List<pointer>()
                 mArgs.add(this.cstr(tm.getName()))
                 this.callVoidRt("suite_method", nameTy, mArgs)
-                this.emitSuiteMethodCall(tm, errSlot, nullP)
+                this.emitSuiteMethodCall(tm, errSlot, suiteThis)
                 this.emitCheckEscaped(w, errSlot, "body", true, failedG, totalG)
                 ti = ti + 1
             }
@@ -670,7 +701,7 @@ public class CodeGenModule {
             llvm.positionBuilderAtEnd(this.builder, teardownBB)
 
             if teardownM != null {
-                this.emitSuiteMethodCall(teardownM, errSlot, nullP)
+                this.emitSuiteMethodCall(teardownM, errSlot, suiteThis)
                 this.emitCheckEscaped(w, errSlot, "teardown", false, failedG, totalG)
             }
 
@@ -710,19 +741,24 @@ public class CodeGenModule {
         llvm.buildRet(this.builder, afFinal, r0)
     }
 
-    // emitSuiteMethodCall — `call m(errSlot, null this, null…)` (method ABI; the
-    // reference CallMethod passes the shared handler as arg 0 and null for the rest).
-    public void emitSuiteMethodCall(const SemaClassMethod m, const pointer errSlot, const pointer nullP) {
+    // emitSuiteMethodCall — `call m(errSlot, this, null…)` (method ABI; the
+    // reference CallMethod passes the shared handler as arg 0). `thisPtr` is
+    // the REAL suite instance (B018) so fields and helper dispatch work in
+    // suite methods; declared params (rare) are padded with null.
+    public void emitSuiteMethodCall(const SemaClassMethod m, const pointer errSlot, const pointer thisPtr) {
         pointer fn = m.getLlvmFn()
         pointer fnTy = m.getLlvmFnType()
         if fn == 0 { return }
+        LLVM llvm = this.cg.getLLVM()
+        pointer pnull
+        llvm.constPointerNull(this.types.ptrType(), pnull)
         List<pointer> args = new List<pointer>()
         args.add(errSlot)                       // errPtr
-        args.add(nullP)                         // this — never dereferenced
+        args.add(thisPtr)                       // the suite instance
         List<SemaParam> params = m.getParams()
         int i = 0
         while i < params.size() {
-            args.add(nullP)
+            args.add(pnull)
             i = i + 1
         }
         pointer cv
@@ -925,6 +961,23 @@ public class CodeGenModule {
         pointer cb
         llvm.buildCondBr(this.builder, isFail, errBB, okBB, cb)
         llvm.positionBuilderAtEnd(this.builder, errBB)
+        // Report the unhandled error on stderr before exiting (docs §5.5):
+        // `error <code>`, plus `: <message>` when the error carries one. This was
+        // MISSING — the exit code was set but nothing was printed, so a failing
+        // program died silently while the reference printed the reason. err_print
+        // skips the suffix itself for a null/empty string, so the str slot goes
+        // through as-is; only the code path below needs the value.
+        pointer sp2
+        llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 1, "estr", sp2)
+        pointer strV
+        llvm.buildLoad2(this.builder, pty, sp2, "mstr", strV)
+        List<pointer> epTys = new List<pointer>()
+        epTys.add(i32)
+        epTys.add(pty)
+        List<pointer> epArgs = new List<pointer>()
+        epArgs.add(codeV)
+        epArgs.add(strV)
+        this.callVoidRt("err_print", epTys, epArgs)
         pointer r1
         llvm.buildRet(this.builder, codeV, r1)
         llvm.positionBuilderAtEnd(this.builder, okBB)
@@ -1284,6 +1337,50 @@ public class CodeGenModule {
         pointer r
         this.cg.buildCallN(this.builder, mty, mfn, margs, "hmal", r)
         out = r
+    }
+
+    // emitRCBufferAlloc — a REFERENCE-COUNTED heap block, `[i64 refcount | data]`,
+    // returning the pointer to the DATA (8 bytes past the header) with the count
+    // initialised to 1.
+    //
+    // The returned pointer is what goes into the fat pointer's data field, so every
+    // reader — for-in, the subscript, argument passing — stays exactly as it was:
+    // they all index forward from the data. The `+8` lives here and nowhere else,
+    // and the matching `-8` only in the retain/release pair.
+    //
+    // The whole block is zeroed, header included. Windows malloc hands back reused
+    // (garbage) heap while Linux returns zeroed pages, and array elements are
+    // observable before anything stores into them — a for-in reads all of them
+    // straight away.
+    //
+    // The header is 8 bytes, not 4, so a `long` or `double` element stays aligned.
+    public pointer emitRCBufferAlloc(const pointer sizeV) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer i64t
+        llvm.int64TypeInContext(this.ctx, i64t)
+        pointer i8t
+        llvm.int8TypeInContext(this.ctx, i8t)
+
+        pointer hdr
+        llvm.constInt(i64t, 8, false, hdr)
+        pointer total
+        llvm.buildAdd(this.builder, sizeV, hdr, "rcbuf.total", total)
+        pointer raw = this.emitMalloc(total)
+
+        pointer zb
+        llvm.constInt(i8t, 0, false, zb)
+        pointer msv
+        llvm.buildMemSet(this.builder, raw, zb, total, 0, msv)
+
+        pointer one
+        llvm.constInt(i64t, 1, false, one)
+        llvm.buildStore(this.builder, one, raw)
+
+        List<pointer> gi = new List<pointer>()
+        gi.add(hdr)
+        pointer data
+        this.cg.buildGEP2N(this.builder, i8t, raw, gi, "rcbuf.data", data)
+        out = data
     }
 
     // emitMemcmp — `call i32 @memcmp(ptr, ptr, i64 size)`; declares memcmp on first

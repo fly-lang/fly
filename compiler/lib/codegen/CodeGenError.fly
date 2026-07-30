@@ -85,6 +85,38 @@ public class CodeGenError {
         cge.position(deadBB)
     }
 
+    // failWithCode — a failure raised BY THE COMPILER rather than by a `fail`
+    // statement: store a fixed integer code, then take the same exit emitFail
+    // takes — jump to the enclosing handle's safe block, or return. The array
+    // bounds check needs this: there is no SemaFailStmt to carry the code.
+    //
+    // Unlike emitFail it does NOT park the builder in a dead block: the caller is
+    // mid-expression and goes on emitting into the in-range block it created, so
+    // parking here would strand that block.
+    public static void failWithCode(const CodeGenExpr cge, const int code) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        pointer errTy = cgm.getErrorTy()
+        pointer errPtr = cge.getErrPtr()
+        pointer i32
+        llvm.int32TypeInContext(cgm.getCtx(), i32)
+        pointer cv
+        llvm.constInt(i32, (long)code, true, cv)
+        pointer cp
+        llvm.buildStructGEP2(b, errTy, errPtr, 0, "ecode", cp)
+        llvm.buildStore(b, cv, cp)
+
+        pointer safe = cge.getHandleSafe()
+        if safe != 0 {
+            cge.br(safe)
+        } else {
+            pointer r
+            llvm.buildRetVoid(b, r)
+            cge.setTerminated(true)
+        }
+    }
+
     // writeField — store one fail operand into its slot: int/enum/bool → code (0),
     // string → str (1), class/other ptr → obj (2).
     public static void writeField(const CodeGenExpr cge, const pointer errTy, const pointer errPtr, const SemaExpr e) {

@@ -46,6 +46,50 @@ void main() {
 // files — the inputs are discovered from the source root. See discoverInputs.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// discoverySkipsDir — directories the source walks NEVER descend into (B009):
+// hidden dot-dirs (.git, .fly, .claude, …) and `build` (stage outputs carry
+// copied .fly sources). Shared by the driver discovery walk and the frontend
+// dependency walk; the reference mirrors the same rule.
+public bool discoverySkipsDir(const string entry) {
+    if fly.str.isEmpty(entry) { out = false  return }
+    byte b0 = 0
+    fly.str.byteAt(entry, 0, b0)
+    if b0 == 46 { out = true  return }        // '.'
+    out = fly.str.equals(entry, "build")
+}
+
+// declLastDot — index of the last '.' in `s`, -1 when none.
+public int declLastDot(const string s) {
+    int n = fly.str.len(s)
+    int i = 0
+    int last = 0 - 1
+    while i < n {
+        byte b = 0
+        fly.str.byteAt(s, i, b)
+        if b == 46 { last = i }
+        i = i + 1
+    }
+    out = last
+}
+
+// declSuiteSelMatches — CLI-side mirror of SemaClassType.matchesSuiteSel over a
+// scanned suite entry (bare `Name` or qualified `ns.Name` from
+// scanTopLevelDecls): `sel` selects the entry by full qualified name, by bare
+// suite name, by its namespace, or by an ANCESTOR namespace (prefix) — so
+// `--suite=fly.driver.test` picks every suite under that namespace tree.
+public bool declSuiteSelMatches(const string entry, const string sel) {
+    if fly.str.equals(entry, sel) { out = true  return }
+    int ld = declLastDot(entry)
+    if ld < 0 { out = false  return }          // bare entry: exact match only
+    string bare = fly.str.substring(entry, ld + 1, fly.str.len(entry))
+    if fly.str.equals(bare, sel) { out = true  return }
+    string ns = fly.str.substring(entry, 0, ld)
+    if fly.str.equals(ns, sel) { out = true  return }
+    string pfx = fly.str.concat(sel, ".")
+    if fly.str.startsWith(ns, pfx) { out = true  return }
+    out = false
+}
+
 public class Driver {
 
     // Output stem chosen by input discovery (the suite name, or the source-root
@@ -108,7 +152,8 @@ public class Driver {
         string statsFile = ""           // --stats-file
         string logFile = ""             // --log-file (diagnostics log; "" = off)
         string logFormat = "txt"        // --log-format txt|json
-        string srcDirs = ";"            // --src-dir (single override of the cwd default)
+        string srcDirs = ";"            // --src-dir, repeatable (";a;b;"): see the option handler
+        string entryFile = ""           // --entry (names main()'s file instead of discovering it)
         // sdNew/llNew are FUNCTION-scope on purpose: a string declared inside a
         // loop-repeated block leaves a STALE pointer in its slot after the block's
         // scope-exit free; a later return unwinding that same block then frees it
@@ -118,6 +163,7 @@ public class Driver {
         int jobs = 0                    // --jobs / -j
         int optLevel = 0                // -O<n>
         bool debugSymbols = false       // --debug-symbols / --debug
+        bool enableTls = false          // --tls: link the real TLS backend + -lssl
         bool createLibrary = false      // --lib
         bool createHeader = false       // --header / --lib
         bool showStats = false          // --print-stats
@@ -180,17 +226,28 @@ public class Driver {
             } elsif fly.str.equals(a, "--src-dir") {
                 i = i + 1
                 if i >= n { out = this.missingValue(a)  return }
-                // The project source root defaults to the current directory;
-                // --src-dir overrides it, so it is meaningful at most ONCE.
-                if fly.str.equals(srcDirs, ";") == false {
-                    fly.os.io.printErrLn("error: --src-dir may be specified only once")
-                    out = 1
-                    return
-                }
+                // --src-dir may be given MORE THAN ONCE. The roots play two
+                // distinct roles and only the first plays both:
+                //   segment 0  → the entry-DISCOVERY root (see the discovery
+                //                site below), unless --entry names the entry
+                //                outright;
+                //   all segments → the import-RESOLUTION roots, every one of
+                //                which is handed to FrontendOptions.addSrcDir.
+                // A single --src-dir therefore behaves exactly as before.
                 // distinct temp: `x = concat(x, …)` self-aliases (documented
                 // string gotcha)
                 sdNew = fly.str.concat(srcDirs, fly.str.concat(this.argAt(args, i), ";"))
                 srcDirs = sdNew
+            } elsif fly.str.equals(a, "--entry") {
+                i = i + 1
+                if i >= n { out = this.missingValue(a)  return }
+                // --entry names the single source file holding main(), instead
+                // of discovering it under the source root. That is what lets a
+                // second executable be built from a tree that already contains
+                // one main(): discovery never runs, so the "multiple main()
+                // functions" error cannot fire, while the --src-dir roots still
+                // resolve every import.
+                entryFile = this.argAt(args, i)
             } elsif fly.str.equals(a, "--working-dir") {
                 i = i + 1                 // value consumed; FileSystemOptions not ported
                 if i >= n { out = this.missingValue(a)  return }
@@ -200,6 +257,13 @@ public class Driver {
                 debugSymbols = true
             } elsif fly.str.equals(a, "--debug-symbols") {
                 debugSymbols = true
+            } elsif fly.str.equals(a, "--tls") {
+                // Link the real TLS backend (fly_tls_lib + -lssl -lcrypto) instead
+                // of the no-op stub. Opt-in on purpose: `-lssl` needs the
+                // development symlink, so linking it unconditionally would break
+                // every program on a machine carrying only the runtime package.
+                // fly.net.tls.tlsAvailable() reports which one was linked.
+                enableTls = true
             } elsif fly.str.equals(a, "--header") {
                 createHeader = true
             } elsif fly.str.equals(a, "--lib") || fly.str.equals(a, "--lib-static") {
@@ -332,6 +396,13 @@ public class Driver {
             out = 1
             return
         }
+        bool hasEntry = fly.str.isEmpty(entryFile) == false
+        int entryErr = this.entryError(hasEntry, createLibrary, isShared, testMode)
+        if entryErr != 0 {
+            fly.os.io.printErrLn(this.axisErrorText(entryErr))
+            out = 1
+            return
+        }
         bool linkStep = this.linkStepFor(compileOnly, noOutput, emitFormat)
 
         // ── Input discovery (directory mode) ──────────────────────────────────
@@ -343,9 +414,27 @@ public class Driver {
         //                            closure pulls the rest); >1 mains = error;
         //                            0 mains on a NON-linking build = whole dir.
         // Mirror of the reference Frontend::DiscoverInputs.
-        string discRoot = "."
-        if segCount(srcDirs) > 0 { discRoot = segAt(srcDirs, 0) }
-        string discovered = this.discoverInputs(discRoot, createLibrary || isShared, testMode, linkStep, suiteName)
+        // --entry short-circuits all of it: the caller names the entry file, so
+        // discovery never runs and the "multiple main() functions" error cannot
+        // fire. That is what allows a SECOND executable to be built from a tree
+        // that already contains one main() — the import closure of the named
+        // file still pulls everything it needs from the --src-dir roots.
+        string discovered = ""
+        if fly.str.isEmpty(entryFile) == false {
+            if fly.os.fs.exists(entryFile) == false {
+                fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: --entry file '", entryFile), "' does not exist"))
+                out = 1
+                return
+            }
+            // stem, not basename: the fallback artifact name for
+            // tools/lsp/FlyLsp.fly must be "FlyLsp", not "FlyLsp.fly".
+            this.discStem = fly.os.path.stem(fly.os.path.basename(entryFile))
+            discovered = fly.str.concat(";", fly.str.concat(entryFile, ";"))
+        } else {
+            string discRoot = "."
+            if segCount(srcDirs) > 0 { discRoot = segAt(srcDirs, 0) }
+            discovered = this.discoverInputs(discRoot, createLibrary || isShared, testMode, linkStep, suiteName)
+        }
         if fly.str.isEmpty(discovered) {
             out = 1
             return
@@ -424,6 +513,7 @@ public class Driver {
         cgo.setShared(isShared)
         cgo.setPie(isPie)
         cgo.setDebugSymbols(debugSymbols)
+        cgo.setEnableTls(enableTls)
         cgo.setOptLevel(optLevel)
         cgo.setJobs(jobs)
         if fly.str.isEmpty(codeModel) == false { cgo.setCodeModel(codeModel) }
@@ -458,6 +548,13 @@ public class Driver {
         fo.setStatsFile(statsFile)
         fo.setLogFile(logFile)
         fo.setLogFormat(logFormat)
+        // Create --out-dir when it is missing. The reference does; the self-host did
+        // not, so aiming --out-dir at a directory that did not exist yet failed late
+        // and opaquely with "object emission failed" — the WRITE was the problem, not
+        // the compile. dirCreateAll is a no-op when the directory already exists.
+        if fly.str.isEmpty(outDir) == false {
+            fly.os.fs.dirCreateAll(outDir, 493)
+        }
         fo.setOutDir(outDir)
         // BackendAction 3 is the LINK spelling: the Frontend emits a temp object to
         // the path execute() is given and the driver links it. Otherwise the format
@@ -573,13 +670,19 @@ public class Driver {
                 int ds = segCount(decls)
                 if ds > 1 {
                     suiteFiles = segAppend(suiteFiles, f)
+                    bool fileChosen = false
                     int k = 1
                     while k < ds {
                         string sn = segAt(decls, k)
                         allSuites = segAppend(allSuites, sn)
                         if fly.str.isEmpty(suiteSel) == false {
-                            if fly.str.equals(sn, suiteSel) {
-                                chosen = segAppend(chosen, f)
+                            // namespace-aware selection (bare name, ns.Name,
+                            // or namespace prefix — declSuiteSelMatches)
+                            if declSuiteSelMatches(sn, suiteSel) {
+                                if fileChosen == false {
+                                    chosen = segAppend(chosen, f)
+                                    fileChosen = true
+                                }
                             }
                         }
                         k = k + 1
@@ -593,7 +696,7 @@ public class Driver {
         if wantTest && wantLink {
             if fly.str.isEmpty(suiteSel) == false {
                 if segCount(chosen) <= 0 {
-                    fly.os.io.printErrLn(fly.str.concat(fly.str.concat(fly.str.concat("error: suite '", suiteSel), "' not found in source directory '"), fly.str.concat(root, "'")))
+                    fly.os.io.printErrLn(fly.str.concat(fly.str.concat(fly.str.concat("error: no suite or namespace matches '", suiteSel), "' in source directory '"), fly.str.concat(root, "'")))
                     out = ""
                     return
                 }
@@ -685,7 +788,12 @@ public class Driver {
             fly.str.fromBytes(namePtr, nameLen, entry)
             string full = fly.os.path.join(dir, entry)
             if fly.os.path.isDir(full) {
-                this.discPending = segAppend(this.discPending, full)
+                // B009: hidden dirs (.git, .fly, .claude, …) and build/ are
+                // never project sources — a stray .fly inside them used to
+                // break root discovery with "multiple main()".
+                if discoverySkipsDir(entry) == false {
+                    this.discPending = segAppend(this.discPending, full)
+                }
             } elsif fly.str.endsWith(entry, ".fly") {
                 this.discFiles = segAppend(this.discFiles, full)
             }
@@ -693,9 +801,27 @@ public class Driver {
         }
     }
 
+    // isFlyInternalArchive — an archive ToolChain adds ITSELF and that must not be
+    // picked up by the -L scan below.
+    //
+    // fly_std_lib and fly_runtime_lib were being added TWICE (harmlessly, since a
+    // duplicate archive just re-resolves nothing). The TLS pair is not harmless:
+    // fly_tls_lib is supposed to be linked ONLY under --tls, and auto-collecting it
+    // made the flag meaningless — a plain `hello world` then pulled the OpenSSL
+    // backend in and failed to link on any machine without the libssl development
+    // symlink, which is exactly the regression the --tls gate exists to prevent.
+    public bool isFlyInternalArchive(const string entry) {
+        if fly.str.startsWith(entry, "fly_std_lib.") { out = true  return }
+        if fly.str.startsWith(entry, "fly_runtime_lib.") { out = true  return }
+        if fly.str.startsWith(entry, "fly_tls_lib.") { out = true  return }
+        if fly.str.startsWith(entry, "fly_tls_stub.") { out = true  return }
+        out = false
+    }
+
     // scanLibDirArchives — every .a/.lib at the TOP level of the -L dir, as link
-    // inputs (";"-list). A -L dir is a fly package dir by contract; with no
-    // positional inputs this is how a package's archive reaches the linker.
+    // inputs (";"-list), EXCEPT the fly-internal ones (see isFlyInternalArchive).
+    // A -L dir is a fly package dir by contract; with no positional inputs this is
+    // how a package's archive reaches the linker.
     public string scanLibDirArchives(const string dir) {
         string acc = ";"
         if fly.str.isEmpty(dir) { out = acc  return }
@@ -713,7 +839,8 @@ public class Driver {
             int nameLen = fly.mem.readInt(items, off + 8)
             string entry = ""
             fly.str.fromBytes(namePtr, nameLen, entry)
-            if fly.str.endsWith(entry, ".a") || fly.str.endsWith(entry, ".lib") {
+            bool isArchive = fly.str.endsWith(entry, ".a") || fly.str.endsWith(entry, ".lib")
+            if isArchive && this.isFlyInternalArchive(entry) == false {
                 string full = fly.os.path.join(dir, entry)
                 string a2 = segAppend(acc, full)
                 acc = a2
@@ -763,6 +890,20 @@ public class Driver {
             out = 1
             return
         }
+        // A bare name (no directory component) must be anchored to the cwd:
+        // CreateProcess skips the cwd for separator-less names when the
+        // NoDefaultCurrentDirectoryInExePath hardening is set, and would
+        // otherwise resolve via fly's own bin dir and $PATH first (hijack).
+        bool hasSep = false
+        int n = fly.str.len(exe)
+        int i = 0
+        while i < n {
+            byte b = 0
+            fly.str.byteAt(exe, i, b)
+            if b == 47 || b == 92 { hasSep = true }      // '/' or '\'
+            i = i + 1
+        }
+        if hasSep == false { exe = fly.str.concat("./", exe) }
         out = fly.os.proc.run(exe)
     }
 
@@ -876,11 +1017,26 @@ public class Driver {
         out = 0
     }
 
+    // entryError — 0 when --entry's combination is coherent, otherwise:
+    //   5 --entry with --lib/--lib-dyn     6 --entry with --test/--suite
+    // A library has no entry point at all, and in test mode the SUITES are the
+    // entries — in both cases naming one file would be meaningless rather than
+    // merely redundant. Kept separate from axisError() so that function's
+    // signature, which DriverCliSuite drives directly, stays untouched.
+    public int entryError(const bool hasEntry, const bool createLibrary, const bool isShared, const bool testMode) {
+        if hasEntry == false { out = 0  return }
+        if createLibrary || isShared { out = 5  return }
+        if testMode { out = 6  return }
+        out = 0
+    }
+
     public string axisErrorText(const int code) {
         if code == 1 { out = "error: cannot specify both --lib and --lib-dyn"  return }
         if code == 2 { out = "error: cannot specify --lib/--lib-dyn with --emit-ll/--emit-bc/--emit-as"  return }
         if code == 3 { out = "error: cannot specify --lib/--lib-dyn with -c or --no-output"  return }
         if code == 4 { out = "error: cannot specify -o with --no-output"  return }
+        if code == 5 { out = "error: cannot specify --entry with --lib/--lib-dyn"  return }
+        if code == 6 { out = "error: cannot specify --entry with --test/--suite"  return }
         out = ""
     }
 
@@ -916,7 +1072,9 @@ public class Driver {
         fly.os.io.printErrLn("  --mingw-sysroot <dir>  mingw/UCRT sysroot for Windows linking (default: <exe>/mingw)")
         fly.os.io.printErrLn("  --llvm-lib-dir <dir>   dir holding LLVM-20.lib for LLVM-C programs (default: <exe>/llvm/lib)")
         fly.os.io.printErrLn("  -L <dir>             package dir: .fly.h headers resolve imports, its .a/.lib are linked")
-        fly.os.io.printErrLn("  --src-dir <dir>      source root: inputs and imports are discovered here (default: current dir)")
+        fly.os.io.printErrLn("  --src-dir <dir>      source root: inputs and imports are discovered here (default: current dir; repeatable — the FIRST is the discovery root, all of them resolve imports)")
+        fly.os.io.printErrLn("  --entry <file>       the source file declaring main(), instead of discovering it (builds a second executable from a tree that already has one)")
+        fly.os.io.printErrLn("  --tls                link the real TLS backend (needs libssl); without it fly.net.tls.tlsAvailable() is false")
         fly.os.io.printErrLn("  --link-lib <name>    link native library (-lname)")
         fly.os.io.printErrLn("  -static / -pie       link mode flags (ELF/Linux targets; ignored by the Windows linker)")
         fly.os.io.printErrLn("  -O<n>                optimisation level 0..3")
@@ -927,7 +1085,9 @@ public class Driver {
         fly.os.io.printErrLn("  --target-cpu <cpu>   target CPU (default: generic)")
         fly.os.io.printErrLn("  --no-output     type-check only, produce no output")
         fly.os.io.printErrLn("  --test[=Method] compile in test mode (test {} blocks + suites); with a value, run only that test-method")
-        fly.os.io.printErrLn("  --suite[=Name]  build the suite test exe AND run it (fly exits with the run's code); with a value, only that suite")
+        fly.os.io.printErrLn("  --suite[=Sel]   build the suite test exe AND run it (fly exits with the run's code).")
+        fly.os.io.printErrLn("                  Sel: a suite name, a qualified ns.SuiteName, or a NAMESPACE —")
+        fly.os.io.printErrLn("                  a namespace runs every suite declared under it (prefix match)")
         fly.os.io.printErrLn("  --debug         verbose logging (+ request DWARF; self-host codegen emits none yet)")
         fly.os.io.printErrLn("  --debug-symbols request DWARF debug symbols (self-host codegen does not emit them yet)")
         fly.os.io.printErrLn("  --print-stats   print compilation statistics to stderr")
@@ -999,9 +1159,9 @@ public class Driver {
         out = s
     }
 
-    // ── Package mode (fly.toml) ───────────────────────────────────────────────
-    // Formerly class Flyp (fly/tools/flyp/Flyp.cpp). runPackage is invoked from run()
-    // when argv[1] is a fly.toml subcommand; it dispatches the network-free core
+    // ── Package mode (Manifest.fly) ───────────────────────────────────────────────
+    // Formerly class Flyp (the reference C++ package manager Flyp.cpp). runPackage is invoked from run()
+    // when argv[1] is a project subcommand; it dispatches the network-free core
     // commands (dependency/registry ones report "not yet ported").
 
     // flagValue — value following `--name` in argv, or "" if absent.
@@ -1032,7 +1192,7 @@ public class Driver {
         out = this.flagValue(args, n, "--profile")
     }
 
-    // runPackage — dispatch a fly.toml subcommand to fly.driver.
+    // runPackage — dispatch a project subcommand to fly.driver.
     public int runPackage(const fly.os.env.StringArray args) {
         int n = (int)args.count
         if n < 2 {

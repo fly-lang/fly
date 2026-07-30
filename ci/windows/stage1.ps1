@@ -26,5 +26,11 @@ foreach ($step in 'build_runtime', 'build_std', 'build_compiler', 'link_fly') {
     if ($LASTEXITCODE -ne 0) { Write-Host "error: $step.ps1 failed (exit $LASTEXITCODE)"; exit 1 }
 }
 
+# The tools (fly-lsp, fly-registry) are built and tested at STAGE 2, not here —
+# see the tail of stage2.ps1. They are PRODUCTS of the toolchain, so the compiler
+# that builds them should be the one that ships: stage2's fly.exe, the
+# self-hosting fixpoint. Building them here would use the stage1 binary, which
+# the seed produced.
+
 Write-Host "stage1: done - build\stage1\bin\fly.exe"
 exit 0

@@ -75,5 +75,22 @@ public class ASTBinary : ASTExpr {
         out = r
     }
 
+    // isCompoundAssign — true for `+=` … `>>=` (B015): they resolve like an
+    // assignment (assignee type, assign-compat check) and lower as `a = a op b`.
+    public bool isCompoundAssign() {
+        ASTBinaryKind k = this.binaryKind
+        bool r = k == ASTBinaryKind.OP_BINARY_ASSIGN_ADD
+            || k == ASTBinaryKind.OP_BINARY_ASSIGN_SUB
+            || k == ASTBinaryKind.OP_BINARY_ASSIGN_MUL
+            || k == ASTBinaryKind.OP_BINARY_ASSIGN_DIV
+            || k == ASTBinaryKind.OP_BINARY_ASSIGN_MOD
+            || k == ASTBinaryKind.OP_BINARY_ASSIGN_AND
+            || k == ASTBinaryKind.OP_BINARY_ASSIGN_OR
+            || k == ASTBinaryKind.OP_BINARY_ASSIGN_XOR
+            || k == ASTBinaryKind.OP_BINARY_ASSIGN_SHIFT_L
+            || k == ASTBinaryKind.OP_BINARY_ASSIGN_SHIFT_R
+        out = r
+    }
+
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

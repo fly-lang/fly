@@ -1,13 +1,12 @@
 namespace fly.meta
 
 // ─────────────────────────────────────────────────────────────────────────────
-// fly.meta — the Fly-native package manifest schema. These classes model, as
-// plain Fly data, everything a `fly.toml` used to hold: a project's `Manifest.fly`
+// fly.meta — the Fly-native package manifest schema. A project's `Manifest.fly`
 // declares an `fly.meta.Manifest` (with literal field initializers) and the
 // package manager reads it by parsing the .fly source and walking the AST — no
-// TOML, one language, one parser.
+// separate configuration format, one language, one parser.
 //
-// Every class here mirrors one `fly.toml` object; lists become native arrays
+// Every class here models one section of a manifest; lists become native arrays
 // (`T[]`). Fields carry no initializers (the schema only declares the shape); the
 // values live in each project's own Manifest.fly.
 // ─────────────────────────────────────────────────────────────────────────────

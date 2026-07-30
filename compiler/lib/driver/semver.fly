@@ -5,7 +5,7 @@ import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SemVer — SemVer triplet + SemVerRange expressions, ported from
-// fly/tools/flyp/resolver/VersionConstraint.h + MVSResolver.cpp (SemVer/SemVerRange).
+// the reference C++ package manager resolver/VersionConstraint.h + MVSResolver.cpp (SemVer/SemVerRange).
 //
 // Range syntax (comma = AND): *  1.2.3  ^1.2.3  ~1.2.3 / ~1.2 / ~1  >=x >x <=x <x
 // 1.x / 1.*  >=1.0,<2.0. Parse failures degrade to 0.0.0 / an "any" range.

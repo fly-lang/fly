@@ -142,10 +142,18 @@ public class ResolverCall {
                 // caller's buffer stays solely its own → safe to free at scope exit.
                 // (A runtime/FFI that stashed the raw ptr would break this; the Linux
                 // Valgrind sweep is the backstop before this is trusted broadly.)
+                // EXCEPTION 2 (reference counting): an ARRAY argument is a BORROW —
+                // the callee neither retains nor releases it, so the caller stays
+                // the sole owner and must still release at scope exit. Marking it
+                // escaped would skip that release and leak every array ever passed
+                // to a function.
                 if ax.isVarExpr() {
                     bool axStr = false
-                    if at != null { axStr = at.isString() }
-                    if axStr == false { ax.setEscaped(true) }
+                    bool axArr = false
+                    if at != null { axStr = at.isString()  axArr = at.isArray() }
+                    if axStr == false {
+                        if axArr == false { ax.setEscaped(true) }
+                    }
                 }
             }
             argTypes.add(at)
@@ -189,6 +197,24 @@ public class ResolverCall {
             r.setCurrentScope(savedScope)
             r.setCurrentExpr(null)
             return
+        }
+
+        // Multi-assignment verification (B027): the parser lowered `q, r = f(x)`
+        // to the full call form and recorded the receiver count — the matched
+        // callee must expose EXACTLY that many out slots, or a same-arity
+        // non-multi-return overload would silently swallow the receivers as
+        // plain by-value arguments.
+        int mrc = node.getMultiRecvCount()
+        if mrc > 0 {
+            SemaFunctionBase mfn = sema.getFunction()
+            int mout = 0
+            if mfn != null { mout = mfn.getOutParamCount() }
+            if mout != mrc {
+                r.diagStr(node.getLoc(), DiagID.err_sema_multi_assign_arity, node.getName())
+                r.setCurrentScope(savedScope)
+                r.setCurrentExpr(null)
+                return
+            }
         }
 
         int j = 0

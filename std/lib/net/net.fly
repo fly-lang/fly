@@ -1,0 +1,918 @@
+namespace fly.net
+
+import fly.llvm
+import fly.runtime
+import fly.mem
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// fly.net — blocking IPv4 sockets: TCP client and server, UDP datagrams, poll
+// sets, socket options and DNS.
+//
+// Scope: IPv4 only (no IPv6), and NO TLS — an https:// endpoint cannot be
+// reached from here, see fly.net.tls and fly.net.http. The default mode is
+// blocking; setNonBlocking plus a poll set covers the rest.
+//
+// This module declares NO classes and NO structs. Every parameter and return is
+// a plain long/int/pointer/string, so nothing here can hit the two boundary
+// hazards that shape std: a monomorphized generic that cannot cross the archive
+// (fly.os.proc's ArgList note) and a header-declared class whose non-interface
+// methods read the wrong state when called from outside (fly.os.io lines 99-111).
+// The generated net.fly.h is a flat list of function signatures.
+//
+// ERRORS follow the std sentinel convention — no fail/handle. A socket is a
+// `long` and NEGATIVE means invalid: every function that yields a socket returns
+// < 0 on failure, and every function that takes one treats a negative handle as
+// an immediate failure, so an unchecked handle propagates harmlessly instead of
+// faulting. Each function's doc comment names its own sentinel.
+//
+// ADDRESSES are packed HOST-order ints: a<<24 | b<<16 | c<<8 | d, so 127.0.0.1
+// is 2130706433. The network-order conversion happens inside the runtime, which
+// builds the sockaddr_in byte by byte — there is no htons or inet_addr anywhere.
+//
+// DO NOT call the fly.runtime socket externs (socket, bind, send, …) directly,
+// even though runtime.fly.h exports them: their signatures are platform-specific
+// (a socket is an int fd on POSIX and a 64-bit SOCKET on Windows). Only the
+// net_* wrappers this module calls have a stable cross-platform signature.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Copy a Fly string into a fresh null-terminated C-string buffer. Duplicated
+// from fly.os.fs by the same convention every os module follows.
+private pointer strToCstr(const string src) {
+    int size = 0
+    fly.llvm.strSize(src, size)
+    int cap = size + 1
+    pointer buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    int i = 0
+    while i < size {
+        byte b = 0
+        fly.llvm.strByteAt(src, i, b)
+        fly.llvm.strPoke(buf, i, b)
+        i = i + 1
+    }
+    fly.llvm.strPoke(buf, size, 0)
+    out = buf
+}
+
+// ── Addressing ───────────────────────────────────────────────────────────────
+
+// ipv4 — pack four octets into an address. Octets are masked to 0..255; there is
+// no validation beyond that.
+public int ipv4(const int a, const int b, const int c, const int d) {
+    int p0 = a & 255
+    int p1 = b & 255
+    int p2 = c & 255
+    int p3 = d & 255
+    out = (p0 << 24) | (p1 << 16) | (p2 << 8) | p3
+}
+
+// loopback — 127.0.0.1 (2130706433). Bind here, not to anyAddr(), unless a
+// server really must be reachable from the network: binding the wildcard raises
+// a Windows Defender Firewall prompt.
+public int loopback() {
+    out = 2130706433
+}
+
+// anyAddr — 0.0.0.0 (0), the wildcard bind address.
+public int anyAddr() {
+    out = 0
+}
+
+// ipToStr — "a.b.c.d" for a packed address. Never empty.
+public string ipToStr(const int addr) {
+    int a = (addr >> 24) & 255
+    int b = (addr >> 16) & 255
+    int c = (addr >> 8) & 255
+    int d = addr & 255
+    string s = fly.str.convert(a)
+    s = fly.str.concat(s, ".")
+    s = fly.str.concat(s, fly.str.convert(b))
+    s = fly.str.concat(s, ".")
+    s = fly.str.concat(s, fly.str.convert(c))
+    s = fly.str.concat(s, ".")
+    s = fly.str.concat(s, fly.str.convert(d))
+    out = s
+}
+
+// parseIp — dotted-quad text → packed address. Returns 0 when `s` is not a
+// literal IPv4: wrong component count, an empty component, a non-digit, or an
+// octet above 255. "0.0.0.0" also returns 0 — spell the wildcard as anyAddr().
+public int parseIp(const string s) {
+    int n = fly.str.len(s)
+    if n == 0 { out = 0  return }
+    int acc = 0
+    int cur = 0
+    int digits = 0
+    int parts = 0
+    int i = 0
+    while i < n {
+        byte bb = 0
+        fly.str.byteAt(s, i, bb)
+        int c = bb & 255
+        if c == 46 {
+            if digits == 0 { out = 0  return }
+            if parts >= 3 { out = 0  return }
+            acc = (acc << 8) | cur
+            parts = parts + 1
+            cur = 0
+            digits = 0
+        } else {
+            bool isDigit = c >= 48 && c <= 57
+            if isDigit == false { out = 0  return }
+            cur = cur * 10 + (c - 48)
+            if cur > 255 { out = 0  return }
+            digits = digits + 1
+            if digits > 3 { out = 0  return }
+        }
+        i = i + 1
+    }
+    if digits == 0 || parts != 3 { out = 0  return }
+    out = (acc << 8) | cur
+}
+
+// ── Full DNS ─────────────────────────────────────────────────────────────────
+//
+// resolve() answers with the FIRST address only. resolveAll returns them all,
+// behind an opaque handle rather than a container, so nothing generic has to
+// cross the archive boundary.
+//
+// AddrList heap layout (8 + 4*count bytes):
+//   [0..3]  int count
+//   [4..7]  padding (keeps the address array 8-aligned)
+//   [8..]   int addresses, packed host-order, 4 bytes each
+//
+// The cap is 32: a host with more than 32 A records is being load-balanced
+// harder than anything fly.net is going to drive, and a fixed cap keeps the
+// lookup a single call.
+
+// resolveAll — every IPv4 address for `host`, or 0 when the name does not
+// resolve. A dotted-quad literal yields a one-entry list without touching DNS.
+// Release it with addrFree().
+public pointer resolveAll(const string host) {
+    if fly.str.isEmpty(host) { out = 0  return }
+    int lit = parseIp(host)
+    if lit != 0 {
+        pointer one = 0
+        fly.runtime.mem_alloc(12, one)
+        fly.mem.writeInt(one, 0, 1)
+        fly.mem.writeInt(one, 8, lit)
+        out = one
+        return
+    }
+    pointer chost = strToCstr(host)
+    pointer tmp = 0
+    fly.runtime.mem_alloc(128, tmp)                  // 32 slots
+    int n = 0
+    fly.runtime.net_resolve_all(chost, tmp, 32, n)
+    fly.runtime.mem_free(chost, 0)
+    if n <= 0 {
+        fly.runtime.mem_free(tmp, 128)
+        out = 0
+        return
+    }
+    pointer h = 0
+    fly.runtime.mem_alloc(8 + n * 4, h)
+    fly.mem.writeInt(h, 0, n)
+    int i = 0
+    while i < n {
+        fly.mem.writeInt(h, 8 + i * 4, fly.mem.readInt(tmp, i * 4))
+        i = i + 1
+    }
+    fly.runtime.mem_free(tmp, 128)
+    out = h
+}
+
+// addrCount — how many addresses the list holds; 0 for a null handle.
+public int addrCount(const pointer h) {
+    if h == 0 { out = 0  return }
+    out = fly.mem.readInt(h, 0)
+}
+
+// addrAt — the i-th address; 0 when out of range or the handle is null.
+public int addrAt(const pointer h, const int i) {
+    if h == 0 { out = 0  return }
+    int n = fly.mem.readInt(h, 0)
+    if i < 0 || i >= n { out = 0  return }
+    out = fly.mem.readInt(h, 8 + i * 4)
+}
+
+// addrFree — release a list. Safe on a null handle.
+public void addrFree(const pointer h) {
+    if h == 0 { return }
+    fly.runtime.mem_free(h, 0)
+}
+
+// reverseDns — the host name registered for a packed address, or "" when the
+// address has no PTR record (which is the common case: reverse DNS is optional
+// and frequently absent, so an empty result is NOT an error).
+public string reverseDns(const int addr) {
+    pointer buf = 0
+    fly.runtime.mem_alloc(256, buf)
+    int n = 0
+    fly.runtime.net_reverse_dns(addr, buf, 256, n)
+    if n <= 0 {
+        fly.runtime.mem_free(buf, 256)
+        out = ""
+        return
+    }
+    fly.llvm.strMake(buf, n, out)
+}
+
+// ── Peer identity ────────────────────────────────────────────────────────────
+
+// peerAddr — the address at the other end of a connected socket; 0 when the
+// socket is not connected. This is how an accepted connection learns its client.
+public int peerAddr(const long s) {
+    int a = 0
+    fly.runtime.net_peer_addr(s, a)
+    out = a
+}
+
+// peerPort — the port at the other end, in host order; -1 when not connected.
+public int peerPort(const long s) {
+    int p = 0
+    fly.runtime.net_peer_port(s, p)
+    out = p
+}
+
+// resolve — host name or dotted-quad → packed IPv4. A literal address is parsed
+// here and never reaches DNS. Returns 0 on failure (empty input, unknown host,
+// resolver error, no A record).
+//
+// Name lookup goes through gethostbyname. With glibc that pulls the NSS modules
+// in via dlopen, so a --static binary may fail to resolve a real hostname;
+// literals and anything in the hosts file (including "localhost") are unaffected.
+public int resolve(const string host) {
+    if fly.str.isEmpty(host) { out = 0  return }
+    int lit = parseIp(host)
+    if lit != 0 { out = lit  return }
+    pointer chost = strToCstr(host)
+    int addr = 0
+    fly.runtime.net_resolve4(chost, addr)
+    fly.runtime.mem_free(chost, 0)
+    out = addr
+}
+
+// ── Socket lifecycle ─────────────────────────────────────────────────────────
+
+// socket — a blocking IPv4 TCP socket. Returns < 0 on failure. On Windows this
+// also performs the (idempotent, reference-counted) Winsock startup.
+public long socket() {
+    long s = 0
+    fly.runtime.net_socket(s)
+    out = s
+}
+
+// close — release a socket. A negative handle is ignored.
+public void close(const long s) {
+    if s < 0 { return }
+    fly.runtime.net_close(s)
+}
+
+// shutdownWrite — half-close the sending side so the peer sees EOF while this
+// side can still read. false on error.
+public bool shutdownWrite(const long s) {
+    int rc = 0
+    fly.runtime.net_shutdown(s, 1, rc)
+    out = rc == 0
+}
+
+// shutdownBoth — stop both directions. false on error.
+public bool shutdownBoth(const long s) {
+    int rc = 0
+    fly.runtime.net_shutdown(s, 2, rc)
+    out = rc == 0
+}
+
+// reuseAddr — allow rebinding a port still in TIME_WAIT. POSIX only: on Windows
+// SO_REUSEADDR permits port hijacking rather than TIME_WAIT relief, so this is a
+// documented NO-OP there and reports success. false only on a bad handle.
+public bool reuseAddr(const long s) {
+    int rc = 0
+    fly.runtime.net_reuseaddr(s, rc)
+    out = rc == 0
+}
+
+// ── Socket options and modes ─────────────────────────────────────────────────
+//
+// Every option name and level differs across the three platforms (SO_RCVBUF is
+// 8 on Linux and 4098 on macOS/Windows, SOL_SOCKET is 1 vs 65535, the timeouts
+// take a struct timeval on POSIX and a bare millisecond DWORD on Windows). All
+// of that is resolved inside the runtime backends — this module never sees a
+// platform constant, which is why it can be one source for all targets.
+//
+// All of these return false on failure, including a negative handle.
+
+// setRecvTimeout — a blocking recv/recvStr/recvAll gives up after `ms`
+// milliseconds and reports an error instead of waiting forever. ms <= 0 restores
+// the infinite wait.
+//
+// Without this a peer that stops responding hangs the caller permanently: there
+// is no other way out, since fly.net is blocking-only by design.
+public bool setRecvTimeout(const long s, const int ms) {
+    int rc = 0
+    fly.runtime.net_set_recv_timeout(s, ms, rc)
+    out = rc == 0
+}
+
+// setSendTimeout — the same for a blocking send whose peer has stopped reading.
+public bool setSendTimeout(const long s, const int ms) {
+    int rc = 0
+    fly.runtime.net_set_send_timeout(s, ms, rc)
+    out = rc == 0
+}
+
+// setNonBlocking — when on, every operation that would block returns an error
+// immediately instead. Note that fly.net has no multiplexing yet, so a
+// non-blocking socket has to be polled by the caller; this exists mainly to let
+// a connect() be given a deadline.
+public bool setNonBlocking(const long s, const bool on) {
+    int v = 0
+    if on { v = 1 }
+    int rc = 0
+    fly.runtime.net_set_nonblocking(s, v, rc)
+    out = rc == 0
+}
+
+// setNoDelay — TCP_NODELAY: send a small write immediately instead of waiting to
+// coalesce it (Nagle's algorithm off). Worth setting on a request/response
+// protocol, where coalescing only adds latency.
+public bool setNoDelay(const long s, const bool on) {
+    int v = 0
+    if on { v = 1 }
+    int rc = 0
+    fly.runtime.net_set_nodelay(s, v, rc)
+    out = rc == 0
+}
+
+// setKeepAlive — SO_KEEPALIVE: let the OS probe an idle connection so a peer
+// that vanished without a FIN is eventually detected.
+public bool setKeepAlive(const long s, const bool on) {
+    int v = 0
+    if on { v = 1 }
+    int rc = 0
+    fly.runtime.net_set_keepalive(s, v, rc)
+    out = rc == 0
+}
+
+// setBroadcast — SO_BROADCAST, required before a datagram socket may send to a
+// broadcast address. Meaningless on TCP.
+public bool setBroadcast(const long s, const bool on) {
+    int v = 0
+    if on { v = 1 }
+    int rc = 0
+    fly.runtime.net_set_broadcast(s, v, rc)
+    out = rc == 0
+}
+
+// setLinger — SO_LINGER. With on = true, close() blocks for up to `sec` seconds
+// while unsent data drains; with on = false the socket closes at once and any
+// pending data is discarded. sec is ignored when off.
+public bool setLinger(const long s, const bool on, const int sec) {
+    int v = 0
+    if on { v = 1 }
+    int rc = 0
+    fly.runtime.net_set_linger(s, v, sec, rc)
+    out = rc == 0
+}
+
+// setRecvBuf / setSendBuf — kernel buffer sizes. The OS is free to round the
+// request, and typically doubles it; this reports whether the request was
+// accepted, not what was granted.
+public bool setRecvBuf(const long s, const int bytes) {
+    int rc = 0
+    fly.runtime.net_set_recvbuf(s, bytes, rc)
+    out = rc == 0
+}
+
+public bool setSendBuf(const long s, const int bytes) {
+    int rc = 0
+    fly.runtime.net_set_sendbuf(s, bytes, rc)
+    out = rc == 0
+}
+
+// sockError — the socket's pending error code, CLEARED by reading it. 0 means
+// none; -1 means the query itself failed (a bad handle). The values are raw
+// platform errno/WSA codes and are not translated.
+public int sockError(const long s) {
+    int v = 0
+    fly.runtime.net_sock_error(s, v)
+    out = v
+}
+
+// ── Server ───────────────────────────────────────────────────────────────────
+
+// bind — attach the socket to addr:port. port 0 requests an ephemeral port,
+// which localPort() then reports. false on failure.
+public bool bind(const long s, const int addr, const int port) {
+    int rc = 0
+    fly.runtime.net_bind(s, addr, port, rc)
+    out = rc == 0
+}
+
+// listen — start accepting, queueing up to `backlog` pending connections.
+// false on failure.
+public bool listen(const long s, const int backlog) {
+    int rc = 0
+    fly.runtime.net_listen(s, backlog, rc)
+    out = rc == 0
+}
+
+// accept — block until a connection arrives and return the new socket; < 0 on
+// error. A connect() to a listening socket completes as soon as the kernel
+// finishes the handshake, so a single thread may connect to itself and then
+// accept the queued connection.
+public long accept(const long s) {
+    long c = 0
+    fly.runtime.net_accept(s, c)
+    out = c
+}
+
+// localPort — the port the socket is actually bound to, in host order; -1 on
+// error. This is what makes an ephemeral bind usable, and it is how a test picks
+// a port that cannot collide.
+public int localPort(const long s) {
+    int p = 0
+    fly.runtime.net_local_port(s, p)
+    out = p
+}
+
+// listenOn — socket + reuseAddr + bind + listen in one call. Returns the
+// listening socket, or < 0 on failure; nothing is leaked on the failure path.
+public long listenOn(const int addr, const int port, const int backlog) {
+    long s = 0
+    fly.runtime.net_socket(s)
+    if s < 0 { out = 0 - 1  return }
+    int rc = 0
+    fly.runtime.net_reuseaddr(s, rc)
+    int rb = 0
+    fly.runtime.net_bind(s, addr, port, rb)
+    if rb != 0 {
+        fly.runtime.net_close(s)
+        out = 0 - 1
+        return
+    }
+    int rl = 0
+    fly.runtime.net_listen(s, backlog, rl)
+    if rl != 0 {
+        fly.runtime.net_close(s)
+        out = 0 - 1
+        return
+    }
+    out = s
+}
+
+// ── Client ───────────────────────────────────────────────────────────────────
+
+// connect — blocking connect to addr:port. false on failure.
+public bool connect(const long s, const int addr, const int port) {
+    int rc = 0
+    fly.runtime.net_connect(s, addr, port, rc)
+    out = rc == 0
+}
+
+// connectTo — resolve + socket + connect. Returns the connected socket, or < 0
+// on failure; nothing is leaked on the failure path.
+public long connectTo(const string host, const int port) {
+    int addr = resolve(host)
+    if addr == 0 { out = 0 - 1  return }
+    long s = 0
+    fly.runtime.net_socket(s)
+    if s < 0 { out = 0 - 1  return }
+    int rc = 0
+    fly.runtime.net_connect(s, addr, port, rc)
+    if rc != 0 {
+        fly.runtime.net_close(s)
+        out = 0 - 1
+        return
+    }
+    out = s
+}
+
+// ── Transfer ─────────────────────────────────────────────────────────────────
+
+// send — ONE send attempt. Returns the byte count actually written, which MAY BE
+// LESS than n (a short write is normal once the kernel buffer fills); < 0 on
+// error. Prefer sendAll unless a partial write is what you want.
+public long send(const long s, const pointer buf, const int n) {
+    long sent = 0
+    fly.runtime.net_send(s, buf, n, sent)
+    out = sent
+}
+
+// sendAll — loop until all n bytes are written. false when the peer went away
+// mid-write. Each chunk is capped at 1 MiB so the int length Winsock takes can
+// never overflow.
+public bool sendAll(const long s, const pointer buf, const int n) {
+    if s < 0 { out = false  return }
+    int done = 0
+    while done < n {
+        int want = n - done
+        if want > 1048576 { want = 1048576 }
+        pointer at = buf + done
+        long sent = 0
+        fly.runtime.net_send(s, at, want, sent)
+        if sent <= 0 { out = false  return }
+        int adv = 0
+        fly.llvm.longToInt(sent, adv)
+        done = done + adv
+    }
+    out = true
+}
+
+// sendStr — sendAll over a string's bytes. Sending an empty string succeeds
+// without touching the socket.
+public bool sendStr(const long s, const string data) {
+    int n = fly.str.len(data)
+    if n == 0 { out = s >= 0  return }
+    pointer buf = strToCstr(data)
+    bool ok = sendAll(s, buf, n)
+    fly.runtime.mem_free(buf, 0)
+    out = ok
+}
+
+// recv — ONE blocking receive of up to n bytes. Returns the byte count, 0 at EOF
+// (the peer shut down cleanly), < 0 on error.
+public long recv(const long s, const pointer buf, const int n) {
+    long got = 0
+    fly.runtime.net_recv(s, buf, n, got)
+    out = got
+}
+
+// recvExact — read exactly n bytes, looping over short reads. Returns the byte
+// count actually filled: a value < n means EOF (or an error, or a receive
+// timeout) arrived first, so a framed protocol checks `== n` and gives up
+// otherwise. This is the receive-side twin of sendAll.
+public long recvExact(const long s, const pointer buf, const int n) {
+    if s < 0 || n <= 0 { out = 0  return }
+    int done = 0
+    bool go = true
+    while go {
+        if done >= n { go = false } else {
+            pointer at = buf + done
+            int want = n - done
+            long got = 0
+            fly.runtime.net_recv(s, at, want, got)
+            if got <= 0 { go = false } else {
+                int adv = 0
+                fly.llvm.longToInt(got, adv)
+                done = done + adv
+            }
+        }
+    }
+    out = done
+}
+
+// recvStr — one recv of up to `max` bytes into a fresh string. Empty at EOF or
+// on error, so it cannot distinguish the two: use recv() when that matters.
+public string recvStr(const long s, const int max) {
+    if s < 0 || max <= 0 { out = ""  return }
+    pointer buf = 0
+    fly.runtime.mem_alloc(max, buf)
+    long got = 0
+    fly.runtime.net_recv(s, buf, max, got)
+    if got <= 0 {
+        fly.runtime.mem_free(buf, 0)
+        out = ""
+        return
+    }
+    int n = 0
+    fly.llvm.longToInt(got, n)
+    fly.llvm.strMake(buf, n, out)
+}
+
+// recvUpTo — read until EOF or `limit` bytes, whichever comes first. Empty when
+// the peer sent nothing or on error.
+//
+// The buffer is allocated once and doubled with mem_realloc; concatenating in
+// the receive loop would be quadratic and would allocate per chunk.
+public string recvUpTo(const long s, const int limit) {
+    if s < 0 || limit <= 0 { out = ""  return }
+    int cap = 8192
+    if cap > limit { cap = limit }
+    pointer buf = 0
+    fly.runtime.mem_alloc(cap, buf)
+    int len = 0
+    bool go = true
+    while go {
+        if len >= limit { go = false } else {
+            if len >= cap {
+                int want = cap * 2
+                if want > limit { want = limit }
+                pointer bigger = 0
+                fly.runtime.mem_realloc(buf, want, bigger)
+                buf = bigger
+                cap = want
+            }
+            int room = cap - len
+            pointer at = buf + len
+            long got = 0
+            fly.runtime.net_recv(s, at, room, got)
+            if got <= 0 { go = false } else {
+                int adv = 0
+                fly.llvm.longToInt(got, adv)
+                len = len + adv
+            }
+        }
+    }
+    if len == 0 {
+        fly.runtime.mem_free(buf, 0)
+        out = ""
+        return
+    }
+    fly.llvm.strMake(buf, len, out)
+}
+
+// recvAll — read until EOF into one string. Empty when the peer sent nothing or
+// on error. The 64 MiB ceiling is a runaway guard, not a protocol limit.
+public string recvAll(const long s) {
+    out = recvUpTo(s, 67108864)
+}
+
+// ── UDP datagrams ────────────────────────────────────────────────────────────
+//
+// A datagram socket is the same `long` handle as a stream one and shares
+// bind/close/localPort/the option setters; only the transfer calls differ,
+// because in UDP the destination travels with every message.
+//
+// Four things about UDP that the API cannot hide, and does not try to:
+//   • delivery is NOT guaranteed and NOT ordered — always pair a receive with
+//     setRecvTimeout() so a lost datagram fails instead of hanging;
+//   • a datagram longer than the buffer loses its tail, and the platforms REPORT
+//     that differently: POSIX returns the truncated count, while Winsock fails
+//     the call outright with WSAEMSGSIZE (a negative return) despite having
+//     copied the first n bytes. Size the buffer to the protocol's maximum
+//     datagram rather than relying on either signal;
+//   • a ZERO-length datagram is legal, so recvFrom returning 0 means "empty
+//     message", NOT end-of-stream as it does for a stream socket;
+//   • there is no handshake, so sendTo to a port nobody bound SUCCEEDS — the
+//     datagram is simply dropped. There is no connect() to fail.
+
+// socketUdp — a blocking IPv4 UDP socket. Returns < 0 on failure. Bind it with
+// bind() to receive; sending needs no bind (the OS assigns a source port on the
+// first send, which localPort() then reports).
+public long socketUdp() {
+    long s = 0
+    fly.runtime.net_socket_udp(s)
+    out = s
+}
+
+// fromNew — the 8-byte scratch that recvFrom fills with the sender:
+//   [0..3] packed host-order address   [4..7] port
+// Read it with fromAddr()/fromPort() and release it with fromFree(). It is a
+// caller-owned buffer rather than a return value because a primitive has exactly
+// one `out`, and the byte count is already using it.
+public pointer fromNew() {
+    pointer f = 0
+    fly.runtime.mem_alloc(8, f)
+    fly.mem.writeInt(f, 0, 0)
+    fly.mem.writeInt(f, 4, 0)
+    out = f
+}
+
+// fromAddr — the sender's address from a scratch filled by recvFrom; 0 for a
+// null scratch or before any receive.
+public int fromAddr(const pointer from) {
+    if from == 0 { out = 0  return }
+    out = fly.mem.readInt(from, 0)
+}
+
+// fromPort — the sender's port; 0 for a null scratch or before any receive.
+public int fromPort(const pointer from) {
+    if from == 0 { out = 0  return }
+    out = fly.mem.readInt(from, 4)
+}
+
+public void fromFree(const pointer from) {
+    if from == 0 { return }
+    fly.runtime.mem_free(from, 8)
+}
+
+// sendTo — one datagram to addr:port. Returns the bytes accepted, < 0 on error.
+// A datagram goes whole or not at all, so unlike sendAll there is nothing to loop.
+public long sendTo(const long s, const pointer buf, const int n, const int addr, const int port) {
+    long sent = 0
+    fly.runtime.net_send_to(s, buf, n, addr, port, sent)
+    out = sent
+}
+
+// sendStrTo — sendTo over a string's bytes. Sending an empty string sends an
+// EMPTY DATAGRAM, which is a real message the peer will receive — it is not a
+// no-op, unlike sendStr on a stream socket.
+public bool sendStrTo(const long s, const string data, const int addr, const int port) {
+    if s < 0 { out = false  return }
+    int n = fly.str.len(data)
+    if n == 0 {
+        long e = 0
+        fly.runtime.net_send_to(s, 0, 0, addr, port, e)
+        out = e >= 0
+        return
+    }
+    pointer buf = strToCstr(data)
+    long sent = 0
+    fly.runtime.net_send_to(s, buf, n, addr, port, sent)
+    fly.runtime.mem_free(buf, 0)
+    out = sent == n
+}
+
+// recvFrom — one datagram of up to n bytes, with the sender written into `from`
+// (a scratch from fromNew()). Returns the byte count: 0 is an EMPTY datagram,
+// < 0 is an error or a receive timeout.
+public long recvFrom(const long s, const pointer buf, const int n, const pointer from) {
+    long got = 0
+    fly.runtime.net_recv_from(s, buf, n, from, got)
+    out = got
+}
+
+// recvStrFrom — one datagram into a fresh string, sender written into `from`.
+// Empty both for an empty datagram and on error; use recvFrom when the two must
+// be told apart.
+public string recvStrFrom(const long s, const int max, const pointer from) {
+    if s < 0 || max <= 0 { out = ""  return }
+    pointer buf = 0
+    fly.runtime.mem_alloc(max, buf)
+    long got = 0
+    fly.runtime.net_recv_from(s, buf, max, from, got)
+    if got <= 0 {
+        fly.runtime.mem_free(buf, 0)
+        out = ""
+        return
+    }
+    int n = 0
+    fly.llvm.longToInt(got, n)
+    fly.llvm.strMake(buf, n, out)
+}
+
+// ── Multiplexing: the poll set ───────────────────────────────────────────────
+//
+// A PollSet watches several sockets at once and reports which are ready, so a
+// server can serve many connections from ONE thread. It is the direct analogue
+// of Python's selectors.DefaultSelector, C's pollfd array and Java's Selector.
+//
+// This is the only STATEFUL thing in fly.net, and it is an opaque `pointer`
+// handle in the ArgList style rather than a class — a header-declared class
+// would not survive the archive boundary. Layout:
+//
+//   PollSet header (16 bytes):
+//     [0..7]   pointer entries
+//     [8..11]  int count
+//     [12..15] int cap
+//   entries, 16 bytes each — the SAME layout on every platform, because the
+//   runtime translates it into the native pollfd (8 bytes on POSIX, 16 with a
+//   64-bit SOCKET on Windows) at wait time:
+//     [0..7]   long socket
+//     [8..11]  int events   (what to watch for)
+//     [12..15] int revents  (what happened, filled by pollWait)
+//
+// Event bits are the Fly-level ones below, mapped to POLLIN/POLLRDNORM/… inside
+// the runtime. Read them through the accessors rather than hardcoding 1/2/4/8.
+
+// pollRead — the socket has data to read, or a listening socket has a pending
+// connection.
+public int pollRead()  { out = 1 }
+// pollWrite — a send would not block.
+public int pollWrite() { out = 2 }
+// pollErr — an error condition, or an invalid handle. Always reported whether
+// asked for or not.
+public int pollErr()   { out = 4 }
+// pollHup — the peer hung up. Also always reported.
+public int pollHup()   { out = 8 }
+//
+// A CLOSED PEER IS REPORTED DIFFERENTLY PER PLATFORM, and this is the one place
+// the abstraction leaks: POSIX marks the socket READABLE (the recv that follows
+// returns 0), while Winsock sets only pollHup() and leaves pollRead() clear.
+// Portable code therefore waits on `pollRead() | pollHup() | pollErr()` and
+// decides by attempting the read, rather than trusting a single bit.
+
+// pollNew — an empty poll set; 0 if the allocation failed. Release with pollFree.
+public pointer pollNew() {
+    pointer ps = 0
+    fly.runtime.mem_alloc(16, ps)
+    int cap = 8
+    pointer items = 0
+    fly.runtime.mem_alloc(cap * 16, items)
+    fly.mem.writePtr(ps, 0, items)
+    fly.mem.writeInt(ps, 8, 0)
+    fly.mem.writeInt(ps, 12, cap)
+    out = ps
+}
+
+// pollCount — how many sockets the set watches.
+public int pollCount(const pointer ps) {
+    if ps == 0 { out = 0  return }
+    out = fly.mem.readInt(ps, 8)
+}
+
+// pollAdd — watch `s` for `events` (an OR of pollRead()/pollWrite()). Returns
+// the INDEX of the new entry, which is what pollRevents/pollSocketAt take; -1 on
+// a null set or a negative socket. The same socket may be added twice; nothing
+// deduplicates.
+public int pollAdd(const pointer ps, const long s, const int events) {
+    if ps == 0 || s < 0 { out = 0 - 1  return }
+    int count = fly.mem.readInt(ps, 8)
+    int cap = fly.mem.readInt(ps, 12)
+    pointer items = fly.mem.readPtr(ps, 0)
+    if count >= cap {
+        int want = cap * 2
+        pointer bigger = 0
+        fly.runtime.mem_realloc(items, want * 16, bigger)
+        items = bigger
+        fly.mem.writePtr(ps, 0, items)
+        fly.mem.writeInt(ps, 12, want)
+    }
+    fly.mem.writeLong(items, count * 16, s)
+    fly.mem.writeInt(items, count * 16 + 8, events)
+    fly.mem.writeInt(items, count * 16 + 12, 0)
+    fly.mem.writeInt(ps, 8, count + 1)
+    out = count
+}
+
+// pollSet — change what entry `i` is watching. false when out of range.
+public bool pollSet(const pointer ps, const int i, const int events) {
+    if ps == 0 { out = false  return }
+    int count = fly.mem.readInt(ps, 8)
+    if i < 0 || i >= count { out = false  return }
+    pointer items = fly.mem.readPtr(ps, 0)
+    fly.mem.writeInt(items, i * 16 + 8, events)
+    out = true
+}
+
+// pollRemove — drop entry `i`. The LAST entry is moved into the hole, so indices
+// are NOT stable across a removal — re-read them after removing, or remove only
+// while iterating backwards. false when out of range.
+public bool pollRemove(const pointer ps, const int i) {
+    if ps == 0 { out = false  return }
+    int count = fly.mem.readInt(ps, 8)
+    if i < 0 || i >= count { out = false  return }
+    pointer items = fly.mem.readPtr(ps, 0)
+    int last = count - 1
+    if i != last {
+        fly.mem.writeLong(items, i * 16, fly.mem.readLong(items, last * 16))
+        fly.mem.writeInt(items, i * 16 + 8, fly.mem.readInt(items, last * 16 + 8))
+        fly.mem.writeInt(items, i * 16 + 12, fly.mem.readInt(items, last * 16 + 12))
+    }
+    fly.mem.writeInt(ps, 8, last)
+    out = true
+}
+
+// pollSocketAt — the socket registered at entry `i`; -1 when out of range.
+public long pollSocketAt(const pointer ps, const int i) {
+    if ps == 0 { out = 0 - 1  return }
+    int count = fly.mem.readInt(ps, 8)
+    if i < 0 || i >= count { out = 0 - 1  return }
+    pointer items = fly.mem.readPtr(ps, 0)
+    out = fly.mem.readLong(items, i * 16)
+}
+
+// pollEventsAt — what entry `i` is watching; 0 when out of range.
+public int pollEventsAt(const pointer ps, const int i) {
+    if ps == 0 { out = 0  return }
+    int count = fly.mem.readInt(ps, 8)
+    if i < 0 || i >= count { out = 0  return }
+    pointer items = fly.mem.readPtr(ps, 0)
+    out = fly.mem.readInt(items, i * 16 + 8)
+}
+
+// pollWait — block until at least one watched socket is ready, `timeoutMs`
+// elapses, or an error occurs. Returns the number of READY entries: 0 means the
+// timeout expired with nothing ready, -1 means poll itself failed.
+// timeoutMs < 0 waits indefinitely; 0 polls and returns at once.
+//
+// Read the outcome with pollRevents(ps, i) for each entry.
+public int pollWait(const pointer ps, const int timeoutMs) {
+    if ps == 0 { out = 0 - 1  return }
+    int count = fly.mem.readInt(ps, 8)
+    if count == 0 { out = 0  return }
+    pointer items = fly.mem.readPtr(ps, 0)
+    int rc = 0
+    fly.runtime.net_poll(items, count, timeoutMs, rc)
+    out = rc
+}
+
+// pollRevents — what actually happened at entry `i`, as an OR of the event bits.
+// 0 means nothing (and is what every entry reads after a timeout). Only
+// meaningful after a pollWait; 0 when out of range.
+public int pollRevents(const pointer ps, const int i) {
+    if ps == 0 { out = 0  return }
+    int count = fly.mem.readInt(ps, 8)
+    if i < 0 || i >= count { out = 0  return }
+    pointer items = fly.mem.readPtr(ps, 0)
+    out = fly.mem.readInt(items, i * 16 + 12)
+}
+
+// pollIsReady — convenience: does entry `i` report ANY of `mask`?
+public bool pollIsReady(const pointer ps, const int i, const int mask) {
+    int rv = pollRevents(ps, i)
+    int hit = rv & mask
+    out = hit != 0
+}
+
+// pollFree — release the set. The watched sockets are NOT closed; they belong to
+// the caller. Safe on a null handle.
+public void pollFree(const pointer ps) {
+    if ps == 0 { return }
+    pointer items = fly.mem.readPtr(ps, 0)
+    if items != 0 { fly.runtime.mem_free(items, 0) }
+    fly.runtime.mem_free(ps, 16)
+}

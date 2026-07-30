@@ -10,7 +10,7 @@ import fly.compiler.basic.*
 
 // ─────────────────────────────────────────────────────────────────────────────
 // commands — the subcommand implementations. Port of the network-free core
-// of fly/tools/flyp/cli/Commands.cpp: init, version, build, run, test, clean.
+// of the reference C++ package manager cli/Commands.cpp: init, version, build, run, test, clean.
 // The dependency/registry commands (add/remove/update/lock/why/deploy/…) need the
 // GitFetcher + RegistryFetcher(JSON) + Lockfile + resolver wiring and print a
 // "not yet ported" notice for now.
@@ -50,7 +50,7 @@ public int cmdVersion() {
     out = 0
 }
 
-// cmdInit — scaffold fly.toml + src/main.fly in the given dir (cwd if name empty).
+// cmdInit — scaffold Manifest.fly + src/main.fly in the given dir (cwd if name empty).
 public int cmdInit(const string nameArg, const string versionArg) {
     string name = nameArg
     if fly.str.isEmpty(name) { name = "my-project" }
@@ -155,8 +155,30 @@ public int cmdTest(const string profile, const bool force) {
     Builder b = new Builder(m, prof, true)
     b.setForce(force)
 
-    // resolve suite files by shelling `find` over the src tree
-    string list = fly.driver.capture("find . -name '*Suite.fly' 2>/dev/null | sort")
+    // Resolve suite files with a NATIVE directory walk. This used to shell out to
+    // `find . -name '*Suite.fly' | sort`, which needed /bin/sh plus find and sort
+    // — three external dependencies, none of them present on Windows, so
+    // `fly test` found nothing there.
+    //
+    // The walk is Driver.collectFlySources, reused rather than reimplemented: it
+    // is ITERATIVE on purpose (a string-returning recursion self-aliases, and a
+    // List<string> accumulator drops entries past its growth boundary), and it
+    // already skips dot-dirs and build/. Entries come back in per-directory
+    // order rather than lexicographic; the order only affects the report.
+    Driver walker = new Driver()
+    string all = walker.collectFlySources(".")
+    string nl = fly.driver.nl()
+    string list = ""
+    int wi = 0
+    int wn = segCount(all)
+    while wi < wn {
+        string cand = segAt(all, wi)
+        if fly.str.endsWith(cand, "Suite.fly") {
+            string acc = fly.str.concat(list, fly.str.concat(cand, nl))
+            list = acc
+        }
+        wi = wi + 1
+    }
     if fly.str.isEmpty(fly.str.trim(list)) {
         fly.os.io.printLn("no test suites found (*Suite.fly)")
         out = 0
@@ -201,7 +223,8 @@ public int cmdTest(const string profile, const bool force) {
                     if compiled { b.saveFp(fpFile, computed) }
                 }
                 if compiled {
-                    int rc = fly.driver.runShell(fly.driver.shellQuote(outp))
+                    // Direct spawn: `sh -c` is dead on Windows and buys nothing.
+                    int rc = fly.os.proc.run(outp)
                     if rc == 0 {
                         fly.os.io.printLn(fly.str.concat("  PASS  ", stem))
                     } else {
@@ -223,9 +246,9 @@ public int cmdTest(const string profile, const bool force) {
 // cmdClean — remove build artifacts (all of target/, or target/<profile>).
 public int cmdClean(const string profile) {
     if fly.str.isEmpty(profile) {
-        fly.driver.runShell("rm -rf target")
+        fly.os.fs.dirDeleteAll("target")
     } else {
-        fly.driver.runShell(fly.str.concat("rm -rf ", fly.str.concat("target/", profile)))
+        fly.os.fs.dirDeleteAll(fly.str.concat("target/", profile))
     }
     fly.os.io.printLn("cleaned build artifacts")
     out = 0
@@ -356,7 +379,7 @@ public int cmdLock() {
     out = doLock(m, manifestPath())
 }
 
-// cmdAdd — add a dependency to fly.toml then re-lock.
+// cmdAdd — add a dependency to Manifest.fly then re-lock.
 public int cmdAdd(const string name, const string gitUrl, const string tag, const string branch, const string rev, const bool dev) {
     int e = 0
     Manifest m = loadManifest(e)
@@ -383,7 +406,7 @@ public int cmdAdd(const string name, const string gitUrl, const string tag, cons
     out = doLock(m, manifestPath())
 }
 
-// cmdRemove — drop a dependency from fly.toml then re-lock.
+// cmdRemove — drop a dependency from Manifest.fly then re-lock.
 public int cmdRemove(const string name) {
     int e = 0
     Manifest m = loadManifest(e)

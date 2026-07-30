@@ -36,14 +36,14 @@ suite CodeGenErrorSuite {
                     if n < 0 { fail 7 }
                     out = n
                 }
-                int main() {
+                void main() {
                     int neg = 0 - 1
                     int a = 0
                     handle {
                         a = classify(neg)
                     }
                     int b = classify(5)
-                    out = a + b
+                    fail a + b
                 }
             ")
             assert.assertTrue(fly.str.contains(ir, "%error = type"), 11)
@@ -53,20 +53,20 @@ suite CodeGenErrorSuite {
             assert.assertTrue(fly.str.contains(ir, "handle.safe"), 15)        // handle continuation
         }
         case "implicit `error` var reads lasterr != 0 (i1 condition)": {
-            string ir = cgIR("void boom() { fail 5 }  int main() { handle { boom() }  int r = 0  if error { r = 1 }  out = r }")
+            string ir = cgIR("void boom() { fail 5 }  void main() { handle { boom() }  int r = 0  if error { r = 1 }  fail r }")
             assert.assertTrue(fly.str.contains(ir, "lerr"), 21)               // load of lasterr
             assert.assertTrue(fly.str.contains(ir, "eset"), 22)               // icmp ne 0 → i1
             assert.assertTrue(fly.str.contains(ir, "br i1"), 23)              // valid bool branch
         }
         case "fail inside the handle frame jumps to handle.safe (no early return)": {
             string ir = cgIR("
-                int main() { int reached = 0
+                void main() { int reached = 0
                     handle { fail 9
                         reached = 1
                     }
                     int r = 0
                     if error { r = 1 }
-                    out = r
+                    fail r
                 }
             ")
             assert.assertTrue(fly.str.contains(ir, "handle.safe"), 31)
@@ -87,8 +87,7 @@ suite CodeGenErrorSuite {
                 void boom() { Ctx c = new Ctx()
                     fail 42, c
                 }
-                int main() { handle { boom() }
-                    out = 0
+                void main() { handle { boom() }
                 }
             ")
             assert.assertTrue(fly.str.contains(ir, "store i32 42"), 51)       // code slot
