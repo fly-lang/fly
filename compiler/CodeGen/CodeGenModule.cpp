@@ -29,6 +29,7 @@
 #include "Sema/SemaNameSpace.h"
 #include "Sema/SemaParam.h"
 #include "Sema/SemaTernary.h"
+#include "Sema/SemaArrayAccess.h"
 #include "Sema/SemaUnary.h"
 #include "Sema/SemaEnumEntry.h"
 #include "Sema/SemaBlockStmt.h"
@@ -36,6 +37,7 @@
 #include "Sema/SemaAlloc.h"
 #include "Sema/SemaSmartAlloc.h"
 #include "Sema/SemaStringAlloc.h"
+#include "Sema/SemaArrayAlloc.h"
 #include "AST/ASTCall.h"
 #include "AST/ASTStmt.h"
 #include "Sema/SemaExprStmt.h"
@@ -731,6 +733,243 @@ void CodeGenModule::visit(SemaEnumAccessor &Sema) {
 
 // ─── Sema Statement visitors (delegate to AST-based Gen methods) ─────────────
 
+llvm::Value *CodeGenModule::EmitRCBufferAlloc(llvm::Value *ByteSize) {
+	llvm::Type *I8Ty  = llvm::Type::getInt8Ty(LLVMCtx);
+	llvm::Type *I64Ty = llvm::Type::getInt64Ty(LLVMCtx);
+	llvm::Type *PtrSizedIntTy = Module->getDataLayout().getIntPtrType(LLVMCtx);
+
+	// One block for the header and the payload, exactly like `new shared`:
+	// [i64 refcount | data…]. The returned pointer is the DATA, 8 bytes in — that is
+	// what keeps every existing reader (for-in, subscript, argument passing) working
+	// unchanged, since they only ever see the data pointer.
+	llvm::Value *Size = Builder->CreateIntCast(ByteSize, PtrSizedIntTy, false);
+	llvm::Value *Total = Builder->CreateAdd(Size,
+		llvm::ConstantInt::get(PtrSizedIntTy, 8), "rcbuf_total");
+
+	llvm::FunctionCallee MallocFn = Module->getOrInsertFunction(
+		"malloc",
+		llvm::FunctionType::get(llvm::PointerType::getUnqual(LLVMCtx), {PtrSizedIntTy}, false));
+	llvm::Value *RawPtr = Builder->CreateCall(MallocFn, {Total}, "rcbuf");
+
+	// Zero the whole block: Windows malloc hands back reused (garbage) heap while
+	// Linux returns zeroed pages, and the elements are observable before anything
+	// stores to them (a for-in reads all of them straight away).
+	Builder->CreateMemSet(RawPtr, llvm::ConstantInt::get(CodeGen::Int8Ty, 0), Total,
+		llvm::MaybeAlign());
+	Builder->CreateStore(llvm::ConstantInt::get(I64Ty, 1), RawPtr);
+
+	return Builder->CreateGEP(I8Ty, RawPtr,
+		llvm::ConstantInt::get(PtrSizedIntTy, 8), "rcbuf_data");
+}
+
+void CodeGenModule::EmitArrayRelease(llvm::Value *ArraySlotPtr, SemaType *ArrayType) {
+	llvm::Type *I8Ty  = llvm::Type::getInt8Ty(LLVMCtx);
+	llvm::Type *I64Ty = llvm::Type::getInt64Ty(LLVMCtx);
+	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
+
+	// A NESTED array (`int[][]`) has one buffer and one count PER LEVEL: the outer
+	// buffer holds %array fat pointers, each pointing at an inner buffer with its own
+	// header. Releasing only the outer one leaves every inner buffer behind.
+	SemaType *NestedElemType = nullptr;
+	if (ArrayType && ArrayType->isArray()) {
+		SemaType *ElemType = static_cast<SemaArrayType *>(ArrayType)->getElementType();
+		if (ElemType && ElemType->isArray())
+			NestedElemType = ElemType;
+	}
+
+	llvm::Value *DataField = Builder->CreateStructGEP(CodeGen::ArrayTy, ArraySlotPtr, 0);
+	llvm::Value *DataPtr = Builder->CreateLoad(CodeGen::Int8PtrTy, DataField, "arel_data");
+
+	// NULL GUARD, and it is not defensive padding — an array slot legitimately holds
+	// null in three ordinary situations: `int[0]` stores a zeroinitializer, the
+	// runtime-sized path skips the malloc when the size is <= 0, and cleanup on an
+	// early `return` runs over locals whose declaration control flow never reached.
+	// EmitSharedRelease has no such guard, which is why arrays cannot simply reuse it.
+	llvm::BasicBlock *LiveBB = llvm::BasicBlock::Create(LLVMCtx, "arel_live", Fn);
+	llvm::BasicBlock *DoneBB = llvm::BasicBlock::Create(LLVMCtx, "arel_done", Fn);
+	llvm::Value *IsNull = Builder->CreateICmpEQ(
+		DataPtr, llvm::ConstantPointerNull::get(CodeGen::Int8PtrTy), "arel_null");
+	Builder->CreateCondBr(IsNull, DoneBB, LiveBB);
+
+	Builder->SetInsertPoint(LiveBB);
+	llvm::Value *Header = Builder->CreateGEP(I8Ty, DataPtr,
+		llvm::ConstantInt::getSigned(I64Ty, -8), "arel_hdr");
+	llvm::Value *RC  = Builder->CreateLoad(I64Ty, Header, "arel_rc");
+	llvm::Value *RC1 = Builder->CreateSub(RC, llvm::ConstantInt::get(I64Ty, 1), "arel_rc1");
+	Builder->CreateStore(RC1, Header);
+
+	llvm::BasicBlock *FreeBB = llvm::BasicBlock::Create(LLVMCtx, "arel_free", Fn);
+	llvm::Value *IsZero = Builder->CreateICmpEQ(RC1, llvm::ConstantInt::get(I64Ty, 0), "arel_zero");
+	Builder->CreateCondBr(IsZero, FreeBB, DoneBB);
+
+	// At zero the BUFFER goes back, and only the buffer: the array owns its own
+	// storage and never the things its elements point at (docs — an object is freed
+	// by whoever is responsible for it). Array-typed ELEMENTS are the one exception,
+	// and it is not a hole in that rule: an inner array is itself reference counted,
+	// so what it receives is a DECREMENT, not a free. It goes back only if no one
+	// else is holding it.
+	Builder->SetInsertPoint(FreeBB);
+
+	if (NestedElemType) {
+		// Walk the elements before the buffer that holds them disappears. The static
+		// element type drives the recursion, so it terminates: `int[][][]` unrolls to
+		// exactly three levels at compile time, and a level whose element is not an
+		// array stops here.
+		llvm::Value *SizeField = Builder->CreateStructGEP(CodeGen::ArrayTy, ArraySlotPtr, 1);
+		llvm::Value *Count = Builder->CreateLoad(CodeGen::IntTy, SizeField, "arel_n");
+
+		// Entry-block slot: a release can sit inside a loop, and an alloca emitted here
+		// would grow the frame on every iteration.
+		llvm::AllocaInst *IdxSlot = CreateEntryAlloca(CodeGen::IntTy, "arel.idx");
+		Builder->CreateStore(llvm::ConstantInt::get(CodeGen::IntTy, 0), IdxSlot);
+
+		llvm::BasicBlock *CondBB = llvm::BasicBlock::Create(LLVMCtx, "arel.inner.cond", Fn);
+		llvm::BasicBlock *BodyBB = llvm::BasicBlock::Create(LLVMCtx, "arel.inner.body", Fn);
+		llvm::BasicBlock *EndBB  = llvm::BasicBlock::Create(LLVMCtx, "arel.inner.end", Fn);
+		Builder->CreateBr(CondBB);
+
+		Builder->SetInsertPoint(CondBB);
+		llvm::Value *Idx = Builder->CreateLoad(CodeGen::IntTy, IdxSlot, "arel.i");
+		Builder->CreateCondBr(Builder->CreateICmpSLT(Idx, Count, "arel.cmp"), BodyBB, EndBB);
+
+		Builder->SetInsertPoint(BodyBB);
+		// The element IS an %array slot — the same shape this function takes — so the
+		// recursive call needs no special case, null guard included.
+		llvm::Value *ElemSlot = Builder->CreateGEP(CodeGen::ArrayTy, DataPtr, Idx, "arel.elem");
+		EmitArrayRelease(ElemSlot, NestedElemType);
+		Builder->CreateStore(
+			Builder->CreateAdd(Idx, llvm::ConstantInt::get(CodeGen::IntTy, 1)), IdxSlot);
+		Builder->CreateBr(CondBB);
+
+		Builder->SetInsertPoint(EndBB);
+	}
+
+	llvm::FunctionCallee FreeFn = Module->getOrInsertFunction(
+		"free",
+		llvm::FunctionType::get(llvm::Type::getVoidTy(LLVMCtx),
+			{llvm::PointerType::getUnqual(LLVMCtx)}, false));
+	Builder->CreateCall(FreeFn, {Header});
+	Builder->CreateBr(DoneBB);
+
+	Builder->SetInsertPoint(DoneBB);
+}
+
+llvm::AllocaInst *CodeGenModule::CreateEntryAlloca(llvm::Type *Ty, const llvm::Twine &Name) {
+	llvm::BasicBlock *BB = Builder->GetInsertBlock();
+	llvm::Function *Fn = BB ? BB->getParent() : nullptr;
+	if (!Fn || Fn->empty())
+		return Builder->CreateAlloca(Ty, nullptr, Name);
+	llvm::BasicBlock &Entry = Fn->getEntryBlock();
+	llvm::IRBuilder<> TmpB(&Entry, Entry.getFirstInsertionPt());
+	return TmpB.CreateAlloca(Ty, nullptr, Name);
+}
+
+llvm::Type *CodeGenModule::GetArrayElementStorageType(SemaType *ElemType) {
+	if (ElemType == nullptr)
+		return CodeGen::Int8PtrTy;
+
+	ElemType->accept(*this);
+
+	// A class or an interface is a REFERENCE: the buffer holds one pointer per index.
+	// It used to hold the whole struct inline, which made an array of classes unusable
+	// — the elements were zeroed structs with a null vtable slot, so calling anything
+	// on one dereferenced null — and it also contradicted the ownership rule, because
+	// freeing the buffer would have taken the objects with it.
+	// STRUCT is deliberately not included: structs are values throughout the language.
+	if (ElemType->isClass()) {
+		SemaClassType *CT = static_cast<SemaClassType *>(ElemType);
+		if (CT->getClassKind() != SemaClassKind::STRUCT)
+			return CodeGen::Int8PtrTy;
+	}
+
+	return ElemType->getCodeGen()->getType();
+}
+
+void CodeGenModule::EmitArrayElementsNew(llvm::Value *DataPtr, llvm::Value *Size,
+                                         SemaClassType *ElemClass) {
+	SemaClassMethod *Ctor = ElemClass->getDefaultConstructor();
+	CodeGenClass *CGClass = ElemClass->getCodeGen();
+	// Sema rejects a sized array whose element class has no no-argument constructor
+	// (err_sema_array_class_no_default_ctor), so reaching here without one means the
+	// declaration was already diagnosed: emit nothing rather than crash.
+	if (Ctor == nullptr || CGClass == nullptr || Ctor->getCodeGen() == nullptr)
+		return;
+
+	llvm::Type *PtrSizedIntTy = Module->getDataLayout().getIntPtrType(LLVMCtx);
+	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
+	uint64_t InstSize = Module->getDataLayout().getTypeAllocSize(CGClass->getType());
+
+	// A counted loop rather than N unrolled copies: the size can be a runtime value,
+	// and even when it is constant an array of many elements should not inline the
+	// whole construction sequence once per index.
+	llvm::AllocaInst *IdxSlot = CreateEntryAlloca(CodeGen::IntTy, "anew.idx");
+	Builder->CreateStore(llvm::ConstantInt::get(CodeGen::IntTy, 0), IdxSlot);
+
+	llvm::BasicBlock *CondBB = llvm::BasicBlock::Create(LLVMCtx, "anew.cond", Fn);
+	llvm::BasicBlock *BodyBB = llvm::BasicBlock::Create(LLVMCtx, "anew.body", Fn);
+	llvm::BasicBlock *EndBB  = llvm::BasicBlock::Create(LLVMCtx, "anew.end", Fn);
+
+	llvm::Value *Count = Builder->CreateIntCast(Size, CodeGen::IntTy, false, "anew.n");
+	Builder->CreateBr(CondBB);
+
+	Builder->SetInsertPoint(CondBB);
+	llvm::Value *Idx = Builder->CreateLoad(CodeGen::IntTy, IdxSlot, "anew.i");
+	Builder->CreateCondBr(Builder->CreateICmpSLT(Idx, Count, "anew.cmp"), BodyBB, EndBB);
+
+	Builder->SetInsertPoint(BodyBB);
+	// malloc + zero + init_ctor: exactly what `new C()` emits at the CALL_NEW site.
+	llvm::FunctionCallee MallocFn = Module->getOrInsertFunction(
+		"malloc",
+		llvm::FunctionType::get(llvm::PointerType::getUnqual(LLVMCtx), {PtrSizedIntTy}, false));
+	llvm::Value *RawPtr = Builder->CreateCall(MallocFn,
+		{llvm::ConstantInt::get(PtrSizedIntTy, InstSize)}, "anew.obj");
+	Builder->CreateMemSet(RawPtr, llvm::ConstantInt::get(CodeGen::Int8Ty, 0),
+		InstSize, llvm::MaybeAlign());
+	llvm::Value *Instance = Builder->CreateCall(CGClass->getInitConstructor(), {RawPtr});
+
+	// …then the constructor itself, which takes the error handler first like any
+	// other method call.
+	llvm::SmallVector<llvm::Value *, 2> Args;
+	if (CurrentErrorHandler)
+		Args.push_back(CurrentErrorHandler->getValue());
+	Args.push_back(Instance);
+	Builder->CreateCall(Ctor->getCodeGen()->getFunction(), Args);
+
+	llvm::Value *Slot = Builder->CreateGEP(CodeGen::Int8PtrTy, DataPtr, Idx, "anew.slot");
+	Builder->CreateStore(Instance, Slot);
+
+	Builder->CreateStore(
+		Builder->CreateAdd(Idx, llvm::ConstantInt::get(CodeGen::IntTy, 1)), IdxSlot);
+	Builder->CreateBr(CondBB);
+
+	Builder->SetInsertPoint(EndBB);
+}
+
+void CodeGenModule::EmitArrayRetain(llvm::Value *DataPtr) {
+	llvm::Type *I8Ty  = llvm::Type::getInt8Ty(LLVMCtx);
+	llvm::Type *I64Ty = llvm::Type::getInt64Ty(LLVMCtx);
+	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
+
+	// Same null guard as EmitArrayRelease, and for the same reason: `int[0]` and the
+	// runtime size <= 0 path both leave a null data pointer, and binding one of those
+	// to a second name is legal. EmitSharedRetain would dereference -8 off null.
+	llvm::BasicBlock *LiveBB = llvm::BasicBlock::Create(LLVMCtx, "aret_live", Fn);
+	llvm::BasicBlock *DoneBB = llvm::BasicBlock::Create(LLVMCtx, "aret_done", Fn);
+	llvm::Value *IsNull = Builder->CreateICmpEQ(
+		DataPtr, llvm::ConstantPointerNull::get(CodeGen::Int8PtrTy), "aret_null");
+	Builder->CreateCondBr(IsNull, DoneBB, LiveBB);
+
+	Builder->SetInsertPoint(LiveBB);
+	llvm::Value *Header = Builder->CreateGEP(I8Ty, DataPtr,
+		llvm::ConstantInt::getSigned(I64Ty, -8), "aret_hdr");
+	llvm::Value *RC  = Builder->CreateLoad(I64Ty, Header, "aret_rc");
+	llvm::Value *RC1 = Builder->CreateAdd(RC, llvm::ConstantInt::get(I64Ty, 1), "aret_rc1");
+	Builder->CreateStore(RC1, Header);
+	Builder->CreateBr(DoneBB);
+
+	Builder->SetInsertPoint(DoneBB);
+}
+
 void CodeGenModule::EmitSharedRetain(llvm::Value *DataPtr) {
 	llvm::Type *I8Ty  = llvm::Type::getInt8Ty(LLVMCtx);
 	llvm::Type *I64Ty = llvm::Type::getInt64Ty(LLVMCtx);
@@ -811,6 +1050,13 @@ void CodeGenModule::EmitAllocCleanup(size_t frames) {
 				llvm::Value *StrVal = Var->getCodeGen()->Load();
 				llvm::Value *StrPtr = Builder->CreateExtractValue(StrVal, 0, "hs_ptr");
 				Builder->CreateCall(FreeFn, {StrPtr});
+			} else if (Alloc->getKind() == SemaAllocKind::ARRAY) {
+				SemaArrayAlloc *SAA = static_cast<SemaArrayAlloc *>(Alloc);
+				SemaVar *Var = SAA->getVar();
+				if (!Var->getCodeGen() || !Var->getCodeGen()->getPointer()) continue;
+				// The declared type comes along: it is what tells the release whether
+				// the elements are themselves arrays with buffers of their own.
+				EmitArrayRelease(Var->getCodeGen()->getPointer(), Var->getType());
 			}
 		}
 	}
@@ -1226,8 +1472,9 @@ void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 
 	SemaArrayType *ArrSemaType = static_cast<SemaArrayType *>(ListType);
 	SemaType *ElemSemaType = ArrSemaType->getElementType();
-	ElemSemaType->accept(*this);
-	llvm::Type *ElemLLVMType = ElemSemaType->getCodeGen()->getType();
+	// The STORAGE type — a class element is a pointer in the buffer, and striding by
+	// the struct's size would walk off the elements after the first.
+	llvm::Type *ElemLLVMType = GetArrayElementStorageType(ElemSemaType);
 
 	// Obtain the array struct pointer without loading the whole struct.
 	// The list var's alloca IS a pointer to the ArrayTy struct.
@@ -1265,8 +1512,11 @@ void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 	if (Size->getType() != CodeGen::IntTy)
 		Size = Builder->CreateIntCast(Size, CodeGen::IntTy, false);
 
-	// Allocate and zero the loop index
-	llvm::AllocaInst *IndexAlloca = Builder->CreateAlloca(CodeGen::IntTy, nullptr, "forin.idx");
+	// Allocate and zero the loop index. ENTRY-BLOCK alloca: emitted at the current
+	// point it becomes a dynamic allocation whenever the for-in itself sits inside
+	// another loop, and the frame grows by one slot per outer iteration — a plain
+	// `for in` inside a `while` overflowed the stack at half a million rounds.
+	llvm::AllocaInst *IndexAlloca = CreateEntryAlloca(CodeGen::IntTy, "forin.idx");
 	Builder->CreateStore(llvm::ConstantInt::get(CodeGen::IntTy, 0), IndexAlloca);
 
 	llvm::Function *Fn = CurrentFunction->getCodeGen()->getFunction();
@@ -1408,6 +1658,37 @@ void CodeGenModule::EmitMainErrorExit(CodeGenError *CGE, llvm::Function *Fn) {
 	Builder->CreateRet(Code);
 }
 
+void CodeGenModule::EmitFailWithCode(uint32_t Code) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "EmitFailWithCode");
+
+	CurrentErrorHandler->StoreInt(llvm::ConstantInt::get(CG.Int32Ty, Code));
+	if (CurrentHandleBB == nullptr) {
+		// Leaving the function: release everything this frame owns.
+		EmitAllocCleanup(AllocCleanupStack.size());
+		if (isMainEntry(Builder)) {
+			EmitMainErrorExit(CurrentErrorHandler, Builder->GetInsertBlock()->getParent());
+		} else {
+			Builder->CreateRetVoid();
+		}
+	} else {
+		// CAUGHT by an enclosing `handle`: control lands on the safe block IN THE
+		// SAME SCOPE and the locals are still live, so nothing may be released here.
+		// Cleaning up made every owned local dangle for the rest of the function —
+		// `handle { int bad = k[9] }` freed k's buffer and the next `k[0]` read
+		// freed memory.
+		Builder->CreateBr(CurrentSafeBB);
+	}
+}
+
+void CodeGenModule::visit(SemaArrayAccess &Sema) {
+	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaArrayAccess)");
+	if (Sema.getCodeGen() == nullptr) {
+		CodeGenExpr *CGE = new CodeGenExpr(this);
+		CGE->GenExpr(&Sema);
+		Sema.setCodeGen(CGE);
+	}
+}
+
 void CodeGenModule::visit(SemaFailStmt &Sema) {
 	FLY_DEBUG_SCOPE("CodeGenModule", "visit(SemaFailStmt)");
 	EmitDebugLocation(Sema.getAST()->getLocation());
@@ -1432,17 +1713,22 @@ void CodeGenModule::visit(SemaFailStmt &Sema) {
 		}
 	}
 
-	EmitAllocCleanup(AllocCleanupStack.size());
 	if (CurrentHandleBB == nullptr) {
 		// A bare `fail` returns to the caller — except directly inside main(),
 		// where `ret void` would break the i32 entry point: route it through
 		// the same protocol as main's epilogue (print + `ret i32 code`).
+		// Leaving the frame, so everything it owns is released first.
+		EmitAllocCleanup(AllocCleanupStack.size());
 		if (isMainEntry(Builder)) {
 			EmitMainErrorExit(CurrentErrorHandler, Builder->GetInsertBlock()->getParent());
 		} else {
 			Builder->CreateRetVoid();
 		}
 	} else {
+		// CAUGHT: the jump lands on the safe block in the SAME scope, where every
+		// local is still live and will be released by the normal scope exit. Running
+		// the cleanup here freed them early — a string was then freed twice by its
+		// own reassignment, and an array's buffer was read after being returned.
 		Builder->CreateBr(CurrentSafeBB);
 	}
 }

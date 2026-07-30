@@ -45,6 +45,7 @@ namespace fly {
 		// Expressions
 		MEMBER,
 		CALL,
+		ARRAY_ACCESS,
 		UNARY,
 		BINARY,
 		TERNARY,

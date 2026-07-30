@@ -20,6 +20,7 @@
 #include "AST/ASTModifier.h"
 #include "AST/ASTModule.h"
 #include "AST/ASTName.h"
+#include "AST/ASTValue.h"
 #include "AST/ASTNameSpace.h"
 #include "AST/ASTParam.h"
 #include "AST/ASTType.h"
@@ -110,6 +111,24 @@ static std::string typeStr(const ASTType *T) {
             name += ">";
         }
         return name;
+    }
+    // Arrays had NO case here: an array-typed param, field or return type rendered as
+    // the EMPTY STRING, so a generated .fly.h carried a nameless type and the header
+    // could not be consumed back. Recursing on the element type covers `int[][]`.
+    // Only a literal size is rendered — anything computed is not reproducible in a
+    // header, and `T[]` is the honest spelling for it.
+    if (T->getTypeKind() == ASTTypeKind::TYPE_ARRAY) {
+        const auto *AT = static_cast<const ASTArrayType *>(T);
+        std::string Elem = typeStr(AT->getElementType());
+        if (Elem.empty()) return "";
+        std::string Size;
+        const ASTExpr *SizeExpr = AT->getSizeExpr();
+        if (SizeExpr && SizeExpr->getExprKind() == ASTExprKind::EXPR_VALUE) {
+            const auto *V = static_cast<const ASTValue *>(SizeExpr);
+            if (V->getValueKind() == ASTValueKind::VAL_NUMBER)
+                Size = static_cast<const ASTNumberValue *>(V)->getValue().str();
+        }
+        return Elem + "[" + Size + "]";
     }
     return "";
 }

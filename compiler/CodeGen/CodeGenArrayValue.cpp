@@ -36,9 +36,10 @@ void CodeGenArrayValue::GenExpr(SemaArrayValue *Sema) {
 	SemaArrayType *ArrayType = static_cast<SemaArrayType *>(Sema->getType());
 	ArrayType->accept(*CGM);
 
-	// Get the element type from the array type
-	ArrayType->getElementType()->accept(*CGM);
-	ElementType = ArrayType->getElementType()->getCodeGen()->getType();
+	// Get the element STORAGE type from the array type — a class element occupies a
+	// pointer, and a literal of objects (`{new C(), new C()}`) already produces
+	// pointers, so sizing the buffer by the struct would stride past every element.
+	ElementType = CGM->GetArrayElementStorageType(ArrayType->getElementType());
 	bool ElemIsArray = ArrayType->getElementType()->isArray();
 
 	// Generate values and store them for later use (elements are expressions)
@@ -71,14 +72,9 @@ void CodeGenArrayValue::GenExpr(SemaArrayValue *Sema) {
 		llvm::Value* ElementSize = llvm::ConstantInt::get(CodeGen::IntPtrTy, SizeInBytes.getFixedValue());
 		llvm::Value* AllocSize = Builder->CreateMul(NumElements, ElementSize);
 
-		// Call malloc to allocate memory for the array data
-		llvm::FunctionCallee MallocFn = CGM->getModule()->getOrInsertFunction(
-			"malloc",
-			llvm::FunctionType::get(
-				llvm::PointerType::getUnqual(CGM->getLLVMCtx()),
-				{CodeGen::IntPtrTy},
-				false));
-		V = Builder->CreateCall(MallocFn, {AllocSize});
+		// Reference-counted block [i64 rc | elements]; V is the DATA pointer, so the
+		// element stores below and every later reader index from the payload.
+		V = CGM->EmitRCBufferAlloc(AllocSize);
 
 		// Fill the buffer HERE, self-contained: an inner literal must be fully
 		// materialized before the outer literal captures it — the old deferral
@@ -124,17 +120,21 @@ void CodeGenArrayValue::GenExpr(SemaEnumList *Sema) {
 		llvm::Value* ElementSize = llvm::ConstantInt::get(CodeGen::IntPtrTy, SizeInBytes.getFixedValue());
 		llvm::Value* AllocSize = Builder->CreateMul(NumElements, ElementSize);
 
-		// Call malloc to allocate memory for the array data
-		llvm::FunctionCallee MallocFn = CGM->getModule()->getOrInsertFunction(
-			"malloc",
-			llvm::FunctionType::get(
-				llvm::PointerType::getUnqual(CGM->getLLVMCtx()),
-				{CodeGen::IntPtrTy},
-				false));
-		V = Builder->CreateCall(MallocFn, {AllocSize});
+		// Reference-counted block [i64 rc | entries]; V is the DATA pointer.
+		V = CGM->EmitRCBufferAlloc(AllocSize);
+
+		// Fill the buffer here. The old note below claimed the element stores happened
+		// in CodeGenVar::StoreArrayValue, but that function only installs the fat
+		// pointer — so an enum list's buffer was handed back UNINITIALISED. Harmless
+		// while nothing freed or read it carefully; it would have looked like a
+		// regression the moment the buffer started being released.
+		for (size_t i = 0; i < Values.size(); i++) {
+			llvm::Value *Index = llvm::ConstantInt::get(CodeGen::IntPtrTy, i);
+			llvm::Value *ElemPtr = Builder->CreateGEP(ElementType, V, Index);
+			Builder->CreateStore(Values[i], ElemPtr);
+		}
 	} else {
 		V = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ElementType->getPointerTo()));
 	}
-	// Note: Element stores will be done in CodeGenVar::StoreArrayValue
 }
 

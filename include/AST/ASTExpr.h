@@ -18,7 +18,8 @@ namespace fly {
         EXPR_UNARY,
         EXPR_BINARY,
         EXPR_TERNARY,
-        EXPR_CAST
+        EXPR_CAST,
+        EXPR_ARRAY_ACCESS
     };
 
     /**

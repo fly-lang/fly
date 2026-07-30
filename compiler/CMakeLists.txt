@@ -45,6 +45,7 @@ add_library(FlyCompiler
         AST/ASTNameSpace.cpp
         AST/ASTModule.cpp
         AST/ASTMember.cpp
+        AST/ASTArrayAccess.cpp
         AST/ASTUnary.cpp
         AST/ASTBinary.cpp
         AST/ASTTernary.cpp
@@ -187,6 +188,8 @@ add_library(FlyCompiler
         Sema/SymbolTable.cpp
         Sema/SemaTernary.cpp
         Sema/SemaType.cpp
+        Sema/SemaArrayAccess.cpp
+        Sema/SemaArrayAlloc.cpp
         Sema/SemaUnary.cpp
         Sema/SemaAlloc.cpp
         Sema/SemaSmartAlloc.cpp

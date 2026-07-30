@@ -82,6 +82,7 @@ namespace fly {
     class SemaMember;
     class SemaClassInstance;
     class SemaError;
+    class SemaArrayAccess;
     class SemaUnary;
     class SemaBinary;
     class SemaTernary;
@@ -230,6 +231,51 @@ namespace fly {
         // Handles both smart pointers (free / shared_release) and heap-owned strings (free).
         void EmitAllocCleanup(size_t frames);
 
+        // Allocate a reference-counted heap block, [i64 refcount | payload], and
+        // return the pointer to the PAYLOAD (8 bytes past the header) with the count
+        // initialised to 1. Same layout `new shared` builds inline, so the same
+        // retain/release below work on the result. Used for array buffers, whose
+        // readers only ever see the payload pointer and so need no change.
+        llvm::Value *EmitRCBufferAlloc(llvm::Value *ByteSize);
+
+        // Release one reference to an array buffer, given the address of the %array
+        // fat pointer that holds it. Null-guarded: an array slot legitimately holds
+        // null (`int[0]`, a runtime size <= 0, a declaration an early `return` never
+        // reached), which is why this cannot just call EmitSharedRelease.
+        // ArrayType is the slot's static type and is what makes a NESTED array
+        // (`int[][]`) release its inner buffers too — one buffer and one count per
+        // level. Passing null releases this level only.
+        void EmitArrayRelease(llvm::Value *ArraySlotPtr, SemaType *ArrayType = nullptr);
+
+        // Take one more reference to an array buffer, given its DATA pointer (the
+        // value stored in field 0 of the fat pointer). Null-guarded for the same
+        // reason as the release.
+        void EmitArrayRetain(llvm::Value *DataPtr);
+
+        // A stack slot allocated ONCE per call, in the function's entry block. An
+        // `alloca` emitted at the current insert point becomes a DYNAMIC allocation
+        // when that point is inside a loop: the frame grows every iteration and the
+        // stack eventually overflows. Any scratch slot emitted from a statement or
+        // expression must come from here.
+        llvm::AllocaInst *CreateEntryAlloca(llvm::Type *Ty, const llvm::Twine &Name = "");
+
+        // The LLVM type ONE array element occupies in the buffer. It is the element's
+        // own codegen type for everything that has value semantics, but a POINTER for a
+        // class or interface: an array of objects holds references, so freeing the
+        // buffer drops the pointers and never the objects (docs — an object is freed by
+        // whoever is responsible for it). Every place that walks a buffer — the sized
+        // allocation, the literal writer, the subscript, the for-in — must size and
+        // stride with THIS, or they disagree about the layout.
+        // Structs stay inline: they are values everywhere else in the language.
+        llvm::Type *GetArrayElementStorageType(SemaType *ElemType);
+
+        // Fill a freshly allocated buffer of class references with one `new C()` per
+        // index — malloc + zero + init_ctor + the no-argument constructor, the same
+        // sequence `new` emits. The instances belong to the PROGRAM, not to the array:
+        // releasing the array never touches them.
+        void EmitArrayElementsNew(llvm::Value *DataPtr, llvm::Value *Size,
+                                  SemaClassType *ElemClass);
+
         // Emit inline retain/release for shared pointer reference counting
         void EmitSharedRetain(llvm::Value *DataPtr);
         void EmitSharedRelease(llvm::Value *DataPtr);
@@ -239,6 +285,15 @@ namespace fly {
         // statements emitted directly inside main, whose LLVM type is the i32 C
         // entry point — a callee-style `ret void` there breaks the function.
         void EmitMainErrorExit(CodeGenError *CGE, llvm::Function *Fn);
+
+        // Raise a runtime error with a fixed code from an EXPRESSION context, using
+        // the same protocol as a `fail` statement: store the code, run the alloc
+        // cleanup, then leave the function the way the enclosing context requires —
+        // main's i32 exit, a plain `ret void`, or a branch to the handle's safe
+        // block. Kept here, in one place, precisely because that last branch is the
+        // interaction B032 got wrong; a second copy inside CodeGenExpr would be a
+        // second chance to get the CFG wrong. Used by the array bounds check.
+        void EmitFailWithCode(uint32_t Code);
 
         llvm::Module *getModule() const;
 
@@ -297,6 +352,7 @@ namespace fly {
         // Expressions
     	void visit(SemaMember &Sema) override;
         void visit(SemaCall &Sema) override;
+        void visit(SemaArrayAccess &Sema) override;
         void visit(SemaUnary &Sema) override;
         void visit(SemaBinary &Sema) override;
         void visit(SemaTernary &Sema) override;

@@ -17,6 +17,7 @@ namespace fly {
     enum class SemaAllocKind {
         SMART,   // smart-pointer allocation (unique / shared / weak)
         STRING,  // heap-owned string buffer
+        ARRAY,   // reference-counted array buffer ([i64 rc | elements])
     };
 
     /**

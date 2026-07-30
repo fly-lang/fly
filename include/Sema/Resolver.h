@@ -213,6 +213,7 @@ namespace fly {
         void visit(ASTIdentifier &AST) override;
         void visit(ASTMember& AST) override;
         void visit(ASTCall &AST) override;
+        void visit(ASTArrayAccess &AST) override;
         void visit(ASTUnary &AST) override;
 		void visit(ASTBinary &AST) override;
         void visit(ASTTernary &AST) override;

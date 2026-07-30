@@ -35,6 +35,7 @@
 #include "Sema/SemaEnumType.h"
 #include "CodeGen/CodeGenEnum.h"
 #include "Sema/SemaTernary.h"
+#include "Sema/SemaArrayAccess.h"
 #include "Sema/SemaUnary.h"
 
 #include "llvm/ADT/SmallVector.h"
@@ -76,6 +77,33 @@ static llvm::AllocaInst *CreateEntryAlloca(llvm::IRBuilder<> *Builder, llvm::Typ
 	llvm::BasicBlock &Entry = Fn->getEntryBlock();
 	llvm::IRBuilder<> TmpB(&Entry, Entry.getFirstInsertionPt());
 	return TmpB.CreateAlloca(Ty);
+}
+
+// The ADDRESS of the %array fat pointer behind an array-typed expression: a
+// variable's own alloca, or — for a call — the hidden `out` variable the callee
+// wrote its result into. Returns null when the expression has no slot at all (an
+// array literal, whose buffer is installed by StoreArrayValue instead), so the
+// caller can decline rather than guess. Same convention the for-in lowering and
+// GenArrayElementPtr use: an array variable's alloca IS the fat pointer.
+static llvm::Value *ArraySlotOf(SemaExpr *E) {
+	if (E == nullptr) return nullptr;
+	SemaKind K = E->getKind();
+	if (K == SemaKind::LOCAL_VAR || K == SemaKind::PARAM_VAR ||
+	    K == SemaKind::ATTRIBUTE || K == SemaKind::INSTANCE_VAR) {
+		SemaVar *V = static_cast<SemaVar *>(E);
+		return V->getCodeGen() ? V->getCodeGen()->getPointer() : nullptr;
+	}
+	if (K == SemaKind::CALL) {
+		SemaLocalVar *Out = static_cast<SemaCall *>(E)->getOutVar();
+		return (Out && Out->getCodeGen()) ? Out->getCodeGen()->getPointer() : nullptr;
+	}
+	// An ELEMENT of an array of arrays is a %array living inline in the buffer, so
+	// its address is already the slot this returns — GenExpr yields exactly that for
+	// an aggregate element. Without this, `int[] row = rows[1]` found no slot and
+	// silently left the destination untouched.
+	if (K == SemaKind::ARRAY_ACCESS && E->getCodeGen())
+		return E->getCodeGen()->getValue();
+	return nullptr;
 }
 
 CodeGenExpr::CodeGenExpr(CodeGenModule *CGM) : CodeGenBase(), CGM(CGM), Builder(CGM->getBuilder()) {
@@ -808,6 +836,96 @@ void CodeGenExpr::GenExpr(SemaCast *Sema) {
 	}
 }
 
+llvm::Value *CodeGenExpr::GenArrayElementPtr(SemaArrayAccess *Sema, llvm::Type *&ElemTy) {
+	FLY_DEBUG_SCOPE("CodeGenExpr", "GenArrayElementPtr");
+
+	// Reaching the array follows the SAME convention as the for-in lowering: a
+	// variable's alloca IS the pointer to the %array struct, so take the pointer
+	// and read the fields with StructGEP — do NOT load the struct and extractvalue,
+	// because a variable's getValue() is not the aggregate. Anything that is not a
+	// variable is evaluated and its value used as that pointer.
+	SemaExpr *BaseExpr = Sema->getBase();
+	llvm::Value *ArrayStructPtr = nullptr;
+	SemaKind BaseKind = BaseExpr->getKind();
+	if (BaseKind == SemaKind::LOCAL_VAR || BaseKind == SemaKind::PARAM_VAR ||
+		BaseKind == SemaKind::ATTRIBUTE || BaseKind == SemaKind::INSTANCE_VAR) {
+		BaseExpr->accept(*CGM);
+		SemaVar *BaseVar = static_cast<SemaVar *>(BaseExpr);
+		if (BaseVar->getCodeGen())
+			ArrayStructPtr = BaseVar->getCodeGen()->getPointer();
+	}
+	if (!ArrayStructPtr) {
+		BaseExpr->accept(*CGM);
+		ArrayStructPtr = BaseExpr->getCodeGen()->getValue();
+	}
+
+	Sema->getIndex()->accept(*CGM);
+	llvm::Value *IdxVal = Sema->getIndex()->getCodeGen()->getValue();
+
+	llvm::Value *DataField = Builder->CreateStructGEP(CodeGen::ArrayTy, ArrayStructPtr, 0);
+	llvm::Value *DataPtr = Builder->CreateLoad(CodeGen::Int8PtrTy, DataField, "arr.data");
+	llvm::Value *SizeField = Builder->CreateStructGEP(CodeGen::ArrayTy, ArrayStructPtr, 1);
+	llvm::Value *SizeVal = Builder->CreateLoad(CodeGen::IntTy, SizeField, "arr.size");
+
+	// Compare in the SIZE field's width: the index is written as an `int` but may
+	// be any integer expression. Signed, so a negative index stays negative and the
+	// lower-bound test below can catch it.
+	llvm::Value *Idx = Builder->CreateSExtOrTrunc(IdxVal, SizeVal->getType(), "arr.idx");
+
+	// Bounds check (B048 rule 6): 0 <= idx < size, else fail. Both halves matter —
+	// testing only the upper bound would let a negative index read before the buffer.
+	llvm::Function *Fn = Builder->GetInsertBlock()->getParent();
+	llvm::Value *Zero = llvm::ConstantInt::get(SizeVal->getType(), 0);
+	llvm::Value *TooLow = Builder->CreateICmpSLT(Idx, Zero, "arr.low");
+	llvm::Value *TooHigh = Builder->CreateICmpSGE(Idx, SizeVal, "arr.high");
+	llvm::Value *OutOfRange = Builder->CreateOr(TooLow, TooHigh, "arr.oob");
+
+	llvm::BasicBlock *FailBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "arr.oob.fail", Fn);
+	llvm::BasicBlock *OkBB = llvm::BasicBlock::Create(CGM->LLVMCtx, "arr.oob.ok", Fn);
+	Builder->CreateCondBr(OutOfRange, FailBB, OkBB);
+
+	Builder->SetInsertPoint(FailBB);
+	CGM->EmitFailWithCode(CodeGen::ArrayIndexOutOfBoundsCode);
+
+	Builder->SetInsertPoint(OkBB);
+	// The element's STORAGE type: a class element is a pointer in the buffer, so both
+	// the stride and the load below work on pointers, and `C c = cells[0]` binds a
+	// reference to the instance rather than copying a struct into a pointer slot.
+	ElemTy = CGM->GetArrayElementStorageType(Sema->getType());
+	return Builder->CreateGEP(ElemTy, DataPtr, Idx, "arr.elem");
+}
+
+void CodeGenExpr::GenExpr(SemaArrayAccess *Sema) {
+	FLY_DEBUG_SCOPE("CodeGenExpr", "GenArrayAccess");
+
+	llvm::Type *ElemTy = nullptr;
+	llvm::Value *ElemPtr = GenArrayElementPtr(Sema, ElemTy);
+
+	// An AGGREGATE element — a struct or a nested array — is stored INLINE in the
+	// buffer, and in this compiler such a value is always represented by the ADDRESS
+	// of its storage. Loading it by value produced an aggregate where every consumer
+	// expected a pointer, and the backend aborted:
+	//   struct:        the copy path built `llvm.memcpy.p0.s_Pts.i64`
+	//   nested array:  `rows[1][0]` built `getelementptr %array, %array …`
+	// Yielding the address costs nothing and makes both work — `Pt a = ps[0]` copies
+	// the bytes exactly like `Pt b = a`, and a chained subscript re-enters this
+	// function with the slot pointer it needs.
+	// A CLASS element is different: the buffer holds a POINTER, so the load IS the
+	// instance pointer and nothing else is needed.
+	SemaType *ElemSemaTy = Sema->getType();
+	bool ElemIsInlineAggregate =
+		ElemSemaTy != nullptr &&
+		(ElemSemaTy->isArray() ||
+		 (ElemSemaTy->isClass() &&
+		  static_cast<SemaClassType *>(ElemSemaTy)->getClassKind() == SemaClassKind::STRUCT));
+	if (ElemIsInlineAggregate) {
+		V = ElemPtr;
+		return;
+	}
+
+	V = Builder->CreateLoad(ElemTy, ElemPtr, "arr.load");
+}
+
 void CodeGenExpr::GenExpr(SemaUnary *Sema) {
     FLY_DEBUG_SCOPE("CodeGenExpr", "GenUnary");
 	ASTUnary &Unary = Sema->getAST();
@@ -847,8 +965,14 @@ void CodeGenExpr::GenExpr(SemaUnary *Sema) {
         } break;
         case ASTUnaryKind::OP_UNARY_NOT_LOG: {
 	        OldVal = Builder->CreateTrunc(OldVal, CodeGen::BoolTy);
-        	OldVal = Builder->CreateXor(OldVal, true);
-        	V = Builder->CreateZExt(OldVal, CodeGen::Int8Ty);
+        	// The result stays i1, the type of every other boolean VALUE in the
+        	// backend (a comparison, a bool load). It used to be widened to i8 —
+        	// the bool STORAGE type — which made `!b` the only bool expression that
+        	// was not i1, so `if !b { }` emitted `br i8` and the verifier aborted the
+        	// whole compilation with "Branch condition is not 'i1' type".
+        	// Widening belongs to the store, and CodeGenVar::Store already does it:
+        	// `bool c = !b` zero-extends into the i8 slot on its way in.
+        	V = Builder->CreateXor(OldVal, true);
         } break;
         // B007: unary minus — a VALUE op (works on literals and expressions);
         // fneg for floats, integer negation otherwise. Never sets NewVal.
@@ -1011,7 +1135,13 @@ llvm::Value *CodeGenExpr::GenStringOwned(SemaExpr *E, llvm::Value *V) {
 		return GenStringHeapCopy(static_cast<SemaStringValue *>(E));
 	bool IsLValue = K == SemaKind::LOCAL_VAR || K == SemaKind::PARAM_VAR ||
 	                K == SemaKind::ERROR_VAR  || K == SemaKind::ATTRIBUTE ||
-	                K == SemaKind::INSTANCE_VAR || K == SemaKind::MEMBER;
+	                K == SemaKind::INSTANCE_VAR || K == SemaKind::MEMBER ||
+	                // An ARRAY ELEMENT is a borrow like any other lvalue: the array
+	                // keeps pointing at that buffer and frees nothing per element, so
+	                // taking it without cloning would give the destination a buffer it
+	                // does not own — and it frees it at scope exit, leaving the array
+	                // dangling. `string s = xs[1]` crashed for exactly that reason.
+	                K == SemaKind::ARRAY_ACCESS;
 	// A CALL result or a concat is already a fresh, uniquely-owned buffer.
 	return IsLValue ? GenStringClone(V) : V;
 }
@@ -1481,6 +1611,28 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool Free
 	// Validate E1 and E2 are not null
 	assert(E1 && "E1 is null");
 	assert(E2 && "E2 is null");
+	// `k[i] = v` — handled FIRST, before anything below assumes the destination is
+	// a variable with a CodeGenVar behind it (a subscript has no alloca of its own,
+	// which is what made this path crash). The address comes from the shared
+	// bounds-checked helper, so a write is range-checked exactly like a read.
+	if (E1->getKind() == SemaKind::ARRAY_ACCESS) {
+		SemaArrayAccess *Access = static_cast<SemaArrayAccess *>(E1);
+		llvm::Type *ElemTy = nullptr;
+		llvm::Value *ElemPtr = GenArrayElementPtr(Access, ElemTy);
+
+		llvm::Value *RHS = RhsOverride;
+		if (RHS == nullptr) {
+			E2->accept(*CGM);
+			RHS = E2->getCodeGen()->getValue();
+			// Bring the value to the element's type (an `int` literal into a byte[]
+			// slot, say) exactly as a store to a variable of that type would.
+			if (E1->getType() && E1->getType()->isNumber())
+				RHS = ConvertNumber(RHS, static_cast<SemaNumberType *>(E1->getType()));
+		}
+		Builder->CreateStore(RHS, ElemPtr);
+		return RHS;
+	}
+
 	// Get CodeGen objects
 	CodeGenExpr *E1CodeGen = E1->getCodeGen();
 	CodeGenExpr *E2CodeGen = E2->getCodeGen();
@@ -1489,11 +1641,63 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool Free
 	assert(E1CodeGen && "E1 CodeGen is null");
 	assert(E2CodeGen && "E2 CodeGen is null");
 
-	// Check if E2 is an array value - if so, use specialized store
-	if (E1->getType()->isArray() && E2->getType()->isArray()) {
-		CodeGenArrayValue *E2CGArray = static_cast<CodeGenArrayValue *>(E2CodeGen);
-		// Use StoreArrayValue to store both the pointer and the elements
-		return static_cast<SemaVar *>(E1)->getCodeGen()->StoreArrayValue(E2CGArray);
+	// Array destination. The old code assumed the RHS was ALWAYS an array literal and
+	// static_cast'd its codegen to CodeGenArrayValue — but CodeGenVar and
+	// CodeGenArrayValue are SIBLINGS, unrelated by inheritance, so `int[] j = k` and
+	// `int[] r = f()` cross-cast into unrelated memory and CRASHED the compiler.
+	// Dispatch on what the RHS actually is.
+	//
+	// This copies the fat pointer only — never the buffer. A second owner is made
+	// safe by RETAINING, which is what gives arrays reference semantics without any
+	// copy: after `int[] j = k` both names see one buffer, and it goes back when the
+	// last of them releases it.
+	if (E1->getType()->isArray() && E2->getType() && E2->getType()->isArray()) {
+		llvm::Value *DstSlot = ArraySlotOf(E1);
+
+		// A literal RHS still goes through the installer that writes {buffer, count}.
+		// No retain: a fresh literal already arrives with a count of 1.
+		if (E2->getKind() == SemaKind::VALUE && DstSlot != nullptr) {
+			if (FreeOldLHS)
+				CGM->EmitArrayRelease(DstSlot, E1->getType());
+			CodeGenArrayValue *E2CGArray = static_cast<CodeGenArrayValue *>(E2CodeGen);
+			return static_cast<SemaVar *>(E1)->getCodeGen()->StoreArrayValue(E2CGArray);
+		}
+
+		// Otherwise copy both fields across, source slot → destination slot.
+		llvm::Value *SrcSlot = ArraySlotOf(E2);
+		if (DstSlot != nullptr && SrcSlot != nullptr) {
+			llvm::Value *SrcData = Builder->CreateLoad(
+				CodeGen::Int8PtrTy,
+				Builder->CreateStructGEP(CodeGen::ArrayTy, SrcSlot, 0), "arr.src.data");
+			llvm::Value *SrcSize = Builder->CreateLoad(
+				CodeGen::IntTy,
+				Builder->CreateStructGEP(CodeGen::ArrayTy, SrcSlot, 1), "arr.src.size");
+
+			// RETAIN the incoming buffer BEFORE releasing what the destination held.
+			// The order matters for self-assignment (`j = j`, or `j = f(j)`): released
+			// first, the shared count could touch zero and free a buffer that is about
+			// to be stored straight back.
+			// Only an array LVALUE is retained. A call result is not: the callee already
+			// retained on our behalf when it ran `out = <array>`, and retaining again
+			// would strand the buffer at a count that never reaches zero.
+			bool RhsIsLValue = E2->getKind() == SemaKind::LOCAL_VAR ||
+			                   E2->getKind() == SemaKind::PARAM_VAR ||
+			                   E2->getKind() == SemaKind::ATTRIBUTE ||
+			                   E2->getKind() == SemaKind::INSTANCE_VAR;
+			if (RhsIsLValue)
+				CGM->EmitArrayRetain(SrcData);
+			if (FreeOldLHS)
+				CGM->EmitArrayRelease(DstSlot, E1->getType());
+
+			Builder->CreateStore(SrcData, Builder->CreateStructGEP(CodeGen::ArrayTy, DstSlot, 0));
+			Builder->CreateStore(SrcSize, Builder->CreateStructGEP(CodeGen::ArrayTy, DstSlot, 1));
+			return SrcData;
+		}
+
+		// Neither side gave us a slot (a member destination, say). Leave the
+		// destination untouched rather than write through a bad cast: an unsupported
+		// form must not become memory corruption.
+		return nullptr;
 	}
 
 	// Non-const string store: the destination must own an independent heap buffer

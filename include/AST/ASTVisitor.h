@@ -52,6 +52,7 @@ namespace fly {
 	class ASTLoopStmt;
 	class ASTLoopInStmt;
 	class ASTBlockStmt;
+	class ASTArrayAccess;
 	class ASTUnary;
 	class ASTBinary;
 	class ASTTernary;
@@ -104,6 +105,7 @@ namespace fly {
 		virtual void visit(ASTIdentifier &AST) = 0;
 		virtual void visit(ASTMember &AST) = 0;
 		virtual void visit(ASTCall &AST) = 0;
+		virtual void visit(ASTArrayAccess &AST) = 0;
 		virtual void visit(ASTUnary &AST) = 0;
 		virtual void visit(ASTBinary &AST) = 0;
 		virtual void visit(ASTTernary &AST) = 0;

@@ -15,6 +15,7 @@
 #include "AST/ASTType.h"
 #include "AST/ASTIdentifier.h"
 #include "AST/ASTTernary.h"
+#include "AST/ASTArrayAccess.h"
 #include "AST/ASTUnary.h"
 #include "Basic/Debug.h"
 
@@ -330,6 +331,26 @@ ASTExpr *ParserExpr::ParsePrimary() {
 		ASTExpr *Primary = ParseIdentifierOrCall();
 		if (Primary == nullptr)
 			return nullptr;
+
+		// Array subscript, `k[i]` — and it chains, so `m[i][j]` reads left to
+		// right. Bound tighter than any postfix operator so `k[i]++` increments
+		// the ELEMENT, not the array. `out[0]` never reaches here: the parser
+		// rewrites the multi-return form to `__out_0` before expressions are
+		// parsed (Parser.cpp), so this cannot swallow it.
+		while (P->Tok.is(tok::l_square)) {
+			const SourceLocation &BrLoc = P->Tok.getLocation();
+			P->ConsumeBracket();
+			ParserExpr PEI(P);
+			ASTExpr *Index = PEI.Parse();
+			if (Index == nullptr)
+				return nullptr;
+			if (!P->Tok.is(tok::r_square)) {
+				P->Diag(P->Tok.getLocation(), diag::err_parser_expr_close_square);
+				return nullptr;
+			}
+			P->ConsumeBracket();
+			Primary = ASTBuilder::CreateArrayAccess(BrLoc, Primary, Index);
+		}
 
 		// parse function call, variable post increment/decrement or simple var
 		if (isUnaryPostOperator()) { // Ex. a++ or a--

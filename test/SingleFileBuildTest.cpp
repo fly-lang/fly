@@ -634,4 +634,324 @@ namespace {
         EXPECT_FALSE(CI.getDiagnostics().hasFatalErrorOccurred());
     }
 
+    // ── array subscript (B048 rules 4 + 6) ────────────────────────────────────
+
+    // Reading an element type-checks as the ELEMENT type, so it flows into an int
+    // Assigning one array to another, and receiving an array back from a call.
+    // Both used to CRASH the compiler: the assignment path static_cast the RHS
+    // codegen to CodeGenArrayValue, but a variable's is a CodeGenVar and a call's a
+    // plain CodeGenExpr — sibling classes, so the cast walked unrelated memory.
+    TEST_F(SingleFileBuildTest, ArrayToArrayAssignmentResolves) {
+        const std::string dir = "sfb_arrassign_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "int[] build() {\n"
+                  "    int[] a = {4, 5, 6}\n"
+                  "    out = a\n"
+                  "}\n"
+                  "\n"
+                  "void main() {\n"
+                  "    int[] k = {1, 2, 3}\n"
+                  "    int[] j = k\n"        // lvalue RHS
+                  "    int[] r = build()\n"  // call RHS
+                  "    j[0] = 9\n"
+                  "    int x = r[2]\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_arrassign_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
+    // An array-typed parameter must survive a round trip through a generated
+    // .fly.h. `typeStr` had no TYPE_ARRAY case, so every array type rendered as
+    // the EMPTY STRING and the header came back unparseable. Covers the unsized,
+    // the sized and the nested spelling in one go, then consumes the header.
+    TEST_F(SingleFileBuildTest, ArrayTypesSurviveHeaderRoundTrip) {
+        const std::string dir = "sfb_arrhdr_src";
+        makeDir(dir);
+        writeFile(dir + "/lib.fly",
+                  "namespace demo\n"
+                  "\n"
+                  "public void takes(const int[] a) {\n"
+                  "}\n"
+                  "\n"
+                  "public void takesSized(const int[3] b) {\n"
+                  "}\n"
+                  "\n"
+                  "public void takesNested(const int[][] m) {\n"
+                  "}\n");
+        track(dir + "/lib.fly.h");
+
+        {
+            const char *argv[] = {"fly", "--header", "--no-output",
+                                  "--src-dir", "sfb_arrhdr_src", "--out-dir", "sfb_arrhdr_src"};
+            Driver drv(argv);
+            drv.BuildCompilerInstance();
+            ASSERT_TRUE(drv.Execute());
+        }
+        ASSERT_TRUE(exists(dir + "/lib.fly.h"));
+
+        {
+            std::ifstream h(dir + "/lib.fly.h");
+            std::string text((std::istreambuf_iterator<char>(h)),
+                              std::istreambuf_iterator<char>());
+            EXPECT_NE(text.find("const int[] a"), std::string::npos) << text;
+            EXPECT_NE(text.find("const int[3] b"), std::string::npos) << text;
+            EXPECT_NE(text.find("const int[][] m"), std::string::npos) << text;
+        }
+
+        // …and the header must be consumable: a caller importing it and passing an
+        // array has to compile.
+        const std::string userDir = "sfb_arrhdr_use";
+        makeDir(userDir);
+        llvm::sys::fs::copy_file(dir + "/lib.fly.h", userDir + "/lib.fly.h");
+        writeFile(userDir + "/main.fly",
+                  "import demo\n"
+                  "\n"
+                  "void main() {\n"
+                  "    int[] a = {1, 2, 3}\n"
+                  "    demo.takes(a)\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_arrhdr_use",
+                              "-L", "sfb_arrhdr_use"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
+    // A sized array of objects is preallocated one instance per index, so the class
+    // must have a no-argument constructor. With one, the declaration resolves and the
+    // elements are usable references.
+    TEST_F(SingleFileBuildTest, ClassArrayWithDefaultCtorResolves) {
+        const std::string dir = "sfb_arrcls_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "public class Cell {\n"
+                  "    int v\n"
+                  "    public Cell() { this.v = 0 }\n"
+                  "    public int get() { out = this.v }\n"
+                  "}\n"
+                  "\n"
+                  "void main() {\n"
+                  "    Cell[3] cells\n"
+                  "    Cell c = cells[0]\n"
+                  "    int x = c.get()\n"
+                  "    for e in cells {\n"
+                  "        x = x + e.get()\n"
+                  "    }\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_arrcls_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
+    // A class whose only written constructor takes arguments is STILL fine: Fly
+    // synthesizes an implicit no-argument constructor whenever none is declared, so
+    // `new Needs()` — and therefore `Needs[3]` — is always available. This pins that,
+    // because the preallocation would otherwise look like it needs a written `C()`.
+    TEST_F(SingleFileBuildTest, ClassArrayUsesTheImplicitDefaultCtor) {
+        const std::string dir = "sfb_arrcls_implicit_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "public class Needs {\n"
+                  "    int v\n"
+                  "    public Needs(const int n) { this.v = n }\n"
+                  "    public int get() { out = this.v }\n"
+                  "}\n"
+                  "\n"
+                  "void main() {\n"
+                  "    Needs[3] xs\n"
+                  "    Needs n = xs[0]\n"
+                  "    int x = n.get()\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_arrcls_implicit_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
+    // What genuinely cannot be preallocated is an INTERFACE: no constructor is ever
+    // synthesized for one, so there is nothing to put in the indices. It must be a
+    // DIAGNOSTIC at the declaration, not a CodeGen crash reaching for a constructor
+    // that does not exist. The literal form stays legal — it supplies the elements.
+    TEST_F(SingleFileBuildTest, SizedInterfaceArrayIsRejected) {
+        const std::string dir = "sfb_arriface_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "public interface Shape {\n"
+                  "    void area()\n"
+                  "}\n"
+                  "\n"
+                  "void main() {\n"
+                  "    Shape[3] xs\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_arriface_src"};
+        Driver drv(argv);
+        CompilerInstance &CI = drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
+
+        EXPECT_EQ(CI.getDiagnostics().getNumErrors(), 1u)
+            << "expected only 'a sized array of Shape cannot be created'";
+        EXPECT_FALSE(CI.getDiagnostics().hasFatalErrorOccurred());
+    }
+
+    // B049: `if !flag` aborted the BACKEND. Logical NOT widened its result to the
+    // bool STORAGE type (i8), making it the only boolean expression in the backend
+    // that was not i1, so the branch came out as `br i8` and the verifier killed the
+    // whole compilation. Every other position for `!` is exercised here too — a
+    // while condition, a stored bool, a compound expression — because they all go
+    // through the same value.
+    TEST_F(SingleFileBuildTest, LogicalNotOnBoolResolves) {
+        const std::string dir = "sfb_notbool_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "void main() {\n"
+                  "    bool b = false\n"
+                  "    int n = 0\n"
+                  "    if !b {\n"
+                  "        n = 1\n"
+                  "    }\n"
+                  "    bool c = !b\n"
+                  "    while !c {\n"
+                  "        c = true\n"
+                  "    }\n"
+                  "    if !b == true {\n"
+                  "        n = n + 1\n"
+                  "    }\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_notbool_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
+    // Reading a STRUCT element. A struct sits inline in the buffer, and every struct
+    // expression in the backend is represented by the ADDRESS of its storage — the
+    // subscript used to load it by VALUE, so the struct-copy path built an invalid
+    // memcpy intrinsic and the backend aborted with "Broken function" (not a
+    // diagnostic, a compiler abort).
+    TEST_F(SingleFileBuildTest, ArrayElementOfStructResolves) {
+        const std::string dir = "sfb_arrstruct_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "struct Pt { int x  int y }\n"
+                  "\n"
+                  "void main() {\n"
+                  "    Pt[3] ps\n"
+                  "    Pt a = ps[0]\n"
+                  "    a.x = 4\n"
+                  "    int v = a.x\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_arrstruct_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
+    // Reading a STRING element. The element is a BORROW — the array frees nothing per
+    // element — so binding it into an owned string slot has to CLONE, exactly like
+    // binding any other string lvalue. Taking it as-is made the local free a buffer
+    // the array still pointed at.
+    TEST_F(SingleFileBuildTest, ArrayElementOfStringResolves) {
+        const std::string dir = "sfb_arrstring_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "void main() {\n"
+                  "    string[] xs = {\"ab\", \"cd\"}\n"
+                  "    string s = xs[1]\n"
+                  "    xs[0] = s\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_arrstring_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
+    // like any other int expression. Chained and nested forms parse too.
+    TEST_F(SingleFileBuildTest, ArraySubscriptReadResolves) {
+        const std::string dir = "sfb_sub_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "void main() {\n"
+                  "    int[] k = {5, 6, 7}\n"
+                  "    int x = k[1]\n"
+                  "    int y = k[x - 5]\n"
+                  "    x = x + y\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_sub_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
+    // Only arrays can be subscripted — and the message must be a diagnostic, not a
+    // crash, since the base's type is what CodeGen would otherwise GEP blindly.
+    TEST_F(SingleFileBuildTest, ArraySubscriptOnNonArrayIsRejected) {
+        const std::string dir = "sfb_subbad_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "void main() {\n"
+                  "    int a = 3\n"
+                  "    int x = a[0]\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_subbad_src"};
+        Driver drv(argv);
+        CompilerInstance &CI = drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
+        EXPECT_FALSE(CI.getDiagnostics().hasFatalErrorOccurred());
+    }
+
+    // Writing through a subscript: the destination has no alloca of its own, so
+    // the assignment path has to take the element's ADDRESS from the same
+    // bounds-checked helper the read uses instead of assuming a variable.
+    // `k[i] = k[i] * 10` also puts a subscript on BOTH sides with a variable index.
+    TEST_F(SingleFileBuildTest, ArraySubscriptWriteResolves) {
+        const std::string dir = "sfb_subw_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "void main() {\n"
+                  "    int[] k = {1, 2, 3}\n"
+                  "    k[0] = 9\n"
+                  "    int i = 0\n"
+                  "    while i < 3 {\n"
+                  "        k[i] = k[i] * 10\n"
+                  "        i = i + 1\n"
+                  "    }\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_subw_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
+    // A non-integer index is rejected for the same reason.
+    TEST_F(SingleFileBuildTest, ArraySubscriptNonIntegerIndexIsRejected) {
+        const std::string dir = "sfb_subidx_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "void main() {\n"
+                  "    int[] k = {1, 2}\n"
+                  "    int x = k[\"nope\"]\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_subidx_src"};
+        Driver drv(argv);
+        CompilerInstance &CI = drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
+        EXPECT_FALSE(CI.getDiagnostics().hasFatalErrorOccurred());
+    }
+
 } // anonymous namespace
