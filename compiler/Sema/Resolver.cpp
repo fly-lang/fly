@@ -1733,6 +1733,7 @@ void Resolver::visit(ASTMember &AST) {
 
 	// Visit parent first and resolve Parent Symbol
 	AST.getParent()->accept(*this);
+	SemaExpr *ParentExpr = CurrentExpr; // the resolved parent expression (e.g. a SemaCall)
 
 	// Read the resolved Symbol from the parent
 	Symbol *ParentSymbol = nullptr;
@@ -1834,7 +1835,20 @@ void Resolver::visit(ASTMember &AST) {
 				Diag(AST.getLocation(), diag::err_sema_unresolved_identifier) << AST.getName();
 				return;
 			}
-			Sema = ResolveMemberSymbol(AST, Attr->getClass().getSymbols(), SemaKind::ATTRIBUTE, ParentVar);
+			// NESTED member (`m.tst.parallel`): root this member at the parent's
+			// resolved MEMBER EXPRESSION, never at the bare attribute Sema node.
+			// SemaClassAttribute is ONE shared node per class: rooting there let
+			// its cached CodeGen (a GEP made for some other instance, possibly in
+			// another function) stand in for `m.tst` — the Module Verifier's
+			// "referring to an instruction in another function", or a silent
+			// read/write through the wrong instance.
+			SemaExpr *ParentRoot = ParentVar;
+			if (AST.getParent()->getExprKind() == ASTExprKind::EXPR_MEMBER &&
+			    ParentExpr && ParentExpr->getKind() == SemaKind::MEMBER &&
+			    &static_cast<SemaMember *>(ParentExpr)->getAST() == AST.getParent()) {
+				ParentRoot = ParentExpr;
+			}
+			Sema = ResolveMemberSymbol(AST, Attr->getClass().getSymbols(), SemaKind::ATTRIBUTE, ParentRoot);
 			if (!Sema) return;
 		} else if (ParentVar->getType()->isEnum()) {
 			SemaEnumType * EnumType = static_cast<SemaEnumType *>(ParentVar->getType());
@@ -1851,8 +1865,33 @@ void Resolver::visit(ASTMember &AST) {
 			Diag(diag::err_invalid_behavior);
 			return;
 		}
-	//}  else if (CurrentSymbol->getKind() == SymbolKind::FUNCTION) { // return is always void
-	//	ParentType = static_cast<SemaFunctionBase *>(CurrentSymbol->getRef())->getReturnType();
+	} else if (ParentSymbol->getKind() == SymbolKind::FUNCTION &&
+	           ParentExpr && ParentExpr->getKind() == SemaKind::CALL &&
+	           &static_cast<SemaCall *>(ParentExpr)->getAST() == AST.getParent()) {
+		// Chained-call member access: `w.get().y` — as an rvalue OR an lvalue
+		// (`w.get().y = 40`). Root the member at the resolved CALL expression
+		// itself: CodeGen emits the call (whose value is the returned object
+		// pointer, loaded from the synthetic out var) and GEPs the field out of
+		// it, so a store lands in the real object. This used to fall through
+		// every branch and left CurrentExpr null WITHOUT a diagnostic — the
+		// whole assignment statement was silently dropped from codegen.
+		SemaCall *ParentCall = static_cast<SemaCall *>(ParentExpr);
+		SemaType *RetType = ParentCall->getFunction() ? ParentCall->getFunction()->getReturnType() : nullptr;
+		if (RetType && RetType->isClass()) {
+			SemaClassType *ClassType = static_cast<SemaClassType *>(RetType);
+			SemaClassAttribute *Attr = ClassType->LookupAttribute(AST.getName());
+			if (!Attr) {
+				Diag(AST.getLocation(), diag::err_sema_unresolved_identifier) << AST.getName();
+				return;
+			}
+			Sema = ResolveMemberSymbol(AST, Attr->getClass().getSymbols(), SemaKind::ATTRIBUTE, ParentCall);
+			if (!Sema) return;
+		} else {
+			// Non-class results carry no addressable members (enum accessor
+			// chaining stays unsupported): report instead of dropping silently.
+			Diag(AST.getLocation(), diag::err_sema_unresolved_identifier) << AST.getName();
+			return;
+		}
 	} else if (ParentSymbol->getKind() == SymbolKind::VALUE) {
 		// Cannot exists Value after a Member access
 		Diag(diag::err_invalid_behavior);
@@ -1958,6 +1997,8 @@ void Resolver::visit(ASTCall &AST) {
 			for (SemaExpr *ArgExpr : ResolvedCallArgs)
 				SuperCall->addArg(ArgExpr);
 			ResolvedCallArgs.clear();
+			// Defaults fill the explicit tail BEFORE the out slot below.
+			AppendDefaultArgs(SuperCall);
 
 			// Synthetic out-var for a non-void return (same convention as normal calls).
 			if (BaseMethod->getReturnType() && !BaseMethod->getReturnType()->isVoid() && CurrentFunction) {
@@ -2048,6 +2089,8 @@ void Resolver::visit(ASTCall &AST) {
 			for (SemaExpr *ArgExpr : ResolvedCallArgs)
 				SuperCall->addArg(ArgExpr);
 			ResolvedCallArgs.clear();
+			// `super()` / `super(a)` may rely on the base ctor's defaulted tail.
+			AppendDefaultArgs(SuperCall);
 			CurrentScope = SavedScope;
 			return;
 		}
@@ -2362,6 +2405,10 @@ void Resolver::visit(ASTCall &AST) {
 		for (SemaExpr *ArgExpr : ResolvedCallArgs) {
 			Sema->addArg(ArgExpr);
 		}
+
+		// Complete the explicit argument list from the params' default values
+		// (must precede the hidden out-slot synthesis below).
+		AppendDefaultArgs(Sema);
 
 		// Passing a param to a non-const callee parameter counts as a modification:
 		// the callee may write through the reference (e.g. rngNext(rng) mutates rng).
@@ -3215,8 +3262,31 @@ void Resolver::ResolveClassType(SemaClassType *ClassType) {
 		Node->accept(*this);
 	}
 
-	// Create a Default Constructor if not exists (not for interfaces or abstract classes)
-	if (CurrentClass->getDefaultConstructor() == nullptr && CurrentClass->getClassKind() != SemaClassKind::INTERFACE) {
+	// Create a Default Constructor if not exists (not for interfaces or abstract classes).
+	// A user constructor whose params are ALL defaulted (`Foo(int a = 5, ...)`) already
+	// serves as the zero-argument constructor — `new Foo()` / `super()` fill the
+	// defaults (ArityPass::Defaulted). Synthesizing the implicit one next to it would
+	// shadow that ctor in the Explicit arity pass and zero-init the fields instead of
+	// running the user's body.
+	bool HasAllDefaultedCtor = false;
+	if (auto *CtorSyms = ClassType->getSymbols()->lookup(ClassType->getName())) {
+		for (Symbol *S : *CtorSyms) {
+			if (S->getKind() != SymbolKind::FUNCTION) continue;
+			SemaFunctionBase *F = static_cast<SemaFunctionBase *>(S->getRef());
+			if (F->getKind() != SemaKind::METHOD ||
+			    !static_cast<SemaClassMethod *>(F)->isConstructor()) continue;
+			auto &Ps = F->getParams();
+			bool AllDefaulted = !Ps.empty();
+			for (SemaParam *P : Ps) {
+				if (P->isSynthetic()) continue;
+				if (!P->getAST() || P->getAST()->getExpr() == nullptr) { AllDefaulted = false; break; }
+			}
+			if (AllDefaulted) { HasAllDefaultedCtor = true; break; }
+		}
+	}
+	if (CurrentClass->getDefaultConstructor() == nullptr &&
+	    CurrentClass->getClassKind() != SemaClassKind::INTERFACE &&
+	    !HasAllDefaultedCtor) {
 		CreateDefaultConstructor();
 	}
 
@@ -3410,19 +3480,27 @@ void Resolver::CheckAbstractMethodsImplemented(SemaClassType *ClassType) {
 		CollectAbstract(Base);
 	}
 
-	// Check each required method is implemented in ClassType's own nodes
-	for (auto &Entry : RequiredImpls) {
-		bool implemented = false;
-		for (auto *Node : ClassType->getNodes()) {
+	// Check each required method is implemented by ClassType or INHERITED as a
+	// concrete implementation from any base: a base class that implements an
+	// interface method satisfies it for every derived class (self-host parity).
+	std::function<bool(SemaClassType *, llvm::StringRef)> HasConcreteImpl =
+		[&](SemaClassType *Type, llvm::StringRef Name) -> bool {
+		for (auto *Node : Type->getNodes()) {
 			if (Node->getKind() == SemaKind::METHOD) {
 				auto *Method = static_cast<SemaClassMethod *>(Node);
-				if (!Method->isAbstract() && !Method->isConstructor() && Method->getName() == Entry.first()) {
-					implemented = true;
-					break;
-				}
+				if (!Method->isAbstract() && !Method->isConstructor() && Method->getName() == Name)
+					return true;
 			}
 		}
-		if (!implemented) {
+		for (auto *Base : Type->getBaseClasses()) {
+			if (HasConcreteImpl(Base, Name))
+				return true;
+		}
+		return false;
+	};
+
+	for (auto &Entry : RequiredImpls) {
+		if (!HasConcreteImpl(ClassType, Entry.first())) {
 			SemaClassType *DeclaredIn = Entry.second;
 			if (DeclaredIn->getClassKind() == SemaClassKind::INTERFACE) {
 				Diag(ClassType->getAST().getLocation(), diag::err_sema_interface_not_implemented)
@@ -3567,6 +3645,46 @@ SmallVector<SemaType *, 8> Resolver::ResolveCallArgs(ASTCall *AST) {
 	return std::move(Types);
 }
 
+// Fill the omitted trailing arguments of a resolved call from the callee params'
+// declared default values (`const int b = 100`). The Registry matched the call
+// through ArityPass::Defaulted, so every explicit param past the supplied args is
+// guaranteed to carry a default. MUST run right after the supplied args are added
+// and BEFORE the hidden out slots ('out' / __out_N) are appended: the defaults
+// complete the EXPLICIT argument list the return convention builds on top of.
+// Defaults are literal values (the parser only accepts values after '='), so
+// resolving them needs no scope and each call site gets its own SemaValue.
+void Resolver::AppendDefaultArgs(SemaCall *Call) {
+	SemaFunctionBase *Func = Call->getFunction();
+	if (!Func)
+		return;
+	auto &Params = Func->getParams();
+	size_t Explicit = Params.size();
+	while (Explicit > 0 && Params[Explicit - 1]->isSynthetic())
+		--Explicit;
+
+	size_t NArgs = Call->getArgs().size();
+	if (NArgs >= Explicit)
+		return;
+
+	SemaExpr *SavedExpr = CurrentExpr;
+	for (size_t i = NArgs; i < Explicit; ++i) {
+		ASTVar *ParamAST = Params[i]->getAST();
+		ASTExpr *DefExpr = ParamAST ? ParamAST->getExpr() : nullptr;
+		if (!DefExpr) {
+			// Only reachable when the lookup matched a function whose omitted tail
+			// has no default (it should not); surface it instead of miscompiling.
+			Diag(Call->getAST().getLocation(), diag::err_sema_wrong_args)
+				<< Call->getAST().getName();
+			break;
+		}
+		CurrentExpr = nullptr;
+		DefExpr->accept(*this);
+		if (CurrentExpr)
+			Call->addArg(CurrentExpr);
+	}
+	CurrentExpr = SavedExpr;
+}
+
 SmallVector<SemaType *, 8> Resolver::ResolveParams(ASTFunction &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "ResolveParams");
 	SmallVector<SemaType *, 8> Types;
@@ -3653,7 +3771,7 @@ void Resolver::PromoteTypes(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right) {
 	}
 }
 
-SemaExpr * Resolver::ResolveMemberSymbol(ASTMember &AST, SymbolTable *Symbols, SemaKind ExpectedKind, SemaVar *ParentVar) {
+SemaExpr * Resolver::ResolveMemberSymbol(ASTMember &AST, SymbolTable *Symbols, SemaKind ExpectedKind, SemaExpr *ParentVar) {
 	FLY_DEBUG_SCOPE("Resolver", "ResolveMemberSymbol");
 
 	// Save the current scope and switch to the member's scope

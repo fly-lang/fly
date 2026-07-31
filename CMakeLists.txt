@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24.0)
 
 # Set the project version
-set(FLY_VERSION "0.13.13")
+set(FLY_VERSION "0.13.14")
 project(Fly VERSION ${FLY_VERSION} LANGUAGES C CXX ASM)
 
 #Fly config options
@@ -119,8 +119,6 @@ add_subdirectory(runtime)
 # Add Fly Sources
 add_subdirectory(compiler)
 
-# Standard library — compiled by the fly binary, so must come after src/
-add_subdirectory(std)
 add_subdirectory(test)
 
 # NOTE: this tree builds the BOOTSTRAP SEED and nothing else. The toolchain's

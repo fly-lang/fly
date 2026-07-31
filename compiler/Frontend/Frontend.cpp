@@ -139,6 +139,30 @@ static std::string paramStr(const ASTParam *P) {
         if (Mod->getModifierKind() == ASTModifierKind::MOD_CONSTANT)
             out += "const ";
     out += typeStr(P->getType()) + " " + P->getName().str();
+    // Preserve a defaulted param's literal value: without it a header consumer
+    // must spell out every argument — the call-site default filling
+    // (ArityPass::Defaulted) only sees defaults the declaration carries.
+    // Only literal values exist here (the parser accepts nothing else after '=').
+    const ASTExpr *E = P->getExpr();
+    if (E && E->getExprKind() == ASTExprKind::EXPR_VALUE) {
+        const auto *V = static_cast<const ASTValue *>(E);
+        switch (V->getValueKind()) {
+            case ASTValueKind::VAL_BOOL:
+                out += static_cast<const ASTBoolValue *>(V)->getValue() ? " = true" : " = false";
+                break;
+            case ASTValueKind::VAL_NUMBER:
+                out += " = " + static_cast<const ASTNumberValue *>(V)->getValue().str();
+                break;
+            case ASTValueKind::VAL_STRING:
+                out += " = \"" + static_cast<const ASTStringValue *>(V)->getValue().str() + "\"";
+                break;
+            case ASTValueKind::VAL_NULL:
+                out += " = null";
+                break;
+            default:
+                break; // not representable in a header — omit the default
+        }
+    }
     return out;
 }
 
@@ -448,10 +472,15 @@ bool Frontend::Execute() {
 	ASTBuilder *Builder = new ASTBuilder(Diags);
 
     // Load stdlib headers (.fly.h), then external package dirs (.fly.h).
+    // A -L dir's bare .fly sources are NOT loaded as declaration-only headers:
+    // since the std left this repo (0.13.14 seed scenario) there is no archive to
+    // define their symbols at link time, so ResolveSourceDeps treats the -L dirs
+    // as source roots and pulls each imported namespace IN FULL instead. A .fly.h
+    // in the -L dir still wins (its namespace links from the archive beside it).
     if (!CI.getFrontendOptions().StdLibDir.empty())
         LoadLibHeaders(*Builder, CI.getFrontendOptions().StdLibDir, /*preferDotFlyH=*/true);
     for (const auto &Dir : CI.getFrontendOptions().LibDirs)
-        LoadLibHeaders(*Builder, Dir, /*preferDotFlyH=*/true);
+        LoadLibHeaders(*Builder, Dir, /*preferDotFlyH=*/true, /*SkipBareSources=*/true);
 
     const auto &AllInputs = CI.getFrontendOptions().getInputFiles();
 
@@ -758,6 +787,14 @@ void Frontend::ResolveSourceDeps(ASTBuilder &Builder) {
     llvm::SmallVector<std::string, 4> Dirs = FO.SrcDirs;
     if (Dirs.empty())
         Dirs.push_back(".");
+
+    // -L dirs are source roots too: their bare .fly files are no longer loaded as
+    // declaration-only headers (see LoadLibHeaders SkipBareSources), so an import
+    // served by neither a .fly.h nor the project sources is pulled FROM THE -L DIR
+    // in full and compiled in. Namespaces that DO have a .fly.h stay header-served
+    // (the archive beside the header defines them) — the HeaderNs guard below.
+    for (const auto &D : FO.LibDirs)
+        Dirs.push_back(D);
 
     // Namespaces already served by parsed HEADER modules (.fly.h from the stdlib
     // and -L dirs): their symbols link from compiled archives — never pull their
@@ -1122,7 +1159,7 @@ const SmallVector<std::string, 4> &Frontend::getOutputFiles() const {
 }
 
 void Frontend::LoadLibHeaders(ASTBuilder &Builder, const std::string &Dir,
-                              bool preferDotFlyH) {
+                              bool preferDotFlyH, bool SkipBareSources) {
     // Build a set of filenames currently being compiled (e.g. "math.fly").
     // A source file whose basename is already an input is skipped: the in-memory
     // AST built from the full parse is authoritative.
@@ -1185,6 +1222,14 @@ void Frontend::LoadLibHeaders(ASTBuilder &Builder, const std::string &Dir,
         // a .fly.h companion exists — the header was already loaded above and is
         // preferred (imports-free, no transitive dependency issues).
         if (preferDotFlyH && llvm::sys::fs::exists(Path + ".h"))
+            continue;
+
+        // -L dirs (SkipBareSources): a bare .fly is a SOURCE, not a header.
+        // Loading it declaration-only left every symbol undefined at link when no
+        // archive ships beside it (the seed compiling the 0.14 std suites).
+        // ResolveSourceDeps walks the -L dirs, so the namespace is pulled in full
+        // when — and only when — something imports it.
+        if (SkipBareSources)
             continue;
 
         InputFile *Input = new InputFile(Diags, CI.getSourceManager(), Path);

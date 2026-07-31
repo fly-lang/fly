@@ -16,6 +16,7 @@
 #include "SemaEnumEntry.h"
 
 #include <AST/ASTMember.h>
+#include <deque>
 #include <memory>
 #include "llvm/ADT/SmallPtrSet.h"
 
@@ -149,8 +150,12 @@ namespace fly {
     	SmallVector<ASTLocalVar *, 16> SyntheticOutVars;
 
     	// Stable string storage for synthetic parameter names (e.g. "__out_0", "__out_1").
-    	// StringRef values pointing into these strings remain valid for the Resolver's lifetime.
-    	SmallVector<std::string, 16> SyntheticParamNames;
+    	// StringRef values pointing into these strings remain valid for the Resolver's
+    	// lifetime. Must be a deque, NOT a SmallVector: growth past the inline capacity
+    	// moved every std::string (SSO buffers included) and dangled every StringRef
+    	// already handed out — one multi-return function too many in a module corrupted
+    	// the names of the first one (' _out_0' garbage lookups).
+    	std::deque<std::string> SyntheticParamNames;
 
         // True when compiling in test mode (--test flag)
         bool TestMode = false;
@@ -269,6 +274,8 @@ namespace fly {
 
     	SmallVector<SemaType *, 8> ResolveCallArgs(ASTCall *AST);
 
+    	void AppendDefaultArgs(SemaCall *Call);
+
     	SmallVector<SemaType *, 8> ResolveParams(ASTFunction &AST);
 
     	SemaSmartAlloc *RegisterSmartAlloc(SemaExpr *Expr);
@@ -277,7 +284,10 @@ namespace fly {
 
     	void PromoteTypes(ASTBinary &AST, SemaExpr *Left, SemaExpr *Right);
 
-    	SemaExpr * ResolveMemberSymbol(ASTMember &AST, SymbolTable *Symbols, SemaKind ExpectedKind, SemaVar *ParentVar = nullptr);
+    	// ParentVar roots the member access: a variable (SemaVar), `this`, or — for
+    	// chained-call member access (`w.get().y`) — the SemaCall whose result the
+    	// member reads/writes through.
+    	SemaExpr * ResolveMemberSymbol(ASTMember &AST, SymbolTable *Symbols, SemaKind ExpectedKind, SemaExpr *ParentVar = nullptr);
 
     };
 } // end namespace fly

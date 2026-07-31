@@ -5,16 +5,15 @@
 # Supports Linux and macOS.
 #
 # Usage:
-#   bash runtime/test/debug_dwarf_test.sh [fly-binary] [fly-std-lib] [llvm-dwarfdump]
+#   bash runtime/test/debug_dwarf_test.sh [fly-binary] [llvm-dwarfdump]
 #
-# CMake passes all three paths automatically via add_test().
+# CMake passes both paths automatically via add_test().
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FLY_BIN="${1:-$SCRIPT_DIR/../../cmake-build-relwithdebinfo/bin/fly}"
-FLY_STD="${2:-$SCRIPT_DIR/../../cmake-build-relwithdebinfo/lib/fly_std_lib.a}"
-DWARFDUMP="${3:-}"
+DWARFDUMP="${2:-}"
 
 # ── Prerequisites ──────────────────────────────────────────────────────────────
 if [[ ! -x "$FLY_BIN" ]]; then
@@ -52,7 +51,7 @@ FLY
 # ── Compile with debug symbols ─────────────────────────────────────────────────
 # --debug-symbols emits DWARF without the verbose DebugLog that --debug adds,
 # so compile diagnostics stay visible in the test log. fly compiles the WORK
-# directory (--src-dir); fly_std_lib/runtime are auto-linked from <bin>/../lib.
+# directory (--src-dir); the runtime is auto-linked from <bin>/../lib.
 "$FLY_BIN" --debug-symbols --src-dir "$WORK" -o "$WORK/dbg_test"
 echo "Compile: OK"
 

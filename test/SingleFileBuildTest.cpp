@@ -39,10 +39,6 @@ extern bool DebugLog;
 namespace {
     using namespace fly;
 
-#ifndef FLY_LIB_FLY_DIR
-#define FLY_LIB_FLY_DIR "."
-#endif
-
     class SingleFileBuildTest : public ::testing::Test {
     public:
         SingleFileBuildTest() {
@@ -69,6 +65,23 @@ namespace {
 
         // Mark an expected output artifact for cleanup (don't assume it exists).
         void track(const std::string &Path) { Cleanup.push_back(Path); }
+
+        // Minimal fly.assert fixture for the suite tests, written INSIDE the
+        // suite's own --src-dir: the std lives in the self-host tree, and a -L
+        // source dir contributes declarations only (no code to link) — but the
+        // directory CLI pulls an imported in-dir module and compiles it into
+        // the program, which the run-and-exit-0 assertions rely on.
+        void makeAssertLib(const std::string &SrcDir) {
+            writeFile(SrcDir + "/assert.fly",
+                      "namespace fly.assert\n"
+                      "\n"
+                      "public void assertTrue(const bool b, const int code) {\n"
+                      "    if b == false {\n"
+                      "        fail code, \"assertTrue: condition is false\"\n"
+                      "    }\n"
+                      "}\n");
+            track("assert.fly.o");
+        }
 
         static bool exists(const std::string &Path) {
             return llvm::sys::fs::exists(Path);
@@ -219,10 +232,10 @@ namespace {
                   "        }\n"
                   "    }\n"
                   "}\n");
+        makeAssertLib(dir);
         track(exeName("SfbSuite"));
         track("sfb_suite.fly.o");
-        const char *argv[] = {"fly", "--test", "--src-dir", "sfb_suite_src",
-                              "-L", FLY_LIB_FLY_DIR};
+        const char *argv[] = {"fly", "--test", "--src-dir", "sfb_suite_src"};
         Driver drv(argv);
         CompilerInstance &CI = drv.BuildCompilerInstance();
         bool ok = drv.Execute();
@@ -241,8 +254,7 @@ namespace {
         writeFile(dir + "/sfb_maintest.fly", "namespace demo\nvoid main() {}\n");
         track(exeName("sfb_maintest"));
         track("sfb_maintest.fly.o");
-        const char *argv[] = {"fly", "--test", "--src-dir", "sfb_maintest_src",
-                              "-L", FLY_LIB_FLY_DIR};
+        const char *argv[] = {"fly", "--test", "--src-dir", "sfb_maintest_src"};
         Driver drv(argv);
         CompilerInstance &CI = drv.BuildCompilerInstance();
         bool ok = drv.Execute();
@@ -276,10 +288,11 @@ namespace {
                   "        }\n"
                   "    }\n"
                   "}\n");
+        makeAssertLib(dir);
         track(exeName("SfbSecond"));
         track("second.fly.o");
         const char *argv[] = {"fly", "--suite", "SfbSecond",
-                              "--src-dir", "sfb_named_src", "-L", FLY_LIB_FLY_DIR};
+                              "--src-dir", "sfb_named_src"};
         Driver drv(argv);
         CompilerInstance &CI = drv.BuildCompilerInstance();
         bool ok = drv.Execute();
@@ -298,7 +311,7 @@ namespace {
         makeDir(dir);
         writeFile(dir + "/only.fly", "namespace demo\nvoid main() {}\n");
         const char *argv[] = {"fly", "--suite", "Missing",
-                              "--src-dir", "sfb_nosuite_src", "-L", FLY_LIB_FLY_DIR};
+                              "--src-dir", "sfb_nosuite_src"};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         EXPECT_FALSE(drv.Execute());

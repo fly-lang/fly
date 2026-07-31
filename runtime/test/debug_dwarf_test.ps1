@@ -4,13 +4,12 @@
 # Supports Windows (PowerShell 5.1+).
 #
 # Usage:
-#   powershell -ExecutionPolicy Bypass -File runtime\test\debug_dwarf_test.ps1 [fly-binary] [fly-std-lib] [llvm-dwarfdump]
+#   powershell -ExecutionPolicy Bypass -File runtime\test\debug_dwarf_test.ps1 [fly-binary] [llvm-dwarfdump]
 #
-# CMake passes all three paths automatically via add_test().
+# CMake passes both paths automatically via add_test().
 
 param(
     [string]$FlyBin        = "",
-    [string]$FlyStd        = "",
     [string]$LlvmDwarfDump = ""
 )
 
@@ -18,12 +17,6 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BuildDir  = Join-Path $ScriptDir "..\..\cmake-build-relwithdebinfo"
 
 if (-not $FlyBin) { $FlyBin = Join-Path $BuildDir "bin\fly.exe" }
-if (-not $FlyStd) {
-    $FlyStdLib = Join-Path $BuildDir "lib\fly_std_lib.lib"
-    $FlyStdA   = Join-Path $BuildDir "lib\fly_std_lib.a"
-    if   (Test-Path $FlyStdLib) { $FlyStd = $FlyStdLib }
-    elseif (Test-Path $FlyStdA) { $FlyStd = $FlyStdA   }
-}
 
 # Resolve llvm-dwarfdump: prefer the path passed by CMake, then search PATH.
 if ($LlvmDwarfDump -like "*-NOTFOUND" -or -not (Test-Path $LlvmDwarfDump -ErrorAction SilentlyContinue)) {
@@ -63,7 +56,7 @@ Set-Content -Path "$Work\dbg_test.fly" -Value $Source -Encoding UTF8
 # ── Compile with debug symbols ─────────────────────────────────────────────────
 # --debug-symbols emits DWARF without the verbose DebugLog that --debug adds,
 # so stderr stays readable and is worth showing on failure. fly compiles the
-# WORK directory (--src-dir); fly_std_lib/runtime auto-link from <bin>\..\lib.
+# WORK directory (--src-dir); the runtime auto-links from <bin>\..\lib.
 $compileOut = & $FlyBin --debug-symbols --src-dir "$Work" -o "$Work\dbg_test.exe" 2>&1
 if ($LASTEXITCODE -ne 0) {
     Write-Host "FAIL: compilation failed"

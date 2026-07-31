@@ -88,22 +88,24 @@ jobs:
           BRANCH="${{ github.ref_name }}"
           echo "artifact_name=windows-artifact-${BRANCH//\//-}" >> $GITHUB_OUTPUT
 
-      # The artifact IS the bootstrap seed: one compiler plus the std/runtime it
-      # links. fly.exe is named explicitly rather than globbed from bin\ — that
-      # directory also holds the test executable and the scratch binaries the
-      # suites leave behind, and a glob would ship them.
+      # The artifact IS the bootstrap seed: one compiler, the C runtime archive
+      # and the two bridge headers (llvm.fly.h, runtime.fly.h). The std lives in
+      # the self-host tree and is built there from source at stage 1, so none of
+      # it ships. fly.exe is named explicitly rather than globbed from bin\ —
+      # that directory also holds the test executable and the scratch binaries
+      # the suites leave behind, and a glob would ship them.
       - name: Stage release artifacts
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dist\bin, dist\lib | Out-Null
           Copy-Item ${{env.BUILD_DIR}}\bin\fly.exe dist\bin\
-          # Copy only the std-lib headers and archives, flat into dist\lib.
-          # NB: PowerShell's $_.Extension on "clang.fly.h" is ".h", not ".fly.h",
-          # so match on the full Name with -like '*.fly.h'. Copying the selected
-          # files (not the whole dir) also avoids the build\lib\. → dist\lib\lib
-          # nesting gotcha.
+          # Copy only the bridge headers and the runtime archive, flat into
+          # dist\lib. NB: PowerShell's $_.Extension on "llvm.fly.h" is ".h", not
+          # ".fly.h", so match on the full Name with -like '*.fly.h'. Copying the
+          # selected files (not the whole dir) also avoids the build\lib\. →
+          # dist\lib\lib nesting gotcha.
           Get-ChildItem ${{env.BUILD_DIR}}\lib -Recurse -File |
-            Where-Object { $_.Name -like '*.fly.h' -or $_.Name -eq 'fly_std_lib.lib' -or $_.Name -eq 'fly_runtime_lib.lib' } |
+            Where-Object { $_.Name -like '*.fly.h' -or $_.Name -eq 'fly_runtime_lib.lib' } |
             Copy-Item -Destination dist\lib\ -Force
 
       - uses: actions/upload-artifact@v4

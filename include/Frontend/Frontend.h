@@ -103,11 +103,13 @@ namespace fly {
         /// (declarations only), registering their namespaces for import resolution.
         /// If preferDotFlyH is true, .fly.h files take priority over .fly source
         /// (used for external package dirs where .fly.h avoids transitive imports).
+        /// If SkipBareSources is true, a bare .fly with no .fly.h companion is NOT
+        /// loaded as a header: the dir is treated as a SOURCE dir for dependency
+        /// resolution (ResolveSourceDeps walks the -L dirs), so imported
+        /// namespaces are compiled in full instead of expecting an archive to
+        /// define their symbols (the seed scenario: std removed from this repo).
         void LoadLibHeaders(ASTBuilder &Builder, const std::string &Dir,
-                            bool preferDotFlyH = false);
-
-#ifdef FLY_LIB_FLY_DIR
-#endif
+                            bool preferDotFlyH = false, bool SkipBareSources = false);
 
         void CreateFrontendTimer();
 

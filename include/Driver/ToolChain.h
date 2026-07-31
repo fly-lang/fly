@@ -38,6 +38,14 @@ namespace fly {
         bool getUniversalCRTLibraryPath(std::string &Path) const;
         bool getWindowsSDKLibraryPath(std::string &path) const;
 
+        // windows-gnu / gnullvm: link against the bundled mingw/UCRT sysroot
+        // (llvm-mingw) with ld.lld -m i386pep — no Visual Studio needed.
+        bool LinkWindowsGNU(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile);
+
+        // Locate the bundled mingw/UCRT sysroot next to the runtime lib dir,
+        // or "" when absent.
+        std::string GetMingwSysrootDir() const;
+
         bool LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile);
 
         bool LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile, FrontendOptions &FrontendOpts);
@@ -64,6 +72,17 @@ namespace fly {
         // (libclang_rt.builtins-<arch>.a) for the current target, or an empty
         // string if it cannot be found.  Used in place of -lgcc.
         std::string GetCompilerRTBuiltinsPath() const;
+
+        // Returns the absolute path to the compiler-rt builtins archive of the
+        // BUNDLED llvm-mingw sysroot (probed next to RuntimeLibDir), or an empty
+        // string. Needed on Windows to resolve the __atomic_* references of the
+        // gnullvm-built 0.14 runtime when this toolchain acts as the seed.
+        std::string GetMinGWBuiltinsPath() const;
+
+        // Returns the absolute path to fly_tls_stub.a/.lib next to the runtime
+        // archive, or an empty string. The seed always links the stub: it has no
+        // --tls, and the 0.14 std references the tls_* primitives.
+        std::string GetTlsStubPath() const;
     };
 }
 

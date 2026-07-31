@@ -11,6 +11,7 @@
 
 #include "AST/ASTCall.h"
 #include "AST/ASTFunction.h"
+#include "AST/ASTVar.h"
 #include "Basic/Debug.h"
 #include "Basic/Diagnostic.h"
 #include "llvm/Support/Signals.h"
@@ -369,15 +370,36 @@ static size_t ExplicitParamCount(SemaFunctionBase *Function) {
 // overload meant for it — with two overloads of a value-returning function
 // (`defaultOut(input)` / `defaultOut(input, ext)`) the lowered reading won, the
 // second argument was bound as the out slot, and the compiler crashed in codegen.
-// So: EXPLICIT is the real signature and always wins; LOWERED is a fallback tried
-// only when no candidate matched explicitly (see the two passes in the lookups).
-enum class ArityPass { Explicit, Lowered };
+// So: EXPLICIT is the real signature and always wins; DEFAULTED (fewer args than
+// explicit params, the omitted tail all carrying declared default values) comes
+// next, and LOWERED is a fallback tried only when neither matched (see the pass
+// loops in the lookups). Defaulted must stay behind Explicit so a full-arity
+// overload always beats a shorter overload padded out with defaults.
+enum class ArityPass { Explicit, Defaulted, Lowered };
+
+// Fewest arguments a call may supply: every trailing EXPLICIT param declaring a
+// default value (`const int b = 100` — the parser stored it as the ASTParam's
+// Expr) can be omitted; the Resolver synthesizes the missing args from those
+// defaults after the match (AppendDefaultArgs).
+static size_t MinRequiredParamCount(SemaFunctionBase *Function, size_t Explicit) {
+	auto &Params = Function->getParams();
+	size_t Min = Explicit;
+	while (Min > 0 && Params[Min - 1]->getAST() && Params[Min - 1]->getAST()->getExpr() != nullptr)
+		--Min;
+	return Min;
+}
 
 static bool MatchArity(SemaFunctionBase *Function, size_t NArgs, ArityPass Pass, size_t &Count) {
 	size_t Explicit = ExplicitParamCount(Function);
 	if (Pass == ArityPass::Explicit) {
 		if (NArgs != Explicit) return false;
 		Count = Explicit;
+		return true;
+	}
+	if (Pass == ArityPass::Defaulted) {
+		if (NArgs >= Explicit || NArgs < MinRequiredParamCount(Function, Explicit))
+			return false;
+		Count = NArgs; // only the supplied args are type-checked; the tail comes from defaults
 		return true;
 	}
 	if (NArgs == Function->getParams().size() && NArgs > Explicit) {
@@ -395,11 +417,11 @@ Symbol *Registry::LookupFunction(llvm::StringRef Name, SmallVector<SemaType *, 8
 		return nullptr;
 	}
 
-	// Two passes over the candidates: every overload is offered its EXPLICIT
-	// signature first, and only if none of them fits is the lowered form tried.
+	// Passes over the candidates: every overload is offered its EXPLICIT
+	// signature first, then the default-filled arity, then the lowered form.
 	// One combined pass let a lowered reading beat the overload actually meant
 	// for the call (see MatchArity).
-	for (ArityPass Pass : {ArityPass::Explicit, ArityPass::Lowered}) {
+	for (ArityPass Pass : {ArityPass::Explicit, ArityPass::Defaulted, ArityPass::Lowered}) {
 	// Iterate through all symbols with this name to find the right function
 	for (Symbol *Sym : *Symbols) {
 
@@ -595,10 +617,10 @@ llvm::SmallVector<Symbol *, 4> Registry::FindFunctionMatches(llvm::StringRef Nam
 	if (!Symbols) return {};
 
 	// The whole ranking below runs against the EXPLICIT signatures first; only if
-	// that yields no candidate at all is it repeated allowing the lowered form.
-	// Ranking the two arities together let a lowered reading of one overload
-	// outrank the overload actually written for the call.
-	for (ArityPass Pass : {ArityPass::Explicit, ArityPass::Lowered}) {
+	// that yields no candidate at all is it repeated allowing the default-filled
+	// arity, then the lowered form. Ranking the arities together let a lowered
+	// reading of one overload outrank the overload actually written for the call.
+	for (ArityPass Pass : {ArityPass::Explicit, ArityPass::Defaulted, ArityPass::Lowered}) {
 
 	// First pass: prefer exact matches (no numeric promotion) to avoid ambiguity
 	// when multiple overloads differ only in numeric type (e.g. int vs long).

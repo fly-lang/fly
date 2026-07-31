@@ -269,7 +269,6 @@ target_link_libraries(FlyCompiler
 
 target_link_libraries(fly
         FlyCompiler
-        FlyLib
         FlyRuntime
 )
 
@@ -282,5 +281,3 @@ set_target_properties(fly PROPERTIES
 )
 
 install(TARGETS fly RUNTIME DESTINATION bin)
-install(DIRECTORY "${CMAKE_SOURCE_DIR}/std/lib/" DESTINATION lib
-        FILES_MATCHING PATTERN "*.fly.h")

@@ -13,6 +13,8 @@
 #include "Token.h"
 #include "Lexer.h"
 
+#include <deque>
+
 namespace fly {
 
     class DiagnosticsEngine;
@@ -87,7 +89,11 @@ namespace fly {
 
     // Stable string storage for synthetic names generated during parsing (e.g. "__out_N").
     // Stored here so StringRefs into these strings outlive the ParseStmt stack frame.
-    llvm::SmallVector<std::string, 8> SyntheticNames;
+    // Must be a deque, NOT a SmallVector: growth past the inline capacity moved every
+    // std::string (SSO buffers included) and dangled every StringRef already handed
+    // out — the 9th `out[N] =` rewrite in a module corrupted the earlier names
+    // (' _out_0' garbage lookups on the module's FIRST multi-return function).
+    std::deque<std::string> SyntheticNames;
 
 public:
 

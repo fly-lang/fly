@@ -633,11 +633,38 @@ namespace {
 
     // Generic arguments must be preserved: a bare `List` parameter is not
     // instantiable, so dropping <string> breaks resolution at the call site.
+    // The generic class comes from a -L header fixture (the std that used to
+    // provide fly.data.List lives in the self-host tree). Generic headers carry
+    // full bodies — monomorphization needs them — so the fixture does too; the
+    // module under test stays generic-free so its header is a REAL declaration
+    // emission, not a verbatim source copy.
     TEST_F(HeaderGenTest, GenericTypeArgsPreserved) {
-        const std::string h = genHeader(
-            "namespace hg\n\nimport fly.data.List\n\n"
-            "public List<string> generic(const int n) {\n"
-            "    out = new List<string>()\n}\n");
+        const char *libDir = "hdrgen_lib";
+        llvm::sys::fs::create_directory(libDir);
+        { std::ofstream f(std::string(libDir) + "/list.fly.h");
+          f << "namespace fly.data\n"
+               "\n"
+               "public class List<T> {\n"
+               "    int n\n"
+               "    public List() { this.n = 0 }\n"
+               "}\n"; }
+        llvm::sys::fs::create_directory(srcDir);
+        { std::ofstream f(srcName);
+          f << "namespace hg\n\nimport fly.data.List\n\n"
+               "public List<string> generic(const int n) {\n"
+               "    out = new List<string>()\n}\n"; }
+
+        const char *argv[] = {"fly", "--header", "--no-output",
+                              "--src-dir", srcDir, "-L", libDir};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        const bool ok = drv.Execute();
+        llvm::sys::fs::remove_directories(libDir);
+        ASSERT_TRUE(ok);
+
+        std::ifstream hf("hdrgen_src/hdrgen.fly.h");
+        const std::string h((std::istreambuf_iterator<char>(hf)),
+                             std::istreambuf_iterator<char>());
         EXPECT_NE(h.find("public List<string> generic(const int n)"),
                   std::string::npos) << h;
     }
