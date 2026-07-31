@@ -125,6 +125,8 @@ public class SemaClassType : SemaType {
     // `--suite=fly.driver.test` runs every suite under that namespace tree.
     // The catch-all "default" namespace never qualifies: namespace-less suites
     // match by bare name only.
+    // str calls fully-qualified: the inherited SemaType.str() method shadows the
+    // short `str.` prefix throughout this class (reference-compiler behavior).
     public bool matchesSuiteSel(const string sel) {
         if fly.str.isEmpty(sel) { out = true  return }
         string nm = this.getName()

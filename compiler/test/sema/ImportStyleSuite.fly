@@ -1,0 +1,91 @@
+namespace fly.compiler.sema.test.importstyle
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.data.*
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ImportStyleSuite — the CANONICAL import semantics, one cell per case:
+//   A. `import my.utils.*` + bare `foo()`        → resolves (wildcard injects the
+//      namespace's symbols into module scope)
+//   B. `import my.utils.*` + prefixed `utils.foo()` → ERROR (a wildcard does NOT
+//      bind the `utils.` prefix — expandNsPath skips wildcard imports; mirrors
+//      the reference, whose ResolveImports never inserts the namespace symbol
+//      for a wildcard)
+//   C. `import my.utils` + prefixed `utils.foo()` → resolves (a plain import
+//      binds the LAST path segment as the prefix)
+//   D. `import my.utils` + bare `foo()`          → ERROR (a plain import brings
+//      no member symbols into scope)
+// Each case parses a lib module + a main module and runs the real Resolver
+// in-process (same vehicle as SameNamespaceSuite); the assertion is on
+// DiagnosticsEngine.hasErrorOccurred().
+// ─────────────────────────────────────────────────────────────────────────────
+
+// resolveErr — parse libSrc+mainSrc, resolve, out = "did an error occur".
+bool resolveErr(const string libSrc, const string mainSrc) {
+    Parser pa = new Parser(libSrc)
+    ASTModule ma = pa.parseModule("lib")
+    Parser pb = new Parser(mainSrc)
+    ASTModule mb = pb.parseModule("main")
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(ma)
+    mods.add(mb)
+    DiagnosticsEngine diags = pa.getDiags()
+    SemaContext ctx = new SemaContext(diags)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    out = diags.hasErrorOccurred()
+}
+
+string libSrc() {
+    out = "namespace my.utils  public int foo(const int x) { out = x + 1 }"
+}
+
+suite ImportStyleSuite {
+
+    void wildcardBareTest() {
+        case "A: wildcard import + bare call resolves": {
+            string m = "namespace app  import my.utils.*  public int useA(const int y) { out = foo(y) }"
+            bool err = resolveErr(libSrc(), m)
+            assert.assertFalse(err, 1)
+        }
+    }
+
+    void wildcardPrefixTest() {
+        case "B: wildcard import does NOT bind the prefix": {
+            string m = "namespace app  import my.utils.*  public int useB(const int y) { out = utils.foo(y) }"
+            bool err = resolveErr(libSrc(), m)
+            assert.assertTrue(err, 2)
+        }
+    }
+
+    void plainPrefixTest() {
+        case "C: plain import binds the last-segment prefix": {
+            string m = "namespace app  import my.utils  public int useC(const int y) { out = utils.foo(y) }"
+            bool err = resolveErr(libSrc(), m)
+            assert.assertFalse(err, 3)
+        }
+    }
+
+    void plainBareTest() {
+        case "D: plain import brings no bare symbols": {
+            string m = "namespace app  import my.utils  public int useD(const int y) { out = foo(y) }"
+            bool err = resolveErr(libSrc(), m)
+            assert.assertTrue(err, 4)
+        }
+    }
+
+    void aliasPrefixTest() {
+        case "alias import binds the alias, not the segment": {
+            string lib = libSrc()
+            string m1 = "namespace app  import my.utils as u  public int useE(const int y) { out = u.foo(y) }"
+            bool err1 = resolveErr(lib, m1)
+            assert.assertFalse(err1, 5)
+            string m2 = "namespace app  import my.utils as u  public int useF(const int y) { out = utils.foo(y) }"
+            bool err2 = resolveErr(lib, m2)
+            assert.assertTrue(err2, 6)
+        }
+    }
+}

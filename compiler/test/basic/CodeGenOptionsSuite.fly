@@ -72,14 +72,14 @@ suite CodeGenOptionsSuite {
             o.addDependentLibrary("m")
             o.addDependentLibrary("pthread")
             // ";m;pthread;" → 3 ';' → 2 segments
-            assert.assertEqI(fly.str.count(o.getDependentLibraries(), ";") - 1, 2, 40)
-            assert.assertTrue(fly.str.contains(o.getDependentLibraries(), ";pthread;"), 41)
+            assert.assertEqI(str.count(o.getDependentLibraries(), ";") - 1, 2, 40)
+            assert.assertTrue(str.contains(o.getDependentLibraries(), ";pthread;"), 41)
             o.addSanitizeRecover("address")
-            assert.assertTrue(fly.str.contains(o.getSanitizeRecover(), ";address;"), 42)
+            assert.assertTrue(str.contains(o.getSanitizeRecover(), ";address;"), 42)
             o.addPassPlugin("/tmp/p.so")
-            assert.assertTrue(fly.str.contains(o.getPassPlugins(), ";/tmp/p.so;"), 43)
+            assert.assertTrue(str.contains(o.getPassPlugins(), ";/tmp/p.so;"), 43)
             o.addLinkerOption("-lfoo")
-            assert.assertTrue(fly.str.contains(o.getLinkerOptions(), ";-lfoo;"), 44)
+            assert.assertTrue(str.contains(o.getLinkerOptions(), ";-lfoo;"), 44)
         }
     }
 }

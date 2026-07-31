@@ -6,7 +6,7 @@ import fly.compiler.sema.SemaClassType
 import fly.compiler.sema.SemaEnumType
 import fly.compiler.sema.semaIntRank
 import fly.compiler.sema.semaFloatRank
-import fly.str as s
+import fly.str as s   // aliased: this class defines a str() method
 import fly.mem
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import fly.os.io
 import fly.os.path
 import fly.os.env
 import fly.compiler.basic.*
+import fly.os.proc
 
 // ─────────────────────────────────────────────────────────────────────────────
 // commands — the subcommand implementations. Port of the network-free core
@@ -21,8 +22,8 @@ import fly.compiler.basic.*
 // exists. Every package command reads the manifest through this so both spellings
 // are accepted uniformly.
 public string manifestPath() {
-    if fly.os.fs.exists("Manifest.fly") { out = "Manifest.fly"  return }
-    if fly.os.fs.exists("manifest.fly") { out = "manifest.fly"  return }
+    if fs.exists("Manifest.fly") { out = "Manifest.fly"  return }
+    if fs.exists("manifest.fly") { out = "manifest.fly"  return }
     out = ""
 }
 
@@ -31,12 +32,12 @@ public string manifestPath() {
 // else the reader code (210 parse error / 211 no fly.meta.Manifest class).
 public Manifest loadManifest(int errOut) {
     string path = manifestPath()
-    if fly.str.isEmpty(path) {
+    if str.isEmpty(path) {
         errOut = 2
         out = new Manifest()
         return
     }
-    string src = fly.os.fs.readStr(path)
+    string src = fs.readStr(path)
     int e = 0
     FlyManifestReader r = new FlyManifestReader()
     Manifest m = r.read(src, e)
@@ -46,23 +47,23 @@ public Manifest loadManifest(int errOut) {
 
 public int cmdVersion() {
     // Same single source of truth as `fly --version` (Version.fly).
-    fly.os.io.printLn(fly.str.concat("fly ", flyVersion()))
+    io.printLn(str.concat("fly ", flyVersion()))
     out = 0
 }
 
 // cmdInit — scaffold Manifest.fly + src/main.fly in the given dir (cwd if name empty).
 public int cmdInit(const string nameArg, const string versionArg) {
     string name = nameArg
-    if fly.str.isEmpty(name) { name = "my-project" }
+    if str.isEmpty(name) { name = "my-project" }
     string ver = versionArg
-    if fly.str.isEmpty(ver) { ver = "0.1.0" }
+    if str.isEmpty(ver) { ver = "0.1.0" }
 
-    if fly.str.isEmpty(manifestPath()) == false {
-        fly.os.io.printErrLn(fly.str.concat("error: ", fly.str.concat(manifestPath(), " already exists")))
+    if str.isEmpty(manifestPath()) == false {
+        io.printErrLn(str.concat("error: ", str.concat(manifestPath(), " already exists")))
         out = 3
         return
     }
-    fly.os.fs.dirCreateAll("src", 493)
+    fs.dirCreateAll("src", 493)
 
     // src/main.fly — a valid Fly hello-world (void main + fly.os.io). Real
     // newlines come from a MULTI-LINE literal (Fly keeps `\n` escapes raw); the
@@ -76,7 +77,7 @@ void main() {
     fly.os.io.printLn(QHello, world!Q)
 }
 "
-    fly.os.fs.writeStr("src/main.fly", fly.str.replace(progTpl, "Q", q), 420)
+    fs.writeStr("src/main.fly", str.replace(progTpl, "Q", q), 420)
 
     // Manifest.fly — a class extending fly.meta.Manifest. Placeholders: %N% = name,
     // %V% = version, %F% = the current compiler version (the toolchain the project
@@ -92,12 +93,12 @@ class Manifest : fly.meta.Manifest {
     Target[] targets = { new Target(Q%N%Q, Qsrc/main.flyQ, QQ) }
 }
 "
-    string t1 = fly.str.replace(manTpl, "%N%", name)
-    string t2 = fly.str.replace(t1, "%V%", ver)
-    string t3 = fly.str.replace(t2, "%F%", flyVersion())
-    fly.os.fs.writeStr("Manifest.fly", fly.str.replace(t3, "Q", q), 420)
+    string t1 = str.replace(manTpl, "%N%", name)
+    string t2 = str.replace(t1, "%V%", ver)
+    string t3 = str.replace(t2, "%F%", flyVersion())
+    fs.writeStr("Manifest.fly", str.replace(t3, "Q", q), 420)
 
-    fly.os.io.printLn(fly.str.concat("Created Manifest.fly + src/main.fly for ", name))
+    io.printLn(str.concat("Created Manifest.fly + src/main.fly for ", name))
     out = 0
 }
 
@@ -107,16 +108,16 @@ public int cmdBuild(const string profile, const string targetKey, const bool for
     int e = 0
     Manifest m = loadManifest(e)
     if e != 0 {
-        fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly in the current directory (a class extending fly.meta.Manifest)")
+        io.printErrLn("error: no valid Manifest.fly / manifest.fly in the current directory (a class extending fly.meta.Manifest)")
         out = e
         return
     }
     string prof = profile
-    if fly.str.isEmpty(prof) { prof = "debug" }
+    if str.isEmpty(prof) { prof = "debug" }
     Builder b = new Builder(m, prof, false)
     b.setForce(force)
     bool ok = false
-    if fly.str.isEmpty(targetKey) {
+    if str.isEmpty(targetKey) {
         ok = b.buildAll()
     } else {
         ok = b.buildTarget(targetKey)
@@ -129,11 +130,11 @@ public int cmdBuild(const string profile, const string targetKey, const bool for
 public int cmdRun(const string profile, const string binKey, const bool force) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
+    if e != 0 { io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
     string prof = profile
-    if fly.str.isEmpty(prof) { prof = "debug" }
+    if str.isEmpty(prof) { prof = "debug" }
     string key = binKey
-    if fly.str.isEmpty(key) && m.targetCount() > 0 {
+    if str.isEmpty(key) && m.targetCount() > 0 {
         key = m.targetAt(0).getKey()
     }
     Builder b = new Builder(m, prof, false)
@@ -149,9 +150,9 @@ public int cmdRun(const string profile, const string binKey, const bool force) {
 public int cmdTest(const string profile, const bool force) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
+    if e != 0 { io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
     string prof = profile
-    if fly.str.isEmpty(prof) { prof = "debug" }
+    if str.isEmpty(prof) { prof = "debug" }
     Builder b = new Builder(m, prof, true)
     b.setForce(force)
 
@@ -173,66 +174,66 @@ public int cmdTest(const string profile, const bool force) {
     int wn = segCount(all)
     while wi < wn {
         string cand = segAt(all, wi)
-        if fly.str.endsWith(cand, "Suite.fly") {
-            string acc = fly.str.concat(list, fly.str.concat(cand, nl))
+        if str.endsWith(cand, "Suite.fly") {
+            string acc = str.concat(list, str.concat(cand, nl))
             list = acc
         }
         wi = wi + 1
     }
-    if fly.str.isEmpty(fly.str.trim(list)) {
-        fly.os.io.printLn("no test suites found (*Suite.fly)")
+    if str.isEmpty(str.trim(list)) {
+        io.printLn("no test suites found (*Suite.fly)")
         out = 0
         return
     }
     int failures = 0
     int start = 0
-    int n = fly.str.len(list)
+    int n = str.len(list)
     int i = 0
     while i <= n {
         bool atEnd = i == n
         bool nl = false
         if atEnd == false {
             byte bb = 0
-            fly.str.byteAt(list, i, bb)
+            str.byteAt(list, i, bb)
             if bb == 10 { nl = true }
         }
         if atEnd || nl {
-            string sf = fly.str.trim(fly.str.substring(list, start, i))
-            if fly.str.isEmpty(sf) == false {
-                string base = fly.os.path.basename(sf)
-                string stem = fly.os.path.stem(base)
-                string outp = fly.str.concat(b.outDir(), fly.str.concat("/", stem))
+            string sf = str.trim(str.substring(list, start, i))
+            if str.isEmpty(sf) == false {
+                string base = path.basename(sf)
+                string stem = path.stem(base)
+                string outp = str.concat(b.outDir(), str.concat("/", stem))
                 // fingerprint gate: skip only the COMPILE of a fresh suite exe —
                 // the suite always RUNS. NOTE: suite case labels only parse in
                 // `*Test`-named suite methods; a bad suite is a COMPILE FAIL here.
-                string sfAbs = fly.os.path.absolute(sf)
-                string computed = b.computeFpForDir(fly.os.path.dirname(sfAbs), "test", stem)
+                string sfAbs = path.absolute(sf)
+                string computed = b.computeFpForDir(path.dirname(sfAbs), "test", stem)
                 string fpFile = b.fpPath(stem)
-                bool exeThere = fly.os.fs.exists(outp)
-                if exeThere == false { exeThere = fly.os.fs.exists(fly.str.concat(outp, ".exe")) }
+                bool exeThere = fs.exists(outp)
+                if exeThere == false { exeThere = fs.exists(str.concat(outp, ".exe")) }
                 bool fresh = false
                 if force == false {
                     fresh = b.isUpToDate(fpFile, computed) && exeThere
                 }
                 bool compiled = true
                 if fresh {
-                    fly.os.io.printLn(fly.str.concat("  up-to-date ", stem))
+                    io.printLn(str.concat("  up-to-date ", stem))
                 } else {
-                    fly.os.fs.dirCreateAll(b.outDir(), 493)
+                    fs.dirCreateAll(b.outDir(), 493)
                     compiled = b.invokeFly(sfAbs, outp, "--test")
                     if compiled { b.saveFp(fpFile, computed) }
                 }
                 if compiled {
                     // Direct spawn: `sh -c` is dead on Windows and buys nothing.
-                    int rc = fly.os.proc.run(outp)
+                    int rc = proc.run(outp)
                     if rc == 0 {
-                        fly.os.io.printLn(fly.str.concat("  PASS  ", stem))
+                        io.printLn(str.concat("  PASS  ", stem))
                     } else {
-                        fly.os.io.printLn(fly.str.concat("  FAIL  ", stem))
+                        io.printLn(str.concat("  FAIL  ", stem))
                         failures = failures + 1
                     }
                 } else {
-                    fly.os.io.printLn(fly.str.concat("  COMPILE FAIL  ", stem))
+                    io.printLn(str.concat("  COMPILE FAIL  ", stem))
                     failures = failures + 1
                 }
             }
@@ -245,12 +246,12 @@ public int cmdTest(const string profile, const bool force) {
 
 // cmdClean — remove build artifacts (all of target/, or target/<profile>).
 public int cmdClean(const string profile) {
-    if fly.str.isEmpty(profile) {
-        fly.os.fs.dirDeleteAll("target")
+    if str.isEmpty(profile) {
+        fs.dirDeleteAll("target")
     } else {
-        fly.os.fs.dirDeleteAll(fly.str.concat("target/", profile))
+        fs.dirDeleteAll(str.concat("target/", profile))
     }
-    fly.os.io.printLn("cleaned build artifacts")
+    io.printLn("cleaned build artifacts")
     out = 0
 }
 
@@ -284,7 +285,7 @@ public class RealFetcher : ManifestFetcher {
     public FetchResult resultFor(const string name) {
         int i = 0
         while i < this.resNames.size() {
-            if fly.str.equals(this.resNames.get(i), name) { out = this.resList.get(i)  return }
+            if str.equals(this.resNames.get(i), name) { out = this.resList.get(i)  return }
             i = i + 1
         }
         out = null
@@ -294,8 +295,8 @@ public class RealFetcher : ManifestFetcher {
         FetchResult fr = null
         if dep.isRegistryDep() {
             string url = this.root.getRepo(dep.getRegistryName())
-            if fly.str.isEmpty(url) {
-                this.errors.add(fly.str.concat("unknown registry alias '", fly.str.concat(dep.getRegistryName(), "' (declare it in [repo])")))
+            if str.isEmpty(url) {
+                this.errors.add(str.concat("unknown registry alias '", str.concat(dep.getRegistryName(), "' (declare it in [repo])")))
                 out = null
                 return
             }
@@ -313,7 +314,7 @@ public class RealFetcher : ManifestFetcher {
         int e = 0
         Manifest m = this.git.readManifest(name, fr.getLocalPath(), e)
         if e != 0 {
-            this.errors.add(fly.str.concat("no Manifest.fly in fetched package '", fly.str.concat(name, "'")))
+            this.errors.add(str.concat("no Manifest.fly in fetched package '", str.concat(name, "'")))
             out = null
             return
         }
@@ -331,12 +332,12 @@ public int doLock(const Manifest root, const string tomlPath) {
         int i = 0
         while i < resolver.errorCount() {
             ResolveError re = resolver.errorAt(i)
-            fly.os.io.printErrLn(fly.str.concat("error: version conflict for ", re.getPackage()))
+            io.printErrLn(str.concat("error: version conflict for ", re.getPackage()))
             i = i + 1
         }
         int j = 0
         while j < fetcher.errorCount() {
-            fly.os.io.printErrLn(fly.str.concat("error: ", fetcher.errorAt(j)))
+            io.printErrLn(str.concat("error: ", fetcher.errorAt(j)))
             j = j + 1
         }
         out = 1
@@ -352,10 +353,10 @@ public int doLock(const Manifest root, const string tomlPath) {
         LockedPackage p = new LockedPackage()
         p.setName(rp.getName())
         p.setVersion(rp.getVersion())
-        if fly.str.isEmpty(rp.getGitUrl()) {
-            p.setSource(fly.str.concat("registry+", fly.str.concat(rp.getName(), fly.str.concat("/", rp.getVersion()))))
+        if str.isEmpty(rp.getGitUrl()) {
+            p.setSource(str.concat("registry+", str.concat(rp.getName(), str.concat("/", rp.getVersion()))))
         } else {
-            p.setSource(fly.str.concat("git+", rp.getGitUrl()))
+            p.setSource(str.concat("git+", rp.getGitUrl()))
         }
         if rp.getRefKind() == 0 { p.setTag(rp.getRefValue()) }
         FetchResult fr = fetcher.resultFor(rp.getName())
@@ -367,7 +368,7 @@ public int doLock(const Manifest root, const string tomlPath) {
         k = k + 1
     }
     lf.write("Lock.fly")
-    fly.os.io.printLn("  wrote Lock.fly")
+    io.printLn("  wrote Lock.fly")
     out = 0
 }
 
@@ -375,7 +376,7 @@ public int doLock(const Manifest root, const string tomlPath) {
 public int cmdLock() {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
+    if e != 0 { io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
     out = doLock(m, manifestPath())
 }
 
@@ -383,26 +384,26 @@ public int cmdLock() {
 public int cmdAdd(const string name, const string gitUrl, const string tag, const string branch, const string rev, const bool dev) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
+    if e != 0 { io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
 
     int refs = 0
-    if fly.str.isEmpty(tag) == false { refs = refs + 1 }
-    if fly.str.isEmpty(branch) == false { refs = refs + 1 }
-    if fly.str.isEmpty(rev) == false { refs = refs + 1 }
+    if str.isEmpty(tag) == false { refs = refs + 1 }
+    if str.isEmpty(branch) == false { refs = refs + 1 }
+    if str.isEmpty(rev) == false { refs = refs + 1 }
     if refs != 1 {
-        fly.os.io.printErrLn("error: specify exactly one of --tag, --branch, or --rev")
+        io.printErrLn("error: specify exactly one of --tag, --branch, or --rev")
         out = 3
         return
     }
     GitDep d = new GitDep()
     d.setGitUrl(gitUrl)
-    if fly.str.isEmpty(tag) == false { d.setRef(0, tag) }
-    elsif fly.str.isEmpty(branch) == false { d.setRef(1, branch) }
+    if str.isEmpty(tag) == false { d.setRef(0, tag) }
+    elsif str.isEmpty(branch) == false { d.setRef(1, branch) }
     else { d.setRef(2, rev) }
 
     if dev { m.addDevDep(name, d) } else { m.addDep(name, d) }
     m.save()
-    fly.os.io.printLn(fly.str.concat("added ", fly.str.concat(name, " to Manifest.fly")))
+    io.printLn(str.concat("added ", str.concat(name, " to Manifest.fly")))
     out = doLock(m, manifestPath())
 }
 
@@ -410,14 +411,14 @@ public int cmdAdd(const string name, const string gitUrl, const string tag, cons
 public int cmdRemove(const string name) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
+    if e != 0 { io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
     if m.removeDep(name) == false {
-        fly.os.io.printErrLn(fly.str.concat("error: '", fly.str.concat(name, "' is not a dependency")))
+        io.printErrLn(str.concat("error: '", str.concat(name, "' is not a dependency")))
         out = 1
         return
     }
     m.save()
-    fly.os.io.printLn(fly.str.concat("removed ", fly.str.concat(name, " from Manifest.fly")))
+    io.printLn(str.concat("removed ", str.concat(name, " from Manifest.fly")))
     out = doLock(m, manifestPath())
 }
 
@@ -426,22 +427,22 @@ public int cmdRemove(const string name) {
 public int cmdWhy(const string name) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { fly.os.io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
+    if e != 0 { io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  out = e  return }
     int le = 0
     Lockfile lf = readLock("Lock.fly", le)
     LockedPackage p = lf.find(name)
     if p == null {
-        fly.os.io.printLn(fly.str.concat(name, " is not a locked dependency of this project."))
+        io.printLn(str.concat(name, " is not a locked dependency of this project."))
         out = 1
         return
     }
-    fly.os.io.printLn(fly.str.concat(name, fly.str.concat(" ", fly.str.concat(p.getVersion(), fly.str.concat(" (", fly.str.concat(p.getSource(), ")"))))))
+    io.printLn(str.concat(name, str.concat(" ", str.concat(p.getVersion(), str.concat(" (", str.concat(p.getSource(), ")"))))))
     out = 0
 }
 
 // cmdNotPorted — placeholder for the still-unported commands (update/upgrade/
 // deploy/vendor/search/publish/workspace/doctor).
 public int cmdNotPorted(const string name) {
-    fly.os.io.printErrLn(fly.str.concat(name, ": not yet ported to fly"))
+    io.printErrLn(str.concat(name, ": not yet ported to fly"))
     out = 2
 }

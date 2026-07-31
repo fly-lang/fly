@@ -33,7 +33,7 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
 
     public void handleDiagnostic(const Diagnostic diag) {
         this.add(diagLevelName(diag.getLevel()), diag.getFilename(),
-                 fly.str.convert(diag.getLine()), fly.str.convert(diag.getColumn()),
+                 str.convert(diag.getLine()), str.convert(diag.getColumn()),
                  diag.getMessage())
     }
 
@@ -56,22 +56,22 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
     public string jsonEscape(const string s) {
         string bs = backslashChar()
         string q = quoteChar()
-        string a = fly.str.replace(s, bs, fly.str.concat(bs, bs))
-        string b = fly.str.replace(a, q, fly.str.concat(bs, q))
+        string a = str.replace(s, bs, str.concat(bs, bs))
+        string b = str.replace(a, q, str.concat(bs, q))
         out = b
     }
 
     // jstr — a JSON `"key":"val"` pair (val quoted), with real `"` bytes.
     public string jstr(const string key, const string val) {
         string q = quoteChar()
-        out = fly.str.concat(q, fly.str.concat(key, fly.str.concat(q,
-              fly.str.concat(":", fly.str.concat(q, fly.str.concat(val, q))))))
+        out = str.concat(q, str.concat(key, str.concat(q,
+              str.concat(":", str.concat(q, str.concat(val, q))))))
     }
 
     // jnum — a JSON `"key":val` pair (val unquoted, e.g. a number).
     public string jnum(const string key, const string val) {
         string q = quoteChar()
-        out = fly.str.concat(q, fly.str.concat(key, fly.str.concat(q, fly.str.concat(":", val))))
+        out = str.concat(q, str.concat(key, str.concat(q, str.concat(":", val))))
     }
 
     // toJson — `[{"level":..,"file":..,"line":N,"column":M,"message":".."}, …]`.
@@ -90,15 +90,15 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
             string p3 = this.jnum("line", this.lines.get(i))
             string p4 = this.jnum("column", this.cols.get(i))
             string p5 = this.jstr("message", this.jsonEscape(this.messages.get(i)))
-            string body = fly.str.concat(p1, fly.str.concat(",", fly.str.concat(p2,
-                          fly.str.concat(",", fly.str.concat(p3, fly.str.concat(",",
-                          fly.str.concat(p4, fly.str.concat(",", p5))))))))
-            string entry = fly.str.concat("{", fly.str.concat(body, "}"))
-            string acc = fly.str.concat(res, fly.str.concat(sep, entry))
+            string body = str.concat(p1, str.concat(",", str.concat(p2,
+                          str.concat(",", str.concat(p3, str.concat(",",
+                          str.concat(p4, str.concat(",", p5))))))))
+            string entry = str.concat("{", str.concat(body, "}"))
+            string acc = str.concat(res, str.concat(sep, entry))
             res = acc
             i = i + 1
         }
-        out = fly.str.concat(res, "]")
+        out = str.concat(res, "]")
     }
 
     // toTextReport — the full text log written to --log-file: an `inputs:` /
@@ -106,19 +106,19 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
     // Reduced port of the reference LogDiagnosticPrinter::EndSourceFile text shape.
     public string toTextReport(const string inputs, const string output) {
         string res = ""
-        if fly.str.isEmpty(inputs) == false {
-            string l1 = fly.str.concat("inputs: ", fly.str.concat(inputs, lineFeed()))
-            string a1 = fly.str.concat(res, l1)
+        if str.isEmpty(inputs) == false {
+            string l1 = str.concat("inputs: ", str.concat(inputs, lineFeed()))
+            string a1 = str.concat(res, l1)
             res = a1
         }
-        if fly.str.isEmpty(output) == false {
-            string l2 = fly.str.concat("output: ", fly.str.concat(output, lineFeed()))
-            string a2 = fly.str.concat(res, l2)
+        if str.isEmpty(output) == false {
+            string l2 = str.concat("output: ", str.concat(output, lineFeed()))
+            string a2 = str.concat(res, l2)
             res = a2
         }
-        string sep = fly.str.concat("---", lineFeed())
-        string a3 = fly.str.concat(res, sep)
-        out = fly.str.concat(a3, this.toText())
+        string sep = str.concat("---", lineFeed())
+        string a3 = str.concat(res, sep)
+        out = str.concat(a3, this.toText())
     }
 
     // toJsonReport — the full JSON log written to --log-file:
@@ -128,10 +128,10 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
         string p1 = this.jstr("inputs", this.jsonEscape(inputs))
         string p2 = this.jstr("output", this.jsonEscape(output))
         string q = quoteChar()
-        string dk = fly.str.concat(q, fly.str.concat("diagnostics", fly.str.concat(q, ":")))
-        string body = fly.str.concat(p1, fly.str.concat(",", fly.str.concat(p2,
-                      fly.str.concat(",", fly.str.concat(dk, this.toJson())))))
-        out = fly.str.concat("{", fly.str.concat(body, "}"))
+        string dk = str.concat(q, str.concat("diagnostics", str.concat(q, ":")))
+        string body = str.concat(p1, str.concat(",", str.concat(p2,
+                      str.concat(",", str.concat(dk, this.toJson())))))
+        out = str.concat("{", str.concat(body, "}"))
     }
 
     // toText — one `level: file:line:col: message` line per diagnostic.
@@ -140,12 +140,12 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
         int n = (int)this.levels.size()
         int i = 0
         while i < n {
-            string loc = fly.str.concat(this.files.get(i),
-                         fly.str.concat(":", fly.str.concat(this.lines.get(i),
-                         fly.str.concat(":", fly.str.concat(this.cols.get(i), ": ")))))
-            string line = fly.str.concat(this.levels.get(i),
-                          fly.str.concat(": ", fly.str.concat(loc, this.messages.get(i))))
-            string acc = fly.str.concat(res, fly.str.concat(line, lineFeed()))
+            string loc = str.concat(this.files.get(i),
+                         str.concat(":", str.concat(this.lines.get(i),
+                         str.concat(":", str.concat(this.cols.get(i), ": ")))))
+            string line = str.concat(this.levels.get(i),
+                          str.concat(": ", str.concat(loc, this.messages.get(i))))
+            string acc = str.concat(res, str.concat(line, lineFeed()))
             res = acc
             i = i + 1
         }

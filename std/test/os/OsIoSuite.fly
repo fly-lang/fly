@@ -56,12 +56,12 @@ Buf bufOf(const string s) {
     int size = 0
     llvm.strGetPtr(s, src)
     llvm.strSize(s, size)
-    pointer own = fly.mem.alloc(size + 1)
+    pointer own = mem.alloc(size + 1)
     int i = 0
     while i < size {
         byte c = 0
         llvm.strByteAt(s, i, c)
-        fly.mem.writeByte(own, i, c)
+        mem.writeByte(own, i, c)
         i = i + 1
     }
     ulong n = size

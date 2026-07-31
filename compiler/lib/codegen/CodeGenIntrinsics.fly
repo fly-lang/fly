@@ -31,14 +31,14 @@ public class CodeGenIntrinsics {
         string bn = fn.getName()
         List<SemaExpr> args = node.getArgs()
 
-        if fly.str.equals(bn, "strSize") {
+        if str.equals(bn, "strSize") {
             pointer sv = cge.gen(args.get(0))
             pointer ev
             llvm.buildExtractValue(b, sv, 1, "ssz", ev)
             CodeGenIntrinsics.storeIntOut(cge, ev, 32, args.get(1))
             return
         }
-        if fly.str.equals(bn, "strGetPtr") {
+        if str.equals(bn, "strGetPtr") {
             pointer sv = cge.gen(args.get(0))
             pointer pv
             llvm.buildExtractValue(b, sv, 0, "sptr", pv)
@@ -49,7 +49,7 @@ public class CodeGenIntrinsics {
             CodeGenIntrinsics.storeIntOut(cge, iv, 64, args.get(1))
             return
         }
-        if fly.str.equals(bn, "strByteAt") {
+        if str.equals(bn, "strByteAt") {
             pointer sv = cge.gen(args.get(0))
             pointer sp
             llvm.buildExtractValue(b, sv, 0, "sptr", sp)
@@ -69,7 +69,7 @@ public class CodeGenIntrinsics {
             CodeGenIntrinsics.storeIntOut(cge, bv, 8, args.get(2))
             return
         }
-        if fly.str.equals(bn, "strMake") {
+        if str.equals(bn, "strMake") {
             // build a %string {ptr, i32} from (pointer, size) and store it whole
             // (the size arg is already int/i32 — the field width, reference ABI)
             CodeGenModule cgm2 = cge.getCgm()
@@ -95,7 +95,7 @@ public class CodeGenIntrinsics {
             return
         }
 
-        if fly.str.equals(bn, "memset") {
+        if str.equals(bn, "memset") {
             // memset(const pointer dst, const byte val, const ulong n) — value
             // and length MUST be coerced to the param types (a literal 0 arrives
             // as i32 and llvm.memset wants i8 val + i64 len)
@@ -116,7 +116,7 @@ public class CodeGenIntrinsics {
             llvm.buildMemSet(b, dPtr, vVal, nVal, 1, msr)
             return
         }
-        if fly.str.equals(bn, "memcpy") || fly.str.equals(bn, "memmove") {
+        if str.equals(bn, "memcpy") || str.equals(bn, "memmove") {
             // memmove lowers to llvm.memmove (OVERLAP-SAFE); memcpy to llvm.memcpy.
             // The shift in List.remove / Map rehash / deque / set OVERLAPS by one
             // element, so memmove MUST NOT become memcpy (UB). This was the self-host
@@ -135,14 +135,14 @@ public class CodeGenIntrinsics {
             SemaParam mcp2 = mcp.get(2)
             nV = cge.coerce(nV, nce.getType(), mcp2.getType())
             pointer mcr
-            if fly.str.equals(bn, "memmove") {
+            if str.equals(bn, "memmove") {
                 llvm.buildMemMove(b, dP, sP, nV, mcr)
             } else {
                 llvm.buildMemCpy(b, dP, sP, nV, mcr)
             }
             return
         }
-        if fly.str.equals(bn, "longToInt") {
+        if str.equals(bn, "longToInt") {
             pointer lv = cge.gen(args.get(0))
             pointer i32t
             llvm.int32TypeInContext(cge.getCgm().getCtx(), i32t)
@@ -153,7 +153,7 @@ public class CodeGenIntrinsics {
             llvm.buildStore(b, tv, a1)
             return
         }
-        if fly.str.equals(bn, "ulongToLong") {
+        if str.equals(bn, "ulongToLong") {
             pointer uv = cge.gen(args.get(0))
             SemaExpr o2 = args.get(1)
             pointer a2 = cge.genAddr(o2)
@@ -164,8 +164,8 @@ public class CodeGenIntrinsics {
         // ptr*/strPoke — raw byte-address load/store accessors: addr =
         // intToPtr(ptr)+i (byte offset), value typed by the accessor name.
         bool isPtrRead = false
-        if fly.str.equals(bn, "ptrByteAt") { isPtrRead = true }
-        if fly.str.startsWith(bn, "ptrRead") { isPtrRead = true }
+        if str.equals(bn, "ptrByteAt") { isPtrRead = true }
+        if str.startsWith(bn, "ptrRead") { isPtrRead = true }
         if isPtrRead {
             pointer ra = CodeGenIntrinsics.slotAddr(cge, args.get(0), args.get(1))
             SemaExpr roe = args.get(2)
@@ -177,8 +177,8 @@ public class CodeGenIntrinsics {
             return
         }
         bool isPtrPoke = false
-        if fly.str.startsWith(bn, "ptrPoke") { isPtrPoke = true }
-        if fly.str.equals(bn, "strPoke") { isPtrPoke = true }
+        if str.startsWith(bn, "ptrPoke") { isPtrPoke = true }
+        if str.equals(bn, "strPoke") { isPtrPoke = true }
         if isPtrPoke {
             pointer pa = CodeGenIntrinsics.slotAddr(cge, args.get(0), args.get(1))
             SemaExpr pve = args.get(2)
@@ -197,7 +197,7 @@ public class CodeGenIntrinsics {
         // containers. Calls arrive as monomorphized SPECIALIZATIONS, so the arg
         // and out types are concrete. Owned values (string) are deep-cloned on
         // poke/read and freed on slotFreeT (mirrors CodeGenStdLibLLVM).
-        if fly.str.equals(bn, "slotSizeT") {
+        if str.equals(bn, "slotSizeT") {
             SemaExpr sample = args.get(0)
             pointer ety = cge.lowerType(sample.getType())
             pointer szv
@@ -211,7 +211,7 @@ public class CodeGenIntrinsics {
             llvm.buildStore(b, tsz, a3)
             return
         }
-        if fly.str.equals(bn, "slotPokeT") {
+        if str.equals(bn, "slotPokeT") {
             pointer bp = CodeGenIntrinsics.slotAddr(cge, args.get(0), args.get(1))
             SemaExpr ve = args.get(2)
             pointer vv = cge.gen(ve)
@@ -219,7 +219,7 @@ public class CodeGenIntrinsics {
             llvm.buildStore(b, cv, bp)
             return
         }
-        if fly.str.equals(bn, "slotReadT") {
+        if str.equals(bn, "slotReadT") {
             pointer bp2 = CodeGenIntrinsics.slotAddr(cge, args.get(0), args.get(1))
             SemaExpr oe = args.get(2)
             pointer ety2 = cge.lowerType(oe.getType())
@@ -230,7 +230,7 @@ public class CodeGenIntrinsics {
             llvm.buildStore(b, cv2, ao)
             return
         }
-        if fly.str.equals(bn, "slotHashT") {
+        if str.equals(bn, "slotHashT") {
             // slotHashT(const T key, int out): FNV-1a for strings, value for ints
             SemaExpr ke = args.get(0)
             pointer kv = cge.gen(ke)
@@ -240,7 +240,7 @@ public class CodeGenIntrinsics {
             llvm.buildStore(b, hv, ha)
             return
         }
-        if fly.str.equals(bn, "slotHashAtT") {
+        if str.equals(bn, "slotHashAtT") {
             // slotHashAtT(const pointer buf, const int off, const T sample, int out)
             pointer hp = CodeGenIntrinsics.slotAddr(cge, args.get(0), args.get(1))
             SemaExpr hse = args.get(2)
@@ -253,7 +253,7 @@ public class CodeGenIntrinsics {
             llvm.buildStore(b, hv2, ha2)
             return
         }
-        if fly.str.equals(bn, "slotCmpT") {
+        if str.equals(bn, "slotCmpT") {
             // slotCmpT(const pointer buf, const int off, const T key, int out):
             // 3-WAY compare of the stored element vs key, 0 = EQUAL (memcmp-style
             // — map.fly/tree.fly probe with `if c == 0`). Strings lexicographic
@@ -270,7 +270,7 @@ public class CodeGenIntrinsics {
             llvm.buildStore(b, cmpv, ca)
             return
         }
-        if fly.str.equals(bn, "slotFreeT") {
+        if str.equals(bn, "slotFreeT") {
             SemaExpr se = args.get(2)
             SemaType st = se.getType()
             bool owned = false
@@ -290,7 +290,7 @@ public class CodeGenIntrinsics {
 
         // memcmp(a, b, size, out) → out = memcmp(a, b, size). a/b are `pointer` (Fly
         // usize) addresses → inttoptr; size widened to i64; the i32 result → int out.
-        if fly.str.equals(bn, "memcmp") {
+        if str.equals(bn, "memcmp") {
             pointer ptrTy = cge.ptrType()
             pointer av = cge.gen(args.get(0))
             pointer ap
@@ -313,19 +313,19 @@ public class CodeGenIntrinsics {
             CodeGenIntrinsics.floatMath(cge, node, bn, 1)
             return
         }
-        if fly.str.equals(bn, "fmin") { CodeGenIntrinsics.floatMath(cge, node, "minnum", 2)  return }
-        if fly.str.equals(bn, "fmax") { CodeGenIntrinsics.floatMath(cge, node, "maxnum", 2)  return }
+        if str.equals(bn, "fmin") { CodeGenIntrinsics.floatMath(cge, node, "minnum", 2)  return }
+        if str.equals(bn, "fmax") { CodeGenIntrinsics.floatMath(cge, node, "maxnum", 2)  return }
         if CodeGenIntrinsics.nameIn(bn, ";pow;copysign;") { CodeGenIntrinsics.floatMath(cge, node, bn, 2)  return }
-        if fly.str.equals(bn, "fma") { CodeGenIntrinsics.floatMath(cge, node, "fma", 3)  return }
+        if str.equals(bn, "fma") { CodeGenIntrinsics.floatMath(cge, node, "fma", 3)  return }
         if CodeGenIntrinsics.nameIn(bn, ";ctlz;cttz;") { CodeGenIntrinsics.intCount(cge, node, bn, true)  return }
-        if fly.str.equals(bn, "ctpop") { CodeGenIntrinsics.intCount(cge, node, "ctpop", false)  return }
+        if str.equals(bn, "ctpop") { CodeGenIntrinsics.intCount(cge, node, "ctpop", false)  return }
 
-        fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: fly.llvm.", bn), " is not yet supported by the self-host compiler"))
+        io.printErrLn(str.concat(str.concat("error: fly.llvm.", bn), " is not yet supported by the self-host compiler"))
     }
 
     // nameIn — membership in a ";a;b;c;" list.
     public static bool nameIn(const string name, const string list) {
-        out = fly.str.contains(list, fly.str.concat(";", fly.str.concat(name, ";")))
+        out = str.contains(list, str.concat(";", str.concat(name, ";")))
     }
 
     // floatMath — `fly.llvm.<name>(a[, b[, c]], out)` → `out = llvm.<llvmName>.f64(a…)`.
@@ -346,7 +346,7 @@ public class CodeGenIntrinsics {
             ptys.add(dbl)
             i = i + 1
         }
-        string iname = fly.str.concat("llvm.", fly.str.concat(llvmName, ".f64"))
+        string iname = str.concat("llvm.", str.concat(llvmName, ".f64"))
         pointer fty
         cg.functionTypeN(dbl, ptys, false, fty)
         pointer fn
@@ -383,7 +383,7 @@ public class CodeGenIntrinsics {
             inArgs.add(fV)
             ptys.add(i1t)
         }
-        string iname = fly.str.concat("llvm.", fly.str.concat(name, ".i64"))
+        string iname = str.concat("llvm.", str.concat(name, ".i64"))
         pointer fty
         cg.functionTypeN(i64t, ptys, false, fty)
         pointer fn

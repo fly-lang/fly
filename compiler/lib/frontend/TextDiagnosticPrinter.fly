@@ -3,6 +3,7 @@ namespace fly.compiler.frontend
 import fly.compiler.frontend.*
 import fly.compiler.basic.*
 import fly.os.io
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TextDiagnosticPrinter — a DiagnosticConsumer that renders each diagnostic with
@@ -30,10 +31,10 @@ public class TextDiagnosticPrinter : DiagnosticConsumer {
 
     public void handleDiagnostic(const Diagnostic diag) {
         string text = this.td.render(diag)
-        if fly.str.isEmpty(this.prefix) == false {
-            text = fly.str.concat(fly.str.concat(this.prefix, ": "), text)
+        if str.isEmpty(this.prefix) == false {
+            text = str.concat(str.concat(this.prefix, ": "), text)
         }
-        fly.os.io.printErrLn(text)
+        io.printErrLn(text)
         DiagLevel level = diag.getLevel()
         if level == DiagLevel.Error || level == DiagLevel.Fatal { this.errors = this.errors + 1 }
         elsif level == DiagLevel.Warning { this.warnings = this.warnings + 1 }

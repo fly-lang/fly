@@ -143,7 +143,7 @@ public enum TokenKind {
 public string getTokenName(const TokenKind k) { out = k.name }
 
 // isKeywordKind — true for any kw_* kind.
-public bool isKeywordKind(const TokenKind k) { out = fly.str.startsWith(k.name, "kw_") }
+public bool isKeywordKind(const TokenKind k) { out = str.startsWith(k.name, "kw_") }
 
 // isLiteralKind — true for a literal token (number / string / char).
 public bool isLiteralKind(const TokenKind k) {

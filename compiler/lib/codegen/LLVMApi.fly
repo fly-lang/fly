@@ -19,17 +19,17 @@ import fly.str
 // side a real, terminated C string. The buffer outlives the (synchronous) call;
 // it leaks, which is fine for the one-shot compiler.
 public pointer cbuf(const string s) {
-    int n = fly.str.len(s)
-    pointer buf = fly.mem.alloc(n + 1)
+    int n = str.len(s)
+    pointer buf = mem.alloc(n + 1)
     byte b = 0
     int i = 0
     while i < n {
-        fly.str.byteAt(s, i, b)
-        fly.mem.writeByte(buf, i, b)
+        str.byteAt(s, i, b)
+        mem.writeByte(buf, i, b)
         i = i + 1
     }
     byte z = 0
-    fly.mem.writeByte(buf, n, z)
+    mem.writeByte(buf, n, z)
     out = buf
 }
 
@@ -520,8 +520,8 @@ public class LLVM {
     // LLVM writes through it on the error path, so NULL would segfault exactly
     // when we want to report the failure.
     public void printModuleToFileChecked(const pointer mod, const string filename, bool ok) {
-        pointer buf = fly.mem.alloc(8)
-        fly.mem.writePtr(buf, 0, 0)
+        pointer buf = mem.alloc(8)
+        mem.writePtr(buf, 0, 0)
         Ptr3Args a = new Ptr3Args()
         a.a = mod
         a.b = cbuf(filename)
@@ -529,9 +529,9 @@ public class LLVM {
         CLang lib = new CLang("libLLVM-20.so")
         bool failed = false
         lib.call("LLVMPrintModuleToFile", a, failed)
-        pointer mp = fly.mem.readPtr(buf, 0)
+        pointer mp = mem.readPtr(buf, 0)
         if mp != 0 { this.disposeMessage(mp) }
-        fly.mem.free(buf, 8)
+        mem.free(buf, 8)
         if failed { ok = false } else { ok = true }
     }
 
@@ -575,8 +575,8 @@ public class LLVM {
     // and disposes it. The reason travels via the return value, not a string
     // out-param (param writes skip the clone-on-store path → double free).
     public string verifyModuleMsg(const pointer mod, bool ok) {
-        pointer buf = fly.mem.alloc(8)
-        fly.mem.writePtr(buf, 0, 0)
+        pointer buf = mem.alloc(8)
+        mem.writePtr(buf, 0, 0)
         PtrIntPtrArgs vargs = new PtrIntPtrArgs()
         vargs.a = mod
         vargs.n = 2
@@ -584,17 +584,17 @@ public class LLVM {
         CLang lib = new CLang("libLLVM-20.so")
         bool broken = false
         lib.call("LLVMVerifyModule", vargs, broken)
-        pointer mp = fly.mem.readPtr(buf, 0)
-        fly.mem.free(buf, 8)
+        pointer mp = mem.readPtr(buf, 0)
+        mem.free(buf, 8)
         if broken == false { ok = true } else { ok = false }
         out = ""
         if mp != 0 {
             byte zero = 0
             int len = 0
-            byte c = fly.mem.readByte(mp, len)
+            byte c = mem.readByte(mp, len)
             while c != zero {
                 len = len + 1
-                c = fly.mem.readByte(mp, len)
+                c = mem.readByte(mp, len)
             }
             // COPY the message into a buffer the string OWNS: strMake is
             // zero-copy, so wrapping `mp` directly makes the local alias LLVM's
@@ -604,12 +604,12 @@ public class LLVM {
             // copy also keeps dispose on LLVM's own allocator (Windows CRTs
             // differ between LLVM-C.dll and the program).
             if len > 0 {
-                pointer copy = fly.mem.alloc(len)
+                pointer copy = mem.alloc(len)
                 int i = 0
                 byte b = 0
                 while i < len {
-                    b = fly.mem.readByte(mp, i)
-                    fly.mem.writeByte(copy, i, b)
+                    b = mem.readByte(mp, i)
+                    mem.writeByte(copy, i, b)
                     i = i + 1
                 }
                 string s = ""
@@ -1662,16 +1662,16 @@ public class LLVM {
     // out-pointer, then copy the written value into `target`. `ok` carries the
     // raw LLVMBool return (true = FAILURE); callers should test `target != 0`.
     public void getTargetFromTriple(const string triple, pointer target, bool ok) {
-        pointer buf = fly.mem.alloc(8)
-        fly.mem.writePtr(buf, 0, 0)
+        pointer buf = mem.alloc(8)
+        mem.writePtr(buf, 0, 0)
         Ptr3Args a = new Ptr3Args()
         a.a = cbuf(triple)   // const char* Triple (NUL-terminated)
         a.b = buf            // LLVMTargetRef* T  (out-pointer buffer)
         // a.c stays null → char** Err = NULL
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMGetTargetFromTriple", a, ok)
-        target = fly.mem.readPtr(buf, 0)
-        fly.mem.free(buf, 8)
+        target = mem.readPtr(buf, 0)
+        mem.free(buf, 8)
     }
 
     // createTargetMachine — full 7-argument marshalling (the old stub dropped all
@@ -1720,8 +1720,8 @@ public class LLVM {
     // `*ErrorMessage = strdup(msg)`, so a NULL here segfaults exactly when we should
     // be reporting the failure. Mirrors printModuleToFileChecked.
     public void targetMachineEmitToFile(const pointer tm, const pointer mod, const string filename, const int emitType, bool ok) {
-        pointer errBuf = fly.mem.alloc(8)
-        fly.mem.writePtr(errBuf, 0, 0)
+        pointer errBuf = mem.alloc(8)
+        mem.writePtr(errBuf, 0, 0)
         EmitFileArgs a = new EmitFileArgs()
         a.tm = tm
         a.mod = mod
@@ -1730,9 +1730,9 @@ public class LLVM {
         a.err = errBuf
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMTargetMachineEmitToFile", a, ok)
-        pointer mp = fly.mem.readPtr(errBuf, 0)
+        pointer mp = mem.readPtr(errBuf, 0)
         if mp != 0 { this.disposeMessage(mp) }
-        fly.mem.free(errBuf, 8)
+        mem.free(errBuf, 8)
     }
 
     // ── Pass manager ──────────────────────────────────────────────────────────

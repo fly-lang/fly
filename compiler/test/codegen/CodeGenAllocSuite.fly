@@ -36,8 +36,8 @@ suite CodeGenAllocSuite {
                     fail r
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "@malloc"), 11)
-            assert.assertTrue(fly.str.contains(ir, "call void @free"), 12)
+            assert.assertTrue(str.contains(ir, "@malloc"), 11)
+            assert.assertTrue(str.contains(ir, "call void @free"), 12)
         }
     }
 }

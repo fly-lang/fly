@@ -68,50 +68,50 @@ public class GitFetcher {
         int refKind = dep.getRefKind()       // 0=Tag 1=Branch 2=Rev
         string refVal = dep.getRefValue()
 
-        string tmpdir = fly.os.env.get("TMPDIR")
-        if fly.str.isEmpty(tmpdir) { tmpdir = "/tmp" }
-        string bare = fly.str.concat(tmpdir, fly.str.concat("/fly-bare-", name))
-        fly.os.fs.dirDeleteAll(bare)
+        string tmpdir = env.get("TMPDIR")
+        if str.isEmpty(tmpdir) { tmpdir = "/tmp" }
+        string bare = str.concat(tmpdir, str.concat("/fly-bare-", name))
+        fs.dirDeleteAll(bare)
 
         // 1) clone --bare (shallow for tag/branch, full for rev)
-        pointer ca = fly.os.proc.argsNew()
-        fly.os.proc.argsAdd(ca, "clone")
-        fly.os.proc.argsAdd(ca, "--quiet")
-        fly.os.proc.argsAdd(ca, "--bare")
+        pointer ca = proc.argsNew()
+        proc.argsAdd(ca, "clone")
+        proc.argsAdd(ca, "--quiet")
+        proc.argsAdd(ca, "--bare")
         if refKind != 2 {
-            fly.os.proc.argsAdd(ca, "--depth=1")
-            fly.os.proc.argsAdd(ca, "--branch")
-            fly.os.proc.argsAdd(ca, refVal)
+            proc.argsAdd(ca, "--depth=1")
+            proc.argsAdd(ca, "--branch")
+            proc.argsAdd(ca, refVal)
         }
-        fly.os.proc.argsAdd(ca, url)
-        fly.os.proc.argsAdd(ca, bare)
+        proc.argsAdd(ca, url)
+        proc.argsAdd(ca, bare)
         int rc = fly.driver.runArgs("git", ca)
-        fly.os.proc.argsFree(ca)
+        proc.argsFree(ca)
         if rc != 0 {
-            fly.os.fs.dirDeleteAll(bare)
-            r.errMsg = fly.str.concat("failed to clone ", fly.str.concat(url, fly.str.concat(" ref=", refVal)))
+            fs.dirDeleteAll(bare)
+            r.errMsg = str.concat("failed to clone ", str.concat(url, str.concat(" ref=", refVal)))
             out = r
             return
         }
 
         // 2) resolve the commit hash
-        pointer ra = fly.os.proc.argsNew()
-        fly.os.proc.argsAdd(ra, "-C")
-        fly.os.proc.argsAdd(ra, bare)
-        fly.os.proc.argsAdd(ra, "rev-parse")
+        pointer ra = proc.argsNew()
+        proc.argsAdd(ra, "-C")
+        proc.argsAdd(ra, bare)
+        proc.argsAdd(ra, "rev-parse")
         if refKind == 2 {
-            fly.os.proc.argsAdd(ra, "--verify")
-            fly.os.proc.argsAdd(ra, refVal)
+            proc.argsAdd(ra, "--verify")
+            proc.argsAdd(ra, refVal)
         } else {
-            fly.os.proc.argsAdd(ra, "HEAD")
+            proc.argsAdd(ra, "HEAD")
         }
         int rrc = 0
         string revRaw = fly.driver.captureArgs("git", ra, rrc)
-        fly.os.proc.argsFree(ra)
+        proc.argsFree(ra)
         string rev = fly.driver.trimTrailingNewline(revRaw)
-        if fly.str.len(rev) != 40 {
-            fly.os.fs.dirDeleteAll(bare)
-            r.errMsg = fly.str.concat("could not resolve commit hash for ", name)
+        if str.len(rev) != 40 {
+            fs.dirDeleteAll(bare)
+            r.errMsg = str.concat("could not resolve commit hash for ", name)
             out = r
             return
         }
@@ -125,7 +125,7 @@ public class GitFetcher {
 
         // 3) cache hit?
         if this.cache.has(url, rev) {
-            fly.os.fs.dirDeleteAll(bare)
+            fs.dirDeleteAll(bare)
             string entry = this.cache.entryPath(url, rev)
             r.rev = rev
             r.version = version
@@ -147,43 +147,43 @@ public class GitFetcher {
         this.cache.prepare(url, rev)
         string entry = this.cache.entryPath(url, rev)
         string tarTmp = fly.driver.tmpPath("flytar")
-        pointer aa = fly.os.proc.argsNew()
-        fly.os.proc.argsAdd(aa, "-C")
-        fly.os.proc.argsAdd(aa, bare)
-        fly.os.proc.argsAdd(aa, "archive")
-        fly.os.proc.argsAdd(aa, rev)
-        int arc = fly.os.proc.execCapture("git", aa, tarTmp)
-        fly.os.proc.argsFree(aa)
+        pointer aa = proc.argsNew()
+        proc.argsAdd(aa, "-C")
+        proc.argsAdd(aa, bare)
+        proc.argsAdd(aa, "archive")
+        proc.argsAdd(aa, rev)
+        int arc = proc.execCapture("git", aa, tarTmp)
+        proc.argsFree(aa)
         if arc == 0 {
             // `git archive` emits an UNCOMPRESSED tar, so this is extractTar and
             // not extractTarGz. readBytes, not readStr: the file is binary.
             int xe = 0
-            bool xok = fly.targz.extractTar(fly.os.fs.readBytes(tarTmp), entry, xe)
+            bool xok = targz.extractTar(fs.readBytes(tarTmp), entry, xe)
             if xok == false { arc = 1 }
         }
-        fly.os.fs.delete(tarTmp)
-        fly.os.fs.dirDeleteAll(bare)
+        fs.delete(tarTmp)
+        fs.dirDeleteAll(bare)
 
-        string tomlPath = fly.str.concat(entry, "/Manifest.fly")
-        if arc != 0 || fly.os.fs.exists(tomlPath) == false {
+        string tomlPath = str.concat(entry, "/Manifest.fly")
+        if arc != 0 || fs.exists(tomlPath) == false {
             // fallback: full clone into the entry
-            fly.os.fs.dirDeleteAll(entry)
-            pointer fa = fly.os.proc.argsNew()
-            fly.os.proc.argsAdd(fa, "clone")
-            fly.os.proc.argsAdd(fa, "--quiet")
-            fly.os.proc.argsAdd(fa, url)
-            fly.os.proc.argsAdd(fa, entry)
+            fs.dirDeleteAll(entry)
+            pointer fa = proc.argsNew()
+            proc.argsAdd(fa, "clone")
+            proc.argsAdd(fa, "--quiet")
+            proc.argsAdd(fa, url)
+            proc.argsAdd(fa, entry)
             fly.driver.runArgs("git", fa)
-            fly.os.proc.argsFree(fa)
+            proc.argsFree(fa)
             if refKind == 2 {
-                pointer co = fly.os.proc.argsNew()
-                fly.os.proc.argsAdd(co, "-C")
-                fly.os.proc.argsAdd(co, entry)
-                fly.os.proc.argsAdd(co, "checkout")
-                fly.os.proc.argsAdd(co, "--quiet")
-                fly.os.proc.argsAdd(co, refVal)
+                pointer co = proc.argsNew()
+                proc.argsAdd(co, "-C")
+                proc.argsAdd(co, entry)
+                proc.argsAdd(co, "checkout")
+                proc.argsAdd(co, "--quiet")
+                proc.argsAdd(co, refVal)
                 fly.driver.runArgs("git", co)
-                fly.os.proc.argsFree(co)
+                proc.argsFree(co)
             }
         }
 
@@ -197,8 +197,8 @@ public class GitFetcher {
 
     // tomlChecksum — sha256 of <entry>/Manifest.fly (or "sha256:" if absent).
     public string tomlChecksum(const string entry) {
-        string tomlPath = fly.str.concat(entry, "/Manifest.fly")
-        if fly.os.fs.exists(tomlPath) {
+        string tomlPath = str.concat(entry, "/Manifest.fly")
+        if fs.exists(tomlPath) {
             out = fly.driver.sha256File(tomlPath)
         } else {
             out = "sha256:"
@@ -208,13 +208,13 @@ public class GitFetcher {
     // readManifest — parse <entry>/Manifest.fly. `errOut`: 1 = no Manifest.fly, else the
     // manifest parser code.
     public Manifest readManifest(const string name, const string entry, int errOut) {
-        string mpath = fly.str.concat(entry, "/Manifest.fly")
-        if fly.os.fs.exists(mpath) == false {
+        string mpath = str.concat(entry, "/Manifest.fly")
+        if fs.exists(mpath) == false {
             errOut = 1
             out = new Manifest()
             return
         }
-        string src = fly.os.fs.readStr(mpath)
+        string src = fs.readStr(mpath)
         int e = 0
         FlyManifestReader r = new FlyManifestReader()
         Manifest m = r.read(src, e)
@@ -229,35 +229,35 @@ public class GitFetcher {
     // keep field 2 of each line, drop the "refs/tags/" prefix, and skip the
     // "^{}" peeled-tag entries git emits alongside annotated tags.
     public string listTags(const string url) {
-        pointer la = fly.os.proc.argsNew()
-        fly.os.proc.argsAdd(la, "ls-remote")
-        fly.os.proc.argsAdd(la, "--tags")
-        fly.os.proc.argsAdd(la, url)
+        pointer la = proc.argsNew()
+        proc.argsAdd(la, "ls-remote")
+        proc.argsAdd(la, "--tags")
+        proc.argsAdd(la, url)
         int rc = 0
         string raw = fly.driver.captureArgs("git", la, rc)
-        fly.os.proc.argsFree(la)
-        if fly.str.isEmpty(raw) { out = ""  return }
+        proc.argsFree(la)
+        if str.isEmpty(raw) { out = ""  return }
 
         string nl = fly.driver.nl()
         string res = ""
-        int n = fly.str.len(raw)
+        int n = str.len(raw)
         int pos = 0
         bool go = true
         while go && pos < n {
-            int e = fly.str.indexOf(fly.str.substring(raw, pos, n), nl)
+            int e = str.indexOf(str.substring(raw, pos, n), nl)
             int stop = n
             if e >= 0 { stop = pos + e }
-            string line = fly.str.substring(raw, pos, stop)
+            string line = str.substring(raw, pos, stop)
             // field 2 is whatever follows the first tab (git separates hash and ref
             // with a tab; a space-tolerant split would also swallow ref names).
-            int tab = fly.str.indexOf(line, fly.driver.tabStr())
+            int tab = str.indexOf(line, fly.driver.tabStr())
             if tab >= 0 {
-                string ref = fly.str.substring(line, tab + 1, fly.str.len(line))
-                if fly.str.startsWith(ref, "refs/tags/") {
-                    string tag = fly.str.substring(ref, 10, fly.str.len(ref))
+                string ref = str.substring(line, tab + 1, str.len(line))
+                if str.startsWith(ref, "refs/tags/") {
+                    string tag = str.substring(ref, 10, str.len(ref))
                     // annotated tags are listed twice, the second as "<tag>^{}"
-                    if fly.str.endsWith(tag, "^{}") == false {
-                        string acc = fly.str.concat(res, fly.str.concat(tag, nl))
+                    if str.endsWith(tag, "^{}") == false {
+                        string acc = str.concat(res, str.concat(tag, nl))
                         res = acc
                     }
                 }

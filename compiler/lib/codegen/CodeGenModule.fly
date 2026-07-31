@@ -111,8 +111,8 @@ public class CodeGenModule {
     public void addLinkerOption(const string flag) {
         if this.codeGenOpts != null {
             string cur = this.codeGenOpts.getLinkerOptions()
-            string probe = fly.str.concat(";", fly.str.concat(flag, ";"))
-            if fly.str.contains(cur, probe) == false {
+            string probe = str.concat(";", str.concat(flag, ";"))
+            if str.contains(cur, probe) == false {
                 this.codeGenOpts.addLinkerOption(flag)
             }
         }
@@ -1100,7 +1100,7 @@ public class CodeGenModule {
     // FFI extern). These need an unmangled C-ABI entry emitted alongside the mangled
     // impl (see emitRuntimeCABIWrapper); empty-body externs lower to `call @name`.
     public bool isRuntimeCABIDef(const SemaFunctionBase fn) {
-        if fly.str.equals(fn.getNamespaceName(), "fly_runtime") == false { out = false  return }
+        if str.equals(fn.getNamespaceName(), "fly_runtime") == false { out = false  return }
         SemaBlockStmt body = fn.getBody()
         if body == null { out = false  return }
         out = body.isEmpty() == false
@@ -1419,7 +1419,7 @@ public class CodeGenModule {
     // CodeGenEnum names table.
     public pointer enumNamesTable(const SemaEnumType en) {
         LLVM llvm = this.cg.getLLVM()
-        string tname = fly.str.concat("enum.names.", en.getName())
+        string tname = str.concat("enum.names.", en.getName())
         pointer existing
         llvm.getNamedGlobal(this.module, tname, existing)
         if existing != 0 { out = existing  return }
@@ -1452,7 +1452,7 @@ public class CodeGenModule {
                 string nm = e.getName()
                 pointer g = this.cg.globalString(this.module, this.ctx, nm)
                 pointer lenC
-                llvm.constInt(i32len, fly.str.len(nm), false, lenC)
+                llvm.constInt(i32len, str.len(nm), false, lenC)
                 List<pointer> fs = new List<pointer>()
                 fs.add(g)
                 fs.add(lenC)

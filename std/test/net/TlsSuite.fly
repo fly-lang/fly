@@ -10,11 +10,11 @@ import fly.assert
 // and off by default. See the header note: TLS correctness here is validated by
 // that case, not by CI.
 bool onlineTests() {
-    out = fly.str.isEmpty(fly.os.env.get("FLY_NET_ONLINE_TESTS")) == false
+    out = str.isEmpty(env.get("FLY_NET_ONLINE_TESTS")) == false
 }
 
 bool skipSockets() {
-    out = fly.str.isEmpty(fly.os.env.get("FLY_SKIP_NET_TESTS")) == false
+    out = str.isEmpty(env.get("FLY_SKIP_NET_TESTS")) == false
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -48,8 +48,8 @@ suite TlsSuite {
     // ── availability ─────────────────────────────────────────────────────────
     void availabilityTest() {
         case "tlsAvailable is stable and matches the build": {
-            bool a = fly.net.tls.tlsAvailable()
-            assert.assertTrue(a == fly.net.tls.tlsAvailable(), 101)
+            bool a = tls.tlsAvailable()
+            assert.assertTrue(a == tls.tlsAvailable(), 101)
             // There IS a real backend on Linux (OpenSSL) and on Windows
             // (Schannel); macOS still has none. Which one a binary gets depends
             // on whether it was linked with --tls — and the suites are NOT, so
@@ -65,10 +65,10 @@ suite TlsSuite {
         }
         case "with no backend every connect fails cleanly": {
             if skipSockets() { assert.assertTrue(true, 103) } else {
-                if fly.net.tls.tlsAvailable() == false {
+                if tls.tlsAvailable() == false {
                     // No network traffic at all: the availability check short-circuits.
-                    assert.assertNull(fly.net.tls.tlsConnect("example.org", 443), 103)
-                    assert.assertNull(fly.net.tls.tlsConnectOpts("example.org", 443, true, 1000), 104)
+                    assert.assertNull(tls.tlsConnect("example.org", 443), 103)
+                    assert.assertNull(tls.tlsConnectOpts("example.org", 443, true, 1000), 104)
                 } else {
                     assert.assertTrue(true, 103)
                     assert.assertTrue(true, 104)
@@ -80,51 +80,51 @@ suite TlsSuite {
     // ── null-handle sentinels ────────────────────────────────────────────────
     void sentinelTest() {
         case "every accessor tolerates a null connection": {
-            assert.assertEqL(fly.net.tls.tlsSocket(0), 0 - 1, 201)
-            assert.assertTrue(fly.net.tls.tlsSend(0, 0, 0) < 0, 202)
-            assert.assertFalse(fly.net.tls.tlsSendStr(0, "x"), 203)
-            assert.assertTrue(fly.net.tls.tlsRecv(0, 0, 0) < 0, 204)
-            assert.assertEmpty(fly.net.tls.tlsRecvStr(0, 16), 205)
-            assert.assertEmpty(fly.net.tls.tlsRecvAll(0), 206)
-            assert.assertEqI(fly.net.tls.tlsLastError(0), 0, 207)
+            assert.assertEqL(tls.tlsSocket(0), 0 - 1, 201)
+            assert.assertTrue(tls.tlsSend(0, 0, 0) < 0, 202)
+            assert.assertFalse(tls.tlsSendStr(0, "x"), 203)
+            assert.assertTrue(tls.tlsRecv(0, 0, 0) < 0, 204)
+            assert.assertEmpty(tls.tlsRecvStr(0, 16), 205)
+            assert.assertEmpty(tls.tlsRecvAll(0), 206)
+            assert.assertEqI(tls.tlsLastError(0), 0, 207)
         }
         case "releasing a null connection is a no-op, twice over": {
-            fly.net.tls.tlsClose(0)
-            fly.net.tls.tlsFree(0)
-            fly.net.tls.tlsClose(0)
+            tls.tlsClose(0)
+            tls.tlsFree(0)
+            tls.tlsClose(0)
             assert.assertTrue(true, 208)
         }
         case "recvStr with a non-positive size is empty": {
-            assert.assertEmpty(fly.net.tls.tlsRecvStr(0, 0), 209)
+            assert.assertEmpty(tls.tlsRecvStr(0, 0), 209)
         }
     }
 
     // ── failure paths that need no peer ──────────────────────────────────────
     void failureTest() {
         case "wrapping a negative socket fails": {
-            assert.assertNull(fly.net.tls.tlsWrap(0 - 1, "example.org", true), 301)
+            assert.assertNull(tls.tlsWrap(0 - 1, "example.org", true), 301)
         }
         case "wrapping a real socket fails when there is no backend": {
             // A plain socket is opened and NOT connected; with the stub linked the
             // handshake cannot even be attempted, so this must report failure
             // rather than hand back a handle that later misbehaves.
             if skipSockets() { assert.assertTrue(true, 302) } else {
-                long s = fly.net.socket()
+                long s = net.socket()
                 assert.assertTrue(s >= 0, 302)
-                pointer c = fly.net.tls.tlsWrap(s, "example.org", true)
-                if fly.net.tls.tlsAvailable() {
+                pointer c = tls.tlsWrap(s, "example.org", true)
+                if tls.tlsAvailable() {
                     // A real backend would fail too (the socket is unconnected),
                     // just for a different reason.
                     assert.assertNull(c, 303)
                 } else {
                     assert.assertNull(c, 303)
                 }
-                fly.net.close(s)
+                net.close(s)
             }
         }
         case "an unresolvable host fails before any TLS work": {
             if skipSockets() { assert.assertTrue(true, 304) } else {
-                assert.assertNull(fly.net.tls.tlsConnectOpts("fly-no-such-host-xyzabc.invalid", 443, true, 1000), 304)
+                assert.assertNull(tls.tlsConnectOpts("fly-no-such-host-xyzabc.invalid", 443, true, 1000), 304)
             }
         }
         case "https through fly.net.http fails closed when nothing can serve it": {
@@ -133,12 +133,12 @@ suite TlsSuite {
             // fail-closed assertion belongs to httpsSupported(), not to
             // tlsAvailable() — otherwise this case would demand that Windows,
             // where https genuinely works, still refuse it.
-            if fly.net.http.httpsSupported() {
+            if http.httpsSupported() {
                 assert.assertTrue(true, 305)
                 assert.assertTrue(true, 306)
             } else {
-                assert.assertEmpty(fly.net.http.get("https://example.org/"), 305)
-                assert.assertEqI(fly.net.http.getStatus("https://example.org/"), 0 - 1, 306)
+                assert.assertEmpty(http.get("https://example.org/"), 305)
+                assert.assertEqI(http.getStatus("https://example.org/"), 0 - 1, 306)
             }
         }
     }
@@ -152,19 +152,19 @@ suite TlsSuite {
             // exactly why this suite's header says a green board does not prove
             // the handshake.
             bool run = onlineTests()
-            if fly.net.tls.tlsAvailable() == false { run = false }
+            if tls.tlsAvailable() == false { run = false }
             if skipSockets() { run = false }
             if run == false { assert.assertTrue(true, 401) } else {
-                pointer c = fly.net.tls.tlsConnectOpts("example.org", 443, true, 10000)
+                pointer c = tls.tlsConnectOpts("example.org", 443, true, 10000)
                 assert.assertNotNull(c, 401)
                 if c != 0 {
-                    string req = fly.net.http.buildRequest("HEAD", "/", "example.org", "", "")
-                    assert.assertTrue(fly.net.tls.tlsSendStr(c, req), 402)
-                    string resp = fly.net.tls.tlsRecvStr(c, 4096)
+                    string req = http.buildRequest("HEAD", "/", "example.org", "", "")
+                    assert.assertTrue(tls.tlsSendStr(c, req), 402)
+                    string resp = tls.tlsRecvStr(c, 4096)
                     assert.assertNotEmpty(resp, 403)
-                    assert.assertTrue(fly.str.startsWith(resp, "HTTP/1."), 404)
-                    assert.assertTrue(fly.net.http.respStatus(resp) > 0, 405)
-                    fly.net.tls.tlsClose(c)
+                    assert.assertTrue(str.startsWith(resp, "HTTP/1."), 404)
+                    assert.assertTrue(http.respStatus(resp) > 0, 405)
+                    tls.tlsClose(c)
                 }
             }
         }
@@ -174,18 +174,18 @@ suite TlsSuite {
             // certificate from any CA. Connecting to example.org's IP while
             // claiming a different SNI/verification name must FAIL.
             bool run = onlineTests()
-            if fly.net.tls.tlsAvailable() == false { run = false }
+            if tls.tlsAvailable() == false { run = false }
             if skipSockets() { run = false }
             if run == false { assert.assertTrue(true, 406) } else {
-                int addr = fly.net.resolve("example.org")
+                int addr = net.resolve("example.org")
                 if addr == 0 { assert.assertTrue(true, 406) } else {
-                    long s = fly.net.socket()
-                    bool ok = fly.net.connect(s, addr, 443)
+                    long s = net.socket()
+                    bool ok = net.connect(s, addr, 443)
                     if ok == false { assert.assertTrue(true, 406) } else {
                         // Right server, WRONG expected name → must be refused.
-                        pointer bad = fly.net.tls.tlsWrap(s, "fly-wrong-name.invalid", true)
+                        pointer bad = tls.tlsWrap(s, "fly-wrong-name.invalid", true)
                         assert.assertNull(bad, 406)
-                        if bad != 0 { fly.net.tls.tlsClose(bad) } else { fly.net.close(s) }
+                        if bad != 0 { tls.tlsClose(bad) } else { net.close(s) }
                     }
                 }
             }

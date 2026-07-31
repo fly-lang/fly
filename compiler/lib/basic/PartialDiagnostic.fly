@@ -22,7 +22,7 @@ public class PartialDiagnostic {
     }
 
     public PartialDiagnostic addStr(const string s) { this.args.add(s)  out = this }
-    public PartialDiagnostic addInt(const int n) { this.args.add(fly.str.convert(n))  out = this }
+    public PartialDiagnostic addInt(const int n) { this.args.add(str.convert(n))  out = this }
 
     public DiagID getId() { out = this.id }
     public SourceLocation getLoc() { out = this.loc }

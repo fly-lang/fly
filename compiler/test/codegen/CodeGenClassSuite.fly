@@ -41,8 +41,8 @@ suite CodeGenClassSuite {
                     fail s
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "%.Point = type { ptr, i32, i32 }"), 11)
-            assert.assertTrue(fly.str.contains(ir, "@vtable..Point"), 12)
+            assert.assertTrue(str.contains(ir, "%.Point = type { ptr, i32, i32 }"), 11)
+            assert.assertTrue(str.contains(ir, "@vtable..Point"), 12)
         }
     }
 
@@ -61,9 +61,9 @@ suite CodeGenClassSuite {
                     fail s
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "@malloc"), 21)
-            assert.assertTrue(fly.str.contains(ir, "store ptr @vtable..Point"), 22)
-            assert.assertTrue(fly.str.contains(ir, "call void @Point_F0"), 23)
+            assert.assertTrue(str.contains(ir, "@malloc"), 21)
+            assert.assertTrue(str.contains(ir, "store ptr @vtable..Point"), 22)
+            assert.assertTrue(str.contains(ir, "call void @Point_F0"), 23)
         }
     }
 
@@ -82,8 +82,8 @@ suite CodeGenClassSuite {
                     fail s
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "getelementptr inbounds nuw %.Point"), 31)
-            assert.assertTrue(fly.str.contains(ir, "getelementptr ptr"), 32)  // vtable slot
+            assert.assertTrue(str.contains(ir, "getelementptr inbounds nuw %.Point"), 31)
+            assert.assertTrue(str.contains(ir, "getelementptr ptr"), 32)  // vtable slot
         }
     }
 
@@ -104,8 +104,8 @@ suite CodeGenClassSuite {
                     fail r
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "makeBox"), 41)            // receiver call emitted
-            assert.assertTrue(fly.str.contains(ir, "getelementptr ptr"), 42)  // get() via vtable on the result
+            assert.assertTrue(str.contains(ir, "makeBox"), 41)            // receiver call emitted
+            assert.assertTrue(str.contains(ir, "getelementptr ptr"), 42)  // get() via vtable on the result
         }
     }
 }

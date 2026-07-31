@@ -78,16 +78,16 @@ public string scanTopLevelDecls(const string src) {
                             e2 = e3
                         } else { goNs = false }
                     }
-                    nsName = fly.str.substring(src, s, e2)
+                    nsName = str.substring(src, s, e2)
                     i = e2
                 } elsif prevSuite {
                     // segAppend, never `x = concat(x, …)` (self-alias gotcha)
-                    string nm = fly.str.substring(src, s, e)
-                    if fly.str.isEmpty(nsName) {
+                    string nm = str.substring(src, s, e)
+                    if str.isEmpty(nsName) {
                         suites = segAppend(suites, nm)
                     } else {
-                        string q1 = fly.str.concat(".", nm)
-                        string q2 = fly.str.concat(nsName, q1)
+                        string q1 = str.concat(".", nm)
+                        string q2 = str.concat(nsName, q1)
                         suites = segAppend(suites, q2)
                     }
                 }
@@ -113,7 +113,7 @@ public string scanTopLevelDecls(const string src) {
     }
     string head = ";0;"
     if hasMain { head = ";1;" }
-    out = fly.str.concat(head, suites)
+    out = str.concat(head, suites)
 }
 
 // declSkipLine — from just past "//", return the index of the newline (or n).
@@ -183,12 +183,12 @@ public bool declIsIdentBody(const int c) {
 
 // declWordIs — buffer[s..e) equals `w`, compared byte-wise without allocating.
 public bool declWordIs(const pointer p, const int s, const int e, const string w) {
-    int wl = fly.str.len(w)
+    int wl = str.len(w)
     if e - s != wl { out = false  return }
     int k = 0
     while k < wl {
         byte wb = 0
-        fly.str.byteAt(w, k, wb)
+        str.byteAt(w, k, wb)
         // masked int compare; a condition may not START with '(' (parser gotcha)
         int ai = declByteP(p, s + k)
         int bi = wb & 255

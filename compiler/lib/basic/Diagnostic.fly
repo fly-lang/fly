@@ -21,10 +21,10 @@ public string formatMessage(const string desc, const List<string> args) {
     int n = (int)args.size()
     int i = 0
     while i < n {
-        string ph = fly.str.concat("%", fly.str.convert(i))
+        string ph = str.concat("%", str.convert(i))
         // NOTE: must use a distinct temp — `res = replace(res, …)` (reassigning a
         // string var from a result computed over itself) corrupts under this compiler.
-        string next = fly.str.replace(res, ph, args.get(i))
+        string next = str.replace(res, ph, args.get(i))
         res = next
         i = i + 1
     }
@@ -146,7 +146,7 @@ public class DiagnosticBuilder {
     }
 
     public DiagnosticBuilder addStr(const string s) { this.args.add(s)  out = this }
-    public DiagnosticBuilder addInt(const int n) { this.args.add(fly.str.convert(n))  out = this }
+    public DiagnosticBuilder addInt(const int n) { this.args.add(str.convert(n))  out = this }
     public DiagnosticBuilder addFixIt(const FixItHint h) { this.fixits.add(h)  out = this }
 
     public DiagID getId() { out = this.id }
@@ -192,9 +192,9 @@ public class DiagnosticsEngine {
         SourceLocation loc = b.getLoc()
         int line = this.sm.getLineNumber(loc)
         int col = this.sm.getColumnNumber(loc)
-        string prefix = fly.str.concat(fly.str.convert(line),
-                        fly.str.concat(":", fly.str.concat(fly.str.convert(col), ": ")))
-        string full = fly.str.concat(prefix, fly.str.concat(levelName(level), fly.str.concat(": ", msg)))
+        string prefix = str.concat(str.convert(line),
+                        str.concat(":", str.concat(str.convert(col), ": ")))
+        string full = str.concat(prefix, str.concat(levelName(level), str.concat(": ", msg)))
         PresumedLoc pl = this.sm.getPresumedLoc(loc)
         string fname = pl.getFilename()
         Diagnostic diag = new Diagnostic(level, loc, line, col, fname, msg, full, this.sm)

@@ -36,7 +36,7 @@ import fly.str
 // byteOf — the i-th byte of s as a masked int. The mask is the platform guard.
 private int byteOf(const string s, const int i) {
     byte b = 0
-    fly.str.byteAt(s, i, b)
+    str.byteAt(s, i, b)
     int v = b
     out = v & 255
 }
@@ -98,7 +98,7 @@ private int b64ValOf(const int c) {
 // b64Encode — the shared encoder. `pad` controls the trailing '=' characters:
 // the standard alphabet pads, the URL-safe one conventionally does not.
 private string b64Encode(const string s, const bool urlSafe, const bool pad) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     if n == 0 { out = ""  return }
     int groups = (n + 2) / 3
     int cap = groups * 4
@@ -143,7 +143,7 @@ private string b64Encode(const string s, const bool urlSafe, const bool pad) {
 // wants MIME line folding can strip it deliberately.
 private string b64Decode(const string s, int errOut) {
     errOut = 0
-    int n = fly.str.len(s)
+    int n = str.len(s)
     if n == 0 { out = ""  return }
     // strip trailing padding
     int end = n
@@ -232,7 +232,7 @@ public string base64UrlDecode(const string s, int errOut) {
 // pctEncode — the shared encoder. `keepPathChars` preserves the characters that
 // structure a path or a URL; without it every reserved character is escaped.
 private string pctEncode(const string s, const bool keepPathChars) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     if n == 0 { out = ""  return }
     pointer buf = 0
     fly.runtime.mem_alloc(n * 3, buf)
@@ -292,7 +292,7 @@ public string percentEncodeComponent(const string s) {
 // applying it here would corrupt any path or JSON body containing a plus.
 public string percentDecode(const string s, int errOut) {
     errOut = 0
-    int n = fly.str.len(s)
+    int n = str.len(s)
     if n == 0 { out = ""  return }
     pointer buf = 0
     fly.runtime.mem_alloc(n, buf)
@@ -336,7 +336,7 @@ public string percentDecode(const string s, int errOut) {
 
 // hexEncode — two lowercase hex characters per byte. Never fails.
 public string hexEncode(const string s) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     if n == 0 { out = ""  return }
     pointer buf = 0
     fly.runtime.mem_alloc(n * 2, buf)
@@ -354,7 +354,7 @@ public string hexEncode(const string s) {
 // 1 a non-hex character.
 public string hexDecode(const string s, int errOut) {
     errOut = 0
-    int n = fly.str.len(s)
+    int n = str.len(s)
     if n == 0 { out = ""  return }
     int odd = n % 2
     if odd != 0 { errOut = 2  out = ""  return }

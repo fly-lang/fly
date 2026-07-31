@@ -45,24 +45,24 @@ public class LspDiag {
 // editors percent-encode the drive colon, so the decode is not optional here.
 public string uriToPath(const string uri) {
     string s = uri
-    if fly.str.startsWith(s, "file://") {
-        s = fly.str.substring(s, 7, fly.str.len(s))
+    if str.startsWith(s, "file://") {
+        s = str.substring(s, 7, str.len(s))
     }
     int de = 0
-    string dec = fly.codec.percentDecode(s, de)
+    string dec = codec.percentDecode(s, de)
     if de == 0 { s = dec }
     // "/c:/x" → "c:/x": the leading slash is URI syntax, not part of the path.
-    if fly.str.len(s) >= 3 {
+    if str.len(s) >= 3 {
         byte b0 = 0
         byte b2 = 0
-        fly.str.byteAt(s, 0, b0)
-        fly.str.byteAt(s, 2, b2)
+        str.byteAt(s, 0, b0)
+        str.byteAt(s, 2, b2)
         int i0 = b0
         int i2 = b2
         i0 = i0 & 255
         i2 = i2 & 255
         if i0 == 47 {
-            if i2 == 58 { s = fly.str.substring(s, 1, fly.str.len(s)) }
+            if i2 == 58 { s = str.substring(s, 1, str.len(s)) }
         }
     }
     out = s
@@ -70,16 +70,16 @@ public string uriToPath(const string uri) {
 
 // pathToUri — the inverse: a Windows drive path gains the extra slash.
 public string pathToUri(const string path) {
-    string p = fly.str.replace(path, "\\", "/")
+    string p = str.replace(path, "\\", "/")
     bool drive = false
-    if fly.str.len(p) >= 2 {
+    if str.len(p) >= 2 {
         byte b1 = 0
-        fly.str.byteAt(p, 1, b1)
+        str.byteAt(p, 1, b1)
         int i1 = b1
         i1 = i1 & 255
         if i1 == 58 { drive = true }
     }
-    if drive { out = fly.str.concat("file:///", p) } else { out = fly.str.concat("file://", p) }
+    if drive { out = str.concat("file:///", p) } else { out = str.concat("file://", p) }
 }
 
 // mkPosition — an LSP Position node from 1-based compiler coordinates.
@@ -88,38 +88,38 @@ public pointer mkPosition(const int line1, const int col1) {
     int c = col1 - 1
     if l < 0 { l = 0 }
     if c < 0 { c = 0 }
-    pointer o = fly.json.newObject()
-    fly.json.put(o, "line", fly.json.newInt(l))
-    fly.json.put(o, "character", fly.json.newInt(c))
+    pointer o = json.newObject()
+    json.put(o, "line", json.newInt(l))
+    json.put(o, "character", json.newInt(c))
     out = o
 }
 
 // mkRange — a single-character range at (line1, col1): enough to place the
 // squiggle, which is all the compiler's point locations carry.
 public pointer mkRange(const int line1, const int col1) {
-    pointer o = fly.json.newObject()
-    fly.json.put(o, "start", mkPosition(line1, col1))
+    pointer o = json.newObject()
+    json.put(o, "start", mkPosition(line1, col1))
     int endCol = col1 + 1
-    fly.json.put(o, "end", mkPosition(line1, endCol))
+    json.put(o, "end", mkPosition(line1, endCol))
     out = o
 }
 
 // mkDiagnostic — one LSP Diagnostic node.
 public pointer mkDiagnostic(const LspDiag d) {
-    pointer o = fly.json.newObject()
-    fly.json.put(o, "range", mkRange(d.line, d.col))
-    fly.json.put(o, "severity", fly.json.newInt(d.severity))
-    fly.json.put(o, "source", fly.json.newString("fly"))
-    fly.json.put(o, "message", fly.json.newString(d.message))
+    pointer o = json.newObject()
+    json.put(o, "range", mkRange(d.line, d.col))
+    json.put(o, "severity", json.newInt(d.severity))
+    json.put(o, "source", json.newString("fly"))
+    json.put(o, "message", json.newString(d.message))
     out = o
 }
 
 // lfStr — a one-byte "\n" string; literals keep escapes raw in this dialect.
 public string lfStr() {
-    pointer p = fly.mem.alloc(1)
-    fly.mem.writeByte(p, 0, 10)
+    pointer p = mem.alloc(1)
+    mem.writeByte(p, 0, 10)
     string s = ""
-    fly.str.fromBytes(p, 1, s)
+    str.fromBytes(p, 1, s)
     out = s
 }
 
@@ -150,9 +150,9 @@ public int tokenTypeOf(const SymbolKind k) {
 
 // severityOfWord — "error"/"fatal" → 1, "warning" → 2, anything else → 3.
 public int severityOfWord(const string w) {
-    if fly.str.equals(w, "error") { out = 1  return }
-    if fly.str.equals(w, "fatal") { out = 1  return }
-    if fly.str.equals(w, "warning") { out = 2  return }
+    if str.equals(w, "error") { out = 1  return }
+    if str.equals(w, "fatal") { out = 1  return }
+    if str.equals(w, "warning") { out = 2  return }
     out = 3
 }
 
@@ -163,7 +163,7 @@ public int severityOfWord(const string w) {
 // so this is a stable contract, not screen-scraping. Returns null when the
 // string does not have that shape.
 public LspDiag parseRendered(const string s, const string file) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     int i = 0
     int line = 0
     bool sawLine = false
@@ -171,7 +171,7 @@ public LspDiag parseRendered(const string s, const string file) {
     while go {
         if i >= n { go = false } else {
             byte b = 0
-            fly.str.byteAt(s, i, b)
+            str.byteAt(s, i, b)
             int c = b
             c = c & 255
             bool digit = c >= 48 && c <= 57
@@ -182,7 +182,7 @@ public LspDiag parseRendered(const string s, const string file) {
     if sawLine == false { out = null  return }
     if i >= n { out = null  return }
     byte sep = 0
-    fly.str.byteAt(s, i, sep)
+    str.byteAt(s, i, sep)
     int sepI = sep
     sepI = sepI & 255
     if sepI != 58 { out = null  return }            // ':'
@@ -193,7 +193,7 @@ public LspDiag parseRendered(const string s, const string file) {
     while go {
         if i >= n { go = false } else {
             byte b2 = 0
-            fly.str.byteAt(s, i, b2)
+            str.byteAt(s, i, b2)
             int c2 = b2
             c2 = c2 & 255
             bool digit2 = c2 >= 48 && c2 <= 57
@@ -203,12 +203,12 @@ public LspDiag parseRendered(const string s, const string file) {
     }
     if sawCol == false { out = null  return }
     // ": level: message"
-    string tail = fly.str.substring(s, i, n)
-    if fly.str.startsWith(tail, ": ") == false { out = null  return }
-    tail = fly.str.substring(tail, 2, fly.str.len(tail))
-    int lv = fly.str.indexOf(tail, ": ")
+    string tail = str.substring(s, i, n)
+    if str.startsWith(tail, ": ") == false { out = null  return }
+    tail = str.substring(tail, 2, str.len(tail))
+    int lv = str.indexOf(tail, ": ")
     if lv < 0 { out = null  return }
-    string word = fly.str.substring(tail, 0, lv)
-    string msg = fly.str.substring(tail, lv + 2, fly.str.len(tail))
+    string word = str.substring(tail, 0, lv)
+    string msg = str.substring(tail, lv + 2, str.len(tail))
     out = new LspDiag(line, col, severityOfWord(word), msg, file)
 }

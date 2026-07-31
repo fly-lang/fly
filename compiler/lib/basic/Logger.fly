@@ -1,5 +1,6 @@
 namespace fly.compiler.basic
 import fly.compiler.basic.*
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Logger — debug string builder, ported from compiler/Basic/Logger.cpp/.h.
@@ -14,17 +15,17 @@ public class Logger {
 
     // Start a record: "<head>{".
     public Logger(const string head) {
-        this.buf = fly.str.concat(head, "{")
+        this.buf = str.concat(head, "{")
         this.isEmpty = true
     }
 
     // attrStr — append a "key=val" entry, comma-separating from any previous one.
     public void attrStr(const string key, const string val) {
-        string entry = fly.str.concat(fly.str.concat(key, "="), val)
+        string entry = str.concat(str.concat(key, "="), val)
         if this.isEmpty {
-            this.buf = fly.str.concat(this.buf, entry)
+            this.buf = str.concat(this.buf, entry)
         } else {
-            this.buf = fly.str.concat(this.buf, fly.str.concat(", ", entry))
+            this.buf = str.concat(this.buf, str.concat(", ", entry))
         }
         this.isEmpty = false
     }
@@ -38,11 +39,11 @@ public class Logger {
     }
 
     public void attrInt(const string key, const int val) {
-        this.attrStr(key, fly.str.convert(val))
+        this.attrStr(key, str.convert(val))
     }
 
     // End the record: append "}" and return the built string.
     public string end() {
-        out = fly.str.concat(this.buf, "}")
+        out = str.concat(this.buf, "}")
     }
 }

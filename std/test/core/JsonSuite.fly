@@ -7,21 +7,21 @@ import fly.assert
 // escapes RAW, so a `"` cannot come from a literal; build it byte-wise. Same
 // trick as StrSuite's asciiChar.
 string dq() {
-    pointer buf = fly.mem.alloc(1)
-    fly.mem.writeByte(buf, 0, 34)
-    fly.str.fromBytes(buf, 1, out)
+    pointer buf = mem.alloc(1)
+    mem.writeByte(buf, 0, 34)
+    str.fromBytes(buf, 1, out)
 }
 
 // mkJson — turn a `|`-placeholder template into real JSON by replacing every
 // `|` with a double quote, so a case can spell a payload readably.
 string mkJson(const string tpl) {
-    out = fly.str.replace(tpl, "|", dq())
+    out = str.replace(tpl, "|", dq())
 }
 
 // byteOf — the i-th byte of s as an int (byte widens to int by zero extension).
 int byteOf(const string s, const int i) {
     byte b = 0
-    fly.str.byteAt(s, i, b)
+    str.byteAt(s, i, b)
     out = b & 255
 }
 
@@ -365,7 +365,7 @@ suite JsonSuite {
             pointer v = json.parse(mkJson("|a\nb|"), e)
             assert.assertEqI(e, 0, 501)
             string s = json.asString(v)
-            assert.assertEqI(fly.str.len(s), 3, 502)
+            assert.assertEqI(str.len(s), 3, 502)
             assert.assertEqI(byteOf(s, 1), 10, 503)
             json.freeValue(v)
         }
@@ -374,7 +374,7 @@ suite JsonSuite {
             pointer v = json.parse(mkJson("|\t\b\f\r|"), e)
             assert.assertEqI(e, 0, 504)
             string s = json.asString(v)
-            assert.assertEqI(fly.str.len(s), 4, 505)
+            assert.assertEqI(str.len(s), 4, 505)
             assert.assertEqI(byteOf(s, 0), 9, 506)
             assert.assertEqI(byteOf(s, 1), 8, 507)
             assert.assertEqI(byteOf(s, 2), 12, 508)
@@ -386,7 +386,7 @@ suite JsonSuite {
             pointer v = json.parse(mkJson("|\|\\\/|"), e)
             assert.assertEqI(e, 0, 510)
             string s = json.asString(v)
-            assert.assertEqI(fly.str.len(s), 3, 511)
+            assert.assertEqI(str.len(s), 3, 511)
             assert.assertEqI(byteOf(s, 0), 34, 512)
             assert.assertEqI(byteOf(s, 1), 92, 513)
             assert.assertEqI(byteOf(s, 2), 47, 514)
@@ -404,7 +404,7 @@ suite JsonSuite {
             pointer v = json.parse(mkJson("|\u00e9|"), e)
             assert.assertEqI(e, 0, 517)
             string s = json.asString(v)
-            assert.assertEqI(fly.str.len(s), 2, 518)
+            assert.assertEqI(str.len(s), 2, 518)
             assert.assertEqI(byteOf(s, 0), 195, 519)
             assert.assertEqI(byteOf(s, 1), 169, 520)
             json.freeValue(v)
@@ -414,7 +414,7 @@ suite JsonSuite {
             pointer v = json.parse(mkJson("|\u20ac|"), e)
             assert.assertEqI(e, 0, 521)
             string s = json.asString(v)
-            assert.assertEqI(fly.str.len(s), 3, 522)
+            assert.assertEqI(str.len(s), 3, 522)
             assert.assertEqI(byteOf(s, 0), 226, 523)
             assert.assertEqI(byteOf(s, 1), 130, 524)
             assert.assertEqI(byteOf(s, 2), 172, 525)
@@ -425,7 +425,7 @@ suite JsonSuite {
             pointer v = json.parse(mkJson("|\ud83d\ude00|"), e)
             assert.assertEqI(e, 0, 526)
             string s = json.asString(v)
-            assert.assertEqI(fly.str.len(s), 4, 527)
+            assert.assertEqI(str.len(s), 4, 527)
             assert.assertEqI(byteOf(s, 0), 240, 528)
             assert.assertEqI(byteOf(s, 1), 159, 529)
             assert.assertEqI(byteOf(s, 2), 152, 530)
@@ -437,7 +437,7 @@ suite JsonSuite {
             pointer v = json.parse(mkJson("{|a\tb|:1}"), e)
             assert.assertEqI(e, 0, 532)
             string k = json.keyAt(v, 0)
-            assert.assertEqI(fly.str.len(k), 3, 533)
+            assert.assertEqI(str.len(k), 3, 533)
             assert.assertEqI(byteOf(k, 1), 9, 534)
             json.freeValue(v)
         }
@@ -459,7 +459,7 @@ suite JsonSuite {
         case "a quote and a backslash are escaped": {
             string src = mkJson("a|b")
             string esc = json.escape(src)
-            assert.assertEqI(fly.str.len(esc), 4, 601)
+            assert.assertEqI(str.len(esc), 4, 601)
             assert.assertEqI(byteOf(esc, 1), 92, 602)
             assert.assertEqI(byteOf(esc, 2), 34, 603)
         }
@@ -468,7 +468,7 @@ suite JsonSuite {
             pointer v = json.parse(mkJson("|\n\t|"), e)
             string raw = json.asString(v)
             string esc = json.escape(raw)
-            assert.assertEqI(fly.str.len(esc), 4, 604)
+            assert.assertEqI(str.len(esc), 4, 604)
             assert.assertEqI(byteOf(esc, 0), 92, 605)
             assert.assertEqI(byteOf(esc, 1), 110, 606)
             assert.assertEqI(byteOf(esc, 3), 116, 607)
@@ -485,7 +485,7 @@ suite JsonSuite {
             int e = 0
             pointer v = json.parse(mkJson("|\u00e9|"), e)
             string esc = json.escape(json.asString(v))
-            assert.assertEqI(fly.str.len(esc), 2, 609)
+            assert.assertEqI(str.len(esc), 2, 609)
             assert.assertEqI(byteOf(esc, 0), 195, 610)
             json.freeValue(v)
         }

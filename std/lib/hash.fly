@@ -67,7 +67,7 @@ void sha256FillK(const pointer K) {
 
 // sha256HexU — a uint as 8 lowercase hex digits, big-endian.
 string sha256HexU(const uint v) {
-    pointer buf = fly.mem.alloc(8)
+    pointer buf = mem.alloc(8)
     int i = 0
     while i < 8 {
         uint shift = (uint)((7 - i) * 4)
@@ -85,16 +85,16 @@ string sha256HexU(const uint v) {
 
 // sha256Digest — the 64-char lowercase hex digest of `data` (no "sha256:" prefix).
 string sha256Digest(const string data) {
-    int msgLen = fly.str.len(data)
+    int msgLen = str.len(data)
     int padLen = msgLen + 1
     while padLen % 64 != 56 { padLen = padLen + 1 }
     int totalLen = padLen + 8
 
-    pointer m = fly.mem.alloc(totalLen)
+    pointer m = mem.alloc(totalLen)
     int i = 0
     while i < msgLen {
         byte b = 0
-        fly.str.byteAt(data, i, b)
+        str.byteAt(data, i, b)
         fly.llvm.ptrPokeByte(m, i, b)
         i = i + 1
     }
@@ -113,9 +113,9 @@ string sha256Digest(const string data) {
         i = i + 1
     }
 
-    pointer K = fly.mem.alloc(256)
+    pointer K = mem.alloc(256)
     sha256FillK(K)
-    pointer W = fly.mem.alloc(256)
+    pointer W = mem.alloc(256)
 
     // Fly gotcha #2: a decimal literal > 2^31 is typed `long` by the reference
     // compiler, which then refuses `uint = long`; cast every 32-bit constant.
@@ -202,13 +202,13 @@ string sha256Digest(const string data) {
     }
 
     string r = sha256HexU(h0)
-    r = fly.str.concat(r, sha256HexU(h1))
-    r = fly.str.concat(r, sha256HexU(h2))
-    r = fly.str.concat(r, sha256HexU(h3))
-    r = fly.str.concat(r, sha256HexU(h4))
-    r = fly.str.concat(r, sha256HexU(h5))
-    r = fly.str.concat(r, sha256HexU(h6))
-    r = fly.str.concat(r, sha256HexU(h7))
+    r = str.concat(r, sha256HexU(h1))
+    r = str.concat(r, sha256HexU(h2))
+    r = str.concat(r, sha256HexU(h3))
+    r = str.concat(r, sha256HexU(h4))
+    r = str.concat(r, sha256HexU(h5))
+    r = str.concat(r, sha256HexU(h6))
+    r = str.concat(r, sha256HexU(h7))
     out = r
 }
 
@@ -223,7 +223,7 @@ public string sha256Hex(const string data) {
 // sha256String — "sha256:<hex>", the prefixed form the lockfile and the registry
 // protocol use.
 public string sha256String(const string data) {
-    out = fly.str.concat("sha256:", sha256Digest(data))
+    out = str.concat("sha256:", sha256Digest(data))
 }
 
 // sha256File — "sha256:<hex>" of a file's contents; "" when the file is missing.
@@ -234,15 +234,15 @@ public string sha256String(const string data) {
 // which is precisely the case that matters, since the callers hash downloaded
 // package tarballs to decide whether to trust them.
 public string sha256File(const string path) {
-    if fly.os.fs.exists(path) == false { out = ""  return }
-    string data = fly.os.fs.readBytes(path)
-    out = fly.str.concat("sha256:", sha256Digest(data))
+    if fs.exists(path) == false { out = ""  return }
+    string data = fs.readBytes(path)
+    out = str.concat("sha256:", sha256Digest(data))
 }
 
 // sha256Verify — true when the file hashes to `expected` ("sha256:<hex>"). A
 // missing file hashes to "" and therefore never matches.
 public bool sha256Verify(const string path, const string expected) {
-    out = fly.str.equals(sha256File(path), expected)
+    out = str.equals(sha256File(path), expected)
 }
 
 // ── CRC-32 ────────────────────────────────────────────────────────────────────
@@ -260,12 +260,12 @@ public bool sha256Verify(const string path, const string expected) {
 // yield a long and fail to assign back. Fly has no hex literals, so there is no
 // way to write these that avoids the cast.
 public uint crc32(const string data) {
-    int n = fly.str.len(data)
+    int n = str.len(data)
     uint c = (uint)4294967295
     int i = 0
     while i < n {
         byte b = 0
-        fly.str.byteAt(data, i, b)
+        str.byteAt(data, i, b)
         int bi = b
         uint bu = (uint)(bi & 255)          // mask: byte widening differs per platform
         c = c ^ bu

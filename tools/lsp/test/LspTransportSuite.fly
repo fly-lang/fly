@@ -13,6 +13,7 @@ import fly.os.io
 import fly.os.proc
 import fly.os.env
 import fly.assert
+import fly.lsp
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LspTransportSuite — coverage of tools/lsp/lib/LspTransport.fly and the parts
@@ -42,78 +43,78 @@ import fly.assert
 // notificationJson), not copies of them: an expectation recomputed by the test
 // would agree with the code no matter how wrong both were.
 
-int intField(const string json, const string key) {
+int intField(const string body, const string key) {
     int e = 0
-    pointer o = fly.json.parse(json, e)
+    pointer o = json.parse(body, e)
     int v = 0 - 999
     if e == 0 {
-        pointer n = fly.json.get(o, key)
-        if n != 0 { v = fly.json.asInt(n) }
+        pointer n = json.get(o, key)
+        if n != 0 { v = json.asInt(n) }
     }
-    fly.json.freeValue(o)
+    json.freeValue(o)
     out = v
 }
 
-string strField(const string json, const string key) {
+string strField(const string body, const string key) {
     int e = 0
-    pointer o = fly.json.parse(json, e)
+    pointer o = json.parse(body, e)
     string v = ""
     if e == 0 {
-        pointer n = fly.json.get(o, key)
-        if n != 0 { if fly.json.isString(n) { v = fly.json.asString(n) } }
+        pointer n = json.get(o, key)
+        if n != 0 { if json.isString(n) { v = json.asString(n) } }
     }
-    fly.json.freeValue(o)
+    json.freeValue(o)
     out = v
 }
 
-int intField2(const string json, const string outer, const string inner) {
+int intField2(const string body, const string outer, const string inner) {
     int e = 0
-    pointer o = fly.json.parse(json, e)
+    pointer o = json.parse(body, e)
     int v = 0 - 999
     if e == 0 {
-        pointer mid = fly.json.get(o, outer)
+        pointer mid = json.get(o, outer)
         if mid != 0 {
-            pointer n = fly.json.get(mid, inner)
-            if n != 0 { v = fly.json.asInt(n) }
+            pointer n = json.get(mid, inner)
+            if n != 0 { v = json.asInt(n) }
         }
     }
-    fly.json.freeValue(o)
+    json.freeValue(o)
     out = v
 }
 
-string strField2(const string json, const string outer, const string inner) {
+string strField2(const string body, const string outer, const string inner) {
     int e = 0
-    pointer o = fly.json.parse(json, e)
+    pointer o = json.parse(body, e)
     string v = ""
     if e == 0 {
-        pointer mid = fly.json.get(o, outer)
+        pointer mid = json.get(o, outer)
         if mid != 0 {
-            pointer n = fly.json.get(mid, inner)
-            if n != 0 { if fly.json.isString(n) { v = fly.json.asString(n) } }
+            pointer n = json.get(mid, inner)
+            if n != 0 { if json.isString(n) { v = json.asString(n) } }
         }
     }
-    fly.json.freeValue(o)
+    json.freeValue(o)
     out = v
 }
 
-bool hasField(const string json, const string key) {
+bool hasField(const string body, const string key) {
     int e = 0
-    pointer o = fly.json.parse(json, e)
+    pointer o = json.parse(body, e)
     bool h = false
-    if e == 0 { h = fly.json.has(o, key) }
-    fly.json.freeValue(o)
+    if e == 0 { h = json.has(o, key) }
+    json.freeValue(o)
     out = h
 }
 
-bool isNullField(const string json, const string key) {
+bool isNullField(const string body, const string key) {
     int e = 0
-    pointer o = fly.json.parse(json, e)
+    pointer o = json.parse(body, e)
     bool n = false
     if e == 0 {
-        pointer f = fly.json.get(o, key)
-        if f != 0 { n = fly.json.isNull(f) }
+        pointer f = json.get(o, key)
+        if f != 0 { n = json.isNull(f) }
     }
-    fly.json.freeValue(o)
+    json.freeValue(o)
     out = n
 }
 
@@ -122,21 +123,21 @@ suite LspTransportSuite {
     // ── framing ──────────────────────────────────────────────────────────────
     void framingTest() {
         case "a frame is Content-Length, CRLFCRLF, then exactly that many bytes": {
-            string f = fly.lsp.frameFor("{}")
-            assert.assertTrue(fly.str.startsWith(f, "Content-Length: 2"), 101)
-            assert.assertTrue(fly.str.endsWith(f, "{}"), 102)
+            string f = lsp.frameFor("{}")
+            assert.assertTrue(str.startsWith(f, "Content-Length: 2"), 101)
+            assert.assertTrue(str.endsWith(f, "{}"), 102)
             // The four separator bytes are REAL CR LF CR LF, not the two-character
             // escapes a raw-escape dialect would give a careless author. A text-mode
             // fd on Windows rewrites exactly these, which is why setBinaryMode exists.
-            int n = fly.str.len(f)
+            int n = str.len(f)
             byte b0 = 0
             byte b1 = 0
             byte b2 = 0
             byte b3 = 0
-            fly.str.byteAt(f, n - 6, b0)
-            fly.str.byteAt(f, n - 5, b1)
-            fly.str.byteAt(f, n - 4, b2)
-            fly.str.byteAt(f, n - 3, b3)
+            str.byteAt(f, n - 6, b0)
+            str.byteAt(f, n - 5, b1)
+            str.byteAt(f, n - 4, b2)
+            str.byteAt(f, n - 3, b3)
             int c0 = b0
             int c1 = b1
             int c2 = b2
@@ -149,24 +150,24 @@ suite LspTransportSuite {
         case "the declared length counts BYTES, not characters": {
             // A multi-byte payload whose length was counted in characters would
             // desync every following message permanently.
-            pointer bq = fly.mem.alloc(1)
-            fly.mem.writeByte(bq, 0, 34)
+            pointer bq = mem.alloc(1)
+            mem.writeByte(bq, 0, 34)
             string bqs = ""
-            fly.str.fromBytes(bq, 1, bqs)
-            string body = fly.str.concat("{", fly.str.concat(bqs, fly.str.concat("k", bqs)))
-            string f = fly.lsp.frameFor(body)
-            assert.assertTrue(fly.str.contains(f,
-                fly.str.concat("Content-Length: ", fly.str.convert(fly.str.len(body)))), 107)
+            str.fromBytes(bq, 1, bqs)
+            string body = str.concat("{", str.concat(bqs, str.concat("k", bqs)))
+            string f = lsp.frameFor(body)
+            assert.assertTrue(str.contains(f,
+                str.concat("Content-Length: ", str.convert(str.len(body)))), 107)
         }
         case "an empty body still gets a length header": {
-            assert.assertTrue(fly.str.startsWith(fly.lsp.frameFor(""), "Content-Length: 0"), 108)
+            assert.assertTrue(str.startsWith(lsp.frameFor(""), "Content-Length: 0"), 108)
         }
     }
 
     // ── result / error envelopes ─────────────────────────────────────────────
     void envelopeTest() {
         case "a result envelope carries jsonrpc, the id and the result": {
-            string s = fly.lsp.resultJson("7", fly.json.newInt(42))
+            string s = lsp.resultJson("7", json.newInt(42))
             assert.assertStr(strField(s, "jsonrpc"), "2.0", 201)
             assert.assertEqI(intField(s, "id"), 7, 202)
             assert.assertEqI(intField(s, "result"), 42, 203)
@@ -174,11 +175,11 @@ suite LspTransportSuite {
         case "a null result is serialized as null, not omitted": {
             // A client waiting on `shutdown` needs a result FIELD; an absent one
             // is a protocol error and leaves the promise pending.
-            string s = fly.lsp.resultJson("2", 0)
+            string s = lsp.resultJson("2", 0)
             assert.assertTrue(isNullField(s, "result"), 204)
         }
         case "an error envelope carries the code and the message": {
-            string s = fly.lsp.errorJson("9", 0 - 32601, "Unknown method: x/y")
+            string s = lsp.errorJson("9", 0 - 32601, "Unknown method: x/y")
             assert.assertStr(strField(s, "jsonrpc"), "2.0", 205)
             assert.assertEqI(intField(s, "id"), 9, 206)
             assert.assertEqI(intField2(s, "error", "code"), 0 - 32601, 207)
@@ -189,51 +190,51 @@ suite LspTransportSuite {
         case "a notification has a method and params, and NO id": {
             // An id on a notification makes the client wait for a response that
             // never comes; LSP requires its absence, not a null.
-            pointer p = fly.json.newObject()
-            fly.json.put(p, "uri", fly.json.newString("file:///x"))
-            string s = fly.lsp.notificationJson("textDocument/publishDiagnostics", p)
+            pointer p = json.newObject()
+            json.put(p, "uri", json.newString("file:///x"))
+            string s = lsp.notificationJson("textDocument/publishDiagnostics", p)
             assert.assertStr(strField(s, "method"), "textDocument/publishDiagnostics", 210)
             assert.assertStr(strField2(s, "params", "uri"), "file:///x", 211)
             assert.assertFalse(hasField(s, "id"), 212)
         }
         case "a notification with no params still carries an empty object": {
-            string s = fly.lsp.notificationJson("initialized", 0)
+            string s = lsp.notificationJson("initialized", 0)
             assert.assertTrue(hasField(s, "params"), 213)
         }
         case "idNodeOf recovers each JSON id shape": {
-            pointer n = fly.lsp.idNodeOf("5")
-            assert.assertTrue(fly.json.isNumber(n), 214)
-            fly.json.freeValue(n)
-            pointer bad = fly.lsp.idNodeOf("{{{")
-            assert.assertTrue(fly.json.isNull(bad), 215)
-            fly.json.freeValue(bad)
+            pointer n = lsp.idNodeOf("5")
+            assert.assertTrue(json.isNumber(n), 214)
+            json.freeValue(n)
+            pointer bad = lsp.idNodeOf("{{{")
+            assert.assertTrue(json.isNull(bad), 215)
+            json.freeValue(bad)
         }
     }
 
     // ── id round-trip ────────────────────────────────────────────────────────
     void idTest() {
         case "a numeric id round-trips as a number": {
-            string s = fly.lsp.resultJson("11", fly.json.newNull())
+            string s = lsp.resultJson("11", json.newNull())
             assert.assertEqI(intField(s, "id"), 11, 401)
         }
         case "a string id round-trips as a string": {
             // Real clients use both. Carrying the id as its own JSON TEXT is what
             // makes this work without the transport knowing which it was.
-            pointer qp = fly.mem.alloc(1)
-            fly.mem.writeByte(qp, 0, 34)
+            pointer qp = mem.alloc(1)
+            mem.writeByte(qp, 0, 34)
             string q = ""
-            fly.str.fromBytes(qp, 1, q)
-            string idJson = fly.str.concat(q, fly.str.concat("abc", q))
-            string s = fly.lsp.resultJson(idJson, fly.json.newNull())
+            str.fromBytes(qp, 1, q)
+            string idJson = str.concat(q, str.concat("abc", q))
+            string s = lsp.resultJson(idJson, json.newNull())
             assert.assertStr(strField(s, "id"), "abc", 402)
         }
         case "a null id round-trips as null": {
-            string s = fly.lsp.resultJson("null", fly.json.newNull())
+            string s = lsp.resultJson("null", json.newNull())
             assert.assertTrue(isNullField(s, "id"), 403)
         }
         case "an unparseable id degrades to null instead of corrupting the frame": {
             // A malformed id must not take the whole response down with it.
-            string s = fly.lsp.resultJson("<<not json>>", fly.json.newNull())
+            string s = lsp.resultJson("<<not json>>", json.newNull())
             assert.assertTrue(isNullField(s, "id"), 404)
         }
     }

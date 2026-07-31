@@ -65,7 +65,7 @@ public class Registry {
     // object reference equality, so compare by the reserved "default" name).
     public bool isDefaultNameSpace(const SemaNameSpace ns) {
         if ns == null { out = true  return }
-        out = fly.str.equals(ns.getName(), "default")
+        out = str.equals(ns.getName(), "default")
     }
 
     public void addModule(const SemaModule module) { this.modules.add(module) }
@@ -134,9 +134,9 @@ public class Registry {
             int i = 0
             while i < names.size() {
                 ASTName n = names.get(i)
-                string pd = fly.str.concat(path, ".")
+                string pd = str.concat(path, ".")
                 path = pd
-                string pn = fly.str.concat(path, n.getName())
+                string pn = str.concat(path, n.getName())
                 path = pn
                 if this.nsByPath.has(path) {
                     ns = this.nsByPath.get(path)
@@ -163,10 +163,10 @@ public class Registry {
         string path = "ns"
         int i = 0
         while i < names.size() {
-            string pd = fly.str.concat(path, ".")
+            string pd = str.concat(path, ".")
             path = pd
             ASTName n = names.get(i)
-            string pn = fly.str.concat(path, n.getName())
+            string pn = str.concat(path, n.getName())
             path = pn
             i = i + 1
         }
@@ -195,8 +195,8 @@ public class Registry {
         string path = "ns"
         int i = 0
         while i < last {
-            string pd = fly.str.concat(path, ".")
-            string pn = fly.str.concat(pd, names.get(i).getName())
+            string pd = str.concat(path, ".")
+            string pn = str.concat(pd, names.get(i).getName())
             path = pn
             i = i + 1
         }
@@ -212,8 +212,8 @@ public class Registry {
         string path = "ns"
         int i = 0
         while i < names.size() {
-            string pd = fly.str.concat(path, ".")
-            string pn = fly.str.concat(pd, names.get(i))
+            string pd = str.concat(path, ".")
+            string pn = str.concat(pd, names.get(i))
             path = pn
             i = i + 1
         }

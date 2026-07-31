@@ -6,13 +6,13 @@ import fly.assert
 
 // bytesUpTo — a string holding the byte values 0..n-1.
 string bytesUpTo(const int n) {
-    pointer p = fly.mem.alloc(n)
+    pointer p = mem.alloc(n)
     int i = 0
     while i < n {
-        fly.mem.writeByte(p, i, (byte)(i % 256))
+        mem.writeByte(p, i, (byte)(i % 256))
         i = i + 1
     }
-    fly.str.fromBytes(p, n, out)
+    str.fromBytes(p, n, out)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,18 +38,18 @@ suite HashSuite {
     // ── the canonical SHA-256 vectors ────────────────────────────────────────
     void sha256VectorTest() {
         case "the empty message": {
-            assert.assertStr(fly.hash.sha256Hex(""),
+            assert.assertStr(hash.sha256Hex(""),
                 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", 101)
         }
         case "abc — the single-block vector": {
-            assert.assertStr(fly.hash.sha256Hex("abc"),
+            assert.assertStr(hash.sha256Hex("abc"),
                 "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", 102)
         }
         case "56 bytes — the TWO-block vector": {
             // 56 bytes leaves no room for the 8-byte length in the first block,
             // so a second block is required. This is the case that catches a
             // padding bug an implementation otherwise gets away with.
-            assert.assertStr(fly.hash.sha256Hex("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"),
+            assert.assertStr(hash.sha256Hex("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"),
                 "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1", 103)
         }
         case "a 64-byte input — exactly one full block, so padding needs a second": {
@@ -57,46 +57,46 @@ suite HashSuite {
             // length field spill into an entirely additional block. Expected
             // value cross-checked against .NET's System.Security.Cryptography
             // SHA256, as were every other digest in this suite.
-            assert.assertStr(fly.hash.sha256Hex("abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmno"),
+            assert.assertStr(hash.sha256Hex("abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmno"),
                 "2ff100b36c386c65a1afc462ad53e25479bec9498ed00aa5a04de584bc25301b", 104)
         }
         case "a single byte": {
-            assert.assertStr(fly.hash.sha256Hex("a"),
+            assert.assertStr(hash.sha256Hex("a"),
                 "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb", 105)
         }
         case "the digest is always 64 hex characters": {
-            assert.assertEqI(fly.str.len(fly.hash.sha256Hex("")), 64, 106)
-            assert.assertEqI(fly.str.len(fly.hash.sha256Hex("abc")), 64, 107)
-            assert.assertEqI(fly.str.len(fly.hash.sha256Hex(fly.str.repeat("x", 1000))), 64, 108)
+            assert.assertEqI(str.len(hash.sha256Hex("")), 64, 106)
+            assert.assertEqI(str.len(hash.sha256Hex("abc")), 64, 107)
+            assert.assertEqI(str.len(hash.sha256Hex(str.repeat("x", 1000))), 64, 108)
         }
     }
 
     // ── the prefixed forms and the file entry points ─────────────────────────
     void sha256FormTest() {
         case "sha256String prefixes the bare digest": {
-            assert.assertStr(fly.hash.sha256String("abc"),
+            assert.assertStr(hash.sha256String("abc"),
                 "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", 201)
-            assert.assertStr(fly.hash.sha256String("abc"),
-                fly.str.concat("sha256:", fly.hash.sha256Hex("abc")), 202)
+            assert.assertStr(hash.sha256String("abc"),
+                str.concat("sha256:", hash.sha256Hex("abc")), 202)
         }
         case "hashing a file matches hashing its contents": {
             string p = "fly_hash_f.txt"
-            fly.os.fs.writeStr(p, "abc", 420)
-            assert.assertStr(fly.hash.sha256File(p), fly.hash.sha256String("abc"), 203)
-            assert.assertTrue(fly.hash.sha256Verify(p, fly.hash.sha256String("abc")), 204)
-            assert.assertFalse(fly.hash.sha256Verify(p, fly.hash.sha256String("abd")), 205)
-            fly.os.fs.delete(p)
+            fs.writeStr(p, "abc", 420)
+            assert.assertStr(hash.sha256File(p), hash.sha256String("abc"), 203)
+            assert.assertTrue(hash.sha256Verify(p, hash.sha256String("abc")), 204)
+            assert.assertFalse(hash.sha256Verify(p, hash.sha256String("abd")), 205)
+            fs.delete(p)
         }
         case "a missing file hashes to empty and never verifies": {
-            assert.assertEmpty(fly.hash.sha256File("fly_hash_absent.txt"), 206)
-            assert.assertFalse(fly.hash.sha256Verify("fly_hash_absent.txt",
-                fly.hash.sha256String("")), 207)
+            assert.assertEmpty(hash.sha256File("fly_hash_absent.txt"), 206)
+            assert.assertFalse(hash.sha256Verify("fly_hash_absent.txt",
+                hash.sha256String("")), 207)
         }
         case "an empty file hashes to the empty-message digest": {
             string p = "fly_hash_empty.txt"
-            fly.os.fs.writeStr(p, "", 420)
-            assert.assertStr(fly.hash.sha256File(p), fly.hash.sha256String(""), 208)
-            fly.os.fs.delete(p)
+            fs.writeStr(p, "", 420)
+            assert.assertStr(hash.sha256File(p), hash.sha256String(""), 208)
+            fs.delete(p)
         }
         case "a binary file hashes over its real bytes": {
             // sha256File reads with readBytes for a reason: the callers hash
@@ -108,23 +108,23 @@ suite HashSuite {
             // The assertion is self-consistent rather than a hardcoded constant:
             // the file's digest must equal the digest of the very bytes written.
             string p = "fly_hash_bin.bin"
-            pointer buf = fly.mem.alloc(6)
-            fly.mem.writeByte(buf, 0, 122)     // 'z'
-            fly.mem.writeByte(buf, 1, 13)      // CR \  collapses in text mode
-            fly.mem.writeByte(buf, 2, 10)      // LF /
-            fly.mem.writeByte(buf, 3, 26)      // 0x1A — text-mode EOF
-            fly.mem.writeByte(buf, 4, 255)
-            fly.mem.writeByte(buf, 5, 122)
+            pointer buf = mem.alloc(6)
+            mem.writeByte(buf, 0, 122)     // 'z'
+            mem.writeByte(buf, 1, 13)      // CR \  collapses in text mode
+            mem.writeByte(buf, 2, 10)      // LF /
+            mem.writeByte(buf, 3, 26)      // 0x1A — text-mode EOF
+            mem.writeByte(buf, 4, 255)
+            mem.writeByte(buf, 5, 122)
             string payload = ""
-            fly.str.fromBytes(buf, 6, payload)
+            str.fromBytes(buf, 6, payload)
 
-            fly.os.fs.writeBytes(p, payload, 420)
-            assert.assertStr(fly.hash.sha256File(p), fly.hash.sha256String(payload), 209)
-            assert.assertTrue(fly.hash.sha256Verify(p, fly.hash.sha256String(payload)), 210)
+            fs.writeBytes(p, payload, 420)
+            assert.assertStr(hash.sha256File(p), hash.sha256String(payload), 209)
+            assert.assertTrue(hash.sha256Verify(p, hash.sha256String(payload)), 210)
             // And it must NOT be the digest of the text-mangled version, which is
             // what a text-mode read would have returned on Windows.
-            assert.assertFalse(fly.hash.sha256Verify(p, fly.hash.sha256String("z")), 211)
-            fly.os.fs.delete(p)
+            assert.assertFalse(hash.sha256Verify(p, hash.sha256String("z")), 211)
+            fs.delete(p)
         }
     }
 
@@ -133,24 +133,24 @@ suite HashSuite {
         case "the canonical CRC-32 vectors": {
             // "123456789" → 0xCBF43926 is the standard check value for
             // CRC-32/ISO-HDLC, the variant gzip and zlib use.
-            assert.assertEqI((int)fly.hash.crc32("123456789"), (int)(uint)3421780262, 301)
-            assert.assertEqI((int)fly.hash.crc32(""), 0, 302)
-            assert.assertEqI((int)fly.hash.crc32("a"), (int)(uint)3904355907, 303)
-            assert.assertEqI((int)fly.hash.crc32("abc"), (int)(uint)891568578, 304)
+            assert.assertEqI((int)hash.crc32("123456789"), (int)(uint)3421780262, 301)
+            assert.assertEqI((int)hash.crc32(""), 0, 302)
+            assert.assertEqI((int)hash.crc32("a"), (int)(uint)3904355907, 303)
+            assert.assertEqI((int)hash.crc32("abc"), (int)(uint)891568578, 304)
         }
         case "crc32Hex is eight lowercase hex characters": {
-            assert.assertStr(fly.hash.crc32Hex("123456789"), "cbf43926", 305)
-            assert.assertStr(fly.hash.crc32Hex(""), "00000000", 306)
-            assert.assertEqI(fly.str.len(fly.hash.crc32Hex("anything")), 8, 307)
+            assert.assertStr(hash.crc32Hex("123456789"), "cbf43926", 305)
+            assert.assertStr(hash.crc32Hex(""), "00000000", 306)
+            assert.assertEqI(str.len(hash.crc32Hex("anything")), 8, 307)
         }
         case "a high-byte input is not corrupted by byte widening": {
             // Every byte enters a 32-bit word here, so an unmasked byte >= 0x80
             // would give a different answer on Linux than on Windows.
             string all = bytesUpTo(256)
-            assert.assertEqI((int)fly.hash.crc32(all), (int)(uint)688229491, 308)
+            assert.assertEqI((int)hash.crc32(all), (int)(uint)688229491, 308)
         }
         case "changing one byte changes the CRC": {
-            assert.assertNeI((int)fly.hash.crc32("abc"), (int)fly.hash.crc32("abd"), 309)
+            assert.assertNeI((int)hash.crc32("abc"), (int)hash.crc32("abd"), 309)
         }
     }
 
@@ -158,17 +158,17 @@ suite HashSuite {
     void coverageTest() {
         case "a digest over all 256 byte values is stable and non-trivial": {
             string all = bytesUpTo(256)
-            string d = fly.hash.sha256Hex(all)
-            assert.assertEqI(fly.str.len(d), 64, 401)
+            string d = hash.sha256Hex(all)
+            assert.assertEqI(str.len(d), 64, 401)
             assert.assertStr(d,
                 "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880", 402)
             // and it is deterministic
-            assert.assertStr(d, fly.hash.sha256Hex(bytesUpTo(256)), 403)
+            assert.assertStr(d, hash.sha256Hex(bytesUpTo(256)), 403)
         }
         case "a multi-kilobyte input hashes deterministically": {
-            string big = fly.str.repeat("0123456789abcdef", 500)     // 8000 bytes
-            assert.assertStr(fly.hash.sha256Hex(big), fly.hash.sha256Hex(big), 404)
-            assert.assertEqI(fly.str.len(fly.hash.sha256Hex(big)), 64, 405)
+            string big = str.repeat("0123456789abcdef", 500)     // 8000 bytes
+            assert.assertStr(hash.sha256Hex(big), hash.sha256Hex(big), 404)
+            assert.assertEqI(str.len(hash.sha256Hex(big)), 64, 405)
         }
     }
 }

@@ -27,13 +27,13 @@ public class ResolverCall {
         // ctor; `super.m(args)` = NON-virtual call of the base implementation.
         // Detected before receiver resolution — `super` is not a value.
         bool superCtor = false
-        if parent == null { superCtor = fly.str.equals(node.getName(), "super") }
+        if parent == null { superCtor = str.equals(node.getName(), "super") }
         bool superRecv = false
         if parent != null {
             ASTIdentifier spid = parent.asIdentifier()
             if spid != null {
                 if parent.getParent() == null {
-                    superRecv = fly.str.equals(spid.getName(), "super")
+                    superRecv = str.equals(spid.getName(), "super")
                 }
             }
         }
@@ -352,7 +352,7 @@ public class ResolverCall {
                     SemaType pt = pj.getType()
                     if pt != null {
                         if pt.getKind() == SemaKind.TYPE_PARAM {
-                            if fly.str.equals(pt.getName(), tp.getName()) {
+                            if str.equals(pt.getName(), tp.getName()) {
                                 if bound == null {
                                     bound = ResolverCall.substTypeParam(r, argTypes.get(aj))
                                 }
@@ -398,11 +398,15 @@ public class ResolverCall {
 
     // expandNsPath — resolve a SHORT namespace prefix through the current module's
     // imports (Java-style semantics, mirroring the reference): the first segment
-    // of `cand` must equal an import's alias — or, for unaliased imports, its LAST
-    // path segment (`import fly.assert` → `assert`). On a match, the import's full
-    // path replaces the first segment and the result must name a registered
-    // namespace. Returns null when nothing matches, or when the first segment
-    // resolves as a VALUE in the current scope (locals shadow namespace prefixes).
+    // of `cand` must equal an import's alias — or, for unaliased PLAIN imports,
+    // its LAST path segment (`import fly.assert` → `assert`). On a match, the
+    // import's full path replaces the first segment and the result must name a
+    // registered namespace. WILDCARD imports are SKIPPED: `import fly.str.*`
+    // injects the namespace's symbols for BARE calls and does NOT bind the
+    // `str.` prefix (canonical semantics — the reference's ResolveImports only
+    // inserts the namespace SYMBOL for a plain import). Returns null when nothing
+    // matches, or when the first segment resolves as a VALUE in the current
+    // scope (locals shadow namespace prefixes).
     public static List<string> expandNsPath(const Resolver r, const List<string> cand) {
         if cand == null { out = null  return }
         if cand.size() == 0 { out = null  return }
@@ -425,6 +429,10 @@ public class ResolverCall {
         int i = 0
         while i < imps.size() {
             SemaImport imp = imps.get(i)
+            if imp.isWildcard() {
+                i = i + 1
+                continue
+            }
             List<ASTName> names = imp.getNames()
             if names != null {
                 if names.size() > 0 {
@@ -437,11 +445,11 @@ public class ResolverCall {
                             key = a0.getName()
                         }
                     }
-                    if fly.str.isEmpty(key) {
+                    if str.isEmpty(key) {
                         ASTName lastN = names.get(names.size() - 1)
                         key = lastN.getName()
                     }
-                    if fly.str.equals(key, head) {
+                    if str.equals(key, head) {
                         List<string> full = new List<string>()
                         int k = 0
                         while k < names.size() {

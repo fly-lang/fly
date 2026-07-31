@@ -56,21 +56,21 @@ import fly.os.path
 
 // byteOfBuf — the byte at off as a masked int. THE MASK IS THE PLATFORM GUARD.
 private int byteOfBuf(const pointer b, const int off) {
-    byte v = fly.mem.readByte(b, off)
+    byte v = mem.readByte(b, off)
     int i = v
     out = i & 255
 }
 
 // strToBuf — a heap copy of a Fly string's bytes; the length goes to nOut.
 private pointer strToBuf(const string s, int nOut) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     nOut = n
-    pointer b = fly.mem.alloc(n + 1)
+    pointer b = mem.alloc(n + 1)
     int i = 0
     while i < n {
         byte v = 0
-        fly.str.byteAt(s, i, v)
-        fly.mem.writeByte(b, i, v)
+        str.byteAt(s, i, v)
+        mem.writeByte(b, i, v)
         i = i + 1
     }
     out = b
@@ -100,64 +100,64 @@ private long le32(const pointer b, const int off) {
 // ── inflate state ─────────────────────────────────────────────────────────────
 
 private int stErr(const pointer st) {
-    out = fly.mem.readInt(st, 40)
+    out = mem.readInt(st, 40)
 }
 
 // setErr records only the FIRST failure: once the bit stream is desynchronised
 // every later symbol is garbage too, and the first code is the one that says
 // what actually went wrong.
 private void setErr(const pointer st, const int e) {
-    if fly.mem.readInt(st, 40) == 0 { fly.mem.writeInt(st, 40, e) }
+    if mem.readInt(st, 40) == 0 { mem.writeInt(st, 40, e) }
 }
 
 // getBits — the next n bits, LSB first. Running off the end of the input is
 // error 1 and yields 0, so a truncated stream stops rather than looping.
 private int getBits(const pointer st, const int n) {
-    int val = fly.mem.readInt(st, 16)
-    int cnt = fly.mem.readInt(st, 20)
+    int val = mem.readInt(st, 16)
+    int cnt = mem.readInt(st, 20)
     bool bad = false
     while cnt < n {
-        int pos = fly.mem.readInt(st, 12)
-        if pos >= fly.mem.readInt(st, 8) {
+        int pos = mem.readInt(st, 12)
+        if pos >= mem.readInt(st, 8) {
             setErr(st, 1)
             cnt = n
             bad = true
         } else {
-            pointer src = fly.mem.readPtr(st, 0)
+            pointer src = mem.readPtr(st, 0)
             int bv = byteOfBuf(src, pos)
             val = val | (bv << cnt)
             cnt = cnt + 8
-            fly.mem.writeInt(st, 12, pos + 1)
+            mem.writeInt(st, 12, pos + 1)
         }
     }
     if bad {
-        fly.mem.writeInt(st, 16, 0)
-        fly.mem.writeInt(st, 20, 0)
+        mem.writeInt(st, 16, 0)
+        mem.writeInt(st, 20, 0)
         out = 0
         return
     }
     int mask = (1 << n) - 1
     int res = val & mask
-    fly.mem.writeInt(st, 16, val >> n)
-    fly.mem.writeInt(st, 20, cnt - n)
+    mem.writeInt(st, 16, val >> n)
+    mem.writeInt(st, 20, cnt - n)
     out = res
 }
 
 // putByte — append one byte to the output, doubling the buffer when it fills.
 private void putByte(const pointer st, const int b) {
-    int len = fly.mem.readInt(st, 32)
-    int cap = fly.mem.readInt(st, 36)
+    int len = mem.readInt(st, 32)
+    int cap = mem.readInt(st, 36)
     if len >= cap {
         int newCap = cap * 2
         if newCap < 1024 { newCap = 1024 }
-        pointer grown = fly.mem.realloc(fly.mem.readPtr(st, 24), newCap)
-        fly.mem.writePtr(st, 24, grown)
-        fly.mem.writeInt(st, 36, newCap)
+        pointer grown = mem.realloc(mem.readPtr(st, 24), newCap)
+        mem.writePtr(st, 24, grown)
+        mem.writeInt(st, 36, newCap)
     }
-    pointer ob = fly.mem.readPtr(st, 24)
+    pointer ob = mem.readPtr(st, 24)
     int m = b & 255
-    fly.mem.writeByte(ob, len, (byte)m)
-    fly.mem.writeInt(st, 32, len + 1)
+    mem.writeByte(ob, len, (byte)m)
+    mem.writeInt(st, 32, len + 1)
 }
 
 // ── canonical Huffman ─────────────────────────────────────────────────────────
@@ -173,59 +173,59 @@ private void putByte(const pointer st, const int b) {
 //   [16..19] int     n
 
 private pointer huftNew(const pointer lengths, const int n) {
-    pointer cnt = fly.mem.alloc(16 * 4)
-    fly.mem.zero(cnt, 16 * 4)
+    pointer cnt = mem.alloc(16 * 4)
+    mem.zero(cnt, 16 * 4)
     int i = 0
     while i < n {
-        int bl = fly.mem.readInt(lengths, i * 4)
-        fly.mem.writeInt(cnt, bl * 4, fly.mem.readInt(cnt, bl * 4) + 1)
+        int bl = mem.readInt(lengths, i * 4)
+        mem.writeInt(cnt, bl * 4, mem.readInt(cnt, bl * 4) + 1)
         i = i + 1
     }
     // Where each length's run of symbols starts.
-    pointer offs = fly.mem.alloc(16 * 4)
-    fly.mem.zero(offs, 16 * 4)
+    pointer offs = mem.alloc(16 * 4)
+    mem.zero(offs, 16 * 4)
     int len = 1
     while len < 15 {
-        int nxt = fly.mem.readInt(offs, len * 4) + fly.mem.readInt(cnt, len * 4)
-        fly.mem.writeInt(offs, (len + 1) * 4, nxt)
+        int nxt = mem.readInt(offs, len * 4) + mem.readInt(cnt, len * 4)
+        mem.writeInt(offs, (len + 1) * 4, nxt)
         len = len + 1
     }
     int symBytes = n * 4
     if symBytes < 4 { symBytes = 4 }
-    pointer sym = fly.mem.alloc(symBytes)
+    pointer sym = mem.alloc(symBytes)
     int j = 0
     while j < n {
-        int bl2 = fly.mem.readInt(lengths, j * 4)
+        int bl2 = mem.readInt(lengths, j * 4)
         if bl2 != 0 {
-            int o = fly.mem.readInt(offs, bl2 * 4)
-            fly.mem.writeInt(sym, o * 4, j)
-            fly.mem.writeInt(offs, bl2 * 4, o + 1)
+            int o = mem.readInt(offs, bl2 * 4)
+            mem.writeInt(sym, o * 4, j)
+            mem.writeInt(offs, bl2 * 4, o + 1)
         }
         j = j + 1
     }
-    fly.mem.free(offs, 16 * 4)
-    pointer h = fly.mem.alloc(24)
-    fly.mem.writePtr(h, 0, cnt)
-    fly.mem.writePtr(h, 8, sym)
-    fly.mem.writeInt(h, 16, n)
+    mem.free(offs, 16 * 4)
+    pointer h = mem.alloc(24)
+    mem.writePtr(h, 0, cnt)
+    mem.writePtr(h, 8, sym)
+    mem.writeInt(h, 16, n)
     out = h
 }
 
 private void huftFree(const pointer h) {
     if h == 0 { return }
-    int n = fly.mem.readInt(h, 16)
+    int n = mem.readInt(h, 16)
     int symBytes = n * 4
     if symBytes < 4 { symBytes = 4 }
-    fly.mem.free(fly.mem.readPtr(h, 0), 16 * 4)
-    fly.mem.free(fly.mem.readPtr(h, 8), symBytes)
-    fly.mem.free(h, 24)
+    mem.free(mem.readPtr(h, 0), 16 * 4)
+    mem.free(mem.readPtr(h, 8), symBytes)
+    mem.free(h, 24)
 }
 
 // huftDecode — read one code, MSB first (Huffman codes are packed the other way
 // round from everything else in DEFLATE), and return its symbol; -1 on error.
 private int huftDecode(const pointer st, const pointer h) {
-    pointer cnt = fly.mem.readPtr(h, 0)
-    pointer sym = fly.mem.readPtr(h, 8)
+    pointer cnt = mem.readPtr(h, 0)
+    pointer sym = mem.readPtr(h, 8)
     int code = 0
     int first = 0
     int index = 0
@@ -235,10 +235,10 @@ private int huftDecode(const pointer st, const pointer h) {
         int bit = getBits(st, 1)
         if stErr(st) != 0 { len = 16 } else {
             code = code | bit
-            int count = fly.mem.readInt(cnt, len * 4)
+            int count = mem.readInt(cnt, len * 4)
             int diff = code - first
             if diff < count {
-                res = fly.mem.readInt(sym, (index + diff) * 4)
+                res = mem.readInt(sym, (index + diff) * 4)
                 len = 16
             } else {
                 index = index + count
@@ -300,12 +300,12 @@ private int distBaseOf(const int i) {
 // storedBlock — an uncompressed block: discard the partial byte, then LEN, its
 // one's complement, and LEN raw bytes.
 private void storedBlock(const pointer st) {
-    fly.mem.writeInt(st, 16, 0)
-    fly.mem.writeInt(st, 20, 0)
-    int pos = fly.mem.readInt(st, 12)
-    int srcLen = fly.mem.readInt(st, 8)
+    mem.writeInt(st, 16, 0)
+    mem.writeInt(st, 20, 0)
+    int pos = mem.readInt(st, 12)
+    int srcLen = mem.readInt(st, 8)
     if pos + 4 > srcLen { setErr(st, 1)  return }
-    pointer src = fly.mem.readPtr(st, 0)
+    pointer src = mem.readPtr(st, 0)
     int lo = byteOfBuf(src, pos)
     int hi = byteOfBuf(src, pos + 1)
     int n = lo | (hi << 8)
@@ -316,7 +316,7 @@ private void storedBlock(const pointer st) {
         putByte(st, byteOfBuf(src, pos + i))
         i = i + 1
     }
-    fly.mem.writeInt(st, 12, pos + n)
+    mem.writeInt(st, 12, pos + n)
 }
 
 // codes — the shared inner loop of the fixed and dynamic blocks.
@@ -334,7 +334,7 @@ private void codes(const pointer st, const pointer lenH, const pointer distH) {
                         if ds < 0 { go = false } else {
                             if ds >= 30 { setErr(st, 5)  go = false } else {
                                 int dist = distBaseOf(ds) + getBits(st, distExtraOf(ds))
-                                int outLen = fly.mem.readInt(st, 32)
+                                int outLen = mem.readInt(st, 32)
                                 if dist > outLen { setErr(st, 6)  go = false } else {
                                     int from = outLen - dist
                                     int c = 0
@@ -343,7 +343,7 @@ private void codes(const pointer st, const pointer lenH, const pointer distH) {
                                         // may have grown and MOVED it. Reading a
                                         // stale pointer here is a use-after-free
                                         // that only shows up on long matches.
-                                        pointer ob = fly.mem.readPtr(st, 24)
+                                        pointer ob = mem.readPtr(st, 24)
                                         putByte(st, byteOfBuf(ob, from + c))
                                         c = c + 1
                                     }
@@ -360,20 +360,20 @@ private void codes(const pointer st, const pointer lenH, const pointer distH) {
 
 // fixedBlock — the built-in code lengths of RFC 1951 §3.2.6.
 private void fixedBlock(const pointer st) {
-    pointer ll = fly.mem.alloc(288 * 4)
+    pointer ll = mem.alloc(288 * 4)
     int i = 0
     while i < 288 {
         int v = 8
         if i >= 144 { v = 9 }
         if i >= 256 { v = 7 }
         if i >= 280 { v = 8 }
-        fly.mem.writeInt(ll, i * 4, v)
+        mem.writeInt(ll, i * 4, v)
         i = i + 1
     }
-    pointer dl = fly.mem.alloc(30 * 4)
+    pointer dl = mem.alloc(30 * 4)
     int j = 0
     while j < 30 {
-        fly.mem.writeInt(dl, j * 4, 5)
+        mem.writeInt(dl, j * 4, 5)
         j = j + 1
     }
     pointer lenH = huftNew(ll, 288)
@@ -381,8 +381,8 @@ private void fixedBlock(const pointer st) {
     codes(st, lenH, distH)
     huftFree(lenH)
     huftFree(distH)
-    fly.mem.free(ll, 288 * 4)
-    fly.mem.free(dl, 30 * 4)
+    mem.free(ll, 288 * 4)
+    mem.free(dl, 30 * 4)
 }
 
 // dynamicBlock — the block carries its own code lengths, themselves Huffman
@@ -397,54 +397,54 @@ private void dynamicBlock(const pointer st) {
 
     // The scrambled order of RFC 1951 §3.2.7 — the one genuinely arbitrary table
     // in DEFLATE.
-    pointer ord = fly.mem.alloc(19 * 4)
-    fly.mem.writeInt(ord, 0, 16)
-    fly.mem.writeInt(ord, 4, 17)
-    fly.mem.writeInt(ord, 8, 18)
-    fly.mem.writeInt(ord, 12, 0)
-    fly.mem.writeInt(ord, 16, 8)
-    fly.mem.writeInt(ord, 20, 7)
-    fly.mem.writeInt(ord, 24, 9)
-    fly.mem.writeInt(ord, 28, 6)
-    fly.mem.writeInt(ord, 32, 10)
-    fly.mem.writeInt(ord, 36, 5)
-    fly.mem.writeInt(ord, 40, 11)
-    fly.mem.writeInt(ord, 44, 4)
-    fly.mem.writeInt(ord, 48, 12)
-    fly.mem.writeInt(ord, 52, 3)
-    fly.mem.writeInt(ord, 56, 13)
-    fly.mem.writeInt(ord, 60, 2)
-    fly.mem.writeInt(ord, 64, 14)
-    fly.mem.writeInt(ord, 68, 1)
-    fly.mem.writeInt(ord, 72, 15)
+    pointer ord = mem.alloc(19 * 4)
+    mem.writeInt(ord, 0, 16)
+    mem.writeInt(ord, 4, 17)
+    mem.writeInt(ord, 8, 18)
+    mem.writeInt(ord, 12, 0)
+    mem.writeInt(ord, 16, 8)
+    mem.writeInt(ord, 20, 7)
+    mem.writeInt(ord, 24, 9)
+    mem.writeInt(ord, 28, 6)
+    mem.writeInt(ord, 32, 10)
+    mem.writeInt(ord, 36, 5)
+    mem.writeInt(ord, 40, 11)
+    mem.writeInt(ord, 44, 4)
+    mem.writeInt(ord, 48, 12)
+    mem.writeInt(ord, 52, 3)
+    mem.writeInt(ord, 56, 13)
+    mem.writeInt(ord, 60, 2)
+    mem.writeInt(ord, 64, 14)
+    mem.writeInt(ord, 68, 1)
+    mem.writeInt(ord, 72, 15)
 
-    pointer clen = fly.mem.alloc(19 * 4)
-    fly.mem.zero(clen, 19 * 4)
+    pointer clen = mem.alloc(19 * 4)
+    mem.zero(clen, 19 * 4)
     int i = 0
     while i < hclen {
-        int slot = fly.mem.readInt(ord, i * 4)
-        fly.mem.writeInt(clen, slot * 4, getBits(st, 3))
+        int slot = mem.readInt(ord, i * 4)
+        mem.writeInt(clen, slot * 4, getBits(st, 3))
         i = i + 1
     }
-    fly.mem.free(ord, 19 * 4)
+    mem.free(ord, 19 * 4)
     pointer clH = huftNew(clen, 19)
 
     int total = hlit + hdist
-    pointer lens = fly.mem.alloc(total * 4)
-    fly.mem.zero(lens, total * 4)
+    pointer lens = mem.alloc(total * 4)
+    mem.zero(lens, total * 4)
     int k = 0
     while k < total {
         int s = huftDecode(st, clH)
         if s < 0 { k = total } else {
             if s < 16 {
-                fly.mem.writeInt(lens, k * 4, s)
+                mem.writeInt(lens, k * 4, s)
                 k = k + 1
             } else {
                 int rep = 0
                 int val = 0
                 if s == 16 {
                     if k == 0 { setErr(st, 5)  k = total } else {
-                        val = fly.mem.readInt(lens, (k - 1) * 4)
+                        val = mem.readInt(lens, (k - 1) * 4)
                         rep = 3 + getBits(st, 2)
                     }
                 } else {
@@ -454,7 +454,7 @@ private void dynamicBlock(const pointer st) {
                     if k + rep > total { setErr(st, 5)  k = total } else {
                         int r = 0
                         while r < rep {
-                            fly.mem.writeInt(lens, (k + r) * 4, val)
+                            mem.writeInt(lens, (k + r) * 4, val)
                             r = r + 1
                         }
                         k = k + rep
@@ -465,13 +465,13 @@ private void dynamicBlock(const pointer st) {
         if stErr(st) != 0 { k = total }
     }
     huftFree(clH)
-    fly.mem.free(clen, 19 * 4)
+    mem.free(clen, 19 * 4)
 
     if stErr(st) == 0 {
-        pointer dl = fly.mem.alloc(hdist * 4)
+        pointer dl = mem.alloc(hdist * 4)
         int d = 0
         while d < hdist {
-            fly.mem.writeInt(dl, d * 4, fly.mem.readInt(lens, (hlit + d) * 4))
+            mem.writeInt(dl, d * 4, mem.readInt(lens, (hlit + d) * 4))
             d = d + 1
         }
         pointer lenH = huftNew(lens, hlit)
@@ -479,9 +479,9 @@ private void dynamicBlock(const pointer st) {
         codes(st, lenH, distH)
         huftFree(lenH)
         huftFree(distH)
-        fly.mem.free(dl, hdist * 4)
+        mem.free(dl, hdist * 4)
     }
-    fly.mem.free(lens, total * 4)
+    mem.free(lens, total * 4)
 }
 
 // ── the public decompressors ──────────────────────────────────────────────────
@@ -492,7 +492,7 @@ private string inflateRange(const string data, const int start, const int end, i
     int n = 0
     pointer whole = strToBuf(data, n)
     if start < 0 || end > n {
-        fly.mem.free(whole, n + 1)
+        mem.free(whole, n + 1)
         errOut = 1
         out = ""
         return
@@ -500,15 +500,15 @@ private string inflateRange(const string data, const int start, const int end, i
     int span = end - start
     if span < 0 { span = 0 }
 
-    pointer st = fly.mem.alloc(48)
-    fly.mem.zero(st, 48)
-    fly.mem.writePtr(st, 0, whole)
-    fly.mem.writeInt(st, 8, end)
-    fly.mem.writeInt(st, 12, start)
+    pointer st = mem.alloc(48)
+    mem.zero(st, 48)
+    mem.writePtr(st, 0, whole)
+    mem.writeInt(st, 8, end)
+    mem.writeInt(st, 12, start)
     int cap = span * 4
     if cap < 1024 { cap = 1024 }
-    fly.mem.writePtr(st, 24, fly.mem.alloc(cap))
-    fly.mem.writeInt(st, 36, cap)
+    mem.writePtr(st, 24, mem.alloc(cap))
+    mem.writeInt(st, 36, cap)
 
     bool last = false
     while last == false {
@@ -533,38 +533,38 @@ private string inflateRange(const string data, const int start, const int end, i
     // path below needs the output capacity, and reading it back from freed
     // memory is a use-after-free that would only bite on malformed input.
     int e = stErr(st)
-    int outLen = fly.mem.readInt(st, 32)
-    int outCap = fly.mem.readInt(st, 36)
-    pointer ob = fly.mem.readPtr(st, 24)
-    fly.mem.free(whole, n + 1)
-    fly.mem.free(st, 48)
+    int outLen = mem.readInt(st, 32)
+    int outCap = mem.readInt(st, 36)
+    pointer ob = mem.readPtr(st, 24)
+    mem.free(whole, n + 1)
+    mem.free(st, 48)
     errOut = e
     if e != 0 {
-        fly.mem.free(ob, outCap)
+        mem.free(ob, outCap)
         out = ""
         return
     }
     // fromBytes TAKES OWNERSHIP of ob — it must not be freed here.
     string res = ""
-    fly.str.fromBytes(ob, outLen, res)
+    str.fromBytes(ob, outLen, res)
     out = res
 }
 
 // inflate — decompress a raw DEFLATE stream (no gzip or zlib wrapper).
 public string inflate(const string data, int errOut) {
-    out = inflateRange(data, 0, fly.str.len(data), errOut)
+    out = inflateRange(data, 0, str.len(data), errOut)
 }
 
 // isGzip — true when data starts with the gzip magic 0x1F 0x8B and names DEFLATE
 // as its method. Cheap enough to use as a dispatch test.
 public bool isGzip(const string data) {
-    if fly.str.len(data) < 3 { out = false  return }
+    if str.len(data) < 3 { out = false  return }
     byte b0 = 0
     byte b1 = 0
     byte b2 = 0
-    fly.str.byteAt(data, 0, b0)
-    fly.str.byteAt(data, 1, b1)
-    fly.str.byteAt(data, 2, b2)
+    str.byteAt(data, 0, b0)
+    str.byteAt(data, 1, b1)
+    str.byteAt(data, 2, b2)
     int i0 = b0
     int i1 = b1
     int i2 = b2
@@ -582,14 +582,14 @@ public bool isGzip(const string data) {
 // file, which is a legitimate answer.
 public string gunzip(const string data, int errOut) {
     errOut = 0
-    int n = fly.str.len(data)
+    int n = str.len(data)
     if n < 18 { errOut = 1  out = ""  return }
     if isGzip(data) == false {
         // Distinguish "not gzip at all" from "gzip but a method we cannot read".
         byte m0 = 0
         byte m1 = 0
-        fly.str.byteAt(data, 0, m0)
-        fly.str.byteAt(data, 1, m1)
+        str.byteAt(data, 0, m0)
+        str.byteAt(data, 1, m1)
         int v0 = m0
         int v1 = m1
         v0 = v0 & 255
@@ -609,7 +609,7 @@ public string gunzip(const string data, int errOut) {
     // '(' in this dialect, so `if (flg & 224) != 0` is a parse error.
     bool reserved = flagSet(flg, 224)
     if reserved {
-        fly.mem.free(buf, nb + 1)
+        mem.free(buf, nb + 1)
         errOut = 3
         out = ""
         return
@@ -661,17 +661,17 @@ public string gunzip(const string data, int errOut) {
         wantCrcL = le32(buf, end)
         wantSize = le32(buf, end + 4)
     }
-    fly.mem.free(buf, nb + 1)
+    mem.free(buf, nb + 1)
     if bad { errOut = 1  out = ""  return }
 
     int ie = 0
     string res = inflateRange(data, pos, end, ie)
     if ie != 0 { errOut = ie  out = ""  return }
 
-    long gotSize = fly.str.len(res)
+    long gotSize = str.len(res)
     if gotSize != wantSize { errOut = 8  out = ""  return }
     uint want = (uint)wantCrcL
-    if fly.hash.crc32(res) != want { errOut = 7  out = ""  return }
+    if hash.crc32(res) != want { errOut = 7  out = ""  return }
     out = res
 }
 
@@ -764,7 +764,7 @@ private pointer entryName(const pointer buf, const int off, int lenOut) {
     int total = nameLen
     if preLen > 0 { total = preLen + 1 + nameLen }
     if total < 1 { total = 1 }
-    pointer nb = fly.mem.alloc(total)
+    pointer nb = mem.alloc(total)
     int w = 0
     if preLen > 0 {
         // `prefix` sits at offset 345 WITHIN THIS HEADER, so the source is
@@ -773,16 +773,16 @@ private pointer entryName(const pointer buf, const int off, int lenOut) {
         // length above uses, so the two cannot disagree about where the field is.
         int p = 0
         while p < preLen {
-            fly.mem.writeByte(nb, w, fly.mem.readByte(buf, off + 345 + p))
+            mem.writeByte(nb, w, mem.readByte(buf, off + 345 + p))
             w = w + 1
             p = p + 1
         }
-        fly.mem.writeByte(nb, w, (byte)47)          // '/'
+        mem.writeByte(nb, w, (byte)47)          // '/'
         w = w + 1
     }
     int q = 0
     while q < nameLen {
-        fly.mem.writeByte(nb, w + q, fly.mem.readByte(buf, off + q))
+        mem.writeByte(nb, w + q, mem.readByte(buf, off + q))
         q = q + 1
     }
     lenOut = w + nameLen
@@ -792,14 +792,14 @@ private pointer entryName(const pointer buf, const int off, int lenOut) {
 // tarOpen — a reader over the archive bytes; 0 when the input is too short to
 // hold even one header. The reader owns its own copy of the data.
 public pointer tarOpen(const string data) {
-    int n = fly.str.len(data)
+    int n = str.len(data)
     if n < 512 { out = 0  return }
     int nb = 0
     pointer buf = strToBuf(data, nb)
-    pointer h = fly.mem.alloc(64)
-    fly.mem.zero(h, 64)
-    fly.mem.writePtr(h, 0, buf)
-    fly.mem.writeInt(h, 8, n)
+    pointer h = mem.alloc(64)
+    mem.zero(h, 64)
+    mem.writePtr(h, 0, buf)
+    mem.writeInt(h, 8, n)
     out = h
 }
 
@@ -808,16 +808,16 @@ public pointer tarOpen(const string data) {
 // consumed here rather than reported, so a caller only ever sees real entries.
 public bool tarNext(const pointer h) {
     if h == 0 { out = false  return }
-    pointer data = fly.mem.readPtr(h, 0)
-    int len = fly.mem.readInt(h, 8)
+    pointer data = mem.readPtr(h, 0)
+    int len = mem.readInt(h, 8)
     bool done = false
     bool found = false
     while done == false {
-        int pos = fly.mem.readInt(h, 12)
+        int pos = mem.readInt(h, 12)
         if pos + 512 > len { done = true } else {
             if blockIsZero(data, pos) { done = true } else {
                 if hdrChecksumOk(data, pos) == false {
-                    fly.mem.writeInt(h, 44, 9)
+                    mem.writeInt(h, 44, 9)
                     done = true
                 } else {
                     long sz = octalAt(data, pos + 124, 12)
@@ -827,14 +827,14 @@ public bool tarNext(const pointer h) {
                     int padded = (int)blocks * 512
                     int next = dataOff + padded
                     if next > len { next = len }
-                    fly.mem.writeInt(h, 12, next)
+                    mem.writeInt(h, 12, next)
                     // A malformed size can make `padded` overflow and send `next`
                     // BACKWARDS. Left unchecked that is not a wrong answer, it is
                     // an infinite loop over the same header — and the archives
                     // this reads arrive from the network. Treat it as corrupt.
                     if next <= pos {
-                        fly.mem.writeInt(h, 44, 9)
-                        fly.mem.writeInt(h, 12, len)
+                        mem.writeInt(h, 44, 9)
+                        mem.writeInt(h, 12, len)
                         out = false
                         return
                     }
@@ -843,39 +843,39 @@ public bool tarNext(const pointer h) {
                         // GNU 'L': this record's DATA is the name of the entry
                         // that follows, which is how names longer than the 100
                         // byte field are carried.
-                        pointer old = fly.mem.readPtr(h, 48)
-                        if old != 0 { fly.mem.free(old, fly.mem.readInt(h, 56)) }
+                        pointer old = mem.readPtr(h, 48)
+                        if old != 0 { mem.free(old, mem.readInt(h, 56)) }
                         int pl = (int)sz
                         if pl > 0 {
                             if pl > 0 {
-                                pointer pn = fly.mem.alloc(pl)
-                                fly.mem.copy(pn, data + dataOff, pl)
+                                pointer pn = mem.alloc(pl)
+                                mem.copy(pn, data + dataOff, pl)
                                 // The stored name is NUL terminated; drop it.
                                 int realLen = cstrLen(pn, 0, pl)
-                                fly.mem.writePtr(h, 48, pn)
-                                fly.mem.writeInt(h, 56, realLen)
+                                mem.writePtr(h, 48, pn)
+                                mem.writeInt(h, 56, realLen)
                             }
                         }
                     } else {
                         bool pax = ty == 120 || ty == 103
                         if pax == false {
-                            pointer oldName = fly.mem.readPtr(h, 16)
-                            if oldName != 0 { fly.mem.free(oldName, fly.mem.readInt(h, 24)) }
-                            pointer pend = fly.mem.readPtr(h, 48)
+                            pointer oldName = mem.readPtr(h, 16)
+                            if oldName != 0 { mem.free(oldName, mem.readInt(h, 24)) }
+                            pointer pend = mem.readPtr(h, 48)
                             if pend != 0 {
-                                fly.mem.writePtr(h, 16, pend)
-                                fly.mem.writeInt(h, 24, fly.mem.readInt(h, 56))
-                                fly.mem.writePtr(h, 48, 0)
-                                fly.mem.writeInt(h, 56, 0)
+                                mem.writePtr(h, 16, pend)
+                                mem.writeInt(h, 24, mem.readInt(h, 56))
+                                mem.writePtr(h, 48, 0)
+                                mem.writeInt(h, 56, 0)
                             } else {
                                 int nl = 0
                                 pointer nb = entryName(data, pos, nl)
-                                fly.mem.writePtr(h, 16, nb)
-                                fly.mem.writeInt(h, 24, nl)
+                                mem.writePtr(h, 16, nb)
+                                mem.writeInt(h, 24, nl)
                             }
-                            fly.mem.writeInt(h, 28, ty)
-                            fly.mem.writeLong(h, 32, sz)
-                            fly.mem.writeInt(h, 40, dataOff)
+                            mem.writeInt(h, 28, ty)
+                            mem.writeLong(h, 32, sz)
+                            mem.writeInt(h, 40, dataOff)
                             found = true
                             done = true
                         }
@@ -890,20 +890,20 @@ public bool tarNext(const pointer h) {
 // tarName — the current entry's path, "" before the first tarNext.
 public string tarName(const pointer h) {
     if h == 0 { out = ""  return }
-    int n = fly.mem.readInt(h, 24)
+    int n = mem.readInt(h, 24)
     if n <= 0 { out = ""  return }
-    pointer src = fly.mem.readPtr(h, 16)
-    pointer cp = fly.mem.alloc(n)
-    fly.mem.copy(cp, src, n)
+    pointer src = mem.readPtr(h, 16)
+    pointer cp = mem.alloc(n)
+    mem.copy(cp, src, n)
     string s = ""
-    fly.str.fromBytes(cp, n, s)                     // fromBytes takes ownership
+    str.fromBytes(cp, n, s)                     // fromBytes takes ownership
     out = s
 }
 
 // tarSize — the current entry's size in bytes.
 public long tarSize(const pointer h) {
     if h == 0 { out = 0  return }
-    out = fly.mem.readLong(h, 32)
+    out = mem.readLong(h, 32)
 }
 
 // tarType — the raw typeflag: 48 ('0') or 0 for a regular file, 53 ('5') for a
@@ -911,7 +911,7 @@ public long tarSize(const pointer h) {
 // ASCII codes.
 public int tarType(const pointer h) {
     if h == 0 { out = 0  return }
-    out = fly.mem.readInt(h, 28)
+    out = mem.readInt(h, 28)
 }
 
 // tarIsFile — true for a regular file. BOTH '0' and NUL mean regular: the NUL
@@ -929,17 +929,17 @@ public bool tarIsDir(const pointer h) {
 // tarData — the current entry's contents.
 public string tarData(const pointer h) {
     if h == 0 { out = ""  return }
-    long sz = fly.mem.readLong(h, 32)
+    long sz = mem.readLong(h, 32)
     int n = (int)sz
     if n <= 0 { out = ""  return }
-    int off = fly.mem.readInt(h, 40)
-    int len = fly.mem.readInt(h, 8)
+    int off = mem.readInt(h, 40)
+    int len = mem.readInt(h, 8)
     if off + n > len { out = ""  return }
-    pointer data = fly.mem.readPtr(h, 0)
-    pointer cp = fly.mem.alloc(n)
-    fly.mem.copy(cp, data + off, n)
+    pointer data = mem.readPtr(h, 0)
+    pointer cp = mem.alloc(n)
+    mem.copy(cp, data + off, n)
     string s = ""
-    fly.str.fromBytes(cp, n, s)                     // fromBytes takes ownership
+    str.fromBytes(cp, n, s)                     // fromBytes takes ownership
     out = s
 }
 
@@ -947,20 +947,20 @@ public string tarData(const pointer h) {
 // checksum. tarNext returning false means "end of archive" only when this is 0.
 public int tarErr(const pointer h) {
     if h == 0 { out = 0  return }
-    out = fly.mem.readInt(h, 44)
+    out = mem.readInt(h, 44)
 }
 
 // tarFree — release the reader and everything it owns.
 public void tarFree(const pointer h) {
     if h == 0 { return }
-    pointer data = fly.mem.readPtr(h, 0)
-    int len = fly.mem.readInt(h, 8)
-    if data != 0 { fly.mem.free(data, len + 1) }
-    pointer nm = fly.mem.readPtr(h, 16)
-    if nm != 0 { fly.mem.free(nm, fly.mem.readInt(h, 24)) }
-    pointer pend = fly.mem.readPtr(h, 48)
-    if pend != 0 { fly.mem.free(pend, fly.mem.readInt(h, 56)) }
-    fly.mem.free(h, 64)
+    pointer data = mem.readPtr(h, 0)
+    int len = mem.readInt(h, 8)
+    if data != 0 { mem.free(data, len + 1) }
+    pointer nm = mem.readPtr(h, 16)
+    if nm != 0 { mem.free(nm, mem.readInt(h, 24)) }
+    pointer pend = mem.readPtr(h, 48)
+    if pend != 0 { mem.free(pend, mem.readInt(h, 56)) }
+    mem.free(h, 64)
 }
 
 // ── extraction ────────────────────────────────────────────────────────────────
@@ -971,17 +971,17 @@ public void tarFree(const pointer h) {
 // the network from a package registry, and without this check a hostile — or
 // merely careless — tarball can drop a file anywhere the compiler can write.
 public bool safeName(const string name) {
-    if fly.str.isEmpty(name) { out = false  return }
-    int n = fly.str.len(name)
+    if str.isEmpty(name) { out = false  return }
+    int n = str.len(name)
     byte f = 0
-    fly.str.byteAt(name, 0, f)
+    str.byteAt(name, 0, f)
     int fi = f
     fi = fi & 255
     if fi == 47 { out = false  return }             // '/'
     if fi == 92 { out = false  return }             // '\'
     if n >= 2 {
         byte c1 = 0
-        fly.str.byteAt(name, 1, c1)
+        str.byteAt(name, 1, c1)
         int ci = c1
         ci = ci & 255
         if ci == 58 { out = false  return }         // "X:"
@@ -993,8 +993,8 @@ public bool safeName(const string name) {
         if i + 1 < n {
             byte a = 0
             byte b = 0
-            fly.str.byteAt(name, i, a)
-            fly.str.byteAt(name, i + 1, b)
+            str.byteAt(name, i, a)
+            str.byteAt(name, i + 1, b)
             int ai = a
             int bi = b
             ai = ai & 255
@@ -1004,7 +1004,7 @@ public bool safeName(const string name) {
                 bool leftOk = true
                 if i > 0 {
                     byte p = 0
-                    fly.str.byteAt(name, i - 1, p)
+                    str.byteAt(name, i - 1, p)
                     int pi = p
                     pi = pi & 255
                     bool sep = pi == 47 || pi == 92
@@ -1013,7 +1013,7 @@ public bool safeName(const string name) {
                 bool rightOk = true
                 if i + 2 < n {
                     byte q = 0
-                    fly.str.byteAt(name, i + 2, q)
+                    str.byteAt(name, i + 2, q)
                     int qi = q
                     qi = qi & 255
                     bool sep2 = qi == 47 || qi == 92
@@ -1035,7 +1035,7 @@ public bool extractTar(const string data, const string destDir, int errOut) {
     errOut = 0
     pointer h = tarOpen(data)
     if h == 0 { errOut = 1  out = false  return }
-    fly.os.fs.dirCreateAll(destDir, 493)
+    fs.dirCreateAll(destDir, 493)
     bool ok = true
     bool go = true
     while go {
@@ -1046,20 +1046,20 @@ public bool extractTar(const string data, const string destDir, int errOut) {
                 ok = false
                 go = false
             } else {
-                string dst = fly.os.path.join(destDir, nm)
+                string dst = path.join(destDir, nm)
                 if tarIsDir(h) {
-                    fly.os.fs.dirCreateAll(dst, 493)
+                    fs.dirCreateAll(dst, 493)
                 } else {
                     if tarIsFile(h) {
-                        string parent = fly.os.path.dirname(dst)
-                        if fly.str.isEmpty(parent) == false {
-                            fly.os.fs.dirCreateAll(parent, 493)
+                        string parent = path.dirname(dst)
+                        if str.isEmpty(parent) == false {
+                            fs.dirCreateAll(parent, 493)
                         }
                         // writeBytes, not writeStr: an archive carries binary
                         // payloads, and a text-mode write would rewrite every
                         // newline on Windows.
-                        fly.os.fs.writeBytes(dst, tarData(h), 420)
-                        if fly.os.fs.exists(dst) == false {
+                        fs.writeBytes(dst, tarData(h), 420)
+                        if fs.exists(dst) == false {
                             errOut = 10
                             ok = false
                             go = false
@@ -1082,8 +1082,8 @@ public bool extractTar(const string data, const string destDir, int errOut) {
 // destDir. This is the whole of what `tar -xzf` was being spawned for.
 public bool extractTarGz(const string archivePath, const string destDir, int errOut) {
     errOut = 0
-    if fly.os.fs.exists(archivePath) == false { errOut = 1  out = false  return }
-    string raw = fly.os.fs.readBytes(archivePath)
+    if fs.exists(archivePath) == false { errOut = 1  out = false  return }
+    string raw = fs.readBytes(archivePath)
     int ge = 0
     string tarBytes = gunzip(raw, ge)
     if ge != 0 { errOut = ge  out = false  return }

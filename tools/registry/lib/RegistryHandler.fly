@@ -55,24 +55,24 @@ public class RegResponse {
     }
 
     public string toHttp() {
-        out = fly.net.http.responseConn(this.status, this.contentType, "", false, this.body)
+        out = http.responseConn(this.status, this.contentType, "", false, this.body)
     }
 }
 
 // safeSegment — a name/version usable as a single path component: non-empty,
 // no '/', '\', NUL, no leading '.', and not '..'.
 public bool safeSegment(const string s) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     if n == 0 { out = false  return }
     byte f = 0
-    fly.str.byteAt(s, 0, f)
+    str.byteAt(s, 0, f)
     int fi = f
     fi = fi & 255
     if fi == 46 { out = false  return }             // leading '.'
     int i = 0
     while i < n {
         byte b = 0
-        fly.str.byteAt(s, i, b)
+        str.byteAt(s, i, b)
         int c = b
         c = c & 255
         if c == 47 || c == 92 || c == 0 { out = false  return }
@@ -85,42 +85,42 @@ public bool safeSegment(const string s) {
 // codec's percentDecode deliberately leaves '+' alone, so it is handled here).
 public string urlDecode(const string s) {
     int e = 0
-    string dec = fly.codec.percentDecode(s, e)
+    string dec = codec.percentDecode(s, e)
     if e != 0 { dec = s }
-    out = fly.str.replace(dec, "+", " ")
+    out = str.replace(dec, "+", " ")
 }
 
 // jsonStringArray — ["a","b",…]. json.escape returns the BODY of the string
 // (no surrounding quotes), so the quotes are added here; they are built from
 // bytes because string literals keep escapes raw in this dialect.
 public string jsonStringArray(const List<string> xs) {
-    pointer qp = fly.mem.alloc(1)
-    fly.mem.writeByte(qp, 0, 34)
+    pointer qp = mem.alloc(1)
+    mem.writeByte(qp, 0, 34)
     string q = ""
-    fly.str.fromBytes(qp, 1, q)
+    str.fromBytes(qp, 1, q)
     string s = "["
     int i = 0
     while i < xs.size() {
-        if i > 0 { s = fly.str.concat(s, ",") }
-        s = fly.str.concat(s, fly.str.concat(q,
-            fly.str.concat(fly.json.escape(xs.get(i)), q)))
+        if i > 0 { s = str.concat(s, ",") }
+        s = str.concat(s, str.concat(q,
+            str.concat(json.escape(xs.get(i)), q)))
         i = i + 1
     }
-    out = fly.str.concat(s, "]")
+    out = str.concat(s, "]")
 }
 
 // strLess — byte-order comparison; fly.str has no compare().
 public bool strLess(const string a, const string b) {
-    int na = fly.str.len(a)
-    int nb = fly.str.len(b)
+    int na = str.len(a)
+    int nb = str.len(b)
     int n = na
     if nb < n { n = nb }
     int i = 0
     while i < n {
         byte ba = 0
         byte bb = 0
-        fly.str.byteAt(a, i, ba)
-        fly.str.byteAt(b, i, bb)
+        str.byteAt(a, i, ba)
+        str.byteAt(b, i, bb)
         int ca = ba
         int cb = bb
         ca = ca & 255
@@ -138,7 +138,7 @@ public bool strLess(const string a, const string b) {
 // array still owns.
 public List<string> dirNames(const string dir) {
     List<string> names = new List<string>()
-    fly.os.fs.DirEntries de = fly.os.fs.dirRead(dir)
+    fly.os.fs.DirEntries de = fs.dirRead(dir)
     pointer items = de.items
     if items == 0 { out = names  return }
     long lenL = (long)de.len
@@ -147,13 +147,13 @@ public List<string> dirNames(const string dir) {
     int i = 0
     while i < n {
         int off = i * 56
-        pointer namePtr = fly.mem.readPtr(items, off)
-        int nameLen = fly.mem.readInt(items, off + 8)
+        pointer namePtr = mem.readPtr(items, off)
+        int nameLen = mem.readInt(items, off + 8)
         if nameLen > 0 {
-            pointer cp = fly.mem.alloc(nameLen)
-            fly.mem.copy(cp, namePtr, nameLen)
+            pointer cp = mem.alloc(nameLen)
+            mem.copy(cp, namePtr, nameLen)
             string nm = ""
-            fly.str.fromBytes(cp, nameLen, nm)
+            str.fromBytes(cp, nameLen, nm)
             names.add(nm)
         }
         i = i + 1
@@ -168,33 +168,33 @@ public class RegistryHandler {
     public RegistryHandler(const string storage, const string token) {
         this.storage = storage
         this.token = token
-        fly.os.fs.dirCreateAll(storage, 493)
+        fs.dirCreateAll(storage, 493)
     }
 
     public string getStorage() { out = this.storage }
-    public bool requiresAuth() { out = fly.str.isEmpty(this.token) == false }
+    public bool requiresAuth() { out = str.isEmpty(this.token) == false }
 
     // ── storage layout ───────────────────────────────────────────────────────
 
     public string pkgDir(const string name) {
-        out = fly.os.path.join(this.storage, name)
+        out = path.join(this.storage, name)
     }
 
     public string tarballPath(const string name, const string version) {
-        out = fly.os.path.join(this.pkgDir(name), fly.str.concat(version, ".tar.gz"))
+        out = path.join(this.pkgDir(name), str.concat(version, ".tar.gz"))
     }
 
     public string manifestPath(const string name, const string version) {
-        out = fly.os.path.join(fly.os.path.join(this.pkgDir(name), version), "Manifest.fly")
+        out = path.join(path.join(this.pkgDir(name), version), "Manifest.fly")
     }
 
     // ── auth ─────────────────────────────────────────────────────────────────
 
     bool checkAuth(const string authHeader) {
-        if fly.str.isEmpty(this.token) { out = true  return }
-        if fly.str.startsWith(authHeader, "Bearer ") == false { out = false  return }
-        string got = fly.str.substring(authHeader, 7, fly.str.len(authHeader))
-        out = fly.str.equals(got, this.token)
+        if str.isEmpty(this.token) { out = true  return }
+        if str.startsWith(authHeader, "Bearer ") == false { out = false  return }
+        string got = str.substring(authHeader, 7, str.len(authHeader))
+        out = str.equals(got, this.token)
     }
 
     // ── manifest extraction (in-process) ─────────────────────────────────────
@@ -206,47 +206,47 @@ public class RegistryHandler {
     // then answers 404, same as the reference.
     void extractManifest(const string name, const string version) {
         string tb = this.tarballPath(name, version)
-        if fly.os.fs.exists(tb) == false { return }
-        string raw = fly.os.fs.readBytes(tb)
+        if fs.exists(tb) == false { return }
+        string raw = fs.readBytes(tb)
         int ge = 0
-        string tarBytes = fly.targz.gunzip(raw, ge)
+        string tarBytes = targz.gunzip(raw, ge)
         if ge != 0 { return }
-        pointer h = fly.targz.tarOpen(tarBytes)
+        pointer h = targz.tarOpen(tarBytes)
         if h == 0 { return }
         string found = ""
         bool go = true
         while go {
-            if fly.targz.tarNext(h) == false { go = false } else {
-                if fly.targz.tarIsFile(h) {
-                    string nm = fly.targz.tarName(h)
-                    bool hit = fly.str.equals(nm, "Manifest.fly")
-                    if hit == false { hit = fly.str.equals(nm, "./Manifest.fly") }
+            if targz.tarNext(h) == false { go = false } else {
+                if targz.tarIsFile(h) {
+                    string nm = targz.tarName(h)
+                    bool hit = str.equals(nm, "Manifest.fly")
+                    if hit == false { hit = str.equals(nm, "./Manifest.fly") }
                     if hit == false {
                         // one component deep: <dir>/Manifest.fly
-                        if fly.str.endsWith(nm, "/Manifest.fly") {
-                            int slashes = fly.str.count(nm, "/")
+                        if str.endsWith(nm, "/Manifest.fly") {
+                            int slashes = str.count(nm, "/")
                             if slashes == 1 { hit = true }
                         }
                     }
                     if hit {
-                        found = fly.targz.tarData(h)
+                        found = targz.tarData(h)
                         go = false
                     }
                 }
             }
         }
-        fly.targz.tarFree(h)
-        if fly.str.isEmpty(found) { return }
-        string vdir = fly.os.path.join(this.pkgDir(name), version)
-        fly.os.fs.dirCreateAll(vdir, 493)
-        fly.os.fs.writeBytes(this.manifestPath(name, version), found, 420)
+        targz.tarFree(h)
+        if str.isEmpty(found) { return }
+        string vdir = path.join(this.pkgDir(name), version)
+        fs.dirCreateAll(vdir, 493)
+        fs.writeBytes(this.manifestPath(name, version), found, 420)
     }
 
     // ── endpoints ────────────────────────────────────────────────────────────
 
     RegResponse listVersions(const string name) {
         string dir = this.pkgDir(name)
-        if fly.os.path.isDir(dir) == false {
+        if path.isDir(dir) == false {
             out = new RegResponse(404, "text/plain", "package not found")
             return
         }
@@ -255,8 +255,8 @@ public class RegistryHandler {
         int i = 0
         while i < entries.size() {
             string fn = entries.get(i)
-            if fly.str.endsWith(fn, ".tar.gz") {
-                versions.add(fly.str.substring(fn, 0, fly.str.len(fn) - 7))
+            if str.endsWith(fn, ".tar.gz") {
+                versions.add(str.substring(fn, 0, str.len(fn) - 7))
             }
             i = i + 1
         }
@@ -266,55 +266,55 @@ public class RegistryHandler {
 
     RegResponse getMetadata(const string name, const string version) {
         string mp = this.manifestPath(name, version)
-        if fly.os.fs.exists(mp) == false {
-            if fly.os.fs.exists(this.tarballPath(name, version)) {
+        if fs.exists(mp) == false {
+            if fs.exists(this.tarballPath(name, version)) {
                 this.extractManifest(name, version)
             }
         }
-        if fly.os.fs.exists(mp) == false {
+        if fs.exists(mp) == false {
             out = new RegResponse(404, "text/plain", "version not found")
             return
         }
-        out = new RegResponse(200, "text/plain", fly.os.fs.readStr(mp))
+        out = new RegResponse(200, "text/plain", fs.readStr(mp))
     }
 
     RegResponse download(const string name, const string version) {
         string tb = this.tarballPath(name, version)
-        if fly.os.fs.exists(tb) == false {
+        if fs.exists(tb) == false {
             out = new RegResponse(404, "text/plain", "tarball not found")
             return
         }
         // readBytes, NOT readStr: the payload is gzip and a text-mode read on
         // Windows corrupts it — the exact bug class Phase 9 existed to kill.
-        out = new RegResponse(200, "application/octet-stream", fly.os.fs.readBytes(tb))
+        out = new RegResponse(200, "application/octet-stream", fs.readBytes(tb))
     }
 
     RegResponse publish(const string name, const string version, const string body) {
-        if fly.str.isEmpty(version) {
+        if str.isEmpty(version) {
             out = new RegResponse(400, "text/plain", "version required: POST /v1/{name}/{version}")
             return
         }
-        if fly.str.isEmpty(body) {
+        if str.isEmpty(body) {
             out = new RegResponse(400, "text/plain", "empty body")
             return
         }
         // The reference stores whatever arrives; here a payload that is not a
         // VALID gzip member is rejected up front — a truncated upload would
         // otherwise be served back to every client as a "good" package.
-        if fly.targz.isGzip(body) == false {
+        if targz.isGzip(body) == false {
             out = new RegResponse(400, "text/plain", "body is not a gzip archive")
             return
         }
         int ge = 0
-        string tarBytes = fly.targz.gunzip(body, ge)
+        string tarBytes = targz.gunzip(body, ge)
         if ge != 0 {
             out = new RegResponse(400, "text/plain", "corrupt gzip payload")
             return
         }
-        fly.os.fs.dirCreateAll(this.pkgDir(name), 493)
+        fs.dirCreateAll(this.pkgDir(name), 493)
         string tb = this.tarballPath(name, version)
-        fly.os.fs.writeBytes(tb, body, 420)
-        if fly.os.fs.exists(tb) == false {
+        fs.writeBytes(tb, body, 420)
+        if fs.exists(tb) == false {
             out = new RegResponse(500, "text/plain", "cannot write tarball")
             return
         }
@@ -324,14 +324,14 @@ public class RegistryHandler {
 
     RegResponse search(const string query) {
         List<string> matches = new List<string>()
-        if fly.os.path.isDir(this.storage) {
+        if path.isDir(this.storage) {
             List<string> entries = dirNames(this.storage)
             int i = 0
             while i < entries.size() {
                 string nm = entries.get(i)
-                if fly.os.path.isDir(fly.os.path.join(this.storage, nm)) {
-                    bool take = fly.str.isEmpty(query)
-                    if take == false { take = fly.str.contains(nm, query) }
+                if path.isDir(path.join(this.storage, nm)) {
+                    bool take = str.isEmpty(query)
+                    if take == false { take = str.contains(nm, query) }
                     if take { matches.add(nm) }
                 }
                 i = i + 1
@@ -369,14 +369,14 @@ public class RegistryHandler {
     public RegResponse handle(const string method, const string path, const string query,
                               const string authHeader, const string body) {
         // GET /v1/search?q=…
-        if fly.str.equals(method, "GET") {
-            if fly.str.equals(path, "/v1/search") {
+        if str.equals(method, "GET") {
+            if str.equals(path, "/v1/search") {
                 string q = ""
-                int pos = fly.str.indexOf(query, "q=")
+                int pos = str.indexOf(query, "q=")
                 if pos >= 0 {
-                    string tail = fly.str.substring(query, pos + 2, fly.str.len(query))
-                    int amp = fly.str.indexOf(tail, "&")
-                    if amp >= 0 { tail = fly.str.substring(tail, 0, amp) }
+                    string tail = str.substring(query, pos + 2, str.len(query))
+                    int amp = str.indexOf(tail, "&")
+                    if amp >= 0 { tail = str.substring(tail, 0, amp) }
                     q = urlDecode(tail)
                 }
                 out = this.search(q)
@@ -385,23 +385,23 @@ public class RegistryHandler {
         }
 
         // /v1/{name}[/{version}[/download]] — split by hand, no regex needed.
-        if fly.str.startsWith(path, "/v1/") == false {
+        if str.startsWith(path, "/v1/") == false {
             out = new RegResponse(404, "text/plain", "not found")
             return
         }
-        string rest = fly.str.substring(path, 4, fly.str.len(path))
+        string rest = str.substring(path, 4, str.len(path))
         string name = rest
         string version = ""
         string action = ""
-        int s1 = fly.str.indexOf(rest, "/")
+        int s1 = str.indexOf(rest, "/")
         if s1 >= 0 {
-            name = fly.str.substring(rest, 0, s1)
-            string r2 = fly.str.substring(rest, s1 + 1, fly.str.len(rest))
+            name = str.substring(rest, 0, s1)
+            string r2 = str.substring(rest, s1 + 1, str.len(rest))
             version = r2
-            int s2 = fly.str.indexOf(r2, "/")
+            int s2 = str.indexOf(r2, "/")
             if s2 >= 0 {
-                version = fly.str.substring(r2, 0, s2)
-                action = fly.str.substring(r2, s2 + 1, fly.str.len(r2))
+                version = str.substring(r2, 0, s2)
+                action = str.substring(r2, s2 + 1, str.len(r2))
             }
         }
         name = urlDecode(name)
@@ -413,27 +413,27 @@ public class RegistryHandler {
             out = new RegResponse(400, "text/plain", "bad request")
             return
         }
-        if fly.str.isEmpty(version) == false {
+        if str.isEmpty(version) == false {
             if safeSegment(version) == false {
                 out = new RegResponse(400, "text/plain", "bad request")
                 return
             }
         }
-        bool actionOk = fly.str.isEmpty(action)
-        if actionOk == false { actionOk = fly.str.equals(action, "download") }
+        bool actionOk = str.isEmpty(action)
+        if actionOk == false { actionOk = str.equals(action, "download") }
         if actionOk == false {
             out = new RegResponse(404, "text/plain", "not found")
             return
         }
 
-        if fly.str.equals(method, "GET") {
-            if fly.str.isEmpty(version) { out = this.listVersions(name)  return }
-            if fly.str.isEmpty(action) { out = this.getMetadata(name, version)  return }
+        if str.equals(method, "GET") {
+            if str.isEmpty(version) { out = this.listVersions(name)  return }
+            if str.isEmpty(action) { out = this.getMetadata(name, version)  return }
             out = this.download(name, version)
             return
         }
-        if fly.str.equals(method, "POST") {
-            if fly.str.isEmpty(action) {
+        if str.equals(method, "POST") {
+            if str.isEmpty(action) {
                 if this.checkAuth(authHeader) == false {
                     string msg = "Unauthorized"
                     if this.requiresAuth() {

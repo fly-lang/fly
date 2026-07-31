@@ -328,14 +328,14 @@ public class LspNavVisitor : ASTVisitor {
     // `line` at or after `fromCol`; falls back to fromCol when not found.
     int nameColAfter(const int line, const int fromCol, const string name) {
         string src = this.sm.getBufferData()
-        int n = fly.str.len(src)
+        int n = str.len(src)
         // find the byte offset of the line start
         int cur = 1
         int i = 0
         while cur < line {
             if i >= n { out = fromCol  return }
             byte b = 0
-            fly.str.byteAt(src, i, b)
+            str.byteAt(src, i, b)
             int c = b
             c = c & 255
             if c == 10 { cur = cur + 1 }
@@ -348,22 +348,22 @@ public class LspNavVisitor : ASTVisitor {
         while go {
             if j >= n { go = false } else {
                 byte b2 = 0
-                fly.str.byteAt(src, j, b2)
+                str.byteAt(src, j, b2)
                 int c2 = b2
                 c2 = c2 & 255
                 if c2 == 10 { go = false } else { j = j + 1 }
             }
         }
-        string lineText = fly.str.substring(src, lineStart, j)
-        string tail = fly.str.substring(lineText, fromCol - 1, fly.str.len(lineText))
+        string lineText = str.substring(src, lineStart, j)
+        string tail = str.substring(lineText, fromCol - 1, str.len(lineText))
         // Word-boundary search: `int in = 1` must not match the "in" inside
         // "int". Advance past non-boundary hits.
-        int nameLen = fly.str.len(name)
-        int tailLen = fly.str.len(tail)
+        int nameLen = str.len(name)
+        int tailLen = str.len(tail)
         int from = 0
         while from < tailLen {
-            string rest = fly.str.substring(tail, from, tailLen)
-            int rel = fly.str.indexOf(rest, name)
+            string rest = str.substring(tail, from, tailLen)
+            int rel = str.indexOf(rest, name)
             if rel < 0 { out = fromCol  return }
             int at = from + rel
             bool leftOk = at == 0
@@ -379,7 +379,7 @@ public class LspNavVisitor : ASTVisitor {
     // isBoundary — is the byte at i NOT an identifier character?
     bool isBoundary(const string s, const int i) {
         byte b = 0
-        fly.str.byteAt(s, i, b)
+        str.byteAt(s, i, b)
         int c = b
         c = c & 255
         bool ident = c >= 97 && c <= 122
@@ -391,7 +391,7 @@ public class LspNavVisitor : ASTVisitor {
 
     // namedUseAt — nameUse with an explicit position (already decoded).
     void namedUseAt(const int line, const int col, const string name, const int kindTag) {
-        int len = fly.str.len(name)
+        int len = str.len(name)
         if this.mode == 1 {
             if this.foundKind == 0 {
                 if this.hit(line, col, len) {
@@ -402,8 +402,8 @@ public class LspNavVisitor : ASTVisitor {
                 }
             }
         } elsif this.mode == 2 {
-            bool take = fly.str.isEmpty(this.wantName)
-            if take == false { take = fly.str.equals(name, this.wantName) }
+            bool take = str.isEmpty(this.wantName)
+            if take == false { take = str.equals(name, this.wantName) }
             if take {
                 this.uses.add(new LspUse(name, line, col, len, kindTag == 2))
             }

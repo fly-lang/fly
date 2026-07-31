@@ -9,7 +9,7 @@ import fly.assert
 // skipSockets — see NetSuite; gates every case that opens a socket so a
 // sandboxed CI reports green-but-skipped instead of a wall of red.
 bool skipSockets() {
-    out = fly.str.isEmpty(fly.os.env.get("FLY_SKIP_NET_TESTS")) == false
+    out = str.isEmpty(env.get("FLY_SKIP_NET_TESTS")) == false
 }
 
 // msSince — milliseconds between two monotonic readings.
@@ -323,9 +323,9 @@ suite PollSuite {
                     assert.assertTrue(net.pollWait(ps, 3000) >= 1, 324)
                     int gone = net.pollRead() | net.pollHup() | net.pollErr()
                     assert.assertTrue(net.pollIsReady(ps, idx, gone), 325)
-                    pointer buf = fly.mem.alloc(16)
+                    pointer buf = mem.alloc(16)
                     assert.assertEqL(net.recv(acc, buf, 16), 0, 326)   // EOF
-                    fly.mem.free(buf, 16)
+                    mem.free(buf, 16)
                     net.pollFree(ps)
                     net.close(acc)
                 }

@@ -13,7 +13,7 @@ import fly.llvm
 // dq — a one-byte string holding a double quote (34). String literals keep escapes
 // raw in the reference, so `"` cannot be produced from a literal; build it directly.
 public string dq() {
-    pointer buf = fly.mem.alloc(1)
+    pointer buf = mem.alloc(1)
     byte q = 34
     fly.llvm.strPoke(buf, 0, q)
     string s = ""
@@ -25,7 +25,7 @@ public string dq() {
 // into valid TOML by replacing every `|` with a double quote. Lets a suite write
 // readable multi-line TOML without embedding quotes in the Fly source.
 public string mkToml(const string tpl) {
-    out = fly.str.replace(tpl, "|", dq())
+    out = str.replace(tpl, "|", dq())
 }
 
 // tagDep / branchDep — build a git GitDep (free functions returning a class with

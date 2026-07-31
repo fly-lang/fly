@@ -28,8 +28,8 @@ suite ParserDiagSuite {
             assert.assertFalse(p.isSuccess(), 10)
             StoringDiagnosticConsumer sink = p.getSink()
             assert.assertTrue(sink.count() >= 1, 11)
-            assert.assertTrue(fly.str.contains(sink.getMessage(0), "only one 'namespace'"), 12)
-            assert.assertTrue(fly.str.contains(sink.getMessage(0), "error:"), 13)
+            assert.assertTrue(str.contains(sink.getMessage(0), "only one 'namespace'"), 12)
+            assert.assertTrue(str.contains(sink.getMessage(0), "error:"), 13)
         }
     }
 

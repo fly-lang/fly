@@ -6,18 +6,18 @@ import fly.assert
 // byteAt — the i-th byte of s as a masked int (byte widening differs per platform).
 int byteAt(const string s, const int i) {
     byte b = 0
-    fly.str.byteAt(s, i, b)
+    str.byteAt(s, i, b)
     int v = b
     out = v & 255
 }
 
 // bytesOf — a string from explicit byte values, for inputs a literal cannot hold.
 string bytesOf(const int a, const int b, const int c) {
-    pointer p = fly.mem.alloc(3)
-    fly.mem.writeByte(p, 0, (byte)a)
-    fly.mem.writeByte(p, 1, (byte)b)
-    fly.mem.writeByte(p, 2, (byte)c)
-    fly.str.fromBytes(p, 3, out)
+    pointer p = mem.alloc(3)
+    mem.writeByte(p, 0, (byte)a)
+    mem.writeByte(p, 1, (byte)b)
+    mem.writeByte(p, 2, (byte)c)
+    str.fromBytes(p, 3, out)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,10 +50,10 @@ suite CodecSuite {
             assert.assertStr(codec.base64Encode("foobar"), "Zm9vYmFy", 107)
         }
         case "the output length is always a multiple of four": {
-            assert.assertEqI(fly.str.len(codec.base64Encode("f")), 4, 108)
-            assert.assertEqI(fly.str.len(codec.base64Encode("fo")), 4, 109)
-            assert.assertEqI(fly.str.len(codec.base64Encode("foo")), 4, 110)
-            assert.assertEqI(fly.str.len(codec.base64Encode("foob")), 8, 111)
+            assert.assertEqI(str.len(codec.base64Encode("f")), 4, 108)
+            assert.assertEqI(str.len(codec.base64Encode("fo")), 4, 109)
+            assert.assertEqI(str.len(codec.base64Encode("foo")), 4, 110)
+            assert.assertEqI(str.len(codec.base64Encode("foob")), 8, 111)
         }
         case "high bytes use the top of the alphabet": {
             // 0xFF 0xFF 0xFF is six 1-bits per group → the LAST two alphabet
@@ -90,7 +90,7 @@ suite CodecSuite {
             int e = 0
             string got = codec.base64Decode("////", e)
             assert.assertEqI(e, 0, 211)
-            assert.assertEqI(fly.str.len(got), 3, 212)
+            assert.assertEqI(str.len(got), 3, 212)
             assert.assertEqI(byteAt(got, 0), 255, 213)
             assert.assertEqI(byteAt(got, 2), 255, 214)
         }
@@ -252,15 +252,15 @@ suite CodecSuite {
         case "all 256 byte values survive base64, hex and percent": {
             // The exhaustive check. Anything that mishandles a byte >= 0x80 on one
             // platform only shows up here.
-            pointer p = fly.mem.alloc(256)
+            pointer p = mem.alloc(256)
             int i = 0
             while i < 256 {
-                fly.mem.writeByte(p, i, (byte)i)
+                mem.writeByte(p, i, (byte)i)
                 i = i + 1
             }
             string all = ""
-            fly.str.fromBytes(p, 256, all)
-            assert.assertEqI(fly.str.len(all), 256, 701)
+            str.fromBytes(p, 256, all)
+            assert.assertEqI(str.len(all), 256, 701)
 
             int e1 = 0
             assert.assertStr(codec.base64Decode(codec.base64Encode(all), e1), all, 702)
@@ -279,7 +279,7 @@ suite CodecSuite {
             assert.assertEqI(e4, 0, 709)
         }
         case "a long input round-trips through base64": {
-            string src = fly.str.repeat("The quick brown fox. ", 60)   // 1260 bytes
+            string src = str.repeat("The quick brown fox. ", 60)   // 1260 bytes
             int e = 0
             assert.assertStr(codec.base64Decode(codec.base64Encode(src), e), src, 710)
             assert.assertEqI(e, 0, 711)

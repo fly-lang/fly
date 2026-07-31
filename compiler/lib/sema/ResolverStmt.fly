@@ -4,7 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.basic.*
 import fly.data.List
-import fly.str as s
+import fly.str
 
 // ResolverStmt — statement resolution companion. Statements append themselves to
 // r.currentSemaBlock; a completed block is published via r.lastBlock.
@@ -350,7 +350,7 @@ public class ResolverStmt {
             SemaParam gp0 = gps.get(0)
             SemaType gpt = gp0.getType()
             if gpt != null {
-                if s.equals(gpt.getName(), "pointer") { idxOk = true }
+                if str.equals(gpt.getName(), "pointer") { idxOk = true }
             }
         }
         if idxOk == false {
@@ -527,7 +527,7 @@ public class ResolverStmt {
         if cc != null {
             if cf != null {
                 if cc.getClassKind() == SemaClassKind.SUITE {
-                    if s.endsWith(cf.getName(), "Test") { inSuiteTest = true }
+                    if str.endsWith(cf.getName(), "Test") { inSuiteTest = true }
                 }
             }
         }

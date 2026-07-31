@@ -19,5 +19,5 @@ public class MemoryBuffer {
 
     public string getBuffer()     { out = this.text }
     public string getBufferName() { out = this.name }
-    public bool isEmpty()         { out = fly.str.isEmpty(this.text) }
+    public bool isEmpty()         { out = str.isEmpty(this.text) }
 }

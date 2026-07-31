@@ -42,7 +42,7 @@ public class Builder {
 
     // getFlyBinary — resolve lazily (a constructor cannot call a method here).
     public string getFlyBinary() {
-        if fly.str.isEmpty(this.flyBinary) { this.flyBinary = this.resolveFly() }
+        if str.isEmpty(this.flyBinary) { this.flyBinary = this.resolveFly() }
         out = this.flyBinary
     }
 
@@ -51,15 +51,15 @@ public class Builder {
     // exePath() is the compiler and they self-exec it in compile mode); else bare `fly`
     // on PATH as the last resort.
     public string resolveFly() {
-        string binDir = fly.os.env.get("FLYLANG_BIN")
-        if fly.str.isEmpty(binDir) == false {
+        string binDir = env.get("FLYLANG_BIN")
+        if str.isEmpty(binDir) == false {
             string exe = "fly"
-            if fly.str.equals(fly.os.env.osname(), "windows") { exe = "fly.exe" }
-            out = fly.os.path.join(binDir, exe)
+            if str.equals(env.osname(), "windows") { exe = "fly.exe" }
+            out = path.join(binDir, exe)
             return
         }
-        string self = fly.os.env.exePath()
-        if fly.str.isEmpty(self) == false { out = self  return }
+        string self = env.exePath()
+        if str.isEmpty(self) == false { out = self  return }
         out = "fly"
     }
 
@@ -68,14 +68,14 @@ public class Builder {
     public string outDir() {
         string rel = "target"
         if this.isTest {
-            rel = fly.os.path.join(rel, "test")
+            rel = path.join(rel, "test")
         } else {
-            rel = fly.os.path.join(rel, this.profile)
-            if fly.str.isEmpty(this.targetTriple) == false {
-                rel = fly.os.path.join(rel, this.targetTriple)
+            rel = path.join(rel, this.profile)
+            if str.isEmpty(this.targetTriple) == false {
+                rel = path.join(rel, this.targetTriple)
             }
         }
-        out = fly.os.path.absolute(rel)
+        out = path.absolute(rel)
     }
 
     // activeProfile — the profile driving this build: a profile declared in the
@@ -93,8 +93,8 @@ public class Builder {
     // profileFlags — "-O<n> [--debug-symbols]" from the active profile.
     public string profileFlags() {
         BuildProfile bp = this.activeProfile()
-        string f = fly.str.concat("-O", fly.str.convert(bp.getOptLevel()))
-        if bp.getDebugInfo() { f = fly.str.concat(f, " --debug-symbols") }
+        string f = str.concat("-O", str.convert(bp.getOptLevel()))
+        if bp.getDebugInfo() { f = str.concat(f, " --debug-symbols") }
         out = f
     }
 
@@ -107,8 +107,8 @@ public class Builder {
             // directly), never through a shell. shellQuote here was worse than
             // useless — it replaced an apostrophe with an underscore, silently
             // corrupting any library name containing one.
-            string one = fly.str.concat(" --link-lib=", this.manifest.linkLibAt(i))
-            f = fly.str.concat(f, one)
+            string one = str.concat(" --link-lib=", this.manifest.linkLibAt(i))
+            f = str.concat(f, one)
             i = i + 1
         }
         out = f
@@ -121,41 +121,41 @@ public class Builder {
     // `/bin/sh`→`\bin\sh`, absent → exit 127). Direct exec also needs no shellQuote
     // (each arg is passed verbatim, never re-parsed by a shell). Returns true on exit 0.
     public bool invokeFly(const string source, const string output, const string extra) {
-        fly.os.fs.dirCreateAll(this.outDir(), 493)
+        fs.dirCreateAll(this.outDir(), 493)
 
-        pointer h = fly.os.proc.argsNew()
+        pointer h = proc.argsNew()
         // profile: -O<n> [--debug-symbols] — same source of truth as profileFlags()
         BuildProfile bp = this.activeProfile()
-        fly.os.proc.argsAdd(h, fly.str.concat("-O", fly.str.convert(bp.getOptLevel())))
-        if bp.getDebugInfo() { fly.os.proc.argsAdd(h, "--debug-symbols") }
+        proc.argsAdd(h, str.concat("-O", str.convert(bp.getOptLevel())))
+        if bp.getDebugInfo() { proc.argsAdd(h, "--debug-symbols") }
         // [link].libs → --link-lib=<name>
         int i = 0
         while i < this.manifest.linkLibCount() {
-            fly.os.proc.argsAdd(h, fly.str.concat("--link-lib=", this.manifest.linkLibAt(i)))
+            proc.argsAdd(h, str.concat("--link-lib=", this.manifest.linkLibAt(i)))
             i = i + 1
         }
         // FLYLANG_LIB — directory holding fly_std_lib.a / fly_runtime_lib.a (else the
         // compiler auto-detects <exe>/../lib).
-        string libDir = fly.os.env.get("FLYLANG_LIB")
-        if fly.str.isEmpty(libDir) == false {
-            fly.os.proc.argsAdd(h, "--runtime-lib-dir")
-            fly.os.proc.argsAdd(h, libDir)
+        string libDir = env.get("FLYLANG_LIB")
+        if str.isEmpty(libDir) == false {
+            proc.argsAdd(h, "--runtime-lib-dir")
+            proc.argsAdd(h, libDir)
         }
-        if fly.str.isEmpty(this.targetTriple) == false {
-            fly.os.proc.argsAdd(h, fly.str.concat("--target=", this.targetTriple))
+        if str.isEmpty(this.targetTriple) == false {
+            proc.argsAdd(h, str.concat("--target=", this.targetTriple))
         }
-        if fly.str.isEmpty(extra) == false { fly.os.proc.argsAdd(h, extra) }
-        fly.os.proc.argsAdd(h, "-o")
-        fly.os.proc.argsAdd(h, output)
+        if str.isEmpty(extra) == false { proc.argsAdd(h, extra) }
+        proc.argsAdd(h, "-o")
+        proc.argsAdd(h, output)
         // DIRECTORY CLI: no positional source — the target's directory is the
         // source root (a bin target's main() is discovered there; --lib compiles
         // the whole directory).
-        fly.os.proc.argsAdd(h, "--src-dir")
-        fly.os.proc.argsAdd(h, fly.os.path.dirname(source))
+        proc.argsAdd(h, "--src-dir")
+        proc.argsAdd(h, path.dirname(source))
 
-        fly.os.io.printLn(fly.str.concat("  fly ", source))
-        int rc = fly.os.proc.exec(this.getFlyBinary(), h)
-        fly.os.proc.argsFree(h)
+        io.printLn(str.concat("  fly ", source))
+        int rc = proc.exec(this.getFlyBinary(), h)
+        proc.argsFree(h)
         out = rc == 0
     }
 
@@ -168,10 +168,10 @@ public class Builder {
     // The leading dot is what keeps them out of the way: discoverySkipsDir
     // refuses to descend into ANY dot-directory, so nothing here can ever be
     // mistaken for a project source.
-    public string fpDir() { out = fly.os.path.join(this.outDir(), ".fly") }
+    public string fpDir() { out = path.join(this.outDir(), ".fly") }
 
     public string fpPath(const string key) {
-        out = fly.os.path.join(this.fpDir(), fly.str.concat(key, ".fp"))
+        out = path.join(this.fpDir(), str.concat(key, ".fp"))
     }
 
     // fpHeader — the non-source fingerprint fields (see fingerprint.fly for the
@@ -180,36 +180,36 @@ public class Builder {
     // line is non-empty and the shape is fixed. Ends with a newline, as
     // Fingerprint.compute expects.
     public string fpHeader(const string kind, const string name) {
-        string h = fly.str.concat("fly-fp 1", fly.driver.nl())
-        h = fly.str.concat(h, "compiler ")
-        h = fly.str.concat(h, fly.driver.fpCompilerId(this.getFlyBinary()))
-        h = fly.str.concat(h, fly.driver.nl())
+        string h = str.concat("fly-fp 1", fly.driver.nl())
+        h = str.concat(h, "compiler ")
+        h = str.concat(h, fly.driver.fpCompilerId(this.getFlyBinary()))
+        h = str.concat(h, fly.driver.nl())
         string tr = this.targetTriple
-        if fly.str.isEmpty(tr) { tr = "-" }
-        h = fly.str.concat(h, fly.str.concat("triple ", tr))
-        h = fly.str.concat(h, fly.driver.nl())
-        h = fly.str.concat(h, fly.str.concat("profile ", this.profileFlags()))
-        h = fly.str.concat(h, fly.driver.nl())
+        if str.isEmpty(tr) { tr = "-" }
+        h = str.concat(h, str.concat("triple ", tr))
+        h = str.concat(h, fly.driver.nl())
+        h = str.concat(h, str.concat("profile ", this.profileFlags()))
+        h = str.concat(h, fly.driver.nl())
         // trim only a NON-empty string: the pinned seed's std has an unguarded
         // first read in trim() that segfaults on an empty heap string (fixed
         // in-tree, but this code must also run compiled against the seed).
         string lk = "-"
         string lkRaw = this.linkFlags()
-        if fly.str.isEmpty(lkRaw) == false {
-            string lkTrim = fly.str.trim(lkRaw)
-            if fly.str.isEmpty(lkTrim) == false { lk = lkTrim }
+        if str.isEmpty(lkRaw) == false {
+            string lkTrim = str.trim(lkRaw)
+            if str.isEmpty(lkTrim) == false { lk = lkTrim }
         }
-        h = fly.str.concat(h, fly.str.concat("link ", lk))
-        h = fly.str.concat(h, fly.driver.nl())
-        h = fly.str.concat(h, fly.str.concat("kind ", fly.str.concat(kind, fly.str.concat(" ", name))))
-        h = fly.str.concat(h, fly.driver.nl())
+        h = str.concat(h, str.concat("link ", lk))
+        h = str.concat(h, fly.driver.nl())
+        h = str.concat(h, str.concat("kind ", str.concat(kind, str.concat(" ", name))))
+        h = str.concat(h, fly.driver.nl())
         // Lock.fly is cwd-relative: package commands run in the package root,
         // same contract as loadManifest. Missing lock → "none" (and a lock
         // appearing/disappearing flips the line → rebuild).
         string lock = fly.driver.sha256File("Lock.fly")
-        if fly.str.isEmpty(lock) { lock = "none" }
-        h = fly.str.concat(h, fly.str.concat("lock ", lock))
-        h = fly.str.concat(h, fly.driver.nl())
+        if str.isEmpty(lock) { lock = "none" }
+        h = str.concat(h, str.concat("lock ", lock))
+        h = str.concat(h, fly.driver.nl())
         out = h
     }
 
@@ -226,15 +226,15 @@ public class Builder {
         string kind = "bin"
         if t.isLib() {
             string lib = t.getLib()
-            if fly.str.equals(lib, "dynamic") {
+            if str.equals(lib, "dynamic") {
                 kind = "lib-dynamic"
-            } elsif fly.str.equals(lib, "both") {
+            } elsif str.equals(lib, "both") {
                 kind = "lib-both"
             } else {
                 kind = "lib-static"
             }
         }
-        string srcDir = fly.os.path.dirname(fly.os.path.absolute(t.getPath()))
+        string srcDir = path.dirname(path.absolute(t.getPath()))
         out = this.computeFpForDir(srcDir, kind, t.getName())
     }
 
@@ -246,19 +246,19 @@ public class Builder {
         if t.isLib() {
             string lib = t.getLib()
             bool ok = true
-            if fly.str.equals(lib, "dynamic") || fly.str.equals(lib, "both") {
-                string so = fly.str.concat(od, fly.str.concat("/lib", fly.str.concat(t.getName(), ".so")))
-                if fly.os.fs.exists(so) == false { ok = false }
+            if str.equals(lib, "dynamic") || str.equals(lib, "both") {
+                string so = str.concat(od, str.concat("/lib", str.concat(t.getName(), ".so")))
+                if fs.exists(so) == false { ok = false }
             }
-            if fly.str.equals(lib, "dynamic") == false {
-                string ar = fly.str.concat(od, fly.str.concat("/lib", fly.str.concat(t.getName(), ".a")))
-                if fly.os.fs.exists(ar) == false { ok = false }
+            if str.equals(lib, "dynamic") == false {
+                string ar = str.concat(od, str.concat("/lib", str.concat(t.getName(), ".a")))
+                if fs.exists(ar) == false { ok = false }
             }
             out = ok
         } else {
-            string bin = fly.str.concat(od, fly.str.concat("/", t.getName()))
-            bool have = fly.os.fs.exists(bin)
-            if have == false { have = fly.os.fs.exists(fly.str.concat(bin, ".exe")) }
+            string bin = str.concat(od, str.concat("/", t.getName()))
+            bool have = fs.exists(bin)
+            if have == false { have = fs.exists(str.concat(bin, ".exe")) }
             out = have
         }
     }
@@ -267,16 +267,16 @@ public class Builder {
     // unreadable or corrupted .fp reads as ""/garbage → mismatch → rebuild
     // (never deleted; the next successful build overwrites it).
     public bool isUpToDate(const string fpFile, const string computed) {
-        if fly.os.fs.exists(fpFile) == false { out = false  return }
-        string stored = fly.os.fs.readStr(fpFile)
-        out = fly.str.equals(stored, computed)
+        if fs.exists(fpFile) == false { out = false  return }
+        string stored = fs.readStr(fpFile)
+        out = str.equals(stored, computed)
     }
 
     // saveFp — persist the fingerprint. Called ONLY after a successful build,
     // so a failed build retries on the next run.
     public void saveFp(const string fpFile, const string computed) {
-        fly.os.fs.dirCreateAll(this.fpDir(), 493)
-        fly.os.fs.writeStr(fpFile, computed, 420)
+        fs.dirCreateAll(this.fpDir(), 493)
+        fs.writeStr(fpFile, computed, 420)
     }
 
     // buildTarget — build one [targets] entry (bin or lib); skip when the
@@ -295,11 +295,11 @@ public class Builder {
         Target t = null
         while idx < this.manifest.targetCount() {
             Target cand = this.manifest.targetAt(idx)
-            if fly.str.equals(cand.getKey(), key) { t = cand }
+            if str.equals(cand.getKey(), key) { t = cand }
             idx = idx + 1
         }
         if t == null {
-            fly.os.io.printErrLn(fly.str.concat("error: no [targets] entry named ", key))
+            io.printErrLn(str.concat("error: no [targets] entry named ", key))
             out = false
             return
         }
@@ -307,25 +307,25 @@ public class Builder {
         string fpFile = this.fpPath(t.getKey())
         if this.force == false {
             if this.isUpToDate(fpFile, computed) && this.artifactsExist(t) {
-                fly.os.io.printLn(fly.str.concat("  up-to-date ", key))
+                io.printLn(str.concat("  up-to-date ", key))
                 out = true
                 return
             }
         }
-        string src = fly.os.path.absolute(t.getPath())
+        string src = path.absolute(t.getPath())
         bool ok = true
         if t.isLib() {
             string lib = t.getLib()
-            if fly.str.equals(lib, "dynamic") || fly.str.equals(lib, "both") {
-                string so = fly.str.concat(this.outDir(), fly.str.concat("/lib", fly.str.concat(t.getName(), ".so")))
+            if str.equals(lib, "dynamic") || str.equals(lib, "both") {
+                string so = str.concat(this.outDir(), str.concat("/lib", str.concat(t.getName(), ".so")))
                 ok = this.invokeFly(src, so, this.libShapeFlag(true))
             }
-            if ok && (fly.str.equals(lib, "dynamic") == false) {
-                string ar = fly.str.concat(this.outDir(), fly.str.concat("/lib", fly.str.concat(t.getName(), ".a")))
+            if ok && (str.equals(lib, "dynamic") == false) {
+                string ar = str.concat(this.outDir(), str.concat("/lib", str.concat(t.getName(), ".a")))
                 ok = this.invokeFly(src, ar, this.libShapeFlag(false))
             }
         } else {
-            string o = fly.str.concat(this.outDir(), fly.str.concat("/", t.getName()))
+            string o = str.concat(this.outDir(), str.concat("/", t.getName()))
             ok = this.invokeFly(src, o, "")
         }
         if ok { this.saveFp(fpFile, computed) }
@@ -352,13 +352,13 @@ public class Builder {
         Target t = null
         while idx < this.manifest.targetCount() {
             Target cand = this.manifest.targetAt(idx)
-            if fly.str.equals(cand.getKey(), key) { t = cand }
+            if str.equals(cand.getKey(), key) { t = cand }
             idx = idx + 1
         }
         if t == null { out = 1  return }
-        string bin = fly.str.concat(this.outDir(), fly.str.concat("/", t.getName()))
+        string bin = str.concat(this.outDir(), str.concat("/", t.getName()))
         // Direct spawn, not `sh -c`: the shell form is dead on Windows, and there
         // is nothing here a shell was needed for.
-        out = fly.os.proc.run(bin)
+        out = proc.run(bin)
     }
 }

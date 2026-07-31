@@ -17,18 +17,18 @@ long elapsedMs(const Time a, const Time b) {
 // opens a socket into a no-op assertion. A sandboxed CI that forbids even
 // loopback sockets then reports green-but-skipped instead of a wall of red.
 bool skipSockets() {
-    out = fly.str.isEmpty(fly.os.env.get("FLY_SKIP_NET_TESTS")) == false
+    out = str.isEmpty(env.get("FLY_SKIP_NET_TESTS")) == false
 }
 
 // blob — a string of `n` bytes cycling through 'a'..'z', for payload tests.
 string blob(const int n) {
-    pointer buf = fly.mem.alloc(n)
+    pointer buf = mem.alloc(n)
     int i = 0
     while i < n {
-        fly.mem.writeByte(buf, i, (byte)(97 + (i % 26)))
+        mem.writeByte(buf, i, (byte)(97 + (i % 26)))
         i = i + 1
     }
-    fly.str.fromBytes(buf, n, out)
+    str.fromBytes(buf, n, out)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -224,10 +224,10 @@ suite NetSuite {
                 if ok {
                     long acc = net.accept(srv)
                     net.close(cli)
-                    pointer buf = fly.mem.alloc(64)
+                    pointer buf = mem.alloc(64)
                     long n = net.recv(acc, buf, 64)
                     assert.assertEqL(n, 0, 408)
-                    fly.mem.free(buf, 64)
+                    mem.free(buf, 64)
                     net.close(acc)
                 } else { net.close(cli) }
                 net.close(srv)
@@ -248,7 +248,7 @@ suite NetSuite {
                     // Half-close so the reader sees EOF and recvAll can finish.
                     assert.assertTrue(net.shutdownWrite(cli), 410)
                     string got = net.recvAll(acc)
-                    assert.assertEqI(fly.str.len(got), 4096, 411)
+                    assert.assertEqI(str.len(got), 4096, 411)
                     assert.assertStr(got, payload, 412)
 
                     net.close(acc)
@@ -268,7 +268,7 @@ suite NetSuite {
                     long acc = net.accept(srv)
                     net.sendStr(cli, blob(512))
                     string got = net.recvUpTo(acc, 100)
-                    assert.assertEqI(fly.str.len(got), 100, 413)
+                    assert.assertEqI(str.len(got), 100, 413)
                     net.close(acc)
                 }
                 net.close(cli)
@@ -370,9 +370,9 @@ suite NetSuite {
             if skipSockets() { assert.assertTrue(true, 505) } else {
                 long s = net.socket()
                 net.close(s)
-                pointer buf = fly.mem.alloc(16)
+                pointer buf = mem.alloc(16)
                 assert.assertTrue(net.recv(s, buf, 16) < 0, 505)
-                fly.mem.free(buf, 16)
+                mem.free(buf, 16)
             }
         }
         case "recvStr with a non-positive size is empty": {
@@ -439,7 +439,7 @@ suite NetSuite {
             if skipSockets() { assert.assertTrue(true, 625) } else {
                 long s = net.socket()
                 bool r = net.setBroadcast(s, true)
-                if str.equals(fly.os.env.osname(), "windows") {
+                if str.equals(env.osname(), "windows") {
                     assert.assertFalse(r, 625)
                 } else {
                     assert.assertTrue(r, 625)
@@ -462,7 +462,7 @@ suite NetSuite {
                 if ok {
                     long acc = net.accept(srv)
                     assert.assertTrue(net.setRecvTimeout(acc, 300), 627)
-                    pointer buf = fly.mem.alloc(64)
+                    pointer buf = mem.alloc(64)
                     Time t0 = time.monotonic()
                     long n = net.recv(acc, buf, 64)
                     Time t1 = time.monotonic()
@@ -470,7 +470,7 @@ suite NetSuite {
                     assert.assertTrue(n < 0, 628)          // timed out, not EOF
                     assert.assertTrue(ms >= 100, 629)      // did not return instantly
                     assert.assertTrue(ms < 30000, 630)     // did not block forever
-                    fly.mem.free(buf, 64)
+                    mem.free(buf, 64)
                     net.close(acc)
                 }
                 net.close(cli)
@@ -487,13 +487,13 @@ suite NetSuite {
                 if ok {
                     long acc = net.accept(srv)
                     assert.assertTrue(net.setNonBlocking(acc, true), 632)
-                    pointer buf = fly.mem.alloc(64)
+                    pointer buf = mem.alloc(64)
                     Time t0 = time.monotonic()
                     long n = net.recv(acc, buf, 64)
                     Time t1 = time.monotonic()
                     assert.assertTrue(n < 0, 633)          // would block -> error
                     assert.assertTrue(elapsedMs(t0, t1) < 1000, 634)
-                    fly.mem.free(buf, 64)
+                    mem.free(buf, 64)
                     net.close(acc)
                 }
                 net.close(cli)
@@ -511,7 +511,7 @@ suite NetSuite {
                     long acc = net.accept(srv)
                     string payload = blob(1024)
                     assert.assertTrue(net.sendStr(cli, payload), 636)
-                    pointer buf = fly.mem.alloc(1024)
+                    pointer buf = mem.alloc(1024)
                     assert.assertEqL(net.recvExact(acc, buf, 1024), 1024, 637)
                     string got = ""
                     fly.llvm.strMake(buf, 1024, got)
@@ -533,11 +533,11 @@ suite NetSuite {
                     long acc = net.accept(srv)
                     net.sendStr(cli, "1234")
                     net.shutdownWrite(cli)
-                    pointer buf = fly.mem.alloc(64)
+                    pointer buf = mem.alloc(64)
                     // Asked for 64, only 4 will ever arrive: the short count IS
                     // the sentinel, there is no separate error flag.
                     assert.assertEqL(net.recvExact(acc, buf, 64), 4, 640)
-                    fly.mem.free(buf, 64)
+                    mem.free(buf, 64)
                     net.close(acc)
                 }
                 net.close(cli)
@@ -650,25 +650,25 @@ suite NetSuite {
                     // sendAll takes a pointer, not a string, and that is the
                     // point of the case.
                     int n = 300
-                    pointer buf = fly.mem.alloc(n)
+                    pointer buf = mem.alloc(n)
                     int i = 0
                     while i < n {
-                        fly.mem.writeByte(buf, i, (byte)(i % 256))
+                        mem.writeByte(buf, i, (byte)(i % 256))
                         i = i + 1
                     }
                     string expect = ""
                     // fromBytes takes ownership, so the send buffer is a copy.
-                    pointer cp = fly.mem.alloc(n)
-                    fly.mem.copy(cp, buf, n)
-                    fly.str.fromBytes(cp, n, expect)
+                    pointer cp = mem.alloc(n)
+                    mem.copy(cp, buf, n)
+                    str.fromBytes(cp, n, expect)
 
                     assert.assertTrue(net.sendAll(cli, buf, n), 802)
                     net.shutdownWrite(cli)
                     string got = net.recvAll(acc)
-                    assert.assertEqI(fly.str.len(got), n, 803)
+                    assert.assertEqI(str.len(got), n, 803)
                     assert.assertStr(got, expect, 804)
 
-                    fly.mem.free(buf, n)
+                    mem.free(buf, n)
                     net.close(acc)
                 }
                 net.close(cli)
@@ -676,9 +676,9 @@ suite NetSuite {
             }
         }
         case "sendAll on a bad handle reports failure": {
-            pointer b = fly.mem.alloc(4)
+            pointer b = mem.alloc(4)
             assert.assertFalse(net.sendAll(0 - 1, b, 4), 805)
-            fly.mem.free(b, 4)
+            mem.free(b, 4)
         }
         case "after shutdownBoth the peer sees EOF and sends fail": {
             if skipSockets() { assert.assertTrue(true, 806) } else {

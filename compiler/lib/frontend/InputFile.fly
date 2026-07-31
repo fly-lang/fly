@@ -19,10 +19,10 @@ public enum FileExt {
 
 // extOf — classify a filename by extension (the C++ FileExt detection).
 public FileExt extOf(const string fileName) {
-    if fly.str.endsWith(fileName, ".fly.h") { out = FileExt.FLY_H  return }
-    if fly.str.endsWith(fileName, ".fly")   { out = FileExt.FLY    return }
-    if fly.str.endsWith(fileName, ".a") || fly.str.endsWith(fileName, ".lib") { out = FileExt.LIB  return }
-    if fly.str.endsWith(fileName, ".o")     { out = FileExt.OBJ    return }
+    if str.endsWith(fileName, ".fly.h") { out = FileExt.FLY_H  return }
+    if str.endsWith(fileName, ".fly")   { out = FileExt.FLY    return }
+    if str.endsWith(fileName, ".a") || str.endsWith(fileName, ".lib") { out = FileExt.LIB  return }
+    if str.endsWith(fileName, ".o")     { out = FileExt.OBJ    return }
     out = FileExt.UNKNOWN
 }
 
@@ -40,7 +40,7 @@ public class InputFile {
         this.diags = diags
         this.sourceMgr = sourceMgr
         this.fileName = fileName
-        this.name = fly.os.path.stem(fileName)
+        this.name = path.stem(fileName)
         this.ext = extOf(fileName)
         this.fid = fileIDInvalid()
         this.buffer = null
@@ -50,8 +50,8 @@ public class InputFile {
     // load — read the file from disk into a MemoryBuffer. Returns false if the file
     // is missing/empty (the C++ reports err_basic_cannot_open_file).
     public bool load() {
-        if fly.os.fs.exists(this.fileName) == false { out = false  return }
-        string txt = fly.os.fs.readStr(this.fileName)
+        if fs.exists(this.fileName) == false { out = false  return }
+        string txt = fs.readStr(this.fileName)
         out = this.loadBuffer(txt)
     }
 
@@ -60,7 +60,7 @@ public class InputFile {
         this.buffer = new MemoryBuffer(this.fileName, src)
         this.fid = fileIDGet(1)
         this.loaded = true
-        out = fly.str.isEmpty(src) == false
+        out = str.isEmpty(src) == false
     }
 
     public bool isEmpty() {

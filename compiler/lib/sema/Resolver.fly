@@ -83,18 +83,18 @@ public class Resolver : ASTVisitor {
 
     // nextOutName — a fresh "__out_N" name for a call's synthetic return variable.
     public string nextOutName() {
-        string n = fly.str.convert(this.outVarCounter)
+        string n = str.convert(this.outVarCounter)
         this.outVarCounter = this.outVarCounter + 1
-        string t = fly.str.concat("__out_", n)
+        string t = str.concat("__out_", n)
         out = t
     }
 
     // nextForInName — synthetic name for the desugared for-in hoist/index locals
     // (same convention as __out_N).
     public string nextForInName() {
-        string n = fly.str.convert(this.forInCounter)
+        string n = str.convert(this.forInCounter)
         this.forInCounter = this.forInCounter + 1
-        out = fly.str.concat("__forin_", n)
+        out = str.concat("__forin_", n)
     }
 
     // ── control-flow nesting ──────────────────────────────────────────────────
@@ -132,8 +132,8 @@ public class Resolver : ASTVisitor {
             if i == 0 {
                 r = names.get(i).getName()
             } else {
-                string t = fly.str.concat(r, "_")
-                r = fly.str.concat(t, names.get(i).getName())
+                string t = str.concat(r, "_")
+                r = str.concat(t, names.get(i).getName())
             }
             i = i + 1
         }

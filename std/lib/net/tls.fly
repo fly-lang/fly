@@ -75,7 +75,7 @@ public bool tlsAvailable() {
 public pointer tlsWrap(const long sock, const string sniHost, const bool verify) {
     if sock < 0 { out = 0  return }
     pointer chost = 0
-    if fly.str.isEmpty(sniHost) == false { chost = strToCstr(sniHost) }
+    if str.isEmpty(sniHost) == false { chost = strToCstr(sniHost) }
     int v = 0
     if verify { v = 1 }
     pointer ctx = 0
@@ -84,8 +84,8 @@ public pointer tlsWrap(const long sock, const string sniHost, const bool verify)
     if ctx == 0 { out = 0  return }
     pointer c = 0
     fly.runtime.mem_alloc(16, c)
-    fly.mem.writeLong(c, 0, sock)
-    fly.mem.writePtr(c, 8, ctx)
+    mem.writeLong(c, 0, sock)
+    mem.writePtr(c, 8, ctx)
     out = c
 }
 
@@ -94,12 +94,12 @@ public pointer tlsWrap(const long sock, const string sniHost, const bool verify)
 // any failure, having closed the socket it opened.
 public pointer tlsConnectOpts(const string host, const int port, const bool verify, const int timeoutMs) {
     if tlsAvailable() == false { out = 0  return }
-    long s = fly.net.connectTo(host, port)
+    long s = net.connectTo(host, port)
     if s < 0 { out = 0  return }
-    if timeoutMs > 0 { fly.net.setRecvTimeout(s, timeoutMs) }
+    if timeoutMs > 0 { net.setRecvTimeout(s, timeoutMs) }
     pointer c = tlsWrap(s, host, verify)
     if c == 0 {
-        fly.net.close(s)
+        net.close(s)
         out = 0
         return
     }
@@ -115,7 +115,7 @@ public pointer tlsConnect(const string host, const int port) {
 // reading or writing it directly would bypass the encryption.
 public long tlsSocket(const pointer c) {
     if c == 0 { out = 0 - 1  return }
-    out = fly.mem.readLong(c, 0)
+    out = mem.readLong(c, 0)
 }
 
 // tlsSend — ONE write attempt. Returns the byte count, which unlike a raw socket
@@ -123,7 +123,7 @@ public long tlsSocket(const pointer c) {
 // < 0 on error.
 public long tlsSend(const pointer c, const pointer buf, const int n) {
     if c == 0 { out = 0 - 1  return }
-    pointer ctx = fly.mem.readPtr(c, 8)
+    pointer ctx = mem.readPtr(c, 8)
     long w = 0
     fly.runtime.tls_send(ctx, buf, n, w)
     out = w
@@ -133,7 +133,7 @@ public long tlsSend(const pointer c, const pointer buf, const int n) {
 // touching the connection.
 public bool tlsSendStr(const pointer c, const string data) {
     if c == 0 { out = false  return }
-    int n = fly.str.len(data)
+    int n = str.len(data)
     if n == 0 { out = true  return }
     pointer buf = strToCstr(data)
     long w = tlsSend(c, buf, n)
@@ -145,7 +145,7 @@ public bool tlsSendStr(const pointer c, const string data) {
 // session (the peer sent close_notify), < 0 on error or timeout.
 public long tlsRecv(const pointer c, const pointer buf, const int n) {
     if c == 0 { out = 0 - 1  return }
-    pointer ctx = fly.mem.readPtr(c, 8)
+    pointer ctx = mem.readPtr(c, 8)
     long r = 0
     fly.runtime.tls_recv(ctx, buf, n, r)
     out = r
@@ -210,7 +210,7 @@ public string tlsRecvAll(const pointer c) {
 // this connection, 0 when none. Not translated: the values are OpenSSL's.
 public int tlsLastError(const pointer c) {
     if c == 0 { out = 0  return }
-    pointer ctx = fly.mem.readPtr(c, 8)
+    pointer ctx = mem.readPtr(c, 8)
     int e = 0
     fly.runtime.tls_last_error(ctx, e)
     out = e
@@ -220,14 +220,14 @@ public int tlsLastError(const pointer c) {
 // a null handle, and idempotent in the sense that the handle is dead afterwards.
 public void tlsClose(const pointer c) {
     if c == 0 { return }
-    pointer ctx = fly.mem.readPtr(c, 8)
+    pointer ctx = mem.readPtr(c, 8)
     if ctx != 0 {
         fly.runtime.tls_shutdown(ctx)
         fly.runtime.tls_free(ctx)
     }
-    long s = fly.mem.readLong(c, 0)
-    fly.net.close(s)
-    fly.mem.writePtr(c, 8, 0)
+    long s = mem.readLong(c, 0)
+    net.close(s)
+    mem.writePtr(c, 8, 0)
     fly.runtime.mem_free(c, 16)
 }
 
@@ -235,8 +235,8 @@ public void tlsClose(const pointer c) {
 // wants to keep it. Safe on a null handle.
 public void tlsFree(const pointer c) {
     if c == 0 { return }
-    pointer ctx = fly.mem.readPtr(c, 8)
+    pointer ctx = mem.readPtr(c, 8)
     if ctx != 0 { fly.runtime.tls_free(ctx) }
-    fly.mem.writePtr(c, 8, 0)
+    mem.writePtr(c, 8, 0)
     fly.runtime.mem_free(c, 16)
 }

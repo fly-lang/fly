@@ -45,7 +45,7 @@ public string cgIRTarget(const string src, const string triple) {
     cgm.verify(ok)
     assert.assertTrue(ok, 91)
     cgm.emitIR("/tmp/cg/pointer.ll")
-    out = fly.os.fs.readStr("/tmp/cg/pointer.ll")
+    out = fs.readStr("/tmp/cg/pointer.ll")
 }
 
 suite PtrSizeWidthSuite {
@@ -57,12 +57,12 @@ suite PtrSizeWidthSuite {
             string ir32 = cgIRTarget(src, "riscv32-unknown-linux-gnu")
 
             // x86_64: pointer and long both i64; no i32 integer load present.
-            assert.assertTrue(fly.str.contains(ir64, "load i64"), 1)
-            assert.assertFalse(fly.str.contains(ir64, "load i32"), 2)
+            assert.assertTrue(str.contains(ir64, "load i64"), 1)
+            assert.assertFalse(str.contains(ir64, "load i32"), 2)
 
             // riscv32: pointer became i32, but long is STILL i64 (fixed-width).
-            assert.assertTrue(fly.str.contains(ir32, "load i32"), 3)
-            assert.assertTrue(fly.str.contains(ir32, "load i64"), 4)
+            assert.assertTrue(str.contains(ir32, "load i32"), 3)
+            assert.assertTrue(str.contains(ir32, "load i64"), 4)
         }
     }
 }

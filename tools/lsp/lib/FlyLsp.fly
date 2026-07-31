@@ -8,8 +8,8 @@ import fly.lsp.LspServer
 // terminators — either alone permanently desyncs the Content-Length framing.
 // They are no-ops on POSIX.
 void main() {
-    fly.os.io.setBinaryMode(0)
-    fly.os.io.setBinaryMode(1)
+    io.setBinaryMode(0)
+    io.setBinaryMode(1)
     LspServer server = new LspServer()
     server.run()
 }

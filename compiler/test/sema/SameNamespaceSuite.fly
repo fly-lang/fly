@@ -58,10 +58,10 @@ suite SameNamespaceSuite {
             assert.assertTrue(ok, 3)            // module verifies → the call resolved
 
             cgm.emitIR("/tmp/cg/samens.ll")
-            string ir = fly.os.fs.readStr("/tmp/cg/samens.ll")
+            string ir = fs.readStr("/tmp/cg/samens.ll")
             // B's useIt emits a call into A's helperFn (its mangled name carries the name)
-            assert.assertTrue(fly.str.contains(ir, "helperFn"), 4)
-            assert.assertTrue(fly.str.contains(ir, "call"), 5)
+            assert.assertTrue(str.contains(ir, "helperFn"), 4)
+            assert.assertTrue(str.contains(ir, "call"), 5)
         }
     }
 }

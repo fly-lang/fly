@@ -1,6 +1,7 @@
 namespace fly.driver.test.manifest
 
 import fly.driver.*
+import fly.driver
 import fly.compiler.basic.*
 import fly.str
 import fly.os.fs
@@ -13,50 +14,119 @@ import fly.assert
 // FlyManifestReader parses a `Manifest.fly` (a class extending fly.meta.Manifest)
 // with the compiler's own parser and walks the AST into the driver Manifest model.
 // Every field is exercised: [package] scalars, the string[] arrays (authors,
-// linkLibs), and the object[] arrays (targets, dependencies). Plus the error
-// paths (no manifest class → 211, parse error → 210) and the FlyLockReader.
+// linkLibs), and the object[] arrays (targets, dependencies incl. every dep kind
+// and the tag>branch>rev precedence). Plus the reader edge cases (plain `Manifest`
+// base, skipped junk entries), the error paths (no manifest class → 211, parse
+// error → 210), the serialize() round-trips (manifest AND lock), the Manifest
+// model itself (hasDep/getDep/removeDep, repos, profiles, TestConfig, workspace,
+// hooks), nameValid/versionValid, the Lockfile (FlyLockReader, find, isStale,
+// readLock) and the commands glue (manifestPath, loadManifest, save, cmdInit).
 //
 // Source strings need REAL double quotes; the self-host lexer keeps `\"` raw, so
 // quotes are built at runtime via fly.driver.dq(). qq() wraps a value in quotes;
 // nl() is a real newline. Free helpers (not `this.` methods — a suite method
-// calling this.<method>() has no valid receiver).
+// calling this.<method>() has no valid receiver). Filesystem cases work in a
+// scratch dir OUTSIDE the repo (a leftover .fly in the tree becomes part of the
+// source root of every discovery build) and restore cwd BEFORE asserting.
 // ─────────────────────────────────────────────────────────────────────────────
 
-string qq(const string v) { out = fly.str.concat(fly.driver.dq(), fly.str.concat(v, fly.driver.dq())) }
-string nlc(const string s) { out = fly.str.concat(s, fly.driver.nl()) }
+string qq(const string v) { out = str.concat(driver.dq(), str.concat(v, driver.dq())) }
+string nlc(const string s) { out = str.concat(s, driver.nl()) }
+
+// qarg — append `, "<v>"` to a call-argument chain being built.
+string qarg(const string s, const string v) { out = str.concat(s, str.concat(", ", qq(v))) }
+
+// manHead — the shared prologue of a synthetic Manifest.fly.
+string manHead() {
+    string s = nlc("namespace app")
+    s = str.concat(s, nlc("import fly.meta.*"))
+    out = str.concat(s, nlc("class AppManifest : fly.meta.Manifest {"))
+}
+
+// fld — a `  <decl> = <rhs>` member line.
+string fld(const string decl, const string rhs) {
+    string s = str.concat("  ", str.concat(decl, str.concat(" = ", rhs)))
+    out = nlc(s)
+}
+
+// dep8 — a full positional `new Dependency(name, version, registry, git, tag,
+// branch, rev, path)` (the fly.meta.Dependency field order the reader expects).
+string dep8(const string n, const string v, const string reg, const string git, const string tg, const string br, const string rv, const string pt) {
+    string s = str.concat("new Dependency(", qq(n))
+    s = qarg(s, v)
+    s = qarg(s, reg)
+    s = qarg(s, git)
+    s = qarg(s, tg)
+    s = qarg(s, br)
+    s = qarg(s, rv)
+    s = qarg(s, pt)
+    out = str.concat(s, ")")
+}
+
+// tmpBase — the OS temp dir (TMPDIR/TEMP, `/tmp` fallback) for scratch files.
+string tmpBase() {
+    string tmp = env.get("TMPDIR")
+    if str.isEmpty(tmp) { tmp = env.get("TEMP") }
+    if str.isEmpty(tmp) { tmp = "/tmp" }
+    out = tmp
+}
+
+// depKindsSrc — a manifest whose dependencies cover every dep KIND the reader
+// infers (path > git > registry), the ref precedence (tag > branch > rev) and
+// the version default ("*" when only the name is given).
+string depKindsSrc() {
+    string d = str.concat("new Dependency(", str.concat(qq("solo"), ")"))
+    d = str.concat(d, ", ")
+    d = str.concat(d, dep8("rdep", "^1.0", "myreg", "", "", "", "", ""))
+    d = str.concat(d, ", ")
+    d = str.concat(d, dep8("gtag", "", "", "https://g/x.git", "v1.0", "", "", ""))
+    d = str.concat(d, ", ")
+    d = str.concat(d, dep8("gbr", "", "", "https://g/b.git", "", "main", "", ""))
+    d = str.concat(d, ", ")
+    d = str.concat(d, dep8("grev", "", "", "https://g/r.git", "", "", "abc123", ""))
+    d = str.concat(d, ", ")
+    d = str.concat(d, dep8("gprec", "", "", "https://g/p.git", "v9", "dev", "", ""))
+    d = str.concat(d, ", ")
+    d = str.concat(d, dep8("pdep", "", "", "", "", "", "", "../local"))
+    d = str.concat(d, ", ")
+    d = str.concat(d, dep8("pwin", "", "", "https://g/w.git", "", "", "", "vendor/x"))
+    string s = manHead()
+    s = str.concat(s, fld("Dependency[] dependencies", str.concat("{ ", str.concat(d, " }"))))
+    out = str.concat(s, "}")
+}
 
 // fullManifestSrc — a Manifest.fly exercising every declarable field.
 string fullManifestSrc() {
     string s = nlc("namespace app")
-    s = fly.str.concat(s, nlc("import fly.meta.*"))
-    s = fly.str.concat(s, nlc("class AppManifest : fly.meta.Manifest {"))
-    s = fly.str.concat(s, nlc(fly.str.concat("  string name = ", qq("myapp"))))
-    s = fly.str.concat(s, nlc(fly.str.concat("  string version = ", qq("1.2.3"))))
-    s = fly.str.concat(s, nlc(fly.str.concat("  string description = ", qq("a test app"))))
-    s = fly.str.concat(s, nlc(fly.str.concat("  string license = ", qq("MIT"))))
-    s = fly.str.concat(s, nlc(fly.str.concat("  string flyVersion = ", qq("0.14.0"))))
-    s = fly.str.concat(s, nlc(fly.str.concat("  string homepage = ", qq("https://example.com"))))
-    s = fly.str.concat(s, nlc(fly.str.concat("  string repository = ", qq("https://git.example.com/myapp"))))
-    s = fly.str.concat(s, nlc(fly.str.concat("  string registry = ", qq("central"))))
+    s = str.concat(s, nlc("import fly.meta.*"))
+    s = str.concat(s, nlc("class AppManifest : fly.meta.Manifest {"))
+    s = str.concat(s, nlc(str.concat("  string name = ", qq("myapp"))))
+    s = str.concat(s, nlc(str.concat("  string version = ", qq("1.2.3"))))
+    s = str.concat(s, nlc(str.concat("  string description = ", qq("a test app"))))
+    s = str.concat(s, nlc(str.concat("  string license = ", qq("MIT"))))
+    s = str.concat(s, nlc(str.concat("  string flyVersion = ", qq("0.14.0"))))
+    s = str.concat(s, nlc(str.concat("  string homepage = ", qq("https://example.com"))))
+    s = str.concat(s, nlc(str.concat("  string repository = ", qq("https://git.example.com/myapp"))))
+    s = str.concat(s, nlc(str.concat("  string registry = ", qq("central"))))
     // string[] authors = {"alice", "bob"}
-    string au = fly.str.concat("  string[] authors = { ", fly.str.concat(qq("alice"), fly.str.concat(", ", qq("bob"))))
-    s = fly.str.concat(s, nlc(fly.str.concat(au, " }")))
+    string au = str.concat("  string[] authors = { ", str.concat(qq("alice"), str.concat(", ", qq("bob"))))
+    s = str.concat(s, nlc(str.concat(au, " }")))
     // string[] linkLibs = {"m", "pthread"}
-    string ll = fly.str.concat("  string[] linkLibs = { ", fly.str.concat(qq("m"), fly.str.concat(", ", qq("pthread"))))
-    s = fly.str.concat(s, nlc(fly.str.concat(ll, " }")))
+    string ll = str.concat("  string[] linkLibs = { ", str.concat(qq("m"), str.concat(", ", qq("pthread"))))
+    s = str.concat(s, nlc(str.concat(ll, " }")))
     // Target[] targets = { new Target("app","src/main.fly",""), new Target("mylib","src/lib.fly","static") }
-    string t1 = fly.str.concat("new Target(", fly.str.concat(qq("app"), fly.str.concat(", ", fly.str.concat(qq("src/main.fly"), fly.str.concat(", ", qq(""))))))
-    t1 = fly.str.concat(t1, ")")
-    string t2 = fly.str.concat("new Target(", fly.str.concat(qq("mylib"), fly.str.concat(", ", fly.str.concat(qq("src/lib.fly"), fly.str.concat(", ", qq("static"))))))
-    t2 = fly.str.concat(t2, ")")
-    string tg = fly.str.concat("  Target[] targets = { ", fly.str.concat(t1, fly.str.concat(", ", fly.str.concat(t2, " }"))))
-    s = fly.str.concat(s, nlc(tg))
+    string t1 = str.concat("new Target(", str.concat(qq("app"), str.concat(", ", str.concat(qq("src/main.fly"), str.concat(", ", qq(""))))))
+    t1 = str.concat(t1, ")")
+    string t2 = str.concat("new Target(", str.concat(qq("mylib"), str.concat(", ", str.concat(qq("src/lib.fly"), str.concat(", ", qq("static"))))))
+    t2 = str.concat(t2, ")")
+    string tg = str.concat("  Target[] targets = { ", str.concat(t1, str.concat(", ", str.concat(t2, " }"))))
+    s = str.concat(s, nlc(tg))
     // Dependency[] dependencies = { new Dependency("bar", "^1.2") }
-    string d1 = fly.str.concat("new Dependency(", fly.str.concat(qq("bar"), fly.str.concat(", ", qq("^1.2"))))
-    d1 = fly.str.concat(d1, ")")
-    string dp = fly.str.concat("  Dependency[] dependencies = { ", fly.str.concat(d1, " }"))
-    s = fly.str.concat(s, nlc(dp))
-    s = fly.str.concat(s, "}")
+    string d1 = str.concat("new Dependency(", str.concat(qq("bar"), str.concat(", ", qq("^1.2"))))
+    d1 = str.concat(d1, ")")
+    string dp = str.concat("  Dependency[] dependencies = { ", str.concat(d1, " }"))
+    s = str.concat(s, nlc(dp))
+    s = str.concat(s, "}")
     out = s
 }
 
@@ -132,9 +202,9 @@ suite ManifestSuite {
     void errorTest() {
         case "no class extending Manifest → 211": {
             string src = nlc("namespace x")
-            src = fly.str.concat(src, nlc("class NotAManifest {"))
-            src = fly.str.concat(src, nlc(fly.str.concat("  string name = ", qq("z"))))
-            src = fly.str.concat(src, "}")
+            src = str.concat(src, nlc("class NotAManifest {"))
+            src = str.concat(src, nlc(str.concat("  string name = ", qq("z"))))
+            src = str.concat(src, "}")
             int e = 0
             FlyManifestReader mr = new FlyManifestReader()
             Manifest m = mr.read(src, e)
@@ -151,19 +221,19 @@ suite ManifestSuite {
     void lockTest() {
         case "FlyLockReader round-trips a Lock.fly": {
             string s = nlc("namespace pkg.lock")
-            s = fly.str.concat(s, nlc("import fly.meta.*"))
-            s = fly.str.concat(s, nlc("class Lockfile : fly.meta.Lockfile {"))
-            s = fly.str.concat(s, nlc(fly.str.concat("  string flyVersion = ", qq("0.14.0"))))
-            s = fly.str.concat(s, nlc(fly.str.concat("  string checksum = ", qq("abc123"))))
-            string p1 = fly.str.concat("new LockedPackage(", qq("bar"))
-            p1 = fly.str.concat(p1, fly.str.concat(", ", qq("1.2.3")))
-            p1 = fly.str.concat(p1, fly.str.concat(", ", qq("registry+default")))
-            p1 = fly.str.concat(p1, fly.str.concat(", ", qq("")))
-            p1 = fly.str.concat(p1, fly.str.concat(", ", qq("")))
-            p1 = fly.str.concat(p1, fly.str.concat(", ", qq("deadbeef")))
-            p1 = fly.str.concat(p1, ")")
-            s = fly.str.concat(s, nlc(fly.str.concat("  LockedPackage[] packages = { ", fly.str.concat(p1, " }"))))
-            s = fly.str.concat(s, "}")
+            s = str.concat(s, nlc("import fly.meta.*"))
+            s = str.concat(s, nlc("class Lockfile : fly.meta.Lockfile {"))
+            s = str.concat(s, nlc(str.concat("  string flyVersion = ", qq("0.14.0"))))
+            s = str.concat(s, nlc(str.concat("  string checksum = ", qq("abc123"))))
+            string p1 = str.concat("new LockedPackage(", qq("bar"))
+            p1 = str.concat(p1, str.concat(", ", qq("1.2.3")))
+            p1 = str.concat(p1, str.concat(", ", qq("registry+default")))
+            p1 = str.concat(p1, str.concat(", ", qq("")))
+            p1 = str.concat(p1, str.concat(", ", qq("")))
+            p1 = str.concat(p1, str.concat(", ", qq("deadbeef")))
+            p1 = str.concat(p1, ")")
+            s = str.concat(s, nlc(str.concat("  LockedPackage[] packages = { ", str.concat(p1, " }"))))
+            s = str.concat(s, "}")
 
             int e = 0
             FlyLockReader lr = new FlyLockReader()
@@ -182,27 +252,683 @@ suite ManifestSuite {
             // Regression: the scaffold template hardcoded "0.14.0" while the
             // compiler was 0.14.4. Compared against flyVersion() itself (not a
             // literal) so the case never goes stale on a version bump.
-            string repo = fly.os.env.cwdGet()
-            string tmp = fly.os.env.get("TMPDIR")
-            if fly.str.isEmpty(tmp) { tmp = fly.os.env.get("TEMP") }
-            if fly.str.isEmpty(tmp) { tmp = "/tmp" }
-            string proj = fly.os.path.join(tmp, "man_suite_init")
-            fly.os.fs.dirDeleteAll(proj)
-            fly.os.fs.dirCreateAll(proj, 493)
-            fly.os.env.cwdSet(proj)
+            string repo = env.cwdGet()
+            string tmp = env.get("TMPDIR")
+            if str.isEmpty(tmp) { tmp = env.get("TEMP") }
+            if str.isEmpty(tmp) { tmp = "/tmp" }
+            string proj = path.join(tmp, "man_suite_init")
+            fs.dirDeleteAll(proj)
+            fs.dirCreateAll(proj, 493)
+            env.cwdSet(proj)
 
-            int rc = fly.driver.cmdInit("initapp", "0.1.0")
+            int rc = driver.cmdInit("initapp", "0.1.0")
             int e = 0
-            Manifest m = fly.driver.loadManifest(e)
+            Manifest m = driver.loadManifest(e)
             string stamped = m.getFlyVersion()
 
             // restore + clean up BEFORE asserting (a failing assert aborts the case)
-            fly.os.env.cwdSet(repo)
-            fly.os.fs.dirDeleteAll(proj)
+            env.cwdSet(repo)
+            fs.dirDeleteAll(proj)
 
             assert.assertEqI(rc, 0, 60)
             assert.assertEqI(e, 0, 61)
             assert.assertStr(stamped, flyVersion(), 62)
+        }
+    }
+
+    void depKindsTest() {
+        case "minimal + registry-alias deps": {
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read(depKindsSrc(), e)
+            assert.assertEqI(e, 0, 63)
+            assert.assertEqI(m.depCount(), 8, 64)
+            // name-only dep: version defaults "*", no kind flag set
+            DepEntry d0 = m.depAt(0)
+            GitDep g0 = d0.getDep()
+            assert.assertStr(g0.getPkgName(), "solo", 65)
+            assert.assertStr(g0.getVersionReq(), "*", 66)
+            assert.assertFalse(g0.isGitDep(), 67)
+            assert.assertFalse(g0.isPathDep(), 68)
+            assert.assertFalse(g0.isRegistryDep(), 69)
+            // explicit registry alias
+            DepEntry d1 = m.depAt(1)
+            GitDep g1 = d1.getDep()
+            assert.assertTrue(g1.isRegistryDep(), 70)
+            assert.assertStr(g1.getRegistryName(), "myreg", 71)
+            assert.assertStr(g1.getPkgName(), "rdep", 72)
+            assert.assertStr(g1.getVersionReq(), "^1.0", 73)
+        }
+        case "git deps: tag, branch, rev + tag>branch precedence": {
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read(depKindsSrc(), e)
+            DepEntry d2 = m.depAt(2)
+            GitDep g2 = d2.getDep()
+            assert.assertTrue(g2.isGitDep(), 74)
+            assert.assertStr(g2.getGitUrl(), "https://g/x.git", 75)
+            assert.assertEqI(g2.getRefKind(), 0, 76)
+            assert.assertStr(g2.getRefValue(), "v1.0", 77)
+            DepEntry d3 = m.depAt(3)
+            GitDep g3 = d3.getDep()
+            assert.assertEqI(g3.getRefKind(), 1, 78)
+            assert.assertStr(g3.getRefValue(), "main", 79)
+            DepEntry d4 = m.depAt(4)
+            GitDep g4 = d4.getDep()
+            assert.assertEqI(g4.getRefKind(), 2, 80)
+            assert.assertStr(g4.getRefValue(), "abc123", 81)
+            DepEntry d5 = m.depAt(5)
+            GitDep g5 = d5.getDep()
+            assert.assertEqI(g5.getRefKind(), 0, 82)
+            assert.assertStr(g5.getRefValue(), "v9", 83)
+        }
+        case "path deps win over git": {
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read(depKindsSrc(), e)
+            DepEntry d6 = m.depAt(6)
+            GitDep g6 = d6.getDep()
+            assert.assertTrue(g6.isPathDep(), 84)
+            assert.assertStr(g6.getPath(), "../local", 85)
+            assert.assertFalse(g6.isGitDep(), 86)
+            DepEntry d7 = m.depAt(7)
+            GitDep g7 = d7.getDep()
+            assert.assertTrue(g7.isPathDep(), 87)
+            assert.assertFalse(g7.isGitDep(), 88)
+            assert.assertStr(g7.getPath(), "vendor/x", 89)
+        }
+    }
+
+    void devDepsTest() {
+        case "devDependencies land in devDeps, not deps": {
+            string s = manHead()
+            string d1 = dep8("mainx", "^1", "", "", "", "", "", "")
+            s = str.concat(s, fld("Dependency[] dependencies", str.concat("{ ", str.concat(d1, " }"))))
+            string d2 = dep8("devx", "^2", "", "", "", "", "", "")
+            s = str.concat(s, fld("Dependency[] devDependencies", str.concat("{ ", str.concat(d2, " }"))))
+            s = str.concat(s, "}")
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read(s, e)
+            assert.assertEqI(e, 0, 90)
+            assert.assertEqI(m.depCount(), 1, 91)
+            assert.assertEqI(m.devDepCount(), 1, 92)
+            DepEntry dd = m.devDepAt(0)
+            assert.assertStr(dd.getName(), "devx", 93)
+            GitDep g = dd.getDep()
+            assert.assertStr(g.getVersionReq(), "^2", 94)
+            assert.assertFalse(m.hasDep("devx"), 95)
+        }
+    }
+
+    void readerEdgeTest() {
+        case "plain `Manifest` base name matches": {
+            string s = nlc("namespace x")
+            s = str.concat(s, nlc("class M : Manifest {"))
+            s = str.concat(s, nlc(str.concat("  string name = ", qq("plain"))))
+            s = str.concat(s, "}")
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read(s, e)
+            assert.assertEqI(e, 0, 96)
+            assert.assertStr(m.getName(), "plain", 97)
+        }
+        case "manifest class found after a non-manifest class": {
+            string s = nlc("namespace x")
+            s = str.concat(s, nlc("class Helper { int z }"))
+            s = str.concat(s, nlc("class M : fly.meta.Manifest {"))
+            s = str.concat(s, nlc(str.concat("  string name = ", qq("second"))))
+            s = str.concat(s, "}")
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read(s, e)
+            assert.assertEqI(e, 0, 98)
+            assert.assertStr(m.getName(), "second", 99)
+        }
+        case "uninitialized / non-string / non-array fields ignored": {
+            string s = manHead()
+            s = str.concat(s, nlc("  string name"))
+            s = str.concat(s, fld("string license", "42"))
+            s = str.concat(s, fld("string authors", qq("solo")))
+            s = str.concat(s, fld("string version", qq("3.2.1")))
+            s = str.concat(s, "}")
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read(s, e)
+            assert.assertEqI(e, 0, 100)
+            assert.assertStr(m.getName(), "", 101)
+            assert.assertStr(m.getLicense(), "", 102)
+            assert.assertEqI(m.authorCount(), 0, 103)
+            assert.assertStr(m.getVersion(), "3.2.1", 104)
+        }
+        case "non-call entries in object arrays skipped": {
+            string s = manHead()
+            string t = str.concat("new Target(", qq("only"))
+            t = qarg(t, "src/m.fly")
+            t = qarg(t, "")
+            t = str.concat(t, ")")
+            string arr = str.concat("{ ", str.concat(qq("junk"), str.concat(", ", str.concat(t, " }"))))
+            s = str.concat(s, fld("Target[] targets", arr))
+            s = str.concat(s, fld("Dependency[] dependencies", str.concat("{ ", str.concat(qq("junk2"), " }"))))
+            s = str.concat(s, "}")
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read(s, e)
+            assert.assertEqI(e, 0, 105)
+            assert.assertEqI(m.targetCount(), 1, 106)
+            Target t0 = m.targetAt(0)
+            assert.assertStr(t0.getName(), "only", 107)
+            assert.assertEqI(m.depCount(), 0, 108)
+        }
+    }
+
+    void serializeRoundTripTest() {
+        case "serialize → read back preserves every field": {
+            Manifest src = new Manifest()
+            src.setName("rt")
+            src.setVersion("2.0.0")
+            src.setDescription("round trip")
+            src.setLicense("MIT")
+            src.setFlyVersion("9.9.9")
+            src.setHomepage("https://rt.example")
+            src.setRepository("https://git.example/rt")
+            src.setDefaultRegistry("central")
+            src.addAuthor("a1")
+            src.addAuthor("a2")
+            src.addLinkLib("z")
+            GitDep gr = new GitDep()
+            gr.setRegistry("central", "regd", "^1.0")
+            src.addDep("regd", gr)
+            GitDep gt = new GitDep()
+            gt.setGitUrl("https://g/t.git")
+            gt.setRef(0, "v2")
+            src.addDep("gitd", gt)
+            GitDep gb = new GitDep()
+            gb.setGitUrl("https://g/b.git")
+            gb.setRef(1, "main")
+            src.addDep("brd", gb)
+            GitDep gv = new GitDep()
+            gv.setGitUrl("https://g/r.git")
+            gv.setRef(2, "abc123")
+            src.addDep("revd", gv)
+            GitDep gp = new GitDep()
+            gp.setPath("../local")
+            src.addDep("pathd", gp)
+            GitDep dd = new GitDep()
+            dd.setRegistry("", "devd", "*")
+            src.addDevDep("devd", dd)
+            src.addTarget(new Target("app", "app", "src/main.fly", ""))
+            src.addTarget(new Target("mylib", "mylib", "src/lib.fly", "static"))
+
+            string ser = src.serialize()
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest back = mr.read(ser, e)
+            assert.assertEqI(e, 0, 110)
+            assert.assertStr(back.getName(), "rt", 111)
+            assert.assertStr(back.getVersion(), "2.0.0", 112)
+            assert.assertStr(back.getDescription(), "round trip", 113)
+            assert.assertStr(back.getLicense(), "MIT", 114)
+            assert.assertStr(back.getFlyVersion(), "9.9.9", 115)
+            assert.assertStr(back.getHomepage(), "https://rt.example", 116)
+            assert.assertStr(back.getRepository(), "https://git.example/rt", 117)
+            assert.assertStr(back.getDefaultRegistry(), "central", 118)
+            assert.assertEqI(back.authorCount(), 2, 119)
+            assert.assertStr(back.authorAt(0), "a1", 120)
+            assert.assertStr(back.authorAt(1), "a2", 121)
+            assert.assertEqI(back.linkLibCount(), 1, 122)
+            assert.assertStr(back.linkLibAt(0), "z", 123)
+            assert.assertEqI(back.depCount(), 5, 124)
+            DepEntry b0 = back.depAt(0)
+            GitDep r0 = b0.getDep()
+            assert.assertTrue(r0.isRegistryDep(), 125)
+            assert.assertStr(r0.getRegistryName(), "central", 126)
+            assert.assertStr(r0.getPkgName(), "regd", 127)
+            assert.assertStr(r0.getVersionReq(), "^1.0", 128)
+            DepEntry b1 = back.depAt(1)
+            GitDep r1 = b1.getDep()
+            assert.assertTrue(r1.isGitDep(), 129)
+            assert.assertStr(r1.getGitUrl(), "https://g/t.git", 130)
+            assert.assertEqI(r1.getRefKind(), 0, 131)
+            assert.assertStr(r1.getRefValue(), "v2", 132)
+            DepEntry b2 = back.depAt(2)
+            GitDep r2 = b2.getDep()
+            assert.assertEqI(r2.getRefKind(), 1, 133)
+            assert.assertStr(r2.getRefValue(), "main", 134)
+            DepEntry b3 = back.depAt(3)
+            GitDep r3 = b3.getDep()
+            assert.assertEqI(r3.getRefKind(), 2, 135)
+            assert.assertStr(r3.getRefValue(), "abc123", 136)
+            DepEntry b4 = back.depAt(4)
+            GitDep r4 = b4.getDep()
+            assert.assertTrue(r4.isPathDep(), 137)
+            assert.assertStr(r4.getPath(), "../local", 138)
+            assert.assertEqI(back.devDepCount(), 1, 139)
+            DepEntry bd = back.devDepAt(0)
+            assert.assertStr(bd.getName(), "devd", 140)
+            GitDep rd = bd.getDep()
+            assert.assertStr(rd.getVersionReq(), "*", 141)
+            assert.assertEqI(back.targetCount(), 2, 142)
+            Target t0 = back.targetAt(0)
+            assert.assertStr(t0.getKey(), "app", 143)
+            assert.assertStr(t0.getPath(), "src/main.fly", 144)
+            assert.assertTrue(t0.isBin(), 145)
+            Target t1 = back.targetAt(1)
+            assert.assertStr(t1.getLib(), "static", 146)
+            assert.assertTrue(t1.isLib(), 147)
+        }
+    }
+
+    void modelDepsTest() {
+        case "hasDep / getDep by name": {
+            Manifest m = new Manifest()
+            GitDep ga = new GitDep()
+            ga.setRegistry("", "aa", "^1")
+            m.addDep("aa", ga)
+            GitDep gb = new GitDep()
+            gb.setPath("../bb")
+            m.addDep("bb", gb)
+            assert.assertTrue(m.hasDep("aa"), 150)
+            assert.assertFalse(m.hasDep("cc"), 151)
+            GitDep f = m.getDep("bb")
+            assert.assertTrue(f.isPathDep(), 152)
+            GitDep miss = m.getDep("cc")
+            assert.assertTrue(miss == null, 153)
+        }
+        case "removeDep drops deps AND devDeps": {
+            Manifest m = new Manifest()
+            GitDep g1 = new GitDep()
+            m.addDep("aa", g1)
+            GitDep g2 = new GitDep()
+            m.addDep("both", g2)
+            GitDep g3 = new GitDep()
+            m.addDevDep("both", g3)
+            GitDep g4 = new GitDep()
+            m.addDevDep("dd", g4)
+            bool r1 = m.removeDep("both")
+            assert.assertTrue(r1, 154)
+            assert.assertEqI(m.depCount(), 1, 155)
+            assert.assertEqI(m.devDepCount(), 1, 156)
+            DepEntry left = m.depAt(0)
+            assert.assertStr(left.getName(), "aa", 157)
+            DepEntry leftDev = m.devDepAt(0)
+            assert.assertStr(leftDev.getName(), "dd", 158)
+            bool r2 = m.removeDep("zz")
+            assert.assertFalse(r2, 159)
+            bool r3 = m.removeDep("dd")
+            assert.assertTrue(r3, 160)
+            assert.assertEqI(m.devDepCount(), 0, 161)
+        }
+    }
+
+    void reposProfilesTest() {
+        case "repo aliases (add/at/get)": {
+            Manifest m = new Manifest()
+            assert.assertEqI(m.repoCount(), 0, 165)
+            m.addRepo("origin", "https://r1")
+            m.addRepo("alt", "https://r2")
+            assert.assertEqI(m.repoCount(), 2, 166)
+            StrEntry r0 = m.repoAt(0)
+            assert.assertStr(r0.getName(), "origin", 167)
+            assert.assertStr(r0.getValue(), "https://r1", 168)
+            assert.assertStr(m.getRepo("alt"), "https://r2", 169)
+            assert.assertStr(m.getRepo("nope"), "", 170)
+        }
+        case "profiles (add/has/get/at)": {
+            Manifest m = new Manifest()
+            assert.assertEqI(m.profileCount(), 0, 171)
+            BuildProfile bp = new BuildProfile()
+            bp.setOptLevel(2)
+            bp.setLto(true)
+            bp.setStrip(true)
+            bp.setDebugInfo(false)
+            bp.setAssertions(false)
+            m.addProfile("perf", bp)
+            assert.assertTrue(m.hasProfile("perf"), 172)
+            assert.assertFalse(m.hasProfile("x"), 173)
+            BuildProfile g = m.getProfile("perf")
+            assert.assertEqI(g.getOptLevel(), 2, 174)
+            assert.assertTrue(g.getLto(), 175)
+            assert.assertTrue(g.getStrip(), 176)
+            assert.assertFalse(g.getDebugInfo(), 177)
+            assert.assertFalse(g.getAssertions(), 178)
+            ProfileEntry pe = m.profileAt(0)
+            assert.assertStr(pe.getName(), "perf", 179)
+            BuildProfile miss = m.getProfile("x")
+            assert.assertTrue(miss == null, 180)
+        }
+        case "defaultProfile: release flips opt/debug/assertions": {
+            BuildProfile rel = driver.defaultProfile("release")
+            assert.assertEqI(rel.getOptLevel(), 3, 181)
+            assert.assertFalse(rel.getDebugInfo(), 182)
+            assert.assertFalse(rel.getAssertions(), 183)
+            assert.assertFalse(rel.getLto(), 184)
+            assert.assertFalse(rel.getStrip(), 185)
+            BuildProfile dbg = driver.defaultProfile("debug")
+            assert.assertEqI(dbg.getOptLevel(), 0, 186)
+            assert.assertTrue(dbg.getDebugInfo(), 187)
+            assert.assertTrue(dbg.getAssertions(), 188)
+        }
+    }
+
+    void testConfigTest() {
+        case "TestConfig suites + flags": {
+            Manifest m = new Manifest()
+            TestConfig tc = m.getTest()
+            assert.assertEqI(tc.suiteCount(), 0, 190)
+            assert.assertFalse(tc.getParallel(), 191)
+            assert.assertFalse(tc.getFailFast(), 192)
+            tc.addSuite("ASuite")
+            tc.addSuite("BSuite")
+            tc.setParallel(true)
+            tc.setFailFast(true)
+            TestConfig tc2 = m.getTest()
+            assert.assertEqI(tc2.suiteCount(), 2, 193)
+            assert.assertStr(tc2.suiteAt(1), "BSuite", 194)
+            assert.assertTrue(tc2.getParallel(), 195)
+            assert.assertTrue(tc2.getFailFast(), 196)
+        }
+    }
+
+    void workspaceHooksTest() {
+        case "workspace members flip isWorkspaceRoot": {
+            Manifest m = new Manifest()
+            assert.assertFalse(m.isWorkspaceRoot(), 197)
+            assert.assertEqI(m.memberCount(), 0, 198)
+            m.addMember("pkgs/a")
+            m.addMember("pkgs/b")
+            assert.assertTrue(m.isWorkspaceRoot(), 199)
+            assert.assertEqI(m.memberCount(), 2, 200)
+            assert.assertStr(m.memberAt(0), "pkgs/a", 201)
+            assert.assertStr(m.memberAt(1), "pkgs/b", 202)
+        }
+        case "build hooks": {
+            Manifest m = new Manifest()
+            assert.assertStr(m.getPreBuild(), "", 203)
+            m.setHooks("pre.sh", "post.sh")
+            assert.assertStr(m.getPreBuild(), "pre.sh", 204)
+            assert.assertStr(m.getPostBuild(), "post.sh", 205)
+        }
+        case "Target accessors + bin/lib flags": {
+            Target t = new Target("k", "n", "src/p.fly", "static")
+            assert.assertStr(t.getKey(), "k", 206)
+            assert.assertStr(t.getName(), "n", 207)
+            assert.assertStr(t.getPath(), "src/p.fly", 208)
+            assert.assertStr(t.getLib(), "static", 209)
+            assert.assertTrue(t.isLib(), 212)
+            assert.assertFalse(t.isBin(), 213)
+            Target tb = new Target("b", "b", "m.fly", "")
+            assert.assertTrue(tb.isBin(), 214)
+            assert.assertFalse(tb.isLib(), 215)
+        }
+    }
+
+    void validationTest() {
+        case "nameValid accepts only [a-z0-9_-]+": {
+            assert.assertTrue(driver.nameValid("abc"), 216)
+            assert.assertTrue(driver.nameValid("my-app_2"), 217)
+            assert.assertFalse(driver.nameValid(""), 218)
+            assert.assertFalse(driver.nameValid("Abc"), 219)
+            assert.assertFalse(driver.nameValid("a b"), 220)
+            assert.assertFalse(driver.nameValid("a.b"), 221)
+        }
+        case "versionValid is strict MAJOR.MINOR.PATCH": {
+            assert.assertTrue(driver.versionValid("1.2.3"), 222)
+            assert.assertTrue(driver.versionValid("0.0.0"), 223)
+            assert.assertTrue(driver.versionValid("10.20.30"), 224)
+            assert.assertFalse(driver.versionValid("1.2"), 225)
+            assert.assertFalse(driver.versionValid("1.2.3.4"), 226)
+            assert.assertFalse(driver.versionValid("1..3"), 227)
+            assert.assertFalse(driver.versionValid(""), 228)
+            assert.assertFalse(driver.versionValid("a.b.c"), 229)
+            assert.assertFalse(driver.versionValid("1.2."), 230)
+            assert.assertFalse(driver.versionValid(".1.2"), 231)
+            assert.assertFalse(driver.versionValid("1.2.3-rc"), 232)
+        }
+    }
+
+    void lockReaderTest() {
+        case "trailing dep args + scalar getters": {
+            string s = nlc("namespace pkg.lock")
+            s = str.concat(s, nlc("import fly.meta.*"))
+            s = str.concat(s, nlc("class Lockfile : fly.meta.Lockfile {"))
+            s = str.concat(s, nlc(str.concat("  string flyVersion = ", qq("0.14.4"))))
+            s = str.concat(s, nlc(str.concat("  string checksum = ", qq("sha256:aa"))))
+            string p1 = str.concat("new LockedPackage(", qq("alpha"))
+            p1 = qarg(p1, "1.0.0")
+            p1 = qarg(p1, "git+https://g/a.git")
+            p1 = qarg(p1, "deadbeef")
+            p1 = qarg(p1, "v1")
+            p1 = qarg(p1, "sha256:bb")
+            p1 = qarg(p1, "x 1.0.0")
+            p1 = qarg(p1, "y ^2")
+            p1 = str.concat(p1, ")")
+            string p2 = str.concat("new LockedPackage(", qq("beta"))
+            p2 = qarg(p2, "2.0.0")
+            p2 = qarg(p2, "registry+central")
+            p2 = qarg(p2, "")
+            p2 = qarg(p2, "")
+            p2 = qarg(p2, "sha256:cc")
+            p2 = str.concat(p2, ")")
+            string arr = str.concat("{ ", str.concat(p1, str.concat(", ", str.concat(p2, " }"))))
+            s = str.concat(s, nlc(str.concat("  LockedPackage[] packages = ", arr)))
+            s = str.concat(s, "}")
+            int e = 0
+            FlyLockReader lr = new FlyLockReader()
+            Lockfile lf = lr.read(s, e)
+            assert.assertEqI(e, 0, 233)
+            assert.assertEqI(lf.getFormatVersion(), 1, 234)
+            assert.assertStr(lf.getTomlChecksum(), "sha256:aa", 235)
+            assert.assertEqI(lf.packageCount(), 2, 236)
+            LockedPackage a = lf.packageAt(0)
+            assert.assertStr(a.getSource(), "git+https://g/a.git", 237)
+            assert.assertStr(a.getRev(), "deadbeef", 238)
+            assert.assertStr(a.getTag(), "v1", 239)
+            assert.assertStr(a.getChecksum(), "sha256:bb", 240)
+            assert.assertEqI(a.depCount(), 2, 241)
+            assert.assertStr(a.depAt(0), "x 1.0.0", 242)
+            assert.assertStr(a.depAt(1), "y ^2", 243)
+        }
+        case "find locates a package by name": {
+            Lockfile lf = new Lockfile()
+            LockedPackage p = new LockedPackage()
+            p.setName("alpha")
+            p.setVersion("1.0.0")
+            lf.addPackage(p)
+            LockedPackage q2 = new LockedPackage()
+            q2.setName("beta")
+            lf.addPackage(q2)
+            LockedPackage f = lf.find("beta")
+            assert.assertStr(f.getName(), "beta", 244)
+            LockedPackage miss = lf.find("nope")
+            assert.assertTrue(miss == null, 245)
+        }
+    }
+
+    void lockRoundTripTest() {
+        case "serialize → read back preserves packages + deps": {
+            Lockfile src = new Lockfile()
+            src.setFlyVersion("0.14.4")
+            src.setTomlChecksum("sha256:manifest")
+            LockedPackage p = new LockedPackage()
+            p.setName("alpha")
+            p.setVersion("1.2.3")
+            p.setSource("git+https://g/a.git")
+            p.setRev("deadbeef")
+            p.setTag("v1.2.3")
+            p.setChecksum("sha256:pkg")
+            p.addDep("x 1.0.0")
+            p.addDep("y ^2")
+            src.addPackage(p)
+            string ser = src.serialize()
+            int e = 0
+            FlyLockReader lr = new FlyLockReader()
+            Lockfile back = lr.read(ser, e)
+            assert.assertEqI(e, 0, 246)
+            assert.assertStr(back.getTomlChecksum(), "sha256:manifest", 247)
+            assert.assertEqI(back.packageCount(), 1, 248)
+            LockedPackage b = back.packageAt(0)
+            assert.assertStr(b.getName(), "alpha", 249)
+            assert.assertStr(b.getVersion(), "1.2.3", 250)
+            assert.assertStr(b.getSource(), "git+https://g/a.git", 251)
+            assert.assertStr(b.getRev(), "deadbeef", 252)
+            assert.assertStr(b.getTag(), "v1.2.3", 253)
+            assert.assertStr(b.getChecksum(), "sha256:pkg", 254)
+            assert.assertEqI(b.depCount(), 2, 255)
+            // 256 skipped: exit codes wrap at 256 on POSIX, 256 would read as 0
+            assert.assertStr(b.depAt(0), "x 1.0.0", 257)
+            assert.assertStr(b.depAt(1), "y ^2", 258)
+        }
+    }
+
+    void lockStaleTest() {
+        case "isStale tracks the manifest checksum": {
+            string fp = path.join(tmpBase(), "man_suite_stale.txt")
+            fs.writeStr(fp, "manifest body", 420)
+            string h = driver.sha256File(fp)
+            Lockfile lf = new Lockfile()
+            bool s1 = lf.isStale(fp)
+            lf.setTomlChecksum(h)
+            bool s2 = lf.isStale(fp)
+            lf.setTomlChecksum("sha256:bogus")
+            bool s3 = lf.isStale(fp)
+            string fpMiss = path.join(tmpBase(), "man_suite_stale_missing.txt")
+            bool s4 = lf.isStale(fpMiss)
+            fs.delete(fp)
+            assert.assertNotEmpty(h, 259)
+            assert.assertTrue(s1, 260)
+            assert.assertFalse(s2, 261)
+            assert.assertTrue(s3, 262)
+            assert.assertTrue(s4, 263)
+        }
+    }
+
+    void readLockFileTest() {
+        case "readLock: missing → empty, written → parsed back": {
+            string fp = path.join(tmpBase(), "man_suite_Lock.fly")
+            fs.delete(fp)
+            int e1 = 0
+            Lockfile missing = driver.readLock(fp, e1)
+            int cMissing = missing.packageCount()
+            Lockfile src = new Lockfile()
+            src.setFlyVersion("0.14.4")
+            src.setTomlChecksum("sha256:m")
+            LockedPackage p = new LockedPackage()
+            p.setName("gamma")
+            p.setVersion("3.0.0")
+            src.addPackage(p)
+            src.write(fp)
+            int e2 = 0
+            Lockfile back = driver.readLock(fp, e2)
+            int cBack = back.packageCount()
+            LockedPackage b = back.packageAt(0)
+            string bn = b.getName()
+            string bv = b.getVersion()
+            fs.delete(fp)
+            assert.assertEqI(e1, 0, 264)
+            assert.assertEqI(cMissing, 0, 265)
+            assert.assertEqI(e2, 0, 266)
+            assert.assertEqI(cBack, 1, 267)
+            assert.assertStr(bn, "gamma", 268)
+            assert.assertStr(bv, "3.0.0", 269)
+        }
+    }
+
+    void manifestPathTest() {
+        case "manifestPath + loadManifest + save in a scratch project": {
+            string repo = env.cwdGet()
+            string proj = path.join(tmpBase(), "man_suite_paths")
+            fs.dirDeleteAll(proj)
+            fs.dirCreateAll(proj, 493)
+            env.cwdSet(proj)
+
+            string p0 = driver.manifestPath()
+            int e0 = 0
+            Manifest none = driver.loadManifest(e0)
+            Manifest w = new Manifest()
+            w.setName("pathapp")
+            w.setVersion("0.2.0")
+            w.save()
+            string p1 = driver.manifestPath()
+            int e1 = 0
+            Manifest m1 = driver.loadManifest(e1)
+            string n1 = m1.getName()
+            string v1 = m1.getVersion()
+
+            env.cwdSet(repo)
+            fs.dirDeleteAll(proj)
+
+            assert.assertStr(p0, "", 270)
+            assert.assertEqI(e0, 2, 271)
+            assert.assertStr(p1, "Manifest.fly", 272)
+            assert.assertEqI(e1, 0, 273)
+            assert.assertStr(n1, "pathapp", 274)
+            assert.assertStr(v1, "0.2.0", 275)
+        }
+        case "lowercase manifest.fly is accepted": {
+            string repo = env.cwdGet()
+            string proj = path.join(tmpBase(), "man_suite_paths_lc")
+            fs.dirDeleteAll(proj)
+            fs.dirCreateAll(proj, 493)
+            env.cwdSet(proj)
+            Manifest w = new Manifest()
+            w.setName("lcapp")
+            w.setVersion("0.3.0")
+            string src = w.serialize()
+            fs.writeStr("manifest.fly", src, 420)
+            // Windows resolves either spelling case-insensitively, so only assert
+            // that SOME spelling is found and that it loads.
+            string p2 = driver.manifestPath()
+            int e2 = 0
+            Manifest m2 = driver.loadManifest(e2)
+            string n2 = m2.getName()
+            env.cwdSet(repo)
+            fs.dirDeleteAll(proj)
+            assert.assertNotEmpty(p2, 276)
+            assert.assertEqI(e2, 0, 277)
+            assert.assertStr(n2, "lcapp", 278)
+        }
+    }
+
+    void initScaffoldTest() {
+        case "cmdInit scaffolds manifest + main; re-init refuses": {
+            string repo = env.cwdGet()
+            string proj = path.join(tmpBase(), "man_suite_scaffold")
+            fs.dirDeleteAll(proj)
+            fs.dirCreateAll(proj, 493)
+            env.cwdSet(proj)
+
+            int rc = driver.cmdInit("scaffapp", "1.0.0")
+            bool hasMain = fs.exists("src/main.fly")
+            int e = 0
+            Manifest m = driver.loadManifest(e)
+            string nm = m.getName()
+            string vr = m.getVersion()
+            int tcnt = m.targetCount()
+            string tn = ""
+            string tp = ""
+            bool tb = false
+            if tcnt > 0 {
+                Target t0 = m.targetAt(0)
+                tn = t0.getName()
+                tp = t0.getPath()
+                tb = t0.isBin()
+            }
+            int rc2 = driver.cmdInit("other", "9.9.9")
+
+            env.cwdSet(repo)
+            fs.dirDeleteAll(proj)
+
+            assert.assertEqI(rc, 0, 280)
+            assert.assertTrue(hasMain, 281)
+            assert.assertEqI(e, 0, 282)
+            assert.assertStr(nm, "scaffapp", 283)
+            assert.assertStr(vr, "1.0.0", 284)
+            assert.assertEqI(tcnt, 1, 285)
+            assert.assertStr(tn, "scaffapp", 286)
+            assert.assertStr(tp, "src/main.fly", 287)
+            assert.assertTrue(tb, 288)
+            assert.assertEqI(rc2, 3, 289)
         }
     }
 }

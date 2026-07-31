@@ -36,29 +36,29 @@ import fly.os.env
 
 // crlf — the two bytes 13, 10.
 private string crlf() {
-    pointer b = fly.mem.alloc(2)
-    fly.mem.writeByte(b, 0, 13)
-    fly.mem.writeByte(b, 1, 10)
-    fly.str.fromBytes(b, 2, out)
+    pointer b = mem.alloc(2)
+    mem.writeByte(b, 0, 13)
+    mem.writeByte(b, 1, 10)
+    str.fromBytes(b, 2, out)
 }
 
 // dq — a one-byte string holding a double quote (34). Needed by the multipart
 // builder, whose Content-Disposition values are quoted; a literal cannot produce
 // a bare `"` because escapes stay raw.
 private string dq() {
-    pointer b = fly.mem.alloc(1)
-    fly.mem.writeByte(b, 0, 34)
-    fly.str.fromBytes(b, 1, out)
+    pointer b = mem.alloc(1)
+    mem.writeByte(b, 0, 34)
+    str.fromBytes(b, 1, out)
 }
 
 // crlf2 — the header-block terminator, 13 10 13 10.
 private string crlf2() {
-    pointer b = fly.mem.alloc(4)
-    fly.mem.writeByte(b, 0, 13)
-    fly.mem.writeByte(b, 1, 10)
-    fly.mem.writeByte(b, 2, 13)
-    fly.mem.writeByte(b, 3, 10)
-    fly.str.fromBytes(b, 4, out)
+    pointer b = mem.alloc(4)
+    mem.writeByte(b, 0, 13)
+    mem.writeByte(b, 1, 10)
+    mem.writeByte(b, 2, 13)
+    mem.writeByte(b, 3, 10)
+    str.fromBytes(b, 4, out)
 }
 
 // ── scanning helpers ─────────────────────────────────────────────────────────
@@ -67,8 +67,8 @@ private string crlf2() {
 // byte-wise rather than with str.indexOf so a search can start mid-string
 // without slicing.
 private int findFrom(const string s, const string sub, const int from) {
-    int n = fly.str.len(s)
-    int m = fly.str.len(sub)
+    int n = str.len(s)
+    int m = str.len(sub)
     if m == 0 { out = 0 - 1  return }
     if m > n { out = 0 - 1  return }
     int i = from
@@ -80,8 +80,8 @@ private int findFrom(const string s, const string sub, const int from) {
         while same && j < m {
             byte a = 0
             byte b = 0
-            fly.str.byteAt(s, i + j, a)
-            fly.str.byteAt(sub, j, b)
+            str.byteAt(s, i + j, a)
+            str.byteAt(sub, j, b)
             if a != b { same = false } else { j = j + 1 }
         }
         if same { out = i  return }
@@ -93,14 +93,14 @@ private int findFrom(const string s, const string sub, const int from) {
 // findByte — index of byte `c` in `s` at or after `from`, bounded by `stop`;
 // -1 when absent.
 private int findByte(const string s, const int c, const int from, const int stop) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     int end = stop
     if end > n { end = n }
     int i = from
     if i < 0 { i = 0 }
     while i < end {
         byte b = 0
-        fly.str.byteAt(s, i, b)
+        str.byteAt(s, i, b)
         int v = b & 255
         if v == c { out = i  return }
         i = i + 1
@@ -128,12 +128,12 @@ public int headerEnd(const string raw) {
 private string requestLine(const string raw) {
     int e = lineEnd(raw, 0)
     if e < 0 { out = ""  return }
-    out = fly.str.substring(raw, 0, e)
+    out = str.substring(raw, 0, e)
 }
 
 // field — the i-th space-separated field (0,1,2) of the request/status line.
 private string field(const string line, const int which) {
-    int n = fly.str.len(line)
+    int n = str.len(line)
     if n == 0 { out = ""  return }
     int start = 0
     int idx = 0
@@ -146,8 +146,8 @@ private string field(const string line, const int which) {
     // The loop above already returned "" if field `which` does not exist, so
     // reaching here with no further space means this field runs to end of line.
     int sp2 = findByte(line, 32, start, n)
-    if sp2 < 0 { out = fly.str.substring(line, start, n)  return }
-    out = fly.str.substring(line, start, sp2)
+    if sp2 < 0 { out = str.substring(line, start, n)  return }
+    out = str.substring(line, start, sp2)
 }
 
 // method — "GET", "POST", …; "" when the request line is unparseable.
@@ -169,21 +169,21 @@ public string version(const string raw) {
 // path — the target up to '?'. "" on a malformed request line.
 public string path(const string raw) {
     string t = target(raw)
-    int n = fly.str.len(t)
+    int n = str.len(t)
     if n == 0 { out = ""  return }
     int q = findByte(t, 63, 0, n)
     if q < 0 { out = t  return }
-    out = fly.str.substring(t, 0, q)
+    out = str.substring(t, 0, q)
 }
 
 // query — the target after '?'; "" when there is none.
 public string query(const string raw) {
     string t = target(raw)
-    int n = fly.str.len(t)
+    int n = str.len(t)
     if n == 0 { out = ""  return }
     int q = findByte(t, 63, 0, n)
     if q < 0 { out = ""  return }
-    out = fly.str.substring(t, q + 1, n)
+    out = str.substring(t, q + 1, n)
 }
 
 // header — case-insensitive header lookup, value trimmed of surrounding spaces.
@@ -192,7 +192,7 @@ public string query(const string raw) {
 // line), which is what respHeader delegates to.
 public string header(const string raw, const string name) {
     int he = findFrom(raw, crlf2(), 0)
-    int limit = fly.str.len(raw)
+    int limit = str.len(raw)
     if he >= 0 { limit = he }
     int pos = lineEnd(raw, 0)
     if pos < 0 { out = ""  return }
@@ -204,9 +204,9 @@ public string header(const string raw, const string name) {
             if e <= pos { go = false } else {
                 int colon = findByte(raw, 58, pos, e)
                 if colon > 0 {
-                    string key = fly.str.substring(raw, pos, colon)
-                    if fly.str.equalsIgnoreCase(fly.str.trim(key), name) {
-                        out = fly.str.trim(fly.str.substring(raw, colon + 1, e))
+                    string key = str.substring(raw, pos, colon)
+                    if str.equalsIgnoreCase(str.trim(key), name) {
+                        out = str.trim(str.substring(raw, colon + 1, e))
                         return
                     }
                 }
@@ -220,13 +220,13 @@ public string header(const string raw, const string name) {
 // contentLength — the Content-Length value; -1 when absent or not a number.
 public int contentLength(const string raw) {
     string v = header(raw, "Content-Length")
-    int n = fly.str.len(v)
+    int n = str.len(v)
     if n == 0 { out = 0 - 1  return }
     int acc = 0
     int i = 0
     while i < n {
         byte b = 0
-        fly.str.byteAt(v, i, b)
+        str.byteAt(v, i, b)
         int c = b & 255
         bool isDigit = c >= 48 && c <= 57
         if isDigit == false { out = 0 - 1  return }
@@ -240,7 +240,7 @@ public int contentLength(const string raw) {
 public string body(const string raw) {
     int he = headerEnd(raw)
     if he < 0 { out = ""  return }
-    out = fly.str.substring(raw, he, fly.str.len(raw))
+    out = str.substring(raw, he, str.len(raw))
 }
 
 // ── Chunked transfer-encoding ─────────────────────────────────────────────────
@@ -256,14 +256,14 @@ public string body(const string raw) {
 // non-hex character (which is how the ";extension" suffix is skipped). -1 when
 // there is no leading hex digit at all.
 private int hexIntOf(const string s) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     int acc = 0
     int seen = 0
     int i = 0
     bool go = true
     while go && i < n {
         byte b = 0
-        fly.str.byteAt(s, i, b)
+        str.byteAt(s, i, b)
         int cv = b
         int c = cv & 255
         int v = 0 - 1
@@ -284,8 +284,8 @@ private int hexIntOf(const string s) {
 // header may list several codings, so this is a substring test, not equality.
 public bool isChunked(const string raw) {
     string te = header(raw, "Transfer-Encoding")
-    if fly.str.isEmpty(te) { out = false  return }
-    out = fly.str.contains(fly.str.toLower(te), "chunked")
+    if str.isEmpty(te) { out = false  return }
+    out = str.contains(str.toLower(te), "chunked")
 }
 
 // chunkedSize — the DECODED length of a chunked body, or -1 when the body is
@@ -293,13 +293,13 @@ public bool isChunked(const string raw) {
 // the output buffer for dechunk and to answer "has it all arrived" for
 // isComplete, so the two can never disagree.
 private int chunkedSize(const string body) {
-    int n = fly.str.len(body)
+    int n = str.len(body)
     int total = 0
     int i = 0
     while i < n {
         int e = lineEnd(body, i)
         if e < 0 { out = 0 - 1  return }             // size line not terminated yet
-        int sz = hexIntOf(fly.str.substring(body, i, e))
+        int sz = hexIntOf(str.substring(body, i, e))
         if sz < 0 { out = 0 - 1  return }            // not a chunk header
         if sz == 0 { out = total  return }           // terminating chunk
         int dataStart = e + 2
@@ -321,20 +321,20 @@ public string dechunk(const string body) {
     if want == 0 { out = ""  return }
     pointer buf = 0
     fly.runtime.mem_alloc(want, buf)
-    int n = fly.str.len(body)
+    int n = str.len(body)
     int o = 0
     int i = 0
     bool go = true
     while go && i < n {
         int e = lineEnd(body, i)
         if e < 0 { go = false } else {
-            int sz = hexIntOf(fly.str.substring(body, i, e))
+            int sz = hexIntOf(str.substring(body, i, e))
             if sz <= 0 { go = false } else {
                 int dataStart = e + 2
                 int k = 0
                 while k < sz {
                     byte b = 0
-                    fly.str.byteAt(body, dataStart + k, b)
+                    str.byteAt(body, dataStart + k, b)
                     fly.llvm.strPoke(buf, o + k, b)
                     k = k + 1
                 }
@@ -369,19 +369,19 @@ public bool isComplete(const string raw) {
     int he = headerEnd(raw)
     if he < 0 { out = false  return }
     if isChunked(raw) {
-        out = chunkedSize(fly.str.substring(raw, he, fly.str.len(raw))) >= 0
+        out = chunkedSize(str.substring(raw, he, str.len(raw))) >= 0
         return
     }
     int cl = contentLength(raw)
     if cl < 0 { out = true  return }
-    out = fly.str.len(raw) - he >= cl
+    out = str.len(raw) - he >= cl
 }
 
 // queryParam — the value of `key` in the query string; "" when absent. Values
 // are returned as-is: there is no percent-decoding.
 public string queryParam(const string raw, const string key) {
     string q = query(raw)
-    int n = fly.str.len(q)
+    int n = str.len(q)
     if n == 0 { out = ""  return }
     int pos = 0
     bool go = true
@@ -391,9 +391,9 @@ public string queryParam(const string raw, const string key) {
         if amp >= 0 { stop = amp }
         int eq = findByte(q, 61, pos, stop)
         if eq > 0 {
-            string k = fly.str.substring(q, pos, eq)
-            if fly.str.equals(k, key) {
-                out = fly.str.substring(q, eq + 1, stop)
+            string k = str.substring(q, pos, eq)
+            if str.equals(k, key) {
+                out = str.substring(q, eq + 1, stop)
                 return
             }
         }
@@ -441,7 +441,7 @@ public string statusText(const int status) {
 // case.
 private string appendSegs(const string acc, const string extra) {
     string s = acc
-    int n = fly.str.len(extra)
+    int n = str.len(extra)
     if n == 0 { out = s  return }
     string nl = crlf()
     int pos = 0
@@ -450,10 +450,10 @@ private string appendSegs(const string acc, const string extra) {
         int semi = findByte(extra, 10, pos, n)
         int stop = n
         if semi >= 0 { stop = semi }
-        string seg = fly.str.trim(fly.str.substring(extra, pos, stop))
-        if fly.str.isEmpty(seg) == false {
-            s = fly.str.concat(s, seg)
-            s = fly.str.concat(s, nl)
+        string seg = str.trim(str.substring(extra, pos, stop))
+        if str.isEmpty(seg) == false {
+            s = str.concat(s, seg)
+            s = str.concat(s, nl)
         }
         if semi < 0 { go = false } else { pos = semi + 1 }
     }
@@ -464,13 +464,13 @@ private string appendSegs(const string acc, const string extra) {
 // literal cannot hold the LF that separates them, so this is how a caller sends
 // more than one extra header. Chain it for three or more.
 public string joinHeaders(const string a, const string b) {
-    if fly.str.isEmpty(a) { out = b  return }
-    if fly.str.isEmpty(b) { out = a  return }
-    pointer p = fly.mem.alloc(1)
-    fly.mem.writeByte(p, 0, 10)
+    if str.isEmpty(a) { out = b  return }
+    if str.isEmpty(b) { out = a  return }
+    pointer p = mem.alloc(1)
+    mem.writeByte(p, 0, 10)
     string lf = ""
-    fly.str.fromBytes(p, 1, lf)
-    out = fly.str.concat(a, fly.str.concat(lf, b))
+    str.fromBytes(p, 1, lf)
+    out = str.concat(a, str.concat(lf, b))
 }
 
 // responseWith — a complete HTTP/1.1 response with `Connection: close`: status
@@ -486,28 +486,28 @@ public string responseWith(const int status, const string contentType, const str
 // keepAlive = true; otherwise the client must reconnect for each one.
 public string responseConn(const int status, const string contentType, const string extraHeaders, const bool keepAlive, const string bodyStr) {
     string ct = contentType
-    if fly.str.isEmpty(ct) { ct = "application/octet-stream" }
+    if str.isEmpty(ct) { ct = "application/octet-stream" }
     string nl = crlf()
     string s = "HTTP/1.1 "
-    s = fly.str.concat(s, fly.str.convert(status))
-    s = fly.str.concat(s, " ")
-    s = fly.str.concat(s, statusText(status))
-    s = fly.str.concat(s, nl)
-    s = fly.str.concat(s, "Content-Type: ")
-    s = fly.str.concat(s, ct)
-    s = fly.str.concat(s, nl)
-    s = fly.str.concat(s, "Content-Length: ")
-    s = fly.str.concat(s, fly.str.convert(fly.str.len(bodyStr)))
-    s = fly.str.concat(s, nl)
+    s = str.concat(s, str.convert(status))
+    s = str.concat(s, " ")
+    s = str.concat(s, statusText(status))
+    s = str.concat(s, nl)
+    s = str.concat(s, "Content-Type: ")
+    s = str.concat(s, ct)
+    s = str.concat(s, nl)
+    s = str.concat(s, "Content-Length: ")
+    s = str.concat(s, str.convert(str.len(bodyStr)))
+    s = str.concat(s, nl)
     s = appendSegs(s, extraHeaders)
     if keepAlive {
-        s = fly.str.concat(s, "Connection: keep-alive")
+        s = str.concat(s, "Connection: keep-alive")
     } else {
-        s = fly.str.concat(s, "Connection: close")
+        s = str.concat(s, "Connection: close")
     }
-    s = fly.str.concat(s, nl)
-    s = fly.str.concat(s, nl)
-    s = fly.str.concat(s, bodyStr)
+    s = str.concat(s, nl)
+    s = str.concat(s, nl)
+    s = str.concat(s, bodyStr)
     out = s
 }
 
@@ -530,28 +530,28 @@ public string buildRequest(const string method, const string targetPath, const s
 public string buildRequestConn(const string method, const string targetPath, const string host, const string extraHeaders, const string bodyStr, const bool keepAlive) {
     string nl = crlf()
     string s = method
-    s = fly.str.concat(s, " ")
-    s = fly.str.concat(s, targetPath)
-    s = fly.str.concat(s, " HTTP/1.1")
-    s = fly.str.concat(s, nl)
-    s = fly.str.concat(s, "Host: ")
-    s = fly.str.concat(s, host)
-    s = fly.str.concat(s, nl)
-    int bn = fly.str.len(bodyStr)
+    s = str.concat(s, " ")
+    s = str.concat(s, targetPath)
+    s = str.concat(s, " HTTP/1.1")
+    s = str.concat(s, nl)
+    s = str.concat(s, "Host: ")
+    s = str.concat(s, host)
+    s = str.concat(s, nl)
+    int bn = str.len(bodyStr)
     if bn > 0 {
-        s = fly.str.concat(s, "Content-Length: ")
-        s = fly.str.concat(s, fly.str.convert(bn))
-        s = fly.str.concat(s, nl)
+        s = str.concat(s, "Content-Length: ")
+        s = str.concat(s, str.convert(bn))
+        s = str.concat(s, nl)
     }
     s = appendSegs(s, extraHeaders)
     if keepAlive {
-        s = fly.str.concat(s, "Connection: keep-alive")
+        s = str.concat(s, "Connection: keep-alive")
     } else {
-        s = fly.str.concat(s, "Connection: close")
+        s = str.concat(s, "Connection: close")
     }
-    s = fly.str.concat(s, nl)
-    s = fly.str.concat(s, nl)
-    s = fly.str.concat(s, bodyStr)
+    s = str.concat(s, nl)
+    s = str.concat(s, nl)
+    s = str.concat(s, bodyStr)
     out = s
 }
 
@@ -562,8 +562,8 @@ public string buildRequestConn(const string method, const string targetPath, con
 // This is transport-level obfuscation, NOT encryption: over plaintext http the
 // credentials are trivially recoverable. Use it only over TLS.
 public string basicAuth(const string user, const string password) {
-    string pair = fly.str.concat(user, fly.str.concat(":", password))
-    out = fly.str.concat("Basic ", fly.codec.base64Encode(pair))
+    string pair = str.concat(user, str.concat(":", password))
+    out = str.concat("Basic ", codec.base64Encode(pair))
 }
 
 // ── Response parsing ─────────────────────────────────────────────────────────
@@ -571,13 +571,13 @@ public string basicAuth(const string user, const string password) {
 // respStatus — the status code of a raw response; -1 when unparseable.
 public int respStatus(const string raw) {
     string code = field(requestLine(raw), 1)
-    int n = fly.str.len(code)
+    int n = str.len(code)
     if n == 0 { out = 0 - 1  return }
     int acc = 0
     int i = 0
     while i < n {
         byte b = 0
-        fly.str.byteAt(code, i, b)
+        str.byteAt(code, i, b)
         int c = b & 255
         bool isDigit = c >= 48 && c <= 57
         if isDigit == false { out = 0 - 1  return }
@@ -601,42 +601,42 @@ public string respBody(const string raw) {
 
 // authorityOf — the host[:port] component, and where the path starts.
 private string authorityOf(const string url) {
-    int n = fly.str.len(url)
+    int n = str.len(url)
     if n == 0 { out = ""  return }
     int start = 0
     int sep = findFrom(url, "://", 0)
     if sep >= 0 { start = sep + 3 }
     int slash = findByte(url, 47, start, n)
-    if slash < 0 { out = fly.str.substring(url, start, n)  return }
-    out = fly.str.substring(url, start, slash)
+    if slash < 0 { out = str.substring(url, start, n)  return }
+    out = str.substring(url, start, slash)
 }
 
 // urlScheme — "http" / "https"; "" when the URL carries no scheme.
 public string urlScheme(const string url) {
     int sep = findFrom(url, "://", 0)
     if sep < 0 { out = ""  return }
-    out = fly.str.toLower(fly.str.substring(url, 0, sep))
+    out = str.toLower(str.substring(url, 0, sep))
 }
 
 // urlHost — the host, port stripped; "" on a malformed URL.
 public string urlHost(const string url) {
     string a = authorityOf(url)
-    int n = fly.str.len(a)
+    int n = str.len(a)
     if n == 0 { out = ""  return }
     int colon = findByte(a, 58, 0, n)
     if colon < 0 { out = a  return }
-    out = fly.str.substring(a, 0, colon)
+    out = str.substring(a, 0, colon)
 }
 
 // urlPort — the explicit port, else 80 for http and 443 for https (and 80 when
 // there is no scheme). -1 when the port is present but not a number.
 public int urlPort(const string url) {
     string a = authorityOf(url)
-    int n = fly.str.len(a)
+    int n = str.len(a)
     int colon = 0 - 1
     if n > 0 { colon = findByte(a, 58, 0, n) }
     if colon < 0 {
-        if fly.str.equals(urlScheme(url), "https") { out = 443 } else { out = 80 }
+        if str.equals(urlScheme(url), "https") { out = 443 } else { out = 80 }
         return
     }
     int acc = 0
@@ -644,7 +644,7 @@ public int urlPort(const string url) {
     if i >= n { out = 0 - 1  return }
     while i < n {
         byte b = 0
-        fly.str.byteAt(a, i, b)
+        str.byteAt(a, i, b)
         int c = b & 255
         bool isDigit = c >= 48 && c <= 57
         if isDigit == false { out = 0 - 1  return }
@@ -656,14 +656,14 @@ public int urlPort(const string url) {
 
 // urlPath — the path plus query; "/" when the URL has none.
 public string urlPath(const string url) {
-    int n = fly.str.len(url)
+    int n = str.len(url)
     if n == 0 { out = "/"  return }
     int start = 0
     int sep = findFrom(url, "://", 0)
     if sep >= 0 { start = sep + 3 }
     int slash = findByte(url, 47, start, n)
     if slash < 0 { out = "/"  return }
-    out = fly.str.substring(url, slash, n)
+    out = str.substring(url, slash, n)
 }
 
 // ── Redirects ─────────────────────────────────────────────────────────────────
@@ -680,7 +680,7 @@ public bool isRedirect(const int status) {
 // dirOf — everything up to and including the last '/' of a path, "/" when there
 // is none. The base for resolving a relative Location.
 private string dirOf(const string path) {
-    int n = fly.str.len(path)
+    int n = str.len(path)
     if n == 0 { out = "/"  return }
     int last = 0 - 1
     int i = 0
@@ -689,7 +689,7 @@ private string dirOf(const string path) {
         i = i + 1
     }
     if last < 0 { out = "/"  return }
-    out = fly.str.substring(path, 0, last + 1)
+    out = str.substring(path, 0, last + 1)
 }
 
 // resolveUrl — an absolute URL from a Location value and the URL it came from.
@@ -700,25 +700,25 @@ private string dirOf(const string path) {
 //                                   ("../" is NOT collapsed; servers rarely send it)
 // "" when `location` is empty or the base URL has no host.
 public string resolveUrl(const string baseUrl, const string location) {
-    if fly.str.isEmpty(location) { out = ""  return }
+    if str.isEmpty(location) { out = ""  return }
     if findFrom(location, "://", 0) >= 0 { out = location  return }
     string host = urlHost(baseUrl)
-    if fly.str.isEmpty(host) { out = ""  return }
+    if str.isEmpty(host) { out = ""  return }
     string scheme = urlScheme(baseUrl)
-    if fly.str.isEmpty(scheme) { scheme = "http" }
+    if str.isEmpty(scheme) { scheme = "http" }
     int port = urlPort(baseUrl)
-    string origin = fly.str.concat(scheme, fly.str.concat("://", host))
+    string origin = str.concat(scheme, str.concat("://", host))
     bool defaultPort = false
-    if fly.str.equals(scheme, "https") && port == 443 { defaultPort = true }
-    if fly.str.equals(scheme, "http") && port == 80 { defaultPort = true }
+    if str.equals(scheme, "https") && port == 443 { defaultPort = true }
+    if str.equals(scheme, "http") && port == 80 { defaultPort = true }
     if port > 0 && defaultPort == false {
-        origin = fly.str.concat(origin, fly.str.concat(":", fly.str.convert(port)))
+        origin = str.concat(origin, str.concat(":", str.convert(port)))
     }
     if findByte(location, 47, 0, 1) == 0 {
-        out = fly.str.concat(origin, location)
+        out = str.concat(origin, location)
         return
     }
-    out = fly.str.concat(origin, fly.str.concat(dirOf(urlPath(baseUrl)), location))
+    out = str.concat(origin, str.concat(dirOf(urlPath(baseUrl)), location))
 }
 
 // redirectTarget — the absolute URL a 3xx response points at, or "" when the
@@ -744,41 +744,41 @@ public string redirectTarget(const string resp, const string baseUrl) {
 // The body grows by doubling and is handed to strMake once, at mpFinish.
 
 private void mpRoom(const pointer h, const int need) {
-    int len = fly.mem.readInt(h, 8)
-    int cap = fly.mem.readInt(h, 12)
+    int len = mem.readInt(h, 8)
+    int cap = mem.readInt(h, 12)
     if len + need <= cap { return }
     int want = cap * 2
     while want < len + need { want = want * 2 }
-    pointer data = fly.mem.readPtr(h, 0)
+    pointer data = mem.readPtr(h, 0)
     pointer bigger = 0
     fly.runtime.mem_realloc(data, want, bigger)
-    fly.mem.writePtr(h, 0, bigger)
-    fly.mem.writeInt(h, 12, want)
+    mem.writePtr(h, 0, bigger)
+    mem.writeInt(h, 12, want)
 }
 
 private void mpPut(const pointer h, const string s) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     if n <= 0 { return }
     mpRoom(h, n)
-    pointer data = fly.mem.readPtr(h, 0)
-    int len = fly.mem.readInt(h, 8)
+    pointer data = mem.readPtr(h, 0)
+    int len = mem.readInt(h, 8)
     int i = 0
     while i < n {
         byte b = 0
-        fly.str.byteAt(s, i, b)
+        str.byteAt(s, i, b)
         fly.llvm.strPoke(data, len + i, b)
         i = i + 1
     }
-    fly.mem.writeInt(h, 8, len + n)
+    mem.writeInt(h, 8, len + n)
 }
 
 private string mpBoundary(const pointer h) {
-    pointer bnd = fly.mem.readPtr(h, 16)
-    int bl = fly.mem.readInt(h, 24)
+    pointer bnd = mem.readPtr(h, 16)
+    int bl = mem.readInt(h, 24)
     if bnd == 0 || bl <= 0 { out = ""  return }
     pointer copy = 0
     fly.runtime.mem_alloc(bl, copy)
-    fly.mem.copy(copy, bnd, bl)
+    mem.copy(copy, bnd, bl)
     fly.llvm.strMake(copy, bl, out)
 }
 
@@ -787,28 +787,28 @@ private string mpBoundary(const pointer h) {
 // for the default, which is fine for content known not to contain it.
 public pointer mpNew(const string boundary) {
     string b = boundary
-    if fly.str.isEmpty(b) { b = "FlyBoundary7MA4YWxkTrZu0gW" }
+    if str.isEmpty(b) { b = "FlyBoundary7MA4YWxkTrZu0gW" }
     pointer h = 0
     fly.runtime.mem_alloc(32, h)
-    fly.mem.zero(h, 32)
+    mem.zero(h, 32)
     int cap = 256
     pointer data = 0
     fly.runtime.mem_alloc(cap, data)
-    fly.mem.writePtr(h, 0, data)
-    fly.mem.writeInt(h, 8, 0)
-    fly.mem.writeInt(h, 12, cap)
-    int bl = fly.str.len(b)
+    mem.writePtr(h, 0, data)
+    mem.writeInt(h, 8, 0)
+    mem.writeInt(h, 12, cap)
+    int bl = str.len(b)
     pointer bnd = 0
     fly.runtime.mem_alloc(bl, bnd)
     int i = 0
     while i < bl {
         byte c = 0
-        fly.str.byteAt(b, i, c)
+        str.byteAt(b, i, c)
         fly.llvm.strPoke(bnd, i, c)
         i = i + 1
     }
-    fly.mem.writePtr(h, 16, bnd)
-    fly.mem.writeInt(h, 24, bl)
+    mem.writePtr(h, 16, bnd)
+    mem.writeInt(h, 24, bl)
     out = h
 }
 
@@ -816,7 +816,7 @@ public pointer mpNew(const string boundary) {
 // boundary, so it MUST come from the same builder that produced the body.
 public string mpContentType(const pointer h) {
     if h == 0 { out = ""  return }
-    out = fly.str.concat("multipart/form-data; boundary=", mpBoundary(h))
+    out = str.concat("multipart/form-data; boundary=", mpBoundary(h))
 }
 
 // mpAddField — a plain form field. The name is emitted verbatim: a name
@@ -842,7 +842,7 @@ public void mpAddField(const pointer h, const string name, const string value) {
 public void mpAddFile(const pointer h, const string name, const string filename, const string contentType, const string content) {
     if h == 0 { return }
     string ct = contentType
-    if fly.str.isEmpty(ct) { ct = "application/octet-stream" }
+    if str.isEmpty(ct) { ct = "application/octet-stream" }
     string q = dq()
     mpPut(h, "--")
     mpPut(h, mpBoundary(h))
@@ -872,21 +872,21 @@ public string mpFinish(const pointer h) {
     mpPut(h, mpBoundary(h))
     mpPut(h, "--")
     mpPut(h, crlf())
-    pointer data = fly.mem.readPtr(h, 0)
-    int len = fly.mem.readInt(h, 8)
+    pointer data = mem.readPtr(h, 0)
+    int len = mem.readInt(h, 8)
     if len <= 0 { out = ""  return }
     pointer copy = 0
     fly.runtime.mem_alloc(len, copy)
-    fly.mem.copy(copy, data, len)
+    mem.copy(copy, data, len)
     fly.llvm.strMake(copy, len, out)
 }
 
 // mpFree — release the builder. Safe on a null handle.
 public void mpFree(const pointer h) {
     if h == 0 { return }
-    pointer data = fly.mem.readPtr(h, 0)
+    pointer data = mem.readPtr(h, 0)
     if data != 0 { fly.runtime.mem_free(data, 0) }
-    pointer bnd = fly.mem.readPtr(h, 16)
+    pointer bnd = mem.readPtr(h, 16)
     if bnd != 0 { fly.runtime.mem_free(bnd, 0) }
     fly.runtime.mem_free(h, 32)
 }
@@ -898,16 +898,16 @@ public void mpFree(const pointer h) {
 // side is half-closed after the request so the server sees EOF and answers even
 // when it reads to end-of-stream.
 public string exchange(const string host, const int port, const string rawRequest) {
-    long s = fly.net.connectTo(host, port)
+    long s = net.connectTo(host, port)
     if s < 0 { out = ""  return }
-    if fly.net.sendStr(s, rawRequest) == false {
-        fly.net.close(s)
+    if net.sendStr(s, rawRequest) == false {
+        net.close(s)
         out = ""
         return
     }
-    fly.net.shutdownWrite(s)
-    string resp = fly.net.recvAll(s)
-    fly.net.close(s)
+    net.shutdownWrite(s)
+    string resp = net.recvAll(s)
+    net.close(s)
     out = resp
 }
 
@@ -924,12 +924,12 @@ public string exchange(const string host, const int port, const string rawReques
 // stops responding fails the exchange instead of hanging it; <= 0 leaves the
 // socket blocking indefinitely.
 public long connOpen(const string host, const int port, const int timeoutMs) {
-    long s = fly.net.connectTo(host, port)
+    long s = net.connectTo(host, port)
     if s < 0 { out = 0 - 1  return }
-    if timeoutMs > 0 { fly.net.setRecvTimeout(s, timeoutMs) }
+    if timeoutMs > 0 { net.setRecvTimeout(s, timeoutMs) }
     // Small request/response exchanges gain nothing from coalescing and lose a
     // round trip's worth of latency to it.
-    fly.net.setNoDelay(s, true)
+    net.setNoDelay(s, true)
     out = s
 }
 
@@ -942,18 +942,18 @@ public long connOpen(const string host, const int port, const int timeoutMs) {
 // within its rights, and connIsClosing() reports that.
 public string connExchange(const long s, const string rawRequest) {
     if s < 0 { out = ""  return }
-    if fly.net.sendStr(s, rawRequest) == false { out = ""  return }
+    if net.sendStr(s, rawRequest) == false { out = ""  return }
     string acc = ""
     bool go = true
     while go {
         if isComplete(acc) { go = false } else {
-            string chunk = fly.net.recvStr(s, 8192)
-            if fly.str.isEmpty(chunk) {
+            string chunk = net.recvStr(s, 8192)
+            if str.isEmpty(chunk) {
                 // EOF or timeout. Whatever arrived is only usable if it happens
                 // to be a whole message.
                 go = false
             } else {
-                string grown = fly.str.concat(acc, chunk)
+                string grown = str.concat(acc, chunk)
                 acc = grown
             }
         }
@@ -967,13 +967,13 @@ public string connExchange(const long s, const string rawRequest) {
 // keep-alive, so only an explicit `Connection: close` counts.
 public bool connIsClosing(const string resp) {
     string c = header(resp, "Connection")
-    if fly.str.isEmpty(c) { out = false  return }
-    out = fly.str.contains(fly.str.toLower(c), "close")
+    if str.isEmpty(c) { out = false  return }
+    out = str.contains(str.toLower(c), "close")
 }
 
 // connClose — release a connection opened with connOpen.
 public void connClose(const long s) {
-    fly.net.close(s)
+    net.close(s)
 }
 
 // ── HTTPS ─────────────────────────────────────────────────────────────────────
@@ -1000,30 +1000,30 @@ public bool httpsAvailable() {
 
 // httpsSupported — true when an https URL can be served AT ALL, by either route.
 public bool httpsSupported() {
-    if fly.net.tls.tlsAvailable() { out = true  return }
+    if tls.tlsAvailable() { out = true  return }
     out = httpsAvailable()
 }
 
 // tmpOutPath — a scratch file for the WinHTTP body handoff, in the platform temp
 // dir (Windows has no /tmp).
 private string tmpOutPath() {
-    string d = fly.os.env.get("TEMP")
-    if fly.str.isEmpty(d) { d = fly.os.env.get("TMPDIR") }
-    if fly.str.isEmpty(d) { d = "." }
-    out = fly.str.concat(fly.os.fs.tempDir(d, "flyhttps"), "/body")
+    string d = env.get("TEMP")
+    if str.isEmpty(d) { d = env.get("TMPDIR") }
+    if str.isEmpty(d) { d = "." }
+    out = str.concat(fs.tempDir(d, "flyhttps"), "/body")
 }
 
 // cstr — a Fly string as a fresh null-terminated C buffer, or 0 for "". Duplicated
 // per the std convention rather than shared across modules.
 private pointer cstr(const string s) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     if n == 0 { out = 0  return }
     pointer buf = 0
     fly.runtime.mem_alloc(n + 1, buf)
     int i = 0
     while i < n {
         byte b = 0
-        fly.str.byteAt(s, i, b)
+        str.byteAt(s, i, b)
         fly.llvm.strPoke(buf, i, b)
         i = i + 1
     }
@@ -1042,7 +1042,7 @@ private int httpsRequest(const string verb, const string host, const int port,
     pointer cHdrs = cstr(headers)
     pointer cBody = cstr(bodyIn)
     pointer cOut = cstr(outPath)
-    int blen = fly.str.len(bodyIn)
+    int blen = str.len(bodyIn)
     int st = 0
     fly.runtime.net_https_request(cVerb, cHost, port, cPath, cHdrs, cBody, blen, cOut, st)
     if cVerb != 0 { fly.runtime.mem_free(cVerb, 0) }
@@ -1058,10 +1058,10 @@ private int httpsRequest(const string verb, const string host, const int port,
 // framed by isComplete() exactly as the plaintext path is.
 private string secureViaTls(const string rawRequest, const string host, const int port, int statusOut) {
     statusOut = 0 - 1
-    pointer c = fly.net.tls.tlsConnectOpts(host, port, true, 30000)
+    pointer c = tls.tlsConnectOpts(host, port, true, 30000)
     if c == 0 { out = ""  return }
-    if fly.net.tls.tlsSendStr(c, rawRequest) == false {
-        fly.net.tls.tlsClose(c)
+    if tls.tlsSendStr(c, rawRequest) == false {
+        tls.tlsClose(c)
         out = ""
         return
     }
@@ -1069,14 +1069,14 @@ private string secureViaTls(const string rawRequest, const string host, const in
     bool go = true
     while go {
         if isComplete(acc) { go = false } else {
-            string chunk = fly.net.tls.tlsRecvStr(c, 8192)
-            if fly.str.isEmpty(chunk) { go = false } else {
-                string grown = fly.str.concat(acc, chunk)
+            string chunk = tls.tlsRecvStr(c, 8192)
+            if str.isEmpty(chunk) { go = false } else {
+                string grown = str.concat(acc, chunk)
                 acc = grown
             }
         }
     }
-    fly.net.tls.tlsClose(c)
+    tls.tlsClose(c)
     if isComplete(acc) == false { out = ""  return }
     statusOut = respStatus(acc)
     out = bodyDecoded(acc)
@@ -1087,35 +1087,35 @@ private string secureViaTls(const string rawRequest, const string host, const in
 private string secureViaClient(const string verb, const string url, const string extraHeaders, const string bodyIn, int statusOut) {
     statusOut = 0 - 1
     string host = urlHost(url)
-    if fly.str.isEmpty(host) { out = ""  return }
+    if str.isEmpty(host) { out = ""  return }
     int port = urlPort(url)
     if port < 0 { out = ""  return }
     string tmp = tmpOutPath()
     // WinHTTP wants the header block CRLF-separated; extraHeaders is LF-separated
     // (see appendSegs), so translate before handing it over.
     string hdrs = ""
-    if fly.str.isEmpty(extraHeaders) == false {
-        pointer p = fly.mem.alloc(1)
-        fly.mem.writeByte(p, 0, 10)
+    if str.isEmpty(extraHeaders) == false {
+        pointer p = mem.alloc(1)
+        mem.writeByte(p, 0, 10)
         string lf = ""
-        fly.str.fromBytes(p, 1, lf)
-        hdrs = fly.str.replace(extraHeaders, lf, crlf())
+        str.fromBytes(p, 1, lf)
+        hdrs = str.replace(extraHeaders, lf, crlf())
     }
     int st = httpsRequest(verb, host, port, urlPath(url), hdrs, bodyIn, tmp)
     statusOut = st
     if st < 0 {
-        if fly.os.fs.exists(tmp) { fly.os.fs.delete(tmp) }
+        if fs.exists(tmp) { fs.delete(tmp) }
         out = ""
         return
     }
     string body = ""
-    if fly.os.fs.exists(tmp) {
+    if fs.exists(tmp) {
         // readBytes, NOT readStr: this spool file holds a response body, which may
         // be a tarball. The backend wrote it byte-exact (WriteFile bypasses the
         // CRT), so a text-mode read here would be the single point that corrupts
         // every binary download on Windows.
-        body = fly.os.fs.readBytes(tmp)
-        fly.os.fs.delete(tmp)
+        body = fs.readBytes(tmp)
+        fs.delete(tmp)
     }
     out = body
 }
@@ -1123,10 +1123,10 @@ private string secureViaClient(const string verb, const string url, const string
 // secureExchange — dispatch to whichever backend exists. `statusOut` is the HTTP
 // status, or -1 when the exchange never happened.
 private string secureExchange(const string verb, const string url, const string extraHeaders, const string bodyIn, int statusOut) {
-    if fly.net.tls.tlsAvailable() {
+    if tls.tlsAvailable() {
         string host = urlHost(url)
         int port = urlPort(url)
-        if fly.str.isEmpty(host) || port < 0 { statusOut = 0 - 1  out = ""  return }
+        if str.isEmpty(host) || port < 0 { statusOut = 0 - 1  out = ""  return }
         string req = buildRequest(verb, urlPath(url), host, extraHeaders, bodyIn)
         int st = 0
         string b = secureViaTls(req, host, port, st)
@@ -1170,19 +1170,19 @@ public bool downloadSecure(const string url, const string destPath) {
     string body = secureExchange("GET", url, "", "", st)
     if st < 0 { out = false  return }
     if isOk(st) == false { out = false  return }
-    fly.os.fs.writeBytes(destPath, body, 420)
-    out = fly.os.fs.exists(destPath)
+    fs.writeBytes(destPath, body, 420)
+    out = fs.exists(destPath)
 }
 
 // postFileSecure — POST a file's contents to an https URL as
 // application/octet-stream, with an optional Bearer token. false on any failure
 // or a non-2xx status.
 public bool postFileSecure(const string url, const string filePath, const string token) {
-    if fly.os.fs.exists(filePath) == false { out = false  return }
-    string payload = fly.os.fs.readBytes(filePath)
+    if fs.exists(filePath) == false { out = false  return }
+    string payload = fs.readBytes(filePath)
     string extra = "Content-Type: application/octet-stream"
-    if fly.str.isEmpty(token) == false {
-        extra = joinHeaders(extra, fly.str.concat("Authorization: Bearer ", token))
+    if str.isEmpty(token) == false {
+        extra = joinHeaders(extra, str.concat("Authorization: Bearer ", token))
     }
     int st = 0
     secureExchange("POST", url, extra, payload, st)
@@ -1193,9 +1193,9 @@ public bool postFileSecure(const string url, const string filePath, const string
 // fetch — the shared plaintext GET path. An https URL is NOT handled here; the
 // public entry points route it to getSecure/downloadSecure instead.
 private string fetch(const string url) {
-    if fly.str.equals(urlScheme(url), "https") { out = ""  return }
+    if str.equals(urlScheme(url), "https") { out = ""  return }
     string host = urlHost(url)
-    if fly.str.isEmpty(host) { out = ""  return }
+    if str.isEmpty(host) { out = ""  return }
     int port = urlPort(url)
     if port < 0 { out = ""  return }
     string req = buildRequest("GET", urlPath(url), host, "", "")
@@ -1215,9 +1215,9 @@ private bool isOk(const int status) {
 // refused, so a caller no longer has to branch on the scheme itself. When no
 // HTTPS backend is available it still fails rather than downgrading.
 public string get(const string url) {
-    if fly.str.equals(urlScheme(url), "https") { out = getSecure(url)  return }
+    if str.equals(urlScheme(url), "https") { out = getSecure(url)  return }
     string resp = fetch(url)
-    if fly.str.isEmpty(resp) { out = ""  return }
+    if str.isEmpty(resp) { out = ""  return }
     if isOk(respStatus(resp)) == false { out = ""  return }
     out = bodyDecoded(resp)
 }
@@ -1236,7 +1236,7 @@ public string getFollow(const string url, const int maxHops) {
     if limit < 0 { limit = 0 }
     while hops <= limit {
         string resp = fetch(current)
-        if fly.str.isEmpty(resp) { out = ""  return }
+        if str.isEmpty(resp) { out = ""  return }
         int st = respStatus(resp)
         if isRedirect(st) == false {
             if isOk(st) == false { out = ""  return }
@@ -1244,7 +1244,7 @@ public string getFollow(const string url, const int maxHops) {
             return
         }
         string next = redirectTarget(resp, current)
-        if fly.str.isEmpty(next) { out = ""  return }
+        if str.isEmpty(next) { out = ""  return }
         current = next
         hops = hops + 1
     }
@@ -1253,40 +1253,40 @@ public string getFollow(const string url, const int maxHops) {
 
 // getStatus — GET a URL and return only the status code; -1 on failure.
 public int getStatus(const string url) {
-    if fly.str.equals(urlScheme(url), "https") { out = getSecureStatus(url)  return }
+    if str.equals(urlScheme(url), "https") { out = getSecureStatus(url)  return }
     string resp = fetch(url)
-    if fly.str.isEmpty(resp) { out = 0 - 1  return }
+    if str.isEmpty(resp) { out = 0 - 1  return }
     out = respStatus(resp)
 }
 
 // download — GET a URL and write the body to destPath. false on any failure,
 // including a non-2xx status; destPath is left untouched on failure.
 public bool download(const string url, const string destPath) {
-    if fly.str.equals(urlScheme(url), "https") { out = downloadSecure(url, destPath)  return }
+    if str.equals(urlScheme(url), "https") { out = downloadSecure(url, destPath)  return }
     string resp = fetch(url)
-    if fly.str.isEmpty(resp) { out = false  return }
+    if str.isEmpty(resp) { out = false  return }
     if isOk(respStatus(resp)) == false { out = false  return }
-    fly.os.fs.writeBytes(destPath, respBody(resp), 420)
-    out = fly.os.fs.exists(destPath)
+    fs.writeBytes(destPath, respBody(resp), 420)
+    out = fs.exists(destPath)
 }
 
 // postFile — POST the contents of filePath as application/octet-stream. A
 // non-empty `token` adds an "Authorization: Bearer <token>" header. false on any
 // failure or a non-2xx status.
 public bool postFile(const string url, const string filePath, const string token) {
-    if fly.str.equals(urlScheme(url), "https") { out = postFileSecure(url, filePath, token)  return }
-    if fly.os.fs.exists(filePath) == false { out = false  return }
+    if str.equals(urlScheme(url), "https") { out = postFileSecure(url, filePath, token)  return }
+    if fs.exists(filePath) == false { out = false  return }
     string host = urlHost(url)
-    if fly.str.isEmpty(host) { out = false  return }
+    if str.isEmpty(host) { out = false  return }
     int port = urlPort(url)
     if port < 0 { out = false  return }
-    string payload = fly.os.fs.readBytes(filePath)
+    string payload = fs.readBytes(filePath)
     string extra = "Content-Type: application/octet-stream"
-    if fly.str.isEmpty(token) == false {
-        extra = joinHeaders(extra, fly.str.concat("Authorization: Bearer ", token))
+    if str.isEmpty(token) == false {
+        extra = joinHeaders(extra, str.concat("Authorization: Bearer ", token))
     }
     string req = buildRequest("POST", urlPath(url), host, extra, payload)
     string resp = exchange(host, port, req)
-    if fly.str.isEmpty(resp) { out = false  return }
+    if str.isEmpty(resp) { out = false  return }
     out = isOk(respStatus(resp))
 }

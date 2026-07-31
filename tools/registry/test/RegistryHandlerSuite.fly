@@ -12,6 +12,7 @@ import fly.os.fs
 import fly.os.path
 import fly.data.List
 import fly.assert
+import fly.registry
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RegistryHandlerSuite — coverage of tools/registry/lib/RegistryHandler.fly.
@@ -38,7 +39,7 @@ import fly.assert
 // gzipFixture — the checked-in package tarball (mypkg/Manifest.fly + a source).
 // Read as BYTES: it is gzip, and a text-mode read on Windows corrupts it.
 string gzipFixture() {
-    out = fly.os.fs.readBytes("std/test/fixtures/regpkg.tar.gz")
+    out = fs.readBytes("std/test/fixtures/regpkg.tar.gz")
 }
 
 // quoted / arr1 / arr2 / arr3 — expected JSON built from RAW BYTES, not from
@@ -46,31 +47,31 @@ string gzipFixture() {
 // with it no matter how wrong both were. String literals keep escapes raw in
 // this dialect, so the quote byte (34) has to be assembled by hand.
 string quoted(const string x) {
-    pointer p = fly.mem.alloc(1)
-    fly.mem.writeByte(p, 0, 34)
+    pointer p = mem.alloc(1)
+    mem.writeByte(p, 0, 34)
     string q = ""
-    fly.str.fromBytes(p, 1, q)
-    out = fly.str.concat(q, fly.str.concat(x, q))
+    str.fromBytes(p, 1, q)
+    out = str.concat(q, str.concat(x, q))
 }
 string arr1(const string a) {
-    out = fly.str.concat("[", fly.str.concat(quoted(a), "]"))
+    out = str.concat("[", str.concat(quoted(a), "]"))
 }
 string arr2(const string a, const string b) {
-    out = fly.str.concat("[", fly.str.concat(quoted(a),
-          fly.str.concat(",", fly.str.concat(quoted(b), "]"))))
+    out = str.concat("[", str.concat(quoted(a),
+          str.concat(",", str.concat(quoted(b), "]"))))
 }
 string arr3(const string a, const string b, const string c) {
-    out = fly.str.concat("[", fly.str.concat(quoted(a),
-          fly.str.concat(",", fly.str.concat(quoted(b),
-          fly.str.concat(",", fly.str.concat(quoted(c), "]"))))))
+    out = str.concat("[", str.concat(quoted(a),
+          str.concat(",", str.concat(quoted(b),
+          str.concat(",", str.concat(quoted(c), "]"))))))
 }
 
 // freshStorage — an empty directory named after the caller, removed first so a
 // previous run cannot leak state into this one.
 string freshStorage(const string tag) {
-    string d = fly.str.concat("reg_suite_", tag)
-    fly.os.fs.dirDeleteAll(d)
-    fly.os.fs.dirCreateAll(d, 493)
+    string d = str.concat("reg_suite_", tag)
+    fs.dirDeleteAll(d)
+    fs.dirCreateAll(d, 493)
     out = d
 }
 
@@ -79,38 +80,38 @@ suite RegistryHandlerSuite {
     // ── safeSegment: the hardening the reference lacks ───────────────────────
     void safeSegmentTest() {
         case "ordinary package and version names are accepted": {
-            assert.assertTrue(fly.registry.safeSegment("mypkg"), 101)
-            assert.assertTrue(fly.registry.safeSegment("1.0.0"), 102)
-            assert.assertTrue(fly.registry.safeSegment("a-b_c.d"), 103)
-            assert.assertTrue(fly.registry.safeSegment("x"), 104)
+            assert.assertTrue(registry.safeSegment("mypkg"), 101)
+            assert.assertTrue(registry.safeSegment("1.0.0"), 102)
+            assert.assertTrue(registry.safeSegment("a-b_c.d"), 103)
+            assert.assertTrue(registry.safeSegment("x"), 104)
         }
         case "anything that could escape the storage directory is rejected": {
             // These are the whole reason the function exists: each one becomes a
             // filesystem path component, so a separator or a dot-dot walks out
             // of the storage root.
-            assert.assertFalse(fly.registry.safeSegment(""), 105)
-            assert.assertFalse(fly.registry.safeSegment(".."), 106)
-            assert.assertFalse(fly.registry.safeSegment("."), 107)
-            assert.assertFalse(fly.registry.safeSegment(".hidden"), 108)
-            assert.assertFalse(fly.registry.safeSegment("a/b"), 109)
-            assert.assertFalse(fly.registry.safeSegment("a\\b"), 110)
-            assert.assertFalse(fly.registry.safeSegment("/abs"), 111)
+            assert.assertFalse(registry.safeSegment(""), 105)
+            assert.assertFalse(registry.safeSegment(".."), 106)
+            assert.assertFalse(registry.safeSegment("."), 107)
+            assert.assertFalse(registry.safeSegment(".hidden"), 108)
+            assert.assertFalse(registry.safeSegment("a/b"), 109)
+            assert.assertFalse(registry.safeSegment("a\\b"), 110)
+            assert.assertFalse(registry.safeSegment("/abs"), 111)
         }
     }
 
     // ── urlDecode ────────────────────────────────────────────────────────────
     void urlDecodeTest() {
         case "percent escapes and plus signs decode": {
-            assert.assertStr(fly.registry.urlDecode("plain"), "plain", 201)
-            assert.assertStr(fly.registry.urlDecode("a%2Fb"), "a/b", 202)
-            assert.assertStr(fly.registry.urlDecode("a+b"), "a b", 203)
-            assert.assertStr(fly.registry.urlDecode("%2e%2e"), "..", 204)
+            assert.assertStr(registry.urlDecode("plain"), "plain", 201)
+            assert.assertStr(registry.urlDecode("a%2Fb"), "a/b", 202)
+            assert.assertStr(registry.urlDecode("a+b"), "a b", 203)
+            assert.assertStr(registry.urlDecode("%2e%2e"), "..", 204)
             // Lowercase hex must decode too — clients emit both cases.
-            assert.assertStr(fly.registry.urlDecode("%7bx%7d"), "{x}", 205)
+            assert.assertStr(registry.urlDecode("%7bx%7d"), "{x}", 205)
         }
         case "an empty or escape-free string is returned unchanged": {
-            assert.assertEmpty(fly.registry.urlDecode(""), 206)
-            assert.assertStr(fly.registry.urlDecode("1.0.0"), "1.0.0", 207)
+            assert.assertEmpty(registry.urlDecode(""), 206)
+            assert.assertStr(registry.urlDecode("1.0.0"), "1.0.0", 207)
         }
     }
 
@@ -118,29 +119,29 @@ suite RegistryHandlerSuite {
     void jsonAndSortTest() {
         case "an empty list serializes to []": {
             List<string> xs = new List<string>()
-            assert.assertStr(fly.registry.jsonStringArray(xs), "[]", 301)
+            assert.assertStr(registry.jsonStringArray(xs), "[]", 301)
         }
         case "one and many elements are quoted and comma-separated": {
             List<string> one = new List<string>()
             one.add("1.0.0")
-            assert.assertStr(fly.registry.jsonStringArray(one), arr1("1.0.0"), 302)
+            assert.assertStr(registry.jsonStringArray(one), arr1("1.0.0"), 302)
             List<string> two = new List<string>()
             two.add("a")
             two.add("b")
-            assert.assertStr(fly.registry.jsonStringArray(two), arr2("a", "b"), 303)
+            assert.assertStr(registry.jsonStringArray(two), arr2("a", "b"), 303)
             List<string> three = new List<string>()
             three.add("x")
             three.add("y")
             three.add("z")
-            assert.assertStr(fly.registry.jsonStringArray(three), arr3("x", "y", "z"), 304)
+            assert.assertStr(registry.jsonStringArray(three), arr3("x", "y", "z"), 304)
         }
         case "strLess orders by bytes, shorter prefix first": {
-            assert.assertTrue(fly.registry.strLess("a", "b"), 305)
-            assert.assertFalse(fly.registry.strLess("b", "a"), 306)
-            assert.assertFalse(fly.registry.strLess("a", "a"), 307)
-            assert.assertTrue(fly.registry.strLess("ab", "abc"), 308)
-            assert.assertFalse(fly.registry.strLess("abc", "ab"), 309)
-            assert.assertTrue(fly.registry.strLess("1.0.0", "1.0.1"), 310)
+            assert.assertTrue(registry.strLess("a", "b"), 305)
+            assert.assertFalse(registry.strLess("b", "a"), 306)
+            assert.assertFalse(registry.strLess("a", "a"), 307)
+            assert.assertTrue(registry.strLess("ab", "abc"), 308)
+            assert.assertFalse(registry.strLess("abc", "ab"), 309)
+            assert.assertTrue(registry.strLess("1.0.0", "1.0.1"), 310)
         }
     }
 
@@ -155,38 +156,38 @@ suite RegistryHandlerSuite {
         case "toHttp writes a well-formed response with the right length": {
             RegResponse r = new RegResponse(200, "application/json", "[]")
             string http = r.toHttp()
-            assert.assertTrue(fly.str.startsWith(http, "HTTP/1.1 200"), 404)
-            assert.assertTrue(fly.str.contains(http, "Content-Type: application/json"), 405)
+            assert.assertTrue(str.startsWith(http, "HTTP/1.1 200"), 404)
+            assert.assertTrue(str.contains(http, "Content-Type: application/json"), 405)
             // The declared length must match the body, or every client desyncs.
-            assert.assertTrue(fly.str.contains(http, "Content-Length: 2"), 406)
-            assert.assertTrue(fly.str.contains(http, "Connection: close"), 407)
-            assert.assertTrue(fly.str.endsWith(http, "[]"), 408)
+            assert.assertTrue(str.contains(http, "Content-Length: 2"), 406)
+            assert.assertTrue(str.contains(http, "Connection: close"), 407)
+            assert.assertTrue(str.endsWith(http, "[]"), 408)
         }
         case "an empty body still declares a length": {
             RegResponse r = new RegResponse(404, "text/plain", "")
-            assert.assertTrue(fly.str.contains(r.toHttp(), "Content-Length: 0"), 409)
+            assert.assertTrue(str.contains(r.toHttp(), "Content-Length: 0"), 409)
         }
     }
 
     // ── storage layout + auth ────────────────────────────────────────────────
     void layoutTest() {
         case "the storage directory is created by the constructor": {
-            string d = fly.str.concat("reg_suite_ctor", "")
-            fly.os.fs.dirDeleteAll(d)
+            string d = str.concat("reg_suite_ctor", "")
+            fs.dirDeleteAll(d)
             RegistryHandler h = new RegistryHandler(d, "")
-            assert.assertTrue(fly.os.path.isDir(d), 501)
+            assert.assertTrue(path.isDir(d), 501)
             assert.assertStr(h.getStorage(), d, 502)
-            fly.os.fs.dirDeleteAll(d)
+            fs.dirDeleteAll(d)
         }
         case "the layout helpers agree with the documented paths": {
             string d = freshStorage("layout")
             RegistryHandler h = new RegistryHandler(d, "")
-            assert.assertStr(h.pkgDir("p"), fly.os.path.join(d, "p"), 503)
+            assert.assertStr(h.pkgDir("p"), path.join(d, "p"), 503)
             assert.assertStr(h.tarballPath("p", "1.0.0"),
-                fly.os.path.join(fly.os.path.join(d, "p"), "1.0.0.tar.gz"), 504)
+                path.join(path.join(d, "p"), "1.0.0.tar.gz"), 504)
             assert.assertStr(h.manifestPath("p", "1.0.0"),
-                fly.os.path.join(fly.os.path.join(fly.os.path.join(d, "p"), "1.0.0"), "Manifest.fly"), 505)
-            fly.os.fs.dirDeleteAll(d)
+                path.join(path.join(path.join(d, "p"), "1.0.0"), "Manifest.fly"), 505)
+            fs.dirDeleteAll(d)
         }
         case "requiresAuth follows the token, and auth gates POST only": {
             string d = freshStorage("auth")
@@ -211,7 +212,7 @@ suite RegistryHandlerSuite {
             // GET is public even when a token is configured.
             RegResponse g = locked.handle("GET", "/v1/q", "", "", "")
             assert.assertEqI(g.status, 200, 513)
-            fly.os.fs.dirDeleteAll(d)
+            fs.dirDeleteAll(d)
         }
     }
 
@@ -219,27 +220,27 @@ suite RegistryHandlerSuite {
     void dirNamesTest() {
         case "dirNames lists what was written and nothing else": {
             string d = freshStorage("dirnames")
-            fly.os.fs.writeStr(fly.os.path.join(d, "one.txt"), "1", 420)
-            fly.os.fs.writeStr(fly.os.path.join(d, "two.txt"), "2", 420)
-            List<string> names = fly.registry.dirNames(d)
+            fs.writeStr(path.join(d, "one.txt"), "1", 420)
+            fs.writeStr(path.join(d, "two.txt"), "2", 420)
+            List<string> names = registry.dirNames(d)
             assert.assertEqI((int)names.size(), 2, 601)
             bool sawOne = false
             bool sawTwo = false
             int i = 0
             while i < names.size() {
-                if fly.str.equals(names.get(i), "one.txt") { sawOne = true }
-                if fly.str.equals(names.get(i), "two.txt") { sawTwo = true }
+                if str.equals(names.get(i), "one.txt") { sawOne = true }
+                if str.equals(names.get(i), "two.txt") { sawTwo = true }
                 i = i + 1
             }
             assert.assertTrue(sawOne, 602)
             assert.assertTrue(sawTwo, 603)
-            fly.os.fs.dirDeleteAll(d)
+            fs.dirDeleteAll(d)
         }
         case "an empty or missing directory yields an empty list": {
             string d = freshStorage("dirnames_empty")
-            assert.assertEqI((int)fly.registry.dirNames(d).size(), 0, 604)
-            fly.os.fs.dirDeleteAll(d)
-            assert.assertEqI((int)fly.registry.dirNames("reg_suite_absent_xyz").size(), 0, 605)
+            assert.assertEqI((int)registry.dirNames(d).size(), 0, 604)
+            fs.dirDeleteAll(d)
+            assert.assertEqI((int)registry.dirNames("reg_suite_absent_xyz").size(), 0, 605)
         }
     }
 
@@ -253,7 +254,7 @@ suite RegistryHandlerSuite {
             assert.assertEqI(h.handle("GET", "/v1/p/1.0.0/bogus", "", "", "").status, 404, 703)
             assert.assertEqI(h.handle("DELETE", "/v1/p/1.0.0", "", "", "").status, 400, 704)
             assert.assertEqI(h.handle("POST", "/v1/p/1.0.0/download", "", "", "x").status, 400, 705)
-            fly.os.fs.dirDeleteAll(d)
+            fs.dirDeleteAll(d)
         }
         case "a path-traversal name or version is rejected with 400": {
             // The encoded form is what a real attacker sends; urlDecode runs
@@ -264,7 +265,7 @@ suite RegistryHandlerSuite {
             assert.assertEqI(h.handle("GET", "/v1/..", "", "", "").status, 400, 707)
             assert.assertEqI(h.handle("GET", "/v1/p/..%2f..%2fetc", "", "", "").status, 400, 708)
             assert.assertEqI(h.handle("GET", "/v1/.hidden", "", "", "").status, 400, 709)
-            fly.os.fs.dirDeleteAll(d)
+            fs.dirDeleteAll(d)
         }
         case "listing an unknown package is 404, not an empty array": {
             string d = freshStorage("unknown")
@@ -273,7 +274,7 @@ suite RegistryHandlerSuite {
             assert.assertEqI(r.status, 404, 710)
             assert.assertEqI(h.handle("GET", "/v1/nope/1.0.0", "", "", "").status, 404, 711)
             assert.assertEqI(h.handle("GET", "/v1/nope/1.0.0/download", "", "", "").status, 404, 712)
-            fly.os.fs.dirDeleteAll(d)
+            fs.dirDeleteAll(d)
         }
     }
 
@@ -283,23 +284,23 @@ suite RegistryHandlerSuite {
             string d = freshStorage("publish")
             RegistryHandler h = new RegistryHandler(d, "")
             string tgz = gzipFixture()
-            assert.assertTrue(fly.str.len(tgz) > 0, 801)
+            assert.assertTrue(str.len(tgz) > 0, 801)
 
             RegResponse r = h.handle("POST", "/v1/mypkg/1.0.0", "", "", tgz)
             assert.assertEqI(r.status, 201, 802)
             assert.assertStr(r.body, "published", 803)
             // The tarball is stored VERBATIM — a byte-exact round trip through
             // writeBytes, which is what makes the download endpoint honest.
-            string stored = fly.os.fs.readBytes(h.tarballPath("mypkg", "1.0.0"))
-            assert.assertEqI(fly.str.len(stored), fly.str.len(tgz), 804)
+            string stored = fs.readBytes(h.tarballPath("mypkg", "1.0.0"))
+            assert.assertEqI(str.len(stored), str.len(tgz), 804)
             assert.assertStr(stored, tgz, 805)
             // The manifest came out of the archive IN PROCESS: the fixture nests
             // it one directory deep (mypkg/Manifest.fly), the layout real
             // packages use.
-            assert.assertTrue(fly.os.fs.exists(h.manifestPath("mypkg", "1.0.0")), 806)
-            string man = fly.os.fs.readStr(h.manifestPath("mypkg", "1.0.0"))
-            assert.assertTrue(fly.str.contains(man, "mypkg"), 807)
-            fly.os.fs.dirDeleteAll(d)
+            assert.assertTrue(fs.exists(h.manifestPath("mypkg", "1.0.0")), 806)
+            string man = fs.readStr(h.manifestPath("mypkg", "1.0.0"))
+            assert.assertTrue(str.contains(man, "mypkg"), 807)
+            fs.dirDeleteAll(d)
         }
         case "a bad publish is refused and leaves nothing behind": {
             string d = freshStorage("badpublish")
@@ -311,8 +312,8 @@ suite RegistryHandlerSuite {
             // Not gzip at all.
             RegResponse r = h.handle("POST", "/v1/p/1.0.0", "", "", "not a gzip archive")
             assert.assertEqI(r.status, 400, 810)
-            assert.assertFalse(fly.os.fs.exists(h.tarballPath("p", "1.0.0")), 811)
-            fly.os.fs.dirDeleteAll(d)
+            assert.assertFalse(fs.exists(h.tarballPath("p", "1.0.0")), 811)
+            fs.dirDeleteAll(d)
         }
         case "a TRUNCATED gzip is refused — the reference would have stored it": {
             // This is the case the in-process extraction buys: the reference
@@ -321,12 +322,12 @@ suite RegistryHandlerSuite {
             string d = freshStorage("truncated")
             RegistryHandler h = new RegistryHandler(d, "")
             string tgz = gzipFixture()
-            string half = fly.str.substring(tgz, 0, fly.str.len(tgz) / 2)
-            assert.assertTrue(fly.targz.isGzip(half), 812)   // still LOOKS like gzip
+            string half = str.substring(tgz, 0, str.len(tgz) / 2)
+            assert.assertTrue(targz.isGzip(half), 812)   // still LOOKS like gzip
             RegResponse r = h.handle("POST", "/v1/p/1.0.0", "", "", half)
             assert.assertEqI(r.status, 400, 813)
-            assert.assertFalse(fly.os.fs.exists(h.tarballPath("p", "1.0.0")), 814)
-            fly.os.fs.dirDeleteAll(d)
+            assert.assertFalse(fs.exists(h.tarballPath("p", "1.0.0")), 814)
+            fs.dirDeleteAll(d)
         }
         case "republishing the same version overwrites it": {
             string d = freshStorage("republish")
@@ -336,9 +337,9 @@ suite RegistryHandlerSuite {
             assert.assertEqI(h.handle("POST", "/v1/p/1.0.0", "", "", tgz).status, 201, 816)
             RegResponse list = h.handle("GET", "/v1/p", "", "", "")
             // Still ONE version, not a duplicate entry.
-            assert.assertTrue(fly.str.contains(list.body, "1.0.0"), 817)
-            assert.assertEqI(fly.str.count(list.body, "1.0.0"), 1, 818)
-            fly.os.fs.dirDeleteAll(d)
+            assert.assertTrue(str.contains(list.body, "1.0.0"), 817)
+            assert.assertEqI(str.count(list.body, "1.0.0"), 1, 818)
+            fs.dirDeleteAll(d)
         }
     }
 
@@ -352,14 +353,14 @@ suite RegistryHandlerSuite {
             h.handle("POST", "/v1/p/1.0.1", "", "", tgz)
             h.handle("POST", "/v1/p/1.0.10", "", "", tgz)
             // A stray file in the package dir must not become a "version".
-            fly.os.fs.writeStr(fly.os.path.join(h.pkgDir("p"), "notes.txt"), "x", 420)
+            fs.writeStr(path.join(h.pkgDir("p"), "notes.txt"), "x", 420)
             RegResponse r = h.handle("GET", "/v1/p", "", "", "")
             assert.assertEqI(r.status, 200, 901)
             assert.assertStr(r.contentType, "application/json", 902)
             // Byte order, so "1.0.10" sorts before "1.0.2" — documented, and the
             // client picks the newest itself.
             assert.assertStr(r.body, arr3("1.0.1", "1.0.10", "1.0.2"), 903)
-            fly.os.fs.dirDeleteAll(d)
+            fs.dirDeleteAll(d)
         }
         case "metadata is served, and re-extracted if it was deleted": {
             string d = freshStorage("meta")
@@ -367,15 +368,15 @@ suite RegistryHandlerSuite {
             h.handle("POST", "/v1/mypkg/1.0.0", "", "", gzipFixture())
             RegResponse r = h.handle("GET", "/v1/mypkg/1.0.0", "", "", "")
             assert.assertEqI(r.status, 200, 904)
-            assert.assertTrue(fly.str.contains(r.body, "mypkg"), 905)
+            assert.assertTrue(str.contains(r.body, "mypkg"), 905)
             // Delete the extracted copy: the next GET must recover it from the
             // stored tarball rather than 404 (reference parity).
-            fly.os.fs.delete(h.manifestPath("mypkg", "1.0.0"))
-            assert.assertFalse(fly.os.fs.exists(h.manifestPath("mypkg", "1.0.0")), 906)
+            fs.delete(h.manifestPath("mypkg", "1.0.0"))
+            assert.assertFalse(fs.exists(h.manifestPath("mypkg", "1.0.0")), 906)
             RegResponse again = h.handle("GET", "/v1/mypkg/1.0.0", "", "", "")
             assert.assertEqI(again.status, 200, 907)
-            assert.assertTrue(fly.str.contains(again.body, "mypkg"), 908)
-            fly.os.fs.dirDeleteAll(d)
+            assert.assertTrue(str.contains(again.body, "mypkg"), 908)
+            fs.dirDeleteAll(d)
         }
         case "download returns the stored bytes exactly": {
             string d = freshStorage("download")
@@ -385,13 +386,13 @@ suite RegistryHandlerSuite {
             RegResponse r = h.handle("GET", "/v1/mypkg/1.0.0/download", "", "", "")
             assert.assertEqI(r.status, 200, 909)
             assert.assertStr(r.contentType, "application/octet-stream", 910)
-            assert.assertEqI(fly.str.len(r.body), fly.str.len(tgz), 911)
+            assert.assertEqI(str.len(r.body), str.len(tgz), 911)
             assert.assertStr(r.body, tgz, 912)
             // And what came back is still a valid archive, not text-mangled.
             int ge = 0
-            fly.targz.gunzip(r.body, ge)
+            targz.gunzip(r.body, ge)
             assert.assertEqI(ge, 0, 913)
-            fly.os.fs.dirDeleteAll(d)
+            fs.dirDeleteAll(d)
         }
         case "search matches substrings, and an empty query lists everything": {
             string d = freshStorage("search")
@@ -411,7 +412,7 @@ suite RegistryHandlerSuite {
             // parameters after '&' are not swallowed into the term.
             RegResponse enc = h.handle("GET", "/v1/search", "q=alph%61&limit=5", "", "")
             assert.assertStr(enc.body, arr2("alpha", "alphabet"), 918)
-            fly.os.fs.dirDeleteAll(d)
+            fs.dirDeleteAll(d)
         }
         case "search on an empty registry is an empty array, not an error": {
             string d = freshStorage("search_empty")
@@ -419,7 +420,7 @@ suite RegistryHandlerSuite {
             RegResponse r = h.handle("GET", "/v1/search", "q=x", "", "")
             assert.assertEqI(r.status, 200, 919)
             assert.assertStr(r.body, "[]", 920)
-            fly.os.fs.dirDeleteAll(d)
+            fs.dirDeleteAll(d)
         }
     }
 }

@@ -70,22 +70,22 @@ public class ToolChain {
     // proc_exec is raw execve (no PATH search, unlike the C++'s in-process LLD, which
     // never spawned), so the linker must be an absolute path. "" if not found.
     public string resolveProg(const string name) {
-        if fly.str.contains(name, "/") { out = name  return }
-        string pathEnv = fly.os.env.get("PATH")
-        if fly.str.isEmpty(pathEnv) { pathEnv = "/usr/bin:/bin" }
+        if str.contains(name, "/") { out = name  return }
+        string pathEnv = env.get("PATH")
+        if str.isEmpty(pathEnv) { pathEnv = "/usr/bin:/bin" }
         int from = 0
-        int len = fly.str.len(pathEnv)
+        int len = str.len(pathEnv)
         string found = ""
         bool go = true
         while go {
-            string tail = fly.str.substring(pathEnv, from, len)
-            int rel = fly.str.indexOf(tail, ":")
+            string tail = str.substring(pathEnv, from, len)
+            int rel = str.indexOf(tail, ":")
             int end = len
             if rel >= 0 { end = from + rel }
-            string dir = fly.str.substring(pathEnv, from, end)
-            if fly.str.isEmpty(dir) == false {
-                string cand = fly.os.path.join(dir, name)
-                if fly.os.fs.exists(cand) { found = cand  go = false }
+            string dir = str.substring(pathEnv, from, end)
+            if str.isEmpty(dir) == false {
+                string cand = path.join(dir, name)
+                if fs.exists(cand) { found = cand  go = false }
             }
             if rel < 0 { go = false } else { from = end + 1 }
         }
@@ -106,29 +106,29 @@ public class ToolChain {
     // beside the binary (the dev build).
     public bool runLinker(const string prog, const string alt, const pointer h) {
         string p = ""
-        string exe = fly.os.env.exePath()
-        if fly.str.isEmpty(exe) == false {
-            string dir = fly.os.path.dirname(exe)
+        string exe = env.exePath()
+        if str.isEmpty(exe) == false {
+            string dir = path.dirname(exe)
             // Preferred: the fork LLD shipped under its native name (<exe_dir>/ld.lld,
             // ld64.lld or lld-link[.exe]) — LLD self-selects the flavor from argv[0].
-            string bundled = fly.os.path.join(dir, prog)
-            string bundledExe = fly.os.path.join(dir, fly.str.concat(prog, ".exe"))
+            string bundled = path.join(dir, prog)
+            string bundledExe = path.join(dir, str.concat(prog, ".exe"))
             // Legacy fallback: a single-flavor `fly-lld` driver bundled by older builds.
-            string legacy = fly.os.path.join(dir, "fly-lld")
-            string legacyExe = fly.os.path.join(dir, "fly-lld.exe")
-            if fly.os.fs.exists(bundled) { p = bundled }
-            elsif fly.os.fs.exists(bundledExe) { p = bundledExe }
-            elsif fly.os.fs.exists(legacy) { p = legacy }
-            elsif fly.os.fs.exists(legacyExe) { p = legacyExe }
+            string legacy = path.join(dir, "fly-lld")
+            string legacyExe = path.join(dir, "fly-lld.exe")
+            if fs.exists(bundled) { p = bundled }
+            elsif fs.exists(bundledExe) { p = bundledExe }
+            elsif fs.exists(legacy) { p = legacy }
+            elsif fs.exists(legacyExe) { p = legacyExe }
         }
-        if fly.str.isEmpty(p) { p = this.resolveProg(prog) }
-        if fly.str.isEmpty(p) { p = this.resolveProg(alt) }
-        if fly.str.isEmpty(p) {
-            fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: linker not found: ", prog), fly.str.concat(" / ", alt)))
+        if str.isEmpty(p) { p = this.resolveProg(prog) }
+        if str.isEmpty(p) { p = this.resolveProg(alt) }
+        if str.isEmpty(p) {
+            io.printErrLn(str.concat(str.concat("error: linker not found: ", prog), str.concat(" / ", alt)))
             out = false
             return
         }
-        int rc = fly.os.proc.exec(p, h)
+        int rc = proc.exec(p, h)
         out = rc == 0
     }
 
@@ -142,7 +142,7 @@ public class ToolChain {
         string objFiles = this.dropHeaders(inFilesSemi)
         if frontendOpts.getCreateLibrary() {
             // Archiver (Archiver.cpp) is not ported — library archiving unavailable.
-            fly.os.io.printErrLn("error: library archiving (Archiver) not ported in the self-host")
+            io.printErrLn("error: library archiving (Archiver) not ported in the self-host")
             out = false
             return
         }
@@ -170,7 +170,7 @@ public class ToolChain {
         int i = 0
         while i < n {
             string f = segAt(filesSemi, i)
-            if fly.str.endsWith(f, ".fly.h") == false { kept = segAppend(kept, f) }
+            if str.endsWith(f, ".fly.h") == false { kept = segAppend(kept, f) }
             i = i + 1
         }
         out = kept
@@ -178,10 +178,10 @@ public class ToolChain {
 
     // ── LinkLinux — the core (cpp:793-1019) ───────────────────────────────────
     public bool LinkLinux(const string inFilesSemi, const string outFile, const FrontendOptions frontendOpts) {
-        pointer h = fly.os.proc.argsNew()
+        pointer h = proc.argsNew()
 
-        if fly.str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
-            fly.os.proc.argsAdd(h, fly.str.concat("-L", this.codeGenOpts.getToolchainLibDir()))
+        if str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
+            proc.argsAdd(h, str.concat("-L", this.codeGenOpts.getToolchainLibDir()))
         }
 
         Arch arch = this.t.getArch()
@@ -192,68 +192,68 @@ public class ToolChain {
         bool isStaticPIE = this.codeGenOpts.getStaticPIE()
         bool isStatic = this.codeGenOpts.getStatic() && this.codeGenOpts.getStaticPIE() == false
 
-        if isPIE { fly.os.proc.argsAdd(h, "-pie") }
+        if isPIE { proc.argsAdd(h, "-pie") }
 
         if isStaticPIE {
-            fly.os.proc.argsAdd(h, "-static")
-            fly.os.proc.argsAdd(h, "-pie")
-            fly.os.proc.argsAdd(h, "--no-dynamic-linker")
-            fly.os.proc.argsAdd(h, "-z")
-            fly.os.proc.argsAdd(h, "text")
+            proc.argsAdd(h, "-static")
+            proc.argsAdd(h, "-pie")
+            proc.argsAdd(h, "--no-dynamic-linker")
+            proc.argsAdd(h, "-z")
+            proc.argsAdd(h, "text")
         }
 
-        if this.codeGenOpts.getRDynamic() { fly.os.proc.argsAdd(h, "-export-dynamic") }
+        if this.codeGenOpts.getRDynamic() { proc.argsAdd(h, "-export-dynamic") }
 
         // ARM endianness
         if this.t.isARM() || this.t.isThumb() || this.t.isAArch64() {
             bool isBE = this.isArmBigEndian()
-            if isBE { fly.os.proc.argsAdd(h, "--be8") }
+            if isBE { proc.argsAdd(h, "--be8") }
             bool be2 = isBE || arch == Arch.AARCH64_BE
-            if be2 { fly.os.proc.argsAdd(h, "-EB") } else { fly.os.proc.argsAdd(h, "-EL") }
+            if be2 { proc.argsAdd(h, "-EB") } else { proc.argsAdd(h, "-EL") }
         }
 
-        if isAndroid { fly.os.proc.argsAdd(h, "--warn-shared-textrel") }
+        if isAndroid { proc.argsAdd(h, "--warn-shared-textrel") }
 
-        fly.os.proc.argsAdd(h, "--eh-frame-hdr")
+        proc.argsAdd(h, "--eh-frame-hdr")
 
         string ldm = this.getLDMOption()
-        if fly.str.isEmpty(ldm) {
-            fly.os.io.printErrLn(fly.str.concat("error: unknown target triple: ", this.t.getTriple()))
-            fly.os.proc.argsFree(h)
+        if str.isEmpty(ldm) {
+            io.printErrLn(str.concat("error: unknown target triple: ", this.t.getTriple()))
+            proc.argsFree(h)
             out = false
             return
         }
-        fly.os.proc.argsAdd(h, "-m")
-        fly.os.proc.argsAdd(h, ldm)
+        proc.argsAdd(h, "-m")
+        proc.argsAdd(h, ldm)
 
         if isStatic {
             if arch == Arch.ARM || arch == Arch.ARMEB {
-                fly.os.proc.argsAdd(h, "-Bstatic")
+                proc.argsAdd(h, "-Bstatic")
             } else {
-                fly.os.proc.argsAdd(h, "-static")
+                proc.argsAdd(h, "-static")
             }
         } elsif this.codeGenOpts.getShared() {
-            fly.os.proc.argsAdd(h, "-shared")
+            proc.argsAdd(h, "-shared")
         }
 
         if isStatic == false {
-            if this.codeGenOpts.getRDynamic() { fly.os.proc.argsAdd(h, "-export-dynamic") }
+            if this.codeGenOpts.getRDynamic() { proc.argsAdd(h, "-export-dynamic") }
             if this.codeGenOpts.getShared() == false && isStaticPIE == false {
                 string dynLinker = ""
                 if arch == Arch.X86_64      { dynLinker = "/lib64/ld-linux-x86-64.so.2" }
                 elsif arch == Arch.AARCH64  { dynLinker = "/lib/ld-linux-aarch64.so.1" }
                 elsif arch == Arch.ARM      { dynLinker = "/lib/ld-linux-armhf.so.3" }
                 elsif arch == Arch.RISCV64  { dynLinker = "/lib/ld-linux-riscv64-lp64d.so.1" }
-                if fly.str.isEmpty(dynLinker) == false && fly.os.fs.exists(dynLinker) {
-                    fly.os.proc.argsAdd(h, "-dynamic-linker")
-                    fly.os.proc.argsAdd(h, dynLinker)
+                if str.isEmpty(dynLinker) == false && fs.exists(dynLinker) {
+                    proc.argsAdd(h, "-dynamic-linker")
+                    proc.argsAdd(h, dynLinker)
                 }
             }
         }
 
         // Output
-        fly.os.proc.argsAdd(h, "-o")
-        fly.os.proc.argsAdd(h, outFile)
+        proc.argsAdd(h, "-o")
+        proc.argsAdd(h, outFile)
 
         // Path list (";"-delimited)
         string pathList = this.CreatePathList()
@@ -266,22 +266,22 @@ public class ToolChain {
                 elsif isStaticPIE { crt1 = "rcrt1.o" }
                 else { crt1 = "crt1.o" }
             }
-            if fly.str.isEmpty(crt1) == false {
-                fly.os.proc.argsAdd(h, this.GetFilePath(crt1, pathList))
+            if str.isEmpty(crt1) == false {
+                proc.argsAdd(h, this.GetFilePath(crt1, pathList))
             }
-            fly.os.proc.argsAdd(h, this.GetFilePath("crti.o", pathList))
+            proc.argsAdd(h, this.GetFilePath("crti.o", pathList))
         }
 
         if isVE {
-            fly.os.proc.argsAdd(h, "-z")
-            fly.os.proc.argsAdd(h, "max-page-size=0x4000000")
+            proc.argsAdd(h, "-z")
+            proc.argsAdd(h, "max-page-size=0x4000000")
         }
 
         // Inputs (the emitted object files, ";"-delimited)
         int ni = segCount(inFilesSemi)
         int i = 0
         while i < ni {
-            fly.os.proc.argsAdd(h, segAt(inFilesSemi, i))
+            proc.argsAdd(h, segAt(inFilesSemi, i))
             i = i + 1
         }
 
@@ -290,9 +290,9 @@ public class ToolChain {
         int j = 0
         while j < nf {
             string inp = frontendOpts.inputAt(j)
-            string ex = fly.os.path.ext(inp)
-            if fly.str.equals(ex, ".a") || fly.str.equals(ex, ".lib") {
-                fly.os.proc.argsAdd(h, inp)
+            string ex = path.ext(inp)
+            if str.equals(ex, ".a") || str.equals(ex, ".lib") {
+                proc.argsAdd(h, inp)
             }
             j = j + 1
         }
@@ -300,19 +300,19 @@ public class ToolChain {
         // fly_std_lib.a then libfly_runtime — required: linking without them only
         // surfaces later as cryptic undefined-symbol errors from ld.
         if this.requireFlyArchives() == false {
-            fly.os.proc.argsFree(h)
+            proc.argsFree(h)
             out = false
             return
         }
-        fly.os.proc.argsAdd(h, this.GetStdLibPath())
-        fly.os.proc.argsAdd(h, this.GetRuntimeLibPath())
+        proc.argsAdd(h, this.GetStdLibPath())
+        proc.argsAdd(h, this.GetRuntimeLibPath())
         this.addTlsArchives(h, "-lssl", "-lcrypto")
 
         // -L for every path in the list
         int np = segCount(pathList)
         int k = 0
         while k < np {
-            fly.os.proc.argsAdd(h, fly.str.concat("-L", segAt(pathList, k)))
+            proc.argsAdd(h, str.concat("-L", segAt(pathList, k)))
             k = k + 1
         }
 
@@ -323,102 +323,102 @@ public class ToolChain {
         // same probe as LinkWindowsGNU. Skipped if absent: ordinary user
         // programs don't reference LLVM.
         string llvmLibDir = this.getLLVMLibDir()
-        if fly.str.isEmpty(llvmLibDir) == false {
-            fly.os.proc.argsAdd(h, fly.str.concat("-L", llvmLibDir))
+        if str.isEmpty(llvmLibDir) == false {
+            proc.argsAdd(h, str.concat("-L", llvmLibDir))
         }
 
-        if isStatic || isStaticPIE { fly.os.proc.argsAdd(h, "--start-group") }
+        if isStatic || isStaticPIE { proc.argsAdd(h, "--start-group") }
 
-        fly.os.proc.argsAdd(h, "-lc")
-        fly.os.proc.argsAdd(h, "-lm")
+        proc.argsAdd(h, "-lc")
+        proc.argsAdd(h, "-lm")
 
         // CLang-bridge libs
         string lo = this.codeGenOpts.getLinkerOptions()
         int nl = segCount(lo)
         int li = 0
         while li < nl {
-            fly.os.proc.argsAdd(h, segAt(lo, li))
+            proc.argsAdd(h, segAt(lo, li))
             li = li + 1
         }
 
         // compiler-rt builtins
         string builtins = this.GetCompilerRTBuiltinsPath()
-        if fly.str.isEmpty(builtins) {
-            fly.os.io.printErrLn(fly.str.concat("error: compiler-rt builtins not found for ", this.t.getTriple()))
-            fly.os.proc.argsFree(h)
+        if str.isEmpty(builtins) {
+            io.printErrLn(str.concat("error: compiler-rt builtins not found for ", this.t.getTriple()))
+            proc.argsFree(h)
             out = false
             return
         }
-        fly.os.proc.argsAdd(h, builtins)
+        proc.argsAdd(h, builtins)
 
-        if isIAMCU { fly.os.proc.argsAdd(h, "-lgloss") }
+        if isIAMCU { proc.argsAdd(h, "-lgloss") }
 
-        if isStatic || isStaticPIE { fly.os.proc.argsAdd(h, "--end-group") }
+        if isStatic || isStaticPIE { proc.argsAdd(h, "--end-group") }
 
         if isIAMCU {
-            fly.os.proc.argsAdd(h, "--as-needed")
-            fly.os.proc.argsAdd(h, "-lsoftfp")
-            fly.os.proc.argsAdd(h, "--no-as-needed")
+            proc.argsAdd(h, "--as-needed")
+            proc.argsAdd(h, "-lsoftfp")
+            proc.argsAdd(h, "--no-as-needed")
         }
 
         if isIAMCU == false && isAndroid == false {
             string crtn = this.GetFilePath("crtn.o", pathList)
-            if fly.str.isEmpty(crtn) == false { fly.os.proc.argsAdd(h, crtn) }
+            if str.isEmpty(crtn) == false { proc.argsAdd(h, crtn) }
         }
 
         bool ok = false
         if this.t.isOSBinFormatELF() {
             ok = this.runLinker("ld.lld", "ld", h)
         } else {
-            fly.os.io.printErrLn(fly.str.concat("error: unsupported object format for target ", this.t.getTriple()))
+            io.printErrLn(str.concat("error: unsupported object format for target ", this.t.getTriple()))
         }
-        fly.os.proc.argsFree(h)
+        proc.argsFree(h)
         out = ok
     }
 
     // ── LinkDarwin (cpp:749-791) ──────────────────────────────────────────────
     public bool LinkDarwin(const string inFilesSemi, const string outFile) {
-        pointer h = fly.os.proc.argsNew()
-        fly.os.proc.argsAdd(h, "-e")
-        fly.os.proc.argsAdd(h, "_main")
-        fly.os.proc.argsAdd(h, "-o")
-        fly.os.proc.argsAdd(h, outFile)
+        pointer h = proc.argsNew()
+        proc.argsAdd(h, "-e")
+        proc.argsAdd(h, "_main")
+        proc.argsAdd(h, "-o")
+        proc.argsAdd(h, outFile)
 
-        if fly.str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
-            fly.os.proc.argsAdd(h, fly.str.concat("-L", this.codeGenOpts.getToolchainLibDir()))
+        if str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
+            proc.argsAdd(h, str.concat("-L", this.codeGenOpts.getToolchainLibDir()))
         }
 
         int ni = segCount(inFilesSemi)
         int i = 0
-        while i < ni { fly.os.proc.argsAdd(h, segAt(inFilesSemi, i))  i = i + 1 }
+        while i < ni { proc.argsAdd(h, segAt(inFilesSemi, i))  i = i + 1 }
 
         if this.requireFlyArchives() == false {
-            fly.os.proc.argsFree(h)
+            proc.argsFree(h)
             out = false
             return
         }
-        fly.os.proc.argsAdd(h, this.GetStdLibPath())
-        fly.os.proc.argsAdd(h, this.GetRuntimeLibPath())
+        proc.argsAdd(h, this.GetStdLibPath())
+        proc.argsAdd(h, this.GetRuntimeLibPath())
         this.addTlsArchives(h, "-lssl", "-lcrypto")
 
         string lo = this.codeGenOpts.getLinkerOptions()
         int nl = segCount(lo)
         int li = 0
-        while li < nl { fly.os.proc.argsAdd(h, segAt(lo, li))  li = li + 1 }
+        while li < nl { proc.argsAdd(h, segAt(lo, li))  li = li + 1 }
 
         bool ok = false
         if this.t.isOSBinFormatMachO() {
             ok = this.runLinker("ld64.lld", "ld", h)
         } else {
-            fly.os.io.printErrLn(fly.str.concat("error: unsupported object format for target ", this.t.getTriple()))
+            io.printErrLn(str.concat("error: unsupported object format for target ", this.t.getTriple()))
         }
-        fly.os.proc.argsFree(h)
+        proc.argsFree(h)
         out = ok
     }
 
     // ── LinkWindows (cpp:499-608) — structural; SDK discovery stubbed ─────────
     public bool LinkWindows(const string inFilesSemi, const string outFile) {
-        pointer h = fly.os.proc.argsNew()
+        pointer h = proc.argsNew()
         // A dynamic library (--lib-dyn) is a .dll produced with /dll — which also
         // yields its import .lib; anything else is an .exe. Without /dll lld-link
         // stops at "subsystem must be defined", which is why a dynamic library never
@@ -427,39 +427,39 @@ public class ToolChain {
         // so `-o app` gives app.exe while `-o app.exe` is left alone. (reference parity.)
         bool buildDll = this.codeGenOpts.getShared()
         string outPath = outFile
-        if fly.str.isEmpty(fly.os.path.ext(outFile)) {
-            if buildDll { outPath = fly.str.concat(outFile, ".dll") }
-            else { outPath = fly.str.concat(outFile, ".exe") }
+        if str.isEmpty(path.ext(outFile)) {
+            if buildDll { outPath = str.concat(outFile, ".dll") }
+            else { outPath = str.concat(outFile, ".exe") }
         }
-        fly.os.proc.argsAdd(h, fly.str.concat("/out:", outPath))
-        if buildDll { fly.os.proc.argsAdd(h, "/dll") }
+        proc.argsAdd(h, str.concat("/out:", outPath))
+        if buildDll { proc.argsAdd(h, "/dll") }
 
-        if fly.str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
-            fly.os.proc.argsAdd(h, fly.str.concat("/libpath:", this.codeGenOpts.getToolchainLibDir()))
+        if str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
+            proc.argsAdd(h, str.concat("/libpath:", this.codeGenOpts.getToolchainLibDir()))
         }
-        fly.os.proc.argsAdd(h, "/defaultlib:libcmt")
-        fly.os.proc.argsAdd(h, "/defaultlib:synchronization")
-        fly.os.proc.argsAdd(h, "/defaultlib:kernel32")
-        fly.os.proc.argsAdd(h, "/defaultlib:ws2_32")   // Winsock (runtime net_*)
+        proc.argsAdd(h, "/defaultlib:libcmt")
+        proc.argsAdd(h, "/defaultlib:synchronization")
+        proc.argsAdd(h, "/defaultlib:kernel32")
+        proc.argsAdd(h, "/defaultlib:ws2_32")   // Winsock (runtime net_*)
 
         // VS toolchain + UCRT + Windows SDK lib paths are discovered via COM/
         // registry in the C++ — not expressible in pure Fly, so stubbed (skipped).
         string ucrt = ""
-        if this.getUniversalCRTLibraryPath() == true { fly.os.proc.argsAdd(h, ucrt) }
+        if this.getUniversalCRTLibraryPath() == true { proc.argsAdd(h, ucrt) }
         string sdk = ""
-        if this.getWindowsSDKLibraryPath() == true { fly.os.proc.argsAdd(h, sdk) }
+        if this.getWindowsSDKLibraryPath() == true { proc.argsAdd(h, sdk) }
 
         int ni = segCount(inFilesSemi)
         int i = 0
-        while i < ni { fly.os.proc.argsAdd(h, segAt(inFilesSemi, i))  i = i + 1 }
+        while i < ni { proc.argsAdd(h, segAt(inFilesSemi, i))  i = i + 1 }
 
         if this.requireFlyArchives() == false {
-            fly.os.proc.argsFree(h)
+            proc.argsFree(h)
             out = false
             return
         }
-        fly.os.proc.argsAdd(h, this.GetStdLibPath())
-        fly.os.proc.argsAdd(h, this.GetRuntimeLibPath())
+        proc.argsAdd(h, this.GetStdLibPath())
+        proc.argsAdd(h, this.GetRuntimeLibPath())
         this.addTlsArchives(h, "secur32.lib", "crypt32.lib")
 
         // -lNAME → NAME.lib
@@ -468,11 +468,11 @@ public class ToolChain {
         int li = 0
         while li < nl {
             string flag = segAt(lo, li)
-            if fly.str.len(flag) > 2 && fly.str.startsWith(flag, "-l") {
-                string nm = fly.str.substring(flag, 2, fly.str.len(flag))
-                fly.os.proc.argsAdd(h, fly.str.concat(nm, ".lib"))
+            if str.len(flag) > 2 && str.startsWith(flag, "-l") {
+                string nm = str.substring(flag, 2, str.len(flag))
+                proc.argsAdd(h, str.concat(nm, ".lib"))
             } else {
-                fly.os.proc.argsAdd(h, flag)
+                proc.argsAdd(h, flag)
             }
             li = li + 1
         }
@@ -481,9 +481,9 @@ public class ToolChain {
         if this.t.isOSBinFormatCOFF() {
             ok = this.runLinker("lld-link", "link", h)
         } else {
-            fly.os.io.printErrLn(fly.str.concat("error: unsupported object format for target ", this.t.getTriple()))
+            io.printErrLn(str.concat("error: unsupported object format for target ", this.t.getTriple()))
         }
-        fly.os.proc.argsFree(h)
+        proc.argsFree(h)
         out = ok
     }
 
@@ -499,35 +499,35 @@ public class ToolChain {
     // The sysroot ships in the release next to fly.exe (<exe_dir>/mingw); x86_64 only.
     public bool LinkWindowsGNU(const string inFilesSemi, const string outFile) {
         string sysroot = this.getMingwSysrootDir()
-        if fly.str.isEmpty(sysroot) {
-            fly.os.io.printErrLn("error: mingw/UCRT sysroot not found (expected <fly_dir>/mingw; pass --mingw-sysroot <dir>)")
+        if str.isEmpty(sysroot) {
+            io.printErrLn("error: mingw/UCRT sysroot not found (expected <fly_dir>/mingw; pass --mingw-sysroot <dir>)")
             out = false
             return
         }
-        string slib = fly.os.path.join(sysroot, "lib")
-        string builtinsDir = fly.os.path.join(sysroot, "builtins")
-        string builtinsLib = fly.os.path.join(builtinsDir, "libclang_rt.builtins-x86_64.a")
+        string slib = path.join(sysroot, "lib")
+        string builtinsDir = path.join(sysroot, "builtins")
+        string builtinsLib = path.join(builtinsDir, "libclang_rt.builtins-x86_64.a")
 
         // NOTE: -static / -pie are NOT honored here — this path otherwise links a
         // console .exe (crt2.o startup); those link modes are implemented only on the
         // ELF/Linux path. --lib-dyn IS honoured: it passes --shared and names the
         // artifact .dll, matching what LinkWindows does with /dll (reference parity).
         bool buildDll = this.codeGenOpts.getShared()
-        pointer h = fly.os.proc.argsNew()
+        pointer h = proc.argsNew()
         if buildDll {
-            fly.os.proc.argsAdd(h, "--shared")
+            proc.argsAdd(h, "--shared")
             // x86_64 PE DLL entry: dllcrt2.o defines DllMainCRTStartup (no
             // underscore); ld's --shared default is the i386 `_`-prefixed
             // spelling, so name it explicitly (what mingw gcc does with -e).
-            fly.os.proc.argsAdd(h, "--entry")
-            fly.os.proc.argsAdd(h, "DllMainCRTStartup")
+            proc.argsAdd(h, "--entry")
+            proc.argsAdd(h, "DllMainCRTStartup")
         }
-        fly.os.proc.argsAdd(h, "-m")
-        fly.os.proc.argsAdd(h, "i386pep")                       // x86_64 PE emulation
-        fly.os.proc.argsAdd(h, fly.str.concat("-L", slib))
-        fly.os.proc.argsAdd(h, fly.str.concat("-L", builtinsDir))
-        if fly.str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
-            fly.os.proc.argsAdd(h, fly.str.concat("-L", this.codeGenOpts.getToolchainLibDir()))
+        proc.argsAdd(h, "-m")
+        proc.argsAdd(h, "i386pep")                       // x86_64 PE emulation
+        proc.argsAdd(h, str.concat("-L", slib))
+        proc.argsAdd(h, str.concat("-L", builtinsDir))
+        if str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
+            proc.argsAdd(h, str.concat("-L", this.codeGenOpts.getToolchainLibDir()))
         }
         // LLVM import-lib dir, so programs using the LLVM C-API (the compiler's own
         // CodeGen/Target test suites reference `libLLVM-20.so` → `-lLLVM-20`) link.
@@ -536,8 +536,8 @@ public class ToolChain {
         // next to fly.exe (release) or in build/llvm/lib (dev). Skipped if absent —
         // ordinary user programs don't reference LLVM.
         string llvmLibDir = this.getLLVMLibDir()
-        if fly.str.isEmpty(llvmLibDir) == false {
-            fly.os.proc.argsAdd(h, fly.str.concat("-L", llvmLibDir))
+        if str.isEmpty(llvmLibDir) == false {
+            proc.argsAdd(h, str.concat("-L", llvmLibDir))
         }
 
         // CRT startup objects. `___chkstk_ms` (large-frame stack probe) resolves
@@ -546,25 +546,25 @@ public class ToolChain {
         // the console-exe stub whose startup calls main/WinMain, which a library
         // does not have.
         if buildDll {
-            fly.os.proc.argsAdd(h, fly.os.path.join(slib, "dllcrt2.o"))
+            proc.argsAdd(h, path.join(slib, "dllcrt2.o"))
         } else {
-            fly.os.proc.argsAdd(h, fly.os.path.join(slib, "crt2.o"))
+            proc.argsAdd(h, path.join(slib, "crt2.o"))
         }
-        fly.os.proc.argsAdd(h, fly.os.path.join(slib, "crtbegin.o"))
+        proc.argsAdd(h, path.join(slib, "crtbegin.o"))
 
         // User objects.
         int ni = segCount(inFilesSemi)
         int i = 0
-        while i < ni { fly.os.proc.argsAdd(h, segAt(inFilesSemi, i))  i = i + 1 }
+        while i < ni { proc.argsAdd(h, segAt(inFilesSemi, i))  i = i + 1 }
 
         // The Fly std + runtime archives.
         if this.requireFlyArchives() == false {
-            fly.os.proc.argsFree(h)
+            proc.argsFree(h)
             out = false
             return
         }
-        fly.os.proc.argsAdd(h, this.GetStdLibPath())
-        fly.os.proc.argsAdd(h, this.GetRuntimeLibPath())
+        proc.argsAdd(h, this.GetStdLibPath())
+        proc.argsAdd(h, this.GetRuntimeLibPath())
         this.addTlsArchives(h, "-lsecur32", "-lcrypt32")
 
         // User -l options pass through (mingw resolves `-lNAME` → libNAME.a), EXCEPT
@@ -576,44 +576,44 @@ public class ToolChain {
         int li = 0
         while li < nl {
             string opt = segAt(lo, li)
-            if fly.str.equals(opt, "-lc") == false && fly.str.equals(opt, "-lm") == false {
-                fly.os.proc.argsAdd(h, opt)
+            if str.equals(opt, "-lc") == false && str.equals(opt, "-lm") == false {
+                proc.argsAdd(h, opt)
             }
             li = li + 1
         }
 
         // mingw import libs + compiler-rt builtins (libmingw32 brackets the group).
-        fly.os.proc.argsAdd(h, "-lmingw32")
-        if fly.os.fs.exists(builtinsLib) { fly.os.proc.argsAdd(h, builtinsLib) }
-        fly.os.proc.argsAdd(h, "-lmoldname")
-        fly.os.proc.argsAdd(h, "-lmingwex")
-        fly.os.proc.argsAdd(h, "-lmsvcrt")
-        fly.os.proc.argsAdd(h, "-ladvapi32")
-        fly.os.proc.argsAdd(h, "-lshell32")
-        fly.os.proc.argsAdd(h, "-luser32")
-        fly.os.proc.argsAdd(h, "-lkernel32")
-        fly.os.proc.argsAdd(h, "-lntdll")              // RtlGetVersion (runtime env_kernel*)
-        fly.os.proc.argsAdd(h, "-lws2_32")             // Winsock (runtime net_*)
-        fly.os.proc.argsAdd(h, "-lwinhttp")            // WinHTTP (runtime net_https_*)
-        fly.os.proc.argsAdd(h, "-lsynchronization")
-        fly.os.proc.argsAdd(h, "-lmingw32")
-        fly.os.proc.argsAdd(h, fly.os.path.join(slib, "crtend.o"))
+        proc.argsAdd(h, "-lmingw32")
+        if fs.exists(builtinsLib) { proc.argsAdd(h, builtinsLib) }
+        proc.argsAdd(h, "-lmoldname")
+        proc.argsAdd(h, "-lmingwex")
+        proc.argsAdd(h, "-lmsvcrt")
+        proc.argsAdd(h, "-ladvapi32")
+        proc.argsAdd(h, "-lshell32")
+        proc.argsAdd(h, "-luser32")
+        proc.argsAdd(h, "-lkernel32")
+        proc.argsAdd(h, "-lntdll")              // RtlGetVersion (runtime env_kernel*)
+        proc.argsAdd(h, "-lws2_32")             // Winsock (runtime net_*)
+        proc.argsAdd(h, "-lwinhttp")            // WinHTTP (runtime net_https_*)
+        proc.argsAdd(h, "-lsynchronization")
+        proc.argsAdd(h, "-lmingw32")
+        proc.argsAdd(h, path.join(slib, "crtend.o"))
 
-        fly.os.proc.argsAdd(h, "-o")
+        proc.argsAdd(h, "-o")
         // Same rule as LinkWindows: --lib-dyn builds a .dll (with --shared, the GNU
         // spelling of /dll), everything else an .exe; the extension is appended only
         // when -o did not already carry one.
         string gnuOut = outFile
-        if fly.str.isEmpty(fly.os.path.ext(outFile)) {
-            if buildDll { gnuOut = fly.str.concat(outFile, ".dll") }
-            else { gnuOut = fly.str.concat(outFile, ".exe") }
+        if str.isEmpty(path.ext(outFile)) {
+            if buildDll { gnuOut = str.concat(outFile, ".dll") }
+            else { gnuOut = str.concat(outFile, ".exe") }
         }
-        fly.os.proc.argsAdd(h, gnuOut)
+        proc.argsAdd(h, gnuOut)
 
         // Already dispatched here via isOSWindows() → PE/COFF; ld.lld picks the GNU
         // flavour from argv[0] and `-m i386pep` selects x86_64 PE.
         bool ok = this.runLinker("ld.lld", "ld", h)
-        fly.os.proc.argsFree(h)
+        proc.argsFree(h)
         out = ok
     }
 
@@ -623,17 +623,17 @@ public class ToolChain {
     // driven only by CLI flags — no env var here; the ci scripts pass the flag.
     public string getMingwSysrootDir() {
         string ovr = this.codeGenOpts.getMingwSysrootDir()
-        if fly.str.isEmpty(ovr) == false {
-            if fly.os.fs.exists(ovr) { out = ovr  return }
+        if str.isEmpty(ovr) == false {
+            if fs.exists(ovr) { out = ovr  return }
         }
-        string exe = fly.os.env.exePath()
-        if fly.str.isEmpty(exe) == false {
-            string dir = fly.os.path.dirname(exe)
-            string s1 = fly.os.path.join(dir, "mingw")
-            if fly.os.fs.exists(s1) { out = s1  return }
-            string build = fly.os.path.dirname(fly.os.path.dirname(dir))
-            string s2 = fly.os.path.join(build, "mingw")
-            if fly.os.fs.exists(s2) { out = s2  return }
+        string exe = env.exePath()
+        if str.isEmpty(exe) == false {
+            string dir = path.dirname(exe)
+            string s1 = path.join(dir, "mingw")
+            if fs.exists(s1) { out = s1  return }
+            string build = path.dirname(path.dirname(dir))
+            string s2 = path.join(build, "mingw")
+            if fs.exists(s2) { out = s2  return }
         }
         out = ""
     }
@@ -643,12 +643,12 @@ public class ToolChain {
     // <exe>/../llvm/lib, <exe>/../../llvm/lib). Pure, so ToolChainSuite can pin
     // the order without touching the filesystem.
     public string llvmLibDirCandidates(const string exeDir) {
-        string s1 = fly.os.path.join(fly.os.path.join(exeDir, "llvm"), "lib")
-        string parent = fly.os.path.dirname(exeDir)
-        string s2 = fly.os.path.join(fly.os.path.join(parent, "llvm"), "lib")
-        string build = fly.os.path.dirname(parent)
-        string s3 = fly.os.path.join(fly.os.path.join(build, "llvm"), "lib")
-        out = fly.str.concat(s1, fly.str.concat(";", fly.str.concat(s2, fly.str.concat(";", s3))))
+        string s1 = path.join(path.join(exeDir, "llvm"), "lib")
+        string parent = path.dirname(exeDir)
+        string s2 = path.join(path.join(parent, "llvm"), "lib")
+        string build = path.dirname(parent)
+        string s3 = path.join(path.join(build, "llvm"), "lib")
+        out = str.concat(s1, str.concat(";", str.concat(s2, str.concat(";", s3))))
     }
 
     // getLLVMLibDir — locate the dir holding the LLVM import lib (LLVM-20.lib, the
@@ -660,24 +660,24 @@ public class ToolChain {
     // "" if none found (ordinary programs don't need LLVM).
     public string getLLVMLibDir() {
         string ovr = this.codeGenOpts.getLlvmLibDir()
-        if fly.str.isEmpty(ovr) == false {
-            if fly.os.fs.exists(ovr) { out = ovr  return }
+        if str.isEmpty(ovr) == false {
+            if fs.exists(ovr) { out = ovr  return }
         }
-        string exe = fly.os.env.exePath()
-        if fly.str.isEmpty(exe) == false {
-            string rest = this.llvmLibDirCandidates(fly.os.path.dirname(exe))
-            while fly.str.isEmpty(rest) == false {
+        string exe = env.exePath()
+        if str.isEmpty(exe) == false {
+            string rest = this.llvmLibDirCandidates(path.dirname(exe))
+            while str.isEmpty(rest) == false {
                 string cand = rest
-                int sep = fly.str.indexOf(rest, ";")
+                int sep = str.indexOf(rest, ";")
                 if sep >= 0 {
-                    cand = fly.str.substring(rest, 0, sep)
+                    cand = str.substring(rest, 0, sep)
                     // distinct temp: `x = substring(x, …)` would self-alias
-                    string tail = fly.str.substring(rest, sep + 1, fly.str.len(rest))
+                    string tail = str.substring(rest, sep + 1, str.len(rest))
                     rest = tail
                 } else {
                     rest = ""
                 }
-                if fly.os.fs.exists(cand) { out = cand  return }
+                if fs.exists(cand) { out = cand  return }
             }
         }
         out = ""
@@ -729,9 +729,9 @@ public class ToolChain {
         int i = 0
         while i < n {
             string dir = segAt(pathList, i)
-            if fly.str.isEmpty(dir) == false {
-                string p = fly.os.path.join(dir, name)
-                if fly.os.fs.exists(p) { out = p  return }
+            if str.isEmpty(dir) == false {
+                string p = path.join(dir, name)
+                if fs.exists(p) { out = p  return }
             }
             i = i + 1
         }
@@ -742,8 +742,8 @@ public class ToolChain {
         int n = segCount(pathList)
         int i = 0
         while i < n {
-            string p = fly.os.path.join(segAt(pathList, i), name)
-            if fly.os.fs.exists(p) { out = p  return }
+            string p = path.join(segAt(pathList, i), name)
+            if fs.exists(p) { out = p  return }
             i = i + 1
         }
         out = ""
@@ -755,46 +755,46 @@ public class ToolChain {
         bool isAndroid = this.t.isAndroid()
         if a == Arch.ARM {
             if isAndroid { out = "arm-linux-androideabi"  return }
-            if fly.os.fs.exists("/lib/arm-linux-gnueabihf") { out = "arm-linux-gnueabihf"  return }
-            if fly.os.fs.exists("/lib/arm-linux-gnueabi")   { out = "arm-linux-gnueabi"    return }
+            if fs.exists("/lib/arm-linux-gnueabihf") { out = "arm-linux-gnueabihf"  return }
+            if fs.exists("/lib/arm-linux-gnueabi")   { out = "arm-linux-gnueabi"    return }
         } elsif a == Arch.ARMEB {
-            if fly.os.fs.exists("/lib/armeb-linux-gnueabi") { out = "armeb-linux-gnueabi"  return }
+            if fs.exists("/lib/armeb-linux-gnueabi") { out = "armeb-linux-gnueabi"  return }
         } elsif a == Arch.X86 {
             if isAndroid { out = "i686-linux-android"  return }
-            if fly.os.fs.exists("/lib/i386-linux-gnu") { out = "i386-linux-gnu"  return }
+            if fs.exists("/lib/i386-linux-gnu") { out = "i386-linux-gnu"  return }
         } elsif a == Arch.X86_64 {
             if isAndroid { out = "x86_64-linux-android"  return }
-            if this.t.isX32() == false && fly.os.fs.exists("/lib/x86_64-linux-gnu") { out = "x86_64-linux-gnu"  return }
+            if this.t.isX32() == false && fs.exists("/lib/x86_64-linux-gnu") { out = "x86_64-linux-gnu"  return }
         } elsif a == Arch.AARCH64 {
             if isAndroid { out = "aarch64-linux-android"  return }
-            if fly.os.fs.exists("/lib/aarch64-linux-gnu") { out = "aarch64-linux-gnu"  return }
+            if fs.exists("/lib/aarch64-linux-gnu") { out = "aarch64-linux-gnu"  return }
         } elsif a == Arch.AARCH64_BE {
-            if fly.os.fs.exists("/lib/aarch64_be-linux-gnu") { out = "aarch64_be-linux-gnu"  return }
+            if fs.exists("/lib/aarch64_be-linux-gnu") { out = "aarch64_be-linux-gnu"  return }
         } elsif a == Arch.MIPS {
-            if fly.os.fs.exists("/lib/mips-linux-gnu") { out = "mips-linux-gnu"  return }
+            if fs.exists("/lib/mips-linux-gnu") { out = "mips-linux-gnu"  return }
         } elsif a == Arch.MIPSEL {
             if isAndroid { out = "mipsel-linux-android"  return }
-            if fly.os.fs.exists("/lib/mipsel-linux-gnu") { out = "mipsel-linux-gnu"  return }
+            if fs.exists("/lib/mipsel-linux-gnu") { out = "mipsel-linux-gnu"  return }
         } elsif a == Arch.MIPS64 {
-            if fly.os.fs.exists("/lib/mips64-linux-gnuabi64") { out = "mips64-linux-gnuabi64"  return }
-            if fly.os.fs.exists("/lib/mips64-linux-gnu")      { out = "mips64-linux-gnu"       return }
+            if fs.exists("/lib/mips64-linux-gnuabi64") { out = "mips64-linux-gnuabi64"  return }
+            if fs.exists("/lib/mips64-linux-gnu")      { out = "mips64-linux-gnu"       return }
         } elsif a == Arch.MIPS64EL {
             if isAndroid { out = "mips64el-linux-android"  return }
-            if fly.os.fs.exists("/lib/mips64el-linux-gnuabi64") { out = "mips64el-linux-gnuabi64"  return }
-            if fly.os.fs.exists("/lib/mips64el-linux-gnu")      { out = "mips64el-linux-gnu"       return }
+            if fs.exists("/lib/mips64el-linux-gnuabi64") { out = "mips64el-linux-gnuabi64"  return }
+            if fs.exists("/lib/mips64el-linux-gnu")      { out = "mips64el-linux-gnu"       return }
         } elsif a == Arch.PPC {
-            if fly.os.fs.exists("/lib/powerpc-linux-gnuspe") { out = "powerpc-linux-gnuspe"  return }
-            if fly.os.fs.exists("/lib/powerpc-linux-gnu")    { out = "powerpc-linux-gnu"     return }
+            if fs.exists("/lib/powerpc-linux-gnuspe") { out = "powerpc-linux-gnuspe"  return }
+            if fs.exists("/lib/powerpc-linux-gnu")    { out = "powerpc-linux-gnu"     return }
         } elsif a == Arch.PPC64 {
-            if fly.os.fs.exists("/lib/powerpc64-linux-gnu") { out = "powerpc64-linux-gnu"  return }
+            if fs.exists("/lib/powerpc64-linux-gnu") { out = "powerpc64-linux-gnu"  return }
         } elsif a == Arch.PPC64LE {
-            if fly.os.fs.exists("/lib/powerpc64le-linux-gnu") { out = "powerpc64le-linux-gnu"  return }
+            if fs.exists("/lib/powerpc64le-linux-gnu") { out = "powerpc64le-linux-gnu"  return }
         } elsif a == Arch.SPARC {
-            if fly.os.fs.exists("/lib/sparc-linux-gnu") { out = "sparc-linux-gnu"  return }
+            if fs.exists("/lib/sparc-linux-gnu") { out = "sparc-linux-gnu"  return }
         } elsif a == Arch.SPARCV9 {
-            if fly.os.fs.exists("/lib/sparc64-linux-gnu") { out = "sparc64-linux-gnu"  return }
+            if fs.exists("/lib/sparc64-linux-gnu") { out = "sparc64-linux-gnu"  return }
         } elsif a == Arch.SYSTEMZ {
-            if fly.os.fs.exists("/lib/s390x-linux-gnu") { out = "s390x-linux-gnu"  return }
+            if fs.exists("/lib/s390x-linux-gnu") { out = "s390x-linux-gnu"  return }
         }
         out = this.t.getTriple()
     }
@@ -814,32 +814,32 @@ public class ToolChain {
         string multiarch = this.getMultiarch()
         string osLibDir = this.getOSLibDir()
 
-        string osLib = fly.str.concat("/", osLibDir)
-        if fly.os.fs.exists(osLib) { list = segAppend(list, osLib) }
+        string osLib = str.concat("/", osLibDir)
+        if fs.exists(osLib) { list = segAppend(list, osLib) }
 
-        if fly.str.equals(osLib, "/lib") == false {
-            if fly.os.fs.exists("/lib") { list = segAppend(list, "/lib") }
+        if str.equals(osLib, "/lib") == false {
+            if fs.exists("/lib") { list = segAppend(list, "/lib") }
         }
-        if fly.os.fs.exists("/usr/lib") { list = segAppend(list, "/usr/lib") }
-        if fly.os.fs.exists("/usr/local/lib") { list = segAppend(list, "/usr/local/lib") }
+        if fs.exists("/usr/lib") { list = segAppend(list, "/usr/lib") }
+        if fs.exists("/usr/local/lib") { list = segAppend(list, "/usr/local/lib") }
 
-        string usrLocalArch = fly.os.path.join("/usr/local/lib", multiarch)
-        if fly.os.fs.exists(usrLocalArch) { list = segAppend(list, usrLocalArch) }
-        string libArch = fly.os.path.join("/lib", multiarch)
-        if fly.os.fs.exists(libArch) { list = segAppend(list, libArch) }
-        string usrLibArch = fly.os.path.join("/usr/lib", multiarch)
-        if fly.os.fs.exists(usrLibArch) { list = segAppend(list, usrLibArch) }
+        string usrLocalArch = path.join("/usr/local/lib", multiarch)
+        if fs.exists(usrLocalArch) { list = segAppend(list, usrLocalArch) }
+        string libArch = path.join("/lib", multiarch)
+        if fs.exists(libArch) { list = segAppend(list, libArch) }
+        string usrLibArch = path.join("/usr/lib", multiarch)
+        if fs.exists(usrLibArch) { list = segAppend(list, usrLibArch) }
 
         // GCC dir (libgcc_eh.a etc.). The C++ scans the directory for the newest
         // version subdir; the self-host appends the base dir plus a fixed probe of
         // the common major-version subdirs (where libgcc*/crt* actually live).
-        string gccBase = fly.os.path.join("/usr/lib/gcc", multiarch)
-        if fly.os.fs.exists(gccBase) {
+        string gccBase = path.join("/usr/lib/gcc", multiarch)
+        if fs.exists(gccBase) {
             list = segAppend(list, gccBase)
             int gv = 15
             while gv >= 9 {
-                string vdir = fly.os.path.join(gccBase, fly.str.convert(gv))
-                if fly.os.fs.exists(vdir) { list = segAppend(list, vdir) }
+                string vdir = path.join(gccBase, str.convert(gv))
+                if fs.exists(vdir) { list = segAppend(list, vdir) }
                 gv = gv - 1
             }
         }
@@ -853,12 +853,12 @@ public class ToolChain {
     public bool requireFlyArchives() {
         bool ok = true
         string base = this.codeGenOpts.getRuntimeLibDir()
-        if fly.str.isEmpty(this.GetStdLibPath()) {
-            fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: fly_std_lib archive not found under '", base), "' (set --runtime-lib-dir)"))
+        if str.isEmpty(this.GetStdLibPath()) {
+            io.printErrLn(str.concat(str.concat("error: fly_std_lib archive not found under '", base), "' (set --runtime-lib-dir)"))
             ok = false
         }
-        if fly.str.isEmpty(this.GetRuntimeLibPath()) {
-            fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: fly_runtime_lib archive not found under '", base), "' (set --runtime-lib-dir)"))
+        if str.isEmpty(this.GetRuntimeLibPath()) {
+            io.printErrLn(str.concat(str.concat("error: fly_runtime_lib archive not found under '", base), "' (set --runtime-lib-dir)"))
             ok = false
         }
         out = ok
@@ -867,19 +867,19 @@ public class ToolChain {
     // GetStdLibPath / GetRuntimeLibPath — locate the Fly archives under runtimeLibDir.
     public string GetStdLibPath() {
         string base = this.codeGenOpts.getRuntimeLibDir()
-        string p1 = fly.os.path.join(base, "fly_std_lib.a")
-        if fly.os.fs.exists(p1) { out = p1  return }
-        string p2 = fly.os.path.join(base, "fly_std_lib.lib")
-        if fly.os.fs.exists(p2) { out = p2  return }
+        string p1 = path.join(base, "fly_std_lib.a")
+        if fs.exists(p1) { out = p1  return }
+        string p2 = path.join(base, "fly_std_lib.lib")
+        if fs.exists(p2) { out = p2  return }
         out = ""
     }
 
     public string GetRuntimeLibPath() {
         string base = this.codeGenOpts.getRuntimeLibDir()
-        string p1 = fly.os.path.join(base, "fly_runtime_lib.a")
-        if fly.os.fs.exists(p1) { out = p1  return }
-        string p2 = fly.os.path.join(base, "fly_runtime_lib.lib")
-        if fly.os.fs.exists(p2) { out = p2  return }
+        string p1 = path.join(base, "fly_runtime_lib.a")
+        if fs.exists(p1) { out = p1  return }
+        string p2 = path.join(base, "fly_runtime_lib.lib")
+        if fs.exists(p2) { out = p2  return }
         out = ""
     }
 
@@ -899,19 +899,19 @@ public class ToolChain {
     // a far worse regression than "TLS needs a flag".
     public string GetTlsLibPath() {
         string base = this.codeGenOpts.getRuntimeLibDir()
-        string p1 = fly.os.path.join(base, "fly_tls_lib.a")
-        if fly.os.fs.exists(p1) { out = p1  return }
-        string p2 = fly.os.path.join(base, "fly_tls_lib.lib")
-        if fly.os.fs.exists(p2) { out = p2  return }
+        string p1 = path.join(base, "fly_tls_lib.a")
+        if fs.exists(p1) { out = p1  return }
+        string p2 = path.join(base, "fly_tls_lib.lib")
+        if fs.exists(p2) { out = p2  return }
         out = ""
     }
 
     public string GetTlsStubPath() {
         string base = this.codeGenOpts.getRuntimeLibDir()
-        string p1 = fly.os.path.join(base, "fly_tls_stub.a")
-        if fly.os.fs.exists(p1) { out = p1  return }
-        string p2 = fly.os.path.join(base, "fly_tls_stub.lib")
-        if fly.os.fs.exists(p2) { out = p2  return }
+        string p1 = path.join(base, "fly_tls_stub.a")
+        if fs.exists(p1) { out = p1  return }
+        string p2 = path.join(base, "fly_tls_stub.lib")
+        if fs.exists(p2) { out = p2  return }
         out = ""
     }
 
@@ -928,10 +928,10 @@ public class ToolChain {
         bool tookReal = false
         if this.codeGenOpts.getEnableTls() {
             string real = this.GetTlsLibPath()
-            if fly.str.isEmpty(real) == false {
-                fly.os.proc.argsAdd(h, real)
-                if fly.str.isEmpty(dep1) == false { fly.os.proc.argsAdd(h, dep1) }
-                if fly.str.isEmpty(dep2) == false { fly.os.proc.argsAdd(h, dep2) }
+            if str.isEmpty(real) == false {
+                proc.argsAdd(h, real)
+                if str.isEmpty(dep1) == false { proc.argsAdd(h, dep1) }
+                if str.isEmpty(dep2) == false { proc.argsAdd(h, dep2) }
                 tookReal = true
             }
         }
@@ -949,30 +949,30 @@ public class ToolChain {
         // the stub exists for builds with no backend.
         if tookReal == false {
             string stub = this.GetTlsStubPath()
-            if fly.str.isEmpty(stub) == false { fly.os.proc.argsAdd(h, stub) }
+            if str.isEmpty(stub) == false { proc.argsAdd(h, stub) }
         }
     }
 
     // GetCompilerRTBuiltinsPath — libclang_rt.builtins for the target. (cpp:1383)
     public string GetCompilerRTBuiltinsPath() {
         string suffix = archToCompilerRTSuffix(this.t.getArch())
-        if fly.str.isEmpty(suffix) { out = ""  return }
+        if str.isEmpty(suffix) { out = ""  return }
 
         string major = llvmMajor()
         string tripleDir = this.t.getTriple()
         string newLib = "libclang_rt.builtins.a"
-        string oldLib = fly.str.concat(fly.str.concat("libclang_rt.builtins-", suffix), ".a")
-        string sysBase = fly.str.concat("/usr/lib/llvm-", major)
+        string oldLib = str.concat(str.concat("libclang_rt.builtins-", suffix), ".a")
+        string sysBase = str.concat("/usr/lib/llvm-", major)
 
         // 1) system new-style: /usr/lib/llvm-20/lib/clang/20/lib/<triple>/libclang_rt.builtins.a
-        string c1 = fly.os.path.join(fly.os.path.join(fly.os.path.join(sysBase, fly.str.concat("lib/clang/", fly.str.concat(major, "/lib"))), tripleDir), newLib)
-        if fly.os.fs.exists(c1) { out = c1  return }
+        string c1 = path.join(path.join(path.join(sysBase, str.concat("lib/clang/", str.concat(major, "/lib"))), tripleDir), newLib)
+        if fs.exists(c1) { out = c1  return }
         // 2) system legacy: .../lib/clang/20/lib/linux/libclang_rt.builtins-<arch>.a
-        string c2 = fly.os.path.join(fly.os.path.join(sysBase, fly.str.concat("lib/clang/", fly.str.concat(major, "/lib/linux"))), oldLib)
-        if fly.os.fs.exists(c2) { out = c2  return }
+        string c2 = path.join(path.join(sysBase, str.concat("lib/clang/", str.concat(major, "/lib/linux"))), oldLib)
+        if fs.exists(c2) { out = c2  return }
         // 3) /usr/lib/clang/20/lib/linux/libclang_rt.builtins-<arch>.a
-        string c3 = fly.os.path.join(fly.str.concat("/usr/lib/clang/", fly.str.concat(major, "/lib/linux")), oldLib)
-        if fly.os.fs.exists(c3) { out = c3  return }
+        string c3 = path.join(str.concat("/usr/lib/clang/", str.concat(major, "/lib/linux")), oldLib)
+        if fs.exists(c3) { out = c3  return }
         out = ""
     }
 }

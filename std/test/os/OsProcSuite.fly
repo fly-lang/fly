@@ -138,38 +138,38 @@ suite OsProcSuite {
         case "argsNew returns a handle with an empty list": {
             pointer h = proc.argsNew()
             assert.assertNotNull(h, 101)
-            assert.assertEqI(fly.mem.readInt(h, 8), 0, 102)      // count
-            assert.assertEqI(fly.mem.readInt(h, 12), 4, 103)     // initial cap
-            assert.assertNotNull(fly.mem.readPtr(h, 0), 104)     // items
+            assert.assertEqI(mem.readInt(h, 8), 0, 102)      // count
+            assert.assertEqI(mem.readInt(h, 12), 4, 103)     // initial cap
+            assert.assertNotNull(mem.readPtr(h, 0), 104)     // items
             proc.argsFree(h)
         }
         case "argsAdd bumps the count": {
             pointer h = proc.argsNew()
             proc.argsAdd(h, "one")
-            assert.assertEqI(fly.mem.readInt(h, 8), 1, 105)
+            assert.assertEqI(mem.readInt(h, 8), 1, 105)
             proc.argsAdd(h, "two")
-            assert.assertEqI(fly.mem.readInt(h, 8), 2, 106)
+            assert.assertEqI(mem.readInt(h, 8), 2, 106)
             proc.argsFree(h)
         }
         case "each argument is stored as its own C-string": {
             pointer h = proc.argsNew()
             proc.argsAdd(h, "abc")
-            pointer items = fly.mem.readPtr(h, 0)
-            pointer cs = fly.mem.readPtr(items, 0)
+            pointer items = mem.readPtr(h, 0)
+            pointer cs = mem.readPtr(items, 0)
             assert.assertNotNull(cs, 107)
-            assert.assertEqI((int)fly.mem.readByte(cs, 0) & 255, 97, 108)   // 'a'
-            assert.assertEqI((int)fly.mem.readByte(cs, 2) & 255, 99, 109)   // 'c'
-            assert.assertEqI((int)fly.mem.readByte(cs, 3) & 255, 0, 110)    // NUL
+            assert.assertEqI((int)mem.readByte(cs, 0) & 255, 97, 108)   // 'a'
+            assert.assertEqI((int)mem.readByte(cs, 2) & 255, 99, 109)   // 'c'
+            assert.assertEqI((int)mem.readByte(cs, 3) & 255, 0, 110)    // NUL
             proc.argsFree(h)
         }
         case "an empty argument is a lone NUL": {
             pointer h = proc.argsNew()
             proc.argsAdd(h, "")
-            pointer items = fly.mem.readPtr(h, 0)
-            pointer cs = fly.mem.readPtr(items, 0)
+            pointer items = mem.readPtr(h, 0)
+            pointer cs = mem.readPtr(items, 0)
             assert.assertNotNull(cs, 111)
-            assert.assertEqI((int)fly.mem.readByte(cs, 0) & 255, 0, 112)
-            assert.assertEqI(fly.mem.readInt(h, 8), 1, 113)
+            assert.assertEqI((int)mem.readByte(cs, 0) & 255, 0, 112)
+            assert.assertEqI(mem.readInt(h, 8), 1, 113)
             proc.argsFree(h)
         }
         case "the null handle is tolerated everywhere": {
@@ -181,8 +181,8 @@ suite OsProcSuite {
             pointer a = proc.argsNew()
             pointer b = proc.argsNew()
             proc.argsAdd(a, "one")
-            assert.assertEqI(fly.mem.readInt(a, 8), 1, 115)
-            assert.assertEqI(fly.mem.readInt(b, 8), 0, 116)
+            assert.assertEqI(mem.readInt(a, 8), 1, 115)
+            assert.assertEqI(mem.readInt(b, 8), 0, 116)
             proc.argsFree(a)
             proc.argsFree(b)
         }
@@ -196,10 +196,10 @@ suite OsProcSuite {
             proc.argsAdd(h, "b")
             proc.argsAdd(h, "c")
             proc.argsAdd(h, "d")
-            assert.assertEqI(fly.mem.readInt(h, 12), 4, 201)     // still at cap
+            assert.assertEqI(mem.readInt(h, 12), 4, 201)     // still at cap
             proc.argsAdd(h, "e")
-            assert.assertEqI(fly.mem.readInt(h, 8), 5, 202)
-            assert.assertEqI(fly.mem.readInt(h, 12), 8, 203)     // doubled
+            assert.assertEqI(mem.readInt(h, 8), 5, 202)
+            assert.assertEqI(mem.readInt(h, 12), 8, 203)     // doubled
             proc.argsFree(h)
         }
         case "repeated doubling keeps every argument": {
@@ -209,20 +209,20 @@ suite OsProcSuite {
                 proc.argsAdd(h, str.concat("arg", str.convert(i)))
                 i = i + 1
             }
-            assert.assertEqI(fly.mem.readInt(h, 8), 40, 204)
-            assert.assertGtI(fly.mem.readInt(h, 12), 39, 205)    // cap grew to fit
+            assert.assertEqI(mem.readInt(h, 8), 40, 204)
+            assert.assertGtI(mem.readInt(h, 12), 39, 205)    // cap grew to fit
             // Every slot must still hold a live C-string, including the first,
             // which survived several reallocs of the items array.
-            pointer items = fly.mem.readPtr(h, 0)
+            pointer items = mem.readPtr(h, 0)
             bool allSet = true
             i = 0
             while i < 40 {
-                if fly.mem.isNull(fly.mem.readPtr(items, i * 8)) { allSet = false }
+                if mem.isNull(mem.readPtr(items, i * 8)) { allSet = false }
                 i = i + 1
             }
             assert.assertTrue(allSet, 206)
-            pointer first = fly.mem.readPtr(items, 0)
-            assert.assertEqI((int)fly.mem.readByte(first, 0) & 255, 97, 207)   // 'a'
+            pointer first = mem.readPtr(items, 0)
+            assert.assertEqI((int)mem.readByte(first, 0) & 255, 97, 207)   // 'a'
             proc.argsFree(h)
         }
         case "a fresh list after a freed one": {
@@ -230,7 +230,7 @@ suite OsProcSuite {
             proc.argsAdd(h, "x")
             proc.argsFree(h)
             pointer h2 = proc.argsNew()
-            assert.assertEqI(fly.mem.readInt(h2, 8), 0, 208)
+            assert.assertEqI(mem.readInt(h2, 8), 0, 208)
             proc.argsFree(h2)
         }
     }

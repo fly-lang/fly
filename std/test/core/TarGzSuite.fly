@@ -41,25 +41,25 @@ string fixturePath() {
 // withByte — a copy of s with one byte replaced. Corrupting a specific field of
 // the archive is how the error paths are reached deterministically.
 string withByte(const string s, const int idx, const int val) {
-    int n = fly.str.len(s)
-    pointer b = fly.mem.alloc(n)
+    int n = str.len(s)
+    pointer b = mem.alloc(n)
     int i = 0
     while i < n {
         byte v = 0
-        fly.str.byteAt(s, i, v)
-        fly.mem.writeByte(b, i, v)
+        str.byteAt(s, i, v)
+        mem.writeByte(b, i, v)
         i = i + 1
     }
     int m = val & 255
-    fly.mem.writeByte(b, idx, (byte)m)
+    mem.writeByte(b, idx, (byte)m)
     string r = ""
-    fly.str.fromBytes(b, n, r)
+    str.fromBytes(b, n, r)
     out = r
 }
 
 // digestOf — the bare hex SHA-256 of a string's bytes.
 string digestOf(const string s) {
-    out = fly.hash.sha256Hex(s)
+    out = hash.sha256Hex(s)
 }
 
 // The four expected digests, from sha256sum on the pre-archive files.
@@ -78,32 +78,32 @@ suite TarGzSuite {
     // ── gzip framing ─────────────────────────────────────────────────────────
     void gzipFramingTest() {
         case "the fixture is present and is a gzip stream": {
-            assert.assertTrue(fly.os.fs.exists(fixturePath()), 101)
-            string raw = fly.os.fs.readBytes(fixturePath())
-            assert.assertTrue(fly.str.len(raw) > 100, 102)
-            assert.assertTrue(fly.targz.isGzip(raw), 103)
+            assert.assertTrue(fs.exists(fixturePath()), 101)
+            string raw = fs.readBytes(fixturePath())
+            assert.assertTrue(str.len(raw) > 100, 102)
+            assert.assertTrue(targz.isGzip(raw), 103)
         }
         case "isGzip rejects everything else": {
-            assert.assertFalse(fly.targz.isGzip(""), 104)
-            assert.assertFalse(fly.targz.isGzip("PK"), 105)
-            assert.assertFalse(fly.targz.isGzip("not an archive at all"), 106)
+            assert.assertFalse(targz.isGzip(""), 104)
+            assert.assertFalse(targz.isGzip("PK"), 105)
+            assert.assertFalse(targz.isGzip("not an archive at all"), 106)
         }
         case "a non-gzip input is error 2, a short one error 1": {
             int e = 0
-            fly.targz.gunzip("this is plain text, definitely not gzip", e)
+            targz.gunzip("this is plain text, definitely not gzip", e)
             assert.assertEqI(e, 2, 107)
             int e2 = 0
-            fly.targz.gunzip("ab", e2)
+            targz.gunzip("ab", e2)
             assert.assertEqI(e2, 1, 108)
         }
         case "gzip magic with an unknown method is error 3, not error 2": {
             // 0x1F 0x8B but CM = 9: it IS gzip, we just cannot read it. The two
             // cases are worth distinguishing — one means "wrong file", the other
             // means "right file, unsupported".
-            string raw = fly.os.fs.readBytes(fixturePath())
+            string raw = fs.readBytes(fixturePath())
             string bad = withByte(raw, 2, 9)
             int e = 0
-            fly.targz.gunzip(bad, e)
+            targz.gunzip(bad, e)
             assert.assertEqI(e, 3, 109)
         }
     }
@@ -111,24 +111,24 @@ suite TarGzSuite {
     // ── decompression ────────────────────────────────────────────────────────
     void inflateTest() {
         case "gunzip produces a well-formed tar image": {
-            string raw = fly.os.fs.readBytes(fixturePath())
+            string raw = fs.readBytes(fixturePath())
             int e = 0
-            string tarBytes = fly.targz.gunzip(raw, e)
+            string tarBytes = targz.gunzip(raw, e)
             assert.assertEqI(e, 0, 201)
-            int n = fly.str.len(tarBytes)
+            int n = str.len(tarBytes)
             assert.assertTrue(n > 0, 202)
             // A tar image is always a whole number of 512-byte blocks. If the
             // ISIZE check in gunzip were wrong this would be the symptom.
             assert.assertEqI(n % 512, 0, 203)
             // ustar magic sits at offset 257 of the first header.
-            assert.assertStr(fly.str.substring(tarBytes, 257, 262), "ustar", 204)
+            assert.assertStr(str.substring(tarBytes, 257, 262), "ustar", 204)
         }
         case "decompression is deterministic": {
-            string raw = fly.os.fs.readBytes(fixturePath())
+            string raw = fs.readBytes(fixturePath())
             int e1 = 0
             int e2 = 0
-            string a = fly.targz.gunzip(raw, e1)
-            string b = fly.targz.gunzip(raw, e2)
+            string a = targz.gunzip(raw, e1)
+            string b = targz.gunzip(raw, e2)
             assert.assertEqI(e1, 0, 205)
             assert.assertEqI(e2, 0, 206)
             assert.assertStr(digestOf(a), digestOf(b), 207)
@@ -138,11 +138,11 @@ suite TarGzSuite {
     // ── tar enumeration ──────────────────────────────────────────────────────
     void tarReadTest() {
         case "every member is enumerated, files and directories alike": {
-            string raw = fly.os.fs.readBytes(fixturePath())
+            string raw = fs.readBytes(fixturePath())
             int e = 0
-            string tarBytes = fly.targz.gunzip(raw, e)
+            string tarBytes = targz.gunzip(raw, e)
             assert.assertEqI(e, 0, 301)
-            pointer h = fly.targz.tarOpen(tarBytes)
+            pointer h = targz.tarOpen(tarBytes)
             assert.assertTrue(h != 0, 302)
             if h != 0 {
                 int files = 0
@@ -150,15 +150,15 @@ suite TarGzSuite {
                 int total = 0
                 bool sawLeaf = false
                 bool sawBlob = false
-                while fly.targz.tarNext(h) {
+                while targz.tarNext(h) {
                     total = total + 1
-                    if fly.targz.tarIsDir(h) { dirs = dirs + 1 }
-                    if fly.targz.tarIsFile(h) { files = files + 1 }
-                    string nm = fly.targz.tarName(h)
-                    if fly.str.equals(nm, longLeaf()) { sawLeaf = true }
-                    if fly.str.equals(nm, "pkg/src/blob.bin") { sawBlob = true }
+                    if targz.tarIsDir(h) { dirs = dirs + 1 }
+                    if targz.tarIsFile(h) { files = files + 1 }
+                    string nm = targz.tarName(h)
+                    if str.equals(nm, longLeaf()) { sawLeaf = true }
+                    if str.equals(nm, "pkg/src/blob.bin") { sawBlob = true }
                 }
-                assert.assertEqI(fly.targz.tarErr(h), 0, 303)
+                assert.assertEqI(targz.tarErr(h), 0, 303)
                 assert.assertEqI(total, 22, 304)
                 assert.assertEqI(files, 5, 305)
                 assert.assertEqI(dirs, 17, 306)
@@ -166,28 +166,28 @@ suite TarGzSuite {
                 // The 101-character path only comes back intact if the ustar
                 // prefix field (or the GNU long-name record) was handled.
                 assert.assertTrue(sawLeaf, 308)
-                fly.targz.tarFree(h)
+                targz.tarFree(h)
             }
         }
         case "sizes come from the header, including the zero-length entry": {
-            string raw = fly.os.fs.readBytes(fixturePath())
+            string raw = fs.readBytes(fixturePath())
             int e = 0
-            pointer h = fly.targz.tarOpen(fly.targz.gunzip(raw, e))
+            pointer h = targz.tarOpen(targz.gunzip(raw, e))
             assert.assertTrue(h != 0, 309)
             if h != 0 {
                 long blobSize = 0 - 1
                 long emptySize = 0 - 1
                 long readmeSize = 0 - 1
-                while fly.targz.tarNext(h) {
-                    string nm = fly.targz.tarName(h)
-                    if fly.str.equals(nm, "pkg/src/blob.bin") { blobSize = fly.targz.tarSize(h) }
-                    if fly.str.equals(nm, "pkg/empty") { emptySize = fly.targz.tarSize(h) }
-                    if fly.str.equals(nm, "pkg/README.md") { readmeSize = fly.targz.tarSize(h) }
+                while targz.tarNext(h) {
+                    string nm = targz.tarName(h)
+                    if str.equals(nm, "pkg/src/blob.bin") { blobSize = targz.tarSize(h) }
+                    if str.equals(nm, "pkg/empty") { emptySize = targz.tarSize(h) }
+                    if str.equals(nm, "pkg/README.md") { readmeSize = targz.tarSize(h) }
                 }
                 assert.assertEqL(blobSize, 3000, 310)
                 assert.assertEqL(emptySize, 0, 311)
                 assert.assertEqL(readmeSize, 27, 312)
-                fly.targz.tarFree(h)
+                targz.tarFree(h)
             }
         }
         case "a pure-ustar archive splits the long path across prefix and name": {
@@ -198,39 +198,39 @@ suite TarGzSuite {
             // header offset 345 and the 100-byte `name` field at 0. Reassembling
             // them is where the offset arithmetic can go wrong for every header
             // after the first, and nothing else in this suite would notice.
-            string raw = fly.os.fs.readBytes("std/test/fixtures/ustar.tar.gz")
-            assert.assertTrue(fly.str.len(raw) > 0, 320)
+            string raw = fs.readBytes("std/test/fixtures/ustar.tar.gz")
+            assert.assertTrue(str.len(raw) > 0, 320)
             int e = 0
-            pointer h = fly.targz.tarOpen(fly.targz.gunzip(raw, e))
+            pointer h = targz.tarOpen(targz.gunzip(raw, e))
             assert.assertEqI(e, 0, 321)
             assert.assertTrue(h != 0, 322)
             if h != 0 {
                 bool sawLeaf = false
                 bool sawReadme = false
                 string leafBody = ""
-                while fly.targz.tarNext(h) {
-                    string nm = fly.targz.tarName(h)
-                    if fly.str.equals(nm, longLeaf()) {
+                while targz.tarNext(h) {
+                    string nm = targz.tarName(h)
+                    if str.equals(nm, longLeaf()) {
                         sawLeaf = true
-                        leafBody = fly.targz.tarData(h)
+                        leafBody = targz.tarData(h)
                     }
-                    if fly.str.equals(nm, "pkg/README.md") { sawReadme = true }
+                    if str.equals(nm, "pkg/README.md") { sawReadme = true }
                 }
-                assert.assertEqI(fly.targz.tarErr(h), 0, 323)
+                assert.assertEqI(targz.tarErr(h), 0, 323)
                 assert.assertTrue(sawReadme, 324)
                 assert.assertTrue(sawLeaf, 325)
                 assert.assertStr(digestOf(leafBody), shaLeaf(), 326)
-                fly.targz.tarFree(h)
+                targz.tarFree(h)
             }
         }
         case "an empty reader and a null handle are safe": {
-            assert.assertEqI((int)fly.targz.tarOpen(""), 0, 313)
-            assert.assertFalse(fly.targz.tarNext(0), 314)
-            assert.assertEmpty(fly.targz.tarName(0), 315)
-            assert.assertEmpty(fly.targz.tarData(0), 316)
-            assert.assertEqL(fly.targz.tarSize(0), 0, 317)
-            assert.assertEqI(fly.targz.tarErr(0), 0, 318)
-            fly.targz.tarFree(0)                            // must not crash
+            assert.assertEqI((int)targz.tarOpen(""), 0, 313)
+            assert.assertFalse(targz.tarNext(0), 314)
+            assert.assertEmpty(targz.tarName(0), 315)
+            assert.assertEmpty(targz.tarData(0), 316)
+            assert.assertEqL(targz.tarSize(0), 0, 317)
+            assert.assertEqI(targz.tarErr(0), 0, 318)
+            targz.tarFree(0)                            // must not crash
             assert.assertTrue(true, 319)
         }
     }
@@ -242,44 +242,44 @@ suite TarGzSuite {
             // taken from the source files by sha256sum, so agreement here means
             // INFLATE, the LZ77 window, the tar offsets and the byte masking are
             // all correct together — a single wrong byte anywhere changes them.
-            string raw = fly.os.fs.readBytes(fixturePath())
+            string raw = fs.readBytes(fixturePath())
             int e = 0
-            pointer h = fly.targz.tarOpen(fly.targz.gunzip(raw, e))
+            pointer h = targz.tarOpen(targz.gunzip(raw, e))
             assert.assertTrue(h != 0, 401)
             if h != 0 {
                 int checked = 0
-                while fly.targz.tarNext(h) {
-                    string nm = fly.targz.tarName(h)
-                    if fly.targz.tarIsFile(h) {
-                        string body = fly.targz.tarData(h)
-                        if fly.str.equals(nm, "pkg/README.md") {
+                while targz.tarNext(h) {
+                    string nm = targz.tarName(h)
+                    if targz.tarIsFile(h) {
+                        string body = targz.tarData(h)
+                        if str.equals(nm, "pkg/README.md") {
                             assert.assertStr(digestOf(body), shaReadme(), 402)
                             checked = checked + 1
                         }
-                        if fly.str.equals(nm, "pkg/src/main.fly") {
+                        if str.equals(nm, "pkg/src/main.fly") {
                             // CRLF and 0x1A intact.
                             assert.assertStr(digestOf(body), shaMain(), 403)
-                            assert.assertEqI(fly.str.len(body), 41, 404)
+                            assert.assertEqI(str.len(body), 41, 404)
                             checked = checked + 1
                         }
-                        if fly.str.equals(nm, "pkg/src/blob.bin") {
+                        if str.equals(nm, "pkg/src/blob.bin") {
                             // 3000 bytes covering every value including ≥ 128.
                             assert.assertStr(digestOf(body), shaBlob(), 405)
-                            assert.assertEqI(fly.str.len(body), 3000, 406)
+                            assert.assertEqI(str.len(body), 3000, 406)
                             checked = checked + 1
                         }
-                        if fly.str.equals(nm, "pkg/empty") {
+                        if str.equals(nm, "pkg/empty") {
                             assert.assertStr(digestOf(body), shaEmpty(), 407)
                             checked = checked + 1
                         }
-                        if fly.str.equals(nm, longLeaf()) {
+                        if str.equals(nm, longLeaf()) {
                             assert.assertStr(digestOf(body), shaLeaf(), 408)
                             checked = checked + 1
                         }
                     }
                 }
                 assert.assertEqI(checked, 5, 409)
-                fly.targz.tarFree(h)
+                targz.tarFree(h)
             }
         }
     }
@@ -287,24 +287,24 @@ suite TarGzSuite {
     // ── path safety ──────────────────────────────────────────────────────────
     void safeNameTest() {
         case "ordinary relative paths are accepted": {
-            assert.assertTrue(fly.targz.safeName("pkg/README.md"), 501)
-            assert.assertTrue(fly.targz.safeName("a"), 502)
-            assert.assertTrue(fly.targz.safeName("a/b/c.txt"), 503)
+            assert.assertTrue(targz.safeName("pkg/README.md"), 501)
+            assert.assertTrue(targz.safeName("a"), 502)
+            assert.assertTrue(targz.safeName("a/b/c.txt"), 503)
             // ".." only as a SEGMENT is the danger; these are just filenames.
-            assert.assertTrue(fly.targz.safeName("a/..b/c"), 504)
-            assert.assertTrue(fly.targz.safeName("file..txt"), 505)
-            assert.assertTrue(fly.targz.safeName("...."), 506)
+            assert.assertTrue(targz.safeName("a/..b/c"), 504)
+            assert.assertTrue(targz.safeName("file..txt"), 505)
+            assert.assertTrue(targz.safeName("...."), 506)
         }
         case "anything that escapes the destination is rejected": {
             // These are not hypothetical: an archive is an untrusted input from
             // the network, and each of these writes outside the target directory.
-            assert.assertFalse(fly.targz.safeName(""), 507)
-            assert.assertFalse(fly.targz.safeName("/etc/passwd"), 508)
-            assert.assertFalse(fly.targz.safeName("C:/Windows/x"), 509)
-            assert.assertFalse(fly.targz.safeName("../evil"), 510)
-            assert.assertFalse(fly.targz.safeName("a/../../evil"), 511)
-            assert.assertFalse(fly.targz.safeName("a/.."), 512)
-            assert.assertFalse(fly.targz.safeName(".."), 513)
+            assert.assertFalse(targz.safeName(""), 507)
+            assert.assertFalse(targz.safeName("/etc/passwd"), 508)
+            assert.assertFalse(targz.safeName("C:/Windows/x"), 509)
+            assert.assertFalse(targz.safeName("../evil"), 510)
+            assert.assertFalse(targz.safeName("a/../../evil"), 511)
+            assert.assertFalse(targz.safeName("a/.."), 512)
+            assert.assertFalse(targz.safeName(".."), 513)
         }
     }
 
@@ -312,48 +312,48 @@ suite TarGzSuite {
     void extractTest() {
         case "extractTarGz reproduces the tree byte for byte": {
             string dest = "fly_tgz_out"
-            fly.os.fs.dirDeleteAll(dest)
+            fs.dirDeleteAll(dest)
             int e = 0
-            bool ok = fly.targz.extractTarGz(fixturePath(), dest, e)
+            bool ok = targz.extractTarGz(fixturePath(), dest, e)
             assert.assertEqI(e, 0, 601)
             assert.assertTrue(ok, 602)
 
-            string readme = fly.os.path.join(dest, "pkg/README.md")
-            string main = fly.os.path.join(dest, "pkg/src/main.fly")
-            string blob = fly.os.path.join(dest, "pkg/src/blob.bin")
-            string empty = fly.os.path.join(dest, "pkg/empty")
-            string leaf = fly.os.path.join(dest, longLeaf())
+            string readme = path.join(dest, "pkg/README.md")
+            string main = path.join(dest, "pkg/src/main.fly")
+            string blob = path.join(dest, "pkg/src/blob.bin")
+            string empty = path.join(dest, "pkg/empty")
+            string leaf = path.join(dest, longLeaf())
 
-            assert.assertTrue(fly.os.fs.exists(readme), 603)
-            assert.assertTrue(fly.os.fs.exists(main), 604)
-            assert.assertTrue(fly.os.fs.exists(blob), 605)
-            assert.assertTrue(fly.os.fs.exists(empty), 606)
-            assert.assertTrue(fly.os.fs.exists(leaf), 607)
-            assert.assertTrue(fly.os.fs.isDir(fly.os.path.join(dest, "pkg/src")), 608)
+            assert.assertTrue(fs.exists(readme), 603)
+            assert.assertTrue(fs.exists(main), 604)
+            assert.assertTrue(fs.exists(blob), 605)
+            assert.assertTrue(fs.exists(empty), 606)
+            assert.assertTrue(fs.exists(leaf), 607)
+            assert.assertTrue(fs.isDir(path.join(dest, "pkg/src")), 608)
 
             // On-disk sizes, then on-disk digests. The size check is what catches
             // a text-mode write inflating the file by one byte per newline; the
             // digest is what catches a byte being changed rather than added.
-            assert.assertEqL((long)fly.os.fs.size(blob), 3000, 609)
-            assert.assertEqL((long)fly.os.fs.size(main), 41, 610)
-            assert.assertEqL((long)fly.os.fs.size(empty), 0, 611)
+            assert.assertEqL((long)fs.size(blob), 3000, 609)
+            assert.assertEqL((long)fs.size(main), 41, 610)
+            assert.assertEqL((long)fs.size(empty), 0, 611)
 
-            assert.assertStr(fly.hash.sha256File(readme),
-                fly.str.concat("sha256:", shaReadme()), 612)
-            assert.assertStr(fly.hash.sha256File(main),
-                fly.str.concat("sha256:", shaMain()), 613)
-            assert.assertStr(fly.hash.sha256File(blob),
-                fly.str.concat("sha256:", shaBlob()), 614)
-            assert.assertStr(fly.hash.sha256File(leaf),
-                fly.str.concat("sha256:", shaLeaf()), 615)
+            assert.assertStr(hash.sha256File(readme),
+                str.concat("sha256:", shaReadme()), 612)
+            assert.assertStr(hash.sha256File(main),
+                str.concat("sha256:", shaMain()), 613)
+            assert.assertStr(hash.sha256File(blob),
+                str.concat("sha256:", shaBlob()), 614)
+            assert.assertStr(hash.sha256File(leaf),
+                str.concat("sha256:", shaLeaf()), 615)
 
-            fly.os.fs.dirDeleteAll(dest)
+            fs.dirDeleteAll(dest)
         }
         case "extracting a missing archive fails rather than half-succeeding": {
             int e = 0
-            assert.assertFalse(fly.targz.extractTarGz("no_such_archive.tar.gz", "fly_tgz_none", e), 616)
+            assert.assertFalse(targz.extractTarGz("no_such_archive.tar.gz", "fly_tgz_none", e), 616)
             assert.assertEqI(e, 1, 617)
-            assert.assertFalse(fly.os.fs.exists("fly_tgz_none/pkg"), 618)
+            assert.assertFalse(fs.exists("fly_tgz_none/pkg"), 618)
         }
     }
 
@@ -363,50 +363,50 @@ suite TarGzSuite {
             // The trailer's last 8 bytes are CRC-32 then ISIZE. Flipping a CRC
             // byte leaves a perfectly decodable stream whose contents are not
             // what the producer wrote — exactly the case a size check misses.
-            string raw = fly.os.fs.readBytes(fixturePath())
-            int n = fly.str.len(raw)
+            string raw = fs.readBytes(fixturePath())
+            int n = str.len(raw)
             byte cur = 0
-            fly.str.byteAt(raw, n - 8, cur)
+            str.byteAt(raw, n - 8, cur)
             int flipped = cur
             flipped = (flipped & 255) ^ 1
             int e = 0
-            fly.targz.gunzip(withByte(raw, n - 8, flipped), e)
+            targz.gunzip(withByte(raw, n - 8, flipped), e)
             assert.assertEqI(e, 7, 701)
         }
         case "a wrong ISIZE is caught": {
-            string raw = fly.os.fs.readBytes(fixturePath())
-            int n = fly.str.len(raw)
+            string raw = fs.readBytes(fixturePath())
+            int n = str.len(raw)
             byte cur = 0
-            fly.str.byteAt(raw, n - 4, cur)
+            str.byteAt(raw, n - 4, cur)
             int flipped = cur
             flipped = (flipped & 255) ^ 1
             int e = 0
-            fly.targz.gunzip(withByte(raw, n - 4, flipped), e)
+            targz.gunzip(withByte(raw, n - 4, flipped), e)
             assert.assertEqI(e, 8, 702)
         }
         case "a truncated stream stops instead of looping": {
             // The bit reader must report error 1 and give up. Getting this wrong
             // does not produce a wrong answer, it produces a hang.
-            string raw = fly.os.fs.readBytes(fixturePath())
-            int n = fly.str.len(raw)
-            string cut = fly.str.substring(raw, 0, n / 2)
+            string raw = fs.readBytes(fixturePath())
+            int n = str.len(raw)
+            string cut = str.substring(raw, 0, n / 2)
             int e = 0
-            fly.targz.gunzip(cut, e)
+            targz.gunzip(cut, e)
             assert.assertTrue(e != 0, 703)
         }
         case "a corrupt tar header is error 9": {
             // Damage the first header's name so its checksum no longer matches.
-            string raw = fly.os.fs.readBytes(fixturePath())
+            string raw = fs.readBytes(fixturePath())
             int e = 0
-            string tarBytes = fly.targz.gunzip(raw, e)
+            string tarBytes = targz.gunzip(raw, e)
             assert.assertEqI(e, 0, 704)
             string broken = withByte(tarBytes, 0, 88)
-            pointer h = fly.targz.tarOpen(broken)
+            pointer h = targz.tarOpen(broken)
             assert.assertTrue(h != 0, 705)
             if h != 0 {
-                assert.assertFalse(fly.targz.tarNext(h), 706)
-                assert.assertEqI(fly.targz.tarErr(h), 9, 707)
-                fly.targz.tarFree(h)
+                assert.assertFalse(targz.tarNext(h), 706)
+                assert.assertEqI(targz.tarErr(h), 9, 707)
+                targz.tarFree(h)
             }
         }
         case "a header with an absurd size cannot loop forever": {
@@ -415,29 +415,29 @@ suite TarGzSuite {
             // and would send the cursor backwards. If the guard in tarNext were
             // missing this case would HANG rather than fail, which is the whole
             // reason it is pinned.
-            string raw = fly.os.fs.readBytes(fixturePath())
+            string raw = fs.readBytes(fixturePath())
             int e = 0
-            string t = fly.targz.gunzip(raw, e)
+            string t = targz.gunzip(raw, e)
             string bad = t
             int i = 0
             while i < 12 {
                 bad = withByte(bad, 124 + i, 55)            // '7'
                 i = i + 1
             }
-            pointer h = fly.targz.tarOpen(bad)
+            pointer h = targz.tarOpen(bad)
             assert.assertTrue(h != 0, 710)
             if h != 0 {
                 // Either the checksum rejects it or the advance guard does; both
                 // are error 9, and either way tarNext must terminate.
-                bool more = fly.targz.tarNext(h)
+                bool more = targz.tarNext(h)
                 assert.assertFalse(more, 711)
-                assert.assertEqI(fly.targz.tarErr(h), 9, 712)
-                fly.targz.tarFree(h)
+                assert.assertEqI(targz.tarErr(h), 9, 712)
+                targz.tarFree(h)
             }
         }
         case "extractTar refuses an archive it cannot read": {
             int e = 0
-            assert.assertFalse(fly.targz.extractTar("far too short to be a tar", "fly_tgz_bad", e), 708)
+            assert.assertFalse(targz.extractTar("far too short to be a tar", "fly_tgz_bad", e), 708)
             assert.assertEqI(e, 1, 709)
         }
     }

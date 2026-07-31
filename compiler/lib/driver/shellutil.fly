@@ -32,11 +32,11 @@ import fly.llvm
 
 // tmpPath — a fresh temporary file path under the platform temp dir.
 public string tmpPath(const string tag) {
-    string tmpdir = fly.os.env.get("TMPDIR")
-    if fly.str.isEmpty(tmpdir) { tmpdir = fly.os.env.get("TEMP") }
-    if fly.str.isEmpty(tmpdir) { tmpdir = "." }
-    string d = fly.os.fs.tempDir(tmpdir, tag)
-    out = fly.str.concat(d, "/out")
+    string tmpdir = env.get("TMPDIR")
+    if str.isEmpty(tmpdir) { tmpdir = env.get("TEMP") }
+    if str.isEmpty(tmpdir) { tmpdir = "." }
+    string d = fs.tempDir(tmpdir, tag)
+    out = str.concat(d, "/out")
 }
 
 // captureArgs — run `prog` with the ArgList `h` and return its stdout. The exit
@@ -44,12 +44,12 @@ public string tmpPath(const string tag) {
 // what the callers want (git prints a usable answer and still fails sometimes).
 public string captureArgs(const string prog, const pointer h, int rcOut) {
     string tmp = tmpPath("flycap")
-    int rc = fly.os.proc.execCapture(prog, h, tmp)
+    int rc = proc.execCapture(prog, h, tmp)
     rcOut = rc
     string data = ""
-    if fly.os.fs.exists(tmp) {
-        data = fly.os.fs.readStr(tmp)
-        fly.os.fs.delete(tmp)
+    if fs.exists(tmp) {
+        data = fs.readStr(tmp)
+        fs.delete(tmp)
     }
     out = data
 }
@@ -57,24 +57,24 @@ public string captureArgs(const string prog, const pointer h, int rcOut) {
 // runArgs — run `prog` with the ArgList `h`, output inherited; returns the exit
 // code, or -1 if the program could not be spawned.
 public int runArgs(const string prog, const pointer h) {
-    out = fly.os.proc.exec(prog, h)
+    out = proc.exec(prog, h)
 }
 
 // trimTrailingNewline — drop a single trailing '\n'/'\r\n' (command output tidy).
 public string trimTrailingNewline(const string s) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     if n == 0 { out = s  return }
     byte last = 0
-    fly.str.byteAt(s, n - 1, last)
+    str.byteAt(s, n - 1, last)
     if last == 10 {
         n = n - 1
         if n > 0 {
             byte prev = 0
-            fly.str.byteAt(s, n - 1, prev)
+            str.byteAt(s, n - 1, prev)
             if prev == 13 { n = n - 1 }
         }
     }
-    out = fly.str.substring(s, 0, n)
+    out = str.substring(s, 0, n)
 }
 
 
@@ -86,22 +86,22 @@ public string trimTrailingNewline(const string s) {
 
 // sha256String — "sha256:<hex>" of a string's bytes.
 public string sha256String(const string data) {
-    out = fly.hash.sha256String(data)
+    out = hash.sha256String(data)
 }
 
 // sha256File — "sha256:<hex>" of a file's contents ("" if the file is missing).
 public string sha256File(const string path) {
-    out = fly.hash.sha256File(path)
+    out = hash.sha256File(path)
 }
 
 // verifyChecksum — true if the file hashes to `expected` ("sha256:<hex>").
 public bool verifyChecksum(const string path, const string expected) {
-    out = fly.hash.sha256Verify(path, expected)
+    out = hash.sha256Verify(path, expected)
 }
 // dq — a one-byte string holding a double quote (34); string literals keep escapes
 // raw, so a bare `"` cannot be produced from a literal.
 public string dq() {
-    pointer buf = fly.mem.alloc(1)
+    pointer buf = mem.alloc(1)
     byte q = 34
     fly.llvm.strPoke(buf, 0, q)
     string s = ""
@@ -112,7 +112,7 @@ public string dq() {
 // tabStr — a one-byte string holding a tab (9); literals keep escapes raw, so
 // "\t" would be the two characters backslash and t.
 public string tabStr() {
-    pointer buf = fly.mem.alloc(1)
+    pointer buf = mem.alloc(1)
     byte t = 9
     fly.llvm.strPoke(buf, 0, t)
     string s = ""
@@ -122,7 +122,7 @@ public string tabStr() {
 
 // nl — a one-byte string holding a newline (10); literals keep escapes raw.
 public string nl() {
-    pointer buf = fly.mem.alloc(1)
+    pointer buf = mem.alloc(1)
     byte n = 10
     fly.llvm.strPoke(buf, 0, n)
     string s = ""

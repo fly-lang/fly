@@ -7,6 +7,7 @@ import fly.os.env
 import fly.os.path
 import fly.compiler.basic.*
 import fly.compiler.target.*
+import fly.compiler.target
 import fly.compiler.ast.*
 import fly.compiler.parser.Parser
 import fly.compiler.sema.*
@@ -147,12 +148,12 @@ public class LspAnalyzer {
         // Auto-discover <install>/lib next to the running fly-lsp binary, the
         // same walk Driver.fly does for fly itself: bin/fly-lsp → ../lib.
         this.stdLibDir = ""
-        string exe = fly.os.env.exePath()
-        if fly.str.isEmpty(exe) == false {
-            string binDir = fly.os.path.dirname(exe)
-            string instDir = fly.os.path.dirname(binDir)
-            string cand = fly.os.path.join(instDir, "lib")
-            if fly.os.path.isDir(cand) { this.stdLibDir = cand }
+        string exe = env.exePath()
+        if str.isEmpty(exe) == false {
+            string binDir = path.dirname(exe)
+            string instDir = path.dirname(binDir)
+            string cand = path.join(instDir, "lib")
+            if path.isDir(cand) { this.stdLibDir = cand }
         }
         this.navValid = false
         this.navPath = ""
@@ -164,34 +165,34 @@ public class LspAnalyzer {
         this.smCache = new List<SourceManager>()
     }
 
-    // compileFile — parse + sema `path`, returning every diagnostic. An empty
+    // compileFile — parse + sema `file`, returning every diagnostic. An empty
     // list means the file is clean. A file that cannot be read yields one error
     // diagnostic at 1:1 rather than an empty (i.e. "all good") answer.
-    public List<LspDiag> compileFile(const string path) {
+    public List<LspDiag> compileFile(const string file) {
         List<LspDiag> result = new List<LspDiag>()
-        string src = fly.os.fs.readStr(path)
-        if fly.str.isEmpty(src) {
-            result.add(new LspDiag(1, 1, 1, "cannot read file", path))
+        string src = fs.readStr(file)
+        if str.isEmpty(src) {
+            result.add(new LspDiag(1, 1, 1, "cannot read file", file))
             out = result
             return
         }
 
         // 1) parse
         Parser p = new Parser(src)
-        ASTModule m = p.parseModule(path)
+        ASTModule m = p.parseModule(file)
         if p.isSuccess() == false {
             StoringDiagnosticConsumer sink = p.getSink()
             int i = 0
             int n = sink.count()
             while i < n {
-                LspDiag d = fly.lsp.parseRendered(sink.getMessage(i), path)
+                LspDiag d = fly.lsp.parseRendered(sink.getMessage(i), file)
                 if d != null { result.add(d) }
                 i = i + 1
             }
             // A parse failure that somehow rendered nothing still must not
             // report a clean file.
             if result.size() == 0 {
-                result.add(new LspDiag(1, 1, 1, "parse failed", path))
+                result.add(new LspDiag(1, 1, 1, "parse failed", file))
             }
             out = result
             return
@@ -200,19 +201,19 @@ public class LspAnalyzer {
         // 2) sema — executeImpl's steps with our own consumer.
         DiagnosticOptions opts = new DiagnosticOptions()
         LspDiagnosticConsumer consumer = new LspDiagnosticConsumer()
-        SourceManager sm = new SourceManager(path, src)
+        SourceManager sm = new SourceManager(file, src)
         DiagnosticsEngine diags = new DiagnosticsEngine(opts, consumer, sm)
 
         FrontendOptions fo = new FrontendOptions("")
-        if fly.str.isEmpty(this.stdLibDir) == false { fo.setStdLibDir(this.stdLibDir) }
-        string dir = fly.os.path.dirname(path)
-        if fly.str.isEmpty(dir) == false { fo.addSrcDir(dir) }
+        if str.isEmpty(this.stdLibDir) == false { fo.setStdLibDir(this.stdLibDir) }
+        string dir = path.dirname(file)
+        if str.isEmpty(dir) == false { fo.addSrcDir(dir) }
 
         CodeGenOptions cgo = new CodeGenOptions()
-        TargetOptions topts = new TargetOptions(fly.compiler.target.hostTripleStr())
+        TargetOptions topts = new TargetOptions(target.hostTripleStr())
         CompilerInstance ci = new CompilerInstance(diags, fo, cgo, topts)
         ci.createFileManager()
-        ci.createSourceManager(path, src)
+        ci.createSourceManager(file, src)
         Frontend fe = new Frontend(ci)
 
         // The open file's own namespace must not also be loaded from a header —
@@ -233,7 +234,7 @@ public class LspAnalyzer {
             SemaContext ctx = new SemaContext(diags)
             List<SemaModule> res = ctx.Resolve(mods, false)
             this.navValid = true
-            this.navPath = path
+            this.navPath = file
             this.navSm = sm
             this.navAst = m
             this.navSema = res
@@ -258,14 +259,14 @@ public class LspAnalyzer {
     // built lazily from disk. This is what lets a definition jump land in a
     // file that was never opened in the editor.
     SourceManager smFor(const string file) {
-        if fly.str.equals(file, this.navPath) { out = this.navSm  return }
+        if str.equals(file, this.navPath) { out = this.navSm  return }
         int i = 0
         while i < this.smFiles.size() {
-            if fly.str.equals(this.smFiles.get(i), file) { out = this.smCache.get(i)  return }
+            if str.equals(this.smFiles.get(i), file) { out = this.smCache.get(i)  return }
             i = i + 1
         }
-        string src = fly.os.fs.readStr(file)
-        if fly.str.isEmpty(src) { out = null  return }
+        string src = fs.readStr(file)
+        if str.isEmpty(src) { out = null  return }
         SourceManager sm = new SourceManager(file, src)
         this.smFiles.add(file)
         this.smCache.add(sm)
@@ -320,7 +321,7 @@ public class LspAnalyzer {
         t.name = v.foundName
         t.useLine = v.foundLine
         t.useCol = v.foundCol
-        t.useLen = fly.str.len(v.foundName)
+        t.useLen = str.len(v.foundName)
 
         // 2) resolve. A hit WITH a receiver chain (p.getX(), p.x, this.x) is a
         //    MEMBER access: the receiver's static class type decides, through
@@ -411,14 +412,14 @@ public class LspAnalyzer {
         int i = 0
         while i < this.navSema.size() {
             SemaModule mod = this.navSema.get(i)
-            if fly.str.equals(mod.getName(), this.navPath) {
+            if str.equals(mod.getName(), this.navPath) {
                 List<SemaNode> nodes = mod.getNodes()
                 int j = 0
                 while j < nodes.size() {
                     SemaNode n = nodes.get(j)
                     SemaFunctionBase fb = n.asFunctionBase()
                     if fb != null {
-                        if fly.str.equals(fb.getName(), fn.getName()) {
+                        if str.equals(fb.getName(), fn.getName()) {
                             SourceLocation gl = fb.getAST().getLoc()
                             int off = 0
                             if gl != null { off = gl.getOffset() }
@@ -447,7 +448,7 @@ public class LspAnalyzer {
                                     while q < cn.size() {
                                         SemaFunctionBase mb = cn.get(q).asFunctionBase()
                                         if mb != null {
-                                            if fly.str.equals(mb.getName(), fn.getName()) {
+                                            if str.equals(mb.getName(), fn.getName()) {
                                                 SourceLocation ml = mb.getAST().getLoc()
                                                 int moff = 0
                                                 if ml != null { moff = ml.getOffset() }
@@ -575,7 +576,7 @@ public class LspAnalyzer {
             // The module whose nodes (or classes) contain this function tells
             // us the FILE; the AST location gives line/col in that file.
             string file = this.fileOfFunction(t.fn)
-            if fly.str.isEmpty(file) { out = loc  return }
+            if str.isEmpty(file) { out = loc  return }
             SourceManager sm = this.smFor(file)
             if sm == null { out = loc  return }
             SourceLocation l = t.fn.getAST().getLoc()
@@ -630,7 +631,7 @@ public class LspAnalyzer {
             int pi = 0
             while pi < params.size() {
                 ASTParam p = params.get(pi)
-                if fly.str.equals(p.getName(), t.name) {
+                if str.equals(p.getName(), t.name) {
                     loc.ok = true
                     loc.file = this.navPath
                     loc.line = this.navSm.getLineNumber(p.getLoc())
@@ -681,7 +682,7 @@ public class LspAnalyzer {
             while j < nodes.size() {
                 SemaFunctionBase cand = nodes.get(j).asFunctionBase()
                 if cand != null {
-                    if fly.str.equals(cand.getName(), name) {
+                    if str.equals(cand.getName(), name) {
                         SourceLocation gl = cand.getAST().getLoc()
                         int off = 0
                         if gl != null { off = gl.getOffset() }
@@ -700,11 +701,11 @@ public class LspAnalyzer {
     public string hoverOf(const LspTarget t) {
         if t.kind == 0 { out = ""  return }
         string nl = lfStr()
-        string open = fly.str.concat("```fly", nl)
-        string close = fly.str.concat(nl, "```")
+        string open = str.concat("```fly", nl)
+        string close = str.concat(nl, "```")
         if t.kind == 1 {
             string sig = this.signatureLabelOf(t.fn)
-            out = fly.str.concat(open, fly.str.concat(sig, close))
+            out = str.concat(open, str.concat(sig, close))
             return
         }
         if t.kind == 3 {
@@ -712,20 +713,20 @@ public class LspAnalyzer {
             SemaClassKind ck = t.cls.getClassKind()
             if ck == SemaClassKind.STRUCT { kw = "struct" }
             elsif ck == SemaClassKind.INTERFACE { kw = "interface" }
-            out = fly.str.concat(open, fly.str.concat(kw,
-                  fly.str.concat(" ", fly.str.concat(t.name, close))))
+            out = str.concat(open, str.concat(kw,
+                  str.concat(" ", str.concat(t.name, close))))
             return
         }
         if t.kind == 2 {
             string ty = t.varTypeName
-            if fly.str.isEmpty(ty) { ty = "?" }
+            if str.isEmpty(ty) { ty = "?" }
             string tag = "(var) "
             if t.attr != null { tag = "(field) " }
-            out = fly.str.concat(open, fly.str.concat(tag,
-                  fly.str.concat(ty, fly.str.concat(" ", fly.str.concat(t.name, close)))))
+            out = str.concat(open, str.concat(tag,
+                  str.concat(ty, str.concat(" ", str.concat(t.name, close)))))
             return
         }
-        out = fly.str.concat(open, fly.str.concat(t.name, close))
+        out = str.concat(open, str.concat(t.name, close))
     }
 
     // signatureLabelOf — "ret name(type param, …)".
@@ -733,23 +734,23 @@ public class LspAnalyzer {
         string ret = "void"
         SemaType rt = fb.getReturnType()
         if rt != null { ret = rt.getName() }
-        string label = fly.str.concat(ret, fly.str.concat(" ", fly.str.concat(fb.getName(), "(")))
+        string label = str.concat(ret, str.concat(" ", str.concat(fb.getName(), "(")))
         List<SemaParam> params = fb.getParams()
         int i = 0
         while i < params.size() {
-            if i > 0 { label = fly.str.concat(label, ", ") }
-            label = fly.str.concat(label, this.paramLabelOf(params.get(i)))
+            if i > 0 { label = str.concat(label, ", ") }
+            label = str.concat(label, this.paramLabelOf(params.get(i)))
             i = i + 1
         }
-        out = fly.str.concat(label, ")")
+        out = str.concat(label, ")")
     }
 
     string paramLabelOf(const SemaParam p) {
         string ty = ""
         SemaType pt = p.getType()
         if pt != null { ty = pt.getName() }
-        if fly.str.isEmpty(ty) { out = p.getName()  return }
-        out = fly.str.concat(ty, fly.str.concat(" ", p.getName()))
+        if str.isEmpty(ty) { out = p.getName()  return }
+        out = str.concat(ty, str.concat(" ", p.getName()))
     }
 
     // ── document symbols and folding (pure AST walks of the open file) ───────
@@ -968,7 +969,7 @@ public class LspAnalyzer {
     bool listHasName(const List<string> xs, const string v) {
         int i = 0
         while i < xs.size() {
-            if fly.str.equals(xs.get(i), v) { out = true  return }
+            if str.equals(xs.get(i), v) { out = true  return }
             i = i + 1
         }
         out = false
@@ -979,7 +980,7 @@ public class LspAnalyzer {
     public List<LspSym> workspaceSymbols(const string query) {
         List<LspSym> result = new List<LspSym>()
         if this.navValid == false { out = result  return }
-        string q = fly.str.toLower(query)
+        string q = str.toLower(query)
         int i = 0
         while i < this.navSema.size() {
             SemaModule mod = this.navSema.get(i)
@@ -993,8 +994,8 @@ public class LspAnalyzer {
                     SemaFunctionBase fb = nodes.get(j).asFunctionBase()
                     if fb != null {
                         string nm = fb.getName()
-                        bool take = fly.str.isEmpty(q)
-                        if take == false { take = fly.str.contains(fly.str.toLower(nm), q) }
+                        bool take = str.isEmpty(q)
+                        if take == false { take = str.contains(str.toLower(nm), q) }
                         if take {
                             SourceLocation l = fb.getAST().getLoc()
                             result.add(new LspSym(nm, 12, sm.getLineNumber(l), sm.getColumnNumber(l), file, ""))
@@ -1012,8 +1013,8 @@ public class LspAnalyzer {
                         Symbol s = all.get(k)
                         if s.getKind() == SymbolKind.CLASS {
                             string cnm = s.getName()
-                            bool take2 = fly.str.isEmpty(q)
-                            if take2 == false { take2 = fly.str.contains(fly.str.toLower(cnm), q) }
+                            bool take2 = str.isEmpty(q)
+                            if take2 == false { take2 = str.contains(str.toLower(cnm), q) }
                             if take2 {
                                 SemaType ty = s.getTypeRef()
                                 if ty != null {
@@ -1114,8 +1115,8 @@ public class LspAnalyzer {
                         bool inRange = arg.line >= startLine && arg.line <= endLine
                         if inRange {
                             string pn = params.get(ai).getName()
-                            if fly.str.isEmpty(pn) == false {
-                                result.add(new LspSym(fly.str.concat(pn, ":"), 2,
+                            if str.isEmpty(pn) == false {
+                                result.add(new LspSym(str.concat(pn, ":"), 2,
                                            arg.line, arg.col, "", ""))
                             }
                         }
@@ -1165,7 +1166,7 @@ public class LspAnalyzer {
         if this.navValid == false { out = loc  return }
         if t.kind == 3 { out = this.declLocationOf(t)  return }
         if t.kind != 2 { out = loc  return }
-        if fly.str.isEmpty(t.varTypeName) { out = loc  return }
+        if str.isEmpty(t.varTypeName) { out = loc  return }
         // Resolve the type name where the use sits: same scope rules as any
         // other name, but through the TYPE-aware lookup (a same-named ctor or
         // variable must not shadow the type).
@@ -1205,7 +1206,7 @@ public class LspAnalyzer {
         while i < v.uses.size() {
             LspUse u = v.uses.get(i)
             string nm = u.name
-            if fly.str.isEmpty(nm) == false {
+            if str.isEmpty(nm) == false {
                 Symbol sym = this.resolveName(scope, nm)
                 if sym != null {
                     int tt = tokenTypeOf(sym.getKind())

@@ -7,18 +7,18 @@ import fly.llvm
 
 // skipSockets — see NetSuite; gates every case that opens a socket.
 bool skipSockets() {
-    out = fly.str.isEmpty(fly.os.env.get("FLY_SKIP_NET_TESTS")) == false
+    out = str.isEmpty(env.get("FLY_SKIP_NET_TESTS")) == false
 }
 
 // blob — n bytes cycling 'a'..'z'.
 string blob(const int n) {
-    pointer buf = fly.mem.alloc(n)
+    pointer buf = mem.alloc(n)
     int i = 0
     while i < n {
-        fly.mem.writeByte(buf, i, (byte)(97 + (i % 26)))
+        mem.writeByte(buf, i, (byte)(97 + (i % 26)))
         i = i + 1
     }
-    fly.str.fromBytes(buf, n, out)
+    str.fromBytes(buf, n, out)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -166,24 +166,24 @@ suite UdpSuite {
                 long cli = net.socketUdp()
 
                 string payload = blob(512)
-                pointer buf = fly.mem.alloc(512)
+                pointer buf = mem.alloc(512)
                 int i = 0
                 while i < 512 {
                     byte b = 0
-                    fly.str.byteAt(payload, i, b)
-                    fly.mem.writeByte(buf, i, b)
+                    str.byteAt(payload, i, b)
+                    mem.writeByte(buf, i, b)
                     i = i + 1
                 }
                 assert.assertEqL(net.sendTo(cli, buf, 512, net.loopback(), sport), 512, 214)
 
-                pointer rbuf = fly.mem.alloc(512)
+                pointer rbuf = mem.alloc(512)
                 pointer from = net.fromNew()
                 assert.assertEqL(net.recvFrom(srv, rbuf, 512, from), 512, 215)
                 string got = ""
                 fly.llvm.strMake(rbuf, 512, got)
                 assert.assertStr(got, payload, 216)
                 net.fromFree(from)
-                fly.mem.free(buf, 512)
+                mem.free(buf, 512)
                 net.close(cli)
                 net.close(srv)
             }
@@ -209,9 +209,9 @@ suite UdpSuite {
                 net.sendStrTo(cli, blob(200), net.loopback(), sport)
 
                 pointer from = net.fromNew()
-                pointer buf = fly.mem.alloc(64)
+                pointer buf = mem.alloc(64)
                 long n = net.recvFrom(srv, buf, 64, from)
-                if str.equals(fly.os.env.osname(), "windows") {
+                if str.equals(env.osname(), "windows") {
                     assert.assertTrue(n < 0, 301)
                 } else {
                     assert.assertEqL(n, 64, 301)
@@ -219,7 +219,7 @@ suite UdpSuite {
                 // Either way the remaining 136 bytes are GONE, not queued for a
                 // second read: the next receive times out.
                 assert.assertTrue(net.recvFrom(srv, buf, 64, from) < 0, 302)
-                fly.mem.free(buf, 64)
+                mem.free(buf, 64)
                 net.fromFree(from)
                 net.close(cli)
                 net.close(srv)
@@ -238,11 +238,11 @@ suite UdpSuite {
                 assert.assertTrue(net.sendStrTo(cli, "", net.loopback(), sport), 303)
 
                 pointer from = net.fromNew()
-                pointer buf = fly.mem.alloc(16)
+                pointer buf = mem.alloc(16)
                 assert.assertEqL(net.recvFrom(srv, buf, 16, from), 0, 304)
                 // and it really came from the client
                 assert.assertEqI(net.fromAddr(from), net.loopback(), 305)
-                fly.mem.free(buf, 16)
+                mem.free(buf, 16)
                 net.fromFree(from)
                 net.close(cli)
                 net.close(srv)
@@ -273,9 +273,9 @@ suite UdpSuite {
                 net.bind(srv, net.loopback(), 0)
                 assert.assertTrue(net.setRecvTimeout(srv, 300), 310)
                 pointer from = net.fromNew()
-                pointer buf = fly.mem.alloc(16)
+                pointer buf = mem.alloc(16)
                 assert.assertTrue(net.recvFrom(srv, buf, 16, from) < 0, 311)
-                fly.mem.free(buf, 16)
+                mem.free(buf, 16)
                 net.fromFree(from)
                 net.close(srv)
             }

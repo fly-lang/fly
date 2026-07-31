@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.basic.*
 import fly.data.List
+import fly.str
 
 // ResolverClass — class/enum resolution companion (static methods threading the
 // Resolver). Classes are resolved in two phases: declareClass (Phase A, during the
@@ -148,7 +149,7 @@ public class ResolverClass {
             SemaClassMethod m = ms.get(i)
             if m.isAbstract() == false {
                 if m.isConstructor() == false {
-                    if fly.str.equals(m.getName(), name) { out = true  return }
+                    if str.equals(m.getName(), name) { out = true  return }
                 }
             }
             i = i + 1
@@ -234,7 +235,7 @@ public class ResolverClass {
         int i = 0
         while i < dnames.size() {
             string nm = dnames.get(i)
-            if fly.str.equals(nm, name) {
+            if str.equals(nm, name) {
                 string src = dsrcs.get(i)
                 if ResolverClass.listHasStr(seen, src) == false { seen.add(src) }
             }
@@ -251,7 +252,7 @@ public class ResolverClass {
         while i < ms.size() {
             SemaClassMethod m = ms.get(i)
             if m.isConstructor() == false {
-                if fly.str.equals(m.getName(), name) { out = true  return }
+                if str.equals(m.getName(), name) { out = true  return }
             }
             i = i + 1
         }
@@ -263,7 +264,7 @@ public class ResolverClass {
         int i = 0
         while i < list.size() {
             string x = list.get(i)
-            if fly.str.equals(x, s) { out = true  return }
+            if str.equals(x, s) { out = true  return }
             i = i + 1
         }
         out = false
@@ -393,7 +394,7 @@ public class ResolverClass {
 
         string mn = node.getName()
         string cn = cls.getName()
-        if fly.str.equals(mn, cn) {
+        if str.equals(mn, cn) {
             List<ASTParam> ps0 = node.getParams()
             // A ctor IS the default constructor when it is callable with NO
             // arguments: no params, or every param carrying a default value.
@@ -438,7 +439,7 @@ public class ResolverClass {
                 ASTType rti = rts.get(ri)
                 rti.accept(r)
                 List<ASTModifier> noMods = new List<ASTModifier>()
-                string on = fly.str.concat("__out_", fly.str.convert(ri))
+                string on = str.concat("__out_", str.convert(ri))
                 ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rti, on, noMods, null)
                 outAst.accept(r)
                 meth.addParam(r.getCurrentParam())

@@ -37,36 +37,36 @@ import fly.registry.RegResponse
 // same index returns garbage — the Driver.argAt lesson, verbatim.
 string argAt(const fly.os.env.StringArray args, const int i) {
     pointer base = args.items
-    pointer ptr = fly.mem.readPtr(base, i * 16)
-    int len = fly.mem.readInt(base, i * 16 + 8)
+    pointer ptr = mem.readPtr(base, i * 16)
+    int len = mem.readInt(base, i * 16 + 8)
     if len <= 0 { out = ""  return }
     pointer buf = 0
     fly.runtime.mem_alloc(len, buf)
-    fly.mem.copy(buf, ptr, len)
+    mem.copy(buf, ptr, len)
     string s = ""
-    fly.str.fromBytes(buf, len, s)
+    str.fromBytes(buf, len, s)
     out = s
 }
 
 // argValue — the value of `--name` (either "--name V" or "--name=V"), "" absent.
 string argValue(const string name) {
-    fly.os.env.StringArray args = fly.os.env.argsGet()
+    fly.os.env.StringArray args = env.argsGet()
     long cntL = (long)args.count
     int n = 0
     fly.llvm.longToInt(cntL, n)
-    string eq = fly.str.concat(name, "=")
+    string eq = str.concat(name, "=")
     int i = 0
     while i < n {
         string a = argAt(args, i)
-        if fly.str.equals(a, name) {
+        if str.equals(a, name) {
             if i + 1 < n { out = argAt(args, i + 1)  return }
             // A flag with no value: report presence with a sentinel so callers
             // that only test presence (--once) still see it.
             out = "1"
             return
         }
-        if fly.str.startsWith(a, eq) {
-            out = fly.str.substring(a, fly.str.len(eq), fly.str.len(a))
+        if str.startsWith(a, eq) {
+            out = str.substring(a, str.len(eq), str.len(a))
             return
         }
         i = i + 1
@@ -76,13 +76,13 @@ string argValue(const string name) {
 
 // parseInt — a non-negative decimal, or `dflt` when the text is not one.
 int parseInt(const string s, const int dflt) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     if n == 0 { out = dflt  return }
     int v = 0
     int i = 0
     while i < n {
         byte b = 0
-        fly.str.byteAt(s, i, b)
+        str.byteAt(s, i, b)
         int c = b
         c = c & 255
         bool digit = c >= 48 && c <= 57
@@ -102,10 +102,10 @@ string readRequest(const long s) {
     bool go = true
     int guard = 0
     while go {
-        string chunk = fly.net.recvStr(s, 8192)
-        if fly.str.isEmpty(chunk) { go = false } else {
-            raw = fly.str.concat(raw, chunk)
-            if fly.net.http.isComplete(raw) { go = false }
+        string chunk = net.recvStr(s, 8192)
+        if str.isEmpty(chunk) { go = false } else {
+            raw = str.concat(raw, chunk)
+            if http.isComplete(raw) { go = false }
         }
         guard = guard + 1
         if guard > 4096 { go = false }
@@ -115,79 +115,79 @@ string readRequest(const long s) {
 
 void main() {
     string storage = argValue("--storage")
-    if fly.str.isEmpty(storage) {
-        string home = fly.os.env.get("FLY_HOME")
-        if fly.str.isEmpty(home) == false {
-            storage = fly.os.path.join(home, "registry")
+    if str.isEmpty(storage) {
+        string home = env.get("FLY_HOME")
+        if str.isEmpty(home) == false {
+            storage = path.join(home, "registry")
         } else {
-            string h = fly.os.env.get("HOME")
-            if fly.str.isEmpty(h) { h = fly.os.env.get("USERPROFILE") }
-            if fly.str.isEmpty(h) { h = "." }
-            storage = fly.os.path.join(fly.os.path.join(h, ".fly"), "registry")
+            string h = env.get("HOME")
+            if str.isEmpty(h) { h = env.get("USERPROFILE") }
+            if str.isEmpty(h) { h = "." }
+            storage = path.join(path.join(h, ".fly"), "registry")
         }
     }
     int port = parseInt(argValue("--port"), 5000)
     if port == 5000 {
         string p2 = argValue("-p")
-        if fly.str.isEmpty(p2) == false { port = parseInt(p2, 5000) }
+        if str.isEmpty(p2) == false { port = parseInt(p2, 5000) }
     }
     string host = argValue("--host")
-    if fly.str.isEmpty(host) { host = "0.0.0.0" }
+    if str.isEmpty(host) { host = "0.0.0.0" }
     string token = argValue("--token")
-    if fly.str.isEmpty(token) { token = fly.os.env.get("FLY_REGISTRY_TOKEN") }
+    if str.isEmpty(token) { token = env.get("FLY_REGISTRY_TOKEN") }
 
     RegistryHandler handler = new RegistryHandler(storage, token)
 
     string auth = "disabled"
     if handler.requiresAuth() { auth = "Bearer token" }
-    fly.os.io.printLn("fly-registry")
-    fly.os.io.printLn(fly.str.concat("  storage : ", storage))
-    fly.os.io.printLn(fly.str.concat("  listen  : ",
-        fly.str.concat(host, fly.str.concat(":", fly.str.convert(port)))))
-    fly.os.io.printLn(fly.str.concat("  auth    : ", auth))
+    io.printLn("fly-registry")
+    io.printLn(str.concat("  storage : ", storage))
+    io.printLn(str.concat("  listen  : ",
+        str.concat(host, str.concat(":", str.convert(port)))))
+    io.printLn(str.concat("  auth    : ", auth))
 
-    int addr = fly.net.anyAddr()
-    if fly.str.equals(host, "0.0.0.0") == false {
-        addr = fly.net.parseIp(host)
-        if addr == 0 { addr = fly.net.resolve(host) }
+    int addr = net.anyAddr()
+    if str.equals(host, "0.0.0.0") == false {
+        addr = net.parseIp(host)
+        if addr == 0 { addr = net.resolve(host) }
         if addr == 0 {
-            fly.os.io.printErrLn(fly.str.concat("error: cannot resolve host: ", host))
+            io.printErrLn(str.concat("error: cannot resolve host: ", host))
             return
         }
     }
-    long server = fly.net.listenOn(addr, port, 16)
+    long server = net.listenOn(addr, port, 16)
     if server < 0 {
-        fly.os.io.printErrLn("error: bind/listen failed")
+        io.printErrLn("error: bind/listen failed")
         return
     }
     // Port 0 asks the OS to choose; report it so a caller (a test) can find us.
-    int bound = fly.net.localPort(server)
-    fly.os.io.printLn(fly.str.concat("  ready   : port ", fly.str.convert(bound)))
+    int bound = net.localPort(server)
+    io.printLn(str.concat("  ready   : port ", str.convert(bound)))
 
     // --once serves a single request and exits: that is what makes an
     // end-to-end test terminate without signals.
-    bool once = fly.str.isEmpty(argValue("--once")) == false
+    bool once = str.isEmpty(argValue("--once")) == false
     bool serving = true
     while serving {
-        long client = fly.net.accept(server)
+        long client = net.accept(server)
         if client < 0 { serving = false } else {
             // A client that opens a connection and stalls would otherwise hold
             // this single-threaded server forever.
-            fly.net.setRecvTimeout(client, 15000)
+            net.setRecvTimeout(client, 15000)
             string raw = readRequest(client)
-            if fly.str.isEmpty(raw) == false {
-                string method = fly.net.http.method(raw)
-                string path = fly.net.http.path(raw)
-                string query = fly.net.http.query(raw)
-                string authHdr = fly.net.http.header(raw, "Authorization")
-                string body = fly.net.http.body(raw)
+            if str.isEmpty(raw) == false {
+                string method = http.method(raw)
+                string path = http.path(raw)
+                string query = http.query(raw)
+                string authHdr = http.header(raw, "Authorization")
+                string body = http.body(raw)
                 RegResponse resp = handler.handle(method, path, query, authHdr, body)
-                fly.net.sendStr(client, resp.toHttp())
+                net.sendStr(client, resp.toHttp())
             }
-            fly.net.shutdownWrite(client)
-            fly.net.close(client)
+            net.shutdownWrite(client)
+            net.close(client)
             if once { serving = false }
         }
     }
-    fly.net.close(server)
+    net.close(server)
 }

@@ -159,8 +159,8 @@ public class SemaBuilder {
             if i == 0 {
                 r = names.get(i).getName()
             } else {
-                string t = fly.str.concat(r, "_")
-                r = fly.str.concat(t, names.get(i).getName())
+                string t = str.concat(r, "_")
+                r = str.concat(t, names.get(i).getName())
             }
             i = i + 1
         }
@@ -180,7 +180,7 @@ public class SemaBuilder {
         SemaBuilderModifiers mods = SemaBuilderModifiers.Build(ast.getModifiers())
         string an = ast.getName()
         string cn = cls.getName()
-        bool isCtor = fly.str.equals(an, cn)
+        bool isCtor = str.equals(an, cn)
         SemaClassInstance thisInst = cls.getThis()
         SemaClassMethod meth = new SemaClassMethod(ast, cls, thisInst, isCtor, scope)
         meth.setNamespaceName(SemaBuilder.classNsFlat(cls))
@@ -330,7 +330,7 @@ public class SemaBuilder {
     public static SemaValue CreateNumberValue(const ASTNumberValue ast) {
         string raw = ast.getValue()
         SemaValue v = null
-        if fly.str.contains(raw, ".") {
+        if str.contains(raw, ".") {
             SemaType ft = SemaBuiltin.getDoubleType()
             v = new SemaFloatValue(ast, ft, raw)
         } else {
@@ -341,11 +341,11 @@ public class SemaBuilder {
             bool wide = false
             bool allDigits = true
             long acc = 0
-            int L = fly.str.len(raw)
+            int L = str.len(raw)
             int di = 0
             while di < L {
                 byte db = 0
-                fly.str.byteAt(raw, di, db)
+                str.byteAt(raw, di, db)
                 int dc = db
                 if dc < 48 || dc > 57 { allDigits = false }
                 else {
@@ -436,7 +436,7 @@ public class SemaBuilder {
 // path — stable within and across stages, cheap, and collision-safe enough for
 // same-name types, which are already rare).
 public string buildMangleKey(const string base, const List<SemaType> typeArgs) {
-    string key = fly.str.concat(base, "_")
+    string key = str.concat(base, "_")
     int i = 0
     while i < typeArgs.size() {
         SemaType t = typeArgs.get(i)
@@ -444,30 +444,30 @@ public string buildMangleKey(const string base, const List<SemaType> typeArgs) {
         SemaClassType tc = t.asClass()
         if tc != null {
             string mm = tc.getMangledName()
-            if fly.str.isEmpty(mm) == false {
+            if str.isEmpty(mm) == false {
                 tn = mm
             } else {
                 SemaModule tm = tc.getModule()
                 if tm != null {
                     string mname = tm.getName()
                     int h = 0
-                    int mn = fly.str.len(mname)
+                    int mn = str.len(mname)
                     int bi = 0
                     while bi < mn {
                         byte bb = 0
-                        fly.str.byteAt(mname, bi, bb)
+                        str.byteAt(mname, bi, bb)
                         int bv = (int)bb & 255
                         // modulo keeps h*31+255 < 2^31 (int math, no overflow)
                         h = (h * 31 + bv) % 1000003
                         bi = bi + 1
                     }
-                    string t1 = fly.str.concat(tn, "$m")
-                    string t2 = fly.str.concat(t1, fly.str.convert(h))
+                    string t1 = str.concat(tn, "$m")
+                    string t2 = str.concat(t1, str.convert(h))
                     tn = t2
                 }
             }
         }
-        string k2 = fly.str.concat(key, tn)
+        string k2 = str.concat(key, tn)
         key = k2
         i = i + 1
     }

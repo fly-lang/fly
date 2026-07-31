@@ -29,7 +29,7 @@ public class MaxVerFetcher : ManifestFetcher {
         Manifest m = new Manifest()
         m.setName(name)
         m.setVersion("1.0.0")
-        if fly.str.equals(name, "libB") {
+        if str.equals(name, "libB") {
             m.addDep("libA", tagDep("https://host/A.git", "v2.0.0"))
         }
         out = m
@@ -43,7 +43,7 @@ public class ConflictFetcher : ManifestFetcher {
         Manifest m = new Manifest()
         m.setName(name)
         m.setVersion("1.0.0")
-        if fly.str.equals(name, "libB") {
+        if str.equals(name, "libB") {
             m.addDep("libA", tagDep("https://DIFFERENT-HOST/A.git", "v1.0.0"))
         }
         out = m

@@ -4,6 +4,7 @@ import fly.compiler.basic.*
 import fly.compiler.ast.*
 import fly.compiler.parser.*
 import fly.data.*
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Parser — recursive descent over the token stream, building the inheritance AST
@@ -240,7 +241,7 @@ public class Parser {
                 else { go = false }   // '.' not followed by an identifier → malformed
             } else {
                 string tx = this.lx.tokenText(t)
-                if t.kind == TokenKind.PUNCT && fly.str.equals(tx, ".") {
+                if t.kind == TokenKind.PUNCT && str.equals(tx, ".") {
                     expectDot = false   // chain continues; next must be an identifier
                 } elsif t.kind == TokenKind.IDENT {
                     isDecl = true       // `…Segment name` → the var name follows
@@ -302,8 +303,8 @@ public class Parser {
         // nxt is the first token inside the '('; account for it before scanning past it.
         if this.nxt.kind == TokenKind.PUNCT {
             string nx = this.lx.tokenText(this.nxt)
-            if fly.str.equals(nx, "(")      { depth = depth + 1 }
-            elsif fly.str.equals(nx, ")")   { depth = depth - 1 }
+            if str.equals(nx, "(")      { depth = depth + 1 }
+            elsif str.equals(nx, ")")   { depth = depth - 1 }
         }
         bool wrapped = false
         List<Token> scanned = new List<Token>()
@@ -315,8 +316,8 @@ public class Parser {
                 go = false
             } else {
                 string tx = this.lx.tokenText(t)
-                if t.kind == TokenKind.PUNCT && fly.str.equals(tx, "(") { depth = depth + 1 }
-                elsif t.kind == TokenKind.PUNCT && fly.str.equals(tx, ")") {
+                if t.kind == TokenKind.PUNCT && str.equals(tx, "(") { depth = depth + 1 }
+                elsif t.kind == TokenKind.PUNCT && str.equals(tx, ")") {
                     depth = depth - 1
                     if depth <= 0 { go = false }
                 }
@@ -325,7 +326,7 @@ public class Parser {
         if depth <= 0 {
             Token after = this.nextRaw()
             scanned.add(after)
-            if after.kind == TokenKind.PUNCT && fly.str.equals(this.lx.tokenText(after), "{") { wrapped = true }
+            if after.kind == TokenKind.PUNCT && str.equals(this.lx.tokenText(after), "{") { wrapped = true }
         }
         int i = 0
         while i < scanned.size() {
@@ -371,16 +372,16 @@ public class Parser {
     public bool curIsStringLit(){ out = this.cur.kind == TokenKind.STRING }
     public bool curIsAnyPunct() { out = this.cur.kind == TokenKind.PUNCT }
     public bool curIsKw(const string w) {
-        out = this.cur.kind == TokenKind.KEYWORD && fly.str.equals(this.lx.tokenText(this.cur), w)
+        out = this.cur.kind == TokenKind.KEYWORD && str.equals(this.lx.tokenText(this.cur), w)
     }
     public bool curIsPunct(const string p) {
-        out = this.cur.kind == TokenKind.PUNCT && fly.str.equals(this.lx.tokenText(this.cur), p)
+        out = this.cur.kind == TokenKind.PUNCT && str.equals(this.lx.tokenText(this.cur), p)
     }
     public bool nxtIsPunct(const string p) {
-        out = this.nxt.kind == TokenKind.PUNCT && fly.str.equals(this.lx.tokenText(this.nxt), p)
+        out = this.nxt.kind == TokenKind.PUNCT && str.equals(this.lx.tokenText(this.nxt), p)
     }
     public bool nxtIsKw(const string w) {
-        out = this.nxt.kind == TokenKind.KEYWORD && fly.str.equals(this.lx.tokenText(this.nxt), w)
+        out = this.nxt.kind == TokenKind.KEYWORD && str.equals(this.lx.tokenText(this.nxt), w)
     }
     // startsExpr — true if the current token can begin an expression.
     public bool startsExpr() {
@@ -423,11 +424,11 @@ public class Parser {
     // rather than matched against fixed spellings.
     public int leadingRun(const string s, const int ch) {
         int n = 0
-        int len = fly.str.len(s)
+        int len = str.len(s)
         bool go = true
         while go && n < len {
             byte b = 0
-            fly.str.byteAt(s, n, b)
+            str.byteAt(s, n, b)
             int bv = (int)b
             if bv == ch { n = n + 1 } else { go = false }
         }
@@ -444,11 +445,11 @@ public class Parser {
     public void closeTypeArgs() {
         string t = this.curText()
         if this.cur.kind == TokenKind.PUNCT && this.leadingRun(t, 62) > 0 {
-            if fly.str.len(t) == 1 {
+            if str.len(t) == 1 {
                 this.bump()
             } else {
                 int s = this.cur.offset()
-                this.cur = new Token(TokenKind.PUNCT, slGetFileLoc(s + 1), s + 1, s + fly.str.len(t))
+                this.cur = new Token(TokenKind.PUNCT, slGetFileLoc(s + 1), s + 1, s + str.len(t))
             }
             return
         }
@@ -1166,14 +1167,14 @@ public class Parser {
         // return type; each assignment then stores through its out pointer like a single
         // return does. Detected by `out` + `[` (out is the implicit return, never a normal var).
         if this.curIsIdent() {
-            if fly.str.equals(this.curText(), "out") {
+            if str.equals(this.curText(), "out") {
                 if this.nxtIsPunct("[") {
                     this.bump()                       // 'out'  → cur = '['
                     this.bump()                       // '['    → cur = N
                     string numStr = this.curText()
                     this.bump()                       // N      → cur = ']'
                     this.expectPunct("]")
-                    string outName = fly.str.concat("__out_", numStr)
+                    string outName = str.concat("__out_", numStr)
                     ASTExpr lhs = ASTBuilder.CreateIdentifier(loc, outName, null)
                     SourceLocation oploc = this.curLoc()
                     this.expectPunct("=")

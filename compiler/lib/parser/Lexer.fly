@@ -19,16 +19,16 @@ public class Lexer {
     public Lexer(const string src) {
         this.source = src
         this.pos = 0
-        this.len = fly.str.len(src)
+        this.len = str.len(src)
     }
 
     // spanText / tokenText — resolve a source slice to a fresh string (owned by
     // the caller, so safe to return and store as a local).
     public string spanText(const int s0, const int s1) {
-        out = fly.str.substring(this.source, s0, s1)
+        out = str.substring(this.source, s0, s1)
     }
     public string tokenText(const Token t) {
-        out = fly.str.substring(this.source, t.start, t.end)
+        out = str.substring(this.source, t.start, t.end)
     }
 
     // byteAt — byte code at index i, or 256 past end (256 matches no real byte).
@@ -38,7 +38,7 @@ public class Lexer {
             return
         }
         byte b = 0
-        fly.str.byteAt(this.source, i, b)
+        str.byteAt(this.source, i, b)
         out = b
     }
 
@@ -153,7 +153,7 @@ public class Lexer {
         while this.pos < this.len && isIdentifierBody(this.byteAt(this.pos)) {
             this.advance()
         }
-        string word = fly.str.substring(this.source, start, this.pos)
+        string word = str.substring(this.source, start, this.pos)
         TokenKind kind = TokenKind.IDENT
         if isKeyword(word) {
             kind = TokenKind.KEYWORD
@@ -196,9 +196,9 @@ public class Lexer {
     // lexPunct — punctuator via maximal munch, or TOK_UNKNOWN for a stray byte.
     public Token lexPunct(const SourceLocation loc, const int start) {
         string p = this.matchPunct()
-        if fly.str.len(p) > 0 {
+        if str.len(p) > 0 {
             int k = 0
-            int plen = fly.str.len(p)
+            int plen = str.len(p)
             while k < plen {
                 this.advance()
                 k = k + 1

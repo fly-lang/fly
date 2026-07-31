@@ -12,7 +12,7 @@ import fly.assert
 // 0xFF compares differently on the two platforms.
 int byteOfFile(const string s, const int i) {
     byte b = 0
-    fly.str.byteAt(s, i, b)
+    str.byteAt(s, i, b)
     int v = b
     out = v & 255
 }
@@ -494,15 +494,15 @@ suite OsFsSuite {
     void binaryIoTest() {
         case "a byte-exact payload survives writeBytes then readBytes": {
             string p = "fly_fs_bin1.bin"
-            pointer buf = fly.mem.alloc(8)
-            fly.mem.writeByte(buf, 0, 1)
-            fly.mem.writeByte(buf, 1, 10)      // LF     — text mode would expand on write
-            fly.mem.writeByte(buf, 2, 13)      // CR  \  — text mode would collapse
-            fly.mem.writeByte(buf, 3, 10)      // LF  /    this pair on read
-            fly.mem.writeByte(buf, 4, 26)      // 0x1A   — text mode would stop reading here
-            fly.mem.writeByte(buf, 5, 255)
-            fly.mem.writeByte(buf, 6, 0)       // an embedded NUL, for good measure
-            fly.mem.writeByte(buf, 7, 65)
+            pointer buf = mem.alloc(8)
+            mem.writeByte(buf, 0, 1)
+            mem.writeByte(buf, 1, 10)      // LF     — text mode would expand on write
+            mem.writeByte(buf, 2, 13)      // CR  \  — text mode would collapse
+            mem.writeByte(buf, 3, 10)      // LF  /    this pair on read
+            mem.writeByte(buf, 4, 26)      // 0x1A   — text mode would stop reading here
+            mem.writeByte(buf, 5, 255)
+            mem.writeByte(buf, 6, 0)       // an embedded NUL, for good measure
+            mem.writeByte(buf, 7, 65)
             string payload = ""
             str.fromBytes(buf, 8, payload)
 
@@ -522,11 +522,11 @@ suite OsFsSuite {
             // The most direct statement of the bug: text-mode writing inflates a
             // file by one byte per newline.
             string p = "fly_fs_bin2.bin"
-            pointer buf = fly.mem.alloc(4)
-            fly.mem.writeByte(buf, 0, 10)
-            fly.mem.writeByte(buf, 1, 10)
-            fly.mem.writeByte(buf, 2, 10)
-            fly.mem.writeByte(buf, 3, 10)
+            pointer buf = mem.alloc(4)
+            mem.writeByte(buf, 0, 10)
+            mem.writeByte(buf, 1, 10)
+            mem.writeByte(buf, 2, 10)
+            mem.writeByte(buf, 3, 10)
             string nl4 = ""
             str.fromBytes(buf, 4, nl4)
             fs.writeBytes(p, nl4, 420)
@@ -538,10 +538,10 @@ suite OsFsSuite {
             // than one.
             string p = "fly_fs_bin3.bin"
             int n = 70000
-            pointer buf = fly.mem.alloc(n)
+            pointer buf = mem.alloc(n)
             int i = 0
             while i < n {
-                fly.mem.writeByte(buf, i, (byte)(i % 256))
+                mem.writeByte(buf, i, (byte)(i % 256))
                 i = i + 1
             }
             string big = ""

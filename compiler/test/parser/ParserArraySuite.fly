@@ -15,7 +15,7 @@ import fly.assert
 // dq — a real double-quote char (the self-host lexer keeps `\"` raw, so string
 // literals inside a parsed source are built at runtime). Same trick as dquote().
 string dq() {
-    pointer buf = fly.mem.alloc(1)
+    pointer buf = mem.alloc(1)
     byte q = 34
     fly.llvm.strPoke(buf, 0, q)
     string s = ""
@@ -83,10 +83,10 @@ suite ParserArraySuite {
         case "string elements": {
             string Q = dq()
             // build:  {"a", "b", ""}
-            string src = fly.str.concat("{", fly.str.concat(Q, fly.str.concat("a", Q)))
-            src = fly.str.concat(src, ", ")
-            src = fly.str.concat(src, fly.str.concat(Q, fly.str.concat("b", Q)))
-            src = fly.str.concat(src, "}")
+            string src = str.concat("{", str.concat(Q, str.concat("a", Q)))
+            src = str.concat(src, ", ")
+            src = str.concat(src, str.concat(Q, str.concat("b", Q)))
+            src = str.concat(src, "}")
             Parser p = new Parser(src)
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 18)

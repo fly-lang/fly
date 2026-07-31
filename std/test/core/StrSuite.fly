@@ -7,9 +7,9 @@ import fly.assert
 // compiler/lib/frontend/TextDiagnostic.fly), so the whitespace bytes the trim
 // tests need have to be built byte-wise.
 string asciiChar(const int code) {
-    pointer buf = fly.mem.alloc(1)
-    fly.mem.writeByte(buf, 0, (byte)code)
-    fly.str.fromBytes(buf, 1, out)
+    pointer buf = mem.alloc(1)
+    mem.writeByte(buf, 0, (byte)code)
+    str.fromBytes(buf, 1, out)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -92,18 +92,18 @@ suite StrSuite {
         case "fromBytes round-trips a raw buffer": {
             // fromBytes (strMake) takes OWNERSHIP of the buffer — the resulting
             // string frees it at scope exit, so the caller must NOT free it too.
-            pointer p = fly.mem.alloc(3)
-            fly.mem.writeByte(p, 0, 102)                  // 'f'
-            fly.mem.writeByte(p, 1, 108)                  // 'l'
-            fly.mem.writeByte(p, 2, 121)                  // 'y'
+            pointer p = mem.alloc(3)
+            mem.writeByte(p, 0, 102)                  // 'f'
+            mem.writeByte(p, 1, 108)                  // 'l'
+            mem.writeByte(p, 2, 121)                  // 'y'
             string s = ""
             str.fromBytes(p, 3, s)
             assert.assertStr(s, "fly", 123)
             assert.assertEqI(str.len(s), 3, 124)
         }
         case "fromBytes with a zero length yields the empty string": {
-            pointer q = fly.mem.alloc(1)
-            fly.mem.writeByte(q, 0, 65)
+            pointer q = mem.alloc(1)
+            mem.writeByte(q, 0, 65)
             string empty = "x"
             str.fromBytes(q, 0, empty)
             assert.assertEmpty(empty, 125)

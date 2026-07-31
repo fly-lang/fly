@@ -1,5 +1,6 @@
 namespace fly.compiler.basic
 import fly.compiler.basic.*
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SourceLocation — source position utilities, ported from
@@ -103,6 +104,7 @@ public class SourceLocation {
 
     // str — the raw encoding (id) as text. With no SourceManager this is the
     // bare position id; SourceManager.getPresumedLoc decodes it to line:col.
+    // fully-qualified: inside a method named `str` the short prefix is shadowed
     public string str() { out = fly.str.convert(this.id) }
 }
 
@@ -237,8 +239,8 @@ public class PresumedLoc {
         this.includeLoc = il
     }
 
-    public bool isInvalid() { out = fly.str.isEmpty(this.filename) }
-    public bool isValid()   { out = ! fly.str.isEmpty(this.filename) }
+    public bool isInvalid() { out = str.isEmpty(this.filename) }
+    public bool isValid()   { out = ! str.isEmpty(this.filename) }
 
     public string getFilename()           { out = this.filename }
     public FileID getFileID()             { out = this.id }

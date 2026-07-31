@@ -53,7 +53,7 @@ public string cgIR(const string src) {
     string vmsg = cgm.verifyMsg(ok)
     assert.assertStr(vmsg, "", 93)
     cgm.emitIR("/tmp/cg/suite.ll")
-    out = fly.os.fs.readStr("/tmp/cg/suite.ll")
+    out = fs.readStr("/tmp/cg/suite.ll")
 }
 
 // resolveSrc — parse + resolve, returning whether any sema error was recorded.
@@ -73,7 +73,7 @@ public bool resolveSrc(const string src, const int tag) {
 // dquote — a one-character string containing a double quote (byte 34); string
 // literals keep escapes raw, so the quote byte is built at runtime.
 public string dquote() {
-    pointer buf = fly.mem.alloc(1)
+    pointer buf = mem.alloc(1)
     byte q = 34
     fly.llvm.strPoke(buf, 0, q)
     string s = ""

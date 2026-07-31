@@ -33,8 +33,8 @@ suite CodeGenGenericsSuite {
                     fail w.get()
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "%.Wrapper_int = type { ptr, i32 }"), 11)
-            assert.assertTrue(fly.str.contains(ir, "@Wrapper_int_F0"), 12)
+            assert.assertTrue(str.contains(ir, "%.Wrapper_int = type { ptr, i32 }"), 11)
+            assert.assertTrue(str.contains(ir, "@Wrapper_int_F0"), 12)
         }
     }
 }

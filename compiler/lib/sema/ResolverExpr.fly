@@ -4,7 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.basic.*
 import fly.data.List
-import fly.str as s
+import fly.str
 
 // ResolverExpr — expression resolution companion. Sets r.currentExpr.
 public class ResolverExpr {
@@ -16,7 +16,7 @@ public class ResolverExpr {
     public static void identifier(const Resolver r, const ASTIdentifier node) {
         // The implicit `error` variable: reads as bool ("did the last handle
         // block record a failure?"). handle blocks update it automatically.
-        if s.equals(node.getName(), "error") {
+        if str.equals(node.getName(), "error") {
             SemaError eref = new SemaError(null)
             eref.setType(SemaBuiltin.getBoolType())
             r.setCurrentExpr(eref)
@@ -237,7 +237,7 @@ public class ResolverExpr {
         ASTIdentifier suid = parent.asIdentifier()
         if suid != null {
             if parent.getParent() == null {
-                if s.equals(suid.getName(), "super") {
+                if str.equals(suid.getName(), "super") {
                     SemaClassType scls = r.getCurrentClass()
                     if scls != null {
                         List<SemaClassType> sbases = scls.getBaseClasses()
@@ -316,8 +316,8 @@ public class ResolverExpr {
         // {entry, var} set — mirrors the reference's SemaEnumAccessor model.
         SemaEnumType pen = pt.asEnum()
         if pen != null {
-            bool accName = s.equals(node.getName(), "name")
-            bool accValue = s.equals(node.getName(), "value")
+            bool accName = str.equals(node.getName(), "name")
+            bool accValue = str.equals(node.getName(), "value")
             if accName || accValue {
                 SemaEnumEntry accEntry = pe.asEnumEntry()
                 SemaType accTy = SemaBuiltin.getStringType()

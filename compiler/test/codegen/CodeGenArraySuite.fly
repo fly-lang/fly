@@ -16,7 +16,7 @@ import fly.assert
 // Fly source that must CONTAIN a string literal is assembled at runtime. Same
 // trick as ParserArraySuite.dq().
 string cgaDq() {
-    pointer buf = fly.mem.alloc(1)
+    pointer buf = mem.alloc(1)
     byte q = 34
     fly.llvm.strPoke(buf, 0, q)
     string s = ""
@@ -29,30 +29,30 @@ suite CodeGenArraySuite {
     void literalTest() {
         case "int[] literal: malloc + gep + store + insertvalue": {
             string ir = cgIR("void f() { int[] a = {1, 2, 3} }")
-            assert.assertTrue(fly.str.contains(ir, "@malloc"), 11)
-            assert.assertTrue(fly.str.contains(ir, "getelementptr"), 12)
-            assert.assertTrue(fly.str.contains(ir, "store i32"), 13)
-            assert.assertTrue(fly.str.contains(ir, "insertvalue"), 14)
+            assert.assertTrue(str.contains(ir, "@malloc"), 11)
+            assert.assertTrue(str.contains(ir, "getelementptr"), 12)
+            assert.assertTrue(str.contains(ir, "store i32"), 13)
+            assert.assertTrue(str.contains(ir, "insertvalue"), 14)
         }
         case "%array named struct is defined": {
             string ir = cgIR("void f() { int[] a = {1, 2, 3} }")
-            assert.assertTrue(fly.str.contains(ir, "%array"), 15)
+            assert.assertTrue(str.contains(ir, "%array"), 15)
         }
     }
 
     void emptyTest() {
         case "empty int[] a = {} → alloca %array": {
             string ir = cgIR("void f() { int[] a = {} }")
-            assert.assertTrue(fly.str.contains(ir, "alloca %array"), 21)
+            assert.assertTrue(str.contains(ir, "alloca %array"), 21)
         }
     }
 
     void forInTest() {
         case "for x in a → index-loop blocks over the data buffer": {
             string ir = cgIR("void f() { int[] a = {1, 2, 3}  for x in a { } }")
-            assert.assertTrue(fly.str.contains(ir, "forin.cond"), 31)
-            assert.assertTrue(fly.str.contains(ir, "forin.body"), 32)
-            assert.assertTrue(fly.str.contains(ir, "getelementptr"), 33)
+            assert.assertTrue(str.contains(ir, "forin.cond"), 31)
+            assert.assertTrue(str.contains(ir, "forin.body"), 32)
+            assert.assertTrue(str.contains(ir, "getelementptr"), 33)
         }
         // The loop reaches its array through CodeGenArray.slotOf, so the receiver
         // may be ANY expression, not just a variable. genAddr on a call or a
@@ -61,18 +61,18 @@ suite CodeGenArraySuite {
         // (cgIR asserts verifyModule, so these cases go red at the first regression).
         case "for x in <call result> materialises a slot": {
             string ir = cgIR("int[] g() { int[] a = {1, 2}  out = a } void f() { for x in g() { } }")
-            assert.assertTrue(fly.str.contains(ir, "arr.tmp"), 41)
-            assert.assertTrue(fly.str.contains(ir, "forin.cond"), 42)
+            assert.assertTrue(str.contains(ir, "arr.tmp"), 41)
+            assert.assertTrue(str.contains(ir, "forin.cond"), 42)
         }
         case "for x in <literal> materialises a slot": {
             string ir = cgIR("void f() { for x in {1, 2, 3} { } }")
-            assert.assertTrue(fly.str.contains(ir, "arr.tmp"), 43)
-            assert.assertTrue(fly.str.contains(ir, "forin.body"), 44)
+            assert.assertTrue(str.contains(ir, "arr.tmp"), 43)
+            assert.assertTrue(str.contains(ir, "forin.body"), 44)
         }
         // …and a variable receiver must NOT gain a temporary: it already has storage.
         case "for x in <variable> uses the variable's own slot": {
             string ir = cgIR("void f() { int[] a = {1, 2}  for x in a { } }")
-            assert.assertFalse(fly.str.contains(ir, "arr.tmp"), 45)
+            assert.assertFalse(str.contains(ir, "arr.tmp"), 45)
         }
     }
 
@@ -80,9 +80,9 @@ suite CodeGenArraySuite {
     void subscriptTest() {
         case "read k[1] emits the bounds check and a load": {
             string ir = cgIR("void f() { int[] k = {5, 6}  int x = k[1] }")
-            assert.assertTrue(fly.str.contains(ir, "arr.oob"), 51)
-            assert.assertTrue(fly.str.contains(ir, "arr.elem"), 52)
-            assert.assertTrue(fly.str.contains(ir, "arr.ld"), 53)
+            assert.assertTrue(str.contains(ir, "arr.oob"), 51)
+            assert.assertTrue(str.contains(ir, "arr.elem"), 52)
+            assert.assertTrue(str.contains(ir, "arr.ld"), 53)
         }
         // The check is TWO-SIDED: only the upper bound would let a negative index
         // read BEFORE the buffer, which is the quieter of the two failures.
@@ -94,27 +94,27 @@ suite CodeGenArraySuite {
         // upper bound survives either way, because the length is a load.
         case "the bounds check tests both ends": {
             string ir = cgIR("void f() { int[] k = {5, 6}  int i = 1  int x = k[i] }")
-            assert.assertTrue(fly.str.contains(ir, "arr.low"), 54)
-            assert.assertTrue(fly.str.contains(ir, "arr.high"), 55)
+            assert.assertTrue(str.contains(ir, "arr.low"), 54)
+            assert.assertTrue(str.contains(ir, "arr.high"), 55)
         }
         // A write is range-checked exactly like a read — same helper, same blocks.
         case "write k[0] = 9 is bounds-checked too": {
             string ir = cgIR("void f() { int[] k = {5, 6}  k[0] = 9 }")
-            assert.assertTrue(fly.str.contains(ir, "arr.oob"), 56)
-            assert.assertTrue(fly.str.contains(ir, "store i32 9"), 57)
+            assert.assertTrue(str.contains(ir, "arr.oob"), 56)
+            assert.assertTrue(str.contains(ir, "store i32 9"), 57)
         }
         // A nested ROW yields its ADDRESS, never a loaded %array: loading it by
         // value handed the outer subscript a struct where a pointer was required,
         // and `m[1][2]` then read the low half of the row's own len field.
         case "chained m[0][0] verifies and re-indexes the row": {
             string ir = cgIR("void f() { int[][] m = {{1, 2}}  int x = m[0][0] }")
-            assert.assertTrue(fly.str.contains(ir, "arr.elem"), 58)
-            assert.assertTrue(fly.str.contains(ir, "arr.ld"), 59)
+            assert.assertTrue(str.contains(ir, "arr.elem"), 58)
+            assert.assertTrue(str.contains(ir, "arr.ld"), 59)
         }
         // An out-of-range access fails with the dedicated code 2989 (0x0BAD).
         case "the failure carries the dedicated code": {
             string ir = cgIR("void f() { int[] k = {5}  int x = k[9] }")
-            assert.assertTrue(fly.str.contains(ir, "2989"), 60)
+            assert.assertTrue(str.contains(ir, "2989"), 60)
         }
     }
 
@@ -129,14 +129,14 @@ suite CodeGenArraySuite {
         // has no namespace — hence the leading dot.)
         case "a struct array strides by the struct, not by a pointer": {
             string ir = cgIR("struct Pt { int x  int y } void f() { Pt[2] ps  Pt a = ps[0] }")
-            assert.assertTrue(fly.str.contains(ir, "getelementptr %.Pt"), 71)
+            assert.assertTrue(str.contains(ir, "getelementptr %.Pt"), 71)
         }
         case "writing through a struct element verifies": {
             // (kept next to the read case: both go through elementLlvmType)
             // Reading one used to hand the copy path an aggregate where a pointer
             // was due; cgIR asserts verifyModule, so a relapse is a red case.
             string ir = cgIR("struct Pt { int x  int y } void f() { Pt[2] ps  Pt a = ps[1]  a.x = 3 }")
-            assert.assertTrue(fly.str.contains(ir, "arr.elem"), 72)
+            assert.assertTrue(str.contains(ir, "arr.elem"), 72)
         }
     }
 
@@ -149,31 +149,31 @@ suite CodeGenArraySuite {
             // constant, so `add i64 8, 8` is folded by the IRBuilder and the named
             // instruction never appears. The data GEP and the count store survive.
             string ir = cgIR("void f() { int[] k = {1, 2} }")
-            assert.assertTrue(fly.str.contains(ir, "rcbuf.data"), 81)
-            assert.assertTrue(fly.str.contains(ir, "store i64 1"), 82)
+            assert.assertTrue(str.contains(ir, "rcbuf.data"), 81)
+            assert.assertTrue(str.contains(ir, "store i64 1"), 82)
         }
         case "a runtime-sized array computes size + header": {
             string ir = cgIR("void f() { int n = 4  int[n] k }")
-            assert.assertTrue(fly.str.contains(ir, "rcbuf.total"), 83)
+            assert.assertTrue(str.contains(ir, "rcbuf.total"), 83)
         }
         case "an owned local is released at scope exit": {
             string ir = cgIR("void f() { int[] k = {1, 2} }")
-            assert.assertTrue(fly.str.contains(ir, "arel.live"), 84)
-            assert.assertTrue(fly.str.contains(ir, "arel.free"), 85)
+            assert.assertTrue(str.contains(ir, "arel.live"), 84)
+            assert.assertTrue(str.contains(ir, "arel.free"), 85)
             // The null guard is mandatory: an empty array has no buffer, and the
             // cleanup walks every registered local.
-            assert.assertTrue(fly.str.contains(ir, "arel.null"), 86)
+            assert.assertTrue(str.contains(ir, "arel.null"), 86)
         }
         case "binding another array RETAINS": {
             string ir = cgIR("void f() { int[] k = {1, 2}  int[] j = k }")
-            assert.assertTrue(fly.str.contains(ir, "aret.live"), 87)
-            assert.assertTrue(fly.str.contains(ir, "aret.rc1"), 88)
+            assert.assertTrue(str.contains(ir, "aret.live"), 87)
+            assert.assertTrue(str.contains(ir, "aret.rc1"), 88)
         }
         // A literal is born at 1, so binding one must NOT retain — that would
         // strand the buffer at a count nothing ever brings down.
         case "a literal initializer does not retain": {
             string ir = cgIR("void f() { int[] k = {1, 2} }")
-            assert.assertFalse(fly.str.contains(ir, "aret.live"), 89)
+            assert.assertFalse(str.contains(ir, "aret.live"), 89)
         }
         // Nor does a CALL result: the callee already retained on the caller's
         // behalf when it ran `out = xs`.
@@ -186,7 +186,7 @@ suite CodeGenArraySuite {
         // retain in the module would have to come from `int[] r = g()`.
         case "a call result does not retain": {
             string ir = cgIR("int[] g() { out = {1} } void f() { int[] r = g() }")
-            assert.assertFalse(fly.str.contains(ir, "aret.live"), 90)
+            assert.assertFalse(str.contains(ir, "aret.live"), 90)
         }
         // NESTED: one buffer and one count per level. The release walks the
         // elements BEFORE freeing the buffer that holds them, and only once the
@@ -194,19 +194,19 @@ suite CodeGenArraySuite {
         // second owner free the inner buffers twice.
         case "a nested array releases every level": {
             string ir = cgIR("void f() { int[][] m = {{1, 2}, {3}} }")
-            assert.assertTrue(fly.str.contains(ir, "arel.inner.cond"), 91)
-            assert.assertTrue(fly.str.contains(ir, "arel.elem"), 92)
+            assert.assertTrue(str.contains(ir, "arel.inner.cond"), 91)
+            assert.assertTrue(str.contains(ir, "arel.elem"), 92)
         }
         case "a flat array needs no inner walk": {
             string ir = cgIR("void f() { int[] k = {1, 2} }")
-            assert.assertFalse(fly.str.contains(ir, "arel.inner.cond"), 93)
+            assert.assertFalse(str.contains(ir, "arel.inner.cond"), 93)
         }
         // A sized array of CLASSES is born full: one instance per index.
         case "a class array preallocates its elements": {
             string ir = cgIR("class C { int v  public C() { this.v = 1 } } void f() { C[3] cs }")
-            assert.assertTrue(fly.str.contains(ir, "anew.cond"), 94)
-            assert.assertTrue(fly.str.contains(ir, "anew.obj"), 95)
-            assert.assertTrue(fly.str.contains(ir, "anew.slot"), 96)
+            assert.assertTrue(str.contains(ir, "anew.cond"), 94)
+            assert.assertTrue(str.contains(ir, "anew.obj"), 95)
+            assert.assertTrue(str.contains(ir, "anew.slot"), 96)
         }
     }
 
@@ -221,24 +221,24 @@ suite CodeGenArraySuite {
             // quote inside a Fly string literal has to be built (same reason
             // ParserArraySuite has its dq() helper).
             string Q = cgaDq()
-            string lit = fly.str.concat(Q, fly.str.concat("ab", Q))
-            string src = fly.str.concat("void f() { string[] xs = {", lit)
-            src = fly.str.concat(src, "}  string s = xs[0] }")
+            string lit = str.concat(Q, str.concat("ab", Q))
+            string src = str.concat("void f() { string[] xs = {", lit)
+            src = str.concat(src, "}  string s = xs[0] }")
             string ir = cgIR(src)
-            assert.assertTrue(fly.str.contains(ir, "clone."), 97)
+            assert.assertTrue(str.contains(ir, "clone."), 97)
         }
         // Writing one does NOT clone: the array must not own the element's buffer,
         // or nothing would ever free it.
         case "writing a string element goes through the element address": {
             string Q = cgaDq()
-            string lit = fly.str.concat(Q, fly.str.concat("ab", Q))
-            string lit2 = fly.str.concat(Q, fly.str.concat("cd", Q))
-            string src = fly.str.concat("void f() { string[] xs = {", lit)
-            src = fly.str.concat(src, "}  string s = ")
-            src = fly.str.concat(src, lit2)
-            src = fly.str.concat(src, "  xs[0] = s }")
+            string lit = str.concat(Q, str.concat("ab", Q))
+            string lit2 = str.concat(Q, str.concat("cd", Q))
+            string src = str.concat("void f() { string[] xs = {", lit)
+            src = str.concat(src, "}  string s = ")
+            src = str.concat(src, lit2)
+            src = str.concat(src, "  xs[0] = s }")
             string ir = cgIR(src)
-            assert.assertTrue(fly.str.contains(ir, "arr.elem"), 98)
+            assert.assertTrue(str.contains(ir, "arr.elem"), 98)
         }
     }
 }

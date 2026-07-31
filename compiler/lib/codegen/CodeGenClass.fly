@@ -507,7 +507,7 @@ public class CodeGenClass {
         // LLVMBuildMalloc segfaults inside libLLVM. Sema rejects these upstream —
         // if one still slips through, report and yield a null pointer instead.
         if structTy == 0 {
-            fly.os.io.printErrLn(fly.str.concat(fly.str.concat("error: cannot instantiate class '", cls.getName()), "': no materialized LLVM struct type"))
+            io.printErrLn(str.concat(str.concat("error: cannot instantiate class '", cls.getName()), "': no materialized LLVM struct type"))
             pointer nullObj
             llvm.constPointerNull(cge.ptrType(), nullObj)
             node.setLlvmValue(nullObj)

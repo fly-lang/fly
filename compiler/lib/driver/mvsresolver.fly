@@ -133,7 +133,7 @@ public class MVSResolver {
         int i = 0
         while i < this.groups.size() {
             ConstraintGroup g = this.groups.get(i)
-            if fly.str.equals(g.getName(), name) { out = g  return }
+            if str.equals(g.getName(), name) { out = g  return }
             i = i + 1
         }
         ConstraintGroup ng = new ConstraintGroup(name)
@@ -144,7 +144,7 @@ public class MVSResolver {
     public bool isVisited(const string name) {
         int i = 0
         while i < this.visited.size() {
-            if fly.str.equals(this.visited.get(i), name) { out = true  return }
+            if str.equals(this.visited.get(i), name) { out = true  return }
             i = i + 1
         }
         out = false
@@ -174,7 +174,7 @@ public class MVSResolver {
         string url = grp.at(0).getDep().getGitUrl()
         int i = 0
         while i < n {
-            if fly.str.equals(grp.at(i).getDep().getGitUrl(), url) == false {
+            if str.equals(grp.at(i).getDep().getGitUrl(), url) == false {
                 this.errors.add(new ResolveError(true, name))
                 out = null
                 return
@@ -193,7 +193,7 @@ public class MVSResolver {
                 // branch/rev: must agree with an existing non-tag best
                 if best != null {
                     bool bestIsTag = best.getDep().getRefKind() == 0
-                    bool sameVal = fly.str.equals(best.getDep().getRefValue(), c.getDep().getRefValue())
+                    bool sameVal = str.equals(best.getDep().getRefValue(), c.getDep().getRefValue())
                     if bestIsTag == false && sameVal == false {
                         this.errors.add(new ResolveError(true, name))
                         out = null
@@ -269,7 +269,7 @@ public class MVSResolver {
         int i = 0
         while i < res.size() {
             ResolvedPackage r = res.get(i)
-            if fly.str.equals(r.getName(), name) { out = r  return }
+            if str.equals(r.getName(), name) { out = r  return }
             i = i + 1
         }
         out = null

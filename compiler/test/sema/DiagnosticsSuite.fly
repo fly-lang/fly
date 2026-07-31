@@ -75,7 +75,7 @@ suite DiagnosticsSuite {
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertTrue(diags.hasErrorOccurred(), 31)
             StoringDiagnosticConsumer sink = p.getSink()
-            assert.assertTrue(fly.str.contains(sink.getMessage(0), "'h'"), 32)
+            assert.assertTrue(str.contains(sink.getMessage(0), "'h'"), 32)
         }
         case "a namespace name used as a bare value is rejected (not a silent null)": {
             Parser p = new Parser("namespace demo  void g() { }  int f() { int x = demo  out = x }")
@@ -89,7 +89,7 @@ suite DiagnosticsSuite {
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertTrue(diags.hasErrorOccurred(), 34)
             StoringDiagnosticConsumer sink = p.getSink()
-            assert.assertTrue(fly.str.contains(sink.getMessage(0), "namespace"), 35)
+            assert.assertTrue(str.contains(sink.getMessage(0), "namespace"), 35)
         }
         case "a type/class name used as a bare value is rejected": {
             Parser p = new Parser("public class C { public int x }  int f() { int y = C  out = y }")
@@ -103,7 +103,7 @@ suite DiagnosticsSuite {
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertTrue(diags.hasErrorOccurred(), 37)
             StoringDiagnosticConsumer sink = p.getSink()
-            assert.assertTrue(fly.str.contains(sink.getMessage(0), "type name"), 38)
+            assert.assertTrue(str.contains(sink.getMessage(0), "type name"), 38)
         }
         case "a function name used as a bare value is rejected": {
             Parser p = new Parser("int g() { out = 1 }  int f() { int y = g  out = y }")
@@ -117,7 +117,7 @@ suite DiagnosticsSuite {
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertTrue(diags.hasErrorOccurred(), 44)
             StoringDiagnosticConsumer sink = p.getSink()
-            assert.assertTrue(fly.str.contains(sink.getMessage(0), "function"), 45)
+            assert.assertTrue(str.contains(sink.getMessage(0), "function"), 45)
         }
     }
 

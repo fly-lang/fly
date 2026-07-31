@@ -13,11 +13,11 @@ import fly.str
 public class FileManager {
     public FileManager() { }
 
-    public bool exists(const string path) { out = fly.os.fs.exists(path) }
+    public bool exists(const string path) { out = fs.exists(path) }
 
     // getFile — read `path` into a MemoryBuffer (empty text if unreadable).
     public MemoryBuffer getFile(const string path) {
-        string txt = fly.os.fs.readStr(path)
+        string txt = fs.readStr(path)
         out = new MemoryBuffer(path, txt)
     }
 }

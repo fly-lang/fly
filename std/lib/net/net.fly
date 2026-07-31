@@ -85,13 +85,13 @@ public string ipToStr(const int addr) {
     int b = (addr >> 16) & 255
     int c = (addr >> 8) & 255
     int d = addr & 255
-    string s = fly.str.convert(a)
-    s = fly.str.concat(s, ".")
-    s = fly.str.concat(s, fly.str.convert(b))
-    s = fly.str.concat(s, ".")
-    s = fly.str.concat(s, fly.str.convert(c))
-    s = fly.str.concat(s, ".")
-    s = fly.str.concat(s, fly.str.convert(d))
+    string s = str.convert(a)
+    s = str.concat(s, ".")
+    s = str.concat(s, str.convert(b))
+    s = str.concat(s, ".")
+    s = str.concat(s, str.convert(c))
+    s = str.concat(s, ".")
+    s = str.concat(s, str.convert(d))
     out = s
 }
 
@@ -99,7 +99,7 @@ public string ipToStr(const int addr) {
 // literal IPv4: wrong component count, an empty component, a non-digit, or an
 // octet above 255. "0.0.0.0" also returns 0 — spell the wildcard as anyAddr().
 public int parseIp(const string s) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     if n == 0 { out = 0  return }
     int acc = 0
     int cur = 0
@@ -108,7 +108,7 @@ public int parseIp(const string s) {
     int i = 0
     while i < n {
         byte bb = 0
-        fly.str.byteAt(s, i, bb)
+        str.byteAt(s, i, bb)
         int c = bb & 255
         if c == 46 {
             if digits == 0 { out = 0  return }
@@ -150,13 +150,13 @@ public int parseIp(const string s) {
 // resolve. A dotted-quad literal yields a one-entry list without touching DNS.
 // Release it with addrFree().
 public pointer resolveAll(const string host) {
-    if fly.str.isEmpty(host) { out = 0  return }
+    if str.isEmpty(host) { out = 0  return }
     int lit = parseIp(host)
     if lit != 0 {
         pointer one = 0
         fly.runtime.mem_alloc(12, one)
-        fly.mem.writeInt(one, 0, 1)
-        fly.mem.writeInt(one, 8, lit)
+        mem.writeInt(one, 0, 1)
+        mem.writeInt(one, 8, lit)
         out = one
         return
     }
@@ -173,10 +173,10 @@ public pointer resolveAll(const string host) {
     }
     pointer h = 0
     fly.runtime.mem_alloc(8 + n * 4, h)
-    fly.mem.writeInt(h, 0, n)
+    mem.writeInt(h, 0, n)
     int i = 0
     while i < n {
-        fly.mem.writeInt(h, 8 + i * 4, fly.mem.readInt(tmp, i * 4))
+        mem.writeInt(h, 8 + i * 4, mem.readInt(tmp, i * 4))
         i = i + 1
     }
     fly.runtime.mem_free(tmp, 128)
@@ -186,15 +186,15 @@ public pointer resolveAll(const string host) {
 // addrCount — how many addresses the list holds; 0 for a null handle.
 public int addrCount(const pointer h) {
     if h == 0 { out = 0  return }
-    out = fly.mem.readInt(h, 0)
+    out = mem.readInt(h, 0)
 }
 
 // addrAt — the i-th address; 0 when out of range or the handle is null.
 public int addrAt(const pointer h, const int i) {
     if h == 0 { out = 0  return }
-    int n = fly.mem.readInt(h, 0)
+    int n = mem.readInt(h, 0)
     if i < 0 || i >= n { out = 0  return }
-    out = fly.mem.readInt(h, 8 + i * 4)
+    out = mem.readInt(h, 8 + i * 4)
 }
 
 // addrFree — release a list. Safe on a null handle.
@@ -244,7 +244,7 @@ public int peerPort(const long s) {
 // in via dlopen, so a --static binary may fail to resolve a real hostname;
 // literals and anything in the hosts file (including "localhost") are unaffected.
 public int resolve(const string host) {
-    if fly.str.isEmpty(host) { out = 0  return }
+    if str.isEmpty(host) { out = 0  return }
     int lit = parseIp(host)
     if lit != 0 { out = lit  return }
     pointer chost = strToCstr(host)
@@ -524,7 +524,7 @@ public bool sendAll(const long s, const pointer buf, const int n) {
 // sendStr — sendAll over a string's bytes. Sending an empty string succeeds
 // without touching the socket.
 public bool sendStr(const long s, const string data) {
-    int n = fly.str.len(data)
+    int n = str.len(data)
     if n == 0 { out = s >= 0  return }
     pointer buf = strToCstr(data)
     bool ok = sendAll(s, buf, n)
@@ -666,8 +666,8 @@ public long socketUdp() {
 public pointer fromNew() {
     pointer f = 0
     fly.runtime.mem_alloc(8, f)
-    fly.mem.writeInt(f, 0, 0)
-    fly.mem.writeInt(f, 4, 0)
+    mem.writeInt(f, 0, 0)
+    mem.writeInt(f, 4, 0)
     out = f
 }
 
@@ -675,13 +675,13 @@ public pointer fromNew() {
 // null scratch or before any receive.
 public int fromAddr(const pointer from) {
     if from == 0 { out = 0  return }
-    out = fly.mem.readInt(from, 0)
+    out = mem.readInt(from, 0)
 }
 
 // fromPort — the sender's port; 0 for a null scratch or before any receive.
 public int fromPort(const pointer from) {
     if from == 0 { out = 0  return }
-    out = fly.mem.readInt(from, 4)
+    out = mem.readInt(from, 4)
 }
 
 public void fromFree(const pointer from) {
@@ -702,7 +702,7 @@ public long sendTo(const long s, const pointer buf, const int n, const int addr,
 // no-op, unlike sendStr on a stream socket.
 public bool sendStrTo(const long s, const string data, const int addr, const int port) {
     if s < 0 { out = false  return }
-    int n = fly.str.len(data)
+    int n = str.len(data)
     if n == 0 {
         long e = 0
         fly.runtime.net_send_to(s, 0, 0, addr, port, e)
@@ -792,16 +792,16 @@ public pointer pollNew() {
     int cap = 8
     pointer items = 0
     fly.runtime.mem_alloc(cap * 16, items)
-    fly.mem.writePtr(ps, 0, items)
-    fly.mem.writeInt(ps, 8, 0)
-    fly.mem.writeInt(ps, 12, cap)
+    mem.writePtr(ps, 0, items)
+    mem.writeInt(ps, 8, 0)
+    mem.writeInt(ps, 12, cap)
     out = ps
 }
 
 // pollCount — how many sockets the set watches.
 public int pollCount(const pointer ps) {
     if ps == 0 { out = 0  return }
-    out = fly.mem.readInt(ps, 8)
+    out = mem.readInt(ps, 8)
 }
 
 // pollAdd — watch `s` for `events` (an OR of pollRead()/pollWrite()). Returns
@@ -810,31 +810,31 @@ public int pollCount(const pointer ps) {
 // deduplicates.
 public int pollAdd(const pointer ps, const long s, const int events) {
     if ps == 0 || s < 0 { out = 0 - 1  return }
-    int count = fly.mem.readInt(ps, 8)
-    int cap = fly.mem.readInt(ps, 12)
-    pointer items = fly.mem.readPtr(ps, 0)
+    int count = mem.readInt(ps, 8)
+    int cap = mem.readInt(ps, 12)
+    pointer items = mem.readPtr(ps, 0)
     if count >= cap {
         int want = cap * 2
         pointer bigger = 0
         fly.runtime.mem_realloc(items, want * 16, bigger)
         items = bigger
-        fly.mem.writePtr(ps, 0, items)
-        fly.mem.writeInt(ps, 12, want)
+        mem.writePtr(ps, 0, items)
+        mem.writeInt(ps, 12, want)
     }
-    fly.mem.writeLong(items, count * 16, s)
-    fly.mem.writeInt(items, count * 16 + 8, events)
-    fly.mem.writeInt(items, count * 16 + 12, 0)
-    fly.mem.writeInt(ps, 8, count + 1)
+    mem.writeLong(items, count * 16, s)
+    mem.writeInt(items, count * 16 + 8, events)
+    mem.writeInt(items, count * 16 + 12, 0)
+    mem.writeInt(ps, 8, count + 1)
     out = count
 }
 
 // pollSet — change what entry `i` is watching. false when out of range.
 public bool pollSet(const pointer ps, const int i, const int events) {
     if ps == 0 { out = false  return }
-    int count = fly.mem.readInt(ps, 8)
+    int count = mem.readInt(ps, 8)
     if i < 0 || i >= count { out = false  return }
-    pointer items = fly.mem.readPtr(ps, 0)
-    fly.mem.writeInt(items, i * 16 + 8, events)
+    pointer items = mem.readPtr(ps, 0)
+    mem.writeInt(items, i * 16 + 8, events)
     out = true
 }
 
@@ -843,35 +843,35 @@ public bool pollSet(const pointer ps, const int i, const int events) {
 // while iterating backwards. false when out of range.
 public bool pollRemove(const pointer ps, const int i) {
     if ps == 0 { out = false  return }
-    int count = fly.mem.readInt(ps, 8)
+    int count = mem.readInt(ps, 8)
     if i < 0 || i >= count { out = false  return }
-    pointer items = fly.mem.readPtr(ps, 0)
+    pointer items = mem.readPtr(ps, 0)
     int last = count - 1
     if i != last {
-        fly.mem.writeLong(items, i * 16, fly.mem.readLong(items, last * 16))
-        fly.mem.writeInt(items, i * 16 + 8, fly.mem.readInt(items, last * 16 + 8))
-        fly.mem.writeInt(items, i * 16 + 12, fly.mem.readInt(items, last * 16 + 12))
+        mem.writeLong(items, i * 16, mem.readLong(items, last * 16))
+        mem.writeInt(items, i * 16 + 8, mem.readInt(items, last * 16 + 8))
+        mem.writeInt(items, i * 16 + 12, mem.readInt(items, last * 16 + 12))
     }
-    fly.mem.writeInt(ps, 8, last)
+    mem.writeInt(ps, 8, last)
     out = true
 }
 
 // pollSocketAt — the socket registered at entry `i`; -1 when out of range.
 public long pollSocketAt(const pointer ps, const int i) {
     if ps == 0 { out = 0 - 1  return }
-    int count = fly.mem.readInt(ps, 8)
+    int count = mem.readInt(ps, 8)
     if i < 0 || i >= count { out = 0 - 1  return }
-    pointer items = fly.mem.readPtr(ps, 0)
-    out = fly.mem.readLong(items, i * 16)
+    pointer items = mem.readPtr(ps, 0)
+    out = mem.readLong(items, i * 16)
 }
 
 // pollEventsAt — what entry `i` is watching; 0 when out of range.
 public int pollEventsAt(const pointer ps, const int i) {
     if ps == 0 { out = 0  return }
-    int count = fly.mem.readInt(ps, 8)
+    int count = mem.readInt(ps, 8)
     if i < 0 || i >= count { out = 0  return }
-    pointer items = fly.mem.readPtr(ps, 0)
-    out = fly.mem.readInt(items, i * 16 + 8)
+    pointer items = mem.readPtr(ps, 0)
+    out = mem.readInt(items, i * 16 + 8)
 }
 
 // pollWait — block until at least one watched socket is ready, `timeoutMs`
@@ -882,9 +882,9 @@ public int pollEventsAt(const pointer ps, const int i) {
 // Read the outcome with pollRevents(ps, i) for each entry.
 public int pollWait(const pointer ps, const int timeoutMs) {
     if ps == 0 { out = 0 - 1  return }
-    int count = fly.mem.readInt(ps, 8)
+    int count = mem.readInt(ps, 8)
     if count == 0 { out = 0  return }
-    pointer items = fly.mem.readPtr(ps, 0)
+    pointer items = mem.readPtr(ps, 0)
     int rc = 0
     fly.runtime.net_poll(items, count, timeoutMs, rc)
     out = rc
@@ -895,10 +895,10 @@ public int pollWait(const pointer ps, const int timeoutMs) {
 // meaningful after a pollWait; 0 when out of range.
 public int pollRevents(const pointer ps, const int i) {
     if ps == 0 { out = 0  return }
-    int count = fly.mem.readInt(ps, 8)
+    int count = mem.readInt(ps, 8)
     if i < 0 || i >= count { out = 0  return }
-    pointer items = fly.mem.readPtr(ps, 0)
-    out = fly.mem.readInt(items, i * 16 + 12)
+    pointer items = mem.readPtr(ps, 0)
+    out = mem.readInt(items, i * 16 + 12)
 }
 
 // pollIsReady — convenience: does entry `i` report ANY of `mask`?
@@ -912,7 +912,7 @@ public bool pollIsReady(const pointer ps, const int i, const int mask) {
 // the caller. Safe on a null handle.
 public void pollFree(const pointer ps) {
     if ps == 0 { return }
-    pointer items = fly.mem.readPtr(ps, 0)
+    pointer items = mem.readPtr(ps, 0)
     if items != 0 { fly.runtime.mem_free(items, 0) }
     fly.runtime.mem_free(ps, 16)
 }

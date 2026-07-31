@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.basic.*
 import fly.data.List
+import fly.str
 
 // ResolverDecl — declaration resolution companion: functions, params, locals.
 public class ResolverDecl {
@@ -122,7 +123,7 @@ public class ResolverDecl {
             // test suites) walks that half-built signature straight into an AV.
             bool mainBadRet = false
             if isVoidRet == false {
-                if fly.str.equals(node.getName(), "main") { mainBadRet = true }
+                if str.equals(node.getName(), "main") { mainBadRet = true }
             }
             if mainBadRet {
                 r.diag(node.getLoc(), DiagID.err_sema_main_with_return)
@@ -150,7 +151,7 @@ public class ResolverDecl {
             // diagnose and fall through rather than returning.
             bool mainMulti = false
             if rts.size() > 0 {
-                if fly.str.equals(node.getName(), "main") { mainMulti = true }
+                if str.equals(node.getName(), "main") { mainMulti = true }
             }
             if mainMulti {
                 r.diag(node.getLoc(), DiagID.err_sema_main_with_return)
@@ -160,7 +161,7 @@ public class ResolverDecl {
                     ASTType rti = rts.get(ri)
                     rti.accept(r)
                     List<ASTModifier> noMods = new List<ASTModifier>()
-                    string on = fly.str.concat("__out_", fly.str.convert(ri))
+                    string on = str.concat("__out_", str.convert(ri))
                     ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rti, on, noMods, null)
                     outAst.accept(r)
                     fb.addParam(r.getCurrentParam())

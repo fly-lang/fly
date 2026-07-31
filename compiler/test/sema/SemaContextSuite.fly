@@ -4,6 +4,7 @@ import fly.compiler.parser.*
 import fly.compiler.sema.*
 import fly.data.*
 import fly.assert
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SemaContextSuite — Stage 6: first end-to-end Sema run. Parses a Fly source
@@ -50,7 +51,7 @@ suite SemaContextSuite {
             List<SemaParam> params = fn.getParams()
             assert.assertEqI(params.size(), 2, 7)
             SemaParam pa = params.get(0)
-            assert.assertTrue(fly.str.equals(pa.getName(), "a"), 8)
+            assert.assertTrue(str.equals(pa.getName(), "a"), 8)
             SemaType pat = pa.getType()
             assert.assertTrue(pat.isInteger(), 9)
 

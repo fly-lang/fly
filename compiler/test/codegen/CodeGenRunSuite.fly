@@ -37,7 +37,7 @@ suite CodeGenRunSuite {
                     fail s
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "define i32 @main(i32"), 11)
+            assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 11)
         }
         case "class + new + virtual method → would exit 42": {
             string ir = cgIR("
@@ -52,7 +52,7 @@ suite CodeGenRunSuite {
                     fail p.sum()
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "define i32 @main(i32"), 21)
+            assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 21)
         }
         case "single inheritance + override dispatch → would exit 11": {
             string ir = cgIR("
@@ -71,7 +71,7 @@ suite CodeGenRunSuite {
                     fail s + l
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "define i32 @main(i32"), 31)
+            assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 31)
         }
         case "enums → would exit 33": {
             string ir = cgIR("
@@ -84,7 +84,7 @@ suite CodeGenRunSuite {
                     fail classify(c)
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "define i32 @main(i32"), 41)
+            assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 41)
         }
         case "fail / handle → would exit 5": {
             string ir = cgIR("
@@ -99,7 +99,7 @@ suite CodeGenRunSuite {
                     fail a + b
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "define i32 @main(i32"), 51)
+            assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 51)
         }
         case "generics Wrapper<int> → would exit 42": {
             string ir = cgIR("
@@ -111,7 +111,7 @@ suite CodeGenRunSuite {
                     fail w.get()
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "define i32 @main(i32"), 61)
+            assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 61)
         }
         case "alloc tracking (free at scope exit) → would exit 42": {
             string ir = cgIR("
@@ -124,7 +124,7 @@ suite CodeGenRunSuite {
                     fail r
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "define i32 @main(i32"), 71)
+            assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 71)
         }
     }
 }

@@ -69,19 +69,19 @@ public class Triple {
     public string getOSName()    { out = this.os }
     public string getEnvName()   { out = this.env }
 
-    public bool isOSLinux()      { out = fly.str.equals(this.os, "linux") }
+    public bool isOSLinux()      { out = str.equals(this.os, "linux") }
     public bool isKnown()        { out = this.arch != Arch.UNKNOWN }
 
     // ── Query helpers consumed by the ToolChain port (1:1 with llvm::Triple) ──
     public bool isOSDarwin() {
-        out = fly.str.equals(this.os, "darwin") || fly.str.equals(this.os, "macosx") || fly.str.equals(this.os, "ios")
+        out = str.equals(this.os, "darwin") || str.equals(this.os, "macosx") || str.equals(this.os, "ios")
     }
     public bool isWindowsMSVC() {
-        out = fly.str.equals(this.os, "windows") && fly.str.equals(this.env, "msvc")
+        out = str.equals(this.os, "windows") && str.equals(this.env, "msvc")
     }
-    public bool isOSWindows() { out = fly.str.equals(this.os, "windows") }
-    public bool isAndroid()  { out = fly.str.contains(this.env, "android") }
-    public bool isOSIAMCU()  { out = fly.str.equals(this.os, "elfiamcu") }
+    public bool isOSWindows() { out = str.equals(this.os, "windows") }
+    public bool isAndroid()  { out = str.contains(this.env, "android") }
+    public bool isOSIAMCU()  { out = str.equals(this.os, "elfiamcu") }
     public bool isVE()       { out = this.arch == Arch.VE }
     public bool isARM()      { out = this.arch == Arch.ARM || this.arch == Arch.ARMEB }
     public bool isThumb()    { out = false }   // self-host has no separate thumb arch token
@@ -93,7 +93,7 @@ public class Triple {
     public bool isOSBinFormatMachO() { out = this.isOSDarwin() }
     public bool isOSBinFormatCOFF()  { out = this.isOSWindows() }
     // x32 ABI (32-bit pointers on x86_64). env == "gnux32".
-    public bool isX32()      { out = fly.str.equals(this.env, "gnux32") }
+    public bool isX32()      { out = str.equals(this.env, "gnux32") }
 
     // isArch64Bit — true for the 64-bit-pointer arches (used by getOSLibDir).
     public bool isArch64Bit() {
@@ -111,7 +111,7 @@ public class Triple {
 // archFromName — map the raw arch token onto the Arch enum, accepting the
 // canonical token plus the common aliases LLVM's parseArch recognises. The
 // `eq` helper keeps the long chain readable.
-public bool archEq(const string a, const string b) { out = fly.str.equals(a, b) }
+public bool archEq(const string a, const string b) { out = str.equals(a, b) }
 
 public Arch archFromName(const string name) {
     // x86 family
@@ -172,16 +172,16 @@ public Arch archFromName(const string name) {
 // shared cursor pattern is not available) leave splitting to tripleParse. This
 // helper returns the head; tripleParse advances the tail itself.
 public string tripleHead(const string s) {
-    int p = fly.str.indexOf(s, "-")
+    int p = str.indexOf(s, "-")
     if p < 0 { out = s  return }
-    out = fly.str.substring(s, 0, p)
+    out = str.substring(s, 0, p)
 }
 
 // tripleTail — the remainder of `s` after the first '-' ("" if there is none).
 public string tripleTail(const string s) {
-    int p = fly.str.indexOf(s, "-")
+    int p = str.indexOf(s, "-")
     if p < 0 { out = ""  return }
-    out = fly.str.substring(s, p + 1, fly.str.len(s))
+    out = str.substring(s, p + 1, str.len(s))
 }
 
 // tripleParse — split "arch-vendor-os-env" into a Triple. Missing trailing
