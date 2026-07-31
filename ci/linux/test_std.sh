@@ -29,8 +29,9 @@ mkdir -p "$OUT"
 # -- Stage plumbing: WHICH compiler runs the tests. ----------------------------
 # STAGE=N runs the suites with build/stageN's own compiler — each stage tests the
 # compiler it just produced, so every step of the bootstrap is covered:
-#   STAGE=0  the pinned REFERENCE seed that stage0 downloaded, with its bundled
-#            runtime/std. A failure here is a SOURCE-level problem.
+#   STAGE=0  the pinned REFERENCE seed that stage0 downloaded. The suites
+#            compile the in-tree std sources (-L), so a failure here is a
+#            SOURCE-level problem (from 0.13.14 the seed ships no std of its own).
 #   STAGE=1  the self-host stage1 just built WITH the reference. A failure here
 #            that passed at 0 is the self-host's own codegen.
 #   STAGE=2  the self-host stage2 just built WITH the self-host — the shipped
@@ -78,6 +79,25 @@ if [ ! -d "$(dirname "$FLY")/../lib" ]; then
     exit 1
 fi
 
+# Seed link extras. The self-host driver links the fly_tls_stub archive (tls_*
+# primitives) by itself; the reference seed only auto-links
+# fly_std_lib/fly_runtime_lib from <exe>/../lib — so under the seed (stage1's
+# interleaved pass) a tls-touching suite (TlsSuite, HttpSuite) would not link.
+# Both drivers DO link every archive at the top level of a -L dir, so stage the
+# stub ALONE in a scratch dir (alone: fly_tls_lib next to it is the real
+# backend with Schannel/OpenSSL system deps, and must not race the stub for
+# extraction).
+EXTRA_L=""
+FLY_LIB_DIR="$(dirname "$FLY")/../lib"
+for ext in a lib; do
+    if [ -f "$FLY_LIB_DIR/fly_tls_stub.$ext" ]; then
+        mkdir -p "$OUT/_seed_link"
+        cp -f "$FLY_LIB_DIR/fly_tls_stub.$ext" "$OUT/_seed_link/"
+        EXTRA_L="-L $OUT/_seed_link"
+        break
+    fi
+done
+
 # ── Selector (mirror of test_std.ps1) ─────────────────────────────────────────
 # Optional $1 (or $FLY_TEST_SUITE): a suite name, a qualified ns.SuiteName, or a
 # NAMESPACE — matched like the compiler's --suite=<sel>. Empty = every suite.
@@ -114,9 +134,9 @@ fi
 if [ "$STAGE" != "0" ] && [ "${FLY_TEST_PER_SUITE:-}" != "1" ]; then
     log="$OUT/_std_oneshot.log"
     if [ -n "$SEL" ]; then
-        "$FLY" --suite="$SEL" --src-dir std -o std_all --out-dir "$OUT" -L "$STD" >"$log" 2>&1
+        "$FLY" --suite="$SEL" --src-dir std -o std_all --out-dir "$OUT" -L "$STD" $EXTRA_L >"$log" 2>&1
     else
-        "$FLY" --suite --src-dir std -o std_all --out-dir "$OUT" -L "$STD" >"$log" 2>&1
+        "$FLY" --suite --src-dir std -o std_all --out-dir "$OUT" -L "$STD" $EXTRA_L >"$log" 2>&1
     fi
     code=$?
 
@@ -173,7 +193,7 @@ for t in $selected; do
     # by name from the source root — `std`, not std/test, so the fly.meta SOURCE
     # under std/lib/meta stays pullable (suite names also repeat across trees:
     # ManifestSuite exists in compiler/test too).
-    if "$FLY" --suite="$name" --src-dir std -o "std_$name" --out-dir "$OUT" -L "$STD" >"$log" 2>&1; then
+    if "$FLY" --suite="$name" --src-dir std -o "std_$name" --out-dir "$OUT" -L "$STD" $EXTRA_L >"$log" 2>&1; then
         echo "  PASS          $name"
         pass=$((pass + 1))
     else

@@ -29,10 +29,14 @@ $ErrorActionPreference = 'Stop'
 # The literals below are the source of truth; CI may override via env so this
 # stays in sync with the cache key.
 $LLVM_VERSION = if ($env:LLVM_VERSION) { $env:LLVM_VERSION } else { "20.1.8" }
-# 0.13.13 is the first seed carrying the array subscript `k[i]`, `C[N]`
-# declarations and reference-counted array buffers — the syntax the tree may use
-# is bounded by what THIS binary can parse, since it compiles everything at stage 1.
-$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.13" }
+# 0.13.13 brought the array subscript `k[i]`, `C[N]` declarations and
+# reference-counted array buffers — the syntax the tree may use is bounded by
+# what the seed can parse, since it compiles everything at stage 1.
+# 0.13.14 is the first STD-LESS seed: the package is just bin\fly.exe +
+# lib\{llvm.fly.h, runtime.fly.h, fly_runtime_lib.lib} — the std lives in-tree
+# and stage 1 builds it from source. It also carries the inherited-interface
+# sema fix and the __out_N StringRef-dangle fix the interleaved suites need.
+$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.14" }
 
 # Resolve everything against the PROJECT ROOT (this script lives in ci\windows\,
 # two levels down) so the downloads land next to the build regardless of the
@@ -120,14 +124,41 @@ Install-LdLld                                  # build\llvm\bin\ld.lld.exe (fork
 # === fly bootstrap (stage 0) =================================================
 
 # --- Download fly binary ------------------------------------------------------
-# Skip if already present (local convenience; a fresh CI runner never has it).
-if (-not (Test-Path $flyExe)) {
+# Reuse an existing seed only when it is EXACTLY the pinned version (local
+# convenience; a fresh CI runner never has one). Presence alone is not enough:
+# after a pin bump a checkout that already had the previous seed would keep it
+# forever, and the failure that follows is thoroughly misleading — stage1
+# compiles std with an old seed and suites fail on constructs the language
+# does support.
+$have = ''
+if (Test-Path $flyExe) {
+    $have = (& $flyExe --version 2>$null | Select-String -Pattern '\d+\.\d+\.\d+' |
+             ForEach-Object { $_.Matches[0].Value } | Select-Object -First 1)
+}
+
+if ($have -ne $FLY_VERSION) {
+    if ($have) { Write-Host "stage0: seed is $have, pinned is $FLY_VERSION - fetching the pinned one." }
     $url = "https://github.com/fly-lang/fly/releases/download/v$FLY_VERSION/fly-$FLY_VERSION-win-x64.zip"
     New-Item -ItemType Directory -Force $buildDir | Out-Null
     $zipPath = Join-Path $buildDir 'fly.zip'
-    Invoke-WebRequest -Uri $url -OutFile $zipPath -MaximumRetryCount 6 -RetryIntervalSec 15
-    Expand-Archive $zipPath -DestinationPath $flyDir -Force
+    # Staged swap: an existing seed is replaced only AFTER the new one is in
+    # hand. Deleting first would strand a machine whose pinned release is not
+    # published yet - a real state during a seed re-cut.
+    try {
+        Invoke-WebRequest -Uri $url -OutFile $zipPath -MaximumRetryCount 6 -RetryIntervalSec 15
+    } catch {
+        Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+        Write-Host "error: seed v$FLY_VERSION is not downloadable ($url)."
+        if ($have) {
+            Write-Host "       the existing $have seed was left in place, but it does NOT match the pin:"
+            Write-Host "       stage1 will compile std with it and can fail on newer constructs."
+        }
+        exit 1
+    }
+    Expand-Archive $zipPath -DestinationPath "$flyDir.new" -Force
     Remove-Item $zipPath
+    Remove-Item $flyDir -Recurse -Force -ErrorAction SilentlyContinue
+    Move-Item "$flyDir.new" $flyDir
 }
 
 # === Environment =============================================================

@@ -129,7 +129,10 @@ suite EnumSuite {
     void memberTest() {
         case "an enum-typed field round-trips through a constructor": {
             Tagged t = new Tagged(Color.BLUE, 7)
-            assert.assertEqI(t.kind().value, 3, 401)
+            // Hoisted: the reference cannot type `t.kind().value` as an
+            // argument (chained call member access).
+            Color k = t.kind()
+            assert.assertEqI(k.value, 3, 401)
             assert.assertEqI(t.n, 7, 402)
         }
         case "a field's name is readable inside a method": {
@@ -147,7 +150,9 @@ suite EnumSuite {
         case "an enum field can be reassigned": {
             Tagged t = new Tagged(Color.RED, 0)
             t.c = Color.BLUE
-            assert.assertStr(t.kind().name, "BLUE", 408)
+            // Hoisted: chained call member access as an argument (see above).
+            Color k = t.kind()
+            assert.assertStr(k.name, "BLUE", 408)
         }
     }
 

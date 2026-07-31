@@ -200,7 +200,7 @@ suite QueueSuite {
             int i = 0
             while i < 100 {
                 q.enqueue(i)
-                if (i % 3) == 0 { q.dequeue() }
+                if i % 3 == 0 { q.dequeue() }
                 i = i + 1
             }
             assert.assertEqI(q.size(), 66, 411)

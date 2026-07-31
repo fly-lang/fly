@@ -90,7 +90,7 @@ public class Manifest {
     Profile[]    profiles         // [profiles.*]
     Registry[]   repositories     // [repo]
     string[]     linkLibs         // [link].libs
-    TestConfig   test             // [test]
+    TestConfig   tst              // [test] — `test` is a reserved keyword
     Workspace    workspace        // [workspace]
     Hooks        hooks            // [hooks]
 }

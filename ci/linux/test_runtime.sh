@@ -27,8 +27,9 @@ mkdir -p "$OUT"
 # -- Stage plumbing: WHICH compiler runs the tests. ----------------------------
 # STAGE=N runs the suites with build/stageN's own compiler — each stage tests the
 # compiler it just produced, so every step of the bootstrap is covered:
-#   STAGE=0  the pinned REFERENCE seed that stage0 downloaded, with its bundled
-#            runtime/std. A failure here is a SOURCE-level problem.
+#   STAGE=0  the pinned REFERENCE seed that stage0 downloaded. The suites
+#            compile the in-tree std sources (-L), so a failure here is a
+#            SOURCE-level problem (from 0.13.14 the seed ships no std of its own).
 #   STAGE=1  the self-host stage1 just built WITH the reference. A failure here
 #            that passed at 0 is the self-host's own codegen.
 #   STAGE=2  the self-host stage2 just built WITH the self-host — the shipped
@@ -76,6 +77,24 @@ if [ ! -d "$(dirname "$FLY")/../lib" ]; then
     exit 1
 fi
 
+# Seed link extras. The self-host driver links the fly_tls_stub archive (tls_*
+# primitives) by itself; the reference seed only auto-links
+# fly_std_lib/fly_runtime_lib from <exe>/../lib — so under the seed (stage1's
+# interleaved pass) a tls-touching suite would not link. Both drivers DO link
+# every archive at the top level of a -L dir, so stage the stub ALONE in a
+# scratch dir (alone: fly_tls_lib next to it is the real backend with
+# Schannel/OpenSSL system deps, and must not race the stub for extraction).
+EXTRA_L=""
+FLY_LIB_DIR="$(dirname "$FLY")/../lib"
+for ext in a lib; do
+    if [ -f "$FLY_LIB_DIR/fly_tls_stub.$ext" ]; then
+        mkdir -p "$OUT/_seed_link"
+        cp -f "$FLY_LIB_DIR/fly_tls_stub.$ext" "$OUT/_seed_link/"
+        EXTRA_L="-L $OUT/_seed_link"
+        break
+    fi
+done
+
 pass=0
 fail=0
 found=0
@@ -90,7 +109,7 @@ for t in $(find runtime/test -name '*Suite.fly' 2>/dev/null | sort); do
     # reference CLI a following positional would be swallowed as the suite name.
     # DIRECTORY CLI (every stage): the suite is discovered by name from the
     # runtime/test root.
-    if "$FLY" --suite="$name" --src-dir runtime/test -o "rt_$name" --out-dir "$OUT" -L "$STD" >"$log" 2>&1; then
+    if "$FLY" --suite="$name" --src-dir runtime/test -o "rt_$name" --out-dir "$OUT" -L "$STD" $EXTRA_L >"$log" 2>&1; then
         echo "  PASS          $name"
         pass=$((pass + 1))
     else

@@ -399,7 +399,7 @@ suite TreeSuite {
             long i = 0
             while i < 60 {
                 t.put(i, i)
-                if (i % 3) == 0 { t.remove(i / 3) }
+                if i % 3 == 0 { t.remove(i / 3) }
                 i = i + 1
             }
             long bad = 0 - 2
@@ -422,7 +422,7 @@ suite TreeSuite {
             }
             i = 0
             while i < 40 {
-                if (i % 2) == 0 { t.remove(i) }
+                if i % 2 == 0 { t.remove(i) }
                 i = i + 1
             }
             t.free()                                   // stack must fit the rest

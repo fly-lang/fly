@@ -30,11 +30,14 @@ ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Bootstrap compiler release used to compile the std --lib archive + the self-host
 # sources. Must ship the ptrsize header-gen fix (fly Frontend.cpp typeStr).
-# 0.13.13 is the first seed carrying the array subscript `k[i]`, `C[N]`
-# declarations and reference-counted array buffers. It is what allows compiler/**,
-# std/** and runtime/** to USE that syntax: this binary compiles the whole tree at
-# stage 1, so nothing in it may outrun the seed.
-FLY_VERSION="${FLY_VERSION:-0.13.13}"
+# 0.13.13 brought the array subscript `k[i]`, `C[N]` declarations and
+# reference-counted array buffers — the syntax the tree may use is bounded by
+# what the seed can parse, since it compiles the whole tree at stage 1.
+# 0.13.14 is the first STD-LESS seed: the package is just bin/fly +
+# lib/{llvm.fly.h, runtime.fly.h, fly_runtime_lib.a} — the std lives in-tree
+# and stage 1 builds it from source. It also carries the inherited-interface
+# sema fix and the __out_N StringRef-dangle fix the interleaved suites need.
+FLY_VERSION="${FLY_VERSION:-0.13.14}"
 
 BUILD_DIR="$ROOT/build"
 STAGE0_DIR="$BUILD_DIR/stage0"
@@ -92,14 +95,42 @@ if [ ! -e "/usr/lib/llvm-${LLVM_VERSION%%.*}" ]; then
 fi
 
 # --- Download the bootstrap fly (stage 0) --------------------------------------
-# Skip if already present (local convenience; a fresh CI runner never has it).
-if [ ! -x "$FLY_BIN" ]; then
+# Reuse an existing seed only when it is EXACTLY the pinned version (local
+# convenience; a fresh CI runner never has one).
+#
+# Presence alone is not enough: after a pin bump, a checkout that already had the
+# previous seed would keep it forever and this script would still report the
+# pinned version it had not installed. The failure that follows is thoroughly
+# misleading — stage1 compiles std with an old seed and a handful of suites fail
+# on constructs the language does support.
+have=""
+if [ -x "$FLY_BIN" ]; then
+    have="$("$FLY_BIN" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+fi
+
+if [ "$have" != "$FLY_VERSION" ]; then
+    [ -n "$have" ] && echo "stage0: seed is $have, pinned is $FLY_VERSION — fetching the pinned one."
     url="https://github.com/fly-lang/fly/releases/download/v${FLY_VERSION}/fly-${FLY_VERSION}-linux-x86_64.tar.gz"
-    mkdir -p "$STAGE0_DIR"
-    curl -fsSL --retry 6 --retry-delay 15 --retry-all-errors "$url" -o "$BUILD_DIR/fly.tar.gz"
-    tar -xzf "$BUILD_DIR/fly.tar.gz" -C "$STAGE0_DIR"
-    rm -f "$BUILD_DIR/fly.tar.gz"
-    chmod +x "$FLY_BIN"
+    # Staged swap: an existing seed is replaced only AFTER the new one is in
+    # hand. Deleting first would strand a machine whose pinned release is not
+    # published yet — which is a real state during a seed re-cut.
+    rm -rf "$STAGE0_DIR.new"
+    mkdir -p "$STAGE0_DIR.new"
+    if curl -fsSL --retry 6 --retry-delay 15 --retry-all-errors "$url" -o "$BUILD_DIR/fly.tar.gz"; then
+        tar -xzf "$BUILD_DIR/fly.tar.gz" -C "$STAGE0_DIR.new"
+        rm -f "$BUILD_DIR/fly.tar.gz"
+        rm -rf "$STAGE0_DIR"
+        mv "$STAGE0_DIR.new" "$STAGE0_DIR"
+        chmod +x "$FLY_BIN"
+    else
+        rm -rf "$STAGE0_DIR.new" "$BUILD_DIR/fly.tar.gz"
+        echo "error: seed v$FLY_VERSION is not downloadable ($url)." >&2
+        if [ -n "$have" ]; then
+            echo "       the existing $have seed was left in place, but it does NOT match the pin:" >&2
+            echo "       stage1 will compile std with it and can fail on newer constructs." >&2
+        fi
+        exit 1
+    fi
 fi
 
 # --- Environment -------------------------------------------------------------

@@ -124,7 +124,10 @@ suite CastSuite {
             int i = 0
             while i < 256 {
                 byte b = (byte)i
-                if ((int)b & 255) != i { bad = i }
+                // Hoisted: the reference parser rejects a condition that STARTS
+                // with '(' (and flat precedence would misparse `a & b != c`).
+                int masked = (int)b & 255
+                if masked != i { bad = i }
                 i = i + 1
             }
             assert.assertEqI(bad, 0 - 1, 401)
@@ -133,7 +136,9 @@ suite CastSuite {
             int bad = 0 - 1
             int i = 0 - 100
             while i < 100 {
-                if (int)(long)i != i { bad = i }
+                // Hoisted: a condition may not START with '(' on the reference.
+                int roundtrip = (int)(long)i
+                if roundtrip != i { bad = i }
                 i = i + 1
             }
             assert.assertEqI(bad, 0 - 1, 402)
