@@ -12,8 +12,8 @@
 
 add_library(FlyRuntime STATIC)
 
-# Place the archive alongside fly_std_lib.a and the .fly.h headers so the
-# entire lib/ directory is the single install unit.
+# Place the archive alongside the .fly.h headers so the entire lib/ directory
+# is the single install unit.
 set_target_properties(FlyRuntime PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY             "${CMAKE_BINARY_DIR}/lib"
     ARCHIVE_OUTPUT_DIRECTORY_DEBUG       "${CMAKE_BINARY_DIR}/lib"
@@ -115,18 +115,11 @@ set_tests_properties(fly_runtime_test PROPERTIES PASS_REGULAR_EXPRESSION "fly ru
 find_program(LLVM_DWARFDUMP        NAMES llvm-dwarfdump llvm-dwarfdump-20 llvm-dwarfdump-19 llvm-dwarfdump-18
         HINTS "${CMAKE_BINARY_DIR}/llvm/bin")
 
-if(MSVC)
-    set(_fly_std_lib "${CMAKE_BINARY_DIR}/lib/fly_std_lib.lib")
-else()
-    set(_fly_std_lib "${CMAKE_BINARY_DIR}/lib/fly_std_lib.a")
-endif()
-
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     add_test(NAME debug_dwarf_test
         COMMAND powershell -ExecutionPolicy Bypass -File
             "${CMAKE_CURRENT_SOURCE_DIR}/test/debug_dwarf_test.ps1"
             "$<TARGET_FILE:fly>"
-            "${_fly_std_lib}"
             "${LLVM_DWARFDUMP}"
     )
 else()
@@ -134,7 +127,6 @@ else()
         COMMAND bash
             "${CMAKE_CURRENT_SOURCE_DIR}/test/debug_dwarf_test.sh"
             "$<TARGET_FILE:fly>"
-            "${_fly_std_lib}"
             "${LLVM_DWARFDUMP}"
     )
 endif()

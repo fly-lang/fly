@@ -472,21 +472,23 @@ namespace {
     // A STRING element is a borrow: the array frees nothing per element, so reading
     // one into an owned slot must CLONE it. Taking it as-is made the local free a
     // buffer the array still pointed at. The loop makes a leaked clone obvious too.
+    // The clone is READ via string comparison (content memcmp), keeping the test
+    // free of any std import.
     TEST_F(ArrayMemoryTest, StringElementIsClonedOnRead) {
         EXPECT_EQ(buildAndRun("strelem",
-                  "import fly.str\n"
-                  "\n"
                   "void main() {\n"
                   "    string[] xs = {\"alpha\", \"beta\"}\n"
                   "    int n = 0\n"
                   "    int i = 0\n"
                   "    while i < 100000 {\n"
                   "        string s = xs[0]\n"
-                  "        n = str.len(s)\n"
+                  "        if s == \"alpha\" { n = 5 }\n"
                   "        i = i + 1\n"
                   "    }\n"
+                  "    int m = 0\n"
                   "    string t = xs[1]\n"
-                  "    fail n + str.len(t) + 91\n"         // 5 + 4
+                  "    if t == \"beta\" { m = 4 }\n"
+                  "    fail n + m + 91\n"                  // 5 + 4
                   "}\n"), 100);
     }
 } // anonymous namespace

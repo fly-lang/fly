@@ -114,6 +114,14 @@ bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, Fr
             llvm::SmallVector<std::string, 4> AllFiles = ObjFiles;
             CollectLibDirArchives(FrontendOpts, AllFiles);
             return LinkWindows(AllFiles, OutFileName);
+        } else if (T.isOSWindows()) {
+            // windows-gnu / gnullvm (--target x86_64-w64-windows-gnu): link against
+            // the bundled mingw/UCRT sysroot, no Visual Studio. Before this branch
+            // a windows-gnu triple fell through to LinkLinux and could never link —
+            // the 0.14 CI drove ld.lld by hand instead (link_bin.ps1).
+            llvm::SmallVector<std::string, 4> AllFiles = ObjFiles;
+            CollectLibDirArchives(FrontendOpts, AllFiles);
+            return LinkWindowsGNU(AllFiles, OutFileName);
         } else if (T.isOSDarwin()) {
             return LinkDarwin(ObjFiles, OutFileName);
         } else {
@@ -563,6 +571,10 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
     // ntdll: the 0.14 runtime's env_kernel*/RtlGetVersion — needed when this
     // toolchain (as the seed) links programs against that runtime archive.
     CmdArgs.push_back("/defaultlib:ntdll");
+    // ws2_32 / winhttp: the 0.14 runtime's net_* Winsock and net_https_* WinHTTP
+    // calls — same seed scenario. Mirrors the 0.14 ToolChain.fly link line.
+    CmdArgs.push_back("/defaultlib:ws2_32");
+    CmdArgs.push_back("/defaultlib:winhttp");
 
     // Check the environment first, since that's probably the user telling us
     // what they want to use.
@@ -628,6 +640,21 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
         CmdArgs.push_back(WinRuntimeLib.c_str());
     }
 
+    // compiler-rt builtins for the gnullvm-built 0.14 runtime's __atomic_*
+    // references (see GetMinGWBuiltinsPath).
+    const std::string WinBuiltinsLib = GetMinGWBuiltinsPath();
+    if (!WinBuiltinsLib.empty()) {
+        FLY_DEBUG_MSG("BuiltinsLib=" << WinBuiltinsLib);
+        CmdArgs.push_back(WinBuiltinsLib.c_str());
+    }
+
+    // TLS stub for the 0.14 std's tls_* references (see GetTlsStubPath).
+    const std::string WinTlsStub = GetTlsStubPath();
+    if (!WinTlsStub.empty()) {
+        FLY_DEBUG_MSG("TlsStub=" << WinTlsStub);
+        CmdArgs.push_back(WinTlsStub.c_str());
+    }
+
     // External C libraries from --link-lib flags.
     // On POSIX these arrive as "-lNAME"; lld-link expects "NAME.lib" instead.
     for (const auto &LibFlag : CodeGenOpts.LinkerOptions) {
@@ -653,6 +680,146 @@ bool ToolChain::LinkWindows(const llvm::SmallVector<std::string, 4> &InFiles, co
         SmallVector<const char*, 16> LinkArgs;
         createLinkArgs(CmdArgs, LinkArgs);
         return lld::coff::link(LinkArgs, llvm::outs(), llvm::errs(), false, false);
+    }
+
+    return false;
+}
+
+// Locate the bundled mingw/UCRT sysroot. Probed relative to RuntimeLibDir
+// (auto-discovered <exe>/../lib): <lib>/../bin/mingw (release layout: mingw
+// sits beside the binary), <lib>/../../mingw (dev/bootstrap layout:
+// build/stageN/lib → build/mingw), <lib>/../mingw. "" when absent.
+// Mirrors the 0.14 ToolChain.fly getMingwSysrootDir (which probes exe-relative;
+// RuntimeLibDir is <exe>/../lib so the same locations are covered).
+std::string ToolChain::GetMingwSysrootDir() const {
+    FLY_DEBUG_SCOPE("ToolChain", "GetMingwSysrootDir");
+    if (CodeGenOpts.RuntimeLibDir.empty())
+        return "";
+    const char *Rels[][2] = {{"..", "bin"}, {"..", ".."}, {"..", ""}};
+    for (auto &Rel : Rels) {
+        llvm::SmallString<256> P(CodeGenOpts.RuntimeLibDir);
+        llvm::sys::path::append(P, Rel[0]);
+        if (Rel[1][0] != '\0')
+            llvm::sys::path::append(P, Rel[1]);
+        llvm::sys::path::append(P, "mingw");
+        llvm::SmallString<256> Probe(P);
+        llvm::sys::path::append(Probe, "lib", "crt2.o");
+        if (getVFS().exists(Probe)) {
+            FLY_DEBUG_MSG("Found: " << P);
+            return std::string(P.str());
+        }
+    }
+    FLY_DEBUG_MSG("Not found");
+    return "";
+}
+
+// LinkWindowsGNU — link a PE/COFF artifact against the bundled mingw/UCRT
+// sysroot (llvm-mingw), needing NO Visual Studio. Taken when the target triple
+// is windows-gnu (the self-host's default; the CI passes it to this seed too).
+// Port of the 0.14 ToolChain.fly LinkWindowsGNU / ci gnu_common Get-MingwLinkParts:
+// ld.lld -m i386pep, mingw CRT startup objects, import libs and compiler-rt
+// builtins, in exactly the order the CI's manual ld.lld link uses. Besides
+// removing the VS dependency this also gives seed-linked programs the mingw CRT
+// startup semantics the self-host's programs have (e.g. the non-fatal UCRT
+// invalid-parameter handler — under libcmt a _setmode(bad fd) fastfails).
+bool ToolChain::LinkWindowsGNU(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile) {
+    FLY_DEBUG_SCOPE_MSG("ToolChain", "LinkWindowsGNU", "Out: " + OutFile);
+
+    const std::string Sysroot = GetMingwSysrootDir();
+    if (Sysroot.empty()) {
+        llvm::errs() << "error: mingw/UCRT sysroot not found (expected next to the runtime lib dir)\n";
+        return false;
+    }
+    auto Under = [](llvm::StringRef Base, std::initializer_list<llvm::StringRef> Parts) {
+        llvm::SmallString<256> P(Base);
+        for (llvm::StringRef Part : Parts)
+            llvm::sys::path::append(P, Part);
+        return std::string(P.str());
+    };
+    const std::string SLib = Under(Sysroot, {"lib"});
+    const std::string BuiltinsDir = Under(Sysroot, {"builtins"});
+    const std::string BuiltinsLib = Under(BuiltinsDir, {"libclang_rt.builtins-x86_64.a"});
+
+    llvm::SmallVector<std::string, 16> CmdArgs;
+    CmdArgs.push_back("ld.lld");
+
+    const bool BuildDll = CodeGenOpts.Shared;
+    if (BuildDll) {
+        CmdArgs.push_back("--shared");
+        // x86_64 PE DLL entry: dllcrt2.o defines DllMainCRTStartup (no
+        // underscore); ld's --shared default is the i386 `_`-prefixed spelling.
+        CmdArgs.push_back("--entry");
+        CmdArgs.push_back("DllMainCRTStartup");
+    }
+    CmdArgs.push_back("-m");
+    CmdArgs.push_back("i386pep"); // x86_64 PE emulation
+
+    CmdArgs.push_back("-L" + SLib);
+    CmdArgs.push_back("-L" + BuiltinsDir);
+    // LLVM lib dir, so programs using the LLVM C-API link (-lLLVM-20 etc.).
+    if (!CodeGenOpts.ToolchainLibDir.empty())
+        CmdArgs.push_back("-L" + CodeGenOpts.ToolchainLibDir);
+
+    // CRT startup objects. `___chkstk_ms` resolves from the builtins archive.
+    CmdArgs.push_back(Under(SLib, {BuildDll ? "dllcrt2.o" : "crt2.o"}));
+    CmdArgs.push_back(Under(SLib, {"crtbegin.o"}));
+
+    // User objects (plus -L dir archives merged by the caller).
+    for (const std::string &ObjFile : InFiles) {
+        FLY_DEBUG_MSG("Input=" << ObjFile);
+        CmdArgs.push_back(ObjFile);
+    }
+
+    // The Fly std + runtime archives, then the TLS stub (this toolchain has no
+    // --tls, so the stub is all there is — tlsAvailable() reports false).
+    const std::string GnuStdLib = GetStdLibPath();
+    if (!GnuStdLib.empty())
+        CmdArgs.push_back(GnuStdLib);
+    const std::string GnuRuntimeLib = GetRuntimeLibPath();
+    if (!GnuRuntimeLib.empty())
+        CmdArgs.push_back(GnuRuntimeLib);
+    const std::string GnuTlsStub = GetTlsStubPath();
+    if (!GnuTlsStub.empty())
+        CmdArgs.push_back(GnuTlsStub);
+
+    // User -l options pass through (mingw resolves -lNAME → libNAME.a), EXCEPT
+    // -lc / -lm: POSIX names with no mingw counterpart — their symbols come from
+    // -lmsvcrt / -lmingwex below.
+    for (const auto &LibFlag : CodeGenOpts.LinkerOptions) {
+        if (LibFlag == "-lc" || LibFlag == "-lm")
+            continue;
+        CmdArgs.push_back(LibFlag);
+    }
+
+    // mingw import libs + compiler-rt builtins (libmingw32 brackets the group).
+    CmdArgs.push_back("-lmingw32");
+    if (getVFS().exists(BuiltinsLib))
+        CmdArgs.push_back(BuiltinsLib);
+    CmdArgs.push_back("-lmoldname");
+    CmdArgs.push_back("-lmingwex");
+    CmdArgs.push_back("-lmsvcrt");
+    CmdArgs.push_back("-ladvapi32");
+    CmdArgs.push_back("-lshell32");
+    CmdArgs.push_back("-luser32");
+    CmdArgs.push_back("-lkernel32");
+    CmdArgs.push_back("-lntdll");           // RtlGetVersion (runtime env_kernel*)
+    CmdArgs.push_back("-lws2_32");          // Winsock (runtime net_*)
+    CmdArgs.push_back("-lwinhttp");         // WinHTTP (runtime net_https_*)
+    CmdArgs.push_back("-lsynchronization"); // WaitOnAddress futex APIs
+    CmdArgs.push_back("-lmingw32");
+    CmdArgs.push_back(Under(SLib, {"crtend.o"}));
+
+    // Same extension rule as LinkWindows: appended only when -o carried none.
+    std::string OutPath = OutFile;
+    if (llvm::sys::path::extension(OutPath).empty())
+        OutPath += BuildDll ? ".dll" : ".exe";
+    CmdArgs.push_back("-o");
+    CmdArgs.push_back(OutPath);
+
+    if (T.getObjectFormat() == llvm::Triple::COFF) {
+        SmallVector<const char*, 16> LinkArgs;
+        createLinkArgs(CmdArgs, LinkArgs);
+        return lld::mingw::link(LinkArgs, llvm::outs(), llvm::errs(), false, false);
     }
 
     return false;
@@ -1021,6 +1188,13 @@ bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, cons
     if (!RuntimeLib.empty()) {
         FLY_DEBUG_MSG("RuntimeLib=" << RuntimeLib);
         CmdArgs.push_back(RuntimeLib);
+    }
+
+    // TLS stub for the 0.14 std's tls_* references (see GetTlsStubPath).
+    const std::string TlsStub = GetTlsStubPath();
+    if (!TlsStub.empty()) {
+        FLY_DEBUG_MSG("TlsStub=" << TlsStub);
+        CmdArgs.push_back(TlsStub);
     }
 
     // Add Library Paths
@@ -1525,6 +1699,57 @@ std::string ToolChain::GetStdLibPath() const {
         }
     }
     FLY_DEBUG_MSG("fly_std_lib not found in: " << BaseDir);
+    return "";
+}
+
+// compiler-rt builtins from the BUNDLED llvm-mingw sysroot (Windows seed
+// scenario). The 0.14 runtime archive is built by the gnullvm toolchain and
+// references __atomic_* helpers that neither the UCRT nor the MSVC libs
+// provide; the self-host links libclang_rt.builtins-<arch>.a from its bundled
+// sysroot and this toolchain, used as the seed against that same runtime, must
+// do the same. Probed relative to RuntimeLibDir (<lib> and <bin> are siblings:
+// build/stage1/{lib,bin/mingw/builtins} and the release bundle alike).
+std::string ToolChain::GetMinGWBuiltinsPath() const {
+    FLY_DEBUG_SCOPE("ToolChain", "GetMinGWBuiltinsPath");
+    const char *Suffix = archToCompilerRTSuffix(T.getArch());
+    if (!Suffix || CodeGenOpts.RuntimeLibDir.empty())
+        return "";
+
+    const std::string Names[] = {
+        std::string("libclang_rt.builtins-") + Suffix + ".a",
+        "libclang_rt.builtins.a",
+    };
+    for (const auto &Name : Names) {
+        llvm::SmallString<256> P(CodeGenOpts.RuntimeLibDir);
+        llvm::sys::path::append(P, "..", "bin", "mingw", "builtins");
+        llvm::sys::path::append(P, Name);
+        if (getVFS().exists(P)) {
+            FLY_DEBUG_MSG("Found: " << P);
+            return std::string(P.str());
+        }
+    }
+    FLY_DEBUG_MSG("Not found");
+    return "";
+}
+
+// The 0.14 std's fly.net.tls calls the seven tls_* primitives; the self-host
+// links either the real backend (--tls) or the always-present stub archive.
+// This toolchain (the seed) has no --tls, so it always takes the stub — a
+// program that never asked for TLS must still link (the stub returns errors at
+// runtime). "" when absent: an older lib dir simply has no TLS.
+std::string ToolChain::GetTlsStubPath() const {
+    FLY_DEBUG_SCOPE("ToolChain", "GetTlsStubPath");
+    const llvm::StringRef BaseDir(CodeGenOpts.RuntimeLibDir);
+    const llvm::StringRef Names[] = {"fly_tls_stub.a", "fly_tls_stub.lib"};
+    for (auto Name : Names) {
+        llvm::SmallString<256> P(BaseDir);
+        llvm::sys::path::append(P, Name);
+        if (getVFS().exists(P)) {
+            FLY_DEBUG_MSG("Found: " << P);
+            return std::string(P.str());
+        }
+    }
+    FLY_DEBUG_MSG("Not found");
     return "";
 }
 

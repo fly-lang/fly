@@ -1486,6 +1486,18 @@ void CodeGenModule::visit(SemaLoopInStmt &Sema) {
 		if (ListVar->getCodeGen())
 			ArrayStructPtr = ListVar->getCodeGen()->getPointer();
 	}
+	// A member-reached attribute array (`for x in w.members`): the %array lives
+	// INLINE in the instance and the member's CodeGenVar pointer is the field GEP
+	// — that IS the struct pointer. The generic fallback below takes getValue(),
+	// which loads the field's first 8 bytes (the data pointer) and re-reads them
+	// as {data, size}: null deref / garbage size (ManifestSuite crash).
+	if (!ArrayStructPtr && ListKind == SemaKind::MEMBER &&
+	    static_cast<SemaMember *>(ListExpr)->getRef() &&
+	    static_cast<SemaMember *>(ListExpr)->getRef()->getKind() == SemaKind::ATTRIBUTE) {
+		ListExpr->accept(*this);
+		if (ListExpr->getCodeGen())
+			ArrayStructPtr = static_cast<CodeGenVar *>(ListExpr->getCodeGen())->getPointer();
+	}
 	if (!ArrayStructPtr) {
 		// Fallback: evaluate expression and use its value as the struct pointer
 		ListExpr->accept(*this);

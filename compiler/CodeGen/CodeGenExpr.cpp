@@ -103,6 +103,18 @@ static llvm::Value *ArraySlotOf(SemaExpr *E) {
 	// silently left the destination untouched.
 	if (K == SemaKind::ARRAY_ACCESS && E->getCodeGen())
 		return E->getCodeGen()->getValue();
+	// A class-attribute array reached through a MEMBER (`w.members`,
+	// `m.workspace.members`): the %array lives INLINE in the instance and the
+	// member's CodeGenVar pointer IS the field GEP — that is the slot. Taking
+	// getValue() instead loads the field's first 8 bytes (the data pointer) and
+	// every consumer re-read them as {data, size}: garbage size, crashed loops.
+	// Also: without this case a member destination found no slot at all and
+	// `w.members = {...}` was silently dropped.
+	if (K == SemaKind::MEMBER &&
+	    static_cast<SemaMember *>(E)->getRef() &&
+	    static_cast<SemaMember *>(E)->getRef()->getKind() == SemaKind::ATTRIBUTE &&
+	    E->getCodeGen())
+		return static_cast<CodeGenVar *>(E->getCodeGen())->getPointer();
 	return nullptr;
 }
 
@@ -1656,11 +1668,15 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool Free
 
 		// A literal RHS still goes through the installer that writes {buffer, count}.
 		// No retain: a fresh literal already arrives with a count of 1.
+		// E1CodeGen is the destination's CodeGenVar for a plain var AND for a
+		// MEMBER (`w.members = {...}`): the SemaVar cast used here before excluded
+		// member destinations, whose assignment then fell through to the "no slot"
+		// bail-out below and was silently dropped.
 		if (E2->getKind() == SemaKind::VALUE && DstSlot != nullptr) {
 			if (FreeOldLHS)
 				CGM->EmitArrayRelease(DstSlot, E1->getType());
 			CodeGenArrayValue *E2CGArray = static_cast<CodeGenArrayValue *>(E2CodeGen);
-			return static_cast<SemaVar *>(E1)->getCodeGen()->StoreArrayValue(E2CGArray);
+			return static_cast<CodeGenVar *>(E1CodeGen)->StoreArrayValue(E2CGArray);
 		}
 
 		// Otherwise copy both fields across, source slot → destination slot.
@@ -1683,7 +1699,8 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool Free
 			bool RhsIsLValue = E2->getKind() == SemaKind::LOCAL_VAR ||
 			                   E2->getKind() == SemaKind::PARAM_VAR ||
 			                   E2->getKind() == SemaKind::ATTRIBUTE ||
-			                   E2->getKind() == SemaKind::INSTANCE_VAR;
+			                   E2->getKind() == SemaKind::INSTANCE_VAR ||
+			                   E2->getKind() == SemaKind::MEMBER; // attr array via member is an lvalue too
 			if (RhsIsLValue)
 				CGM->EmitArrayRetain(SrcData);
 			if (FreeOldLHS)
@@ -1989,6 +2006,21 @@ void CodeGenExpr::addArgs(SemaCall *Sema, llvm::SmallVector<llvm::Value *, 8> &A
 				CodeGenVar *CGV = static_cast<SemaVar *>(ArgExpr)->getCodeGen();
 				if (CGV && CGV->getPointer()) {
 					Args.push_back(CGV->getPointer());
+					continue;
+				}
+			}
+
+			// A member-reached attribute array argument (`joinAll(m.workspace.members)`):
+			// same fat-pointer convention — pass the FIELD GEP (the inline %array's
+			// address), never getValue() (the loaded data pointer, which the callee
+			// re-read as {data, size} — garbage size).
+			if (AK == SemaKind::MEMBER && ArgExpr->getType() && ArgExpr->getType()->isArray() &&
+			    static_cast<SemaMember *>(ArgExpr)->getRef() &&
+			    static_cast<SemaMember *>(ArgExpr)->getRef()->getKind() == SemaKind::ATTRIBUTE &&
+			    ArgExpr->getCodeGen()) {
+				llvm::Value *FieldPtr = static_cast<CodeGenVar *>(ArgExpr->getCodeGen())->getPointer();
+				if (FieldPtr) {
+					Args.push_back(FieldPtr);
 					continue;
 				}
 			}

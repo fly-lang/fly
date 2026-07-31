@@ -34,13 +34,11 @@ namespace {
 
     // ─── ImportFlyLib ─────────────────────────────────────────────────────────
 
-#ifndef FLY_LIB_FLY_DIR
-#define FLY_LIB_FLY_DIR "."
-#endif
-
     // Main module: imports fly.str and calls fly.str.len().
-    // The stdlib header (strings.fly.h) is loaded implicitly by the compiler
-    // from FLY_LIB_FLY_DIR; no explicit str.fly source needs to be passed.
+    // The std lives in the self-host tree, so the test carries its own fixture:
+    // a declaration-only str.fly.h in a -L dir, with the SAME signature as the
+    // real fly.str.len (EmitLL asserts its mangled name). Neither test links, so
+    // a header is enough — exactly how the once-bundled generated header behaved.
     static constexpr const char *FlyStringMainSource = R"(
 import fly.str
 
@@ -50,15 +48,24 @@ void main() {
 }
 )";
 
+    static constexpr const char *FlyStrHeaderFixture =
+        "namespace fly.str\n"
+        "\n"
+        "public int len(const string src)\n";
+
     class ImportLibTest : public ::testing::Test {
     public:
         // Directory mode: the source under test lives in a dedicated subdirectory.
         const char *srcDir = "implib_src";
+        // -L dir holding the header-only fly.str fixture.
+        const char *libDir = "implib_lib";
 
         void SetUpWithSource(const char *Src) {
             DebugLog = false;
             llvm::sys::fs::create_directory(srcDir);
             { std::ofstream f(std::string(srcDir) + "/main.fly"); f << Src; }
+            llvm::sys::fs::create_directory(libDir);
+            { std::ofstream f(std::string(libDir) + "/str.fly.h"); f << FlyStrHeaderFixture; }
             llvm::InitializeAllTargetInfos();
             llvm::InitializeAllTargets();
             llvm::InitializeAllTargetMCs();
@@ -68,16 +75,17 @@ void main() {
 
         ~ImportLibTest() override {
             llvm::sys::fs::remove_directories(srcDir);
+            llvm::sys::fs::remove_directories(libDir);
             llvm::outs().flush();
         }
 
         static void deleteFile(const char *path) { remove(path); }
     };
 
-    // Compiles the source dir with -no-output; stdlib headers loaded implicitly.
+    // Compiles the source dir with -no-output; fly.str resolved from the -L fixture.
     TEST_F(ImportLibTest, ImportFlyLib) {
     	SetUpWithSource(FlyStringMainSource);
-        const char *argv[] = {"fly", "-no-output", "--src-dir", srcDir};
+        const char *argv[] = {"fly", "-no-output", "--src-dir", srcDir, "-L", libDir};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         EXPECT_TRUE(drv.Execute());
@@ -210,7 +218,7 @@ void main() {
         const char *llMainFile = "main.fly.ll";
         deleteFile(llMainFile);
 
-        const char *argv[] = {"fly", "-emit-ll", "--src-dir", srcDir};
+        const char *argv[] = {"fly", "-emit-ll", "--src-dir", srcDir, "-L", libDir};
         Driver drv(argv);
         drv.BuildCompilerInstance();
         ASSERT_TRUE(drv.Execute());
