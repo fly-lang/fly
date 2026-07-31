@@ -42,6 +42,8 @@ public class CodeGenExpr : SemaVisitor {
     pointer lastErrPtr     // alloca i32: code of the LAST handle block (implicit `error` var)
     pointer handleSafe     // innermost handle's continuation block (0 = not in a handle)
     string lastStrLit      // text of the last string LITERAL gen'd (bridge symbol capture)
+    string traceName       // --trace-calls: this function's pretty name; "" = not traced
+                           // (set by CodeGenTrace.emitEnter, read by the exit hooks)
     pointer outSlot        // class-return: the `out` param's slot (a ptr to the return
                            // slot). Its stored value is the RETURNED heap handle, which
                            // must NOT be freed at scope exit (ownership escapes). 0 = the
@@ -61,8 +63,11 @@ public class CodeGenExpr : SemaVisitor {
         this.lastErrPtr = 0
         this.handleSafe = 0
         this.lastStrLit = ""
+        this.traceName = ""
         this.outSlot = 0
     }
+    public string getTraceName() { out = this.traceName }
+    public void setTraceName(const string n) { this.traceName = n }
     public void setOutSlot(const pointer p) { this.outSlot = p }
     // bindOutSlot — if the function returns a CLASS/INTERFACE handle, record its synthetic
     // `out` param's slot so scope-exit cleanup can spare the returned handle. Called after

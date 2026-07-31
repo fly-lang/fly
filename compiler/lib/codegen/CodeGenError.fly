@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenModule
 import fly.compiler.codegen.CodeGenLLVM
+import fly.compiler.codegen.CodeGenTrace
 import llvm.api.*
 import fly.mem
 import fly.data.List
@@ -74,6 +75,7 @@ public class CodeGenError {
             // fail inside the handle's own frame: skip the rest of the block
             cge.br(safe)
         } else {
+            CodeGenTrace.emitExitFail(cge)
             pointer r
             llvm.buildRetVoid(b, r)
             cge.setTerminated(true)
@@ -111,6 +113,7 @@ public class CodeGenError {
         if safe != 0 {
             cge.br(safe)
         } else {
+            CodeGenTrace.emitExitFail(cge)
             pointer r
             llvm.buildRetVoid(b, r)
             cge.setTerminated(true)

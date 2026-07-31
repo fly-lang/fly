@@ -7,6 +7,7 @@ import fly.compiler.codegen.CodeGenLLVM
 import fly.compiler.codegen.CodeGenType
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenClass
+import fly.compiler.codegen.CodeGenTrace
 import llvm.api.*
 import fly.mem
 import fly.data.List
@@ -106,6 +107,7 @@ public class CodeGenModule {
     }
 
     public void setCodeGenOpts(const CodeGenOptions o) { this.codeGenOpts = o }
+    public CodeGenOptions getCodeGenOpts() { out = this.codeGenOpts }
     // addLinkerOption — register a `-l` flag for the ToolChain link (deduplicated
     // by the ";flag;" segment check). No-op when no options sink is wired.
     public void addLinkerOption(const string flag) {
@@ -1083,6 +1085,7 @@ public class CodeGenModule {
         llvm.constInt(i32le, 0, true, leZero)
         llvm.buildStore(this.builder, leZero, leSlot)
         cge.setLastErrPtr(leSlot)
+        CodeGenTrace.emitEnter(this, cge, null, fn)
         SemaBlockStmt body = fn.getBody()
         if body != null {
             body.accept(cge)
@@ -1091,6 +1094,7 @@ public class CodeGenModule {
         // close the final block with ret void unless the body already terminated it
         // (e.g. an explicit `return` as the last statement).
         if cge.isTerminated() == false {
+            CodeGenTrace.emitExit(cge)
             pointer ret
             llvm.buildRetVoid(this.builder, ret)
         }

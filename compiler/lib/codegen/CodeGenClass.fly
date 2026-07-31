@@ -8,6 +8,7 @@ import fly.compiler.codegen.CodeGenBridge
 import fly.compiler.codegen.CodeGenLLVM
 import fly.compiler.codegen.CodeGenType
 import fly.compiler.codegen.CodeGenIntrinsics
+import fly.compiler.codegen.CodeGenTrace
 import llvm.api.*
 import fly.mem
 import fly.data.List
@@ -411,10 +412,12 @@ public class CodeGenClass {
             i = i + 1
         }
         cge.bindOutSlot(params)
+        CodeGenTrace.emitEnter(cgm, cge, cls, m)
 
         SemaBlockStmt body = m.getBody()
         if body != null { body.accept(cge) }
         if cge.isTerminated() == false {
+            CodeGenTrace.emitExit(cge)
             pointer ret
             llvm.buildRetVoid(b, ret)
         }

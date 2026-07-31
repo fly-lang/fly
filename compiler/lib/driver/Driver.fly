@@ -163,6 +163,7 @@ public class Driver {
         int jobs = 0                    // --jobs / -j
         int optLevel = 0                // -O<n>
         bool debugSymbols = false       // --debug-symbols / --debug
+        bool traceCalls = false         // --trace-calls: fly.log enter/exit instrumentation
         bool enableTls = false          // --tls: link the real TLS backend + -lssl
         bool createLibrary = false      // --lib
         bool createHeader = false       // --header / --lib
@@ -257,6 +258,8 @@ public class Driver {
                 debugSymbols = true
             } elsif str.equals(a, "--debug-symbols") {
                 debugSymbols = true
+            } elsif str.equals(a, "--trace-calls") {
+                traceCalls = true
             } elsif str.equals(a, "--tls") {
                 // Link the real TLS backend (fly_tls_lib + -lssl -lcrypto) instead
                 // of the no-op stub. Opt-in on purpose: `-lssl` needs the
@@ -513,6 +516,7 @@ public class Driver {
         cgo.setShared(isShared)
         cgo.setPie(isPie)
         cgo.setDebugSymbols(debugSymbols)
+        cgo.setTraceCalls(traceCalls)
         cgo.setEnableTls(enableTls)
         cgo.setOptLevel(optLevel)
         cgo.setJobs(jobs)
@@ -1090,6 +1094,7 @@ public class Driver {
         io.printErrLn("                  a namespace runs every suite declared under it (prefix match)")
         io.printErrLn("  --debug         verbose logging (+ request DWARF; self-host codegen emits none yet)")
         io.printErrLn("  --debug-symbols request DWARF debug symbols (self-host codegen does not emit them yet)")
+        io.printErrLn("  --trace-calls   log every function entry/exit via fly.log (visible at FLY_LOG_LEVEL=trace)")
         io.printErrLn("  --print-stats   print compilation statistics to stderr")
         io.printErrLn("  --ftime-report  accepted; not yet implemented (no output)")
         io.printErrLn("  --stats-file <f>  write compilation statistics (JSON) to <f>")

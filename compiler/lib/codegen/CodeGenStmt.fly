@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenIntrinsics
+import fly.compiler.codegen.CodeGenTrace
 import llvm.api.*
 import fly.mem
 import fly.data.List
@@ -93,6 +94,7 @@ public class CodeGenStmt {
         if cge.isTerminated() { return }
         SemaExpr e = node.getExpr()
         if e != null { pointer ignore = cge.gen(e) }
+        CodeGenTrace.emitExit(cge)
         LLVM llvm = cge.getLLVM()
         pointer r
         llvm.buildRetVoid(cge.getBuilder(), r)

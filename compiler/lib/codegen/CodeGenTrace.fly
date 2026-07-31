@@ -1,0 +1,133 @@
+namespace fly.compiler.codegen
+
+import fly.compiler.sema.*
+import fly.compiler.basic.CodeGenOptions
+import fly.compiler.codegen.CodeGenModule
+import fly.compiler.codegen.CodeGenLLVM
+import fly.compiler.codegen.CodeGenExpr
+import llvm.api.*
+import fly.data.List
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenTrace — `--trace-calls` instrumentation: inject `fly.log` enter/exit
+// hook calls at every user function/method entry and at every exit path.
+//
+// The hooks are ordinary fly.log std functions called by their MANGLED symbols
+// (fly_std_lib is linked into every program, so they always resolve — no import
+// needed in user code). The symbols are ABI, pinned by CodeGenTraceSuite:
+//   enter(const string)    → _F7fly_log5enter_Ss
+//   exit(const string)     → _F7fly_log4exit_Ss     (normal return)
+//   exitFail(const string) → _F7fly_log8exitFail_Ss (unhandled `fail` return)
+//
+// Exit coverage: the four `ret void` sites route through emitExit/emitExitFail
+// (genBody + genMethodBody fallthrough, CodeGenStmt.ret, CodeGenError's
+// emitFail/failWithCode no-handle branches). A `fail` under a `handle` branches
+// to the safe block — not a function exit — and correctly gets no hook.
+// The enter emission stows the function's pretty name on the CodeGenExpr
+// (traceName); exit sites are no-ops while it is empty, so synthetic bodies
+// (main wrapper, test main, C-ABI wrappers, ctors) stay untouched.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenTrace {
+
+    public CodeGenTrace() { }
+
+    // shouldTrace — only with --trace-calls on, only functions with a real body,
+    // and only USER code: everything under the `fly` root (std, runtime, llvm
+    // bridge, the compiler) is excluded — both to keep the trace readable and
+    // because the hooks themselves live in fly.log (tracing them would recurse).
+    public static bool shouldTrace(const CodeGenModule cgm, const SemaFunctionBase fn) {
+        CodeGenOptions o = cgm.getCodeGenOpts()
+        if o == null { out = false  return }
+        if o.getTraceCalls() == false { out = false  return }
+        SemaBlockStmt body = fn.getBody()
+        if body == null { out = false  return }
+        string ns = fn.getNamespaceName()
+        if str.equals(ns, "fly") { out = false  return }
+        if str.startsWith(ns, "fly_") { out = false  return }
+        out = true
+    }
+
+    // prettyName — `ns.name` for free functions, `ns.Class.name` for methods
+    // (the namespace comes underscore-flattened from Sema; empty for the
+    // default namespace).
+    public static string prettyName(const SemaClassType cls, const SemaFunctionBase fn) {
+        string base = ""
+        string ns = fn.getNamespaceName()
+        if str.isEmpty(ns) == false { base = str.concat(ns, ".") }
+        if cls != null {
+            string c1 = str.concat(base, cls.getName())
+            string c2 = str.concat(c1, ".")
+            base = c2
+        }
+        out = str.concat(base, fn.getName())
+    }
+
+    // emitEnter — decide, then stow the name on cge and call the enter hook.
+    // Must run with the builder in the entry block, before the body.
+    public static void emitEnter(const CodeGenModule cgm, const CodeGenExpr cge,
+                                 const SemaClassType cls, const SemaFunctionBase fn) {
+        if shouldTrace(cgm, fn) == false { return }
+        string name = prettyName(cls, fn)
+        cge.setTraceName(name)
+        emitHook(cgm, "_F7fly_log5enter_Ss", name)
+    }
+
+    // emitExit / emitExitFail — no-ops unless emitEnter armed this function.
+    public static void emitExit(const CodeGenExpr cge) {
+        string name = cge.getTraceName()
+        if str.isEmpty(name) { return }
+        emitHook(cge.getCgm(), "_F7fly_log4exit_Ss", name)
+    }
+
+    public static void emitExitFail(const CodeGenExpr cge) {
+        string name = cge.getTraceName()
+        if str.isEmpty(name) { return }
+        emitHook(cge.getCgm(), "_F7fly_log8exitFail_Ss", name)
+    }
+
+    // emitHook — `call void @sym(ptr err, ptr name)` with the Fly ABI: params by
+    // pointer. The name is a constant %string (same lowering as a string
+    // literal) stored in a temp alloca. The error param is a FRESH ZEROED slot,
+    // never the enclosing function's err ptr: on the emitFail exit path the real
+    // %error already carries the failure being propagated, and the hook must
+    // neither see nor clobber it.
+    static void emitHook(const CodeGenModule cgm, const string sym, const string name) {
+        CodeGenLLVM cg = cgm.getCg()
+        LLVM llvm = cg.getLLVM()
+        pointer b = cgm.getBuilder()
+        pointer ctx = cgm.getCtx()
+
+        pointer g = cg.globalString(cgm.getModule(), ctx, name)
+        pointer i32t
+        llvm.int32TypeInContext(ctx, i32t)
+        pointer lenC
+        llvm.constInt(i32t, str.len(name), false, lenC)
+        List<pointer> fields = new List<pointer>()
+        fields.add(g)
+        fields.add(lenC)
+        pointer strTy = cgm.getStringTy()
+        pointer sv
+        cg.constNamedStructN(strTy, fields, sv)
+        pointer strSlot
+        llvm.buildAlloca(b, strTy, "trname", strSlot)
+        llvm.buildStore(b, sv, strSlot)
+
+        pointer errTy = cgm.getErrorTy()
+        pointer errSlot
+        llvm.buildAlloca(b, errTy, "trerr", errSlot)
+        pointer ez
+        llvm.constNull(errTy, ez)
+        llvm.buildStore(b, ez, errSlot)
+
+        pointer ptrTy = cgm.getTypes().ptrType()
+        List<pointer> ptys = new List<pointer>()
+        ptys.add(ptrTy)
+        ptys.add(ptrTy)
+        List<pointer> args = new List<pointer>()
+        args.add(errSlot)
+        args.add(strSlot)
+        cgm.callVoidRt(sym, ptys, args)
+    }
+}
