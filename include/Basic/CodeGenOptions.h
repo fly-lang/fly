@@ -133,21 +133,9 @@ public:
 
   bool Static = false;
   bool Shared = false;
-  /// Emit the bodies of inline `test {}` blocks. That is the ONLY thing this
-  /// gates: Resolver::visit(ASTTestStmt) drops the block at sema time when it is
-  /// off, and CodeGenModule::visit(SemaTestStmt) then emits nothing for it.
-  ///
-  /// It does NOT gate a suite. CodeGenModule::visit(SemaClassType) calls
-  /// EmitSuite unconditionally for every SUITE class, and EmitSuite never reads
-  /// this flag — so a suite's implicit main() is emitted with TestMode off too
-  /// (an explicit -o, or a -c stage).
-  ///
-  /// No CLI flag sets it since 0.13.15, when the test runner was removed.
-  /// Frontend::AutoDetectOutputType turns it on when the entry declares a
-  /// `suite` — that runs BEFORE Sema (see Frontend::Execute), which is why the
-  /// Resolver still sees it and keeps `test {}` blocks inside a suite build —
-  /// and the CodeGen gtests set it directly. The suite-name and test-method
-  /// SELECTORS went with the runner.
+  /// Emit the bodies of inline `test {}` blocks, and nothing else: a suite is
+  /// emitted regardless. Set by Frontend::AutoDetectOutputType when the entry
+  /// declares a `suite`, or directly by an API caller.
   bool TestMode = false;
   bool RDynamic = false;
   bool PIE = false; // Position Independent Code

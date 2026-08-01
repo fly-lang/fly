@@ -100,7 +100,7 @@ namespace fly {
 
         CompilerInstance &BuildCompilerInstance();
 
-        void printVersion(bool Full = true);
+        void printVersion();
 
         bool Execute();
     };

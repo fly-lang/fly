@@ -10,8 +10,8 @@
 // Covers the directory-based build feature of the driver/frontend:
 //   * input discovery from the source root (--src-dir, default: cwd):
 //       - executable: the single file declaring main() (0 or >1 → error);
-//       - suite entry: a linking root with no main() and EXACTLY ONE suite
-//         (>1 → error; a main() present anywhere wins; --suite is gone);
+//       - suite entry: a linking root with no main() and exactly one suite
+//         (>1 → error; a main() present anywhere wins);
 //       - --lib/--lib-dyn and non-linking stages: the whole directory;
 //   * output-type auto-detection from the entry AST with auto-naming (entry
 //     file stem, suite name, or source-root name), gated on "no -o + link";
@@ -219,8 +219,8 @@ namespace {
         EXPECT_FALSE(llvm::sys::fs::is_regular_file(exeName("sfb_ovr")));
     }
 
-    // Declaring a suite is enough (no main(), no flag — --test is gone): test
-    // mode on, executable auto-named after the SUITE, not after the file.
+    // Declaring a suite is enough: test mode on, executable auto-named after the
+    // SUITE, not after the file.
     TEST_F(SingleFileBuildTest, SuiteDeclarationSelectsTestExecutable) {
         const std::string dir = "sfb_suite_src";
         makeDir(dir);
@@ -248,9 +248,7 @@ namespace {
         EXPECT_TRUE(exists(exeName("SfbSuite")));
     }
 
-    // main() and no suite anywhere → a PLAIN executable. This used to be the
-    // "main() + --test" test-executable case; without --test there is no way to
-    // ask for test mode from a main()-only root, so TestMode stays off.
+    // main() and no suite anywhere → a PLAIN executable, TestMode off.
     TEST_F(SingleFileBuildTest, MainWithoutSuiteIsAPlainExecutable) {
         const std::string dir = "sfb_maintest_src";
         makeDir(dir);
@@ -268,11 +266,8 @@ namespace {
         EXPECT_EQ(CI.getFrontendOptions().getOutputFile(), "sfb_maintest");
     }
 
-    // Several suites under one root → ERROR. Each suite gets its own implicit
-    // main(), so linking them together emits two `main` symbols and the linker
-    // silently drops one suite. The --suite <Name> selector used to hide this
-    // by picking one; with it gone the reference refuses instead of shipping a
-    // binary that runs half the tests.
+    // Several suites under one root → ERROR: each gets its own implicit main(),
+    // so linking them together would emit two `main` symbols.
     TEST_F(SingleFileBuildTest, MultipleSuitesInOneRootAreAnError) {
         const std::string dir = "sfb_named_src";
         makeDir(dir);
@@ -300,10 +295,11 @@ namespace {
         drv.BuildCompilerInstance();
 
         EXPECT_FALSE(drv.Execute());
-        // Nothing linked: not a root-named binary, not a per-suite one either.
-        EXPECT_FALSE(exists(exeName("sfb_named_src")));
-        EXPECT_FALSE(exists(exeName("SfbFirst")));
-        EXPECT_FALSE(exists(exeName("SfbSecond")));
+        // Nothing linked. is_regular_file, not exists: on Linux the exe name has
+        // no extension and collides with the source directory (LibFlagOverridesMain).
+        EXPECT_FALSE(llvm::sys::fs::is_regular_file(exeName("sfb_named_src")));
+        EXPECT_FALSE(llvm::sys::fs::is_regular_file(exeName("SfbFirst")));
+        EXPECT_FALSE(llvm::sys::fs::is_regular_file(exeName("SfbSecond")));
     }
 
     // ── Import dependency graph (--src-dir) ─────────────────────────────────────

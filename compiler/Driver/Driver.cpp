@@ -561,15 +561,6 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         CodeGenOpts->DebugSymbols = true;
     }
 
-    // NOTE: there is no --test / --suite here any more. The CLI test RUNNER was
-    // removed in 0.13.15: the 0.14.x bootstrap runs every suite with the compiler
-    // each stage just produced (STAGE=N), so the seed never had to run them, and
-    // the reference kept a user-facing runner nothing exercised. What remains is
-    // the LANGUAGE: CodeGenModule emits a suite's implicit main() for every SUITE
-    // class it sees, so the reference still BUILDS a suite binary. What went with
-    // the runner is RUNNING it, selecting one suite by name, filtering a
-    // test-method, and enabling `test {}` blocks inside a plain main().
-
     // CodeGen options
     CodeGenOpts->CodeModel = TargetOpts->CodeModel;
 
@@ -591,11 +582,8 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
     }
 }
 
-void Driver::printVersion(bool full) {
-    if (full)
-        llvm::outs() << "Fly version " << FLY_VERSION << " (https://flylang.org)\n";
-    else
-        llvm::outs() << FLY_VERSION << "\n";
+void Driver::printVersion() {
+    llvm::outs() << "Fly version " << FLY_VERSION << " (https://flylang.org)\n";
 }
 
 bool Driver::Execute() {

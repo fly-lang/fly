@@ -77,10 +77,8 @@ namespace fly {
         /// scanning the top-level declarations of every .fly file under it:
         ///   - library builds (--lib/--lib-dyn) and non-linking stages
         ///     (--no-output, -c, --emit-*): every source file;
-        ///   - a linking build with NO main() and EXACTLY ONE suite: the file
-        ///     declaring it (main() takes precedence when both are present, and
-        ///     more than one suite under the root is an error — each would get
-        ///     its own implicit main());
+        ///   - a linking build with no main() and exactly one suite: the file
+        ///     declaring it (>1 suite is an error);
         ///   - otherwise: the single file declaring main() (0 or >1 is an error).
         /// Reports a diagnostic and returns false when discovery fails.
         bool DiscoverInputs();

@@ -710,7 +710,6 @@ void Frontend::AutoDetectOutputType(ASTModule *M) {
     }
 
     FrontendOptions &FO = CI.getFrontendOptions();
-    bool testMode = CI.getCodeGenOptions().TestMode; // API-set only (no CLI flag)
     bool hasOutput = !FO.getOutputFile().empty();
     // Discovery picks the stem when it knows a better name than the entry file's
     // (the suite name, or the source-root directory for library/multi-suite builds).
@@ -727,15 +726,8 @@ void Frontend::AutoDetectOutputType(ASTModule *M) {
         return;
     }
 
-    // Precedence: (suite | (main & TestMode)) → test exe; main → exe; else → lib.
-    // Declaring a `suite` is what selects the test executable now that --test is
-    // gone: the CLI can no longer set TestMode, so the `hasMain && testMode` arm
-    // only fires for an API caller (the CodeGen gtests) that set it itself.
-    if (hasSuite || (hasMain && testMode)) {
-        // TestMode is set for the `test {}` blocks the entry may contain — it does
-        // NOT drive the suite's implicit main(), which CodeGenModule emits for
-        // every SUITE class regardless. This runs before Sema (see Execute), so
-        // the Resolver sees the flag in time to keep those blocks.
+    // Precedence: suite → test exe; main → exe; else → lib.
+    if (hasSuite) {
         CI.getCodeGenOptions().TestMode = true;
         if (!hasOutput) FO.setOutputFile(stem);
         FLY_DEBUG_MSG("Auto-detected: test executable '" << stem << "'");
@@ -1040,26 +1032,10 @@ bool Frontend::DiscoverInputs() {
                                  << " suites=" << Suites.size());
     }
 
-    // Suites on a linking build are the entry points, and every file declaring one
-    // is compiled — a multi-suite tree links into ONE binary named after the root.
-    //
-    // What used to gate this was CodeGenOptions::TestMode, set by --test/--suite.
-    // With the CLI test runner gone (0.13.15) nothing can set TestMode BEFORE
-    // discovery — AutoDetectOutput only turns it on afterwards, from the parsed
-    // entry — so the gate is now structural: a linking root with suites and NO
-    // main() is a test executable. main() still wins when both are present, so a
-    // program with a stray *Suite.fly beside it still builds as the program.
-    // Non-linking stages fall through to the whole-directory rule below
-    // (compiling suites to objects needs no entry selection).
+    // A linking root with no main() and exactly one suite: that suite is the entry.
+    // Each suite gets its own implicit main(), so more than one cannot be linked
+    // together. Non-linking stages fall through to the whole-directory rule below.
     if (FO.LinkStep && MainFiles.empty() && !SuiteDecls.empty()) {
-        // EXACTLY ONE. CodeGenModule::EmitSuite gives every suite its own
-        // implicit main(), so a root with two suites emits two `main` symbols;
-        // the linker silently keeps one and the other suite never runs. That
-        // used to be masked by --suite <Name> picking a single suite, and the
-        // bare --suite form had exactly this bug (it "passed" while reporting
-        // only the first suite). With the selector gone the only honest answer
-        // is to refuse: the reference emits no all-suites test main. Build them
-        // one root at a time, or use the self-host, which does.
         if (SuiteDecls.size() > 1) {
             std::string List;
             for (const auto &SD : SuiteDecls) {

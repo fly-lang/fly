@@ -2091,7 +2091,6 @@ void CodeGenModule::EmitSuite(SemaClassType &Sema) {
         Builder->SetInsertPoint(ContBB);
     }
 
-    // Every test-method runs: the --test <Method> filter went with the runner.
     for (auto &[Name, M] : TestMethods) {
         Builder->CreateCall(MethodFn, {Builder->CreateGlobalStringPtr(Name, "suitemethod")});
         CallMethod(M);

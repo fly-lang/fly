@@ -91,12 +91,7 @@ namespace {
 
     // ─── Suite / test options ────────────────────────────────────────────────
 
-    // The CLI test RUNNER is gone (0.13.15): --suite (build the suite exe, run
-    // it, adopt its exit code) and --test (enable test {} blocks / filter a
-    // test-method) are no longer options. The 0.14.x bootstrap runs every suite
-    // with the compiler each stage produced, so nothing drove them here. Both
-    // must now be rejected as unknown options — a CLI error → Execute() false,
-    // exit 1 — exactly like the removed --shared above.
+    // --suite and --test are not options: rejected as unknown, like --shared.
     TEST_F(DriverTest, SuiteFlagIsGone) {
         const char *argv[] = {"fly", "--suite"};
         Driver driver(argv);
